@@ -1,6 +1,7 @@
 from __future__ import generators
 import os, stat
 from sets import Set
+import sha
 
 """A manifest is a string representing a directory tree, with the property
 that two trees will generate identical manifest strings if and only if:
@@ -45,10 +46,11 @@ def generate_manifest(root, ignore_set):
 		assert sub[1:]
 		leaf = os.path.basename(sub[1:])
 		if stat.S_ISREG(m):
+			d = sha.new(file(full).read()).hexdigest()
 			if m & 0111:
-				yield "X %s %s %s" % (info.st_mtime,info.st_size, leaf)
+				yield "X %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
 			else:
-				yield "F %s %s %s" % (info.st_mtime,info.st_size, leaf)
+				yield "F %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
 		else:
 			print "Unknown object", full
 	for x in recurse('/'): yield x
@@ -58,5 +60,9 @@ if __name__ == '__main__':
 	unpacked = sys.argv[1]
 	assert os.path.isdir(unpacked)
 	ignored = Set(['CVS', '.svn'])
+
+	digest = sha.new()
 	for line in generate_manifest(unpacked, ignored):
 		print line
+		digest.update(line + '\n')
+	print "sha1=" + digest.hexdigest()
