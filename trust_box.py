@@ -1,4 +1,5 @@
 import gtk
+from model import SafeException
 
 import gui
 import dialog
