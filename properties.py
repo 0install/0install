@@ -48,7 +48,7 @@ class Properties(Dialog):
 		description.set_line_wrap(True)
 		frame.add(description)
 
-		self.use_list = ImplementationList()
+		self.use_list = ImplementationList(interface)
 		vbox.pack_start(self.use_list, True, True, 0)
 		self.use_list.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 

@@ -1,6 +1,7 @@
 import gtk
 import model
 from policy import policy
+import writer
 
 def pretty_size(size):
 	if size is None:
@@ -37,7 +38,7 @@ SIZE = 6
 ITEM = 7
 
 class ImplementationList(gtk.ScrolledWindow):
-	def __init__(self):
+	def __init__(self, interface):
 		gtk.ScrolledWindow.__init__(self, None, None)
 		self.set_shadow_type(gtk.SHADOW_IN)
 
@@ -78,6 +79,7 @@ class ImplementationList(gtk.ScrolledWindow):
 						impl.user_stability = new
 					else:
 						impl.user_stability = None
+					writer.save_user_overrides(interface)
 					policy.recalculate()
 				popup_menu(bev, ['Unset (%s)' % upstream, None] + choices,
 					set)
