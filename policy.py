@@ -299,7 +299,7 @@ class Policy(object):
 		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
 		if not valid_sigs:
 			raise SafeException('No valid signatures found. Signatures:' +
-					''.join(['\n- ' + s for s in sigs]))
+					''.join(['\n- ' + str(s) for s in sigs]))
 
 		print "\nInterface:", interface.uri
 		print "The interface is correctly signed with the following keys:"

@@ -20,10 +20,16 @@ class ValidSig(Signature):
 class BadSig(Signature):
 	def __init__(self, keyid):
 		self.keyid = keyid
+	
+	def __str__(self):
+		return "BAD signature by " + self.keyid
 
 class ErrSig(Signature):
 	def __init__(self, keyid):
 		self.keyid = keyid
+
+	def __str__(self):
+		return "ERROR signature by " + self.keyid
 
 def check_stream(stream):
 	"""Pass stream through gpg --decrypt to get the data, the error text,
