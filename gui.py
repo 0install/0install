@@ -4,6 +4,7 @@ import download
 import gtk, os
 import sys
 import dialog
+from reader import InvalidInterface
 
 # Singleton Policy
 policy = None
@@ -40,11 +41,15 @@ class GUIPolicy(Policy):
 					self.check_signed_data(dl, data)
 				except download.DownloadError, ex:
 					dialog.alert(self.window,
-						"Error downloading interface '%s':\n%s" %
+						"Error downloading interface '%s':\n\n%s" %
+						(dl.interface.uri, ex))
+				except InvalidInterface, ex:
+					dialog.alert(self.window,
+						"Syntax error in downloaded interface '%s':\n\n%s" %
 						(dl.interface.uri, ex))
 				except BadSignature, ex:
 					dialog.alert(self.window,
-						"Error verifying downloaded interface '%s':\n%s" %
+						"Security error verifying downloaded interface '%s':\n\n%s" %
 						(dl.interface.uri, ex))
 				return False
 			dl.error_stream_data(got)
