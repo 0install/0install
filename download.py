@@ -1,4 +1,4 @@
-import tempfile, os
+import tempfile, os, sys
 from model import Interface
 import traceback
 
@@ -10,11 +10,15 @@ download_failed = "failed"
 
 downloads = {}		# URL -> Download
 
+class DownloadError(Exception):
+	pass
+
 class Download:
 	url = None
 	tempfile = None		# Stream for result
 	status = None		# download_*
 	interface = None
+	errors = None
 
 	child_pid = None
 	child_stderr = None
@@ -33,6 +37,7 @@ class Download:
 		self.tempfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
 		
 		error_r, error_w = os.pipe()
+		self.errors = ''
 
 		self.child_pid = os.fork()
 		if self.child_pid == 0:
@@ -54,7 +59,11 @@ class Download:
 		import time
 		try:
 			print "Child downloading", self.url
-			time.sleep(2)
+			time.sleep(1)
+			if not os.path.isfile(self.url):
+				print >>sys.stderr, "File '%s' does not " \
+					"exist!" % self.url
+				return
 			import shutil
 			shutil.copyfileobj(file(self.url), self.tempfile)
 			self.tempfile.flush()
@@ -63,6 +72,13 @@ class Download:
 			os._exit(0)
 		except:
 			traceback.print_exc()
+	
+	def error_stream_data(self, data):
+		"""Passed with result of os.read(error_stream, n). Can be
+		called multiple times, once for each read."""
+		assert data
+		assert self.status is download_fetching
+		self.errors += data
 
 	def error_stream_closed(self):
 		"""Ends a download. Status changes from fetching to checking.
@@ -75,11 +91,23 @@ class Download:
 		assert pid == self.child_pid
 		self.child_pid = None
 
-		self.tempfile.seek(0)
+		errors = self.errors
+		self.errors = None
+
+		if status and not errors:
+			errors = 'Download process exited with error status ' \
+				 'code 0x' + hex(status)
+
 		stream = self.tempfile
 		self.tempfile = None
-		self.status = download_checking
 
+		if errors:
+			self.status = download_failed
+			raise DownloadError(errors)
+		else:
+			self.status = download_checking
+
+		stream.seek(0)
 		return stream
 	
 	def abort(self):
