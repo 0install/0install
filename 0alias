@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+import os, sys
+from optparse import OptionParser
+
+from zeroinstall.injector import reader
+
+first_path = os.environ['PATH'].split(':')[0]
+
+parser = OptionParser(usage="usage: %%prog [options] alias interface\n\n"
+		"Creates a script in the first directory in $PATH\n"
+		"(%s) to run 'interface'." % first_path)
+parser.add_option("-V", "--version", help="display version information", action='store_true')
+parser.disable_interspersed_args()
+
+(options, args) = parser.parse_args()
+
+if options.version:
+	import zeroinstall
+	print "0alias (zero-install) " + zeroinstall.version
+	print "Copyright (C) 2005 Thomas Leonard"
+	print "This program comes with ABSOLUTELY NO WARRANTY,"
+	print "to the extent permitted by law."
+	print "You may redistribute copies of this program"
+	print "under the terms of the GNU General Public License."
+	print "For more information about these matters, see the file named COPYING."
+	sys.exit(0)
+
+if len(args) != 2:
+	parser.print_help()
+	sys.exit(1)
+
+alias, interface_uri = args
+
+if not os.access(first_path, os.W_OK):
+	print >>sys.stderr, ("Directory '%s' is not writable.\n" % first_path) + \
+		"0alias uses the first directory in $PATH, which is currently:\n" + \
+		os.environ['PATH']
+	sys.exit(1)
+
+script = os.path.join(first_path, alias)
+if os.path.exists(script):
+	print >>sys.stderr, "File '%s' already exists. Delete it first." % script
+	sys.exit(1)
+print "Creating alias", alias, "to", interface_uri
