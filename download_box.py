@@ -14,8 +14,8 @@ def download_and_run(mainwindow, prog_args):
 	downloads = []
 	for iface, impl in policy.get_uncached_implementations():
 		if not impl.download_sources:
-			raise SafeException("Implementation " + impl + " of "
-				"interface " + iface + " cannot be "
+			raise SafeException("Implementation " + impl.id + " of "
+				"interface " + iface.get_name() + " cannot be "
 				"downloaded (no download locations given in "
 				"interface!")
 		dl = download.begin_impl_download(impl.download_sources[0],
