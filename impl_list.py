@@ -31,34 +31,16 @@ class ImplementationList(gtk.ScrolledWindow):
 		self.tree_view = gtk.TreeView(self.model)
 
 		text = gtk.CellRendererText()
+		toggle = gtk.CellRendererToggle()
 
-		column = gtk.TreeViewColumn('Use', text,
-					  text = USE)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('Version', text,
-					  text = VERSION)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('Stability', text,
-					  text = STABILITY)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('C', gtk.CellRendererToggle(),
-					  active = CACHED)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('Arch', text,
-					  text = ARCH)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('Size', text,
-					  text = SIZE)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('Location', text,
-					  text = PATH)
-		self.tree_view.append_column(column)
+		for column in (gtk.TreeViewColumn('Use', text, text = USE),
+			       gtk.TreeViewColumn('Version', text, text = VERSION),
+			       gtk.TreeViewColumn('Stability', text, text = STABILITY),
+			       gtk.TreeViewColumn('C', toggle, active = CACHED),
+			       gtk.TreeViewColumn('Arch', text, text = ARCH),
+			       gtk.TreeViewColumn('Size', text, text = SIZE),
+			       gtk.TreeViewColumn('Location', text, text = PATH)):
+			self.tree_view.append_column(column)
 
 		self.add(self.tree_view)
 	
