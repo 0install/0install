@@ -1,2 +1,2 @@
 #!/bin/sh
-0launch-auto http://zero-install.sourceforge.net/2005/interfaces/injector-gui "$@"
+0launch http://zero-install.sourceforge.net/2005/interfaces/injector-gui "$@"
