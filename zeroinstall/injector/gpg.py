@@ -64,7 +64,8 @@ def check_stream(stream):
 				os.dup2(data.fileno(), 1)
 				os.dup2(errors.fileno(), 2)
 				os.execlp('gpg', 'gpg', '--decrypt',
-					   '--max-output', str(1024 * 1024),
+					   # Not all versions support this:
+					   #'--max-output', str(1024 * 1024),
 					   '--batch',
 					   '--status-fd', str(status_w))
 			except:
