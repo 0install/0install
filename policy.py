@@ -178,7 +178,7 @@ class Policy(object):
 		upstream_dir = basedir.save_config_path(config_site, config_prog, 'interfaces')
 		cached = os.path.join(upstream_dir, escape(interface.uri))
 
-		new_xml = file(interface.uri).read()
+		new_xml = stream.read()
 
 		if os.path.exists(cached):
 			old_xml = file(cached).read()
