@@ -1,9 +1,5 @@
 #!/usr/bin/env python
-import sys, os
-from xml.dom import minidom
-
-from interface import get_interface
-import run
+import os, sys
 
 if len(sys.argv) < 3:
 	print "Usage: injector PROG INTERFACE [ARGS]"
@@ -11,31 +7,17 @@ if len(sys.argv) < 3:
 	print "injector bin/myprog /uri/0install/site/myprog.xml --help"
 	sys.exit(1)
 prog = sys.argv[1]
-interface = sys.argv[2]
+interface_uri = sys.argv[2]
 prog_args = sys.argv[3:]
 interactive = bool(os.environ.get('INJECTOR_INTERACTIVE', None))
 
-interface = os.path.abspath(interface)
+import model
 
-if not interface.startswith('/'):
-	print "Interface must be an absolute pathname (starting with /)"
-	sys.exit(1)
-	
-if not os.path.exists(interface):
-	print "Interface file '%s' not found" % interface
-	sys.exit(1)
+interface = model.get_interface(interface_uri)
 
-#print "Looking for an implementation of", interface
+import gui, gtk
 
-iface = get_interface(interface)
+window = gui.MainWindow(interface)
+window.show()
+gtk.main()
 
-if interactive:
-	import gui
-	policy = gui.InteractivePolicy()
-else:
-	from policy import Policy
-	policy = Policy()
-
-selection = policy.choose_best(iface)
-
-run.execute(selection, iface, prog, prog_args)
