@@ -81,7 +81,6 @@ wait_for_downloads()
 try:
 	execute()
 except model.SafeException, ex:
-	#print >>sys.stderr, ex
 	if policy.network_use != model.network_full:
 		print >>sys.stderr, "Error. Retrying with network use = full"
 		policy.network_use = model.network_full	
@@ -90,3 +89,5 @@ except model.SafeException, ex:
 			execute()
 		except model.SafeException, ex:
 			print >>sys.stderr, ex
+	else:
+		print >>sys.stderr, ex

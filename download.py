@@ -1,5 +1,5 @@
 import tempfile, os, sys
-from model import Interface, DownloadSource
+from model import Interface, DownloadSource, SafeException
 import traceback
 from urllib2 import urlopen
 
@@ -55,11 +55,9 @@ class Download:
 	
 	def download_as_child(self):
 		try:
-			#import time
 			import shutil
-			print "Child downloading", self.url
+			#print "Child downloading", self.url
 			if self.url.startswith('/'):
-				#time.sleep(1)
 				if not os.path.isfile(self.url):
 					print >>sys.stderr, "File '%s' does not " \
 						"exist!" % self.url
@@ -135,6 +133,16 @@ class ImplementationDownload(Download):
 		Download.__init__(self, source.url)
 		self.source = source
 	
+	def error_stream_closed(self):
+		stream = Download.error_stream_closed(self)
+		size = os.fstat(stream.fileno()).st_size
+		if size != self.source.size:
+			raise SafeException('Downloaded archive has incorrect size.\n'
+					'URL: %s\n'
+					'Expected: %d bytes\n'
+					'Received: %d bytes' % (self.url, self.source.size, size))
+		return stream
+	
 def begin_iface_download(interface, force):
 	"""Start downloading interface.
 	If a Download object already exists (any state; in progress, failed or
@@ -143,7 +151,7 @@ def begin_iface_download(interface, force):
 	return _begin_download(InterfaceDownload(interface), force)
 
 def begin_impl_download(source, force = False):
-	print "Need to downlaod", source.url
+	#print "Need to downlaod", source.url
 	return _begin_download(ImplementationDownload(source), force)
 	
 def _begin_download(new_dl, force):
