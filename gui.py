@@ -1,6 +1,7 @@
+import gtk, os, gobject
+
 from policy import Policy
 import download
-import gtk, os
 import dialog
 from reader import InvalidInterface
 from model import SafeException
@@ -32,7 +33,7 @@ class GUIPolicy(Policy):
 				self.n_downloads -= 1
 				if self.n_downloads == 0:
 					self.window.progress.hide()
-					gtk.timeout_remove(self.pulse)
+					gobject.timeout_remove(self.pulse)
 					self.pulse = None
 				try:
 					data = dl.error_stream_closed()
@@ -53,12 +54,12 @@ class GUIPolicy(Policy):
 			dl.error_stream_data(got)
 			return True
 			
-		gtk.input_add(error_stream, gtk.gdk.INPUT_READ, error_ready)
+		gobject.io_add_watch(error_stream, gobject.IO_IN, error_ready)
 
 		self.n_downloads += 1
 		if self.pulse is None:
 			progress = self.window.progress
-			self.pulse = gtk.timeout_add(50, lambda: progress.pulse() or True)
+			self.pulse = gobject.timeout_add(50, lambda: progress.pulse() or True)
 			progress.show()
 	
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
