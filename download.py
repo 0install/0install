@@ -11,7 +11,7 @@ download_failed = "failed"
 
 downloads = {}		# URL -> Download
 
-class DownloadError(Exception):
+class DownloadError(SafeException):
 	pass
 
 class Download:

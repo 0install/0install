@@ -295,7 +295,12 @@ class Policy(object):
 		When done, call update_interface_if_trusted()."""
 		import gpg
 		if not sigs:
-			raise SafeException('No signature on %s!' % interface.uri)
+			raise SafeException('No signature on %s!\n'
+					    'Possible reasons:\n'
+					    '- You entered the interface URL incorrectly.\n'
+					    '- The server delivered an error; try viewing the URL in a web browser.\n'
+					    '- The developer gave you the URL of the unsigned interface by mistake.'
+					    % interface.uri)
 		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
 		if not valid_sigs:
 			raise SafeException('No valid signatures found. Signatures:' +
