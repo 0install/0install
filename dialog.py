@@ -17,3 +17,12 @@ class Dialog(gtk.Dialog):
 		self.connect('destroy', destroyed)
 
 		n_windows += 1
+
+def alert(parent, message):
+	box = gtk.MessageDialog(parent, gtk.DIALOG_DESTROY_WITH_PARENT |
+					gtk.DIALOG_NO_SEPARATOR,
+				gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
+				message)
+	box.set_position(gtk.WIN_POS_CENTER)
+	box.connect('response', lambda b, r: box.destroy())
+	box.show()

@@ -3,6 +3,7 @@ from policy import Policy
 import download
 import gtk, os
 import sys
+import dialog
 
 # Singleton Policy
 policy = None
@@ -34,14 +35,19 @@ class GUIPolicy(Policy):
 					self.window.progress.hide()
 					gtk.timeout_remove(self.pulse)
 					self.pulse = None
-				data = dl.error_stream_closed()
 				try:
+					data = dl.error_stream_closed()
 					self.check_signed_data(dl, data)
+				except download.DownloadError, ex:
+					dialog.alert(self.window,
+						"Error downloading interface '%s':\n%s" %
+						(dl.interface.uri, ex))
 				except BadSignature, ex:
-					print >>sys.stderr, ex
+					dialog.alert(self.window,
+						"Error verifying downloaded interface '%s':\n%s" %
+						(dl.interface.uri, ex))
 				return False
-			print "Errors: '%s'" % got
-			print "(from %s)" % dl.url
+			dl.error_stream_data(got)
 			return True
 			
 		gtk.input_add(error_stream, gtk.gdk.INPUT_READ, error_ready)
