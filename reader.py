@@ -1,6 +1,7 @@
 from xml.dom import Node, minidom
 import sys
 import shutil
+import time
 from logging import debug
 
 import basedir
@@ -76,8 +77,23 @@ def update_user_overrides(interface):
 		update(interface, user, user_overrides = True)
 
 def check_readable(interface_uri, source):
+	"""Returns the modified time in 'source'. If syntax is incorrect,
+	throws an exception."""
 	tmp = Interface(interface_uri)
-	update(tmp, source)
+	try:
+		update(tmp, source)
+	except SafeException, ex:
+		raise SafeException("Error loading interface:\n"
+					"Interface URI: %s\n"
+					"Local file: %s\n%s" %
+					(interface_uri, source, ex))
+	return tmp.last_modified
+
+def parse_time(t):
+	try:
+		return time.strptime(t, '%Y-%m-%d %H:%M:%S')
+	except Exception, ex:
+		raise SafeException("Date not in the form 'YYYY-MM-DD HH:MM:SS' (all times in UTC)\n%s" % ex)
 
 def update(interface, source, user_overrides = False):
 	assert isinstance(interface, Interface)
@@ -92,6 +108,11 @@ def update(interface, source, user_overrides = False):
 	interface.name = interface.name or get_singleton_text(root, XMLNS_IFACE, 'name', user_overrides)
 	interface.description = interface.description or get_singleton_text(root, XMLNS_IFACE, 'description', user_overrides)
 	interface.summary = interface.summary or get_singleton_text(root, XMLNS_IFACE, 'summary', user_overrides)
+
+	time_str = root.getAttribute('last-modified')
+	if not time_str:
+		raise SafeException("Missing last-modified attribute on root element.")
+	interface.last_modified = parse_time(time_str)
 
 	if not user_overrides:
 		canonical_name = root.getAttribute('uri')

@@ -11,6 +11,10 @@ import download
 
 _interfaces = {}	# URI -> Interface
 
+def pretty_time(t):
+	import time
+	return time.strftime('%Y-%m-%d %H:%M:%S UTC', t)
+
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use', 'updates']
@@ -172,13 +176,26 @@ class Policy(object):
 			old_xml = file(cached).read()
 			if old_xml == new_xml:
 				debug("No change")
+				return
 			else:
 				self.confirm_diff(old_xml, new_xml, interface.uri)
 
 		stream = file(cached + '.new', 'w')
 		stream.write(new_xml)
 		stream.close()
-		reader.check_readable(interface.uri, cached + '.new')
+		new_mtime = reader.check_readable(interface.uri, cached + '.new')
+		assert new_mtime
+		if interface.last_modified:
+			if new_mtime < interface.last_modified:
+				raise SafeException("New interface's modification time is before old "
+						    "version!"
+						    "\nOld time: " + pretty_time(interface.last_modified) +
+						    "\nNew time: " + pretty_time(new_mtime) + 
+						    "\nRefusing update (leaving new copy as " +
+						    cached + ".new)")
+			if new_mtime == interface.last_modified:
+				raise SafeException("Interface has changed, but modification time "
+						    "hasn't! Refusing update.")
 		os.rename(cached + '.new', cached)
 		debug("Saved as " + cached)
 		
@@ -221,7 +238,7 @@ class Policy(object):
 		iface_xml = data.read()
 		data.close()
 		if not self.update_interface_if_trusted(download.interface, sigs, iface_xml):
-			self.confirm_trust_keys(download.interface, sigs)
+			self.confirm_trust_keys(download.interface, sigs, iface_xml)
 
 	def update_interface_if_trusted(self, interface, sigs, xml):
 		for s in sigs:
@@ -230,7 +247,7 @@ class Policy(object):
 				return True
 		return False
 	
-	def confirm_trust_keys(self, interface, sigs):
+	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		"""We don't trust any of the signatures yet. Ask the user.
 		When done, call update_interface_if_trusted()."""
 		import gpg
@@ -255,7 +272,7 @@ class Policy(object):
 			print "Trusting", key.fingerprint
 			trust_db.trust_key(key.fingerprint)
 
-		if not self.update_interface_if_trusted(interface, sigs, xml):
+		if not self.update_interface_if_trusted(interface, sigs, iface_xml):
 			raise Exception('Bug: still not trusted!!')
 
 	def confirm_diff(self, old, new, uri):
