@@ -154,3 +154,5 @@ def escape(uri):
 		lambda match: '%%%02x' % ord(match.group(0)),
 		uri.encode('utf-8'))
 
+class SafeException(Exception):
+	pass

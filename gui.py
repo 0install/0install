@@ -3,7 +3,7 @@ from iface_browser import InterfaceBrowser
 import help_box
 from dialog import Dialog
 from policy import policy
-from model import stable, testing, network_levels
+from model import stable, testing, network_levels, SafeException
 
 gtk.rc_parse_string('style "scrolled" { '
 		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
@@ -84,8 +84,15 @@ class MainWindow(Dialog):
 				self.destroy()
 			elif resp == gtk.RESPONSE_OK:
 				import run
-				run.execute(root_interface, prog, prog_args)
-				self.destroy()
+				try:
+					run.execute(root_interface, prog, prog_args)
+					self.destroy()
+				except SafeException, ex:
+					box = gtk.MessageDialog(self, gtk.DIALOG_MODAL,
+							gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
+							str(ex))
+					box.run()
+					box.destroy()
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 		self.connect('response', response)

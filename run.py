@@ -4,7 +4,7 @@ from policy import policy
 from model import *
 
 def do_env_binding(binding, iface):
-	impl = policy.implementation[iface]
+	impl = get_impl(iface)
 	extra = os.path.join(impl.path, binding.insert)
 	if binding.name in os.environ:
 		os.environ[binding.name] = extra + ':' + os.environ[binding.name]
@@ -13,7 +13,7 @@ def do_env_binding(binding, iface):
 
 def execute(iface, prog, prog_args):
 	def setup_bindings(i):
-		impl = policy.implementation[i]
+		impl = get_impl(i)
 		for dep in impl.dependencies.values():
 			dep_iface = dep.get_interface()
 			for b in dep.bindings:
@@ -28,3 +28,11 @@ def execute(iface, prog, prog_args):
 		print "(implementation '%s' + program '%s')" % (policy.implementation[iface].path, prog)
 		sys.exit(1)
 	os.execl(prog_path, prog_path, *prog_args)
+
+def get_impl(interface):
+	try:
+		return policy.implementation[interface]
+	except KeyError:
+		raise SafeException("We don't have enough information to "
+				    "run this program yet. "
+				    "Need to download:\n%s" % interface.uri)
