@@ -48,12 +48,56 @@ class IFaceBox(gtk.VBox):
 				iface_desc.set_text('')
 		selection.connect('changed', update_interface)
 
+def get_menu_choice(bev, choices, callback):
+	menu = gtk.Menu()
+	for i in choices:
+		item = gtk.MenuItem(i)
+		item.connect('activate', lambda item, i = i: callback(i))
+		item.show()
+		menu.append(item)
+	menu.popup(None, None, None, bev.button, bev.time)
+
+
 class ImplBox(gtk.HBox):
 	def __init__(self, selection):
 		gtk.HBox.__init__(self, False, 0)
 		self.set_border_width(4)
 
-		impl_model = gtk.ListStore(str, str, bool)
+		version_model = gtk.ListStore(str, str)
+
+		swin = gtk.ScrolledWindow()
+		self.pack_start(swin, False, True, 0)
+		swin.set_shadow_type(gtk.SHADOW_IN)
+		swin.set_policy(gtk.POLICY_NEVER, gtk.POLICY_ALWAYS)
+		version_tree = gtk.TreeView(version_model)
+		swin.add(version_tree)
+
+		text = gtk.CellRendererText()
+
+		use_column = gtk.TreeViewColumn(_('Use'), text, text = 0)
+		version_tree.append_column(use_column)
+
+		column = gtk.TreeViewColumn(_('Version'), text, text = 1)
+		version_tree.append_column(column)
+
+		def version_button(tree, bev):
+			if bev.button != 1:
+				return False
+			pos = tree.get_path_at_pos(int(bev.x), int(bev.y))
+			if not pos:
+				return False
+			path, col, x, y = pos
+			if col is not use_column:
+				return False
+			version = version_model[path][1]
+			def set_version_use(use):
+				print version, use
+			get_menu_choice(bev, ['Preferred', 'Normal', 'Disabled'],
+					set_version_use)
+		version_tree.connect('button-press-event', version_button)
+
+
+		impl_model = gtk.ListStore(str, str)
 
 		swin = gtk.ScrolledWindow()
 		self.pack_start(swin, True, True, 0)
@@ -62,30 +106,48 @@ class ImplBox(gtk.HBox):
 		impl = gtk.TreeView(impl_model)
 		swin.add(impl)
 
-		text = gtk.CellRendererText()
-		column = gtk.TreeViewColumn(_('Version'), text, text = 0)
+		column = gtk.TreeViewColumn(_('Use'), text, text = 0)
 		impl.append_column(column)
-
-		toggle = gtk.CellRendererToggle()
-		column = gtk.TreeViewColumn(_('Disable'), toggle, active = 2)
-		impl.append_column(column)
-
 		column = gtk.TreeViewColumn(_('Implementation'), text, text = 1)
 		impl.append_column(column)
 
 		def update_interface(selection):
 			store, itr = selection.get_selected()
 			impl_model.clear()
+			version_model.clear()
 			if not itr:
 				return
 			iface = store[itr][DepBrowser.INTERFACE]
 			selected_version = store[itr][DepBrowser.VERSION]
+			versions = {}
 			for impl in iface.implementations:
-				itr = impl_model.append()
-				impl_model[itr][0] = impl.get_version()
-				impl_model[itr][1] = impl.path
+				versions[tuple(impl.version)] = True
+			versions = versions.keys()
+			versions.sort()
+			for v in versions:
+				itr = version_model.append()
+				version_str = '.'.join(map(str, v))
+				version_model[itr][1] = version_str
+				if version_str == selected_version:
+					version_tree.get_selection().select_iter(itr)
+					version_tree.scroll_to_cell(version_model.get_path(itr))
 
 		selection.connect('changed', update_interface)
+
+		def update_version(ver_selection):
+			ver_store, ver_itr = ver_selection.get_selected()
+			impl_model.clear()
+			if not ver_itr:
+				return
+			iface_store, iface_itr = selection.get_selected()
+
+			iface = iface_store[iface_itr][DepBrowser.INTERFACE]
+			selected_version = ver_store[ver_itr][1]
+			for impl in iface.implementations:
+				if impl.get_version() == selected_version:
+					itr = impl_model.append()
+					impl_model[itr][1] = impl.path
+		version_tree.get_selection().connect('changed', update_version)
 
 class DepBrowser(gtk.Dialog):
 	# Columns in model
@@ -97,6 +159,7 @@ class DepBrowser(gtk.Dialog):
 	def __init__(self):
 		gtk.Dialog.__init__(self)
 		self.set_title(_('Injector dependancy browser'))
+		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		self.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
 		self.set_default_response(gtk.RESPONSE_OK)
@@ -169,6 +232,23 @@ class InteractivePolicy(Policy):
 
 		w.set_selection(iface, selection)
 
-		if w.run() == gtk.RESPONSE_OK:
-			return selection
-		sys.exit(0)
+		w.zero_done = False
+
+		def response(box, resp):
+			if resp == gtk.RESPONSE_HELP:
+				import help
+				help.show_help()
+			elif resp == gtk.RESPONSE_OK:
+				w.destroy()
+				w.zero_done = True
+				gtk.main_quit()
+			else:
+				sys.exit(0)
+		w.connect('response', response)
+
+		w.show()
+
+		while True:
+			gtk.main()
+			if w.zero_done:
+				return selection
