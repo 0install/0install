@@ -1,7 +1,7 @@
 import tempfile, os, sys
 from model import Interface, DownloadSource, SafeException
 import traceback
-from urllib2 import urlopen, HTTPError
+from urllib2 import urlopen, HTTPError, URLError
 
 download_starting = "starting"	# Waiting for UI to start it
 download_fetching = "fetching"	# In progress
@@ -63,7 +63,6 @@ class Download:
 						"exist!" % self.url
 					return
 				src = file(self.url)
-				#print "Done :-)"
 			elif self.url.startswith('http:'):
 				src = urlopen(self.url)
 			else:
@@ -73,7 +72,7 @@ class Download:
 			self.tempfile.flush()
 			
 			os._exit(0)
-		except HTTPError, ex:
+		except (HTTPError, URLError), ex:
 			print >>sys.stderr, ex
 		except:
 			traceback.print_exc()
