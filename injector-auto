@@ -13,15 +13,16 @@ prog = sys.argv[2]
 prog_args = sys.argv[3:]
 
 import model
-from policy import policy
+from policy import Policy
 import download
-import ui
 
 import shutil
 import sys
 import gpg
 
-policy.set_root_interface(interface_uri, ui.UI(policy))
+# Singleton instance used everywhere...
+policy = Policy(interface_uri)
+policy.recalculate()
 
 while True:
 	starting = [d for d in policy.downloads.values() if d.status == download.download_starting]
@@ -42,7 +43,7 @@ while True:
 		dl.status = download.download_failed
 	else:
 		try:
-			policy.ui.check_signed_data(dl)
+			policy.check_signed_data(dl)
 		except gpg.BadSignature, ex:
 			print >>sys.stderr, "\n*** ERROR processing downloaded interface!"
 			print >>sys.stderr, "Interface:", dl.url
@@ -55,7 +56,7 @@ try:
 	run.execute(policy, prog, prog_args)
 except model.SafeException, ex:
 	print >>sys.stderr, ex
-	if policy.network_use != network_full:
+	if policy.network_use != model.network_full:
 		print >>sys.stderr, "Retrying with network use = full"
 		policy.network_use = model.network_full	
 		policy.recalculate()

@@ -14,17 +14,17 @@ _interfaces = {}	# URI -> Interface
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use', 'updates',
-		     'ui', 'downloads']
+		     'downloads']
 
-	def __init__(self):
-		self.root = None
+	def __init__(self, root):
+		assert isinstance(root, (str, unicode))
+		self.root = root
 		self.implementation = {}		# Interface -> Implementation
 		self.watchers = []
 		self.help_with_testing = False
 		self.network_use = network_full
 		self.updates = []
 		self.downloads = {}		# URI -> Download
-		self.ui = None
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
@@ -34,13 +34,6 @@ class Policy(object):
 							'help_with_testing')
 			self.network_use = config.get('global', 'network_use')
 			assert self.network_use in network_levels
-
-	def set_root_interface(self, root, ui):
-		assert isinstance(root, (str, unicode))
-		assert ui
-		self.root = root
-		self.ui = ui
-		self.recalculate()
 
 	def save_config(self):
 		config = ConfigParser.ConfigParser()
@@ -176,7 +169,7 @@ class Policy(object):
 		# After a while, sets status to download_checking, then
 		# download_compete and calls update_interface_from_network()
 		# Or, sets status to failed.
-		self.ui.start_download(dl)
+		self.start_download(dl)
 	
 	def update_interface_from_network(self, interface, stream):
 		"""stream is the new XML (after the signature has been checked and
@@ -194,7 +187,7 @@ class Policy(object):
 			if old_xml == new_xml:
 				debug("No change")
 			else:
-				self.ui.confirm_diff(old_xml, new_xml, interface.uri)
+				self.confirm_diff(old_xml, new_xml, interface.uri)
 
 		stream = file(cached + '.new', 'w')
 		stream.write(new_xml)
@@ -218,7 +211,7 @@ class Policy(object):
 		except KeyError, ex:
 			if interface.implementations:
 				offline = ""
-				if policy.network_use == network_offline:
+				if self.network_use == network_offline:
 					offline = "\nThis may be because 'Network Use' is set to Off-line."
 				raise SafeException("No usable implementation found for '%s'.%s" %
 						(interface.name, offline))
@@ -234,6 +227,20 @@ class Policy(object):
 						yield idep
 		return walk(self.get_interface(self.root))
 
-# Singleton instance used everywhere...
-policy = Policy()
-policy.save_config()
+	def start_download(self, download):
+		print "New download", download
+
+	def check_signed_data(self, download):
+		"""Downloaded data is a GPG-signed message. Check that the signature is trusted
+		and call self.update_interface_from_network() when done."""
+		import gpg
+		data = gpg.check_stream(download.get_result())
+		self.update_interface_from_network(download.interface, data)
+
+	def confirm_diff(self, old, new, uri):
+		import difflib
+		diff = difflib.unified_diff(old.split('\n'), new.split('\n'), uri, "",
+						"", "", 2, "")
+		print "Updates:"
+		for line in diff:
+			print line
