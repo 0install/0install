@@ -53,11 +53,12 @@ def update(interface):
 			if item.localName == 'group':
 				process_group(item, item_attrs)
 			elif item.localName == 'implementation':
-				version = interface.get_version(item_attrs.version)
 				size = item.getAttribute('size')
 				if size: size = long(size)
 				else: size = None
-				impl = version.get_impl(size, item_attrs.path)
+				impl = interface.get_impl(item_attrs.path,
+							  item_attrs.version,
+							  size)
 				impl.arch = item_attrs.arch
 				impl.may_set_stability(item_attrs.stability)
 

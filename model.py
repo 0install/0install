@@ -27,11 +27,10 @@ class Implementation(object):
 
 	def __init__(self, version, size, path):
 		assert path
-		assert isinstance(version, Version)
 		self.path = path
-		self.version = version
 		self.stability = 'testing'
 		self.size = size
+		self.version = map(int, version.split('.'))
 	
 	def may_set_stability(self, stability):
 		assert stability in ('testing', 'stable', 'buggy')
@@ -54,33 +53,17 @@ class Implementation(object):
 	def __str__(self):
 		return self.path
 
-class Version(object):
-	"""Implementations of an Interface are grouped into numbered Versions"""
-	__slots__ = ['number', 'implementations']
-
-	def __init__(self, name):
-		self.number = map(int, name.split('.'))
-		self.implementations = {}
-	
 	def __cmp__(self, other):
-		return cmp(other.number, self.number)
+		return cmp(other.version, self.version)
 	
-	def __str__(self):
-		return '.'.join(map(str, self.number))
-
-	def get_impl(self, size, path):
-		if path not in self.implementations:
-			self.implementations[path] = Implementation(self, size, path)
-		return self.implementations[path]
-
 class Interface(object):
 	"""An Interface represents some contract of behaviour."""
-	__slots__ = ['uri', 'versions', 'name', 'dependencies', 'uptodate', 'description', 'summary']
+	__slots__ = ['uri', 'implementations', 'name', 'dependencies', 'uptodate', 'description', 'summary']
 
 	def __init__(self, uri):
 		assert uri
 		self.uri = uri
-		self.versions = {}
+		self.implementations = {}	# Path -> Implementation
 		self.name = None
 		self.dependencies = []
 		self.uptodate = False
@@ -90,11 +73,11 @@ class Interface(object):
 	
 	def __repr__(self):
 		return "<Interface %s>" % self.uri
-
-	def get_version(self, version_name):
-		if version_name not in self.versions:
-			self.versions[version_name] = Version(version_name)
-		return self.versions[version_name]
+	
+	def get_impl(self, path, version, size):
+		if path not in self.implementations:
+			self.implementations[path] = Implementation(version, size, path)
+		return self.implementations[path]
 
 _interfaces = {}	# URI -> Interface
 

@@ -92,7 +92,7 @@ class Properties(Dialog):
 		self.interface = interface
 		self.set_title('Interface ' + interface.get_name())
 		self.set_default_size(gtk.gdk.screen_width() / 2,
-				      gtk.gdk.screen_height() / 4)
+				      gtk.gdk.screen_height() / 3)
 
 		vbox = gtk.VBox(False, 4)
 		vbox.set_border_width(4)
@@ -124,11 +124,8 @@ class Properties(Dialog):
 		frame.add(description)
 
 		use_list = UseList()
-		versions = interface.versions.values()
-		versions.sort()
-		impls = []
-		for v in versions:
-			impls += v.implementations.values()
+		impls = interface.implementations.values()
+		impls.sort()
 		use_list.set_items(impls)
 		vbox.pack_start(use_list, True, True, 0)
 		use_list.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
@@ -177,20 +174,25 @@ Location is the path that will be used for the implementation when the program i
 ('Sort order', """
 The implementations are listed in the injector's currently preferred order (the one \
 at the top will be actually be used). Usable implementations all come before unusable \
-ones. Unusable ones are those marked as 'avoid', those for incompatible
-architectures, those marked as 'buggy' and, in off-line mode, uncached ones. Unusable
+ones.
+
+Unusable ones are those marked as 'avoid', those for incompatible \
+architectures, those marked as 'buggy', versions explicitly marked as incompatible with \
+another interface you are using and, in off-line mode, uncached implementations. Unusable \
 implementations are shown shaded.
 
 For the usable implementations, the order is as follows:
 
-- 'prefer' versions all come before normal versions.
+- 'prefer' implementations all come before normal ones.
 
-- If the option to prefer 'stable' versions is set, stable versions comes before
-  'testing' ones.
+- If the option to prefer 'stable' implementations is set, 'stable' ones come before \
+'testing'.
 
 - Then, higher-numbered versions come before low-numbered ones.
 
 - Then cached come before non-cached.
 
-- Finally, the closest compatible architecture is preferred.
+- The closest compatible architecture is preferred.
+
+- The smallest implementation is preferred.
 """))
