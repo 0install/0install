@@ -11,8 +11,10 @@ class AutoPolicy(policy.Policy):
 	monitored_downloads = None
 	verbose = None
 	allow_downloads = False
+	download_only = False
 
-	def __init__(self, interface_uri, allow_downloads, quiet, verbose = False):
+	def __init__(self, interface_uri, allow_downloads, quiet, verbose = False,
+			download_only = False):
 		if not interface_uri.startswith('http:'):
 			interface_uri = os.path.realpath(interface_uri)	# For testing
 		policy.Policy.__init__(self, interface_uri)
@@ -20,6 +22,7 @@ class AutoPolicy(policy.Policy):
 		self.allow_downloads = allow_downloads
 		self.monitored_downloads = []
 		self.verbose = verbose
+		self.download_only = download_only
 
 	def monitor_download(self, dl):
 		if not self.allow_downloads:
@@ -62,4 +65,7 @@ class AutoPolicy(policy.Policy):
 	def execute(self, prog_args):
 		self.start_downloading_impls()
 		self.wait_for_downloads()
-		run.execute(self, prog_args, verbose = self.verbose)
+		if not self.download_only:
+			run.execute(self, prog_args, verbose = self.verbose)
+		elif self.verbose:
+			print "Downloads done (download-only mode)"

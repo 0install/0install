@@ -7,6 +7,7 @@ from zeroinstall.injector import model, download, autopolicy, run
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]")
 parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
+parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 parser.add_option("-q", "--quiet", help="suppress informational messages", action='store_true')
@@ -63,13 +64,18 @@ if options.gui is None and os.environ.get('DISPLAY', None):
 if options.gui:
 	interface_uri = 'http://0install.net/2005/interfaces/injector-gui'
 	prog_args = args[:]
+	if options.download_only:
+		options.download_only = False
+		prog_args.insert(0, '-d')
 else:
 	interface_uri = args[0]
 	prog_args = args[1:]
 
 # Singleton instance used everywhere...
-policy = autopolicy.AutoPolicy(interface_uri, True, quiet = bool(options.quiet),
-				verbose = bool(options.verbose))
+policy = autopolicy.AutoPolicy(interface_uri, True,
+				quiet = bool(options.quiet),
+				verbose = bool(options.verbose),
+				download_only = bool(options.download_only))
 policy.recalculate()
 
 if options.refresh:

@@ -2,7 +2,7 @@
 import os, sys
 from optparse import OptionParser
 
-from zeroinstall.injector import reader
+from zeroinstall.injector import reader, model
 
 first_path = os.environ['PATH'].split(':')[0]
 
@@ -31,6 +31,16 @@ if len(args) != 2:
 
 alias, interface_uri = args
 
+interface = model.Interface(interface_uri)
+if not reader.update_from_cache(interface):
+	print >>sys.stderr, "Interface '%s' not currently in cache. Fetching..." % interface_uri
+	if os.spawnlp(os.P_WAIT, '0launch', '0launch', '-g', interface_uri):
+		print >>sys.stderr, "0launch failed"
+		sys.exit(1)
+	if not reader.update_from_cache(interface):
+		print >>sys.stderr, "Interface still not in cache. Aborting."
+		sys.exit(1)
+
 if not os.access(first_path, os.W_OK):
 	print >>sys.stderr, ("Directory '%s' is not writable.\n" % first_path) + \
 		"0alias uses the first directory in $PATH, which is currently:\n" + \
@@ -41,4 +51,5 @@ script = os.path.join(first_path, alias)
 if os.path.exists(script):
 	print >>sys.stderr, "File '%s' already exists. Delete it first." % script
 	sys.exit(1)
+
 print "Creating alias", alias, "to", interface_uri
