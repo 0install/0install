@@ -2,13 +2,13 @@ import time
 import sys
 from logging import debug, info
 
+from zeroinstall import zerostore
 from model import *
 import basedir
 from namespaces import *
 import ConfigParser
 import reader
 import download
-import zerostore
 
 #from logging import getLogger, DEBUG
 #getLogger().setLevel(DEBUG)

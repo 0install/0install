@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import os, sys
+import shutil
+from zeroinstall.injector import model, download, gpg, policy, download, gpg, run
 
 __builtins__._ = lambda x: x
 
@@ -13,19 +15,11 @@ if not interface_uri.startswith('http:'):
 	interface_uri = os.path.realpath(interface_uri)	# For testing
 prog_args = sys.argv[2:]
 
-import model
-from policy import Policy
-import download
-
-import shutil
-import sys
-import gpg
-
-class AutoPolicy(Policy):
+class AutoPolicy(policy.Policy):
 	monitored_downloads = None
 
 	def __init__(self, interface_uri):
-		Policy.__init__(self, interface_uri)
+		policy.Policy.__init__(self, interface_uri)
 		self.monitored_downloads = []
 
 	def monitor_download(self, dl):
@@ -43,38 +37,36 @@ class AutoPolicy(Policy):
 			self.monitor_download(dl)
 
 # Singleton instance used everywhere...
-policy = AutoPolicy(interface_uri)
-policy.recalculate()
+auto_policy = AutoPolicy(interface_uri)
+auto_policy.recalculate()
 
 def wait_for_downloads():
-	while policy.monitored_downloads:
+	while auto_policy.monitored_downloads:
 		print "Currently downloading:"
-		for e, dl in policy.monitored_downloads:
+		for e, dl in auto_policy.monitored_downloads:
 			print "- " + dl.url
 
-		for e, dl in policy.monitored_downloads[:]:
+		for e, dl in auto_policy.monitored_downloads[:]:
 			errors =  e.read()
 			if errors:
 				dl.error_stream_data(errors)
 				continue
 			e.close()
-			policy.monitored_downloads.remove((e, dl))
+			auto_policy.monitored_downloads.remove((e, dl))
 			data = dl.error_stream_closed()
 			if isinstance(dl, download.InterfaceDownload):
-				policy.check_signed_data(dl, data)
+				auto_policy.check_signed_data(dl, data)
 			elif isinstance(dl, download.ImplementationDownload):
-				policy.add_to_cache(dl.source, data)
+				auto_policy.add_to_cache(dl.source, data)
 			else:
 				raise Exception("Unknown download type %s" % dl)
 
-import run
-
 def execute():
-	policy.start_downloading_impls()
+	auto_policy.start_downloading_impls()
 
 	wait_for_downloads()
 		
-	run.execute(policy, prog_args)
+	run.execute(auto_policy, prog_args)
 
 # Get interfaces...
 try:
@@ -86,10 +78,10 @@ except model.SafeException, ex:
 try:
 	execute()
 except model.SafeException, ex:
-	if policy.network_use != model.network_full:
+	if auto_policy.network_use != model.network_full:
 		print >>sys.stderr, "Error. Retrying with network use = full"
-		policy.network_use = model.network_full	
-		policy.recalculate()
+		auto_policy.network_use = model.network_full	
+		auto_policy.recalculate()
 		try:
 			execute()
 		except model.SafeException, ex:
