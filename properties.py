@@ -5,8 +5,15 @@ import help_box
 from dialog import Dialog
 from policy import policy
 from impl_list import ImplementationList
+import writer
 
 _dialogs = {}	# Interface -> Properties
+
+def enumerate(items):
+	x = 0
+	for i in items:
+		yield x, i
+		x += 1
 
 class Properties(Dialog):
 	interface = None
@@ -67,10 +74,11 @@ class Properties(Dialog):
 
 		stability = gtk.combo_box_new_text()
 		stability.append_text('Use default setting')
-		stability.append_text('Stable')
-		stability.append_text('Testing')
-		stability.append_text('Developer')
 		stability.set_active(0)
+		for i, x in enumerate((stable, testing, developer)):
+			stability.append_text(str(x).capitalize())
+			if x is interface.stability_policy:
+				stability.set_active(i + 1)
 		hbox.pack_start(gtk.Label('Preferred stability:'), False, True, 0)
 		hbox.pack_start(stability, False, True, 0)
 		def set_stability_policy(combo):
@@ -81,6 +89,7 @@ class Properties(Dialog):
 				name = stability.get_model()[i][0].lower()
 				new_stability = stability_levels[name]
 			interface.set_stability_policy(new_stability)
+			writer.save_interface(interface)
 			policy.recalculate()
 		stability.connect('changed', set_stability_policy)
 

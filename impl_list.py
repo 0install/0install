@@ -80,7 +80,7 @@ class ImplementationList(gtk.ScrolledWindow):
 						impl.user_stability = new
 					else:
 						impl.user_stability = None
-					writer.save_user_overrides(interface)
+					writer.save_interface(interface)
 					policy.recalculate()
 				popup_menu(bev, ['Unset (%s)' % upstream, None] + choices,
 					set)

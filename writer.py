@@ -55,6 +55,8 @@ def save_interface(interface):
 	add_text(root, 'name', interface.name)
 	add_text(root, 'summary', interface.summary)
 	add_text(root, 'description', interface.description)
+	if interface.stability_policy:
+		root.setAttribute('stability_policy', str(interface.stability_policy))
 
 	impls = interface.implementations.values()
 	impls.sort()

@@ -44,7 +44,7 @@ def update_from_cache(interface):
 	cached = basedir.load_first_config(config_site, config_prog,
 					   'interfaces', escape(interface.uri))
 	if cached:
-		update(interface, cached)
+		update(interface, cached, trusted = True)
 	interface.uptodate = True
 
 def update_from_network(interface):
@@ -55,7 +55,7 @@ def update_from_network(interface):
 	import writer
 	writer.save_interface(interface)
 
-def update(interface, source):
+def update(interface, source, trusted = False):
 	assert isinstance(interface, Interface)
 
 	doc = minidom.parse(source)
@@ -64,6 +64,11 @@ def update(interface, source):
 	interface.name = get_singleton_text(root, XMLNS_IFACE, 'name')
 	interface.description = get_singleton_text(root, XMLNS_IFACE, 'description')
 	interface.summary = get_singleton_text(root, XMLNS_IFACE, 'summary')
+
+	if trusted:
+		stability_policy = root.getAttribute('stability_policy')
+		if stability_policy:
+			interface.set_stability_policy(stability_levels[str(stability_policy)])
 
 	def process_group(group, group_attrs, base_depends):
 		for item in group.childNodes:
@@ -91,8 +96,13 @@ def update(interface, source):
 					stability = stability_levels[str(item_attrs.stability)]
 				except KeyError:
 					raise Exception('Stability "%s" invalid' % item_attrs.stability)
-				assert stability < preferred
+				if stability >= preferred:
+					raise Exception("Upstream can't set stability to preferred!")
 				impl.upstream_stability = stability
+				if trusted:
+					user_stability = item.getAttribute('user_stability')
+					if user_stability:
+						impl.user_stability = stability_levels[str(user_stability)]
 				impl.dependencies.update(depends)
 
 	process_group(root, Attrs(testing), {})
