@@ -110,16 +110,12 @@ class Implementation(object):
 class Interface(object):
 	"""An Interface represents some contract of behaviour."""
 	__slots__ = ['uri', 'implementations', 'name', 'description', 'summary',
-		     'stability_policy', 'last_updated', 'last_modified', 'last_checked',
+		     'stability_policy', 'last_modified', 'last_local_update', 'last_checked',
 		     'main']
 	
 	# stability_policy:
 	# Implementations at this level or higher are preferred.
 	# Lower levels are used only if there is no other choice.
-
-	# last_updated:
-	# The time we last updated the cached information (the time is stored
-	# in the cache). None means we haven't even read the cache yet.
 
 	def __init__(self, uri):
 		assert uri
@@ -130,11 +126,11 @@ class Interface(object):
 	def reset(self):
 		self.implementations = {}	# Path -> Implementation
 		self.name = None
-		self.last_updated = None
 		self.summary = None
 		self.description = None
 		self.stability_policy = None
 		self.last_modified = None
+		self.last_local_update = None
 		self.last_checked = None
 		self.main = None
 	

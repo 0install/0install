@@ -2,15 +2,16 @@ import os, sys
 
 from model import Interface, SafeException, EnvironmentBinding
 
-def do_env_binding(binding, path):
+def do_env_binding(binding, path, verbose):
 	extra = os.path.join(path, binding.insert)
 	if binding.name in os.environ:
 		os.environ[binding.name] = extra + ':' + os.environ[binding.name]
 	else:
 		os.environ[binding.name] = extra
-	#print "%s=%s" % (binding.name, os.environ[binding.name])
+	if verbose:
+		print "%s=%s" % (binding.name, os.environ[binding.name])
 
-def execute(policy, prog_args):
+def execute(policy, prog_args, verbose = False):
 	iface = policy.get_interface(policy.root)
 	if not iface.main:
 		raise SafeException("Interface '%s' cannot be executed directly; it is just a library "
@@ -24,7 +25,7 @@ def execute(policy, prog_args):
 			for b in dep.bindings:
 				if isinstance(b, EnvironmentBinding):
 					dep_impl = policy.get_implementation(dep_iface)
-					do_env_binding(b, policy.get_implementation_path(dep_impl))
+					do_env_binding(b, policy.get_implementation_path(dep_impl), verbose)
 			setup_bindings(dep_iface)
 	setup_bindings(iface)
 	
@@ -34,4 +35,6 @@ def execute(policy, prog_args):
 		print >>sys.stderr, "'%s' does not exist." % prog_path
 		print >>sys.stderr, "(implementation '%s' + program '%s')" % (policy.implementation[iface].id, iface.main)
 		sys.exit(1)
+	if verbose:
+		print "Executing:", prog_path
 	os.execl(prog_path, prog_path, *prog_args)

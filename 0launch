@@ -11,7 +11,8 @@ parser.add_option("-g", "--gui", help="show graphical policy editor", action='st
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 parser.add_option("-q", "--quiet", help="suppress informational messages", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
-parser.add_option("-v", "--version", help="display version information", action='store_true')
+parser.add_option("-v", "--verbose", help="more verbose output", action='store_true')
+parser.add_option("-V", "--version", help="display version information", action='store_true')
 parser.disable_interspersed_args()
 
 (options, args) = parser.parse_args()
@@ -67,7 +68,8 @@ else:
 	prog_args = args[1:]
 
 # Singleton instance used everywhere...
-policy = autopolicy.AutoPolicy(interface_uri, True, quiet = bool(options.quiet))
+policy = autopolicy.AutoPolicy(interface_uri, True, quiet = bool(options.quiet),
+				verbose = bool(options.verbose))
 policy.recalculate()
 
 if options.refresh:

@@ -79,7 +79,7 @@ def update_user_overrides(interface):
 					   'local_interfaces', escape(interface.uri))
 	
 	if local:
-		update(interface, local)
+		update(interface, local, local = True)
 
 	user = basedir.load_first_config(config_site, config_prog,
 					   'user_overrides', escape(interface.uri))
@@ -107,8 +107,9 @@ def parse_time(t):
 		raise InvalidInterface("Date '%s' not in correct format (should be integer number "
 					"of seconds since Unix epoch)\n%s" % (t, ex))
 
-def update(interface, source, user_overrides = False):
+def update(interface, source, user_overrides = False, local = False):
 	assert isinstance(interface, Interface)
+	assert not (user_overrides and local)
 
 	try:
 		doc = minidom.parse(source)
@@ -132,7 +133,10 @@ def update(interface, source, user_overrides = False):
 		time_str = root.getAttribute('last-modified')
 		if not time_str:
 			raise InvalidInterface("Missing last-modified attribute on root element.")
-		interface.last_modified = parse_time(time_str)
+		if local:
+			interface.last_local_update = parse_time(time_str)
+		else:
+			interface.last_modified = parse_time(time_str)
 		main = root.getAttribute('main')
 		if main:
 			interface.main = main

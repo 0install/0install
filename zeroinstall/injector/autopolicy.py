@@ -9,15 +9,17 @@ class NeedDownload(Exception):
 
 class AutoPolicy(policy.Policy):
 	monitored_downloads = None
+	verbose = None
 	allow_downloads = False
 
-	def __init__(self, interface_uri, allow_downloads, quiet):
+	def __init__(self, interface_uri, allow_downloads, quiet, verbose = False):
 		if not interface_uri.startswith('http:'):
 			interface_uri = os.path.realpath(interface_uri)	# For testing
 		policy.Policy.__init__(self, interface_uri)
 		self.quiet = quiet
 		self.allow_downloads = allow_downloads
 		self.monitored_downloads = []
+		self.verbose = verbose
 
 	def monitor_download(self, dl):
 		if not self.allow_downloads:
@@ -60,4 +62,4 @@ class AutoPolicy(policy.Policy):
 	def execute(self, prog_args):
 		self.start_downloading_impls()
 		self.wait_for_downloads()
-		run.execute(self, prog_args)
+		run.execute(self, prog_args, verbose = self.verbose)
