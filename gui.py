@@ -33,7 +33,7 @@ class GUIPolicy(Policy):
 				self.n_downloads -= 1
 				if self.n_downloads == 0:
 					self.window.progress.hide()
-					gobject.timeout_remove(self.pulse)
+					gobject.source_remove(self.pulse)
 					self.pulse = None
 				try:
 					data = dl.error_stream_closed()
@@ -54,7 +54,9 @@ class GUIPolicy(Policy):
 			dl.error_stream_data(got)
 			return True
 			
-		gobject.io_add_watch(error_stream, gobject.IO_IN, error_ready)
+		gobject.io_add_watch(error_stream,
+				     gobject.IO_IN | gobject.IO_HUP,
+				     error_ready)
 
 		self.n_downloads += 1
 		if self.pulse is None:
