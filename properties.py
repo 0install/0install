@@ -6,6 +6,18 @@ from dialog import Dialog
 
 _dialogs = {}	# Interface -> Properties
 
+def pretty_size(size):
+	if size is None:
+		return '?'
+	if size < 2048:
+		return '%d bytes' % size
+	size = float(size)
+	for unit in ('Kb', 'Mb', 'Gb', 'Tb'):
+		size /= 1024
+		if size < 2048:
+			break
+	return '%.1f %s' % (size, unit)
+
 class UseList(gtk.ScrolledWindow):
 	USE = 0
 	ARCH = 1
@@ -13,13 +25,14 @@ class UseList(gtk.ScrolledWindow):
 	VERSION = 3
 	CACHED = 4
 	PATH = 5
-	ITEM = 6
+	SIZE = 6
+	ITEM = 7
 
 	def __init__(self):
 		gtk.ScrolledWindow.__init__(self, None, None)
 		self.set_shadow_type(gtk.SHADOW_IN)
 
-		self.model = gtk.ListStore(str, str, str, str, bool, str, object)
+		self.model = gtk.ListStore(str, str, str, str, bool, str, str, object)
 		self.tree_view = gtk.TreeView(self.model)
 
 		text = gtk.CellRendererText()
@@ -44,6 +57,10 @@ class UseList(gtk.ScrolledWindow):
 					  text = UseList.ARCH)
 		self.tree_view.append_column(column)
 
+		column = gtk.TreeViewColumn('Size', text,
+					  text = UseList.SIZE)
+		self.tree_view.append_column(column)
+
 		column = gtk.TreeViewColumn('Location', text,
 					  text = UseList.PATH)
 		self.tree_view.append_column(column)
@@ -64,6 +81,7 @@ class UseList(gtk.ScrolledWindow):
 			self.model[new][UseList.STABILITY] = item.get_stability()
 			self.model[new][UseList.ARCH] = item.arch or 'any'
 			self.model[new][UseList.PATH] = item.path
+			self.model[new][UseList.SIZE] = pretty_size(item.size)
 	
 	def clear(self):
 		self.model.clear()
@@ -73,7 +91,8 @@ class Properties(Dialog):
 		Dialog.__init__(self)
 		self.interface = interface
 		self.set_title('Interface ' + interface.get_name())
-		self.set_default_size(600, 400)
+		self.set_default_size(gtk.gdk.screen_width() / 2,
+				      gtk.gdk.screen_height() / 4)
 
 		vbox = gtk.VBox(False, 4)
 		vbox.set_border_width(4)
@@ -114,6 +133,9 @@ class Properties(Dialog):
 		vbox.pack_start(use_list, True, True, 0)
 		use_list.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 
+		prefer_stable = gtk.CheckButton('Prefer stable versions')
+		vbox.pack_start(prefer_stable, False, True, 0)
+
 		vbox.show_all()
 	
 def edit(interface):
@@ -151,4 +173,24 @@ Arch indicates what kind of computer system the implementation is for, or 'any' 
 if it works with all types of system.
 
 Location is the path that will be used for the implementation when the program is run.
+"""),
+('Sort order', """
+The implementations are listed in the injector's currently preferred order (the one \
+at the top will be actually be used). Usable implementations all come before unusable \
+ones. Unusable ones are those marked as 'avoid', those for incompatible
+architectures, those marked as 'buggy' and, in off-line mode, uncached ones. Unusable
+implementations are shown shaded.
+
+For the usable implementations, the order is as follows:
+
+- 'prefer' versions all come before normal versions.
+
+- If the option to prefer 'stable' versions is set, stable versions comes before
+  'testing' ones.
+
+- Then, higher-numbered versions come before low-numbered ones.
+
+- Then cached come before non-cached.
+
+- Finally, the closest compatible architecture is preferred.
 """))

@@ -23,14 +23,15 @@ class Dependency(object):
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
-	__slots__ = ['path', 'arch', 'stability', 'version']
+	__slots__ = ['path', 'arch', 'stability', 'version', 'size']
 
-	def __init__(self, version, path):
+	def __init__(self, version, size, path):
 		assert path
 		assert isinstance(version, Version)
 		self.path = path
 		self.version = version
 		self.stability = 'testing'
+		self.size = size
 	
 	def may_set_stability(self, stability):
 		assert stability in ('testing', 'stable', 'buggy')
@@ -67,30 +68,10 @@ class Version(object):
 	def __str__(self):
 		return '.'.join(map(str, self.number))
 
-	def get_impl(self, path):
+	def get_impl(self, size, path):
 		if path not in self.implementations:
-			self.implementations[path] = Implementation(self, path)
+			self.implementations[path] = Implementation(self, size, path)
 		return self.implementations[path]
-
-	def get_stability(self):
-		"""Returns best stability of all implementations"""
-		if not self.implementations:
-			return '-'
-		have_testing = False
-		for x in self.implementations.itervalues():
-			if x.stability == 'stable':
-				return x.stability
-			elif x.stability == 'testing':
-				have_testing = True
-		if have_testing:
-			return 'testing'
-		return 'buggy'
-	
-	def get_cached(self):
-		for x in self.implementations.itervalues():
-			if x.get_cached():
-				return True
-		return False
 
 class Interface(object):
 	"""An Interface represents some contract of behaviour."""

@@ -37,8 +37,6 @@ def update(interface):
 	assert isinstance(interface, Interface)
 
 	doc = minidom.parse(interface.uri)
-	print "update", interface.uri
-	print "merge", doc
 
 	root = doc.documentElement
 	interface.name = get_singleton_text(root, XMLNS_IFACE, 'name')
@@ -46,7 +44,6 @@ def update(interface):
 	interface.summary = get_singleton_text(root, XMLNS_IFACE, 'summary')
 
 	def process_group(group, group_attrs):
-		print "Process", group
 		for item in group.childNodes:
 			if item.namespaceURI != XMLNS_IFACE:
 				continue
@@ -57,7 +54,10 @@ def update(interface):
 				process_group(item, item_attrs)
 			elif item.localName == 'implementation':
 				version = interface.get_version(item_attrs.version)
-				impl = version.get_impl(item_attrs.path)
+				size = item.getAttribute('size')
+				if size: size = long(size)
+				else: size = None
+				impl = version.get_impl(size, item_attrs.path)
 				impl.arch = item_attrs.arch
 				impl.may_set_stability(item_attrs.stability)
 
