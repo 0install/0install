@@ -19,7 +19,7 @@ def add_impl(parent, impl):
 		node = doc.createElementNS(XMLNS_IFACE, 'implementation')
 		parent.appendChild(node)
 		node.setAttribute('user-stability', str(impl.user_stability))
-		node.setAttribute('path', impl.path)
+		node.setAttribute('id', impl.id)
 
 def save_interface(interface):
 	path = basedir.save_config_path(config_site, config_prog, 'user_overrides')

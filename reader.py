@@ -147,18 +147,20 @@ def update(interface, source, user_overrides = False):
 				process_impl(item, item_attrs, depends)
 	
 	def process_impl(item, item_attrs, depends):
-		sha1 = item.getAttribute('sha1')
-		if sha1:
+		id = item.getAttribute('id')
+		if id is None:
+			raise InvalidInterface("Missing 'id' attribute on %s" % item)
+		if id.startswith('/'):
+			impl = interface.get_impl(id)
+		else:
+			if '=' not in id:
+				raise InvalidInterface('Invalid "id"; form is "alg=value" (got "%s")' % id)
+			alg, sha1 = id.split('=')
 			try:
 				long(sha1, 16)
 			except Exception, ex:
 				raise InvalidInterface('Bad SHA1 attribute: %s' % ex)
-			impl = interface.get_impl('sha1=' + sha1)
-		else:
-			path = item.getAttribute('path')
-			if not path.startswith('/'):
-				raise InvalidInterface('Need absolute path, not ' + path)
-			impl = interface.get_impl(path)
+			impl = interface.get_impl(id)
 
 		if user_overrides:
 			user_stability = item.getAttribute('user-stability')
