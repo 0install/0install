@@ -7,6 +7,6 @@ setup(name="injector",
       author="Thomas Leonard",
       author_email="-",
       url="http://0install.net",
-      scripts=['0launch', '0launch-gui'],
+      scripts=['0launch'],
       license='GPL',
       packages=["zeroinstall", "zeroinstall.zerostore", "zeroinstall.injector"])

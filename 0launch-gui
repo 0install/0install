@@ -1,2 +1,0 @@
-#!/bin/sh
-0launch http://0install.net/2005/interfaces/injector-gui "$@"
