@@ -4,6 +4,7 @@ import gtk, os
 import sys
 import dialog
 from reader import InvalidInterface
+from model import SafeException
 
 # Singleton Policy
 policy = None
@@ -45,6 +46,10 @@ class GUIPolicy(Policy):
 				except InvalidInterface, ex:
 					dialog.alert(self.window,
 						"Syntax error in downloaded interface '%s':\n\n%s" %
+						(dl.interface.uri, ex))
+				except SafeException, ex:
+					dialog.alert(self.window,
+						"Error updating interface '%s':\n\n%s" %
 						(dl.interface.uri, ex))
 				return False
 			dl.error_stream_data(got)

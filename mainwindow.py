@@ -4,6 +4,7 @@ import help_box
 from gui import policy
 from dialog import Dialog
 from model import stable, testing, network_levels, SafeException
+from freshness import freshness_levels, Freshness
 
 class MainWindow(Dialog):
 	progress = None
@@ -33,7 +34,32 @@ class MainWindow(Dialog):
 			policy.recalculate()
 		network.connect('changed', set_network_use)
 
-		button = gtk.Button('Refresh all')
+		hbox.show_all()
+
+		# Freshness
+		hbox = gtk.HBox(False, 2)
+		self.vbox.pack_start(hbox, False, True, 0)
+		hbox.set_border_width(4)
+
+		times = [x.time for x in freshness_levels]
+		if policy.freshness not in times:
+			index = len(freshness_levels)
+			freshness_levels.append(Freshness(policy.freshness,
+							  '%d seconds' % policy.freshness))
+			times.append(policy.freshness)
+		freshness = gtk.combo_box_new_text()
+		for level in freshness_levels:
+			freshness.append_text(str(level))
+		freshness.set_active(times.index(policy.freshness))
+		hbox.pack_start(gtk.Label('Freshness:'), False, True, 0)
+		hbox.pack_start(freshness, True, True, 2)
+		def set_freshness(combo):
+			policy.freshness = freshness_levels[freshness.get_active()].time
+			policy.save_config()
+			policy.recalculate()
+		freshness.connect('changed', set_freshness)
+
+		button = gtk.Button('Refresh all now')
 		def refresh_all(b):
 			for x in policy.walk_interfaces():
 				policy.begin_iface_download(x, True)
