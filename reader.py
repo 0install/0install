@@ -77,8 +77,8 @@ def update(interface, source, trusted = False):
 
 	if not trusted:
 		canonical_name = root.getAttribute('uri')
-		#if not canonical_name:
-		#	raise Exception("<interface> uri attribute missing in " + source)
+		if not canonical_name:
+			raise Exception("<interface> uri attribute missing in " + source)
 		if canonical_name != source:
 			print >>sys.stderr, \
 				"WARNING: <interface> uri attribute is '%s', but accessed as '%s'" % \
