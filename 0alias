@@ -60,8 +60,7 @@ if [ "$*" = "--versions" ]; then
   exec 0launch -gd '%s' "$@"
 else
   exec 0launch '%s' "$@"
-fi
-''' % (interface_uri, interface_uri)
+fi''' % (interface_uri, interface_uri)
 
 # Make new script executable
 os.chmod(script, 0111 | os.fstat(wrapper.fileno()).st_mode)
