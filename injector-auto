@@ -14,8 +14,24 @@ prog_args = sys.argv[3:]
 
 import model
 from policy import policy
+import shutil
 
 policy.set_root_interface(interface_uri)
+
+while policy.downloads:
+	if len(policy.downloads) > 1:
+		print "Need to download:"
+		for p in policy.downloads:
+			print "- " + p
+	dl = policy.downloads.values()[0]
+	print "Fetching", dl.url
+
+	try:
+		shutil.copyfileobj(file(dl.url), dl.tempfile)
+	except Exception, ex:
+		dl.abort(ex)
+	else:
+		dl.done()
 
 import run
 

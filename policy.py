@@ -3,12 +3,20 @@ import basedir
 from namespaces import *
 import ConfigParser
 import reader
+from logging import debug, info
+from download import Download
+
+from logging import getLogger, DEBUG
+getLogger().setLevel(DEBUG)
 
 _interfaces = {}	# URI -> Interface
 
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use', 'updates']
+
+	downloads = {}		# URI -> Download
+	failed_downloads = {}	# URI -> True
 
 	def __init__(self):
 		self.root = None
@@ -119,7 +127,7 @@ class Policy(object):
 	
 	def get_interface(self, uri):
 		"""Get the interface for uri. If it's in the cache, read that.
-		If it's not in the cache or network use is full, also download
+		If it's not in the cache or network use is full, start downloading
 		the latest version."""
 		if type(uri) == str:
 			uri = unicode(uri)
@@ -128,12 +136,67 @@ class Policy(object):
 		if uri not in _interfaces:
 			# Haven't used this interface so far. Initialise from cache.
 			_interfaces[uri] = Interface(uri)
-			reader.update_from_cache(_interfaces[uri], self.network_use)
+			self.init_interface(_interfaces[uri])
 
 		if self.network_use == network_full and not _interfaces[uri].uptodate:
-			reader.update_from_network(_interfaces[uri])
+			self.begin_iface_download(_interfaces[uri])
 
 		return _interfaces[uri]
+	
+	def init_interface(self, iface):
+		"""We've just created a new Interface. Update from disk cache/network."""
+		debug("Created " + iface.uri)
+		cached = reader.update_from_cache(iface)
+		if not cached:
+			if self.network_use != network_offline:
+				debug("Interface not cached and not off-line. Downloading...")
+				self.begin_iface_download(iface)
+			else:
+				debug("Nothing known about interface, but we are off-line.")
+	
+	def begin_iface_download(self, interface):
+		if interface.uri in self.downloads or interface.uri in self.failed_downloads:
+			return
+
+		info("Download %s", interface.uri)
+		def done(result):
+			print "Download", dl, "result", result
+			assert dl.url in self.downloads
+			del self.downloads[dl.url]
+			if isinstance(result, Exception):
+				self.failed_downloads[dl.url] = True
+			else:
+				self.update_interface_from_network(interface, result)
+			self.recalculate()
+		dl = Download(interface.uri, done)
+		self.downloads[interface.uri] = dl
+
+	def update_interface_from_network(self, interface, stream):
+		debug("Updating '%s' from network" % (interface.name or interface.uri))
+		assert interface.uri.startswith('/')
+
+		upstream_dir = basedir.save_config_path(config_site, config_prog, 'interfaces')
+		cached = os.path.join(upstream_dir, escape(interface.uri))
+
+		new_xml = file(interface.uri).read()
+
+		if os.path.exists(cached):
+			old_xml = file(cached).read()
+			if old_xml == new_xml:
+				debug("No change")
+			else:
+				confirm_diff(old_xml, new_xml, interface.uri)
+
+		stream = file(cached + '.new', 'w')
+		stream.write(new_xml)
+		stream.close()
+		reader.update(interface, cached + '.new')
+		os.rename(cached + '.new', cached)
+		debug("Saved as " + cached)
+		
+		interface.uptodate = True
+
+		reader.update_user_overrides(interface)
 
 	def walk_interfaces(self):
 		def walk(iface):

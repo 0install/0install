@@ -3,9 +3,6 @@ import sys
 import shutil
 from logging import debug
 
-#from logging import getLogger, DEBUG
-#getLogger().setLevel(DEBUG)
-
 import basedir
 from namespaces import *
 from model import *
@@ -51,19 +48,13 @@ def process_depends(dependency, item):
 					     insert = e.getAttribute('insert'))
 		dependency.bindings.append(binding)
 
-def update_from_cache(interface, network_use = network_offline):
-	if network_use == network_full and not interface.uptodate:
-		debug("Full network use, so updating " + interface.uri)
-		update_from_network(interface)
-		return
-
+def update_from_cache(interface):
+	"""True if cached version and user overrides loaded OK.
+	False if not cached."""
 	cached = basedir.load_first_config(config_site, config_prog,
 					   'interfaces', escape(interface.uri))
-
-	if network_use != network_offline and not cached:
-		debug("Interface not cached and not off-line, so updating " + interface.uri)
-		update_from_network(interface)
-		return
+	if not cached:
+		return False
 
 	interface.reset()
 
@@ -71,6 +62,8 @@ def update_from_cache(interface, network_use = network_offline):
 		update(interface, cached)
 	
 	update_user_overrides(interface)
+
+	return True
 
 def update_user_overrides(interface):
 	user = basedir.load_first_config(config_site, config_prog,
@@ -87,38 +80,6 @@ def confirm_diff(old, new, uri):
 	print "Updates:"
 	for line in diff:
 		print line
-
-def update_from_network(interface):
-	debug("Updating '%s' from network" % (interface.name or interface.uri))
-	if not os.path.exists(interface.uri) and interface.uri.startswith('/uri/0install/'):
-		site = interface.uri[len('/uri/0install/'):]
-		site = site[:site.index('/')]
-		assert '/' not in site
-		print "Refreshing", site
-		os.spawnlp(os.P_WAIT, '0refresh', '0refresh', site)
-
-	upstream_dir = basedir.save_config_path(config_site, config_prog, 'interfaces')
-	cached = os.path.join(upstream_dir, escape(interface.uri))
-
-	new_xml = file(interface.uri).read()
-
-	if os.path.exists(cached):
-		old_xml = file(cached).read()
-		if old_xml == new_xml:
-			debug("No change")
-		else:
-			confirm_diff(old_xml, new_xml, interface.uri)
-
-	stream = file(cached + '.new', 'w')
-	stream.write(new_xml)
-	stream.close()
-	update(interface, cached + '.new')
-	os.rename(cached + '.new', cached)
-	debug("Saved as " + cached)
-	
-	interface.uptodate = True
-
-	update_user_overrides(interface)
 
 def update(interface, source, user_overrides = False):
 	assert isinstance(interface, Interface)

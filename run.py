@@ -32,13 +32,13 @@ def execute(prog, prog_args):
 	os.execl(prog_path, prog_path, *prog_args)
 
 def get_impl(interface):
+	if not interface.name:
+		raise SafeException("We don't have enough information to "
+				    "run this program yet. "
+				    "Need to download:\n%s" % interface.uri)
 	try:
 		return policy.implementation[interface]
 	except KeyError:
-		if not interface.name:
-			raise SafeException("We don't have enough information to "
-					    "run this program yet. "
-					    "Need to download:\n%s" % interface.uri)
 		if interface.implementations:
 			offline = ""
 			if policy.network_use == network_offline:
