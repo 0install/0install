@@ -44,7 +44,7 @@ if len(args) < 1:
 	parser.print_help()
 	sys.exit(1)
 
-if options.gui is None and 'DISPLAY' in os.environ:
+if options.gui is None and os.environ.get('DISPLAY', None):
 	if options.refresh:
 		options.gui = True
 	else:
