@@ -1,6 +1,7 @@
 from xml.dom import Node, minidom
 
-from namespaces import XMLNS_IFACE
+import basedir
+from namespaces import *
 from model import *
 
 def get_singleton_text(parent, ns, localName):
@@ -39,10 +40,25 @@ def process_depends(dependency, item):
 					     insert = e.getAttribute('insert'))
 		dependency.bindings.append(binding)
 
-def update(interface):
+def update_from_cache(interface):
+	cached = basedir.load_first_config(config_site, config_prog,
+					   'interfaces', escape(interface.uri))
+	if cached:
+		update(interface, cached)
+	interface.uptodate = True
+
+def update_from_network(interface):
+	if not interface.uptodate:
+		update_from_cache(interface)
+	assert interface.uptodate
+	update(interface, interface.uri)
+	import writer
+	writer.save_interface(interface)
+
+def update(interface, source):
 	assert isinstance(interface, Interface)
 
-	doc = minidom.parse(interface.uri)
+	doc = minidom.parse(source)
 
 	root = doc.documentElement
 	interface.name = get_singleton_text(root, XMLNS_IFACE, 'name')
@@ -80,7 +96,3 @@ def update(interface):
 				impl.dependencies.update(depends)
 
 	process_group(root, Attrs(testing), {})
-	interface.uptodate = True
-
-	import writer
-	writer.save_interface(interface)

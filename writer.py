@@ -3,14 +3,9 @@ from xml.dom import minidom, XMLNS_NAMESPACE
 
 import basedir
 
-from namespaces import config_site, config_prog, XMLNS_IFACE
+from model import escape
 
-def escape(uri):
-	"Convert each space to %20, etc"
-	import re
-	return re.sub('[^-_.a-zA-Z0-9]',
-		lambda match: '%%%02x' % ord(match.group(0)),
-		uri.encode('utf-8'))
+from namespaces import config_site, config_prog, XMLNS_IFACE
 
 def add_text(parent, name, text):
 	doc = parent.ownerDocument

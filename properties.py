@@ -24,6 +24,7 @@ class Properties(Dialog):
 		self.vbox.pack_start(vbox, True, True, 0)
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
+		self.add_button(gtk.STOCK_REFRESH, 1)
 		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
 		self.set_default_response(gtk.RESPONSE_CANCEL)
 
@@ -37,6 +38,11 @@ class Properties(Dialog):
 		def response(dialog, resp):
 			if resp == gtk.RESPONSE_CANCEL:
 				self.destroy()
+			elif resp == 1:
+				print "Refresh", interface
+				import reader
+				reader.update_from_network(interface)
+				policy.recalculate()
 			elif resp == gtk.RESPONSE_HELP:
 				properties_help.display()
 		self.connect('response', response)
@@ -44,7 +50,11 @@ class Properties(Dialog):
 		frame = gtk.Frame()
 		frame.set_shadow_type(gtk.SHADOW_IN)
 		vbox.pack_start(frame, False, True, 0)
-		description = gtk.Label(interface.description)
+		if interface.uptodate:
+			description = gtk.Label(interface.description or "-")
+		else:
+			description = gtk.Label("Information about this interface has not "
+						"yet been downloaded.")
 		description.set_line_wrap(True)
 		frame.add(description)
 

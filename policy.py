@@ -5,7 +5,7 @@ import ConfigParser
 
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
-		     'help_with_testing', 'network_use']
+		     'help_with_testing', 'network_use', 'updates']
 
 	def __init__(self):
 		self.root = None
@@ -13,6 +13,7 @@ class Policy(object):
 		self.watchers = []
 		self.help_with_testing = False
 		self.network_use = network_minimal
+		self.updates = []
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
@@ -41,10 +42,14 @@ class Policy(object):
 	
 	def recalculate(self):
 		self.implementation = {}
+		self.updates = []
 		def process(iface):
+			if not iface.uptodate:
+				self.updates.append(iface)
+				return
 			impl = self.get_best_implementation(iface)
-			self.implementation[iface] = impl
 			if impl:
+				self.implementation[iface] = impl
 				for d in impl.dependencies.values():
 					process(d.get_interface())
 		process(self.root)

@@ -74,25 +74,25 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			properties.edit(self.model[iter][InterfaceBrowser.INTERFACE])
 		self.edit_properties.connect('activate', edit_selected)
 
-		self.build_tree()
-
 		self.connect('destroy', lambda s: policy.watchers.remove(self.build_tree))
 		policy.watchers.append(self.build_tree)
+
+		policy.recalculate()
 	
 	def build_tree(self):
 		self.model.clear()
 		parent = None
 		def add_node(parent, iface):
-			if not iface.uptodate:
-				reader.update(iface)
-				policy.recalculate()
+			#if not iface.uptodate:
+			#	reader.update(iface)
+			#	policy.recalculate()
 			
 			iter = self.model.append(parent)
 			self.model[iter][InterfaceBrowser.INTERFACE] = iface
 			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = iface.get_name()
 			self.model[iter][InterfaceBrowser.SUMMARY] = iface.summary
 
-			impl = policy.implementation[iface]
+			impl = policy.implementation.get(iface, None)
 			if impl:
 				self.model[iter][InterfaceBrowser.VERSION] = impl.get_version()
 				for child in impl.dependencies.values():
