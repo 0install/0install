@@ -17,7 +17,8 @@ def pretty_time(t):
 
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
-		     'help_with_testing', 'network_use', 'updates']
+		     'help_with_testing', 'network_use',
+		     'freshness']
 
 	def __init__(self, root):
 		assert isinstance(root, (str, unicode))
@@ -26,6 +27,7 @@ class Policy(object):
 		self.watchers = []
 		self.help_with_testing = False
 		self.network_use = network_full
+		self.freshness = 60 * 60 * 24 * 7	# Seconds since last update
 		self.updates = []
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
@@ -35,6 +37,7 @@ class Policy(object):
 			self.help_with_testing = config.getboolean('global',
 							'help_with_testing')
 			self.network_use = config.get('global', 'network_use')
+			self.freshness = int(config.get('global', 'freshness'))
 			assert self.network_use in network_levels
 
 	def save_config(self):
@@ -43,6 +46,7 @@ class Policy(object):
 
 		config.set('global', 'help_with_testing', self.help_with_testing)
 		config.set('global', 'network_use', self.network_use)
+		config.set('global', 'freshness', self.freshness)
 
 		path = basedir.save_config_path(config_site, config_prog)
 		path = os.path.join(path, 'global')
@@ -51,7 +55,6 @@ class Policy(object):
 	
 	def recalculate(self):
 		self.implementation = {}
-		self.updates = []
 		def process(iface):
 			impl = self.get_best_implementation(iface)
 			if impl:

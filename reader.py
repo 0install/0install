@@ -8,7 +8,7 @@ import basedir
 from namespaces import *
 from model import *
 
-class InvalidInterface(Exception):
+class InvalidInterface(SafeException):
 	def __init__(self, message, ex = None):
 		if ex:
 			message += "\n\n(exact error: %s)" % ex
@@ -82,8 +82,8 @@ def check_readable(interface_uri, source):
 	tmp = Interface(interface_uri)
 	try:
 		update(tmp, source)
-	except SafeException, ex:
-		raise SafeException("Error loading interface:\n"
+	except InvalidInterface, ex:
+		raise InvalidInterface("Error loading interface:\n"
 					"Interface URI: %s\n"
 					"Local file: %s\n%s" %
 					(interface_uri, source, ex))
@@ -93,7 +93,7 @@ def parse_time(t):
 	try:
 		return time.strptime(t, '%Y-%m-%d %H:%M:%S')
 	except Exception, ex:
-		raise SafeException("Date not in the form 'YYYY-MM-DD HH:MM:SS' (all times in UTC)\n%s" % ex)
+		raise InvalidInterface("Date not in the form 'YYYY-MM-DD HH:MM:SS' (all times in UTC)\n%s" % ex)
 
 def update(interface, source, user_overrides = False):
 	assert isinstance(interface, Interface)
@@ -111,7 +111,7 @@ def update(interface, source, user_overrides = False):
 
 	time_str = root.getAttribute('last-modified')
 	if not time_str:
-		raise SafeException("Missing last-modified attribute on root element.")
+		raise InvalidInterface("Missing last-modified attribute on root element.")
 	interface.last_modified = parse_time(time_str)
 
 	if not user_overrides:
