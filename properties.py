@@ -135,13 +135,40 @@ def edit(interface):
 
 properties_help = help_box.HelpBox("Injector Properties Help",
 ('Interface properties', """
-When you select an interface from the top section, a list of available versions \
-is displayed below. By clicking in the 'Use' column, you can control which version \
-is chosen. The best 'Preferred' version is used if possible, otherwise the best \
-unmarked version is chosen. 'Blacklisted' versions are never used. So, if you find \
-that some version is buggy, just blacklist it here.
+This window displays information about an interface. At the top is the interface's \
+short name, unique ID, summary and long description. The unique ID is also the \
+location which is used to update the information."""),
 
-Next to the list of versions is a list of implementations of the selected version. \
-Usually there is only one implementation of each version, but it is possible to have \
-several. The Use column works in a similar way, to choose an implementation once \
-the version has been selected."""))
+('Versions', """
+In the middle of the window is a list of all known versions of the interface.
+
+The columns have the following meanings:
+
+Use can be 'prefer', if you want to use this implementation in preference to others, \
+or 'avoid' if you never want to use it.
+
+Version gives the version number. High-numbered versions are considered to be \
+better than low-numbered ones.
+
+Stability and Cached are described below. Here, they show the details of the \
+preferred implementation of each version. Use the section below to set which \
+implementation of each version is preferred."""),
+
+('Implementations', """
+When a version is selected, a list of implementations of that version are shown \
+below (typically, there is only one implementation of each version).
+
+Arch indicates what kind of computer system the implementation is for, or 'any' \
+if it works with all types of system.
+
+Stability is 'stable' if the implementation is believed to be stable, 'buggy' if \
+it is known to contain serious bugs, and 'testing' if its stability is not yet \
+known. This information is normally supplied and updated by the author of the \
+software, but you can override their rating.
+
+Cached indicates whether the implementation is already stored on your computer.
+
+In off-line mode, only cached implementations are considered for use.
+
+Implementation gives the location.
+"""))

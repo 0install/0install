@@ -48,8 +48,10 @@ class HelpBox:
 
 		swin.show_all()
 
-		box.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
+		box.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
 		box.connect('response', lambda box, resp: box.destroy())
+
+		box.set_default_response(gtk.RESPONSE_CANCEL)
 
 		def destroyed(box):
 			self.box = None
