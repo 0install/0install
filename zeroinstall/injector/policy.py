@@ -277,7 +277,7 @@ class Policy(object):
 		"""Downloaded data is a GPG-signed message. Check that the signature is trusted
 		and call self.update_interface_from_network() when done."""
 		import gpg
-		data, errors, sigs = gpg.check_stream(signed_data)
+		data, sigs = gpg.check_stream(signed_data)
 		iface_xml = data.read()
 		data.close()
 		if not self.update_interface_if_trusted(download.interface, sigs, iface_xml):

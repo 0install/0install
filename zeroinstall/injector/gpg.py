@@ -2,6 +2,7 @@ import os
 import tempfile
 import traceback
 from trust import trust_db
+from model import SafeException
 
 class Signature:
 	def is_trusted(self):
@@ -46,7 +47,7 @@ class ErrSig(Signature):
 def check_stream(stream):
 	"""Pass stream through gpg --decrypt to get the data, the error text,
 	and a list of signatures (good or bad).
-	Returns (data_stream, errors, [Signatures])."""
+	Returns (data_stream, [Signatures])."""
 	status_r, status_w = os.pipe()
 
 	data = tempfile.TemporaryFile(prefix = 'injector-gpg-')
@@ -97,4 +98,11 @@ def check_stream(stream):
 
 	data.seek(0)
 	errors.seek(0)
-	return (data, errors.read(), sigs)
+
+	error_messages = errors.read().strip()
+	errors.close()
+
+	if error_messages and not sigs:
+		raise SafeException("No signatures found. Errors from GPG:\n%s" % error_messages)
+	
+	return (data, sigs)
