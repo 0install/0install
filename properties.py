@@ -35,13 +35,6 @@ class Properties(Dialog):
 		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
 		self.set_default_response(gtk.RESPONSE_CANCEL)
 
-		label = gtk.Label('%s: %s' % (interface.get_name(),
-						interface.summary))
-		vbox.pack_start(label, False, True, 0)
-
-		vbox.pack_start(gtk.Label('(%s)' % interface.uri),
-					False, True, 0)
-
 		def response(dialog, resp):
 			if resp == gtk.RESPONSE_CANCEL:
 				self.destroy()
@@ -53,16 +46,35 @@ class Properties(Dialog):
 				properties_help.display()
 		self.connect('response', response)
 
-		frame = gtk.Frame()
-		frame.set_shadow_type(gtk.SHADOW_IN)
-		vbox.pack_start(frame, False, True, 0)
+		swin = gtk.ScrolledWindow(None, None)
+		swin.set_shadow_type(gtk.SHADOW_IN)
+		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
+		vbox.pack_start(swin, False, True, 0)
+		description = gtk.TextView()
+		description.set_left_margin(4)
+		description.set_right_margin(4)
+		description.set_wrap_mode(gtk.WRAP_WORD)
+		description.set_editable(False)
+		description.set_cursor_visible(False)
+		swin.add(description)
+
+		buffer = description.get_buffer()
+		heading_style = buffer.create_tag(underline = True, scale = 1.2)
+		iter = buffer.get_start_iter()
+		buffer.insert_with_tags(iter,
+			'%s (%s)' % (interface.get_name(), interface.summary), heading_style)
+
+		buffer.insert(iter, '\nFull name: %s\n\n' % interface.uri)
+
+		buffer.insert_with_tags(iter, 'Description\n', heading_style)
+
+		description.set_size_request(-1, 100)
+
 		if interface.uptodate:
-			description = gtk.Label(interface.description or "-")
+			buffer.insert(iter, interface.description or "-")
 		else:
-			description = gtk.Label("Information about this interface has not "
+			buffer.insert(iter, "Information about this interface has not "
 						"yet been downloaded.")
-		description.set_line_wrap(True)
-		frame.add(description)
 
 		self.use_list = ImplementationList(interface)
 		vbox.pack_start(self.use_list, True, True, 0)
