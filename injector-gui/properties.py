@@ -46,7 +46,6 @@ class Properties(Dialog):
 			if resp == gtk.RESPONSE_CANCEL:
 				self.destroy()
 			elif resp == 1:
-				print "Refresh", interface
 				import reader
 				reader.update_from_network(interface)
 				policy.recalculate()

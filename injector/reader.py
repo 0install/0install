@@ -28,7 +28,10 @@ class Attrs(object):
 		new = Attrs(self.stability, self.version, self.arch, self.path)
 
 		if item.hasAttribute('path'):
-			new.path = os.path.join(self.path, item.getAttribute('path'))
+			if self.path:
+				new.path = os.path.join(self.path, item.getAttribute('path'))
+			else:
+				new.path = item.getAttribute('path')
 		for x in ('arch', 'stability', 'version'):
 			if item.hasAttribute(x):
 				setattr(new, x, item.getAttribute(x))

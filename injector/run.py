@@ -10,6 +10,7 @@ def do_env_binding(binding, iface):
 		os.environ[binding.name] = extra + ':' + os.environ[binding.name]
 	else:
 		os.environ[binding.name] = extra
+	#print "%s=%s" % (binding.name, os.environ[binding.name])
 
 def execute(iface, prog, prog_args):
 	def setup_bindings(i):

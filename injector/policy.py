@@ -116,6 +116,16 @@ class Policy(object):
 		if self.network_use == network_offline and not impl.get_cached():
 			return True
 		return False
+	
+	def walk_interfaces(self):
+		def walk(iface):
+			yield iface
+			impl = self.get_best_implementation(iface)
+			if impl:
+				for d in impl.dependencies.values():
+					for id in walk(d.get_interface()):
+						yield id
+		return walk(self.root)
 
 # Singleton instance used everywhere...
 policy = Policy()
