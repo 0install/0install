@@ -159,16 +159,14 @@ class Policy(object):
 	def monitor_download(self, dl):
 		raise NotImplementedError("Abstract method")
 	
-	def update_interface_from_network(self, interface, stream):
-		"""stream is the new XML (after the signature has been checked and
+	def update_interface_from_network(self, interface, new_xml):
+		"""xml is the new XML (after the signature has been checked and
 		removed)."""
 		debug("Updating '%s' from network" % (interface.name or interface.uri))
 		assert interface.uri.startswith('/')
 
 		upstream_dir = basedir.save_config_path(config_site, config_prog, 'interfaces')
 		cached = os.path.join(upstream_dir, escape(interface.uri))
-
-		new_xml = stream.read()
 
 		if os.path.exists(cached):
 			old_xml = file(cached).read()
@@ -220,25 +218,27 @@ class Policy(object):
 		import gpg
 		from trust import trust_db
 		data, errors, sigs = gpg.check_stream(signed_data)
-
-		for s in sigs:
-			if s.is_trusted(): break
-		else:
+		iface_xml = data.read()
+		data.close()
+		if not self.update_interface_if_trusted(download.interface, sigs, iface_xml):
 			self.confirm_trust_keys(download.interface, sigs)
 
+	def update_interface_if_trusted(self, interface, sigs, xml):
 		for s in sigs:
 			if s.is_trusted():
-				self.update_interface_from_network(download.interface, data)
-				return
-
-		raise SafeException('Not signed with a trusted key')
+				self.update_interface_from_network(interface, xml)
+				return True
+		return False
 	
 	def confirm_trust_keys(self, interface, sigs):
+		"""We don't trust any of the signatures yet. Ask the user.
+		When done, call update_interface_if_trusted()."""
 		import gpg
 		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
 		if not valid_sigs:
 			raise SafeException('No valid signatures found')
-		print "Interface:", interface.uri
+
+		print "\nInterface:", interface.uri
 		print "The interface is correctly signed with the following keys:"
 		for x in valid_sigs:
 			print "-", x
@@ -247,13 +247,16 @@ class Policy(object):
 			i = raw_input("Trust all [Y/N] ")
 			if not i: continue
 			if i in 'Nn':
-				return
+				raise SafeException('Not signed with a trusted key')
 			if i in 'Yy':
 				break
 		from trust import trust_db
 		for key in valid_sigs:
 			print "Trusting", key.fingerprint
 			trust_db.trust_key(key.fingerprint)
+
+		if not self.update_interface_if_trusted(interface, sigs, xml):
+			raise Exception('Bug: still not trusted!!')
 
 	def confirm_diff(self, old, new, uri):
 		import difflib
