@@ -1,4 +1,7 @@
 from distutils.core import setup
-setup(name="zeroinstall",
+setup(name="injector",
       version="0.3",
-      py_modules=["injector"])
+      description="The Zero Install Injector (0launch)",
+      author="Thomas Leonard",
+      url="http://0install.net",
+      py_modules=["zeroinstall"])
