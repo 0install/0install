@@ -141,10 +141,11 @@ each dependancy (each of which may require further interfaces, and so on)."""),
 ('List of interfaces', """
 The main window displays all these interfaces, and the version of each chosen \
 implementation. The top-most one represents the program you tried to run, and each direct \
-child is a dependancy.
+child is a dependancy. The 'Fetch' column shows amount of data that needs to be \
+downloaded, or '(cached)' if it is already on this computer.
 
-If you are happy with the choices shown, click on the Execute button to run the \
-program."""),
+If you are happy with the choices shown, click on the Download (or Execute) button to \
+download (and run) the program."""),
 
 ('Choosing different versions', """
 There are three ways to control which implementations are chosen. You can adjust the \
@@ -163,4 +164,10 @@ ideas of what 'stable' means, you may wish to override this on a per-interface b
 (see below).
 
 To set the policy for an interface individually, select it and click on 'Interface \
-Properties'. See that dialog's help text for more information."""))
+Properties'. See that dialog's help text for more information."""),
+
+('Freshness', """
+The interface files, which provide the information about which versions are \
+available, are also cached. To update them, click on 'Refresh all now'. You can also \
+get the injector to check for new versions automatically from time to time using \
+the Freshness setting."""))

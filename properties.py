@@ -16,6 +16,51 @@ def enumerate(items):
 		yield x, i
 		x += 1
 
+class Description(gtk.ScrolledWindow):
+	def __init__(self):
+		gtk.ScrolledWindow.__init__(self, None, None)
+		self.set_shadow_type(gtk.SHADOW_IN)
+		self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
+		description = gtk.TextView()
+		description.set_left_margin(4)
+		description.set_right_margin(4)
+		description.set_wrap_mode(gtk.WRAP_WORD)
+		description.set_editable(False)
+		description.set_cursor_visible(False)
+		self.add(description)
+
+		self.buffer = description.get_buffer()
+		self.heading_style = self.buffer.create_tag(underline = True, scale = 1.2)
+		description.set_size_request(-1, 100)
+	
+	def set_details(self, interface):
+		buffer = self.buffer
+		heading_style = self.heading_style
+
+		buffer.delete(buffer.get_start_iter(), buffer.get_end_iter())
+
+		iter = buffer.get_start_iter()
+
+		buffer.insert_with_tags(iter,
+			'%s (%s)' % (interface.get_name(), interface.summary), heading_style)
+
+		buffer.insert(iter, '\nFull name: %s' % interface.uri)
+
+		# (converts to local time)
+		if interface.last_modified:
+			buffer.insert(iter, '\nLast upstream change: %s' % time.ctime(interface.last_modified))
+
+		if interface.last_checked:
+			buffer.insert(iter, '\nLast checked: %s' % time.ctime(interface.last_checked))
+
+		if interface.last_local_update:
+			buffer.insert(iter, '\nLast local update: %s' % time.ctime(interface.last_local_update))
+
+		buffer.insert_with_tags(iter, '\n\nDescription\n', heading_style)
+
+		buffer.insert(iter, interface.description or "-")
+
+
 class Properties(Dialog):
 	interface = None
 	use_list = None
@@ -45,50 +90,15 @@ class Properties(Dialog):
 				properties_help.display()
 		self.connect('response', response)
 
-		swin = gtk.ScrolledWindow(None, None)
-		swin.set_shadow_type(gtk.SHADOW_IN)
-		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
-		vbox.pack_start(swin, False, True, 0)
-		description = gtk.TextView()
-		description.set_left_margin(4)
-		description.set_right_margin(4)
-		description.set_wrap_mode(gtk.WRAP_WORD)
-		description.set_editable(False)
-		description.set_cursor_visible(False)
-		swin.add(description)
+		vpaned = gtk.VPaned()
+		vbox.pack_start(vpaned, True, True, 0)
 
-		buffer = description.get_buffer()
-		heading_style = buffer.create_tag(underline = True, scale = 1.2)
-	
-		def set_details():
-			buffer.delete(buffer.get_start_iter(), buffer.get_end_iter())
-
-			iter = buffer.get_start_iter()
-
-			buffer.insert_with_tags(iter,
-				'%s (%s)' % (interface.get_name(), interface.summary), heading_style)
-
-			buffer.insert(iter, '\nFull name: %s' % interface.uri)
-
-			# (converts to local time)
-			if interface.last_modified:
-				buffer.insert(iter, '\nLast upstream change: %s' % time.ctime(interface.last_modified))
-
-			if interface.last_local_update:
-				buffer.insert(iter, '\nLast local update: %s' % time.ctime(interface.last_local_update))
-
-			if interface.last_checked:
-				buffer.insert(iter, '\nLast checked: %s' % time.ctime(interface.last_checked))
-
-			buffer.insert_with_tags(iter, '\n\nDescription\n', heading_style)
-
-			buffer.insert(iter, interface.description or "-")
-		set_details()
-
-		description.set_size_request(-1, 100)
+		description = Description()
+		description.set_details(interface)
+		vpaned.add1(description)
 
 		self.use_list = ImplementationList(interface)
-		vbox.pack_start(self.use_list, True, True, 0)
+		vpaned.add2(self.use_list)
 		self.use_list.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 
 		hbox = gtk.HBox(False, 2)
@@ -120,7 +130,7 @@ class Properties(Dialog):
 
 		def updated():
 			self.update_list()
-			set_details()
+			description.set_details(interface)
 		self.connect('destroy', lambda s: policy.watchers.remove(updated))
 		policy.watchers.append(updated)
 	
@@ -141,6 +151,14 @@ This window displays information about an interface. At the top is the interface
 short name, unique ID, summary and long description. The unique ID is also the \
 location which is used to update the information."""),
 
+('Dates and times', """
+Up to three times may be displayed:
+- 'Last upstream change' shows the version of the cached copy of the interface file.
+- 'Last checked' is the last time a fresh copy of the upstream interface file was \
+downloaded.
+- 'Last local update' is the modification time of your local additions to the interface. \
+You'll only have this displayed if you have made your own custom versions of a program."""),
+
 ('Implementations', """
 The main part of the window is a list of all known implementations of the interface. \
 The columns have the following meanings:
@@ -160,7 +178,8 @@ In off-line mode, only cached implementations are considered for use.
 Arch indicates what kind of computer system the implementation is for, or 'any' \
 if it works with all types of system.
 
-Location is the path that will be used for the implementation when the program is run.
+ID is the unique identifier for the implementation. Normally, this is a cryptographic \
+digest of it's contents, but it can also be a simple path name.
 """),
 ('Sort order', """
 The implementations are listed in the injector's currently preferred order (the one \

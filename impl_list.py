@@ -22,8 +22,7 @@ STABILITY = 2
 VERSION = 3
 CACHED = 4
 ID = 5
-SIZE = 6
-UNUSABLE = 7
+UNUSABLE = 6
 
 class ImplementationList(gtk.ScrolledWindow):
 	tree_view = None
@@ -33,7 +32,7 @@ class ImplementationList(gtk.ScrolledWindow):
 		gtk.ScrolledWindow.__init__(self, None, None)
 		self.set_shadow_type(gtk.SHADOW_IN)
 
-		self.model = gtk.ListStore(object, str, str, str, bool, str, str, bool)
+		self.model = gtk.ListStore(object, str, str, str, bool, str, bool)
 		self.tree_view = gtk.TreeView(self.model)
 
 		text = gtk.CellRendererText()
@@ -46,7 +45,6 @@ class ImplementationList(gtk.ScrolledWindow):
 			       stability,
 			       gtk.TreeViewColumn('C', toggle, active = CACHED),
 			       gtk.TreeViewColumn('Arch', text, text = ARCH),
-			       gtk.TreeViewColumn('Size', text, text = SIZE),
 			       gtk.TreeViewColumn('ID', text_strike, text = ID,
 			       				strikethrough = UNUSABLE)):
 			self.tree_view.append_column(column)
@@ -94,7 +92,6 @@ class ImplementationList(gtk.ScrolledWindow):
 							     model.testing
 			self.model[new][ARCH] = item.arch or 'any'
 			self.model[new][ID] = item.id
-			self.model[new][SIZE] = pretty_size(item.size)
 			self.model[new][UNUSABLE] = policy.is_unusable(item)
 	
 	def clear(self):
