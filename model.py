@@ -60,31 +60,21 @@ class Dependency(object):
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
-	__slots__ = ['path', 'arch', 'stability', 'version', 'size', 'dependencies']
+	__slots__ = ['path', 'arch', 'upstream_stability', 'user_stability',
+		     'version', 'size', 'dependencies']
 
-	def __init__(self, version, size, path):
+	def __init__(self, path):
 		assert path
 		self.path = path
-		self.stability = testing
-		self.size = size
-		self.version = map(int, version.split('.'))
+		self.size = None
+		self.version = None
+		self.user_stability = None
+		self.upstream_stability = None
+		self.arch = None
 		self.dependencies = {}	# URI -> Dependency
 	
-	def may_set_stability(self, stability):
-		assert isinstance(stability, Stability)
-
-		# Possible transitions:
-		# * -> buggy
-		# testing -> *
-		# developer -> *
-
-		if stability == buggy:
-			self.stability = stability
-		elif self.stability in (testing, developer):
-			self.stability = stability
-	
 	def get_stability(self):
-		return self.stability
+		return self.user_stability or self.upstream_stability or testing
 	
 	def get_cached(self):
 		return os.path.exists(self.path)
@@ -121,9 +111,9 @@ class Interface(object):
 	def __repr__(self):
 		return "<Interface %s>" % self.uri
 	
-	def get_impl(self, path, version, size):
+	def get_impl(self, path):
 		if path not in self.implementations:
-			self.implementations[path] = Implementation(version, size, path)
+			self.implementations[path] = Implementation(path)
 		return self.implementations[path]
 	
 	def set_stability_policy(self, new):

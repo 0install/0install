@@ -65,19 +65,18 @@ def update(interface):
 			if item.localName == 'group':
 				process_group(item, item_attrs, depends)
 			elif item.localName == 'implementation':
+				impl = interface.get_impl(item_attrs.path)
+				impl.version = map(int, item_attrs.version.split('.'))
 				size = item.getAttribute('size')
-				if size: size = long(size)
-				else: size = None
-				impl = interface.get_impl(item_attrs.path,
-							  item_attrs.version,
-							  size)
-				impl.dependencies.update(depends)
+				if size:
+					impl.size = long(size)
 				impl.arch = item_attrs.arch
 				try:
 					stability = stability_levels[str(item_attrs.stability)]
 				except KeyError:
 					raise Exception('Stability "%s" invalid' % item_attrs.stability)
-				impl.may_set_stability(stability)
+				impl.upstream_stability = stability
+				impl.dependencies.update(depends)
 
 	process_group(root, Attrs(testing), {})
 	interface.uptodate = True

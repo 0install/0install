@@ -17,15 +17,33 @@ class MainWindow(Dialog):
 
 		tips = gtk.Tooltips()
 
+		# Message
 		label = gtk.Label('Need to download interface definitions...')
 		self.vbox.pack_start(label, False, True, 0)
 		label.set_padding(8, 8)
 		label.show()
 
+		# Network use
+		hbox = gtk.HBox(False, 2)
+		self.vbox.pack_start(hbox, False, True, 0)
+		hbox.set_border_width(4)
+
+		network = gtk.combo_box_new_text()
+		network.append_text('Off-line')
+		network.append_text('Minimal')
+		network.append_text('Full')
+		network.set_active(1)
+		hbox.pack_start(gtk.Label('Network use:'), False, True, 0)
+		hbox.pack_start(network, False, True, 2)
+
+		hbox.show_all()
+
+		# Tree view
 		browser = InterfaceBrowser(root_interface)
 		self.vbox.pack_start(browser, True, True, 0)
 		browser.show()
 
+		# Select versions
 		hbox = gtk.HBox(False, 2)
 		self.vbox.pack_start(hbox, False, True, 0)
 		hbox.set_border_width(4)
@@ -53,19 +71,7 @@ class MainWindow(Dialog):
 
 		hbox.show_all()
 
-		hbox = gtk.HBox(False, 2)
-		self.vbox.pack_start(hbox, False, True, 0)
-		hbox.set_border_width(4)
-
-		network = gtk.combo_box_new_text()
-		network.append_text('Off-line')
-		network.append_text('Minimal')
-		network.append_text('Full')
-		network.set_active(1)
-		hbox.pack_start(gtk.Label('Network use:'), False, True, 0)
-		hbox.pack_start(network, False, True, 2)
-
-		hbox.show_all()
+		# Responses
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
@@ -87,23 +93,39 @@ gui_help = help_box.HelpBox("Injector Help",
 ('Overview', """
 A program is made up of many different components, typically written by different \
 groups of people. Each component is available in multiple versions. The injector is \
-used when starting a program. Its job is to decide which version of each required \
+used when starting a program. Its job is to decide which implementation of each required \
 component to use.
 
 An interface describes what a component does. The injector starts with \
 the interface for the program you want to run (like 'The Gimp') and chooses an \
-implementation (like 'The Gimp 2.2.0').  However, this implementation \
+implementation (like 'The Gimp 2.2.0'). However, this implementation \
 will in turn depend on other interfaces, such as 'GTK' (which draws the menus \
-and buttons, for example).  Thus, the injector must choose implementations of \
+and buttons). Thus, the injector must choose implementations of \
 each dependancy (each of which may require further interfaces, and so on)."""),
 
-('The main window', """
-The main window displays all these interfaces, and the chosen version of each
-one. The top-most one represents the program you tried to run, and each direct
-child is a dependancy of the version chosen.
+('List of interfaces', """
+The main window displays all these interfaces, and the version of each chosen \
+implementation. The top-most one represents the program you tried to run, and each direct \
+child is a dependancy.
 
-If you are happy with the versions shown, click on the Execute button to run the \
-program.
+If you are happy with the choices shown, click on the Execute button to run the \
+program."""),
 
-If you want to try a different version of some interface, click on it to \
-open the properties box for that interface."""))
+('Choosing different versions', """
+There are three ways to control which implementations are chosen. You can adjust the \
+network policy and the overall stability policy, which affect all interfaces, or you \
+can edit the policy of individual interfaces.
+
+The 'Network use' option controls how the injector uses the network. If off-line, \
+the network is not used at all. If 'Minimal' is selected then the injector will use \
+the network if needed, but only if it has no choice. It will run an out-of-date \
+version rather than download a newer one. If 'Full' is selected, the injector won't \
+worry about how much it downloads, but will always pick the version it thinks is best.
+
+The overall stability policy can either be to prefer stable versions, or to help test \
+new versions. Choose whichever suits you. Since different programmers have different \
+ideas of what 'stable' means, you may wish to override this on a per-interface basis \
+(see below).
+
+To set the policy for an interface individually, select it and click on 'Interface \
+Properties'. See that dialog's help text for more information."""))

@@ -36,8 +36,8 @@ class Policy:
 		return best
 	
 	def compare(self, interface, b, a):
-		a_stab = a.stability
-		b_stab = b.stability
+		a_stab = a.get_stability()
+		b_stab = b.get_stability()
 
 		# Usable ones come first
 		a_usable = a_stab != buggy

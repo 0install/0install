@@ -22,6 +22,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			  'Interface Properties...',
 			  'Set which implementation of this interface to use.',
 			  gtk.STOCK_PROPERTIES)
+		self.edit_properties.set_property('sensitive', False)
 
 		gtk.ScrolledWindow.__init__(self)
 		self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)

@@ -201,7 +201,7 @@ Location is the path that will be used for the implementation when the program i
 """),
 ('Sort order', """
 The implementations are listed in the injector's currently preferred order (the one \
-at the top will be actually be used). Usable implementations all come before unusable \
+at the top will actually be used). Usable implementations all come before unusable \
 ones.
 
 Unusable ones are those marked as 'avoid', those for incompatible \
@@ -213,14 +213,13 @@ For the usable implementations, the order is as follows:
 
 - 'prefer' implementations all come before normal ones.
 
+- Then, if network use is set to 'Minimal', cached implementations come before \
+non-cached.
+
 - If the option to prefer 'stable' implementations is set, 'stable' ones come before \
 'testing'.
 
 - Then, higher-numbered versions come before low-numbered ones.
 
-- Then cached come before non-cached.
-
-- The closest compatible architecture is preferred.
-
-- The smallest implementation is preferred.
+- Then cached come before non-cached (for 'Full' network use mode).
 """))
