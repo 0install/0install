@@ -22,14 +22,26 @@ class BadSig(Signature):
 		self.keyid = keyid
 	
 	def __str__(self):
-		return "BAD signature by " + self.keyid
+		return "BAD signature by " + self.keyid + "(the message has been tampered with)"
 
 class ErrSig(Signature):
-	def __init__(self, keyid):
-		self.keyid = keyid
+	ALG = 0
+	KEYID = 1
+	RC = -1
+
+	def __init__(self, status):
+		self.status = status
 
 	def __str__(self):
-		return "ERROR signature by " + self.keyid
+		msg = "ERROR signature by %s: " % self.status[self.KEYID]
+		rc = int(self.status[self.RC])
+		if rc == 4:
+			msg += "Unknown or unsupported algorithm '%s'" % self.status[self.ALG]
+		elif rc == 9:
+			msg += "Unknown key. Try 'gpg --recv-key %s'" % self.status[self.KEYID]
+		else:
+			msg += "Unknown reason code %d" % rc
+		return msg
 
 def check_stream(stream):
 	"""Pass stream through gpg --decrypt to get the data, the error text,
@@ -78,7 +90,7 @@ def check_stream(stream):
 		elif code == 'BADSIG':
 			sigs.append(BadSig(line.split(' ', 2)[1]))
 		elif code == 'ERRSIG':
-			sigs.append(ErrSig(line.split(' ', 2)[1]))
+			sigs.append(ErrSig(line.split(' ')))
 
 	pid, status = os.waitpid(child, 0)
 	assert pid == child
