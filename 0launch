@@ -8,8 +8,9 @@ from zeroinstall.injector import policy, download, gpg, run
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]")
-parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
+parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
+parser.add_option("-v", "--version", help="display version information", action='store_true')
 
 (options, args) = parser.parse_args()
 
@@ -26,6 +27,17 @@ if options.list:
 	for i in reader.list_all_interfaces():
 		if match and match not in i.lower(): continue
 		print "-", i
+	sys.exit(0)
+
+if options.version:
+	import zeroinstall
+	print "0launch (zero-install) " + zeroinstall.version
+	print "Copyright (C) 2005 Thomas Leonard"
+	print "This program comes with ABSOLUTELY NO WARRANTY,"
+	print "to the extent permitted by law."
+	print "You may redistribute copies of this program"
+	print "under the terms of the GNU General Public License."
+	print "For more information about these matters, see the file named COPYING."
 	sys.exit(0)
 
 if len(args) < 1:
