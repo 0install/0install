@@ -52,8 +52,7 @@ def process_depends(dependency, item):
 def update_from_cache(interface):
 	"""True if cached version and user overrides loaded OK.
 	False if not cached."""
-	cached = basedir.load_first_config(config_site, config_prog,
-					   'interfaces', escape(interface.uri))
+	cached = basedir.load_first_cache(config_site, 'interfaces', escape(interface.uri))
 	if not cached:
 		return False
 
@@ -65,7 +64,7 @@ def update_from_cache(interface):
 
 def list_all_interfaces():
 	all = {}
-	for d in basedir.load_config_paths(config_site, config_prog, 'interfaces'):
+	for d in basedir.load_cache_paths(config_site, 'interfaces'):
 		for leaf in os.listdir(d):
 			if not leaf.startswith('.'):
 				all[leaf] = True

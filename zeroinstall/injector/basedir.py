@@ -2,11 +2,12 @@ from __future__ import generators
 import os
 
 _home = os.environ.get('HOME', '/')
-xdg_data_home = os.environ.get('XDG_DATA_HOME',
-			os.path.join(_home, '.local', 'share'))
 
-xdg_data_dirs = [xdg_data_home] + \
-	os.environ.get('XDG_DATA_DIRS', '/usr/local/share:/usr/share').split(':')
+xdg_cache_home = os.environ.get('XDG_CACHE_HOME',
+			os.path.join(_home, '.cache'))
+
+xdg_cache_dirs = [xdg_cache_home] + \
+	os.environ.get('XDG_CACHE_DIRS', '').split(':')
 
 xdg_config_home = os.environ.get('XDG_CONFIG_HOME',
 			os.path.join(_home, '.config'))
@@ -14,7 +15,7 @@ xdg_config_home = os.environ.get('XDG_CONFIG_HOME',
 xdg_config_dirs = [xdg_config_home] + \
 	os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(':')
 
-xdg_data_dirs = filter(lambda x: x, xdg_data_dirs)
+xdg_cache_dirs = filter(lambda x: x, xdg_cache_dirs)
 xdg_config_dirs = filter(lambda x: x, xdg_config_dirs)
 
 def save_config_path(*resource):
@@ -27,18 +28,6 @@ def save_config_path(*resource):
 	path = os.path.join(xdg_config_home, resource)
 	if not os.path.isdir(path):
 		os.makedirs(path, 0700)
-	return path
-
-def save_data_path(*resource):
-	"""Ensure $XDG_DATA_HOME/<resource>/ exists, and return its path.
-	'resource' is the name of some shared resource. Use this when updating
-	a shared (between programs) database. Use the xdg_data_dirs variable
-	for loading."""
-	resource = os.path.join(*resource)
-	assert not resource.startswith('/')
-	path = os.path.join(xdg_data_home, resource)
-	if not os.path.isdir(path):
-		os.makedirs(path)
 	return path
 
 def load_config_paths(*resource):
@@ -57,11 +46,29 @@ def load_first_config(*resource):
 		return x
 	return None
 
-def load_data_paths(*resource):
-	"""Returns an iterator which gives each directory named 'resource' in the
-	shared data search path. Information provided by earlier directories should
-	take precedence over later ones."""
+
+def save_cache_path(*resource):
+	"""Ensure $XDG_CACHE_HOME/<resource>/ exists, and return its path.
+	'resource' should normally be the name of your application."""
 	resource = os.path.join(*resource)
-	for data_dir in xdg_data_dirs:
-		path = os.path.join(data_dir, resource)
+	assert not resource.startswith('/')
+	path = os.path.join(xdg_cache_home, resource)
+	if not os.path.isdir(path):
+		os.makedirs(path, 0700)
+	return path
+
+def load_cache_paths(*resource):
+	"""Returns an iterator which gives each directory named 'resource' in the
+	cache search path. Information provided by earlier directories should
+	take precedence over later ones (ie, the user's cache dir comes first)."""
+	resource = os.path.join(*resource)
+	for cache_dir in xdg_cache_dirs:
+		path = os.path.join(cache_dir, resource)
 		if os.path.exists(path): yield path
+
+def load_first_cache(*resource):
+	"""Returns the first result from load_cache_paths, or None if there is nothing
+	to load."""
+	for x in load_cache_paths(*resource):
+		return x
+	return None

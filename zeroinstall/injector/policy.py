@@ -195,7 +195,7 @@ class Policy(object):
 		self.recalculate()
 	
 	def import_new_interface(self, interface, new_xml):
-		upstream_dir = basedir.save_config_path(config_site, config_prog, 'interfaces')
+		upstream_dir = basedir.save_cache_path(config_site, 'interfaces')
 		cached = os.path.join(upstream_dir, escape(interface.uri))
 
 		if os.path.exists(cached):
