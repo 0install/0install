@@ -2,6 +2,7 @@ from model import *
 import basedir
 from namespaces import *
 import ConfigParser
+import reader
 
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
@@ -45,8 +46,8 @@ class Policy(object):
 		self.updates = []
 		def process(iface):
 			if not iface.uptodate:
-				self.updates.append(iface)
-				return
+				reader.update_from_cache(iface)
+				assert iface.uptodate
 			impl = self.get_best_implementation(iface)
 			if impl:
 				self.implementation[iface] = impl
