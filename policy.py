@@ -78,6 +78,10 @@ class Policy(object):
 		r = cmp(a_stab == preferred, b_stab == preferred)
 		if r: return r
 
+		if self.network_use != network_full:
+			r = cmp(a.get_cached(), b.get_cached())
+			if r: return r
+
 		# Stability
 		policy = interface.stability_policy
 		if not policy:
@@ -90,15 +94,24 @@ class Policy(object):
 		r = cmp(a_stab, b_stab)
 		if r: return r
 		
-		return cmp(a.version, b.version)
+		r = cmp(a.version, b.version)
+		if r: return r
+
+		if self.network_use != network_full:
+			r = cmp(a.get_cached(), b.get_cached())
+			if r: return r
+
+		return cmp(a.path, b.path)
 	
 	def get_ranked_implementations(self, iface):
 		impls = iface.implementations.values()
 		impls.sort(lambda a, b: self.compare(iface, a, b))
 		return impls
 	
-	def is_unusable(self, interface):
-		if interface.get_stability() <= buggy:
+	def is_unusable(self, impl):
+		if impl.get_stability() <= buggy:
+			return True
+		if self.network_use == network_offline and not impl.get_cached():
 			return True
 		return False
 
