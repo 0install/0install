@@ -91,7 +91,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			if impl:
 				self.model[iter][InterfaceBrowser.VERSION] = impl.get_version()
 				for child in impl.dependencies.values():
-					add_node(iter, child.get_interface())
+					add_node(iter, policy.get_interface(child.interface))
 			else:
 				self.model[iter][InterfaceBrowser.VERSION] = '(choose)'
 		add_node(None, self.root)

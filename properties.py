@@ -70,11 +70,7 @@ class Properties(Dialog):
 
 		description.set_size_request(-1, 100)
 
-		if interface.uptodate:
-			buffer.insert(iter, interface.description or "-")
-		else:
-			buffer.insert(iter, "Information about this interface has not "
-						"yet been downloaded.")
+		buffer.insert(iter, interface.description or "-")
 
 		self.use_list = ImplementationList(interface)
 		vbox.pack_start(self.use_list, True, True, 0)

@@ -8,20 +8,18 @@ if len(sys.argv) < 3:
 	print "PROG is a relative path inside an implementation of INTERFACE. Eg:"
 	print "injector /uri/0install/site/myprog.xml bin/myprog --help"
 	sys.exit(1)
-interface_uri = sys.argv[1]
+interface_uri = os.path.realpath(sys.argv[1])
 prog = sys.argv[2]
 prog_args = sys.argv[3:]
-interactive = bool(os.environ.get('INJECTOR_INTERACTIVE', None))
 
 import model
 from policy import policy
 
-interface = model.get_interface(interface_uri)
-policy.set_root_iterface(interface)
+policy.set_root_interface(interface_uri)
 
 import gui, gtk
 
-window = gui.MainWindow(interface, prog, prog_args)
+window = gui.MainWindow(prog, prog_args)
 window.show()
 gtk.main()
 

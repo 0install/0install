@@ -10,7 +10,7 @@ gtk.rc_parse_string('style "scrolled" { '
 		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
 
 class MainWindow(Dialog):
-	def __init__(self, root_interface, prog, prog_args):
+	def __init__(self, prog, prog_args):
 		Dialog.__init__(self)
 		self.set_title('Dependency Injector')
 		self.set_default_size(400, 300)
@@ -18,10 +18,10 @@ class MainWindow(Dialog):
 		tips = gtk.Tooltips()
 
 		# Message
-		label = gtk.Label('Need to download interface definitions...')
-		self.vbox.pack_start(label, False, True, 0)
-		label.set_padding(8, 8)
-		label.show()
+		#label = gtk.Label('Need to download interface definitions...')
+		#self.vbox.pack_start(label, False, True, 0)
+		#label.set_padding(8, 8)
+		#label.show()
 
 		# Network use
 		hbox = gtk.HBox(False, 2)
@@ -43,7 +43,7 @@ class MainWindow(Dialog):
 		hbox.show_all()
 
 		# Tree view
-		browser = InterfaceBrowser(root_interface)
+		browser = InterfaceBrowser(policy.get_interface(policy.root))
 		self.vbox.pack_start(browser, True, True, 0)
 		browser.show()
 
@@ -85,7 +85,7 @@ class MainWindow(Dialog):
 			elif resp == gtk.RESPONSE_OK:
 				import run
 				try:
-					run.execute(root_interface, prog, prog_args)
+					run.execute(prog, prog_args)
 					self.destroy()
 				except SafeException, ex:
 					box = gtk.MessageDialog(self, gtk.DIALOG_MODAL,
