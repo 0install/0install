@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import os, sys
-sys.path.insert(0, '.')
 
 __builtins__._ = lambda x: x
 

@@ -2,4 +2,4 @@ all:
 	pychecker *.py
 
 test:
-	./injector-gui/injector-gui Tests/edit.xml AppRun
+	PYTHONPATH=injector ./injector-gui/injector-gui Tests/edit.xml AppRun
