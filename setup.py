@@ -1,6 +1,6 @@
 from distutils.core import setup
 setup(name="injector",
-      version="0.3",
+      version="0.4",
       description="The Zero Install Injector (0launch)",
       author="Thomas Leonard",
       author_email="-",
