@@ -2,13 +2,10 @@ import gtk
 import os
 
 from model import SafeException
-from gui import policy
+from gui import policy, pretty_size
 from dialog import Dialog
 import download
 import dialog
-
-def pretty_size(size):
-	return str(size) + ' b'
 
 def download_and_run(mainwindow, prog_args):
 	"""If all downloads are ready, runs the program. Otherwise,
@@ -30,7 +27,7 @@ def download_and_run(mainwindow, prog_args):
 			run.execute(policy, prog_args)
 			mainwindow.destroy()
 		except SafeException, ex:
-			box = gtk.MessageDialog(self, gtk.DIALOG_MODAL,
+			box = gtk.MessageDialog(None, gtk.DIALOG_MODAL,
 					gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
 					str(ex))
 			box.run()
@@ -90,6 +87,7 @@ class DownloadProgessBox(Dialog):
 
 		def update_bars():
 			if self.n_downloads == 0:
+				self.destroy()
 				self.run_it()
 				return False
 			for dl, bar in bars:

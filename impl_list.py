@@ -1,19 +1,7 @@
 import gtk
 import model
-from gui import policy
+from gui import policy, pretty_size
 import writer
-
-def pretty_size(size):
-	if size is None:
-		return '?'
-	if size < 2048:
-		return '%d bytes' % size
-	size = float(size)
-	for unit in ('Kb', 'Mb', 'Gb', 'Tb'):
-		size /= 1024
-		if size < 2048:
-			break
-	return '%.1f %s' % (size, unit)
 
 def popup_menu(bev, values, fn):
 	menu = gtk.Menu()
