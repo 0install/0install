@@ -34,7 +34,10 @@ class Attrs(object):
 		return new
 
 def process_depends(dependency, item):
-	print item
+	for e in item.getElementsByTagNameNS(XMLNS_IFACE, 'environment'):
+		binding = EnvironmentBinding(e.getAttribute('name'),
+					     insert = e.getAttribute('insert'))
+		dependency.bindings.append(binding)
 
 def update(interface):
 	assert isinstance(interface, Interface)

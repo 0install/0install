@@ -30,7 +30,16 @@ class Restriction(object):
 class Binding(object):
 	"""Information about how the choice of a Dependency is made known
 	to the application being run."""
-	__slots__ = ['environ', 'insert']
+
+class EnvironmentBinding(Binding):
+	__slots__ = ['name', 'insert']
+
+	def __init__(self, name, insert):
+		self.name = name
+		self.insert = insert
+	
+	def __str__(self):
+		return "<environ %s += %s>" % (self.name, self.insert)
 
 class Dependency(object):
 	"""A Dependency indicates that an Implementation requires some additional
@@ -45,6 +54,9 @@ class Dependency(object):
 	
 	def get_interface(self):
 		return get_interface(self.interface)
+	
+	def __str__(self):
+		return "<Dependency on %s; bindings: %d>" % (self.interface, len(self.bindings))
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
@@ -124,6 +136,9 @@ class Interface(object):
 _interfaces = {}	# URI -> Interface
 
 def get_interface(uri):
+	if type(uri) == str:
+		uri = unicode(uri)
+	assert isinstance(uri, unicode)
 	if uri not in _interfaces:
 		_interfaces[uri] = Interface(uri)
 	return _interfaces[uri]

@@ -5,8 +5,6 @@ import properties
 import iface_reader
 from policy import policy
 
-def _(x): return x
-
 class InterfaceBrowser(gtk.ScrolledWindow):
 	model = None
 	root = None

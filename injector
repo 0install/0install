@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import os, sys
 
+__builtins__._ = lambda x: x
+
 if len(sys.argv) < 3:
 	print "Usage: injector INTERFACE PROG [ARGS]"
 	print "PROG is a relative path inside an implementation of INTERFACE. Eg:"
@@ -19,7 +21,7 @@ policy.set_root_iterface(interface)
 
 import gui, gtk
 
-window = gui.MainWindow(interface)
+window = gui.MainWindow(interface, prog, prog_args)
 window.show()
 gtk.main()
 

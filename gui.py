@@ -10,7 +10,7 @@ gtk.rc_parse_string('style "scrolled" { '
 		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
 
 class MainWindow(Dialog):
-	def __init__(self, root_interface):
+	def __init__(self, root_interface, prog, prog_args):
 		Dialog.__init__(self)
 		self.set_title('Dependency Injector')
 		self.set_default_size(400, 300)
@@ -76,6 +76,8 @@ class MainWindow(Dialog):
 			if resp == gtk.RESPONSE_CANCEL:
 				self.destroy()
 			elif resp == gtk.RESPONSE_OK:
+				import run
+				run.execute(root_interface, prog, prog_args)
 				self.destroy()
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
