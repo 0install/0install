@@ -76,7 +76,11 @@ def execute():
 	run.execute(policy, prog_args)
 
 # Get interfaces...
-wait_for_downloads()
+try:
+	wait_for_downloads()
+except model.SafeException, ex:
+	print >>sys.stderr, ex
+	sys.exit(1)
 
 try:
 	execute()

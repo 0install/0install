@@ -294,9 +294,12 @@ class Policy(object):
 		"""We don't trust any of the signatures yet. Ask the user.
 		When done, call update_interface_if_trusted()."""
 		import gpg
+		if not sigs:
+			raise SafeException('No signature on %s!' % interface.uri)
 		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
 		if not valid_sigs:
-			raise SafeException('No valid signatures found')
+			raise SafeException('No valid signatures found. Signatures:' +
+					''.join(['\n- ' + s for s in sigs]))
 
 		print "\nInterface:", interface.uri
 		print "The interface is correctly signed with the following keys:"
