@@ -64,12 +64,14 @@ class Dependency(object):
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
-	__slots__ = ['path', 'arch', 'upstream_stability', 'user_stability',
-		     'version', 'size', 'dependencies', '_cached']
+	__slots__ = ['arch', 'upstream_stability', 'user_stability',
+		     'version', 'size', 'dependencies', '_cached',
+		     'id']
 
-	def __init__(self, path):
-		assert path
-		self.path = path
+	def __init__(self, id):
+		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
+		assert id
+		self.id = id
 		self.size = None
 		self.version = None
 		self.user_stability = None
@@ -81,24 +83,11 @@ class Implementation(object):
 	def get_stability(self):
 		return self.user_stability or self.upstream_stability or testing
 	
-	def get_cached(self):
-		if self._cached is None:
-			self._cached = False
-			if os.path.exists(self.path):
-				cache_dir = cache_for(self.path)
-				for x in os.listdir(cache_dir):
-					if x[0] == '.': continue
-					if x == 'AppInfo.xml': continue
-					if os.path.isfile(os.path.join(cache_dir, x)):
-						self._cached = True
-						break
-		return self._cached
-	
 	def get_version(self):
 		return '.'.join(map(str, self.version))
 	
 	def __str__(self):
-		return self.path
+		return self.id
 
 	def __cmp__(self, other):
 		return cmp(other.version, self.version)
@@ -137,10 +126,10 @@ class Interface(object):
 	def __repr__(self):
 		return "<Interface %s>" % self.uri
 	
-	def get_impl(self, path):
-		if path not in self.implementations:
-			self.implementations[path] = Implementation(path)
-		return self.implementations[path]
+	def get_impl(self, id):
+		if id not in self.implementations:
+			self.implementations[id] = Implementation(id)
+		return self.implementations[id]
 	
 	def set_stability_policy(self, new):
 		assert new is None or isinstance(new, Stability)

@@ -2,8 +2,8 @@ import os, sys
 
 from model import *
 
-def do_env_binding(binding, impl):
-	extra = os.path.join(impl.path, binding.insert)
+def do_env_binding(binding, path):
+	extra = os.path.join(path, binding.insert)
 	if binding.name in os.environ:
 		os.environ[binding.name] = extra + ':' + os.environ[binding.name]
 	else:
@@ -18,11 +18,13 @@ def execute(policy, prog, prog_args):
 			dep_iface = policy.get_interface(dep.interface)
 			for b in dep.bindings:
 				if isinstance(b, EnvironmentBinding):
-					do_env_binding(b, policy.get_implementation(dep_iface))
+					dep_impl = policy.get_implementation(dep_iface)
+					do_env_binding(b, policy.get_implementation_path(dep_impl))
 			setup_bindings(dep_iface)
 	setup_bindings(iface)
 	
-	prog_path = os.path.join(policy.implementation[iface].path, prog)
+	root_impl = policy.get_implementation(iface)
+	prog_path = os.path.join(policy.get_implementation_path(root_impl), prog)
 	if not os.path.exists(prog_path):
 		print >>sys.stderr, "'%s' does not exist." % prog_path
 		print >>sys.stderr, "(implementation '%s' + program '%s')" % (policy.implementation[iface].path, prog)

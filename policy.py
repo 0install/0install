@@ -7,6 +7,7 @@ from namespaces import *
 import ConfigParser
 import reader
 import download
+import zerostore
 
 #from logging import getLogger, DEBUG
 #getLogger().setLevel(DEBUG)
@@ -19,11 +20,15 @@ def pretty_time(t):
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
-		     'freshness']
+		     'freshness', 'store']
 
 	def __init__(self, root):
 		assert isinstance(root, (str, unicode))
 		self.root = root
+		user_store = os.path.expanduser('~/.cache/0install.net/implementations')
+		if not os.path.isdir(user_store):
+			os.makedirs(user_store)
+		self.store = zerostore.Store(user_store)
 		self.implementation = {}		# Interface -> Implementation
 		self.watchers = []
 		self.help_with_testing = False
@@ -90,7 +95,7 @@ class Policy(object):
 		if r: return r
 
 		if self.network_use != network_full:
-			r = cmp(a.get_cached(), b.get_cached())
+			r = cmp(self.get_cached(a), self.get_cached(b))
 			if r: return r
 
 		# Stability
@@ -109,7 +114,7 @@ class Policy(object):
 		if r: return r
 
 		if self.network_use != network_full:
-			r = cmp(a.get_cached(), b.get_cached())
+			r = cmp(self.get_cached(a), self.get_cached(b))
 			if r: return r
 
 		return cmp(a.path, b.path)
@@ -122,7 +127,7 @@ class Policy(object):
 	def is_unusable(self, impl):
 		if impl.get_stability() <= buggy:
 			return True
-		if self.network_use == network_offline and not impl.get_cached():
+		if self.network_use == network_offline and not self.get_cached(impl):
 			return True
 		return False
 	
@@ -219,7 +224,18 @@ class Policy(object):
 
 		reader.update_from_cache(interface)
 
+	def get_implementation_path(self, impl):
+		assert isinstance(impl, Implementation)
+		if impl.id.startswith('/'):
+			return impl.id
+		path = self.store.lookup(impl.id)
+		if path:
+			return path
+		raise Exception("Item '%s' not found in cache '%s' (digest is '%s')" % (impl, self.store.dir, impl.id))
+		
 	def get_implementation(self, interface):
+		assert isinstance(interface, Interface)
+
 		if not interface.name:
 			raise SafeException("We don't have enough information to "
 					    "run this program yet. "
@@ -298,3 +314,19 @@ class Policy(object):
 		print "Updates:"
 		for line in diff:
 			print line
+
+	def get_cached(self, impl):
+		# XXX _cached
+		if impl._cached is None:
+			impl._cached = False
+			if impl.id.startswith('/'):
+				impl._cached = os.path.exists(impl.id)
+			else:
+				try:
+					path = self.get_implementation_path(impl)
+					assert path
+					impl._cached = True
+				except:
+					pass # OK
+		return impl._cached
+	
