@@ -10,7 +10,6 @@ class Freshness(object):
 
 freshness_levels = [
 	Freshness(-1, 'No automatic updates'),
-	Freshness(0, 'Always update'),
 	Freshness(60, 'Up to one minute old'),
 	Freshness(60 * 60, 'Up to one hour old'),
 	Freshness(24 * 60 * 60, 'Up to one day old'),
