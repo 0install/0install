@@ -14,45 +14,25 @@ def add_text(parent, name, text):
 	element.appendChild(doc.createTextNode(text))
 
 def add_impl(parent, impl):
-	doc = parent.ownerDocument
-	node = doc.createElementNS(XMLNS_IFACE, 'implementation')
-	parent.appendChild(node)
-	node.setAttribute('version', impl.get_version())
-	node.setAttribute('path', impl.path)
-	if impl.upstream_stability:
-		node.setAttribute('stability', str(impl.upstream_stability))
 	if impl.user_stability:
+		doc = parent.ownerDocument
+		node = doc.createElementNS(XMLNS_IFACE, 'implementation')
+		parent.appendChild(node)
 		node.setAttribute('user_stability', str(impl.user_stability))
-	if impl.size:
-		node.setAttribute('size', str(impl.size))
-
-	for dep in impl.dependencies.values():
-		depends = doc.createElementNS(XMLNS_IFACE, 'requires')
-		depends.setAttribute('interface', dep.interface)
-		node.appendChild(depends)
-		for bin in dep.bindings:
-			if isinstance(bin, EnvironmentBinding):
-				binding = doc.createElementNS(XMLNS_IFACE, 'environment')
-				binding.setAttribute('name', bin.name)
-				binding.setAttribute('insert', bin.insert)
-				depends.appendChild(binding)
-			else:
-				print "Warning, unknown binding type", bin
+		node.setAttribute('path', impl.path)
 
 def save_interface(interface):
-	path = basedir.save_config_path(config_site, config_prog, 'interfaces')
+	path = basedir.save_config_path(config_site, config_prog, 'user_overrides')
 	path = os.path.join(path, escape(interface.uri))
-	#print "Save to", path
+	print "Save to", path
 
 	impl = minidom.getDOMImplementation()
 	doc = impl.createDocument(XMLNS_IFACE, 'interface', None)
 
 	root = doc.documentElement
 	root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns', XMLNS_IFACE)
+	root.setAttribute('uri', interface.uri)
 
-	add_text(root, 'name', interface.name)
-	add_text(root, 'summary', interface.summary)
-	add_text(root, 'description', interface.description)
 	if interface.stability_policy:
 		root.setAttribute('stability_policy', str(interface.stability_policy))
 

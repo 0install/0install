@@ -1,13 +1,16 @@
 from xml.dom import Node, minidom
 import sys
+import shutil
 
 import basedir
 from namespaces import *
 from model import *
 
-def get_singleton_text(parent, ns, localName):
+def get_singleton_text(parent, ns, localName, user):
 	names = parent.getElementsByTagNameNS(ns, localName)
 	if not names:
+		if user:
+			return None
 		raise Exception('No <%s> element in <%s>' % (localName, parent.localName))
 	if len(names) > 1:
 		raise Exception('Multiple <%s> elements in <%s>' % (localName, parent.localName))
@@ -44,13 +47,28 @@ def process_depends(dependency, item):
 					     insert = e.getAttribute('insert'))
 		dependency.bindings.append(binding)
 
-def update_from_cache(interface):
+def update_from_cache(interface, network_use = network_offline):
+	if network_use == network_full and not interface.uptodate:
+		update_from_network(interface)
+		return
+
 	cached = basedir.load_first_config(config_site, config_prog,
 					   'interfaces', escape(interface.uri))
-	if not cached: return False
 
-	update(interface, cached, trusted = True)
-	return True
+	if network_use != network_offline and not cached:
+		update_from_network(interface)
+		return
+
+	interface.reset()
+
+	if cached:
+		update(interface, cached)
+
+	user = basedir.load_first_config(config_site, config_prog,
+					   'user_overrides', escape(interface.uri))
+	
+	if user:
+		update(interface, user, user_overrides = True)
 
 def update_from_network(interface):
 	print "Updating '%s' from network" % (interface.name or interface.uri)
@@ -60,31 +78,36 @@ def update_from_network(interface):
 		assert '/' not in site
 		print "Refreshing", site
 		os.spawnlp(os.P_WAIT, '0refresh', '0refresh', site)
-	update(interface, interface.uri)
-	interface.uptodate = True
-	import writer
-	writer.save_interface(interface)
 
-def update(interface, source, trusted = False):
+	upstream_dir = basedir.save_config_path(config_site, config_prog, 'interfaces')
+	cached = os.path.join(upstream_dir, escape(interface.uri))
+
+	print "Saving as", cached
+	shutil.copyfile(interface.uri, cached)
+	interface.uptodate = True
+	update_from_cache(interface)
+
+def update(interface, source, user_overrides = False):
 	assert isinstance(interface, Interface)
 
 	doc = minidom.parse(source)
 
 	root = doc.documentElement
-	interface.name = get_singleton_text(root, XMLNS_IFACE, 'name')
-	interface.description = get_singleton_text(root, XMLNS_IFACE, 'description')
-	interface.summary = get_singleton_text(root, XMLNS_IFACE, 'summary')
 
-	if not trusted:
+	interface.name = interface.name or get_singleton_text(root, XMLNS_IFACE, 'name', user_overrides)
+	interface.description = interface.description or get_singleton_text(root, XMLNS_IFACE, 'description', user_overrides)
+	interface.summary = interface.summary or get_singleton_text(root, XMLNS_IFACE, 'summary', user_overrides)
+
+	if not user_overrides:
 		canonical_name = root.getAttribute('uri')
 		if not canonical_name:
 			raise Exception("<interface> uri attribute missing in " + source)
-		if canonical_name != source:
+		if canonical_name != interface.uri:
 			print >>sys.stderr, \
 				"WARNING: <interface> uri attribute is '%s', but accessed as '%s'" % \
 					(canonical_name, source)
 
-	if trusted:
+	if user_overrides:
 		stability_policy = root.getAttribute('stability_policy')
 		if stability_policy:
 			interface.set_stability_policy(stability_levels[str(stability_policy)])
@@ -106,22 +129,25 @@ def update(interface, source, trusted = False):
 				process_group(item, item_attrs, depends)
 			elif item.localName == 'implementation':
 				impl = interface.get_impl(item_attrs.path)
-				impl.version = map(int, item_attrs.version.split('.'))
-				size = item.getAttribute('size')
-				if size:
-					impl.size = long(size)
-				impl.arch = item_attrs.arch
-				try:
-					stability = stability_levels[str(item_attrs.stability)]
-				except KeyError:
-					raise Exception('Stability "%s" invalid' % item_attrs.stability)
-				if stability >= preferred:
-					raise Exception("Upstream can't set stability to preferred!")
-				impl.upstream_stability = stability
-				if trusted:
+
+				if user_overrides:
 					user_stability = item.getAttribute('user_stability')
 					if user_stability:
 						impl.user_stability = stability_levels[str(user_stability)]
+				else:
+					impl.version = map(int, item_attrs.version.split('.'))
+
+					size = item.getAttribute('size')
+					if size:
+						impl.size = long(size)
+					impl.arch = item_attrs.arch
+					try:
+						stability = stability_levels[str(item_attrs.stability)]
+					except KeyError:
+						raise Exception('Stability "%s" invalid' % item_attrs.stability)
+					if stability >= preferred:
+						raise Exception("Upstream can't set stability to preferred!")
+					impl.upstream_stability = stability
 				impl.dependencies.update(depends)
 
 	process_group(root, Attrs(testing), {})

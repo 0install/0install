@@ -119,6 +119,9 @@ class Interface(object):
 	def __init__(self, uri):
 		assert uri
 		self.uri = uri
+		self.reset()
+
+	def reset(self):
 		self.implementations = {}	# Path -> Implementation
 		self.name = None
 		self.last_updated = None

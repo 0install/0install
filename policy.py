@@ -128,9 +128,7 @@ class Policy(object):
 		if uri not in _interfaces:
 			# Haven't used this interface so far. Initialise from cache.
 			_interfaces[uri] = Interface(uri)
-			if not reader.update_from_cache(_interfaces[uri]):
-				# Not in the case. Force update from network.
-				reader.update_from_network(_interfaces[uri])
+			reader.update_from_cache(_interfaces[uri], self.network_use)
 
 		if self.network_use == network_full and not _interfaces[uri].uptodate:
 			reader.update_from_network(_interfaces[uri])
