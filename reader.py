@@ -81,3 +81,6 @@ def update(interface):
 
 	process_group(root, Attrs(testing), {})
 	interface.uptodate = True
+
+	import writer
+	writer.save_interface(interface)

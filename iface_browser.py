@@ -2,7 +2,7 @@ import gtk
 
 from model import Interface
 import properties
-import iface_reader
+import reader
 from policy import policy
 
 class InterfaceBrowser(gtk.ScrolledWindow):
@@ -84,7 +84,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		parent = None
 		def add_node(parent, iface):
 			if not iface.uptodate:
-				iface_reader.update(iface)
+				reader.update(iface)
 				policy.recalculate()
 			
 			iter = self.model.append(parent)
