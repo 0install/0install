@@ -20,7 +20,7 @@ if options.list:
 	if len(args) == 0:
 		match = None
 	elif len(args) == 1:
-		match = args[0]
+		match = args[0].lower()
 	else:
 		parser.print_help()
 		sys.exit(1)
