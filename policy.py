@@ -64,6 +64,8 @@ class Policy(object):
 		for x in impls[1:]:
 			if self.compare(iface, x, best) < 0:
 				best = x
+		if self.is_unusable(best):
+			return None
 		return best
 	
 	def compare(self, interface, b, a):

@@ -68,7 +68,7 @@ class Dependency(object):
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
 	__slots__ = ['path', 'arch', 'upstream_stability', 'user_stability',
-		     'version', 'size', 'dependencies']
+		     'version', 'size', 'dependencies', '_cached']
 
 	def __init__(self, path):
 		assert path
@@ -78,13 +78,24 @@ class Implementation(object):
 		self.user_stability = None
 		self.upstream_stability = None
 		self.arch = None
+		self._cached = None
 		self.dependencies = {}	# URI -> Dependency
 	
 	def get_stability(self):
 		return self.user_stability or self.upstream_stability or testing
 	
 	def get_cached(self):
-		return os.path.exists(self.path)
+		if self._cached is None:
+			self._cached = False
+			if os.path.exists(self.path):
+				cache_dir = cache_for(self.path)
+				for x in os.listdir(cache_dir):
+					if x[0] == '.': continue
+					if x == 'AppInfo.xml': continue
+					if os.path.isfile(os.path.join(cache_dir, x)):
+						self._cached = True
+						break
+		return self._cached
 	
 	def get_version(self):
 		return '.'.join(map(str, self.version))
@@ -156,3 +167,13 @@ def escape(uri):
 
 class SafeException(Exception):
 	pass
+
+try:
+	_cache = os.readlink('/uri/0install/.lazyfs-cache')
+except:
+	_cache = None
+def cache_for(path):
+	prefix = '/uri/0install/'
+	if path.startswith(prefix) and _cache:
+		return os.path.join(_cache, path[len(prefix):])
+	return path

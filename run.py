@@ -33,6 +33,13 @@ def get_impl(interface):
 	try:
 		return policy.implementation[interface]
 	except KeyError:
-		raise SafeException("We don't have enough information to "
-				    "run this program yet. "
-				    "Need to download:\n%s" % interface.uri)
+		if not interface.name:
+			raise SafeException("We don't have enough information to "
+					    "run this program yet. "
+					    "Need to download:\n%s" % interface.uri)
+		if interface.implementations:
+			offline = ""
+			if policy.network_use == network_offline:
+				offline = "\nThis may be because 'Network Use' is set to Off-line."
+			raise SafeException("No usable implementation found for '%s'.%s" %
+					(interface.name, offline))
