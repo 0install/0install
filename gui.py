@@ -4,10 +4,14 @@ import help_box
 from dialog import Dialog
 from policy import policy
 from model import stable, testing, network_levels, SafeException
+from ui import UI
 
 gtk.rc_parse_string('style "scrolled" { '
 		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
 		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
+
+class GUI(UI):
+	pass
 
 class MainWindow(Dialog):
 	def __init__(self, prog, prog_args):

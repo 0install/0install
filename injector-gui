@@ -14,10 +14,9 @@ prog_args = sys.argv[3:]
 
 import model
 from policy import policy
-
-policy.set_root_interface(interface_uri)
-
 import gui, gtk
+
+policy.set_root_interface(interface_uri, gui.GUI())
 
 window = gui.MainWindow(prog, prog_args)
 window.show()
