@@ -6,7 +6,7 @@ from dialog import Dialog
 from model import stable, testing, network_levels, SafeException
 
 class MainWindow(Dialog):
-	label = None
+	progress = None
 	browser = None
 
 	def __init__(self, prog, prog_args):
@@ -16,11 +16,8 @@ class MainWindow(Dialog):
 
 		tips = gtk.Tooltips()
 
-		# Message
-		self.label = gtk.Label('Initialising...')
-		self.vbox.pack_start(self.label, False, True, 0)
-		self.label.set_padding(8, 8)
-		self.label.show()
+		self.progress = gtk.ProgressBar()
+		self.vbox.pack_start(self.progress, False, True, 0)
 
 		# Network use
 		hbox = gtk.HBox(False, 2)
