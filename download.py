@@ -82,6 +82,14 @@ class Download:
 
 		return stream
 	
+	def abort(self):
+		if self.child_pid is not None:
+			print "Killing download process", self.child_pid
+			import signal
+			os.kill(self.child_pid, signal.SIGTERM)
+		else:
+			self.status = download_failed
+	
 def begin_download(interface, force):
 	"""Start downloading interface.
 	If a Download object already exists (any state; in progress, failed or
@@ -91,7 +99,6 @@ def begin_download(interface, force):
 	if dl:
 		if force:
 			dl.abort()
-			assert dl.status == download_failed
 			del downloads[interface.uri]
 		else:
 			return None	# Already downloading
