@@ -22,7 +22,7 @@ class BadSig(Signature):
 		self.keyid = keyid
 	
 	def __str__(self):
-		return "BAD signature by " + self.keyid + "(the message has been tampered with)"
+		return "BAD signature by " + self.keyid + " (the message has been tampered with)"
 
 class ErrSig(Signature):
 	ALG = 0
