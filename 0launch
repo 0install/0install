@@ -82,7 +82,7 @@ auto_policy.recalculate()
 
 if options.refresh:
 	for x in auto_policy.walk_interfaces():
-		auto_policy.begin_iface_download(x, True)
+		auto_policy.begin_iface_download(x, False)
 
 def wait_for_downloads():
 	while auto_policy.monitored_downloads:
