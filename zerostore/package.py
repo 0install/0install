@@ -1,5 +1,6 @@
 from __future__ import generators
 import os, stat
+from sets import Set
 
 """A manifest is a string representing a directory tree, with the property
 that two trees will generate identical manifest strings if and only if:
@@ -18,37 +19,44 @@ The manifest is typically processed with SHA1 itself. So, the idea is that
 any significant change to the contents of the tree will change the SHA1 sum
 of the manifest."""
 
-def generate_manifest(root, sub = '/'):
-	# To ensure that a line-by-line comparison of the manifests
-	# is possible, we require that filenames don't contain newlines.
-	# Otherwise, you can name a file so that the part after the \n
-	# would be interpreted as another line in the manifest.
-	assert '\n' not in sub
-	assert sub.startswith('/')
+def generate_manifest(root, ignore_set):
+	def recurse(sub):
+		# To ensure that a line-by-line comparison of the manifests
+		# is possible, we require that filenames don't contain newlines.
+		# Otherwise, you can name a file so that the part after the \n
+		# would be interpreted as another line in the manifest.
+		assert '\n' not in sub
+		assert sub.startswith('/')
 
-	full = os.path.join(root, sub[1:])
-	info = os.lstat(full)
-	
-	m = info.st_mode
-	if stat.S_ISDIR(m):
-		yield "D %s %s" % (info.st_mtime, sub)
-		items = os.listdir(full)
-		items.sort()
-		for x in items:
-			for y in generate_manifest(root, os.path.join(sub, x)):
-				yield y
-		return
+		full = os.path.join(root, sub[1:])
+		info = os.lstat(full)
+		
+		m = info.st_mode
+		if stat.S_ISDIR(m):
+			yield "D %s %s" % (info.st_mtime, sub)
+			items = os.listdir(full)
+			items.sort()
+			for x in items:
+				if x in ignore_set: continue
+				for y in recurse(os.path.join(sub, x)):
+					yield y
+			return
 
-	assert sub[1:]
-	leaf = os.path.basename(sub[1:])
-	if stat.S_ISREG(m):
-		if m & 0111:
-			yield "X %s %s %s" % (info.st_mtime,info.st_size, leaf)
+		assert sub[1:]
+		leaf = os.path.basename(sub[1:])
+		if stat.S_ISREG(m):
+			if m & 0111:
+				yield "X %s %s %s" % (info.st_mtime,info.st_size, leaf)
+			else:
+				yield "F %s %s %s" % (info.st_mtime,info.st_size, leaf)
 		else:
-			yield "F %s %s %s" % (info.st_mtime,info.st_size, leaf)
-	else:
-		print "Unknown object", full
+			print "Unknown object", full
+	for x in recurse('/'): yield x
 
-
-for line in generate_manifest('/home/talex/tmp/lazyfs-linux-0.1.24'):
-	print line
+if __name__ == '__main__':
+	import sys
+	unpacked = sys.argv[1]
+	assert os.path.isdir(unpacked)
+	ignored = Set(['CVS', '.svn'])
+	for line in generate_manifest(unpacked, ignored):
+		print line
