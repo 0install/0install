@@ -22,6 +22,25 @@ class MainWindow(Dialog):
 		self.vbox.pack_start(browser, True, True, 0)
 		browser.show()
 
+		hbox = gtk.HBox(False, 2)
+		self.vbox.pack_start(hbox, False, True, 0)
+
+		network = gtk.combo_box_new_text()
+		network.append_text('Off-line')
+		network.append_text('Minimal')
+		network.append_text('Full')
+		network.set_active(1)
+		hbox.pack_start(gtk.Label('Network use:'), False, True, 0)
+		hbox.pack_start(network, False, True, 0)
+
+		hbox.pack_start(gtk.EventBox(), True, True, 0)
+
+		button = gtk.Button()
+		browser.edit_properties.connect_proxy(button)
+		hbox.pack_start(button, False, True, 0)
+		hbox.set_border_width(4)
+		hbox.show_all()
+
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		self.add_button(gtk.STOCK_EXECUTE, gtk.RESPONSE_OK)

@@ -130,8 +130,17 @@ class Properties(Dialog):
 		vbox.pack_start(use_list, True, True, 0)
 		use_list.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 
-		prefer_stable = gtk.CheckButton('Prefer stable versions')
-		vbox.pack_start(prefer_stable, False, True, 0)
+		hbox = gtk.HBox(False, 2)
+		vbox.pack_start(hbox, False, True, 0)
+
+		stability = gtk.combo_box_new_text()
+		stability.append_text('Use default setting')
+		stability.append_text('Stable')
+		stability.append_text('Testing')
+		stability.append_text('Developer')
+		stability.set_active(0)
+		hbox.pack_start(gtk.Label('Preferred stability:'), False, True, 0)
+		hbox.pack_start(stability, False, True, 0)
 
 		vbox.show_all()
 	

@@ -2,12 +2,12 @@
 import os, sys
 
 if len(sys.argv) < 3:
-	print "Usage: injector PROG INTERFACE [ARGS]"
+	print "Usage: injector INTERFACE PROG [ARGS]"
 	print "PROG is a relative path inside an implementation of INTERFACE. Eg:"
-	print "injector bin/myprog /uri/0install/site/myprog.xml --help"
+	print "injector /uri/0install/site/myprog.xml bin/myprog --help"
 	sys.exit(1)
-prog = sys.argv[1]
-interface_uri = sys.argv[2]
+interface_uri = sys.argv[1]
+prog = sys.argv[2]
 prog_args = sys.argv[3:]
 interactive = bool(os.environ.get('INJECTOR_INTERACTIVE', None))
 

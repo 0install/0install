@@ -37,15 +37,16 @@ class Implementation(object):
 		self.dependencies = {}	# URI -> Dependency
 	
 	def may_set_stability(self, stability):
-		assert stability in ('testing', 'stable', 'buggy')
+		assert stability in ('testing', 'stable', 'developer', 'buggy')
 
 		# Possible transitions:
 		# * -> buggy
-		# testing -> stable
+		# testing -> *
+		# developer -> *
 
 		if stability == 'buggy':
 			self.stability = stability
-		elif self.stability == 'testing':
+		elif self.stability in ('testing', 'developer'):
 			self.stability = stability
 	
 	def get_stability(self):

@@ -10,6 +10,7 @@ def _(x): return x
 class InterfaceBrowser(gtk.ScrolledWindow):
 	model = None
 	root = None
+	edit_properties = None
 
 	INTERFACE = 0
 	INTERFACE_NAME = 1
@@ -19,6 +20,10 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 	def __init__(self, root):
 		assert isinstance(root, Interface)
 		self.root = root
+		self.edit_properties = gtk.Action('edit_properties',
+			  'Show _Implementations',
+			  'Set which implementation of this interface to use.',
+			  gtk.STOCK_PROPERTIES)
 
 		gtk.ScrolledWindow.__init__(self)
 		self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
@@ -44,23 +49,34 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		self.add(tree_view)
 		tree_view.show()
 
+		tree_view.set_enable_search(True)
+
 		selection = tree_view.get_selection()
-		selection.set_mode(gtk.SELECTION_NONE)
+		#selection.set_mode(gtk.SELECTION_NONE)
+
+		def sel_changed(sel):
+			store, iter = sel.get_selected()
+			self.edit_properties.set_property('sensitive', iter != None)
+		selection.connect('changed', sel_changed)
 
 		def button_press(tree_view, bev):
-			if bev.button != 1:
+			if bev.button != 1 or bev.type != gtk.gdk._2BUTTON_PRESS:
 				return False
 			pos = tree_view.get_path_at_pos(int(bev.x), int(bev.y))
 			if not pos:
 				return False
 			path, col, x, y = pos
 			properties.edit(self.model[path][InterfaceBrowser.INTERFACE])
-
 		tree_view.connect('button-press-event', button_press)
 
-		self.build_tree()
+		def edit_selected(action):
+			store, iter = selection.get_selected()
+			assert iter
+			properties.edit(self.model[iter][InterfaceBrowser.INTERFACE])
+		self.edit_properties.connect('activate', edit_selected)
 
-		properties.edit(root)
+		self.build_tree()
+		tree_view.expand_all()
 	
 	def build_tree(self):
 		self.model.clear()
