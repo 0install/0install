@@ -58,7 +58,7 @@ class Download:
 	
 	def download_as_child(self):
 		try:
-			import time
+			#import time
 			import shutil
 			print "Child downloading", self.url
 			if self.url.startswith('/'):

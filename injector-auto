@@ -3,16 +3,15 @@ import os, sys
 
 __builtins__._ = lambda x: x
 
-if len(sys.argv) < 3:
-	print "Usage: injector INTERFACE PROG [ARGS]"
-	print "PROG is a relative path inside an implementation of INTERFACE. Eg:"
-	print "injector /uri/0install/site/myprog.xml bin/myprog --help"
+if len(sys.argv) < 2:
+	print "Usage: injector INTERFACE [ARGS]"
+	print "Eg:"
+	print "injector http://example.com/myprog.xml --help"
 	sys.exit(1)
 interface_uri = sys.argv[1]
 if not interface_uri.startswith('http:'):
 	interface_uri = os.path.realpath(interface_uri)	# For testing
-prog = sys.argv[2]
-prog_args = sys.argv[3:]
+prog_args = sys.argv[2:]
 
 import model
 from policy import Policy
@@ -54,11 +53,14 @@ while policy.monitored_downloads:
 import run
 
 try:
-	run.execute(policy, prog, prog_args)
+	run.execute(policy, prog_args)
 except model.SafeException, ex:
-	print >>sys.stderr, ex
+	#print >>sys.stderr, ex
 	if policy.network_use != model.network_full:
-		print >>sys.stderr, "Retrying with network use = full"
+		print >>sys.stderr, "Error. Retrying with network use = full"
 		policy.network_use = model.network_full	
 		policy.recalculate()
-		run.execute(policy, prog, prog_args)
+		try:
+			run.execute(policy, prog_args)
+		except model.SafeException, ex:
+			print >>sys.stderr, ex

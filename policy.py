@@ -184,7 +184,7 @@ class Policy(object):
 
 		self.import_new_interface(interface, new_xml)
 
-		import writer, time
+		import writer
 		interface.last_checked = long(time.time())
 		writer.save_interface(interface)
 
@@ -264,7 +264,6 @@ class Policy(object):
 		"""Downloaded data is a GPG-signed message. Check that the signature is trusted
 		and call self.update_interface_from_network() when done."""
 		import gpg
-		from trust import trust_db
 		data, errors, sigs = gpg.check_stream(signed_data)
 		iface_xml = data.read()
 		data.close()

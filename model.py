@@ -95,7 +95,8 @@ class Implementation(object):
 class Interface(object):
 	"""An Interface represents some contract of behaviour."""
 	__slots__ = ['uri', 'implementations', 'name', 'description', 'summary',
-		     'stability_policy', 'last_updated', 'last_modified', 'last_checked']
+		     'stability_policy', 'last_updated', 'last_modified', 'last_checked',
+		     'main']
 	
 	# stability_policy:
 	# Implementations at this level or higher are preferred.
@@ -120,6 +121,7 @@ class Interface(object):
 		self.stability_policy = None
 		self.last_modified = None
 		self.last_checked = None
+		self.main = None
 	
 	def get_name(self):
 		return self.name or '(' + os.path.basename(self.uri) + ')'

@@ -12,7 +12,7 @@ class InvalidInterface(SafeException):
 	def __init__(self, message, ex = None):
 		if ex:
 			message += "\n\n(exact error: %s)" % ex
-		Exception.__init__(self, message)
+		SafeException.__init__(self, message)
 
 def get_singleton_text(parent, ns, localName, user):
 	names = parent.getElementsByTagNameNS(ns, localName)
@@ -116,6 +116,9 @@ def update(interface, source, user_overrides = False):
 		if not time_str:
 			raise InvalidInterface("Missing last-modified attribute on root element.")
 		interface.last_modified = parse_time(time_str)
+		main = root.getAttribute('main')
+		if main:
+			interface.main = main
 
 	if user_overrides:
 		last_checked = root.getAttribute('last-checked')
