@@ -48,7 +48,11 @@ def update_from_cache(interface):
 					   'interfaces', escape(interface.uri))
 	if cached:
 		update(interface, cached, trusted = True)
-	interface.uptodate = True
+		interface.uptodate = True
+	else:
+		# This is just temporary...
+		interface.uptodate = True
+		update_from_network(interface)
 
 def update_from_network(interface):
 	if not interface.uptodate:

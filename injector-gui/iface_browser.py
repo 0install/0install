@@ -51,7 +51,6 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		tree_view.set_enable_search(True)
 
 		selection = tree_view.get_selection()
-		#selection.set_mode(gtk.SELECTION_NONE)
 
 		def sel_changed(sel):
 			store, iter = sel.get_selected()
@@ -78,15 +77,11 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		policy.watchers.append(self.build_tree)
 
 		policy.recalculate()
-	
+
 	def build_tree(self):
 		self.model.clear()
 		parent = None
 		def add_node(parent, iface):
-			#if not iface.uptodate:
-			#	reader.update(iface)
-			#	policy.recalculate()
-			
 			iter = self.model.append(parent)
 			self.model[iter][InterfaceBrowser.INTERFACE] = iface
 			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = iface.get_name()
