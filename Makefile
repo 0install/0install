@@ -2,4 +2,4 @@ all:
 	pychecker *.py
 
 test:
-	./injector Tests/edit.xml AppRun
+	./injector-gui/injector-gui Tests/edit.xml AppRun
