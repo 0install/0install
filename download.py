@@ -99,7 +99,7 @@ class Download:
 
 		if status and not errors:
 			errors = 'Download process exited with error status ' \
-				 'code 0x' + hex(status)
+				 'code ' + hex(status)
 
 		stream = self.tempfile
 		self.tempfile = None

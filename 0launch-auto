@@ -55,7 +55,8 @@ def wait_for_downloads():
 		for e, dl in policy.monitored_downloads[:]:
 			errors =  e.read()
 			if errors:
-				print "Got errors:", errors
+				dl.error_stream_data(errors)
+				continue
 			e.close()
 			policy.monitored_downloads.remove((e, dl))
 			data = dl.error_stream_closed()
