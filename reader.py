@@ -144,37 +144,49 @@ def update(interface, source, user_overrides = False):
 			if item.localName == 'group':
 				process_group(item, item_attrs, depends)
 			elif item.localName == 'implementation':
-				sha1 = item.getAttribute('sha1')
-				if sha1:
-					try:
-						long(sha1, 16)
-					except Exception, ex:
-						raise InvalidInterface('Bad SHA1 attribute: %s' % ex)
-					impl = interface.get_impl('sha1=' + sha1)
-				else:
-					path = item.getAttribute('path')
-					if not path.startswith('/'):
-						raise InvalidInterface('Need absolute path, not ' + path)
-					impl = interface.get_impl(path)
+				process_impl(item, item_attrs, depends)
+	
+	def process_impl(item, item_attrs, depends):
+		sha1 = item.getAttribute('sha1')
+		if sha1:
+			try:
+				long(sha1, 16)
+			except Exception, ex:
+				raise InvalidInterface('Bad SHA1 attribute: %s' % ex)
+			impl = interface.get_impl('sha1=' + sha1)
+		else:
+			path = item.getAttribute('path')
+			if not path.startswith('/'):
+				raise InvalidInterface('Need absolute path, not ' + path)
+			impl = interface.get_impl(path)
 
-				if user_overrides:
-					user_stability = item.getAttribute('user-stability')
-					if user_stability:
-						impl.user_stability = stability_levels[str(user_stability)]
-				else:
-					impl.version = map(int, item_attrs.version.split('.'))
+		if user_overrides:
+			user_stability = item.getAttribute('user-stability')
+			if user_stability:
+				impl.user_stability = stability_levels[str(user_stability)]
+		else:
+			impl.version = map(int, item_attrs.version.split('.'))
 
-					size = item.getAttribute('size')
-					if size:
-						impl.size = long(size)
-					impl.arch = item_attrs.arch
-					try:
-						stability = stability_levels[str(item_attrs.stability)]
-					except KeyError:
-						raise InvalidInterface('Stability "%s" invalid' % item_attrs.stability)
-					if stability >= preferred:
-						raise InvalidInterface("Upstream can't set stability to preferred!")
-					impl.upstream_stability = stability
-				impl.dependencies.update(depends)
+			size = item.getAttribute('size')
+			if size:
+				impl.size = long(size)
+			impl.arch = item_attrs.arch
+			try:
+				stability = stability_levels[str(item_attrs.stability)]
+			except KeyError:
+				raise InvalidInterface('Stability "%s" invalid' % item_attrs.stability)
+			if stability >= preferred:
+				raise InvalidInterface("Upstream can't set stability to preferred!")
+			impl.upstream_stability = stability
+		impl.dependencies.update(depends)
+
+		for elem in item.getElementsByTagNameNS(XMLNS_IFACE, 'archive'):
+			url = elem.getAttribute('href')
+			if not url:
+				raise InvalidInterface("Missing href attribute on <archive>")
+			size = elem.getAttribute('size')
+			if not size:
+				raise InvalidInterface("Missing size attribute on <archive>")
+			impl.add_download_source(url = url, size = long(size))
 
 	process_group(root, Attrs(testing), {})

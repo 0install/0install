@@ -32,28 +32,54 @@ class AutoPolicy(Policy):
 		error_stream = dl.start()
 		self.monitored_downloads.append((error_stream, dl))
 
+	def start_downloading_impls(self):
+		for impl in self.get_uncached_implementations():
+			if not impl.download_sources:
+				raise SafeException("Implementation " + impl + " of "
+					"interface " + impl.interface + " cannot be "
+					"downloaded (no download locations given in "
+					"interface!")
+			dl = download.begin_impl_download(impl.download_sources[0])
+			self.monitor_download(dl)
+
 # Singleton instance used everywhere...
 policy = AutoPolicy(interface_uri)
 policy.recalculate()
 
-while policy.monitored_downloads:
-	print "Currently downloading:"
-	for e, dl in policy.monitored_downloads:
-		print "- " + dl.url
+def wait_for_downloads():
+	while policy.monitored_downloads:
+		print "Currently downloading:"
+		for e, dl in policy.monitored_downloads:
+			print "- " + dl.url
 
-	for e, dl in policy.monitored_downloads[:]:
-		errors =  e.read()
-		if errors:
-			print "Got errors:", errors
-		e.close()
-		policy.monitored_downloads.remove((e, dl))
-		data = dl.error_stream_closed()
-		policy.check_signed_data(dl, data)
+		for e, dl in policy.monitored_downloads[:]:
+			errors =  e.read()
+			if errors:
+				print "Got errors:", errors
+			e.close()
+			policy.monitored_downloads.remove((e, dl))
+			data = dl.error_stream_closed()
+			if isinstance(dl, download.InterfaceDownload):
+				policy.check_signed_data(dl, data)
+			elif isinstance(dl, download.ImplementationDownload):
+				policy.add_to_cache(dl.source, data)
+			else:
+				raise Exception("Unknown download type %s" % dl)
 
 import run
 
-try:
+def execute():
+	policy.start_downloading_impls()
+
+	wait_for_downloads()
+		
 	run.execute(policy, prog_args)
+
+# Get interfaces...
+wait_for_downloads()
+
+try:
+	execute()
 except model.SafeException, ex:
 	#print >>sys.stderr, ex
 	if policy.network_use != model.network_full:
@@ -61,6 +87,6 @@ except model.SafeException, ex:
 		policy.network_use = model.network_full	
 		policy.recalculate()
 		try:
-			run.execute(policy, prog_args)
+			execute()
 		except model.SafeException, ex:
 			print >>sys.stderr, ex

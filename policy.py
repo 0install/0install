@@ -166,7 +166,7 @@ class Policy(object):
 				debug("Nothing known about interface, but we are off-line.")
 	
 	def begin_iface_download(self, interface, force = False):
-		dl = download.begin_download(interface, force)
+		dl = download.begin_iface_download(interface, force)
 		if not dl:
 			assert not force
 			return		# Already in progress
@@ -260,6 +260,15 @@ class Policy(object):
 						yield idep
 		return walk(self.get_interface(self.root))
 
+	def walk_implementations(self):
+		def walk(iface):
+			impl = self.get_best_implementation(iface)
+			yield impl
+			for d in impl.dependencies.values():
+				for idep in walk(self.get_interface(d.interface)):
+					yield idep
+		return walk(self.get_interface(self.root))
+
 	def check_signed_data(self, download, signed_data):
 		"""Downloaded data is a GPG-signed message. Check that the signature is trusted
 		and call self.update_interface_from_network() when done."""
@@ -328,3 +337,14 @@ class Policy(object):
 					pass # OK
 		return impl._cached
 	
+	def add_to_cache(self, source, data):
+		assert isinstance(source, DownloadSource)
+		required_digest = source.implementation.id
+		self.store.add_tgz_to_cache(required_digest, data)
+	
+	def get_uncached_implementations(self):
+		uncached = []
+		for impl in self.walk_implementations():
+			if not self.get_cached(impl):
+				uncached.append(impl)
+		return uncached

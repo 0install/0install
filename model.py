@@ -62,11 +62,21 @@ class Dependency(object):
 	def __str__(self):
 		return "<Dependency on %s; bindings: %d>" % (self.interface, len(self.bindings))
 
+class DownloadSource(object):
+	"""A DownloadSource provides a way to fetch an implementation."""
+	__slots__ = ['implementation', 'url', 'size']
+
+	def __init__(self, implementation, url, size):
+		assert url.startswith('http:') or url.startswith('/')
+		self.implementation = implementation
+		self.url = url
+		self.size = size
+
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
 	__slots__ = ['arch', 'upstream_stability', 'user_stability',
 		     'version', 'size', 'dependencies', '_cached',
-		     'id']
+		     'id', 'download_sources']
 
 	def __init__(self, id):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
@@ -79,6 +89,10 @@ class Implementation(object):
 		self.arch = None
 		self._cached = None
 		self.dependencies = {}	# URI -> Dependency
+		self.download_sources = []	# [DownloadSource]
+	
+	def add_download_source(self, url, size):
+		self.download_sources.append(DownloadSource(self, url, size))
 	
 	def get_stability(self):
 		return self.user_stability or self.upstream_stability or testing
