@@ -71,6 +71,10 @@ class GUIPolicy(Policy):
 	def main(self):
 		self.window.show()
 		gtk.main()
+	
+	def get_best_source(self, impl):
+		"""Return the best download source for this implementation."""
+		return impl.download_sources[0]
 
 def pretty_size(size):
 	if size is None:

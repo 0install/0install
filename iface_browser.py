@@ -2,7 +2,7 @@ import gtk
 
 from model import Interface
 import properties
-from gui import policy
+from gui import policy, pretty_size
 
 class InterfaceBrowser(gtk.ScrolledWindow):
 	model = None
@@ -13,6 +13,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 	INTERFACE_NAME = 1
 	VERSION = 2
 	SUMMARY = 3
+	DOWNLOAD_SIZE = 4
 
 	def __init__(self):
 		self.edit_properties = gtk.Action('edit_properties',
@@ -25,7 +26,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 		self.set_shadow_type(gtk.SHADOW_IN)
 
-		self.model = gtk.TreeStore(object, str, str, str)
+		self.model = gtk.TreeStore(object, str, str, str, str)
 		self.tree_view = tree_view = gtk.TreeView(self.model)
 
 		text = gtk.CellRendererText()
@@ -36,6 +37,10 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 
 		column = gtk.TreeViewColumn(_('Version'), text,
 					  text = InterfaceBrowser.VERSION)
+		tree_view.append_column(column)
+
+		column = gtk.TreeViewColumn(_('Fetch'), text,
+					  text = InterfaceBrowser.DOWNLOAD_SIZE)
 		tree_view.append_column(column)
 
 		column = gtk.TreeViewColumn(_('Description'), text,
@@ -90,6 +95,12 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			impl = policy.implementation.get(iface, None)
 			if impl:
 				self.model[iter][InterfaceBrowser.VERSION] = impl.get_version()
+				if policy.get_cached(impl):
+					fetch = '(cached)'
+				else:
+					src = policy.get_best_source(impl)
+					fetch = pretty_size(src.size)
+				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = fetch
 				for child in impl.dependencies.values():
 					add_node(iter, policy.get_interface(child.interface))
 			else:

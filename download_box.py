@@ -18,7 +18,7 @@ def download_with_gui(mainwindow, prog_args, run_afterwards):
 				"interface " + iface.get_name() + " cannot be "
 				"downloaded (no download locations given in "
 				"interface!")
-		dl = download.begin_impl_download(impl.download_sources[0],
+		dl = download.begin_impl_download(policy.get_best_source(impl),
 						force = True)
 		downloads.append((iface, dl))
 	def run_it():

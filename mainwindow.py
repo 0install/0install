@@ -1,4 +1,5 @@
 import gtk
+import sys
 from iface_browser import InterfaceBrowser
 import help_box
 from gui import policy
@@ -13,7 +14,7 @@ class MainWindow(Dialog):
 	def __init__(self, prog_args, download_only):
 		Dialog.__init__(self)
 		self.set_title('Dependency Injector')
-		self.set_default_size(400, 300)
+		self.set_default_size(gtk.gdk.screen_width() / 3, 300)
 
 		tips = gtk.Tooltips()
 
@@ -115,6 +116,7 @@ class MainWindow(Dialog):
 			import download_box
 			if resp == gtk.RESPONSE_CANCEL:
 				self.destroy()
+				sys.exit(1)
 			elif resp == gtk.RESPONSE_OK:
 				download_box.download_with_gui(self, prog_args,
 								run_afterwards = not download_only)
