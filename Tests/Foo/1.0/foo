@@ -1,0 +1,3 @@
+#!/bin/sh
+echo Foo version 1.0
+$BARLIB/bar
