@@ -8,7 +8,9 @@ if len(sys.argv) < 3:
 	print "PROG is a relative path inside an implementation of INTERFACE. Eg:"
 	print "injector /uri/0install/site/myprog.xml bin/myprog --help"
 	sys.exit(1)
-interface_uri = os.path.realpath(sys.argv[1])
+interface_uri = sys.argv[1]
+if not interface_uri.startswith('http:'):
+	interface_uri = os.path.realpath(interface_uri)	# For testing
 prog = sys.argv[2]
 prog_args = sys.argv[3:]
 
