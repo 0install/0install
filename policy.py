@@ -71,9 +71,7 @@ class Policy(object):
 		b_stab = b.get_stability()
 
 		# Usable ones come first
-		a_usable = a_stab != buggy
-		b_usable = b_stab != buggy
-		r = cmp(a_usable, b_usable)
+		r = cmp(self.is_unusable(b), self.is_unusable(a))
 		if r: return r
 
 		# Preferred versions come first

@@ -44,7 +44,7 @@ def save_interface(interface):
 
 	path = basedir.save_config_path(config_site, config_prog, 'interfaces')
 	path = os.path.join(path, escape(interface.uri))
-	print "Save to", path
+	#print "Save to", path
 
 	impl = minidom.getDOMImplementation()
 	doc = impl.createDocument(XMLNS_IFACE, 'interface', None)
