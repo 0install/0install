@@ -4,6 +4,8 @@ from namespaces import *
 import ConfigParser
 import reader
 
+_interfaces = {}	# URI -> Interface
+
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use', 'updates']
@@ -13,7 +15,7 @@ class Policy(object):
 		self.implementation = {}		# Interface -> Implementation
 		self.watchers = []
 		self.help_with_testing = False
-		self.network_use = network_minimal
+		self.network_use = network_full
 		self.updates = []
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
@@ -25,10 +27,11 @@ class Policy(object):
 			self.network_use = config.get('global', 'network_use')
 			assert self.network_use in network_levels
 
-	def set_root_iterface(self, root):
-		assert isinstance(root, Interface)
+	def set_root_interface(self, root):
+		assert isinstance(root, (str, unicode))
 		self.root = root
-	
+		self.recalculate()
+
 	def save_config(self):
 		config = ConfigParser.ConfigParser()
 		config.add_section('global')
@@ -45,15 +48,12 @@ class Policy(object):
 		self.implementation = {}
 		self.updates = []
 		def process(iface):
-			if not iface.uptodate:
-				reader.update_from_cache(iface)
-				assert iface.uptodate
 			impl = self.get_best_implementation(iface)
 			if impl:
 				self.implementation[iface] = impl
 				for d in impl.dependencies.values():
-					process(d.get_interface())
-		process(self.root)
+					process(self.get_interface(d.interface))
+		process(self.get_interface(self.root))
 		for w in self.watchers: w()
 	
 	def get_best_implementation(self, iface):
@@ -117,15 +117,35 @@ class Policy(object):
 			return True
 		return False
 	
+	def get_interface(self, uri):
+		"""Get the interface for uri. If it's in the cache, read that.
+		If it's not in the cache or network use is full, also download
+		the latest version."""
+		if type(uri) == str:
+			uri = unicode(uri)
+		assert isinstance(uri, unicode)
+
+		if uri not in _interfaces:
+			# Haven't used this interface so far. Initialise from cache.
+			_interfaces[uri] = Interface(uri)
+			if not reader.update_from_cache(_interfaces[uri]):
+				# Not in the case. Force update from network.
+				reader.update_from_network(_interfaces[uri])
+
+		if self.network_use == network_full and not _interfaces[uri].uptodate:
+			reader.update_from_network(_interfaces[uri])
+
+		return _interfaces[uri]
+
 	def walk_interfaces(self):
 		def walk(iface):
 			yield iface
 			impl = self.get_best_implementation(iface)
 			if impl:
 				for d in impl.dependencies.values():
-					for id in walk(d.get_interface()):
+					for id in walk(self.get_interface(d.interface)):
 						yield id
-		return walk(self.root)
+		return walk(self.get_interface(self.root))
 
 # Singleton instance used everywhere...
 policy = Policy()

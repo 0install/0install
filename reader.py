@@ -1,4 +1,5 @@
 from xml.dom import Node, minidom
+import sys
 
 import basedir
 from namespaces import *
@@ -46,19 +47,21 @@ def process_depends(dependency, item):
 def update_from_cache(interface):
 	cached = basedir.load_first_config(config_site, config_prog,
 					   'interfaces', escape(interface.uri))
-	if cached:
-		update(interface, cached, trusted = True)
-		interface.uptodate = True
-	else:
-		# This is just temporary...
-		interface.uptodate = True
-		update_from_network(interface)
+	if not cached: return False
+
+	update(interface, cached, trusted = True)
+	return True
 
 def update_from_network(interface):
-	if not interface.uptodate:
-		update_from_cache(interface)
-	assert interface.uptodate
+	print "Updating '%s' from network" % (interface.name or interface.uri)
+	if not os.path.exists(interface.uri) and interface.uri.startswith('/uri/0install/'):
+		site = interface.uri[len('/uri/0install/'):]
+		site = site[:site.index('/')]
+		assert '/' not in site
+		print "Refreshing", site
+		os.spawnlp(os.P_WAIT, '0refresh', '0refresh', site)
 	update(interface, interface.uri)
+	interface.uptodate = True
 	import writer
 	writer.save_interface(interface)
 
@@ -71,6 +74,15 @@ def update(interface, source, trusted = False):
 	interface.name = get_singleton_text(root, XMLNS_IFACE, 'name')
 	interface.description = get_singleton_text(root, XMLNS_IFACE, 'description')
 	interface.summary = get_singleton_text(root, XMLNS_IFACE, 'summary')
+
+	if not trusted:
+		canonical_name = root.getAttribute('uri')
+		#if not canonical_name:
+		#	raise Exception("<interface> uri attribute missing in " + source)
+		if canonical_name != source:
+			print >>sys.stderr, \
+				"WARNING: <interface> uri attribute is '%s', but accessed as '%s'" % \
+					(canonical_name, source)
 
 	if trusted:
 		stability_policy = root.getAttribute('stability_policy')

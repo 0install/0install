@@ -59,9 +59,6 @@ class Dependency(object):
 		self.restrictions = []
 		self.bindings = []
 	
-	def get_interface(self):
-		return get_interface(self.interface)
-	
 	def __str__(self):
 		return "<Dependency on %s; bindings: %d>" % (self.interface, len(self.bindings))
 
@@ -125,7 +122,7 @@ class Interface(object):
 		self.implementations = {}	# Path -> Implementation
 		self.name = None
 		self.last_updated = None
-		self.uptodate = False
+		self.uptodate = False		# Did we download this session?
 		self.summary = None
 		self.description = None
 		self.stability_policy = None
@@ -147,16 +144,6 @@ class Interface(object):
 	
 	def changed(self):
 		for w in self.watchers(): w(self)
-
-_interfaces = {}	# URI -> Interface
-
-def get_interface(uri):
-	if type(uri) == str:
-		uri = unicode(uri)
-	assert isinstance(uri, unicode)
-	if uri not in _interfaces:
-		_interfaces[uri] = Interface(uri)
-	return _interfaces[uri]
 
 def escape(uri):
 	"Convert each space to %20, etc"

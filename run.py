@@ -12,11 +12,12 @@ def do_env_binding(binding, iface):
 		os.environ[binding.name] = extra
 	#print "%s=%s" % (binding.name, os.environ[binding.name])
 
-def execute(iface, prog, prog_args):
+def execute(prog, prog_args):
+	iface = policy.get_interface(policy.root)
 	def setup_bindings(i):
 		impl = get_impl(i)
 		for dep in impl.dependencies.values():
-			dep_iface = dep.get_interface()
+			dep_iface = policy.get_interface(dep.interface)
 			for b in dep.bindings:
 				if isinstance(b, EnvironmentBinding):
 					do_env_binding(b, dep_iface)

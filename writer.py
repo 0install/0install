@@ -28,7 +28,7 @@ def add_impl(parent, impl):
 
 	for dep in impl.dependencies.values():
 		depends = doc.createElementNS(XMLNS_IFACE, 'requires')
-		depends.setAttribute('interface', dep.get_interface().uri)
+		depends.setAttribute('interface', dep.interface)
 		node.appendChild(depends)
 		for bin in dep.bindings:
 			if isinstance(bin, EnvironmentBinding):
@@ -40,8 +40,6 @@ def add_impl(parent, impl):
 				print "Warning, unknown binding type", bin
 
 def save_interface(interface):
-	assert interface.uptodate
-
 	path = basedir.save_config_path(config_site, config_prog, 'interfaces')
 	path = os.path.join(path, escape(interface.uri))
 	#print "Save to", path
