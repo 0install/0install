@@ -26,12 +26,19 @@ class MainWindow(Dialog):
 			network.append_text(level.capitalize())
 		network.set_active(list(network_levels).index(policy.network_use))
 		hbox.pack_start(gtk.Label('Network use:'), False, True, 0)
-		hbox.pack_start(network, False, True, 2)
+		hbox.pack_start(network, True, True, 2)
 		def set_network_use(combo):
 			policy.network_use = network_levels[network.get_active()]
 			policy.save_config()
 			policy.recalculate()
 		network.connect('changed', set_network_use)
+
+		button = gtk.Button('Refresh all')
+		def refresh_all(b):
+			for x in policy.walk_interfaces():
+				policy.begin_iface_download(x, True)
+		button.connect('clicked', refresh_all)
+		hbox.pack_start(button, False, True, 2)
 
 		hbox.show_all()
 
