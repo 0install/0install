@@ -1,4 +1,3 @@
-from gpg import BadSignature
 from policy import Policy
 import download
 import gtk, os
@@ -46,10 +45,6 @@ class GUIPolicy(Policy):
 				except InvalidInterface, ex:
 					dialog.alert(self.window,
 						"Syntax error in downloaded interface '%s':\n\n%s" %
-						(dl.interface.uri, ex))
-				except BadSignature, ex:
-					dialog.alert(self.window,
-						"Security error verifying downloaded interface '%s':\n\n%s" %
 						(dl.interface.uri, ex))
 				return False
 			dl.error_stream_data(got)
