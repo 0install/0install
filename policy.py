@@ -2,7 +2,13 @@ from model import *
 
 class Policy:
 	root = None
-	implementation = {}		# Interface -> Implementation
+	implementation = None		# Interface -> Implementation
+	watchers = None			# List of functions
+	default_stability_policy = testing
+
+	def __init__(self):
+		self.implementation = {}
+		self.watchers = []
 
 	def set_root_iterface(self, root):
 		assert isinstance(root, Interface)
@@ -17,6 +23,7 @@ class Policy:
 				for d in impl.dependencies.values():
 					process(d.get_interface())
 		process(self.root)
+		for w in self.watchers: w()
 	
 	def get_best_implementation(self, iface):
 		if not iface.implementations:
@@ -41,7 +48,7 @@ class Policy:
 		# Prefer
 
 		# Stability
-		policy = interface.stability_policy
+		policy = interface.stability_policy or self.default_stability_policy
 		if a_stab >= policy: a_stab = stable
 		if b_stab >= policy: b_stab = stable
 

@@ -77,3 +77,4 @@ def update(interface):
 				impl.may_set_stability(stability)
 
 	process_group(root, Attrs(testing), {})
+	interface.uptodate = True

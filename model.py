@@ -24,8 +24,6 @@ developer = Stability(10, 'developer', 'Work-in-progress - bugs likely')
 testing = Stability(20, 'testing', 'Stability unknown - please test!')
 stable = Stability(30, 'stable', 'Tested - no serious problems found')
 
-print stability_levels
-
 class Restriction(object):
 	"""A Restriction limits the allowed implementations of an Interface."""
 
@@ -103,7 +101,7 @@ class Interface(object):
 		self.implementations = {}	# Path -> Implementation
 		self.name = None
 		self.uptodate = False
-		self.set_stability_policy(stable)
+		self.stability_policy = None
 	
 	def get_name(self):
 		return self.name or '(' + os.path.basename(self.uri) + ')'

@@ -6,7 +6,7 @@
     Edit is a simple text editor, with a ROX-style user interface. It has drag-and-drop saving, search-and-replace and multi-level undo.
   </description>
   
-  <group path='/uri/0install/rox.sourceforge.net/apps/Edit'>
+  <group path='/uri/0install/rox.sourceforge.net/apps/Edit' stability='stable'>
     <requires interface='/home/talex/Projects/injector/Tests/ROX-Lib.xml'>
       <version min='1.9.6'/>
       <environment name='PYTHONPATH' insert='python'/>
@@ -14,7 +14,8 @@
     <implementation version='1.9.3' path='Edit-1.9.3' size='129000'/>
     <implementation version='1.9.4' path='Edit-1.9.4' size='182000'/>
     <implementation version='1.9.5' path='Edit-1.9.5' size='161000'/>
-    <implementation version='1.9.6' path='Edit-1.9.6' size='181000'/>
+    <implementation version='1.9.6' path='Edit-1.9.6' size='181000'
+    		    stability='testing'/>
     <implementation version='1.9.6.5' path='/home/talex/Apps/Edit'
     		    stability='developer'/>
   </group>

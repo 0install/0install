@@ -145,16 +145,19 @@ class Properties(Dialog):
 		def set_stability_policy(combo):
 			i = stability.get_active()
 			if i == 0:
-				new_stability = testing		# XXX
+				new_stability = None
 			else:
 				name = stability.get_model()[i][0].lower()
 				new_stability = stability_levels[name]
 			interface.set_stability_policy(new_stability)
-			self.update_list()
+			policy.recalculate()
 		stability.connect('changed', set_stability_policy)
 
 		self.update_list()
 		vbox.show_all()
+
+		self.connect('destroy', lambda s: policy.watchers.remove(self.update_list))
+		policy.watchers.append(self.update_list)
 	
 	def update_list(self):
 		impls = policy.get_ranked_implementations(self.interface)

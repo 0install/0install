@@ -2,6 +2,8 @@ import gtk
 from iface_browser import InterfaceBrowser
 import help_box
 from dialog import Dialog
+from policy import policy
+from model import stable, testing
 
 gtk.rc_parse_string('style "scrolled" { '
 		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
@@ -12,6 +14,8 @@ class MainWindow(Dialog):
 		Dialog.__init__(self)
 		self.set_title('Dependency Injector')
 		self.set_default_size(400, 300)
+
+		tips = gtk.Tooltips()
 
 		label = gtk.Label('Need to download interface definitions...')
 		self.vbox.pack_start(label, False, True, 0)
@@ -24,6 +28,34 @@ class MainWindow(Dialog):
 
 		hbox = gtk.HBox(False, 2)
 		self.vbox.pack_start(hbox, False, True, 0)
+		hbox.set_border_width(4)
+
+		button = gtk.Button()
+		browser.edit_properties.connect_proxy(button)
+		hbox.pack_start(button, False, True, 0)
+
+		stable_toggle = gtk.CheckButton('Help test new versions')
+		hbox.pack_start(stable_toggle, False, True, 0)
+		tips.set_tip(stable_toggle,
+			"Try out new versions as soon as they are available, instead of "
+			"waiting for them to be marked as 'stable'. "
+			"This sets the default policy. Click on 'Interface Properties...' "
+			"to set the policy for an individual interface.")
+		if policy.default_stability_policy != stable:
+			stable_toggle.set_active(True)
+		def toggle_stability(toggle):
+			if toggle.get_active():
+				policy.default_stability_policy = testing
+			else:
+				policy.default_stability_policy = stable
+			policy.recalculate()
+		stable_toggle.connect('toggled', toggle_stability)
+
+		hbox.show_all()
+
+		hbox = gtk.HBox(False, 2)
+		self.vbox.pack_start(hbox, False, True, 0)
+		hbox.set_border_width(4)
 
 		network = gtk.combo_box_new_text()
 		network.append_text('Off-line')
@@ -31,14 +63,8 @@ class MainWindow(Dialog):
 		network.append_text('Full')
 		network.set_active(1)
 		hbox.pack_start(gtk.Label('Network use:'), False, True, 0)
-		hbox.pack_start(network, False, True, 0)
+		hbox.pack_start(network, False, True, 2)
 
-		hbox.pack_start(gtk.EventBox(), True, True, 0)
-
-		button = gtk.Button()
-		browser.edit_properties.connect_proxy(button)
-		hbox.pack_start(button, False, True, 0)
-		hbox.set_border_width(4)
 		hbox.show_all()
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)

@@ -21,7 +21,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		assert isinstance(root, Interface)
 		self.root = root
 		self.edit_properties = gtk.Action('edit_properties',
-			  'Show _Implementations',
+			  'Interface Properties...',
 			  'Set which implementation of this interface to use.',
 			  gtk.STOCK_PROPERTIES)
 
@@ -30,7 +30,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		self.set_shadow_type(gtk.SHADOW_IN)
 
 		self.model = gtk.TreeStore(object, str, str, str)
-		tree_view = gtk.TreeView(self.model)
+		self.tree_view = tree_view = gtk.TreeView(self.model)
 
 		text = gtk.CellRendererText()
 
@@ -76,7 +76,9 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		self.edit_properties.connect('activate', edit_selected)
 
 		self.build_tree()
-		tree_view.expand_all()
+
+		self.connect('destroy', lambda s: policy.watchers.remove(self.build_tree))
+		policy.watchers.append(self.build_tree)
 	
 	def build_tree(self):
 		self.model.clear()
@@ -99,3 +101,4 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			else:
 				self.model[iter][InterfaceBrowser.VERSION] = '(choose)'
 		add_node(None, self.root)
+		self.tree_view.expand_all()
