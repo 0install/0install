@@ -157,8 +157,11 @@ class Policy(object):
 			else:
 				debug("Nothing known about interface, but we are off-line.")
 	
-	def begin_iface_download(self, interface):
-		if interface.uri in self.downloads or interface.uri in self.failed_downloads:
+	def begin_iface_download(self, interface, force = False):
+		if interface.uri in self.downloads:
+			return
+		
+		if interface.uri in self.failed_downloads and not force:
 			return
 
 		info("Download %s", interface.uri)
@@ -169,20 +172,20 @@ class Policy(object):
 			try:
 				if isinstance(result, Exception):
 					raise result
-				data = self.ui.get_signed_data(result)
-				self.update_interface_from_network(interface, data)
+				data = self.ui.check_signed_data(interface, result)
 			except Exception, ex:
 				self.failed_downloads[dl.url] = True
 				self.ui.report_failed_download(interface, dl, ex)
 
 			self.ui.download_ended(dl)
-			self.recalculate()
 
 		dl = Download(interface.uri, done)
 		self.downloads[interface.uri] = dl
 		self.ui.download_started(dl)
 	
 	def update_interface_from_network(self, interface, stream):
+		"""stream is the new XML (after the signature has been checked and
+		removed)."""
 		debug("Updating '%s' from network" % (interface.name or interface.uri))
 		assert interface.uri.startswith('/')
 
@@ -196,7 +199,7 @@ class Policy(object):
 			if old_xml == new_xml:
 				debug("No change")
 			else:
-				self.confirm_diff(old_xml, new_xml, interface.uri)
+				self.ui.confirm_diff(old_xml, new_xml, interface.uri)
 
 		stream = file(cached + '.new', 'w')
 		stream.write(new_xml)
@@ -208,6 +211,22 @@ class Policy(object):
 		interface.uptodate = True
 
 		reader.update_user_overrides(interface)
+		self.recalculate()
+
+	def get_implementation(self, interface):
+		if not interface.name:
+			raise SafeException("We don't have enough information to "
+					    "run this program yet. "
+					    "Need to download:\n%s" % interface.uri)
+		try:
+			return self.implementation[interface]
+		except KeyError:
+			if interface.implementations:
+				offline = ""
+				if policy.network_use == network_offline:
+					offline = "\nThis may be because 'Network Use' is set to Off-line."
+				raise SafeException("No usable implementation found for '%s'.%s" %
+						(interface.name, offline))
 
 	def walk_interfaces(self):
 		def walk(iface):
@@ -218,15 +237,6 @@ class Policy(object):
 					for id in walk(self.get_interface(d.interface)):
 						yield id
 		return walk(self.get_interface(self.root))
-
-	def confirm_diff(self, old, new, uri):
-		import difflib
-		diff = difflib.unified_diff(old.split('\n'), new.split('\n'), uri, "",
-						"", "", 2, "")
-		print "Updates:"
-		for line in diff:
-			print line
-
 
 # Singleton instance used everywhere...
 policy = Policy()

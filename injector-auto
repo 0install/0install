@@ -20,7 +20,7 @@ import shutil
 import sys
 import gpg
 
-policy.set_root_interface(interface_uri, ui.UI())
+policy.set_root_interface(interface_uri, ui.UI(policy))
 
 while policy.downloads:
 	if len(policy.downloads) > 1:
@@ -46,11 +46,11 @@ while policy.downloads:
 import run
 
 try:
-	run.execute(prog, prog_args)
+	run.execute(policy, prog, prog_args)
 except model.SafeException, ex:
 	print >>sys.stderr, ex
 	if policy.network_use != network_full:
 		print >>sys.stderr, "Retrying with network use = full"
 		policy.network_use = model.network_full	
 		policy.recalculate()
-		run.execute(prog, prog_args)
+		run.execute(policy, prog, prog_args)

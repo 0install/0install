@@ -1,10 +1,8 @@
 import os, sys
 
-from policy import policy
 from model import *
 
-def do_env_binding(binding, iface):
-	impl = get_impl(iface)
+def do_env_binding(binding, impl):
 	extra = os.path.join(impl.path, binding.insert)
 	if binding.name in os.environ:
 		os.environ[binding.name] = extra + ':' + os.environ[binding.name]
@@ -12,15 +10,15 @@ def do_env_binding(binding, iface):
 		os.environ[binding.name] = extra
 	#print "%s=%s" % (binding.name, os.environ[binding.name])
 
-def execute(prog, prog_args):
+def execute(policy, prog, prog_args):
 	iface = policy.get_interface(policy.root)
 	def setup_bindings(i):
-		impl = get_impl(i)
+		impl = policy.get_implementation(i)
 		for dep in impl.dependencies.values():
 			dep_iface = policy.get_interface(dep.interface)
 			for b in dep.bindings:
 				if isinstance(b, EnvironmentBinding):
-					do_env_binding(b, dep_iface)
+					do_env_binding(b, policy.get_implementation(dep_iface))
 			setup_bindings(dep_iface)
 	setup_bindings(iface)
 	
@@ -30,18 +28,3 @@ def execute(prog, prog_args):
 		print "(implementation '%s' + program '%s')" % (policy.implementation[iface].path, prog)
 		sys.exit(1)
 	os.execl(prog_path, prog_path, *prog_args)
-
-def get_impl(interface):
-	if not interface.name:
-		raise SafeException("We don't have enough information to "
-				    "run this program yet. "
-				    "Need to download:\n%s" % interface.uri)
-	try:
-		return policy.implementation[interface]
-	except KeyError:
-		if interface.implementations:
-			offline = ""
-			if policy.network_use == network_offline:
-				offline = "\nThis may be because 'Network Use' is set to Off-line."
-			raise SafeException("No usable implementation found for '%s'.%s" %
-					(interface.name, offline))
