@@ -2,6 +2,30 @@
 
 import os
 
+stability_levels = {}	# Name -> Stability
+
+class Stability(object):
+	__slots__ = ['level', 'name', 'description']
+	def __init__(self, level, name, description):
+		self.level = level
+		self.name = name
+		self.description = description
+		assert name not in stability_levels
+		stability_levels[name] = self
+	
+	def __cmp__(self, other):
+		return cmp(self.level, other.level)
+	
+	def __str__(self):
+		return self.name
+
+buggy = Stability(0, 'buggy', 'Known to have serious bugs')
+developer = Stability(10, 'developer', 'Work-in-progress - bugs likely')
+testing = Stability(20, 'testing', 'Stability unknown - please test!')
+stable = Stability(30, 'stable', 'Tested - no serious problems found')
+
+print stability_levels
+
 class Restriction(object):
 	"""A Restriction limits the allowed implementations of an Interface."""
 
@@ -31,22 +55,22 @@ class Implementation(object):
 	def __init__(self, version, size, path):
 		assert path
 		self.path = path
-		self.stability = 'testing'
+		self.stability = testing
 		self.size = size
 		self.version = map(int, version.split('.'))
 		self.dependencies = {}	# URI -> Dependency
 	
 	def may_set_stability(self, stability):
-		assert stability in ('testing', 'stable', 'developer', 'buggy')
+		assert isinstance(stability, Stability)
 
 		# Possible transitions:
 		# * -> buggy
 		# testing -> *
 		# developer -> *
 
-		if stability == 'buggy':
+		if stability == buggy:
 			self.stability = stability
-		elif self.stability in ('testing', 'developer'):
+		elif self.stability in (testing, developer):
 			self.stability = stability
 	
 	def get_stability(self):
@@ -66,7 +90,12 @@ class Implementation(object):
 	
 class Interface(object):
 	"""An Interface represents some contract of behaviour."""
-	__slots__ = ['uri', 'implementations', 'name', 'uptodate', 'description', 'summary']
+	__slots__ = ['uri', 'implementations', 'name', 'uptodate', 'description', 'summary',
+		     'stability_policy']
+	
+	# stability_policy:
+	# Implementations at this level or higher are preferred.
+	# Lower levels are used only if there is no other choice.
 
 	def __init__(self, uri):
 		assert uri
@@ -74,6 +103,7 @@ class Interface(object):
 		self.implementations = {}	# Path -> Implementation
 		self.name = None
 		self.uptodate = False
+		self.set_stability_policy(stable)
 	
 	def get_name(self):
 		return self.name or '(' + os.path.basename(self.uri) + ')'
@@ -85,6 +115,13 @@ class Interface(object):
 		if path not in self.implementations:
 			self.implementations[path] = Implementation(version, size, path)
 		return self.implementations[path]
+	
+	def set_stability_policy(self, new):
+		assert new is None or isinstance(new, Stability)
+		self.stability_policy = new
+	
+	def changed(self):
+		for w in self.watchers(): w(self)
 
 _interfaces = {}	# URI -> Interface
 

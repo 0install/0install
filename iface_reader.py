@@ -70,6 +70,10 @@ def update(interface):
 							  size)
 				impl.dependencies.update(depends)
 				impl.arch = item_attrs.arch
-				impl.may_set_stability(item_attrs.stability)
+				try:
+					stability = stability_levels[str(item_attrs.stability)]
+				except KeyError:
+					raise Exception('Stability "%s" invalid' % item_attrs.stability)
+				impl.may_set_stability(stability)
 
-	process_group(root, Attrs('testing'), {})
+	process_group(root, Attrs(testing), {})

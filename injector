@@ -12,8 +12,10 @@ prog_args = sys.argv[3:]
 interactive = bool(os.environ.get('INJECTOR_INTERACTIVE', None))
 
 import model
+from policy import policy
 
 interface = model.get_interface(interface_uri)
+policy.set_root_iterface(interface)
 
 import gui, gtk
 

@@ -1,9 +1,9 @@
 import gtk
 
 from model import Interface
-from policy import Policy
 import properties
 import iface_reader
+from policy import policy
 
 def _(x): return x
 
@@ -81,17 +81,17 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 	def build_tree(self):
 		self.model.clear()
 		parent = None
-		policy = Policy(self.root)
 		def add_node(parent, iface):
 			if not iface.uptodate:
 				iface_reader.update(iface)
+				policy.recalculate()
 			
 			iter = self.model.append(parent)
 			self.model[iter][InterfaceBrowser.INTERFACE] = iface
 			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = iface.get_name()
 			self.model[iter][InterfaceBrowser.SUMMARY] = iface.summary
 
-			impl = policy.get_implementation(iface)
+			impl = policy.implementation[iface]
 			if impl:
 				self.model[iter][InterfaceBrowser.VERSION] = impl.get_version()
 				for child in impl.dependencies.values():

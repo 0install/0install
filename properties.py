@@ -3,6 +3,7 @@ import gtk
 
 import help_box
 from dialog import Dialog
+from policy import policy
 
 _dialogs = {}	# Interface -> Properties
 
@@ -87,6 +88,9 @@ class UseList(gtk.ScrolledWindow):
 		self.model.clear()
 
 class Properties(Dialog):
+	interface = None
+	use_list = None
+
 	def __init__(self, interface):
 		Dialog.__init__(self)
 		self.interface = interface
@@ -123,12 +127,9 @@ class Properties(Dialog):
 		description.set_line_wrap(True)
 		frame.add(description)
 
-		use_list = UseList()
-		impls = interface.implementations.values()
-		impls.sort()
-		use_list.set_items(impls)
-		vbox.pack_start(use_list, True, True, 0)
-		use_list.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
+		self.use_list = UseList()
+		vbox.pack_start(self.use_list, True, True, 0)
+		self.use_list.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 
 		hbox = gtk.HBox(False, 2)
 		vbox.pack_start(hbox, False, True, 0)
@@ -141,8 +142,23 @@ class Properties(Dialog):
 		stability.set_active(0)
 		hbox.pack_start(gtk.Label('Preferred stability:'), False, True, 0)
 		hbox.pack_start(stability, False, True, 0)
+		def set_stability_policy(combo):
+			i = stability.get_active()
+			if i == 0:
+				new_stability = testing		# XXX
+			else:
+				name = stability.get_model()[i][0].lower()
+				new_stability = stability_levels[name]
+			interface.set_stability_policy(new_stability)
+			self.update_list()
+		stability.connect('changed', set_stability_policy)
 
+		self.update_list()
 		vbox.show_all()
+	
+	def update_list(self):
+		impls = policy.get_ranked_implementations(self.interface)
+		self.use_list.set_items(impls)
 	
 def edit(interface):
 	assert isinstance(interface, Interface)
