@@ -144,9 +144,6 @@ class Interface(object):
 	def set_stability_policy(self, new):
 		assert new is None or isinstance(new, Stability)
 		self.stability_policy = new
-	
-	def changed(self):
-		for w in self.watchers(): w(self)
 
 def escape(uri):
 	"Convert each space to %20, etc"

@@ -34,19 +34,18 @@ def check_stream(stream):
 	# We are the parent
 	os.close(status_w)
 
-	error = None
 	good_sig = False
 
 	for line in os.fdopen(status_r):
 		assert line.endswith('\n')
 		assert line.startswith('[GNUPG:] ')
 		line = line[9:-1]
-		type = line.split(' ', 1)[0]
-		if type == 'GOODSIG':
+		code = line.split(' ', 1)[0]
+		if code == 'GOODSIG':
 			good_sig = True
 
-	id, status = os.waitpid(child, 0)
-	assert id == child
+	pid, status = os.waitpid(child, 0)
+	assert pid == child
 
 	if good_sig:
 		data.seek(0)

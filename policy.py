@@ -4,7 +4,7 @@ from namespaces import *
 import ConfigParser
 import reader
 from logging import debug, info
-from download import Download
+import download
 
 #from logging import getLogger, DEBUG
 #getLogger().setLevel(DEBUG)
@@ -14,7 +14,7 @@ _interfaces = {}	# URI -> Interface
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use', 'updates',
-		     'ui', 'downloads', 'failed_downloads']
+		     'ui', 'downloads']
 
 	def __init__(self):
 		self.root = None
@@ -24,7 +24,6 @@ class Policy(object):
 		self.network_use = network_full
 		self.updates = []
 		self.downloads = {}		# URI -> Download
-		self.failed_downloads = {}	# URI -> True
 		self.ui = None
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
@@ -96,13 +95,13 @@ class Policy(object):
 			if r: return r
 
 		# Stability
-		policy = interface.stability_policy
-		if not policy:
-			if self.help_with_testing: policy = testing
-			else: policy = stable
+		stab_policy = interface.stability_policy
+		if not stab_policy:
+			if self.help_with_testing: stab_policy = testing
+			else: stab_policy = stable
 
-		if a_stab >= policy: a_stab = preferred
-		if b_stab >= policy: b_stab = preferred
+		if a_stab >= stab_policy: a_stab = preferred
+		if b_stab >= stab_policy: b_stab = preferred
 
 		r = cmp(a_stab, b_stab)
 		if r: return r
@@ -158,30 +157,26 @@ class Policy(object):
 				debug("Nothing known about interface, but we are off-line.")
 	
 	def begin_iface_download(self, interface, force = False):
-		if interface.uri in self.downloads:
-			return
+		dl = self.downloads.get(interface.uri, None)
+		if dl:
+			if dl.status != download.download_failed or not force:
+				return	# Already downloading
 		
-		if interface.uri in self.failed_downloads and not force:
-			return
-
 		info("Download %s", interface.uri)
-		def done(result):
-			assert dl.url in self.downloads
-			del self.downloads[dl.url]
+		if not dl:
+			# Start new download
+			dl = download.Download(interface)
+		else:
+			# Restart failed download
+			assert dl.status == download.download_failed
+			dl.status = download.download_starting
 
-			try:
-				if isinstance(result, Exception):
-					raise result
-				data = self.ui.check_signed_data(interface, result)
-			except Exception, ex:
-				self.failed_downloads[dl.url] = True
-				self.ui.report_failed_download(interface, dl, ex)
-
-			self.ui.download_ended(dl)
-
-		dl = Download(interface.uri, done)
 		self.downloads[interface.uri] = dl
-		self.ui.download_started(dl)
+
+		# After a while, sets status to download_checking, then
+		# download_compete and calls update_interface_from_network()
+		# Or, sets status to failed.
+		self.ui.start_download(dl)
 	
 	def update_interface_from_network(self, interface, stream):
 		"""stream is the new XML (after the signature has been checked and
@@ -220,13 +215,14 @@ class Policy(object):
 					    "Need to download:\n%s" % interface.uri)
 		try:
 			return self.implementation[interface]
-		except KeyError:
+		except KeyError, ex:
 			if interface.implementations:
 				offline = ""
 				if policy.network_use == network_offline:
 					offline = "\nThis may be because 'Network Use' is set to Off-line."
 				raise SafeException("No usable implementation found for '%s'.%s" %
 						(interface.name, offline))
+			raise ex
 
 	def walk_interfaces(self):
 		def walk(iface):
@@ -234,8 +230,8 @@ class Policy(object):
 			impl = self.get_best_implementation(iface)
 			if impl:
 				for d in impl.dependencies.values():
-					for id in walk(self.get_interface(d.interface)):
-						yield id
+					for idep in walk(self.get_interface(d.interface)):
+						yield idep
 		return walk(self.get_interface(self.root))
 
 # Singleton instance used everywhere...

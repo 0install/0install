@@ -14,6 +14,7 @@ prog_args = sys.argv[3:]
 
 import model
 from policy import policy
+import download
 import ui
 
 import shutil
@@ -22,21 +23,26 @@ import gpg
 
 policy.set_root_interface(interface_uri, ui.UI(policy))
 
-while policy.downloads:
-	if len(policy.downloads) > 1:
+while True:
+	starting = [d for d in policy.downloads.values() if d.status == download.download_starting]
+	if not starting: break
+
+	if len(starting) > 1:
 		print "Need to download:"
-		for p in policy.downloads:
-			print "- " + p
-	dl = policy.downloads.values()[0]
+		for dl in starting:
+			print "- " + dl.url
+	dl = starting[0]
 	print "Fetching", dl.url
 
 	try:
-		shutil.copyfileobj(file(dl.url), dl.tempfile)
+		stream = dl.start()
+		shutil.copyfileobj(file(dl.url), stream)
 	except Exception, ex:
-		dl.abort(ex)
+		print >>sys.stderr, "Download failed:", ex
+		dl.status = download.download_failed
 	else:
 		try:
-			dl.done()
+			policy.ui.check_signed_data(dl)
 		except gpg.BadSignature, ex:
 			print >>sys.stderr, "\n*** ERROR processing downloaded interface!"
 			print >>sys.stderr, "Interface:", dl.url
