@@ -101,16 +101,14 @@ location which is used to update the information."""),
 The main part of the window is a list of all known implementations of the interface. \
 The columns have the following meanings:
 
-Use can be 'prefer', if you want to use this implementation in preference to others, \
-or 'avoid' if you never want to use it.
-
 Version gives the version number. High-numbered versions are considered to be \
 better than low-numbered ones.
 
 Stability is 'stable' if the implementation is believed to be stable, 'buggy' if \
 it is known to contain serious bugs, and 'testing' if its stability is not yet \
 known. This information is normally supplied and updated by the author of the \
-software, but you can override their rating.
+software, but you can override their rating. Overridden values are shown in
+upper-case, and you can also set it to the special level 'PREFERRED'.
 
 C(ached) indicates whether the implementation is already stored on your computer. \
 In off-line mode, only cached implementations are considered for use.
@@ -132,13 +130,10 @@ implementations are shown shaded.
 
 For the usable implementations, the order is as follows:
 
-- 'prefer' implementations all come before normal ones.
-
-- Then, if network use is set to 'Minimal', cached implementations come before \
+- If network use is set to 'Minimal', cached implementations come before \
 non-cached.
 
-- If the option to prefer 'stable' implementations is set, 'stable' ones come before \
-'testing'.
+- Then, implementations at or above the selected stability level come before all others.
 
 - Then, higher-numbered versions come before low-numbered ones.
 

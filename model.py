@@ -28,6 +28,7 @@ buggy = Stability(0, 'buggy', 'Known to have serious bugs')
 developer = Stability(10, 'developer', 'Work-in-progress - bugs likely')
 testing = Stability(20, 'testing', 'Stability unknown - please test!')
 stable = Stability(30, 'stable', 'Tested - no serious problems found')
+preferred = Stability(40, 'preferred', 'Best of all - must be set manually')
 
 class Restriction(object):
 	"""A Restriction limits the allowed implementations of an Interface."""

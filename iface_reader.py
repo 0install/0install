@@ -75,6 +75,7 @@ def update(interface):
 					stability = stability_levels[str(item_attrs.stability)]
 				except KeyError:
 					raise Exception('Stability "%s" invalid' % item_attrs.stability)
+				assert stability < preferred
 				impl.upstream_stability = stability
 				impl.dependencies.update(depends)
 

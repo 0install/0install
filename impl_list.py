@@ -28,21 +28,20 @@ def popup_menu(bev, values, fn):
 	menu.popup(None, None, None, bev.button, bev.time)
 
 # Columns
-USE = 0
+ITEM = 0
 ARCH = 1
 STABILITY = 2
 VERSION = 3
 CACHED = 4
 PATH = 5
 SIZE = 6
-ITEM = 7
 
 class ImplementationList(gtk.ScrolledWindow):
 	def __init__(self, interface):
 		gtk.ScrolledWindow.__init__(self, None, None)
 		self.set_shadow_type(gtk.SHADOW_IN)
 
-		self.model = gtk.ListStore(str, str, str, str, bool, str, str, object)
+		self.model = gtk.ListStore(object, str, str, str, bool, str, str)
 		self.tree_view = gtk.TreeView(self.model)
 
 		text = gtk.CellRendererText()
@@ -50,8 +49,7 @@ class ImplementationList(gtk.ScrolledWindow):
 
 		stability = gtk.TreeViewColumn('Stability', text, text = STABILITY)
 
-		for column in (gtk.TreeViewColumn('Use', text, text = USE),
-			       gtk.TreeViewColumn('Version', text, text = VERSION),
+		for column in (gtk.TreeViewColumn('Version', text, text = VERSION),
 			       stability,
 			       gtk.TreeViewColumn('C', toggle, active = CACHED),
 			       gtk.TreeViewColumn('Arch', text, text = ARCH),
@@ -93,7 +91,6 @@ class ImplementationList(gtk.ScrolledWindow):
 		for item in items:
 			new = self.model.append()
 			self.model[new][ITEM] = item
-			self.model[new][USE] = '-'
 			self.model[new][VERSION] = item.get_version()
 			self.model[new][CACHED] = item.get_cached()
 			if item.user_stability:

@@ -70,15 +70,18 @@ class Policy(object):
 		r = cmp(a_usable, b_usable)
 		if r: return r
 
-		# Prefer
+		# Preferred versions come first
+		r = cmp(a_stab == preferred, b_stab == preferred)
+		if r: return r
 
 		# Stability
 		policy = interface.stability_policy
 		if not policy:
 			if self.help_with_testing: policy = testing
 			else: policy = stable
-		if a_stab >= policy: a_stab = stable
-		if b_stab >= policy: b_stab = stable
+
+		if a_stab >= policy: a_stab = preferred
+		if b_stab >= policy: b_stab = preferred
 
 		r = cmp(a_stab, b_stab)
 		if r: return r
