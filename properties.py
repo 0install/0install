@@ -6,6 +6,7 @@ from dialog import Dialog
 from gui import policy
 from impl_list import ImplementationList
 import writer
+import time
 
 _dialogs = {}	# Interface -> Properties
 
@@ -58,17 +59,30 @@ class Properties(Dialog):
 
 		buffer = description.get_buffer()
 		heading_style = buffer.create_tag(underline = True, scale = 1.2)
-		iter = buffer.get_start_iter()
-		buffer.insert_with_tags(iter,
-			'%s (%s)' % (interface.get_name(), interface.summary), heading_style)
+	
+		def set_details():
+			buffer.delete(buffer.get_start_iter(), buffer.get_end_iter())
 
-		buffer.insert(iter, '\nFull name: %s\n\n' % interface.uri)
+			iter = buffer.get_start_iter()
 
-		buffer.insert_with_tags(iter, 'Description\n', heading_style)
+			buffer.insert_with_tags(iter,
+				'%s (%s)' % (interface.get_name(), interface.summary), heading_style)
+
+			buffer.insert(iter, '\nFull name: %s' % interface.uri)
+
+			# (converts to local time)
+			if interface.last_modified:
+				buffer.insert(iter, '\nLast upstream change: %s' % time.ctime(interface.last_modified))
+
+			if interface.last_checked:
+				buffer.insert(iter, '\nLast checked: %s' % time.ctime(interface.last_checked))
+
+			buffer.insert_with_tags(iter, '\n\nDescription\n', heading_style)
+
+			buffer.insert(iter, interface.description or "-")
+		set_details()
 
 		description.set_size_request(-1, 100)
-
-		buffer.insert(iter, interface.description or "-")
 
 		self.use_list = ImplementationList(interface)
 		vbox.pack_start(self.use_list, True, True, 0)
@@ -101,8 +115,11 @@ class Properties(Dialog):
 		self.update_list()
 		vbox.show_all()
 
-		self.connect('destroy', lambda s: policy.watchers.remove(self.update_list))
-		policy.watchers.append(self.update_list)
+		def updated():
+			self.update_list()
+			set_details()
+		self.connect('destroy', lambda s: policy.watchers.remove(updated))
+		policy.watchers.append(updated)
 	
 	def update_list(self):
 		impls = policy.get_ranked_implementations(self.interface)
