@@ -107,8 +107,8 @@ better than low-numbered ones.
 Stability is 'stable' if the implementation is believed to be stable, 'buggy' if \
 it is known to contain serious bugs, and 'testing' if its stability is not yet \
 known. This information is normally supplied and updated by the author of the \
-software, but you can override their rating. Overridden values are shown in
-upper-case, and you can also set it to the special level 'PREFERRED'.
+software, but you can override their rating (overridden values are shown in upper-case). \
+You can also use the special level 'preferred'.
 
 C(ached) indicates whether the implementation is already stored on your computer. \
 In off-line mode, only cached implementations are considered for use.
@@ -123,14 +123,16 @@ The implementations are listed in the injector's currently preferred order (the 
 at the top will actually be used). Usable implementations all come before unusable \
 ones.
 
-Unusable ones are those marked as 'avoid', those for incompatible \
+Unusable ones are those for incompatible \
 architectures, those marked as 'buggy', versions explicitly marked as incompatible with \
 another interface you are using and, in off-line mode, uncached implementations. Unusable \
 implementations are shown shaded.
 
 For the usable implementations, the order is as follows:
 
-- If network use is set to 'Minimal', cached implementations come before \
+- Preferred implementations come first.
+
+- Then, if network use is set to 'Minimal', cached implementations come before \
 non-cached.
 
 - Then, implementations at or above the selected stability level come before all others.
