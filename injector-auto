@@ -14,11 +14,13 @@ prog_args = sys.argv[3:]
 
 import model
 from policy import policy
+import ui
+
 import shutil
 import sys
 import gpg
 
-policy.set_root_interface(interface_uri)
+policy.set_root_interface(interface_uri, ui.UI())
 
 while policy.downloads:
 	if len(policy.downloads) > 1:

@@ -13,10 +13,8 @@ _interfaces = {}	# URI -> Interface
 
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
-		     'help_with_testing', 'network_use', 'updates']
-
-	downloads = {}		# URI -> Download
-	failed_downloads = {}	# URI -> True
+		     'help_with_testing', 'network_use', 'updates',
+		     'ui', 'downloads', 'failed_downloads']
 
 	def __init__(self):
 		self.root = None
@@ -25,6 +23,9 @@ class Policy(object):
 		self.help_with_testing = False
 		self.network_use = network_full
 		self.updates = []
+		self.downloads = {}		# URI -> Download
+		self.failed_downloads = {}	# URI -> True
+		self.ui = None
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
@@ -35,9 +36,11 @@ class Policy(object):
 			self.network_use = config.get('global', 'network_use')
 			assert self.network_use in network_levels
 
-	def set_root_interface(self, root):
+	def set_root_interface(self, root, ui):
 		assert isinstance(root, (str, unicode))
+		assert ui
 		self.root = root
+		self.ui = ui
 		self.recalculate()
 
 	def save_config(self):
@@ -162,21 +165,23 @@ class Policy(object):
 		def done(result):
 			assert dl.url in self.downloads
 			del self.downloads[dl.url]
-			self.failed_downloads[dl.url] = True
-			if not isinstance(result, Exception):
-				data = self.get_signed_data(result)
+
+			try:
+				if isinstance(result, Exception):
+					raise result
+				data = self.ui.get_signed_data(result)
 				self.update_interface_from_network(interface, data)
-				del self.failed_downloads[dl.url]
+			except Exception, ex:
+				self.failed_downloads[dl.url] = True
+				self.ui.report_failed_download(interface, dl, ex)
+
+			self.ui.download_ended(dl)
 			self.recalculate()
+
 		dl = Download(interface.uri, done)
 		self.downloads[interface.uri] = dl
+		self.ui.download_started(dl)
 	
-	def get_signed_data(self, stream):
-		"""Stream is a GPG-signed message. Check that the signature is trusted
-		and return the interface XML file."""
-		import gpg
-		return gpg.check_stream(stream)
-
 	def update_interface_from_network(self, interface, stream):
 		debug("Updating '%s' from network" % (interface.name or interface.uri))
 		assert interface.uri.startswith('/')
