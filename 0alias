@@ -34,7 +34,7 @@ alias, interface_uri = args
 interface = model.Interface(interface_uri)
 if not reader.update_from_cache(interface):
 	print >>sys.stderr, "Interface '%s' not currently in cache. Fetching..." % interface_uri
-	if os.spawnlp(os.P_WAIT, '0launch', '0launch', '-g', interface_uri):
+	if os.spawnlp(os.P_WAIT, '0launch', '0launch', '-d', interface_uri):
 		print >>sys.stderr, "0launch failed"
 		sys.exit(1)
 	if not reader.update_from_cache(interface):
@@ -52,4 +52,21 @@ if os.path.exists(script):
 	print >>sys.stderr, "File '%s' already exists. Delete it first." % script
 	sys.exit(1)
 
-print "Creating alias", alias, "to", interface_uri
+wrapper = file(script, 'w')
+assert "'" not in interface_uri
+assert "\\" not in interface_uri
+print >>wrapper, '''#!/bin/sh
+if [ "$*" = "--versions" ]; then
+  exec 0launch -gd '%s' "$@"
+else
+  exec 0launch '%s' "$@"
+fi
+''' % (interface_uri, interface_uri)
+
+# Make new script executable
+os.chmod(script, 0111 | os.fstat(wrapper.fileno()).st_mode)
+wrapper.close()
+
+print "Created script '%s'." % script
+print "To edit policy: %s --versions" % alias
+print "(note: some shells require you to type 'rehash' now)"

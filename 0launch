@@ -66,7 +66,7 @@ if options.gui:
 	prog_args = args[:]
 	if options.download_only:
 		options.download_only = False
-		prog_args.insert(0, '-d')
+		prog_args.insert(0, '--download-only')
 else:
 	interface_uri = args[0]
 	prog_args = args[1:]
