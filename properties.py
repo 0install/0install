@@ -76,7 +76,7 @@ class UseList(gtk.ScrolledWindow):
 			new = self.model.append()
 			self.model[new][UseList.ITEM] = item
 			self.model[new][UseList.USE] = '-'
-			self.model[new][UseList.VERSION] = item.version
+			self.model[new][UseList.VERSION] = item.get_version()
 			self.model[new][UseList.CACHED] = item.get_cached()
 			self.model[new][UseList.STABILITY] = item.get_stability()
 			self.model[new][UseList.ARCH] = item.arch or 'any'

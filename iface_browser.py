@@ -77,10 +77,9 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 
 			impl = policy.get_implementation(iface)
 			if impl:
-				self.model[iter][InterfaceBrowser.VERSION] = str(impl.version)
+				self.model[iter][InterfaceBrowser.VERSION] = impl.get_version()
+				for child in impl.dependencies.values():
+					add_node(iter, child.get_interface())
 			else:
 				self.model[iter][InterfaceBrowser.VERSION] = '(choose)'
-
-			for child in iface.dependencies:
-				add_node(iter, child)
 		add_node(None, self.root)

@@ -16,14 +16,17 @@ class Dependency(object):
 	__slots__ = ['interface', 'restrictions', 'bindings']
 
 	def __init__(self, interface):
-		assert isinstance(interface, Interface)
+		assert isinstance(interface, (str, unicode))
 		self.interface = interface
 		self.restrictions = []
 		self.bindings = []
+	
+	def get_interface(self):
+		return get_interface(self.interface)
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
-	__slots__ = ['path', 'arch', 'stability', 'version', 'size']
+	__slots__ = ['path', 'arch', 'stability', 'version', 'size', 'dependencies']
 
 	def __init__(self, version, size, path):
 		assert path
@@ -31,6 +34,7 @@ class Implementation(object):
 		self.stability = 'testing'
 		self.size = size
 		self.version = map(int, version.split('.'))
+		self.dependencies = {}	# URI -> Dependency
 	
 	def may_set_stability(self, stability):
 		assert stability in ('testing', 'stable', 'buggy')
@@ -50,6 +54,9 @@ class Implementation(object):
 	def get_cached(self):
 		return os.path.exists(self.path)
 	
+	def get_version(self):
+		return '.'.join(map(str, self.version))
+	
 	def __str__(self):
 		return self.path
 
@@ -58,14 +65,13 @@ class Implementation(object):
 	
 class Interface(object):
 	"""An Interface represents some contract of behaviour."""
-	__slots__ = ['uri', 'implementations', 'name', 'dependencies', 'uptodate', 'description', 'summary']
+	__slots__ = ['uri', 'implementations', 'name', 'uptodate', 'description', 'summary']
 
 	def __init__(self, uri):
 		assert uri
 		self.uri = uri
 		self.implementations = {}	# Path -> Implementation
 		self.name = None
-		self.dependencies = []
 		self.uptodate = False
 	
 	def get_name(self):

@@ -33,6 +33,9 @@ class Attrs(object):
 				setattr(new, x, item.getAttribute(x))
 		return new
 
+def process_depends(dependency, item):
+	print item
+
 def update(interface):
 	assert isinstance(interface, Interface)
 
@@ -43,15 +46,21 @@ def update(interface):
 	interface.description = get_singleton_text(root, XMLNS_IFACE, 'description')
 	interface.summary = get_singleton_text(root, XMLNS_IFACE, 'summary')
 
-	def process_group(group, group_attrs):
+	def process_group(group, group_attrs, base_depends):
 		for item in group.childNodes:
+			depends = base_depends.copy()
 			if item.namespaceURI != XMLNS_IFACE:
 				continue
 
 			item_attrs = group_attrs.merge(item)
 
+			for dep_elem in item.getElementsByTagNameNS(XMLNS_IFACE, 'requires'):
+				dep = Dependency(dep_elem.getAttribute('interface'))
+				process_depends(dep, dep_elem)
+				depends[dep.interface] = dep
+
 			if item.localName == 'group':
-				process_group(item, item_attrs)
+				process_group(item, item_attrs, depends)
 			elif item.localName == 'implementation':
 				size = item.getAttribute('size')
 				if size: size = long(size)
@@ -59,7 +68,8 @@ def update(interface):
 				impl = interface.get_impl(item_attrs.path,
 							  item_attrs.version,
 							  size)
+				impl.dependencies.update(depends)
 				impl.arch = item_attrs.arch
 				impl.may_set_stability(item_attrs.stability)
 
-	process_group(root, Attrs('testing'))
+	process_group(root, Attrs('testing'), {})

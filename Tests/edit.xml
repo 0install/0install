@@ -7,7 +7,7 @@
   </description>
   
   <group path='/uri/0install/rox.sourceforge.net/apps/Edit'>
-    <requires interface='/uri/0install/rox.sourceforge.net/lib/ROX-Lib2/ROX-Lib.xml'>
+    <requires interface='/home/talex/Projects/injector/Tests/ROX-Lib.xml'>
       <version min='1.9.6'/>
       <environment name='PYTHONPATH' insert='python'/>
     </requires>
