@@ -22,6 +22,18 @@ buttons). Thus, the injector must choose implementations of each dependancy
 See http://0install.net/injector.html for details.
 
 
+INSTALLATION
+
+The injector uses the normal Python distutils method of installation. To
+install, become root and run setup.py like this:
+
+  $ su
+  [ enter root password ]
+  # python setup.py install
+  # exit
+  $
+
+
 CONDITIONS
 
 This program is free software; you can redistribute it and/or modify it under
