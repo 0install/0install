@@ -16,9 +16,6 @@ class MainWindow(Dialog):
 
 		tips = gtk.Tooltips()
 
-		self.progress = gtk.ProgressBar()
-		self.vbox.pack_start(self.progress, False, True, 0)
-
 		# Network use
 		hbox = gtk.HBox(False, 2)
 		self.vbox.pack_start(hbox, False, True, 0)
@@ -67,6 +64,10 @@ class MainWindow(Dialog):
 		stable_toggle.connect('toggled', toggle_stability)
 
 		hbox.show_all()
+
+		# Progress bar
+		self.progress = gtk.ProgressBar()
+		self.vbox.pack_start(self.progress, False, True, 0)
 
 		# Responses
 
