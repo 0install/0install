@@ -23,11 +23,13 @@ class Dependency(object):
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
-	__slots__ = ['path', 'arch', 'stability']
+	__slots__ = ['path', 'arch', 'stability', 'version']
 
-	def __init__(self, path):
+	def __init__(self, version, path):
 		assert path
+		assert isinstance(version, Version)
 		self.path = path
+		self.version = version
 		self.stability = 'testing'
 	
 	def may_set_stability(self, stability):
@@ -67,7 +69,7 @@ class Version(object):
 
 	def get_impl(self, path):
 		if path not in self.implementations:
-			self.implementations[path] = Implementation(path)
+			self.implementations[path] = Implementation(self, path)
 		return self.implementations[path]
 
 	def get_stability(self):

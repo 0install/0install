@@ -10,15 +10,16 @@ class UseList(gtk.ScrolledWindow):
 	USE = 0
 	ARCH = 1
 	STABILITY = 2
-	NAME = 3
-	CACHE = 4
-	ITEM = 5
+	VERSION = 3
+	CACHED = 4
+	PATH = 5
+	ITEM = 6
 
-	def __init__(self, title, impl = False):
+	def __init__(self):
 		gtk.ScrolledWindow.__init__(self, None, None)
 		self.set_shadow_type(gtk.SHADOW_IN)
 
-		self.model = gtk.ListStore(str, str, str, str, str, object)
+		self.model = gtk.ListStore(str, str, str, str, bool, str, object)
 		self.tree_view = gtk.TreeView(self.model)
 
 		text = gtk.CellRendererText()
@@ -27,22 +28,26 @@ class UseList(gtk.ScrolledWindow):
 					  text = UseList.USE)
 		self.tree_view.append_column(column)
 
+		column = gtk.TreeViewColumn('Version', text,
+					  text = UseList.VERSION)
+		self.tree_view.append_column(column)
+
 		column = gtk.TreeViewColumn('Stability', text,
 					  text = UseList.STABILITY)
 		self.tree_view.append_column(column)
 
-		column = gtk.TreeViewColumn('Cache', text,
-					  text = UseList.CACHE)
+		column = gtk.TreeViewColumn('C', gtk.CellRendererToggle(),
+					  active = UseList.CACHED)
 		self.tree_view.append_column(column)
 
-		if impl:
-			column = gtk.TreeViewColumn('Arch', text,
-						  text = UseList.ARCH)
-			self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn(title, text,
-					  text = UseList.NAME)
+		column = gtk.TreeViewColumn('Arch', text,
+					  text = UseList.ARCH)
 		self.tree_view.append_column(column)
+
+		column = gtk.TreeViewColumn('Location', text,
+					  text = UseList.PATH)
+		self.tree_view.append_column(column)
+
 		self.add(self.tree_view)
 	
 	def get_selection(self):
@@ -54,15 +59,11 @@ class UseList(gtk.ScrolledWindow):
 			new = self.model.append()
 			self.model[new][UseList.ITEM] = item
 			self.model[new][UseList.USE] = '-'
-			self.model[new][UseList.NAME] = str(item)
-			if item.get_cached():
-				self.model[new][UseList.CACHE] = 'cached'
-			else:
-				self.model[new][UseList.CACHE] = 'no'
+			self.model[new][UseList.VERSION] = item.version
+			self.model[new][UseList.CACHED] = item.get_cached()
 			self.model[new][UseList.STABILITY] = item.get_stability()
-
-			if hasattr(item, 'arch'):
-				self.model[new][UseList.ARCH] = item.arch or 'any'
+			self.model[new][UseList.ARCH] = item.arch or 'any'
+			self.model[new][UseList.PATH] = item.path
 	
 	def clear(self):
 		self.model.clear()
@@ -103,26 +104,15 @@ class Properties(Dialog):
 		description.set_line_wrap(True)
 		frame.add(description)
 
-		use_list = UseList('Version')
+		use_list = UseList()
 		versions = interface.versions.values()
 		versions.sort()
-		use_list.set_items(versions)
+		impls = []
+		for v in versions:
+			impls += v.implementations.values()
+		use_list.set_items(impls)
 		vbox.pack_start(use_list, True, True, 0)
-		use_list.set_policy(gtk.POLICY_NEVER, gtk.POLICY_ALWAYS)
-
-		def version_changed(selection):
-			store, itr = selection.get_selected()
-			if itr:
-				version = store[itr][UseList.ITEM]
-				impls = version.implementations.values()
-				impl_list.set_items(impls)
-			else:
-				impl_list.clear()
-		use_list.get_selection().connect('changed', version_changed)
-
-		impl_list = UseList('Implementation', True)
-		vbox.pack_start(impl_list, False, True, 0)
-		impl_list.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+		use_list.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 
 		vbox.show_all()
 	
@@ -139,9 +129,8 @@ This window displays information about an interface. At the top is the interface
 short name, unique ID, summary and long description. The unique ID is also the \
 location which is used to update the information."""),
 
-('Versions', """
-In the middle of the window is a list of all known versions of the interface.
-
+('Implementations', """
+The main part of the window is a list of all known implementations of the interface. \
 The columns have the following meanings:
 
 Use can be 'prefer', if you want to use this implementation in preference to others, \
@@ -150,25 +139,16 @@ or 'avoid' if you never want to use it.
 Version gives the version number. High-numbered versions are considered to be \
 better than low-numbered ones.
 
-Stability and Cached are described below. Here, they show the details of the \
-preferred implementation of each version. Use the section below to set which \
-implementation of each version is preferred."""),
-
-('Implementations', """
-When a version is selected, a list of implementations of that version are shown \
-below (typically, there is only one implementation of each version).
-
-Arch indicates what kind of computer system the implementation is for, or 'any' \
-if it works with all types of system.
-
 Stability is 'stable' if the implementation is believed to be stable, 'buggy' if \
 it is known to contain serious bugs, and 'testing' if its stability is not yet \
 known. This information is normally supplied and updated by the author of the \
 software, but you can override their rating.
 
-Cached indicates whether the implementation is already stored on your computer.
-
+C(ached) indicates whether the implementation is already stored on your computer. \
 In off-line mode, only cached implementations are considered for use.
 
-Implementation gives the location.
+Arch indicates what kind of computer system the implementation is for, or 'any' \
+if it works with all types of system.
+
+Location is the path that will be used for the implementation when the program is run.
 """))
