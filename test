@@ -1,0 +1,2 @@
+#!/bin/sh
+INJECTOR_INTERACTIVE=1 ./injector AppRun /home/talex/Projects/injector/memo.xml
