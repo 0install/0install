@@ -35,10 +35,8 @@ class Store:
 			return
 
 		if 'GNU tar' in os.popen('tar --version 2>&1').read():
-			print "Using GNU tar"
 			args = ['tar', 'xz', '--no-same-owner', '--no-same-permissions']
 		else:
-			print "Non-GNU tar"
 			args = ['tar', 'xzf', '-']
 
 		if extract:
