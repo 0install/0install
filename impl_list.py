@@ -33,7 +33,7 @@ ARCH = 1
 STABILITY = 2
 VERSION = 3
 CACHED = 4
-PATH = 5
+ID = 5
 SIZE = 6
 UNUSABLE = 7
 
@@ -59,7 +59,7 @@ class ImplementationList(gtk.ScrolledWindow):
 			       gtk.TreeViewColumn('C', toggle, active = CACHED),
 			       gtk.TreeViewColumn('Arch', text, text = ARCH),
 			       gtk.TreeViewColumn('Size', text, text = SIZE),
-			       gtk.TreeViewColumn('Location', text_strike, text = PATH,
+			       gtk.TreeViewColumn('ID', text_strike, text = ID,
 			       				strikethrough = UNUSABLE)):
 			self.tree_view.append_column(column)
 
@@ -98,14 +98,14 @@ class ImplementationList(gtk.ScrolledWindow):
 			new = self.model.append()
 			self.model[new][ITEM] = item
 			self.model[new][VERSION] = item.get_version()
-			self.model[new][CACHED] = item.get_cached()
+			self.model[new][CACHED] = policy.get_cached(item)
 			if item.user_stability:
 				self.model[new][STABILITY] = str(item.user_stability).upper()
 			else:
 				self.model[new][STABILITY] = item.upstream_stability or \
 							     model.testing
 			self.model[new][ARCH] = item.arch or 'any'
-			self.model[new][PATH] = item.path
+			self.model[new][ID] = item.id
 			self.model[new][SIZE] = pretty_size(item.size)
 			self.model[new][UNUSABLE] = policy.is_unusable(item)
 	
