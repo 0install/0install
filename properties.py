@@ -3,7 +3,7 @@ import gtk
 
 import help_box
 from dialog import Dialog
-from policy import policy
+from gui import policy
 from impl_list import ImplementationList
 import writer
 

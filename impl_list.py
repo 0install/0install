@@ -1,6 +1,6 @@
 import gtk
 import model
-from policy import policy
+from gui import policy
 import writer
 
 def pretty_size(size):
@@ -38,6 +38,9 @@ SIZE = 6
 UNUSABLE = 7
 
 class ImplementationList(gtk.ScrolledWindow):
+	tree_view = None
+	model = None
+
 	def __init__(self, interface):
 		gtk.ScrolledWindow.__init__(self, None, None)
 		self.set_shadow_type(gtk.SHADOW_IN)

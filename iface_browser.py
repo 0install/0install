@@ -3,7 +3,7 @@ import gtk
 from model import Interface
 import properties
 import reader
-from policy import policy
+from gui import policy
 
 class InterfaceBrowser(gtk.ScrolledWindow):
 	model = None
@@ -15,9 +15,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 	VERSION = 2
 	SUMMARY = 3
 
-	def __init__(self, root):
-		assert isinstance(root, Interface)
-		self.root = root
+	def __init__(self):
 		self.edit_properties = gtk.Action('edit_properties',
 			  'Interface Properties...',
 			  'Set which implementation of this interface to use.',
@@ -76,7 +74,10 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		self.connect('destroy', lambda s: policy.watchers.remove(self.build_tree))
 		policy.watchers.append(self.build_tree)
 
-		policy.recalculate()
+	def set_root(self, root):
+		assert isinstance(root, Interface)
+		self.root = root
+		policy.recalculate()	# Calls build_tree
 
 	def build_tree(self):
 		self.model.clear()

@@ -13,12 +13,11 @@ prog = sys.argv[2]
 prog_args = sys.argv[3:]
 
 import model
-from policy import policy
+from gui import GUIPolicy
 import gui, gtk
 
-policy.set_root_interface(interface_uri, gui.GUI(policy))
+gtk.rc_parse_string('style "scrolled" { '
+		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
+		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
 
-window = gui.MainWindow(prog, prog_args)
-window.show()
-gtk.main()
-
+GUIPolicy(interface_uri, prog, prog_args).main()

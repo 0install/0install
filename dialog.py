@@ -1,9 +1,5 @@
 import gtk
 
-gtk.rc_parse_string('style "scrolled" { '
-		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
-		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
-
 n_windows = 0
 
 class Dialog(gtk.Dialog):

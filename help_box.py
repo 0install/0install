@@ -32,18 +32,18 @@ class HelpBox:
 		text.set_wrap_mode(gtk.WRAP_WORD)
 		text.set_editable(False)
 		text.set_cursor_visible(False)
-		buffer = text.get_buffer()
-		iter = buffer.get_start_iter()
-		heading_style = buffer.create_tag(underline = True, scale = 1.2)
+		body = text.get_buffer()
+		titer = body.get_start_iter()
+		heading_style = body.create_tag(underline = True, scale = 1.2)
 
 		first = True
 		for title, body in self.sections:
 			if first:
 				first = False
 			else:
-				buffer.insert(iter, '\n\n')
-			buffer.insert_with_tags(iter, title, heading_style)
-			buffer.insert(iter, '\n' + body.strip())
+				body.insert(titer, '\n\n')
+			body.insert_with_tags(titer, title, heading_style)
+			body.insert(titer, '\n' + body.strip())
 		swin.add(text)
 
 		swin.show_all()
