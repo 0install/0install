@@ -107,6 +107,7 @@ class Interface(object):
 
 	def __init__(self, uri):
 		assert uri
+		assert uri.startswith('/') or uri.startswith('http:')
 		self.uri = uri
 		self.reset()
 

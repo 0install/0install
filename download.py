@@ -1,6 +1,7 @@
 import tempfile, os, sys
 from model import Interface
 import traceback
+from urllib2 import urlopen
 
 download_starting = "starting"	# Waiting for UI to start it
 download_fetching = "fetching"	# In progress
@@ -56,18 +57,25 @@ class Download:
 		return os.fdopen(error_r, 'r')
 	
 	def download_as_child(self):
-		import time
 		try:
-			print "Child downloading", self.url
-			#time.sleep(1)
-			if not os.path.isfile(self.url):
-				print >>sys.stderr, "File '%s' does not " \
-					"exist!" % self.url
-				return
+			import time
 			import shutil
-			shutil.copyfileobj(file(self.url), self.tempfile)
+			print "Child downloading", self.url
+			if self.url.startswith('/'):
+				#time.sleep(1)
+				if not os.path.isfile(self.url):
+					print >>sys.stderr, "File '%s' does not " \
+						"exist!" % self.url
+					return
+				src = file(self.url)
+				#print "Done :-)"
+			elif self.url.startswith('http:'):
+				src = urlopen(self.url)
+			else:
+				raise Exception('Unsupported URL protocol in: ' + self.url)
+
+			shutil.copyfileobj(src, self.tempfile)
 			self.tempfile.flush()
-			#print "Done :-)"
 			
 			os._exit(0)
 		except:

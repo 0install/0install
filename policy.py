@@ -181,7 +181,6 @@ class Policy(object):
 		"""xml is the new XML (after the signature has been checked and
 		removed)."""
 		debug("Updating '%s' from network" % (interface.name or interface.uri))
-		assert interface.uri.startswith('/')
 
 		self.import_new_interface(interface, new_xml)
 
