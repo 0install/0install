@@ -1,9 +1,11 @@
+import time
+from logging import debug, info
+
 from model import *
 import basedir
 from namespaces import *
 import ConfigParser
 import reader
-from logging import debug, info
 import download
 
 #from logging import getLogger, DEBUG
@@ -12,7 +14,6 @@ import download
 _interfaces = {}	# URI -> Interface
 
 def pretty_time(t):
-	import time
 	return time.strftime('%Y-%m-%d %H:%M:%S UTC', t)
 
 class Policy(object):
@@ -127,7 +128,7 @@ class Policy(object):
 	
 	def get_interface(self, uri):
 		"""Get the interface for uri. If it's in the cache, read that.
-		If it's not in the cache or network use is full, start downloading
+		If it's not in the cache or policy says so, start downloading
 		the latest version."""
 		if type(uri) == str:
 			uri = unicode(uri)
@@ -138,7 +139,12 @@ class Policy(object):
 			_interfaces[uri] = Interface(uri)
 			self.init_interface(_interfaces[uri])
 
-		if self.network_use == network_full and not _interfaces[uri].uptodate:
+		staleness = time.time() - (_interfaces[uri].last_checked or 0)
+		#print "Staleness for '%s' is %d" % (_interfaces[uri].name, staleness)
+
+		if self.network_use != network_offline and \
+		   self.freshness > 0 and staleness > self.freshness:
+		   	#print "Updating..."
 			self.begin_iface_download(_interfaces[uri])
 
 		return _interfaces[uri]
@@ -211,7 +217,6 @@ class Policy(object):
 		os.rename(cached + '.new', cached)
 		debug("Saved as " + cached)
 
-		interface.uptodate = True
 		reader.update_from_cache(interface)
 
 	def get_implementation(self, interface):

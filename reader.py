@@ -124,6 +124,9 @@ def update(interface, source, user_overrides = False):
 		interface.last_modified = parse_time(time_str)
 
 	if user_overrides:
+		last_checked = root.getAttribute('last-checked')
+		if last_checked:
+			interface.last_checked = int(last_checked)
 		stability_policy = root.getAttribute('stability-policy')
 		if stability_policy:
 			interface.set_stability_policy(stability_levels[str(stability_policy)])

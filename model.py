@@ -105,7 +105,7 @@ class Implementation(object):
 	
 class Interface(object):
 	"""An Interface represents some contract of behaviour."""
-	__slots__ = ['uri', 'implementations', 'name', 'uptodate', 'description', 'summary',
+	__slots__ = ['uri', 'implementations', 'name', 'description', 'summary',
 		     'stability_policy', 'last_updated', 'last_modified', 'last_checked']
 	
 	# stability_policy:
@@ -119,7 +119,6 @@ class Interface(object):
 	def __init__(self, uri):
 		assert uri
 		self.uri = uri
-		self.uptodate = False		# Did we download this session?
 		self.reset()
 
 	def reset(self):
