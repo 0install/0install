@@ -6,11 +6,27 @@ from optparse import OptionParser
 from zeroinstall.injector import model, download, gpg
 from zeroinstall.injector import policy, download, gpg, run
 
-parser = OptionParser(usage="usage: %prog [options] interface [args]")
-parser.add_option("-r", "--refresh", help="refresh all used interfaces",
-		  action='store_true')
+parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
+			    "       %prog --list [search-term]")
+parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
+parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 
 (options, args) = parser.parse_args()
+
+if options.list:
+	if len(args) == 0:
+		match = None
+	elif len(args) == 1:
+		match = args[0]
+	else:
+		parser.print_help()
+		sys.exit(1)
+	print "Currently cached interfaces:"
+	from zeroinstall.injector import reader
+	for i in reader.list_all_interfaces():
+		if match and match not in i.lower(): continue
+		print "-", i
+	sys.exit(0)
 
 if len(args) < 1:
 	parser.print_help()

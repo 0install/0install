@@ -63,6 +63,18 @@ def update_from_cache(interface):
 
 	return True
 
+def list_all_interfaces():
+	all = {}
+	for d in basedir.load_config_paths(config_site, config_prog, 'interfaces'):
+		for leaf in os.listdir(d):
+			if not leaf.startswith('.'):
+				all[leaf] = True
+	for d in basedir.load_config_paths(config_site, config_prog, 'user_overrides'):
+		for leaf in os.listdir(d):
+			if not leaf.startswith('.'):
+				all[leaf] = True
+	return map(unescape, all.keys())
+
 def update_user_overrides(interface):
 	user = basedir.load_first_config(config_site, config_prog,
 					   'user_overrides', escape(interface.uri))

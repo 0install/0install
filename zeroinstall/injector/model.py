@@ -153,6 +153,14 @@ class Interface(object):
 		assert new is None or isinstance(new, Stability)
 		self.stability_policy = new
 
+def unescape(uri):
+	"Convert each %20 to a space, etc"
+	if '%' not in uri: return uri
+	import re
+	return re.sub('%[0-9a-fA-F][0-9a-fA-F]',
+		lambda match: chr(int(match.group(0)[1:], 16)),
+		uri)
+
 def escape(uri):
 	"Convert each space to %20, etc"
 	import re
