@@ -180,13 +180,12 @@ class Policy(object):
 		stream = file(cached + '.new', 'w')
 		stream.write(new_xml)
 		stream.close()
-		reader.update(interface, cached + '.new')
+		reader.check_readable(interface.uri, cached + '.new')
 		os.rename(cached + '.new', cached)
 		debug("Saved as " + cached)
 		
 		interface.uptodate = True
-
-		reader.update_user_overrides(interface)
+		reader.update_from_cache(interface)
 		self.recalculate()
 
 	def get_implementation(self, interface):

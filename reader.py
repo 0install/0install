@@ -7,6 +7,12 @@ import basedir
 from namespaces import *
 from model import *
 
+class InvalidInterface(Exception):
+	def __init__(self, message, ex = None):
+		if ex:
+			message += "\n\n(exact error: %s)" % ex
+		Exception.__init__(self, message)
+
 def get_singleton_text(parent, ns, localName, user):
 	names = parent.getElementsByTagNameNS(ns, localName)
 	if not names:
@@ -57,10 +63,7 @@ def update_from_cache(interface):
 		return False
 
 	interface.reset()
-
-	if cached:
-		update(interface, cached)
-	
+	update(interface, cached)
 	update_user_overrides(interface)
 
 	return True
@@ -72,11 +75,17 @@ def update_user_overrides(interface):
 	if user:
 		update(interface, user, user_overrides = True)
 
+def check_readable(interface_uri, source):
+	tmp = Interface(interface_uri)
+	update(tmp, source)
 
 def update(interface, source, user_overrides = False):
 	assert isinstance(interface, Interface)
 
-	doc = minidom.parse(source)
+	try:
+		doc = minidom.parse(source)
+	except Exception, ex:
+		raise InvalidInterface("Invalid XML", ex)
 
 	root = doc.documentElement
 
