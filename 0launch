@@ -8,6 +8,7 @@ from zeroinstall.injector import policy, download, gpg, run
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]")
+parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
 parser.add_option("-v", "--version", help="display version information", action='store_true')
@@ -23,11 +24,10 @@ if options.list:
 	else:
 		parser.print_help()
 		sys.exit(1)
-	print "Currently cached interfaces:"
 	from zeroinstall.injector import reader
 	for i in reader.list_all_interfaces():
 		if match and match not in i.lower(): continue
-		print "-", i
+		print i
 	sys.exit(0)
 
 if options.version:
@@ -45,10 +45,15 @@ if len(args) < 1:
 	parser.print_help()
 	sys.exit(1)
 
-interface_uri = args[0]
+if options.gui:
+	interface_uri = 'http://0install.net/2005/interfaces/injector-gui'
+	prog_args = args[:]
+else:
+	interface_uri = args[0]
+	prog_args = args[1:]
+
 if not interface_uri.startswith('http:'):
 	interface_uri = os.path.realpath(interface_uri)	# For testing
-prog_args = args[1:]
 
 class AutoPolicy(policy.Policy):
 	monitored_downloads = None
