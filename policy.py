@@ -13,8 +13,7 @@ _interfaces = {}	# URI -> Interface
 
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
-		     'help_with_testing', 'network_use', 'updates',
-		     'downloads']
+		     'help_with_testing', 'network_use', 'updates']
 
 	def __init__(self, root):
 		assert isinstance(root, (str, unicode))
@@ -24,7 +23,6 @@ class Policy(object):
 		self.help_with_testing = False
 		self.network_use = network_full
 		self.updates = []
-		self.downloads = {}		# URI -> Download
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
@@ -150,26 +148,16 @@ class Policy(object):
 				debug("Nothing known about interface, but we are off-line.")
 	
 	def begin_iface_download(self, interface, force = False):
-		dl = self.downloads.get(interface.uri, None)
-		if dl:
-			if dl.status != download.download_failed or not force:
-				return	# Already downloading
-		
-		info("Download %s", interface.uri)
+		dl = download.begin_download(interface, force)
 		if not dl:
-			# Start new download
-			dl = download.Download(interface)
-		else:
-			# Restart failed download
-			assert dl.status == download.download_failed
-			dl.status = download.download_starting
+			assert not force
+			return		# Already in progress
 
-		self.downloads[interface.uri] = dl
-
-		# After a while, sets status to download_checking, then
-		# download_compete and calls update_interface_from_network()
-		# Or, sets status to failed.
-		self.start_download(dl)
+		# Calls update_interface_from_network eventually on success
+		self.monitor_download(dl)
+	
+	def monitor_download(self, dl):
+		raise NotImplementedError("Abstract method")
 	
 	def update_interface_from_network(self, interface, stream):
 		"""stream is the new XML (after the signature has been checked and
@@ -227,14 +215,11 @@ class Policy(object):
 						yield idep
 		return walk(self.get_interface(self.root))
 
-	def start_download(self, download):
-		print "New download", download
-
-	def check_signed_data(self, download):
+	def check_signed_data(self, download, signed_data):
 		"""Downloaded data is a GPG-signed message. Check that the signature is trusted
 		and call self.update_interface_from_network() when done."""
 		import gpg
-		data = gpg.check_stream(download.get_result())
+		data = gpg.check_stream(signed_data)
 		self.update_interface_from_network(download.interface, data)
 
 	def confirm_diff(self, old, new, uri):

@@ -20,35 +20,32 @@ import shutil
 import sys
 import gpg
 
+class AutoPolicy(Policy):
+	monitored_downloads = None
+
+	def __init__(self, interface_uri):
+		Policy.__init__(self, interface_uri)
+		self.monitored_downloads = []
+
+	def monitor_download(self, dl):
+		error_stream = dl.start()
+		self.monitored_downloads.append((error_stream, dl))
+
 # Singleton instance used everywhere...
-policy = Policy(interface_uri)
+policy = AutoPolicy(interface_uri)
 policy.recalculate()
 
-while True:
-	starting = [d for d in policy.downloads.values() if d.status == download.download_starting]
-	if not starting: break
+while policy.monitored_downloads:
+	print "Currently downloading:"
+	for e, dl in policy.monitored_downloads:
+		print "- " + dl.url
 
-	if len(starting) > 1:
-		print "Need to download:"
-		for dl in starting:
-			print "- " + dl.url
-	dl = starting[0]
-	print "Fetching", dl.url
-
-	try:
-		stream = dl.start()
-		shutil.copyfileobj(file(dl.url), stream)
-	except Exception, ex:
-		print >>sys.stderr, "Download failed:", ex
-		dl.status = download.download_failed
-	else:
-		try:
-			policy.check_signed_data(dl)
-		except gpg.BadSignature, ex:
-			print >>sys.stderr, "\n*** ERROR processing downloaded interface!"
-			print >>sys.stderr, "Interface:", dl.url
-			print >>sys.stderr, ex, "\n"
-			# Carry on...
+	for e, dl in policy.monitored_downloads[:]:
+		print "Got", e.read()
+		e.close()
+		policy.monitored_downloads.remove((e, dl))
+		data = dl.error_stream_closed()
+		policy.check_signed_data(dl, data)
 
 import run
 
