@@ -59,7 +59,7 @@ class Download:
 		import time
 		try:
 			print "Child downloading", self.url
-			time.sleep(1)
+			#time.sleep(1)
 			if not os.path.isfile(self.url):
 				print >>sys.stderr, "File '%s' does not " \
 					"exist!" % self.url
