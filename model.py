@@ -2,6 +2,11 @@
 
 import os
 
+network_offline = 'off-line'
+network_minimal = 'minimal'
+network_full = 'full'
+network_levels = (network_offline, network_minimal, network_full)
+
 stability_levels = {}	# Name -> Stability
 
 class Stability(object):

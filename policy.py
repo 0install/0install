@@ -1,18 +1,43 @@
 from model import *
+import basedir
+from namespaces import *
+import ConfigParser
 
-class Policy:
-	root = None
-	implementation = None		# Interface -> Implementation
-	watchers = None			# List of functions
-	default_stability_policy = testing
+class Policy(object):
+	__slots__ = ['root', 'implementation', 'watchers',
+		     'help_with_testing', 'network_use']
 
 	def __init__(self):
-		self.implementation = {}
+		self.root = None
+		self.implementation = {}		# Interface -> Implementation
 		self.watchers = []
+		self.help_with_testing = False
+		self.network_use = network_minimal
+
+		path = basedir.load_first_config(config_site, config_prog, 'global')
+		if path:
+			config = ConfigParser.ConfigParser()
+			config.read(path)
+			self.help_with_testing = config.getboolean('global',
+							'help_with_testing')
+			self.network_use = config.get('global', 'network_use')
+			assert self.network_use in network_levels
 
 	def set_root_iterface(self, root):
 		assert isinstance(root, Interface)
 		self.root = root
+	
+	def save_config(self):
+		config = ConfigParser.ConfigParser()
+		config.add_section('global')
+
+		config.set('global', 'help_with_testing', self.help_with_testing)
+		config.set('global', 'network_use', self.network_use)
+
+		path = basedir.save_config_path(config_site, config_prog)
+		path = os.path.join(path, 'global')
+		config.write(file(path + '.new', 'w'))
+		os.rename(path + '.new', path)
 	
 	def recalculate(self):
 		self.implementation = {}
@@ -48,7 +73,10 @@ class Policy:
 		# Prefer
 
 		# Stability
-		policy = interface.stability_policy or self.default_stability_policy
+		policy = interface.stability_policy
+		if not policy:
+			if self.help_with_testing: policy = testing
+			else: policy = stable
 		if a_stab >= policy: a_stab = stable
 		if b_stab >= policy: b_stab = stable
 
@@ -64,3 +92,4 @@ class Policy:
 
 # Singleton instance used everywhere...
 policy = Policy()
+policy.save_config()

@@ -3,7 +3,7 @@ from iface_browser import InterfaceBrowser
 import help_box
 from dialog import Dialog
 from policy import policy
-from model import stable, testing
+from model import stable, testing, network_levels
 
 gtk.rc_parse_string('style "scrolled" { '
 		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
@@ -29,12 +29,16 @@ class MainWindow(Dialog):
 		hbox.set_border_width(4)
 
 		network = gtk.combo_box_new_text()
-		network.append_text('Off-line')
-		network.append_text('Minimal')
-		network.append_text('Full')
-		network.set_active(1)
+		for level in network_levels:
+			network.append_text(level.capitalize())
+		network.set_active(list(network_levels).index(policy.network_use))
 		hbox.pack_start(gtk.Label('Network use:'), False, True, 0)
 		hbox.pack_start(network, False, True, 2)
+		def set_network_use(combo):
+			policy.network_use = network_levels[network.get_active()]
+			policy.save_config()
+			policy.recalculate()
+		network.connect('changed', set_network_use)
 
 		hbox.show_all()
 
@@ -59,13 +63,10 @@ class MainWindow(Dialog):
 			"waiting for them to be marked as 'stable'. "
 			"This sets the default policy. Click on 'Interface Properties...' "
 			"to set the policy for an individual interface.")
-		if policy.default_stability_policy != stable:
-			stable_toggle.set_active(True)
+		stable_toggle.set_active(policy.help_with_testing)
 		def toggle_stability(toggle):
-			if toggle.get_active():
-				policy.default_stability_policy = testing
-			else:
-				policy.default_stability_policy = stable
+			policy.help_with_testing = toggle.get_active()
+			policy.save_config()
 			policy.recalculate()
 		stable_toggle.connect('toggled', toggle_stability)
 
