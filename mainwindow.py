@@ -112,16 +112,8 @@ class MainWindow(Dialog):
 			if resp == gtk.RESPONSE_CANCEL:
 				self.destroy()
 			elif resp == gtk.RESPONSE_OK:
-				import run
-				try:
-					run.execute(policy, prog_args)
-					self.destroy()
-				except SafeException, ex:
-					box = gtk.MessageDialog(self, gtk.DIALOG_MODAL,
-							gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
-							str(ex))
-					box.run()
-					box.destroy()
+				import download_box
+				download_box.download_and_run(self, prog_args)
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 		self.connect('response', response)
