@@ -67,7 +67,7 @@ class Download:
 			import shutil
 			shutil.copyfileobj(file(self.url), self.tempfile)
 			self.tempfile.flush()
-			print "Done :-)"
+			#print "Done :-)"
 			
 			os._exit(0)
 		except:

@@ -1,11 +1,34 @@
 import os
 import tempfile
 import traceback
+from trust import trust_db
 
-class BadSignature(Exception):
-	pass
+class Signature:
+	def is_trusted(self):
+		return False
+
+class ValidSig(Signature):
+	def __init__(self, fingerprint):
+		self.fingerprint = fingerprint
+	
+	def __str__(self):
+		return "Valid signature from " + self.fingerprint
+	
+	def is_trusted(self):
+		return trust_db.is_trusted(self.fingerprint)
+
+class BadSig(Signature):
+	def __init__(self, keyid):
+		self.keyid = keyid
+
+class ErrSig(Signature):
+	def __init__(self, keyid):
+		self.keyid = keyid
 
 def check_stream(stream):
+	"""Pass stream through gpg --decrypt to get the data, the error text,
+	and a list of signatures (good or bad).
+	Returns (data_stream, errors, [Signatures])."""
 	status_r, status_w = os.pipe()
 
 	data = tempfile.TemporaryFile(prefix = 'injector-gpg-')
@@ -34,22 +57,26 @@ def check_stream(stream):
 	# We are the parent
 	os.close(status_w)
 
-	good_sig = False
+	sigs = []
+
+	# Should we error out on bad signatures, even if there's a good
+	# signature too?
 
 	for line in os.fdopen(status_r):
 		assert line.endswith('\n')
 		assert line.startswith('[GNUPG:] ')
 		line = line[9:-1]
 		code = line.split(' ', 1)[0]
-		if code == 'GOODSIG':
-			good_sig = True
+		if code == 'VALIDSIG':
+			sigs.append(ValidSig(line.split(' ', 2)[1]))
+		elif code == 'BADSIG':
+			sigs.append(BadSig(line.split(' ', 2)[1]))
+		elif code == 'ERRSIG':
+			sigs.append(ErrSig(line.split(' ', 2)[1]))
 
 	pid, status = os.waitpid(child, 0)
 	assert pid == child
 
-	if good_sig:
-		data.seek(0)
-		return data
-	
+	data.seek(0)
 	errors.seek(0)
-	raise BadSignature('No good signatures found:\n%s' % errors.read())
+	return (data, errors.read(), sigs)

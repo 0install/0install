@@ -218,8 +218,42 @@ class Policy(object):
 		"""Downloaded data is a GPG-signed message. Check that the signature is trusted
 		and call self.update_interface_from_network() when done."""
 		import gpg
-		data = gpg.check_stream(signed_data)
-		self.update_interface_from_network(download.interface, data)
+		from trust import trust_db
+		data, errors, sigs = gpg.check_stream(signed_data)
+
+		for s in sigs:
+			if s.is_trusted(): break
+		else:
+			self.confirm_trust_keys(download.interface, sigs)
+
+		for s in sigs:
+			if s.is_trusted():
+				self.update_interface_from_network(download.interface, data)
+				return
+
+		raise SafeException('Not signed with a trusted key')
+	
+	def confirm_trust_keys(self, interface, sigs):
+		import gpg
+		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
+		if not valid_sigs:
+			raise SafeException('No valid signatures found')
+		print "Interface:", interface.uri
+		print "The interface is correctly signed with the following keys:"
+		for x in valid_sigs:
+			print "-", x
+		print "Do you want to trust all of these keys to sign interfaces?"
+		while True:
+			i = raw_input("Trust all [Y/N] ")
+			if not i: continue
+			if i in 'Nn':
+				return
+			if i in 'Yy':
+				break
+		from trust import trust_db
+		for key in valid_sigs:
+			print "Trusting", key.fingerprint
+			trust_db.trust_key(key.fingerprint)
 
 	def confirm_diff(self, old, new, uri):
 		import difflib

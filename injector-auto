@@ -41,7 +41,9 @@ while policy.monitored_downloads:
 		print "- " + dl.url
 
 	for e, dl in policy.monitored_downloads[:]:
-		print "Got", e.read()
+		errors =  e.read()
+		if errors:
+			print "Got errors:", errors
 		e.close()
 		policy.monitored_downloads.remove((e, dl))
 		data = dl.error_stream_closed()
