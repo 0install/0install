@@ -34,7 +34,13 @@ class Store:
 			print "Not adding", required_digest, "as it already exists!"
 			return
 
-		args = ['tar', 'xz', '--no-same-owner', '--no-same-permissions']
+		if 'GNU tar' in os.popen('tar --version 2>&1').read():
+			print "Using GNU tar"
+			args = ['tar', 'xz', '--no-same-owner', '--no-same-permissions']
+		else:
+			print "Non-GNU tar"
+			args = ['tar', 'xzf', '-']
+
 		if extract:
 			# Limit the characters we accept, to avoid sending dodgy
 			# strings to tar
