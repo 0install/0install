@@ -1,4 +1,5 @@
 import time
+import sys
 from logging import debug, info
 
 from model import *
@@ -38,13 +39,16 @@ class Policy(object):
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
-			config = ConfigParser.ConfigParser()
-			config.read(path)
-			self.help_with_testing = config.getboolean('global',
-							'help_with_testing')
-			self.network_use = config.get('global', 'network_use')
-			self.freshness = int(config.get('global', 'freshness'))
-			assert self.network_use in network_levels
+			try:
+				config = ConfigParser.ConfigParser()
+				config.read(path)
+				self.help_with_testing = config.getboolean('global',
+								'help_with_testing')
+				self.network_use = config.get('global', 'network_use')
+				self.freshness = int(config.get('global', 'freshness'))
+				assert self.network_use in network_levels
+			except Exception, ex:
+				print >>sys.stderr, "Error loading config:", ex
 
 	def save_config(self):
 		config = ConfigParser.ConfigParser()
