@@ -9,6 +9,7 @@ parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
 parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
+parser.add_option("-q", "--quiet", help="suppress informational messages", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
 parser.add_option("-v", "--version", help="display version information", action='store_true')
 parser.disable_interspersed_args()
@@ -50,11 +51,12 @@ if options.gui is None and os.environ.get('DISPLAY', None):
 	else:
 		# Decide whether to use the GUI or not...
 		try:
-			test_policy = autopolicy.AutoPolicy(args[0], False)
+			test_policy = autopolicy.AutoPolicy(args[0], False, quiet = True)
 			test_policy.recalculate()
 			test_policy.start_downloading_impls()
 		except autopolicy.NeedDownload:
-			print "Need to download; switching to GUI mode"
+			if not options.quiet:
+				print "Need to download; switching to GUI mode"
 			options.gui = True
 	
 if options.gui:
@@ -65,7 +67,7 @@ else:
 	prog_args = args[1:]
 
 # Singleton instance used everywhere...
-policy = autopolicy.AutoPolicy(interface_uri, True)
+policy = autopolicy.AutoPolicy(interface_uri, True, quiet = bool(options.quiet))
 policy.recalculate()
 
 if options.refresh:
@@ -83,7 +85,8 @@ try:
 	policy.execute(prog_args)
 except model.SafeException, ex:
 	if policy.network_use != model.network_full:
-		print >>sys.stderr, "Error. Retrying with network use = full"
+		if not options.quiet:
+			print >>sys.stderr, "Error. Retrying with network use = full"
 		policy.network_use = model.network_full	
 		policy.recalculate()
 		try:

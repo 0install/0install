@@ -11,10 +11,11 @@ class AutoPolicy(policy.Policy):
 	monitored_downloads = None
 	allow_downloads = False
 
-	def __init__(self, interface_uri, allow_downloads):
+	def __init__(self, interface_uri, allow_downloads, quiet):
 		if not interface_uri.startswith('http:'):
 			interface_uri = os.path.realpath(interface_uri)	# For testing
 		policy.Policy.__init__(self, interface_uri)
+		self.quiet = quiet
 		self.allow_downloads = allow_downloads
 		self.monitored_downloads = []
 
@@ -36,9 +37,10 @@ class AutoPolicy(policy.Policy):
 
 	def wait_for_downloads(self):
 		while self.monitored_downloads:
-			print "Currently downloading:"
-			for e, dl in self.monitored_downloads:
-				print "- " + dl.url
+			if not self.quiet:
+				print "Currently downloading:"
+				for e, dl in self.monitored_downloads:
+					print "- " + dl.url
 
 			for e, dl in self.monitored_downloads[:]:
 				errors =  e.read()

@@ -327,12 +327,13 @@ class Policy(object):
 			raise Exception('Bug: still not trusted!!')
 
 	def confirm_diff(self, old, new, uri):
-		import difflib
-		diff = difflib.unified_diff(old.split('\n'), new.split('\n'), uri, "",
-						"", "", 2, "")
-		print "Updates:"
-		for line in diff:
-			print line
+		pass
+		#import difflib
+		#diff = difflib.unified_diff(old.split('\n'), new.split('\n'), uri, "",
+		#				"", "", 2, "")
+		#print "Updates:"
+		#for line in diff:
+		#	print line
 
 	def get_cached(self, impl):
 		impl._cached = False
