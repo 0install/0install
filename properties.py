@@ -31,15 +31,15 @@ class Properties(Dialog):
 		self.vbox.pack_start(vbox, True, True, 0)
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
-		self.add_button(gtk.STOCK_REFRESH, 1)
+		#self.add_button(gtk.STOCK_REFRESH, 1)
 		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
 		self.set_default_response(gtk.RESPONSE_CANCEL)
 
 		def response(dialog, resp):
 			if resp == gtk.RESPONSE_CANCEL:
 				self.destroy()
-			elif resp == 1:
-				policy.begin_iface_download(interface, True)
+			#elif resp == 1:
+			#	policy.begin_iface_download(interface, True)
 			elif resp == gtk.RESPONSE_HELP:
 				properties_help.display()
 		self.connect('response', response)
