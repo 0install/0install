@@ -16,7 +16,7 @@ import model
 from policy import policy
 import gui, gtk
 
-policy.set_root_interface(interface_uri, gui.GUI())
+policy.set_root_interface(interface_uri, gui.GUI(policy))
 
 window = gui.MainWindow(prog, prog_args)
 window.show()

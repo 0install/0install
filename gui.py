@@ -89,7 +89,7 @@ class MainWindow(Dialog):
 			elif resp == gtk.RESPONSE_OK:
 				import run
 				try:
-					run.execute(prog, prog_args)
+					run.execute(policy, prog, prog_args)
 					self.destroy()
 				except SafeException, ex:
 					box = gtk.MessageDialog(self, gtk.DIALOG_MODAL,
