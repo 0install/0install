@@ -19,8 +19,7 @@ class Dialog(gtk.Dialog):
 		n_windows += 1
 
 def alert(parent, message):
-	box = gtk.MessageDialog(parent, gtk.DIALOG_DESTROY_WITH_PARENT |
-					gtk.DIALOG_NO_SEPARATOR,
+	box = gtk.MessageDialog(parent, gtk.DIALOG_DESTROY_WITH_PARENT,
 				gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
 				message)
 	box.set_position(gtk.WIN_POS_CENTER)
