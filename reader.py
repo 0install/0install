@@ -73,14 +73,6 @@ def update_user_overrides(interface):
 		update(interface, user, user_overrides = True)
 
 
-def confirm_diff(old, new, uri):
-	import difflib
-	diff = difflib.unified_diff(old.split('\n'), new.split('\n'), uri, "",
-					"", "", 2, "")
-	print "Updates:"
-	for line in diff:
-		print line
-
 def update(interface, source, user_overrides = False):
 	assert isinstance(interface, Interface)
 

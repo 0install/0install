@@ -6,8 +6,8 @@ import reader
 from logging import debug, info
 from download import Download
 
-from logging import getLogger, DEBUG
-getLogger().setLevel(DEBUG)
+#from logging import getLogger, DEBUG
+#getLogger().setLevel(DEBUG)
 
 _interfaces = {}	# URI -> Interface
 
@@ -160,16 +160,22 @@ class Policy(object):
 
 		info("Download %s", interface.uri)
 		def done(result):
-			print "Download", dl, "result", result
 			assert dl.url in self.downloads
 			del self.downloads[dl.url]
-			if isinstance(result, Exception):
-				self.failed_downloads[dl.url] = True
-			else:
-				self.update_interface_from_network(interface, result)
+			self.failed_downloads[dl.url] = True
+			if not isinstance(result, Exception):
+				data = self.get_signed_data(result)
+				self.update_interface_from_network(interface, data)
+				del self.failed_downloads[dl.url]
 			self.recalculate()
 		dl = Download(interface.uri, done)
 		self.downloads[interface.uri] = dl
+	
+	def get_signed_data(self, stream):
+		"""Stream is a GPG-signed message. Check that the signature is trusted
+		and return the interface XML file."""
+		import gpg
+		return gpg.check_stream(stream)
 
 	def update_interface_from_network(self, interface, stream):
 		debug("Updating '%s' from network" % (interface.name or interface.uri))
@@ -185,7 +191,7 @@ class Policy(object):
 			if old_xml == new_xml:
 				debug("No change")
 			else:
-				confirm_diff(old_xml, new_xml, interface.uri)
+				self.confirm_diff(old_xml, new_xml, interface.uri)
 
 		stream = file(cached + '.new', 'w')
 		stream.write(new_xml)
@@ -207,6 +213,15 @@ class Policy(object):
 					for id in walk(self.get_interface(d.interface)):
 						yield id
 		return walk(self.get_interface(self.root))
+
+	def confirm_diff(self, old, new, uri):
+		import difflib
+		diff = difflib.unified_diff(old.split('\n'), new.split('\n'), uri, "",
+						"", "", 2, "")
+		print "Updates:"
+		for line in diff:
+			print line
+
 
 # Singleton instance used everywhere...
 policy = Policy()
