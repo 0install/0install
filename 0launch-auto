@@ -35,8 +35,8 @@ class AutoPolicy(Policy):
 	def start_downloading_impls(self):
 		for iface, impl in self.get_uncached_implementations():
 			if not impl.download_sources:
-				raise SafeException("Implementation " + impl + " of "
-					"interface " + iface + " cannot be "
+				raise model.SafeException("Implementation " + impl.id + " of "
+					"interface " + iface.get_name() + " cannot be "
 					"downloaded (no download locations given in "
 					"interface!")
 			dl = download.begin_impl_download(impl.download_sources[0])
