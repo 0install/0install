@@ -4,88 +4,9 @@ import gtk
 import help_box
 from dialog import Dialog
 from policy import policy
+from impl_list import ImplementationList
 
 _dialogs = {}	# Interface -> Properties
-
-def pretty_size(size):
-	if size is None:
-		return '?'
-	if size < 2048:
-		return '%d bytes' % size
-	size = float(size)
-	for unit in ('Kb', 'Mb', 'Gb', 'Tb'):
-		size /= 1024
-		if size < 2048:
-			break
-	return '%.1f %s' % (size, unit)
-
-class UseList(gtk.ScrolledWindow):
-	USE = 0
-	ARCH = 1
-	STABILITY = 2
-	VERSION = 3
-	CACHED = 4
-	PATH = 5
-	SIZE = 6
-	ITEM = 7
-
-	def __init__(self):
-		gtk.ScrolledWindow.__init__(self, None, None)
-		self.set_shadow_type(gtk.SHADOW_IN)
-
-		self.model = gtk.ListStore(str, str, str, str, bool, str, str, object)
-		self.tree_view = gtk.TreeView(self.model)
-
-		text = gtk.CellRendererText()
-
-		column = gtk.TreeViewColumn('Use', text,
-					  text = UseList.USE)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('Version', text,
-					  text = UseList.VERSION)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('Stability', text,
-					  text = UseList.STABILITY)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('C', gtk.CellRendererToggle(),
-					  active = UseList.CACHED)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('Arch', text,
-					  text = UseList.ARCH)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('Size', text,
-					  text = UseList.SIZE)
-		self.tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn('Location', text,
-					  text = UseList.PATH)
-		self.tree_view.append_column(column)
-
-		self.add(self.tree_view)
-	
-	def get_selection(self):
-		return self.tree_view.get_selection()
-	
-	def set_items(self, items):
-		self.model.clear()
-		for item in items:
-			new = self.model.append()
-			self.model[new][UseList.ITEM] = item
-			self.model[new][UseList.USE] = '-'
-			self.model[new][UseList.VERSION] = item.get_version()
-			self.model[new][UseList.CACHED] = item.get_cached()
-			self.model[new][UseList.STABILITY] = item.get_stability()
-			self.model[new][UseList.ARCH] = item.arch or 'any'
-			self.model[new][UseList.PATH] = item.path
-			self.model[new][UseList.SIZE] = pretty_size(item.size)
-	
-	def clear(self):
-		self.model.clear()
 
 class Properties(Dialog):
 	interface = None
@@ -127,7 +48,7 @@ class Properties(Dialog):
 		description.set_line_wrap(True)
 		frame.add(description)
 
-		self.use_list = UseList()
+		self.use_list = ImplementationList()
 		vbox.pack_start(self.use_list, True, True, 0)
 		self.use_list.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 
