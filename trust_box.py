@@ -41,7 +41,6 @@ class TrustBox(dialog.Dialog):
 		self.tree_view.set_size_request(-1, 100)
 
 		text = gtk.CellRendererText()
-		toggle = gtk.CellRendererToggle()
 
 		for column in [gtk.TreeViewColumn('Key fingerprint', text, text = 0)]:
 			self.tree_view.append_column(column)

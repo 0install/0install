@@ -1,7 +1,6 @@
 from policy import Policy
 import download
 import gtk, os
-import sys
 import dialog
 from reader import InvalidInterface
 from model import SafeException
@@ -64,7 +63,7 @@ class GUIPolicy(Policy):
 	
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		import trust_box
-		box = trust_box.trust_box.confirm_trust(interface, sigs, iface_xml)
+		trust_box.trust_box.confirm_trust(interface, sigs, iface_xml)
 
 	def main(self):
 		self.window.show()

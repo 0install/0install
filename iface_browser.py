@@ -2,7 +2,6 @@ import gtk
 
 from model import Interface
 import properties
-import reader
 from gui import policy
 
 class InterfaceBrowser(gtk.ScrolledWindow):

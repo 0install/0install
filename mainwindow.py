@@ -43,7 +43,6 @@ class MainWindow(Dialog):
 
 		times = [x.time for x in freshness_levels]
 		if policy.freshness not in times:
-			index = len(freshness_levels)
 			freshness_levels.append(Freshness(policy.freshness,
 							  '%d seconds' % policy.freshness))
 			times.append(policy.freshness)
