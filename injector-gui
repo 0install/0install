@@ -3,16 +3,15 @@ import os, sys
 
 __builtins__._ = lambda x: x
 
-if len(sys.argv) < 3:
-	print "Usage: injector INTERFACE PROG [ARGS]"
-	print "PROG is a relative path inside an implementation of INTERFACE. Eg:"
-	print "injector /uri/0install/site/myprog.xml bin/myprog --help"
+if len(sys.argv) < 2:
+	print "Usage: injector-gui INTERFACE [ARGS]"
+	print "Eg:"
+	print "injector http://example.com/myprog.xml --help"
 	sys.exit(1)
 interface_uri = sys.argv[1]
 if not interface_uri.startswith('http:'):
 	interface_uri = os.path.realpath(interface_uri)	# For testing
-prog = sys.argv[2]
-prog_args = sys.argv[3:]
+prog_args = sys.argv[2:]
 
 import model
 from gui import GUIPolicy
@@ -22,4 +21,4 @@ gtk.rc_parse_string('style "scrolled" { '
 		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
 		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
 
-GUIPolicy(interface_uri, prog, prog_args).main()
+GUIPolicy(interface_uri, prog_args).main()

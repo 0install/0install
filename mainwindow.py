@@ -10,7 +10,7 @@ class MainWindow(Dialog):
 	progress = None
 	browser = None
 
-	def __init__(self, prog, prog_args):
+	def __init__(self, prog_args):
 		Dialog.__init__(self)
 		self.set_title('Dependency Injector')
 		self.set_default_size(400, 300)
@@ -115,7 +115,7 @@ class MainWindow(Dialog):
 			elif resp == gtk.RESPONSE_OK:
 				import run
 				try:
-					run.execute(policy, prog, prog_args)
+					run.execute(policy, prog_args)
 					self.destroy()
 				except SafeException, ex:
 					box = gtk.MessageDialog(self, gtk.DIALOG_MODAL,
