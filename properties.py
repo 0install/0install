@@ -39,8 +39,7 @@ class Properties(Dialog):
 			if resp == gtk.RESPONSE_CANCEL:
 				self.destroy()
 			elif resp == 1:
-				policy.begin_iface_download(interface)
-				policy.recalculate()
+				policy.begin_iface_download(interface, True)
 			elif resp == gtk.RESPONSE_HELP:
 				properties_help.display()
 		self.connect('response', response)
