@@ -340,7 +340,7 @@ class Policy(object):
 	def add_to_cache(self, source, data):
 		assert isinstance(source, DownloadSource)
 		required_digest = source.implementation.id
-		self.store.add_tgz_to_cache(required_digest, data)
+		self.store.add_tgz_to_cache(required_digest, data, source.extract)
 	
 	def get_uncached_implementations(self):
 		uncached = []

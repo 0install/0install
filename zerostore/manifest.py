@@ -20,7 +20,7 @@ The manifest is typically processed with SHA1 itself. So, the idea is that
 any significant change to the contents of the tree will change the SHA1 sum
 of the manifest."""
 
-def generate_manifest(root, ignore_set):
+def generate_manifest(root):
 	def recurse(sub):
 		# To ensure that a line-by-line comparison of the manifests
 		# is possible, we require that filenames don't contain newlines.
@@ -34,11 +34,11 @@ def generate_manifest(root, ignore_set):
 		
 		m = info.st_mode
 		if stat.S_ISDIR(m):
-			yield "D %s %s" % (info.st_mtime, sub)
+			if sub != '/':
+				yield "D %s %s" % (info.st_mtime, sub)
 			items = os.listdir(full)
 			items.sort()
 			for x in items:
-				if x in ignore_set: continue
 				for y in recurse(os.path.join(sub, x)):
 					yield y
 			return
@@ -54,15 +54,28 @@ def generate_manifest(root, ignore_set):
 		else:
 			print "Unknown object", full
 	for x in recurse('/'): yield x
+	
+def add_manifest_file(dir, digest):
+	"""Writes a .manifest file into 'dir', and updates digest."""
+	mfile = os.path.join(dir, '.manifest')
+	if os.path.islink(mfile) or os.path.exists(mfile):
+		raise Exception('Archive contains a .manifest file!')
+	manifest = ''
+	for line in generate_manifest(dir):
+		manifest += line + '\n'
+	digest.update(manifest)
+	stream = file(mfile, 'w')
+	stream.write(manifest)
+	stream.close()
+	return digest
 
 if __name__ == '__main__':
 	import sys
 	unpacked = sys.argv[1]
 	assert os.path.isdir(unpacked)
-	ignored = Set(['CVS', '.svn'])
 
 	digest = sha.new()
-	for line in generate_manifest(unpacked, ignored):
+	for line in generate_manifest(unpacked):
 		print line
 		digest.update(line + '\n')
 	print "sha1=" + digest.hexdigest()

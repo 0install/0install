@@ -64,13 +64,14 @@ class Dependency(object):
 
 class DownloadSource(object):
 	"""A DownloadSource provides a way to fetch an implementation."""
-	__slots__ = ['implementation', 'url', 'size']
+	__slots__ = ['implementation', 'url', 'size', 'extract']
 
-	def __init__(self, implementation, url, size):
+	def __init__(self, implementation, url, size, extract):
 		assert url.startswith('http:') or url.startswith('/')
 		self.implementation = implementation
 		self.url = url
 		self.size = size
+		self.extract = extract
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
@@ -91,8 +92,8 @@ class Implementation(object):
 		self.dependencies = {}	# URI -> Dependency
 		self.download_sources = []	# [DownloadSource]
 	
-	def add_download_source(self, url, size):
-		self.download_sources.append(DownloadSource(self, url, size))
+	def add_download_source(self, url, size, extract):
+		self.download_sources.append(DownloadSource(self, url, size, extract))
 	
 	def get_stability(self):
 		return self.user_stability or self.upstream_stability or testing

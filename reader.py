@@ -187,6 +187,7 @@ def update(interface, source, user_overrides = False):
 			size = elem.getAttribute('size')
 			if not size:
 				raise InvalidInterface("Missing size attribute on <archive>")
-			impl.add_download_source(url = url, size = long(size))
+			impl.add_download_source(url = url, size = long(size),
+					extract = elem.getAttribute('extract'))
 
 	process_group(root, Attrs(testing), {})
