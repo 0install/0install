@@ -6,6 +6,7 @@ from zeroinstall.injector import model, download, autopolicy, run
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]")
+parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
 parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
@@ -43,6 +44,19 @@ if len(args) < 1:
 	parser.print_help()
 	sys.exit(1)
 
+if options.gui is None and 'DISPLAY' in os.environ:
+	if options.refresh:
+		options.gui = True
+	else:
+		# Decide whether to use the GUI or not...
+		try:
+			test_policy = autopolicy.AutoPolicy(args[0], False)
+			test_policy.recalculate()
+			test_policy.start_downloading_impls()
+		except autopolicy.NeedDownload:
+			print "Need to download; switching to GUI mode"
+			options.gui = True
+	
 if options.gui:
 	interface_uri = 'http://0install.net/2005/interfaces/injector-gui'
 	prog_args = args[:]
@@ -50,11 +64,8 @@ else:
 	interface_uri = args[0]
 	prog_args = args[1:]
 
-if not interface_uri.startswith('http:'):
-	interface_uri = os.path.realpath(interface_uri)	# For testing
-
 # Singleton instance used everywhere...
-policy = autopolicy.AutoPolicy(interface_uri)
+policy = autopolicy.AutoPolicy(interface_uri, True)
 policy.recalculate()
 
 if options.refresh:

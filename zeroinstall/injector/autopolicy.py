@@ -4,14 +4,23 @@ from optparse import OptionParser
 from zeroinstall.injector import model, download
 from zeroinstall.injector import policy, run
 
+class NeedDownload(Exception):
+	"""Thrown if we tried to start a download with allow_downloads = False"""
+
 class AutoPolicy(policy.Policy):
 	monitored_downloads = None
+	allow_downloads = False
 
-	def __init__(self, interface_uri):
+	def __init__(self, interface_uri, allow_downloads):
+		if not interface_uri.startswith('http:'):
+			interface_uri = os.path.realpath(interface_uri)	# For testing
 		policy.Policy.__init__(self, interface_uri)
+		self.allow_downloads = allow_downloads
 		self.monitored_downloads = []
 
 	def monitor_download(self, dl):
+		if not self.allow_downloads:
+			raise NeedDownload()
 		error_stream = dl.start()
 		self.monitored_downloads.append((error_stream, dl))
 
