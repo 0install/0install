@@ -4,9 +4,9 @@ import os, sys
 __builtins__._ = lambda x: x
 
 if len(sys.argv) < 2:
-	print "Usage: injector-gui INTERFACE [ARGS]"
+	print "Usage: 0launch-gui INTERFACE [ARGS]"
 	print "Eg:"
-	print "injector http://example.com/myprog.xml --help"
+	print "0launch-gui http://example.com/myprog.xml --help"
 	sys.exit(1)
 interface_uri = sys.argv[1]
 if not interface_uri.startswith('http:'):
