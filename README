@@ -1,0 +1,28 @@
+Injector-GUI -- a graphical interface for the zero install injector
+
+Copyright Thomas Leonard, 2005
+
+This is an experimental prototype -- use at your own risk!
+
+The injector GUI displays a window showing which versions of various components
+will be used when running a program, and allows you to alter various policy
+settings to affect the selection process. You can use this to mark particular
+versions of libraries as preferred, bugggy, etc.
+
+Conditions:
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.  You
+should have received a copy of the GNU General Public License along with this
+program; if not, write to the Free Software Foundation, Inc., 59 Temple Place,
+Suite 330, Boston, MA  02111-1307  USA
+
+Please report any bugs to the mailing list:
+
+	http://0install.net/support.html
+
