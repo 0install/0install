@@ -131,7 +131,7 @@ def begin_download(interface, force):
 		else:
 			return None	# Already downloading
 	
-	print "Creating new Download(%s)" % interface.uri
+	#print "Creating new Download(%s)" % interface.uri
 	# Create new download
 	dl = Download(interface)
 	downloads[interface.uri] = dl
