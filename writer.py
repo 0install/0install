@@ -3,7 +3,7 @@ from xml.dom import minidom, XMLNS_NAMESPACE
 
 import basedir
 
-from model import escape
+from model import *
 
 from namespaces import config_site, config_prog, XMLNS_IFACE
 
@@ -25,6 +25,19 @@ def add_impl(parent, impl):
 		node.setAttribute('user_stability', str(impl.user_stability))
 	if impl.size:
 		node.setAttribute('size', str(impl.size))
+
+	for dep in impl.dependencies.values():
+		depends = doc.createElementNS(XMLNS_IFACE, 'requires')
+		depends.setAttribute('interface', dep.get_interface().uri)
+		node.appendChild(depends)
+		for bin in dep.bindings:
+			if isinstance(bin, EnvironmentBinding):
+				binding = doc.createElementNS(XMLNS_IFACE, 'environment')
+				binding.setAttribute('name', bin.name)
+				binding.setAttribute('insert', bin.insert)
+				depends.appendChild(binding)
+			else:
+				print "Warning, unknown binding type", bin
 
 def save_interface(interface):
 	assert interface.uptodate
