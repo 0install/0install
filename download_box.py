@@ -89,11 +89,8 @@ class DownloadProgessBox(Dialog):
 		def update_bars():
 			if self.n_downloads == 0:
 				if not self.errors:
-					print "OK"
 					self.destroy()
 					self.run_it()
-				else:
-					print "Errors; not closing"
 				return False
 			for dl, bar in bars:
 				perc = dl.get_current_fraction()
@@ -113,7 +110,8 @@ class DownloadProgessBox(Dialog):
 					data = dl.error_stream_closed()
 					policy.add_to_cache(dl.source, data)
 				except SafeException, ex:
-					label = gtk.Label("Error getting '%s':\n\n%s" % (dl.url, ex))
+					label = gtk.Label("Error getting '%s':\n%s" % (dl.url, ex))
+					label.set_padding(4, 4)
 					self.vbox.pack_start(label, False, True, 2)
 					label.show()
 					self.errors = True
