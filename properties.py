@@ -74,6 +74,9 @@ class Properties(Dialog):
 			if interface.last_modified:
 				buffer.insert(iter, '\nLast upstream change: %s' % time.ctime(interface.last_modified))
 
+			if interface.last_local_update:
+				buffer.insert(iter, '\nLast local update: %s' % time.ctime(interface.last_local_update))
+
 			if interface.last_checked:
 				buffer.insert(iter, '\nLast checked: %s' % time.ctime(interface.last_checked))
 
