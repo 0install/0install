@@ -35,16 +35,18 @@ VERSION = 3
 CACHED = 4
 PATH = 5
 SIZE = 6
+UNUSABLE = 7
 
 class ImplementationList(gtk.ScrolledWindow):
 	def __init__(self, interface):
 		gtk.ScrolledWindow.__init__(self, None, None)
 		self.set_shadow_type(gtk.SHADOW_IN)
 
-		self.model = gtk.ListStore(object, str, str, str, bool, str, str)
+		self.model = gtk.ListStore(object, str, str, str, bool, str, str, bool)
 		self.tree_view = gtk.TreeView(self.model)
 
 		text = gtk.CellRendererText()
+		text_strike = gtk.CellRendererText()
 		toggle = gtk.CellRendererToggle()
 
 		stability = gtk.TreeViewColumn('Stability', text, text = STABILITY)
@@ -54,7 +56,8 @@ class ImplementationList(gtk.ScrolledWindow):
 			       gtk.TreeViewColumn('C', toggle, active = CACHED),
 			       gtk.TreeViewColumn('Arch', text, text = ARCH),
 			       gtk.TreeViewColumn('Size', text, text = SIZE),
-			       gtk.TreeViewColumn('Location', text, text = PATH)):
+			       gtk.TreeViewColumn('Location', text_strike, text = PATH,
+			       				strikethrough = UNUSABLE)):
 			self.tree_view.append_column(column)
 
 		self.add(self.tree_view)
@@ -101,6 +104,7 @@ class ImplementationList(gtk.ScrolledWindow):
 			self.model[new][ARCH] = item.arch or 'any'
 			self.model[new][PATH] = item.path
 			self.model[new][SIZE] = pretty_size(item.size)
+			self.model[new][UNUSABLE] = policy.is_unusable(item)
 	
 	def clear(self):
 		self.model.clear()

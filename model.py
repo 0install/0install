@@ -24,7 +24,8 @@ class Stability(object):
 	def __str__(self):
 		return self.name
 
-buggy = Stability(0, 'buggy', 'Known to have serious bugs')
+insecure = Stability(0, 'insecure', 'This is a security risk')
+buggy = Stability(5, 'buggy', 'Known to have serious bugs')
 developer = Stability(10, 'developer', 'Work-in-progress - bugs likely')
 testing = Stability(20, 'testing', 'Stability unknown - please test!')
 stable = Stability(30, 'stable', 'Tested - no serious problems found')

@@ -126,7 +126,7 @@ ones.
 Unusable ones are those for incompatible \
 architectures, those marked as 'buggy', versions explicitly marked as incompatible with \
 another interface you are using and, in off-line mode, uncached implementations. Unusable \
-implementations are shown shaded.
+implementations are shown crossed out.
 
 For the usable implementations, the order is as follows:
 

@@ -92,6 +92,11 @@ class Policy(object):
 		impls = iface.implementations.values()
 		impls.sort(lambda a, b: self.compare(iface, a, b))
 		return impls
+	
+	def is_unusable(self, interface):
+		if interface.get_stability() <= buggy:
+			return True
+		return False
 
 # Singleton instance used everywhere...
 policy = Policy()
