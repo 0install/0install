@@ -119,13 +119,13 @@ class Interface(object):
 	def __init__(self, uri):
 		assert uri
 		self.uri = uri
+		self.uptodate = False		# Did we download this session?
 		self.reset()
 
 	def reset(self):
 		self.implementations = {}	# Path -> Implementation
 		self.name = None
 		self.last_updated = None
-		self.uptodate = False		# Did we download this session?
 		self.summary = None
 		self.description = None
 		self.stability_policy = None

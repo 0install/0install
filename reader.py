@@ -1,6 +1,10 @@
 from xml.dom import Node, minidom
 import sys
 import shutil
+from logging import debug
+
+#from logging import getLogger, DEBUG
+#getLogger().setLevel(DEBUG)
 
 import basedir
 from namespaces import *
@@ -49,6 +53,7 @@ def process_depends(dependency, item):
 
 def update_from_cache(interface, network_use = network_offline):
 	if network_use == network_full and not interface.uptodate:
+		debug("Full network use, so updating " + interface.uri)
 		update_from_network(interface)
 		return
 
@@ -56,6 +61,7 @@ def update_from_cache(interface, network_use = network_offline):
 					   'interfaces', escape(interface.uri))
 
 	if network_use != network_offline and not cached:
+		debug("Interface not cached and not off-line, so updating " + interface.uri)
 		update_from_network(interface)
 		return
 
@@ -63,15 +69,27 @@ def update_from_cache(interface, network_use = network_offline):
 
 	if cached:
 		update(interface, cached)
+	
+	update_user_overrides(interface)
 
+def update_user_overrides(interface):
 	user = basedir.load_first_config(config_site, config_prog,
 					   'user_overrides', escape(interface.uri))
 	
 	if user:
 		update(interface, user, user_overrides = True)
 
+
+def confirm_diff(old, new, uri):
+	import difflib
+	diff = difflib.unified_diff(old.split('\n'), new.split('\n'), uri, "",
+					"", "", 2, "")
+	print "Updates:"
+	for line in diff:
+		print line
+
 def update_from_network(interface):
-	print "Updating '%s' from network" % (interface.name or interface.uri)
+	debug("Updating '%s' from network" % (interface.name or interface.uri))
 	if not os.path.exists(interface.uri) and interface.uri.startswith('/uri/0install/'):
 		site = interface.uri[len('/uri/0install/'):]
 		site = site[:site.index('/')]
@@ -82,10 +100,25 @@ def update_from_network(interface):
 	upstream_dir = basedir.save_config_path(config_site, config_prog, 'interfaces')
 	cached = os.path.join(upstream_dir, escape(interface.uri))
 
-	print "Saving as", cached
-	shutil.copyfile(interface.uri, cached)
+	new_xml = file(interface.uri).read()
+
+	if os.path.exists(cached):
+		old_xml = file(cached).read()
+		if old_xml == new_xml:
+			debug("No change")
+		else:
+			confirm_diff(old_xml, new_xml, interface.uri)
+
+	stream = file(cached + '.new', 'w')
+	stream.write(new_xml)
+	stream.close()
+	update(interface, cached + '.new')
+	os.rename(cached + '.new', cached)
+	debug("Saved as " + cached)
+	
 	interface.uptodate = True
-	update_from_cache(interface)
+
+	update_user_overrides(interface)
 
 def update(interface, source, user_overrides = False):
 	assert isinstance(interface, Interface)
@@ -105,7 +138,7 @@ def update(interface, source, user_overrides = False):
 		if canonical_name != interface.uri:
 			print >>sys.stderr, \
 				"WARNING: <interface> uri attribute is '%s', but accessed as '%s'" % \
-					(canonical_name, source)
+					(canonical_name, interface.uri)
 
 	if user_overrides:
 		stability_policy = root.getAttribute('stability_policy')
