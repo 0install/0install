@@ -172,6 +172,15 @@ class Policy(object):
 		debug("Updating '%s' from network" % (interface.name or interface.uri))
 		assert interface.uri.startswith('/')
 
+		self.import_new_interface(interface, new_xml)
+
+		import writer, time
+		interface.last_checked = long(time.time())
+		writer.save_interface(interface)
+
+		self.recalculate()
+	
+	def import_new_interface(self, interface, new_xml):
 		upstream_dir = basedir.save_config_path(config_site, config_prog, 'interfaces')
 		cached = os.path.join(upstream_dir, escape(interface.uri))
 
@@ -201,10 +210,9 @@ class Policy(object):
 						    "hasn't! Refusing update.")
 		os.rename(cached + '.new', cached)
 		debug("Saved as " + cached)
-		
+
 		interface.uptodate = True
 		reader.update_from_cache(interface)
-		self.recalculate()
 
 	def get_implementation(self, interface):
 		if not interface.name:

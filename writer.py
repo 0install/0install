@@ -18,13 +18,13 @@ def add_impl(parent, impl):
 		doc = parent.ownerDocument
 		node = doc.createElementNS(XMLNS_IFACE, 'implementation')
 		parent.appendChild(node)
-		node.setAttribute('user_stability', str(impl.user_stability))
+		node.setAttribute('user-stability', str(impl.user_stability))
 		node.setAttribute('path', impl.path)
 
 def save_interface(interface):
 	path = basedir.save_config_path(config_site, config_prog, 'user_overrides')
 	path = os.path.join(path, escape(interface.uri))
-	print "Save to", path
+	#print "Save to", path
 
 	impl = minidom.getDOMImplementation()
 	doc = impl.createDocument(XMLNS_IFACE, 'interface', None)
@@ -34,7 +34,10 @@ def save_interface(interface):
 	root.setAttribute('uri', interface.uri)
 
 	if interface.stability_policy:
-		root.setAttribute('stability_policy', str(interface.stability_policy))
+		root.setAttribute('stability-policy', str(interface.stability_policy))
+
+	if interface.last_checked:
+		root.setAttribute('last-checked', str(interface.last_checked))
 
 	impls = interface.implementations.values()
 	impls.sort()

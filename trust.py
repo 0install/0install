@@ -37,7 +37,7 @@ class TrustDB:
 		# This is a bit inefficient...
 		self.keys = {}
 		if trust:
-			print "Loading trust from", trust_db
+			#print "Loading trust from", trust_db
 			for key in file(trust).read().split('\n'):
 				self.keys[key] = True
 

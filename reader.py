@@ -91,9 +91,10 @@ def check_readable(interface_uri, source):
 
 def parse_time(t):
 	try:
-		return time.strptime(t, '%Y-%m-%d %H:%M:%S')
+		return long(t)
 	except Exception, ex:
-		raise InvalidInterface("Date not in the form 'YYYY-MM-DD HH:MM:SS' (all times in UTC)\n%s" % ex)
+		raise InvalidInterface("Date '%s' not in correct format (should be integer number "
+					"of seconds since Unix epoch)\n%s" % (t, ex))
 
 def update(interface, source, user_overrides = False):
 	assert isinstance(interface, Interface)
@@ -109,11 +110,6 @@ def update(interface, source, user_overrides = False):
 	interface.description = interface.description or get_singleton_text(root, XMLNS_IFACE, 'description', user_overrides)
 	interface.summary = interface.summary or get_singleton_text(root, XMLNS_IFACE, 'summary', user_overrides)
 
-	time_str = root.getAttribute('last-modified')
-	if not time_str:
-		raise InvalidInterface("Missing last-modified attribute on root element.")
-	interface.last_modified = parse_time(time_str)
-
 	if not user_overrides:
 		canonical_name = root.getAttribute('uri')
 		if not canonical_name:
@@ -122,9 +118,13 @@ def update(interface, source, user_overrides = False):
 			print >>sys.stderr, \
 				"WARNING: <interface> uri attribute is '%s', but accessed as '%s'" % \
 					(canonical_name, interface.uri)
+		time_str = root.getAttribute('last-modified')
+		if not time_str:
+			raise InvalidInterface("Missing last-modified attribute on root element.")
+		interface.last_modified = parse_time(time_str)
 
 	if user_overrides:
-		stability_policy = root.getAttribute('stability_policy')
+		stability_policy = root.getAttribute('stability-policy')
 		if stability_policy:
 			interface.set_stability_policy(stability_levels[str(stability_policy)])
 
@@ -147,7 +147,7 @@ def update(interface, source, user_overrides = False):
 				impl = interface.get_impl(item_attrs.path)
 
 				if user_overrides:
-					user_stability = item.getAttribute('user_stability')
+					user_stability = item.getAttribute('user-stability')
 					if user_stability:
 						impl.user_stability = stability_levels[str(user_stability)]
 				else:
