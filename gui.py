@@ -14,14 +14,14 @@ class GUIPolicy(Policy):
 	n_downloads = 0
 	pulse = None
 
-	def __init__(self, interface, prog_args):
+	def __init__(self, interface, prog_args, download_only):
 		Policy.__init__(self, interface)
 		global policy
 		assert policy is None
 		policy = self
 
 		import mainwindow
-		self.window = mainwindow.MainWindow(prog_args)
+		self.window = mainwindow.MainWindow(prog_args, download_only)
 		self.window.browser.set_root(policy.get_interface(policy.root))
 
 	def monitor_download(self, dl):

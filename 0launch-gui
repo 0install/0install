@@ -1,17 +1,21 @@
 #!/usr/bin/env python
 import os, sys
+from optparse import OptionParser
 
 __builtins__._ = lambda x: x
 
-if len(sys.argv) < 2:
-	print "Usage: 0launch-gui INTERFACE [ARGS]"
-	print "Eg:"
-	print "0launch-gui http://example.com/myprog.xml --help"
+parser = OptionParser(usage="usage: %prog [options] interface [args]")
+parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
+parser.disable_interspersed_args()
+
+(options, args) = parser.parse_args()
+
+if len(args) < 1:
+	parser.print_help()
 	sys.exit(1)
-interface_uri = sys.argv[1]
-if not interface_uri.startswith('http:'):
-	interface_uri = os.path.realpath(interface_uri)	# For testing
-prog_args = sys.argv[2:]
+
+interface_uri = args[0]
+prog_args = args[1:]
 
 import model
 from gui import GUIPolicy
@@ -21,4 +25,6 @@ gtk.rc_parse_string('style "scrolled" { '
 		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
 		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
 
-GUIPolicy(interface_uri, prog_args).main()
+policy = GUIPolicy(interface_uri, prog_args,
+		   download_only = bool(options.download_only))
+policy.main()

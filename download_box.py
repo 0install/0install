@@ -7,7 +7,7 @@ from dialog import Dialog
 import download
 import dialog
 
-def download_and_run(mainwindow, prog_args):
+def download_with_gui(mainwindow, prog_args, run_afterwards):
 	"""If all downloads are ready, runs the program. Otherwise,
 	hides mainwindow, shows the download progress box and then runs
 	it. On error, mainwindow is re-shown."""
@@ -22,6 +22,9 @@ def download_and_run(mainwindow, prog_args):
 						force = True)
 		downloads.append((iface, dl))
 	def run_it():
+		if not run_afterwards:
+			mainwindow.destroy()
+			return
 		import run
 		try:
 			run.execute(policy, prog_args)

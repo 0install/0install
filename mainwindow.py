@@ -10,7 +10,7 @@ class MainWindow(Dialog):
 	progress = None
 	browser = None
 
-	def __init__(self, prog_args):
+	def __init__(self, prog_args, download_only):
 		Dialog.__init__(self)
 		self.set_title('Dependency Injector')
 		self.set_default_size(400, 300)
@@ -105,15 +105,19 @@ class MainWindow(Dialog):
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
-		self.add_button(gtk.STOCK_EXECUTE, gtk.RESPONSE_OK)
+		if download_only:
+			self.add_mixed_button('Download', gtk.STOCK_NETWORK, gtk.RESPONSE_OK)
+		else:
+			self.add_button(gtk.STOCK_EXECUTE, gtk.RESPONSE_OK)
 		self.set_default_response(gtk.RESPONSE_OK)
 
 		def response(dialog, resp):
+			import download_box
 			if resp == gtk.RESPONSE_CANCEL:
 				self.destroy()
 			elif resp == gtk.RESPONSE_OK:
-				import download_box
-				download_box.download_and_run(self, prog_args)
+				download_box.download_with_gui(self, prog_args,
+								run_afterwards = not download_only)
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 		self.connect('response', response)
