@@ -75,6 +75,12 @@ def list_all_interfaces():
 	return map(unescape, all.keys())
 
 def update_user_overrides(interface):
+	local = basedir.load_first_config(config_site, config_prog,
+					   'local_interfaces', escape(interface.uri))
+	
+	if local:
+		update(interface, local)
+
 	user = basedir.load_first_config(config_site, config_prog,
 					   'user_overrides', escape(interface.uri))
 	
