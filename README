@@ -1,1 +1,43 @@
+The Zero Install Injector
+
+Copyright Thomas Leonard, 2005
+
+This is an experimental prototype -- use at your own risk!
+
+
+INTRODUCTION
+
+A program is made up of many different components, typically written by
+different groups of people. Each component is available in multiple versions.
+The injector is used when starting a program. Its job is to decide which
+implementation of each required component to use.
+
+An interface describes what a component does. The injector starts with the
+interface for the program you want to run (like 'The Gimp') and chooses an
+implementation (like 'The Gimp 2.2.0'). However, this implementation will in
+turn depend on other interfaces, such as 'GTK' (which draws the menus and
+buttons). Thus, the injector must choose implementations of each dependancy
+(each of which may require further interfaces, and so on).
+
 See http://0install.net/injector.html for details.
+
+
+CONDITIONS
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.  You
+should have received a copy of the GNU General Public License along with this
+program; if not, write to the Free Software Foundation, Inc., 59 Temple Place,
+Suite 330, Boston, MA  02111-1307  USA
+
+
+BUG REPORTS
+
+Please report any bugs to the mailing list:
+
+	http://0install.net/support.html
