@@ -11,6 +11,7 @@ parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
 parser.add_option("-v", "--version", help="display version information", action='store_true')
+parser.disable_interspersed_args()
 
 (options, args) = parser.parse_args()
 
