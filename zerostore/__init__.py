@@ -30,6 +30,10 @@ class Store:
 		assert required_digest.startswith('sha1=')
 		print "Adding impl with digest:", required_digest
 
+		if self.lookup(required_digest):
+			print "Not adding", required_digest, "as it already exists!"
+			return
+
 		args = ['tar', 'xz', '--no-same-owner', '--no-same-permissions']
 		if extract:
 			# Limit the characters we accept, to avoid sending dodgy

@@ -143,6 +143,10 @@ class ImplementationDownload(Download):
 					'Received: %d bytes' % (self.url, self.source.size, size))
 		return stream
 	
+	def get_current_fraction(self):
+		current_size = os.fstat(self.tempfile).st_size
+		return float(current_size) / self.source.size
+	
 def begin_iface_download(interface, force):
 	"""Start downloading interface.
 	If a Download object already exists (any state; in progress, failed or

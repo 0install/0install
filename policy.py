@@ -263,7 +263,7 @@ class Policy(object):
 	def walk_implementations(self):
 		def walk(iface):
 			impl = self.get_best_implementation(iface)
-			yield impl
+			yield (iface, impl)
 			for d in impl.dependencies.values():
 				for idep in walk(self.get_interface(d.interface)):
 					yield idep
@@ -323,19 +323,17 @@ class Policy(object):
 			print line
 
 	def get_cached(self, impl):
-		# XXX _cached
-		if impl._cached is None:
-			impl._cached = False
-			if impl.id.startswith('/'):
-				impl._cached = os.path.exists(impl.id)
-			else:
-				try:
-					path = self.get_implementation_path(impl)
-					assert path
-					impl._cached = True
-				except:
-					pass # OK
-		return impl._cached
+		impl._cached = False
+		if impl.id.startswith('/'):
+			return os.path.exists(impl.id)
+		else:
+			try:
+				path = self.get_implementation_path(impl)
+				assert path
+				return True
+			except:
+				pass # OK
+		return False
 	
 	def add_to_cache(self, source, data):
 		assert isinstance(source, DownloadSource)
@@ -344,7 +342,7 @@ class Policy(object):
 	
 	def get_uncached_implementations(self):
 		uncached = []
-		for impl in self.walk_implementations():
+		for iface, impl in self.walk_implementations():
 			if not self.get_cached(impl):
-				uncached.append(impl)
+				uncached.append((iface, impl))
 		return uncached
