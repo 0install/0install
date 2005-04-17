@@ -78,7 +78,7 @@ class MainWindow(Dialog):
 		self.vbox.pack_start(hbox, False, True, 0)
 		hbox.set_border_width(4)
 
-		button = gtk.Button()
+		button = gtk.Button('Interface Properties...')
 		self.browser.edit_properties.connect_proxy(button)
 		hbox.pack_start(button, False, True, 0)
 
