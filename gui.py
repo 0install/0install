@@ -76,6 +76,10 @@ class GUIPolicy(Policy):
 		"""Return the best download source for this implementation."""
 		return impl.download_sources[0]
 
+	def refresh_all(self):
+		for x in policy.walk_interfaces():
+			policy.begin_iface_download(x, True)
+
 def pretty_size(size):
 	if size is None:
 		return '?'

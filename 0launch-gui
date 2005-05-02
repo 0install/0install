@@ -6,6 +6,8 @@ __builtins__._ = lambda x: x
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]")
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
+parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
+
 parser.disable_interspersed_args()
 
 (options, args) = parser.parse_args()
@@ -27,4 +29,6 @@ gtk.rc_parse_string('style "scrolled" { '
 
 policy = GUIPolicy(interface_uri, prog_args,
 		   download_only = bool(options.download_only))
+if options.refresh:
+	policy.refresh_all()
 policy.main()

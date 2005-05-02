@@ -60,10 +60,7 @@ class MainWindow(Dialog):
 		freshness.connect('changed', set_freshness)
 
 		button = gtk.Button('Refresh all now')
-		def refresh_all(b):
-			for x in policy.walk_interfaces():
-				policy.begin_iface_download(x, True)
-		button.connect('clicked', refresh_all)
+		button.connect('clicked', lambda b: policy.refresh_all())
 		hbox.pack_start(button, False, True, 2)
 
 		hbox.show_all()
