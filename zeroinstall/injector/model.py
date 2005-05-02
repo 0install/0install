@@ -55,6 +55,7 @@ class Dependency(object):
 
 	def __init__(self, interface):
 		assert isinstance(interface, (str, unicode))
+		assert interface
 		self.interface = interface
 		self.restrictions = []
 		self.bindings = []
