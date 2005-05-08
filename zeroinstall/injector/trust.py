@@ -14,15 +14,11 @@ class TrustDB:
 		return key in self.keys
 	
 	def trust_key(self, key):
-		"""True if key was added. False if already known."""
-		key = key.upper()
 		self.ensure_uptodate()
-		if key in self.keys:
-			return False
+		if key in self.keys: return
 		int(key, 16)		# Ensure fingerprint is valid
 		self.keys[key] = True
 		self.save()
-		return True
 	
 	def untrust_key(self, key):
 		self.ensure_uptodate()
