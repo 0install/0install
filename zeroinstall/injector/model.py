@@ -48,27 +48,27 @@ class EnvironmentBinding(Binding):
 	def __str__(self):
 		return "<environ %s += %s>" % (self.name, self.insert)
 
-class Dependency(object):
-	"""A Dependency indicates that an Implementation requires some additional
-	code to function, specified by another Interface."""
-	__slots__ = ['interface', 'restrictions', 'bindings']
-
-	def __init__(self, interface):
-		assert isinstance(interface, (str, unicode))
-		assert interface
-		self.interface = interface
-		self.restrictions = []
-		self.bindings = []
-	
-	def __str__(self):
-		return "<Dependency on %s; bindings: %d>" % (self.interface, len(self.bindings))
+#class Dependency(object):
+#	"""A Dependency indicates that an Implementation requires some additional
+#	code to function, specified by another Interface."""
+#	__slots__ = ['interface', 'restrictions', 'bindings']
+#
+#	def __init__(self, interface):
+#		assert isinstance(interface, (str, unicode))
+#		assert interface
+#		self.interface = interface
+#		self.restrictions = []
+#		self.bindings = []
+#	
+#	def __str__(self):
+#		return "<Dependency on %s; bindings: %d>" % (self.interface, len(self.bindings))
 
 class DownloadSource(object):
 	"""A DownloadSource provides a way to fetch an implementation."""
 	__slots__ = ['implementation', 'url', 'size', 'extract']
 
 	def __init__(self, implementation, url, size, extract):
-		assert url.startswith('http:') or url.startswith('/')
+		assert url.startswith('http:') or url.startswith('ftp:') or url.startswith('/')
 		self.implementation = implementation
 		self.url = url
 		self.size = size
@@ -77,7 +77,7 @@ class DownloadSource(object):
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
 	__slots__ = ['arch', 'upstream_stability', 'user_stability',
-		     'version', 'size', 'dependencies', '_cached',
+		     'version', 'size', 'dependencies',
 		     'id', 'download_sources']
 
 	def __init__(self, id):
@@ -89,7 +89,6 @@ class Implementation(object):
 		self.user_stability = None
 		self.upstream_stability = None
 		self.arch = None
-		self._cached = None
 		self.dependencies = {}	# URI -> Dependency
 		self.download_sources = []	# [DownloadSource]
 	
@@ -106,6 +105,7 @@ class Implementation(object):
 		return self.id
 
 	def __cmp__(self, other):
+		"""Newer versions come first"""
 		return cmp(other.version, self.version)
 	
 class Interface(object):
@@ -167,13 +167,3 @@ def escape(uri):
 
 class SafeException(Exception):
 	pass
-
-try:
-	_cache = os.readlink('/uri/0install/.lazyfs-cache')
-except:
-	_cache = None
-def cache_for(path):
-	prefix = '/uri/0install/'
-	if path.startswith(prefix) and _cache:
-		return os.path.join(_cache, path[len(prefix):])
-	return path

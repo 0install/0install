@@ -382,7 +382,6 @@ class Policy(object):
 		#	print line
 
 	def get_cached(self, impl):
-		impl._cached = False
 		if impl.id.startswith('/'):
 			return os.path.exists(impl.id)
 		else:
