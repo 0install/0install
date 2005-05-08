@@ -21,10 +21,10 @@ class ValidSig(Signature):
 	FINGERPRINT = 0
 
 	def __str__(self):
-		return "Valid signature from " + self.status[FINGERPRINT]
+		return "Valid signature from " + self.status[self.FINGERPRINT]
 	
 	def is_trusted(self):
-		return trust_db.is_trusted(self.status[FINGERPRINT])
+		return trust_db.is_trusted(self.status[self.FINGERPRINT])
 
 class BadSig(Signature):
 	KEYID = 0
