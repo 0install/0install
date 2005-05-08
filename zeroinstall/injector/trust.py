@@ -38,10 +38,11 @@ class TrustDB:
 		f.close()
 	
 	def ensure_uptodate(self):
+		# This is a bit inefficient...
 		trust = basedir.load_first_config(config_site, config_prog,
 						'trust')
-		# This is a bit inefficient...
-		self.keys = {}
+		# By default, trust our own key
+		self.keys = {"92429807C9853C0744A68B9AAE07828059A53CC1": True}
 		if trust:
 			#print "Loading trust from", trust_db
 			for key in file(trust).read().split('\n'):
