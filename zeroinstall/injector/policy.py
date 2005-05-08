@@ -13,18 +13,17 @@ import download
 #from logging import getLogger, DEBUG
 #getLogger().setLevel(DEBUG)
 
-_interfaces = {}	# URI -> Interface
-
 def pretty_time(t):
 	return time.strftime('%Y-%m-%d %H:%M:%S UTC', t)
 
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
-		     'freshness', 'store']
+		     'freshness', 'store', '_interfaces']
 
 	def __init__(self, root):
 		assert isinstance(root, (str, unicode))
+		self._interfaces = {}	# URI -> Interface
 		self.root = root
 		user_store = os.path.expanduser('~/.cache/0install.net/implementations')
 		if not os.path.isdir(user_store):
@@ -139,24 +138,25 @@ class Policy(object):
 		"""Get the interface for uri. If it's in the cache, read that.
 		If it's not in the cache or policy says so, start downloading
 		the latest version."""
+		debug("get_interface %s", uri)
 		if type(uri) == str:
 			uri = unicode(uri)
 		assert isinstance(uri, unicode)
 
-		if uri not in _interfaces:
+		if uri not in self._interfaces:
 			# Haven't used this interface so far. Initialise from cache.
-			_interfaces[uri] = Interface(uri)
-			self.init_interface(_interfaces[uri])
+			self._interfaces[uri] = Interface(uri)
+			self.init_interface(self._interfaces[uri])
 
-		staleness = time.time() - (_interfaces[uri].last_checked or 0)
-		#print "Staleness for '%s' is %d" % (_interfaces[uri].name, staleness)
+		staleness = time.time() - (self._interfaces[uri].last_checked or 0)
+		#print "Staleness for '%s' is %d" % (self._interfaces[uri].name, staleness)
 
 		if self.network_use != network_offline and \
 		   self.freshness > 0 and staleness > self.freshness:
 		   	#print "Updating..."
-			self.begin_iface_download(_interfaces[uri])
+			self.begin_iface_download(self._interfaces[uri])
 
-		return _interfaces[uri]
+		return self._interfaces[uri]
 	
 	def init_interface(self, iface):
 		"""We've just created a new Interface. Update from disk cache/network."""
@@ -170,12 +170,15 @@ class Policy(object):
 				debug("Nothing known about interface, but we are off-line.")
 	
 	def begin_iface_download(self, interface, force = False):
+		debug("begin_iface_download %s", interface)
 		dl = download.begin_iface_download(interface, force)
 		if not dl:
 			assert not force
+			debug("Already in progress...")
 			return		# Already in progress
 
 		# Calls update_interface_from_network eventually on success
+		debug("Monitoring...")
 		self.monitor_download(dl)
 	
 	def monitor_download(self, dl):
@@ -278,10 +281,49 @@ class Policy(object):
 		and call self.update_interface_from_network() when done."""
 		import gpg
 		data, sigs = gpg.check_stream(signed_data)
+
+		new_keys = False
+		import_error = None
+		for x in sigs:
+			need_key = x.need_key()
+			if need_key:
+				try:
+					self.download_key(download.interface, need_key)
+				except SafeException, ex:
+					import_error = ex
+				new_keys = True
+
+		if new_keys:
+			signed_data.seek(0)
+			data, sigs = gpg.check_stream(signed_data)
+			# If we got an error importing the keys, then report it now.
+			# If we still have missing keys, raise it as an exception, but
+			# if the keys got imported, just print and continue...
+			if import_error:
+				for x in sigs:
+					if x.need_key():
+						raise import_error
+				print >>sys.stderr, str(ex)
+
 		iface_xml = data.read()
 		data.close()
+
 		if not self.update_interface_if_trusted(download.interface, sigs, iface_xml):
 			self.confirm_trust_keys(download.interface, sigs, iface_xml)
+	
+	def download_key(self, interface, key_id):
+		assert interface
+		assert key_id
+		import urlparse, urllib2
+		key_url = urlparse.urljoin(interface.uri, '%s.gpg' % key_id)
+		print "Fetching key from", key_url
+		try:
+			stream = urllib2.urlopen(key_url)
+		except Exception, ex:
+			raise SafeException("Failed to download key from '%s': %s" % (key_url, str(ex)))
+		import gpg
+		gpg.import_key(stream)
+		stream.close()
 
 	def update_interface_if_trusted(self, interface, sigs, xml):
 		for s in sigs:
@@ -356,6 +398,7 @@ class Policy(object):
 	def get_uncached_implementations(self):
 		uncached = []
 		for iface, impl in self.walk_implementations():
+			assert impl
 			if not self.get_cached(impl):
 				uncached.append((iface, impl))
 		return uncached

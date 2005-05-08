@@ -24,6 +24,11 @@ class AutoPolicy(policy.Policy):
 		self.verbose = verbose
 		self.download_only = download_only
 
+	def begin_iface_download(self, interface, force = False):
+		if not self.allow_downloads:
+			raise NeedDownload()
+		policy.Policy.begin_iface_download(self, interface, force)
+
 	def monitor_download(self, dl):
 		if not self.allow_downloads:
 			raise NeedDownload()

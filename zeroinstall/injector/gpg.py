@@ -7,6 +7,10 @@ from model import SafeException
 class Signature:
 	def is_trusted(self):
 		return False
+	
+	def need_key(self):
+		"""Returns the ID of the key that must be downloaded to check this signature."""
+		return None
 
 class ValidSig(Signature):
 	def __init__(self, fingerprint):
@@ -43,6 +47,39 @@ class ErrSig(Signature):
 		else:
 			msg += "Unknown reason code %d" % rc
 		return msg
+
+	def need_key(self):
+		rc = int(self.status[self.RC])
+		if rc == 9:
+			return self.status[self.KEYID]
+		return None
+
+def import_key(stream):
+	errors = tempfile.TemporaryFile(prefix = 'injector-gpg-errors-')
+
+	child = os.fork()
+	if child == 0:
+		# We are the child
+		try:
+			try:
+				os.dup2(stream.fileno(), 0)
+				os.dup2(errors.fileno(), 2)
+				os.execlp('gpg', 'gpg', '--quiet', '--import')
+			except:
+				traceback.print_exc()
+		finally:
+			os._exit(1)
+		assert False
+
+	pid, status = os.waitpid(child, 0)
+	assert pid == child
+
+	errors.seek(0)
+	error_messages = errors.read().strip()
+	errors.close()
+
+	if error_messages:
+		raise SafeException("Errors from 'gpg --import':\n%s" % error_messages)
 
 def check_stream(stream):
 	"""Pass stream through gpg --decrypt to get the data, the error text,
