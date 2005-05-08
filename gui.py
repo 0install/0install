@@ -64,6 +64,10 @@ class GUIPolicy(Policy):
 			self.pulse = gobject.timeout_add(50, lambda: progress.pulse() or True)
 			progress.show()
 	
+	def recalculate(self):
+		Policy.recalculate(self)
+		self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
+	
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		import trust_box
 		trust_box.trust_box.confirm_trust(interface, sigs, iface_xml)
