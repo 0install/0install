@@ -51,6 +51,7 @@ class TestGPG(unittest.TestCase):
 		assert isinstance(sigs[0], gpg.ErrSig)
 		assert sigs[0].need_key() == "8C6289C86DBDA68E"
 		self.assertEquals("17", sigs[0].status[gpg.ErrSig.ALG])
+		assert sigs[0].is_trusted() is False
 
 	def testBadSig(self):
 		stream = tempfile.TemporaryFile()
@@ -62,6 +63,7 @@ class TestGPG(unittest.TestCase):
 		assert isinstance(sigs[0], gpg.BadSig)
 		self.assertEquals("AE07828059A53CC1",
 				  sigs[0].status[gpg.BadSig.KEYID])
+		assert sigs[0].is_trusted() is False
 
 	def testGoodSig(self):
 		stream = tempfile.TemporaryFile()
@@ -73,6 +75,9 @@ class TestGPG(unittest.TestCase):
 		assert isinstance(sigs[0], gpg.ValidSig)
 		self.assertEquals("92429807C9853C0744A68B9AAE07828059A53CC1",
 				  sigs[0].status[gpg.ValidSig.FINGERPRINT])
+		assert sigs[0].is_trusted() is True
 
-sys.argv.append('-v')
-unittest.main()
+suite = unittest.makeSuite(TestGPG)
+if __name__ == '__main__':
+	sys.argv.append('-v')
+	unittest.main()
