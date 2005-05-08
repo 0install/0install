@@ -14,9 +14,15 @@ class TrustDB:
 		return key in self.keys
 	
 	def trust_key(self, key):
+		"""True if key was added. False if already known."""
+		key = key.upper()
 		self.ensure_uptodate()
+		if key in self.keys:
+			return False
+		int(key, 16)		# Ensure fingerprint is valid
 		self.keys[key] = True
 		self.save()
+		return True
 	
 	def untrust_key(self, key):
 		self.ensure_uptodate()
@@ -39,7 +45,8 @@ class TrustDB:
 		if trust:
 			#print "Loading trust from", trust_db
 			for key in file(trust).read().split('\n'):
-				self.keys[key] = True
+				if key:
+					self.keys[key] = True
 
 # Singleton
 trust_db = TrustDB()
