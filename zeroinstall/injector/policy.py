@@ -19,7 +19,8 @@ def pretty_time(t):
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
-		     'freshness', 'store', '_interfaces']
+		     'freshness', 'store', '_interfaces',
+		     'ready']
 
 	def __init__(self, root):
 		assert isinstance(root, (str, unicode))
@@ -64,12 +65,15 @@ class Policy(object):
 	
 	def recalculate(self):
 		self.implementation = {}
+		self.ready = True
 		def process(iface):
 			impl = self.get_best_implementation(iface)
 			if impl:
 				self.implementation[iface] = impl
 				for d in impl.dependencies.values():
 					process(self.get_interface(d.interface))
+			else:
+				self.ready = False
 		process(self.get_interface(self.root))
 		for w in self.watchers: w()
 	
