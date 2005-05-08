@@ -5,6 +5,11 @@ from trust import trust_db
 from model import SafeException
 
 class Signature:
+	status = None
+
+	def __init__(self, status):
+		self.status = status
+
 	def is_trusted(self):
 		return False
 	
@@ -13,29 +18,25 @@ class Signature:
 		return None
 
 class ValidSig(Signature):
-	def __init__(self, fingerprint):
-		self.fingerprint = fingerprint
-	
+	FINGERPRINT = 0
+
 	def __str__(self):
-		return "Valid signature from " + self.fingerprint
+		return "Valid signature from " + self.status[FINGERPRINT]
 	
 	def is_trusted(self):
-		return trust_db.is_trusted(self.fingerprint)
+		return trust_db.is_trusted(self.status[FINGERPRINT])
 
 class BadSig(Signature):
-	def __init__(self, keyid):
-		self.keyid = keyid
-	
+	KEYID = 0
+
 	def __str__(self):
-		return "BAD signature by " + self.keyid + " (the message has been tampered with)"
+		return "BAD signature by " + self.status[self.KEYID] + \
+			" (the message has been tampered with)"
 
 class ErrSig(Signature):
-	ALG = 0
-	KEYID = 1
+	KEYID = 0
+	ALG = 1
 	RC = -1
-
-	def __init__(self, status):
-		self.status = status
 
 	def __str__(self):
 		msg = "ERROR signature by %s: " % self.status[self.KEYID]
@@ -55,7 +56,7 @@ class ErrSig(Signature):
 		return None
 
 def import_key(stream):
-	errors = tempfile.TemporaryFile(prefix = 'injector-gpg-errors-')
+	errors = tempfile.TemporaryFile()
 
 	child = os.fork()
 	if child == 0:
@@ -87,8 +88,8 @@ def check_stream(stream):
 	Returns (data_stream, [Signatures])."""
 	status_r, status_w = os.pipe()
 
-	data = tempfile.TemporaryFile(prefix = 'injector-gpg-')
-	errors = tempfile.TemporaryFile(prefix = 'injector-gpg-errors-')
+	data = tempfile.TemporaryFile()	# Python2.2 does not support 'prefix'
+	errors = tempfile.TemporaryFile()
 
 	child = os.fork()
 
@@ -123,13 +124,15 @@ def check_stream(stream):
 		assert line.endswith('\n')
 		assert line.startswith('[GNUPG:] ')
 		line = line[9:-1]
-		code = line.split(' ', 1)[0]
+		split_line = line.split(' ')
+		code = split_line[0]
+		args = split_line[1:]
 		if code == 'VALIDSIG':
-			sigs.append(ValidSig(line.split(' ', 2)[1]))
+			sigs.append(ValidSig(args))
 		elif code == 'BADSIG':
-			sigs.append(BadSig(line.split(' ', 2)[1]))
+			sigs.append(BadSig(args))
 		elif code == 'ERRSIG':
-			sigs.append(ErrSig(line.split(' ')))
+			sigs.append(ErrSig(args))
 
 	pid, status = os.waitpid(child, 0)
 	assert pid == child
