@@ -14,6 +14,32 @@ tMxedXc3y75I7r1hQZFTb/ewMcx3yefZ8zb/vZd10I7LEYdDj4fnKsYAAA==
 -----END PGP MESSAGE-----
 """
 
+bad_sig = """-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+Hell0
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.0 (GNU/Linux)
+
+iD8DBQFCfk3grgeCgFmlPMERAhl8AKC0aktrLzz646zTY0TRzdnxPdbLBgCeJWbk
+GRVbJusevCKvtoSn7RAW2mg=
+=xQJ5
+-----END PGP SIGNATURE-----
+"""
+
+good_sig = """-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+Hello
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.0 (GNU/Linux)
+
+iD8DBQFCfk3grgeCgFmlPMERAhl8AKC0aktrLzz646zTY0TRzdnxPdbLBgCeJWbk
+GRVbJusevCKvtoSn7RAW2mg=
+=xQJ5
+-----END PGP SIGNATURE-----
+"""
+
 class TestGPG(unittest.TestCase):
 	def testErrSig(self):
 		stream = tempfile.TemporaryFile()
@@ -25,6 +51,28 @@ class TestGPG(unittest.TestCase):
 		assert isinstance(sigs[0], gpg.ErrSig)
 		assert sigs[0].need_key() == "8C6289C86DBDA68E"
 		self.assertEquals("17", sigs[0].status[gpg.ErrSig.ALG])
+
+	def testBadSig(self):
+		stream = tempfile.TemporaryFile()
+		stream.write(bad_sig)
+		stream.seek(0)
+		data, sigs = gpg.check_stream(stream)
+		self.assertEquals("Hell0\n", data.read())
+		assert len(sigs) == 1
+		assert isinstance(sigs[0], gpg.BadSig)
+		self.assertEquals("AE07828059A53CC1",
+				  sigs[0].status[gpg.BadSig.KEYID])
+
+	def testGoodSig(self):
+		stream = tempfile.TemporaryFile()
+		stream.write(good_sig)
+		stream.seek(0)
+		data, sigs = gpg.check_stream(stream)
+		self.assertEquals("Hello\n", data.read())
+		assert len(sigs) == 1
+		assert isinstance(sigs[0], gpg.ValidSig)
+		self.assertEquals("92429807C9853C0744A68B9AAE07828059A53CC1",
+				  sigs[0].status[gpg.ValidSig.FINGERPRINT])
 
 sys.argv.append('-v')
 unittest.main()
