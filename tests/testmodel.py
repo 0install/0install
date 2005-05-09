@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.2
+#!/usr/bin/env python2.3
 import sys, tempfile, os, shutil
 import unittest
 
@@ -99,6 +99,12 @@ class TestModel(unittest.TestCase):
 		assert a.name == 'PYTHONPATH'
 		assert a.insert == 'path'
 		str(a)
+	
+	def testDep(self):
+		b = model.Dependency('http://foo')
+		assert not b.restrictions
+		assert not b.bindings
+		str(b)
 
 suite = unittest.makeSuite(TestModel)
 if __name__ == '__main__':

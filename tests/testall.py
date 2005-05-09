@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.2
+#!/usr/bin/env python2.3
 import unittest, os, sys
 import coverage
 coverage.erase()
@@ -28,5 +28,5 @@ coverage.stop()
 
 d = '../zeroinstall/injector'
 all_sources = [os.path.join(d, x) for x in os.listdir(d)
-		if x.endswith('.py')]
+		if x.endswith('.py')] + ['../0launch']
 coverage.report(all_sources)
