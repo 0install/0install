@@ -48,20 +48,20 @@ class EnvironmentBinding(Binding):
 	def __str__(self):
 		return "<environ %s += %s>" % (self.name, self.insert)
 
-#class Dependency(object):
-#	"""A Dependency indicates that an Implementation requires some additional
-#	code to function, specified by another Interface."""
-#	__slots__ = ['interface', 'restrictions', 'bindings']
-#
-#	def __init__(self, interface):
-#		assert isinstance(interface, (str, unicode))
-#		assert interface
-#		self.interface = interface
-#		self.restrictions = []
-#		self.bindings = []
-#	
-#	def __str__(self):
-#		return "<Dependency on %s; bindings: %d>" % (self.interface, len(self.bindings))
+class Dependency(object):
+	"""A Dependency indicates that an Implementation requires some additional
+	code to function, specified by another Interface."""
+	__slots__ = ['interface', 'restrictions', 'bindings']
+
+	def __init__(self, interface):
+		assert isinstance(interface, (str, unicode))
+		assert interface
+		self.interface = interface
+		self.restrictions = []
+		self.bindings = []
+	
+	def __str__(self):
+		return "<Dependency on %s; bindings: %d>" % (self.interface, len(self.bindings))
 
 class DownloadSource(object):
 	"""A DownloadSource provides a way to fetch an implementation."""
