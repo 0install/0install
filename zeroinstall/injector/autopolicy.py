@@ -12,17 +12,21 @@ class AutoPolicy(policy.Policy):
 	verbose = None
 	allow_downloads = False
 	download_only = False
+	dry_run = False
 
-	def __init__(self, interface_uri, allow_downloads, quiet, verbose = False,
-			download_only = False):
+	def __init__(self, interface_uri, allow_downloads, quiet,
+			verbose = False, download_only = False,
+			dry_run = False):
 		if not interface_uri.startswith('http:'):
 			interface_uri = os.path.realpath(interface_uri)	# For testing
 		policy.Policy.__init__(self, interface_uri)
+		self.dry_run = dry_run
 		self.quiet = quiet
-		self.allow_downloads = allow_downloads
+		self.allow_downloads = allow_downloads and not dry_run
 		self.monitored_downloads = []
 		self.verbose = verbose
 		self.download_only = download_only
+		self.dry_run = dry_run
 
 	def begin_iface_download(self, interface, force = False):
 		if not self.allow_downloads:
@@ -30,8 +34,7 @@ class AutoPolicy(policy.Policy):
 		policy.Policy.begin_iface_download(self, interface, force)
 
 	def monitor_download(self, dl):
-		if not self.allow_downloads:
-			raise NeedDownload()
+		assert self.allow_downloads
 		error_stream = dl.start()
 		self.monitored_downloads.append((error_stream, dl))
 
@@ -42,8 +45,13 @@ class AutoPolicy(policy.Policy):
 					"interface " + iface.get_name() + " cannot be "
 					"downloaded (no download locations given in "
 					"interface!")
-			dl = download.begin_impl_download(impl.download_sources[0])
-			self.monitor_download(dl)
+			if self.dry_run:
+				print "Would download", impl.download_sources[0]
+			elif self.allow_downloads:
+				dl = download.begin_impl_download(impl.download_sources[0])
+				self.monitor_download(dl)
+			else:
+				raise NeedDownload()
 
 	def wait_for_downloads(self):
 		while self.monitored_downloads:
@@ -71,6 +79,7 @@ class AutoPolicy(policy.Policy):
 		self.start_downloading_impls()
 		self.wait_for_downloads()
 		if not self.download_only:
-			run.execute(self, prog_args, verbose = self.verbose)
+			run.execute(self, prog_args, verbose = self.verbose,
+				    dry_run = self.dry_run)
 		elif self.verbose:
 			print "Downloads done (download-only mode)"

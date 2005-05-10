@@ -13,7 +13,7 @@ cached_ifaces = os.path.join(cache_home, '0install.net', 'interfaces')
 thomas_fingerprint = "92429807C9853C0744A68B9AAE07828059A53CC1"
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import trust, basedir
+from zeroinstall.injector import trust, basedir, autopolicy
 
 reload(basedir)
 
@@ -35,14 +35,21 @@ class TestLaunch(unittest.TestCase):
 		try:
 			sys.stdout = StringIO()
 			sys.stderr = StringIO()
-			imp.load_source('launch', '../0launch')
-			assert 0
-		except SystemExit:
-			pass
-		out = sys.stdout.getvalue()
-		err = sys.stderr.getvalue()
-		sys.stdout = old_stdout
-		sys.stderr = old_stderr
+			ex = None
+			try:
+				imp.load_source('launch', '../0launch')
+				assert 0
+			except SystemExit:
+				pass
+			except Exception, ex:
+				pass
+			out = sys.stdout.getvalue()
+			err = sys.stderr.getvalue()
+			if ex is not None:
+				err += str(ex.__class__)
+		finally:
+			sys.stdout = old_stdout
+			sys.stderr = old_stderr
 		return (out, err)
 
 	def testHelp(self):
@@ -82,6 +89,24 @@ class TestLaunch(unittest.TestCase):
 		a = tempfile.NamedTemporaryFile()
 		out, err = self.run(['-q', a.name])
 		assert err
+	
+	def testOK(self):
+		out, err = self.run(['--dry-run', 'http://foo'])
+		self.assertEquals("", out)
+		self.assertEquals("zeroinstall.injector.autopolicy.NeedDownload", err)
+	
+	def testDisplay(self):
+		os.environ['DISPLAY'] = ':foo'
+		out, err = self.run(['--dry-run', 'http://foo'])
+		self.assertEquals("Need to download; switching to GUI mode\n", out)
+		self.assertEquals("zeroinstall.injector.autopolicy.NeedDownload", err)
+
+	def testRefreshDisplay(self):
+		os.environ['DISPLAY'] = ':foo'
+		out, err = self.run(['--dry-run', '--download-only',
+				     '--refresh', 'http://foo'])
+		self.assertEquals("", out)
+		self.assertEquals("zeroinstall.injector.autopolicy.NeedDownload", err)
 
 suite = unittest.makeSuite(TestLaunch)
 if __name__ == '__main__':

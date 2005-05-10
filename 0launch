@@ -2,12 +2,13 @@
 import os, sys
 from optparse import OptionParser
 
-from zeroinstall.injector import model, download, autopolicy, run
+from zeroinstall.injector import model, download, autopolicy, run, namespaces
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]")
 parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
+parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
 parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 parser.add_option("-q", "--quiet", help="suppress informational messages", action='store_true')
@@ -62,7 +63,7 @@ if options.gui is None and os.environ.get('DISPLAY', None):
 			options.gui = True
 	
 if options.gui:
-	interface_uri = 'http://0install.net/2005/interfaces/injector-gui'
+	interface_uri = namespaces.injector_gui_uri
 	prog_args = args[:]
 	if options.download_only:
 		options.download_only = False
@@ -78,12 +79,12 @@ else:
 policy = autopolicy.AutoPolicy(interface_uri, True,
 				quiet = bool(options.quiet),
 				verbose = bool(options.verbose),
-				download_only = bool(options.download_only))
+				download_only = bool(options.download_only),
+				dry_run = options.dry_run)
 policy.recalculate()
 
 if options.refresh:
-	for x in policy.walk_interfaces():
-		policy.begin_iface_download(x, False)
+	policy.refresh_all()
 
 # Get interfaces...
 try:
@@ -101,6 +102,7 @@ except model.SafeException, ex:
 		policy.network_use = model.network_full	
 		policy.recalculate()
 		try:
+			policy.wait_for_downloads()
 			policy.execute(prog_args)
 		except model.SafeException, ex:
 			print >>sys.stderr, ex

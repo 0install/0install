@@ -11,7 +11,8 @@ def do_env_binding(binding, path, verbose):
 	if verbose:
 		print "%s=%s" % (binding.name, os.environ[binding.name])
 
-def execute(policy, prog_args, verbose = False):
+def execute(policy, prog_args, verbose = False, dry_run = False):
+	verbose = verbose or dry_run
 	iface = policy.get_interface(policy.root)
 	if not iface.main:
 		raise SafeException("Interface '%s' cannot be executed directly; it is just a library "
@@ -37,4 +38,5 @@ def execute(policy, prog_args, verbose = False):
 		sys.exit(1)
 	if verbose:
 		print "Executing:", prog_path
-	os.execl(prog_path, prog_path, *prog_args)
+	if not dry_run:
+		os.execl(prog_path, prog_path, *prog_args)

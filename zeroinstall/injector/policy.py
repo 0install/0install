@@ -405,3 +405,7 @@ class Policy(object):
 			if not self.get_cached(impl):
 				uncached.append((iface, impl))
 		return uncached
+	
+	def refresh_all(self):
+		for x in policy.walk_interfaces():
+			policy.begin_iface_download(x, True)
