@@ -10,8 +10,6 @@ os.environ['XDG_CACHE_HOME'] = cache_home
 
 cached_ifaces = os.path.join(cache_home, '0install.net', 'interfaces')
 
-thomas_fingerprint = "92429807C9853C0744A68B9AAE07828059A53CC1"
-
 sys.path.insert(0, '..')
 from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model
 
