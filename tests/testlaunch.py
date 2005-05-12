@@ -17,10 +17,6 @@ from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model
 
 reload(basedir)
 
-foo_signed_iface = tempfile.NamedTemporaryFile()
-foo_signed_iface.write("Hi")
-foo_signed_iface.flush()
-
 class TestLaunch(unittest.TestCase):
 	def setUp(self):
 		os.mkdir(config_home, 0700)
@@ -31,13 +27,6 @@ class TestLaunch(unittest.TestCase):
 	def tearDown(self):
 		shutil.rmtree(config_home)
 		shutil.rmtree(cache_home)
-
-	def cache_iface(self, name, data):
-		cached = os.path.join(basedir.save_cache_path(namespaces.config_site,
-						'interfaces'), model.escape(name))
-		f = file(cached, 'w')
-		f.write(data)
-		f.close()
 
 	def run(self, args):
 		sys.argv = ['0launch'] + args
@@ -105,20 +94,6 @@ class TestLaunch(unittest.TestCase):
 		out, err = self.run(['--dry-run', 'http://foo'])
 		self.assertEquals("Would download 'http://foo'\n", out)
 		self.assertEquals("", err)
-	
-	def testRefresh(self):
-		self.cache_iface(foo_signed_iface.name, """<?xml version="1.0" ?>
-<interface last-modified='0'
-  uri="%s" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <name>Foo</name>
-  <summary>Foo</summary>
-  <description>Foo</description>
-</interface>
-""" % foo_signed_iface.name)
-
-		out, err = self.run(['--refresh', foo_signed_iface.name])
-		self.assertEquals("Currently downloading:\n- " + foo_signed_iface.name + "\n", out)
-		assert err.startswith("No signatures found.")
 	
 	def testDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
