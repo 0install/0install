@@ -34,6 +34,17 @@ install, become root and run setup.py like this:
   $
 
 
+USE
+
+To run a program by its URI:
+
+$ 0launch http://rox.sourceforge.net/2005/interfaces/Edit
+
+To run create short-cut:
+
+$ 0alias rox-edit http://rox.sourceforge.net/2005/interfaces/Edit
+
+
 CONDITIONS
 
 This program is free software; you can redistribute it and/or modify it under
