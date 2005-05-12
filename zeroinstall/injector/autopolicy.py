@@ -6,6 +6,8 @@ from zeroinstall.injector import policy, run
 
 class NeedDownload(Exception):
 	"""Thrown if we tried to start a download with allow_downloads = False"""
+	def __init__(self, url):
+		Exception.__init__(self, "Would download '%s'" % url)
 
 class AutoPolicy(policy.Policy):
 	monitored_downloads = None
@@ -14,7 +16,7 @@ class AutoPolicy(policy.Policy):
 	download_only = False
 	dry_run = False
 
-	def __init__(self, interface_uri, allow_downloads, quiet,
+	def __init__(self, interface_uri, quiet,
 			verbose = False, download_only = False,
 			dry_run = False):
 		if not interface_uri.startswith('http:'):
@@ -22,16 +24,31 @@ class AutoPolicy(policy.Policy):
 		policy.Policy.__init__(self, interface_uri)
 		self.dry_run = dry_run
 		self.quiet = quiet
-		self.allow_downloads = allow_downloads and not dry_run
+		self.allow_downloads = not dry_run
 		self.monitored_downloads = []
 		self.verbose = verbose
 		self.download_only = download_only
 		self.dry_run = dry_run
-
+	
+	def need_download(self):
+		"""Decide whether we need to download anything (but don't do it!)"""
+		old = self.allow_downloads
+		self.allow_downloads = False
+		try:
+			try:
+				self.recalculate()
+				self.start_downloading_impls()
+			except NeedDownload:
+				return True
+			return False
+		finally:
+			self.allow_downloads = old
+	
 	def begin_iface_download(self, interface, force = False):
-		if not self.allow_downloads:
-			raise NeedDownload()
-		policy.Policy.begin_iface_download(self, interface, force)
+		if self.dry_run or not self.allow_downloads:
+			raise NeedDownload(interface.uri)
+		else:
+			policy.Policy.begin_iface_download(self, interface, force)
 
 	def monitor_download(self, dl):
 		assert self.allow_downloads
@@ -45,13 +62,12 @@ class AutoPolicy(policy.Policy):
 					"interface " + iface.get_name() + " cannot be "
 					"downloaded (no download locations given in "
 					"interface!")
-			if self.dry_run:
-				print "Would download", impl.download_sources[0]
-			elif self.allow_downloads:
-				dl = download.begin_impl_download(impl.download_sources[0])
-				self.monitor_download(dl)
+			source = impl.download_sources[0]
+			if self.dry_run or not self.allow_downloads:
+				raise NeedDownload(source.url)
 			else:
-				raise NeedDownload()
+				dl = download.begin_impl_download(source)
+				self.monitor_download(dl)
 
 	def wait_for_downloads(self):
 		while self.monitored_downloads:

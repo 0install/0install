@@ -92,21 +92,25 @@ class TestLaunch(unittest.TestCase):
 	
 	def testOK(self):
 		out, err = self.run(['--dry-run', 'http://foo'])
-		self.assertEquals("", out)
-		self.assertEquals("zeroinstall.injector.autopolicy.NeedDownload", err)
+		self.assertEquals("Would download 'http://foo'\n", out)
+		self.assertEquals("", err)
 	
 	def testDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run(['--dry-run', 'http://foo'])
-		self.assertEquals("Need to download; switching to GUI mode\n", out)
-		self.assertEquals("zeroinstall.injector.autopolicy.NeedDownload", err)
+		self.assertEquals("Need to download; switching to GUI mode\n"
+				   "Would download 'http://0install.net/2005/interfaces/injector-gui'\n",
+				   out)
+		self.assertEquals("", err)
 
 	def testRefreshDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run(['--dry-run', '--download-only',
 				     '--refresh', 'http://foo'])
-		self.assertEquals("", out)
-		self.assertEquals("zeroinstall.injector.autopolicy.NeedDownload", err)
+		self.assertEquals("Need to download; switching to GUI mode\n"
+				  "Would download 'http://0install.net/2005/interfaces/injector-gui'\n",
+				  out)
+		self.assertEquals("", err)
 
 suite = unittest.makeSuite(TestLaunch)
 if __name__ == '__main__':

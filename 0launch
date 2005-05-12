@@ -48,22 +48,24 @@ if len(args) < 1:
 	parser.print_help()
 	sys.exit(1)
 
+# Singleton instance used everywhere...
+policy = autopolicy.AutoPolicy(args[0],
+				quiet = bool(options.quiet),
+				verbose = bool(options.verbose),
+				download_only = bool(options.download_only),
+				dry_run = options.dry_run)
+
 if options.gui is None and os.environ.get('DISPLAY', None):
 	if options.refresh:
 		options.gui = True
 	else:
-		# Decide whether to use the GUI or not...
-		try:
-			test_policy = autopolicy.AutoPolicy(args[0], False, quiet = True)
-			test_policy.recalculate()
-			test_policy.start_downloading_impls()
-		except autopolicy.NeedDownload:
-			if not options.quiet:
-				print "Need to download; switching to GUI mode"
-			options.gui = True
-	
+		options.gui = policy.need_download()
+	if options.gui and not options.quiet:
+		print "Need to download; switching to GUI mode"
+
 if options.gui:
-	interface_uri = namespaces.injector_gui_uri
+	policy.set_root(namespaces.injector_gui_uri)
+	
 	prog_args = args[:]
 	if options.download_only:
 		options.download_only = False
@@ -72,26 +74,20 @@ if options.gui:
 		options.refresh = False
 		prog_args.insert(0, '--refresh')
 else:
-	interface_uri = args[0]
 	prog_args = args[1:]
-
-# Singleton instance used everywhere...
-policy = autopolicy.AutoPolicy(interface_uri, True,
-				quiet = bool(options.quiet),
-				verbose = bool(options.verbose),
-				download_only = bool(options.download_only),
-				dry_run = options.dry_run)
-policy.recalculate()
-
-if options.refresh:
-	policy.refresh_all()
 
 # Get interfaces...
 try:
+	policy.recalculate()
+	if options.refresh:
+		policy.refresh_all(False)
 	policy.wait_for_downloads()
 except model.SafeException, ex:
 	print >>sys.stderr, ex
 	sys.exit(1)
+except autopolicy.NeedDownload, ex:
+	print ex
+	sys.exit(0)
 
 try:
 	policy.execute(prog_args)

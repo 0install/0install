@@ -23,19 +23,15 @@ class Policy(object):
 		     'ready']
 
 	def __init__(self, root):
-		assert isinstance(root, (str, unicode))
-		self._interfaces = {}	# URI -> Interface
-		self.root = root
 		user_store = os.path.expanduser('~/.cache/0install.net/implementations')
 		if not os.path.isdir(user_store):
 			os.makedirs(user_store)
 		self.store = zerostore.Store(user_store)
-		self.implementation = {}		# Interface -> Implementation
+		self._interfaces = {}			# URI -> Interface
 		self.watchers = []
 		self.help_with_testing = False
 		self.network_use = network_full
-		self.freshness = 60 * 60 * 24 * 7	# Seconds since last update
-		self.updates = []
+		self.freshness = 60 * 60 * 24 * 7	# Seconds allowed since last update
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
@@ -49,6 +45,13 @@ class Policy(object):
 				assert self.network_use in network_levels
 			except Exception, ex:
 				print >>sys.stderr, "Error loading config:", ex
+
+		self.set_root(root)
+	
+	def set_root(self, root):
+		assert isinstance(root, (str, unicode))
+		self.root = root
+		self.implementation = {}		# Interface -> Implementation
 
 	def save_config(self):
 		config = ConfigParser.ConfigParser()
@@ -174,7 +177,7 @@ class Policy(object):
 				debug("Nothing known about interface, but we are off-line.")
 	
 	def begin_iface_download(self, interface, force = False):
-		debug("begin_iface_download %s", interface)
+		debug("begin_iface_download %s (force = %d)", interface, force)
 		dl = download.begin_iface_download(interface, force)
 		if not dl:
 			assert not force
@@ -406,6 +409,6 @@ class Policy(object):
 				uncached.append((iface, impl))
 		return uncached
 	
-	def refresh_all(self):
-		for x in policy.walk_interfaces():
-			policy.begin_iface_download(x, True)
+	def refresh_all(self, force = True):
+		for x in self.walk_interfaces():
+			self.begin_iface_download(x, force)
