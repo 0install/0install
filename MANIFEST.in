@@ -1,1 +1,3 @@
 include COPYING
+include tests
+include tests/*.py
