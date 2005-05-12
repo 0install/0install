@@ -1,13 +1,15 @@
 #!/usr/bin/env python2.3
 import unittest, os, sys
-import coverage
-coverage.erase()
-coverage.start()
+try:
+	import coverage
+	coverage.erase()
+	coverage.start()
+except ImportError:
+	coverage = None
 
 my_dir = os.path.dirname(sys.argv[0])
 if not my_dir:
 	my_dir=os.getcwd()
-print "Running from", my_dir
 
 sys.argv.append('-v')
 
@@ -24,9 +26,12 @@ for name in suite_names:
 
 unittest.TextTestRunner(verbosity=2).run(alltests)
 
-coverage.stop()
+if coverage:
+	coverage.stop()
 
-d = '../zeroinstall/injector'
-all_sources = [os.path.join(d, x) for x in os.listdir(d)
-		if x.endswith('.py')] + ['../0launch']
-coverage.report(all_sources)
+	d = '../zeroinstall/injector'
+	all_sources = [os.path.join(d, x) for x in os.listdir(d)
+			if x.endswith('.py')] + ['../0launch']
+	coverage.report(all_sources)
+else:
+	print "Coverage module not found. Skipping coverage report."
