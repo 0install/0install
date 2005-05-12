@@ -278,6 +278,7 @@ class Policy(object):
 		def walk(iface):
 			impl = self.get_best_implementation(iface)
 			yield (iface, impl)
+			if not impl: return
 			for d in impl.dependencies.values():
 				for idep in walk(self.get_interface(d.interface)):
 					yield idep
