@@ -52,6 +52,12 @@ class TestAutoPolicy(unittest.TestCase):
   <description>Foo</description>
 </interface>""" % foo_iface_uri)
 		assert not policy.need_download()
+	
+	def testExec(self):
+		policy = autopolicy.AutoPolicy(foo_iface_uri,
+				False, False, False)
+		policy.freshness = 0
+
 
 suite = unittest.makeSuite(TestAutoPolicy)
 if __name__ == '__main__':

@@ -3,28 +3,25 @@ import sys, tempfile, os, shutil, imp
 from StringIO import StringIO
 import unittest
 
-config_home = tempfile.mktemp()
-cache_home = tempfile.mktemp()
-os.environ['XDG_CONFIG_HOME'] = config_home
-os.environ['XDG_CACHE_HOME'] = cache_home
-
-cached_ifaces = os.path.join(cache_home, '0install.net', 'interfaces')
-
 sys.path.insert(0, '..')
 from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model
 
-reload(basedir)
-
 class TestLaunch(unittest.TestCase):
 	def setUp(self):
-		os.mkdir(config_home, 0700)
-		os.mkdir(cache_home, 0700)
+		self.config_home = tempfile.mktemp()
+		self.cache_home = tempfile.mktemp()
+		os.environ['XDG_CONFIG_HOME'] = self.config_home
+		os.environ['XDG_CACHE_HOME'] = self.cache_home
+		reload(basedir)
+
+		os.mkdir(self.config_home, 0700)
+		os.mkdir(self.cache_home, 0700)
 		if os.environ.has_key('DISPLAY'):
 			del os.environ['DISPLAY']
 	
 	def tearDown(self):
-		shutil.rmtree(config_home)
-		shutil.rmtree(cache_home)
+		shutil.rmtree(self.config_home)
+		shutil.rmtree(self.cache_home)
 
 	def run(self, args):
 		sys.argv = ['0launch'] + args
@@ -59,6 +56,9 @@ class TestLaunch(unittest.TestCase):
 		out, err = self.run(['--list'])
 		assert not err
 		self.assertEquals("", out)
+		cached_ifaces = os.path.join(self.cache_home,
+					'0install.net', 'interfaces')
+
 		os.makedirs(cached_ifaces)
 		file(os.path.join(cached_ifaces, 'file%3a%2f%2ffoo'), 'w').close()
 
