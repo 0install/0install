@@ -77,7 +77,7 @@ else:
 	prog_args = args[1:]
 
 try:
-	policy.download_and_execute(prog_args)
+	policy.download_and_execute(prog_args, refresh = bool(options.refresh))
 except model.SafeException, ex:
 	print >>sys.stderr, ex
 	sys.exit(1)

@@ -37,6 +37,7 @@ class AutoPolicy(policy.Policy):
 		try:
 			try:
 				self.recalculate()
+				if not self.ready: return False
 				self.start_downloading_impls()
 			except NeedDownload:
 				return True
@@ -106,9 +107,9 @@ class AutoPolicy(policy.Policy):
 			self.wait_for_downloads()
 			self.recalculate()
 	
-	def download_and_execute(self, prog_args):
+	def download_and_execute(self, prog_args, refresh = False):
 		self.recalculate_with_dl()
-		if options.refresh:
+		if refresh:
 			self.refresh_all(False)
 			self.recalculate_with_dl()
 		if not self.ready:
