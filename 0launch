@@ -77,23 +77,7 @@ else:
 	prog_args = args[1:]
 
 try:
-	# Try to find implementations...
-	policy.recalculate()
-	if options.refresh:
-		policy.refresh_all(False)
-		policy.recalculate()
-	# Still missing some... try upping network policy...
-	if not policy.ready and policy.network_use != model.network_full:
-		if not options.quiet:
-			print >>sys.stderr, "Error. Retrying with network use = full"
-		policy.network_use = model.network_full	
-		policy.recalculate()
-	if not policy.ready:
-		raise model.SafeException("Can't find all required implementations:\n" +
-			'\n'.join(["- %s -> %s" % (iface, impl)
-				   for iface, impl in policy.walk_implementations()]))
-	policy.wait_for_downloads()
-	policy.execute(prog_args)
+	policy.download_and_execute(prog_args)
 except model.SafeException, ex:
 	print >>sys.stderr, ex
 	sys.exit(1)

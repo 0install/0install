@@ -99,3 +99,20 @@ class AutoPolicy(policy.Policy):
 				    dry_run = self.dry_run)
 		elif self.verbose:
 			print "Downloads done (download-only mode)"
+	
+	def recalculate_with_dl(self):
+		self.recalculate()
+		if self.monitored_downloads:
+			self.wait_for_downloads()
+			self.recalculate()
+	
+	def download_and_execute(self, prog_args):
+		self.recalculate_with_dl()
+		if options.refresh:
+			self.refresh_all(False)
+			self.recalculate_with_dl()
+		if not self.ready:
+			raise model.SafeException("Can't find all required implementations:\n" +
+				'\n'.join(["- %s -> %s" % (iface, impl)
+					   for iface, impl in self.walk_implementations()]))
+		self.execute(prog_args)
