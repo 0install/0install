@@ -80,9 +80,10 @@ class GUIPolicy(Policy):
 		"""Return the best download source for this implementation."""
 		return impl.download_sources[0]
 
-	def refresh_all(self):
-		for x in policy.walk_interfaces():
-			policy.begin_iface_download(x, True)
+	# XXX: Remove this. Moved to Policy.
+	def refresh_all(self, force = True):
+		for x in self.walk_interfaces():
+			self.begin_iface_download(x, force)
 
 def pretty_size(size):
 	if size is None:

@@ -30,5 +30,5 @@ gtk.rc_parse_string('style "scrolled" { '
 policy = GUIPolicy(interface_uri, prog_args,
 		   download_only = bool(options.download_only))
 if options.refresh:
-	policy.refresh_all()
+	policy.refresh_all(force = False)
 policy.main()
