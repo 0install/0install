@@ -33,10 +33,10 @@ def execute(policy, prog_args, verbose = False, dry_run = False):
 	root_impl = policy.get_implementation(iface)
 	prog_path = os.path.join(policy.get_implementation_path(root_impl), iface.main)
 	if not os.path.exists(prog_path):
-		print >>sys.stderr, "'%s' does not exist." % prog_path
-		print >>sys.stderr, "(implementation '%s' + program '%s')" % (policy.implementation[iface].id, iface.main)
-		sys.exit(1)
-	if verbose:
+		raise SafeException("File '%s' does not exist.\n"
+				"(implementation '%s' + program '%s')" %
+				(prog_path, policy.implementation[iface].id, iface.main))
+	if verbose or dry_run:
 		print "Executing:", prog_path
 	if not dry_run:
 		os.execl(prog_path, prog_path, *prog_args)

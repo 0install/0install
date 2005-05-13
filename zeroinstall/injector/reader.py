@@ -188,7 +188,10 @@ def update(interface, source, user_overrides = False, local = False):
 			if user_stability:
 				impl.user_stability = stability_levels[str(user_stability)]
 		else:
-			impl.version = map(int, item_attrs.version.split('.'))
+			version = item_attrs.version
+			if not version:
+				raise InvalidInterface("Missing version attribute")
+			impl.version = map(int, version.split('.'))
 
 			size = item.getAttribute('size')
 			if size:

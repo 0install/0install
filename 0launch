@@ -65,10 +65,10 @@ if options.gui is None and os.environ.get('DISPLAY', None):
 
 if options.gui:
 	policy.set_root(namespaces.injector_gui_uri)
-	
 	prog_args = args[:]
+	# Options apply to actual program, not GUI
 	if options.download_only:
-		options.download_only = False
+		policy.download_only = False
 		prog_args.insert(0, '--download-only')
 	if options.refresh:
 		options.refresh = False
