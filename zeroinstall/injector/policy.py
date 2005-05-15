@@ -1,6 +1,6 @@
 import time
 import sys
-from logging import debug, info
+from logging import debug
 
 from zeroinstall import zerostore
 from model import *
@@ -9,9 +9,6 @@ from namespaces import *
 import ConfigParser
 import reader
 import download
-
-#from logging import getLogger, DEBUG
-#getLogger().setLevel(DEBUG)
 
 def pretty_time(t):
 	return time.strftime('%Y-%m-%d %H:%M:%S UTC', t)
