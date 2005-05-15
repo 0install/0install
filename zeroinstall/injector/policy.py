@@ -11,7 +11,7 @@ import reader
 import download
 
 def pretty_time(t):
-	return time.strftime('%Y-%m-%d %H:%M:%S UTC', t)
+	return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.localtime(t))
 
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',

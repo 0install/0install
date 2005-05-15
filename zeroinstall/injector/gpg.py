@@ -19,12 +19,16 @@ class Signature:
 
 class ValidSig(Signature):
 	FINGERPRINT = 0
+	TIMESTAMP = 2
 
 	def __str__(self):
 		return "Valid signature from " + self.status[self.FINGERPRINT]
 	
 	def is_trusted(self):
 		return trust_db.is_trusted(self.status[self.FINGERPRINT])
+	
+	def get_timestamp(self):
+		return int(self.status[self.TIMESTAMP])
 
 class BadSig(Signature):
 	KEYID = 0
