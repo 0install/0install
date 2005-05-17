@@ -1,6 +1,7 @@
 import time
 import sys
 from logging import debug
+from cStringIO import StringIO
 
 from zeroinstall import zerostore
 from model import *
@@ -11,6 +12,7 @@ import reader
 import download
 
 def pretty_time(t):
+	assert isinstance(t, (int, long))
 	return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.localtime(t))
 
 class Policy(object):
@@ -188,12 +190,19 @@ class Policy(object):
 	def monitor_download(self, dl):
 		raise NotImplementedError("Abstract method")
 	
-	def update_interface_from_network(self, interface, new_xml):
+	def update_interface_from_network(self, interface, new_xml, modified_time):
 		"""xml is the new XML (after the signature has been checked and
-		removed)."""
-		debug("Updating '%s' from network" % (interface.name or interface.uri))
+		removed). modified_time will be set as an attribute on the root."""
+		debug("Updating '%s' from network; modified at %s" %
+			(interface.name or interface.uri, pretty_time(modified_time)))
 
-		self.import_new_interface(interface, new_xml)
+		from xml.dom import minidom
+		doc = minidom.parseString(new_xml)
+		doc.documentElement.setAttribute('last-modified', str(modified_time))
+		new_xml = StringIO()
+		doc.writexml(new_xml)
+
+		self.import_new_interface(interface, new_xml.getvalue())
 
 		import writer
 		interface.last_checked = long(time.time())
@@ -333,7 +342,7 @@ class Policy(object):
 	def update_interface_if_trusted(self, interface, sigs, xml):
 		for s in sigs:
 			if s.is_trusted():
-				self.update_interface_from_network(interface, xml)
+				self.update_interface_from_network(interface, xml, s.get_timestamp())
 				return True
 		return False
 	
