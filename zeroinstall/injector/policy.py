@@ -21,7 +21,7 @@ class Policy(object):
 		     'freshness', 'store', '_interfaces',
 		     'ready']
 
-	def __init__(self, root):
+	def __init__(self, root, handler = None):
 		user_store = os.path.expanduser('~/.cache/0install.net/implementations')
 		if not os.path.isdir(user_store):
 			os.makedirs(user_store)
@@ -31,6 +31,9 @@ class Policy(object):
 		self.help_with_testing = False
 		self.network_use = network_full
 		self.freshness = 60 * 60 * 24 * 7	# Seconds allowed since last update
+
+		# (allow self for backwards compat)
+		self.handler = handler or self
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
@@ -185,10 +188,7 @@ class Policy(object):
 
 		# Calls update_interface_from_network eventually on success
 		debug("Monitoring...")
-		self.monitor_download(dl)
-	
-	def monitor_download(self, dl):
-		raise NotImplementedError("Abstract method")
+		self.handler.monitor_download(dl)
 	
 	def update_interface_from_network(self, interface, new_xml, modified_time):
 		"""xml is the new XML (after the signature has been checked and
@@ -219,8 +219,6 @@ class Policy(object):
 			if old_xml == new_xml:
 				debug("No change")
 				return
-			else:
-				self.confirm_diff(old_xml, new_xml, interface.uri)
 
 		stream = file(cached + '.new', 'w')
 		stream.write(new_xml)
@@ -251,7 +249,7 @@ class Policy(object):
 		if path:
 			return path
 		raise Exception("Item '%s' not found in cache '%s' (digest is '%s')" % (impl, self.store.dir, impl.id))
-		
+
 	def get_implementation(self, interface):
 		assert isinstance(interface, Interface)
 
@@ -323,7 +321,7 @@ class Policy(object):
 		data.close()
 
 		if not self.update_interface_if_trusted(download.interface, sigs, iface_xml):
-			self.confirm_trust_keys(download.interface, sigs, iface_xml)
+			self.handler.confirm_trust_keys(download.interface, sigs, iface_xml)
 	
 	def download_key(self, interface, key_id):
 		assert interface
@@ -345,6 +343,41 @@ class Policy(object):
 				self.update_interface_from_network(interface, xml, s.get_timestamp())
 				return True
 		return False
+	
+	def get_cached(self, impl):
+		if impl.id.startswith('/'):
+			return os.path.exists(impl.id)
+		else:
+			try:
+				path = self.get_implementation_path(impl)
+				assert path
+				return True
+			except:
+				pass # OK
+		return False
+	
+	def add_to_cache(self, source, data):
+		assert isinstance(source, DownloadSource)
+		required_digest = source.implementation.id
+		self.store.add_tgz_to_cache(required_digest, data, source.extract)
+	
+	def get_uncached_implementations(self):
+		uncached = []
+		for iface, impl in self.walk_implementations():
+			assert impl
+			if not self.get_cached(impl):
+				uncached.append((iface, impl))
+		return uncached
+	
+	def refresh_all(self, force = True):
+		for x in self.walk_interfaces():
+			self.begin_iface_download(x, force)
+	
+	# These methods are called as self.handler.method(). They should be
+	# moved to another class.
+
+	def monitor_download(self, dl):
+		raise NotImplementedError("Abstract method")
 	
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		"""We don't trust any of the signatures yet. Ask the user.
@@ -381,41 +414,3 @@ class Policy(object):
 
 		if not self.update_interface_if_trusted(interface, sigs, iface_xml):
 			raise Exception('Bug: still not trusted!!')
-
-	def confirm_diff(self, old, new, uri):
-		pass
-		#import difflib
-		#diff = difflib.unified_diff(old.split('\n'), new.split('\n'), uri, "",
-		#				"", "", 2, "")
-		#print "Updates:"
-		#for line in diff:
-		#	print line
-
-	def get_cached(self, impl):
-		if impl.id.startswith('/'):
-			return os.path.exists(impl.id)
-		else:
-			try:
-				path = self.get_implementation_path(impl)
-				assert path
-				return True
-			except:
-				pass # OK
-		return False
-	
-	def add_to_cache(self, source, data):
-		assert isinstance(source, DownloadSource)
-		required_digest = source.implementation.id
-		self.store.add_tgz_to_cache(required_digest, data, source.extract)
-	
-	def get_uncached_implementations(self):
-		uncached = []
-		for iface, impl in self.walk_implementations():
-			assert impl
-			if not self.get_cached(impl):
-				uncached.append((iface, impl))
-		return uncached
-	
-	def refresh_all(self, force = True):
-		for x in self.walk_interfaces():
-			self.begin_iface_download(x, force)
