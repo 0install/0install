@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 import os, sys
 from optparse import OptionParser
+from logging import debug, info, DEBUG, INFO, getLogger
 
 from zeroinstall.injector import model, download, autopolicy, run, namespaces
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
-			    "       %prog --list [search-term]")
+			    "       %prog --list [search-term]\n"
+			    "       %prog --import [interface-files]")
 parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
 parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
+parser.add_option("-i", "--import", help="import from files, not from the network", action='store_true')
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 parser.add_option("-q", "--quiet", help="suppress informational messages", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
@@ -19,10 +22,11 @@ parser.disable_interspersed_args()
 
 (options, args) = parser.parse_args()
 
-if options.verbose > 1:
-	# Very verbose
-	from logging import getLogger, DEBUG
-	getLogger().setLevel(DEBUG)
+if options.verbose:
+	if options.verbose == 1:
+		getLogger().setLevel(INFO)
+	else:
+		getLogger().setLevel(DEBUG)
 
 if options.list:
 	if len(args) == 0:
@@ -32,8 +36,8 @@ if options.list:
 	else:
 		parser.print_help()
 		sys.exit(1)
-	from zeroinstall.injector import reader
-	for i in reader.list_all_interfaces():
+	from zeroinstall.injector.iface_cache import iface_cache
+	for i in iface_cache.list_all_interfaces():
 		if match and match not in i.lower(): continue
 		print i
 	sys.exit(0)
@@ -53,20 +57,42 @@ if len(args) < 1:
 	parser.print_help()
 	sys.exit(1)
 
-# Singleton instance used everywhere...
-policy = autopolicy.AutoPolicy(args[0],
+try:
+	if getattr(options, 'import'):
+		from zeroinstall.injector import gpg, handler
+		from zeroinstall.injector.iface_cache import iface_cache
+		from xml.dom import minidom
+		for x in args:
+			if not os.path.isfile(x):
+				raise model.SafeException("File '%s' does not exist" % x)
+			info("Importing from file '%s'", x)
+			signed_data = file(x)
+			data, sigs = gpg.check_stream(signed_data)
+			doc = minidom.parseString(data.read())
+			uri = doc.documentElement.getAttribute('uri')
+			assert uri
+			new, iface = iface_cache.get_interface(uri)
+			info("Importing information about interface %s", iface)
+			signed_data.seek(0)
+			iface_cache.check_signed_data(iface, signed_data, handler.Handler())
+		sys.exit(0)
+
+	# Singleton instance used everywhere...
+	policy = autopolicy.AutoPolicy(args[0],
 				quiet = bool(options.quiet),
-				verbose = bool(options.verbose),
 				download_only = bool(options.download_only),
 				dry_run = options.dry_run)
 
-if options.gui is None and os.environ.get('DISPLAY', None):
-	if options.refresh:
-		options.gui = True
-	else:
-		options.gui = policy.need_download()
-	if options.gui and not options.quiet:
-		print "Need to download; switching to GUI mode"
+	if options.gui is None and os.environ.get('DISPLAY', None):
+		if options.refresh:
+			options.gui = True
+		else:
+			options.gui = policy.need_download()
+		if options.gui and not options.quiet:
+			print "Need to download; switching to GUI mode"
+except model.SafeException, ex:
+	print >>sys.stderr, ex
+	sys.exit(1)
 
 if options.gui:
 	policy.set_root(namespaces.injector_gui_uri)
