@@ -42,7 +42,7 @@ class TestModel(unittest.TestCase):
 		try:
 			model.Interface('foo')
 			assert 0
-		except AssertionError:
+		except model.SafeException:
 			pass
 	
 	def testInterface(self):
