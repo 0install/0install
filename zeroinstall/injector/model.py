@@ -120,9 +120,12 @@ class Interface(object):
 
 	def __init__(self, uri):
 		assert uri
-		assert uri.startswith('/') or uri.startswith('http:')
-		self.uri = uri
-		self.reset()
+		if uri.startswith('http:'):
+			self.uri = uri
+			self.reset()
+		else:
+			raise SafeException("Interface name '%s' doesn't start "
+					    "with 'http:'" % uri)
 
 	def reset(self):
 		self.implementations = {}	# Path -> Implementation
