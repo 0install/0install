@@ -1,8 +1,8 @@
-import os, sys
-from optparse import OptionParser
+import os
+from logging import debug, info
 
 from zeroinstall.injector import model, download
-from zeroinstall.injector import policy, run
+from zeroinstall.injector import policy, run, handler
 
 class NeedDownload(Exception):
 	"""Thrown if we tried to start a download with allow_downloads = False"""
@@ -10,23 +10,17 @@ class NeedDownload(Exception):
 		Exception.__init__(self, "Would download '%s'" % url)
 
 class AutoPolicy(policy.Policy):
-	monitored_downloads = None
-	verbose = None
 	allow_downloads = False
 	download_only = False
 	dry_run = False
 
-	def __init__(self, interface_uri, quiet,
-			verbose = False, download_only = False,
-			dry_run = False):
+	def __init__(self, interface_uri, quiet, download_only = False, dry_run = False):
 		if not interface_uri.startswith('http:'):
 			interface_uri = os.path.realpath(interface_uri)	# For testing
-		policy.Policy.__init__(self, interface_uri)
+		policy.Policy.__init__(self, interface_uri, handler.Handler())
 		self.dry_run = dry_run
 		self.quiet = quiet
 		self.allow_downloads = not dry_run
-		self.monitored_downloads = []
-		self.verbose = verbose
 		self.download_only = download_only
 		self.dry_run = dry_run
 	
@@ -37,6 +31,7 @@ class AutoPolicy(policy.Policy):
 		try:
 			try:
 				self.recalculate()
+				debug("Recalculated: ready = %s", self.ready)
 				if not self.ready: return False
 				self.start_downloading_impls()
 			except NeedDownload:
@@ -51,13 +46,9 @@ class AutoPolicy(policy.Policy):
 		else:
 			policy.Policy.begin_iface_download(self, interface, force)
 
-	def monitor_download(self, dl):
-		assert self.allow_downloads
-		error_stream = dl.start()
-		self.monitored_downloads.append((error_stream, dl))
-
 	def start_downloading_impls(self):
 		for iface, impl in self.get_uncached_implementations():
+			debug("start_downloading_impls: for %s get %s", iface, impl)
 			if not impl.download_sources:
 				raise model.SafeException("Implementation " + impl.id + " of "
 					"interface " + iface.get_name() + " cannot be "
@@ -68,43 +59,20 @@ class AutoPolicy(policy.Policy):
 				raise NeedDownload(source.url)
 			else:
 				dl = download.begin_impl_download(source)
-				self.monitor_download(dl)
-
-	def wait_for_downloads(self):
-		while self.monitored_downloads:
-			if not self.quiet:
-				print "Currently downloading:"
-				for e, dl in self.monitored_downloads:
-					print "- " + dl.url
-
-			for e, dl in self.monitored_downloads[:]:
-				errors =  e.read()
-				if errors:
-					dl.error_stream_data(errors)
-					continue
-				e.close()
-				self.monitored_downloads.remove((e, dl))
-				data = dl.error_stream_closed()
-				if isinstance(dl, download.InterfaceDownload):
-					self.check_signed_data(dl, data)
-				elif isinstance(dl, download.ImplementationDownload):
-					self.add_to_cache(dl.source, data)
-				else:
-					raise Exception("Unknown download type %s" % dl)
+				self.handler.monitor_download(dl)
 
 	def execute(self, prog_args):
 		self.start_downloading_impls()
-		self.wait_for_downloads()
+		self.handler.wait_for_downloads()
 		if not self.download_only:
-			run.execute(self, prog_args, verbose = self.verbose,
-				    dry_run = self.dry_run)
-		elif self.verbose:
-			print "Downloads done (download-only mode)"
+			run.execute(self, prog_args, dry_run = self.dry_run)
+		else:
+			info("Downloads done (download-only mode)")
 	
 	def recalculate_with_dl(self):
 		self.recalculate()
-		if self.monitored_downloads:
-			self.wait_for_downloads()
+		if self.handler.monitored_downloads:
+			self.handler.wait_for_downloads()
 			self.recalculate()
 	
 	def download_and_execute(self, prog_args, refresh = False):

@@ -10,23 +10,18 @@ from namespaces import *
 import ConfigParser
 import reader
 import download
-
-def pretty_time(t):
-	assert isinstance(t, (int, long))
-	return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.localtime(t))
+from iface_cache import iface_cache
 
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
-		     'freshness', 'store', '_interfaces',
-		     'ready']
+		     'freshness', 'store', 'ready']
 
 	def __init__(self, root, handler = None):
 		user_store = os.path.expanduser('~/.cache/0install.net/implementations')
 		if not os.path.isdir(user_store):
 			os.makedirs(user_store)
 		self.store = zerostore.Store(user_store)
-		self._interfaces = {}			# URI -> Interface
 		self.watchers = []
 		self.help_with_testing = False
 		self.network_use = network_full
@@ -49,6 +44,8 @@ class Policy(object):
 				print >>sys.stderr, "Error loading config:", ex
 
 		self.set_root(root)
+
+		iface_cache.add_watcher(self)
 	
 	def set_root(self, root):
 		assert isinstance(root, (str, unicode))
@@ -72,12 +69,15 @@ class Policy(object):
 		self.implementation = {}
 		self.ready = True
 		def process(iface):
+			debug("recalculate: considering interface %s", iface)
 			impl = self.get_best_implementation(iface)
 			if impl:
+				debug("Will use implementation %s", impl)
 				self.implementation[iface] = impl
 				for d in impl.dependencies.values():
 					process(self.get_interface(d.interface))
 			else:
+				debug("No implementation chould be chosen yet");
 				self.ready = False
 		process(self.get_interface(self.root))
 		for w in self.watchers: w()
@@ -142,105 +142,37 @@ class Policy(object):
 		if self.network_use == network_offline and not self.get_cached(impl):
 			return True
 		return False
-	
+
 	def get_interface(self, uri):
-		"""Get the interface for uri. If it's in the cache, read that.
-		If it's not in the cache or policy says so, start downloading
-		the latest version."""
-		debug("get_interface %s", uri)
-		if type(uri) == str:
-			uri = unicode(uri)
-		assert isinstance(uri, unicode)
-
-		if uri not in self._interfaces:
-			# Haven't used this interface so far. Initialise from cache.
-			self._interfaces[uri] = Interface(uri)
-			self.init_interface(self._interfaces[uri])
-
-		staleness = time.time() - (self._interfaces[uri].last_checked or 0)
-		#print "Staleness for '%s' is %d" % (self._interfaces[uri].name, staleness)
-
-		if self.network_use != network_offline and \
-		   self.freshness > 0 and staleness > self.freshness:
-		   	#print "Updating..."
-			self.begin_iface_download(self._interfaces[uri])
-
-		return self._interfaces[uri]
-	
-	def init_interface(self, iface):
-		"""We've just created a new Interface. Update from disk cache/network."""
-		debug("Created " + iface.uri)
-		cached = reader.update_from_cache(iface)
-		if not cached:
+		new, iface = iface_cache.get_interface(uri)
+		if new and not iface.name:
 			if self.network_use != network_offline:
 				debug("Interface not cached and not off-line. Downloading...")
 				self.begin_iface_download(iface)
 			else:
 				debug("Nothing known about interface, but we are off-line.")
+		else:
+			staleness = time.time() - (iface.last_checked or 0)
+			debug("Staleness for '%s' is %d", iface.name, staleness)
+
+			if self.network_use != network_offline and self.freshness > 0 and staleness > self.freshness:
+				debug("Updating %s", iface)
+				self.begin_iface_download(iface, False)
+		return iface
 	
 	def begin_iface_download(self, interface, force = False):
 		debug("begin_iface_download %s (force = %d)", interface, force)
 		dl = download.begin_iface_download(interface, force)
 		if not dl:
 			assert not force
-			debug("Already in progress...")
-			return		# Already in progress
+			debug("Already in progress")
+			return
 
+		debug("Need to download")
 		# Calls update_interface_from_network eventually on success
-		debug("Monitoring...")
 		self.handler.monitor_download(dl)
 	
-	def update_interface_from_network(self, interface, new_xml, modified_time):
-		"""xml is the new XML (after the signature has been checked and
-		removed). modified_time will be set as an attribute on the root."""
-		debug("Updating '%s' from network; modified at %s" %
-			(interface.name or interface.uri, pretty_time(modified_time)))
-
-		from xml.dom import minidom
-		doc = minidom.parseString(new_xml)
-		doc.documentElement.setAttribute('last-modified', str(modified_time))
-		new_xml = StringIO()
-		doc.writexml(new_xml)
-
-		self.import_new_interface(interface, new_xml.getvalue())
-
-		import writer
-		interface.last_checked = long(time.time())
-		writer.save_interface(interface)
-
-		self.recalculate()
 	
-	def import_new_interface(self, interface, new_xml):
-		upstream_dir = basedir.save_cache_path(config_site, 'interfaces')
-		cached = os.path.join(upstream_dir, escape(interface.uri))
-
-		if os.path.exists(cached):
-			old_xml = file(cached).read()
-			if old_xml == new_xml:
-				debug("No change")
-				return
-
-		stream = file(cached + '.new', 'w')
-		stream.write(new_xml)
-		stream.close()
-		new_mtime = reader.check_readable(interface.uri, cached + '.new')
-		assert new_mtime
-		if interface.last_modified:
-			if new_mtime < interface.last_modified:
-				raise SafeException("New interface's modification time is before old "
-						    "version!"
-						    "\nOld time: " + pretty_time(interface.last_modified) +
-						    "\nNew time: " + pretty_time(new_mtime) + 
-						    "\nRefusing update (leaving new copy as " +
-						    cached + ".new)")
-			if new_mtime == interface.last_modified:
-				raise SafeException("Interface has changed, but modification time "
-						    "hasn't! Refusing update.")
-		os.rename(cached + '.new', cached)
-		debug("Saved as " + cached)
-
-		reader.update_from_cache(interface)
-
 	def get_implementation_path(self, impl):
 		assert isinstance(impl, Implementation)
 		if impl.id.startswith('/'):
@@ -289,60 +221,11 @@ class Policy(object):
 		return walk(self.get_interface(self.root))
 
 	def check_signed_data(self, download, signed_data):
-		"""Downloaded data is a GPG-signed message. Check that the signature is trusted
-		and call self.update_interface_from_network() when done."""
-		import gpg
-		data, sigs = gpg.check_stream(signed_data)
-
-		new_keys = False
-		import_error = None
-		for x in sigs:
-			need_key = x.need_key()
-			if need_key:
-				try:
-					self.download_key(download.interface, need_key)
-				except SafeException, ex:
-					import_error = ex
-				new_keys = True
-
-		if new_keys:
-			signed_data.seek(0)
-			data, sigs = gpg.check_stream(signed_data)
-			# If we got an error importing the keys, then report it now.
-			# If we still have missing keys, raise it as an exception, but
-			# if the keys got imported, just print and continue...
-			if import_error:
-				for x in sigs:
-					if x.need_key():
-						raise import_error
-				print >>sys.stderr, str(ex)
-
-		iface_xml = data.read()
-		data.close()
-
-		if not self.update_interface_if_trusted(download.interface, sigs, iface_xml):
-			self.handler.confirm_trust_keys(download.interface, sigs, iface_xml)
+		iface_cache.check_signed_data(download.interface, signed_data, self.handler)
 	
-	def download_key(self, interface, key_id):
-		assert interface
-		assert key_id
-		import urlparse, urllib2
-		key_url = urlparse.urljoin(interface.uri, '%s.gpg' % key_id)
-		print "Fetching key from", key_url
-		try:
-			stream = urllib2.urlopen(key_url)
-		except Exception, ex:
-			raise SafeException("Failed to download key from '%s': %s" % (key_url, str(ex)))
-		import gpg
-		gpg.import_key(stream)
-		stream.close()
-
 	def update_interface_if_trusted(self, interface, sigs, xml):
-		for s in sigs:
-			if s.is_trusted():
-				self.update_interface_from_network(interface, xml, s.get_timestamp())
-				return True
-		return False
+		assert self.handler is not self
+		return self.handler.update_interface_if_trusted(interface, sigs, xml)
 	
 	def get_cached(self, impl):
 		if impl.id.startswith('/'):
@@ -373,44 +256,6 @@ class Policy(object):
 		for x in self.walk_interfaces():
 			self.begin_iface_download(x, force)
 	
-	# These methods are called as self.handler.method(). They should be
-	# moved to another class.
-
-	def monitor_download(self, dl):
-		raise NotImplementedError("Abstract method")
-	
-	def confirm_trust_keys(self, interface, sigs, iface_xml):
-		"""We don't trust any of the signatures yet. Ask the user.
-		When done, call update_interface_if_trusted()."""
-		import gpg
-		if not sigs:
-			raise SafeException('No signature on %s!\n'
-					    'Possible reasons:\n'
-					    '- You entered the interface URL incorrectly.\n'
-					    '- The server delivered an error; try viewing the URL in a web browser.\n'
-					    '- The developer gave you the URL of the unsigned interface by mistake.'
-					    % interface.uri)
-		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
-		if not valid_sigs:
-			raise SafeException('No valid signatures found. Signatures:' +
-					''.join(['\n- ' + str(s) for s in sigs]))
-
-		print "\nInterface:", interface.uri
-		print "The interface is correctly signed with the following keys:"
-		for x in valid_sigs:
-			print "-", x
-		print "Do you want to trust all of these keys to sign interfaces?"
-		while True:
-			i = raw_input("Trust all [Y/N] ")
-			if not i: continue
-			if i in 'Nn':
-				raise SafeException('Not signed with a trusted key')
-			if i in 'Yy':
-				break
-		from trust import trust_db
-		for key in valid_sigs:
-			print "Trusting", key.fingerprint
-			trust_db.trust_key(key.fingerprint)
-
-		if not self.update_interface_if_trusted(interface, sigs, iface_xml):
-			raise Exception('Bug: still not trusted!!')
+	def interface_changed(self, interface):
+		debug("interface_changed(%s): recalculating", interface)
+		self.recalculate()

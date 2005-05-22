@@ -1,6 +1,8 @@
 #!/usr/bin/env python2.3
 import sys, tempfile, os, shutil
 import unittest
+from logging import getLogger, DEBUG, INFO
+#getLogger().setLevel(DEBUG)
 
 sys.path.insert(0, '..')
 
@@ -9,7 +11,7 @@ cache_home = tempfile.mktemp()
 os.environ['XDG_CONFIG_HOME'] = config_home
 os.environ['XDG_CACHE_HOME'] = cache_home
 
-from zeroinstall.injector import model, basedir, autopolicy, gpg
+from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache
 import data
 reload(basedir)
 
@@ -28,6 +30,7 @@ class TestAutoPolicy(unittest.TestCase):
 		stream.write(data.thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)
+		iface_cache.iface_cache._interfaces = {}
 	
 	def tearDown(self):
 		shutil.rmtree(config_home)
@@ -43,8 +46,8 @@ class TestAutoPolicy(unittest.TestCase):
 		f.close()
 
 	def testNoNeedDl(self):
-		policy = autopolicy.AutoPolicy(foo_iface_uri,
-				False, False, False)
+		policy = autopolicy.AutoPolicy(foo_iface_uri, quiet = False,
+						download_only = False)
 		policy.freshness = 0
 		assert policy.need_download()
 		self.cache_iface(foo_iface_uri,
@@ -59,8 +62,7 @@ class TestAutoPolicy(unittest.TestCase):
 		assert not policy.need_download()
 	
 	def testDownload(self):
-		policy = autopolicy.AutoPolicy(foo_iface_uri,
-				False, False, False)
+		policy = autopolicy.AutoPolicy(foo_iface_uri, False, False)
 		policy.freshness = 0
 		self.cache_iface(foo_iface_uri,
 """<?xml version="1.0" ?>

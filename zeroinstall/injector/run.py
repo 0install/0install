@@ -1,18 +1,17 @@
 import os, sys
+from logging import debug, info
 
 from model import Interface, SafeException, EnvironmentBinding
 
-def do_env_binding(binding, path, verbose):
+def do_env_binding(binding, path):
 	extra = os.path.join(path, binding.insert)
 	if binding.name in os.environ:
 		os.environ[binding.name] = extra + ':' + os.environ[binding.name]
 	else:
 		os.environ[binding.name] = extra
-	if verbose:
-		print "%s=%s" % (binding.name, os.environ[binding.name])
+	info("%s=%s", binding.name, os.environ[binding.name])
 
-def execute(policy, prog_args, verbose = False, dry_run = False):
-	verbose = verbose or dry_run
+def execute(policy, prog_args, dry_run = False):
 	iface = policy.get_interface(policy.root)
 	if not iface.main:
 		raise SafeException("Interface '%s' cannot be executed directly; it is just a library "
@@ -26,7 +25,7 @@ def execute(policy, prog_args, verbose = False, dry_run = False):
 			for b in dep.bindings:
 				if isinstance(b, EnvironmentBinding):
 					dep_impl = policy.get_implementation(dep_iface)
-					do_env_binding(b, policy.get_implementation_path(dep_impl), verbose)
+					do_env_binding(b, policy.get_implementation_path(dep_impl))
 			setup_bindings(dep_iface)
 	setup_bindings(iface)
 	
@@ -36,7 +35,8 @@ def execute(policy, prog_args, verbose = False, dry_run = False):
 		raise SafeException("File '%s' does not exist.\n"
 				"(implementation '%s' + program '%s')" %
 				(prog_path, policy.implementation[iface].id, iface.main))
-	if verbose or dry_run:
-		print "Executing:", prog_path
-	if not dry_run:
+	if dry_run:
+		print "Would execute:", prog_path
+	else:
+		info("Executing: %s", prog_path)
 		os.execl(prog_path, prog_path, *prog_args)
