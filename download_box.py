@@ -1,11 +1,13 @@
 import gtk
 import os
 
-from model import SafeException
+from zeroinstall.injector.model import SafeException
+from zeroinstall.injector import download
 from gui import policy, pretty_size
 from dialog import Dialog
-import download
-import dialog
+
+import warnings
+warnings.filterwarnings('ignore', category = DeprecationWarning, module='download_box')
 
 def download_with_gui(mainwindow, prog_args, run_afterwards):
 	"""If all downloads are ready, runs the program. Otherwise,

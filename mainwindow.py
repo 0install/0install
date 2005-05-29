@@ -4,7 +4,7 @@ from iface_browser import InterfaceBrowser
 import help_box
 from gui import policy
 from dialog import Dialog
-from model import stable, testing, network_levels, SafeException
+from zeroinstall.injector.model import stable, testing, network_levels, SafeException
 from freshness import freshness_levels, Freshness
 
 class MainWindow(Dialog):

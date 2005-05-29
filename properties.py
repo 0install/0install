@@ -1,11 +1,11 @@
-from model import *
+from zeroinstall.injector.model import *
+from zeroinstall.injector import writer
 import gtk
 
 import help_box
 from dialog import Dialog
 from gui import policy
 from impl_list import ImplementationList
-import writer
 import time
 
 _dialogs = {}	# Interface -> Properties

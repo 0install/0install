@@ -19,7 +19,7 @@ if len(args) < 1:
 interface_uri = args[0]
 prog_args = args[1:]
 
-import model
+from zeroinstall.injector import model
 from gui import GUIPolicy
 import gui, gtk
 

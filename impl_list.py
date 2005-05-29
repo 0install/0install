@@ -1,7 +1,6 @@
 import gtk
-import model
+from zeroinstall.injector import model, writer
 from gui import policy, pretty_size
-import writer
 
 def popup_menu(bev, values, fn):
 	menu = gtk.Menu()

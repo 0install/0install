@@ -1,6 +1,6 @@
 import gtk
 
-from model import Interface
+from zeroinstall.injector.model import Interface
 import properties
 from gui import policy, pretty_size
 

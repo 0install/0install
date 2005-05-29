@@ -1,5 +1,5 @@
 import gtk
-from model import SafeException
+from zeroinstall.injector.model import SafeException
 
 import gui
 import dialog

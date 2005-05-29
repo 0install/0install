@@ -1,10 +1,10 @@
 import gtk, os, gobject
 
-from policy import Policy
-import download
+from zeroinstall.injector.policy import Policy
+from zeroinstall.injector import download
+from zeroinstall.injector.model import SafeException
+from zeroinstall.injector.reader import InvalidInterface
 import dialog
-from reader import InvalidInterface
-from model import SafeException
 
 # Singleton Policy
 policy = None
