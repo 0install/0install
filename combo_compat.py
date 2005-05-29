@@ -1,6 +1,9 @@
 import gtk, gobject
 
 class Action(gobject.GObject):
+	__proxy = None
+	__sensitive = True
+
 	__gproperties__ = {
           'sensitive' : (gobject.TYPE_BOOLEAN,		# type
                     'sensitive',                        # nick name
@@ -23,7 +26,17 @@ class Action(gobject.GObject):
 		return setattr(self, property.name, value)
 	
 	def connect_proxy(self, widget):
-		print "connect_proxy", widget
+		assert self.__proxy is None
+		self.__proxy = widget
+		self.sensitive = self.__sensitive
+		widget.connect('clicked', lambda w: self.emit('activate'))
+
+	def set_sensitive(self, value):
+		if self.__proxy:
+			self.__proxy.set_sensitive(value)
+		self.__sensitive = value
+	
+	sensitive = property(lambda self: self.__sensitive, set_sensitive)
 
 gobject.type_register(Action)
 
