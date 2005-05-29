@@ -2,7 +2,7 @@ import gtk
 import os
 
 from zeroinstall.injector.model import SafeException
-from zeroinstall.injector import download
+from zeroinstall.injector import download, run
 from gui import policy, pretty_size
 from dialog import Dialog
 
@@ -27,7 +27,6 @@ def download_with_gui(mainwindow, prog_args, run_afterwards):
 		if not run_afterwards:
 			mainwindow.destroy()
 			return
-		import run
 		try:
 			run.execute(policy, prog_args)
 			mainwindow.destroy()

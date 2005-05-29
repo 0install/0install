@@ -44,10 +44,12 @@ class ComboText(gtk.OptionMenu):
 	def __init__(self):
 		gtk.OptionMenu.__init__(self)
 		self.__menu = gtk.Menu()
+		self.__model = []
 		self.set_menu(self.__menu)
 
 	def append_text(self, text):
 		item = gtk.MenuItem(text)
+		self.__model.append([text])
 		self.__menu.append(item)
 
 	def set_active(self, i):
@@ -55,6 +57,9 @@ class ComboText(gtk.OptionMenu):
 	
 	def get_active(self):
 		return self.get_history()
+	
+	def get_model(self):
+		return self.__model
 
 def combo_box_new_text():
 	return ComboText()
