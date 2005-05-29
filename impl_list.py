@@ -1,4 +1,4 @@
-import gtk
+import gtk, gobject
 from zeroinstall.injector import model, writer
 from gui import policy, pretty_size
 
@@ -31,7 +31,9 @@ class ImplementationList(gtk.ScrolledWindow):
 		gtk.ScrolledWindow.__init__(self, None, None)
 		self.set_shadow_type(gtk.SHADOW_IN)
 
-		self.model = gtk.ListStore(object, str, str, str, bool, str, bool)
+		self.model = gtk.ListStore(object, str, str, str,
+			   gobject.TYPE_BOOLEAN, str, gobject.TYPE_BOOLEAN)
+
 		self.tree_view = gtk.TreeView(self.model)
 
 		text = gtk.CellRendererText()
