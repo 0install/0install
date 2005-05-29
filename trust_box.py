@@ -1,10 +1,9 @@
 import gtk
 from zeroinstall.injector.model import SafeException
+from zeroinstall.injector import gpg, trust
 
 import gui
 import dialog
-import gpg
-import trust
 
 def pretty_fp(fp):
 	s = fp[0:4]

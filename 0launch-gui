@@ -23,6 +23,9 @@ from zeroinstall.injector import model
 from gui import GUIPolicy
 import gui, gtk
 
+if not hasattr(gtk, 'combo_box_new_text'):
+	import combo_compat
+
 gtk.rc_parse_string('style "scrolled" { '
 		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
 		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
