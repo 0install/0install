@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os, sys
 from optparse import OptionParser
-from logging import debug, info, DEBUG, INFO, getLogger
+import logging
 
 from zeroinstall.injector import model, download, autopolicy, run, namespaces
 
@@ -22,10 +22,15 @@ parser.disable_interspersed_args()
 (options, args) = parser.parse_args()
 
 if options.verbose:
+	logger = logging.getLogger()
 	if options.verbose == 1:
-		getLogger().setLevel(INFO)
+		logger.setLevel(logging.INFO)
 	else:
-		getLogger().setLevel(DEBUG)
+		logger.setLevel(logging.DEBUG)
+        hdlr = logging.StreamHandler()
+        fmt = logging.Formatter("%(levelname)s:%(message)s")
+        hdlr.setFormatter(fmt)
+        logger.addHandler(hdlr)
 
 if options.list:
 	if len(args) == 0:
@@ -64,14 +69,14 @@ try:
 		for x in args:
 			if not os.path.isfile(x):
 				raise model.SafeException("File '%s' does not exist" % x)
-			info("Importing from file '%s'", x)
+			logging.info("Importing from file '%s'", x)
 			signed_data = file(x)
 			data, sigs = gpg.check_stream(signed_data)
 			doc = minidom.parseString(data.read())
 			uri = doc.documentElement.getAttribute('uri')
 			assert uri
 			new, iface = iface_cache.get_interface(uri)
-			info("Importing information about interface %s", iface)
+			logging.info("Importing information about interface %s", iface)
 			signed_data.seek(0)
 			iface_cache.check_signed_data(iface, signed_data, handler.Handler())
 		sys.exit(0)
@@ -87,7 +92,7 @@ try:
 		else:
 			options.gui = policy.need_download()
 		if options.gui:
-			info("Need to download; switching to GUI mode")
+			logging.info("Need to download; switching to GUI mode")
 except model.SafeException, ex:
 	print >>sys.stderr, ex
 	sys.exit(1)
