@@ -1,0 +1,70 @@
+.TH 0ALIAS 1 "2005" "Thomas Leonard" ""
+.SH NAME
+0alias \- create quick scripts to run 0launch
+
+.SH SYNOPSIS
+
+.B 0alias
+\fBALIAS\fP \fBINTERFACE\fP
+
+.SH DESCRIPTION
+.PP
+Having to keep typing the full URI for a program each time you want to run it
+with 0launch is annoying. 0alias will create a little script in your PATH to
+do it for you.
+
+.SH EXAMPLES
+
+.PP
+A program is normally invoked using 0launch:
+
+.B 0launch http://rox.sourceforge.net/2005/interfaces/Edit
+
+.PP
+To avoid having to keep entering the URI, create an alias:
+
+.B 0alias rox-edit http://rox.sourceforge.net/2005/interfaces/Edit
+
+.PP
+To run Edit now:
+
+.B rox-edit
+
+.PP
+To select a different version, or check for updates:
+
+.B rox-edit --versions
+
+
+.SH COMMAND-LINE OPTIONS
+
+.TP
+\fB-h\fP, \fB--help\fP
+Show the built-in help text.
+
+.TP
+\fB-V\fP, \fB--version\fP
+Display version information.
+
+.SH LICENSE
+.PP
+Copyright (C) 2005 Thomas Leonard.
+
+.PP
+You may redistribute copies of this program under the terms of the GNU General Public License.
+.SH BUGS
+.PP
+Please report bugs to the developer mailing list:
+
+http://0install.net/support.html
+
+.SH AUTHOR
+.PP
+The Zero Install Injector was created by Thomas Leonard.
+
+.SH SEE ALSO
+0launch(1)
+.PP
+The Zero Install web-site:
+
+.B http://0install.net

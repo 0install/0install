@@ -72,7 +72,7 @@ class Policy(object):
 			debug("recalculate: considering interface %s", iface)
 			impl = self.get_best_implementation(iface)
 			if impl:
-				debug("Will use implementation %s", impl)
+				debug("Will use implementation %s (version %s)", impl, impl.get_version())
 				self.implementation[iface] = impl
 				for d in impl.dependencies.values():
 					process(self.get_interface(d.interface))
