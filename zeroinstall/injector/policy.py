@@ -3,7 +3,6 @@ import sys
 from logging import debug
 from cStringIO import StringIO
 
-from zeroinstall import zerostore
 from model import *
 import basedir
 from namespaces import *
@@ -18,10 +17,7 @@ class Policy(object):
 		     'freshness', 'store', 'ready']
 
 	def __init__(self, root, handler = None):
-		user_store = os.path.expanduser('~/.cache/0install.net/implementations')
-		if not os.path.isdir(user_store):
-			os.makedirs(user_store)
-		self.store = zerostore.Store(user_store)
+		self.store = iface_cache.store
 		self.watchers = []
 		self.help_with_testing = False
 		self.network_use = network_full
@@ -240,9 +236,7 @@ class Policy(object):
 		return False
 	
 	def add_to_cache(self, source, data):
-		assert isinstance(source, DownloadSource)
-		required_digest = source.implementation.id
-		self.store.add_tgz_to_cache(required_digest, data, source.extract)
+		iface_cache.add_to_cache(source, data)
 	
 	def get_uncached_implementations(self):
 		uncached = []
