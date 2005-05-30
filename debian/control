@@ -7,7 +7,7 @@ Standards-Version: 3.6.1
 
 Package: zeroinstall-injector
 Architecture: all
-Depends: ${python:Depends}
+Depends: ${python:Depends}, gnupg, python-gtk2
 Description: run programs by URL
  The Zero Install Injector makes it easy for users to install software without
  needing root privileges. It takes the URL of a program and runs it
