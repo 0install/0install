@@ -46,7 +46,7 @@ class TestAutoPolicy(unittest.TestCase):
 		f.close()
 
 	def testNoNeedDl(self):
-		policy = autopolicy.AutoPolicy(foo_iface_uri, quiet = False,
+		policy = autopolicy.AutoPolicy(foo_iface_uri,
 						download_only = False)
 		policy.freshness = 0
 		assert policy.need_download()

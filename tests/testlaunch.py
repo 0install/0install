@@ -96,8 +96,7 @@ class TestLaunch(unittest.TestCase):
 	def testDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run(['--dry-run', 'http://foo'])
-		self.assertEquals("Need to download; switching to GUI mode\n"
-				   "Would download 'http://0install.net/2005/interfaces/injector-gui'\n",
+		self.assertEquals("Would download 'http://0install.net/2005/interfaces/injector-gui'\n",
 				   out)
 		self.assertEquals("", err)
 
@@ -105,8 +104,7 @@ class TestLaunch(unittest.TestCase):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run(['--dry-run', '--download-only',
 				     '--refresh', 'http://foo'])
-		self.assertEquals("Need to download; switching to GUI mode\n"
-				  "Would download 'http://0install.net/2005/interfaces/injector-gui'\n",
+		self.assertEquals("Would download 'http://0install.net/2005/interfaces/injector-gui'\n",
 				  out)
 		self.assertEquals("", err)
 
