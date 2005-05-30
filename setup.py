@@ -8,5 +8,6 @@ setup(name="injector",
       author_email="-",
       url="http://0install.net",
       scripts=['0launch', '0alias'],
-      license='GPL',
+      data_files = [('man/man1', ['0launch.1', '0alias.1'])],
+      license='LGPL',
       packages=["zeroinstall", "zeroinstall.zerostore", "zeroinstall.injector"])
