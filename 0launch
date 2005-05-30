@@ -14,7 +14,6 @@ parser.add_option("-D", "--dry-run", help="just print actions", action='store_tr
 parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
 parser.add_option("-i", "--import", help="import from files, not from the network", action='store_true')
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
-parser.add_option("-q", "--quiet", help="suppress informational messages", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
 parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 parser.add_option("-V", "--version", help="display version information", action='store_true')
@@ -79,7 +78,6 @@ try:
 
 	# Singleton instance used everywhere...
 	policy = autopolicy.AutoPolicy(args[0],
-				quiet = bool(options.quiet),
 				download_only = bool(options.download_only),
 				dry_run = options.dry_run)
 
@@ -88,8 +86,8 @@ try:
 			options.gui = True
 		else:
 			options.gui = policy.need_download()
-		if options.gui and not options.quiet:
-			print "Need to download; switching to GUI mode"
+		if options.gui:
+			info("Need to download; switching to GUI mode")
 except model.SafeException, ex:
 	print >>sys.stderr, ex
 	sys.exit(1)
