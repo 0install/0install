@@ -1,4 +1,5 @@
 include COPYING
+include *.1
 include tests
 include tests/*.py
 include tests/data
