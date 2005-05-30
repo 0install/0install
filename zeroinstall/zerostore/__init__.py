@@ -4,6 +4,7 @@ import traceback
 from tempfile import mkdtemp
 import sha
 import re
+from logging import debug, info
 
 import manifest
 
@@ -28,10 +29,10 @@ class Store:
 		than extracting the whole archive. This is most useful to remove an extra
 		top-level directory."""
 		assert required_digest.startswith('sha1=')
-		print "Adding impl with digest:", required_digest
+		info("Adding implementation with digest %s", required_digest)
 
 		if self.lookup(required_digest):
-			print "Not adding", required_digest, "as it already exists!"
+			info("Not adding %s as it already exists!", required_digest)
 			return
 
 		if 'GNU tar' in os.popen('tar --version 2>&1').read():
