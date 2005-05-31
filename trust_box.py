@@ -3,7 +3,7 @@ from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import gpg, trust
 
 import gui
-import dialog
+import dialog, help_box
 
 def pretty_fp(fp):
 	s = fp[0:4]
@@ -14,12 +14,20 @@ def pretty_fp(fp):
 class TrustBox(dialog.Dialog):
 	model = None
 	tree_view = None
-	interfaces = None	# Interface -> (xml, [Keys])
 
-	def __init__(self):
+	interface = None
+	sigs = None
+	iface_xml = None
+
+	def __init__(self, interface, sigs, iface_xml):
 		dialog.Dialog.__init__(self)
+		self.connect('destroy', lambda a: _pop_queue())
+
+		self.interface = interface
+		self.sigs = sigs
+		self.iface_xml = iface_xml
+
 		self.set_title('Confirm trust')
-		self.interfaces = {}
 
 		label = gtk.Label('Please confirm that you trust '
 				  'these keys to sign software updates:')
@@ -46,52 +54,85 @@ class TrustBox(dialog.Dialog):
 
 		self.vbox.show_all()
 		
+		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		self.add_button(gtk.STOCK_ADD, gtk.RESPONSE_OK)
 		self.set_default_response(gtk.RESPONSE_OK)
 
 		def response(box, resp):
+			if resp == gtk.RESPONSE_HELP:
+				trust_help.display()
+				return
 			if resp == gtk.RESPONSE_OK:
 				self.trust_keys()
-			self.hide()
+			self.destroy()
 		self.connect('response', response)
-
-		self.connect('delete-event', lambda box, ev: True)
 	
-	def confirm_trust(self, interface, sigs, iface_xml):
 		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
 		if not valid_sigs:
 			raise SafeException('No valid signatures found')
 
-		self.interfaces[interface] = (iface_xml, valid_sigs)
+		for sig in sigs:
+			titer = self.model.append()
+			self.model[titer][0] = pretty_fp(sig.fingerprint)
+			self.model[titer][1] = sig
 
-		self.rebuild_model()
 		self.tree_view.expand_all()
-		trust_box.present()
-	
-	def rebuild_model(self):
-		ifaces = self.interfaces.keys()
-		ifaces.sort()		# Keep the order stable
-		self.model.clear()
-		for i in ifaces:
-			for sig in self.interfaces[i][1]:
-				titer = self.model.append()
-				self.model[titer][0] = pretty_fp(sig.fingerprint)
-				self.model[titer][1] = sig
+		self.present()
 	
 	def trust_keys(self):
 		for row in self.model:
 			sig = row[1]
-			print "Trusing", sig.fingerprint
 			trust.trust_db.trust_key(sig.fingerprint)
 
-		ifaces = self.interfaces
-		self.interfaces = {}
-		self.rebuild_model()
-		for i in ifaces:
-			iface_xml, sigs = ifaces[i]
-			if not gui.policy.update_interface_if_trusted(i, sigs, iface_xml):
-				raise Exception('Bug: still not trusted!!')
+		if not gui.policy.update_interface_if_trusted(self.interface, self.sigs,
+							      self.iface_xml):
+			raise Exception('Bug: still not trusted!!')
 
-# Singleton, to avoid opening too many windows at once
-trust_box = TrustBox()
+_queue = []
+def _pop_queue():
+	if _queue:
+		a = _queue.pop()
+		a.show()
+
+def confirm_trust(interface, sigs, iface_xml):
+	_queue.append(TrustBox(interface, sigs, iface_xml))
+	if len(_queue) == 1:
+		_pop_queue()
+
+trust_help = help_box.HelpBox("Trust Help",
+('Overview', """
+When you run a program, it typically has access to all your files and can generally do \
+anything that you're allowed to do (delete files, send emails, etc). So it's important \
+to make sure that you don't run anything malicious."""),
+
+('Digital signatures', """
+Each software author creates a 'key-pair'; a 'public key' and a 'private key'. Without going \
+into the maths, only something encrypted with the private key will decrypt with the public key.
+
+So, when a programmer releases some software, they encrypt it with their private key (which no-one \
+else has). When you download it, the injector checks that it decrypts using their public key, thus \
+proving that it came from them and hasn't been tampered with."""),
+
+('Trust', """
+After the injector has checked that the software hasn't been modified since it was signed with \
+the private key, you still have the following problems:
+
+1. Does the public key you have really belong to the author?
+2. Even if the software really did come from that person, do you trust them?"""),
+
+('Key fingerprints', """
+To confirm (1), you should compare the public key you have with the genuine one. To make this \
+easier, the injector displays a 'fingerprint' for the key. Look in mailing list postings or some \
+other source to check that the fingerprint is right (a different key will have a different \
+fingerprint).
+
+You're trying to protect against the situation where an attacker breaks into a web site \
+and puts up malicious software, signed with the attacker's private key, and puts up their \
+public key too. If you've downloaded the real software before, you should be suspicious that \
+the fingerprint has changed!"""),
+
+('Reputation', """
+In general, most problems seem to come from malicous and otherwise-unknown people \
+replacing software with modified versiosn, or creating new programs intended only to \
+cause damage. So, check your programs are signed by a key with a good reputation!"""))

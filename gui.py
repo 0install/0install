@@ -70,7 +70,7 @@ class GUIPolicy(Policy):
 	
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		import trust_box
-		trust_box.trust_box.confirm_trust(interface, sigs, iface_xml)
+		trust_box.confirm_trust(interface, sigs, iface_xml)
 
 	def main(self):
 		self.window.show()
