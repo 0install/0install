@@ -1,6 +1,7 @@
 import gtk
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import gpg, trust
+from zeroinstall.injector.iface_cache import iface_cache
 
 import gui
 import dialog, help_box
@@ -85,7 +86,7 @@ class TrustBox(dialog.Dialog):
 			sig = row[1]
 			trust.trust_db.trust_key(sig.fingerprint)
 
-		if not gui.policy.update_interface_if_trusted(self.interface, self.sigs,
+		if not iface_cache.update_interface_if_trusted(self.interface, self.sigs,
 							      self.iface_xml):
 			raise Exception('Bug: still not trusted!!')
 
