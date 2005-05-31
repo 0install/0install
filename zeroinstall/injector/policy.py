@@ -168,7 +168,6 @@ class Policy(object):
 		# Calls update_interface_from_network eventually on success
 		self.handler.monitor_download(dl)
 	
-	
 	def get_implementation_path(self, impl):
 		assert isinstance(impl, Implementation)
 		if impl.id.startswith('/'):
@@ -218,12 +217,6 @@ class Policy(object):
 
 	def check_signed_data(self, download, signed_data):
 		iface_cache.check_signed_data(download.interface, signed_data, self.handler)
-	
-	def update_interface_if_trusted(self, interface, sigs, xml):
-		if iface_cache.update_interface_if_trusted(interface, sigs, xml):
-			self.recalculate()
-			return True
-		return False
 	
 	def get_cached(self, impl):
 		if impl.id.startswith('/'):
