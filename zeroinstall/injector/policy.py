@@ -220,8 +220,10 @@ class Policy(object):
 		iface_cache.check_signed_data(download.interface, signed_data, self.handler)
 	
 	def update_interface_if_trusted(self, interface, sigs, xml):
-		assert self.handler is not self
-		return self.handler.update_interface_if_trusted(interface, sigs, xml)
+		if iface_cache.update_interface_if_trusted(interface, sigs, xml):
+			self.recalculate()
+			return True
+		return False
 	
 	def get_cached(self, impl):
 		if impl.id.startswith('/'):
