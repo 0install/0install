@@ -30,6 +30,8 @@ class ValidSig(Signature):
 	def get_timestamp(self):
 		return int(self.status[self.TIMESTAMP])
 
+	fingerprint = property(lambda self: self.status[self.FINGERPRINT])
+
 class BadSig(Signature):
 	KEYID = 0
 
