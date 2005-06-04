@@ -1,4 +1,4 @@
-import gtk, os, gobject
+import gtk, os, gobject, sys
 
 from zeroinstall.injector.policy import Policy
 from zeroinstall.injector import download
@@ -19,6 +19,13 @@ class GUIPolicy(Policy):
 		global policy
 		assert policy is None
 		policy = self
+
+		try:
+			self.ready
+		except:
+			self.ready = True
+			print >>sys.stderr, "Your version of the injector is very old. " \
+				"Try upgrading (http://0install.net/injector)"
 
 		import mainwindow
 		self.window = mainwindow.MainWindow(prog_args, download_only)
