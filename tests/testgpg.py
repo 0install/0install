@@ -101,7 +101,7 @@ class TestGPG(unittest.TestCase):
 		assert len(sigs) == 1
 		assert isinstance(sigs[0], gpg.ValidSig)
 		self.assertEquals("92429807C9853C0744A68B9AAE07828059A53CC1",
-				  sigs[0].status[gpg.ValidSig.FINGERPRINT])
+				  sigs[0].fingerprint)
 		assert sigs[0].is_trusted() is True
 		assert sigs[0].need_key() is None
 		assert str(sigs[0]).startswith('Valid')
