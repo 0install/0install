@@ -20,13 +20,6 @@ class GUIPolicy(Policy):
 		assert policy is None
 		policy = self
 
-		try:
-			self.ready
-		except:
-			self.ready = True
-			print >>sys.stderr, "Your version of the injector is very old. " \
-				"Try upgrading (http://0install.net/injector)"
-
 		import mainwindow
 		self.window = mainwindow.MainWindow(prog_args, download_only)
 		self.window.browser.set_root(policy.get_interface(policy.root))
@@ -73,8 +66,15 @@ class GUIPolicy(Policy):
 	
 	def recalculate(self):
 		Policy.recalculate(self)
-		self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
-	
+		try:
+			self.ready
+		except:
+			self.ready = True
+			print >>sys.stderr, "Your version of the injector is very old. " \
+				"Try upgrading (http://0install.net/injector.html)"
+		else:
+			self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
+
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		import trust_box
 		trust_box.confirm_trust(interface, sigs, iface_xml)
