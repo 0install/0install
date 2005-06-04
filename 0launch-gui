@@ -1,16 +1,28 @@
 #!/usr/bin/env python
 import os, sys
 from optparse import OptionParser
+import gui
 
 __builtins__._ = lambda x: x
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]")
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
+parser.add_option("-v", "--version", help="display version information", action='store_true')
 
 parser.disable_interspersed_args()
 
 (options, args) = parser.parse_args()
+
+if options.version:
+	print "0launch-gui (zero-install) " + gui.version
+	print "Copyright (C) 2005 Thomas Leonard"
+	print "This program comes with ABSOLUTELY NO WARRANTY,"
+	print "to the extent permitted by law."
+	print "You may redistribute copies of this program"
+	print "under the terms of the GNU General Public License."
+	print "For more information about these matters, see the file named COPYING."
+	sys.exit(0)
 
 if len(args) < 1:
 	parser.print_help()
@@ -20,8 +32,7 @@ interface_uri = args[0]
 prog_args = args[1:]
 
 from zeroinstall.injector import model
-from gui import GUIPolicy
-import gui, gtk
+import gtk
 
 if not hasattr(gtk, 'combo_box_new_text'):
 	import combo_compat
@@ -30,7 +41,7 @@ gtk.rc_parse_string('style "scrolled" { '
 		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
 		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
 
-policy = GUIPolicy(interface_uri, prog_args,
+policy = gui.GUIPolicy(interface_uri, prog_args,
 		   download_only = bool(options.download_only))
 if options.refresh:
 	policy.refresh_all(force = False)

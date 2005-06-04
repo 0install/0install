@@ -6,6 +6,8 @@ from zeroinstall.injector.model import SafeException
 from zeroinstall.injector.reader import InvalidInterface
 import dialog
 
+version = '0.6'
+
 # Singleton Policy
 policy = None
 
