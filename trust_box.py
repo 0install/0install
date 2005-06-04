@@ -6,6 +6,13 @@ from zeroinstall.injector.iface_cache import iface_cache
 import gui
 import dialog, help_box
 
+def fingerprint(sig):
+	try:
+		return sig.fingerprint
+	except:
+		# Work around a bug in injector-0.9
+		return sig.status[sig.FINGERPRINT]
+
 def pretty_fp(fp):
 	s = fp[0:4]
 	for x in range(4, len(fp), 4):
@@ -75,7 +82,7 @@ class TrustBox(dialog.Dialog):
 
 		for sig in sigs:
 			titer = self.model.append()
-			self.model[titer][0] = pretty_fp(sig.fingerprint)
+			self.model[titer][0] = pretty_fp(fingerprint(sig))
 			self.model[titer][1] = sig
 
 		self.tree_view.expand_all()
@@ -84,7 +91,7 @@ class TrustBox(dialog.Dialog):
 	def trust_keys(self):
 		for row in self.model:
 			sig = row[1]
-			trust.trust_db.trust_key(sig.fingerprint)
+			trust.trust_db.trust_key(fingerprint(sig))
 
 		if not iface_cache.update_interface_if_trusted(self.interface, self.sigs,
 							      self.iface_xml):
@@ -129,11 +136,11 @@ other source to check that the fingerprint is right (a different key will have a
 fingerprint).
 
 You're trying to protect against the situation where an attacker breaks into a web site \
-and puts up malicious software, signed with the attacker's private key, and puts up their \
-public key too. If you've downloaded the real software before, you should be suspicious that \
-the fingerprint has changed!"""),
+and puts up malicious software, signed with the attacker's private key, and puts up the \
+attacker's public key too. If you've downloaded this software before, you \
+should be suspicious that you're being asked to confirm another key!"""),
 
 ('Reputation', """
 In general, most problems seem to come from malicous and otherwise-unknown people \
-replacing software with modified versiosn, or creating new programs intended only to \
+replacing software with modified versions, or creating new programs intended only to \
 cause damage. So, check your programs are signed by a key with a good reputation!"""))
