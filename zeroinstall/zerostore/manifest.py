@@ -72,14 +72,3 @@ def add_manifest_file(dir, digest):
 	stream.write(manifest)
 	stream.close()
 	return digest
-
-if __name__ == '__main__':
-	import sys
-	unpacked = sys.argv[1]
-	assert os.path.isdir(unpacked)
-
-	digest = sha.new()
-	for line in generate_manifest(unpacked):
-		print line
-		digest.update(line + '\n')
-	print "sha1=" + digest.hexdigest()

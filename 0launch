@@ -7,13 +7,15 @@ from zeroinstall.injector import model, download, autopolicy, run, namespaces
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]\n"
-			    "       %prog --import [interface-files]")
+			    "       %prog --import [interface-files]\n"
+			    "       %prog --manifest [directory]")
 parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
 parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
 parser.add_option("-i", "--import", help="import from files, not from the network", action='store_true')
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
+parser.add_option("-m", "--manifest", help="generate a manifest", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
 parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 parser.add_option("-V", "--version", help="display version information", action='store_true')
@@ -60,6 +62,19 @@ if options.version:
 if len(args) < 1:
 	parser.print_help()
 	sys.exit(1)
+
+if options.manifest:
+	if len(args) != 1:
+		parser.print_help()
+		sys.exit(1)
+	from zeroinstall.zerostore import manifest
+	import sha
+	digest = sha.new()
+	for line in manifest.generate_manifest(args[0]):
+		print line
+		digest.update(line + '\n')
+	print "sha1=" + digest.hexdigest()
+	sys.exit(0)
 
 try:
 	if getattr(options, 'import'):
