@@ -51,6 +51,10 @@ def generate_manifest(root):
 				yield "X %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
 			else:
 				yield "F %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
+		elif stat.S_ISLNK(m):
+			d = sha.new(os.readlink(full)).hexdigest()
+			# Note: Can't use utime on symlinks, so skip mtime
+			yield "S %s %s %s" % (d, info.st_size, leaf)
 		else:
 			print "Unknown object", full
 	for x in recurse('/'): yield x
