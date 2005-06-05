@@ -99,6 +99,31 @@ More verbose output. Use twice for even more verbose output.
 \fB-V\fP, \fB--version\fP
 Display version information.
 
+.SH FILES
+
+Configuration files (see freedesktop.org basedir spec):
+
+.IP "~/.config/0install.net/injector/global"
+Global configuration settings.
+
+.IP "~/.config/0install.net/injector/trust"
+List of trusted keys.
+
+.IP "~/.config/0install.net/injector/user_overrides"
+Per-interface settings.
+
+.IP "~/.config/0install.net/injector/local_interfaces"
+Extra implementations to add to the upstream list.
+
+.PP
+Cached data (can be re-downloaded if lost):
+
+.IP "~/.cache/0install.net/interfaces"
+Downloaded cached interface files.
+
+.IP "~/.cache/0install.net/implementations"
+Downloaded cached implementations, indexed by manifest digest.
+
 .SH LICENSE
 .PP
 Copyright (C) 2005 Thomas Leonard.
