@@ -22,23 +22,29 @@ class Store:
 			return dir
 		return None
 	
+	def add_tbz_to_cache(self, required_digest, data, extract = None):
+		self.add_tar_to_cache(required_digest, data, extract, '--bzip2')
+
 	def add_tgz_to_cache(self, required_digest, data, extract = None):
+		self.add_tar_to_cache(required_digest, data, extract, '-z')
+
+	def add_tar_to_cache(self, required_digest, data, extract, decompress):
 		"""Data is a .tgz compressed archive. Extract it somewhere, check that
 		the digest is correct, and add it to the store.
 		extract is the name of a directory within the archive to extract, rather
 		than extracting the whole archive. This is most useful to remove an extra
 		top-level directory."""
 		assert required_digest.startswith('sha1=')
-		info("Adding implementation with digest %s", required_digest)
+		info("Caching new implementation (digest %s)", required_digest)
 
 		if self.lookup(required_digest):
 			info("Not adding %s as it already exists!", required_digest)
 			return
 
 		if 'GNU tar' in os.popen('tar --version 2>&1').read():
-			args = ['tar', 'xz', '--no-same-owner', '--no-same-permissions']
+			args = ['tar', decompress, '-x', '--no-same-owner', '--no-same-permissions']
 		else:
-			args = ['tar', 'xzf', '-']
+			args = ['tar', decompress, '-xf', '-']
 
 		if extract:
 			# Limit the characters we accept, to avoid sending dodgy
