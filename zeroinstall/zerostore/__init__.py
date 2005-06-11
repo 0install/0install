@@ -11,6 +11,24 @@ import manifest
 class BadDigest(Exception): pass
 class NotStored(Exception): pass
 
+def copytree2(src, dst):
+	names = os.listdir(src)
+	assert os.path.isdir(dst)
+	errors = []
+	for name in names:
+		srcname = os.path.join(src, name)
+		dstname = os.path.join(dst, name)
+		if os.path.islink(srcname):
+			linkto = os.readlink(srcname)
+			os.symlink(linkto, dstname)
+		elif os.path.isdir(srcname):
+			os.mkdir(dstname)
+			mtime = os.lstat(srcname).st_mtime
+			copytree2(srcname, dstname)
+			os.utime(dstname, (mtime, mtime))
+		else:
+			shutil.copy2(srcname, dstname)
+
 class Store:
 	def __init__(self, dir):
 		self.dir = dir
@@ -65,6 +83,28 @@ class Store:
 			args.append(extract)
 
 		tmp = self.extract(data, args)
+		try:
+			self.check_manifest_and_rename(required_digest, tmp, extract)
+		except Exception, ex:
+			warn("Leaving extracted directory as %s", tmp)
+			raise
+	
+	def add_dir_to_cache(self, required_digest, path):
+		if self.lookup(required_digest):
+			info("Not adding %s as it already exists!", required_digest)
+			return
+
+		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
+		copytree2(path, tmp)
+		try:
+			self.check_manifest_and_rename(required_digest, tmp)
+		except:
+			warn("Error importing directory.")
+			warn("Deleting %s", tmp)
+			#shutil.rmtree(tmp)
+			raise
+
+	def check_manifest_and_rename(self, required_digest, tmp, extract = None):
 		if extract:
 			extracted = os.path.join(tmp, extract)
 			if not os.path.isdir(extracted):
@@ -76,16 +116,17 @@ class Store:
 		if sha1 != required_digest:
 			raise BadDigest('Incorrect manifest -- archive is corrupted.\n'
 					'Required digest: %s\n'
-					'Actual digest: %s\n'
-					'Leaving invalid archive as: %s' %
-					(required_digest, sha1, extracted))
+					'Actual digest: %s\n' %
+					(required_digest, sha1))
 
+		final_name = os.path.join(self.dir, required_digest)
+		if os.path.isdir(final_name):
+			raise Exception("Item %s already stored." % final_name)
 		if extract:
-			os.rename(os.path.join(tmp, extract),
-				  os.path.join(self.dir, required_digest))
+			os.rename(os.path.join(tmp, extract), final_name)
 			os.rmdir(tmp)
 		else:
-			os.rename(tmp, os.path.join(self.dir, required_digest))
+			os.rename(tmp, final_name)
 
 	def extract(self, stream, command):
 		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
@@ -131,6 +172,9 @@ class Stores(object):
 				return path
 		raise NotStored("Item with digest '%s' not found in stores. Searched:\n- %s" %
 			(digest, '\n- '.join([s.dir for s in self.stores])))
+
+	def add_dir_to_cache(self, required_digest, dir):
+		self.stores[0].add_dir_to_cache(required_digest, dir)
 
 	def add_archive_to_cache(self, required_digest, data, url, extract = None):
 		self.stores[0].add_archive_to_cache(required_digest, data, url, extract)
