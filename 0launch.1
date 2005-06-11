@@ -87,15 +87,6 @@ List all known interface (program) URIs. If a search term is given, only
 URIs containing that string are shown (case insensitive).
 
 .TP
-\fB-m\fP, \fB--manifest\fP
-Generate the manifest for a directory structure. The manifest lists every file
-and directory in the tree, along with the SHA1 digest of each file, thus
-uniquely identifying that particular set of files. After the manifest,
-the last line gives the SHA1 digest of the manifest itself. This value is
-needed when creating interface files. See the packager's guide on the
-web site for details.
-
-.TP
 \fB-r\fP, \fB--refresh\fP
 Fetch a fresh copy of all used interfaces. This will normally switch to GUI
 mode, unless --console is also given.
@@ -150,7 +141,7 @@ http://0install.net/support.html
 The Zero Install Injector was created by Thomas Leonard.
 
 .SH SEE ALSO
-0alias(1)
+0alias(1), 0store(1)
 .PP
 The Zero Install web-site:
 

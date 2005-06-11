@@ -21,7 +21,7 @@ class IfaceCache(object):
 		self.watchers = []
 		self._interfaces = {}
 
-		self.stores = zerostore.get_stores()
+		self.stores = zerostore.Stores()
 	
 	def add_watcher(self, w):
 		assert w not in self.watchers
