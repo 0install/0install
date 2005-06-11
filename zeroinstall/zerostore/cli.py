@@ -29,8 +29,8 @@ def do_find(args):
 		print >>sys.stderr, ex
 	sys.exit(1)
 
-def do_store(args):
-	"""store DIGEST (DIRECTORY | (ARCHIVE [EXTRACT])"""
+def do_add(args):
+	"""add DIGEST (DIRECTORY | (ARCHIVE [EXTRACT])"""
 	if len(args) < 2: raise UsageError("Missing arguments")
 	digest = args[0]
 	if os.path.isdir(args[1]):
@@ -132,4 +132,4 @@ def get_stored(dir_or_digest):
 #"       %prog manifest [directory]")
 
 #commands = [clean, verify, store, manifest]
-commands = [do_list, do_manifest, do_find, do_store, do_verify]
+commands = [do_add, do_find, do_list, do_manifest, do_verify]

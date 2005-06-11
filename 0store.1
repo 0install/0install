@@ -44,6 +44,43 @@ After the manifest, the last line gives the SHA1 digest of the manifest itself.
 This value is needed when creating interface files. See the packager's guide on
 the Zero Install web site for details.
 
+.SH FIND
+.PP
+To find the path of a stored item:
+
+.B 0store find sha1=XXX
+
+.SH STORE
+.PP
+To add a directory to the store (makes a copy):
+
+.B 0store add sha1=XXX directory
+
+.PP
+To add an archive to the store:
+
+.B 0store add sha1=XXX archive.tgz
+
+.PP
+To add a subdirectory of an archive to the store:
+
+.B 0store add sha1=XXX archive.tgz subdir
+
+.PP
+The actual digest is calculated and compared to the given one. If they don't
+match, the operation is rejected.
+
+.SH VERIFY
+.PP
+To check that an item is stored correctly:
+
+.B 0store verify /path/to/sha1=XXX
+
+This calculates the manifest of the directory and checks that its digest matches
+the directory's name. It also checks that it matches the digest of the .manifest
+file inside the directory. If the .manifest doesn't correspond to the current
+tree, it displays a list of the differences (in unified diff format).
+
 .SH COMMAND-LINE OPTIONS
 
 .TP
