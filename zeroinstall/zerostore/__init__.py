@@ -8,6 +8,9 @@ from logging import debug, info
 
 import manifest
 
+class BadDigest(Exception): pass
+class NotStored(Exception): pass
+
 class Store:
 	def __init__(self, dir):
 		self.dir = dir
@@ -63,7 +66,7 @@ class Store:
 
 		sha1 = 'sha1=' + manifest.add_manifest_file(extracted, sha.new()).hexdigest()
 		if sha1 != required_digest:
-			raise Exception('Incorrect manifest -- archive is corrupted.\n'
+			raise BadDigest('Incorrect manifest -- archive is corrupted.\n'
 					'Required digest: %s\n'
 					'Actual digest: %s\n'
 					'Leaving invalid archive as: %s' %
@@ -99,3 +102,24 @@ class Store:
 			shutil.rmtree(tmp)
 			raise
 		return tmp
+
+class Stores(object):
+	__slots__ = ['stores']
+
+	def __init__(self):
+		user_store = os.path.expanduser('~/.cache/0install.net/implementations')
+		if not os.path.isdir(user_store):
+			os.makedirs(user_store)
+		self.stores = [Store(user_store)]
+
+	def lookup(self, digest):
+		"""Search for digest in all stores."""
+		assert digest
+		if '/' in digest or '=' not in digest:
+			raise BadDigest('Syntax error digest (use ALG=VALUE)')
+		for store in self.stores:
+			path = store.lookup(digest)
+			if path:
+				return path
+		raise NotStored("Item with digest '%s' not found in stores. Searched:\n- %s" %
+			(digest, '\n- '.join([s.dir for s in self.stores])))

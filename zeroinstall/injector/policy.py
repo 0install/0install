@@ -17,7 +17,7 @@ class Policy(object):
 		     'freshness', 'store', 'ready']
 
 	def __init__(self, root, handler = None):
-		self.store = iface_cache.store
+		self.store = iface_cache.stores[0]	# XXX
 		self.watchers = []
 		self.help_with_testing = False
 		self.network_use = network_full
@@ -172,10 +172,7 @@ class Policy(object):
 		assert isinstance(impl, Implementation)
 		if impl.id.startswith('/'):
 			return impl.id
-		path = self.store.lookup(impl.id)
-		if path:
-			return path
-		raise Exception("Item '%s' not found in cache '%s' (digest is '%s')" % (impl, self.store.dir, impl.id))
+		return iface_cache.stores.lookup(impl.id)
 
 	def get_implementation(self, interface):
 		assert isinstance(interface, Interface)

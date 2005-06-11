@@ -15,14 +15,13 @@ def _pretty_time(t):
 	return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.localtime(t))
 
 class IfaceCache(object):
+	__slots__ = ['watchers', '_interfaces', 'stores']
+
 	def __init__(self):
 		self.watchers = []
 		self._interfaces = {}
 
-		user_store = os.path.expanduser('~/.cache/0install.net/implementations')
-		if not os.path.isdir(user_store):
-			os.makedirs(user_store)
-		self.store = zerostore.Store(user_store)
+		self.stores = zerostore.get_stores()
 	
 	def add_watcher(self, w):
 		assert w not in self.watchers
@@ -188,10 +187,10 @@ class IfaceCache(object):
 		required_digest = source.implementation.id
 		url = source.url
 		if url.endswith('.tar.bz2'):
-			self.store.add_tbz_to_cache(required_digest, data, source.extract)
+			self.stores[0].add_tbz_to_cache(required_digest, data, source.extract)
 		else:
 			if not (url.endswith('.tar.gz') or url.endswith('.tgz')):
 				warn('Unknown extension on "%s"; assuming tar.gz format' % url)
-			self.store.add_tgz_to_cache(required_digest, data, source.extract)
+			self.stores[0].add_tgz_to_cache(required_digest, data, source.extract)
 
 iface_cache = IfaceCache()

@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+import os, sys
+from optparse import OptionParser
+import logging
+
+from zeroinstall.zerostore import cli
+
+parser = OptionParser(usage="usage: %prog " + 
+			  '\n       %prog '.join([c.__doc__ for c in cli.commands]))
+parser.add_option("-v", "--verbose", help="more verbose output", action='count')
+parser.add_option("-V", "--version", help="display version information", action='store_true')
+parser.disable_interspersed_args()
+
+(options, args) = parser.parse_args()
+
+if options.verbose:
+	logger = logging.getLogger()
+	if options.verbose == 1:
+		logger.setLevel(logging.INFO)
+	else:
+		logger.setLevel(logging.DEBUG)
+        hdlr = logging.StreamHandler()
+        fmt = logging.Formatter("%(levelname)s:%(message)s")
+        hdlr.setFormatter(fmt)
+        logger.addHandler(hdlr)
+
+if options.version:
+	import zeroinstall
+	print "0store (zero-install) " + zeroinstall.version
+	print "Copyright (C) 2005 Thomas Leonard"
+	print "This program comes with ABSOLUTELY NO WARRANTY,"
+	print "to the extent permitted by law."
+	print "You may redistribute copies of this program"
+	print "under the terms of the GNU General Public License."
+	print "For more information about these matters, see the file named COPYING."
+	sys.exit(0)
+
+if len(args) < 1:
+	parser.print_help()
+	sys.exit(1)
+
+pattern = args[0].lower()
+matches = [c for c in cli.commands if c.__name__.startswith(pattern)]
+if len(matches) == 0:
+	parser.print_help()
+	sys.exit(1)
+if len(matches) > 1:
+	print >>sys.stderr, "What do you mean by '%s'?" % pattern
+	for x in matches:
+		print "- " + x
+	sys.exit(1)
+
+try:
+	matches[0](args[1:])
+except KeyboardInterrupt, ex:
+	print >>sys.stderr, "Interrupted"
+	sys.exit(1)
+except OSError, ex:
+	print >>sys.stderr, str(ex)
+	sys.exit(1)
+except IOError, ex:
+	print >>sys.stderr, str(ex)
+	sys.exit(1)
