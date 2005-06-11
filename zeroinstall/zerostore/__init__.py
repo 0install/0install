@@ -4,7 +4,7 @@ import traceback
 from tempfile import mkdtemp
 import sha
 import re
-from logging import debug, info
+from logging import debug, info, warn
 
 import manifest
 
@@ -24,6 +24,14 @@ class Store:
 		if os.path.isdir(dir):
 			return dir
 		return None
+	
+	def add_archive_to_cache(self, required_digest, data, url, extract = None):
+		if url.endswith('.tar.bz2'):
+			self.add_tbz_to_cache(required_digest, data, extract)
+		else:
+			if not (url.endswith('.tar.gz') or url.endswith('.tgz')):
+				warn('Unknown extension on "%s"; assuming tar.gz format' % url)
+			self.add_tgz_to_cache(required_digest, data, extract)
 	
 	def add_tbz_to_cache(self, required_digest, data, extract = None):
 		self.add_tar_to_cache(required_digest, data, extract, '--bzip2')
@@ -116,10 +124,13 @@ class Stores(object):
 		"""Search for digest in all stores."""
 		assert digest
 		if '/' in digest or '=' not in digest:
-			raise BadDigest('Syntax error digest (use ALG=VALUE)')
+			raise BadDigest('Syntax error in digest (use ALG=VALUE)')
 		for store in self.stores:
 			path = store.lookup(digest)
 			if path:
 				return path
 		raise NotStored("Item with digest '%s' not found in stores. Searched:\n- %s" %
 			(digest, '\n- '.join([s.dir for s in self.stores])))
+
+	def add_archive_to_cache(self, required_digest, data, url, extract = None):
+		self.stores[0].add_archive_to_cache(required_digest, data, url, extract)

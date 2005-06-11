@@ -186,11 +186,6 @@ class IfaceCache(object):
 		assert isinstance(source, DownloadSource)
 		required_digest = source.implementation.id
 		url = source.url
-		if url.endswith('.tar.bz2'):
-			self.stores[0].add_tbz_to_cache(required_digest, data, source.extract)
-		else:
-			if not (url.endswith('.tar.gz') or url.endswith('.tgz')):
-				warn('Unknown extension on "%s"; assuming tar.gz format' % url)
-			self.stores[0].add_tgz_to_cache(required_digest, data, source.extract)
+		self.stores.add_archive_to_cache(required_digest, data, source.url, source.extract)
 
 iface_cache = IfaceCache()

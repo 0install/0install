@@ -3,7 +3,7 @@ import os, sys
 from optparse import OptionParser
 import logging
 
-from zeroinstall.zerostore import cli
+from zeroinstall.zerostore import cli, BadDigest
 
 parser = OptionParser(usage="usage: %prog " + 
 			  '\n       %prog '.join([c.__doc__ for c in cli.commands]))
@@ -40,7 +40,7 @@ if len(args) < 1:
 	sys.exit(1)
 
 pattern = args[0].lower()
-matches = [c for c in cli.commands if c.__name__.startswith(pattern)]
+matches = [c for c in cli.commands if c.__name__[3:].startswith(pattern)]
 if len(matches) == 0:
 	parser.print_help()
 	sys.exit(1)
@@ -60,4 +60,11 @@ except OSError, ex:
 	sys.exit(1)
 except IOError, ex:
 	print >>sys.stderr, str(ex)
+	sys.exit(1)
+except BadDigest, ex:
+	print >>sys.stderr, str(ex)
+	sys.exit(1)
+except cli.UsageError, ex:
+	print >>sys.stderr, str(ex)
+	print >>sys.stderr, "usage: " + sys.argv[0] + " " + matches[0].__doc__
 	sys.exit(1)

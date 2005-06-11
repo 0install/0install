@@ -18,7 +18,10 @@ that two trees will generate identical manifest strings if and only if:
 
 The manifest is typically processed with SHA1 itself. So, the idea is that
 any significant change to the contents of the tree will change the SHA1 sum
-of the manifest."""
+of the manifest.
+
+A top-level ".manifest" file is ignored.
+"""
 
 def generate_manifest(root):
 	def recurse(sub):
@@ -28,6 +31,8 @@ def generate_manifest(root):
 		# would be interpreted as another line in the manifest.
 		assert '\n' not in sub
 		assert sub.startswith('/')
+
+		if sub == '/.manifest': return
 
 		full = os.path.join(root, sub[1:])
 		info = os.lstat(full)
