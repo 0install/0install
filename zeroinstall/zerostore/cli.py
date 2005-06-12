@@ -126,10 +126,4 @@ def get_stored(dir_or_digest):
 			print >>sys.stderr, ex
 		sys.exit(1)
 
-#"usage: %prog clean [interface]\n"
-#"       %prog verify [directory]\n"
-#"       %prog import [digest] [directory]\n"
-#"       %prog manifest [directory]")
-
-#commands = [clean, verify, store, manifest]
 commands = [do_add, do_find, do_list, do_manifest, do_verify]

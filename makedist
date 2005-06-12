@@ -8,9 +8,11 @@ a = raw_input("Release " + name + "? [y/N]")
 if not a or a not in 'Yy':
 	sys.exit(0)
 
-os.system('svn cp -m "Released ' + name + '" ' +
+if os.system('svn cp -m "Released ' + name + '" ' +
 	  'file:///home/svn/injector/injector '
-	  'file:///home/svn/releases/' + name)
+	  'file:///home/svn/releases/' + name):
+	print "Try svn rm file:///home/svn/releases/" + name
+	sys.exit(1)
 
 os.system('svn export file:///home/svn/releases/' + name + ' ' + name)
 os.chdir(name)

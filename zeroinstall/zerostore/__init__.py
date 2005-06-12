@@ -101,7 +101,7 @@ class Store:
 		except:
 			warn("Error importing directory.")
 			warn("Deleting %s", tmp)
-			#shutil.rmtree(tmp)
+			shutil.rmtree(tmp)
 			raise
 
 	def check_manifest_and_rename(self, required_digest, tmp, extract = None):
