@@ -73,7 +73,7 @@ class Download:
 			
 			os._exit(0)
 		except (HTTPError, URLError), ex:
-			print >>sys.stderr, ex
+			print >>sys.stderr, "Error downloading '" + self.url + "': " + str(ex)
 		except:
 			traceback.print_exc()
 	

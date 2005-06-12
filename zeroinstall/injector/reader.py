@@ -116,9 +116,8 @@ def update(interface, source, user_overrides = False, local = False):
 		if not canonical_name:
 			raise InvalidInterface("<interface> uri attribute missing in " + source)
 		if canonical_name != interface.uri:
-			print >>sys.stderr, \
-				"WARNING: <interface> uri attribute is '%s', but accessed as '%s'\n(%s)" % \
-					(canonical_name, interface.uri, source)
+			raise InvalidInterface("<interface> uri attribute is '%s', but accessed as '%s'\n(%s)" %
+					(canonical_name, interface.uri, source))
 		time_str = root.getAttribute('last-modified')
 		if not time_str:
 			raise InvalidInterface("Missing last-modified attribute on root element.")
