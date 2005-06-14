@@ -16,6 +16,8 @@ class MainWindow(Dialog):
 		self.set_title('Dependency Injector')
 		self.set_default_size(gtk.gdk.screen_width() / 3, 300)
 
+		self.connect('destroy', lambda w: self.destroyed())
+
 		tips = gtk.Tooltips()
 
 		# Network use
@@ -120,6 +122,10 @@ class MainWindow(Dialog):
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 		self.connect('response', response)
+	
+	def destroyed(self):
+		policy.abort_all_downloads()
+		
 
 gui_help = help_box.HelpBox("Injector Help",
 ('Overview', """

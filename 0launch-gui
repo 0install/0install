@@ -7,6 +7,7 @@ __builtins__._ = lambda x: x
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]")
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
+parser.add_option("-n", "--no-self-update", help="don't check for updates to the GUI itself", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
 parser.add_option("-v", "--version", help="display version information", action='store_true')
 
@@ -31,7 +32,7 @@ if len(args) < 1:
 interface_uri = args[0]
 prog_args = args[1:]
 
-from zeroinstall.injector import model
+from zeroinstall.injector import model, autopolicy, namespaces
 import gtk
 
 if not hasattr(gtk, 'combo_box_new_text'):
@@ -40,6 +41,15 @@ if not hasattr(gtk, 'combo_box_new_text'):
 gtk.rc_parse_string('style "scrolled" { '
 		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
 		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
+
+if options.no_self_update is not True:
+	gui_policy = autopolicy.AutoPolicy(namespaces.injector_gui_uri)
+	if gui_policy.need_download():
+		# Need to refresh the GUI itself first!
+		prog_args = ['--no-self-update'] + sys.argv[1:]
+		print `prog_args`
+		interface_uri = namespaces.injector_gui_uri
+		download_only = False
 
 policy = gui.GUIPolicy(interface_uri, prog_args,
 		   download_only = bool(options.download_only))

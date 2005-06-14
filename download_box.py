@@ -24,6 +24,7 @@ def download_with_gui(mainwindow, prog_args, run_afterwards):
 						force = True)
 		downloads.append((iface, dl))
 	def run_it():
+		policy.abort_all_downloads()
 		if not run_afterwards:
 			mainwindow.destroy()
 			return

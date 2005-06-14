@@ -13,27 +13,30 @@ policy = None
 
 class GUIPolicy(Policy):
 	window = None
-	n_downloads = 0
 	pulse = None
+	monitored_downloads = None
 
 	def __init__(self, interface, prog_args, download_only):
 		Policy.__init__(self, interface)
 		global policy
 		assert policy is None
 		policy = self
+		self.monitored_downloads = []
 
 		import mainwindow
 		self.window = mainwindow.MainWindow(prog_args, download_only)
 		self.window.browser.set_root(policy.get_interface(policy.root))
 
 	def monitor_download(self, dl):
+		self.monitored_downloads.append(dl)
+
 		error_stream = dl.start()
 		def error_ready(src, cond):
 			got = os.read(src.fileno(), 100)
 			if not got:
 				error_stream.close()
-				self.n_downloads -= 1
-				if self.n_downloads == 0:
+				self.monitored_downloads.remove(dl)
+				if len(self.monitored_downloads) == 0:
 					self.window.progress.hide()
 					gobject.source_remove(self.pulse)
 					self.pulse = None
@@ -60,7 +63,6 @@ class GUIPolicy(Policy):
 				     gobject.IO_IN | gobject.IO_HUP,
 				     error_ready)
 
-		self.n_downloads += 1
 		if self.pulse is None:
 			progress = self.window.progress
 			self.pulse = gobject.timeout_add(50, lambda: progress.pulse() or True)
@@ -93,6 +95,10 @@ class GUIPolicy(Policy):
 	def refresh_all(self, force = True):
 		for x in self.walk_interfaces():
 			self.begin_iface_download(x, force)
+	
+	def abort_all_downloads(self):
+		for x in self.monitored_downloads[:]:
+			x.abort()
 
 def pretty_size(size):
 	if size is None:
