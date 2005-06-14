@@ -27,3 +27,5 @@ os.system('svn export file:///home/svn/releases/' + name + ' ' + name)
 os.chdir(name)
 os.system('python setup.py sdist')
 os.system('dpkg-buildpackage -rfakeroot')
+
+system('svn up')

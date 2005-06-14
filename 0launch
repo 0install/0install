@@ -103,7 +103,7 @@ if options.gui:
 	# Try to start the GUI without using the network.
 	# The GUI can refresh itself if it wants to.
 	policy.freshness = 0
-	policy.network_use = model.network_offline
+	policy.network_use = model.network_minimal
 
 	prog_args = args[:]
 	# Options apply to actual program, not GUI

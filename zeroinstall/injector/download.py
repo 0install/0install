@@ -2,6 +2,7 @@ import tempfile, os, sys
 from model import Interface, DownloadSource, SafeException
 import traceback
 from urllib2 import urlopen, HTTPError, URLError
+from logging import warn
 
 download_starting = "starting"	# Waiting for UI to start it
 download_fetching = "fetching"	# In progress
@@ -116,7 +117,7 @@ class Download:
 	
 	def abort(self):
 		if self.child_pid is not None:
-			print "Killing download process", self.child_pid
+			warn("Killing download process %s", self.child_pid)
 			import signal
 			os.kill(self.child_pid, signal.SIGTERM)
 		else:
