@@ -99,6 +99,12 @@ except model.SafeException, ex:
 
 if options.gui:
 	policy.set_root(namespaces.injector_gui_uri)
+
+	# Try to start the GUI without using the network.
+	# The GUI can refresh itself if it wants to.
+	policy.freshness = 0
+	policy.network_use = model.network_offline
+
 	prog_args = args[:]
 	# Options apply to actual program, not GUI
 	if options.download_only:
