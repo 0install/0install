@@ -47,7 +47,6 @@ if options.no_self_update is not True:
 	if gui_policy.need_download():
 		# Need to refresh the GUI itself first!
 		prog_args = ['--no-self-update'] + sys.argv[1:]
-		print `prog_args`
 		interface_uri = namespaces.injector_gui_uri
 		download_only = False
 
