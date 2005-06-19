@@ -4,7 +4,7 @@ from StringIO import StringIO
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model
+from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model, iface_cache
 
 class TestLaunch(unittest.TestCase):
 	def setUp(self):
@@ -13,6 +13,7 @@ class TestLaunch(unittest.TestCase):
 		os.environ['XDG_CONFIG_HOME'] = self.config_home
 		os.environ['XDG_CACHE_HOME'] = self.cache_home
 		reload(basedir)
+		iface_cache.iface_cache.__init__()
 
 		os.mkdir(self.config_home, 0700)
 		os.mkdir(self.cache_home, 0700)

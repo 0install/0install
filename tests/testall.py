@@ -24,7 +24,7 @@ for name in suite_names:
 	m = __import__(name, globals(), locals(), [])
 	alltests.addTest(m.suite)
 
-unittest.TextTestRunner(verbosity=2).run(alltests)
+a = unittest.TextTestRunner(verbosity=2).run(alltests)
 
 if coverage:
 	coverage.stop()
@@ -35,3 +35,7 @@ if coverage:
 	coverage.report(all_sources)
 else:
 	print "Coverage module not found. Skipping coverage report."
+
+print "\nResult", a
+if not a.wasSuccessful():
+	sys.exit(1)
