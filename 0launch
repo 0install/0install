@@ -58,8 +58,12 @@ if options.version:
 	sys.exit(0)
 
 if len(args) < 1:
-	parser.print_help()
-	sys.exit(1)
+	if options.gui:
+		args = [namespaces.injector_gui_uri]
+		options.download_only = True
+	else:
+		parser.print_help()
+		sys.exit(1)
 
 try:
 	if getattr(options, 'import'):
