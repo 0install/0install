@@ -95,6 +95,11 @@ try:
 			options.gui = True
 		else:
 			options.gui = policy.need_download()
+			# If we need to download anything, we might as well
+			# refresh all the interfaces first. Also, this triggers
+			# the 'checking for updates' box, which is non-interactive
+			# when there are no changes to the selection.
+			options.refresh = True
 		if options.gui:
 			logging.info("Need to download; switching to GUI mode")
 except model.SafeException, ex:
