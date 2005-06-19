@@ -89,6 +89,7 @@ class DownloadProgessBox(Dialog):
 			self.idle_timeout = None
 			self.destroy()
 			mainwindow.show()
+			policy.recalculate()
 		self.connect('response', resp)
 
 		def update_bars():
