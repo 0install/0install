@@ -167,7 +167,7 @@ class IfaceCache(object):
 			debug("(already in disk cache)")
 			assert self._interfaces[uri].name
 		else:
-			debug("(unknown interface)")
+			debug("(interface not in disk cache)")
 		return (True, self._interfaces[uri])
 
 	def list_all_interfaces(self):

@@ -148,7 +148,7 @@ class Policy(object):
 				debug("Nothing known about interface, but we are off-line.")
 		else:
 			staleness = time.time() - (iface.last_checked or 0)
-			debug("Staleness for '%s' is %d", iface.name, staleness)
+			debug("Staleness for %s is %.2f hours", iface, staleness / 3600.0)
 
 			if self.network_use != network_offline and self.freshness > 0 and staleness > self.freshness:
 				debug("Updating %s", iface)
