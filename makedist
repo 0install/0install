@@ -8,6 +8,10 @@ a = raw_input("Release " + name + "? [y/N]")
 if not a or a not in 'Yy':
 	sys.exit(0)
 
+if os.system('cd tests && ./testall.py'):
+	print "ERROR: Unit test failure. Stop"
+	sys.exit(1)
+
 if os.system('svn ls file:///home/svn/releases/' + name + ' >/dev/null') == 0:
 	print "WARNING: releases/" + name + " already exists"
 	a = raw_input("Overwrite " + name + "? [y/N]")
@@ -28,4 +32,4 @@ os.chdir(name)
 os.system('python setup.py sdist')
 os.system('dpkg-buildpackage -rfakeroot')
 
-system('svn up')
+os.system('svn up')
