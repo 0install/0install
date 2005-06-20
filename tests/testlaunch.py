@@ -3,6 +3,8 @@ import sys, tempfile, os, shutil, imp
 from StringIO import StringIO
 import unittest
 
+foo_iface_uri = 'http://foo'
+
 sys.path.insert(0, '..')
 from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model, iface_cache
 
@@ -24,6 +26,14 @@ class TestLaunch(unittest.TestCase):
 		shutil.rmtree(self.config_home)
 		shutil.rmtree(self.cache_home)
 
+	def cache_iface(self, name, data):
+		cached_ifaces = basedir.save_cache_path('0install.net',
+							'interfaces')
+
+		f = file(os.path.join(cached_ifaces, model.escape(name)), 'w')
+		f.write(data)
+		f.close()
+
 	def run(self, args):
 		sys.argv = ['0launch'] + args
 		old_stdout = sys.stdout
@@ -34,7 +44,7 @@ class TestLaunch(unittest.TestCase):
 			ex = None
 			try:
 				imp.load_source('launch', '../0launch')
-				assert 0
+				print "Finished"
 			except SystemExit:
 				pass
 			except Exception, ex:
@@ -108,6 +118,25 @@ class TestLaunch(unittest.TestCase):
 		self.assertEquals("Would download 'http://0install.net/2005/interfaces/injector-gui'\n",
 				  out)
 		self.assertEquals("", err)
+	
+	def testNeedDownload(self):
+		policy = autopolicy.AutoPolicy(foo_iface_uri)
+		policy.freshness = 0
+		policy.save_config()
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <implementation version='1.0' id='/'/>
+</interface>""" % foo_iface_uri)
+		os.environ['DISPLAY'] = ':foo'
+		out, err = self.run(['--download-only', '--dry-run', foo_iface_uri])
+		self.assertEquals("", err)
+		self.assertEquals("Finished\n", out)
 
 suite = unittest.makeSuite(TestLaunch)
 if __name__ == '__main__':
