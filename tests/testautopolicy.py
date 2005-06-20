@@ -81,6 +81,23 @@ class TestAutoPolicy(unittest.TestCase):
 		except model.SafeException, ex:
 			assert "ThisBetterNotExist" in str(ex)
 
+	def testNeedDL(self):
+		policy = autopolicy.AutoPolicy(foo_iface_uri, False, False)
+		policy.freshness = 1
+		policy.network_use = model.network_full
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface last-modified="0"
+ uri="%s"
+ main='ThisBetterNotExist'
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <implementation version='1.0' id='/'/>
+</interface>""" % foo_iface_uri)
+		assert policy.need_download()
+
 suite = unittest.makeSuite(TestAutoPolicy)
 if __name__ == '__main__':
 	sys.argv.append('-v')
