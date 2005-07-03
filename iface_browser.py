@@ -8,6 +8,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 	model = None
 	root = None
 	edit_properties = None
+	original_implementation = None
 
 	INTERFACE = 0
 	INTERFACE_NAME = 1
@@ -84,6 +85,9 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		policy.recalculate()	# Calls build_tree
 
 	def build_tree(self):
+		if self.original_implementation is None:
+			self.original_implementation = policy.implementation.copy()
+
 		self.model.clear()
 		parent = None
 		def add_node(parent, iface):
@@ -94,7 +98,12 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 
 			impl = policy.implementation.get(iface, None)
 			if impl:
-				self.model[iter][InterfaceBrowser.VERSION] = impl.get_version()
+				old_impl = self.original_implementation.get(iface, None)
+				version_str = impl.get_version()
+				if old_impl is not None and old_impl is not impl:
+					version_str += " (was " + old_impl.get_version() + ")"
+				self.model[iter][InterfaceBrowser.VERSION] = version_str
+
 				if policy.get_cached(impl):
 					fetch = '(cached)'
 				else:
