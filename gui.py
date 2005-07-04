@@ -17,6 +17,7 @@ class GUIPolicy(Policy):
 	pulse = None
 	monitored_downloads = None
 	checking = None		# GtkDialog ("Checking for updates...")
+	original_implementation = None
 
 	def __init__(self, interface, prog_args, download_only, refresh):
 		Policy.__init__(self, interface)
@@ -35,7 +36,12 @@ class GUIPolicy(Policy):
 				self.checking = CheckingBox(root)
 				def checking_destroyed(c):
 					self.checking = None
-					self.window.show()
+					if self.ready is False or self.versions_changed():
+						self.window.show()
+					else:
+						import download_box
+						download_box.download_with_gui(self.window, prog_args,
+									run_afterwards = not download_only)
 				self.checking.connect('destroy', checking_destroyed)
 
 			self.refresh_all(force = False)
@@ -50,10 +56,10 @@ class GUIPolicy(Policy):
 				error_stream.close()
 				self.monitored_downloads.remove(dl)
 				if len(self.monitored_downloads) == 0:
+					gobject.source_remove(self.pulse)
 					self.window.progress.hide()
 					if self.checking:
-						self.checking.destroy()
-					gobject.source_remove(self.pulse)
+						self.checking.updates_done()
 					self.pulse = None
 				try:
 					data = dl.error_stream_closed()
@@ -122,6 +128,34 @@ class GUIPolicy(Policy):
 	def abort_all_downloads(self):
 		for x in self.monitored_downloads[:]:
 			x.abort()
+	
+	def set_original_implementations(self):
+		assert self.original_implementation is None
+		self.original_implementation = policy.implementation.copy()
+
+	def versions_changed(self):
+		"""Return whether we have now chosen any different implementations.
+		If so, we want to show the dialog to the user to confirm the new ones."""
+		assert self.ready
+		if not self.original_implementation:
+			print "No originals"
+			return True		# Shouldn't happen?
+		if len(self.original_implementation) != len(self.implementation):
+			print "Size changed"
+			return True
+		for iface in self.original_implementation:
+			old = self.original_implementation[iface]
+			if old is None:
+				print "Old interface is None"
+				return True
+			new = self.implementation.get(iface, None)
+			if new is None:
+				print "New interface is None"
+				return True
+			if old.id != new.id:
+				print "IDs differ"
+				return True
+		return False
 
 def pretty_size(size):
 	if size is None:

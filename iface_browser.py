@@ -85,8 +85,8 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		policy.recalculate()	# Calls build_tree
 
 	def build_tree(self):
-		if self.original_implementation is None:
-			self.original_implementation = policy.implementation.copy()
+		if policy.original_implementation is None:
+			policy.set_original_implementations()
 
 		self.model.clear()
 		parent = None
@@ -98,7 +98,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 
 			impl = policy.implementation.get(iface, None)
 			if impl:
-				old_impl = self.original_implementation.get(iface, None)
+				old_impl = policy.original_implementation.get(iface, None)
 				version_str = impl.get_version()
 				if old_impl is not None and old_impl is not impl:
 					version_str += " (was " + old_impl.get_version() + ")"
