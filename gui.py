@@ -5,6 +5,7 @@ from zeroinstall.injector import download
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector.reader import InvalidInterface
 import dialog
+from checking import CheckingBox
 
 version = '0.7'
 
@@ -15,6 +16,7 @@ class GUIPolicy(Policy):
 	window = None
 	pulse = None
 	monitored_downloads = None
+	checking = None		# GtkDialog ("Checking for updates...")
 
 	def __init__(self, interface, prog_args, download_only, refresh):
 		Policy.__init__(self, interface)
@@ -25,9 +27,17 @@ class GUIPolicy(Policy):
 
 		import mainwindow
 		self.window = mainwindow.MainWindow(prog_args, download_only)
-		self.window.browser.set_root(policy.get_interface(policy.root))
+		root = policy.get_interface(policy.root)
+		self.window.browser.set_root(root)
 
 		if refresh:
+			if root.name is not None:
+				self.checking = CheckingBox(root)
+				def checking_destroyed(c):
+					self.checking = None
+					self.window.show()
+				self.checking.connect('destroy', checking_destroyed)
+
 			self.refresh_all(force = False)
 
 	def monitor_download(self, dl):
@@ -41,6 +51,8 @@ class GUIPolicy(Policy):
 				self.monitored_downloads.remove(dl)
 				if len(self.monitored_downloads) == 0:
 					self.window.progress.hide()
+					if self.checking:
+						self.checking.destroy()
 					gobject.source_remove(self.pulse)
 					self.pulse = None
 				try:
@@ -67,9 +79,14 @@ class GUIPolicy(Policy):
 				     error_ready)
 
 		if self.pulse is None:
-			progress = self.window.progress
-			self.pulse = gobject.timeout_add(50, lambda: progress.pulse() or True)
-			progress.show()
+			def pulse():
+				if self.checking:
+					self.checking.progress.pulse()
+				else:
+					self.window.progress.pulse()
+				return True
+			self.pulse = gobject.timeout_add(50, pulse)
+			self.window.progress.show()
 	
 	def recalculate(self):
 		Policy.recalculate(self)
@@ -87,7 +104,10 @@ class GUIPolicy(Policy):
 		trust_box.confirm_trust(interface, sigs, iface_xml)
 
 	def main(self):
-		self.window.show()
+		if self.checking:
+			self.checking.show()
+		else:
+			self.window.show()
 		gtk.main()
 	
 	def get_best_source(self, impl):
@@ -114,4 +134,3 @@ def pretty_size(size):
 		if size < 2048:
 			break
 	return '%.1f %s' % (size, unit)
-
