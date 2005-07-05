@@ -1,0 +1,12 @@
+#!/bin/sh
+export TESTS=`pwd`
+export http_proxy=http://localhost:8000
+export HOME=/tmp/test-gui
+rm -rf /tmp/test-gui
+mkdir $HOME
+cp ~talex/.fonts.cache-1 ~
+cd
+echo Running in an empty `pwd`
+mkdir ~/.config
+echo Running script...
+source $TESTS/script

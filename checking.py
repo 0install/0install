@@ -21,4 +21,4 @@ class CheckingBox(Dialog):
 	def updates_done(self):
 		"""Close the dialog after a short delay"""
 		self.set_response_sensitive(gtk.RESPONSE_OK, False)
-		gobject.timeout_add(500, self.destroy)
+		gobject.timeout_add(1000, self.destroy)
