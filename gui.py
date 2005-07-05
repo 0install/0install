@@ -58,8 +58,6 @@ class GUIPolicy(Policy):
 				if len(self.monitored_downloads) == 0:
 					gobject.source_remove(self.pulse)
 					self.window.progress.hide()
-					if self.checking:
-						self.checking.updates_done()
 					self.pulse = None
 				try:
 					data = dl.error_stream_closed()
@@ -76,6 +74,8 @@ class GUIPolicy(Policy):
 					dialog.alert(self.window,
 						"Error updating interface '%s':\n\n%s" %
 						(dl.interface.uri, ex))
+				if len(self.monitored_downloads) == 0 and self.checking:
+					self.checking.updates_done(self.versions_changed())
 				return False
 			dl.error_stream_data(got)
 			return True
