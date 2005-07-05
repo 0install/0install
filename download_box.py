@@ -115,7 +115,7 @@ class DownloadProgessBox(Dialog):
 				try:
 					data = dl.error_stream_closed()
 					policy.add_to_cache(dl.source, data)
-				except SafeException, ex:
+				except Exception, ex:
 					label = gtk.Label("Error getting '%s':\n%s" % (dl.url, ex))
 					label.set_padding(4, 4)
 					self.vbox.pack_start(label, False, True, 2)
