@@ -110,6 +110,7 @@ class MainWindow(Dialog):
 		else:
 			self.add_button(gtk.STOCK_EXECUTE, gtk.RESPONSE_OK)
 		self.set_default_response(gtk.RESPONSE_OK)
+		self.default_widget.grab_focus()
 
 		def response(dialog, resp):
 			import download_box

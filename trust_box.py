@@ -89,13 +89,16 @@ class TrustBox(dialog.Dialog):
 		self.present()
 	
 	def trust_keys(self):
-		for row in self.model:
-			sig = row[1]
-			trust.trust_db.trust_key(fingerprint(sig))
+		try:
+			for row in self.model:
+				sig = row[1]
+				trust.trust_db.trust_key(fingerprint(sig))
 
-		if not iface_cache.update_interface_if_trusted(self.interface, self.sigs,
-							      self.iface_xml):
-			raise Exception('Bug: still not trusted!!')
+			if not iface_cache.update_interface_if_trusted(self.interface, self.sigs,
+								      self.iface_xml):
+				raise Exception('Bug: still not trusted!!')
+		except Exception, ex:
+			dialog.alert(None, ex)
 
 _queue = []
 def _pop_queue():
