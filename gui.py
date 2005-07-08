@@ -138,22 +138,17 @@ class GUIPolicy(Policy):
 		If so, we want to show the dialog to the user to confirm the new ones."""
 		assert self.ready
 		if not self.original_implementation:
-			print "No originals"
 			return True		# Shouldn't happen?
 		if len(self.original_implementation) != len(self.implementation):
-			print "Size changed"
 			return True
 		for iface in self.original_implementation:
 			old = self.original_implementation[iface]
 			if old is None:
-				print "Old interface is None"
 				return True
 			new = self.implementation.get(iface, None)
 			if new is None:
-				print "New interface is None"
 				return True
 			if old.id != new.id:
-				print "IDs differ"
 				return True
 		return False
 
