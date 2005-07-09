@@ -35,8 +35,9 @@ class GUIPolicy(Policy):
 			if root.name is not None:
 				self.checking = CheckingBox(root)
 				def checking_destroyed(c):
+					show_details = self.checking.show_details
 					self.checking = None
-					if self.ready is False or self.versions_changed():
+					if show_details or self.ready is False or self.versions_changed():
 						self.window.show()
 					else:
 						import download_box

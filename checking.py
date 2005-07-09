@@ -3,6 +3,8 @@ import gtk, gobject
 from dialog import Dialog
 
 class CheckingBox(Dialog):
+	show_details = False
+
 	def __init__(self, root):
 		Dialog.__init__(self)
 		self.prog_name = root.get_name()
@@ -17,7 +19,11 @@ class CheckingBox(Dialog):
 		self.progress.show()
 
 		self.add_mixed_button('Details...', gtk.STOCK_ZOOM_IN, gtk.RESPONSE_OK)
-		self.connect('response', lambda w, r: self.destroy())
+		def response(w, r):
+			if r == gtk.RESPONSE_OK:
+				self.show_details = True
+			self.destroy()
+		self.connect('response', response)
 	
 	def updates_done(self, changes):
 		"""Close the dialog after a short delay"""
