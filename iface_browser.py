@@ -8,7 +8,6 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 	model = None
 	root = None
 	edit_properties = None
-	original_implementation = None
 
 	INTERFACE = 0
 	INTERFACE_NAME = 1
