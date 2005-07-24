@@ -1,4 +1,4 @@
-import gtk, gobject
+import gtk, gobject, os
 from zeroinstall.injector import model, writer
 from gui import policy, pretty_size
 
@@ -13,6 +13,8 @@ def popup_menu(bev, values, fn):
 		item.show()
 		menu.append(item)
 	menu.popup(None, None, None, bev.button, bev.time)
+
+rox_filer = 'http://rox.sourceforge.net/2005/interfaces/ROX-Filer'
 
 # Columns
 ITEM = 0
@@ -59,8 +61,8 @@ class ImplementationList(gtk.ScrolledWindow):
 			if not pos:
 				return False
 			path, col, x, y = pos
+			impl = self.model[path][ITEM]
 			if col == stability:
-				impl = self.model[path][ITEM]
 				upstream = impl.upstream_stability or model.testing
 				choices = model.stability_levels.values()
 				choices.sort()
@@ -74,6 +76,12 @@ class ImplementationList(gtk.ScrolledWindow):
 					policy.recalculate()
 				popup_menu(bev, ['Unset (%s)' % upstream, None] + choices,
 					set)
+			elif bev.button == 3 and policy.get_cached(impl):
+				def open(item):
+					os.spawnlp(os.P_WAIT, '0launch',
+						'0launch', rox_filer, '-d',
+						policy.get_implementation_path(impl))
+				popup_menu(bev, ['Open cached copy'], open)
 		self.tree_view.connect('button-press-event', button_press)
 	
 	def get_selection(self):
