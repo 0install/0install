@@ -39,4 +39,6 @@ def execute(policy, prog_args, dry_run = False):
 		print "Would execute:", prog_path
 	else:
 		info("Executing: %s", prog_path)
+		sys.stdout.flush()
+		sys.stderr.flush()
 		os.execl(prog_path, prog_path, *prog_args)

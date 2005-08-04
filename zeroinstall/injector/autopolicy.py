@@ -10,9 +10,7 @@ class NeedDownload(Exception):
 		Exception.__init__(self, "Would download '%s'" % url)
 
 class AutoPolicy(policy.Policy):
-	allow_downloads = False
-	download_only = False
-	dry_run = False
+	__slots__ = ['allow_downloads', 'download_only', 'dry_run']
 
 	def __init__(self, interface_uri, download_only = False, dry_run = False):
 		if not interface_uri.startswith('http:'):
@@ -22,7 +20,7 @@ class AutoPolicy(policy.Policy):
 		self.allow_downloads = not dry_run
 		self.download_only = download_only
 		self.dry_run = dry_run
-	
+
 	def need_download(self):
 		"""Decide whether we need to download anything (but don't do it!)"""
 		old = self.allow_downloads

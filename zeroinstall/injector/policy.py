@@ -14,7 +14,7 @@ from iface_cache import iface_cache
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
-		     'freshness', 'ready']
+		     'freshness', 'ready', 'handler']
 
 	def __init__(self, root, handler = None):
 		self.watchers = []
