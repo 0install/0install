@@ -34,7 +34,7 @@ class TestLaunch(unittest.TestCase):
 		f.write(data)
 		f.close()
 
-	def run(self, args):
+	def run_0launch(self, args):
 		sys.argv = ['0launch'] + args
 		old_stdout = sys.stdout
 		old_stderr = sys.stderr
@@ -59,12 +59,12 @@ class TestLaunch(unittest.TestCase):
 		return (out, err)
 
 	def testHelp(self):
-		out, err = self.run([])
+		out, err = self.run_0launch([])
 		assert out.startswith("usage:")
 		assert not err
 	
 	def testList(self):
-		out, err = self.run(['--list'])
+		out, err = self.run_0launch(['--list'])
 		assert not err
 		self.assertEquals("", out)
 		cached_ifaces = os.path.join(self.cache_home,
@@ -73,47 +73,47 @@ class TestLaunch(unittest.TestCase):
 		os.makedirs(cached_ifaces)
 		file(os.path.join(cached_ifaces, 'file%3a%2f%2ffoo'), 'w').close()
 
-		out, err = self.run(['--list'])
+		out, err = self.run_0launch(['--list'])
 		assert not err
 		self.assertEquals("file://foo\n", out)
 
-		out, err = self.run(['--list', 'foo'])
+		out, err = self.run_0launch(['--list', 'foo'])
 		assert not err
 		self.assertEquals("file://foo\n", out)
 
-		out, err = self.run(['--list', 'bar'])
+		out, err = self.run_0launch(['--list', 'bar'])
 		assert not err
 		self.assertEquals("", out)
 
-		out, err = self.run(['--list', 'one', 'two'])
+		out, err = self.run_0launch(['--list', 'one', 'two'])
 		assert not err
 		assert out.startswith("usage:")
 	
 	def testVersion(self):
-		out, err = self.run(['--version'])
+		out, err = self.run_0launch(['--version'])
 		assert not err
 		assert out.startswith("0launch (zero-install)")
 
 	def testInvalid(self):
 		a = tempfile.NamedTemporaryFile()
-		out, err = self.run(['-q', a.name])
+		out, err = self.run_0launch(['-q', a.name])
 		assert err
 	
 	def testOK(self):
-		out, err = self.run(['--dry-run', 'http://foo'])
+		out, err = self.run_0launch(['--dry-run', 'http://foo'])
 		self.assertEquals("Would download 'http://foo'\n", out)
 		self.assertEquals("", err)
 	
 	def testDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run(['--dry-run', 'http://foo'])
+		out, err = self.run_0launch(['--dry-run', 'http://foo'])
 		self.assertEquals("Would download 'http://0install.net/2005/interfaces/injector-gui'\n",
 				   out)
 		self.assertEquals("", err)
 
 	def testRefreshDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run(['--dry-run', '--download-only',
+		out, err = self.run_0launch(['--dry-run', '--download-only',
 				     '--refresh', 'http://foo'])
 		self.assertEquals("Would download 'http://0install.net/2005/interfaces/injector-gui'\n",
 				  out)
@@ -134,7 +134,7 @@ class TestLaunch(unittest.TestCase):
   <implementation version='1.0' id='/'/>
 </interface>""" % foo_iface_uri)
 		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run(['--download-only', '--dry-run', foo_iface_uri])
+		out, err = self.run_0launch(['--download-only', '--dry-run', foo_iface_uri])
 		self.assertEquals("", err)
 		self.assertEquals("Finished\n", out)
 
