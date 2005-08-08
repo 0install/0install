@@ -1,7 +1,7 @@
 """The interface cache stores downloaded and verified interfaces in ~/.cache/0install.net/interfaces (by default).
 There are methods to query the cache, add to it, check signatures, etc."""
 
-import os, sys, time
+import os, sys, time, tempfile, shutil
 from logging import debug, info, warn
 from cStringIO import StringIO
 
@@ -88,11 +88,19 @@ class IfaceCache(object):
 		info("Fetching key from %s", key_url)
 		try:
 			stream = urllib2.urlopen(key_url)
+			# Python2.4: can't call fileno() on stream, so save to tmp file instead
+			tmpfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
+			shutil.copyfileobj(stream, tmpfile)
+			tmpfile.flush()
+			stream.close()
 		except Exception, ex:
 			raise SafeException("Failed to download key from '%s': %s" % (key_url, str(ex)))
+
 		import gpg
-		gpg.import_key(stream)
-		stream.close()
+
+		tmpfile.seek(0)
+		gpg.import_key(tmpfile)
+		tmpfile.close()
 
 	def update_interface_from_network(self, interface, new_xml, modified_time):
 		"""xml is the new XML (after the signature has been checked and

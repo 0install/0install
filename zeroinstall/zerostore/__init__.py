@@ -21,6 +21,7 @@ if '(GNU tar)' in _version:
 		recent_gnu_tar = _version > [1, 14, 0]
 	except:
 		warn("Failed to extract GNU tar version number")
+del _version
 
 def copytree2(src, dst):
 	names = os.listdir(src)
