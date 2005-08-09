@@ -11,17 +11,21 @@ import manifest
 class BadDigest(Exception): pass
 class NotStored(Exception): pass
 
-recent_gnu_tar = False
-_version = os.popen('tar --version 2>&1').read()
-if '(GNU tar)' in _version:
-	try:
-		_version = _version.split(')', 1)[1].strip()
-		assert _version
-		_version = map(int, _version.split('.'))
-		recent_gnu_tar = _version > [1, 14, 0]
-	except:
-		warn("Failed to extract GNU tar version number")
-del _version
+_recent_gnu_tar = None
+def recent_gnu_tar():
+	global _recent_gnu_tar
+	if _recent_gnu_tar is None:
+		_recent_gnu_tar = False
+		version = os.popen('tar --version 2>&1').next()
+		if '(GNU tar)' in version:
+			try:
+				version = version.split(')', 1)[1].strip()
+				assert version
+				version = map(int, version.split('.'))
+				_recent_gnu_tar = version > [1, 14, 0]
+			except:
+				warn("Failed to extract GNU tar version number")
+	return _recent_gnu_tar
 
 def copytree2(src, dst):
 	names = os.listdir(src)
@@ -82,7 +86,7 @@ class Store:
 			info("Not adding %s as it already exists!", required_digest)
 			return
 
-		if recent_gnu_tar:
+		if recent_gnu_tar():
 			args = ['tar', decompress, '-x', '--no-same-owner', '--no-same-permissions']
 		else:
 			args = ['tar', decompress, '-xf', '-']
