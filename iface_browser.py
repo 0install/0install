@@ -1,4 +1,4 @@
-import gtk, textwrap
+import gtk
 
 from zeroinstall.injector.model import Interface
 import properties
