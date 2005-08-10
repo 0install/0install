@@ -2,7 +2,23 @@ import gtk
 
 from zeroinstall.injector.model import Interface
 import properties
+from treetips import TreeTips
 from gui import policy, pretty_size
+
+class InterfaceTips(TreeTips):
+	def get_tooltip_text(self, interface):
+		assert interface
+		text = "(%s)\n" % interface.uri
+		if interface.description:
+			max_lines = 4
+			lines = filter(None, interface.description.split('\n'))
+			if len(lines) > max_lines:
+				lines = lines[:max_lines] + ['...']
+			text += '\n'.join(lines)
+			
+		return text
+
+tips = InterfaceTips()
 
 class InterfaceBrowser(gtk.ScrolledWindow):
 	model = None
@@ -53,6 +69,20 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		tree_view.set_enable_search(True)
 
 		selection = tree_view.get_selection()
+
+		def motion(tree_view, ev):
+			if ev.window is not tree_view.get_bin_window():
+				return False
+			pos = tree_view.get_path_at_pos(int(ev.x), int(ev.y))
+			if pos:
+				path = pos[0]
+				row = self.model[path]
+				tips.prime(tree_view, row[InterfaceBrowser.INTERFACE])
+			else:
+				tips.hide()
+
+		tree_view.connect('motion-notify-event', motion)
+		tree_view.connect('leave-notify-event', lambda tv, ev: tips.hide())
 
 		def sel_changed(sel):
 			store, iter = sel.get_selected()
