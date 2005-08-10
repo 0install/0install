@@ -18,13 +18,18 @@ class TreeTips:
 		if self.item is None:
 			return
 
+		text = self.get_tooltip_text(self.item)
+		if not text:
+			return
+
 		self.widget = gtk.Window(gtk.WINDOW_POPUP)
 		self.widget.set_app_paintable(True)
 		self.widget.set_name('gtk-tooltips')
 
 		self.widget.connect('expose-event', self.tooltip_draw)
 
-		label = gtk.Label(self.get_tooltip_text(self.item))
+		label = gtk.Label(text)
+		label.set_line_wrap(True)
 		label.set_padding(4, 2)
 		self.widget.add(label)
 		label.show()
@@ -49,7 +54,7 @@ class TreeTips:
 		self.time = time.time()
 	
 	def prime(self, parent, item):
-		if item is self.item:
+		if item == self.item:
 			return
 
 		self.hide()

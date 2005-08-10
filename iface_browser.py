@@ -1,22 +1,50 @@
-import gtk
+import gtk, textwrap
 
 from zeroinstall.injector.model import Interface
 import properties
 from treetips import TreeTips
 from gui import policy, pretty_size
 
+def _stability(impl):
+	assert impl
+	if impl.user_stability is None:
+		return impl.upstream_stability
+	return _("%s (was %s)") % (impl.user_stability, impl.upstream_stability)
+
 class InterfaceTips(TreeTips):
-	def get_tooltip_text(self, interface):
+	def get_tooltip_text(self, item):
+		interface, model_column = item
 		assert interface
-		text = "(%s)\n" % interface.uri
-		if interface.description:
-			max_lines = 4
-			lines = filter(None, interface.description.split('\n'))
-			if len(lines) > max_lines:
-				lines = lines[:max_lines] + ['...']
-			text += '\n'.join(lines)
-			
-		return text
+		if model_column == InterfaceBrowser.INTERFACE_NAME:
+			return _("Full name: %s") % interface.uri
+		elif model_column == InterfaceBrowser.SUMMARY:
+			if not interface.description:
+				return None
+			first_para = interface.description.split('\n\n', 1)[0]
+			return first_para.replace('\n', ' ')
+
+		impl = policy.implementation.get(interface, None)
+		if not impl:
+			return _("No suitable implementation was found. Check the "
+				 "interface properties to find out why.")
+
+		if model_column == InterfaceBrowser.VERSION:
+			text = _("Currently preferred version: %s (%s)") % \
+					(impl.get_version(), _stability(impl))
+			old_impl = policy.original_implementation.get(interface, None)
+			if old_impl is not None and old_impl is not impl:
+				text += _('\nPreviously preferred version: %s (%s)') % \
+					(old_impl.get_version(), _stability(old_impl))
+			return text
+
+		assert model_column == InterfaceBrowser.DOWNLOAD_SIZE
+
+		if policy.get_cached(impl):
+			return _("This version is already stored on your computer.")
+		else:
+			src = policy.get_best_source(impl)
+			return _("Need to download %s (%s bytes)") % \
+					(pretty_size(src.size), src.size)
 
 tips = InterfaceTips()
 
@@ -30,6 +58,11 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 	VERSION = 2
 	SUMMARY = 3
 	DOWNLOAD_SIZE = 4
+
+	columns = [(_('Interface'), INTERFACE_NAME),
+		   (_('Version'), VERSION),
+		   (_('Fetch'), DOWNLOAD_SIZE),
+		   (_('Description'), SUMMARY)]
 
 	def __init__(self):
 		self.edit_properties = gtk.Action('edit_properties',
@@ -47,21 +80,11 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 
 		text = gtk.CellRendererText()
 
-		column = gtk.TreeViewColumn(_('Interface'), text,
-					  text = InterfaceBrowser.INTERFACE_NAME)
-		tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn(_('Version'), text,
-					  text = InterfaceBrowser.VERSION)
-		tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn(_('Fetch'), text,
-					  text = InterfaceBrowser.DOWNLOAD_SIZE)
-		tree_view.append_column(column)
-
-		column = gtk.TreeViewColumn(_('Description'), text,
-					  text = InterfaceBrowser.SUMMARY)
-		tree_view.append_column(column)
+		column_objects = []
+		for name, model_column in self.columns:
+			column = gtk.TreeViewColumn(name, text, text = model_column)
+			tree_view.append_column(column)
+			column_objects.append(column)
 
 		self.add(tree_view)
 		tree_view.show()
@@ -76,8 +99,9 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			pos = tree_view.get_path_at_pos(int(ev.x), int(ev.y))
 			if pos:
 				path = pos[0]
+				col = self.columns[column_objects.index(pos[1])][1]
 				row = self.model[path]
-				tips.prime(tree_view, row[InterfaceBrowser.INTERFACE])
+				tips.prime(tree_view, (row[InterfaceBrowser.INTERFACE], col))
 			else:
 				tips.hide()
 
