@@ -39,6 +39,8 @@ if len(args) < 1:
 	parser.print_help()
 	sys.exit(1)
 
+cli.init_stores()
+
 pattern = args[0].lower()
 matches = [c for c in cli.commands if c.__name__[3:].startswith(pattern)]
 if len(matches) == 0:

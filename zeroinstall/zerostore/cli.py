@@ -2,7 +2,13 @@ import sys, os, sha
 from zeroinstall.zerostore.manifest import generate_manifest
 from zeroinstall import zerostore
 
-stores = zerostore.Stores()
+stores = None
+
+def init_stores():
+	global stores
+	assert stores is None
+	if stores is None:
+		stores = zerostore.Stores()
 
 class UsageError(Exception): pass
 

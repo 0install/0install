@@ -7,6 +7,7 @@ import re
 from logging import debug, info, warn
 
 import manifest
+from zeroinstall.injector import basedir
 
 class BadDigest(Exception): pass
 class NotStored(Exception): pass
@@ -176,6 +177,18 @@ class Stores(object):
 		if not os.path.isdir(user_store):
 			os.makedirs(user_store)
 		self.stores = [Store(user_store)]
+
+		impl_dirs = basedir.load_first_config('0install.net', 'injector',
+							  'implementation-dirs')
+		debug("Location of 'implementation-dirs' config file being used: '%s'", impl_dirs)
+		if impl_dirs:
+			for directory in file(impl_dirs):
+				directory = directory.strip()
+				if os.path.isdir(directory):
+					self.stores.append(Store(directory))
+					debug("Added system store '%s'", directory)
+				else:
+					info("Ignoring non-directory store '%s'", directory)
 
 	def lookup(self, digest):
 		"""Search for digest in all stores."""
