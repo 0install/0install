@@ -4,6 +4,7 @@ import zeroinstall, sys, os, shutil
 os.system('svn status')
 
 name = 'injector-' + zeroinstall.version
+package_name = 'zeroinstall-' + name
 a = raw_input("Release " + name + "? [y/N]")
 if not a or a not in 'Yy':
 	sys.exit(0)
@@ -25,9 +26,9 @@ if os.system('svn cp -m "Released ' + name + '" ' +
 	print "Failed to make release"
 	sys.exit(1)
 
-if os.path.isdir(name):
-	shutil.rmtree(name)
-os.system('svn export file:///home/svn/releases/' + name + ' ' + name)
+if os.path.isdir(package_name):
+	shutil.rmtree(package_name)
+os.system('svn export file:///home/svn/releases/' + name + ' ' + package_name)
 os.system('svn up')
 os.chdir(name)
 os.system('python setup.py sdist')
