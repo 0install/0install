@@ -28,14 +28,15 @@ a = unittest.TextTestRunner(verbosity=2).run(alltests)
 
 if coverage:
 	coverage.stop()
-
-	d = '../zeroinstall/injector'
-	all_sources = [os.path.join(d, x) for x in os.listdir(d)
-			if x.endswith('.py')] + ['../0launch']
-	coverage.report(all_sources)
 else:
 	print "Coverage module not found. Skipping coverage report."
 
 print "\nResult", a
 if not a.wasSuccessful():
 	sys.exit(1)
+
+if coverage:
+	d = '../zeroinstall/injector'
+	all_sources = [os.path.join(d, x) for x in os.listdir(d)
+			if x.endswith('.py')] + ['../0launch']
+	coverage.report(all_sources)
