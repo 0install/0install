@@ -27,10 +27,6 @@ if options.verbose:
 		logger.setLevel(logging.INFO)
 	else:
 		logger.setLevel(logging.DEBUG)
-        hdlr = logging.StreamHandler()
-        fmt = logging.Formatter("%(levelname)s:%(message)s")
-        hdlr.setFormatter(fmt)
-        logger.addHandler(hdlr)
 
 if options.list:
 	if len(args) == 0:
@@ -84,9 +80,18 @@ try:
 			signed_data.seek(0)
 			iface_cache.check_signed_data(iface, signed_data, handler.Handler())
 		sys.exit(0)
+	
+	if args[0].startswith('http:'):
+		iface_uri = args[0]
+	else:
+		iface_uri = os.path.realpath(args[0])
+		if not os.path.isfile(iface_uri):
+			raise model.SafeException("Bad interface name '%s'.\n"
+					"(doesn't start with 'http:', and "
+					"doesn't exist as a local file either)" % args[0])
 
 	# Singleton instance used everywhere...
-	policy = autopolicy.AutoPolicy(args[0],
+	policy = autopolicy.AutoPolicy(iface_uri,
 				download_only = bool(options.download_only),
 				dry_run = options.dry_run)
 
@@ -114,7 +119,7 @@ if options.gui:
 	policy.freshness = 0
 	policy.network_use = model.network_minimal
 
-	prog_args = args[:]
+	prog_args = [iface_uri] + args[1:]
 	# Options apply to actual program, not GUI
 	if options.download_only:
 		policy.download_only = False
