@@ -13,8 +13,6 @@ class AutoPolicy(policy.Policy):
 	__slots__ = ['allow_downloads', 'download_only', 'dry_run']
 
 	def __init__(self, interface_uri, download_only = False, dry_run = False):
-		if not interface_uri.startswith('http:'):
-			interface_uri = os.path.realpath(interface_uri)	# For testing
 		policy.Policy.__init__(self, interface_uri, handler.Handler())
 		self.dry_run = dry_run
 		self.allow_downloads = not dry_run

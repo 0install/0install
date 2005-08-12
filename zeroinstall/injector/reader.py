@@ -51,14 +51,21 @@ def process_depends(dependency, item):
 
 def update_from_cache(interface):
 	"""True if cached version and user overrides loaded OK.
-	False if not cached."""
-	cached = basedir.load_first_cache(config_site, 'interfaces', escape(interface.uri))
-	if not cached:
-		return False
+	False if not cached. Local interfaces (starting with /) are
+	always considered to be cached, although they are not stored there."""
+	if interface.uri.startswith('/'):
+		interface.reset()
+		debug("Loading local interface file '%s'", interface.uri)
+		update(interface, interface.uri, local = True)
+	else:
+		cached = basedir.load_first_cache(config_site, 'interfaces', escape(interface.uri))
+		if not cached:
+			return False
 
-	debug("Loading cached information for %s from %s", interface, cached)
-	interface.reset()
-	update(interface, cached)
+		debug("Loading cached information for %s from %s", interface, cached)
+		interface.reset()
+		update(interface, cached)
+
 	update_user_overrides(interface)
 
 	return True
@@ -96,7 +103,18 @@ def parse_time(t):
 		raise InvalidInterface("Date '%s' not in correct format (should be integer number "
 					"of seconds since Unix epoch)\n%s" % (t, ex))
 
+def _check_canonical_name(root, interface):
+	"Ensure the uri= attribute in the interface file matches the interface we are trying to load"
+	canonical_name = root.getAttribute('uri')
+	if not canonical_name:
+		raise InvalidInterface("<interface> uri attribute missing in " + source)
+	if canonical_name != interface.uri:
+		raise InvalidInterface("<interface> uri attribute is '%s', but accessed as '%s'\n(%s)" %
+				(canonical_name, interface.uri, source))
+
 def update(interface, source, user_overrides = False, local = False):
+	"""user_overrides - meta data and uri are optional, but last-checked etc isn't
+	local - use file mtime for last-modified, and uri attribute is ignored"""
 	assert isinstance(interface, Interface)
 	assert not (user_overrides and local)
 
@@ -112,18 +130,16 @@ def update(interface, source, user_overrides = False, local = False):
 	interface.summary = interface.summary or get_singleton_text(root, XMLNS_IFACE, 'summary', user_overrides)
 
 	if not user_overrides:
-		canonical_name = root.getAttribute('uri')
-		if not canonical_name:
-			raise InvalidInterface("<interface> uri attribute missing in " + source)
-		if canonical_name != interface.uri:
-			raise InvalidInterface("<interface> uri attribute is '%s', but accessed as '%s'\n(%s)" %
-					(canonical_name, interface.uri, source))
-		time_str = root.getAttribute('last-modified')
-		if not time_str:
-			raise InvalidInterface("Missing last-modified attribute on root element.")
 		if local:
-			interface.last_local_update = parse_time(time_str)
+			# When we support multiple feeds, will we need a last_modified for each one?
+			if interface.last_modified is None:
+				interface.last_modified = 0
+			interface.last_modified = max(interface.last_modified, os.stat(source).st_mtime)
 		else:
+			_check_canonical_name(root, interface)
+			time_str = root.getAttribute('last-modified')
+			if not time_str:
+				raise InvalidInterface("Missing last-modified attribute on root element.")
 			interface.last_modified = parse_time(time_str)
 		main = root.getAttribute('main')
 		if main:
@@ -136,6 +152,11 @@ def update(interface, source, user_overrides = False, local = False):
 		stability_policy = root.getAttribute('stability-policy')
 		if stability_policy:
 			interface.set_stability_policy(stability_levels[str(stability_policy)])
+	
+	if interface.uri.startswith('/'):
+		iface_dir = os.path.dirname(interface.uri)
+	else:
+		iface_dir = None	# Can't have relative paths
 
 	def process_group(group, group_attrs, base_depends):
 		for item in group.childNodes:
@@ -159,8 +180,11 @@ def update(interface, source, user_overrides = False, local = False):
 		id = item.getAttribute('id')
 		if id is None:
 			raise InvalidInterface("Missing 'id' attribute on %s" % item)
-		if id.startswith('/'):
-			impl = interface.get_impl(id)
+		if local and (id.startswith('/') or id.startswith('.')):
+			if iface_dir is None and id.startswith('.'):
+				raise InvalidInterface("Can't have a relative path (%s) for a non-local "
+							"interface (%s).", id, interface.uri)
+			impl = interface.get_impl(os.path.abspath(os.path.join(iface_dir, id)))
 		else:
 			if '=' not in id:
 				raise InvalidInterface('Invalid "id"; form is "alg=value" (got "%s")' % id)

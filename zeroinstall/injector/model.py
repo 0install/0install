@@ -113,6 +113,8 @@ class Interface(object):
 	__slots__ = ['uri', 'implementations', 'name', 'description', 'summary',
 		     'stability_policy', 'last_modified', 'last_local_update', 'last_checked',
 		     'main']
+
+	# last_local_update is deprecated
 	
 	# stability_policy:
 	# Implementations at this level or higher are preferred.
@@ -120,7 +122,7 @@ class Interface(object):
 
 	def __init__(self, uri):
 		assert uri
-		if uri.startswith('http:'):
+		if uri.startswith('http:') or uri.startswith('/'):
 			self.uri = uri
 			self.reset()
 		else:

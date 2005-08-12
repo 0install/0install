@@ -146,17 +146,21 @@ class Policy(object):
 				self.begin_iface_download(iface)
 			else:
 				debug("Nothing known about interface, but we are off-line.")
-		else:
+		elif not uri.startswith('/'):
 			staleness = time.time() - (iface.last_checked or 0)
 			debug("Staleness for %s is %.2f hours", iface, staleness / 3600.0)
 
 			if self.network_use != network_offline and self.freshness > 0 and staleness > self.freshness:
 				debug("Updating %s", iface)
 				self.begin_iface_download(iface, False)
+		else:
+			debug("Local interface, so not checking staleness.")
 		return iface
 	
 	def begin_iface_download(self, interface, force = False):
 		debug("begin_iface_download %s (force = %d)", interface, force)
+		if interface.uri.startswith('/'):
+			return
 		dl = download.begin_iface_download(interface, force)
 		if not dl:
 			assert not force
