@@ -127,6 +127,15 @@ class TestLaunch(unittest.TestCase):
 		self.assertEquals("", err)
 		self.assertEquals("Finished\n", out)
 
+	def testHello(self):
+		out, err = self.run_0launch(['--dry-run', 'Foo.xml'])
+		self.assertEquals("", err)
+		assert out.startswith("Would execute: ")
+
+		out, err = self.run_0launch(['Foo.xml'])
+		# (Foo.xml tries to run a directory)
+		self.assertEquals("exceptions.OSError", err)
+
 suite = unittest.makeSuite(TestLaunch)
 if __name__ == '__main__':
 	sys.argv.append('-v')

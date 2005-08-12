@@ -65,7 +65,7 @@ class TestAutoPolicy(unittest.TestCase):
 		tmp = tempfile.NamedTemporaryFile()
 		tmp.write(
 """<?xml version="1.0" ?>
-<interface last-modified="1110752708"
+<interface
  main='ThisBetterNotExist'
  xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
   <name>Foo</name>
@@ -80,6 +80,26 @@ class TestAutoPolicy(unittest.TestCase):
 			assert 0
 		except model.SafeException, ex:
 			assert "ThisBetterNotExist" in str(ex)
+		tmp.close()
+
+	def testNoMain(self):
+		tmp = tempfile.NamedTemporaryFile()
+		tmp.write(
+"""<?xml version="1.0" ?>
+<interface
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <implementation version='1.0' id='/bin'/>
+</interface>""")
+		tmp.flush()
+		policy = autopolicy.AutoPolicy(tmp.name, False, False)
+		try:
+			policy.download_and_execute(['Hello'])
+			assert 0
+		except model.SafeException, ex:
+			assert "library" in str(ex)
 		tmp.close()
 
 	def testNeedDL(self):
