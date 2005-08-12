@@ -24,7 +24,7 @@ class TestIfaceCache(unittest.TestCase):
 		os.mkdir(self.cache_home, 0700)
 		os.mkdir(self.gnupg_home, 0700)
 
-		iface_cache._interfaces = {}
+		iface_cache.__init__()
 	
 	def tearDown(self):
 		shutil.rmtree(self.config_home)

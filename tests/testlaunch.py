@@ -121,20 +121,9 @@ class TestLaunch(unittest.TestCase):
 	
 	def testNeedDownload(self):
 		policy = autopolicy.AutoPolicy(foo_iface_uri)
-		policy.freshness = 0
 		policy.save_config()
-		self.cache_iface(foo_iface_uri,
-"""<?xml version="1.0" ?>
-<interface last-modified="1110752708"
- uri="%s"
- xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <name>Foo</name>
-  <summary>Foo</summary>
-  <description>Foo</description>
-  <implementation version='1.0' id='/'/>
-</interface>""" % foo_iface_uri)
 		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run_0launch(['--download-only', '--dry-run', foo_iface_uri])
+		out, err = self.run_0launch(['--download-only', '--dry-run', 'Foo.xml'])
 		self.assertEquals("", err)
 		self.assertEquals("Finished\n", out)
 

@@ -62,24 +62,25 @@ class TestAutoPolicy(unittest.TestCase):
 		assert not policy.need_download()
 	
 	def testDownload(self):
-		policy = autopolicy.AutoPolicy(foo_iface_uri, False, False)
-		policy.freshness = 0
-		self.cache_iface(foo_iface_uri,
+		tmp = tempfile.NamedTemporaryFile()
+		tmp.write(
 """<?xml version="1.0" ?>
 <interface last-modified="1110752708"
- uri="%s"
  main='ThisBetterNotExist'
  xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
   <name>Foo</name>
   <summary>Foo</summary>
   <description>Foo</description>
   <implementation version='1.0' id='/bin'/>
-</interface>""" % foo_iface_uri)
+</interface>""")
+		tmp.flush()
+		policy = autopolicy.AutoPolicy(tmp.name, False, False)
 		try:
 			policy.download_and_execute(['Hello'])
 			assert 0
 		except model.SafeException, ex:
 			assert "ThisBetterNotExist" in str(ex)
+		tmp.close()
 
 	def testNeedDL(self):
 		policy = autopolicy.AutoPolicy(foo_iface_uri, False, False)
@@ -94,7 +95,7 @@ class TestAutoPolicy(unittest.TestCase):
   <name>Foo</name>
   <summary>Foo</summary>
   <description>Foo</description>
-  <implementation version='1.0' id='/'/>
+  <implementation version='1.0' id='sha1=123'/>
 </interface>""" % foo_iface_uri)
 		assert policy.need_download()
 

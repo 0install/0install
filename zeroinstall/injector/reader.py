@@ -103,7 +103,7 @@ def parse_time(t):
 		raise InvalidInterface("Date '%s' not in correct format (should be integer number "
 					"of seconds since Unix epoch)\n%s" % (t, ex))
 
-def _check_canonical_name(root, interface):
+def _check_canonical_name(interface, source, root):
 	"Ensure the uri= attribute in the interface file matches the interface we are trying to load"
 	canonical_name = root.getAttribute('uri')
 	if not canonical_name:
@@ -136,7 +136,7 @@ def update(interface, source, user_overrides = False, local = False):
 				interface.last_modified = 0
 			interface.last_modified = max(interface.last_modified, os.stat(source).st_mtime)
 		else:
-			_check_canonical_name(root, interface)
+			_check_canonical_name(interface, source, root)
 			time_str = root.getAttribute('last-modified')
 			if not time_str:
 				raise InvalidInterface("Missing last-modified attribute on root element.")
