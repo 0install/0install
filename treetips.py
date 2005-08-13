@@ -35,11 +35,14 @@ class TreeTips:
 		label.show()
 
 		w, h = self.widget.size_request()
-		screen = parent.get_screen()
-		root = screen.get_root_window()
+		if hasattr(parent, 'get_screen'):
+			screen = parent.get_screen()
+			root = screen.get_root_window()
+		else:
+			root = gtk.gdk.get_default_root_window()
 		px, py, mask = gtk.gdk.Window.get_pointer(root)
 
-		m = gtk.gdk.screen_get_default().get_monitor_at_point(px, py)
+		#m = gtk.gdk.screen_get_default().get_monitor_at_point(px, py)
 		
 		x = px - w / 2
 		y = py + 12

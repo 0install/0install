@@ -24,6 +24,6 @@ if os.system('svn cp -m "Released ' + name + '" ' +
 if os.path.isdir(name):
 	shutil.rmtree(name)
 os.system('svn export file:///home/svn/releases/' + name + ' ' + name)
-os.chdir(name)
+#os.chdir(name)
 
 os.system('svn up')
