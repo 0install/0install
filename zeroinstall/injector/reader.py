@@ -14,11 +14,9 @@ class InvalidInterface(SafeException):
 			message += "\n\n(exact error: %s)" % ex
 		SafeException.__init__(self, message)
 
-def get_singleton_text(parent, ns, localName, user):
+def get_singleton_text(parent, ns, localName):
 	names = parent.getElementsByTagNameNS(ns, localName)
 	if not names:
-		if user:
-			return None
 		raise InvalidInterface('No <%s> element in <%s>' % (localName, parent.localName))
 	if len(names) > 1:
 		raise InvalidInterface('Multiple <%s> elements in <%s>' % (localName, parent.localName))
@@ -73,9 +71,38 @@ def update_from_cache(interface):
 def update_user_overrides(interface):
 	user = basedir.load_first_config(config_site, config_prog,
 					   'user_overrides', escape(interface.uri))
-	
-	if user:
-		update(interface, user, user_overrides = True)
+	if not user:
+		return
+
+	doc = minidom.parse(user)
+	root = doc.documentElement
+
+	last_checked = root.getAttribute('last-checked')
+	if last_checked:
+		interface.last_checked = int(last_checked)
+
+	stability_policy = root.getAttribute('stability-policy')
+	if stability_policy:
+		interface.set_stability_policy(stability_levels[str(stability_policy)])
+
+	for item in root.getElementsByTagNameNS(XMLNS_IFACE, 'implementation'):
+		id = item.getAttribute('id')
+		assert id is not None
+		if id.startswith('/') or id.startswith('.'):
+			impl = interface.get_impl(os.path.abspath(os.path.join(iface_dir, id)))
+		else:
+			assert '=' in id
+			impl = interface.get_impl(id)
+
+		user_stability = item.getAttribute('user-stability')
+		if user_stability:
+			impl.user_stability = stability_levels[str(user_stability)]
+
+	for feed in root.getElementsByTagNameNS(XMLNS_IFACE, 'feed'):
+		feed_src = feed.getAttribute('src')
+		if not feed_src:
+			raise InvalidInterface('Missing "src" attribute in <feed>')
+		interface.feeds.append(feed_src)
 
 	for feed in interface.feeds:
 		debug("Merging information from feed '%s' into interface '%s'" % (feed, interface))
@@ -87,7 +114,6 @@ def update_user_overrides(interface):
 		else:
 			raise InvalidInterface('Only local feed sources are currently supported '
 						'(not %s)' % feed)
-
 
 def check_readable(interface_uri, source):
 	"""Returns the modified time in 'source'. If syntax is incorrect,
@@ -118,11 +144,9 @@ def _check_canonical_name(interface, source, root):
 		raise InvalidInterface("<interface> uri attribute is '%s', but accessed as '%s'\n(%s)" %
 				(canonical_name, interface.uri, source))
 
-def update(interface, source, user_overrides = False, local = False):
-	"""user_overrides - meta data and uri are optional, but last-checked etc isn't
-	local - use file mtime for last-modified, and uri attribute is ignored"""
+def update(interface, source, local = False):
+	"""local - use file mtime for last-modified, and uri attribute is ignored"""
 	assert isinstance(interface, Interface)
-	assert not (user_overrides and local)
 
 	try:
 		doc = minidom.parse(source)
@@ -131,38 +155,19 @@ def update(interface, source, user_overrides = False, local = False):
 
 	root = doc.documentElement
 
-	interface.name = interface.name or get_singleton_text(root, XMLNS_IFACE, 'name', user_overrides)
-	interface.description = interface.description or get_singleton_text(root, XMLNS_IFACE, 'description', user_overrides)
-	interface.summary = interface.summary or get_singleton_text(root, XMLNS_IFACE, 'summary', user_overrides)
+	interface.name = interface.name or get_singleton_text(root, XMLNS_IFACE, 'name')
+	interface.description = interface.description or get_singleton_text(root, XMLNS_IFACE, 'description')
+	interface.summary = interface.summary or get_singleton_text(root, XMLNS_IFACE, 'summary')
 
-	if not user_overrides:
-		if local:
-			# When we support multiple feeds, will we need a last_modified for each one?
-			if interface.last_modified is None:
-				interface.last_modified = 0
-			interface.last_modified = max(interface.last_modified, os.stat(source).st_mtime)
-		else:
-			_check_canonical_name(interface, source, root)
-			time_str = root.getAttribute('last-modified')
-			if not time_str:
-				raise InvalidInterface("Missing last-modified attribute on root element.")
-			interface.last_modified = parse_time(time_str)
-		main = root.getAttribute('main')
-		if main:
-			interface.main = main
-
-	if user_overrides:
-		last_checked = root.getAttribute('last-checked')
-		if last_checked:
-			interface.last_checked = int(last_checked)
-		stability_policy = root.getAttribute('stability-policy')
-		if stability_policy:
-			interface.set_stability_policy(stability_levels[str(stability_policy)])
-		for feed in root.getElementsByTagNameNS(XMLNS_IFACE, 'feed'):
-			feed_src = feed.getAttribute('src')
-			if not feed_src:
-				raise InvalidInterface('Missing "src" attribute in <feed>')
-			interface.feeds.append(feed_src)
+	if not local:
+		_check_canonical_name(interface, source, root)
+		time_str = root.getAttribute('last-modified')
+		if not time_str:
+			raise InvalidInterface("Missing last-modified attribute on root element.")
+		interface.last_modified = parse_time(time_str)
+	main = root.getAttribute('main')
+	if main:
+		interface.main = main
 	
 	if local:
 		iface_dir = os.path.dirname(source)
@@ -203,27 +208,23 @@ def update(interface, source, user_overrides = False, local = False):
 				raise InvalidInterface('Bad SHA1 attribute: %s' % ex)
 			impl = interface.get_impl(id)
 
-		if user_overrides:
-			user_stability = item.getAttribute('user-stability')
-			if user_stability:
-				impl.user_stability = stability_levels[str(user_stability)]
-		else:
-			version = item_attrs.version
-			if not version:
-				raise InvalidInterface("Missing version attribute")
-			impl.version = map(int, version.split('.'))
+		version = item_attrs.version
+		if not version:
+			raise InvalidInterface("Missing version attribute")
+		impl.version = map(int, version.split('.'))
 
-			size = item.getAttribute('size')
-			if size:
-				impl.size = long(size)
-			impl.arch = item_attrs.arch
-			try:
-				stability = stability_levels[str(item_attrs.stability)]
-			except KeyError:
-				raise InvalidInterface('Stability "%s" invalid' % item_attrs.stability)
-			if stability >= preferred:
-				raise InvalidInterface("Upstream can't set stability to preferred!")
-			impl.upstream_stability = stability
+		size = item.getAttribute('size')
+		if size:
+			impl.size = long(size)
+		impl.arch = item_attrs.arch
+		try:
+			stability = stability_levels[str(item_attrs.stability)]
+		except KeyError:
+			raise InvalidInterface('Stability "%s" invalid' % item_attrs.stability)
+		if stability >= preferred:
+			raise InvalidInterface("Upstream can't set stability to preferred!")
+		impl.upstream_stability = stability
+
 		impl.dependencies.update(depends)
 
 		for elem in item.getElementsByTagNameNS(XMLNS_IFACE, 'archive'):

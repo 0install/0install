@@ -27,7 +27,7 @@ def save_interface(interface):
 	#print "Save to", path
 
 	impl = minidom.getDOMImplementation()
-	doc = impl.createDocument(XMLNS_IFACE, 'interface', None)
+	doc = impl.createDocument(XMLNS_IFACE, 'interface-preferences', None)
 
 	root = doc.documentElement
 	root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns', XMLNS_IFACE)
