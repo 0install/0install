@@ -30,6 +30,6 @@ if os.path.isdir(package_name):
 	shutil.rmtree(package_name)
 os.system('svn export file:///home/svn/releases/' + name + ' ' + package_name)
 os.system('svn up')
-os.chdir(name)
+os.chdir(package_name)
 os.system('python setup.py sdist')
 os.system('dpkg-buildpackage -rfakeroot')
