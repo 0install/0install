@@ -3,6 +3,14 @@ import zeroinstall, sys, os, shutil
 
 os.system('svn status')
 
+for line in os.popen('dpkg-parsechangelog'):
+	if line.startswith('Version: '):
+		deb_version = line.split(' ', 1)[1]
+		break
+else:
+	raise Exception('Failed to get deb version!')
+print "Debian version: " + deb_version
+
 name = 'injector-' + zeroinstall.version
 package_name = 'zeroinstall-' + name
 a = raw_input("Release " + name + "? [y/N]")
