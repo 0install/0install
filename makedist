@@ -41,3 +41,5 @@ os.system('svn up')
 os.chdir(package_name)
 os.system('python setup.py sdist')
 os.system('dpkg-buildpackage -rfakeroot')
+
+print "Tarball is", package_name + '/dist/' + package_name + '.tar.gz'
