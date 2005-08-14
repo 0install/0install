@@ -44,7 +44,7 @@ class Description(gtk.ScrolledWindow):
 		buffer.insert_with_tags(iter,
 			'%s (%s)' % (interface.get_name(), interface.summary), heading_style)
 
-		buffer.insert(iter, '\nFull name: %s' % interface.uri)
+		buffer.insert(iter, '\n%s\n' % interface.uri)
 
 		# (converts to local time)
 		if interface.last_modified:
@@ -53,8 +53,9 @@ class Description(gtk.ScrolledWindow):
 		if interface.last_checked:
 			buffer.insert(iter, '\nLast checked: %s' % time.ctime(interface.last_checked))
 
-		if interface.last_local_update:
-			buffer.insert(iter, '\nLast local update: %s' % time.ctime(interface.last_local_update))
+		if hasattr(interface, 'feeds') and interface.feeds:
+			for feed in interface.feeds:
+				buffer.insert(iter, '\nLocal feed: %s' % feed)
 
 		buffer.insert_with_tags(iter, '\n\nDescription\n', heading_style)
 
@@ -77,7 +78,6 @@ class Properties(Dialog):
 		self.vbox.pack_start(vbox, True, True, 0)
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
-		#self.add_button(gtk.STOCK_REFRESH, 1)
 		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
 		self.set_default_response(gtk.RESPONSE_CANCEL)
 
@@ -90,16 +90,32 @@ class Properties(Dialog):
 				properties_help.display()
 		self.connect('response', response)
 
-		vpaned = gtk.VPaned()
-		vbox.pack_start(vpaned, True, True, 0)
+		main_hbox = gtk.HBox(False, 5)
+		vbox.pack_start(main_hbox, True, True, 0)
 
 		description = Description()
 		description.set_details(interface)
-		vpaned.add1(description)
+		main_hbox.pack_start(description, True, True, 0)
 
-		self.use_list = ImplementationList(interface)
-		vpaned.add2(self.use_list)
-		self.use_list.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
+		main_hbox.pack_start(self.build_versions_column(interface), False, True, 0)
+
+		self.update_list()
+		vbox.show_all()
+
+		def updated():
+			self.update_list()
+			description.set_details(interface)
+		self.connect('destroy', lambda s: policy.watchers.remove(updated))
+		policy.watchers.append(updated)
+	
+	def update_list(self):
+		impls = policy.get_ranked_implementations(self.interface)
+		self.use_list.set_items(impls)
+
+	def build_versions_column(self, interface):
+		assert self.use_list is None
+
+		vbox = gtk.VBox(False, 2)
 
 		hbox = gtk.HBox(False, 2)
 		vbox.pack_start(hbox, False, True, 0)
@@ -125,18 +141,11 @@ class Properties(Dialog):
 			policy.recalculate()
 		stability.connect('changed', set_stability_policy)
 
-		self.update_list()
-		vbox.show_all()
+		self.use_list = ImplementationList(interface)
+		self.use_list.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+		vbox.pack_start(self.use_list, True, True, 0)
 
-		def updated():
-			self.update_list()
-			description.set_details(interface)
-		self.connect('destroy', lambda s: policy.watchers.remove(updated))
-		policy.watchers.append(updated)
-	
-	def update_list(self):
-		impls = policy.get_ranked_implementations(self.interface)
-		self.use_list.set_items(impls)
+		return vbox
 	
 def edit(interface):
 	assert isinstance(interface, Interface)
@@ -147,17 +156,18 @@ def edit(interface):
 
 properties_help = help_box.HelpBox("Injector Properties Help",
 ('Interface properties', """
-This window displays information about an interface. At the top is the interface's \
-short name, unique ID, summary and long description. The unique ID is also the \
-location which is used to update the information."""),
+This window displays information about an interface. On the left is some information \
+about the interface: 
 
-('Dates and times', """
-Up to three times may be displayed:
+- At the top is its short name.
+- Below that is the full name; this is also location which is used to update \
+the information.
 - 'Last upstream change' shows the version of the cached copy of the interface file.
 - 'Last checked' is the last time a fresh copy of the upstream interface file was \
 downloaded.
-- 'Last local update' is the modification time of your local additions to the interface. \
-You'll only have this displayed if you have made your own custom versions of a program."""),
+- 'Local feed' is shown if you have other sources of versions of this program (for \
+example, a CVS checkout).
+- The long description of the interface."""),
 
 ('Implementations', """
 The main part of the window is a list of all known implementations of the interface. \
@@ -177,9 +187,6 @@ In off-line mode, only cached implementations are considered for use.
 
 Arch indicates what kind of computer system the implementation is for, or 'any' \
 if it works with all types of system.
-
-ID is the unique identifier for the implementation. Normally, this is a cryptographic \
-digest of it's contents, but it can also be a simple path name.
 """),
 ('Sort order', """
 The implementations are listed in the injector's currently preferred order (the one \

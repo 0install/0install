@@ -22,8 +22,7 @@ ARCH = 1
 STABILITY = 2
 VERSION = 3
 CACHED = 4
-ID = 5
-UNUSABLE = 6
+UNUSABLE = 5
 
 class ImplementationList(gtk.ScrolledWindow):
 	tree_view = None
@@ -34,7 +33,7 @@ class ImplementationList(gtk.ScrolledWindow):
 		self.set_shadow_type(gtk.SHADOW_IN)
 
 		self.model = gtk.ListStore(object, str, str, str,
-			   gobject.TYPE_BOOLEAN, str, gobject.TYPE_BOOLEAN)
+			   gobject.TYPE_BOOLEAN, gobject.TYPE_BOOLEAN)
 
 		self.tree_view = gtk.TreeView(self.model)
 
@@ -44,12 +43,10 @@ class ImplementationList(gtk.ScrolledWindow):
 
 		stability = gtk.TreeViewColumn('Stability', text, text = STABILITY)
 
-		for column in (gtk.TreeViewColumn('Version', text, text = VERSION),
+		for column in (gtk.TreeViewColumn('Version', text, text = VERSION, strikethrough = UNUSABLE),
 			       stability,
 			       gtk.TreeViewColumn('C', toggle, active = CACHED),
-			       gtk.TreeViewColumn('Arch', text, text = ARCH),
-			       gtk.TreeViewColumn('ID', text_strike, text = ID,
-			       				strikethrough = UNUSABLE)):
+			       gtk.TreeViewColumn('Arch', text, text = ARCH)):
 			self.tree_view.append_column(column)
 
 		self.add(self.tree_view)
@@ -100,7 +97,6 @@ class ImplementationList(gtk.ScrolledWindow):
 				self.model[new][STABILITY] = item.upstream_stability or \
 							     model.testing
 			self.model[new][ARCH] = item.arch or 'any'
-			self.model[new][ID] = item.id
 			self.model[new][UNUSABLE] = policy.is_unusable(item)
 	
 	def clear(self):
