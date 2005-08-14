@@ -43,6 +43,11 @@ def save_interface(interface):
 	impls.sort()
 	for impl in impls:
 		add_impl(root, impl)
+	
+	for feed in interface.feeds:
+		elem = doc.createElementNS(XMLNS_IFACE, 'feed')
+		root.appendChild(elem)
+		elem.setAttribute('src', feed)
 
 	doc.writexml(file(path + '.new', 'w'), addindent = " ", newl = '\n')
 	os.rename(path + '.new', path)

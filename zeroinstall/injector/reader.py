@@ -77,6 +77,18 @@ def update_user_overrides(interface):
 	if user:
 		update(interface, user, user_overrides = True)
 
+	for feed in interface.feeds:
+		debug("Merging information from feed '%s' into interface '%s'" % (feed, interface))
+		if feed.startswith('/'):
+			if os.path.isfile(feed):
+				update(interface, feed, local = True)
+			else:
+				warn("Feed '%s' not found (in '%s')" % (feed, source))
+		else:
+			raise InvalidInterface('Only local feed sources are currently supported '
+						'(not %s)' % feed)
+
+
 def check_readable(interface_uri, source):
 	"""Returns the modified time in 'source'. If syntax is incorrect,
 	throws an exception."""
@@ -150,15 +162,7 @@ def update(interface, source, user_overrides = False, local = False):
 			feed_src = feed.getAttribute('src')
 			if not feed_src:
 				raise InvalidInterface('Missing "src" attribute in <feed>')
-			debug("Merging information from feed '%s' into interface '%s'" % (feed_src, interface))
-			if feed_src.startswith('/'):
-				if os.path.isfile(feed_src):
-					update(interface, feed_src, local = True)
-				else:
-					warn("Feed '%s' not found (in '%s')" % (feed_src, source))
-			else:
-				raise InvalidInterface('Only local feed sources are currently supported '
-							'(not %s)' % feed_src)
+			interface.feeds.append(feed_src)
 	
 	if local:
 		iface_dir = os.path.dirname(source)

@@ -112,7 +112,7 @@ class Interface(object):
 	"""An Interface represents some contract of behaviour."""
 	__slots__ = ['uri', 'implementations', 'name', 'description', 'summary',
 		     'stability_policy', 'last_modified', 'last_local_update', 'last_checked',
-		     'main']
+		     'main', 'feeds']
 
 	# last_local_update is deprecated
 	
@@ -139,6 +139,7 @@ class Interface(object):
 		self.last_local_update = None
 		self.last_checked = None
 		self.main = None
+		self.feeds = []
 	
 	def get_name(self):
 		return self.name or '(' + os.path.basename(self.uri) + ')'
