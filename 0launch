@@ -7,7 +7,9 @@ from zeroinstall.injector import model, download, autopolicy, run, namespaces
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]\n"
-			    "       %prog --import [interface-files]")
+			    "       %prog --import [signed-interface-files]\n"
+			    "       %prog --add-feed [local-interface-files]")
+parser.add_option("-a", "--add-feed", help="add a local feed", action='store_true')
 parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
@@ -79,6 +81,32 @@ try:
 			logging.info("Importing information about interface %s", iface)
 			signed_data.seek(0)
 			iface_cache.check_signed_data(iface, signed_data, handler.Handler())
+		sys.exit(0)
+	
+	if getattr(options, 'add_feed'):
+		from zeroinstall.injector import iface_cache, writer
+		from xml.dom import minidom
+		for x in args:
+			if not os.path.isfile(x):
+				raise model.SafeException("File '%s' does not exist" % x)
+			logging.info("Reading interface file '%s'", x)
+			doc = minidom.parse(x)
+			uri = doc.documentElement.getAttribute('uri')
+			if not uri:
+				print "Missing uri attribute in interface file '%s'" % x
+			new, iface = iface_cache.iface_cache.get_interface(uri)
+			if x in iface.feeds:
+				print "Feed '%s' is already registered." % x
+				continue
+			if options.dry_run:
+				print "Would add this file as a feed for '%s'" % iface.get_name()
+				continue
+
+			iface.feeds.append(x)
+			writer.save_interface(iface)
+			print "Feeds for interface '%s':" % iface.get_name()
+			for f in iface.feeds:
+				print "- " + f
 		sys.exit(0)
 	
 	if args[0].startswith('http:'):

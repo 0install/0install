@@ -54,6 +54,24 @@ To search the list of cached URLs:
 .SH COMMAND-LINE OPTIONS
 
 .TP
+\fB-a\fP, \fB--add-feed\fP
+Register an additional source of implementations. When you get a CVS
+version of a project, it may contain an interface XML file. To add this version
+to the list of available versions, use --add-feed on this file. The file is
+not copied, so you don't need to re-add the file each time it is updated.
+
+Note that if you just want to run the program, you can invoke 0launch on the
+interface file directly (without using --add-feed). This will force the
+injector to use that version, but won't affect what happens when you run it
+using the URI as normal. Use --add-feed when you want to use the CVS version
+even when using the URI, or if the program is a library (and thus referenced
+by URI by other programs).
+
+Note also that the stability of CVS versions will probably be set
+to 'developer', so be sure to set this as the preferred stability for the
+interface (using the GUI).
+
+.TP
 \fB-c\fP, \fB--console\fP
 Never use the GUI. Normally, 0launch switches to graphical mode if it needs to
 download anything from the network (unless DISPLAY is not set).
