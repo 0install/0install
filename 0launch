@@ -87,14 +87,18 @@ try:
 		from zeroinstall.injector import iface_cache, writer
 		from xml.dom import minidom
 		for x in args:
+			x = os.path.realpath(x)
 			if not os.path.isfile(x):
 				raise model.SafeException("File '%s' does not exist" % x)
 			logging.info("Reading interface file '%s'", x)
 			doc = minidom.parse(x)
 			uri = doc.documentElement.getAttribute('uri')
 			if not uri:
-				print "Missing uri attribute in interface file '%s'" % x
+				raise model.SafeException("Missing uri attribute in interface file '%s'" % x)
+				continue
 			new, iface = iface_cache.iface_cache.get_interface(uri)
+			if not iface.name:
+				print "Warning: unknown interface '%s'" % uri
 			if x in iface.feeds:
 				print "Feed '%s' is already registered." % x
 				continue
@@ -104,7 +108,7 @@ try:
 
 			iface.feeds.append(x)
 			writer.save_interface(iface)
-			print "Feeds for interface '%s':" % iface.get_name()
+			print "Feed list for interface '%s' is now:" % iface.get_name()
 			for f in iface.feeds:
 				print "- " + f
 		sys.exit(0)
