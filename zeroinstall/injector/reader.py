@@ -2,7 +2,7 @@ from xml.dom import Node, minidom
 import sys
 import shutil
 import time
-from logging import debug
+from logging import debug, warn
 
 import basedir
 from namespaces import *
@@ -71,12 +71,6 @@ def update_from_cache(interface):
 	return True
 
 def update_user_overrides(interface):
-	local = basedir.load_first_config(config_site, config_prog,
-					   'local_interfaces', escape(interface.uri))
-	
-	if local:
-		update(interface, local, local = True)
-
 	user = basedir.load_first_config(config_site, config_prog,
 					   'user_overrides', escape(interface.uri))
 	
@@ -152,9 +146,22 @@ def update(interface, source, user_overrides = False, local = False):
 		stability_policy = root.getAttribute('stability-policy')
 		if stability_policy:
 			interface.set_stability_policy(stability_levels[str(stability_policy)])
+		for feed in root.getElementsByTagNameNS(XMLNS_IFACE, 'feed'):
+			feed_src = feed.getAttribute('src')
+			if not feed_src:
+				raise InvalidInterface('Missing "src" attribute in <feed>')
+			debug("Merging information from feed '%s' into interface '%s'" % (feed_src, interface))
+			if feed_src.startswith('/'):
+				if os.path.isfile(feed_src):
+					update(interface, feed_src, local = True)
+				else:
+					warn("Feed '%s' not found (in '%s')" % (feed_src, source))
+			else:
+				raise InvalidInterface('Only local feed sources are currently supported '
+							'(not %s)' % feed_src)
 	
-	if interface.uri.startswith('/'):
-		iface_dir = os.path.dirname(interface.uri)
+	if local:
+		iface_dir = os.path.dirname(source)
 	else:
 		iface_dir = None	# Can't have relative paths
 
@@ -181,9 +188,6 @@ def update(interface, source, user_overrides = False, local = False):
 		if id is None:
 			raise InvalidInterface("Missing 'id' attribute on %s" % item)
 		if local and (id.startswith('/') or id.startswith('.')):
-			if iface_dir is None and id.startswith('.'):
-				raise InvalidInterface("Can't have a relative path (%s) for a non-local "
-							"interface (%s).", id, interface.uri)
 			impl = interface.get_impl(os.path.abspath(os.path.join(iface_dir, id)))
 		else:
 			if '=' not in id:
