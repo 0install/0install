@@ -35,9 +35,9 @@ class GUIPolicy(Policy):
 			if root.name is not None:
 				self.checking = CheckingBox(root)
 				def checking_destroyed(c):
-					show_details = self.checking.show_details
+					show_details = self.show_details()
 					self.checking = None
-					if show_details or self.ready is False or self.versions_changed():
+					if show_details:
 						self.window.show()
 					else:
 						import download_box
@@ -46,6 +46,19 @@ class GUIPolicy(Policy):
 				self.checking.connect('destroy', checking_destroyed)
 
 			self.refresh_all(force = False)
+	
+	def show_details(self):
+		"""The checking box has disappeared. Should we show the details window, or
+		just run the program right now?"""
+		if self.checking.show_details:
+			return True		# User clicked on the Details button
+		if not self.ready:
+			return True		# Not ready to start (can't find an implementation)
+		if self.versions_changed():
+			return True		# Confirm that the new version should be used
+		if self.get_uncached_implementations():
+			return True		# Need to download something; check first
+		return False
 
 	def monitor_download(self, dl):
 		self.monitored_downloads.append(dl)
