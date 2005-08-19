@@ -18,12 +18,16 @@ class GUIPolicy(Policy):
 	monitored_downloads = None
 	checking = None		# GtkDialog ("Checking for updates...")
 	original_implementation = None
+	download_only = None
+	prog_args = None
 
 	def __init__(self, interface, prog_args, download_only, refresh):
 		Policy.__init__(self, interface)
 		global policy
 		assert policy is None
 		policy = self
+		self.prog_args = prog_args
+		self.download_only = download_only
 		self.monitored_downloads = []
 
 		import mainwindow
@@ -34,16 +38,6 @@ class GUIPolicy(Policy):
 		if refresh:
 			if root.name is not None:
 				self.checking = CheckingBox(root)
-				def checking_destroyed(c):
-					show_details = self.show_details()
-					self.checking = None
-					if show_details:
-						self.window.show()
-					else:
-						import download_box
-						download_box.download_with_gui(self.window, prog_args,
-									run_afterwards = not download_only)
-				self.checking.connect('destroy', checking_destroyed)
 
 			self.refresh_all(force = False)
 	
@@ -88,6 +82,7 @@ class GUIPolicy(Policy):
 					dialog.alert(self.window,
 						"Error updating interface '%s':\n\n%s" %
 						(dl.interface.uri, ex))
+
 				if len(self.monitored_downloads) == 0 and self.checking:
 					self.checking.updates_done(self.versions_changed())
 				return False
@@ -126,6 +121,15 @@ class GUIPolicy(Policy):
 	def main(self):
 		if self.checking:
 			self.checking.show()
+			dialog.wait_for_no_windows()
+			show_details = self.show_details()
+			self.checking = None
+			if show_details:
+				self.window.show()
+			else:
+				import download_box
+				download_box.download_with_gui(self.window, self.prog_args,
+							run_afterwards = not self.download_only)
 		else:
 			self.window.show()
 		gtk.main()

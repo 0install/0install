@@ -4,19 +4,18 @@ n_windows = 0
 
 class Dialog(gtk.Dialog):
 	def __init__(self):
-		global n_windows
 		gtk.Dialog.__init__(self)
 		self.set_has_separator(False)
 		self.set_position(gtk.WIN_POS_CENTER)
 
 		def destroyed(widget):
-			global n_windows
-			n_windows -= 1
-			if n_windows == 0:
-				gtk.main_quit()
+			_one_less_window()
 		self.connect('destroy', destroyed)
 
+	def show(self):
+		global n_windows
 		n_windows += 1
+		gtk.Dialog.show(self)
 	
 	def add_mixed_button(self, message, stock, response):
 		button = gtk.Button()
@@ -40,9 +39,24 @@ class Dialog(gtk.Dialog):
 		button.show_all()
 
 def alert(parent, message):
+	global n_windows
 	box = gtk.MessageDialog(parent, gtk.DIALOG_DESTROY_WITH_PARENT,
 				gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
 				str(message))
 	box.set_position(gtk.WIN_POS_CENTER)
-	box.connect('response', lambda b, r: box.destroy())
+	def resp(b, r):
+		box.destroy()
+		_one_less_window()
+	box.connect('response', resp)
 	box.show()
+	n_windows += 1
+
+def _one_less_window():
+	global n_windows
+	n_windows -= 1
+	if n_windows == 0:
+		gtk.main_quit()
+
+def wait_for_no_windows():
+	while n_windows > 0:
+		gtk.main()
