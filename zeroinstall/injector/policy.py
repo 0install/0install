@@ -124,7 +124,7 @@ class Policy(object):
 			r = cmp(self.get_cached(a), self.get_cached(b))
 			if r: return r
 
-		return cmp(a.path, b.path)
+		return cmp(a.id, b.id)
 	
 	def get_ranked_implementations(self, iface):
 		impls = iface.implementations.values()
