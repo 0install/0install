@@ -148,6 +148,8 @@ class Store:
 			os.rename(tmp, final_name)
 
 	def extract(self, stream, command):
+		if not os.path.isdir(self.dir):
+			os.makedirs(self.dir)
 		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
 		try:
 			child = os.fork()
