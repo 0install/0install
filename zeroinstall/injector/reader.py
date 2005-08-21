@@ -104,7 +104,7 @@ def update_user_overrides(interface):
 			raise InvalidInterface('Missing "src" attribute in <feed>')
 		interface.feeds.append(feed_src)
 
-		debug("Merging information from feed '%s' into interface '%s'" % (feed, interface))
+		debug("Merging information from feed '%s' into interface '%s'", feed_src, interface)
 		if feed_src.startswith('/'):
 			if os.path.isfile(feed_src):
 				update(interface, feed_src, local = True)
