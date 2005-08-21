@@ -111,6 +111,8 @@ class Store:
 			info("Not adding %s as it already exists!", required_digest)
 			return
 
+		if not os.path.isdir(self.dir):
+			os.makedirs(self.dir)
 		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
 		copytree2(path, tmp)
 		try:
@@ -173,9 +175,7 @@ class Stores(object):
 	__slots__ = ['stores']
 
 	def __init__(self):
-		user_store = os.path.expanduser('~/.cache/0install.net/implementations')
-		if not os.path.isdir(user_store):
-			os.makedirs(user_store)
+		user_store = os.path.join(basedir.xdg_cache_home, '0install.net', 'implementations')
 		self.stores = [Store(user_store)]
 
 		impl_dirs = basedir.load_first_config('0install.net', 'injector',
