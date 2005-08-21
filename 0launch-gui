@@ -9,11 +9,20 @@ parser = OptionParser(usage="usage: %prog [options] interface [args]")
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 parser.add_option("-n", "--no-self-update", help="don't check for updates to the GUI itself", action='store_true')
 parser.add_option("-r", "--refresh", help="check for updates of all interfaces", action='store_true')
-parser.add_option("-v", "--version", help="display version information", action='store_true')
+parser.add_option("-v", "--verbose", help="more verbose output", action='count')
+parser.add_option("-V", "--version", help="display version information", action='store_true')
 
 parser.disable_interspersed_args()
 
 (options, args) = parser.parse_args()
+
+if options.verbose:
+	import logging
+	logger = logging.getLogger()
+	if options.verbose == 1:
+		logger.setLevel(logging.INFO)
+	else:
+		logger.setLevel(logging.DEBUG)
 
 if options.version:
 	print "0launch-gui (zero-install) " + gui.version
