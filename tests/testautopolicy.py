@@ -1,5 +1,6 @@
 #!/usr/bin/env python2.3
 import sys, tempfile, os, shutil
+from StringIO import StringIO
 import unittest
 from logging import getLogger, DEBUG, INFO
 #getLogger().setLevel(DEBUG)
@@ -118,6 +119,58 @@ class TestAutoPolicy(unittest.TestCase):
   <implementation version='1.0' id='sha1=123'/>
 </interface>""" % foo_iface_uri)
 		assert policy.need_download()
+
+	def testBinding(self):
+		tmp = tempfile.NamedTemporaryFile()
+		tmp.write(
+"""<?xml version="1.0" ?>
+<interface
+ main='testautopolicy.py'
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Bar</name>
+  <summary>Bar</summary>
+  <description>Bar</description>
+  <group>
+    <requires interface='%s'>
+      <environment name='FOO_PATH' insert='.'/>
+    </requires>
+    <implementation version='1.0' id='%s'/>
+  </group>
+</interface>""" % (foo_iface_uri, os.path.dirname(os.path.abspath(__file__))))
+		tmp.flush()
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface last-modified="0"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <implementation version='1.0' id='sha1=123'/>
+</interface>""" % foo_iface_uri)
+		cached_impl = basedir.save_cache_path('0install.net',
+							'implementations',
+							'sha1=123')
+		policy = autopolicy.AutoPolicy(tmp.name, False,
+						dry_run = True)
+		policy.network_use = model.network_offline
+		os.environ['FOO_PATH'] = "old"
+		old, sys.stdout = sys.stdout, StringIO()
+		try:
+			policy.download_and_execute(['Hello'])
+		finally:
+			sys.stdout = old
+		self.assertEquals(cached_impl + '/.:old',
+				os.environ['FOO_PATH'])
+
+		del os.environ['FOO_PATH']
+		old, sys.stdout = sys.stdout, StringIO()
+		try:
+			policy.download_and_execute(['Hello'])
+		finally:
+			sys.stdout = old
+		self.assertEquals(cached_impl + '/.',
+				os.environ['FOO_PATH'])
 
 suite = unittest.makeSuite(TestAutoPolicy)
 if __name__ == '__main__':
