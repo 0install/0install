@@ -104,16 +104,15 @@ def update_user_overrides(interface):
 			raise InvalidInterface('Missing "src" attribute in <feed>')
 		interface.feeds.append(feed_src)
 
-	for feed in interface.feeds:
 		debug("Merging information from feed '%s' into interface '%s'" % (feed, interface))
-		if feed.startswith('/'):
-			if os.path.isfile(feed):
-				update(interface, feed, local = True)
+		if feed_src.startswith('/'):
+			if os.path.isfile(feed_src):
+				update(interface, feed_src, local = True)
 			else:
-				warn("Feed '%s' not found (in '%s')" % (feed, source))
+				warn("Feed '%s' not found (in '%s')", feed_src, user)
 		else:
 			raise InvalidInterface('Only local feed sources are currently supported '
-						'(not %s)' % feed)
+						'(not %s)' % feed_src)
 
 def check_readable(interface_uri, source):
 	"""Returns the modified time in 'source'. If syntax is incorrect,
