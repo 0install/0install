@@ -20,12 +20,14 @@ class GUIPolicy(Policy):
 	original_implementation = None
 	download_only = None
 	prog_args = None
+	main_exec = None
 
-	def __init__(self, interface, prog_args, download_only, refresh):
+	def __init__(self, interface, prog_args, download_only, refresh, main):
 		Policy.__init__(self, interface)
 		global policy
 		assert policy is None
 		policy = self
+		self.main_exec = main
 		self.prog_args = prog_args
 		self.download_only = download_only
 		self.monitored_downloads = []
@@ -128,7 +130,7 @@ class GUIPolicy(Policy):
 				self.window.show()
 			else:
 				import download_box
-				download_box.download_with_gui(self.window, self.prog_args,
+				download_box.download_with_gui(self.window, self.prog_args, main = self.main_exec,
 							run_afterwards = not self.download_only)
 		else:
 			self.window.show()

@@ -9,7 +9,7 @@ from dialog import Dialog
 import warnings
 warnings.filterwarnings('ignore', category = DeprecationWarning, module='download_box')
 
-def download_with_gui(mainwindow, prog_args, run_afterwards):
+def download_with_gui(mainwindow, prog_args, run_afterwards, main = None):
 	"""If all downloads are ready, runs the program. Otherwise,
 	hides mainwindow, shows the download progress box and then runs
 	it. On error, mainwindow is re-shown."""
@@ -29,7 +29,10 @@ def download_with_gui(mainwindow, prog_args, run_afterwards):
 			mainwindow.destroy()
 			return
 		try:
-			run.execute(policy, prog_args)
+			if main is None:
+				run.execute(policy, prog_args)	# Don't break older versions
+			else:
+				run.execute(policy, prog_args, main = main)
 			mainwindow.destroy()
 		except SafeException, ex:
 			box = gtk.MessageDialog(None, gtk.DIALOG_MODAL,

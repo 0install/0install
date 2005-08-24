@@ -7,6 +7,7 @@ __builtins__._ = lambda x: x
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]")
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
+parser.add_option("-m", "--main", help="name of the file to execute")
 parser.add_option("-n", "--no-self-update", help="don't check for updates to the GUI itself", action='store_true')
 parser.add_option("-r", "--refresh", help="check for updates of all interfaces", action='store_true')
 parser.add_option("-v", "--verbose", help="more verbose output", action='count')
@@ -61,5 +62,6 @@ if options.no_self_update is not True:
 
 policy = gui.GUIPolicy(interface_uri, prog_args,
 		   download_only = bool(options.download_only),
-		   refresh = bool(options.refresh))
+		   refresh = bool(options.refresh),
+		   main = options.main)
 policy.main()
