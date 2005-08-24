@@ -128,13 +128,14 @@ class GUIPolicy(Policy):
 			self.checking = None
 			if show_details:
 				self.window.show()
+				gtk.main()
 			else:
 				import download_box
 				download_box.download_with_gui(self.window, self.prog_args, main = self.main_exec,
 							run_afterwards = not self.download_only)
 		else:
 			self.window.show()
-		gtk.main()
+			gtk.main()
 	
 	def get_best_source(self, impl):
 		"""Return the best download source for this implementation."""
