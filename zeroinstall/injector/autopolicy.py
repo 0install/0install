@@ -56,11 +56,11 @@ class AutoPolicy(policy.Policy):
 				dl = download.begin_impl_download(source)
 				self.handler.monitor_download(dl)
 
-	def execute(self, prog_args):
+	def execute(self, prog_args, main = None):
 		self.start_downloading_impls()
 		self.handler.wait_for_downloads()
 		if not self.download_only:
-			run.execute(self, prog_args, dry_run = self.dry_run)
+			run.execute(self, prog_args, dry_run = self.dry_run, main = main)
 		else:
 			info("Downloads done (download-only mode)")
 	
@@ -70,7 +70,7 @@ class AutoPolicy(policy.Policy):
 			self.handler.wait_for_downloads()
 			self.recalculate()
 	
-	def download_and_execute(self, prog_args, refresh = False):
+	def download_and_execute(self, prog_args, refresh = False, main = None):
 		self.recalculate_with_dl()
 		if refresh:
 			self.refresh_all(False)
@@ -79,4 +79,4 @@ class AutoPolicy(policy.Policy):
 			raise model.SafeException("Can't find all required implementations:\n" +
 				'\n'.join(["- %s -> %s" % (iface, impl)
 					   for iface, impl in self.walk_implementations()]))
-		self.execute(prog_args)
+		self.execute(prog_args, main = main)

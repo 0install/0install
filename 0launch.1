@@ -105,6 +105,14 @@ List all known interface (program) URIs. If a search term is given, only
 URIs containing that string are shown (case insensitive).
 
 .TP
+\fB-m\fP, \fB--main=MAIN\fP
+Run the specified executable instead of the default. If MAIN starts with '/'
+then the path is relative to the implementation's top-level directory,
+whereas otherwise it is relative to the directory containing the default
+MAIN program. For example, if the default MAIN is \fBbin/svn\fP then
+using \fB--main=svnadmin\fP will run \fB.../bin/svnadmin\fP instead.
+
+.TP
 \fB-r\fP, \fB--refresh\fP
 Fetch a fresh copy of all used interfaces. This will normally switch to GUI
 mode, unless --console is also given.

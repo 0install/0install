@@ -14,6 +14,7 @@ parser.add_option("-c", "--console", help="never use GUI", action='store_false',
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
 parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
+parser.add_option("-m", "--main", help="name of the file to execute")
 parser.add_option("-i", "--import", help="import from files, not from the network", action='store_true')
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
@@ -159,11 +160,14 @@ if options.gui:
 	if options.refresh:
 		options.refresh = False
 		prog_args.insert(0, '--refresh')
+	if options.main:
+		prog_args = ['--main', options.main] + prog_args
+		options.main = None
 else:
 	prog_args = args[1:]
 
 try:
-	policy.download_and_execute(prog_args, refresh = bool(options.refresh))
+	policy.download_and_execute(prog_args, refresh = bool(options.refresh), main = options.main)
 except model.SafeException, ex:
 	print >>sys.stderr, ex
 	sys.exit(1)

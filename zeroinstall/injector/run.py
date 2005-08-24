@@ -11,9 +11,9 @@ def do_env_binding(binding, path):
 		os.environ[binding.name] = extra
 	info("%s=%s", binding.name, os.environ[binding.name])
 
-def execute(policy, prog_args, dry_run = False):
+def execute(policy, prog_args, dry_run = False, main = None):
 	iface = policy.get_interface(policy.root)
-	if not iface.main:
+	if main is None and not iface.main:
 		raise SafeException("Interface '%s' cannot be executed directly; it is just a library "
 				    "to be used by other programs (or missing 'main' attribute on the "
 				    "root <interface> element)." % iface.name)
@@ -30,11 +30,17 @@ def execute(policy, prog_args, dry_run = False):
 	setup_bindings(iface)
 	
 	root_impl = policy.get_implementation(iface)
-	prog_path = os.path.join(policy.get_implementation_path(root_impl), iface.main)
+	if main is None:
+		main = iface.main
+	elif main.startswith('/'):
+		main = main[1:]
+	elif iface.main:
+		main = os.path.join(os.path.dirname(iface.main), main)
+	prog_path = os.path.join(policy.get_implementation_path(root_impl), main)
 	if not os.path.exists(prog_path):
 		raise SafeException("File '%s' does not exist.\n"
 				"(implementation '%s' + program '%s')" %
-				(prog_path, policy.implementation[iface].id, iface.main))
+				(prog_path, policy.implementation[iface].id, main))
 	if dry_run:
 		print "Would execute:", prog_path
 	else:
