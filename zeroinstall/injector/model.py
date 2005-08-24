@@ -78,7 +78,7 @@ class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
 	__slots__ = ['arch', 'upstream_stability', 'user_stability',
 		     'version', 'size', 'dependencies',
-		     'id', 'download_sources']
+		     'id', 'download_sources', 'released']
 
 	def __init__(self, id):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
@@ -86,6 +86,7 @@ class Implementation(object):
 		self.id = id
 		self.size = None
 		self.version = None
+		self.released = None
 		self.user_stability = None
 		self.upstream_stability = None
 		self.arch = None

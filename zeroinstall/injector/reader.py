@@ -27,16 +27,17 @@ def get_singleton_text(parent, ns, localName):
 	return text.strip()
 
 class Attrs(object):
-	__slots__ = ['version', 'arch', 'stability']
-	def __init__(self, stability, version = None, arch = None):
+	__slots__ = ['version', 'released', 'arch', 'stability']
+	def __init__(self, stability, version = None, released = None, arch = None):
 		self.version = version
+		self.released = released
 		self.arch = arch
 		self.stability = stability
 	
 	def merge(self, item):
-		new = Attrs(self.stability, self.version, self.arch)
+		new = Attrs(self.stability, self.version, self.released, self.arch)
 
-		for x in ('arch', 'stability', 'version'):
+		for x in ('arch', 'stability', 'version', 'released'):
 			if item.hasAttribute(x):
 				setattr(new, x, item.getAttribute(x))
 		return new
@@ -211,6 +212,9 @@ def update(interface, source, local = False):
 		if not version:
 			raise InvalidInterface("Missing version attribute")
 		impl.version = map(int, version.split('.'))
+
+		if item_attrs.released:
+			impl.released = item_attrs.released
 
 		size = item.getAttribute('size')
 		if size:
