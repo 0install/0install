@@ -23,6 +23,7 @@ STABILITY = 2
 VERSION = 3
 CACHED = 4
 UNUSABLE = 5
+RELEASED = 6
 
 class ImplementationList(gtk.ScrolledWindow):
 	tree_view = None
@@ -33,7 +34,8 @@ class ImplementationList(gtk.ScrolledWindow):
 		self.set_shadow_type(gtk.SHADOW_IN)
 
 		self.model = gtk.ListStore(object, str, str, str,
-			   gobject.TYPE_BOOLEAN, gobject.TYPE_BOOLEAN)
+			   gobject.TYPE_BOOLEAN, gobject.TYPE_BOOLEAN,
+			   str)
 
 		self.tree_view = gtk.TreeView(self.model)
 
@@ -44,6 +46,7 @@ class ImplementationList(gtk.ScrolledWindow):
 		stability = gtk.TreeViewColumn('Stability', text, text = STABILITY)
 
 		for column in (gtk.TreeViewColumn('Version', text, text = VERSION, strikethrough = UNUSABLE),
+			       gtk.TreeViewColumn('Released', text, text = RELEASED, strikethrough = UNUSABLE),
 			       stability,
 			       gtk.TreeViewColumn('C', toggle, active = CACHED),
 			       gtk.TreeViewColumn('Arch', text, text = ARCH)):
@@ -90,6 +93,10 @@ class ImplementationList(gtk.ScrolledWindow):
 			new = self.model.append()
 			self.model[new][ITEM] = item
 			self.model[new][VERSION] = item.get_version()
+			if hasattr(item, 'released') and item.released:
+				self.model[new][RELEASED] = item.released
+			else:
+				self.model[new][RELEASED] = "-"
 			self.model[new][CACHED] = policy.get_cached(item)
 			if item.user_stability:
 				self.model[new][STABILITY] = str(item.user_stability).upper()
