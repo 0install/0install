@@ -15,18 +15,16 @@
 
 .SH DESCRIPTION
 .PP
-A program is made up of many different components, typically written by
-different groups of people. Each component is available in multiple versions.
-The injector is used when starting a program. Its job is to decide which
-implementation of each required component to use.
+0launch runs a program, identified by an `INTERFACE' URL. If the program is not
+already on your computer, it downloads information about which versions are
+available, and lets you choose one to download. It will also (automatically)
+do the same for libraries the program needs.
 
 .PP
-An interface describes what a component does. The injector starts with the
-interface for the program you want to run (like 'The Gimp') and chooses an
-implementation (like 'The Gimp 2.2.0'). However, this implementation will in
-turn depend on other interfaces, such as 'GTK' (which draws the menus and
-buttons). Thus, the injector must choose implementations of each dependancy
-(each of which may require further interfaces, and so on).
+0launch will also check for updates if it has been a long time since the last
+check (configurable).
+0launch therefore allows users to download and upgrade software without
+needing root access.
 
 .SH EXAMPLES
 
@@ -51,6 +49,10 @@ To search the list of cached URLs:
 
 .B 0launch --list Edit
 
+.PP
+To avoid having to keep typing the full URI, use the 0alias(1) command
+to create shortcuts to run your programs.
+
 .SH COMMAND-LINE OPTIONS
 
 .TP
@@ -67,9 +69,9 @@ using the URI as normal. Use --add-feed when you want to use the CVS version
 even when using the URI, or if the program is a library (and thus referenced
 by URI by other programs).
 
-Note also that the stability of CVS versions will probably be set
-to 'developer', so be sure to set this as the preferred stability for the
-interface (using the GUI).
+Note also that the stability of CVS versions may be set to 'developer', in
+which case you must set this as the preferred stability for the interface
+(using the GUI).
 
 .TP
 \fB-c\fP, \fB--console\fP
@@ -98,6 +100,8 @@ Show the built-in help text.
 Import from files, not from the network. This is useful when testing an
 interface file, to avoid uploading it to a remote server in order to download
 it again. It might also be useful when installing from a CD or similar.
+The file must have a trusted GPG digital signature, as when fetching from
+the network. For unsigned interfaces, see --add-feed.
 
 .TP
 \fB-l\fP, \fB--list\fP
@@ -115,7 +119,8 @@ using \fB--main=svnadmin\fP will run \fB.../bin/svnadmin\fP instead.
 .TP
 \fB-r\fP, \fB--refresh\fP
 Fetch a fresh copy of all used interfaces. This will normally switch to GUI
-mode, unless --console is also given.
+mode, unless --console is also given. Note that using --refresh and --gui
+together will check for updates to the GUI itself.
 
 .TP
 \fB-v\fP, \fB--verbose\fP
@@ -136,10 +141,7 @@ Global configuration settings.
 List of trusted keys.
 
 .IP "~/.config/0install.net/injector/user_overrides"
-Per-interface settings.
-
-.IP "~/.config/0install.net/injector/local_interfaces"
-Extra implementations to add to the upstream list.
+Per-interface settings, and extra feeds.
 
 .PP
 Cached data (can be re-downloaded if lost):
