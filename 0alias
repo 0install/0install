@@ -6,9 +6,10 @@ from zeroinstall.injector import reader, model
 
 first_path = os.environ['PATH'].split(':')[0]
 
-parser = OptionParser(usage="usage: %%prog [options] alias interface\n\n"
+parser = OptionParser(usage="usage: %%prog [options] alias interface [command]\n\n"
 		"Creates a script in the first directory in $PATH\n"
-		"(%s) to run 'interface'." % first_path)
+		"(%s) to run 'interface'. For interfaces providing more than "
+		"one command, the desired command may also be given." % first_path)
 parser.add_option("-V", "--version", help="display version information", action='store_true')
 parser.disable_interspersed_args()
 
@@ -25,11 +26,13 @@ if options.version:
 	print "For more information about these matters, see the file named COPYING."
 	sys.exit(0)
 
-if len(args) != 2:
+if len(args) < 2 or len(args) > 3:
 	parser.print_help()
 	sys.exit(1)
 
-alias, interface_uri = args
+alias, interface_uri = args[:2]
+if len(args) == 3:
+	main = "--main '%s'" % args[2]
 
 interface = model.Interface(interface_uri)
 if not reader.update_from_cache(interface):
@@ -59,8 +62,8 @@ print >>wrapper, '''#!/bin/sh
 if [ "$*" = "--versions" ]; then
   exec 0launch -gd '%s' "$@"
 else
-  exec 0launch '%s' "$@"
-fi''' % (interface_uri, interface_uri)
+  exec 0launch %s '%s' "$@"
+fi''' % (interface_uri, main, interface_uri)
 
 # Make new script executable
 os.chmod(script, 0111 | os.fstat(wrapper.fileno()).st_mode)

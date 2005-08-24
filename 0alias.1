@@ -5,7 +5,7 @@
 .SH SYNOPSIS
 
 .B 0alias
-\fBALIAS\fP \fBINTERFACE\fP
+\fBALIAS\fP \fBINTERFACE\fP [\fBCOMMAND\fP]
 
 .SH DESCRIPTION
 .PP
@@ -34,6 +34,14 @@ To run Edit now:
 To select a different version, or check for updates:
 
 .B rox-edit --versions
+
+.PP
+If an interface provides more than one program, you can specifiy which
+one to use instead of the default. Eg:
+
+.B 0alias svn http://example.com/subversion
+
+.B 0alias svnadmin http://example.com/subversion svnadmin
 
 
 .SH COMMAND-LINE OPTIONS
