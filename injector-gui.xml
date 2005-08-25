@@ -8,5 +8,5 @@
     The injector GUI displays a window showing which versions of various components will be used when running a program, and allows you to alter various policy settings to affect the selection process. You can use this to mark particular versions of libraries as preferred, bugggy, etc.
   </description>
   
-  <implementation version='0.11.0' id='.' stability='developer' released='svn'/>
+  <implementation version='0.12' id='.' stability='testing' released='2005-08-25'/>
 </interface>
