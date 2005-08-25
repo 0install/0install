@@ -27,19 +27,19 @@ def get_singleton_text(parent, ns, localName):
 	return text.strip()
 
 class Attrs(object):
-	__slots__ = ['version', 'released', 'arch', 'stability']
-	def __init__(self, stability, version = None, released = None, arch = None):
-		self.version = version
-		self.released = released
-		self.arch = arch
-		self.stability = stability
+	__slots__ = ['version', 'released', 'arch', 'stability', 'main']
+	def __init__(self, **kwargs):
+		for x in self.__slots__:
+			setattr(self, x, kwargs.get(x, None))
 	
 	def merge(self, item):
-		new = Attrs(self.stability, self.version, self.released, self.arch)
-
-		for x in ('arch', 'stability', 'version', 'released'):
+		new = Attrs()
+		for x in self.__slots__:
 			if item.hasAttribute(x):
-				setattr(new, x, item.getAttribute(x))
+				value = item.getAttribute(x)
+			else:
+				value = getattr(self, x)
+			setattr(new, x, value)
 		return new
 
 def process_depends(dependency, item):
@@ -213,6 +213,8 @@ def update(interface, source, local = False):
 			raise InvalidInterface("Missing version attribute")
 		impl.version = map(int, version.split('.'))
 
+		impl.main = item_attrs.main
+
 		if item_attrs.released:
 			impl.released = item_attrs.released
 
@@ -240,4 +242,7 @@ def update(interface, source, local = False):
 			impl.add_download_source(url = url, size = long(size),
 					extract = elem.getAttribute('extract'))
 
-	process_group(root, Attrs(testing), {})
+	process_group(root,
+		Attrs(stability = testing,
+		      main = root.getAttribute('main') or None),
+		{})

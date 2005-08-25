@@ -13,10 +13,6 @@ def do_env_binding(binding, path):
 
 def execute(policy, prog_args, dry_run = False, main = None):
 	iface = policy.get_interface(policy.root)
-	if main is None and not iface.main:
-		raise SafeException("Interface '%s' cannot be executed directly; it is just a library "
-				    "to be used by other programs (or missing 'main' attribute on the "
-				    "root <interface> element)." % iface.name)
 		
 	def setup_bindings(i):
 		impl = policy.get_implementation(i)
@@ -31,11 +27,17 @@ def execute(policy, prog_args, dry_run = False, main = None):
 	
 	root_impl = policy.get_implementation(iface)
 	if main is None:
-		main = iface.main
+		main = root_impl.main
 	elif main.startswith('/'):
 		main = main[1:]
-	elif iface.main:
-		main = os.path.join(os.path.dirname(iface.main), main)
+	elif root_impl.main:
+		main = os.path.join(os.path.dirname(root_impl.main), main)
+
+	if main is None:
+		raise SafeException("Implementation '%s' cannot be executed directly; it is just a library "
+				    "to be used by other programs (or missing 'main' attribute)" %
+				    root_impl)
+
 	prog_path = os.path.join(policy.get_implementation_path(root_impl), main)
 	if not os.path.exists(prog_path):
 		raise SafeException("File '%s' does not exist.\n"
@@ -47,4 +49,7 @@ def execute(policy, prog_args, dry_run = False, main = None):
 		info("Executing: %s", prog_path)
 		sys.stdout.flush()
 		sys.stderr.flush()
-		os.execl(prog_path, prog_path, *prog_args)
+		try:
+			os.execl(prog_path, prog_path, *prog_args)
+		except OSError, ex:
+			raise SafeException("Failed to run '%s': %s" % (prog_path, str(ex)))

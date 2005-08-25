@@ -77,13 +77,14 @@ class DownloadSource(object):
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
 	__slots__ = ['arch', 'upstream_stability', 'user_stability',
-		     'version', 'size', 'dependencies',
+		     'version', 'size', 'dependencies', 'main',
 		     'id', 'download_sources', 'released']
 
 	def __init__(self, id):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
 		assert id
 		self.id = id
+		self.main = None
 		self.size = None
 		self.version = None
 		self.released = None
