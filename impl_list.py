@@ -1,6 +1,7 @@
 import gtk, gobject, os
 from zeroinstall.injector import model, writer
 from gui import policy, pretty_size
+from treetips import TreeTips
 
 def popup_menu(bev, values, fn):
 	menu = gtk.Menu()
@@ -24,6 +25,24 @@ VERSION = 3
 CACHED = 4
 UNUSABLE = 5
 RELEASED = 6
+
+class ImplTips(TreeTips):
+	def get_tooltip_text(self, item):
+		interface, id = item
+		if id.startswith('/'):
+			return _("Local: %s") % id
+		impl = interface.implementations[id]
+		if policy.get_cached(impl):
+			return _("Cached: %s") % policy.get_implementation_path(impl)
+
+		src = policy.get_best_source(impl)
+		if src:
+			size = pretty_size(src.size)
+			return _("Not yet downloaded (%s)") % size
+		else:
+			return _("No downloads available!")
+
+tips = ImplTips()
 
 class ImplementationList(gtk.ScrolledWindow):
 	tree_view = None
@@ -53,6 +72,20 @@ class ImplementationList(gtk.ScrolledWindow):
 			self.tree_view.append_column(column)
 
 		self.add(self.tree_view)
+
+		def motion(tree_view, ev):
+			if ev.window is not tree_view.get_bin_window():
+				return False
+			pos = tree_view.get_path_at_pos(int(ev.x), int(ev.y))
+			if pos:
+				path = pos[0]
+				row = self.model[path]
+				tips.prime(tree_view, (interface, row[ITEM].id))
+			else:
+				tips.hide()
+
+		self.tree_view.connect('motion-notify-event', motion)
+		self.tree_view.connect('leave-notify-event', lambda tv, ev: tips.hide())
 
 		def button_press(tree_view, bev):
 			if bev.button not in (1, 3):

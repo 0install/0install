@@ -139,7 +139,9 @@ class GUIPolicy(Policy):
 	
 	def get_best_source(self, impl):
 		"""Return the best download source for this implementation."""
-		return impl.download_sources[0]
+		if impl.download_sources:
+			return impl.download_sources[0]
+		return None
 
 	# XXX: Remove this. Moved to Policy.
 	def refresh_all(self, force = True):

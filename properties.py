@@ -16,6 +16,10 @@ def enumerate(items):
 		yield x, i
 		x += 1
 
+def format_para(para):
+	lines = [l.strip() for l in para.split('\n')]
+	return ' '.join(lines)
+
 class Description(gtk.ScrolledWindow):
 	def __init__(self):
 		gtk.ScrolledWindow.__init__(self, None, None)
@@ -59,7 +63,9 @@ class Description(gtk.ScrolledWindow):
 
 		buffer.insert_with_tags(iter, '\n\nDescription\n', heading_style)
 
-		buffer.insert(iter, interface.description or "-")
+		paragraphs = [format_para(p) for p in (interface.description or "-").split('\n\n')]
+
+		buffer.insert(iter, '\n\n'.join(paragraphs))
 
 
 class Properties(Dialog):

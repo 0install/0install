@@ -43,6 +43,8 @@ class InterfaceTips(TreeTips):
 			return _("This version is already stored on your computer.")
 		else:
 			src = policy.get_best_source(impl)
+			if not src:
+				return _("No downloads available!")
 			return _("Need to download %s (%s bytes)") % \
 					(pretty_size(src.size), src.size)
 
@@ -161,7 +163,10 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 					fetch = '(cached)'
 				else:
 					src = policy.get_best_source(impl)
-					fetch = pretty_size(src.size)
+					if src:
+						fetch = pretty_size(src.size)
+					else:
+						fetch = '(unavailable)'
 				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = fetch
 				for child in impl.dependencies.values():
 					add_node(iter, policy.get_interface(child.interface))
