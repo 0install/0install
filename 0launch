@@ -114,14 +114,7 @@ try:
 				print "- " + f
 		sys.exit(0)
 	
-	if args[0].startswith('http:'):
-		iface_uri = args[0]
-	else:
-		iface_uri = os.path.realpath(args[0])
-		if not os.path.isfile(iface_uri):
-			raise model.SafeException("Bad interface name '%s'.\n"
-					"(doesn't start with 'http:', and "
-					"doesn't exist as a local file either)" % args[0])
+	iface_uri = model.canonical_iface_uri(args[0])
 
 	# Singleton instance used everywhere...
 	policy = autopolicy.AutoPolicy(iface_uri,

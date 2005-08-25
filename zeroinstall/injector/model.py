@@ -174,3 +174,14 @@ def escape(uri):
 
 class SafeException(Exception):
 	pass
+
+def canonical_iface_uri(uri):
+	if uri.startswith('http:'):
+		return uri
+	else:
+		iface_uri = os.path.realpath(uri)
+		if os.path.isfile(iface_uri):
+			return iface_uri
+	raise SafeException("Bad interface name '%s'.\n"
+			"(doesn't start with 'http:', and "
+			"doesn't exist as a local file either)" % uri)
