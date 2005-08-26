@@ -26,6 +26,7 @@ def recent_gnu_tar():
 				_recent_gnu_tar = version > [1, 13, 92]
 			except:
 				warn("Failed to extract GNU tar version number")
+		debug("Recent GNU tar = %s", _recent_gnu_tar)
 	return _recent_gnu_tar
 
 def copytree2(src, dst):
