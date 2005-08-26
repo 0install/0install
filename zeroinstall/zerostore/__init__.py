@@ -23,7 +23,7 @@ def recent_gnu_tar():
 				version = version.split(')', 1)[1].strip()
 				assert version
 				version = map(int, version.split('.'))
-				_recent_gnu_tar = version > [1, 14, 0]
+				_recent_gnu_tar = version > [1, 13, 92]
 			except:
 				warn("Failed to extract GNU tar version number")
 	return _recent_gnu_tar
