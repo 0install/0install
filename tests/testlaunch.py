@@ -134,7 +134,7 @@ class TestLaunch(unittest.TestCase):
 
 		out, err = self.run_0launch(['Foo.xml'])
 		# (Foo.xml tries to run a directory)
-		self.assertEquals("exceptions.OSError", err)
+		assert "Permission denied" in err
 
 suite = unittest.makeSuite(TestLaunch)
 if __name__ == '__main__':
