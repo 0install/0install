@@ -159,7 +159,8 @@ class GUIPolicy(Policy):
 	def versions_changed(self):
 		"""Return whether we have now chosen any different implementations.
 		If so, we want to show the dialog to the user to confirm the new ones."""
-		assert self.ready
+		if not self.ready:
+			return True
 		if not self.original_implementation:
 			return True		# Shouldn't happen?
 		if len(self.original_implementation) != len(self.implementation):

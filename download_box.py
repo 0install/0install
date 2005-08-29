@@ -122,6 +122,7 @@ class DownloadProgessBox(Dialog):
 					label = gtk.Label("Error getting '%s':\n%s" % (dl.url, ex))
 					label.set_padding(4, 4)
 					self.vbox.pack_start(label, False, True, 2)
+					label.set_selectable(True)
 					label.show()
 					self.errors = True
 					return False
