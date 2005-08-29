@@ -2,6 +2,7 @@ from __future__ import generators
 import os, stat
 from sets import Set
 import sha
+from zeroinstall.injector.model import SafeException
 
 """A manifest is a string representing a directory tree, with the property
 that two trees will generate identical manifest strings if and only if:
@@ -61,7 +62,8 @@ def generate_manifest(root):
 			# Note: Can't use utime on symlinks, so skip mtime
 			yield "S %s %s %s" % (d, info.st_size, leaf)
 		else:
-			print "Unknown object", full
+			raise SafeException("Unknown object '%s' (not a file, directory or symlink)" %
+					full)
 	for x in recurse('/'): yield x
 	
 def add_manifest_file(dir, digest):
