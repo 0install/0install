@@ -2,7 +2,7 @@ from __future__ import generators
 import os, stat
 from sets import Set
 import sha
-from zeroinstall.injector.model import SafeException
+from zeroinstall import SafeException
 
 """A manifest is a string representing a directory tree, with the property
 that two trees will generate identical manifest strings if and only if:

@@ -1,6 +1,6 @@
 import sys, os, sha
 from zeroinstall.zerostore.manifest import generate_manifest
-from zeroinstall import zerostore
+from zeroinstall import zerostore, SafeException
 
 stores = None
 
@@ -10,7 +10,7 @@ def init_stores():
 	if stores is None:
 		stores = zerostore.Stores()
 
-class UsageError(Exception): pass
+class UsageError(SafeException): pass
 
 def do_manifest(args):
 	"""manifest DIRECTORY"""

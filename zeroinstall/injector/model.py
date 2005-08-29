@@ -1,6 +1,7 @@
 """In-memory representation of the dependency graph."""
 
 import os
+from zeroinstall import SafeException
 
 network_offline = 'off-line'
 network_minimal = 'minimal'
@@ -172,9 +173,6 @@ def escape(uri):
 	return re.sub('[^-_.a-zA-Z0-9]',
 		lambda match: '%%%02x' % ord(match.group(0)),
 		uri.encode('utf-8'))
-
-class SafeException(Exception):
-	pass
 
 def canonical_iface_uri(uri):
 	if uri.startswith('http:'):

@@ -8,9 +8,10 @@ from logging import debug, info, warn
 
 import manifest
 from zeroinstall.injector import basedir
+from zeroinstall import SafeException
 
-class BadDigest(Exception): pass
-class NotStored(Exception): pass
+class BadDigest(SafeException): pass
+class NotStored(SafeException): pass
 
 _recent_gnu_tar = None
 def recent_gnu_tar():
