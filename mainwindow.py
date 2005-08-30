@@ -25,17 +25,22 @@ class MainWindow(Dialog):
 		self.vbox.pack_start(hbox, False, True, 0)
 		hbox.set_border_width(4)
 
+		eb = gtk.EventBox()	# For the tooltip
 		network = gtk.combo_box_new_text()
+		eb.add(network)
 		for level in network_levels:
 			network.append_text(level.capitalize())
 		network.set_active(list(network_levels).index(policy.network_use))
 		hbox.pack_start(gtk.Label('Network use:'), False, True, 0)
-		hbox.pack_start(network, True, True, 2)
+		hbox.pack_start(eb, True, True, 2)
 		def set_network_use(combo):
 			policy.network_use = network_levels[network.get_active()]
 			policy.save_config()
 			policy.recalculate()
 		network.connect('changed', set_network_use)
+		tips.set_tip(eb, _('This controls whether the injector will always try to '
+			'run the best version, downloading it if needed, or whether it will prefer '
+			'to run an older version that is already on your machine.'))
 
 		hbox.show_all()
 
@@ -49,20 +54,24 @@ class MainWindow(Dialog):
 			freshness_levels.append(Freshness(policy.freshness,
 							  '%d seconds' % policy.freshness))
 			times.append(policy.freshness)
+		eb = gtk.EventBox()	# For the tooltip
 		freshness = gtk.combo_box_new_text()
+		eb.add(freshness)
 		for level in freshness_levels:
 			freshness.append_text(str(level))
 		freshness.set_active(times.index(policy.freshness))
 		hbox.pack_start(gtk.Label('Freshness:'), False, True, 0)
-		hbox.pack_start(freshness, True, True, 2)
+		hbox.pack_start(eb, True, True, 2)
 		def set_freshness(combo):
 			policy.freshness = freshness_levels[freshness.get_active()].time
 			policy.save_config()
 			policy.recalculate()
 		freshness.connect('changed', set_freshness)
+		tips.set_tip(eb, _('Sets how often the injector will check for new versions.'))
 
 		button = gtk.Button('Refresh all now')
 		button.connect('clicked', lambda b: policy.refresh_all())
+		tips.set_tip(button, _('Check all the interfaces below for updates.'))
 		hbox.pack_start(button, False, True, 2)
 
 		hbox.show_all()
@@ -80,6 +89,7 @@ class MainWindow(Dialog):
 		button = gtk.Button('Interface Properties...')
 		self.browser.edit_properties.connect_proxy(button)
 		hbox.pack_start(button, False, True, 0)
+		tips.set_tip(button, _('See and edit the details of the selected interface.'))
 
 		stable_toggle = gtk.CheckButton('Help test new versions')
 		hbox.pack_start(stable_toggle, False, True, 0)
