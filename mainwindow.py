@@ -7,6 +7,8 @@ from dialog import Dialog
 from zeroinstall.injector.model import stable, testing, network_levels, SafeException
 from freshness import freshness_levels, Freshness
 
+tips = gtk.Tooltips()
+
 class MainWindow(Dialog):
 	progress = None
 	browser = None
@@ -17,8 +19,6 @@ class MainWindow(Dialog):
 		self.set_default_size(gtk.gdk.screen_width() / 3, 300)
 
 		self.connect('destroy', lambda w: self.destroyed())
-
-		tips = gtk.Tooltips()
 
 		# Network use
 		hbox = gtk.HBox(False, 2)

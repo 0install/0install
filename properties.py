@@ -10,6 +10,8 @@ import time
 
 _dialogs = {}	# Interface -> Properties
 
+tips = gtk.Tooltips()
+
 def enumerate(items):
 	x = 0
 	for i in items:
@@ -124,17 +126,19 @@ class Properties(Dialog):
 		vbox = gtk.VBox(False, 2)
 
 		hbox = gtk.HBox(False, 2)
-		vbox.pack_start(hbox, False, True, 0)
+		vbox.pack_start(hbox, False, True, 2)
 
+		eb = gtk.EventBox()
 		stability = gtk.combo_box_new_text()
+		eb.add(stability)
 		stability.append_text('Use default setting')
 		stability.set_active(0)
 		for i, x in enumerate((stable, testing, developer)):
 			stability.append_text(str(x).capitalize())
 			if x is interface.stability_policy:
 				stability.set_active(i + 1)
-		hbox.pack_start(gtk.Label('Preferred stability:'), False, True, 0)
-		hbox.pack_start(stability, False, True, 0)
+		hbox.pack_start(gtk.Label('Preferred stability:'), False, True, 2)
+		hbox.pack_start(eb, True, True, 0)
 		def set_stability_policy(combo):
 			i = stability.get_active()
 			if i == 0:
@@ -146,6 +150,10 @@ class Properties(Dialog):
 			writer.save_interface(interface)
 			policy.recalculate()
 		stability.connect('changed', set_stability_policy)
+		tips.set_tip(eb, _('Implementations at this stability level or higher '
+				'will be used in preference to others. You can use this '
+				'to override the global "Help test new versions" setting '
+				'just for this interface.'))
 
 		self.use_list = ImplementationList(interface)
 		self.use_list.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
