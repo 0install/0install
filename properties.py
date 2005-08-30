@@ -173,10 +173,10 @@ the information.
 downloaded.
 - 'Local feed' is shown if you have other sources of versions of this program (for \
 example, a CVS checkout).
-- The long description of the interface."""),
+- Then there is a longer description of the interface."""),
 
 ('Implementations', """
-The main part of the window is a list of all known implementations of the interface. \
+The right side of the window is a list of all known implementations of the interface. \
 The columns have the following meanings:
 
 Version gives the version number. High-numbered versions are considered to be \

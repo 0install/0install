@@ -140,12 +140,12 @@ the interface for the program you want to run (like 'The Gimp') and chooses an \
 implementation (like 'The Gimp 2.2.0'). However, this implementation \
 will in turn depend on other interfaces, such as 'GTK' (which draws the menus \
 and buttons). Thus, the injector must choose implementations of \
-each dependancy (each of which may require further interfaces, and so on)."""),
+each dependency (each of which may require further interfaces, and so on)."""),
 
 ('List of interfaces', """
 The main window displays all these interfaces, and the version of each chosen \
 implementation. The top-most one represents the program you tried to run, and each direct \
-child is a dependancy. The 'Fetch' column shows amount of data that needs to be \
+child is a dependency. The 'Fetch' column shows the amount of data that needs to be \
 downloaded, or '(cached)' if it is already on this computer.
 
 If you are happy with the choices shown, click on the Download (or Execute) button to \
