@@ -123,6 +123,8 @@ class GUIPolicy(Policy):
 	def main(self):
 		if self.checking:
 			self.checking.show()
+			if not self.monitored_downloads:
+				self.checking.updates_done(self.versions_changed())
 			dialog.wait_for_no_windows()
 			show_details = self.show_details()
 			self.checking = None
