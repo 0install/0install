@@ -14,7 +14,7 @@ from iface_cache import iface_cache
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
-		     'freshness', 'ready', 'handler']
+		     'freshness', 'ready', 'handler', '_arch_ranks']
 
 	def __init__(self, root, handler = None):
 		self.watchers = []
@@ -24,6 +24,14 @@ class Policy(object):
 
 		# (allow self for backwards compat)
 		self.handler = handler or self
+
+		# _arch_ranks is a mapping from arch names to how good they are.
+		# 1 => Native (best)
+		# Higher numbers are worse but usable archs
+		uname = os.uname()
+		self._arch_ranks = {"%s-%s" % (uname[0], uname[-1]) : 1,
+				    None : 2}
+		debug("Current platform supported architectures: '%s'", self._arch_ranks)
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
@@ -45,7 +53,7 @@ class Policy(object):
 	def set_root(self, root):
 		assert isinstance(root, (str, unicode))
 		self.root = root
-		self.implementation = {}		# Interface -> Implementation
+		self.implementation = {}		# Interface -> [Implementation | None]
 
 	def save_config(self):
 		config = ConfigParser.ConfigParser()
@@ -65,10 +73,13 @@ class Policy(object):
 		self.ready = True
 		def process(iface):
 			debug("recalculate: considering interface %s", iface)
-			impl = self.get_best_implementation(iface)
+			if iface in self.implementation:
+				debug("cycle; skipping")
+				return
+			impl = self._get_best_implementation(iface)
+			self.implementation[iface] = impl
 			if impl:
 				debug("Will use implementation %s (version %s)", impl, impl.get_version())
-				self.implementation[iface] = impl
 				for d in impl.dependencies.values():
 					process(self.get_interface(d.interface))
 			else:
@@ -77,7 +88,9 @@ class Policy(object):
 		process(self.get_interface(self.root))
 		for w in self.watchers: w()
 	
-	def get_best_implementation(self, iface):
+	# Only to be called from recalculate, as it is quite slow.
+	# Use the results stored in self.implementation instead.
+	def _get_best_implementation(self, iface):
 		if not iface.implementations:
 			return None
 		impls = iface.implementations.values()
@@ -117,10 +130,17 @@ class Policy(object):
 		r = cmp(a_stab, b_stab)
 		if r: return r
 		
+		# Newer versions come before older ones
 		r = cmp(a.version, b.version)
 		if r: return r
 
-		if self.network_use != network_full:
+		# Get best arch
+		r = cmp(self._arch_ranks.get(a.arch, None),
+			self._arch_ranks.get(b.arch, None))
+		if r: return r
+
+		# Slightly prefer cached versions
+		if self.network_use == network_full:
 			r = cmp(self.get_cached(a), self.get_cached(b))
 			if r: return r
 
@@ -135,6 +155,8 @@ class Policy(object):
 		if impl.get_stability() <= buggy:
 			return True
 		if self.network_use == network_offline and not self.get_cached(impl):
+			return True
+		if impl.arch not in self._arch_ranks:
 			return True
 		return False
 
@@ -196,24 +218,8 @@ class Policy(object):
 			raise ex
 
 	def walk_interfaces(self):
-		def walk(iface):
-			yield iface
-			impl = self.get_best_implementation(iface)
-			if impl:
-				for d in impl.dependencies.values():
-					for idep in walk(self.get_interface(d.interface)):
-						yield idep
-		return walk(self.get_interface(self.root))
-
-	def walk_implementations(self):
-		def walk(iface):
-			impl = self.get_best_implementation(iface)
-			yield (iface, impl)
-			if not impl: return
-			for d in impl.dependencies.values():
-				for idep in walk(self.get_interface(d.interface)):
-					yield idep
-		return walk(self.get_interface(self.root))
+		# Deprecated
+		return iter(self.implementation)
 
 	def check_signed_data(self, download, signed_data):
 		iface_cache.check_signed_data(download.interface, signed_data, self.handler)
@@ -235,7 +241,8 @@ class Policy(object):
 	
 	def get_uncached_implementations(self):
 		uncached = []
-		for iface, impl in self.walk_implementations():
+		for iface in self.implementation:
+			impl = self.implementation[iface]
 			assert impl
 			if not self.get_cached(impl):
 				uncached.append((iface, impl))

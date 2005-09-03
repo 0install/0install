@@ -77,6 +77,6 @@ class AutoPolicy(policy.Policy):
 			self.recalculate_with_dl()
 		if not self.ready:
 			raise model.SafeException("Can't find all required implementations:\n" +
-				'\n'.join(["- %s -> %s" % (iface, impl)
-					   for iface, impl in self.walk_implementations()]))
+				'\n'.join(["- %s -> %s" % (iface, self.implementation[iface])
+					   for iface  in self.implementation]))
 		self.execute(prog_args, main = main)

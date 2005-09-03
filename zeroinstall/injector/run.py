@@ -14,16 +14,15 @@ def do_env_binding(binding, path):
 def execute(policy, prog_args, dry_run = False, main = None):
 	iface = policy.get_interface(policy.root)
 		
-	def setup_bindings(i):
-		impl = policy.get_implementation(i)
+	for needed_iface in policy.implementation:
+		impl = policy.implementation[needed_iface]
+		assert impl
 		for dep in impl.dependencies.values():
 			dep_iface = policy.get_interface(dep.interface)
 			for b in dep.bindings:
 				if isinstance(b, EnvironmentBinding):
 					dep_impl = policy.get_implementation(dep_iface)
 					do_env_binding(b, policy.get_implementation_path(dep_impl))
-			setup_bindings(dep_iface)
-	setup_bindings(iface)
 	
 	root_impl = policy.get_implementation(iface)
 	if main is None:
