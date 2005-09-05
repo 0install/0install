@@ -4,6 +4,7 @@ from dialog import Dialog
 
 class CheckingBox(Dialog):
 	show_details = False
+	hint_timeout = None
 
 	def __init__(self, root):
 		Dialog.__init__(self)
@@ -24,6 +25,21 @@ class CheckingBox(Dialog):
 				self.show_details = True
 			self.destroy()
 		self.connect('response', response)
+
+		def show_hint():
+			hint = gtk.Label("(if you want to skip this, click on\n"
+					 "Details, and then on Execute)")
+			hint.set_justify(gtk.JUSTIFY_CENTER)
+			self.vbox.pack_start(hint, False, True, 0)
+			self.vbox.show_all()
+			self.hint_timeout = None
+			return False
+		self.hint_timeout = self.hint_timeout = gobject.timeout_add(8000, show_hint)
+		def destroy(box):
+			if self.hint_timeout is not None:
+				gobject.source_remove(self.hint_timeout)
+				self.hint_timeout = None
+		self.connect('destroy', destroy)
 	
 	def updates_done(self, changes):
 		"""Close the dialog after a short delay"""
