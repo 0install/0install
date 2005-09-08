@@ -16,7 +16,7 @@ def execute(policy, prog_args, dry_run = False, main = None):
 
 	def run(command):
 		if dry_run:
-			print "Would execute", command
+			print "Would execute:", command
 		else:
 			info("Executing: %s", command)
 			try:
