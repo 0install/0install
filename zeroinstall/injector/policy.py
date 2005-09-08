@@ -85,7 +85,9 @@ class Policy(object):
 			else:
 				debug("No implementation chould be chosen yet");
 				self.ready = False
-		process(self.get_interface(self.root))
+		root = self.get_interface(self.root)
+		if not root.local_command:
+			process(root)
 		for w in self.watchers: w()
 	
 	# Only to be called from recalculate, as it is quite slow.
@@ -241,6 +243,9 @@ class Policy(object):
 	
 	def get_uncached_implementations(self):
 		uncached = []
+		if self.get_interface(self.root).local_command:
+			return uncached
+
 		for iface in self.implementation:
 			impl = self.implementation[iface]
 			assert impl

@@ -81,6 +81,10 @@ def update_user_overrides(interface):
 	if last_checked:
 		interface.last_checked = int(last_checked)
 
+	local_command = root.getAttribute('local-command')
+	if local_command:
+		interface.local_command = local_command
+
 	stability_policy = root.getAttribute('stability-policy')
 	if stability_policy:
 		interface.set_stability_policy(stability_levels[str(stability_policy)])
