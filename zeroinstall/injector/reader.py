@@ -50,24 +50,23 @@ def process_depends(dependency, item):
 
 def update_from_cache(interface):
 	"""True if cached version and user overrides loaded OK.
-	False if not cached. Local interfaces (starting with /) are
+	False if upstream not cached. Local interfaces (starting with /) are
 	always considered to be cached, although they are not stored there."""
+	interface.reset()
+
 	if interface.uri.startswith('/'):
-		interface.reset()
 		debug("Loading local interface file '%s'", interface.uri)
 		update(interface, interface.uri, local = True)
+		cached = True
 	else:
 		cached = basedir.load_first_cache(config_site, 'interfaces', escape(interface.uri))
-		if not cached:
-			return False
-
-		debug("Loading cached information for %s from %s", interface, cached)
-		interface.reset()
-		update(interface, cached)
+		if cached:
+			debug("Loading cached information for %s from %s", interface, cached)
+			update(interface, cached)
 
 	update_user_overrides(interface)
 
-	return True
+	return bool(cached)
 
 def update_user_overrides(interface):
 	user = basedir.load_first_config(config_site, config_prog,
