@@ -36,9 +36,6 @@ def save_interface(interface):
 	if interface.stability_policy:
 		root.setAttribute('stability-policy', str(interface.stability_policy))
 
-	if interface.local_command:
-		root.setAttribute('local-command', interface.local_command)
-
 	if interface.last_checked:
 		root.setAttribute('last-checked', str(interface.last_checked))
 

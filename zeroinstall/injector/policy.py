@@ -85,9 +85,7 @@ class Policy(object):
 			else:
 				debug("No implementation chould be chosen yet");
 				self.ready = False
-		root = self.get_interface(self.root)
-		if not root.local_command:
-			process(root)
+		process(self.get_interface(self.root))
 		for w in self.watchers: w()
 	
 	# Only to be called from recalculate, as it is quite slow.
@@ -243,9 +241,6 @@ class Policy(object):
 	
 	def get_uncached_implementations(self):
 		uncached = []
-		if self.get_interface(self.root).local_command:
-			return uncached
-
 		for iface in self.implementation:
 			impl = self.implementation[iface]
 			assert impl
@@ -260,3 +255,12 @@ class Policy(object):
 	def interface_changed(self, interface):
 		debug("interface_changed(%s): recalculating", interface)
 		self.recalculate()
+
+def get_local_command(uri):
+	"""The user can configure 0launch to run a local command instead of using the normal injector
+	mechanism. Return the full path of a command to execute, or None if none is set.
+	An empty file is the same as a missing one (for cascading configurations)."""
+	path = basedir.load_first_config('0install.net', 'injector', 'local_commands', escape(uri))
+	if path and os.path.getsize(path):
+		return path
+	return None

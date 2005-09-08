@@ -4,6 +4,7 @@ from optparse import OptionParser
 import logging
 
 from zeroinstall.injector import model, download, autopolicy, run, namespaces
+from zeroinstall.injector.policy import get_local_command
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]\n"
@@ -121,11 +122,13 @@ try:
 				download_only = bool(options.download_only),
 				dry_run = options.dry_run)
 
+	local_command = get_local_command(iface_uri)
+
 	if options.gui is None and os.environ.get('DISPLAY', None):
 		if options.refresh:
 			options.gui = True
 		else:
-			options.gui = policy.need_download()
+			options.gui = (not local_command) and policy.need_download()
 		if options.gui:
 			# If we need to download anything, we might as well
 			# refresh all the interfaces first. Also, this triggers
@@ -138,6 +141,8 @@ except model.SafeException, ex:
 	sys.exit(1)
 
 if options.gui:
+	local_command = None
+
 	policy.set_root(namespaces.injector_gui_uri)
 
 	# Try to start the GUI without using the network.
@@ -160,7 +165,18 @@ else:
 	prog_args = args[1:]
 
 try:
-	policy.download_and_execute(prog_args, refresh = bool(options.refresh), main = options.main)
+	if local_command:
+		if options.dry_run:
+			print "Would execute local command: ", local_command
+		else:
+			logging.info("Executing local command '%s'", local_command)
+			try:
+				os.execl(local_command, local_command, *prog_args)
+			except OSError, ex:
+				raise model.SafeException("Failed to execute '%s': %s" %
+							(local_command, ex))
+	else:
+		policy.download_and_execute(prog_args, refresh = bool(options.refresh), main = options.main)
 except model.SafeException, ex:
 	print >>sys.stderr, ex
 	sys.exit(1)

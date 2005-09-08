@@ -13,21 +13,6 @@ def do_env_binding(binding, path):
 
 def execute(policy, prog_args, dry_run = False, main = None):
 	iface = policy.get_interface(policy.root)
-
-	def run(command):
-		if dry_run:
-			print "Would execute:", command
-		else:
-			info("Executing: %s", command)
-			try:
-				os.execlp(command, command, *prog_args)
-			except OSError, ex:
-				raise SafeException("Failed to run command '%s': %s" %
-					(command, str(ex)))
-
-	if iface.local_command:
-		run(iface.local_command)
-		return
 		
 	for needed_iface in policy.implementation:
 		impl = policy.implementation[needed_iface]
@@ -57,4 +42,13 @@ def execute(policy, prog_args, dry_run = False, main = None):
 		raise SafeException("File '%s' does not exist.\n"
 				"(implementation '%s' + program '%s')" %
 				(prog_path, policy.implementation[iface].id, main))
-	run(prog_path)
+	if dry_run:
+		print "Would execute:", prog_path
+	else:
+		info("Executing: %s", prog_path)
+		sys.stdout.flush()
+		sys.stderr.flush()
+		try:
+			os.execl(prog_path, prog_path, *prog_args)
+		except OSError, ex:
+			raise SafeException("Failed to run '%s': %s" % (prog_path, str(ex)))
