@@ -88,8 +88,8 @@ def update_user_overrides(interface):
 	for item in root.getElementsByTagNameNS(XMLNS_IFACE, 'implementation'):
 		id = item.getAttribute('id')
 		assert id is not None
-		if id.startswith('/') or id.startswith('.'):
-			impl = interface.get_impl(os.path.abspath(os.path.join(iface_dir, id)))
+		if id.startswith('/'):
+			impl = interface.get_impl(id)
 		else:
 			assert '=' in id
 			impl = interface.get_impl(id)
