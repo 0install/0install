@@ -90,9 +90,15 @@ class Properties(Dialog):
 		self.vbox.pack_start(vbox, True, True, 0)
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
-		self.add_mixed_button(_('Add Feed...'), gtk.STOCK_ADD, ADD_FEED)
+		add_feed_button = self.add_mixed_button(_('Add Feed...'),
+							gtk.STOCK_ADD, ADD_FEED)
 		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
 		self.set_default_response(gtk.RESPONSE_CANCEL)
+
+		tips.set_tip(add_feed_button,
+			_('If you have another implementation of this interface (e.g., a '
+			  'CVS checkout), you can add it to the list by registering the XML '
+			  'feed file that came with it.'))
 
 		def response(dialog, resp):
 			if resp == gtk.RESPONSE_CANCEL:

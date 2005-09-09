@@ -23,6 +23,7 @@ class Dialog(gtk.Dialog):
 
 		self.add_action_widget(button, response)
 		button.show_all()
+		return button
 
 def alert(parent, message):
 	global n_windows
