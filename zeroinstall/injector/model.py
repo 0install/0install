@@ -77,7 +77,7 @@ class DownloadSource(object):
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
-	__slots__ = ['arch', 'upstream_stability', 'user_stability',
+	__slots__ = ['os', 'machine', 'upstream_stability', 'user_stability',
 		     'version', 'size', 'dependencies', 'main',
 		     'id', 'download_sources', 'released']
 
@@ -91,7 +91,8 @@ class Implementation(object):
 		self.released = None
 		self.user_stability = None
 		self.upstream_stability = None
-		self.arch = None
+		self.os = None
+		self.machine = None
 		self.dependencies = {}	# URI -> Dependency
 		self.download_sources = []	# [DownloadSource]
 	
@@ -110,6 +111,20 @@ class Implementation(object):
 	def __cmp__(self, other):
 		"""Newer versions come first"""
 		return cmp(other.version, self.version)
+	
+	def get_arch(self):
+		if self.os is not None:
+			return self.os + "-" + self.machine
+		return None
+	
+	def set_arch(self, arch):
+		if arch is None:
+			self.os = self.machine = None
+		elif '-' not in arch:
+			raise SafeException("Malformed arch '%s'", arch)
+		else:
+			self.os, self.machine = arch.split('-', 1)
+	arch = property(get_arch, set_arch)
 	
 class Interface(object):
 	"""An Interface represents some contract of behaviour."""

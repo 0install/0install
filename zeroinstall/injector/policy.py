@@ -2,6 +2,7 @@ import time
 import sys
 from logging import debug
 from cStringIO import StringIO
+import arch
 
 from model import *
 import basedir
@@ -14,7 +15,7 @@ from iface_cache import iface_cache
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
-		     'freshness', 'ready', 'handler', '_arch_ranks']
+		     'freshness', 'ready', 'handler']
 
 	def __init__(self, root, handler = None):
 		self.watchers = []
@@ -25,13 +26,8 @@ class Policy(object):
 		# (allow self for backwards compat)
 		self.handler = handler or self
 
-		# _arch_ranks is a mapping from arch names to how good they are.
-		# 1 => Native (best)
-		# Higher numbers are worse but usable archs
-		uname = os.uname()
-		self._arch_ranks = {"%s-%s" % (uname[0], uname[-1]) : 1,
-				    None : 2}
-		debug("Current platform supported architectures: '%s'", self._arch_ranks)
+		debug("Supported systems: '%s'", arch.os_ranks)
+		debug("Supported processors: '%s'", arch.machine_ranks)
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
@@ -134,9 +130,14 @@ class Policy(object):
 		r = cmp(a.version, b.version)
 		if r: return r
 
-		# Get best arch
-		r = cmp(self._arch_ranks.get(a.arch, None),
-			self._arch_ranks.get(b.arch, None))
+		# Get best OS
+		r = cmp(arch.os_ranks.get(a.os, None),
+			arch.os_ranks.get(b.os, None))
+		if r: return r
+
+		# Get best machine
+		r = cmp(arch.machine_ranks.get(a.machine, None),
+			arch.machine_ranks.get(b.machine, None))
 		if r: return r
 
 		# Slightly prefer cached versions
@@ -156,7 +157,9 @@ class Policy(object):
 			return True
 		if self.network_use == network_offline and not self.get_cached(impl):
 			return True
-		if impl.arch not in self._arch_ranks:
+		if impl.os not in arch.os_ranks:
+			return True
+		if impl.machine not in arch.machine_ranks:
 			return True
 		return False
 
