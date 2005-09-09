@@ -7,10 +7,14 @@ from dialog import Dialog
 from gui import policy
 from impl_list import ImplementationList
 import time
+import dialog
 
 _dialogs = {}	# Interface -> Properties
 
 tips = gtk.Tooltips()
+
+# Response codes
+ADD_FEED = 1
 
 def enumerate(items):
 	x = 0
@@ -86,6 +90,7 @@ class Properties(Dialog):
 		self.vbox.pack_start(vbox, True, True, 0)
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
+		self.add_mixed_button(_('Add Feed...'), gtk.STOCK_ADD, ADD_FEED)
 		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
 		self.set_default_response(gtk.RESPONSE_CANCEL)
 
@@ -96,6 +101,8 @@ class Properties(Dialog):
 			#	policy.begin_iface_download(interface, True)
 			elif resp == gtk.RESPONSE_HELP:
 				properties_help.display()
+			elif resp == ADD_FEED:
+				add_feed(interface)
 		self.connect('response', response)
 
 		main_hbox = gtk.HBox(False, 5)
@@ -157,9 +164,37 @@ class Properties(Dialog):
 
 		self.use_list = ImplementationList(interface)
 		self.use_list.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
-		vbox.pack_start(self.use_list, True, True, 0)
+		vbox.pack_start(self.use_list, True, True, 2)
 
 		return vbox
+
+def add_feed(interface):
+	sel = gtk.FileSelection(_('Select XML feed file'))
+	def ok(b):
+		from xml.dom import minidom
+		from zeroinstall.injector import reader
+		feed = sel.get_filename()
+		try:
+			doc = minidom.parse(feed)
+			uri = doc.documentElement.getAttribute('uri')
+			if not uri:
+				raise Exception("Missing uri attribute in interface file '%s'" % feed)
+			if uri != interface.uri:
+				raise Exception("Feed is for interface '%s', not '%s'" %
+						(uri, interface.uri))
+			if feed in interface.feeds:
+				raise Exception("Feed is already registered")
+			interface.feeds.append(feed)
+			writer.save_interface(interface)
+			sel.destroy()
+			reader.update_from_cache(interface)
+			policy.recalculate()
+		except Exception, ex:
+			dialog.alert(None, "Error in feed file '%s':\n\n%s" % (feed, str(ex)))
+		
+	sel.ok_button.connect('clicked', ok)
+	sel.cancel_button.connect('clicked', lambda b: sel.destroy())
+	sel.show()
 	
 def edit(interface):
 	assert isinstance(interface, Interface)
