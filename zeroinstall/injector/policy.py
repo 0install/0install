@@ -255,12 +255,3 @@ class Policy(object):
 	def interface_changed(self, interface):
 		debug("interface_changed(%s): recalculating", interface)
 		self.recalculate()
-
-def get_local_command(uri):
-	"""The user can configure 0launch to run a local command instead of using the normal injector
-	mechanism. Return the full path of a command to execute, or None if none is set.
-	An empty file is the same as a missing one (for cascading configurations)."""
-	path = basedir.load_first_config('0install.net', 'injector', 'local_commands', escape(uri))
-	if path and os.path.getsize(path):
-		return path
-	return None
