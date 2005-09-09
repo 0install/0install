@@ -86,6 +86,7 @@ class ImplementationList(gtk.ScrolledWindow):
 
 		self.tree_view.connect('motion-notify-event', motion)
 		self.tree_view.connect('leave-notify-event', lambda tv, ev: tips.hide())
+		self.tree_view.connect('destroy', lambda tv: tips.hide())
 
 		def button_press(tree_view, bev):
 			if bev.button not in (1, 3):
