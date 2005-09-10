@@ -45,7 +45,8 @@ class Attrs(object):
 def process_depends(dependency, item):
 	for e in item.getElementsByTagNameNS(XMLNS_IFACE, 'environment'):
 		binding = EnvironmentBinding(e.getAttribute('name'),
-					     insert = e.getAttribute('insert'))
+					     insert = e.getAttribute('insert'),
+					     default = e.getAttribute('default'))
 		dependency.bindings.append(binding)
 
 def update_from_cache(interface):

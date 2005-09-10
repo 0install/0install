@@ -133,6 +133,7 @@ class TestAutoPolicy(unittest.TestCase):
   <group>
     <requires interface='%s'>
       <environment name='FOO_PATH' insert='.'/>
+      <environment name='BAR_PATH' insert='.' default='/a:/b'/>
     </requires>
     <implementation version='1.0' id='%s'/>
   </group>
@@ -162,8 +163,11 @@ class TestAutoPolicy(unittest.TestCase):
 			sys.stdout = old
 		self.assertEquals(cached_impl + '/.:old',
 				os.environ['FOO_PATH'])
+		self.assertEquals(cached_impl + '/.:/a:/b',
+				os.environ['BAR_PATH'])
 
 		del os.environ['FOO_PATH']
+		os.environ['BAR_PATH'] = '/old'
 		old, sys.stdout = sys.stdout, StringIO()
 		try:
 			policy.download_and_execute(['Hello'])
@@ -171,6 +175,8 @@ class TestAutoPolicy(unittest.TestCase):
 			sys.stdout = old
 		self.assertEquals(cached_impl + '/.',
 				os.environ['FOO_PATH'])
+		self.assertEquals(cached_impl + '/.:/old',
+				os.environ['BAR_PATH'])
 
 suite = unittest.makeSuite(TestAutoPolicy)
 if __name__ == '__main__':

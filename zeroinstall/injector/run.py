@@ -4,11 +4,8 @@ from logging import debug, info
 from model import Interface, SafeException, EnvironmentBinding
 
 def do_env_binding(binding, path):
-	extra = os.path.join(path, binding.insert)
-	if binding.name in os.environ:
-		os.environ[binding.name] = extra + ':' + os.environ[binding.name]
-	else:
-		os.environ[binding.name] = extra
+	os.environ[binding.name] = binding.get_value(path,
+					os.environ.get(binding.name, None))
 	info("%s=%s", binding.name, os.environ[binding.name])
 
 def execute(policy, prog_args, dry_run = False, main = None):

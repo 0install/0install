@@ -10,6 +10,14 @@ network_levels = (network_offline, network_minimal, network_full)
 
 stability_levels = {}	# Name -> Stability
 
+# Default values for the 'default' attribute for <environment> bindings of
+# well-known variables:
+defaults = {
+	'PATH': '/bin:/usr/bin',
+	'XDG_CONFIG_DIRS': '/etc/xdg',
+	'XDG_DATA_DIRS': '/usr/local/share/:/usr/share/',
+}
+
 class Stability(object):
 	__slots__ = ['level', 'name', 'description']
 	def __init__(self, level, name, description):
@@ -40,14 +48,23 @@ class Binding(object):
 	to the application being run."""
 
 class EnvironmentBinding(Binding):
-	__slots__ = ['name', 'insert']
+	__slots__ = ['name', 'insert', 'default']
 
-	def __init__(self, name, insert):
+	def __init__(self, name, insert, default = None):
 		self.name = name
 		self.insert = insert
+		self.default = default
 	
 	def __str__(self):
 		return "<environ %s += %s>" % (self.name, self.insert)
+	
+	def get_value(self, path, old_value):
+		extra = os.path.join(path, self.insert)
+		if old_value is None:
+			old_value = self.default or defaults.get(self.name, None)
+		if old_value is None:
+			return extra
+		return extra + ':' + old_value
 
 class Dependency(object):
 	"""A Dependency indicates that an Implementation requires some additional
