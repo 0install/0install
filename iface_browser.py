@@ -143,9 +143,15 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		if policy.original_implementation is None:
 			policy.set_original_implementations()
 
+		done = {}	# Detect cycles
+
 		self.model.clear()
 		parent = None
 		def add_node(parent, iface):
+			if iface in done:
+				return
+			done[iface] = True
+
 			iter = self.model.append(parent)
 			self.model[iter][InterfaceBrowser.INTERFACE] = iface
 			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = iface.get_name()
