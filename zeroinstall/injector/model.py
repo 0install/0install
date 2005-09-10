@@ -15,7 +15,7 @@ stability_levels = {}	# Name -> Stability
 defaults = {
 	'PATH': '/bin:/usr/bin',
 	'XDG_CONFIG_DIRS': '/etc/xdg',
-	'XDG_DATA_DIRS': '/usr/local/share/:/usr/share/',
+	'XDG_DATA_DIRS': '/usr/local/share:/usr/share',
 }
 
 class Stability(object):

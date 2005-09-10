@@ -134,6 +134,7 @@ class TestAutoPolicy(unittest.TestCase):
     <requires interface='%s'>
       <environment name='FOO_PATH' insert='.'/>
       <environment name='BAR_PATH' insert='.' default='/a:/b'/>
+      <environment name='XDG_DATA_DIRS' insert='.'/>
     </requires>
     <implementation version='1.0' id='%s'/>
   </group>
@@ -167,6 +168,8 @@ class TestAutoPolicy(unittest.TestCase):
 				os.environ['BAR_PATH'])
 
 		del os.environ['FOO_PATH']
+		if 'XDG_DATA_DIRS' in os.environ:
+			del os.environ['XDG_DATA_DIRS']
 		os.environ['BAR_PATH'] = '/old'
 		old, sys.stdout = sys.stdout, StringIO()
 		try:
@@ -177,6 +180,8 @@ class TestAutoPolicy(unittest.TestCase):
 				os.environ['FOO_PATH'])
 		self.assertEquals(cached_impl + '/.:/old',
 				os.environ['BAR_PATH'])
+		self.assertEquals(cached_impl + '/.:/usr/local/share:/usr/share',
+				os.environ['XDG_DATA_DIRS'])
 
 suite = unittest.makeSuite(TestAutoPolicy)
 if __name__ == '__main__':
