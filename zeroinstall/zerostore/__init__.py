@@ -186,8 +186,12 @@ class Stores(object):
 							  'implementation-dirs')
 		debug("Location of 'implementation-dirs' config file being used: '%s'", impl_dirs)
 		if impl_dirs:
-			for directory in file(impl_dirs):
-				directory = directory.strip()
+			dirs = file(impl_dirs)
+		else:
+			dirs = ['/var/cache/0install.net/implementations']
+		for directory in dirs:
+			directory = directory.strip()
+			if directory and not directory.startswith('#'):
 				if os.path.isdir(directory):
 					self.stores.append(Store(directory))
 					debug("Added system store '%s'", directory)

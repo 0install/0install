@@ -3,8 +3,6 @@ import os, sys
 from optparse import OptionParser
 import logging
 
-from zeroinstall.injector import model, download, autopolicy, run, namespaces
-
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]\n"
 			    "       %prog --import [signed-interface-files]\n"
@@ -30,6 +28,8 @@ if options.verbose:
 		logger.setLevel(logging.INFO)
 	else:
 		logger.setLevel(logging.DEBUG)
+
+from zeroinstall.injector import model, download, autopolicy, namespaces
 
 if options.list:
 	if len(args) == 0:
