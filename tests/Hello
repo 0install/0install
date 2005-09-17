@@ -1,0 +1,18 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+	   main='main'>
+  <name>Hello</name>
+  <summary>Hello</summary>
+  <description>Hello</description>
+  <implementation id='sha1=123' version='1'/>
+</interface>
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.1 (GNU/Linux)
+
+iD8DBQFDLBGib88SG+I5DgsRAhB5AJsFW/lE9z1ndq4ESpuCly/YAhVrMwCdFKNK
+extGTceeUtSjY1AU2xdoyrA=
+=Eqfc
+-----END PGP SIGNATURE-----
