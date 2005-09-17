@@ -56,9 +56,14 @@ if options.no_self_update is not True:
 	gui_policy = autopolicy.AutoPolicy(namespaces.injector_gui_uri)
 	if gui_policy.need_download():
 		# Need to refresh the GUI itself first!
-		prog_args = ['--no-self-update'] + sys.argv[1:]
+		prog_args = ['--no-self-update']
+		if options.main:
+			prog_args += ['--main', options.main]
+			options.main = None
+		prog_args += sys.argv[1:]
+
 		interface_uri = namespaces.injector_gui_uri
-		download_only = False
+		options.download_only = False
 
 policy = gui.GUIPolicy(interface_uri, prog_args,
 		   download_only = bool(options.download_only),
