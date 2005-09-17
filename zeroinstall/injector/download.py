@@ -10,7 +10,7 @@ download_checking = "checking"	# Checking GPG sig (possibly interactive)
 download_complete = "complete"	# Downloaded and cached OK
 download_failed = "failed"
 
-downloads = {}		# URL -> Download
+_downloads = {}		# URL -> Download
 
 class DownloadError(SafeException):
 	pass
@@ -165,15 +165,15 @@ def begin_impl_download(source, force = False):
 	return _begin_download(ImplementationDownload(source), force)
 	
 def _begin_download(new_dl, force):
-	dl = downloads.get(new_dl.url, None)
+	dl = _downloads.get(new_dl.url, None)
 	if dl:
 		if force:
 			dl.abort()
-			del downloads[new_dl.url]
+			del _downloads[new_dl.url]
 		else:
 			return None	# Already downloading
 	
-	downloads[new_dl.url] = new_dl
+	_downloads[new_dl.url] = new_dl
 
 	assert new_dl.status == download_starting
 	return new_dl
