@@ -40,8 +40,7 @@ class TestIfaceCache(unittest.TestCase):
 		# TODO: test overrides
 
 	def testCheckSigned(self):
-		new, iface = iface_cache.get_interface('http://foo')
-		assert new
+		iface = iface_cache.get_interface('http://foo')
 		src = tempfile.TemporaryFile()
 
 		# Unsigned

@@ -22,6 +22,7 @@ class Policy(object):
 		self.help_with_testing = False
 		self.network_use = network_full
 		self.freshness = 60 * 60 * 24 * 7	# Seconds allowed since last update
+		self.ready = False
 
 		# (allow self for backwards compat)
 		self.handler = handler or self
@@ -67,16 +68,23 @@ class Policy(object):
 	def recalculate(self):
 		self.implementation = {}
 		self.ready = True
+		debug("Recalculate! root = %s", self.root)
 		def process(iface):
-			debug("recalculate: considering interface %s", iface)
 			if iface in self.implementation:
 				debug("cycle; skipping")
 				return
+			self.implementation[iface] = None	# Avoid cycles
+
+			for f in iface.feeds:
+				debug("Processing feed %s", f)
+				self.get_interface(f)
+
 			impl = self._get_best_implementation(iface)
-			self.implementation[iface] = impl
 			if impl:
 				debug("Will use implementation %s (version %s)", impl, impl.get_version())
+				self.implementation[iface] = impl
 				for d in impl.dependencies.values():
+					debug("Considering dependency %s", d)
 					process(self.get_interface(d.interface))
 			else:
 				debug("No implementation chould be chosen yet");
@@ -87,10 +95,17 @@ class Policy(object):
 	# Only to be called from recalculate, as it is quite slow.
 	# Use the results stored in self.implementation instead.
 	def _get_best_implementation(self, iface):
-		if not iface.implementations:
+		impls = iface.implementations.values()
+		for f in iface.feeds:
+			feed_iface = self.get_interface(f)
+			if feed_iface.implementations:
+				impls.extend(feed_iface.implementations.values())
+
+		debug("get_best_implementation(%s), with feeds: %s", iface, iface.feeds)
+
+		if not impls:
 			info("Interface %s has no implementations!", iface)
 			return None
-		impls = iface.implementations.values()
 		best = impls[0]
 		for x in impls[1:]:
 			if self.compare(iface, x, best) < 0:
@@ -172,8 +187,9 @@ class Policy(object):
 		return None
 
 	def get_interface(self, uri):
-		new, iface = iface_cache.get_interface(uri)
-		if new and iface.last_modified is None:
+		iface = iface_cache.get_interface(uri)
+
+		if iface.last_modified is None:
 			if self.network_use != network_offline:
 				debug("Interface not cached and not off-line. Downloading...")
 				self.begin_iface_download(iface)
@@ -186,8 +202,8 @@ class Policy(object):
 			if self.network_use != network_offline and self.freshness > 0 and staleness > self.freshness:
 				debug("Updating %s", iface)
 				self.begin_iface_download(iface, False)
-		else:
-			debug("Local interface, so not checking staleness.")
+		#else: debug("Local interface, so not checking staleness.")
+
 		return iface
 	
 	def begin_iface_download(self, interface, force = False):

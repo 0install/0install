@@ -60,6 +60,7 @@ class TestAutoPolicy(unittest.TestCase):
   <summary>Foo</summary>
   <description>Foo</description>
 </interface>""" % foo_iface_uri)
+		iface_cache.iface_cache._interfaces = {}
 		assert not policy.need_download()
 	
 	def testDownload(self):

@@ -12,8 +12,6 @@ import data
 
 import server
 
-foo_iface_uri = 'http://foo'
-
 class Reply:
 	def __init__(self, reply):
 		self.reply = reply
@@ -60,8 +58,8 @@ class TestDownload(unittest.TestCase):
 				policy.download_and_execute(['Hello'])
 				assert 0
 			except model.SafeException, ex:
-				print ex
-				assert "Not signed with a trusted key" in str(ex)
+				if "Not signed with a trusted key" not in str(ex):
+					raise ex
 			os.waitpid(child, 0)
 		finally:
 			sys.stdout = old_out
@@ -78,7 +76,8 @@ class TestDownload(unittest.TestCase):
 				policy.download_and_execute(['Hello'], main = 'Missing')
 				assert 0
 			except model.SafeException, ex:
-				assert "HelloWorld/Missing" in str(ex)
+				if "HelloWorld/Missing" not in str(ex):
+					raise ex
 			os.waitpid(child, 0)
 		finally:
 			sys.stdout = old_out

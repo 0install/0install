@@ -158,25 +158,20 @@ class IfaceCache(object):
 		reader.update_from_cache(interface)
 
 	def get_interface(self, uri):
-		"""Get the interface for uri. Return is (new, Interface). new is True if
-		we just created the new object in memory."""
-		debug("get_interface %s", uri)
+		"""Get the interface for uri, creating a new one if required.
+		New interfaces are initialised from the disk cache, but not from
+		the network."""
 		if type(uri) == str:
 			uri = unicode(uri)
 		assert isinstance(uri, unicode)
 
 		if uri in self._interfaces:
-			return (False, self._interfaces[uri])
+			return self._interfaces[uri]
 
 		debug("Initialising new interface object for %s", uri)
 		self._interfaces[uri] = Interface(uri)
-		cached = reader.update_from_cache(self._interfaces[uri])
-		if cached:
-			debug("(already in disk cache)")
-			assert self._interfaces[uri].name
-		else:
-			debug("(interface not in disk cache)")
-		return (True, self._interfaces[uri])
+		reader.update_from_cache(self._interfaces[uri])
+		return self._interfaces[uri]
 
 	def list_all_interfaces(self):
 		all = {}
