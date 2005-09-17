@@ -103,7 +103,9 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 				path = pos[0]
 				col = self.columns[column_objects.index(pos[1])][1]
 				row = self.model[path]
-				tips.prime(tree_view, (row[InterfaceBrowser.INTERFACE], col))
+				item = (row[InterfaceBrowser.INTERFACE], col)
+				if item != tips.item:
+					tips.prime(tree_view, item)
 			else:
 				tips.hide()
 

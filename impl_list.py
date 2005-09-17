@@ -27,11 +27,9 @@ UNUSABLE = 5
 RELEASED = 6
 
 class ImplTips(TreeTips):
-	def get_tooltip_text(self, item):
-		interface, id = item
-		if id.startswith('/'):
-			return _("Local: %s") % id
-		impl = interface.implementations[id]
+	def get_tooltip_text(self, impl):
+		if impl.id.startswith('/'):
+			return _("Local: %s") % impl.id
 		if policy.get_cached(impl):
 			return _("Cached: %s") % policy.get_implementation_path(impl)
 
@@ -80,7 +78,8 @@ class ImplementationList(gtk.ScrolledWindow):
 			if pos:
 				path = pos[0]
 				row = self.model[path]
-				tips.prime(tree_view, (interface, row[ITEM].id))
+				if row[ITEM] is not tips.item:
+					tips.prime(tree_view, row[ITEM])
 			else:
 				tips.hide()
 

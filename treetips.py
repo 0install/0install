@@ -57,9 +57,6 @@ class TreeTips:
 		self.time = time.time()
 	
 	def prime(self, parent, item):
-		if item == self.item:
-			return
-
 		self.hide()
 		assert self.timeout is None
 		self.item = item
