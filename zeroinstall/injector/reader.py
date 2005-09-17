@@ -58,6 +58,7 @@ def update_from_cache(interface):
 	if interface.uri.startswith('/'):
 		debug("Loading local interface file '%s'", interface.uri)
 		update(interface, interface.uri, local = True)
+		interface.last_modified = os.stat(interface.uri).st_mtime
 		cached = True
 	else:
 		cached = basedir.load_first_cache(config_site, 'interfaces', escape(interface.uri))
