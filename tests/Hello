@@ -3,16 +3,19 @@ Hash: SHA1
 
 <?xml version="1.0" ?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
-	   main='main'>
+	   uri='http://localhost:8000/Hello'
+	   main='HelloWorld/main'>
   <name>Hello</name>
   <summary>Hello</summary>
   <description>Hello</description>
-  <implementation id='sha1=123' version='1'/>
+  <implementation id='sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' version='1'>
+    <archive href='http://localhost:8000/HelloWorld.tgz' size='176'/>
+  </implementation>
 </interface>
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.1 (GNU/Linux)
 
-iD8DBQFDLBGib88SG+I5DgsRAhB5AJsFW/lE9z1ndq4ESpuCly/YAhVrMwCdFKNK
-extGTceeUtSjY1AU2xdoyrA=
-=Eqfc
+iD8DBQFDLBi0b88SG+I5DgsRAkgtAJwInQjqEgmS6ZoAzMvi7fHAmFagXQCfWAHU
++7Q3Q97UGY6mVmd7hampJE8=
+=BhVc
 -----END PGP SIGNATURE-----

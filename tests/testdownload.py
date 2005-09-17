@@ -7,16 +7,19 @@ from logging import getLogger, DEBUG, INFO
 
 sys.path.insert(0, '..')
 
-from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache
+from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, download
 import data
 
 import server
 
 foo_iface_uri = 'http://foo'
 
-class No:
+class Reply:
+	def __init__(self, reply):
+		self.reply = reply
+
 	def readline(self):
-		return "n\n"
+		return self.reply
 
 class TestDownload(unittest.TestCase):
 	def setUp(self):
@@ -37,26 +40,45 @@ class TestDownload(unittest.TestCase):
 		stream.write(data.thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)
-		iface_cache.iface_cache._interfaces = {}
+		iface_cache.iface_cache.__init__()
+		download._downloads = {}
 	
 	def tearDown(self):
 		shutil.rmtree(self.config_home)
 		shutil.rmtree(self.cache_home)
 		shutil.rmtree(self.gnupg_home)
 	
-	def testGetIFace(self):
+	def testRejectKey(self):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
 			child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg')
 			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False)
 			assert policy.need_download()
-			sys.stdin = No()
+			sys.stdin = Reply("N\n")
 			try:
 				policy.download_and_execute(['Hello'])
 				assert 0
 			except model.SafeException, ex:
+				print ex
 				assert "Not signed with a trusted key" in str(ex)
+			os.waitpid(child, 0)
+		finally:
+			sys.stdout = old_out
+	
+	def testAcceptKey(self):
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False)
+			assert policy.need_download()
+			sys.stdin = Reply("Y\n")
+			try:
+				policy.download_and_execute(['Hello'], main = 'Missing')
+				assert 0
+			except model.SafeException, ex:
+				assert "HelloWorld/Missing" in str(ex)
 			os.waitpid(child, 0)
 		finally:
 			sys.stdout = old_out
