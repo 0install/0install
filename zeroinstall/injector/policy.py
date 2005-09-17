@@ -1,6 +1,6 @@
 import time
 import sys
-from logging import debug
+from logging import info, debug
 from cStringIO import StringIO
 import arch
 
@@ -88,6 +88,7 @@ class Policy(object):
 	# Use the results stored in self.implementation instead.
 	def _get_best_implementation(self, iface):
 		if not iface.implementations:
+			info("Interface %s has no implementations!", iface)
 			return None
 		impls = iface.implementations.values()
 		best = impls[0]
@@ -95,6 +96,8 @@ class Policy(object):
 			if self.compare(iface, x, best) < 0:
 				best = x
 		if self.is_unusable(best):
+			info("Best implementation of %s is %s, but unusable (%s)", iface, best,
+							self.get_unusable_reason(best))
 			return None
 		return best
 	
@@ -153,19 +156,24 @@ class Policy(object):
 		return impls
 	
 	def is_unusable(self, impl):
-		if impl.get_stability() <= buggy:
-			return True
+		return self.get_unusable_reason(impl) != None
+
+	def get_unusable_reason(self, impl):
+		"""Returns the reason why this impl is unusable, or None if it's OK"""
+		stability = impl.get_stability()
+		if stability <= buggy:
+			return stability.name
 		if self.network_use == network_offline and not self.get_cached(impl):
-			return True
+			return "Not cached and we are off-line"
 		if impl.os not in arch.os_ranks:
-			return True
+			return "Unsupported OS"
 		if impl.machine not in arch.machine_ranks:
-			return True
-		return False
+			return "Unsupported machine type"
+		return None
 
 	def get_interface(self, uri):
 		new, iface = iface_cache.get_interface(uri)
-		if new and not iface.name:
+		if new and iface.last_modified is None:
 			if self.network_use != network_offline:
 				debug("Interface not cached and not off-line. Downloading...")
 				self.begin_iface_download(iface)
