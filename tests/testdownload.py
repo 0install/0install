@@ -7,14 +7,8 @@ from logging import getLogger, DEBUG, INFO
 
 sys.path.insert(0, '..')
 
-config_home = tempfile.mktemp()
-cache_home = tempfile.mktemp()
-os.environ['XDG_CONFIG_HOME'] = config_home
-os.environ['XDG_CACHE_HOME'] = cache_home
-
 from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache
 import data
-reload(basedir)
 
 import server
 
@@ -26,8 +20,14 @@ class No:
 
 class TestDownload(unittest.TestCase):
 	def setUp(self):
-		os.mkdir(config_home, 0700)
-		os.mkdir(cache_home, 0700)
+		self.config_home = tempfile.mktemp()
+		self.cache_home = tempfile.mktemp()
+		os.environ['XDG_CONFIG_HOME'] = self.config_home
+		os.environ['XDG_CACHE_HOME'] = self.cache_home
+		reload(basedir)
+
+		os.mkdir(self.config_home, 0700)
+		os.mkdir(self.cache_home, 0700)
 		if os.environ.has_key('DISPLAY'):
 			del os.environ['DISPLAY']
 		self.gnupg_home = tempfile.mktemp()
@@ -40,8 +40,8 @@ class TestDownload(unittest.TestCase):
 		iface_cache.iface_cache._interfaces = {}
 	
 	def tearDown(self):
-		shutil.rmtree(config_home)
-		shutil.rmtree(cache_home)
+		shutil.rmtree(self.config_home)
+		shutil.rmtree(self.cache_home)
 		shutil.rmtree(self.gnupg_home)
 	
 	def testGetIFace(self):
