@@ -167,6 +167,10 @@ class Policy(object):
 	
 	def get_ranked_implementations(self, iface):
 		impls = iface.implementations.values()
+		for f in iface.feeds:
+			feed_iface = self.get_interface(f)
+			if feed_iface.implementations:
+				impls.extend(feed_iface.implementations.values())
 		impls.sort(lambda a, b: self.compare(iface, a, b))
 		return impls
 	
