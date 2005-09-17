@@ -78,7 +78,7 @@ try:
 			doc = minidom.parseString(data.read())
 			uri = doc.documentElement.getAttribute('uri')
 			assert uri
-			new, iface = iface_cache.get_interface(uri)
+			iface = iface_cache.get_interface(uri)
 			logging.info("Importing information about interface %s", iface)
 			signed_data.seek(0)
 			iface_cache.check_signed_data(iface, signed_data, handler.Handler())
@@ -97,7 +97,7 @@ try:
 			if not uri:
 				raise model.SafeException("Missing uri attribute in interface file '%s'" % x)
 				continue
-			new, iface = iface_cache.iface_cache.get_interface(uri)
+			iface = iface_cache.iface_cache.get_interface(uri)
 			if not iface.name:
 				print "Warning: unknown interface '%s'" % uri
 			if x in iface.feeds:

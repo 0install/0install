@@ -159,11 +159,18 @@ def update(interface, source, local = False):
 	main = root.getAttribute('main')
 	if main:
 		interface.main = main
-	
+
 	if local:
 		iface_dir = os.path.dirname(source)
 	else:
 		iface_dir = None	# Can't have relative paths
+	
+	for source in root.getElementsByTagNameNS(XMLNS_IFACE, 'source'):
+		source_interface = source.getAttribute('interface')
+		if source_interface:
+			interface.sources.append(Source(source_interface))
+		else:
+			raise InvalidInterface("Missing interface attribute on <source>")
 
 	def process_group(group, group_attrs, base_depends):
 		for item in group.childNodes:

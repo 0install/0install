@@ -40,6 +40,13 @@ testing = Stability(20, 'testing', 'Stability unknown - please test!')
 stable = Stability(30, 'stable', 'Tested - no serious problems found')
 preferred = Stability(40, 'preferred', 'Best of all - must be set manually')
 
+class Source(object):
+	"""An interface that can be executed to build a new implementation."""
+	__slots__ = ['source_interface']
+
+	def __init__(self, source_interface):
+		self.source_interface = source_interface
+
 class Restriction(object):
 	"""A Restriction limits the allowed implementations of an Interface."""
 
@@ -96,11 +103,12 @@ class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
 	__slots__ = ['os', 'machine', 'upstream_stability', 'user_stability',
 		     'version', 'size', 'dependencies', 'main',
-		     'id', 'download_sources', 'released']
+		     'id', 'download_sources', 'released', 'interface']
 
-	def __init__(self, id):
+	def __init__(self, interface, id):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
 		assert id
+		self.interface = interface
 		self.id = id
 		self.main = None
 		self.size = None
@@ -147,7 +155,7 @@ class Interface(object):
 	"""An Interface represents some contract of behaviour."""
 	__slots__ = ['uri', 'implementations', 'name', 'description', 'summary',
 		     'stability_policy', 'last_modified', 'last_local_update', 'last_checked',
-		     'main', 'feeds']
+		     'main', 'feeds', 'sources']
 
 	# last_local_update is deprecated
 	
@@ -174,6 +182,7 @@ class Interface(object):
 		self.last_local_update = None
 		self.last_checked = None
 		self.main = None
+		self.sources = []
 		self.feeds = []
 	
 	def get_name(self):
@@ -184,7 +193,7 @@ class Interface(object):
 	
 	def get_impl(self, id):
 		if id not in self.implementations:
-			self.implementations[id] = Implementation(id)
+			self.implementations[id] = Implementation(self, id)
 		return self.implementations[id]
 	
 	def set_stability_policy(self, new):
