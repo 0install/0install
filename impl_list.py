@@ -26,6 +26,13 @@ CACHED = 4
 UNUSABLE = 5
 RELEASED = 6
 
+def interface_for(interface, impl):
+	# Since injector 0.16, we can get the interface from the impl
+	# Before that, the impl always comes from the main interface (even for feeds)
+	if hasattr(impl, 'interface'):
+		return impl.interface
+	return interface
+
 class ImplTips(TreeTips):
 	def get_tooltip_text(self, impl):
 		if impl.id.startswith('/'):
@@ -105,7 +112,7 @@ class ImplementationList(gtk.ScrolledWindow):
 						impl.user_stability = new
 					else:
 						impl.user_stability = None
-					writer.save_interface(interface)
+					writer.save_interface(interface_for(interface, impl))
 					policy.recalculate()
 				popup_menu(bev, ['Unset (%s)' % upstream, None] + choices,
 					set)
