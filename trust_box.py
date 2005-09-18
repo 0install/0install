@@ -20,9 +20,6 @@ def pretty_fp(fp):
 	return s
 
 class TrustBox(dialog.Dialog):
-	model = None
-	tree_view = None
-
 	interface = None
 	sigs = None
 	iface_xml = None
@@ -31,68 +28,83 @@ class TrustBox(dialog.Dialog):
 		dialog.Dialog.__init__(self)
 		self.connect('destroy', lambda a: _pop_queue())
 
+		def left(text):
+			label = gtk.Label(text)
+			label.set_alignment(0, 0.5)
+			label.set_selectable(True)
+			return label
+
 		self.interface = interface
 		self.sigs = sigs
 		self.iface_xml = iface_xml
 
 		self.set_title('Confirm trust')
 
-		label = gtk.Label('Checking: ' + interface.uri + '\n\n'
+		vbox = gtk.VBox(False, 4)
+		vbox.set_border_width(4)
+		self.vbox.pack_start(vbox, True, True, 0)
+
+		label = left('Checking: ' + interface.uri + '\n\n'
 				  'Please confirm that you trust '
 				  'these keys to sign software updates:')
-		label.set_padding(8, 8)
-		self.vbox.pack_start(label, False, True, 0)
+		vbox.pack_start(label, False, True, 0)
 
-		swin = gtk.ScrolledWindow()
-		self.vbox.pack_start(swin, True, True, 0)
-		swin.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
-		swin.set_shadow_type(gtk.SHADOW_IN)
-		swin.set_border_width(8)
+		notebook = gtk.Notebook()
+		vbox.pack_start(notebook, True, True, 0)
 
-		self.model = gtk.ListStore(str, object)
-		self.tree_view = gtk.TreeView(self.model)
-		self.tree_view.get_selection().set_mode(gtk.SELECTION_NONE)
-		swin.add(self.tree_view)
-
-		self.tree_view.set_size_request(-1, 100)
-
-		text = gtk.CellRendererText()
-
-		for column in [gtk.TreeViewColumn('Key fingerprint', text, text = 0)]:
-			self.tree_view.append_column(column)
-
-		self.vbox.show_all()
-		
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		self.add_button(gtk.STOCK_ADD, gtk.RESPONSE_OK)
 		self.set_default_response(gtk.RESPONSE_OK)
+
+		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
+		if not valid_sigs:
+			raise SafeException('No valid signatures found')
+
+		trust = {}	# Sig -> CheckButton
+		def ok_sensitive():
+			trust_any = False
+			for toggle in trust.values():
+				if toggle.get_active():
+					trust_any = True
+					break
+			self.set_response_sensitive(gtk.RESPONSE_OK, trust_any)
+		for sig in sigs:
+			name = '<unknown>'
+			if hasattr(sig, 'get_details'):
+				details = sig.get_details()
+				for item in details:
+					if item[0] in ('pub', 'uid'):
+						name = item[9]
+						break
+			page = gtk.VBox(False, 4)
+			page.set_border_width(8)
+			page.pack_start(left('Fingerprint: ' + pretty_fp(fingerprint(sig))), False, True, 0)
+			page.pack_start(left('Claimed identity: ' + name), False, True, 0)
+
+			trust[sig] = gtk.CheckButton('Trust this key')
+			page.pack_start(trust[sig], False, True, 0)
+			trust[sig].connect('toggled', lambda t: ok_sensitive())
+
+			notebook.append_page(page, gtk.Label(name))
+
+		ok_sensitive()
+		self.vbox.show_all()
 
 		def response(box, resp):
 			if resp == gtk.RESPONSE_HELP:
 				trust_help.display()
 				return
 			if resp == gtk.RESPONSE_OK:
-				self.trust_keys()
+				self.trust_keys([sig for sig in trust if trust[sig].get_active()])
 			self.destroy()
 		self.connect('response', response)
-	
-		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
-		if not valid_sigs:
-			raise SafeException('No valid signatures found')
-
-		for sig in sigs:
-			titer = self.model.append()
-			self.model[titer][0] = pretty_fp(fingerprint(sig))
-			self.model[titer][1] = sig
-
-		self.tree_view.expand_all()
+		
 		self.present()
 	
-	def trust_keys(self):
+	def trust_keys(self, sigs):
 		try:
-			for row in self.model:
-				sig = row[1]
+			for sig in sigs:
 				trust.trust_db.trust_key(fingerprint(sig))
 
 			if not iface_cache.update_interface_if_trusted(self.interface, self.sigs,
