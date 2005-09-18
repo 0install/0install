@@ -32,6 +32,15 @@ class ValidSig(Signature):
 
 	fingerprint = property(lambda self: self.status[self.FINGERPRINT])
 
+	def get_details(self):
+		cin, cout = os.popen2(('gpg', '--with-colons', '--list-keys', self.fingerprint))
+		cin.close()
+		details = []
+		for line in cout:
+			details.append(line.split(':'))
+		cout.close()
+		return details
+
 class BadSig(Signature):
 	KEYID = 0
 
