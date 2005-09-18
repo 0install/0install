@@ -37,7 +37,8 @@ class TrustBox(dialog.Dialog):
 
 		self.set_title('Confirm trust')
 
-		label = gtk.Label('Please confirm that you trust '
+		label = gtk.Label('Checking: ' + interface.uri + '\n\n'
+				  'Please confirm that you trust '
 				  'these keys to sign software updates:')
 		label.set_padding(8, 8)
 		self.vbox.pack_start(label, False, True, 0)
