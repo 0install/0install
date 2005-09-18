@@ -224,4 +224,5 @@ def canonical_iface_uri(uri):
 			return iface_uri
 	raise SafeException("Bad interface name '%s'.\n"
 			"(doesn't start with 'http:', and "
-			"doesn't exist as a local file either)" % uri)
+			"doesn't exist as a local file '%s' either)" %
+			(uri, iface_uri))
