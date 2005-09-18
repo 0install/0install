@@ -82,6 +82,14 @@ class TrustBox(dialog.Dialog):
 			page.pack_start(left('Fingerprint: ' + pretty_fp(fingerprint(sig))), False, True, 0)
 			page.pack_start(left('Claimed identity: ' + name), False, True, 0)
 
+			frame = gtk.Frame('Unreliable hints database says')
+			frame.set_border_width(4)
+			hint = left(hints.get(fingerprint(sig), 'Warning: Nothing known about this key!'))
+			hint.set_line_wrap(True)
+			hint.set_padding(4, 4)
+			frame.add(hint)
+			page.pack_start(frame, True, True, 0)
+
 			trust[sig] = gtk.CheckButton('Trust this key')
 			page.pack_start(trust[sig], False, True, 0)
 			trust[sig].connect('toggled', lambda t: ok_sensitive())
@@ -160,3 +168,21 @@ should be suspicious that you're being asked to confirm another key!"""),
 In general, most problems seem to come from malicous and otherwise-unknown people \
 replacing software with modified versions, or creating new programs intended only to \
 cause damage. So, check your programs are signed by a key with a good reputation!"""))
+
+hints = {
+	'1DC295D11A3F910DA49D3839AA1A7812B40B0B6E' :
+		'Ken Hayber has been writing ROX applications since 2003. This key '
+		'was announced on the rox-users list on 5 Jun 2005.',
+
+	'4338D5420E0BAEB6B2E73530B66A4F24AB8B4B65' :
+		'Thomas Formella is experimenting with packaging programs for 0launch. This key '
+		'was announced on 11 Sep 2005 on the zero-install mailing list.',
+
+	'92429807C9853C0744A68B9AAE07828059A53CC1' :
+		'Thomas Leonard created Zero Install and ROX. This key is normally trusted by default.',
+
+	'0597A2AFB6B372ACB97AC6E433B938C2E9D8826D' : 
+		'Stephen Watson is a project admin for the ROX desktop, and has been involved with the '
+		'project since 2000. This key has been used for signing software since the 23 Jul 2005 '
+		'announcement on the zero-install mailing list.',
+}
