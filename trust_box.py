@@ -70,17 +70,20 @@ class TrustBox(dialog.Dialog):
 					break
 			self.set_response_sensitive(gtk.RESPONSE_OK, trust_any)
 		for sig in sigs:
-			name = '<unknown>'
 			if hasattr(sig, 'get_details'):
+				name = '<unknown>'
 				details = sig.get_details()
 				for item in details:
 					if item[0] in ('pub', 'uid'):
 						name = item[9]
 						break
+			else:
+				name = None
 			page = gtk.VBox(False, 4)
 			page.set_border_width(8)
 			page.pack_start(left('Fingerprint: ' + pretty_fp(fingerprint(sig))), False, True, 0)
-			page.pack_start(left('Claimed identity: ' + name), False, True, 0)
+			if name is not None:
+				page.pack_start(left('Claimed identity: ' + name), False, True, 0)
 
 			frame = gtk.Frame('Unreliable hints database says')
 			frame.set_border_width(4)
@@ -94,7 +97,7 @@ class TrustBox(dialog.Dialog):
 			page.pack_start(trust[sig], False, True, 0)
 			trust[sig].connect('toggled', lambda t: ok_sensitive())
 
-			notebook.append_page(page, gtk.Label(name))
+			notebook.append_page(page, gtk.Label(name or 'Signature'))
 
 		ok_sensitive()
 		self.vbox.show_all()
