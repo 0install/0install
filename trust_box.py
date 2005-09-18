@@ -188,4 +188,9 @@ hints = {
 		'Stephen Watson is a project admin for the ROX desktop, and has been involved with the '
 		'project since 2000. This key has been used for signing software since the 23 Jul 2005 '
 		'announcement on the zero-install mailing list.',
+	
+	'F0A0CA2A8D8FCC123F5EC04CD8D59DC384AE988E' :
+		'Piero Ottuzzi is experimenting with packaging programs for 0launch. This key has been '
+		'known since a 16 Mar 2005 post to the zero-install mailing list. It was first used to '
+		'sign software in an announcement posted on 9 Aug 2005.',
 }
