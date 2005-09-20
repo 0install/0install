@@ -3,3 +3,7 @@ include *.1
 include tests
 include tests/*.py
 include tests/data
+include tests/Hello
+include tests/HelloWorld.tgz
+include tests/6FCF121BE2390E0B.gpg
+include tests/Foo.xml
