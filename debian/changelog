@@ -1,3 +1,9 @@
+zeroinstall-injector (0.16-1) unstable; urgency=low
+
+  * New release.
+
+ -- Thomas Leonard <tal197@users.sourceforge.net>  Tue, 20 Sep 2005 19:41:12 +0100
+
 zeroinstall-injector (0.15-1) unstable; urgency=low
 
   * New release.
