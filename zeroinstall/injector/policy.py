@@ -71,7 +71,7 @@ class Policy(object):
 		debug("Recalculate! root = %s", self.root)
 		def process(iface):
 			if iface in self.implementation:
-				debug("cycle; skipping")
+				debug("cycle; skipping second %s", iface)
 				return
 			self.implementation[iface] = None	# Avoid cycles
 

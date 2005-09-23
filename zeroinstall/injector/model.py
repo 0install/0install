@@ -64,6 +64,7 @@ class EnvironmentBinding(Binding):
 	
 	def __str__(self):
 		return "<environ %s += %s>" % (self.name, self.insert)
+	__repr__ = __str__
 	
 	def get_value(self, path, old_value):
 		extra = os.path.join(path, self.insert)
@@ -86,7 +87,7 @@ class Dependency(object):
 		self.bindings = []
 	
 	def __str__(self):
-		return "<Dependency on %s; bindings: %d>" % (self.interface, len(self.bindings))
+		return "<Dependency on %s; bindings: %d %s>" % (self.interface, len(self.bindings), self.bindings)
 
 class DownloadSource(object):
 	"""A DownloadSource provides a way to fetch an implementation."""
