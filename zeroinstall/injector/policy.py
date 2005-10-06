@@ -1,6 +1,6 @@
 import time
 import sys
-from logging import info, debug
+from logging import info, debug, warn
 from cStringIO import StringIO
 import arch
 
@@ -75,10 +75,6 @@ class Policy(object):
 				return
 			self.implementation[iface] = None	# Avoid cycles
 
-			for f in iface.feeds:
-				debug("Processing feed %s", f)
-				self.get_interface(f)
-
 			impl = self._get_best_implementation(iface)
 			if impl:
 				debug("Will use implementation %s (version %s)", impl, impl.get_version())
@@ -97,9 +93,14 @@ class Policy(object):
 	def _get_best_implementation(self, iface):
 		impls = iface.implementations.values()
 		for f in iface.feeds:
-			feed_iface = self.get_interface(f)
-			if feed_iface.implementations:
-				impls.extend(feed_iface.implementations.values())
+			debug("Processing feed %s", f)
+			try:
+				feed_iface = self.get_interface(f)
+				if feed_iface.implementations:
+					impls.extend(feed_iface.implementations.values())
+			except Exception, ex:
+				warn("Failed to load feed %s for %s: %s",
+					f, iface, str(ex))
 
 		debug("get_best_implementation(%s), with feeds: %s", iface, iface.feeds)
 
