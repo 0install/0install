@@ -183,15 +183,22 @@ def add_feed(interface):
 		from zeroinstall.injector import reader
 		feed = sel.get_filename()
 		try:
-			doc = minidom.parse(feed)
-			uri = doc.documentElement.getAttribute('uri')
-			if not uri:
-				raise Exception("Missing uri attribute in interface file '%s'" % feed)
-			if uri != interface.uri:
-				raise Exception("Feed is for interface '%s', not '%s'" %
-						(uri, interface.uri))
-			if feed in interface.feeds:
-				raise Exception("Feed is already registered")
+			if hasattr(policy, 'get_feed_targets'):
+				feed_targets = policy.get_feed_targets(feed)
+				if len(feed_targets) != 1:
+					raise Exception('More than one feed-for! Not supported.')
+				interface = feed_targets[0]
+				feed = Feed(feed, user_override = True, arch = None)
+			else:
+				doc = minidom.parse(feed)
+				uri = doc.documentElement.getAttribute('uri')
+				if not uri:
+					raise Exception("Missing uri attribute in interface file '%s'" % feed)
+				if uri != interface.uri:
+					raise Exception("Feed is for interface '%s', not '%s'" %
+							(uri, interface.uri))
+				if feed in interface.feeds:
+					raise Exception("Feed is already registered")
 			interface.feeds.append(feed)
 			writer.save_interface(interface)
 			sel.destroy()
