@@ -65,6 +65,8 @@ class Description(gtk.ScrolledWindow):
 
 		if hasattr(interface, 'feeds') and interface.feeds:
 			for feed in interface.feeds:
+				if hasattr(feed, 'uri'):
+					feed = feed.uri
 				buffer.insert(iter, '\nLocal feed: %s' % feed)
 
 		buffer.insert_with_tags(iter, '\n\nDescription\n', heading_style)
