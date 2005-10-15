@@ -32,4 +32,4 @@ def _get_machine_ranks():
 	return machine_ranks
 
 machine_ranks = _get_machine_ranks()
-print machine_ranks
+#print machine_ranks

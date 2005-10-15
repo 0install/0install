@@ -104,7 +104,7 @@ def update_user_overrides(interface):
 		feed_src = feed.getAttribute('src')
 		if not feed_src:
 			raise InvalidInterface('Missing "src" attribute in <feed>')
-		interface.feeds.append(feed_src)
+		interface.feeds.append(Feed(feed_src, feed.getAttribute('arch'), True))
 
 def check_readable(interface_uri, source):
 	"""Returns the modified time in 'source'. If syntax is incorrect,
@@ -171,6 +171,21 @@ def update(interface, source, local = False):
 			interface.sources.append(Source(source_interface))
 		else:
 			raise InvalidInterface("Missing interface attribute on <source>")
+
+	for feed in root.getElementsByTagNameNS(XMLNS_IFACE, 'feed-for'):
+		feed_iface = feed.getAttribute('interface')
+		if not feed_iface:
+			raise InvalidInterface('Missing "interface" attribute in <feed-for>')
+		interface.feed_for[feed_iface] = True
+
+	for feed in root.getElementsByTagNameNS(XMLNS_IFACE, 'feed'):
+		feed_src = feed.getAttribute('src')
+		if not feed_src:
+			raise InvalidInterface('Missing "src" attribute in <feed>')
+		if feed_src.startswith('http:') or local:
+			interface.feeds.append(Feed(feed_src, feed.getAttribute('arch'), False))
+		else:
+			raise InvalidInterface("Invalid feed URL '%s'" % feed_src)
 
 	def process_group(group, group_attrs, base_depends):
 		for item in group.childNodes:

@@ -183,6 +183,37 @@ class TestAutoPolicy(unittest.TestCase):
 				os.environ['BAR_PATH'])
 		self.assertEquals(cached_impl + '/.:/usr/local/share:/usr/share',
 				os.environ['XDG_DATA_DIRS'])
+	
+	def testFeeds(self):
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface last-modified="0"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <feed src='http://bar'/>
+</interface>""" % foo_iface_uri)
+		self.cache_iface('http://bar',
+"""<?xml version="1.0" ?>
+<interface last-modified="0"
+ uri="http://bar"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <feed-for interface='%s'/>
+  <name>Bar</name>
+  <summary>Bar</summary>
+  <description>Bar</description>
+  <implementation version='1.0' id='sha1=123'/>
+</interface>""" % foo_iface_uri)
+		policy = autopolicy.AutoPolicy(foo_iface_uri, False,
+							dry_run = True)
+		policy.freshness = 0
+		policy.network_use = model.network_full
+		policy.recalculate()
+		assert policy.ready
+		foo_iface = policy.get_interface(foo_iface_uri)
+		self.assertEquals('sha1=123', policy.implementation[foo_iface].id)
 
 suite = unittest.makeSuite(TestAutoPolicy)
 if __name__ == '__main__':

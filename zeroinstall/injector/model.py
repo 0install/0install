@@ -74,6 +74,21 @@ class EnvironmentBinding(Binding):
 			return extra
 		return extra + ':' + old_value
 
+class Feed(object):
+	"""An interface's feeds are other interfaces whose implementations can also be
+	used as implementations of this interface."""
+	__slots__ = ['uri', 'arch', 'user_override']
+	def __init__(self, uri, arch, user_override):
+		self.uri = uri
+		self.arch = arch
+		# This indicates whether the feed comes from the user's overrides
+		# file. If true, writer.py will write it when saving.
+		self.user_override = user_override
+	
+	def __str__(self):
+		return "<Feed from %s>" % self.uri
+	__repr__ = __str__
+
 class Dependency(object):
 	"""A Dependency indicates that an Implementation requires some additional
 	code to function, specified by another Interface."""
@@ -156,7 +171,7 @@ class Interface(object):
 	"""An Interface represents some contract of behaviour."""
 	__slots__ = ['uri', 'implementations', 'name', 'description', 'summary',
 		     'stability_policy', 'last_modified', 'last_local_update', 'last_checked',
-		     'main', 'feeds', 'sources']
+		     'main', 'feeds', 'sources', 'feed_for']
 
 	# last_local_update is deprecated
 	
@@ -185,6 +200,7 @@ class Interface(object):
 		self.main = None
 		self.sources = []
 		self.feeds = []
+		self.feed_for = {}	# URI -> True
 	
 	def get_name(self):
 		return self.name or '(' + os.path.basename(self.uri) + ')'

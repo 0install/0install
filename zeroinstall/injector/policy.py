@@ -95,7 +95,10 @@ class Policy(object):
 		for f in iface.feeds:
 			debug("Processing feed %s", f)
 			try:
-				feed_iface = self.get_interface(f)
+				feed_iface = self.get_interface(f.uri)
+				if iface.uri not in feed_iface.feed_for:
+					warn("Missing <feed-for> for '%s' in '%s'",
+						iface.uri, f.uri)
 				if feed_iface.implementations:
 					impls.extend(feed_iface.implementations.values())
 			except Exception, ex:
@@ -169,7 +172,7 @@ class Policy(object):
 	def get_ranked_implementations(self, iface):
 		impls = iface.implementations.values()
 		for f in iface.feeds:
-			feed_iface = self.get_interface(f)
+			feed_iface = self.get_interface(f.uri)
 			if feed_iface.implementations:
 				impls.extend(feed_iface.implementations.values())
 		impls.sort(lambda a, b: self.compare(iface, a, b))

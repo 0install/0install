@@ -45,9 +45,12 @@ def save_interface(interface):
 		add_impl(root, impl)
 	
 	for feed in interface.feeds:
-		elem = doc.createElementNS(XMLNS_IFACE, 'feed')
-		root.appendChild(elem)
-		elem.setAttribute('src', feed)
+		if feed.user_override:
+			elem = doc.createElementNS(XMLNS_IFACE, 'feed')
+			root.appendChild(elem)
+			elem.setAttribute('src', feed.uri)
+			if feed.arch:
+				elem.setAttribute('arch', feed.arch)
 
 	doc.writexml(file(path + '.new', 'w'), addindent = " ", newl = '\n')
 	os.rename(path + '.new', path)
