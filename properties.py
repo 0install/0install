@@ -185,9 +185,10 @@ def add_feed(interface):
 		try:
 			if hasattr(policy, 'get_feed_targets'):
 				feed_targets = policy.get_feed_targets(feed)
-				if len(feed_targets) != 1:
-					raise Exception('More than one feed-for! Not supported.')
-				interface = feed_targets[0]
+				if interface not in feed_targets:
+					raise Exception("Not a valid feed for '%s'; this is a feed for:\n%s" %
+							(interface.uri,
+							'\n'.join([f.uri for f in feed_targets])))
 				if interface.get_feed(feed):
 					dialog.alert(None, 'This feed is already registered.')
 				else:
