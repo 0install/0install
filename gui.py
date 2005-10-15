@@ -145,10 +145,13 @@ class GUIPolicy(Policy):
 			return impl.download_sources[0]
 		return None
 
-	# XXX: Remove this. Moved to Policy.
 	def refresh_all(self, force = True):
-		for x in self.walk_interfaces():
-			self.begin_iface_download(x, force)
+		if hasattr(Policy, 'refresh_all'):
+			Policy.refresh_all(self, force)
+		else:
+			# XXX: Remove this. Moved to Policy.
+			for x in self.walk_interfaces():
+				self.begin_iface_download(x, force)
 	
 	def abort_all_downloads(self):
 		for x in self.monitored_downloads[:]:

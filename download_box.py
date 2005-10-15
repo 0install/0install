@@ -13,38 +13,38 @@ def download_with_gui(mainwindow, prog_args, run_afterwards, main = None):
 	"""If all downloads are ready, runs the program. Otherwise,
 	hides mainwindow, shows the download progress box and then runs
 	it. On error, mainwindow is re-shown."""
-	downloads = []
-	for iface, impl in policy.get_uncached_implementations():
-		if not impl.download_sources:
-			raise SafeException("Implementation " + impl.id + " of "
-				"interface " + iface.get_name() + " cannot be "
-				"downloaded (no download locations given in "
-				"interface!")
-		dl = download.begin_impl_download(policy.get_best_source(impl),
-						force = True)
-		downloads.append((iface, dl))
-	def run_it():
-		policy.abort_all_downloads()
-		if not run_afterwards:
-			mainwindow.destroy()
-			return
-		try:
+	try:
+		downloads = []
+		for iface, impl in policy.get_uncached_implementations():
+			if not impl.download_sources:
+				raise SafeException("Implementation " + impl.id + " of "
+					"interface " + iface.get_name() + " cannot be "
+					"downloaded (no download locations given in "
+					"interface!)")
+			dl = download.begin_impl_download(policy.get_best_source(impl),
+							force = True)
+			downloads.append((iface, dl))
+		def run_it():
+			policy.abort_all_downloads()
+			if not run_afterwards:
+				mainwindow.destroy()
+				return
 			if main is None:
 				run.execute(policy, prog_args)	# Don't break older versions
 			else:
 				run.execute(policy, prog_args, main = main)
 			mainwindow.destroy()
-		except SafeException, ex:
-			box = gtk.MessageDialog(None, gtk.DIALOG_MODAL,
-					gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
-					str(ex))
-			box.run()
-			box.destroy()
-			mainwindow.show()
-	if downloads:
-		DownloadProgessBox(run_it, downloads, mainwindow).show()
-	else:
-		run_it()
+		if downloads:
+			DownloadProgessBox(run_it, downloads, mainwindow).show()
+		else:
+			run_it()
+	except SafeException, ex:
+		box = gtk.MessageDialog(None, gtk.DIALOG_MODAL,
+				gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
+				str(ex))
+		box.run()
+		box.destroy()
+		mainwindow.show()
 
 class DownloadProgessBox(Dialog):
 	mainwindow = None
