@@ -216,6 +216,12 @@ class Interface(object):
 	def set_stability_policy(self, new):
 		assert new is None or isinstance(new, Stability)
 		self.stability_policy = new
+	
+	def get_feed(self, uri):
+		for x in self.feeds:
+			if x.uri == uri:
+				return x
+		return None
 
 def unescape(uri):
 	"Convert each %20 to a space, etc"

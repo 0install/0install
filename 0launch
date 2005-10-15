@@ -6,8 +6,8 @@ import logging
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]\n"
 			    "       %prog --import [signed-interface-files]\n"
-			    "       %prog --add-feed [local-interface-files]")
-parser.add_option("-a", "--add-feed", help="add a local feed", action='store_true')
+			    "       %prog --feed [interface]")
+parser.add_option("-a", "--feed", help="add or remove a feed", action='store_true')
 parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
@@ -84,34 +84,51 @@ try:
 			iface_cache.check_signed_data(iface, signed_data, handler.Handler())
 		sys.exit(0)
 	
-	if getattr(options, 'add_feed'):
+	if getattr(options, 'feed'):
 		from zeroinstall.injector import iface_cache, writer
 		from xml.dom import minidom
 		for x in args:
-			x = os.path.realpath(x)
-			if not os.path.isfile(x):
-				raise model.SafeException("File '%s' does not exist" % x)
-			logging.info("Reading interface file '%s'", x)
-			doc = minidom.parse(x)
-			uri = doc.documentElement.getAttribute('uri')
-			if not uri:
-				raise model.SafeException("Missing uri attribute in interface file '%s'" % x)
-				continue
-			iface = iface_cache.iface_cache.get_interface(uri)
-			if not iface.name:
-				print "Warning: unknown interface '%s'" % uri
-			if x in iface.feeds:
-				print "Feed '%s' is already registered." % x
-				continue
-			if options.dry_run:
-				print "Would add this file as a feed for '%s'" % iface.get_name()
-				continue
-
-			iface.feeds.append(x)
+			print "Feed '%s':\n" % x
+			x = model.canonical_iface_uri(x)
+			policy = autopolicy.AutoPolicy(x, download_only = True, dry_run = options.dry_run)
+			policy.recalculate_with_dl()
+			interfaces = policy.get_feed_targets(policy.root)
+			for i in range(len(interfaces)):
+				feed = interfaces[i].get_feed(x)
+				if feed:
+					print "%d) Remove as feed for '%s'" % (i + 1, interfaces[i].uri)
+				else:
+					print "%d) Add as feed for '%s'" % (i + 1, interfaces[i].uri)
+			print
+			while True:
+				try:
+					i = raw_input('Enter a number, or CTRL-C to cancel [1]: ').strip()
+				except KeyboardInterrupt:
+					print
+					raise model.SafeException("Aborted at user request.")
+				if i == '':
+					i = 1
+				else:
+					try:
+						i = int(i)
+					except ValueError:
+						i = 0
+				if i > 0 and i <= len(interfaces):
+					break
+				print "Invalid number. Try again. (1 to %d)" % len(interfaces)
+			iface = interfaces[i - 1]
+			feed = iface.get_feed(x)
+			if feed:
+				iface.feeds.remove(feed)
+			else:
+				iface.feeds.append(model.Feed(x, arch = None, user_override = True))
 			writer.save_interface(iface)
-			print "Feed list for interface '%s' is now:" % iface.get_name()
-			for f in iface.feeds:
-				print "- " + f
+			print "\nFeed list for interface '%s' is now:" % iface.get_name()
+			if iface.feeds:
+				for f in iface.feeds:
+					print "- " + f.uri
+			else:
+				print "(no feeds)"
 		sys.exit(0)
 	
 	iface_uri = model.canonical_iface_uri(args[0])
@@ -161,9 +178,9 @@ else:
 
 try:
 	policy.download_and_execute(prog_args, refresh = bool(options.refresh), main = options.main)
-except model.SafeException, ex:
-	print >>sys.stderr, ex
-	sys.exit(1)
 except autopolicy.NeedDownload, ex:
 	print ex
 	sys.exit(0)
+except model.SafeException, ex:
+	print >>sys.stderr, ex
+	sys.exit(1)

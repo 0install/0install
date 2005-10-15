@@ -3,11 +3,7 @@ from logging import debug, info
 
 from zeroinstall.injector import model, download
 from zeroinstall.injector import policy, run, handler
-
-class NeedDownload(Exception):
-	"""Thrown if we tried to start a download with allow_downloads = False"""
-	def __init__(self, url):
-		Exception.__init__(self, "Would download '%s'" % url)
+from zeroinstall import NeedDownload
 
 class AutoPolicy(policy.Policy):
 	__slots__ = ['allow_downloads', 'download_only', 'dry_run']

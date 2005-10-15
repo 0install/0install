@@ -11,6 +11,7 @@ import ConfigParser
 import reader
 import download
 from iface_cache import iface_cache
+from zeroinstall import NeedDownload
 
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
@@ -101,6 +102,8 @@ class Policy(object):
 						iface.uri, f.uri)
 				if feed_iface.implementations:
 					impls.extend(feed_iface.implementations.values())
+			except NeedDownload, ex:
+				raise ex
 			except Exception, ex:
 				warn("Failed to load feed %s for %s: %s",
 					f, iface, str(ex))
@@ -290,3 +293,15 @@ class Policy(object):
 	def interface_changed(self, interface):
 		debug("interface_changed(%s): recalculating", interface)
 		self.recalculate()
+	
+	def get_feed_targets(self, feed_iface_uri):
+		"""Return a list of Interfaces for which feed_iface can be a feed.
+		This is used by --add-feed."""
+		feed_iface = self.get_interface(feed_iface_uri)
+		if not feed_iface.feed_for:
+			raise SafeException("Missing <feed-for> element in '%s'; "
+					"this interface can't be used as a feed." % feed_iface_uri)
+		feed_targets = feed_iface.feed_for
+		if not feed_iface.name:
+			warn("Warning: unknown interface '%s'" % feed_iface_uri)
+		return [self.get_interface(uri) for uri in feed_targets]
