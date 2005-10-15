@@ -188,7 +188,10 @@ def add_feed(interface):
 				if len(feed_targets) != 1:
 					raise Exception('More than one feed-for! Not supported.')
 				interface = feed_targets[0]
-				feed = Feed(feed, user_override = True, arch = None)
+				if interface.get_feed(feed):
+					dialog.alert(None, 'This feed is already registered.')
+				else:
+					interface.feeds.append(Feed(feed, user_override = True, arch = None))
 			else:
 				doc = minidom.parse(feed)
 				uri = doc.documentElement.getAttribute('uri')
@@ -199,7 +202,7 @@ def add_feed(interface):
 							(uri, interface.uri))
 				if feed in interface.feeds:
 					raise Exception("Feed is already registered")
-			interface.feeds.append(feed)
+				interface.feeds.append(feed)
 			writer.save_interface(interface)
 			sel.destroy()
 			reader.update_from_cache(interface)
