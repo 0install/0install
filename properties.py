@@ -67,7 +67,7 @@ class Description(gtk.ScrolledWindow):
 			for feed in interface.feeds:
 				if hasattr(feed, 'uri'):
 					feed = feed.uri
-				buffer.insert(iter, '\nLocal feed: %s' % feed)
+				buffer.insert(iter, '\nFeed: %s' % feed)
 
 		buffer.insert_with_tags(iter, '\n\nDescription\n', heading_style)
 
@@ -92,7 +92,7 @@ class Properties(Dialog):
 		self.vbox.pack_start(vbox, True, True, 0)
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
-		add_feed_button = self.add_mixed_button(_('Add Feed...'),
+		add_feed_button = self.add_mixed_button(_('Add Local Feed...'),
 							gtk.STOCK_ADD, ADD_FEED)
 		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
 		self.set_default_response(gtk.RESPONSE_CANCEL)
