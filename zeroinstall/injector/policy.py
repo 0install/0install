@@ -289,6 +289,9 @@ class Policy(object):
 	def refresh_all(self, force = True):
 		for x in self.walk_interfaces():
 			self.begin_iface_download(x, force)
+			for f in x.feeds:
+				feed_iface = self.get_interface(f.uri)
+				self.begin_iface_download(feed_iface, force)
 	
 	def interface_changed(self, interface):
 		debug("interface_changed(%s): recalculating", interface)
