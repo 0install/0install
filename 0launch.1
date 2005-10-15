@@ -56,18 +56,19 @@ to create shortcuts to run your programs.
 .SH COMMAND-LINE OPTIONS
 
 .TP
-\fB-a\fP, \fB--add-feed\fP
-Register an additional source of implementations. When you get a CVS
-version of a project, it may contain an interface XML file. To add this version
-to the list of available versions, use --add-feed on this file. The file is
-not copied, so you don't need to re-add the file each time it is updated.
+\fB-a\fP, \fB--feed\fP
+Register (or unregister) an additional source of implementations. When you get
+a CVS version of a project, it may contain an interface XML file. To add this
+version to the list of available versions, use --feed on this XML file. The
+file is not copied, so you don't need to re-add the file each time it is
+updated.
 
 Note that if you just want to run the program, you can invoke 0launch on the
-interface file directly (without using --add-feed). This will force the
-injector to use that version, but won't affect what happens when you run it
-using the URI as normal. Use --add-feed when you want to use the CVS version
-even when using the URI, or if the program is a library (and thus referenced
-by URI by other programs).
+interface file directly (without using --feed). This will force the injector to
+use that version, but won't affect what happens when you run it using the URI
+as normal. Use --feed when you want to use the CVS version even when using the
+URI, or if the program is a library (and thus referenced by URI by other
+programs).
 
 Note also that the stability of CVS versions may be set to 'developer', in
 which case you must set this as the preferred stability for the interface
@@ -101,7 +102,7 @@ Import from files, not from the network. This is useful when testing an
 interface file, to avoid uploading it to a remote server in order to download
 it again. It might also be useful when installing from a CD or similar.
 The file must have a trusted GPG digital signature, as when fetching from
-the network. For unsigned interfaces, see --add-feed.
+the network. For unsigned interfaces, see --feed.
 
 .TP
 \fB-l\fP, \fB--list\fP
