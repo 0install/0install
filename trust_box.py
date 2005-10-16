@@ -74,7 +74,8 @@ class TrustBox(dialog.Dialog):
 				name = '<unknown>'
 				details = sig.get_details()
 				for item in details:
-					if item[0] in ('pub', 'uid'):
+					if item[0] in ('pub', 'uid') and \
+					   len(item) > 9:
 						name = item[9]
 						break
 			else:
