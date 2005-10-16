@@ -9,5 +9,5 @@
   </description>
   <feed-for interface='http://0install.net/2005/interfaces/injector-gui'/>
   
-  <implementation version='0.15' id='.' stability='testing' released='2005-10-15'/>
+  <implementation version='0.16' id='.' stability='testing' released='2005-10-16'/>
 </interface>
