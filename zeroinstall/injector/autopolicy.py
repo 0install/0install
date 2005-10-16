@@ -44,7 +44,7 @@ class AutoPolicy(policy.Policy):
 				raise model.SafeException("Implementation " + impl.id + " of "
 					"interface " + iface.get_name() + " cannot be "
 					"downloaded (no download locations given in "
-					"interface!")
+					"interface!)")
 			source = impl.download_sources[0]
 			if self.dry_run or not self.allow_downloads:
 				raise NeedDownload(source.url)

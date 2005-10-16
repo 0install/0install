@@ -93,11 +93,11 @@ class Policy(object):
 	# Use the results stored in self.implementation instead.
 	def _get_best_implementation(self, iface):
 		impls = iface.implementations.values()
-		for f in iface.feeds:
+		for f in self.usable_feeds(iface):
 			debug("Processing feed %s", f)
 			try:
 				feed_iface = self.get_interface(f.uri)
-				if iface.uri not in feed_iface.feed_for:
+				if feed_iface.name and iface.uri not in feed_iface.feed_for:
 					warn("Missing <feed-for> for '%s' in '%s'",
 						iface.uri, f.uri)
 				if feed_iface.implementations:
@@ -172,9 +172,18 @@ class Policy(object):
 
 		return cmp(a.id, b.id)
 	
+	def usable_feeds(self, iface):
+		"""Generator for iface.feeds that are valid for our architecture."""
+		for f in iface.feeds:
+			if f.os in arch.os_ranks and f.machine in arch.machine_ranks:
+				yield f
+			else:
+				debug("Skipping '%s'; unsupported architecture %s-%s",
+					f, f.os, f.machine)
+	
 	def get_ranked_implementations(self, iface):
 		impls = iface.implementations.values()
-		for f in iface.feeds:
+		for f in self.usable_feeds(iface):
 			feed_iface = self.get_interface(f.uri)
 			if feed_iface.implementations:
 				impls.extend(feed_iface.implementations.values())
@@ -289,7 +298,7 @@ class Policy(object):
 	def refresh_all(self, force = True):
 		for x in self.walk_interfaces():
 			self.begin_iface_download(x, force)
-			for f in x.feeds:
+			for f in self.usable_feeds(x):
 				feed_iface = self.get_interface(f.uri)
 				self.begin_iface_download(feed_iface, force)
 	
@@ -299,7 +308,7 @@ class Policy(object):
 	
 	def get_feed_targets(self, feed_iface_uri):
 		"""Return a list of Interfaces for which feed_iface can be a feed.
-		This is used by --add-feed."""
+		This is used by --feed. If there are no interfaces, raises SafeException."""
 		feed_iface = self.get_interface(feed_iface_uri)
 		if not feed_iface.feed_for:
 			raise SafeException("Missing <feed-for> element in '%s'; "

@@ -108,6 +108,31 @@ class TestModel(unittest.TestCase):
 		assert not b.restrictions
 		assert not b.bindings
 		str(b)
+	
+	def testFeed(self):
+		f = model.Feed('http://feed', arch = None, user_override = False)
+		assert f.uri == 'http://feed'
+		assert f.os == None
+		assert f.machine == None
+		assert f.user_override == False
+
+		f = model.Feed('http://feed', arch = 'Linux-*', user_override = True)
+		assert f.uri == 'http://feed'
+		assert f.os == 'Linux'
+		assert f.machine == None
+		assert f.user_override == True
+
+		f = model.Feed('http://feed', arch = '*-i386', user_override = True)
+		assert f.uri == 'http://feed'
+		assert f.os == None
+		assert f.machine == 'i386'
+		assert f.user_override == True
+
+		try:
+			f = model.Feed('http://feed', arch = 'i386', user_override = True)
+			assert false
+		except model.SafeException, ex:
+			assert 'Malformed arch' in str(ex)
 
 suite = unittest.makeSuite(TestModel)
 if __name__ == '__main__':

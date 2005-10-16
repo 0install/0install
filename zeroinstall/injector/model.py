@@ -18,6 +18,18 @@ defaults = {
 	'XDG_DATA_DIRS': '/usr/local/share:/usr/share',
 }
 
+def _split_arch(arch):
+	"""Split an arch into an (os, machine) tuple. Either or both parts may be None."""
+	if not arch:
+		return None, None
+	elif '-' not in arch:
+		raise SafeException("Malformed arch '%s'" % arch)
+	else:
+		os, machine = arch.split('-', 1)
+		if os == '*': os = None
+		if machine == '*': machine = None
+		return os, machine
+
 class Stability(object):
 	__slots__ = ['level', 'name', 'description']
 	def __init__(self, level, name, description):
@@ -77,13 +89,13 @@ class EnvironmentBinding(Binding):
 class Feed(object):
 	"""An interface's feeds are other interfaces whose implementations can also be
 	used as implementations of this interface."""
-	__slots__ = ['uri', 'arch', 'user_override']
+	__slots__ = ['uri', 'os', 'machine', 'user_override']
 	def __init__(self, uri, arch, user_override):
 		self.uri = uri
-		self.arch = arch
 		# This indicates whether the feed comes from the user's overrides
 		# file. If true, writer.py will write it when saving.
 		self.user_override = user_override
+		self.os, self.machine = _split_arch(arch)
 	
 	def __str__(self):
 		return "<Feed from %s>" % self.uri
@@ -159,12 +171,7 @@ class Implementation(object):
 		return None
 	
 	def set_arch(self, arch):
-		if arch is None:
-			self.os = self.machine = None
-		elif '-' not in arch:
-			raise SafeException("Malformed arch '%s'", arch)
-		else:
-			self.os, self.machine = arch.split('-', 1)
+		self.os, self.machine = _split_arch(arch)
 	arch = property(get_arch, set_arch)
 	
 class Interface(object):
