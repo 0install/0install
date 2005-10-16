@@ -30,6 +30,10 @@ def _split_arch(arch):
 		if machine == '*': machine = None
 		return os, machine
 
+def _join_arch(os, machine):
+	if os == machine == None: return None
+	return "%s-%s" % (os or '*', machine or '*')
+	
 class Stability(object):
 	__slots__ = ['level', 'name', 'description']
 	def __init__(self, level, name, description):
@@ -101,6 +105,8 @@ class Feed(object):
 		return "<Feed from %s>" % self.uri
 	__repr__ = __str__
 
+	arch = property(lambda self: _join_arch(self.os, self.machine))
+
 class Dependency(object):
 	"""A Dependency indicates that an Implementation requires some additional
 	code to function, specified by another Interface."""
@@ -165,14 +171,9 @@ class Implementation(object):
 		"""Newer versions come first"""
 		return cmp(other.version, self.version)
 	
-	def get_arch(self):
-		if self.os is not None:
-			return self.os + "-" + self.machine
-		return None
-	
 	def set_arch(self, arch):
 		self.os, self.machine = _split_arch(arch)
-	arch = property(get_arch, set_arch)
+	arch = property(lambda self: _join_arch(self.os, self.machine), set_arch)
 	
 class Interface(object):
 	"""An Interface represents some contract of behaviour."""

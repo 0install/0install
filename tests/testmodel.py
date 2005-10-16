@@ -89,6 +89,10 @@ class TestModel(unittest.TestCase):
 	
 	def testSource(self):
 		i = model.Interface('http://foo')
+		i.sources.append(model.Source('http://source-iface'))
+
+	def testDownloadSource(self):
+		i = model.Interface('http://foo')
 		a = model.Implementation(i, 'foo')
 		a.add_download_source('ftp://foo', 1024, None)
 		a.add_download_source('ftp://foo.tgz', 1025, 'foo')
@@ -114,25 +118,38 @@ class TestModel(unittest.TestCase):
 		assert f.uri == 'http://feed'
 		assert f.os == None
 		assert f.machine == None
+		assert f.arch == None
 		assert f.user_override == False
 
 		f = model.Feed('http://feed', arch = 'Linux-*', user_override = True)
 		assert f.uri == 'http://feed'
 		assert f.os == 'Linux'
 		assert f.machine == None
+		assert f.arch == 'Linux-*'
 		assert f.user_override == True
 
 		f = model.Feed('http://feed', arch = '*-i386', user_override = True)
 		assert f.uri == 'http://feed'
 		assert f.os == None
 		assert f.machine == 'i386'
+		assert f.arch == '*-i386'
 		assert f.user_override == True
+		assert str(f).startswith('<Feed from')
 
 		try:
 			f = model.Feed('http://feed', arch = 'i386', user_override = True)
 			assert false
 		except model.SafeException, ex:
 			assert 'Malformed arch' in str(ex)
+	
+	def testCanonical(self):
+		self.assertEquals('http://foo',
+				model.canonical_iface_uri('http://foo'))
+		try:
+			model.canonical_iface_uri('bad-name')
+			assert false
+		except model.SafeException, ex:
+			assert 'Bad interface name' in str(ex)
 
 suite = unittest.makeSuite(TestModel)
 if __name__ == '__main__':

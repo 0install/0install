@@ -7,13 +7,7 @@ from model import *
 
 from namespaces import config_site, config_prog, XMLNS_IFACE
 
-def add_text(parent, name, text):
-	doc = parent.ownerDocument
-	element = doc.createElementNS(XMLNS_IFACE, name)
-	parent.appendChild(element)
-	element.appendChild(doc.createTextNode(text))
-
-def add_impl(parent, impl):
+def _add_impl(parent, impl):
 	if impl.user_stability:
 		doc = parent.ownerDocument
 		node = doc.createElementNS(XMLNS_IFACE, 'implementation')
@@ -42,7 +36,7 @@ def save_interface(interface):
 	impls = interface.implementations.values()
 	impls.sort()
 	for impl in impls:
-		add_impl(root, impl)
+		_add_impl(root, impl)
 	
 	for feed in interface.feeds:
 		if feed.user_override:
