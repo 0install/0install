@@ -7,10 +7,10 @@ parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]\n"
 			    "       %prog --import [signed-interface-files]\n"
 			    "       %prog --feed [interface]")
-parser.add_option("-a", "--feed", help="add or remove a feed", action='store_true')
 parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
+parser.add_option("-f", "--feed", help="add or remove a feed", action='store_true')
 parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
 parser.add_option("-m", "--main", help="name of the file to execute")
 parser.add_option("-i", "--import", help="import from files, not from the network", action='store_true')
