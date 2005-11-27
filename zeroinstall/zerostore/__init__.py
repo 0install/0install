@@ -97,7 +97,7 @@ class Store:
 		if extract:
 			# Limit the characters we accept, to avoid sending dodgy
 			# strings to tar
-			if not re.match('^[a-zA-Z0-9][-_a-zA-Z0-9.]*$', extract):
+			if not re.match('^[a-zA-Z0-9][- _a-zA-Z0-9.]*$', extract):
 				raise Exception('Illegal character in extract attribute')
 			args.append(extract)
 
