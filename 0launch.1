@@ -15,7 +15,7 @@
 
 .SH DESCRIPTION
 .PP
-0launch runs a program, identified by an `INTERFACE' URL. If the program is not
+0launch runs a program, identified by an `INTERFACE'. If the program is not
 already on your computer, it downloads information about which versions are
 available, and lets you choose one to download. It will also (automatically)
 do the same for libraries the program needs.
@@ -25,6 +25,11 @@ do the same for libraries the program needs.
 check (configurable).
 0launch therefore allows users to download and upgrade software without
 needing root access.
+
+.PP
+An INTERFACE can be either a URL in the form `http://site/program' or
+a local path name like `/path/to/program.xml'. For HTTP URLs, the remote
+file is a GPG-signed XML document. Local interface files are not signed.
 
 .SH EXAMPLES
 
