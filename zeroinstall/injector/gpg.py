@@ -33,7 +33,7 @@ class ValidSig(Signature):
 	fingerprint = property(lambda self: self.status[self.FINGERPRINT])
 
 	def get_details(self):
-		cin, cout = os.popen2(('gpg', '--with-colons', '--list-keys', self.fingerprint))
+		cin, cout = os.popen2(('gpg', '--with-colons', '--no-secmem-warning', '--list-keys', self.fingerprint))
 		cin.close()
 		details = []
 		for line in cout:
@@ -80,7 +80,7 @@ def import_key(stream):
 			try:
 				os.dup2(stream.fileno(), 0)
 				os.dup2(errors.fileno(), 2)
-				os.execlp('gpg', 'gpg', '--quiet', '--import')
+				os.execlp('gpg', 'gpg', '--no-secmem-warning', '--quiet', '--import')
 			except:
 				traceback.print_exc()
 		finally:
@@ -116,7 +116,7 @@ def check_stream(stream):
 				os.dup2(stream.fileno(), 0)
 				os.dup2(data.fileno(), 1)
 				os.dup2(errors.fileno(), 2)
-				os.execlp('gpg', 'gpg', '--decrypt',
+				os.execlp('gpg', 'gpg', '--no-secmem-warning', '--decrypt',
 					   # Not all versions support this:
 					   #'--max-output', str(1024 * 1024),
 					   '--batch',
