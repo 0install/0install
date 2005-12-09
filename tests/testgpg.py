@@ -105,6 +105,14 @@ class TestGPG(unittest.TestCase):
 		assert sigs[0].is_trusted() is True
 		assert sigs[0].need_key() is None
 		assert str(sigs[0]).startswith('Valid')
+		for item in sigs[0].get_details():
+			if item[0] in ('pub', 'uid') and len(item) > 9:
+				self.assertEquals(
+					"Thomas Leonard <tal197@users.sourceforge.net>",
+					item[9])
+				break
+		else:
+			self.fail("Missing name")
 	
 	def testNoSig(self):
 		stream = tempfile.TemporaryFile()
