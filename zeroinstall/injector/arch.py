@@ -23,6 +23,7 @@ def _get_machine_ranks():
 		'i486': ['i386'],
 		'i586': ['i486', 'i386'],
 		'i686': ['i586', 'i486', 'i386'],
+		'ppc64': ['ppc32'],
 	}
 	for supported in _machine_matrix.get(this_machine, []):
 		machine_ranks[supported] = len(machine_ranks)

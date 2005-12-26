@@ -16,7 +16,7 @@ from zeroinstall import NeedDownload
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
-		     'freshness', 'ready', 'handler']
+		     'freshness', 'ready', 'handler', 'warned_offline']
 
 	def __init__(self, root, handler = None):
 		self.watchers = []
@@ -24,6 +24,10 @@ class Policy(object):
 		self.network_use = network_full
 		self.freshness = 60 * 60 * 24 * 7	# Seconds allowed since last update
 		self.ready = False
+
+		# If we need to download something but can't because we are offline,
+		# warn the user. But only the first time.
+		self.warned_offline = False
 
 		# (allow self for backwards compat)
 		self.handler = handler or self
@@ -214,7 +218,12 @@ class Policy(object):
 				debug("Interface not cached and not off-line. Downloading...")
 				self.begin_iface_download(iface)
 			else:
-				debug("Nothing known about interface, but we are off-line.")
+				if self.warned_offline:
+					debug("Nothing known about interface, but we are off-line.")
+				else:
+					warn("Nothing known about interface '%s', but we are in off-line mode "
+						"(so not fetching)." % uri)
+					self.warned_offline = True
 		elif not uri.startswith('/'):
 			staleness = time.time() - (iface.last_checked or 0)
 			debug("Staleness for %s is %.2f hours", iface, staleness / 3600.0)
@@ -311,6 +320,9 @@ class Policy(object):
 		This is used by --feed. If there are no interfaces, raises SafeException."""
 		feed_iface = self.get_interface(feed_iface_uri)
 		if not feed_iface.feed_for:
+			if not feed_iface.name:
+				raise SafeException("Can't get feed targets for '%s'; failed to load interface." %
+						feed_iface_uri)
 			raise SafeException("Missing <feed-for> element in '%s'; "
 					"this interface can't be used as a feed." % feed_iface_uri)
 		feed_targets = feed_iface.feed_for
