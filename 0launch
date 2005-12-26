@@ -12,9 +12,10 @@ parser.add_option("-d", "--download-only", help="fetch but don't run", action='s
 parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
 parser.add_option("-f", "--feed", help="add or remove a feed", action='store_true')
 parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
-parser.add_option("-m", "--main", help="name of the file to execute")
 parser.add_option("-i", "--import", help="import from files, not from the network", action='store_true')
 parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
+parser.add_option("-m", "--main", help="name of the file to execute")
+parser.add_option("-o", "--offline", help="try to avoid using the network", action='store_true')
 parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
 parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 parser.add_option("-V", "--version", help="display version information", action='store_true')
@@ -91,6 +92,8 @@ try:
 			print "Feed '%s':\n" % x
 			x = model.canonical_iface_uri(x)
 			policy = autopolicy.AutoPolicy(x, download_only = True, dry_run = options.dry_run)
+			if options.offline:
+				policy.network_use = model.network_offline
 			policy.recalculate_with_dl()
 			interfaces = policy.get_feed_targets(policy.root)
 			for i in range(len(interfaces)):
@@ -137,6 +140,9 @@ try:
 	policy = autopolicy.AutoPolicy(iface_uri,
 				download_only = bool(options.download_only),
 				dry_run = options.dry_run)
+	
+	if options.offline:
+		policy.network_use = model.network_offline
 
 	if options.gui is None and os.environ.get('DISPLAY', None):
 		if options.refresh:

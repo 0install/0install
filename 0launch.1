@@ -123,6 +123,13 @@ MAIN program. For example, if the default MAIN is \fBbin/svn\fP then
 using \fB--main=svnadmin\fP will run \fB.../bin/svnadmin\fP instead.
 
 .TP
+\fB-o\fP, \fB--offline\fP
+Run in off-line mode, overriding the default setting. In off-line mode, no
+interfaces are refreshed even if they are out-of-date, and newer versions of
+programs won't be downloaded even if the injector already knows about them
+(e.g. from a previous refresh).
+
+.TP
 \fB-r\fP, \fB--refresh\fP
 Fetch a fresh copy of all used interfaces. This will normally switch to GUI
 mode, unless --console is also given. Note that using --refresh and --gui
