@@ -69,7 +69,7 @@ class MainWindow(Dialog):
 		freshness.connect('changed', set_freshness)
 		tips.set_tip(eb, _('Sets how often the injector will check for new versions.'))
 
-		button = gtk.Button('Refresh all now')
+		button = gtk.Button('_Refresh all now')
 		button.connect('clicked', lambda b: policy.refresh_all())
 		tips.set_tip(button, _('Check all the interfaces below for updates.'))
 		hbox.pack_start(button, False, True, 2)
