@@ -114,7 +114,14 @@ class GUIPolicy(Policy):
 			print >>sys.stderr, "Your version of the injector is very old. " \
 				"Try upgrading (http://0install.net/injector.html)"
 		else:
-			self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
+			if self.ready and self.download_only:
+				need_download = False
+				for iface, impl in self.get_uncached_implementations():
+					need_download = True
+					break
+				self.window.set_response_sensitive(gtk.RESPONSE_OK, need_download)
+			else:
+				self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		import trust_box
