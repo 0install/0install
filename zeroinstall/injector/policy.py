@@ -22,7 +22,7 @@ class Policy(object):
 		self.watchers = []
 		self.help_with_testing = False
 		self.network_use = network_full
-		self.freshness = 60 * 60 * 24 * 7	# Seconds allowed since last update
+		self.freshness = 60 * 60 * 24 * 30	# Seconds allowed since last update (1 month)
 		self.ready = False
 
 		# If we need to download something but can't because we are offline,
