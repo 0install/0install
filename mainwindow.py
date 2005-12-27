@@ -116,7 +116,7 @@ class MainWindow(Dialog):
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		if download_only:
-			self.add_mixed_button('Download', gtk.STOCK_NETWORK, gtk.RESPONSE_OK)
+			self.add_mixed_button('_Download', gtk.STOCK_NETWORK, gtk.RESPONSE_OK)
 		else:
 			self.add_button(gtk.STOCK_EXECUTE, gtk.RESPONSE_OK)
 		self.set_default_response(gtk.RESPONSE_OK)
