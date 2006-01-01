@@ -40,6 +40,59 @@ GRVbJusevCKvtoSn7RAW2mg=
 -----END PGP SIGNATURE-----
 """
 
+bad_xml_main = """<?xml version='1.0'?>
+<root/>"""
+
+invalid_xmls_sigs = [
+('last line is not end-of-comment',
+"""<!-- Base64 Signature
+"""),
+('No signature block in XML',
+"""<!-- Base64 Sig
+iD8DBQBDtpK9rgeCgFmlPMERAg0gAKCaJhXFnk
+-->
+"""),
+('extra data on comment line',
+"""<!-- Base64 Signature data
+iD8DBQBDtpK9rgeCgFmlPMERAg0gAKCaJhXFnk
+-->
+"""),
+('last line is not end-of-comment',
+"""<!-- Base64 Signature
+iD8DBQBDtpK9rgeCgFmlPMERAg0gAKCaJhXFnk
+WZRBLT0an56WYaBODukSsf4=
+--> More
+"""),
+('Invalid base 64 encoded signature:',
+"""<!-- Base64 Signature
+iD8DBQBDtpK9rgeCgFmlPMERAg0gAKCaJhXFnk
+WZRBLT0an56WYaBODukSsf4=
+=zMc+
+-->
+"""),
+('Invalid characters found',
+"""<!-- Base64 Signature
+iD8DBQBDtpK9rge<CgFmlPMERAg0gAKCaJhXFnk
+WZRBLT0an56WYaBODukSsf4=
+-->
+""")]
+
+good_xml_sig = """<?xml version='1.0'?>
+<root/>
+<!-- Base64 Signature
+iD8DBQBDuChIrgeCgFmlPMERAnGEAJ0ZS1PeyWonx6xS/mgpYTKNgSXa5QCeMSYPHhNcvxu3f84y
+Uk7hxHFeQPo=
+-->
+"""
+
+bad_xml_sig = """<?xml version='1.0'?>
+<ro0t/>
+<!-- Base64 Signature
+iD8DBQBDuChIrgeCgFmlPMERAnGEAJ0ZS1PeyWonx6xS/mgpYTKNgSXa5QCeMSYPHhNcvxu3f84y
+Uk7hxHFeQPo=
+-->
+"""
+
 from data import thomas_key
 
 class TestGPG(unittest.TestCase):
@@ -79,11 +132,24 @@ class TestGPG(unittest.TestCase):
 		assert str(sigs[0]).startswith('ERROR')
 
 	def testBadSig(self):
+		self.assertEquals("Hell0\n", self.check_bad(bad_sig))
+
+	def testBadXMLSig(self):
+		self.assertEquals(bad_xml_sig, self.check_bad(bad_xml_sig))
+
+	def testInvalidXMLSig(self):
+		for error, sig in invalid_xmls_sigs:
+			try:
+				self.check_bad(bad_xml_main + '\n' + sig)
+			except model.SafeException, ex:
+				if error not in str(ex):
+					raise model.SafeException(str(ex) + '\nSig:\n' + sig)
+
+	def check_bad(self, sig):
 		stream = tempfile.TemporaryFile()
-		stream.write(bad_sig)
+		stream.write(sig)
 		stream.seek(0)
 		data, sigs = gpg.check_stream(stream)
-		self.assertEquals("Hell0\n", data.read())
 		assert len(sigs) == 1
 		assert isinstance(sigs[0], gpg.BadSig)
 		self.assertEquals("AE07828059A53CC1",
@@ -91,13 +157,19 @@ class TestGPG(unittest.TestCase):
 		assert sigs[0].is_trusted() is False
 		assert sigs[0].need_key() is None
 		assert str(sigs[0]).startswith('BAD')
+		return data.read()
 
 	def testGoodSig(self):
+		self.assertEquals("Hello\n", self.check_good(good_sig))
+
+	def testGoodXMLSig(self):
+		self.assertEquals(good_xml_sig, self.check_good(good_xml_sig))
+	
+	def check_good(self, sig):
 		stream = tempfile.TemporaryFile()
-		stream.write(good_sig)
+		stream.write(sig)
 		stream.seek(0)
 		data, sigs = gpg.check_stream(stream)
-		self.assertEquals("Hello\n", data.read())
 		assert len(sigs) == 1
 		assert isinstance(sigs[0], gpg.ValidSig)
 		self.assertEquals("92429807C9853C0744A68B9AAE07828059A53CC1",
@@ -113,6 +185,7 @@ class TestGPG(unittest.TestCase):
 				break
 		else:
 			self.fail("Missing name")
+		return data.read()
 	
 	def testNoSig(self):
 		stream = tempfile.TemporaryFile()

@@ -1,3 +1,4 @@
+import base64, re
 import os
 import tempfile
 import traceback
@@ -97,14 +98,11 @@ def import_key(stream):
 	if error_messages:
 		raise SafeException("Errors from 'gpg --import':\n%s" % error_messages)
 
-def check_stream(stream):
-	"""Pass stream through gpg --decrypt to get the data, the error text,
-	and a list of signatures (good or bad).
-	Returns (data_stream, [Signatures])."""
-	status_r, status_w = os.pipe()
-
+def _check_plain_stream(stream):
 	data = tempfile.TemporaryFile()	# Python2.2 does not support 'prefix'
 	errors = tempfile.TemporaryFile()
+
+	status_r, status_w = os.pipe()
 
 	child = os.fork()
 
@@ -130,6 +128,109 @@ def check_stream(stream):
 	# We are the parent
 	os.close(status_w)
 
+	try:
+		sigs = _get_sigs_from_gpg_status_stream(status_r, child, errors)
+	finally:
+		data.seek(0)
+	return (data, sigs)
+
+def _check_xml_stream(stream):
+	xml_comment_start = '<!-- Base64 Signature'
+
+	data_to_check = stream.read()
+
+	last_comment = data_to_check.rfind('\n' + xml_comment_start)
+	if last_comment < 0:
+		raise SafeException("No signature block in XML. Maybe this file isn't signed?")
+	last_comment += 1	# Include new-line in data
+	
+	data = tempfile.TemporaryFile()
+	data.write(data_to_check[:last_comment])
+	data.flush()
+	os.lseek(data.fileno(), 0, 0)
+
+	errors = tempfile.TemporaryFile()
+
+	sig_lines = data_to_check[last_comment:].split('\n')
+	if sig_lines[0].strip() != xml_comment_start:
+		raise SafeException('Bad signature block: extra data on comment line')
+	while sig_lines and not sig_lines[-1].strip():
+		del sig_lines[-1]
+	if sig_lines[-1].strip() != '-->':
+		raise SafeException('Bad signature block: last line is not end-of-comment')
+	sig_data = '\n'.join(sig_lines[1:-1])
+
+	if re.match('^[ A-Za-z0-9+/=\n]+$', sig_data) is None:
+		raise SafeException("Invalid characters found in base 64 encoded signature")
+	try:
+		sig_data = base64.decodestring(sig_data) # (b64decode is Python 2.4)
+	except Exception, ex:
+		raise SafeException("Invalid base 64 encoded signature: " + str(ex))
+
+	sig_fd, sig_name = tempfile.mkstemp(prefix = 'injector-sig-')
+	try:
+		sig_file = os.fdopen(sig_fd, 'w')
+		sig_file.write(sig_data)
+		sig_file.close()
+
+		status_r, status_w = os.pipe()
+
+		child = os.fork()
+
+		if child == 0:
+			# We are the child
+			try:
+				try:
+					os.close(status_r)
+					os.dup2(data.fileno(), 0)
+					os.dup2(errors.fileno(), 2)
+					os.execlp('gpg', 'gpg', '--no-secmem-warning',
+						   # Not all versions support this:
+						   #'--max-output', str(1024 * 1024),
+						   '--batch',
+						   '--status-fd', str(status_w),
+						   '--verify', sig_name, '-')
+				except:
+					traceback.print_exc()
+			finally:
+				os._exit(1)
+			assert False
+		
+		# We are the parent
+		os.close(status_w)
+
+		try:
+			sigs = _get_sigs_from_gpg_status_stream(status_r, child, errors)
+		finally:
+			os.lseek(stream.fileno(), 0, 0)
+			stream.seek(0)
+	finally:
+		os.unlink(sig_name)
+	return (stream, sigs)
+
+def check_stream(stream):
+	"""Pass stream through gpg --decrypt to get the data, the error text,
+	and a list of signatures (good or bad). If stream starts with "<?xml "
+	then get the signature from a comment at the end instead (and the returned
+	data is the original stream). stream must be seekable.
+	Returns (data_stream, [Signatures])."""
+	stream.seek(0)
+	all = stream.read()
+	stream.seek(0)
+
+	start = stream.read(6)
+	stream.seek(0)
+	if start == "<?xml ":
+		return _check_xml_stream(stream)
+	else:
+		os.lseek(stream.fileno(), 0, 0)
+		return _check_plain_stream(stream)
+
+def _get_sigs_from_gpg_status_stream(status_r, child, errors):
+	"""Read messages from status_r and collect signatures from it.
+	When done, reap 'child'.
+	If there are no signatures, throw SafeException (using errors
+	for the error message if non-empty)."""
 	sigs = []
 
 	# Should we error out on bad signatures, even if there's a good
@@ -152,13 +253,15 @@ def check_stream(stream):
 	pid, status = os.waitpid(child, 0)
 	assert pid == child
 
-	data.seek(0)
 	errors.seek(0)
 
 	error_messages = errors.read().strip()
 	errors.close()
 
-	if error_messages and not sigs:
-		raise SafeException("No signatures found. Errors from GPG:\n%s" % error_messages)
+	if not sigs:
+		if error_messages:
+			raise SafeException("No signatures found. Errors from GPG:\n%s" % error_messages)
+		else:
+			raise SafeException("No signatures found. No error messages from GPG.")
 	
-	return (data, sigs)
+	return sigs
