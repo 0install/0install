@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 import zeroinstall, sys, os, shutil
 
+echo Update me
+exit 1
+
 os.system('svn status')
 
 for line in os.popen('dpkg-parsechangelog'):
