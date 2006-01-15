@@ -3,6 +3,17 @@ import os, sys
 from optparse import OptionParser
 import logging
 
+# Ensure stdin, stdout and stderr FDs exist, to avoid confusion
+for std in (0, 1, 2):
+	try:
+		os.fstat(std)
+	except OSError:
+		fd = os.open('/dev/null', os.O_RDONLY)
+		if fd != std:
+			os.dup2(fd, std)
+			os.close(fd)
+	os.fstat(std)
+
 parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 			    "       %prog --list [search-term]\n"
 			    "       %prog --import [signed-interface-files]\n"
