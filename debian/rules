@@ -1,0 +1,48 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+configure:
+	dh_testdir
+
+build:
+	dh_testdir
+	python setup.py build
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp configure-stamp
+	python setup.py clean
+	dh_clean 
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_clean -k 
+	dh_installdirs
+	python setup.py install --root=$(CURDIR)/debian/zeroinstall-injector
+	rm -r $(CURDIR)/debian/zeroinstall-injector/usr/man
+
+# Build architecture-independent files here.
+binary-indep: build install
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs 
+	dh_installdocs
+	dh_installman 0launch.1 0alias.1 0store.1
+	dh_compress
+	dh_fixperms
+	dh_python
+	dh_installdeb
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+# Build architecture-dependent files here.
+binary-arch: build install
+# We have nothing to do by default.
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install configure

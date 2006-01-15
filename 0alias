@@ -1,0 +1,87 @@
+#!/usr/bin/env python
+import os, sys
+from optparse import OptionParser
+
+from zeroinstall.injector import reader, model
+
+first_path = os.environ['PATH'].split(':')[0]
+
+parser = OptionParser(usage="usage: %%prog [options] alias interface [command]\n\n"
+		"Creates a script in the first directory in $PATH\n"
+		"(%s) to run 'interface'. For interfaces providing more than "
+		"one command, the desired command may also be given." % first_path)
+parser.add_option("-V", "--version", help="display version information", action='store_true')
+parser.disable_interspersed_args()
+
+(options, args) = parser.parse_args()
+
+if options.version:
+	import zeroinstall
+	print "0alias (zero-install) " + zeroinstall.version
+	print "Copyright (C) 2005 Thomas Leonard"
+	print "This program comes with ABSOLUTELY NO WARRANTY,"
+	print "to the extent permitted by law."
+	print "You may redistribute copies of this program"
+	print "under the terms of the GNU General Public License."
+	print "For more information about these matters, see the file named COPYING."
+	sys.exit(0)
+
+def export(name, value):
+	"""Try to guess the command to set an environment variable."""
+	shell = os.environ.get('SHELL', '?')
+	if 'csh' in shell:
+		return "setenv %s %s" % (name, value)
+	return "export %s=%s" % (name, value)
+
+if len(args) < 2 or len(args) > 3:
+	parser.print_help()
+	sys.exit(1)
+
+alias, interface_uri = args[:2]
+if len(args) == 3:
+	main = "--main '%s'" % args[2]
+else:
+	main = ""
+
+try:
+	interface_uri = model.canonical_iface_uri(interface_uri)
+
+	interface = model.Interface(interface_uri)
+	if not reader.update_from_cache(interface):
+		print >>sys.stderr, "Interface '%s' not currently in cache. Fetching..." % interface_uri
+		if os.spawnlp(os.P_WAIT, '0launch', '0launch', '-d', interface_uri):
+			raise model.SafeException("0launch failed")
+		if not reader.update_from_cache(interface):
+			raise model.SafeException("Interface still not in cache. Aborting.")
+	if not os.access(first_path, os.W_OK):
+		raise model.SafeException("Directory '%s' is not writable.\n"
+			"0alias uses the first directory in $PATH, which is currently:\n\n%s\n\n"
+			"To create a directory for your scripts, use these commands:\n"
+			"$ mkdir ~/bin\n"
+			"$ %s" % (first_path, os.environ['PATH'], export('PATH', '$HOME/bin:$PATH')))
+
+	script = os.path.join(first_path, alias)
+	if os.path.exists(script):
+		raise model.SafeException("File '%s' already exists. Delete it first." % script)
+		sys.exit(1)
+except model.SafeException, ex:
+	print >>sys.stderr, ex
+	sys.exit(1)
+
+wrapper = file(script, 'w')
+assert "'" not in interface_uri
+assert "\\" not in interface_uri
+print >>wrapper, '''#!/bin/sh
+if [ "$*" = "--versions" ]; then
+  exec 0launch -gd '%s' "$@"
+else
+  exec 0launch %s '%s' "$@"
+fi''' % (interface_uri, main, interface_uri)
+
+# Make new script executable
+os.chmod(script, 0111 | os.fstat(wrapper.fileno()).st_mode)
+wrapper.close()
+
+print "Created script '%s'." % script
+print "To edit policy: %s --versions" % alias
+print "(note: some shells require you to type 'rehash' now)"

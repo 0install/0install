@@ -1,0 +1,131 @@
+.TH 0STORE 1 "2005" "Thomas Leonard" ""
+.SH NAME
+0store \- manage the implementation cache
+
+.SH SYNOPSIS
+
+.B 0store clean
+\fBINTERFACE\fP
+
+.B 0store manifest
+\fBDIRECTORY\fP
+
+.B 0store delete
+(\fBDIGEST\fP | \fBDIRECTORY\fP)
+
+.B 0store store
+\fBDIGEST\fP \fBDIRECTORY\fP
+
+.B 0store verify
+(\fBDIGEST\fP | \fBDIRECTORY\fP)
+
+.SH DESCRIPTION
+.PP
+0store provides access to the low-level implementation cache. Normally, the
+cache is updated automatically using 0launch(1).
+
+.SH LIST
+
+.PP
+See the list of implementation caches currently configured:
+
+.B 0store list
+
+To add directories to this list, add them to your 'implementation-dirs'
+configuration file.
+
+.SH MANIFEST
+.PP
+To generate the manifest for a directory structure:
+
+.B 0store manifest DIRECTORY
+
+.PP
+The manifest lists every file and directory in the tree, along with the SHA1
+digest of each file, thus uniquely identifying that particular set of files.
+After the manifest, the last line gives the SHA1 digest of the manifest itself.
+This value is needed when creating interface files. See the packager's guide on
+the Zero Install web site for details.
+
+.SH FIND
+.PP
+To find the path of a stored item:
+
+.B 0store find sha1=XXX
+
+.SH STORE
+.PP
+To add a directory to the store (makes a copy):
+
+.B 0store add sha1=XXX directory
+
+.PP
+To add an archive to the store:
+
+.B 0store add sha1=XXX archive.tgz
+
+.PP
+To add a subdirectory of an archive to the store:
+
+.B 0store add sha1=XXX archive.tgz subdir
+
+.PP
+The actual digest is calculated and compared to the given one. If they don't
+match, the operation is rejected.
+
+.SH VERIFY
+.PP
+To check that an item is stored correctly:
+
+.B 0store verify /path/to/sha1=XXX
+
+This calculates the manifest of the directory and checks that its digest matches
+the directory's name. It also checks that it matches the digest of the .manifest
+file inside the directory. If the .manifest doesn't correspond to the current
+tree, it displays a list of the differences (in unified diff format).
+
+.SH COMMAND-LINE OPTIONS
+
+.TP
+\fB-h\fP, \fB--help\fP
+Show the built-in help text.
+
+.TP
+\fB-v\fP, \fB--verbose\fP
+More verbose output. Use twice for even more verbose output.
+
+.TP
+\fB-V\fP, \fB--version\fP
+Display version information.
+
+.SH FILES
+
+.IP "~/.cache/0install.net/implementations"
+Cached implementations, indexed by manifest digest.
+
+.IP "~/.config/0install.net/injector/implementation-dirs"
+List of system cache directories, one per line.
+
+.SH LICENSE
+.PP
+Copyright (C) 2005 Thomas Leonard.
+
+.PP
+You may redistribute copies of this program under the terms of the GNU General Public License.
+
+.SH BUGS
+.PP
+Please report bugs to the developer mailing list:
+
+http://0install.net/support.html
+
+.SH AUTHOR
+.PP
+The Zero Install Injector was created by Thomas Leonard.
+
+.SH SEE ALSO
+0alias(1), 0launch(1)
+.PP
+The Zero Install web-site:
+
+.B http://0install.net

@@ -1,0 +1,49 @@
+import os
+
+import basedir
+from namespaces import config_site, config_prog
+
+class TrustDB:
+	keys = None
+
+	def __init__(self):
+		self.keys = None
+	
+	def is_trusted(self, key):
+		self.ensure_uptodate()
+		return key in self.keys
+	
+	def trust_key(self, key):
+		self.ensure_uptodate()
+		if key in self.keys: return
+		int(key, 16)		# Ensure fingerprint is valid
+		self.keys[key] = True
+		self.save()
+	
+	def untrust_key(self, key):
+		self.ensure_uptodate()
+		del self.keys[key]
+		self.save()
+	
+	def save(self):
+		d = basedir.save_config_path(config_site, config_prog)
+		# XXX
+		f = file(os.path.join(d, 'trust'), 'w')
+		for key in self.keys:
+			print >>f, key
+		f.close()
+	
+	def ensure_uptodate(self):
+		# This is a bit inefficient...
+		trust = basedir.load_first_config(config_site, config_prog,
+						'trust')
+		# By default, trust our own key
+		self.keys = {"92429807C9853C0744A68B9AAE07828059A53CC1": True}
+		if trust:
+			#print "Loading trust from", trust_db
+			for key in file(trust).read().split('\n'):
+				if key:
+					self.keys[key] = True
+
+# Singleton
+trust_db = TrustDB()
