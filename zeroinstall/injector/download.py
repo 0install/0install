@@ -64,7 +64,7 @@ class Download:
 						"exist!" % self.url
 					return
 				src = file(self.url)
-			elif self.url.startswith('http:'):
+			elif self.url.startswith('http:') or self.url.startswith('ftp:'):
 				src = urlopen(self.url)
 			else:
 				raise Exception('Unsupported URL protocol in: ' + self.url)
