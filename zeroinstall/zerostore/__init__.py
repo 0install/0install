@@ -1,7 +1,7 @@
 import os
 import shutil
 import traceback
-from tempfile import mkdtemp
+from tempfile import mkdtemp, mkstemp
 import sha
 import re
 from logging import debug, info, warn
@@ -63,25 +63,6 @@ class Store:
 		return None
 	
 	def add_archive_to_cache(self, required_digest, data, url, extract = None):
-		if url.endswith('.tar.bz2'):
-			self.add_tbz_to_cache(required_digest, data, extract)
-		else:
-			if not (url.endswith('.tar.gz') or url.endswith('.tgz')):
-				warn('Unknown extension on "%s"; assuming tar.gz format' % url)
-			self.add_tgz_to_cache(required_digest, data, extract)
-	
-	def add_tbz_to_cache(self, required_digest, data, extract = None):
-		self.add_tar_to_cache(required_digest, data, extract, '--bzip2')
-
-	def add_tgz_to_cache(self, required_digest, data, extract = None):
-		self.add_tar_to_cache(required_digest, data, extract, '-z')
-
-	def add_tar_to_cache(self, required_digest, data, extract, decompress):
-		"""Data is a .tgz compressed archive. Extract it somewhere, check that
-		the digest is correct, and add it to the store.
-		extract is the name of a directory within the archive to extract, rather
-		than extracting the whole archive. This is most useful to remove an extra
-		top-level directory."""
 		assert required_digest.startswith('sha1=')
 		info("Caching new implementation (digest %s)", required_digest)
 
@@ -89,24 +70,81 @@ class Store:
 			info("Not adding %s as it already exists!", required_digest)
 			return
 
+		if extract:
+			# Limit the characters we accept, to avoid sending dodgy
+			# strings to tar
+			if not re.match('^[a-zA-Z0-9][- _a-zA-Z0-9.]*$', extract):
+				raise Exception('Illegal character in extract attribute')
+
+		if url.endswith('.tar.bz2'):
+			tmp = self._add_tbz_to_cache(required_digest, data, extract)
+		elif url.endswith('.rpm'):
+			tmp = self._add_rpm_to_cache(required_digest, data, extract)
+		else:
+			if not (url.endswith('.tar.gz') or url.endswith('.tgz')):
+				warn('Unknown extension on "%s"; assuming tar.gz format' % url)
+			tmp = self._add_tgz_to_cache(required_digest, data, extract)
+
+		try:
+			self.check_manifest_and_rename(required_digest, tmp, extract)
+		except Exception, ex:
+			warn("Leaving extracted directory as %s", tmp)
+			raise
+	
+	def _add_rpm_to_cache(self, required_digest, stream, extract = None):
+		if extract:
+			raise Exception('Sorry, but the "extract" attribute is not yet supported for RPMs')
+		fd, cpiopath = mkstemp('-rpm-tmp')
+		try:
+			child = os.fork()
+			if child == 0:
+				try:
+					try:
+						os.dup2(stream.fileno(), 0)
+						os.dup2(fd, 1)
+						os.execlp('rpm2cpio', 'rpm2cpio', '-')
+					except:
+						traceback.print_exc()
+				finally:
+					os._exit(1)
+			id, status = os.waitpid(child, 0)
+			assert id == child
+			if status != 0:
+				raise Exception("rpm2cpio failed; can't unpack RPM archive; exit code %d" % status)
+			os.close(fd)
+			fd = None
+			args = ['cpio', '-mid', '--quiet']
+			tmp = self.extract(file(cpiopath), args)
+			# Set the mtime of every directory under 'tmp' to 0, since cpio doesn't
+			# preserve directory mtimes.
+			os.path.walk(tmp, lambda arg, dirname, names: os.utime(dirname, (0, 0)), None)
+			return tmp
+		finally:
+			if fd is not None:
+				os.close(fd)
+			os.unlink(cpiopath)
+
+	def _add_tbz_to_cache(self, required_digest, data, extract = None):
+		return self._add_tar_to_cache(required_digest, data, extract, '--bzip2')
+
+	def _add_tgz_to_cache(self, required_digest, data, extract = None):
+		return self._add_tar_to_cache(required_digest, data, extract, '-z')
+
+	def _add_tar_to_cache(self, required_digest, data, extract, decompress):
+		"""Data is a .tgz compressed archive. Extract it somewhere, check that
+		the digest is correct, and add it to the store.
+		extract is the name of a directory within the archive to extract, rather
+		than extracting the whole archive. This is most useful to remove an extra
+		top-level directory."""
 		if recent_gnu_tar():
 			args = ['tar', decompress, '-x', '--no-same-owner', '--no-same-permissions']
 		else:
 			args = ['tar', decompress, '-xf', '-']
 
 		if extract:
-			# Limit the characters we accept, to avoid sending dodgy
-			# strings to tar
-			if not re.match('^[a-zA-Z0-9][- _a-zA-Z0-9.]*$', extract):
-				raise Exception('Illegal character in extract attribute')
 			args.append(extract)
 
-		tmp = self.extract(data, args)
-		try:
-			self.check_manifest_and_rename(required_digest, tmp, extract)
-		except Exception, ex:
-			warn("Leaving extracted directory as %s", tmp)
-			raise
+		return self.extract(data, args)
 	
 	def add_dir_to_cache(self, required_digest, path):
 		if self.lookup(required_digest):
@@ -150,6 +188,9 @@ class Store:
 			os.rename(tmp, final_name)
 
 	def extract(self, stream, command):
+		"""Create a temporary directory and execvp('command') inside it in a child process.
+		on error, delete the temporary directory and raise an exception.
+		On success, returns the path of the temporary directory."""
 		if not os.path.isdir(self.dir):
 			os.makedirs(self.dir)
 		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
