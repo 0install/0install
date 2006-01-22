@@ -160,8 +160,20 @@ def begin_iface_download(interface, force):
 	If force is True, any existing download is destroyed and a new one created."""
 	return _begin_download(InterfaceDownload(interface), force)
 
+path_dirs = os.environ.get('PATH', '/bin:/usr/bin').split(':')
+def _available_in_path(command):
+	for x in path_dirs:
+		if os.path.isfile(os.path.join(x, command)):
+			return True
+	return False
+
 def begin_impl_download(source, force = False):
 	#print "Need to downlaod", source.url
+	if source.url.endswith('.rpm'):
+		if not _available_in_path('rpm2cpio'):
+			raise SafeException("The URL '%s' looks like an RPM, but you don't have the rpm2cpio command "
+					"I need to extract it. Install the 'rpm' package first (this works even if "
+					"you're on a non-RPM-based distribution such as Debian)." % source.url)
 	return _begin_download(ImplementationDownload(source), force)
 	
 def _begin_download(new_dl, force):
