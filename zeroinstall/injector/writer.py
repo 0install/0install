@@ -1,3 +1,6 @@
+# Copyright (C) 2006, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
+
 import os
 from xml.dom import minidom, XMLNS_NAMESPACE
 

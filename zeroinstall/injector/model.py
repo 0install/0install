@@ -1,3 +1,6 @@
+# Copyright (C) 2006, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
+
 """In-memory representation of the dependency graph."""
 
 import os

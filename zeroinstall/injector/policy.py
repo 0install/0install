@@ -1,3 +1,6 @@
+# Copyright (C) 2006, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
+
 import time
 import sys
 from logging import info, debug, warn

@@ -1,3 +1,6 @@
+# Copyright (C) 2006, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
+
 import tempfile, os, sys
 from model import Interface, DownloadSource, SafeException
 import traceback

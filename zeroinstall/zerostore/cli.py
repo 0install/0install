@@ -1,3 +1,6 @@
+# Copyright (C) 2006, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
+
 import sys, os, sha
 from zeroinstall.zerostore.manifest import generate_manifest
 from zeroinstall import zerostore, SafeException

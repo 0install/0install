@@ -1,3 +1,6 @@
+# Copyright (C) 2006, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
+
 """The interface cache stores downloaded and verified interfaces in ~/.cache/0install.net/interfaces (by default).
 There are methods to query the cache, add to it, check signatures, etc."""
 
