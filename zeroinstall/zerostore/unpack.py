@@ -27,6 +27,32 @@ def recent_gnu_tar():
 		debug("Recent GNU tar = %s", _recent_gnu_tar)
 	return _recent_gnu_tar
 
+def _find_in_path(prog):
+	for d in os.environ['PATH'].split(':'):
+		path = os.path.join(d, prog)
+		if os.path.isfile(path):
+			return path
+	return None
+_pola_run = _find_in_path('pola-run')
+if _pola_run:
+	info('Found pola-run: %s', _pola_run)
+else:
+	info('pola-run not found; archive extraction will not be sandboxed')
+
+def _exec_maybe_sandboxed(writable, prog, *args):
+	"""execlp prog, with (only) the 'writable' directory writable if sandboxing is available.
+	If no sandbox is available, run without a sandbox."""
+	prog_path = _find_in_path(prog)
+	if _pola_run is None:
+		os.execlp(prog_path, prog_path, *args)
+	# We have pola-shell :-)
+	pola_args = ['--prog', prog_path, '-f', '/']
+	for a in args:
+		pola_args += ['-a', a]
+	if writable:
+		pola_args += ['-fw', writable]
+	os.execl(_pola_run, _pola_run, *pola_args)
+
 def unpack_archive(url, data, destdir, extract = None):
 	"""Unpack stream 'data' into directory 'destdir'. If extract is given, extract just
 	that sub-directory from the archive. Works out the format from the name."""
@@ -51,7 +77,7 @@ def extract_rpm(stream, destdir, extract = None):
 				try:
 					os.dup2(stream.fileno(), 0)
 					os.dup2(fd, 1)
-					os.execlp('rpm2cpio', 'rpm2cpio', '-')
+					_exec_maybe_sandboxed(None, 'rpm2cpio', '-')
 				except:
 					traceback.print_exc()
 			finally:
@@ -99,7 +125,7 @@ def _extract(stream, destdir, command):
 				os.chdir(destdir)
 				stream.seek(0)
 				os.dup2(stream.fileno(), 0)
-				os.execvp(command[0], command)
+				_exec_maybe_sandboxed(destdir, *command)
 			except:
 				traceback.print_exc()
 		finally:
