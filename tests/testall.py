@@ -36,7 +36,11 @@ if not a.wasSuccessful():
 	sys.exit(1)
 
 if coverage:
-	d = '../zeroinstall/injector'
-	all_sources = [os.path.join(d, x) for x in os.listdir(d)
-			if x.endswith('.py')] + ['../0launch']
-	coverage.report(all_sources)
+	all_sources = []
+	def incl(d):
+		for x in os.listdir(d):
+			if x.endswith('.py'):
+				all_sources.append(os.path.join(d, x))
+	incl('../zeroinstall/injector')
+	incl('../zeroinstall/zerostore')
+	coverage.report(all_sources + ['../0launch'])
