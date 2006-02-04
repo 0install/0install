@@ -94,7 +94,7 @@ class TrustBox(dialog.Dialog):
 			frame.add(hint)
 			page.pack_start(frame, True, True, 0)
 
-			trust[sig] = gtk.CheckButton('Trust this key')
+			trust[sig] = gtk.CheckButton('_Trust this key')
 			page.pack_start(trust[sig], False, True, 0)
 			trust[sig].connect('toggled', lambda t: ok_sensitive())
 
