@@ -38,7 +38,10 @@ class GUIPolicy(Policy):
 		self.window.browser.set_root(root)
 
 		if refresh:
-			if root.name is not None:
+			# If we have feeds then treat this as a refresh,
+			# even if we've never seen the main interface before.
+			# Used the first time the GUI is used, for example.
+			if root.name is not None or root.feeds:
 				self.checking = CheckingBox(root)
 
 			self.refresh_all(force = False)

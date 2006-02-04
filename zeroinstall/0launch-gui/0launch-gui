@@ -65,6 +65,7 @@ if options.no_self_update is not True:
 
 		interface_uri = namespaces.injector_gui_uri
 		options.download_only = False
+		options.refresh = True
 
 policy = gui.GUIPolicy(interface_uri, prog_args,
 		   download_only = bool(options.download_only),
