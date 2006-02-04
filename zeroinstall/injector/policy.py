@@ -225,10 +225,10 @@ class Policy(object):
 					debug("Nothing known about interface, but we are off-line.")
 				else:
 					if iface.feeds:
-						info("Nothing known about interface '%s' and off-line. Trying feeds only.")
+						info("Nothing known about interface '%s' and off-line. Trying feeds only.", uri)
 					else:
 						warn("Nothing known about interface '%s', but we are in off-line mode "
-							"(so not fetching)." % uri)
+							"(so not fetching).", uri)
 						self.warned_offline = True
 		elif not uri.startswith('/'):
 			staleness = time.time() - (iface.last_checked or 0)
