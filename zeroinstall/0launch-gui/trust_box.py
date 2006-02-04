@@ -183,7 +183,8 @@ hints = {
 		'was announced on 11 Sep 2005 on the zero-install mailing list.',
 
 	'92429807C9853C0744A68B9AAE07828059A53CC1' :
-		'Thomas Leonard created Zero Install and ROX. This key is normally trusted by default.',
+		'Thomas Leonard created Zero Install and ROX. This key is used to sign updates to the '
+		'injector; you should accept it.',
 
 	'0597A2AFB6B372ACB97AC6E433B938C2E9D8826D' : 
 		'Stephen Watson is a project admin for the ROX desktop, and has been involved with the '
