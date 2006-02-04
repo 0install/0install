@@ -177,7 +177,7 @@ if options.gui:
 	# Try to start the GUI without using the network.
 	# The GUI can refresh itself if it wants to.
 	policy.freshness = 0
-	policy.network_use = model.network_minimal
+	policy.network_use = model.network_offline
 
 	prog_args = [iface_uri] + args[1:]
 	# Options apply to actual program, not GUI

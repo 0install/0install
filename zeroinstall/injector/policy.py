@@ -224,9 +224,12 @@ class Policy(object):
 				if self.warned_offline:
 					debug("Nothing known about interface, but we are off-line.")
 				else:
-					warn("Nothing known about interface '%s', but we are in off-line mode "
-						"(so not fetching)." % uri)
-					self.warned_offline = True
+					if iface.feeds:
+						info("Nothing known about interface '%s' and off-line. Trying feeds only.")
+					else:
+						warn("Nothing known about interface '%s', but we are in off-line mode "
+							"(so not fetching)." % uri)
+						self.warned_offline = True
 		elif not uri.startswith('/'):
 			staleness = time.time() - (iface.last_checked or 0)
 			debug("Staleness for %s is %.2f hours", iface, staleness / 3600.0)
@@ -261,7 +264,7 @@ class Policy(object):
 	def get_implementation(self, interface):
 		assert isinstance(interface, Interface)
 
-		if not interface.name:
+		if not interface.name and not interface.feeds:
 			raise SafeException("We don't have enough information to "
 					    "run this program yet. "
 					    "Need to download:\n%s" % interface.uri)

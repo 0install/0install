@@ -107,16 +107,17 @@ class TestLaunch(unittest.TestCase):
 	def testDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--dry-run', 'http://foo'])
-		self.assertEquals("Would download 'http://0install.net/2005/interfaces/injector-gui'\n",
-				   out)
+		# Uses local copy of GUI
+		assert out.startswith("Would execute: ")
+		assert '0launch-gui' in out
 		self.assertEquals("", err)
 
 	def testRefreshDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--dry-run', '--download-only',
 				     '--refresh', 'http://foo'])
-		self.assertEquals("Would download 'http://0install.net/2005/interfaces/injector-gui'\n",
-				  out)
+		assert out.startswith("Would execute: ")
+		assert '0launch-gui' in out
 		self.assertEquals("", err)
 	
 	def testNeedDownload(self):
