@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+import gui, sys, os, shutil
+
+echo Update me
+exit 1
+
+os.system('svn status')
+
+name = 'injector-gui-' + gui.version
+a = raw_input("Release " + name + "? [y/N]")
+if not a or a not in 'Yy':
+	sys.exit(0)
+
+if os.system('svn ls file:///home/svn/releases/' + name + ' >/dev/null') == 0:
+	print "WARNING: releases/" + name + " already exists"
+	a = raw_input("Overwrite " + name + "? [y/N]")
+	if not a or a not in 'Yy':
+		sys.exit(0)
+	os.system('svn rm file:///home/svn/releases/' + name + ' -m overwrite')
+
+if os.system('svn cp -m "Released ' + name + '" ' +
+	  'file:///home/svn/injector/injector-gui '
+	  'file:///home/svn/releases/' + name):
+	print "Failed to make release"
+	sys.exit(1)
+
+if os.path.isdir(name):
+	shutil.rmtree(name)
+os.system('svn export file:///home/svn/releases/' + name + ' ' + name)
+#os.chdir(name)
+
+os.system('svn up')

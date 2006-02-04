@@ -10,6 +10,8 @@ from logging import debug, warn
 import basedir
 from namespaces import *
 from model import *
+import os
+from os.path import dirname
 
 class InvalidInterface(SafeException):
 	def __init__(self, message, ex = None):
@@ -70,6 +72,11 @@ def update_from_cache(interface):
 			update(interface, cached)
 
 	update_user_overrides(interface)
+
+	# Special case: add our fall-back local copy of the injector as a feed
+	if interface.uri == injector_gui_uri:
+		local_gui = os.path.join(dirname(dirname(__file__)), '0launch-gui', 'injector-gui.xml')
+		interface.feeds.append(Feed(local_gui, None, False))
 
 	return bool(cached)
 

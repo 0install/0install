@@ -7,3 +7,6 @@ include tests/Hello
 include tests/HelloWorld.tgz
 include tests/6FCF121BE2390E0B.gpg
 include tests/Foo.xml
+include zeroinstall/0launch-gui/README
+include zeroinstall/0launch-gui/0launch-gui
+include zeroinstall/0launch-gui/injector-gui.xml
