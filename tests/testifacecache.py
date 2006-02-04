@@ -6,7 +6,7 @@ from logging import getLogger, DEBUG, INFO
 #getLogger().setLevel(DEBUG)
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import basedir, download, model, gpg
+from zeroinstall.injector import basedir, download, model, gpg, trust
 from zeroinstall.injector.namespaces import *
 from zeroinstall.injector.iface_cache import iface_cache
 
@@ -40,6 +40,8 @@ class TestIfaceCache(unittest.TestCase):
 		# TODO: test overrides
 
 	def testCheckSigned(self):
+		trust.trust_db.trust_key(
+			'92429807C9853C0744A68B9AAE07828059A53CC1')
 		iface = iface_cache.get_interface('http://foo')
 		src = tempfile.TemporaryFile()
 

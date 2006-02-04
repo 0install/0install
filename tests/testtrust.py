@@ -20,9 +20,9 @@ class TestTrust(unittest.TestCase):
 		shutil.rmtree(self.config_home)
 	
 	def testInit(self):
-		assert trust.trust_db.is_trusted(thomas_fingerprint)
+		assert not trust.trust_db.is_trusted(thomas_fingerprint)
 		assert not trust.trust_db.is_trusted("1234")
-		assert len(trust.trust_db.keys) == 1
+		assert len(trust.trust_db.keys) == 0
 
 	def testAddInvalid(self):
 		try:
