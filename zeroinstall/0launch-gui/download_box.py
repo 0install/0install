@@ -1,5 +1,5 @@
 import gtk
-import os
+import os, sys
 
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import download, run
@@ -12,7 +12,8 @@ warnings.filterwarnings('ignore', category = DeprecationWarning, module='downloa
 def download_with_gui(mainwindow, prog_args, run_afterwards, main = None):
 	"""If all downloads are ready, runs the program. Otherwise,
 	hides mainwindow, shows the download progress box and then runs
-	it. On error, mainwindow is re-shown."""
+	it. On error, mainwindow is re-shown and returns False.
+	On success, doesn't return (calls exec, or sys.exit(0) if nothing to exec)."""
 	try:
 		downloads = []
 		for iface, impl in policy.get_uncached_implementations():
@@ -28,12 +29,14 @@ def download_with_gui(mainwindow, prog_args, run_afterwards, main = None):
 			policy.abort_all_downloads()
 			if not run_afterwards:
 				mainwindow.destroy()
-				return
+				sys.exit(0)			# Success
 			if main is None:
 				run.execute(policy, prog_args)	# Don't break older versions
 			else:
 				run.execute(policy, prog_args, main = main)
+			# Not reached, unless this is a dry run
 			mainwindow.destroy()
+			sys.exit(0)			# Success
 		if downloads:
 			DownloadProgessBox(run_it, downloads, mainwindow).show()
 		else:
