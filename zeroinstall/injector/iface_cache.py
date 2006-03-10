@@ -4,11 +4,11 @@
 """The interface cache stores downloaded and verified interfaces in ~/.cache/0install.net/interfaces (by default).
 There are methods to query the cache, add to it, check signatures, etc."""
 
-import os, sys, time, tempfile, shutil
+import os, sys, time
 from logging import debug, info, warn
 from cStringIO import StringIO
 
-from zeroinstall.injector import download, reader, basedir
+from zeroinstall.injector import reader, basedir
 from zeroinstall.injector.namespaces import *
 from zeroinstall.injector.model import *
 from zeroinstall import zerostore
@@ -86,7 +86,7 @@ class IfaceCache(object):
 	def download_key(self, interface, key_id):
 		assert interface
 		assert key_id
-		import urlparse, urllib2
+		import urlparse, urllib2, shutil, tempfile
 		key_url = urlparse.urljoin(interface.uri, '%s.gpg' % key_id)
 		info("Fetching key from %s", key_url)
 		try:

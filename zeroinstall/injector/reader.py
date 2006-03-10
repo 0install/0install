@@ -1,12 +1,12 @@
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from xml.dom import Node, minidom
 import sys
 import shutil
 import time
 from logging import debug, warn
 
+import qdom
 import basedir
 from namespaces import *
 from model import *
@@ -20,16 +20,15 @@ class InvalidInterface(SafeException):
 		SafeException.__init__(self, message)
 
 def get_singleton_text(parent, ns, localName):
-	names = parent.getElementsByTagNameNS(ns, localName)
-	if not names:
-		raise InvalidInterface('No <%s> element in <%s>' % (localName, parent.localName))
-	if len(names) > 1:
-		raise InvalidInterface('Multiple <%s> elements in <%s>' % (localName, parent.localName))
-	text = ''
-	for x in names[0].childNodes:
-		if x.nodeType == Node.TEXT_NODE:
-			text += x.data
-	return text.strip()
+	elem = None
+	for x in parent.children:
+		if x.uri == ns and x.name == localName:
+			if elem:
+				raise InvalidInterface('Multiple <%s> elements in <%s>' % (localName, parent.name))
+			elem = x
+	if elem:
+		return elem.content
+	raise InvalidInterface('No <%s> element in <%s>' % (localName, parent.name))
 
 class Attrs(object):
 	__slots__ = ['version', 'released', 'arch', 'stability', 'main']
@@ -40,19 +39,19 @@ class Attrs(object):
 	def merge(self, item):
 		new = Attrs()
 		for x in self.__slots__:
-			if item.hasAttribute(x):
-				value = item.getAttribute(x)
-			else:
+			value = item.attrs.get(x, None)
+			if value is None:
 				value = getattr(self, x)
 			setattr(new, x, value)
 		return new
 
 def process_depends(dependency, item):
-	for e in item.getElementsByTagNameNS(XMLNS_IFACE, 'environment'):
-		binding = EnvironmentBinding(e.getAttribute('name'),
-					     insert = e.getAttribute('insert'),
-					     default = e.getAttribute('default'))
-		dependency.bindings.append(binding)
+	for e in item.children:
+		if e.uri == XMLNS_IFACE and e.name == 'environment':
+			binding = EnvironmentBinding(e.getAttribute('name'),
+						     insert = e.getAttribute('insert'),
+						     default = e.getAttribute('default'))
+			dependency.bindings.append(binding)
 
 def update_from_cache(interface):
 	"""True if cached version and user overrides loaded OK.
@@ -86,8 +85,7 @@ def update_user_overrides(interface):
 	if not user:
 		return
 
-	doc = minidom.parse(user)
-	root = doc.documentElement
+	root = qdom.parse(file(user))
 
 	last_checked = root.getAttribute('last-checked')
 	if last_checked:
@@ -97,24 +95,25 @@ def update_user_overrides(interface):
 	if stability_policy:
 		interface.set_stability_policy(stability_levels[str(stability_policy)])
 
-	for item in root.getElementsByTagNameNS(XMLNS_IFACE, 'implementation'):
-		id = item.getAttribute('id')
-		assert id is not None
-		if id.startswith('/'):
-			impl = interface.get_impl(id)
-		else:
-			assert '=' in id
-			impl = interface.get_impl(id)
+	for item in root.children:
+		if item.uri != XMLNS_IFACE: continue
+		if item.name == 'implementation':
+			id = item.getAttribute('id')
+			assert id is not None
+			if id.startswith('/'):
+				impl = interface.get_impl(id)
+			else:
+				assert '=' in id
+				impl = interface.get_impl(id)
 
-		user_stability = item.getAttribute('user-stability')
-		if user_stability:
-			impl.user_stability = stability_levels[str(user_stability)]
-
-	for feed in root.getElementsByTagNameNS(XMLNS_IFACE, 'feed'):
-		feed_src = feed.getAttribute('src')
-		if not feed_src:
-			raise InvalidInterface('Missing "src" attribute in <feed>')
-		interface.feeds.append(Feed(feed_src, feed.getAttribute('arch'), True))
+			user_stability = item.getAttribute('user-stability')
+			if user_stability:
+				impl.user_stability = stability_levels[str(user_stability)]
+		elif item.name == 'feed':
+			feed_src = item.getAttribute('src')
+			if not feed_src:
+				raise InvalidInterface('Missing "src" attribute in <feed>')
+			interface.feeds.append(Feed(feed_src, item.getAttribute('arch'), True))
 
 def check_readable(interface_uri, source):
 	"""Returns the modified time in 'source'. If syntax is incorrect,
@@ -150,15 +149,9 @@ def update(interface, source, local = False):
 	assert isinstance(interface, Interface)
 
 	try:
-		doc = minidom.parse(source)
+		root = qdom.parse(file(source))
 	except Exception, ex:
 		raise InvalidInterface("Invalid XML", ex)
-
-	root = doc.documentElement
-
-	interface.name = interface.name or get_singleton_text(root, XMLNS_IFACE, 'name')
-	interface.description = interface.description or get_singleton_text(root, XMLNS_IFACE, 'description')
-	interface.summary = interface.summary or get_singleton_text(root, XMLNS_IFACE, 'summary')
 
 	if not local:
 		_check_canonical_name(interface, source, root)
@@ -175,44 +168,56 @@ def update(interface, source, local = False):
 	else:
 		iface_dir = None	# Can't have relative paths
 	
-	for source in root.getElementsByTagNameNS(XMLNS_IFACE, 'source'):
-		source_interface = source.getAttribute('interface')
-		if source_interface:
-			interface.sources.append(Source(source_interface))
-		else:
-			raise InvalidInterface("Missing interface attribute on <source>")
+	for x in root.children:
+		if x.uri != XMLNS_IFACE: continue
+		if x.content:
+			if x.name == 'name':
+				interface.name = interface.name or x.content
+			if x.name == 'description':
+				interface.description = interface.description or x.content
+			if x.name == 'summary':
+				interface.summary = interface.summary or x.content
 
-	for feed in root.getElementsByTagNameNS(XMLNS_IFACE, 'feed-for'):
-		feed_iface = feed.getAttribute('interface')
-		if not feed_iface:
-			raise InvalidInterface('Missing "interface" attribute in <feed-for>')
-		interface.feed_for[feed_iface] = True
+		if x.name == 'source':
+			source_interface = x.getAttribute('interface')
+			if source_interface:
+				interface.sources.append(Source(source_interface))
+			else:
+				raise InvalidInterface("Missing interface attribute on <source>")
 
-	for feed in root.getElementsByTagNameNS(XMLNS_IFACE, 'feed'):
-		feed_src = feed.getAttribute('src')
-		if not feed_src:
-			raise InvalidInterface('Missing "src" attribute in <feed>')
-		if feed_src.startswith('http:') or local:
-			interface.feeds.append(Feed(feed_src, feed.getAttribute('arch'), False))
-		else:
-			raise InvalidInterface("Invalid feed URL '%s'" % feed_src)
+		if x.name == 'feed-for':
+			feed_iface = x.getAttribute('interface')
+			if not feed_iface:
+				raise InvalidInterface('Missing "interface" attribute in <feed-for>')
+			interface.feed_for[feed_iface] = True
+
+		if x.name == 'feed':
+			feed_src = x.getAttribute('src')
+			if not feed_src:
+				raise InvalidInterface('Missing "src" attribute in <feed>')
+			if feed_src.startswith('http:') or local:
+				interface.feeds.append(Feed(feed_src, x.getAttribute('arch'), False))
+			else:
+				raise InvalidInterface("Invalid feed URL '%s'" % feed_src)
 
 	def process_group(group, group_attrs, base_depends):
-		for item in group.childNodes:
+		for item in group.children:
+			if item.uri != XMLNS_IFACE: continue
+
 			depends = base_depends.copy()
-			if item.namespaceURI != XMLNS_IFACE:
-				continue
 
 			item_attrs = group_attrs.merge(item)
 
-			for dep_elem in item.getElementsByTagNameNS(XMLNS_IFACE, 'requires'):
-				dep = Dependency(dep_elem.getAttribute('interface'))
-				process_depends(dep, dep_elem)
-				depends[dep.interface] = dep
+			for child in item.children:
+				if child.uri != XMLNS_IFACE: continue
+				if child.name == 'requires':
+					dep = Dependency(child.getAttribute('interface'))
+					process_depends(dep, child)
+					depends[dep.interface] = dep
 
-			if item.localName == 'group':
+			if item.name == 'group':
 				process_group(item, item_attrs, depends)
-			elif item.localName == 'implementation':
+			elif item.name == 'implementation':
 				process_impl(item, item_attrs, depends)
 	
 	def process_impl(item, item_attrs, depends):
@@ -258,15 +263,16 @@ def update(interface, source, local = False):
 
 		impl.dependencies.update(depends)
 
-		for elem in item.getElementsByTagNameNS(XMLNS_IFACE, 'archive'):
-			url = elem.getAttribute('href')
-			if not url:
-				raise InvalidInterface("Missing href attribute on <archive>")
-			size = elem.getAttribute('size')
-			if not size:
-				raise InvalidInterface("Missing size attribute on <archive>")
-			impl.add_download_source(url = url, size = long(size),
-					extract = elem.getAttribute('extract'))
+		for elem in item.children:
+			if elem.uri == XMLNS_IFACE and elem.name == 'archive':
+				url = elem.getAttribute('href')
+				if not url:
+					raise InvalidInterface("Missing href attribute on <archive>")
+				size = elem.getAttribute('size')
+				if not size:
+					raise InvalidInterface("Missing size attribute on <archive>")
+				impl.add_download_source(url = url, size = long(size),
+						extract = elem.getAttribute('extract'))
 
 	process_group(root,
 		Attrs(stability = testing,

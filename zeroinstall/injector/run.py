@@ -12,6 +12,8 @@ def do_env_binding(binding, path):
 	info("%s=%s", binding.name, os.environ[binding.name])
 
 def execute(policy, prog_args, dry_run = False, main = None):
+	"""Execute program. On success, doesn't return. On failure, raises an Exception.
+	Returns normally only for a successful dry run."""
 	iface = policy.get_interface(policy.root)
 		
 	for needed_iface in policy.implementation:

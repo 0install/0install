@@ -4,7 +4,6 @@
 import tempfile, os, sys
 from model import Interface, DownloadSource, SafeException
 import traceback
-from urllib2 import urlopen, HTTPError, URLError
 from logging import warn
 
 download_starting = "starting"	# Waiting for UI to start it
@@ -58,6 +57,7 @@ class Download:
 		return os.fdopen(error_r, 'r')
 	
 	def download_as_child(self):
+		from urllib2 import urlopen, HTTPError, URLError
 		try:
 			import shutil
 			#print "Child downloading", self.url

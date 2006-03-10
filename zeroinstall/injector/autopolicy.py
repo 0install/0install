@@ -4,8 +4,7 @@
 import os
 from logging import debug, info
 
-from zeroinstall.injector import model, download
-from zeroinstall.injector import policy, run, handler
+from zeroinstall.injector import model, policy, run, handler
 from zeroinstall import NeedDownload
 
 class AutoPolicy(policy.Policy):
@@ -52,6 +51,7 @@ class AutoPolicy(policy.Policy):
 			if self.dry_run or not self.allow_downloads:
 				raise NeedDownload(source.url)
 			else:
+				from zeroinstall.injector import download
 				dl = download.begin_impl_download(source)
 				self.handler.monitor_download(dl)
 

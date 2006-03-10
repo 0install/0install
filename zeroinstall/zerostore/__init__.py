@@ -2,14 +2,8 @@
 # See the README file for details, or visit http://0install.net.
 
 import os
-import shutil
-import traceback
-from tempfile import mkdtemp, mkstemp
-import sha
-import re
 from logging import debug, info, warn
 
-import manifest
 from zeroinstall.injector import basedir
 from zeroinstall import SafeException
 
@@ -17,6 +11,7 @@ class BadDigest(SafeException): pass
 class NotStored(SafeException): pass
 
 def copytree2(src, dst):
+	import shutil
 	names = os.listdir(src)
 	assert os.path.isdir(dst)
 	errors = []
@@ -59,10 +54,12 @@ class Store:
 
 		if not os.path.isdir(self.dir):
 			os.makedirs(self.dir)
+		from tempfile import mkdtemp
 		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
 		try:
 			unpack.unpack_archive(url, data, tmp, extract)
 		except:
+			import shutil
 			shutil.rmtree(tmp)
 			raise
 
@@ -79,6 +76,7 @@ class Store:
 
 		if not os.path.isdir(self.dir):
 			os.makedirs(self.dir)
+		from tempfile import mkdtemp
 		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
 		copytree2(path, tmp)
 		try:
@@ -86,6 +84,7 @@ class Store:
 		except:
 			warn("Error importing directory.")
 			warn("Deleting %s", tmp)
+			import shutil
 			shutil.rmtree(tmp)
 			raise
 
@@ -97,6 +96,8 @@ class Store:
 		else:
 			extracted = tmp
 
+		import manifest
+		import sha
 		sha1 = 'sha1=' + manifest.add_manifest_file(extracted, sha.new()).hexdigest()
 		if sha1 != required_digest:
 			raise BadDigest('Incorrect manifest -- archive is corrupted.\n'

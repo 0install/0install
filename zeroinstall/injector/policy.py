@@ -4,7 +4,6 @@
 import time
 import sys
 from logging import info, debug, warn
-from cStringIO import StringIO
 import arch
 
 from model import *
@@ -12,7 +11,6 @@ import basedir
 from namespaces import *
 import ConfigParser
 import reader
-import download
 from iface_cache import iface_cache
 from zeroinstall import NeedDownload
 
@@ -245,6 +243,7 @@ class Policy(object):
 		debug("begin_iface_download %s (force = %d)", interface, force)
 		if interface.uri.startswith('/'):
 			return
+		from zeroinstall.injector import download
 		dl = download.begin_iface_download(interface, force)
 		if not dl:
 			assert not force
@@ -284,6 +283,7 @@ class Policy(object):
 		return iter(self.implementation)
 
 	def check_signed_data(self, download, signed_data):
+		from zeroinstall.injector import download
 		iface_cache.check_signed_data(download.interface, signed_data, self.handler)
 	
 	def get_cached(self, impl):
