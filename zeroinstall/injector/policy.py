@@ -283,7 +283,6 @@ class Policy(object):
 		return iter(self.implementation)
 
 	def check_signed_data(self, download, signed_data):
-		from zeroinstall.injector import download
 		iface_cache.check_signed_data(download.interface, signed_data, self.handler)
 	
 	def get_cached(self, impl):
