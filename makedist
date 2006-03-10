@@ -3,8 +3,8 @@ import zeroinstall, sys, os, shutil
 
 os.system('svn status')
 
-trunk_url = 'https://svn.sourceforge.net/svnroot/zero-install/trunk'
-releases_url = 'https://svn.sourceforge.net/svnroot/zero-install/releases'
+trunk_url = 'https://svn.sourceforge.net/svnroot/zero-install/trunk/0launch'
+releases_url = 'https://svn.sourceforge.net/svnroot/zero-install/releases/0launch'
 
 for line in os.popen('dpkg-parsechangelog'):
 	if line.startswith('Version: '):
@@ -25,6 +25,7 @@ if os.system('cd tests && ./testall.py'):
 	print "ERROR: Unit test failure. Stop"
 	sys.exit(1)
 
+print "Checking for existing release..."
 if os.system('svn ls ' + releases_url + '/' + name + ' >/dev/null') == 0:
 	print "WARNING: releases/" + name + " already exists"
 	a = raw_input("Overwrite " + name + "? [y/N]")
@@ -33,7 +34,7 @@ if os.system('svn ls ' + releases_url + '/' + name + ' >/dev/null') == 0:
 	os.system('svn rm ' + releases_url + '/' + name + ' -m overwrite')
 
 if os.system('svn cp -m "Released ' + name + '" ' +
-	  trunk_url + '/0launch ' + releases_url + '/' + name):
+	  trunk_url + ' ' + releases_url + '/' + name):
 	print "Failed to make release"
 	sys.exit(1)
 
