@@ -1,5 +1,6 @@
 import gtk
-import sys
+from logging import warn
+import os, sys
 from iface_browser import InterfaceBrowser
 import help_box
 from gui import policy
@@ -134,6 +135,20 @@ class MainWindow(Dialog):
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 		self.connect('response', response)
+
+		# Warnings
+		try:
+			version_stream = os.popen('gpg --version')
+			gpg_version = map(int, version_stream.readline().split(' ')[-1].strip().split('.'))
+			version_stream.close()
+		except Exception, ex:
+			warn("Failed to get GPG version: %s", ex)
+		else:
+			if gpg_version < [1, 4, 2, 2]:
+				warning_label = gtk.Label("Warning: Your version of gnupg (%s) contains a signature\n"
+					"checking vulnerability. Suggest upgrading to 1.4.2.2 or later." % '.'.join(map(str, gpg_version)))
+				self.vbox.pack_start(warning_label, False, True, 0)
+				warning_label.show()
 	
 	def destroyed(self):
 		policy.abort_all_downloads()
