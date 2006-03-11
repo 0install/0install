@@ -7,7 +7,7 @@ from zeroinstall.injector.reader import InvalidInterface
 import dialog
 from checking import CheckingBox
 
-version = '0.16'
+version = '0.18.1'
 
 # Singleton Policy
 policy = None

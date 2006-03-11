@@ -1,11 +1,14 @@
 Injector-GUI -- a graphical interface for the zero install injector
 
-Copyright Thomas Leonard, 2005
+Copyright Thomas Leonard, 2005-2006
 
 The injector GUI displays a window showing which versions of various components
 will be used when running a program, and allows you to alter various policy
 settings to affect the selection process. You can use this to mark particular
 versions of libraries as preferred, bugggy, etc.
+
+It is not normally run directy. Instead, the 0launch command runs it
+automatically when it needs to download something or to interact with the user.
 
 For details, see:
 
