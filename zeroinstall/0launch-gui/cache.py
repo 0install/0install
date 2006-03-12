@@ -6,11 +6,11 @@ import help_box
 from dialog import Dialog
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import basedir, namespaces, model
-
-tips = gtk.Tooltips()
+from treetips import TreeTips
 
 ITEM = 0
 SIZE = 1
+TOOLTIP = 2
 
 def pretty_size(size):
 	if size == 0: return ''
@@ -37,6 +37,13 @@ def get_size(path):
 				size += getsize(join(root, name))
 	return size
 
+def summary(iface):
+	if iface.summary:
+		return iface.get_name() + ' - ' + iface.summary
+	return iface.get_name()
+
+tips = TreeTips()
+
 class CacheExplorer(Dialog):
 	def __init__(self):
 		Dialog.__init__(self)
@@ -44,7 +51,7 @@ class CacheExplorer(Dialog):
 		self.set_default_size(gtk.gdk.screen_width() / 2, gtk.gdk.screen_height() / 2)
 
 		# Model
-		self.model = gtk.TreeStore(str, str)
+		self.model = gtk.TreeStore(str, str, str)
 		self.tree_view = gtk.TreeView(self.model)
 
 		# Find cached implementations
@@ -99,37 +106,48 @@ class CacheExplorer(Dialog):
 		if error_interfaces:
 			total_size = sum([size for uri, ex, size in error_interfaces])
 			iter = self.model.append(None, ["Invalid interfaces (unreadable)",
-						 pretty_size(total_size)])
+						 pretty_size(total_size),
+						 _("These interfaces exist in the cache but cannot be "
+						   "read. You should probably delete them.")])
 			for uri, ex, size in error_interfaces:
-				iter2 = self.model.append(iter, [uri, pretty_size(size)])
-				self.model.append(iter2, [ex, ''])
+				self.model.append(iter, [uri, pretty_size(size), ex])
 
 		if unowned:
-			unowned_sizes = [(get_size(os.path.join(unowned[id].dir, id)), id) for id in unowned]
-			total_size = sum([size for size, id in unowned_sizes])
+			unowned_sizes = []
+			for id in unowned:
+				impl_path = os.path.join(unowned[id].dir, id)
+				unowned_sizes.append((get_size(impl_path), id, impl_path))
+			total_size = sum([size for size, id, path in unowned_sizes])
 			iter = self.model.append(None, ["Unowned implementations and temporary files",
-						pretty_size(total_size)])
+						pretty_size(total_size),
+						_("These probably aren't needed any longer. You can "
+						  "delete them.")])
 			unowned_sizes.sort()
-			for size, id in unowned_sizes:
-				self.model.append(iter, [id, pretty_size(size)])
+			for size, id, impl_path in unowned_sizes:
+				self.model.append(iter, [id, pretty_size(size), impl_path])
 
 		if unused_interfaces:
 			total_size = sum([size for iface, size in unused_interfaces])
 			iter = self.model.append(None, ["Unused interfaces (no versions cached)",
-						pretty_size(total_size)])
+						pretty_size(total_size),
+						_("These interfaces are cached, but no actual versions "
+						  "are present. They might be useful, and they don't "
+						  "take up much space.")])
 			unused_interfaces.sort()
 			for iface, size in unused_interfaces:
-				self.model.append(iter, [iface.get_name(), pretty_size(size)])
+				self.model.append(iter, [iface.uri, pretty_size(size), summary(iface)])
 
 		if ok_interfaces:
 			total_size = sum([size for iface, in_cache, size in ok_interfaces])
-			iter = self.model.append(None, ["Used interfaces", pretty_size(total_size)])
+			iter = self.model.append(None, ["Used interfaces", pretty_size(total_size), None])
 			for iface, in_cache, iface_size in ok_interfaces:
-				iter2 = self.model.append(iter, [iface.uri, pretty_size(iface_size)])
+				iter2 = self.model.append(iter,
+						  [iface.uri, pretty_size(iface_size), summary(iface)])
 				for impl, size in in_cache:
 					self.model.append(iter2,
 						['Version %s : %s' % (impl.get_version(), impl.id),
-						 pretty_size(size)])
+						 pretty_size(size),
+						 None])
 
 		# Tree view
 		swin = gtk.ScrolledWindow()
@@ -148,6 +166,26 @@ class CacheExplorer(Dialog):
 		cell.set_property('xalign', 1.0)
 		column = gtk.TreeViewColumn('Size', cell, text = SIZE)
 		self.tree_view.append_column(column)
+
+		# Tree tooltips
+		def motion(tree_view, ev):
+			if ev.window is not tree_view.get_bin_window():
+				return False
+			pos = tree_view.get_path_at_pos(int(ev.x), int(ev.y))
+			if pos:
+				path = pos[0]
+				row = self.model[path]
+				tip = row[TOOLTIP]
+				if tip:
+					if tip != tips.item:
+						tips.prime(tree_view, tip)
+				else:
+					tips.hide()
+			else:
+				tips.hide()
+
+		self.tree_view.connect('motion-notify-event', motion)
+		self.tree_view.connect('leave-notify-event', lambda tv, ev: tips.hide())
 
 		# Responses
 

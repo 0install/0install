@@ -81,3 +81,7 @@ class TreeTips:
 	def hide(self):
 		self.item = None
 		self.show(None)
+	
+	def get_tooltip_text(self, item):
+		"Override in subclasses."
+		return str(item)
