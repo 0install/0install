@@ -10,6 +10,8 @@ from freshness import freshness_levels, Freshness
 
 tips = gtk.Tooltips()
 
+SHOW_CACHE = 0
+
 class MainWindow(Dialog):
 	progress = None
 	browser = None
@@ -115,6 +117,8 @@ class MainWindow(Dialog):
 		# Responses
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
+		self.add_mixed_button('_Cache', gtk.STOCK_OPEN, SHOW_CACHE)
+
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		if download_only:
 			self.add_mixed_button('_Download', gtk.STOCK_NETWORK, gtk.RESPONSE_OK)
@@ -134,6 +138,8 @@ class MainWindow(Dialog):
 								run_afterwards = not download_only)
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
+			elif resp == SHOW_CACHE:
+				os.spawnlp(os.P_WAIT, sys.argv[0], sys.argv[0], '-c')
 		self.connect('response', response)
 
 		# Warnings

@@ -7,6 +7,7 @@ import gui
 __builtins__._ = lambda x: x
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]")
+parser.add_option("-c", "--cache", help="show the cache", action='store_true')
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 parser.add_option("-m", "--main", help="name of the file to execute")
 parser.add_option("-n", "--no-self-update", help="don't check for updates to the GUI itself", action='store_true')
@@ -36,14 +37,6 @@ if options.version:
 	print "For more information about these matters, see the file named COPYING."
 	sys.exit(0)
 
-if len(args) < 1:
-	parser.print_help()
-	sys.exit(1)
-
-interface_uri = args[0]
-prog_args = args[1:]
-
-from zeroinstall.injector import model, autopolicy, namespaces
 import gtk
 
 if not hasattr(gtk, 'combo_box_new_text'):
@@ -52,6 +45,25 @@ if not hasattr(gtk, 'combo_box_new_text'):
 gtk.rc_parse_string('style "scrolled" { '
 		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
 		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
+
+if options.cache:
+	if os.fork():
+		# We exit, so our parent can call waitpid and unblock.
+		sys.exit(0)
+	# The grandchild continues...
+	import cache
+	cache.CacheExplorer().show()
+	gtk.main()
+	sys.exit(0)
+
+if len(args) < 1:
+	parser.print_help()
+	sys.exit(1)
+
+interface_uri = args[0]
+prog_args = args[1:]
+
+from zeroinstall.injector import model, autopolicy, namespaces
 
 if options.no_self_update is not True:
 	gui_policy = autopolicy.AutoPolicy(namespaces.injector_gui_uri)
