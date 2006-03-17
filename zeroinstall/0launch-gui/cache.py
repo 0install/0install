@@ -1,5 +1,5 @@
 import os
-import gtk
+import gtk, gobject
 
 import gui
 import help_box
@@ -54,6 +54,63 @@ class CacheExplorer(Dialog):
 		self.model = gtk.TreeStore(str, str, str)
 		self.tree_view = gtk.TreeView(self.model)
 
+		# Tree view
+		swin = gtk.ScrolledWindow()
+		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
+		swin.set_shadow_type(gtk.SHADOW_IN)
+		swin.add(self.tree_view)
+		self.vbox.pack_start(swin, True, True, 0)
+		self.tree_view.set_rules_hint(True)
+		swin.show_all()
+
+		column = gtk.TreeViewColumn('Item', gtk.CellRendererText(), text = ITEM)
+		column.set_resizable(True)
+		self.tree_view.append_column(column)
+
+		cell = gtk.CellRendererText()
+		cell.set_property('xalign', 1.0)
+		column = gtk.TreeViewColumn('Size', cell, text = SIZE)
+		self.tree_view.append_column(column)
+
+		# Tree tooltips
+		def motion(tree_view, ev):
+			if ev.window is not tree_view.get_bin_window():
+				return False
+			pos = tree_view.get_path_at_pos(int(ev.x), int(ev.y))
+			if pos:
+				path = pos[0]
+				row = self.model[path]
+				tip = row[TOOLTIP]
+				if tip:
+					if tip != tips.item:
+						tips.prime(tree_view, tip)
+				else:
+					tips.hide()
+			else:
+				tips.hide()
+
+		self.tree_view.connect('motion-notify-event', motion)
+		self.tree_view.connect('leave-notify-event', lambda tv, ev: tips.hide())
+
+		# Responses
+
+		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
+		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_OK)
+		self.set_default_response(gtk.RESPONSE_OK)
+
+		def response(dialog, resp):
+			if resp == gtk.RESPONSE_OK:
+				self.destroy()
+			elif resp == gtk.RESPONSE_HELP:
+				cache_help.display()
+		self.connect('response', response)
+
+		def idle():
+			self.populate_model()
+			return False
+		gobject.idle_add(idle)
+	
+	def populate_model(self):
 		# Find cached implementations
 
 		unowned = {}	# Impl ID -> Store
@@ -105,7 +162,7 @@ class CacheExplorer(Dialog):
 
 		if error_interfaces:
 			total_size = sum([size for uri, ex, size in error_interfaces])
-			iter = self.model.append(None, ["Invalid interfaces (unreadable)",
+			iter = self.model.append(None, [_("Invalid interfaces (unreadable)"),
 						 pretty_size(total_size),
 						 _("These interfaces exist in the cache but cannot be "
 						   "read. You should probably delete them.")])
@@ -118,7 +175,7 @@ class CacheExplorer(Dialog):
 				impl_path = os.path.join(unowned[id].dir, id)
 				unowned_sizes.append((get_size(impl_path), id, impl_path))
 			total_size = sum([size for size, id, path in unowned_sizes])
-			iter = self.model.append(None, ["Unowned implementations and temporary files",
+			iter = self.model.append(None, [_("Unowned implementations and temporary files"),
 						pretty_size(total_size),
 						_("These probably aren't needed any longer. You can "
 						  "delete them.")])
@@ -128,7 +185,7 @@ class CacheExplorer(Dialog):
 
 		if unused_interfaces:
 			total_size = sum([size for iface, size in unused_interfaces])
-			iter = self.model.append(None, ["Unused interfaces (no versions cached)",
+			iter = self.model.append(None, [_("Unused interfaces (no versions cached)"),
 						pretty_size(total_size),
 						_("These interfaces are cached, but no actual versions "
 						  "are present. They might be useful, and they don't "
@@ -139,7 +196,11 @@ class CacheExplorer(Dialog):
 
 		if ok_interfaces:
 			total_size = sum([size for iface, in_cache, size in ok_interfaces])
-			iter = self.model.append(None, ["Used interfaces", pretty_size(total_size), None])
+			iter = self.model.append(None,
+				[_("Used interfaces"),
+				 pretty_size(total_size),
+				 _("At least one implementation of each of "
+				   "these interfaces is in the cache.")])
 			for iface, in_cache, iface_size in ok_interfaces:
 				iter2 = self.model.append(iter,
 						  [iface.uri, pretty_size(iface_size), summary(iface)])
@@ -148,57 +209,6 @@ class CacheExplorer(Dialog):
 						['Version %s : %s' % (impl.get_version(), impl.id),
 						 pretty_size(size),
 						 None])
-
-		# Tree view
-		swin = gtk.ScrolledWindow()
-		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
-		swin.set_shadow_type(gtk.SHADOW_IN)
-		swin.add(self.tree_view)
-		self.vbox.pack_start(swin, True, True, 0)
-		self.tree_view.set_rules_hint(True)
-		swin.show_all()
-
-		column = gtk.TreeViewColumn('Item', gtk.CellRendererText(), text = ITEM)
-		column.set_resizable(True)
-		self.tree_view.append_column(column)
-
-		cell = gtk.CellRendererText()
-		cell.set_property('xalign', 1.0)
-		column = gtk.TreeViewColumn('Size', cell, text = SIZE)
-		self.tree_view.append_column(column)
-
-		# Tree tooltips
-		def motion(tree_view, ev):
-			if ev.window is not tree_view.get_bin_window():
-				return False
-			pos = tree_view.get_path_at_pos(int(ev.x), int(ev.y))
-			if pos:
-				path = pos[0]
-				row = self.model[path]
-				tip = row[TOOLTIP]
-				if tip:
-					if tip != tips.item:
-						tips.prime(tree_view, tip)
-				else:
-					tips.hide()
-			else:
-				tips.hide()
-
-		self.tree_view.connect('motion-notify-event', motion)
-		self.tree_view.connect('leave-notify-event', lambda tv, ev: tips.hide())
-
-		# Responses
-
-		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
-		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_OK)
-		self.set_default_response(gtk.RESPONSE_OK)
-
-		def response(dialog, resp):
-			if resp == gtk.RESPONSE_OK:
-				self.destroy()
-			elif resp == gtk.RESPONSE_HELP:
-				cache_help.display()
-		self.connect('response', response)
 
 cache_help = help_box.HelpBox("Cache Explorer Help",
 ('Overview', """
