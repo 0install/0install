@@ -8,9 +8,11 @@ from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import basedir, namespaces, model
 from treetips import TreeTips
 
+# Model columns
 ITEM = 0
 SIZE = 1
 TOOLTIP = 2
+DELETE_CB = 3
 
 def pretty_size(size):
 	if size == 0: return ''
@@ -42,7 +44,33 @@ def summary(iface):
 		return iface.get_name() + ' - ' + iface.summary
 	return iface.get_name()
 
+def delete_invalid_interface(uri):
+	if not uri.startswith('/'):
+		cached_iface = basedir.load_first_cache(namespaces.config_site,
+				'interfaces', model.escape(uri))
+		if cached_iface:
+			#print "Delete", cached_iface
+			os.unlink(cached_iface)
+	user_overrides = basedir.load_first_config(namespaces.config_site,
+				namespaces.config_prog,
+				'user_overrides', model.escape(uri))
+	if user_overrides:
+		#print "Delete", user_overrides
+		os.unlink(user_overrides)
+
+def get_selected_paths(tree_view):
+	"GTK 2.0 doesn't have this built-in"
+	selection = tree_view.get_selection()
+	paths = []
+	def add(model, path, iter):
+		paths.append(path)
+	selection.selected_foreach(add)
+	return paths
+
 tips = TreeTips()
+
+# Responses
+DELETE = 0
 
 class CacheExplorer(Dialog):
 	def __init__(self):
@@ -51,7 +79,7 @@ class CacheExplorer(Dialog):
 		self.set_default_size(gtk.gdk.screen_width() / 2, gtk.gdk.screen_height() / 2)
 
 		# Model
-		self.model = gtk.TreeStore(str, str, str)
+		self.model = gtk.TreeStore(str, str, str, object)
 		self.tree_view = gtk.TreeView(self.model)
 
 		# Tree view
@@ -96,14 +124,40 @@ class CacheExplorer(Dialog):
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
 		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_OK)
+		self.add_button(gtk.STOCK_DELETE, DELETE)
 		self.set_default_response(gtk.RESPONSE_OK)
+
+		selection = self.tree_view.get_selection()
+		def selection_changed(selection):
+			any_selected = False
+			for x in get_selected_paths(self.tree_view):
+				if not self.model[x][DELETE_CB]:
+					self.set_response_sensitive(DELETE, False)
+					return
+				any_selected = True
+			self.set_response_sensitive(DELETE, any_selected)
+		selection.set_mode(gtk.SELECTION_MULTIPLE)
+		selection.connect('changed', selection_changed)
+		selection_changed(selection)
 
 		def response(dialog, resp):
 			if resp == gtk.RESPONSE_OK:
 				self.destroy()
 			elif resp == gtk.RESPONSE_HELP:
 				cache_help.display()
+			elif resp == DELETE:
+				self.delete()
 		self.connect('response', response)
+	
+	def delete(self):
+		model = self.model
+		paths = get_selected_paths(self.tree_view)
+		paths.reverse()
+		for path in paths:
+			cb = model[path][DELETE_CB]
+			assert cb
+			cb(model[path][ITEM])
+			model.remove(model.get_iter(path))
 
 	def populate_model(self):
 		# Find cached implementations
@@ -160,9 +214,11 @@ class CacheExplorer(Dialog):
 			iter = self.model.append(None, [_("Invalid interfaces (unreadable)"),
 						 pretty_size(total_size),
 						 _("These interfaces exist in the cache but cannot be "
-						   "read. You should probably delete them.")])
+						   "read. You should probably delete them."),
+						   None])
 			for uri, ex, size in error_interfaces:
-				self.model.append(iter, [uri, pretty_size(size), ex])
+				self.model.append(iter, [uri, pretty_size(size), ex,
+							 delete_invalid_interface])
 
 		if unowned:
 			unowned_sizes = []
@@ -173,10 +229,12 @@ class CacheExplorer(Dialog):
 			iter = self.model.append(None, [_("Unowned implementations and temporary files"),
 						pretty_size(total_size),
 						_("These probably aren't needed any longer. You can "
-						  "delete them.")])
+						  "delete them."),
+						  None])
 			unowned_sizes.sort()
 			for size, id, impl_path in unowned_sizes:
-				self.model.append(iter, [id, pretty_size(size), impl_path])
+				self.model.append(iter, [id, pretty_size(size), impl_path,
+				None])
 
 		if unused_interfaces:
 			total_size = sum([size for iface, size in unused_interfaces])
@@ -184,10 +242,12 @@ class CacheExplorer(Dialog):
 						pretty_size(total_size),
 						_("These interfaces are cached, but no actual versions "
 						  "are present. They might be useful, and they don't "
-						  "take up much space.")])
+						  "take up much space."),
+						  None])
 			unused_interfaces.sort()
 			for iface, size in unused_interfaces:
-				self.model.append(iter, [iface.uri, pretty_size(size), summary(iface)])
+				self.model.append(iter, [iface.uri, pretty_size(size), summary(iface),
+				None])
 
 		if ok_interfaces:
 			total_size = sum([size for iface, in_cache, size in ok_interfaces])
@@ -195,14 +255,17 @@ class CacheExplorer(Dialog):
 				[_("Used interfaces"),
 				 pretty_size(total_size),
 				 _("At least one implementation of each of "
-				   "these interfaces is in the cache.")])
+				   "these interfaces is in the cache."),
+				   None])
 			for iface, in_cache, iface_size in ok_interfaces:
 				iter2 = self.model.append(iter,
-						  [iface.uri, pretty_size(iface_size), summary(iface)])
+						  [iface.uri, pretty_size(iface_size), summary(iface),
+						  None])
 				for impl, size in in_cache:
 					self.model.append(iter2,
 						['Version %s : %s' % (impl.get_version(), impl.id),
 						 pretty_size(size),
+						 None,
 						 None])
 
 cache_help = help_box.HelpBox("Cache Explorer Help",
