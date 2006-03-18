@@ -52,7 +52,12 @@ if options.cache:
 		sys.exit(0)
 	# The grandchild continues...
 	import cache
-	cache.CacheExplorer().show()
+	cache_explorer = cache.CacheExplorer()
+	cache_explorer.show()
+	cache_explorer.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.WATCH))
+	gtk.gdk.flush()
+	cache_explorer.populate_model()
+	cache_explorer.window.set_cursor(None)
 	gtk.main()
 	sys.exit(0)
 

@@ -105,11 +105,6 @@ class CacheExplorer(Dialog):
 				cache_help.display()
 		self.connect('response', response)
 
-		def idle():
-			self.populate_model()
-			return False
-		gobject.idle_add(idle)
-	
 	def populate_model(self):
 		# Find cached implementations
 
