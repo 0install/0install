@@ -10,9 +10,10 @@ from treetips import TreeTips
 
 # Model columns
 ITEM = 0
-SIZE = 1
-TOOLTIP = 2
-DELETE_CB = 3
+SELF_SIZE = 1
+PRETTY_SIZE = 2
+TOOLTIP = 3
+DELETE_CB = 4
 
 def pretty_size(size):
 	if size == 0: return ''
@@ -79,7 +80,7 @@ class CacheExplorer(Dialog):
 		self.set_default_size(gtk.gdk.screen_width() / 2, gtk.gdk.screen_height() / 2)
 
 		# Model
-		self.model = gtk.TreeStore(str, str, str, object)
+		self.model = gtk.TreeStore(str, int, str, str, object)
 		self.tree_view = gtk.TreeView(self.model)
 
 		# Tree view
@@ -97,7 +98,7 @@ class CacheExplorer(Dialog):
 
 		cell = gtk.CellRendererText()
 		cell.set_property('xalign', 1.0)
-		column = gtk.TreeViewColumn('Size', cell, text = SIZE)
+		column = gtk.TreeViewColumn('Size', cell, text = PRETTY_SIZE)
 		self.tree_view.append_column(column)
 
 		# Tree tooltips
@@ -158,6 +159,7 @@ class CacheExplorer(Dialog):
 			assert cb
 			cb(model[path][ITEM])
 			model.remove(model.get_iter(path))
+		self.update_sizes()
 
 	def populate_model(self):
 		# Find cached implementations
@@ -210,14 +212,13 @@ class CacheExplorer(Dialog):
 					unused_interfaces.append((iface, iface_size))
 
 		if error_interfaces:
-			total_size = sum([size for uri, ex, size in error_interfaces])
 			iter = self.model.append(None, [_("Invalid interfaces (unreadable)"),
-						 pretty_size(total_size),
+						 0, None,
 						 _("These interfaces exist in the cache but cannot be "
 						   "read. You should probably delete them."),
 						   None])
 			for uri, ex, size in error_interfaces:
-				self.model.append(iter, [uri, pretty_size(size), ex,
+				self.model.append(iter, [uri, size, None, ex,
 							 delete_invalid_interface])
 
 		if unowned:
@@ -225,48 +226,60 @@ class CacheExplorer(Dialog):
 			for id in unowned:
 				impl_path = os.path.join(unowned[id].dir, id)
 				unowned_sizes.append((get_size(impl_path), id, impl_path))
-			total_size = sum([size for size, id, path in unowned_sizes])
 			iter = self.model.append(None, [_("Unowned implementations and temporary files"),
-						pretty_size(total_size),
+						0, None,
 						_("These probably aren't needed any longer. You can "
 						  "delete them."),
 						  None])
 			unowned_sizes.sort()
 			for size, id, impl_path in unowned_sizes:
-				self.model.append(iter, [id, pretty_size(size), impl_path,
+				self.model.append(iter, [id, size, None, impl_path,
 				None])
 
 		if unused_interfaces:
-			total_size = sum([size for iface, size in unused_interfaces])
 			iter = self.model.append(None, [_("Unused interfaces (no versions cached)"),
-						pretty_size(total_size),
+						0, None,
 						_("These interfaces are cached, but no actual versions "
 						  "are present. They might be useful, and they don't "
 						  "take up much space."),
 						  None])
 			unused_interfaces.sort()
 			for iface, size in unused_interfaces:
-				self.model.append(iter, [iface.uri, pretty_size(size), summary(iface),
-				None])
+				self.model.append(iter, [iface.uri, size, None, summary(iface), None])
 
 		if ok_interfaces:
-			total_size = sum([size for iface, in_cache, size in ok_interfaces])
 			iter = self.model.append(None,
 				[_("Used interfaces"),
-				 pretty_size(total_size),
+				 0, None,
 				 _("At least one implementation of each of "
 				   "these interfaces is in the cache."),
 				   None])
 			for iface, in_cache, iface_size in ok_interfaces:
 				iter2 = self.model.append(iter,
-						  [iface.uri, pretty_size(iface_size), summary(iface),
-						  None])
+						  [iface.uri, iface_size, None, summary(iface), None])
 				for impl, size in in_cache:
 					self.model.append(iter2,
 						['Version %s : %s' % (impl.get_version(), impl.id),
-						 pretty_size(size),
+						 size, None,
 						 None,
 						 None])
+		self.update_sizes()
+	
+	def update_sizes(self):
+		"""Set PRETTY_SIZE to the total size, including all children."""
+		m = self.model
+		def update(itr):
+			total = m[itr][SELF_SIZE]
+			child = m.iter_children(itr)
+			while child:
+				total += update(child)
+				child = m.iter_next(child)
+			m[itr][PRETTY_SIZE] = pretty_size(total)
+			return total
+		itr = m.get_iter_root()
+		while itr:
+			update(itr)
+			itr = m.iter_next(itr)
 
 cache_help = help_box.HelpBox("Cache Explorer Help",
 ('Overview', """
