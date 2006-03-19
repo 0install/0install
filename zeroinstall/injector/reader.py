@@ -169,29 +169,27 @@ def update(interface, source, local = False):
 		iface_dir = None	# Can't have relative paths
 	
 	for x in root.children:
-		if x.uri != XMLNS_IFACE: continue
-		if x.content:
-			if x.name == 'name':
-				interface.name = interface.name or x.content
-			if x.name == 'description':
-				interface.description = interface.description or x.content
-			if x.name == 'summary':
-				interface.summary = interface.summary or x.content
-
-		if x.name == 'source':
+		if x.uri != XMLNS_IFACE:
+			interface.add_metadata(x)
+			continue
+		if x.name == 'name':
+			interface.name = interface.name or x.content
+		elif x.name == 'description':
+			interface.description = interface.description or x.content
+		elif x.name == 'summary':
+			interface.summary = interface.summary or x.content
+		elif x.name == 'source':
 			source_interface = x.getAttribute('interface')
 			if source_interface:
 				interface.sources.append(Source(source_interface))
 			else:
 				raise InvalidInterface("Missing interface attribute on <source>")
-
-		if x.name == 'feed-for':
+		elif x.name == 'feed-for':
 			feed_iface = x.getAttribute('interface')
 			if not feed_iface:
 				raise InvalidInterface('Missing "interface" attribute in <feed-for>')
 			interface.feed_for[feed_iface] = True
-
-		if x.name == 'feed':
+		elif x.name == 'feed':
 			feed_src = x.getAttribute('src')
 			if not feed_src:
 				raise InvalidInterface('Missing "src" attribute in <feed>')
@@ -199,6 +197,8 @@ def update(interface, source, local = False):
 				interface.feeds.append(Feed(feed_src, x.getAttribute('arch'), False))
 			else:
 				raise InvalidInterface("Invalid feed URL '%s'" % feed_src)
+		else:
+			interface.add_metadata(x)
 
 	def process_group(group, group_attrs, base_depends):
 		for item in group.children:

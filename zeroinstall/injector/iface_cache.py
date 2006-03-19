@@ -193,5 +193,10 @@ class IfaceCache(object):
 		required_digest = source.implementation.id
 		url = source.url
 		self.stores.add_archive_to_cache(required_digest, data, source.url, source.extract)
+	
+	def get_icon_path(self, iface):
+		"Get the path of the cached icon for this interface, or None if not cached."
+		return basedir.load_first_cache(config_site, 'interface_icons',
+						 escape(iface.uri))
 
 iface_cache = IfaceCache()

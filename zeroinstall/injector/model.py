@@ -182,7 +182,7 @@ class Interface(object):
 	"""An Interface represents some contract of behaviour."""
 	__slots__ = ['uri', 'implementations', 'name', 'description', 'summary',
 		     'stability_policy', 'last_modified', 'last_local_update', 'last_checked',
-		     'main', 'feeds', 'sources', 'feed_for']
+		     'main', 'feeds', 'sources', 'feed_for', 'metadata']
 
 	# last_local_update is deprecated
 	
@@ -212,6 +212,7 @@ class Interface(object):
 		self.sources = []
 		self.feeds = []
 		self.feed_for = {}	# URI -> True
+		self.metadata = []
 	
 	def get_name(self):
 		return self.name or '(' + os.path.basename(self.uri) + ')'
@@ -233,6 +234,13 @@ class Interface(object):
 			if x.uri == uri:
 				return x
 		return None
+	
+	def add_metadata(self, elem):
+		self.metadata.append(elem)
+	
+	def get_metadata(self, uri, name):
+		"""Return a list of interface metadata elements with this name and namespace URI."""
+		return [m for m in self.metadata if m.name == name and m.uri == uri]
 
 def unescape(uri):
 	"Convert each %20 to a space, etc"

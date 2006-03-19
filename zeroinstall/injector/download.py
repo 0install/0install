@@ -2,9 +2,10 @@
 # See the README file for details, or visit http://0install.net.
 
 import tempfile, os, sys
-from model import Interface, DownloadSource, SafeException
+from model import Interface, DownloadSource, SafeException, escape
 import traceback
 from logging import warn
+from namespaces import config_site
 
 download_starting = "starting"	# Waiting for UI to start it
 download_fetching = "fetching"	# In progress
@@ -132,6 +133,21 @@ class InterfaceDownload(Download):
 		Download.__init__(self, url or interface.uri)
 		self.interface = interface
 
+class IconDownload(Download):
+	def __init__(self, interface, source, url = None):
+		assert isinstance(interface, Interface)
+		Download.__init__(self, source)
+		self.interface = interface
+
+	def error_stream_closed(self):
+		from zeroinstall.injector import basedir
+		import shutil
+		stream = Download.error_stream_closed(self)
+		icons_cache = basedir.save_cache_path(config_site, 'interface_icons')
+		icon_file = file(os.path.join(icons_cache, escape(self.interface.uri)), 'w')
+
+		shutil.copyfileobj(stream, icon_file)
+
 class ImplementationDownload(Download):
 	def __init__(self, source):
 		assert isinstance(source, DownloadSource)
@@ -178,6 +194,9 @@ def begin_impl_download(source, force = False):
 					"I need to extract it. Install the 'rpm' package first (this works even if "
 					"you're on a non-RPM-based distribution such as Debian)." % source.url)
 	return _begin_download(ImplementationDownload(source), force)
+	
+def begin_icon_download(interface, source, force = False):
+	return _begin_download(IconDownload(interface, source), force)
 	
 def _begin_download(new_dl, force):
 	dl = _downloads.get(new_dl.url, None)

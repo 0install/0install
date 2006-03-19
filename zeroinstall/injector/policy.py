@@ -254,6 +254,33 @@ class Policy(object):
 		# Calls update_interface_from_network eventually on success
 		self.handler.monitor_download(dl)
 	
+	def begin_icon_download(self, interface, force = False):
+		debug("begin_icon_download %s (force = %d)", interface, force)
+
+		# Find a suitable icon to download
+		for icon in interface.get_metadata(XMLNS_IFACE, 'icon'):
+			type = icon.getAttribute('type')
+			if type != 'image/png':
+				debug('Skipping non-PNG icon')
+				continue
+			source = icon.getAttribute('href')
+			if source:
+				break
+			warn('Missing "href" attribute on <icon> in %s', interface)
+		else:
+			info('No PNG icons found in %s', interface)
+			return
+
+		from zeroinstall.injector import download
+		dl = download.begin_icon_download(interface, source, force)
+		if not dl:
+			assert not force
+			debug("Icon download already in progress")
+			return
+
+		debug("Waiting for icon to download")
+		self.handler.monitor_download(dl)
+	
 	def get_implementation_path(self, impl):
 		assert isinstance(impl, Implementation)
 		if impl.id.startswith('/'):
@@ -334,3 +361,18 @@ class Policy(object):
 		if not feed_iface.name:
 			warn("Warning: unknown interface '%s'" % feed_iface_uri)
 		return [self.get_interface(uri) for uri in feed_targets]
+	
+	def get_icon_path(self, iface):
+		"""Get an icon for this interface. If the icon is in the cache, use that.
+		If not, start a download. If we already started a download (successful or
+		not) do nothing. Returns None if no icon is currently available."""
+		path = iface_cache.get_icon_path(iface)
+		if path:
+			return path
+
+		if self.network_use == network_offline:
+			info("No icon present for %s, but off-line so not downloading", iface)
+			return None
+
+		self.begin_icon_download(iface)
+		return None
