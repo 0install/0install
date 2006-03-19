@@ -1,15 +1,19 @@
 import gtk
 
-from zeroinstall.injector.model import Interface
+from zeroinstall.injector import basedir
+from zeroinstall.injector.model import Interface, escape
 import properties
 from treetips import TreeTips
 from gui import policy, pretty_size
+from logging import warn
 
 def _stability(impl):
 	assert impl
 	if impl.user_stability is None:
 		return impl.upstream_stability
 	return _("%s (was %s)") % (impl.user_stability, impl.upstream_stability)
+
+ICON_SIZE = 20.0
 
 class InterfaceTips(TreeTips):
 	def get_tooltip_text(self, item):
@@ -54,12 +58,14 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 	model = None
 	root = None
 	edit_properties = None
+	cached_icon = None
 
 	INTERFACE = 0
 	INTERFACE_NAME = 1
 	VERSION = 2
 	SUMMARY = 3
 	DOWNLOAD_SIZE = 4
+	ICON = 5
 
 	columns = [(_('Interface'), INTERFACE_NAME),
 		   (_('Version'), VERSION),
@@ -67,6 +73,8 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		   (_('Description'), SUMMARY)]
 
 	def __init__(self):
+		self.cached_icon = {}	# URI -> GdkPixbuf
+
 		self.edit_properties = gtk.Action('edit_properties',
 			  'Interface Properties...',
 			  'Set which implementation of this interface to use.',
@@ -77,12 +85,19 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 		self.set_shadow_type(gtk.SHADOW_IN)
 
-		self.model = gtk.TreeStore(object, str, str, str, str)
+		self.model = gtk.TreeStore(object, str, str, str, str, gtk.gdk.Pixbuf)
 		self.tree_view = tree_view = gtk.TreeView(self.model)
+
+		column_objects = []
+
+		if hasattr(policy, 'get_icon_path'):
+			# If we have 0launch version > 0.18, add an icon column
+			icon_column = gtk.TreeViewColumn('', gtk.CellRendererPixbuf(),
+						pixbuf = InterfaceBrowser.ICON)
+			tree_view.append_column(icon_column)
 
 		text = gtk.CellRendererText()
 
-		column_objects = []
 		for name, model_column in self.columns:
 			column = gtk.TreeViewColumn(name, text, text = model_column)
 			tree_view.append_column(column)
@@ -101,11 +116,16 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			pos = tree_view.get_path_at_pos(int(ev.x), int(ev.y))
 			if pos:
 				path = pos[0]
-				col = self.columns[column_objects.index(pos[1])][1]
-				row = self.model[path]
-				item = (row[InterfaceBrowser.INTERFACE], col)
-				if item != tips.item:
-					tips.prime(tree_view, item)
+				try:
+					col_index = column_objects.index(pos[1])
+				except ValueError:
+					tips.hide()
+				else:
+					col = self.columns[col_index][1]
+					row = self.model[path]
+					item = (row[InterfaceBrowser.INTERFACE], col)
+					if item != tips.item:
+						tips.prime(tree_view, item)
 			else:
 				tips.hide()
 
@@ -140,6 +160,33 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		assert isinstance(root, Interface)
 		self.root = root
 		policy.recalculate()	# Calls build_tree
+	
+	def get_icon(self, iface):
+		"""Get an icon for this interface. If the icon is in the cache, use that.
+		If not, start a download. If we already started a download (successful or
+		not) do nothing. Returns None if no icon is currently available."""
+		try:
+			return self.cached_icon[iface.uri]
+		except KeyError:
+			if not hasattr(policy, 'get_icon_path'):
+				return None		# injector < 0.19
+			path = policy.get_icon_path(iface)
+			if path:
+				try:
+					icon = gtk.gdk.pixbuf_new_from_file(path)
+				except Exception, ex:
+					warn("Failed to load cached PNG icon: %s", ex)
+					return None
+				w = icon.get_width()
+				h = icon.get_height()
+				scale = max(w, h, 1) / ICON_SIZE
+				icon = icon.scale_simple(int(w / scale),
+							 int(h / scale),
+							 gtk.gdk.INTERP_BILINEAR)
+				self.cached_icon[iface.uri] = icon
+				return icon
+
+		return None
 
 	def build_tree(self):
 		if policy.original_implementation is None:
@@ -158,6 +205,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			self.model[iter][InterfaceBrowser.INTERFACE] = iface
 			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = iface.get_name()
 			self.model[iter][InterfaceBrowser.SUMMARY] = iface.summary
+			self.model[iter][InterfaceBrowser.ICON] = self.get_icon(iface)
 
 			impl = policy.implementation.get(iface, None)
 			if impl:

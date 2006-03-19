@@ -60,6 +60,8 @@ class GUIPolicy(Policy):
 		return False
 
 	def monitor_download(self, dl):
+		from zeroinstall.injector import download
+
 		self.monitored_downloads.append(dl)
 
 		error_stream = dl.start()
@@ -74,7 +76,12 @@ class GUIPolicy(Policy):
 					self.pulse = None
 				try:
 					data = dl.error_stream_closed()
-					self.check_signed_data(dl, data)
+					if isinstance(dl, download.InterfaceDownload):
+						self.check_signed_data(dl, data)
+					elif hasattr(download, 'IconDownload') and \
+					     isinstance(dl, download.IconDownload):
+						if self.window:
+							self.window.browser.build_tree()
 				except download.DownloadError, ex:
 					dialog.alert(self.window,
 						"Error downloading interface '%s':\n\n%s" %

@@ -117,7 +117,7 @@ class MainWindow(Dialog):
 		# Responses
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
-		self.add_mixed_button('_Cache', gtk.STOCK_OPEN, SHOW_CACHE)
+		self.add_mixed_button('C_ache', gtk.STOCK_OPEN, SHOW_CACHE)
 
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		if download_only:
