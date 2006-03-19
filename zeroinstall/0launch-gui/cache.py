@@ -1,4 +1,4 @@
-import os
+import os, shutil
 import gtk, gobject
 
 import gui
@@ -8,12 +8,27 @@ from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import basedir, namespaces, model
 from treetips import TreeTips
 
+ROX_IFACE = 'http://rox.sourceforge.net/2005/interfaces/ROX-Filer'
+
 # Model columns
 ITEM = 0
 SELF_SIZE = 1
 PRETTY_SIZE = 2
 TOOLTIP = 3
-DELETE_CB = 4
+ITEM_OBJECT = 4
+
+def popup_menu(bev, obj):
+	menu = gtk.Menu()
+	for i in obj.menu_items:
+		if i is None:
+			item = gtk.SeparatorMenuItem()
+		else:
+			name, cb = i
+			item = gtk.MenuItem(name)
+			item.connect('activate', lambda item, cb=cb: cb(obj))
+		item.show()
+		menu.append(item)
+	menu.popup(None, None, None, bev.button, bev.time)
 
 def pretty_size(size):
 	if size == 0: return ''
@@ -45,20 +60,6 @@ def summary(iface):
 		return iface.get_name() + ' - ' + iface.summary
 	return iface.get_name()
 
-def delete_invalid_interface(uri):
-	if not uri.startswith('/'):
-		cached_iface = basedir.load_first_cache(namespaces.config_site,
-				'interfaces', model.escape(uri))
-		if cached_iface:
-			#print "Delete", cached_iface
-			os.unlink(cached_iface)
-	user_overrides = basedir.load_first_config(namespaces.config_site,
-				namespaces.config_prog,
-				'user_overrides', model.escape(uri))
-	if user_overrides:
-		#print "Delete", user_overrides
-		os.unlink(user_overrides)
-
 def get_selected_paths(tree_view):
 	"GTK 2.0 doesn't have this built-in"
 	selection = tree_view.get_selection()
@@ -72,6 +73,47 @@ tips = TreeTips()
 
 # Responses
 DELETE = 0
+
+class InvalidInterface:
+	def __init__(self, uri, ex, size):
+		self.uri = uri
+		self.ex = ex
+		self.size = size
+
+	def delete(self):
+		if not self.uri.startswith('/'):
+			cached_iface = basedir.load_first_cache(namespaces.config_site,
+					'interfaces', model.escape(self.uri))
+			if cached_iface:
+				#print "Delete", cached_iface
+				os.unlink(cached_iface)
+		user_overrides = basedir.load_first_config(namespaces.config_site,
+					namespaces.config_prog,
+					'user_overrides', model.escape(self.uri))
+		if user_overrides:
+			#print "Delete", user_overrides
+			os.unlink(user_overrides)
+	
+	def append_to(self, model, iter):
+		model.append(iter, [self.uri, self.size, None, self.ex, self])
+	
+class UnusedImplementation:
+	def __init__(self, cache_dir, name):
+		self.impl_path = os.path.join(cache_dir, name)
+		self.size = get_size(self.impl_path)
+		self.name = name
+
+	def delete(self):
+		#print "Delete", self.impl_path
+		shutil.rmtree(self.impl_path)
+	
+	def append_to(self, model, iter):
+		model.append(iter, [self.name, self.size, None, self.impl_path, self])
+	
+	def open_rox(self):
+		os.spawnlp(os.P_WAIT, '0launch', '0launch', ROX_IFACE, '-d', self.impl_path)
+
+	menu_items = [('Open in ROX-Filer', open_rox)]
 
 class CacheExplorer(Dialog):
 	def __init__(self):
@@ -100,6 +142,18 @@ class CacheExplorer(Dialog):
 		cell.set_property('xalign', 1.0)
 		column = gtk.TreeViewColumn('Size', cell, text = PRETTY_SIZE)
 		self.tree_view.append_column(column)
+
+		def button_press(tree_view, bev):
+			if bev.button != 3:
+				return False
+			pos = tree_view.get_path_at_pos(int(bev.x), int(bev.y))
+			if not pos:
+				return False
+			path, col, x, y = pos
+			obj = self.model[path][ITEM_OBJECT]
+			if obj and hasattr(obj, 'menu_items'):
+				popup_menu(bev, obj)
+		self.tree_view.connect('button-press-event', button_press)
 
 		# Tree tooltips
 		def motion(tree_view, ev):
@@ -132,7 +186,8 @@ class CacheExplorer(Dialog):
 		def selection_changed(selection):
 			any_selected = False
 			for x in get_selected_paths(self.tree_view):
-				if not self.model[x][DELETE_CB]:
+				obj = self.model[x][ITEM_OBJECT]
+				if obj is None or not hasattr(obj, 'delete'):
 					self.set_response_sensitive(DELETE, False)
 					return
 				any_selected = True
@@ -155,9 +210,9 @@ class CacheExplorer(Dialog):
 		paths = get_selected_paths(self.tree_view)
 		paths.reverse()
 		for path in paths:
-			cb = model[path][DELETE_CB]
-			assert cb
-			cb(model[path][ITEM])
+			item = model[path][ITEM_OBJECT]
+			assert item.delete
+			item.delete()
 			model.remove(model.get_iter(path))
 		self.update_sizes()
 
@@ -218,23 +273,24 @@ class CacheExplorer(Dialog):
 						   "read. You should probably delete them."),
 						   None])
 			for uri, ex, size in error_interfaces:
-				self.model.append(iter, [uri, size, None, ex,
-							 delete_invalid_interface])
+				item = InvalidInterface(uri, ex, size)
+				item.append_to(self.model, iter)
 
-		if unowned:
-			unowned_sizes = []
-			for id in unowned:
-				impl_path = os.path.join(unowned[id].dir, id)
-				unowned_sizes.append((get_size(impl_path), id, impl_path))
+		unowned_sizes = []
+		local_dir = os.path.join(basedir.xdg_cache_home, '0install.net', 'implementations')
+		for id in unowned:
+			if unowned[id].dir == local_dir:
+				impl = UnusedImplementation(local_dir, id)
+				unowned_sizes.append((impl.size, impl))
+		if unowned_sizes:
 			iter = self.model.append(None, [_("Unowned implementations and temporary files"),
 						0, None,
 						_("These probably aren't needed any longer. You can "
-						  "delete them."),
-						  None])
+						  "delete them."), None])
 			unowned_sizes.sort()
-			for size, id, impl_path in unowned_sizes:
-				self.model.append(iter, [id, size, None, impl_path,
-				None])
+			unowned_sizes.reverse()
+			for size, item in unowned_sizes:
+				item.append_to(self.model, iter)
 
 		if unused_interfaces:
 			iter = self.model.append(None, [_("Unused interfaces (no versions cached)"),
