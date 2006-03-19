@@ -1,5 +1,5 @@
 #!/usr/bin/env python2.3
-import sys, tempfile, os, shutil
+import sys, tempfile, os, shutil, logging
 from StringIO import StringIO
 import unittest
 from logging import getLogger, DEBUG, INFO
@@ -12,7 +12,7 @@ cache_home = tempfile.mktemp()
 os.environ['XDG_CONFIG_HOME'] = config_home
 os.environ['XDG_CACHE_HOME'] = cache_home
 
-from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache
+from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, namespaces
 import data
 reload(basedir)
 
@@ -214,6 +214,87 @@ class TestAutoPolicy(unittest.TestCase):
 		assert policy.ready
 		foo_iface = policy.get_interface(foo_iface_uri)
 		self.assertEquals('sha1=123', policy.implementation[foo_iface].id)
+
+	def testBadConfig(self):
+		path = basedir.save_config_path(namespaces.config_site,
+						namespaces.config_prog)
+		glob = os.path.join(path, 'global')
+		assert not os.path.exists(glob)
+		stream = file(glob, 'w')
+		stream.write('hello!')
+		stream.close()
+
+		logger = logging.getLogger()
+		logger.setLevel(logging.ERROR)
+		policy = autopolicy.AutoPolicy(foo_iface_uri,
+						download_only = False)
+		logger.setLevel(logging.WARN)
+
+	def testRanking(self):
+		self.cache_iface('http://bar',
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="http://bar"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Bar</name>
+  <summary>Bar</summary>
+  <description>Bar</description>
+  <implementation id='sha1=125' version='1.0' arch='odd-weird' stability='buggy'/>
+  <implementation id='sha1=126' version='1.0'/>
+</interface>""")
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <feed src='http://example.com' arch='odd-unknown'/>
+  <feed src='http://bar'/>
+  <implementation id='sha1=123' version='1.0' arch='odd-strange'/>
+  <implementation id='sha1=124' version='1.0' arch='odd-weird'/>
+</interface>""" % foo_iface_uri)
+		policy = autopolicy.AutoPolicy(foo_iface_uri,
+						download_only = False)
+		policy.network_use = model.network_offline
+		impls = policy.get_ranked_implementations(
+				policy.get_interface(policy.root))
+		assert len(impls) == 4
+
+	def testBestUnusable(self):
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <implementation id='sha1=123' version='1.0' arch='odd-weird'/>
+</interface>""" % foo_iface_uri)
+		policy = autopolicy.AutoPolicy(foo_iface_uri,
+						download_only = False)
+		policy.recalculate()
+		assert not policy.ready
+
+	def testCycle(self):
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <group>
+    <requires interface='%s'/>
+    <implementation id='sha1=123' version='1.0'/>
+  </group>
+</interface>""" % (foo_iface_uri, foo_iface_uri))
+		policy = autopolicy.AutoPolicy(foo_iface_uri,
+						download_only = False)
+		policy.recalculate()
 
 suite = unittest.makeSuite(TestAutoPolicy)
 if __name__ == '__main__':

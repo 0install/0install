@@ -4,5 +4,8 @@
   <name>Foo</name>
   <summary>Foo</summary>
   <description>Foo</description>
+  <implementation id='./one' version='0.1'/>
   <implementation id='.' version='1.0'/>
+  <implementation id='./x' version='1.0' arch='Linux-weirdArch'/>
+  <implementation id='./two' version='0.2'/>
 </interface>

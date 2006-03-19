@@ -62,7 +62,6 @@ class TestQDom(unittest.TestCase):
 		assert root.children[1].children == []
 	
 	def testStr(self):
-		"Mainly, this is for coverage."
 		root = parseString('<?xml version="1.0"?><root>' +
 			'<sub x="2">hi</sub><empty/></root>')
 		assert 'root' in str(root)

@@ -47,7 +47,7 @@ class Policy(object):
 				self.freshness = int(config.get('global', 'freshness'))
 				assert self.network_use in network_levels
 			except Exception, ex:
-				print >>sys.stderr, "Error loading config:", ex
+				warn("Error loading config: %s", ex)
 
 		self.set_root(root)
 
