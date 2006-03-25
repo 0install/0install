@@ -97,10 +97,10 @@ class CachedInterface:
 		return self.uri.__cmp__(other.uri)
 
 class ValidInterface(CachedInterface):
-	def __init__(self, iface, size, in_cache):
+	def __init__(self, iface, size):
 		CachedInterface.__init__(self, iface.uri, size)
 		self.iface = iface
-		self.in_cache = in_cache
+		self.in_cache = []
 
 	def append_to(self, model, iter):
 		iter2 = model.append(iter,
@@ -108,7 +108,13 @@ class ValidInterface(CachedInterface):
 		for cached_impl in self.in_cache:
 			cached_impl.append_to(model, iter2)
 	
-	may_delete = property(lambda self: not self.in_cache)
+	def get_may_delete(self):
+		for c in self.in_cache:
+			if not isinstance(c, LocalImplementation):
+				return False	# Still some impls cached
+		return True
+
+	may_delete = property(get_may_delete)
 	
 class InvalidInterface(CachedInterface):
 	may_delete = True
@@ -120,6 +126,15 @@ class InvalidInterface(CachedInterface):
 	def append_to(self, model, iter):
 		model.append(iter, [self.uri, self.size, None, self.ex, self])
 	
+class LocalImplementation:
+	may_delete = False
+
+	def __init__(self, impl):
+		self.impl = impl
+
+	def append_to(self, model, iter):
+		model.append(iter, [self.impl.id, 0, None, 'This is a local version, not held in the cache.', self])
+
 class CachedImplementation:
 	may_delete = True
 
@@ -142,10 +157,15 @@ class UnusedImplementation(CachedImplementation):
 		model.append(iter, [self.name, self.size, None, self.impl_path, self])
 
 class KnownImplementation(CachedImplementation):
-	def __init__(self, cache_dir, impl, impl_size):
+	def __init__(self, cached_iface, cache_dir, impl, impl_size):
 		CachedImplementation.__init__(self, cache_dir, impl.id)
+		self.cached_iface = cached_iface
 		self.impl = impl
 		self.size = impl_size
+	
+	def delete(self):
+		CachedImplementation.delete(self)
+		self.cached_iface.in_cache.remove(self)
 
 	def append_to(self, model, iter):
 		model.append(iter,
@@ -267,10 +287,11 @@ class CacheExplorer(Dialog):
 		duplicates = []
 
 		for s in iface_cache.stores.stores:
-			for id in os.listdir(s.dir):
-				if id in unowned:
-					duplicates.append(id)
-				unowned[id] = s
+			if os.path.isdir(s.dir):
+				for id in os.listdir(s.dir):
+					if id in unowned:
+						duplicates.append(id)
+					unowned[id] = s
 
 		ok_interfaces = []
 		error_interfaces = []
@@ -296,20 +317,18 @@ class CacheExplorer(Dialog):
 			except Exception, ex:
 				error_interfaces.append((uri, str(ex), iface_size))
 			else:
-				in_cache = []
+				cached_iface = ValidInterface(iface, iface_size)
 				for impl in iface.implementations.values():
+					if impl.id.startswith('/') or impl.id.startswith('.'):
+						cached_iface.in_cache.append(LocalImplementation(impl))
 					if impl.id in unowned:
 						cached_dir = unowned[impl.id].dir
 						impl_path = os.path.join(cached_dir, impl.id)
 						impl_size = get_size(impl_path)
-						in_cache.append(KnownImplementation(cached_dir, impl, impl_size))
+						cached_iface.in_cache.append(KnownImplementation(cached_iface, cached_dir, impl, impl_size))
 						del unowned[impl.id]
-				in_cache.sort()
-				item = ValidInterface(iface, iface_size, in_cache)
-				if in_cache:
-					ok_interfaces.append(item)
-				else:
-					unused_interfaces.append(item)
+				cached_iface.in_cache.sort()
+				ok_interfaces.append(cached_iface)
 
 		if error_interfaces:
 			iter = self.model.append(None, [_("Invalid interfaces (unreadable)"),
@@ -337,23 +356,11 @@ class CacheExplorer(Dialog):
 			for size, item in unowned_sizes:
 				item.append_to(self.model, iter)
 
-		if unused_interfaces:
-			iter = self.model.append(None, [_("Unused interfaces (no versions cached)"),
-						0, None,
-						_("These interfaces are cached, but no actual versions "
-						  "are present. They might be useful, and they don't "
-						  "take up much space."),
-						  None])
-			unused_interfaces.sort()
-			for item in unused_interfaces:
-				item.append_to(self.model, iter)
-
 		if ok_interfaces:
 			iter = self.model.append(None,
-				[_("Used interfaces"),
+				[_("Interfaces"),
 				 0, None,
-				 _("At least one implementation of each of "
-				   "these interfaces is in the cache."),
+				 _("Interfaces in the cache"),
 				   None])
 			for item in ok_interfaces:
 				item.append_to(self.model, iter)
