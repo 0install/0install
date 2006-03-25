@@ -2,7 +2,7 @@
 <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'
 	   uri='http://0install.net/2005/interfaces/injector-gui'
 	   main='0launch-gui'>
-  <name>Injector-GUI</name>
+  <name>0launch-gui</name>
   <summary>graphical interface for the injector</summary>
   <description>
     The injector GUI displays a window showing which versions of various components will be used when running a program, and allows you to alter various policy settings to affect the selection process. You can use this to mark particular versions of libraries as preferred, bugggy, etc.
