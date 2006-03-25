@@ -74,10 +74,9 @@ tips = TreeTips()
 # Responses
 DELETE = 0
 
-class InvalidInterface:
-	def __init__(self, uri, ex, size):
+class CachedInterface:
+	def __init__(self, uri, size):
 		self.uri = uri
-		self.ex = ex
 		self.size = size
 
 	def delete(self):
@@ -94,10 +93,40 @@ class InvalidInterface:
 			#print "Delete", user_overrides
 			os.unlink(user_overrides)
 	
+	def __cmp__(self, other):
+		return self.uri.__cmp__(other.uri)
+
+class ValidInterface(CachedInterface):
+	def __init__(self, iface, size, in_cache):
+		CachedInterface.__init__(self, iface.uri, size)
+		self.iface = iface
+		self.in_cache = in_cache
+
+	def append_to(self, model, iter):
+		iter2 = model.append(iter,
+				  [self.uri, self.size, None, summary(self.iface), self])
+		for impl, size in self.in_cache:
+			model.append(iter2,
+				['Version %s : %s' % (impl.get_version(), impl.id),
+				 size, None,
+				 None,
+				 None])
+	
+	may_delete = property(lambda self: not self.in_cache)
+	
+class InvalidInterface(CachedInterface):
+	may_delete = True
+
+	def __init__(self, uri, ex, size):
+		CachedInterface.__init__(self, uri, size)
+		self.ex = ex
+
 	def append_to(self, model, iter):
 		model.append(iter, [self.uri, self.size, None, self.ex, self])
 	
 class UnusedImplementation:
+	may_delete = True
+
 	def __init__(self, cache_dir, name):
 		self.impl_path = os.path.join(cache_dir, name)
 		self.size = get_size(self.impl_path)
@@ -187,7 +216,7 @@ class CacheExplorer(Dialog):
 			any_selected = False
 			for x in get_selected_paths(self.tree_view):
 				obj = self.model[x][ITEM_OBJECT]
-				if obj is None or not hasattr(obj, 'delete'):
+				if obj is None or not obj.may_delete:
 					self.set_response_sensitive(DELETE, False)
 					return
 				any_selected = True
@@ -260,11 +289,12 @@ class CacheExplorer(Dialog):
 						in_cache.append((impl, impl_size))
 						del unowned[impl.id]
 						iface_size += impl_size
+				in_cache.sort()
+				item = ValidInterface(iface, iface_size, in_cache)
 				if in_cache:
-					in_cache.sort()
-					ok_interfaces.append((iface, in_cache, iface_size))
+					ok_interfaces.append(item)
 				else:
-					unused_interfaces.append((iface, iface_size))
+					unused_interfaces.append(item)
 
 		if error_interfaces:
 			iter = self.model.append(None, [_("Invalid interfaces (unreadable)"),
@@ -300,8 +330,8 @@ class CacheExplorer(Dialog):
 						  "take up much space."),
 						  None])
 			unused_interfaces.sort()
-			for iface, size in unused_interfaces:
-				self.model.append(iter, [iface.uri, size, None, summary(iface), None])
+			for item in unused_interfaces:
+				item.append_to(self.model, iter)
 
 		if ok_interfaces:
 			iter = self.model.append(None,
@@ -310,15 +340,8 @@ class CacheExplorer(Dialog):
 				 _("At least one implementation of each of "
 				   "these interfaces is in the cache."),
 				   None])
-			for iface, in_cache, iface_size in ok_interfaces:
-				iter2 = self.model.append(iter,
-						  [iface.uri, iface_size, None, summary(iface), None])
-				for impl, size in in_cache:
-					self.model.append(iter2,
-						['Version %s : %s' % (impl.get_version(), impl.id),
-						 size, None,
-						 None,
-						 None])
+			for item in ok_interfaces:
+				item.append_to(self.model, iter)
 		self.update_sizes()
 	
 	def update_sizes(self):
