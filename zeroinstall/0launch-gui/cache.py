@@ -105,12 +105,8 @@ class ValidInterface(CachedInterface):
 	def append_to(self, model, iter):
 		iter2 = model.append(iter,
 				  [self.uri, self.size, None, summary(self.iface), self])
-		for impl, size in self.in_cache:
-			model.append(iter2,
-				['Version %s : %s' % (impl.get_version(), impl.id),
-				 size, None,
-				 None,
-				 None])
+		for cached_impl in self.in_cache:
+			cached_impl.append_to(model, iter2)
 	
 	may_delete = property(lambda self: not self.in_cache)
 	
@@ -124,7 +120,7 @@ class InvalidInterface(CachedInterface):
 	def append_to(self, model, iter):
 		model.append(iter, [self.uri, self.size, None, self.ex, self])
 	
-class UnusedImplementation:
+class CachedImplementation:
 	may_delete = True
 
 	def __init__(self, cache_dir, name):
@@ -136,13 +132,32 @@ class UnusedImplementation:
 		#print "Delete", self.impl_path
 		shutil.rmtree(self.impl_path)
 	
-	def append_to(self, model, iter):
-		model.append(iter, [self.name, self.size, None, self.impl_path, self])
-	
 	def open_rox(self):
 		os.spawnlp(os.P_WAIT, '0launch', '0launch', ROX_IFACE, '-d', self.impl_path)
 
 	menu_items = [('Open in ROX-Filer', open_rox)]
+
+class UnusedImplementation(CachedImplementation):
+	def append_to(self, model, iter):
+		model.append(iter, [self.name, self.size, None, self.impl_path, self])
+
+class KnownImplementation(CachedImplementation):
+	def __init__(self, cache_dir, impl, impl_size):
+		CachedImplementation.__init__(self, cache_dir, impl.id)
+		self.impl = impl
+		self.size = impl_size
+
+	def append_to(self, model, iter):
+		model.append(iter,
+			['Version %s : %s' % (self.impl.get_version(), self.impl.id),
+			 self.size, None,
+			 None,
+			 self])
+	
+	def __cmp__(self, other):
+		if hasattr(other, 'impl'):
+			return self.impl.__cmp__(other.impl)
+		return -1
 
 class CacheExplorer(Dialog):
 	def __init__(self):
@@ -284,11 +299,11 @@ class CacheExplorer(Dialog):
 				in_cache = []
 				for impl in iface.implementations.values():
 					if impl.id in unowned:
-						impl_path = os.path.join(unowned[impl.id].dir, impl.id)
+						cached_dir = unowned[impl.id].dir
+						impl_path = os.path.join(cached_dir, impl.id)
 						impl_size = get_size(impl_path)
-						in_cache.append((impl, impl_size))
+						in_cache.append(KnownImplementation(cached_dir, impl, impl_size))
 						del unowned[impl.id]
-						iface_size += impl_size
 				in_cache.sort()
 				item = ValidInterface(iface, iface_size, in_cache)
 				if in_cache:
