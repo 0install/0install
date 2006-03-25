@@ -396,9 +396,7 @@ different versions of libraries in some cases.
 
 The cache viewer shows you all the interfaces and implementations in your cache. \
 This is useful to find versions you don't need anymore, so that you can delete them and \
-free up some disk space.
-
-Note: the cache viewer isn't finished; it doesn't currently let you delete things!"""),
+free up some disk space."""),
 
 ('Invalid interfaces', """
 The cache viewer gets a list of all interfaces in your cache. However, some may not \
@@ -418,14 +416,7 @@ downloading it. If the archive is corrupted, the unpacked files may be left ther
 you are currently unpacking new programs, it should be fine to delete everything in this \
 section."""),
 
-('Unused interfaces', """
-An unused interface is one which was downloaded, but you don't have any implementations in \
-the cache. Since interface files are small, there is little point in deleting them. They may \
-even be useful in some cases (for example, the injector sometimes checks multiple interfaces \
-to find a usable version; if you delete one of them then it will have to fetch it again, because \
-it will forget that it doesn't contain anything useful)."""),
-
-('Used interfaces', """
+('Interfaces', """
 All remaining interfaces are listed in this section. You may wish to delete old versions of \
 certain programs. Deleting a program which you may later want to run will require it to be downloaded \
 again. Deleting a version of a program which is currently running may cause it to crash, so be careful!
