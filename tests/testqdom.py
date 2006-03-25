@@ -22,7 +22,7 @@ class TestQDom(unittest.TestCase):
 		assert root.name == 'root'
 		assert root.uri == None
 		assert root.content == 'Hi'
-		assert root.children == []
+		assert root.childNodes == []
 
 	def testNS(self):
 		root = parseString('<?xml version="1.0"?>' +
@@ -30,7 +30,7 @@ class TestQDom(unittest.TestCase):
 		assert root.name == 'root'
 		assert root.uri == 'http://myns.com/foo'
 		assert root.content == ''
-		assert root.children == []
+		assert root.childNodes == []
 
 	def testAttrs(self):
 		root = parseString('<?xml version="1.0"?>' +
@@ -38,7 +38,7 @@ class TestQDom(unittest.TestCase):
 		assert root.name == 'root'
 		assert root.uri == None
 		assert root.content == ''
-		assert root.children == []
+		assert root.childNodes == []
 
 		assert root.attrs.get('http://myns.com/foo foo') == 'bar'
 		assert root.attrs.get('bar') == 'baz'
@@ -49,17 +49,17 @@ class TestQDom(unittest.TestCase):
 		assert root.name == 'root'
 		assert root.uri == None
 		assert root.content == ''
-		assert len(root.children) == 2
+		assert len(root.childNodes) == 2
 
-		assert root.children[0].name == 'name'
-		assert root.children[0].uri == None
-		assert root.children[0].content == 'Bob'
-		assert root.children[0].children == []
+		assert root.childNodes[0].name == 'name'
+		assert root.childNodes[0].uri == None
+		assert root.childNodes[0].content == 'Bob'
+		assert root.childNodes[0].childNodes == []
 
-		assert root.children[1].name == 'age'
-		assert root.children[1].uri == None
-		assert root.children[1].content == '3'
-		assert root.children[1].children == []
+		assert root.childNodes[1].name == 'age'
+		assert root.childNodes[1].uri == None
+		assert root.childNodes[1].content == '3'
+		assert root.childNodes[1].childNodes == []
 	
 	def testStr(self):
 		root = parseString('<?xml version="1.0"?><root>' +

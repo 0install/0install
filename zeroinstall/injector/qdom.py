@@ -8,18 +8,18 @@ from xml.parsers import expat
 import sys
 
 class Element(object):
-	__slots__ = ['uri', 'name', 'attrs', 'children', 'content']
+	__slots__ = ['uri', 'name', 'attrs', 'childNodes', 'content']
 	def __init__(self, uri, name, attrs):
 		self.uri = uri
 		self.name = name
 		self.attrs = attrs.copy()
-		self.children = []
+		self.childNodes = []
 	
 	def __str__(self):
 		attrs = [n + '=' + self.attrs[n] for n in self.attrs]
 		start = '<{%s}%s %s' % (self.uri, self.name, ' '.join(attrs))
-		if self.children:
-			return start + '>\n'.join(map(str, self.children)) + ('</%s>' % (self.name))
+		if self.childNodes:
+			return start + '>\n'.join(map(str, self.childNodes)) + ('</%s>' % (self.name))
 		elif self.content:
 			return start + '>' + self.content + ('</%s>' % (self.name))
 		else:
@@ -49,7 +49,7 @@ class QSAXhandler:
 		self.contents = ''
 		new = self.stack.pop()
 		if self.stack:
-			self.stack[-1].children.append(new)
+			self.stack[-1].childNodes.append(new)
 		else:
 			self.doc = new
 

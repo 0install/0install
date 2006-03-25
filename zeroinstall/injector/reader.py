@@ -21,7 +21,7 @@ class InvalidInterface(SafeException):
 
 def get_singleton_text(parent, ns, localName):
 	elem = None
-	for x in parent.children:
+	for x in parent.childNodes:
 		if x.uri == ns and x.name == localName:
 			if elem:
 				raise InvalidInterface('Multiple <%s> elements in <%s>' % (localName, parent.name))
@@ -46,7 +46,7 @@ class Attrs(object):
 		return new
 
 def process_depends(dependency, item):
-	for e in item.children:
+	for e in item.childNodes:
 		if e.uri == XMLNS_IFACE and e.name == 'environment':
 			binding = EnvironmentBinding(e.getAttribute('name'),
 						     insert = e.getAttribute('insert'),
@@ -95,7 +95,7 @@ def update_user_overrides(interface):
 	if stability_policy:
 		interface.set_stability_policy(stability_levels[str(stability_policy)])
 
-	for item in root.children:
+	for item in root.childNodes:
 		if item.uri != XMLNS_IFACE: continue
 		if item.name == 'implementation':
 			id = item.getAttribute('id')
@@ -168,7 +168,7 @@ def update(interface, source, local = False):
 	else:
 		iface_dir = None	# Can't have relative paths
 	
-	for x in root.children:
+	for x in root.childNodes:
 		if x.uri != XMLNS_IFACE:
 			interface.add_metadata(x)
 			continue
@@ -201,14 +201,14 @@ def update(interface, source, local = False):
 			interface.add_metadata(x)
 
 	def process_group(group, group_attrs, base_depends):
-		for item in group.children:
+		for item in group.childNodes:
 			if item.uri != XMLNS_IFACE: continue
 
 			depends = base_depends.copy()
 
 			item_attrs = group_attrs.merge(item)
 
-			for child in item.children:
+			for child in item.childNodes:
 				if child.uri != XMLNS_IFACE: continue
 				if child.name == 'requires':
 					dep = Dependency(child.getAttribute('interface'))
@@ -263,7 +263,7 @@ def update(interface, source, local = False):
 
 		impl.dependencies.update(depends)
 
-		for elem in item.children:
+		for elem in item.childNodes:
 			if elem.uri == XMLNS_IFACE and elem.name == 'archive':
 				url = elem.getAttribute('href')
 				if not url:
