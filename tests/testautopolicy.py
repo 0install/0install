@@ -3,7 +3,6 @@ import sys, tempfile, os, shutil, logging
 from StringIO import StringIO
 import unittest
 from logging import getLogger, DEBUG, INFO
-#getLogger().setLevel(DEBUG)
 
 sys.path.insert(0, '..')
 
@@ -12,11 +11,14 @@ cache_home = tempfile.mktemp()
 os.environ['XDG_CONFIG_HOME'] = config_home
 os.environ['XDG_CACHE_HOME'] = cache_home
 
-from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, namespaces
+from zeroinstall import NeedDownload
+from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, namespaces, reader
 import data
 reload(basedir)
 
 foo_iface_uri = 'http://foo'
+
+logger = logging.getLogger()
 
 class TestAutoPolicy(unittest.TestCase):
 	def setUp(self):
@@ -224,7 +226,6 @@ class TestAutoPolicy(unittest.TestCase):
 		stream.write('hello!')
 		stream.close()
 
-		logger = logging.getLogger()
 		logger.setLevel(logging.ERROR)
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
 						download_only = False)
@@ -257,10 +258,66 @@ class TestAutoPolicy(unittest.TestCase):
 </interface>""" % foo_iface_uri)
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
 						download_only = False)
-		policy.network_use = model.network_offline
+		policy.network_use = model.network_full
+		policy.freshness = 0
 		impls = policy.get_ranked_implementations(
 				policy.get_interface(policy.root))
 		assert len(impls) == 4
+
+		policy.network_use = model.network_offline
+		policy.recalculate()	# Changes sort order tests
+
+		logger.setLevel(logging.ERROR)
+		policy.recalculate()	# Triggers feed-for warning
+		logger.setLevel(logging.WARN)
+
+	def testNoLocal(self):
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <feed src='/etc/passwd'/>
+</interface>""" % foo_iface_uri)
+		policy = autopolicy.AutoPolicy(foo_iface_uri,
+						download_only = False)
+		policy.network_use = model.network_offline
+		try:
+			policy.get_interface(foo_iface_uri)
+			assert false
+		except reader.InvalidInterface, ex:
+			assert 'Invalid feed URL' in str(ex)
+
+	def testDLfeed(self):
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <feed src='http://example.com'/>
+</interface>""" % foo_iface_uri)
+		policy = autopolicy.AutoPolicy(foo_iface_uri, dry_run = True)
+		policy.network_use = model.network_full
+		policy.freshness = 0
+
+		try:
+			policy.recalculate()
+			assert False
+		except NeedDownload, ex:
+			pass
+
+		iface = policy.get_interface(foo_iface_uri)
+		iface.feeds = [model.Feed('/BadFeed', None, False)]
+
+		logger.setLevel(logging.ERROR)
+		policy.recalculate()	# Triggers warning
+		logger.setLevel(logging.WARN)
 
 	def testBestUnusable(self):
 		self.cache_iface(foo_iface_uri,
