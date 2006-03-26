@@ -284,7 +284,7 @@ class CacheExplorer(Dialog):
 		# Find cached implementations
 
 		unowned = {}	# Impl ID -> Store
-		duplicates = []
+		duplicates = [] # TODO
 
 		for s in iface_cache.stores.stores:
 			if os.path.isdir(s.dir):
@@ -295,7 +295,6 @@ class CacheExplorer(Dialog):
 
 		ok_interfaces = []
 		error_interfaces = []
-		unused_interfaces = []
 
 		# Look through cached interfaces for implementation owners
 		all = iface_cache.list_all_interfaces()
