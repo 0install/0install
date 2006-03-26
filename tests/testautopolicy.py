@@ -264,11 +264,9 @@ class TestAutoPolicy(unittest.TestCase):
 				policy.get_interface(policy.root))
 		assert len(impls) == 4
 
-		policy.network_use = model.network_offline
-		policy.recalculate()	# Changes sort order tests
-
 		logger.setLevel(logging.ERROR)
-		policy.recalculate()	# Triggers feed-for warning
+		policy.network_use = model.network_offline # Changes sort order tests
+		policy.recalculate()			   # Triggers feed-for warning
 		logger.setLevel(logging.WARN)
 
 	def testNoLocal(self):

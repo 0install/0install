@@ -178,12 +178,6 @@ def update(interface, source, local = False):
 			interface.description = interface.description or x.content
 		elif x.name == 'summary':
 			interface.summary = interface.summary or x.content
-		elif x.name == 'source':
-			source_interface = x.getAttribute('interface')
-			if source_interface:
-				interface.sources.append(Source(source_interface))
-			else:
-				raise InvalidInterface("Missing interface attribute on <source>")
 		elif x.name == 'feed-for':
 			feed_iface = x.getAttribute('interface')
 			if not feed_iface:

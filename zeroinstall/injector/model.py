@@ -59,13 +59,6 @@ testing = Stability(20, 'testing', 'Stability unknown - please test!')
 stable = Stability(30, 'stable', 'Tested - no serious problems found')
 preferred = Stability(40, 'preferred', 'Best of all - must be set manually')
 
-class Source(object):
-	"""An interface that can be executed to build a new implementation."""
-	__slots__ = ['source_interface']
-
-	def __init__(self, source_interface):
-		self.source_interface = source_interface
-
 class Restriction(object):
 	"""A Restriction limits the allowed implementations of an Interface."""
 
@@ -182,7 +175,7 @@ class Interface(object):
 	"""An Interface represents some contract of behaviour."""
 	__slots__ = ['uri', 'implementations', 'name', 'description', 'summary',
 		     'stability_policy', 'last_modified', 'last_local_update', 'last_checked',
-		     'main', 'feeds', 'sources', 'feed_for', 'metadata']
+		     'main', 'feeds', 'feed_for', 'metadata']
 
 	# last_local_update is deprecated
 	
@@ -209,7 +202,6 @@ class Interface(object):
 		self.last_local_update = None
 		self.last_checked = None
 		self.main = None
-		self.sources = []
 		self.feeds = []
 		self.feed_for = {}	# URI -> True
 		self.metadata = []

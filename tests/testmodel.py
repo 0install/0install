@@ -87,10 +87,6 @@ class TestModel(unittest.TestCase):
 		b.version = [1,2,1]
 		assert b > a
 	
-	def testSource(self):
-		i = model.Interface('http://foo')
-		i.sources.append(model.Source('http://source-iface'))
-
 	def testDownloadSource(self):
 		i = model.Interface('http://foo')
 		a = model.Implementation(i, 'foo')
