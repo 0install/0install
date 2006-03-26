@@ -173,7 +173,12 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			path = policy.get_icon_path(iface)
 			if path:
 				try:
-					icon = gtk.gdk.pixbuf_new_from_file(path)
+					loader = gtk.gdk.PixbufLoader('png')
+					try:
+						loader.write(file(path).read())
+					finally:
+						loader.close()
+					icon = loader.get_pixbuf()
 				except Exception, ex:
 					warn("Failed to load cached PNG icon: %s", ex)
 					return None
