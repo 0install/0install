@@ -1,10 +1,17 @@
 #!/usr/bin/env python
-import zeroinstall, sys, os, shutil
+import zeroinstall, sys, os, shutil, time
+from zeroinstall.injector import iface_cache, model
 
 os.system('svn status')
 
 trunk_url = 'https://svn.sourceforge.net/svnroot/zero-install/trunk/0launch'
 releases_url = 'https://svn.sourceforge.net/svnroot/zero-install/releases/0launch'
+
+publish_url = 'http://0install.net/2006/interfaces/0publish'
+
+def run(prog, *args):
+	if os.spawnlp(os.P_WAIT, prog, prog, *args):
+		raise Exception('Command failed: %s %s' % (prog, ' '.join(args)))
 
 for line in os.popen('dpkg-parsechangelog'):
 	if line.startswith('Version: '):
@@ -15,11 +22,24 @@ else:
 
 print "\nDebian version: " + deb_version + " (hint: debchange -i)"
 
+gui_iface_path = 'zeroinstall/0launch-gui/injector-gui.xml'
+gui_iface = iface_cache.iface_cache.get_interface(os.path.abspath(gui_iface_path))
+assert len(gui_iface.implementations) == 1
+gui_impl = gui_iface.implementations.values()[0]
+
+if gui_impl.get_version() != zeroinstall.version:
+	print "GUI version is '%s'; should be '%s'" % (gui_impl.get_version(), zeroinstall.version)
+	sys.exit(1)
+
 name = 'injector-' + zeroinstall.version
 package_name = 'zeroinstall-' + name
 a = raw_input("Release " + name + "? [y/N]")
 if not a or a not in 'Yy':
 	sys.exit(0)
+
+if gui_impl.upstream_stability == model.testing:
+	run('0launch', publish_url, '--stable', gui_iface_path)
+run('0launch', publish_url, '--set-released',  time.strftime('%Y-%m-%d'), gui_iface_path)
 
 if os.system('cd tests && ./testall.py'):
 	print "ERROR: Unit test failure. Stop"
@@ -33,6 +53,9 @@ if os.system('svn ls ' + releases_url + '/' + name + ' >/dev/null') == 0:
 		sys.exit(0)
 	os.system('svn rm ' + releases_url + '/' + name + ' -m overwrite')
 
+
+print "Branching..."
+
 if os.system('svn cp -m "Released ' + name + '" ' +
 	  trunk_url + ' ' + releases_url + '/' + name):
 	print "Failed to make release"
@@ -44,6 +67,6 @@ os.system('svn export ' + releases_url + '/' + name + ' ' + package_name)
 os.system('svn up')
 os.chdir(package_name)
 os.system('python setup.py sdist')
-os.system('dpkg-buildpackage -rfakeroot')
+os.system('dpkg-buildpackage -k59A53CC1 -rfakeroot')
 
 print "Tarball is", package_name + '/dist/' + package_name + '.tar.gz'
