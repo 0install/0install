@@ -65,7 +65,7 @@ def main():
 	if options.version:
 		import zeroinstall
 		print "0launch (zero-install) " + zeroinstall.version
-		print "Copyright (C) 2005 Thomas Leonard"
+		print "Copyright (C) 2006 Thomas Leonard"
 		print "This program comes with ABSOLUTELY NO WARRANTY,"
 		print "to the extent permitted by law."
 		print "You may redistribute copies of this program"

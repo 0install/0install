@@ -82,3 +82,60 @@ def add_manifest_file(dir, digest):
 	stream.write(manifest)
 	stream.close()
 	return digest
+
+def verify(root):
+	"""Ensure that directory 'dir' generates the given digest.
+	Raises BadDigest if not. For a non-error return:
+	- Dir's name must be a digest (in the form "alg=value")
+	- The calculated digest of the contents must match this name.
+	- If there is a .manifest file, then its digest must also match."""
+	import sha
+	from zeroinstall.zerostore import BadDigest
+	
+	required_digest = os.path.basename(root)
+	if not required_digest.startswith('sha1='):
+		raise BadDigest("Directory name '%s' does not start with 'sha1='" %
+			required_digest)
+
+	digest = sha.new()
+	lines = []
+	for line in generate_manifest(root):
+		line += '\n'
+		digest.update(line)
+		lines.append(line)
+	actual_digest = 'sha1=' + digest.hexdigest()
+
+	manifest_file = os.path.join(root, '.manifest')
+	if os.path.isfile(manifest_file):
+		digest = sha.new()
+		digest.update(file(manifest_file).read())
+		manifest_digest = 'sha1=' + digest.hexdigest()
+	else:
+		manifest_digest = None
+
+	if required_digest == actual_digest == manifest_digest:
+		return
+
+	error = BadDigest("Cached item does NOT verify.")
+	
+	error.detail = " Expected digest: " + required_digest + "\n" + \
+		       "   Actual digest: " + actual_digest + "\n" + \
+		       ".manifest digest: " + (manifest_digest or 'No .manifest file') + "\n\n"
+
+	if manifest_digest is None:
+		error.detail += "No .manifest, so no further details available."
+	elif manifest_digest == actual_digest:
+		error.detail += "The .manifest file matches the actual contents. Very strange!"
+	elif manifest_digest == required_digest:
+		import difflib
+		diff = difflib.unified_diff(file(manifest_file).readlines(), lines,
+					    'Recorded', 'Actual')
+		error.detail += "The .manifest file matches the directory name.\n" \
+				"The contents of the directory have changed:\n" + \
+				''.join(diff)
+	elif required_digest == actual_digest:
+		error.detail += "The directory contents are correct, but the .manifest file is wrong!"
+	else:
+		error.detail += "The .manifest file matches neither of the other digests. Odd."
+	raise error
+

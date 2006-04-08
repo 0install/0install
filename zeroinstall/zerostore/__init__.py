@@ -7,7 +7,8 @@ from logging import debug, info, warn
 from zeroinstall.injector import basedir
 from zeroinstall import SafeException
 
-class BadDigest(SafeException): pass
+class BadDigest(SafeException):
+	detail = None
 class NotStored(SafeException): pass
 
 def copytree2(src, dst):

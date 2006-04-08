@@ -6,6 +6,7 @@ import help_box
 from dialog import Dialog
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import basedir, namespaces, model
+from zeroinstall.zerostore import BadDigest, manifest
 from treetips import TreeTips
 
 ROX_IFACE = 'http://rox.sourceforge.net/2005/interfaces/ROX-Filer'
@@ -16,6 +17,62 @@ SELF_SIZE = 1
 PRETTY_SIZE = 2
 TOOLTIP = 3
 ITEM_OBJECT = 4
+
+# This is a copy of zerostore.manifest.verify, but that's only in version 0.20 and later...
+def _verify(root):
+	"""Ensure that directory 'dir' generates the given digest.
+	Raises BadDigest if not. For a non-error return:
+	- Dir's name must be a digest (in the form "alg=value")
+	- The calculated digest of the contents must match this name.
+	- If there is a .manifest file, then its digest must also match."""
+	import sha
+	
+	required_digest = os.path.basename(root)
+	if not required_digest.startswith('sha1='):
+		raise BadDigest("Directory name '%s' does not start with 'sha1='" %
+			required_digest)
+
+	digest = sha.new()
+	lines = []
+	for line in manifest.generate_manifest(root):
+		line += '\n'
+		digest.update(line)
+		lines.append(line)
+	actual_digest = 'sha1=' + digest.hexdigest()
+
+	manifest_file = os.path.join(root, '.manifest')
+	if os.path.isfile(manifest_file):
+		digest = sha.new()
+		digest.update(file(manifest_file).read())
+		manifest_digest = 'sha1=' + digest.hexdigest()
+	else:
+		manifest_digest = None
+
+	if required_digest == actual_digest == manifest_digest:
+		return
+
+	error = BadDigest("Cached item does NOT verify.")
+	
+	error.detail = " Expected digest: " + required_digest + "\n" + \
+		       "   Actual digest: " + actual_digest + "\n" + \
+		       ".manifest digest: " + (manifest_digest or 'No .manifest file') + "\n\n"
+
+	if manifest_digest is None:
+		error.detail += "No .manifest, so no further details available."
+	elif manifest_digest == actual_digest:
+		error.detail += "The .manifest file matches the actual contents. Very strange!"
+	elif manifest_digest == required_digest:
+		import difflib
+		diff = difflib.unified_diff(file(manifest_file).readlines(), lines,
+					    'Recorded', 'Actual')
+		error.detail += "The .manifest file matches the directory name.\n" \
+				"The contents of the directory have changed:\n" + \
+				''.join(diff)
+	elif required_digest == actual_digest:
+		error.detail += "The directory contents are correct, but the .manifest file is wrong!"
+	else:
+		error.detail += "The .manifest file matches neither of the other digests. Odd."
+	raise error
 
 def popup_menu(bev, obj):
 	menu = gtk.Menu()
@@ -149,8 +206,28 @@ class CachedImplementation:
 	
 	def open_rox(self):
 		os.spawnlp(os.P_WAIT, '0launch', '0launch', ROX_IFACE, '-d', self.impl_path)
+	
+	def verify(self):
+		try:
+			_verify(self.impl_path)
+		except BadDigest, ex:
+			box = gtk.MessageDialog(None, 0,
+						gtk.MESSAGE_WARNING, gtk.BUTTONS_OK, str(ex))
+			if ex.detail:
+				swin = gtk.ScrolledWindow()
+				buffer = gtk.TextBuffer()
+				mono = buffer.create_tag('mono', family = 'Monospace')
+				buffer.insert_with_tags(buffer.get_start_iter(), ex.detail, mono)
+				text = gtk.TextView(buffer)
+				swin.add(text)
+				box.vbox.pack_start(swin)
+				swin.show_all()
+				box.set_resizable(True)
+			box.run()
+			box.destroy()
 
-	menu_items = [('Open in ROX-Filer', open_rox)]
+	menu_items = [('Open in ROX-Filer', open_rox),
+		      ('Verify integrity', verify)]
 
 class UnusedImplementation(CachedImplementation):
 	def append_to(self, model, iter):
