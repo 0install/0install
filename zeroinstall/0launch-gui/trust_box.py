@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import gtk
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import gpg, trust
@@ -195,4 +197,8 @@ hints = {
 		'Piero Ottuzzi is experimenting with packaging programs for 0launch. This key has been '
 		'known since a 16 Mar 2005 post to the zero-install mailing list. It was first used to '
 		'sign software in an announcement posted on 9 Aug 2005.',
+	
+	'FC71DC3364367CE82F91472DDF32928893D894E9' :
+		'Niklas Höglund is experimenting with using Zero Install on the Nokia 770. This key has '
+		'been known since the announcement of 4 Apr 2006 on the zero-install mailing list.',
 }
