@@ -219,12 +219,20 @@ class CachedImplementation:
 				mono = buffer.create_tag('mono', family = 'Monospace')
 				buffer.insert_with_tags(buffer.get_start_iter(), ex.detail, mono)
 				text = gtk.TextView(buffer)
+				text.set_editable(False)
+				text.set_cursor_visible(False)
 				swin.add(text)
+				swin.set_shadow_type(gtk.SHADOW_IN)
+				swin.set_border_width(4)
 				box.vbox.pack_start(swin)
 				swin.show_all()
 				box.set_resizable(True)
-			box.run()
-			box.destroy()
+		else:
+			box = gtk.MessageDialog(None, 0,
+						gtk.MESSAGE_INFO, gtk.BUTTONS_OK,
+						'Contents match digest; nothing has been changed.')
+		box.run()
+		box.destroy()
 
 	menu_items = [('Open in ROX-Filer', open_rox),
 		      ('Verify integrity', verify)]
