@@ -1,17 +1,17 @@
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+import os
 import sys
 import shutil
 import time
 from logging import debug, warn
-
-import qdom
-import basedir
-from namespaces import *
-from model import *
-import os
 from os.path import dirname
+
+from zeroinstall import version
+from zeroinstall.injector import basedir, qdom
+from zeroinstall.injector.namespaces import *
+from zeroinstall.injector.model import *
 
 class InvalidInterface(SafeException):
 	def __init__(self, message, ex = None):
@@ -162,6 +162,19 @@ def update(interface, source, local = False):
 	main = root.getAttribute('main')
 	if main:
 		interface.main = main
+
+	min_injector_version = root.getAttribute('min-injector-version')
+	if min_injector_version:
+		try:
+			min_ints = map(int, min_injector_version.split('.'))
+		except ValueError, ex:
+			raise InvalidInterface("Bad version number '%s'" % min_injector_version)
+		injector_version = map(int, version.split('.'))
+		if min_ints > injector_version:
+			raise InvalidInterface("This interface requires version %s or later of "
+						"the Zero Install injector, but I am only version %s. "
+						"You can get a newer version from http://0install.net" %
+						(min_injector_version, version))
 
 	if local:
 		iface_dir = os.path.dirname(source)
