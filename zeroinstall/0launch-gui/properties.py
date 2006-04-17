@@ -1,6 +1,6 @@
 from zeroinstall.injector.model import *
-from zeroinstall.injector import writer
-import gtk
+from zeroinstall.injector import writer, namespaces
+import gtk, sys, os
 
 import help_box
 from dialog import Dialog
@@ -26,6 +26,19 @@ def format_para(para):
 	lines = [l.strip() for l in para.split('\n')]
 	return ' '.join(lines)
 
+def open_in_browser(link):
+	browser = os.environ.get('BROWSER', 'firefox')
+	child = os.fork()
+	if child == 0:
+		# We are the child
+		try:
+			os.spawnlp(os.P_NOWAIT, browser, browser, link)
+			os._exit(0)
+		except Exception, ex:
+			print >>sys.stderr, "Error", ex
+			os._exit(1)
+	os.waitpid(child, 0)
+
 class Description(gtk.ScrolledWindow):
 	def __init__(self):
 		gtk.ScrolledWindow.__init__(self, None, None)
@@ -37,11 +50,26 @@ class Description(gtk.ScrolledWindow):
 		description.set_wrap_mode(gtk.WRAP_WORD)
 		description.set_editable(False)
 		description.set_cursor_visible(False)
+		description.connect('button-press-event', self.button_press)
 		self.add(description)
 
 		self.buffer = description.get_buffer()
 		self.heading_style = self.buffer.create_tag(underline = True, scale = 1.2)
+		self.link_style = self.buffer.create_tag(underline = True, foreground = 'blue')
 		description.set_size_request(-1, 100)
+	
+	def button_press(self, tv, bev):
+		if bev.type == gtk.gdk.BUTTON_PRESS and bev.button == 1:
+			x, y = tv.window_to_buffer_coords(tv.get_window_type(bev.window),
+							  int(bev.x), int(bev.y))
+			itr = tv.get_iter_at_location(x, y)
+			if itr and self.link_style in itr.get_tags():
+				if not itr.begins_tag(self.link_style):
+					itr.backward_to_tag_toggle(self.link_style)
+				end = itr.copy()
+				end.forward_to_tag_toggle(self.link_style)
+				target = itr.get_text(end).strip()
+				open_in_browser(target)
 	
 	def set_details(self, interface):
 		buffer = self.buffer
@@ -52,7 +80,8 @@ class Description(gtk.ScrolledWindow):
 		iter = buffer.get_start_iter()
 
 		buffer.insert_with_tags(iter,
-			'%s (%s)' % (interface.get_name(), interface.summary), heading_style)
+			'%s ' % interface.get_name(), heading_style)
+		buffer.insert(iter, '(%s)' % interface.summary)
 
 		buffer.insert(iter, '\n%s\n' % interface.uri)
 
@@ -74,6 +103,15 @@ class Description(gtk.ScrolledWindow):
 		paragraphs = [format_para(p) for p in (interface.description or "-").split('\n\n')]
 
 		buffer.insert(iter, '\n\n'.join(paragraphs))
+
+		if hasattr(interface, 'get_metadata'):
+			need_gap = True
+			for x in interface.get_metadata(namespaces.XMLNS_IFACE, 'homepage'):
+				if need_gap:
+					buffer.insert(iter, '\n')
+					need_gap = False
+				buffer.insert(iter, '\nHomepage: ')
+				buffer.insert_with_tags(iter, '%s\n' % x.content, self.link_style)
 
 
 class Properties(Dialog):
