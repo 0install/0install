@@ -106,7 +106,7 @@ class Feed(object):
 class Dependency(object):
 	"""A Dependency indicates that an Implementation requires some additional
 	code to function, specified by another Interface."""
-	__slots__ = ['interface', 'restrictions', 'bindings']
+	__slots__ = ['interface', 'restrictions', 'bindings', 'min_version', 'max_version']
 
 	def __init__(self, interface):
 		assert isinstance(interface, (str, unicode))
@@ -114,9 +114,20 @@ class Dependency(object):
 		self.interface = interface
 		self.restrictions = []
 		self.bindings = []
+		self.min_version = self.max_version = None
 	
 	def __str__(self):
-		return "<Dependency on %s; bindings: %d %s>" % (self.interface, len(self.bindings), self.bindings)
+		if self.min_version is not None or self.max_version is not None:
+			range = ' ('
+			if self.min_version is not None:
+				range += '.'.join(map(str, self.min_version)) + ' < '
+			range += 'version'
+			if self.max_version is not None:
+				range += ' < ' + '.'.join(map(str, self.max_version))
+			range += ')'
+		else:
+			range = ''
+		return "<Dependency on %s; bindings: %d %s%s>" % (self.interface, len(self.bindings), self.bindings, range)
 
 class DownloadSource(object):
 	"""A DownloadSource provides a way to fetch an implementation."""

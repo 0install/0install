@@ -45,7 +45,16 @@ class Attrs(object):
 			setattr(new, x, value)
 		return new
 
+def parse_version(version_string):
+	if version_string is None: return None
+	try:
+		return map(int, version_string.split('.'))
+	except ValueError, ex:
+		raise InvalidInterface("Invalid version format in '%s': %s" % (version_string, ex))
+
 def process_depends(dependency, item):
+	dependency.min_version = parse_version(item.getAttribute('min-version'))
+	dependency.max_version = parse_version(item.getAttribute('max-version'))
 	for e in item.childNodes:
 		if e.uri == XMLNS_IFACE and e.name == 'environment':
 			binding = EnvironmentBinding(e.getAttribute('name'),
@@ -218,7 +227,10 @@ def update(interface, source, local = False):
 			for child in item.childNodes:
 				if child.uri != XMLNS_IFACE: continue
 				if child.name == 'requires':
-					dep = Dependency(child.getAttribute('interface'))
+					dep_iface = child.getAttribute('interface')
+					if dep_iface is None:
+						raise InvalidInterface("Missing 'interface' on <requires>")
+					dep = Dependency(dep_iface)
 					process_depends(dep, child)
 					depends[dep.interface] = dep
 

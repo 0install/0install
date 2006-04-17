@@ -1,9 +1,10 @@
 #!/usr/bin/env python2.3
 import sys, tempfile, os, shutil
 import unittest
+from StringIO import StringIO
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import model
+from zeroinstall.injector import model, qdom
 
 class TestModel(unittest.TestCase):
 	def testLevels(self):
@@ -49,6 +50,15 @@ class TestModel(unittest.TestCase):
 		i = model.Interface('http://foo')
 		self.assertEquals('(foo)', i.get_name())
 		repr(i)
+
+	def testMetadata(self):
+		i = model.Interface('http://foo')
+		e = qdom.parse(StringIO('<ns:b xmlns:ns="a" foo="bar"/>'))
+		i.metadata = [e]
+		assert i.get_metadata('a', 'b') == [e]
+		assert i.get_metadata('b', 'b') == []
+		assert i.get_metadata('a', 'a') == []
+		assert e.getAttribute('foo') == 'bar'
 
 	def testStabPolicy(self):
 		i = model.Interface('http://foo')

@@ -6,22 +6,26 @@ from logging import getLogger, DEBUG, INFO
 
 sys.path.insert(0, '..')
 
-config_home = tempfile.mktemp()
-cache_home = tempfile.mktemp()
-os.environ['XDG_CONFIG_HOME'] = config_home
-os.environ['XDG_CACHE_HOME'] = cache_home
-
 from zeroinstall import NeedDownload
 from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, namespaces, reader
 import data
 reload(basedir)
 
 foo_iface_uri = 'http://foo'
+bar_iface_uri = 'http://localhost/bar'
 
 logger = logging.getLogger()
 
+config_home = tempfile.mktemp()
+cache_home = tempfile.mktemp()
+os.environ['XDG_CONFIG_HOME'] = config_home
+os.environ['XDG_CACHE_HOME'] = cache_home
+
+assert not os.path.exists(config_home)
+
 class TestReader(unittest.TestCase):
 	def setUp(self):
+		assert not os.path.exists(config_home)
 		os.mkdir(config_home, 0700)
 		os.mkdir(cache_home, 0700)
 		if os.environ.has_key('DISPLAY'):
@@ -68,6 +72,36 @@ class TestReader(unittest.TestCase):
 			reader.check_readable(foo_iface_uri, tmp.name)
 		except reader.InvalidInterface, ex:
 			assert "1000" in str(ex)
+	
+	def testRequiresVersion(self):
+		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp.write(
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <group>
+   <requires interface='%s' min-version='2.3.4' max-version='3.4.5'/>
+   <requires interface='%s2'/>
+   <implementation id='sha1=123' version='1'/>
+  </group>
+</interface>""" % (foo_iface_uri, bar_iface_uri, bar_iface_uri))
+		tmp.flush()
+		iface = model.Interface(foo_iface_uri)
+		reader.update(iface, tmp.name)
+		impl = iface.implementations['sha1=123']
+		assert len(impl.dependencies) == 2
+		dep = impl.dependencies[bar_iface_uri]
+		assert dep.min_version == [2, 3, 4]
+		assert dep.max_version == [3, 4, 5]
+		dep2 = impl.dependencies[bar_iface_uri + '2']
+		assert dep2.min_version is None
+		assert dep2.max_version is None
+		str(dep)
+		str(dep2)
 	
 suite = unittest.makeSuite(TestReader)
 if __name__ == '__main__':
