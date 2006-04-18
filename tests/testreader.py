@@ -84,7 +84,9 @@ class TestReader(unittest.TestCase):
   <summary>Foo</summary>
   <description>Foo</description>
   <group>
-   <requires interface='%s' min-version='2.3.4' max-version='3.4.5'/>
+   <requires interface='%s'>
+     <version not-before='2.3.4' before='3.4.5'/>
+   </requires>
    <requires interface='%s2'/>
    <implementation id='sha1=123' version='1'/>
   </group>
@@ -95,11 +97,11 @@ class TestReader(unittest.TestCase):
 		impl = iface.implementations['sha1=123']
 		assert len(impl.dependencies) == 2
 		dep = impl.dependencies[bar_iface_uri]
-		assert dep.min_version == [2, 3, 4]
-		assert dep.max_version == [3, 4, 5]
+		assert dep.not_before == [2, 3, 4]
+		assert dep.before == [3, 4, 5]
 		dep2 = impl.dependencies[bar_iface_uri + '2']
-		assert dep2.min_version is None
-		assert dep2.max_version is None
+		assert dep2.not_before is None
+		assert dep2.before is None
 		str(dep)
 		str(dep2)
 	

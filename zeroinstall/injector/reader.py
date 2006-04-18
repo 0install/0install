@@ -53,14 +53,20 @@ def parse_version(version_string):
 		raise InvalidInterface("Invalid version format in '%s': %s" % (version_string, ex))
 
 def process_depends(dependency, item):
-	dependency.min_version = parse_version(item.getAttribute('min-version'))
-	dependency.max_version = parse_version(item.getAttribute('max-version'))
 	for e in item.childNodes:
-		if e.uri == XMLNS_IFACE and e.name == 'environment':
+		if e.uri != XMLNS_IFACE: continue
+		if e.name == 'environment':
 			binding = EnvironmentBinding(e.getAttribute('name'),
 						     insert = e.getAttribute('insert'),
 						     default = e.getAttribute('default'))
 			dependency.bindings.append(binding)
+		elif e.name == 'version':
+			not_before = e.getAttribute('not-before')
+			before = e.getAttribute('before')
+			if not_before:
+				dependency.not_before = parse_version(not_before)
+			if before:
+				dependency.before = parse_version(before)
 
 def update_from_cache(interface):
 	"""True if cached version and user overrides loaded OK.
