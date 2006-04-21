@@ -201,4 +201,8 @@ hints = {
 	'FC71DC3364367CE82F91472DDF32928893D894E9' :
 		'Niklas Höglund is experimenting with using Zero Install on the Nokia 770. This key has '
 		'been known since the announcement of 4 Apr 2006 on the zero-install mailing list.',
+	
+	'B93AAE76C40A3222425A04FA0BDA706F2C21E592' :
+		'Ilja Honkonen is experimenting with packaging software for Zero Install. This key '
+		'was announced on 2006-04-21 on the zero-install mailing list.',
 }
