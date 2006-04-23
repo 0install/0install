@@ -183,8 +183,15 @@ def verify(root):
 	raise error
 
 class HashLibAlgorithm(Algorithm):
+	new_digest = None		# Constructor for digest objects
+
 	def __init__(self, name):
 		self.name = name
+		if name == 'sha1':
+			import sha
+			self.new_digest = sha.new
+		else:
+			self.new_digest = getattr(hashlib, name)
 
 	def generate_manifest(self, root):
 		def recurse(sub):
@@ -199,7 +206,7 @@ class HashLibAlgorithm(Algorithm):
 
 			full = os.path.join(root, sub[1:])
 			info = os.lstat(full)
-			new_digest = getattr(hashlib, self.name)
+			new_digest = self.new_digest
 			
 			m = info.st_mode
 			assert stat.S_ISDIR(m)
@@ -234,14 +241,12 @@ class HashLibAlgorithm(Algorithm):
 
 		for x in recurse('/'): yield x
 
-	def new_digest(self):
-		return hashlib.new(self.name)
-
 	def getID(self, digest):
 		return self.name + '=' + digest.hexdigest()
 
 algorithms = {
 	'sha1': OldSHA1(),
+	'sha1new': HashLibAlgorithm('sha1'),
 }
 
 if hashlib is not None:
