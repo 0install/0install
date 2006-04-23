@@ -75,28 +75,29 @@ class Policy(object):
 		self.implementation = {}
 		self.ready = True
 		debug("Recalculate! root = %s", self.root)
-		def process(iface):
+		def process(dep):
+			iface = self.get_interface(dep.interface)
 			if iface in self.implementation:
 				debug("cycle; skipping second %s", iface)
 				return
 			self.implementation[iface] = None	# Avoid cycles
 
-			impl = self._get_best_implementation(iface)
+			impl = self._get_best_implementation(iface, dep.restrictions)
 			if impl:
 				debug("Will use implementation %s (version %s)", impl, impl.get_version())
 				self.implementation[iface] = impl
 				for d in impl.dependencies.values():
 					debug("Considering dependency %s", d)
-					process(self.get_interface(d.interface))
+					process(d)
 			else:
 				debug("No implementation chould be chosen yet");
 				self.ready = False
-		process(self.get_interface(self.root))
+		process(Dependency(self.root))
 		for w in self.watchers: w()
 	
 	# Only to be called from recalculate, as it is quite slow.
 	# Use the results stored in self.implementation instead.
-	def _get_best_implementation(self, iface):
+	def _get_best_implementation(self, iface, restrictions):
 		impls = iface.implementations.values()
 		for f in self.usable_feeds(iface):
 			debug("Processing feed %s", f)
@@ -118,6 +119,8 @@ class Policy(object):
 		if not impls:
 			info("Interface %s has no implementations!", iface)
 			return None
+		for r in restrictions:
+			impls = filter(r.meets_restriction, impls)
 		best = impls[0]
 		for x in impls[1:]:
 			if self.compare(iface, x, best) < 0:

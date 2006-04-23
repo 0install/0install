@@ -61,6 +61,29 @@ preferred = Stability(40, 'preferred', 'Best of all - must be set manually')
 
 class Restriction(object):
 	"""A Restriction limits the allowed implementations of an Interface."""
+	__slots__ = ['before', 'not_before']
+	def __init__(self, before, not_before):
+		self.before = before
+		self.not_before = not_before
+	
+	def meets_restriction(self, impl):
+		if self.not_before and impl.version < self.not_before:
+			return False
+		if self.before and impl.version >= self.before:
+			return False
+		return True
+	
+	def __str__(self):
+		if self.not_before is not None or self.before is not None:
+			range = ''
+			if self.not_before is not None:
+				range += '.'.join(map(str, self.not_before)) + ' <= '
+			range += 'version'
+			if self.before is not None:
+				range += ' < ' + '.'.join(map(str, self.before))
+		else:
+			range = 'none'
+		return "(restriction: %s)" % range
 
 class Binding(object):
 	"""Information about how the choice of a Dependency is made known
@@ -106,8 +129,7 @@ class Feed(object):
 class Dependency(object):
 	"""A Dependency indicates that an Implementation requires some additional
 	code to function, specified by another Interface."""
-	__slots__ = ['interface', 'restrictions', 'bindings',
-		     'not_before', 'before']
+	__slots__ = ['interface', 'restrictions', 'bindings']
 
 	def __init__(self, interface):
 		assert isinstance(interface, (str, unicode))
@@ -115,20 +137,9 @@ class Dependency(object):
 		self.interface = interface
 		self.restrictions = []
 		self.bindings = []
-		self.not_before = self.before = None
 	
 	def __str__(self):
-		if self.not_before is not None or self.before is not None:
-			range = ' ('
-			if self.not_before is not None:
-				range += '.'.join(map(str, self.not_before)) + ' <= '
-			range += 'version'
-			if self.before is not None:
-				range += ' < ' + '.'.join(map(str, self.before))
-			range += ')'
-		else:
-			range = ''
-		return "<Dependency on %s; bindings: %d %s%s>" % (self.interface, len(self.bindings), self.bindings, range)
+		return "<Dependency on %s; bindings: %s%s>" % (self.interface, self.bindings, self.restrictions)
 
 class DownloadSource(object):
 	"""A DownloadSource provides a way to fetch an implementation."""

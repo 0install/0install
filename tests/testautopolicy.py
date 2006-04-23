@@ -351,6 +351,58 @@ class TestAutoPolicy(unittest.TestCase):
 						download_only = False)
 		policy.recalculate()
 
+	def testConstraints(self):
+		self.cache_iface('http://bar',
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="http://bar"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Bar</name>
+  <summary>Bar</summary>
+  <description>Bar</description>
+  <implementation id='sha1=100' version='1.0'/>
+  <implementation id='sha1=150' stability='developer' version='1.5'/>
+  <implementation id='sha1=200' version='2.0'/>
+</interface>""")
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <group>
+   <requires interface='http://bar'>
+    <version/>
+   </requires>
+   <implementation id='sha1=123' version='1.0'/>
+  </group>
+</interface>""" % foo_iface_uri)
+		policy = autopolicy.AutoPolicy(foo_iface_uri,
+						download_only = False)
+		policy.network_use = model.network_full
+		policy.freshness = 0
+		#logger.setLevel(logging.DEBUG)
+		policy.recalculate()
+		#logger.setLevel(logging.WARN)
+		foo_iface = policy.get_interface(foo_iface_uri)
+		bar_iface = policy.get_interface('http://bar')
+		print `policy.implementation`
+		assert policy.implementation[bar_iface].id == 'sha1=200'
+
+		dep = policy.implementation[foo_iface].dependencies['http://bar']
+		assert len(dep.restrictions) == 1
+		restriction = dep.restrictions[0]
+
+		restriction.before = [2, 0]
+		policy.recalculate()
+		assert policy.implementation[bar_iface].id == 'sha1=100'
+
+		restriction.not_before = [1, 5]
+		policy.recalculate()
+		assert policy.implementation[bar_iface].id == 'sha1=150'
+
 suite = unittest.makeSuite(TestAutoPolicy)
 if __name__ == '__main__':
 	sys.argv.append('-v')

@@ -97,11 +97,12 @@ class TestReader(unittest.TestCase):
 		impl = iface.implementations['sha1=123']
 		assert len(impl.dependencies) == 2
 		dep = impl.dependencies[bar_iface_uri]
-		assert dep.not_before == [2, 3, 4]
-		assert dep.before == [3, 4, 5]
+		assert len(dep.restrictions) == 1
+		res = dep.restrictions[0]
+		assert res.not_before == [2, 3, 4]
+		assert res.before == [3, 4, 5]
 		dep2 = impl.dependencies[bar_iface_uri + '2']
-		assert dep2.not_before is None
-		assert dep2.before is None
+		assert len(dep2.restrictions) == 0
 		str(dep)
 		str(dep2)
 	

@@ -61,12 +61,9 @@ def process_depends(dependency, item):
 						     default = e.getAttribute('default'))
 			dependency.bindings.append(binding)
 		elif e.name == 'version':
-			not_before = e.getAttribute('not-before')
-			before = e.getAttribute('before')
-			if not_before:
-				dependency.not_before = parse_version(not_before)
-			if before:
-				dependency.before = parse_version(before)
+			dependency.restrictions.append(
+				Restriction(not_before = parse_version(e.getAttribute('not-before')),
+					    before = parse_version(e.getAttribute('before'))))
 
 def update_from_cache(interface):
 	"""True if cached version and user overrides loaded OK.
