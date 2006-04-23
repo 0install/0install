@@ -1,7 +1,8 @@
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import sys, os, sha
+import sys, os, sha, tempfile, shutil
+from logging import warn
 from zeroinstall.zerostore.manifest import generate_manifest, verify
 from zeroinstall import zerostore, SafeException
 
@@ -16,14 +17,22 @@ def init_stores():
 class UsageError(SafeException): pass
 
 def do_manifest(args):
-	"""manifest DIRECTORY"""
-	if len(args) != 1: raise UsageError("Wrong number of arguments")
-	import sha
-	digest = sha.new()
+	"""manifest DIRECTORY [ALGORITHM]"""
+	if len(args) < 1 or len(args) > 2: raise UsageError("Wrong number of arguments")
+	if len(args) == 2:
+		alg = get_algorithm(args[2])
+	else:
+		# If no algorithm was given, guess from the directory name
+		name = os.path.basename(args[0])
+		if '=' in name:
+			alg = get_algorithm(name.split('=', 1)[0])
+		else:
+			alg = get_algorithm('sha1')
+	digest = alg.new_digest()
 	for line in generate_manifest(args[0]):
 		print line
 		digest.update(line + '\n')
-	print "sha1=" + digest.hexdigest()
+	print alg.toID(digest)
 	sys.exit(0)
 
 def do_find(args):

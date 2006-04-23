@@ -27,55 +27,79 @@ of the manifest.
 A top-level ".manifest" file is ignored.
 """
 
-def generate_manifest(root):
-	def recurse(sub):
-		# To ensure that a line-by-line comparison of the manifests
-		# is possible, we require that filenames don't contain newlines.
-		# Otherwise, you can name a file so that the part after the \n
-		# would be interpreted as another line in the manifest.
-		assert '\n' not in sub
-		assert sub.startswith('/')
+class Algorithm:
+	def generate_manifest(root):
+		"""Returns an iterator that yields each line of the manifest for the directory
+		tree rooted at 'root'."""
+		raise Exception('Abstract')
 
-		if sub == '/.manifest': return
+class OldSHA1(Algorithm):
+	def generate_manifest(self, root):
+		def recurse(sub):
+			# To ensure that a line-by-line comparison of the manifests
+			# is possible, we require that filenames don't contain newlines.
+			# Otherwise, you can name a file so that the part after the \n
+			# would be interpreted as another line in the manifest.
+			assert '\n' not in sub
+			assert sub.startswith('/')
 
-		full = os.path.join(root, sub[1:])
-		info = os.lstat(full)
-		
-		m = info.st_mode
-		if stat.S_ISDIR(m):
-			if sub != '/':
-				yield "D %s %s" % (info.st_mtime, sub)
-			items = os.listdir(full)
-			items.sort()
-			for x in items:
-				for y in recurse(os.path.join(sub, x)):
-					yield y
-			return
+			if sub == '/.manifest': return
 
-		assert sub[1:]
-		leaf = os.path.basename(sub[1:])
-		if stat.S_ISREG(m):
-			d = sha.new(file(full).read()).hexdigest()
-			if m & 0111:
-				yield "X %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
+			full = os.path.join(root, sub[1:])
+			info = os.lstat(full)
+			
+			m = info.st_mode
+			if stat.S_ISDIR(m):
+				if sub != '/':
+					yield "D %s %s" % (info.st_mtime, sub)
+				items = os.listdir(full)
+				items.sort()
+				for x in items:
+					for y in recurse(os.path.join(sub, x)):
+						yield y
+				return
+
+			assert sub[1:]
+			leaf = os.path.basename(sub[1:])
+			if stat.S_ISREG(m):
+				d = sha.new(file(full).read()).hexdigest()
+				if m & 0111:
+					yield "X %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
+				else:
+					yield "F %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
+			elif stat.S_ISLNK(m):
+				d = sha.new(os.readlink(full)).hexdigest()
+				# Note: Can't use utime on symlinks, so skip mtime
+				yield "S %s %s %s" % (d, info.st_size, leaf)
 			else:
-				yield "F %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
-		elif stat.S_ISLNK(m):
-			d = sha.new(os.readlink(full)).hexdigest()
-			# Note: Can't use utime on symlinks, so skip mtime
-			yield "S %s %s %s" % (d, info.st_size, leaf)
-		else:
-			raise SafeException("Unknown object '%s' (not a file, directory or symlink)" %
-					full)
-	for x in recurse('/'): yield x
+				raise SafeException("Unknown object '%s' (not a file, directory or symlink)" %
+						full)
+		for x in recurse('/'): yield x
 	
-def add_manifest_file(dir, digest):
+	def new_digest(self):
+		"""Create a new digest. Call update() on the returned object to digest the data.
+		Call getID() to turn it into a full ID string."""
+		return sha.new()
+
+	def getID(self, digest):
+		return 'sha1=' + digest.hexdigest()
+
+def get_algorithm(name):
+	try:
+		return algorithms[name]
+	except KeyError:
+		raise BadDigest("Unknown algorithm '%s'", name)
+
+def generate_manifest(root, alg = 'sha1'):
+	return get_algorithm(alg).generate_manifest(root)
+	
+def add_manifest_file(dir, digest, alg = 'sha1'):
 	"""Writes a .manifest file into 'dir', and updates digest."""
 	mfile = os.path.join(dir, '.manifest')
 	if os.path.islink(mfile) or os.path.exists(mfile):
 		raise Exception('Archive contains a .manifest file!')
 	manifest = ''
-	for line in generate_manifest(dir):
+	for line in get_algorithm(alg).generate_manifest(dir):
 		manifest += line + '\n'
 	digest.update(manifest)
 	stream = file(mfile, 'w')
@@ -83,33 +107,39 @@ def add_manifest_file(dir, digest):
 	stream.close()
 	return digest
 
+def splitID(id):
+	"""Take an ID in the form 'alg=value' and return a tuple (alg, value),
+	where 'alg' is an instance of Algorithm and 'value' is a string. If the
+	algorithm isn't known or the ID has the wrong format, raise KeyError."""
+	parts = id.split('=', 1)
+	if len(parts) != 2:
+		raise BadDigest("Digest '%s' is not in the form 'algorithm=value'")
+	return (get_algorithm(parts[0]), parts[1])
+
 def verify(root):
 	"""Ensure that directory 'dir' generates the given digest.
 	Raises BadDigest if not. For a non-error return:
 	- Dir's name must be a digest (in the form "alg=value")
 	- The calculated digest of the contents must match this name.
 	- If there is a .manifest file, then its digest must also match."""
-	import sha
 	from zeroinstall.zerostore import BadDigest
 	
 	required_digest = os.path.basename(root)
-	if not required_digest.startswith('sha1='):
-		raise BadDigest("Directory name '%s' does not start with 'sha1='" %
-			required_digest)
+	alg = splitID(required_digest)[0]
 
-	digest = sha.new()
+	digest = alg.new_digest()
 	lines = []
-	for line in generate_manifest(root):
+	for line in alg.generate_manifest(root):
 		line += '\n'
 		digest.update(line)
 		lines.append(line)
-	actual_digest = 'sha1=' + digest.hexdigest()
+	actual_digest = alg.getID(digest)
 
 	manifest_file = os.path.join(root, '.manifest')
 	if os.path.isfile(manifest_file):
-		digest = sha.new()
+		digest = alg.new_digest()
 		digest.update(file(manifest_file).read())
-		manifest_digest = 'sha1=' + digest.hexdigest()
+		manifest_digest = alg.getID(digest)
 	else:
 		manifest_digest = None
 
@@ -139,3 +169,6 @@ def verify(root):
 		error.detail += "The .manifest file matches neither of the other digests. Odd."
 	raise error
 
+algorithms = {
+	'sha1': OldSHA1(),
+}

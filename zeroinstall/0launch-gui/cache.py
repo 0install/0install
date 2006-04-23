@@ -25,6 +25,11 @@ def _verify(root):
 	- Dir's name must be a digest (in the form "alg=value")
 	- The calculated digest of the contents must match this name.
 	- If there is a .manifest file, then its digest must also match."""
+
+	if hasattr(manifest, 'verify'):
+		# Use the main version if available
+		return manifest.verify(root)
+
 	import sha
 	
 	required_digest = os.path.basename(root)
