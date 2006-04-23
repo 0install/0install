@@ -210,7 +210,7 @@ class HashLibAlgorithm(Algorithm):
 			new_digest = self.new_digest
 			
 			m = info.st_mode
-			assert stat.S_ISDIR(m)
+			if not stat.S_ISDIR(m): raise Exception('Not a directory: "%s"' % full)
 			if sub != '/':
 				yield "D %s" % sub
 			items = os.listdir(full)
@@ -218,24 +218,24 @@ class HashLibAlgorithm(Algorithm):
 			dirs = []
 			for leaf in items:
 				path = os.path.join(root, sub[1:], leaf)
-				if os.path.isdir(path):
+				info = os.lstat(path)
+				m = info.st_mode
+
+				if stat.S_ISREG(m):
+					d = new_digest(file(path).read()).hexdigest()
+					if m & 0111:
+						yield "X %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
+					else:
+						yield "F %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
+				elif stat.S_ISLNK(m):
+					d = new_digest(os.readlink(path)).hexdigest()
+					# Note: Can't use utime on symlinks, so skip mtime
+					yield "S %s %s %s" % (d, info.st_size, leaf)
+				elif stat.S_ISDIR(m):
 					dirs.append(leaf)
 				else:
-					info = os.lstat(path)
-					m = info.st_mode
-					if stat.S_ISREG(m):
-						d = new_digest(file(path).read()).hexdigest()
-						if m & 0111:
-							yield "X %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
-						else:
-							yield "F %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
-					elif stat.S_ISLNK(m):
-						d = new_digest(os.readlink(path)).hexdigest()
-						# Note: Can't use utime on symlinks, so skip mtime
-						yield "S %s %s %s" % (d, info.st_size, leaf)
-					else:
-						raise SafeException("Unknown object '%s' (not a file, directory or symlink)" %
-								path)
+					raise SafeException("Unknown object '%s' (not a file, directory or symlink)" %
+							path)
 			for x in dirs:
 				for y in recurse(os.path.join(sub, x)): yield y
 			return
