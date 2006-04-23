@@ -186,12 +186,13 @@ class HashLibAlgorithm(Algorithm):
 	new_digest = None		# Constructor for digest objects
 
 	def __init__(self, name):
-		self.name = name
 		if name == 'sha1':
 			import sha
 			self.new_digest = sha.new
+			self.name = 'sha1new'
 		else:
 			self.new_digest = getattr(hashlib, name)
+			self.name = name
 
 	def generate_manifest(self, root):
 		def recurse(sub):
