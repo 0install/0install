@@ -59,12 +59,31 @@ def unpack_archive(url, data, destdir, extract = None):
 	url = url.lower()
 	if url.endswith('.tar.bz2'):
 		extract_tar(data, destdir, extract, '--bzip2')
+	elif url.endswith('.deb'):
+		extract_deb(data, destdir, extract)
 	elif url.endswith('.rpm'):
 		extract_rpm(data, destdir, extract)
 	elif url.endswith('.tar.gz') or url.endswith('.tgz'):
 		extract_tar(data, destdir, extract, '-z')
 	else:
 		raise SafeException('Unknown extension on "%s"; I only know .tgz, .tar.bz2 and .rpm' % url)
+
+def extract_deb(stream, destdir, extract = None):
+	if extract:
+		raise SafeException('Sorry, but the "extract" attribute is not yet supported for Debs')
+
+	stream.seek(0)
+	# ar can't read from stdin, so make a copy...
+	deb_copy_name = os.path.join(destdir, 'archive.deb')
+	deb_copy = file(deb_copy_name, 'w')
+	shutil.copyfileobj(stream, deb_copy)
+	deb_copy.close()
+	_extract(stream, destdir, ('ar', 'x', 'archive.deb', 'data.tar.gz'))
+	os.unlink(deb_copy_name)
+	data_name = os.path.join(destdir, 'data.tar.gz')
+	data_stream = file(data_name)
+	os.unlink(data_name)
+	_extract(data_stream, destdir, ('tar', 'xzf', '-'))
 
 def extract_rpm(stream, destdir, extract = None):
 	if extract:

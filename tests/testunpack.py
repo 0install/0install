@@ -61,8 +61,13 @@ class TestUnpack(unittest.TestCase):
 		unpack.unpack_archive('ftp://foo/file.rpm', file('dummy-1-1.noarch.rpm'), self.tmpdir)
 		self.assert_manifest('sha1=7be9228c8fe2a1434d4d448c4cf130e3c8a4f53d')
 	
+	def testDeb(self):
+		unpack.unpack_archive('ftp://foo/file.deb', file('dummy_1-1_all.deb'), self.tmpdir)
+		self.assert_manifest('sha1new=2c725156ec3832b7980a3de2270b3d8d85d4e3ea')
+	
 	def assert_manifest(self, required):
-		sha1 = 'sha1=' + manifest.add_manifest_file(self.tmpdir, sha.new()).hexdigest()
+		alg_name = required.split('=', 1)[0]
+		sha1 = alg_name + '=' + manifest.add_manifest_file(self.tmpdir, sha.new(), alg_name).hexdigest()
 		self.assertEquals(sha1, required)
 
 suite = unittest.makeSuite(TestUnpack)
