@@ -106,13 +106,21 @@ def get_algorithm(name):
 def generate_manifest(root, alg = 'sha1'):
 	return get_algorithm(alg).generate_manifest(root)
 	
-def add_manifest_file(dir, digest, alg = 'sha1'):
-	"""Writes a .manifest file into 'dir', and updates digest."""
+def add_manifest_file(dir, digest_or_alg):
+	"""Writes a .manifest file into 'dir', and returns the digest.
+	Second argument should be an instance of Algorithm. Passing a digest
+	here is deprecated."""
 	mfile = os.path.join(dir, '.manifest')
 	if os.path.islink(mfile) or os.path.exists(mfile):
 		raise Exception('Archive contains a .manifest file!')
 	manifest = ''
-	for line in get_algorithm(alg).generate_manifest(dir):
+	if isinstance(digest_or_alg, Algorithm):
+		alg = digest_or_alg
+		digest = alg.new_digest()
+	else:
+		digest = digest_or_alg
+		alg = get_algorithm('sha1')
+	for line in alg.generate_manifest(dir):
 		manifest += line + '\n'
 	digest.update(manifest)
 	stream = file(mfile, 'w')

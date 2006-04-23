@@ -36,7 +36,7 @@ class Store:
 	
 	def lookup(self, digest):
 		alg, value = digest.split('=', 1)
-		assert alg == 'sha1'
+		assert alg in ('sha1', 'sha1new', 'sha256')
 		assert '/' not in value
 		int(value, 16)		# Check valid format
 		dir = os.path.join(self.dir, digest)
@@ -46,7 +46,6 @@ class Store:
 	
 	def add_archive_to_cache(self, required_digest, data, url, extract = None):
 		import unpack
-		assert required_digest.startswith('sha1=')
 		info("Caching new implementation (digest %s)", required_digest)
 
 		if self.lookup(required_digest):
@@ -98,13 +97,13 @@ class Store:
 			extracted = tmp
 
 		import manifest
-		import sha
-		sha1 = 'sha1=' + manifest.add_manifest_file(extracted, sha.new()).hexdigest()
-		if sha1 != required_digest:
+		alg, required_value = manifest.splitID(required_digest)
+		actual_digest = alg.getID(manifest.add_manifest_file(extracted, alg))
+		if actual_digest != required_digest:
 			raise BadDigest('Incorrect manifest -- archive is corrupted.\n'
 					'Required digest: %s\n'
 					'Actual digest: %s\n' %
-					(required_digest, sha1))
+					(required_digest, actual_digest))
 
 		final_name = os.path.join(self.dir, required_digest)
 		if os.path.isdir(final_name):
