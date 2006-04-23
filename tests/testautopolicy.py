@@ -285,7 +285,7 @@ class TestAutoPolicy(unittest.TestCase):
 		policy.network_use = model.network_offline
 		try:
 			policy.get_interface(foo_iface_uri)
-			assert false
+			assert False
 		except reader.InvalidInterface, ex:
 			assert 'Invalid feed URL' in str(ex)
 

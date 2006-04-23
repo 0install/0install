@@ -263,6 +263,9 @@ def update(interface, source, local = False):
 			raise InvalidInterface("Missing version attribute")
 		impl.version = map(int, version.split('.'))
 
+		if item_attrs.main and item_attrs.main.startswith('/'):
+			raise InvalidInterface("'main' attribute must be relative, but '%s' starts with '/'!" %
+						item_attrs.main)
 		impl.main = item_attrs.main
 
 		if item_attrs.released:

@@ -15,7 +15,7 @@ class TestManifest(unittest.TestCase):
 	def testUnknownAlgorithm(self):
 		try:
 			manifest.get_algorithm('unknown')
-			assert false
+			assert False
 		except BadDigest:
 			pass
 	

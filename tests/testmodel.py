@@ -144,7 +144,7 @@ class TestModel(unittest.TestCase):
 
 		try:
 			f = model.Feed('http://feed', arch = 'i386', user_override = True)
-			assert false
+			assert False
 		except model.SafeException, ex:
 			assert 'Malformed arch' in str(ex)
 	
@@ -153,7 +153,7 @@ class TestModel(unittest.TestCase):
 				model.canonical_iface_uri('http://foo'))
 		try:
 			model.canonical_iface_uri('bad-name')
-			assert false
+			assert False
 		except model.SafeException, ex:
 			assert 'Bad interface name' in str(ex)
 
