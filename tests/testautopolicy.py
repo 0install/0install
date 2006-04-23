@@ -388,7 +388,6 @@ class TestAutoPolicy(unittest.TestCase):
 		#logger.setLevel(logging.WARN)
 		foo_iface = policy.get_interface(foo_iface_uri)
 		bar_iface = policy.get_interface('http://bar')
-		print `policy.implementation`
 		assert policy.implementation[bar_iface].id == 'sha1=200'
 
 		dep = policy.implementation[foo_iface].dependencies['http://bar']
