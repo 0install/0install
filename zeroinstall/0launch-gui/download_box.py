@@ -15,16 +15,18 @@ def download_with_gui(mainwindow, prog_args, run_afterwards, main = None):
 	it. On error, mainwindow is re-shown and returns False.
 	On success, doesn't return (calls exec, or sys.exit(0) if nothing to exec)."""
 	try:
-		downloads = []
 		for iface, impl in policy.get_uncached_implementations():
 			if not impl.download_sources:
 				raise SafeException("Implementation " + impl.id + " of "
 					"interface " + iface.get_name() + " cannot be "
 					"downloaded (no download locations given in "
 					"interface!)")
-			dl = download.begin_impl_download(policy.get_best_source(impl),
-							force = True)
-			downloads.append((iface, dl))
+			source = policy.get_best_source(impl)
+			if hasattr(policy, 'begin_impl_download'):
+				policy.begin_impl_download(impl, source, force = True)
+			else:
+				dl = download.begin_impl_download(source, force = True)
+				policy.monitor_download(dl)
 		def run_it():
 			policy.abort_all_downloads()
 			if not run_afterwards:
@@ -37,8 +39,8 @@ def download_with_gui(mainwindow, prog_args, run_afterwards, main = None):
 			# Not reached, unless this is a dry run
 			mainwindow.destroy()
 			sys.exit(0)			# Success
-		if downloads:
-			DownloadProgessBox(run_it, downloads, mainwindow).show()
+		if policy.monitored_downloads:
+			DownloadProgessBox(run_it, mainwindow).show()
 		else:
 			run_it()
 	except SafeException, ex:
@@ -52,18 +54,21 @@ def download_with_gui(mainwindow, prog_args, run_afterwards, main = None):
 class DownloadProgessBox(Dialog):
 	mainwindow = None
 	run_it = None
-	n_downloads = None
 	idle_timeout = None
 	errors = False
 
-	def __init__(self, run_it, downloads, mainwindow):
+	def __init__(self, run_it, mainwindow):
 		Dialog.__init__(self)
 		self.set_title('Downloading, please wait...')
 		self.mainwindow = mainwindow
+		assert self.mainwindow.download_box is None
+		self.mainwindow.download_box = self
 		self.run_it = run_it
-		self.n_downloads = 0
 
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
+
+		downloads = [x for x in policy.monitored_downloads
+				if isinstance(x, download.ImplementationDownload)]
 
 		table = gtk.Table(len(downloads) + 1, 3)
 		self.vbox.pack_start(table, False, False, 0)
@@ -74,67 +79,39 @@ class DownloadProgessBox(Dialog):
 		bars = []
 
 		row = 0
-		for iface, dl in downloads:
+		for dl in downloads:
 			bar = gtk.ProgressBar()
 			bars.append((dl, bar))
-			table.attach(gtk.Label(iface.get_name()),
+			table.attach(gtk.Label(os.path.basename(dl.url)),
 				0, 1, row, row + 1)
 			table.attach(gtk.Label(pretty_size(dl.source.size)),
 					1, 2, row, row + 1)
 			table.attach(bar, 2, 3, row, row + 1)
 			row += 1
-			self.start_download(dl)
 
 		mainwindow.hide()
 		self.vbox.show_all()
 
 		def resp(box, resp):
-			for iface, dl in downloads:
+			for dl in downloads:
 				dl.abort()
 			gtk.timeout_remove(self.idle_timeout)
 			self.idle_timeout = None
 			self.destroy()
+			mainwindow.download_box = None
 			mainwindow.show()
 			policy.recalculate()
 		self.connect('response', resp)
 
 		def update_bars():
-			if self.n_downloads == 0:
-				if not self.errors:
-					self.destroy()
-					self.run_it()
-				return False
+			if not policy.monitored_downloads:
+				if policy.get_uncached_implementations():
+					return False
+				self.destroy()
+				self.run_it()
 			for dl, bar in bars:
 				perc = dl.get_current_fraction()
 				bar.set_fraction(perc)
 			return True
 
 		self.idle_timeout = gtk.timeout_add(250, update_bars)
-	
-	def start_download(self, dl):
-		error_stream = dl.start()
-		def error_ready(src, cond):
-			got = os.read(src.fileno(), 100)
-			if not got:
-				error_stream.close()
-				self.n_downloads -= 1
-				try:
-					data = dl.error_stream_closed()
-					# Versions before 0.20 require us to add the data manually.
-					# Newer versions handle the data themselves and return None
-					if data is not None:
-						policy.add_to_cache(dl.source, data)
-				except Exception, ex:
-					label = gtk.Label("Error getting '%s':\n%s" % (dl.url, ex))
-					label.set_padding(4, 4)
-					self.vbox.pack_start(label, False, True, 2)
-					label.set_selectable(True)
-					label.show()
-					self.errors = True
-					return False
-				return False
-			dl.error_stream_data(got)
-			return True
-			
-		self.n_downloads += 1
-		gtk.input_add(error_stream, gtk.gdk.INPUT_READ, error_ready)

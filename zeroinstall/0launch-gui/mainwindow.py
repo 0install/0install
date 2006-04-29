@@ -15,6 +15,7 @@ SHOW_CACHE = 0
 class MainWindow(Dialog):
 	progress = None
 	browser = None
+	download_box = None
 
 	def __init__(self, prog_args, download_only):
 		Dialog.__init__(self)

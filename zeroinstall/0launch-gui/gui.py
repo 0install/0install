@@ -61,6 +61,10 @@ class GUIPolicy(Policy):
 
 	def monitor_download(self, dl):
 		from zeroinstall.injector import download
+		if hasattr(dl, 'interface'):
+			name = dl.interface
+		else:
+			name = os.path.basename(dl.url)
 
 		self.monitored_downloads.append(dl)
 
@@ -78,6 +82,8 @@ class GUIPolicy(Policy):
 					data = dl.error_stream_closed()
 					if isinstance(dl, download.InterfaceDownload):
 						self.check_signed_data(dl, data)
+					elif isinstance(dl, download.ImplementationDownload):
+						self.add_to_cache(dl.source, data)
 					elif hasattr(download, 'IconDownload') and \
 					     isinstance(dl, download.IconDownload):
 						if self.window:
@@ -85,15 +91,15 @@ class GUIPolicy(Policy):
 				except download.DownloadError, ex:
 					dialog.alert(self.window,
 						"Error downloading interface '%s':\n\n%s" %
-						(dl.interface.uri, ex))
+						(name, ex))
 				except InvalidInterface, ex:
 					dialog.alert(self.window,
 						"Syntax error in downloaded interface '%s':\n\n%s" %
-						(dl.interface.uri, ex))
+						(name, ex))
 				except SafeException, ex:
 					dialog.alert(self.window,
 						"Error updating interface '%s':\n\n%s" %
-						(dl.interface.uri, ex))
+						(name, ex))
 
 				if len(self.monitored_downloads) == 0 and self.checking:
 					self.checking.updates_done(self.versions_changed())
