@@ -107,9 +107,6 @@ class TestAutoPolicy(unittest.TestCase):
 		tmp.close()
 
 	def testNeedDL(self):
-		policy = autopolicy.AutoPolicy(foo_iface_uri, False, False)
-		policy.freshness = 1
-		policy.network_use = model.network_full
 		self.cache_iface(foo_iface_uri,
 """<?xml version="1.0" ?>
 <interface last-modified="0"
@@ -119,9 +116,20 @@ class TestAutoPolicy(unittest.TestCase):
   <name>Foo</name>
   <summary>Foo</summary>
   <description>Foo</description>
-  <implementation version='1.0' id='sha1=123'/>
+  <implementation version='1.0' id='sha1=123'>
+    <archive href='http://foo/foo.tgz' size='100'/>
+  </implementation>
 </interface>""" % foo_iface_uri)
+		policy = autopolicy.AutoPolicy(foo_iface_uri, False, True)
+		policy.freshness = 0
+		policy.network_use = model.network_full
+		policy.recalculate()
 		assert policy.need_download()
+		try:
+			policy.start_downloading_impls()
+			assert False
+		except NeedDownload, ex:
+			pass
 
 	def testBinding(self):
 		tmp = tempfile.NamedTemporaryFile()
@@ -330,8 +338,35 @@ class TestAutoPolicy(unittest.TestCase):
 </interface>""" % foo_iface_uri)
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
 						download_only = False)
+		policy.network_use = model.network_offline
 		policy.recalculate()
 		assert not policy.ready
+		try:
+			policy.download_and_execute([])
+			assert False
+		except model.SafeException, ex:
+			assert "Can't find all required implementations" in str(ex)
+
+	def testNoArchives(self):
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <implementation id='sha1=123' version='1.0'/>
+</interface>""" % foo_iface_uri)
+		policy = autopolicy.AutoPolicy(foo_iface_uri,
+						download_only = False)
+		policy.recalculate()
+		assert policy.ready
+		try:
+			policy.download_and_execute([])
+			assert False
+		except model.SafeException, ex:
+			assert 'no download locations' in str(ex)
 
 	def testCycle(self):
 		self.cache_iface(foo_iface_uri,
