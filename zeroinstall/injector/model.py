@@ -141,21 +141,22 @@ class Dependency(object):
 	def __str__(self):
 		return "<Dependency on %s; bindings: %s%s>" % (self.interface, self.bindings, self.restrictions)
 
-class DownloadSource(object):
+class RetrievalMethod(object):
+	"""A RetrievalMethod provides a way to fetch an implementation."""
+	__slots__ = []
+
+class DownloadSource(RetrievalMethod):
 	"""A DownloadSource provides a way to fetch an implementation."""
-	__slots__ = ['implementation']
+	__slots__ = ['implementation', 'url', 'size', 'extract']
 
-class Archive(DownloadSource):
-	"""An Archive represents a downloadable archive."""
-	__slots__ = [ 'size', 'url', 'extract']
-
-	def __init__(self, url, size, extract):
+	def __init__(self, implementation, url, size, extract):
 		assert url.startswith('http:') or url.startswith('ftp:') or url.startswith('/')
+		self.implementation = implementation
 		self.url = url
 		self.size = size
 		self.extract = extract
 
-class Recipe(DownloadSource):
+class Recipe(RetrievalMethod):
 	"""Get an implementation by following a series of steps."""
 	__slots__ = ['steps']
 
@@ -185,10 +186,8 @@ class Implementation(object):
 		self.download_sources = []	# [DownloadSource]
 	
 	def add_download_source(self, url, size, extract):
-		"""Add an Archive download source."""
-		archive = Archive(url, size, extract)
-		archive.implementation = self	# Deprecated
-		self.download_sources.append(archive)
+		"""Add a download source."""
+		self.download_sources.append(DownloadSource(self, url, size, extract))
 	
 	def get_stability(self):
 		return self.user_stability or self.upstream_stability or testing
