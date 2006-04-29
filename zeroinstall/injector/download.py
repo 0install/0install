@@ -91,7 +91,8 @@ class Download:
 
 	def error_stream_closed(self):
 		"""Ends a download. Status changes from fetching to checking.
-		Returns data stream."""
+		Returns the data stream if processing is required, or None if we already
+		handled it."""
 		assert self.status is download_fetching
 		assert self.tempfile is not None
 		assert self.child_pid is not None
@@ -149,10 +150,12 @@ class IconDownload(Download):
 		shutil.copyfileobj(stream, icon_file)
 
 class ImplementationDownload(Download):
-	def __init__(self, source):
+	def __init__(self, source, success_callback = None):
+		"""Download from 'source'. On success, call success_callback(stream) if set."""
 		assert isinstance(source, DownloadSource)
 		Download.__init__(self, source.url)
 		self.source = source
+		self.success_callback = success_callback
 	
 	def error_stream_closed(self):
 		stream = Download.error_stream_closed(self)
@@ -162,7 +165,10 @@ class ImplementationDownload(Download):
 					'URL: %s\n'
 					'Expected: %d bytes\n'
 					'Received: %d bytes' % (self.url, self.source.size, size))
-		return stream
+		if self.success_callback is None:
+			return stream
+		else:
+			self.success_callback(stream)
 	
 	def get_current_fraction(self):
 		if self.status is download_starting:
@@ -186,14 +192,14 @@ def _available_in_path(command):
 			return True
 	return False
 
-def begin_impl_download(source, force = False):
+def begin_impl_download(source, force = False, success_callback = None):
 	#print "Need to downlaod", source.url
 	if source.url.endswith('.rpm'):
 		if not _available_in_path('rpm2cpio'):
 			raise SafeException("The URL '%s' looks like an RPM, but you don't have the rpm2cpio command "
 					"I need to extract it. Install the 'rpm' package first (this works even if "
 					"you're on a non-RPM-based distribution such as Debian)." % source.url)
-	return _begin_download(ImplementationDownload(source), force)
+	return _begin_download(ImplementationDownload(source, success_callback), force)
 	
 def begin_icon_download(interface, source, force = False):
 	return _begin_download(IconDownload(interface, source), force)
