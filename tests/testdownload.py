@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.3
 import sys, tempfile, os, shutil
 from StringIO import StringIO
-import unittest
+import unittest, signal
 from logging import getLogger, DEBUG, INFO
 #getLogger().setLevel(DEBUG)
 
@@ -40,8 +40,13 @@ class TestDownload(unittest.TestCase):
 		gpg.import_key(stream)
 		iface_cache.iface_cache.__init__()
 		download._downloads = {}
+		self.child = None
 	
 	def tearDown(self):
+		if self.child is not None:
+			os.kill(self.child, signal.SIGTERM)
+			os.waitpid(self.child, 0)
+			self.child = None
 		shutil.rmtree(self.config_home)
 		shutil.rmtree(self.cache_home)
 		shutil.rmtree(self.gnupg_home)
@@ -50,7 +55,7 @@ class TestDownload(unittest.TestCase):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg')
+			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg')
 			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False)
 			assert policy.need_download()
 			sys.stdin = Reply("N\n")
@@ -60,7 +65,6 @@ class TestDownload(unittest.TestCase):
 			except model.SafeException, ex:
 				if "Not signed with a trusted key" not in str(ex):
 					raise ex
-			os.waitpid(child, 0)
 		finally:
 			sys.stdout = old_out
 	
@@ -68,7 +72,7 @@ class TestDownload(unittest.TestCase):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
 			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False)
 			assert policy.need_download()
 			sys.stdin = Reply("Y\n")
@@ -78,7 +82,20 @@ class TestDownload(unittest.TestCase):
 			except model.SafeException, ex:
 				if "HelloWorld/Missing" not in str(ex):
 					raise ex
-			os.waitpid(child, 0)
+		finally:
+			sys.stdout = old_out
+	
+	def notestRecipe(self):
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			self.child = server.handle_requests('HelloWorld.tar.bz2')
+			policy = autopolicy.AutoPolicy(os.path.abspath('Recipe.xml'), download_only = False)
+			try:
+				policy.download_and_execute([])
+			except model.SafeException, ex:
+				if "HelloWorld/Missing" not in str(ex):
+					raise ex
 		finally:
 			sys.stdout = old_out
 
