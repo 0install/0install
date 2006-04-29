@@ -143,14 +143,24 @@ class Dependency(object):
 
 class DownloadSource(object):
 	"""A DownloadSource provides a way to fetch an implementation."""
-	__slots__ = ['implementation', 'url', 'size', 'extract']
+	__slots__ = ['implementation']
 
-	def __init__(self, implementation, url, size, extract):
+class Archive(DownloadSource):
+	"""An Archive represents a downloadable archive."""
+	__slots__ = [ 'size', 'url', 'extract']
+
+	def __init__(self, url, size, extract):
 		assert url.startswith('http:') or url.startswith('ftp:') or url.startswith('/')
-		self.implementation = implementation
 		self.url = url
 		self.size = size
 		self.extract = extract
+
+class Recipe(DownloadSource):
+	"""Get an implementation by following a series of steps."""
+	__slots__ = ['steps']
+
+	def __init__(self):
+		self.steps = []
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
@@ -175,7 +185,10 @@ class Implementation(object):
 		self.download_sources = []	# [DownloadSource]
 	
 	def add_download_source(self, url, size, extract):
-		self.download_sources.append(DownloadSource(self, url, size, extract))
+		"""Add an Archive download source."""
+		archive = Archive(url, size, extract)
+		archive.implementation = self	# Deprecated
+		self.download_sources.append(archive)
 	
 	def get_stability(self):
 		return self.user_stability or self.upstream_stability or testing
