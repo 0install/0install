@@ -44,6 +44,16 @@ class Store:
 			return dir
 		return None
 	
+	def get_tmp_dir_for(self, required_digest):
+		"""Create a temporary directory in the directory where we would store an implementation
+		with the given digest. This is used to setup a new implementation before being renamed if
+		it turns out OK."""
+		if not os.path.isdir(self.dir):
+			os.makedirs(self.dir)
+		from tempfile import mkdtemp
+		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
+		return tmp
+	
 	def add_archive_to_cache(self, required_digest, data, url, extract = None):
 		import unpack
 		info("Caching new implementation (digest %s)", required_digest)
@@ -52,10 +62,7 @@ class Store:
 			info("Not adding %s as it already exists!", required_digest)
 			return
 
-		if not os.path.isdir(self.dir):
-			os.makedirs(self.dir)
-		from tempfile import mkdtemp
-		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
+		tmp = self.get_tmp_dir_for(required_digest)
 		try:
 			unpack.unpack_archive(url, data, tmp, extract)
 		except:
