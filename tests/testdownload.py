@@ -99,6 +99,20 @@ class TestDownload(unittest.TestCase):
 		finally:
 			sys.stdout = old_out
 
+	def testRecipeFailure(self):
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			self.child = server.handle_requests('HelloWorld.tar.bz2')
+			policy = autopolicy.AutoPolicy(os.path.abspath('Recipe.xml'), download_only = False)
+			try:
+				policy.download_and_execute([])
+			except download.DownloadError, ex:
+				if "Connection" not in str(ex):
+					raise ex
+		finally:
+			sys.stdout = old_out
+
 suite = unittest.makeSuite(TestDownload)
 if __name__ == '__main__':
 	sys.argv.append('-v')

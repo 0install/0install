@@ -338,6 +338,12 @@ class Policy(object):
 				raise SafeException("The URL '%s' looks like an RPM, but you don't have the rpm2cpio command "
 						"I need to extract it. Install the 'rpm' package first (this works even if "
 						"you're on a non-RPM-based distribution such as Debian)." % download_source.url)
+		elif download_source.url.endswith('.deb'):
+			if not _available_in_path('ar'):
+				raise SafeException("The URL '%s' looks like a Debian package, but you don't have the 'ar' command "
+						"I need to extract it. Install the package containing it (sometimes called 'binutils') "
+						"first. This works even if you're on a non-Debian-based distribution such as Red Hat)."
+						% download_source.url)
 		dl = self.handler.get_download(download_source.url, force = force)
 		dl.expected_size = download_source.size
 		dl.on_success.append(success_callback)
