@@ -42,18 +42,18 @@ class AutoPolicy(policy.Policy):
 	def start_downloading_impls(self):
 		for iface, impl in self.get_uncached_implementations():
 			debug("start_downloading_impls: for %s get %s", iface, impl)
-			if not impl.download_sources:
+			source = self.get_best_source(impl)
+			if not source:
 				raise model.SafeException("Implementation " + impl.id + " of "
 					"interface " + iface.get_name() + " cannot be "
 					"downloaded (no download locations given in "
 					"interface!)")
-			source = impl.download_sources[0]
-			if self.dry_run or not self.allow_downloads:
-				raise NeedDownload(source.url)
-			else:
-				from zeroinstall.injector import download
-				dl = download.begin_impl_download(source)
-				self.handler.monitor_download(dl)
+			self.begin_impl_download(impl, source)
+
+	def begin_archive_download(self, download_source, success_callback, force = False):
+		if self.dry_run or not self.allow_downloads:
+			raise NeedDownload(download_source.url)
+		return policy.Policy.begin_archive_download(self, download_source, success_callback, force = force)
 
 	def execute(self, prog_args, main = None):
 		self.start_downloading_impls()

@@ -10,32 +10,43 @@ from zeroinstall.injector.iface_cache import iface_cache
 class Handler(object):
 	__slots__ = ['monitored_downloads']
 	def __init__(self):
-		self.monitored_downloads = []
+		self.monitored_downloads = {}		# URL -> (error_stream, Download)
 
 	def monitor_download(self, dl):
 		error_stream = dl.start()
-		self.monitored_downloads.append((error_stream, dl))
+		self.monitored_downloads[dl.url] = (error_stream, dl)
 	
 	def wait_for_downloads(self):
 		while self.monitored_downloads:
 			info("Currently downloading:")
-			for (e, dl) in self.monitored_downloads:
-				info("- " + dl.url)
+			for url in self.monitored_downloads:
+				info("- " + url)
 
-			for e, dl in self.monitored_downloads[:]:
+			for e, dl in self.monitored_downloads.values():
 				errors = e.read()
 				if errors:
 					dl.error_stream_data(errors)
 					continue
 				e.close()
-				self.monitored_downloads.remove((e, dl))
-				data = dl.error_stream_closed()
-				if isinstance(dl, download.InterfaceDownload):
-					iface_cache.check_signed_data(dl.interface, data, self)
-				elif isinstance(dl, download.ImplementationDownload):
-					iface_cache.add_to_cache(dl.source, data)
-				else:
-					raise Exception("Unknown download type %s" % dl)
+				del self.monitored_downloads[dl.url]
+
+				dl.error_stream_closed()
+
+	def get_download(self, url, force = False):
+		"""Return the Download object currently downloading 'url'.
+		If no download for this URL has been started, start one now.
+		If the download failed and force is False, return it anyway.
+		If force is True, abort any current or failed download and start
+		a new one."""
+		try:
+			e, dl = self.monitored_downloads[url]
+			if dl and force:
+				dl.abort()
+				raise KeyError
+		except KeyError:
+			dl = download.Download(url)
+			self.monitor_download(dl)
+		return dl
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		"""We don't trust any of the signatures yet. Ask the user.

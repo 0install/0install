@@ -162,6 +162,8 @@ class Recipe(RetrievalMethod):
 
 	def __init__(self):
 		self.steps = []
+	
+	size = property(lambda self: sum([x.size for x in self.steps]))
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""

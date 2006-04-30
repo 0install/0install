@@ -59,6 +59,22 @@ class GUIPolicy(Policy):
 			return True		# Need to download something; check first
 		return False
 
+	def get_download(self, url, force = False):
+		# For injector >= 0.20
+		dl = None
+		for dl in self.monitored_downloads:
+			if dl.url == url:
+				if force:
+					dl.abort()
+					dl = None
+				break
+		else:
+			dl = None
+		if dl is None:
+			dl = download.Download(url)
+			self.monitor_download(dl)
+		return dl
+
 	def monitor_download(self, dl):
 		from zeroinstall.injector import download
 		if hasattr(dl, 'interface'):
@@ -80,17 +96,18 @@ class GUIPolicy(Policy):
 					self.pulse = None
 				try:
 					data = dl.error_stream_closed()
-					if isinstance(dl, download.InterfaceDownload):
-						self.check_signed_data(dl, data)
-					elif isinstance(dl, download.ImplementationDownload):
-						self.add_to_cache(dl.source, data)
-					elif hasattr(download, 'IconDownload') and \
+					if data:
+						if isinstance(dl, download.InterfaceDownload):
+							self.check_signed_data(dl, data)
+						elif isinstance(dl, download.ImplementationDownload):
+							self.add_to_cache(dl.source, data)
+					if hasattr(download, 'IconDownload') and \
 					     isinstance(dl, download.IconDownload):
 						if self.window:
 							self.window.browser.build_tree()
 				except download.DownloadError, ex:
 					dialog.alert(self.window,
-						"Error downloading interface '%s':\n\n%s" %
+						"Error downloading '%s':\n\n%s" %
 						(name, ex))
 				except InvalidInterface, ex:
 					dialog.alert(self.window,
@@ -98,7 +115,7 @@ class GUIPolicy(Policy):
 						(name, ex))
 				except SafeException, ex:
 					dialog.alert(self.window,
-						"Error updating interface '%s':\n\n%s" %
+						"Error fetching '%s':\n\n%s" %
 						(name, ex))
 
 				if len(self.monitored_downloads) == 0 and self.checking:
@@ -106,7 +123,7 @@ class GUIPolicy(Policy):
 				return False
 			dl.error_stream_data(got)
 			return True
-			
+
 		gobject.io_add_watch(error_stream,
 				     gobject.IO_IN | gobject.IO_HUP,
 				     error_ready)
@@ -120,6 +137,11 @@ class GUIPolicy(Policy):
 				return True
 			self.pulse = gobject.timeout_add(50, pulse)
 			self.window.progress.show()
+	
+	def store_icon(self, interface, stream):
+		Policy.store_icon(self, interface, stream)
+		if self.window:
+			self.window.browser.build_tree()
 	
 	def recalculate(self):
 		Policy.recalculate(self)

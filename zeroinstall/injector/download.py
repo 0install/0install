@@ -2,18 +2,15 @@
 # See the README file for details, or visit http://0install.net.
 
 import tempfile, os, sys
-from model import Interface, DownloadSource, SafeException, escape
+from model import SafeException
 import traceback
 from logging import warn
-from namespaces import config_site
 
 download_starting = "starting"	# Waiting for UI to start it
 download_fetching = "fetching"	# In progress
 download_checking = "checking"	# Checking GPG sig (possibly interactive)
 download_complete = "complete"	# Downloaded and cached OK
 download_failed = "failed"
-
-_downloads = {}		# URL -> Download
 
 class DownloadError(SafeException):
 	pass
@@ -23,14 +20,18 @@ class Download:
 	tempfile = None		# Stream for result
 	status = None		# download_*
 	errors = None
+	expected_size = None
 
 	child_pid = None
 	child_stderr = None
+
+	on_success = None
 
 	def __init__(self, url):
 		"Initial status is starting."
 		self.url = url
 		self.status = download_starting
+		self.on_success = []
 	
 	def start(self):
 		"""Returns stderr stream from child. Call error_stream_closed() when
@@ -91,8 +92,8 @@ class Download:
 
 	def error_stream_closed(self):
 		"""Ends a download. Status changes from fetching to checking.
-		Returns the data stream if processing is required, or None if we already
-		handled it."""
+		Calls the on_success callbacks with the rewound data stream on success,
+		or throws DownloadError on failure."""
 		assert self.status is download_fetching
 		assert self.tempfile is not None
 		assert self.child_pid is not None
@@ -112,13 +113,28 @@ class Download:
 		self.tempfile = None
 
 		if errors:
+			error = DownloadError(errors)
+		else:	
+			error = None
+
+		# Check that the download has the correct size, if we know what it should be.
+		if self.expected_size is not None and not error:
+			size = os.fstat(stream.fileno()).st_size
+			if size != self.expected_size:
+				error = SafeException('Downloaded archive has incorrect size.\n'
+						'URL: %s\n'
+						'Expected: %d bytes\n'
+						'Received: %d bytes' % (self.url, self.expected_size, size))
+
+		if error:
 			self.status = download_failed
-			raise DownloadError(errors)
+			raise error
 		else:
 			self.status = download_checking
 
-		stream.seek(0)
-		return stream
+		for x in self.on_success:
+			stream.seek(0)
+			x(stream)
 	
 	def abort(self):
 		if self.child_pid is not None:
@@ -128,92 +144,14 @@ class Download:
 		else:
 			self.status = download_failed
 
-class InterfaceDownload(Download):
-	def __init__(self, interface, url = None):
-		assert isinstance(interface, Interface)
-		Download.__init__(self, url or interface.uri)
-		self.interface = interface
-
-class IconDownload(Download):
-	def __init__(self, interface, source, url = None):
-		assert isinstance(interface, Interface)
-		Download.__init__(self, source)
-		self.interface = interface
-
-	def error_stream_closed(self):
-		from zeroinstall.injector import basedir
-		import shutil
-		stream = Download.error_stream_closed(self)
-		icons_cache = basedir.save_cache_path(config_site, 'interface_icons')
-		icon_file = file(os.path.join(icons_cache, escape(self.interface.uri)), 'w')
-
-		shutil.copyfileobj(stream, icon_file)
-
-class ImplementationDownload(Download):
-	def __init__(self, source, success_callback = None):
-		"""Download from 'source'. On success, call success_callback(stream) if set."""
-		assert isinstance(source, DownloadSource)
-		Download.__init__(self, source.url)
-		self.source = source
-		self.success_callback = success_callback
-	
-	def error_stream_closed(self):
-		stream = Download.error_stream_closed(self)
-		size = os.fstat(stream.fileno()).st_size
-		if size != self.source.size:
-			raise SafeException('Downloaded archive has incorrect size.\n'
-					'URL: %s\n'
-					'Expected: %d bytes\n'
-					'Received: %d bytes' % (self.url, self.source.size, size))
-		if self.success_callback is None:
-			return stream
-		else:
-			self.success_callback(stream)
-	
 	def get_current_fraction(self):
+		"""Returns the current fraction of this download that has been fetched (from 0 to 1),
+		or None if the total size isn't known."""
 		if self.status is download_starting:
 			return 0
 		if self.tempfile is None:
 			return 1
+		if self.expected_size is None:
+			return None		# Unknown
 		current_size = os.fstat(self.tempfile.fileno()).st_size
-		return float(current_size) / self.source.size
-	
-def begin_iface_download(interface, force):
-	"""Start downloading interface.
-	If a Download object already exists (any state; in progress, failed or
-	completed) and force is False, does nothing and returns None.
-	If force is True, any existing download is destroyed and a new one created."""
-	return _begin_download(InterfaceDownload(interface), force)
-
-path_dirs = os.environ.get('PATH', '/bin:/usr/bin').split(':')
-def _available_in_path(command):
-	for x in path_dirs:
-		if os.path.isfile(os.path.join(x, command)):
-			return True
-	return False
-
-def begin_impl_download(source, force = False, success_callback = None):
-	#print "Need to downlaod", source.url
-	if source.url.endswith('.rpm'):
-		if not _available_in_path('rpm2cpio'):
-			raise SafeException("The URL '%s' looks like an RPM, but you don't have the rpm2cpio command "
-					"I need to extract it. Install the 'rpm' package first (this works even if "
-					"you're on a non-RPM-based distribution such as Debian)." % source.url)
-	return _begin_download(ImplementationDownload(source, success_callback), force)
-	
-def begin_icon_download(interface, source, force = False):
-	return _begin_download(IconDownload(interface, source), force)
-	
-def _begin_download(new_dl, force):
-	dl = _downloads.get(new_dl.url, None)
-	if dl:
-		if force:
-			dl.abort()
-			del _downloads[new_dl.url]
-		else:
-			return None	# Already downloading
-	
-	_downloads[new_dl.url] = new_dl
-
-	assert new_dl.status == download_starting
-	return new_dl
+		return float(current_size) / self.expected_size

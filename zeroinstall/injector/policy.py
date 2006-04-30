@@ -2,7 +2,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import time
-import sys
+import sys, os
 from logging import info, debug, warn
 import arch
 
@@ -13,6 +13,53 @@ import ConfigParser
 import reader
 from iface_cache import iface_cache
 from zeroinstall import NeedDownload
+
+path_dirs = os.environ.get('PATH', '/bin:/usr/bin').split(':')
+def _available_in_path(command):
+	for x in path_dirs:
+		if os.path.isfile(os.path.join(x, command)):
+			return True
+	return False
+
+class _Cook:
+	"""A Cook follows a Recipe."""
+	# Maybe we're taking this metaphor too far?
+
+	def __init__(self, policy, required_digest, recipe, force = False):
+		"""Start downloading all the ingredients."""
+		self.recipe = recipe
+		self.required_digest = required_digest
+		self.downloads = {}
+		self.streams = {}
+
+		for step in recipe.steps:
+			dl = policy.begin_archive_download(step, success_callback = 
+				lambda stream, step=step: self.ingredient_ready(step, stream),
+				force = force)
+			self.downloads[step] = dl
+		self.test_done()
+	
+	def ingredient_ready(self, step, stream):
+		assert step not in self.streams
+		self.streams[step] = stream
+		del self.downloads[step]
+		self.test_done()
+	
+	def test_done(self):
+		if self.downloads: return
+
+		from zeroinstall.zerostore import unpack
+
+		store = iface_cache.stores.stores[0]
+		tmpdir = store.get_tmp_dir_for(self.required_digest)
+		try:
+			for step in self.recipe.steps:
+				unpack.unpack_archive(step.url, self.streams[step], tmpdir, step.extract)
+			store.check_manifest_and_rename(self.required_digest, tmpdir)
+			tmpdir = None
+		finally:
+			if tmpdir is not None:
+				shutil.rmtree(tmpdir)
 
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
@@ -246,16 +293,42 @@ class Policy(object):
 		debug("begin_iface_download %s (force = %d)", interface, force)
 		if interface.uri.startswith('/'):
 			return
-		from zeroinstall.injector import download
-		dl = download.begin_iface_download(interface, force)
-		if not dl:
-			assert not force
-			debug("Already in progress")
-			return
-
 		debug("Need to download")
-		# Calls update_interface_from_network eventually on success
-		self.handler.monitor_download(dl)
+		dl = self.handler.get_download(interface.uri, force = force)
+		if dl.on_success:
+			# Possibly we should handle this better, but it's unlikely anyone will need
+			# to use an interface as an icon or implementation as well, and some of the code
+			# assumes it's OK keep asking for the same interface to be downloaded.
+			info("Already have a handler for %s; not adding another", interface)
+			return
+		dl.on_success.append(lambda stream: 
+			iface_cache.check_signed_data(interface, stream, self.handler))
+	
+	def begin_impl_download(self, impl, retrieval_method, force = False):
+		"""Start fetching impl, using retrieval_method. Each download started
+		will call monitor_download."""
+		assert impl
+		assert retrieval_method
+
+		if isinstance(retrieval_method, DownloadSource):
+			def archive_ready(stream):
+				iface_cache.add_to_cache(retrieval_method, stream)
+			self.begin_archive_download(retrieval_method, success_callback = archive_ready, force = force)
+		elif isinstance(retrieval_method, Recipe):
+			_Cook(self, impl.id, retrieval_method)
+		else:
+			raise Exception("Unknown download type for '%s'" % retrieval_method)
+
+	def begin_archive_download(self, download_source, success_callback, force = False):
+		if download_source.url.endswith('.rpm'):
+			if not _available_in_path('rpm2cpio'):
+				raise SafeException("The URL '%s' looks like an RPM, but you don't have the rpm2cpio command "
+						"I need to extract it. Install the 'rpm' package first (this works even if "
+						"you're on a non-RPM-based distribution such as Debian)." % download_source.url)
+		dl = self.handler.get_download(download_source.url, force = force)
+		dl.expected_size = download_source.size
+		dl.on_success.append(success_callback)
+		return dl
 	
 	def begin_icon_download(self, interface, force = False):
 		debug("begin_icon_download %s (force = %d)", interface, force)
@@ -274,15 +347,23 @@ class Policy(object):
 			info('No PNG icons found in %s', interface)
 			return
 
-		from zeroinstall.injector import download
-		dl = download.begin_icon_download(interface, source, force)
-		if not dl:
-			assert not force
-			debug("Icon download already in progress")
+		dl = self.handler.get_download(source, force = force)
+		if dl.on_success:
+			# Possibly we should handle this better, but it's unlikely anyone will need
+			# to use an icon as an interface or implementation as well, and some of the code
+			# may assume it's OK keep asking for the same icon to be downloaded.
+			info("Already have a handler for %s; not adding another", source)
 			return
+		dl.on_success.append(lambda stream: self.store_icon(interface, stream))
 
-		debug("Waiting for icon to download")
-		self.handler.monitor_download(dl)
+	def store_icon(self, interface, stream):
+		"""Called when an icon has been successfully downloaded.
+		Subclasses may wish to wrap this to repaint the display."""
+		from zeroinstall.injector import basedir
+		import shutil
+		icons_cache = basedir.save_cache_path(config_site, 'interface_icons')
+		icon_file = file(os.path.join(icons_cache, escape(interface.uri)), 'w')
+		shutil.copyfileobj(stream, icon_file)
 	
 	def get_implementation_path(self, impl):
 		assert isinstance(impl, Implementation)
@@ -378,4 +459,10 @@ class Policy(object):
 			return None
 
 		self.begin_icon_download(iface)
+		return None
+	
+	def get_best_source(self, impl):
+		"""Return the best download source for this implementation."""
+		if impl.download_sources:
+			return impl.download_sources[0]
 		return None

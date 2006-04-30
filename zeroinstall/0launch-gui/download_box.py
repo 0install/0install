@@ -67,8 +67,12 @@ class DownloadProgessBox(Dialog):
 
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 
-		downloads = [x for x in policy.monitored_downloads
-				if isinstance(x, download.ImplementationDownload)]
+		if hasattr(download, 'ImplementationDownload'):
+			downloads = [(x, x.source.size) for x in policy.handler.monitored_downloads
+					if isinstance(x, download.ImplementationDownload)]
+		else:
+			downloads = [(x, x.expected_size) for x in policy.handler.monitored_downloads
+					if hasattr(x, 'expected_size')]
 
 		table = gtk.Table(len(downloads) + 1, 3)
 		self.vbox.pack_start(table, False, False, 0)
@@ -79,12 +83,12 @@ class DownloadProgessBox(Dialog):
 		bars = []
 
 		row = 0
-		for dl in downloads:
+		for dl, size in downloads:
 			bar = gtk.ProgressBar()
 			bars.append((dl, bar))
 			table.attach(gtk.Label(os.path.basename(dl.url)),
 				0, 1, row, row + 1)
-			table.attach(gtk.Label(pretty_size(dl.source.size)),
+			table.attach(gtk.Label(pretty_size(size)),
 					1, 2, row, row + 1)
 			table.attach(bar, 2, 3, row, row + 1)
 			row += 1
@@ -93,7 +97,7 @@ class DownloadProgessBox(Dialog):
 		self.vbox.show_all()
 
 		def resp(box, resp):
-			for dl in downloads:
+			for dl, size in downloads:
 				dl.abort()
 			gtk.timeout_remove(self.idle_timeout)
 			self.idle_timeout = None
@@ -111,7 +115,8 @@ class DownloadProgessBox(Dialog):
 				self.run_it()
 			for dl, bar in bars:
 				perc = dl.get_current_fraction()
-				bar.set_fraction(perc)
+				if perc >= 0:
+					bar.set_fraction(perc)
 			return True
 
 		self.idle_timeout = gtk.timeout_add(250, update_bars)

@@ -5,7 +5,7 @@ import os
 import sys
 import shutil
 import time
-from logging import debug, warn
+from logging import debug, warn, info
 from os.path import dirname
 
 from zeroinstall import version
@@ -289,7 +289,8 @@ def update(interface, source, local = False):
 		impl.dependencies.update(depends)
 
 		for elem in item.childNodes:
-			if elem.uri == XMLNS_IFACE and elem.name == 'archive':
+			if elem.uri != XMLNS_IFACE: continue
+			if elem.name == 'archive':
 				url = elem.getAttribute('href')
 				if not url:
 					raise InvalidInterface("Missing href attribute on <archive>")
@@ -298,6 +299,23 @@ def update(interface, source, local = False):
 					raise InvalidInterface("Missing size attribute on <archive>")
 				impl.add_download_source(url = url, size = long(size),
 						extract = elem.getAttribute('extract'))
+			elif elem.name == 'recipe':
+				recipe = Recipe()
+				for recipe_step in elem.childNodes:
+					if recipe_step.uri == XMLNS_IFACE and recipe_step.name == 'archive':
+						url = recipe_step.getAttribute('href')
+						if not url:
+							raise InvalidInterface("Missing href attribute on <archive>")
+						size = recipe_step.getAttribute('size')
+						if not size:
+							raise InvalidInterface("Missing size attribute on <archive>")
+						recipe.steps.append(DownloadSource(None, url = url, size = long(size),
+								extract = recipe_step.getAttribute('extract')))
+					else:
+						info("Unknown step '%s' in recipe; skipping recipe", recipe_step.name)
+						break
+				else:
+					impl.download_sources.append(recipe)
 
 	process_group(root,
 		Attrs(stability = testing,

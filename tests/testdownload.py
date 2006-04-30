@@ -85,11 +85,11 @@ class TestDownload(unittest.TestCase):
 		finally:
 			sys.stdout = old_out
 	
-	def notestRecipe(self):
+	def testRecipe(self):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			self.child = server.handle_requests('HelloWorld.tar.bz2')
+			self.child = server.handle_requests('HelloWorld.tar.bz2', 'dummy_1-1_all.deb')
 			policy = autopolicy.AutoPolicy(os.path.abspath('Recipe.xml'), download_only = False)
 			try:
 				policy.download_and_execute([])
