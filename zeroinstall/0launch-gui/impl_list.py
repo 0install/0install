@@ -34,7 +34,19 @@ def interface_for(interface, impl):
 	return interface
 
 class ImplTips(TreeTips):
+	def __init__(self, interface):
+		self.interface = interface
+
 	def get_tooltip_text(self, impl):
+		if hasattr(policy, 'restrictions'):
+			restrictions = policy.restrictions.get(self.interface, [])
+			unusable = policy.get_unusable_reason(impl, restrictions)
+		else:
+			restrictions = None
+			unusable = policy.get_unusable_reason(impl)
+		if unusable:
+			return unusable
+
 		if impl.id.startswith('/'):
 			return _("Local: %s") % impl.id
 		if policy.get_cached(impl):
@@ -47,15 +59,16 @@ class ImplTips(TreeTips):
 		else:
 			return _("No downloads available!")
 
-tips = ImplTips()
-
 class ImplementationList(gtk.ScrolledWindow):
 	tree_view = None
 	model = None
+	interface = None
 
 	def __init__(self, interface):
 		gtk.ScrolledWindow.__init__(self, None, None)
 		self.set_shadow_type(gtk.SHADOW_IN)
+
+		self.interface = interface
 
 		self.model = gtk.ListStore(object, str, str, str,
 			   gobject.TYPE_BOOLEAN, gobject.TYPE_BOOLEAN,
@@ -77,6 +90,8 @@ class ImplementationList(gtk.ScrolledWindow):
 			self.tree_view.append_column(column)
 
 		self.add(self.tree_view)
+
+		tips = ImplTips(interface)
 
 		def motion(tree_view, ev):
 			if ev.window is not tree_view.get_bin_window():
@@ -129,6 +144,10 @@ class ImplementationList(gtk.ScrolledWindow):
 	
 	def set_items(self, items):
 		self.model.clear()
+		if hasattr(policy, 'restrictions'):
+			restrictions = policy.restrictions.get(self.interface, None)
+		else:
+			restrictions = None
 		for item in items:
 			new = self.model.append()
 			self.model[new][ITEM] = item
@@ -144,7 +163,10 @@ class ImplementationList(gtk.ScrolledWindow):
 				self.model[new][STABILITY] = item.upstream_stability or \
 							     model.testing
 			self.model[new][ARCH] = item.arch or 'any'
-			self.model[new][UNUSABLE] = policy.is_unusable(item)
+			if restrictions:
+				self.model[new][UNUSABLE] = policy.is_unusable(item, restrictions)
+			else:
+				self.model[new][UNUSABLE] = policy.is_unusable(item)
 	
 	def clear(self):
 		self.model.clear()

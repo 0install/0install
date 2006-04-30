@@ -77,7 +77,8 @@ class _Cook:
 class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
-		     'freshness', 'ready', 'handler', 'warned_offline']
+		     'freshness', 'ready', 'handler', 'warned_offline',
+		     'restrictions']
 
 	def __init__(self, root, handler = None):
 		self.watchers = []
@@ -85,6 +86,7 @@ class Policy(object):
 		self.network_use = network_full
 		self.freshness = 60 * 60 * 24 * 30	# Seconds allowed since last update (1 month)
 		self.ready = False
+		self.restrictions = {}
 
 		# If we need to download something but can't because we are offline,
 		# warn the user. But only the first time.
@@ -132,17 +134,24 @@ class Policy(object):
 		os.rename(path + '.new', path)
 	
 	def recalculate(self):
+		self.restrictions = {}		# Interface -> [Restriction]
 		self.implementation = {}
 		self.ready = True
 		debug("Recalculate! root = %s", self.root)
 		def process(dep):
 			iface = self.get_interface(dep.interface)
 			if iface in self.implementation:
-				debug("cycle; skipping second %s", iface)
+				debug("Interface requested twice; skipping second %s", iface)
+				if dep.restrictions:
+					warn("Interface requested twice; I've already chosen an implementation "
+						"of '%s' but there are more restrictions! Ignoring the second set.", iface)
 				return
 			self.implementation[iface] = None	# Avoid cycles
 
-			impl = self._get_best_implementation(iface, dep.restrictions)
+			assert iface not in self.restrictions
+			self.restrictions[iface] = dep.restrictions
+
+			impl = self._get_best_implementation(iface)
 			if impl:
 				debug("Will use implementation %s (version %s)", impl, impl.get_version())
 				self.implementation[iface] = impl
@@ -157,7 +166,7 @@ class Policy(object):
 	
 	# Only to be called from recalculate, as it is quite slow.
 	# Use the results stored in self.implementation instead.
-	def _get_best_implementation(self, iface, restrictions):
+	def _get_best_implementation(self, iface):
 		impls = iface.implementations.values()
 		for f in self.usable_feeds(iface):
 			debug("Processing feed %s", f)
@@ -179,24 +188,24 @@ class Policy(object):
 		if not impls:
 			info("Interface %s has no implementations!", iface)
 			return None
-		for r in restrictions:
-			impls = filter(r.meets_restriction, impls)
 		best = impls[0]
 		for x in impls[1:]:
 			if self.compare(iface, x, best) < 0:
 				best = x
-		if self.is_unusable(best):
-			info("Best implementation of %s is %s, but unusable (%s)", iface, best,
-							self.get_unusable_reason(best))
+		unusable = self.get_unusable_reason(best, self.restrictions.get(iface, []))
+		if unusable:
+			info("Best implementation of %s is %s, but unusable (%s)", iface, best, unusable)
 			return None
 		return best
 	
 	def compare(self, interface, b, a):
+		restrictions = self.restrictions.get(interface, [])
+
 		a_stab = a.get_stability()
 		b_stab = b.get_stability()
 
 		# Usable ones come first
-		r = cmp(self.is_unusable(b), self.is_unusable(a))
+		r = cmp(self.is_unusable(b, restrictions), self.is_unusable(a, restrictions))
 		if r: return r
 
 		# Preferred versions come first
@@ -258,11 +267,16 @@ class Policy(object):
 		impls.sort(lambda a, b: self.compare(iface, a, b))
 		return impls
 	
-	def is_unusable(self, impl):
-		return self.get_unusable_reason(impl) != None
+	def is_unusable(self, impl, restrictions = []):
+		return self.get_unusable_reason(impl, restrictions) != None
 
-	def get_unusable_reason(self, impl):
-		"""Returns the reason why this impl is unusable, or None if it's OK"""
+	def get_unusable_reason(self, impl, restrictions = []):
+		"""Returns the reason why this impl is unusable, or None if it's OK.
+		Note: the restrictions are for the interface being requested, not the interface
+		of the implementation; they may be different when feeds are being used."""
+		for r in restrictions:
+			if not r.meets_restriction(impl):
+				return "Incompatible with another selected implementation"
 		stability = impl.get_stability()
 		if stability <= buggy:
 			return stability.name
