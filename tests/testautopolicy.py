@@ -360,6 +360,7 @@ class TestAutoPolicy(unittest.TestCase):
 </interface>""" % foo_iface_uri)
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
 						download_only = False)
+		policy.freshness = 0
 		policy.recalculate()
 		assert policy.ready
 		try:
