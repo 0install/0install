@@ -29,35 +29,48 @@ class _Cook:
 		"""Start downloading all the ingredients."""
 		self.recipe = recipe
 		self.required_digest = required_digest
-		self.downloads = {}
-		self.streams = {}
+		self.downloads = {}	# Downloads that are not yet successful
+		self.streams = {}	# Streams collected from successful downloads
 
+		# Start a download for each ingredient
 		for step in recipe.steps:
 			dl = policy.begin_archive_download(step, success_callback = 
 				lambda stream, step=step: self.ingredient_ready(step, stream),
 				force = force)
 			self.downloads[step] = dl
-		self.test_done()
+		self.test_done()	# Needed for empty recipes
+
+		# Note: the only references to us are held by the on_success callback
+		# in each Download. On error this is removed, which will cause us
+		# to be destoryed, which will release all the temporary files we hold.
 	
 	def ingredient_ready(self, step, stream):
+		# Called when one archive has been fetched. Store it until the other
+		# archives arrive.
 		assert step not in self.streams
 		self.streams[step] = stream
 		del self.downloads[step]
 		self.test_done()
 	
 	def test_done(self):
+		# On success, a download is removed from here. If empty, it means that
+		# all archives have successfully been downloaded.
 		if self.downloads: return
 
 		from zeroinstall.zerostore import unpack
 
+		# Create an empty directory for the new implementation
 		store = iface_cache.stores.stores[0]
 		tmpdir = store.get_tmp_dir_for(self.required_digest)
 		try:
+			# Unpack each of the downloaded archives into it in turn
 			for step in self.recipe.steps:
 				unpack.unpack_archive(step.url, self.streams[step], tmpdir, step.extract)
+			# Check that the result is correct and store it in the cache
 			store.check_manifest_and_rename(self.required_digest, tmpdir)
 			tmpdir = None
 		finally:
+			# If unpacking fails, remove the temporary directory
 			if tmpdir is not None:
 				shutil.rmtree(tmpdir)
 

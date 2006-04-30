@@ -128,6 +128,7 @@ class Download:
 
 		if error:
 			self.status = download_failed
+			self.on_success = []	# Break GC cycles
 			raise error
 		else:
 			self.status = download_checking
