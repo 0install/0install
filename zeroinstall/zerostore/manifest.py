@@ -6,6 +6,7 @@ import os, stat
 from sets import Set
 import sha
 from zeroinstall import SafeException
+from zeroinstall.zerostore import BadDigest
 
 try:
 	import hashlib
@@ -54,7 +55,7 @@ class OldSHA1(Algorithm):
 			# is possible, we require that filenames don't contain newlines.
 			# Otherwise, you can name a file so that the part after the \n
 			# would be interpreted as another line in the manifest.
-			assert '\n' not in sub
+			if '\n' in sub: raise BadDigest("Newline in filename '%s'" % sub)
 			assert sub.startswith('/')
 
 			if sub == '/.manifest': return
@@ -97,7 +98,6 @@ class OldSHA1(Algorithm):
 		return 'sha1=' + digest.hexdigest()
 
 def get_algorithm(name):
-	from zeroinstall.zerostore import BadDigest
 	try:
 		return algorithms[name]
 	except KeyError:
@@ -143,8 +143,6 @@ def verify(root):
 	- Dir's name must be a digest (in the form "alg=value")
 	- The calculated digest of the contents must match this name.
 	- If there is a .manifest file, then its digest must also match."""
-	from zeroinstall.zerostore import BadDigest
-	
 	required_digest = os.path.basename(root)
 	alg = splitID(required_digest)[0]
 
@@ -208,7 +206,7 @@ class HashLibAlgorithm(Algorithm):
 			# is possible, we require that filenames don't contain newlines.
 			# Otherwise, you can name a file so that the part after the \n
 			# would be interpreted as another line in the manifest.
-			assert '\n' not in sub
+			if '\n' in sub: raise BadDigest("Newline in filename '%s'" % sub)
 			assert sub.startswith('/')
 
 			if sub == '/.manifest': return
