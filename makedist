@@ -2,8 +2,6 @@
 import zeroinstall, sys, os, shutil, time
 from zeroinstall.injector import iface_cache, model
 
-os.system('svn status')
-
 trunk_url = 'https://svn.sourceforge.net/svnroot/zero-install/trunk/0launch'
 releases_url = 'https://svn.sourceforge.net/svnroot/zero-install/releases/0launch'
 
@@ -20,12 +18,17 @@ for line in os.popen('dpkg-parsechangelog'):
 else:
 	raise Exception('Failed to get deb version!')
 
-print "\nDebian version: " + deb_version + " (hint: debchange -i)"
-
 gui_iface_path = 'zeroinstall/0launch-gui/injector-gui.xml'
 gui_iface = iface_cache.iface_cache.get_interface(os.path.abspath(gui_iface_path))
 assert len(gui_iface.implementations) == 1
 gui_impl = gui_iface.implementations.values()[0]
+if gui_impl.upstream_stability == model.testing:
+	run('0launch', publish_url, '--stable', gui_iface_path)
+run('0launch', publish_url, '--set-released',  time.strftime('%Y-%m-%d'), gui_iface_path)
+
+os.system('svn status')
+
+print "\nDebian version: " + deb_version + " (hint: debchange -i)"
 
 if gui_impl.get_version() != zeroinstall.version:
 	print "GUI version is '%s'; should be '%s'" % (gui_impl.get_version(), zeroinstall.version)
@@ -36,10 +39,6 @@ package_name = 'zeroinstall-' + name
 a = raw_input("Release " + name + "? [y/N]")
 if not a or a not in 'Yy':
 	sys.exit(0)
-
-if gui_impl.upstream_stability == model.testing:
-	run('0launch', publish_url, '--stable', gui_iface_path)
-run('0launch', publish_url, '--set-released',  time.strftime('%Y-%m-%d'), gui_iface_path)
 
 if os.system('cd tests && ./testall.py'):
 	print "ERROR: Unit test failure. Stop"
