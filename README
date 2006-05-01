@@ -42,6 +42,7 @@ To run create short-cut:
 
 $ 0alias rox-edit http://rox.sourceforge.net/2005/interfaces/Edit
 
+For more information, see the man-pages for 0launch, 0alias and 0store.
 
 CONDITIONS
 
