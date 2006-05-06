@@ -28,7 +28,13 @@ class TrustBox(dialog.Dialog):
 
 	def __init__(self, interface, sigs, iface_xml):
 		dialog.Dialog.__init__(self)
-		self.connect('destroy', lambda a: _pop_queue())
+
+		def destroy(box):
+			assert _queue[0] is self
+			del _queue[0]
+			if _queue:
+				_queue[0].show()
+		self.connect('destroy', destroy)
 
 		def left(text):
 			label = gtk.Label(text)
@@ -113,8 +119,6 @@ class TrustBox(dialog.Dialog):
 				self.trust_keys([sig for sig in trust if trust[sig].get_active()])
 			self.destroy()
 		self.connect('response', response)
-		
-		self.present()
 	
 	def trust_keys(self, sigs):
 		try:
@@ -128,15 +132,10 @@ class TrustBox(dialog.Dialog):
 			dialog.alert(None, ex)
 
 _queue = []
-def _pop_queue():
-	if _queue:
-		a = _queue.pop()
-		a.show()
-
 def confirm_trust(interface, sigs, iface_xml):
 	_queue.append(TrustBox(interface, sigs, iface_xml))
 	if len(_queue) == 1:
-		_pop_queue()
+		_queue[0].show()
 
 trust_help = help_box.HelpBox("Trust Help",
 ('Overview', """
