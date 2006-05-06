@@ -358,6 +358,12 @@ class Policy(object):
 						"I need to extract it. Install the package containing it (sometimes called 'binutils') "
 						"first. This works even if you're on a non-Debian-based distribution such as Red Hat)."
 						% download_source.url)
+		elif download_source.url.endswith('.bz2'):
+			if not _available_in_path('bunzip2'):
+				raise SafeException("The URL '%s' looks like a bzip2-compressed package, but you don't have the 'bunzip2' command "
+						"I need to extract it. Install the package containing it (it's probably called 'bzip2') "
+						"first."
+						% download_source.url)
 		dl = self.handler.get_download(download_source.url, force = force)
 		dl.expected_size = download_source.size
 		dl.on_success.append(success_callback)
