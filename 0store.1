@@ -1,59 +1,32 @@
-.TH 0STORE 1 "2005" "Thomas Leonard" ""
+.TH 0STORE 1 "2006" "Thomas Leonard" ""
 .SH NAME
 0store \- manage the implementation cache
 
 .SH SYNOPSIS
 
-.B 0store clean
-\fBINTERFACE\fP
-
-.B 0store manifest
-\fBDIRECTORY\fP
-
-.B 0store delete
-(\fBDIGEST\fP | \fBDIRECTORY\fP)
-
-.B 0store store
+.B 0store add
 \fBDIGEST\fP \fBDIRECTORY\fP
 
+.B 0store add
+\fBDIGEST\fP \fBARCHIVE\fP [ \fBEXTRACT\fP ]
+
+.B 0store find
+\fBDIGEST\fP
+
+.B 0store list
+
+.B 0store manifest
+\fBDIRECTORY\fP [ \fBALGORITHM\fP ]
+
 .B 0store verify
-(\fBDIGEST\fP | \fBDIRECTORY\fP)
+( \fBDIGEST\fP | \fBDIRECTORY\fP )
 
 .SH DESCRIPTION
 .PP
 0store provides access to the low-level implementation cache. Normally, the
 cache is updated automatically using 0launch(1).
 
-.SH LIST
-
-.PP
-See the list of implementation caches currently configured:
-
-.B 0store list
-
-To add directories to this list, add them to your 'implementation-dirs'
-configuration file.
-
-.SH MANIFEST
-.PP
-To generate the manifest for a directory structure:
-
-.B 0store manifest DIRECTORY
-
-.PP
-The manifest lists every file and directory in the tree, along with the SHA1
-digest of each file, thus uniquely identifying that particular set of files.
-After the manifest, the last line gives the SHA1 digest of the manifest itself.
-This value is needed when creating interface files. See the packager's guide on
-the Zero Install web site for details.
-
-.SH FIND
-.PP
-To find the path of a stored item:
-
-.B 0store find sha1=XXX
-
-.SH STORE
+.SH ADD
 .PP
 To add a directory to the store (makes a copy):
 
@@ -72,6 +45,43 @@ To add a subdirectory of an archive to the store:
 .PP
 The actual digest is calculated and compared to the given one. If they don't
 match, the operation is rejected.
+
+.SH FIND
+.PP
+To find the path of a stored item:
+
+.B 0store find sha1=XXX
+
+.SH LIST
+
+.PP
+See the list of implementation caches currently configured:
+
+.B 0store list
+
+To add directories to this list, add them to your 'implementation-dirs'
+configuration file.
+
+.SH MANIFEST
+.PP
+To generate the manifest for a directory structure:
+
+.B 0store manifest DIRECTORY [ALGORITHM]
+
+.PP
+The manifest lists every file and directory in the tree, along with the
+digest of each file, thus uniquely identifying that particular set of files.
+After the manifest, the last line gives the digest of the manifest itself.
+
+.PP
+This value is needed when creating interface files. However, the 0publish
+command will automatically calculate the required digest for you and add it
+to an interface file. See the packager's guide on the Zero Install web site for
+details.
+.PP
+Supported algorithms are 'sha1' (supported by all versions), 'sha1new'
+(requires injector 0.20 or later) and 'sha256' (requires injector 0.20 or later
+AND the Python hashlib module).
 
 .SH VERIFY
 .PP
@@ -108,7 +118,7 @@ List of system cache directories, one per line.
 
 .SH LICENSE
 .PP
-Copyright (C) 2005 Thomas Leonard.
+Copyright (C) 2006 Thomas Leonard.
 
 .PP
 You may redistribute copies of this program under the terms of the GNU General Public License.

@@ -48,7 +48,7 @@ def do_find(args):
 	sys.exit(1)
 
 def do_add(args):
-	"""add DIGEST (DIRECTORY | (ARCHIVE [EXTRACT])"""
+	"""add DIGEST (DIRECTORY | (ARCHIVE [EXTRACT]))"""
 	if len(args) < 2: raise UsageError("Missing arguments")
 	digest = args[0]
 	if os.path.isdir(args[1]):
