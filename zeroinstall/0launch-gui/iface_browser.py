@@ -221,7 +221,10 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 				self.model[iter][InterfaceBrowser.VERSION] = version_str
 
 				if policy.get_cached(impl):
-					fetch = '(cached)'
+					if impl.id.startswith('/'):
+						fetch = '(local)'
+					else:
+						fetch = '(cached)'
 				else:
 					src = policy.get_best_source(impl)
 					if src:
