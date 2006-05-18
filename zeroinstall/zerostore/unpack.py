@@ -63,6 +63,8 @@ def unpack_archive(url, data, destdir, extract = None):
 		extract_deb(data, destdir, extract)
 	elif url.endswith('.rpm'):
 		extract_rpm(data, destdir, extract)
+	elif url.endswith('.zip'):
+		extract_zip(data, destdir, extract)
 	elif url.endswith('.tar.gz') or url.endswith('.tgz'):
 		extract_tar(data, destdir, extract, '-z')
 	else:
@@ -117,6 +119,28 @@ def extract_rpm(stream, destdir, extract = None):
 			os.close(fd)
 		os.unlink(cpiopath)
 
+def extract_zip(stream, destdir, extract):
+	if extract:
+		# Limit the characters we accept, to avoid sending dodgy
+		# strings to zip
+		if not re.match('^[a-zA-Z0-9][- _a-zA-Z0-9.]*$', extract):
+			raise SafeException('Illegal character in extract attribute')
+
+	stream.seek(0)
+	# unzip can't read from stdin, so make a copy...
+	zip_copy_name = os.path.join(destdir, 'archive.zip')
+	zip_copy = file(zip_copy_name, 'w')
+	shutil.copyfileobj(stream, zip_copy)
+	zip_copy.close()
+
+	args = ['unzip', '-q', '-o']
+
+	if extract:
+		args.append(extract)
+
+	_extract(stream, destdir, args + ['archive.zip'])
+	os.unlink(zip_copy_name)
+	
 def extract_tar(stream, destdir, extract, decompress):
 	if extract:
 		# Limit the characters we accept, to avoid sending dodgy
