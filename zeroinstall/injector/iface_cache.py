@@ -192,7 +192,8 @@ class IfaceCache(object):
 		assert isinstance(source, DownloadSource)
 		required_digest = source.implementation.id
 		url = source.url
-		self.stores.add_archive_to_cache(required_digest, data, source.url, source.extract)
+		self.stores.add_archive_to_cache(required_digest, data, source.url, source.extract,
+						 type = source.type, start_offset = source.start_offset or 0)
 	
 	def get_icon_path(self, iface):
 		"Get the path of the cached icon for this interface, or None if not cached."

@@ -147,14 +147,16 @@ class RetrievalMethod(object):
 
 class DownloadSource(RetrievalMethod):
 	"""A DownloadSource provides a way to fetch an implementation."""
-	__slots__ = ['implementation', 'url', 'size', 'extract']
+	__slots__ = ['implementation', 'url', 'size', 'extract', 'start_offset', 'type']
 
-	def __init__(self, implementation, url, size, extract):
+	def __init__(self, implementation, url, size, extract, start_offset = 0, type = None):
 		assert url.startswith('http:') or url.startswith('ftp:') or url.startswith('/')
 		self.implementation = implementation
 		self.url = url
 		self.size = size
 		self.extract = extract
+		self.start_offset = start_offset
+		self.type = type		# MIME type - see unpack.py
 
 class Recipe(RetrievalMethod):
 	"""Get an implementation by following a series of steps."""
@@ -187,9 +189,9 @@ class Implementation(object):
 		self.dependencies = {}	# URI -> Dependency
 		self.download_sources = []	# [DownloadSource]
 	
-	def add_download_source(self, url, size, extract):
+	def add_download_source(self, url, size, extract, start_offset = 0, type = None):
 		"""Add a download source."""
-		self.download_sources.append(DownloadSource(self, url, size, extract))
+		self.download_sources.append(DownloadSource(self, url, size, extract, start_offset, type))
 	
 	def get_stability(self):
 		return self.user_stability or self.upstream_stability or testing

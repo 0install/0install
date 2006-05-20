@@ -14,13 +14,6 @@ import reader
 from iface_cache import iface_cache
 from zeroinstall import NeedDownload
 
-path_dirs = os.environ.get('PATH', '/bin:/usr/bin').split(':')
-def _available_in_path(command):
-	for x in path_dirs:
-		if os.path.isfile(os.path.join(x, command)):
-			return True
-	return False
-
 class _Cook:
 	"""A Cook follows a Recipe."""
 	# Maybe we're taking this metaphor too far?
@@ -72,6 +65,7 @@ class _Cook:
 		finally:
 			# If unpacking fails, remove the temporary directory
 			if tmpdir is not None:
+				import shutil
 				shutil.rmtree(tmpdir)
 
 class Policy(object):
@@ -347,25 +341,15 @@ class Policy(object):
 			raise Exception("Unknown download type for '%s'" % retrieval_method)
 
 	def begin_archive_download(self, download_source, success_callback, force = False):
-		if download_source.url.endswith('.rpm'):
-			if not _available_in_path('rpm2cpio'):
-				raise SafeException("The URL '%s' looks like an RPM, but you don't have the rpm2cpio command "
-						"I need to extract it. Install the 'rpm' package first (this works even if "
-						"you're on a non-RPM-based distribution such as Debian)." % download_source.url)
-		elif download_source.url.endswith('.deb'):
-			if not _available_in_path('ar'):
-				raise SafeException("The URL '%s' looks like a Debian package, but you don't have the 'ar' command "
-						"I need to extract it. Install the package containing it (sometimes called 'binutils') "
-						"first. This works even if you're on a non-Debian-based distribution such as Red Hat)."
-						% download_source.url)
-		elif download_source.url.endswith('.bz2'):
-			if not _available_in_path('bunzip2'):
-				raise SafeException("The URL '%s' looks like a bzip2-compressed package, but you don't have the 'bunzip2' command "
-						"I need to extract it. Install the package containing it (it's probably called 'bzip2') "
-						"first."
-						% download_source.url)
+		from zeroinstall.zerostore import unpack
+		mime_type = download_source.type
+		if not mime_type:
+			mime_type = unpack.type_from_url(download_source.url)
+		if not mime_type:
+			raise SafeException("No 'type' attribute on archive, and I can't guess from the name (%s)" % download_source.url)
+		unpack.check_type_ok(mime_type)
 		dl = self.handler.get_download(download_source.url, force = force)
-		dl.expected_size = download_source.size
+		dl.expected_size = download_source.size + (download_source.start_offset or 0)
 		dl.on_success.append(success_callback)
 		return dl
 	

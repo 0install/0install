@@ -54,7 +54,7 @@ class Store:
 		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
 		return tmp
 	
-	def add_archive_to_cache(self, required_digest, data, url, extract = None):
+	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0):
 		import unpack
 		info("Caching new implementation (digest %s)", required_digest)
 
@@ -64,7 +64,7 @@ class Store:
 
 		tmp = self.get_tmp_dir_for(required_digest)
 		try:
-			unpack.unpack_archive(url, data, tmp, extract)
+			unpack.unpack_archive(url, data, tmp, extract, type = type, start_offset = start_offset)
 		except:
 			import shutil
 			shutil.rmtree(tmp)
@@ -159,5 +159,5 @@ class Stores(object):
 	def add_dir_to_cache(self, required_digest, dir):
 		self.stores[0].add_dir_to_cache(required_digest, dir)
 
-	def add_archive_to_cache(self, required_digest, data, url, extract = None):
-		self.stores[0].add_archive_to_cache(required_digest, data, url, extract)
+	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0):
+		self.stores[0].add_archive_to_cache(required_digest, data, url, extract, type = type, start_offset = start_offset)

@@ -99,6 +99,20 @@ class TestDownload(unittest.TestCase):
 		finally:
 			sys.stdout = old_out
 
+	def testAutopackage(self):
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			self.child = server.handle_requests('HelloWorld.autopackage')
+			policy = autopolicy.AutoPolicy(os.path.abspath('Autopackage.xml'), download_only = False)
+			try:
+				policy.download_and_execute([])
+			except model.SafeException, ex:
+				if "HelloWorld/Missing" not in str(ex):
+					raise ex
+		finally:
+			sys.stdout = old_out
+
 	def testRecipeFailure(self):
 		old_out = sys.stdout
 		try:

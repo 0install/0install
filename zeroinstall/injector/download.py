@@ -15,30 +15,30 @@ download_failed = "failed"
 class DownloadError(SafeException):
 	pass
 
-class Download:
-	url = None
-	tempfile = None		# Stream for result
-	status = None		# download_*
-	errors = None
-	expected_size = None
-
-	child_pid = None
-	child_stderr = None
-
-	on_success = None
+class Download(object):
+	__slots__ = ['url', 'tempfile', 'status', 'errors', 'expected_size',
+		     'expected_size', 'child_pid', 'child_stderr', 'on_success']
 
 	def __init__(self, url):
 		"Initial status is starting."
 		self.url = url
 		self.status = download_starting
 		self.on_success = []
+
+		tempfile = None		# Stream for result
+		self.errors = None
+
+		self.expected_size = None	# Final size (excluding skipped bytes)
+
+		self.child_pid = None
+		self.child_stderr = None
 	
 	def start(self):
 		"""Returns stderr stream from child. Call error_stream_closed() when
 		it returns EOF."""
 		assert self.status == download_starting
 		self.tempfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
-		
+
 		error_r, error_w = os.pipe()
 		self.errors = ''
 

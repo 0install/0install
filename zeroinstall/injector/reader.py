@@ -155,6 +155,15 @@ def _check_canonical_name(interface, source, root):
 	if canonical_name != interface.uri:
 		raise InvalidInterface("<interface> uri attribute is '%s', but accessed as '%s'\n(%s)" %
 				(canonical_name, interface.uri, source))
+	
+def _get_long(elem, attr_name):
+	val = elem.getAttribute(attr_name)
+	if val is not None:
+		try:
+			val = long(val)
+		except ValueError, ex:
+			raise SafeException("Invalid value for integer attribute '%s': %s" % (attr_name, val))
+	return val
 
 def update(interface, source, local = False):
 	"""local - use file mtime for last-modified, and uri attribute is ignored"""
@@ -298,7 +307,9 @@ def update(interface, source, local = False):
 				if not size:
 					raise InvalidInterface("Missing size attribute on <archive>")
 				impl.add_download_source(url = url, size = long(size),
-						extract = elem.getAttribute('extract'))
+						extract = elem.getAttribute('extract'),
+						start_offset = _get_long(elem, 'start-offset'),
+						type = elem.getAttribute('type'))
 			elif elem.name == 'recipe':
 				recipe = Recipe()
 				for recipe_step in elem.childNodes:
@@ -310,7 +321,9 @@ def update(interface, source, local = False):
 						if not size:
 							raise InvalidInterface("Missing size attribute on <archive>")
 						recipe.steps.append(DownloadSource(None, url = url, size = long(size),
-								extract = recipe_step.getAttribute('extract')))
+								extract = recipe_step.getAttribute('extract'),
+								start_offset = _get_long(recipe_step, 'start-offset'),
+								type = recipe_step.getAttribute('type')))
 					else:
 						info("Unknown step '%s' in recipe; skipping recipe", recipe_step.name)
 						break

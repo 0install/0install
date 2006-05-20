@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Autopackage</name>
+  <summary>Autopackage</summary>
+  <description>Autopackage</description>
+  <implementation id='sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' version='0.1' main='HelloWorld/Missing'>
+   <archive href='http://localhost:8000/HelloWorld.autopackage' type='application/x-bzip-compressed-tar' size='185' start-offset='128'/>
+  </implementation>
+</interface>
