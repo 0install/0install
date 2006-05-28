@@ -204,4 +204,8 @@ hints = {
 	'B93AAE76C40A3222425A04FA0BDA706F2C21E592' :
 		'Ilja Honkonen is experimenting with packaging software for Zero Install. This key '
 		'was announced on 2006-04-21 on the zero-install mailing list.',
+	
+	'5D3D90FB4E6FE10C7F76E94DEE6BC26DBFDE8022' :
+		'Dennis Tomas leads the rox4debian packaging effort. This key has been known since '
+		'an email forwarded to the rox-devel list on 2006-05-28.',
 }
