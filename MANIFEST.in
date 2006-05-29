@@ -6,7 +6,13 @@ include tests/data
 include tests/Hello
 include tests/HelloWorld.tgz
 include tests/6FCF121BE2390E0B.gpg
+include tests/dummy-1-1.noarch.rpm
+include tests/HelloWorld.tar.bz2
+include tests/dummy_1-1_all.deb
+include tests/Autopackage.xml 
 include tests/Foo.xml
+include tests/Recipe.xml
+include tests/HelloWorld.autopackage
 include zeroinstall/0launch-gui/README
 include zeroinstall/0launch-gui/0launch-gui
 include zeroinstall/0launch-gui/ZeroInstall-GUI.xml
