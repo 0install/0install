@@ -99,6 +99,7 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 	"""Unpack stream 'data' into directory 'destdir'. If extract is given, extract just
 	that sub-directory from the archive. Works out the format from the name."""
 	if type is None: type = type_from_url(url)
+	if type is None: raise SafeException("Unknown extension (and no MIME type given) in '%s'" % url)
 	if type == 'application/x-bzip-compressed-tar':
 		extract_tar(data, destdir, extract, '--bzip2', start_offset)
 	elif type == 'application/x-deb':
@@ -110,7 +111,7 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 	elif type == 'application/x-compressed-tar':
 		extract_tar(data, destdir, extract, '-z', start_offset)
 	else:
-		raise Exception('Unknown MIME type "%s" for "%s"' % (type, url))
+		raise SafeException('Unknown MIME type "%s" for "%s"' % (type, url))
 
 def extract_deb(stream, destdir, extract = None, start_offset = 0):
 	if extract:
