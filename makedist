@@ -18,7 +18,7 @@ for line in os.popen('dpkg-parsechangelog'):
 else:
 	raise Exception('Failed to get deb version!')
 
-gui_iface_path = 'zeroinstall/0launch-gui/injector-gui.xml'
+gui_iface_path = 'zeroinstall/0launch-gui/ZeroInstall-GUI.xml'
 gui_iface = iface_cache.iface_cache.get_interface(os.path.abspath(gui_iface_path))
 assert len(gui_iface.implementations) == 1
 gui_impl = gui_iface.implementations.values()[0]
