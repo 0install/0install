@@ -86,7 +86,7 @@ def update_from_cache(interface):
 
 	# Special case: add our fall-back local copy of the injector as a feed
 	if interface.uri == injector_gui_uri:
-		local_gui = os.path.join(os.path.abspath(dirname(dirname(__file__))), '0launch-gui', 'injector-gui.xml')
+		local_gui = os.path.join(os.path.abspath(dirname(dirname(__file__))), '0launch-gui', 'ZeroInstall-GUI.xml')
 		interface.feeds.append(Feed(local_gui, None, False))
 
 	return bool(cached)

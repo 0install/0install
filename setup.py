@@ -9,7 +9,7 @@ class build_with_data(build_py):
 	package_data_files = [
 		"zeroinstall/0launch-gui/README",
 		"zeroinstall/0launch-gui/0launch-gui",
-		"zeroinstall/0launch-gui/injector-gui.xml",
+		"zeroinstall/0launch-gui/ZeroInstall-GUI.xml",
 	]
 	def run(self):
 		# Copy .py files and build, as usual
