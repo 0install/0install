@@ -25,7 +25,7 @@ class Download(object):
 		self.status = download_starting
 		self.on_success = []
 
-		tempfile = None		# Stream for result
+		self.tempfile = None		# Stream for result
 		self.errors = None
 
 		self.expected_size = None	# Final size (excluding skipped bytes)
