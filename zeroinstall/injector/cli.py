@@ -164,7 +164,7 @@ def main():
 			if options.refresh:
 				options.gui = True
 			else:
-				options.gui = policy.need_download()
+				options.gui = policy.need_download() or not policy.ready
 			if options.gui:
 				# If we need to download anything, we might as well
 				# refresh all the interfaces first. Also, this triggers
