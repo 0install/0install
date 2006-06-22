@@ -1,20 +1,27 @@
+zeroinstall-injector (0.21-2) unstable; urgency=low
+
+  * Expanded package description.
+  * Added a build-depends on python-dev.
+
+ -- Thomas Leonard <talex5@gmail.com>  Thu, 22 Jun 2006 22:15:31 +0100
+
 zeroinstall-injector (0.21-1) unstable; urgency=low
 
   * New release.
 
- -- Thomas Leonard <talex@nono>  Mon, 29 May 2006 12:02:06 +0100
+ -- Thomas Leonard <talex5@gmail.com>  Mon, 29 May 2006 12:02:06 +0100
 
 zeroinstall-injector (0.20-1) unstable; urgency=low
 
   * New release.
 
- -- Thomas Leonard <talex@nono>  Mon,  1 May 2006 10:28:32 +0100
+ -- Thomas Leonard <talex5@gmail.com>  Mon,  1 May 2006 10:28:32 +0100
 
 zeroinstall-injector (0.19-1) unstable; urgency=low
 
   * New release. 
 
- -- Thomas Leonard <talex@nono>  Sun, 26 Mar 2006 17:30:21 +0100
+ -- Thomas Leonard <talex5@gmail.com>  Sun, 26 Mar 2006 17:30:21 +0100
 
 zeroinstall-injector (0.18-1) unstable; urgency=low
 
