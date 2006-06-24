@@ -1,3 +1,10 @@
+zeroinstall-injector (0.21-3) unstable; urgency=low
+
+  * Debian package is now 'non-native' (source is a diff from the original
+    tarball).
+
+ -- Thomas Leonard <talex5@gmail.com>  Sat, 24 Jun 2006 20:39:12 +0100
+
 zeroinstall-injector (0.21-2) unstable; urgency=low
 
   * Expanded package description.

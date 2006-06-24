@@ -66,6 +66,7 @@ os.system('svn export ' + releases_url + '/' + name + ' ' + package_name)
 os.system('svn up')
 os.chdir(package_name)
 os.system('python setup.py sdist')
-os.system('dpkg-buildpackage -k59A53CC1 -rfakeroot')
 
-print "Tarball is", package_name + '/dist/' + package_name + '.tar.gz'
+tarball = package_name + '/dist/' + package_name + '.tar.gz'
+print "Tarball is", tarball
+print "To build .deb: ./makedeb", tarball

@@ -1,7 +1,7 @@
 Source: zeroinstall-injector
 Section: admin
 Priority: optional
-Maintainer: Thomas Leonard <tal197@users.sourceforge.net>
+Maintainer: Thomas Leonard <talex5@gmail.com>
 Build-Depends: debhelper (>= 4.0.0), python-dev
 Standards-Version: 3.6.1
 
