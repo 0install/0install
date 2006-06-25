@@ -14,8 +14,8 @@ clean:
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp configure-stamp
-	python setup.py clean
-	rm zeroinstall/__init__.pyc
+	#python setup.py clean
+	-rm zeroinstall/__init__.pyc
 	dh_clean 
 
 install: build

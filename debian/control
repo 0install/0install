@@ -2,8 +2,9 @@ Source: zeroinstall-injector
 Section: admin
 Priority: optional
 Maintainer: Thomas Leonard <talex5@gmail.com>
-Build-Depends: debhelper (>= 4.0.0), python-dev
-Standards-Version: 3.6.1
+Build-Depends: debhelper (>= 4.0.0)
+Build-Depends-Indep: python-dev
+Standards-Version: 3.7.2
 
 Package: zeroinstall-injector
 Architecture: all

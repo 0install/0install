@@ -3,6 +3,11 @@ zeroinstall-injector (0.21-3) unstable; urgency=low
   * Debian package is now 'non-native' (source is a diff from the original
     tarball).
 
+  * Updated to policy version 3.7.2 and moved python-dev to
+    build-depends-indep, to make Lintian happy.
+
+  * Made bzip2 required rather than just recommended.
+
  -- Thomas Leonard <talex5@gmail.com>  Sat, 24 Jun 2006 20:39:12 +0100
 
 zeroinstall-injector (0.21-2) unstable; urgency=low

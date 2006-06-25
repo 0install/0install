@@ -20,4 +20,11 @@ cd "$name" || exit 1
 
 (cd ../.. && svn export debian build-deb/$name/debian) || exit 1
 
-dpkg-buildpackage -k59A53CC1 -rfakeroot
+if [ "$2" = "--test" ]; then
+  dpkg-buildpackage -kTesting -rfakeroot
+else
+  dpkg-buildpackage -k59A53CC1 -rfakeroot
+fi
+
+echo Running lintian...
+lintian -i ../*.changes
