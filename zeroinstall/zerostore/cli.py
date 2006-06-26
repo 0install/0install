@@ -49,6 +49,7 @@ def do_find(args):
 
 def do_add(args):
 	"""add DIGEST (DIRECTORY | (ARCHIVE [EXTRACT]))"""
+	from zeroinstall.zerostore import unpack
 	if len(args) < 2: raise UsageError("Missing arguments")
 	digest = args[0]
 	if os.path.isdir(args[1]):
@@ -60,7 +61,11 @@ def do_add(args):
 			extract = args[2]
 		else:
 			extract = None
-		stores.add_archive_to_cache(digest, file(args[1]), args[1], extract)
+
+		type = unpack.type_from_url(args[1])
+		unpack.check_type_ok(type)
+
+		stores.add_archive_to_cache(digest, file(args[1]), args[1], extract, type = type)
 	else:
 		raise UsageError("No such file or directory '%s'" % args[1])
 

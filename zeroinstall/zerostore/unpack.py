@@ -55,26 +55,23 @@ def check_type_ok(mime_type):
 	assert mime_type
 	if mime_type == 'application/x-rpm':
 		if not _find_in_path('rpm2cpio'):
-			raise SafeException("The URL '%s' looks like an RPM, but you don't have the rpm2cpio command "
+			raise SafeException("This package looks like an RPM, but you don't have the rpm2cpio command "
 					"I need to extract it. Install the 'rpm' package first (this works even if "
-					"you're on a non-RPM-based distribution such as Debian)." % url)
+					"you're on a non-RPM-based distribution such as Debian).")
 	elif mime_type == 'application/x-deb':
 		if not _find_in_path('ar'):
-			raise SafeException("The URL '%s' looks like a Debian package, but you don't have the 'ar' command "
+			raise SafeException("This package looks like a Debian package, but you don't have the 'ar' command "
 					"I need to extract it. Install the package containing it (sometimes called 'binutils') "
-					"first. This works even if you're on a non-Debian-based distribution such as Red Hat)."
-					% url)
+					"first. This works even if you're on a non-Debian-based distribution such as Red Hat).")
 	elif mime_type == 'application/x-bzip-compressed-tar':
 		if not _find_in_path('bunzip2'):
-			raise SafeException("The URL '%s' looks like a bzip2-compressed package, but you don't have the 'bunzip2' command "
+			raise SafeException("This package looks like a bzip2-compressed package, but you don't have the 'bunzip2' command "
 					"I need to extract it. Install the package containing it (it's probably called 'bzip2') "
-					"first."
-					% url)
+					"first.")
 	elif mime_type == 'application/zip':
 		if not _find_in_path('unzip'):
-			raise SafeException("The URL '%s' looks like a zip-compressed archive, but you don't have the 'unzip' command "
-					"I need to extract it. Install the package containing it first."
-					% url)
+			raise SafeException("This package looks like a zip-compressed archive, but you don't have the 'unzip' command "
+					"I need to extract it. Install the package containing it first.")
 	elif mime_type in 'application/x-compressed-tar':
 		pass
 	else:
