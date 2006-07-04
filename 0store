@@ -66,5 +66,6 @@ except cli.UsageError, ex:
 	print >>sys.stderr, "usage: " + sys.argv[0] + " " + matches[0].__doc__
 	sys.exit(1)
 except SafeException, ex:
+	if options.verbose: raise
 	print >>sys.stderr, str(ex)
 	sys.exit(1)
