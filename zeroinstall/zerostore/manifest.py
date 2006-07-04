@@ -134,16 +134,17 @@ def splitID(id):
 	algorithm isn't known or the ID has the wrong format, raise KeyError."""
 	parts = id.split('=', 1)
 	if len(parts) != 2:
-		raise BadDigest("Digest '%s' is not in the form 'algorithm=value'")
+		raise BadDigest("Digest '%s' is not in the form 'algorithm=value'" % id)
 	return (get_algorithm(parts[0]), parts[1])
 
-def verify(root):
+def verify(root, required_digest = None):
 	"""Ensure that directory 'dir' generates the given digest.
 	Raises BadDigest if not. For a non-error return:
 	- Dir's name must be a digest (in the form "alg=value")
 	- The calculated digest of the contents must match this name.
 	- If there is a .manifest file, then its digest must also match."""
-	required_digest = os.path.basename(root)
+	if required_digest is None:
+		required_digest = os.path.basename(root)
 	alg = splitID(required_digest)[0]
 
 	digest = alg.new_digest()
@@ -209,8 +210,6 @@ class HashLibAlgorithm(Algorithm):
 			if '\n' in sub: raise BadDigest("Newline in filename '%s'" % sub)
 			assert sub.startswith('/')
 
-			if sub == '/.manifest': return
-
 			full = os.path.join(root, sub[1:])
 			info = os.lstat(full)
 			new_digest = self.new_digest
@@ -228,6 +227,8 @@ class HashLibAlgorithm(Algorithm):
 				m = info.st_mode
 
 				if stat.S_ISREG(m):
+					if leaf == '.manifest': continue
+
 					d = new_digest(file(path).read()).hexdigest()
 					if m & 0111:
 						yield "X %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)

@@ -134,8 +134,8 @@ class TestLaunch(unittest.TestCase):
 		assert out.startswith("Would execute: ")
 
 		out, err = self.run_0launch(['Foo.xml'])
-		# (Foo.xml tries to run a directory)
-		assert "Permission denied" in err
+		# (Foo.xml tries to run a directory; plash gives a different error)
+		assert "Permission denied" in err or "Is a directory" in err
 
 suite = unittest.makeSuite(TestLaunch)
 if __name__ == '__main__':
