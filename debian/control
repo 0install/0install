@@ -8,7 +8,7 @@ Standards-Version: 3.7.2
 
 Package: zeroinstall-injector
 Architecture: all
-Depends: ${python:Depends}, gnupg, python-gtk2, bzip2
+Depends: ${python:Depends}, gnupg, python-gtk2, bzip2, binutils
 Recommends: unzip, rpm
 Suggests: plash
 Description: run programs by URL
