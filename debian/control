@@ -2,7 +2,7 @@ Source: zeroinstall-injector
 Section: admin
 Priority: optional
 Maintainer: Thomas Leonard <talex5@gmail.com>
-Build-Depends: debhelper (>= 4.0.0)
+Build-Depends: debhelper (>= 5.0.37.2)
 Build-Depends-Indep: python-dev
 Standards-Version: 3.7.2
 
@@ -11,6 +11,7 @@ Architecture: all
 Depends: ${python:Depends}, gnupg, python-gtk2, bzip2, binutils
 Recommends: unzip, rpm
 Suggests: plash
+XB-Python-Version: ${python:Versions}
 Description: run programs by URL
  The Zero Install Injector makes it easy for users to install software without
  needing root privileges. It takes the URL of a program and runs it
