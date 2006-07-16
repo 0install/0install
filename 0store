@@ -56,9 +56,11 @@ except KeyboardInterrupt, ex:
 	print >>sys.stderr, "Interrupted"
 	sys.exit(1)
 except OSError, ex:
+	if options.verbose: raise
 	print >>sys.stderr, str(ex)
 	sys.exit(1)
 except IOError, ex:
+	if options.verbose: raise
 	print >>sys.stderr, str(ex)
 	sys.exit(1)
 except cli.UsageError, ex:
