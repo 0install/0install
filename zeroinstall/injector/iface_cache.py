@@ -37,7 +37,12 @@ class IfaceCache(object):
 		"""
 		assert isinstance(interface, Interface)
 		import gpg
-		data, sigs = gpg.check_stream(signed_data)
+		try:
+			data, sigs = gpg.check_stream(signed_data)
+		except:
+			signed_data.seek(0)
+			info("Failed to check GPG signature. Data received was:\n" + `signed_data.read()`)
+			raise
 
 		new_keys = False
 		import_error = None
