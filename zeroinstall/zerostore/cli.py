@@ -1,9 +1,8 @@
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import sys, os, sha, tempfile, shutil
-from logging import warn
-from zeroinstall.zerostore.manifest import generate_manifest, verify, get_algorithm
+import sys, os
+from zeroinstall.zerostore.manifest import generate_manifest, verify, get_algorithm, copy_tree_with_verify
 from zeroinstall import zerostore, SafeException
 
 stores = None
@@ -70,13 +69,19 @@ def do_add(args):
 		raise UsageError("No such file or directory '%s'" % args[1])
 
 def do_verify(args):
-	"""verify (DIGEST | DIRECTORY)"""
-	if len(args) != 1: raise UsageError("Missing DIGEST or DIRECTORY")
-	root = get_stored(args[0])
+	"""verify (DIGEST | (DIRECTORY [DIGEST])"""
+	if len(args) == 2:
+		required_digest = args[1]
+		root = args[0]
+	elif len(args) == 1:
+		root = get_stored(args[0])
+		required_digest = None		# Get from name
+	else:
+	     raise UsageError("Missing DIGEST or DIRECTORY")
 
 	print "Verifying", root
 	try:
-		verify(root)
+		verify(root, required_digest)
 		print "OK"
 	except zerostore.BadDigest, ex:
 		print str(ex)
@@ -109,4 +114,26 @@ def get_stored(dir_or_digest):
 			print >>sys.stderr, ex
 		sys.exit(1)
 
-commands = [do_add, do_find, do_list, do_manifest, do_verify]
+def do_copy(args):
+	"""copy SOURCE [ TARGET ]"""
+	if len(args) == 2:
+		source, target = args
+	elif len(args) == 1:
+		source = args[0]
+		target = stores.stores[0].dir
+	else:
+		raise UsageError("Wrong number of arguments.")
+
+	if not os.path.isdir(source):
+		raise UsageError("Source directory '%s' not found" % source)
+	if not os.path.isdir(target):
+		raise UsageError("Target directory '%s' not found" % target)
+	manifest_path = os.path.join(source, '.manifest')
+	if not os.path.isfile(manifest_path):
+		raise UsageError("Source manifest '%s' not found" % manifest_path)
+	required_digest = os.path.basename(source)
+	manifest_data = file(manifest_path).read()
+
+	copy_tree_with_verify(source, target, manifest_data, required_digest)
+
+commands = [do_add, do_copy, do_find, do_list, do_manifest, do_verify]

@@ -10,6 +10,9 @@
 .B 0store add
 \fBDIGEST\fP \fBARCHIVE\fP [ \fBEXTRACT\fP ]
 
+.B 0store copy
+\fBDIRECTORY\fP [ \fBDIRECTORY\fP ]
+
 .B 0store find
 \fBDIGEST\fP
 
@@ -45,6 +48,17 @@ To add a subdirectory of an archive to the store:
 .PP
 The actual digest is calculated and compared to the given one. If they don't
 match, the operation is rejected.
+
+.SH COPY
+.PP
+To copy an implementation (a directory with a name in the form
+"algorithm=value"), use the copy function. This is similar to performing
+a normal recursive directory copy followed by a
+.B 0store verify
+to check that the name matches the contents. E.g.:
+
+.B 0store copy ~someuser/.cache/0install.net/implementations/sha256=XXX
+/var/cache/0install.net/implementations/
 
 .SH FIND
 .PP
