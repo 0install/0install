@@ -192,8 +192,13 @@ class IfaceCache(object):
 						    "\nRefusing update (leaving new copy as " +
 						    cached + ".new)")
 			if new_mtime == old_modified:
-				raise SafeException("Interface has changed, but modification time "
-						    "hasn't! Refusing update.")
+				# You used to have to update the modification time manually.
+				# Now it comes from the signature, this check isn't useful
+				# and often causes problems when the stored format changes
+				# (e.g., when we stopped writing last-modified attributes)
+				pass
+				#raise SafeException("Interface has changed, but modification time "
+				#		    "hasn't! Refusing update.")
 		os.rename(cached + '.new', cached)
 		debug("Saved as " + cached)
 
