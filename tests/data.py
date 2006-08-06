@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 thomas_key = """-----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: GnuPG v1.0.7 (GNU/Linux)
 
@@ -40,4 +42,31 @@ iD8DBQFCkNXSrgeCgFmlPMERAgIpAKCgQrp+Kzf2PkHx6iUtDNXmIsm5RwCg2Mzs
 k9abKV4GJUVEqlJVMtOcRkE=
 =mvQS
 -----END PGP SIGNATURE-----
+"""
+
+foo_signed_xml = """<?xml version="1.0" ?>
+<interface uri="http://foo" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo (check non-ASCII chars úüû)</description>
+</interface>
+<!-- Base64 Signature
+iD8DBQBE1Z21rgeCgFmlPMERApswAJ43LSCUPXhd4FfyS/GfVtoOhzBHqgCgngVu4Yiap6ipOfO4
+04M7BexGZLc=
+
+-->
+"""
+
+new_foo_signed_xml = """<?xml version="1.0" ?>
+<interface uri="http://foo" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo (check non-ASCII chars úüû)</description>
+  <!-- Updated! -->
+</interface>
+<!-- Base64 Signature
+iD8DBQBE1Z3VrgeCgFmlPMERApXYAJ42erHAoTU4LNRRxM4kt3lSqud66wCgrgQOQ/QLiRVT6z7f
+zNaZYKyBM4c=
+
+-->
 """

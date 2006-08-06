@@ -177,9 +177,13 @@ def update(interface, source, local = False):
 	if not local:
 		_check_canonical_name(interface, source, root)
 		time_str = root.getAttribute('last-modified')
-		if not time_str:
-			raise InvalidInterface("Missing last-modified attribute on root element.")
-		interface.last_modified = parse_time(time_str)
+		if time_str:
+			# Old style cached items use an attribute
+			interface.last_modified = parse_time(time_str)
+		else:
+			# New style items have the mtime in the signature,
+			# but for quick access we use the mtime of the file
+			interface.last_modified = os.stat(source).st_mtime
 	main = root.getAttribute('main')
 	if main:
 		interface.main = main

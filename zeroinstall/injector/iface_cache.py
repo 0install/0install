@@ -4,6 +4,26 @@
 """The interface cache stores downloaded and verified interfaces in ~/.cache/0install.net/interfaces (by default).
 There are methods to query the cache, add to it, check signatures, etc."""
 
+# Note:
+#
+# We need to know the modification time of each interface, because we refuse
+# to update to an older version (this prevents an attack where the attacker
+# sends back an old version which is correctly signed but has a known bug).
+#
+# The way we store this is a bit complicated due to backward compatibility:
+#
+# - GPG-signed interfaces have their signatures removed and a last-modified
+#   attribute is stored containing the date from the signature.
+#
+# - XML-signed interfaces are stored unmodified with their signatures. The
+#   date is extracted from the signature when needed.
+#
+# - Older versions used to add the last-modified attribute even to files
+#   with XML signatures - these files therefore have invalid signatures and
+#   we extract from the attribute for these.
+#
+# Eventually, support for the first and third cases will be removed.
+
 import os, sys, time
 from logging import debug, info, warn
 from cStringIO import StringIO
@@ -82,11 +102,11 @@ class IfaceCache(object):
 			handler.confirm_trust_keys(interface, sigs, iface_xml)
 	
 	def update_interface_if_trusted(self, interface, sigs, xml):
-		for s in sigs:
-			if s.is_trusted():
-				self.update_interface_from_network(interface, xml, s.get_timestamp())
-				return True
-		return False
+		updated = self._oldest_trusted(sigs)
+		if updated is None: return False	# None are trusted
+
+		self.update_interface_from_network(interface, xml, updated)
+		return True
 
 	def download_key(self, interface, key_id):
 		assert interface
@@ -116,13 +136,19 @@ class IfaceCache(object):
 		debug("Updating '%s' from network; modified at %s" %
 			(interface.name or interface.uri, _pretty_time(modified_time)))
 
-		from xml.dom import minidom
-		doc = minidom.parseString(new_xml)
-		doc.documentElement.setAttribute('last-modified', str(modified_time))
-		new_xml = StringIO()
-		doc.writexml(new_xml)
+		if '\n<!-- Base64 Signature' not in new_xml:
+			# Only do this for old-style interfaces without
+			# signatures Otherwise, we can get the time from the
+			# signature, and adding this attribute just makes the
+			# signature invalid.
+			from xml.dom import minidom
+			doc = minidom.parseString(new_xml)
+			doc.documentElement.setAttribute('last-modified', str(modified_time))
+			new_xml = StringIO()
+			doc.writexml(new_xml)
+			new_xml = new_xml.getvalue()
 
-		self.import_new_interface(interface, new_xml.getvalue())
+		self.import_new_interface(interface, new_xml, modified_time)
 
 		import writer
 		interface.last_checked = long(time.time())
@@ -134,7 +160,9 @@ class IfaceCache(object):
 		for w in self.watchers:
 			w.interface_changed(interface)
 	
-	def import_new_interface(self, interface, new_xml):
+	def import_new_interface(self, interface, new_xml, modified_time):
+		assert modified_time
+
 		upstream_dir = basedir.save_cache_path(config_site, 'interfaces')
 		cached = os.path.join(upstream_dir, escape(interface.uri))
 
@@ -147,17 +175,23 @@ class IfaceCache(object):
 		stream = file(cached + '.new', 'w')
 		stream.write(new_xml)
 		stream.close()
+		os.utime(cached + '.new', (modified_time, modified_time))
 		new_mtime = reader.check_readable(interface.uri, cached + '.new')
-		assert new_mtime
-		if interface.last_modified:
-			if new_mtime < interface.last_modified:
+		assert new_mtime == modified_time
+
+		old_modified = self._get_signature_date(interface.uri)
+		if old_modified is None:
+			old_modified = interface.last_modified
+
+		if old_modified:
+			if new_mtime < old_modified:
 				raise SafeException("New interface's modification time is before old "
 						    "version!"
-						    "\nOld time: " + _pretty_time(interface.last_modified) +
+						    "\nOld time: " + _pretty_time(old_modified) +
 						    "\nNew time: " + _pretty_time(new_mtime) + 
 						    "\nRefusing update (leaving new copy as " +
 						    cached + ".new)")
-			if new_mtime == interface.last_modified:
+			if new_mtime == old_modified:
 				raise SafeException("Interface has changed, but modification time "
 						    "hasn't! Refusing update.")
 		os.rename(cached + '.new', cached)
@@ -204,5 +238,27 @@ class IfaceCache(object):
 		"Get the path of the cached icon for this interface, or None if not cached."
 		return basedir.load_first_cache(config_site, 'interface_icons',
 						 escape(iface.uri))
+	
+	def _get_signature_date(self, uri):
+		"""Read the date-stamp from the signature of the cached interface.
+		If the date-stamp is unavailable, returns None."""
+		import gpg
+		old_iface = basedir.load_first_cache(config_site, 'interfaces', escape(uri))
+		if old_iface is None:
+			return None
+		try:
+			sigs = gpg.check_stream(file(old_iface))[1]
+		except SafeException, ex:
+			debug("No signatures (old-style interface): %s" % ex)
+			return None
+		return self._oldest_trusted(sigs)
+	
+	def _oldest_trusted(self, sigs):
+		"""Return the date of the oldest trusted signature in the list, or None if there
+		are no trusted sigs in the list."""
+		trusted = [s.get_timestamp() for s in sigs if s.is_trusted()]
+		if trusted:
+			return min(trusted)
+		return None
 
 iface_cache = IfaceCache()
