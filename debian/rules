@@ -35,6 +35,7 @@ binary-indep: build install
 	dh_installman 0launch.1 0alias.1 0store.1
 	dh_compress
 	dh_fixperms
+	dh_pycentral
 	dh_python
 	dh_installdeb
 	dh_gencontrol

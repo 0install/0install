@@ -1,3 +1,9 @@
+zeroinstall-injector (0.22-2) unstable; urgency=low
+
+  * Use python-central to upgrade smoothly between versions.
+
+ -- Thomas Leonard <talex5@gmail.com>  Sat,  2 Sep 2006 15:48:47 +0100
+
 zeroinstall-injector (0.22-1) unstable; urgency=low
 
   * New release.
