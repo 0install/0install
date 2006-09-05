@@ -1,5 +1,6 @@
 import gtk
 import os, sys
+import sets	# Note: for Python 2.3; frozenset is only in Python 2.4
 
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import download, run
@@ -13,8 +14,15 @@ def download_with_gui(mainwindow, prog_args, run_afterwards, main = None):
 	"""If all downloads are ready, runs the program. Otherwise,
 	hides mainwindow, shows the download progress box and then runs
 	it. On error, mainwindow is re-shown and returns False.
+	Before starting, any current downloads (interfaces) are aborted.
 	On success, doesn't return (calls exec, or sys.exit(0) if nothing to exec)."""
 	try:
+		policy.abort_all_downloads()
+
+		# Existing downloads don't disappear until the kill signal takes
+		# effect. Rather than waiting, just filter them out later.
+		existing_downloads = sets.ImmutableSet(policy.monitored_downloads)
+
 		for iface, impl in policy.get_uncached_implementations():
 			if not impl.download_sources:
 				raise SafeException("Implementation " + impl.id + " of "
@@ -39,7 +47,7 @@ def download_with_gui(mainwindow, prog_args, run_afterwards, main = None):
 			# Not reached, unless this is a dry run
 			mainwindow.destroy()
 			sys.exit(0)			# Success
-		if policy.monitored_downloads:
+		if sets.ImmutableSet(policy.monitored_downloads) - existing_downloads:
 			DownloadProgessBox(run_it, mainwindow).show()
 		else:
 			run_it()
