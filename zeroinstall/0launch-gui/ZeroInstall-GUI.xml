@@ -8,5 +8,5 @@
   <homepage>http://0install.net/injector.html</homepage>
   <feed-for interface="http://0install.net/2006/interfaces/ZeroInstall-GUI.xml"/>
   
-  <implementation id="." released="2006-08-27" stability="stable" version="0.22"/>
+  <implementation id="." released="2006-09-16" stability="testing" version="0.22.1"/>
 </interface>
