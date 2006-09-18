@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+	   uri='http://foo/Binary.xml'>
+  <name>Binary</name>
+  <summary>Binary</summary>
+  <description>Binary</description>
+  <feed src='http://foo/Source.xml' arch='*-src'/>
+  <implementation id='sha1=123' version='1.0'/>
+</interface>

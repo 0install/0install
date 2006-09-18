@@ -12,6 +12,7 @@ parser.add_option("-d", "--download-only", help="fetch but don't run", action='s
 parser.add_option("-m", "--main", help="name of the file to execute")
 parser.add_option("-n", "--no-self-update", help="don't check for updates to the GUI itself", action='store_true')
 parser.add_option("-r", "--refresh", help="check for updates of all interfaces", action='store_true')
+parser.add_option("-s", "--source", help="select source code", action='store_true')
 parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 parser.add_option("-V", "--version", help="display version information", action='store_true')
 
@@ -75,6 +76,9 @@ if options.no_self_update is not True:
 	if gui_policy.need_download():
 		# Need to refresh the GUI itself first!
 		prog_args = ['--no-self-update']
+		if options.source:
+			prog_args += ['--source']
+			options.source = False
 		if options.main:
 			prog_args += ['--main', options.main]
 			options.main = None
@@ -87,5 +91,6 @@ if options.no_self_update is not True:
 policy = gui.GUIPolicy(interface_uri, prog_args,
 		   download_only = bool(options.download_only),
 		   refresh = bool(options.refresh),
-		   main = options.main)
+		   main = options.main,
+		   src = options.source)
 policy.main()

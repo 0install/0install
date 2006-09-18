@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+	   uri='http://foo/Source.xml'>
+  <name>Source</name>
+  <summary>Source</summary>
+  <description>Source</description>
+  <feed-for interface='http://foo/Binary.xml'/>
+  <group>
+    <requires interface='http://foo/Compiler.xml'/>
+    <implementation id='sha1=234' version='1.0' arch='*-src'/>
+  </group>
+</interface>

@@ -33,6 +33,7 @@ def main():
 	parser.add_option("-m", "--main", help="name of the file to execute")
 	parser.add_option("-o", "--offline", help="try to avoid using the network", action='store_true')
 	parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
+	parser.add_option("-s", "--source", help="select source code", action='store_true')
 	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 	parser.add_option("-V", "--version", help="display version information", action='store_true')
 	parser.disable_interspersed_args()
@@ -155,8 +156,9 @@ def main():
 		# Singleton instance used everywhere...
 		policy = autopolicy.AutoPolicy(iface_uri,
 					download_only = bool(options.download_only),
-					dry_run = options.dry_run)
-		
+					dry_run = options.dry_run,
+					src = options.source)
+
 		if options.offline:
 			policy.network_use = model.network_offline
 
@@ -178,6 +180,7 @@ def main():
 
 	if options.gui:
 		policy.set_root(namespaces.injector_gui_uri)
+		policy.src = False
 
 		# Try to start the GUI without using the network.
 		# The GUI can refresh itself if it wants to.
@@ -192,6 +195,8 @@ def main():
 		if options.refresh:
 			options.refresh = False
 			prog_args.insert(0, '--refresh')
+		if options.source:
+			prog_args.insert(0, '--source')
 		if options.main:
 			prog_args = ['--main', options.main] + prog_args
 			options.main = None

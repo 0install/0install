@@ -1,0 +1,50 @@
+#!/usr/bin/env python2.3
+import sys, tempfile, os, shutil
+import unittest
+
+sys.path.insert(0, '..')
+from zeroinstall.injector import autopolicy, basedir, reader, model
+from zeroinstall.injector.iface_cache import iface_cache
+
+import logging
+logger = logging.getLogger()
+#logger.setLevel(logging.DEBUG)
+
+class TestPolicy(unittest.TestCase):
+	def setUp(self):
+		self.config_home = tempfile.mktemp()
+		os.environ['XDG_CONFIG_HOME'] = self.config_home
+		reload(basedir)
+
+		assert basedir.xdg_config_home == self.config_home
+		os.mkdir(self.config_home, 0700)
+
+		iface_cache.__init__()
+	
+	def tearDown(self):
+		shutil.rmtree(self.config_home)
+	
+	def testSource(self):
+		foo = iface_cache.get_interface('http://foo/Binary.xml')
+		reader.update(foo, 'Binary.xml')
+		foo_src = iface_cache.get_interface('http://foo/Source.xml')
+		reader.update(foo_src, 'Source.xml')
+		compiler = iface_cache.get_interface('http://foo/Compiler.xml')
+		reader.update(compiler, 'Compiler.xml')
+
+		p = autopolicy.AutoPolicy('http://foo/Binary.xml', dry_run = True)
+		p.freshness = 0
+		p.network_use = model.network_full
+		p.recalculate()
+		assert p.implementation[foo].id == 'sha1=123'
+
+		# Now ask for source instead
+		p.src = True
+		p.recalculate()
+		assert p.implementation[foo].id == 'sha1=234'		# The source
+		assert p.implementation[compiler].id == 'sha1=345'	# A binary needed to compile it
+
+suite = unittest.makeSuite(TestPolicy)
+if __name__ == '__main__':
+	sys.argv.append('-v')
+	unittest.main()

@@ -22,10 +22,14 @@ class GUIPolicy(Policy):
 	prog_args = None
 	main_exec = None
 
-	def __init__(self, interface, prog_args, download_only, refresh, main):
-		Policy.__init__(self, interface)
+	def __init__(self, interface, prog_args, download_only, refresh, main, src = False):
+		if src:
+			Policy.__init__(self, interface, src = src)
+		else:
+			Policy.__init__(self, interface)	# For older versions
 		global policy
 		assert policy is None
+
 		policy = self
 		self.main_exec = main
 		self.prog_args = prog_args

@@ -137,6 +137,11 @@ class TestLaunch(unittest.TestCase):
 		# (Foo.xml tries to run a directory; plash gives a different error)
 		assert "Permission denied" in err or "Is a directory" in err
 
+	def testSource(self):
+		out, err = self.run_0launch(['--dry-run', '--source', 'Source.xml'])
+		self.assertEquals("", err)
+		assert 'Compiler.xml' in out
+
 suite = unittest.makeSuite(TestLaunch)
 if __name__ == '__main__':
 	sys.argv.append('-v')

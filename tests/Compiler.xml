@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+	   uri='http://foo/Compiler.xml'>
+  <name>Compiler</name>
+  <summary>Compiler</summary>
+  <description>Compiler</description>
+  <implementation id='sha1=345' version='1.0'/>
+</interface>

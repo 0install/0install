@@ -72,15 +72,21 @@ class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
 		     'freshness', 'ready', 'handler', 'warned_offline',
-		     'restrictions']
+		     'restrictions', 'src', '_root_restrictions']
 
-	def __init__(self, root, handler = None):
+	def __init__(self, root, handler = None, src = False):
 		self.watchers = []
 		self.help_with_testing = False
 		self.network_use = network_full
 		self.freshness = 60 * 60 * 24 * 30	# Seconds allowed since last update (1 month)
 		self.ready = False
+		self.src = src				# Root impl must be a "src" machine type
 		self.restrictions = {}
+
+		# Currently, this is used in is_unusable() to check whether the impl is
+		# for the root interface when looking for source. It could also be used
+		# to add restrictions to the root (e.g. based on command-line options).
+		self._root_restrictions = []
 
 		# If we need to download something but can't because we are offline,
 		# warn the user. But only the first time.
@@ -155,7 +161,7 @@ class Policy(object):
 			else:
 				debug("No implementation chould be chosen yet");
 				self.ready = False
-		process(Dependency(self.root))
+		process(Dependency(self.root, restrictions = self._root_restrictions))
 		for w in self.watchers: w()
 	
 	# Only to be called from recalculate, as it is quite slow.
@@ -193,6 +199,9 @@ class Policy(object):
 		return best
 	
 	def compare(self, interface, b, a):
+		"""Compare a and b to see which would be chosen first.
+		interface is the interface we are trying to resolve, which may
+		not be the interface of a or b if they are from feeds."""
 		restrictions = self.restrictions.get(interface, [])
 
 		a_stab = a.get_stability()
@@ -245,8 +254,14 @@ class Policy(object):
 	
 	def usable_feeds(self, iface):
 		"""Generator for iface.feeds that are valid for our architecture."""
+		if self.src and iface.uri == self.root:
+			# Note: when feeds are recursive, we'll need a better test for root here
+			machine_ranks = {'src': 1}
+		else:
+			machine_ranks = arch.machine_ranks
+			
 		for f in iface.feeds:
-			if f.os in arch.os_ranks and f.machine in arch.machine_ranks:
+			if f.os in arch.os_ranks and f.machine in machine_ranks:
 				yield f
 			else:
 				debug("Skipping '%s'; unsupported architecture %s-%s",
@@ -278,8 +293,15 @@ class Policy(object):
 			return "Not cached and we are off-line"
 		if impl.os not in arch.os_ranks:
 			return "Unsupported OS"
-		if impl.machine not in arch.machine_ranks:
-			return "Unsupported machine type"
+		# When looking for source code, we need to known if we're
+		# looking at an implementation of the root interface, even if
+		# it's from a feed, hence the sneaky restrictions identity check.
+		if self.src and restrictions is self._root_restrictions:
+			if impl.machine != 'src':
+				return "Not source code"
+		else:
+			if impl.machine not in arch.machine_ranks:
+				return "Unsupported machine type"
 		return None
 
 	def get_interface(self, uri):

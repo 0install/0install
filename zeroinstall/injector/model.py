@@ -131,11 +131,14 @@ class Dependency(object):
 	code to function, specified by another Interface."""
 	__slots__ = ['interface', 'restrictions', 'bindings']
 
-	def __init__(self, interface):
+	def __init__(self, interface, restrictions = None):
 		assert isinstance(interface, (str, unicode))
 		assert interface
 		self.interface = interface
-		self.restrictions = []
+		if restrictions is None:
+			self.restrictions = []
+		else:
+			self.restrictions = restrictions
 		self.bindings = []
 	
 	def __str__(self):
