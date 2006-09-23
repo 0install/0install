@@ -95,7 +95,8 @@ def main():
 				data, sigs = gpg.check_stream(signed_data)
 				doc = minidom.parseString(data.read())
 				uri = doc.documentElement.getAttribute('uri')
-				assert uri
+				if not uri:
+					raise model.SafeException("Missing 'uri' attribute on root element in '%s'" % x)
 				iface = iface_cache.get_interface(uri)
 				logging.info("Importing information about interface %s", iface)
 				signed_data.seek(0)
