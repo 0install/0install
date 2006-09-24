@@ -173,7 +173,7 @@ class Recipe(RetrievalMethod):
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
 	__slots__ = ['os', 'machine', 'upstream_stability', 'user_stability',
-		     'version', 'size', 'dependencies', 'main',
+		     'version', 'size', 'dependencies', 'main', 'metadata',
 		     'id', 'download_sources', 'released', 'interface']
 
 	def __init__(self, interface, id):
@@ -189,6 +189,7 @@ class Implementation(object):
 		self.upstream_stability = None
 		self.os = None
 		self.machine = None
+		self.metadata = {}	# [URI + " "] + localName -> value
 		self.dependencies = {}	# URI -> Dependency
 		self.download_sources = []	# [DownloadSource]
 	

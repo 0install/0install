@@ -128,6 +128,34 @@ class TestReader(unittest.TestCase):
 		except reader.InvalidInterface, ex:
 			assert 'main' in str(ex)
 	
+	def testAttrs(self):
+		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp.write(
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <group main='bin/sh' foo='foovalue' xmlns:bobpre='http://bob' bobpre:bob='bobvalue'>
+   <implementation id='sha1=123' version='1' bobpre:bob='newbobvalue'/>
+   <implementation id='sha1=124' version='2' main='next'/>
+  </group>
+</interface>""" % foo_iface_uri)
+		tmp.flush()
+		iface = model.Interface(foo_iface_uri)
+		reader.update(iface, tmp.name)
+
+		assert len(iface.implementations) == 2
+
+		assert iface.get_impl('sha1=123').metadata['foo'] == 'foovalue'
+		assert iface.get_impl('sha1=123').metadata['main'] == 'bin/sh'
+		assert iface.get_impl('sha1=123').metadata['http://bob bob'] == 'newbobvalue'
+
+		assert iface.get_impl('sha1=124').metadata['http://bob bob'] == 'bobvalue'
+		assert iface.get_impl('sha1=124').metadata['main'] == 'next'
+	
 suite = unittest.makeSuite(TestReader)
 if __name__ == '__main__':
 	sys.argv.append('-v')

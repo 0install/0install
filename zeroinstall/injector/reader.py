@@ -30,21 +30,6 @@ def get_singleton_text(parent, ns, localName):
 		return elem.content
 	raise InvalidInterface('No <%s> element in <%s>' % (localName, parent.name))
 
-class Attrs(object):
-	__slots__ = ['version', 'released', 'arch', 'stability', 'main']
-	def __init__(self, **kwargs):
-		for x in self.__slots__:
-			setattr(self, x, kwargs.get(x, None))
-	
-	def merge(self, item):
-		new = Attrs()
-		for x in self.__slots__:
-			value = item.attrs.get(x, None)
-			if value is None:
-				value = getattr(self, x)
-			setattr(new, x, value)
-		return new
-
 def parse_version(version_string):
 	if version_string is None: return None
 	try:
@@ -165,6 +150,13 @@ def _get_long(elem, attr_name):
 			raise SafeException("Invalid value for integer attribute '%s': %s" % (attr_name, val))
 	return val
 
+def merge_attrs(attrs, item):
+	"""Add each attribute of item to a copy of attrs and return the copy."""
+	new = attrs.copy()
+	for a in item.attrs:
+		new[str(a)] = item.attrs[a]
+	return new
+
 def update(interface, source, local = False):
 	"""local - use file mtime for last-modified, and uri attribute is ignored"""
 	assert isinstance(interface, Interface)
@@ -238,7 +230,7 @@ def update(interface, source, local = False):
 
 			depends = base_depends.copy()
 
-			item_attrs = group_attrs.merge(item)
+			item_attrs = merge_attrs(group_attrs, item)
 
 			for child in item.childNodes:
 				if child.uri != XMLNS_IFACE: continue
@@ -271,25 +263,27 @@ def update(interface, source, local = False):
 				raise InvalidInterface('Bad SHA1 attribute: %s' % ex)
 			impl = interface.get_impl(id)
 
-		version = item_attrs.version
-		if not version:
+		impl.metadata = item_attrs
+		try:
+			version = item_attrs['version']
+		except KeyError:
 			raise InvalidInterface("Missing version attribute")
-		impl.version = map(int, version.split('.'))
+		impl.version = parse_version(version)
 
-		if item_attrs.main and item_attrs.main.startswith('/'):
+		item_main = item_attrs.get('main', None)
+		if item_main and item_main.startswith('/'):
 			raise InvalidInterface("'main' attribute must be relative, but '%s' starts with '/'!" %
-						item_attrs.main)
-		impl.main = item_attrs.main
+						item_main)
+		impl.main = item_main
 
-		if item_attrs.released:
-			impl.released = item_attrs.released
+		impl.released = item_attrs.get('released', None)
 
 		size = item.getAttribute('size')
 		if size:
 			impl.size = long(size)
-		impl.arch = item_attrs.arch
+		impl.arch = item_attrs.get('arch', None)
 		try:
-			stability = stability_levels[str(item_attrs.stability)]
+			stability = stability_levels[str(item_attrs['stability'])]
 		except KeyError:
 			stab = str(item_attrs.stability)
 			if stab != stab.lower():
@@ -335,6 +329,7 @@ def update(interface, source, local = False):
 					impl.download_sources.append(recipe)
 
 	process_group(root,
-		Attrs(stability = testing,
-		      main = root.getAttribute('main') or None),
+		{'stability': 'testing',
+	         'main' : root.getAttribute('main') or None,
+		},
 		{})
