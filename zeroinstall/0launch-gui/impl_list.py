@@ -163,7 +163,7 @@ class ImplementationList(gtk.ScrolledWindow):
 				self.model[new][STABILITY] = item.upstream_stability or \
 							     model.testing
 			self.model[new][ARCH] = item.arch or 'any'
-			if restrictions:
+			if restrictions is not None:
 				self.model[new][UNUSABLE] = policy.is_unusable(item, restrictions)
 			else:
 				self.model[new][UNUSABLE] = policy.is_unusable(item)
