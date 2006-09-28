@@ -1,7 +1,7 @@
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-version = '0.22'
+version = '0.23'
 
 class SafeException(Exception):
 	"""An exception that can be reported to the user without a stack

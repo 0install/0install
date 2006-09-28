@@ -1,4 +1,6 @@
 <?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl'
+     href='http://0install.net/2006/stylesheets/interface.xsl'?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
   <name>ZeroInstall-GUI</name>
   <summary>graphical interface for the Zero Install injector</summary>
@@ -9,6 +11,6 @@
   <feed-for interface="http://0install.net/2006/interfaces/ZeroInstall-GUI.xml"/>
   
   <group main="0launch-gui">
-    <implementation id="." released="2006-09-16" stability="testing" version="0.22.1"/>
+    <implementation id="." released="2006-09-28" stability="stable" version="0.23"/>
   </group>
 </interface>
