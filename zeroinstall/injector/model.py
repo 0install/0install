@@ -303,3 +303,11 @@ def canonical_iface_uri(uri):
 			"(doesn't start with 'http:', and "
 			"doesn't exist as a local file '%s' either)" %
 			(uri, iface_uri))
+
+def parse_version(version_string):
+	if version_string is None: return None
+	try:
+		return map(int, version_string.split('.'))
+	except ValueError, ex:
+		raise SafeException("Invalid version format in '%s': %s" % (version_string, ex))
+

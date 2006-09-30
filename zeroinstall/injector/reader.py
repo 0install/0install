@@ -30,13 +30,6 @@ def get_singleton_text(parent, ns, localName):
 		return elem.content
 	raise InvalidInterface('No <%s> element in <%s>' % (localName, parent.name))
 
-def parse_version(version_string):
-	if version_string is None: return None
-	try:
-		return map(int, version_string.split('.'))
-	except ValueError, ex:
-		raise InvalidInterface("Invalid version format in '%s': %s" % (version_string, ex))
-
 def process_depends(dependency, item):
 	for e in item.childNodes:
 		if e.uri != XMLNS_IFACE: continue

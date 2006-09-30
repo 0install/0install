@@ -156,6 +156,24 @@ class TestModel(unittest.TestCase):
 			assert False
 		except model.SafeException, ex:
 			assert 'Bad interface name' in str(ex)
+	
+	def testVersions(self):
+		pv = model.parse_version
+		assert pv('1.0') > pv('0.9')
+		assert pv('1.0') > pv('1')
+		assert pv('1.0') == pv('1.0')
+		assert pv('0.9.9') < pv('1.0')
+
+		def invalid(v):
+			try:
+				pv(v)
+				assert False
+			except model.SafeException, ex:
+				pass
+		invalid('hello')
+		invalid('2./1')
+		invalid('.1')
+		invalid('')
 
 suite = unittest.makeSuite(TestModel)
 if __name__ == '__main__':
