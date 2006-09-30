@@ -89,8 +89,10 @@ class TestModel(unittest.TestCase):
 		assert a.get_stability() is model.stable
 		a.user_stability = model.buggy
 		assert a.get_stability() is model.buggy
-		a.version = [1,2,3]
+		a.version = model.parse_version('1.2.3')
 		self.assertEquals('1.2.3', a.get_version())
+		a.version = model.parse_version('1.2.3-rc2-post')
+		self.assertEquals('1.2.3-rc2-post', a.get_version())
 		assert str(a) == 'foo'
 
 		b = model.Implementation(i, 'foo')

@@ -201,7 +201,14 @@ class Implementation(object):
 		return self.user_stability or self.upstream_stability or testing
 	
 	def get_version(self):
-		return '.'.join(map(str, self.version))
+		version = self.version[:]
+		l = len(version)
+		for x in range(0, l, 2):
+			version[x] = '.'.join(map(str, version[x]))
+		for x in range(1, l, 2):
+			version[x] = '-' + version_value_to_mod[version[x]]
+		if version[-1] == '-': del version[-1]
+		return ''.join(version)
 	
 	def __str__(self):
 		return self.id
@@ -310,6 +317,10 @@ version_mod_to_value = {
 	'': 0,
 	'post': 1,
 }
+
+# Reverse mapping
+version_value_to_mod = {}
+for x in version_mod_to_value: version_value_to_mod[version_mod_to_value[x]] = x
 
 _version_re = re.compile('-([a-z]*)')
 
