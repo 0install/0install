@@ -99,12 +99,30 @@ class TestReader(unittest.TestCase):
 		dep = impl.dependencies[bar_iface_uri]
 		assert len(dep.restrictions) == 1
 		res = dep.restrictions[0]
-		assert res.not_before == [2, 3, 4]
-		assert res.before == [3, 4, 5]
+		assert res.not_before == [[2, 3, 4], 0]
+		assert res.before == [[3, 4, 5], 0]
 		dep2 = impl.dependencies[bar_iface_uri + '2']
 		assert len(dep2.restrictions) == 0
 		str(dep)
 		str(dep2)
+	
+	def testVersions(self):
+		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp.write(
+"""<?xml version="1.0" ?>
+<interface
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <implementation id='sha1=123' version='1.0-rc3' version-modifier='-pre'/>
+</interface>""" % foo_iface_uri)
+		tmp.flush()
+		iface = model.Interface(foo_iface_uri)
+		reader.update(iface, tmp.name)
+		impl = iface.implementations['sha1=123']
+		assert impl.version == [[1, 0], -1, [3], -2]
 	
 	def testAbsMain(self):
 		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')

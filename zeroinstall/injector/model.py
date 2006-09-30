@@ -3,7 +3,7 @@
 
 """In-memory representation of the dependency graph."""
 
-import os
+import os, re
 from zeroinstall import SafeException
 
 network_offline = 'off-line'
@@ -304,10 +304,34 @@ def canonical_iface_uri(uri):
 			"doesn't exist as a local file '%s' either)" %
 			(uri, iface_uri))
 
+version_mod_to_value = {
+	'pre': -2,
+	'rc': -1,
+	'': 0,
+	'post': 1,
+}
+
+_version_re = re.compile('-([a-z]*)')
+
 def parse_version(version_string):
+	"""Version := DottedList ("-" Mod DottedList?)*
+	DottedList := (Integer ("." Integer)*)"""
 	if version_string is None: return None
+	parts = _version_re.split(version_string)
+	if parts[-1] == '':
+		del parts[-1]	# Ends with a modifier
+	else:
+		parts.append('')
+	if not parts:
+		raise SafeException("Empty version string!")
+	l = len(parts)
 	try:
-		return map(int, version_string.split('.'))
+		for x in range(0, l, 2):
+			parts[x] = map(int, parts[x].split('.'))
+		for x in range(1, l, 2):
+			parts[x] = version_mod_to_value[parts[x]]
+		return parts
 	except ValueError, ex:
 		raise SafeException("Invalid version format in '%s': %s" % (version_string, ex))
-
+	except KeyError, ex:
+		raise SafeException("Invalid version modifier in '%s': %s" % (version_string, ex))

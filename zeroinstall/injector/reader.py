@@ -259,6 +259,8 @@ def update(interface, source, local = False):
 		impl.metadata = item_attrs
 		try:
 			version = item_attrs['version']
+			version_mod = item_attrs.get('version-modifier', None)
+			if version_mod: version += version_mod
 		except KeyError:
 			raise InvalidInterface("Missing version attribute")
 		impl.version = parse_version(version)

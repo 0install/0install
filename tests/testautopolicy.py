@@ -430,11 +430,11 @@ class TestAutoPolicy(unittest.TestCase):
 		assert len(dep.restrictions) == 1
 		restriction = dep.restrictions[0]
 
-		restriction.before = [2, 0]
+		restriction.before = model.parse_version('2.0')
 		policy.recalculate()
 		assert policy.implementation[bar_iface].id == 'sha1=100'
 
-		restriction.not_before = [1, 5]
+		restriction.not_before = model.parse_version('1.5')
 		policy.recalculate()
 		assert policy.implementation[bar_iface].id == 'sha1=150'
 
