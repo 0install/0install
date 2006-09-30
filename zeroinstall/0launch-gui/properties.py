@@ -15,6 +15,7 @@ tips = gtk.Tooltips()
 
 # Response codes
 ADD_FEED = 1
+COMPILE = 2
 
 def enumerate(items):
 	x = 0
@@ -130,6 +131,9 @@ class Properties(Dialog):
 		self.vbox.pack_start(vbox, True, True, 0)
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
+		self.compile_button = self.add_mixed_button(_('Compile'),
+							gtk.STOCK_CONVERT, COMPILE)
+		self.compile_button.connect('clicked', self.compile)
 		add_feed_button = self.add_mixed_button(_('Add Local Feed...'),
 							gtk.STOCK_ADD, ADD_FEED)
 		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
@@ -166,8 +170,39 @@ class Properties(Dialog):
 		def updated():
 			self.update_list()
 			description.set_details(interface)
+			self.shade_compile()
 		self.connect('destroy', lambda s: policy.watchers.remove(updated))
 		policy.watchers.append(updated)
+		self.shade_compile()
+	
+	def shade_compile(self):
+		# Note: we don't want to actually fetch the source interfaces at
+		# this point, so we check whether:
+		# - We have a feed of type 'src' (not fetched), or
+		# - We have a source implementation in a regular feed
+		have_src = False
+		for f in self.interface.feeds:
+			if f.machine == 'src':
+				have_src = True
+				break
+		if have_src is False:
+			# Don't have any src feeds. Do we have a source implementation
+			# as part of a regular feed?
+			impls = self.interface.implementations.values()
+			for f in policy.usable_feeds(self.interface):
+				try:
+					feed_iface = policy.get_interface(f.uri)
+					if feed_iface.implementations:
+						impls.extend(feed_iface.implementations.values())
+				except NeedDownload:
+					pass	# OK, will get called again later
+				except Exception, ex:
+					warn("Failed to load feed '%s': %s", f.uri, str(ex))
+			for x in impls:
+				if x.machine == 'src':
+					have_src = True
+					break
+		self.compile_button.set_sensitive(have_src)
 	
 	def update_list(self):
 		impls = policy.get_ranked_implementations(self.interface)
@@ -213,9 +248,35 @@ class Properties(Dialog):
 		vbox.pack_start(self.use_list, True, True, 2)
 
 		return vbox
+	
+	def compile(self, button):
+		sel = gtk.FileSelection(_('Create build directory'))
+		sel.set_has_separator(False)
+		name = os.path.basename(self.interface.uri)
+		if name.endswith('.xml'): name = name[:-4]
+		sel.set_filename(name)
+		def ok(b):
+			d = sel.get_filename()
+			if os.path.exists(d):
+				d = gtk.MessageDialog(sel,
+                                             gtk.DIALOG_MODAL,
+                                             gtk.MESSAGE_ERROR,
+                                             gtk.BUTTONS_OK,
+                                             _("'%s' already exists") % d)
+				d.run()
+				d.destroy()
+			else:
+				sel.destroy()
+				import compile
+				box = compile.CompileBox(self.interface, d)
+				box.show()
+		sel.ok_button.connect('clicked', ok)
+		sel.cancel_button.connect('clicked', lambda b: sel.destroy())
+		sel.show()
 
 def add_feed(interface):
 	sel = gtk.FileSelection(_('Select XML feed file'))
+	sel.set_has_separator(False)
 	def ok(b):
 		from xml.dom import minidom
 		from zeroinstall.injector import reader
@@ -316,4 +377,10 @@ non-cached.
 - Then, higher-numbered versions come before low-numbered ones.
 
 - Then cached come before non-cached (for 'Full' network use mode).
+"""),
+
+('Compiling', """
+If there is no binary available for your system then you may be able to compile one from \
+source by clicking on the Compile button. If no source is available, the Compile button will \
+be shown shaded.
 """))
