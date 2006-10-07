@@ -211,12 +211,22 @@ def _check_xml_stream(stream):
 		os.unlink(sig_name)
 	return (stream, sigs)
 
+def _find_in_path(prog):
+	for d in os.environ['PATH'].split(':'):
+		path = os.path.join(d, prog)
+		if os.path.isfile(path):
+			return path
+	return None
+
 def check_stream(stream):
 	"""Pass stream through gpg --decrypt to get the data, the error text,
 	and a list of signatures (good or bad). If stream starts with "<?xml "
 	then get the signature from a comment at the end instead (and the returned
 	data is the original stream). stream must be seekable.
 	Returns (data_stream, [Signatures])."""
+	if not _find_in_path('gpg'):
+		raise SafeException("GnuPG is not installed ('gpg' not in $PATH). See http://gnupg.org")
+
 	stream.seek(0)
 	all = stream.read()
 	stream.seek(0)
