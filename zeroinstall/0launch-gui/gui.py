@@ -21,6 +21,7 @@ class GUIPolicy(Policy):
 	download_only = None
 	prog_args = None
 	main_exec = None
+	dl_callbacks = {}	# Download -> [ callback ]
 
 	def __init__(self, interface, prog_args, download_only, refresh, main, src = False):
 		if src:
@@ -78,6 +79,17 @@ class GUIPolicy(Policy):
 			dl = download.Download(url)
 			self.monitor_download(dl)
 		return dl
+	
+	def add_dl_callback(self, url, callback):
+		"""If url is being downloaded now, call callback() when it completes.
+		Otherwise, call callback() now."""
+		for dl in self.monitored_downloads:
+			if dl.url == url:
+				callbacks = self.dl_callbacks.get(dl, [])
+				callbacks.append(callback)
+				self.dl_callbacks[dl] = callbacks
+				return
+		callback()
 
 	def monitor_download(self, dl):
 		from zeroinstall.injector import download
@@ -121,6 +133,9 @@ class GUIPolicy(Policy):
 					dialog.alert(self.window,
 						"Error fetching '%s':\n\n%s" %
 						(name, ex))
+
+				for cb in self.dl_callbacks.get(dl, []):
+					cb()
 
 				if len(self.monitored_downloads) == 0 and self.checking:
 					self.checking.updates_done(self.versions_changed())

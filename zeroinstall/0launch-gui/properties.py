@@ -1,6 +1,7 @@
 from zeroinstall.injector.model import *
 from zeroinstall.injector import writer, namespaces
 import gtk, sys, os
+import sets	# Note: for Python 2.3; frozenset is only in Python 2.4
 
 import help_box
 from dialog import Dialog
@@ -14,7 +15,6 @@ _dialogs = {}	# Interface -> Properties
 tips = gtk.Tooltips()
 
 # Response codes
-ADD_FEED = 1
 COMPILE = 2
 
 def enumerate(items):
@@ -93,12 +93,6 @@ class Description(gtk.ScrolledWindow):
 		if interface.last_checked:
 			buffer.insert(iter, '\nLast checked: %s' % time.ctime(interface.last_checked))
 
-		if hasattr(interface, 'feeds') and interface.feeds:
-			for feed in interface.feeds:
-				if hasattr(feed, 'uri'):
-					feed = feed.uri
-				buffer.insert(iter, '\nFeed: %s' % feed)
-
 		buffer.insert_with_tags(iter, '\n\nDescription\n', heading_style)
 
 		paragraphs = [format_para(p) for p in (interface.description or "-").split('\n\n')]
@@ -115,6 +109,113 @@ class Description(gtk.ScrolledWindow):
 				buffer.insert_with_tags(iter, '%s\n' % x.content, self.link_style)
 
 
+class Feeds(gtk.VPaned):
+	URI = 0
+	ARCH = 1
+	USED = 2
+
+	def __init__(self, interface):
+		gtk.VPaned.__init__(self)
+		self.set_border_width(4)
+		self.interface = interface
+
+		hbox = gtk.HBox(False, 4)
+		self.pack1(hbox, False, False)
+
+		self.model = gtk.ListStore(str, str, bool)
+
+		self.lines = self.build_model()
+		for line in self.lines:
+			self.model.append(line)
+
+		self.swin = gtk.ScrolledWindow()
+		self.swin.set_shadow_type(gtk.SHADOW_IN)
+		self.swin.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+		hbox.pack_start(self.swin, True, True, 0)
+
+		buttons_vbox = gtk.VButtonBox()
+		buttons_vbox.set_layout(gtk.BUTTONBOX_START)
+		buttons_vbox.set_spacing(4)
+
+		add_remote_feed_button = dialog.MixedButton(_('Add Remote Feed...'), gtk.STOCK_ADD, 0.0)
+		add_remote_feed_button.connect('clicked',
+			lambda b: add_remote_feed(self.get_toplevel(), interface))
+		buttons_vbox.add(add_remote_feed_button)
+
+		add_local_feed_button = dialog.MixedButton(_('Add Local Feed...'), gtk.STOCK_ADD, 0.0)
+		add_local_feed_button.connect('clicked', lambda b: add_local_feed(interface))
+		tips.set_tip(add_local_feed_button,
+			_('If you have another implementation of this interface (e.g., a '
+			  'CVS checkout), you can add it to the list by registering the XML '
+			  'feed file that came with it.'))
+		buttons_vbox.add(add_local_feed_button)
+
+		self.remove_feed_button = dialog.MixedButton(_('Remove Feed'), gtk.STOCK_REMOVE, 0.0)
+		def remove_feed(button):
+			model, iter = self.tv.get_selection().get_selected()
+			feed_uri = model[iter][Feeds.URI]
+			for x in interface.feeds:
+				if x.uri == feed_uri:
+					if x.user_override:
+						interface.feeds.remove(x)
+						writer.save_interface(interface)
+						policy.recalculate()
+						return
+					else:
+						dialog.alert(self.get_toplevel(),
+							_("Can't remove '%s' as you didn't add it."))
+						return
+			raise Exception("Missing feed '%s'!" % feed_uri)
+		self.remove_feed_button.connect('clicked', remove_feed)
+		buttons_vbox.add(self.remove_feed_button)
+
+		hbox.pack_start(buttons_vbox, False, True, 0)
+
+		self.tv = gtk.TreeView(self.model)
+		text = gtk.CellRendererText()
+		self.tv.append_column(gtk.TreeViewColumn('Source', text, text = Feeds.URI, sensitive = Feeds.USED))
+		self.tv.append_column(gtk.TreeViewColumn('Arch', text, text = Feeds.ARCH, sensitive = Feeds.USED))
+		self.swin.add(self.tv)
+
+		self.description = Description()
+		self.add2(self.description)
+
+		sel = self.tv.get_selection()
+		sel.set_mode(gtk.SELECTION_BROWSE)
+		sel.connect('changed', self.sel_changed)
+		sel.select_path((0,))
+	
+	def build_model(self):
+		usable_feeds = sets.ImmutableSet(policy.usable_feeds(self.interface))
+		unusable_feeds = sets.ImmutableSet(self.interface.feeds) - usable_feeds
+
+		out = [[self.interface.uri, None, True]]
+
+		if self.interface.feeds:
+			for feed in usable_feeds:
+				out.append([feed.uri, feed.arch, True])
+			for feed in unusable_feeds:
+				out.append([feed.uri, feed.arch, False])
+		return out
+
+	def sel_changed(self, sel):
+		model, iter = sel.get_selected()
+		if not iter: return	# build in progress
+		iface = model[iter][Feeds.URI]
+		self.remove_feed_button.set_sensitive(iface != self.interface.uri)
+		self.description.set_details(policy.get_interface(iface))
+	
+	def updated(self):
+		new_lines = self.build_model()
+		if new_lines != self.lines:
+			self.lines = new_lines
+			self.model.clear()
+			for line in self.lines:
+				self.model.append(line)
+			self.tv.get_selection().select_path((0,))
+		else:
+			self.sel_changed(self.tv.get_selection())
+
 class Properties(Dialog):
 	interface = None
 	use_list = None
@@ -123,26 +224,15 @@ class Properties(Dialog):
 		Dialog.__init__(self)
 		self.interface = interface
 		self.set_title('Interface ' + interface.get_name())
-		self.set_default_size(gtk.gdk.screen_width() / 2,
+		self.set_default_size(-1,
 				      gtk.gdk.screen_height() / 3)
-
-		vbox = gtk.VBox(False, 4)
-		vbox.set_border_width(4)
-		self.vbox.pack_start(vbox, True, True, 0)
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
 		self.compile_button = self.add_mixed_button(_('Compile'),
 							gtk.STOCK_CONVERT, COMPILE)
 		self.compile_button.connect('clicked', self.compile)
-		add_feed_button = self.add_mixed_button(_('Add Local Feed...'),
-							gtk.STOCK_ADD, ADD_FEED)
 		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
 		self.set_default_response(gtk.RESPONSE_CANCEL)
-
-		tips.set_tip(add_feed_button,
-			_('If you have another implementation of this interface (e.g., a '
-			  'CVS checkout), you can add it to the list by registering the XML '
-			  'feed file that came with it.'))
 
 		def response(dialog, resp):
 			if resp == gtk.RESPONSE_CANCEL:
@@ -151,25 +241,23 @@ class Properties(Dialog):
 			#	policy.begin_iface_download(interface, True)
 			elif resp == gtk.RESPONSE_HELP:
 				properties_help.display()
-			elif resp == ADD_FEED:
-				add_feed(interface)
 		self.connect('response', response)
 
-		main_hbox = gtk.HBox(False, 5)
-		vbox.pack_start(main_hbox, True, True, 0)
+		notebook = gtk.Notebook()
+		self.vbox.pack_start(notebook, True, True, 0)
 
-		description = Description()
-		description.set_details(interface)
-		main_hbox.pack_start(description, True, True, 0)
-
-		main_hbox.pack_start(self.build_versions_column(interface), False, True, 0)
+		feeds = Feeds(interface)
+		notebook.append_page(feeds, gtk.Label(_('Feeds')))
+		notebook.append_page(self.build_versions_column(interface), gtk.Label(_('Versions')))
 
 		self.update_list()
-		vbox.show_all()
+		notebook.show_all()
+
+		feeds.tv.grab_focus()
 
 		def updated():
 			self.update_list()
-			description.set_details(interface)
+			feeds.updated()
 			self.shade_compile()
 		self.connect('destroy', lambda s: policy.watchers.remove(updated))
 		policy.watchers.append(updated)
@@ -212,6 +300,7 @@ class Properties(Dialog):
 		assert self.use_list is None
 
 		vbox = gtk.VBox(False, 2)
+		vbox.set_border_width(4)
 
 		hbox = gtk.HBox(False, 2)
 		vbox.pack_start(hbox, False, True, 2)
@@ -274,7 +363,72 @@ class Properties(Dialog):
 		sel.cancel_button.connect('clicked', lambda b: sel.destroy())
 		sel.show()
 
-def add_feed(interface):
+def add_remote_feed(parent, interface):
+	d = gtk.MessageDialog(parent, 0, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL,
+		_('Enter the URL of the new source of implementations of this interface:'))
+	d.add_button(gtk.STOCK_ADD, gtk.RESPONSE_OK)
+	d.set_default_response(gtk.RESPONSE_OK)
+	entry = gtk.Entry()
+
+	align = gtk.VBox(False, 0)
+	align.set_border_width(4)
+	align.add(entry)
+	d.vbox.pack_start(align)
+	entry.set_activates_default(True)
+
+	entry.set_text('')
+
+	d.vbox.show_all()
+
+	error_label = gtk.Label('')
+	error_label.set_padding(4, 4)
+	align.pack_start(error_label)
+
+	def error(message):
+		if message:
+			error_label.set_text(message)
+			error_label.show()
+		else:
+			error_label.hide()
+
+	def download_done(iface):
+		d.set_sensitive(True)
+		if not iface.name:
+			error('Failed to read interface')
+			return
+		if not iface.feed_for:
+			error("Interface '%s' is not a feed." % iface.get_name())
+		elif interface.uri not in iface.feed_for:
+			error("Interface is not a feed for '%s'.\nOnly for:\n%s" %
+				(interface.uri, '\n'.join(iface.feed_for)))
+		elif iface.uri in [f.uri for f in interface.feeds]:
+			error("Feed from '%s' has already been added!" % iface.uri)
+		else:
+			interface.feeds.append(Feed(iface.uri, arch = None, user_override = True))
+			writer.save_interface(interface)
+			d.destroy()
+			policy.recalculate()
+
+	def response(d, resp):
+		error(None)
+		if resp == gtk.RESPONSE_OK:
+			try:
+				url = entry.get_text()
+				if not url:
+					raise SafeException(_('Enter a URL'))
+				iface = policy.get_interface(url)
+				policy.begin_iface_download(iface) # Force a refresh
+				d.set_sensitive(False)
+				policy.add_dl_callback(url, lambda: download_done(iface))
+			except SafeException, ex:
+				error(str(ex))
+		else:
+			d.destroy()
+			return
+	d.connect('response', response)
+	d.show()
+
+def add_local_feed(interface):
 	sel = gtk.FileSelection(_('Select XML feed file'))
 	sel.set_has_separator(False)
 	def ok(b):
@@ -323,25 +477,36 @@ def edit(interface):
 
 properties_help = help_box.HelpBox("Injector Properties Help",
 ('Interface properties', """
-This window displays information about an interface. On the left is some information \
-about the interface: 
+This window displays information about an interface. There are two tabs at the top: \
+Feeds shows the places where the injector looks for implementations of the interface, while \
+Versions shows the list of implementations found (from all feeds) in order of preference."""),
+
+('The Feeds tab', """
+At the top is a list of feeds. By default, the injector uses the full name of the interface \
+as the default feed location (so if you ask it to run the program "http://foo/bar.xml" then it will \
+by default get the list of versions by downloading "http://foo/bar.xml".
+
+You can add and remove feeds using the buttons on the right. The main feed may also add \
+some extra feeds itself. If you've checked out a developer version of a program, you can use \
+the 'Add Local Feed...' button to let the injector know about it, for example.
+
+Below the list of feeds is a box describing the selected one:
 
 - At the top is its short name.
-- Below that is the full name; this is also location which is used to update \
-the information.
+- Below that is the address (a URL or filename).
 - 'Last upstream change' shows the version of the cached copy of the interface file.
 - 'Last checked' is the last time a fresh copy of the upstream interface file was \
 downloaded.
-- 'Local feed' is shown if you have other sources of versions of this program (for \
-example, a CVS checkout).
 - Then there is a longer description of the interface."""),
 
-('Implementations', """
-The right side of the window is a list of all known implementations of the interface. \
+('The Versions tab', """
+This tab shows a list of all known implementations of the interface, from all the feeds. \
 The columns have the following meanings:
 
 Version gives the version number. High-numbered versions are considered to be \
 better than low-numbered ones.
+
+Released gives the date this entry was added to the feed.
 
 Stability is 'stable' if the implementation is believed to be stable, 'buggy' if \
 it is known to contain serious bugs, and 'testing' if its stability is not yet \

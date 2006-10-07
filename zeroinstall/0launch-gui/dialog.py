@@ -48,7 +48,7 @@ def wait_for_no_windows():
 	while n_windows > 0:
 		gtk.main()
 
-def MixedButton(message, stock):
+def MixedButton(message, stock, x_align = 0.5):
 	button = gtk.Button()
 
 	label = gtk.Label('')
@@ -57,7 +57,7 @@ def MixedButton(message, stock):
 
 	image = gtk.image_new_from_stock(stock, gtk.ICON_SIZE_BUTTON)
 	box = gtk.HBox(False, 2)
-	align = gtk.Alignment(0.5, 0.5, 0.0, 0.0)
+	align = gtk.Alignment(x_align, 0.5, 0.0, 0.0)
 
 	box.pack_start(image, False, False, 0)
 	box.pack_end(label, False, False, 0)
