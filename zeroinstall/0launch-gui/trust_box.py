@@ -211,5 +211,9 @@ hints = {
 	
 	'2E2B4E59CAC8D874CD2759D34B1095AF2E992B19' :
 		'Lennon Cook creates the FreeBSD-x86 binaries for various ROX applications. '
-		'This key was announced in a Jun 17, 2006 post to the rox-devel mailing list.'
+		'This key was announced in a Jun 17, 2006 post to the rox-devel mailing list.',
+	
+	'7722DC5085B903FF176CCAA9695BA303C9839ABC' :
+		'Lennon Cook creates the FreeBSD-x86 binaries for various ROX applications. '
+		'This key was announced in an Oct 5, 2006 post to the rox-users mailing list.',
 }
