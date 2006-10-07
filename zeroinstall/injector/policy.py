@@ -301,6 +301,8 @@ class Policy(object):
 				return "Not source code"
 		else:
 			if impl.machine not in arch.machine_ranks:
+				if impl.machine == 'src':
+					return "Source code"
 				return "Unsupported machine type"
 		return None
 
