@@ -315,7 +315,7 @@ class Properties(Dialog):
 			if x is interface.stability_policy:
 				stability.set_active(i + 1)
 		hbox.pack_start(gtk.Label('Preferred stability:'), False, True, 2)
-		hbox.pack_start(eb, True, True, 0)
+		hbox.pack_start(eb, False, True, 0)
 		def set_stability_policy(combo):
 			i = stability.get_active()
 			if i == 0:
@@ -333,7 +333,6 @@ class Properties(Dialog):
 				'just for this interface.'))
 
 		self.use_list = ImplementationList(interface)
-		self.use_list.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
 		vbox.pack_start(self.use_list, True, True, 2)
 
 		return vbox

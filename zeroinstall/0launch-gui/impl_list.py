@@ -66,6 +66,7 @@ class ImplementationList(gtk.ScrolledWindow):
 
 	def __init__(self, interface):
 		gtk.ScrolledWindow.__init__(self, None, None)
+		self.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
 		self.set_shadow_type(gtk.SHADOW_IN)
 
 		self.interface = interface
