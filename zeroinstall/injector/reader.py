@@ -1,3 +1,7 @@
+"""
+Parses an XML interface into a Python representation.
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
@@ -8,10 +12,10 @@ import time
 from logging import debug, warn, info
 from os.path import dirname
 
-from zeroinstall import version
 from zeroinstall.injector import basedir, qdom
 from zeroinstall.injector.namespaces import *
 from zeroinstall.injector.model import *
+from zeroinstall import version, SafeException
 
 class InvalidInterface(SafeException):
 	def __init__(self, message, ex = None):

@@ -1,3 +1,25 @@
+"""Processing of implementation manifests.
+
+A manifest is a string representing a directory tree, with the property
+that two trees will generate identical manifest strings if and only if:
+
+ - They have extactly the same set of files, directories and symlinks.
+ - For each pair of corresponding directories in the two sets:
+   - The mtimes are the same (OldSHA1 only).
+ - For each pair of corresponding files in the two sets:
+   - The size, executable flag and mtime are the same.
+   - The contents have matching secure hash values.
+ - For each pair of corresponding symlinks in the two sets:
+   - The mtime and size are the same.
+   - The targets have matching secure hash values.
+
+The manifest is typically processed with a secure hash itself. So, the idea is that
+any significant change to the contents of the tree will change the secure hash value
+of the manifest.
+
+A top-level ".manifest" file is ignored.
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
@@ -13,27 +35,10 @@ try:
 except:
 	hashlib = None
 
-"""A manifest is a string representing a directory tree, with the property
-that two trees will generate identical manifest strings if and only if:
-
-- They have extactly the same set of files, directories and symlinks.
-- For each pair of corresponding directories in the two sets:
-  - The mtimes are the same.
-- For each pair of corresponding files in the two sets:
-  - The size, executable flag and mtime are the same.
-  - The contents have matching SHA1 sums.
-- For each pair of corresponding symlinks in the two sets:
-  - The mtime and size are the same.
-  - The targets have matching SHA1 sums.
-
-The manifest is typically processed with SHA1 itself. So, the idea is that
-any significant change to the contents of the tree will change the SHA1 sum
-of the manifest.
-
-A top-level ".manifest" file is ignored.
-"""
-
 class Algorithm:
+	"""Abstract base class for algorithms.
+	An algorithm knows how to generate a manifest from a directory tree.
+	"""
 	def generate_manifest(root):
 		"""Returns an iterator that yields each line of the manifest for the directory
 		tree rooted at 'root'."""
@@ -49,6 +54,7 @@ class Algorithm:
 		raise Exception('Abstract')
 
 class OldSHA1(Algorithm):
+	"""@deprecated: Injector versions before 0.20 only supported this algorithm."""
 	def generate_manifest(self, root):
 		def recurse(sub):
 			# To ensure that a line-by-line comparison of the manifests
@@ -98,17 +104,21 @@ class OldSHA1(Algorithm):
 		return 'sha1=' + digest.hexdigest()
 
 def get_algorithm(name):
+	"""Look-up an L{Algorithm} by name.
+	@raise BadDigest: if the name is unknown."""
 	try:
 		return algorithms[name]
 	except KeyError:
 		raise BadDigest("Unknown algorithm '%s'" % name)
 
 def generate_manifest(root, alg = 'sha1'):
+	"""@deprecated: use L{get_algorithm} and L{Algorithm.generate_manifest} instead."""
 	return get_algorithm(alg).generate_manifest(root)
 	
 def add_manifest_file(dir, digest_or_alg):
 	"""Writes a .manifest file into 'dir', and returns the digest.
-	Second argument should be an instance of Algorithm. Passing a digest
+	@param dir: root of the implementation
+	@param digest_or_alg: should be an instance of Algorithm. Passing a digest
 	here is deprecated."""
 	mfile = os.path.join(dir, '.manifest')
 	if os.path.islink(mfile) or os.path.exists(mfile):
@@ -130,8 +140,8 @@ def add_manifest_file(dir, digest_or_alg):
 
 def splitID(id):
 	"""Take an ID in the form 'alg=value' and return a tuple (alg, value),
-	where 'alg' is an instance of Algorithm and 'value' is a string. If the
-	algorithm isn't known or the ID has the wrong format, raise KeyError."""
+	where 'alg' is an instance of Algorithm and 'value' is a string.
+	@raise BadDigest: if the algorithm isn't known or the ID has the wrong format."""
 	parts = id.split('=', 1)
 	if len(parts) != 2:
 		raise BadDigest("Digest '%s' is not in the form 'algorithm=value'" % id)
@@ -139,7 +149,18 @@ def splitID(id):
 
 def copy_with_verify(src, dest, mode, alg, required_digest):
 	"""Copy path src to dest, checking that the contents give the right digest.
-	dest must not exist. New file is created with a mode of 'mode & umask'."""
+	dest must not exist. New file is created with a mode of 'mode & umask'.
+	@param src: source filename
+	@type src: str
+	@param dest: target filename
+	@type dest: str
+	@param mode: target mode
+	@type mode: int
+	@param alg: algorithm to generate digest
+	@type alg: L{Algorithm}
+	@param required_digest: expected digest value
+	@type required_digest: str
+	@raise BadDigest: the contents of the file don't match required_digest"""
 	src_obj = file(src)
 	dest_fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
 	digest = alg.new_digest()
@@ -160,10 +181,11 @@ def copy_with_verify(src, dest, mode, alg, required_digest):
 
 def verify(root, required_digest = None):
 	"""Ensure that directory 'dir' generates the given digest.
-	Raises BadDigest if not. For a non-error return:
-	- Dir's name must be a digest (in the form "alg=value")
-	- The calculated digest of the contents must match this name.
-	- If there is a .manifest file, then its digest must also match."""
+	For a non-error return:
+	 - Dir's name must be a digest (in the form "alg=value")
+	 - The calculated digest of the contents must match this name.
+	 - If there is a .manifest file, then its digest must also match.
+	@raise BadDigest: if verification fails."""
 	if required_digest is None:
 		required_digest = os.path.basename(root)
 	alg = splitID(required_digest)[0]

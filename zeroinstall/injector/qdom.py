@@ -1,8 +1,11 @@
+"""A quick DOM implementation.
+
+Python's xml.dom is very slow. The xml.sax module is also slow (as it imports urllib2).
+This is our light-weight version.
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
-
-# xml.dom is very slow... this is our light-weight version
-# xml.sax also slow (imports urllib2)
 
 from xml.parsers import expat
 import sys

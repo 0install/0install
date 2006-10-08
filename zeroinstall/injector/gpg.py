@@ -1,3 +1,11 @@
+"""
+Python interface to GnuPG.
+
+This module is used to invoke GnuPG to check the digital signatures on interfaces.
+
+@see: L{iface_cache.IfaceCache.check_signed_data}
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
@@ -9,6 +17,7 @@ from trust import trust_db
 from model import SafeException
 
 class Signature:
+	"""Abstract base class for signature check results."""
 	status = None
 
 	def __init__(self, status):
@@ -22,6 +31,7 @@ class Signature:
 		return None
 
 class ValidSig(Signature):
+	"""A valid signature check result."""
 	FINGERPRINT = 0
 	TIMESTAMP = 2
 
@@ -46,6 +56,7 @@ class ValidSig(Signature):
 		return details
 
 class BadSig(Signature):
+	"""A bad signature (doesn't match the message)."""
 	KEYID = 0
 
 	def __str__(self):
@@ -53,6 +64,7 @@ class BadSig(Signature):
 			" (the message has been tampered with)"
 
 class ErrSig(Signature):
+	"""Error while checking a signature."""
 	KEYID = 0
 	ALG = 1
 	RC = -1
@@ -75,6 +87,7 @@ class ErrSig(Signature):
 		return None
 
 def import_key(stream):
+	"""Run C{gpg --import} with this stream as stdin."""
 	errors = tempfile.TemporaryFile()
 
 	child = os.fork()
@@ -223,7 +236,7 @@ def check_stream(stream):
 	and a list of signatures (good or bad). If stream starts with "<?xml "
 	then get the signature from a comment at the end instead (and the returned
 	data is the original stream). stream must be seekable.
-	Returns (data_stream, [Signatures])."""
+	@return: (data_stream, [Signatures])"""
 	if not _find_in_path('gpg'):
 		raise SafeException("GnuPG is not installed ('gpg' not in $PATH). See http://gnupg.org")
 

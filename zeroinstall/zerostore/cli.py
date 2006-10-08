@@ -1,3 +1,5 @@
+"""Code for the B{0store} command-line interface."""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 

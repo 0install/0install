@@ -1,3 +1,7 @@
+"""
+Records who we trust to sign interfaces.
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 

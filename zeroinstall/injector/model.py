@@ -1,7 +1,16 @@
+"""In-memory representation of interfaces and other data structures.
+
+The objects in this module are used to build a representation of an XML interface
+file in memory.
+
+@see: L{reader} constructs these data-structures.
+
+@var defaults: Default values for the 'default' attribute for <environment> bindings of
+well-known variables.
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
-
-"""In-memory representation of the dependency graph."""
 
 import os, re
 from zeroinstall import SafeException
@@ -13,8 +22,6 @@ network_levels = (network_offline, network_minimal, network_full)
 
 stability_levels = {}	# Name -> Stability
 
-# Default values for the 'default' attribute for <environment> bindings of
-# well-known variables:
 defaults = {
 	'PATH': '/bin:/usr/bin',
 	'XDG_CONFIG_DIRS': '/etc/xdg',
@@ -38,6 +45,8 @@ def _join_arch(os, machine):
 	return "%s-%s" % (os or '*', machine or '*')
 	
 class Stability(object):
+	"""A stability rating. Each implementation has an upstream stability rating and,
+	optionally, a user-set rating."""
 	__slots__ = ['level', 'name', 'description']
 	def __init__(self, level, name, description):
 		self.level = level
@@ -51,6 +60,9 @@ class Stability(object):
 	
 	def __str__(self):
 		return self.name
+
+	def __repr__(self):
+		return "<Stability: " + self.description + ">"
 
 insecure = Stability(0, 'insecure', 'This is a security risk')
 buggy = Stability(5, 'buggy', 'Known to have serious bugs')
@@ -90,6 +102,7 @@ class Binding(object):
 	to the application being run."""
 
 class EnvironmentBinding(Binding):
+	"""Indicate the chosen implementation using an environment variable."""
 	__slots__ = ['name', 'insert', 'default']
 
 	def __init__(self, name, insert, default = None):
@@ -191,7 +204,7 @@ class Implementation(object):
 		self.machine = None
 		self.metadata = {}	# [URI + " "] + localName -> value
 		self.dependencies = {}	# URI -> Dependency
-		self.download_sources = []	# [DownloadSource]
+		self.download_sources = []	# [RetrievalMethod]
 	
 	def add_download_source(self, url, size, extract, start_offset = 0, type = None):
 		"""Add a download source."""
@@ -300,6 +313,10 @@ def escape(uri):
 		uri.encode('utf-8'))
 
 def canonical_iface_uri(uri):
+	"""If uri is a relative path, convert to an absolute one.
+	Otherwise, return it unmodified.
+	@raise SafeException: if uri isn't valid
+	"""
 	if uri.startswith('http:'):
 		return uri
 	else:
@@ -321,12 +338,15 @@ version_mod_to_value = {
 # Reverse mapping
 version_value_to_mod = {}
 for x in version_mod_to_value: version_value_to_mod[version_mod_to_value[x]] = x
+del x
 
 _version_re = re.compile('-([a-z]*)')
 
 def parse_version(version_string):
-	"""Version := DottedList ("-" Mod DottedList?)*
-	DottedList := (Integer ("." Integer)*)"""
+	"""Convert a version string to an internal representation.
+	The parsed format can be compared quickly using the standard Python functions.
+	 - Version := DottedList ("-" Mod DottedList?)*
+	 - DottedList := (Integer ("." Integer)*)"""
 	if version_string is None: return None
 	parts = _version_re.split(version_string)
 	if parts[-1] == '':

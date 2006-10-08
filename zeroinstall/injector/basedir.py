@@ -1,7 +1,14 @@
+"""
+Support code for the freedesktop.org basedir spec.
+
+This module provides functions for locating configuration files.
+
+@see: U{http://freedesktop.org/wiki/Standards/basedir-spec}
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from __future__ import generators
 import os
 
 _home = os.environ.get('HOME', '/')

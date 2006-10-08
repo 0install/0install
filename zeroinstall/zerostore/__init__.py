@@ -1,3 +1,7 @@
+"""
+Code for managing the implementation cache.
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
@@ -8,10 +12,13 @@ from zeroinstall.injector import basedir
 from zeroinstall import SafeException
 
 class BadDigest(SafeException):
+	"""Thrown if a digest is invalid (either syntactically or cryptographically)."""
 	detail = None
-class NotStored(SafeException): pass
 
-def copytree2(src, dst):
+class NotStored(SafeException):
+	"""Throws if a requested implementation isn't in the cache."""
+
+def _copytree2(src, dst):
 	import shutil
 	names = os.listdir(src)
 	assert os.path.isdir(dst)
@@ -25,12 +32,13 @@ def copytree2(src, dst):
 		elif os.path.isdir(srcname):
 			os.mkdir(dstname)
 			mtime = os.lstat(srcname).st_mtime
-			copytree2(srcname, dstname)
+			_copytree2(srcname, dstname)
 			os.utime(dstname, (mtime, mtime))
 		else:
 			shutil.copy2(srcname, dstname)
 
 class Store:
+	"""A directory for storing implementations."""
 	def __init__(self, dir):
 		self.dir = dir
 	
@@ -85,7 +93,7 @@ class Store:
 			os.makedirs(self.dir)
 		from tempfile import mkdtemp
 		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
-		copytree2(path, tmp)
+		_copytree2(path, tmp)
 		try:
 			self.check_manifest_and_rename(required_digest, tmp)
 		except:
@@ -122,6 +130,8 @@ class Store:
 			os.rename(tmp, final_name)
 
 class Stores(object):
+	"""A list of L{Store}s. All stores are searched when looking for an implementation,
+	but only the first one is written to."""
 	__slots__ = ['stores']
 
 	def __init__(self):

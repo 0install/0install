@@ -1,3 +1,7 @@
+"""
+Executes a set of implementations as a program.
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
@@ -13,7 +17,10 @@ def do_env_binding(binding, path):
 
 def execute(policy, prog_args, dry_run = False, main = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
-	Returns normally only for a successful dry run."""
+	Returns normally only for a successful dry run.
+	
+	@precondition: C{policy.ready and policy.get_uncached_implementations() == []}
+	"""
 	iface = policy.get_interface(policy.root)
 		
 	for needed_iface in policy.implementation:

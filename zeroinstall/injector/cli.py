@@ -1,3 +1,10 @@
+"""
+The B{0launch} command-line interface.
+
+This code is here, rather than in B{0launch} itself, simply so that it gets byte-compiled at
+install time.
+"""
+
 import os, sys
 from optparse import OptionParser
 import logging

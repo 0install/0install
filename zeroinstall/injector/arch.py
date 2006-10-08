@@ -1,3 +1,19 @@
+"""
+Information about the current system's architecture.
+
+This module provides information about the current system. It is used to determine
+whether an implementation is suitable for this machine, and to compare different implementations.
+
+For example, it will indicate that:
+
+ - An i486 machine cannot run an i686 binary.
+ - An i686 machine can run an i486 binary, but would prefer an i586 one.
+ - A Windows binary cannot run on a Linux machine.
+
+Each dictionary maps from a supported architecture type to a preference level. Lower numbers are
+better, Unsupported architectures are not listed at all.
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 

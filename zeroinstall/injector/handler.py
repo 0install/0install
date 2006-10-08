@@ -1,3 +1,13 @@
+"""
+Integrates download callbacks with an external mainloop.
+
+While things are being downloaded, Zero Install returns control to your program.
+Your mainloop is responsible for monitoring the state of the downloads and notifying
+Zero Install when they are complete.
+
+To do this, you supply a L{Handler} to the L{policy}.
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 

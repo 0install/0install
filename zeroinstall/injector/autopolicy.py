@@ -1,3 +1,11 @@
+"""
+A simple non-interactive policy.
+
+This module provides a simple policy that will select, download and run a suitable set of
+implementations. It is not interactive. This is the policy used when you run B{0launch -c}, and
+is also the policy used to run the injector's GUI.
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 

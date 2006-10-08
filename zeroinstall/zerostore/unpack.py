@@ -1,3 +1,5 @@
+"""Unpacking archives of various formats."""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
@@ -51,7 +53,8 @@ def type_from_url(url):
 	return None
 
 def check_type_ok(mime_type):
-	"""Check we have the needed software to extract from an archive of the given type. Raise an exception if not."""
+	"""Check we have the needed software to extract from an archive of the given type.
+	@raise SafeException: if the needed software is not available"""
 	assert mime_type
 	if mime_type == 'application/x-rpm':
 		if not _find_in_path('rpm2cpio'):

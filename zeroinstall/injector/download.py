@@ -1,8 +1,18 @@
+"""
+Handles URL downloads.
+
+This is the low-level interface for downloading interfaces, implementations, icons, etc.
+
+@see: L{policy.Policy.begin_iface_download}
+@see: L{policy.Policy.begin_archive_download}
+@see: L{policy.Policy.begin_icon_download}
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import tempfile, os, sys
-from model import SafeException
+from zeroinstall import SafeException
 import traceback
 from logging import warn
 

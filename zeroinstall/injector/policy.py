@@ -1,3 +1,7 @@
+"""
+Chooses a set of implementations based on a policy.
+"""
+
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
@@ -69,16 +73,42 @@ class _Cook:
 				shutil.rmtree(tmpdir)
 
 class Policy(object):
+	"""Chooses a set of implementations based on a policy.
+	@ivar root: URI of the root interface
+	@ivar implementation: chosen implementations
+	@type implementation: {model.Interface: model.Implementation or None}
+	@ivar watchers: callbacks to invoke after recalculating
+	@ivar help_with_testing: default stability policy
+	@type help_with_testing: bool
+	@ivar network_use: one of the model.network_* values
+	@ivar freshness: seconds allowed since last update
+	@type freshness: int
+	@ivar ready: whether L{implementation} is complete enough to run the program
+	@type ready: bool
+	@ivar handler: handler for main-loop integration
+	@type handler: L{handler.Handler}
+	@ivar restrictions: Currently known restrictions for each interface.
+	@type restrictions: {model.Interface -> [model.Restriction]}
+	@ivar src: whether we are looking for source code
+	@type src: bool
+	"""
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
-		     'freshness', 'ready', 'handler', 'warned_offline',
+		     'freshness', 'ready', 'handler', '_warned_offline',
 		     'restrictions', 'src', '_root_restrictions']
 
 	def __init__(self, root, handler = None, src = False):
+		"""
+		@param root: The URI of the root interface (the program we want to run).
+		@param handler: A handler for main-loop integration.
+		@type handler: L{zeroinstall.injector.handler.Handler}
+		@param src: Whether we are looking for source code.
+		@type src: bool
+		"""
 		self.watchers = []
 		self.help_with_testing = False
 		self.network_use = network_full
-		self.freshness = 60 * 60 * 24 * 30	# Seconds allowed since last update (1 month)
+		self.freshness = 60 * 60 * 24 * 30
 		self.ready = False
 		self.src = src				# Root impl must be a "src" machine type
 		self.restrictions = {}
@@ -90,7 +120,7 @@ class Policy(object):
 
 		# If we need to download something but can't because we are offline,
 		# warn the user. But only the first time.
-		self.warned_offline = False
+		self._warned_offline = False
 
 		# (allow self for backwards compat)
 		self.handler = handler or self
@@ -116,11 +146,13 @@ class Policy(object):
 		iface_cache.add_watcher(self)
 	
 	def set_root(self, root):
+		"""Change the root interface URI."""
 		assert isinstance(root, (str, unicode))
 		self.root = root
 		self.implementation = {}		# Interface -> [Implementation | None]
 
 	def save_config(self):
+		"""Write global settings."""
 		config = ConfigParser.ConfigParser()
 		config.add_section('global')
 
@@ -134,7 +166,13 @@ class Policy(object):
 		os.rename(path + '.new', path)
 	
 	def recalculate(self):
-		self.restrictions = {}		# Interface -> [Restriction]
+		"""Try to choose a set of implementations.
+		This may start downloading more interfaces, but will return immediately.
+		@postcondition: L{ready} indicates whether a possible set of implementations was chosen
+		@note: A policy may be ready before all feeds have been downloaded. As new feeds
+		arrive, the chosen versions may change.
+		"""
+		self.restrictions = {}
 		self.implementation = {}
 		self.ready = True
 		debug("Recalculate! root = %s", self.root)
@@ -200,8 +238,9 @@ class Policy(object):
 	
 	def compare(self, interface, b, a):
 		"""Compare a and b to see which would be chosen first.
-		interface is the interface we are trying to resolve, which may
-		not be the interface of a or b if they are from feeds."""
+		@param interface: The interface we are trying to resolve, which may
+		not be the interface of a or b if they are from feeds.
+		@rtype: int"""
 		restrictions = self.restrictions.get(interface, [])
 
 		a_stab = a.get_stability()
@@ -253,7 +292,9 @@ class Policy(object):
 		return cmp(a.id, b.id)
 	
 	def usable_feeds(self, iface):
-		"""Generator for iface.feeds that are valid for our architecture."""
+		"""Generator for C{iface.feeds} that are valid for our architecture.
+		@rtype: generator
+		@see: L{arch}"""
 		if self.src and iface.uri == self.root:
 			# Note: when feeds are recursive, we'll need a better test for root here
 			machine_ranks = {'src': 1}
@@ -268,6 +309,10 @@ class Policy(object):
 					f, f.os, f.machine)
 	
 	def get_ranked_implementations(self, iface):
+		"""Get all implementations from all feeds, in order.
+		@type iface: Interface
+		@return: a sorted list of implementations.
+		@rtype: [model.Implementation]"""
 		impls = iface.implementations.values()
 		for f in self.usable_feeds(iface):
 			feed_iface = self.get_interface(f.uri)
@@ -277,11 +322,17 @@ class Policy(object):
 		return impls
 	
 	def is_unusable(self, impl, restrictions = []):
+		"""@return: whether this implementation is unusable.
+		@rtype: bool"""
 		return self.get_unusable_reason(impl, restrictions) != None
 
 	def get_unusable_reason(self, impl, restrictions = []):
-		"""Returns the reason why this impl is unusable, or None if it's OK.
-		Note: the restrictions are for the interface being requested, not the interface
+		"""
+		@param impl: Implementation to test.
+		@type restrictions: [L{model.Restriction}]
+		@return: The reason why this impl is unusable, or None if it's OK.
+		@rtype: str
+		@note: The restrictions are for the interface being requested, not the interface
 		of the implementation; they may be different when feeds are being used."""
 		for r in restrictions:
 			if not r.meets_restriction(impl):
@@ -307,6 +358,9 @@ class Policy(object):
 		return None
 
 	def get_interface(self, uri):
+		"""Get an interface from the L{iface_cache}. If it is missing or needs updating,
+		start a new download.
+		@rtype: L{model.Interface}"""
 		iface = iface_cache.get_interface(uri)
 
 		if iface.last_modified is None:
@@ -314,7 +368,7 @@ class Policy(object):
 				debug("Interface not cached and not off-line. Downloading...")
 				self.begin_iface_download(iface)
 			else:
-				if self.warned_offline:
+				if self._warned_offline:
 					debug("Nothing known about interface, but we are off-line.")
 				else:
 					if iface.feeds:
@@ -322,7 +376,7 @@ class Policy(object):
 					else:
 						warn("Nothing known about interface '%s', but we are in off-line mode "
 							"(so not fetching).", uri)
-						self.warned_offline = True
+						self._warned_offline = True
 		elif not uri.startswith('/'):
 			staleness = time.time() - (iface.last_checked or 0)
 			debug("Staleness for %s is %.2f hours", iface, staleness / 3600.0)
@@ -335,6 +389,9 @@ class Policy(object):
 		return iface
 	
 	def begin_iface_download(self, interface, force = False):
+		"""Start downloading the interface, and add a callback to process it when
+		done. If it is already being downloaded, do nothing."""
+		
 		debug("begin_iface_download %s (force = %d)", interface, force)
 		if interface.uri.startswith('/'):
 			return
@@ -365,6 +422,8 @@ class Policy(object):
 			raise Exception("Unknown download type for '%s'" % retrieval_method)
 
 	def begin_archive_download(self, download_source, success_callback, force = False):
+		"""Start fetching an archive. You should normally call L{begin_impl_download}
+		instead, since it handles other kinds of retrieval method too."""
 		from zeroinstall.zerostore import unpack
 		mime_type = download_source.type
 		if not mime_type:
@@ -378,6 +437,8 @@ class Policy(object):
 		return dl
 	
 	def begin_icon_download(self, interface, force = False):
+		"""Start downloading an icon for this interface. On success, add it to the
+		icon cache. If the interface has no icon, do nothing."""
 		debug("begin_icon_download %s (force = %d)", interface, force)
 
 		# Find a suitable icon to download
@@ -413,12 +474,20 @@ class Policy(object):
 		shutil.copyfileobj(stream, icon_file)
 	
 	def get_implementation_path(self, impl):
+		"""Return the local path of impl.
+		@rtype: str
+		@raise zeroinstall.zerostore.NotStored: if it needs to be added to the cache first."""
 		assert isinstance(impl, Implementation)
 		if impl.id.startswith('/'):
 			return impl.id
 		return iface_cache.stores.lookup(impl.id)
 
 	def get_implementation(self, interface):
+		"""Get the chosen implementation.
+		@type interface: Interface
+		@rtype: L{model.Implementation}
+		@raise SafeException: if interface has not been fetched or no implementation could be
+		chosen."""
 		assert isinstance(interface, Interface)
 
 		if not interface.name and not interface.feeds:
@@ -437,13 +506,18 @@ class Policy(object):
 			raise ex
 
 	def walk_interfaces(self):
-		# Deprecated
+		"""@deprecated: use L{implementation} instead"""
 		return iter(self.implementation)
 
 	def check_signed_data(self, download, signed_data):
+		"""Wrapper for L{iface_cache.IfaceCache.check_signed_data}."""
 		iface_cache.check_signed_data(download.interface, signed_data, self.handler)
 	
 	def get_cached(self, impl):
+		"""Check whether an implementation is available locally.
+		@type impl: model.Implementation
+		@rtype: bool
+		"""
 		if impl.id.startswith('/'):
 			return os.path.exists(impl.id)
 		else:
@@ -456,9 +530,12 @@ class Policy(object):
 		return False
 	
 	def add_to_cache(self, source, data):
+		"""Wrapper for L{iface_cache.IfaceCache.add_to_cache}."""
 		iface_cache.add_to_cache(source, data)
 	
 	def get_uncached_implementations(self):
+		"""List all chosen implementations which aren't yet available locally.
+		@rtype: [model.Implementation]"""
 		uncached = []
 		for iface in self.implementation:
 			impl = self.implementation[iface]
@@ -468,19 +545,24 @@ class Policy(object):
 		return uncached
 	
 	def refresh_all(self, force = True):
-		for x in self.walk_interfaces():
+		"""Start downloading all feeds for all selected interfaces.
+		@param force: Whether to restart existing downloads."""
+		for x in self.implementation:
 			self.begin_iface_download(x, force)
 			for f in self.usable_feeds(x):
 				feed_iface = self.get_interface(f.uri)
 				self.begin_iface_download(feed_iface, force)
 	
 	def interface_changed(self, interface):
+		"""Callback used by L{iface_cache.IfaceCache.update_interface_from_network}."""
 		debug("interface_changed(%s): recalculating", interface)
 		self.recalculate()
 	
 	def get_feed_targets(self, feed_iface_uri):
 		"""Return a list of Interfaces for which feed_iface can be a feed.
-		This is used by --feed. If there are no interfaces, raises SafeException."""
+		This is used by B{0launch --feed}.
+		@rtype: [model.Interface]
+		@raise SafeException: If there are no known feeds."""
 		feed_iface = self.get_interface(feed_iface_uri)
 		if not feed_iface.feed_for:
 			if not feed_iface.name:
@@ -496,7 +578,9 @@ class Policy(object):
 	def get_icon_path(self, iface):
 		"""Get an icon for this interface. If the icon is in the cache, use that.
 		If not, start a download. If we already started a download (successful or
-		not) do nothing. Returns None if no icon is currently available."""
+		not) do nothing.
+		@return: The cached icon's path, or None if no icon is currently available.
+		@rtype: str"""
 		path = iface_cache.get_icon_path(iface)
 		if path:
 			return path
@@ -509,7 +593,8 @@ class Policy(object):
 		return None
 	
 	def get_best_source(self, impl):
-		"""Return the best download source for this implementation."""
+		"""Return the best download source for this implementation.
+		@rtype: L{model.RetrievalMethod}"""
 		if impl.download_sources:
 			return impl.download_sources[0]
 		return None
