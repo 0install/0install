@@ -214,14 +214,10 @@ class Implementation(object):
 		return self.user_stability or self.upstream_stability or testing
 	
 	def get_version(self):
-		version = self.version[:]
-		l = len(version)
-		for x in range(0, l, 2):
-			version[x] = '.'.join(map(str, version[x]))
-		for x in range(1, l, 2):
-			version[x] = '-' + version_value_to_mod[version[x]]
-		if version[-1] == '-': del version[-1]
-		return ''.join(version)
+		"""Return the version as a string.
+		@see: L{format_version}
+		"""
+		return format_version(self.version)
 	
 	def __str__(self):
 		return self.id
@@ -366,3 +362,17 @@ def parse_version(version_string):
 		raise SafeException("Invalid version format in '%s': %s" % (version_string, ex))
 	except KeyError, ex:
 		raise SafeException("Invalid version modifier in '%s': %s" % (version_string, ex))
+
+def format_version(version):
+	"""Format a parsed version for display. Undoes the effect of L{parse_version}.
+	@see: L{Implementation.get_version}
+	@since: 0.24"""
+	version = version[:]
+	l = len(version)
+	for x in range(0, l, 2):
+		version[x] = '.'.join(map(str, version[x]))
+	for x in range(1, l, 2):
+		version[x] = '-' + version_value_to_mod[version[x]]
+	if version[-1] == '-': del version[-1]
+	return ''.join(version)
+
