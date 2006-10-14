@@ -50,6 +50,7 @@ def type_from_url(url):
 	if url.endswith('.tar.gz'): return 'application/x-compressed-tar'
 	if url.endswith('.tgz'): return 'application/x-compressed-tar'
 	if url.endswith('.zip'): return 'application/zip'
+	if url.endswith('.cab'): return 'application/vnd.ms-cab-compressed'
 	return None
 
 def check_type_ok(mime_type):
@@ -74,6 +75,10 @@ def check_type_ok(mime_type):
 	elif mime_type == 'application/zip':
 		if not _find_in_path('unzip'):
 			raise SafeException("This package looks like a zip-compressed archive, but you don't have the 'unzip' command "
+					"I need to extract it. Install the package containing it first.")
+	elif mime_type == 'application/vnd.ms-cab-compressed':
+		if not _find_in_path('cabextract'):
+			raise SafeException("This package looks like a Microsoft Cabinet archive, but you don't have the 'cabextract' command "
 					"I need to extract it. Install the package containing it first.")
 	elif mime_type in 'application/x-compressed-tar':
 		pass
@@ -110,6 +115,8 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 		extract_zip(data, destdir, extract, start_offset)
 	elif type == 'application/x-compressed-tar':
 		extract_tar(data, destdir, extract, '-z', start_offset)
+	elif type == 'application/vnd.ms-cab-compressed':
+		extract_cab(data, destdir, extract, start_offset)
 	else:
 		raise SafeException('Unknown MIME type "%s" for "%s"' % (type, url))
 
@@ -163,6 +170,20 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 			os.close(fd)
 		os.unlink(cpiopath)
 
+def extract_cab(stream, destdir, extract, start_offset = 0):
+	if extract:
+		raise SafeException('Sorry, but the "extract" attribute is not yet supported for Cabinet files')
+
+	stream.seek(start_offset)
+	# cabextract can't read from stdin, so make a copy...
+	cab_copy_name = os.path.join(destdir, 'archive.cab')
+	cab_copy = file(cab_copy_name, 'w')
+	shutil.copyfileobj(stream, cab_copy)
+	cab_copy.close()
+
+	_extract(stream, destdir, ['cabextract', '-s', '-q', 'archive.cab'])
+	os.unlink(cab_copy_name)
+	
 def extract_zip(stream, destdir, extract, start_offset = 0):
 	if extract:
 		# Limit the characters we accept, to avoid sending dodgy
