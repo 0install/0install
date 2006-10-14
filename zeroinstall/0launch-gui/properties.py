@@ -163,7 +163,7 @@ class Feeds(gtk.VPaned):
 						return
 					else:
 						dialog.alert(self.get_toplevel(),
-							_("Can't remove '%s' as you didn't add it."))
+							_("Can't remove '%s' as you didn't add it.") % feed_uri)
 						return
 			raise Exception("Missing feed '%s'!" % feed_uri)
 		self.remove_feed_button.connect('clicked', remove_feed)
