@@ -1,11 +1,5 @@
 """
 Integrates download callbacks with an external mainloop.
-
-While things are being downloaded, Zero Install returns control to your program.
-Your mainloop is responsible for monitoring the state of the downloads and notifying
-Zero Install when they are complete.
-
-To do this, you supply a L{Handler} to the L{policy}.
 """
 
 # Copyright (C) 2006, Thomas Leonard
@@ -18,15 +12,32 @@ from zeroinstall.injector import model, download
 from zeroinstall.injector.iface_cache import iface_cache
 
 class Handler(object):
+	"""
+	Integrates download callbacks with an external mainloop.
+	While things are being downloaded, Zero Install returns control to your program.
+	Your mainloop is responsible for monitoring the state of the downloads and notifying
+	Zero Install when they are complete.
+
+	To do this, you supply a L{Handler} to the L{policy}. To integrate with your own
+	mainloop, you can either subclass or replace this.
+	"""
+
 	__slots__ = ['monitored_downloads']
 	def __init__(self):
 		self.monitored_downloads = {}		# URL -> (error_stream, Download)
 
 	def monitor_download(self, dl):
+		"""Called when a new L{download} is started.
+		Call L{download.Download.start} to start the download and get the error
+		stream, and then call L{download.Download.error_stream_data} whenever
+		you read any data from it, including nothing (end-of-file), which
+		indicates that the download is finished."""
 		error_stream = dl.start()
 		self.monitored_downloads[dl.url] = (error_stream, dl)
 	
 	def wait_for_downloads(self):
+		"""Monitor all downloads, waiting until they are complete. This is suitable
+		for use by non-interactive programs."""
 		while self.monitored_downloads:
 			info("Currently downloading:")
 			for url in self.monitored_downloads:
@@ -47,7 +58,9 @@ class Handler(object):
 		If no download for this URL has been started, start one now.
 		If the download failed and force is False, return it anyway.
 		If force is True, abort any current or failed download and start
-		a new one."""
+		a new one.
+		@rtype: L{download.Download}
+		"""
 		try:
 			e, dl = self.monitored_downloads[url]
 			if dl and force:
@@ -60,7 +73,11 @@ class Handler(object):
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		"""We don't trust any of the signatures yet. Ask the user.
-		When done, call update_interface_if_trusted()."""
+		When done update the L{trust} database, and then call L{iface_cache.IfaceCache.update_interface_if_trusted}.
+		@arg interface: the interface being updated
+		@arg sigs: a list of signatures (from L{gpg.check_stream})
+		@arg iface_xml: the downloaded data (not yet trusted)
+		"""
 		import gpg
 		assert sigs
 		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]

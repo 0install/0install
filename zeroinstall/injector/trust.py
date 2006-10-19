@@ -1,5 +1,7 @@
 """
 Records who we trust to sign interfaces.
+
+@var trust_db: Singleton trust database instance.
 """
 
 # Copyright (C) 2006, Thomas Leonard
@@ -11,6 +13,9 @@ import basedir
 from namespaces import config_site, config_prog
 
 class TrustDB:
+	"""A database of trusted keys.
+	@ivar keys: a list of trusted key fingerprints
+	@see: L{trust_db} - the singleton instance of this class"""
 	keys = None
 
 	def __init__(self):
@@ -52,5 +57,4 @@ class TrustDB:
 				if key:
 					self.keys[key] = True
 
-# Singleton
 trust_db = TrustDB()
