@@ -74,6 +74,13 @@ class _Cook:
 
 class Policy(object):
 	"""Chooses a set of implementations based on a policy.
+	Typical use:
+	 1. Create a Policy object, giving it the URI of the program to be run and a handler.
+	 2. Call L{recalculate}. If more information is needed, the handler will be used to download it.
+	 3. When all downloads are complete, the L{implementation} map contains the chosen versions.
+	 4. Use L{get_uncached_implementations} to find where to get these versions and download them
+	    using L{begin_impl_download}.
+
 	@ivar root: URI of the root interface
 	@ivar implementation: chosen implementations
 	@type implementation: {model.Interface: model.Implementation or None}

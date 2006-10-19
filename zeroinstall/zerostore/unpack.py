@@ -171,6 +171,7 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 		os.unlink(cpiopath)
 
 def extract_cab(stream, destdir, extract, start_offset = 0):
+	"@since: 0.24"
 	if extract:
 		raise SafeException('Sorry, but the "extract" attribute is not yet supported for Cabinet files')
 
