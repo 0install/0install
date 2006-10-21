@@ -89,10 +89,10 @@ class Restriction(object):
 		if self.not_before is not None or self.before is not None:
 			range = ''
 			if self.not_before is not None:
-				range += '.'.join(map(str, self.not_before)) + ' <= '
+				range += format_version(self.not_before) + ' <= '
 			range += 'version'
 			if self.before is not None:
-				range += ' < ' + '.'.join(map(str, self.before))
+				range += ' < ' + format_version(self.before)
 		else:
 			range = 'none'
 		return "(restriction: %s)" % range

@@ -1,15 +1,9 @@
 """
 Manages the interface cache.
 
-The interface cache stores downloaded and verified interfaces in
-~/.cache/0install.net/interfaces (by default).
-
-There are methods to query the cache, add to it, check signatures, etc.
-
 @var iface_cache: A singleton cache object. You should normally use this rather than
 creating new cache objects.
 """
-
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
@@ -47,6 +41,26 @@ def _pretty_time(t):
 	return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.localtime(t))
 
 class IfaceCache(object):
+	"""
+	The interface cache stores downloaded and verified interfaces in
+	~/.cache/0install.net/interfaces (by default).
+
+	There are methods to query the cache, add to it, check signatures, etc.
+
+	When updating the cache, the normal sequence is as follows:
+
+	 1. When the data arrives, L{check_signed_data} is called.
+	 2. This checks the signatures using L{gpg.check_stream}.
+	 3. If any required GPG keys are missing, L{download_key} is used to fetch
+	 them and the stream is checked again.
+	 4. Call L{update_interface_if_trusted} to update the cache.
+	 5. If that fails (because we don't trust the keys), use a L{handler}
+	 to confirm with the user. When done, the handler calls L{update_interface_if_trusted}.
+
+	@ivar watchers: objects requiring notification of cache changes.
+	@see: L{iface_cache} - the singleton IfaceCache instance.
+	"""
+
 	__slots__ = ['watchers', '_interfaces', 'stores']
 
 	def __init__(self):
@@ -56,13 +70,22 @@ class IfaceCache(object):
 		self.stores = zerostore.Stores()
 	
 	def add_watcher(self, w):
+		"""Call C{w.interface_changed(iface)} each time L{update_interface_from_network}
+		changes an interface in the cache."""
 		assert w not in self.watchers
 		self.watchers.append(w)
 
 	def check_signed_data(self, interface, signed_data, handler):
 		"""Downloaded data is a GPG-signed message. Check that the signature is trusted
-		and call self.update_interface_from_network() when done.
-		Calls handler.confirm_trust_keys() if keys are not trusted.
+		and call L{update_interface_from_network} when done.
+		Calls C{handler.confirm_trust_keys()} if keys are not trusted.
+		@param interface: the interface being updated
+		@type interface: L{model.Interface}
+		@param signed_data: the downloaded data (not yet trusted)
+		@type signed_data: stream
+		@param handler: a handler for any user interaction required
+		@type handler: L{handler.Handler}
+		@see: L{handler.Handler.confirm_trust_keys}
 		"""
 		assert isinstance(interface, Interface)
 		import gpg
@@ -111,6 +134,19 @@ class IfaceCache(object):
 			handler.confirm_trust_keys(interface, sigs, iface_xml)
 	
 	def update_interface_if_trusted(self, interface, sigs, xml):
+		"""Update a cached interface (using L{update_interface_from_network})
+		if we trust the signatures. If we don't trust any of the
+		signatures, do nothing.
+		@param interface: the interface being updated
+		@type interface: L{model.Interface}
+		@param sigs: signatures from L{gpg.check_stream}
+		@type sigs: [L{gpg.Signature}]
+		@param xml: the downloaded replacement interface document
+		@type xml: str
+		@return: True if the interface was updated
+		@rtype: bool
+		@see: L{check_signed_data}, which calls this.
+		"""
 		updated = self._oldest_trusted(sigs)
 		if updated is None: return False	# None are trusted
 
@@ -118,6 +154,12 @@ class IfaceCache(object):
 		return True
 
 	def download_key(self, interface, key_id):
+		"""Download a GPG key.
+		The location of the key is calculated from the uri of the interface.
+		@param interface: the interface which needs the key
+		@param key_id: the GPG long id of the key
+		@todo: This method blocks. It should start a download and return.
+		"""
 		assert interface
 		assert key_id
 		import urlparse, urllib2, shutil, tempfile
@@ -140,8 +182,19 @@ class IfaceCache(object):
 		tmpfile.close()
 
 	def update_interface_from_network(self, interface, new_xml, modified_time):
-		"""xml is the new XML (after the signature has been checked and
-		removed). modified_time will be set as an attribute on the root."""
+		"""Update a cached interface.
+		Called by L{update_interface_if_trusted} if we trust this data.
+		After a successful update, L{writer} is used to update the interface's
+		last_checked time and then all the L{watchers} are notified.
+		@param interface: the interface being updated
+		@type interface: L{model.Interface}
+		@param xml: the downloaded replacement interface document
+		@type xml: str
+		@param modified_time: the timestamp of the oldest trusted signature
+		(used as an approximation to the interface's modification time)
+		@type modified_time: long
+		@raises SafeException: if modified_time is older than the currently cached time
+		"""
 		debug("Updating '%s' from network; modified at %s" %
 			(interface.name or interface.uri, _pretty_time(modified_time)))
 
@@ -157,7 +210,7 @@ class IfaceCache(object):
 			doc.writexml(new_xml)
 			new_xml = new_xml.getvalue()
 
-		self.import_new_interface(interface, new_xml, modified_time)
+		self._import_new_interface(interface, new_xml, modified_time)
 
 		import writer
 		interface.last_checked = long(time.time())
@@ -169,7 +222,13 @@ class IfaceCache(object):
 		for w in self.watchers:
 			w.interface_changed(interface)
 	
-	def import_new_interface(self, interface, new_xml, modified_time):
+	def _import_new_interface(self, interface, new_xml, modified_time):
+		"""Write new_xml into the cache.
+		@param interface: updated once the new XML is written
+		@param new_xml: the data to write
+		@param modified_time: when new_xml was modified
+		@raises SafeException: if the new mtime is older than the current one
+		"""
 		assert modified_time
 
 		upstream_dir = basedir.save_cache_path(config_site, 'interfaces')
@@ -216,7 +275,10 @@ class IfaceCache(object):
 	def get_interface(self, uri):
 		"""Get the interface for uri, creating a new one if required.
 		New interfaces are initialised from the disk cache, but not from
-		the network."""
+		the network.
+		@param uri: the URI of the interface to find
+		@rtype: L{model.Interface}
+		"""
 		if type(uri) == str:
 			uri = unicode(uri)
 		assert isinstance(uri, unicode)
@@ -230,6 +292,9 @@ class IfaceCache(object):
 		return self._interfaces[uri]
 
 	def list_all_interfaces(self):
+		"""List all interfaces in the cache.
+		@rtype: [str]
+		"""
 		all = {}
 		for d in basedir.load_cache_paths(config_site, 'interfaces'):
 			for leaf in os.listdir(d):
@@ -242,6 +307,13 @@ class IfaceCache(object):
 		return map(unescape, all.keys())
 
 	def add_to_cache(self, source, data):
+		"""Add an implementation to the cache.
+		@param source: information about the archive
+		@type source: L{model.DownloadSource}
+		@param data: the data stream
+		@type data: stream
+		@see: L{zerostore.Stores.add_archive_to_cache}
+		"""
 		assert isinstance(source, DownloadSource)
 		required_digest = source.implementation.id
 		url = source.url
@@ -249,7 +321,10 @@ class IfaceCache(object):
 						 type = source.type, start_offset = source.start_offset or 0)
 	
 	def get_icon_path(self, iface):
-		"Get the path of the cached icon for this interface, or None if not cached."
+		"""Get the path of a cached icon for an interface.
+		@param iface: interface whose icon we want
+		@return: the path of the cached icon, or None if not cached.
+		@rtype: str"""
 		return basedir.load_first_cache(config_site, 'interface_icons',
 						 escape(iface.uri))
 	

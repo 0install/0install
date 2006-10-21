@@ -23,13 +23,17 @@ class GUIPolicy(Policy):
 	main_exec = None
 	dl_callbacks = {}	# Download -> [ callback ]
 
-	def __init__(self, interface, prog_args, download_only, refresh, main, src = False):
+	def __init__(self, interface, prog_args, download_only, refresh, main, src = False, restrictions = None):
 		if src:
 			Policy.__init__(self, interface, src = src)
 		else:
 			Policy.__init__(self, interface)	# For older versions
 		global policy
 		assert policy is None
+
+		if restrictions:
+			for r in restrictions:
+				self.root_restrictions.append(r)
 
 		policy = self
 		self.main_exec = main

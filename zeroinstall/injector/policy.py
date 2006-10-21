@@ -102,7 +102,7 @@ class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
 		     'freshness', 'ready', 'handler', '_warned_offline',
-		     'restrictions', 'src', '_root_restrictions']
+		     'restrictions', 'src', 'root_restrictions']
 
 	def __init__(self, root, handler = None, src = False):
 		"""
@@ -120,10 +120,10 @@ class Policy(object):
 		self.src = src				# Root impl must be a "src" machine type
 		self.restrictions = {}
 
-		# Currently, this is used in is_unusable() to check whether the impl is
-		# for the root interface when looking for source. It could also be used
-		# to add restrictions to the root (e.g. based on command-line options).
-		self._root_restrictions = []
+		# This is used in is_unusable() to check whether the impl is
+		# for the root interface when looking for source. It is also
+		# used to add restrictions to the root (e.g. --before and --not-before)
+		self.root_restrictions = []
 
 		# If we need to download something but can't because we are offline,
 		# warn the user. But only the first time.
@@ -206,7 +206,7 @@ class Policy(object):
 			else:
 				debug("No implementation chould be chosen yet");
 				self.ready = False
-		process(Dependency(self.root, restrictions = self._root_restrictions))
+		process(Dependency(self.root, restrictions = self.root_restrictions))
 		for w in self.watchers: w()
 	
 	# Only to be called from recalculate, as it is quite slow.
@@ -354,7 +354,7 @@ class Policy(object):
 		# When looking for source code, we need to known if we're
 		# looking at an implementation of the root interface, even if
 		# it's from a feed, hence the sneaky restrictions identity check.
-		if self.src and restrictions is self._root_restrictions:
+		if self.src and restrictions is self.root_restrictions:
 			if impl.machine != 'src':
 				return "Not source code"
 		else:

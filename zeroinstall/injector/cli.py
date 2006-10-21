@@ -14,7 +14,11 @@ import logging
 #__main__.__builtins__.program_log = program_log
 #program_log('0launch ' + ' '.join((sys.argv[1:])))
 
-def main():
+def main(command_args):
+	"""Act as if 0launch was run with the given arguments.
+	@arg command_args: array of arguments (e.g. C{sys.argv[1:]})
+	@type command_args: [str]
+	"""
 	# Ensure stdin, stdout and stderr FDs exist, to avoid confusion
 	for std in (0, 1, 2):
 		try:
@@ -30,6 +34,7 @@ def main():
 				    "       %prog --list [search-term]\n"
 				    "       %prog --import [signed-interface-files]\n"
 				    "       %prog --feed [interface]")
+	parser.add_option("", "--before", help="choose a version before this", metavar='VERSION')
 	parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
 	parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 	parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
@@ -38,6 +43,7 @@ def main():
 	parser.add_option("-i", "--import", help="import from files, not from the network", action='store_true')
 	parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 	parser.add_option("-m", "--main", help="name of the file to execute")
+	parser.add_option("", "--not-before", help="minimum version to choose", metavar='VERSION')
 	parser.add_option("-o", "--offline", help="try to avoid using the network", action='store_true')
 	parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
 	parser.add_option("-s", "--source", help="select source code", action='store_true')
@@ -45,7 +51,7 @@ def main():
 	parser.add_option("-V", "--version", help="display version information", action='store_true')
 	parser.disable_interspersed_args()
 
-	(options, args) = parser.parse_args()
+	(options, args) = parser.parse_args(command_args)
 
 	if options.verbose:
 		logger = logging.getLogger()
@@ -167,6 +173,10 @@ def main():
 					dry_run = options.dry_run,
 					src = options.source)
 
+		if options.before or options.not_before:
+			policy.root_restrictions.append(model.Restriction(model.parse_version(options.before),
+									  model.parse_version(options.not_before)))
+
 		if options.offline:
 			policy.network_use = model.network_offline
 
@@ -203,11 +213,18 @@ def main():
 		if options.refresh:
 			options.refresh = False
 			prog_args.insert(0, '--refresh')
+		if options.not_before:
+			prog_args.insert(0, options.not_before)
+			prog_args.insert(0, '--not-before')
+		if options.before:
+			prog_args.insert(0, options.before)
+			prog_args.insert(0, '--before')
 		if options.source:
 			prog_args.insert(0, '--source')
 		if options.main:
 			prog_args = ['--main', options.main] + prog_args
 			options.main = None
+		del policy.root_restrictions[:]
 	else:
 		prog_args = args[1:]
 

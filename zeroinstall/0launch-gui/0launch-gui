@@ -7,10 +7,12 @@ import gui
 __builtins__._ = lambda x: x
 
 parser = OptionParser(usage="usage: %prog [options] interface [args]")
+parser.add_option("", "--before", help="choose a version before this", metavar='VERSION')
 parser.add_option("-c", "--cache", help="show the cache", action='store_true')
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 parser.add_option("-m", "--main", help="name of the file to execute")
 parser.add_option("-n", "--no-self-update", help="don't check for updates to the GUI itself", action='store_true')
+parser.add_option("", "--not-before", help="minimum version to choose", metavar='VERSION')
 parser.add_option("-r", "--refresh", help="check for updates of all interfaces", action='store_true')
 parser.add_option("-s", "--source", help="select source code", action='store_true')
 parser.add_option("-v", "--verbose", help="more verbose output", action='count')
@@ -88,9 +90,15 @@ if options.no_self_update is not True:
 		options.download_only = False
 		options.refresh = True
 
+restrictions = []
+if options.before or options.not_before:
+	restrictions.append(model.Restriction(model.parse_version(options.before),
+					      model.parse_version(options.not_before)))
+
 policy = gui.GUIPolicy(interface_uri, prog_args,
 		   download_only = bool(options.download_only),
 		   refresh = bool(options.refresh),
 		   main = options.main,
-		   src = options.source)
+		   src = options.source,
+		   restrictions = restrictions)
 policy.main()

@@ -61,6 +61,11 @@ to create shortcuts to run your programs.
 .SH COMMAND-LINE OPTIONS
 
 .TP
+\fB--before=VERSION\fP
+Choosen implementation's version number must be earlier than VERSION. i.e., force
+the use of an old version the program.
+
+.TP
 \fB-c\fP, \fB--console\fP
 Never use the GUI. Normally, 0launch switches to graphical mode if it needs to
 download anything from the network (unless DISPLAY is not set).
@@ -121,6 +126,11 @@ then the path is relative to the implementation's top-level directory,
 whereas otherwise it is relative to the directory containing the default
 MAIN program. For example, if the default MAIN is \fBbin/svn\fP then
 using \fB--main=svnadmin\fP will run \fB.../bin/svnadmin\fP instead.
+
+.TP
+\fB--not-before=VERSION\fP
+Choosen implementation's version number must not be earlier than VERSION.
+E.g., if you want to run version 2.0 or later, use \fB--not-before=2.0\fP.
 
 .TP
 \fB-o\fP, \fB--offline\fP
