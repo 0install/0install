@@ -18,23 +18,13 @@ from zeroinstall.injector.model import *
 from zeroinstall import version, SafeException
 
 class InvalidInterface(SafeException):
+	"""Raised when parsing an invalid interface."""
 	def __init__(self, message, ex = None):
 		if ex:
 			message += "\n\n(exact error: %s)" % ex
 		SafeException.__init__(self, message)
 
-def get_singleton_text(parent, ns, localName):
-	elem = None
-	for x in parent.childNodes:
-		if x.uri == ns and x.name == localName:
-			if elem:
-				raise InvalidInterface('Multiple <%s> elements in <%s>' % (localName, parent.name))
-			elem = x
-	if elem:
-		return elem.content
-	raise InvalidInterface('No <%s> element in <%s>' % (localName, parent.name))
-
-def process_depends(dependency, item):
+def _process_depends(dependency, item):
 	for e in item.childNodes:
 		if e.uri != XMLNS_IFACE: continue
 		if e.name == 'environment':
@@ -48,9 +38,13 @@ def process_depends(dependency, item):
 					    before = parse_version(e.getAttribute('before'))))
 
 def update_from_cache(interface):
-	"""True if cached version and user overrides loaded OK.
+	"""Read a cached interface and any user overrides.
+	@param interface: the interface object to update
+	@type interface: L{model.Interface}
+	@return: True if cached version and user overrides loaded OK.
 	False if upstream not cached. Local interfaces (starting with /) are
-	always considered to be cached, although they are not stored there."""
+	always considered to be cached, although they are not actually stored in the cache.
+	@rtype: bool"""
 	interface.reset()
 
 	if interface.uri.startswith('/'):
@@ -74,6 +68,9 @@ def update_from_cache(interface):
 	return bool(cached)
 
 def update_user_overrides(interface):
+	"""Update an interface with user-supplied information.
+	@param interface: the interface object to update
+	@type interface: L{model.Interface}"""
 	user = basedir.load_first_config(config_site, config_prog,
 					   'user_overrides', escape(interface.uri))
 	if not user:
@@ -110,8 +107,15 @@ def update_user_overrides(interface):
 			interface.feeds.append(Feed(feed_src, item.getAttribute('arch'), True))
 
 def check_readable(interface_uri, source):
-	"""Returns the modified time in 'source'. If syntax is incorrect,
-	throws an exception."""
+	"""Test whether an interface file is valid.
+	@param interface_uri: the interface's URI
+	@type interface_uri: str
+	@param source: the name of the file to test
+	@type source: str
+	@return: the modification time in src (usually just the mtime of the file)
+	@rtype: int
+	@raise InvalidInterface: If the source's syntax is incorrect,
+	"""
 	tmp = Interface(interface_uri)
 	try:
 		update(tmp, source)
@@ -122,7 +126,7 @@ def check_readable(interface_uri, source):
 					(interface_uri, source, ex))
 	return tmp.last_modified
 
-def parse_time(t):
+def _parse_time(t):
 	try:
 		return long(t)
 	except Exception, ex:
@@ -147,7 +151,7 @@ def _get_long(elem, attr_name):
 			raise SafeException("Invalid value for integer attribute '%s': %s" % (attr_name, val))
 	return val
 
-def merge_attrs(attrs, item):
+def _merge_attrs(attrs, item):
 	"""Add each attribute of item to a copy of attrs and return the copy."""
 	new = attrs.copy()
 	for a in item.attrs:
@@ -155,7 +159,14 @@ def merge_attrs(attrs, item):
 	return new
 
 def update(interface, source, local = False):
-	"""local - use file mtime for last-modified, and uri attribute is ignored"""
+	"""Read in information about an interface.
+	@param interface: the interface object to update
+	@type interface: L{model.Interface}
+	@param source: the name of the file to read
+	@type source: str
+	@param local: use file's mtime for last-modified, and uri attribute is ignored
+	@raise InvalidInterface: if the source's syntax is incorrect
+	@see: L{update_from_cache}, which calls this"""
 	assert isinstance(interface, Interface)
 
 	try:
@@ -168,7 +179,7 @@ def update(interface, source, local = False):
 		time_str = root.getAttribute('last-modified')
 		if time_str:
 			# Old style cached items use an attribute
-			interface.last_modified = parse_time(time_str)
+			interface.last_modified = _parse_time(time_str)
 		else:
 			# New style items have the mtime in the signature,
 			# but for quick access we use the mtime of the file
@@ -227,7 +238,7 @@ def update(interface, source, local = False):
 
 			depends = base_depends.copy()
 
-			item_attrs = merge_attrs(group_attrs, item)
+			item_attrs = _merge_attrs(group_attrs, item)
 
 			for child in item.childNodes:
 				if child.uri != XMLNS_IFACE: continue
@@ -236,7 +247,7 @@ def update(interface, source, local = False):
 					if dep_iface is None:
 						raise InvalidInterface("Missing 'interface' on <requires>")
 					dep = Dependency(dep_iface)
-					process_depends(dep, child)
+					_process_depends(dep, child)
 					depends[dep.interface] = dep
 
 			if item.name == 'group':

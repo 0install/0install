@@ -342,7 +342,8 @@ def parse_version(version_string):
 	"""Convert a version string to an internal representation.
 	The parsed format can be compared quickly using the standard Python functions.
 	 - Version := DottedList ("-" Mod DottedList?)*
-	 - DottedList := (Integer ("." Integer)*)"""
+	 - DottedList := (Integer ("." Integer)*)
+	@since: 0.24 (moved from L{reader}, from where it is still available):"""
 	if version_string is None: return None
 	parts = _version_re.split(version_string)
 	if parts[-1] == '':
