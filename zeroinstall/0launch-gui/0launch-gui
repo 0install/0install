@@ -2,7 +2,6 @@
 import os, sys
 from optparse import OptionParser
 import pygtk; pygtk.require('2.0')
-import gui
 
 __builtins__._ = lambda x: x
 
@@ -30,6 +29,15 @@ if options.verbose:
 	else:
 		logger.setLevel(logging.DEBUG)
 
+if options.cache:
+	# Must fork before importing gtk, or ATK dies
+	if os.fork():
+		# We exit, so our parent can call waitpid and unblock.
+		sys.exit(0)
+	# The grandchild continues...
+
+import gui
+
 if options.version:
 	print "0launch-gui (zero-install) " + gui.version
 	print "Copyright (C) 2005 Thomas Leonard"
@@ -50,10 +58,6 @@ gtk.rc_parse_string('style "scrolled" { '
 		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
 
 if options.cache:
-	if os.fork():
-		# We exit, so our parent can call waitpid and unblock.
-		sys.exit(0)
-	# The grandchild continues...
 	import cache
 	cache_explorer = cache.CacheExplorer()
 	cache_explorer.show()
