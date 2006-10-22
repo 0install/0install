@@ -175,7 +175,11 @@ class DownloadSource(RetrievalMethod):
 		self.type = type		# MIME type - see unpack.py
 
 class Recipe(RetrievalMethod):
-	"""Get an implementation by following a series of steps."""
+	"""Get an implementation by following a series of steps.
+	@ivar size: the combined download sizes from all the steps
+	@type size: int
+	@ivar steps: the sequence of steps which must be performed
+	@type steps: [L{RetrievalMethod}]"""
 	__slots__ = ['steps']
 
 	def __init__(self):
@@ -294,7 +298,8 @@ class Interface(object):
 		return [m for m in self.metadata if m.name == name and m.uri == uri]
 
 def unescape(uri):
-	"Convert each %20 to a space, etc"
+	"""Convert each %20 to a space, etc.
+	@rtype: str"""
 	if '%' not in uri: return uri
 	import re
 	return re.sub('%[0-9a-fA-F][0-9a-fA-F]',
@@ -302,7 +307,8 @@ def unescape(uri):
 		uri)
 
 def escape(uri):
-	"Convert each space to %20, etc"
+	"""Convert each space to %20, etc
+	@rtype: str"""
 	import re
 	return re.sub('[^-_.a-zA-Z0-9]',
 		lambda match: '%%%02x' % ord(match.group(0)),
@@ -311,6 +317,7 @@ def escape(uri):
 def canonical_iface_uri(uri):
 	"""If uri is a relative path, convert to an absolute one.
 	Otherwise, return it unmodified.
+	@rtype: str
 	@raise SafeException: if uri isn't valid
 	"""
 	if uri.startswith('http:'):
@@ -324,7 +331,7 @@ def canonical_iface_uri(uri):
 			"doesn't exist as a local file '%s' either)" %
 			(uri, iface_uri))
 
-version_mod_to_value = {
+_version_mod_to_value = {
 	'pre': -2,
 	'rc': -1,
 	'': 0,
@@ -332,8 +339,8 @@ version_mod_to_value = {
 }
 
 # Reverse mapping
-version_value_to_mod = {}
-for x in version_mod_to_value: version_value_to_mod[version_mod_to_value[x]] = x
+_version_value_to_mod = {}
+for x in _version_mod_to_value: _version_value_to_mod[_version_mod_to_value[x]] = x
 del x
 
 _version_re = re.compile('-([a-z]*)')
@@ -343,6 +350,7 @@ def parse_version(version_string):
 	The parsed format can be compared quickly using the standard Python functions.
 	 - Version := DottedList ("-" Mod DottedList?)*
 	 - DottedList := (Integer ("." Integer)*)
+	@rtype: tuple (opaque)
 	@since: 0.24 (moved from L{reader}, from where it is still available):"""
 	if version_string is None: return None
 	parts = _version_re.split(version_string)
@@ -357,7 +365,7 @@ def parse_version(version_string):
 		for x in range(0, l, 2):
 			parts[x] = map(int, parts[x].split('.'))
 		for x in range(1, l, 2):
-			parts[x] = version_mod_to_value[parts[x]]
+			parts[x] = _version_mod_to_value[parts[x]]
 		return parts
 	except ValueError, ex:
 		raise SafeException("Invalid version format in '%s': %s" % (version_string, ex))
@@ -367,13 +375,14 @@ def parse_version(version_string):
 def format_version(version):
 	"""Format a parsed version for display. Undoes the effect of L{parse_version}.
 	@see: L{Implementation.get_version}
+	@rtype: str
 	@since: 0.24"""
 	version = version[:]
 	l = len(version)
 	for x in range(0, l, 2):
 		version[x] = '.'.join(map(str, version[x]))
 	for x in range(1, l, 2):
-		version[x] = '-' + version_value_to_mod[version[x]]
+		version[x] = '-' + _version_value_to_mod[version[x]]
 	if version[-1] == '-': del version[-1]
 	return ''.join(version)
 
