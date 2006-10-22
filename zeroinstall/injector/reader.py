@@ -152,7 +152,11 @@ def _get_long(elem, attr_name):
 	return val
 
 def _merge_attrs(attrs, item):
-	"""Add each attribute of item to a copy of attrs and return the copy."""
+	"""Add each attribute of item to a copy of attrs and return the copy.
+	@type attrs: {str: str}
+	@type item: L{qdom.Element}
+	@rtype: {str: str}
+	"""
 	new = attrs.copy()
 	for a in item.attrs:
 		new[str(a)] = item.attrs[a]
@@ -246,7 +250,7 @@ def update(interface, source, local = False):
 					dep_iface = child.getAttribute('interface')
 					if dep_iface is None:
 						raise InvalidInterface("Missing 'interface' on <requires>")
-					dep = Dependency(dep_iface)
+					dep = Dependency(dep_iface, metadata = child.attrs)
 					_process_depends(dep, child)
 					depends[dep.interface] = dep
 

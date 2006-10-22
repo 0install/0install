@@ -141,10 +141,19 @@ class Feed(object):
 
 class Dependency(object):
 	"""A Dependency indicates that an Implementation requires some additional
-	code to function, specified by another Interface."""
-	__slots__ = ['interface', 'restrictions', 'bindings']
+	code to function, specified by another Interface.
+	@ivar interface: the interface required by this dependency
+	@type interface: str
+	@ivar restrictions: a list of constraints on acceptable implementations
+	@type restrictions: [L{Restriction}]
+	@ivar bindings: how to make the choice of implementation known
+	@type bindings: [L{Binding}]
+	@ivar metadata: any extra attributes from the XML element
+	@type metadata: {str: str}
+	"""
+	__slots__ = ['interface', 'restrictions', 'bindings', 'metadata']
 
-	def __init__(self, interface, restrictions = None):
+	def __init__(self, interface, restrictions = None, metadata = None):
 		assert isinstance(interface, (str, unicode))
 		assert interface
 		self.interface = interface
@@ -153,6 +162,9 @@ class Dependency(object):
 		else:
 			self.restrictions = restrictions
 		self.bindings = []
+		if metadata is None:
+			metadata = {}
+		self.metadata = metadata
 	
 	def __str__(self):
 		return "<Dependency on %s; bindings: %s%s>" % (self.interface, self.bindings, self.restrictions)

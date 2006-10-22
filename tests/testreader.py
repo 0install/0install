@@ -79,12 +79,13 @@ class TestReader(unittest.TestCase):
 """<?xml version="1.0" ?>
 <interface last-modified="1110752708"
  uri="%s"
- xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+ xmlns:my='http://my/namespace'>
   <name>Foo</name>
   <summary>Foo</summary>
   <description>Foo</description>
   <group>
-   <requires interface='%s'>
+   <requires interface='%s' my:foo='test'>
      <version not-before='2.3.4' before='3.4.5'/>
    </requires>
    <requires interface='%s2'/>
@@ -105,6 +106,9 @@ class TestReader(unittest.TestCase):
 		assert len(dep2.restrictions) == 0
 		str(dep)
 		str(dep2)
+
+		assert dep.metadata.get('http://my/namespace foo') == 'test'
+		assert dep.metadata.get('http://my/namespace food', None) == None
 	
 	def testVersions(self):
 		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
