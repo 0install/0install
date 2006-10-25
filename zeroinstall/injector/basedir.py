@@ -17,7 +17,7 @@ xdg_cache_home = os.environ.get('XDG_CACHE_HOME',
 			os.path.join(_home, '.cache'))
 
 xdg_cache_dirs = [xdg_cache_home] + \
-	os.environ.get('XDG_CACHE_DIRS', '').split(':')
+	os.environ.get('XDG_CACHE_DIRS', '/var/cache').split(':')
 
 xdg_config_home = os.environ.get('XDG_CONFIG_HOME',
 			os.path.join(_home, '.config'))
