@@ -31,8 +31,15 @@ os.system('svn status')
 print "\nDebian version: " + deb_version + " (hint: debchange -i)"
 
 if gui_impl.get_version() != zeroinstall.version:
-	print "GUI version is '%s'; should be '%s'" % (gui_impl.get_version(), zeroinstall.version)
+	print "GUI feed's version is '%s'; should be '%s'" % (gui_impl.get_version(), zeroinstall.version)
 	sys.exit(1)
+
+sys.path.insert(0, './zeroinstall/0launch-gui')
+import gui
+if gui.version != zeroinstall.version:
+	print "GUI version is %s; should be %s" % (gui.version, zeroinstall.version)
+	sys.exit(1)
+del sys.path[0]
 
 name = 'injector-' + zeroinstall.version
 package_name = 'zeroinstall-' + name
