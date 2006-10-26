@@ -8,8 +8,8 @@ next_step = None
 class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 	def do_GET(self):
 		leaf = os.path.basename(self.path)
-		if next_step != leaf:
-			self.send_error(404, "Expected %s; got %s" % (expected, leaf))
+		if leaf not in next_step:
+			self.send_error(404, "Expected %s; got %s" % (next_step, leaf))
 			
 		if os.path.exists(leaf):
 			self.send_response(200)
@@ -31,7 +31,9 @@ def handle_requests(*script):
 		print "Waiting for request"
 		global next_step
 		for next_step in script:
-			httpd.handle_request()
+			if type(next_step) != tuple: next_step = (next_step,)
+			for x in next_step:
+				httpd.handle_request()
 		print "Done"
 		os._exit(0)
 	except:

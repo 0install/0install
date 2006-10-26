@@ -90,10 +90,11 @@ class TestDownload(unittest.TestCase):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			self.child = server.handle_requests('HelloWorld.tar.bz2', 'dummy_1-1_all.deb')
+			self.child = server.handle_requests(('HelloWorld.tar.bz2', 'dummy_1-1_all.deb'))
 			policy = autopolicy.AutoPolicy(os.path.abspath('Recipe.xml'), download_only = False)
 			try:
 				policy.download_and_execute([])
+				assert False
 			except model.SafeException, ex:
 				if "HelloWorld/Missing" not in str(ex):
 					raise ex
@@ -108,6 +109,7 @@ class TestDownload(unittest.TestCase):
 			policy = autopolicy.AutoPolicy(os.path.abspath('Autopackage.xml'), download_only = False)
 			try:
 				policy.download_and_execute([])
+				assert False
 			except model.SafeException, ex:
 				if "HelloWorld/Missing" not in str(ex):
 					raise ex
@@ -122,6 +124,7 @@ class TestDownload(unittest.TestCase):
 			policy = autopolicy.AutoPolicy(os.path.abspath('Recipe.xml'), download_only = False)
 			try:
 				policy.download_and_execute([])
+				assert False
 			except download.DownloadError, ex:
 				if "Connection" not in str(ex):
 					raise ex
