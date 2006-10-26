@@ -44,6 +44,12 @@ class Command:
 			return False
 
 def compile(interface):
+	import zeroinstall
+	if reader.parse_version(zeroinstall.version) < reader.parse_version('0.24'):
+		dialog.alert(None, _('Sorry, the compile feature requires 0launch 0.24 or later, but '
+			'you only have version %s.\n\nNew versions are available from http://0install.net')
+			% zeroinstall.version)
+		return
 	def add_feed():
 		# A new local feed may have been registered, so update the interface from the cache
 		info("0compile command completed successfully. Reloading interface details.")
