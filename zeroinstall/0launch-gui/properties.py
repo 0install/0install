@@ -9,6 +9,7 @@ from gui import policy
 from impl_list import ImplementationList
 import time
 import dialog
+import compile
 
 _dialogs = {}	# Interface -> Properties
 
@@ -230,7 +231,7 @@ class Properties(Dialog):
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
 		self.compile_button = self.add_mixed_button(_('Compile'),
 							gtk.STOCK_CONVERT, COMPILE)
-		self.compile_button.connect('clicked', self.compile)
+		self.compile_button.connect('clicked', lambda b: compile.compile(interface))
 		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
 		self.set_default_response(gtk.RESPONSE_CANCEL)
 
@@ -337,31 +338,6 @@ class Properties(Dialog):
 
 		return vbox
 	
-	def compile(self, button):
-		sel = gtk.FileSelection(_('Create build directory'))
-		sel.set_has_separator(False)
-		name = os.path.basename(self.interface.uri)
-		if name.endswith('.xml'): name = name[:-4]
-		sel.set_filename(name)
-		def ok(b):
-			d = sel.get_filename()
-			if os.path.exists(d):
-				d = gtk.MessageDialog(sel,
-                                             gtk.DIALOG_MODAL,
-                                             gtk.MESSAGE_ERROR,
-                                             gtk.BUTTONS_OK,
-                                             _("'%s' already exists") % d)
-				d.run()
-				d.destroy()
-			else:
-				sel.destroy()
-				import compile
-				box = compile.CompileBox(self.interface, d)
-				box.show()
-		sel.ok_button.connect('clicked', ok)
-		sel.cancel_button.connect('clicked', lambda b: sel.destroy())
-		sel.show()
-
 def add_remote_feed(parent, interface):
 	d = gtk.MessageDialog(parent, 0, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL,
 		_('Enter the URL of the new source of implementations of this interface:'))
