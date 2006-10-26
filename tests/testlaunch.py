@@ -14,6 +14,7 @@ class TestLaunch(unittest.TestCase):
 		self.cache_home = tempfile.mktemp()
 		os.environ['XDG_CONFIG_HOME'] = self.config_home
 		os.environ['XDG_CACHE_HOME'] = self.cache_home
+		os.environ['XDG_CACHE_DIRS'] = self.cache_home
 		reload(basedir)
 		iface_cache.iface_cache.__init__()
 

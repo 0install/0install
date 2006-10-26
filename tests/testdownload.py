@@ -25,6 +25,7 @@ class TestDownload(unittest.TestCase):
 		self.cache_home = tempfile.mktemp()
 		os.environ['XDG_CONFIG_HOME'] = self.config_home
 		os.environ['XDG_CACHE_HOME'] = self.cache_home
+		os.environ['XDG_CACHE_DIRS'] = ''
 		reload(basedir)
 
 		os.mkdir(self.config_home, 0700)

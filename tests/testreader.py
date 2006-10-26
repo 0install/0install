@@ -20,6 +20,7 @@ config_home = tempfile.mktemp()
 cache_home = tempfile.mktemp()
 os.environ['XDG_CONFIG_HOME'] = config_home
 os.environ['XDG_CACHE_HOME'] = cache_home
+os.environ['XDG_CACHE_DIRS'] = ''
 
 assert not os.path.exists(config_home)
 

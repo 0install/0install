@@ -17,6 +17,7 @@ class TestIfaceCache(unittest.TestCase):
 		self.gnupg_home = tempfile.mktemp()
 		os.environ['XDG_CONFIG_HOME'] = self.config_home
 		os.environ['XDG_CACHE_HOME'] = self.cache_home
+		os.environ['XDG_CACHE_DIRS'] = ''
 		os.environ['GNUPGHOME'] = self.gnupg_home
 		reload(basedir)
 
