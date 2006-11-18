@@ -160,7 +160,11 @@ class TestModel(unittest.TestCase):
 			assert 'Bad interface name' in str(ex)
 	
 	def testVersions(self):
-		pv = model.parse_version
+		def pv(v):
+			parsed = model.parse_version(v)
+			assert model.format_version(parsed) == v
+			return parsed
+
 		assert pv('1.0') > pv('0.9')
 		assert pv('1.0') > pv('1')
 		assert pv('1.0') == pv('1.0')
@@ -186,8 +190,7 @@ class TestModel(unittest.TestCase):
 		assert pv('1.0-post5') == [[1,0], 1, [5], 0]
 		assert pv('1.0-post') == [[1,0], 1]
 		assert pv('1-rc2.0-pre2-post') == [[1], -1, [2,0], -2, [2], 1]
-
-		invalid('1-rc2.0-pre-post')
+		assert pv('1-rc2.0-pre-post') == [[1], -1, [2,0], -2, [], 1]
 
 		assert pv('1.0-0') > pv('1.0')
 		assert pv('1.0-1') > pv('1.0-0')
@@ -198,6 +201,7 @@ class TestModel(unittest.TestCase):
 		assert pv('1.0-rc1') < pv('1.0')
 		assert pv('1.0') < pv('1.0-0')
 		assert pv('1.0-0') < pv('1.0-post')
+		assert pv('2.1.9-pre-1') > pv('2.1.9-pre')
 
 		assert pv('2-post999') < pv('3-pre1')
 

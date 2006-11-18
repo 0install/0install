@@ -375,7 +375,11 @@ def parse_version(version_string):
 	l = len(parts)
 	try:
 		for x in range(0, l, 2):
-			parts[x] = map(int, parts[x].split('.'))
+			part = parts[x]
+			if part:
+				parts[x] = map(int, parts[x].split('.'))
+			else:
+				parts[x] = []	# (because ''.split('.') == [''], not [])
 		for x in range(1, l, 2):
 			parts[x] = _version_mod_to_value[parts[x]]
 		return parts
