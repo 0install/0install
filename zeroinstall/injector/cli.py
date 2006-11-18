@@ -193,6 +193,7 @@ def main(command_args):
 				options.refresh = True
 				logging.info("Need to download; switching to GUI mode")
 	except model.SafeException, ex:
+		if options.verbose: raise
 		print >>sys.stderr, ex
 		sys.exit(1)
 
@@ -235,5 +236,6 @@ def main(command_args):
 		print ex
 		sys.exit(0)
 	except model.SafeException, ex:
+		if options.verbose: raise
 		print >>sys.stderr, ex
 		sys.exit(1)
