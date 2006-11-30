@@ -4,13 +4,11 @@ import os, sys
 from iface_browser import InterfaceBrowser
 import help_box
 from gui import policy
-from dialog import Dialog
-from zeroinstall.injector.model import stable, testing, network_levels, SafeException
-from freshness import freshness_levels, Freshness
+from dialog import Dialog, MixedButton
 
 tips = gtk.Tooltips()
 
-SHOW_CACHE = 0
+SHOW_PREFERENCES = 0
 
 class MainWindow(Dialog):
 	progress = None
@@ -20,65 +18,9 @@ class MainWindow(Dialog):
 	def __init__(self, prog_args, download_only):
 		Dialog.__init__(self)
 		self.set_title('Dependency Injector')
-		self.set_default_size(gtk.gdk.screen_width() / 3, 300)
+		self.set_default_size(gtk.gdk.screen_width() * 2 / 5, 300)
 
 		self.connect('destroy', lambda w: self.destroyed())
-
-		# Network use
-		hbox = gtk.HBox(False, 2)
-		self.vbox.pack_start(hbox, False, True, 0)
-		hbox.set_border_width(4)
-
-		eb = gtk.EventBox()	# For the tooltip
-		network = gtk.combo_box_new_text()
-		eb.add(network)
-		for level in network_levels:
-			network.append_text(level.capitalize())
-		network.set_active(list(network_levels).index(policy.network_use))
-		hbox.pack_start(gtk.Label('Network use:'), False, True, 0)
-		hbox.pack_start(eb, True, True, 2)
-		def set_network_use(combo):
-			policy.network_use = network_levels[network.get_active()]
-			policy.save_config()
-			policy.recalculate()
-		network.connect('changed', set_network_use)
-		tips.set_tip(eb, _('This controls whether the injector will always try to '
-			'run the best version, downloading it if needed, or whether it will prefer '
-			'to run an older version that is already on your machine.'))
-
-		hbox.show_all()
-
-		# Freshness
-		hbox = gtk.HBox(False, 2)
-		self.vbox.pack_start(hbox, False, True, 0)
-		hbox.set_border_width(4)
-
-		times = [x.time for x in freshness_levels]
-		if policy.freshness not in times:
-			freshness_levels.append(Freshness(policy.freshness,
-							  '%d seconds' % policy.freshness))
-			times.append(policy.freshness)
-		eb = gtk.EventBox()	# For the tooltip
-		freshness = gtk.combo_box_new_text()
-		eb.add(freshness)
-		for level in freshness_levels:
-			freshness.append_text(str(level))
-		freshness.set_active(times.index(policy.freshness))
-		hbox.pack_start(gtk.Label('Freshness:'), False, True, 0)
-		hbox.pack_start(eb, True, True, 2)
-		def set_freshness(combo):
-			policy.freshness = freshness_levels[freshness.get_active()].time
-			policy.save_config()
-			policy.recalculate()
-		freshness.connect('changed', set_freshness)
-		tips.set_tip(eb, _('Sets how often the injector will check for new versions.'))
-
-		button = gtk.Button('_Refresh all now')
-		button.connect('clicked', lambda b: policy.refresh_all())
-		tips.set_tip(button, _('Check all the interfaces below for updates.'))
-		hbox.pack_start(button, False, True, 2)
-
-		hbox.show_all()
 
 		# Tree view
 		self.browser = InterfaceBrowser()
@@ -90,24 +32,20 @@ class MainWindow(Dialog):
 		self.vbox.pack_start(hbox, False, True, 0)
 		hbox.set_border_width(4)
 
+		button = MixedButton('_Refresh all now', gtk.STOCK_REFRESH)
+		button.connect('clicked', lambda b: policy.refresh_all())
+		tips.set_tip(button, _('Check all the interfaces below for updates.'))
+		hbox.pack_start(button, False, True, 2)
+
+		cache = MixedButton('Show _Cache', gtk.STOCK_OPEN)
+		cache.connect('clicked',
+			lambda b: os.spawnlp(os.P_WAIT, sys.argv[0], sys.argv[0], '-c'))
+		hbox.pack_start(cache, False, True, 0)
+
 		button = gtk.Button('Interface Properties...')
 		self.browser.edit_properties.connect_proxy(button)
 		hbox.pack_start(button, False, True, 0)
 		tips.set_tip(button, _('See and edit the details of the selected interface.'))
-
-		stable_toggle = gtk.CheckButton('Help test new versions')
-		hbox.pack_start(stable_toggle, False, True, 0)
-		tips.set_tip(stable_toggle,
-			"Try out new versions as soon as they are available, instead of "
-			"waiting for them to be marked as 'stable'. "
-			"This sets the default policy. Click on 'Interface Properties...' "
-			"to set the policy for an individual interface.")
-		stable_toggle.set_active(policy.help_with_testing)
-		def toggle_stability(toggle):
-			policy.help_with_testing = toggle.get_active()
-			policy.save_config()
-			policy.recalculate()
-		stable_toggle.connect('toggled', toggle_stability)
 
 		hbox.show_all()
 
@@ -118,7 +56,8 @@ class MainWindow(Dialog):
 		# Responses
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
-		self.add_mixed_button('C_ache', gtk.STOCK_OPEN, SHOW_CACHE)
+		b = self.add_button(gtk.STOCK_PREFERENCES, SHOW_PREFERENCES)
+		self.action_area.set_child_secondary(b, True)
 
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		if download_only:
@@ -139,8 +78,9 @@ class MainWindow(Dialog):
 								run_afterwards = not download_only)
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
-			elif resp == SHOW_CACHE:
-				os.spawnlp(os.P_WAIT, sys.argv[0], sys.argv[0], '-c')
+			elif resp == SHOW_PREFERENCES:
+				import preferences
+				preferences.show_preferences()
 		self.connect('response', response)
 
 		# Warnings
@@ -185,26 +125,17 @@ If you are happy with the choices shown, click on the Download (or Execute) butt
 download (and run) the program."""),
 
 ('Choosing different versions', """
-There are three ways to control which implementations are chosen. You can adjust the \
-network policy and the overall stability policy, which affect all interfaces, or you \
-can edit the policy of individual interfaces.
+To control which implementations (versions) are chosen you can click on Preferences \
+and adjust the network policy and the overall stability policy. These settings affect \
+all programs run using Zero Install.
 
-The 'Network use' option controls how the injector uses the network. If off-line, \
-the network is not used at all. If 'Minimal' is selected then the injector will use \
-the network if needed, but only if it has no choice. It will run an out-of-date \
-version rather than download a newer one. If 'Full' is selected, the injector won't \
-worry about how much it downloads, but will always pick the version it thinks is best.
+Alternatively, you can edit the policy of an individual interface by selecting it \
+and clicking on the 'Interface Properties' button. \
+See that dialog's help text for more information."""),
 
-The overall stability policy can either be to prefer stable versions, or to help test \
-new versions. Choose whichever suits you. Since different programmers have different \
-ideas of what 'stable' means, you may wish to override this on a per-interface basis \
-(see below).
-
-To set the policy for an interface individually, select it and click on 'Interface \
-Properties'. See that dialog's help text for more information."""),
-
-('Freshness', """
-The interface files, which provide the information about which versions are \
-available, are also cached. To update them, click on 'Refresh all now'. You can also \
-get the injector to check for new versions automatically from time to time using \
-the Freshness setting."""))
+('The cache', """
+Each version of a program that is downloaded is stored in the Zero Install cache. This \
+means that it won't need to be downloaded again each time you run the program. Click on \
+the 'Show Cache' button to see what is currently in the cache, or to remove versions \
+you no longer need to save disk space."""),
+)
