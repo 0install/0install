@@ -49,9 +49,9 @@ class MainWindow(Dialog):
 
 		hbox.show_all()
 
-		# Progress bar
+		# Progress bar (hidden by default)
 		self.progress = gtk.ProgressBar()
-		self.vbox.pack_start(self.progress, False, True, 0)
+		hbox.pack_start(self.progress, True, True, 0)
 
 		# Responses
 
