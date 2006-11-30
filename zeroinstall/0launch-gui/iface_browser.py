@@ -1,4 +1,4 @@
-import gtk
+import gtk, gobject
 
 from zeroinstall.injector import basedir
 from zeroinstall.injector.model import Interface, escape
@@ -14,6 +14,7 @@ def _stability(impl):
 	return _("%s (was %s)") % (impl.user_stability, impl.upstream_stability)
 
 ICON_SIZE = 20.0
+CELL_TEXT_INDENT = int(ICON_SIZE) + 4
 
 class InterfaceTips(TreeTips):
 	def get_tooltip_text(self, item):
@@ -54,6 +55,54 @@ class InterfaceTips(TreeTips):
 
 tips = InterfaceTips()
 
+class IconAndTextRenderer(gtk.GenericCellRenderer):
+	__gproperties__ = {
+		"image": (gobject.TYPE_OBJECT, "Image", "Image", gobject.PARAM_READWRITE),
+		"text": (gobject.TYPE_STRING, "Text", "Text", "-", gobject.PARAM_READWRITE),
+	}
+
+	def do_set_property(self, prop, value):
+		setattr(self, prop.name, value)
+
+	def on_get_size(self, widget, cell_area, layout = None):
+		if not layout:
+			layout = widget.create_pango_layout(self.text)
+		a, rect = layout.get_pixel_extents()
+
+		pixmap_height = self.image.get_height()
+
+		both_height = max(rect[1] + rect[3], pixmap_height)
+
+		return (0, 0,
+			rect[0] + rect[2] + CELL_TEXT_INDENT,
+			both_height)
+
+	def on_render(self, window, widget, background_area, cell_area, expose_area, flags):
+		layout = widget.create_pango_layout(self.text)
+		a, rect = layout.get_pixel_extents()
+
+		if flags & gtk.CELL_RENDERER_SELECTED:
+			state = gtk.STATE_SELECTED
+		elif flags & gtk.CELL_RENDERER_PRELIT:
+			state = gtk.STATE_PRELIGHT
+		else:
+			state = gtk.STATE_NORMAL
+
+		image_y = int(0.5 * (cell_area.height - self.image.get_height()))
+		window.draw_pixbuf(widget.style.white_gc, self.image, 0, 0,
+				cell_area.x,
+				cell_area.y + image_y)
+
+		text_y = int(0.5 * (cell_area.height - (rect[1] + rect[3])))
+
+		widget.style.paint_layout(window, state, True,
+			expose_area, widget, "cellrenderertext",
+			cell_area.x + CELL_TEXT_INDENT,
+			cell_area.y + text_y,
+			layout)
+
+gobject.type_register(IconAndTextRenderer)
+
 class InterfaceBrowser(gtk.ScrolledWindow):
 	model = None
 	root = None
@@ -73,7 +122,11 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		   (_('Description'), SUMMARY)]
 
 	def __init__(self):
+		gtk.ScrolledWindow.__init__(self)
+
 		self.cached_icon = {}	# URI -> GdkPixbuf
+		self.default_icon = self.style.lookup_icon_set(gtk.STOCK_EXECUTE).render_icon(self.style,
+			gtk.TEXT_DIR_NONE, gtk.STATE_NORMAL, gtk.ICON_SIZE_SMALL_TOOLBAR, self, None)
 
 		self.edit_properties = gtk.Action('edit_properties',
 			  'Interface Properties...',
@@ -81,7 +134,6 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			  gtk.STOCK_PROPERTIES)
 		self.edit_properties.set_property('sensitive', False)
 
-		gtk.ScrolledWindow.__init__(self)
 		self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 		self.set_shadow_type(gtk.SHADOW_IN)
 
@@ -90,16 +142,15 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 
 		column_objects = []
 
-		if hasattr(policy, 'get_icon_path'):
-			# If we have 0launch version > 0.18, add an icon column
-			icon_column = gtk.TreeViewColumn('', gtk.CellRendererPixbuf(),
-						pixbuf = InterfaceBrowser.ICON)
-			tree_view.append_column(icon_column)
-
 		text = gtk.CellRendererText()
 
 		for name, model_column in self.columns:
-			column = gtk.TreeViewColumn(name, text, text = model_column)
+			if model_column == InterfaceBrowser.INTERFACE_NAME:
+				column = gtk.TreeViewColumn(name, IconAndTextRenderer(),
+						text = model_column,
+						image = InterfaceBrowser.ICON)
+			else:
+				column = gtk.TreeViewColumn(name, text, text = model_column)
 			tree_view.append_column(column)
 			column_objects.append(column)
 
@@ -210,7 +261,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			self.model[iter][InterfaceBrowser.INTERFACE] = iface
 			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = iface.get_name()
 			self.model[iter][InterfaceBrowser.SUMMARY] = iface.summary
-			self.model[iter][InterfaceBrowser.ICON] = self.get_icon(iface)
+			self.model[iter][InterfaceBrowser.ICON] = self.get_icon(iface) or self.default_icon
 
 			impl = policy.implementation.get(iface, None)
 			if impl:

@@ -40,7 +40,7 @@ class MainWindow(Dialog):
 		tips.set_tip(button, _('Check all the interfaces below for updates.'))
 		hbox.pack_start(button, False, True, 0)
 
-		cache = MixedButton('Show _Cache', gtk.STOCK_OPEN)
+		cache = MixedButton('_Show Cache', gtk.STOCK_OPEN)
 		cache.connect('clicked',
 			lambda b: os.spawnlp(os.P_WAIT, sys.argv[0], sys.argv[0], '-c'))
 		hbox.pack_start(cache, False, True, 0)
