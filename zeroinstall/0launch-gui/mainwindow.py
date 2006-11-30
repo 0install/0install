@@ -22,32 +22,45 @@ class MainWindow(Dialog):
 
 		self.connect('destroy', lambda w: self.destroyed())
 
-		# Tree view
-		self.browser = InterfaceBrowser()
-		self.vbox.pack_start(self.browser, True, True, 0)
-		self.browser.show()
+		vbox = gtk.VBox(False, 4)
+		vbox.set_border_width(4)
+		self.vbox.pack_start(vbox, True, True, 0)
 
-		# Select versions
-		hbox = gtk.HBox(False, 2)
-		self.vbox.pack_start(hbox, False, True, 0)
-		hbox.set_border_width(4)
+		# Global actions
+		hbox = gtk.HBox(False, 0)
+		vbox.pack_start(hbox, False, True, 0)
+		hbox.set_spacing(4)
+
+		label = gtk.Label(_('Choose the versions to use:'))
+		label.set_alignment(0.0, 0.5)
+		hbox.pack_start(label, True, True, 0)
 
 		button = MixedButton('_Refresh all now', gtk.STOCK_REFRESH)
 		button.connect('clicked', lambda b: policy.refresh_all())
 		tips.set_tip(button, _('Check all the interfaces below for updates.'))
-		hbox.pack_start(button, False, True, 2)
+		hbox.pack_start(button, False, True, 0)
 
 		cache = MixedButton('Show _Cache', gtk.STOCK_OPEN)
 		cache.connect('clicked',
 			lambda b: os.spawnlp(os.P_WAIT, sys.argv[0], sys.argv[0], '-c'))
 		hbox.pack_start(cache, False, True, 0)
 
+		# Tree view
+		self.browser = InterfaceBrowser()
+		vbox.pack_start(self.browser, True, True, 0)
+		self.browser.show()
+
+		# Interface actions
+		hbox = gtk.HBox(False, 0)
+		vbox.pack_start(hbox, False, True, 0)
+		hbox.set_spacing(4)
+
 		button = gtk.Button('Interface Properties...')
 		self.browser.edit_properties.connect_proxy(button)
 		hbox.pack_start(button, False, True, 0)
 		tips.set_tip(button, _('See and edit the details of the selected interface.'))
 
-		hbox.show_all()
+		vbox.show_all()
 
 		# Progress bar (hidden by default)
 		self.progress = gtk.ProgressBar()
@@ -94,7 +107,7 @@ class MainWindow(Dialog):
 			if gpg_version < [1, 4, 2, 2]:
 				warning_label = gtk.Label("Warning: Your version of gnupg (%s) contains a signature\n"
 					"checking vulnerability. Suggest upgrading to 1.4.2.2 or later." % '.'.join(map(str, gpg_version)))
-				self.vbox.pack_start(warning_label, False, True, 0)
+				vbox.pack_start(warning_label, False, True, 0)
 				warning_label.show()
 	
 	def destroyed(self):
