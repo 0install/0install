@@ -25,13 +25,22 @@ class TrustBox(dialog.Dialog):
 	interface = None
 	sigs = None
 	iface_xml = None
+	valid_sigs = None
 
 	def __init__(self, interface, sigs, iface_xml):
 		dialog.Dialog.__init__(self)
 
 		def destroy(box):
+			global _queue
 			assert _queue[0] is self
 			del _queue[0]
+			# Remove any queued boxes that are no longer required
+			def still_untrusted(box):
+				for sig in box.valid_sigs:
+					if trust.trust_db.is_trusted(sig.fingerprint):
+						return False
+				return True
+			_queue = [box for box in _queue if still_untrusted(box)]
 			if _queue:
 				_queue[0].show()
 		self.connect('destroy', destroy)
@@ -65,19 +74,19 @@ class TrustBox(dialog.Dialog):
 		self.add_button(gtk.STOCK_ADD, gtk.RESPONSE_OK)
 		self.set_default_response(gtk.RESPONSE_OK)
 
-		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
-		if not valid_sigs:
+		self.valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
+		if not self.valid_sigs:
 			raise SafeException('No valid signatures found')
 
-		trust = {}	# Sig -> CheckButton
+		trust_checkbox = {}	# Sig -> CheckButton
 		def ok_sensitive():
 			trust_any = False
-			for toggle in trust.values():
+			for toggle in trust_checkbox.values():
 				if toggle.get_active():
 					trust_any = True
 					break
 			self.set_response_sensitive(gtk.RESPONSE_OK, trust_any)
-		for sig in sigs:
+		for sig in self.valid_sigs:
 			if hasattr(sig, 'get_details'):
 				name = '<unknown>'
 				details = sig.get_details()
@@ -102,9 +111,9 @@ class TrustBox(dialog.Dialog):
 			frame.add(hint)
 			page.pack_start(frame, True, True, 0)
 
-			trust[sig] = gtk.CheckButton('_Trust this key')
-			page.pack_start(trust[sig], False, True, 0)
-			trust[sig].connect('toggled', lambda t: ok_sensitive())
+			trust_checkbox[sig] = gtk.CheckButton('_Trust this key')
+			page.pack_start(trust_checkbox[sig], False, True, 0)
+			trust_checkbox[sig].connect('toggled', lambda t: ok_sensitive())
 
 			notebook.append_page(page, gtk.Label(name or 'Signature'))
 
@@ -116,7 +125,7 @@ class TrustBox(dialog.Dialog):
 				trust_help.display()
 				return
 			if resp == gtk.RESPONSE_OK:
-				self.trust_keys([sig for sig in trust if trust[sig].get_active()])
+				self.trust_keys([sig for sig in trust_checkbox if trust_checkbox[sig].get_active()])
 			self.destroy()
 		self.connect('response', response)
 	
