@@ -17,7 +17,7 @@ class MainWindow(Dialog):
 
 	def __init__(self, prog_args, download_only):
 		Dialog.__init__(self)
-		self.set_title('Dependency Injector')
+		self.set_title('Zero Install')
 		self.set_default_size(gtk.gdk.screen_width() * 2 / 5, 300)
 
 		self.connect('destroy', lambda w: self.destroyed())
