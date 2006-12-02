@@ -8,13 +8,6 @@ from zeroinstall.injector.iface_cache import iface_cache
 import gui
 import dialog, help_box
 
-def fingerprint(sig):
-	try:
-		return sig.fingerprint
-	except:
-		# Work around a bug in injector-0.9
-		return sig.status[sig.FINGERPRINT]
-
 def pretty_fp(fp):
 	s = fp[0:4]
 	for x in range(4, len(fp), 4):
@@ -40,9 +33,13 @@ class TrustBox(dialog.Dialog):
 					if trust.trust_db.is_trusted(sig.fingerprint):
 						return False
 				return True
-			_queue = [box for box in _queue if still_untrusted(box)]
 			if _queue:
-				_queue[0].show()
+				next = _queue[0]
+				if still_untrusted(next):
+					next.show()
+				else:
+					next.trust_keys([])
+					next.destroy()	# Will trigger this again...
 		self.connect('destroy', destroy)
 
 		def left(text):
@@ -99,13 +96,13 @@ class TrustBox(dialog.Dialog):
 				name = None
 			page = gtk.VBox(False, 4)
 			page.set_border_width(8)
-			page.pack_start(left('Fingerprint: ' + pretty_fp(fingerprint(sig))), False, True, 0)
+			page.pack_start(left('Fingerprint: ' + pretty_fp(sig.fingerprint)), False, True, 0)
 			if name is not None:
 				page.pack_start(left('Claimed identity: ' + name), False, True, 0)
 
 			frame = gtk.Frame('Unreliable hints database says')
 			frame.set_border_width(4)
-			hint = left(hints.get(fingerprint(sig), 'Warning: Nothing known about this key!'))
+			hint = left(hints.get(sig.fingerprint, 'Warning: Nothing known about this key!'))
 			hint.set_line_wrap(True)
 			hint.set_padding(4, 4)
 			frame.add(hint)
@@ -132,8 +129,10 @@ class TrustBox(dialog.Dialog):
 	def trust_keys(self, sigs):
 		try:
 			for sig in sigs:
-				trust.trust_db.trust_key(fingerprint(sig))
+				trust.trust_db.trust_key(sig.fingerprint)
 
+			# Problem: calls recalculate(), which may trigger re-downloading interfaces
+			# we are currently waiting to confirm!
 			if not iface_cache.update_interface_if_trusted(self.interface, self.sigs,
 								      self.iface_xml):
 				raise Exception('Bug: still not trusted!!')

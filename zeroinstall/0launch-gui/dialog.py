@@ -3,18 +3,22 @@ import gtk
 n_windows = 0
 
 class Dialog(gtk.Dialog):
+	__shown = False
+
 	def __init__(self):
 		gtk.Dialog.__init__(self)
 		self.set_has_separator(False)
 		self.set_position(gtk.WIN_POS_CENTER)
 
 		def destroyed(widget):
-			_one_less_window()
+			if self.__shown:
+				_one_less_window()
 		self.connect('destroy', destroyed)
 
 	def show(self):
 		global n_windows
 		n_windows += 1
+		self.__shown = True
 		gtk.Dialog.show(self)
 	
 	def add_mixed_button(self, message, stock, response):
