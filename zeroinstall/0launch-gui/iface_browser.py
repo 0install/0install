@@ -101,7 +101,10 @@ class IconAndTextRenderer(gtk.GenericCellRenderer):
 			cell_area.y + text_y,
 			layout)
 
-gobject.type_register(IconAndTextRenderer)
+if gtk.pygtk_version < (2, 8, 6):
+	# Note sure exactly whice versions need this,
+	# but my 2.8.6 doesn't.
+	gobject.type_register(IconAndTextRenderer)
 
 class InterfaceBrowser(gtk.ScrolledWindow):
 	model = None
