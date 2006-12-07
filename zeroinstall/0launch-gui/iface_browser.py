@@ -102,7 +102,7 @@ class IconAndTextRenderer(gtk.GenericCellRenderer):
 			layout)
 
 if gtk.pygtk_version < (2, 8, 6):
-	# Note sure exactly whice versions need this,
+	# Note sure exactly which versions need this,
 	# but my 2.8.6 doesn't.
 	gobject.type_register(IconAndTextRenderer)
 

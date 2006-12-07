@@ -104,9 +104,9 @@ class MainWindow(Dialog):
 		except Exception, ex:
 			warn("Failed to get GPG version: %s", ex)
 		else:
-			if gpg_version < [1, 4, 2, 2]:
+			if gpg_version < [1, 4, 6]:
 				warning_label = gtk.Label("Warning: Your version of gnupg (%s) contains a signature\n"
-					"checking vulnerability. Suggest upgrading to 1.4.2.2 or later." % '.'.join(map(str, gpg_version)))
+					"checking vulnerability. Suggest upgrading to 1.4.6 or later." % '.'.join(map(str, gpg_version)))
 				vbox.pack_start(warning_label, False, True, 0)
 				warning_label.show()
 	
