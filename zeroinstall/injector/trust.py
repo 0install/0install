@@ -12,20 +12,25 @@ import os
 import basedir
 from namespaces import config_site, config_prog
 
-class TrustDB:
+class TrustDB(object):
 	"""A database of trusted keys.
 	@ivar keys: a list of trusted key fingerprints
+	@ivar watchers: callbacks invoked by L{notify}
 	@see: L{trust_db} - the singleton instance of this class"""
-	keys = None
+	__slots__ = ['keys', 'watchers']
 
 	def __init__(self):
 		self.keys = None
+		self.watchers = []
 	
 	def is_trusted(self, key):
 		self.ensure_uptodate()
 		return key in self.keys
 	
 	def trust_key(self, key):
+		"""Add key to the list of trusted fingerprints.
+		@param key: base 16 fingerprint without any spaces
+		@note: call L{notify} after trusting one or more new keys"""
 		self.ensure_uptodate()
 		if key in self.keys: return
 		int(key, 16)		# Ensure fingerprint is valid
@@ -44,6 +49,12 @@ class TrustDB:
 		for key in self.keys:
 			print >>f, key
 		f.close()
+	
+	def notify(self):
+		"""Call all watcher callbacks.
+		This should be called after trusting one or more new keys.
+		@since: 0.25"""
+		for w in self.watchers: w()
 	
 	def ensure_uptodate(self):
 		# This is a bit inefficient...

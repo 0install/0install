@@ -102,12 +102,11 @@ class Handler(object):
 			print "Trusting", key.fingerprint
 			trust_db.trust_key(key.fingerprint)
 
-		if not iface_cache.update_interface_if_trusted(interface, sigs, iface_xml):
-			raise model.Exception('Bug: still not trusted!!')
+		trust_db.notify()
 	
-	def report_error(self, ex):
+	def report_error(self, exception):
 		"""Report an exception to the user.
-		@param ex: the exception to report
-		@type ex: L{SafeException}
+		@param exception: the exception to report
+		@type exception: L{SafeException}
 		@since: 0.25"""
-		warn("%s", ex)
+		warn("%s", exception)

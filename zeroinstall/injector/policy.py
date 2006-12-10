@@ -15,8 +15,9 @@ import basedir
 from namespaces import *
 import ConfigParser
 import reader
-from iface_cache import iface_cache, PendingFeed
 from zeroinstall import NeedDownload
+from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
+from zeroinstall.injector.trust import trust_db
 
 class _Cook:
 	"""A Cook follows a Recipe."""
@@ -150,7 +151,9 @@ class Policy(object):
 
 		self.set_root(root)
 
+		# Probably need weakrefs here...
 		iface_cache.add_watcher(self)
+		trust_db.watchers.append(self.process_pending)
 	
 	def set_root(self, root):
 		"""Change the root interface URI."""
@@ -172,6 +175,28 @@ class Policy(object):
 		config.write(file(path + '.new', 'w'))
 		os.rename(path + '.new', path)
 	
+	def process_pending(self):
+		"""For each pending feed, either import it fully (if we now
+		trust one of the signatures) or start performing whatever action
+		is needed next (either downloading a key or confirming a
+		fingerprint).
+		@since: 0.25
+		"""
+		# process_pending must never be called from recalculate
+
+		for pending in iface_cache.pending.values():
+			try:
+				iface = iface_cache.get_interface(pending.url)
+				# Note: this may call recalculate, but it shouldn't do any harm
+				# (just a bit slow)
+				updated = iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
+			except SafeException, ex:
+				self.handler.report_error(ex)
+				# Ignore the problematic new version and continue...
+			else:
+				if not updated:
+					self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+	
 	def recalculate(self):
 		"""Try to choose a set of implementations.
 		This may start downloading more interfaces, but will return immediately.
@@ -179,6 +204,7 @@ class Policy(object):
 		@note: A policy may be ready before all feeds have been downloaded. As new feeds
 		arrive, the chosen versions may change.
 		"""
+
 		self.restrictions = {}
 		self.implementation = {}
 		self.ready = True
@@ -370,19 +396,10 @@ class Policy(object):
 		@rtype: L{model.Interface}"""
 		iface = iface_cache.get_interface(uri)
 
-		pending = iface_cache.pending.get(uri, None)
-		if pending:
-			try:
-				updated = iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
-			except SafeException, ex:
-				self.handler.report_error(ex)
-				# Ignore the problematic new version and continue...
-			else:
-				if not updated:
-					self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
-				# Don't start another download while one is pending
-				# TODO: unless the pending version is very old
-				return iface
+		if uri in iface_cache.pending:
+			# Don't start another download while one is pending
+			# TODO: unless the pending version is very old
+			return iface
 
 		if iface.last_modified is None:
 			if self.network_use != network_offline:
@@ -429,7 +446,7 @@ class Policy(object):
 			pending = PendingFeed(interface.uri, stream)
 			iface_cache.add_pending(pending)
 			# This will trigger any required confirmations
-			self.recalculate()
+			self.process_pending()
 
 		dl.on_success.append(feed_downloaded)
 	

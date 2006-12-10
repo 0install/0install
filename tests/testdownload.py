@@ -82,7 +82,7 @@ class TestDownload(unittest.TestCase):
 				assert 0
 			except model.SafeException, ex:
 				if "Not signed with a trusted key" not in str(ex):
-					raise ex
+					raise
 		finally:
 			sys.stdout = old_out
 	
