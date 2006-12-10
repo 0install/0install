@@ -201,8 +201,7 @@ class IfaceCache(object):
 		if interface.uri in self.pending:
 			del self.pending[interface.uri]
 		else:
-			# Can this happen?
-			warn("update_interface_if_trusted, but '%s' not pending!", interface.uri)
+			raise Exception("update_interface_if_trusted, but '%s' not pending!" % interface.uri)
 
 		self.update_interface_from_network(interface, xml, updated)
 		return True

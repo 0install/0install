@@ -6,7 +6,7 @@ Integrates download callbacks with an external mainloop.
 # See the README file for details, or visit http://0install.net.
 
 import os, sys
-from logging import debug, info
+from logging import debug, info, warn
 
 from zeroinstall.injector import model, download
 from zeroinstall.injector.iface_cache import iface_cache
@@ -104,3 +104,10 @@ class Handler(object):
 
 		if not iface_cache.update_interface_if_trusted(interface, sigs, iface_xml):
 			raise model.Exception('Bug: still not trusted!!')
+	
+	def report_error(self, ex):
+		"""Report an exception to the user.
+		@param ex: the exception to report
+		@type ex: L{SafeException}
+		@since: 0.25"""
+		warn("%s", ex)

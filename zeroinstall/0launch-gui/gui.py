@@ -237,6 +237,9 @@ class GUIPolicy(Policy):
 			if old.id != new.id:
 				return True
 		return False
+	
+	def report_error(self, ex):
+		dialog.alert(None, str(ex))
 
 def pretty_size(size):
 	if size is None:

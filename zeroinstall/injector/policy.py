@@ -372,11 +372,17 @@ class Policy(object):
 
 		pending = iface_cache.pending.get(uri, None)
 		if pending:
-			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-				self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
-			# Don't start another download while one is pending
-			# TODO: unless the pending version is very old
-			return iface
+			try:
+				updated = iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
+			except SafeException, ex:
+				self.handler.report_error(ex)
+				# Ignore the problematic new version and continue...
+			else:
+				if not updated:
+					self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+				# Don't start another download while one is pending
+				# TODO: unless the pending version is very old
+				return iface
 
 		if iface.last_modified is None:
 			if self.network_use != network_offline:
