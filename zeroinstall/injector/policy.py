@@ -530,10 +530,6 @@ class Policy(object):
 		"""@deprecated: use L{implementation} instead"""
 		return iter(self.implementation)
 
-	def check_signed_data(self, download, signed_data):
-		"""Wrapper for L{iface_cache.IfaceCache.check_signed_data}."""
-		iface_cache.check_signed_data(download.interface, signed_data, self.handler)
-	
 	def get_cached(self, impl):
 		"""Check whether an implementation is available locally.
 		@type impl: model.Implementation

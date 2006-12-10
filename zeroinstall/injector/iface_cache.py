@@ -43,17 +43,26 @@ def _pretty_time(t):
 class PendingFeed(object):
 	"""A feed that has been downloaded but not yet added to the interface cache.
 	Feeds remain in this state until the user confirms that they trust at least
-	one of the signatures."""
-	__slots__ = ['uri', 'signed_data', 'sigs', 'new_xml']
+	one of the signatures.
+	@ivar url: URL for the feed
+	@type url: str
+	@ivar signed_data: the untrusted data
+	@type signed_data: stream
+	@ivar sigs: signatures extracted from signed_data
+	@type sigs: [L{gpg.Signature}]
+	@ivar new_xml: the payload of the signed_data, or the whole thing if XML
+	@type new_xml: str
+	@since: 0.25"""
+	__slots__ = ['url', 'signed_data', 'sigs', 'new_xml']
 
-	def __init__(self, uri, signed_data):
+	def __init__(self, url, signed_data):
 		"""Downloaded data is a GPG-signed message.
-		@param uri: the URL of the downloaded feed
+		@param url: the URL of the downloaded feed
 		@type url: str
 		@param signed_data: the downloaded data (not yet trusted)
 		@type signed_data: stream
 		@raise SafeException: if the data is not signed, and logs the actual data"""
-		self.uri = uri
+		self.url = url
 		self.signed_data = signed_data
 		self.recheck()
 
@@ -65,7 +74,7 @@ class PendingFeed(object):
 			need_key = x.need_key()
 			if need_key:
 				try:
-					self._download_key(uri, need_key)
+					self._download_key(url, need_key)
 				except SafeException, ex:
 					import_error = ex
 				new_keys = True
@@ -81,10 +90,10 @@ class PendingFeed(object):
 						raise import_error
 				warn("Error importing keys (but succeeded anyway!)", str(ex))
 	
-	def _download_key(self, uri, key_id):
+	def _download_key(self, url, key_id):
 		assert key_id
 		import urlparse, urllib2, shutil, tempfile
-		key_url = urlparse.urljoin(uri, '%s.gpg' % key_id)
+		key_url = urlparse.urljoin(url, '%s.gpg' % key_id)
 		info("Fetching key from %s", key_url)
 		try:
 			stream = urllib2.urlopen(key_url)
@@ -130,17 +139,17 @@ class IfaceCache(object):
 
 	When updating the cache, the normal sequence is as follows:
 
-	 1. When the data arrives, L{add_pending_feed} is called.
+	 1. When the data arrives, L{add_pending} is called.
 	 2. Later (typically during a recalculate), L{policy.Policy.get_interface}
 	    notices the pending feed and starts processing it.
-	 3. It checks the signatures using L{Pending.sigs}.
+	 3. It checks the signatures using L{PendingFeed.sigs}.
 	 4. If any required GPG keys are missing, L{download_key} is used to fetch
 	    them first.
-	 5. If none of the keys are trusted, L{handler.confirm_trust_keys} is called.
+	 5. If none of the keys are trusted, L{handler.Handler.confirm_trust_keys} is called.
 	 6. L{update_interface_if_trusted} is called to update the cache.
 
 	Whenever something needs to be done before the feed can move from the pending
-	state, the process is resumed after the required activity by calling L{policy.recalculate}.
+	state, the process is resumed after the required activity by calling L{policy.Policy.recalculate}.
 
 	@ivar watchers: objects requiring notification of cache changes.
 	@ivar pending: downloaded feeds which are not yet trusted
@@ -164,13 +173,17 @@ class IfaceCache(object):
 		self.watchers.append(w)
 	
 	def add_pending(self, pending):
+		"""Add a PendingFeed to the pending dict.
+		@param pending: the untrusted download to add
+		@type pending: PendingFeed
+		@since: 0.25"""
 		assert isinstance(pending, PendingFeed)
-		self.pending[pending.uri] = pending
+		self.pending[pending.url] = pending
 	
 	def update_interface_if_trusted(self, interface, sigs, xml):
 		"""Update a cached interface (using L{update_interface_from_network})
-		if we trust the signatures. If we don't trust any of the
-		signatures, do nothing.
+		if we trust the signatures, and remove it from L{pending}.
+		If we don't trust any of the signatures, do nothing.
 		@param interface: the interface being updated
 		@type interface: L{model.Interface}
 		@param sigs: signatures from L{gpg.check_stream}
@@ -179,7 +192,7 @@ class IfaceCache(object):
 		@type xml: str
 		@return: True if the interface was updated
 		@rtype: bool
-		@see: L{check_signed_data}, which calls this.
+		@precondition: call L{add_pending}
 		"""
 		updated = self._oldest_trusted(sigs)
 		if updated is None: return False	# None are trusted

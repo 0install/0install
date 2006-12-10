@@ -3,7 +3,7 @@ Python interface to GnuPG.
 
 This module is used to invoke GnuPG to check the digital signatures on interfaces.
 
-@see: L{iface_cache.IfaceCache.check_signed_data}
+@see: L{iface_cache.PendingFeed}
 """
 
 # Copyright (C) 2006, Thomas Leonard
