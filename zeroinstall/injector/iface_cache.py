@@ -88,7 +88,7 @@ class PendingFeed(object):
 				for x in self.sigs:
 					if x.need_key():
 						raise import_error
-				warn("Error importing keys (but succeeded anyway!)", str(ex))
+				warn("Error importing keys (but succeeded anyway!): %s", str(ex))
 	
 	def _download_key(self, url, key_id):
 		assert key_id
@@ -121,7 +121,8 @@ class PendingFeed(object):
 			assert sigs
 
 			data = stream.read()
-			stream.close()
+			if stream is not self.signed_data:
+				stream.close()
 
 			self.new_xml = data
 			self.sigs = sigs

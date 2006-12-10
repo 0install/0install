@@ -236,6 +236,7 @@ def check_stream(stream):
 	and a list of signatures (good or bad). If stream starts with "<?xml "
 	then get the signature from a comment at the end instead (and the returned
 	data is the original stream). stream must be seekable.
+	@note: Stream returned may or may not be the one passed in. Be careful!
 	@return: (data_stream, [Signatures])"""
 	if not _find_in_path('gpg'):
 		raise SafeException("GnuPG is not installed ('gpg' not in $PATH). See http://gnupg.org")
