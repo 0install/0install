@@ -69,6 +69,23 @@ class TestDownload(unittest.TestCase):
 		finally:
 			sys.stdout = old_out
 	
+	def testRejectKeyXML(self):
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg')
+			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml', download_only = False)
+			assert policy.need_download()
+			sys.stdin = Reply("N\n")
+			try:
+				policy.download_and_execute(['Hello'])
+				assert 0
+			except model.SafeException, ex:
+				if "Not signed with a trusted key" not in str(ex):
+					raise ex
+		finally:
+			sys.stdout = old_out
+	
 	def testAcceptKey(self):
 		old_out = sys.stdout
 		try:
