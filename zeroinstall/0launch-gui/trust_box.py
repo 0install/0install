@@ -138,6 +138,8 @@ class TrustBox(dialog.Dialog):
 				raise Exception('Bug: still not trusted!!')
 		except Exception, ex:
 			dialog.alert(None, ex)
+			if not isinstance(ex, SafeException):
+				raise
 
 _queue = []
 def confirm_trust(interface, sigs, iface_xml):
