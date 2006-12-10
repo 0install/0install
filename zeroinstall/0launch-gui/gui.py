@@ -115,12 +115,7 @@ class GUIPolicy(Policy):
 					self.window.progress.hide()
 					self.pulse = None
 				try:
-					data = dl.error_stream_closed()
-					if data:
-						if isinstance(dl, download.InterfaceDownload):
-							self.check_signed_data(dl, data)
-						elif isinstance(dl, download.ImplementationDownload):
-							self.add_to_cache(dl.source, data)
+					dl.error_stream_closed()
 					if hasattr(download, 'IconDownload') and \
 					     isinstance(dl, download.IconDownload):
 						if self.window:
