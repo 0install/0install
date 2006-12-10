@@ -131,11 +131,15 @@ class TrustBox(dialog.Dialog):
 			for sig in sigs:
 				trust.trust_db.trust_key(sig.fingerprint)
 
-			# Problem: calls recalculate(), which may trigger re-downloading interfaces
-			# we are currently waiting to confirm!
-			if not iface_cache.update_interface_if_trusted(self.interface, self.sigs,
-								      self.iface_xml):
-				raise Exception('Bug: still not trusted!!')
+			if hasattr(iface_cache, 'add_pending'):
+				# 0launch >= 0.25
+				gui.policy.recalculate()
+			else:
+				# Problem: calls recalculate(), which may trigger re-downloading interfaces
+				# we are currently waiting to confirm!
+				if not iface_cache.update_interface_if_trusted(self.interface, self.sigs,
+									      self.iface_xml):
+					raise Exception('Bug: still not trusted!!')
 		except Exception, ex:
 			dialog.alert(None, ex)
 			if not isinstance(ex, SafeException):
