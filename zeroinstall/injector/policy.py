@@ -15,7 +15,7 @@ import basedir
 from namespaces import *
 import ConfigParser
 import reader
-from iface_cache import iface_cache
+from iface_cache import iface_cache, PendingFeed
 from zeroinstall import NeedDownload
 
 class _Cook:
@@ -363,12 +363,20 @@ class Policy(object):
 					return "Source code"
 				return "Unsupported machine type"
 		return None
-
+	
 	def get_interface(self, uri):
 		"""Get an interface from the L{iface_cache}. If it is missing or needs updating,
 		start a new download.
 		@rtype: L{model.Interface}"""
 		iface = iface_cache.get_interface(uri)
+
+		pending = iface_cache.pending.get(uri, None)
+		if pending:
+			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+				self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+			# Don't start another download while one is pending
+			# TODO: unless the pending version is very old
+			return iface
 
 		if iface.last_modified is None:
 			if self.network_use != network_offline:
@@ -410,8 +418,14 @@ class Policy(object):
 			# assumes it's OK keep asking for the same interface to be downloaded.
 			info("Already have a handler for %s; not adding another", interface)
 			return
-		dl.on_success.append(lambda stream: 
-			iface_cache.check_signed_data(interface, stream, self.handler))
+
+		def feed_downloaded(stream):
+			pending = PendingFeed(interface.uri, stream)
+			iface_cache.add_pending(pending)
+			# This will trigger any required confirmations
+			self.recalculate()
+
+		dl.on_success.append(feed_downloaded)
 	
 	def begin_impl_download(self, impl, retrieval_method, force = False):
 		"""Start fetching impl, using retrieval_method. Each download started

@@ -8,7 +8,7 @@ from logging import getLogger, DEBUG, INFO
 sys.path.insert(0, '..')
 from zeroinstall.injector import basedir, download, model, gpg, trust
 from zeroinstall.injector.namespaces import *
-from zeroinstall.injector.iface_cache import iface_cache
+from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
 
 class TestIfaceCache(unittest.TestCase):
 	def setUp(self):
@@ -51,7 +51,7 @@ class TestIfaceCache(unittest.TestCase):
 		src.flush()
 		src.seek(0)
 		try:
-			iface_cache.check_signed_data(iface, src, None)
+			PendingFeed(iface.uri, src)
 			assert 0
 		except model.SafeException:
 			pass
@@ -59,6 +59,7 @@ class TestIfaceCache(unittest.TestCase):
 		stream = tempfile.TemporaryFile()
 		stream.write(data.thomas_key)
 		stream.seek(0)
+
 		gpg.import_key(stream)
 
 		# Signed
@@ -66,7 +67,11 @@ class TestIfaceCache(unittest.TestCase):
 		src.write(data.foo_signed)
 		src.flush()
 		src.seek(0)
-		iface_cache.check_signed_data(iface, src, None)
+
+		pending = PendingFeed(iface.uri, src)
+		iface_cache.add_pending(pending)
+		assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
+
 		self.assertEquals(['http://foo'],
 				iface_cache.list_all_interfaces())
 
@@ -94,7 +99,9 @@ class TestIfaceCache(unittest.TestCase):
 		src = tempfile.TemporaryFile()
 		src.write(data.foo_signed_xml)
 		src.seek(0)
-		iface_cache.check_signed_data(iface, src, None)
+		pending = PendingFeed(iface.uri, src)
+		iface_cache.add_pending(pending)
+		assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
 
 		iface_cache.__init__()
 		iface = iface_cache.get_interface('http://foo')
@@ -113,14 +120,20 @@ class TestIfaceCache(unittest.TestCase):
 		src = tempfile.TemporaryFile()
 		src.write(data.new_foo_signed_xml)
 		src.seek(0)
-		iface_cache.check_signed_data(iface, src, None)
+
+		pending = PendingFeed(iface.uri, src)
+		iface_cache.add_pending(pending)
+		assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
 
 		# Can't 'update' to an older copy
 		src = tempfile.TemporaryFile()
 		src.write(data.foo_signed_xml)
 		src.seek(0)
 		try:
-			iface_cache.check_signed_data(iface, src, None)
+			pending = PendingFeed(iface.uri, src)
+			iface_cache.add_pending(pending)
+			assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
+
 			assert 0
 		except model.SafeException:
 			pass

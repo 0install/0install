@@ -98,7 +98,7 @@ def main(command_args):
 	try:
 		if getattr(options, 'import'):
 			from zeroinstall.injector import gpg, handler
-			from zeroinstall.injector.iface_cache import iface_cache
+			from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
 			from xml.dom import minidom
 			for x in args:
 				if not os.path.isfile(x):
@@ -113,7 +113,11 @@ def main(command_args):
 				iface = iface_cache.get_interface(uri)
 				logging.info("Importing information about interface %s", iface)
 				signed_data.seek(0)
-				iface_cache.check_signed_data(iface, signed_data, handler.Handler())
+				pending = PendingFeed(uri, signed_data)
+				iface_cache.add_pending(pending)
+				if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+					handler.Handler().confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+
 			sys.exit(0)
 		
 		if getattr(options, 'feed'):

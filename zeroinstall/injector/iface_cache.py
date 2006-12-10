@@ -40,6 +40,87 @@ def _pretty_time(t):
 	assert isinstance(t, (int, long))
 	return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.localtime(t))
 
+class PendingFeed(object):
+	"""A feed that has been downloaded but not yet added to the interface cache.
+	Feeds remain in this state until the user confirms that they trust at least
+	one of the signatures."""
+	__slots__ = ['uri', 'signed_data', 'sigs', 'new_xml']
+
+	def __init__(self, uri, signed_data):
+		"""Downloaded data is a GPG-signed message.
+		@param uri: the URL of the downloaded feed
+		@type url: str
+		@param signed_data: the downloaded data (not yet trusted)
+		@type signed_data: stream
+		@raise SafeException: if the data is not signed, and logs the actual data"""
+		self.uri = uri
+		self.signed_data = signed_data
+		self.recheck()
+
+		# This bit shouldn't go here. Keys should be downloaded by the handler,
+		# in the background.
+		new_keys = False
+		import_error = None
+		for x in self.sigs:
+			need_key = x.need_key()
+			if need_key:
+				try:
+					self._download_key(uri, need_key)
+				except SafeException, ex:
+					import_error = ex
+				new_keys = True
+
+		if new_keys:
+			self.recheck()
+			# If we got an error importing the keys, then report it now.
+			# If we still have missing keys, raise it as an exception, but
+			# if the keys got imported, just print and continue...
+			if import_error:
+				for x in self.sigs:
+					if x.need_key():
+						raise import_error
+				warn("Error importing keys (but succeeded anyway!)", str(ex))
+	
+	def _download_key(self, uri, key_id):
+		assert key_id
+		import urlparse, urllib2, shutil, tempfile
+		key_url = urlparse.urljoin(uri, '%s.gpg' % key_id)
+		info("Fetching key from %s", key_url)
+		try:
+			stream = urllib2.urlopen(key_url)
+			# Python2.4: can't call fileno() on stream, so save to tmp file instead
+			tmpfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
+			shutil.copyfileobj(stream, tmpfile)
+			tmpfile.flush()
+			stream.close()
+		except Exception, ex:
+			raise SafeException("Failed to download key from '%s': %s" % (key_url, str(ex)))
+
+		import gpg
+
+		tmpfile.seek(0)
+		gpg.import_key(tmpfile)
+		tmpfile.close()
+	
+	def recheck(self):
+		"""Set new_xml and sigs by reading signed_data.
+		You need to call this when previously-missing keys are added to the GPG keyring."""
+		import gpg
+		try:
+			self.signed_data.seek(0)
+			stream, sigs = gpg.check_stream(self.signed_data)
+			assert sigs
+
+			data = stream.read()
+			stream.close()
+
+			self.new_xml = data
+			self.sigs = sigs
+		except:
+			self.signed_data.seek(0)
+			info("Failed to check GPG signature. Data received was:\n" + `self.signed_data.read()`)
+			raise
+
 class IfaceCache(object):
 	"""
 	The interface cache stores downloaded and verified interfaces in
@@ -49,23 +130,30 @@ class IfaceCache(object):
 
 	When updating the cache, the normal sequence is as follows:
 
-	 1. When the data arrives, L{check_signed_data} is called.
-	 2. This checks the signatures using L{gpg.check_stream}.
-	 3. If any required GPG keys are missing, L{download_key} is used to fetch
-	 them and the stream is checked again.
-	 4. Call L{update_interface_if_trusted} to update the cache.
-	 5. If that fails (because we don't trust the keys), use a L{handler}
-	 to confirm with the user. When done, the handler calls L{update_interface_if_trusted}.
+	 1. When the data arrives, L{add_pending_feed} is called.
+	 2. Later (typically during a recalculate), L{policy.Policy.get_interface}
+	    notices the pending feed and starts processing it.
+	 3. It checks the signatures using L{Pending.sigs}.
+	 4. If any required GPG keys are missing, L{download_key} is used to fetch
+	    them first.
+	 5. If none of the keys are trusted, L{handler.confirm_trust_keys} is called.
+	 6. L{update_interface_if_trusted} is called to update the cache.
+
+	Whenever something needs to be done before the feed can move from the pending
+	state, the process is resumed after the required activity by calling L{policy.recalculate}.
 
 	@ivar watchers: objects requiring notification of cache changes.
+	@ivar pending: downloaded feeds which are not yet trusted
+	@type pending: str -> PendingFeed
 	@see: L{iface_cache} - the singleton IfaceCache instance.
 	"""
 
-	__slots__ = ['watchers', '_interfaces', 'stores']
+	__slots__ = ['watchers', '_interfaces', 'stores', 'pending']
 
 	def __init__(self):
 		self.watchers = []
 		self._interfaces = {}
+		self.pending = {}
 
 		self.stores = zerostore.Stores()
 	
@@ -74,64 +162,10 @@ class IfaceCache(object):
 		changes an interface in the cache."""
 		assert w not in self.watchers
 		self.watchers.append(w)
-
-	def check_signed_data(self, interface, signed_data, handler):
-		"""Downloaded data is a GPG-signed message. Check that the signature is trusted
-		and call L{update_interface_from_network} when done.
-		Calls C{handler.confirm_trust_keys()} if keys are not trusted.
-		@param interface: the interface being updated
-		@type interface: L{model.Interface}
-		@param signed_data: the downloaded data (not yet trusted)
-		@type signed_data: stream
-		@param handler: a handler for any user interaction required
-		@type handler: L{handler.Handler}
-		@see: L{handler.Handler.confirm_trust_keys}
-		"""
-		assert isinstance(interface, Interface)
-		import gpg
-		try:
-			data, sigs = gpg.check_stream(signed_data)
-		except:
-			signed_data.seek(0)
-			info("Failed to check GPG signature. Data received was:\n" + `signed_data.read()`)
-			raise
-
-		new_keys = False
-		import_error = None
-		for x in sigs:
-			need_key = x.need_key()
-			if need_key:
-				try:
-					self.download_key(interface, need_key)
-				except SafeException, ex:
-					import_error = ex
-				new_keys = True
-
-		if new_keys:
-			signed_data.seek(0)
-			data, sigs = gpg.check_stream(signed_data)
-			# If we got an error importing the keys, then report it now.
-			# If we still have missing keys, raise it as an exception, but
-			# if the keys got imported, just print and continue...
-			if import_error:
-				for x in sigs:
-					if x.need_key():
-						raise import_error
-				print >>sys.stderr, str(ex)
-
-		iface_xml = data.read()
-		data.close()
-
-		if not sigs:
-			raise SafeException('No signature on %s!\n'
-					    'Possible reasons:\n'
-					    '- You entered the interface URL incorrectly.\n'
-					    '- The server delivered an error; try viewing the URL in a web browser.\n'
-					    '- The developer gave you the URL of the unsigned interface by mistake.'
-					    % interface.uri)
-
-		if not self.update_interface_if_trusted(interface, sigs, iface_xml):
-			handler.confirm_trust_keys(interface, sigs, iface_xml)
+	
+	def add_pending(self, pending):
+		assert isinstance(pending, PendingFeed)
+		self.pending[pending.uri] = pending
 	
 	def update_interface_if_trusted(self, interface, sigs, xml):
 		"""Update a cached interface (using L{update_interface_from_network})
@@ -149,6 +183,12 @@ class IfaceCache(object):
 		"""
 		updated = self._oldest_trusted(sigs)
 		if updated is None: return False	# None are trusted
+	
+		if interface.uri in self.pending:
+			del self.pending[interface.uri]
+		else:
+			# Can this happen?
+			warn("update_interface_if_trusted, but '%s' not pending!", interface.uri)
 
 		self.update_interface_from_network(interface, xml, updated)
 		return True
@@ -159,6 +199,7 @@ class IfaceCache(object):
 		@param interface: the interface which needs the key
 		@param key_id: the GPG long id of the key
 		@todo: This method blocks. It should start a download and return.
+		@deprecated: see PendingFeed
 		"""
 		assert interface
 		assert key_id
@@ -188,8 +229,8 @@ class IfaceCache(object):
 		last_checked time and then all the L{watchers} are notified.
 		@param interface: the interface being updated
 		@type interface: L{model.Interface}
-		@param xml: the downloaded replacement interface document
-		@type xml: str
+		@param new_xml: the downloaded replacement interface document
+		@type new_xml: str
 		@param modified_time: the timestamp of the oldest trusted signature
 		(used as an approximation to the interface's modification time)
 		@type modified_time: long
