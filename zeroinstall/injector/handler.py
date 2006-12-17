@@ -55,7 +55,8 @@ class Handler(object):
 
 	def get_download(self, url, force = False):
 		"""Return the Download object currently downloading 'url'.
-		If no download for this URL has been started, start one now.
+		If no download for this URL has been started, start one now (and
+		start monitoring it).
 		If the download failed and force is False, return it anyway.
 		If force is True, abort any current or failed download and start
 		a new one.

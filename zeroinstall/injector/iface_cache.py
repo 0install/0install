@@ -53,7 +53,7 @@ class PendingFeed(object):
 	@ivar new_xml: the payload of the signed_data, or the whole thing if XML
 	@type new_xml: str
 	@since: 0.25"""
-	__slots__ = ['url', 'signed_data', 'sigs', 'new_xml']
+	__slots__ = ['url', 'signed_data', 'sigs', 'new_xml', 'downloads', 'download_callback']
 
 	def __init__(self, url, signed_data):
 		"""Downloaded data is a GPG-signed message.
@@ -64,53 +64,66 @@ class PendingFeed(object):
 		@raise SafeException: if the data is not signed, and logs the actual data"""
 		self.url = url
 		self.signed_data = signed_data
+		self.downloads = []
 		self.recheck()
 
-		# This bit shouldn't go here. Keys should be downloaded by the handler,
-		# in the background.
-		new_keys = False
-		import_error = None
-		for x in self.sigs:
-			need_key = x.need_key()
-			if need_key:
-				try:
-					self._download_key(url, need_key)
-				except SafeException, ex:
-					import_error = ex
-				new_keys = True
+	def begin_key_downloads(self, handler, callback):
+		"""Start downloading any required GPG keys not already on our keyring.
+		When all downloads are done (successful or otherwise), add any new keys
+		to the keyring, L{recheck}, and invoke the callback.
+		If we are already downloading, return and do nothing else.
+		Otherwise, if nothing needs to be downloaded, the callback is invoked immediately.
+		@param handler: handler to manage the download
+		@type handler: L{handler.Handler}
+		@param callback: callback to invoke when done
+		@type callback: function()
+		"""
+		if self.downloads:
+			return
 
-		if new_keys:
-			self.recheck()
-			# If we got an error importing the keys, then report it now.
-			# If we still have missing keys, raise it as an exception, but
-			# if the keys got imported, just print and continue...
-			if import_error:
-				for x in self.sigs:
-					if x.need_key():
-						raise import_error
-				warn("Error importing keys (but succeeded anyway!): %s", str(ex))
-	
-	def _download_key(self, url, key_id):
-		assert key_id
-		import urlparse, urllib2, shutil, tempfile
-		key_url = urlparse.urljoin(url, '%s.gpg' % key_id)
-		info("Fetching key from %s", key_url)
+		assert callback
+		self.download_callback = callback
+
+		for x in self.sigs:
+			key_id = x.need_key()
+			if key_id:
+				import urlparse
+				key_url = urlparse.urljoin(self.url, '%s.gpg' % key_id)
+				info("Fetching key from %s", key_url)
+				dl = handler.get_download(key_url)
+				self.downloads.append(dl)
+				dl.on_success.append(lambda stream: self._downloaded_key(dl, stream))
+
+		if not self.downloads:
+			self.download_callback()
+
+	def _downloaded_key(self, dl, stream):
+		import shutil, tempfile
+		from zeroinstall.injector import gpg
+
+		self.downloads.remove(dl)
+
+		info("Importing key for feed '%s'", self.url)
+
+		# Python2.4: can't call fileno() on stream, so save to tmp file instead
+		tmpfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
 		try:
-			stream = urllib2.urlopen(key_url)
-			# Python2.4: can't call fileno() on stream, so save to tmp file instead
-			tmpfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
 			shutil.copyfileobj(stream, tmpfile)
 			tmpfile.flush()
-			stream.close()
-		except Exception, ex:
-			raise SafeException("Failed to download key from '%s': %s" % (key_url, str(ex)))
 
-		import gpg
+			try:
+				tmpfile.seek(0)
+				gpg.import_key(tmpfile)
+			except Exception, ex:
+				warn("Failed to import key for '%s': %s", self.url, str(ex))
+		finally:
+			tmpfile.close()
 
-		tmpfile.seek(0)
-		gpg.import_key(tmpfile)
-		tmpfile.close()
-	
+			if not self.downloads:
+				# All complete
+				self.recheck()
+				self.download_callback()
+
 	def recheck(self):
 		"""Set new_xml and sigs by reading signed_data.
 		You need to call this when previously-missing keys are added to the GPG keyring."""

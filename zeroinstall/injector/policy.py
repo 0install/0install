@@ -185,18 +185,21 @@ class Policy(object):
 		# process_pending must never be called from recalculate
 
 		for pending in iface_cache.pending.values():
-			try:
-				iface = iface_cache.get_interface(pending.url)
-				# Note: this may call recalculate, but it shouldn't do any harm
-				# (just a bit slow)
-				updated = iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
-			except SafeException, ex:
-				self.handler.report_error(ex)
-				# Ignore the problematic new version and continue...
-			else:
-				if not updated:
-					self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+			pending.begin_key_downloads(self.handler, lambda pending = pending: self._keys_ready(pending))
 	
+	def _keys_ready(self, pending):
+		try:
+			iface = iface_cache.get_interface(pending.url)
+			# Note: this may call recalculate, but it shouldn't do any harm
+			# (just a bit slow)
+			updated = iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
+		except SafeException, ex:
+			self.handler.report_error(ex)
+			# Ignore the problematic new version and continue...
+		else:
+			if not updated:
+				self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+
 	def recalculate(self):
 		"""Try to choose a set of implementations.
 		This may start downloading more interfaces, but will return immediately.

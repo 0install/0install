@@ -115,8 +115,14 @@ def main(command_args):
 				signed_data.seek(0)
 				pending = PendingFeed(uri, signed_data)
 				iface_cache.add_pending(pending)
-				if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-					handler.Handler().confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+
+				def keys_ready():
+					if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+						handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+
+				handler = handler.Handler()
+				pending.begin_key_downloads(handler, keys_ready)
+				handler.wait_for_downloads()
 
 			sys.exit(0)
 		
