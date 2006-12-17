@@ -1,5 +1,6 @@
 from zeroinstall.injector.model import *
-from zeroinstall.injector import writer, namespaces
+from zeroinstall.injector.iface_cache import iface_cache
+from zeroinstall.injector import writer, namespaces, gpg
 import gtk, sys, os
 import sets	# Note: for Python 2.3; frozenset is only in Python 2.4
 
@@ -99,6 +100,7 @@ class Description(gtk.ScrolledWindow):
 		paragraphs = [format_para(p) for p in (interface.description or "-").split('\n\n')]
 
 		buffer.insert(iter, '\n\n'.join(paragraphs))
+		buffer.insert(iter, '\n')
 
 		if hasattr(interface, 'get_metadata'):
 			need_gap = True
@@ -106,8 +108,31 @@ class Description(gtk.ScrolledWindow):
 				if need_gap:
 					buffer.insert(iter, '\n')
 					need_gap = False
-				buffer.insert(iter, '\nHomepage: ')
+				buffer.insert(iter, 'Homepage: ')
 				buffer.insert_with_tags(iter, '%s\n' % x.content, self.link_style)
+
+		if hasattr(iface_cache, 'get_cached_signatures'):
+			buffer.insert_with_tags(iter, '\nSignatures\n', heading_style)
+			sigs = iface_cache.get_cached_signatures(interface.uri)
+			if sigs:
+				for sig in sigs:
+					if isinstance(sig, gpg.ValidSig):
+						name = '<unknown>'
+						if hasattr(sig, 'get_details'):
+							details = sig.get_details()
+							for item in details:
+								if item[0] in ('pub', 'uid') and len(item) > 9:
+									name = item[9]
+									break
+						buffer.insert_with_tags(iter, 'Valid signature by "%s"\n- Dated: %s\n- Fingerprint: %s\n' %
+								(name, time.ctime(sig.get_timestamp()), sig.fingerprint))
+						if not sig.is_trusted():
+							buffer.insert_with_tags(iter, 'WARNING: This key is not in the trusted list (either you removed it, or '
+											'you trust one of the other signatures)\n')
+					else:
+						buffer.insert_with_tags(iter, '%s\n' % sig)
+			else:
+				buffer.insert_with_tags(iter, 'No signature information (old style interface or out-of-date cache)\n')
 
 
 class Feeds(gtk.VPaned):

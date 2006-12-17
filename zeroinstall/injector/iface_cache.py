@@ -394,20 +394,31 @@ class IfaceCache(object):
 		@rtype: str"""
 		return basedir.load_first_cache(config_site, 'interface_icons',
 						 escape(iface.uri))
-	
-	def _get_signature_date(self, uri):
-		"""Read the date-stamp from the signature of the cached interface.
-		If the date-stamp is unavailable, returns None."""
+
+	def get_cached_signatures(self, uri):
+		"""Verify the cached interface using GPG.
+		Only new-style XML-signed interfaces retain their signatures in the cache.
+		@param uri: the feed to check
+		@type uri: str
+		@return: a list of signatures, or None
+		@rtype: [L{gpg.Signature}] or None
+		@since: 0.25"""
 		import gpg
 		old_iface = basedir.load_first_cache(config_site, 'interfaces', escape(uri))
 		if old_iface is None:
 			return None
 		try:
-			sigs = gpg.check_stream(file(old_iface))[1]
+			return gpg.check_stream(file(old_iface))[1]
 		except SafeException, ex:
 			debug("No signatures (old-style interface): %s" % ex)
 			return None
-		return self._oldest_trusted(sigs)
+	
+	def _get_signature_date(self, uri):
+		"""Read the date-stamp from the signature of the cached interface.
+		If the date-stamp is unavailable, returns None."""
+		sigs = self.get_cached_signatures(uri)
+		if sigs:
+			return self._oldest_trusted(sigs)
 	
 	def _oldest_trusted(self, sigs):
 		"""Return the date of the oldest trusted signature in the list, or None if there
