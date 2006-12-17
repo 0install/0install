@@ -86,6 +86,35 @@ class TestDownload(unittest.TestCase):
 		finally:
 			sys.stdout = old_out
 	
+	def testImport(self):
+		old_out = sys.stdout
+		try:
+			from zeroinstall.injector import cli
+			from zeroinstall.injector.trust import trust_db
+			sys.stdout = StringIO()
+			self.child = server.handle_requests('6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+			sys.stdin = Reply("Y\n")
+			try:
+				assert not trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
+				try:
+					cli.main(['--import', 'Hello'])
+					assert 0
+				except SystemExit, ex:
+					assert ex.code == 0
+				assert trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
+				# Shouldn't need to prompt the second time
+				sys.stdin = None
+				try:
+					cli.main(['--import', 'Hello'])
+					assert 0
+				except SystemExit, ex:
+					assert ex.code == 0
+			except model.SafeException, ex:
+				if "HelloWorld/Missing" not in str(ex):
+					raise ex
+		finally:
+			sys.stdout = old_out
+	
 	def testAcceptKey(self):
 		old_out = sys.stdout
 		try:
@@ -137,7 +166,7 @@ class TestDownload(unittest.TestCase):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			self.child = server.handle_requests('HelloWorld.tar.bz2')
+			self.child = server.handle_requests('*')
 			policy = autopolicy.AutoPolicy(os.path.abspath('Recipe.xml'), download_only = False)
 			try:
 				policy.download_and_execute([])

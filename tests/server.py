@@ -8,7 +8,7 @@ next_step = None
 class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 	def do_GET(self):
 		leaf = os.path.basename(self.path)
-		if leaf not in next_step:
+		if next_step != ('*',) and leaf not in next_step:
 			self.send_error(404, "Expected %s; got %s" % (next_step, leaf))
 			
 		if os.path.exists(leaf):
