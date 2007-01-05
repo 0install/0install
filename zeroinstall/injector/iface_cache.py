@@ -404,9 +404,12 @@ class IfaceCache(object):
 		@rtype: [L{gpg.Signature}] or None
 		@since: 0.25"""
 		import gpg
-		old_iface = basedir.load_first_cache(config_site, 'interfaces', escape(uri))
-		if old_iface is None:
-			return None
+		if uri.startswith('/'):
+			old_iface = uri
+		else:
+			old_iface = basedir.load_first_cache(config_site, 'interfaces', escape(uri))
+			if old_iface is None:
+				return None
 		try:
 			return gpg.check_stream(file(old_iface))[1]
 		except SafeException, ex:

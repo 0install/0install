@@ -127,8 +127,11 @@ class Description(gtk.ScrolledWindow):
 						buffer.insert_with_tags(iter, 'Valid signature by "%s"\n- Dated: %s\n- Fingerprint: %s\n' %
 								(name, time.ctime(sig.get_timestamp()), sig.fingerprint))
 						if not sig.is_trusted():
-							buffer.insert_with_tags(iter, 'WARNING: This key is not in the trusted list (either you removed it, or '
-											'you trust one of the other signatures)\n')
+							if interface.uri.startswith('/'):
+								buffer.insert_with_tags(iter, 'WARNING: This key is not in the trusted list\n')
+							else:
+								buffer.insert_with_tags(iter, 'WARNING: This key is not in the trusted list (either you removed it, or '
+												'you trust one of the other signatures)\n')
 					else:
 						buffer.insert_with_tags(iter, '%s\n' % sig)
 			else:
