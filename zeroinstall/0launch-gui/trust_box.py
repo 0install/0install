@@ -238,4 +238,8 @@ hints = {
 		"However, there is still some benefit: if the archive is modified after the "
 		"script has signed it then any further changes will be detected, so this isn't "
 		"completely pointless.",
+
+	'5E665D0ECCCF1215F725BD2FA7421904E3D1B654' :
+		'Daniel Carrera works on the OpenDocument viewer from opendocumentfellowship.org. '
+		'This key was confirmed in a zero-install mailing list post on 2007-01-09.',
 }
