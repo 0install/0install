@@ -48,7 +48,7 @@ def type_from_url(url):
 	if url.endswith('.deb'): return 'application/x-deb'
 	if url.endswith('.tar.bz2'): return 'application/x-bzip-compressed-tar'
 	if url.endswith('.tar.gz'): return 'application/x-compressed-tar'
-	if url.endswith('.tar.lzma'): return 'application/x-lzma'	# XXX: No registered MIME type!
+	if url.endswith('.tar.lzma'): return 'pplication/x-lzma-compressed-tar'	# XXX: No registered MIME type!
 	if url.endswith('.tgz'): return 'application/x-compressed-tar'
 	if url.endswith('.tar'): return 'application/x-tar'
 	if url.endswith('.zip'): return 'application/zip'
@@ -82,7 +82,7 @@ def check_type_ok(mime_type):
 		if not _find_in_path('cabextract'):
 			raise SafeException("This package looks like a Microsoft Cabinet archive, but you don't have the 'cabextract' command "
 					"I need to extract it. Install the package containing it first.")
-	elif mime_type == 'application/x-lzma':
+	elif mime_type == 'pplication/x-lzma-compressed-tar':
 		if not _find_in_path('unlzma'):
 			raise SafeException("This package looks like an LZMA archive, but you don't have the 'unlzma' command "
 					"I need to extract it. Install the package containing it (it's probably called 'lzma') first.")
@@ -121,7 +121,7 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 		extract_zip(data, destdir, extract, start_offset)
 	elif type == 'application/x-tar':
 		extract_tar(data, destdir, extract, None, start_offset)
-	elif type == 'application/x-lzma':
+	elif type == 'pplication/x-lzma-compressed-tar':
 		extract_tar(data, destdir, extract, '--use-compress-program=unlzma', start_offset)
 	elif type == 'application/x-compressed-tar':
 		extract_tar(data, destdir, extract, '-z', start_offset)
