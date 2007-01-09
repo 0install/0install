@@ -48,7 +48,9 @@ def type_from_url(url):
 	if url.endswith('.deb'): return 'application/x-deb'
 	if url.endswith('.tar.bz2'): return 'application/x-bzip-compressed-tar'
 	if url.endswith('.tar.gz'): return 'application/x-compressed-tar'
+	if url.endswith('.tar.lzma'): return 'application/x-lzma'	# XXX: No registered MIME type!
 	if url.endswith('.tgz'): return 'application/x-compressed-tar'
+	if url.endswith('.tar'): return 'application/x-tar'
 	if url.endswith('.zip'): return 'application/zip'
 	if url.endswith('.cab'): return 'application/vnd.ms-cab-compressed'
 	return None
@@ -80,7 +82,11 @@ def check_type_ok(mime_type):
 		if not _find_in_path('cabextract'):
 			raise SafeException("This package looks like a Microsoft Cabinet archive, but you don't have the 'cabextract' command "
 					"I need to extract it. Install the package containing it first.")
-	elif mime_type in 'application/x-compressed-tar':
+	elif mime_type == 'application/x-lzma':
+		if not _find_in_path('unlzma'):
+			raise SafeException("This package looks like an LZMA archive, but you don't have the 'unlzma' command "
+					"I need to extract it. Install the package containing it (it's probably called 'lzma') first.")
+	elif mime_type in ('application/x-compressed-tar', 'application/x-tar'):
 		pass
 	else:
 		from zeroinstall import version
@@ -113,6 +119,10 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 		extract_rpm(data, destdir, extract, start_offset)
 	elif type == 'application/zip':
 		extract_zip(data, destdir, extract, start_offset)
+	elif type == 'application/x-tar':
+		extract_tar(data, destdir, extract, None, start_offset)
+	elif type == 'application/x-lzma':
+		extract_tar(data, destdir, extract, '--use-compress-program=unlzma', start_offset)
 	elif type == 'application/x-compressed-tar':
 		extract_tar(data, destdir, extract, '-z', start_offset)
 	elif type == 'application/vnd.ms-cab-compressed':
@@ -218,6 +228,8 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 		args = ['tar', decompress, '-x', '--no-same-owner', '--no-same-permissions']
 	else:
 		args = ['tar', decompress, '-xf', '-']
+	
+	args = filter(None, args)
 
 	if extract:
 		args.append(extract)

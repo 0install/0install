@@ -64,6 +64,8 @@ def do_add(args):
 			extract = None
 
 		type = unpack.type_from_url(args[1])
+		if not type:
+			raise SafeException("Unknown extension in '%s' - can't guess MIME type" % args[1])
 		unpack.check_type_ok(type)
 
 		stores.add_archive_to_cache(digest, file(args[1]), args[1], extract, type = type)
