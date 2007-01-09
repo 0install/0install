@@ -299,10 +299,10 @@ def update(interface, source, local = False):
 		try:
 			stability = stability_levels[str(item_attrs['stability'])]
 		except KeyError:
-			stab = str(item_attrs.stability)
+			stab = str(item_attrs['stability'])
 			if stab != stab.lower():
 				raise InvalidInterface('Stability "%s" invalid - use lower case!' % item_attrs.stability)
-			raise InvalidInterface('Stability "%s" invalid' % item_attrs.stability)
+			raise InvalidInterface('Stability "%s" invalid' % item_attrs['stability'])
 		if stability >= preferred:
 			raise InvalidInterface("Upstream can't set stability to preferred!")
 		impl.upstream_stability = stability
