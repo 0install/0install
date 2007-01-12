@@ -114,7 +114,7 @@ def get_size(path):
 		size = 0
 		for root, dirs, files in os.walk(path):
 			for name in files:
-				size += getsize(join(root, name))
+				size += os.path.getsize(os.path.join(root, name))
 	return size
 
 def summary(iface):

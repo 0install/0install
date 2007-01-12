@@ -85,6 +85,12 @@ class Store:
 			raise
 	
 	def add_dir_to_cache(self, required_digest, path):
+		"""Copy the contents of path to the cache.
+		@param required_digest: the expected digest
+		@type required_digest: str
+		@param path: the root of the tree to copy
+		@type path: str
+		@raise BadDigest: if the contents don't match the given digest."""
 		if self.lookup(required_digest):
 			info("Not adding %s as it already exists!", required_digest)
 			return
@@ -167,7 +173,11 @@ class Stores(object):
 			(digest, '\n- '.join([s.dir for s in self.stores])))
 
 	def add_dir_to_cache(self, required_digest, dir):
+		"""Add to the best writable cache.
+		@see: L{Store.add_dir_to_cache}"""
 		self.stores[0].add_dir_to_cache(required_digest, dir)
 
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0):
+		"""Add to the best writable cache.
+		@see: L{Store.add_archive_to_cache}"""
 		self.stores[0].add_archive_to_cache(required_digest, data, url, extract, type = type, start_offset = start_offset)
