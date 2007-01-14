@@ -91,11 +91,12 @@ def update_user_overrides(interface):
 		if item.name == 'implementation':
 			id = item.getAttribute('id')
 			assert id is not None
-			if id.startswith('/'):
-				impl = interface.get_impl(id)
-			else:
+			if not (id.startswith('/') or id.startswith('.')):
 				assert '=' in id
-				impl = interface.get_impl(id)
+			impl = interface.implementations.get(id, None)
+			if not impl:
+				debug("Ignoring user-override for unknown implementation %s in %s", id, interface)
+				continue
 
 			user_stability = item.getAttribute('user-stability')
 			if user_stability:
