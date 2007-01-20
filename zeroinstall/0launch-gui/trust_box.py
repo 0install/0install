@@ -242,4 +242,9 @@ hints = {
 	'5E665D0ECCCF1215F725BD2FA7421904E3D1B654' :
 		'Daniel Carrera works on the OpenDocument viewer from opendocumentfellowship.org. '
 		'This key was confirmed in a zero-install mailing list post on 2007-01-09.',
+
+	'635469E565B8D340C2C9EA4C32FBC18CE63EF486' :
+		'Eric Wasylishen is experimenting with packaging software with Zero Install. '
+		'This key was announced on the zero-install mailing list on 2007-01-16.',
+
 }
