@@ -28,7 +28,7 @@ class CheckingBox(Dialog):
 
 		def show_hint():
 			hint = gtk.Label("(if you want to skip this, click on\n"
-					 "Details, and then on Execute)")
+					 "Details, and then on Run)")
 			hint.set_justify(gtk.JUSTIFY_CENTER)
 			self.vbox.pack_start(hint, False, True, 0)
 			self.vbox.show_all()

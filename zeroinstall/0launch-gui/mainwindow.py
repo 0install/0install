@@ -76,7 +76,7 @@ class MainWindow(Dialog):
 		if download_only:
 			self.add_mixed_button('_Download', gtk.STOCK_NETWORK, gtk.RESPONSE_OK)
 		else:
-			self.add_button(gtk.STOCK_EXECUTE, gtk.RESPONSE_OK)
+			self.add_mixed_button('Run', gtk.STOCK_EXECUTE, gtk.RESPONSE_OK)
 		self.set_default_response(gtk.RESPONSE_OK)
 		self.default_widget.grab_focus()
 
@@ -134,7 +134,7 @@ implementation. The top-most one represents the program you tried to run, and ea
 child is a dependency. The 'Fetch' column shows the amount of data that needs to be \
 downloaded, or '(cached)' if it is already on this computer.
 
-If you are happy with the choices shown, click on the Download (or Execute) button to \
+If you are happy with the choices shown, click on the Download (or Run) button to \
 download (and run) the program."""),
 
 ('Choosing different versions', """
