@@ -227,6 +227,7 @@ class Stores(object):
 		if len(self.stores) > 1:
 			try:
 				fn(self.stores[1])
+				return
 			except NonwritableStore:
 				debug("%s not-writable. Using user store instead.", self.stores[1])
 				pass
