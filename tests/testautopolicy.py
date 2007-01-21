@@ -66,6 +66,28 @@ class TestAutoPolicy(unittest.TestCase):
 		iface_cache.iface_cache._interfaces = {}
 		assert not policy.need_download()
 	
+	def testUnknownAlg(self):
+		self.cache_iface(foo_iface_uri,
+"""<?xml version="1.0" ?>
+<interface
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <implementation id='unknown=123' version='1.0'>
+    <archive href='http://foo/foo.tgz' size='100'/>
+  </implementation>
+</interface>""" % foo_iface_uri)
+		policy = autopolicy.AutoPolicy(foo_iface_uri,
+						download_only = False)
+		policy.freshness = 0
+		try:
+			assert policy.need_download()
+			assert False
+		except model.SafeException, ex:
+			assert 'Unknown digest algorithm' in str(ex)
+	
 	def testDownload(self):
 		tmp = tempfile.NamedTemporaryFile()
 		tmp.write(

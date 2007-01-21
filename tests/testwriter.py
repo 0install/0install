@@ -47,16 +47,24 @@ class TestTrust(unittest.TestCase):
 		self.assertEquals({}, iface.implementations)
 
 	def testStoreStability(self):
-		iface = model.Interface('http://test/test')
-		impl = iface.get_impl('/some/path')
+		iface = model.Interface('http://localhost:8000/Hello')
+		impl = iface.get_impl('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 		impl.user_stability = model.developer
 		writer.save_interface(iface)
 
-		iface = model.Interface('http://test/test')
+		iface = model.Interface('http://localhost:8000/Hello')
 		self.assertEquals(None, iface.stability_policy)
 		reader.update_user_overrides(iface)
+
+		# Ignored because not in main interface
+		self.assertEquals(0, len(iface.implementations))
+
+		# Not visible
+		reader.update(iface, 'Hello.xml')
+		reader.update_user_overrides(iface)
 		self.assertEquals(1, len(iface.implementations))
-		impl = iface.implementations['/some/path']
+
+		impl = iface.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
 		self.assertEquals(model.developer, impl.user_stability)
 
 suite = unittest.makeSuite(TestTrust)

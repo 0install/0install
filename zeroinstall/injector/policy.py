@@ -459,6 +459,12 @@ class Policy(object):
 		assert impl
 		assert retrieval_method
 
+		from zeroinstall.zerostore import manifest
+		alg = impl.id.split('=', 1)[0]
+		if alg not in manifest.algorithms:
+			raise SafeException("Unknown digest algorithm '%s' for '%s' version %s" %
+					(alg, impl.interface.get_name(), impl.get_version()))
+
 		if isinstance(retrieval_method, DownloadSource):
 			def archive_ready(stream):
 				iface_cache.add_to_cache(retrieval_method, stream)
