@@ -18,6 +18,9 @@ class BadDigest(SafeException):
 class NotStored(SafeException):
 	"""Throws if a requested implementation isn't in the cache."""
 
+class NonwritableStore(SafeException):
+	"""Attempt to add to a non-writable store directory."""
+
 def _copytree2(src, dst):
 	import shutil
 	names = os.listdir(src)
@@ -37,14 +40,34 @@ def _copytree2(src, dst):
 		else:
 			shutil.copy2(srcname, dstname)
 
+def _wrap_umask(fn):
+	def wrapper(self, *args, **kwargs):
+		if self.public:
+			old_umask = os.umask(0022)	# World readable
+		try:
+			fn(self, *args, **kwargs)
+		finally:
+			if self.public:
+				os.umask(old_umask)
+	return wrapper
+
 class Store:
 	"""A directory for storing implementations."""
-	def __init__(self, dir):
+
+	def __init__(self, dir, public = False):
+		"""Create a new Store.
+		@param dir: directory to contain the implementations
+		@type dir: str
+		@param public: set the umask for a public cache
+		@type public: bool"""
 		self.dir = dir
+		self.public = public
+	
+	def __str__(self):
+		return "Store '%s'" % self.dir
 	
 	def lookup(self, digest):
 		alg, value = digest.split('=', 1)
-		assert alg in ('sha1', 'sha1new', 'sha256')
 		assert '/' not in value
 		int(value, 16)		# Check valid format
 		dir = os.path.join(self.dir, digest)
@@ -55,12 +78,16 @@ class Store:
 	def get_tmp_dir_for(self, required_digest):
 		"""Create a temporary directory in the directory where we would store an implementation
 		with the given digest. This is used to setup a new implementation before being renamed if
-		it turns out OK."""
-		if not os.path.isdir(self.dir):
-			os.makedirs(self.dir)
-		from tempfile import mkdtemp
-		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
-		return tmp
+		it turns out OK.
+		@raise: NonwritableStore if we can't create it"""
+		try:
+			if not os.path.isdir(self.dir):
+				os.makedirs(self.dir)
+			from tempfile import mkdtemp
+			tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
+			return tmp
+		except OSError, ex:
+			raise NonwritableStore(str(ex))
 	
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0):
 		import unpack
@@ -83,6 +110,7 @@ class Store:
 		except Exception, ex:
 			warn("Leaving extracted directory as %s", tmp)
 			raise
+	add_archive_to_cache = _wrap_umask(add_archive_to_cache)
 	
 	def add_dir_to_cache(self, required_digest, path):
 		"""Copy the contents of path to the cache.
@@ -95,12 +123,9 @@ class Store:
 			info("Not adding %s as it already exists!", required_digest)
 			return
 
-		if not os.path.isdir(self.dir):
-			os.makedirs(self.dir)
-		from tempfile import mkdtemp
-		tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
-		_copytree2(path, tmp)
+		tmp = self.get_tmp_dir_for(required_digest)
 		try:
+			_copytree2(path, tmp)
 			self.check_manifest_and_rename(required_digest, tmp)
 		except:
 			warn("Error importing directory.")
@@ -108,8 +133,14 @@ class Store:
 			import shutil
 			shutil.rmtree(tmp)
 			raise
+	add_dir_to_cache = _wrap_umask(add_dir_to_cache)
 
 	def check_manifest_and_rename(self, required_digest, tmp, extract = None):
+		"""Check that tmp[/extract] has the required_digest.
+		On success, rename the checked directory to the digest and,
+		if self.public, make the whole tree read-only.
+		@raise BadDigest: if the input directory doesn't match the given digest"""
+		# Should we make private stores read-only too?
 		if extract:
 			extracted = os.path.join(tmp, extract)
 			if not os.path.isdir(extracted):
@@ -135,9 +166,20 @@ class Store:
 		else:
 			os.rename(tmp, final_name)
 
+		if self.public:
+			import stat
+			for dirpath, dirnames, filenames in os.walk(final_name):
+				for item in ['.'] + filenames:
+					full = os.path.join(dirpath, item)
+					info = os.lstat(full)
+					if not stat.S_ISLNK(info.st_mode):
+						os.chmod(full, info.st_mode & ~stat.S_IWRITE)
+
+
 class Stores(object):
-	"""A list of L{Store}s. All stores are searched when looking for an implementation,
-	but only the first one is written to."""
+	"""A list of L{Store}s. All stores are searched when looking for an implementation.
+	When storing, we use the first of the system caches (if writable), or the user's
+	cache otherwise."""
 	__slots__ = ['stores']
 
 	def __init__(self):
@@ -154,11 +196,8 @@ class Stores(object):
 		for directory in dirs:
 			directory = directory.strip()
 			if directory and not directory.startswith('#'):
-				if os.path.isdir(directory):
-					self.stores.append(Store(directory))
-					debug("Added system store '%s'", directory)
-				else:
-					info("Ignoring non-directory store '%s'", directory)
+				debug("Added system store '%s'", directory)
+				self.stores.append(Store(directory, public = True))
 
 	def lookup(self, digest):
 		"""Search for digest in all stores."""
@@ -175,9 +214,26 @@ class Stores(object):
 	def add_dir_to_cache(self, required_digest, dir):
 		"""Add to the best writable cache.
 		@see: L{Store.add_dir_to_cache}"""
-		self.stores[0].add_dir_to_cache(required_digest, dir)
+		for store in self._get_write_stores():
+			try:
+				store.add_dir_to_cache(required_digest, dir)
+			except NonwritableStore:
+				debug("(store '%s' not writable; skipping)", store)
+				continue
+			break
 
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0):
 		"""Add to the best writable cache.
 		@see: L{Store.add_archive_to_cache}"""
-		self.stores[0].add_archive_to_cache(required_digest, data, url, extract, type = type, start_offset = start_offset)
+		for store in self._get_write_stores():
+			try:
+				store.add_archive_to_cache(required_digest, data, url, extract, type = type, start_offset = start_offset)
+			except NonwritableStore:
+				debug("(%s not writable; skipping)", store)
+				continue
+			break
+	
+	def _get_write_stores(self):
+		if len(self.stores) > 1:
+			yield self.stores[1]	# Try the system store first, if any
+		yield self.stores[0]		# Fallback to user's store
