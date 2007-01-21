@@ -214,26 +214,20 @@ class Stores(object):
 	def add_dir_to_cache(self, required_digest, dir):
 		"""Add to the best writable cache.
 		@see: L{Store.add_dir_to_cache}"""
-		for store in self._get_write_stores():
-			try:
-				store.add_dir_to_cache(required_digest, dir)
-			except NonwritableStore:
-				debug("(store '%s' not writable; skipping)", store)
-				continue
-			break
+		self._write_store(lambda store: store.add_dir_to_cache(required_digest, dir))
 
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0):
 		"""Add to the best writable cache.
 		@see: L{Store.add_archive_to_cache}"""
-		for store in self._get_write_stores():
-			try:
-				store.add_archive_to_cache(required_digest, data, url, extract, type = type, start_offset = start_offset)
-			except NonwritableStore:
-				debug("(%s not writable; skipping)", store)
-				continue
-			break
+		self._write_store(lambda store: store.add_archive_to_cache(required_digest,
+						data, url, extract, type = type, start_offset = start_offset))
 	
-	def _get_write_stores(self):
+	def _write_store(self, fn):
+		"""Call fn(first_system_store). If it's read-only, try again with the user store."""
 		if len(self.stores) > 1:
-			yield self.stores[1]	# Try the system store first, if any
-		yield self.stores[0]		# Fallback to user's store
+			try:
+				fn(self.stores[1])
+			except NonwritableStore:
+				debug("%s not-writable. Using user store instead.", self.stores[1])
+				pass
+		fn(self.stores[0])
