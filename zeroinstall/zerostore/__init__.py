@@ -34,7 +34,7 @@ def _copytree2(src, dst):
 			os.symlink(linkto, dstname)
 		elif os.path.isdir(srcname):
 			os.mkdir(dstname)
-			mtime = os.lstat(srcname).st_mtime
+			mtime = int(os.lstat(srcname).st_mtime)
 			_copytree2(srcname, dstname)
 			os.utime(dstname, (mtime, mtime))
 		else:

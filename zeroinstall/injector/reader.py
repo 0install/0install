@@ -50,7 +50,7 @@ def update_from_cache(interface):
 	if interface.uri.startswith('/'):
 		debug("Loading local interface file '%s'", interface.uri)
 		update(interface, interface.uri, local = True)
-		interface.last_modified = os.stat(interface.uri).st_mtime
+		interface.last_modified = int(os.stat(interface.uri).st_mtime)
 		cached = True
 	else:
 		cached = basedir.load_first_cache(config_site, 'interfaces', escape(interface.uri))
@@ -188,7 +188,7 @@ def update(interface, source, local = False):
 		else:
 			# New style items have the mtime in the signature,
 			# but for quick access we use the mtime of the file
-			interface.last_modified = os.stat(source).st_mtime
+			interface.last_modified = int(os.stat(source).st_mtime)
 	main = root.getAttribute('main')
 	if main:
 		interface.main = main

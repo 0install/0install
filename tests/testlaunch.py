@@ -61,7 +61,7 @@ class TestLaunch(unittest.TestCase):
 
 	def testHelp(self):
 		out, err = self.run_0launch([])
-		assert out.startswith("usage:")
+		assert out.lower().startswith("usage:")
 		assert not err
 	
 	def testList(self):
@@ -88,7 +88,7 @@ class TestLaunch(unittest.TestCase):
 
 		out, err = self.run_0launch(['--list', 'one', 'two'])
 		assert not err
-		assert out.startswith("usage:")
+		assert out.lower().startswith("usage:")
 	
 	def testVersion(self):
 		out, err = self.run_0launch(['--version'])

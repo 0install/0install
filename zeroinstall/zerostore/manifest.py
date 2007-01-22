@@ -72,7 +72,7 @@ class OldSHA1(Algorithm):
 			m = info.st_mode
 			if stat.S_ISDIR(m):
 				if sub != '/':
-					yield "D %s %s" % (info.st_mtime, sub)
+					yield "D %s %s" % (int(info.st_mtime), sub)
 				items = os.listdir(full)
 				items.sort()
 				for x in items:
@@ -85,9 +85,9 @@ class OldSHA1(Algorithm):
 			if stat.S_ISREG(m):
 				d = sha.new(file(full).read()).hexdigest()
 				if m & 0111:
-					yield "X %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
+					yield "X %s %s %s %s" % (d, int(info.st_mtime) ,info.st_size, leaf)
 				else:
-					yield "F %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
+					yield "F %s %s %s %s" % (d, int(info.st_mtime) ,info.st_size, leaf)
 			elif stat.S_ISLNK(m):
 				d = sha.new(os.readlink(full)).hexdigest()
 				# Note: Can't use utime on symlinks, so skip mtime
@@ -425,9 +425,9 @@ class HashLibAlgorithm(Algorithm):
 
 					d = new_digest(file(path).read()).hexdigest()
 					if m & 0111:
-						yield "X %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
+						yield "X %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
 					else:
-						yield "F %s %s %s %s" % (d, info.st_mtime,info.st_size, leaf)
+						yield "F %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
 				elif stat.S_ISLNK(m):
 					d = new_digest(os.readlink(path)).hexdigest()
 					# Note: Can't use utime on symlinks, so skip mtime
