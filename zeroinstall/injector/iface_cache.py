@@ -154,8 +154,7 @@ class IfaceCache(object):
 	When updating the cache, the normal sequence is as follows:
 
 	 1. When the data arrives, L{add_pending} is called.
-	 2. Later (typically during a recalculate), L{policy.Policy.get_interface}
-	    notices the pending feed and starts processing it.
+	 2. Later, L{policy.Policy.process_pending} notices the pending feed and starts processing it.
 	 3. It checks the signatures using L{PendingFeed.sigs}.
 	 4. If any required GPG keys are missing, L{download_key} is used to fetch
 	    them first.
@@ -163,7 +162,7 @@ class IfaceCache(object):
 	 6. L{update_interface_if_trusted} is called to update the cache.
 
 	Whenever something needs to be done before the feed can move from the pending
-	state, the process is resumed after the required activity by calling L{policy.Policy.recalculate}.
+	state, the process is resumed after the required activity by calling L{policy.Policy.process_pending}.
 
 	@ivar watchers: objects requiring notification of cache changes.
 	@ivar pending: downloaded feeds which are not yet trusted

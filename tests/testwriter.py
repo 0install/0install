@@ -59,7 +59,7 @@ class TestTrust(unittest.TestCase):
 		# Ignored because not in main interface
 		self.assertEquals(0, len(iface.implementations))
 
-		# Not visible
+		# Now visible
 		reader.update(iface, 'Hello.xml')
 		reader.update_user_overrides(iface)
 		self.assertEquals(1, len(iface.implementations))
