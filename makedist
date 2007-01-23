@@ -2,8 +2,8 @@
 import zeroinstall, sys, os, shutil, time
 from zeroinstall.injector import iface_cache, model
 
-trunk_url = 'https://svn.sourceforge.net/svnroot/zero-install/trunk/0launch'
-releases_url = 'https://svn.sourceforge.net/svnroot/zero-install/releases/0launch'
+trunk_url = 'https://zero-install.svn.sourceforge.net/svnroot/zero-install/trunk/0launch'
+releases_url = 'https://zero-install.svn.sourceforge.net/svnroot/zero-install/releases/0launch'
 
 publish_url = 'http://0install.net/2006/interfaces/0publish'
 

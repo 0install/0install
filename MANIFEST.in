@@ -2,8 +2,12 @@ include COPYING
 include *.1
 include tests
 include tests/*.py
+include tests/Binary.xml
+include tests/Compiler.xml
+include tests/Source.xml
 include tests/data
 include tests/Hello
+include tests/Hello.xml
 include tests/HelloWorld.tgz
 include tests/6FCF121BE2390E0B.gpg
 include tests/dummy-1-1.noarch.rpm
