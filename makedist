@@ -47,9 +47,10 @@ a = raw_input("Release " + name + "? [y/N]")
 if not a or a not in 'Yy':
 	sys.exit(0)
 
-if os.system('cd tests && ./testall.py'):
-	print "ERROR: Unit test failure. Stop"
-	sys.exit(1)
+for v in ['2.3', '2.4', '2.5']:
+	if os.system('cd tests && python%s ./testall.py' % v):
+		print "ERROR: Unit test failure with Python %s. Stop" % v
+		sys.exit(1)
 
 print "Checking for existing release..."
 if os.system('svn ls ' + releases_url + '/' + name + ' >/dev/null') == 0:

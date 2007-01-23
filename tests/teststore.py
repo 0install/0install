@@ -62,7 +62,7 @@ class TestStore(unittest.TestCase):
 				manifest.verify(self.tmp, added_digest)
 				os.unlink(mfile)
 			except BadDigest, ex:
-				raise Exception(alg_name + ": " + str(ex) + "\n" + ex.detail)
+				raise Exception("%s: %s\n%s" % (alg_name, ex, ex.detail))
 	
 	def populate_sample(self, target):
 		"""Create a set of files, links and directories in target for testing."""

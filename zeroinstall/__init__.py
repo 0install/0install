@@ -6,11 +6,11 @@ The Python implementation of the Zero Install injector is divided into three pac
  - L{zeroinstall.zerostore} contains low-level code for handling the
    implementation cache.
 
-@copyright: (C) 2006, Thomas Leonard
+@copyright: (C) 2007, Thomas Leonard
 @see: U{http://0install.net}
 """
 
-version = '0.24'
+version = '0.25'
 
 class SafeException(Exception):
 	"""An exception that can be reported to the user without a stack trace.
