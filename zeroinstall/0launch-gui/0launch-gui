@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 import os, sys
+
+# This is for pycentral on Debian-type systems. 0launch-gui is a symlink to the
+# copy in the pycentral source directory. Python does a realpath() on this
+# before adding the containing directory to sys.path, which means we don't see
+# the .pyc files. If run as root, this also causes .pyc files to be created in
+# the source directory, leaving a mess when the package is removed.
+sys.path.insert(0, os.path.dirname(__file__))
+
 from optparse import OptionParser
 import pygtk; pygtk.require('2.0')
 
