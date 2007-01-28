@@ -149,7 +149,7 @@ class Download(object):
 	
 	def abort(self):
 		if self.child_pid is not None:
-			warn("Killing download process %s", self.child_pid)
+			info("Killing download process %s", self.child_pid)
 			import signal
 			os.kill(self.child_pid, signal.SIGTERM)
 		else:
