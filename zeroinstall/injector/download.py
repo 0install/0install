@@ -14,7 +14,7 @@ This is the low-level interface for downloading interfaces, implementations, ico
 import tempfile, os, sys
 from zeroinstall import SafeException
 import traceback
-from logging import warn
+from logging import info
 
 download_starting = "starting"	# Waiting for UI to start it
 download_fetching = "fetching"	# In progress
