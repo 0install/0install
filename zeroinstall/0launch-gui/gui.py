@@ -1,5 +1,6 @@
 import gtk, os, gobject, sys
 
+from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector.policy import Policy
 from zeroinstall.injector import download
 from zeroinstall.injector.model import SafeException
@@ -43,7 +44,7 @@ class GUIPolicy(Policy):
 
 		import mainwindow
 		self.window = mainwindow.MainWindow(prog_args, download_only)
-		root = policy.get_interface(policy.root)
+		root = iface_cache.get_interface(policy.root)
 		self.window.browser.set_root(root)
 
 		if refresh:

@@ -2,11 +2,11 @@
 Chooses a set of implementations based on a policy.
 """
 
-# Copyright (C) 2006, Thomas Leonard
+# Copyright (C) 2007, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import time
-import sys, os
+import sys, os, sets
 from logging import info, debug, warn
 import arch
 
@@ -99,11 +99,13 @@ class Policy(object):
 	@type restrictions: {model.Interface -> [model.Restriction]}
 	@ivar src: whether we are looking for source code
 	@type src: bool
+	@ivar stale_feeds: set of feeds which are present but haven't been checked for a long time
+	@type stale_feeds: set
 	"""
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
 		     'freshness', 'ready', 'handler', '_warned_offline',
-		     'restrictions', 'src', 'root_restrictions']
+		     'restrictions', 'src', 'root_restrictions', 'stale_feeds']
 
 	def __init__(self, root, handler = None, src = False):
 		"""
@@ -120,6 +122,7 @@ class Policy(object):
 		self.ready = False
 		self.src = src				# Root impl must be a "src" machine type
 		self.restrictions = {}
+		self.stale_feeds = sets.Set()
 
 		# This is used in is_unusable() to check whether the impl is
 		# for the root interface when looking for source. It is also
@@ -208,6 +211,7 @@ class Policy(object):
 		arrive, the chosen versions may change.
 		"""
 
+		self.stale_feeds = sets.Set()
 		self.restrictions = {}
 		self.implementation = {}
 		self.ready = True
@@ -236,6 +240,12 @@ class Policy(object):
 				debug("No implementation chould be chosen yet");
 				self.ready = False
 		process(Dependency(self.root, restrictions = self.root_restrictions))
+
+		if self.network_use != network_offline:
+			for stale in self.stale_feeds:
+				info("Checking for updates to stale feed %s", stale)
+				self.begin_iface_download(stale, False)
+
 		for w in self.watchers: w()
 	
 	# Only to be called from recalculate, as it is quite slow.
@@ -351,7 +361,7 @@ class Policy(object):
 		@rtype: [model.Implementation]"""
 		impls = iface.implementations.values()
 		for f in self.usable_feeds(iface):
-			feed_iface = self.get_interface(f.uri)
+			feed_iface = iface_cache.get_interface(f.uri)
 			if feed_iface.implementations:
 				impls.extend(feed_iface.implementations.values())
 		impls.sort(lambda a, b: self.compare(iface, a, b))
@@ -394,8 +404,10 @@ class Policy(object):
 		return None
 	
 	def get_interface(self, uri):
-		"""Get an interface from the L{iface_cache}. If it is missing or needs updating,
-		start a new download.
+		"""Get an interface from the L{iface_cache}. If it is missing start a new download.
+		If it is present but stale, add it to L{stale_feeds}. This should only be called
+		from L{recalculate}.
+		@see: iface_cache.iface_cache.get_interface
 		@rtype: L{model.Interface}"""
 		iface = iface_cache.get_interface(uri)
 
@@ -422,9 +434,9 @@ class Policy(object):
 			staleness = time.time() - (iface.last_checked or 0)
 			debug("Staleness for %s is %.2f hours", iface, staleness / 3600.0)
 
-			if self.network_use != network_offline and self.freshness > 0 and staleness > self.freshness:
-				debug("Updating %s", iface)
-				self.begin_iface_download(iface, False)
+			if self.freshness > 0 and staleness > self.freshness:
+				debug("Adding %s to stale set", iface)
+				self.stale_feeds.add(iface)
 		#else: debug("Local interface, so not checking staleness.")
 
 		return iface
@@ -599,7 +611,7 @@ class Policy(object):
 		for x in self.implementation:
 			self.begin_iface_download(x, force)
 			for f in self.usable_feeds(x):
-				feed_iface = self.get_interface(f.uri)
+				feed_iface = iface_cache.get_interface(f.uri)
 				self.begin_iface_download(feed_iface, force)
 	
 	def interface_changed(self, interface):
@@ -612,7 +624,8 @@ class Policy(object):
 		This is used by B{0launch --feed}.
 		@rtype: [model.Interface]
 		@raise SafeException: If there are no known feeds."""
-		feed_iface = self.get_interface(feed_iface_uri)
+		# TODO: what if it isn't cached yet?
+		feed_iface = iface_cache.get_interface(feed_iface_uri)
 		if not feed_iface.feed_for:
 			if not feed_iface.name:
 				raise SafeException("Can't get feed targets for '%s'; failed to load interface." %
@@ -622,7 +635,7 @@ class Policy(object):
 		feed_targets = feed_iface.feed_for
 		if not feed_iface.name:
 			warn("Warning: unknown interface '%s'" % feed_iface_uri)
-		return [self.get_interface(uri) for uri in feed_targets]
+		return [iface_cache.get_interface(uri) for uri in feed_targets]
 	
 	def get_icon_path(self, iface):
 		"""Get an icon for this interface. If the icon is in the cache, use that.

@@ -1,6 +1,7 @@
 import gtk, gobject
 
 from zeroinstall.injector import basedir
+from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector.model import Interface, escape
 import properties
 from treetips import TreeTips
@@ -287,7 +288,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 						fetch = '(unavailable)'
 				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = fetch
 				for child in impl.dependencies.values():
-					add_node(iter, policy.get_interface(child.interface))
+					add_node(iter, iface_cache.get_interface(child.interface))
 			else:
 				self.model[iter][InterfaceBrowser.VERSION] = '(choose)'
 		add_node(None, self.root)

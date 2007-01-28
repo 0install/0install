@@ -3,7 +3,7 @@ import gtk, gobject
 import dialog
 from logging import info
 
-from zeroinstall.injector import reader
+from zeroinstall.injector import reader, iface_cache
 from zeroinstall.injector.policy import Policy
 from gui import policy
 	
@@ -65,7 +65,7 @@ def compile(interface):
 		if not src_policy.ready:
 			raise Exception('Internal error: required source components not found!')
 
-		root_iface = src_policy.get_interface(src_policy.root)
+		root_iface = iface_cache.iface_cache.get_interface(src_policy.root)
 		impl = src_policy.implementation[root_iface]
 		min_version = impl.metadata.get(XMLNS_0COMPILE + ' min-version', None)
 		if not min_version: min_version = '0.4'

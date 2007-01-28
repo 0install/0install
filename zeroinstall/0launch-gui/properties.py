@@ -232,7 +232,7 @@ class Feeds(gtk.VPaned):
 		if not iter: return	# build in progress
 		iface = model[iter][Feeds.URI]
 		self.remove_feed_button.set_sensitive(iface != self.interface.uri)
-		self.description.set_details(policy.get_interface(iface))
+		self.description.set_details(iface_cache.get_interface(iface))
 	
 	def updated(self):
 		new_lines = self.build_model()
@@ -308,7 +308,7 @@ class Properties(Dialog):
 			impls = self.interface.implementations.values()
 			for f in policy.usable_feeds(self.interface):
 				try:
-					feed_iface = policy.get_interface(f.uri)
+					feed_iface = iface_cache.get_interface(f.uri)
 					if feed_iface.implementations:
 						impls.extend(feed_iface.implementations.values())
 				except NeedDownload:
@@ -419,7 +419,7 @@ def add_remote_feed(parent, interface):
 				url = entry.get_text()
 				if not url:
 					raise SafeException(_('Enter a URL'))
-				iface = policy.get_interface(url)
+				iface = iface_cache.get_interface(url)
 				policy.begin_iface_download(iface) # Force a refresh
 				d.set_sensitive(False)
 				policy.add_dl_callback(url, lambda: download_done(iface))
