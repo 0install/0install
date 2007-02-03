@@ -74,12 +74,13 @@ class BackgroundHandler(handler.Handler):
 		self.title = title
 		
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
-		notify("Zero Install", "Can't update interface; signature not yet trusted.")
+		notify("Zero Install", "Can't update interface; signature not yet trusted. Running GUI...", timeout = 2)
+		os.execvp('0launch', ('0launch', '--download-only', '--gui', '--refresh', interface.uri))
 
 	def report_error(self, exception):
 		notify("Zero Install", "Error updating %s: %s" % (title, str(exception)))
 
-def spawn_background_update(policy):
+def spawn_background_update(policy, verbose):
 	child = os.fork()
 	if child:
 		pid, status = os.waitpid(child, 0)
@@ -94,7 +95,8 @@ def spawn_background_update(policy):
 		# Child
 		root_iface = iface_cache.get_interface(policy.root).get_name()
 		info("Checking for updates to '%s' in a background process", root_iface)
-		notify("Zero Install", "Checking for updates to '%s'..." % root_iface, timeout = 1)
+		if verbose:
+			notify("Zero Install", "Checking for updates to '%s'..." % root_iface, timeout = 1)
 
 		#ctx = gobject.main_context_default()
 		#loop = gobject.MainLoop(ctx)
@@ -106,7 +108,7 @@ def spawn_background_update(policy):
 
 		if policy.need_download():
 			notify("Zero Install", "Updates ready to download for '%s'." % root_iface)
-		else:
+		elif verbose:
 			notify("Zero Install", "No updates to download.", timeout = 1)
 
 		# We could even download the archives here, but for now just

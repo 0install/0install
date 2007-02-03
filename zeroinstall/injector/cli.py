@@ -205,7 +205,7 @@ def main(command_args):
 				# There are feeds we should update, but we can run without them.
 				# Do the update in the background while the program is running.
 				import background
-				background.spawn_background_update(policy)
+				background.spawn_background_update(policy, options.verbose > 0)
 			policy.execute(args[1:], main = options.main)
 			assert options.download_only or options.dry_run
 			return
