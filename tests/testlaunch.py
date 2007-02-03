@@ -48,6 +48,8 @@ class TestLaunch(unittest.TestCase):
 				print "Finished"
 			except SystemExit:
 				pass
+			except AssertionError:
+				raise
 			except Exception, ex:
 				pass
 			out = sys.stdout.getvalue()

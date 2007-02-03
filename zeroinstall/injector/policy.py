@@ -203,9 +203,12 @@ class Policy(object):
 			if not updated:
 				self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
 
-	def recalculate(self):
+	def recalculate(self, fetch_stale_interfaces = True):
 		"""Try to choose a set of implementations.
 		This may start downloading more interfaces, but will return immediately.
+		@param fetch_stale_interfaces: whether to begin downloading interfaces which are present but haven't
+		been checked within the L{freshness} period
+		@type fetch_stale_interfaces: bool
 		@postcondition: L{ready} indicates whether a possible set of implementations was chosen
 		@note: A policy may be ready before all feeds have been downloaded. As new feeds
 		arrive, the chosen versions may change.
@@ -241,7 +244,7 @@ class Policy(object):
 				self.ready = False
 		process(Dependency(self.root, restrictions = self.root_restrictions))
 
-		if self.network_use != network_offline:
+		if fetch_stale_interfaces and self.network_use != network_offline:
 			for stale in self.stale_feeds:
 				info("Checking for updates to stale feed %s", stale)
 				self.begin_iface_download(stale, False)

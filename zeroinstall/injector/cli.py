@@ -63,16 +63,19 @@ def main(command_args):
 	from zeroinstall.injector import model, download, autopolicy, namespaces
 
 	if options.list:
+		from zeroinstall.injector.iface_cache import iface_cache
 		if len(args) == 0:
 			match = None
+			matches = iface_cache.list_all_interfaces()
 		elif len(args) == 1:
 			match = args[0].lower()
+			matches = [i for i in iface_cache.list_all_interfaces() if match in i.lower()]
 		else:
 			parser.print_help()
 			sys.exit(1)
-		from zeroinstall.injector.iface_cache import iface_cache
-		for i in iface_cache.list_all_interfaces():
-			if match and match not in i.lower(): continue
+
+		matches.sort()
+		for i in matches:
 			print i
 		sys.exit(0)
 
@@ -190,18 +193,32 @@ def main(command_args):
 		if options.offline:
 			policy.network_use = model.network_offline
 
+		# Note that need_download() triggers a recalculate()
+		if options.refresh or options.gui:
+			# We could run immediately, but the user asked us not to
+			can_run_immediately = False
+		else:
+			can_run_immediately = (not policy.need_download()) and policy.ready
+
+		if can_run_immediately:
+			if policy.stale_feeds:
+				# There are feeds we should update, but we can run without them.
+				# Do the update in the background while the program is running.
+				import background
+				background.spawn_background_update(policy)
+			policy.execute(args[1:], main = options.main)
+			assert options.download_only or options.dry_run
+			return
+
+		# If the user didn't say whether to use the GUI, choose for them.
 		if options.gui is None and os.environ.get('DISPLAY', None):
-			if options.refresh:
-				options.gui = True
-			else:
-				options.gui = policy.need_download() or not policy.ready
-			if options.gui:
-				# If we need to download anything, we might as well
-				# refresh all the interfaces first. Also, this triggers
-				# the 'checking for updates' box, which is non-interactive
-				# when there are no changes to the selection.
-				options.refresh = True
-				logging.info("Need to download; switching to GUI mode")
+			options.gui = True
+			# If we need to download anything, we might as well
+			# refresh all the interfaces first. Also, this triggers
+			# the 'checking for updates' box, which is non-interactive
+			# when there are no changes to the selection.
+			options.refresh = True
+			logging.info("Switching to GUI mode... (use --console to disable)")
 	except model.SafeException, ex:
 		if options.verbose: raise
 		print >>sys.stderr, ex

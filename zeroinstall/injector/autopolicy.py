@@ -26,13 +26,17 @@ class AutoPolicy(policy.Policy):
 		self.dry_run = dry_run
 
 	def need_download(self):
-		"""Decide whether we need to download anything (but don't do it!)"""
+		"""Decide whether we need to download anything (but don't do it!)
+		@return: true if we MUST download something (interfaces or implementations)
+		@rtype: bool
+		@postcondition: if we return False, self.stale_feeds contains any feeds which SHOULD be updated
+		"""
 		old = self.allow_downloads
 		self.allow_downloads = False
 		try:
 			try:
-				self.recalculate()
-				debug("Recalculated: ready = %s", self.ready)
+				self.recalculate(fetch_stale_interfaces = False)
+				debug("Recalculated: ready = %s; %d stale feeds", self.ready, len(self.stale_feeds))
 				if not self.ready: return False
 				self.start_downloading_impls()
 			except NeedDownload:
