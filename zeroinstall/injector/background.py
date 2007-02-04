@@ -48,7 +48,7 @@ LOW = 0
 NORMAL = 1
 CRITICAL = 2
 
-def notify(title, message, timeout = 0):
+def notify(title, message, timeout = 0, actions = []):
 	if not have_notifications:
 		info('%s: %s', title, message)
 		return
@@ -57,16 +57,22 @@ def notify(title, message, timeout = 0):
 	import dbus.types
 
 	hints = {}
-	hints['urgency'] = dbus.types.Byte(LOW)
+	if actions:
+		hints['urgency'] = dbus.types.Byte(NORMAL)
+	else:
+		hints['urgency'] = dbus.types.Byte(LOW)
 
 	notification_service.Notify('Zero Install',
 		0,		# replaces_id,
 		'',		# icon
 		title,
 		message,
-		[],
+		actions,
 		hints,
 		timeout * 1000)
+
+def _exec_gui(uri, *args):
+	os.execvp('0launch', ['0launch', '--download-only', '--gui'] + list(args) + [uri])
 
 class BackgroundHandler(handler.Handler):
 	def __init__(self, title):
@@ -75,45 +81,78 @@ class BackgroundHandler(handler.Handler):
 		
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		notify("Zero Install", "Can't update interface; signature not yet trusted. Running GUI...", timeout = 2)
-		os.execvp('0launch', ('0launch', '--download-only', '--gui', '--refresh', interface.uri))
+		_exec_gui(interface.uri, '--refresh')
 
 	def report_error(self, exception):
 		notify("Zero Install", "Error updating %s: %s" % (title, str(exception)))
 
-def spawn_background_update(policy, verbose):
+def _detach():
+	"""Fork a detached grandchild.
+	@return: True if we are the original."""
 	child = os.fork()
 	if child:
 		pid, status = os.waitpid(child, 0)
 		assert pid == child
-		return
+		return True
 
 	grandchild = os.fork()
 	if grandchild:
 		os._exit(0)	# Parent's waitpid returns and grandchild continues
+	
+	return False
+
+def _check_for_updates(policy, verbose):
+	root_iface = iface_cache.get_interface(policy.root).get_name()
+	info("Checking for updates to '%s' in a background process", root_iface)
+	if verbose:
+		notify("Zero Install", "Checking for updates to '%s'..." % root_iface, timeout = 1)
+
+	policy.handler = BackgroundHandler(root_iface)
+	policy.refresh_all()
+	policy.handler.wait_for_downloads()
+	# We could even download the archives here, but for now just
+	# update the interfaces.
+
+	if not policy.need_download():
+		if verbose:
+			notify("Zero Install", "No updates to download.", timeout = 1)
+		sys.exit(0)
+
+	if not have_notifications:
+		notify("Zero Install", "Updates ready to download for '%s'." % root_iface)
+		sys.exit(0)
+
+	import gobject
+	ctx = gobject.main_context_default()
+	loop = gobject.MainLoop(ctx)
+
+	def _NotificationClosed(*unused):
+		loop.quit()
+
+	def _ActionInvoked(nid, action):
+		if action == 'download':
+			_exec_gui(policy.root)
+		loop.quit()
+
+	notification_service.connect_to_signal('NotificationClosed', _NotificationClosed)
+	notification_service.connect_to_signal('ActionInvoked', _ActionInvoked)
+
+	notify("Zero Install", "Updates ready to download for '%s'." % root_iface,
+		actions = ['download', 'Download'])
+
+	loop.run()
+
+def spawn_background_update(policy, verbose):
+	if _detach():
+		return
 
 	try:
-		# Child
-		root_iface = iface_cache.get_interface(policy.root).get_name()
-		info("Checking for updates to '%s' in a background process", root_iface)
-		if verbose:
-			notify("Zero Install", "Checking for updates to '%s'..." % root_iface, timeout = 1)
-
-		#ctx = gobject.main_context_default()
-		#loop = gobject.MainLoop(ctx)
-		#loop.run()
-
-		policy.handler = BackgroundHandler(root_iface)
-		policy.refresh_all()
-		policy.handler.wait_for_downloads()
-
-		if policy.need_download():
-			notify("Zero Install", "Updates ready to download for '%s'." % root_iface)
-		elif verbose:
-			notify("Zero Install", "No updates to download.", timeout = 1)
-
-		# We could even download the archives here, but for now just
-		# update the interfaces.
-
-		sys.exit(0)
+		try:
+			_check_for_updates(policy, verbose)
+		except:
+			import traceback
+			traceback.print_exc()
+		else:
+			sys.exit(0)
 	finally:
 		os._exit(1)
