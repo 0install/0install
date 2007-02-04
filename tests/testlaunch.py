@@ -2,11 +2,19 @@
 import sys, tempfile, os, shutil, imp
 from StringIO import StringIO
 import unittest
+import logging
 
 foo_iface_uri = 'http://foo'
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model, iface_cache, cli
+
+class SilenceLogger(logging.Filter):
+	def filter(self, record):
+		raise "Stop"
+		print "record", record
+		return 0
+silenceLogger = SilenceLogger()
 
 class TestLaunch(unittest.TestCase):
 	def setUp(self):
@@ -22,6 +30,8 @@ class TestLaunch(unittest.TestCase):
 		os.mkdir(self.cache_home, 0700)
 		if os.environ.has_key('DISPLAY'):
 			del os.environ['DISPLAY']
+
+		logging.getLogger().setLevel(logging.WARN)
 	
 	def tearDown(self):
 		shutil.rmtree(self.config_home)
@@ -144,6 +154,19 @@ class TestLaunch(unittest.TestCase):
 		out, err = self.run_0launch(['--dry-run', '--source', 'Source.xml'])
 		self.assertEquals("", err)
 		assert 'Compiler.xml' in out
+	
+	def testLogging(self):
+		log = logging.getLogger()
+		log.addFilter(silenceLogger)
+
+		out, err = self.run_0launch(['-v', '--list', 'UNKNOWN'])
+		self.assertEquals(logging.INFO, log.level)
+
+		out, err = self.run_0launch(['-vv', '--version'])
+		self.assertEquals(logging.DEBUG, log.level)
+
+		log.removeFilter(silenceLogger)
+		log.setLevel(logging.WARN)
 	
 	def testBadFD(self):
 		copy = os.dup(1)
