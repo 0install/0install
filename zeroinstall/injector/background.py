@@ -149,6 +149,8 @@ def spawn_background_update(policy, verbose):
 	try:
 		try:
 			_check_for_updates(policy, verbose)
+		except SystemExit:
+			raise
 		except:
 			import traceback
 			traceback.print_exc()
