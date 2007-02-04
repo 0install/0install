@@ -28,7 +28,6 @@ def main(command_args):
 			if fd != std:
 				os.dup2(fd, std)
 				os.close(fd)
-		os.fstat(std)
 
 	parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
 				    "       %prog --list [search-term]\n"

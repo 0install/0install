@@ -6,7 +6,7 @@ import unittest
 foo_iface_uri = 'http://foo'
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model, iface_cache
+from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model, iface_cache, cli
 
 class TestLaunch(unittest.TestCase):
 	def setUp(self):
@@ -144,6 +144,18 @@ class TestLaunch(unittest.TestCase):
 		out, err = self.run_0launch(['--dry-run', '--source', 'Source.xml'])
 		self.assertEquals("", err)
 		assert 'Compiler.xml' in out
+	
+	def testBadFD(self):
+		copy = os.dup(1)
+		try:
+			os.close(1)
+			try:
+				cli.main(['--list', 'UNKNOWN'])
+				assert False
+			except SystemExit:
+				pass
+		finally:
+			os.dup2(copy, 1)
 
 suite = unittest.makeSuite(TestLaunch)
 if __name__ == '__main__':
