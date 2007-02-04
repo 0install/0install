@@ -125,6 +125,12 @@ class TestLaunch(unittest.TestCase):
 		assert '0launch-gui' in out
 		self.assertEquals("", err)
 
+		del os.environ['DISPLAY']
+		out, err = self.run_0launch(['--gui', '--dry-run'])
+		assert out.startswith("Would execute: ")
+		assert '0launch-gui' in out
+		self.assertEquals("", err)
+
 	def testRefreshDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--dry-run', '--download-only',
@@ -167,6 +173,15 @@ class TestLaunch(unittest.TestCase):
 
 		log.removeFilter(silenceLogger)
 		log.setLevel(logging.WARN)
+	
+	def testHelp(self):
+		out, err = self.run_0launch(['--help'])
+		self.assertEquals("", err)
+		assert 'options:' in out
+
+		out, err = self.run_0launch([])
+		self.assertEquals("", err)
+		assert 'options:' in out
 	
 	def testBadFD(self):
 		copy = os.dup(1)
