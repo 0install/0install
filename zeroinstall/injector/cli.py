@@ -194,7 +194,7 @@ def main(command_args):
 			policy.network_use = model.network_offline
 
 		# Note that need_download() triggers a recalculate()
-		if options.refresh or options.gui:
+		if options.refresh or options.gui or options.download_only:
 			# We could run immediately, but the user asked us not to
 			can_run_immediately = False
 		else:
@@ -207,7 +207,7 @@ def main(command_args):
 				import background
 				background.spawn_background_update(policy, options.verbose > 0)
 			policy.execute(args[1:], main = options.main)
-			assert options.download_only or options.dry_run
+			assert options.dry_run
 			return
 
 		# If the user didn't say whether to use the GUI, choose for them.
