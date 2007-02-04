@@ -2,12 +2,12 @@
 import sys, tempfile, os, shutil
 from StringIO import StringIO
 import unittest, signal
-from logging import getLogger, DEBUG, INFO
+from logging import getLogger, DEBUG, INFO, WARN
 #getLogger().setLevel(DEBUG)
 
 sys.path.insert(0, '..')
 
-from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, download
+from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, download, reader, trust
 import data
 
 import server
@@ -42,6 +42,8 @@ class TestDownload(unittest.TestCase):
 		iface_cache.iface_cache.__init__()
 		download._downloads = {}
 		self.child = None
+
+		trust.trust_db.watchers = []
 	
 	def tearDown(self):
 		if self.child is not None:
@@ -90,28 +92,42 @@ class TestDownload(unittest.TestCase):
 		old_out = sys.stdout
 		try:
 			from zeroinstall.injector import cli
-			from zeroinstall.injector.trust import trust_db
+
+			try:
+				try:
+					cli.main(['--import', '-v', 'NO-SUCH-FILE'])
+					assert 0
+				except model.SafeException, ex:
+					assert 'NO-SUCH-FILE' in str(ex)
+			finally:
+				getLogger().setLevel(WARN)
+
+			hello = iface_cache.iface_cache.get_interface('http://localhost:8000/Hello')
+			self.assertEquals(0, len(hello.implementations))
+
 			sys.stdout = StringIO()
 			self.child = server.handle_requests('6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
+
+			assert not trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
 			try:
-				assert not trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
-				try:
-					cli.main(['--import', 'Hello'])
-					assert 0
-				except SystemExit, ex:
-					assert ex.code == 0
-				assert trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
-				# Shouldn't need to prompt the second time
-				sys.stdin = None
-				try:
-					cli.main(['--import', 'Hello'])
-					assert 0
-				except SystemExit, ex:
-					assert ex.code == 0
-			except model.SafeException, ex:
-				if "HelloWorld/Missing" not in str(ex):
-					raise ex
+				cli.main(['--import', 'Hello'])
+				assert 0
+			except SystemExit, ex:
+				assert ex.code == 0
+			assert trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
+
+			# Check we imported the interface after trusting the key
+			reader.update_from_cache(hello)
+			self.assertEquals(1, len(hello.implementations))
+
+			# Shouldn't need to prompt the second time
+			sys.stdin = None
+			try:
+				cli.main(['--import', 'Hello'])
+				assert 0
+			except SystemExit, ex:
+				assert ex.code == 0
 		finally:
 			sys.stdout = old_out
 	

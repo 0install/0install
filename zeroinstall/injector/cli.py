@@ -99,7 +99,7 @@ def main(command_args):
 
 	try:
 		if getattr(options, 'import'):
-			from zeroinstall.injector import gpg, handler
+			from zeroinstall.injector import gpg, handler, trust
 			from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
 			from xml.dom import minidom
 			for x in args:
@@ -115,12 +115,14 @@ def main(command_args):
 				iface = iface_cache.get_interface(uri)
 				logging.info("Importing information about interface %s", iface)
 				signed_data.seek(0)
-				pending = PendingFeed(uri, signed_data)
-				iface_cache.add_pending(pending)
 
 				def keys_ready():
 					if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
 						handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+				trust.trust_db.watchers.append(lambda: keys_ready())
+
+				pending = PendingFeed(uri, signed_data)
+				iface_cache.add_pending(pending)
 
 				handler = handler.Handler()
 				pending.begin_key_downloads(handler, keys_ready)

@@ -131,9 +131,9 @@ class TrustBox(dialog.Dialog):
 			for sig in sigs:
 				trust.trust_db.trust_key(sig.fingerprint)
 
-			if hasattr(gui.policy, 'process_pending'):
+			if hasattr(trust.trust_db, 'notify'):
 				# 0launch >= 0.25
-				gui.policy.process_pending()
+				trust.trust_db.notify()
 			else:
 				# Problem: calls recalculate(), which may trigger re-downloading interfaces
 				# we are currently waiting to confirm!
