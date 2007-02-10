@@ -363,6 +363,7 @@ def parse_version(version_string):
 	 - Version := DottedList ("-" Mod DottedList?)*
 	 - DottedList := (Integer ("." Integer)*)
 	@rtype: tuple (opaque)
+	@raise SafeException: if the string isn't a valid version
 	@since: 0.24 (moved from L{reader}, from where it is still available):"""
 	if version_string is None: return None
 	parts = _version_re.split(version_string)

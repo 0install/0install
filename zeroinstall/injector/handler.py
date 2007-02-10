@@ -74,7 +74,7 @@ class Handler(object):
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		"""We don't trust any of the signatures yet. Ask the user.
-		When done update the L{trust} database, and then call L{trust_db.notify}.
+		When done update the L{trust} database, and then call L{trust.TrustDB.notify}.
 		@arg interface: the interface being updated
 		@arg sigs: a list of signatures (from L{gpg.check_stream})
 		@arg iface_xml: the downloaded data (not yet trusted)

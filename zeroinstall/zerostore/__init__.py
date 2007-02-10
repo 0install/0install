@@ -79,7 +79,7 @@ class Store:
 		"""Create a temporary directory in the directory where we would store an implementation
 		with the given digest. This is used to setup a new implementation before being renamed if
 		it turns out OK.
-		@raise: NonwritableStore if we can't create it"""
+		@raise NonwritableStore: if we can't create it"""
 		try:
 			if not os.path.isdir(self.dir):
 				os.makedirs(self.dir)
