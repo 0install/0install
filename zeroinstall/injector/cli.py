@@ -58,6 +58,8 @@ def main(command_args):
 			logger.setLevel(logging.INFO)
 		else:
 			logger.setLevel(logging.DEBUG)
+		import zeroinstall
+		logging.info("Running 0launch %s %s; Python %s", zeroinstall.version, repr(args), sys.version)
 
 	from zeroinstall.injector import model, download, autopolicy, namespaces
 
