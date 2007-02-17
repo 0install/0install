@@ -302,8 +302,10 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 				self.model[iter][InterfaceBrowser.VERSION] = '(choose)'
 		add_node(None, self.root)
 		self.tree_view.expand_all()
-	
+
 	def show_popup_menu(self, iface, bev):
+		import bugs
+
 		if properties.have_source_for(iface):
 			def compile_cb():
 				import compile
@@ -314,6 +316,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		menu = gtk.Menu()
 		for label, cb in [(_('Show Feeds'), lambda: properties.edit(iface)),
 				  (_('Show Versions'), lambda: properties.edit(iface, show_versions = True)),
+				  (_('Report a Bug...'), lambda: bugs.report_bug(policy, iface)),
 				  (_('Compile...'), compile_cb)]:
 			item = gtk.MenuItem(label)
 			if cb:
