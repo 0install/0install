@@ -193,6 +193,15 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		selection.connect('changed', sel_changed)
 
 		def button_press(tree_view, bev):
+			if bev.button == 3 and bev.type == gtk.gdk.BUTTON_PRESS:
+				pos = tree_view.get_path_at_pos(int(bev.x), int(bev.y))
+				if not pos:
+					return False
+				path, col, x, y = pos
+				selection.select_path(path)
+				iface = self.model[path][InterfaceBrowser.INTERFACE]
+				self.show_popup_menu(iface, bev)
+				return True
 			if bev.button != 1 or bev.type != gtk.gdk._2BUTTON_PRESS:
 				return False
 			pos = tree_view.get_path_at_pos(int(bev.x), int(bev.y))
@@ -293,3 +302,24 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 				self.model[iter][InterfaceBrowser.VERSION] = '(choose)'
 		add_node(None, self.root)
 		self.tree_view.expand_all()
+	
+	def show_popup_menu(self, iface, bev):
+		if properties.have_source_for(iface):
+			def compile_cb():
+				import compile
+				compile.compile(iface)
+		else:
+			compile_cb = None
+
+		menu = gtk.Menu()
+		for label, cb in [(_('Show Feeds'), lambda: properties.edit(iface)),
+				  (_('Show Versions'), lambda: properties.edit(iface, show_versions = True)),
+				  (_('Compile...'), compile_cb)]:
+			item = gtk.MenuItem(label)
+			if cb:
+				item.connect('activate', lambda item, cb=cb: cb())
+			else:
+				item.set_sensitive(False)
+			item.show()
+			menu.append(item)
+		menu.popup(None, None, None, bev.button, bev.time)

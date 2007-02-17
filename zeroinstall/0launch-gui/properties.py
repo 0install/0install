@@ -42,6 +42,32 @@ def open_in_browser(link):
 			os._exit(1)
 	os.waitpid(child, 0)
 
+def have_source_for(interface):
+	# Note: we don't want to actually fetch the source interfaces at
+	# this point, so we check whether:
+	# - We have a feed of type 'src' (not fetched), or
+	# - We have a source implementation in a regular feed
+	have_src = False
+	for f in interface.feeds:
+		if f.machine == 'src':
+			return True
+	# Don't have any src feeds. Do we have a source implementation
+	# as part of a regular feed?
+	impls = interface.implementations.values()
+	for f in policy.usable_feeds(interface):
+		try:
+			feed_iface = iface_cache.get_interface(f.uri)
+			if feed_iface.implementations:
+				impls.extend(feed_iface.implementations.values())
+		except NeedDownload:
+			pass	# OK, will get called again later
+		except Exception, ex:
+			warn("Failed to load feed '%s': %s", f.uri, str(ex))
+	for x in impls:
+		if x.machine == 'src':
+			return True
+	return False
+
 class Description(gtk.ScrolledWindow):
 	def __init__(self):
 		gtk.ScrolledWindow.__init__(self, None, None)
@@ -249,7 +275,7 @@ class Properties(Dialog):
 	interface = None
 	use_list = None
 
-	def __init__(self, interface):
+	def __init__(self, interface, show_versions = False):
 		Dialog.__init__(self)
 		self.interface = interface
 		self.set_title('Interface ' + interface.get_name())
@@ -291,35 +317,12 @@ class Properties(Dialog):
 		self.connect('destroy', lambda s: policy.watchers.remove(updated))
 		policy.watchers.append(updated)
 		self.shade_compile()
+
+		if show_versions:
+			notebook.next_page()
 	
 	def shade_compile(self):
-		# Note: we don't want to actually fetch the source interfaces at
-		# this point, so we check whether:
-		# - We have a feed of type 'src' (not fetched), or
-		# - We have a source implementation in a regular feed
-		have_src = False
-		for f in self.interface.feeds:
-			if f.machine == 'src':
-				have_src = True
-				break
-		if have_src is False:
-			# Don't have any src feeds. Do we have a source implementation
-			# as part of a regular feed?
-			impls = self.interface.implementations.values()
-			for f in policy.usable_feeds(self.interface):
-				try:
-					feed_iface = iface_cache.get_interface(f.uri)
-					if feed_iface.implementations:
-						impls.extend(feed_iface.implementations.values())
-				except NeedDownload:
-					pass	# OK, will get called again later
-				except Exception, ex:
-					warn("Failed to load feed '%s': %s", f.uri, str(ex))
-			for x in impls:
-				if x.machine == 'src':
-					have_src = True
-					break
-		self.compile_button.set_sensitive(have_src)
+		self.compile_button.set_sensitive(have_source_for(self.interface))
 	
 	def update_list(self):
 		impls = policy.get_ranked_implementations(self.interface)
@@ -471,11 +474,11 @@ def add_local_feed(interface):
 	sel.cancel_button.connect('clicked', lambda b: sel.destroy())
 	sel.show()
 	
-def edit(interface):
+def edit(interface, show_versions = False):
 	assert isinstance(interface, Interface)
 	if interface in _dialogs:
 		_dialogs[interface].destroy()
-	_dialogs[interface] = Properties(interface)
+	_dialogs[interface] = Properties(interface, show_versions)
 	_dialogs[interface].show()
 
 properties_help = help_box.HelpBox("Injector Properties Help",

@@ -146,7 +146,10 @@ all programs run using Zero Install.
 
 Alternatively, you can edit the policy of an individual interface by selecting it \
 and clicking on the 'Interface Properties' button. \
-See that dialog's help text for more information."""),
+See that dialog's help text for more information.
+
+Right-click on an interface in the list for a menu.
+"""),
 
 ('The cache', """
 Each version of a program that is downloaded is stored in the Zero Install cache. This \
