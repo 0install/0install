@@ -226,6 +226,10 @@ def update(interface, source, local = False):
 			if not feed_iface:
 				raise InvalidInterface('Missing "interface" attribute in <feed-for>')
 			interface.feed_for[feed_iface] = True
+			# Bug report from a Debian/stable user that --feed gets the wrong value.
+			# Can't reproduce (even in a Debian/stable chroot), but add some logging here
+			# in case it happens again.
+			debug("Is feed-for %s", feed_iface)
 		elif x.name == 'feed':
 			feed_src = x.getAttribute('src')
 			if not feed_src:

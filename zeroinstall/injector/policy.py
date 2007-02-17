@@ -636,6 +636,7 @@ class Policy(object):
 			raise SafeException("Missing <feed-for> element in '%s'; "
 					"this interface can't be used as a feed." % feed_iface_uri)
 		feed_targets = feed_iface.feed_for
+		debug("Feed targets: %s", feed_targets)
 		if not feed_iface.name:
 			warn("Warning: unknown interface '%s'" % feed_iface_uri)
 		return [iface_cache.get_interface(uri) for uri in feed_targets]
