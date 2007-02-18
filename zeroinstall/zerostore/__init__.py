@@ -203,12 +203,13 @@ class Store:
 		# Should we make private stores read-only too?
 		if self.public:
 			import stat
+			os.chmod(final_name, 0555)
 			for dirpath, dirnames, filenames in os.walk(final_name):
 				for item in ['.'] + filenames:
 					full = os.path.join(dirpath, item)
-					info = os.lstat(full)
-					if not stat.S_ISLNK(info.st_mode):
-						os.chmod(full, info.st_mode & ~stat.S_IWRITE)
+					finfo = os.lstat(full)
+					if not stat.S_ISLNK(finfo.st_mode):
+						os.chmod(full, finfo.st_mode & ~0222)
 
 
 class Stores(object):
