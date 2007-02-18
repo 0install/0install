@@ -89,7 +89,7 @@ class Store:
 		except OSError, ex:
 			raise NonwritableStore(str(ex))
 	
-	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0):
+	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0, try_helper = False):
 		import unpack
 		info("Caching new implementation (digest %s)", required_digest)
 
@@ -106,21 +106,26 @@ class Store:
 			raise
 
 		try:
-			self.check_manifest_and_rename(required_digest, tmp, extract)
+			self.check_manifest_and_rename(required_digest, tmp, extract, try_helper = try_helper)
 		except Exception, ex:
 			warn("Leaving extracted directory as %s", tmp)
 			raise
 	add_archive_to_cache = _wrap_umask(add_archive_to_cache)
 	
-	def add_dir_to_cache(self, required_digest, path):
+	def add_dir_to_cache(self, required_digest, path, try_helper = False):
 		"""Copy the contents of path to the cache.
 		@param required_digest: the expected digest
 		@type required_digest: str
 		@param path: the root of the tree to copy
 		@type path: str
+		@param try_helper: attempt to use privileged helper before user cache (since 0.26)
+		@type try_helper: bool
 		@raise BadDigest: if the contents don't match the given digest."""
 		if self.lookup(required_digest):
 			info("Not adding %s as it already exists!", required_digest)
+			return
+
+		if try_helper and self._add_with_helper(required_digest, path):
 			return
 
 		tmp = self.get_tmp_dir_for(required_digest)
@@ -135,18 +140,47 @@ class Store:
 			raise
 	add_dir_to_cache = _wrap_umask(add_dir_to_cache)
 
-	def check_manifest_and_rename(self, required_digest, tmp, extract = None):
+	def _add_with_helper(self, required_digest, path):
+		"""Use 0store-helper to copy 'path' to the system store.
+		@param required_digest: the digest for path
+		@type required_digest: str
+		@param path: root of implementation directory structure
+		@type path: str
+		@return: True iff the directory was copied into the system cache successfully
+		"""
+		helper = unpack._find_in_path('0store-helper')
+		if not helper:
+			info("Command '0store-helper' not found in $PATH. Not importing to system store.")
+			return False
+
+		info("Trying to add to system cache using '%s'", helper)
+		if os.spawnv(os.P_WAIT, helper, [helper, required_digest, path]):
+			warn("0store-helper failed.")
+			return False
+
+		info("Added succcessfully.")
+		return True
+
+	def check_manifest_and_rename(self, required_digest, tmp, extract = None, try_helper = False):
 		"""Check that tmp[/extract] has the required_digest.
 		On success, rename the checked directory to the digest and,
 		if self.public, make the whole tree read-only.
+		@param try_helper: attempt to use privileged helper to import to system cache first (since 0.26)
+		@type try_helper: bool
 		@raise BadDigest: if the input directory doesn't match the given digest"""
-		# Should we make private stores read-only too?
 		if extract:
 			extracted = os.path.join(tmp, extract)
 			if not os.path.isdir(extracted):
 				raise Exception('Directory %s not found in archive' % extract)
 		else:
 			extracted = tmp
+
+		if try_helper:
+			if self._add_with_helper(required_digest, extracted):
+				import shutil
+				shutil.rmtree(tmp)
+				return
+			info("Can't add to system store. Trying user store instead.")
 
 		import manifest
 		alg, required_value = manifest.splitID(required_digest)
@@ -166,6 +200,7 @@ class Store:
 		else:
 			os.rename(tmp, final_name)
 
+		# Should we make private stores read-only too?
 		if self.public:
 			import stat
 			for dirpath, dirnames, filenames in os.walk(final_name):
@@ -214,13 +249,13 @@ class Stores(object):
 	def add_dir_to_cache(self, required_digest, dir):
 		"""Add to the best writable cache.
 		@see: L{Store.add_dir_to_cache}"""
-		self._write_store(lambda store: store.add_dir_to_cache(required_digest, dir))
+		self._write_store(lambda store, **kwargs: store.add_dir_to_cache(required_digest, dir, **kwargs))
 
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0):
 		"""Add to the best writable cache.
 		@see: L{Store.add_archive_to_cache}"""
-		self._write_store(lambda store: store.add_archive_to_cache(required_digest,
-						data, url, extract, type = type, start_offset = start_offset))
+		self._write_store(lambda store, **kwargs: store.add_archive_to_cache(required_digest,
+						data, url, extract, type = type, start_offset = start_offset, **kwargs))
 	
 	def _write_store(self, fn):
 		"""Call fn(first_system_store). If it's read-only, try again with the user store."""
@@ -229,6 +264,6 @@ class Stores(object):
 				fn(self.stores[1])
 				return
 			except NonwritableStore:
-				debug("%s not-writable. Using user store instead.", self.stores[1])
+				debug("%s not-writable. Trying helper instead.", self.stores[1])
 				pass
-		fn(self.stores[0])
+		fn(self.stores[0], try_helper = True)
