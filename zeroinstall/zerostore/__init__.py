@@ -85,6 +85,8 @@ class Store:
 				os.makedirs(self.dir)
 			from tempfile import mkdtemp
 			tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
+			old_mode = os.stat(tmp).st_mode
+			os.chmod(tmp, old_mode | 0555)	# r-x for all; needed by 0store-helper
 			return tmp
 		except OSError, ex:
 			raise NonwritableStore(str(ex))

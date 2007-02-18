@@ -8,6 +8,7 @@ from logging import getLogger, DEBUG, INFO, WARN
 sys.path.insert(0, '..')
 
 from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, download, reader, trust
+from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
 import data
 
 import server
@@ -92,7 +93,10 @@ class TestDownload(unittest.TestCase):
 		old_out = sys.stdout
 		try:
 			from zeroinstall.injector import cli
+			import logging
 
+			rootLogger = getLogger()
+			rootLogger.disabled = True
 			try:
 				try:
 					cli.main(['--import', '-v', 'NO-SUCH-FILE'])
@@ -100,7 +104,8 @@ class TestDownload(unittest.TestCase):
 				except model.SafeException, ex:
 					assert 'NO-SUCH-FILE' in str(ex)
 			finally:
-				getLogger().setLevel(WARN)
+				rootLogger.disabled = False
+				rootLogger.setLevel(WARN)
 
 			hello = iface_cache.iface_cache.get_interface('http://localhost:8000/Hello')
 			self.assertEquals(0, len(hello.implementations))
