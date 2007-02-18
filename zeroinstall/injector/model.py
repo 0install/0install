@@ -247,16 +247,28 @@ class Implementation(object):
 	arch = property(lambda self: _join_arch(self.os, self.machine), set_arch)
 	
 class Interface(object):
-	"""An Interface represents some contract of behaviour."""
+	"""An Interface represents some contract of behaviour.
+	Note: This class is for both feeds and interfaces. Should really have used separate classes.
+	@ivar uri: the URL for this feed
+	@ivar implementations: list of Implementations in this feed
+	@ivar name: human-friendly name
+	@ivar summary: short textual description
+	@ivar description: long textual description
+	@ivar stability_policy: user's configured policy.
+	Implementations at this level or higher are preferred.
+	Lower levels are used only if there is no other choice.
+	@ivar last_modified: timestamp on signature
+	@ivar last_checked: time feed was last successfully downloaded and updated
+	@ivar last_check_attempt: time we last tried to check for updates (in the background)
+	@ivar main: deprecated
+	@ivar feeds: list of feeds for this interface
+	@ivar feed_for: interfaces for which this could be a feed
+	@ivar metadata: extra elements we didn't understand
+	"""
 	__slots__ = ['uri', 'implementations', 'name', 'description', 'summary',
-		     'stability_policy', 'last_modified', 'last_local_update', 'last_checked',
-		     'main', 'feeds', 'feed_for', 'metadata']
+		     'stability_policy', 'last_modified', 'last_checked',
+		     'last_check_attempt', 'main', 'feeds', 'feed_for', 'metadata']
 
-	# last_local_update is deprecated
-	
-	# stability_policy:
-	# Implementations at this level or higher are preferred.
-	# Lower levels are used only if there is no other choice.
 
 	def __init__(self, uri):
 		assert uri
@@ -274,8 +286,8 @@ class Interface(object):
 		self.description = None
 		self.stability_policy = None
 		self.last_modified = None
-		self.last_local_update = None
 		self.last_checked = None
+		self.last_check_attempt = None
 		self.main = None
 		self.feeds = []
 		self.feed_for = {}	# URI -> True

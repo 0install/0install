@@ -143,6 +143,21 @@ def _check_for_updates(policy, verbose):
 	loop.run()
 
 def spawn_background_update(policy, verbose):
+	# Mark all feeds as being updated. Do this before forking, so that if someone is
+	# running lots of 0launch commands in series on the same program we don't start
+	# huge numbers of processes.
+	import time
+	from zeroinstall.injector import writer
+	now = int(time.time())
+	for x in policy.implementation:
+		x.last_check_attempt = now
+		writer.save_interface(x)
+
+		for f in policy.usable_feeds(x):
+			feed_iface = iface_cache.get_interface(f.uri)
+			feed_iface.last_check_attempt = now
+			writer.save_interface(feed_iface)
+
 	if _detach():
 		return
 

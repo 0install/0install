@@ -40,6 +40,9 @@ def save_interface(interface):
 	if interface.last_checked:
 		root.setAttribute('last-checked', str(interface.last_checked))
 
+	if interface.last_check_attempt:
+		root.setAttribute('last-check-attempt', str(interface.last_check_attempt))
+
 	impls = interface.implementations.values()
 	impls.sort()
 	for impl in impls:
