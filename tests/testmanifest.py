@@ -1,15 +1,18 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil
 import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.zerostore import manifest, BadDigest
 
-class TestManifest(unittest.TestCase):
+class TestManifest(BaseTest):
 	def setUp(self):
+		BaseTest.setUp(self)
 		self.tmpdir = tempfile.mkdtemp(prefix = 'test-manifest')
 
 	def tearDown(self):	
+		BaseTest.tearDown(self)
 		shutil.rmtree(self.tmpdir)
 
 	def testUnknownAlgorithm(self):

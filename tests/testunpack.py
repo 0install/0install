@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil, sha
 import unittest
 
@@ -6,11 +7,15 @@ sys.path.insert(0, '..')
 from zeroinstall.zerostore import unpack, manifest
 from zeroinstall import SafeException
 
-class TestUnpack(unittest.TestCase):
+class TestUnpack(BaseTest):
 	def setUp(self):
+		BaseTest.setUp(self)
+
 		self.tmpdir = tempfile.mkdtemp('-testunpack')
 	
 	def tearDown(self):
+		BaseTest.tearDown(self)
+
 		shutil.rmtree(self.tmpdir)
 	
 	def testBadExt(self):

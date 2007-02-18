@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil
 import unittest
 
@@ -7,18 +8,7 @@ thomas_fingerprint = "92429807C9853C0744A68B9AAE07828059A53CC1"
 sys.path.insert(0, '..')
 from zeroinstall.injector import trust, basedir
 
-class TestTrust(unittest.TestCase):
-	def setUp(self):
-		self.config_home = tempfile.mktemp()
-		os.environ['XDG_CONFIG_HOME'] = self.config_home
-		reload(basedir)
-
-		assert basedir.xdg_config_home == self.config_home
-		os.mkdir(self.config_home, 0700)
-	
-	def tearDown(self):
-		shutil.rmtree(self.config_home)
-	
+class TestTrust(BaseTest):
 	def testInit(self):
 		assert not trust.trust_db.is_trusted(thomas_fingerprint)
 		assert not trust.trust_db.is_trusted("1234")

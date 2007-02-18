@@ -1,22 +1,12 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil
 import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import writer, model, basedir, reader
 
-class TestTrust(unittest.TestCase):
-	def setUp(self):
-		self.config_home = tempfile.mktemp()
-		os.environ['XDG_CONFIG_HOME'] = self.config_home
-		reload(basedir)
-
-		assert basedir.xdg_config_home == self.config_home
-		os.mkdir(self.config_home, 0700)
-	
-	def tearDown(self):
-		shutil.rmtree(self.config_home)
-	
+class TestTrust(BaseTest):
 	def testFeeds(self):
 		iface = model.Interface('http://test/test')
 		iface.stability_policy = model.developer

@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil, logging
 from StringIO import StringIO
 import unittest
@@ -21,25 +22,13 @@ foo_iface_uri = 'http://foo'
 
 logger = logging.getLogger()
 
-class TestAutoPolicy(unittest.TestCase):
+class TestAutoPolicy(BaseTest):
 	def setUp(self):
-		os.mkdir(config_home, 0700)
-		os.mkdir(cache_home, 0700)
-		if os.environ.has_key('DISPLAY'):
-			del os.environ['DISPLAY']
-		self.gnupg_home = tempfile.mktemp()
-		os.environ['GNUPGHOME'] = self.gnupg_home
-		os.mkdir(self.gnupg_home, 0700)
+		BaseTest.setUp(self)
 		stream = tempfile.TemporaryFile()
 		stream.write(data.thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)
-		iface_cache.iface_cache._interfaces = {}
-	
-	def tearDown(self):
-		shutil.rmtree(config_home)
-		shutil.rmtree(cache_home)
-		shutil.rmtree(self.gnupg_home)
 	
 	def cache_iface(self, name, data):
 		cached_ifaces = basedir.save_cache_path('0install.net',

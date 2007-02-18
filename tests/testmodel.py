@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil
 import unittest
 from StringIO import StringIO
@@ -6,7 +7,7 @@ from StringIO import StringIO
 sys.path.insert(0, '..')
 from zeroinstall.injector import model, qdom
 
-class TestModel(unittest.TestCase):
+class TestModel(BaseTest):
 	def testLevels(self):
 		assert model.network_offline in model.network_levels
 		assert model.network_minimal in model.network_levels

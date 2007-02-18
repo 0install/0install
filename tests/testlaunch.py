@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil, imp
 from StringIO import StringIO
 import unittest
@@ -15,27 +16,7 @@ class SilenceLogger(logging.Filter):
 		return 0
 silenceLogger = SilenceLogger()
 
-class TestLaunch(unittest.TestCase):
-	def setUp(self):
-		self.config_home = tempfile.mktemp()
-		self.cache_home = tempfile.mktemp()
-		os.environ['XDG_CONFIG_HOME'] = self.config_home
-		os.environ['XDG_CACHE_HOME'] = self.cache_home
-		os.environ['XDG_CACHE_DIRS'] = self.cache_home
-		reload(basedir)
-		iface_cache.iface_cache.__init__()
-
-		os.mkdir(self.config_home, 0700)
-		os.mkdir(self.cache_home, 0700)
-		if os.environ.has_key('DISPLAY'):
-			del os.environ['DISPLAY']
-
-		logging.getLogger().setLevel(logging.WARN)
-	
-	def tearDown(self):
-		shutil.rmtree(self.config_home)
-		shutil.rmtree(self.cache_home)
-
+class TestLaunch(BaseTest):
 	def cache_iface(self, name, data):
 		cached_ifaces = basedir.save_cache_path('0install.net',
 							'interfaces')

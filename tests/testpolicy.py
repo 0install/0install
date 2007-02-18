@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil
 import unittest
 
@@ -10,20 +11,7 @@ import logging
 logger = logging.getLogger()
 #logger.setLevel(logging.DEBUG)
 
-class TestPolicy(unittest.TestCase):
-	def setUp(self):
-		self.config_home = tempfile.mktemp()
-		os.environ['XDG_CONFIG_HOME'] = self.config_home
-		reload(basedir)
-
-		assert basedir.xdg_config_home == self.config_home
-		os.mkdir(self.config_home, 0700)
-
-		iface_cache.__init__()
-	
-	def tearDown(self):
-		shutil.rmtree(self.config_home)
-	
+class TestPolicy(BaseTest):
 	def testSource(self):
 		foo = iface_cache.get_interface('http://foo/Binary.xml')
 		reader.update(foo, 'Binary.xml')

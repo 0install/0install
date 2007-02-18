@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil, logging
 from StringIO import StringIO
 import unittest
@@ -9,41 +10,20 @@ sys.path.insert(0, '..')
 from zeroinstall import NeedDownload
 from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, namespaces, reader
 import data
-reload(basedir)
 
 foo_iface_uri = 'http://foo'
 bar_iface_uri = 'http://localhost/bar'
 
 logger = logging.getLogger()
 
-config_home = tempfile.mktemp()
-cache_home = tempfile.mktemp()
-os.environ['XDG_CONFIG_HOME'] = config_home
-os.environ['XDG_CACHE_HOME'] = cache_home
-os.environ['XDG_CACHE_DIRS'] = ''
-
-assert not os.path.exists(config_home)
-
-class TestReader(unittest.TestCase):
+class TestReader(BaseTest):
 	def setUp(self):
-		assert not os.path.exists(config_home)
-		os.mkdir(config_home, 0700)
-		os.mkdir(cache_home, 0700)
-		if os.environ.has_key('DISPLAY'):
-			del os.environ['DISPLAY']
-		self.gnupg_home = tempfile.mktemp()
-		os.environ['GNUPGHOME'] = self.gnupg_home
-		os.mkdir(self.gnupg_home, 0700)
+		BaseTest.setUp(self)
+
 		stream = tempfile.TemporaryFile()
 		stream.write(data.thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)
-		iface_cache.iface_cache._interfaces = {}
-	
-	def tearDown(self):
-		shutil.rmtree(config_home)
-		shutil.rmtree(cache_home)
-		shutil.rmtree(self.gnupg_home)
 	
 	def write_with_version(self, version):
 		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')

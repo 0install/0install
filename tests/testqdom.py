@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil
 from StringIO import StringIO
 import unittest
@@ -10,7 +11,7 @@ from zeroinstall.injector import qdom
 def parseString(s):
 	return qdom.parse(StringIO(s))
 
-class TestQDom(unittest.TestCase):
+class TestQDom(BaseTest):
 	def testSimple(self):
 		root = parseString('<?xml version="1.0"?><root/>')
 		assert root.name == 'root'

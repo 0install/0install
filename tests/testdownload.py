@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil
 from StringIO import StringIO
 import unittest, signal
@@ -20,40 +21,24 @@ class Reply:
 	def readline(self):
 		return self.reply
 
-class TestDownload(unittest.TestCase):
+class TestDownload(BaseTest):
 	def setUp(self):
-		self.config_home = tempfile.mktemp()
-		self.cache_home = tempfile.mktemp()
-		os.environ['XDG_CONFIG_HOME'] = self.config_home
-		os.environ['XDG_CACHE_HOME'] = self.cache_home
-		os.environ['XDG_CACHE_DIRS'] = ''
-		reload(basedir)
+		BaseTest.setUp(self)
 
-		os.mkdir(self.config_home, 0700)
-		os.mkdir(self.cache_home, 0700)
-		if os.environ.has_key('DISPLAY'):
-			del os.environ['DISPLAY']
-		self.gnupg_home = tempfile.mktemp()
-		os.environ['GNUPGHOME'] = self.gnupg_home
-		os.mkdir(self.gnupg_home, 0700)
 		stream = tempfile.TemporaryFile()
 		stream.write(data.thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)
-		iface_cache.iface_cache.__init__()
-		download._downloads = {}
 		self.child = None
 
 		trust.trust_db.watchers = []
 	
 	def tearDown(self):
+		BaseTest.tearDown(self)
 		if self.child is not None:
 			os.kill(self.child, signal.SIGTERM)
 			os.waitpid(self.child, 0)
 			self.child = None
-		shutil.rmtree(self.config_home)
-		shutil.rmtree(self.cache_home)
-		shutil.rmtree(self.gnupg_home)
 	
 	def testRejectKey(self):
 		old_out = sys.stdout

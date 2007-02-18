@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil
 import unittest
 
@@ -95,25 +96,16 @@ Uk7hxHFeQPo=
 
 from data import thomas_key
 
-class TestGPG(unittest.TestCase):
+class TestGPG(BaseTest):
 	def setUp(self):
-		self.gnupg_home = tempfile.mktemp()
-		self.config_home = tempfile.mktemp()
-		os.mkdir(self.config_home, 0700)
-		os.environ['XDG_CONFIG_HOME'] = self.config_home
-		os.environ['GNUPGHOME'] = self.gnupg_home
-		reload(basedir)
-		os.mkdir(self.gnupg_home, 0700)
+		BaseTest.setUp(self)
+
 		stream = tempfile.TemporaryFile()
 		stream.write(thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)
 		trust.trust_db.trust_key(
 			'92429807C9853C0744A68B9AAE07828059A53CC1')
-	
-	def tearDown(self):
-		shutil.rmtree(self.gnupg_home)
-		shutil.rmtree(self.config_home)
 	
 	def testImportBad(self):
 		stream = tempfile.TemporaryFile()

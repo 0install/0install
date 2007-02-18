@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil
 import unittest
 from logging import getLogger, DEBUG, INFO
@@ -9,8 +10,10 @@ sys.path.insert(0, '..')
 from zeroinstall.zerostore import Store, manifest, BadDigest, cli
 from zeroinstall import SafeException
 
-class TestStore(unittest.TestCase):
+class TestStore(BaseTest):
 	def setUp(self):
+		BaseTest.setUp(self)
+
 		path = tempfile.mktemp()
 		os.mkdir(path, 0700)
 		self.store = Store(path)
@@ -19,6 +22,8 @@ class TestStore(unittest.TestCase):
 		os.mkdir(self.tmp)
 	
 	def tearDown(self):
+		BaseTest.tearDown(self)
+
 		shutil.rmtree(self.store.dir)
 		shutil.rmtree(self.tmp)
 	

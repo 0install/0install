@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+from basetest import BaseTest
 import sys, tempfile, os, shutil
 import unittest
 import data
@@ -10,28 +11,7 @@ from zeroinstall.injector import basedir, download, model, gpg, trust
 from zeroinstall.injector.namespaces import *
 from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
 
-class TestIfaceCache(unittest.TestCase):
-	def setUp(self):
-		self.config_home = tempfile.mktemp()
-		self.cache_home = tempfile.mktemp()
-		self.gnupg_home = tempfile.mktemp()
-		os.environ['XDG_CONFIG_HOME'] = self.config_home
-		os.environ['XDG_CACHE_HOME'] = self.cache_home
-		os.environ['XDG_CACHE_DIRS'] = ''
-		os.environ['GNUPGHOME'] = self.gnupg_home
-		reload(basedir)
-
-		os.mkdir(self.config_home, 0700)
-		os.mkdir(self.cache_home, 0700)
-		os.mkdir(self.gnupg_home, 0700)
-
-		iface_cache.__init__()
-	
-	def tearDown(self):
-		shutil.rmtree(self.config_home)
-		shutil.rmtree(self.cache_home)
-		shutil.rmtree(self.gnupg_home)
-
+class TestIfaceCache(BaseTest):
 	def testList(self):
 		self.assertEquals([], iface_cache.list_all_interfaces())
 		iface_dir = basedir.save_cache_path(config_site, 'interfaces')
