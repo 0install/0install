@@ -29,10 +29,10 @@ class Dialog(gtk.Dialog):
 		button.show_all()
 		return button
 
-def alert(parent, message):
+def alert(parent, message, type = gtk.MESSAGE_ERROR):
 	global n_windows
 	box = gtk.MessageDialog(parent, gtk.DIALOG_DESTROY_WITH_PARENT,
-				gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
+				type, gtk.BUTTONS_OK,
 				str(message))
 	box.set_position(gtk.WIN_POS_CENTER)
 	def resp(b, r):

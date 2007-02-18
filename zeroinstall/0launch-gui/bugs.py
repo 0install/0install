@@ -128,7 +128,8 @@ class BugReporter(dialog.Dialog):
 				title = 'Bug for %s' % iface.get_name()
 				self.report_bug(title, text)
 				self.destroy()
-				dialog.alert(self, "Your bug report has been sent. Thank you.")
+				dialog.alert(self, "Your bug report has been sent. Thank you.",
+					     type = gtk.MESSAGE_INFO)
 			else:
 				self.destroy()
 		self.connect('response', resp)
