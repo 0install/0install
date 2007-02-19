@@ -19,6 +19,9 @@ from zeroinstall import NeedDownload
 from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
 from zeroinstall.injector.trust import trust_db
 
+# If we started a check within this period, don't start another one:
+FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
+
 class _Cook:
 	"""A Cook follows a Recipe."""
 	# Maybe we're taking this metaphor too far?
@@ -434,12 +437,16 @@ class Policy(object):
 							"(so not fetching).", uri)
 						self._warned_offline = True
 		elif not uri.startswith('/'):
-			staleness = time.time() - (iface.last_checked or 0)
+			now = time.time()
+			staleness = now - (iface.last_checked or 0)
 			debug("Staleness for %s is %.2f hours", iface, staleness / 3600.0)
 
 			if self.freshness > 0 and staleness > self.freshness:
-				debug("Adding %s to stale set", iface)
-				self.stale_feeds.add(iface)
+				if iface.last_check_attempt and iface.last_check_attempt > now - FAILED_CHECK_DELAY:
+					debug("Stale, but tried to check recently (%s) so not rechecking now.", time.ctime(iface.last_check_attempt))
+				else:
+					debug("Adding %s to stale set", iface)
+					self.stale_feeds.add(iface)
 		#else: debug("Local interface, so not checking staleness.")
 
 		return iface

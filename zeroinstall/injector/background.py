@@ -108,7 +108,8 @@ def _check_for_updates(policy, verbose):
 		notify("Zero Install", "Checking for updates to '%s'..." % root_iface, timeout = 1)
 
 	policy.handler = BackgroundHandler(root_iface)
-	policy.refresh_all()
+	policy.freshness = 0		# Don't bother trying to refresh when getting the interface
+	policy.refresh_all()		# (causes confusing log messages)
 	policy.handler.wait_for_downloads()
 	# We could even download the archives here, but for now just
 	# update the interfaces.
