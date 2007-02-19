@@ -151,6 +151,13 @@ See that dialog's help text for more information.
 Right-click on an interface in the list for a menu.
 """),
 
+('Reporting bugs', """
+To report a bug, right-click over the interface which you think contains the problem \
+and choose 'Report a Bug...' from the menu. If you don't know which one is the cause, \
+choose the top one (i.e. the program itself). The program's author can reassign the \
+bug if necessary, or switch to using a different version of the library.
+"""),
+
 ('The cache', """
 Each version of a program that is downloaded is stored in the Zero Install cache. This \
 means that it won't need to be downloaded again each time you run the program. Click on \
