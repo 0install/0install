@@ -29,12 +29,12 @@ def report_bug(policy, iface):
 	if not policy.ready:
 		text += '  Failed to select all required implementations\n'
 
-	for iface in policy.implementation:
-		text += '\n  Interface: %s\n' % iface.uri
-		impl = policy.implementation[iface]
+	for chosen_iface in policy.implementation:
+		text += '\n  Interface: %s\n' % chosen_iface.uri
+		impl = policy.implementation[chosen_iface]
 		if impl:
 			text += '    Version: %s\n' % impl.get_version()
-			if impl.interface != iface:
+			if impl.interface != chosen_iface:
 				text += '  From feed: %s\n' % impl.interface.uri
 			text += '         ID: %s\n' % impl.id
 		else:
