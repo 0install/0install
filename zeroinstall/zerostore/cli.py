@@ -70,6 +70,11 @@ def do_add(args):
 
 		stores.add_archive_to_cache(digest, file(args[1]), args[1], extract, type = type)
 	else:
+		try:
+			os.stat(args[1])
+		except OSError, ex:
+			if ex.errno != 2:			# No such file or directory
+				raise UsageError(str(ex))	# E.g. permission denied
 		raise UsageError("No such file or directory '%s'" % args[1])
 
 def do_verify(args):
