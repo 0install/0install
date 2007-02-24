@@ -15,11 +15,15 @@ class TestUnpack(BaseTest):
 
 		#unpack._tar_version = 'Solaris tar'
 		#assert not unpack.gnu_tar()
+
+		os.umask(0022)
 	
 	def tearDown(self):
 		BaseTest.tearDown(self)
 
 		shutil.rmtree(self.tmpdir)
+
+		assert os.umask(0022) == 0022
 	
 	def testBadExt(self):
 		try:
@@ -81,6 +85,15 @@ class TestUnpack(BaseTest):
 		alg_name = required.split('=', 1)[0]
 		sha1 = alg_name + '=' + manifest.add_manifest_file(self.tmpdir, manifest.get_algorithm(alg_name)).hexdigest()
 		self.assertEquals(sha1, required)
+
+		# Check permissions are sensible
+		for root, dirs, files in os.walk(self.tmpdir):
+			for f in files + dirs:
+				full = os.path.join(root, f)
+				if os.path.islink(full): continue
+				full_mode = os.stat(full).st_mode
+				self.assertEquals(0644, full_mode & 0666)	# Must be rw?r-?r-?
+
 
 suite = unittest.makeSuite(TestUnpack)
 if __name__ == '__main__':
