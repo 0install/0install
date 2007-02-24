@@ -13,35 +13,36 @@ from logging import debug, info, warn
 from zeroinstall import SafeException
 
 _cpio_version = None
-def get_cpio_version():
+def _get_cpio_version():
 	global _cpio_version
 	if _cpio_version is None:
 		_cpio_version = os.popen('cpio --version 2>&1').next()
 		debug("cpio version = %s", _cpio_version)
 	return _cpio_version
 
-def gnu_cpio():
-	gnu_cpio = '(GNU cpio)' in get_cpio_version()
+def _gnu_cpio():
+	gnu_cpio = '(GNU cpio)' in _get_cpio_version()
 	debug("Is GNU cpio = %s", gnu_cpio)
 	return gnu_cpio
 
 _tar_version = None
-def get_tar_version():
+def _get_tar_version():
 	global _tar_version
 	if _tar_version is None:
 		_tar_version = os.popen('tar --version 2>&1').next()
 		debug("tar version = %s", _tar_version)
 	return _tar_version
 
-def gnu_tar():
-	gnu_tar = '(GNU tar)' in get_tar_version()
+def _gnu_tar():
+	gnu_tar = '(GNU tar)' in _get_tar_version()
 	debug("Is GNU tar = %s", gnu_tar)
 	return gnu_tar
 
 def recent_gnu_tar():
+	"""@deprecated: should be private"""
 	recent_gnu_tar = False
-	if gnu_tar():
-		version = get_tar_version()
+	if _gnu_tar():
+		version = _get_tar_version()
 		try:
 			version = version.split(')', 1)[1].strip()
 			assert version
@@ -195,7 +196,7 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 		fd = None
 
 		args = ['cpio', '-mid']
-		if gnu_cpio():
+		if _gnu_cpio():
 			args.append('--quiet')
 
 		_extract(file(cpiopath), destdir, args)
@@ -253,7 +254,7 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 
 	assert decompress in [None, 'bzip2', 'gzip', 'lzma']
 
-	if gnu_tar():
+	if _gnu_tar():
 		ext_cmd = ['tar']
 		if decompress:
 			if decompress == 'bzip2':

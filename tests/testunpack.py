@@ -95,16 +95,19 @@ class TestUnpackPython(AbstractTestUnpack):
 	def setUp(self):
 		AbstractTestUnpack.setUp(self)
 		unpack._tar_version = 'Solaris tar'
-		assert not unpack.gnu_tar()
+		assert not unpack._gnu_tar()
 
 class TestUnpackGNU(AbstractTestUnpack):
 	def setUp(self):
 		AbstractTestUnpack.setUp(self)
 		unpack._tar_version = None
-		assert unpack.gnu_tar()
+		assert unpack._gnu_tar()
 
 suite = unittest.TestSuite()
-suite.addTest(unittest.makeSuite(TestUnpackGNU))
+if unpack._gnu_tar():
+	suite.addTest(unittest.makeSuite(TestUnpackGNU))
+else:
+	print "No GNU tar: SKIPPING tests"
 suite.addTest(unittest.makeSuite(TestUnpackPython))
 
 if __name__ == '__main__':
