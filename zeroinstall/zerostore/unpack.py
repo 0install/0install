@@ -12,22 +12,45 @@ import re
 from logging import debug, info, warn
 from zeroinstall import SafeException
 
-_recent_gnu_tar = None
+_cpio_version = None
+def get_cpio_version():
+	global _cpio_version
+	if _cpio_version is None:
+		_cpio_version = os.popen('cpio --version 2>&1').next()
+		debug("cpio version = %s", _cpio_version)
+	return _cpio_version
+
+def gnu_cpio():
+	gnu_cpio = '(GNU cpio)' in get_cpio_version()
+	debug("Is GNU cpio = %s", gnu_cpio)
+	return gnu_cpio
+
+_tar_version = None
+def get_tar_version():
+	global _tar_version
+	if _tar_version is None:
+		_tar_version = os.popen('tar --version 2>&1').next()
+		debug("tar version = %s", _tar_version)
+	return _tar_version
+
+def gnu_tar():
+	gnu_tar = '(GNU tar)' in get_tar_version()
+	debug("Is GNU tar = %s", gnu_tar)
+	return gnu_tar
+
 def recent_gnu_tar():
-	global _recent_gnu_tar
-	if _recent_gnu_tar is None:
-		_recent_gnu_tar = False
-		version = os.popen('tar --version 2>&1').next()
-		if '(GNU tar)' in version:
-			try:
-				version = version.split(')', 1)[1].strip()
-				assert version
-				version = map(int, version.split('.'))
-				_recent_gnu_tar = version > [1, 13, 92]
-			except:
-				warn("Failed to extract GNU tar version number")
-		debug("Recent GNU tar = %s", _recent_gnu_tar)
-	return _recent_gnu_tar
+	recent_gnu_tar = False
+	if gnu_tar():
+		version = get_tar_version()
+		try:
+			version = version.split(')', 1)[1].strip()
+			assert version
+			version = map(int, version.split('.'))
+			recent_gnu_tar = version > [1, 13, 92]
+		except:
+			warn("Failed to extract GNU tar version number")
+	debug("Recent GNU tar = %s", recent_gnu_tar)
+	return recent_gnu_tar
 
 def _find_in_path(prog):
 	for d in os.environ['PATH'].split(':'):
@@ -112,7 +135,7 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 	if type is None: type = type_from_url(url)
 	if type is None: raise SafeException("Unknown extension (and no MIME type given) in '%s'" % url)
 	if type == 'application/x-bzip-compressed-tar':
-		extract_tar(data, destdir, extract, '--bzip2', start_offset)
+		extract_tar(data, destdir, extract, 'bzip2', start_offset)
 	elif type == 'application/x-deb':
 		extract_deb(data, destdir, extract, start_offset)
 	elif type == 'application/x-rpm':
@@ -122,9 +145,9 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 	elif type == 'application/x-tar':
 		extract_tar(data, destdir, extract, None, start_offset)
 	elif type == 'application/x-lzma-compressed-tar':
-		extract_tar(data, destdir, extract, '--use-compress-program=unlzma', start_offset)
+		extract_tar(data, destdir, extract, 'lzma', start_offset)
 	elif type == 'application/x-compressed-tar':
-		extract_tar(data, destdir, extract, '-z', start_offset)
+		extract_tar(data, destdir, extract, 'gzip', start_offset)
 	elif type == 'application/vnd.ms-cab-compressed':
 		extract_cab(data, destdir, extract, start_offset)
 	else:
@@ -145,7 +168,7 @@ def extract_deb(stream, destdir, extract = None, start_offset = 0):
 	data_name = os.path.join(destdir, 'data.tar.gz')
 	data_stream = file(data_name)
 	os.unlink(data_name)
-	_extract(data_stream, destdir, ('tar', 'xzf', '-'))
+	extract_tar(data_stream, destdir, None, 'gzip')
 
 def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 	if extract:
@@ -170,7 +193,11 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 			raise SafeException("rpm2cpio failed; can't unpack RPM archive; exit code %d" % status)
 		os.close(fd)
 		fd = None
-		args = ['cpio', '-mid', '--quiet']
+
+		args = ['cpio', '-mid']
+		if gnu_cpio():
+			args.append('--quiet')
+
 		_extract(file(cpiopath), destdir, args)
 		# Set the mtime of every directory under 'tmp' to 0, since cpio doesn't
 		# preserve directory mtimes.
@@ -224,17 +251,105 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 		if not re.match('^[a-zA-Z0-9][- _a-zA-Z0-9.]*$', extract):
 			raise SafeException('Illegal character in extract attribute')
 
-	if recent_gnu_tar():
-		args = ['tar', decompress, '-x', '--no-same-owner', '--no-same-permissions']
+	assert decompress in [None, 'bzip2', 'gzip', 'lzma']
+
+	if gnu_tar():
+		ext_cmd = ['tar']
+		if decompress:
+			if decompress == 'bzip2':
+				ext_cmd.append('--bzip2')
+			elif decompress == 'gzip':
+				ext_cmd.append('-z')
+			elif decompress == 'lzma':
+				ext_cmd.append('--use-compress-program=unlzma')
+
+		if recent_gnu_tar():
+			ext_cmd.extend(('-x', '--no-same-owner', '--no-same-permissions'))
+		else:
+			ext_cmd.extend(('xf', '-'))
+
+		if extract:
+			ext_cmd.append(extract)
+
+		_extract(stream, destdir, ext_cmd, start_offset)
 	else:
-		args = ['tar', decompress, '-xf', '-']
-	
-	args = filter(None, args)
+		# Since we don't have GNU tar, use python's tarfile module. This will probably
+		# be a lot slower and we do not support lzma; however, it is portable.
+		if decompress is None:
+			rmode = 'r|'
+		elif decompress == 'bzip2':
+			rmode = 'r|bz2'
+		elif decompress == 'gzip':
+			rmode = 'r|gz'
+		else:
+			raise SafeException('GNU tar unavailable; unsupported compression format: ' + decompress)
 
-	if extract:
-		args.append(extract)
+		import tarfile
+		try:
+			stream.seek(start_offset)
+			tar = tarfile.open(mode = rmode, fileobj = stream)
 
-	_extract(stream, destdir, args, start_offset)
+			ext_dirs = []
+			if extract is None:
+				for tarinfo in tar:
+					if tarinfo.isdir():
+						ext_dirs.append(tarinfo)
+
+					tar.extract(tarinfo, destdir)
+			else:
+				# First try to extract specified item as a file
+				tarinfo = None
+				is_dir = False
+				try:
+					tarinfo = tar.getmember(extract)
+				except:
+					tarinfo = None
+
+				# If we didn't get it, the item must be a directory
+				if tarinfo is None:
+					try:
+						tarinfo = tar.getmember(extract + '/')
+						is_dir = True
+					except:
+						tarinfo = None
+
+				if tarinfo is None:
+					raise SafeException('Unable to find specified file = %s in archive' % extract)
+
+				# Random access isn't permitted with tarfile objects, so we have to
+				# restart once getmember is succcessful.
+				tar.close()
+				stream.seek(start_offset)
+				tar = tarfile.open(mode = rmode, fileobj = stream)
+
+				if is_dir:
+					for tarinfo in tar:
+						if tarinfo.name.startswith(extract):
+							if tarinfo.isdir():
+								ext_dirs.append(tarinfo)
+
+							tar.extract(tarinfo, destdir)
+				else:
+					ext_dirs = [tarinfo]
+					tar.extract(tarinfo, destdir)
+
+			# Due to a bug in tarfile (python versions < 2.5), I have to manually set the mtime
+			# of each directory that I extract after I have finished extracting everything.
+			# Additionally, we don't want the original permissions on directories, so we need
+			# to set the mode to match the user's umask.
+			current_umask = os.umask(0)
+			os.umask(current_umask)
+
+			for tarinfo in ext_dirs:
+				dirname = destdir + '/' + tarinfo.name
+				mode = os.umask(0)
+				mode = os.stat(dirname).st_mode & ~current_umask
+				os.chmod(dirname, mode)
+				os.utime(dirname, (tarinfo.mtime, tarinfo.mtime))
+
+			tar.close()
+		except:
+			raise SafeException('Failed to extract archive; destdir = %s' % destdir)
 	
 def _extract(stream, destdir, command, start_offset = 0):
 	"""Run execvp('command') inside destdir in a child process, with

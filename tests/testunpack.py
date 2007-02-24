@@ -12,6 +12,9 @@ class TestUnpack(BaseTest):
 		BaseTest.setUp(self)
 
 		self.tmpdir = tempfile.mkdtemp('-testunpack')
+
+		#unpack._tar_version = 'Solaris tar'
+		#assert not unpack.gnu_tar()
 	
 	def tearDown(self):
 		BaseTest.tearDown(self)
@@ -60,6 +63,10 @@ class TestUnpack(BaseTest):
 	
 	def testTbz(self):
 		unpack.unpack_archive('ftp://foo/file.tar.bz2', file('HelloWorld.tar.bz2'), self.tmpdir)
+		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+	
+	def testTar(self):
+		unpack.unpack_archive('ftp://foo/file.tar', file('HelloWorld.tar'), self.tmpdir)
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 	
 	def testRPM(self):
