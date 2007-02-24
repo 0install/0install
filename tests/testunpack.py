@@ -54,7 +54,9 @@ class AbstractTestUnpack(BaseTest):
 				unpack.unpack_archive('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir, extract = 'HelloWorld2')
 				assert False
 			except SafeException, ex:
-				assert 'Failed to extract' in str(ex)
+				if ('Failed to extract' not in str(ex) and	# GNU tar
+				    'Unable to find' not in str(ex)):		# Python tar
+					raise ex
 		finally:
 			os.dup2(stderr, 2)
 	

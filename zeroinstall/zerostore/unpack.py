@@ -286,70 +286,74 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 			raise SafeException('GNU tar unavailable; unsupported compression format: ' + decompress)
 
 		import tarfile
-		try:
-			stream.seek(start_offset)
-			tar = tarfile.open(mode = rmode, fileobj = stream)
 
-			ext_dirs = []
-			if extract is None:
-				for tarinfo in tar:
-					if tarinfo.isdir():
-						ext_dirs.append(tarinfo)
+		stream.seek(start_offset)
+		tar = tarfile.open(mode = rmode, fileobj = stream)
 
-					tar.extract(tarinfo, destdir)
-			else:
-				# First try to extract specified item as a file
+		current_umask = os.umask(0)
+		os.umask(current_umask)
+
+		def chmod_extract(tarinfo):
+			tarinfo.mode = (tarinfo.mode | 0666) & ~current_umask
+			tar.extract(tarinfo, destdir)
+
+		ext_dirs = []
+		if extract is None:
+			for tarinfo in tar:
+				if tarinfo.isdir():
+					ext_dirs.append(tarinfo)
+
+				chmod_extract(tarinfo)
+		else:
+			# First try to extract specified item as a file
+			tarinfo = None
+			is_dir = False
+			try:
+				tarinfo = tar.getmember(extract)
+			except:
 				tarinfo = None
-				is_dir = False
+
+			# If we didn't get it, the item must be a directory
+			if tarinfo is None:
 				try:
-					tarinfo = tar.getmember(extract)
+					tarinfo = tar.getmember(extract + '/')
+					is_dir = True
 				except:
 					tarinfo = None
 
-				# If we didn't get it, the item must be a directory
-				if tarinfo is None:
-					try:
-						tarinfo = tar.getmember(extract + '/')
-						is_dir = True
-					except:
-						tarinfo = None
+			if tarinfo is None:
+				raise SafeException('Unable to find specified file = %s in archive' % extract)
 
-				if tarinfo is None:
-					raise SafeException('Unable to find specified file = %s in archive' % extract)
-
-				# Random access isn't permitted with tarfile objects, so we have to
-				# restart once getmember is succcessful.
-				tar.close()
-				stream.seek(start_offset)
-				tar = tarfile.open(mode = rmode, fileobj = stream)
-
-				if is_dir:
-					for tarinfo in tar:
-						if tarinfo.name.startswith(extract):
-							if tarinfo.isdir():
-								ext_dirs.append(tarinfo)
-
-							tar.extract(tarinfo, destdir)
-				else:
-					ext_dirs = [tarinfo]
-					tar.extract(tarinfo, destdir)
-
-			# Due to a bug in tarfile (python versions < 2.5), I have to manually set the mtime
-			# of each directory that I extract after I have finished extracting everything.
-			# Additionally, we don't want the original permissions on directories, so we need
-			# to set the mode to match the user's umask.
-			current_umask = os.umask(0)
-			os.umask(current_umask)
-
-			for tarinfo in ext_dirs:
-				dirname = os.path.join(destdir, tarinfo.name)
-				mode = os.stat(dirname).st_mode & ~current_umask
-				os.chmod(dirname, mode)
-				os.utime(dirname, (tarinfo.mtime, tarinfo.mtime))
-
+			# Random access isn't permitted with tarfile objects, so we have to
+			# restart once getmember is succcessful.
 			tar.close()
-		except:
-			raise SafeException('Failed to extract archive; destdir = %s' % destdir)
+			stream.seek(start_offset)
+			tar = tarfile.open(mode = rmode, fileobj = stream)
+
+			if is_dir:
+				for tarinfo in tar:
+					if tarinfo.name.startswith(extract):
+						if tarinfo.isdir():
+							ext_dirs.append(tarinfo)
+
+						chmod_extract(tarinfo)
+
+			else:
+				ext_dirs = [tarinfo]
+				chmod_extract(tarinfo)
+
+		# Due to a bug in tarfile (python versions < 2.5), I have to manually set the mtime
+		# of each directory that I extract after I have finished extracting everything.
+		# Additionally, we don't want the original permissions on directories, so we need
+		# to set the mode to match the user's umask.
+
+		for tarinfo in ext_dirs:
+			dirname = os.path.join(destdir, tarinfo.name)
+			mode = os.stat(dirname).st_mode & ~current_umask
+			os.chmod(dirname, mode)
+			os.utime(dirname, (tarinfo.mtime, tarinfo.mtime))
+
+		tar.close()
 	
 def _extract(stream, destdir, command, start_offset = 0):
 	"""Run execvp('command') inside destdir in a child process, with
