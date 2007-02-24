@@ -7,14 +7,11 @@ sys.path.insert(0, '..')
 from zeroinstall.zerostore import unpack, manifest
 from zeroinstall import SafeException
 
-class TestUnpack(BaseTest):
+class AbstractTestUnpack(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
 
 		self.tmpdir = tempfile.mkdtemp('-testunpack')
-
-		#unpack._tar_version = 'Solaris tar'
-		#assert not unpack.gnu_tar()
 
 		os.umask(0022)
 	
@@ -94,8 +91,21 @@ class TestUnpack(BaseTest):
 				full_mode = os.stat(full).st_mode
 				self.assertEquals(0644, full_mode & 0666)	# Must be rw?r-?r-?
 
+class TestUnpackPython(AbstractTestUnpack):
+	def setUp(self):
+		AbstractTestUnpack.setUp(self)
+		unpack._tar_version = 'Solaris tar'
+		assert not unpack.gnu_tar()
 
-suite = unittest.makeSuite(TestUnpack)
+class TestUnpackGNU(AbstractTestUnpack):
+	def setUp(self):
+		AbstractTestUnpack.setUp(self)
+		unpack._tar_version = None
+		assert unpack.gnu_tar()
+
+suite = unittest.TestSuite()
+suite.addTest(unittest.makeSuite(TestUnpackGNU))
+suite.addTest(unittest.makeSuite(TestUnpackPython))
+
 if __name__ == '__main__':
-	sys.argv.append('-v')
-	unittest.main()
+	unittest.TextTestRunner(verbosity=2).run(suite)
