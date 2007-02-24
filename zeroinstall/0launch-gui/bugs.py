@@ -176,7 +176,7 @@ class BugReporter(dialog.Dialog):
 				self.show()
 	
 	def report_bug(self, title, text):
-		print "Sending\n\n" + text
+		print >>sys.stderr, "Sending %s\n\n%s" % (title, text)
 
 		import urllib
 		from urllib2 import urlopen
