@@ -157,11 +157,11 @@ class TestLaunch(BaseTest):
 	def testHelp(self):
 		out, err = self.run_0launch(['--help'])
 		self.assertEquals("", err)
-		assert 'options:' in out
+		assert 'options:' in out.lower()
 
 		out, err = self.run_0launch([])
 		self.assertEquals("", err)
-		assert 'options:' in out
+		assert 'options:' in out.lower()
 	
 	def testBadFD(self):
 		copy = os.dup(1)

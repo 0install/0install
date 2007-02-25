@@ -297,50 +297,18 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 			tarinfo.mode = (tarinfo.mode | 0666) & ~current_umask
 			tar.extract(tarinfo, destdir)
 
+		extracted_anything = False
 		ext_dirs = []
-		if extract is None:
-			for tarinfo in tar:
+
+		for tarinfo in tar:
+			if extract is None or \
+			   tarinfo.name.startswith(extract + '/') or \
+			   tarinfo.name == extract:
 				if tarinfo.isdir():
 					ext_dirs.append(tarinfo)
 
 				chmod_extract(tarinfo)
-		else:
-			# First try to extract specified item as a file
-			tarinfo = None
-			is_dir = False
-			try:
-				tarinfo = tar.getmember(extract)
-			except:
-				tarinfo = None
-
-			# If we didn't get it, the item must be a directory
-			if tarinfo is None:
-				try:
-					tarinfo = tar.getmember(extract + '/')
-					is_dir = True
-				except:
-					tarinfo = None
-
-			if tarinfo is None:
-				raise SafeException('Unable to find specified file = %s in archive' % extract)
-
-			# Random access isn't permitted with tarfile objects, so we have to
-			# restart once getmember is succcessful.
-			tar.close()
-			stream.seek(start_offset)
-			tar = tarfile.open(mode = rmode, fileobj = stream)
-
-			if is_dir:
-				for tarinfo in tar:
-					if tarinfo.name.startswith(extract):
-						if tarinfo.isdir():
-							ext_dirs.append(tarinfo)
-
-						chmod_extract(tarinfo)
-
-			else:
-				ext_dirs = [tarinfo]
-				chmod_extract(tarinfo)
+				extracted_anything = True
 
 		# Due to a bug in tarfile (python versions < 2.5), I have to manually set the mtime
 		# of each directory that I extract after I have finished extracting everything.
@@ -352,6 +320,9 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 			os.utime(dirname, (tarinfo.mtime, tarinfo.mtime))
 
 		tar.close()
+
+		if extract and not extracted_anything:
+			raise SafeException('Unable to find specified file = %s in archive' % extract)
 	
 def _extract(stream, destdir, command, start_offset = 0):
 	"""Run execvp('command') inside destdir in a child process, with
