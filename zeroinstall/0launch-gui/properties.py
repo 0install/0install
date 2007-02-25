@@ -121,12 +121,13 @@ class Description(gtk.ScrolledWindow):
 		if interface.last_checked:
 			buffer.insert(iter, '\nLast checked: %s' % time.ctime(interface.last_checked))
 
-		if interface.last_check_attempt:
-			if interface.last_checked and interface.last_checked >= interface.last_check_attempt:
-				pass	# Don't bother reporting successful attempts
-			else:
-				buffer.insert(iter, '\nLast check attempt: %s (failed or in progress)' %
-						time.ctime(interface.last_check_attempt))
+		if hasattr(interface, 'last_check_attempt'):
+			if interface.last_check_attempt:
+				if interface.last_checked and interface.last_checked >= interface.last_check_attempt:
+					pass	# Don't bother reporting successful attempts
+				else:
+					buffer.insert(iter, '\nLast check attempt: %s (failed or in progress)' %
+							time.ctime(interface.last_check_attempt))
 
 		buffer.insert_with_tags(iter, '\n\nDescription\n', heading_style)
 
