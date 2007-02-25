@@ -349,8 +349,6 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 
 		for tarinfo in ext_dirs:
 			dirname = os.path.join(destdir, tarinfo.name)
-			mode = os.stat(dirname).st_mode & ~current_umask
-			os.chmod(dirname, mode)
 			os.utime(dirname, (tarinfo.mtime, tarinfo.mtime))
 
 		tar.close()
