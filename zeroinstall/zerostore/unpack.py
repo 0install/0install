@@ -293,8 +293,20 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 		current_umask = os.umask(0)
 		os.umask(current_umask)
 
+		uid = gid = None
+		try:
+			uid = os.geteuid()
+			gid = os.getegid()
+		except:
+			debug("Can't get uid/gid")
+
 		def chmod_extract(tarinfo):
 			tarinfo.mode = (tarinfo.mode | 0666) & ~current_umask
+			# Don't change owner, even if run as root
+			if uid:
+				tarinfo.uid = uid
+			if gid:
+				tarinfo.gid = gid
 			tar.extract(tarinfo, destdir)
 
 		extracted_anything = False
