@@ -36,9 +36,6 @@ try:
 	finally:
 		sys.stderr = old_stderr
 
-	#notification_service.connect_to_signal('NotificationClosed', _NotificationClosed)
-	#notification_service.connect_to_signal('ActionInvoked', _ActionInvoked)
-
 	have_notifications = True
 except Exception, ex:
 	info("Failed to import D-BUS bindings: %s", ex)

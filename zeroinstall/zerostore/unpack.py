@@ -310,10 +310,8 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 				chmod_extract(tarinfo)
 				extracted_anything = True
 
-		# Due to a bug in tarfile (python versions < 2.5), I have to manually set the mtime
-		# of each directory that I extract after I have finished extracting everything.
-		# Additionally, we don't want the original permissions on directories, so we need
-		# to set the mode to match the user's umask.
+		# Due to a bug in tarfile (python versions < 2.5), we have to manually
+		# set the mtime of each directory that we extract after extracting everything.
 
 		for tarinfo in ext_dirs:
 			dirname = os.path.join(destdir, tarinfo.name)
