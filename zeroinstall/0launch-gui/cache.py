@@ -3,7 +3,7 @@ import gtk, gobject
 
 import gui
 import help_box
-from dialog import Dialog
+from dialog import Dialog, alert
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import basedir, namespaces, model
 from zeroinstall.zerostore import BadDigest, manifest
@@ -360,15 +360,24 @@ class CacheExplorer(Dialog):
 		self.connect('response', response)
 	
 	def delete(self):
+		errors = []
+
 		model = self.model
 		paths = get_selected_paths(self.tree_view)
 		paths.reverse()
 		for path in paths:
 			item = model[path][ITEM_OBJECT]
 			assert item.delete
-			item.delete()
-			model.remove(model.get_iter(path))
+			try:
+				item.delete()
+			except OSError, ex:
+				errors.append(str(ex))
+			else:
+				model.remove(model.get_iter(path))
 		self.update_sizes()
+
+		if errors:
+			alert(self, "Failed to delete:\n%s" % '\n'.join(errors))
 
 	def populate_model(self):
 		# Find cached implementations
