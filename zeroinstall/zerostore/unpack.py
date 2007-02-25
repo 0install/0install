@@ -301,7 +301,14 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 			debug("Can't get uid/gid")
 
 		def chmod_extract(tarinfo):
-			tarinfo.mode = (tarinfo.mode | 0666) & ~current_umask
+			# If any X bit is set, they all must be
+			if tarinfo.mode & 0111:
+				tarinfo.mode |= 0111
+
+			# Everyone gets read and write (subject to the umask)
+			# No special bits are allowed.
+			tarinfo.mode = ((tarinfo.mode | 0666) & ~current_umask) & 0777
+
 			# Don't change owner, even if run as root
 			if uid:
 				tarinfo.uid = uid
