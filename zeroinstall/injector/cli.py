@@ -66,7 +66,6 @@ def main(command_args):
 	if options.list:
 		from zeroinstall.injector.iface_cache import iface_cache
 		if len(args) == 0:
-			match = None
 			matches = iface_cache.list_all_interfaces()
 		elif len(args) == 1:
 			match = args[0].lower()
@@ -208,10 +207,13 @@ def main(command_args):
 
 		if can_run_immediately:
 			if policy.stale_feeds:
-				# There are feeds we should update, but we can run without them.
-				# Do the update in the background while the program is running.
-				import background
-				background.spawn_background_update(policy, options.verbose > 0)
+				if policy.network_use == model.network_offline:
+					logging.debug("No doing background update because we are in off-line mode.")
+				else:
+					# There are feeds we should update, but we can run without them.
+					# Do the update in the background while the program is running.
+					import background
+					background.spawn_background_update(policy, options.verbose > 0)
 			policy.execute(args[1:], main = options.main)
 			assert options.dry_run or options.download_only
 			return
