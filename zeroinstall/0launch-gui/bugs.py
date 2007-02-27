@@ -167,7 +167,13 @@ class BugReporter(dialog.Dialog):
 				gtk.gdk.flush()
 				iter = buffer.get_end_iter()
 				buffer.place_cursor(iter)
-				buffer.insert_at_cursor(reader.read())
+
+				# Cope with invalid UTF-8
+				import codecs
+				decoder = codecs.getdecoder('utf-8')
+				data = decoder(reader.read(), 'replace')[0]
+
+				buffer.insert_at_cursor(data)
 				reader.close()
 
 				pid, status = os.waitpid(child, 0)
