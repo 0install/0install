@@ -2,14 +2,34 @@
 import os, sys
 from optparse import OptionParser
 
-from zeroinstall.injector import reader, model
+from zeroinstall.injector import reader, model, basedir
 
-first_path = os.environ['PATH'].split(':')[0]
+def export(name, value):
+	"""Try to guess the command to set an environment variable."""
+	shell = os.environ.get('SHELL', '?')
+	if 'csh' in shell:
+		return "setenv %s %s" % (name, value)
+	return "export %s=%s" % (name, value)
+
+for first_path in os.environ['PATH'].split(':'):
+	if os.path.realpath(first_path).startswith(basedir.xdg_cache_home):
+		pass # print "Skipping cache", first_path
+	elif not os.access(first_path, os.W_OK):
+		pass # print "No access", first_path
+	else:
+		break
+else:
+	print >>sys.stderr, ("No writable non-cache directory in $PATH, which currently contains:\n\n%s\n"
+		"To create a directory for your scripts, use these commands:\n"
+		"$ mkdir ~/bin\n"
+		"$ %s" % ('\n'.join(os.environ['PATH'].split(':')), export('PATH', '$HOME/bin:$PATH')))
+	sys.exit(1)
 
 parser = OptionParser(usage="usage: %%prog [options] alias interface [command]\n\n"
-		"Creates a script in the first directory in $PATH\n"
-		"(%s) to run 'interface'. For interfaces providing more than "
-		"one command, the desired command may also be given." % first_path)
+		"Creates a script in the first usable directory in $PATH\n"
+		"(%s) to run 'interface'.\n"
+		"For interfaces providing more than one command, the desired command\n"
+		"may also be given." % first_path)
 parser.add_option("-V", "--version", help="display version information", action='store_true')
 parser.disable_interspersed_args()
 
@@ -25,13 +45,6 @@ if options.version:
 	print "under the terms of the GNU General Public License."
 	print "For more information about these matters, see the file named COPYING."
 	sys.exit(0)
-
-def export(name, value):
-	"""Try to guess the command to set an environment variable."""
-	shell = os.environ.get('SHELL', '?')
-	if 'csh' in shell:
-		return "setenv %s %s" % (name, value)
-	return "export %s=%s" % (name, value)
 
 if len(args) < 2 or len(args) > 3:
 	parser.print_help()
@@ -53,12 +66,6 @@ try:
 			raise model.SafeException("0launch failed")
 		if not reader.update_from_cache(interface):
 			raise model.SafeException("Interface still not in cache. Aborting.")
-	if not os.access(first_path, os.W_OK):
-		raise model.SafeException("Directory '%s' is not writable.\n"
-			"0alias uses the first directory in $PATH, which is currently:\n\n%s\n\n"
-			"To create a directory for your scripts, use these commands:\n"
-			"$ mkdir ~/bin\n"
-			"$ %s" % (first_path, os.environ['PATH'], export('PATH', '$HOME/bin:$PATH')))
 
 	script = os.path.join(first_path, alias)
 	if os.path.exists(script):
