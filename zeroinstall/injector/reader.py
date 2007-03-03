@@ -125,10 +125,11 @@ def check_readable(interface_uri, source):
 	try:
 		update(tmp, source)
 	except InvalidInterface, ex:
-		raise InvalidInterface("Error loading interface:\n"
-					"Interface URI: %s\n"
-					"Local file: %s\n%s" %
-					(interface_uri, source, ex))
+		info("Error loading interface:\n"
+			"Interface URI: %s\n"
+			"Local file: %s\n%s" %
+			(interface_uri, source, ex))
+		raise InvalidInterface("Error loading feed '%s':\n\n%s" % (interface_uri, ex))
 	return tmp.last_modified
 
 def _parse_time(t):
@@ -138,14 +139,16 @@ def _parse_time(t):
 		raise InvalidInterface("Date '%s' not in correct format (should be integer number "
 					"of seconds since Unix epoch)\n%s" % (t, ex))
 
-def _check_canonical_name(interface, source, root):
+def _check_canonical_name(interface, root):
 	"Ensure the uri= attribute in the interface file matches the interface we are trying to load"
 	canonical_name = root.getAttribute('uri')
 	if not canonical_name:
-		raise InvalidInterface("<interface> uri attribute missing in " + source)
+		raise InvalidInterface("<interface> uri attribute missing")
 	if canonical_name != interface.uri:
-		raise InvalidInterface("<interface> uri attribute is '%s', but accessed as '%s'\n(%s)" %
-				(canonical_name, interface.uri, source))
+		raise InvalidInterface("Incorrect URL used for feed.\n\n"
+					"%s is given in the feed, but\n"
+					"%s was requested" %
+					(canonical_name, interface.uri))
 	
 def _get_long(elem, attr_name):
 	val = elem.getAttribute(attr_name)
@@ -184,7 +187,7 @@ def update(interface, source, local = False):
 		raise InvalidInterface("Invalid XML", ex)
 
 	if not local:
-		_check_canonical_name(interface, source, root)
+		_check_canonical_name(interface, root)
 		time_str = root.getAttribute('last-modified')
 		if time_str:
 			# Old style cached items use an attribute
