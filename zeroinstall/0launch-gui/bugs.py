@@ -111,6 +111,9 @@ class BugReporter(dialog.Dialog):
 
 		frame('Are any errors or warnings displayed?', errors_box, errors_buffer)
 
+		if dialog.last_error:
+			errors_buffer.insert_at_cursor(str(dialog.last_error))
+
 		environ = text_area(env, mono = True)
 		frame('Information about your setup', *environ)
 
@@ -182,18 +185,21 @@ class BugReporter(dialog.Dialog):
 				self.show()
 	
 	def report_bug(self, title, text):
-		print >>sys.stderr, "Sending %s\n\n%s" % (title, text)
+		try:
+			import urllib
+			from urllib2 import urlopen
 
-		import urllib
-		from urllib2 import urlopen
-
-		stream = urlopen('http://sourceforge.net/tracker/index.php',
-			urllib.urlencode({
-			'group_id': '76468',
-			'atid': '929902',
-			'func': 'postadd',
-			'is_private': '0',
-			'summary': title,
-			'details': text}))
-		stream.read()
-		stream.close()
+			stream = urlopen('http://sourceforge.net/tracker/index.php',
+				urllib.urlencode({
+				'group_id': '76468',
+				'atid': '929902',
+				'func': 'postadd',
+				'is_private': '0',
+				'summary': title,
+				'details': text}))
+			stream.read()
+			stream.close()
+		except:
+			# Write to stderr in the hope that it doesn't get lost
+			print >>sys.stderr, "Error sending bug report: %s\n\n%s" % (title, text)
+			raise

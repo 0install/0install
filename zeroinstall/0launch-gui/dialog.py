@@ -2,6 +2,8 @@ import gtk
 
 n_windows = 0
 
+last_error = None
+
 class Dialog(gtk.Dialog):
 	__shown = False
 
@@ -31,6 +33,11 @@ class Dialog(gtk.Dialog):
 
 def alert(parent, message, type = gtk.MESSAGE_ERROR):
 	global n_windows
+
+	if type == gtk.MESSAGE_ERROR:
+		global last_error
+		last_error = message
+
 	box = gtk.MessageDialog(parent, gtk.DIALOG_DESTROY_WITH_PARENT,
 				type, gtk.BUTTONS_OK,
 				str(message))
