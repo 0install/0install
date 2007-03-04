@@ -64,10 +64,10 @@ def optimise(impl_dir):
 			warn("Failed to read manifest file '%s': %s", manifest_path, str(ex))
 			continue
 
-		man_size += os.path.getsize(manifest_path)
-
 		alg = impl.split('=', 1)[0]
 		if alg == 'sha1': continue
+
+		man_size += os.path.getsize(manifest_path)
 
 		dir = ""
 		for line in ms:
