@@ -38,11 +38,11 @@ def optimise(impl_dir):
 	@type impl_dir: str
 	@param verbose: display progress messages
 	@type verbose: bool
-	@return: (unique bytes, duplicated bytes, already_linked)
-	@rtype: (int, int, int)"""
+	@return: (unique bytes, duplicated bytes, already linked, manifest size)
+	@rtype: (int, int, int, int)"""
 
 	first_copy = {}		# TypeDigest -> Path
-	dup_size = uniq_size = already_linked = 0
+	dup_size = uniq_size = already_linked = man_size = 0
 
 	import random
 
@@ -64,6 +64,8 @@ def optimise(impl_dir):
 			warn("Failed to read manifest file '%s': %s", manifest_path, str(ex))
 			continue
 
+		man_size += os.path.getsize(manifest_path)
+
 		alg = impl.split('=', 1)[0]
 		if alg == 'sha1': continue
 
@@ -75,7 +77,12 @@ def optimise(impl_dir):
 				dir = path[1:-1]	# Strip slash and newline
 				continue
 
-			if line[0] not in "FX": continue
+			if line[0] == "S":
+				type, digest, size, rest = line.split(' ', 3)
+				uniq_size += long(size)
+				continue
+
+			assert line[0] in "FX"
 
 			type, digest, mtime, size, path = line.split(' ', 4)
 			path = path[:-1]	# Strip newline
@@ -96,4 +103,4 @@ def optimise(impl_dir):
 			else:
 				first_copy[key] = loc_path
 				uniq_size += size
-	return (uniq_size, dup_size, already_linked)
+	return (uniq_size, dup_size, already_linked, man_size)

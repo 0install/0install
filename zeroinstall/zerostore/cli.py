@@ -111,8 +111,8 @@ def do_optimise(args):
 		return '%.1f %s' % (size, unit)
 
 	import optimise
-	uniq_size, dup_size, already_linked = optimise.optimise(cache_dir)
-	print "Original size  :", _pretty_size(uniq_size + dup_size)
+	uniq_size, dup_size, already_linked, man_size = optimise.optimise(cache_dir)
+	print "Original size  :", _pretty_size(uniq_size + dup_size) + " (excluding the %s of manifests)" % _pretty_size(man_size)
 	print "Already saved  :", _pretty_size(already_linked)
 	if dup_size == 0:
 		print "No duplicates found; no changes made."
