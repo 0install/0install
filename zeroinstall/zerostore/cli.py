@@ -77,6 +77,51 @@ def do_add(args):
 				raise UsageError(str(ex))	# E.g. permission denied
 		raise UsageError("No such file or directory '%s'" % args[1])
 
+def do_optimise(args):
+	"""optimise [ CACHE ]"""
+	if len(args) == 1:
+		cache_dir = args[0]
+	else:
+		cache_dir = stores.stores[0].dir
+	
+	cache_dir = os.path.realpath(cache_dir)
+
+	import stat
+	info = os.stat(cache_dir)
+	if not stat.S_ISDIR(info.st_mode):
+		raise UsageError("Not a directory: '%s'" % cache_dir)
+
+	impl_name = os.path.basename(cache_dir)
+	if impl_name != 'implementations':
+		raise UsageError("Cache directory should be named 'implementations', not\n"
+				"'%s' (in '%s')" % (impl_name, cache_dir))
+
+	print "Optimising", cache_dir
+
+	def _pretty_size(size):
+		if size is None:
+			return '?'
+		if size < 2048:
+			return '%d bytes' % size
+		size = float(size)
+		for unit in ('Kb', 'Mb', 'Gb', 'Tb'):
+			size /= 1024
+			if size < 2048:
+				break
+		return '%.1f %s' % (size, unit)
+
+	import optimise
+	uniq_size, dup_size, already_linked = optimise.optimise(cache_dir)
+	print "Original size  :", _pretty_size(uniq_size + dup_size)
+	print "Already saved  :", _pretty_size(already_linked)
+	if dup_size == 0:
+		print "No duplicates found; no changes made."
+	else:
+		print "Optimised size :", _pretty_size(uniq_size)
+		perc = (100 * float(dup_size)) / (uniq_size + dup_size)
+		print "Space freed up :", _pretty_size(dup_size), "(%.2f%%)" % perc
+	print "Optimisation complete."
+
 def do_verify(args):
 	"""verify (DIGEST | (DIRECTORY [DIGEST])"""
 	if len(args) == 2:
@@ -145,4 +190,4 @@ def do_copy(args):
 
 	copy_tree_with_verify(source, target, manifest_data, required_digest)
 
-commands = [do_add, do_copy, do_find, do_list, do_manifest, do_verify]
+commands = [do_add, do_copy, do_find, do_list, do_manifest, do_optimise, do_verify]

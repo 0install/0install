@@ -1,4 +1,4 @@
-.TH 0STORE 1 "2006" "Thomas Leonard" ""
+.TH 0STORE 1 "2007" "Thomas Leonard" ""
 .SH NAME
 0store \- manage the implementation cache
 
@@ -20,6 +20,9 @@
 
 .B 0store manifest
 \fBDIRECTORY\fP [ \fBALGORITHM\fP ]
+
+.B 0store optimise
+[ \fBCACHE\fP ]
 
 .B 0store verify
 ( \fBDIGEST\fP | \fBDIRECTORY\fP )
@@ -96,6 +99,20 @@ details.
 Supported algorithms are 'sha1' (supported by all versions), 'sha1new'
 (requires injector 0.20 or later) and 'sha256' (requires injector 0.20 or later
 AND the Python hashlib module).
+
+.SH OPTIMISE
+.PP
+To hard-link duplicate files together to save space:
+
+.B 0store optimise [CACHE]
+
+.PP
+This reads in all the manifest files in the cache directory (~/.cache/0install.net/implementations
+by default) and looks for duplicates (files with the same permissions, modification time and digest).
+When it finds a pair, it deletes one and replaces it (atomically) with a hard-link to the other.
+
+.PP
+Implementations using the old 'sha1' algorithm are not optimised.
 
 .SH VERIFY
 .PP
