@@ -35,6 +35,11 @@ class BaseTest(unittest.TestCase):
 	
 	def tearDown(self):
 		shutil.rmtree(self.config_home)
-		shutil.rmtree(self.cache_home)
+		self.ro_rmtree(self.cache_home)
 		shutil.rmtree(self.cache_system)
 		shutil.rmtree(self.gnupg_home)
+
+	def ro_rmtree(self, root):
+		for main, dirs, files in os.walk(root):
+			os.chmod(main, 0700)
+		shutil.rmtree(root)

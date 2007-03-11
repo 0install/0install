@@ -24,8 +24,8 @@ class TestStore(BaseTest):
 	def tearDown(self):
 		BaseTest.tearDown(self)
 
-		shutil.rmtree(self.store.dir)
-		shutil.rmtree(self.tmp)
+		self.ro_rmtree(self.store.dir)
+		self.ro_rmtree(self.tmp)
 	
 	def testInit(self):
 		assert os.path.isdir(self.store.dir)
@@ -65,6 +65,7 @@ class TestStore(BaseTest):
 				self.assertEquals("S %s 5 MyLink\n" % digest.hexdigest(),
 						file(mfile).read())
 				manifest.verify(self.tmp, added_digest)
+				os.chmod(self.tmp, 0700)
 				os.unlink(mfile)
 			except BadDigest, ex:
 				raise Exception("%s: %s\n%s" % (alg_name, ex, ex.detail))
@@ -138,6 +139,7 @@ class TestStore(BaseTest):
 			except SafeException, ex:
 				assert '.manifest' in str(ex)
 
+			os.chmod(source, 0700)
 			os.unlink(os.path.join(source, '.manifest'))
 
 			# Switch to sha1new
@@ -149,7 +151,7 @@ class TestStore(BaseTest):
 
 			self.assertEquals('Hello', file(os.path.join(copy, digest, 'MyFile')).read())
 		finally:
-			shutil.rmtree(copy)
+			self.ro_rmtree(copy)
 
 suite = unittest.makeSuite(TestStore)
 if __name__ == '__main__':

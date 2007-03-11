@@ -40,17 +40,6 @@ def _copytree2(src, dst):
 		else:
 			shutil.copy2(srcname, dstname)
 
-def _wrap_umask(fn):
-	def wrapper(self, *args, **kwargs):
-		if self.public:
-			old_umask = os.umask(0022)	# World readable
-		try:
-			fn(self, *args, **kwargs)
-		finally:
-			if self.public:
-				os.umask(old_umask)
-	return wrapper
-
 class Store:
 	"""A directory for storing implementations."""
 
@@ -112,7 +101,6 @@ class Store:
 		except Exception, ex:
 			warn("Leaving extracted directory as %s", tmp)
 			raise
-	add_archive_to_cache = _wrap_umask(add_archive_to_cache)
 	
 	def add_dir_to_cache(self, required_digest, path, try_helper = False):
 		"""Copy the contents of path to the cache.
@@ -140,7 +128,6 @@ class Store:
 			import shutil
 			shutil.rmtree(tmp)
 			raise
-	add_dir_to_cache = _wrap_umask(add_dir_to_cache)
 
 	def _add_with_helper(self, required_digest, path):
 		"""Use 0store-helper to copy 'path' to the system store.
@@ -196,23 +183,10 @@ class Store:
 		final_name = os.path.join(self.dir, required_digest)
 		if os.path.isdir(final_name):
 			raise Exception("Item %s already stored." % final_name)
+
+		os.rename(extracted, final_name)
 		if extract:
-			os.rename(os.path.join(tmp, extract), final_name)
 			os.rmdir(tmp)
-		else:
-			os.rename(tmp, final_name)
-
-		# Should we make private stores read-only too?
-		if self.public:
-			import stat
-			os.chmod(final_name, 0555)
-			for dirpath, dirnames, filenames in os.walk(final_name):
-				for item in ['.'] + filenames:
-					full = os.path.join(dirpath, item)
-					finfo = os.lstat(full)
-					if not stat.S_ISLNK(finfo.st_mode):
-						os.chmod(full, finfo.st_mode & ~0222)
-
 
 class Stores(object):
 	"""A list of L{Store}s. All stores are searched when looking for an implementation.

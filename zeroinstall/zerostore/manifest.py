@@ -117,6 +117,7 @@ def generate_manifest(root, alg = 'sha1'):
 	
 def add_manifest_file(dir, digest_or_alg):
 	"""Writes a .manifest file into 'dir', and returns the digest.
+	Also sets the permissions recursively.
 	@param dir: root of the implementation
 	@param digest_or_alg: should be an instance of Algorithm. Passing a digest
 	here is deprecated."""
@@ -136,6 +137,8 @@ def add_manifest_file(dir, digest_or_alg):
 	stream = file(mfile, 'w')
 	stream.write(manifest)
 	stream.close()
+	os.chmod(mfile, 0444)
+	fixup_permissions(dir)
 	return digest
 
 def splitID(id):
@@ -453,3 +456,24 @@ algorithms = {
 
 if hashlib is not None:
 	algorithms['sha256'] = HashLibAlgorithm('sha256')
+
+def fixup_permissions(root):
+	"""Set permissions recursively for children of root (but not root itself):
+	 - If any X bit is set, they all must be.
+	 - World readable, non-writable.
+	@raise Exception: if there are unsafe special bits set (setuid, etc)."""
+
+	for main, dirs, files in os.walk(root):
+		for x in ['.'] + files:
+			full = os.path.join(main, x)
+
+			raw_mode = os.lstat(full).st_mode
+			if stat.S_ISLNK(raw_mode): continue
+
+			mode = stat.S_IMODE(raw_mode)
+			if mode & ~0777:
+				raise Exception("Unsafe mode: extracted file '%s' had special bits set in mode '%s'" % (full, oct(mode)))
+			if mode & 0111:
+				os.chmod(full, 0555)
+			else:
+				os.chmod(full, 0444)

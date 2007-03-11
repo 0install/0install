@@ -18,7 +18,7 @@ class AbstractTestUnpack(BaseTest):
 	def tearDown(self):
 		BaseTest.tearDown(self)
 
-		shutil.rmtree(self.tmpdir)
+		self.ro_rmtree(self.tmpdir)
 
 		assert os.umask(0022) == 0022
 	
@@ -70,7 +70,7 @@ class AbstractTestUnpack(BaseTest):
 	
 	def testTar(self):
 		unpack.unpack_archive('ftp://foo/file.tar', file('HelloWorld.tar'), self.tmpdir)
-		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+		self.assert_manifest('sha1new=290eb133e146635fe37713fd58174324a16d595f')
 	
 	def testRPM(self):
 		unpack.unpack_archive('ftp://foo/file.rpm', file('dummy-1-1.noarch.rpm'), self.tmpdir)
@@ -91,7 +91,7 @@ class AbstractTestUnpack(BaseTest):
 				full = os.path.join(root, f)
 				if os.path.islink(full): continue
 				full_mode = os.stat(full).st_mode
-				self.assertEquals(0644, full_mode & 0666)	# Must be rw?r-?r-?
+				self.assertEquals(0444, full_mode & 0666)	# Must be r-?r-?r-?
 
 class TestUnpackPython(AbstractTestUnpack):
 	def setUp(self):
