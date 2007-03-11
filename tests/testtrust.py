@@ -30,6 +30,26 @@ class TestTrust(BaseTest):
 		trust.trust_db.untrust_key("1234")
 		assert not trust.trust_db.is_trusted("1234")
 	
+	def testAddDomain(self):
+		assert not trust.trust_db.is_trusted("1234", "0install.net")
+		trust.trust_db.trust_key("1234")
+
+		assert trust.trust_db.is_trusted("1234")
+		assert trust.trust_db.is_trusted("1234", "0install.net")
+		assert trust.trust_db.is_trusted("1234", "rox.sourceforge.net")
+		assert not trust.trust_db.is_trusted("1236")
+
+		trust.trust_db.untrust_key("1234")
+		assert not trust.trust_db.is_trusted("1234")
+		assert not trust.trust_db.is_trusted("1234", "rox.sourceforge.net")
+
+		trust.trust_db.trust_key("1234", "0install.net")
+		trust.trust_db.trust_key("1234", "gimp.org")
+		assert trust.trust_db.is_trusted("1234")
+		assert trust.trust_db.is_trusted("1234", "0install.net")
+		assert trust.trust_db.is_trusted("1234", "gimp.org")
+		assert not trust.trust_db.is_trusted("1234", "rox.sourceforge.net")
+	
 	def testParallel(self):
 		a = trust.TrustDB()
 		b = trust.TrustDB()
