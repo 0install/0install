@@ -23,6 +23,12 @@ class TrustBox(dialog.Dialog):
 	def __init__(self, interface, sigs, iface_xml):
 		dialog.Dialog.__init__(self)
 
+		if hasattr(trust, 'domain_from_url'):
+			domain = trust.domain_from_url(interface.uri)
+			assert domain
+		else:
+			domain = None	# 0launch <= 0.26
+
 		def destroy(box):
 			global _queue
 			assert _queue[0] is self
@@ -30,7 +36,11 @@ class TrustBox(dialog.Dialog):
 			# Remove any queued boxes that are no longer required
 			def still_untrusted(box):
 				for sig in box.valid_sigs:
-					if trust.trust_db.is_trusted(sig.fingerprint):
+					if domain is None:
+						is_trusted = trust.trust_db.is_trusted(sig.fingerprint)
+					else:
+						is_trusted = trust.trust_db.is_trusted(sig.fingerprint, domain)
+					if is_trusted:
 						return False
 				return True
 			if _queue:
@@ -58,22 +68,37 @@ class TrustBox(dialog.Dialog):
 		vbox.set_border_width(4)
 		self.vbox.pack_start(vbox, True, True, 0)
 
-		label = left('Checking: ' + interface.uri + '\n\n'
-				  'Please confirm that you trust '
-				  'these keys to sign software updates:')
-		vbox.pack_start(label, False, True, 0)
+		self.valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
+		if not self.valid_sigs:
+			raise SafeException('No valid signatures found')
 
 		notebook = gtk.Notebook()
+
+		if len(self.valid_sigs) == 1:
+			what = 'this key'
+			notebook.set_show_tabs(False)
+		else:
+			what = 'at least one of these keys'
+
+		if domain:
+			where = '\nfor the domain "%s"' % domain
+		else:
+			where = ''
+
+		message = ('Checking: ' + interface.uri + '\n\n' +
+			   'Please confirm that you trust %s '
+			     'to sign software updates%s:' % (what, where))
+
+		label = left(message)
+		label.set_padding(4, 4)
+		vbox.pack_start(label, False, True, 0)
+
 		vbox.pack_start(notebook, True, True, 0)
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		self.add_button(gtk.STOCK_ADD, gtk.RESPONSE_OK)
 		self.set_default_response(gtk.RESPONSE_OK)
-
-		self.valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
-		if not self.valid_sigs:
-			raise SafeException('No valid signatures found')
 
 		trust_checkbox = {}	# Sig -> CheckButton
 		def ok_sensitive():
@@ -96,17 +121,35 @@ class TrustBox(dialog.Dialog):
 				name = None
 			page = gtk.VBox(False, 4)
 			page.set_border_width(8)
-			page.pack_start(left('Fingerprint: ' + pretty_fp(sig.fingerprint)), False, True, 0)
-			if name is not None:
-				page.pack_start(left('Claimed identity: ' + name), False, True, 0)
 
-			frame = gtk.Frame('Unreliable hints database says')
-			frame.set_border_width(4)
+			def frame(title, content):
+				frame = gtk.Frame()
+				label = gtk.Label()
+				label.set_markup('<b>%s</b>' % title)
+				frame.set_label_widget(label)
+				frame.set_shadow_type(gtk.SHADOW_NONE)
+				if type(content) in (str, unicode):
+					content = gtk.Label(content)
+					content.set_alignment(0, 0.5)
+				frame.add(content)
+				content.set_padding(8, 4)
+				page.pack_start(frame, False, True, 0)
+
+			frame('Fingerprint', pretty_fp(sig.fingerprint))
+
+			if name is not None:
+				frame('Claimed identity', name)
+
 			hint = left(hints.get(sig.fingerprint, 'Warning: Nothing known about this key!'))
 			hint.set_line_wrap(True)
-			hint.set_padding(4, 4)
-			frame.add(hint)
-			page.pack_start(frame, True, True, 0)
+			frame('Unreliable hints database says', hint)
+			#hint.set_padding(4, 4)
+
+			if domain:
+				already_trusted = trust.trust_db.get_trust_domains(sig.fingerprint)
+				if already_trusted:
+					frame('You already trust this key for these domains',
+						'\n'.join(already_trusted))
 
 			trust_checkbox[sig] = gtk.CheckButton('_Trust this key')
 			page.pack_start(trust_checkbox[sig], False, True, 0)
@@ -122,14 +165,18 @@ class TrustBox(dialog.Dialog):
 				trust_help.display()
 				return
 			if resp == gtk.RESPONSE_OK:
-				self.trust_keys([sig for sig in trust_checkbox if trust_checkbox[sig].get_active()])
+				self.trust_keys([sig for sig in trust_checkbox if trust_checkbox[sig].get_active()], domain)
 			self.destroy()
 		self.connect('response', response)
 	
-	def trust_keys(self, sigs):
+	def trust_keys(self, sigs, domain = None):
 		try:
 			for sig in sigs:
-				trust.trust_db.trust_key(sig.fingerprint)
+				if domain is None:
+					# 0launch <= 0.26
+					trust.trust_db.trust_key(sig.fingerprint)
+				else:
+					trust.trust_db.trust_key(sig.fingerprint, domain)
 
 			if hasattr(trust.trust_db, 'notify'):
 				# 0launch >= 0.25
@@ -147,6 +194,16 @@ class TrustBox(dialog.Dialog):
 
 _queue = []
 def confirm_trust(interface, sigs, iface_xml):
+	"""Display a dialog box asking the user to confirm that one of the
+	keys is trusted for this domain. If a trust box is already visible, this
+	one is queued until the existing one is closed.
+	@param interface: the feed being loaded
+	@type interface: L{model.Interface}
+	@param sigs: the signatures on the feed
+	@type sigs: [L{gpg.Signature}]
+	@param iface_xml: the downloaded (untrusted) XML document
+	@type iface_xml: str
+	"""
 	_queue.append(TrustBox(interface, sigs, iface_xml))
 	if len(_queue) == 1:
 		_queue[0].show()

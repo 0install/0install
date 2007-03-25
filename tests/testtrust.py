@@ -2,6 +2,7 @@
 from basetest import BaseTest
 import sys, tempfile, os, shutil
 import unittest
+from sets import Set
 
 thomas_fingerprint = "92429807C9853C0744A68B9AAE07828059A53CC1"
 
@@ -34,6 +35,7 @@ class TestTrust(BaseTest):
 	def testAddDomain(self):
 		assert not trust.trust_db.is_trusted("1234", "0install.net")
 		trust.trust_db.trust_key("1234")
+		self.assertEquals(Set(['*']), trust.trust_db.get_trust_domains("1234"))
 
 		assert trust.trust_db.is_trusted("1234")
 		assert trust.trust_db.is_trusted("1234", "0install.net")
@@ -50,6 +52,9 @@ class TestTrust(BaseTest):
 		assert trust.trust_db.is_trusted("1234", "0install.net")
 		assert trust.trust_db.is_trusted("1234", "gimp.org")
 		assert not trust.trust_db.is_trusted("1234", "rox.sourceforge.net")
+
+		self.assertEquals(Set(), trust.trust_db.get_trust_domains("99877"))
+		self.assertEquals(Set(['0install.net', 'gimp.org']), trust.trust_db.get_trust_domains("1234"))
 	
 	def testParallel(self):
 		a = trust.TrustDB()
@@ -62,12 +67,11 @@ class TestTrust(BaseTest):
 		assert a.is_trusted("2")
 	
 	def testDomain(self):
-		a = trust.TrustDB()
-		self.assertEquals("example.com", a.domain_from_url('http://example.com/foo'))
-		self.assertRaises(SafeException, lambda: a.domain_from_url('/tmp/feed.xml'))
-		self.assertRaises(SafeException, lambda: a.domain_from_url('http:///foo'))
-		self.assertRaises(SafeException, lambda: a.domain_from_url('http://*/foo'))
-		self.assertRaises(SafeException, lambda: a.domain_from_url(''))
+		self.assertEquals("example.com", trust.domain_from_url('http://example.com/foo'))
+		self.assertRaises(SafeException, lambda: trust.domain_from_url('/tmp/feed.xml'))
+		self.assertRaises(SafeException, lambda: trust.domain_from_url('http:///foo'))
+		self.assertRaises(SafeException, lambda: trust.domain_from_url('http://*/foo'))
+		self.assertRaises(SafeException, lambda: trust.domain_from_url(''))
 
 
 suite = unittest.makeSuite(TestTrust)

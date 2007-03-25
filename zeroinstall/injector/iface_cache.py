@@ -207,7 +207,8 @@ class IfaceCache(object):
 		@rtype: bool
 		@precondition: call L{add_pending}
 		"""
-		updated = self._oldest_trusted(sigs)
+		import trust
+		updated = self._oldest_trusted(sigs, trust.domain_from_url(interface.uri))
 		if updated is None: return False	# None are trusted
 	
 		if interface.uri in self.pending:
@@ -418,14 +419,15 @@ class IfaceCache(object):
 	def _get_signature_date(self, uri):
 		"""Read the date-stamp from the signature of the cached interface.
 		If the date-stamp is unavailable, returns None."""
+		import trust
 		sigs = self.get_cached_signatures(uri)
 		if sigs:
-			return self._oldest_trusted(sigs)
+			return self._oldest_trusted(sigs, trust.domain_from_url(uri))
 	
-	def _oldest_trusted(self, sigs):
+	def _oldest_trusted(self, sigs, domain):
 		"""Return the date of the oldest trusted signature in the list, or None if there
 		are no trusted sigs in the list."""
-		trusted = [s.get_timestamp() for s in sigs if s.is_trusted()]
+		trusted = [s.get_timestamp() for s in sigs if s.is_trusted(domain)]
 		if trusted:
 			return min(trusted)
 		return None

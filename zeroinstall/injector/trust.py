@@ -34,6 +34,13 @@ class TrustDB(object):
 			return True		# Deprecated
 
 		return domain in domains or '*' in domains
+	
+	def get_trust_domains(self, fingerprint):
+		"""Return the set of domains in which this key is trusted.
+		If the list includes '*' then the key is trusted everywhere.
+		"""
+		self.ensure_uptodate()
+		return self.keys.get(fingerprint, sets.Set())
 
 	def trust_key(self, fingerprint, domain = '*'):
 		"""Add key to the list of trusted fingerprints.
@@ -115,21 +122,21 @@ class TrustDB(object):
 					if key:
 						self.keys[key] = sets.Set('*')
 
-	def domain_from_url(self, url):
-		"""Extract the trust domain for a URL.
-		@param url: the feed's URL
-		@type url: str
-		@return: the trust domain
-		@rtype: str
-		@since: 0.27
-		@raise SafeException: the URL can't be parsed"""
-		import urlparse
-		from zeroinstall import SafeException
-		if url.startswith('/'):
-			raise SafeException("Can't get domain from a local path: '%s'" % url)
-		domain = urlparse.urlparse(url)[1]
-		if domain and domain != '*':
-			return domain
-		raise SafeException("Can't extract domain from URL '%s'" % url)
+def domain_from_url(url):
+	"""Extract the trust domain for a URL.
+	@param url: the feed's URL
+	@type url: str
+	@return: the trust domain
+	@rtype: str
+	@since: 0.27
+	@raise SafeException: the URL can't be parsed"""
+	import urlparse
+	from zeroinstall import SafeException
+	if url.startswith('/'):
+		raise SafeException("Can't get domain from a local path: '%s'" % url)
+	domain = urlparse.urlparse(url)[1]
+	if domain and domain != '*':
+		return domain
+	raise SafeException("Can't extract domain from URL '%s'" % url)
 
 trust_db = TrustDB()

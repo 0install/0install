@@ -23,7 +23,7 @@ class Signature:
 	def __init__(self, status):
 		self.status = status
 
-	def is_trusted(self):
+	def is_trusted(self, domain = None):
 		return False
 	
 	def need_key(self):
@@ -38,8 +38,8 @@ class ValidSig(Signature):
 	def __str__(self):
 		return "Valid signature from " + self.status[self.FINGERPRINT]
 	
-	def is_trusted(self):
-		return trust_db.is_trusted(self.status[self.FINGERPRINT])
+	def is_trusted(self, domain = None):
+		return trust_db.is_trusted(self.status[self.FINGERPRINT], domain)
 	
 	def get_timestamp(self):
 		return int(self.status[self.TIMESTAMP])
