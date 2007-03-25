@@ -7,6 +7,7 @@ thomas_fingerprint = "92429807C9853C0744A68B9AAE07828059A53CC1"
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import trust, basedir
+from zeroinstall import SafeException
 
 class TestTrust(BaseTest):
 	def testInit(self):
@@ -59,6 +60,15 @@ class TestTrust(BaseTest):
 		a.untrust_key("1")
 		assert not a.is_trusted("1")
 		assert a.is_trusted("2")
+	
+	def testDomain(self):
+		a = trust.TrustDB()
+		self.assertEquals("example.com", a.domain_from_url('http://example.com/foo'))
+		self.assertRaises(SafeException, lambda: a.domain_from_url('/tmp/feed.xml'))
+		self.assertRaises(SafeException, lambda: a.domain_from_url('http:///foo'))
+		self.assertRaises(SafeException, lambda: a.domain_from_url('http://*/foo'))
+		self.assertRaises(SafeException, lambda: a.domain_from_url(''))
+
 
 suite = unittest.makeSuite(TestTrust)
 if __name__ == '__main__':

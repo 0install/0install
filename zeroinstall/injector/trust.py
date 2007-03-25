@@ -115,4 +115,21 @@ class TrustDB(object):
 					if key:
 						self.keys[key] = sets.Set('*')
 
+	def domain_from_url(self, url):
+		"""Extract the trust domain for a URL.
+		@param url: the feed's URL
+		@type url: str
+		@return: the trust domain
+		@rtype: str
+		@since: 0.27
+		@raise SafeException: the URL can't be parsed"""
+		import urlparse
+		from zeroinstall import SafeException
+		if url.startswith('/'):
+			raise SafeException("Can't get domain from a local path: '%s'" % url)
+		domain = urlparse.urlparse(url)[1]
+		if domain and domain != '*':
+			return domain
+		raise SafeException("Can't extract domain from URL '%s'" % url)
+
 trust_db = TrustDB()
