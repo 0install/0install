@@ -82,6 +82,7 @@ class AbstractTestUnpack(BaseTest):
 	
 	def assert_manifest(self, required):
 		alg_name = required.split('=', 1)[0]
+		manifest.fixup_permissions(self.tmpdir)
 		sha1 = alg_name + '=' + manifest.add_manifest_file(self.tmpdir, manifest.get_algorithm(alg_name)).hexdigest()
 		self.assertEquals(sha1, required)
 

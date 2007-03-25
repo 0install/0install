@@ -464,7 +464,7 @@ class Policy(object):
 			# Possibly we should handle this better, but it's unlikely anyone will need
 			# to use an interface as an icon or implementation as well, and some of the code
 			# assumes it's OK keep asking for the same interface to be downloaded.
-			info("Already have a handler for %s; not adding another", interface)
+			debug("Already have a handler for %s; not adding another", interface)
 			return
 
 		def feed_downloaded(stream):

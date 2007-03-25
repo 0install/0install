@@ -164,6 +164,9 @@ class Store:
 		else:
 			extracted = tmp
 
+		import manifest
+
+		manifest.fixup_permissions(extracted)
 		if try_helper:
 			if self._add_with_helper(required_digest, extracted):
 				import shutil
@@ -171,7 +174,6 @@ class Store:
 				return
 			info("Can't add to system store. Trying user store instead.")
 
-		import manifest
 		alg, required_value = manifest.splitID(required_digest)
 		actual_digest = alg.getID(manifest.add_manifest_file(extracted, alg))
 		if actual_digest != required_digest:
@@ -184,7 +186,13 @@ class Store:
 		if os.path.isdir(final_name):
 			raise Exception("Item %s already stored." % final_name)
 
+		# If we just want a subdirectory then the rename will change
+		# extracted/.. and so we'll need write permission on 'extracted'
+
+		os.chmod(extracted, 0755)
 		os.rename(extracted, final_name)
+		os.chmod(final_name, 0555)
+
 		if extract:
 			os.rmdir(tmp)
 

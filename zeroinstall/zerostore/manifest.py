@@ -117,7 +117,8 @@ def generate_manifest(root, alg = 'sha1'):
 	
 def add_manifest_file(dir, digest_or_alg):
 	"""Writes a .manifest file into 'dir', and returns the digest.
-	Also sets the permissions recursively.
+	You should call fixup_permissions before this to ensure that the permissions are correct.
+	On exit, dir itself has mode 555. Subdirectories are not changed.
 	@param dir: root of the implementation
 	@param digest_or_alg: should be an instance of Algorithm. Passing a digest
 	here is deprecated."""
@@ -134,11 +135,13 @@ def add_manifest_file(dir, digest_or_alg):
 	for line in alg.generate_manifest(dir):
 		manifest += line + '\n'
 	digest.update(manifest)
+
+	os.chmod(dir, 0755)
 	stream = file(mfile, 'w')
+	os.chmod(dir, 0555)
 	stream.write(manifest)
 	stream.close()
 	os.chmod(mfile, 0444)
-	fixup_permissions(dir)
 	return digest
 
 def splitID(id):
@@ -458,7 +461,7 @@ if hashlib is not None:
 	algorithms['sha256'] = HashLibAlgorithm('sha256')
 
 def fixup_permissions(root):
-	"""Set permissions recursively for children of root (but not root itself):
+	"""Set permissions recursively for children of root:
 	 - If any X bit is set, they all must be.
 	 - World readable, non-writable.
 	@raise Exception: if there are unsafe special bits set (setuid, etc)."""
