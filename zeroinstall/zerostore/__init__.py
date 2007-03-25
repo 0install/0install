@@ -40,6 +40,12 @@ def _copytree2(src, dst):
 		else:
 			shutil.copy2(srcname, dstname)
 
+def _ro_rmtree(root):
+	import shutil
+	for main, dirs, files in os.walk(root):
+		os.chmod(main, 0700)
+	shutil.rmtree(root)
+
 class Store:
 	"""A directory for storing implementations."""
 
@@ -125,8 +131,7 @@ class Store:
 		except:
 			warn("Error importing directory.")
 			warn("Deleting %s", tmp)
-			import shutil
-			shutil.rmtree(tmp)
+			_ro_rmtree(tmp)
 			raise
 
 	def _add_with_helper(self, required_digest, path):
@@ -169,8 +174,7 @@ class Store:
 		manifest.fixup_permissions(extracted)
 		if try_helper:
 			if self._add_with_helper(required_digest, extracted):
-				import shutil
-				shutil.rmtree(tmp)
+				_ro_rmtree(tmp)
 				return
 			info("Can't add to system store. Trying user store instead.")
 
