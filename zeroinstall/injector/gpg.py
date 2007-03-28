@@ -86,6 +86,31 @@ class ErrSig(Signature):
 			return self.status[self.KEYID]
 		return None
 
+class Key:
+	"""A GPG key.
+	@since: 0.27
+	"""
+	def __init__(self, fingerprint):
+		self.fingerprint = fingerprint
+		self.name = '(unknown)'
+
+def load_key(fingerprint):
+	"""Query gpg for information about this key.
+	@return: a new key
+	@rtype: L{Key}
+	@since: 0.27"""
+	key = Key(fingerprint)
+	cin, cout = os.popen2(('gpg', '--fixed-list-mode', '--with-colons', '--list-keys', fingerprint))
+	cin.close()
+	try:
+		for line in cout:
+			if line.startswith('uid:'):
+				parts = line.split(':')
+				key.name = parts[9]
+	finally:
+		cout.close()
+	return key
+
 def import_key(stream):
 	"""Run C{gpg --import} with this stream as stdin."""
 	errors = tempfile.TemporaryFile()

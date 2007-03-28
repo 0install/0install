@@ -14,6 +14,19 @@ def pretty_fp(fp):
 		s += ' ' + fp[x:x + 4]
 	return s
 
+def frame(page, title, content):
+	frame = gtk.Frame()
+	label = gtk.Label()
+	label.set_markup('<b>%s</b>' % title)
+	frame.set_label_widget(label)
+	frame.set_shadow_type(gtk.SHADOW_NONE)
+	if type(content) in (str, unicode):
+		content = gtk.Label(content)
+		content.set_alignment(0, 0.5)
+	frame.add(content)
+	content.set_padding(8, 4)
+	page.pack_start(frame, False, True, 0)
+
 class TrustBox(dialog.Dialog):
 	interface = None
 	sigs = None
@@ -75,21 +88,27 @@ class TrustBox(dialog.Dialog):
 		notebook = gtk.Notebook()
 
 		if len(self.valid_sigs) == 1:
-			what = 'this key'
 			notebook.set_show_tabs(False)
-		else:
-			what = 'at least one of these keys'
+
+		label = left('Checking: ' + interface.uri)
+		label.set_padding(4, 4)
+		vbox.pack_start(label, False, True, 0)
 
 		if domain:
-			where = '\nfor the domain "%s"' % domain
+			currently_trusted_keys = trust.trust_db.get_keys_for_domain(domain)
+			if currently_trusted_keys:
+				keys = [gpg.load_key(fingerprint) for fingerprint in currently_trusted_keys]
+				descriptions = ["%s\n(fingerprint: %s)" % (key.name, pretty_fp(key.fingerprint))
+						for key in keys]
+			else:
+				descriptions = ['None']
+			frame(vbox, 'Keys already approved for "%s"' % domain, '\n'.join(descriptions))
+
+		if len(self.valid_sigs) == 1:
+			label = left('This key signed the feed:')
 		else:
-			where = ''
+			label = left('These keys signed the feed:')
 
-		message = ('Checking: ' + interface.uri + '\n\n' +
-			   'Please confirm that you trust %s '
-			     'to sign software updates%s:' % (what, where))
-
-		label = left(message)
 		label.set_padding(4, 4)
 		vbox.pack_start(label, False, True, 0)
 
@@ -108,6 +127,7 @@ class TrustBox(dialog.Dialog):
 					trust_any = True
 					break
 			self.set_response_sensitive(gtk.RESPONSE_OK, trust_any)
+
 		for sig in self.valid_sigs:
 			if hasattr(sig, 'get_details'):
 				name = '<unknown>'
@@ -122,33 +142,20 @@ class TrustBox(dialog.Dialog):
 			page = gtk.VBox(False, 4)
 			page.set_border_width(8)
 
-			def frame(title, content):
-				frame = gtk.Frame()
-				label = gtk.Label()
-				label.set_markup('<b>%s</b>' % title)
-				frame.set_label_widget(label)
-				frame.set_shadow_type(gtk.SHADOW_NONE)
-				if type(content) in (str, unicode):
-					content = gtk.Label(content)
-					content.set_alignment(0, 0.5)
-				frame.add(content)
-				content.set_padding(8, 4)
-				page.pack_start(frame, False, True, 0)
-
-			frame('Fingerprint', pretty_fp(sig.fingerprint))
+			frame(page, 'Fingerprint', pretty_fp(sig.fingerprint))
 
 			if name is not None:
-				frame('Claimed identity', name)
+				frame(page, 'Claimed identity', name)
 
 			hint = left(hints.get(sig.fingerprint, 'Warning: Nothing known about this key!'))
 			hint.set_line_wrap(True)
-			frame('Unreliable hints database says', hint)
+			frame(page, 'Unreliable hints database says', hint)
 			#hint.set_padding(4, 4)
 
 			if domain:
 				already_trusted = trust.trust_db.get_trust_domains(sig.fingerprint)
 				if already_trusted:
-					frame('You already trust this key for these domains',
+					frame(page, 'You already trust this key for these domains',
 						'\n'.join(already_trusted))
 
 			trust_checkbox[sig] = gtk.CheckButton('_Trust this key')
