@@ -38,9 +38,17 @@ class TrustDB(object):
 	def get_trust_domains(self, fingerprint):
 		"""Return the set of domains in which this key is trusted.
 		If the list includes '*' then the key is trusted everywhere.
+		@since: 0.27
 		"""
 		self.ensure_uptodate()
 		return self.keys.get(fingerprint, sets.Set())
+	
+	def get_keys_for_domain(self, domain):
+		"""Return the set of keys trusted for this domain.
+		@since: 0.27"""
+		self.ensure_uptodate()
+		return sets.Set([fp for fp in self.keys
+				 if domain in self.keys[fp]])
 
 	def trust_key(self, fingerprint, domain = '*'):
 		"""Add key to the list of trusted fingerprints.
