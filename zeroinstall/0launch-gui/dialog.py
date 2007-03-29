@@ -76,3 +76,19 @@ def MixedButton(message, stock, x_align = 0.5):
 	button.add(align)
 	align.add(box)
 	return button
+
+def frame(page, title, content, expand = False):
+	frame = gtk.Frame()
+	label = gtk.Label()
+	label.set_markup('<b>%s</b>' % title)
+	frame.set_label_widget(label)
+	frame.set_shadow_type(gtk.SHADOW_NONE)
+	if type(content) in (str, unicode):
+		content = gtk.Label(content)
+		content.set_alignment(0, 0.5)
+	frame.add(content)
+	if hasattr(content, 'set_padding'):
+		content.set_padding(8, 4)
+	else:
+		content.set_border_width(8)
+	page.pack_start(frame, expand, True, 0)
