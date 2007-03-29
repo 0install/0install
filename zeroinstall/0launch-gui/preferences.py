@@ -3,9 +3,11 @@ from logging import warn
 import os, sys
 import help_box
 from gui import policy
-from dialog import Dialog, MixedButton
+from dialog import Dialog, MixedButton, frame
 from zeroinstall.injector.model import network_levels
+from zeroinstall.injector import trust, gpg
 from freshness import freshness_levels, Freshness
+from sets import Set
 
 tips = gtk.Tooltips()
 
@@ -18,9 +20,12 @@ class Preferences(Dialog):
 
 		self.connect('destroy', lambda w: self.destroyed())
 
-		vbox = gtk.VBox(False, 2)
-		vbox.set_border_width(10)
-		self.vbox.pack_start(vbox, True, True, 0)
+		content = gtk.VBox(False, 2)
+		content.set_border_width(8)
+		self.vbox.pack_start(content, True, True, 0)
+
+		vbox = gtk.VBox(False, 0)
+		frame(content, 'Policy settings', vbox)
 
 		# Network use
 		hbox = gtk.HBox(False, 2)
@@ -85,6 +90,37 @@ class Preferences(Dialog):
 			policy.recalculate()
 		stable_toggle.connect('toggled', toggle_stability)
 
+		# Keys
+		keys_vbox = gtk.VBox(False, 0)
+		label = gtk.Label('')
+		label.set_markup('<i>You have said that you trust these keys to sign software updates.</i>')
+		label.set_padding(4, 4)
+		label.set_alignment(0, 0.5)
+		keys_vbox.pack_start(label, False, True, 0)
+
+		trusted_keys = gtk.TreeStore(str)
+		tv = gtk.TreeView(trusted_keys)
+		tc = gtk.TreeViewColumn('Trusted keys', gtk.CellRendererText(), text = 0)
+		tv.append_column(tc)
+		swin = gtk.ScrolledWindow(None, None)
+		swin.set_shadow_type(gtk.SHADOW_IN)
+		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
+		swin.add(tv)
+		trust.trust_db.ensure_uptodate()
+		domains = {}
+		for fingerprint in trust.trust_db.keys:
+			key = gpg.load_key(fingerprint)
+			for domain in trust.trust_db.keys[fingerprint]:
+				if domain not in domains:
+					domains[domain] = Set()
+				domains[domain].add(key)
+		for domain in domains:
+			iter = trusted_keys.append(None, [domain])
+			for key in domains[domain]:
+				trusted_keys.append(iter, [key.name])
+		keys_vbox.pack_start(swin, True, True, 0)
+		frame(content, 'Security', keys_vbox, expand = True)
+
 		# Responses
 
 		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
@@ -101,7 +137,8 @@ class Preferences(Dialog):
 				gui_help.display()
 		self.connect('response', response)
 
-		vbox.show_all()
+		self.set_default_size(-1, gtk.gdk.screen_height() / 3)
+		self.vbox.show_all()
 
 	def destroyed(self):
 		global preferences_box
