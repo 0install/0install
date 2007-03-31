@@ -131,8 +131,8 @@ class KeyList(gtk.VBox):
 		label.set_alignment(0, 0.5)
 		self.pack_start(label, False, True, 0)
 
-		trusted_keys = gtk.TreeStore(str, object)
-		tv = gtk.TreeView(trusted_keys)
+		self.trusted_keys = gtk.TreeStore(str, object)
+		tv = gtk.TreeView(self.trusted_keys)
 		tc = gtk.TreeViewColumn('Trusted keys', gtk.CellRendererText(), text = 0)
 		tv.append_column(tc)
 		swin = gtk.ScrolledWindow(None, None)
@@ -140,9 +140,12 @@ class KeyList(gtk.VBox):
 		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 		swin.add(tv)
 		trust.trust_db.ensure_uptodate()
-		trust.trust_db.watchers.append(lambda: self.update_keys(trusted_keys))
+
+		trust.trust_db.watchers.append(self.update_keys)
+		self.connect('destroy', lambda w: trust.trust_db.watchers.remove(self.update_keys))
+
 		self.pack_start(swin, True, True, 0)
-		self.update_keys(trusted_keys)
+		self.update_keys()
 
 		def remove_key(fingerprint, domain):
 			trust.trust_db.untrust_key(fingerprint, domain)
@@ -157,8 +160,8 @@ class KeyList(gtk.VBox):
 				if len(path) != 2:
 					return False
 
-				domain = trusted_keys[path[:-1]][0]
-				key = trusted_keys[path][1]
+				domain = self.trusted_keys[path[:-1]][0]
+				key = self.trusted_keys[path][1]
 
 				menu = gtk.Menu()
 
@@ -173,8 +176,8 @@ class KeyList(gtk.VBox):
 			return False
 		tv.connect('button-press-event', trusted_keys_button_press)
 
-	def update_keys(self, trusted_keys):
-		trusted_keys.clear()
+	def update_keys(self):
+		self.trusted_keys.clear()
 		domains = {}
 
 		keys = gpg.load_keys(trust.trust_db.keys.keys())
@@ -185,9 +188,9 @@ class KeyList(gtk.VBox):
 					domains[domain] = Set()
 				domains[domain].add(keys[fingerprint])
 		for domain in domains:
-			iter = trusted_keys.append(None, [domain, None])
+			iter = self.trusted_keys.append(None, [domain, None])
 			for key in domains[domain]:
-				trusted_keys.append(iter, [key.name, key])
+				self.trusted_keys.append(iter, [key.name, key])
 
 preferences_box = None
 def show_preferences():
