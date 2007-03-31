@@ -176,12 +176,14 @@ class KeyList(gtk.VBox):
 	def update_keys(self, trusted_keys):
 		trusted_keys.clear()
 		domains = {}
-		for fingerprint in trust.trust_db.keys:
-			key = gpg.load_key(fingerprint)
+
+		keys = gpg.load_keys(trust.trust_db.keys.keys())
+
+		for fingerprint in keys:
 			for domain in trust.trust_db.keys[fingerprint]:
 				if domain not in domains:
 					domains[domain] = Set()
-				domains[domain].add(key)
+				domains[domain].add(keys[fingerprint])
 		for domain in domains:
 			iter = trusted_keys.append(None, [domain, None])
 			for key in domains[domain]:

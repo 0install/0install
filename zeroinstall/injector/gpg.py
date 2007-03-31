@@ -97,22 +97,43 @@ class Key:
 	def get_short_name(self):
 		return self.name.split(' (', 1)[0].split(' <', 1)[0]
 
+def load_keys(fingerprints):
+	"""Load a set of keys at once.
+	This is much more efficient than making individual calls to L{load_key}.
+	@return: a list of loaded keys, indexed by fingerprint
+	@rtype: {str: L{Key}}
+	@since 0.27"""
+
+	keys = {}
+	for fp in fingerprints:
+		keys[fp] = Key(fp)
+
+	current_fpr = None
+
+	cin, cout = os.popen2(['gpg', '--fixed-list-mode', '--with-colons', '--list-keys', '--with-fingerprint'] + fingerprints)
+	cin.close()
+	try:
+		for line in cout:
+			if line.startswith('pub:'):
+				current_fpr = None
+			if line.startswith('fpr:'):
+				assert current_fpr is None
+				current_fpr = line.split(':')[9]
+			if line.startswith('uid:'):
+				assert current_fpr is not None
+				parts = line.split(':')
+				keys[current_fpr].name = parts[9]
+	finally:
+		cout.close()
+
+	return keys
+
 def load_key(fingerprint):
 	"""Query gpg for information about this key.
 	@return: a new key
 	@rtype: L{Key}
 	@since: 0.27"""
-	key = Key(fingerprint)
-	cin, cout = os.popen2(('gpg', '--fixed-list-mode', '--with-colons', '--list-keys', fingerprint))
-	cin.close()
-	try:
-		for line in cout:
-			if line.startswith('uid:'):
-				parts = line.split(':')
-				key.name = parts[9]
-	finally:
-		cout.close()
-	return key
+	return load_keys([fingerprint])[fingerprint]
 
 def import_key(stream):
 	"""Run C{gpg --import} with this stream as stdin."""
