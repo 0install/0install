@@ -91,35 +91,12 @@ class Preferences(Dialog):
 		stable_toggle.connect('toggled', toggle_stability)
 
 		# Keys
-		keys_vbox = gtk.VBox(False, 0)
-		label = gtk.Label('')
-		label.set_markup('<i>You have said that you trust these keys to sign software updates.</i>')
-		label.set_padding(4, 4)
-		label.set_alignment(0, 0.5)
-		keys_vbox.pack_start(label, False, True, 0)
-
-		trusted_keys = gtk.TreeStore(str)
-		tv = gtk.TreeView(trusted_keys)
-		tc = gtk.TreeViewColumn('Trusted keys', gtk.CellRendererText(), text = 0)
-		tv.append_column(tc)
-		swin = gtk.ScrolledWindow(None, None)
-		swin.set_shadow_type(gtk.SHADOW_IN)
-		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
-		swin.add(tv)
-		trust.trust_db.ensure_uptodate()
-		domains = {}
-		for fingerprint in trust.trust_db.keys:
-			key = gpg.load_key(fingerprint)
-			for domain in trust.trust_db.keys[fingerprint]:
-				if domain not in domains:
-					domains[domain] = Set()
-				domains[domain].add(key)
-		for domain in domains:
-			iter = trusted_keys.append(None, [domain])
-			for key in domains[domain]:
-				trusted_keys.append(iter, [key.name])
-		keys_vbox.pack_start(swin, True, True, 0)
-		frame(content, 'Security', keys_vbox, expand = True)
+		if hasattr(gpg, 'Key'):
+			keys_area = KeyList()
+		else:
+			keys_area = gtk.Label('Sorry, this feature requires 0launch >= 0.27')
+			keys_area.set_alignment(0, 0)
+		frame(content, 'Security', keys_area, expand = True)
 
 		# Responses
 
@@ -143,6 +120,72 @@ class Preferences(Dialog):
 	def destroyed(self):
 		global preferences_box
 		preferences_box = None
+
+class KeyList(gtk.VBox):
+	def __init__(self):
+		gtk.VBox.__init__(self, False, 0)
+
+		label = gtk.Label('')
+		label.set_markup('<i>You have said that you trust these keys to sign software updates.</i>')
+		label.set_padding(4, 4)
+		label.set_alignment(0, 0.5)
+		self.pack_start(label, False, True, 0)
+
+		trusted_keys = gtk.TreeStore(str, object)
+		tv = gtk.TreeView(trusted_keys)
+		tc = gtk.TreeViewColumn('Trusted keys', gtk.CellRendererText(), text = 0)
+		tv.append_column(tc)
+		swin = gtk.ScrolledWindow(None, None)
+		swin.set_shadow_type(gtk.SHADOW_IN)
+		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
+		swin.add(tv)
+		trust.trust_db.ensure_uptodate()
+		trust.trust_db.watchers.append(lambda: self.update_keys(trusted_keys))
+		self.pack_start(swin, True, True, 0)
+		self.update_keys(trusted_keys)
+
+		def remove_key(fingerprint, domain):
+			trust.trust_db.untrust_key(fingerprint, domain)
+			trust.trust_db.notify()
+
+		def trusted_keys_button_press(tv, bev):
+			if bev.type == gtk.gdk.BUTTON_PRESS and bev.button == 3:
+				pos = tv.get_path_at_pos(int(bev.x), int(bev.y))
+				if not pos:
+					return False
+				path, col, x, y = pos
+				if len(path) != 2:
+					return False
+
+				domain = trusted_keys[path[:-1]][0]
+				key = trusted_keys[path][1]
+
+				menu = gtk.Menu()
+
+				item = gtk.MenuItem('Remove key for "%s"' % key.get_short_name())
+				item.connect('activate',
+					lambda item, fp = key.fingerprint, d = domain: remove_key(fp, d))
+				item.show()
+				menu.append(item)
+
+				menu.popup(None, None, None, bev.button, bev.time)
+				return True
+			return False
+		tv.connect('button-press-event', trusted_keys_button_press)
+
+	def update_keys(self, trusted_keys):
+		trusted_keys.clear()
+		domains = {}
+		for fingerprint in trust.trust_db.keys:
+			key = gpg.load_key(fingerprint)
+			for domain in trust.trust_db.keys[fingerprint]:
+				if domain not in domains:
+					domains[domain] = Set()
+				domains[domain].add(key)
+		for domain in domains:
+			iter = trusted_keys.append(None, [domain, None])
+			for key in domains[domain]:
+				trusted_keys.append(iter, [key.name, key])
 
 preferences_box = None
 def show_preferences():
@@ -168,7 +211,7 @@ version rather than download a newer one. If 'Full' is selected, the injector wo
 worry about how much it downloads, but will always pick the version it thinks is best."""),
 
 ('Freshness', """
-The interface files, which provide the information about which versions are \
+The feed files, which provide the information about which versions are \
 available, are also cached. To update them, click on 'Refresh all now'. You can also \
 get the injector to check for new versions automatically from time to time using \
 the Freshness setting."""),
@@ -180,4 +223,10 @@ ideas of what 'stable' means, you may wish to override this on a per-interface b
 
 To set the policy for an interface individually, select it in the main window and \
 click on 'Interface Properties'. See that dialog's help text for more information."""),
+
+('Security', """
+This section lists all keys which you currently trust. When fetching a new program or \
+updates for an existing one, the feed must be signed by one of these keys. If not, \
+you will be prompted to confirm that you trust the new key, and it will then be added \
+to this list. To remove a key, right-click on it and choose 'Remove' from the menu."""),
 )

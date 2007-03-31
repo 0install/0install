@@ -93,6 +93,9 @@ class Key:
 	def __init__(self, fingerprint):
 		self.fingerprint = fingerprint
 		self.name = '(unknown)'
+	
+	def get_short_name(self):
+		return self.name.split(' (', 1)[0].split(' <', 1)[0]
 
 def load_key(fingerprint):
 	"""Query gpg for information about this key.

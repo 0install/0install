@@ -70,9 +70,14 @@ class TrustDB(object):
 		self.keys[fingerprint].add(domain)
 		self.save()
 	
-	def untrust_key(self, key):
+	def untrust_key(self, key, domain = '*'):
 		self.ensure_uptodate()
-		del self.keys[key]
+		self.keys[key].remove(domain)
+
+		if not self.keys[key]:
+			# No more domains for this key
+			del self.keys[key]
+
 		self.save()
 	
 	def save(self):
@@ -103,7 +108,7 @@ class TrustDB(object):
 	
 	def notify(self):
 		"""Call all watcher callbacks.
-		This should be called after trusting one or more new keys.
+		This should be called after trusting or untrusting one or more new keys.
 		@since: 0.25"""
 		for w in self.watchers: w()
 	
