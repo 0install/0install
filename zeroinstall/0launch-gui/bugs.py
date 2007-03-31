@@ -143,6 +143,20 @@ class BugReporter(dialog.Dialog):
 		import logging
 		from zeroinstall.injector import run
 
+		iter = buffer.get_end_iter()
+		buffer.place_cursor(iter)
+
+		if not self.policy.ready:
+			missing = [iface.uri for iface in self.policy.implementation if self.policy.implementation[iface] is None]
+			buffer.insert_at_cursor("Can't run: no version has been selected for:\n- " +
+					"\n- ".join(missing))
+			return
+		uncached = self.policy.get_uncached_implementations()
+		if uncached:
+			buffer.insert_at_cursor("Can't run: the chosen versions have not been downloaded yet. I need:\n\n- " +
+				"\n\n- " . join(['%s version %s\n  (%s)' %(x[0].uri, x[1].get_version(), x[1].id) for x in uncached]))
+			return
+
 		r, w = os.pipe()
 		child = os.fork()
 		if child == 0:
