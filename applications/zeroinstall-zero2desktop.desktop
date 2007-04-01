@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Zero2Desktop
+GenericName=Installer
+Comment=Adds Zero Install programs to your Applications menu
+Exec=0launch http://0install.net/2007/interfaces/Zero2Desktop.xml -- %u
+Icon=zeroinstall-zero2desktop
+Terminal=false
+Categories=Application;Settings;PackageManager;GTK;
