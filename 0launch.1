@@ -98,6 +98,11 @@ which case you must set this as the preferred stability for the interface
 (using the GUI).
 
 .TP
+\fB--get-selections\fP
+Instead of running the program, just print the set of chosen implementations as
+an XML document to stdout. This can be used later with \fB--set-selections\fP.
+
+.TP
 \fB-g\fP, \fB--gui\fP
 Show the graphical policy editor. This allows you to select which version of
 a program or library to use.
@@ -144,6 +149,12 @@ programs won't be downloaded even if the injector already knows about them
 Fetch a fresh copy of all used interfaces. This will normally switch to GUI
 mode, unless --console is also given. Note that using --refresh and --gui
 together will check for updates to the GUI itself.
+
+.TP
+\fB--set-selections=FILE\fP
+Instead of choosing suitable implementations using the policy, run exactly
+the versions given in FILE. A suitable file can be created using the
+\fB--get-selections\fP option described above.
 
 .TP
 \fB-s\fP, \fB--source\fP

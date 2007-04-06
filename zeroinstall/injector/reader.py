@@ -25,12 +25,15 @@ class InvalidInterface(SafeException):
 		SafeException.__init__(self, message)
 
 def _process_depends(dependency, item):
+	# Note: also called from selections
 	for e in item.childNodes:
 		if e.uri != XMLNS_IFACE: continue
 		if e.name == 'environment':
 			binding = EnvironmentBinding(e.getAttribute('name'),
 						     insert = e.getAttribute('insert'),
 						     default = e.getAttribute('default'))
+			if not binding.name: raise InvalidInterface("Missing 'name' in binding")
+			if not binding.insert: raise InvalidInterface("Missing 'insert' in binding")
 			dependency.bindings.append(binding)
 		elif e.name == 'version':
 			dependency.restrictions.append(

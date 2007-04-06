@@ -17,4 +17,4 @@ XMLNS_TRUST = 'http://zero-install.sourceforge.net/2007/injector/trust'
 config_site = '0install.net'
 config_prog = 'injector'
 
-injector_gui_uri = 'http://0install.net/2006/interfaces/ZeroInstall-GUI.xml'
+injector_gui_uri = 'http://0install.net/2007/interfaces/ZeroInstall-GUI.xml'

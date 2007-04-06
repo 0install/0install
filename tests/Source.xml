@@ -6,7 +6,9 @@
   <description>Source</description>
   <feed-for interface='http://foo/Binary.xml'/>
   <group>
-    <requires interface='http://foo/Compiler.xml'/>
+    <requires interface='http://foo/Compiler.xml'>
+      <environment name='PATH' insert='bin'/>
+    </requires>
     <implementation id='sha1=234' version='1.0' arch='*-src'/>
   </group>
 </interface>

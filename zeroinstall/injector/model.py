@@ -14,6 +14,7 @@ well-known variables.
 
 import os, re
 from zeroinstall import SafeException
+import namespaces
 
 network_offline = 'off-line'
 network_minimal = 'minimal'
@@ -115,12 +116,28 @@ class EnvironmentBinding(Binding):
 	__repr__ = __str__
 	
 	def get_value(self, path, old_value):
+		"""Calculate the new value of the environment variable after applying this binding.
+		@param path: the path to the selected implementation
+		@param old_value: the current value of the environment variable
+		@return: the new value for the environment variable"""
 		extra = os.path.join(path, self.insert)
 		if old_value is None:
 			old_value = self.default or defaults.get(self.name, None)
 		if old_value is None:
 			return extra
 		return extra + ':' + old_value
+
+	def _toxml(self, doc):
+		"""Create a DOM element for this binding.
+		@param doc: document to use to create the element
+		@return: the new element
+		"""
+		env_elem = doc.createElementNS(namespaces.XMLNS_IFACE, 'environment')
+		env_elem.setAttributeNS(None, 'name', self.name)
+		env_elem.setAttributeNS(None, 'insert', self.insert)
+		if self.default:
+			env_elem.setAttributeNS(None, 'default', self.default)
+		return env_elem
 
 class Feed(object):
 	"""An interface's feeds are other interfaces whose implementations can also be

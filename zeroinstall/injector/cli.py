@@ -38,6 +38,7 @@ def main(command_args):
 	parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 	parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
 	parser.add_option("-f", "--feed", help="add or remove a feed", action='store_true')
+	parser.add_option("", "--get-selections", help="write selected versions as XML", action='store_true')
 	parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
 	parser.add_option("-i", "--import", help="import from files, not from the network", action='store_true')
 	parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
@@ -45,6 +46,7 @@ def main(command_args):
 	parser.add_option("", "--not-before", help="minimum version to choose", metavar='VERSION')
 	parser.add_option("-o", "--offline", help="try to avoid using the network", action='store_true')
 	parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
+	parser.add_option("", "--set-selections", help="run versions specified in XML file", metavar='FILE')
 	parser.add_option("-s", "--source", help="select source code", action='store_true')
 	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 	parser.add_option("-V", "--version", help="display version information", action='store_true')
@@ -89,6 +91,12 @@ def main(command_args):
 		print "under the terms of the GNU General Public License."
 		print "For more information about these matters, see the file named COPYING."
 		sys.exit(0)
+	
+	if options.set_selections:
+		from zeroinstall.injector import selections, qdom, run
+		sels = selections.Selections(qdom.parse(file(options.set_selections)))
+		run.execute_selections(sels, args, options.dry_run, options.main)
+		return
 
 	if len(args) < 1:
 		if options.gui:
@@ -195,6 +203,12 @@ def main(command_args):
 		if options.offline:
 			policy.network_use = model.network_offline
 
+		if options.get_selections:
+			if len(args) > 1:
+				raise model.SafeException("Can't use arguments with --get-selections")
+			if options.main:
+				raise model.SafeException("Can't use --main with --get-selections")
+
 		# Note that need_download() triggers a recalculate()
 		if options.refresh or options.gui:
 			# We could run immediately, but the user asked us not to
@@ -214,8 +228,11 @@ def main(command_args):
 					# Do the update in the background while the program is running.
 					import background
 					background.spawn_background_update(policy, options.verbose > 0)
-			policy.execute(args[1:], main = options.main)
-			assert options.dry_run or options.download_only
+			if options.get_selections:
+				_get_selections(policy)
+			else:
+				policy.execute(args[1:], main = options.main)
+				assert options.dry_run or options.download_only
 			return
 
 		# If the user didn't say whether to use the GUI, choose for them.
@@ -274,3 +291,10 @@ def main(command_args):
 		if options.verbose: raise
 		print >>sys.stderr, ex
 		sys.exit(1)
+	
+def _get_selections(policy):
+	import selections
+	doc = selections.Selections(policy).toDOM()
+	doc.writexml(sys.stdout)
+	sys.stdout.write('\n')
+	sys.exit(0)
