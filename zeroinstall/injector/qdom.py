@@ -22,7 +22,7 @@ class Element(object):
 		attrs = [n + '=' + self.attrs[n] for n in self.attrs]
 		start = '<{%s}%s %s' % (self.uri, self.name, ' '.join(attrs))
 		if self.childNodes:
-			return start + '>\n'.join(map(str, self.childNodes)) + ('</%s>' % (self.name))
+			return start + '>' + '\n'.join(map(str, self.childNodes)) + ('</%s>' % (self.name))
 		elif self.content:
 			return start + '>' + self.content + ('</%s>' % (self.name))
 		else:
