@@ -33,7 +33,7 @@ def _process_depends(dependency, item):
 						     insert = e.getAttribute('insert'),
 						     default = e.getAttribute('default'))
 			if not binding.name: raise InvalidInterface("Missing 'name' in binding")
-			if not binding.insert: raise InvalidInterface("Missing 'insert' in binding")
+			if binding.insert is None: raise InvalidInterface("Missing 'insert' in binding")
 			dependency.bindings.append(binding)
 		elif e.name == 'version':
 			dependency.restrictions.append(
