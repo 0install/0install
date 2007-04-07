@@ -3,19 +3,19 @@ import os, sys
 import sets	# Note: for Python 2.3; frozenset is only in Python 2.4
 
 from zeroinstall.injector.model import SafeException
-from zeroinstall.injector import download, run
+from zeroinstall.injector import download, writer
 from gui import policy, pretty_size
 from dialog import Dialog
 
 import warnings
 warnings.filterwarnings('ignore', category = DeprecationWarning, module='download_box')
 
-def download_with_gui(mainwindow, prog_args, run_afterwards, main = None):
-	"""If all downloads are ready, runs the program. Otherwise,
-	hides mainwindow, shows the download progress box and then runs
-	it. On error, mainwindow is re-shown and returns False.
-	Before starting, any current downloads (interfaces) are aborted.
-	On success, doesn't return (calls exec, or sys.exit(0) if nothing to exec)."""
+def download_with_gui(mainwindow):
+	"""If all downloads are ready, prints the selected versions and exits. Otherwise,
+	hides mainwindow, shows the download progress box and then prints them.
+	On error, mainwindow is re-shown and returns False. Before starting,
+	any current downloads (interfaces) are aborted.
+	On success, calls sys.exit(0)."""
 	try:
 		policy.abort_all_downloads()
 
@@ -37,14 +37,12 @@ def download_with_gui(mainwindow, prog_args, run_afterwards, main = None):
 				policy.monitor_download(dl)
 		def run_it():
 			policy.abort_all_downloads()
-			if not run_afterwards:
-				mainwindow.destroy()
-				sys.exit(0)			# Success
-			if main is None:
-				run.execute(policy, prog_args)	# Don't break older versions
-			else:
-				run.execute(policy, prog_args, main = main)
-			# Not reached, unless this is a dry run
+
+			from zeroinstall.injector import selections
+			sels = selections.Selections(policy)
+			doc = sels.toDOM()
+			doc.writexml(sys.stdout)
+			sys.stdout.write('\n')
 			mainwindow.destroy()
 			sys.exit(0)			# Success
 		if sets.ImmutableSet(policy.monitored_downloads) - existing_downloads:

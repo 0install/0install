@@ -7,7 +7,7 @@
     The Zero Install GUI displays a window showing which versions of various components will be used when running a program, and allows you to alter various policy settings to affect the selection process. You can use this to mark particular versions of libraries as preferred, bugggy, etc.
   </description>
   <homepage>http://0install.net/injector.html</homepage>
-  <feed-for interface="http://0install.net/2006/interfaces/ZeroInstall-GUI.xml"/>
+  <feed-for interface="http://0install.net/2007/interfaces/ZeroInstall-GUI.xml"/>
   
   <group main="0launch-gui">
     <implementation id="." released="2007-02-25" stability="stable" version="0.26" version-modifier='-post'/>

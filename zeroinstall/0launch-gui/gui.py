@@ -190,9 +190,7 @@ class GUIPolicy(Policy):
 				gtk.main()
 			else:
 				import download_box
-				download_box.download_with_gui(self.window,
-							self.prog_args, main = self.main_exec,
-							run_afterwards = not self.download_only)
+				download_box.download_with_gui(self.window)
 		else:
 			self.window.show()
 			gtk.main()

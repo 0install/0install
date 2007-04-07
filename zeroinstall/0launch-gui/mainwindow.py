@@ -86,9 +86,7 @@ class MainWindow(Dialog):
 				self.destroy()
 				sys.exit(1)
 			elif resp == gtk.RESPONSE_OK:
-				download_box.download_with_gui(self,
-								prog_args, main = policy.main_exec,
-								run_afterwards = not download_only)
+				download_box.download_with_gui(self)
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 			elif resp == SHOW_PREFERENCES:

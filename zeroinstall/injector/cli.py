@@ -111,6 +111,8 @@ def _manage_feeds(options, args):
 
 def _normal_mode(options, args):
 	if len(args) < 1:
+		# You can use -g on its own to edit the GUI's own policy
+		# Otherwise, failing to give an interface is an error
 		if options.gui:
 			args = [namespaces.injector_gui_uri]
 			options.download_only = True
@@ -174,44 +176,90 @@ def _normal_mode(options, args):
 		options.refresh = True
 		logging.info("Switching to GUI mode... (use --console to disable)")
 
-	if options.gui:
-		policy.set_root(namespaces.injector_gui_uri)
-		policy.src = False
-
-		# Try to start the GUI without using the network.
-		# The GUI can refresh itself if it wants to.
-		policy.freshness = 0
-		policy.network_use = model.network_offline
-
-		prog_args = [iface_uri] + args[1:]
-		# Options apply to actual program, not GUI
-		if options.download_only:
-			policy.download_only = False
-			prog_args.insert(0, '--download-only')
-		if options.refresh:
-			options.refresh = False
-			prog_args.insert(0, '--refresh')
-		if options.not_before:
-			prog_args.insert(0, options.not_before)
-			prog_args.insert(0, '--not-before')
-		if options.before:
-			prog_args.insert(0, options.before)
-			prog_args.insert(0, '--before')
-		if options.source:
-			prog_args.insert(0, '--source')
-		if options.main:
-			prog_args = ['--main', options.main] + prog_args
-			options.main = None
-		del policy.root_restrictions[:]
-	else:
-		prog_args = args[1:]
+	prog_args = args[1:]
 
 	try:
-		#program_log('download_and_execute ' + iface_uri)
-		policy.download_and_execute(prog_args, refresh = bool(options.refresh), main = options.main)
+		if options.gui:
+			from zeroinstall.injector import run
+			gui_args = []
+			if options.download_only:
+				# Just changes the button's label
+				gui_args.append('--download-only')
+			if options.refresh:
+				# Just changes the button's label
+				gui_args.append('--refresh')
+			if options.not_before:
+				gui_args.insert(0, options.not_before)
+				gui_args.insert(0, '--not-before')
+			if options.before:
+				gui_args.insert(0, options.before)
+				gui_args.insert(0, '--before')
+			if options.source:
+				gui_args.insert(0, '--source')
+			sels = _fork_gui(iface_uri, gui_args)
+			if not sels: return		# Aborted
+			if options.get_selections:
+				doc = sels.toDOM()
+				doc.writexml(sys.stdout)
+				sys.stdout.write('\n')
+			elif not options.download_only:
+				run.execute_selections(sels, prog_args, options.dry_run, options.main)
+		else:
+			#program_log('download_and_execute ' + iface_uri)
+			policy.download_and_execute(prog_args, refresh = bool(options.refresh), main = options.main)
 	except autopolicy.NeedDownload, ex:
 		# This only happens for dry runs
 		print ex
+
+def _fork_gui(iface_uri, gui_args):
+	gui_policy = autopolicy.AutoPolicy(namespaces.injector_gui_uri)
+	# Try to start the GUI without using the network.
+	# The GUI can refresh itself if it wants to.
+	gui_policy.freshness = 0
+	gui_policy.network_use = model.network_offline
+	gui_policy.recalculate_with_dl()
+	assert gui_policy.ready		# Should always be some version available
+	gui_policy.start_downloading_impls()
+	gui_policy.handler.wait_for_downloads()
+
+	from zeroinstall.injector import run
+	import socket
+	cli, gui = socket.socketpair()
+	try:
+		child = os.fork()
+		if child == 0:
+			# We are the child
+			try:
+				try:
+					cli.close()
+					os.dup2(gui.fileno(), 1)
+					run.execute(gui_policy, gui_args + ['--', iface_uri])
+				except:
+					import traceback
+					traceback.print_exc()
+			finally:
+				os._exit(1)
+		gui.close()
+		gui = None
+
+		xml = ""
+		while True:
+			got = cli.recv(256)
+			if not got: break
+			xml += got
+		pid, status = os.waitpid(child, 0)
+		assert pid == child
+		if status == 1 << 8:
+			return None		# Aborted
+		if status != 0:
+			raise Exception("Error from GUI: code = %d" % status)
+	finally:
+		if cli is not None: cli.close()
+		if gui is not None: gui.close()
+	
+	from StringIO import StringIO
+	from zeroinstall.injector import qdom, selections
+	return selections.Selections(qdom.parse(StringIO(xml)))
 	
 def _get_selections(policy):
 	import selections
