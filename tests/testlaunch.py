@@ -59,7 +59,7 @@ class TestLaunch(BaseTest):
 	def testList(self):
 		out, err = self.run_0launch(['--list'])
 		assert not err
-		self.assertEquals("", out)
+		self.assertEquals("Finished\n", out)
 		cached_ifaces = os.path.join(self.cache_home,
 					'0install.net', 'interfaces')
 
@@ -68,15 +68,15 @@ class TestLaunch(BaseTest):
 
 		out, err = self.run_0launch(['--list'])
 		assert not err
-		self.assertEquals("file://foo\n", out)
+		self.assertEquals("file://foo\nFinished\n", out)
 
 		out, err = self.run_0launch(['--list', 'foo'])
 		assert not err
-		self.assertEquals("file://foo\n", out)
+		self.assertEquals("file://foo\nFinished\n", out)
 
 		out, err = self.run_0launch(['--list', 'bar'])
 		assert not err
-		self.assertEquals("", out)
+		self.assertEquals("Finished\n", out)
 
 		out, err = self.run_0launch(['--list', 'one', 'two'])
 		assert not err
@@ -94,7 +94,7 @@ class TestLaunch(BaseTest):
 	
 	def testOK(self):
 		out, err = self.run_0launch(['--dry-run', 'http://foo'])
-		self.assertEquals("Would download 'http://foo'\n", out)
+		self.assertEquals("Would download 'http://foo'\nFinished\n", out)
 		self.assertEquals("", err)
 	
 	def testDisplay(self):
@@ -167,11 +167,7 @@ class TestLaunch(BaseTest):
 		copy = os.dup(1)
 		try:
 			os.close(1)
-			try:
-				cli.main(['--list', 'UNKNOWN'])
-				assert False
-			except SystemExit:
-				pass
+			cli.main(['--list', 'UNKNOWN'])
 		finally:
 			os.dup2(copy, 1)
 

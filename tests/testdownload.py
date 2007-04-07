@@ -100,11 +100,7 @@ class TestDownload(BaseTest):
 			sys.stdin = Reply("Y\n")
 
 			assert not trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
-			try:
-				cli.main(['--import', 'Hello'])
-				assert 0
-			except SystemExit, ex:
-				assert ex.code == 0
+			cli.main(['--import', 'Hello'])
 			assert trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
 
 			# Check we imported the interface after trusting the key
@@ -113,11 +109,7 @@ class TestDownload(BaseTest):
 
 			# Shouldn't need to prompt the second time
 			sys.stdin = None
-			try:
-				cli.main(['--import', 'Hello'])
-				assert 0
-			except SystemExit, ex:
-				assert ex.code == 0
+			cli.main(['--import', 'Hello'])
 		finally:
 			sys.stdout = old_out
 	

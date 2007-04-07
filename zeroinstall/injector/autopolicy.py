@@ -77,7 +77,7 @@ class AutoPolicy(policy.Policy):
 	
 	def recalculate_with_dl(self):
 		self.recalculate()
-		if self.handler.monitored_downloads:
+		while self.handler.monitored_downloads:
 			self.handler.wait_for_downloads()
 			self.recalculate()
 	
