@@ -42,7 +42,7 @@ class TrustBox(dialog.Dialog):
 				if still_untrusted(next):
 					next.show()
 				else:
-					next.trust_keys([])
+					next.trust_keys([], domain)
 					next.destroy()	# Will trigger this again...
 		self.connect('destroy', destroy)
 

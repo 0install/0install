@@ -212,15 +212,27 @@ def _normal_mode(options, args):
 		print ex
 
 def _fork_gui(iface_uri, gui_args):
+	import selections
+
 	gui_policy = autopolicy.AutoPolicy(namespaces.injector_gui_uri)
-	# Try to start the GUI without using the network.
-	# The GUI can refresh itself if it wants to.
-	gui_policy.freshness = 0
-	gui_policy.network_use = model.network_offline
-	gui_policy.recalculate_with_dl()
-	assert gui_policy.ready		# Should always be some version available
-	gui_policy.start_downloading_impls()
-	gui_policy.handler.wait_for_downloads()
+	if iface_uri != namespaces.injector_gui_uri and gui_policy.need_download():
+		# The GUI itself needs updating. Do that first.
+		logging.info("The GUI could do with updating first.")
+		gui_sel = _fork_gui(namespaces.injector_gui_uri, [])
+		if gui_sel is None:
+			logging.info("Aborted at user request")
+			return None		# Aborted by user
+	else:
+		logging.info("GUI is up-to-date.")
+		# Try to start the GUI without using the network.
+		# The GUI can refresh itself if it wants to.
+		gui_policy.freshness = 0
+		gui_policy.network_use = model.network_offline
+		gui_policy.recalculate_with_dl()
+		assert gui_policy.ready		# Should always be some version available
+		gui_policy.start_downloading_impls()
+		gui_policy.handler.wait_for_downloads()
+		gui_sel = selections.Selections(gui_policy)
 
 	from zeroinstall.injector import run
 	import socket
@@ -233,7 +245,7 @@ def _fork_gui(iface_uri, gui_args):
 				try:
 					cli.close()
 					os.dup2(gui.fileno(), 1)
-					run.execute(gui_policy, gui_args + ['--', iface_uri])
+					run.execute_selections(gui_sel, gui_args + ['--', iface_uri])
 				except:
 					import traceback
 					traceback.print_exc()

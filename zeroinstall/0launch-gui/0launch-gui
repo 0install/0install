@@ -13,12 +13,10 @@ import pygtk; pygtk.require('2.0')
 
 __builtins__._ = lambda x: x
 
-parser = OptionParser(usage="usage: %prog [options] interface [args]")
+parser = OptionParser(usage="usage: %prog [options] interface")
 parser.add_option("", "--before", help="choose a version before this", metavar='VERSION')
 parser.add_option("-c", "--cache", help="show the cache", action='store_true')
 parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
-parser.add_option("-m", "--main", help="name of the file to execute")
-parser.add_option("-n", "--no-self-update", help="don't check for updates to the GUI itself", action='store_true')
 parser.add_option("", "--not-before", help="minimum version to choose", metavar='VERSION')
 parser.add_option("-r", "--refresh", help="check for updates of all interfaces", action='store_true')
 parser.add_option("-s", "--source", help="select source code", action='store_true')
@@ -81,26 +79,12 @@ if len(args) < 1:
 	sys.exit(1)
 
 interface_uri = args[0]
-prog_args = args[1:]
+
+if len(args) > 1:
+	parser.print_help()
+	sys.exit(1)
 
 from zeroinstall.injector import model, autopolicy, namespaces
-
-if options.no_self_update is not True:
-	gui_policy = autopolicy.AutoPolicy(namespaces.injector_gui_uri)
-	if gui_policy.need_download():
-		# Need to refresh the GUI itself first!
-		prog_args = ['--no-self-update']
-		if options.source:
-			prog_args += ['--source']
-			options.source = False
-		if options.main:
-			prog_args += ['--main', options.main]
-			options.main = None
-		prog_args += sys.argv[1:]
-
-		interface_uri = namespaces.injector_gui_uri
-		options.download_only = False
-		options.refresh = True
 
 restrictions = []
 if options.before or options.not_before:
