@@ -91,12 +91,7 @@ class Preferences(Dialog):
 		stable_toggle.connect('toggled', toggle_stability)
 
 		# Keys
-		if hasattr(gpg, 'Key'):
-			keys_area = KeyList()
-		else:
-			keys_area = gtk.Label('Sorry, this feature requires 0launch >= 0.27')
-			keys_area.set_alignment(0, 0)
-		frame(content, 'Security', keys_area, expand = True)
+		frame(content, 'Security', KeyList(), expand = True)
 
 		# Responses
 

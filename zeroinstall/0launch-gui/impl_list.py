@@ -26,24 +26,14 @@ CACHED = 4
 UNUSABLE = 5
 RELEASED = 6
 
-def interface_for(interface, impl):
-	# Since injector 0.16, we can get the interface from the impl
-	# Before that, the impl always comes from the main interface (even for feeds)
-	if hasattr(impl, 'interface'):
-		return impl.interface
-	return interface
-
 class ImplTips(TreeTips):
 	def __init__(self, interface):
 		self.interface = interface
 
 	def get_tooltip_text(self, impl):
-		if hasattr(policy, 'restrictions'):
-			restrictions = policy.restrictions.get(self.interface, [])
-			unusable = policy.get_unusable_reason(impl, restrictions)
-		else:
-			restrictions = None
-			unusable = policy.get_unusable_reason(impl)
+		restrictions = policy.restrictions.get(self.interface, [])
+
+		unusable = policy.get_unusable_reason(impl, restrictions)
 		if unusable:
 			return unusable
 
@@ -128,7 +118,7 @@ class ImplementationList(gtk.ScrolledWindow):
 						impl.user_stability = new
 					else:
 						impl.user_stability = None
-					writer.save_interface(interface_for(interface, impl))
+					writer.save_interface(impl.interface)
 					policy.recalculate()
 				popup_menu(bev, ['Unset (%s)' % upstream, None] + choices,
 					set)
@@ -145,18 +135,12 @@ class ImplementationList(gtk.ScrolledWindow):
 	
 	def set_items(self, items):
 		self.model.clear()
-		if hasattr(policy, 'restrictions'):
-			restrictions = policy.restrictions.get(self.interface, None)
-		else:
-			restrictions = None
+		restrictions = policy.restrictions.get(self.interface, None)
 		for item in items:
 			new = self.model.append()
 			self.model[new][ITEM] = item
 			self.model[new][VERSION] = item.get_version()
-			if hasattr(item, 'released') and item.released:
-				self.model[new][RELEASED] = item.released
-			else:
-				self.model[new][RELEASED] = "-"
+			self.model[new][RELEASED] = item.released or "-"
 			self.model[new][CACHED] = policy.get_cached(item)
 			if item.user_stability:
 				self.model[new][STABILITY] = str(item.user_stability).upper()
@@ -171,4 +155,3 @@ class ImplementationList(gtk.ScrolledWindow):
 	
 	def clear(self):
 		self.model.clear()
-

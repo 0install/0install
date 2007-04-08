@@ -1,8 +1,11 @@
+import zeroinstall
 from zeroinstall.injector.model import *
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import writer, namespaces, gpg
+
 import gtk, sys, os
 import sets	# Note: for Python 2.3; frozenset is only in Python 2.4
+from logging import warn
 
 import help_box
 from dialog import Dialog
@@ -59,7 +62,7 @@ def have_source_for(interface):
 			feed_iface = iface_cache.get_interface(f.uri)
 			if feed_iface.implementations:
 				impls.extend(feed_iface.implementations.values())
-		except NeedDownload:
+		except zeroinstall.NeedDownload:
 			pass	# OK, will get called again later
 		except Exception, ex:
 			warn("Failed to load feed '%s': %s", f.uri, str(ex))
@@ -121,13 +124,12 @@ class Description(gtk.ScrolledWindow):
 		if interface.last_checked:
 			buffer.insert(iter, '\nLast checked: %s' % time.ctime(interface.last_checked))
 
-		if hasattr(interface, 'last_check_attempt'):
-			if interface.last_check_attempt:
-				if interface.last_checked and interface.last_checked >= interface.last_check_attempt:
-					pass	# Don't bother reporting successful attempts
-				else:
-					buffer.insert(iter, '\nLast check attempt: %s (failed or in progress)' %
-							time.ctime(interface.last_check_attempt))
+		if interface.last_check_attempt:
+			if interface.last_checked and interface.last_checked >= interface.last_check_attempt:
+				pass	# Don't bother reporting successful attempts
+			else:
+				buffer.insert(iter, '\nLast check attempt: %s (failed or in progress)' %
+						time.ctime(interface.last_check_attempt))
 
 		buffer.insert_with_tags(iter, '\n\nDescription\n', heading_style)
 
@@ -136,41 +138,37 @@ class Description(gtk.ScrolledWindow):
 		buffer.insert(iter, '\n\n'.join(paragraphs))
 		buffer.insert(iter, '\n')
 
-		if hasattr(interface, 'get_metadata'):
-			need_gap = True
-			for x in interface.get_metadata(namespaces.XMLNS_IFACE, 'homepage'):
-				if need_gap:
-					buffer.insert(iter, '\n')
-					need_gap = False
-				buffer.insert(iter, 'Homepage: ')
-				buffer.insert_with_tags(iter, '%s\n' % x.content, self.link_style)
+		need_gap = True
+		for x in interface.get_metadata(namespaces.XMLNS_IFACE, 'homepage'):
+			if need_gap:
+				buffer.insert(iter, '\n')
+				need_gap = False
+			buffer.insert(iter, 'Homepage: ')
+			buffer.insert_with_tags(iter, '%s\n' % x.content, self.link_style)
 
-		if hasattr(iface_cache, 'get_cached_signatures'):
-			buffer.insert_with_tags(iter, '\nSignatures\n', heading_style)
-			sigs = iface_cache.get_cached_signatures(interface.uri)
-			if sigs:
-				for sig in sigs:
-					if isinstance(sig, gpg.ValidSig):
-						name = '<unknown>'
-						if hasattr(sig, 'get_details'):
-							details = sig.get_details()
-							for item in details:
-								if item[0] in ('pub', 'uid') and len(item) > 9:
-									name = item[9]
-									break
-						buffer.insert_with_tags(iter, 'Valid signature by "%s"\n- Dated: %s\n- Fingerprint: %s\n' %
-								(name, time.ctime(sig.get_timestamp()), sig.fingerprint))
-						if not sig.is_trusted():
-							if interface.uri.startswith('/'):
-								buffer.insert_with_tags(iter, 'WARNING: This key is not in the trusted list\n')
-							else:
-								buffer.insert_with_tags(iter, 'WARNING: This key is not in the trusted list (either you removed it, or '
-												'you trust one of the other signatures)\n')
-					else:
-						buffer.insert_with_tags(iter, '%s\n' % sig)
-			else:
-				buffer.insert_with_tags(iter, 'No signature information (old style interface or out-of-date cache)\n')
-
+		buffer.insert_with_tags(iter, '\nSignatures\n', heading_style)
+		sigs = iface_cache.get_cached_signatures(interface.uri)
+		if sigs:
+			for sig in sigs:
+				if isinstance(sig, gpg.ValidSig):
+					name = '<unknown>'
+					details = sig.get_details()
+					for item in details:
+						if item[0] in ('pub', 'uid') and len(item) > 9:
+							name = item[9]
+							break
+					buffer.insert_with_tags(iter, 'Valid signature by "%s"\n- Dated: %s\n- Fingerprint: %s\n' %
+							(name, time.ctime(sig.get_timestamp()), sig.fingerprint))
+					if not sig.is_trusted():
+						if interface.uri.startswith('/'):
+							buffer.insert_with_tags(iter, 'WARNING: This key is not in the trusted list\n')
+						else:
+							buffer.insert_with_tags(iter, 'WARNING: This key is not in the trusted list (either you removed it, or '
+											'you trust one of the other signatures)\n')
+				else:
+					buffer.insert_with_tags(iter, '%s\n' % sig)
+		else:
+			buffer.insert_with_tags(iter, 'No signature information (old style interface or out-of-date cache)\n')
 
 class Feeds(gtk.VPaned):
 	URI = 0
@@ -208,7 +206,7 @@ class Feeds(gtk.VPaned):
 		add_local_feed_button = dialog.MixedButton(_('Add Local Feed...'), gtk.STOCK_ADD, 0.0)
 		add_local_feed_button.connect('clicked', lambda b: add_local_feed(interface))
 		tips.set_tip(add_local_feed_button,
-			_('If you have another implementation of this interface (e.g., a '
+			_('If you have another implementation of this interface (e.g. a '
 			  'CVS checkout), you can add it to the list by registering the XML '
 			  'feed file that came with it.'))
 		buttons_vbox.add(add_local_feed_button)
@@ -262,9 +260,9 @@ class Feeds(gtk.VPaned):
 		return out
 
 	def sel_changed(self, sel):
-		model, iter = sel.get_selected()
-		if not iter: return	# build in progress
-		iface = model[iter][Feeds.URI]
+		model, miter = sel.get_selected()
+		if not miter: return	# build in progress
+		iface = model[miter][Feeds.URI]
 		self.remove_feed_button.set_sensitive(iface != self.interface.uri)
 		self.description.set_details(iface_cache.get_interface(iface))
 	
@@ -300,8 +298,6 @@ class Properties(Dialog):
 		def response(dialog, resp):
 			if resp == gtk.RESPONSE_CANCEL:
 				self.destroy()
-			#elif resp == 1:
-			#	policy.begin_iface_download(interface, True)
 			elif resp == gtk.RESPONSE_HELP:
 				properties_help.display()
 		self.connect('response', response)
@@ -433,7 +429,7 @@ def add_remote_feed(parent, interface):
 				iface = iface_cache.get_interface(url)
 				policy.begin_iface_download(iface) # Force a refresh
 				d.set_sensitive(False)
-				policy.add_dl_callback(url, lambda: download_done(iface))
+				policy.handler.add_dl_callback(url, lambda: download_done(iface))
 			except SafeException, ex:
 				error(str(ex))
 		else:
@@ -450,27 +446,16 @@ def add_local_feed(interface):
 		from zeroinstall.injector import reader
 		feed = sel.get_filename()
 		try:
-			if hasattr(policy, 'get_feed_targets'):
-				feed_targets = policy.get_feed_targets(feed)
-				if interface not in feed_targets:
-					raise Exception("Not a valid feed for '%s'; this is a feed for:\n%s" %
-							(interface.uri,
-							'\n'.join([f.uri for f in feed_targets])))
-				if interface.get_feed(feed):
-					dialog.alert(None, 'This feed is already registered.')
-				else:
-					interface.feeds.append(Feed(feed, user_override = True, arch = None))
+			feed_targets = policy.get_feed_targets(feed)
+			if interface not in feed_targets:
+				raise Exception("Not a valid feed for '%s'; this is a feed for:\n%s" %
+						(interface.uri,
+						'\n'.join([f.uri for f in feed_targets])))
+			if interface.get_feed(feed):
+				dialog.alert(None, 'This feed is already registered.')
 			else:
-				doc = minidom.parse(feed)
-				uri = doc.documentElement.getAttribute('uri')
-				if not uri:
-					raise Exception("Missing uri attribute in interface file '%s'" % feed)
-				if uri != interface.uri:
-					raise Exception("Feed is for interface '%s', not '%s'" %
-							(uri, interface.uri))
-				if feed in interface.feeds:
-					raise Exception("Feed is already registered")
-				interface.feeds.append(feed)
+				interface.feeds.append(Feed(feed, user_override = True, arch = None))
+
 			writer.save_interface(interface)
 			sel.destroy()
 			reader.update_from_cache(interface)

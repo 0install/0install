@@ -2,7 +2,7 @@ import gtk, os, gobject, sys
 
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector.policy import Policy
-from zeroinstall.injector import download
+from zeroinstall.injector import download, handler
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector.reader import InvalidInterface
 import dialog
@@ -13,64 +13,18 @@ version = '0.26'
 # Singleton Policy
 policy = None
 
-class GUIPolicy(Policy):
-	window = None
-	pulse = None
+class GUIHandler(object):
 	monitored_downloads = None
-	checking = None		# GtkDialog ("Checking for updates...")
-	original_implementation = None
-	download_only = None
-	prog_args = None
-	main_exec = None
-	dl_callbacks = {}	# Download -> [ callback ]
+	dl_callbacks = None		# Download -> [ callback ]
+	pulse = None
+	policy = None
 
-	def __init__(self, interface, prog_args, download_only, refresh, main, src = False, restrictions = None):
-		if src:
-			Policy.__init__(self, interface, src = src)
-		else:
-			Policy.__init__(self, interface)	# For older versions
-		global policy
-		assert policy is None
-
-		if restrictions:
-			for r in restrictions:
-				self.root_restrictions.append(r)
-
-		policy = self
-		self.main_exec = main
-		self.prog_args = prog_args
-		self.download_only = download_only
+	def __init__(self, policy):
+		self.policy = policy
 		self.monitored_downloads = []
-
-		import mainwindow
-		self.window = mainwindow.MainWindow(prog_args, download_only)
-		root = iface_cache.get_interface(policy.root)
-		self.window.browser.set_root(root)
-
-		if refresh:
-			# If we have feeds then treat this as a refresh,
-			# even if we've never seen the main interface before.
-			# Used the first time the GUI is used, for example.
-			if root.name is not None or root.feeds:
-				self.checking = CheckingBox(root)
-
-			self.refresh_all(force = False)
-	
-	def show_details(self):
-		"""The checking box has disappeared. Should we show the details window, or
-		just run the program right now?"""
-		if self.checking.show_details:
-			return True		# User clicked on the Details button
-		if not self.ready:
-			return True		# Not ready to start (can't find an implementation)
-		if self.versions_changed():
-			return True		# Confirm that the new version should be used
-		if self.get_uncached_implementations():
-			return True		# Need to download something; check first
-		return False
+		self.dl_callbacks = {}
 
 	def get_download(self, url, force = False):
-		# For injector >= 0.20
 		dl = None
 		for dl in self.monitored_downloads:
 			if dl.url == url:
@@ -98,10 +52,7 @@ class GUIPolicy(Policy):
 
 	def monitor_download(self, dl):
 		from zeroinstall.injector import download
-		if hasattr(dl, 'interface'):
-			name = dl.interface
-		else:
-			name = os.path.basename(dl.url)
+		name = os.path.basename(dl.url)
 
 		self.monitored_downloads.append(dl)
 
@@ -113,32 +64,32 @@ class GUIPolicy(Policy):
 				self.monitored_downloads.remove(dl)
 				if len(self.monitored_downloads) == 0:
 					gobject.source_remove(self.pulse)
-					self.window.progress.hide()
+					self.policy.window.progress.hide()
 					self.pulse = None
 				try:
 					dl.error_stream_closed()
 					if hasattr(download, 'IconDownload') and \
 					     isinstance(dl, download.IconDownload):
-						if self.window:
-							self.window.browser.build_tree()
+						if self.policy.window:
+							self.policy.window.browser.build_tree()
 				except download.DownloadError, ex:
-					dialog.alert(self.window,
+					dialog.alert(self.policy.window,
 						"Error downloading '%s':\n\n%s" %
 						(name, ex))
 				except InvalidInterface, ex:
-					dialog.alert(self.window,
+					dialog.alert(self.policy.window,
 						"Syntax error in downloaded interface '%s':\n\n%s" %
 						(name, ex))
 				except SafeException, ex:
-					dialog.alert(self.window,
+					dialog.alert(self.policy.window,
 						"Error fetching '%s':\n\n%s" %
 						(name, ex))
 
 				for cb in self.dl_callbacks.get(dl, []):
 					cb()
 
-				if len(self.monitored_downloads) == 0 and self.checking:
-					self.checking.updates_done(self.versions_changed())
+				if len(self.monitored_downloads) == 0 and self.policy.checking:
+					self.policy.checking.updates_done(self.policy.versions_changed())
 				return False
 			dl.error_stream_data(got)
 			return True
@@ -149,38 +100,79 @@ class GUIPolicy(Policy):
 
 		if self.pulse is None:
 			def pulse():
-				if self.checking:
-					self.checking.progress.pulse()
+				if self.policy.checking:
+					self.policy.checking.progress.pulse()
 				else:
-					self.window.progress.pulse()
+					self.policy.window.progress.pulse()
 				return True
 			self.pulse = gobject.timeout_add(50, pulse)
-			self.window.progress.show()
+			self.policy.window.progress.show()
+
+	def confirm_trust_keys(self, interface, sigs, iface_xml):
+		import trust_box
+		trust_box.confirm_trust(interface, sigs, iface_xml)
 	
+	def report_error(self, ex):
+		dialog.alert(None, str(ex))
+
+class GUIPolicy(Policy):
+	window = None
+	checking = None		# GtkDialog ("Checking for updates...")
+	original_implementation = None
+	download_only = None
+
+	def __init__(self, interface, download_only, refresh, src = False, restrictions = None):
+		Policy.__init__(self, interface, GUIHandler(self), src = src)
+		global policy
+		assert policy is None
+		policy = self
+
+		if restrictions:
+			for r in restrictions:
+				self.root_restrictions.append(r)
+
+		self.download_only = download_only
+
+		import mainwindow
+		self.window = mainwindow.MainWindow(download_only)
+		root = iface_cache.get_interface(self.root)
+		self.window.browser.set_root(root)
+
+		if refresh:
+			# If we have feeds then treat this as a refresh,
+			# even if we've never seen the main interface before.
+			# Used the first time the GUI is used, for example.
+			if root.name is not None or root.feeds:
+				self.checking = CheckingBox(root)
+
+			self.refresh_all(force = False)
+	
+	def show_details(self):
+		"""The checking box has disappeared. Should we show the details window, or
+		just run the program right now?"""
+		if self.checking.show_details:
+			return True		# User clicked on the Details button
+		if not self.ready:
+			return True		# Not ready to start (can't find an implementation)
+		if self.versions_changed():
+			return True		# Confirm that the new version should be used
+		if self.get_uncached_implementations():
+			return True		# Need to download something; check first
+		return False
+
 	def store_icon(self, interface, stream):
 		Policy.store_icon(self, interface, stream)
 		if self.window:
 			self.window.browser.build_tree()
 	
-	def recalculate(self):
-		Policy.recalculate(self)
-		try:
-			self.ready
-		except:
-			self.ready = True
-			print >>sys.stderr, "Your version of the injector is very old. " \
-				"Try upgrading (http://0install.net/injector.html)"
-		else:
-			self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
-
-	def confirm_trust_keys(self, interface, sigs, iface_xml):
-		import trust_box
-		trust_box.confirm_trust(interface, sigs, iface_xml)
+	def recalculate(self, fetch_stale_interfaces = True):
+		Policy.recalculate(self, fetch_stale_interfaces)
+		self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
 
 	def main(self):
 		if self.checking:
 			self.checking.show()
-			if not self.monitored_downloads:
+			if not self.handler.monitored_downloads:
 				self.checking.updates_done(self.versions_changed())
 			dialog.wait_for_no_windows()
 			show_details = self.show_details()
@@ -195,22 +187,8 @@ class GUIPolicy(Policy):
 			self.window.show()
 			gtk.main()
 	
-	def get_best_source(self, impl):
-		"""Return the best download source for this implementation."""
-		if impl.download_sources:
-			return impl.download_sources[0]
-		return None
-
-	def refresh_all(self, force = True):
-		if hasattr(Policy, 'refresh_all'):
-			Policy.refresh_all(self, force)
-		else:
-			# XXX: Remove this. Moved to Policy.
-			for x in self.walk_interfaces():
-				self.begin_iface_download(x, force)
-	
 	def abort_all_downloads(self):
-		for x in self.monitored_downloads[:]:
+		for x in self.handler.monitored_downloads[:]:
 			x.abort()
 	
 	def set_original_implementations(self):
@@ -236,9 +214,6 @@ class GUIPolicy(Policy):
 			if old.id != new.id:
 				return True
 		return False
-	
-	def report_error(self, ex):
-		dialog.alert(None, str(ex))
 
 def pretty_size(size):
 	if size is None:

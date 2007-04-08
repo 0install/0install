@@ -23,11 +23,8 @@ class TrustBox(dialog.Dialog):
 	def __init__(self, interface, sigs, iface_xml):
 		dialog.Dialog.__init__(self)
 
-		if hasattr(trust, 'domain_from_url'):
-			domain = trust.domain_from_url(interface.uri)
-			assert domain
-		else:
-			domain = None	# 0launch <= 0.26
+		domain = trust.domain_from_url(interface.uri)
+		assert domain
 
 		def destroy(box):
 			global _queue
@@ -36,10 +33,7 @@ class TrustBox(dialog.Dialog):
 			# Remove any queued boxes that are no longer required
 			def still_untrusted(box):
 				for sig in box.valid_sigs:
-					if domain is None:
-						is_trusted = trust.trust_db.is_trusted(sig.fingerprint)
-					else:
-						is_trusted = trust.trust_db.is_trusted(sig.fingerprint, domain)
+					is_trusted = trust.trust_db.is_trusted(sig.fingerprint, domain)
 					if is_trusted:
 						return False
 				return True
@@ -82,15 +76,14 @@ class TrustBox(dialog.Dialog):
 		label.set_padding(4, 4)
 		vbox.pack_start(label, False, True, 0)
 
-		if domain:
-			currently_trusted_keys = trust.trust_db.get_keys_for_domain(domain)
-			if currently_trusted_keys:
-				keys = [gpg.load_key(fingerprint) for fingerprint in currently_trusted_keys]
-				descriptions = ["%s\n(fingerprint: %s)" % (key.name, pretty_fp(key.fingerprint))
-						for key in keys]
-			else:
-				descriptions = ['None']
-			dialog.frame(vbox, 'Keys already approved for "%s"' % domain, '\n'.join(descriptions))
+		currently_trusted_keys = trust.trust_db.get_keys_for_domain(domain)
+		if currently_trusted_keys:
+			keys = [gpg.load_key(fingerprint) for fingerprint in currently_trusted_keys]
+			descriptions = ["%s\n(fingerprint: %s)" % (key.name, pretty_fp(key.fingerprint))
+					for key in keys]
+		else:
+			descriptions = ['None']
+		dialog.frame(vbox, 'Keys already approved for "%s"' % domain, '\n'.join(descriptions))
 
 		if len(self.valid_sigs) == 1:
 			label = left('This key signed the feed:')
@@ -138,13 +131,11 @@ class TrustBox(dialog.Dialog):
 			hint = left(hints.get(sig.fingerprint, 'Warning: Nothing known about this key!'))
 			hint.set_line_wrap(True)
 			dialog.frame(page, 'Unreliable hints database says', hint)
-			#hint.set_padding(4, 4)
 
-			if domain:
-				already_trusted = trust.trust_db.get_trust_domains(sig.fingerprint)
-				if already_trusted:
-					dialog.frame(page, 'You already trust this key for these domains',
-						'\n'.join(already_trusted))
+			already_trusted = trust.trust_db.get_trust_domains(sig.fingerprint)
+			if already_trusted:
+				dialog.frame(page, 'You already trust this key for these domains',
+					'\n'.join(already_trusted))
 
 			trust_checkbox[sig] = gtk.CheckButton('_Trust this key')
 			page.pack_start(trust_checkbox[sig], False, True, 0)
@@ -164,24 +155,13 @@ class TrustBox(dialog.Dialog):
 			self.destroy()
 		self.connect('response', response)
 	
-	def trust_keys(self, sigs, domain = None):
+	def trust_keys(self, sigs, domain):
+		assert domain
 		try:
 			for sig in sigs:
-				if domain is None:
-					# 0launch <= 0.26
-					trust.trust_db.trust_key(sig.fingerprint)
-				else:
-					trust.trust_db.trust_key(sig.fingerprint, domain)
+				trust.trust_db.trust_key(sig.fingerprint, domain)
 
-			if hasattr(trust.trust_db, 'notify'):
-				# 0launch >= 0.25
-				trust.trust_db.notify()
-			else:
-				# Problem: calls recalculate(), which may trigger re-downloading interfaces
-				# we are currently waiting to confirm!
-				if not iface_cache.update_interface_if_trusted(self.interface, self.sigs,
-									      self.iface_xml):
-					raise Exception('Bug: still not trusted!!')
+			trust.trust_db.notify()
 		except Exception, ex:
 			dialog.alert(None, ex)
 			if not isinstance(ex, SafeException):

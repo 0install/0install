@@ -3,7 +3,7 @@ import gtk, gobject
 import dialog
 from logging import info
 
-from zeroinstall.injector import reader, iface_cache
+from zeroinstall.injector import reader, iface_cache, model
 from zeroinstall.injector.policy import Policy
 from gui import policy
 	
@@ -44,12 +44,6 @@ class Command:
 			return False
 
 def compile(interface):
-	import zeroinstall
-	if reader.parse_version(zeroinstall.version) < reader.parse_version('0.24'):
-		dialog.alert(None, _('Sorry, the compile feature requires 0launch 0.24 or later, but '
-			'you only have version %s.\n\nNew versions are available from http://0install.net')
-			% zeroinstall.version)
-		return
 	def add_feed():
 		# A new local feed may have been registered, so update the interface from the cache
 		info("0compile command completed successfully. Reloading interface details.")
@@ -70,7 +64,7 @@ def compile(interface):
 		min_version = impl.metadata.get(XMLNS_0COMPILE + ' min-version', None)
 		if not min_version: min_version = '0.4'
 		# Check the syntax is valid and the version is high enough
-		if reader.parse_version(min_version) < reader.parse_version('0.4'):
+		if model.parse_version(min_version) < model.parse_version('0.4'):
 			min_version = '0.4'
 
 		# Do the whole build-and-register-feed

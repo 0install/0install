@@ -15,7 +15,7 @@ class MainWindow(Dialog):
 	browser = None
 	download_box = None
 
-	def __init__(self, prog_args, download_only):
+	def __init__(self, download_only):
 		Dialog.__init__(self)
 		self.set_title('Zero Install')
 		self.set_default_size(gtk.gdk.screen_width() * 2 / 5, 300)
@@ -74,7 +74,7 @@ class MainWindow(Dialog):
 
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		if download_only:
-			self.add_mixed_button('_Download', gtk.STOCK_NETWORK, gtk.RESPONSE_OK)
+			self.add_mixed_button('Download', gtk.STOCK_NETWORK, gtk.RESPONSE_OK)
 		else:
 			self.add_mixed_button('Run', gtk.STOCK_EXECUTE, gtk.RESPONSE_OK)
 		self.set_default_response(gtk.RESPONSE_OK)

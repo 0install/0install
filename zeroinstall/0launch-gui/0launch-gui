@@ -107,10 +107,9 @@ if options.before or options.not_before:
 	restrictions.append(model.Restriction(model.parse_version(options.before),
 					      model.parse_version(options.not_before)))
 
-policy = gui.GUIPolicy(interface_uri, prog_args,
+policy = gui.GUIPolicy(interface_uri,
 		   download_only = bool(options.download_only),
 		   refresh = bool(options.refresh),
-		   main = options.main,
 		   src = options.source,
 		   restrictions = restrictions)
 policy.main()

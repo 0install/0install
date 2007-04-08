@@ -232,8 +232,6 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		try:
 			return self.cached_icon[iface.uri]
 		except KeyError:
-			if not hasattr(policy, 'get_icon_path'):
-				return None		# injector < 0.19
 			path = policy.get_icon_path(iface)
 			if path:
 				try:

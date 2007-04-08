@@ -21,7 +21,7 @@ def download_with_gui(mainwindow):
 
 		# Existing downloads don't disappear until the kill signal takes
 		# effect. Rather than waiting, just filter them out later.
-		existing_downloads = sets.ImmutableSet(policy.monitored_downloads)
+		existing_downloads = sets.ImmutableSet(policy.handler.monitored_downloads)
 
 		for iface, impl in policy.get_uncached_implementations():
 			if not impl.download_sources:
@@ -30,11 +30,7 @@ def download_with_gui(mainwindow):
 					"downloaded (no download locations given in "
 					"interface!)")
 			source = policy.get_best_source(impl)
-			if hasattr(policy, 'begin_impl_download'):
-				policy.begin_impl_download(impl, source, force = True)
-			else:
-				dl = download.begin_impl_download(source, force = True)
-				policy.monitor_download(dl)
+			policy.begin_impl_download(impl, source, force = True)
 		def run_it():
 			policy.abort_all_downloads()
 
@@ -45,7 +41,7 @@ def download_with_gui(mainwindow):
 			sys.stdout.write('\n')
 			mainwindow.destroy()
 			sys.exit(0)			# Success
-		if sets.ImmutableSet(policy.monitored_downloads) - existing_downloads:
+		if sets.ImmutableSet(policy.handler.monitored_downloads) - existing_downloads:
 			DownloadProgessBox(run_it, mainwindow).show()
 		else:
 			run_it()
@@ -73,12 +69,8 @@ class DownloadProgessBox(Dialog):
 
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 
-		if hasattr(download, 'ImplementationDownload'):
-			downloads = [(x, x.source.size) for x in policy.handler.monitored_downloads
-					if isinstance(x, download.ImplementationDownload)]
-		else:
-			downloads = [(x, x.expected_size) for x in policy.handler.monitored_downloads
-					if hasattr(x, 'expected_size')]
+		downloads = [(x, x.expected_size) for x in policy.handler.monitored_downloads
+				if hasattr(x, 'expected_size')]
 
 		table = gtk.Table(len(downloads) + 1, 3)
 		self.vbox.pack_start(table, False, False, 0)
@@ -114,7 +106,7 @@ class DownloadProgessBox(Dialog):
 		self.connect('response', resp)
 
 		def update_bars():
-			if not policy.monitored_downloads:
+			if not policy.handler.monitored_downloads:
 				if policy.get_uncached_implementations():
 					return False
 				self.destroy()

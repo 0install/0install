@@ -23,7 +23,7 @@ class Action(gobject.GObject):
 		return getattr(self, property.name)
 
 	def do_set_property(self, property, value):
-		return setattr(self, property.name, value)
+		setattr(self, property.name, value)
 	
 	def connect_proxy(self, widget):
 		assert self.__proxy is None
