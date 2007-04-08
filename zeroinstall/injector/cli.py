@@ -197,7 +197,8 @@ def _normal_mode(options, args):
 			if options.source:
 				gui_args.insert(0, '--source')
 			sels = _fork_gui(iface_uri, gui_args)
-			if not sels: return		# Aborted
+			if not sels:
+				sys.exit(1)		# Aborted
 			if options.get_selections:
 				doc = sels.toDOM()
 				doc.writexml(sys.stdout)

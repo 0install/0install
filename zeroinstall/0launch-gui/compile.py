@@ -36,7 +36,7 @@ class Command:
 				if os.WIFEXITED(status):
 					status = os.WEXITSTATUS(status)
 					if status == 1 and not self.error:
-						return # Cancelled
+						return False # Cancelled
 					dialog.alert(None, "Command failed with exit code %d:\n%s\n" %
 						(status, self.error))
 				else:
