@@ -70,7 +70,8 @@ class TrustBox(dialog.Dialog):
 
 		self.valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
 		if not self.valid_sigs:
-			raise SafeException('No valid signatures found')
+			raise SafeException('No valid signatures found. Signatures:' +
+					''.join(['\n- ' + str(s) for s in sigs]))
 
 		notebook = gtk.Notebook()
 
