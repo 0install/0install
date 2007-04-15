@@ -23,9 +23,7 @@ def _add_impl(parent, impl):
 		node.setAttribute('id', impl.id)
 
 def save_interface(interface):
-	path = basedir.save_config_path(config_site, config_prog, 'user_overrides')
-	path = os.path.join(path, escape(interface.uri))
-	#print "Save to", path
+	user_overrides = basedir.save_config_path(config_site, config_prog, 'user_overrides')
 
 	impl = minidom.getDOMImplementation()
 	doc = impl.createDocument(XMLNS_IFACE, 'interface-preferences', None)
@@ -56,5 +54,12 @@ def save_interface(interface):
 			if feed.arch:
 				elem.setAttribute('arch', feed.arch)
 
-	doc.writexml(file(path + '.new', 'w'), addindent = " ", newl = '\n')
-	os.rename(path + '.new', path)
+	import tempfile
+	tmp_fd, tmp_name = tempfile.mkstemp(dir = user_overrides)
+	try:
+		doc.writexml(os.fdopen(tmp_fd, 'w'), addindent = " ", newl = '\n')
+		path = os.path.join(user_overrides, escape(interface.uri))
+		os.rename(tmp_name, path)
+	except:
+		os.unlink(tmp_name)
+		raise
