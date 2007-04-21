@@ -236,39 +236,42 @@ def _fork_gui(iface_uri, gui_args):
 		gui_sel = selections.Selections(gui_policy)
 
 	from zeroinstall.injector import run
-	import socket
-	cli, gui = socket.socketpair()
+	cli, gui = os.pipe()		# socket.socketpair() not in Python 2.3 :-(
 	try:
 		child = os.fork()
 		if child == 0:
 			# We are the child
 			try:
 				try:
-					cli.close()
-					os.dup2(gui.fileno(), 1)
+					os.close(cli)
+					os.dup2(gui, 1)
 					run.execute_selections(gui_sel, gui_args + ['--', iface_uri])
 				except:
 					import traceback
-					traceback.print_exc()
+					traceback.print_exc(file = sys.stderr)
 			finally:
+				sys.stderr.flush()
 				os._exit(1)
-		gui.close()
+		os.close(gui)
 		gui = None
+
+		logging.info("Waiting for selections from GUI...")
 
 		xml = ""
 		while True:
-			got = cli.recv(256)
+			got = os.read(cli, 256)
 			if not got: break
 			xml += got
 		pid, status = os.waitpid(child, 0)
 		assert pid == child
 		if status == 1 << 8:
+			logging.info("User cancelled the GUI; aborting")
 			return None		# Aborted
 		if status != 0:
 			raise Exception("Error from GUI: code = %d" % status)
 	finally:
-		if cli is not None: cli.close()
-		if gui is not None: gui.close()
+		if cli is not None: os.close(cli)
+		if gui is not None: os.close(gui)
 	
 	from StringIO import StringIO
 	from zeroinstall.injector import qdom, selections

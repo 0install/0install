@@ -4,7 +4,7 @@ import unittest
 import logging
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model, iface_cache, cli, download
+from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model, iface_cache, cli, download, writer
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
 
 class BaseTest(unittest.TestCase):
@@ -28,6 +28,7 @@ class BaseTest(unittest.TestCase):
 
 		if os.environ.has_key('DISPLAY'):
 			del os.environ['DISPLAY']
+		namespaces.injector_gui_uri = os.path.join(os.path.dirname(__file__), 'test-gui.xml')
 
 		logging.getLogger().setLevel(logging.WARN)
 

@@ -102,21 +102,19 @@ class TestLaunch(BaseTest):
 		out, err = self.run_0launch(['--dry-run', 'http://foo'])
 		# Uses local copy of GUI
 		assert out.startswith("Would execute: ")
-		assert '0launch-gui' in out
+		assert 'basetest.py' in out
 		self.assertEquals("", err)
 
 		del os.environ['DISPLAY']
 		out, err = self.run_0launch(['--gui', '--dry-run'])
-		assert out.startswith("Would execute: ")
-		assert '0launch-gui' in out
 		self.assertEquals("", err)
+		self.assertEquals("Finished\n", out)
 
 	def testRefreshDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run_0launch(['--dry-run', '--download-only',
-				     '--refresh', 'http://foo'])
+		out, err = self.run_0launch(['--dry-run', '--refresh', 'http://foo'])
 		assert out.startswith("Would execute: ")
-		assert '0launch-gui' in out
+		assert 'basetest.py' in out
 		self.assertEquals("", err)
 	
 	def testNeedDownload(self):

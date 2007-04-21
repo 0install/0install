@@ -1,0 +1,6 @@
+#!/bin/sh
+MYDIR=`dirname "$0"`
+cat << EOF
+<?xml version="1.0" ?>
+<selections interface="http://foo" xmlns="http://zero-install.sourceforge.net/2004/injector/interface"><selection id="$MYDIR" interface="http://foo" main="basetest.py" version="1"/></selections>
+EOF
