@@ -120,6 +120,7 @@ def _exec_maybe_sandboxed(writable, prog, *args):
 	"""execlp prog, with (only) the 'writable' directory writable if sandboxing is available.
 	If no sandbox is available, run without a sandbox."""
 	prog_path = _find_in_path(prog)
+	if not prog_path: raise Exception("'%s' not found in $PATH" % prog)
 	if _pola_run is None:
 		os.execlp(prog_path, prog_path, *args)
 	# We have pola-shell :-)
