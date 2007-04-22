@@ -227,17 +227,17 @@ def _read_bytes(fd, nbytes, null_ok = False):
 	logging.debug("Message from GUI: %s" % repr(data))
 	return data
 
-def _fork_gui(iface_uri, gui_args, prog_args, options):
+def _fork_gui(iface_uri, gui_args, prog_args, options = None):
 	"""Run the GUI to get the selections.
 	prog_args and options are used only if the GUI requests a test.
 	"""
 	import selections
 
 	gui_policy = autopolicy.AutoPolicy(namespaces.injector_gui_uri)
-	if iface_uri != namespaces.injector_gui_uri and gui_policy.need_download():
+	if iface_uri != namespaces.injector_gui_uri and (gui_policy.need_download() or gui_policy.stale_feeds):
 		# The GUI itself needs updating. Do that first.
 		logging.info("The GUI could do with updating first.")
-		gui_sel = _fork_gui(namespaces.injector_gui_uri, [])
+		gui_sel = _fork_gui(namespaces.injector_gui_uri, [], [])
 		if gui_sel is None:
 			logging.info("Aborted at user request")
 			return None		# Aborted by user
@@ -293,7 +293,9 @@ def _fork_gui(iface_uri, gui_args, prog_args, options):
 
 				if dom.getAttribute('run-test'):
 					logging.info("Testing program, as requested by GUI...")
-					output = run.test_selections(sels, prog_args, options.dry_run, options.main)
+					output = run.test_selections(sels, prog_args,
+								     bool(options and options.dry_run),
+								     options and options.main)
 					logging.info("Sending results to GUI...")
 					output = ('Length:%8x\n' % len(output)) + output
 					logging.debug("Sending: %s" % `output`)
