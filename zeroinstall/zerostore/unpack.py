@@ -11,6 +11,7 @@ import sha
 import re
 from logging import debug, info, warn
 from zeroinstall import SafeException
+from zeroinstall.injector.run import find_in_path
 
 _cpio_version = None
 def _get_cpio_version():
@@ -53,13 +54,7 @@ def recent_gnu_tar():
 	debug("Recent GNU tar = %s", recent_gnu_tar)
 	return recent_gnu_tar
 
-def _find_in_path(prog):
-	for d in os.environ['PATH'].split(':'):
-		path = os.path.join(d, prog)
-		if os.path.isfile(path):
-			return path
-	return None
-_pola_run = _find_in_path('pola-run')
+_pola_run = find_in_path('pola-run')
 if _pola_run:
 	info('Found pola-run: %s', _pola_run)
 else:
@@ -84,30 +79,30 @@ def check_type_ok(mime_type):
 	@raise SafeException: if the needed software is not available"""
 	assert mime_type
 	if mime_type == 'application/x-rpm':
-		if not _find_in_path('rpm2cpio'):
+		if not find_in_path('rpm2cpio'):
 			raise SafeException("This package looks like an RPM, but you don't have the rpm2cpio command "
 					"I need to extract it. Install the 'rpm' package first (this works even if "
 					"you're on a non-RPM-based distribution such as Debian).")
 	elif mime_type == 'application/x-deb':
-		if not _find_in_path('ar'):
+		if not find_in_path('ar'):
 			raise SafeException("This package looks like a Debian package, but you don't have the 'ar' command "
 					"I need to extract it. Install the package containing it (sometimes called 'binutils') "
 					"first. This works even if you're on a non-Debian-based distribution such as Red Hat).")
 	elif mime_type == 'application/x-bzip-compressed-tar':
-		if not _find_in_path('bunzip2'):
+		if not find_in_path('bunzip2'):
 			raise SafeException("This package looks like a bzip2-compressed package, but you don't have the 'bunzip2' command "
 					"I need to extract it. Install the package containing it (it's probably called 'bzip2') "
 					"first.")
 	elif mime_type == 'application/zip':
-		if not _find_in_path('unzip'):
+		if not find_in_path('unzip'):
 			raise SafeException("This package looks like a zip-compressed archive, but you don't have the 'unzip' command "
 					"I need to extract it. Install the package containing it first.")
 	elif mime_type == 'application/vnd.ms-cab-compressed':
-		if not _find_in_path('cabextract'):
+		if not find_in_path('cabextract'):
 			raise SafeException("This package looks like a Microsoft Cabinet archive, but you don't have the 'cabextract' command "
 					"I need to extract it. Install the package containing it first.")
 	elif mime_type == 'application/x-lzma-compressed-tar':
-		if not _find_in_path('unlzma'):
+		if not find_in_path('unlzma'):
 			raise SafeException("This package looks like an LZMA archive, but you don't have the 'unlzma' command "
 					"I need to extract it. Install the package containing it (it's probably called 'lzma') first.")
 	elif mime_type in ('application/x-compressed-tar', 'application/x-tar'):
@@ -119,7 +114,7 @@ def check_type_ok(mime_type):
 def _exec_maybe_sandboxed(writable, prog, *args):
 	"""execlp prog, with (only) the 'writable' directory writable if sandboxing is available.
 	If no sandbox is available, run without a sandbox."""
-	prog_path = _find_in_path(prog)
+	prog_path = find_in_path(prog)
 	if not prog_path: raise Exception("'%s' not found in $PATH" % prog)
 	if _pola_run is None:
 		os.execlp(prog_path, prog_path, *args)

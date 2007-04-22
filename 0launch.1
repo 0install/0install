@@ -170,6 +170,32 @@ More verbose output. Use twice for even more verbose output.
 \fB-V\fP, \fB--version\fP
 Display version information.
 
+.TP
+\fB-w\fP, \fB--wrapper=COMMAND\fP
+Instead of executing the chosen program directly, run \fBCOMMAND PROGRAM ARGS\fP.
+This is useful for running debuggers and tracing tools on the program (rather
+than on 0launch!). Note that the wrapper is executed in the environment selected
+by the program; hence, this mechanism cannot be used for sandboxing. See the
+DEBUGGING section below.
+
+.SH DEBUGGING TIPS
+
+.PP
+To debug 0launch itself, use the --verbose and --console options. For example:
+
+.B $ 0launch -vvc http://myprog
+
+.PP
+To trace or debug programs run by 0launch, use the --wrapper option.
+For example, to run \fBmyprog --help\fP, displaying all calls to open(2):
+
+.B $ 0launch --wrapper="strace -e open" http://myprog --help
+
+If your program is interpreted (e.g. a Python program), and you wish to debug
+the interpreter running it, you can do it like this:
+
+.B $ 0launch --wrapper="gdb --args python" http://myprog --help
+
 .SH FILES
 
 Configuration files (see freedesktop.org basedir spec):

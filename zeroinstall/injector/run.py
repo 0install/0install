@@ -16,7 +16,7 @@ def do_env_binding(binding, path):
 					os.environ.get(binding.name, None))
 	info("%s=%s", binding.name, os.environ[binding.name])
 
-def execute(policy, prog_args, dry_run = False, main = None):
+def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
 	Returns normally only for a successful dry run.
 	
@@ -35,13 +35,13 @@ def execute(policy, prog_args, dry_run = False, main = None):
 					do_env_binding(b, policy.get_implementation_path(dep_impl))
 	
 	root_impl = policy.get_implementation(iface)
-	_execute(root_impl, prog_args, dry_run, main)
+	_execute(root_impl, prog_args, dry_run, main, wrapper)
 
 def _get_implementation_path(id):
 	if id.startswith('/'): return id
 	return iface_cache.stores.lookup(id)
 
-def execute_selections(selections, prog_args, dry_run = False, main = None):
+def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
 	Returns normally only for a successful dry run.
 	
@@ -56,11 +56,12 @@ def execute_selections(selections, prog_args, dry_run = False, main = None):
 					do_env_binding(b, _get_implementation_path(dep_impl.id))
 	
 	root_impl = sels[selections.interface]
-	_execute(root_impl, prog_args, dry_run, main)
+	_execute(root_impl, prog_args, dry_run, main, wrapper)
 
-def test_selections(selections, prog_args, dry_run, main):
+def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 	"""Run the program in a child process, collecting stdout and stderr.
 	@return: the output produced by the process
+	@since: 0.27
 	"""
 	args = []
 	import tempfile
@@ -96,7 +97,7 @@ def test_selections(selections, prog_args, dry_run, main):
 	
 	return results
 
-def _execute(root_impl, prog_args, dry_run, main):
+def _execute(root_impl, prog_args, dry_run, main, wrapper):
 	assert root_impl is not None
 
 	if main is None:
@@ -116,6 +117,10 @@ def _execute(root_impl, prog_args, dry_run, main):
 		raise SafeException("File '%s' does not exist.\n"
 				"(implementation '%s' + program '%s')" %
 				(prog_path, root_impl.id, main))
+	if wrapper:
+		prog_args = ['-c', wrapper + ' "$@"', '-', prog_path] + list(prog_args)
+		prog_path = '/bin/sh'
+
 	if dry_run:
 		print "Would execute:", prog_path
 	else:
@@ -126,3 +131,17 @@ def _execute(root_impl, prog_args, dry_run, main):
 			os.execl(prog_path, prog_path, *prog_args)
 		except OSError, ex:
 			raise SafeException("Failed to run '%s': %s" % (prog_path, str(ex)))
+
+def find_in_path(prog):
+	"""Search $PATH for prog.
+	If prog is an absolute path, return it unmodified.
+	@param prog: name of executable to find
+	@return: the full path of prog, or None if not found
+	@since: 0.27
+	"""
+	if os.path.isabs(prog): return prog
+	for d in os.environ['PATH'].split(':'):
+		path = os.path.join(d, prog)
+		if os.path.isfile(path):
+			return path
+	return None

@@ -67,11 +67,11 @@ class AutoPolicy(policy.Policy):
 			raise NeedDownload(download_source.url)
 		return policy.Policy.begin_archive_download(self, download_source, success_callback, force = force)
 
-	def execute(self, prog_args, main = None):
+	def execute(self, prog_args, main = None, wrapper = None):
 		self.start_downloading_impls()
 		self.handler.wait_for_downloads()
 		if not self.download_only:
-			run.execute(self, prog_args, dry_run = self.dry_run, main = main)
+			run.execute(self, prog_args, dry_run = self.dry_run, main = main, wrapper = wrapper)
 		else:
 			info("Downloads done (download-only mode)")
 	

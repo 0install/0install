@@ -162,7 +162,7 @@ def _normal_mode(options, args):
 		if options.get_selections:
 			_get_selections(policy)
 		else:
-			policy.execute(args[1:], main = options.main)
+			policy.execute(args[1:], main = options.main, wrapper = options.wrapper)
 			assert options.dry_run or options.download_only
 		return
 
@@ -204,7 +204,7 @@ def _normal_mode(options, args):
 				doc.writexml(sys.stdout)
 				sys.stdout.write('\n')
 			elif not options.download_only:
-				run.execute_selections(sels, prog_args, options.dry_run, options.main)
+				run.execute_selections(sels, prog_args, options.dry_run, options.main, options.wrapper)
 		else:
 			#program_log('download_and_execute ' + iface_uri)
 			policy.download_and_execute(prog_args, refresh = bool(options.refresh), main = options.main)
@@ -364,6 +364,7 @@ def main(command_args):
 	parser.add_option("-s", "--source", help="select source code", action='store_true')
 	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 	parser.add_option("-V", "--version", help="display version information", action='store_true')
+	parser.add_option("-w", "--wrapper", help="execute program using a debugger, etc", metavar='COMMAND')
 	parser.disable_interspersed_args()
 
 	(options, args) = parser.parse_args(command_args)
@@ -392,7 +393,7 @@ def main(command_args):
 		elif options.set_selections:
 			from zeroinstall.injector import selections, qdom, run
 			sels = selections.Selections(qdom.parse(file(options.set_selections)))
-			run.execute_selections(sels, args, options.dry_run, options.main)
+			run.execute_selections(sels, args, options.dry_run, options.main, options.wrapper)
 		elif getattr(options, 'import'):
 			_import_interface(args)
 		elif options.feed:
