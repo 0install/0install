@@ -58,6 +58,44 @@ def execute_selections(selections, prog_args, dry_run = False, main = None):
 	root_impl = sels[selections.interface]
 	_execute(root_impl, prog_args, dry_run, main)
 
+def test_selections(selections, prog_args, dry_run, main):
+	"""Run the program in a child process, collecting stdout and stderr.
+	@return: the output produced by the process
+	"""
+	args = []
+	import tempfile
+	output = tempfile.TemporaryFile(prefix = '0launch-test')
+	try:
+		child = os.fork()
+		if child == 0:
+			# We are the child
+			try:
+				try:
+					os.dup2(output.fileno(), 1)
+					os.dup2(output.fileno(), 2)
+					execute_selections(selections, prog_args, dry_run, main)
+				except:
+					import traceback
+					traceback.print_exc()
+			finally:
+				sys.stdout.flush()
+				sys.stderr.flush()
+				os._exit(1)
+
+		info("Waiting for test process to finish...")
+
+		pid, status = os.waitpid(child, 0)
+		assert pid == child
+
+		output.seek(0)
+		results = output.read()
+		if status != 0:
+			results += "Error from child process: exit code = %d" % status
+	finally:
+		output.close()
+	
+	return results
+
 def _execute(root_impl, prog_args, dry_run, main):
 	assert root_impl is not None
 

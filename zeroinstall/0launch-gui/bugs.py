@@ -5,6 +5,20 @@ import sys, os
 import zeroinstall
 import gtk, pango
 import dialog
+import logging
+
+def _read_bytes(fd, nbytes):
+	"""Read exactly nbytes from fd."""
+	data = ''
+	while nbytes:
+		got = os.read(fd, min(256, nbytes))
+		if not got:
+			raise Exception("Unexpected end-of-stream. Data so far %s; expecting %d bytes mode."
+					% (repr(data), nbytes))
+		data += got
+		nbytes -= len(got)
+	logging.debug("Message from CLI: %s" % repr(data))
+	return data
 
 def report_bug(policy, iface):
 	assert iface
@@ -160,46 +174,34 @@ class BugReporter(dialog.Dialog):
 				"\n\n- " . join(['%s version %s\n  (%s)' %(x[0].uri, x[1].get_version(), x[1].id) for x in uncached]))
 			return
 
-		r, w = os.pipe()
-		child = os.fork()
-		if child == 0:
-			# We are the child
-			try:
-				try:
-					os.close(r)
-					os.dup2(w, 1)
-					os.dup2(w, 2)
+		from zeroinstall.injector import selections
+		sels = selections.Selections(self.policy)
+		doc = sels.toDOM()
 
-					logger = logging.getLogger()
-					logger.setLevel(logging.DEBUG)
-					run.execute(self.policy, [])	#self.policy.prog_args)
-				except:
-					import traceback
-					traceback.print_exc()
-			finally:
-				os._exit(1)
-		else:
-			os.close(w)
-			reader = os.fdopen(r, 'r')
+		self.hide()
+		try:
+			gtk.gdk.flush()
+			iter = buffer.get_end_iter()
+			buffer.place_cursor(iter)
+			
+			# Tell 0launch to run the program
+			doc.documentElement.setAttribute('run-test', 'true')
+			payload = doc.toxml('utf-8')
+			sys.stdout.write(('Length:%8x\n' % len(payload)) + payload)
+			sys.stdout.flush()
 
-			self.hide()
-			try:
-				gtk.gdk.flush()
-				iter = buffer.get_end_iter()
-				buffer.place_cursor(iter)
+			reply = _read_bytes(0, len('Length:') + 9)
+			assert reply.startswith('Length:')
+			test_output = _read_bytes(0, int(reply.split(':', 1)[1], 16))
 
-				# Cope with invalid UTF-8
-				import codecs
-				decoder = codecs.getdecoder('utf-8')
-				data = decoder(reader.read(), 'replace')[0]
+			# Cope with invalid UTF-8
+			import codecs
+			decoder = codecs.getdecoder('utf-8')
+			data = decoder(test_output, 'replace')[0]
 
-				buffer.insert_at_cursor(data)
-				reader.close()
-
-				pid, status = os.waitpid(child, 0)
-				assert pid == child
-			finally:
-				self.show()
+			buffer.insert_at_cursor(data)
+		finally:
+			self.show()
 	
 	def report_bug(self, title, text):
 		try:

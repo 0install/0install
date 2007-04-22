@@ -37,8 +37,8 @@ def download_with_gui(mainwindow):
 			from zeroinstall.injector import selections
 			sels = selections.Selections(policy)
 			doc = sels.toDOM()
-			doc.writexml(sys.stdout)
-			sys.stdout.write('\n')
+			reply = doc.toxml('utf-8')
+			sys.stdout.write(('Length:%8x\n' % len(reply)) + reply)
 			mainwindow.destroy()
 			sys.exit(0)			# Success
 		if sets.ImmutableSet(policy.handler.monitored_downloads) - existing_downloads:

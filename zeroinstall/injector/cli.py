@@ -196,7 +196,7 @@ def _normal_mode(options, args):
 				gui_args.insert(0, '--before')
 			if options.source:
 				gui_args.insert(0, '--source')
-			sels = _fork_gui(iface_uri, gui_args)
+			sels = _fork_gui(iface_uri, gui_args, prog_args, options)
 			if not sels:
 				sys.exit(1)		# Aborted
 			if options.get_selections:
@@ -212,7 +212,25 @@ def _normal_mode(options, args):
 		# This only happens for dry runs
 		print ex
 
-def _fork_gui(iface_uri, gui_args):
+def _read_bytes(fd, nbytes, null_ok = False):
+	"""Read exactly nbytes from fd."""
+	data = ''
+	while nbytes:
+		got = os.read(fd, min(256, nbytes))
+		if not got:
+			if null_ok and not data:
+				return None
+			raise Exception("Unexpected end-of-stream. Data so far %s; expecting %d bytes mode."
+					% (repr(data), nbytes))
+		data += got
+		nbytes -= len(got)
+	logging.debug("Message from GUI: %s" % repr(data))
+	return data
+
+def _fork_gui(iface_uri, gui_args, prog_args, options):
+	"""Run the GUI to get the selections.
+	prog_args and options are used only if the GUI requests a test.
+	"""
 	import selections
 
 	gui_policy = autopolicy.AutoPolicy(namespaces.injector_gui_uri)
@@ -236,15 +254,18 @@ def _fork_gui(iface_uri, gui_args):
 		gui_sel = selections.Selections(gui_policy)
 
 	from zeroinstall.injector import run
-	cli, gui = os.pipe()		# socket.socketpair() not in Python 2.3 :-(
+	cli_from_gui, gui_to_cli = os.pipe()		# socket.socketpair() not in Python 2.3 :-(
+	gui_from_cli, cli_to_gui = os.pipe()
 	try:
 		child = os.fork()
 		if child == 0:
 			# We are the child
 			try:
 				try:
-					os.close(cli)
-					os.dup2(gui, 1)
+					os.close(cli_from_gui)
+					os.close(cli_to_gui)
+					os.dup2(gui_to_cli, 1)
+					os.dup2(gui_from_cli, 0)
 					run.execute_selections(gui_sel, gui_args + ['--', iface_uri])
 				except:
 					import traceback
@@ -252,30 +273,50 @@ def _fork_gui(iface_uri, gui_args):
 			finally:
 				sys.stderr.flush()
 				os._exit(1)
-		os.close(gui)
-		gui = None
+		os.close(gui_from_cli)
+		gui_from_cli = None
+		os.close(gui_to_cli)
+		gui_to_cli = None
 
-		logging.info("Waiting for selections from GUI...")
-
-		xml = ""
 		while True:
-			got = os.read(cli, 256)
-			if not got: break
-			xml += got
-		pid, status = os.waitpid(child, 0)
-		assert pid == child
-		if status == 1 << 8:
-			logging.info("User cancelled the GUI; aborting")
-			return None		# Aborted
-		if status != 0:
-			raise Exception("Error from GUI: code = %d" % status)
+			logging.info("Waiting for selections from GUI...")
+
+			reply = _read_bytes(cli_from_gui, len('Length:') + 9, null_ok = True)
+			if reply:
+				assert reply.startswith('Length:')
+				xml = _read_bytes(cli_from_gui, int(reply.split(':', 1)[1], 16))
+
+				from StringIO import StringIO
+				from zeroinstall.injector import qdom, selections
+				dom = qdom.parse(StringIO(xml))
+				sels = selections.Selections(dom)
+
+				if dom.getAttribute('run-test'):
+					logging.info("Testing program, as requested by GUI...")
+					output = run.test_selections(sels, prog_args, options.dry_run, options.main)
+					logging.info("Sending results to GUI...")
+					output = ('Length:%8x\n' % len(output)) + output
+					logging.debug("Sending: %s" % `output`)
+					while output:
+						sent = os.write(cli_to_gui, output)
+						output = output[sent:]
+					continue
+			else:
+				sels = None
+
+			pid, status = os.waitpid(child, 0)
+			assert pid == child
+			if status == 1 << 8:
+				logging.info("User cancelled the GUI; aborting")
+				return None		# Aborted
+			if status != 0:
+				raise Exception("Error from GUI: code = %d" % status)
+			break
 	finally:
-		if cli is not None: os.close(cli)
-		if gui is not None: os.close(gui)
+		for fd in [cli_to_gui, cli_from_gui, gui_to_cli, gui_from_cli]:
+			if fd is not None: os.close(fd)
 	
-	from StringIO import StringIO
-	from zeroinstall.injector import qdom, selections
-	return selections.Selections(qdom.parse(StringIO(xml)))
+	return sels
 	
 def _get_selections(policy):
 	import selections
