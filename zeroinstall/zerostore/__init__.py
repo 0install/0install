@@ -9,7 +9,7 @@ import os
 from logging import debug, info, warn
 
 from zeroinstall.injector import basedir
-from zeroinstall import SafeException
+from zeroinstall import SafeException, support
 
 class BadDigest(SafeException):
 	"""Thrown if a digest is invalid (either syntactically or cryptographically)."""
@@ -142,7 +142,7 @@ class Store:
 		@type path: str
 		@return: True iff the directory was copied into the system cache successfully
 		"""
-		helper = unpack._find_in_path('0store-helper')
+		helper = support.find_in_path('0store-helper')
 		if not helper:
 			info("Command '0store-helper' not found in $PATH. Not importing to system store.")
 			return False

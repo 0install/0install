@@ -11,7 +11,7 @@ import sha
 import re
 from logging import debug, info, warn
 from zeroinstall import SafeException
-from zeroinstall.injector.run import find_in_path
+from zeroinstall.support import find_in_path
 
 _cpio_version = None
 def _get_cpio_version():
