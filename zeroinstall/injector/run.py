@@ -122,7 +122,7 @@ def _execute(root_impl, prog_args, dry_run, main, wrapper):
 		prog_path = '/bin/sh'
 
 	if dry_run:
-		print "Would execute:", prog_path
+		print "Would execute:", prog_path, ' '.join(prog_args)
 	else:
 		info("Executing: %s", prog_path)
 		sys.stdout.flush()
