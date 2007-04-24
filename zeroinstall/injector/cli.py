@@ -283,7 +283,8 @@ def _fork_gui(iface_uri, gui_args, prog_args, options = None):
 
 			reply = _read_bytes(cli_from_gui, len('Length:') + 9, null_ok = True)
 			if reply:
-				assert reply.startswith('Length:')
+				if not reply.startswith('Length:'):
+					raise Exception("Expected Length:, but got %s" % repr(reply))
 				xml = _read_bytes(cli_from_gui, int(reply.split(':', 1)[1], 16))
 
 				from StringIO import StringIO
