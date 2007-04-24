@@ -18,6 +18,8 @@ include tests/Foo.xml
 include tests/Recipe.xml
 include tests/HelloWorld.autopackage
 include tests/HelloWorld.tar
+include tests/test-gui
+include tests/test-gui.xml
 include zeroinstall/0launch-gui/README
 include zeroinstall/0launch-gui/0launch-gui
 include zeroinstall/0launch-gui/ZeroInstall-GUI.xml
