@@ -48,7 +48,7 @@ CRITICAL = 2
 def notify(title, message, timeout = 0, actions = []):
 	if not have_notifications:
 		info('%s: %s', title, message)
-		return
+		return None
 
 	import time
 	import dbus.types
@@ -59,7 +59,7 @@ def notify(title, message, timeout = 0, actions = []):
 	else:
 		hints['urgency'] = dbus.types.Byte(LOW)
 
-	notification_service.Notify('Zero Install',
+	return notification_service.Notify('Zero Install',
 		0,		# replaces_id,
 		'',		# icon
 		title,
@@ -91,6 +91,15 @@ def _detach():
 		pid, status = os.waitpid(child, 0)
 		assert pid == child
 		return True
+	
+	# The calling process might be waiting for EOF from its child.
+	# Close our stdout so we don't keep it waiting.
+	# Note: this only fixes the most common case; it could be waiting
+	# on any other FD as well. We should really use gobject.spawn_async
+	# to close *all* FDs.
+	null = os.open('/dev/null', os.O_RDWR)
+	os.dup2(null, 1)
+	os.close(null)
 
 	grandchild = os.fork()
 	if grandchild:
@@ -124,10 +133,12 @@ def _check_for_updates(policy, verbose):
 	ctx = gobject.main_context_default()
 	loop = gobject.MainLoop(ctx)
 
-	def _NotificationClosed(*unused):
+	def _NotificationClosed(nid, *unused):
+		if nid != our_question: return
 		loop.quit()
 
 	def _ActionInvoked(nid, action):
+		if nid != our_question: return
 		if action == 'download':
 			_exec_gui(policy.root)
 		loop.quit()
@@ -135,8 +146,8 @@ def _check_for_updates(policy, verbose):
 	notification_service.connect_to_signal('NotificationClosed', _NotificationClosed)
 	notification_service.connect_to_signal('ActionInvoked', _ActionInvoked)
 
-	notify("Zero Install", "Updates ready to download for '%s'." % root_iface,
-		actions = ['download', 'Download'])
+	our_question = notify("Zero Install", "Updates ready to download for '%s'." % root_iface,
+				actions = ['download', 'Download'])
 
 	loop.run()
 
@@ -167,6 +178,7 @@ def spawn_background_update(policy, verbose):
 		except:
 			import traceback
 			traceback.print_exc()
+			sys.stdout.flush()
 		else:
 			sys.exit(0)
 	finally:
