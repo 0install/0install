@@ -284,7 +284,8 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 		import tarfile
 
 		stream.seek(start_offset)
-		tar = tarfile.open(mode = rmode, fileobj = stream)
+		# Python 2.5.1 crashes if name is None; see Python bug #1706850
+		tar = tarfile.open(name = '', mode = rmode, fileobj = stream)
 
 		current_umask = os.umask(0)
 		os.umask(current_umask)
