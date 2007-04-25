@@ -23,3 +23,5 @@ include tests/test-gui.xml
 include zeroinstall/0launch-gui/README
 include zeroinstall/0launch-gui/0launch-gui
 include zeroinstall/0launch-gui/ZeroInstall-GUI.xml
+include applications/zeroinstall-zero2desktop.desktop
+include applications/zeroinstall-zero2desktop.png
