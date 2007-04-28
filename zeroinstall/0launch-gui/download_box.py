@@ -4,7 +4,8 @@ import sets	# Note: for Python 2.3; frozenset is only in Python 2.4
 
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import download, writer
-from gui import policy, pretty_size
+from zeroinstall import support
+from gui import policy
 from dialog import Dialog
 
 import warnings
@@ -86,7 +87,7 @@ class DownloadProgessBox(Dialog):
 			bars.append((dl, bar))
 			table.attach(gtk.Label(os.path.basename(dl.url)),
 				0, 1, row, row + 1)
-			table.attach(gtk.Label(pretty_size(size)),
+			table.attach(gtk.Label(support.pretty_size(size)),
 					1, 2, row, row + 1)
 			table.attach(bar, 2, 3, row, row + 1)
 			row += 1

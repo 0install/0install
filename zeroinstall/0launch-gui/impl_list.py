@@ -1,6 +1,7 @@
 import gtk, gobject, os
 from zeroinstall.injector import model, writer
-from gui import policy, pretty_size
+from gui import policy
+from zeroinstall import support
 from treetips import TreeTips
 
 def popup_menu(bev, values, fn):
@@ -44,7 +45,7 @@ class ImplTips(TreeTips):
 
 		src = policy.get_best_source(impl)
 		if src:
-			size = pretty_size(src.size)
+			size = support.pretty_size(src.size)
 			return _("Not yet downloaded (%s)") % size
 		else:
 			return _("No downloads available!")

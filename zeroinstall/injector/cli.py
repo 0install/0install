@@ -121,7 +121,6 @@ def _normal_mode(options, args):
 
 	iface_uri = model.canonical_iface_uri(args[0])
 
-	# Singleton instance used everywhere...
 	policy = autopolicy.AutoPolicy(iface_uri,
 				download_only = bool(options.download_only),
 				dry_run = options.dry_run,
@@ -186,7 +185,6 @@ def _normal_mode(options, args):
 				# Just changes the button's label
 				gui_args.append('--download-only')
 			if options.refresh:
-				# Just changes the button's label
 				gui_args.append('--refresh')
 			if options.not_before:
 				gui_args.insert(0, options.not_before)
@@ -212,21 +210,6 @@ def _normal_mode(options, args):
 		# This only happens for dry runs
 		print ex
 
-def _read_bytes(fd, nbytes, null_ok = False):
-	"""Read exactly nbytes from fd."""
-	data = ''
-	while nbytes:
-		got = os.read(fd, min(256, nbytes))
-		if not got:
-			if null_ok and not data:
-				return None
-			raise Exception("Unexpected end-of-stream. Data so far %s; expecting %d bytes mode."
-					% (repr(data), nbytes))
-		data += got
-		nbytes -= len(got)
-	logging.debug("Message from GUI: %s" % repr(data))
-	return data
-
 def _fork_gui(iface_uri, gui_args, prog_args, options = None):
 	"""Run the GUI to get the selections.
 	prog_args and options are used only if the GUI requests a test.
@@ -244,7 +227,6 @@ def _fork_gui(iface_uri, gui_args, prog_args, options = None):
 	else:
 		logging.info("GUI is up-to-date.")
 		# Try to start the GUI without using the network.
-		# The GUI can refresh itself if it wants to.
 		gui_policy.freshness = 0
 		gui_policy.network_use = model.network_offline
 		gui_policy.recalculate_with_dl()
@@ -253,6 +235,7 @@ def _fork_gui(iface_uri, gui_args, prog_args, options = None):
 		gui_policy.handler.wait_for_downloads()
 		gui_sel = selections.Selections(gui_policy)
 
+	from zeroinstall import support
 	from zeroinstall.injector import run
 	cli_from_gui, gui_to_cli = os.pipe()		# socket.socketpair() not in Python 2.3 :-(
 	gui_from_cli, cli_to_gui = os.pipe()
@@ -281,11 +264,11 @@ def _fork_gui(iface_uri, gui_args, prog_args, options = None):
 		while True:
 			logging.info("Waiting for selections from GUI...")
 
-			reply = _read_bytes(cli_from_gui, len('Length:') + 9, null_ok = True)
+			reply = support.read_bytes(cli_from_gui, len('Length:') + 9, null_ok = True)
 			if reply:
 				if not reply.startswith('Length:'):
 					raise Exception("Expected Length:, but got %s" % repr(reply))
-				xml = _read_bytes(cli_from_gui, int(reply.split(':', 1)[1], 16))
+				xml = support.read_bytes(cli_from_gui, int(reply.split(':', 1)[1], 16))
 
 				from StringIO import StringIO
 				from zeroinstall.injector import qdom, selections

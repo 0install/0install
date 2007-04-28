@@ -5,7 +5,7 @@
 
 import sys, os
 from zeroinstall.zerostore.manifest import generate_manifest, verify, get_algorithm, copy_tree_with_verify
-from zeroinstall import zerostore, SafeException
+from zeroinstall import zerostore, SafeException, support
 
 stores = None
 
@@ -98,28 +98,16 @@ def do_optimise(args):
 
 	print "Optimising", cache_dir
 
-	def _pretty_size(size):
-		if size is None:
-			return '?'
-		if size < 2048:
-			return '%d bytes' % size
-		size = float(size)
-		for unit in ('Kb', 'Mb', 'Gb', 'Tb'):
-			size /= 1024
-			if size < 2048:
-				break
-		return '%.1f %s' % (size, unit)
-
 	import optimise
 	uniq_size, dup_size, already_linked, man_size = optimise.optimise(cache_dir)
-	print "Original size  :", _pretty_size(uniq_size + dup_size) + " (excluding the %s of manifests)" % _pretty_size(man_size)
-	print "Already saved  :", _pretty_size(already_linked)
+	print "Original size  :", support.pretty_size(uniq_size + dup_size) + " (excluding the %s of manifests)" % support.pretty_size(man_size)
+	print "Already saved  :", support.pretty_size(already_linked)
 	if dup_size == 0:
 		print "No duplicates found; no changes made."
 	else:
-		print "Optimised size :", _pretty_size(uniq_size)
+		print "Optimised size :", support.pretty_size(uniq_size)
 		perc = (100 * float(dup_size)) / (uniq_size + dup_size)
-		print "Space freed up :", _pretty_size(dup_size), "(%.2f%%)" % perc
+		print "Space freed up :", support.pretty_size(dup_size), "(%.2f%%)" % perc
 	print "Optimisation complete."
 
 def do_verify(args):

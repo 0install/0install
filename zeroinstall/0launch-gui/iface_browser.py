@@ -5,7 +5,8 @@ from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector.model import Interface, escape
 import properties
 from treetips import TreeTips
-from gui import policy, pretty_size
+from gui import policy
+from zeroinstall import support
 from logging import warn
 
 def _stability(impl):
@@ -52,7 +53,7 @@ class InterfaceTips(TreeTips):
 			if not src:
 				return _("No downloads available!")
 			return _("Need to download %s (%s bytes)") % \
-					(pretty_size(src.size), src.size)
+					(support.pretty_size(src.size), src.size)
 
 tips = InterfaceTips()
 
@@ -290,7 +291,7 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 				else:
 					src = policy.get_best_source(impl)
 					if src:
-						fetch = pretty_size(src.size)
+						fetch = support.pretty_size(src.size)
 					else:
 						fetch = '(unavailable)'
 				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = fetch

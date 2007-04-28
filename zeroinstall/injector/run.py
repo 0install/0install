@@ -45,6 +45,7 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
 	Returns normally only for a successful dry run.
 	
+	@since: 0.27
 	@precondition: All implementations are in the cache.
 	"""
 	sels = selections.selections

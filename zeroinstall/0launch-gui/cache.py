@@ -1,12 +1,12 @@
 import os, shutil
 import gtk, gobject
 
-import gui
 import help_box
 from dialog import Dialog, alert
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import basedir, namespaces, model
 from zeroinstall.zerostore import BadDigest, manifest
+from zeroinstall import support
 from treetips import TreeTips
 
 ROX_IFACE = 'http://rox.sourceforge.net/2005/interfaces/ROX-Filer'
@@ -30,10 +30,6 @@ def popup_menu(bev, obj):
 		item.show()
 		menu.append(item)
 	menu.popup(None, None, None, bev.button, bev.time)
-
-def pretty_size(size):
-	if size == 0: return ''
-	return gui.pretty_size(size)
 
 def size_if_exists(path):
 	"Get the size for a file, or 0 if it doesn't exist."
@@ -412,7 +408,7 @@ class CacheExplorer(Dialog):
 			while child:
 				total += update(child)
 				child = m.iter_next(child)
-			m[itr][PRETTY_SIZE] = pretty_size(total)
+			m[itr][PRETTY_SIZE] = support.pretty_size(total)
 			return total
 		itr = m.get_iter_root()
 		while itr:

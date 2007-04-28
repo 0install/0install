@@ -1,5 +1,6 @@
 """
 Load and save a set of chosen implementations.
+@since: 0.27
 """
 
 # Copyright (C) 2007, Thomas Leonard

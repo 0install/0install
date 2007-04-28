@@ -2,23 +2,12 @@
 # See http://0install.net/0compile.html
 
 import sys, os
-import zeroinstall
 import gtk, pango
 import dialog
 import logging
 
-def _read_bytes(fd, nbytes):
-	"""Read exactly nbytes from fd."""
-	data = ''
-	while nbytes:
-		got = os.read(fd, min(256, nbytes))
-		if not got:
-			raise Exception("Unexpected end-of-stream. Data so far %s; expecting %d bytes mode."
-					% (repr(data), nbytes))
-		data += got
-		nbytes -= len(got)
-	logging.debug("Message from CLI: %s" % repr(data))
-	return data
+import zeroinstall
+from zeroinstall import support
 
 def report_bug(policy, iface):
 	assert iface
@@ -190,9 +179,9 @@ class BugReporter(dialog.Dialog):
 			sys.stdout.write(('Length:%8x\n' % len(payload)) + payload)
 			sys.stdout.flush()
 
-			reply = _read_bytes(0, len('Length:') + 9)
+			reply = support.read_bytes(0, len('Length:') + 9)
 			assert reply.startswith('Length:')
-			test_output = _read_bytes(0, int(reply.split(':', 1)[1], 16))
+			test_output = support.read_bytes(0, int(reply.split(':', 1)[1], 16))
 
 			# Cope with invalid UTF-8
 			import codecs

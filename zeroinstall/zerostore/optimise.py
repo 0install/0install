@@ -24,12 +24,18 @@ def _link(a, b, tmpfile):
 	if not _byte_identical(a, b):
 		warn("Files should be identical, but they're not!\n%s\n%s", a, b)
 
-	os.link(a, tmpfile)
+	b_dir = os.path.dirname(b)
+	old_mode = os.lstat(b_dir).st_mode
+	os.chmod(b_dir, old_mode | 0200)	# Need write access briefly
 	try:
-		os.rename(tmpfile, b)
-	except:
-		os.unlink(tmpfile)
-		raise
+		os.link(a, tmpfile)
+		try:
+			os.rename(tmpfile, b)
+		except:
+			os.unlink(tmpfile)
+			raise
+	finally:
+		os.chmod(b_dir, old_mode)
 
 def optimise(impl_dir):
 	"""Scan an implementation cache directory for duplicate files, and
