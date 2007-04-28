@@ -385,11 +385,11 @@ def main(command_args):
 		elif options.version:
 			import zeroinstall
 			print "0launch (zero-install) " + zeroinstall.version
-			print "Copyright (C) 2006 Thomas Leonard"
+			print "Copyright (C) 2007 Thomas Leonard"
 			print "This program comes with ABSOLUTELY NO WARRANTY,"
 			print "to the extent permitted by law."
 			print "You may redistribute copies of this program"
-			print "under the terms of the GNU General Public License."
+			print "under the terms of the GNU Lesser General Public License."
 			print "For more information about these matters, see the file named COPYING."
 		elif options.set_selections:
 			from zeroinstall.injector import selections, qdom, run
