@@ -9,7 +9,7 @@ XS-Python-Version: >= 2.3
 
 Package: zeroinstall-injector
 Architecture: all
-Depends: ${python:Depends}, gnupg, python-gtk2, bzip2, binutils
+Depends: ${python:Depends}, gnupg, python-gtk2, bzip2, binutils, python-glade2
 Recommends: unzip, rpm, lzma
 Suggests: plash, cabextract
 XB-Python-Version: ${python:Versions}
