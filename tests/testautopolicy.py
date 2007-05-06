@@ -7,16 +7,9 @@ from logging import getLogger, DEBUG, INFO
 
 sys.path.insert(0, '..')
 
-config_home = tempfile.mktemp()
-cache_home = tempfile.mktemp()
-os.environ['XDG_CONFIG_HOME'] = config_home
-os.environ['XDG_CACHE_HOME'] = cache_home
-os.environ['XDG_CACHE_DIRS'] = ''
-
 from zeroinstall import NeedDownload
 from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, namespaces, reader
 import data
-reload(basedir)
 
 foo_iface_uri = 'http://foo'
 

@@ -3,6 +3,7 @@ import os, sys
 from optparse import OptionParser
 
 from zeroinstall.injector import reader, model, basedir
+from zeroinstall import alias
 
 def export(name, value):
 	"""Try to guess the command to set an environment variable."""
@@ -50,11 +51,11 @@ if len(args) < 2 or len(args) > 3:
 	parser.print_help()
 	sys.exit(1)
 
-alias, interface_uri = args[:2]
+alias_prog, interface_uri = args[:2]
 if len(args) == 3:
-	main = "--main '%s'" % args[2]
+	main = args[2]
 else:
-	main = ""
+	main = None
 
 try:
 	interface_uri = model.canonical_iface_uri(interface_uri)
@@ -67,7 +68,7 @@ try:
 		if not reader.update_from_cache(interface):
 			raise model.SafeException("Interface still not in cache. Aborting.")
 
-	script = os.path.join(first_path, alias)
+	script = os.path.join(first_path, alias_prog)
 	if os.path.exists(script):
 		raise model.SafeException("File '%s' already exists. Delete it first." % script)
 		sys.exit(1)
@@ -76,19 +77,12 @@ except model.SafeException, ex:
 	sys.exit(1)
 
 wrapper = file(script, 'w')
-assert "'" not in interface_uri
-assert "\\" not in interface_uri
-print >>wrapper, '''#!/bin/sh
-if [ "$*" = "--versions" ]; then
-  exec 0launch -gd '%s' "$@"
-else
-  exec 0launch %s '%s' "$@"
-fi''' % (interface_uri, main, interface_uri)
+alias.write_script(wrapper, interface_uri, main)
 
 # Make new script executable
 os.chmod(script, 0111 | os.fstat(wrapper.fileno()).st_mode)
 wrapper.close()
 
 print "Created script '%s'." % script
-print "To edit policy: %s --versions" % alias
+print "To edit policy: %s --versions" % alias_prog
 print "(note: some shells require you to type 'rehash' now)"
