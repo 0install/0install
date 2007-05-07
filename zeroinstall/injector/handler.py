@@ -79,31 +79,36 @@ class Handler(object):
 		@arg sigs: a list of signatures (from L{gpg.check_stream})
 		@arg iface_xml: the downloaded data (not yet trusted)
 		"""
-		import gpg
+		from zeroinstall.injector import trust, gpg
 		assert sigs
 		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
 		if not valid_sigs:
 			raise model.SafeException('No valid signatures found. Signatures:' +
 					''.join(['\n- ' + str(s) for s in sigs]))
 
+		domain = trust.domain_from_url(interface.uri)
+
 		print "\nInterface:", interface.uri
 		print "The interface is correctly signed with the following keys:"
 		for x in valid_sigs:
 			print "-", x
-		print "Do you want to trust all of these keys to sign interfaces?"
+
+		if len(valid_sigs) == 1:
+			print "Do you want to trust this key to sign feeds from '%s'?" % domain
+		else:
+			print "Do you want to trust all of these keys to sign feeds from '%s'?" % domain
 		while True:
-			i = raw_input("Trust all [Y/N] ")
+			i = raw_input("Trust [Y/N] ")
 			if not i: continue
 			if i in 'Nn':
 				raise model.SafeException('Not signed with a trusted key')
 			if i in 'Yy':
 				break
-		from trust import trust_db
 		for key in valid_sigs:
-			print "Trusting", key.fingerprint
-			trust_db.trust_key(key.fingerprint)
+			print "Trusting", key.fingerprint, "for", domain
+			trust.trust_db.trust_key(key.fingerprint, domain)
 
-		trust_db.notify()
+		trust.trust_db.notify()
 	
 	def report_error(self, exception):
 		"""Report an exception to the user.
