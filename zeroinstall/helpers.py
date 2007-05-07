@@ -11,6 +11,7 @@ from zeroinstall import support
 
 def get_selections_gui(iface_uri, gui_args, test_callback = None):
 	"""Run the GUI to choose and download a set of implementations.
+	If the GUI itself is due for a check, refresh it first.
 	The user may ask the GUI to submit a bug report about the program. In that case,
 	the GUI may ask us to test it. test_callback is called in that case with the implementations
 	to be tested; the callback will typically call L{run.test_selections} and return the result of that.
@@ -29,19 +30,16 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 	if iface_uri != namespaces.injector_gui_uri and (gui_policy.need_download() or gui_policy.stale_feeds):
 		# The GUI itself needs updating. Do that first.
 		logging.info("The GUI could do with updating first.")
-		gui_sel = _fork_gui(namespaces.injector_gui_uri, [], [])
+		gui_sel = get_selections_gui(namespaces.injector_gui_uri, ['--refresh'])
 		if gui_sel is None:
 			logging.info("Aborted at user request")
 			return None		# Aborted by user
 	else:
-		logging.info("GUI is up-to-date.")
 		# Try to start the GUI without using the network.
 		gui_policy.freshness = 0
 		gui_policy.network_use = model.network_offline
-		gui_policy.recalculate_with_dl()
+		gui_policy.recalculate()
 		assert gui_policy.ready		# Should always be some version available
-		gui_policy.start_downloading_impls()
-		gui_policy.handler.wait_for_downloads() # !?!
 		gui_sel = selections.Selections(gui_policy)
 
 	cli_from_gui, gui_to_cli = os.pipe()		# socket.socketpair() not in Python 2.3 :-(
