@@ -107,3 +107,27 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 			if fd is not None: os.close(fd)
 	
 	return sels
+
+def ensure_cached(uri):
+	"""Ensure that an implementation of uri is cached.
+	This spawns a copy of 0launch to download one if not, possibly
+	using the gui.
+	@param uri: the required interface
+	@type uri: str
+	@return: a new policy for this program, or None if the user cancelled
+	@rtype: L{selections.Selections}
+	"""
+	from zeroinstall.injector import autopolicy, selections
+
+	p = autopolicy.AutoPolicy(uri, download_only = True)
+	p.freshness = 0		# Don't check for updates
+
+	if p.need_download() or not p.ready:
+		if os.environ.get('DISPLAY', None):
+			return get_selections_gui(uri, [])
+		else:
+			p.recalculate_with_dl()
+			p.start_downloading_impls()
+			p.handler.wait_for_downloads()
+
+	return selections.Selections(p)
