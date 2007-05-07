@@ -31,8 +31,9 @@ parser = OptionParser(usage="usage: %%prog [options] alias interface [command]\n
 		"(%s) to run 'interface'.\n"
 		"For interfaces providing more than one command, the desired command\n"
 		"may also be given." % first_path)
-parser.add_option("-V", "--version", help="display version information", action='store_true')
 parser.add_option("-m", "--manpage", help="show the manual page for an existing alias", action='store_true')
+parser.add_option("-r", "--resolve", help="show the URI for an alias", action='store_true')
+parser.add_option("-V", "--version", help="display version information", action='store_true')
 parser.disable_interspersed_args()
 
 (options, args) = parser.parse_args()
@@ -48,22 +49,36 @@ if options.version:
 	print "For more information about these matters, see the file named COPYING."
 	sys.exit(0)
 
+def get_alias_details(prog):
+	if not os.path.isabs(prog):
+		full_path = support.find_in_path(prog)
+		if not full_path:
+			raise alias.NotAnAliasScript("Not found in $PATH: " + prog)
+	else:
+		full_path = prog
+
+	return alias.parse_script(full_path)
+	
+if options.resolve:
+	if len(args) != 1:
+		parser.print_help()
+		sys.exit(1)
+	try:
+		uri, main = get_alias_details(args[0])
+	except alias.NotAnAliasScript, ex:
+		print >>sys.stderr, str(ex)
+		sys.exit(1)
+	print uri
+	sys.exit(0)
+
 if options.manpage:
 	if len(args) != 1:
 		os.execlp('man', 'man', *args)
 		sys.exit(1)
-	prog = args[0]
-	if not os.path.isabs(prog):
-		full_path = support.find_in_path(prog)
-		if not full_path:
-			os.execlp('man', 'man', *args)
-			sys.exit(1)
-	else:
-		full_path = prog
-
+	
 	try:
-		uri, main = alias.parse_script(full_path)
-	except alias.NotAnAliasScript, ex:
+		uri, main = get_alias_details(args[0])
+	except alias.NotAnAliasScript:
 		os.execlp('man', 'man', *args)
 		sys.exit(1)
 
@@ -89,16 +104,20 @@ if options.manpage:
 	# the whole implementation for one
 
 	prog_name = os.path.basename(main)
-	alias_name = os.path.basename(prog)
+	alias_name = os.path.basename(args[0])
 
 	assert impl_path
 	manpages = []
 	for root, dirs, files in os.walk(impl_path):
 		for f in files:
-			if f.endswith('.1') or \
-			   f.endswith('.6') or \
-			   f.endswith('.8'):
-			   	manpage_prog = f[:-2]
+			if f.endswith('.gz'):
+				manpage_file = f[:-3]
+			else:
+				manpage_file = f
+			if manpage_file.endswith('.1') or \
+			   manpage_file.endswith('.6') or \
+			   manpage_file.endswith('.8'):
+			   	manpage_prog = manpage_file[:-2]
 				if manpage_prog == prog_name or manpage_prog == alias_name:
 					os.execlp('man', 'man', os.path.join(root, f))
 					sys.exit(1)
