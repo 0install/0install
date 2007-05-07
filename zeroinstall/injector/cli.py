@@ -214,13 +214,13 @@ def _fork_gui(iface_uri, gui_args, prog_args, options = None):
 	"""Run the GUI to get the selections.
 	prog_args and options are used only if the GUI requests a test.
 	"""
-	from zeroinstall import support
+	from zeroinstall import helpers
 	def test_callback(sels):
 		from zeroinstall.injector import run
 		return run.test_selections(sels, prog_args,
 					     bool(options and options.dry_run),
 					     options and options.main)
-	return support.get_selections_gui(iface_uri, gui_args, test_callback)
+	return helpers.get_selections_gui(iface_uri, gui_args, test_callback)
 	
 def _get_selections(policy):
 	import selections
