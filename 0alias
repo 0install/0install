@@ -3,7 +3,7 @@ import os, sys
 from optparse import OptionParser
 
 from zeroinstall.injector import reader, model, basedir
-from zeroinstall import alias
+from zeroinstall import support, alias, helpers
 
 def export(name, value):
 	"""Try to guess the command to set an environment variable."""
@@ -32,6 +32,7 @@ parser = OptionParser(usage="usage: %%prog [options] alias interface [command]\n
 		"For interfaces providing more than one command, the desired command\n"
 		"may also be given." % first_path)
 parser.add_option("-V", "--version", help="display version information", action='store_true')
+parser.add_option("-m", "--manpage", help="show the manual page for an existing alias", action='store_true')
 parser.disable_interspersed_args()
 
 (options, args) = parser.parse_args()
@@ -46,6 +47,70 @@ if options.version:
 	print "under the terms of the GNU Lesser General Public License."
 	print "For more information about these matters, see the file named COPYING."
 	sys.exit(0)
+
+if options.manpage:
+	if len(args) != 1:
+		os.execlp('man', 'man', *args)
+		sys.exit(1)
+	prog = args[0]
+	if not os.path.isabs(prog):
+		full_path = support.find_in_path(prog)
+		if not full_path:
+			os.execlp('man', 'man', *args)
+			sys.exit(1)
+	else:
+		full_path = prog
+
+	try:
+		uri, main = alias.parse_script(full_path)
+	except alias.NotAnAliasScript, ex:
+		os.execlp('man', 'man', *args)
+		sys.exit(1)
+
+	sels = helpers.ensure_cached(uri)
+	if not sels:
+		# Cancelled by user
+		sys.exit(1)
+
+	selected_impl = sels.selections[uri]
+	if selected_impl.id.startswith('/'):
+		impl_path = selected_impl.id
+	else:
+		from zeroinstall.injector.iface_cache import iface_cache
+		impl_path = iface_cache.stores.lookup(selected_impl.id)
+
+	if main is None:
+		main = selected_impl.main
+		if main is None:
+			print >>sys.stderr, "No main program for interface '%s'" % uri
+			sys.exit(1)
+
+	# TODO: the feed should say where the man-page is, but for now we'll just search
+	# the whole implementation for one
+
+	prog_name = os.path.basename(main)
+	alias_name = os.path.basename(prog)
+
+	assert impl_path
+	manpages = []
+	for root, dirs, files in os.walk(impl_path):
+		for f in files:
+			if f.endswith('.1') or \
+			   f.endswith('.6') or \
+			   f.endswith('.8'):
+			   	manpage_prog = f[:-2]
+				if manpage_prog == prog_name or manpage_prog == alias_name:
+					os.execlp('man', 'man', os.path.join(root, f))
+					sys.exit(1)
+				else:
+					manpages.append((root, f))
+
+	print "No matching manpage was found for '%s' (%s)" % (alias_name, uri)
+	if manpages:
+		print "These non-matching man-pages were found, however:"
+		for root, file in manpages:
+			print os.path.join(root, file)
+	sys.exit(1)
 
 if len(args) < 2 or len(args) > 3:
 	parser.print_help()

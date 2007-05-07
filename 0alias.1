@@ -1,4 +1,4 @@
-.TH 0ALIAS 1 "2006" "Thomas Leonard" ""
+.TH 0ALIAS 1 "2007" "Thomas Leonard" ""
 .SH NAME
 0alias \- create quick scripts to run 0launch
 
@@ -51,12 +51,22 @@ one to use instead of the default. Eg:
 Show the built-in help text.
 
 .TP
+\fB-m\fP, \fB--manpage\fP
+Display the manpage for the alias script given as the single argument. The
+alias can be an absolute pathname, or the name of a script in $PATH. If the
+argument isn't an alias script, or if multiple arguments are given, then all
+arguments are passed to the system 'man' command. This allows you to alias you
+man command like this:
+
+alias man='0alias --manpage'
+
+.TP
 \fB-V\fP, \fB--version\fP
 Display version information.
 
 .SH LICENSE
 .PP
-Copyright (C) 2006 Thomas Leonard.
+Copyright (C) 2007 Thomas Leonard.
 
 .PP
 You may redistribute copies of this program under the terms of the GNU Lesser General Public License.
