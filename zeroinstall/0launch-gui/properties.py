@@ -263,7 +263,13 @@ class Feeds(gtk.VPaned):
 		model, miter = sel.get_selected()
 		if not miter: return	# build in progress
 		iface = model[miter][Feeds.URI]
-		self.remove_feed_button.set_sensitive(iface != self.interface.uri)
+		# Only enable removing user_override feeds
+		enable_remove = False
+		for x in self.interface.feeds:
+			if x.uri == iface:
+				if x.user_override:
+					enable_remove = True
+		self.remove_feed_button.set_sensitive( enable_remove )
 		self.description.set_details(iface_cache.get_interface(iface))
 	
 	def updated(self):
