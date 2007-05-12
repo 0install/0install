@@ -70,6 +70,7 @@ buggy = Stability(5, 'buggy', 'Known to have serious bugs')
 developer = Stability(10, 'developer', 'Work-in-progress - bugs likely')
 testing = Stability(20, 'testing', 'Stability unknown - please test!')
 stable = Stability(30, 'stable', 'Tested - no serious problems found')
+packaged = Stability(35, 'packaged', 'Supplied by the local package manager')
 preferred = Stability(40, 'preferred', 'Best of all - must be set manually')
 
 class Restriction(object):

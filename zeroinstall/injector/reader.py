@@ -41,7 +41,7 @@ def _process_depends(dependency, item):
 					    before = parse_version(e.getAttribute('before'))))
 
 def update_from_cache(interface):
-	"""Read a cached interface and any user overrides.
+	"""Read a cached interface and any local feeds or user overrides.
 	@param interface: the interface object to update
 	@type interface: L{model.Interface}
 	@return: True if cached version and user overrides loaded OK.
@@ -60,6 +60,13 @@ def update_from_cache(interface):
 		if cached:
 			debug("Loading cached information for %s from %s", interface, cached)
 			update(interface, cached)
+
+	# Add the distribution package manager's version, if any
+	path = basedir.load_first_config(config_site, 'native_feeds', escape(interface.uri))
+	if path:
+		# Resolve any symlinks
+		info("Adding native packager feed '%s'", path)
+		interface.feeds.append(Feed(os.path.realpath(path), None, False))
 
 	update_user_overrides(interface)
 
