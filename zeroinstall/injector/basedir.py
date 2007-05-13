@@ -13,6 +13,12 @@ import os
 
 _home = os.environ.get('HOME', '/')
 
+xdg_data_home = os.environ.get('XDG_DATA_HOME',
+			os.path.join(_home, '.local', 'share'))
+
+xdg_data_dirs = [xdg_data_home] + \
+	os.environ.get('XDG_DATA_DIRS', '/usr/local/share:/usr/share').split(':')
+
 xdg_cache_home = os.environ.get('XDG_CACHE_HOME',
 			os.path.join(_home, '.cache'))
 
@@ -25,6 +31,7 @@ xdg_config_home = os.environ.get('XDG_CONFIG_HOME',
 xdg_config_dirs = [xdg_config_home] + \
 	os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(':')
 
+xdg_data_dirs = filter(lambda x: x, xdg_data_dirs)
 xdg_cache_dirs = filter(lambda x: x, xdg_cache_dirs)
 xdg_config_dirs = filter(lambda x: x, xdg_config_dirs)
 
@@ -80,5 +87,23 @@ def load_first_cache(*resource):
 	"""Returns the first result from load_cache_paths, or None if there is nothing
 	to load."""
 	for x in load_cache_paths(*resource):
+		return x
+	return None
+
+def load_data_paths(*resource):
+	"""Returns an iterator which gives each directory named 'resource' in the
+	shared data search path. Information provided by earlier directories should
+	take precedence over later ones.
+	@since: 0.28"""
+	resource = os.path.join(*resource)
+	for data_dir in xdg_data_dirs:
+		path = os.path.join(data_dir, resource)
+		if os.path.exists(path): yield path
+
+def load_first_data(*resource):
+	"""Returns the first result from load_data_paths, or None if there is nothing
+	to load.
+	@since: 0.28"""
+	for x in load_data_paths(*resource):
 		return x
 	return None
