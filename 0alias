@@ -26,9 +26,10 @@ else:
 		"$ %s" % ('\n'.join(os.environ['PATH'].split(':')), export('PATH', '$HOME/bin:$PATH')))
 	sys.exit(1)
 
-parser = OptionParser(usage="usage: %%prog [options] alias interface [command]\n\n"
+parser = OptionParser(usage="usage: %%prog [options] alias [interface [command]]\n\n"
 		"Creates a script in the first usable directory in $PATH\n"
 		"(%s) to run 'interface'.\n"
+		"If no interface is given, edits the policy for an existing alias.\n"
 		"For interfaces providing more than one command, the desired command\n"
 		"may also be given." % first_path)
 parser.add_option("-m", "--manpage", help="show the manual page for an existing alias", action='store_true')
@@ -49,45 +50,50 @@ if options.version:
 	print "For more information about these matters, see the file named COPYING."
 	sys.exit(0)
 
-def get_alias_details(prog):
-	if not os.path.isabs(prog):
-		full_path = support.find_in_path(prog)
-		if not full_path:
-			raise alias.NotAnAliasScript("Not found in $PATH: " + prog)
-	else:
-		full_path = prog
-
-	return alias.parse_script(full_path)
-	
-if options.resolve:
-	if len(args) != 1:
-		parser.print_help()
-		sys.exit(1)
-	try:
-		uri, main = get_alias_details(args[0])
-	except alias.NotAnAliasScript, ex:
-		print >>sys.stderr, str(ex)
-		sys.exit(1)
-	print uri
-	sys.exit(0)
-
 if options.manpage:
 	if len(args) != 1:
 		os.execlp('man', 'man', *args)
 		sys.exit(1)
-	
-	try:
-		uri, main = get_alias_details(args[0])
-	except alias.NotAnAliasScript:
-		os.execlp('man', 'man', *args)
+
+if len(args) < 1 or len(args) > 3:
+	parser.print_help()
+	sys.exit(1)
+alias_prog, interface_uri, main = (list(args) + [None, None])[:3]
+
+if options.resolve or options.manpage:
+	if interface_uri is not None:
+		parser.print_help()
 		sys.exit(1)
 
-	sels = helpers.ensure_cached(uri)
+if interface_uri is None:
+	try:
+		if not os.path.isabs(alias_prog):
+			full_path = support.find_in_path(alias_prog)
+			if not full_path:
+				raise alias.NotAnAliasScript("Not found in $PATH: " + alias_prog)
+		else:
+			full_path = alias_prog
+
+		interface_uri, main = alias.parse_script(full_path)
+	except alias.NotAnAliasScript, ex:
+		if options.manpage:
+			os.execlp('man', 'man', *args)
+		print >>sys.stderr, str(ex)
+		sys.exit(1)
+
+interface_uri = model.canonical_iface_uri(interface_uri)
+
+if options.resolve:
+	print interface_uri
+	sys.exit(0)
+
+if options.manpage:
+	sels = helpers.ensure_cached(interface_uri)
 	if not sels:
 		# Cancelled by user
 		sys.exit(1)
 
-	selected_impl = sels.selections[uri]
+	selected_impl = sels.selections[interface_uri]
 	if selected_impl.id.startswith('/'):
 		impl_path = selected_impl.id
 	else:
@@ -97,7 +103,7 @@ if options.manpage:
 	if main is None:
 		main = selected_impl.main
 		if main is None:
-			print >>sys.stderr, "No main program for interface '%s'" % uri
+			print >>sys.stderr, "No main program for interface '%s'" % interface_uri
 			sys.exit(1)
 
 	# TODO: the feed should say where the man-page is, but for now we'll just search
@@ -124,26 +130,18 @@ if options.manpage:
 				else:
 					manpages.append((root, f))
 
-	print "No matching manpage was found for '%s' (%s)" % (alias_name, uri)
+	print "No matching manpage was found for '%s' (%s)" % (alias_name, interface_uri)
 	if manpages:
 		print "These non-matching man-pages were found, however:"
 		for root, file in manpages:
 			print os.path.join(root, file)
 	sys.exit(1)
 
-if len(args) < 2 or len(args) > 3:
-	parser.print_help()
+if len(args) == 1:
+	os.execlp('0launch', '0launch', '-gd', '--', interface_uri)
 	sys.exit(1)
 
-alias_prog, interface_uri = args[:2]
-if len(args) == 3:
-	main = args[2]
-else:
-	main = None
-
 try:
-	interface_uri = model.canonical_iface_uri(interface_uri)
-
 	interface = model.Interface(interface_uri)
 	if not reader.update_from_cache(interface):
 		print >>sys.stderr, "Interface '%s' not currently in cache. Fetching..." % interface_uri
@@ -168,5 +166,5 @@ os.chmod(script, 0111 | os.fstat(wrapper.fileno()).st_mode)
 wrapper.close()
 
 print "Created script '%s'." % script
-print "To edit policy: %s --versions" % alias_prog
+print "To edit policy: 0alias %s" % alias_prog
 print "(note: some shells require you to type 'rehash' now)"
