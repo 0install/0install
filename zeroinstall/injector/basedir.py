@@ -63,7 +63,6 @@ def load_first_config(*resource):
 		return x
 	return None
 
-
 def save_cache_path(*resource):
 	"""Ensure $XDG_CACHE_HOME/<resource>/ exists, and return its path.
 	'resource' should normally be the name of your application."""

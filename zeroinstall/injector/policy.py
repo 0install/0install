@@ -245,7 +245,7 @@ class Policy(object):
 			else:
 				debug("No implementation chould be chosen yet");
 				self.ready = False
-		process(Dependency(self.root, restrictions = self.root_restrictions))
+		process(InterfaceDependency(self.root, restrictions = self.root_restrictions))
 
 		if fetch_stale_interfaces and self.network_use != network_offline:
 			for stale in self.stale_feeds:

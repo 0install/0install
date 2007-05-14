@@ -272,7 +272,7 @@ def update(interface, source, local = False):
 					dep_iface = child.getAttribute('interface')
 					if dep_iface is None:
 						raise InvalidInterface("Missing 'interface' on <requires>")
-					dep = Dependency(dep_iface, metadata = child.attrs)
+					dep = InterfaceDependency(dep_iface, metadata = child.attrs)
 					_process_depends(dep, child)
 					depends[dep.interface] = dep
 

@@ -117,7 +117,7 @@ class TestModel(BaseTest):
 		str(a)
 	
 	def testDep(self):
-		b = model.Dependency('http://foo')
+		b = model.InterfaceDependency('http://foo')
 		assert not b.restrictions
 		assert not b.bindings
 		str(b)

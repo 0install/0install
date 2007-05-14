@@ -10,7 +10,7 @@ import os
 
 from zeroinstall.injector import reader
 from zeroinstall.injector.policy import Policy
-from zeroinstall.injector.model import EnvironmentBinding, Dependency
+from zeroinstall.injector.model import EnvironmentBinding, InterfaceDependency
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.qdom import Element
 
@@ -77,7 +77,7 @@ class Selections(object):
 					continue
 				if dep_elem.name != 'requires':
 					continue
-				dep = Dependency(dep_elem.getAttribute('interface'), metadata = dep_elem.attrs)
+				dep = InterfaceDependency(dep_elem.getAttribute('interface'), metadata = dep_elem.attrs)
 				reader._process_depends(dep, dep_elem)
 				bindings.append(dep)
 
