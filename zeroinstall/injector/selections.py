@@ -55,9 +55,9 @@ class Selections(object):
 			assert impl
 
 			self.selections[needed_iface.uri] = Selection(needed_iface.uri, impl.id,
-							 impl.get_version(), impl.interface.uri,
-							 impl.main,
-							 impl.dependencies.values())
+				 impl.get_version(), impl.interface.uri,
+				 impl.main,
+				 [r for r in impl.requires if isinstance(r, InterfaceDependency)])
 
 	def _init_from_qdom(self, root):
 		"""Parse and load a selections document.

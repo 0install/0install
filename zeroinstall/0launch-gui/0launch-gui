@@ -86,6 +86,11 @@ if len(args) > 1:
 
 from zeroinstall.injector import model, autopolicy, namespaces
 
+if not hasattr(model, 'NativeLibraryDependency'):
+	# For 0launch < 0.28
+	class NativeLibraryDependency(model.Dependency): pass
+	model.NativeLibraryDependency = NativeLibraryDependency
+
 restrictions = []
 if options.before or options.not_before:
 	restrictions.append(model.Restriction(model.parse_version(options.before),

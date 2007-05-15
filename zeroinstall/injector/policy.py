@@ -76,6 +76,13 @@ class _Cook:
 				import shutil
 				shutil.rmtree(tmpdir)
 
+def _have_native_library(dep):
+	# TODO: use the actual distribution search path
+	for x in ['/lib', '/usr/lib', '/usr/local/lib']:
+		if os.path.exists(os.path.join(x, dep.soname)):
+			return True
+	return False
+
 class Policy(object):
 	"""Chooses a set of implementations based on a policy.
 	Typical use:
@@ -89,6 +96,8 @@ class Policy(object):
 	@ivar implementation: chosen implementations
 	@type implementation: {model.Interface: model.Implementation or None}
 	@ivar watchers: callbacks to invoke after recalculating
+	@ivar failed_native_requirements: list of native dependencies which were missing
+	@type failed_native_requirements: set(L{Dependency})
 	@ivar help_with_testing: default stability policy
 	@type help_with_testing: bool
 	@ivar network_use: one of the model.network_* values
@@ -108,7 +117,8 @@ class Policy(object):
 	__slots__ = ['root', 'implementation', 'watchers',
 		     'help_with_testing', 'network_use',
 		     'freshness', 'ready', 'handler', '_warned_offline',
-		     'restrictions', 'src', 'root_restrictions', 'stale_feeds']
+		     'restrictions', 'src', 'root_restrictions', 'stale_feeds',
+		     'failed_native_requirements']
 
 	def __init__(self, root, handler = None, src = False):
 		"""
@@ -213,6 +223,7 @@ class Policy(object):
 		been checked within the L{freshness} period
 		@type fetch_stale_interfaces: bool
 		@postcondition: L{ready} indicates whether a possible set of implementations was chosen
+		@postcondition: L{failed_native_requirements} lists any missing native requirements
 		@note: A policy may be ready before all feeds have been downloaded. As new feeds
 		arrive, the chosen versions may change.
 		"""
@@ -220,9 +231,17 @@ class Policy(object):
 		self.stale_feeds = sets.Set()
 		self.restrictions = {}
 		self.implementation = {}
+		self.failed_native_requirements = sets.Set()
 		self.ready = True
 		debug("Recalculate! root = %s", self.root)
 		def process(dep):
+			if isinstance(dep, NativeLibraryDependency):
+				if not _have_native_library(dep):
+					debug('Missing native library %s', dep)
+					self.failed_native_requirements.add(dep)
+					self.ready = False
+				return
+
 			iface = self.get_interface(dep.interface)
 			if iface in self.implementation:
 				debug("Interface requested twice; skipping second %s", iface)
@@ -239,7 +258,7 @@ class Policy(object):
 			if impl:
 				debug("Will use implementation %s (version %s)", impl, impl.get_version())
 				self.implementation[iface] = impl
-				for d in impl.dependencies.values():
+				for d in impl.requires:
 					debug("Considering dependency %s", d)
 					process(d)
 			else:

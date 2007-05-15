@@ -473,12 +473,18 @@ def add_local_feed(interface):
 	sel.cancel_button.connect('clicked', lambda b: sel.destroy())
 	sel.show()
 	
-def edit(interface, show_versions = False):
-	assert isinstance(interface, Interface)
-	if interface in _dialogs:
-		_dialogs[interface].destroy()
-	_dialogs[interface] = Properties(interface, show_versions)
-	_dialogs[interface].show()
+def edit(obj, show_versions = False):
+	if isinstance(obj, NativeLibraryDependency):
+		dialog.alert(None, ("This program requires a native library called '%s'. Native libraries are installed "
+		      "using your distribution's package manager; they are not fetched using Zero Install") % obj.soname,
+		      type = gtk.MESSAGE_INFO)
+		return
+			
+	assert isinstance(obj, Interface)
+	if obj in _dialogs:
+		_dialogs[obj].destroy()
+	_dialogs[obj] = Properties(obj, show_versions)
+	_dialogs[obj].show()
 
 properties_help = help_box.HelpBox("Injector Properties Help",
 ('Interface properties', """

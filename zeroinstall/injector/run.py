@@ -8,7 +8,7 @@ Executes a set of implementations as a program.
 import os, sys
 from logging import debug, info
 
-from zeroinstall.injector.model import Interface, SafeException, EnvironmentBinding
+from zeroinstall.injector.model import InterfaceDependency, SafeException, EnvironmentBinding
 from zeroinstall.injector.iface_cache import iface_cache
 
 def do_env_binding(binding, path):
@@ -27,12 +27,13 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 	for needed_iface in policy.implementation:
 		impl = policy.implementation[needed_iface]
 		assert impl
-		for dep in impl.dependencies.values():
-			dep_iface = iface_cache.get_interface(dep.interface)
-			for b in dep.bindings:
-				if isinstance(b, EnvironmentBinding):
-					dep_impl = policy.get_implementation(dep_iface)
-					do_env_binding(b, policy.get_implementation_path(dep_impl))
+		for dep in impl.requires:
+			if isinstance(dep, InterfaceDependency):
+				dep_iface = iface_cache.get_interface(dep.interface)
+				for b in dep.bindings:
+					if isinstance(b, EnvironmentBinding):
+						dep_impl = policy.get_implementation(dep_iface)
+						do_env_binding(b, policy.get_implementation_path(dep_impl))
 	
 	root_impl = policy.get_implementation(iface)
 	_execute(root_impl, prog_args, dry_run, main, wrapper)

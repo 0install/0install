@@ -26,24 +26,31 @@ class InvalidInterface(SafeException):
 
 def _process_depends(item):
 	# Note: also called from selections
-	dep_iface = item.getAttribute('interface')
-	if dep_iface is None:
-		raise InvalidInterface("Missing 'interface' on <requires>")
-	dependency = InterfaceDependency(dep_iface, metadata = item.attrs)
+	if item.name == 'requires':
+		dep_iface = item.getAttribute('interface')
+		if dep_iface is None:
+			raise InvalidInterface("Missing 'interface' on <requires>")
+		dependency = InterfaceDependency(dep_iface, metadata = item.attrs)
 
-	for e in item.childNodes:
-		if e.uri != XMLNS_IFACE: continue
-		if e.name == 'environment':
-			binding = EnvironmentBinding(e.getAttribute('name'),
-						     insert = e.getAttribute('insert'),
-						     default = e.getAttribute('default'))
-			if not binding.name: raise InvalidInterface("Missing 'name' in binding")
-			if binding.insert is None: raise InvalidInterface("Missing 'insert' in binding")
-			dependency.bindings.append(binding)
-		elif e.name == 'version':
-			dependency.restrictions.append(
-				Restriction(not_before = parse_version(e.getAttribute('not-before')),
-					    before = parse_version(e.getAttribute('before'))))
+		for e in item.childNodes:
+			if e.uri != XMLNS_IFACE: continue
+			if e.name == 'environment':
+				binding = EnvironmentBinding(e.getAttribute('name'),
+							     insert = e.getAttribute('insert'),
+							     default = e.getAttribute('default'))
+				if not binding.name: raise InvalidInterface("Missing 'name' in binding")
+				if binding.insert is None: raise InvalidInterface("Missing 'insert' in binding")
+				dependency.bindings.append(binding)
+			elif e.name == 'version':
+				dependency.restrictions.append(
+					Restriction(not_before = parse_version(e.getAttribute('not-before')),
+						    before = parse_version(e.getAttribute('before'))))
+	elif item.name == 'requires-native-library':
+		dependency = NativeLibraryDependency(soname = item.getAttribute('soname'))
+		if not dependency.soname:
+			raise InvalidInterface('Missing soname attribute on <%s>' % item.name)
+	else:
+		raise Exception("Unknown dependency type '%s'" % item.name)
 	return dependency
 
 def update_from_cache(interface):
@@ -268,15 +275,15 @@ def update(interface, source, local = False):
 		for item in group.childNodes:
 			if item.uri != XMLNS_IFACE: continue
 
-			depends = base_depends.copy()
+			depends = base_depends[:]
 
 			item_attrs = _merge_attrs(group_attrs, item)
 
 			for child in item.childNodes:
 				if child.uri != XMLNS_IFACE: continue
-				if child.name == 'requires':
+				if child.name in ('requires', 'requires-native-library'):
 					dep = _process_depends(child)
-					depends[dep.interface] = dep
+					depends.append(dep)
 
 			if item.name == 'group':
 				process_group(item, item_attrs, depends)
@@ -331,7 +338,7 @@ def update(interface, source, local = False):
 			raise InvalidInterface("Upstream can't set stability to preferred!")
 		impl.upstream_stability = stability
 
-		impl.dependencies.update(depends)
+		impl.requires.extend(depends)
 
 		for elem in item.childNodes:
 			if elem.uri != XMLNS_IFACE: continue
@@ -370,4 +377,4 @@ def update(interface, source, local = False):
 		{'stability': 'testing',
 	         'main' : root.getAttribute('main') or None,
 		},
-		{})
+		[])

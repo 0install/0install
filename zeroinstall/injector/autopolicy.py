@@ -89,5 +89,8 @@ class AutoPolicy(policy.Policy):
 		if not self.ready:
 			raise model.SafeException("Can't find all required implementations:\n" +
 				'\n'.join(["- %s -> %s" % (iface, self.implementation[iface])
-					   for iface  in self.implementation]))
+					   for iface  in self.implementation]) +
+				'\n' +
+				'\n'.join(["- Native library %s is missing; install it using your distribution's package manager"
+					% x.soname for x in self.failed_native_requirements]))
 		self.execute(prog_args, main = main)

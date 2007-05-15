@@ -78,6 +78,7 @@ class TestReader(BaseTest):
 		reader.update(iface, tmp.name)
 		impl = iface.implementations['sha1=123']
 		assert len(impl.dependencies) == 2
+		assert len(impl.requires) == 2
 		dep = impl.dependencies[bar_iface_uri]
 		assert len(dep.restrictions) == 1
 		res = dep.restrictions[0]
@@ -158,6 +159,31 @@ class TestReader(BaseTest):
 
 		assert iface.get_impl('sha1=124').metadata['http://bob bob'] == 'bobvalue'
 		assert iface.get_impl('sha1=124').metadata['main'] == 'next'
+	
+	def testNativeLibrary(self):
+		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp.write(
+"""<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <group>
+   <requires-native-library soname='libxaw.so.7'/>
+   <implementation id='sha1=124' version='1'/>
+  </group>
+</interface>""")
+		tmp.flush()
+		iface = model.Interface(foo_iface_uri)
+		reader.update(iface, tmp.name, local = True)
+		
+		assert len(iface.implementations) == 1
+		impl = iface.implementations['sha1=124']
+		assert len(impl.dependencies) == 0
+		assert len(impl.requires) == 1
+
+		requires = impl.requires[0]
+		self.assertEquals('libxaw.so.7', requires.soname)
 	
 suite = unittest.makeSuite(TestReader)
 if __name__ == '__main__':

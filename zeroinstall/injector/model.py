@@ -196,6 +196,16 @@ class InterfaceDependency(Dependency):
 	def __str__(self):
 		return "<Dependency on %s; bindings: %s%s>" % (self.interface, self.bindings, self.restrictions)
 
+class NativeLibraryDependency(Dependency):
+	"""A dependency on a library installed by the distribution's package manager."""
+	__slots__ = ['soname']
+
+	def __init__(self, soname):
+		self.soname = soname
+	
+	def __str__(self):
+		return "<NativeLibraryDependency on '%s'>" % self.soname
+
 class RetrievalMethod(object):
 	"""A RetrievalMethod provides a way to fetch an implementation."""
 	__slots__ = []
@@ -229,7 +239,7 @@ class Recipe(RetrievalMethod):
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
 	__slots__ = ['os', 'machine', 'upstream_stability', 'user_stability',
-		     'version', 'size', 'dependencies', 'main', 'metadata',
+		     'version', 'size', 'requires', 'main', 'metadata',
 		     'id', 'download_sources', 'released', 'interface']
 
 	def __init__(self, interface, id):
@@ -246,8 +256,12 @@ class Implementation(object):
 		self.os = None
 		self.machine = None
 		self.metadata = {}	# [URI + " "] + localName -> value
-		self.dependencies = {}	# URI -> Dependency
 		self.download_sources = []	# [RetrievalMethod]
+		self.requires = []
+
+	# Deprecated
+	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires
+						   if isinstance(x, InterfaceDependency)]))
 	
 	def add_download_source(self, url, size, extract, start_offset = 0, type = None):
 		"""Add a download source."""
