@@ -24,8 +24,13 @@ class InvalidInterface(SafeException):
 			message += "\n\n(exact error: %s)" % ex
 		SafeException.__init__(self, message)
 
-def _process_depends(dependency, item):
+def _process_depends(item):
 	# Note: also called from selections
+	dep_iface = item.getAttribute('interface')
+	if dep_iface is None:
+		raise InvalidInterface("Missing 'interface' on <requires>")
+	dependency = InterfaceDependency(dep_iface, metadata = item.attrs)
+
 	for e in item.childNodes:
 		if e.uri != XMLNS_IFACE: continue
 		if e.name == 'environment':
@@ -39,6 +44,7 @@ def _process_depends(dependency, item):
 			dependency.restrictions.append(
 				Restriction(not_before = parse_version(e.getAttribute('not-before')),
 					    before = parse_version(e.getAttribute('before'))))
+	return dependency
 
 def update_from_cache(interface):
 	"""Read a cached interface and any local feeds or user overrides.
@@ -269,11 +275,7 @@ def update(interface, source, local = False):
 			for child in item.childNodes:
 				if child.uri != XMLNS_IFACE: continue
 				if child.name == 'requires':
-					dep_iface = child.getAttribute('interface')
-					if dep_iface is None:
-						raise InvalidInterface("Missing 'interface' on <requires>")
-					dep = InterfaceDependency(dep_iface, metadata = child.attrs)
-					_process_depends(dep, child)
+					dep = _process_depends(child)
 					depends[dep.interface] = dep
 
 			if item.name == 'group':

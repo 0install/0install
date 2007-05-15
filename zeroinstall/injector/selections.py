@@ -77,8 +77,7 @@ class Selections(object):
 					continue
 				if dep_elem.name != 'requires':
 					continue
-				dep = InterfaceDependency(dep_elem.getAttribute('interface'), metadata = dep_elem.attrs)
-				reader._process_depends(dep, dep_elem)
+				dep = reader._process_depends(dep_elem)
 				bindings.append(dep)
 
 			iface_uri = selection.getAttribute('interface')
