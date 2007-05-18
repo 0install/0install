@@ -196,16 +196,6 @@ class InterfaceDependency(Dependency):
 	def __str__(self):
 		return "<Dependency on %s; bindings: %s%s>" % (self.interface, self.bindings, self.restrictions)
 
-class NativeLibraryDependency(Dependency):
-	"""A dependency on a library installed by the distribution's package manager."""
-	__slots__ = ['soname']
-
-	def __init__(self, soname):
-		self.soname = soname
-	
-	def __str__(self):
-		return "<NativeLibraryDependency on '%s'>" % self.soname
-
 class RetrievalMethod(object):
 	"""A RetrievalMethod provides a way to fetch an implementation."""
 	__slots__ = []
@@ -256,8 +246,8 @@ class Implementation(object):
 		self.os = None
 		self.machine = None
 		self.metadata = {}	# [URI + " "] + localName -> value
-		self.download_sources = []	# [RetrievalMethod]
 		self.requires = []
+		self.download_sources = []	# [RetrievalMethod]
 
 	# Deprecated
 	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires

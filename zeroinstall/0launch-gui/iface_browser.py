@@ -21,8 +21,7 @@ CELL_TEXT_INDENT = int(ICON_SIZE) + 4
 class InterfaceTips(TreeTips):
 	def get_tooltip_text(self, item):
 		interface, model_column = item
-		if not isinstance(interface, model.Interface):
-			return None
+		assert interface
 		if model_column == InterfaceBrowser.INTERFACE_NAME:
 			return _("Full name: %s") % interface.uri
 		elif model_column == InterfaceBrowser.SUMMARY:
@@ -296,7 +295,6 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 					else:
 						fetch = '(unavailable)'
 				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = fetch
-
 				if hasattr(impl, 'requires'):
 					children = impl.requires
 				else:
@@ -305,8 +303,6 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 				for child in children:
 					if isinstance(child, model.InterfaceDependency):
 						add_node(iter, iface_cache.get_interface(child.interface))
-					elif isinstance(child, model.NativeLibraryDependency):
-						self._add_native_lib(iter, child)
 					else:
 						child_iter = self.model.append(parent)
 						self.model[child_iter][InterfaceBrowser.INTERFACE_NAME] = '?'
@@ -317,19 +313,6 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 				self.model[iter][InterfaceBrowser.VERSION] = '(choose)'
 		add_node(None, self.root)
 		self.tree_view.expand_all()
-	
-	def _add_native_lib(self, parent, dep):
-		if dep in policy.failed_native_requirements:
-			summary = 'MISSING native library %s' % dep.soname
-		else:
-			summary = 'Uses native library %s' % dep.soname
-		child_iter = self.model.append(parent)
-		self.model[child_iter][InterfaceBrowser.INTERFACE] = dep
-		self.model[child_iter][InterfaceBrowser.INTERFACE_NAME] = dep.soname
-		self.model[child_iter][InterfaceBrowser.VERSION] = '-'
-		self.model[child_iter][InterfaceBrowser.DOWNLOAD_SIZE] = '(native)'
-		self.model[child_iter][InterfaceBrowser.SUMMARY] = summary
-		self.model[child_iter][InterfaceBrowser.ICON] = self.default_icon
 
 	def show_popup_menu(self, iface, bev):
 		import bugs

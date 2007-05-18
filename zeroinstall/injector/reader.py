@@ -26,31 +26,24 @@ class InvalidInterface(SafeException):
 
 def _process_depends(item):
 	# Note: also called from selections
-	if item.name == 'requires':
-		dep_iface = item.getAttribute('interface')
-		if dep_iface is None:
-			raise InvalidInterface("Missing 'interface' on <requires>")
-		dependency = InterfaceDependency(dep_iface, metadata = item.attrs)
+	dep_iface = item.getAttribute('interface')
+	if dep_iface is None:
+		raise InvalidInterface("Missing 'interface' on <requires>")
+	dependency = InterfaceDependency(dep_iface, metadata = item.attrs)
 
-		for e in item.childNodes:
-			if e.uri != XMLNS_IFACE: continue
-			if e.name == 'environment':
-				binding = EnvironmentBinding(e.getAttribute('name'),
-							     insert = e.getAttribute('insert'),
-							     default = e.getAttribute('default'))
-				if not binding.name: raise InvalidInterface("Missing 'name' in binding")
-				if binding.insert is None: raise InvalidInterface("Missing 'insert' in binding")
-				dependency.bindings.append(binding)
-			elif e.name == 'version':
-				dependency.restrictions.append(
-					Restriction(not_before = parse_version(e.getAttribute('not-before')),
-						    before = parse_version(e.getAttribute('before'))))
-	elif item.name == 'requires-native-library':
-		dependency = NativeLibraryDependency(soname = item.getAttribute('soname'))
-		if not dependency.soname:
-			raise InvalidInterface('Missing soname attribute on <%s>' % item.name)
-	else:
-		raise Exception("Unknown dependency type '%s'" % item.name)
+	for e in item.childNodes:
+		if e.uri != XMLNS_IFACE: continue
+		if e.name == 'environment':
+			binding = EnvironmentBinding(e.getAttribute('name'),
+						     insert = e.getAttribute('insert'),
+						     default = e.getAttribute('default'))
+			if not binding.name: raise InvalidInterface("Missing 'name' in binding")
+			if binding.insert is None: raise InvalidInterface("Missing 'insert' in binding")
+			dependency.bindings.append(binding)
+		elif e.name == 'version':
+			dependency.restrictions.append(
+				Restriction(not_before = parse_version(e.getAttribute('not-before')),
+					    before = parse_version(e.getAttribute('before'))))
 	return dependency
 
 def update_from_cache(interface):
@@ -281,7 +274,7 @@ def update(interface, source, local = False):
 
 			for child in item.childNodes:
 				if child.uri != XMLNS_IFACE: continue
-				if child.name in ('requires', 'requires-native-library'):
+				if child.name == 'requires':
 					dep = _process_depends(child)
 					depends.append(dep)
 
