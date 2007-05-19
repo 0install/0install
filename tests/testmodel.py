@@ -75,11 +75,11 @@ class TestModel(BaseTest):
 		assert a and b and c
 		assert a is c
 		assert a is not b
-		assert isinstance(a, model.Implementation)
+		assert isinstance(a, model.ZeroInstallImplementation)
 	
 	def testImpl(self):
 		i = model.Interface('http://foo')
-		a = model.Implementation(i, 'foo')
+		a = model.ZeroInstallImplementation(i, 'foo')
 		assert a.id == 'foo'
 		assert a.size == a.version == a.user_stability == None
 		assert a.arch == a.upstream_stability == None
@@ -96,13 +96,13 @@ class TestModel(BaseTest):
 		self.assertEquals('1.2.3-rc2-post', a.get_version())
 		assert str(a) == 'foo'
 
-		b = model.Implementation(i, 'foo')
+		b = model.ZeroInstallImplementation(i, 'foo')
 		b.version = [1,2,1]
 		assert b > a
 	
 	def testDownloadSource(self):
 		i = model.Interface('http://foo')
-		a = model.Implementation(i, 'foo')
+		a = model.ZeroInstallImplementation(i, 'foo')
 		a.add_download_source('ftp://foo', 1024, None)
 		a.add_download_source('ftp://foo.tgz', 1025, 'foo')
 		assert a.download_sources[0].url == 'ftp://foo'

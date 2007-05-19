@@ -228,25 +228,35 @@ class Recipe(RetrievalMethod):
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
+	__slots__ = ['upstream_stability', 'user_stability',
+		     'requires', 'main', 'metadata',
+		     'id', 'interface']
+
+	def __init__(self, interface, id):
+		assert id
+		self.interface = interface
+		self.id = id
+		self.main = None
+		self.user_stability = None
+		self.upstream_stability = None
+		self.metadata = {}	# [URI + " "] + localName -> value
+		self.requires = []
+
+class ZeroInstallImplementation(Implementation):
+	"""An implementation where all the information comes from Zero Install.
+	@since: 0.28"""
 	__slots__ = ['os', 'machine', 'upstream_stability', 'user_stability',
 		     'version', 'size', 'requires', 'main', 'metadata',
 		     'id', 'download_sources', 'released', 'interface']
 
 	def __init__(self, interface, id):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
-		assert id
-		self.interface = interface
-		self.id = id
-		self.main = None
+		Implementation.__init__(self, interface, id)
 		self.size = None
 		self.version = None
 		self.released = None
-		self.user_stability = None
-		self.upstream_stability = None
 		self.os = None
 		self.machine = None
-		self.metadata = {}	# [URI + " "] + localName -> value
-		self.requires = []
 		self.download_sources = []	# [RetrievalMethod]
 
 	# Deprecated
@@ -332,7 +342,7 @@ class Interface(object):
 	
 	def get_impl(self, id):
 		if id not in self.implementations:
-			self.implementations[id] = Implementation(self, id)
+			self.implementations[id] = ZeroInstallImplementation(self, id)
 		return self.implementations[id]
 	
 	def set_stability_policy(self, new):
