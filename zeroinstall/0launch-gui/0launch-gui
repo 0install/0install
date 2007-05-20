@@ -55,6 +55,9 @@ if options.version:
 	sys.exit(0)
 
 import gtk
+if gtk.gdk.get_display() is None:
+	print >>sys.stderr, "Failed to connect to display. Aborting."
+	sys.exit(1)
 
 if not hasattr(gtk, 'combo_box_new_text'):
 	import combo_compat
