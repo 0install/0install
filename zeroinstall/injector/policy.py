@@ -589,6 +589,8 @@ class Policy(object):
 		@type impl: model.Implementation
 		@rtype: bool
 		"""
+		if isinstance(impl, DistributionImplementation):
+			return impl.installed
 		if impl.id.startswith('/'):
 			return os.path.exists(impl.id)
 		else:

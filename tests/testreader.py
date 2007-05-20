@@ -159,6 +159,33 @@ class TestReader(BaseTest):
 		assert iface.get_impl('sha1=124').metadata['http://bob bob'] == 'bobvalue'
 		assert iface.get_impl('sha1=124').metadata['main'] == 'next'
 	
+	def testNative(self):
+		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp.write(
+"""<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <package-implementation package='gimp' distribution='Debian'/>
+  <package-implementation package='python-bittorrent' distribution='Debian' foo='bar' main='/usr/bin/pbt'/>
+</interface>""")
+		tmp.flush()
+
+		iface = model.Interface(foo_iface_uri)
+		reader.update(iface, tmp.name, True)
+
+		assert len(iface.implementations) == 1
+
+		impl = iface.implementations['package:debian:python-bittorrent:3.4.2-10']
+		assert impl.id == 'package:debian:python-bittorrent:3.4.2-10'
+		assert impl.upstream_stability == model.packaged
+		assert impl.user_stability == None
+		assert impl.requires == []
+		assert impl.main == '/usr/bin/pbt'
+		assert impl.metadata['foo'] == 'bar'
+		assert impl.interface == iface
+	
 suite = unittest.makeSuite(TestReader)
 if __name__ == '__main__':
 	sys.argv.append('-v')

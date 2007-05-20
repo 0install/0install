@@ -12,7 +12,7 @@ import time
 from logging import debug, warn, info
 from os.path import dirname
 
-from zeroinstall.injector import basedir, qdom
+from zeroinstall.injector import basedir, qdom, distro
 from zeroinstall.injector.namespaces import *
 from zeroinstall.injector.model import *
 from zeroinstall import version, SafeException
@@ -282,7 +282,9 @@ def update(interface, source, local = False):
 				process_group(item, item_attrs, depends)
 			elif item.name == 'implementation':
 				process_impl(item, item_attrs, depends)
-	
+			elif item.name == 'package-implementation':
+				process_native_impl(item, item_attrs, depends)
+
 	def process_impl(item, item_attrs, depends):
 		id = item.getAttribute('id')
 		if id is None:
@@ -331,7 +333,7 @@ def update(interface, source, local = False):
 			raise InvalidInterface("Upstream can't set stability to preferred!")
 		impl.upstream_stability = stability
 
-		impl.requires.extend(depends)
+		impl.requires = depends
 
 		for elem in item.childNodes:
 			if elem.uri != XMLNS_IFACE: continue
@@ -366,6 +368,33 @@ def update(interface, source, local = False):
 				else:
 					impl.download_sources.append(recipe)
 
+	def process_native_impl(item, item_attrs, depends):
+		package = item.getAttribute('package')
+		if package is None:
+			raise InvalidInterface("Missing 'package' attribute on %s" % item)
+		distribution = item.getAttribute('distribution')
+		if distribution is None:
+			raise InvalidInterface("Missing 'distribution' attribute on %s" % item)
+
+		def factory(id):
+			assert id.startswith('package:')
+			impl = interface.get_impl(id)
+
+			impl.metadata = item_attrs
+
+			item_main = item_attrs.get('main', None)
+			if item_main and not item_main.startswith('/'):
+				raise InvalidInterface("'main' attribute must be absolute, but '%s' doesn't start with '/'!" %
+							item_main)
+			impl.main = item_main
+			impl.upstream_stability = packaged
+			impl.requires = depends
+
+			return impl
+
+		distro.host_distribution.get_package_info(distribution, package, factory)
+
+	
 	process_group(root,
 		{'stability': 'testing',
 	         'main' : root.getAttribute('main') or None,

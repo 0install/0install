@@ -1,0 +1,57 @@
+Package: python-bittorrent
+Status: install ok installed
+Priority: optional
+Section: net
+Installed-Size: 336
+Maintainer: Ubuntu Core developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Architecture: all
+Source: bittorrent
+Version: 3.4.2-10ubuntu2
+Replaces: bittorrent (<< 3.4.2-10ubuntu2)
+Provides: python2.4-bittorrent, python2.5-bittorrent
+Depends: python-central (>= 0.5.8), python (>= 2.3)
+Description: Scatter-gather network file transfer
+ BitTorrent is a tool for distributing files. It's extremely
+ easy to use - downloads are started by clicking on hyperlinks.
+ Whenever more than one person is downloading at once
+ they send pieces of the file(s) to each other, thus relieving
+ the central server's bandwidth burden. Even with many
+ simultaneous downloads, the upload burden on the central server
+ remains quite small, since each new downloader introduces new
+ upload capacity.
+ .
+ This package contains the python modules.
+ .
+  Homepage: http://bitconjurer.org/BitTorrent/
+Python-Version: >= 2.3
+Original-Maintainer: Michael Janssen <jamuraa@debian.org>
+
+Package: libxcomposite-dev
+Status: install ok installed
+Priority: optional
+Section: libdevel
+Installed-Size: 72
+Maintainer: Ubuntu Core Developers <ubuntu-devel@lists.ubuntu.com>
+Architecture: i386
+Source: libxcomposite
+Version: 1:0.3.1-1
+Depends: libxcomposite1 (= 1:0.3.1-1), libx11-dev, libxfixes-dev, x11proto-composite-dev
+Pre-Depends: x11-common (>= 1:7.0.0)
+Description: X11 Composite extension library (development headers)
+ libXcomposite provides an X Window System client interface to the Composite
+ extension to the X protocol.
+ .
+ The Composite extension allows clients called compositing managers to control
+ the final drawing of the screen.  Rendering is done into an off-screen buffer.
+ .
+ This package contains the development headers for the library found in
+ libxcomposite1.  Non-developers likely have little use for this package.
+ .
+ More information about X.Org can be found at:
+ <URL:http://xorg.freedesktop.org>
+ <URL:http://lists.freedesktop.org/mailman/listinfo/xorg>
+ .
+ This module can be found at
+ git://anongit.freedesktop.org/git/xorg/lib/libXcomposite
+Original-Maintainer: Debian X Strike Force <debian-x@lists.debian.org>
+

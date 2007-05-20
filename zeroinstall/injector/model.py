@@ -229,8 +229,8 @@ class Recipe(RetrievalMethod):
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface."""
 	__slots__ = ['upstream_stability', 'user_stability',
-		     'requires', 'main', 'metadata',
-		     'id', 'interface']
+		     'requires', 'main', 'metadata', 'download_sources',
+		     'id', 'interface', 'version', 'released']
 
 	def __init__(self, interface, id):
 		assert id
@@ -241,23 +241,54 @@ class Implementation(object):
 		self.upstream_stability = None
 		self.metadata = {}	# [URI + " "] + localName -> value
 		self.requires = []
+		self.version = None
+		self.released = None
+		self.download_sources = []
 
+	def get_stability(self):
+		return self.user_stability or self.upstream_stability or testing
+	
+	def __str__(self):
+		return self.id
+
+	def __cmp__(self, other):
+		"""Newer versions come first"""
+		return cmp(other.version, self.version)
+
+	def get_version(self):
+		"""Return the version as a string.
+		@see: L{format_version}
+		"""
+		return format_version(self.version)
+
+	arch = property(lambda self: _join_arch(self.os, self.machine))
+
+	os = machine = None
+
+class DistributionImplementation(Implementation):
+	"""An implementation provided by the distribution. Information such as the version
+	comes from the package manager.
+	@since: 0.28"""
+	__slots__ = ['installed']
+
+	def __init__(self, interface, id):
+		assert id.startswith('package:')
+		Implementation.__init__(self, interface, id)
+		self.installed = True
+	
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.
 	@since: 0.28"""
 	__slots__ = ['os', 'machine', 'upstream_stability', 'user_stability',
-		     'version', 'size', 'requires', 'main', 'metadata',
-		     'id', 'download_sources', 'released', 'interface']
+		     'size', 'requires', 'main', 'metadata',
+		     'id',  'interface']
 
 	def __init__(self, interface, id):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
 		Implementation.__init__(self, interface, id)
 		self.size = None
-		self.version = None
-		self.released = None
 		self.os = None
 		self.machine = None
-		self.download_sources = []	# [RetrievalMethod]
 
 	# Deprecated
 	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires
@@ -266,22 +297,6 @@ class ZeroInstallImplementation(Implementation):
 	def add_download_source(self, url, size, extract, start_offset = 0, type = None):
 		"""Add a download source."""
 		self.download_sources.append(DownloadSource(self, url, size, extract, start_offset, type))
-	
-	def get_stability(self):
-		return self.user_stability or self.upstream_stability or testing
-	
-	def get_version(self):
-		"""Return the version as a string.
-		@see: L{format_version}
-		"""
-		return format_version(self.version)
-	
-	def __str__(self):
-		return self.id
-
-	def __cmp__(self, other):
-		"""Newer versions come first"""
-		return cmp(other.version, self.version)
 	
 	def set_arch(self, arch):
 		self.os, self.machine = _split_arch(arch)
@@ -342,7 +357,11 @@ class Interface(object):
 	
 	def get_impl(self, id):
 		if id not in self.implementations:
-			self.implementations[id] = ZeroInstallImplementation(self, id)
+			if id.startswith('package:'):
+				impl = DistributionImplementation(self, id)
+			else:
+				impl = ZeroInstallImplementation(self, id)
+			self.implementations[id] = impl
 		return self.implementations[id]
 	
 	def set_stability_policy(self, new):

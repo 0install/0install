@@ -8,7 +8,7 @@ Executes a set of implementations as a program.
 import os, sys
 from logging import debug, info
 
-from zeroinstall.injector.model import Interface, SafeException, EnvironmentBinding
+from zeroinstall.injector.model import Interface, SafeException, EnvironmentBinding, DistributionImplementation
 from zeroinstall.injector.iface_cache import iface_cache
 
 def do_env_binding(binding, path):
@@ -101,19 +101,24 @@ def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 def _execute(root_impl, prog_args, dry_run, main, wrapper):
 	assert root_impl is not None
 
-	if main is None:
-		main = root_impl.main
-	elif main.startswith('/'):
-		main = main[1:]
-	elif root_impl.main:
-		main = os.path.join(os.path.dirname(root_impl.main), main)
+	if root_impl.id.startswith('package:'):
+		main = main or root_impl.main
+		prog_path = main
+	else:
+		if main is None:
+			main = root_impl.main
+		elif main.startswith('/'):
+			main = main[1:]
+		elif root_impl.main:
+			main = os.path.join(os.path.dirname(root_impl.main), main)
+		if main:
+			prog_path = os.path.join(_get_implementation_path(root_impl.id), main)
 
 	if main is None:
 		raise SafeException("Implementation '%s' cannot be executed directly; it is just a library "
 				    "to be used by other programs (or missing 'main' attribute)" %
 				    root_impl)
 
-	prog_path = os.path.join(_get_implementation_path(root_impl.id), main)
 	if not os.path.exists(prog_path):
 		raise SafeException("File '%s' does not exist.\n"
 				"(implementation '%s' + program '%s')" %
