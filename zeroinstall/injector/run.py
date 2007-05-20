@@ -8,7 +8,7 @@ Executes a set of implementations as a program.
 import os, sys
 from logging import debug, info
 
-from zeroinstall.injector.model import Interface, SafeException, EnvironmentBinding, DistributionImplementation
+from zeroinstall.injector.model import Interface, SafeException, EnvironmentBinding, DistributionImplementation, ZeroInstallImplementation
 from zeroinstall.injector.iface_cache import iface_cache
 
 def do_env_binding(binding, path):
@@ -32,7 +32,10 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 			for b in dep.bindings:
 				if isinstance(b, EnvironmentBinding):
 					dep_impl = policy.get_implementation(dep_iface)
-					do_env_binding(b, policy.get_implementation_path(dep_impl))
+					if isinstance(dep_impl, ZeroInstallImplementation):
+						do_env_binding(b, policy.get_implementation_path(dep_impl))
+					else:
+						debug("Implementation %s is native; no binding needed", dep_impl)
 	
 	root_impl = policy.get_implementation(iface)
 	_execute(root_impl, prog_args, dry_run, main, wrapper)
