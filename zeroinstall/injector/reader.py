@@ -369,10 +369,10 @@ def update(interface, source, local = False):
 					impl.download_sources.append(recipe)
 
 	def process_native_impl(item, item_attrs, depends):
-		package = item.getAttribute('package')
+		package = item_attrs.get('package', None)
 		if package is None:
 			raise InvalidInterface("Missing 'package' attribute on %s" % item)
-		distribution = item.getAttribute('distribution')
+		distribution = item_attrs.get('distribution', None)
 		if distribution is None:
 			raise InvalidInterface("Missing 'distribution' attribute on %s" % item)
 
