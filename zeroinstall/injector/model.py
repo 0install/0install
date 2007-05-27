@@ -105,15 +105,22 @@ class Binding(object):
 
 class EnvironmentBinding(Binding):
 	"""Indicate the chosen implementation using an environment variable."""
-	__slots__ = ['name', 'insert', 'default']
+	__slots__ = ['name', 'insert', 'default', 'mode']
 
-	def __init__(self, name, insert, default = None):
+	PREPEND = 'prepend'
+	APPEND = 'append'
+	REPLACE = 'replace'
+
+	def __init__(self, name, insert, default = None, mode = PREPEND):
+		"""mode argument added in version 0.28"""
 		self.name = name
 		self.insert = insert
 		self.default = default
+		self.mode = mode
 	
 	def __str__(self):
-		return "<environ %s += %s>" % (self.name, self.insert)
+		return "<environ %s %s %s>" % (self.name, self.mode, self.insert)
+
 	__repr__ = __str__
 	
 	def get_value(self, path, old_value):
@@ -122,11 +129,18 @@ class EnvironmentBinding(Binding):
 		@param old_value: the current value of the environment variable
 		@return: the new value for the environment variable"""
 		extra = os.path.join(path, self.insert)
+
+		if self.mode == EnvironmentBinding.REPLACE:
+			return extra
+
 		if old_value is None:
 			old_value = self.default or defaults.get(self.name, None)
 		if old_value is None:
 			return extra
-		return extra + ':' + old_value
+		if self.mode == EnvironmentBinding.PREPEND:
+			return extra + ':' + old_value
+		else:
+			return old_value + ':' + extra
 
 	def _toxml(self, doc):
 		"""Create a DOM element for this binding.

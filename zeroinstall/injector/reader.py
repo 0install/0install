@@ -34,9 +34,17 @@ def _process_depends(item):
 	for e in item.childNodes:
 		if e.uri != XMLNS_IFACE: continue
 		if e.name == 'environment':
+			mode = {
+				None: EnvironmentBinding.PREPEND,
+				'prepend': EnvironmentBinding.PREPEND,
+				'append': EnvironmentBinding.APPEND,
+				'replace': EnvironmentBinding.REPLACE,
+			}[e.getAttribute('mode')]
+				
 			binding = EnvironmentBinding(e.getAttribute('name'),
 						     insert = e.getAttribute('insert'),
-						     default = e.getAttribute('default'))
+						     default = e.getAttribute('default'),
+						     mode = mode)
 			if not binding.name: raise InvalidInterface("Missing 'name' in binding")
 			if binding.insert is None: raise InvalidInterface("Missing 'insert' in binding")
 			dependency.bindings.append(binding)

@@ -116,6 +116,34 @@ class TestModel(BaseTest):
 		assert a.insert == 'path'
 		str(a)
 	
+	def testEnvModes(self):
+		prepend = model.EnvironmentBinding('PYTHONPATH', 'lib', None, model.EnvironmentBinding.PREPEND)
+		assert prepend.name == 'PYTHONPATH'
+		assert prepend.insert == 'lib'
+		assert prepend.mode is model.EnvironmentBinding.PREPEND
+
+		self.assertEquals('/impl/lib:/usr/lib', prepend.get_value('/impl', '/usr/lib'))
+		self.assertEquals('/impl/lib', prepend.get_value('/impl', None))
+
+		append = model.EnvironmentBinding('PYTHONPATH', 'lib', '/opt/lib', model.EnvironmentBinding.APPEND)
+		assert append.name == 'PYTHONPATH'
+		assert append.insert == 'lib'
+		assert append.mode is model.EnvironmentBinding.APPEND
+
+		self.assertEquals('/usr/lib:/impl/lib', append.get_value('/impl', '/usr/lib'))
+		self.assertEquals('/opt/lib:/impl/lib', append.get_value('/impl', None))
+		
+		append = model.EnvironmentBinding('PYTHONPATH', 'lib', None, model.EnvironmentBinding.REPLACE)
+		assert append.name == 'PYTHONPATH'
+		assert append.insert == 'lib'
+		assert append.mode is model.EnvironmentBinding.REPLACE
+
+		self.assertEquals('/impl/lib', append.get_value('/impl', '/usr/lib'))
+		self.assertEquals('/impl/lib', append.get_value('/impl', None))
+
+		assert model.EnvironmentBinding('PYTHONPATH', 'lib').mode == model.EnvironmentBinding.PREPEND
+		
+	
 	def testDep(self):
 		b = model.InterfaceDependency('http://foo')
 		assert not b.restrictions

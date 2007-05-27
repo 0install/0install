@@ -91,6 +91,43 @@ class TestReader(BaseTest):
 		assert dep.metadata.get('http://my/namespace foo') == 'test'
 		assert dep.metadata.get('http://my/namespace food', None) == None
 	
+	def testBindings(self):
+		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp.write(
+"""<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <group>
+   <requires interface='http://example.com/foo.xml'>
+     <environment name='PATH' insert='bin'/>
+     <environment name='PATH' insert='bin' mode='prepend'/>
+     <environment name='PATH' insert='bin' default='/bin' mode='append'/>
+     <environment name='PATH' insert='bin' mode='replace'/>
+   </requires>
+   <implementation id='sha1=123' version='1'/>
+  </group>
+</interface>""")
+		tmp.flush()
+		iface = model.Interface(foo_iface_uri)
+		reader.update(iface, tmp.name, local = True)
+		impl = iface.implementations['sha1=123']
+		assert len(impl.requires) == 1
+		dep = impl.requires[0]
+
+		assert len(dep.bindings) == 4
+		for b in dep.bindings:
+			self.assertEquals('PATH', b.name)
+			self.assertEquals('bin', b.insert)
+		self.assertEquals(model.EnvironmentBinding.PREPEND, dep.bindings[0].mode)
+		self.assertEquals(model.EnvironmentBinding.PREPEND, dep.bindings[1].mode)
+		self.assertEquals(model.EnvironmentBinding.APPEND, dep.bindings[2].mode)
+		self.assertEquals(model.EnvironmentBinding.REPLACE, dep.bindings[3].mode)
+
+		self.assertEquals(None, dep.bindings[1].default)
+		self.assertEquals('/bin', dep.bindings[2].default)
+
 	def testVersions(self):
 		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
 		tmp.write(
