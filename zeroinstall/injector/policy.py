@@ -66,7 +66,7 @@ class _Cook:
 		try:
 			# Unpack each of the downloaded archives into it in turn
 			for step in self.recipe.steps:
-				unpack.unpack_archive(step.url, self.streams[step], tmpdir, step.extract)
+				unpack.unpack_archive_over(step.url, self.streams[step], tmpdir, step.extract)
 			# Check that the result is correct and store it in the cache
 			store.check_manifest_and_rename(self.required_digest, tmpdir)
 			tmpdir = None

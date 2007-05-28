@@ -11,7 +11,7 @@ import sha
 import re
 from logging import debug, info, warn
 from zeroinstall import SafeException
-from zeroinstall.support import find_in_path
+from zeroinstall.support import find_in_path, ro_rmtree
 
 _cpio_version = None
 def _get_cpio_version():
@@ -125,6 +125,55 @@ def _exec_maybe_sandboxed(writable, prog, *args):
 	if writable:
 		pola_args += ['-fw', writable]
 	os.execl(_pola_run, _pola_run, *pola_args)
+
+def unpack_archive_over(url, data, destdir, extract = None, type = None, start_offset = 0):
+	"""Like unpack_archive, except that we unpack to a temporary directory first and
+	then move things over, checking that we're not following symlinks at each stage.
+	Use this when you want to unpack an unarchive into a directory which already has
+	stuff in it.
+	@since: 0.28"""
+	import stat
+	tmpdir = mkdtemp(dir = destdir)
+	try:
+		mtimes = []
+
+		unpack_archive(url, data, tmpdir, extract, type, start_offset)
+
+		stem_len = len(tmpdir)
+		for root, dirs, files in os.walk(tmpdir):
+			relative_root = root[stem_len + 1:] or '.'
+			target_root = os.path.join(destdir, relative_root)
+			try:
+				info = os.lstat(target_root)
+			except OSError, ex:
+				if ex.errno != 2:
+					raise	# Some odd error.
+				# Doesn't exist. OK.
+				os.mkdir(target_root)
+			else:
+				if stat.S_ISLNK(info.st_mode):
+					raise SafeException('Attempt to unpack dir over symlink "%s"!' % relative_root)
+				elif not stat.S_ISDIR(info.st_mode):
+					raise SafeException('Attempt to unpack dir over non-directory "%s"!' % relative_root)
+			mtimes.append((relative_root, os.lstat(os.path.join(tmpdir, root)).st_mtime))
+
+			for s in dirs:	# Symlinks are counted as directories
+				src = os.path.join(tmpdir, relative_root, s)
+				if os.path.islink(src):
+					files.append(s)
+
+			for f in files:
+				src = os.path.join(tmpdir, relative_root, f)
+				dest = os.path.join(destdir, relative_root, f)
+				if os.path.islink(dest):
+					raise SafeException('Attempt to unpack file over symlink "%s"!' %
+							os.path.join(relative_root, f))
+				os.rename(src, dest)
+
+		for path, mtime in mtimes[1:]:
+			os.utime(os.path.join(destdir, path), (mtime, mtime))
+	finally:
+		ro_rmtree(tmpdir)
 
 def unpack_archive(url, data, destdir, extract = None, type = None, start_offset = 0):
 	"""Unpack stream 'data' into directory 'destdir'. If extract is given, extract just

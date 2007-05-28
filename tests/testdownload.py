@@ -145,6 +145,22 @@ class TestDownload(BaseTest):
 		finally:
 			sys.stdout = old_out
 
+	def testSymlink(self):
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			self.child = server.handle_requests(('HelloWorld.tar.bz2', 'HelloSym.tgz'))
+			policy = autopolicy.AutoPolicy(os.path.abspath('RecipeSymlink.xml'), download_only = False)
+			try:
+				policy.download_and_execute([])
+				assert False
+			except model.SafeException, ex:
+				if 'Attempt to unpack dir over symlink "HelloWorld"' not in str(ex):
+					raise ex
+			self.assertEquals(None, basedir.load_first_cache('0install.net', 'implementations', 'main'))
+		finally:
+			sys.stdout = old_out
+
 	def testAutopackage(self):
 		old_out = sys.stdout
 		try:

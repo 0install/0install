@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>RecipeSymlink</name>
+  <summary>RecipeSymlink</summary>
+  <description>RecipeSymlink</description>
+  <implementation id='sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' version='0.1' main='HelloWorld/Missing'>
+    <recipe>
+     <archive href='http://localhost:8000/HelloSym.tgz' size='121'/>
+     <archive href='http://localhost:8000/HelloWorld.tar.bz2' size='185'/>
+    </recipe>
+  </implementation>
+</interface>
