@@ -30,12 +30,10 @@ class Distribution(object):
 	@since: 0.28
 	"""
 
-	def get_package_info(self, distribution, package, factory):
+	def get_package_info(self, package, factory):
 		"""Get information about the given package.
 		Add zero or more implementations using the factory (typically at most two
 		will be added; the currently installed version and the latest available).
-		@param distribution: distribution name (e.g. "Debian")
-		@type distribution: str
 		@param package: package name (e.g. "gimp")
 		@type package: str
 		@param factory: function for creating new DistributionImplementation objects from IDs
@@ -113,16 +111,13 @@ class DebianDistribution(Distribution):
 			os.unlink(tmpname)
 			raise
 
-	def get_package_info(self, distribution, package, factory):
-		if distribution != 'Debian':
-			return
-
+	def get_package_info(self, package, factory):
 		try:
 			version = self.versions[package]
 		except KeyError:
 			return
 
-		impl = factory('package:debian:%s:%s' % (package, version)) 
+		impl = factory('package:deb:%s:%s' % (package, version)) 
 		impl.version = model.parse_version(version)
 
 _dpkg_db_dir = '/var/lib/dpkg'

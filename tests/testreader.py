@@ -204,8 +204,8 @@ class TestReader(BaseTest):
   <name>Foo</name>
   <summary>Foo</summary>
   <description>Foo</description>
-  <package-implementation package='gimp' distribution='Debian'/>
-  <package-implementation package='python-bittorrent' distribution='Debian' foo='bar' main='/usr/bin/pbt'/>
+  <package-implementation package='gimp'/>
+  <package-implementation package='python-bittorrent' foo='bar' main='/usr/bin/pbt'/>
 </interface>""")
 		tmp.flush()
 
@@ -214,8 +214,8 @@ class TestReader(BaseTest):
 
 		assert len(iface.implementations) == 1
 
-		impl = iface.implementations['package:debian:python-bittorrent:3.4.2-10']
-		assert impl.id == 'package:debian:python-bittorrent:3.4.2-10'
+		impl = iface.implementations['package:deb:python-bittorrent:3.4.2-10']
+		assert impl.id == 'package:deb:python-bittorrent:3.4.2-10'
 		assert impl.upstream_stability == model.packaged
 		assert impl.user_stability == None
 		assert impl.requires == []

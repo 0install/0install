@@ -380,9 +380,6 @@ def update(interface, source, local = False):
 		package = item_attrs.get('package', None)
 		if package is None:
 			raise InvalidInterface("Missing 'package' attribute on %s" % item)
-		distribution = item_attrs.get('distribution', None)
-		if distribution is None:
-			raise InvalidInterface("Missing 'distribution' attribute on %s" % item)
 
 		def factory(id):
 			assert id.startswith('package:')
@@ -400,7 +397,7 @@ def update(interface, source, local = False):
 
 			return impl
 
-		distro.host_distribution.get_package_info(distribution, package, factory)
+		distro.host_distribution.get_package_info(package, factory)
 
 	
 	process_group(root,
