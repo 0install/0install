@@ -20,7 +20,7 @@ class TestDistro(BaseTest):
 	def testDefault(self):
 		host = distro.Distribution()
 
-		host.get_package_info('Debian', 'gimp', self.factory)
+		host.get_package_info('gimp', self.factory)
 		self.assertEquals(self.feed.implementations, {})
 
 	def testDebian(self):
@@ -28,20 +28,17 @@ class TestDistro(BaseTest):
 
 		self.assertEquals(2, len(host.versions))
 
-		host.get_package_info('RedHat', 'gimp', self.factory)
+		host.get_package_info('gimp', self.factory)
 		self.assertEquals({}, self.feed.implementations)
 
-		host.get_package_info('Debian', 'gimp', self.factory)
-		self.assertEquals({}, self.feed.implementations)
-
-		host.get_package_info('Debian', 'python-bittorrent', self.factory)
+		host.get_package_info('python-bittorrent', self.factory)
 		self.assertEquals(1, len(self.feed.implementations))
-		bittorrent = self.feed.implementations['package:debian:python-bittorrent:3.4.2-10']
+		bittorrent = self.feed.implementations['package:deb:python-bittorrent:3.4.2-10']
 		self.assertEquals('3.4.2-10', bittorrent.get_version())
 
-		host.get_package_info('Debian', 'libxcomposite-dev', self.factory)
+		host.get_package_info('libxcomposite-dev', self.factory)
 		self.assertEquals(2, len(self.feed.implementations))
-		libxcomposite = self.feed.implementations['package:debian:libxcomposite-dev:0.3.1-1']
+		libxcomposite = self.feed.implementations['package:deb:libxcomposite-dev:0.3.1-1']
 		self.assertEquals('0.3.1-1', libxcomposite.get_version())
 	
 	def testCleanVersion(self):
