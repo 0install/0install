@@ -7,6 +7,7 @@ sys.path.insert(0, '..')
 from zeroinstall.injector import trust, basedir, autopolicy, namespaces
 from zeroinstall.injector import model, iface_cache, cli, download, writer, distro
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
+from zeroinstall import support
 
 dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
 
@@ -44,13 +45,8 @@ class BaseTest(unittest.TestCase):
 	
 	def tearDown(self):
 		shutil.rmtree(self.config_home)
-		self.ro_rmtree(self.cache_home)
+		support.ro_rmtree(self.cache_home)
 		shutil.rmtree(self.cache_system)
 		shutil.rmtree(self.gnupg_home)
 
 		os.environ['PATH'] = self.old_path
-
-	def ro_rmtree(self, root):
-		for main, dirs, files in os.walk(root):
-			os.chmod(main, 0700)
-		shutil.rmtree(root)

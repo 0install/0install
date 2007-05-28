@@ -64,3 +64,13 @@ def pretty_size(size):
 		if size < 2048:
 			break
 	return '%.1f %s' % (size, unit)
+
+def ro_rmtree(root):
+	"""Like shutil.rmtree, except that we also delete with read-only items.
+	@param root: the root of the subtree to remove
+	@type root: str
+	@since: 0.28"""
+	import shutil
+	for main, dirs, files in os.walk(root):
+		os.chmod(main, 0700)
+	shutil.rmtree(root)

@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.zerostore import unpack, manifest
-from zeroinstall import SafeException
+from zeroinstall import SafeException, support
 
 class AbstractTestUnpack(BaseTest):
 	def setUp(self):
@@ -18,7 +18,7 @@ class AbstractTestUnpack(BaseTest):
 	def tearDown(self):
 		BaseTest.tearDown(self)
 
-		self.ro_rmtree(self.tmpdir)
+		support.ro_rmtree(self.tmpdir)
 
 		assert os.umask(0022) == 0022
 	

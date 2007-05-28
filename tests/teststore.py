@@ -8,7 +8,7 @@ from logging import getLogger, DEBUG, INFO
 sys.path.insert(0, '..')
 
 from zeroinstall.zerostore import Store, manifest, BadDigest, cli
-from zeroinstall import SafeException
+from zeroinstall import SafeException, support
 
 class TestStore(BaseTest):
 	def setUp(self):
@@ -24,8 +24,8 @@ class TestStore(BaseTest):
 	def tearDown(self):
 		BaseTest.tearDown(self)
 
-		self.ro_rmtree(self.store.dir)
-		self.ro_rmtree(self.tmp)
+		support.ro_rmtree(self.store.dir)
+		support.ro_rmtree(self.tmp)
 	
 	def testInit(self):
 		assert os.path.isdir(self.store.dir)
@@ -151,7 +151,7 @@ class TestStore(BaseTest):
 
 			self.assertEquals('Hello', file(os.path.join(copy, digest, 'MyFile')).read())
 		finally:
-			self.ro_rmtree(copy)
+			support.ro_rmtree(copy)
 
 suite = unittest.makeSuite(TestStore)
 if __name__ == '__main__':

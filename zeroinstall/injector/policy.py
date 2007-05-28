@@ -73,8 +73,8 @@ class _Cook:
 		finally:
 			# If unpacking fails, remove the temporary directory
 			if tmpdir is not None:
-				import shutil
-				shutil.rmtree(tmpdir)
+				from zeroinstall import support
+				support.ro_rmtree(tmpdir)
 
 class Policy(object):
 	"""Chooses a set of implementations based on a policy.
