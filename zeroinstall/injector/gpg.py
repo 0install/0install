@@ -290,8 +290,8 @@ def check_stream(stream):
 	if not _find_in_path('gpg'):
 		raise SafeException("GnuPG is not installed ('gpg' not in $PATH). See http://gnupg.org")
 
-	stream.seek(0)
-	all = stream.read()
+	#stream.seek(0)
+	#all = stream.read()
 	stream.seek(0)
 
 	start = stream.read(6)
