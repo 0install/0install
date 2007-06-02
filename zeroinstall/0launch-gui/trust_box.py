@@ -279,4 +279,8 @@ hints = {
 		'Eric Wasylishen is experimenting with packaging software with Zero Install. '
 		'This key was announced on the zero-install mailing list on 2007-01-16.',
 
+	'C82D382AAB381A54529019D6A0F9B035686C6996' :
+		"Justus Winter is generating Zero Install feeds from pkgsrc (which was originally "
+		"NetBSD's ports collection). This key was announced on the zero-install mailing list "
+		"on 2007-06-01.",
 }
