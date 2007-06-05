@@ -241,7 +241,11 @@ class Recipe(RetrievalMethod):
 	size = property(lambda self: sum([x.size for x in self.steps]))
 
 class Implementation(object):
-	"""An Implementation is a package which implements an Interface."""
+	"""An Implementation is a package which implements an Interface.
+	@ivar download_sources: list of methods of getting this implementation
+	@type download_sources: [L{RetrievalMethod}]
+	"""
+
 	__slots__ = ['upstream_stability', 'user_stability',
 		     'requires', 'main', 'metadata', 'download_sources',
 		     'id', 'interface', 'version', 'released']
@@ -332,6 +336,7 @@ class Interface(object):
 	@ivar last_check_attempt: time we last tried to check for updates (in the background)
 	@ivar main: deprecated
 	@ivar feeds: list of feeds for this interface
+	@type feeds: [L{Feed}]
 	@ivar feed_for: interfaces for which this could be a feed
 	@ivar metadata: extra elements we didn't understand
 	"""

@@ -105,6 +105,10 @@ def load_keys(fingerprints):
 	@since 0.27"""
 
 	keys = {}
+
+	# Otherwise GnuPG returns everything...
+	if not fingerprints: return keys
+
 	for fp in fingerprints:
 		keys[fp] = Key(fp)
 

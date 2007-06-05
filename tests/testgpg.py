@@ -195,6 +195,9 @@ class TestGPG(BaseTest):
 			assert False
 		except model.SafeException:
 			pass	# OK
+	
+	def testLoadKeys(self):
+		self.assertEquals({}, gpg.load_keys([]))
 
 suite = unittest.makeSuite(TestGPG)
 if __name__ == '__main__':

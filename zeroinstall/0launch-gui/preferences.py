@@ -136,11 +136,41 @@ class KeyList(gtk.VBox):
 		swin.add(tv)
 		trust.trust_db.ensure_uptodate()
 
-		trust.trust_db.watchers.append(self.update_keys)
-		self.connect('destroy', lambda w: trust.trust_db.watchers.remove(self.update_keys))
+		def update_keys():
+			# Remember which ones are open
+			expanded_elements = set()
+			def add_row(tv, path):
+				if len(path) == 1:
+					domain = self.trusted_keys[path][0]
+					expanded_elements.add(domain)
+			tv.map_expanded_rows(add_row)
+
+			self.trusted_keys.clear()
+			domains = {}
+
+			keys = gpg.load_keys(trust.trust_db.keys.keys())
+
+			for fingerprint in keys:
+				for domain in trust.trust_db.keys[fingerprint]:
+					if domain not in domains:
+						domains[domain] = Set()
+					domains[domain].add(keys[fingerprint])
+			for domain in domains:
+				iter = self.trusted_keys.append(None, [domain, None])
+				for key in domains[domain]:
+					self.trusted_keys.append(iter, [key.name, key])
+
+			def may_expand(model, path, iter):
+				if len(path) == 1:
+					if model[iter][0] in expanded_elements:
+						tv.expand_row(path, False)
+			self.trusted_keys.foreach(may_expand)
+
+		trust.trust_db.watchers.append(update_keys)
+		self.connect('destroy', lambda w: trust.trust_db.watchers.remove(update_keys))
 
 		self.pack_start(swin, True, True, 0)
-		self.update_keys()
+		update_keys()
 
 		def remove_key(fingerprint, domain):
 			trust.trust_db.untrust_key(fingerprint, domain)
@@ -170,22 +200,6 @@ class KeyList(gtk.VBox):
 				return True
 			return False
 		tv.connect('button-press-event', trusted_keys_button_press)
-
-	def update_keys(self):
-		self.trusted_keys.clear()
-		domains = {}
-
-		keys = gpg.load_keys(trust.trust_db.keys.keys())
-
-		for fingerprint in keys:
-			for domain in trust.trust_db.keys[fingerprint]:
-				if domain not in domains:
-					domains[domain] = Set()
-				domains[domain].add(keys[fingerprint])
-		for domain in domains:
-			iter = self.trusted_keys.append(None, [domain, None])
-			for key in domains[domain]:
-				self.trusted_keys.append(iter, [key.name, key])
 
 preferences_box = None
 def show_preferences():
