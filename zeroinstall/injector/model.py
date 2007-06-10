@@ -182,6 +182,8 @@ class Dependency(object):
 	def __init__(self, metadata):
 		if metadata is None:
 			metadata = {}
+		else:
+			assert not isinstance(metadata, basestring)	# Use InterfaceDependency instead!
 		self.metadata = metadata
 
 class InterfaceDependency(Dependency):
