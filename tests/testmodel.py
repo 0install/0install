@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.3
+# -*- coding: utf-8 -*-
 from basetest import BaseTest
 import sys, tempfile, os, shutil
 import unittest
@@ -26,19 +27,44 @@ class TestModel(BaseTest):
 		self.assertEquals("", model.escape(""))
 		self.assertEquals("hello", model.escape("hello"))
 		self.assertEquals("%20", model.escape(" "))
+
 		self.assertEquals("file%3a%2f%2ffoo%7ebar",
 				model.escape("file://foo~bar"))
 		self.assertEquals("file%3a%2f%2ffoo%25bar",
 				model.escape("file://foo%bar"))
 
+		self.assertEquals("file:##foo%7ebar",
+				model._pretty_escape("file://foo~bar"))
+		self.assertEquals("file:##foo%25bar",
+				model._pretty_escape("file://foo%bar"))
+
 	def testUnescape(self):
 		self.assertEquals("", model.unescape(""))
 		self.assertEquals("hello", model.unescape("hello"))
 		self.assertEquals(" ", model.unescape("%20"))
+
 		self.assertEquals("file://foo~bar",
 				model.unescape("file%3a%2f%2ffoo%7ebar"))
 		self.assertEquals("file://foo%bar",
 				model.unescape("file%3a%2f%2ffoo%25bar"))
+
+		self.assertEquals("file://foo",
+				model.unescape("file:##foo"))
+		self.assertEquals("file://foo~bar",
+				model.unescape("file:##foo%7ebar"))
+		self.assertEquals("file://foo%bar",
+				model.unescape("file:##foo%25bar"))
+	
+	def testEscaping(self):
+		def check(str):
+			self.assertEquals(str, model.unescape(model.escape(str)))
+			self.assertEquals(str, model.unescape(model._pretty_escape(str)))
+
+		check(u'http://example.com')
+		check(u'http://example%46com')
+		check(u'http:##example#com')
+		check(u'http://example.com/foo/bar.xml')
+		check(u'%20%21~&!"£ :@;,./{}$%^&()')
 
 	def testBadInterface(self):
 		try:

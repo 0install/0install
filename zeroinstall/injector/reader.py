@@ -76,7 +76,7 @@ def update_from_cache(interface):
 			update(interface, cached)
 
 	# Add the distribution package manager's version, if any
-	path = basedir.load_first_data(config_site, 'native_feeds', escape(interface.uri))
+	path = basedir.load_first_data(config_site, 'native_feeds', _pretty_escape(interface.uri))
 	if path:
 		# Resolve any symlinks
 		info("Adding native packager feed '%s'", path)

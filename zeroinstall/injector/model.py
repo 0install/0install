@@ -405,19 +405,27 @@ class Interface(object):
 def unescape(uri):
 	"""Convert each %20 to a space, etc.
 	@rtype: str"""
+	uri = uri.replace('#', '/')
 	if '%' not in uri: return uri
-	import re
 	return re.sub('%[0-9a-fA-F][0-9a-fA-F]',
 		lambda match: chr(int(match.group(0)[1:], 16)),
-		uri)
+		uri).decode('utf-8')
 
 def escape(uri):
 	"""Convert each space to %20, etc
 	@rtype: str"""
-	import re
 	return re.sub('[^-_.a-zA-Z0-9]',
 		lambda match: '%%%02x' % ord(match.group(0)),
 		uri.encode('utf-8'))
+
+def _pretty_escape(uri):
+	"""Convert each space to %20, etc
+	: is preserved and / becomes #. This makes for nicer strings,
+	and may replace L{escape} everywhere in future.
+	@rtype: str"""
+	return re.sub('[^-_.a-zA-Z0-9:/]',
+		lambda match: '%%%02x' % ord(match.group(0)),
+		uri.encode('utf-8')).replace('/', '#')
 
 def canonical_iface_uri(uri):
 	"""If uri is a relative path, convert to an absolute one.
