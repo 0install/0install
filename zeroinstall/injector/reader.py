@@ -15,6 +15,7 @@ from os.path import dirname
 from zeroinstall.injector import basedir, qdom, distro
 from zeroinstall.injector.namespaces import *
 from zeroinstall.injector.model import *
+from zeroinstall.injector import model
 from zeroinstall import version, SafeException
 
 class InvalidInterface(SafeException):
@@ -76,7 +77,7 @@ def update_from_cache(interface):
 			update(interface, cached)
 
 	# Add the distribution package manager's version, if any
-	path = basedir.load_first_data(config_site, 'native_feeds', _pretty_escape(interface.uri))
+	path = basedir.load_first_data(config_site, 'native_feeds', model._pretty_escape(interface.uri))
 	if path:
 		# Resolve any symlinks
 		info("Adding native packager feed '%s'", path)
