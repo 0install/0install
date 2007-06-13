@@ -4,7 +4,7 @@ import sys, tempfile, os, shutil, sha
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.zerostore import unpack, manifest
+from zeroinstall.zerostore import unpack, manifest, Store
 from zeroinstall import SafeException, support
 
 class AbstractTestUnpack(BaseTest):
@@ -79,6 +79,13 @@ class AbstractTestUnpack(BaseTest):
 	def testDeb(self):
 		unpack.unpack_archive('ftp://foo/file.deb', file('dummy_1-1_all.deb'), self.tmpdir)
 		self.assert_manifest('sha1new=2c725156ec3832b7980a3de2270b3d8d85d4e3ea')
+	
+	def testSpecial(self):
+		os.chmod(self.tmpdir, 02755)
+		store = Store(self.tmpdir)
+		store.add_archive_to_cache('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a',
+					   file('HelloWorld.tgz'),
+					   'http://foo/foo.tgz')
 	
 	def assert_manifest(self, required):
 		alg_name = required.split('=', 1)[0]
