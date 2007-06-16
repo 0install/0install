@@ -56,7 +56,7 @@ def _process_depends(item):
 	return dependency
 
 def update_from_cache(interface):
-	"""Read a cached interface and any local feeds or user overrides.
+	"""Read a cached interface and any native feeds or user overrides.
 	@param interface: the interface object to update
 	@type interface: L{model.Interface}
 	@return: True if cached version and user overrides loaded OK.

@@ -36,7 +36,7 @@ def read_bytes(fd, nbytes, null_ok = False):
 	"""
 	data = ''
 	while nbytes:
-		got = os.read(fd, min(256, nbytes))
+		got = os.read(fd, nbytes)
 		if not got:
 			if null_ok and not data:
 				return None
@@ -66,7 +66,7 @@ def pretty_size(size):
 	return '%.1f %s' % (size, unit)
 
 def ro_rmtree(root):
-	"""Like shutil.rmtree, except that we also delete with read-only items.
+	"""Like shutil.rmtree, except that we also delete read-only items.
 	@param root: the root of the subtree to remove
 	@type root: str
 	@since: 0.28"""

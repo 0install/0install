@@ -14,13 +14,13 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 	If the GUI itself is due for a check, refresh it first.
 	The user may ask the GUI to submit a bug report about the program. In that case,
 	the GUI may ask us to test it. test_callback is called in that case with the implementations
-	to be tested; the callback will typically call L{run.test_selections} and return the result of that.
+	to be tested; the callback will typically call L{zeroinstall.injector.run.test_selections} and return the result of that.
 	@param iface_uri: the required program
 	@type iface_uri: str
 	@param gui_args: any additional arguments for the GUI itself
 	@type gui_args: [str]
 	@param test_callback: function to use to try running the program
-	@type test_callback: L{selections.Selections} -> str
+	@type test_callback: L{zeroinstall.injector.selections.Selections} -> str
 	@since: 0.28
 	"""
 	from zeroinstall.injector import selections, autopolicy, namespaces, model, run, qdom
@@ -110,12 +110,12 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 
 def ensure_cached(uri):
 	"""Ensure that an implementation of uri is cached.
-	This spawns a copy of 0launch to download one if not, possibly
-	using the gui.
+	If not, it downloads one. It uses the GUI if a display is
+	available, or the console otherwise.
 	@param uri: the required interface
 	@type uri: str
 	@return: a new policy for this program, or None if the user cancelled
-	@rtype: L{selections.Selections}
+	@rtype: L{zeroinstall.injector.selections.Selections}
 	"""
 	from zeroinstall.injector import autopolicy, selections
 
