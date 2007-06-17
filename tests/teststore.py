@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
 import sys, tempfile, os, shutil
+from StringIO import StringIO
 import unittest
 from logging import getLogger, DEBUG, INFO
 #getLogger().setLevel(DEBUG)
@@ -14,9 +15,10 @@ class TestStore(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
 
-		path = tempfile.mktemp()
-		os.mkdir(path, 0700)
-		self.store = Store(path)
+		self.store_parent = tempfile.mktemp()
+		os.mkdir(self.store_parent, 0700)
+		self.store = Store(self.store_parent + '/implementations')
+		os.mkdir(self.store.dir, 0700)
 
 		self.tmp = tempfile.mktemp()
 		os.mkdir(self.tmp)
@@ -24,7 +26,7 @@ class TestStore(BaseTest):
 	def tearDown(self):
 		BaseTest.tearDown(self)
 
-		support.ro_rmtree(self.store.dir)
+		support.ro_rmtree(self.store_parent)
 		support.ro_rmtree(self.tmp)
 	
 	def testInit(self):
@@ -96,6 +98,56 @@ class TestStore(BaseTest):
 
 		os.symlink('/the/symlink/target',
 			   os.path.join(target, 'a symlink'))
+	
+	def testOptimise(self):
+		sample = os.path.join(self.tmp, 'sample')
+		os.mkdir(sample)
+		self.populate_sample(sample)
+		self.store.add_dir_to_cache('sha1new=7e3eb25a072988f164bae24d33af69c1814eb99a',
+					   sample,
+					   try_helper = False)
+		subfile = os.path.join(sample, 'My Dir', '!a file!.exe')
+		mtime = os.stat(subfile).st_mtime
+		os.chmod(subfile, 0755)
+		stream = file(subfile, 'w')
+		stream.write('Extra!\n')
+		stream.close()
+		os.utime(subfile, (mtime, mtime))
+		self.store.add_dir_to_cache('sha1new=40861a33dba4e7c26d37505bd9693511808c0c35',
+					   sample,
+					   try_helper = False)
+
+		impl_a = self.store.lookup('sha1new=7e3eb25a072988f164bae24d33af69c1814eb99a')
+		impl_b = self.store.lookup('sha1new=40861a33dba4e7c26d37505bd9693511808c0c35')
+
+		def same_inode(name):
+			info_a = os.lstat(os.path.join(impl_a, name))
+			info_b = os.lstat(os.path.join(impl_b, name))
+			return info_a.st_ino == info_b.st_ino
+
+		assert not same_inode('My Dir/!a file!')
+		assert not same_inode('My Dir/!a file!.exe')
+
+		old_stdout = sys.stdout
+		sys.stdout = StringIO()
+		try:
+			cli.do_optimise([self.store.dir])
+			got = sys.stdout.getvalue()
+		finally:
+			sys.stdout = old_stdout
+		assert 'Space freed up : 15 bytes' in got
+
+		old_stdout = sys.stdout
+		sys.stdout = StringIO()
+		try:
+			cli.do_optimise([self.store.dir])
+			got = sys.stdout.getvalue()
+		finally:
+			sys.stdout = old_stdout
+		assert 'No duplicates found; no changes made.' in got
+
+		assert same_inode('My Dir/!a file!')
+		assert not same_inode('My Dir/!a file!.exe')
 	
 	def testCopy(self):
 		sha1 = manifest.get_algorithm('sha1')
