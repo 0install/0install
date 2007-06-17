@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.3
+#!/usr/bin/env python2.4
 import sys, tempfile, os, shutil
 import unittest
 import logging

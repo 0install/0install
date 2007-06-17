@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.3
+#!/usr/bin/env python2.4
 from basetest import BaseTest
 import sys, tempfile, os, shutil, imp
 from StringIO import StringIO
