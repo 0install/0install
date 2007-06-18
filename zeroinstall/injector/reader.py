@@ -120,7 +120,7 @@ def update_user_overrides(interface):
 		if item.name == 'implementation':
 			id = item.getAttribute('id')
 			assert id is not None
-			if not (id.startswith('/') or id.startswith('.')):
+			if not (id.startswith('/') or id.startswith('.') or id.startswith('package:')):
 				assert '=' in id
 			impl = interface.implementations.get(id, None)
 			if not impl:
