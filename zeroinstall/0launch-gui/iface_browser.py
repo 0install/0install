@@ -286,6 +286,8 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 				if policy.get_cached(impl):
 					if impl.id.startswith('/'):
 						fetch = '(local)'
+					elif impl.id.startswith('package:'):
+						fetch = '(package)'
 					else:
 						fetch = '(cached)'
 				else:

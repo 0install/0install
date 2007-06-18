@@ -40,6 +40,8 @@ class ImplTips(TreeTips):
 
 		if impl.id.startswith('/'):
 			return _("Local: %s") % impl.id
+		if impl.id.startswith('package:'):
+			return _("Native package: %s") % impl.id.split(':', 1)[1]
 		if policy.get_cached(impl):
 			return _("Cached: %s") % policy.get_implementation_path(impl)
 

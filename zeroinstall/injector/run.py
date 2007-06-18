@@ -33,7 +33,7 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 				if isinstance(b, EnvironmentBinding):
 					dep_impl = policy.get_implementation(dep_iface)
 					if isinstance(dep_impl, ZeroInstallImplementation):
-						do_env_binding(b, policy.get_implementation_path(dep_impl))
+						do_env_binding(b, _get_implementation_path(dep_impl.id))
 					else:
 						debug("Implementation %s is native; no binding needed", dep_impl)
 	
@@ -57,7 +57,10 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 			for b in dep.bindings:
 				if isinstance(b, EnvironmentBinding):
 					dep_impl = sels[dep.interface]
-					do_env_binding(b, _get_implementation_path(dep_impl.id))
+					if dep_impl.id.startswith('package:'):
+						debug("Implementation %s is native; no binding needed", dep_impl)
+					else:
+						do_env_binding(b, _get_implementation_path(dep_impl.id))
 	
 	root_impl = sels[selections.interface]
 	_execute(root_impl, prog_args, dry_run, main, wrapper)
