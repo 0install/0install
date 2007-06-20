@@ -124,4 +124,4 @@ _dpkg_db_dir = '/var/lib/dpkg'
 if os.path.isdir(_dpkg_db_dir):
 	host_distribution = DebianDistribution(_dpkg_db_dir)
 else:
-	host_distribution = Distribuion()
+	host_distribution = Distribution()
