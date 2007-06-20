@@ -10,6 +10,6 @@
   <feed-for interface="http://0install.net/2007/interfaces/ZeroInstall-GUI.xml"/>
   
   <group main="0launch-gui">
-    <implementation id="." released="2007-06-16" stability="stable" version="0.28"/>
+    <implementation id="." released="2007-06-20" stability="stable" version="0.29"/>
   </group>
 </interface>
