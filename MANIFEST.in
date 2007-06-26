@@ -20,6 +20,10 @@ include tests/HelloWorld.autopackage
 include tests/HelloWorld.tar
 include tests/test-gui
 include tests/test-gui.xml
+include tests/dpkg/status
+include tests/dpkg/dpkg-query
+include tests/RecipeSymlink.xml
+include tests/HelloSym.tgz
 include zeroinstall/0launch-gui/README
 include zeroinstall/0launch-gui/0launch-gui
 include zeroinstall/0launch-gui/ZeroInstall-GUI.xml
