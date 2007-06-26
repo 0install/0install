@@ -38,6 +38,8 @@ class TestLaunch(BaseTest):
 				print "Finished"
 			except SystemExit:
 				pass
+			except TypeError:
+				raise
 			except AssertionError:
 				raise
 			except Exception, ex:
