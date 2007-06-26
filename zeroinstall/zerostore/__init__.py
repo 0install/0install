@@ -114,13 +114,10 @@ class Store:
 			info("Not adding %s as it already exists!", required_digest)
 			return
 
-		if try_helper and self._add_with_helper(required_digest, path):
-			return
-
 		tmp = self.get_tmp_dir_for(required_digest)
 		try:
 			_copytree2(path, tmp)
-			self.check_manifest_and_rename(required_digest, tmp)
+			self.check_manifest_and_rename(required_digest, tmp, try_helper = try_helper)
 		except:
 			warn("Error importing directory.")
 			warn("Deleting %s", tmp)
