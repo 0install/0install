@@ -42,18 +42,19 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 		assert gui_policy.ready		# Should always be some version available
 		gui_sel = selections.Selections(gui_policy)
 
-	cli_from_gui, gui_to_cli = os.pipe()		# socket.socketpair() not in Python 2.3 :-(
-	gui_from_cli, cli_to_gui = os.pipe()
+	import socket
+	cli, gui = socket.socketpair()
+
 	try:
 		child = os.fork()
 		if child == 0:
-			# We are the child
+			# We are the child (GUI)
 			try:
 				try:
-					os.close(cli_from_gui)
-					os.close(cli_to_gui)
-					os.dup2(gui_to_cli, 1)
-					os.dup2(gui_from_cli, 0)
+					cli.close()
+					# We used to use pipes to support Python2.3...
+					os.dup2(gui.fileno(), 1)
+					os.dup2(gui.fileno(), 0)
 					run.execute_selections(gui_sel, gui_args + ['--', iface_uri])
 				except:
 					import traceback
@@ -61,19 +62,18 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 			finally:
 				sys.stderr.flush()
 				os._exit(1)
-		os.close(gui_from_cli)
-		gui_from_cli = None
-		os.close(gui_to_cli)
-		gui_to_cli = None
+		# We are the parent (CLI)
+		gui.close()
+		gui = None
 
 		while True:
 			logging.info("Waiting for selections from GUI...")
 
-			reply = support.read_bytes(cli_from_gui, len('Length:') + 9, null_ok = True)
+			reply = support.read_bytes(cli.fileno(), len('Length:') + 9, null_ok = True)
 			if reply:
 				if not reply.startswith('Length:'):
 					raise Exception("Expected Length:, but got %s" % repr(reply))
-				xml = support.read_bytes(cli_from_gui, int(reply.split(':', 1)[1], 16))
+				xml = support.read_bytes(cli.fileno(), int(reply.split(':', 1)[1], 16))
 
 				dom = qdom.parse(StringIO(xml))
 				sels = selections.Selections(dom)
@@ -88,7 +88,7 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 					output = ('Length:%8x\n' % len(output)) + output
 					logging.debug("Sending: %s" % `output`)
 					while output:
-						sent = os.write(cli_to_gui, output)
+						sent = cli.send(output)
 						output = output[sent:]
 					continue
 			else:
@@ -103,8 +103,8 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 				raise Exception("Error from GUI: code = %d" % status)
 			break
 	finally:
-		for fd in [cli_to_gui, cli_from_gui, gui_to_cli, gui_from_cli]:
-			if fd is not None: os.close(fd)
+		for sock in [cli, gui]:
+			if sock is not None: sock.close()
 	
 	return sels
 
