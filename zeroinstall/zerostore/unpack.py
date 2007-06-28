@@ -30,7 +30,7 @@ _tar_version = None
 def _get_tar_version():
 	global _tar_version
 	if _tar_version is None:
-		_tar_version = os.popen('tar --version 2>&1').next()
+		_tar_version = os.popen('tar --version 2>&1').next().strip()
 		debug("tar version = %s", _tar_version)
 	return _tar_version
 
