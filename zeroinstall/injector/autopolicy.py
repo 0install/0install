@@ -12,14 +12,16 @@ is also the policy used to run the injector's GUI.
 import os
 from logging import debug, info
 
-from zeroinstall.injector import model, policy, run, handler
+from zeroinstall.injector import model, policy, run
+from zeroinstall.injector.handler import Handler
 from zeroinstall import NeedDownload
 
 class AutoPolicy(policy.Policy):
 	__slots__ = ['allow_downloads', 'download_only', 'dry_run']
 
-	def __init__(self, interface_uri, download_only = False, dry_run = False, src = False):
-		policy.Policy.__init__(self, interface_uri, handler.Handler(), src = src)
+	def __init__(self, interface_uri, download_only = False, dry_run = False, src = False, handler = None):
+		"""@param handler: (new in 0.30) handler to use, or None to create a L{Handler}"""
+		policy.Policy.__init__(self, interface_uri, handler or Handler(), src = src)
 		self.dry_run = dry_run
 		self.allow_downloads = not dry_run
 		self.download_only = download_only

@@ -1,5 +1,10 @@
 """
 Integrates download callbacks with an external mainloop.
+While things are being downloaded, Zero Install returns control to your program.
+Your mainloop is responsible for monitoring the state of the downloads and notifying
+Zero Install when they are complete.
+
+To do this, you supply a L{Handler} to the L{policy}.
 """
 
 # Copyright (C) 2006, Thomas Leonard
@@ -13,19 +18,18 @@ from zeroinstall.injector.iface_cache import iface_cache
 
 class Handler(object):
 	"""
-	Integrates download callbacks with an external mainloop.
-	While things are being downloaded, Zero Install returns control to your program.
-	Your mainloop is responsible for monitoring the state of the downloads and notifying
-	Zero Install when they are complete.
+	This implementation of the handler interface uses the GLib mainloop.
 
-	To do this, you supply a L{Handler} to the L{policy}. To integrate with your own
-	mainloop, you can either subclass or replace this.
+	@ivar monitored_downloads: dict of downloads in progress
+	@type monitored_downloads: {URL: (error_stream, L{download.Download})}
 	"""
 
-	__slots__ = ['monitored_downloads']
-	def __init__(self):
-		self.monitored_downloads = {}		# URL -> (error_stream, Download)
+	__slots__ = ['monitored_downloads', '_loop']
 
+	def __init__(self, mainloop = None):
+		self.monitored_downloads = {}		
+		self._loop = None
+	
 	def monitor_download(self, dl):
 		"""Called when a new L{download} is started.
 		Call L{download.Download.start} to start the download and get the error
@@ -34,24 +38,48 @@ class Handler(object):
 		indicates that the download is finished."""
 		error_stream = dl.start()
 		self.monitored_downloads[dl.url] = (error_stream, dl)
+
+		import gobject
+		gobject.io_add_watch(error_stream.fileno(),
+				     gobject.IO_IN | gobject.IO_ERR | gobject.IO_HUP,
+				     self._error_stream_ready, dl)
+	
+	def _error_stream_ready(self, fd, cond, dl):
+		debug("Download stream for %s is ready...", dl)
+		errors = os.read(fd, 100)
+		if errors:
+			debug("Read data: %s", errors)
+			dl.error_stream_data(errors)
+			return True
+		else:
+			debug("End-of-stream. Download is finished.")
+			del self.monitored_downloads[dl.url]
+			try:
+				dl.error_stream_closed()
+			except Exception, ex:
+				self.report_error(ex)
+			if self._loop and not self.monitored_downloads:
+				# Exit from wait_for_downloads if this was the last one
+				debug("Exiting mainloop")
+				self._loop.quit()
+			return False
 	
 	def wait_for_downloads(self):
 		"""Monitor all downloads, waiting until they are complete. This is suitable
 		for use by non-interactive programs."""
-		while self.monitored_downloads:
-			info("Currently downloading:")
-			for url in self.monitored_downloads:
-				info("- " + url)
 
-			for e, dl in self.monitored_downloads.values():
-				errors = e.read()
-				if errors:
-					dl.error_stream_data(errors)
-					continue
-				e.close()
-				del self.monitored_downloads[dl.url]
+		import gobject
 
-				dl.error_stream_closed()
+		if self.monitored_downloads:
+			assert self._loop is None	# Avoid recursion
+			self._loop = gobject.MainLoop(gobject.main_context_default())
+			try:
+				debug("Entering mainloop, waiting for %d download(s)", len(self.monitored_downloads))
+				self._loop.run()
+			finally:
+				self._loop = None
+		else:
+			debug("No downloads in progress, so not waiting")
 
 	def get_download(self, url, force = False):
 		"""Return the Download object currently downloading 'url'.

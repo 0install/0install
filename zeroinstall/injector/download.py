@@ -166,3 +166,6 @@ class Download(object):
 			return None		# Unknown
 		current_size = os.fstat(self.tempfile.fileno()).st_size
 		return float(current_size) / self.expected_size
+	
+	def __str__(self):
+		return "<Download from %s>" % self.url

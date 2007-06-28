@@ -390,6 +390,7 @@ class TestAutoPolicy(BaseTest):
 </interface>""" % (foo_iface_uri, foo_iface_uri))
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
 						download_only = False)
+		policy.freshness = 0
 		policy.recalculate()
 
 	def testConstraints(self):

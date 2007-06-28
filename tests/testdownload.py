@@ -4,11 +4,10 @@ import sys, tempfile, os, shutil
 from StringIO import StringIO
 import unittest, signal
 from logging import getLogger, DEBUG, INFO, WARN
-#getLogger().setLevel(DEBUG)
 
 sys.path.insert(0, '..')
 
-from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, download, reader, trust
+from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, download, reader, trust, handler
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
 import data
 
@@ -20,6 +19,17 @@ class Reply:
 
 	def readline(self):
 		return self.reply
+
+class DummyHandler(handler.Handler):
+	def wait_for_downloads(self):
+		self.ex = None
+		handler.Handler.wait_for_downloads(self)
+		if self.ex:
+			raise self.ex
+	
+	def report_error(self, ex):
+		assert self.ex is None
+		self.ex = ex
 
 class TestDownload(BaseTest):
 	def setUp(self):
@@ -45,7 +55,8 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg')
-			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False)
+			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False,
+						       handler = DummyHandler())
 			assert policy.need_download()
 			sys.stdin = Reply("N\n")
 			try:
@@ -62,7 +73,8 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg')
-			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml', download_only = False)
+			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml', download_only = False,
+						       handler = DummyHandler())
 			assert policy.need_download()
 			sys.stdin = Reply("N\n")
 			try:
@@ -114,11 +126,13 @@ class TestDownload(BaseTest):
 			sys.stdout = old_out
 	
 	def testAcceptKey(self):
+		#getLogger().setLevel(DEBUG)
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
 			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
-			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False)
+			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False,
+							handler = DummyHandler())
 			assert policy.need_download()
 			sys.stdin = Reply("Y\n")
 			try:
@@ -150,7 +164,8 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			self.child = server.handle_requests(('HelloWorld.tar.bz2', 'HelloSym.tgz'))
-			policy = autopolicy.AutoPolicy(os.path.abspath('RecipeSymlink.xml'), download_only = False)
+			policy = autopolicy.AutoPolicy(os.path.abspath('RecipeSymlink.xml'), download_only = False,
+							handler = DummyHandler())
 			try:
 				policy.download_and_execute([])
 				assert False
@@ -181,7 +196,8 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			self.child = server.handle_requests('*')
-			policy = autopolicy.AutoPolicy(os.path.abspath('Recipe.xml'), download_only = False)
+			policy = autopolicy.AutoPolicy(os.path.abspath('Recipe.xml'), download_only = False,
+							handler = DummyHandler())
 			try:
 				policy.download_and_execute([])
 				assert False
