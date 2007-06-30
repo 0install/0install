@@ -131,21 +131,35 @@ class Store:
 			raise
 
 	def _add_with_helper(self, required_digest, path):
-		"""Use 0store-helper to copy 'path' to the system store.
+		"""Use 0store-secure-add to copy 'path' to the system store.
 		@param required_digest: the digest for path
 		@type required_digest: str
 		@param path: root of implementation directory structure
 		@type path: str
 		@return: True iff the directory was copied into the system cache successfully
 		"""
-		helper = support.find_in_path('0store-helper')
+		if required_digest.startswith('sha1='):
+			return False		# Old digest alg not supported
+		helper = support.find_in_path('0store-secure-add-helper')
 		if not helper:
-			info("Command '0store-helper' not found in $PATH. Not importing to system store.")
+			info("'0store-secure-add-helper' command not found. Not adding to system cache.")
 			return False
-
-		info("Trying to add to system cache using '%s'", helper)
-		if os.spawnv(os.P_WAIT, helper, [helper, required_digest, path]):
-			warn("0store-helper failed.")
+		import subprocess
+		env = os.environ.copy()
+		env['ENV_NOT_CLEARED'] = 'Unclean'	# (warn about insecure configurations)
+		dev_null = os.open('/dev/null', os.O_RDONLY)
+		try:
+			info("Trying to add to system cache using %s", helper)
+			child = subprocess.Popen([helper, required_digest],
+						 stdin = dev_null,
+						 cwd = path,
+						 env = env)
+			exit_code = child.wait()
+		finally:
+			os.close(dev_null)
+				
+		if exit_code:
+			warn("0store-secure-add-helper failed.")
 			return False
 
 		info("Added succcessfully.")
@@ -168,11 +182,6 @@ class Store:
 		import manifest
 
 		manifest.fixup_permissions(extracted)
-		if try_helper:
-			if self._add_with_helper(required_digest, extracted):
-				support.ro_rmtree(tmp)
-				return
-			info("Can't add to system store. Trying user store instead.")
 
 		alg, required_value = manifest.splitID(required_digest)
 		actual_digest = alg.getID(manifest.add_manifest_file(extracted, alg))
@@ -182,9 +191,15 @@ class Store:
 					'Actual digest: %s\n' %
 					(required_digest, actual_digest))
 
+		if try_helper:
+			if self._add_with_helper(required_digest, extracted):
+				support.ro_rmtree(tmp)
+				return
+			info("Can't add to system store. Trying user store instead.")
+
 		final_name = os.path.join(self.dir, required_digest)
 		if os.path.isdir(final_name):
-			raise Exception("Item %s already stored." % final_name)
+			raise Exception("Item %s already stored." % final_name) # XXX: not really an error
 
 		# If we just want a subdirectory then the rename will change
 		# extracted/.. and so we'll need write permission on 'extracted'
@@ -246,9 +261,17 @@ class Stores(object):
 		"""Call fn(first_system_store). If it's read-only, try again with the user store."""
 		if len(self.stores) > 1:
 			try:
-				fn(self.stores[1])
+				fn(self.get_first_system_store())
 				return
 			except NonwritableStore:
-				debug("%s not-writable. Trying helper instead.", self.stores[1])
+				debug("%s not-writable. Trying helper instead.", self.get_first_system_store())
 				pass
 		fn(self.stores[0], try_helper = True)
+
+	def get_first_system_store(self):
+		"""The first system store is the one we try writing to first.
+		@since 0.30"""
+		try:
+			return self.stores[1]
+		except IndexError:
+			raise SafeException("No system stores have been configured")

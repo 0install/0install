@@ -1,0 +1,22 @@
+#!/usr/bin/env python
+import sys, os
+from zeroinstall import zerostore, SafeException
+from zeroinstall.zerostore import cli, manifest
+
+try:
+	if 'ENV_NOT_CLEARED' in os.environ:
+		raise SafeException("Environment not cleared. Check your sudoers file.")
+
+	if len(sys.argv) != 2:
+		raise cli.UsageError('Usage: %s DIGEST' % sys.argv[0])
+	required_digest = sys.argv[1]
+
+	manifest_data = file('.manifest').read()
+
+	stores = zerostore.Stores()
+
+	manifest.copy_tree_with_verify('.', stores.get_first_system_store().dir,
+					manifest_data, required_digest)
+except (IOError, SafeException), ex:
+	print >>sys.stderr, ex
+	sys.exit(1)

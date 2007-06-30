@@ -1,0 +1,107 @@
+.TH 0STORE-SECURE-ADD 1 "2007" "Thomas Leonard" ""
+.SH NAME
+0store-secure-add \- add an implementation to the system cache
+
+.SH SYNOPSIS
+
+.B 0store-secure-add
+\fBDIGEST\fP
+
+.SH DESCRIPTION
+.PP
+This command imports the current directory into the system-wide shared Zero
+Install cache (by default, as /var/cache/0install.net/implementations/DIGEST).
+This allows a program downloaded by one user to be shared with other users.
+
+.PP
+The current directory must contain a file called '.manifest' listing all the
+files to be added (in the format required by DIGEST), and this file must have the
+given digest. If not, the import is refused. Therefore, it is only possible to
+add a directory to the cache if its name matches its contents.
+
+.PP
+It is intended that it be safe to grant untrusted users permission to call
+this command with elevated privileges. To set this up, see below.
+
+.SH SETTING UP SHARING
+
+To enable sharing, the system administrator should follow these steps:
+
+.PP
+Create a new system user to own the cache:
+
+.B adduser --system zeroinst
+
+.PP
+Create the shared directory, owned by this new user:
+
+.B mkdir /var/cache/0install.net
+
+.B chown zeroinst /var/cache/0install.net
+
+.P
+Use visudo(8) to add these lines to /etc/sudoers:
+
+.B Defaults>zeroinst env_reset
+
+.B ALL     ALL=(zeroinst) NOPASSWD: /usr/bin/0store-secure-add
+
+.P
+Create a script called
+.B 0store-secure-add-helper
+in PATH to call it. This script must be executable and contain these two lines:
+
+.B
+#!/bin/sh
+
+.B
+exec sudo -S -u zeroinst /usr/bin/0store-secure-add "$@" < /dev/null
+
+.P
+The other Zero Install programs will call this helper script automatically.
+
+.SH FILES
+
+.IP "/var/cache/0install.net/implementations"
+Default system-wide Zero Install cache.
+
+.IP "~/.config/0install.net/injector/implementation-dirs"
+List of system cache directories, one per line.
+
+.SH LICENSE
+.PP
+Copyright (C) 2007 Thomas Leonard.
+
+.PP
+You may redistribute copies of this program under the terms of the GNU Lesser General Public License.
+
+.SH BUGS
+.PP
+This program is EXPERIMENTAL. It has not been audited. Do not use it yet in
+security-critial environments.
+
+.PP
+The env_reset line in sudoers may not be required. sudo(1) seems to do it automatically.
+
+.PP
+If sudo let us check whether we could call a command then we could switch to
+using it automatically, instead of needing to add the helper script. Currently,
+sudo delays for one second and writes to auth.log if we try to use this system
+when it hasn't been set up.
+
+.PP
+Please report bugs to the developer mailing list:
+
+http://0install.net/support.html
+
+.SH AUTHOR
+.PP
+Zero Install was created by Thomas Leonard.
+
+.SH SEE ALSO
+0store(1)
+
+.PP
+The Zero Install web-site:
+
+.B http://0install.net

@@ -261,7 +261,7 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 	manifest_digest = alg.getID(digest)
 
 	if manifest_digest != required_digest:
-		raise zerostore.BadDigest("Manifest has been tampered with!\n"
+		raise BadDigest("Manifest has been tampered with!\n"
 				"Manifest digest: " + manifest_digest + "\n"
 				"Directory name : " + required_digest)
 
