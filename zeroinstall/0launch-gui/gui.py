@@ -131,7 +131,7 @@ class GUIPolicy(Policy):
 		assert policy is None
 		policy = self
 
-		self.widgets = gtk.glade.XML(gladefile, 'main')
+		self.widgets = gtk.glade.XML(gladefile)
 
 		if restrictions:
 			for r in restrictions:

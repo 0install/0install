@@ -13,76 +13,42 @@ tips = gtk.Tooltips()
 
 SHOW_CACHE = 0
 
-class Preferences(Dialog):
+class Preferences:
 	def __init__(self):
-		Dialog.__init__(self)
-		self.set_title('Zero Install Preferences')
+		widgets = policy.widgets
 
-		self.connect('destroy', lambda w: self.destroyed())
+		self.window = widgets.get_widget('preferences_box')
+		self.window.connect('destroy', lambda w: self.destroyed())
 
-		content = gtk.VBox(False, 2)
-		content.set_border_width(8)
-		self.vbox.pack_start(content, True, True, 0)
-
-		vbox = gtk.VBox(False, 0)
-		frame(content, 'Policy settings', vbox)
-
-		# Network use
-		hbox = gtk.HBox(False, 2)
-		vbox.pack_start(hbox, False, True, 0)
-		hbox.set_border_width(4)
-
-		eb = gtk.EventBox()	# For the tooltip
-		network = gtk.combo_box_new_text()
-		eb.add(network)
+		network = widgets.get_widget('network_use')
 		for level in network_levels:
 			network.append_text(level.capitalize())
 		network.set_active(list(network_levels).index(policy.network_use))
-		hbox.pack_start(gtk.Label('Network use:'), False, True, 0)
-		hbox.pack_start(eb, True, True, 2)
+
 		def set_network_use(combo):
 			policy.network_use = network_levels[network.get_active()]
 			policy.save_config()
 			policy.recalculate()
 		network.connect('changed', set_network_use)
-		tips.set_tip(eb, _('This controls whether the injector will always try to '
-			'run the best version, downloading it if needed, or whether it will prefer '
-			'to run an older version that is already on your machine.'))
-
-		hbox.show_all()
 
 		# Freshness
-		hbox = gtk.HBox(False, 2)
-		vbox.pack_start(hbox, False, True, 0)
-		hbox.set_border_width(4)
-
 		times = [x.time for x in freshness_levels]
 		if policy.freshness not in times:
 			freshness_levels.append(Freshness(policy.freshness,
 							  '%d seconds' % policy.freshness))
 			times.append(policy.freshness)
 		eb = gtk.EventBox()	# For the tooltip
-		freshness = gtk.combo_box_new_text()
-		eb.add(freshness)
+		freshness = widgets.get_widget('freshness')
 		for level in freshness_levels:
 			freshness.append_text(str(level))
 		freshness.set_active(times.index(policy.freshness))
-		hbox.pack_start(gtk.Label('Freshness:'), False, True, 0)
-		hbox.pack_start(eb, True, True, 2)
 		def set_freshness(combo):
 			policy.freshness = freshness_levels[freshness.get_active()].time
 			policy.save_config()
 			policy.recalculate()
 		freshness.connect('changed', set_freshness)
-		tips.set_tip(eb, _('Sets how often the injector will check for new versions.'))
 
-		stable_toggle = gtk.CheckButton('Help test new versions')
-		vbox.pack_start(stable_toggle, False, True, 0)
-		tips.set_tip(stable_toggle,
-			"Try out new versions as soon as they are available, instead of "
-			"waiting for them to be marked as 'stable'. "
-			"This sets the default policy. Click on 'Interface Properties...' "
-			"to set the policy for an individual interface.")
+		stable_toggle = widgets.get_widget('help_test')
 		stable_toggle.set_active(policy.help_with_testing)
 		def toggle_stability(toggle):
 			policy.help_with_testing = toggle.get_active()
@@ -91,49 +57,33 @@ class Preferences(Dialog):
 		stable_toggle.connect('toggled', toggle_stability)
 
 		# Keys
-		frame(content, 'Security', KeyList(), expand = True)
+		keys_view = widgets.get_widget('trusted_keys')
+		KeyList(keys_view)
 
 		# Responses
-
-		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
-		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CLOSE)
-
-		self.set_default_response(gtk.RESPONSE_CLOSE)
-		self.default_widget.grab_focus()
+		self.window.set_default_response(gtk.RESPONSE_CLOSE)
+		self.window.default_widget.grab_focus()
 
 		def response(dialog, resp):
 			import download_box
 			if resp in (gtk.RESPONSE_CLOSE, gtk.RESPONSE_DELETE_EVENT):
-				self.destroy()
+				self.window.destroy()
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
-		self.connect('response', response)
+		self.window.connect('response', response)
 
-		self.set_default_size(-1, gtk.gdk.screen_height() / 3)
-		self.vbox.show_all()
+		self.window.set_default_size(-1, gtk.gdk.screen_height() / 3)
 
 	def destroyed(self):
 		global preferences_box
 		preferences_box = None
 
-class KeyList(gtk.VBox):
-	def __init__(self):
-		gtk.VBox.__init__(self, False, 0)
-
-		label = gtk.Label('')
-		label.set_markup('<i>You have said that you trust these keys to sign software updates.</i>')
-		label.set_padding(4, 4)
-		label.set_alignment(0, 0.5)
-		self.pack_start(label, False, True, 0)
-
+class KeyList:
+	def __init__(self, tv):
 		self.trusted_keys = gtk.TreeStore(str, object)
-		tv = gtk.TreeView(self.trusted_keys)
+		tv.set_model(self.trusted_keys)
 		tc = gtk.TreeViewColumn('Trusted keys', gtk.CellRendererText(), text = 0)
 		tv.append_column(tc)
-		swin = gtk.ScrolledWindow(None, None)
-		swin.set_shadow_type(gtk.SHADOW_IN)
-		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
-		swin.add(tv)
 		trust.trust_db.ensure_uptodate()
 
 		def update_keys():
@@ -167,9 +117,8 @@ class KeyList(gtk.VBox):
 			self.trusted_keys.foreach(may_expand)
 
 		trust.trust_db.watchers.append(update_keys)
-		self.connect('destroy', lambda w: trust.trust_db.watchers.remove(update_keys))
+		tv.connect('destroy', lambda w: trust.trust_db.watchers.remove(update_keys))
 
-		self.pack_start(swin, True, True, 0)
 		update_keys()
 
 		def remove_key(fingerprint, domain):
@@ -205,10 +154,10 @@ preferences_box = None
 def show_preferences():
 	global preferences_box
 	if preferences_box is not None:
-		preferences_box.present()
+		preferences_box.window.present()
 	else:
 		preferences_box = Preferences()
-		preferences_box.show()
+		preferences_box.window.show()
 		
 gui_help = help_box.HelpBox("Zero Install Preferences Help",
 ('Overview', """

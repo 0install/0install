@@ -62,10 +62,6 @@ if gtk.gdk.get_display() is None:
 if not hasattr(gtk, 'combo_box_new_text'):
 	import combo_compat
 
-gtk.rc_parse_string('style "scrolled" { '
-		    'GtkScrolledWindow::scrollbar-spacing = 0}\n'
-		    'class "GtkScrolledWindow" style : gtk "scrolled"\n')
-
 if options.cache:
 	import cache
 	cache_explorer = cache.CacheExplorer()
