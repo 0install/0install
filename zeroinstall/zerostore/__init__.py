@@ -56,9 +56,15 @@ class Store:
 		return "Store '%s'" % self.dir
 	
 	def lookup(self, digest):
-		alg, value = digest.split('=', 1)
-		assert '/' not in value
-		int(value, 16)		# Check valid format
+		try:
+			alg, value = digest.split('=', 1)
+		except ValueError:
+			raise BadDigest("Digest must be in the form ALG=VALUE, not '%s'" % digest)
+		try:
+			assert '/' not in value
+			int(value, 16)		# Check valid format
+		except ValueError, ex:
+			raise BadDigest("Bad value for digest: %s" % str(ex))
 		dir = os.path.join(self.dir, digest)
 		if os.path.isdir(dir):
 			return dir
