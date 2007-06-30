@@ -2,7 +2,7 @@ import gtk
 from logging import warn
 import os, sys
 import help_box
-from gui import policy, gladefile
+from gui import policy, Template
 from dialog import Dialog, MixedButton, frame
 from zeroinstall.injector.model import network_levels
 from zeroinstall.injector import trust, gpg
@@ -15,7 +15,7 @@ SHOW_CACHE = 0
 
 class Preferences:
 	def __init__(self):
-		widgets = gtk.glade.XML(gladefile, 'preferences_box')
+		widgets = Template('preferences_box')
 
 		self.window = widgets.get_widget('preferences_box')
 		self.window.connect('destroy', lambda w: self.destroyed())

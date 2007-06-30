@@ -16,6 +16,19 @@ policy = None
 
 gladefile = os.path.join(os.path.dirname(__file__), 'zero-install.glade')
 
+# Wrapped for glade widget tree that throws a sensible exception if the widget isn't found
+class Template:
+	def __init__(self, root):
+		self.widgets = gtk.glade.XML(gladefile, root)
+		self.root = root
+	
+	def get_widget(self, name = None):
+		if not name:
+			name = self.root
+		widget = self.widgets.get_widget(name)
+		assert widget, "Widget '%s' not found in glade file '%s'" % (name, gladefile)
+		return widget
+
 class GUIHandler(object):
 	monitored_downloads = None
 	dl_callbacks = None		# Download -> [ callback ]
@@ -76,15 +89,15 @@ class GUIHandler(object):
 						if self.policy.window:
 							self.policy.window.browser.build_tree()
 				except download.DownloadError, ex:
-					dialog.alert(self.policy.window,
+					dialog.alert(self.policy.window.window,
 						"Error downloading '%s':\n\n%s" %
 						(name, ex))
 				except InvalidInterface, ex:
-					dialog.alert(self.policy.window,
+					dialog.alert(self.policy.window.window,
 						"Syntax error in downloaded interface '%s':\n\n%s" %
 						(name, ex))
 				except SafeException, ex:
-					dialog.alert(self.policy.window,
+					dialog.alert(self.policy.window.window,
 						"Error fetching '%s':\n\n%s" %
 						(name, ex))
 
@@ -131,7 +144,7 @@ class GUIPolicy(Policy):
 		assert policy is None
 		policy = self
 
-		self.widgets = gtk.glade.XML(gladefile, 'main')
+		self.widgets = Template('main')
 
 		if restrictions:
 			for r in restrictions:

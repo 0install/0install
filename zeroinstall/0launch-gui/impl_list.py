@@ -52,23 +52,20 @@ class ImplTips(TreeTips):
 		else:
 			return _("No downloads available!")
 
-class ImplementationList(gtk.ScrolledWindow):
+class ImplementationList:
 	tree_view = None
 	model = None
 	interface = None
 
-	def __init__(self, interface):
-		gtk.ScrolledWindow.__init__(self, None, None)
-		self.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
-		self.set_shadow_type(gtk.SHADOW_IN)
-
+	def __init__(self, interface, widgets):
 		self.interface = interface
 
 		self.model = gtk.ListStore(object, str, str, str,
 			   gobject.TYPE_BOOLEAN, gobject.TYPE_BOOLEAN,
 			   str)
 
-		self.tree_view = gtk.TreeView(self.model)
+		self.tree_view = widgets.get_widget('versions_list')
+		self.tree_view.set_model(self.model)
 
 		text = gtk.CellRendererText()
 		text_strike = gtk.CellRendererText()
@@ -82,8 +79,6 @@ class ImplementationList(gtk.ScrolledWindow):
 			       gtk.TreeViewColumn('C', toggle, active = CACHED),
 			       gtk.TreeViewColumn('Arch', text, text = ARCH)):
 			self.tree_view.append_column(column)
-
-		self.add(self.tree_view)
 
 		tips = ImplTips(interface)
 

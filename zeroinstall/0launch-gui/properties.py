@@ -9,7 +9,7 @@ from logging import warn
 
 import help_box
 from dialog import Dialog
-from gui import policy
+from gui import policy, Template
 from impl_list import ImplementationList
 import time
 import dialog
@@ -71,19 +71,10 @@ def have_source_for(interface):
 			return True
 	return False
 
-class Description(gtk.ScrolledWindow):
-	def __init__(self):
-		gtk.ScrolledWindow.__init__(self, None, None)
-		self.set_shadow_type(gtk.SHADOW_IN)
-		self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
-		description = gtk.TextView()
-		description.set_left_margin(4)
-		description.set_right_margin(4)
-		description.set_wrap_mode(gtk.WRAP_WORD)
-		description.set_editable(False)
-		description.set_cursor_visible(False)
+class Description:
+	def __init__(self, widgets):
+		description = widgets.get_widget('description')
 		description.connect('button-press-event', self.button_press)
-		self.add(description)
 
 		self.buffer = description.get_buffer()
 		self.heading_style = self.buffer.create_tag(underline = True, scale = 1.2)
@@ -170,48 +161,29 @@ class Description(gtk.ScrolledWindow):
 		else:
 			buffer.insert_with_tags(iter, 'No signature information (old style interface or out-of-date cache)\n')
 
-class Feeds(gtk.VPaned):
+class Feeds:
 	URI = 0
 	ARCH = 1
 	USED = 2
 
-	def __init__(self, interface):
-		gtk.VPaned.__init__(self)
-		self.set_border_width(4)
+	def __init__(self, interface, widgets):
 		self.interface = interface
 
-		hbox = gtk.HBox(False, 4)
-		self.pack1(hbox, False, False)
-
 		self.model = gtk.ListStore(str, str, bool)
+
+		self.description = Description(widgets)
 
 		self.lines = self.build_model()
 		for line in self.lines:
 			self.model.append(line)
 
-		self.swin = gtk.ScrolledWindow()
-		self.swin.set_shadow_type(gtk.SHADOW_IN)
-		self.swin.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
-		hbox.pack_start(self.swin, True, True, 0)
+		add_remote_feed_button = widgets.get_widget('add_remote_feed')
+		add_remote_feed_button.connect('clicked', lambda b: add_remote_feed(widgets.get_widget(), interface))
 
-		buttons_vbox = gtk.VButtonBox()
-		buttons_vbox.set_layout(gtk.BUTTONBOX_START)
-		buttons_vbox.set_spacing(4)
-
-		add_remote_feed_button = dialog.MixedButton(_('Add Remote Feed...'), gtk.STOCK_ADD, 0.0)
-		add_remote_feed_button.connect('clicked',
-			lambda b: add_remote_feed(self.get_toplevel(), interface))
-		buttons_vbox.add(add_remote_feed_button)
-
-		add_local_feed_button = dialog.MixedButton(_('Add Local Feed...'), gtk.STOCK_ADD, 0.0)
+		add_local_feed_button = widgets.get_widget('add_local_feed')
 		add_local_feed_button.connect('clicked', lambda b: add_local_feed(interface))
-		tips.set_tip(add_local_feed_button,
-			_('If you have another implementation of this interface (e.g. a '
-			  'CVS checkout), you can add it to the list by registering the XML '
-			  'feed file that came with it.'))
-		buttons_vbox.add(add_local_feed_button)
 
-		self.remove_feed_button = dialog.MixedButton(_('Remove Feed'), gtk.STOCK_REMOVE, 0.0)
+		self.remove_feed_button = widgets.get_widget('remove_feed')
 		def remove_feed(button):
 			model, iter = self.tv.get_selection().get_selected()
 			feed_uri = model[iter][Feeds.URI]
@@ -228,18 +200,12 @@ class Feeds(gtk.VPaned):
 						return
 			raise Exception("Missing feed '%s'!" % feed_uri)
 		self.remove_feed_button.connect('clicked', remove_feed)
-		buttons_vbox.add(self.remove_feed_button)
 
-		hbox.pack_start(buttons_vbox, False, True, 0)
-
-		self.tv = gtk.TreeView(self.model)
+		self.tv = widgets.get_widget('feeds_list')
+		self.tv.set_model(self.model)
 		text = gtk.CellRendererText()
 		self.tv.append_column(gtk.TreeViewColumn('Source', text, text = Feeds.URI, sensitive = Feeds.USED))
 		self.tv.append_column(gtk.TreeViewColumn('Arch', text, text = Feeds.ARCH, sensitive = Feeds.USED))
-		self.swin.add(self.tv)
-
-		self.description = Description()
-		self.add2(self.description)
 
 		sel = self.tv.get_selection()
 		sel.set_mode(gtk.SELECTION_BROWSE)
@@ -283,40 +249,61 @@ class Feeds(gtk.VPaned):
 		else:
 			self.sel_changed(self.tv.get_selection())
 
-class Properties(Dialog):
+class Properties:
 	interface = None
 	use_list = None
 
 	def __init__(self, interface, show_versions = False):
-		Dialog.__init__(self)
-		self.interface = interface
-		self.set_title('Interface ' + interface.get_name())
-		self.set_default_size(-1,
-				      gtk.gdk.screen_height() / 3)
+		widgets = Template('interface_properties')
 
-		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
-		self.compile_button = self.add_mixed_button(_('Compile'),
-							gtk.STOCK_CONVERT, COMPILE)
+		self.interface = interface
+
+		window = widgets.get_widget('interface_properties')
+		window.set_title('Properties for ' + interface.get_name())
+		window.set_default_size(-1, gtk.gdk.screen_height() / 3)
+
+		self.compile_button = widgets.get_widget('compile')
 		self.compile_button.connect('clicked', lambda b: compile.compile(interface))
-		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_CANCEL)
-		self.set_default_response(gtk.RESPONSE_CANCEL)
+		window.set_default_response(gtk.RESPONSE_CANCEL)
 
 		def response(dialog, resp):
 			if resp == gtk.RESPONSE_CANCEL:
-				self.destroy()
+				window.destroy()
 			elif resp == gtk.RESPONSE_HELP:
 				properties_help.display()
-		self.connect('response', response)
+		window.connect('response', response)
 
-		notebook = gtk.Notebook()
-		self.vbox.pack_start(notebook, True, True, 0)
+		notebook = widgets.get_widget('interface_notebook')
+		assert notebook
 
-		feeds = Feeds(interface)
-		notebook.append_page(feeds, gtk.Label(_('Feeds')))
-		notebook.append_page(self.build_versions_column(interface), gtk.Label(_('Versions')))
+		feeds = Feeds(interface, widgets)
+
+		stability = widgets.get_widget('preferred_stability')
+		stability.set_active(0)
+		if interface.stability_policy:
+			i = [stable, testing, developer].index(interface.stability_policy)
+			if i == -1:
+				warn("Unknown stability policy %s", interface.stability_policy)
+				i = 0
+		else:
+			i = 0
+		stability.set_active(i)
+
+		def set_stability_policy(combo):
+			i = stability.get_active()
+			if i == 0:
+				new_stability = None
+			else:
+				name = stability.get_model()[i][0].lower()
+				new_stability = stability_levels[name]
+			interface.set_stability_policy(new_stability)
+			writer.save_interface(interface)
+			policy.recalculate()
+		stability.connect('changed', set_stability_policy)
+
+		self.use_list = ImplementationList(interface, widgets)
 
 		self.update_list()
-		notebook.show_all()
 
 		feeds.tv.grab_focus()
 
@@ -324,7 +311,7 @@ class Properties(Dialog):
 			self.update_list()
 			feeds.updated()
 			self.shade_compile()
-		self.connect('destroy', lambda s: policy.watchers.remove(updated))
+		window.connect('destroy', lambda s: policy.watchers.remove(updated))
 		policy.watchers.append(updated)
 		self.shade_compile()
 
@@ -337,47 +324,6 @@ class Properties(Dialog):
 	def update_list(self):
 		impls = policy.get_ranked_implementations(self.interface)
 		self.use_list.set_items(impls)
-
-	def build_versions_column(self, interface):
-		assert self.use_list is None
-
-		vbox = gtk.VBox(False, 2)
-		vbox.set_border_width(4)
-
-		hbox = gtk.HBox(False, 2)
-		vbox.pack_start(hbox, False, True, 2)
-
-		eb = gtk.EventBox()
-		stability = gtk.combo_box_new_text()
-		eb.add(stability)
-		stability.append_text('Use default setting')
-		stability.set_active(0)
-		for i, x in enumerate((stable, testing, developer)):
-			stability.append_text(str(x).capitalize())
-			if x is interface.stability_policy:
-				stability.set_active(i + 1)
-		hbox.pack_start(gtk.Label('Preferred stability:'), False, True, 2)
-		hbox.pack_start(eb, False, True, 0)
-		def set_stability_policy(combo):
-			i = stability.get_active()
-			if i == 0:
-				new_stability = None
-			else:
-				name = stability.get_model()[i][0].lower()
-				new_stability = stability_levels[name]
-			interface.set_stability_policy(new_stability)
-			writer.save_interface(interface)
-			policy.recalculate()
-		stability.connect('changed', set_stability_policy)
-		tips.set_tip(eb, _('Implementations at this stability level or higher '
-				'will be used in preference to others. You can use this '
-				'to override the global "Help test new versions" setting '
-				'just for this interface.'))
-
-		self.use_list = ImplementationList(interface)
-		vbox.pack_start(self.use_list, True, True, 2)
-
-		return vbox
 	
 def add_remote_feed(parent, interface):
 	d = gtk.MessageDialog(parent, 0, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL,
@@ -478,7 +424,6 @@ def edit(interface, show_versions = False):
 	if interface in _dialogs:
 		_dialogs[interface].destroy()
 	_dialogs[interface] = Properties(interface, show_versions)
-	_dialogs[interface].show()
 
 properties_help = help_box.HelpBox("Injector Properties Help",
 ('Interface properties', """
