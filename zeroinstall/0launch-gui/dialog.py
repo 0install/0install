@@ -14,7 +14,7 @@ class Dialog(gtk.Dialog):
 
 		def destroyed(widget):
 			if self.__shown:
-				_one_less_window()
+				one_less_window()
 		self.connect('destroy', destroyed)
 
 	def show(self):
@@ -44,12 +44,12 @@ def alert(parent, message, type = gtk.MESSAGE_ERROR):
 	box.set_position(gtk.WIN_POS_CENTER)
 	def resp(b, r):
 		box.destroy()
-		_one_less_window()
+		one_less_window()
 	box.connect('response', resp)
 	box.show()
 	n_windows += 1
 
-def _one_less_window():
+def one_less_window():
 	global n_windows
 	n_windows -= 1
 	if n_windows == 0:

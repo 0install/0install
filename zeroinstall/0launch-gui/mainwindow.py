@@ -4,86 +4,52 @@ import os, sys
 from iface_browser import InterfaceBrowser
 import help_box
 from gui import policy
-from dialog import Dialog, MixedButton
+import dialog
 
 tips = gtk.Tooltips()
 
 SHOW_PREFERENCES = 0
 
-class MainWindow(Dialog):
+class MainWindow:
 	progress = None
 	browser = None
 	download_box = None
+	window = None
 
 	def __init__(self, download_only):
-		Dialog.__init__(self)
-		self.set_title('Zero Install')
-		self.set_default_size(gtk.gdk.screen_width() * 2 / 5, 300)
+		widgets = policy.widgets
 
-		self.connect('destroy', lambda w: self.destroyed())
+		self.window = widgets.get_widget('main')
+		self.window.set_default_size(gtk.gdk.screen_width() * 2 / 5, 300)
 
-		vbox = gtk.VBox(False, 4)
-		vbox.set_border_width(4)
-		self.vbox.pack_start(vbox, True, True, 0)
+		self.progress = widgets.get_widget('progress')
 
-		# Global actions
-		hbox = gtk.HBox(False, 0)
-		vbox.pack_start(hbox, False, True, 0)
-		hbox.set_spacing(4)
+		self.window.connect('destroy', lambda w: self.destroyed())
 
-		label = gtk.Label(_('Choose the versions to use:'))
-		label.set_alignment(0.0, 0.5)
-		hbox.pack_start(label, True, True, 0)
-
-		button = MixedButton('_Refresh all now', gtk.STOCK_REFRESH)
-		button.connect('clicked', lambda b: policy.refresh_all())
-		tips.set_tip(button, _('Check all the interfaces below for updates.'))
-		hbox.pack_start(button, False, True, 0)
-
-		cache = MixedButton('_Show Cache', gtk.STOCK_OPEN)
+		cache = widgets.get_widget('show_cache')
 		cache.connect('clicked',
 			lambda b: os.spawnlp(os.P_WAIT, sys.argv[0], sys.argv[0], '-c'))
-		hbox.pack_start(cache, False, True, 0)
+
+		widgets.get_widget('refresh').connect('clicked', lambda b: policy.refresh_all())
 
 		# Tree view
-		self.browser = InterfaceBrowser()
-		vbox.pack_start(self.browser, True, True, 0)
-		self.browser.show()
+		self.browser = InterfaceBrowser(widgets.get_widget('components'))
 
-		# Interface actions
-		hbox = gtk.HBox(False, 0)
-		vbox.pack_start(hbox, False, True, 0)
-		hbox.set_spacing(4)
+		prefs = widgets.get_widget('preferences')
+		self.window.action_area.set_child_secondary(prefs, True)
 
-		button = gtk.Button('Interface Properties...')
-		self.browser.edit_properties.connect_proxy(button)
-		hbox.pack_start(button, False, True, 0)
-		tips.set_tip(button, _('See and edit the details of the selected interface.'))
-
-		vbox.show_all()
-
-		# Progress bar (hidden by default)
-		self.progress = gtk.ProgressBar()
-		hbox.pack_start(self.progress, True, True, 0)
-
-		# Responses
-
-		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
-		b = self.add_button(gtk.STOCK_PREFERENCES, SHOW_PREFERENCES)
-		self.action_area.set_child_secondary(b, True)
-
-		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		if download_only:
-			self.add_mixed_button('Download', gtk.STOCK_NETWORK, gtk.RESPONSE_OK)
+			unused = widgets.get_widget('run').hide()
 		else:
-			self.add_mixed_button('Run', gtk.STOCK_EXECUTE, gtk.RESPONSE_OK)
-		self.set_default_response(gtk.RESPONSE_OK)
-		self.default_widget.grab_focus()
+			unused = widgets.get_widget('download').hide()
+
+		self.window.set_default_response(gtk.RESPONSE_OK)
+		self.window.default_widget.grab_focus()
 
 		def response(dialog, resp):
 			import download_box
 			if resp in (gtk.RESPONSE_CANCEL, gtk.RESPONSE_DELETE_EVENT):
-				self.destroy()
+				self.window.destroy()
 				sys.exit(1)
 			elif resp == gtk.RESPONSE_OK:
 				download_box.download_with_gui(self)
@@ -92,7 +58,7 @@ class MainWindow(Dialog):
 			elif resp == SHOW_PREFERENCES:
 				import preferences
 				preferences.show_preferences()
-		self.connect('response', response)
+		self.window.connect('response', response)
 
 		# Warnings
 		try:
@@ -107,12 +73,22 @@ class MainWindow(Dialog):
 				# updating the version number.
 				warning_label = gtk.Label("Warning: Your version of gnupg (%s) contains a signature\n"
 					"checking vulnerability. Suggest upgrading to 1.4.6 or later." % '.'.join(map(str, gpg_version)))
-				vbox.pack_start(warning_label, False, True, 0)
+				self.window.vbox.pack_start(warning_label, False, True, 0)
 				warning_label.show()
 	
+	def destroy(self):
+		self.window.destroy()
+
+	def show(self):
+		self.window.show()
+		dialog.n_windows += 1
+
+	def set_response_sensitive(self, response, sensitive):
+		self.window.set_response_sensitive(response, sensitive)
+
 	def destroyed(self):
 		policy.abort_all_downloads()
-		
+		dialog.one_less_window()
 
 gui_help = help_box.HelpBox("Injector Help",
 ('Overview', """

@@ -1,4 +1,5 @@
 import gtk, os, gobject, sys
+import gtk.glade
 
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector.policy import Policy
@@ -12,6 +13,8 @@ version = '0.29'
 
 # Singleton Policy
 policy = None
+
+gladefile = os.path.join(os.path.dirname(__file__), 'zero-install.glade')
 
 class GUIHandler(object):
 	monitored_downloads = None
@@ -120,12 +123,15 @@ class GUIPolicy(Policy):
 	checking = None		# GtkDialog ("Checking for updates...")
 	original_implementation = None
 	download_only = None
+	widgets = None		# Glade
 
 	def __init__(self, interface, download_only, refresh, src = False, restrictions = None):
 		Policy.__init__(self, interface, GUIHandler(self), src = src)
 		global policy
 		assert policy is None
 		policy = self
+
+		self.widgets = gtk.glade.XML(gladefile, 'main')
 
 		if restrictions:
 			for r in restrictions:

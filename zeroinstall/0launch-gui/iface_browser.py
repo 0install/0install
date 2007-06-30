@@ -108,7 +108,7 @@ if gtk.pygtk_version < (2, 8, 0):
 	# 2.8.0 gives a warning if you include it, though.
 	gobject.type_register(IconAndTextRenderer)
 
-class InterfaceBrowser(gtk.ScrolledWindow):
+class InterfaceBrowser:
 	model = None
 	root = None
 	edit_properties = None
@@ -126,24 +126,17 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 		   (_('Fetch'), DOWNLOAD_SIZE),
 		   (_('Description'), SUMMARY)]
 
-	def __init__(self):
-		gtk.ScrolledWindow.__init__(self)
-
+	def __init__(self, tree_view):
 		self.cached_icon = {}	# URI -> GdkPixbuf
-		self.default_icon = self.style.lookup_icon_set(gtk.STOCK_EXECUTE).render_icon(self.style,
-			gtk.TEXT_DIR_NONE, gtk.STATE_NORMAL, gtk.ICON_SIZE_SMALL_TOOLBAR, self, None)
+		self.default_icon = tree_view.style.lookup_icon_set(gtk.STOCK_EXECUTE).render_icon(tree_view.style,
+			gtk.TEXT_DIR_NONE, gtk.STATE_NORMAL, gtk.ICON_SIZE_SMALL_TOOLBAR, tree_view, None)
 
-		self.edit_properties = gtk.Action('edit_properties',
-			  'Interface Properties...',
-			  'Set which implementation of this interface to use.',
-			  gtk.STOCK_PROPERTIES)
+		self.edit_properties = policy.widgets.get_widget('properties')
 		self.edit_properties.set_property('sensitive', False)
 
-		self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
-		self.set_shadow_type(gtk.SHADOW_IN)
-
 		self.model = gtk.TreeStore(object, str, str, str, str, gtk.gdk.Pixbuf)
-		self.tree_view = tree_view = gtk.TreeView(self.model)
+		self.tree_view = tree_view
+		tree_view.set_model(self.model)
 
 		column_objects = []
 
@@ -158,9 +151,6 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 				column = gtk.TreeViewColumn(name, text, text = model_column)
 			tree_view.append_column(column)
 			column_objects.append(column)
-
-		self.add(tree_view)
-		tree_view.show()
 
 		tree_view.set_enable_search(True)
 
@@ -216,9 +206,9 @@ class InterfaceBrowser(gtk.ScrolledWindow):
 			store, iter = selection.get_selected()
 			assert iter
 			properties.edit(self.model[iter][InterfaceBrowser.INTERFACE])
-		self.edit_properties.connect('activate', edit_selected)
+		self.edit_properties.connect('clicked', edit_selected)
 
-		self.connect('destroy', lambda s: policy.watchers.remove(self.build_tree))
+		tree_view.connect('destroy', lambda s: policy.watchers.remove(self.build_tree))
 		policy.watchers.append(self.build_tree)
 
 	def set_root(self, root):
