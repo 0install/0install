@@ -19,9 +19,11 @@ class TrustBox(dialog.Dialog):
 	sigs = None
 	iface_xml = None
 	valid_sigs = None
+	parent = None
 
-	def __init__(self, interface, sigs, iface_xml):
+	def __init__(self, interface, sigs, iface_xml, parent):
 		dialog.Dialog.__init__(self)
+		self.set_transient_for(parent)
 
 		domain = trust.domain_from_url(interface.uri)
 		assert domain
@@ -168,7 +170,7 @@ class TrustBox(dialog.Dialog):
 				raise
 
 _queue = []
-def confirm_trust(interface, sigs, iface_xml):
+def confirm_trust(interface, sigs, iface_xml, parent):
 	"""Display a dialog box asking the user to confirm that one of the
 	keys is trusted for this domain. If a trust box is already visible, this
 	one is queued until the existing one is closed.
@@ -179,7 +181,7 @@ def confirm_trust(interface, sigs, iface_xml):
 	@param iface_xml: the downloaded (untrusted) XML document
 	@type iface_xml: str
 	"""
-	_queue.append(TrustBox(interface, sigs, iface_xml))
+	_queue.append(TrustBox(interface, sigs, iface_xml, parent))
 	if len(_queue) == 1:
 		_queue[0].show()
 
