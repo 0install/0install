@@ -40,7 +40,7 @@ def download_with_gui(mainwindow):
 			doc = sels.toDOM()
 			reply = doc.toxml('utf-8')
 			sys.stdout.write(('Length:%8x\n' % len(reply)) + reply)
-			mainwindow.destroy()
+			mainwindow.window.destroy()
 			sys.exit(0)			# Success
 		if sets.ImmutableSet(policy.handler.monitored_downloads) - existing_downloads:
 			DownloadProgessBox(run_it, mainwindow).show()
@@ -52,7 +52,7 @@ def download_with_gui(mainwindow):
 				str(ex))
 		box.run()
 		box.destroy()
-		mainwindow.show()
+		mainwindow.window.show()
 
 class DownloadProgessBox(Dialog):
 	mainwindow = None
@@ -92,7 +92,7 @@ class DownloadProgessBox(Dialog):
 			table.attach(bar, 2, 3, row, row + 1)
 			row += 1
 
-		mainwindow.hide()
+		mainwindow.window.hide()
 		self.vbox.show_all()
 
 		def resp(box, resp):
@@ -102,7 +102,7 @@ class DownloadProgessBox(Dialog):
 			self.idle_timeout = None
 			self.destroy()
 			mainwindow.download_box = None
-			mainwindow.show()
+			mainwindow.window.show()
 			policy.recalculate()
 		self.connect('response', resp)
 

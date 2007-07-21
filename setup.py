@@ -10,6 +10,7 @@ class build_with_data(build_py):
 		"zeroinstall/0launch-gui/README",
 		"zeroinstall/0launch-gui/0launch-gui",
 		"zeroinstall/0launch-gui/ZeroInstall-GUI.xml",
+		"zeroinstall/0launch-gui/zero-install.glade",
 	]
 	def run(self):
 		# Copy .py files and build, as usual
