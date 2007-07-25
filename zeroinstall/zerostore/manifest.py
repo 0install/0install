@@ -169,15 +169,19 @@ def copy_with_verify(src, dest, mode, alg, required_digest):
 	@raise BadDigest: the contents of the file don't match required_digest"""
 	src_obj = file(src)
 	dest_fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
-	digest = alg.new_digest()
-	while True:
-		data = src_obj.read(256)
-		if not data: break
-		digest.update(data)
-		while data:
-			written = os.write(dest_fd, data)
-			assert written >= 0
-			data = data[written:]
+	try:
+		digest = alg.new_digest()
+		while True:
+			data = src_obj.read(256)
+			if not data: break
+			digest.update(data)
+			while data:
+				written = os.write(dest_fd, data)
+				assert written >= 0
+				data = data[written:]
+	finally:
+		os.close(dest_fd)
+		src_obj.close()
 	actual = digest.hexdigest()
 	if actual == required_digest: return
 	os.unlink(dest)
