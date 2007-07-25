@@ -28,7 +28,7 @@ class InvalidInterface(SafeException):
 def _process_depends(item):
 	# Note: also called from selections
 	dep_iface = item.getAttribute('interface')
-	if dep_iface is None:
+	if not dep_iface:
 		raise InvalidInterface("Missing 'interface' on <requires>")
 	dependency = InterfaceDependency(dep_iface, metadata = item.attrs)
 
