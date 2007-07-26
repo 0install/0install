@@ -252,6 +252,7 @@ class Feeds:
 class Properties:
 	interface = None
 	use_list = None
+	window = None
 
 	def __init__(self, interface, show_versions = False):
 		widgets = Template('interface_properties')
@@ -259,6 +260,7 @@ class Properties:
 		self.interface = interface
 
 		window = widgets.get_widget('interface_properties')
+		self.window = window
 		window.set_title('Properties for ' + interface.get_name())
 		window.set_default_size(-1, gtk.gdk.screen_height() / 3)
 
@@ -317,6 +319,9 @@ class Properties:
 
 		if show_versions:
 			notebook.next_page()
+	
+	def destroy(self):
+		self.window.destroy()
 	
 	def shade_compile(self):
 		self.compile_button.set_sensitive(have_source_for(self.interface))
