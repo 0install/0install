@@ -108,7 +108,7 @@ class TestDownload(BaseTest):
 			self.assertEquals(0, len(hello.implementations))
 
 			sys.stdout = StringIO()
-			self.child = server.handle_requests('6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+			self.child = server.handle_requests('6FCF121BE2390E0B.gpg')
 			sys.stdin = Reply("Y\n")
 
 			assert not trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
