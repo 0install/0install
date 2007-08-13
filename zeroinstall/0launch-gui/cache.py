@@ -142,7 +142,7 @@ class CachedImplementation:
 
 	def delete(self):
 		#print "Delete", self.impl_path
-		shutil.rmtree(self.impl_path)
+		support.ro_rmtree(self.impl_path)
 	
 	def open_rox(self):
 		os.spawnlp(os.P_WAIT, '0launch', '0launch', ROX_IFACE, '-d', self.impl_path)
