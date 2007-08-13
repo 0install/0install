@@ -13,6 +13,7 @@ import base64, re
 import os
 import tempfile
 import traceback
+from logging import warn
 from trust import trust_db
 from model import SafeException
 
@@ -126,7 +127,10 @@ def load_keys(fingerprints):
 			if line.startswith('uid:'):
 				assert current_fpr is not None
 				parts = line.split(':')
-				keys[current_fpr].name = parts[9]
+				if current_fpr in keys:
+					keys[current_fpr].name = parts[9]
+				else:
+					warn("Got information about key '%s', but I only asked about '%s'!", current_fpr, fingerprints)
 	finally:
 		cout.close()
 
