@@ -86,6 +86,7 @@ def frame(page, title, content, expand = False):
 	if type(content) in (str, unicode):
 		content = gtk.Label(content)
 		content.set_alignment(0, 0.5)
+		content.set_selectable(True)
 	frame.add(content)
 	if hasattr(content, 'set_padding'):
 		content.set_padding(8, 4)
