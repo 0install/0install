@@ -58,7 +58,7 @@ class DebianDistribution(Distribution):
 				self.generate_cache()
 				self.load_cache()
 			except Exception, ex:
-				warn("Failed to regenerate dpkg cache: ", ex)
+				warn("Failed to regenerate dpkg cache: %s", ex)
 
 	def load_cache(self):
 		stream = file(self.cache_dir + '/dpkg-status.cache')
