@@ -81,7 +81,7 @@ class BackgroundHandler(handler.Handler):
 		_exec_gui(interface.uri, '--refresh')
 
 	def report_error(self, exception):
-		notify("Zero Install", "Error updating %s: %s" % (title, str(exception)))
+		notify("Zero Install", "Error updating %s: %s" % (self.title, str(exception)))
 
 def _detach():
 	"""Fork a detached grandchild.

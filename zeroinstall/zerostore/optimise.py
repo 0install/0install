@@ -42,8 +42,6 @@ def optimise(impl_dir):
 	hard-link any duplicates together to save space.
 	@param impl_dir: a $cache/0install.net/implementations directory
 	@type impl_dir: str
-	@param verbose: display progress messages
-	@type verbose: bool
 	@return: (unique bytes, duplicated bytes, already linked, manifest size)
 	@rtype: (int, int, int, int)"""
 
@@ -78,23 +76,23 @@ def optimise(impl_dir):
 		dir = ""
 		for line in ms:
 			if line[0] == 'D':
-				type, path = line.split(' ', 1)
+				itype, path = line.split(' ', 1)
 				assert path.startswith('/')
 				dir = path[1:-1]	# Strip slash and newline
 				continue
 
 			if line[0] == "S":
-				type, digest, size, rest = line.split(' ', 3)
+				itype, digest, size, rest = line.split(' ', 3)
 				uniq_size += long(size)
 				continue
 
 			assert line[0] in "FX"
 
-			type, digest, mtime, size, path = line.split(' ', 4)
+			itype, digest, mtime, size, path = line.split(' ', 4)
 			path = path[:-1]	# Strip newline
 			size = long(size)
 
-			key = (type, digest, mtime, size)
+			key = (itype, digest, mtime, size)
 			loc_path = (impl, dir, path)
 
 			first_loc = first_copy.get(key, None)

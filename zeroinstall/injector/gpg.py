@@ -17,7 +17,7 @@ from logging import warn
 from trust import trust_db
 from model import SafeException
 
-class Signature:
+class Signature(object):
 	"""Abstract base class for signature check results."""
 	status = None
 

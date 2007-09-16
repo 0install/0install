@@ -6,8 +6,6 @@ Support code for 0alias scripts.
 # Copyright (C) 2007, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os, logging
-
 _template = '''#!/bin/sh
 if [ "$*" = "--versions" ]; then
   exec 0launch -gd '%s' "$@"

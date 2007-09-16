@@ -39,7 +39,7 @@ class Algorithm:
 	"""Abstract base class for algorithms.
 	An algorithm knows how to generate a manifest from a directory tree.
 	"""
-	def generate_manifest(root):
+	def generate_manifest(self, root):
 		"""Returns an iterator that yields each line of the manifest for the directory
 		tree rooted at 'root'."""
 		raise Exception('Abstract')
@@ -304,27 +304,32 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 		raise
 
 def _parse_manifest(manifest_data):
-	wanted = {}	# Path -> (manifest line tuple)
+	"""Parse a manifest file.
+	@param manifest_data: the contents of the manifest file
+	@type manifest_data: str
+	@return: a mapping from paths to information about that path
+	@rtype: {str: tuple}"""
+	wanted = {}
 	dir = ''
 	for line in manifest_data.split('\n'):
 		if not line: break
 		if line[0] == 'D':
 			data = line.split(' ', 1)
-			if len(data) != 2: raise zerostore.BadDigest("Bad line '%s'" % line)
+			if len(data) != 2: raise BadDigest("Bad line '%s'" % line)
 			path = data[-1]
-			if not path.startswith('/'): raise zerostore.BadDigest("Not absolute: '%s'" % line)
+			if not path.startswith('/'): raise BadDigest("Not absolute: '%s'" % line)
 			path = path[1:]
 			dir = path
 		elif line[0] == 'S':
 			data = line.split(' ', 3)
 			path = os.path.join(dir, data[-1])
-			if len(data) != 4: raise zerostore.BadDigest("Bad line '%s'" % line)
+			if len(data) != 4: raise BadDigest("Bad line '%s'" % line)
 		else:
 			data = line.split(' ', 4)
 			path = os.path.join(dir, data[-1])
-			if len(data) != 5: raise zerostore.BadDigest("Bad line '%s'" % line)
+			if len(data) != 5: raise BadDigest("Bad line '%s'" % line)
 		if path in wanted:
-			raise zerostore.BadDigest('Duplicate entry "%s"' % line)
+			raise BadDigest('Duplicate entry "%s"' % line)
 		wanted[path] = data[:-1]
 	return wanted
 
@@ -355,7 +360,7 @@ def _copy_files(alg, wanted, source, target):
 			warn("Skipping file not in manifest: '%s'", path)
 			continue
 		if required_details[0] != type:
-			raise zerostore.BadDigest("Item '%s' has wrong type!" % path)
+			raise BadDigest("Item '%s' has wrong type!" % path)
 		if type == 'D':
 			os.mkdir(os.path.join(target, path))
 		elif type in 'XF':
@@ -398,7 +403,6 @@ class HashLibAlgorithm(Algorithm):
 
 	def __init__(self, name):
 		if name == 'sha1':
-			import sha
 			self.new_digest = sha.new
 			self.name = 'sha1new'
 		else:
