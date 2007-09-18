@@ -57,14 +57,11 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 	"""
 	sels = selections.selections
 	for selection in sels.values():
+		_do_bindings(selection, selection.bindings)
 		for dep in selection.dependencies:
-			for b in dep.bindings:
-				if isinstance(b, EnvironmentBinding):
-					dep_impl = sels[dep.interface]
-					if dep_impl.id.startswith('package:'):
-						debug("Implementation %s is native; no binding needed", dep_impl)
-					else:
-						do_env_binding(b, _get_implementation_path(dep_impl.id))
+			dep_impl = sels[dep.interface]
+			if not dep_impl.id.startswith('package:'):
+				_do_bindings(dep_impl, dep.bindings)
 	
 	root_impl = sels[selections.interface]
 	_execute(root_impl, prog_args, dry_run, main, wrapper)
