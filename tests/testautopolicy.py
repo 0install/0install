@@ -137,6 +137,7 @@ class TestAutoPolicy(BaseTest):
 			pass
 
 	def testBinding(self):
+		local_impl = os.path.dirname(os.path.abspath(__file__))
 		tmp = tempfile.NamedTemporaryFile()
 		tmp.write(
 """<?xml version="1.0" ?>
@@ -152,9 +153,12 @@ class TestAutoPolicy(BaseTest):
       <environment name='BAR_PATH' insert='.' default='/a:/b'/>
       <environment name='XDG_DATA_DIRS' insert='.'/>
     </requires>
-    <implementation version='1.0' id='%s'/>
+    <environment name='SELF_GROUP' insert='group' mode='replace'/>
+    <implementation version='1.0' id='%s'>
+      <environment name='SELF_IMPL' insert='impl' mode='replace'/>
+    </implementation>
   </group>
-</interface>""" % (foo_iface_uri, os.path.dirname(os.path.abspath(__file__))))
+</interface>""" % (foo_iface_uri, local_impl))
 		tmp.flush()
 		self.cache_iface(foo_iface_uri,
 """<?xml version="1.0" ?>
@@ -182,6 +186,9 @@ class TestAutoPolicy(BaseTest):
 				os.environ['FOO_PATH'])
 		self.assertEquals(cached_impl + '/.:/a:/b',
 				os.environ['BAR_PATH'])
+		
+		self.assertEquals(os.path.join(local_impl, 'group'), os.environ['SELF_GROUP'])
+		self.assertEquals(os.path.join(local_impl, 'impl'), os.environ['SELF_IMPL'])
 
 		del os.environ['FOO_PATH']
 		if 'XDG_DATA_DIRS' in os.environ:

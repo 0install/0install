@@ -16,19 +16,21 @@ from zeroinstall.injector.qdom import Element
 
 class Selection(object):
 	"""A single selected implementation in a L{Selections} set."""
-	__slots__ = ['interface', 'id', 'version', 'feed', 'dependencies', 'main']
+	__slots__ = ['interface', 'bindings', 'id', 'version', 'feed', 'dependencies', 'main']
 
-	def __init__(self, interface, id, version, feed, main, dependencies):
+	def __init__(self, interface, id, version, feed, main, dependencies, bindings = None):
 		assert interface
 		assert id
 		assert version
 		assert feed
+		if bindings is None: bindings = []
 		self.interface = interface
 		self.id = id
 		self.version = version
 		self.feed = feed
 		self.main = main
 		self.dependencies = dependencies
+		self.bindings = bindings
 
 	def __repr__(self):
 		return self.id
@@ -57,7 +59,8 @@ class Selections(object):
 			self.selections[needed_iface.uri] = Selection(needed_iface.uri, impl.id,
 							 impl.get_version(), impl.interface.uri,
 							 impl.main,
-							 impl.requires)
+							 impl.requires,
+							 impl.bindings)
 
 	def _init_from_qdom(self, root):
 		"""Parse and load a selections document.
@@ -71,14 +74,16 @@ class Selections(object):
 			if selection.name != 'selection':
 				continue
 
+			requires = []
 			bindings = []
 			for dep_elem in selection.childNodes:
 				if dep_elem.uri != XMLNS_IFACE:
 					continue
-				if dep_elem.name != 'requires':
-					continue
-				dep = reader._process_depends(dep_elem)
-				bindings.append(dep)
+				if dep_elem.name in reader._binding_names:
+					bindings.append(reader._process_binding(dep_elem))
+				elif dep_elem.name == 'requires':
+					dep = reader._process_depends(dep_elem)
+					requires.append(dep)
 
 			iface_uri = selection.getAttribute('interface')
 			s = Selection(iface_uri,
@@ -86,6 +91,7 @@ class Selections(object):
 				      selection.getAttribute('version'),
 				      selection.getAttribute('from-feed') or iface_uri,
 				      selection.getAttribute('main'),
+				      requires,
 				      bindings)
 			self.selections[iface_uri] = s
 	
@@ -119,6 +125,9 @@ class Selections(object):
 				selection_elem.setAttributeNS(None, 'main', selection.main)
 			if selection.interface != selection.feed:
 				selection_elem.setAttributeNS(None, 'from-feed', selection.feed)
+
+			for b in selection.bindings:
+				selection_elem.appendChild(b._toxml(doc))
 
 			for dep in selection.dependencies:
 				dep_elem = doc.createElementNS(XMLNS_IFACE, 'requires')

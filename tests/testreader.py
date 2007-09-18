@@ -69,8 +69,8 @@ class TestReader(BaseTest):
    <requires interface='%s' my:foo='test'>
      <version not-before='2.3.4' before='3.4.5'/>
    </requires>
-   <requires interface='%s2'/>
    <implementation id='sha1=123' version='1'/>
+   <requires interface='%s2'/>
   </group>
 </interface>""" % (foo_iface_uri, bar_iface_uri, bar_iface_uri))
 		tmp.flush()
@@ -106,13 +106,19 @@ class TestReader(BaseTest):
      <environment name='PATH' insert='bin' default='/bin' mode='append'/>
      <environment name='PATH' insert='bin' mode='replace'/>
    </requires>
-   <implementation id='sha1=123' version='1'/>
+   <implementation id='sha1=123' version='1'>
+     <environment name='SELF' insert='.' mode='replace'/>
+   </implementation>
   </group>
 </interface>""")
 		tmp.flush()
 		iface = model.Interface(foo_iface_uri)
 		reader.update(iface, tmp.name, local = True)
 		impl = iface.implementations['sha1=123']
+
+		assert len(impl.bindings) == 1
+		self.assertEquals(model.EnvironmentBinding.REPLACE, impl.bindings[0].mode)
+
 		assert len(impl.requires) == 1
 		dep = impl.requires[0]
 

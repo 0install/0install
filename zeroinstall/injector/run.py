@@ -27,18 +27,22 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 	for needed_iface in policy.implementation:
 		impl = policy.implementation[needed_iface]
 		assert impl
+		_do_bindings(impl, impl.bindings)
 		for dep in impl.requires:
 			dep_iface = iface_cache.get_interface(dep.interface)
-			for b in dep.bindings:
-				if isinstance(b, EnvironmentBinding):
-					dep_impl = policy.get_implementation(dep_iface)
-					if isinstance(dep_impl, ZeroInstallImplementation):
-						do_env_binding(b, _get_implementation_path(dep_impl.id))
-					else:
-						debug("Implementation %s is native; no binding needed", dep_impl)
-	
+			dep_impl = policy.get_implementation(dep_iface)
+			if isinstance(dep_impl, ZeroInstallImplementation):
+				_do_bindings(dep_impl, dep.bindings)
+			else:
+				debug("Implementation %s is native; no bindings needed", dep_impl)
+
 	root_impl = policy.get_implementation(iface)
 	_execute(root_impl, prog_args, dry_run, main, wrapper)
+
+def _do_bindings(impl, bindings):
+	for b in bindings:
+		if isinstance(b, EnvironmentBinding):
+			do_env_binding(b, _get_implementation_path(impl.id))
 
 def _get_implementation_path(id):
 	if id.startswith('/'): return id

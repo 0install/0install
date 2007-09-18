@@ -38,7 +38,11 @@ class TestSelections(BaseTest):
 			self.assertEquals('sha1=234', sels[1].id)
 			self.assertEquals("1.0", sels[1].version)
 
+			self.assertEquals(0, len(sels[0].bindings))
 			self.assertEquals(0, len(sels[0].dependencies))
+
+			self.assertEquals(1, len(sels[1].bindings))
+			self.assertEquals('.', sels[1].bindings[0].insert)
 
 			self.assertEquals(1, len(sels[1].dependencies))
 			dep = sels[1].dependencies[0]

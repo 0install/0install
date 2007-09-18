@@ -25,6 +25,27 @@ class InvalidInterface(SafeException):
 			message += "\n\n(exact error: %s)" % ex
 		SafeException.__init__(self, message)
 
+_binding_names = frozenset(['environment'])
+
+def _process_binding(e):
+	if e.name == 'environment':
+		mode = {
+			None: EnvironmentBinding.PREPEND,
+			'prepend': EnvironmentBinding.PREPEND,
+			'append': EnvironmentBinding.APPEND,
+			'replace': EnvironmentBinding.REPLACE,
+		}[e.getAttribute('mode')]
+			
+		binding = EnvironmentBinding(e.getAttribute('name'),
+					     insert = e.getAttribute('insert'),
+					     default = e.getAttribute('default'),
+					     mode = mode)
+		if not binding.name: raise InvalidInterface("Missing 'name' in binding")
+		if binding.insert is None: raise InvalidInterface("Missing 'insert' in binding")
+		return binding
+	else:
+		raise Exception("Unknown binding type '%s'" % e.name)
+
 def _process_depends(item):
 	# Note: also called from selections
 	dep_iface = item.getAttribute('interface')
@@ -34,21 +55,8 @@ def _process_depends(item):
 
 	for e in item.childNodes:
 		if e.uri != XMLNS_IFACE: continue
-		if e.name == 'environment':
-			mode = {
-				None: EnvironmentBinding.PREPEND,
-				'prepend': EnvironmentBinding.PREPEND,
-				'append': EnvironmentBinding.APPEND,
-				'replace': EnvironmentBinding.REPLACE,
-			}[e.getAttribute('mode')]
-				
-			binding = EnvironmentBinding(e.getAttribute('name'),
-						     insert = e.getAttribute('insert'),
-						     default = e.getAttribute('default'),
-						     mode = mode)
-			if not binding.name: raise InvalidInterface("Missing 'name' in binding")
-			if binding.insert is None: raise InvalidInterface("Missing 'insert' in binding")
-			dependency.bindings.append(binding)
+		if e.name in _binding_names:
+			dependency.bindings.append(_process_binding(e))
 		elif e.name == 'version':
 			dependency.restrictions.append(
 				Restriction(not_before = parse_version(e.getAttribute('not-before')),
@@ -277,28 +285,42 @@ def update(interface, source, local = False):
 		else:
 			interface.add_metadata(x)
 
-	def process_group(group, group_attrs, base_depends):
+	def process_group(group, group_attrs, base_depends, base_bindings):
 		for item in group.childNodes:
 			if item.uri != XMLNS_IFACE: continue
 
+			if item.name not in ('group', 'implementation', 'package-implementation'):
+				continue
+
 			depends = base_depends[:]
+			bindings = base_bindings[:]
 
 			item_attrs = _merge_attrs(group_attrs, item)
 
+			# We've found a group or implementation. Scan for dependencies
+			# and bindings. Doing this here means that:
+			# - We can share the code for groups and implementations here.
+			# - The order doesn't matter, because these get processed first.
+			# A side-effect is that the document root cannot contain
+			# these.
 			for child in item.childNodes:
 				if child.uri != XMLNS_IFACE: continue
 				if child.name == 'requires':
 					dep = _process_depends(child)
 					depends.append(dep)
+				elif child.name in _binding_names:
+					bindings.append(_process_binding(child))
 
 			if item.name == 'group':
-				process_group(item, item_attrs, depends)
+				process_group(item, item_attrs, depends, bindings)
 			elif item.name == 'implementation':
-				process_impl(item, item_attrs, depends)
+				process_impl(item, item_attrs, depends, bindings)
 			elif item.name == 'package-implementation':
 				process_native_impl(item, item_attrs, depends)
+			else:
+				assert 0
 
-	def process_impl(item, item_attrs, depends):
+	def process_impl(item, item_attrs, depends, bindings):
 		id = item.getAttribute('id')
 		if id is None:
 			raise InvalidInterface("Missing 'id' attribute on %s" % item)
@@ -346,6 +368,7 @@ def update(interface, source, local = False):
 			raise InvalidInterface("Upstream can't set stability to preferred!")
 		impl.upstream_stability = stability
 
+		impl.bindings = bindings
 		impl.requires = depends
 
 		for elem in item.childNodes:
@@ -409,4 +432,4 @@ def update(interface, source, local = False):
 		{'stability': 'testing',
 	         'main' : root.getAttribute('main') or None,
 		},
-		[])
+		[], [])

@@ -10,5 +10,6 @@
       <environment name='PATH' insert='bin'/>
     </requires>
     <implementation id='sha1=234' version='1.0' arch='*-src'/>
+    <environment name='SRCDIR' insert='.' mode='replace'/>
   </group>
 </interface>

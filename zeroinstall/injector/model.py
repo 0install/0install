@@ -298,9 +298,11 @@ class DistributionImplementation(Implementation):
 	
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.
+	@ivar bindings: how to tell this component where it itself is located (since 0.31)
+	@type bindings: [Binding]
 	@since: 0.28"""
 	__slots__ = ['os', 'machine', 'upstream_stability', 'user_stability',
-		     'size', 'requires', 'main', 'metadata',
+		     'size', 'requires', 'main', 'metadata', 'bindings',
 		     'id',  'interface']
 
 	def __init__(self, interface, id):
@@ -309,6 +311,7 @@ class ZeroInstallImplementation(Implementation):
 		self.size = None
 		self.os = None
 		self.machine = None
+		self.bindings = []
 
 	# Deprecated
 	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires
