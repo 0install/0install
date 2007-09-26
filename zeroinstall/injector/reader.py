@@ -142,7 +142,7 @@ def update_user_overrides(interface):
 			feed_src = item.getAttribute('src')
 			if not feed_src:
 				raise InvalidInterface('Missing "src" attribute in <feed>')
-			interface.feeds.append(Feed(feed_src, item.getAttribute('arch'), True))
+			interface.feeds.append(Feed(feed_src, item.getAttribute('arch'), True, langs = item.getAttribute('langs')))
 
 def check_readable(interface_uri, source):
 	"""Test whether an interface file is valid.
@@ -279,7 +279,7 @@ def update(interface, source, local = False):
 			if not feed_src:
 				raise InvalidInterface('Missing "src" attribute in <feed>')
 			if feed_src.startswith('http:') or local:
-				interface.feeds.append(Feed(feed_src, x.getAttribute('arch'), False))
+				interface.feeds.append(Feed(feed_src, x.getAttribute('arch'), False, langs = x.getAttribute('langs')))
 			else:
 				raise InvalidInterface("Invalid feed URL '%s'" % feed_src)
 		else:
@@ -352,6 +352,7 @@ def update(interface, source, local = False):
 		impl.main = item_main
 
 		impl.released = item_attrs.get('released', None)
+		impl.langs = item_attrs.get('langs', None)
 
 		size = item.getAttribute('size')
 		if size:

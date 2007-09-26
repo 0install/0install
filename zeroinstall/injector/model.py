@@ -157,13 +157,14 @@ class EnvironmentBinding(Binding):
 class Feed(object):
 	"""An interface's feeds are other interfaces whose implementations can also be
 	used as implementations of this interface."""
-	__slots__ = ['uri', 'os', 'machine', 'user_override']
-	def __init__(self, uri, arch, user_override):
+	__slots__ = ['uri', 'os', 'machine', 'user_override', 'langs']
+	def __init__(self, uri, arch, user_override, langs = None):
 		self.uri = uri
 		# This indicates whether the feed comes from the user's overrides
 		# file. If true, writer.py will write it when saving.
 		self.user_override = user_override
 		self.os, self.machine = _split_arch(arch)
+		self.langs = langs
 	
 	def __str__(self):
 		return "<Feed from %s>" % self.uri
@@ -248,7 +249,7 @@ class Implementation(object):
 	@type download_sources: [L{RetrievalMethod}]
 	"""
 
-	__slots__ = ['upstream_stability', 'user_stability',
+	__slots__ = ['upstream_stability', 'user_stability', 'langs',
 		     'requires', 'main', 'metadata', 'download_sources',
 		     'id', 'interface', 'version', 'released']
 
@@ -264,6 +265,7 @@ class Implementation(object):
 		self.version = None
 		self.released = None
 		self.download_sources = []
+		self.langs = None
 
 	def get_stability(self):
 		return self.user_stability or self.upstream_stability or testing

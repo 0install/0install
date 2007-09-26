@@ -229,6 +229,37 @@ class TestReader(BaseTest):
 		assert impl.metadata['foo'] == 'bar'
 		assert impl.interface == iface
 	
+	def testLang(self):
+		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp.write(
+"""<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <feed langs='fr en_GB' src='http://localhost/feed.xml'/>
+  <group>
+    <group langs='fr en_GB'>
+      <implementation id='sha1=124' version='2' langs='fr'/>
+      <implementation id='sha1=234' version='2'/>
+    </group>
+    <implementation id='sha1=345' version='2'/>
+  </group>
+</interface>""")
+		tmp.flush()
+
+		iface = model.Interface(foo_iface_uri)
+		reader.update(iface, tmp.name, True)
+
+		assert len(iface.implementations) == 3
+		assert len(iface.feeds) == 1
+
+		self.assertEquals('fr en_GB', iface.feeds[0].langs)
+
+		self.assertEquals('fr', iface.implementations['sha1=124'].langs)
+		self.assertEquals('fr en_GB', iface.implementations['sha1=234'].langs)
+		self.assertEquals(None, iface.implementations['sha1=345'].langs)
+	
 suite = unittest.makeSuite(TestReader)
 if __name__ == '__main__':
 	sys.argv.append('-v')
