@@ -304,7 +304,7 @@ class ZeroInstallImplementation(Implementation):
 	@type bindings: [Binding]
 	@since: 0.28"""
 	__slots__ = ['os', 'machine', 'upstream_stability', 'user_stability',
-		     'size', 'requires', 'main', 'metadata', 'bindings',
+		     'size', 'requires', 'main', 'bindings',
 		     'id',  'interface']
 
 	def __init__(self, interface, id):
@@ -331,7 +331,8 @@ class Interface(object):
 	"""An Interface represents some contract of behaviour.
 	Note: This class is for both feeds and interfaces. Should really have used separate classes.
 	@ivar uri: the URL for this feed
-	@ivar implementations: list of Implementations in this feed
+	@ivar implementations: Implementations in this feed, indexed by ID
+	@type implementations: {str: L{Implementation}}
 	@ivar name: human-friendly name
 	@ivar summary: short textual description
 	@ivar description: long textual description
@@ -362,7 +363,7 @@ class Interface(object):
 					    "with 'http:'" % uri)
 
 	def reset(self):
-		self.implementations = {}	# Path -> Implementation
+		self.implementations = {}
 		self.name = None
 		self.summary = None
 		self.description = None
