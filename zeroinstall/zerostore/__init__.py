@@ -47,10 +47,9 @@ class Store:
 		"""Create a new Store.
 		@param dir: directory to contain the implementations
 		@type dir: str
-		@param public: set the umask for a public cache
+		@param public: deprecated
 		@type public: bool"""
 		self.dir = dir
-		self.public = public
 	
 	def __str__(self):
 		return "Store '%s'" % self.dir
@@ -167,8 +166,8 @@ class Store:
 
 	def check_manifest_and_rename(self, required_digest, tmp, extract = None, try_helper = False):
 		"""Check that tmp[/extract] has the required_digest.
-		On success, rename the checked directory to the digest and,
-		if self.public, make the whole tree read-only.
+		On success, rename the checked directory to the digest, and
+		make the whole tree read-only.
 		@param try_helper: attempt to use privileged helper to import to system cache first (since 0.26)
 		@type try_helper: bool
 		@raise BadDigest: if the input directory doesn't match the given digest"""
@@ -232,7 +231,7 @@ class Stores(object):
 			directory = directory.strip()
 			if directory and not directory.startswith('#'):
 				debug("Added system store '%s'", directory)
-				self.stores.append(Store(directory, public = True))
+				self.stores.append(Store(directory))
 
 	def lookup(self, digest):
 		"""Search for digest in all stores."""
