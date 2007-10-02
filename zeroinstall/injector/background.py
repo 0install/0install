@@ -45,6 +45,9 @@ LOW = 0
 NORMAL = 1
 CRITICAL = 2
 
+def _escape_xml(s):
+	return s.replace('&', '&amp;').replace('<', '&lt;')
+
 def notify(title, message, timeout = 0, actions = []):
 	if not have_notifications:
 		info('%s: %s', title, message)
@@ -62,8 +65,8 @@ def notify(title, message, timeout = 0, actions = []):
 	return notification_service.Notify('Zero Install',
 		0,		# replaces_id,
 		'',		# icon
-		title,
-		message,
+		_escape_xml(title),
+		_escape_xml(message),
 		actions,
 		hints,
 		timeout * 1000)
