@@ -120,8 +120,120 @@ class DebianDistribution(Distribution):
 		impl = factory('package:deb:%s:%s' % (package, version)) 
 		impl.version = model.parse_version(version)
 
+class RPMDistribution(Distribution):
+	cache_leaf = 'rpm-status.cache'
+	
+	def __init__(self, db_dir):
+		self.db_dir = db_dir
+		pkg_status = os.path.join(db_dir, 'Packages')
+		self.status_details = os.stat(pkg_status)
+
+		self.versions = {}
+		self.cache_dir=basedir.save_cache_path(namespaces.config_site,
+						       namespaces.config_prog)
+
+		try:
+			self.load_cache()
+		except Exception, ex:
+			info("Failed to load cache (%s). Regenerating...",
+			     ex)
+			try:
+				self.generate_cache()
+				self.load_cache()
+			except Exception, ex:
+				warn("Failed to regenerate cache: %s", ex)
+
+	def load_cache(self):
+		stream = file(os.path.join(self.cache_dir, self.cache_leaf))
+
+		for line in stream:
+			if line == '\n':
+				break
+			name, value = line.split(': ')
+			if name == 'mtime' and (int(value) !=
+					    int(self.status_details.st_mtime)):
+				raise Exception("Modification time of rpm status file has changed")
+			if name == 'size' and (int(value) !=
+					       self.status_details.st_size):
+				raise Exception("Size of rpm status file has changed")
+		else:
+			raise Exception('Invalid cache format (bad header)')
+			
+		versions = self.versions
+		for line in stream:
+			package, version = line[:-1].split('\t')
+			versions[package] = version
+
+	def __parse_rpm_name(self, line):
+		"""Some samples we have to cope with (from SuSE 10.2):
+		mp3blaster-3.2.0-0.pm0
+		fuse-2.5.2-2.pm.0
+		gpg-pubkey-1abd1afb-450ef738
+		a52dec-0.7.4-3.pm.1
+		glibc-html-2.5-25
+		gnome-backgrounds-2.16.1-14
+		gnome-icon-theme-2.16.0.1-12
+		opensuse-quickstart_en-10.2-9
+		susehelp_en-2006.06.20-25
+		yast2-schema-2.14.2-3"""
+
+		parts=line.strip().split('-')
+		if len(parts)==2:
+			return parts[0], try_cleanup_distro_version(parts[1])
+
+		elif len(parts)<2:
+			return None, None
+
+		package='-'.join(parts[:-2])
+		version=parts[-2]
+		mod=parts[-1]
+
+		return package, try_cleanup_distro_version(version+'-'+mod)
+		
+	def generate_cache(self):
+		cache = []
+
+		for line in os.popen("rpm -qa"):
+			package, version = self.__parse_rpm_name(line)
+			if package and version:
+				cache.append('%s\t%s' % (package, version))
+
+		cache.sort()   # Might be useful later; currently we don't care
+		
+		import tempfile
+		fd, tmpname = tempfile.mkstemp(prefix = 'rpm-cache-tmp',
+					       dir = self.cache_dir)
+		try:
+			stream = os.fdopen(fd, 'wb')
+			stream.write('mtime: %d\n' % int(self.status_details.st_mtime))
+			stream.write('size: %d\n' % self.status_details.st_size)
+			stream.write('\n')
+			for line in cache:
+				stream.write(line + '\n')
+			stream.close()
+
+			os.rename(tmpname,
+				  os.path.join(self.cache_dir,
+					       self.cache_leaf))
+		except:
+			os.unlink(tmpname)
+			raise
+
+	def get_package_info(self, package, factory):
+		try:
+			version = self.versions[package]
+		except KeyError:
+			return
+
+		impl = factory('package:rpm:%s:%s' % (package, version)) 
+		impl.version = model.parse_version(version)
+
 _dpkg_db_dir = '/var/lib/dpkg'
+_rpm_db_dir = '/var/lib/rpm'
+
 if os.path.isdir(_dpkg_db_dir):
 	host_distribution = DebianDistribution(_dpkg_db_dir)
+elif os.path.isdir(_rpm_db_dir):
+	host_distribution = RPMDistribution(_rpm_db_dir)
 else:
 	host_distribution = Distribution()
