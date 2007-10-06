@@ -247,11 +247,13 @@ class Implementation(object):
 	"""An Implementation is a package which implements an Interface.
 	@ivar download_sources: list of methods of getting this implementation
 	@type download_sources: [L{RetrievalMethod}]
+	@ivar bindings: how to tell this component where it itself is located (since 0.31)
+	@type bindings: [Binding]
 	"""
 
 	__slots__ = ['upstream_stability', 'user_stability', 'langs',
 		     'requires', 'main', 'metadata', 'download_sources',
-		     'id', 'interface', 'version', 'released']
+		     'id', 'interface', 'version', 'released', 'bindings']
 
 	def __init__(self, interface, id):
 		assert id
@@ -266,6 +268,7 @@ class Implementation(object):
 		self.released = None
 		self.download_sources = []
 		self.langs = None
+		self.bindings = []
 
 	def get_stability(self):
 		return self.user_stability or self.upstream_stability or testing
@@ -300,11 +303,9 @@ class DistributionImplementation(Implementation):
 	
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.
-	@ivar bindings: how to tell this component where it itself is located (since 0.31)
-	@type bindings: [Binding]
 	@since: 0.28"""
 	__slots__ = ['os', 'machine', 'upstream_stability', 'user_stability',
-		     'size', 'requires', 'main', 'bindings',
+		     'size', 'requires', 'main',
 		     'id',  'interface']
 
 	def __init__(self, interface, id):
@@ -313,7 +314,6 @@ class ZeroInstallImplementation(Implementation):
 		self.size = None
 		self.os = None
 		self.machine = None
-		self.bindings = []
 
 	# Deprecated
 	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires
