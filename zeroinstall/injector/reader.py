@@ -218,7 +218,7 @@ def update(interface, source, local = False):
 		root = qdom.parse(file(source))
 	except IOError, ex:
 		if ex.errno == 2:
-			raise InvalidInterface("Feed not found. Perhaps this is a local feed that no longer exists?", ex)
+			raise InvalidInterface("Feed not found. Perhaps this is a local feed that no longer exists? You can remove it from the list of feeds in that case.", ex)
 		raise InvalidInterface("Can't read file", ex)
 	except Exception, ex:
 		raise InvalidInterface("Invalid XML", ex)
