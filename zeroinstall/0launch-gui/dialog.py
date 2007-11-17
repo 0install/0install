@@ -43,7 +43,7 @@ def alert(parent, message, type = gtk.MESSAGE_ERROR):
 				str(message))
 	box.set_position(gtk.WIN_POS_CENTER)
 	def resp(b, r):
-		box.destroy()
+		b.destroy()
 		one_less_window()
 	box.connect('response', resp)
 	box.show()
