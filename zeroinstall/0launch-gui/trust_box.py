@@ -289,4 +289,8 @@ hints = {
 	'D7582A2283A01A6480780AC8E1839306AE83E7E2' :
 		'Tom Adams is experimenting with packaging software with Zero Install. '
 		'This key was announced on the zero-install mailing list on 2007-08-14.',
+	
+	'3B2A89E694686DC4FEEFD6F6D00CA21EC004251B' :
+		'Tuomo Valkonen is the author of the Ion tiling window manager. This key fingerprint '
+		'was taken from http://modeemi.fi/~tuomov/ on 2007-11-17.',
 }
