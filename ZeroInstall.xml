@@ -31,7 +31,7 @@ requires first uninstalling another.</description>
     <release:action phase="commit-release">sed -i &quot;s/^version = '.*'$/version = '$RELEASE_VERSION'/&quot; zeroinstall/__init__.py</release:action>
   </release:management>
 
-  <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch" self-test="tests/testall.py">
+  <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch" self-test="tests/allpython.sh">
     <implementation id="." version="0.30-post"/>
   </group>
 </interface>
