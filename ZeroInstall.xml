@@ -1,4 +1,5 @@
 <?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
   <name>ZeroInstall-Injector</name>
   <summary>decentralised installation system</summary>
@@ -30,10 +31,10 @@ requires first uninstalling another.</description>
     <!-- Update the copy of the version number -->
     <release:action phase="commit-release">sed -i &quot;s/^version = '.*'$/version = '$RELEASE_VERSION'/&quot; zeroinstall/__init__.py</release:action>
     <release:action phase="commit-release">sed -i &quot;s/^version = '.*'$/version = '$RELEASE_VERSION'/&quot; zeroinstall/0launch-gui/gui.py</release:action>
-    <release:action phase="commit-release">0launch http://0install.net/2006/interfaces/0publish --set-released=today --set-version="$RELEASE_VERSION" zeroinstall/0launch-gui/ZeroInstall-GUI.xml</release:action>
+    <release:action phase="commit-release">0launch http://0install.net/2006/interfaces/0publish --set-released=today --set-version=&quot;$RELEASE_VERSION&quot; zeroinstall/0launch-gui/ZeroInstall-GUI.xml</release:action>
   </release:management>
 
   <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch" self-test="tests/allpython.sh">
-    <implementation id="." version="0.30-post"/>
+    <implementation id="." released="2007-11-18" version="0.31"/>
   </group>
 </interface>
