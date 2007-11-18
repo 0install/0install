@@ -1,0 +1,37 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>ZeroInstall-Injector</name>
+  <summary>decentralised installation system</summary>
+  <description>
+Zero Install is a cross-platform, decentralised installation system. Instead of
+having a central repository in which all software is placed under a naming
+scheme managed by some central authority, programs and libraries in Zero Install
+are identified by URIs. Anyone who can create a web-page can publish software.
+Anyone can install software (not just root).
+
+Conceptually, you can imagine that the software is 'installed' only on a remote
+machine and that you are simply running it (on your own machine) using a network
+filesystem. Caching makes this fast and allows off-line use. The cache is
+indexed using a cryptographic hash, allowing it to be shared between mutually
+untrusting users automatically.
+
+Zero Install resolves dependencies (such as libraries) on a per-program basis,
+which eliminates conflicts. You will never be told that installing one program
+requires first uninstalling another.</description>
+
+  <homepage>http://0install.net/</homepage>
+
+  <icon href="http://0install.net/feed_icons/Zero2Desktop.png" type="image/png"/>
+
+  <feed-for interface="http://0install.net/2007/interfaces/ZeroInstall.xml"/>
+  <category>System</category>
+
+  <release:management xmlns:release="http://zero-install.sourceforge.net/2007/namespaces/0release">
+    <!-- Update the copy of the version number -->
+    <release:action phase="commit-release">sed -i &quot;s/^version = '.*'$/version = '$RELEASE_VERSION'/&quot; zeroinstall/__init__.py</release:action>
+  </release:management>
+
+  <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch" self-test="tests/testall.py">
+    <implementation id="." version="0.30-post"/>
+  </group>
+</interface>
