@@ -306,9 +306,11 @@ def check_stream(stream):
 	stream.seek(0)
 	if start == "<?xml ":
 		return _check_xml_stream(stream)
-	else:
+	elif start == '-----B':
 		os.lseek(stream.fileno(), 0, 0)
 		return _check_plain_stream(stream)
+	else:
+		raise SafeException("This is not a Zero Install feed! It should be an XML document, but it starts:\n%s" % repr(stream.read(120)))
 
 def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 	"""Read messages from status_r and collect signatures from it.
