@@ -80,7 +80,9 @@ class AutoPolicy(policy.Policy):
 	def recalculate_with_dl(self):
 		self.recalculate()
 		while self.handler.monitored_downloads:
-			self.handler.wait_for_downloads()
+			errors = self.handler.wait_for_downloads()
+			if errors:
+				raise model.SafeException("Errors during download: " + '\n'.join(errors))
 			self.recalculate()
 	
 	def download_and_execute(self, prog_args, refresh = False, main = None):

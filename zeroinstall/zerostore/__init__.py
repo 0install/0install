@@ -269,7 +269,7 @@ class Stores(object):
 
 	def get_first_system_store(self):
 		"""The first system store is the one we try writing to first.
-		@since 0.30"""
+		@since: 0.30"""
 		try:
 			return self.stores[1]
 		except IndexError:

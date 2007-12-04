@@ -24,11 +24,12 @@ class Handler(object):
 	@type monitored_downloads: {URL: (error_stream, L{download.Download})}
 	"""
 
-	__slots__ = ['monitored_downloads', '_loop']
+	__slots__ = ['monitored_downloads', '_loop', '_loop_errors']
 
 	def __init__(self, mainloop = None):
 		self.monitored_downloads = {}		
 		self._loop = None
+		self._loop_errors = None
 	
 	def monitor_download(self, dl):
 		"""Called when a new L{download} is started.
@@ -66,20 +67,28 @@ class Handler(object):
 	
 	def wait_for_downloads(self):
 		"""Monitor all downloads, waiting until they are complete. This is suitable
-		for use by non-interactive programs."""
+		for use by non-interactive programs.
+		@return: list of error messages, one per failed download (since 0.32)
+		@rtype: [str] or None"""
 
 		import gobject
 
 		if self.monitored_downloads:
 			assert self._loop is None	# Avoid recursion
+			self._loop_errors = []
 			self._loop = gobject.MainLoop(gobject.main_context_default())
 			try:
 				debug("Entering mainloop, waiting for %d download(s)", len(self.monitored_downloads))
 				self._loop.run()
 			finally:
 				self._loop = None
+			errors = self._loop_errors
+			self._loop_errors = None
+			if errors:
+				return errors
 		else:
 			debug("No downloads in progress, so not waiting")
+		return None
 
 	def get_download(self, url, force = False):
 		"""Return the Download object currently downloading 'url'.
@@ -143,4 +152,8 @@ class Handler(object):
 		@param exception: the exception to report
 		@type exception: L{SafeException}
 		@since: 0.25"""
-		warn("%s", exception)
+		if self._loop_errors is None:
+			warn("%s", exception)
+		else:
+			self._loop_errors.append(str(exception))
+			info("%s", exception)	# (will get reported later)
