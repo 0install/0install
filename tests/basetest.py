@@ -3,6 +3,9 @@ import sys, tempfile, os, shutil, StringIO
 import unittest
 import logging
 
+# Catch silly mistakes...
+os.environ['HOME'] = '/home/idontexist'
+
 sys.path.insert(0, '..')
 from zeroinstall.injector import trust, basedir, autopolicy, namespaces, qdom
 from zeroinstall.injector import model, iface_cache, cli, download, writer, distro
@@ -43,7 +46,7 @@ class BaseTest(unittest.TestCase):
 		self.old_path = os.environ['PATH']
 		os.environ['PATH'] = dpkgdir + ':' + self.old_path
 
-		distro.host_distribution = distro.DebianDistribution(dpkgdir)
+		distro._host_distribution = distro.DebianDistribution(dpkgdir)
 	
 	def tearDown(self):
 		shutil.rmtree(self.config_home)

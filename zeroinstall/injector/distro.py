@@ -228,12 +228,18 @@ class RPMDistribution(Distribution):
 		impl = factory('package:rpm:%s:%s' % (package, version)) 
 		impl.version = model.parse_version(version)
 
-_dpkg_db_dir = '/var/lib/dpkg'
-_rpm_db_dir = '/var/lib/rpm'
+_host_distribution = None
+def get_host_distribution():
+	global _host_distribution
+	if not _host_distribution:
+		_dpkg_db_dir = '/var/lib/dpkg'
+		_rpm_db_dir = '/var/lib/rpm'
 
-if os.path.isdir(_dpkg_db_dir):
-	host_distribution = DebianDistribution(_dpkg_db_dir)
-elif os.path.isdir(_rpm_db_dir):
-	host_distribution = RPMDistribution(_rpm_db_dir)
-else:
-	host_distribution = Distribution()
+		if os.path.isdir(_dpkg_db_dir):
+			_host_distribution = DebianDistribution(_dpkg_db_dir)
+		elif os.path.isdir(_rpm_db_dir):
+			_host_distribution = RPMDistribution(_rpm_db_dir)
+		else:
+			_host_distribution = Distribution()
+	
+	return _host_distribution

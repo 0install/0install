@@ -1,5 +1,9 @@
 #!/usr/bin/env python2.4
 import unittest, os, sys
+
+# Catch silly mistakes...
+os.environ['HOME'] = '/home/idontexist'
+
 try:
 	import coverage
 	coverage.erase()

@@ -143,7 +143,7 @@ def update(interface, source, local = False):
 		local_path = source
 	else:
 		local_path = None
-	feed = ZeroInstallFeed(root, interface, local_path, distro.host_distribution)
+	feed = ZeroInstallFeed(root, interface, local_path, distro.get_host_distribution())
 	feed.last_modified = int(os.stat(source).st_mtime)
 
 	if not local:
