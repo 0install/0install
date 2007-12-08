@@ -1,18 +1,23 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
-import sys, tempfile, os, shutil
+import sys, tempfile, os, shutil, StringIO
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import writer, model, basedir, reader
+from zeroinstall.injector import writer, model, basedir, reader, qdom
+
+test_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
+<implementation id='sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' version='1'/>
+</interface>
+"""))
 
 class TestWriter(BaseTest):
 	def testFeeds(self):
 		iface = model.Interface('http://test/test')
 		iface.stability_policy = model.developer
 		iface.last_checked = 100
-		iface.feeds.append(model.Feed('http://sys-feed', None, False))
-		iface.feeds.append(model.Feed('http://user-feed', 'Linux-*', True))
+		iface.extra_feeds.append(model.Feed('http://sys-feed', None, False))
+		iface.extra_feeds.append(model.Feed('http://user-feed', 'Linux-*', True))
 		writer.save_interface(iface)
 
 		iface = model.Interface('http://test/test')
@@ -28,7 +33,6 @@ class TestWriter(BaseTest):
 
 	def testStoreNothing(self):
 		iface = model.Interface('http://test/test')
-		impl = iface.get_impl('/some/path')
 		writer.save_interface(iface)
 
 		iface = model.Interface('http://test/test')
@@ -38,7 +42,8 @@ class TestWriter(BaseTest):
 
 	def testStoreStability(self):
 		iface = model.Interface('http://localhost:8000/Hello')
-		impl = iface.get_impl('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+		iface._main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello', interface = iface)
+		impl = iface.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
 		impl.user_stability = model.developer
 		writer.save_interface(iface)
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.4
 # -*- coding: utf-8 -*-
-from basetest import BaseTest
+from basetest import BaseTest, empty_feed
 import sys, tempfile, os, shutil
 import unittest
 from StringIO import StringIO
@@ -76,12 +76,16 @@ class TestModel(BaseTest):
 	def testInterface(self):
 		i = model.Interface('http://foo')
 		self.assertEquals('(foo)', i.get_name())
+		feed = model.ZeroInstallFeed(empty_feed, interface = i, local_path = '/foo')
+		i._main_feed = feed
+		self.assertEquals('(foo)', i.get_name())
 		repr(i)
 
 	def testMetadata(self):
 		i = model.Interface('http://foo')
+		i._main_feed = model.ZeroInstallFeed(empty_feed, interface = i, local_path = '/foo')
 		e = qdom.parse(StringIO('<ns:b xmlns:ns="a" foo="bar"/>'))
-		i.metadata = [e]
+		i._main_feed.metadata = [e]
 		assert i.get_metadata('a', 'b') == [e]
 		assert i.get_metadata('b', 'b') == []
 		assert i.get_metadata('a', 'a') == []
@@ -95,9 +99,10 @@ class TestModel(BaseTest):
 	
 	def testGetImpl(self):
 		i = model.Interface('http://foo')
-		a = i.get_impl('foo')
-		b = i.get_impl('bar')
-		c = i.get_impl('foo')
+		feed = model.ZeroInstallFeed(empty_feed, interface = i, local_path = '/foo')
+		a = feed._get_impl('foo')
+		b = feed._get_impl('bar')
+		c = feed._get_impl('foo')
 		assert a and b and c
 		assert a is c
 		assert a is not b

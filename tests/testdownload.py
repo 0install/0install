@@ -21,6 +21,12 @@ class Reply:
 		return self.reply
 
 class DummyHandler(handler.Handler):
+	__slots__ = ['ex']
+	
+	def __init__(self):
+		handler.Handler.__init__(self)
+		self.ex = None
+
 	def wait_for_downloads(self):
 		self.ex = None
 		handler.Handler.wait_for_downloads(self)

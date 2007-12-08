@@ -8,9 +8,8 @@ Load and save a set of chosen implementations.
 
 import os
 
-from zeroinstall.injector import reader
 from zeroinstall.injector.policy import Policy
-from zeroinstall.injector.model import EnvironmentBinding, InterfaceDependency
+from zeroinstall.injector.model import EnvironmentBinding, InterfaceDependency, process_binding, process_depends, binding_names
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.qdom import Element
 
@@ -79,10 +78,10 @@ class Selections(object):
 			for dep_elem in selection.childNodes:
 				if dep_elem.uri != XMLNS_IFACE:
 					continue
-				if dep_elem.name in reader._binding_names:
-					bindings.append(reader._process_binding(dep_elem))
+				if dep_elem.name in binding_names:
+					bindings.append(process_binding(dep_elem))
 				elif dep_elem.name == 'requires':
-					dep = reader._process_depends(dep_elem)
+					dep = process_depends(dep_elem)
 					requires.append(dep)
 
 			iface_uri = selection.getAttribute('interface')

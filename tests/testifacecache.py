@@ -57,16 +57,6 @@ class TestIfaceCache(BaseTest):
 
 		self.assertEquals(1116788178,  iface.last_modified)
 
-		# mtimes are unreliable because copying often changes them -
-		# check that we stored the mtime in an attribute
-		upstream_dir = basedir.save_cache_path(config_site, 'interfaces')
-		cached = os.path.join(upstream_dir, model.escape(iface.uri))
-		os.utime(cached, None)
-
-		iface_cache.__init__()
-		iface = iface_cache.get_interface('http://foo')
-		self.assertEquals(1116788178,  iface.last_modified)
-
 	def testXMLupdate(self):
 		trust.trust_db.trust_key(
 			'92429807C9853C0744A68B9AAE07828059A53CC1')

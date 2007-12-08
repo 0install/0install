@@ -331,7 +331,7 @@ class TestAutoPolicy(BaseTest):
 			pass
 
 		iface = policy.get_interface(foo_iface_uri)
-		iface.feeds = [model.Feed('/BadFeed', None, False)]
+		iface._main_feed.feeds = [model.Feed('/BadFeed', None, False)]
 
 		logger.setLevel(logging.ERROR)
 		policy.recalculate()	# Triggers warning

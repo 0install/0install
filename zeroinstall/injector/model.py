@@ -13,8 +13,12 @@ well-known variables.
 # See the README file for details, or visit http://0install.net.
 
 import os, re
-from zeroinstall import SafeException
-import namespaces
+from logging import warn, debug
+from zeroinstall import SafeException, version
+from zeroinstall.injector.namespaces import XMLNS_IFACE
+
+# Element names for bindings in feed files
+binding_names = frozenset(['environment'])
 
 network_offline = 'off-line'
 network_minimal = 'minimal'
@@ -28,6 +32,13 @@ defaults = {
 	'XDG_CONFIG_DIRS': '/etc/xdg',
 	'XDG_DATA_DIRS': '/usr/local/share:/usr/share',
 }
+
+class InvalidInterface(SafeException):
+	"""Raised when parsing an invalid feed."""
+	def __init__(self, message, ex = None):
+		if ex:
+			message += "\n\n(exact error: %s)" % ex
+		SafeException.__init__(self, message)
 
 def _split_arch(arch):
 	"""Split an arch into an (os, machine) tuple. Either or both parts may be None."""
@@ -64,6 +75,45 @@ class Stability(object):
 
 	def __repr__(self):
 		return "<Stability: " + self.description + ">"
+
+def process_binding(e):
+	"""Internal"""
+	if e.name == 'environment':
+		mode = {
+			None: EnvironmentBinding.PREPEND,
+			'prepend': EnvironmentBinding.PREPEND,
+			'append': EnvironmentBinding.APPEND,
+			'replace': EnvironmentBinding.REPLACE,
+		}[e.getAttribute('mode')]
+			
+		binding = EnvironmentBinding(e.getAttribute('name'),
+					     insert = e.getAttribute('insert'),
+					     default = e.getAttribute('default'),
+					     mode = mode)
+		if not binding.name: raise InvalidInterface("Missing 'name' in binding")
+		if binding.insert is None: raise InvalidInterface("Missing 'insert' in binding")
+		return binding
+	else:
+		raise Exception("Unknown binding type '%s'" % e.name)
+
+def process_depends(item):
+	"""Internal"""
+	# Note: also called from selections
+	dep_iface = item.getAttribute('interface')
+	if not dep_iface:
+		raise InvalidInterface("Missing 'interface' on <requires>")
+	dependency = InterfaceDependency(dep_iface, metadata = item.attrs)
+
+	for e in item.childNodes:
+		if e.uri != XMLNS_IFACE: continue
+		if e.name in binding_names:
+			dependency.bindings.append(process_binding(e))
+		elif e.name == 'version':
+			dependency.restrictions.append(
+				Restriction(not_before = parse_version(e.getAttribute('not-before')),
+					    before = parse_version(e.getAttribute('before'))))
+	return dependency
+
 
 insecure = Stability(0, 'insecure', 'This is a security risk')
 buggy = Stability(5, 'buggy', 'Known to have serious bugs')
@@ -147,7 +197,7 @@ class EnvironmentBinding(Binding):
 		@param doc: document to use to create the element
 		@return: the new element
 		"""
-		env_elem = doc.createElementNS(namespaces.XMLNS_IFACE, 'environment')
+		env_elem = doc.createElementNS(XMLNS_IFACE, 'environment')
 		env_elem.setAttributeNS(None, 'name', self.name)
 		env_elem.setAttributeNS(None, 'insert', self.insert)
 		if self.default:
@@ -329,65 +379,337 @@ class ZeroInstallImplementation(Implementation):
 	
 class Interface(object):
 	"""An Interface represents some contract of behaviour.
-	Note: This class is for both feeds and interfaces. Should really have used separate classes.
-	@ivar uri: the URL for this feed
-	@ivar implementations: Implementations in this feed, indexed by ID
-	@type implementations: {str: L{Implementation}}
-	@ivar name: human-friendly name
-	@ivar summary: short textual description
-	@ivar description: long textual description
+	@ivar uri: the URI for this interface.
 	@ivar stability_policy: user's configured policy.
 	Implementations at this level or higher are preferred.
 	Lower levels are used only if there is no other choice.
-	@ivar last_modified: timestamp on signature
 	@ivar last_checked: time feed was last successfully downloaded and updated
 	@ivar last_check_attempt: time we last tried to check for updates (in the background)
-	@ivar main: deprecated
-	@ivar feeds: list of feeds for this interface
-	@type feeds: [L{Feed}]
-	@ivar feed_for: interfaces for which this could be a feed
-	@ivar metadata: extra elements we didn't understand
 	"""
-	__slots__ = ['uri', 'implementations', 'name', 'description', 'summary',
-		     'stability_policy', 'last_modified', 'last_checked',
-		     'last_check_attempt', 'main', 'feeds', 'feed_for', 'metadata']
+	__slots__ = ['uri', 'stability_policy', '_main_feed', 'extra_feeds',
+		     'last_checked', 'last_check_attempt']
 
+	implementations = property(lambda self: self._main_feed.implementations)
+	name = property(lambda self: self._main_feed.name)
+	description = property(lambda self: self._main_feed.description)
+	summary = property(lambda self: self._main_feed.summary)
+	last_modified = property(lambda self: self._main_feed.last_modified)
+	feeds = property(lambda self: self.extra_feeds + self._main_feed.feeds)
+	feed_for = property(lambda self: self._main_feed.feed_for)
+	metadata = property(lambda self: self._main_feed.metadata)
 
 	def __init__(self, uri):
 		assert uri
 		if uri.startswith('http:') or uri.startswith('/'):
 			self.uri = uri
-			self.reset()
 		else:
 			raise SafeException("Interface name '%s' doesn't start "
 					    "with 'http:'" % uri)
+		self.reset()
 
 	def reset(self):
-		self.implementations = {}
-		self.name = None
-		self.summary = None
-		self.description = None
+		self.extra_feeds = []
+		self._main_feed = _dummy_feed
 		self.stability_policy = None
-		self.last_modified = None
 		self.last_checked = None
 		self.last_check_attempt = None
-		self.main = None
-		self.feeds = []
-		self.feed_for = {}	# URI -> True
-		self.metadata = []
-	
+
 	def get_name(self):
-		return self.name or '(' + os.path.basename(self.uri) + ')'
+		if self._main_feed is not _dummy_feed:
+			return self._main_feed.get_name()
+		return '(' + os.path.basename(self.uri) + ')'
 	
 	def __repr__(self):
 		return "<Interface %s>" % self.uri
 	
-	def get_impl(self, id):
+	def set_stability_policy(self, new):
+		assert new is None or isinstance(new, Stability)
+		self.stability_policy = new
+	
+	def get_feed(self, url):
+		for x in self.extra_feeds:
+			if x.uri == url:
+				return x
+		return self._main_feed.get_feed(url)
+	
+	def get_metadata(self, uri, name):
+		return self._main_feed.get_metadata(uri, name)
+
+def _merge_attrs(attrs, item):
+	"""Add each attribute of item to a copy of attrs and return the copy.
+	@type attrs: {str: str}
+	@type item: L{qdom.Element}
+	@rtype: {str: str}
+	"""
+	new = attrs.copy()
+	for a in item.attrs:
+		new[str(a)] = item.attrs[a]
+	return new
+
+def _get_long(elem, attr_name):
+	val = elem.getAttribute(attr_name)
+	if val is not None:
+		try:
+			val = long(val)
+		except ValueError, ex:
+			raise SafeException("Invalid value for integer attribute '%s': %s" % (attr_name, val))
+	return val
+
+class ZeroInstallFeed(object):
+	"""A feed lists available implementations of an interface.
+	@ivar url: the URL for this feed
+	@ivar implementations: Implementations in this feed, indexed by ID
+	@type implementations: {str: L{Implementation}}
+	@ivar name: human-friendly name
+	@ivar summary: short textual description
+	@ivar description: long textual description
+	@ivar last_modified: timestamp on signature
+	@ivar last_checked: time feed was last successfully downloaded and updated
+	@ivar last_check_attempt: time we last tried to check for updates (in the background)
+	@ivar feeds: list of <feed> elements in this feed
+	@type feeds: [L{Feed}]
+	@ivar feed_for: interfaces for which this could be a feed
+	@type feed_for: set(str)
+	@ivar metadata: extra elements we didn't understand
+	"""
+	# _main is deprecated
+	__slots__ = ['url', 'implementations', 'name', 'description', 'summary',
+		     'last_modified', '_interface',
+		     'feeds', 'feed_for', 'metadata']
+
+	def __init__(self, feed_element, interface, local_path = None, distro = None):
+		"""Create a feed object from a DOM.
+		@param feed_element: the root element of a feed file
+		@type feed_element: L{qdom.Element}
+		@param interface: temporary hack for restructuring. will go away.
+		@param local_name: the pathname of this local feed, or None for remote feeds
+		@param distro: used to resolve distribution package references
+		@type distro: L{distro.Distribution} or None"""
+		assert feed_element
+		self._interface = interface
+		self.implementations = {}
+		self.name = None
+		self.summary = None
+		self.description = None
+		self.last_modified = None
+		self.feeds = []
+		self.feed_for = set()
+		self.metadata = []
+
+		assert feed_element.name in ('interface', 'feed'), "Root element should be <interface>, not %s" % feed_element
+		assert feed_element.uri == XMLNS_IFACE, "Wrong namespace on root element: %s" % feed_element.uri
+
+		main = feed_element.getAttribute('main')
+		#if main: warn("Setting 'main' on the root element is deprecated. Put it on a <group> instead")
+
+		if local_path:
+			self.url = local_path
+			local_dir = os.path.dirname(local_path)
+		else:
+			self.url = feed_element.getAttribute('uri')
+			if not self.url:
+				raise InvalidInterface("<interface> uri attribute missing")
+			local_dir = None	# Can't have relative paths
+
+		min_injector_version = feed_element.getAttribute('min-injector-version')
+		if min_injector_version:
+			if parse_version(min_injector_version) > parse_version(version):
+				raise InvalidInterface("This feed requires version %s or later of "
+							"Zero Install, but I am only version %s. "
+							"You can get a newer version from http://0install.net" %
+							(min_injector_version, version))
+
+		for x in feed_element.childNodes:
+			if x.uri != XMLNS_IFACE:
+				self.metadata.append(x)
+				continue
+			if x.name == 'name':
+				self.name = x.content
+			elif x.name == 'description':
+				self.description = x.content
+			elif x.name == 'summary':
+				self.summary = x.content
+			elif x.name == 'feed-for':
+				feed_iface = x.getAttribute('interface')
+				if not feed_iface:
+					raise InvalidInterface('Missing "interface" attribute in <feed-for>')
+				self.feed_for.add(feed_iface)
+				# Bug report from a Debian/stable user that --feed gets the wrong value.
+				# Can't reproduce (even in a Debian/stable chroot), but add some logging here
+				# in case it happens again.
+				debug("Is feed-for %s", feed_iface)
+			elif x.name == 'feed':
+				feed_src = x.getAttribute('src')
+				if not feed_src:
+					raise InvalidInterface('Missing "src" attribute in <feed>')
+				if feed_src.startswith('http:') or local_path:
+					self.feeds.append(Feed(feed_src, x.getAttribute('arch'), False, langs = x.getAttribute('langs')))
+				else:
+					raise InvalidInterface("Invalid feed URL '%s'" % feed_src)
+			else:
+				self.metadata.append(x)
+
+		def process_group(group, group_attrs, base_depends, base_bindings):
+			for item in group.childNodes:
+				if item.uri != XMLNS_IFACE: continue
+
+				if item.name not in ('group', 'implementation', 'package-implementation'):
+					continue
+
+				depends = base_depends[:]
+				bindings = base_bindings[:]
+
+				item_attrs = _merge_attrs(group_attrs, item)
+
+				# We've found a group or implementation. Scan for dependencies
+				# and bindings. Doing this here means that:
+				# - We can share the code for groups and implementations here.
+				# - The order doesn't matter, because these get processed first.
+				# A side-effect is that the document root cannot contain
+				# these.
+				for child in item.childNodes:
+					if child.uri != XMLNS_IFACE: continue
+					if child.name == 'requires':
+						dep = process_depends(child)
+						depends.append(dep)
+					elif child.name in binding_names:
+						bindings.append(process_binding(child))
+
+				if item.name == 'group':
+					process_group(item, item_attrs, depends, bindings)
+				elif item.name == 'implementation':
+					process_impl(item, item_attrs, depends, bindings)
+				elif item.name == 'package-implementation':
+					process_native_impl(item, item_attrs, depends)
+				else:
+					assert 0
+
+		def process_impl(item, item_attrs, depends, bindings):
+			id = item.getAttribute('id')
+			if id is None:
+				raise InvalidInterface("Missing 'id' attribute on %s" % item)
+			if local_dir and (id.startswith('/') or id.startswith('.')):
+				impl = self._get_impl(os.path.abspath(os.path.join(local_dir, id)))
+			else:
+				if '=' not in id:
+					raise InvalidInterface('Invalid "id"; form is "alg=value" (got "%s")' % id)
+				alg, sha1 = id.split('=')
+				try:
+					long(sha1, 16)
+				except Exception, ex:
+					raise InvalidInterface('Bad SHA1 attribute: %s' % ex)
+				impl = self._get_impl(id)
+
+			impl.metadata = item_attrs
+			try:
+				version = item_attrs['version']
+				version_mod = item_attrs.get('version-modifier', None)
+				if version_mod: version += version_mod
+			except KeyError:
+				raise InvalidInterface("Missing version attribute")
+			impl.version = parse_version(version)
+
+			item_main = item_attrs.get('main', None)
+			if item_main and item_main.startswith('/'):
+				raise InvalidInterface("'main' attribute must be relative, but '%s' starts with '/'!" %
+							item_main)
+			impl.main = item_main
+
+			impl.released = item_attrs.get('released', None)
+			impl.langs = item_attrs.get('langs', None)
+
+			size = item.getAttribute('size')
+			if size:
+				impl.size = long(size)
+			impl.arch = item_attrs.get('arch', None)
+			try:
+				stability = stability_levels[str(item_attrs['stability'])]
+			except KeyError:
+				stab = str(item_attrs['stability'])
+				if stab != stab.lower():
+					raise InvalidInterface('Stability "%s" invalid - use lower case!' % item_attrs.stability)
+				raise InvalidInterface('Stability "%s" invalid' % item_attrs['stability'])
+			if stability >= preferred:
+				raise InvalidInterface("Upstream can't set stability to preferred!")
+			impl.upstream_stability = stability
+
+			impl.bindings = bindings
+			impl.requires = depends
+
+			for elem in item.childNodes:
+				if elem.uri != XMLNS_IFACE: continue
+				if elem.name == 'archive':
+					url = elem.getAttribute('href')
+					if not url:
+						raise InvalidInterface("Missing href attribute on <archive>")
+					size = elem.getAttribute('size')
+					if not size:
+						raise InvalidInterface("Missing size attribute on <archive>")
+					impl.add_download_source(url = url, size = long(size),
+							extract = elem.getAttribute('extract'),
+							start_offset = _get_long(elem, 'start-offset'),
+							type = elem.getAttribute('type'))
+				elif elem.name == 'recipe':
+					recipe = Recipe()
+					for recipe_step in elem.childNodes:
+						if recipe_step.uri == XMLNS_IFACE and recipe_step.name == 'archive':
+							url = recipe_step.getAttribute('href')
+							if not url:
+								raise InvalidInterface("Missing href attribute on <archive>")
+							size = recipe_step.getAttribute('size')
+							if not size:
+								raise InvalidInterface("Missing size attribute on <archive>")
+							recipe.steps.append(DownloadSource(None, url = url, size = long(size),
+									extract = recipe_step.getAttribute('extract'),
+									start_offset = _get_long(recipe_step, 'start-offset'),
+									type = recipe_step.getAttribute('type')))
+						else:
+							info("Unknown step '%s' in recipe; skipping recipe", recipe_step.name)
+							break
+					else:
+						impl.download_sources.append(recipe)
+
+		def process_native_impl(item, item_attrs, depends):
+			package = item_attrs.get('package', None)
+			if package is None:
+				raise InvalidInterface("Missing 'package' attribute on %s" % item)
+
+			def factory(id):
+				assert id.startswith('package:')
+				impl = self._get_impl(id)
+
+				impl.metadata = item_attrs
+
+				item_main = item_attrs.get('main', None)
+				if item_main and not item_main.startswith('/'):
+					raise InvalidInterface("'main' attribute must be absolute, but '%s' doesn't start with '/'!" %
+								item_main)
+				impl.main = item_main
+				impl.upstream_stability = packaged
+				impl.requires = depends
+
+				return impl
+
+			distro.get_package_info(package, factory)
+		
+		process_group(feed_element,
+			{'stability': 'testing',
+			 'main' : main,
+			},
+			[], [])
+
+	def get_name(self):
+		return self.name or '(' + os.path.basename(self.url) + ')'
+	
+	def __repr__(self):
+		return "<Feed %s>" % self.url
+	
+	def _get_impl(self, id):
 		if id not in self.implementations:
 			if id.startswith('package:'):
-				impl = DistributionImplementation(self, id)
+				impl = DistributionImplementation(self._interface, id)
 			else:
-				impl = ZeroInstallImplementation(self, id)
+				impl = ZeroInstallImplementation(self._interface, id)
 			self.implementations[id] = impl
 		return self.implementations[id]
 	
@@ -395,9 +717,9 @@ class Interface(object):
 		assert new is None or isinstance(new, Stability)
 		self.stability_policy = new
 	
-	def get_feed(self, uri):
+	def get_feed(self, url):
 		for x in self.feeds:
-			if x.uri == uri:
+			if x.uri == url:
 				return x
 		return None
 	
@@ -407,6 +729,18 @@ class Interface(object):
 	def get_metadata(self, uri, name):
 		"""Return a list of interface metadata elements with this name and namespace URI."""
 		return [m for m in self.metadata if m.name == name and m.uri == uri]
+
+class DummyFeed(object):
+	last_modified = None
+	name = '-'
+	implementations = property(lambda self: {})
+	feeds = property(lambda self: [])
+	summary = property(lambda self: '-')
+	description = property(lambda self: '')
+	def get_name(self): return self.name
+	def get_feed(self, url): return None
+	def get_metadata(self, uri, name): return []
+_dummy_feed = DummyFeed()
 
 def unescape(uri):
 	"""Convert each %20 to a space, etc.

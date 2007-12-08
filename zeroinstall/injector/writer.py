@@ -46,7 +46,7 @@ def save_interface(interface):
 	for impl in impls:
 		_add_impl(root, impl)
 	
-	for feed in interface.feeds:
+	for feed in interface.extra_feeds:
 		if feed.user_override:
 			elem = doc.createElementNS(XMLNS_IFACE, 'feed')
 			root.appendChild(elem)

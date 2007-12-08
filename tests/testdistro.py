@@ -1,21 +1,22 @@
 #!/usr/bin/env python2.4
-from basetest import BaseTest
-import sys, tempfile, os, shutil
+from basetest import BaseTest, empty_feed
+import sys, tempfile, os, shutil, StringIO
 import unittest, logging
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import distro, model
+from zeroinstall.injector import distro, model, qdom
 
 class TestDistro(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
-		self.feed = model.Interface('http://example.com/feed.xml')
+		iface = model.Interface('http://example.com/feed.xml')
+		self.feed = model.ZeroInstallFeed(empty_feed, interface = iface, local_path = '/empty.xml')
 
 	def tearDown(self):	
 		BaseTest.tearDown(self)
 
 	def factory(self, id):
-		return self.feed.get_impl(id)
+		return self.feed._get_impl(id)
 
 	def testDefault(self):
 		host = distro.Distribution()

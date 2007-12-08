@@ -98,9 +98,9 @@ def _manage_feeds(options, args):
 		iface = interfaces[i - 1]
 		feed = iface.get_feed(x)
 		if feed:
-			iface.feeds.remove(feed)
+			iface.extra_feeds.remove(feed)
 		else:
-			iface.feeds.append(model.Feed(x, arch = None, user_override = True))
+			iface.extra_feeds.append(model.Feed(x, arch = None, user_override = True))
 		writer.save_interface(iface)
 		print "\nFeed list for interface '%s' is now:" % iface.get_name()
 		if iface.feeds:

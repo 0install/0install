@@ -195,12 +195,12 @@ class TestReader(BaseTest):
 
 		assert len(iface.implementations) == 2
 
-		assert iface.get_impl('sha1=123').metadata['foo'] == 'foovalue'
-		assert iface.get_impl('sha1=123').metadata['main'] == 'bin/sh'
-		assert iface.get_impl('sha1=123').metadata['http://bob bob'] == 'newbobvalue'
+		assert iface.implementations['sha1=123'].metadata['foo'] == 'foovalue'
+		assert iface.implementations['sha1=123'].metadata['main'] == 'bin/sh'
+		assert iface.implementations['sha1=123'].metadata['http://bob bob'] == 'newbobvalue'
 
-		assert iface.get_impl('sha1=124').metadata['http://bob bob'] == 'bobvalue'
-		assert iface.get_impl('sha1=124').metadata['main'] == 'next'
+		assert iface.implementations['sha1=124'].metadata['http://bob bob'] == 'bobvalue'
+		assert iface.implementations['sha1=124'].metadata['main'] == 'next'
 	
 	def testNative(self):
 		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
@@ -252,7 +252,7 @@ class TestReader(BaseTest):
 		reader.update(iface, tmp.name, True)
 
 		assert len(iface.implementations) == 3
-		assert len(iface.feeds) == 1
+		assert len(iface.feeds) == 1, iface.feeds
 
 		self.assertEquals('fr en_GB', iface.feeds[0].langs)
 
