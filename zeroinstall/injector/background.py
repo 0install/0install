@@ -162,7 +162,7 @@ def spawn_background_update(policy, verbose):
 	from zeroinstall.injector import writer
 	now = int(time.time())
 	for x in policy.implementation:
-		x.last_check_attempt = now
+		policy.implementation[x].feed.last_check_attempt = now
 		writer.save_interface(x)
 
 		for f in policy.usable_feeds(x):
