@@ -395,7 +395,6 @@ class Interface(object):
 	summary = property(lambda self: self._main_feed.summary)
 	last_modified = property(lambda self: self._main_feed.last_modified)
 	feeds = property(lambda self: self.extra_feeds + self._main_feed.feeds)
-	feed_for = property(lambda self: self._main_feed.feed_for)
 	metadata = property(lambda self: self._main_feed.metadata)
 
 	def __init__(self, uri):
@@ -406,6 +405,13 @@ class Interface(object):
 			raise SafeException("Interface name '%s' doesn't start "
 					    "with 'http:'" % uri)
 		self.reset()
+
+	def _get_feed_for(self):
+		retval = {}
+		for key in self._main_feed.feed_for:
+			retval[key] = True
+		return retval
+	feed_for = property(_get_feed_for)	# Deprecated (used by 0publish)
 
 	def reset(self):
 		self.extra_feeds = []

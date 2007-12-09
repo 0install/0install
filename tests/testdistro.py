@@ -25,7 +25,7 @@ class TestDistro(BaseTest):
 		self.assertEquals(self.feed.implementations, {})
 
 	def testDebian(self):
-		host = distro.host_distribution
+		host = distro._host_distribution
 
 		self.assertEquals(2, len(host.versions))
 
