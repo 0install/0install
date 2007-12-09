@@ -280,7 +280,7 @@ class IfaceCache(object):
 		self._import_new_interface(interface, new_xml, modified_time)
 
 		import writer
-		interface.last_checked = long(time.time())
+		interface._main_feed.last_checked = long(time.time())
 		writer.save_interface(interface)
 
 		info("Updated interface cache entry for %s (modified %s)",

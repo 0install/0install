@@ -27,6 +27,7 @@ def update_from_cache(interface):
 	always considered to be cached, although they are not actually stored in the cache.
 	@rtype: bool"""
 	interface.reset()
+	main_feed = None
 
 	if interface.uri.startswith('/'):
 		debug("Loading local interface file '%s'", interface.uri)
@@ -36,7 +37,7 @@ def update_from_cache(interface):
 		cached = basedir.load_first_cache(config_site, 'interfaces', escape(interface.uri))
 		if cached:
 			debug("Loading cached information for %s from %s", interface, cached)
-			update(interface, cached)
+			main_feed = update(interface, cached)
 
 	# Add the distribution package manager's version, if any
 	path = basedir.load_first_data(config_site, 'native_feeds', model._pretty_escape(interface.uri))
@@ -45,7 +46,7 @@ def update_from_cache(interface):
 		info("Adding native packager feed '%s'", path)
 		interface.extra_feeds.append(Feed(os.path.realpath(path), None, False))
 
-	update_user_overrides(interface)
+	update_user_overrides(interface, main_feed)
 
 	# Special case: add our fall-back local copy of the injector as a feed
 	if interface.uri == injector_gui_uri:
@@ -54,10 +55,13 @@ def update_from_cache(interface):
 
 	return bool(cached)
 
-def update_user_overrides(interface):
+def update_user_overrides(interface, main_feed = None):
 	"""Update an interface with user-supplied information.
 	@param interface: the interface object to update
-	@type interface: L{model.Interface}"""
+	@type interface: L{model.Interface}
+	@param main_feed: feed to update with last_checked information
+	@note: feed updates shouldn't really be here. main_feed may go away in future.
+	"""
 	user = basedir.load_first_config(config_site, config_prog,
 					   'user_overrides', escape(interface.uri))
 	if not user:
@@ -65,13 +69,16 @@ def update_user_overrides(interface):
 
 	root = qdom.parse(file(user))
 
-	last_checked = root.getAttribute('last-checked')
-	if last_checked:
-		interface.last_checked = int(last_checked)
+	# This is a bit wrong; this information is about the feed,
+	# not the interface.
+	if main_feed:
+		last_checked = root.getAttribute('last-checked')
+		if last_checked:
+			main_feed.last_checked = int(last_checked)
 
-	last_check_attempt = root.getAttribute('last-check-attempt')
-	if last_check_attempt:
-		interface.last_check_attempt = int(last_check_attempt)
+		last_check_attempt = root.getAttribute('last-check-attempt')
+		if last_check_attempt:
+			main_feed.last_check_attempt = int(last_check_attempt)
 
 	stability_policy = root.getAttribute('stability-policy')
 	if stability_policy:
@@ -127,6 +134,7 @@ def update(interface, source, local = False):
 	@type source: str
 	@param local: use file's mtime for last-modified, and uri attribute is ignored
 	@raise InvalidInterface: if the source's syntax is incorrect
+	@return: the new feed (since 0.32)
 	@see: L{update_from_cache}, which calls this"""
 	assert isinstance(interface, Interface)
 
@@ -154,3 +162,4 @@ def update(interface, source, local = False):
 						(feed.url, interface.uri))
 	
 	interface._main_feed = feed
+	return feed

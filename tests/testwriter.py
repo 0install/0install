@@ -16,15 +16,17 @@ test_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-instal
 class TestWriter(BaseTest):
 	def testFeeds(self):
 		iface = model.Interface('http://test/test')
+		iface._main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello')
 		iface.stability_policy = model.developer
-		iface.last_checked = 100
+		iface._main_feed.last_checked = 100
 		iface.extra_feeds.append(model.Feed('http://sys-feed', None, False))
 		iface.extra_feeds.append(model.Feed('http://user-feed', 'Linux-*', True))
 		writer.save_interface(iface)
 
 		iface = model.Interface('http://test/test')
 		self.assertEquals(None, iface.stability_policy)
-		reader.update_user_overrides(iface)
+		iface._main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello')
+		reader.update_user_overrides(iface, iface._main_feed)
 		self.assertEquals(model.developer, iface.stability_policy)
 		self.assertEquals(100, iface.last_checked)
 		self.assertEquals(None, iface.get_feed('http://sys-feed'))

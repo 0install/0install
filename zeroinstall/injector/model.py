@@ -303,6 +303,8 @@ class Implementation(object):
 	@type bindings: [Binding]
 	"""
 
+	# Note: user_stability shouldn't really be here
+
 	__slots__ = ['upstream_stability', 'user_stability', 'langs',
 		     'requires', 'main', 'metadata', 'download_sources',
 		     'id', 'feed', 'version', 'released', 'bindings']
@@ -384,11 +386,8 @@ class Interface(object):
 	@ivar stability_policy: user's configured policy.
 	Implementations at this level or higher are preferred.
 	Lower levels are used only if there is no other choice.
-	@ivar last_checked: time feed was last successfully downloaded and updated
-	@ivar last_check_attempt: time we last tried to check for updates (in the background)
 	"""
-	__slots__ = ['uri', 'stability_policy', '_main_feed', 'extra_feeds',
-		     'last_checked', 'last_check_attempt']
+	__slots__ = ['uri', 'stability_policy', '_main_feed', 'extra_feeds']
 
 	implementations = property(lambda self: self._main_feed.implementations)
 	name = property(lambda self: self._main_feed.name)
@@ -397,6 +396,9 @@ class Interface(object):
 	last_modified = property(lambda self: self._main_feed.last_modified)
 	feeds = property(lambda self: self.extra_feeds + self._main_feed.feeds)
 	metadata = property(lambda self: self._main_feed.metadata)
+
+	last_checked = property(lambda self: self._main_feed.last_checked)
+	last_check_attempt = property(lambda self: self._main_feed.last_check_attempt)
 
 	def __init__(self, uri):
 		assert uri
@@ -418,8 +420,6 @@ class Interface(object):
 		self.extra_feeds = []
 		self._main_feed = _dummy_feed
 		self.stability_policy = None
-		self.last_checked = None
-		self.last_check_attempt = None
 
 	def get_name(self):
 		if self._main_feed is not _dummy_feed:
@@ -477,10 +477,13 @@ class ZeroInstallFeed(object):
 	@type feeds: [L{Feed}]
 	@ivar feed_for: interfaces for which this could be a feed
 	@type feed_for: set(str)
+	@ivar last_checked: time feed was last successfully downloaded and updated
+	@ivar last_check_attempt: time we last tried to check for updates (in the background)
 	@ivar metadata: extra elements we didn't understand
 	"""
 	# _main is deprecated
 	__slots__ = ['url', 'implementations', 'name', 'description', 'summary',
+		     'last_checked', 'last_check_attempt',
 		     'last_modified', 'feeds', 'feed_for', 'metadata']
 
 	def __init__(self, feed_element, local_path = None, distro = None):
@@ -500,6 +503,8 @@ class ZeroInstallFeed(object):
 		self.feeds = []
 		self.feed_for = set()
 		self.metadata = []
+		self.last_checked = None
+		self.last_check_attempt = None
 
 		assert feed_element.name in ('interface', 'feed'), "Root element should be <interface>, not %s" % feed_element
 		assert feed_element.uri == XMLNS_IFACE, "Wrong namespace on root element: %s" % feed_element.uri
@@ -743,6 +748,8 @@ class ZeroInstallFeed(object):
 class DummyFeed(object):
 	last_modified = None
 	name = '-'
+	last_checked = property(lambda self: None)
+	last_check_attempt = property(lambda self: None)
 	implementations = property(lambda self: {})
 	feeds = property(lambda self: [])
 	summary = property(lambda self: '-')
