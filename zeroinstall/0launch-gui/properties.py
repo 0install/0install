@@ -190,7 +190,7 @@ class Feeds:
 			for x in interface.feeds:
 				if x.uri == feed_uri:
 					if x.user_override:
-						interface.feeds.remove(x)
+						interface.extra_feeds.remove(x)
 						writer.save_interface(interface)
 						policy.recalculate()
 						return
@@ -371,7 +371,7 @@ def add_remote_feed(parent, interface):
 		elif iface.uri in [f.uri for f in interface.feeds]:
 			error("Feed from '%s' has already been added!" % iface.uri)
 		else:
-			interface.feeds.append(Feed(iface.uri, arch = None, user_override = True))
+			interface.extra_feeds.append(Feed(iface.uri, arch = None, user_override = True))
 			writer.save_interface(interface)
 			d.destroy()
 			policy.recalculate()
@@ -411,7 +411,7 @@ def add_local_feed(interface):
 			if interface.get_feed(feed):
 				dialog.alert(None, 'This feed is already registered.')
 			else:
-				interface.feeds.append(Feed(feed, user_override = True, arch = None))
+				interface.extra_feeds.append(Feed(feed, user_override = True, arch = None))
 
 			writer.save_interface(interface)
 			sel.destroy()

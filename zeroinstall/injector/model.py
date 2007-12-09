@@ -13,7 +13,7 @@ well-known variables.
 # See the README file for details, or visit http://0install.net.
 
 import os, re
-from logging import warn, debug
+from logging import warn, info, debug
 from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 
