@@ -485,7 +485,7 @@ class Policy(object):
 		alg = impl.id.split('=', 1)[0]
 		if alg not in manifest.algorithms:
 			raise SafeException("Unknown digest algorithm '%s' for '%s' version %s" %
-					(alg, impl.interface.get_name(), impl.get_version()))
+					(alg, impl.feed.get_name(), impl.get_version()))
 
 		if isinstance(retrieval_method, DownloadSource):
 			def archive_ready(stream):

@@ -227,7 +227,7 @@ class TestReader(BaseTest):
 		assert impl.requires == []
 		assert impl.main == '/usr/bin/pbt'
 		assert impl.metadata['foo'] == 'bar'
-		assert impl.interface == iface
+		assert impl.feed == iface._main_feed
 	
 	def testLang(self):
 		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')

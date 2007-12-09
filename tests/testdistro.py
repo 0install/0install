@@ -9,8 +9,7 @@ from zeroinstall.injector import distro, model, qdom
 class TestDistro(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
-		iface = model.Interface('http://example.com/feed.xml')
-		self.feed = model.ZeroInstallFeed(empty_feed, interface = iface, local_path = '/empty.xml')
+		self.feed = model.ZeroInstallFeed(empty_feed, local_path = '/empty.xml')
 
 	def tearDown(self):	
 		BaseTest.tearDown(self)

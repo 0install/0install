@@ -297,17 +297,19 @@ class Implementation(object):
 	"""An Implementation is a package which implements an Interface.
 	@ivar download_sources: list of methods of getting this implementation
 	@type download_sources: [L{RetrievalMethod}]
+	@ivar feed: the feed owning this implementation (since 0.32)
+	@type feed: [L{ZeroInstallFeed}]
 	@ivar bindings: how to tell this component where it itself is located (since 0.31)
 	@type bindings: [Binding]
 	"""
 
 	__slots__ = ['upstream_stability', 'user_stability', 'langs',
 		     'requires', 'main', 'metadata', 'download_sources',
-		     'id', 'interface', 'version', 'released', 'bindings']
+		     'id', 'feed', 'version', 'released', 'bindings']
 
-	def __init__(self, interface, id):
+	def __init__(self, feed, id):
 		assert id
-		self.interface = interface
+		self.feed = feed
 		self.id = id
 		self.main = None
 		self.user_stability = None
@@ -346,21 +348,20 @@ class DistributionImplementation(Implementation):
 	@since: 0.28"""
 	__slots__ = ['installed']
 
-	def __init__(self, interface, id):
+	def __init__(self, feed, id):
 		assert id.startswith('package:')
-		Implementation.__init__(self, interface, id)
+		Implementation.__init__(self, feed, id)
 		self.installed = True
 	
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.
 	@since: 0.28"""
 	__slots__ = ['os', 'machine', 'upstream_stability', 'user_stability',
-		     'size', 'requires', 'main',
-		     'id',  'interface']
+		     'size', 'requires', 'main', 'id']
 
-	def __init__(self, interface, id):
+	def __init__(self, feed, id):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
-		Implementation.__init__(self, interface, id)
+		Implementation.__init__(self, feed, id)
 		self.size = None
 		self.os = None
 		self.machine = None
@@ -480,10 +481,9 @@ class ZeroInstallFeed(object):
 	"""
 	# _main is deprecated
 	__slots__ = ['url', 'implementations', 'name', 'description', 'summary',
-		     'last_modified', '_interface',
-		     'feeds', 'feed_for', 'metadata']
+		     'last_modified', 'feeds', 'feed_for', 'metadata']
 
-	def __init__(self, feed_element, interface, local_path = None, distro = None):
+	def __init__(self, feed_element, local_path = None, distro = None):
 		"""Create a feed object from a DOM.
 		@param feed_element: the root element of a feed file
 		@type feed_element: L{qdom.Element}
@@ -492,7 +492,6 @@ class ZeroInstallFeed(object):
 		@param distro: used to resolve distribution package references
 		@type distro: L{distro.Distribution} or None"""
 		assert feed_element
-		self._interface = interface
 		self.implementations = {}
 		self.name = None
 		self.summary = None
@@ -713,9 +712,9 @@ class ZeroInstallFeed(object):
 	def _get_impl(self, id):
 		if id not in self.implementations:
 			if id.startswith('package:'):
-				impl = DistributionImplementation(self._interface, id)
+				impl = DistributionImplementation(self, id)
 			else:
-				impl = ZeroInstallImplementation(self._interface, id)
+				impl = ZeroInstallImplementation(self, id)
 			self.implementations[id] = impl
 		return self.implementations[id]
 	

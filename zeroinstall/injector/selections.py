@@ -56,7 +56,7 @@ class Selections(object):
 			assert impl
 
 			self.selections[needed_iface.uri] = Selection(needed_iface.uri, impl.id,
-							 impl.get_version(), impl.interface.uri,
+							 impl.get_version(), impl.feed.url,
 							 impl.main,
 							 impl.requires,
 							 impl.bindings)

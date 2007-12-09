@@ -76,14 +76,14 @@ class TestModel(BaseTest):
 	def testInterface(self):
 		i = model.Interface('http://foo')
 		self.assertEquals('(foo)', i.get_name())
-		feed = model.ZeroInstallFeed(empty_feed, interface = i, local_path = '/foo')
+		feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
 		i._main_feed = feed
 		self.assertEquals('(foo)', i.get_name())
 		repr(i)
 
 	def testMetadata(self):
 		i = model.Interface('http://foo')
-		i._main_feed = model.ZeroInstallFeed(empty_feed, interface = i, local_path = '/foo')
+		i._main_feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
 		e = qdom.parse(StringIO('<ns:b xmlns:ns="a" foo="bar"/>'))
 		i._main_feed.metadata = [e]
 		assert i.get_metadata('a', 'b') == [e]
@@ -99,7 +99,7 @@ class TestModel(BaseTest):
 	
 	def testGetImpl(self):
 		i = model.Interface('http://foo')
-		feed = model.ZeroInstallFeed(empty_feed, interface = i, local_path = '/foo')
+		feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
 		a = feed._get_impl('foo')
 		b = feed._get_impl('bar')
 		c = feed._get_impl('foo')
@@ -132,14 +132,14 @@ class TestModel(BaseTest):
 		assert b > a
 	
 	def testDownloadSource(self):
-		i = model.Interface('http://foo')
-		a = model.ZeroInstallImplementation(i, 'foo')
+		f = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
+		a = model.ZeroInstallImplementation(f, 'foo')
 		a.add_download_source('ftp://foo', 1024, None)
 		a.add_download_source('ftp://foo.tgz', 1025, 'foo')
 		assert a.download_sources[0].url == 'ftp://foo'
 		assert a.download_sources[0].size == 1024
 		assert a.download_sources[0].extract == None
-		assert a.interface is i
+		assert a.feed is f
 	
 	def testEnvBind(self):
 		a = model.EnvironmentBinding('PYTHONPATH', 'path')

@@ -42,7 +42,7 @@ class TestWriter(BaseTest):
 
 	def testStoreStability(self):
 		iface = model.Interface('http://localhost:8000/Hello')
-		iface._main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello', interface = iface)
+		iface._main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello')
 		impl = iface.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
 		impl.user_stability = model.developer
 		writer.save_interface(iface)
