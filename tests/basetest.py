@@ -14,7 +14,10 @@ from zeroinstall import support
 
 dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
 
-empty_feed = qdom.parse(StringIO.StringIO("<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'/>"))
+empty_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
+<name>Empty</name>
+<summary>just for testing</summary>
+</interface>"""))
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):

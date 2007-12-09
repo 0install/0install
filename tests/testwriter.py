@@ -7,6 +7,8 @@ sys.path.insert(0, '..')
 from zeroinstall.injector import writer, model, basedir, reader, qdom
 
 test_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
+<name>Test</name>
+<summary>for testing</summary>
 <implementation id='sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' version='1'/>
 </interface>
 """))

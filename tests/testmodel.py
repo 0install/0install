@@ -78,7 +78,7 @@ class TestModel(BaseTest):
 		self.assertEquals('(foo)', i.get_name())
 		feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
 		i._main_feed = feed
-		self.assertEquals('(foo)', i.get_name())
+		self.assertEquals('Empty', i.get_name())
 		repr(i)
 
 	def testMetadata(self):

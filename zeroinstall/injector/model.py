@@ -495,7 +495,7 @@ class ZeroInstallFeed(object):
 		self.implementations = {}
 		self.name = None
 		self.summary = None
-		self.description = None
+		self.description = ""
 		self.last_modified = None
 		self.feeds = []
 		self.feed_for = set()
@@ -553,6 +553,11 @@ class ZeroInstallFeed(object):
 					raise InvalidInterface("Invalid feed URL '%s'" % feed_src)
 			else:
 				self.metadata.append(x)
+
+		if not self.name:
+			raise InvalidInterface("Missing <name> in feed")
+		if not self.summary:
+			raise InvalidInterface("Missing <summary> in feed")
 
 		def process_group(group, group_attrs, base_depends, base_bindings):
 			for item in group.childNodes:
