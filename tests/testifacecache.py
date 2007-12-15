@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
-import sys, tempfile, os, shutil
+import sys, tempfile, os, shutil, time
 import unittest
 import data
 from logging import getLogger, DEBUG, INFO
@@ -140,6 +140,19 @@ class TestIfaceCache(BaseTest):
 		# by adding an attribute to the XML
 		signed = iface_cache._get_signature_date('http://foo')
 		assert signed == None
+
+	def testCheckAttempt(self):
+		self.assertEquals(None, iface_cache.get_last_check_attempt("http://foo/bar.xml"))
+
+		start_time = time.time() - 5	# Seems to be some odd rounding here
+		iface_cache.mark_as_checking("http://foo/bar.xml")
+		last_check = iface_cache.get_last_check_attempt("http://foo/bar.xml")
+
+		assert last_check is not None
+		assert last_check >= start_time, (last_check, start_time)
+
+		self.assertEquals(None, iface_cache.get_last_check_attempt("http://foo/bar2.xml"))
+
 
 suite = unittest.makeSuite(TestIfaceCache)
 if __name__ == '__main__':

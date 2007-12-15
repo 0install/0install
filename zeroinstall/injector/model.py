@@ -398,7 +398,6 @@ class Interface(object):
 	metadata = property(lambda self: self._main_feed.metadata)
 
 	last_checked = property(lambda self: self._main_feed.last_checked)
-	last_check_attempt = property(lambda self: self._main_feed.last_check_attempt)
 
 	def __init__(self, uri):
 		assert uri
@@ -472,19 +471,15 @@ class ZeroInstallFeed(object):
 	@ivar description: long textual description
 	@ivar last_modified: timestamp on signature
 	@ivar last_checked: time feed was last successfully downloaded and updated
-	@ivar last_check_attempt: time we last tried to check for updates (in the background)
 	@ivar feeds: list of <feed> elements in this feed
 	@type feeds: [L{Feed}]
 	@ivar feed_for: interfaces for which this could be a feed
 	@type feed_for: set(str)
-	@ivar last_checked: time feed was last successfully downloaded and updated
-	@ivar last_check_attempt: time we last tried to check for updates (in the background)
 	@ivar metadata: extra elements we didn't understand
 	"""
 	# _main is deprecated
 	__slots__ = ['url', 'implementations', 'name', 'description', 'summary',
-		     'last_checked', 'last_check_attempt',
-		     'last_modified', 'feeds', 'feed_for', 'metadata']
+		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata']
 
 	def __init__(self, feed_element, local_path = None, distro = None):
 		"""Create a feed object from a DOM.
@@ -504,7 +499,6 @@ class ZeroInstallFeed(object):
 		self.feed_for = set()
 		self.metadata = []
 		self.last_checked = None
-		self.last_check_attempt = None
 
 		assert feed_element.name in ('interface', 'feed'), "Root element should be <interface>, not %s" % feed_element
 		assert feed_element.uri == XMLNS_IFACE, "Wrong namespace on root element: %s" % feed_element.uri
@@ -749,7 +743,6 @@ class DummyFeed(object):
 	last_modified = None
 	name = '-'
 	last_checked = property(lambda self: None)
-	last_check_attempt = property(lambda self: None)
 	implementations = property(lambda self: {})
 	feeds = property(lambda self: [])
 	summary = property(lambda self: '-')

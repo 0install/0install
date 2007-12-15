@@ -442,8 +442,9 @@ class Policy(object):
 			debug("Staleness for %s is %.2f hours", iface, staleness / 3600.0)
 
 			if self.freshness > 0 and staleness > self.freshness:
-				if iface.last_check_attempt and iface.last_check_attempt > now - FAILED_CHECK_DELAY:
-					debug("Stale, but tried to check recently (%s) so not rechecking now.", time.ctime(iface.last_check_attempt))
+				last_check_attempt = iface_cache.get_last_check_attempt(iface.uri)
+				if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
+					debug("Stale, but tried to check recently (%s) so not rechecking now.", time.ctime(last_check_attempt))
 				else:
 					debug("Adding %s to stale set", iface)
 					self.stale_feeds.add(iface)

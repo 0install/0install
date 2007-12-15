@@ -159,16 +159,10 @@ def spawn_background_update(policy, verbose):
 	# running lots of 0launch commands in series on the same program we don't start
 	# huge numbers of processes.
 	import time
-	from zeroinstall.injector import writer
-	now = int(time.time())
 	for x in policy.implementation:
-		policy.implementation[x].feed.last_check_attempt = now
-		writer.save_interface(x)
-
+		iface_cache.mark_as_checking(x.uri)			# Main feed
 		for f in policy.usable_feeds(x):
-			feed_iface = iface_cache.get_interface(f.uri)
-			feed_iface.last_check_attempt = now
-			writer.save_interface(feed_iface)
+			iface_cache.mark_as_checking(f.uri)		# Extra feeds
 
 	if _detach():
 		return

@@ -76,10 +76,6 @@ def update_user_overrides(interface, main_feed = None):
 		if last_checked:
 			main_feed.last_checked = int(last_checked)
 
-		last_check_attempt = root.getAttribute('last-check-attempt')
-		if last_check_attempt:
-			main_feed.last_check_attempt = int(last_check_attempt)
-
 	stability_policy = root.getAttribute('stability-policy')
 	if stability_policy:
 		interface.set_stability_policy(stability_levels[str(stability_policy)])

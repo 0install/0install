@@ -31,7 +31,7 @@ import os, sys, time
 from logging import debug, info, warn
 from cStringIO import StringIO
 
-from zeroinstall.injector import reader, basedir
+from zeroinstall.injector import reader, basedir, model
 from zeroinstall.injector.namespaces import *
 from zeroinstall.injector.model import *
 from zeroinstall import zerostore
@@ -430,6 +430,27 @@ class IfaceCache(object):
 		trusted = [s.get_timestamp() for s in sigs if s.is_trusted(domain)]
 		if trusted:
 			return min(trusted)
+		return None
+
+	def mark_as_checking(self, url):
+		"""Touch a 'last_check_attempt_timestamp' file for this feed.
+		If url is a local path, nothing happens.
+		This prevents us from repeatedly trying to download a failing feed many
+		times in a short period."""
+		if url.startswith('/'):
+			return
+		feeds_dir = basedir.save_cache_path(config_site, config_prog, 'last-check-attempt')
+		timestamp_path = os.path.join(feeds_dir, model._pretty_escape(url))
+		fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0644)
+		os.close(fd)
+
+	def get_last_check_attempt(self, url):
+		"""Return the time of the most recent update attempt for a feed.
+		@see: L{mark_as_checking}
+		@return: The time, or None if none is recorded"""
+		timestamp_path = basedir.load_first_cache(config_site, config_prog, 'last-check-attempt', model._pretty_escape(url))
+		if timestamp_path:
+			return os.stat(timestamp_path).st_mtime
 		return None
 
 iface_cache = IfaceCache()
