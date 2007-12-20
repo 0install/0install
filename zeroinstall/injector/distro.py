@@ -235,7 +235,7 @@ def get_host_distribution():
 		_dpkg_db_dir = '/var/lib/dpkg'
 		_rpm_db_dir = '/var/lib/rpm'
 
-		if os.path.isdir(_dpkg_db_dir):
+		if os.access(_dpkg_db_dir, os.R_OK | os.X_OK):
 			_host_distribution = DebianDistribution(_dpkg_db_dir)
 		elif os.path.isdir(_rpm_db_dir):
 			_host_distribution = RPMDistribution(_rpm_db_dir)
