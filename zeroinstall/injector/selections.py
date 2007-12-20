@@ -14,7 +14,11 @@ from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.qdom import Element
 
 class Selection(object):
-	"""A single selected implementation in a L{Selections} set."""
+	"""A single selected implementation in a L{Selections} set.
+	@ivar dependencies: list of dependencies
+	@type dependencies: [L{model.Dependency}]
+	@ivar version: the implementation's version number
+	@type version: str"""
 	__slots__ = ['interface', 'bindings', 'id', 'version', 'feed', 'dependencies', 'main']
 
 	def __init__(self, interface, id, version, feed, main, dependencies, bindings = None):
@@ -35,6 +39,13 @@ class Selection(object):
 		return self.id
 
 class Selections(object):
+	"""
+	A selected set of components which will make up a complete program.
+	@ivar interface: the interface of the program
+	@type interface: str
+	@ivar selections: the selected implementations
+	@type selections: {str: L{Selection}}
+	"""
 	__slots__ = ['interface', 'selections']
 
 	def __init__(self, source):
@@ -113,7 +124,17 @@ class Selections(object):
 
 		root.setAttributeNS(None, 'interface', self.interface)
 
-		for selection in self.selections.values():
+		def ensure_prefix(prefixes, ns):
+			prefix = prefixes.get(ns, None)
+			if prefix:
+				return prefix
+			prefix = 'ns%d' % len(prefixes)
+			prefixes[ns] = prefix
+			return prefix
+
+		prefixes = {}
+
+		for iface, selection in sorted(self.selections.items()):
 			selection_elem = doc.createElementNS(XMLNS_IFACE, 'selection')
 			selection_elem.setAttributeNS(None, 'interface', selection.interface)
 			root.appendChild(selection_elem)
@@ -138,13 +159,16 @@ class Selections(object):
 					if len(parts) == 1:
 						ns = None
 						localName = parts[0]
+						dep_elem.setAttributeNS(None, localName, dep.metadata[m])
 					else:
 						ns, localName = parts
-					if not ns: ns = None
-					dep_elem.setAttributeNS(ns, localName, dep.metadata[m])
+						dep_elem.setAttributeNS(ns, ensure_prefix(prefixes, ns) + ':' + localName, dep.metadata[m])
 
 				for b in dep.bindings:
 					dep_elem.appendChild(b._toxml(doc))
+
+		for ns, prefix in prefixes.items():
+			root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns:' + prefix, ns)
 
 		return doc
 	
