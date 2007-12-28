@@ -60,22 +60,6 @@ class MainWindow:
 				preferences.show_preferences()
 		self.window.connect('response', response)
 
-		# Warnings
-		try:
-			version_stream = os.popen('gpg --version')
-			gpg_version = map(int, version_stream.readline().split(' ')[-1].strip().split('.'))
-			version_stream.close()
-		except Exception, ex:
-			warn("Failed to get GPG version: %s", ex)
-		else:
-			if gpg_version < [1, 4, 2, 2]:
-				# Don't want about versions < 1.4.6 because Ubuntu fixed it without
-				# updating the version number.
-				warning_label = gtk.Label("Warning: Your version of gnupg (%s) contains a signature\n"
-					"checking vulnerability. Suggest upgrading to 1.4.6 or later." % '.'.join(map(str, gpg_version)))
-				self.window.vbox.pack_start(warning_label, False, True, 0)
-				warning_label.show()
-	
 	def destroy(self):
 		self.window.destroy()
 
