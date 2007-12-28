@@ -115,7 +115,7 @@ def check_readable(interface_uri, source):
 	try:
 		update(tmp, source)
 	except InvalidInterface, ex:
-		info("Error loading interface:\n"
+		info("Error loading feed:\n"
 			"Interface URI: %s\n"
 			"Local file: %s\n%s" %
 			(interface_uri, source, ex))
