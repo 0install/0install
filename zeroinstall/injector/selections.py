@@ -49,10 +49,13 @@ class Selections(object):
 	__slots__ = ['interface', 'selections']
 
 	def __init__(self, source):
-		self.selections = {}
-		if isinstance(source, Policy):
+		if isinstance(source, dict):
+			self.selections = source
+		elif isinstance(source, Policy):
+			self.selections = {}
 			self._init_from_policy(source)
 		elif isinstance(source, Element):
+			self.selections = {}
 			self._init_from_qdom(source)
 		else:
 			raise Exception("Source not a Policy or qdom.Element!")

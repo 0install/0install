@@ -53,3 +53,20 @@ def _get_machine_ranks():
 
 machine_ranks = _get_machine_ranks()
 #print machine_ranks
+	
+class Architecture:
+	def __init__(self, os_ranks, machine_ranks):
+		self.os_ranks = os_ranks
+		self.machine_ranks = machine_ranks
+		self.child_arch = self
+	
+	def __str__(self):
+		return "<Arch: %s %s>" % (self.os_ranks, self.machine_ranks)
+
+class SourceArchitecture(Architecture):
+	def __init__(self, binary_arch):
+		Architecture.__init__(self, binary_arch.os_ranks, {'src': 1})
+		self.child_arch = binary_arch
+	
+def get_host_architecture():
+	return Architecture(os_ranks, machine_ranks)

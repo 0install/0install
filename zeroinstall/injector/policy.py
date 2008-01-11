@@ -1,5 +1,7 @@
 """
 Chooses a set of implementations based on a policy.
+
+@deprecated: see L{solver}
 """
 
 # Copyright (C) 2007, Thomas Leonard
@@ -14,7 +16,6 @@ from model import *
 import basedir
 from namespaces import *
 import ConfigParser
-import reader
 from zeroinstall import NeedDownload
 from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
 from zeroinstall.injector.trust import trust_db
