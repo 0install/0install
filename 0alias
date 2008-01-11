@@ -22,16 +22,13 @@ def find_path(paths):
 		else:
 			break
 	else:
-		print >>sys.stderr, ("No writable non-cache directory in $PATH, which currently contains:\n\n%s\n\n"
-				     "To create a directory for your scripts, use these commands:\n"
-				     "$ mkdir ~/bin\n"
-				     "$ %s\n"
-				     "or specify a writable path with --path"
-				     % ('\n'.join(os.environ['PATH'].split(':')), export('PATH', '$HOME/bin:$PATH')))
-		sys.exit(1)
+		return None
 
 	return path
 
+# Do this here so we can include it in the help message.
+# But, don't abort if there isn't one because we might
+# be doing something else (e.g. --manpage)
 first_path = find_path(os.environ['PATH'].split(':'))
 
 parser = OptionParser(usage="usage: %%prog [options] alias [interface [command]]\n\n"
@@ -150,6 +147,15 @@ if options.manpage:
 		print "These non-matching man-pages were found, however:"
 		for root, file in manpages:
 			print os.path.join(root, file)
+	sys.exit(1)
+
+if first_path is None:
+	print >>sys.stderr, ("No writable non-cache directory in $PATH, which currently contains:\n\n%s\n\n"
+			     "To create a directory for your scripts, use these commands:\n"
+			     "$ mkdir ~/bin\n"
+			     "$ %s\n"
+			     "or specify a writable path with --path"
+			     % ('\n'.join(os.environ['PATH'].split(':')), export('PATH', '$HOME/bin:$PATH')))
 	sys.exit(1)
 
 if len(args) == 1:
