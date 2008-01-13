@@ -26,6 +26,7 @@ VERSION = 3
 CACHED = 4
 UNUSABLE = 5
 RELEASED = 6
+NOTES = 7
 
 class ImplTips(TreeTips):
 	def __init__(self, interface):
@@ -33,10 +34,6 @@ class ImplTips(TreeTips):
 
 	def get_tooltip_text(self, impl):
 		restrictions = policy.restrictions.get(self.interface, [])
-
-		unusable = policy.get_unusable_reason(impl, restrictions)
-		if unusable:
-			return unusable
 
 		if impl.id.startswith('/'):
 			return _("Local: %s") % impl.id
@@ -62,7 +59,7 @@ class ImplementationList:
 
 		self.model = gtk.ListStore(object, str, str, str,
 			   gobject.TYPE_BOOLEAN, gobject.TYPE_BOOLEAN,
-			   str)
+			   str, str)
 
 		self.tree_view = widgets.get_widget('versions_list')
 		self.tree_view.set_model(self.model)
@@ -77,7 +74,8 @@ class ImplementationList:
 			       gtk.TreeViewColumn('Released', text, text = RELEASED, strikethrough = UNUSABLE),
 			       stability,
 			       gtk.TreeViewColumn('C', toggle, active = CACHED),
-			       gtk.TreeViewColumn('Arch', text, text = ARCH)):
+			       gtk.TreeViewColumn('Arch', text, text = ARCH),
+			       gtk.TreeViewColumn('Notes', text, text = NOTES)):
 			self.tree_view.append_column(column)
 
 		tips = ImplTips(interface)
@@ -133,8 +131,7 @@ class ImplementationList:
 	
 	def set_items(self, items):
 		self.model.clear()
-		restrictions = policy.restrictions.get(self.interface, None)
-		for item in items:
+		for item, unusable in items:
 			new = self.model.append()
 			self.model[new][ITEM] = item
 			self.model[new][VERSION] = item.get_version()
@@ -146,10 +143,8 @@ class ImplementationList:
 				self.model[new][STABILITY] = item.upstream_stability or \
 							     model.testing
 			self.model[new][ARCH] = item.arch or 'any'
-			if restrictions is not None:
-				self.model[new][UNUSABLE] = policy.is_unusable(item, restrictions)
-			else:
-				self.model[new][UNUSABLE] = policy.is_unusable(item)
+			self.model[new][UNUSABLE] = bool(unusable)
+			self.model[new][NOTES] = unusable
 	
 	def clear(self):
 		self.model.clear()

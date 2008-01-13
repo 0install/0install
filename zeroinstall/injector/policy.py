@@ -107,9 +107,17 @@ class Policy(object):
 	@type stale_feeds: set
 	"""
 	__slots__ = ['root', 'implementation', 'watchers',
-		     'help_with_testing', 'network_use',
 		     'freshness', 'ready', 'handler', '_warned_offline',
-		     'restrictions', 'src', 'root_restrictions', 'stale_feeds']
+		     'restrictions', 'src', 'stale_feeds', 'solver']
+	
+	help_with_testing = property(lambda self: self.solver.help_with_testing,
+				     lambda self, value: setattr(self.solver, 'help_with_testing', value))
+
+	network_use = property(lambda self: self.solver.network_use,
+				     lambda self, value: setattr(self.solver, 'network_use', value))
+
+	root_restrictions = property(lambda self: self.solver.root_restrictions,
+				     lambda self, value: setattr(self.solver, 'root_restrictions', value))
 
 	def __init__(self, root, handler = None, src = False):
 		"""
@@ -120,18 +128,14 @@ class Policy(object):
 		@type src: bool
 		"""
 		self.watchers = []
-		self.help_with_testing = False
-		self.network_use = network_full
 		self.freshness = 60 * 60 * 24 * 30
 		self.ready = False
 		self.src = src				# Root impl must be a "src" machine type
 		self.restrictions = {}
 		self.stale_feeds = sets.Set()
 
-		# This is used in is_unusable() to check whether the impl is
-		# for the root interface when looking for source. It is also
-		# used to add restrictions to the root (e.g. --before and --not-before)
-		self.root_restrictions = []
+		from zeroinstall.injector.solver import DefaultSolver
+		self.solver = DefaultSolver(network_full, iface_cache, iface_cache.stores, root_restrictions = [])
 
 		# If we need to download something but can't because we are offline,
 		# warn the user. But only the first time.
@@ -148,11 +152,11 @@ class Policy(object):
 			try:
 				config = ConfigParser.ConfigParser()
 				config.read(path)
-				self.help_with_testing = config.getboolean('global',
+				self.solver.help_with_testing = config.getboolean('global',
 								'help_with_testing')
-				self.network_use = config.get('global', 'network_use')
+				self.solver.network_use = config.get('global', 'network_use')
 				self.freshness = int(config.get('global', 'freshness'))
-				assert self.network_use in network_levels
+				assert self.solver.network_use in network_levels
 			except Exception, ex:
 				warn("Error loading config: %s", ex)
 
@@ -221,32 +225,16 @@ class Policy(object):
 		self.stale_feeds = sets.Set()
 		self.restrictions = {}
 		self.implementation = {}
-		self.ready = True
-		debug("Recalculate! root = %s", self.root)
-		def process(dep):
-			iface = self.get_interface(dep.interface)
-			if iface in self.implementation:
-				debug("Interface requested twice; skipping second %s", iface)
-				if dep.restrictions:
-					warn("Interface requested twice; I've already chosen an implementation "
-						"of '%s' but there are more restrictions! Ignoring the second set.", iface)
-				return
-			self.implementation[iface] = None	# Avoid cycles
 
-			assert iface not in self.restrictions
-			self.restrictions[iface] = dep.restrictions
+		host_arch = arch.get_host_architecture()
+		if self.src:
+			host_arch = arch.SourceArchitecture(host_arch)
+		self.ready = self.solver.solve(self.root, host_arch)
 
-			impl = self._get_best_implementation(iface)
-			if impl:
-				debug("Will use implementation %s (version %s)", impl, impl.get_version())
-				self.implementation[iface] = impl
-				for d in impl.requires:
-					debug("Considering dependency %s", d)
-					process(d)
-			else:
-				debug("No implementation chould be chosen yet");
-				self.ready = False
-		process(InterfaceDependency(self.root, restrictions = self.root_restrictions))
+		for f in self.solver.feeds_used:
+			iface = self.get_interface(f)	# May start a download
+
+		self.implementation = self.solver.selections.copy()
 
 		if fetch_stale_interfaces and self.network_use != network_offline:
 			for stale in self.stale_feeds:
@@ -254,95 +242,6 @@ class Policy(object):
 				self.begin_iface_download(stale, False)
 
 		for w in self.watchers: w()
-	
-	# Only to be called from recalculate, as it is quite slow.
-	# Use the results stored in self.implementation instead.
-	def _get_best_implementation(self, iface):
-		impls = iface.implementations.values()
-		for f in self.usable_feeds(iface):
-			debug("Processing feed %s", f)
-			try:
-				feed_iface = self.get_interface(f.uri)
-				if feed_iface.name and iface.uri not in feed_iface.feed_for:
-					warn("Missing <feed-for> for '%s' in '%s'",
-						iface.uri, f.uri)
-				if feed_iface.implementations:
-					impls.extend(feed_iface.implementations.values())
-			except NeedDownload, ex:
-				raise ex
-			except Exception, ex:
-				warn("Failed to load feed %s for %s: %s",
-					f, iface, str(ex))
-
-		debug("get_best_implementation(%s), with feeds: %s", iface, iface.feeds)
-
-		if not impls:
-			info("Interface %s has no implementations!", iface)
-			return None
-		best = impls[0]
-		for x in impls[1:]:
-			if self.compare(iface, x, best) < 0:
-				best = x
-		unusable = self.get_unusable_reason(best, self.restrictions.get(iface, []))
-		if unusable:
-			info("Best implementation of %s is %s, but unusable (%s)", iface, best, unusable)
-			return None
-		return best
-	
-	def compare(self, interface, b, a):
-		"""Compare a and b to see which would be chosen first.
-		@param interface: The interface we are trying to resolve, which may
-		not be the interface of a or b if they are from feeds.
-		@rtype: int"""
-		restrictions = self.restrictions.get(interface, [])
-
-		a_stab = a.get_stability()
-		b_stab = b.get_stability()
-
-		# Usable ones come first
-		r = cmp(self.is_unusable(b, restrictions), self.is_unusable(a, restrictions))
-		if r: return r
-
-		# Preferred versions come first
-		r = cmp(a_stab == preferred, b_stab == preferred)
-		if r: return r
-
-		if self.network_use != network_full:
-			r = cmp(self.get_cached(a), self.get_cached(b))
-			if r: return r
-
-		# Stability
-		stab_policy = interface.stability_policy
-		if not stab_policy:
-			if self.help_with_testing: stab_policy = testing
-			else: stab_policy = stable
-
-		if a_stab >= stab_policy: a_stab = preferred
-		if b_stab >= stab_policy: b_stab = preferred
-
-		r = cmp(a_stab, b_stab)
-		if r: return r
-		
-		# Newer versions come before older ones
-		r = cmp(a.version, b.version)
-		if r: return r
-
-		# Get best OS
-		r = cmp(arch.os_ranks.get(a.os, None),
-			arch.os_ranks.get(b.os, None))
-		if r: return r
-
-		# Get best machine
-		r = cmp(arch.machine_ranks.get(a.machine, None),
-			arch.machine_ranks.get(b.machine, None))
-		if r: return r
-
-		# Slightly prefer cached versions
-		if self.network_use == network_full:
-			r = cmp(self.get_cached(a), self.get_cached(b))
-			if r: return r
-
-		return cmp(a.id, b.id)
 	
 	def usable_feeds(self, iface):
 		"""Generator for C{iface.feeds} that are valid for our architecture.
@@ -361,55 +260,6 @@ class Policy(object):
 				debug("Skipping '%s'; unsupported architecture %s-%s",
 					f, f.os, f.machine)
 	
-	def get_ranked_implementations(self, iface):
-		"""Get all implementations from all feeds, in order.
-		@type iface: Interface
-		@return: a sorted list of implementations.
-		@rtype: [model.Implementation]"""
-		impls = iface.implementations.values()
-		for f in self.usable_feeds(iface):
-			feed_iface = iface_cache.get_interface(f.uri)
-			if feed_iface.implementations:
-				impls.extend(feed_iface.implementations.values())
-		impls.sort(lambda a, b: self.compare(iface, a, b))
-		return impls
-	
-	def is_unusable(self, impl, restrictions = []):
-		"""@return: whether this implementation is unusable.
-		@rtype: bool"""
-		return self.get_unusable_reason(impl, restrictions) != None
-
-	def get_unusable_reason(self, impl, restrictions = []):
-		"""
-		@param impl: Implementation to test.
-		@type restrictions: [L{model.Restriction}]
-		@return: The reason why this impl is unusable, or None if it's OK.
-		@rtype: str
-		@note: The restrictions are for the interface being requested, not the interface
-		of the implementation; they may be different when feeds are being used."""
-		for r in restrictions:
-			if not r.meets_restriction(impl):
-				return "Incompatible with another selected implementation"
-		stability = impl.get_stability()
-		if stability <= buggy:
-			return stability.name
-		if self.network_use == network_offline and not self.get_cached(impl):
-			return "Not cached and we are off-line"
-		if impl.os not in arch.os_ranks:
-			return "Unsupported OS"
-		# When looking for source code, we need to known if we're
-		# looking at an implementation of the root interface, even if
-		# it's from a feed, hence the sneaky restrictions identity check.
-		if self.src and restrictions is self.root_restrictions:
-			if impl.machine != 'src':
-				return "Not source code"
-		else:
-			if impl.machine not in arch.machine_ranks:
-				if impl.machine == 'src':
-					return "Source code"
-				return "Unsupported machine type"
-		return None
-	
 	def get_interface(self, uri):
 		"""Get an interface from the L{iface_cache}. If it is missing start a new download.
 		If it is present but stale, add it to L{stale_feeds}. This should only be called
@@ -423,32 +273,33 @@ class Policy(object):
 			# TODO: unless the pending version is very old
 			return iface
 
-		if iface.last_modified is None:
-			if self.network_use != network_offline:
-				debug("Interface not cached and not off-line. Downloading...")
-				self.begin_iface_download(iface)
-			else:
-				if self._warned_offline:
-					debug("Nothing known about interface, but we are off-line.")
+		if not uri.startswith('/'):
+			if iface.last_modified is None:
+				if self.network_use != network_offline:
+					debug("Interface not cached and not off-line. Downloading...")
+					self.begin_iface_download(iface)
 				else:
-					if iface.feeds:
-						info("Nothing known about interface '%s' and off-line. Trying feeds only.", uri)
+					if self._warned_offline:
+						debug("Nothing known about interface, but we are off-line.")
 					else:
-						warn("Nothing known about interface '%s', but we are in off-line mode "
-							"(so not fetching).", uri)
-						self._warned_offline = True
-		elif not uri.startswith('/'):
-			now = time.time()
-			staleness = now - (iface.last_checked or 0)
-			debug("Staleness for %s is %.2f hours", iface, staleness / 3600.0)
+						if iface.feeds:
+							info("Nothing known about interface '%s' and off-line. Trying feeds only.", uri)
+						else:
+							warn("Nothing known about interface '%s', but we are in off-line mode "
+								"(so not fetching).", uri)
+							self._warned_offline = True
+			else:
+				now = time.time()
+				staleness = now - (iface.last_checked or 0)
+				debug("Staleness for %s is %.2f hours", iface, staleness / 3600.0)
 
-			if self.freshness > 0 and staleness > self.freshness:
-				last_check_attempt = iface_cache.get_last_check_attempt(iface.uri)
-				if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
-					debug("Stale, but tried to check recently (%s) so not rechecking now.", time.ctime(last_check_attempt))
-				else:
-					debug("Adding %s to stale set", iface)
-					self.stale_feeds.add(iface)
+				if self.freshness > 0 and staleness > self.freshness:
+					last_check_attempt = iface_cache.get_last_check_attempt(iface.uri)
+					if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
+						debug("Stale, but tried to check recently (%s) so not rechecking now.", time.ctime(last_check_attempt))
+					else:
+						debug("Adding %s to stale set", iface)
+						self.stale_feeds.add(iface)
 		#else: debug("Local interface, so not checking staleness.")
 
 		return iface
@@ -582,10 +433,6 @@ class Policy(object):
 						(interface.name, offline))
 			raise ex
 
-	def walk_interfaces(self):
-		"""@deprecated: use L{implementation} instead"""
-		return iter(self.implementation)
-
 	def get_cached(self, impl):
 		"""Check whether an implementation is available locally.
 		@type impl: model.Implementation
@@ -614,7 +461,7 @@ class Policy(object):
 		uncached = []
 		for iface in self.implementation:
 			impl = self.implementation[iface]
-			assert impl
+			assert impl, self.implementation
 			if not self.get_cached(impl):
 				uncached.append((iface, impl))
 		return uncached

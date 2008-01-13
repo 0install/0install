@@ -140,6 +140,7 @@ class GUIPolicy(Policy):
 
 	def __init__(self, interface, download_only, refresh, src = False, restrictions = None):
 		Policy.__init__(self, interface, GUIHandler(self), src = src)
+		self.solver.record_details = True
 		global policy
 		assert policy is None
 		policy = self

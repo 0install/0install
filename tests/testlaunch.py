@@ -36,9 +36,13 @@ class TestLaunch(BaseTest):
 			try:
 				imp.load_source('launch', '../0launch')
 				print "Finished"
+			except NameError:
+				raise
 			except SystemExit:
 				pass
 			except TypeError:
+				raise
+			except AttributeError:
 				raise
 			except AssertionError:
 				raise

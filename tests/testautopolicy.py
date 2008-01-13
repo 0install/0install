@@ -251,44 +251,6 @@ class TestAutoPolicy(BaseTest):
 						download_only = False)
 		logger.setLevel(logging.WARN)
 
-	def testRanking(self):
-		self.cache_iface('http://bar',
-"""<?xml version="1.0" ?>
-<interface last-modified="1110752708"
- uri="http://bar"
- xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <name>Bar</name>
-  <summary>Bar</summary>
-  <description>Bar</description>
-  <implementation id='sha1=125' version='1.0' arch='odd-weird' stability='buggy'/>
-  <implementation id='sha1=126' version='1.0'/>
-</interface>""")
-		self.cache_iface(foo_iface_uri,
-"""<?xml version="1.0" ?>
-<interface last-modified="1110752708"
- uri="%s"
- xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <name>Foo</name>
-  <summary>Foo</summary>
-  <description>Foo</description>
-  <feed src='http://example.com' arch='odd-unknown'/>
-  <feed src='http://bar'/>
-  <implementation id='sha1=123' version='1.0' arch='odd-strange'/>
-  <implementation id='sha1=124' version='1.0' arch='odd-weird'/>
-</interface>""" % foo_iface_uri)
-		policy = autopolicy.AutoPolicy(foo_iface_uri,
-						download_only = False)
-		policy.network_use = model.network_full
-		policy.freshness = 0
-		impls = policy.get_ranked_implementations(
-				policy.get_interface(policy.root))
-		assert len(impls) == 4
-
-		logger.setLevel(logging.ERROR)
-		policy.network_use = model.network_offline # Changes sort order tests
-		policy.recalculate()			   # Triggers feed-for warning
-		logger.setLevel(logging.WARN)
-
 	def testNoLocal(self):
 		self.cache_iface(foo_iface_uri,
 """<?xml version="1.0" ?>
@@ -352,7 +314,7 @@ class TestAutoPolicy(BaseTest):
 						download_only = False)
 		policy.network_use = model.network_offline
 		policy.recalculate()
-		assert not policy.ready
+		assert not policy.ready, policy.implementation
 		try:
 			policy.download_and_execute([])
 			assert False

@@ -4,10 +4,13 @@ Chooses a set of components to make a running program.
 This class is intended to replace L{policy.Policy}.
 """
 
+import os
 from logging import debug, warn, info
 
-import selections
-import model
+from zeroinstall.zerostore import BadDigest, NotStored
+
+from zeroinstall.injector import selections
+from zeroinstall.injector import model
 
 # Copyright (C) 2008, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
@@ -19,47 +22,69 @@ class Solver(object):
 	 2. Call L{solve}.
 	 3. If any of the returned feeds_used are stale or missing, you may like to start downloading them
 	 4. If it is 'ready' then you can download and run the chosen versions.
+	@ivar selections: the chosen implementation of each interface
+	@type selections: {L{model.Interface}: Implementation}
+	@ivar feeds_used: the feeds which contributed to the choice in L{selections}
+	@type feeds_used: set(str)
+	@ivar record_details: whether to record information about unselected implementations
+	@type record_details: {L{Interface}: [(L{Implementation}, str)]}
+	@ivar details: extra information, if record_details mode was used
+	@type details: {str: [(Implementation, comment)]}
 	"""
-	__slots__ = []
+	__slots__ = ['selections', 'feeds_used', 'details', 'record_details']
 
 	def __init__(self):
-		pass
+		self.selections = self.feeds_used = self.details = None
+		self.record_details = False
 	
-	def solve(self, root_interface, feed_cache, arch):
+	def solve(self, root_interface, arch):
 		"""Get the best implementation of root_interface and all of its dependencies.
 		@param root_interface: the URI of the program to be solved
 		@type root_interface: str
-		@param feed_cache: a cache of feeds containing information about available versions
-		@type feed_cache: L{iface_cache.IfaceCache}
 		@param arch: the desired target architecture
 		@type arch: L{arch.Architecture}
-		@return: ready, selections, feeds_used
-		@rtype: (bool, Selections, [str])"""
+		@return: whether we have a viable selection
+		@rtype: bool
+		@postcondition: self.selections and self.feeds_used are updated"""
 		raise NotImplementedError("Abstract")
 
 class DefaultSolver(Solver):
-	def __init__(self, network_use, root_restrictions = None):
+	def __init__(self, network_use, iface_cache, stores, root_restrictions = None):
+		"""
+		@param network_use: how much use to make of the network
+		@type network_use: L{model.network_levels}
+		@param iface_cache: a cache of feeds containing information about available versions
+		@type iface_cache: L{iface_cache.IfaceCache}
+		@param stores: a cached of implementations (affects choice when offline or when minimising network use)
+		@type stores: L{zerostore.Stores}
+		@param root_restrictions: list of extra restrictions for the root interface
+		@type root_restrictions: [L{model.Restriction}]
+		"""
+		Solver.__init__(self)
 		self.network_use = network_use
+		self.iface_cache = iface_cache
+		self.stores = stores
 		self.help_with_testing = False
 		self.root_restrictions = root_restrictions or []
 
-	def solve(self, root_interface, feed_cache, arch):
-		ready = True
-		chosen = {}
-		feeds_used = set()
+	def solve(self, root_interface, arch):
+		self.selections = {}
+		self.feeds_used = set()
+		self.details = self.record_details and {}
 
 		restrictions = {}
 		debug("Solve! root = %s", root_interface)
 		def process(dep, arch):
-			iface = feed_cache.get_interface(dep.interface)
+			ready = True
+			iface = self.iface_cache.get_interface(dep.interface)
 
-			if iface in chosen:
+			if iface in self.selections:
 				debug("Interface requested twice; skipping second %s", iface)
 				if dep.restrictions:
 					warn("Interface requested twice; I've already chosen an implementation "
 						"of '%s' but there are more restrictions! Ignoring the second set.", iface)
 				return
-			chosen[iface.uri] = None	# Avoid cycles
+			self.selections[iface] = None	# Avoid cycles
 
 			assert iface not in restrictions
 			restrictions[iface] = dep.restrictions
@@ -67,36 +92,50 @@ class DefaultSolver(Solver):
 			impl = get_best_implementation(iface, arch)
 			if impl:
 				debug("Will use implementation %s (version %s)", impl, impl.get_version())
-				chosen[iface.uri] = impl
+				self.selections[iface] = impl
 				for d in impl.requires:
 					debug("Considering dependency %s", d)
-					process(d, arch.child_arch)
+					if not process(d, arch.child_arch):
+						ready = False
 			else:
 				debug("No implementation chould be chosen yet");
 				ready = False
-			return arch
+			return ready
 
 		def get_best_implementation(iface, arch):
+			debug("get_best_implementation(%s), with feeds: %s", iface, iface.feeds)
+
 			impls = []
 			for f in usable_feeds(iface, arch):
-				feeds_used.add(f.url)
+				self.feeds_used.add(f)
 				debug("Processing feed %s", f)
+
 				try:
-					if f.implementations:
-						impls.extend(f.implementations.values())
+					feed = self.iface_cache.get_interface(f)._main_feed
+					if not feed.last_modified: continue	# DummyFeed
+					if feed.name and iface.uri != feed.url and iface.uri not in feed.feed_for:
+						warn("Missing <feed-for> for '%s' in '%s'", iface.uri, f)
+
+					if feed.implementations:
+						impls.extend(feed.implementations.values())
 				except Exception, ex:
 					warn("Failed to load feed %s for %s: %s", f, iface, str(ex))
-					raise
-
-			debug("get_best_implementation(%s), with feeds: %s", iface, iface.feeds)
 
 			if not impls:
 				info("Interface %s has no implementations!", iface)
 				return None
-			best = impls[0]
-			for x in impls[1:]:
-				if compare(iface, x, best) < 0:
-					best = x
+
+			if self.record_details:
+				# In details mode, rank all the implementations and then choose the best
+				impls.sort(lambda a, b: compare(iface, a, b))
+				best = impls[0]
+				self.details[iface] = [(impl, get_unusable_reason(impl, restrictions.get(iface, []), arch)) for impl in impls]
+			else:
+				# Otherwise, just choose the best without sorting
+				best = impls[0]
+				for x in impls[1:]:
+					if compare(iface, x, best) < 0:
+						best = x
 			unusable = get_unusable_reason(best, restrictions.get(iface, []), arch)
 			if unusable:
 				info("Best implementation of %s is %s, but unusable (%s)", iface, best, unusable)
@@ -122,7 +161,7 @@ class DefaultSolver(Solver):
 			if r: return r
 
 			if self.network_use != model.network_full:
-				r = cmp(self.get_cached(a), self.get_cached(b))
+				r = cmp(get_cached(a), get_cached(b))
 				if r: return r
 
 			# Stability
@@ -131,8 +170,8 @@ class DefaultSolver(Solver):
 				if self.help_with_testing: stab_policy = model.testing
 				else: stab_policy = model.stable
 
-			if a_stab >= stab_policy: a_stab = preferred
-			if b_stab >= stab_policy: b_stab = preferred
+			if a_stab >= stab_policy: a_stab = model.preferred
+			if b_stab >= stab_policy: b_stab = model.preferred
 
 			r = cmp(a_stab, b_stab)
 			if r: return r
@@ -153,7 +192,7 @@ class DefaultSolver(Solver):
 
 			# Slightly prefer cached versions
 			if self.network_use == model.network_full:
-				r = cmp(self.get_cached(a), self.get_cached(b))
+				r = cmp(get_cached(a), get_cached(b))
 				if r: return r
 
 			return cmp(a.id, b.id)
@@ -161,30 +200,14 @@ class DefaultSolver(Solver):
 		def usable_feeds(iface, arch):
 			"""Return all feeds for iface that support arch.
 			@rtype: generator(ZeroInstallFeed)"""
-			yield iface._main_feed
+			yield iface.uri
 
 			for f in iface.feeds:
 				if f.os in arch.os_ranks and f.machine in arch.machine_ranks:
-					feed_iface = feed_cache.get_interface(f.uri)
-					if feed_iface.name and iface.uri not in feed_iface.feed_for:
-						warn("Missing <feed-for> for '%s' in '%s'", iface.uri, f.uri)
-					yield feed_iface._main_feed
+					yield f.uri
 				else:
 					debug("Skipping '%s'; unsupported architecture %s-%s",
 						f, f.os, f.machine)
-		
-		def get_ranked_implementations(self, iface):
-			"""Get all implementations from all feeds, in order.
-			@type iface: Interface
-			@return: a sorted list of implementations.
-			@rtype: [model.Implementation]"""
-			impls = iface.implementations.values()
-			for f in self.usable_feeds(iface):
-				feed_iface = iface_cache.get_interface(f.uri)
-				if feed_iface.implementations:
-					impls.extend(feed_iface.implementations.values())
-			impls.sort(lambda a, b: compare(iface, a, b))
-			return impls
 		
 		def is_unusable(impl, restrictions, arch):
 			"""@return: whether this implementation is unusable.
@@ -205,7 +228,7 @@ class DefaultSolver(Solver):
 			stability = impl.get_stability()
 			if stability <= model.buggy:
 				return stability.name
-			if self.network_use == model.network_offline and not self.get_cached(impl):
+			if self.network_use == model.network_offline and not get_cached(impl):
 				return "Not cached and we are off-line"
 			if impl.os not in arch.os_ranks:
 				return "Unsupported OS"
@@ -218,24 +241,23 @@ class DefaultSolver(Solver):
 				return "Unsupported machine type"
 			return None
 
-		process(model.InterfaceDependency(root_interface, restrictions = self.root_restrictions), arch)
+		def get_cached(impl):
+			"""Check whether an implementation is available locally.
+			@type impl: model.Implementation
+			@rtype: bool
+			"""
+			if isinstance(impl, model.DistributionImplementation):
+				return impl.installed
+			if impl.id.startswith('/'):
+				return os.path.exists(impl.id)
+			else:
+				try:
+					path = self.stores.lookup(impl.id)
+					assert path
+					return True
+				except BadDigest:
+					return False
+				except NotStored:
+					return False
 
-		return (ready, selections.Selections(chosen), feeds_used)
-
-	def get_cached(self, impl):
-		"""Check whether an implementation is available locally.
-		@type impl: model.Implementation
-		@rtype: bool
-		"""
-		if isinstance(impl, model.DistributionImplementation):
-			return impl.installed
-		if impl.id.startswith('/'):
-			return os.path.exists(impl.id)
-		else:
-			try:
-				path = self.get_implementation_path(impl)
-				assert path
-				return True
-			except:
-				pass # OK
-		return False
+		return process(model.InterfaceDependency(root_interface, restrictions = self.root_restrictions), arch)

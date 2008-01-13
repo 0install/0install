@@ -328,8 +328,7 @@ class Properties:
 		self.compile_button.set_sensitive(have_source_for(self.interface))
 	
 	def update_list(self):
-		impls = policy.get_ranked_implementations(self.interface)
-		self.use_list.set_items(impls)
+		self.use_list.set_items(policy.solver.details[self.interface])
 	
 def add_remote_feed(parent, interface):
 	d = gtk.MessageDialog(parent, 0, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL,
