@@ -71,7 +71,9 @@ class AutoPolicy(policy.Policy):
 
 	def execute(self, prog_args, main = None, wrapper = None):
 		self.start_downloading_impls()
-		self.handler.wait_for_downloads()
+		errors = self.handler.wait_for_downloads()
+		if errors:
+			raise model.SafeException("Errors during download: " + '\n'.join(errors))
 		if not self.download_only:
 			run.execute(self, prog_args, dry_run = self.dry_run, main = main, wrapper = wrapper)
 		else:

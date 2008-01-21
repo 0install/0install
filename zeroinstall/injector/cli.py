@@ -58,7 +58,9 @@ def _import_interface(args):
 
 		handler = handler.Handler()
 		pending.begin_key_downloads(handler, keys_ready)
-		handler.wait_for_downloads()
+		errors = handler.wait_for_downloads()
+		if errors:
+			raise model.SafeException("Errors during download: " + '\n'.join(errors))
 
 def _manage_feeds(options, args):
 	from zeroinstall.injector import iface_cache, writer
