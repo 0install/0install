@@ -127,14 +127,14 @@ class DefaultSolver(Solver):
 
 			if self.record_details:
 				# In details mode, rank all the implementations and then choose the best
-				impls.sort(lambda a, b: compare(iface, a, b))
+				impls.sort(lambda a, b: compare(iface, a, b, arch))
 				best = impls[0]
 				self.details[iface] = [(impl, get_unusable_reason(impl, restrictions.get(iface, []), arch)) for impl in impls]
 			else:
 				# Otherwise, just choose the best without sorting
 				best = impls[0]
 				for x in impls[1:]:
-					if compare(iface, x, best) < 0:
+					if compare(iface, x, best, arch) < 0:
 						best = x
 			unusable = get_unusable_reason(best, restrictions.get(iface, []), arch)
 			if unusable:
@@ -142,7 +142,7 @@ class DefaultSolver(Solver):
 				return None
 			return best
 		
-		def compare(interface, b, a):
+		def compare(interface, b, a, arch):
 			"""Compare a and b to see which would be chosen first.
 			@param interface: The interface we are trying to resolve, which may
 			not be the interface of a or b if they are from feeds.
