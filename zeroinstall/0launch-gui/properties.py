@@ -328,7 +328,12 @@ class Properties:
 		self.compile_button.set_sensitive(have_source_for(self.interface))
 	
 	def update_list(self):
-		self.use_list.set_items(policy.solver.details[self.interface])
+		ranked_items = policy.solver.details.get(self.interface, None)
+		if ranked_items is None:
+			# The Solver didn't get this far, but we should still display them!
+			ranked_items = self.interface.implementations.values()
+			ranked_items.sort()
+		self.use_list.set_items(ranked_items)
 	
 def add_remote_feed(parent, interface):
 	d = gtk.MessageDialog(parent, 0, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL,
