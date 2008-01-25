@@ -114,23 +114,29 @@ def load_keys(fingerprints):
 		keys[fp] = Key(fp)
 
 	current_fpr = None
+	current_uid = None
 
-	cin, cout = os.popen2(['gpg', '--fixed-list-mode', '--with-colons', '--list-keys', '--with-fingerprint'] + fingerprints)
+	cin, cout = os.popen2(['gpg', '--fixed-list-mode', '--with-colons', '--list-keys',
+				'--with-fingerprint', '--with-fingerprint'] + fingerprints)
 	cin.close()
 	try:
 		for line in cout:
 			if line.startswith('pub:'):
 				current_fpr = None
+				current_uid = None
 			if line.startswith('fpr:'):
-				assert current_fpr is None
 				current_fpr = line.split(':')[9]
+				if current_fpr in keys and current_uid:
+					# This is probably a subordinate key, where the fingerprint
+					# comes after the uid, not before. Note: we assume the subkey is
+					# cross-certified, as recent always ones are.
+					keys[current_fpr].name = current_uid
 			if line.startswith('uid:'):
 				assert current_fpr is not None
 				parts = line.split(':')
+				current_uid = parts[9]
 				if current_fpr in keys:
-					keys[current_fpr].name = parts[9]
-				else:
-					warn("Got information about key '%s', but I only asked about '%s'!", current_fpr, fingerprints)
+					keys[current_fpr].name = current_uid
 	finally:
 		cout.close()
 
