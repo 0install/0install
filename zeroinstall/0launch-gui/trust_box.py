@@ -293,4 +293,8 @@ hints = {
 	'3B2A89E694686DC4FEEFD6F6D00CA21EC004251B' :
 		'Tuomo Valkonen is the author of the Ion tiling window manager. This key fingerprint '
 		'was taken from http://modeemi.fi/~tuomov/ on 2007-11-17.',
+
+	'A14924F4DFD1B81DED3436240C9B2C41B8D66FEA' :
+		'Andreas K. Förster is experimenting with creating Zero Install feeds. '
+		'This key was announced in a 2008-01-25 post to the zeroinstall mailing list.'
 }
