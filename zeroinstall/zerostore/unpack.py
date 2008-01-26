@@ -282,14 +282,21 @@ def extract_zip(stream, destdir, extract, start_offset = 0):
 	shutil.copyfileobj(stream, zip_copy)
 	zip_copy.close()
 
-	args = ['unzip', '-q', '-o']
+	args = ['unzip', '-q', '-o', 'archive.zip']
 
 	if extract:
-		args.append(extract)
+		args.append(extract + '/*')
 
-	_extract(stream, destdir, args + ['archive.zip'])
+	_extract(stream, destdir, args)
 	os.unlink(zip_copy_name)
 	
+	if extract:
+		# unzip uses extract just as a filter, so we still need to move things
+		extracted_dir = os.path.join(destdir, extract)
+		for x in os.listdir(extracted_dir):
+			os.rename(os.path.join(extracted_dir, x), os.path.join(destdir, x))
+		os.rmdir(extracted_dir)
+
 def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 	if extract:
 		# Limit the characters we accept, to avoid sending dodgy
