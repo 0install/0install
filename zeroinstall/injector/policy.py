@@ -314,11 +314,8 @@ class Policy(object):
 		debug("Need to download")
 		dl = self.handler.get_download(interface.uri, force = force)
 		if dl.on_success:
-			# Possibly we should handle this better, but it's unlikely anyone will need
-			# to use an interface as an icon or implementation as well, and some of the code
-			# assumes it's OK keep asking for the same interface to be downloaded.
-			debug("Already have a handler for %s; not adding another", interface)
-			return
+			# Make sure we don't get called twice
+			raise Exception("Already have a handler for %s; not adding another" % interface)
 
 		def feed_downloaded(stream):
 			pending = PendingFeed(interface.uri, stream)
