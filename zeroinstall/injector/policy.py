@@ -441,8 +441,7 @@ class Policy(object):
 	def refresh_all(self, force = True):
 		"""Start downloading all feeds for all selected interfaces.
 		@param force: Whether to restart existing downloads."""
-		task = tasks.Task(self.solve_with_downloads(force = True), "refresh all")
-		self.handler.wait_for_blocker(task.finished)
+		return tasks.Task(self.solve_with_downloads(force = True), "refresh all")
 	
 	def get_feed_targets(self, feed_iface_uri):
 		"""Return a list of Interfaces for which feed_iface can be a feed.

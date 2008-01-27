@@ -80,7 +80,7 @@ class Handler(object):
 		@rtype: L{download.Download}
 		"""
 		try:
-			e, dl = self.monitored_downloads[url]
+			dl = self.monitored_downloads[url]
 			if dl and force:
 				dl.abort()
 				raise KeyError
