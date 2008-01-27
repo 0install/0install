@@ -156,6 +156,7 @@ class Policy(object):
 		"""Change the root interface URI."""
 		assert isinstance(root, (str, unicode))
 		self.root = root
+		for w in self.watchers: w()
 
 	def save_config(self):
 		"""Write global settings."""
@@ -529,16 +530,13 @@ class Policy(object):
 
 			for f in downloads_in_progress.keys():
 				if downloads_in_progress[f].happened:
-					print "Removing", f
 					del downloads_in_progress[f]
 					downloads_finished.add(f)
 
 	def need_download(self):
 		"""Decide whether we need to download anything (but don't do it!)
-		@return: true if we MUST download something (interfaces or implementations)
-		@rtype: bool
-		@postcondition: if we return False, self.stale_feeds contains any feeds which SHOULD be updated
-		"""
+		@return: true if we MUST download something (feeds or implementations)
+		@rtype: bool"""
 		host_arch = arch.get_host_architecture()
 		if self.src:
 			host_arch = arch.SourceArchitecture(host_arch)

@@ -4,6 +4,7 @@ import gtk
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import gpg, trust
 from zeroinstall.injector.iface_cache import iface_cache
+from zeroinstall.support import tasks
 
 import gui
 import dialog, help_box
@@ -20,10 +21,13 @@ class TrustBox(dialog.Dialog):
 	iface_xml = None
 	valid_sigs = None
 	parent = None
+	closed = None
 
 	def __init__(self, interface, sigs, iface_xml, parent):
 		dialog.Dialog.__init__(self)
 		self.set_transient_for(parent)
+
+		self.closed = tasks.Blocker("confirming keys with user")
 
 		domain = trust.domain_from_url(interface.uri)
 		assert domain
@@ -32,6 +36,9 @@ class TrustBox(dialog.Dialog):
 			global _queue
 			assert _queue[0] is self
 			del _queue[0]
+
+			self.closed.trigger()
+
 			# Remove any queued boxes that are no longer required
 			def still_untrusted(box):
 				for sig in box.valid_sigs:
@@ -181,9 +188,11 @@ def confirm_trust(interface, sigs, iface_xml, parent):
 	@param iface_xml: the downloaded (untrusted) XML document
 	@type iface_xml: str
 	"""
-	_queue.append(TrustBox(interface, sigs, iface_xml, parent))
+	box = TrustBox(interface, sigs, iface_xml, parent)
+	_queue.append(box)
 	if len(_queue) == 1:
 		_queue[0].show()
+	return box.closed
 
 trust_help = help_box.HelpBox("Trust Help",
 ('Overview', """

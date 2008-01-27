@@ -6,6 +6,7 @@ from zeroinstall.injector.policy import Policy
 from zeroinstall.injector import download, handler
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector.reader import InvalidInterface
+from zeroinstall.support import tasks
 import dialog
 from checking import CheckingBox
 
@@ -40,7 +41,6 @@ class GUIHandler(handler.Handler):
 		self.policy = policy
 
 	def downloads_changed(self):
-		print "Active downloads list is now: %s" % self.monitored_downloads
 		if self.monitored_downloads and self.pulse is None:
 			def pulse():
 				if self.policy.checking:
@@ -61,7 +61,7 @@ class GUIHandler(handler.Handler):
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		import trust_box
-		trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.policy.checking or self.policy.window.window)
+		return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.policy.checking or self.policy.window.window)
 	
 	def report_error(self, ex):
 		dialog.alert(None, str(ex))
@@ -101,6 +101,8 @@ class GUIPolicy(Policy):
 				self.checking = CheckingBox(root)
 
 			self.refresh_all(force = False)
+
+		self.watchers.append(self.update_display)
 	
 	def show_details(self):
 		"""The checking box has disappeared. Should we show the details window, or
@@ -120,27 +122,34 @@ class GUIPolicy(Policy):
 		if self.window:
 			self.window.browser.build_tree()
 	
-	def recalculate(self, fetch_stale_interfaces = True):
-		Policy.recalculate(self, fetch_stale_interfaces)
+	def update_display(self):
 		self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
 
 	def main(self):
+		solved = tasks.Task(self.solve_with_downloads(), "solve")
+
 		if self.checking:
 			self.checking.show()
-			if not self.handler.monitored_downloads:
-				self.checking.updates_done(self.versions_changed())
-			dialog.wait_for_no_windows()
+
+			yield solved.finished
+
+			self.checking.updates_done(self.versions_changed())
+
+			#dialog.wait_for_no_windows()
+
 			show_details = self.show_details()
 			self.checking = None
 			if show_details:
 				self.window.show()
-				gtk.main()
+				yield []
 			else:
+				raise Exception("STOP")
 				import download_box
 				download_box.download_with_gui(self.window)
+				yield []
 		else:
 			self.window.show()
-			gtk.main()
+			yield []
 	
 	def abort_all_downloads(self):
 		for dl in self.handler.monitored_downloads.values():

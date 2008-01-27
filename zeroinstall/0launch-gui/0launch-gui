@@ -84,6 +84,7 @@ if len(args) > 1:
 	sys.exit(1)
 
 from zeroinstall.injector import model, autopolicy, namespaces
+from zeroinstall.support import tasks
 
 restrictions = []
 if options.before or options.not_before:
@@ -95,4 +96,5 @@ policy = gui.GUIPolicy(interface_uri,
 		   refresh = bool(options.refresh),
 		   src = options.source,
 		   restrictions = restrictions)
-policy.main()
+main = tasks.Task(policy.main(), "main")
+policy.handler.wait_for_blocker(main.finished)

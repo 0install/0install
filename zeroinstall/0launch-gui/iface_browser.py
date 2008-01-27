@@ -214,7 +214,6 @@ class InterfaceBrowser:
 	def set_root(self, root):
 		assert isinstance(root, model.Interface)
 		self.root = root
-		policy.recalculate()	# Calls build_tree
 	
 	def get_icon(self, iface):
 		"""Get an icon for this interface. If the icon is in the cache, use that.
