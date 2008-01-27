@@ -36,16 +36,9 @@ class TestAutoPolicy(BaseTest):
 						download_only = False)
 		policy.freshness = 0
 		assert policy.need_download()
-		self.cache_iface(foo_iface_uri,
-"""<?xml version="1.0" ?>
-<interface last-modified="1110752708"
- uri="%s"
- xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <name>Foo</name>
-  <summary>Foo</summary>
-  <description>Foo</description>
-</interface>""" % foo_iface_uri)
-		iface_cache.iface_cache._interfaces = {}
+
+		policy = autopolicy.AutoPolicy(os.path.abspath('Foo.xml'),
+						download_only = False)
 		assert not policy.need_download()
 	
 	def testUnknownAlg(self):
@@ -66,7 +59,7 @@ class TestAutoPolicy(BaseTest):
 		policy.freshness = 0
 		try:
 			assert policy.need_download()
-			assert False
+			policy.execute([])
 		except model.SafeException, ex:
 			assert 'Unknown digest algorithm' in str(ex)
 	
@@ -131,7 +124,7 @@ class TestAutoPolicy(BaseTest):
 		policy.recalculate()
 		assert policy.need_download()
 		try:
-			policy.start_downloading_impls()
+			policy.execute([], main = 'NOTHING')
 			assert False
 		except NeedDownload, ex:
 			pass
@@ -341,7 +334,7 @@ class TestAutoPolicy(BaseTest):
 			policy.download_and_execute([])
 			assert False
 		except model.SafeException, ex:
-			assert 'no download locations' in str(ex)
+			assert 'no download locations' in str(ex), ex
 
 	def testCycle(self):
 		self.cache_iface(foo_iface_uri,

@@ -31,6 +31,7 @@ def _list_interfaces(args):
 		print i
 
 def _import_interface(args):
+	from zeroinstall.support import tasks
 	from zeroinstall.injector import gpg, handler, trust
 	from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
 	from xml.dom import minidom
@@ -48,17 +49,26 @@ def _import_interface(args):
 		logging.info("Importing information about interface %s", iface)
 		signed_data.seek(0)
 
-		def keys_ready():
-			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-				handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
-		trust.trust_db.watchers.append(lambda: keys_ready())
-
 		pending = PendingFeed(uri, signed_data)
 		iface_cache.add_pending(pending)
 
 		handler = handler.Handler()
-		pending.begin_key_downloads(handler, keys_ready)
-		errors = handler.wait_for_downloads()
+
+		def run():
+			keys_downloaded = tasks.Task(pending.download_keys(handler), "download keys")
+			yield keys_downloaded.finished
+			tasks.check(keys_downloaded.finished)
+			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+				blocker = handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+				if blocker:
+					yield blocker
+					tasks.check(blocker)
+				if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+					raise SafeException("No signing keys trusted; not importing")
+
+		task = tasks.Task(run(), "import feed")
+
+		errors = handler.wait_for_blocker(task.finished)
 		if errors:
 			raise model.SafeException("Errors during download: " + '\n'.join(errors))
 
@@ -72,7 +82,7 @@ def _manage_feeds(options, args):
 		policy = autopolicy.AutoPolicy(x, download_only = True, dry_run = options.dry_run)
 		if options.offline:
 			policy.network_use = model.network_offline
-		policy.recalculate_with_dl()
+		policy.recalculate_with_dl()	# XXX
 		interfaces = policy.get_feed_targets(policy.root)
 		for i in range(len(interfaces)):
 			feed = interfaces[i].get_feed(x)

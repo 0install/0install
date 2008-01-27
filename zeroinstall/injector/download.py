@@ -13,6 +13,7 @@ This is the low-level interface for downloading interfaces, implementations, ico
 
 import tempfile, os, sys
 from zeroinstall import SafeException
+from zeroinstall.support import tasks
 import traceback
 from logging import info
 
@@ -26,14 +27,14 @@ class DownloadError(SafeException):
 	pass
 
 class Download(object):
-	__slots__ = ['url', 'tempfile', 'status', 'errors', 'expected_size',
-		     'expected_size', 'child_pid', 'child_stderr', 'on_success']
+	__slots__ = ['url', 'tempfile', 'status', 'errors', 'expected_size', 'downloaded',
+		     'expected_size', 'child_pid', 'child_stderr']
 
 	def __init__(self, url):
 		"Initial status is starting."
 		self.url = url
 		self.status = download_starting
-		self.on_success = []
+		self.downloaded = tasks.Blocker("Download " + url)
 
 		self.tempfile = None		# Stream for result
 		self.errors = None
@@ -101,9 +102,7 @@ class Download(object):
 		self.errors += data
 
 	def error_stream_closed(self):
-		"""Ends a download. Status changes from fetching to checking.
-		Calls the on_success callbacks with the rewound data stream on success,
-		or throws DownloadError on failure."""
+		"""Ends a download. Status changes from fetching to checking."""
 		assert self.status is download_fetching
 		assert self.tempfile is not None
 		assert self.child_pid is not None
@@ -122,30 +121,25 @@ class Download(object):
 		stream = self.tempfile
 		self.tempfile = None
 
-		if errors:
-			error = DownloadError(errors)
-		else:	
-			error = None
+		try:
+			if errors:
+				raise DownloadError(errors)
 
-		# Check that the download has the correct size, if we know what it should be.
-		if self.expected_size is not None and not error:
-			size = os.fstat(stream.fileno()).st_size
-			if size != self.expected_size:
-				error = SafeException('Downloaded archive has incorrect size.\n'
-						'URL: %s\n'
-						'Expected: %d bytes\n'
-						'Received: %d bytes' % (self.url, self.expected_size, size))
-
-		if error:
+			# Check that the download has the correct size, if we know what it should be.
+			if self.expected_size is not None:
+				size = os.fstat(stream.fileno()).st_size
+				if size != self.expected_size:
+					raise SafeException('Downloaded archive has incorrect size.\n'
+							'URL: %s\n'
+							'Expected: %d bytes\n'
+							'Received: %d bytes' % (self.url, self.expected_size, size))
+		except:
 			self.status = download_failed
-			self.on_success = []	# Break GC cycles
-			raise error
+			_, ex, tb = sys.exc_info()
+			self.downloaded.trigger(exception = (ex, tb))
 		else:
 			self.status = download_checking
-
-		for x in self.on_success:
-			stream.seek(0)
-			x(stream)
+			self.downloaded.trigger()
 	
 	def abort(self):
 		if self.child_pid is not None:

@@ -13,6 +13,7 @@ To do this, you supply a L{Handler} to the L{policy}.
 import os, sys
 from logging import debug, info, warn
 
+from zeroinstall.support import tasks
 from zeroinstall.injector import model, download
 from zeroinstall.injector.iface_cache import iface_cache
 
@@ -59,13 +60,30 @@ class Handler(object):
 				dl.error_stream_closed()
 			except Exception, ex:
 				self.report_error(ex)
-			if self._loop and not self.monitored_downloads:
-				# Exit from wait_for_downloads if this was the last one
-				debug("Exiting mainloop")
-				self._loop.quit()
 			return False
+
+	def wait_for_blocker(self, blocker):
+		if not blocker.happened:
+			import gobject
+
+			def quitter():
+				yield blocker
+				self._loop.quit()
+			quit = tasks.Task(quitter(), "quitter")
+
+			assert self._loop is None	# Avoid recursion
+			self._loop = gobject.MainLoop(gobject.main_context_default())
+			try:
+				debug("Entering mainloop, waiting for %s", blocker)
+				self._loop.run()
+			finally:
+				self._loop = None
+
+			assert blocker.happened, "Someone quit the main loop!"
+
+		tasks.check(blocker)
 	
-	def wait_for_downloads(self):
+	def __wait_for_downloads(self):
 		"""Monitor all downloads, waiting until they are complete. This is suitable
 		for use by non-interactive programs.
 		@return: list of error messages, one per failed download (since 0.32)
@@ -115,6 +133,7 @@ class Handler(object):
 		@arg interface: the interface being updated
 		@arg sigs: a list of signatures (from L{gpg.check_stream})
 		@arg iface_xml: the downloaded data (not yet trusted)
+		@return: a blocker, if confirmation will happen asynchronously, or None
 		"""
 		from zeroinstall.injector import trust, gpg
 		assert sigs

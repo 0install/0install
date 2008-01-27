@@ -27,15 +27,18 @@ class DummyHandler(handler.Handler):
 		handler.Handler.__init__(self)
 		self.ex = None
 
-	def wait_for_downloads(self):
+	def wait_for_blocker(self, blocker):
 		self.ex = None
-		handler.Handler.wait_for_downloads(self)
+		handler.Handler.wait_for_blocker(self, blocker)
 		if self.ex:
 			raise self.ex
 	
 	def report_error(self, ex):
-		assert self.ex is None
+		assert self.ex is None, self.ex
 		self.ex = ex
+
+		#import traceback
+		#traceback.print_exc()
 
 class TestDownload(BaseTest):
 	def setUp(self):
@@ -132,7 +135,6 @@ class TestDownload(BaseTest):
 			sys.stdout = old_out
 	
 	def testAcceptKey(self):
-		#getLogger().setLevel(DEBUG)
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
@@ -193,7 +195,7 @@ class TestDownload(BaseTest):
 				assert False
 			except model.SafeException, ex:
 				if "HelloWorld/Missing" not in str(ex):
-					raise ex
+					raise
 		finally:
 			sys.stdout = old_out
 
@@ -209,7 +211,7 @@ class TestDownload(BaseTest):
 				assert False
 			except download.DownloadError, ex:
 				if "Connection" not in str(ex):
-					raise ex
+					raise
 		finally:
 			sys.stdout = old_out
 

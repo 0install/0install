@@ -12,6 +12,7 @@ is also the policy used to run the injector's GUI.
 import os
 from logging import debug, info
 
+from zeroinstall.support import tasks
 from zeroinstall.injector import model, policy, run
 from zeroinstall.injector.handler import Handler
 from zeroinstall import NeedDownload
@@ -27,33 +28,15 @@ class AutoPolicy(policy.Policy):
 		self.download_only = download_only
 		self.dry_run = dry_run
 
-	def need_download(self):
-		"""Decide whether we need to download anything (but don't do it!)
-		@return: true if we MUST download something (interfaces or implementations)
-		@rtype: bool
-		@postcondition: if we return False, self.stale_feeds contains any feeds which SHOULD be updated
-		"""
-		old = self.allow_downloads
-		self.allow_downloads = False
-		try:
-			try:
-				self.recalculate(fetch_stale_interfaces = False)
-				debug("Recalculated: ready = %s; %d stale feeds", self.ready, len(self.stale_feeds))
-				if not self.ready: return False
-				self.start_downloading_impls()
-			except NeedDownload:
-				return True
-			return False
-		finally:
-			self.allow_downloads = old
-	
-	def begin_iface_download(self, interface, force = False):
+	def download_and_import_feed(self, feed_url, force = False):
 		if self.dry_run or not self.allow_downloads:
-			raise NeedDownload(interface.uri)
+			raise NeedDownload(feed_url)
 		else:
-			policy.Policy.begin_iface_download(self, interface, force)
+			return policy.Policy.download_and_import_feed(self, feed_url, force)
 
-	def start_downloading_impls(self):
+	def download_impls(self):
+		blockers = []
+
 		for iface, impl in self.get_uncached_implementations():
 			debug("start_downloading_impls: for %s get %s", iface, impl)
 			source = self.get_best_source(impl)
@@ -62,38 +45,36 @@ class AutoPolicy(policy.Policy):
 					"interface " + iface.get_name() + " cannot be "
 					"downloaded (no download locations given in "
 					"interface!)")
-			self.begin_impl_download(impl, source)
+			blockers.append(tasks.Task(self.download_impl(impl, source), "fetch impl %s" % impl).finished)
 
-	def begin_archive_download(self, download_source, success_callback, force = False):
+		while blockers:
+			yield blockers
+			tasks.check(blockers)
+
+			blockers = [b for b in blockers if not b.happened]
+
+	def download_archive(self, download_source, force = False):
 		if self.dry_run or not self.allow_downloads:
 			raise NeedDownload(download_source.url)
-		return policy.Policy.begin_archive_download(self, download_source, success_callback, force = force)
+		return policy.Policy.download_archive(self, download_source, force = force)
 
 	def execute(self, prog_args, main = None, wrapper = None):
-		self.start_downloading_impls()
-		errors = self.handler.wait_for_downloads()
-		if errors:
-			raise model.SafeException("Errors during download: " + '\n'.join(errors))
+		task = tasks.Task(self.download_impls(), "download_impls")
+		self.handler.wait_for_blocker(task.finished)
 		if not self.download_only:
 			run.execute(self, prog_args, dry_run = self.dry_run, main = main, wrapper = wrapper)
 		else:
 			info("Downloads done (download-only mode)")
 	
-	def recalculate_with_dl(self):
-		self.recalculate()
-		while self.handler.monitored_downloads:
-			errors = self.handler.wait_for_downloads()
-			if errors:
-				raise model.SafeException("Errors during download: " + '\n'.join(errors))
-			self.recalculate()
-	
 	def download_and_execute(self, prog_args, refresh = False, main = None):
-		self.recalculate_with_dl()
-		if refresh:
-			self.refresh_all(False)
-			self.recalculate_with_dl()
-		if not self.ready:
+		task = tasks.Task(self.solve_with_downloads(refresh), "solve_with_downloads")
+
+		errors = self.handler.wait_for_blocker(task.finished)
+		if errors:
+			raise model.SafeException("Errors during download: " + '\n'.join(errors))
+
+		if not self.solver.ready:
 			raise model.SafeException("Can't find all required implementations:\n" +
-				'\n'.join(["- %s -> %s" % (iface, self.implementation[iface])
-					   for iface  in self.implementation]))
+				'\n'.join(["- %s -> %s" % (iface, self.solver.selections[iface])
+					   for iface  in self.solver.selections]))
 		self.execute(prog_args, main = main)

@@ -17,65 +17,52 @@ import basedir
 from namespaces import *
 import ConfigParser
 from zeroinstall import NeedDownload
+from zeroinstall.support import tasks
 from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
 from zeroinstall.injector.trust import trust_db
 
 # If we started a check within this period, don't start another one:
 FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
 
-class _Cook:
+def _cook(policy, required_digest, recipe, force = False):
 	"""A Cook follows a Recipe."""
 	# Maybe we're taking this metaphor too far?
 
-	def __init__(self, policy, required_digest, recipe, force = False):
-		"""Start downloading all the ingredients."""
-		self.recipe = recipe
-		self.required_digest = required_digest
-		self.downloads = {}	# Downloads that are not yet successful
-		self.streams = {}	# Streams collected from successful downloads
+	# Start downloading all the ingredients.
+	downloads = {}	# Downloads that are not yet successful
+	streams = {}	# Streams collected from successful downloads
 
-		# Start a download for each ingredient
+	# Start a download for each ingredient
+	blockers = []
+	for step in recipe.steps:
+		blocker, stream = policy.download_archive(step, force = force)
+		blockers.append(blocker)
+		streams[step] = stream
+
+	while blockers:
+		yield blockers
+		tasks.check(blockers)
+		blockers = [b for b in blockers if not b.happened]
+
+	from zeroinstall.zerostore import unpack
+
+	# Create an empty directory for the new implementation
+	store = iface_cache.stores.stores[0]
+	tmpdir = store.get_tmp_dir_for(required_digest)
+	try:
+		# Unpack each of the downloaded archives into it in turn
 		for step in recipe.steps:
-			dl = policy.begin_archive_download(step, success_callback = 
-				lambda stream, step=step: self.ingredient_ready(step, stream),
-				force = force)
-			self.downloads[step] = dl
-		self.test_done()	# Needed for empty recipes
-
-		# Note: the only references to us are held by the on_success callback
-		# in each Download. On error this is removed, which will cause us
-		# to be destoryed, which will release all the temporary files we hold.
-	
-	def ingredient_ready(self, step, stream):
-		# Called when one archive has been fetched. Store it until the other
-		# archives arrive.
-		assert step not in self.streams
-		self.streams[step] = stream
-		del self.downloads[step]
-		self.test_done()
-	
-	def test_done(self):
-		# On success, a download is removed from here. If empty, it means that
-		# all archives have successfully been downloaded.
-		if self.downloads: return
-
-		from zeroinstall.zerostore import unpack
-
-		# Create an empty directory for the new implementation
-		store = iface_cache.stores.stores[0]
-		tmpdir = store.get_tmp_dir_for(self.required_digest)
-		try:
-			# Unpack each of the downloaded archives into it in turn
-			for step in self.recipe.steps:
-				unpack.unpack_archive_over(step.url, self.streams[step], tmpdir, step.extract)
-			# Check that the result is correct and store it in the cache
-			store.check_manifest_and_rename(self.required_digest, tmpdir)
-			tmpdir = None
-		finally:
-			# If unpacking fails, remove the temporary directory
-			if tmpdir is not None:
-				from zeroinstall import support
-				support.ro_rmtree(tmpdir)
+			stream = streams[step]
+			stream.seek(0)
+			unpack.unpack_archive_over(step.url, stream, tmpdir, step.extract)
+		# Check that the result is correct and store it in the cache
+		store.check_manifest_and_rename(required_digest, tmpdir)
+		tmpdir = None
+	finally:
+		# If unpacking fails, remove the temporary directory
+		if tmpdir is not None:
+			from zeroinstall import support
+			support.ro_rmtree(tmpdir)
 
 class Policy(object):
 	"""Chooses a set of implementations based on a policy.
@@ -99,16 +86,14 @@ class Policy(object):
 	@type ready: bool
 	@ivar handler: handler for main-loop integration
 	@type handler: L{handler.Handler}
-	@ivar restrictions: Currently known restrictions for each interface.
-	@type restrictions: {model.Interface -> [model.Restriction]}
 	@ivar src: whether we are looking for source code
 	@type src: bool
 	@ivar stale_feeds: set of feeds which are present but haven't been checked for a long time
 	@type stale_feeds: set
 	"""
-	__slots__ = ['root', 'implementation', 'watchers',
-		     'freshness', 'ready', 'handler', '_warned_offline',
-		     'restrictions', 'src', 'stale_feeds', 'solver']
+	__slots__ = ['root', 'watchers',
+		     'freshness', 'handler', '_warned_offline',
+		     'src', 'stale_feeds', 'solver']
 	
 	help_with_testing = property(lambda self: self.solver.help_with_testing,
 				     lambda self, value: setattr(self.solver, 'help_with_testing', value))
@@ -118,6 +103,10 @@ class Policy(object):
 
 	root_restrictions = property(lambda self: self.solver.root_restrictions,
 				     lambda self, value: setattr(self.solver, 'root_restrictions', value))
+	
+	implementation = property(lambda self: self.solver.selections)
+
+	ready = property(lambda self: self.solver.ready)
 
 	def __init__(self, root, handler = None, src = False):
 		"""
@@ -129,9 +118,7 @@ class Policy(object):
 		"""
 		self.watchers = []
 		self.freshness = 60 * 60 * 24 * 30
-		self.ready = False
 		self.src = src				# Root impl must be a "src" machine type
-		self.restrictions = {}
 		self.stale_feeds = sets.Set()
 
 		from zeroinstall.injector.solver import DefaultSolver
@@ -164,13 +151,11 @@ class Policy(object):
 
 		# Probably need weakrefs here...
 		iface_cache.add_watcher(self)
-		trust_db.watchers.append(self.process_pending)
 	
 	def set_root(self, root):
 		"""Change the root interface URI."""
 		assert isinstance(root, (str, unicode))
 		self.root = root
-		self.implementation = {}		# Interface -> [Implementation | None]
 
 	def save_config(self):
 		"""Write global settings."""
@@ -186,31 +171,6 @@ class Policy(object):
 		config.write(file(path + '.new', 'w'))
 		os.rename(path + '.new', path)
 	
-	def process_pending(self):
-		"""For each pending feed, either import it fully (if we now
-		trust one of the signatures) or start performing whatever action
-		is needed next (either downloading a key or confirming a
-		fingerprint).
-		@since: 0.25
-		"""
-		# process_pending must never be called from recalculate
-
-		for pending in iface_cache.pending.values():
-			pending.begin_key_downloads(self.handler, lambda pending = pending: self._keys_ready(pending))
-	
-	def _keys_ready(self, pending):
-		try:
-			iface = iface_cache.get_interface(pending.url)
-			# Note: this may call recalculate, but it shouldn't do any harm
-			# (just a bit slow)
-			updated = iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
-		except SafeException, ex:
-			self.handler.report_error(ex)
-			# Ignore the problematic new version and continue...
-		else:
-			if not updated:
-				self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
-
 	def recalculate(self, fetch_stale_interfaces = True):
 		"""Try to choose a set of implementations.
 		This may start downloading more interfaces, but will return immediately.
@@ -220,28 +180,28 @@ class Policy(object):
 		@postcondition: L{ready} indicates whether a possible set of implementations was chosen
 		@note: A policy may be ready before all feeds have been downloaded. As new feeds
 		arrive, the chosen versions may change.
+		@return: a list of tasks which will require a recalculation when complete
 		"""
 
 		self.stale_feeds = sets.Set()
-		self.restrictions = {}
-		self.implementation = {}
 
 		host_arch = arch.get_host_architecture()
 		if self.src:
 			host_arch = arch.SourceArchitecture(host_arch)
-		self.ready = self.solver.solve(self.root, host_arch)
+		self.solver.solve(self.root, host_arch)
 
 		for f in self.solver.feeds_used:
-			iface = self.get_interface(f)	# May start a download
+			self.get_interface(f)	# May start a download
 
-		self.implementation = self.solver.selections.copy()
-
+		tasks = []
 		if fetch_stale_interfaces and self.network_use != network_offline:
 			for stale in self.stale_feeds:
 				info("Checking for updates to stale feed %s", stale)
-				self.begin_iface_download(stale, False)
+				tasks.append(self.download_and_import_feed(stale, False))
 
 		for w in self.watchers: w()
+
+		return tasks
 	
 	def usable_feeds(self, iface):
 		"""Generator for C{iface.feeds} that are valid for our architecture.
@@ -276,8 +236,8 @@ class Policy(object):
 		if not uri.startswith('/'):
 			if iface.last_modified is None:
 				if self.network_use != network_offline:
-					debug("Interface not cached and not off-line. Downloading...")
-					self.begin_iface_download(iface)
+					debug("Feed not cached and not off-line. Downloading...")
+					self.download_and_import_feed(iface.uri)
 				else:
 					if self._warned_offline:
 						debug("Nothing known about interface, but we are off-line.")
@@ -304,30 +264,40 @@ class Policy(object):
 
 		return iface
 	
-	def begin_iface_download(self, interface, force = False):
-		"""Start downloading the interface, and add a callback to process it when
-		done. If it is already being downloaded, do nothing."""
+	def download_and_import_feed(self, feed_url, force = False):
+		"""Download the feed, download any required keys, confirm trust if needed and import."""
 		
-		debug("begin_iface_download %s (force = %d)", interface, force)
-		if interface.uri.startswith('/'):
-			return
-		debug("Need to download")
-		dl = self.handler.get_download(interface.uri, force = force)
-		if dl.on_success:
-			# Make sure we don't get called twice
-			raise Exception("Already have a handler for %s; not adding another" % interface)
+		debug("download_and_import_feed %s (force = %d)", feed_url, force)
+		assert not feed_url.startswith('/')
 
-		def feed_downloaded(stream):
-			pending = PendingFeed(interface.uri, stream)
+		dl = self.handler.get_download(feed_url, force = force)
+
+		def fetch_feed():
+			stream = dl.tempfile
+
+			yield dl.downloaded
+			tasks.check(dl.downloaded)
+
+			pending = PendingFeed(feed_url, stream)
 			iface_cache.add_pending(pending)
-			# This will trigger any required confirmations
-			self.process_pending()
 
-		dl.on_success.append(feed_downloaded)
+			keys_downloaded = tasks.Task(pending.download_keys(self.handler), "download keys for " + feed_url)
+			yield keys_downloaded.finished
+			tasks.check(keys_downloaded.finished)
+
+			iface = iface_cache.get_interface(pending.url)
+			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+				blocker = self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+				if blocker:
+					yield blocker
+					tasks.check(blocker)
+				if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+					raise SafeException("No signing keys trusted; not importing")
+
+		return tasks.Task(fetch_feed(), "download_and_import_feed " + feed_url).finished
 	
-	def begin_impl_download(self, impl, retrieval_method, force = False):
-		"""Start fetching impl, using retrieval_method. Each download started
-		will call monitor_download."""
+	def download_impl(self, impl, retrieval_method, force = False):
+		"""Download impl, using retrieval_method. See Task."""
 		assert impl
 		assert retrieval_method
 
@@ -338,16 +308,21 @@ class Policy(object):
 					(alg, impl.feed.get_name(), impl.get_version()))
 
 		if isinstance(retrieval_method, DownloadSource):
-			def archive_ready(stream):
-				iface_cache.add_to_cache(retrieval_method, stream)
-			self.begin_archive_download(retrieval_method, success_callback = archive_ready, force = force)
+			blocker, stream = self.download_archive(retrieval_method, force = force)
+			yield blocker
+			tasks.check(blocker)
+
+			stream.seek(0)
+			iface_cache.add_to_cache(retrieval_method, stream)
 		elif isinstance(retrieval_method, Recipe):
-			_Cook(self, impl.id, retrieval_method)
+			blocker = tasks.Task(_cook(self, impl.id, retrieval_method, force), "cook").finished
+			yield blocker
+			tasks.check(blocker)
 		else:
 			raise Exception("Unknown download type for '%s'" % retrieval_method)
 
-	def begin_archive_download(self, download_source, success_callback, force = False):
-		"""Start fetching an archive. You should normally call L{begin_impl_download}
+	def download_archive(self, download_source, force = False):
+		"""Fetch an archive. You should normally call L{begin_impl_download}
 		instead, since it handles other kinds of retrieval method too."""
 		from zeroinstall.zerostore import unpack
 		mime_type = download_source.type
@@ -358,8 +333,7 @@ class Policy(object):
 		unpack.check_type_ok(mime_type)
 		dl = self.handler.get_download(download_source.url, force = force)
 		dl.expected_size = download_source.size + (download_source.start_offset or 0)
-		dl.on_success.append(success_callback)
-		return dl
+		return (dl.downloaded, dl.tempfile)
 	
 	def begin_icon_download(self, interface, force = False):
 		"""Start downloading an icon for this interface. On success, add it to the
@@ -456,9 +430,9 @@ class Policy(object):
 		"""List all chosen implementations which aren't yet available locally.
 		@rtype: [(str, model.Implementation)]"""
 		uncached = []
-		for iface in self.implementation:
-			impl = self.implementation[iface]
-			assert impl, self.implementation
+		for iface in self.solver.selections:
+			impl = self.solver.selections[iface]
+			assert impl, self.solver.selections
 			if not self.get_cached(impl):
 				uncached.append((iface, impl))
 		return uncached
@@ -466,16 +440,8 @@ class Policy(object):
 	def refresh_all(self, force = True):
 		"""Start downloading all feeds for all selected interfaces.
 		@param force: Whether to restart existing downloads."""
-		for x in self.implementation:
-			self.begin_iface_download(x, force)
-			for f in self.usable_feeds(x):
-				feed_iface = iface_cache.get_interface(f.uri)
-				self.begin_iface_download(feed_iface, force)
-	
-	def interface_changed(self, interface):
-		"""Callback used by L{iface_cache.IfaceCache.update_interface_from_network}."""
-		debug("interface_changed(%s): recalculating", interface)
-		self.recalculate()
+		task = tasks.Task(self.solve_with_downloads(force = True), "refresh all")
+		self.handler.wait_for_blocker(task.finished)
 	
 	def get_feed_targets(self, feed_iface_uri):
 		"""Return a list of Interfaces for which feed_iface can be a feed.
@@ -519,3 +485,71 @@ class Policy(object):
 		if impl.download_sources:
 			return impl.download_sources[0]
 		return None
+
+	def solve_with_downloads(self, force = False):
+		"""Run the solver, then download any feeds that are missing or
+		that need to be updated. Each time a new feed is imported into
+		the cache, the solver is run again, possibly adding new downloads.
+		@param force: whether to download even if we're already ready to run
+		@return: a generator that can be used to create a L{support.tasks.Task}."""
+		
+		downloads_finished = set()		# Successful or otherwise
+		downloads_in_progress = {}		# URL -> Download
+
+		host_arch = arch.get_host_architecture()
+		if self.src:
+			host_arch = arch.SourceArchitecture(host_arch)
+
+		while True:
+			self.solver.solve(self.root, host_arch)
+			for w in self.watchers: w()
+
+			if self.solver.ready and not force:
+				break
+			else:
+				# Once we've starting downloading some things,
+				# we might as well get them all.
+				force = True
+
+			if not self.network_use == network_offline:
+				for f in self.solver.feeds_used:
+					if f in downloads_finished or f in downloads_in_progress:
+						continue
+					if f.startswith('/'):
+						continue
+					feed = iface_cache.get_interface(f)
+					downloads_in_progress[f] = self.download_and_import_feed(f)
+
+			if not downloads_in_progress:
+				break
+
+			blockers = downloads_in_progress.values()
+			yield blockers
+			tasks.check(blockers)
+
+			for f in downloads_in_progress.keys():
+				if downloads_in_progress[f].happened:
+					print "Removing", f
+					del downloads_in_progress[f]
+					downloads_finished.add(f)
+
+	def need_download(self):
+		"""Decide whether we need to download anything (but don't do it!)
+		@return: true if we MUST download something (interfaces or implementations)
+		@rtype: bool
+		@postcondition: if we return False, self.stale_feeds contains any feeds which SHOULD be updated
+		"""
+		host_arch = arch.get_host_architecture()
+		if self.src:
+			host_arch = arch.SourceArchitecture(host_arch)
+		self.solver.solve(self.root, host_arch)
+		for w in self.watchers: w()
+
+		if not self.solver.ready:
+			return True		# Maybe a newer version will work?
+		
+		if self.get_uncached_implementations():
+			return True
+
+		return False
+	

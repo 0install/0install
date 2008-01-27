@@ -53,7 +53,7 @@ class PendingFeed(object):
 	@ivar new_xml: the payload of the signed_data, or the whole thing if XML
 	@type new_xml: str
 	@since: 0.25"""
-	__slots__ = ['url', 'signed_data', 'sigs', 'new_xml', 'downloads', 'download_callback']
+	__slots__ = ['url', 'signed_data', 'sigs', 'new_xml']
 
 	def __init__(self, url, signed_data):
 		"""Downloaded data is a GPG-signed message.
@@ -64,26 +64,19 @@ class PendingFeed(object):
 		@raise SafeException: if the data is not signed, and logs the actual data"""
 		self.url = url
 		self.signed_data = signed_data
-		self.downloads = []
 		self.recheck()
 
-	def begin_key_downloads(self, handler, callback):
-		"""Start downloading any required GPG keys not already on our keyring.
+	def download_keys(self, handler):
+		"""Download any required GPG keys not already on our keyring.
 		When all downloads are done (successful or otherwise), add any new keys
-		to the keyring, L{recheck}, and invoke the callback.
-		If we are already downloading, return and do nothing else.
-		Otherwise, if nothing needs to be downloaded, the callback is invoked immediately.
+		to the keyring, L{recheck}.
 		@param handler: handler to manage the download
 		@type handler: L{handler.Handler}
 		@param callback: callback to invoke when done
 		@type callback: function()
 		"""
-		if self.downloads:
-			return
-
-		assert callback
-		self.download_callback = callback
-
+		downloads = {}
+		blockers = []
 		for x in self.sigs:
 			key_id = x.need_key()
 			if key_id:
@@ -91,17 +84,42 @@ class PendingFeed(object):
 				key_url = urlparse.urljoin(self.url, '%s.gpg' % key_id)
 				info("Fetching key from %s", key_url)
 				dl = handler.get_download(key_url)
-				self.downloads.append(dl)
-				dl.on_success.append(lambda stream: self._downloaded_key(dl, stream))
+				downloads[dl.downloaded] = (dl, dl.tempfile)
+				blockers.append(dl.downloaded)
 
-		if not self.downloads:
-			self.download_callback()
+		exception = None
+		any_success = False
 
-	def _downloaded_key(self, dl, stream):
+		from zeroinstall.support import tasks
+
+		while blockers:
+			yield blockers
+			tasks.check(blockers)
+
+			old_blockers = blockers
+			blockers = []
+
+			for b in old_blockers:
+				if b.happened:
+					dl, stream = downloads[b]
+					try:
+						stream.seek(0)
+						self._downloaded_key(stream)
+						any_success = True
+					except Exception, ex:
+						warn("Failed to import key for '%s': %s", self.url, str(ex))
+						exception = ex
+				else:
+					blockers.append(b)
+
+		if exception and not any_success:
+			raise exception
+
+		self.recheck()
+
+	def _downloaded_key(self, stream):
 		import shutil, tempfile
 		from zeroinstall.injector import gpg
-
-		self.downloads.remove(dl)
 
 		info("Importing key for feed '%s'", self.url)
 
@@ -111,18 +129,10 @@ class PendingFeed(object):
 			shutil.copyfileobj(stream, tmpfile)
 			tmpfile.flush()
 
-			try:
-				tmpfile.seek(0)
-				gpg.import_key(tmpfile)
-			except Exception, ex:
-				warn("Failed to import key for '%s': %s", self.url, str(ex))
+			tmpfile.seek(0)
+			gpg.import_key(tmpfile)
 		finally:
 			tmpfile.close()
-
-			if not self.downloads:
-				# All complete
-				self.recheck()
-				self.download_callback()
 
 	def recheck(self):
 		"""Set new_xml and sigs by reading signed_data.
@@ -286,9 +296,6 @@ class IfaceCache(object):
 		info("Updated interface cache entry for %s (modified %s)",
 			interface.get_name(), _pretty_time(modified_time))
 
-		for w in self.watchers:
-			w.interface_changed(interface)
-	
 	def _import_new_interface(self, interface, new_xml, modified_time):
 		"""Write new_xml into the cache.
 		@param interface: updated once the new XML is written

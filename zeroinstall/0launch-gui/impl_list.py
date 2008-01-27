@@ -33,8 +33,6 @@ class ImplTips(TreeTips):
 		self.interface = interface
 
 	def get_tooltip_text(self, impl):
-		restrictions = policy.restrictions.get(self.interface, [])
-
 		if impl.id.startswith('/'):
 			return _("Local: %s") % impl.id
 		if impl.id.startswith('package:'):

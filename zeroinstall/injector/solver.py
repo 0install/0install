@@ -31,11 +31,12 @@ class Solver(object):
 	@ivar details: extra information, if record_details mode was used
 	@type details: {str: [(Implementation, comment)]}
 	"""
-	__slots__ = ['selections', 'feeds_used', 'details', 'record_details']
+	__slots__ = ['selections', 'feeds_used', 'details', 'record_details', 'ready']
 
 	def __init__(self):
 		self.selections = self.feeds_used = self.details = None
 		self.record_details = False
+		self.ready = False
 	
 	def solve(self, root_interface, arch):
 		"""Get the best implementation of root_interface and all of its dependencies.
@@ -100,6 +101,7 @@ class DefaultSolver(Solver):
 			else:
 				debug("No implementation chould be chosen yet");
 				ready = False
+
 			return ready
 
 		def get_best_implementation(iface, arch):
@@ -260,4 +262,4 @@ class DefaultSolver(Solver):
 				except NotStored:
 					return False
 
-		return process(model.InterfaceDependency(root_interface, restrictions = self.root_restrictions), arch)
+		self.ready = process(model.InterfaceDependency(root_interface, restrictions = self.root_restrictions), arch)
