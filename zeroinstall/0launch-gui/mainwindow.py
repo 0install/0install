@@ -73,7 +73,10 @@ class MainWindow:
 
 	def download_and_run(self):
 		task = tasks.Task(policy.download_impls(), "download implementations")
+
 		yield task.finished
+		tasks.check(task.finished)
+
 		if policy.get_uncached_implementations():
 			dialog.alert('Not all downloads succeeded; cannot run program.')
 		else:

@@ -31,7 +31,6 @@ class Template:
 		return widget
 
 class GUIHandler(handler.Handler):
-	monitored_downloads = None
 	dl_callbacks = None		# Download -> [ callback ]
 	pulse = None
 	policy = None
@@ -131,7 +130,8 @@ class GUIPolicy(Policy):
 		if self.checking:
 			self.checking.show()
 
-			yield solved.finished
+			yield solved.finished	# TODO: Show Details
+			tasks.check(solved.finished)
 
 			self.checking.updates_done(self.versions_changed())
 
@@ -143,11 +143,13 @@ class GUIPolicy(Policy):
 				self.window.show()
 				yield []
 			else:
-				raise Exception("STOP")
-				import download_box
-				task = tasks.Task(policy.download_impls(), "download implementations")
-				yield task.finished
-				yield []
+				from zeroinstall.injector import selections
+				sels = selections.Selections(policy)
+				doc = sels.toDOM()
+				reply = doc.toxml('utf-8')
+				sys.stdout.write(('Length:%8x\n' % len(reply)) + reply)
+				self.window.destroy()
+				sys.exit(0)			# Success
 		else:
 			self.window.show()
 			yield []
