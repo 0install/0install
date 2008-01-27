@@ -4,7 +4,8 @@ import sys, tempfile, os, shutil, StringIO
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import writer, model, basedir, reader, qdom
+from zeroinstall.injector import writer, model, reader, qdom
+from zeroinstall.support import basedir
 
 test_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
 <name>Test</name>

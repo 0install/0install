@@ -8,7 +8,7 @@ Code for managing the implementation cache.
 import os
 from logging import debug, info, warn
 
-from zeroinstall.injector import basedir
+from zeroinstall.support import basedir
 from zeroinstall import SafeException, support
 
 class BadDigest(SafeException):

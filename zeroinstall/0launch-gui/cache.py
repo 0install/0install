@@ -4,9 +4,10 @@ import gtk, gobject
 import help_box
 from dialog import Dialog, alert
 from zeroinstall.injector.iface_cache import iface_cache
-from zeroinstall.injector import basedir, namespaces, model
+from zeroinstall.injector import namespaces, model
 from zeroinstall.zerostore import BadDigest, manifest
 from zeroinstall import support
+from zeroinstall.support import basedir
 from treetips import TreeTips
 
 ROX_IFACE = 'http://rox.sourceforge.net/2005/interfaces/ROX-Filer'

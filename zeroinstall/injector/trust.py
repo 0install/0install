@@ -9,7 +9,7 @@ Records who we trust to sign interfaces.
 
 import os, sets
 
-import basedir
+from zeroinstall.support import basedir
 from namespaces import config_site, config_prog, XMLNS_TRUST
 
 class TrustDB(object):

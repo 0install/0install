@@ -8,7 +8,8 @@ Integration with native distribution package managers.
 
 import os, re
 from logging import warn, info
-from zeroinstall.injector import namespaces, basedir, model
+from zeroinstall.injector import namespaces, model
+from zeroinstall.support import basedir
 
 dotted_ints = '[0-9]+(\.[0-9]+)*'
 version_regexp = '(%s)(-(pre|rc|post|)%s)*' % (dotted_ints, dotted_ints)

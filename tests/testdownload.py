@@ -7,8 +7,9 @@ from logging import getLogger, DEBUG, INFO, WARN
 
 sys.path.insert(0, '..')
 
-from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, download, reader, trust, handler
+from zeroinstall.injector import model, autopolicy, gpg, iface_cache, download, reader, trust, handler
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
+from zeroinstall.support import basedir
 import data
 
 import server

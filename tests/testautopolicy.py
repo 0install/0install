@@ -8,7 +8,8 @@ from logging import getLogger, DEBUG, INFO
 sys.path.insert(0, '..')
 
 from zeroinstall import NeedDownload
-from zeroinstall.injector import model, basedir, autopolicy, gpg, iface_cache, namespaces, reader
+from zeroinstall.injector import model, autopolicy, gpg, iface_cache, namespaces, reader
+from zeroinstall.support import basedir
 import data
 
 foo_iface_uri = 'http://foo'

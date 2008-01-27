@@ -7,10 +7,11 @@ import logging
 os.environ['HOME'] = '/home/idontexist'
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import trust, basedir, autopolicy, namespaces, qdom
+from zeroinstall.injector import trust, autopolicy, namespaces, qdom
 from zeroinstall.injector import model, iface_cache, cli, download, writer, distro
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
 from zeroinstall import support
+from zeroinstall.support import basedir
 
 dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
 

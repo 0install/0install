@@ -8,11 +8,11 @@ Save per-interface configuration information.
 import os
 from xml.dom import minidom, XMLNS_NAMESPACE
 
-import basedir
+from zeroinstall.support import basedir
 
-from model import *
+from zeroinstall.injector.model import *
 
-from namespaces import config_site, config_prog, XMLNS_IFACE
+from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFACE
 
 def _add_impl(parent, impl):
 	if impl.user_stability:

@@ -13,11 +13,10 @@ from logging import info, debug, warn
 import arch
 
 from model import *
-import basedir
 from namespaces import *
 import ConfigParser
 from zeroinstall import NeedDownload
-from zeroinstall.support import tasks
+from zeroinstall.support import tasks, basedir
 from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
 from zeroinstall.injector.trust import trust_db
 

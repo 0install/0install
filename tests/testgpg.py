@@ -4,7 +4,8 @@ import sys, tempfile, os, shutil
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import gpg, model, basedir, trust
+from zeroinstall.injector import gpg, model, trust
+from zeroinstall.support import basedir
 
 err_sig = """<?xml version='1.0'?>
 This invalid document is signed with an unknown key.

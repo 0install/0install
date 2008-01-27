@@ -12,7 +12,8 @@ import time
 from logging import debug, warn, info
 from os.path import dirname
 
-from zeroinstall.injector import basedir, qdom, distro
+from zeroinstall.support import basedir
+from zeroinstall.injector import qdom, distro
 from zeroinstall.injector.namespaces import *
 from zeroinstall.injector.model import *
 from zeroinstall.injector import model

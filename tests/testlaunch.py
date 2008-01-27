@@ -8,8 +8,9 @@ import logging
 foo_iface_uri = 'http://foo'
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import trust, basedir, autopolicy, namespaces, model, iface_cache, cli
+from zeroinstall.injector import trust, autopolicy, namespaces, model, iface_cache, cli
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
+from zeroinstall.support import basedir
 
 class SilenceLogger(logging.Filter):
 	def filter(self, record):

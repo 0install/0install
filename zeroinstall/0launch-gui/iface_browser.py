@@ -1,6 +1,6 @@
 import gtk, gobject
 
-from zeroinstall.injector import basedir
+from zeroinstall.support import basedir
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import model
 import properties

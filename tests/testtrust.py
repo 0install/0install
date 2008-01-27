@@ -7,8 +7,9 @@ from sets import Set
 thomas_fingerprint = "92429807C9853C0744A68B9AAE07828059A53CC1"
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import trust, basedir
+from zeroinstall.injector import trust
 from zeroinstall import SafeException
+from zeroinstall.support import basedir
 
 class TestTrust(BaseTest):
 	def testInit(self):

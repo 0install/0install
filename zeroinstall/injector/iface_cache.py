@@ -31,7 +31,8 @@ import os, sys, time
 from logging import debug, info, warn
 from cStringIO import StringIO
 
-from zeroinstall.injector import reader, basedir, model
+from zeroinstall.support import basedir
+from zeroinstall.injector import reader, model
 from zeroinstall.injector.namespaces import *
 from zeroinstall.injector.model import *
 from zeroinstall import zerostore

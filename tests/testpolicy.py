@@ -4,8 +4,9 @@ import sys, tempfile, os, shutil
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import autopolicy, basedir, reader, model
+from zeroinstall.injector import autopolicy, reader, model
 from zeroinstall.injector.iface_cache import iface_cache
+from zeroinstall.support import basedir
 
 import logging
 logger = logging.getLogger()

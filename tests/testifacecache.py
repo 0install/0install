@@ -7,9 +7,10 @@ from logging import getLogger, DEBUG, INFO
 #getLogger().setLevel(DEBUG)
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import basedir, download, model, gpg, trust
+from zeroinstall.injector import download, model, gpg, trust
 from zeroinstall.injector.namespaces import *
 from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
+from zeroinstall.support import basedir
 
 class TestIfaceCache(BaseTest):
 	def testList(self):
