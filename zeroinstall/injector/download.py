@@ -34,10 +34,10 @@ class Download(object):
 		"Initial status is starting."
 		self.url = url
 		self.status = download_starting
-		self.downloaded = tasks.Blocker("Download " + url)
 
 		self.tempfile = None		# Stream for result
 		self.errors = None
+		self.downloaded = None
 
 		self.expected_size = None	# Final size (excluding skipped bytes)
 
@@ -45,11 +45,16 @@ class Download(object):
 		self.child_stderr = None
 	
 	def start(self):
-		"""Returns stderr stream from child. Call error_stream_closed() when
-		it returns EOF."""
 		assert self.status == download_starting
+		assert self.downloaded is None
+
 		self.tempfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
 
+		task = tasks.Task(self._do_download(), "download " + self.url)
+		self.downloaded = task.finished
+
+	def _do_download(self):
+		"""Will trigger L{downloaded} when done (on success or failure)."""
 		error_r, error_w = os.pipe()
 		self.errors = ''
 
@@ -67,42 +72,21 @@ class Download(object):
 		# We are the parent
 		os.close(error_w)
 		self.status = download_fetching
-		return os.fdopen(error_r, 'r')
-	
-	def download_as_child(self):
-		from urllib2 import urlopen, HTTPError, URLError
-		try:
-			import shutil
-			#print "Child downloading", self.url
-			if self.url.startswith('/'):
-				if not os.path.isfile(self.url):
-					print >>sys.stderr, "File '%s' does not " \
-						"exist!" % self.url
-					return
-				src = file(self.url)
-			elif self.url.startswith('http:') or self.url.startswith('ftp:'):
-				src = urlopen(self.url)
-			else:
-				raise Exception('Unsupported URL protocol in: ' + self.url)
 
-			shutil.copyfileobj(src, self.tempfile)
-			self.tempfile.flush()
-			
-			os._exit(0)
-		except (HTTPError, URLError), ex:
-			print >>sys.stderr, "Error downloading '" + self.url + "': " + str(ex)
-		except:
-			traceback.print_exc()
-	
-	def error_stream_data(self, data):
-		"""Passed with result of os.read(error_stream, n). Can be
-		called multiple times, once for each read."""
-		assert data
-		assert self.status is download_fetching
-		self.errors += data
+		#stream =  os.fdopen(error_r, 'r')
 
-	def error_stream_closed(self):
-		"""Ends a download. Status changes from fetching to checking."""
+		# Wait for child to exit, collecting error output as we go
+
+		while True:
+			yield tasks.InputBlocker(error_r, "read data from " + self.url)
+
+			data = os.read(error_r, 100)
+			if not data:
+				break
+			self.errors += data
+
+		# Download is complete...
+
 		assert self.status is download_fetching
 		assert self.tempfile is not None
 		assert self.child_pid is not None
@@ -140,6 +124,31 @@ class Download(object):
 		else:
 			self.status = download_checking
 			self.downloaded.trigger()
+	
+	def download_as_child(self):
+		from urllib2 import urlopen, HTTPError, URLError
+		try:
+			import shutil
+			#print "Child downloading", self.url
+			if self.url.startswith('/'):
+				if not os.path.isfile(self.url):
+					print >>sys.stderr, "File '%s' does not " \
+						"exist!" % self.url
+					return
+				src = file(self.url)
+			elif self.url.startswith('http:') or self.url.startswith('ftp:'):
+				src = urlopen(self.url)
+			else:
+				raise Exception('Unsupported URL protocol in: ' + self.url)
+
+			shutil.copyfileobj(src, self.tempfile)
+			self.tempfile.flush()
+			
+			os._exit(0)
+		except (HTTPError, URLError), ex:
+			print >>sys.stderr, "Error downloading '" + self.url + "': " + str(ex)
+		except:
+			traceback.print_exc()
 	
 	def abort(self):
 		if self.child_pid is not None:

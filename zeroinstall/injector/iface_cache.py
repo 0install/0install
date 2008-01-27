@@ -95,26 +95,26 @@ class PendingFeed(object):
 
 		while blockers:
 			yield blockers
-			tasks.check(blockers)
 
 			old_blockers = blockers
 			blockers = []
 
 			for b in old_blockers:
-				if b.happened:
-					dl, stream = downloads[b]
-					try:
+				try:
+					tasks.check(b)
+					if b.happened:
+						dl, stream = downloads[b]
 						stream.seek(0)
 						self._downloaded_key(stream)
 						any_success = True
-					except Exception, ex:
-						warn("Failed to import key for '%s': %s", self.url, str(ex))
-						exception = ex
-				else:
-					blockers.append(b)
+					else:
+						blockers.append(b)
+				except Exception:
+					warn("Failed to import key for '%s': %s", self.url, str(ex))
+					_, exception, tb = sys.exc_info()
 
 		if exception and not any_success:
-			raise exception
+			raise exception, None, tb
 
 		self.recheck()
 

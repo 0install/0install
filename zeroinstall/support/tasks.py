@@ -156,9 +156,9 @@ class IdleBlocker(Blocker):
 
 class TimeoutBlocker(Blocker):
 	"""Triggers after a set number of seconds."""
-	def __init__(self, timeout):
+	def __init__(self, timeout, name):
 		"""Trigger after 'timeout' seconds (may be a fraction)."""
-		Blocker.__init__(self)
+		Blocker.__init__(self, name)
 		gobject.timeout_add(long(timeout * 1000), self._timeout)
 	
 	def _timeout(self):
@@ -172,8 +172,8 @@ class InputBlocker(Blocker):
 	"""Triggers when os.read(stream) would not block."""
 	_tag = None
 	_stream = None
-	def __init__(self, stream):
-		Blocker.__init__(self)
+	def __init__(self, stream, name):
+		Blocker.__init__(self, name)
 		self._stream = stream
 	
 	def add_task(self, task):
@@ -192,8 +192,8 @@ class OutputBlocker(Blocker):
 	"""Triggers when os.write(stream) would not block."""
 	_tag = None
 	_stream = None
-	def __init__(self, stream):
-		Blocker.__init__(self)
+	def __init__(self, stream, name):
+		Blocker.__init__(self, name)
 		self._stream = stream
 	
 	def add_task(self, task):

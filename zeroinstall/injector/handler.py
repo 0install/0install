@@ -34,17 +34,13 @@ class Handler(object):
 	
 	def monitor_download(self, dl):
 		"""Called when a new L{download} is started.
-		Call L{download.Download.start} to start the download and get the error
-		stream, and then call L{download.Download.error_stream_data} whenever
-		you read any data from it, including nothing (end-of-file), which
-		indicates that the download is finished."""
-		error_stream = dl.start()
-		self.monitored_downloads[dl.url] = (error_stream, dl)
+		This is mainly used by the GUI to display the progress bar."""
+		dl.start()
+		self.monitored_downloads[dl.url] = dl
 
-		import gobject
-		gobject.io_add_watch(error_stream.fileno(),
-				     gobject.IO_IN | gobject.IO_ERR | gobject.IO_HUP,
-				     self._error_stream_ready, dl)
+		def download_done():
+			yield dl.downloaded
+		monitor = tasks.Task(download_done(), "download monitor")
 	
 	def _error_stream_ready(self, fd, cond, dl):
 		debug("Download stream for %s is ready...", dl)
@@ -83,31 +79,6 @@ class Handler(object):
 
 		tasks.check(blocker)
 	
-	def __wait_for_downloads(self):
-		"""Monitor all downloads, waiting until they are complete. This is suitable
-		for use by non-interactive programs.
-		@return: list of error messages, one per failed download (since 0.32)
-		@rtype: [str] or None"""
-
-		import gobject
-
-		if self.monitored_downloads:
-			assert self._loop is None	# Avoid recursion
-			self._loop_errors = []
-			self._loop = gobject.MainLoop(gobject.main_context_default())
-			try:
-				debug("Entering mainloop, waiting for %d download(s)", len(self.monitored_downloads))
-				self._loop.run()
-			finally:
-				self._loop = None
-			errors = self._loop_errors
-			self._loop_errors = None
-			if errors:
-				return errors
-		else:
-			debug("No downloads in progress, so not waiting")
-		return None
-
 	def get_download(self, url, force = False):
 		"""Return the Download object currently downloading 'url'.
 		If no download for this URL has been started, start one now (and

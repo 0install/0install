@@ -35,6 +35,7 @@ def _cook(policy, required_digest, recipe, force = False):
 	blockers = []
 	for step in recipe.steps:
 		blocker, stream = policy.download_archive(step, force = force)
+		assert stream
 		blockers.append(blocker)
 		streams[step] = stream
 
