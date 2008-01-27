@@ -37,27 +37,18 @@ class Handler(object):
 		This is mainly used by the GUI to display the progress bar."""
 		dl.start()
 		self.monitored_downloads[dl.url] = dl
+		self.downloads_changed()
 
 		def download_done():
 			yield dl.downloaded
+			del self.monitored_downloads[dl.url]
+			self.downloads_changed()
 		monitor = tasks.Task(download_done(), "download monitor")
 	
-	def _error_stream_ready(self, fd, cond, dl):
-		debug("Download stream for %s is ready...", dl)
-		errors = os.read(fd, 100)
-		if errors:
-			debug("Read data: %s", errors)
-			dl.error_stream_data(errors)
-			return True
-		else:
-			debug("End-of-stream. Download is finished.")
-			del self.monitored_downloads[dl.url]
-			try:
-				dl.error_stream_closed()
-			except Exception, ex:
-				self.report_error(ex)
-			return False
-
+	def downloads_changed(self):
+		# This is just for the GUI to override
+		pass
+	
 	def wait_for_blocker(self, blocker):
 		if not blocker.happened:
 			import gobject

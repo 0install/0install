@@ -29,92 +29,19 @@ class Template:
 		assert widget, "Widget '%s' not found in glade file '%s'" % (name, gladefile)
 		return widget
 
-class GUIHandler(object):
+class GUIHandler(handler.Handler):
 	monitored_downloads = None
 	dl_callbacks = None		# Download -> [ callback ]
 	pulse = None
 	policy = None
 
 	def __init__(self, policy):
+		handler.Handler.__init__(self)
 		self.policy = policy
-		self.monitored_downloads = []
-		self.dl_callbacks = {}
 
-	def get_download(self, url, force = False):
-		dl = None
-		for dl in self.monitored_downloads:
-			if dl.url == url:
-				if force:
-					dl.abort()
-					dl = None
-				break
-		else:
-			dl = None
-		if dl is None:
-			dl = download.Download(url)
-			self.monitor_download(dl)
-		return dl
-	
-	def add_dl_callback(self, url, callback):
-		"""If url is being downloaded now, call callback() when it completes.
-		Otherwise, call callback() now."""
-		for dl in self.monitored_downloads:
-			if dl.url == url:
-				callbacks = self.dl_callbacks.get(dl, [])
-				callbacks.append(callback)
-				self.dl_callbacks[dl] = callbacks
-				return
-		callback()
-
-	def monitor_download(self, dl):
-		from zeroinstall.injector import download
-		name = os.path.basename(dl.url)
-
-		self.monitored_downloads.append(dl)
-
-		error_stream = dl.start()
-		def error_ready(src, cond):
-			got = os.read(src.fileno(), 100)
-			if not got:
-				error_stream.close()
-				self.monitored_downloads.remove(dl)
-				if len(self.monitored_downloads) == 0:
-					gobject.source_remove(self.pulse)
-					self.policy.window.progress.hide()
-					self.pulse = None
-				try:
-					dl.error_stream_closed()
-					if hasattr(download, 'IconDownload') and \
-					     isinstance(dl, download.IconDownload):
-						if self.policy.window:
-							self.policy.window.browser.build_tree()
-				except download.DownloadError, ex:
-					dialog.alert(self.policy.window.window,
-						"Error downloading '%s':\n\n%s" %
-						(name, ex))
-				except InvalidInterface, ex:
-					dialog.alert(self.policy.window.window,
-						"Syntax error in downloaded interface '%s':\n\n%s" %
-						(name, ex))
-				except SafeException, ex:
-					dialog.alert(self.policy.window.window,
-						"Error fetching '%s':\n\n%s" %
-						(name, ex))
-
-				for cb in self.dl_callbacks.get(dl, []):
-					cb()
-
-				if len(self.monitored_downloads) == 0 and self.policy.checking:
-					self.policy.checking.updates_done(self.policy.versions_changed())
-				return False
-			dl.error_stream_data(got)
-			return True
-
-		gobject.io_add_watch(error_stream,
-				     gobject.IO_IN | gobject.IO_HUP,
-				     error_ready)
-
-		if self.pulse is None:
+	def downloads_changed(self):
+		print "Active downloads list is now: %s" % self.monitored_downloads
+		if self.monitored_downloads and self.pulse is None:
 			def pulse():
 				if self.policy.checking:
 					self.policy.checking.progress.pulse()
@@ -123,6 +50,14 @@ class GUIHandler(object):
 				return True
 			self.pulse = gobject.timeout_add(50, pulse)
 			self.policy.window.progress.show()
+		elif len(self.monitored_downloads) == 0:
+			if self.pulse:
+				gobject.source_remove(self.pulse)
+				self.policy.window.progress.hide()
+				self.pulse = None
+				
+			if self.policy.checking:
+				self.policy.checking.updates_done(self.policy.versions_changed())
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		import trust_box
@@ -208,8 +143,8 @@ class GUIPolicy(Policy):
 			gtk.main()
 	
 	def abort_all_downloads(self):
-		for x in self.handler.monitored_downloads[:]:
-			x.abort()
+		for dl in self.handler.monitored_downloads.values():
+			dl.abort()
 	
 	def set_original_implementations(self):
 		assert self.original_implementation is None
