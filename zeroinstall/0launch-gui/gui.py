@@ -145,7 +145,8 @@ class GUIPolicy(Policy):
 			else:
 				raise Exception("STOP")
 				import download_box
-				download_box.download_with_gui(self.window)
+				task = tasks.Task(policy.download_impls(), "download implementations")
+				yield task.finished
 				yield []
 		else:
 			self.window.show()

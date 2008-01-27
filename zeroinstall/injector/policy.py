@@ -551,3 +551,22 @@ class Policy(object):
 
 		return False
 	
+	def download_impls(self):
+		"""Download all implementations that are missing from the cache."""
+		blockers = []
+
+		for iface, impl in self.get_uncached_implementations():
+			debug("start_downloading_impls: for %s get %s", iface, impl)
+			source = self.get_best_source(impl)
+			if not source:
+				raise model.SafeException("Implementation " + impl.id + " of "
+					"interface " + iface.get_name() + " cannot be "
+					"downloaded (no download locations given in "
+					"interface!)")
+			blockers.append(tasks.Task(self.download_impl(impl, source), "fetch impl %s" % impl).finished)
+
+		while blockers:
+			yield blockers
+			tasks.check(blockers)
+
+			blockers = [b for b in blockers if not b.happened]

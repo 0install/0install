@@ -1,6 +1,7 @@
 import gtk
 from logging import warn
 import os, sys
+from zeroinstall.support import tasks
 from iface_browser import InterfaceBrowser
 import help_box
 from gui import policy
@@ -13,7 +14,6 @@ SHOW_PREFERENCES = 0
 class MainWindow:
 	progress = None
 	browser = None
-	download_box = None
 	window = None
 
 	def __init__(self, download_only):
@@ -47,12 +47,11 @@ class MainWindow:
 		self.window.default_widget.grab_focus()
 
 		def response(dialog, resp):
-			import download_box
 			if resp in (gtk.RESPONSE_CANCEL, gtk.RESPONSE_DELETE_EVENT):
 				self.window.destroy()
 				sys.exit(1)
 			elif resp == gtk.RESPONSE_OK:
-				download_box.download_with_gui(self)
+				task = tasks.Task(self.download_and_run(), "download and run")
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 			elif resp == SHOW_PREFERENCES:
@@ -65,14 +64,26 @@ class MainWindow:
 
 	def show(self):
 		self.window.show()
-		dialog.n_windows += 1
 
 	def set_response_sensitive(self, response, sensitive):
 		self.window.set_response_sensitive(response, sensitive)
 
 	def destroyed(self):
 		policy.abort_all_downloads()
-		dialog.one_less_window()
+
+	def download_and_run(self):
+		task = tasks.Task(policy.download_impls(), "download implementations")
+		yield task.finished
+		if policy.get_uncached_implementations():
+			dialog.alert('Not all downloads succeeded; cannot run program.')
+		else:
+			from zeroinstall.injector import selections
+			sels = selections.Selections(policy)
+			doc = sels.toDOM()
+			reply = doc.toxml('utf-8')
+			sys.stdout.write(('Length:%8x\n' % len(reply)) + reply)
+			self.window.destroy()
+			sys.exit(0)			# Success
 
 gui_help = help_box.HelpBox("Injector Help",
 ('Overview', """

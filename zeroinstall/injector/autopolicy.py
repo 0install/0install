@@ -34,25 +34,6 @@ class AutoPolicy(policy.Policy):
 		else:
 			return policy.Policy.download_and_import_feed(self, feed_url, force)
 
-	def download_impls(self):
-		blockers = []
-
-		for iface, impl in self.get_uncached_implementations():
-			debug("start_downloading_impls: for %s get %s", iface, impl)
-			source = self.get_best_source(impl)
-			if not source:
-				raise model.SafeException("Implementation " + impl.id + " of "
-					"interface " + iface.get_name() + " cannot be "
-					"downloaded (no download locations given in "
-					"interface!)")
-			blockers.append(tasks.Task(self.download_impl(impl, source), "fetch impl %s" % impl).finished)
-
-		while blockers:
-			yield blockers
-			tasks.check(blockers)
-
-			blockers = [b for b in blockers if not b.happened]
-
 	def download_archive(self, download_source, force = False):
 		if self.dry_run or not self.allow_downloads:
 			raise NeedDownload(download_source.url)

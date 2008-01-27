@@ -4,6 +4,7 @@ import sets	# Note: for Python 2.3; frozenset is only in Python 2.4
 
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import download, writer
+from zeroinstall.support import tasks
 from zeroinstall import support
 from gui import policy
 from dialog import Dialog
@@ -24,14 +25,8 @@ def download_with_gui(mainwindow):
 		# effect. Rather than waiting, just filter them out later.
 		existing_downloads = sets.ImmutableSet(policy.handler.monitored_downloads)
 
-		for iface, impl in policy.get_uncached_implementations():
-			if not impl.download_sources:
-				raise SafeException("Implementation " + impl.id + " of "
-					"interface " + iface.get_name() + " cannot be "
-					"downloaded (no download locations given in "
-					"interface!)")
-			source = policy.get_best_source(impl)
-			policy.begin_impl_download(impl, source, force = True)
+		task = tasks.Task(policy.download_impls(), "download implementations")
+
 		def run_it():
 			policy.abort_all_downloads()
 
