@@ -27,8 +27,6 @@ parser.disable_interspersed_args()
 
 (options, args) = parser.parse_args()
 
-options.verbose = 1
-
 if options.verbose:
 	import logging
 	logger = logging.getLogger()

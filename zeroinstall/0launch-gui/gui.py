@@ -106,7 +106,7 @@ class GUIPolicy(Policy):
 	def show_details(self):
 		"""The checking box has disappeared. Should we show the details window, or
 		just run the program right now?"""
-		if self.checking.show_details:
+		if self.checking.show_details_clicked.happened:
 			return True		# User clicked on the Details button
 		if not self.ready:
 			return True		# Not ready to start (can't find an implementation)
@@ -130,17 +130,22 @@ class GUIPolicy(Policy):
 		if self.checking:
 			self.checking.show()
 
-			yield solved.finished	# TODO: Show Details
-			tasks.check(solved.finished)
+			error = None
+			blockers = [solved.finished, self.checking.show_details_clicked, self.checking.cancelled]
+			yield blockers
+			try:
+				tasks.check(blockers)
+			except Exception, ex:
+				error = ex
 
 			self.checking.updates_done(self.versions_changed())
 
-			#dialog.wait_for_no_windows()
-
-			show_details = self.show_details()
+			show_details = self.show_details() or error
 			self.checking = None
 			if show_details:
 				self.window.show()
+				if error:
+					dialog.alert(self.window.window, "Failed to check for updates: %s" % ex)
 				yield []
 			else:
 				from zeroinstall.injector import selections

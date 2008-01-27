@@ -1,9 +1,9 @@
 import gtk, gobject
 
 from dialog import Dialog
+from zeroinstall.support import tasks
 
 class CheckingBox(Dialog):
-	show_details = False
 	hint_timeout = None
 
 	def __init__(self, root):
@@ -19,11 +19,15 @@ class CheckingBox(Dialog):
 		self.vbox.pack_start(self.progress, False, True, 0)
 		self.progress.show()
 
+		self.show_details_clicked = tasks.Blocker("click Show Details")
+		self.cancelled = tasks.Blocker("cancel checking box")
+
 		self.add_mixed_button('Details...', gtk.STOCK_ZOOM_IN, gtk.RESPONSE_OK)
 		def response(w, r):
 			if r == gtk.RESPONSE_OK:
-				self.show_details = True
-			self.destroy()
+				self.show_details_clicked.trigger()
+			else:
+				self.cancelled.trigger()
 		self.connect('response', response)
 
 		def show_hint():
