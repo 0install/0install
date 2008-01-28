@@ -562,7 +562,7 @@ class Policy(object):
 			debug("start_downloading_impls: for %s get %s", iface, impl)
 			source = self.get_best_source(impl)
 			if not source:
-				raise model.SafeException("Implementation " + impl.id + " of "
+				raise SafeException("Implementation " + impl.id + " of "
 					"interface " + iface.get_name() + " cannot be "
 					"downloaded (no download locations given in "
 					"interface!)")

@@ -1,6 +1,7 @@
 import gtk
 from logging import warn
 import os, sys
+from zeroinstall import SafeException
 from zeroinstall.support import tasks
 from iface_browser import InterfaceBrowser
 import help_box
@@ -72,21 +73,29 @@ class MainWindow:
 		policy.abort_all_downloads()
 
 	def download_and_run(self):
-		task = tasks.Task(policy.download_impls(), "download implementations")
+		try:
+			task = tasks.Task(policy.download_impls(), "download implementations")
 
-		yield task.finished
-		tasks.check(task.finished)
+			yield task.finished
 
-		if policy.get_uncached_implementations():
-			dialog.alert('Not all downloads succeeded; cannot run program.')
-		else:
-			from zeroinstall.injector import selections
-			sels = selections.Selections(policy)
-			doc = sels.toDOM()
-			reply = doc.toxml('utf-8')
-			sys.stdout.write(('Length:%8x\n' % len(reply)) + reply)
-			self.window.destroy()
-			sys.exit(0)			# Success
+			tasks.check(task.finished)
+
+			if policy.get_uncached_implementations():
+				dialog.alert('Not all downloads succeeded; cannot run program.')
+			else:
+				from zeroinstall.injector import selections
+				sels = selections.Selections(policy)
+				doc = sels.toDOM()
+				reply = doc.toxml('utf-8')
+				sys.stdout.write(('Length:%8x\n' % len(reply)) + reply)
+				self.window.destroy()
+				sys.exit(0)			# Success
+		except SafeException, ex:
+			policy.handler.report_error(ex)
+		except Exception, ex:
+			import traceback
+			traceback.print_exc()
+			policy.handler.report_error(ex)
 
 gui_help = help_box.HelpBox("Injector Help",
 ('Overview', """
