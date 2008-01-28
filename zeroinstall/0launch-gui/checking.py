@@ -53,4 +53,3 @@ class CheckingBox(Dialog):
 			self.label.set_text("No updates for '%s'" % self.prog_name)
 		self.progress.set_fraction(1)
 		self.set_response_sensitive(gtk.RESPONSE_OK, False)
-		gobject.timeout_add(1000, self.destroy)

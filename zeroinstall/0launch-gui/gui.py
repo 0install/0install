@@ -137,7 +137,12 @@ class GUIPolicy(Policy):
 			except Exception, ex:
 				error = ex
 
-			self.checking.updates_done(self.versions_changed())
+			if not (self.checking.show_details_clicked.happened or self.checking.cancelled.happened):
+				self.checking.updates_done(self.versions_changed())
+				blockers = tasks.TimeoutBlocker(0.5, "checking result timeout")
+				yield blockers
+				tasks.check(blockers)
+			self.checking.destroy()
 
 			show_details = self.show_details() or error
 			self.checking = None
