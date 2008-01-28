@@ -125,7 +125,7 @@ class GUIPolicy(Policy):
 		self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
 
 	def main(self):
-		solved = tasks.Task(self.solve_with_downloads(), "solve")
+		solved = tasks.Task(self.solve_with_downloads(), "solve_with_downloads")
 
 		if self.checking:
 			self.checking.show()
@@ -157,6 +157,13 @@ class GUIPolicy(Policy):
 				sys.exit(0)			# Success
 		else:
 			self.window.show()
+			yield solved.finished
+			try:
+				tasks.check(solved.finished)
+			except Exception, ex:
+				import traceback
+				traceback.print_exc()
+				dialog.alert(self.window.window, str(ex))
 			yield []
 	
 	def abort_all_downloads(self):
