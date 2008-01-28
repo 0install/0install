@@ -65,7 +65,6 @@ class Preferences:
 		self.window.default_widget.grab_focus()
 
 		def response(dialog, resp):
-			import download_box
 			if resp in (gtk.RESPONSE_CLOSE, gtk.RESPONSE_DELETE_EVENT):
 				self.window.destroy()
 			elif resp == gtk.RESPONSE_HELP:

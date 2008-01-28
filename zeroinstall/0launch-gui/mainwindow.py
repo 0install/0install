@@ -16,6 +16,7 @@ class MainWindow:
 	progress = None
 	browser = None
 	window = None
+	cancel_download_and_run = None
 
 	def __init__(self, download_only):
 		widgets = policy.widgets
@@ -39,10 +40,14 @@ class MainWindow:
 		prefs = widgets.get_widget('preferences')
 		self.window.action_area.set_child_secondary(prefs, True)
 
+		# Glade won't let me add this to the template!
 		if download_only:
-			unused = widgets.get_widget('run').hide()
+			run_button = dialog.MixedButton("_Download", gtk.STOCK_EXECUTE, button = gtk.ToggleButton())
 		else:
-			unused = widgets.get_widget('download').hide()
+			run_button = dialog.MixedButton("_Run", gtk.STOCK_EXECUTE, button = gtk.ToggleButton())
+		self.window.add_action_widget(run_button, gtk.RESPONSE_OK)
+		run_button.show_all()
+		run_button.set_flags(gtk.CAN_DEFAULT)
 
 		self.window.set_default_response(gtk.RESPONSE_OK)
 		self.window.default_widget.grab_focus()
@@ -52,7 +57,11 @@ class MainWindow:
 				self.window.destroy()
 				sys.exit(1)
 			elif resp == gtk.RESPONSE_OK:
-				task = tasks.Task(self.download_and_run(), "download and run")
+				if self.cancel_download_and_run:
+					self.cancel_download_and_run.trigger()
+				if run_button.get_active():
+					self.cancel_download_and_run = tasks.Blocker("cancel downloads")
+					tasks.Task(self.download_and_run(run_button, self.cancel_download_and_run), "download and run")
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 			elif resp == SHOW_PREFERENCES:
@@ -72,13 +81,17 @@ class MainWindow:
 	def destroyed(self):
 		policy.abort_all_downloads()
 
-	def download_and_run(self):
+	def download_and_run(self, run_button, cancelled):
 		try:
 			task = tasks.Task(policy.download_impls(), "download implementations")
 
-			yield task.finished
+			blockers = [task.finished, cancelled]
+			yield blockers
+			tasks.check(blockers)
 
-			tasks.check(task.finished)
+			if cancelled.happened:
+				policy.abort_all_downloads()
+				return
 
 			if policy.get_uncached_implementations():
 				dialog.alert('Not all downloads succeeded; cannot run program.')
@@ -91,8 +104,10 @@ class MainWindow:
 				self.window.destroy()
 				sys.exit(0)			# Success
 		except SafeException, ex:
+			run_button.set_active(False)
 			policy.handler.report_error(ex)
 		except Exception, ex:
+			run_button.set_active(False)
 			import traceback
 			traceback.print_exc()
 			policy.handler.report_error(ex)

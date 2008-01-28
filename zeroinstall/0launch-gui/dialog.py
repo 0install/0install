@@ -34,8 +34,9 @@ def alert(parent, message, type = gtk.MESSAGE_ERROR):
 	box.connect('response', resp)
 	box.show()
 
-def MixedButton(message, stock, x_align = 0.5):
-	button = gtk.Button()
+def MixedButton(message, stock, x_align = 0.5, button = None):
+	if button is None:
+		button = gtk.Button()
 
 	label = gtk.Label('')
 	label.set_text_with_mnemonic(message)
