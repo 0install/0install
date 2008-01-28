@@ -220,6 +220,25 @@ class Policy(object):
 			else:
 				debug("Skipping '%s'; unsupported architecture %s-%s",
 					f, f.os, f.machine)
+
+	def is_stale(self, feed):
+		"""Check whether feed needs updating, based on the configured L{freshness}.
+		@return: true if feed is stale or missing."""
+		if feed.last_modified is None:
+			return True		# Don't even have it yet
+		now = time.time()
+		staleness = now - (feed.last_checked or 0)
+		debug("Staleness for %s is %.2f hours", feed, staleness / 3600.0)
+
+		if self.freshness == 0 or staleness < self.freshness:
+			return False		# Fresh enough for us
+
+		last_check_attempt = iface_cache.get_last_check_attempt(feed.url)
+		if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
+			debug("Stale, but tried to check recently (%s) so not rechecking now.", time.ctime(last_check_attempt))
+			return False
+
+		return True
 	
 	def get_interface(self, uri):
 		"""Get an interface from the L{iface_cache}. If it is missing start a new download.
@@ -249,18 +268,9 @@ class Policy(object):
 							warn("Nothing known about interface '%s', but we are in off-line mode "
 								"(so not fetching).", uri)
 							self._warned_offline = True
-			else:
-				now = time.time()
-				staleness = now - (iface.last_checked or 0)
-				debug("Staleness for %s is %.2f hours", iface, staleness / 3600.0)
-
-				if self.freshness > 0 and staleness > self.freshness:
-					last_check_attempt = iface_cache.get_last_check_attempt(iface.uri)
-					if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
-						debug("Stale, but tried to check recently (%s) so not rechecking now.", time.ctime(last_check_attempt))
-					else:
-						debug("Adding %s to stale set", iface)
-						self.stale_feeds.add(iface)
+			elif self.is_stale(iface):
+				debug("Adding %s to stale set", iface)
+				self.stale_feeds.add(iface)
 		#else: debug("Local interface, so not checking staleness.")
 
 		return iface
@@ -336,10 +346,16 @@ class Policy(object):
 		dl.expected_size = download_source.size + (download_source.start_offset or 0)
 		return (dl.downloaded, dl.tempfile)
 	
-	def begin_icon_download(self, interface, force = False):
-		"""Start downloading an icon for this interface. On success, add it to the
-		icon cache. If the interface has no icon, do nothing."""
-		debug("begin_icon_download %s (force = %d)", interface, force)
+	def download_icon(self, interface, force = False):
+		"""Download an icon for this interface and add it to the
+		icon cache. If the interface has no icon or we are offline, do nothing.
+		@return: the task doing the import, or None
+		@rtype: L{tasks.Task}"""
+		debug("download_icon %s (force = %d)", interface, force)
+
+		if self.network_use == network_offline:
+			info("No icon present for %s, but off-line so not downloading", interface)
+			return
 
 		# Find a suitable icon to download
 		for icon in interface.get_metadata(XMLNS_IFACE, 'icon'):
@@ -356,13 +372,18 @@ class Policy(object):
 			return
 
 		dl = self.handler.get_download(source, force = force)
-		if dl.on_success:
-			# Possibly we should handle this better, but it's unlikely anyone will need
-			# to use an icon as an interface or implementation as well, and some of the code
-			# may assume it's OK keep asking for the same icon to be downloaded.
-			info("Already have a handler for %s; not adding another", source)
-			return
-		dl.on_success.append(lambda stream: self.store_icon(interface, stream))
+
+		def add_icon():
+			stream = dl.tempfile
+			yield dl.downloaded
+			try:
+				tasks.check(dl.downloaded)
+				stream.seek(0)
+				self.store_icon(interface, stream)
+			except Exception, ex:
+				self.handler.report_error(ex)
+
+		return tasks.Task(add_icon(), "download_and_import_icon " + source)
 
 	def store_icon(self, interface, stream):
 		"""Called when an icon has been successfully downloaded.
@@ -461,23 +482,6 @@ class Policy(object):
 		if not feed_iface.name:
 			warn("Warning: unknown interface '%s'" % feed_iface_uri)
 		return [iface_cache.get_interface(uri) for uri in feed_targets]
-	
-	def get_icon_path(self, iface):
-		"""Get an icon for this interface. If the icon is in the cache, use that.
-		If not, start a download. If we already started a download (successful or
-		not) do nothing.
-		@return: The cached icon's path, or None if no icon is currently available.
-		@rtype: str"""
-		path = iface_cache.get_icon_path(iface)
-		if path:
-			return path
-
-		if self.network_use == network_offline:
-			info("No icon present for %s, but off-line so not downloading", iface)
-			return None
-
-		self.begin_icon_download(iface)
-		return None
 	
 	def get_best_source(self, impl):
 		"""Return the best download source for this implementation.

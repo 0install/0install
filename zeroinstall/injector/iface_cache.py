@@ -347,6 +347,11 @@ class IfaceCache(object):
 
 		reader.update_from_cache(interface)
 
+	def get_feed(self, url):
+		# TODO: This isn't a good implementation
+		iface = self.get_interface(url)
+		return iface._main_feed
+
 	def get_interface(self, uri):
 		"""Get the interface for uri, creating a new one if required.
 		New interfaces are initialised from the disk cache, but not from

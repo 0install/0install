@@ -8,6 +8,7 @@ This avoids the need to annoy people with a 'checking for updates' box when they
 
 import sys, os
 from logging import info
+from zeroinstall.support import tasks
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import handler
 
@@ -117,9 +118,10 @@ def _check_for_updates(policy, verbose):
 		notify("Zero Install", "Checking for updates to '%s'..." % root_iface, timeout = 1)
 
 	policy.handler = BackgroundHandler(root_iface)
-	policy.freshness = 0		# Don't bother trying to refresh when getting the interface
-	policy.refresh_all()		# (causes confusing log messages)
-	policy.handler.wait_for_downloads()
+	policy.freshness = 0			# Don't bother trying to refresh when getting the interface
+	refresh = policy.refresh_all()		# (causes confusing log messages)
+	policy.handler.wait_for_blocker(refresh.finished)
+
 	# We could even download the archives here, but for now just
 	# update the interfaces.
 
@@ -132,19 +134,17 @@ def _check_for_updates(policy, verbose):
 		notify("Zero Install", "Updates ready to download for '%s'." % root_iface)
 		sys.exit(0)
 
-	import gobject
-	ctx = gobject.main_context_default()
-	loop = gobject.MainLoop(ctx)
+	notification_closed = tasks.Blocker("wait for notification response")
 
 	def _NotificationClosed(nid, *unused):
 		if nid != our_question: return
-		loop.quit()
+		notification_closed.trigger()
 
 	def _ActionInvoked(nid, action):
 		if nid != our_question: return
 		if action == 'download':
 			_exec_gui(policy.root)
-		loop.quit()
+		notification_closed.trigger()
 
 	notification_service.connect_to_signal('NotificationClosed', _NotificationClosed)
 	notification_service.connect_to_signal('ActionInvoked', _ActionInvoked)
@@ -152,7 +152,7 @@ def _check_for_updates(policy, verbose):
 	our_question = notify("Zero Install", "Updates ready to download for '%s'." % root_iface,
 				actions = ['download', 'Download'])
 
-	loop.run()
+	policy.handler.wait_for_blocker(notification_closed)
 
 def spawn_background_update(policy, verbose):
 	# Mark all feeds as being updated. Do this before forking, so that if someone is

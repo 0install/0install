@@ -1,6 +1,6 @@
 import gtk, gobject
 
-from zeroinstall.support import basedir
+from zeroinstall.support import basedir, tasks
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import model
 import properties
@@ -222,7 +222,7 @@ class InterfaceBrowser:
 		try:
 			return self.cached_icon[iface.uri]
 		except KeyError:
-			path = policy.get_icon_path(iface)
+			path = iface_cache.get_icon_path(iface)
 			if path:
 				try:
 					loader = gtk.gdk.PixbufLoader('png')
@@ -231,6 +231,7 @@ class InterfaceBrowser:
 					finally:
 						loader.close()
 					icon = loader.get_pixbuf()
+					assert icon, "Failed to load cached PNG icon data"
 				except Exception, ex:
 					warn("Failed to load cached PNG icon: %s", ex)
 					return None
@@ -242,6 +243,20 @@ class InterfaceBrowser:
 							 gtk.gdk.INTERP_BILINEAR)
 				self.cached_icon[iface.uri] = icon
 				return icon
+			else:
+				# Try to download the icon
+				fetcher = policy.download_icon(iface)
+				if fetcher:
+					def update_display():
+						yield fetcher.finished
+						try:
+							tasks.check(fetcher.finished)
+							self.build_tree()
+						except Exception, ex:
+							import traceback
+							traceback.print_exc()
+							policy.handler.report_error(ex)
+					tasks.Task(update_display(), "fetch_icon_and_refresh_display")
 
 		return None
 

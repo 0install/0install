@@ -158,11 +158,14 @@ def _normal_mode(options, args):
 	else:
 		can_run_immediately = (not policy.need_download()) and policy.ready
 
-		if options.download_only and policy.stale_feeds:
+		from zeroinstall.injector.iface_cache import iface_cache
+		stale_feeds = [feed for feed in policy.solver.feeds_used if policy.is_stale(iface_cache.get_feed(feed))]
+
+		if options.download_only and stale_feeds:
 			can_run_immediately = False
 
 	if can_run_immediately:
-		if policy.stale_feeds:
+		if stale_feeds:
 			if policy.network_use == model.network_offline:
 				logging.debug("No doing background update because we are in off-line mode.")
 			else:
