@@ -93,8 +93,7 @@ if options.before or options.not_before:
 
 policy = gui.GUIPolicy(interface_uri,
 		   download_only = bool(options.download_only),
-		   refresh = bool(options.refresh),
 		   src = options.source,
 		   restrictions = restrictions)
-main = tasks.Task(policy.main(), "main")
+main = tasks.Task(policy.main(bool(options.refresh)), "main")
 policy.handler.wait_for_blocker(main.finished)

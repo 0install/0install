@@ -72,7 +72,7 @@ class GUIPolicy(Policy):
 	download_only = None
 	widgets = None		# Glade
 
-	def __init__(self, interface, download_only, refresh, src = False, restrictions = None):
+	def __init__(self, interface, download_only, src = False, restrictions = None):
 		Policy.__init__(self, interface, GUIHandler(self), src = src)
 		self.solver.record_details = True
 		global policy
@@ -91,15 +91,6 @@ class GUIPolicy(Policy):
 		self.window = mainwindow.MainWindow(download_only)
 		root = iface_cache.get_interface(self.root)
 		self.window.browser.set_root(root)
-
-		if refresh:
-			# If we have feeds then treat this as a refresh,
-			# even if we've never seen the main interface before.
-			# Used the first time the GUI is used, for example.
-			if root.name is not None or root.feeds:
-				self.checking = CheckingBox(root)
-
-			self.refresh_all(force = False)
 
 		self.watchers.append(self.update_display)
 	
@@ -124,8 +115,16 @@ class GUIPolicy(Policy):
 	def update_display(self):
 		self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
 
-	def main(self):
-		solved = tasks.Task(self.solve_with_downloads(), "solve_with_downloads")
+	def main(self, refresh):
+		if refresh:
+			# If we have feeds then treat this as an update check,
+			# even if we've never seen the main interface before.
+			# Used the first time the GUI is used, for example.
+			root = self.get_interface(self.root)
+			if root.name is not None or root.feeds:
+				self.checking = CheckingBox(root)
+
+		solved = tasks.Task(self.solve_with_downloads(force = refresh), "solve_with_downloads")
 
 		if self.checking:
 			self.checking.show()
