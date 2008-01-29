@@ -40,17 +40,17 @@ class AutoPolicy(policy.Policy):
 		return policy.Policy.download_archive(self, download_source, force = force)
 
 	def execute(self, prog_args, main = None, wrapper = None):
-		task = tasks.Task(self.download_impls(), "download_impls")
-		self.handler.wait_for_blocker(task.finished)
+		downloaded = self.download_impls()
+		self.handler.wait_for_blocker(downloaded)
 		if not self.download_only:
 			run.execute(self, prog_args, dry_run = self.dry_run, main = main, wrapper = wrapper)
 		else:
 			info("Downloads done (download-only mode)")
 	
 	def download_and_execute(self, prog_args, refresh = False, main = None):
-		task = tasks.Task(self.solve_with_downloads(refresh), "solve_with_downloads")
+		refreshed = self.solve_with_downloads(refresh)
 
-		errors = self.handler.wait_for_blocker(task.finished)
+		errors = self.handler.wait_for_blocker(refreshed)
 		if errors:
 			raise model.SafeException("Errors during download: " + '\n'.join(errors))
 

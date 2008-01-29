@@ -247,16 +247,17 @@ class InterfaceBrowser:
 				# Try to download the icon
 				fetcher = policy.download_icon(iface)
 				if fetcher:
+					@tasks.async
 					def update_display():
-						yield fetcher.finished
+						yield fetcher
 						try:
-							tasks.check(fetcher.finished)
+							tasks.check(fetcher)
 							self.build_tree()
 						except Exception, ex:
 							import traceback
 							traceback.print_exc()
 							policy.handler.report_error(ex)
-					tasks.Task(update_display(), "fetch_icon_and_refresh_display")
+					update_display()
 
 		return None
 

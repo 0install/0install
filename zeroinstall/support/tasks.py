@@ -325,3 +325,22 @@ def _handle_run_queue():
 	if _run_queue:
 		return True
 	return False
+
+def named_async(name):
+	"""Decorator that turns a generator function into a function that runs the
+	generator as a Task and returns the Task's finished blocker.
+	@param name: the name for the Task"""
+	def deco(fn):
+		def run(*args, **kwargs):
+			return Task(fn(*args, **kwargs), name).finished
+		run.__name__ = fn.__name__
+		return run
+	return deco
+
+def async(fn):
+	"""Decorator that turns a generator function into a function that runs the
+	generator as a Task and returns the Task's finished blocker."""
+	def run(*args, **kwargs):
+		return Task(fn(*args, **kwargs), fn.__name__).finished
+	run.__name__ = fn.__name__
+	return run

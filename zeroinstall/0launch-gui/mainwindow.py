@@ -61,7 +61,7 @@ class MainWindow:
 					self.cancel_download_and_run.trigger()
 				if run_button.get_active():
 					self.cancel_download_and_run = tasks.Blocker("cancel downloads")
-					tasks.Task(self.download_and_run(run_button, self.cancel_download_and_run), "download and run")
+					self.download_and_run(run_button, self.cancel_download_and_run)
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 			elif resp == SHOW_PREFERENCES:
@@ -81,11 +81,12 @@ class MainWindow:
 	def destroyed(self):
 		policy.abort_all_downloads()
 
+	@tasks.async
 	def download_and_run(self, run_button, cancelled):
 		try:
-			task = tasks.Task(policy.download_impls(), "download implementations")
+			downloaded = policy.download_impls()
 
-			blockers = [task.finished, cancelled]
+			blockers = [downloaded, cancelled]
 			yield blockers
 			tasks.check(blockers)
 

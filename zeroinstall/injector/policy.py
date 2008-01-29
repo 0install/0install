@@ -23,6 +23,7 @@ from zeroinstall.injector.trust import trust_db
 # If we started a check within this period, don't start another one:
 FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
 
+@tasks.async
 def _cook(policy, required_digest, recipe, force = False):
 	"""A Cook follows a Recipe."""
 	# Maybe we're taking this metaphor too far?
@@ -268,7 +269,7 @@ class Policy(object):
 							warn("Nothing known about interface '%s', but we are in off-line mode "
 								"(so not fetching).", uri)
 							self._warned_offline = True
-			elif self.is_stale(iface):
+			elif self.is_stale(iface._main_feed):
 				debug("Adding %s to stale set", iface)
 				self.stale_feeds.add(iface)
 		#else: debug("Local interface, so not checking staleness.")
@@ -283,6 +284,7 @@ class Policy(object):
 
 		dl = self.handler.get_download(feed_url, force = force)
 
+		@tasks.named_async("fetch_feed " + feed_url)
 		def fetch_feed():
 			stream = dl.tempfile
 
@@ -305,10 +307,11 @@ class Policy(object):
 				if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
 					raise SafeException("No signing keys trusted; not importing")
 
-		return tasks.Task(fetch_feed(), "download_and_import_feed " + feed_url).finished
+		return fetch_feed()
 	
+	@tasks.async
 	def download_impl(self, impl, retrieval_method, force = False):
-		"""Download impl, using retrieval_method. See Task."""
+		"""Download impl, using retrieval_method."""
 		assert impl
 		assert retrieval_method
 
@@ -326,7 +329,7 @@ class Policy(object):
 			stream.seek(0)
 			iface_cache.add_to_cache(retrieval_method, stream)
 		elif isinstance(retrieval_method, Recipe):
-			blocker = tasks.Task(_cook(self, impl.id, retrieval_method, force), "cook").finished
+			blocker = _cook(self, impl.id, retrieval_method, force)
 			yield blocker
 			tasks.check(blocker)
 		else:
@@ -373,7 +376,8 @@ class Policy(object):
 
 		dl = self.handler.get_download(source, force = force)
 
-		def add_icon():
+		@tasks.async
+		def download_and_add_icon():
 			stream = dl.tempfile
 			yield dl.downloaded
 			try:
@@ -383,7 +387,7 @@ class Policy(object):
 			except Exception, ex:
 				self.handler.report_error(ex)
 
-		return tasks.Task(add_icon(), "download_and_import_icon " + source)
+		return download_and_add_icon()
 
 	def store_icon(self, interface, stream):
 		"""Called when an icon has been successfully downloaded.
@@ -462,7 +466,7 @@ class Policy(object):
 	def refresh_all(self, force = True):
 		"""Start downloading all feeds for all selected interfaces.
 		@param force: Whether to restart existing downloads."""
-		return tasks.Task(self.solve_with_downloads(force = True), "refresh all")
+		return self.solve_with_downloads(force = True)
 	
 	def get_feed_targets(self, feed_iface_uri):
 		"""Return a list of Interfaces for which feed_iface can be a feed.
@@ -490,12 +494,12 @@ class Policy(object):
 			return impl.download_sources[0]
 		return None
 
+	@tasks.async
 	def solve_with_downloads(self, force = False):
 		"""Run the solver, then download any feeds that are missing or
 		that need to be updated. Each time a new feed is imported into
 		the cache, the solver is run again, possibly adding new downloads.
-		@param force: whether to download even if we're already ready to run
-		@return: a generator that can be used to create a L{support.tasks.Task}."""
+		@param force: whether to download even if we're already ready to run."""
 		
 		downloads_finished = set()		# Successful or otherwise
 		downloads_in_progress = {}		# URL -> Download
@@ -554,6 +558,7 @@ class Policy(object):
 
 		return False
 	
+	@tasks.async
 	def download_impls(self):
 		"""Download all implementations that are missing from the cache."""
 		blockers = []
@@ -566,7 +571,7 @@ class Policy(object):
 					"interface " + iface.get_name() + " cannot be "
 					"downloaded (no download locations given in "
 					"interface!)")
-			blockers.append(tasks.Task(self.download_impl(impl, source), "fetch impl %s" % impl).finished)
+			blockers.append(self.download_impl(impl, source))
 
 		while blockers:
 			yield blockers

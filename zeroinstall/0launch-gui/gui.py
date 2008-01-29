@@ -124,13 +124,13 @@ class GUIPolicy(Policy):
 			if root.name is not None or root.feeds:
 				self.checking = CheckingBox(root)
 
-		solved = tasks.Task(self.solve_with_downloads(force = refresh), "solve_with_downloads")
+		solved = self.solve_with_downloads(force = refresh)
 
 		if self.checking:
 			self.checking.show()
 
 			error = None
-			blockers = [solved.finished, self.checking.show_details_clicked, self.checking.cancelled]
+			blockers = [solved, self.checking.show_details_clicked, self.checking.cancelled]
 			yield blockers
 			try:
 				tasks.check(blockers)
@@ -161,9 +161,9 @@ class GUIPolicy(Policy):
 				sys.exit(0)			# Success
 		else:
 			self.window.show()
-			yield solved.finished
+			yield solved
 			try:
-				tasks.check(solved.finished)
+				tasks.check(solved)
 			except Exception, ex:
 				import traceback
 				traceback.print_exc()
