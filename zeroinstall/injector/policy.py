@@ -224,7 +224,12 @@ class Policy(object):
 
 	def is_stale(self, feed):
 		"""Check whether feed needs updating, based on the configured L{freshness}.
+		None is considered to be stale.
 		@return: true if feed is stale or missing."""
+		if feed is None:
+			return True
+		if feed.url.startswith('/'):
+			return False		# Local feeds are never stale
 		if feed.last_modified is None:
 			return True		# Don't even have it yet
 		now = time.time()
@@ -558,7 +563,6 @@ class Policy(object):
 
 		return False
 	
-	@tasks.async
 	def download_impls(self):
 		"""Download all implementations that are missing from the cache."""
 		blockers = []
@@ -573,8 +577,14 @@ class Policy(object):
 					"interface!)")
 			blockers.append(self.download_impl(impl, source))
 
-		while blockers:
-			yield blockers
-			tasks.check(blockers)
+		if not blockers:
+			return None
 
-			blockers = [b for b in blockers if not b.happened]
+		@tasks.async
+		def download_impls(blockers):
+			while blockers:
+				yield blockers
+				tasks.check(blockers)
+
+				blockers = [b for b in blockers if not b.happened]
+		return download_impls(blockers)

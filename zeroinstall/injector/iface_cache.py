@@ -348,9 +348,16 @@ class IfaceCache(object):
 		reader.update_from_cache(interface)
 
 	def get_feed(self, url):
+		"""Get a feed from the cache.
+		@param url: the URL of the feed
+		@return: the feed, or None if it isn't cached
+		@rtype: L{model.ZeroInstallFeed}"""
 		# TODO: This isn't a good implementation
 		iface = self.get_interface(url)
-		return iface._main_feed
+		feed = iface._main_feed
+		if not isinstance(feed, model.DummyFeed):
+			return feed
+		return None
 
 	def get_interface(self, uri):
 		"""Get the interface for uri, creating a new one if required.
