@@ -296,7 +296,7 @@ class InterfaceBrowser:
 					else:
 						fetch = '(cached)'
 				else:
-					src = policy.get_best_source(impl)
+					src = policy.fetcher.get_best_source(impl)
 					if src:
 						fetch = support.pretty_size(src.size)
 					else:

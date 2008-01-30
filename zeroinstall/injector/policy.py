@@ -4,7 +4,7 @@ Chooses a set of implementations based on a policy.
 @deprecated: see L{solver}
 """
 
-# Copyright (C) 2007, Thomas Leonard
+# Copyright (C) 2008, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import time
@@ -15,55 +15,12 @@ import arch
 from model import *
 from namespaces import *
 import ConfigParser
-from zeroinstall import NeedDownload
 from zeroinstall.support import tasks, basedir
 from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
 from zeroinstall.injector.trust import trust_db
 
 # If we started a check within this period, don't start another one:
 FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
-
-@tasks.async
-def _cook(policy, required_digest, recipe, force = False):
-	"""A Cook follows a Recipe."""
-	# Maybe we're taking this metaphor too far?
-
-	# Start downloading all the ingredients.
-	downloads = {}	# Downloads that are not yet successful
-	streams = {}	# Streams collected from successful downloads
-
-	# Start a download for each ingredient
-	blockers = []
-	for step in recipe.steps:
-		blocker, stream = policy.download_archive(step, force = force)
-		assert stream
-		blockers.append(blocker)
-		streams[step] = stream
-
-	while blockers:
-		yield blockers
-		tasks.check(blockers)
-		blockers = [b for b in blockers if not b.happened]
-
-	from zeroinstall.zerostore import unpack
-
-	# Create an empty directory for the new implementation
-	store = iface_cache.stores.stores[0]
-	tmpdir = store.get_tmp_dir_for(required_digest)
-	try:
-		# Unpack each of the downloaded archives into it in turn
-		for step in recipe.steps:
-			stream = streams[step]
-			stream.seek(0)
-			unpack.unpack_archive_over(step.url, stream, tmpdir, step.extract)
-		# Check that the result is correct and store it in the cache
-		store.check_manifest_and_rename(required_digest, tmpdir)
-		tmpdir = None
-	finally:
-		# If unpacking fails, remove the temporary directory
-		if tmpdir is not None:
-			from zeroinstall import support
-			support.ro_rmtree(tmpdir)
 
 class Policy(object):
 	"""Chooses a set of implementations based on a policy.
@@ -94,7 +51,7 @@ class Policy(object):
 	"""
 	__slots__ = ['root', 'watchers',
 		     'freshness', 'handler', '_warned_offline',
-		     'src', 'stale_feeds', 'solver']
+		     'src', 'stale_feeds', 'solver', '_fetcher']
 	
 	help_with_testing = property(lambda self: self.solver.help_with_testing,
 				     lambda self, value: setattr(self.solver, 'help_with_testing', value))
@@ -128,6 +85,7 @@ class Policy(object):
 		# If we need to download something but can't because we are offline,
 		# warn the user. But only the first time.
 		self._warned_offline = False
+		self._fetcher = None
 
 		# (allow self for backwards compat)
 		self.handler = handler or self
@@ -153,6 +111,13 @@ class Policy(object):
 		# Probably need weakrefs here...
 		iface_cache.add_watcher(self)
 	
+	@property
+	def fetcher(self):
+		if not self._fetcher:
+			import fetch
+			self._fetcher = fetch.Fetcher(self.handler)
+		return self._fetcher
+	
 	def set_root(self, root):
 		"""Change the root interface URI."""
 		assert isinstance(root, (str, unicode))
@@ -174,15 +139,8 @@ class Policy(object):
 		os.rename(path + '.new', path)
 	
 	def recalculate(self, fetch_stale_interfaces = True):
-		"""Try to choose a set of implementations.
-		This may start downloading more interfaces, but will return immediately.
-		@param fetch_stale_interfaces: whether to begin downloading interfaces which are present but haven't
-		been checked within the L{freshness} period
-		@type fetch_stale_interfaces: bool
-		@postcondition: L{ready} indicates whether a possible set of implementations was chosen
-		@note: A policy may be ready before all feeds have been downloaded. As new feeds
-		arrive, the chosen versions may change.
-		@return: a list of tasks which will require a recalculation when complete
+		"""Deprecated.
+		@see: L{solve_with_downloads}
 		"""
 
 		self.stale_feeds = sets.Set()
@@ -192,18 +150,24 @@ class Policy(object):
 			host_arch = arch.SourceArchitecture(host_arch)
 		self.solver.solve(self.root, host_arch)
 
-		for f in self.solver.feeds_used:
-			self.get_interface(f)	# May start a download
+		if self.network_use == network_offline:
+			fetch_stale_interfaces = False
 
-		tasks = []
-		if fetch_stale_interfaces and self.network_use != network_offline:
-			for stale in self.stale_feeds:
-				info("Checking for updates to stale feed %s", stale)
-				tasks.append(self.download_and_import_feed(stale, False))
+		blockers = []
+		for f in self.solver.feeds_used:
+			if f.startswith('/'): continue
+			feed = iface_cache.get_feed(f)
+			if feed is None or feed.last_modified is None:
+				self.download_and_import_feed_if_online(f)	# Will start a download
+			elif self.is_stale(feed):
+				debug("Adding %s to stale set", f)
+				self.stale_feeds.add(iface_cache.get_interface(f))	# Legacy API
+				if fetch_stale_interfaces:
+					self.download_and_import_feed_if_online(f)	# Will start a download
 
 		for w in self.watchers: w()
 
-		return tasks
+		return blockers
 	
 	def usable_feeds(self, iface):
 		"""Generator for C{iface.feeds} that are valid for our architecture.
@@ -246,163 +210,22 @@ class Policy(object):
 
 		return True
 	
-	def get_interface(self, uri):
-		"""Get an interface from the L{iface_cache}. If it is missing start a new download.
-		If it is present but stale, add it to L{stale_feeds}. This should only be called
-		from L{recalculate}.
-		@see: iface_cache.iface_cache.get_interface
-		@rtype: L{model.Interface}"""
-		iface = iface_cache.get_interface(uri)
-
-		if uri in iface_cache.pending:
-			# Don't start another download while one is pending
-			# TODO: unless the pending version is very old
-			return iface
-
-		if not uri.startswith('/'):
-			if iface.last_modified is None:
-				if self.network_use != network_offline:
-					debug("Feed not cached and not off-line. Downloading...")
-					self.download_and_import_feed(iface.uri)
-				else:
-					if self._warned_offline:
-						debug("Nothing known about interface, but we are off-line.")
-					else:
-						if iface.feeds:
-							info("Nothing known about interface '%s' and off-line. Trying feeds only.", uri)
-						else:
-							warn("Nothing known about interface '%s', but we are in off-line mode "
-								"(so not fetching).", uri)
-							self._warned_offline = True
-			elif self.is_stale(iface._main_feed):
-				debug("Adding %s to stale set", iface)
-				self.stale_feeds.add(iface)
-		#else: debug("Local interface, so not checking staleness.")
-
-		return iface
-	
-	def download_and_import_feed(self, feed_url, force = False):
-		"""Download the feed, download any required keys, confirm trust if needed and import."""
-		
-		debug("download_and_import_feed %s (force = %d)", feed_url, force)
-		assert not feed_url.startswith('/')
-
-		dl = self.handler.get_download(feed_url, force = force)
-
-		@tasks.named_async("fetch_feed " + feed_url)
-		def fetch_feed():
-			stream = dl.tempfile
-
-			yield dl.downloaded
-			tasks.check(dl.downloaded)
-
-			pending = PendingFeed(feed_url, stream)
-			iface_cache.add_pending(pending)
-
-			keys_downloaded = tasks.Task(pending.download_keys(self.handler), "download keys for " + feed_url)
-			yield keys_downloaded.finished
-			tasks.check(keys_downloaded.finished)
-
-			iface = iface_cache.get_interface(pending.url)
-			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-				blocker = self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
-				if blocker:
-					yield blocker
-					tasks.check(blocker)
-				if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-					raise SafeException("No signing keys trusted; not importing")
-
-		return fetch_feed()
-	
-	@tasks.async
-	def download_impl(self, impl, retrieval_method, force = False):
-		"""Download impl, using retrieval_method."""
-		assert impl
-		assert retrieval_method
-
-		from zeroinstall.zerostore import manifest
-		alg = impl.id.split('=', 1)[0]
-		if alg not in manifest.algorithms:
-			raise SafeException("Unknown digest algorithm '%s' for '%s' version %s" %
-					(alg, impl.feed.get_name(), impl.get_version()))
-
-		if isinstance(retrieval_method, DownloadSource):
-			blocker, stream = self.download_archive(retrieval_method, force = force)
-			yield blocker
-			tasks.check(blocker)
-
-			stream.seek(0)
-			iface_cache.add_to_cache(retrieval_method, stream)
-		elif isinstance(retrieval_method, Recipe):
-			blocker = _cook(self, impl.id, retrieval_method, force)
-			yield blocker
-			tasks.check(blocker)
+	def download_and_import_feed_if_online(self, feed_url):
+		"""If we're online, call L{download_and_import_feed}. Otherwise, log a suitable warning."""
+		if self.network_use != network_offline:
+			debug("Feed %s not cached and not off-line. Downloading...", feed_url)
+			return self.fetcher.download_and_import_feed(feed_url)
 		else:
-			raise Exception("Unknown download type for '%s'" % retrieval_method)
+			if self._warned_offline:
+				debug("Not downloading feed '%s' because we are off-line.", feed_url)
+			elif feed_url == injector_gui_uri:
+				# Don't print a warning, because we always switch to off-line mode to
+				# run the GUI the first time.
+				info("Not downloading GUI feed '%s' because we are in off-line mode.", feed_url)
+			else:
+				warn("Not downloading feed '%s' because we are in off-line mode.", feed_url)
+				self._warned_offline = True
 
-	def download_archive(self, download_source, force = False):
-		"""Fetch an archive. You should normally call L{begin_impl_download}
-		instead, since it handles other kinds of retrieval method too."""
-		from zeroinstall.zerostore import unpack
-		mime_type = download_source.type
-		if not mime_type:
-			mime_type = unpack.type_from_url(download_source.url)
-		if not mime_type:
-			raise SafeException("No 'type' attribute on archive, and I can't guess from the name (%s)" % download_source.url)
-		unpack.check_type_ok(mime_type)
-		dl = self.handler.get_download(download_source.url, force = force)
-		dl.expected_size = download_source.size + (download_source.start_offset or 0)
-		return (dl.downloaded, dl.tempfile)
-	
-	def download_icon(self, interface, force = False):
-		"""Download an icon for this interface and add it to the
-		icon cache. If the interface has no icon or we are offline, do nothing.
-		@return: the task doing the import, or None
-		@rtype: L{tasks.Task}"""
-		debug("download_icon %s (force = %d)", interface, force)
-
-		if self.network_use == network_offline:
-			info("No icon present for %s, but off-line so not downloading", interface)
-			return
-
-		# Find a suitable icon to download
-		for icon in interface.get_metadata(XMLNS_IFACE, 'icon'):
-			type = icon.getAttribute('type')
-			if type != 'image/png':
-				debug('Skipping non-PNG icon')
-				continue
-			source = icon.getAttribute('href')
-			if source:
-				break
-			warn('Missing "href" attribute on <icon> in %s', interface)
-		else:
-			info('No PNG icons found in %s', interface)
-			return
-
-		dl = self.handler.get_download(source, force = force)
-
-		@tasks.async
-		def download_and_add_icon():
-			stream = dl.tempfile
-			yield dl.downloaded
-			try:
-				tasks.check(dl.downloaded)
-				stream.seek(0)
-				self.store_icon(interface, stream)
-			except Exception, ex:
-				self.handler.report_error(ex)
-
-		return download_and_add_icon()
-
-	def store_icon(self, interface, stream):
-		"""Called when an icon has been successfully downloaded.
-		Subclasses may wish to wrap this to repaint the display."""
-		from zeroinstall.injector import basedir
-		import shutil
-		icons_cache = basedir.save_cache_path(config_site, 'interface_icons')
-		icon_file = file(os.path.join(icons_cache, escape(interface.uri)), 'w')
-		shutil.copyfileobj(stream, icon_file)
-	
 	def get_implementation_path(self, impl):
 		"""Return the local path of impl.
 		@rtype: str
@@ -492,13 +315,6 @@ class Policy(object):
 			warn("Warning: unknown interface '%s'" % feed_iface_uri)
 		return [iface_cache.get_interface(uri) for uri in feed_targets]
 	
-	def get_best_source(self, impl):
-		"""Return the best download source for this implementation.
-		@rtype: L{model.RetrievalMethod}"""
-		if impl.download_sources:
-			return impl.download_sources[0]
-		return None
-
 	@tasks.async
 	def solve_with_downloads(self, force = False):
 		"""Run the solver, then download any feeds that are missing or
@@ -531,7 +347,7 @@ class Policy(object):
 					if f.startswith('/'):
 						continue
 					feed = iface_cache.get_interface(f)
-					downloads_in_progress[f] = self.download_and_import_feed(f)
+					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f)
 
 			if not downloads_in_progress:
 				break
@@ -563,28 +379,20 @@ class Policy(object):
 
 		return False
 	
-	def download_impls(self):
-		"""Download all implementations that are missing from the cache."""
-		blockers = []
+	def download_uncached_implementations(self):
+		"""Download all implementations chosen by the solver that are missing from the cache."""
+		assert self.solver.ready, "Solver is not ready!\n%s" % self.solver.selections
+		return self.fetcher.download_impls([impl for impl in self.solver.selections.values() if not self.get_cached(impl)])
 
-		for iface, impl in self.get_uncached_implementations():
-			debug("start_downloading_impls: for %s get %s", iface, impl)
-			source = self.get_best_source(impl)
-			if not source:
-				raise SafeException("Implementation " + impl.id + " of "
-					"interface " + iface.get_name() + " cannot be "
-					"downloaded (no download locations given in "
-					"interface!)")
-			blockers.append(self.download_impl(impl, source))
+	def download_icon(self, interface, force = False):
+		"""Download an icon for this interface and add it to the
+		icon cache. If the interface has no icon or we are offline, do nothing.
+		@return: the task doing the import, or None
+		@rtype: L{tasks.Task}"""
+		debug("download_icon %s (force = %d)", interface, force)
 
-		if not blockers:
-			return None
+		if self.network_use == network_offline:
+			info("No icon present for %s, but off-line so not downloading", interface)
+			return
 
-		@tasks.async
-		def download_impls(blockers):
-			while blockers:
-				yield blockers
-				tasks.check(blockers)
-
-				blockers = [b for b in blockers if not b.happened]
-		return download_impls(blockers)
+		return self.fetcher.download_icon(interface, force)

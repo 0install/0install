@@ -10,7 +10,7 @@ is also the policy used to run the injector's GUI.
 # See the README file for details, or visit http://0install.net.
 
 import os
-from logging import debug, info
+from logging import debug, info, warn
 
 from zeroinstall.support import tasks
 from zeroinstall.injector import model, policy, run
@@ -18,33 +18,23 @@ from zeroinstall.injector.handler import Handler
 from zeroinstall import NeedDownload
 
 class AutoPolicy(policy.Policy):
-	__slots__ = ['allow_downloads', 'download_only', 'dry_run']
+	__slots__ = ['download_only']
 
 	def __init__(self, interface_uri, download_only = False, dry_run = False, src = False, handler = None):
 		"""@param handler: (new in 0.30) handler to use, or None to create a L{Handler}"""
-		policy.Policy.__init__(self, interface_uri, handler or Handler(), src = src)
-		self.dry_run = dry_run
-		self.allow_downloads = not dry_run
+		handler = handler or Handler()
+		if dry_run:
+			info("Note: dry_run is deprecated. Pass it to the handler instead!")
+			handler.dry_run = True
+		policy.Policy.__init__(self, interface_uri, handler, src = src)
 		self.download_only = download_only
-		self.dry_run = dry_run
-
-	def download_and_import_feed(self, feed_url, force = False):
-		if self.dry_run or not self.allow_downloads:
-			raise NeedDownload(feed_url)
-		else:
-			return policy.Policy.download_and_import_feed(self, feed_url, force)
-
-	def download_archive(self, download_source, force = False):
-		if self.dry_run or not self.allow_downloads:
-			raise NeedDownload(download_source.url)
-		return policy.Policy.download_archive(self, download_source, force = force)
 
 	def execute(self, prog_args, main = None, wrapper = None):
-		downloaded = self.download_impls()
+		downloaded = self.download_uncached_implementations()
 		if downloaded:
 			self.handler.wait_for_blocker(downloaded)
 		if not self.download_only:
-			run.execute(self, prog_args, dry_run = self.dry_run, main = main, wrapper = wrapper)
+			run.execute(self, prog_args, dry_run = self.handler.dry_run, main = main, wrapper = wrapper)
 		else:
 			info("Downloads done (download-only mode)")
 	

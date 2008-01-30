@@ -13,6 +13,7 @@ To do this, you supply a L{Handler} to the L{policy}.
 import os, sys
 from logging import debug, info, warn
 
+from zeroinstall import NeedDownload
 from zeroinstall.support import tasks
 from zeroinstall.injector import model, download
 from zeroinstall.injector.iface_cache import iface_cache
@@ -25,12 +26,12 @@ class Handler(object):
 	@type monitored_downloads: {URL: (error_stream, L{download.Download})}
 	"""
 
-	__slots__ = ['monitored_downloads', '_loop', '_loop_errors']
+	__slots__ = ['monitored_downloads', '_loop', 'dry_run']
 
-	def __init__(self, mainloop = None):
+	def __init__(self, mainloop = None, dry_run = False):
 		self.monitored_downloads = {}		
 		self._loop = None
-		self._loop_errors = None
+		self.dry_run = dry_run
 	
 	def monitor_download(self, dl):
 		"""Called when a new L{download} is started.
@@ -79,6 +80,9 @@ class Handler(object):
 		a new one.
 		@rtype: L{download.Download}
 		"""
+		if self.dry_run:
+			raise NeedDownload(url)
+
 		try:
 			dl = self.monitored_downloads[url]
 			if dl and force:
@@ -133,8 +137,4 @@ class Handler(object):
 		@param exception: the exception to report
 		@type exception: L{SafeException}
 		@since: 0.25"""
-		if self._loop_errors is None:
-			warn("%s", exception)
-		else:
-			self._loop_errors.append(str(exception))
-			info("%s", exception)	# (will get reported later)
+		warn("%s", exception)

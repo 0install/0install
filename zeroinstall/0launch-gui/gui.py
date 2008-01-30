@@ -107,11 +107,6 @@ class GUIPolicy(Policy):
 			return True		# Need to download something; check first
 		return False
 
-	def store_icon(self, interface, stream):
-		Policy.store_icon(self, interface, stream)
-		if self.window:
-			self.window.browser.build_tree()
-	
 	def update_display(self):
 		self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
 
@@ -120,7 +115,7 @@ class GUIPolicy(Policy):
 			# If we have feeds then treat this as an update check,
 			# even if we've never seen the main interface before.
 			# Used the first time the GUI is used, for example.
-			root = self.get_interface(self.root)
+			root = iface_cache.get_interface(self.root)
 			if root.name is not None or root.feeds:
 				self.checking = CheckingBox(root)
 

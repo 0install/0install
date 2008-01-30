@@ -151,7 +151,7 @@ def _normal_mode(options, args):
 		if options.main:
 			raise model.SafeException("Can't use --main with --get-selections")
 
-	# Note that need_download() triggers a recalculate()
+	# Note that need_download() triggers a solve
 	if options.refresh or options.gui:
 		# We could run immediately, but the user asked us not to
 		can_run_immediately = False
@@ -176,7 +176,11 @@ def _normal_mode(options, args):
 		if options.get_selections:
 			_get_selections(policy)
 		else:
-			policy.execute(args[1:], main = options.main, wrapper = options.wrapper)
+			if not options.download_only:
+				from zeroinstall.injector import run
+				run.execute(policy, args[1:], dry_run = options.dry_run, main = options.main, wrapper = options.wrapper)
+			else:
+				logging.info("Downloads done (download-only mode)")
 			assert options.dry_run or options.download_only
 		return
 

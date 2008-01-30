@@ -124,6 +124,7 @@ class TestAutoPolicy(BaseTest):
 		policy.network_use = model.network_full
 		policy.recalculate()
 		assert policy.need_download()
+		assert policy.ready
 		try:
 			policy.execute([], main = 'NOTHING')
 			assert False
@@ -228,7 +229,7 @@ class TestAutoPolicy(BaseTest):
 		policy.network_use = model.network_full
 		policy.recalculate()
 		assert policy.ready
-		foo_iface = policy.get_interface(foo_iface_uri)
+		foo_iface = iface_cache.iface_cache.get_interface(foo_iface_uri)
 		self.assertEquals('sha1=123', policy.implementation[foo_iface].id)
 
 	def testBadConfig(self):
@@ -260,7 +261,7 @@ class TestAutoPolicy(BaseTest):
 						download_only = False)
 		policy.network_use = model.network_offline
 		try:
-			policy.get_interface(foo_iface_uri)
+			iface_cache.iface_cache.get_interface(foo_iface_uri)
 			assert False
 		except reader.InvalidInterface, ex:
 			assert 'Invalid feed URL' in str(ex)
@@ -286,7 +287,7 @@ class TestAutoPolicy(BaseTest):
 		except NeedDownload, ex:
 			pass
 
-		iface = policy.get_interface(foo_iface_uri)
+		iface = iface_cache.iface_cache.get_interface(foo_iface_uri)
 		iface._main_feed.feeds = [model.Feed('/BadFeed', None, False)]
 
 		logger.setLevel(logging.ERROR)
@@ -391,8 +392,8 @@ class TestAutoPolicy(BaseTest):
 		#logger.setLevel(logging.DEBUG)
 		policy.recalculate()
 		#logger.setLevel(logging.WARN)
-		foo_iface = policy.get_interface(foo_iface_uri)
-		bar_iface = policy.get_interface('http://bar')
+		foo_iface = iface_cache.iface_cache.get_interface(foo_iface_uri)
+		bar_iface = iface_cache.iface_cache.get_interface('http://bar')
 		assert policy.implementation[bar_iface].id == 'sha1=200'
 
 		dep = policy.implementation[foo_iface].dependencies['http://bar']

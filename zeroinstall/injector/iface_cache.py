@@ -110,8 +110,8 @@ class PendingFeed(object):
 					else:
 						blockers.append(b)
 				except Exception:
-					warn("Failed to import key for '%s': %s", self.url, str(ex))
 					_, exception, tb = sys.exc_info()
+					warn("Failed to import key for '%s': %s", self.url, str(exception))
 
 		if exception and not any_success:
 			raise exception, None, tb

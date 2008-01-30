@@ -84,15 +84,17 @@ class MainWindow:
 	@tasks.async
 	def download_and_run(self, run_button, cancelled):
 		try:
-			downloaded = policy.download_impls()
+			downloaded = policy.download_uncached_implementations()
 
-			blockers = [downloaded, cancelled]
-			yield blockers
-			tasks.check(blockers)
+			if downloaded:
+				# We need to wait until everything is downloaded...
+				blockers = [downloaded, cancelled]
+				yield blockers
+				tasks.check(blockers)
 
-			if cancelled.happened:
-				policy.abort_all_downloads()
-				return
+				if cancelled.happened:
+					policy.abort_all_downloads()
+					return
 
 			if policy.get_uncached_implementations():
 				dialog.alert('Not all downloads succeeded; cannot run program.')

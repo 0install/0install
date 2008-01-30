@@ -119,11 +119,6 @@ class Blocker:
 			#import traceback
 			#traceback.print_exception(exception[0], None, exception[1])
 
-	def check_exception():
-		if self.exception:
-			self.exception_read = True
-			raise self.exception
-	
 	def __del__(self):
 		if self.exception and not self.exception_read:
 			warn("Blocker %s garbage collected without having it's exception read: %s", self, self.exception)
@@ -273,7 +268,7 @@ class Task:
 				new_blockers = (new_blockers,)
 			# Are we blocking on something that already happened?
 			for blocker in new_blockers:
-				assert hasattr(blocker, 'happened'), "Not a Blocker: " + repr(blocker)
+				assert hasattr(blocker, 'happened'), "Not a Blocker: %s from %s" % (blocker, self)
 				if blocker.happened:
 					new_blockers = (_idle_blocker,)
 					info("Task '%s' waiting on ready blocker %s!", self, blocker)
