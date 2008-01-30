@@ -1,7 +1,5 @@
 """
-Chooses a set of implementations based on a policy.
-
-@deprecated: see L{solver}
+Downloads feeds, keys, packages and icons.
 """
 
 # Copyright (C) 2008, Thomas Leonard
@@ -13,7 +11,7 @@ from logging import info, debug, warn
 from zeroinstall.support import tasks, basedir
 from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
 from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, network_offline, escape
-from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
+from zeroinstall.injector.iface_cache import PendingFeed
 
 class Fetcher(object):
 	__slots__ = ['handler']
@@ -22,7 +20,7 @@ class Fetcher(object):
 		self.handler = handler
 
 	@tasks.async
-	def cook(self, required_digest, recipe, force = False):
+	def cook(self, required_digest, recipe, stores, force = False):
 		"""A Cook follows a Recipe.
 		@see: L{download_impl}"""
 		# Maybe we're taking this metaphor too far?
@@ -47,7 +45,7 @@ class Fetcher(object):
 		from zeroinstall.zerostore import unpack
 
 		# Create an empty directory for the new implementation
-		store = iface_cache.stores.stores[0]
+		store = stores.stores[0]
 		tmpdir = store.get_tmp_dir_for(required_digest)
 		try:
 			# Unpack each of the downloaded archives into it in turn
@@ -64,7 +62,7 @@ class Fetcher(object):
 				from zeroinstall import support
 				support.ro_rmtree(tmpdir)
 
-	def download_and_import_feed(self, feed_url, force = False):
+	def download_and_import_feed(self, feed_url, iface_cache, force = False):
 		"""Download the feed, download any required keys, confirm trust if needed and import."""
 		
 		debug("download_and_import_feed %s (force = %d)", feed_url, force)
@@ -98,7 +96,7 @@ class Fetcher(object):
 		return fetch_feed()
 
 	@tasks.async
-	def download_impl(self, impl, retrieval_method, force = False):
+	def download_impl(self, impl, retrieval_method, stores, force = False):
 		"""Download impl, using retrieval_method."""
 		assert impl
 		assert retrieval_method
@@ -115,16 +113,23 @@ class Fetcher(object):
 			tasks.check(blocker)
 
 			stream.seek(0)
-			iface_cache.add_to_cache(retrieval_method, stream)
+			self._add_to_cache(stores, retrieval_method, stream)
 		elif isinstance(retrieval_method, Recipe):
-			blocker = self.cook(impl.id, retrieval_method, force)
+			blocker = self.cook(impl.id, retrieval_method, stores, force)
 			yield blocker
 			tasks.check(blocker)
 		else:
 			raise Exception("Unknown download type for '%s'" % retrieval_method)
+	
+	def _add_to_cache(self, stores, retrieval_method, stream):
+		assert isinstance(retrieval_method, DownloadSource)
+		required_digest = retrieval_method.implementation.id
+		url = retrieval_method.url
+		stores.add_archive_to_cache(required_digest, stream, retrieval_method.url, retrieval_method.extract,
+						 type = retrieval_method.type, start_offset = retrieval_method.start_offset or 0)
 
 	def download_archive(self, download_source, force = False):
-		"""Fetch an archive. You should normally call L{begin_impl_download}
+		"""Fetch an archive. You should normally call L{download_impl}
 		instead, since it handles other kinds of retrieval method too."""
 		from zeroinstall.zerostore import unpack
 		mime_type = download_source.type
@@ -177,7 +182,7 @@ class Fetcher(object):
 
 		return download_and_add_icon()
 
-	def download_impls(self, implementations):
+	def download_impls(self, implementations, stores):
 		"""Download the given implementations, choosing a suitable retrieval method for each."""
 		blockers = []
 
@@ -189,7 +194,7 @@ class Fetcher(object):
 					"interface " + impl.feed.get_name() + " cannot be "
 					"downloaded (no download locations given in "
 					"interface!)")
-			blockers.append(self.download_impl(impl, source))
+			blockers.append(self.download_impl(impl, source, stores))
 
 		if not blockers:
 			return None

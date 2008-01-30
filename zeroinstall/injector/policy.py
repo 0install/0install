@@ -214,7 +214,7 @@ class Policy(object):
 		"""If we're online, call L{download_and_import_feed}. Otherwise, log a suitable warning."""
 		if self.network_use != network_offline:
 			debug("Feed %s not cached and not off-line. Downloading...", feed_url)
-			return self.fetcher.download_and_import_feed(feed_url)
+			return self.fetcher.download_and_import_feed(feed_url, iface_cache)
 		else:
 			if self._warned_offline:
 				debug("Not downloading feed '%s' because we are off-line.", feed_url)
@@ -347,7 +347,7 @@ class Policy(object):
 					if f.startswith('/'):
 						continue
 					feed = iface_cache.get_interface(f)
-					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f)
+					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
 
 			if not downloads_in_progress:
 				break
@@ -382,7 +382,8 @@ class Policy(object):
 	def download_uncached_implementations(self):
 		"""Download all implementations chosen by the solver that are missing from the cache."""
 		assert self.solver.ready, "Solver is not ready!\n%s" % self.solver.selections
-		return self.fetcher.download_impls([impl for impl in self.solver.selections.values() if not self.get_cached(impl)])
+		return self.fetcher.download_impls([impl for impl in self.solver.selections.values() if not self.get_cached(impl)],
+						   iface_cache.stores)
 
 	def download_icon(self, interface, force = False):
 		"""Download an icon for this interface and add it to the

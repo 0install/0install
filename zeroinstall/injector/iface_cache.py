@@ -393,20 +393,6 @@ class IfaceCache(object):
 					all.add(unescape(leaf))
 		return list(all)	# Why not just return the set?
 
-	def add_to_cache(self, source, data):
-		"""Add an implementation to the cache.
-		@param source: information about the archive
-		@type source: L{model.DownloadSource}
-		@param data: the data stream
-		@type data: stream
-		@see: L{zerostore.Stores.add_archive_to_cache}
-		"""
-		assert isinstance(source, DownloadSource)
-		required_digest = source.implementation.id
-		url = source.url
-		self.stores.add_archive_to_cache(required_digest, data, source.url, source.extract,
-						 type = source.type, start_offset = source.start_offset or 0)
-	
 	def get_icon_path(self, iface):
 		"""Get the path of a cached icon for an interface.
 		@param iface: interface whose icon we want
