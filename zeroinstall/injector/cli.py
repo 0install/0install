@@ -213,6 +213,10 @@ def _normal_mode(options, args):
 				gui_args.insert(0, '--before')
 			if options.source:
 				gui_args.insert(0, '--source')
+			if options.verbose:
+				gui_args.insert(0, '--verbose')
+				if options.verbose > 1:
+					gui_args.insert(0, '--verbose')
 			sels = _fork_gui(iface_uri, gui_args, prog_args, options)
 			if not sels:
 				sys.exit(1)		# Aborted
