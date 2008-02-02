@@ -19,7 +19,6 @@ from logging import info
 
 download_starting = "starting"	# Waiting for UI to start it
 download_fetching = "fetching"	# In progress
-download_checking = "checking"	# Checking GPG sig (possibly interactive)
 download_complete = "complete"	# Downloaded and cached OK
 download_failed = "failed"
 
@@ -28,7 +27,7 @@ class DownloadError(SafeException):
 
 class Download(object):
 	__slots__ = ['url', 'tempfile', 'status', 'errors', 'expected_size', 'downloaded',
-		     'expected_size', 'child_pid', 'child_stderr']
+		     'expected_size', 'child_pid', 'child_stderr', '_final_total_size']
 
 	def __init__(self, url):
 		"Initial status is starting."
@@ -40,6 +39,7 @@ class Download(object):
 		self.downloaded = None
 
 		self.expected_size = None	# Final size (excluding skipped bytes)
+		self._final_total_size = None	# Set when download is finished
 
 		self.child_pid = None
 		self.child_stderr = None
@@ -102,6 +102,8 @@ class Download(object):
 			errors = 'Download process exited with error status ' \
 				 'code ' + hex(status)
 
+		self._final_total_size = self.get_bytes_downloaded_so_far()
+
 		stream = self.tempfile
 		self.tempfile = None
 
@@ -122,7 +124,7 @@ class Download(object):
 			_, ex, tb = sys.exc_info()
 			self.downloaded.trigger(exception = (ex, tb))
 		else:
-			self.status = download_checking
+			self.status = download_complete
 			self.downloaded.trigger()
 	
 	def download_as_child(self):
@@ -167,8 +169,16 @@ class Download(object):
 			return 1
 		if self.expected_size is None:
 			return None		# Unknown
-		current_size = os.fstat(self.tempfile.fileno()).st_size
+		current_size = self.get_bytes_downloaded_so_far()
 		return float(current_size) / self.expected_size
+	
+	def get_bytes_downloaded_so_far(self):
+		if self.status is download_starting:
+			return 0
+		elif self.status is download_fetching:
+			return os.fstat(self.tempfile.fileno()).st_size
+		else:
+			return self._final_total_size
 	
 	def __str__(self):
 		return "<Download from %s>" % self.url

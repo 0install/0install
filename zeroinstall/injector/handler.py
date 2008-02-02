@@ -23,15 +23,21 @@ class Handler(object):
 	This implementation of the handler interface uses the GLib mainloop.
 
 	@ivar monitored_downloads: dict of downloads in progress
-	@type monitored_downloads: {URL: (error_stream, L{download.Download})}
+	@type monitored_downloads: {URL: L{download.Download}}
+	@ivar n_completed_downloads: number of downloads which have finished for GUIs, etc (can be reset as desired).
+	@type n_completed_downloads: int
+	@ivar total_bytes_downloaded: informational counter for GUIs, etc (can be reset as desired). Updated when download finishes.
+	@type total_bytes_downloaded: int
 	"""
 
-	__slots__ = ['monitored_downloads', '_loop', 'dry_run']
+	__slots__ = ['monitored_downloads', '_loop', 'dry_run', 'total_bytes_downloaded', 'n_completed_downloads']
 
 	def __init__(self, mainloop = None, dry_run = False):
 		self.monitored_downloads = {}		
 		self._loop = None
 		self.dry_run = dry_run
+		self.n_completed_downloads = 0
+		self.total_bytes_downloaded = 0
 	
 	def monitor_download(self, dl):
 		"""Called when a new L{download} is started.
@@ -40,11 +46,18 @@ class Handler(object):
 		self.monitored_downloads[dl.url] = dl
 		self.downloads_changed()
 
+		@tasks.async
 		def download_done():
 			yield dl.downloaded
-			del self.monitored_downloads[dl.url]
-			self.downloads_changed()
-		monitor = tasks.Task(download_done(), "download monitor")
+			# NB: we don't check for exceptions here; someone else should be doing that
+			try:
+				self.n_completed_downloads += 1
+				self.total_bytes_downloaded += dl.get_bytes_downloaded_so_far()
+				del self.monitored_downloads[dl.url]
+				self.downloads_changed()
+			except Exception, ex:
+				self.report_error(ex)
+		download_done()
 	
 	def downloads_changed(self):
 		# This is just for the GUI to override
