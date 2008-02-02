@@ -74,16 +74,26 @@ def _import_interface(args):
 
 def _manage_feeds(options, args):
 	from zeroinstall.injector import iface_cache, writer
+	from zeroinstall.injector.handler import Handler
+	from zeroinstall.injector.policy import Policy
 	from xml.dom import minidom
+	handler = Handler(dry_run = options.dry_run)
 	if not args: raise UsageError()
 	for x in args:
 		print "Feed '%s':\n" % x
 		x = model.canonical_iface_uri(x)
-		policy = autopolicy.AutoPolicy(x, download_only = True, dry_run = options.dry_run)
+		policy = Policy(x, handler)
 		if options.offline:
 			policy.network_use = model.network_offline
-		policy.recalculate_with_dl()	# XXX
-		interfaces = policy.get_feed_targets(policy.root)
+
+		feed = iface_cache.iface_cache.get_feed(x)
+		if policy.network_use != model.network_offline and policy.is_stale(feed):
+			blocker = policy.fetcher.download_and_import_feed(x, iface_cache.iface_cache)
+			print "Downloading feed; please wait..."
+			handler.wait_for_blocker(blocker)
+			print "Done"
+
+		interfaces = policy.get_feed_targets(x)
 		for i in range(len(interfaces)):
 			feed = interfaces[i].get_feed(x)
 			if feed:
