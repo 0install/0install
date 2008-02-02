@@ -49,7 +49,7 @@ class InterfaceTips(TreeTips):
 		if policy.get_cached(impl):
 			return _("This version is already stored on your computer.")
 		else:
-			src = policy.get_best_source(impl)
+			src = policy.fetcher.get_best_source(impl)
 			if not src:
 				return _("No downloads available!")
 			return _("Need to download %s (%s bytes)") % \

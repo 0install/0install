@@ -40,7 +40,7 @@ class ImplTips(TreeTips):
 		if policy.get_cached(impl):
 			return _("Cached: %s") % policy.get_implementation_path(impl)
 
-		src = policy.get_best_source(impl)
+		src = policy.fetcher.get_best_source(impl)
 		if src:
 			size = support.pretty_size(src.size)
 			return _("Not yet downloaded (%s)") % size

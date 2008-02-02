@@ -59,8 +59,12 @@ class GUIHandler(handler.Handler):
 				self.policy.checking.updates_done(self.policy.versions_changed())
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
+		if self.policy.checking:
+			# Switch to main view if there are keys to be confirmed
+			self.policy.checking.updates_done(True)
+			self.policy.window.show()
 		import trust_box
-		return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.policy.checking or self.policy.window.window)
+		return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.policy.window.window)
 	
 	def report_error(self, ex):
 		dialog.alert(None, str(ex))
