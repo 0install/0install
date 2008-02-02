@@ -76,7 +76,6 @@ def _manage_feeds(options, args):
 	from zeroinstall.injector import iface_cache, writer
 	from zeroinstall.injector.handler import Handler
 	from zeroinstall.injector.policy import Policy
-	from xml.dom import minidom
 	handler = Handler(dry_run = options.dry_run)
 	if not args: raise UsageError()
 	for x in args:

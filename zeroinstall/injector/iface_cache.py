@@ -175,26 +175,18 @@ class IfaceCache(object):
 	Whenever something needs to be done before the feed can move from the pending
 	state, the process is resumed after the required activity by calling L{policy.Policy.process_pending}.
 
-	@ivar watchers: objects requiring notification of cache changes.
 	@ivar pending: downloaded feeds which are not yet trusted
 	@type pending: str -> PendingFeed
 	@see: L{iface_cache} - the singleton IfaceCache instance.
 	"""
 
-	__slots__ = ['watchers', '_interfaces', 'stores', 'pending']
+	__slots__ = ['_interfaces', 'stores', 'pending']
 
 	def __init__(self):
-		self.watchers = []
 		self._interfaces = {}
 		self.pending = {}
 
 		self.stores = zerostore.Stores()
-	
-	def add_watcher(self, w):
-		"""Call C{w.interface_changed(iface)} each time L{update_interface_from_network}
-		changes an interface in the cache."""
-		assert w not in self.watchers
-		self.watchers.append(w)
 	
 	def add_pending(self, pending):
 		"""Add a PendingFeed to the pending dict.
@@ -230,40 +222,11 @@ class IfaceCache(object):
 		self.update_interface_from_network(interface, xml, updated)
 		return True
 
-	def download_key(self, interface, key_id):
-		"""Download a GPG key.
-		The location of the key is calculated from the uri of the interface.
-		@param interface: the interface which needs the key
-		@param key_id: the GPG long id of the key
-		@todo: This method blocks. It should start a download and return.
-		@deprecated: see PendingFeed
-		"""
-		assert interface
-		assert key_id
-		import urlparse, urllib2, shutil, tempfile
-		key_url = urlparse.urljoin(interface.uri, '%s.gpg' % key_id)
-		info("Fetching key from %s", key_url)
-		try:
-			stream = urllib2.urlopen(key_url)
-			# Python2.4: can't call fileno() on stream, so save to tmp file instead
-			tmpfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
-			shutil.copyfileobj(stream, tmpfile)
-			tmpfile.flush()
-			stream.close()
-		except Exception, ex:
-			raise SafeException("Failed to download key from '%s': %s" % (key_url, str(ex)))
-
-		import gpg
-
-		tmpfile.seek(0)
-		gpg.import_key(tmpfile)
-		tmpfile.close()
-
 	def update_interface_from_network(self, interface, new_xml, modified_time):
 		"""Update a cached interface.
 		Called by L{update_interface_if_trusted} if we trust this data.
 		After a successful update, L{writer} is used to update the interface's
-		last_checked time and then all the L{watchers} are notified.
+		last_checked time.
 		@param interface: the interface being updated
 		@type interface: L{model.Interface}
 		@param new_xml: the downloaded replacement interface document

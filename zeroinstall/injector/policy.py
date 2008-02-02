@@ -108,9 +108,6 @@ class Policy(object):
 
 		self.set_root(root)
 
-		# Probably need weakrefs here...
-		iface_cache.add_watcher(self)
-	
 	@property
 	def fetcher(self):
 		if not self._fetcher:
@@ -275,10 +272,6 @@ class Policy(object):
 			except:
 				pass # OK
 		return False
-	
-	def add_to_cache(self, source, data):
-		"""Wrapper for L{iface_cache.IfaceCache.add_to_cache}."""
-		iface_cache.add_to_cache(source, data)
 	
 	def get_uncached_implementations(self):
 		"""List all chosen implementations which aren't yet available locally.
