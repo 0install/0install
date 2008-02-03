@@ -128,8 +128,8 @@ class Download(object):
 			self.downloaded.trigger()
 	
 	def download_as_child(self):
-		from urllib2 import urlopen, HTTPError, URLError
 		try:
+			from urllib2 import urlopen, HTTPError, URLError
 			import shutil
 			#print "Child downloading", self.url
 			if self.url.startswith('/'):
