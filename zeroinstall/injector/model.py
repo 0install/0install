@@ -330,6 +330,9 @@ class Implementation(object):
 	def __str__(self):
 		return self.id
 
+	def __repr__(self):
+		return "v%s (%s)" % (self.get_version(), self.id)
+
 	def __cmp__(self, other):
 		"""Newer versions come first"""
 		return cmp(other.version, self.version)
