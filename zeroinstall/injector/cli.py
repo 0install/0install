@@ -30,7 +30,7 @@ def _list_interfaces(args):
 	for i in matches:
 		print i
 
-def _import_interface(args):
+def _import_feed(args):
 	from zeroinstall.support import tasks
 	from zeroinstall.injector import gpg, handler, trust
 	from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
@@ -329,7 +329,7 @@ def main(command_args):
 			sels = selections.Selections(qdom.parse(file(options.set_selections)))
 			run.execute_selections(sels, args, options.dry_run, options.main, options.wrapper)
 		elif getattr(options, 'import'):
-			_import_interface(args)
+			_import_feed(args)
 		elif options.feed:
 			_manage_feeds(options, args)
 		else:
