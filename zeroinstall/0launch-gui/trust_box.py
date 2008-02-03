@@ -309,5 +309,9 @@ hints = {
 
 	'A14924F4DFD1B81DED3436240C9B2C41B8D66FEA' :
 		'Andreas K. Förster is experimenting with creating Zero Install feeds. '
-		'This key was announced in a 2008-01-25 post to the zeroinstall mailing list.'
+		'This key was announced in a 2008-01-25 post to the zeroinstall mailing list.',
+	
+	'520DCCDBE5D38E2B22ADD82672E5E2ACF037FFC4' :
+		'Thierry Goubier creates PPC binaries for the ROX desktop. This key was '
+		'announced in a 2008-02-03 posting to the rox-users list.'
 }
