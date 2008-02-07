@@ -33,6 +33,10 @@ class AbstractTestUnpack(BaseTest):
 		unpack.unpack_archive('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir)
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 	
+	def testZip(self):
+		unpack.unpack_archive('ftp://foo/file.zip', file('HelloWorld.zip'), self.tmpdir)
+		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+	
 	def testExtract(self):
 		unpack.unpack_archive('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir, extract = 'HelloWorld')
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
