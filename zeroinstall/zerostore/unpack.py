@@ -401,6 +401,9 @@ def _extract(stream, destdir, command, start_offset = 0):
 	if child == 0:
 		try:
 			try:
+				# Some zip archives are missing timezone information; force consistent results
+				os.environ['TZ'] = 'GMT'
+
 				os.chdir(destdir)
 				stream.seek(start_offset)
 				os.dup2(stream.fileno(), 0)
