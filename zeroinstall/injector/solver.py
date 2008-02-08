@@ -50,7 +50,7 @@ class Solver(object):
 		raise NotImplementedError("Abstract")
 
 class DefaultSolver(Solver):
-	def __init__(self, network_use, iface_cache, stores, root_restrictions = None):
+	def __init__(self, network_use, iface_cache, stores, extra_restrictions = None):
 		"""
 		@param network_use: how much use to make of the network
 		@type network_use: L{model.network_levels}
@@ -58,15 +58,15 @@ class DefaultSolver(Solver):
 		@type iface_cache: L{iface_cache.IfaceCache}
 		@param stores: a cached of implementations (affects choice when offline or when minimising network use)
 		@type stores: L{zerostore.Stores}
-		@param root_restrictions: list of extra restrictions for the root interface
-		@type root_restrictions: [L{model.Restriction}]
+		@param extra_restrictions: extra restrictions on the chosen implementations
+		@type extra_restrictions: {L{model.Interface}: [L{model.Restriction}]}
 		"""
 		Solver.__init__(self)
 		self.network_use = network_use
 		self.iface_cache = iface_cache
 		self.stores = stores
 		self.help_with_testing = False
-		self.root_restrictions = root_restrictions or []
+		self.extra_restrictions = extra_restrictions or {}
 
 	def solve(self, root_interface, arch):
 		self.selections = {}
@@ -107,6 +107,12 @@ class DefaultSolver(Solver):
 		def get_best_implementation(iface, arch):
 			debug("get_best_implementation(%s), with feeds: %s", iface, iface.feeds)
 
+			iface_restrictions = restrictions.get(iface, [])
+			extra_restrictions = self.extra_restrictions.get(iface, None)
+			if extra_restrictions:
+				# Don't modify original
+				iface_restrictions = iface_restrictions + extra_restrictions
+
 			impls = []
 			for f in usable_feeds(iface, arch):
 				self.feeds_used.add(f)
@@ -129,28 +135,26 @@ class DefaultSolver(Solver):
 
 			if self.record_details:
 				# In details mode, rank all the implementations and then choose the best
-				impls.sort(lambda a, b: compare(iface, a, b, arch))
+				impls.sort(lambda a, b: compare(iface, a, b, iface_restrictions, arch))
 				best = impls[0]
-				self.details[iface] = [(impl, get_unusable_reason(impl, restrictions.get(iface, []), arch)) for impl in impls]
+				self.details[iface] = [(impl, get_unusable_reason(impl, iface_restrictions, arch)) for impl in impls]
 			else:
 				# Otherwise, just choose the best without sorting
 				best = impls[0]
 				for x in impls[1:]:
-					if compare(iface, x, best, arch) < 0:
+					if compare(iface, x, best, iface_restrictions, arch) < 0:
 						best = x
-			unusable = get_unusable_reason(best, restrictions.get(iface, []), arch)
+			unusable = get_unusable_reason(best, iface_restrictions, arch)
 			if unusable:
 				info("Best implementation of %s is %s, but unusable (%s)", iface, best, unusable)
 				return None
 			return best
 		
-		def compare(interface, b, a, arch):
+		def compare(interface, b, a, iface_restrictions, arch):
 			"""Compare a and b to see which would be chosen first.
 			@param interface: The interface we are trying to resolve, which may
 			not be the interface of a or b if they are from feeds.
 			@rtype: int"""
-			iface_restrictions = restrictions.get(interface, [])
-
 			a_stab = a.get_stability()
 			b_stab = b.get_stability()
 
@@ -262,4 +266,4 @@ class DefaultSolver(Solver):
 				except NotStored:
 					return False
 
-		self.ready = process(model.InterfaceDependency(root_interface, restrictions = self.root_restrictions), arch)
+		self.ready = process(model.InterfaceDependency(root_interface), arch)

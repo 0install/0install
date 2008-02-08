@@ -59,9 +59,6 @@ class Policy(object):
 	network_use = property(lambda self: self.solver.network_use,
 				     lambda self, value: setattr(self.solver, 'network_use', value))
 
-	root_restrictions = property(lambda self: self.solver.root_restrictions,
-				     lambda self, value: setattr(self.solver, 'root_restrictions', value))
-	
 	implementation = property(lambda self: self.solver.selections)
 
 	ready = property(lambda self: self.solver.ready)
@@ -80,7 +77,7 @@ class Policy(object):
 		self.stale_feeds = sets.Set()
 
 		from zeroinstall.injector.solver import DefaultSolver
-		self.solver = DefaultSolver(network_full, iface_cache, iface_cache.stores, root_restrictions = [])
+		self.solver = DefaultSolver(network_full, iface_cache, iface_cache.stores)
 
 		# If we need to download something but can't because we are offline,
 		# warn the user. But only the first time.
