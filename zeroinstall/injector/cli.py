@@ -148,8 +148,8 @@ def _normal_mode(options, args):
 				src = options.source)
 
 	if options.before or options.not_before:
-		policy.root_restrictions.append(model.Restriction(model.parse_version(options.before),
-								  model.parse_version(options.not_before)))
+		policy.root_restrictions.append(model.VersionRangeRestriction(model.parse_version(options.before),
+									      model.parse_version(options.not_before)))
 
 	if options.offline:
 		policy.network_use = model.network_offline

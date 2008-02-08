@@ -110,8 +110,8 @@ def process_depends(item):
 			dependency.bindings.append(process_binding(e))
 		elif e.name == 'version':
 			dependency.restrictions.append(
-				Restriction(not_before = parse_version(e.getAttribute('not-before')),
-					    before = parse_version(e.getAttribute('before'))))
+				VersionRangeRestriction(not_before = parse_version(e.getAttribute('not-before')),
+						        before = parse_version(e.getAttribute('before'))))
 	return dependency
 
 
@@ -125,6 +125,13 @@ preferred = Stability(40, 'preferred', 'Best of all - must be set manually')
 
 class Restriction(object):
 	"""A Restriction limits the allowed implementations of an Interface."""
+	__slots__ = []
+
+	def meets_restriction(self, impl):
+		raise NotImplementedError("Abstract")
+	
+class VersionRangeRestriction(Restriction):
+	"""Only versions within the given range are acceptable"""
 	__slots__ = ['before', 'not_before']
 	def __init__(self, before, not_before):
 		self.before = before
