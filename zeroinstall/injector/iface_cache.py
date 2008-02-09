@@ -67,7 +67,7 @@ class PendingFeed(object):
 		self.signed_data = signed_data
 		self.recheck()
 
-	def download_keys(self, handler):
+	def download_keys(self, handler, feed_hint = None):
 		"""Download any required GPG keys not already on our keyring.
 		When all downloads are done (successful or otherwise), add any new keys
 		to the keyring, L{recheck}.
@@ -84,7 +84,7 @@ class PendingFeed(object):
 				import urlparse
 				key_url = urlparse.urljoin(self.url, '%s.gpg' % key_id)
 				info("Fetching key from %s", key_url)
-				dl = handler.get_download(key_url)
+				dl = handler.get_download(key_url, hint = feed_hint)
 				downloads[dl.downloaded] = (dl, dl.tempfile)
 				blockers.append(dl.downloaded)
 

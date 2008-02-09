@@ -17,10 +17,10 @@ class MainWindow:
 	browser = None
 	window = None
 	cancel_download_and_run = None
-	handler = None
+	policy = None
 
 	def __init__(self, policy, widgets, download_only):
-		self.handler = policy.handler
+		self.policy = policy
 
 		policy.watchers.append(lambda: self.window.set_response_sensitive(gtk.RESPONSE_OK, policy.solver.ready))
 
@@ -82,7 +82,7 @@ class MainWindow:
 	@tasks.async
 	def download_and_run(self, run_button, cancelled):
 		try:
-			downloaded = policy.download_uncached_implementations()
+			downloaded = self.policy.download_uncached_implementations()
 
 			if downloaded:
 				# We need to wait until everything is downloaded...
@@ -91,14 +91,14 @@ class MainWindow:
 				tasks.check(blockers)
 
 				if cancelled.happened:
-					policy.abort_all_downloads()
+					self.policy.handler.abort_all_downloads()
 					return
 
 			if self.policy.get_uncached_implementations():
 				dialog.alert('Not all downloads succeeded; cannot run program.')
 			else:
 				from zeroinstall.injector import selections
-				sels = selections.Selections(policy)
+				sels = selections.Selections(self.policy)
 				doc = sels.toDOM()
 				reply = doc.toxml('utf-8')
 				sys.stdout.write(('Length:%8x\n' % len(reply)) + reply)
@@ -106,17 +106,19 @@ class MainWindow:
 				sys.exit(0)			# Success
 		except SafeException, ex:
 			run_button.set_active(False)
-			policy.handler.report_error(ex)
+			self.policy.handler.report_error(ex)
 		except Exception, ex:
 			run_button.set_active(False)
 			import traceback
 			traceback.print_exc()
-			policy.handler.report_error(ex)
+			self.policy.handler.report_error(ex)
 
 	def update_download_status(self):
 		"""Called at regular intervals while there are downloads in progress,
 		and once at the end. Update the display."""
-		monitored_downloads = self.handler.monitored_downloads
+		monitored_downloads = self.policy.handler.monitored_downloads
+
+		self.browser.update_download_status()
 
 		if not monitored_downloads:
 			self.progress.hide()
@@ -125,8 +127,8 @@ class MainWindow:
 		self.progress.show()
 
 		any_known = False
-		done = total = self.handler.total_bytes_downloaded	# Completed downloads
-		n_downloads = self.handler.n_completed_downloads
+		done = total = self.policy.handler.total_bytes_downloaded	# Completed downloads
+		n_downloads = self.policy.handler.n_completed_downloads
 		# Now add downloads in progress...
 		for x in monitored_downloads.values():
 			if x.status != download.download_fetching: continue

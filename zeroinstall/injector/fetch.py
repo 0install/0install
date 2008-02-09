@@ -20,8 +20,9 @@ class Fetcher(object):
 		self.handler = handler
 
 	@tasks.async
-	def cook(self, required_digest, recipe, stores, force = False):
+	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None):
 		"""A Cook follows a Recipe.
+		@param impl_hint: the Implementation this is for (if any) as a hint for the GUI
 		@see: L{download_impl}"""
 		# Maybe we're taking this metaphor too far?
 
@@ -32,7 +33,7 @@ class Fetcher(object):
 		# Start a download for each ingredient
 		blockers = []
 		for step in recipe.steps:
-			blocker, stream = self.download_archive(step, force = force)
+			blocker, stream = self.download_archive(step, force = force, impl_hint = impl_hint)
 			assert stream
 			blockers.append(blocker)
 			streams[step] = stream
@@ -68,7 +69,7 @@ class Fetcher(object):
 		debug("download_and_import_feed %s (force = %d)", feed_url, force)
 		assert not feed_url.startswith('/')
 
-		dl = self.handler.get_download(feed_url, force = force)
+		dl = self.handler.get_download(feed_url, force = force, hint = feed_url)
 
 		@tasks.named_async("fetch_feed " + feed_url)
 		def fetch_feed():
@@ -80,7 +81,7 @@ class Fetcher(object):
 			pending = PendingFeed(feed_url, stream)
 			iface_cache.add_pending(pending)
 
-			keys_downloaded = tasks.Task(pending.download_keys(self.handler), "download keys for " + feed_url)
+			keys_downloaded = tasks.Task(pending.download_keys(self.handler, feed_hint = feed_url), "download keys for " + feed_url)
 			yield keys_downloaded.finished
 			tasks.check(keys_downloaded.finished)
 
@@ -108,14 +109,14 @@ class Fetcher(object):
 					(alg, impl.feed.get_name(), impl.get_version()))
 
 		if isinstance(retrieval_method, DownloadSource):
-			blocker, stream = self.download_archive(retrieval_method, force = force)
+			blocker, stream = self.download_archive(retrieval_method, force = force, impl_hint = impl)
 			yield blocker
 			tasks.check(blocker)
 
 			stream.seek(0)
 			self._add_to_cache(stores, retrieval_method, stream)
 		elif isinstance(retrieval_method, Recipe):
-			blocker = self.cook(impl.id, retrieval_method, stores, force)
+			blocker = self.cook(impl.id, retrieval_method, stores, force, impl_hint = impl)
 			yield blocker
 			tasks.check(blocker)
 		else:
@@ -128,7 +129,7 @@ class Fetcher(object):
 		stores.add_archive_to_cache(required_digest, stream, retrieval_method.url, retrieval_method.extract,
 						 type = retrieval_method.type, start_offset = retrieval_method.start_offset or 0)
 
-	def download_archive(self, download_source, force = False):
+	def download_archive(self, download_source, force = False, impl_hint = None):
 		"""Fetch an archive. You should normally call L{download_impl}
 		instead, since it handles other kinds of retrieval method too."""
 		from zeroinstall.zerostore import unpack
@@ -138,7 +139,7 @@ class Fetcher(object):
 		if not mime_type:
 			raise SafeException("No 'type' attribute on archive, and I can't guess from the name (%s)" % download_source.url)
 		unpack.check_type_ok(mime_type)
-		dl = self.handler.get_download(download_source.url, force = force)
+		dl = self.handler.get_download(download_source.url, force = force, hint = impl_hint)
 		dl.expected_size = download_source.size + (download_source.start_offset or 0)
 		return (dl.downloaded, dl.tempfile)
 
@@ -163,7 +164,7 @@ class Fetcher(object):
 			info('No PNG icons found in %s', interface)
 			return
 
-		dl = self.handler.get_download(source, force = force)
+		dl = self.handler.get_download(source, force = force, hint = interface)
 
 		@tasks.async
 		def download_and_add_icon():

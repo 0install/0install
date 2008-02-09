@@ -84,7 +84,7 @@ class Handler(object):
 
 		tasks.check(blocker)
 	
-	def get_download(self, url, force = False):
+	def get_download(self, url, force = False, hint = None):
 		"""Return the Download object currently downloading 'url'.
 		If no download for this URL has been started, start one now (and
 		start monitoring it).
@@ -102,7 +102,7 @@ class Handler(object):
 				dl.abort()
 				raise KeyError
 		except KeyError:
-			dl = download.Download(url)
+			dl = download.Download(url, hint)
 			self.monitor_download(dl)
 		return dl
 

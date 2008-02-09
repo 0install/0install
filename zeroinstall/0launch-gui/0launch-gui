@@ -108,10 +108,7 @@ handler.mainwindow = window
 root = iface_cache.get_interface(policy.root)
 window.browser.set_root(root)
 
-def abort_all_downloads():
-	for dl in policy.handler.monitored_downloads.values():
-		dl.abort()
-window.window.connect('destroy', lambda w: abort_all_downloads())
+window.window.connect('destroy', lambda w: handler.abort_all_downloads())
 	
 @tasks.async
 def main():

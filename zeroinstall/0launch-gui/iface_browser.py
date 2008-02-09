@@ -1,6 +1,6 @@
 import gtk, gobject
 
-from zeroinstall.support import basedir, tasks
+from zeroinstall.support import basedir, tasks, pretty_size
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import model
 import properties
@@ -357,3 +357,50 @@ class InterfaceBrowser:
 	def set_original_implementations(self):
 		assert self.original_implementation is None
 		self.original_implementation = self.policy.implementation.copy()
+
+	def update_download_status(self):
+		"""Called at regular intervals while there are downloads in progress,
+		and once at the end. Update the TreeView with the interfaces."""
+		hints = {}
+		for dl in self.policy.handler.monitored_downloads.values():
+			if dl.hint:
+				if dl.hint not in hints:
+					hints[dl.hint] = []
+				hints[dl.hint].append(dl)
+			
+		selections = self.policy.solver.selections
+
+		def walk(it):
+			while it:
+				yield self.model[it]
+				for x in walk(self.model.iter_children(it)): yield x
+				it = self.model.iter_next(it)
+
+		for row in walk(self.model.get_iter_root()):
+			iface = row[InterfaceBrowser.INTERFACE]
+			
+			# Is this interface the download's hint?
+			downloads = hints.get(iface, [])	# The interface itself	
+		     	downloads += hints.get(iface.uri, [])	# The main feed
+			for feed in iface.feeds:
+				downloads += hints.get(feed.uri, []) # Other feeds
+			impl = selections.get(iface, None)
+			if impl:
+				downloads += hints.get(impl, []) # The chosen implementation
+
+			if downloads:
+				so_far = 0
+				expected = None
+				for dl in downloads:
+					if dl.expected_size:
+						expected = (expected or 0) + dl.expected_size
+					so_far += dl.get_bytes_downloaded_so_far()
+				if expected:
+					fraction = "%s (%s%%)" % (pretty_size(expected), 100 * so_far / float(expected))
+				else:
+					fraction = "unknown"
+				if len(downloads) > 1:
+					fraction += " in %d downloads" % len(downloads)
+				row[InterfaceBrowser.SUMMARY] = "Downloaded %s/%s" % (pretty_size(so_far), fraction)
+			else:
+				row[InterfaceBrowser.SUMMARY] = iface.summary

@@ -27,17 +27,16 @@ class DownloadError(SafeException):
 
 class Download(object):
 	__slots__ = ['url', 'tempfile', 'status', 'errors', 'expected_size', 'downloaded',
-		     'interface_hint', 'expected_size', 'child_pid', 'child_stderr', '_final_total_size']
+		     'hint', 'expected_size', 'child_pid', 'child_stderr', '_final_total_size']
 
-	def __init__(self, url, interface_hint = None):
+	def __init__(self, url, hint = None):
 		"""Create a new download.
 		@param url: the resource to download
-		@param interface_hint: the interface for which this download is being done (a hint for the GUI)
-		@type interface_hint: L{model.Interface}
+		@param hint: object with which this download is associated (an optional hint for the GUI)
 		Initial status is starting."""
 		self.url = url
 		self.status = download_starting
-		self.interface_hint = interface_hint
+		self.hint = hint
 
 		self.tempfile = None		# Stream for result
 		self.errors = None
@@ -148,7 +147,7 @@ class Download(object):
 			else:
 				raise Exception('Unsupported URL protocol in: ' + self.url)
 
-			shutil.copyfileobj(src, self.tempfile)
+			shutil.copyfileobj(src, self.tempfile, length=1)
 			self.tempfile.flush()
 			
 			os._exit(0)
