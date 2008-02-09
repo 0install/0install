@@ -5,7 +5,6 @@ from logging import info
 
 from zeroinstall.injector import reader, iface_cache, model
 from zeroinstall.injector.policy import Policy
-from gui import policy
 	
 XMLNS_0COMPILE = 'http://zero-install.sourceforge.net/2006/namespaces/0compile'
 
@@ -43,7 +42,7 @@ class Command:
 					dialog.alert(None, "Command failed:\n%s\n" % self.error)
 			return False
 
-def compile(interface):
+def compile(policy, interface):
 	def add_feed():
 		# A new local feed may have been registered, so update the interface from the cache
 		info("0compile command completed successfully. Reloading interface details.")

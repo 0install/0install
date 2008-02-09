@@ -1,15 +1,15 @@
 import zeroinstall
+from zeroinstall.support import tasks
 from zeroinstall.injector.model import *
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import writer, namespaces, gpg
 
 import gtk, sys, os
-import sets	# Note: for Python 2.3; frozenset is only in Python 2.4
 from logging import warn
 
 import help_box
-from dialog import Dialog
-from gui import policy, Template
+from dialog import DialogResponse
+from gui import Template
 from impl_list import ImplementationList
 import time
 import dialog
@@ -45,7 +45,7 @@ def open_in_browser(link):
 			os._exit(1)
 	os.waitpid(child, 0)
 
-def have_source_for(interface):
+def have_source_for(policy, interface):
 	# Note: we don't want to actually fetch the source interfaces at
 	# this point, so we check whether:
 	# - We have a feed of type 'src' (not fetched), or
@@ -167,7 +167,8 @@ class Feeds:
 	ARCH = 1
 	USED = 2
 
-	def __init__(self, interface, widgets):
+	def __init__(self, policy, interface, widgets):
+		self.policy = policy
 		self.interface = interface
 
 		self.model = gtk.ListStore(str, str, bool)
@@ -179,10 +180,10 @@ class Feeds:
 			self.model.append(line)
 
 		add_remote_feed_button = widgets.get_widget('add_remote_feed')
-		add_remote_feed_button.connect('clicked', lambda b: add_remote_feed(widgets.get_widget(), interface))
+		add_remote_feed_button.connect('clicked', lambda b: add_remote_feed(policy, widgets.get_widget(), interface))
 
 		add_local_feed_button = widgets.get_widget('add_local_feed')
-		add_local_feed_button.connect('clicked', lambda b: add_local_feed(interface))
+		add_local_feed_button.connect('clicked', lambda b: add_local_feed(policy, interface))
 
 		self.remove_feed_button = widgets.get_widget('remove_feed')
 		def remove_feed(button):
@@ -214,8 +215,8 @@ class Feeds:
 		sel.select_path((0,))
 	
 	def build_model(self):
-		usable_feeds = sets.ImmutableSet(policy.usable_feeds(self.interface))
-		unusable_feeds = sets.ImmutableSet(self.interface.feeds) - usable_feeds
+		usable_feeds = frozenset(self.policy.usable_feeds(self.interface))
+		unusable_feeds = frozenset(self.interface.feeds) - usable_feeds
 
 		out = [[self.interface.uri, None, True]]
 
@@ -254,8 +255,11 @@ class Properties:
 	interface = None
 	use_list = None
 	window = None
+	policy = None
 
-	def __init__(self, interface, show_versions = False):
+	def __init__(self, policy, interface, show_versions = False):
+		self.policy = policy
+
 		widgets = Template('interface_properties')
 
 		self.interface = interface
@@ -266,7 +270,7 @@ class Properties:
 		window.set_default_size(-1, gtk.gdk.screen_height() / 3)
 
 		self.compile_button = widgets.get_widget('compile')
-		self.compile_button.connect('clicked', lambda b: compile.compile(interface))
+		self.compile_button.connect('clicked', lambda b: compile.compile(policy, interface))
 		window.set_default_response(gtk.RESPONSE_CANCEL)
 
 		def response(dialog, resp):
@@ -279,7 +283,7 @@ class Properties:
 		notebook = widgets.get_widget('interface_notebook')
 		assert notebook
 
-		feeds = Feeds(interface, widgets)
+		feeds = Feeds(policy, interface, widgets)
 
 		stability = widgets.get_widget('preferred_stability')
 		stability.set_active(0)
@@ -304,7 +308,7 @@ class Properties:
 			policy.recalculate()
 		stability.connect('changed', set_stability_policy)
 
-		self.use_list = ImplementationList(interface, widgets)
+		self.use_list = ImplementationList(policy, interface, widgets)
 
 		self.update_list()
 
@@ -325,82 +329,96 @@ class Properties:
 		self.window.destroy()
 	
 	def shade_compile(self):
-		self.compile_button.set_sensitive(have_source_for(self.interface))
+		self.compile_button.set_sensitive(have_source_for(self.policy, self.interface))
 	
 	def update_list(self):
-		ranked_items = policy.solver.details.get(self.interface, None)
+		ranked_items = self.policy.solver.details.get(self.interface, None)
 		if ranked_items is None:
 			# The Solver didn't get this far, but we should still display them!
 			ranked_items = self.interface.implementations.values()
 			ranked_items.sort()
 		self.use_list.set_items(ranked_items)
-	
-def add_remote_feed(parent, interface):
-	d = gtk.MessageDialog(parent, 0, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL,
-		_('Enter the URL of the new source of implementations of this interface:'))
-	d.add_button(gtk.STOCK_ADD, gtk.RESPONSE_OK)
-	d.set_default_response(gtk.RESPONSE_OK)
-	entry = gtk.Entry()
 
-	align = gtk.VBox(False, 0)
-	align.set_border_width(4)
-	align.add(entry)
-	d.vbox.pack_start(align)
-	entry.set_activates_default(True)
+@tasks.async
+def add_remote_feed(policy, parent, interface):
+	try:
+		d = gtk.MessageDialog(parent, 0, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL,
+			_('Enter the URL of the new source of implementations of this interface:'))
+		d.add_button(gtk.STOCK_ADD, gtk.RESPONSE_OK)
+		d.set_default_response(gtk.RESPONSE_OK)
+		entry = gtk.Entry()
 
-	entry.set_text('')
+		align = gtk.VBox(False, 0)
+		align.set_border_width(4)
+		align.add(entry)
+		d.vbox.pack_start(align)
+		entry.set_activates_default(True)
 
-	d.vbox.show_all()
+		entry.set_text('')
 
-	error_label = gtk.Label('')
-	error_label.set_padding(4, 4)
-	align.pack_start(error_label)
+		d.vbox.show_all()
 
-	def error(message):
-		if message:
-			error_label.set_text(message)
-			error_label.show()
-		else:
-			error_label.hide()
+		error_label = gtk.Label('')
+		error_label.set_padding(4, 4)
+		align.pack_start(error_label)
 
-	def download_done(iface):
-		d.set_sensitive(True)
-		if not iface.name:
-			error('Failed to read interface')
-			return
-		if not iface.feed_for:
-			error("Interface '%s' is not a feed." % iface.get_name())
-		elif interface.uri not in iface.feed_for:
-			error("Interface is not a feed for '%s'.\nOnly for:\n%s" %
-				(interface.uri, '\n'.join(iface.feed_for)))
-		elif iface.uri in [f.uri for f in interface.feeds]:
-			error("Feed from '%s' has already been added!" % iface.uri)
-		else:
-			interface.extra_feeds.append(Feed(iface.uri, arch = None, user_override = True))
-			writer.save_interface(interface)
-			d.destroy()
-			policy.recalculate()
+		d.show()
 
-	def response(d, resp):
-		error(None)
-		if resp == gtk.RESPONSE_OK:
-			try:
-				url = entry.get_text()
-				if not url:
-					raise SafeException(_('Enter a URL'))
-				iface = iface_cache.get_interface(url)
-				policy.begin_iface_download(iface) # Force a refresh
-				d.set_sensitive(False)
-				policy.handler.add_dl_callback(url, lambda: download_done(iface))
-			except SafeException, ex:
-				error(str(ex))
-		else:
-			d.destroy()
-			return
-	d.connect('response', response)
-	d.show()
+		def error(message):
+			if message:
+				error_label.set_text(message)
+				error_label.show()
+			else:
+				error_label.hide()
 
-def add_local_feed(interface):
+		while True:
+			got_response = DialogResponse(d)
+			yield got_response
+			tasks.check(got_response)
+			resp = got_response.response
+
+			error(None)
+			if resp == gtk.RESPONSE_OK:
+				try:
+					url = entry.get_text()
+					if not url:
+						raise SafeException(_('Enter a URL'))
+					fetch = policy.fetcher.download_and_import_feed(url, iface_cache)
+					if fetch:
+						d.set_sensitive(False)
+						yield fetch
+						d.set_sensitive(True)
+						tasks.check(fetch)
+
+						iface = iface_cache.get_interface(url)
+
+						d.set_sensitive(True)
+						if not iface.name:
+							error('Failed to read interface')
+							return
+						if not iface.feed_for:
+							error("Feed '%s' is not a feed for '%s'." % (iface.get_name(), interface.get_name()))
+						elif interface.uri not in iface.feed_for:
+							error("This is not a feed for '%s'.\nOnly for:\n%s" %
+								(interface.uri, '\n'.join(iface.feed_for)))
+						elif iface.uri in [f.uri for f in interface.feeds]:
+							error("Feed from '%s' has already been added!" % iface.uri)
+						else:
+							interface.extra_feeds.append(Feed(iface.uri, arch = None, user_override = True))
+							writer.save_interface(interface)
+							d.destroy()
+							policy.recalculate()
+				except SafeException, ex:
+					error(str(ex))
+			else:
+				d.destroy()
+				return
+	except Exception, ex:
+		import traceback
+		traceback.print_exc()
+		policy.handler.report_error(ex)
+
+def add_local_feed(policy, interface):
 	sel = gtk.FileSelection(_('Select XML feed file'))
 	sel.set_has_separator(False)
 	def ok(b):
@@ -429,11 +447,11 @@ def add_local_feed(interface):
 	sel.cancel_button.connect('clicked', lambda b: sel.destroy())
 	sel.show()
 	
-def edit(interface, show_versions = False):
+def edit(policy, interface, show_versions = False):
 	assert isinstance(interface, Interface)
 	if interface in _dialogs:
 		_dialogs[interface].destroy()
-	_dialogs[interface] = Properties(interface, show_versions)
+	_dialogs[interface] = Properties(policy, interface, show_versions)
 
 properties_help = help_box.HelpBox("Injector Properties Help",
 ('Interface properties', """

@@ -8,12 +8,8 @@ from zeroinstall.injector.model import SafeException
 from zeroinstall.injector.reader import InvalidInterface
 from zeroinstall.support import tasks, pretty_size
 import dialog
-from checking import CheckingBox
 
 version = '0.31'
-
-# Singleton Policy
-policy = None
 
 gladefile = os.path.join(os.path.dirname(__file__), 'zero-install.glade')
 
@@ -35,17 +31,10 @@ class GUIHandler(handler.Handler):
 	pulse = None
 	policy = None
 
-	def __init__(self, policy):
-		handler.Handler.__init__(self)
-		self.policy = policy
-
 	def downloads_changed(self):
 		if self.monitored_downloads and self.pulse is None:
 			def pulse():
-				if self.policy.checking:
-					progress = self.policy.checking.progress
-				else:
-					progress = self.policy.window.progress
+				progress = self.policy.window.progress
 
 				any_known = False
 				done = total = self.total_bytes_downloaded	# Completed downloads
@@ -85,145 +74,46 @@ class GUIHandler(handler.Handler):
 				gobject.source_remove(self.pulse)
 				self.policy.window.progress.hide()
 				self.pulse = None
-				
-			if self.policy.checking:
-				self.policy.checking.updates_done(self.policy.versions_changed())
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
-		if self.policy.checking:
-			# Switch to main view if there are keys to be confirmed
-			self.policy.checking.updates_done(True)
-			self.policy.window.show()
 		import trust_box
 		return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.policy.window.window)
 	
 	def report_error(self, ex):
 		dialog.alert(None, str(ex))
 
-class GUIPolicy(Policy):
+class GUI:
+	policy = None
 	window = None
-	checking = None		# GtkDialog ("Checking for updates...")
-	original_implementation = None
-	download_only = None
-	widgets = None		# Glade
 
-	def __init__(self, interface, download_only, src = False, restrictions = None):
-		Policy.__init__(self, interface, GUIHandler(self), src = src)
-		self.solver.record_details = True
-		global policy
-		assert policy is None
-		policy = self
-
-		self.widgets = Template('main')
-
-		if restrictions:
-			for r in restrictions:
-				self.root_restrictions.append(r)
-
-		self.download_only = download_only
+	def __init__(self, policy, download_only):
+		widgets = Template('main')
+		self.policy = policy
 
 		import mainwindow
-		self.window = mainwindow.MainWindow(download_only)
-		root = iface_cache.get_interface(self.root)
+		self.window = mainwindow.MainWindow(policy, widgets, download_only)
+		root = iface_cache.get_interface(self.policy.root)
 		self.window.browser.set_root(root)
 
-		self.watchers.append(self.update_display)
+		policy.watchers.append(self.update_display) # XXX
+		self.window.window.connect('destroy', lambda w: self.abort_all_downloads())
 	
-	def show_details(self):
-		"""The checking box has disappeared. Should we show the details window, or
-		just run the program right now?"""
-		if self.checking.show_details_clicked.happened:
-			return True		# User clicked on the Details button
-		if not self.ready:
-			return True		# Not ready to start (can't find an implementation)
-		if self.versions_changed():
-			return True		# Confirm that the new version should be used
-		if self.get_uncached_implementations():
-			return True		# Need to download something; check first
-		return False
-
 	def update_display(self):
-		self.window.set_response_sensitive(gtk.RESPONSE_OK, self.ready)
+		self.window.set_response_sensitive(gtk.RESPONSE_OK, self.policy.solver.ready)
 
 	def main(self, refresh):
-		if refresh:
-			# If we have feeds then treat this as an update check,
-			# even if we've never seen the main interface before.
-			# Used the first time the GUI is used, for example.
-			root = iface_cache.get_interface(self.root)
-			if root.name is not None or root.feeds:
-				self.checking = CheckingBox(root)
+		solved = self.policy.solve_with_downloads(force = refresh)
 
-		solved = self.solve_with_downloads(force = refresh)
-
-		if self.checking:
-			self.checking.show()
-
-			error = None
-			blockers = [solved, self.checking.show_details_clicked, self.checking.cancelled]
-			yield blockers
-			try:
-				tasks.check(blockers)
-			except Exception, ex:
-				error = ex
-
-			if not (self.checking.show_details_clicked.happened or self.checking.cancelled.happened):
-				self.checking.updates_done(self.versions_changed())
-				blockers = tasks.TimeoutBlocker(0.5, "checking result timeout")
-				yield blockers
-				tasks.check(blockers)
-			self.checking.destroy()
-
-			show_details = self.show_details() or error
-			self.checking = None
-			if show_details:
-				self.window.show()
-				if error:
-					dialog.alert(self.window.window, "Failed to check for updates: %s" % ex)
-				yield []
-			else:
-				from zeroinstall.injector import selections
-				sels = selections.Selections(policy)
-				doc = sels.toDOM()
-				reply = doc.toxml('utf-8')
-				sys.stdout.write(('Length:%8x\n' % len(reply)) + reply)
-				self.window.destroy()
-				sys.exit(0)			# Success
-		else:
-			self.window.show()
-			yield solved
-			try:
-				tasks.check(solved)
-			except Exception, ex:
-				import traceback
-				traceback.print_exc()
-				dialog.alert(self.window.window, str(ex))
-			yield []
+		self.window.show()
+		yield solved
+		try:
+			tasks.check(solved)
+		except Exception, ex:
+			import traceback
+			traceback.print_exc()
+			dialog.alert(self.window.window, str(ex))
+		yield []
 	
 	def abort_all_downloads(self):
-		for dl in self.handler.monitored_downloads.values():
+		for dl in self.policy.handler.monitored_downloads.values():
 			dl.abort()
-	
-	def set_original_implementations(self):
-		assert self.original_implementation is None
-		self.original_implementation = policy.implementation.copy()
-
-	def versions_changed(self):
-		"""Return whether we have now chosen any different implementations.
-		If so, we want to show the dialog to the user to confirm the new ones."""
-		if not self.ready:
-			return True
-		if not self.original_implementation:
-			return True		# Shouldn't happen?
-		if len(self.original_implementation) != len(self.implementation):
-			return True
-		for iface in self.original_implementation:
-			old = self.original_implementation[iface]
-			if old is None:
-				return True
-			new = self.implementation.get(iface, None)
-			if new is None:
-				return True
-			if old.id != new.id:
-				return True
-		return False

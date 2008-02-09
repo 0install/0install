@@ -1,4 +1,5 @@
 import gtk
+from zeroinstall.support import tasks
 
 n_windows = 0
 
@@ -19,6 +20,17 @@ class Dialog(gtk.Dialog):
 		self.add_action_widget(button, response)
 		button.show_all()
 		return button
+
+class DialogResponse(tasks.Blocker):
+	response = None
+	def __init__(self, dialog):
+		tasks.Blocker.__init__(self, dialog.get_title())
+		a = None
+		def response(d, resp):
+			self.response = resp
+			d.disconnect(a)
+			self.trigger()
+		a = dialog.connect('response', response)
 
 def alert(parent, message, type = gtk.MESSAGE_ERROR):
 	if type == gtk.MESSAGE_ERROR:

@@ -1,6 +1,5 @@
 import gtk, gobject, os
 from zeroinstall.injector import model, writer
-from gui import policy
 from zeroinstall import support
 from treetips import TreeTips
 
@@ -29,7 +28,8 @@ RELEASED = 6
 NOTES = 7
 
 class ImplTips(TreeTips):
-	def __init__(self, interface):
+	def __init__(self, policy, interface):
+		self.policy = policy
 		self.interface = interface
 
 	def get_tooltip_text(self, impl):
@@ -37,10 +37,10 @@ class ImplTips(TreeTips):
 			return _("Local: %s") % impl.id
 		if impl.id.startswith('package:'):
 			return _("Native package: %s") % impl.id.split(':', 1)[1]
-		if policy.get_cached(impl):
-			return _("Cached: %s") % policy.get_implementation_path(impl)
+		if self.policy.get_cached(impl):
+			return _("Cached: %s") % self.policy.get_implementation_path(impl)
 
-		src = policy.fetcher.get_best_source(impl)
+		src = self.policy.fetcher.get_best_source(impl)
 		if src:
 			size = support.pretty_size(src.size)
 			return _("Not yet downloaded (%s)") % size
@@ -51,9 +51,11 @@ class ImplementationList:
 	tree_view = None
 	model = None
 	interface = None
+	policy = None
 
-	def __init__(self, interface, widgets):
+	def __init__(self, policy, interface, widgets):
 		self.interface = interface
+		self.policy = policy
 
 		self.model = gtk.ListStore(object, str, str, str,
 			   gobject.TYPE_BOOLEAN, gobject.TYPE_BOOLEAN,
@@ -76,7 +78,7 @@ class ImplementationList:
 			       gtk.TreeViewColumn('Notes', text, text = NOTES)):
 			self.tree_view.append_column(column)
 
-		tips = ImplTips(interface)
+		tips = ImplTips(policy, interface)
 
 		def motion(tree_view, ev):
 			if ev.window is not tree_view.get_bin_window():
@@ -113,14 +115,14 @@ class ImplementationList:
 					else:
 						impl.user_stability = None
 					writer.save_interface(interface)
-					policy.recalculate()
+					self.policy.recalculate()
 				popup_menu(bev, ['Unset (%s)' % upstream, None] + choices,
 					set)
-			elif bev.button == 3 and policy.get_cached(impl):
+			elif bev.button == 3 and self.policy.get_cached(impl):
 				def open(item):
 					os.spawnlp(os.P_WAIT, '0launch',
 						'0launch', rox_filer, '-d',
-						policy.get_implementation_path(impl))
+						self.policy.get_implementation_path(impl))
 				popup_menu(bev, ['Open cached copy'], open)
 		self.tree_view.connect('button-press-event', button_press)
 	
@@ -134,7 +136,7 @@ class ImplementationList:
 			self.model[new][ITEM] = item
 			self.model[new][VERSION] = item.get_version()
 			self.model[new][RELEASED] = item.released or "-"
-			self.model[new][CACHED] = policy.get_cached(item)
+			self.model[new][CACHED] = self.policy.get_cached(item)
 			if item.user_stability:
 				self.model[new][STABILITY] = str(item.user_stability).upper()
 			else:

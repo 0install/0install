@@ -5,7 +5,6 @@ from zeroinstall import SafeException
 from zeroinstall.support import tasks
 from iface_browser import InterfaceBrowser
 import help_box
-from gui import policy
 import dialog
 
 tips = gtk.Tooltips()
@@ -18,15 +17,11 @@ class MainWindow:
 	window = None
 	cancel_download_and_run = None
 
-	def __init__(self, download_only):
-		widgets = policy.widgets
-
+	def __init__(self, policy, widgets, download_only):
 		self.window = widgets.get_widget('main')
 		self.window.set_default_size(gtk.gdk.screen_width() * 2 / 5, 300)
 
 		self.progress = widgets.get_widget('progress')
-
-		self.window.connect('destroy', lambda w: self.destroyed())
 
 		cache = widgets.get_widget('show_cache')
 		cache.connect('clicked',
@@ -35,7 +30,7 @@ class MainWindow:
 		widgets.get_widget('refresh').connect('clicked', lambda b: policy.refresh_all())
 
 		# Tree view
-		self.browser = InterfaceBrowser(widgets.get_widget('components'))
+		self.browser = InterfaceBrowser(policy, widgets)
 
 		prefs = widgets.get_widget('preferences')
 		self.window.action_area.set_child_secondary(prefs, True)
@@ -66,7 +61,7 @@ class MainWindow:
 				gui_help.display()
 			elif resp == SHOW_PREFERENCES:
 				import preferences
-				preferences.show_preferences()
+				preferences.show_preferences(policy)
 		self.window.connect('response', response)
 
 	def destroy(self):
@@ -77,9 +72,6 @@ class MainWindow:
 
 	def set_response_sensitive(self, response, sensitive):
 		self.window.set_response_sensitive(response, sensitive)
-
-	def destroyed(self):
-		policy.abort_all_downloads()
 
 	@tasks.async
 	def download_and_run(self, run_button, cancelled):
@@ -96,7 +88,7 @@ class MainWindow:
 					policy.abort_all_downloads()
 					return
 
-			if policy.get_uncached_implementations():
+			if self.policy.get_uncached_implementations():
 				dialog.alert('Not all downloads succeeded; cannot run program.')
 			else:
 				from zeroinstall.injector import selections

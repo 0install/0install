@@ -5,7 +5,6 @@ from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import model
 import properties
 from treetips import TreeTips
-from gui import policy
 from zeroinstall import support
 from logging import warn
 
@@ -19,6 +18,11 @@ ICON_SIZE = 20.0
 CELL_TEXT_INDENT = int(ICON_SIZE) + 4
 
 class InterfaceTips(TreeTips):
+	mainwindow = None
+
+	def __init__(self, mainwindow):
+		self.mainwindow = mainwindow
+
 	def get_tooltip_text(self, item):
 		interface, model_column = item
 		assert interface
@@ -30,7 +34,7 @@ class InterfaceTips(TreeTips):
 			first_para = interface.description.split('\n\n', 1)[0]
 			return first_para.replace('\n', ' ')
 
-		impl = policy.implementation.get(interface, None)
+		impl = self.mainwindow.policy.implementation.get(interface, None)
 		if not impl:
 			return _("No suitable implementation was found. Check the "
 				 "interface properties to find out why.")
@@ -38,7 +42,7 @@ class InterfaceTips(TreeTips):
 		if model_column == InterfaceBrowser.VERSION:
 			text = _("Currently preferred version: %s (%s)") % \
 					(impl.get_version(), _stability(impl))
-			old_impl = policy.original_implementation.get(interface, None)
+			old_impl = self.mainwindow.original_implementation.get(interface, None)
 			if old_impl is not None and old_impl is not impl:
 				text += _('\nPreviously preferred version: %s (%s)') % \
 					(old_impl.get_version(), _stability(old_impl))
@@ -46,16 +50,14 @@ class InterfaceTips(TreeTips):
 
 		assert model_column == InterfaceBrowser.DOWNLOAD_SIZE
 
-		if policy.get_cached(impl):
+		if self.mainwindow.policy.get_cached(impl):
 			return _("This version is already stored on your computer.")
 		else:
-			src = policy.fetcher.get_best_source(impl)
+			src = self.mainwindow.policy.fetcher.get_best_source(impl)
 			if not src:
 				return _("No downloads available!")
 			return _("Need to download %s (%s bytes)") % \
 					(support.pretty_size(src.size), src.size)
-
-tips = InterfaceTips()
 
 class IconAndTextRenderer(gtk.GenericCellRenderer):
 	__gproperties__ = {
@@ -113,6 +115,8 @@ class InterfaceBrowser:
 	root = None
 	edit_properties = None
 	cached_icon = None
+	policy = None
+	original_implementation = None
 
 	INTERFACE = 0
 	INTERFACE_NAME = 1
@@ -126,12 +130,17 @@ class InterfaceBrowser:
 		   (_('Fetch'), DOWNLOAD_SIZE),
 		   (_('Description'), SUMMARY)]
 
-	def __init__(self, tree_view):
+	def __init__(self, policy, widgets):
+		tips = InterfaceTips(self)
+
+		tree_view = widgets.get_widget('components')
+
+		self.policy = policy
 		self.cached_icon = {}	# URI -> GdkPixbuf
 		self.default_icon = tree_view.style.lookup_icon_set(gtk.STOCK_EXECUTE).render_icon(tree_view.style,
 			gtk.TEXT_DIR_NONE, gtk.STATE_NORMAL, gtk.ICON_SIZE_SMALL_TOOLBAR, tree_view, None)
 
-		self.edit_properties = policy.widgets.get_widget('properties')
+		self.edit_properties = widgets.get_widget('properties')
 		self.edit_properties.set_property('sensitive', False)
 
 		self.model = gtk.TreeStore(object, str, str, str, str, gtk.gdk.Pixbuf)
@@ -199,13 +208,13 @@ class InterfaceBrowser:
 			if not pos:
 				return False
 			path, col, x, y = pos
-			properties.edit(self.model[path][InterfaceBrowser.INTERFACE])
+			properties.edit(policy, self.model[path][InterfaceBrowser.INTERFACE])
 		tree_view.connect('button-press-event', button_press)
 
 		def edit_selected(action):
 			store, iter = selection.get_selected()
 			assert iter
-			properties.edit(self.model[iter][InterfaceBrowser.INTERFACE])
+			properties.edit(policy, self.model[iter][InterfaceBrowser.INTERFACE])
 		self.edit_properties.connect('clicked', edit_selected)
 
 		tree_view.connect('destroy', lambda s: policy.watchers.remove(self.build_tree))
@@ -245,7 +254,7 @@ class InterfaceBrowser:
 				return icon
 			else:
 				# Try to download the icon
-				fetcher = policy.download_icon(iface)
+				fetcher = self.policy.download_icon(iface)
 				if fetcher:
 					@tasks.async
 					def update_display():
@@ -256,14 +265,14 @@ class InterfaceBrowser:
 						except Exception, ex:
 							import traceback
 							traceback.print_exc()
-							policy.handler.report_error(ex)
+							self.policy.handler.report_error(ex)
 					update_display()
 
 		return None
 
 	def build_tree(self):
-		if policy.original_implementation is None:
-			policy.set_original_implementations()
+		if self.original_implementation is None:
+			self.set_original_implementations()
 
 		done = {}	# Detect cycles
 
@@ -280,15 +289,15 @@ class InterfaceBrowser:
 			self.model[iter][InterfaceBrowser.SUMMARY] = iface.summary
 			self.model[iter][InterfaceBrowser.ICON] = self.get_icon(iface) or self.default_icon
 
-			impl = policy.implementation.get(iface, None)
+			impl = self.policy.implementation.get(iface, None)
 			if impl:
-				old_impl = policy.original_implementation.get(iface, None)
+				old_impl = self.original_implementation.get(iface, None)
 				version_str = impl.get_version()
 				if old_impl is not None and old_impl is not impl:
 					version_str += " (was " + old_impl.get_version() + ")"
 				self.model[iter][InterfaceBrowser.VERSION] = version_str
 
-				if policy.get_cached(impl):
+				if self.policy.get_cached(impl):
 					if impl.id.startswith('/'):
 						fetch = '(local)'
 					elif impl.id.startswith('package:'):
@@ -296,7 +305,7 @@ class InterfaceBrowser:
 					else:
 						fetch = '(cached)'
 				else:
-					src = policy.fetcher.get_best_source(impl)
+					src = self.policy.fetcher.get_best_source(impl)
 					if src:
 						fetch = support.pretty_size(src.size)
 					else:
@@ -324,7 +333,7 @@ class InterfaceBrowser:
 	def show_popup_menu(self, iface, bev):
 		import bugs
 
-		if properties.have_source_for(iface):
+		if properties.have_source_for(self.policy, iface):
 			def compile_cb():
 				import compile
 				compile.compile(iface)
@@ -334,7 +343,7 @@ class InterfaceBrowser:
 		menu = gtk.Menu()
 		for label, cb in [(_('Show Feeds'), lambda: properties.edit(iface)),
 				  (_('Show Versions'), lambda: properties.edit(iface, show_versions = True)),
-				  (_('Report a Bug...'), lambda: bugs.report_bug(policy, iface)),
+				  (_('Report a Bug...'), lambda: bugs.report_bug(self.policy, iface)),
 				  (_('Compile...'), compile_cb)]:
 			item = gtk.MenuItem(label)
 			if cb:
@@ -344,3 +353,7 @@ class InterfaceBrowser:
 			item.show()
 			menu.append(item)
 		menu.popup(None, None, None, bev.button, bev.time)
+	
+	def set_original_implementations(self):
+		assert self.original_implementation is None
+		self.original_implementation = self.policy.implementation.copy()

@@ -2,7 +2,7 @@ import gtk
 from logging import warn
 import os, sys
 import help_box
-from gui import policy, Template
+from gui import Template
 from dialog import Dialog, MixedButton, frame
 from zeroinstall.injector.model import network_levels
 from zeroinstall.injector import trust, gpg
@@ -14,7 +14,7 @@ tips = gtk.Tooltips()
 SHOW_CACHE = 0
 
 class Preferences:
-	def __init__(self):
+	def __init__(self, policy):
 		widgets = Template('preferences_box')
 
 		self.window = widgets.get_widget('preferences_box')
@@ -150,13 +150,12 @@ class KeyList:
 		tv.connect('button-press-event', trusted_keys_button_press)
 
 preferences_box = None
-def show_preferences():
+def show_preferences(policy):
 	global preferences_box
-	if preferences_box is not None:
-		preferences_box.window.present()
-	else:
-		preferences_box = Preferences()
-		preferences_box.window.show()
+	if preferences_box:
+		preferences_box.destroy()
+	preferences_box = Preferences(policy)
+	preferences_box.window.show()
 		
 gui_help = help_box.HelpBox("Zero Install Preferences Help",
 ('Overview', """
