@@ -2,7 +2,8 @@ import gtk
 from logging import warn
 import os, sys
 from zeroinstall import SafeException
-from zeroinstall.support import tasks
+from zeroinstall.support import tasks, pretty_size
+from zeroinstall.injector import download
 from iface_browser import InterfaceBrowser
 import help_box
 import dialog
@@ -16,8 +17,11 @@ class MainWindow:
 	browser = None
 	window = None
 	cancel_download_and_run = None
+	handler = None
 
 	def __init__(self, policy, widgets, download_only):
+		self.handler = policy.handler
+
 		policy.watchers.append(lambda: self.window.set_response_sensitive(gtk.RESPONSE_OK, policy.solver.ready))
 
 		self.window = widgets.get_widget('main')
@@ -108,6 +112,41 @@ class MainWindow:
 			import traceback
 			traceback.print_exc()
 			policy.handler.report_error(ex)
+
+	def update_download_status(self):
+		"""Called at regular intervals while there are downloads in progress,
+		and once at the end. Update the display."""
+		monitored_downloads = self.handler.monitored_downloads
+
+		if not monitored_downloads:
+			self.progress.hide()
+			return
+
+		self.progress.show()
+
+		any_known = False
+		done = total = self.handler.total_bytes_downloaded	# Completed downloads
+		n_downloads = self.handler.n_completed_downloads
+		# Now add downloads in progress...
+		for x in monitored_downloads.values():
+			if x.status != download.download_fetching: continue
+			n_downloads += 1
+			if x.expected_size:
+				any_known = True
+			so_far = x.get_bytes_downloaded_so_far()
+			total += x.expected_size or max(4096, so_far)	# Guess about 4K for feeds/icons
+			done += so_far
+
+		progress_text = '%s / %s' % (pretty_size(done), pretty_size(total))
+		if n_downloads == 1:
+			self.progress.set_text('Downloading one file (%s)' % progress_text)
+		else:
+			self.progress.set_text('Downloading %d files (%s)' % (n_downloads, progress_text))
+
+		if total == 0 or (n_downloads < 2 and not any_known):
+			self.progress.pulse()
+		else:
+			self.progress.set_fraction(float(done) / total)
 
 gui_help = help_box.HelpBox("Injector Help",
 ('Overview', """

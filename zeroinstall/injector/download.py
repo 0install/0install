@@ -27,12 +27,17 @@ class DownloadError(SafeException):
 
 class Download(object):
 	__slots__ = ['url', 'tempfile', 'status', 'errors', 'expected_size', 'downloaded',
-		     'expected_size', 'child_pid', 'child_stderr', '_final_total_size']
+		     'interface_hint', 'expected_size', 'child_pid', 'child_stderr', '_final_total_size']
 
-	def __init__(self, url):
-		"Initial status is starting."
+	def __init__(self, url, interface_hint = None):
+		"""Create a new download.
+		@param url: the resource to download
+		@param interface_hint: the interface for which this download is being done (a hint for the GUI)
+		@type interface_hint: L{model.Interface}
+		Initial status is starting."""
 		self.url = url
 		self.status = download_starting
+		self.interface_hint = interface_hint
 
 		self.tempfile = None		# Stream for result
 		self.errors = None
