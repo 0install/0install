@@ -2,7 +2,6 @@
 from basetest import BaseTest
 import sys, tempfile, os, shutil
 import unittest
-from sets import Set
 
 thomas_fingerprint = "92429807C9853C0744A68B9AAE07828059A53CC1"
 
@@ -13,6 +12,7 @@ from zeroinstall.support import basedir
 
 class TestTrust(BaseTest):
 	def testInit(self):
+		trust.trust_db.untrust_key(thomas_fingerprint, domain = '0install.net')	# Gets added by default
 		assert not trust.trust_db.is_trusted(thomas_fingerprint)
 		assert not trust.trust_db.is_trusted("1234")
 		assert len(trust.trust_db.keys) == 0
@@ -36,9 +36,9 @@ class TestTrust(BaseTest):
 	def testAddDomain(self):
 		assert not trust.trust_db.is_trusted("1234", "0install.net")
 		trust.trust_db.trust_key("1234")
-		self.assertEquals(Set(['*']), trust.trust_db.get_trust_domains("1234"))
-		self.assertEquals(Set(['1234']), trust.trust_db.get_keys_for_domain("*"))
-		self.assertEquals(Set(), trust.trust_db.get_trust_domains("bob"))
+		self.assertEquals(set(['*']), trust.trust_db.get_trust_domains("1234"))
+		self.assertEquals(set(['1234']), trust.trust_db.get_keys_for_domain("*"))
+		self.assertEquals(set(), trust.trust_db.get_trust_domains("bob"))
 
 		assert trust.trust_db.is_trusted("1234")
 		assert trust.trust_db.is_trusted("1234", "0install.net")
@@ -57,11 +57,11 @@ class TestTrust(BaseTest):
 		assert trust.trust_db.is_trusted("1234", "gimp.org")
 		assert not trust.trust_db.is_trusted("1234", "rox.sourceforge.net")
 
-		self.assertEquals(Set(['1234', '1236']),
+		self.assertEquals(set(['1234', '1236']),
 			trust.trust_db.get_keys_for_domain("gimp.org"))
 
-		self.assertEquals(Set(), trust.trust_db.get_trust_domains("99877"))
-		self.assertEquals(Set(['0install.net', 'gimp.org']), trust.trust_db.get_trust_domains("1234"))
+		self.assertEquals(set(), trust.trust_db.get_trust_domains("99877"))
+		self.assertEquals(set(['0install.net', 'gimp.org']), trust.trust_db.get_trust_domains("1234"))
 	
 	def testParallel(self):
 		a = trust.TrustDB()

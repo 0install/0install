@@ -7,14 +7,14 @@ Records who we trust to sign interfaces.
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os, sets
+import os
 
 from zeroinstall.support import basedir
 from namespaces import config_site, config_prog, XMLNS_TRUST
 
 class TrustDB(object):
 	"""A database of trusted keys.
-	@ivar keys: maps trusted key fingerprints to a list of domains
+	@ivar keys: maps trusted key fingerprints to a set of domains for which where it is trusted
 	@type keys: {str: set(str)}
 	@ivar watchers: callbacks invoked by L{notify}
 	@see: L{trust_db} - the singleton instance of this class"""
@@ -41,13 +41,13 @@ class TrustDB(object):
 		@since: 0.27
 		"""
 		self.ensure_uptodate()
-		return self.keys.get(fingerprint, sets.Set())
+		return self.keys.get(fingerprint, set())
 	
 	def get_keys_for_domain(self, domain):
 		"""Return the set of keys trusted for this domain.
 		@since: 0.27"""
 		self.ensure_uptodate()
-		return sets.Set([fp for fp in self.keys
+		return set([fp for fp in self.keys
 				 if domain in self.keys[fp]])
 
 	def trust_key(self, fingerprint, domain = '*'):
@@ -62,7 +62,7 @@ class TrustDB(object):
 		int(fingerprint, 16)		# Ensure fingerprint is valid
 
 		if fingerprint not in self.keys:
-			self.keys[fingerprint] = sets.Set()
+			self.keys[fingerprint] = set()
 
 		#if domain == '*':
 		#	warn("Calling trust_key() without a domain is deprecated")
@@ -122,7 +122,7 @@ class TrustDB(object):
 		if trust:
 			keys = minidom.parse(trust).documentElement
 			for key in keys.getElementsByTagNameNS(XMLNS_TRUST, 'key'):
-				domains = sets.Set()
+				domains = set()
 				self.keys[key.getAttribute('fingerprint')] = domains
 				for domain in key.getElementsByTagNameNS(XMLNS_TRUST, 'domain'):
 					domains.add(domain.getAttribute('value'))
@@ -133,7 +133,13 @@ class TrustDB(object):
 				#print "Loading trust from", trust_db
 				for key in file(trust).read().split('\n'):
 					if key:
-						self.keys[key] = sets.Set('*')
+						self.keys[key] = set(['*'])
+			else:
+				# No trust database found.
+				# Trust Thomas Leonard's key for 0install.net by default.
+				# Avoids distracting confirmation box on first run when we check
+				# for updates to the GUI.
+				self.keys['92429807C9853C0744A68B9AAE07828059A53CC1'] = set(['0install.net'])
 
 def domain_from_url(url):
 	"""Extract the trust domain for a URL.
