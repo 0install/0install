@@ -87,11 +87,14 @@ from zeroinstall.injector import model, autopolicy, namespaces
 from zeroinstall.injector.policy import Policy
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.support import tasks
+import mainwindow, dialog
 
 restrictions = []
 if options.before or options.not_before:
 	restrictions.append(model.Restriction(model.parse_version(options.before),
 					      model.parse_version(options.not_before)))
+
+widgets = dialog.Template('main')
 
 handler = gui.GUIHandler()
 policy = Policy(interface_uri, handler, src = bool(options.source))
@@ -99,7 +102,29 @@ root_iface = iface_cache.get_interface(interface_uri)
 policy.solver.extra_restrictions[root_iface] = restrictions
 policy.solver.record_details = True
 
-gui = gui.GUI(policy, download_only = bool(options.download_only))
-handler.policy = gui
-main = tasks.Task(gui.main(bool(options.refresh)), "main")
-handler.wait_for_blocker(main.finished)
+window = mainwindow.MainWindow(policy, widgets, download_only = bool(options.download_only))
+handler.mainwindow = window
+
+root = iface_cache.get_interface(policy.root)
+window.browser.set_root(root)
+
+def abort_all_downloads():
+	for dl in policy.handler.monitored_downloads.values():
+		dl.abort()
+window.window.connect('destroy', lambda w: abort_all_downloads())
+	
+@tasks.async
+def main():
+	solved = policy.solve_with_downloads(force = bool(options.refresh))
+
+	window.show()
+	yield solved
+	try:
+		tasks.check(solved)
+	except Exception, ex:
+		import traceback
+		traceback.print_exc()
+		dialog.alert(window.window, str(ex))
+	yield []
+
+handler.wait_for_blocker(main())

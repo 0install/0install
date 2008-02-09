@@ -18,6 +18,8 @@ class MainWindow:
 	cancel_download_and_run = None
 
 	def __init__(self, policy, widgets, download_only):
+		policy.watchers.append(lambda: self.window.set_response_sensitive(gtk.RESPONSE_OK, policy.solver.ready))
+
 		self.window = widgets.get_widget('main')
 		self.window.set_default_size(gtk.gdk.screen_width() * 2 / 5, 300)
 

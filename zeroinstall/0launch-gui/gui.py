@@ -1,5 +1,4 @@
 import gtk, os, gobject, sys
-import gtk.glade
 
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector.policy import Policy
@@ -11,30 +10,15 @@ import dialog
 
 version = '0.31'
 
-gladefile = os.path.join(os.path.dirname(__file__), 'zero-install.glade')
-
-# Wrapped for glade widget tree that throws a sensible exception if the widget isn't found
-class Template:
-	def __init__(self, root):
-		self.widgets = gtk.glade.XML(gladefile, root)
-		self.root = root
-	
-	def get_widget(self, name = None):
-		if not name:
-			name = self.root
-		widget = self.widgets.get_widget(name)
-		assert widget, "Widget '%s' not found in glade file '%s'" % (name, gladefile)
-		return widget
-
 class GUIHandler(handler.Handler):
 	dl_callbacks = None		# Download -> [ callback ]
 	pulse = None
-	policy = None
+	mainwindow = None
 
 	def downloads_changed(self):
 		if self.monitored_downloads and self.pulse is None:
 			def pulse():
-				progress = self.policy.window.progress
+				progress = self.mainwindow.progress
 
 				any_known = False
 				done = total = self.total_bytes_downloaded	# Completed downloads
@@ -63,7 +47,7 @@ class GUIHandler(handler.Handler):
 				return True
 			pulse()
 			self.pulse = gobject.timeout_add(50, pulse)
-			self.policy.window.progress.show()
+			self.mainwindow.progress.show()
 		elif len(self.monitored_downloads) == 0:
 			# Reset counters
 			self.n_completed_downloads = 0
@@ -72,48 +56,12 @@ class GUIHandler(handler.Handler):
 			# Stop animation
 			if self.pulse:
 				gobject.source_remove(self.pulse)
-				self.policy.window.progress.hide()
+				self.mainwindow.progress.hide()
 				self.pulse = None
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		import trust_box
-		return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.policy.window.window)
+		return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.mainwindow.window)
 	
 	def report_error(self, ex):
 		dialog.alert(None, str(ex))
-
-class GUI:
-	policy = None
-	window = None
-
-	def __init__(self, policy, download_only):
-		widgets = Template('main')
-		self.policy = policy
-
-		import mainwindow
-		self.window = mainwindow.MainWindow(policy, widgets, download_only)
-		root = iface_cache.get_interface(self.policy.root)
-		self.window.browser.set_root(root)
-
-		policy.watchers.append(self.update_display) # XXX
-		self.window.window.connect('destroy', lambda w: self.abort_all_downloads())
-	
-	def update_display(self):
-		self.window.set_response_sensitive(gtk.RESPONSE_OK, self.policy.solver.ready)
-
-	def main(self, refresh):
-		solved = self.policy.solve_with_downloads(force = refresh)
-
-		self.window.show()
-		yield solved
-		try:
-			tasks.check(solved)
-		except Exception, ex:
-			import traceback
-			traceback.print_exc()
-			dialog.alert(self.window.window, str(ex))
-		yield []
-	
-	def abort_all_downloads(self):
-		for dl in self.policy.handler.monitored_downloads.values():
-			dl.abort()

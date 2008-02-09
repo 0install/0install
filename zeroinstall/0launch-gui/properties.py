@@ -8,8 +8,7 @@ import gtk, sys, os
 from logging import warn
 
 import help_box
-from dialog import DialogResponse
-from gui import Template
+from dialog import DialogResponse, Template
 from impl_list import ImplementationList
 import time
 import dialog

@@ -1,9 +1,26 @@
 import gtk
+import gtk.glade
+import os
 from zeroinstall.support import tasks
 
 n_windows = 0
 
 last_error = None
+
+gladefile = os.path.join(os.path.dirname(__file__), 'zero-install.glade')
+
+# Wrapped for glade widget tree that throws a sensible exception if the widget isn't found
+class Template:
+	def __init__(self, root):
+		self.widgets = gtk.glade.XML(gladefile, root)
+		self.root = root
+	
+	def get_widget(self, name = None):
+		if not name:
+			name = self.root
+		widget = self.widgets.get_widget(name)
+		assert widget, "Widget '%s' not found in glade file '%s'" % (name, gladefile)
+		return widget
 
 class Dialog(gtk.Dialog):
 	__shown = False
