@@ -10,6 +10,16 @@ class GUIHandler(handler.Handler):
 	pulse = None
 	mainwindow = None
 
+	def _reset_counters(self):
+		if not self.monitored_downloads:
+			self.n_completed_downloads = 0
+			self.total_bytes_downloaded = 0
+		return False
+
+	def abort_all_downloads(self):
+		for dl in self.monitored_downloads.values():
+			dl.abort()
+
 	def downloads_changed(self):
 		if self.monitored_downloads and self.pulse is None:
 			def pulse():
@@ -18,9 +28,8 @@ class GUIHandler(handler.Handler):
 			pulse()
 			self.pulse = gobject.timeout_add(50, pulse)
 		elif len(self.monitored_downloads) == 0:
-			# Reset counters
-			self.n_completed_downloads = 0
-			self.total_bytes_downloaded = 0
+			# Delay before resetting, in case we start a new download quickly
+			gobject.timeout_add(500, self._reset_counters)
 
 			# Stop animation
 			if self.pulse:
