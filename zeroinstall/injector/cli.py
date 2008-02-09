@@ -10,6 +10,7 @@ from optparse import OptionParser
 import logging
 
 from zeroinstall.injector import model, download, autopolicy, namespaces
+from zeroinstall.injector.iface_cache import iface_cache
 
 #def program_log(msg): os.access('MARK: 0launch: ' + msg, os.F_OK)
 #import __main__
@@ -17,7 +18,6 @@ from zeroinstall.injector import model, download, autopolicy, namespaces
 #program_log('0launch ' + ' '.join((sys.argv[1:])))
 
 def _list_interfaces(args):
-	from zeroinstall.injector.iface_cache import iface_cache
 	if len(args) == 0:
 		matches = iface_cache.list_all_interfaces()
 	elif len(args) == 1:
@@ -33,7 +33,7 @@ def _list_interfaces(args):
 def _import_feed(args):
 	from zeroinstall.support import tasks
 	from zeroinstall.injector import gpg, handler, trust
-	from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
+	from zeroinstall.injector.iface_cache import PendingFeed
 	from xml.dom import minidom
 	for x in args:
 		if not os.path.isfile(x):
@@ -73,7 +73,7 @@ def _import_feed(args):
 			raise model.SafeException("Errors during download: " + '\n'.join(errors))
 
 def _manage_feeds(options, args):
-	from zeroinstall.injector import iface_cache, writer
+	from zeroinstall.injector import writer
 	from zeroinstall.injector.handler import Handler
 	from zeroinstall.injector.policy import Policy
 	handler = Handler(dry_run = options.dry_run)
@@ -141,6 +141,7 @@ def _normal_mode(options, args):
 			raise UsageError()
 
 	iface_uri = model.canonical_iface_uri(args[0])
+	root_iface = iface_cache.get_interface(iface_uri)
 
 	policy = autopolicy.AutoPolicy(iface_uri,
 				download_only = bool(options.download_only),
@@ -148,8 +149,8 @@ def _normal_mode(options, args):
 				src = options.source)
 
 	if options.before or options.not_before:
-		policy.root_restrictions.append(model.VersionRangeRestriction(model.parse_version(options.before),
-									      model.parse_version(options.not_before)))
+		policy.solver.extra_restrictions[root_iface] = [model.VersionRangeRestriction(model.parse_version(options.before),
+									      		      model.parse_version(options.not_before))]
 
 	if options.offline:
 		policy.network_use = model.network_offline
@@ -167,7 +168,6 @@ def _normal_mode(options, args):
 	else:
 		can_run_immediately = (not policy.need_download()) and policy.ready
 
-		from zeroinstall.injector.iface_cache import iface_cache
 		stale_feeds = [feed for feed in policy.solver.feeds_used if policy.is_stale(iface_cache.get_feed(feed))]
 
 		if options.download_only and stale_feeds:
