@@ -396,11 +396,11 @@ class InterfaceBrowser:
 						expected = (expected or 0) + dl.expected_size
 					so_far += dl.get_bytes_downloaded_so_far()
 				if expected:
-					fraction = "%s (%s%%)" % (pretty_size(expected), 100 * so_far / float(expected))
+					fraction = "%s [%s%%]" % (pretty_size(expected), 100 * so_far / float(expected))
 				else:
 					fraction = "unknown"
 				if len(downloads) > 1:
 					fraction += " in %d downloads" % len(downloads)
-				row[InterfaceBrowser.SUMMARY] = "Downloaded %s/%s" % (pretty_size(so_far), fraction)
+				row[InterfaceBrowser.SUMMARY] = "(downloading %s/%s)" % (pretty_size(so_far), fraction)
 			else:
 				row[InterfaceBrowser.SUMMARY] = iface.summary

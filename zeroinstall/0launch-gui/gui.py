@@ -42,4 +42,4 @@ class GUIHandler(handler.Handler):
 		return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.mainwindow.window)
 	
 	def report_error(self, ex):
-		dialog.alert(None, str(ex))
+		dialog.alert(self.mainwindow.window, str(ex))

@@ -95,7 +95,7 @@ class MainWindow:
 					return
 
 			if self.policy.get_uncached_implementations():
-				dialog.alert('Not all downloads succeeded; cannot run program.')
+				dialog.alert(self.window, 'Not all downloads succeeded; cannot run program.')
 			else:
 				from zeroinstall.injector import selections
 				sels = selections.Selections(self.policy)
