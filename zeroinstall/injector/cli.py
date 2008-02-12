@@ -85,7 +85,7 @@ def _manage_feeds(options, args):
 		if options.offline:
 			policy.network_use = model.network_offline
 
-		feed = iface_cache.iface_cache.get_feed(x)
+		feed = iface_cache.get_feed(x)
 		if policy.network_use != model.network_offline and policy.is_stale(feed):
 			blocker = policy.fetcher.download_and_import_feed(x, iface_cache.iface_cache)
 			print "Downloading feed; please wait..."
