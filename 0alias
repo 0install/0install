@@ -2,8 +2,9 @@
 import os, sys
 from optparse import OptionParser
 
-from zeroinstall.injector import reader, model, basedir
+from zeroinstall.injector import reader, model
 from zeroinstall import support, alias, helpers
+from zeroinstall.support import basedir
 
 def export(name, value):
 	"""Try to guess the command to set an environment variable."""
