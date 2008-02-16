@@ -118,6 +118,8 @@ def main():
 	yield solved
 	try:
 		tasks.check(solved)
+	except model.SafeException, ex:
+		dialog.alert(window.window, str(ex))
 	except Exception, ex:
 		import traceback
 		traceback.print_exc()
