@@ -341,8 +341,8 @@ class InterfaceBrowser:
 			compile_cb = None
 
 		menu = gtk.Menu()
-		for label, cb in [(_('Show Feeds'), lambda: properties.edit(iface)),
-				  (_('Show Versions'), lambda: properties.edit(iface, show_versions = True)),
+		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.policy, iface)),
+				  (_('Show Versions'), lambda: properties.edit(self.policy, iface, show_versions = True)),
 				  (_('Report a Bug...'), lambda: bugs.report_bug(self.policy, iface)),
 				  (_('Compile...'), compile_cb)]:
 			item = gtk.MenuItem(label)

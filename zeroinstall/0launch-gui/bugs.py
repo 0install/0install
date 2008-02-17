@@ -37,8 +37,8 @@ def report_bug(policy, iface):
 		impl = policy.implementation[chosen_iface]
 		if impl:
 			text += '    Version: %s\n' % impl.get_version()
-			if impl.interface != chosen_iface:
-				text += '  From feed: %s\n' % impl.interface.uri
+			if impl.feed.url != chosen_iface.uri:
+				text += '  From feed: %s\n' % impl.feed.url
 			text += '         ID: %s\n' % impl.id
 		else:
 			text += '    No implementation selected\n'
