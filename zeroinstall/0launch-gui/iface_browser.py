@@ -336,7 +336,7 @@ class InterfaceBrowser:
 		if properties.have_source_for(self.policy, iface):
 			def compile_cb():
 				import compile
-				compile.compile(iface)
+				compile.compile(self.policy, iface)
 		else:
 			compile_cb = None
 
