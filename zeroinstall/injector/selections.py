@@ -17,23 +17,28 @@ class Selection(object):
 	"""A single selected implementation in a L{Selections} set.
 	@ivar dependencies: list of dependencies
 	@type dependencies: [L{model.Dependency}]
+	@ivar attrs: XML attributes map (name is in the format "{namespace} {localName}")
+	@type attrs: {str: str}
 	@ivar version: the implementation's version number
 	@type version: str"""
-	__slots__ = ['interface', 'bindings', 'id', 'version', 'feed', 'dependencies', 'main']
+	__slots__ = ['bindings', 'dependencies', 'attrs']
 
-	def __init__(self, interface, id, version, feed, main, dependencies, bindings = None):
-		assert interface
-		assert id
-		assert version
-		assert feed
+	def __init__(self, dependencies, bindings = None, attrs = None):
 		if bindings is None: bindings = []
-		self.interface = interface
-		self.id = id
-		self.version = version
-		self.feed = feed
-		self.main = main
 		self.dependencies = dependencies
 		self.bindings = bindings
+		self.attrs = attrs
+
+		assert self.interface
+		assert self.id
+		assert self.version
+		assert self.feed
+
+	interface = property(lambda self: self.attrs['interface'])
+	id = property(lambda self: self.attrs['id'])
+	version = property(lambda self: self.attrs['version'])
+	feed = property(lambda self: self.attrs.get('from-feed', self.interface))
+	main = property(lambda self: self.attrs['main'])
 
 	def __repr__(self):
 		return self.id
@@ -69,11 +74,14 @@ class Selections(object):
 			impl = policy.implementation[needed_iface]
 			assert impl
 
-			self.selections[needed_iface.uri] = Selection(needed_iface.uri, impl.id,
-							 impl.get_version(), impl.feed.url,
-							 impl.main,
-							 impl.requires,
-							 impl.bindings)
+			attrs = {'id': impl.id,
+				'version': impl.get_version(),
+				'interface': needed_iface.uri,
+				'from-feed': impl.feed.url}
+			if impl.main:
+				attrs['main'] = impl.main
+
+			self.selections[needed_iface.uri] = Selection(impl.requires, impl.bindings, attrs)
 
 	def _init_from_qdom(self, root):
 		"""Parse and load a selections document.
@@ -98,15 +106,8 @@ class Selections(object):
 					dep = process_depends(dep_elem)
 					requires.append(dep)
 
-			iface_uri = selection.getAttribute('interface')
-			s = Selection(iface_uri,
-				      selection.getAttribute('id'),
-				      selection.getAttribute('version'),
-				      selection.getAttribute('from-feed') or iface_uri,
-				      selection.getAttribute('main'),
-				      requires,
-				      bindings)
-			self.selections[iface_uri] = s
+			s = Selection(requires, bindings, selection.attrs)
+			self.selections[selection.attrs['interface']] = s
 	
 	def toDOM(self):
 		"""Create a DOM document for the selected implementations.
@@ -142,12 +143,15 @@ class Selections(object):
 			selection_elem.setAttributeNS(None, 'interface', selection.interface)
 			root.appendChild(selection_elem)
 
-			selection_elem.setAttributeNS(None, 'id', selection.id)
-			selection_elem.setAttributeNS(None, 'version', selection.version)
-			if selection.main:
-				selection_elem.setAttributeNS(None, 'main', selection.main)
-			if selection.interface != selection.feed:
-				selection_elem.setAttributeNS(None, 'from-feed', selection.feed)
+			for name, value in selection.attrs.iteritems():
+				if ' ' in name:
+					ns, localName = name.split(' ', 1)
+					selection_elem.setAttributeNS(ns, ensure_prefix(prefixes, ns) + ':' + localName, value)
+				elif name != 'from-feed':
+					selection_elem.setAttributeNS(None, name, value)
+				elif value != selection.attrs['interface']:
+					# Don't bother writing from-feed attr if it's the same as the interface
+					selection_elem.setAttributeNS(None, name, value)
 
 			for b in selection.bindings:
 				selection_elem.appendChild(b._toxml(doc))

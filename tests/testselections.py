@@ -37,6 +37,7 @@ class TestSelections(BaseTest):
 
 			self.assertEquals('sha1=234', sels[1].id)
 			self.assertEquals("1.0", sels[1].version)
+			self.assertEquals("bar", sels[1].attrs['http://namespace foo'])
 
 			self.assertEquals(0, len(sels[0].bindings))
 			self.assertEquals(0, len(sels[0].dependencies))
@@ -50,6 +51,7 @@ class TestSelections(BaseTest):
 			self.assertEquals(1, len(dep.bindings))
 
 		s1 = selections.Selections(p)
+		s1.selections['http://foo/Source.xml'].attrs['http://namespace foo'] = 'bar'
 		assertSel(s1)
 
 		xml = s1.toDOM().toxml("utf-8")
