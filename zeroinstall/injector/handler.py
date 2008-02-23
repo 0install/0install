@@ -58,6 +58,14 @@ class Handler(object):
 			except Exception, ex:
 				self.report_error(ex)
 		download_done()
+
+	def impl_added_to_store(self, impl):
+		"""Called by the Fetcher when adding an implementation.
+		The GUI uses this to update its display.
+		@param impl: the implementation which has been added
+		@type impl: L{model.Implementation}
+		"""
+		pass
 	
 	def downloads_changed(self):
 		# This is just for the GUI to override
@@ -145,9 +153,10 @@ class Handler(object):
 
 		trust.trust_db.notify()
 	
-	def report_error(self, exception):
+	def report_error(self, exception, tb = None):
 		"""Report an exception to the user.
 		@param exception: the exception to report
 		@type exception: L{SafeException}
+		@param tb: optional traceback
 		@since: 0.25"""
 		warn("%s", exception)

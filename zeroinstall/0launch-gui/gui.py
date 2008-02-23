@@ -36,12 +36,15 @@ class GUIHandler(handler.Handler):
 				gobject.source_remove(self.pulse)
 				self.pulse = None
 				self.mainwindow.update_download_status()
+	
+	def impl_added_to_store(self, impl):
+		self.mainwindow.update_download_status()
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		import trust_box
 		return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.mainwindow.window)
 	
-	def report_error(self, ex):
+	def report_error(self, ex, tb = None):
 		if isinstance(ex, download.DownloadAborted):
 			return		# No need to tell the user about this, since they caused it
 		dialog.alert(self.mainwindow.window, str(ex))

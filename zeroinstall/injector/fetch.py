@@ -96,7 +96,6 @@ class Fetcher(object):
 
 		return fetch_feed()
 
-	@tasks.async
 	def download_impl(self, impl, retrieval_method, stores, force = False):
 		"""Download impl, using retrieval_method."""
 		assert impl
@@ -108,19 +107,24 @@ class Fetcher(object):
 			raise SafeException("Unknown digest algorithm '%s' for '%s' version %s" %
 					(alg, impl.feed.get_name(), impl.get_version()))
 
-		if isinstance(retrieval_method, DownloadSource):
-			blocker, stream = self.download_archive(retrieval_method, force = force, impl_hint = impl)
-			yield blocker
-			tasks.check(blocker)
+		@tasks.async
+		def download_impl():
+			if isinstance(retrieval_method, DownloadSource):
+				blocker, stream = self.download_archive(retrieval_method, force = force, impl_hint = impl)
+				yield blocker
+				tasks.check(blocker)
 
-			stream.seek(0)
-			self._add_to_cache(stores, retrieval_method, stream)
-		elif isinstance(retrieval_method, Recipe):
-			blocker = self.cook(impl.id, retrieval_method, stores, force, impl_hint = impl)
-			yield blocker
-			tasks.check(blocker)
-		else:
-			raise Exception("Unknown download type for '%s'" % retrieval_method)
+				stream.seek(0)
+				self._add_to_cache(stores, retrieval_method, stream)
+			elif isinstance(retrieval_method, Recipe):
+				blocker = self.cook(impl.id, retrieval_method, stores, force, impl_hint = impl)
+				yield blocker
+				tasks.check(blocker)
+			else:
+				raise Exception("Unknown download type for '%s'" % retrieval_method)
+
+			self.handler.impl_added_to_store(impl)
+		return download_impl()
 	
 	def _add_to_cache(self, stores, retrieval_method, stream):
 		assert isinstance(retrieval_method, DownloadSource)
@@ -187,6 +191,7 @@ class Fetcher(object):
 		"""Download the given implementations, choosing a suitable retrieval method for each."""
 		blockers = []
 
+		to_download = []
 		for impl in implementations:
 			debug("start_downloading_impls: for %s get %s", impl.feed, impl)
 			source = self.get_best_source(impl)
@@ -195,6 +200,9 @@ class Fetcher(object):
 					"interface " + impl.feed.get_name() + " cannot be "
 					"downloaded (no download locations given in "
 					"interface!)")
+			to_download.append((impl, source))
+
+		for impl, source in to_download:
 			blockers.append(self.download_impl(impl, source, stores))
 
 		if not blockers:
@@ -202,11 +210,21 @@ class Fetcher(object):
 
 		@tasks.async
 		def download_impls(blockers):
+			# Record the first error log the rest
+			error = []
+			def dl_error(ex, tb = None):
+				if error:
+					self.handler.report_error(ex)
+				else:
+					error.append(ex)
 			while blockers:
 				yield blockers
-				tasks.check(blockers)
+				tasks.check(blockers, dl_error)
 
 				blockers = [b for b in blockers if not b.happened]
+			if error:
+				raise error[0]
+
 		return download_impls(blockers)
 
 	def get_best_source(self, impl):

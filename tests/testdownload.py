@@ -34,7 +34,7 @@ class DummyHandler(handler.Handler):
 		if self.ex:
 			raise self.ex
 	
-	def report_error(self, ex):
+	def report_error(self, ex, tb = None):
 		assert self.ex is None, self.ex
 		self.ex = ex
 

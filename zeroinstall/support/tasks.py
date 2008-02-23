@@ -42,16 +42,19 @@ import gobject
 # triggered
 _run_queue = []
 
-def check(blockers):
+def check(blockers, reporter = None):
 	"""See if any of the blockers have pending exceptions.
-	Raise the first and log the rest."""
+	@param reporter: invoke this function on each error
+	If reporter is None, raise the first and log the rest."""
 	ex = None
 	if isinstance(blockers, Blocker):
 		blockers = (blockers,)
 	for b in blockers:
 		if b.exception:
 			b.exception_read = True
-			if ex is None:
+			if reporter:
+				reporter(*b.exception)
+			elif ex is None:
 				ex = b.exception
 			else:
 				warn("Multiple exceptions waiting; skipping %s", b.exception[0])

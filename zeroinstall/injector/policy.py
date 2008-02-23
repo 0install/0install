@@ -344,10 +344,7 @@ class Policy(object):
 
 			blockers = downloads_in_progress.values()
 			yield blockers
-			for b in blockers:
-				if b.exception:
-					b.exception_read = True
-					self.handler.report_error(b.exception[0])
+			tasks.check(blockers, self.handler.report_error)
 
 			for f in downloads_in_progress.keys():
 				if downloads_in_progress[f].happened:

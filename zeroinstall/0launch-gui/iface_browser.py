@@ -297,20 +297,7 @@ class InterfaceBrowser:
 					version_str += " (was " + old_impl.get_version() + ")"
 				self.model[iter][InterfaceBrowser.VERSION] = version_str
 
-				if self.policy.get_cached(impl):
-					if impl.id.startswith('/'):
-						fetch = '(local)'
-					elif impl.id.startswith('package:'):
-						fetch = '(package)'
-					else:
-						fetch = '(cached)'
-				else:
-					src = self.policy.fetcher.get_best_source(impl)
-					if src:
-						fetch = support.pretty_size(src.size)
-					else:
-						fetch = '(unavailable)'
-				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = fetch
+				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = self._get_fetch_info(impl)
 				if hasattr(impl, 'requires'):
 					children = impl.requires
 				else:
@@ -329,6 +316,24 @@ class InterfaceBrowser:
 				self.model[iter][InterfaceBrowser.VERSION] = '(choose)'
 		add_node(None, self.root)
 		self.tree_view.expand_all()
+	
+	def _get_fetch_info(self, impl):
+		"""Get the text for the Fetch column."""
+		if impl is None:
+			return ""
+		elif self.policy.get_cached(impl):
+			if impl.id.startswith('/'):
+				return '(local)'
+			elif impl.id.startswith('package:'):
+				return '(package)'
+			else:
+				return '(cached)'
+		else:
+			src = self.policy.fetcher.get_best_source(impl)
+			if src:
+				return support.pretty_size(src.size)
+			else:
+				return '(unavailable)'
 
 	def show_popup_menu(self, iface, bev):
 		import bugs
@@ -360,7 +365,8 @@ class InterfaceBrowser:
 
 	def update_download_status(self):
 		"""Called at regular intervals while there are downloads in progress,
-		and once at the end. Update the TreeView with the interfaces."""
+		and once at the end. Also called when things are added to the store.
+		Update the TreeView with the interfaces."""
 		hints = {}
 		for dl in self.policy.handler.monitored_downloads.values():
 			if dl.hint:
@@ -403,4 +409,5 @@ class InterfaceBrowser:
 					fraction += " in %d downloads" % len(downloads)
 				row[InterfaceBrowser.SUMMARY] = "(downloading %s/%s)" % (pretty_size(so_far), fraction)
 			else:
+				row[InterfaceBrowser.DOWNLOAD_SIZE] = self._get_fetch_info(impl)
 				row[InterfaceBrowser.SUMMARY] = iface.summary
