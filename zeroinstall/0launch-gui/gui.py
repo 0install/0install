@@ -1,6 +1,6 @@
 import gobject
 
-from zeroinstall.injector import handler
+from zeroinstall.injector import handler, download
 import dialog
 
 version = '0.31'
@@ -42,4 +42,6 @@ class GUIHandler(handler.Handler):
 		return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.mainwindow.window)
 	
 	def report_error(self, ex):
+		if isinstance(ex, download.DownloadAborted):
+			return		# No need to tell the user about this, since they caused it
 		dialog.alert(self.mainwindow.window, str(ex))

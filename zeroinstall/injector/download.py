@@ -25,9 +25,14 @@ download_failed = "failed"
 class DownloadError(SafeException):
 	pass
 
+class DownloadAborted(DownloadError):
+	def __init__(self, message):
+		SafeException.__init__(self, message or "Download aborted at user's request")
+
 class Download(object):
 	__slots__ = ['url', 'tempfile', 'status', 'errors', 'expected_size', 'downloaded',
-		     'hint', 'expected_size', 'child_pid', 'child_stderr', '_final_total_size']
+		     'hint', 'expected_size', 'child_pid', 'child_stderr', '_final_total_size',
+		     'aborted_by_user']
 
 	def __init__(self, url, hint = None):
 		"""Create a new download.
@@ -37,6 +42,7 @@ class Download(object):
 		self.url = url
 		self.status = download_starting
 		self.hint = hint
+		self.aborted_by_user = False
 
 		self.tempfile = None		# Stream for result
 		self.errors = None
@@ -77,8 +83,6 @@ class Download(object):
 		os.close(error_w)
 		self.status = download_fetching
 
-		#stream =  os.fdopen(error_r, 'r')
-
 		# Wait for child to exit, collecting error output as we go
 
 		while True:
@@ -102,7 +106,7 @@ class Download(object):
 		errors = self.errors
 		self.errors = None
 
-		if status and not errors:
+		if status and not self.aborted_by_user and not errors:
 			errors = 'Download process exited with error status ' \
 				 'code ' + hex(status)
 
@@ -112,6 +116,9 @@ class Download(object):
 		self.tempfile = None
 
 		try:
+			if self.aborted_by_user:
+				raise DownloadAborted(errors)
+
 			if errors:
 				raise DownloadError(errors)
 
@@ -161,6 +168,7 @@ class Download(object):
 			info("Killing download process %s", self.child_pid)
 			import signal
 			os.kill(self.child_pid, signal.SIGTERM)
+			self.aborted_by_user = True
 		else:
 			self.status = download_failed
 
