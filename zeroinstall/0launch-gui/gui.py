@@ -3,7 +3,7 @@ import gobject
 from zeroinstall.injector import handler, download
 import dialog
 
-version = '0.31'
+version = '0.32'
 
 class GUIHandler(handler.Handler):
 	dl_callbacks = None		# Download -> [ callback ]
