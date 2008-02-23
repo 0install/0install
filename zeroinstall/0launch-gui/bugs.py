@@ -146,9 +146,6 @@ class BugReporter(dialog.Dialog):
 		import logging
 		from zeroinstall.injector import run
 
-		# TODO: send request to 0launch instead of running it ourselves
-		# because it should run inside any sandbox being used
-
 		iter = buffer.get_end_iter()
 		buffer.place_cursor(iter)
 
