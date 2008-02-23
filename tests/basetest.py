@@ -2,6 +2,10 @@
 import sys, tempfile, os, shutil, StringIO
 import unittest
 import logging
+import warnings
+
+# It's OK to test deprecated features
+warnings.filterwarnings("ignore", category = DeprecationWarning)
 
 # Catch silly mistakes...
 os.environ['HOME'] = '/home/idontexist'

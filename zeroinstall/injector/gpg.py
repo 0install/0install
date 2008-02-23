@@ -13,7 +13,6 @@ import base64, re
 import os
 import tempfile
 import traceback
-from logging import warn
 from trust import trust_db
 from model import SafeException
 
@@ -313,7 +312,8 @@ def check_stream(stream):
 	if start == "<?xml ":
 		return _check_xml_stream(stream)
 	elif start == '-----B':
-		warn("Plain GPG-signed feeds are deprecated!")
+		import warnings
+		warnings.warn("Plain GPG-signed feeds are deprecated!", DeprecationWarning, stacklevel = 2)
 		os.lseek(stream.fileno(), 0, 0)
 		return _check_plain_stream(stream)
 	else:

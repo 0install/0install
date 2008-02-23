@@ -393,5 +393,6 @@ class Policy(object):
 	
 	def get_interface(self, uri):
 		"""@deprecated: use L{IfaceCache.get_interface} instead"""
-		warn("Policy.get_interface is deprecated!")
+		import warnings
+		warnings.warn("Policy.get_interface is deprecated!", DeprecationWarning, stacklevel = 2)
 		return iface_cache.get_interface(uri)
