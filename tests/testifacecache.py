@@ -43,22 +43,9 @@ class TestIfaceCache(BaseTest):
 
 		gpg.import_key(stream)
 
-		# Signed, old style
-		src.seek(0)
-		src.write(data.foo_signed)
-		src.flush()
-		src.seek(0)
-
-		try:
-			pending = PendingFeed(iface.uri, src)
-			raise Exception("Old feeds must be rejected")
-		except model.SafeException, ex:
-			assert str(ex).startswith("Sorry, "), ex
-
 		# Signed
 		src.seek(0)
-		src.truncate(0)
-		src.write(data.foo_signed_xml)
+		src.write(data.foo_signed)
 		src.flush()
 		src.seek(0)
 
@@ -69,7 +56,7 @@ class TestIfaceCache(BaseTest):
 		self.assertEquals(['http://foo'],
 				iface_cache.list_all_interfaces())
 
-		self.assertEquals(1154850229, iface.last_modified)
+		self.assertEquals(1116788178,  iface.last_modified)
 
 	def testXMLupdate(self):
 		trust.trust_db.trust_key(

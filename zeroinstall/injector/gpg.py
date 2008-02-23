@@ -177,6 +177,42 @@ def import_key(stream):
 	if error_messages:
 		raise SafeException("Errors from 'gpg --import':\n%s" % error_messages)
 
+def _check_plain_stream(stream):
+	data = tempfile.TemporaryFile()	# Python2.2 does not support 'prefix'
+	errors = tempfile.TemporaryFile()
+
+	status_r, status_w = os.pipe()
+
+	child = os.fork()
+
+	if child == 0:
+		# We are the child
+		try:
+			try:
+				os.close(status_r)
+				os.dup2(stream.fileno(), 0)
+				os.dup2(data.fileno(), 1)
+				os.dup2(errors.fileno(), 2)
+				os.execlp('gpg', 'gpg', '--no-secmem-warning', '--decrypt',
+					   # Not all versions support this:
+					   #'--max-output', str(1024 * 1024),
+					   '--batch',
+					   '--status-fd', str(status_w))
+			except:
+				traceback.print_exc()
+		finally:
+			os._exit(1)
+		assert False
+	
+	# We are the parent
+	os.close(status_w)
+
+	try:
+		sigs = _get_sigs_from_gpg_status_stream(status_r, child, errors)
+	finally:
+		data.seek(0)
+	return (data, sigs)
+
 def _check_xml_stream(stream):
 	xml_comment_start = '<!-- Base64 Signature'
 
@@ -260,10 +296,10 @@ def _find_in_path(prog):
 
 def check_stream(stream):
 	"""Pass stream through gpg --decrypt to get the data, the error text,
-	and a list of signatures (good or bad). The stream must be well-formed XML;
-	we get the signature from a comment at the end instead. The returned
-	data is the original stream. stream must be seekable.
-	@note: the input stream is returned only for historical reasons
+	and a list of signatures (good or bad). If stream starts with "<?xml "
+	then get the signature from a comment at the end instead (and the returned
+	data is the original stream). stream must be seekable.
+	@note: Stream returned may or may not be the one passed in. Be careful!
 	@return: (data_stream, [Signatures])"""
 	if not _find_in_path('gpg'):
 		raise SafeException("GnuPG is not installed ('gpg' not in $PATH). See http://gnupg.org")
@@ -277,7 +313,8 @@ def check_stream(stream):
 	if start == "<?xml ":
 		return _check_xml_stream(stream)
 	elif start == '-----B':
-		raise SafeException("Sorry, plain GPG-signed feeds are no longer supported. The feed author should upgrade the feed using '0publish --xmlsign'")
+		os.lseek(stream.fileno(), 0, 0)
+		return _check_plain_stream(stream)
 	else:
 		raise SafeException("This is not a Zero Install feed! It should be an XML document, but it starts:\n%s" % repr(stream.read(120)))
 

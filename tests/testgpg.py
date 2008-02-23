@@ -7,11 +7,39 @@ sys.path.insert(0, '..')
 from zeroinstall.injector import gpg, model, trust
 from zeroinstall.support import basedir
 
-err_sig = """<?xml version='1.0'?>
-This invalid document is signed with an unknown key.
-<!-- Base64 Signature
-iD8DBQBHcCKvP++6OUJbtdsRAnosAKDSRHUhZj/BFt6VbCNPH68e46Co7ACfZTkc8jpATVOoAlb6\nMuRsSmvz99k=
--->
+err_sig = """-----BEGIN PGP MESSAGE-----
+Version: GnuPG v1.4.0 (GNU/Linux)
+
+owGbwMvMwCTYk9R5Infvsj7G01xJDE513j1OiSlcHfbMrCDOBJisINP6XQwLGjzn
+tMxedXc3y75I7r1hQZFTb/ewMcx3yefZ8zb/vZd10I7LEYdDj4fnKsYAAA==
+=kMeU
+-----END PGP MESSAGE-----
+"""
+
+bad_sig = """-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+Hell0
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.0 (GNU/Linux)
+
+iD8DBQFCfk3grgeCgFmlPMERAhl8AKC0aktrLzz646zTY0TRzdnxPdbLBgCeJWbk
+GRVbJusevCKvtoSn7RAW2mg=
+=xQJ5
+-----END PGP SIGNATURE-----
+"""
+
+good_sig = """-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+Hello
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.0 (GNU/Linux)
+
+iD8DBQFCfk3grgeCgFmlPMERAhl8AKC0aktrLzz646zTY0TRzdnxPdbLBgCeJWbk
+GRVbJusevCKvtoSn7RAW2mg=
+=xQJ5
+-----END PGP SIGNATURE-----
 """
 
 bad_xml_main = """<?xml version='1.0'?>
@@ -95,13 +123,16 @@ class TestGPG(BaseTest):
 		stream.write(err_sig)
 		stream.seek(0)
 		data, sigs = gpg.check_stream(stream)
-		self.assertEquals(err_sig, data.read())
+		self.assertEquals("Bad\n", data.read())
 		assert len(sigs) == 1
 		assert isinstance(sigs[0], gpg.ErrSig)
-		assert sigs[0].need_key() == "3FEFBA39425BB5DB"
+		assert sigs[0].need_key() == "8C6289C86DBDA68E"
 		self.assertEquals("17", sigs[0].status[gpg.ErrSig.ALG])
 		assert sigs[0].is_trusted() is False
 		assert str(sigs[0]).startswith('ERROR')
+
+	def testBadSig(self):
+		self.assertEquals("Hell0\n", self.check_bad(bad_sig))
 
 	def testBadXMLSig(self):
 		self.assertEquals(bad_xml_sig, self.check_bad(bad_xml_sig))
@@ -127,6 +158,9 @@ class TestGPG(BaseTest):
 		assert sigs[0].need_key() is None
 		assert str(sigs[0]).startswith('BAD')
 		return data.read()
+
+	def testGoodSig(self):
+		self.assertEquals("Hello\n", self.check_good(good_sig))
 
 	def testGoodXMLSig(self):
 		self.assertEquals(good_xml_sig, self.check_good(good_xml_sig))
