@@ -387,3 +387,8 @@ class Policy(object):
 			return
 
 		return self.fetcher.download_icon(interface, force)
+	
+	def get_interface(self, uri):
+		"""@deprecated: use L{IfaceCache.get_interface} instead"""
+		warn("Policy.get_interface is deprecated!")
+		return iface_cache.get_interface(uri)

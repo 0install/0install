@@ -313,6 +313,7 @@ def check_stream(stream):
 	if start == "<?xml ":
 		return _check_xml_stream(stream)
 	elif start == '-----B':
+		warn("Plain GPG-signed feeds are deprecated!")
 		os.lseek(stream.fileno(), 0, 0)
 		return _check_plain_stream(stream)
 	else:
