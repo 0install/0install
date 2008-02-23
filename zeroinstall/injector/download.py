@@ -140,26 +140,28 @@ class Download(object):
 	
 	def download_as_child(self):
 		try:
+			from httplib import HTTPException
 			from urllib2 import urlopen, HTTPError, URLError
 			import shutil
-			#print "Child downloading", self.url
-			if self.url.startswith('/'):
-				if not os.path.isfile(self.url):
-					print >>sys.stderr, "File '%s' does not " \
-						"exist!" % self.url
-					return
-				src = file(self.url)
-			elif self.url.startswith('http:') or self.url.startswith('ftp:'):
-				src = urlopen(self.url)
-			else:
-				raise Exception('Unsupported URL protocol in: ' + self.url)
+			try:
+				#print "Child downloading", self.url
+				if self.url.startswith('/'):
+					if not os.path.isfile(self.url):
+						print >>sys.stderr, "File '%s' does not " \
+							"exist!" % self.url
+						return
+					src = file(self.url)
+				elif self.url.startswith('http:') or self.url.startswith('ftp:'):
+					src = urlopen(self.url)
+				else:
+					raise Exception('Unsupported URL protocol in: ' + self.url)
 
-			shutil.copyfileobj(src, self.tempfile, length=1)
-			self.tempfile.flush()
-			
-			os._exit(0)
-		except (HTTPError, URLError), ex:
-			print >>sys.stderr, "Error downloading '" + self.url + "': " + str(ex)
+				shutil.copyfileobj(src, self.tempfile, length=1)
+				self.tempfile.flush()
+				
+				os._exit(0)
+			except (HTTPError, URLError, HTTPException), ex:
+				print >>sys.stderr, "Error downloading '" + self.url + "': " + (str(ex) or str(type(ex).__name__))
 		except:
 			traceback.print_exc()
 	
