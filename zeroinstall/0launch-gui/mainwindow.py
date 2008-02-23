@@ -31,11 +31,13 @@ class MainWindow:
 		self.progress = widgets.get_widget('progress')
 		self.progress_area = widgets.get_widget('progress_area')
 
+		widgets.get_widget('stop').connect('clicked', lambda b: policy.handler.abort_all_downloads())
+
 		cache = widgets.get_widget('show_cache')
 		cache.connect('clicked',
 			lambda b: os.spawnlp(os.P_WAIT, sys.argv[0], sys.argv[0], '-c'))
 
-		widgets.get_widget('refresh').connect('clicked', lambda b: policy.refresh_all())
+		self.refresh_button = widgets.get_widget('refresh')
 
 		# Tree view
 		self.browser = InterfaceBrowser(policy, widgets)
@@ -93,7 +95,6 @@ class MainWindow:
 				tasks.check(blockers)
 
 				if cancelled.happened:
-					self.policy.handler.abort_all_downloads()
 					return
 
 			if self.policy.get_uncached_implementations():

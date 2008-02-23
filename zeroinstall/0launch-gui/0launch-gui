@@ -109,21 +109,28 @@ root = iface_cache.get_interface(policy.root)
 window.browser.set_root(root)
 
 window.window.connect('destroy', lambda w: handler.abort_all_downloads())
-	
+
 @tasks.async
 def main():
-	solved = policy.solve_with_downloads(force = bool(options.refresh))
+	force_refresh = bool(options.refresh)
+	while True:
+		window.refresh_button.set_sensitive(False)
 
-	window.show()
-	yield solved
-	try:
-		tasks.check(solved)
-	except model.SafeException, ex:
-		dialog.alert(window.window, str(ex))
-	except Exception, ex:
-		import traceback
-		traceback.print_exc()
-		dialog.alert(window.window, str(ex))
-	yield []
+		solved = policy.solve_with_downloads(force = force_refresh)
+
+		window.show()
+		yield solved
+		try:
+			window.refresh_button.set_sensitive(True)
+			tasks.check(solved)
+		except model.SafeException, ex:
+			dialog.alert(window.window, str(ex))
+		except Exception, ex:
+			import traceback
+			traceback.print_exc()
+			dialog.alert(window.window, str(ex))
+
+		yield dialog.ButtonClickedBlocker(window.refresh_button)
+		force_refresh = True
 
 handler.wait_for_blocker(main())

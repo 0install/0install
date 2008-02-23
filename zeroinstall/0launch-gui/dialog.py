@@ -49,6 +49,15 @@ class DialogResponse(tasks.Blocker):
 			self.trigger()
 		a = dialog.connect('response', response)
 
+class ButtonClickedBlocker(tasks.Blocker):
+	def __init__(self, button):
+		tasks.Blocker.__init__(self, "Button click")
+		a = None
+		def clicked(b):
+			b.disconnect(a)
+			self.trigger()
+		a = button.connect('clicked', lambda b: self.trigger())
+
 def alert(parent, message, type = gtk.MESSAGE_ERROR):
 	if type == gtk.MESSAGE_ERROR:
 		global last_error
