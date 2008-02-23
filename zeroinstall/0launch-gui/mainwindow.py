@@ -14,6 +14,7 @@ SHOW_PREFERENCES = 0
 
 class MainWindow:
 	progress = None
+	progress_area = None
 	browser = None
 	window = None
 	cancel_download_and_run = None
@@ -28,6 +29,7 @@ class MainWindow:
 		self.window.set_default_size(gtk.gdk.screen_width() * 2 / 5, 300)
 
 		self.progress = widgets.get_widget('progress')
+		self.progress_area = widgets.get_widget('progress_area')
 
 		cache = widgets.get_widget('show_cache')
 		cache.connect('clicked',
@@ -121,10 +123,10 @@ class MainWindow:
 		self.browser.update_download_status()
 
 		if not monitored_downloads:
-			self.progress.hide()
+			self.progress_area.hide()
 			return
 
-		self.progress.show()
+		self.progress_area.show()
 
 		any_known = False
 		done = total = self.policy.handler.total_bytes_downloaded	# Completed downloads
