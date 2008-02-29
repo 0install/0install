@@ -24,6 +24,7 @@ class Signature(object):
 		self.status = status
 
 	def is_trusted(self, domain = None):
+		"""Whether this signature is trusted by the user."""
 		return False
 	
 	def need_key(self):
@@ -39,14 +40,18 @@ class ValidSig(Signature):
 		return "Valid signature from " + self.status[self.FINGERPRINT]
 	
 	def is_trusted(self, domain = None):
+		"""Asks the L{trust.trust_db}."""
 		return trust_db.is_trusted(self.status[self.FINGERPRINT], domain)
 	
 	def get_timestamp(self):
+		"""Get the time this signature was made."""
 		return int(self.status[self.TIMESTAMP])
 
 	fingerprint = property(lambda self: self.status[self.FINGERPRINT])
 
 	def get_details(self):
+		"""Call 'gpg --list-keys' and return the results split into lines and columns.
+		@rtype: [[str]]"""
 		cin, cout = os.popen2(('gpg', '--with-colons', '--no-secmem-warning', '--list-keys', self.fingerprint))
 		cin.close()
 		details = []
@@ -89,6 +94,10 @@ class ErrSig(Signature):
 class Key:
 	"""A GPG key.
 	@since: 0.27
+	@param fingerprint: the fingerprint of the key
+	@type fingerprint: str
+	@ivar name: a short name for the key, extracted from the full name
+	@type name: str
 	"""
 	def __init__(self, fingerprint):
 		self.fingerprint = fingerprint
@@ -102,7 +111,7 @@ def load_keys(fingerprints):
 	This is much more efficient than making individual calls to L{load_key}.
 	@return: a list of loaded keys, indexed by fingerprint
 	@rtype: {str: L{Key}}
-	@since 0.27"""
+	@since: 0.27"""
 
 	keys = {}
 

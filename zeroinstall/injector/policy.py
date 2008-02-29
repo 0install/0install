@@ -1,7 +1,7 @@
 """
-Chooses a set of implementations based on a policy.
-
-@deprecated: see L{solver}
+This class brings together a L{solve.Solver} to choose a set of implmentations, a
+L{fetch.Fetcher} to download additional components, and the user's configuration
+settings.
 """
 
 # Copyright (C) 2008, Thomas Leonard
@@ -26,22 +26,20 @@ class Policy(object):
 	"""Chooses a set of implementations based on a policy.
 	Typical use:
 	 1. Create a Policy object, giving it the URI of the program to be run and a handler.
-	 2. Call L{recalculate}. If more information is needed, the handler will be used to download it.
-	 3. When all downloads are complete, the L{implementation} map contains the chosen versions.
+	 2. Call L{solve_with_downloads}. If more information is needed, a L{fetch.Fetcher} will be used to download it.
+	 3. When all downloads are complete, the L{solver} contains the chosen versions.
 	 4. Use L{get_uncached_implementations} to find where to get these versions and download them
-	    using L{begin_impl_download}.
+	    using L{download_uncached_implementations}.
 
 	@ivar root: URI of the root interface
-	@ivar implementation: chosen implementations
-	@type implementation: {model.Interface: model.Implementation or None}
+	@ivar solver: solver used to choose a set of implementations
+	@type solver: L{solve.Solver}
 	@ivar watchers: callbacks to invoke after recalculating
 	@ivar help_with_testing: default stability policy
 	@type help_with_testing: bool
 	@ivar network_use: one of the model.network_* values
 	@ivar freshness: seconds allowed since last update
 	@type freshness: int
-	@ivar ready: whether L{implementation} is complete enough to run the program
-	@type ready: bool
 	@ivar handler: handler for main-loop integration
 	@type handler: L{handler.Handler}
 	@ivar src: whether we are looking for source code
@@ -133,10 +131,7 @@ class Policy(object):
 		os.rename(path + '.new', path)
 	
 	def recalculate(self, fetch_stale_interfaces = True):
-		"""Deprecated.
-		@see: L{solve_with_downloads}
-		"""
-
+		"""@deprecated: see L{solve_with_downloads} """
 		self.stale_feeds = sets.Set()
 
 		host_arch = arch.get_host_architecture()
@@ -205,7 +200,7 @@ class Policy(object):
 		return True
 	
 	def download_and_import_feed_if_online(self, feed_url):
-		"""If we're online, call L{download_and_import_feed}. Otherwise, log a suitable warning."""
+		"""If we're online, call L{fetch.Fetcher.download_and_import_feed}. Otherwise, log a suitable warning."""
 		if self.network_use != network_offline:
 			debug("Feed %s not cached and not off-line. Downloading...", feed_url)
 			return self.fetcher.download_and_import_feed(feed_url, iface_cache)
@@ -389,7 +384,7 @@ class Policy(object):
 		return self.fetcher.download_icon(interface, force)
 	
 	def get_interface(self, uri):
-		"""@deprecated: use L{IfaceCache.get_interface} instead"""
+		"""@deprecated: use L{iface_cache.IfaceCache.get_interface} instead"""
 		import warnings
 		warnings.warn("Policy.get_interface is deprecated!", DeprecationWarning, stacklevel = 2)
 		return iface_cache.get_interface(uri)

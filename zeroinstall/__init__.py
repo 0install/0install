@@ -6,7 +6,7 @@ The Python implementation of the Zero Install injector is divided into three pac
  - L{zeroinstall.zerostore} contains low-level code for handling the
    implementation cache.
 
-@copyright: (C) 2007, Thomas Leonard
+@copyright: (C) 2008, Thomas Leonard
 @see: U{http://0install.net}
 """
 

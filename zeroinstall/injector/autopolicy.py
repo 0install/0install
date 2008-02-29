@@ -4,6 +4,8 @@ A simple non-interactive policy.
 This module provides a simple policy that will select, download and run a suitable set of
 implementations. It is not interactive. This is the policy used when you run B{0launch -c}, and
 is also the policy used to run the injector's GUI.
+
+@deprecated: The interesting functionality has moved into the L{policy.Policy} base-class.
 """
 
 # Copyright (C) 2006, Thomas Leonard

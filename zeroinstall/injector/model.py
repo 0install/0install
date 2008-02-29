@@ -3,7 +3,8 @@
 The objects in this module are used to build a representation of an XML interface
 file in memory.
 
-@see: L{reader} constructs these data-structures.
+@see: L{reader} constructs these data-structures
+@see: U{http://0install.net/interface-spec.html} description of the domain model
 
 @var defaults: Default values for the 'default' attribute for <environment> bindings of
 well-known variables.
@@ -495,8 +496,7 @@ class ZeroInstallFeed(object):
 		"""Create a feed object from a DOM.
 		@param feed_element: the root element of a feed file
 		@type feed_element: L{qdom.Element}
-		@param interface: temporary hack for restructuring. will go away.
-		@param local_name: the pathname of this local feed, or None for remote feeds
+		@param local_path: the pathname of this local feed, or None for remote feeds
 		@param distro: used to resolve distribution package references
 		@type distro: L{distro.Distribution} or None"""
 		assert feed_element
@@ -750,6 +750,7 @@ class ZeroInstallFeed(object):
 		return [m for m in self.metadata if m.name == name and m.uri == uri]
 
 class DummyFeed(object):
+	"""Temporary class used during API transition."""
 	last_modified = None
 	name = '-'
 	last_checked = property(lambda self: None)

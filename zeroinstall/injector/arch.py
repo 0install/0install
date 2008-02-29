@@ -55,6 +55,14 @@ machine_ranks = _get_machine_ranks()
 #print machine_ranks
 	
 class Architecture:
+	"""A description of an architecture. Use by L{solver} to make sure it chooses
+	compatible versions.
+	@ivar os_ranks: supported operating systems and their desirability
+	@type os_ranks: {str: int}
+	@ivar machine_ranks: supported CPU types and their desirability
+	@type machine_ranks: {str: int}
+	@ivar child_arch: architecture for dependencies (usually C{self})
+	@type child_arch: L{Architecture}"""
 	def __init__(self, os_ranks, machine_ranks):
 		self.os_ranks = os_ranks
 		self.machine_ranks = machine_ranks
@@ -64,9 +72,15 @@ class Architecture:
 		return "<Arch: %s %s>" % (self.os_ranks, self.machine_ranks)
 
 class SourceArchitecture(Architecture):
+	"""Matches source code that creates binaries for a particular architecture.
+	Note that the L{child_arch} here is the binary; source code depends on binary tools,
+	not on other source packages.
+	"""
 	def __init__(self, binary_arch):
 		Architecture.__init__(self, binary_arch.os_ranks, {'src': 1})
 		self.child_arch = binary_arch
 	
 def get_host_architecture():
+	"""Get an Architecture that matches implementations that will run on the host machine.
+	@rtype: L{Architecture}"""
 	return Architecture(os_ranks, machine_ranks)

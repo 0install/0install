@@ -21,6 +21,8 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 	@type gui_args: [str]
 	@param test_callback: function to use to try running the program
 	@type test_callback: L{zeroinstall.injector.selections.Selections} -> str
+	@return: the selected implementations
+	@rtype: L{zeroinstall.injector.selections.Selections}
 	@since: 0.28
 	"""
 	from zeroinstall.injector import selections, autopolicy, namespaces, model, run, qdom

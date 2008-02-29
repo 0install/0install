@@ -3,10 +3,10 @@
 When you have a long-running job you will want to run it in the background,
 while the user does other things. There are four ways to do this:
 
-- Use a new thread for each task.
-- Use callbacks from an idle handler.
-- Use a recursive mainloop.
-- Use this module.
+ - Use a new thread for each task.
+ - Use callbacks from an idle handler.
+ - Use a recursive mainloop.
+ - Use this module.
 
 Using threads causes a number of problems. Some builds of pygtk/python don't
 support them, they introduce race conditions, often lead to many subtle
@@ -68,9 +68,8 @@ class Blocker:
 
 	Example:
 
-	kettle_boiled = tasks.Blocker()
-
-	def make_tea():
+	>>> kettle_boiled = tasks.Blocker()
+	>>> def make_tea():
 		print "Get cup"
 		print "Add tea leaves"
 		yield kettle_boiled
@@ -79,10 +78,10 @@ class Blocker:
 		yield tasks.TimeoutBlocker(120)
 		print "Add milk"
 		print "Ready!"
+	>>> tasks.Task(make_tea())
 
-	tasks.Task(make_tea())
+	Then elsewhere, later::
 
-	# elsewhere, later...
 		print "Kettle boiled!"
 		kettle_boiled.trigger()
 	
@@ -213,16 +212,15 @@ class Task:
 	run in the background, but which needs to do work in 'chunks'.
 	Example:
 
-	from zeroinstall import tasks
-	def my_task(start):
+	>>> from zeroinstall import tasks
+	>>> def my_task(start):
 		for x in range(start, start + 5):
 			print "x =", x
 			yield None
 
-	tasks.Task(my_task(0))
-	tasks.Task(my_task(10))
-	
-	mainloop()
+	>>> tasks.Task(my_task(0))
+	>>> tasks.Task(my_task(10))
+	>>> mainloop()
 
 	Yielding None gives up control of the processor to another Task,
 	causing the sequence printed to be interleaved. You can also yield a

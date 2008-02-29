@@ -11,6 +11,17 @@ from xml.parsers import expat
 import sys
 
 class Element(object):
+	"""An XML element.
+	@ivar uri: the element's namespace
+	@type uri: str
+	@ivar name: the element's localName
+	@type name: str
+	@ivar attrs: the element's attributes (key is in the form [namespace " "] localName
+	@type attrs: {str: str}
+	@ivar childNodes: children
+	@type childNodes: [L{Element}]
+	@ivar content: the text content
+	@type content: str"""
 	__slots__ = ['uri', 'name', 'attrs', 'childNodes', 'content']
 	def __init__(self, uri, name, attrs):
 		self.uri = uri
@@ -32,6 +43,7 @@ class Element(object):
 		return self.attrs.get(name, None)
 
 class QSAXhandler:
+	"""SAXHandler that builds a tree of L{Element}s"""
 	def __init__(self):
 		self.stack = []
 	
@@ -57,6 +69,11 @@ class QSAXhandler:
 			self.doc = new
 
 def parse(source):
+	"""Parse an XML stream into a tree of L{Element}s.
+	@param source: data to parse
+	@type source: file
+	@return: the root
+	@rtype: L{Element}"""
 	handler = QSAXhandler()
 	parser = expat.ParserCreate(namespace_separator = ' ')
 

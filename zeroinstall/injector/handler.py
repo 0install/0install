@@ -20,7 +20,7 @@ from zeroinstall.injector.iface_cache import iface_cache
 
 class Handler(object):
 	"""
-	This implementation of the handler interface uses the GLib mainloop.
+	This implementation uses the GLib mainloop. Note that QT4 can use the GLib mainloop too.
 
 	@ivar monitored_downloads: dict of downloads in progress
 	@type monitored_downloads: {URL: L{download.Download}}
@@ -60,7 +60,7 @@ class Handler(object):
 		download_done()
 
 	def impl_added_to_store(self, impl):
-		"""Called by the Fetcher when adding an implementation.
+		"""Called by the L{fetch.Fetcher} when adding an implementation.
 		The GUI uses this to update its display.
 		@param impl: the implementation which has been added
 		@type impl: L{model.Implementation}
@@ -68,10 +68,13 @@ class Handler(object):
 		pass
 	
 	def downloads_changed(self):
-		# This is just for the GUI to override
+		"""This is just for the GUI to override to update its display."""
 		pass
 	
 	def wait_for_blocker(self, blocker):
+		"""Run a recursive mainloop until blocker is triggered.
+		@param blocker: event to wait on
+		@type blocker: L{tasks.Blocker}"""
 		if not blocker.happened:
 			import gobject
 
@@ -121,7 +124,7 @@ class Handler(object):
 		@arg sigs: a list of signatures (from L{gpg.check_stream})
 		@arg iface_xml: the downloaded data (not yet trusted)
 		@return: a blocker, if confirmation will happen asynchronously, or None
-		"""
+		@rtype: L{tasks.Blocker}"""
 		from zeroinstall.injector import trust, gpg
 		assert sigs
 		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]

@@ -12,6 +12,11 @@ from zeroinstall.injector.model import Interface, SafeException, EnvironmentBind
 from zeroinstall.injector.iface_cache import iface_cache
 
 def do_env_binding(binding, path):
+	"""Update this process's environment by applying the binding.
+	@param binding: the binding to apply
+	@type binding: L{model.EnvironmentBinding}
+	@param path: the selected implementation
+	@type path: str"""
 	os.environ[binding.name] = binding.get_value(path,
 					os.environ.get(binding.name, None))
 	info("%s=%s", binding.name, os.environ[binding.name])

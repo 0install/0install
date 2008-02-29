@@ -11,15 +11,15 @@ from logging import warn, info
 from zeroinstall.injector import namespaces, model
 from zeroinstall.support import basedir
 
-dotted_ints = '[0-9]+(\.[0-9]+)*'
-version_regexp = '(%s)(-(pre|rc|post|)%s)*' % (dotted_ints, dotted_ints)
+_dotted_ints = '[0-9]+(\.[0-9]+)*'
+_version_regexp = '(%s)(-(pre|rc|post|)%s)*' % (_dotted_ints, _dotted_ints)
 
 def try_cleanup_distro_version(version):
 	"""Try to turn a distribution version string into one readable by Zero Install.
 	We do this by stripping off anything we can't parse.
 	@return: the part we understood, or None if we couldn't parse anything
 	@rtype: str"""
-	match = re.match(version_regexp, version)
+	match = re.match(_version_regexp, version)
 	if match:
 		return match.group(0)
 	return None
@@ -43,6 +43,8 @@ class Distribution(object):
 		return
 
 class DebianDistribution(Distribution):
+	"""An dpkg-based distribution."""
+
 	def __init__(self, db_dir):
 		self.db_dir = db_dir
 		dpkg_status = db_dir + '/status'
@@ -122,6 +124,8 @@ class DebianDistribution(Distribution):
 		impl.version = model.parse_version(version)
 
 class RPMDistribution(Distribution):
+	"""An RPM-based distribution."""
+
 	cache_leaf = 'rpm-status.cache'
 	
 	def __init__(self, db_dir):
@@ -231,6 +235,9 @@ class RPMDistribution(Distribution):
 
 _host_distribution = None
 def get_host_distribution():
+	"""Get a Distribution suitable for the host operating system.
+	Calling this twice will return the same object.
+	@rtype: L{Distribution}"""
 	global _host_distribution
 	if not _host_distribution:
 		_dpkg_db_dir = '/var/lib/dpkg'

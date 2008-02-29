@@ -3,9 +3,7 @@ Handles URL downloads.
 
 This is the low-level interface for downloading interfaces, implementations, icons, etc.
 
-@see: L{policy.Policy.begin_iface_download}
-@see: L{policy.Policy.begin_archive_download}
-@see: L{policy.Policy.begin_icon_download}
+@see: L{fetch} higher-level API for downloads that uses this module
 """
 
 # Copyright (C) 2006, Thomas Leonard
@@ -23,22 +21,43 @@ download_complete = "complete"	# Downloaded and cached OK
 download_failed = "failed"
 
 class DownloadError(SafeException):
+	"""Download process failed."""
 	pass
 
 class DownloadAborted(DownloadError):
+	"""Download aborted because of a call to L{Download.abort}"""
 	def __init__(self, message):
 		SafeException.__init__(self, message or "Download aborted at user's request")
 
 class Download(object):
+	"""A download of a single resource to a temporary file.
+	@ivar url: the URL of the resource being fetched
+	@type url: str
+	@ivar tempfile: the file storing the downloaded data
+	@type tempfile: file
+	@ivar status: the status of the download
+	@type status: (download_starting | download_fetching | download_failed | download_complete)
+	@ivar errors: data received from the child's stderr
+	@type errors: str
+	@ivar expected_size: the expected final size of the file
+	@type expected_size: int | None
+	@ivar downloaded: triggered when the download ends (on success or failure)
+	@type downloaded: L{tasks.Blocker}
+	@ivar hint: hint passed by and for caller
+	@type hint: object
+	@ivar child_pid: the child process's PID
+	@type child_pid: int
+	@ivar aborted_by_user: whether anyone has called L{abort}
+	@type aborted_by_user: bool
+	"""
 	__slots__ = ['url', 'tempfile', 'status', 'errors', 'expected_size', 'downloaded',
-		     'hint', 'expected_size', 'child_pid', 'child_stderr', '_final_total_size',
-		     'aborted_by_user']
+		     'hint', 'child_pid', '_final_total_size', 'aborted_by_user']
 
 	def __init__(self, url, hint = None):
-		"""Create a new download.
+		"""Create a new download object.
 		@param url: the resource to download
 		@param hint: object with which this download is associated (an optional hint for the GUI)
-		Initial status is starting."""
+		@postcondition: L{status} == L{download_starting}."""
 		self.url = url
 		self.status = download_starting
 		self.hint = hint
@@ -52,9 +71,10 @@ class Download(object):
 		self._final_total_size = None	# Set when download is finished
 
 		self.child_pid = None
-		self.child_stderr = None
 	
 	def start(self):
+		"""Create a temporary file and begin the download.
+		@precondition: L{status} == L{download_starting}"""
 		assert self.status == download_starting
 		assert self.downloaded is None
 
@@ -75,7 +95,7 @@ class Download(object):
 				os.close(error_r)
 				os.dup2(error_w, 2)
 				os.close(error_w)
-				self.download_as_child()
+				self._download_as_child()
 			finally:
 				os._exit(1)
 
@@ -138,7 +158,7 @@ class Download(object):
 			self.status = download_complete
 			self.downloaded.trigger()
 	
-	def download_as_child(self):
+	def _download_as_child(self):
 		try:
 			from httplib import HTTPException
 			from urllib2 import urlopen, HTTPError, URLError
@@ -166,6 +186,8 @@ class Download(object):
 			traceback.print_exc()
 	
 	def abort(self):
+		"""Signal the current download to stop.
+		@postcondition: L{aborted_by_user}"""
 		if self.child_pid is not None:
 			info("Killing download process %s", self.child_pid)
 			import signal
@@ -176,7 +198,9 @@ class Download(object):
 
 	def get_current_fraction(self):
 		"""Returns the current fraction of this download that has been fetched (from 0 to 1),
-		or None if the total size isn't known."""
+		or None if the total size isn't known.
+		@return: fraction downloaded
+		@rtype: int | None"""
 		if self.status is download_starting:
 			return 0
 		if self.tempfile is None:
@@ -187,6 +211,8 @@ class Download(object):
 		return float(current_size) / self.expected_size
 	
 	def get_bytes_downloaded_so_far(self):
+		"""Get the download progress. Will be zero if the download has not yet started.
+		@rtype: int"""
 		if self.status is download_starting:
 			return 0
 		elif self.status is download_fetching:

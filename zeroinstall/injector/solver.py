@@ -1,7 +1,5 @@
 """
 Chooses a set of components to make a running program.
-
-This class is intended to replace L{policy.Policy}.
 """
 
 import os
@@ -50,6 +48,7 @@ class Solver(object):
 		raise NotImplementedError("Abstract")
 
 class DefaultSolver(Solver):
+	"""The standard (rather naive) Zero Install solver."""
 	def __init__(self, network_use, iface_cache, stores, extra_restrictions = None):
 		"""
 		@param network_use: how much use to make of the network

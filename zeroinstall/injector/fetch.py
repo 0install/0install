@@ -14,6 +14,9 @@ from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, ne
 from zeroinstall.injector.iface_cache import PendingFeed
 
 class Fetcher(object):
+	"""Downloads and stores various things.
+	@ivar handler: handler to use for user-interaction
+	@type handler: L{handler.Handler}"""
 	__slots__ = ['handler']
 
 	def __init__(self, handler):
@@ -21,9 +24,9 @@ class Fetcher(object):
 
 	@tasks.async
 	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None):
-		"""A Cook follows a Recipe.
+		"""Follow a Recipe.
 		@param impl_hint: the Implementation this is for (if any) as a hint for the GUI
-		@see: L{download_impl}"""
+		@see: L{download_impl} uses this method when appropriate"""
 		# Maybe we're taking this metaphor too far?
 
 		# Start downloading all the ingredients.
@@ -64,7 +67,12 @@ class Fetcher(object):
 				support.ro_rmtree(tmpdir)
 
 	def download_and_import_feed(self, feed_url, iface_cache, force = False):
-		"""Download the feed, download any required keys, confirm trust if needed and import."""
+		"""Download the feed, download any required keys, confirm trust if needed and import.
+		@param feed_url: the feed to be downloaded
+		@type feed_url: str
+		@param iface_cache: cache in which to store the feed
+		@type iface_cache: L{iface_cache.IfaceCache}
+		@param force: whether to abort and restart an existing download"""
 		
 		debug("download_and_import_feed %s (force = %d)", feed_url, force)
 		assert not feed_url.startswith('/')
@@ -97,7 +105,15 @@ class Fetcher(object):
 		return fetch_feed()
 
 	def download_impl(self, impl, retrieval_method, stores, force = False):
-		"""Download impl, using retrieval_method."""
+		"""Download an implementation.
+		@param impl: the selected implementation
+		@type impl: L{model.ZeroInstallImplementation}
+		@param retrieval_method: a way of getting the implementation (e.g. an Archive or a Recipe)
+		@type retrieval_method: L{model.RetrievalMethod}
+		@param stores: where to store the downloaded implementation
+		@type stores: L{zerostore.Stores}
+		@param force: whether to abort and restart an existing download
+		@rtype: L{tasks.Blocker}"""
 		assert impl
 		assert retrieval_method
 

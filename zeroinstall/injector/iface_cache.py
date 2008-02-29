@@ -1,10 +1,10 @@
 """
-Manages the interface cache.
+Manages the feed cache.
 
 @var iface_cache: A singleton cache object. You should normally use this rather than
 creating new cache objects.
 """
-# Copyright (C) 2006, Thomas Leonard
+# Copyright (C) 2008, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 # Note:
@@ -73,8 +73,6 @@ class PendingFeed(object):
 		to the keyring, L{recheck}.
 		@param handler: handler to manage the download
 		@type handler: L{handler.Handler}
-		@param callback: callback to invoke when done
-		@type callback: function()
 		"""
 		downloads = {}
 		blockers = []
@@ -162,18 +160,11 @@ class IfaceCache(object):
 
 	There are methods to query the cache, add to it, check signatures, etc.
 
-	When updating the cache, the normal sequence is as follows:
+	The cache is updated by L{fetch.Fetcher}.
 
-	 1. When the data arrives, L{add_pending} is called.
-	 2. Later, L{policy.Policy.process_pending} notices the pending feed and starts processing it.
-	 3. It checks the signatures using L{PendingFeed.sigs}.
-	 4. If any required GPG keys are missing, L{download_key} is used to fetch
-	    them first.
-	 5. If none of the keys are trusted, L{handler.Handler.confirm_trust_keys} is called.
-	 6. L{update_interface_if_trusted} is called to update the cache.
-
-	Whenever something needs to be done before the feed can move from the pending
-	state, the process is resumed after the required activity by calling L{policy.Policy.process_pending}.
+	Confusingly, this class is really two caches combined: the in-memory
+	cache of L{model.Interface} objects, and an on-disk cache of L{model.ZeroInstallFeed}s.
+	It will probably be split into two in future.
 
 	@ivar pending: downloaded feeds which are not yet trusted
 	@type pending: str -> PendingFeed
@@ -416,7 +407,8 @@ class IfaceCache(object):
 	def get_last_check_attempt(self, url):
 		"""Return the time of the most recent update attempt for a feed.
 		@see: L{mark_as_checking}
-		@return: The time, or None if none is recorded"""
+		@return: The time, or None if none is recorded
+		@rtype: float | None"""
 		timestamp_path = basedir.load_first_cache(config_site, config_prog, 'last-check-attempt', model._pretty_escape(url))
 		if timestamp_path:
 			return os.stat(timestamp_path).st_mtime
