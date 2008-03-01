@@ -252,6 +252,8 @@ class Task:
 			# Task ended
 			self.finished.trigger()
 			return
+		except SystemExit:
+			raise
 		except Exception, ex:
 			# Task crashed
 			info("Exception from '%s': %s", self.finished.name, ex)

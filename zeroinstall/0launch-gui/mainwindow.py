@@ -110,6 +110,8 @@ class MainWindow:
 		except SafeException, ex:
 			run_button.set_active(False)
 			self.policy.handler.report_error(ex)
+		except SystemExit:
+			raise
 		except Exception, ex:
 			run_button.set_active(False)
 			import traceback
