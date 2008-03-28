@@ -24,7 +24,16 @@ def do_env_binding(binding, path):
 def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
 	Returns normally only for a successful dry run.
-	
+	@param policy: a policy with the selected versions
+	@type policy: L{policy.Policy}
+	@param prog_args: arguments to pass to the program
+	@type prog_args: [str]
+	@param dry_run: if True, just print a message about what would have happened
+	@type dry_run: bool
+	@param main: the name of the binary to run, or None to use the default
+	@type main: str
+	@param wrapper: a command to use to actually run the binary, or None to run the binary directly
+	@type wrapper: str
 	@precondition: C{policy.ready and policy.get_uncached_implementations() == []}
 	"""
 	iface = iface_cache.get_interface(policy.root)
@@ -56,7 +65,16 @@ def _get_implementation_path(id):
 def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
 	Returns normally only for a successful dry run.
-	
+	@param selections: the selected versions
+	@type selections: L{selections.Selections}
+	@param prog_args: arguments to pass to the program
+	@type prog_args: [str]
+	@param dry_run: if True, just print a message about what would have happened
+	@type dry_run: bool
+	@param main: the name of the binary to run, or None to use the default
+	@type main: str
+	@param wrapper: a command to use to actually run the binary, or None to run the binary directly
+	@type wrapper: str
 	@since: 0.27
 	@precondition: All implementations are in the cache.
 	"""
