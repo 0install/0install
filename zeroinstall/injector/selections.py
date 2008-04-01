@@ -38,7 +38,7 @@ class Selection(object):
 	id = property(lambda self: self.attrs['id'])
 	version = property(lambda self: self.attrs['version'])
 	feed = property(lambda self: self.attrs.get('from-feed', self.interface))
-	main = property(lambda self: self.attrs['main'])
+	main = property(lambda self: self.attrs.get('main', None))
 
 	def __repr__(self):
 		return self.id
