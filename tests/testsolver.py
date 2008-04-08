@@ -58,6 +58,20 @@ class TestSolver(BaseTest):
 		assert len(s.details) == 2
 		assert s.details[foo] == [(foo_src._main_feed.implementations['sha1=234'], None), (foo._main_feed.implementations['sha1=123'], 'Unsupported machine type')]
 		assert s.details[compiler] == [(compiler._main_feed.implementations['sha1=345'], None)]
+
+	def testRecursive(self):
+		s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
+
+		foo = iface_cache.get_interface('http://foo/Recursive.xml')
+		reader.update(foo, 'Recursive.xml')
+
+		binary_arch = arch.Architecture({None: 1}, {None: 1})
+		s.record_details = True
+		s.solve('http://foo/Recursive.xml', binary_arch)
+		assert s.ready
+
+		assert len(s.details) == 1
+		assert s.details[foo] == [(foo._main_feed.implementations['sha1=abc'], None)]
 		
 
 suite = unittest.makeSuite(TestSolver)

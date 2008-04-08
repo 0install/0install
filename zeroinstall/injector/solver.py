@@ -83,7 +83,7 @@ class DefaultSolver(Solver):
 				if dep.restrictions:
 					warn("Interface requested twice; I've already chosen an implementation "
 						"of '%s' but there are more restrictions! Ignoring the second set.", iface)
-				return
+				return ready
 			self.selections[iface] = None	# Avoid cycles
 
 			assert iface not in restrictions
