@@ -60,7 +60,7 @@ class BackgroundHandler(handler.Handler):
 		_exec_gui(interface.uri, '--refresh')
 
 	def report_error(self, exception, tb = None):
-		notify("Zero Install", "Error updating %s: %s" % (self.title, str(exception)))
+		self.notify("Zero Install", "Error updating %s: %s" % (self.title, str(exception)))
 
 	def notify(self, title, message, timeout = 0, actions = []):
 		"""Send a D-BUS notification message if possible. If there is no notification
