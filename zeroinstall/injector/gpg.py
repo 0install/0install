@@ -13,8 +13,10 @@ import base64, re
 import os
 import tempfile
 import traceback
-from trust import trust_db
-from model import SafeException
+
+from zeroinstall import support
+from zeroinstall.injector.trust import trust_db
+from zeroinstall.injector.model import SafeException
 
 class Signature(object):
 	"""Abstract base class for signature check results."""
@@ -295,13 +297,6 @@ def _check_xml_stream(stream):
 		os.unlink(sig_name)
 	return (stream, sigs)
 
-def _find_in_path(prog):
-	for d in os.environ['PATH'].split(':'):
-		path = os.path.join(d, prog)
-		if os.path.isfile(path):
-			return path
-	return None
-
 def check_stream(stream):
 	"""Pass stream through gpg --decrypt to get the data, the error text,
 	and a list of signatures (good or bad). If stream starts with "<?xml "
@@ -309,7 +304,7 @@ def check_stream(stream):
 	data is the original stream). stream must be seekable.
 	@note: Stream returned may or may not be the one passed in. Be careful!
 	@return: (data_stream, [Signatures])"""
-	if not _find_in_path('gpg'):
+	if not support.find_in_path('gpg'):
 		raise SafeException("GnuPG is not installed ('gpg' not in $PATH). See http://gnupg.org")
 
 	#stream.seek(0)
