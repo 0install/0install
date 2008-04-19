@@ -43,13 +43,11 @@ def recent_gnu_tar():
 	"""@deprecated: should be private"""
 	recent_gnu_tar = False
 	if _gnu_tar():
-		version = _get_tar_version()
-		try:
-			version = version.split(')', 1)[1].strip()
-			assert version
-			version = map(int, version.split('.'))
+		version = re.search(r'\)\s*(\d+(\.\d+)*)', _get_tar_version())
+		if version:
+			version = map(int, version.group(1).split('.'))
 			recent_gnu_tar = version > [1, 13, 92]
-		except:
+		else:
 			warn("Failed to extract GNU tar version number")
 	debug("Recent GNU tar = %s", recent_gnu_tar)
 	return recent_gnu_tar
