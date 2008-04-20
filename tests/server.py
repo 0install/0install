@@ -5,13 +5,30 @@ import traceback
 
 next_step = None
 
+class Give404:
+	def __init__(self, path):
+		self.path = path
+
+	def __str__(self):
+		return self.path
+
+	def __repr__(self):
+		return "404 on " + self.path
+
 class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 	def do_GET(self):
 		leaf = os.path.basename(self.path)
-		if next_step != ('*',) and leaf not in next_step:
-			self.send_error(404, "Expected %s; got %s" % (next_step, leaf))
+
+		acceptable = dict([(str(x), x) for x in next_step])
+
+		resp = acceptable.get(self.path, None) or \
+		       acceptable.get(leaf, None) or \
+		       acceptable.get('*', None)
+
+		if not resp:
+			self.send_error(404, "Expected %s; got %s" % (next_step, self.path))
 			
-		if os.path.exists(leaf):
+		if os.path.exists(leaf) and not isinstance(resp, Give404):
 			self.send_response(200)
 			self.end_headers()
 			self.wfile.write(file(leaf).read())

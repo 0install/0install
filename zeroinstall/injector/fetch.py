@@ -5,7 +5,7 @@ Downloads feeds, keys, packages and icons.
 # Copyright (C) 2008, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os
+import os, sys
 from logging import info, debug, warn
 
 from zeroinstall.support import tasks, basedir
@@ -13,14 +13,32 @@ from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
 from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, network_offline, escape
 from zeroinstall.injector.iface_cache import PendingFeed
 
+def _escape_slashes(path):
+	return path.replace('/', '#')
+
+def _get_feed_dir(feed):
+	"""The algorithm from 0mirror."""
+	if '#' in feed:
+		raise SafeException("Invalid URL '%s'" % feed)
+	scheme, rest = feed.split('://', 1)
+	domain, rest = rest.split('/', 1)
+	for x in [scheme, domain, rest]:
+		if not x or x.startswith(','):
+			raise SafeException("Invalid URL '%s'" % feed)
+	return os.path.join('feeds', scheme, domain, _escape_slashes(rest))
+
 class Fetcher(object):
 	"""Downloads and stores various things.
 	@ivar handler: handler to use for user-interaction
-	@type handler: L{handler.Handler}"""
-	__slots__ = ['handler']
+	@type handler: L{handler.Handler}
+	@ivar feed_mirror: the base URL of a mirror site for keys and feeds
+	@type feed_mirror: str
+	"""
+	__slots__ = ['handler', 'feed_mirror']
 
 	def __init__(self, handler):
 		self.handler = handler
+		self.feed_mirror = "http://roscidus.com/0mirror"
 
 	@tasks.async
 	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None):
@@ -66,6 +84,10 @@ class Fetcher(object):
 				from zeroinstall import support
 				support.ro_rmtree(tmpdir)
 
+	def get_feed_mirror(self, url):
+		"""Return the URL of a mirror for this feed."""
+		return '%s/%s/latest.xml' % (self.feed_mirror, _get_feed_dir(url))
+
 	def download_and_import_feed(self, feed_url, iface_cache, force = False):
 		"""Download the feed, download any required keys, confirm trust if needed and import.
 		@param feed_url: the feed to be downloaded
@@ -83,8 +105,26 @@ class Fetcher(object):
 		def fetch_feed():
 			stream = dl.tempfile
 
-			yield dl.downloaded
-			tasks.check(dl.downloaded)
+			try:
+				yield dl.downloaded
+				tasks.check(dl.downloaded)
+			except Exception, ex:
+				ex = sys.exc_info()
+
+				mirrored_feed_url = self.get_feed_mirror(feed_url)
+				info("Feed download failed: %s", ex[1])
+				info("Trying mirror with %s", mirrored_feed_url)
+				mirror_dl = self.handler.get_download(mirrored_feed_url, force = force, hint = feed_url)
+				mirror_stream = mirror_dl.tempfile
+				yield mirror_dl.downloaded
+				try:
+					tasks.check(mirror_dl.downloaded)
+				except Exception, mirror_ex:
+					# Mirror didn't work either. Log the mirror problem and report the original error.
+					info("Feed download from mirror failed: %s", mirror_ex)
+					raise ex[0], ex[1], ex[2]
+
+				stream = mirror_stream
 
 			pending = PendingFeed(feed_url, stream)
 			iface_cache.add_pending(pending)

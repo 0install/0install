@@ -140,7 +140,7 @@ class Download(object):
 				raise DownloadAborted(errors)
 
 			if errors:
-				raise DownloadError(errors)
+				raise DownloadError(errors.strip())
 
 			# Check that the download has the correct size, if we know what it should be.
 			if self.expected_size is not None:

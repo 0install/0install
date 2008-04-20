@@ -216,6 +216,24 @@ class TestDownload(BaseTest):
 		finally:
 			sys.stdout = old_out
 
+	def testMirrors(self):
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'localhost:8000')
+			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '6FCF121BE2390E0B.gpg')
+			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml', download_only = False)
+			policy.fetcher.feed_mirror = 'http://localhost:8000/0mirror'
+
+			refreshed = policy.solve_with_downloads([])
+			errors = policy.handler.wait_for_blocker(refreshed)
+			if errors:
+				raise model.SafeException("Errors during download: " + '\n'.join(errors))
+			assert policy.ready
+		finally:
+			sys.stdout = old_out
+
+
 suite = unittest.makeSuite(TestDownload)
 if __name__ == '__main__':
 	sys.argv.append('-v')
