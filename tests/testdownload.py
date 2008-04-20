@@ -223,7 +223,7 @@ class TestDownload(BaseTest):
 			sys.stdout = StringIO()
 			getLogger().setLevel(ERROR)
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'localhost:8000')
-			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '6FCF121BE2390E0B.gpg')
+			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg')
 			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml', download_only = False)
 			policy.fetcher.feed_mirror = 'http://localhost:8000/0mirror'
 

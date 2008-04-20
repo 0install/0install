@@ -14,7 +14,7 @@ from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, ne
 from zeroinstall.injector.iface_cache import PendingFeed
 
 def _escape_slashes(path):
-	return path.replace('/', '#')
+	return path.replace('/', '%23')
 
 def _get_feed_dir(feed):
 	"""The algorithm from 0mirror."""
@@ -188,7 +188,13 @@ class Fetcher(object):
 			pending = PendingFeed(feed_url, stream)
 			iface_cache.add_pending(pending)
 
-			keys_downloaded = tasks.Task(pending.download_keys(self.handler, feed_hint = feed_url), "download keys for " + feed_url)
+			if using_mirror:
+				# If we got the feed from a mirror, get the key from there too
+				key_mirror = self.feed_mirror + '/keys/'
+			else:
+				key_mirror = None
+
+			keys_downloaded = tasks.Task(pending.download_keys(self.handler, feed_hint = feed_url, key_mirror = key_mirror), "download keys for " + feed_url)
 			yield keys_downloaded.finished
 			tasks.check(keys_downloaded.finished)
 
