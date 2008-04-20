@@ -22,7 +22,7 @@ class Reply:
 		return self.reply
 
 class DummyHandler(handler.Handler):
-	__slots__ = ['ex']
+	__slots__ = ['ex', 'tb']
 	
 	def __init__(self):
 		handler.Handler.__init__(self)
@@ -32,11 +32,12 @@ class DummyHandler(handler.Handler):
 		self.ex = None
 		handler.Handler.wait_for_blocker(self, blocker)
 		if self.ex:
-			raise self.ex
+			raise self.ex, None, self.tb
 	
 	def report_error(self, ex, tb = None):
 		assert self.ex is None, self.ex
 		self.ex = ex
+		self.tb = tb
 
 		#import traceback
 		#traceback.print_exc()

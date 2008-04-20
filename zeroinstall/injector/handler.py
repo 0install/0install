@@ -163,3 +163,5 @@ class Handler(object):
 		@param tb: optional traceback
 		@since: 0.25"""
 		warn("%s", exception)
+		#import traceback
+		#traceback.print_exception(exception, None, tb)

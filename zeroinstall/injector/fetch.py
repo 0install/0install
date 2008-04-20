@@ -97,28 +97,71 @@ class Fetcher(object):
 		@param results: an empty list to contain the results
 		@return: generates a series of blocker to be yielded. When exhausted, results contains (successful_stream, is_from_fallback)"""
 		dl_stream = dl.tempfile
-		try:
-			yield dl.downloaded
-			tasks.check(dl.downloaded)
-			results += [dl_stream, False]
-			return
-		except Exception, ex:
-			ex = sys.exc_info()
+		mirror_dl = None
+		timeout = tasks.TimeoutBlocker(5, 'Mirror timeout')		# 5 seconds
 
-			warn("Download failed (will try mirror): %s", ex[1])
-			info("Trying mirror URL %s", fallback_url)
-			mirror_dl = self.handler.get_download(fallback_url, force = force, hint = dl.url)
-			mirror_stream = mirror_dl.tempfile
-			yield mirror_dl.downloaded
-			try:
-				tasks.check(mirror_dl.downloaded)
-			except Exception, mirror_ex:
-				# Mirror didn't work either. Log the mirror problem and report the original error.
-				info("Download from mirror failed: %s", mirror_ex)
-				raise ex[0], ex[1], ex[2]
+		dl_url = dl.url		# Used for logging after dl is None
+		dl_ex = None		# Saved failure, in case the mirror fails too
 
-			results += [mirror_stream, True]
-			return
+		# There are three possible states:
+		# - timeout, not mirror_dl : fallback dl not yet started
+		# - not timeout, mirror_dl : fallback dl in progress
+		# - not timeout, not mirror_dl: fallback dl failed
+
+		while True:
+			blockers = [dl and dl.downloaded, mirror_dl and mirror_dl.downloaded, timeout]
+			blockers = filter(None, blockers)	# Remove Nones
+
+			if not blockers:
+				# Both downloads failed. Report the original error.
+				raise dl_ex[0], dl_ex[1], dl_ex[2]
+
+			yield blockers
+
+			if dl:
+				try:
+					tasks.check(dl.downloaded)
+					if dl.downloaded.happened:
+						# Main download succeeded; use it
+						results += [dl_stream, False]
+						if mirror_dl: mirror_dl.abort()
+						return
+				except Exception, ex:
+					# Main download failed. Store the error for later.
+					dl = None
+					dl_ex = sys.exc_info()
+					if timeout or mirror_dl:
+						warn("Download failed (will try mirror): %s", dl_ex[1])
+					else:
+						warn("Download failed: %s", dl_ex[1])
+			if mirror_dl:
+				try:
+					tasks.check(mirror_dl.downloaded)
+					if mirror_dl.downloaded.happened:
+						# Mirror download succeeded; use that
+						results += [mirror_stream, True]
+						if dl: dl.abort()
+						return
+				except Exception, ex:
+					# Mirror download failed. Ignore.
+					info("Mirror download failed: %s", ex)
+					mirror_dl = None
+
+			if timeout:
+				tasks.check(timeout)
+				assert not mirror_dl
+				# Fallback dl not yet started. Start now?
+				if timeout.happened:
+					info("Download taking too long; trying mirror")
+					timeout = None
+				elif dl is None:
+					# Main has just failed.
+					timeout = None
+				if timeout is None:
+					# Start downloading from the mirror.
+					info("Trying mirror URL %s", fallback_url)
+					mirror_dl = self.handler.get_download(fallback_url, force = force, hint = dl_url)
+					mirror_stream = mirror_dl.tempfile
 
 	def download_and_import_feed(self, feed_url, iface_cache, force = False):
 		"""Download the feed, download any required keys, confirm trust if needed and import.
