@@ -3,7 +3,7 @@ from basetest import BaseTest
 import sys, tempfile, os, shutil
 from StringIO import StringIO
 import unittest, signal
-from logging import getLogger, DEBUG, INFO, WARN
+from logging import getLogger, DEBUG, INFO, WARN, ERROR
 
 sys.path.insert(0, '..')
 
@@ -220,6 +220,7 @@ class TestDownload(BaseTest):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
+			getLogger().setLevel(ERROR)
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'localhost:8000')
 			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '6FCF121BE2390E0B.gpg')
 			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml', download_only = False)

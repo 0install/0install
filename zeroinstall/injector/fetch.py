@@ -88,6 +88,38 @@ class Fetcher(object):
 		"""Return the URL of a mirror for this feed."""
 		return '%s/%s/latest.xml' % (self.feed_mirror, _get_feed_dir(url))
 
+	def download_with_fallback(self, dl, fallback_url, force, results):
+		"""Wait for dl to finish successfully and return dl.stream.
+		If it takes too long, or fails, try downloading from fallback_url.
+		Note this is a generator.
+		@param dl: the first download to try
+		@param fallback_url: URL of fallback download
+		@param results: an empty list to contain the results
+		@return: generates a series of blocker to be yielded. When exhausted, results contains (successful_stream, is_from_fallback)"""
+		dl_stream = dl.tempfile
+		try:
+			yield dl.downloaded
+			tasks.check(dl.downloaded)
+			results += [dl_stream, False]
+			return
+		except Exception, ex:
+			ex = sys.exc_info()
+
+			warn("Download failed (will try mirror): %s", ex[1])
+			info("Trying mirror URL %s", fallback_url)
+			mirror_dl = self.handler.get_download(fallback_url, force = force, hint = dl.url)
+			mirror_stream = mirror_dl.tempfile
+			yield mirror_dl.downloaded
+			try:
+				tasks.check(mirror_dl.downloaded)
+			except Exception, mirror_ex:
+				# Mirror didn't work either. Log the mirror problem and report the original error.
+				info("Download from mirror failed: %s", mirror_ex)
+				raise ex[0], ex[1], ex[2]
+
+			results += [mirror_stream, True]
+			return
+
 	def download_and_import_feed(self, feed_url, iface_cache, force = False):
 		"""Download the feed, download any required keys, confirm trust if needed and import.
 		@param feed_url: the feed to be downloaded
@@ -103,28 +135,12 @@ class Fetcher(object):
 
 		@tasks.named_async("fetch_feed " + feed_url)
 		def fetch_feed():
-			stream = dl.tempfile
+			results = []
+			for x in self.download_with_fallback(dl, self.get_feed_mirror(feed_url), force = force, results = results):
+				yield x
+			stream, using_mirror = results
 
-			try:
-				yield dl.downloaded
-				tasks.check(dl.downloaded)
-			except Exception, ex:
-				ex = sys.exc_info()
-
-				mirrored_feed_url = self.get_feed_mirror(feed_url)
-				info("Feed download failed: %s", ex[1])
-				info("Trying mirror with %s", mirrored_feed_url)
-				mirror_dl = self.handler.get_download(mirrored_feed_url, force = force, hint = feed_url)
-				mirror_stream = mirror_dl.tempfile
-				yield mirror_dl.downloaded
-				try:
-					tasks.check(mirror_dl.downloaded)
-				except Exception, mirror_ex:
-					# Mirror didn't work either. Log the mirror problem and report the original error.
-					info("Feed download from mirror failed: %s", mirror_ex)
-					raise ex[0], ex[1], ex[2]
-
-				stream = mirror_stream
+			# TODO: ignore old timestamps if using_mirror
 
 			pending = PendingFeed(feed_url, stream)
 			iface_cache.add_pending(pending)
