@@ -56,7 +56,7 @@ class BackgroundHandler(handler.Handler):
 		
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		"""Run the GUI if we need to confirm any keys."""
-		notify("Zero Install", "Can't update interface; signature not yet trusted. Running GUI...", timeout = 2)
+		self.notify("Zero Install", "Can't update interface; signature not yet trusted. Running GUI...", timeout = 2)
 		_exec_gui(interface.uri, '--refresh')
 
 	def report_error(self, exception, tb = None):
@@ -73,7 +73,6 @@ class BackgroundHandler(handler.Handler):
 		NORMAL = 1
 		CRITICAL = 2
 
-		import time
 		import dbus.types
 
 		hints = {}
@@ -167,7 +166,6 @@ def spawn_background_update(policy, verbose):
 	# Mark all feeds as being updated. Do this before forking, so that if someone is
 	# running lots of 0launch commands in series on the same program we don't start
 	# huge numbers of processes.
-	import time
 	for x in policy.implementation:
 		iface_cache.mark_as_checking(x.uri)			# Main feed
 		for f in policy.usable_feeds(x):
@@ -185,7 +183,5 @@ def spawn_background_update(policy, verbose):
 			import traceback
 			traceback.print_exc()
 			sys.stdout.flush()
-		else:
-			sys.exit(0)
 	finally:
 		os._exit(1)

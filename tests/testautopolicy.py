@@ -200,6 +200,9 @@ class TestAutoPolicy(BaseTest):
 				os.environ['BAR_PATH'])
 		self.assertEquals(cached_impl + '/.:/usr/local/share:/usr/share',
 				os.environ['XDG_DATA_DIRS'])
+
+		policy.download_only = True
+		policy.download_and_execute(['Hello'])
 	
 	def testFeeds(self):
 		self.cache_iface(foo_iface_uri,

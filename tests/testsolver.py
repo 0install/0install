@@ -24,6 +24,7 @@ class TestSolver(BaseTest):
 		reader.update(compiler, 'Compiler.xml')
 
 		binary_arch = arch.Architecture({None: 1}, {None: 1})
+		assert str(binary_arch).startswith("<Arch")
 		s.solve('http://foo/Binary.xml', binary_arch)
 				
 		assert s.ready

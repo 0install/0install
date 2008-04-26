@@ -7,12 +7,24 @@ from logging import getLogger, DEBUG, INFO, WARN, ERROR
 
 sys.path.insert(0, '..')
 
-from zeroinstall.injector import model, autopolicy, gpg, iface_cache, download, reader, trust, handler
+from zeroinstall.injector import model, autopolicy, gpg, iface_cache, download, reader, trust, handler, background, arch
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
-from zeroinstall.support import basedir
+from zeroinstall.support import basedir, tasks
 import data
+import my_dbus
 
 import server
+
+ran_gui = False
+def raise_gui(*args):
+	global ran_gui
+	ran_gui = True
+background._detach = lambda: False
+background._exec_gui = raise_gui
+sys.modules['dbus'] = my_dbus
+sys.modules['dbus.glib'] = my_dbus
+my_dbus.types = my_dbus
+sys.modules['dbus.types'] = my_dbus
 
 class Reply:
 	def __init__(self, reply):
@@ -263,6 +275,53 @@ class TestDownload(BaseTest):
 			self.assertEquals(1209206132, iface_cache.iface_cache._get_signature_date(iface.uri))
 		finally:
 			sys.stdout = old_out
+
+	def testBackground(self):
+		p = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml')
+		reader.update(iface_cache.iface_cache.get_interface(p.root), 'Hello.xml')
+		p.freshness = 0
+		p.network_use = model.network_minimal
+		p.solver.solve(p.root, arch.get_host_architecture())
+		assert p.ready
+
+		@tasks.async
+		def choose_download(registed_cb, nid, actions):
+			try:
+				assert actions == ['download', 'Download'], actions
+				registed_cb(nid, 'download')
+			except:
+				import traceback
+				traceback.print_exc()
+			yield None
+
+		global ran_gui
+		ran_gui = False
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg')
+			my_dbus.user_callback = choose_download
+			pid = os.getpid()
+			old_exit = os._exit
+			def my_exit(code):
+				# The background handler runs in the same process
+				# as the tests, so don't let it abort.
+				if os.getpid() == pid:
+					raise SystemExit(code)
+				# But, child download processes are OK
+				old_exit(code)
+			try:
+				try:
+					os._exit = my_exit
+					background.spawn_background_update(p, False)
+					assert False
+				except SystemExit, ex:
+					self.assertEquals(1, ex.code)
+			finally:
+				os._exit = old_exit
+		finally:
+			sys.stdout = old_out
+		assert ran_gui
 
 suite = unittest.makeSuite(TestDownload)
 if __name__ == '__main__':
