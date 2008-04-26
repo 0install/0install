@@ -18,6 +18,10 @@ from zeroinstall.support import tasks
 from zeroinstall.injector import model, download
 from zeroinstall.injector.iface_cache import iface_cache
 
+class NoTrustedKeys(model.SafeException):
+	"""Thrown by L{Handler.confirm_trust_keys} on failure."""
+	pass
+
 class Handler(object):
 	"""
 	This implementation uses the GLib mainloop. Note that QT4 can use the GLib mainloop too.
@@ -47,7 +51,7 @@ class Handler(object):
 		self.downloads_changed()
 
 		@tasks.async
-		def download_done():
+		def download_done_stats():
 			yield dl.downloaded
 			# NB: we don't check for exceptions here; someone else should be doing that
 			try:
@@ -57,7 +61,7 @@ class Handler(object):
 				self.downloads_changed()
 			except Exception, ex:
 				self.report_error(ex)
-		download_done()
+		download_done_stats()
 
 	def impl_added_to_store(self, impl):
 		"""Called by the L{fetch.Fetcher} when adding an implementation.
@@ -147,7 +151,7 @@ class Handler(object):
 			i = raw_input("Trust [Y/N] ")
 			if not i: continue
 			if i in 'Nn':
-				raise model.SafeException('Not signed with a trusted key')
+				raise NoTrustedKeys('Not signed with a trusted key')
 			if i in 'Yy':
 				break
 		for key in valid_sigs:
