@@ -11,7 +11,7 @@ from logging import info, debug, warn
 from zeroinstall.support import tasks, basedir
 from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
 from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, network_offline, escape
-from zeroinstall.injector.iface_cache import PendingFeed
+from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
 
 def _escape_slashes(path):
 	return path.replace('/', '%23')
@@ -183,8 +183,6 @@ class Fetcher(object):
 				yield x
 			stream, using_mirror = results
 
-			# TODO: ignore old timestamps if using_mirror
-
 			pending = PendingFeed(feed_url, stream)
 			iface_cache.add_pending(pending)
 
@@ -199,13 +197,19 @@ class Fetcher(object):
 			tasks.check(keys_downloaded.finished)
 
 			iface = iface_cache.get_interface(pending.url)
-			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-				blocker = self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
-				if blocker:
-					yield blocker
-					tasks.check(blocker)
+			try:
 				if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-					raise SafeException("No signing keys trusted; not importing")
+					blocker = self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+					if blocker:
+						yield blocker
+						tasks.check(blocker)
+					if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+						raise SafeException("No signing keys trusted; not importing")
+			except ReplayAttack, ex:
+				if using_mirror:
+					info("Version from mirror is older than cached version; ignoring it: %s", ex)
+				else:
+					raise
 
 		return fetch_feed()
 

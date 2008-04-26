@@ -227,14 +227,42 @@ class TestDownload(BaseTest):
 			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml', download_only = False)
 			policy.fetcher.feed_mirror = 'http://localhost:8000/0mirror'
 
-			refreshed = policy.solve_with_downloads([])
-			errors = policy.handler.wait_for_blocker(refreshed)
-			if errors:
-				raise model.SafeException("Errors during download: " + '\n'.join(errors))
+			refreshed = policy.solve_with_downloads()
+			policy.handler.wait_for_blocker(refreshed)
 			assert policy.ready
 		finally:
 			sys.stdout = old_out
 
+	def testReplay(self):
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			getLogger().setLevel(ERROR)
+			iface = iface_cache.iface_cache.get_interface('http://localhost:8000/Hello.xml')
+			mtime = int(os.stat('Hello-new.xml').st_mtime)
+			iface_cache.iface_cache.update_interface_from_network(iface, file('Hello-new.xml').read(), mtime + 10000)
+
+			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'localhost:8000')
+			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
+			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml', download_only = False)
+			policy.fetcher.feed_mirror = 'http://localhost:8000/0mirror'
+
+			# Update from mirror (should ignore out-of-date timestamp)
+			refreshed = policy.fetcher.download_and_import_feed(iface.uri, iface_cache.iface_cache)
+			policy.handler.wait_for_blocker(refreshed)
+
+			# Update from upstream (should report an error)
+			refreshed = policy.fetcher.download_and_import_feed(iface.uri, iface_cache.iface_cache)
+			try:
+				policy.handler.wait_for_blocker(refreshed)
+				raise Exception("Should have been rejected!")
+			except model.SafeException, ex:
+				assert "New interface's modification time is before old version" in str(ex)
+
+			# Must finish with the newest version
+			self.assertEquals(1209206132, iface_cache.iface_cache._get_signature_date(iface.uri))
+		finally:
+			sys.stdout = old_out
 
 suite = unittest.makeSuite(TestDownload)
 if __name__ == '__main__':

@@ -43,9 +43,7 @@ class AutoPolicy(policy.Policy):
 	def download_and_execute(self, prog_args, refresh = False, main = None):
 		refreshed = self.solve_with_downloads(refresh)
 
-		errors = self.handler.wait_for_blocker(refreshed)
-		if errors:
-			raise model.SafeException("Errors during download: " + '\n'.join(errors))
+		self.handler.wait_for_blocker(refreshed)
 
 		if not self.solver.ready:
 			raise model.SafeException("Can't find all required implementations:\n" +

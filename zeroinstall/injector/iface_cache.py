@@ -38,8 +38,12 @@ from zeroinstall.injector.model import *
 from zeroinstall import zerostore
 
 def _pretty_time(t):
-	assert isinstance(t, (int, long))
+	assert isinstance(t, (int, long)), t
 	return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.localtime(t))
+
+class ReplayAttack(SafeException):
+	"""Attempt to import a feed that's older than the one in the cache."""
+	pass
 
 class PendingFeed(object):
 	"""A feed that has been downloaded but not yet added to the interface cache.
@@ -284,12 +288,12 @@ class IfaceCache(object):
 
 		if old_modified:
 			if new_mtime < old_modified:
-				raise SafeException("New interface's modification time is before old "
+				os.unlink(cached + '.new')
+				raise ReplayAttack("New interface's modification time is before old "
 						    "version!"
 						    "\nOld time: " + _pretty_time(old_modified) +
 						    "\nNew time: " + _pretty_time(new_mtime) + 
-						    "\nRefusing update (leaving new copy as " +
-						    cached + ".new)")
+						    "\nRefusing update.")
 			if new_mtime == old_modified:
 				# You used to have to update the modification time manually.
 				# Now it comes from the signature, this check isn't useful
