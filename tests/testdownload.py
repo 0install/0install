@@ -276,7 +276,7 @@ class TestDownload(BaseTest):
 		finally:
 			sys.stdout = old_out
 
-	def testBackground(self):
+	def testBackground(self, verbose = False):
 		p = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml')
 		reader.update(iface_cache.iface_cache.get_interface(p.root), 'Hello.xml')
 		p.freshness = 0
@@ -313,7 +313,7 @@ class TestDownload(BaseTest):
 			try:
 				try:
 					os._exit = my_exit
-					background.spawn_background_update(p, False)
+					background.spawn_background_update(p, verbose)
 					assert False
 				except SystemExit, ex:
 					self.assertEquals(1, ex.code)
@@ -322,6 +322,9 @@ class TestDownload(BaseTest):
 		finally:
 			sys.stdout = old_out
 		assert ran_gui
+
+	def testBackgroundVerbose(self):
+		self.testBackground(verbose = True)
 
 suite = unittest.makeSuite(TestDownload)
 if __name__ == '__main__':

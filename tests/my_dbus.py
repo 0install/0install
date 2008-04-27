@@ -4,6 +4,10 @@ class SessionBus:
 	def get_object(self, service, path):
 		return None
 
+class SystemBus:
+	def get_object(self, service, path):
+		return None
+
 class Interface:
 	def __init__(self, obj, iface):
 		self.callback = {}
@@ -22,6 +26,9 @@ class Interface:
 			user_callback(self.callback['ActionInvoked'], nid, actions)
 
 		return nid
+
+	def state(self):
+		return 3	# NM_STATUS_CONNECTED
 
 	def connect_to_signal(self, signal, callback):
 		self.callback[signal] = callback
