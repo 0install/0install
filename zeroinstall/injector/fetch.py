@@ -119,6 +119,8 @@ class Fetcher(object):
 				primary_ex = None
 			except NoTrustedKeys, ex:
 				raise			# Don't bother trying the mirror if we have a trust problem
+			except ReplayAttack, ex:
+				raise			# Don't bother trying the mirror if we have a replay attack
 			except SafeException, ex:
 				# Primary failed
 				primary = None
