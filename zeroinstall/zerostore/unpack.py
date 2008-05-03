@@ -52,11 +52,13 @@ def recent_gnu_tar():
 	debug("Recent GNU tar = %s", recent_gnu_tar)
 	return recent_gnu_tar
 
-_pola_run = find_in_path('pola-run')
-if _pola_run:
-	info('Found pola-run: %s', _pola_run)
-else:
-	info('pola-run not found; archive extraction will not be sandboxed')
+# Disabled, as Plash does not currently support fchmod(2).
+_pola_run = None
+#_pola_run = find_in_path('pola-run')
+#if _pola_run:
+#	info('Found pola-run: %s', _pola_run)
+#else:
+#	info('pola-run not found; archive extraction will not be sandboxed')
 
 def type_from_url(url):
 	"""Guess the MIME type for this resource based on its URL. Returns None if we don't know what it is."""
