@@ -172,30 +172,19 @@ class IfaceCache(object):
 	cache of L{model.Interface} objects, and an on-disk cache of L{model.ZeroInstallFeed}s.
 	It will probably be split into two in future.
 
-	@ivar pending: downloaded feeds which are not yet trusted
-	@type pending: str -> PendingFeed
 	@see: L{iface_cache} - the singleton IfaceCache instance.
 	"""
 
-	__slots__ = ['_interfaces', 'stores', 'pending']
+	__slots__ = ['_interfaces', 'stores']
 
 	def __init__(self):
 		self._interfaces = {}
-		self.pending = {}
 
 		self.stores = zerostore.Stores()
 	
-	def add_pending(self, pending):
-		"""Add a PendingFeed to the pending dict.
-		@param pending: the untrusted download to add
-		@type pending: PendingFeed
-		@since: 0.25"""
-		assert isinstance(pending, PendingFeed)
-		self.pending[pending.url] = pending
-	
 	def update_interface_if_trusted(self, interface, sigs, xml):
 		"""Update a cached interface (using L{update_interface_from_network})
-		if we trust the signatures, and remove it from L{pending}.
+		if we trust the signatures.
 		If we don't trust any of the signatures, do nothing.
 		@param interface: the interface being updated
 		@type interface: L{model.Interface}
@@ -205,17 +194,11 @@ class IfaceCache(object):
 		@type xml: str
 		@return: True if the interface was updated
 		@rtype: bool
-		@precondition: call L{add_pending}
 		"""
 		import trust
 		updated = self._oldest_trusted(sigs, trust.domain_from_url(interface.uri))
 		if updated is None: return False	# None are trusted
 	
-		if interface.uri in self.pending:
-			del self.pending[interface.uri]
-		else:
-			raise Exception("update_interface_if_trusted, but '%s' not pending!" % interface.uri)
-
 		self.update_interface_from_network(interface, xml, updated)
 		return True
 

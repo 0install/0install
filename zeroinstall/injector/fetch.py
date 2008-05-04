@@ -190,7 +190,6 @@ class Fetcher(object):
 			tasks.check(dl.downloaded)
 
 			pending = PendingFeed(feed_url, stream)
-			iface_cache.add_pending(pending)
 
 			if use_mirror:
 				# If we got the feed from a mirror, get the key from there too

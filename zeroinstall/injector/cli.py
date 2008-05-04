@@ -50,7 +50,6 @@ def _import_feed(args):
 		signed_data.seek(0)
 
 		pending = PendingFeed(uri, signed_data)
-		iface_cache.add_pending(pending)
 
 		handler = handler.Handler()
 

@@ -50,7 +50,6 @@ class TestIfaceCache(BaseTest):
 		src.seek(0)
 
 		pending = PendingFeed(iface.uri, src)
-		iface_cache.add_pending(pending)
 		assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
 
 		self.assertEquals(['http://foo'],
@@ -71,7 +70,6 @@ class TestIfaceCache(BaseTest):
 		src.write(data.foo_signed_xml)
 		src.seek(0)
 		pending = PendingFeed(iface.uri, src)
-		iface_cache.add_pending(pending)
 		assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
 
 		iface_cache.__init__()
@@ -93,7 +91,6 @@ class TestIfaceCache(BaseTest):
 		src.seek(0)
 
 		pending = PendingFeed(iface.uri, src)
-		iface_cache.add_pending(pending)
 		assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
 
 		# Can't 'update' to an older copy
@@ -102,7 +99,6 @@ class TestIfaceCache(BaseTest):
 		src.seek(0)
 		try:
 			pending = PendingFeed(iface.uri, src)
-			iface_cache.add_pending(pending)
 			assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
 
 			assert 0
