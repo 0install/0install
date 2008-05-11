@@ -263,6 +263,11 @@ class Fetcher(object):
 		"""Fetch an archive. You should normally call L{download_impl}
 		instead, since it handles other kinds of retrieval method too."""
 		from zeroinstall.zerostore import unpack
+
+		url = download_source.url
+		if not (url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:')):
+			raise SafeException("Unknown scheme in download URL '%s'" % url)
+
 		mime_type = download_source.type
 		if not mime_type:
 			mime_type = unpack.type_from_url(download_source.url)

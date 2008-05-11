@@ -280,7 +280,6 @@ class DownloadSource(RetrievalMethod):
 	__slots__ = ['implementation', 'url', 'size', 'extract', 'start_offset', 'type']
 
 	def __init__(self, implementation, url, size, extract, start_offset = 0, type = None):
-		assert url.startswith('http:') or url.startswith('ftp:') or url.startswith('/')
 		self.implementation = implementation
 		self.url = url
 		self.size = size
