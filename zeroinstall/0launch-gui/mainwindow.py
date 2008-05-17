@@ -164,7 +164,7 @@ class MainWindow:
 gui_help = help_box.HelpBox("Injector Help",
 ('Overview', """
 A program is made up of many different components, typically written by different \
-groups of people. Each component is available in multiple versions. The injector is \
+groups of people. Each component is available in multiple versions. Zero Install is \
 used when starting a program. Its job is to decide which implementation of each required \
 component to use.
 
@@ -172,7 +172,7 @@ An interface describes what a component does. The injector starts with \
 the interface for the program you want to run (like 'The Gimp') and chooses an \
 implementation (like 'The Gimp 2.2.0'). However, this implementation \
 will in turn depend on other interfaces, such as 'GTK' (which draws the menus \
-and buttons). Thus, the injector must choose implementations of \
+and buttons). Thus, it must choose implementations of \
 each dependency (each of which may require further interfaces, and so on)."""),
 
 ('List of interfaces', """
@@ -189,11 +189,9 @@ To control which implementations (versions) are chosen you can click on Preferen
 and adjust the network policy and the overall stability policy. These settings affect \
 all programs run using Zero Install.
 
-Alternatively, you can edit the policy of an individual interface by selecting it \
-and clicking on the 'Interface Properties' button. \
+Alternatively, you can edit the policy of an individual interface by clicking on the \
+button at the end of its line in the table and choosing "Show Versions" from the menu. \
 See that dialog's help text for more information.
-
-Right-click on an interface in the list for a menu.
 """),
 
 ('Reporting bugs', """

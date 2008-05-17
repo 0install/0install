@@ -1,4 +1,4 @@
-import gtk, gobject
+import gtk, gobject, pango
 
 from zeroinstall.support import basedir, tasks, pretty_size
 from zeroinstall.injector.iface_cache import iface_cache
@@ -33,6 +33,8 @@ class InterfaceTips(TreeTips):
 				return None
 			first_para = interface.description.split('\n\n', 1)[0]
 			return first_para.replace('\n', ' ')
+		elif model_column is None:
+			return _("Click here for more options...")
 
 		impl = self.mainwindow.policy.implementation.get(interface, None)
 		if not impl:
@@ -58,6 +60,29 @@ class InterfaceTips(TreeTips):
 				return _("No downloads available!")
 			return _("Need to download %s (%s bytes)") % \
 					(support.pretty_size(src.size), src.size)
+
+class MenuIconRenderer(gtk.GenericCellRenderer):
+	def __init__(self):
+		gtk.GenericCellRenderer.__init__(self)
+		self.set_property('mode', gtk.CELL_RENDERER_MODE_ACTIVATABLE)
+
+	def do_set_property(self, prop, value):
+		setattr(self, prop.name, value)
+
+	def on_get_size(self, widget, cell_area, layout = None):
+		return (0, 0, 20, 20)
+
+	def on_render(self, window, widget, background_area, cell_area, expose_area, flags):
+		if flags & gtk.CELL_RENDERER_PRELIT:
+			state = gtk.STATE_PRELIGHT
+		else:
+			state = gtk.STATE_NORMAL
+
+		widget.style.paint_box(window, state, gtk.SHADOW_OUT, expose_area, widget, None,
+					cell_area.x, cell_area.y, cell_area.width, cell_area.height)
+		widget.style.paint_arrow(window, state, gtk.SHADOW_NONE, expose_area, widget, None,
+					gtk.ARROW_RIGHT, True,
+					cell_area.x + 5, cell_area.y + 5, cell_area.width - 10, cell_area.height - 10)
 
 class IconAndTextRenderer(gtk.GenericCellRenderer):
 	__gproperties__ = {
@@ -109,11 +134,11 @@ if gtk.pygtk_version < (2, 8, 0):
 	# Note sure exactly which versions need this.
 	# 2.8.0 gives a warning if you include it, though.
 	gobject.type_register(IconAndTextRenderer)
+	gobject.type_register(MenuIconRenderer)
 
 class InterfaceBrowser:
 	model = None
 	root = None
-	edit_properties = None
 	cached_icon = None
 	policy = None
 	original_implementation = None
@@ -128,7 +153,8 @@ class InterfaceBrowser:
 	columns = [(_('Interface'), INTERFACE_NAME),
 		   (_('Version'), VERSION),
 		   (_('Fetch'), DOWNLOAD_SIZE),
-		   (_('Description'), SUMMARY)]
+		   (_('Description'), SUMMARY),
+		   ('', None)]
 
 	def __init__(self, policy, widgets):
 		tips = InterfaceTips(self)
@@ -139,9 +165,6 @@ class InterfaceBrowser:
 		self.cached_icon = {}	# URI -> GdkPixbuf
 		self.default_icon = tree_view.style.lookup_icon_set(gtk.STOCK_EXECUTE).render_icon(tree_view.style,
 			gtk.TEXT_DIR_NONE, gtk.STATE_NORMAL, gtk.ICON_SIZE_SMALL_TOOLBAR, tree_view, None)
-
-		self.edit_properties = widgets.get_widget('properties')
-		self.edit_properties.set_property('sensitive', False)
 
 		self.model = gtk.TreeStore(object, str, str, str, str, gtk.gdk.Pixbuf)
 		self.tree_view = tree_view
@@ -156,8 +179,19 @@ class InterfaceBrowser:
 				column = gtk.TreeViewColumn(name, IconAndTextRenderer(),
 						text = model_column,
 						image = InterfaceBrowser.ICON)
+			elif model_column == None:
+				menu_column = column = gtk.TreeViewColumn('', MenuIconRenderer())
 			else:
-				column = gtk.TreeViewColumn(name, text, text = model_column)
+				if model_column == InterfaceBrowser.SUMMARY:
+					text_ellip = gtk.CellRendererText()
+					try:
+						text_ellip.set_property('ellipsize', pango.ELLIPSIZE_END)
+					except:
+						pass
+					column = gtk.TreeViewColumn(name, text_ellip, text = model_column)
+					column.set_expand(True)
+				else:
+					column = gtk.TreeViewColumn(name, text, text = model_column)
 			tree_view.append_column(column)
 			column_objects.append(column)
 
@@ -187,35 +221,22 @@ class InterfaceBrowser:
 		tree_view.connect('motion-notify-event', motion)
 		tree_view.connect('leave-notify-event', lambda tv, ev: tips.hide())
 
-		def sel_changed(sel):
-			store, iter = sel.get_selected()
-			self.edit_properties.set_property('sensitive', iter != None)
-		selection.connect('changed', sel_changed)
-
 		def button_press(tree_view, bev):
-			if bev.button == 3 and bev.type == gtk.gdk.BUTTON_PRESS:
-				pos = tree_view.get_path_at_pos(int(bev.x), int(bev.y))
-				if not pos:
-					return False
-				path, col, x, y = pos
+			pos = tree_view.get_path_at_pos(int(bev.x), int(bev.y))
+			if not pos:
+				return False
+			path, col, x, y = pos
+
+			if (bev.button == 3 or (bev.button < 4 and col is menu_column)) \
+			   and bev.type == gtk.gdk.BUTTON_PRESS:
 				selection.select_path(path)
 				iface = self.model[path][InterfaceBrowser.INTERFACE]
 				self.show_popup_menu(iface, bev)
 				return True
 			if bev.button != 1 or bev.type != gtk.gdk._2BUTTON_PRESS:
 				return False
-			pos = tree_view.get_path_at_pos(int(bev.x), int(bev.y))
-			if not pos:
-				return False
-			path, col, x, y = pos
 			properties.edit(policy, self.model[path][InterfaceBrowser.INTERFACE])
 		tree_view.connect('button-press-event', button_press)
-
-		def edit_selected(action):
-			store, iter = selection.get_selected()
-			assert iter
-			properties.edit(policy, self.model[iter][InterfaceBrowser.INTERFACE])
-		self.edit_properties.connect('clicked', edit_selected)
 
 		tree_view.connect('destroy', lambda s: policy.watchers.remove(self.build_tree))
 		policy.watchers.append(self.build_tree)
