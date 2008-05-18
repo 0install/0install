@@ -9,10 +9,12 @@ This module is used to invoke GnuPG to check the digital signatures on interface
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+import subprocess
 import base64, re
 import os
 import tempfile
 import traceback
+from logging import info
 
 from zeroinstall import support
 from zeroinstall.injector.trust import trust_db
@@ -54,12 +56,13 @@ class ValidSig(Signature):
 	def get_details(self):
 		"""Call 'gpg --list-keys' and return the results split into lines and columns.
 		@rtype: [[str]]"""
-		cin, cout = os.popen2(('gpg', '--with-colons', '--no-secmem-warning', '--list-keys', self.fingerprint))
-		cin.close()
+		child = subprocess.Popen(['gpg', '--with-colons', '--no-secmem-warning', '--list-keys', self.fingerprint], stdout = subprocess.PIPE)
+		cout, unused = child.communicate()
+		if child.returncode:
+			info("GPG exited with code %d" % child.returncode)
 		details = []
-		for line in cout:
+		for line in cout.split('\n'):
 			details.append(line.split(':'))
-		cout.close()
 		return details
 
 class BadSig(Signature):
