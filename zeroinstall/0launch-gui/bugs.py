@@ -51,6 +51,10 @@ def report_bug(policy, iface):
 class BugReporter(dialog.Dialog):
 	def __init__(self, policy, iface, env):
 		dialog.Dialog.__init__(self)
+
+		self.sf_group_id = 76468
+		self.sf_artifact_id = 929902
+
 		self.set_title('Report a Bug')
 		self.set_modal(True)
 		self.set_has_separator(False)
@@ -119,6 +123,19 @@ class BugReporter(dialog.Dialog):
 
 		environ = text_area(env, mono = True)
 		frame('Information about your setup', *environ)
+
+		browse_url = 'http://sourceforge.net/tracker/?group_id=%d&atid=%d' % (self.sf_group_id, self.sf_artifact_id)
+		location_hbox = gtk.HBox(False, 4)
+		location_hbox.pack_start(gtk.Label(_('Bugs reports will be sent to:')), False, True, 0)
+		if hasattr(gtk, 'LinkButton'):
+			import browser
+			url_box = gtk.LinkButton(browse_url)
+			url_box.connect('clicked', lambda button: browser.open_in_browser(browse_url))
+		else:
+			url_box = gtk.Label(browse_url)
+			url_box.set_selectable(True)
+		location_hbox.pack_start(url_box, False, True, 0)
+		vbox.pack_start(location_hbox, False, True, 0)
 
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		self.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
@@ -196,8 +213,8 @@ class BugReporter(dialog.Dialog):
 
 			stream = urlopen('http://sourceforge.net/tracker/index.php',
 				urllib.urlencode({
-				'group_id': '76468',
-				'atid': '929902',
+				'group_id': str(self.sf_group_id),
+				'atid': str(self.sf_artifact_id),
 				'func': 'postadd',
 				'is_private': '0',
 				'summary': title,

@@ -31,19 +31,6 @@ def format_para(para):
 	lines = [l.strip() for l in para.split('\n')]
 	return ' '.join(lines)
 
-def open_in_browser(link):
-	browser = os.environ.get('BROWSER', 'firefox')
-	child = os.fork()
-	if child == 0:
-		# We are the child
-		try:
-			os.spawnlp(os.P_NOWAIT, browser, browser, link)
-			os._exit(0)
-		except Exception, ex:
-			print >>sys.stderr, "Error", ex
-			os._exit(1)
-	os.waitpid(child, 0)
-
 def have_source_for(policy, interface):
 	# Note: we don't want to actually fetch the source interfaces at
 	# this point, so we check whether:
@@ -91,7 +78,8 @@ class Description:
 				end = itr.copy()
 				end.forward_to_tag_toggle(self.link_style)
 				target = itr.get_text(end).strip()
-				open_in_browser(target)
+				import browser
+				browser.open_in_browser(target)
 	
 	def set_details(self, interface):
 		buffer = self.buffer
