@@ -1,3 +1,6 @@
+# Copyright (C) 2008, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
+
 import zeroinstall
 from zeroinstall.support import tasks
 from zeroinstall.injector.model import *

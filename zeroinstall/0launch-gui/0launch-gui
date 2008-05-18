@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# Copyright (C) 2008, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
 import os, sys
 
 # This is for pycentral on Debian-type systems. 0launch-gui is a symlink to the
