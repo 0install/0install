@@ -1,6 +1,6 @@
 # Copyright (C) 2008, Thomas Leonard
-# See the README file for details, or visit http://0install.net.
 # -*- coding: utf-8 -*-
+# See the README file for details, or visit http://0install.net.
 
 import gtk
 from zeroinstall.injector.model import SafeException
