@@ -96,6 +96,7 @@ class Fetcher(object):
 		@param iface_cache: cache in which to store the feed
 		@type iface_cache: L{iface_cache.IfaceCache}
 		@param force: whether to abort and restart an existing download"""
+		from download import DownloadAborted
 		
 		debug("download_and_import_feed %s (force = %d)", feed_url, force)
 		assert not feed_url.startswith('/')
@@ -121,6 +122,8 @@ class Fetcher(object):
 				raise			# Don't bother trying the mirror if we have a trust problem
 			except ReplayAttack, ex:
 				raise			# Don't bother trying the mirror if we have a replay attack
+			except DownloadAborted, ex:
+				raise			# Don't bother trying the mirror if the user cancelled
 			except SafeException, ex:
 				# Primary failed
 				primary = None
