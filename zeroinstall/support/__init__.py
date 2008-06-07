@@ -59,7 +59,7 @@ def pretty_size(size):
 	if size < 2048:
 		return '%d bytes' % size
 	size = float(size)
-	for unit in ('Kb', 'Mb', 'Gb', 'Tb'):
+	for unit in ('KB', 'MB', 'GB', 'TB'):
 		size /= 1024
 		if size < 2048:
 			break

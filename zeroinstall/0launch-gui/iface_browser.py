@@ -10,6 +10,7 @@ import properties
 from treetips import TreeTips
 from zeroinstall import support
 from logging import warn
+import utils
 
 def _stability(impl):
 	assert impl
@@ -321,7 +322,7 @@ class InterfaceBrowser:
 					version_str += " (was " + old_impl.get_version() + ")"
 				self.model[iter][InterfaceBrowser.VERSION] = version_str
 
-				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = self._get_fetch_info(impl)
+				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
 				if hasattr(impl, 'requires'):
 					children = impl.requires
 				else:
@@ -341,24 +342,6 @@ class InterfaceBrowser:
 		add_node(None, self.root)
 		self.tree_view.expand_all()
 	
-	def _get_fetch_info(self, impl):
-		"""Get the text for the Fetch column."""
-		if impl is None:
-			return ""
-		elif self.policy.get_cached(impl):
-			if impl.id.startswith('/'):
-				return '(local)'
-			elif impl.id.startswith('package:'):
-				return '(package)'
-			else:
-				return '(cached)'
-		else:
-			src = self.policy.fetcher.get_best_source(impl)
-			if src:
-				return support.pretty_size(src.size)
-			else:
-				return '(unavailable)'
-
 	def show_popup_menu(self, iface, bev):
 		import bugs
 
@@ -433,5 +416,5 @@ class InterfaceBrowser:
 					fraction += " in %d downloads" % len(downloads)
 				row[InterfaceBrowser.SUMMARY] = "(downloading %s/%s)" % (pretty_size(so_far), fraction)
 			else:
-				row[InterfaceBrowser.DOWNLOAD_SIZE] = self._get_fetch_info(impl)
+				row[InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
 				row[InterfaceBrowser.SUMMARY] = iface.summary

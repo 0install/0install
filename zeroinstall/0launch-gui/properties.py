@@ -479,10 +479,14 @@ Released gives the date this entry was added to the feed.
 Stability is 'stable' if the implementation is believed to be stable, 'buggy' if \
 it is known to contain serious bugs, and 'testing' if its stability is not yet \
 known. This information is normally supplied and updated by the author of the \
-software, but you can override their rating (overridden values are shown in upper-case). \
-You can also use the special level 'preferred'.
+software, but you can override their rating by right-clicking here (overridden \
+values are shown in upper-case). You can also use the special level 'preferred'.
 
-C(ached) indicates whether the implementation is already stored on your computer. \
+Fetch indicates how much data needs to be downloaded to get this version if you don't \
+have it. If the implementation has already been downloaded to your computer, \
+it will say (cached). (local) means that you installed this version manually and \
+told Zero Install about it by adding a feed. (package) means that this version \
+is provided by your distribution's package manager, not by Zero Install. \
 In off-line mode, only cached implementations are considered for use.
 
 Arch indicates what kind of computer system the implementation is for, or 'any' \

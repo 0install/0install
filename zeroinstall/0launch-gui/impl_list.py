@@ -5,6 +5,7 @@ import gtk, gobject, os
 from zeroinstall.injector import model, writer
 from zeroinstall import support
 from treetips import TreeTips
+import utils
 
 def popup_menu(bev, values, fn):
 	menu = gtk.Menu()
@@ -25,7 +26,7 @@ ITEM = 0
 ARCH = 1
 STABILITY = 2
 VERSION = 3
-CACHED = 4
+FETCH = 4
 UNUSABLE = 5
 RELEASED = 6
 NOTES = 7
@@ -60,24 +61,22 @@ class ImplementationList:
 		self.interface = interface
 		self.policy = policy
 
-		self.model = gtk.ListStore(object, str, str, str,
-			   gobject.TYPE_BOOLEAN, gobject.TYPE_BOOLEAN,
-			   str, str)
+		self.model = gtk.ListStore(object, str, str, str,	# Item, arch, stability, version,
+			   str, gobject.TYPE_BOOLEAN, str, str)		# fetch, unusable, released, notes
 
 		self.tree_view = widgets.get_widget('versions_list')
 		self.tree_view.set_model(self.model)
 
 		text = gtk.CellRendererText()
 		text_strike = gtk.CellRendererText()
-		toggle = gtk.CellRendererToggle()
 
 		stability = gtk.TreeViewColumn('Stability', text, text = STABILITY)
 
-		for column in (gtk.TreeViewColumn('Version', text, text = VERSION, strikethrough = UNUSABLE),
-			       gtk.TreeViewColumn('Released', text, text = RELEASED, strikethrough = UNUSABLE),
+		for column in (gtk.TreeViewColumn('Version', text_strike, text = VERSION, strikethrough = UNUSABLE),
+			       gtk.TreeViewColumn('Released', text, text = RELEASED),
 			       stability,
-			       gtk.TreeViewColumn('C', toggle, active = CACHED),
-			       gtk.TreeViewColumn('Arch', text, text = ARCH),
+			       gtk.TreeViewColumn('Fetch', text, text = FETCH),
+			       gtk.TreeViewColumn('Arch', text_strike, text = ARCH, strikethrough = UNUSABLE),
 			       gtk.TreeViewColumn('Notes', text, text = NOTES)):
 			self.tree_view.append_column(column)
 
@@ -139,7 +138,7 @@ class ImplementationList:
 			self.model[new][ITEM] = item
 			self.model[new][VERSION] = item.get_version()
 			self.model[new][RELEASED] = item.released or "-"
-			self.model[new][CACHED] = self.policy.get_cached(item)
+			self.model[new][FETCH] = utils.get_fetch_info(self.policy, item)
 			if item.user_stability:
 				self.model[new][STABILITY] = str(item.user_stability).upper()
 			else:
