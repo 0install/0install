@@ -119,13 +119,23 @@ if options.manpage:
 			print >>sys.stderr, "No main program for interface '%s'" % interface_uri
 			sys.exit(1)
 
-	# TODO: the feed should say where the man-page is, but for now we'll just search
-	# the whole implementation for one
-
 	prog_name = os.path.basename(main)
 	alias_name = os.path.basename(args[0])
 
 	assert impl_path
+
+	# TODO: the feed should say where the man-pages are, but for now we'll accept
+	# a directory called man in some common locations...
+	for mandir in ['man', 'share/man', 'usr/man', 'usr/share/man']:
+		manpath = os.path.join(impl_path, mandir)
+		if os.path.isdir(manpath):
+			# Note: unlike "man -M", this also copes with LANG settings...
+			os.environ['MANPATH'] = manpath
+			os.execlp('man', 'man', prog_name)
+			sys.exit(1)
+
+	# No man directory given or found, so try searching for man files
+
 	manpages = []
 	for root, dirs, files in os.walk(impl_path):
 		for f in files:
