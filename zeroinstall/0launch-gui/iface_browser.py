@@ -154,7 +154,7 @@ class InterfaceBrowser:
 	DOWNLOAD_SIZE = 4
 	ICON = 5
 
-	columns = [(_('Interface'), INTERFACE_NAME),
+	columns = [(_('Component'), INTERFACE_NAME),
 		   (_('Version'), VERSION),
 		   (_('Fetch'), DOWNLOAD_SIZE),
 		   (_('Description'), SUMMARY),

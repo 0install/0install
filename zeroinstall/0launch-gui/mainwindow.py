@@ -171,15 +171,14 @@ groups of people. Each component is available in multiple versions. Zero Install
 used when starting a program. Its job is to decide which implementation of each required \
 component to use.
 
-An interface describes what a component does. The injector starts with \
-the interface for the program you want to run (like 'The Gimp') and chooses an \
+Zero Install starts with the program you want to run (like 'The Gimp') and chooses an \
 implementation (like 'The Gimp 2.2.0'). However, this implementation \
-will in turn depend on other interfaces, such as 'GTK' (which draws the menus \
+will in turn depend on other components, such as 'GTK' (which draws the menus \
 and buttons). Thus, it must choose implementations of \
-each dependency (each of which may require further interfaces, and so on)."""),
+each dependency (each of which may require further components, and so on)."""),
 
-('List of interfaces', """
-The main window displays all these interfaces, and the version of each chosen \
+('List of components', """
+The main window displays all these components, and the version of each chosen \
 implementation. The top-most one represents the program you tried to run, and each direct \
 child is a dependency. The 'Fetch' column shows the amount of data that needs to be \
 downloaded, or '(cached)' if it is already on this computer.
@@ -192,13 +191,13 @@ To control which implementations (versions) are chosen you can click on Preferen
 and adjust the network policy and the overall stability policy. These settings affect \
 all programs run using Zero Install.
 
-Alternatively, you can edit the policy of an individual interface by clicking on the \
+Alternatively, you can edit the policy of an individual component by clicking on the \
 button at the end of its line in the table and choosing "Show Versions" from the menu. \
 See that dialog's help text for more information.
 """),
 
 ('Reporting bugs', """
-To report a bug, right-click over the interface which you think contains the problem \
+To report a bug, right-click over the component which you think contains the problem \
 and choose 'Report a Bug...' from the menu. If you don't know which one is the cause, \
 choose the top one (i.e. the program itself). The program's author can reassign the \
 bug if necessary, or switch to using a different version of the library.
