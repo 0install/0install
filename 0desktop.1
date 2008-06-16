@@ -1,0 +1,49 @@
+.TH 0DESKTOP 1 "2008" "Thomas Leonard" ""
+.SH NAME
+0desktop \- add programs to the desktop environment
+
+.SH SYNOPSIS
+
+.B 0destkop
+[ \fBURI\fP ]
+
+.SH DESCRIPTION
+.PP
+0desktop can be used to create launchers for Zero Install applications in
+desktop environments supporting the freedesktop.org menu specification (e.g.
+GNOME and KDE).
+
+.PP
+If the URI of a Zero Install application is given, this application is added.
+Without a URI, a dialog box is displayed prompting the user to specify what to add.
+On success, a launcher is added to the user's menu which, when invoked, runs
+the application using the command "0launch URI".
+
+.SH FILES
+
+.IP "~/.local/share/applications"
+Default directory in which the .desktop file for the new launcher is created.
+
+.SH LICENSE
+.PP
+Copyright (C) 2008 Thomas Leonard.
+
+.PP
+You may redistribute copies of this program under the terms of the GNU Lesser General Public License.
+
+.SH BUGS
+.PP
+Please report bugs to the developer mailing list:
+
+http://0install.net/support.html
+
+.SH AUTHOR
+.PP
+Zero Install was created by Thomas Leonard.
+
+.SH SEE ALSO
+0alias(1), 0launch(1)
+.PP
+The Zero Install web-site:
+
+.B http://0install.net

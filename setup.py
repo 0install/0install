@@ -14,6 +14,7 @@ class build_with_data(build_py):
 		"zeroinstall/0launch-gui/0launch-gui",
 		"zeroinstall/0launch-gui/ZeroInstall-GUI.xml",
 		"zeroinstall/0launch-gui/zero-install.glade",
+		"zeroinstall/gtkui/desktop.glade",
 	]
 	def run(self):
 		# Copy .py files and build, as usual
@@ -60,8 +61,8 @@ setup(name="zeroinstall-injector",
       author="Thomas Leonard",
       author_email="zero-install-devel@lists.sourceforge.net",
       url="http://0install.net",
-      scripts=['0launch', '0alias', '0store', '0store-secure-add'],
-      data_files = [('man/man1', ['0launch.1', '0alias.1', '0store-secure-add.1', '0store.1']),
+      scripts=['0launch', '0alias', '0store', '0store-secure-add', '0desktop'],
+      data_files = [('man/man1', ['0launch.1', '0alias.1', '0store-secure-add.1', '0store.1', '0desktop.1']),
 		    ('share/applications', ['applications/zeroinstall-zero2desktop.desktop', 'applications/zeroinstall-manage.desktop']),
 		    ('share/desktop-directories', ['applications/zeroinstall.directory']),
 		    ('share/pixmaps', ['applications/zeroinstall-zero2desktop.png'])],
@@ -80,4 +81,4 @@ use.
 The injector solves this problem by selecting components to meet a program's
 requirements, according to a policy you give it. The injector finds out which
 versions are available, and downloads and runs the ones you choose.""",
-      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.zerostore", "zeroinstall.injector", "zeroinstall.0launch-gui"])
+      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.zerostore", "zeroinstall.injector", "zeroinstall.0launch-gui", "zeroinstall.gtkui"])
