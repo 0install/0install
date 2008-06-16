@@ -5,7 +5,6 @@
 import os, sys
 import gtk, gobject
 import gtk.glade
-import tempfile, shutil
 
 from zeroinstall import SafeException
 from zeroinstall.injector.namespaces import XMLNS_IFACE
@@ -24,15 +23,15 @@ class AddBox:
 
 		widgets = gtk.glade.XML(gladefile, 'main')
 		self.window = widgets.get_widget('main')
+		self.set_keep_above(True)
 
 		def set_uri_ok(uri):
 			text = uri.get_text()
 			self.window.set_response_sensitive(_RESPONSE_NEXT, bool(text))
 
-		drop_uri = widgets.get_widget('drop_uri')
 		uri = widgets.get_widget('interface_uri')
 		about = widgets.get_widget('about')
-		icon = widgets.get_widget('icon')
+		icon_widget = widgets.get_widget('icon')
 		category = widgets.get_widget('category')
 		dialog_next = widgets.get_widget('dialog_next')
 		dialog_ok = widgets.get_widget('dialog_ok')
@@ -68,19 +67,10 @@ class AddBox:
 			iface = iface_cache.get_interface(uri.get_text())
 			about.set_text('%s - %s' % (iface.get_name(), iface.summary))
 			icon_path = iface_cache.get_icon_path(iface)
-			if icon_path:
-				try:
-					# Icon format must be PNG (to avoid attacks)
-					loader = gtk.gdk.PixbufLoader('png')
-					try:
-						loader.write(file(icon_path).read())
-					finally:
-						loader.close()
-					icon_pixbuf = loader.get_pixbuf()
-				except Exception, ex:
-					print >>sys.stderr, "Failed to load cached PNG icon: %s" % ex
-				else:
-					icon.set_from_pixbuf(icon_pixbuf)
+			from zeroinstall.gtkui import icon
+			icon_pixbuf = icon.load_icon(icon_path)
+			if icon_pixbuf:
+				icon_widget.set_from_pixbuf(icon_pixbuf)
 
 			feed_category = None
 			for meta in iface.get_metadata(XMLNS_IFACE, 'category'):

@@ -10,7 +10,8 @@ import logging
 def main(command_args):
 	"""Implements the logic of the 0desktop command.
 	@param args: the command-line arguments"""
-	parser = OptionParser(usage="usage: %prog [options]")
+	parser = OptionParser(usage="usage: %prog [options] [URI]")
+	parser.add_option("-m", "--manage", help="manage added applications", action='store_true')
 	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 	parser.add_option("-V", "--version", help="display version information", action='store_true')
 
@@ -49,9 +50,14 @@ def main(command_args):
 	import pygtk; pygtk.require('2.0')
 	import gtk
 
-	from zeroinstall.gtkui.addbox import AddBox
+	if options.manage:
+		from zeroinstall.gtkui.applistbox import AppListBox
+		from zeroinstall.injector.iface_cache import iface_cache
+		box = AppListBox(iface_cache)
+	else:
+		from zeroinstall.gtkui.addbox import AddBox
+		box = AddBox(interface_uri)
 
-	box = AddBox(interface_uri)
 	box.window.connect('destroy', gtk.main_quit)
 	box.window.show()
 	gtk.main()
