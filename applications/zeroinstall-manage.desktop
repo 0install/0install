@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Update or Remove Programs
+GenericName=Installer
+Comment=Manage Zero Install programs on your Applications menu
+Exec=0launch http://0install.net/2008/interfaces/ZeroInstall-GUI.xml --cache
+Icon=zeroinstall-zero2desktop
+Terminal=false
+Categories=PackageManager;GTK;
