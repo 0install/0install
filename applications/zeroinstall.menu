@@ -6,7 +6,7 @@
     <Name>ZeroInstall</Name>
     <Directory>zeroinstall.directory</Directory>
     <Include>
-      <Filename>zeroinstall-zero2desktop.desktop</Filename>
+      <Filename>zeroinstall-add.desktop</Filename>
       <Filename>zeroinstall-manage.desktop</Filename>
     </Include>
   </Menu>
