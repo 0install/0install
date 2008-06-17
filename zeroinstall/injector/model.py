@@ -308,6 +308,18 @@ class Implementation(object):
 	@type feed: [L{ZeroInstallFeed}]
 	@ivar bindings: how to tell this component where it itself is located (since 0.31)
 	@type bindings: [Binding]
+	@ivar upstream_stability: the stability reported by the packager
+	@type upstream_stability: [insecure | buggy | developer | testing | stable | packaged]
+	@ivar user_stability: the stability as set by the user
+	@type upstream_stability: [insecure | buggy | developer | testing | stable | packaged | preferred]
+	@ivar langs: natural languages supported by this package
+	@ivar requires: interfaces this package depends on
+	@ivar main: the default file to execute when running as a program
+	@ivar metadata: extra metadata from the feed
+	@type metadata: {"[URI ]localName": str}
+	@ivar id: a unique identifier for this Implementation
+	@ivar version: a parsed version number
+	@ivar released: release date
 	"""
 
 	# Note: user_stability shouldn't really be here
@@ -368,8 +380,7 @@ class DistributionImplementation(Implementation):
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.
 	@since: 0.28"""
-	__slots__ = ['os', 'machine', 'upstream_stability', 'user_stability',
-		     'size', 'requires', 'main', 'id']
+	__slots__ = ['os', 'machine', 'size']
 
 	def __init__(self, feed, id):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
