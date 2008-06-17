@@ -252,6 +252,43 @@ def _fork_gui(iface_uri, gui_args, prog_args, options = None):
 					     bool(options and options.dry_run),
 					     options and options.main)
 	return helpers.get_selections_gui(iface_uri, gui_args, test_callback)
+
+def _download_missing_selections(options, sels):
+	from zeroinstall.zerostore import NotStored
+
+	# Check that every required selection is cached
+	needed_downloads = []
+	for sel in sels.selections.values():
+		iid = sel.id
+		if not iid.startswith('/'):
+			try:
+				iface_cache.stores.lookup(iid)
+			except NotStored, ex:
+				logging.info("Not stored: %s", ex)
+				needed_downloads.append(sel)
+	if not needed_downloads:
+		return
+
+	logging.info("Some selected implementations are missing. Attempting to locate them...")
+
+	# We're missing some. For each one, get the feed it came from
+	# and find the corresponding <implementation> in that. This will
+	# tell us where to get it from.
+	needed_impls = []
+	for sel in needed_downloads:
+		feed_url = sel.attrs.get('from-feed', None) or sel.attrs['interface']
+		feed = iface_cache.get_feed(feed_url)
+		# TODO: we should download missing feeds too
+		impl = feed.implementations[sel.id]
+		needed_impls.append(impl)
+
+	from zeroinstall.injector import fetch
+	from zeroinstall.injector.handler import Handler
+	handler = Handler(dry_run = options.dry_run)
+	fetcher = fetch.Fetcher(handler)
+	blocker = fetcher.download_impls(needed_impls, iface_cache.stores)
+	logging.info("Waiting for selected implementations to be downloaded...")
+	handler.wait_for_blocker(blocker)
 	
 def _get_selections(policy):
 	import selections
@@ -326,6 +363,7 @@ def main(command_args):
 		elif options.set_selections:
 			from zeroinstall.injector import selections, qdom, run
 			sels = selections.Selections(qdom.parse(file(options.set_selections)))
+			_download_missing_selections(options, sels)
 			run.execute_selections(sels, args, options.dry_run, options.main, options.wrapper)
 		elif getattr(options, 'import'):
 			_import_feed(args)
