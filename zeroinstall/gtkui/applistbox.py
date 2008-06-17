@@ -95,8 +95,9 @@ class AppListBox:
 
 			model[itr][AppListBox.NAME] = name
 			pixbuf = icon.load_icon(self.iface_cache.get_icon_path(iface))
-			if pixbuf:
-				model[itr][AppListBox.ICON] = pixbuf
+			if not pixbuf:
+				pixbuf = self.window.render_icon(gtk.STOCK_EXECUTE, gtk.ICON_SIZE_DIALOG)
+			model[itr][AppListBox.ICON] = pixbuf
 
 			model[itr][AppListBox.MARKUP] = '<b>%s</b>\n<i>%s</i>' % (_pango_escape(name), _pango_escape(summary))
 
