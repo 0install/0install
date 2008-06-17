@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Update or Remove Programs
+Name=Manage Programs
 GenericName=Installer
-Comment=Manage Zero Install programs on your Applications menu
+Comment=Update or Remove Zero Install programs on your Applications menu
 Exec=0desktop --manage
 Icon=zeroinstall-zero2desktop
 Terminal=false
