@@ -3,7 +3,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import os
-import gtk
+import gtk, gobject
 import gtk.glade
 
 from zeroinstall.gtkui import icon, xdgutils
@@ -52,8 +52,31 @@ class AppListBox:
 		tv.append_column(column)
 
 		cell_actions = ActionsRenderer(tv)
-		column = gtk.TreeViewColumn('Actions', cell_actions)
-		tv.append_column(column)
+		actions_column = gtk.TreeViewColumn('Actions', cell_actions, uri = AppListBox.URI)
+		tv.append_column(actions_column)
+
+		def redraw_actions(path):
+			if path is not None:
+				area = tv.get_cell_area(path, actions_column)
+				tv.queue_draw_area(*area)
+
+		def motion(widget, mev):
+			if mev.window == tv.get_bin_window():
+				new_hover = (None, None)
+				pos = tv.get_path_at_pos(mev.x, mev.y)
+				if pos:
+					path, col, x, y = pos
+					if col == actions_column:
+						area = tv.get_cell_area(path, col)
+						iface = model[path][AppListBox.URI]
+						action = cell_actions.get_action(area, x, y)
+						if action is not None:
+							new_hover = (path, iface, action)
+				if new_hover != cell_actions.hover:
+					redraw_actions(cell_actions.hover[0])
+					cell_actions.hover = new_hover
+					redraw_actions(cell_actions.hover[0])
+		tv.connect('motion-notify-event', motion)
 
 		model.set_sort_column_id(AppListBox.NAME, gtk.SORT_ASCENDING)
 
@@ -62,6 +85,10 @@ class AppListBox:
 		self.window.connect('response', response)
 
 class ActionsRenderer(gtk.GenericCellRenderer):
+	__gproperties__ = {
+		"uri": (gobject.TYPE_STRING, "Text", "Text", "-", gobject.PARAM_READWRITE),
+	}
+
 	def __init__(self, widget):
 		"@param widget: widget used for style information"
 		gtk.GenericCellRenderer.__init__(self)
@@ -81,6 +108,7 @@ class ActionsRenderer(gtk.GenericCellRenderer):
 		self.help = stock_lookup(gtk.STOCK_HELP)
 		self.properties = stock_lookup(gtk.STOCK_PROPERTIES)
 		self.remove = stock_lookup(gtk.STOCK_DELETE)
+		self.hover = (None, None, None)	# Path, URI, action
 
 	def do_set_property(self, prop, value):
 		setattr(self, prop.name, value)
@@ -90,6 +118,8 @@ class ActionsRenderer(gtk.GenericCellRenderer):
 		return (0, 0, total_size, total_size)
 
 	def on_render(self, window, widget, background_area, cell_area, expose_area, flags):
+		hovering = self.uri == self.hover[1]
+
 		s = self.size
 
 		cx = cell_area.x + self.padding
@@ -97,18 +127,34 @@ class ActionsRenderer(gtk.GenericCellRenderer):
 
 		ss = s + self.padding * 2
 
+		b = 0
 		for (x, y), icon in [((0, 0), self.run),
 			     ((ss, 0), self.help),
 			     ((0, ss), self.properties),
 			     ((ss, ss), self.remove)]:
-			if flags & gtk.CELL_RENDERER_PRELIT:
+			if hovering and b == self.hover[2]:
 				widget.style.paint_box(window, gtk.STATE_NORMAL, gtk.SHADOW_OUT,
 						expose_area, widget, None,
-						cx + x, cy + y, s, s)
+						cx + x - 2, cy + y - 2, s + 4, s + 4)
 
 			window.draw_pixbuf(widget.style.white_gc, icon,
 						0, 0,		# Source x,y
 						cx + x, cy + y)
+			b += 1
+
+	def on_activate(self, event, widget, path, background_area, cell_area, flags):
+		if event.type != gtk.gdk.BUTTON_PRESS_EVENT:
+			return False
+		action = self.get_action(cell_area, event.x, event.y)
+		print action
+
+	def get_action(self, area, x, y):
+		lower = int(y > (area.height / 2)) * 2
+
+		s = self.size + self.padding * 2
+		if x > s * 2:
+			return None
+		return int(x > s) + lower
 
 if gtk.pygtk_version < (2, 8, 0):
 	# Note sure exactly which versions need this.
