@@ -28,7 +28,7 @@ def do_manifest(args):
 		if '=' in name:
 			alg = get_algorithm(name.split('=', 1)[0])
 		else:
-			alg = get_algorithm('sha1')
+			alg = get_algorithm('sha1new')
 	digest = alg.new_digest()
 	for line in alg.generate_manifest(args[0]):
 		print line
