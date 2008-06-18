@@ -7,7 +7,7 @@ import gtk, gobject
 import gtk.glade
 import subprocess
 
-from zeroinstall.gtkui import icon, xdgutils
+from zeroinstall.gtkui import icon, xdgutils, treetips
 
 def _pango_escape(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')
@@ -26,6 +26,13 @@ class AppList:
 		"""Remove this application from the list."""
 		path = self.apps[uri]
 		os.unlink(path)
+
+_tooltips = {
+	0: "Run the application",
+	1: "Show documentation files",
+	2: "Upgrade or change versions",
+	3: "Remove launcher from the menu",
+}
 
 class AppListBox:
 	"""A dialog box which lists applications already added to the menus."""
@@ -71,6 +78,7 @@ class AppListBox:
 				area = tv.get_cell_area(path, actions_column)
 				tv.queue_draw_area(*area)
 
+		tips = treetips.TreeTips()
 		def motion(widget, mev):
 			if mev.window == tv.get_bin_window():
 				new_hover = (None, None, None)
@@ -87,11 +95,13 @@ class AppListBox:
 					redraw_actions(cell_actions.hover[0])
 					cell_actions.hover = new_hover
 					redraw_actions(cell_actions.hover[0])
+					tips.prime(tv, _tooltips.get(cell_actions.hover[2], None))
 		tv.connect('motion-notify-event', motion)
 
 		def leave(widget, lev):
 			redraw_actions(cell_actions.hover[0])
 			cell_actions.hover = (None, None, None)
+			tips.hide()
 
 		tv.connect('leave-notify-event', leave)
 
