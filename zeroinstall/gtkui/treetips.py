@@ -1,9 +1,17 @@
+"""Add tooltips to a TreeView."""
 # Copyright (C) 2008, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import time, gobject, gtk
 
 class TreeTips:
+	"""This object allows you to set location-dependent tooltips on a TreeView.
+	Connect your TreeView's leave-notify-event to the L{hide} method.
+	In your motion-notify-event handler, call L{prime} when the pointer moves
+	to an area with a new message. The message will be shown after a delay.
+	If calculation of the message is expensive, override L{get_tooltip_text}
+	instead.
+	"""
 	timeout = None
 	widget = None
 	item = None
@@ -21,7 +29,7 @@ class TreeTips:
 		if self.item is None:
 			return
 
-		text = self.get_tooltip_text(self.item)
+		text = self.get_tooltip_text()
 		if not text:
 			return
 
@@ -60,6 +68,11 @@ class TreeTips:
 		self.time = time.time()
 	
 	def prime(self, parent, item):
+		"""Call this whenever the pointer moves to an area with a different
+		tooltip.
+		@param param: the TreeView widget
+		@param item: the text to display
+		@see L{get_tooltip_text}"""
 		self.hide()
 		assert self.timeout is None
 		self.item = item
@@ -82,9 +95,13 @@ class TreeTips:
 		pass
 	
 	def hide(self):
+		"""Hide the tooltip, if any.
+		Sets L{item} to None."""
 		self.item = None
 		self.show(None)
 	
-	def get_tooltip_text(self, item):
-		"Override in subclasses."
-		return str(item)
+	def get_tooltip_text(self):
+		""""Converts the object passed to L{prime} to a string for display.
+		The default implementation just calls C{str}, but subclasses can override it.
+		@return: the tooltip message"""
+		return str(self.item)

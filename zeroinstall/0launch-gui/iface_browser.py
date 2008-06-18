@@ -27,8 +27,8 @@ class InterfaceTips(TreeTips):
 	def __init__(self, mainwindow):
 		self.mainwindow = mainwindow
 
-	def get_tooltip_text(self, item):
-		interface, model_column = item
+	def get_tooltip_text(self):
+		interface, model_column = self.item
 		assert interface
 		if model_column == InterfaceBrowser.INTERFACE_NAME:
 			return _("Full name: %s") % interface.uri
