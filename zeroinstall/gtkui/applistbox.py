@@ -154,6 +154,19 @@ class AppListBox:
 		assert path, "Chosen implementation is not cached!"
 		if help_dir:
 			path = os.path.join(path, help_dir)
+		else:
+			main = impl.main
+			if main:
+				# Hack for ROX applications. They should be updated to
+				# set doc-dir.
+				help_dir = os.path.join(path, os.path.dirname(main), 'Help')
+				if os.path.isdir(help_dir):
+					path = help_dir
+
+		# xdg-open has no "safe" mode, so check we're not "opening" an application.
+		if os.path.exists(os.path.join(path, 'AppRun')):
+			raise Exception("Documentation directory '%s' is an AppDir; refusing to open" % path)
+
 		subprocess.Popen(['xdg-open', path])
 
 	def action_properties(self, uri):
