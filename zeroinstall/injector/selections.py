@@ -12,6 +12,7 @@ from zeroinstall.injector.policy import Policy
 from zeroinstall.injector.model import EnvironmentBinding, InterfaceDependency, process_binding, process_depends, binding_names
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.qdom import Element
+from zeroinstall.support import tasks
 
 class Selection(object):
 	"""A single selected implementation in a L{Selections} set.
@@ -54,6 +55,10 @@ class Selections(object):
 	__slots__ = ['interface', 'selections']
 
 	def __init__(self, source):
+		"""Constructor.
+		@param source: a map of implementations, policy or selections document
+		@type source: {str: L{Selection}} | L{Policy} | L{Element}
+		"""
 		if isinstance(source, dict):
 			self.selections = source
 		elif isinstance(source, Policy):
@@ -181,3 +186,42 @@ class Selections(object):
 	
 	def __repr__(self):
 		return "Selections for " + self.interface
+
+	def download_missing(self, iface_cache, fetcher):
+		"""Cache all selected implementations are available.
+		Download any that are not present.
+		@param iface_cache: cache to find feeds with download information
+		@param fetcher: used to download missing implementations
+		@return: a L{tasks.Blocker} or None"""
+		from zeroinstall.zerostore import NotStored
+
+		# Check that every required selection is cached
+		needed_downloads = []
+		for sel in self.selections.values():
+			iid = sel.id
+			if not iid.startswith('/'):
+				try:
+					iface_cache.stores.lookup(iid)
+				except NotStored, ex:
+					needed_downloads.append(sel)
+		if not needed_downloads:
+			return
+
+		@tasks.async
+		def download():
+			# We're missing some. For each one, get the feed it came from
+			# and find the corresponding <implementation> in that. This will
+			# tell us where to get it from.
+			needed_impls = []
+			for sel in needed_downloads:
+				feed_url = sel.attrs.get('from-feed', None) or sel.attrs['interface']
+				feed = iface_cache.get_feed(feed_url)
+				if feed is None or self.id not in feed.implementations:
+					yield fetcher.download_and_import_feed(feed_url, iface_cache)
+					feed = iface_cache.get_feed(feed_url)
+					assert feed, "Failed to get feed for %s" % feed_url
+				impl = feed.implementations[sel.id]
+				needed_impls.append(impl)
+
+			yield fetcher.download_impls(needed_impls, iface_cache.stores)
+		return download()

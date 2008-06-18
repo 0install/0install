@@ -7,7 +7,7 @@ from logging import getLogger, DEBUG, INFO, WARN, ERROR
 
 sys.path.insert(0, '..')
 
-from zeroinstall.injector import model, autopolicy, gpg, iface_cache, download, reader, trust, handler, background, arch
+from zeroinstall.injector import model, autopolicy, gpg, iface_cache, download, reader, trust, handler, background, arch, selections, qdom
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
 from zeroinstall.support import basedir, tasks
 import data
@@ -145,6 +145,25 @@ class TestDownload(BaseTest):
 			# Shouldn't need to prompt the second time
 			sys.stdin = None
 			cli.main(['--import', 'Hello'])
+		finally:
+			sys.stdout = old_out
+
+	def testSelections(self):
+		from zeroinstall.injector.cli import _download_missing_selections
+		root = qdom.parse(file("selections.xml"))
+		sels = selections.Selections(root)
+		class Options: dry_run = False
+
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+			sys.stdin = Reply("Y\n")
+			_download_missing_selections(Options(), sels)
+			path = iface_cache.iface_cache.stores.lookup(sels.selections['http://localhost:8000/Hello.xml'].id)
+			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+
+			assert sels.download_missing(iface_cache.iface_cache, None) is None
 		finally:
 			sys.stdout = old_out
 	

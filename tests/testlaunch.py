@@ -104,6 +104,11 @@ class TestLaunch(BaseTest):
 		self.assertEquals("Would download 'http://foo'\nFinished\n", out)
 		self.assertEquals("", err)
 	
+	def testOffline(self):
+		out, err = self.run_0launch(['--offline', 'http://foo'])
+		self.assertEquals("Can't find all required implementations:\n- <Interface http://foo> -> None\n", err)
+		self.assertEquals("", out)
+
 	def testDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--dry-run', 'http://foo'])
