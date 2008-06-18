@@ -51,9 +51,9 @@ def main(command_args):
 	import gtk
 
 	if options.manage:
-		from zeroinstall.gtkui.applistbox import AppListBox
+		from zeroinstall.gtkui.applistbox import AppListBox, AppList
 		from zeroinstall.injector.iface_cache import iface_cache
-		box = AppListBox(iface_cache)
+		box = AppListBox(iface_cache, AppList())
 	else:
 		from zeroinstall.gtkui.addbox import AddBox
 		box = AddBox(interface_uri)

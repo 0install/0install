@@ -12,13 +12,35 @@ from zeroinstall.gtkui import icon, xdgutils
 def _pango_escape(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')
 
+class AppList:
+	"""A list of applications which can be displayed in an L{AppListBox}.
+	For example, a program might implement this to display a list of plugins.
+	This default implementation lists applications in the freedesktop.org menus.
+	"""
+	def get_apps(self):
+		"""Return a list of application URIs."""
+		self.apps = xdgutils.discover_existing_apps()
+		return self.apps.keys()
+
+	def remove_app(self, uri):
+		"""Remove this application from the list."""
+		path = self.apps[uri]
+		os.unlink(path)
+
 class AppListBox:
 	"""A dialog box which lists applications already added to the menus."""
 	ICON, URI, NAME, MARKUP = range(4)
 
-	def __init__(self, iface_cache):
+	def __init__(self, iface_cache, app_list):
+		"""Constructor.
+		@param iface_cache: used to find extra information about programs
+		@type iface_cache: L{zeroinstall.injector.iface_cache.IfaceCache}
+		@param app_list: used to list or remove applications
+		@type app_list: L{AppList}
+		"""
 		gladefile = os.path.join(os.path.dirname(__file__), 'desktop.glade')
 		self.iface_cache = iface_cache
+		self.app_list = app_list
 
 		widgets = gtk.glade.XML(gladefile, 'applist')
 		self.window = widgets.get_widget('applist')
@@ -80,11 +102,10 @@ class AppListBox:
 		self.window.connect('response', response)
 
 	def populate_model(self):
-		self.apps = xdgutils.discover_existing_apps()
 		model = self.model
 		model.clear()
 
-		for uri in self.apps:
+		for uri in self.app_list.get_apps():
 			itr = model.append()
 			model[itr][AppListBox.URI] = uri
 
@@ -138,11 +159,10 @@ class AppListBox:
 		resp = box.run()
 		box.destroy()
 		if resp == gtk.RESPONSE_OK:
-			path = self.apps[uri]
 			try:
-				os.unlink(path)
+				self.app_list.remove_app(uri)
 			except Exception, ex:
-				box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, "Failed to remove %s: %s" % (path, ex))
+				box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, "Failed to remove %s: %s" % (name, ex))
 				box.run()
 				box.destroy()
 			self.populate_model()

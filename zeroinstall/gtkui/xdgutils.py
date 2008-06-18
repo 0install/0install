@@ -45,7 +45,7 @@ def add_to_menu(iface, icon_path, category):
 		raise SafeException('Failed to run xdg-desktop-menu (error code %d)' % status)
 
 def discover_existing_apps():
-	"""Search through the configured XDG datadirs looking for .desktop files created by us.
+	"""Search through the configured XDG datadirs looking for .desktop files created by L{add_to_menu}.
 	@return: a map from application URIs to .desktop filenames"""
 	already_installed = {}
 	for d in basedir.load_data_paths('applications'):
