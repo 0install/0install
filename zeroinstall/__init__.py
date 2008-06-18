@@ -10,7 +10,7 @@ The Python implementation of the Zero Install injector is divided into three pac
 @see: U{http://0install.net}
 """
 
-version = '0.33'
+version = '0.34'
 
 class SafeException(Exception):
 	"""An exception that can be reported to the user without a stack trace.
