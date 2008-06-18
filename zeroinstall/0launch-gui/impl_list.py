@@ -4,7 +4,7 @@
 import gtk, gobject, os
 from zeroinstall.injector import model, writer
 from zeroinstall import support
-from treetips import TreeTips
+from zeroinstall.gtkui.treetips import TreeTips
 import utils
 
 def popup_menu(bev, values, fn):

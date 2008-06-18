@@ -11,7 +11,7 @@ from zeroinstall.injector import namespaces, model
 from zeroinstall.zerostore import BadDigest, manifest
 from zeroinstall import support
 from zeroinstall.support import basedir
-from treetips import TreeTips
+from zeroinstall.gtkui.treetips import TreeTips
 
 ROX_IFACE = 'http://rox.sourceforge.net/2005/interfaces/ROX-Filer'
 
