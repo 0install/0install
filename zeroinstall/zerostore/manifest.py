@@ -25,7 +25,6 @@ A top-level ".manifest" file is ignored.
 
 from __future__ import generators
 import os, stat
-from sets import Set
 import sha
 from zeroinstall import SafeException
 from zeroinstall.zerostore import BadDigest

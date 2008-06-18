@@ -7,9 +7,8 @@ import os
 import shutil
 import traceback
 from tempfile import mkdtemp, mkstemp
-import sha
 import re
-from logging import debug, info, warn
+from logging import debug, warn
 from zeroinstall import SafeException
 from zeroinstall.support import find_in_path, ro_rmtree
 

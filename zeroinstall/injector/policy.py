@@ -8,7 +8,7 @@ settings.
 # See the README file for details, or visit http://0install.net.
 
 import time
-import sys, os, sets
+import sys, os
 from logging import info, debug, warn
 import arch
 
@@ -72,7 +72,7 @@ class Policy(object):
 		self.watchers = []
 		self.freshness = 60 * 60 * 24 * 30
 		self.src = src				# Root impl must be a "src" machine type
-		self.stale_feeds = sets.Set()
+		self.stale_feeds = set()
 
 		from zeroinstall.injector.solver import DefaultSolver
 		self.solver = DefaultSolver(network_full, iface_cache, iface_cache.stores)
@@ -132,7 +132,7 @@ class Policy(object):
 	
 	def recalculate(self, fetch_stale_interfaces = True):
 		"""@deprecated: see L{solve_with_downloads} """
-		self.stale_feeds = sets.Set()
+		self.stale_feeds = set()
 
 		host_arch = arch.get_host_architecture()
 		if self.src:

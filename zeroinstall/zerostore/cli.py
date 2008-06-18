@@ -4,7 +4,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import sys, os
-from zeroinstall.zerostore.manifest import generate_manifest, verify, get_algorithm, copy_tree_with_verify
+from zeroinstall.zerostore.manifest import verify, get_algorithm, copy_tree_with_verify
 from zeroinstall import zerostore, SafeException, support
 
 stores = None
