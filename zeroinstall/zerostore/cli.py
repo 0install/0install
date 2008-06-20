@@ -187,7 +187,8 @@ def do_manage(args):
 	pygtk.require('2.0')
 	import gtk
 	from zeroinstall.gtkui import cache
-	cache_explorer = cache.CacheExplorer()
+	from zeroinstall.injector.iface_cache import iface_cache
+	cache_explorer = cache.CacheExplorer(iface_cache)
 	cache_explorer.window.connect('destroy', gtk.main_quit)
 	cache_explorer.show()
 	gtk.main()

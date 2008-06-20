@@ -5,7 +5,6 @@
 import os, shutil
 import gtk
 
-from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import namespaces, model
 from zeroinstall.zerostore import BadDigest, manifest
 from zeroinstall import support
@@ -214,10 +213,11 @@ class KnownImplementation(CachedImplementation):
 
 class CacheExplorer:
 	"""A graphical interface for viewing the cache and deleting old items."""
-	def __init__(self):
+	def __init__(self, iface_cache):
 		widgets = gtkutils.Template(os.path.join(os.path.dirname(__file__), 'cache.glade'), 'cache')
 		self.window = window = widgets.get_widget('cache')
 		window.set_default_size(gtk.gdk.screen_width() / 2, gtk.gdk.screen_height() / 2)
+		self.iface_cache = iface_cache
 
 		# Model
 		self.model = gtk.TreeStore(str, int, str, str, object)
@@ -331,7 +331,7 @@ class CacheExplorer:
 		unowned = {}	# Impl ID -> Store
 		duplicates = [] # TODO
 
-		for s in iface_cache.stores.stores:
+		for s in self.iface_cache.stores.stores:
 			if os.path.isdir(s.dir):
 				for id in os.listdir(s.dir):
 					if id in unowned:
@@ -342,7 +342,7 @@ class CacheExplorer:
 		error_interfaces = []
 
 		# Look through cached interfaces for implementation owners
-		all = iface_cache.list_all_interfaces()
+		all = self.iface_cache.list_all_interfaces()
 		all.sort()
 		for uri in all:
 			iface_size = 0
@@ -357,7 +357,7 @@ class CacheExplorer:
 							'user_overrides', model.escape(uri))
 
 				iface_size = size_if_exists(cached_iface) + size_if_exists(user_overrides)
-				iface = iface_cache.get_interface(uri)
+				iface = self.iface_cache.get_interface(uri)
 			except Exception, ex:
 				error_interfaces.append((uri, str(ex), iface_size))
 			else:
