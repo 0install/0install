@@ -6,11 +6,11 @@ from zeroinstall.support import tasks
 from zeroinstall.injector.model import *
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import writer, namespaces, gpg
+from zeroinstall.gtkui import help_box
 
 import gtk, sys, os
 from logging import warn
 
-import help_box
 from dialog import DialogResponse, Template
 from impl_list import ImplementationList
 import time

@@ -8,9 +8,9 @@ from zeroinstall import SafeException
 from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector import download
 from iface_browser import InterfaceBrowser
-import help_box
 import dialog
 from zeroinstall.gtkui import gtkutils
+from zeroinstall.gtkui import help_box
 
 tips = gtk.Tooltips()
 

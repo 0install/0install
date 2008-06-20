@@ -1,25 +1,34 @@
+"""A dialog box for displaying help text."""
 # Copyright (C) 2008, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import gtk
 
-from dialog import Dialog
-
 class HelpBox:
+	"""A dialog for showing longish help texts.
+	The GTK widget is not created until L{display} is called.
+	"""
 	box = None
 	title = None
 	sections = None
 
 	def __init__(self, title, *sections):
+		"""Constructor.
+		@param title: window title
+		@param sections: the content, as a list of (section_title, section_body) pairs
+		@type sections: [(str, str)]"""
 		self.title = title
 		self.sections = sections
 	
 	def display(self):
+		"""Display this help text. If it is already displayed, close the old window first."""
 		if self.box:
 			self.box.destroy()
 			assert not self.box
 
-		self.box = box = Dialog()
+		self.box = box = gtk.Dialog()
+		self.box.set_has_separator(False)
+		self.box.set_position(gtk.WIN_POS_CENTER)
 		box.set_title(self.title)
 		box.set_has_separator(False)
 

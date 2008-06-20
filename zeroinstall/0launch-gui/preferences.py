@@ -4,8 +4,8 @@
 import gtk
 from logging import warn
 import os, sys
-import help_box
 from dialog import Dialog, MixedButton, frame, Template
+from zeroinstall.gtkui import help_box
 from zeroinstall.injector.model import network_levels
 from zeroinstall.injector import trust, gpg
 from freshness import freshness_levels, Freshness
