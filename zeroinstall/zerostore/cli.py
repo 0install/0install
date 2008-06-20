@@ -178,4 +178,18 @@ def do_copy(args):
 
 	copy_tree_with_verify(source, target, manifest_data, required_digest)
 
-commands = [do_add, do_copy, do_find, do_list, do_manifest, do_optimise, do_verify]
+def do_manage(args):
+	"""manage"""
+	if args:
+		raise UsageError("manage command takes no arguments")
+
+	import pygtk
+	pygtk.require('2.0')
+	import gtk
+	from zeroinstall.gtkui import cache
+	cache_explorer = cache.CacheExplorer()
+	cache_explorer.window.connect('destroy', gtk.main_quit)
+	cache_explorer.show()
+	gtk.main()
+
+commands = [do_add, do_copy, do_find, do_list, do_manifest, do_optimise, do_verify, do_manage]

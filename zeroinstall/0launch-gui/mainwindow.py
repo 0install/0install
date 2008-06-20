@@ -37,10 +37,6 @@ class MainWindow:
 
 		widgets.get_widget('stop').connect('clicked', lambda b: policy.handler.abort_all_downloads())
 
-		cache = widgets.get_widget('show_cache')
-		cache.connect('clicked',
-			lambda b: os.spawnlp(os.P_WAIT, sys.argv[0], sys.argv[0], '-c'))
-
 		self.refresh_button = widgets.get_widget('refresh')
 
 		# Tree view
@@ -203,7 +199,7 @@ bug if necessary, or switch to using a different version of the library.
 
 ('The cache', """
 Each version of a program that is downloaded is stored in the Zero Install cache. This \
-means that it won't need to be downloaded again each time you run the program. Click on \
-the 'Show Cache' button to see what is currently in the cache, or to remove versions \
-you no longer need to save disk space."""),
+means that it won't need to be downloaded again each time you run the program. The \
+"0store manage" command can be used to view the cache.
+"""),
 )

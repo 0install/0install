@@ -1,17 +1,21 @@
+"""Display the contents of the implementation cache."""
 # Copyright (C) 2008, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import os, shutil
-import gtk, gobject
+import gtk
 
-from dialog import Dialog, alert
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import namespaces, model
 from zeroinstall.zerostore import BadDigest, manifest
 from zeroinstall import support
 from zeroinstall.support import basedir
 from zeroinstall.gtkui.treetips import TreeTips
-from zeroinstall.gtkui import help_box
+from zeroinstall.gtkui import help_box, gtkutils
+
+_ = lambda x: x
+
+__all__ = ['CacheExplorer']
 
 ROX_IFACE = 'http://rox.sourceforge.net/2005/interfaces/ROX-Filer'
 
@@ -208,24 +212,17 @@ class KnownImplementation(CachedImplementation):
 			return self.impl.__cmp__(other.impl)
 		return -1
 
-class CacheExplorer(Dialog):
+class CacheExplorer:
+	"""A graphical interface for viewing the cache and deleting old items."""
 	def __init__(self):
-		Dialog.__init__(self)
-		self.set_title('Zero Install Cache')
-		self.set_default_size(gtk.gdk.screen_width() / 2, gtk.gdk.screen_height() / 2)
+		widgets = gtkutils.Template(os.path.join(os.path.dirname(__file__), 'cache.glade'), 'cache')
+		self.window = window = widgets.get_widget('cache')
+		window.set_default_size(gtk.gdk.screen_width() / 2, gtk.gdk.screen_height() / 2)
 
 		# Model
 		self.model = gtk.TreeStore(str, int, str, str, object)
-		self.tree_view = gtk.TreeView(self.model)
-
-		# Tree view
-		swin = gtk.ScrolledWindow()
-		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
-		swin.set_shadow_type(gtk.SHADOW_IN)
-		swin.add(self.tree_view)
-		self.vbox.pack_start(swin, True, True, 0)
-		self.tree_view.set_rules_hint(True)
-		swin.show_all()
+		self.tree_view = widgets.get_widget('treeview')
+		self.tree_view.set_model(self.model)
 
 		column = gtk.TreeViewColumn('Item', gtk.CellRendererText(), text = ITEM)
 		column.set_resizable(True)
@@ -269,11 +266,7 @@ class CacheExplorer(Dialog):
 		self.tree_view.connect('leave-notify-event', lambda tv, ev: tips.hide())
 
 		# Responses
-
-		self.add_button(gtk.STOCK_HELP, gtk.RESPONSE_HELP)
-		self.add_button(gtk.STOCK_CLOSE, gtk.RESPONSE_OK)
-		self.add_button(gtk.STOCK_DELETE, DELETE)
-		self.set_default_response(gtk.RESPONSE_OK)
+		window.set_default_response(gtk.RESPONSE_OK)
 
 		selection = self.tree_view.get_selection()
 		def selection_changed(selection):
@@ -281,24 +274,24 @@ class CacheExplorer(Dialog):
 			for x in get_selected_paths(self.tree_view):
 				obj = self.model[x][ITEM_OBJECT]
 				if obj is None or not obj.may_delete:
-					self.set_response_sensitive(DELETE, False)
+					window.set_response_sensitive(DELETE, False)
 					return
 				any_selected = True
-			self.set_response_sensitive(DELETE, any_selected)
+			window.set_response_sensitive(DELETE, any_selected)
 		selection.set_mode(gtk.SELECTION_MULTIPLE)
 		selection.connect('changed', selection_changed)
 		selection_changed(selection)
 
 		def response(dialog, resp):
 			if resp == gtk.RESPONSE_OK:
-				self.destroy()
+				window.destroy()
 			elif resp == gtk.RESPONSE_HELP:
 				cache_help.display()
 			elif resp == DELETE:
-				self.delete()
-		self.connect('response', response)
+				self._delete()
+		window.connect('response', response)
 	
-	def delete(self):
+	def _delete(self):
 		errors = []
 
 		model = self.model
@@ -313,12 +306,26 @@ class CacheExplorer(Dialog):
 				errors.append(str(ex))
 			else:
 				model.remove(model.get_iter(path))
-		self.update_sizes()
+		self._update_sizes()
 
 		if errors:
-			alert(self, "Failed to delete:\n%s" % '\n'.join(errors))
+			gtkutils.show_message_box(self, "Failed to delete:\n%s" % '\n'.join(errors))
 
-	def populate_model(self):
+	def show(self):
+		"""Display the window and scan the caches to populate it."""
+		self.window.show()
+		self.window.window.set_cursor(gtkutils.get_busy_pointer())
+		gtk.gdk.flush()
+		try:
+			self._populate_model()
+			i = self.model.get_iter_root()
+			while i:
+				self.tree_view.expand_row(self.model.get_path(i), False)
+				i = self.model.iter_next(i)
+		finally:
+			self.window.window.set_cursor(None)
+
+	def _populate_model(self):
 		# Find cached implementations
 
 		unowned = {}	# Impl ID -> Store
@@ -401,9 +408,9 @@ class CacheExplorer(Dialog):
 				   None])
 			for item in ok_interfaces:
 				item.append_to(self.model, iter)
-		self.update_sizes()
+		self._update_sizes()
 	
-	def update_sizes(self):
+	def _update_sizes(self):
 		"""Set PRETTY_SIZE to the total size, including all children."""
 		m = self.model
 		def update(itr):
