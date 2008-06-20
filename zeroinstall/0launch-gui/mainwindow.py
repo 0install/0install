@@ -10,6 +10,7 @@ from zeroinstall.injector import download
 from iface_browser import InterfaceBrowser
 import help_box
 import dialog
+from zeroinstall.gtkui import gtkutils
 
 tips = gtk.Tooltips()
 
@@ -18,7 +19,6 @@ SHOW_PREFERENCES = 0
 class MainWindow:
 	progress = None
 	progress_area = None
-	busy_pointer = None
 	browser = None
 	window = None
 	cancel_download_and_run = None
@@ -136,9 +136,7 @@ class MainWindow:
 
 		if not self.progress_area.get_property('visible'):
 			self.progress_area.show()
-			if self.busy_pointer is None:
-				self.busy_pointer = dialog.get_busy_pointer(self.window.window)
-			self.window.window.set_cursor(self.busy_pointer)
+			self.window.window.set_cursor(gtkutils.get_busy_pointer())
 
 		any_known = False
 		done = total = self.policy.handler.total_bytes_downloaded	# Completed downloads
