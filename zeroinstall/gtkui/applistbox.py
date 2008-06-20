@@ -107,8 +107,14 @@ class AppListBox:
 
 		self.model.set_sort_column_id(AppListBox.NAME, gtk.SORT_ASCENDING)
 
+		show_cache = widgets.get_widget('show_cache')
+		self.window.action_area.set_child_secondary(show_cache, True)
+
 		def response(box, resp):
-			box.destroy()
+			if resp == 0:
+				subprocess.Popen(['0store', 'manage'])
+			else:
+				box.destroy()
 		self.window.connect('response', response)
 
 	def populate_model(self):
