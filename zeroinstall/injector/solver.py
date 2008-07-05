@@ -7,6 +7,7 @@ from logging import debug, warn, info
 
 from zeroinstall.zerostore import BadDigest, NotStored
 
+from zeroinstall.injector.arch import machine_groups
 from zeroinstall.injector import selections
 from zeroinstall.injector import model
 
@@ -69,6 +70,7 @@ class DefaultSolver(Solver):
 		self.selections = {}
 		self.feeds_used = set()
 		self.details = self.record_details and {}
+		self._machine_group = None
 
 		restrictions = {}
 		debug("Solve! root = %s", root_interface)
@@ -91,6 +93,9 @@ class DefaultSolver(Solver):
 			if impl:
 				debug("Will use implementation %s (version %s)", impl, impl.get_version())
 				self.selections[iface] = impl
+				if self._machine_group is None and impl.machine:
+					self._machine_group = machine_groups.get(impl.machine, 0)
+					debug("Now restricted to architecture group %s", self._machine_group)
 				for d in impl.requires:
 					debug("Considering dependency %s", d)
 					if not process(d, arch.child_arch):
@@ -184,13 +189,13 @@ class DefaultSolver(Solver):
 			if r: return r
 
 			# Get best OS
-			r = cmp(arch.os_ranks.get(a.os, None),
-				arch.os_ranks.get(b.os, None))
+			r = cmp(arch.os_ranks.get(b.os, None),
+				arch.os_ranks.get(a.os, None))
 			if r: return r
 
 			# Get best machine
-			r = cmp(arch.machine_ranks.get(a.machine, None),
-				arch.machine_ranks.get(b.machine, None))
+			r = cmp(arch.machine_ranks.get(b.machine, None),
+				arch.machine_ranks.get(a.machine, None))
 			if r: return r
 
 			# Slightly prefer cached versions
@@ -225,6 +230,11 @@ class DefaultSolver(Solver):
 			@rtype: str
 			@note: The restrictions are for the interface being requested, not the interface
 			of the implementation; they may be different when feeds are being used."""
+			machine = impl.machine
+			if machine and self._machine_group is not None:
+				if machine_groups.get(machine, 0) != self._machine_group:
+					return "Incompatible with another selection from a different architecture group"
+
 			for r in restrictions:
 				if not r.meets_restriction(impl):
 					return "Incompatible with another selected implementation"
@@ -238,8 +248,8 @@ class DefaultSolver(Solver):
 			# When looking for source code, we need to known if we're
 			# looking at an implementation of the root interface, even if
 			# it's from a feed, hence the sneaky restrictions identity check.
-			if impl.machine not in arch.machine_ranks:
-				if impl.machine == 'src':
+			if machine not in arch.machine_ranks:
+				if machine == 'src':
 					return "Source code"
 				return "Unsupported machine type"
 			return None

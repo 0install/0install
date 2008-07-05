@@ -74,6 +74,26 @@ class TestSolver(BaseTest):
 		assert len(s.details) == 1
 		assert s.details[foo] == [(foo._main_feed.implementations['sha1=abc'], None)]
 		
+	def testMultiArch(self):
+		s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
+
+		foo = iface_cache.get_interface('http://foo/MultiArch.xml')
+		reader.update(foo, 'MultiArch.xml')
+
+		# On an i686 system we can only use the i486 implementation
+
+		binary_arch = arch.get_architecture('Linux', 'i686')
+		s.solve('http://foo/MultiArch.xml', binary_arch)
+		assert s.ready
+		assert s.selections[foo].machine == 'i486'
+
+		# On an 64 bit system we could use either, but we prefer the 64 bit implementation
+
+		binary_arch = arch.get_architecture('Linux', 'x86_64')
+		s.solve('http://foo/MultiArch.xml', binary_arch)
+		assert s.ready
+		assert s.selections[foo].machine == 'x86_64'
+
 	def testArch(self):
 		host_arch = arch.get_host_architecture()
 		host_arch2 = arch.get_architecture(None, None)

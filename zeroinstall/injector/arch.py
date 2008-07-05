@@ -30,6 +30,13 @@ os_ranks = {
 	_uname[0] : 1,		# Current OS
 }
 
+# All chosen machine-specific implementations must come from the same group
+# Unlisted archs are in group 0
+machine_groups = {
+	'x86_64': 64,
+	'ppc64': 64,
+}
+
 def _get_machine_ranks(target_machine):
 	# Binaries compiled for _this_machine are best...
 	machine_ranks = {target_machine : 0}
@@ -41,6 +48,7 @@ def _get_machine_ranks(target_machine):
 		'i486': ['i386'],
 		'i586': ['i486', 'i386'],
 		'i686': ['i586', 'i486', 'i386'],
+		'x86_64': ['i686', 'i586', 'i486', 'i386'],
 		'ppc64': ['ppc32'],
 	}
 	for supported in _machine_matrix.get(target_machine, []):
