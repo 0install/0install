@@ -42,9 +42,7 @@ class Solver(object):
 		@type root_interface: str
 		@param arch: the desired target architecture
 		@type arch: L{arch.Architecture}
-		@return: whether we have a viable selection
-		@rtype: bool
-		@postcondition: self.selections and self.feeds_used are updated"""
+		@postcondition: self.ready, self.selections and self.feeds_used are updated"""
 		raise NotImplementedError("Abstract")
 
 class DefaultSolver(Solver):
