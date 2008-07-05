@@ -31,7 +31,7 @@ def add_to_menu(iface, icon_path, category):
 	@param category: the freedesktop.org menu category"""
 	tmpdir = tempfile.mkdtemp(prefix = 'zero2desktop-')
 	try:
-		desktop_name = os.path.join(tmpdir, 'zeroinstall-%s.desktop' % iface.get_name().lower())
+		desktop_name = os.path.join(tmpdir, 'zeroinstall-%s.desktop' % iface.get_name().lower().replace(' ', ''))
 		desktop = file(desktop_name, 'w')
 		desktop.write(_template % (iface.get_name(), iface.summary, iface.uri, category))
 		if icon_path:
