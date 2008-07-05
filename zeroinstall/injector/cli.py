@@ -151,6 +151,10 @@ def _normal_mode(options, args):
 		policy.solver.extra_restrictions[root_iface] = [model.VersionRangeRestriction(model.parse_version(options.before),
 									      		      model.parse_version(options.not_before))]
 
+	if options.os or options.cpu:
+		from zeroinstall.injector import arch
+		policy.target_arch = arch.get_architecture(options.os, options.cpu)
+
 	if options.offline:
 		policy.network_use = model.network_offline
 
@@ -225,6 +229,12 @@ def _normal_mode(options, args):
 				gui_args.insert(0, '--verbose')
 				if options.verbose > 1:
 					gui_args.insert(0, '--verbose')
+			if options.cpu:
+				gui_args.insert(0, options.cpu)
+				gui_args.insert(0, '--cpu')
+			if options.os:
+				gui_args.insert(0, options.os)
+				gui_args.insert(0, '--os')
 			sels = _fork_gui(iface_uri, gui_args, prog_args, options)
 			if not sels:
 				sys.exit(1)		# Aborted
@@ -292,6 +302,7 @@ def main(command_args):
 				    "       %prog --feed [interface]")
 	parser.add_option("", "--before", help="choose a version before this", metavar='VERSION')
 	parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
+	parser.add_option("", "--cpu", help="target CPU type", metavar='CPU')
 	parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 	parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
 	parser.add_option("-f", "--feed", help="add or remove a feed", action='store_true')
@@ -301,6 +312,7 @@ def main(command_args):
 	parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 	parser.add_option("-m", "--main", help="name of the file to execute")
 	parser.add_option("", "--not-before", help="minimum version to choose", metavar='VERSION')
+	parser.add_option("", "--os", help="target operation system type", metavar='OS')
 	parser.add_option("-o", "--offline", help="try to avoid using the network", action='store_true')
 	parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
 	parser.add_option("", "--set-selections", help="run versions specified in XML file", metavar='FILE')

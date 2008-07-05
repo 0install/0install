@@ -5,7 +5,7 @@ import os, sys
 
 from optparse import OptionParser
 
-from zeroinstall.injector import model, autopolicy, namespaces
+from zeroinstall.injector import model, autopolicy, namespaces, arch
 from zeroinstall.injector.policy import Policy
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.support import tasks
@@ -13,9 +13,11 @@ from zeroinstall.support import tasks
 def run_gui(args):
 	parser = OptionParser(usage="usage: %prog [options] interface")
 	parser.add_option("", "--before", help="choose a version before this", metavar='VERSION')
+	parser.add_option("", "--cpu", help="target CPU type", metavar='CPU')
 	parser.add_option("-c", "--cache", help="show the cache", action='store_true')
 	parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
 	parser.add_option("", "--not-before", help="minimum version to choose", metavar='VERSION')
+	parser.add_option("", "--os", help="target operation system type", metavar='OS')
 	parser.add_option("-r", "--refresh", help="check for updates of all interfaces", action='store_true')
 	parser.add_option("-s", "--source", help="select source code", action='store_true')
 	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
@@ -92,6 +94,7 @@ def run_gui(args):
 
 	handler = gui.GUIHandler()
 	policy = Policy(interface_uri, handler, src = bool(options.source))
+	policy.target_arch = arch.get_architecture(options.os, options.cpu)
 	root_iface = iface_cache.get_interface(interface_uri)
 	policy.solver.extra_restrictions[root_iface] = restrictions
 	policy.solver.record_details = True

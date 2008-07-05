@@ -31,6 +31,8 @@ class Policy(object):
 	 4. Use L{get_uncached_implementations} to find where to get these versions and download them
 	    using L{download_uncached_implementations}.
 
+	@ivar target_arch: target architecture for binaries
+	@type target_arch: L{arch.Architecture}
 	@ivar root: URI of the root interface
 	@ivar solver: solver used to choose a set of implementations
 	@type solver: L{solve.Solver}
@@ -49,7 +51,7 @@ class Policy(object):
 	"""
 	__slots__ = ['root', 'watchers',
 		     'freshness', 'handler', '_warned_offline',
-		     'src', 'stale_feeds', 'solver', '_fetcher']
+		     'target_arch', 'src', 'stale_feeds', 'solver', '_fetcher']
 	
 	help_with_testing = property(lambda self: self.solver.help_with_testing,
 				     lambda self, value: setattr(self.solver, 'help_with_testing', value))
@@ -103,6 +105,8 @@ class Policy(object):
 
 		self.set_root(root)
 
+		self.target_arch = arch.get_host_architecture()
+
 	@property
 	def fetcher(self):
 		if not self._fetcher:
@@ -134,7 +138,7 @@ class Policy(object):
 		"""@deprecated: see L{solve_with_downloads} """
 		self.stale_feeds = set()
 
-		host_arch = arch.get_host_architecture()
+		host_arch = self.target_arch
 		if self.src:
 			host_arch = arch.SourceArchitecture(host_arch)
 		self.solver.solve(self.root, host_arch)
@@ -310,7 +314,7 @@ class Policy(object):
 		downloads_finished = set()		# Successful or otherwise
 		downloads_in_progress = {}		# URL -> Download
 
-		host_arch = arch.get_host_architecture()
+		host_arch = self.target_arch
 		if self.src:
 			host_arch = arch.SourceArchitecture(host_arch)
 
@@ -350,7 +354,7 @@ class Policy(object):
 		"""Decide whether we need to download anything (but don't do it!)
 		@return: true if we MUST download something (feeds or implementations)
 		@rtype: bool"""
-		host_arch = arch.get_host_architecture()
+		host_arch = self.target_arch
 		if self.src:
 			host_arch = arch.SourceArchitecture(host_arch)
 		self.solver.solve(self.root, host_arch)

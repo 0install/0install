@@ -30,12 +30,11 @@ os_ranks = {
 	_uname[0] : 1,		# Current OS
 }
 
-def _get_machine_ranks():
+def _get_machine_ranks(target_machine):
 	# Binaries compiled for _this_machine are best...
-	this_machine = _uname[-1]
-	machine_ranks = {this_machine : 0}
+	machine_ranks = {target_machine : 0}
 
-	# If this_machine appears in the first column of this table, all
+	# If target_machine appears in the first column of this table, all
 	# following machine types on the line will also run on this one
 	# (earlier ones preferred):
 	_machine_matrix = {
@@ -44,14 +43,14 @@ def _get_machine_ranks():
 		'i686': ['i586', 'i486', 'i386'],
 		'ppc64': ['ppc32'],
 	}
-	for supported in _machine_matrix.get(this_machine, []):
+	for supported in _machine_matrix.get(target_machine, []):
 		machine_ranks[supported] = len(machine_ranks)
 
 	# At the lowest priority, try a machine-independant implementation
 	machine_ranks[None] = len(machine_ranks)
 	return machine_ranks
 
-machine_ranks = _get_machine_ranks()
+machine_ranks = _get_machine_ranks(_uname[-1])
 #print machine_ranks
 	
 class Architecture:
@@ -84,3 +83,23 @@ def get_host_architecture():
 	"""Get an Architecture that matches implementations that will run on the host machine.
 	@rtype: L{Architecture}"""
 	return Architecture(os_ranks, machine_ranks)
+
+def get_architecture(os, machine):
+	"""Get an Architecture that matches binaries that will work on the given system.
+	@param os: OS type, or None for host's type
+	@param machine: CPU type, or None for host's type
+	@return: an Architecture object
+	@rtype: L{Architecture}"""
+
+	if os:
+		target_os_ranks = {
+			os : 1,		# Perfer binaries for target OS
+			None : 2,	# Otherwise, generic OS is fine
+		}
+	else:
+		target_os_ranks = os_ranks
+	if machine:
+		target_machine_ranks = _get_machine_ranks(machine)
+	else:
+		target_machine_ranks = machine_ranks
+	return Architecture(target_os_ranks, target_machine_ranks)

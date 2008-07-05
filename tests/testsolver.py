@@ -74,6 +74,19 @@ class TestSolver(BaseTest):
 		assert len(s.details) == 1
 		assert s.details[foo] == [(foo._main_feed.implementations['sha1=abc'], None)]
 		
+	def testArch(self):
+		host_arch = arch.get_host_architecture()
+		host_arch2 = arch.get_architecture(None, None)
+		self.assertEquals(host_arch.os_ranks, host_arch2.os_ranks)
+		self.assertEquals(host_arch.machine_ranks, host_arch2.machine_ranks)
+
+		other = arch.get_architecture('FooBar', 'i486')
+		self.assertEquals(2, len(other.os_ranks))
+
+		assert 'FooBar' in other.os_ranks
+		assert None in other.os_ranks
+		assert 'i486' in other.machine_ranks
+		assert 'ppc' not in other.machine_ranks
 
 suite = unittest.makeSuite(TestSolver)
 if __name__ == '__main__':
