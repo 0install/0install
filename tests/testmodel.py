@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from basetest import BaseTest, empty_feed
 import sys, tempfile, os, shutil
+from xml.dom import minidom
 import unittest
 from StringIO import StringIO
 
@@ -173,7 +174,20 @@ class TestModel(BaseTest):
 		self.assertEquals('/impl/lib', append.get_value('/impl', None))
 
 		assert model.EnvironmentBinding('PYTHONPATH', 'lib').mode == model.EnvironmentBinding.PREPEND
-		
+
+	def testOverlay(self):
+		for xml, expected in [('<overlay/>', '<overlay . on />'),
+				      ('<overlay src="usr"/>', '<overlay usr on />'),
+				      ('<overlay src="package" mount-point="/usr/games"/>', '<overlay package on /usr/games>')]:
+			e = qdom.parse(StringIO(xml))
+			ol = model.process_binding(e)
+			self.assertEquals(expected, str(ol))
+
+			doc = minidom.parseString('<doc/>')
+			new_xml = str(ol._toxml(doc).toxml())
+			new_e = qdom.parse(StringIO(new_xml))
+			new_ol = model.process_binding(new_e)
+			self.assertEquals(expected, str(new_ol))
 	
 	def testDep(self):
 		b = model.InterfaceDependency('http://foo')

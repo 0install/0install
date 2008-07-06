@@ -19,7 +19,7 @@ from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 
 # Element names for bindings in feed files
-binding_names = frozenset(['environment'])
+binding_names = frozenset(['environment', 'overlay'])
 
 network_offline = 'off-line'
 network_minimal = 'minimal'
@@ -94,6 +94,8 @@ def process_binding(e):
 		if not binding.name: raise InvalidInterface("Missing 'name' in binding")
 		if binding.insert is None: raise InvalidInterface("Missing 'insert' in binding")
 		return binding
+	elif e.name == 'overlay':
+		return OverlayBinding(e.getAttribute('src'), e.getAttribute('mount-point'))
 	else:
 		raise Exception("Unknown binding type '%s'" % e.name)
 
@@ -210,6 +212,32 @@ class EnvironmentBinding(Binding):
 		env_elem.setAttributeNS(None, 'insert', self.insert)
 		if self.default:
 			env_elem.setAttributeNS(None, 'default', self.default)
+		return env_elem
+
+class OverlayBinding(Binding):
+	"""Make the chosen implementation available by overlaying it onto another part of the file-system.
+	This is to support legacy programs which use hard-coded paths."""
+	__slots__ = ['src', 'mount_point']
+
+	def __init__(self, src, mount_point):
+		self.src = src
+		self.mount_point = mount_point
+
+	def __str__(self):
+		return "<overlay %s on %s>" % (self.src or '.', self.mount_point or '/')
+
+	__repr__ = __str__
+
+	def _toxml(self, doc):
+		"""Create a DOM element for this binding.
+		@param doc: document to use to create the element
+		@return: the new element
+		"""
+		env_elem = doc.createElementNS(XMLNS_IFACE, 'overlay')
+		if self.src is not None:
+			env_elem.setAttributeNS(None, 'src', self.src)
+		if self.mount_point is not None:
+			env_elem.setAttributeNS(None, 'mount-point', self.mount_point)
 		return env_elem
 
 class Feed(object):
