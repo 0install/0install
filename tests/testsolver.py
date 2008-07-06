@@ -79,6 +79,8 @@ class TestSolver(BaseTest):
 
 		foo = iface_cache.get_interface('http://foo/MultiArch.xml')
 		reader.update(foo, 'MultiArch.xml')
+		lib = iface_cache.get_interface('http://foo/MultiArchLib.xml')
+		reader.update(lib, 'MultiArchLib.xml')
 
 		# On an i686 system we can only use the i486 implementation
 
@@ -86,13 +88,17 @@ class TestSolver(BaseTest):
 		s.solve('http://foo/MultiArch.xml', binary_arch)
 		assert s.ready
 		assert s.selections[foo].machine == 'i486'
+		assert s.selections[lib].machine == 'i486'
 
-		# On an 64 bit system we could use either, but we prefer the 64 bit implementation
+		# On an 64 bit system we could use either, but we prefer the 64
+		# bit implementation. The i486 version of the library is newer,
+		# but we must pick one that is compatible with the main binary.
 
 		binary_arch = arch.get_architecture('Linux', 'x86_64')
 		s.solve('http://foo/MultiArch.xml', binary_arch)
 		assert s.ready
 		assert s.selections[foo].machine == 'x86_64'
+		assert s.selections[lib].machine == 'x86_64'
 
 	def testArch(self):
 		host_arch = arch.get_host_architecture()

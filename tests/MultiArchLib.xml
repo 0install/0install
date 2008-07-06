@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface" uri='http://foo/MultiArchLib.xml'>
+  <name>MultiArchLib</name>
+  <summary>MultiArchLib</summary>
+  <implementation id='sha1new=434' version='0.1' arch='Linux-x86_64'/>
+  <implementation id='sha1new=323' version='0.2' arch='Linux-i486'/>
+</interface>
