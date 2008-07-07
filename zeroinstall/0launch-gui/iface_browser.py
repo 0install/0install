@@ -279,6 +279,7 @@ class InterfaceBrowser:
 				return icon
 			else:
 				# Try to download the icon
+				self.cached_icon[iface.uri] = None	# Only try once
 				fetcher = self.policy.download_icon(iface)
 				if fetcher:
 					@tasks.async
