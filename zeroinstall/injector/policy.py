@@ -271,7 +271,7 @@ class Policy(object):
 	
 	def get_uncached_implementations(self):
 		"""List all chosen implementations which aren't yet available locally.
-		@rtype: [(str, model.Implementation)]"""
+		@rtype: [(L{model.Interface}, L{model.Implementation})]"""
 		uncached = []
 		for iface in self.solver.selections:
 			impl = self.solver.selections[iface]

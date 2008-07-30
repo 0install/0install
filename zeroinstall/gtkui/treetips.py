@@ -70,7 +70,7 @@ class TreeTips:
 	def prime(self, parent, item):
 		"""Call this whenever the pointer moves to an area with a different
 		tooltip.
-		@param param: the TreeView widget
+		@param parent: the TreeView widget
 		@param item: the text to display
 		@see L{get_tooltip_text}"""
 		self.hide()

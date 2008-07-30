@@ -9,7 +9,7 @@ import logging
 
 def main(command_args):
 	"""Implements the logic of the 0desktop command.
-	@param args: the command-line arguments"""
+	@param command_args: the command-line arguments"""
 	parser = OptionParser(usage="usage: %prog [options] [URI]")
 	parser.add_option("-m", "--manage", help="manage added applications", action='store_true')
 	parser.add_option("-v", "--verbose", help="more verbose output", action='count')

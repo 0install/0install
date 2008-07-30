@@ -35,7 +35,7 @@ from zeroinstall.support import basedir
 from zeroinstall.injector import reader, model
 from zeroinstall.injector.namespaces import *
 from zeroinstall.injector.model import *
-from zeroinstall import zerostore
+from zeroinstall import zerostore, SafeException
 
 def _pretty_time(t):
 	assert isinstance(t, (int, long)), t
@@ -214,7 +214,7 @@ class IfaceCache(object):
 		@param modified_time: the timestamp of the oldest trusted signature
 		(used as an approximation to the interface's modification time)
 		@type modified_time: long
-		@raises SafeException: if modified_time is older than the currently cached time
+		@raises ReplayAttack: if modified_time is older than the currently cached time
 		"""
 		debug("Updating '%s' from network; modified at %s" %
 			(interface.name or interface.uri, _pretty_time(modified_time)))
@@ -245,7 +245,7 @@ class IfaceCache(object):
 		@param interface: updated once the new XML is written
 		@param new_xml: the data to write
 		@param modified_time: when new_xml was modified
-		@raises SafeException: if the new mtime is older than the current one
+		@raises ReplayAttack: if the new mtime is older than the current one
 		"""
 		assert modified_time
 
