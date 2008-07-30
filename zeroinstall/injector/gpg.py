@@ -166,22 +166,10 @@ def import_key(stream):
 	"""Run C{gpg --import} with this stream as stdin."""
 	errors = tempfile.TemporaryFile()
 
-	child = os.fork()
-	if child == 0:
-		# We are the child
-		try:
-			try:
-				os.dup2(stream.fileno(), 0)
-				os.dup2(errors.fileno(), 2)
-				os.execlp('gpg', 'gpg', '--no-secmem-warning', '--quiet', '--import')
-			except:
-				traceback.print_exc()
-		finally:
-			os._exit(1)
-		assert False
+	child = subprocess.Popen(['gpg', '--no-secmem-warning', '--quiet', '--import'],
+				stdin = stream, stderr = errors)
 
-	pid, status = os.waitpid(child, 0)
-	assert pid == child
+	status = child.wait()
 
 	errors.seek(0)
 	error_messages = errors.read().strip()
@@ -196,28 +184,16 @@ def _check_plain_stream(stream):
 
 	status_r, status_w = os.pipe()
 
-	child = os.fork()
-
-	if child == 0:
-		# We are the child
-		try:
-			try:
-				os.close(status_r)
-				os.dup2(stream.fileno(), 0)
-				os.dup2(data.fileno(), 1)
-				os.dup2(errors.fileno(), 2)
-				os.execlp('gpg', 'gpg', '--no-secmem-warning', '--decrypt',
+	# Note: Should ideally close status_r in the child, but we want to support Windows too
+	child = subprocess.Popen(['gpg', '--no-secmem-warning', '--decrypt',
 					   # Not all versions support this:
 					   #'--max-output', str(1024 * 1024),
 					   '--batch',
-					   '--status-fd', str(status_w))
-			except:
-				traceback.print_exc()
-		finally:
-			os._exit(1)
-		assert False
-	
-	# We are the parent
+					   '--status-fd', str(status_w)],
+				stdin = stream,
+				stdout = data,
+				stderr = errors)
+
 	os.close(status_w)
 
 	try:
@@ -267,28 +243,16 @@ def _check_xml_stream(stream):
 
 		status_r, status_w = os.pipe()
 
-		child = os.fork()
-
-		if child == 0:
-			# We are the child
-			try:
-				try:
-					os.close(status_r)
-					os.dup2(data.fileno(), 0)
-					os.dup2(errors.fileno(), 2)
-					os.execlp('gpg', 'gpg', '--no-secmem-warning',
+		# Note: Should ideally close status_r in the child, but we want to support Windows too
+		child = subprocess.Popen(['gpg', '--no-secmem-warning',
 						   # Not all versions support this:
 						   #'--max-output', str(1024 * 1024),
 						   '--batch',
 						   '--status-fd', str(status_w),
-						   '--verify', sig_name, '-')
-				except:
-					traceback.print_exc()
-			finally:
-				os._exit(1)
-			assert False
-		
-		# We are the parent
+						   '--verify', sig_name, '-'],
+						   stdin = data,
+						   stderr = errors)
+
 		os.close(status_w)
 
 		try:
@@ -350,8 +314,7 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 		elif code == 'ERRSIG':
 			sigs.append(ErrSig(args))
 
-	pid, status = os.waitpid(child, 0)
-	assert pid == child
+	status = child.wait()
 
 	errors.seek(0)
 
