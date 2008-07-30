@@ -11,13 +11,10 @@ is also the policy used to run the injector's GUI.
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os
-from logging import debug, info, warn
+from logging import info
 
-from zeroinstall.support import tasks
 from zeroinstall.injector import model, policy, run
 from zeroinstall.injector.handler import Handler
-from zeroinstall import NeedDownload
 
 class AutoPolicy(policy.Policy):
 	__slots__ = ['download_only']

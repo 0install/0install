@@ -14,7 +14,7 @@ well-known variables.
 # See the README file for details, or visit http://0install.net.
 
 import os, re
-from logging import warn, info, debug
+from logging import info, debug
 from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 
@@ -48,14 +48,14 @@ def _split_arch(arch):
 	elif '-' not in arch:
 		raise SafeException("Malformed arch '%s'" % arch)
 	else:
-		os, machine = arch.split('-', 1)
-		if os == '*': os = None
+		osys, machine = arch.split('-', 1)
+		if osys == '*': osys = None
 		if machine == '*': machine = None
-		return os, machine
+		return osys, machine
 
-def _join_arch(os, machine):
-	if os == machine == None: return None
-	return "%s-%s" % (os or '*', machine or '*')
+def _join_arch(osys, machine):
+	if osys == machine == None: return None
+	return "%s-%s" % (osys or '*', machine or '*')
 	
 class Stability(object):
 	"""A stability rating. Each implementation has an upstream stability rating and,

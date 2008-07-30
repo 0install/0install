@@ -10,8 +10,7 @@ from xml.dom import minidom, XMLNS_NAMESPACE
 
 from zeroinstall.support import basedir
 
-from zeroinstall.injector.model import *
-
+from zeroinstall.injector.model import escape
 from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFACE
 
 def _add_impl(parent, impl):

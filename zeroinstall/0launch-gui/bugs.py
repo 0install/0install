@@ -4,7 +4,6 @@
 import sys, os
 import gtk, pango
 import dialog
-import logging
 
 import zeroinstall
 from zeroinstall import support
@@ -160,9 +159,6 @@ class BugReporter(dialog.Dialog):
 		self.show_all()
 
 	def collect_output(self, buffer):
-		import logging
-		from zeroinstall.injector import run
-
 		iter = buffer.get_end_iter()
 		buffer.place_cursor(iter)
 

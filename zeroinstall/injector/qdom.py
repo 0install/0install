@@ -8,7 +8,6 @@ This is our light-weight version.
 # See the README file for details, or visit http://0install.net.
 
 from xml.parsers import expat
-import sys
 
 class Element(object):
 	"""An XML element.

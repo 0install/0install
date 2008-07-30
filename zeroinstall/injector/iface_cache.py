@@ -33,8 +33,8 @@ from cStringIO import StringIO
 
 from zeroinstall.support import basedir
 from zeroinstall.injector import reader, model
-from zeroinstall.injector.namespaces import *
-from zeroinstall.injector.model import *
+from zeroinstall.injector.namespaces import config_site, config_prog
+from zeroinstall.injector.model import Interface, escape, unescape
 from zeroinstall import zerostore, SafeException
 
 def _pretty_time(t):

@@ -8,7 +8,7 @@ Executes a set of implementations as a program.
 import os, sys
 from logging import debug, info
 
-from zeroinstall.injector.model import Interface, SafeException, EnvironmentBinding, DistributionImplementation, ZeroInstallImplementation
+from zeroinstall.injector.model import SafeException, EnvironmentBinding, ZeroInstallImplementation
 from zeroinstall.injector.iface_cache import iface_cache
 
 def do_env_binding(binding, path):

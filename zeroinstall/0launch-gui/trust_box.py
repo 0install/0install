@@ -5,11 +5,9 @@
 import gtk
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import gpg, trust
-from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.support import tasks
 from zeroinstall.gtkui import help_box
 
-import gui
 import dialog
 
 def pretty_fp(fp):

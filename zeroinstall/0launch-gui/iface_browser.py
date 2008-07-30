@@ -3,7 +3,7 @@
 
 import gtk, gobject, pango
 
-from zeroinstall.support import basedir, tasks, pretty_size
+from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import model
 import properties

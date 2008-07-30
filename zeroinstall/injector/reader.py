@@ -6,18 +6,14 @@ Parses an XML interface into a Python representation.
 # See the README file for details, or visit http://0install.net.
 
 import os
-import sys
-import shutil
-import time
-from logging import debug, warn, info
+from logging import debug, info
 from os.path import dirname
 
 from zeroinstall.support import basedir
 from zeroinstall.injector import qdom, distro
-from zeroinstall.injector.namespaces import *
-from zeroinstall.injector.model import *
+from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFACE, injector_gui_uri
+from zeroinstall.injector.model import Interface, InvalidInterface, ZeroInstallFeed, escape, Feed, stability_levels
 from zeroinstall.injector import model
-from zeroinstall import version, SafeException
 
 def update_from_cache(interface):
 	"""Read a cached interface and any native feeds or user overrides.

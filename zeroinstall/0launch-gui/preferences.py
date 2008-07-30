@@ -2,9 +2,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import gtk
-from logging import warn
-import os, sys
-from dialog import Dialog, MixedButton, frame, Template
+from dialog import Template
 from zeroinstall.gtkui import help_box
 from zeroinstall.injector.model import network_levels
 from zeroinstall.injector import trust, gpg

@@ -3,12 +3,12 @@
 
 import zeroinstall
 from zeroinstall.support import tasks
-from zeroinstall.injector.model import *
+from zeroinstall.injector.model import Interface, Feed, stable, testing, developer, stability_levels
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import writer, namespaces, gpg
 from zeroinstall.gtkui import help_box
 
-import gtk, sys, os
+import gtk
 from logging import warn
 
 from dialog import DialogResponse, Template
@@ -372,7 +372,7 @@ def add_remote_feed(policy, parent, interface):
 				try:
 					url = entry.get_text()
 					if not url:
-						raise SafeException(_('Enter a URL'))
+						raise zeroinstall.SafeException(_('Enter a URL'))
 					fetch = policy.fetcher.download_and_import_feed(url, iface_cache)
 					if fetch:
 						d.set_sensitive(False)
@@ -398,7 +398,7 @@ def add_remote_feed(policy, parent, interface):
 							writer.save_interface(interface)
 							d.destroy()
 							policy.recalculate()
-				except SafeException, ex:
+				except zeroinstall.SafeException, ex:
 					error(str(ex))
 			else:
 				d.destroy()
@@ -412,7 +412,6 @@ def add_local_feed(policy, interface):
 	sel = gtk.FileSelection(_('Select XML feed file'))
 	sel.set_has_separator(False)
 	def ok(b):
-		from xml.dom import minidom
 		from zeroinstall.injector import reader
 		feed = sel.get_filename()
 		try:

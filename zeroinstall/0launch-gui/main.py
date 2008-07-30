@@ -5,7 +5,7 @@ import os, sys
 
 from optparse import OptionParser
 
-from zeroinstall.injector import model, autopolicy, namespaces, arch
+from zeroinstall.injector import model, arch
 from zeroinstall.injector.policy import Policy
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.support import tasks

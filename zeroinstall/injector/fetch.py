@@ -5,12 +5,12 @@ Downloads feeds, keys, packages and icons.
 # Copyright (C) 2008, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os, sys
+import os
 from logging import info, debug, warn
 
 from zeroinstall.support import tasks, basedir
 from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
-from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, network_offline, escape
+from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, escape
 from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
 from zeroinstall.injector.handler import NoTrustedKeys
 

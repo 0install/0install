@@ -2,7 +2,7 @@
 # Copyright (C) 2008, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os, shutil
+import os
 import gtk
 
 from zeroinstall.injector import namespaces, model

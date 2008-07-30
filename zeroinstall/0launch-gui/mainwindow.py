@@ -2,8 +2,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import gtk
-from logging import warn
-import os, sys
+import sys
 from zeroinstall import SafeException
 from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector import download

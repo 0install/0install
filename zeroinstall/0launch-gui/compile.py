@@ -2,7 +2,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import os, popen2
-import gtk, gobject
+import gobject
 import dialog
 from logging import info
 

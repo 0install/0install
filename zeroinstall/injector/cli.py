@@ -9,7 +9,8 @@ import os, sys
 from optparse import OptionParser
 import logging
 
-from zeroinstall.injector import model, download, autopolicy, namespaces
+from zeroinstall import SafeException, NeedDownload
+from zeroinstall.injector import model, autopolicy, namespaces
 from zeroinstall.injector.iface_cache import iface_cache
 
 #def program_log(msg): os.access('MARK: 0launch: ' + msg, os.F_OK)
@@ -32,19 +33,19 @@ def _list_interfaces(args):
 
 def _import_feed(args):
 	from zeroinstall.support import tasks
-	from zeroinstall.injector import gpg, handler, trust
+	from zeroinstall.injector import gpg, handler
 	from zeroinstall.injector.iface_cache import PendingFeed
 	from xml.dom import minidom
 	for x in args:
 		if not os.path.isfile(x):
-			raise model.SafeException("File '%s' does not exist" % x)
+			raise SafeException("File '%s' does not exist" % x)
 		logging.info("Importing from file '%s'", x)
 		signed_data = file(x)
 		data, sigs = gpg.check_stream(signed_data)
 		doc = minidom.parseString(data.read())
 		uri = doc.documentElement.getAttribute('uri')
 		if not uri:
-			raise model.SafeException("Missing 'uri' attribute on root element in '%s'" % x)
+			raise SafeException("Missing 'uri' attribute on root element in '%s'" % x)
 		iface = iface_cache.get_interface(uri)
 		logging.info("Importing information about interface %s", iface)
 		signed_data.seek(0)
@@ -69,7 +70,7 @@ def _import_feed(args):
 
 		errors = handler.wait_for_blocker(task.finished)
 		if errors:
-			raise model.SafeException("Errors during download: " + '\n'.join(errors))
+			raise SafeException("Errors during download: " + '\n'.join(errors))
 
 def _manage_feeds(options, args):
 	from zeroinstall.injector import writer
@@ -104,7 +105,7 @@ def _manage_feeds(options, args):
 				i = raw_input('Enter a number, or CTRL-C to cancel [1]: ').strip()
 			except KeyboardInterrupt:
 				print
-				raise model.SafeException("Aborted at user request.")
+				raise SafeException("Aborted at user request.")
 			if i == '':
 				i = 1
 			else:
@@ -160,9 +161,9 @@ def _normal_mode(options, args):
 
 	if options.get_selections:
 		if len(args) > 1:
-			raise model.SafeException("Can't use arguments with --get-selections")
+			raise SafeException("Can't use arguments with --get-selections")
 		if options.main:
-			raise model.SafeException("Can't use --main with --get-selections")
+			raise SafeException("Can't use --main with --get-selections")
 
 	# Note that need_download() triggers a solve
 	if options.refresh or options.gui:
@@ -247,7 +248,7 @@ def _normal_mode(options, args):
 		else:
 			#program_log('download_and_execute ' + iface_uri)
 			policy.download_and_execute(prog_args, refresh = bool(options.refresh), main = options.main)
-	except autopolicy.NeedDownload, ex:
+	except NeedDownload, ex:
 		# This only happens for dry runs
 		print ex
 
@@ -359,7 +360,7 @@ def main(command_args):
 	except UsageError:
 		parser.print_help()
 		sys.exit(1)
-	except model.SafeException, ex:
+	except SafeException, ex:
 		if options.verbose: raise
 		print >>sys.stderr, ex
 		sys.exit(1)
