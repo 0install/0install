@@ -22,7 +22,18 @@ import os
 # os_ranks and mapping are mappings from names to how good they are.
 # 1 => Native (best)
 # Higher numbers are worse but usable.
-_uname = os.uname()
+try:
+	_uname = os.uname()
+except AttributeError:
+	# No uname. Probably Windows (untested).
+	import sys
+	p = sys.platform
+	if p == 'win32':
+		_uname = ('Windows', 'i486')
+	elif p == 'win64':
+		_uname = ('Windows', 'x86_64')
+	else:
+		_uname = (p, 'i486')
 
 os_ranks = {
 #	'Linux' : 3,		# Linux (lots of systems support emulation)

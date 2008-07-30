@@ -42,7 +42,10 @@ def report_bug(policy, iface):
 		else:
 			text += '    No implementation selected\n'
 
-	text += '\nSystem:\n  %s\n\nIssue:\n  %s\n' % ('\n  '.join(os.uname()), issue)
+	if hasattr(os, 'uname'):
+		text += '\nSystem:\n  %s\n\nIssue:\n  %s\n' % ('\n  '.join(os.uname()), issue)
+	else:
+		text += '\nSystem without uname()\n'
 
 	reporter = BugReporter(policy, iface, text)
 	reporter.show()
