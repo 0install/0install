@@ -6,7 +6,7 @@ Parses an XML interface into a Python representation.
 # See the README file for details, or visit http://0install.net.
 
 import os
-from logging import debug, info
+from logging import debug, info, warn
 from os.path import dirname
 
 from zeroinstall.support import basedir
@@ -64,7 +64,11 @@ def update_user_overrides(interface, main_feed = None):
 	if not user:
 		return
 
-	root = qdom.parse(file(user))
+	try:
+		root = qdom.parse(file(user))
+	except Exception, ex:
+		warn("Error reading '%s': %s", user, ex)
+		raise
 
 	# This is a bit wrong; this information is about the feed,
 	# not the interface.
