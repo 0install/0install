@@ -828,12 +828,15 @@ def _pretty_escape(uri):
 
 def canonical_iface_uri(uri):
 	"""If uri is a relative path, convert to an absolute one.
+	A "file:///foo" URI is converted to "/foo".
 	Otherwise, return it unmodified.
 	@rtype: str
 	@raise SafeException: if uri isn't valid
 	"""
 	if uri.startswith('http:'):
 		return uri
+	elif uri.startswith('file:///'):
+		return uri[7:]
 	else:
 		iface_uri = os.path.realpath(uri)
 		if os.path.isfile(iface_uri):

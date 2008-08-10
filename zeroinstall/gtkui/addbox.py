@@ -7,6 +7,7 @@ import gtk, gobject
 import gtk.glade
 
 from zeroinstall import SafeException
+from zeroinstall.injector import model
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.iface_cache import iface_cache
 
@@ -64,7 +65,7 @@ class AddBox:
 		nb = widgets.get_widget('notebook1')
 
 		def update_details_page():
-			iface = iface_cache.get_interface(uri.get_text())
+			iface = iface_cache.get_interface(model.canonical_iface_uri(uri.get_text()))
 			about.set_text('%s - %s' % (iface.get_name(), iface.summary))
 			icon_path = iface_cache.get_icon_path(iface)
 			from zeroinstall.gtkui import icon
@@ -87,7 +88,7 @@ class AddBox:
 
 		def finish():
 			import xdgutils
-			iface = iface_cache.get_interface(uri.get_text())
+			iface = iface_cache.get_interface(model.canonical_iface_uri(uri.get_text()))
 
 			try:
 				icon_path = iface_cache.get_icon_path(iface)
