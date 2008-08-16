@@ -15,6 +15,7 @@ class build_with_data(build_py):
 		"zeroinstall/0launch-gui/ZeroInstall-GUI.xml",
 		"zeroinstall/0launch-gui/zero-install.glade",
 		"zeroinstall/gtkui/desktop.glade",
+		"zeroinstall/gtkui/cache.glade",
 	]
 	def run(self):
 		# Copy .py files and build, as usual
