@@ -3,7 +3,7 @@
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os
+import os, subprocess
 import shutil
 import traceback
 from tempfile import mkdtemp, mkstemp
@@ -396,22 +396,16 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 def _extract(stream, destdir, command, start_offset = 0):
 	"""Run execvp('command') inside destdir in a child process, with
 	stream seeked to 'start_offset' as stdin."""
-	child = os.fork()
-	if child == 0:
-		try:
-			try:
-				# Some zip archives are missing timezone information; force consistent results
-				os.environ['TZ'] = 'GMT'
 
-				os.chdir(destdir)
-				stream.seek(start_offset)
-				os.dup2(stream.fileno(), 0)
-				_exec_maybe_sandboxed(destdir, *command)
-			except:
-				traceback.print_exc()
-		finally:
-			os._exit(1)
-	id, status = os.waitpid(child, 0)
-	assert id == child
+	# Some zip archives are missing timezone information; force consistent results
+	child_env = os.environ.copy()
+	child_env['TZ'] = 'GMT'
+
+	stream.seek(start_offset)
+
+	# TODO: use pola-run if available, once it supports fchmod
+	child = subprocess.Popen(command, cwd = destdir, stdin = stream, env = child_env)
+
+	status = child.wait()
 	if status != 0:
 		raise SafeException('Failed to extract archive; exit code %d' % status)
