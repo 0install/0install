@@ -9,7 +9,7 @@ This is the low-level interface for downloading interfaces, implementations, ico
 # Copyright (C) 2006, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import tempfile, os, sys
+import tempfile, os, sys, subprocess
 from zeroinstall import SafeException
 from zeroinstall.support import tasks
 import traceback
@@ -45,13 +45,13 @@ class Download(object):
 	@type downloaded: L{tasks.Blocker}
 	@ivar hint: hint passed by and for caller
 	@type hint: object
-	@ivar child_pid: the child process's PID
-	@type child_pid: int
+	@ivar child: the child process
+	@type child: L{subprocess.Popen}
 	@ivar aborted_by_user: whether anyone has called L{abort}
 	@type aborted_by_user: bool
 	"""
 	__slots__ = ['url', 'tempfile', 'status', 'errors', 'expected_size', 'downloaded',
-		     'hint', 'child_pid', '_final_total_size', 'aborted_by_user']
+		     'hint', 'child', '_final_total_size', 'aborted_by_user']
 
 	def __init__(self, url, hint = None):
 		"""Create a new download object.
@@ -70,7 +70,7 @@ class Download(object):
 		self.expected_size = None	# Final size (excluding skipped bytes)
 		self._final_total_size = None	# Set when download is finished
 
-		self.child_pid = None
+		self.child = None
 	
 	def start(self):
 		"""Create a temporary file and begin the download.
@@ -85,30 +85,20 @@ class Download(object):
 
 	def _do_download(self):
 		"""Will trigger L{downloaded} when done (on success or failure)."""
-		error_r, error_w = os.pipe()
 		self.errors = ''
 
-		self.child_pid = os.fork()
-		if self.child_pid == 0:
-			# We are the child
-			try:
-				os.close(error_r)
-				os.dup2(error_w, 2)
-				os.close(error_w)
-				self._download_as_child()
-			finally:
-				os._exit(1)
+		# Can't use fork here, because Windows doesn't have it
+		assert self.child is None, self.child
+		self.child = subprocess.Popen([sys.executable, __file__, self.url], stderr = subprocess.PIPE, stdout = self.tempfile)
 
-		# We are the parent
-		os.close(error_w)
 		self.status = download_fetching
 
 		# Wait for child to exit, collecting error output as we go
 
 		while True:
-			yield tasks.InputBlocker(error_r, "read data from " + self.url)
+			yield tasks.InputBlocker(self.child.stderr, "read data from " + self.url)
 
-			data = os.read(error_r, 100)
+			data = os.read(self.child.stderr.fileno(), 100)
 			if not data:
 				break
 			self.errors += data
@@ -117,11 +107,10 @@ class Download(object):
 
 		assert self.status is download_fetching
 		assert self.tempfile is not None
-		assert self.child_pid is not None
+		assert self.child is not None
 
-		pid, status = os.waitpid(self.child_pid, 0)
-		assert pid == self.child_pid
-		self.child_pid = None
+		status = self.child.wait()
+		self.child = None
 
 		errors = self.errors
 		self.errors = None
@@ -158,40 +147,13 @@ class Download(object):
 			self.status = download_complete
 			self.downloaded.trigger()
 	
-	def _download_as_child(self):
-		try:
-			from httplib import HTTPException
-			from urllib2 import urlopen, HTTPError, URLError
-			import shutil
-			try:
-				#print "Child downloading", self.url
-				if self.url.startswith('/'):
-					if not os.path.isfile(self.url):
-						print >>sys.stderr, "File '%s' does not " \
-							"exist!" % self.url
-						return
-					src = file(self.url)
-				elif self.url.startswith('http:') or self.url.startswith('ftp:'):
-					src = urlopen(self.url)
-				else:
-					raise Exception('Unsupported URL protocol in: ' + self.url)
-
-				shutil.copyfileobj(src, self.tempfile, length=1)
-				self.tempfile.flush()
-				
-				os._exit(0)
-			except (HTTPError, URLError, HTTPException), ex:
-				print >>sys.stderr, "Error downloading '" + self.url + "': " + (str(ex) or str(ex.__class__.__name__))
-		except:
-			traceback.print_exc()
-	
 	def abort(self):
 		"""Signal the current download to stop.
 		@postcondition: L{aborted_by_user}"""
-		if self.child_pid is not None:
-			info("Killing download process %s", self.child_pid)
+		if self.child is not None:
+			info("Killing download process %s", self.child.pid)
 			import signal
-			os.kill(self.child_pid, signal.SIGTERM)
+			os.kill(self.child.pid, signal.SIGTERM)
 			self.aborted_by_user = True
 		else:
 			self.status = download_failed
@@ -222,3 +184,33 @@ class Download(object):
 	
 	def __str__(self):
 		return "<Download from %s>" % self.url
+
+if __name__ == '__main__':
+	def _download_as_child(url):
+		from httplib import HTTPException
+		from urllib2 import urlopen, HTTPError, URLError
+		import shutil
+		try:
+			#print "Child downloading", url
+			if url.startswith('/'):
+				if not os.path.isfile(url):
+					print >>sys.stderr, "File '%s' does not " \
+						"exist!" % url
+					return
+				src = file(url)
+			elif url.startswith('http:') or url.startswith('ftp:'):
+				src = urlopen(url)
+			else:
+				raise Exception('Unsupported URL protocol in: ' + url)
+
+			while True:
+				data = src.read(1)	# Missing fileno in some Python versions
+				if not data: break
+				os.write(1, data)
+
+			sys.exit(0)
+		except (HTTPError, URLError, HTTPException), ex:
+			print >>sys.stderr, "Error downloading '" + url + "': " + (str(ex) or str(ex.__class__.__name__))
+			sys.exit(1)
+	assert len(sys.argv) == 2, "Usage: download URL, not %s" % sys.argv
+	_download_as_child(sys.argv[1])
