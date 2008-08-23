@@ -354,7 +354,7 @@ class Implementation(object):
 
 	__slots__ = ['upstream_stability', 'user_stability', 'langs',
 		     'requires', 'main', 'metadata', 'download_sources',
-		     'id', 'feed', 'version', 'released', 'bindings']
+		     'id', 'feed', 'version', 'released', 'bindings', 'machine']
 
 	def __init__(self, feed, id):
 		assert id
@@ -369,6 +369,7 @@ class Implementation(object):
 		self.released = None
 		self.download_sources = []
 		self.langs = None
+		self.machine = None
 		self.bindings = []
 
 	def get_stability(self):
@@ -392,7 +393,7 @@ class Implementation(object):
 
 	arch = property(lambda self: _join_arch(self.os, self.machine))
 
-	os = machine = None
+	os = None
 
 class DistributionImplementation(Implementation):
 	"""An implementation provided by the distribution. Information such as the version
@@ -408,14 +409,13 @@ class DistributionImplementation(Implementation):
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.
 	@since: 0.28"""
-	__slots__ = ['os', 'machine', 'size']
+	__slots__ = ['os', 'size']
 
 	def __init__(self, feed, id):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
 		Implementation.__init__(self, feed, id)
 		self.size = None
 		self.os = None
-		self.machine = None
 
 	# Deprecated
 	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires

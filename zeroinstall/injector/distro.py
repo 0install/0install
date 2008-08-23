@@ -66,6 +66,7 @@ class DebianDistribution(Distribution):
 	def load_cache(self):
 		stream = file(self.cache_dir + '/dpkg-status.cache')
 
+		cache_version = None
 		for line in stream:
 			if line == '\n':
 				break
@@ -74,25 +75,34 @@ class DebianDistribution(Distribution):
 				raise Exception("Modification time of dpkg status file has changed")
 			if name == 'size' and int(value) != self.status_details.st_size:
 				raise Exception("Size of dpkg status file has changed")
+			if name == 'version':
+				cache_version = int(value)
 		else:
 			raise Exception('Invalid cache format (bad header)')
+
+		if cache_version is None:
+			raise Exception('Old cache format')
 			
 		versions = self.versions
 		for line in stream:
-			package, version = line[:-1].split('\t')
-			versions[package] = version
+			package, version, zi_arch = line[:-1].split('\t')
+			versions[package] = (version, intern(zi_arch))
 
 	def generate_cache(self):
 		cache = []
 
-		for line in os.popen("dpkg-query -W"):
-			package, version = line.split('\t', 1)
+		for line in os.popen("dpkg-query -W -f='${Package}\t${Version}\t${Architecture}\n'"):
+			package, version, debarch = line.split('\t', 2)
 			if ':' in version:
 				# Debian's 'epoch' system
 				version = version.split(':', 1)[1]
+			if debarch == 'amd64\n':
+				zi_arch = 'x86_64'
+			else:
+				zi_arch = '*'
 			clean_version = try_cleanup_distro_version(version)
 			if clean_version:
-				cache.append('%s\t%s' % (package, clean_version))
+				cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
 			else:
 				warn("Can't parse distribution version '%s' for package '%s'", version, package)
 
@@ -102,6 +112,7 @@ class DebianDistribution(Distribution):
 		fd, tmpname = tempfile.mkstemp(prefix = 'dpkg-cache-tmp', dir = self.cache_dir)
 		try:
 			stream = os.fdopen(fd, 'wb')
+			stream.write('version: 2\n')
 			stream.write('mtime: %d\n' % int(self.status_details.st_mtime))
 			stream.write('size: %d\n' % self.status_details.st_size)
 			stream.write('\n')
@@ -116,12 +127,14 @@ class DebianDistribution(Distribution):
 
 	def get_package_info(self, package, factory):
 		try:
-			version = self.versions[package]
+			version, machine = self.versions[package]
 		except KeyError:
 			return
 
 		impl = factory('package:deb:%s:%s' % (package, version)) 
 		impl.version = model.parse_version(version)
+		if machine != '*':
+			impl.machine = machine
 
 class RPMDistribution(Distribution):
 	"""An RPM-based distribution."""
