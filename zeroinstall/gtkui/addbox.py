@@ -52,9 +52,10 @@ class AddBox:
 				data = data.split('\n', 1)[0].strip()
 			else:
 				data = selection_data.data.split('\n', 1)[0].strip()
-			uri.set_text(data)
-			drag_context.finish(True, False, timestamp)
-			self.window.response(_RESPONSE_NEXT)
+			if self._sanity_check(data):
+				uri.set_text(data)
+				drag_context.finish(True, False, timestamp)
+				self.window.response(_RESPONSE_NEXT)
 			return True
 		self.window.drag_dest_set(gtk.DEST_DEFAULT_MOTION | gtk.DEST_DEFAULT_DROP | gtk.DEST_DEFAULT_HIGHLIGHT,
 					[('text/uri-list', 0, _URI_LIST),
@@ -103,6 +104,8 @@ class AddBox:
 		def response(box, resp):
 			if resp == _RESPONSE_NEXT:
 				iface = uri.get_text()
+				if not self._sanity_check(iface):
+					return
 				self.window.set_sensitive(False)
 				self.set_keep_above(False)
 				import popen2
@@ -156,3 +159,17 @@ class AddBox:
 			# click-to-raise and in that mode drag-and-drop
 			# is useless without this...
 			self.window.set_keep_above(above)
+
+	def _sanity_check(self, uri):
+		if uri.endswith('.tar.bz2') or \
+		   uri.endswith('.tar.gz') or \
+		   uri.endswith('.exe') or \
+		   uri.endswith('.rpm') or \
+		   uri.endswith('.deb') or \
+		   uri.endswith('.tgz'):
+			box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
+				"This URI (%s) looks like an archive, not a Zero Install feed. Make sure you're using the feed link!" % uri)
+			box.run()
+			box.destroy()
+			return False
+		return True
