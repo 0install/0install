@@ -46,9 +46,7 @@ class DebianDistribution(Distribution):
 	"""An dpkg-based distribution."""
 
 	def __init__(self, db_dir):
-		self.db_dir = db_dir
-		dpkg_status = db_dir + '/status'
-		self.status_details = os.stat(self.db_dir + '/status')
+		self.status_details = os.stat(db_dir + '/status')
 
 		self.versions = {}
 		self.cache_dir = basedir.save_cache_path(namespaces.config_site, namespaces.config_prog)
@@ -141,10 +139,8 @@ class RPMDistribution(Distribution):
 
 	cache_leaf = 'rpm-status.cache'
 	
-	def __init__(self, db_dir):
-		self.db_dir = db_dir
-		pkg_status = os.path.join(db_dir, 'Packages')
-		self.status_details = os.stat(pkg_status)
+	def __init__(self, packages_file):
+		self.status_details = os.stat(packages_file)
 
 		self.versions = {}
 		self.cache_dir=basedir.save_cache_path(namespaces.config_site,
@@ -254,12 +250,12 @@ def get_host_distribution():
 	global _host_distribution
 	if not _host_distribution:
 		_dpkg_db_dir = '/var/lib/dpkg'
-		_rpm_db_dir = '/var/lib/rpm'
+		_rpm_db = '/var/lib/rpm/Packages'
 
 		if os.access(_dpkg_db_dir, os.R_OK | os.X_OK):
 			_host_distribution = DebianDistribution(_dpkg_db_dir)
-		elif os.path.isdir(_rpm_db_dir):
-			_host_distribution = RPMDistribution(_rpm_db_dir)
+		elif os.path.isfile(_rpm_db):
+			_host_distribution = RPMDistribution(_rpm_db)
 		else:
 			_host_distribution = Distribution()
 	
