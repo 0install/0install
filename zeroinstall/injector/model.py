@@ -833,7 +833,9 @@ def canonical_iface_uri(uri):
 	@rtype: str
 	@raise SafeException: if uri isn't valid
 	"""
-	if uri.startswith('http:'):
+	if uri.startswith('http://'):
+		if uri.find("/", 7) == -1:
+			raise SafeException("Missing / after hostname in URI '%s'" % uri)
 		return uri
 	elif uri.startswith('file:///'):
 		return uri[7:]

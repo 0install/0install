@@ -225,8 +225,14 @@ class TestModel(BaseTest):
 			assert 'Malformed arch' in str(ex)
 	
 	def testCanonical(self):
-		self.assertEquals('http://foo',
-				model.canonical_iface_uri('http://foo'))
+		try:
+			model.canonical_iface_uri('http://foo')
+			assert False
+		except model.SafeException, ex:
+			assert 'Missing /' in str(ex)
+
+		self.assertEquals('http://foo/',
+				model.canonical_iface_uri('http://foo/'))
 		try:
 			model.canonical_iface_uri('bad-name')
 			assert False

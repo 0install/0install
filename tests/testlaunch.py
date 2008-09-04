@@ -100,18 +100,18 @@ class TestLaunch(BaseTest):
 		assert err
 	
 	def testOK(self):
-		out, err = self.run_0launch(['--dry-run', 'http://foo'])
-		self.assertEquals("Would download 'http://foo'\nFinished\n", out)
+		out, err = self.run_0launch(['--dry-run', 'http://foo/d'])
+		self.assertEquals("Would download 'http://foo/d'\nFinished\n", out)
 		self.assertEquals("", err)
 	
 	def testOffline(self):
-		out, err = self.run_0launch(['--offline', 'http://foo'])
-		self.assertEquals("Can't find all required implementations:\n- <Interface http://foo> -> None\n", err)
+		out, err = self.run_0launch(['--offline', 'http://foo/d'])
+		self.assertEquals("Can't find all required implementations:\n- <Interface http://foo/d> -> None\n", err)
 		self.assertEquals("", out)
 
 	def testDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run_0launch(['--dry-run', 'http://foo'])
+		out, err = self.run_0launch(['--dry-run', 'http://foo/d'])
 		# Uses local copy of GUI
 		assert out.startswith("Would execute: ")
 		assert 'basetest.py' in out
@@ -124,7 +124,7 @@ class TestLaunch(BaseTest):
 
 	def testRefreshDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run_0launch(['--dry-run', '--refresh', 'http://foo'])
+		out, err = self.run_0launch(['--dry-run', '--refresh', 'http://foo/d'])
 		assert out.startswith("Would execute: ")
 		assert 'basetest.py' in out
 		self.assertEquals("", err)
