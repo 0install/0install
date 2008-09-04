@@ -203,17 +203,24 @@ if __name__ == '__main__':
 			else:
 				raise Exception('Unsupported URL protocol in: ' + url)
 
-			try:
-				fd = src.fileno()
-			except AttributeError, ex:
-				# Hack: fileno on sockets broken in Python 2.4 and 2.5
-				# http://bugs.python.org/issue1327971
-				fd = src.fp._sock.fp.fileno()
+			if hasattr(src, 'fileno'):
+				try:
+					fd = src.fileno()
+				except AttributeError, ex:
+					# Hack: fileno on sockets broken in Python 2.4 and 2.5
+					# http://bugs.python.org/issue1327971
+					fd = src.fp._sock.fp.fileno()
 
-			while True:
-				data = os.read(fd, 256)
-				if not data: break
-				os.write(1, data)
+				while True:
+					data = os.read(fd, 256)
+					if not data: break
+					os.write(1, data)
+			else:
+				# Windows doesn't have fileno
+				while True:
+					data = src.read(1)
+					if not data: break
+					os.write(1, data)
 
 			sys.exit(0)
 		except (HTTPError, URLError, HTTPException), ex:
