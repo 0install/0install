@@ -314,5 +314,9 @@ hints = {
 	
 	'520DCCDBE5D38E2B22ADD82672E5E2ACF037FFC4' :
 		'Thierry Goubier creates PPC binaries for the ROX desktop. This key was '
-		'announced in a 2008-02-03 posting to the rox-users list.'
+		'announced in a 2008-02-03 posting to the rox-users list.',
+
+	'517085B7261D3B03A97515319C2C2CD1D41AF5BB' :
+		'Frank Richter is a developer of the Crystal Space 3D SDK. This key was '
+		'confirmed in a 2008-09-04 post to the zero-install-devel mailing list.',
 }
