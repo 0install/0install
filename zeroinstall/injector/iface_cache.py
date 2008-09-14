@@ -392,6 +392,7 @@ class IfaceCache(object):
 		timestamp_path = os.path.join(feeds_dir, model._pretty_escape(url))
 		fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0644)
 		os.close(fd)
+		os.utime(timestamp_path, None)	# In case file already exists
 
 	def get_last_check_attempt(self, url):
 		"""Return the time of the most recent update attempt for a feed.
