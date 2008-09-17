@@ -146,6 +146,8 @@ def load_keys(fingerprints):
 					keys[current_fpr].name = current_uid
 			if line.startswith('uid:'):
 				assert current_fpr is not None
+				# Only take primary UID
+				if current_uid: continue
 				parts = line.split(':')
 				current_uid = parts[9]
 				if current_fpr in keys:
