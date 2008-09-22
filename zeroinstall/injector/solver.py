@@ -92,7 +92,7 @@ class DefaultSolver(Solver):
 			if impl:
 				debug("Will use implementation %s (version %s)", impl, impl.get_version())
 				self.selections[iface] = impl
-				if self._machine_group is None and impl.machine:
+				if self._machine_group is None and impl.machine and impl.machine != 'src':
 					self._machine_group = machine_groups.get(impl.machine, 0)
 					debug("Now restricted to architecture group %s", self._machine_group)
 				for d in impl.requires:
