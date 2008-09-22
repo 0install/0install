@@ -210,7 +210,9 @@ class DefaultSolver(Solver):
 			yield iface.uri
 
 			for f in iface.feeds:
-				if f.os in arch.os_ranks and f.machine in arch.machine_ranks:
+				# Note: when searching for src, None is not in machine_ranks
+				if f.os in arch.os_ranks and \
+				   (f.machine is None or f.machine in arch.machine_ranks):
 					yield f.uri
 				else:
 					debug("Skipping '%s'; unsupported architecture %s-%s",
