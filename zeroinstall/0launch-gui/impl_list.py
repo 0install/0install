@@ -117,7 +117,7 @@ class ImplementationList:
 						impl.user_stability = new
 					else:
 						impl.user_stability = None
-					writer.save_interface(interface)
+					writer.save_feed(impl.feed)
 					self.policy.recalculate()
 				popup_menu(bev, ['Unset (%s)' % upstream, None] + choices,
 					set)

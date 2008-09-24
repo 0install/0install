@@ -12,6 +12,7 @@ from zeroinstall.support import basedir
 
 from zeroinstall.injector.model import escape
 from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFACE
+from zeroinstall.injector.iface_cache import iface_cache
 
 def _add_impl(parent, impl):
 	if impl.user_stability:
@@ -20,6 +21,10 @@ def _add_impl(parent, impl):
 		parent.appendChild(node)
 		node.setAttribute('user-stability', str(impl.user_stability))
 		node.setAttribute('id', impl.id)
+
+def save_feed(feed):
+	# This is wrong. Feed and interface settings should be saved in separate files.
+	save_interface(iface_cache.get_interface(feed.url))
 
 def save_interface(interface):
 	user_overrides = basedir.save_config_path(config_site, config_prog, 'user_overrides')
