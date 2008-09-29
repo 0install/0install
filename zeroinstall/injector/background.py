@@ -155,7 +155,7 @@ def _check_for_updates(policy, verbose):
 	if network_state != _NetworkState.NM_STATE_CONNECTED:
 		info("Not yet connected to network (status = %d). Sleeping for a bit...", network_state)
 		import time
-		time.sleep(20)
+		time.sleep(120)
 		if network_state in (_NetworkState.NM_STATE_DISCONNECTED, _NetworkState.NM_STATE_ASLEEP):
 			info("Still not connected to network. Giving up.")
 			sys.exit(1)
