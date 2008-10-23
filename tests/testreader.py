@@ -1,15 +1,11 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
-import sys, tempfile, os, shutil, logging
-from StringIO import StringIO
+import sys, tempfile, logging
 import unittest
-from logging import getLogger, DEBUG, INFO
 
 sys.path.insert(0, '..')
 
-from zeroinstall import NeedDownload
-from zeroinstall.injector import model, autopolicy, gpg, iface_cache, namespaces, reader
-from zeroinstall.support import basedir
+from zeroinstall.injector import model, gpg, reader
 import data
 
 foo_iface_uri = 'http://foo'

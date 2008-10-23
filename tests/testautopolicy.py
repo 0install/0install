@@ -1,9 +1,8 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
-import sys, tempfile, os, shutil, logging
+import sys, tempfile, os, logging
 from StringIO import StringIO
 import unittest
-from logging import getLogger, DEBUG, INFO
 
 sys.path.insert(0, '..')
 

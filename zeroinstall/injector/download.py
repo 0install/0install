@@ -12,7 +12,6 @@ This is the low-level interface for downloading interfaces, implementations, ico
 import tempfile, os, sys, subprocess
 from zeroinstall import SafeException
 from zeroinstall.support import tasks
-import traceback
 from logging import info
 
 download_starting = "starting"	# Waiting for UI to start it
@@ -189,7 +188,6 @@ if __name__ == '__main__':
 	def _download_as_child(url):
 		from httplib import HTTPException
 		from urllib2 import urlopen, HTTPError, URLError
-		import shutil
 		try:
 			#print "Child downloading", url
 			if url.startswith('/'):

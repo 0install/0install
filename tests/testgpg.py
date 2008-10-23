@@ -1,11 +1,10 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
-import sys, tempfile, os, shutil
+import sys, tempfile
 import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import gpg, model, trust
-from zeroinstall.support import basedir
 
 err_sig = """-----BEGIN PGP MESSAGE-----
 Version: GnuPG v1.4.0 (GNU/Linux)

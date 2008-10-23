@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
-import sys, tempfile, os, shutil
+import sys
 import unittest
 
 sys.path.insert(0, '..')

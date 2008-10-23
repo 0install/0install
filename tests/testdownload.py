@@ -1,9 +1,9 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
-import sys, tempfile, os, shutil
+import sys, tempfile, os
 from StringIO import StringIO
 import unittest, signal
-from logging import getLogger, DEBUG, INFO, WARN, ERROR
+from logging import getLogger, WARN, ERROR
 
 sys.path.insert(0, '..')
 
@@ -116,7 +116,6 @@ class TestDownload(BaseTest):
 		old_out = sys.stdout
 		try:
 			from zeroinstall.injector import cli
-			import logging
 
 			rootLogger = getLogger()
 			rootLogger.disabled = True

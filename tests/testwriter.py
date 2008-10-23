@@ -1,11 +1,10 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
-import sys, tempfile, os, shutil, StringIO
+import sys, StringIO
 import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import writer, model, reader, qdom
-from zeroinstall.support import basedir
 
 test_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
 <name>Test</name>

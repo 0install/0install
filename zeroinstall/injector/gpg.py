@@ -13,7 +13,6 @@ import subprocess
 import base64, re
 import os
 import tempfile
-import traceback
 from logging import info
 
 from zeroinstall import support

@@ -1,14 +1,12 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
-import sys, tempfile, os, shutil, time
+import sys, tempfile, os, time
 import unittest
 import data
-from logging import getLogger, DEBUG, INFO
-#getLogger().setLevel(DEBUG)
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import download, model, gpg, trust
-from zeroinstall.injector.namespaces import *
+from zeroinstall.injector import model, gpg, trust
+from zeroinstall.injector.namespaces import config_site
 from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
 from zeroinstall.support import basedir
 

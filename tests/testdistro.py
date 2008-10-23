@@ -1,10 +1,10 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest, empty_feed
-import sys, tempfile, os, shutil, StringIO
-import unittest, logging
+import sys
+import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import distro, model, qdom
+from zeroinstall.injector import distro, model
 
 class TestDistro(BaseTest):
 	def setUp(self):

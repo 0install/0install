@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.4
 # -*- coding: utf-8 -*-
 from basetest import BaseTest, empty_feed
-import sys, tempfile, os, shutil
+import sys
 from xml.dom import minidom
 import unittest
 from StringIO import StringIO

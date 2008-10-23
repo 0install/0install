@@ -1,12 +1,11 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
-import sys, tempfile, os, shutil
+import sys
 import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import autopolicy, reader, model
 from zeroinstall.injector.iface_cache import iface_cache
-from zeroinstall.support import basedir
 
 import logging
 logger = logging.getLogger()
