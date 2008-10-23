@@ -7,6 +7,9 @@ from logging import getLogger, DEBUG, INFO, WARN, ERROR
 
 sys.path.insert(0, '..')
 
+# If http_proxy is set it can cause the download tests to fail.
+os.environ["http_proxy"] = ""
+
 from zeroinstall.injector import model, autopolicy, gpg, iface_cache, download, reader, trust, handler, background, arch, selections, qdom
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
 from zeroinstall.support import basedir, tasks
