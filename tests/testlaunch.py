@@ -18,14 +18,6 @@ class SilenceLogger(logging.Filter):
 silenceLogger = SilenceLogger()
 
 class TestLaunch(BaseTest):
-	def cache_iface(self, name, data):
-		cached_ifaces = basedir.save_cache_path('0install.net',
-							'interfaces')
-
-		f = file(os.path.join(cached_ifaces, model.escape(name)), 'w')
-		f.write(data)
-		f.close()
-
 	def run_0launch(self, args):
 		old_stdout = sys.stdout
 		old_stderr = sys.stderr
