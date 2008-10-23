@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest
-import sys, tempfile, os, imp
+import sys, tempfile, os
 from StringIO import StringIO
 import unittest
 import logging
@@ -27,7 +27,6 @@ class TestLaunch(BaseTest):
 		f.close()
 
 	def run_0launch(self, args):
-		sys.argv = ['0launch'] + args
 		old_stdout = sys.stdout
 		old_stderr = sys.stderr
 		try:
@@ -35,7 +34,7 @@ class TestLaunch(BaseTest):
 			sys.stderr = StringIO()
 			ex = None
 			try:
-				imp.load_source('launch', '../0launch')
+				cli.main(args)
 				print "Finished"
 			except NameError:
 				raise

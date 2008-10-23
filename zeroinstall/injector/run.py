@@ -38,8 +38,7 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 	"""
 	iface = iface_cache.get_interface(policy.root)
 		
-	for needed_iface in policy.implementation:
-		impl = policy.implementation[needed_iface]
+	for impl in policy.implementation.values():
 		assert impl
 		_do_bindings(impl, impl.bindings)
 		for dep in impl.requires:
