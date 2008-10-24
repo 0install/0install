@@ -160,7 +160,7 @@ class TestLaunch(BaseTest):
 		log.removeFilter(silenceLogger)
 		log.setLevel(logging.WARN)
 	
-	def testHelp(self):
+	def testHelp2(self):
 		out, err = self.run_0launch(['--help'])
 		self.assertEquals("", err)
 		assert 'options:' in out.lower()
