@@ -58,7 +58,9 @@ def save_interface(interface):
 	import tempfile
 	tmp_fd, tmp_name = tempfile.mkstemp(dir = user_overrides)
 	try:
-		doc.writexml(os.fdopen(tmp_fd, 'w'), addindent = " ", newl = '\n')
+		tmp_file = os.fdopen(tmp_fd, 'w')
+		doc.writexml(tmp_file, addindent = " ", newl = '\n')
+		tmp_file.close()
 		path = os.path.join(user_overrides, escape(interface.uri))
 		os.rename(tmp_name, path)
 	except:
