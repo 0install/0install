@@ -237,7 +237,7 @@ class Stores(object):
 		"""Search for digest in all stores."""
 		assert digest
 		if '/' in digest or '=' not in digest:
-			raise BadDigest('Syntax error in digest (use ALG=VALUE)')
+			raise BadDigest('Syntax error in digest (use ALG=VALUE, not %s)' % digest)
 		for store in self.stores:
 			path = store.lookup(digest)
 			if path:

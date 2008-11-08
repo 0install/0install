@@ -749,11 +749,10 @@ class ZeroInstallFeed(object):
 
 			distro.get_package_info(package, factory)
 		
-		process_group(feed_element,
-			{'stability': 'testing',
-			 'main' : main,
-			},
-			[], [])
+		root_attrs = {'stability': 'testing'}
+		if main:
+			root_attrs['main'] = main
+		process_group(feed_element, root_attrs, [], [])
 
 	def get_name(self):
 		return self.name or '(' + os.path.basename(self.url) + ')'

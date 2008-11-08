@@ -77,12 +77,11 @@ class Selections(object):
 			impl = policy.implementation[needed_iface]
 			assert impl
 
-			attrs = {'id': impl.id,
-				'version': impl.get_version(),
-				'interface': needed_iface.uri,
-				'from-feed': impl.feed.url}
-			if impl.main:
-				attrs['main'] = impl.main
+			attrs = impl.metadata.copy()
+			attrs['id'] = impl.id
+			attrs['version'] = impl.get_version()
+			attrs['interface'] = needed_iface.uri
+			attrs['from-feed'] = impl.feed.url
 
 			self.selections[needed_iface.uri] = Selection(impl.requires, impl.bindings, attrs)
 
