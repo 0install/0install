@@ -3,7 +3,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import os
-import gtk, gobject
+import gtk, gobject, pango
 import gtk.glade
 import subprocess
 
@@ -66,7 +66,9 @@ class AppListBox:
 		tv.append_column(column)
 
 		cell_text = gtk.CellRendererText()
+		cell_text.set_property('ellipsize', pango.ELLIPSIZE_END)
 		column = gtk.TreeViewColumn('Name', cell_text, markup = AppListBox.MARKUP)
+		column.set_expand(True)
 		tv.append_column(column)
 
 		cell_actions = ActionsRenderer(self, tv)
