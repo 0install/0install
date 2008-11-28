@@ -249,6 +249,31 @@ class InterfaceBrowser:
 		assert isinstance(root, model.Interface)
 		self.root = root
 	
+	def _get_icon_from_cache(self, iface):
+		path = iface_cache.get_icon_path(iface)
+		if path:
+			try:
+				loader = gtk.gdk.PixbufLoader('png')
+				try:
+					loader.write(file(path).read())
+				finally:
+					loader.close()
+				icon = loader.get_pixbuf()
+				assert icon, "Failed to load cached PNG icon data"
+			except Exception, ex:
+				warn("Failed to load cached PNG icon: %s", ex)
+				return None
+			w = icon.get_width()
+			h = icon.get_height()
+			scale = max(w, h, 1) / ICON_SIZE
+			icon = icon.scale_simple(int(w / scale),
+						 int(h / scale),
+						 gtk.gdk.INTERP_BILINEAR)
+			self.cached_icon[iface.uri] = icon
+			return icon
+		else:
+			return None
+
 	def get_icon(self, iface):
 		"""Get an icon for this interface. If the icon is in the cache, use that.
 		If not, start a download. If we already started a download (successful or
@@ -256,43 +281,31 @@ class InterfaceBrowser:
 		try:
 			return self.cached_icon[iface.uri]
 		except KeyError:
-			path = iface_cache.get_icon_path(iface)
-			if path:
-				try:
-					loader = gtk.gdk.PixbufLoader('png')
-					try:
-						loader.write(file(path).read())
-					finally:
-						loader.close()
-					icon = loader.get_pixbuf()
-					assert icon, "Failed to load cached PNG icon data"
-				except Exception, ex:
-					warn("Failed to load cached PNG icon: %s", ex)
-					return None
-				w = icon.get_width()
-				h = icon.get_height()
-				scale = max(w, h, 1) / ICON_SIZE
-				icon = icon.scale_simple(int(w / scale),
-							 int(h / scale),
-							 gtk.gdk.INTERP_BILINEAR)
-				self.cached_icon[iface.uri] = icon
+			icon = self._get_icon_from_cache(iface)
+			if icon:
 				return icon
 			else:
 				# Try to download the icon
-				self.cached_icon[iface.uri] = None	# Only try once
 				fetcher = self.policy.download_icon(iface)
 				if fetcher:
+					self.cached_icon[iface.uri] = None	# Only try once
 					@tasks.async
 					def update_display():
 						yield fetcher
 						try:
 							tasks.check(fetcher)
+							if (iface.uri in self.cached_icon): del self.cached_icon[iface.uri]
 							self.build_tree()
 						except Exception, ex:
 							import traceback
 							traceback.print_exc()
 							self.policy.handler.report_error(ex)
 					update_display()
+				# Note: if no icon is available for downloading,
+				# more attempts are made later.
+				# It can happen that no icon is yet available because
+				# the interface was not downloaded yet, in which case
+				# it's desireable to try again once the interface is available
 
 		return None
 
