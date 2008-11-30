@@ -38,6 +38,8 @@ class TestSelections(BaseTest):
 			self.assertEquals('sha1=234', sels[1].id)
 			self.assertEquals("1.0", sels[1].version)
 			self.assertEquals("bar", sels[1].attrs['http://namespace foo'])
+			self.assertEquals("1.0", sels[1].attrs['version'])
+			assert 'version-modifier' not in sels[1].attrs
 
 			self.assertEquals(0, len(sels[0].bindings))
 			self.assertEquals(0, len(sels[0].dependencies))
