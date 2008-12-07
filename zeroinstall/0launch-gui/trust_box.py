@@ -293,7 +293,11 @@ hints = {
 
 	'635469E565B8D340C2C9EA4C32FBC18CE63EF486' :
 		'Eric Wasylishen is experimenting with packaging software with Zero Install. '
-		'This key was announced on the zero-install mailing list on 2007-01-16.',
+		'This key was announced on the zero-install mailing list on 2007-01-16 and then lost.',
+
+	'E5175248514E9D4E558B5925BC456918F32AC5D1' :
+		'Eric Wasylishen is experimenting with packaging software with Zero Install. '
+		'This key was announced on the zero-install mailing list on 2008-12-07',
 
 	'C82D382AAB381A54529019D6A0F9B035686C6996' :
 		"Justus Winter is generating Zero Install feeds from pkgsrc (which was originally "
