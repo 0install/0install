@@ -45,8 +45,8 @@ class Distribution(object):
 class DebianDistribution(Distribution):
 	"""An dpkg-based distribution."""
 
-	def __init__(self, db_dir):
-		self.status_details = os.stat(db_dir + '/status')
+	def __init__(self, db_status_file):
+		self.status_details = os.stat(db_status_file)
 
 		self.versions = {}
 		self.cache_dir = basedir.save_cache_path(namespaces.config_site, namespaces.config_prog)
@@ -249,11 +249,11 @@ def get_host_distribution():
 	@rtype: L{Distribution}"""
 	global _host_distribution
 	if not _host_distribution:
-		_dpkg_db_dir = '/var/lib/dpkg'
+		_dpkg_db_status = '/var/lib/dpkg/status'
 		_rpm_db = '/var/lib/rpm/Packages'
 
-		if os.access(_dpkg_db_dir, os.R_OK | os.X_OK):
-			_host_distribution = DebianDistribution(_dpkg_db_dir)
+		if os.access(_dpkg_db_status, os.R_OK):
+			_host_distribution = DebianDistribution(_dpkg_db_status)
 		elif os.path.isfile(_rpm_db):
 			_host_distribution = RPMDistribution(_rpm_db)
 		else:
