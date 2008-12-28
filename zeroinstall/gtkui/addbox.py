@@ -108,11 +108,12 @@ class AddBox:
 					return
 				self.window.set_sensitive(False)
 				self.set_keep_above(False)
-				import popen2
-				child = popen2.Popen4(['0launch',
+				import subprocess
+				child = subprocess.Popen(['0launch',
 						  '--gui', '--download-only',
-						  '--', iface])
-				child.tochild.close()
+						  '--', iface],
+						  stdout = subprocess.PIPE,
+						  stderr = subprocess.STDOUT)
 				errors = ['']
 				def output_ready(src, cond):
 					got = os.read(src.fileno(), 100)
@@ -135,7 +136,7 @@ class AddBox:
 							box.destroy()
 						return False
 					return True
-				gobject.io_add_watch(child.fromchild,
+				gobject.io_add_watch(child.stdout,
 							   gobject.IO_IN | gobject.IO_HUP,
 							   output_ready)
 			elif resp == gtk.RESPONSE_OK:

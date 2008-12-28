@@ -1,7 +1,7 @@
 # Copyright (C) 2008, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os, popen2
+import os, subprocess
 import gobject
 import dialog
 from logging import info
@@ -19,9 +19,10 @@ class Command:
 	def run(self, command, success):
 		assert self.child is None
 		self.success = success
-		self.child = popen2.Popen4(command)
-		self.child.tochild.close()
-		gobject.io_add_watch(self.child.fromchild, gobject.IO_IN | gobject.IO_HUP, self.got_data)
+		self.child = subprocess.Popen(command,
+						stdout = subprocess.PIPE,
+						stderr = subprocess.STDOUT)
+		gobject.io_add_watch(self.child.stdout, gobject.IO_IN | gobject.IO_HUP, self.got_data)
 	
 	def got_data(self, src, cond):
 		data = os.read(src.fileno(), 100)
