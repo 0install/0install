@@ -88,7 +88,7 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 						output = test_callback(sels)
 					logging.info("Sending results to GUI...")
 					output = ('Length:%8x\n' % len(output)) + output
-					logging.debug("Sending: %s" % `output`)
+					logging.debug("Sending: %s", repr(output))
 					while output:
 						sent = cli.send(output)
 						output = output[sent:]

@@ -25,13 +25,15 @@ A top-level ".manifest" file is ignored.
 
 from __future__ import generators
 import os, stat
-import sha
 from zeroinstall import SafeException
 from zeroinstall.zerostore import BadDigest
 
 try:
 	import hashlib
+	sha1_new = hashlib.sha1
 except:
+	import sha
+	sha1_new = sha.new
 	hashlib = None
 
 class Algorithm:
@@ -82,13 +84,13 @@ class OldSHA1(Algorithm):
 			assert sub[1:]
 			leaf = os.path.basename(sub[1:])
 			if stat.S_ISREG(m):
-				d = sha.new(file(full).read()).hexdigest()
+				d = sha1_new(file(full).read()).hexdigest()
 				if m & 0111:
 					yield "X %s %s %s %s" % (d, int(info.st_mtime) ,info.st_size, leaf)
 				else:
 					yield "F %s %s %s %s" % (d, int(info.st_mtime) ,info.st_size, leaf)
 			elif stat.S_ISLNK(m):
-				d = sha.new(os.readlink(full)).hexdigest()
+				d = sha1_new(os.readlink(full)).hexdigest()
 				# Note: Can't use utime on symlinks, so skip mtime
 				yield "S %s %s %s" % (d, info.st_size, leaf)
 			else:
@@ -97,7 +99,7 @@ class OldSHA1(Algorithm):
 		for x in recurse('/'): yield x
 	
 	def new_digest(self):
-		return sha.new()
+		return sha1_new()
 
 	def getID(self, digest):
 		return 'sha1=' + digest.hexdigest()
@@ -402,7 +404,7 @@ class HashLibAlgorithm(Algorithm):
 
 	def __init__(self, name):
 		if name == 'sha1':
-			self.new_digest = sha.new
+			self.new_digest = sha1_new
 			self.name = 'sha1new'
 		else:
 			self.new_digest = getattr(hashlib, name)

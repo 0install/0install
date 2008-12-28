@@ -156,7 +156,7 @@ class PendingFeed(object):
 			self.sigs = sigs
 		except:
 			self.signed_data.seek(0)
-			info("Failed to check GPG signature. Data received was:\n" + `self.signed_data.read()`)
+			info("Failed to check GPG signature. Data received was:\n" + repr(self.signed_data.read()))
 			raise
 
 class IfaceCache(object):
