@@ -36,6 +36,8 @@ def _import_feed(args):
 	from zeroinstall.injector import gpg, handler
 	from zeroinstall.injector.iface_cache import PendingFeed
 	from xml.dom import minidom
+	handler = handler.Handler()
+
 	for x in args:
 		if not os.path.isfile(x):
 			raise SafeException("File '%s' does not exist" % x)
@@ -51,8 +53,6 @@ def _import_feed(args):
 		signed_data.seek(0)
 
 		pending = PendingFeed(uri, signed_data)
-
-		handler = handler.Handler()
 
 		def run():
 			keys_downloaded = tasks.Task(pending.download_keys(handler), "download keys")
