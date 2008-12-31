@@ -168,6 +168,32 @@ class TestDownload(BaseTest):
 			assert sels.download_missing(iface_cache.iface_cache, None) is None
 		finally:
 			sys.stdout = old_out
+
+	def testSelectionsWithFeed(self):
+		from zeroinstall.injector.cli import _download_missing_selections
+		root = qdom.parse(file("selections.xml"))
+		sels = selections.Selections(root)
+		class Options: dry_run = False
+
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+			sys.stdin = Reply("Y\n")
+
+			from zeroinstall.injector import fetch
+			from zeroinstall.injector.handler import Handler
+			handler = Handler()
+			fetcher = fetch.Fetcher(handler)
+			handler.wait_for_blocker(fetcher.download_and_import_feed('http://localhost:8000/Hello.xml', iface_cache.iface_cache))
+
+			_download_missing_selections(Options(), sels)
+			path = iface_cache.iface_cache.stores.lookup(sels.selections['http://localhost:8000/Hello.xml'].id)
+			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+
+			assert sels.download_missing(iface_cache.iface_cache, None) is None
+		finally:
+			sys.stdout = old_out
 	
 	def testAcceptKey(self):
 		old_out = sys.stdout

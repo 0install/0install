@@ -213,7 +213,7 @@ class Selections(object):
 			for sel in needed_downloads:
 				feed_url = sel.attrs.get('from-feed', None) or sel.attrs['interface']
 				feed = iface_cache.get_feed(feed_url)
-				if feed is None or self.id not in feed.implementations:
+				if feed is None or sel.id not in feed.implementations:
 					yield fetcher.download_and_import_feed(feed_url, iface_cache)
 					feed = iface_cache.get_feed(feed_url)
 					assert feed, "Failed to get feed for %s" % feed_url
