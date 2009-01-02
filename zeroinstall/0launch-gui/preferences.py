@@ -28,7 +28,7 @@ class Preferences:
 		def set_network_use(combo):
 			policy.network_use = network_levels[network.get_active()]
 			policy.save_config()
-			policy.recalculate()
+			policy.solve_with_downloads()
 		network.connect('changed', set_network_use)
 
 		# Freshness
