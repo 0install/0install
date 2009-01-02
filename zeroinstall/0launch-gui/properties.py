@@ -325,7 +325,8 @@ class Properties:
 		ranked_items = self.policy.solver.details.get(self.interface, None)
 		if ranked_items is None:
 			# The Solver didn't get this far, but we should still display them!
-			ranked_items = self.interface.implementations.values()
+			ranked_items = [(impl, "(solve aborted before here)")
+					for impl in self.interface.implementations.values()]
 			ranked_items.sort()
 		self.use_list.set_items(ranked_items)
 
