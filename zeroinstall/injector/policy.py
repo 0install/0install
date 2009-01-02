@@ -325,18 +325,20 @@ class Policy(object):
 			if self.solver.ready and not force:
 				break
 			else:
+				if self.network_use == network_offline and not force:
+					info("Can't choose versions and in off-line mode, so aborting")
+					break
 				# Once we've starting downloading some things,
 				# we might as well get them all.
 				force = True
 
-			if not self.network_use == network_offline:
-				for f in self.solver.feeds_used:
-					if f in downloads_finished or f in downloads_in_progress:
-						continue
-					if f.startswith('/'):
-						continue
-					feed = iface_cache.get_interface(f)
-					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
+			for f in self.solver.feeds_used:
+				if f in downloads_finished or f in downloads_in_progress:
+					continue
+				if f.startswith('/'):
+					continue
+				feed = iface_cache.get_interface(f)
+				downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
 
 			if not downloads_in_progress:
 				break
