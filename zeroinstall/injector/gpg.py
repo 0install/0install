@@ -15,9 +15,14 @@ import os
 import tempfile
 from logging import info
 
-from zeroinstall import support
+from zeroinstall.support import find_in_path, basedir
 from zeroinstall.injector.trust import trust_db
 from zeroinstall.injector.model import SafeException
+
+_gnupg_options = ['gpg', '--no-secmem-warning']
+if os.geteuid() == 0 and 'GNUPGHOME' not in os.environ:
+	_gnupg_options += ['--homedir', os.path.join(basedir.home, '.gnupg')]
+	info("Running as root, so setting GnuPG home to %s", _gnupg_options[-1])
 
 class Signature(object):
 	"""Abstract base class for signature check results."""
@@ -55,7 +60,7 @@ class ValidSig(Signature):
 	def get_details(self):
 		"""Call 'gpg --list-keys' and return the results split into lines and columns.
 		@rtype: [[str]]"""
-		child = subprocess.Popen(['gpg', '--with-colons', '--no-secmem-warning', '--list-keys', self.fingerprint], stdout = subprocess.PIPE)
+		child = subprocess.Popen(_gnupg_options + ['--with-colons', '--list-keys', self.fingerprint], stdout = subprocess.PIPE)
 		cout, unused = child.communicate()
 		if child.returncode:
 			info("GPG exited with code %d" % child.returncode)
@@ -128,7 +133,7 @@ def load_keys(fingerprints):
 	current_fpr = None
 	current_uid = None
 
-	cin, cout = os.popen2(['gpg', '--fixed-list-mode', '--with-colons', '--list-keys',
+	cin, cout = os.popen2(_gnupg_options + ['--fixed-list-mode', '--with-colons', '--list-keys',
 				'--with-fingerprint', '--with-fingerprint'] + fingerprints)
 	cin.close()
 	try:
@@ -167,7 +172,7 @@ def import_key(stream):
 	"""Run C{gpg --import} with this stream as stdin."""
 	errors = tempfile.TemporaryFile()
 
-	child = subprocess.Popen(['gpg', '--no-secmem-warning', '--quiet', '--import'],
+	child = subprocess.Popen(_gnupg_options + ['--quiet', '--import'],
 				stdin = stream, stderr = errors)
 
 	status = child.wait()
@@ -186,7 +191,7 @@ def _check_plain_stream(stream):
 	status_r, status_w = os.pipe()
 
 	# Note: Should ideally close status_r in the child, but we want to support Windows too
-	child = subprocess.Popen(['gpg', '--no-secmem-warning', '--decrypt',
+	child = subprocess.Popen(_gnupg_options + ['--decrypt',
 					   # Not all versions support this:
 					   #'--max-output', str(1024 * 1024),
 					   '--batch',
@@ -245,7 +250,7 @@ def _check_xml_stream(stream):
 		status_r, status_w = os.pipe()
 
 		# Note: Should ideally close status_r in the child, but we want to support Windows too
-		child = subprocess.Popen(['gpg', '--no-secmem-warning',
+		child = subprocess.Popen(_gnupg_options + [
 						   # Not all versions support this:
 						   #'--max-output', str(1024 * 1024),
 						   '--batch',
@@ -272,7 +277,7 @@ def check_stream(stream):
 	data is the original stream). stream must be seekable.
 	@note: Stream returned may or may not be the one passed in. Be careful!
 	@return: (data_stream, [Signatures])"""
-	if not support.find_in_path('gpg'):
+	if not find_in_path('gpg'):
 		raise SafeException("GnuPG is not installed ('gpg' not in $PATH). See http://gnupg.org")
 
 	#stream.seek(0)

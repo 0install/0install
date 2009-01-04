@@ -4,6 +4,10 @@ Support code for the freedesktop.org basedir spec.
 This module provides functions for locating configuration files.
 
 @see: U{http://freedesktop.org/wiki/Standards/basedir-spec}
+
+@var home: The value of $HOME (or '/' if not set). If we're running as root and
+$HOME isn't owned by root, then this will be root's home from /etc/passwd
+instead.
 """
 
 # Copyright (C) 2006, Thomas Leonard
@@ -11,22 +15,36 @@ This module provides functions for locating configuration files.
 
 import os
 
-_home = os.environ.get('HOME', '/')
+home = os.environ.get('HOME', '/')
+
+if os.geteuid() == 0:
+	# We're running as root. Ensure that $HOME really is root's home,
+	# not the user's home, or we're likely to fill it will unreadable
+	# root-owned files.
+	home_owner = os.stat(home).st_uid
+	if home_owner != 0:
+		import pwd
+		from logging import info
+		old_home = home
+		home = pwd.getpwuid(0).pw_dir or '/'
+		info("$HOME (%s) is owned by user %d, but we are root (0). Using %s instead.", old_home, home_owner, home)
+		del old_home
+		del home_owner
 
 xdg_data_home = os.environ.get('XDG_DATA_HOME',
-			os.path.join(_home, '.local', 'share'))
+			os.path.join(home, '.local', 'share'))
 
 xdg_data_dirs = [xdg_data_home] + \
 	os.environ.get('XDG_DATA_DIRS', '/usr/local/share:/usr/share').split(':')
 
 xdg_cache_home = os.environ.get('XDG_CACHE_HOME',
-			os.path.join(_home, '.cache'))
+			os.path.join(home, '.cache'))
 
 xdg_cache_dirs = [xdg_cache_home] + \
 	os.environ.get('XDG_CACHE_DIRS', '/var/cache').split(':')
 
 xdg_config_home = os.environ.get('XDG_CONFIG_HOME',
-			os.path.join(_home, '.config'))
+			os.path.join(home, '.config'))
 
 xdg_config_dirs = [xdg_config_home] + \
 	os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(':')
