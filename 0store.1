@@ -10,6 +10,9 @@
 .B 0store add
 \fBDIGEST\fP \fBARCHIVE\fP [ \fBEXTRACT\fP ]
 
+.B 0store audit
+[ \fBDIRECTORY\fP ... ]
+
 .B 0store copy
 \fBDIRECTORY\fP [ \fBDIRECTORY\fP ]
 
@@ -51,6 +54,17 @@ To add a subdirectory of an archive to the store:
 .PP
 The actual digest is calculated and compared to the given one. If they don't
 match, the operation is rejected.
+
+.SH AUDIT
+.PP
+Verifies every implementation in each of the given cache directories, or in all of the
+default cache directories if no arguments are given. This will detect any packages which
+have been tampered with since they were unpacked. If 0store itself could have been
+modified by an attacker, mount the suspect file-system on a known-good machine and
+run that machine's 0store on the mounted cache directory.
+
+.PP
+See the "verify" command below for details of the verification performed on each package.
 
 .SH COPY
 .PP

@@ -132,6 +132,54 @@ def do_verify(args):
 			print ex.detail
 			sys.exit(1)
 
+def do_audit(args):
+	"""audit [DIRECTORY]"""
+	if len(args) == 0:
+		audit_stores = stores.stores
+	else:
+		audit_stores = [zerostore.Store(x) for x in args]
+
+	audit_ls = []
+	total = 0
+	for a in audit_stores:
+		if os.path.isdir(a.dir):
+			items = sorted(os.listdir(a.dir))
+			audit_ls.append((a.dir, items))
+			total += len(items)
+		elif len(args):
+			raise SafeException("No such directory '%s'" % a.dir)
+
+	verified = 0
+	failed = 0
+	i = 0
+	for root, impls in audit_ls:
+		print "Scanning", root
+		for required_digest in impls:
+			i += 1
+			path = os.path.join(root, required_digest)
+			if '=' not in required_digest:
+				print "Skipping non-implementation directory %s" % path
+				continue
+			try:
+				msg = "[%d / %d] Verifying %s" % (i, total, required_digest)
+				print msg,
+				sys.stdout.flush()
+				verify(path, required_digest)
+				print "\r" + (" " * len(msg)) + "\r",
+				verified += 1
+			except zerostore.BadDigest, ex:
+				print
+				failed += 1
+				print str(ex)
+				if ex.detail:
+					print
+					print ex.detail
+	print "Checked %d items" % i
+	print "Successfully verified implementations: %d" % verified
+	print "Corrupted or modified implementations: %d" % failed
+	if failed:
+		sys.exit(1)
+
 def show_changes(actual, saved):
 	import difflib
 	for line in difflib.unified_diff(saved, actual, 'Recorded', 'Actual'):
@@ -193,4 +241,4 @@ def do_manage(args):
 	cache_explorer.show()
 	gtk.main()
 
-commands = [do_add, do_copy, do_find, do_list, do_manifest, do_optimise, do_verify, do_manage]
+commands = [do_add, do_audit, do_copy, do_find, do_list, do_manifest, do_optimise, do_verify, do_manage]
