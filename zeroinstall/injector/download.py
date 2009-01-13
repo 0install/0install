@@ -12,12 +12,16 @@ This is the low-level interface for downloading interfaces, implementations, ico
 import tempfile, os, sys, subprocess
 from zeroinstall import SafeException
 from zeroinstall.support import tasks
-from logging import info
+from logging import info, debug
 
 download_starting = "starting"	# Waiting for UI to start it
 download_fetching = "fetching"	# In progress
 download_complete = "complete"	# Downloaded and cached OK
 download_failed = "failed"
+
+RESULT_OK = 0
+RESULT_FAILED = 1
+RESULT_NOT_MODIFIED = 2
 
 class DownloadError(SafeException):
 	"""Download process failed."""
@@ -48,19 +52,26 @@ class Download(object):
 	@type child: subprocess.Popen
 	@ivar aborted_by_user: whether anyone has called L{abort}
 	@type aborted_by_user: bool
+	@ivar unmodified: whether the resource was not modified since the modification_time given at construction
+	@type unmodified: bool
 	"""
 	__slots__ = ['url', 'tempfile', 'status', 'errors', 'expected_size', 'downloaded',
-		     'hint', 'child', '_final_total_size', 'aborted_by_user']
+		     'hint', 'child', '_final_total_size', 'aborted_by_user',
+		     'modification_time', 'unmodified']
 
-	def __init__(self, url, hint = None):
+	def __init__(self, url, hint = None, modification_time = None):
 		"""Create a new download object.
 		@param url: the resource to download
 		@param hint: object with which this download is associated (an optional hint for the GUI)
+		@param modification_time: string with HTTP date that indicates last modification time.
+		  The resource will not be downloaded if it was not modified since that date.
 		@postcondition: L{status} == L{download_starting}."""
 		self.url = url
 		self.status = download_starting
 		self.hint = hint
 		self.aborted_by_user = False
+		self.modification_time = modification_time
+		self.unmodified = False
 
 		self.tempfile = None		# Stream for result
 		self.errors = None
@@ -88,7 +99,9 @@ class Download(object):
 
 		# Can't use fork here, because Windows doesn't have it
 		assert self.child is None, self.child
-		self.child = subprocess.Popen([sys.executable, '-u', __file__, self.url], stderr = subprocess.PIPE, stdout = self.tempfile)
+		child_args = [sys.executable, '-u', __file__, self.url]
+		if self.modification_time: child_args.append(self.modification_time)
+		self.child = subprocess.Popen(child_args, stderr = subprocess.PIPE, stdout = self.tempfile)
 
 		self.status = download_fetching
 
@@ -113,6 +126,14 @@ class Download(object):
 
 		errors = self.errors
 		self.errors = None
+
+		if status == RESULT_NOT_MODIFIED:
+			debug("%s not modified", self.url)
+			self.unmodified = True
+			self.status = download_complete
+			self._final_total_size = 0
+			self.downloaded.trigger()
+			return
 
 		if status and not self.aborted_by_user and not errors:
 			errors = 'Download process exited with error status ' \
@@ -185,9 +206,9 @@ class Download(object):
 		return "<Download from %s>" % self.url
 
 if __name__ == '__main__':
-	def _download_as_child(url):
+	def _download_as_child(url, if_modified_since):
 		from httplib import HTTPException
-		from urllib2 import urlopen, HTTPError, URLError
+		from urllib2 import urlopen, Request, HTTPError, URLError
 		try:
 			#print "Child downloading", url
 			if url.startswith('/'):
@@ -197,7 +218,10 @@ if __name__ == '__main__':
 					return
 				src = file(url)
 			elif url.startswith('http:') or url.startswith('ftp:'):
-				src = urlopen(url)
+				req = Request(url)
+				if url.startswith('http:') and if_modified_since:
+					req.add_header('If-Modified-Since', if_modified_since)
+				src = urlopen(req)
 			else:
 				raise Exception('Unsupported URL protocol in: ' + url)
 
@@ -210,9 +234,15 @@ if __name__ == '__main__':
 				if not data: break
 				os.write(1, data)
 
-			sys.exit(0)
+			sys.exit(RESULT_OK)
 		except (HTTPError, URLError, HTTPException), ex:
+			if isinstance(ex, HTTPError) and ex.code == 304: # Not modified
+				sys.exit(RESULT_NOT_MODIFIED)
 			print >>sys.stderr, "Error downloading '" + url + "': " + (str(ex) or str(ex.__class__.__name__))
-			sys.exit(1)
-	assert len(sys.argv) == 2, "Usage: download URL, not %s" % sys.argv
-	_download_as_child(sys.argv[1])
+			sys.exit(RESULT_FAILED)
+	assert (len(sys.argv) == 2) or (len(sys.argv) == 3), "Usage: download URL [If-Modified-Since-Date], not %s" % sys.argv
+	if len(sys.argv) >= 3:
+		if_modified_since_date = sys.argv[2]
+	else:
+		if_modified_since_date = None
+	_download_as_child(sys.argv[1], if_modified_since_date)
