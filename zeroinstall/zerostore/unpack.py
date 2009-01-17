@@ -101,9 +101,7 @@ def check_type_ok(mime_type):
 			raise SafeException("This package looks like a Microsoft Cabinet archive, but you don't have the 'cabextract' command "
 					"I need to extract it. Install the package containing it first.")
 	elif mime_type == 'application/x-lzma-compressed-tar':
-		if not find_in_path('unlzma'):
-			raise SafeException("This package looks like an LZMA archive, but you don't have the 'unlzma' command "
-					"I need to extract it. Install the package containing it (it's probably called 'lzma') first.")
+		pass	# We can get it through Zero Install
 	elif mime_type in ('application/x-compressed-tar', 'application/x-tar'):
 		pass
 	else:
@@ -313,7 +311,10 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 			elif decompress == 'gzip':
 				ext_cmd.append('-z')
 			elif decompress == 'lzma':
-				ext_cmd.append('--use-compress-program=unlzma')
+				unlzma = find_in_path('unlzma')
+				if not unlzma:
+					unlzma = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unlzma'))
+				ext_cmd.append('--use-compress-program=' + unlzma)
 
 		if recent_gnu_tar():
 			ext_cmd.extend(('-x', '--no-same-owner', '--no-same-permissions'))

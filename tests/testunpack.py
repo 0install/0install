@@ -117,6 +117,11 @@ class TestUnpackGNU(AbstractTestUnpack):
 		unpack._tar_version = None
 		assert unpack._gnu_tar()
 
+	# Only available with GNU tar
+	def testLzma(self):
+		unpack.unpack_archive('ftp://foo/file.tar.lzma', file('HelloWorld.tar.lzma'), self.tmpdir)
+		self.assert_manifest('sha1new=290eb133e146635fe37713fd58174324a16d595f')
+
 suite = unittest.TestSuite()
 if unpack._gnu_tar():
 	suite.addTest(unittest.makeSuite(TestUnpackGNU))

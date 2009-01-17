@@ -1,0 +1,2 @@
+#!/bin/sh
+exec 0launch --message="An LZMA decompressor is needed to extract this archive" http://0install.net/2008/interfaces/lzmadec.xml "$@"
