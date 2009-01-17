@@ -16,6 +16,7 @@ def run_gui(args):
 	parser.add_option("", "--cpu", help="target CPU type", metavar='CPU')
 	parser.add_option("-c", "--cache", help="show the cache", action='store_true')
 	parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
+	parser.add_option("", "--message", help="message to display when interacting with user")
 	parser.add_option("", "--not-before", help="minimum version to choose", metavar='VERSION')
 	parser.add_option("", "--os", help="target operation system type", metavar='OS')
 	parser.add_option("-r", "--refresh", help="check for updates of all interfaces", action='store_true')
@@ -101,6 +102,9 @@ def run_gui(args):
 
 	window = mainwindow.MainWindow(policy, widgets, download_only = bool(options.download_only))
 	handler.mainwindow = window
+
+	if options.message:
+		window.set_message(options.message)
 
 	root = iface_cache.get_interface(policy.root)
 	window.browser.set_root(root)

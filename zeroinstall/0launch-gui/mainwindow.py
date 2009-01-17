@@ -22,6 +22,7 @@ class MainWindow:
 	window = None
 	cancel_download_and_run = None
 	policy = None
+	comment = None
 
 	def __init__(self, policy, widgets, download_only):
 		self.policy = policy
@@ -33,6 +34,7 @@ class MainWindow:
 
 		self.progress = widgets.get_widget('progress')
 		self.progress_area = widgets.get_widget('progress_area')
+		self.comment = widgets.get_widget('comment')
 
 		widgets.get_widget('stop').connect('clicked', lambda b: policy.handler.abort_all_downloads())
 
@@ -156,6 +158,14 @@ class MainWindow:
 			self.progress.pulse()
 		else:
 			self.progress.set_fraction(float(done) / total)
+
+	def set_message(self, message):
+		import pango
+		self.comment.set_text(message)
+		attrs = pango.AttrList()
+		attrs.insert(pango.AttrWeight(pango.WEIGHT_BOLD, end_index = len(message)))
+		self.comment.set_attributes(attrs)
+		self.comment.show()
 
 gui_help = help_box.HelpBox("Injector Help",
 ('Overview', """

@@ -226,6 +226,9 @@ def _normal_mode(options, args):
 				gui_args.insert(0, '--before')
 			if options.source:
 				gui_args.insert(0, '--source')
+			if options.message:
+				gui_args.insert(0, options.message)
+				gui_args.insert(0, '--message')
 			if options.verbose:
 				gui_args.insert(0, '--verbose')
 				if options.verbose > 1:
@@ -312,6 +315,7 @@ def main(command_args):
 	parser.add_option("-i", "--import", help="import from files, not from the network", action='store_true')
 	parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
 	parser.add_option("-m", "--main", help="name of the file to execute")
+	parser.add_option("", "--message", help="message to display when interacting with user")
 	parser.add_option("", "--not-before", help="minimum version to choose", metavar='VERSION')
 	parser.add_option("", "--os", help="target operation system type", metavar='OS')
 	parser.add_option("-o", "--offline", help="try to avoid using the network", action='store_true')
