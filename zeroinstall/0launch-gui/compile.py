@@ -73,6 +73,7 @@ def compile(policy, interface):
 		# Do the whole build-and-register-feed
 		c = Command()
 		c.run(("0launch",
+			'--message', 'Download the 0compile tool, to compile the source code',
 			'--not-before=' + min_version,
 			"http://0install.net/2006/interfaces/0compile.xml",
 			'gui',
@@ -81,4 +82,6 @@ def compile(policy, interface):
 
 	# Prompt user to choose source version
 	c = Command()
-	c.run(['0launch', '--gui', '--source', '--download-only', interface.uri], build)
+	c.run(['0launch',
+		'--message', 'Download the source code to be compiled',
+		'--gui', '--source', '--download-only', interface.uri], build)
