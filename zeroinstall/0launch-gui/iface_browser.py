@@ -294,7 +294,10 @@ class InterfaceBrowser:
 						yield fetcher
 						try:
 							tasks.check(fetcher)
-							if (iface.uri in self.cached_icon): del self.cached_icon[iface.uri]
+							# Try to insert new icon into the cache
+							# If it fails, we'll be left with None in the cached_icon so
+							# we don't try again.
+							self._get_icon_from_cache(iface)
 							self.build_tree()
 						except Exception, ex:
 							import traceback
