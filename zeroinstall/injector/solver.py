@@ -123,7 +123,7 @@ class DefaultSolver(Solver):
 					feed = self.iface_cache.get_interface(f)._main_feed
 					if not feed.last_modified: continue	# DummyFeed
 					if feed.name and iface.uri != feed.url and iface.uri not in feed.feed_for:
-						warn("Missing <feed-for> for '%s' in '%s'", iface.uri, f)
+						info("Missing <feed-for> for '%s' in '%s'", iface.uri, f)
 
 					if feed.implementations:
 						impls.extend(feed.implementations.values())
