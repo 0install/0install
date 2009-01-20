@@ -150,7 +150,7 @@ def do_audit(args):
 			raise SafeException("No such directory '%s'" % a.dir)
 
 	verified = 0
-	failed = 0
+	failures = []
 	i = 0
 	for root, impls in audit_ls:
 		print "Scanning", root
@@ -169,15 +169,20 @@ def do_audit(args):
 				verified += 1
 			except zerostore.BadDigest, ex:
 				print
-				failed += 1
+				failures.append(path)
 				print str(ex)
 				if ex.detail:
 					print
 					print ex.detail
+	if failures:
+		print "\nList of corrupted or modified implementations:"
+		for x in failures:
+			print x
+		print
 	print "Checked %d items" % i
 	print "Successfully verified implementations: %d" % verified
-	print "Corrupted or modified implementations: %d" % failed
-	if failed:
+	print "Corrupted or modified implementations: %d" % len(failures)
+	if failures:
 		sys.exit(1)
 
 def show_changes(actual, saved):
