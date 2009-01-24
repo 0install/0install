@@ -24,7 +24,8 @@ class TestDistro(BaseTest):
 		self.assertEquals(self.feed.implementations, {})
 
 	def testDebian(self):
-		host = distro._host_distribution
+		dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
+		host = distro.DebianDistribution(os.path.join(dpkgdir, 'status'))
 
 		self.assertEquals(2, len(host.versions))
 
