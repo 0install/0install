@@ -42,28 +42,32 @@ class Distribution(object):
 		"""
 		return
 
-class DebianDistribution(Distribution):
-	"""An dpkg-based distribution."""
-
-	cache_leaf = 'dpkg-status.cache'
+class CachedDistribution(Distribution):
+	"""For distributions where querying the package database is slow (e.g. requires running
+	an external command), we cache the results.
+	"""
 
 	def __init__(self, db_status_file):
-		self.status_details = os.stat(db_status_file)
+		"""@param status_file: update the cache when the timestamp of this file changes"""
+		self._status_details = os.stat(db_status_file)
 
 		self.versions = {}
-		self.cache_dir = basedir.save_cache_path(namespaces.config_site, namespaces.config_prog)
+		self.cache_dir = basedir.save_cache_path(namespaces.config_site,
+							 namespaces.config_prog)
 
 		try:
-			self.load_cache()
+			self._load_cache()
 		except Exception, ex:
-			info("Failed to load dpkg cache (%s). Regenerating...", ex)
+			info("Failed to load distribution database cache (%s). Regenerating...", ex)
 			try:
 				self.generate_cache()
-				self.load_cache()
+				self._load_cache()
 			except Exception, ex:
-				warn("Failed to regenerate dpkg cache: %s", ex)
+				warn("Failed to regenerate distribution database cache: %s", ex)
 
-	def load_cache(self):
+	def _load_cache(self):
+		"""Load {cache_leaf} cache file into self.versions if it is available and up-to-date.
+		Throws an exception if the cache should be (re)created."""
 		stream = file(os.path.join(self.cache_dir, self.cache_leaf))
 
 		cache_version = None
@@ -71,10 +75,10 @@ class DebianDistribution(Distribution):
 			if line == '\n':
 				break
 			name, value = line.split(': ')
-			if name == 'mtime' and int(value) != int(self.status_details.st_mtime):
-				raise Exception("Modification time of dpkg status file has changed")
-			if name == 'size' and int(value) != self.status_details.st_size:
-				raise Exception("Size of dpkg status file has changed")
+			if name == 'mtime' and int(value) != int(self._status_details.st_mtime):
+				raise Exception("Modification time of package database file has changed")
+			if name == 'size' and int(value) != self._status_details.st_size:
+				raise Exception("Size of package database file has changed")
 			if name == 'version':
 				cache_version = int(value)
 		else:
@@ -87,6 +91,33 @@ class DebianDistribution(Distribution):
 		for line in stream:
 			package, version, zi_arch = line[:-1].split('\t')
 			versions[package] = (version, intern(zi_arch))
+
+	def _write_cache(self, cache):
+		#cache.sort() 	# Might be useful later; currently we don't care
+		import tempfile
+		fd, tmpname = tempfile.mkstemp(prefix = 'zeroinstall-cache-tmp',
+					       dir = self.cache_dir)
+		try:
+			stream = os.fdopen(fd, 'wb')
+			stream.write('version: 2\n')
+			stream.write('mtime: %d\n' % int(self._status_details.st_mtime))
+			stream.write('size: %d\n' % self._status_details.st_size)
+			stream.write('\n')
+			for line in cache:
+				stream.write(line + '\n')
+			stream.close()
+
+			os.rename(tmpname,
+				  os.path.join(self.cache_dir,
+					       self.cache_leaf))
+		except:
+			os.unlink(tmpname)
+			raise
+
+class DebianDistribution(CachedDistribution):
+	"""A dpkg-based distribution."""
+
+	cache_leaf = 'dpkg-status.cache'
 
 	def generate_cache(self):
 		cache = []
@@ -106,26 +137,7 @@ class DebianDistribution(Distribution):
 			else:
 				warn("Can't parse distribution version '%s' for package '%s'", version, package)
 
-		cache.sort() 	# Might be useful later; currently we don't care
-		
-		import tempfile
-		fd, tmpname = tempfile.mkstemp(prefix = 'dpkg-cache-tmp', dir = self.cache_dir)
-		try:
-			stream = os.fdopen(fd, 'wb')
-			stream.write('version: 2\n')
-			stream.write('mtime: %d\n' % int(self.status_details.st_mtime))
-			stream.write('size: %d\n' % self.status_details.st_size)
-			stream.write('\n')
-			for line in cache:
-				stream.write(line + '\n')
-			stream.close()
-
-			os.rename(tmpname,
-				  os.path.join(self.cache_dir,
-					       self.cache_leaf))
-		except:
-			os.unlink(tmpname)
-			raise
+		self._write_cache(cache)
 
 	def get_package_info(self, package, factory):
 		try:
@@ -138,56 +150,11 @@ class DebianDistribution(Distribution):
 		if machine != '*':
 			impl.machine = machine
 
-class RPMDistribution(Distribution):
+class RPMDistribution(CachedDistribution):
 	"""An RPM-based distribution."""
 
 	cache_leaf = 'rpm-status.cache'
 	
-	def __init__(self, packages_file):
-		self.status_details = os.stat(packages_file)
-
-		self.versions = {}
-		self.cache_dir=basedir.save_cache_path(namespaces.config_site,
-						       namespaces.config_prog)
-
-		try:
-			self.load_cache()
-		except Exception, ex:
-			info("Failed to load cache (%s). Regenerating...",
-			     ex)
-			try:
-				self.generate_cache()
-				self.load_cache()
-			except Exception, ex:
-				warn("Failed to regenerate cache: %s", ex)
-
-	def load_cache(self):
-		stream = file(os.path.join(self.cache_dir, self.cache_leaf))
-
-		cache_version = None
-		for line in stream:
-			if line == '\n':
-				break
-			name, value = line.split(': ')
-			if name == 'mtime' and (int(value) !=
-					    int(self.status_details.st_mtime)):
-				raise Exception("Modification time of rpm status file has changed")
-			if name == 'size' and (int(value) !=
-					       self.status_details.st_size):
-				raise Exception("Size of rpm status file has changed")
-			if name == 'version':
-				cache_version = int(value)
-		else:
-			raise Exception('Invalid cache format (bad header)')
-			
-		if cache_version is None:
-			raise Exception('Old cache format')
-
-		versions = self.versions
-		for line in stream:
-			package, version, zi_arch = line[:-1].split('\t')
-			versions[package] = (version, intern(zi_arch))
-
 	def generate_cache(self):
 		cache = []
 
@@ -207,27 +174,7 @@ class RPMDistribution(Distribution):
 			else:
 				warn("Can't parse distribution version '%s' for package '%s'", version, package)
 
-		cache.sort()   # Might be useful later; currently we don't care
-		
-		import tempfile
-		fd, tmpname = tempfile.mkstemp(prefix = 'rpm-cache-tmp',
-					       dir = self.cache_dir)
-		try:
-			stream = os.fdopen(fd, 'wb')
-			stream.write('version: 2\n')
-			stream.write('mtime: %d\n' % int(self.status_details.st_mtime))
-			stream.write('size: %d\n' % self.status_details.st_size)
-			stream.write('\n')
-			for line in cache:
-				stream.write(line + '\n')
-			stream.close()
-
-			os.rename(tmpname,
-				  os.path.join(self.cache_dir,
-					       self.cache_leaf))
-		except:
-			os.unlink(tmpname)
-			raise
+		self._write_cache(cache)
 
 	def get_package_info(self, package, factory):
 		try:
