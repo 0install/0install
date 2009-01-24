@@ -45,6 +45,8 @@ class Distribution(object):
 class DebianDistribution(Distribution):
 	"""An dpkg-based distribution."""
 
+	cache_leaf = 'dpkg-status.cache'
+
 	def __init__(self, db_status_file):
 		self.status_details = os.stat(db_status_file)
 
@@ -62,7 +64,7 @@ class DebianDistribution(Distribution):
 				warn("Failed to regenerate dpkg cache: %s", ex)
 
 	def load_cache(self):
-		stream = file(self.cache_dir + '/dpkg-status.cache')
+		stream = file(os.path.join(self.cache_dir, self.cache_leaf))
 
 		cache_version = None
 		for line in stream:
@@ -118,7 +120,9 @@ class DebianDistribution(Distribution):
 				stream.write(line + '\n')
 			stream.close()
 
-			os.rename(tmpname, self.cache_dir + '/dpkg-status.cache')
+			os.rename(tmpname,
+				  os.path.join(self.cache_dir,
+					       self.cache_leaf))
 		except:
 			os.unlink(tmpname)
 			raise
