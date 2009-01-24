@@ -164,6 +164,7 @@ class RPMDistribution(Distribution):
 	def load_cache(self):
 		stream = file(os.path.join(self.cache_dir, self.cache_leaf))
 
+		cache_version = None
 		for line in stream:
 			if line == '\n':
 				break
@@ -174,47 +175,37 @@ class RPMDistribution(Distribution):
 			if name == 'size' and (int(value) !=
 					       self.status_details.st_size):
 				raise Exception("Size of rpm status file has changed")
+			if name == 'version':
+				cache_version = int(value)
 		else:
 			raise Exception('Invalid cache format (bad header)')
 			
+		if cache_version is None:
+			raise Exception('Old cache format')
+
 		versions = self.versions
 		for line in stream:
-			package, version = line[:-1].split('\t')
-			versions[package] = version
+			package, version, zi_arch = line[:-1].split('\t')
+			versions[package] = (version, intern(zi_arch))
 
-	def __parse_rpm_name(self, line):
-		"""Some samples we have to cope with (from SuSE 10.2):
-		mp3blaster-3.2.0-0.pm0
-		fuse-2.5.2-2.pm.0
-		gpg-pubkey-1abd1afb-450ef738
-		a52dec-0.7.4-3.pm.1
-		glibc-html-2.5-25
-		gnome-backgrounds-2.16.1-14
-		gnome-icon-theme-2.16.0.1-12
-		opensuse-quickstart_en-10.2-9
-		susehelp_en-2006.06.20-25
-		yast2-schema-2.14.2-3"""
-
-		parts=line.strip().split('-')
-		if len(parts)==2:
-			return parts[0], try_cleanup_distro_version(parts[1])
-
-		elif len(parts)<2:
-			return None, None
-
-		package='-'.join(parts[:-2])
-		version=parts[-2]
-		mod=parts[-1]
-
-		return package, try_cleanup_distro_version(version+'-'+mod)
-		
 	def generate_cache(self):
 		cache = []
 
-		for line in os.popen("rpm -qa"):
-			package, version = self.__parse_rpm_name(line)
-			if package and version:
-				cache.append('%s\t%s' % (package, version))
+		for line in os.popen("rpm -qa --qf='%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n'"):
+			package, version, rpmarch = line.split('\t', 2)
+			if package == 'gpg-pubkey':
+				continue
+			if rpmarch == 'amd64\n':
+				zi_arch = 'x86_64'
+			elif rpmarch == 'noarch\n' or rpmarch == "(none)\n":
+				zi_arch = '*'
+			else:
+				zi_arch = rpmarch.strip()
+			clean_version = try_cleanup_distro_version(version)
+			if clean_version:
+				cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
+			else:
+				warn("Can't parse distribution version '%s' for package '%s'", version, package)
 
 		cache.sort()   # Might be useful later; currently we don't care
 		
@@ -223,6 +214,7 @@ class RPMDistribution(Distribution):
 					       dir = self.cache_dir)
 		try:
 			stream = os.fdopen(fd, 'wb')
+			stream.write('version: 2\n')
 			stream.write('mtime: %d\n' % int(self.status_details.st_mtime))
 			stream.write('size: %d\n' % self.status_details.st_size)
 			stream.write('\n')
@@ -239,12 +231,14 @@ class RPMDistribution(Distribution):
 
 	def get_package_info(self, package, factory):
 		try:
-			version = self.versions[package]
+			version, machine = self.versions[package]
 		except KeyError:
 			return
 
 		impl = factory('package:rpm:%s:%s' % (package, version)) 
 		impl.version = model.parse_version(version)
+		if machine != '*':
+			impl.machine = machine
 
 _host_distribution = None
 def get_host_distribution():
