@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.4
 from basetest import BaseTest, empty_feed
-import sys
+import sys, os
 import unittest
 
 sys.path.insert(0, '..')
@@ -42,6 +42,19 @@ class TestDistro(BaseTest):
 		libxcomposite = self.feed.implementations['package:deb:libxcomposite-dev:0.3.1-1']
 		self.assertEquals('0.3.1-1', libxcomposite.get_version())
 	
+	def testRPM(self):
+		rpmdir = os.path.join(os.path.dirname(__file__), 'rpm')
+		os.environ['PATH'] = rpmdir + ':' + self.old_path
+		rpm = distro.RPMDistribution(os.path.join(rpmdir, 'status'))
+
+		self.assertEquals(2, len(rpm.versions))
+
+		rpm.get_package_info('yast2-update', self.factory)
+		self.assertEquals(1, len(self.feed.implementations))
+		yast = self.feed.implementations['package:rpm:yast2-update:2.15.23-21']
+		self.assertEquals('2.15.23-21', yast.get_version())
+		self.assertEquals('*-i586', yast.arch)
+
 	def testCleanVersion(self):
 		self.assertEquals('1', distro.try_cleanup_distro_version('1:0.3.1-1'))
 		self.assertEquals('0.3.1-1', distro.try_cleanup_distro_version('0.3.1-1ubuntu0'))

@@ -1,0 +1,5 @@
+#!/bin/sh
+cat << EOF
+yast2-update	2.15.23-21	i586
+yast2-mail	2.15.23-2	noarch
+EOF
