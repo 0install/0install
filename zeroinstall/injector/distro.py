@@ -91,7 +91,7 @@ class DebianDistribution(Distribution):
 	def generate_cache(self):
 		cache = []
 
-		for line in os.popen("dpkg-query -W -f='${Package}\t${Version}\t${Architecture}\n'"):
+		for line in os.popen("dpkg-query -W --showformat='${Package}\t${Version}\t${Architecture}\n'"):
 			package, version, debarch = line.split('\t', 2)
 			if ':' in version:
 				# Debian's 'epoch' system
