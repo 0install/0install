@@ -45,10 +45,11 @@ class Distribution(object):
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
 	an external command), we cache the results.
+	@since: 0.39
 	"""
 
 	def __init__(self, db_status_file):
-		"""@param status_file: update the cache when the timestamp of this file changes"""
+		"""@param db_status_file: update the cache when the timestamp of this file changes"""
 		self._status_details = os.stat(db_status_file)
 
 		self.versions = {}
