@@ -4,7 +4,8 @@ from distutils.command.build_py import build_py
 from distutils.command.install import install
 from distutils.command.install_lib import install_lib
 from distutils.command.install_data import install_data
-import os
+import os, subprocess
+import glob
 import zeroinstall
 
 class build_with_data(build_py):
@@ -37,6 +38,23 @@ class install_lib_exec(install_lib):
 		launch = os.path.join(self.install_dir, 'zeroinstall/0launch-gui/0launch-gui')
 		os.chmod(launch, os.stat(launch).st_mode | 0111)
 
+class install_data_locale(install_data):
+	def run(self):
+		self.data_files.extend(self._compile_po_files())
+		install_data.run(self)	# super.run()
+
+	def _compile_po_files(self):
+		i18nfiles = []
+		for directory in glob.glob("locale/*/LC_MESSAGES"):
+			po = os.path.join(directory, 'zero-install.po')
+			mo = os.path.join(directory, 'zero-install.mo')
+			print 'compiling %s -> %s' % (po, mo)
+			if subprocess.call(['msgfmt', '-o', mo, po]) != 0:
+				raise 'Error while running msgfmt on %s' % directory
+			dest = os.path.dirname(os.path.join('share', mo))
+			i18nfiles.append((dest, [mo]))
+		return i18nfiles
+
 # distutils doesn't seem to have any support for adding configuration files.
 # Unfortunately, the freedesktop.org menu spec strangely defines part of the
 # menu definitions as configuration.
@@ -48,7 +66,7 @@ class my_install(install):
 		elif self.prefix == '/usr':
 			self.__config_dir = os.path.join(self.root or '/', 'etc/xdg')
 		else:
-			self.__config_dir = os.path.join(self.prefix, 'etc/xdg')
+			self.__config_dir = os.path.join(self.root or '/', self.prefix[1:], 'etc/xdg')
 
 	def run(self):
 		install.run(self)	# super.run()
@@ -72,6 +90,7 @@ setup(name="zeroinstall-injector",
       cmdclass={
 	'build_py': build_with_data,
 	'install_lib': install_lib_exec,
+	'install_data': install_data_locale,
 	'install': my_install,
       },
       long_description="""\

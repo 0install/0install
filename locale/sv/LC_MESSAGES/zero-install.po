@@ -1,0 +1,418 @@
+# Swedish translation for Zero Install injector.
+# Copyright (C) 2006 Thomas Leonard
+# This file is distributed under the same license as the zero-install package.
+# Anders F Björklund <afb@users.sourceforge.net>, 2007.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: zero-install 0.30\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-01-26 23:23+0100\n"
+"PO-Revision-Date: 2007-10-17 00:20+0200\n"
+"Last-Translator: Anders F Björklund <afb@users.sourceforge.net>\n"
+"Language-Team: Swedish <sv@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: zeroinstall/0launch-gui/bugs.py:131
+msgid "Bugs reports will be sent to:"
+msgstr ""
+
+#: zeroinstall/0launch-gui/iface_browser.py:19
+#, python-format
+msgid "%s (was %s)"
+msgstr "%s (var %s)"
+
+#: zeroinstall/0launch-gui/iface_browser.py:34
+#, python-format
+msgid "Full name: %s"
+msgstr "Fullständigt namn: %s"
+
+#: zeroinstall/0launch-gui/iface_browser.py:41
+msgid "Click here for more options..."
+msgstr "Klicka här för flera alternativ..."
+
+#: zeroinstall/0launch-gui/iface_browser.py:45
+msgid ""
+"No suitable implementation was found. Check the interface properties to find "
+"out why."
+msgstr ""
+"Ingen passande implementation kunde hittas. Kontrollera "
+"gränssnittsinställingarna för att ta reda på varför."
+
+#: zeroinstall/0launch-gui/iface_browser.py:49
+#, python-format
+msgid "Currently preferred version: %s (%s)"
+msgstr "Nuvarande önskade version: %s (%s)"
+
+#: zeroinstall/0launch-gui/iface_browser.py:53
+#, python-format
+msgid ""
+"\n"
+"Previously preferred version: %s (%s)"
+msgstr ""
+"\n"
+"Tidigare önskade version: %s (%s)"
+
+#: zeroinstall/0launch-gui/iface_browser.py:60
+msgid "This version is already stored on your computer."
+msgstr "Den här versionen är redan lagrad på din dator."
+
+#: zeroinstall/0launch-gui/iface_browser.py:64
+#: zeroinstall/0launch-gui/impl_list.py:53
+msgid "No downloads available!"
+msgstr "Inga nerladdningar tillgängliga!"
+
+#: zeroinstall/0launch-gui/iface_browser.py:65
+#, python-format
+msgid "Need to download %s (%s bytes)"
+msgstr "Behöver ladda ner %s (%s bytes)"
+
+#: zeroinstall/0launch-gui/iface_browser.py:157
+msgid "Component"
+msgstr "Komponent"
+
+#: zeroinstall/0launch-gui/iface_browser.py:158
+msgid "Version"
+msgstr "Version"
+
+#: zeroinstall/0launch-gui/iface_browser.py:159
+msgid "Fetch"
+msgstr "Hämta"
+
+#: zeroinstall/0launch-gui/iface_browser.py:160
+msgid "Description"
+msgstr "Beskrivning"
+
+#: zeroinstall/0launch-gui/iface_browser.py:373
+msgid "Show Feeds"
+msgstr "Visa kanaler"
+
+#: zeroinstall/0launch-gui/iface_browser.py:374
+msgid "Show Versions"
+msgstr "Visa versioner"
+
+#: zeroinstall/0launch-gui/iface_browser.py:375
+msgid "Report a Bug..."
+msgstr "Rapportera fel..."
+
+#: zeroinstall/0launch-gui/iface_browser.py:376
+msgid "Compile..."
+msgstr "Kompilera..."
+
+#: zeroinstall/0launch-gui/impl_list.py:42
+#, python-format
+msgid "Local: %s"
+msgstr "Lokal: %s"
+
+#: zeroinstall/0launch-gui/impl_list.py:44
+#, python-format
+msgid "Native package: %s"
+msgstr "Eget paket: %s"
+
+#: zeroinstall/0launch-gui/impl_list.py:46
+#, python-format
+msgid "Cached: %s"
+msgstr "Cachat: %s"
+
+#: zeroinstall/0launch-gui/impl_list.py:51
+#, python-format
+msgid "Not yet downloaded (%s)"
+msgstr "Inte ännu nerladdat (%s)"
+
+#: zeroinstall/0launch-gui/mainwindow.py:51
+msgid "_Download"
+msgstr "Ladda ner"
+
+#: zeroinstall/0launch-gui/mainwindow.py:53
+msgid "_Run"
+msgstr "Kör"
+
+#: zeroinstall/0launch-gui/properties.py:191
+#, python-format
+msgid "Can't remove '%s' as you didn't add it."
+msgstr "Kan inte ta bort '%s' eftersom du inte lade till det."
+
+#: zeroinstall/0launch-gui/properties.py:337
+msgid "Enter the URL of the new source of implementations of this interface:"
+msgstr "Ange URL för den nya källan till implementationen av detta gränssnitt:"
+
+#: zeroinstall/0launch-gui/properties.py:376
+msgid "Enter a URL"
+msgstr "Ange en URL"
+
+#: zeroinstall/0launch-gui/properties.py:413
+msgid "Select XML feed file"
+msgstr "Välj XML-kanalfil"
+
+#: zeroinstall/gtkui/cache.py:378
+msgid "Invalid interfaces (unreadable)"
+msgstr "Ogiltligt gränssnitt (oläsligt)"
+
+#: zeroinstall/gtkui/cache.py:380
+msgid ""
+"These interfaces exist in the cache but cannot be read. You should probably "
+"delete them."
+msgstr ""
+"De här gränssnitten finns i cache men kan inte läsas. Du borde antagligen ta "
+"bort dem."
+
+#: zeroinstall/gtkui/cache.py:394
+msgid "Unowned implementations and temporary files"
+msgstr "Gränssnitt som inte tillhör något och tillfälliga filer"
+
+#: zeroinstall/gtkui/cache.py:396
+msgid "These probably aren't needed any longer. You can delete them."
+msgstr "Dessa används antagligen inte längre. Du kan ta bort dem."
+
+#: zeroinstall/gtkui/cache.py:405
+msgid "Interfaces"
+msgstr "Gränssnitt"
+
+#: zeroinstall/gtkui/cache.py:407
+msgid "Interfaces in the cache"
+msgstr "Gränssnitt i cache"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:1
+msgid "<b>Policy settings</b>"
+msgstr "<b>Policy inställningar</b>"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:4
+msgid "Add local feed"
+msgstr "Lägg till lokal-kanal"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:5
+msgid "Add remote feed"
+msgstr "Lägg till fjärr-kanal"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:6
+msgid "Check all the components for updates."
+msgstr "Kontrollera alla komponenter för uppgraderingar."
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:7
+msgid "Compile"
+msgstr "Kompilera"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:8
+msgid "Feeds"
+msgstr "Kanaler"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:9
+msgid "Freshness: "
+msgstr "Färskhet: "
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:10
+msgid "Help test new versions"
+msgstr "Hjälp till att testa nya versioner"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:11
+msgid ""
+"If you have another implementation of this interface (e.g. a CVS checkout), "
+"you can add it to the list by registering the XML feed file that came with "
+"it."
+msgstr ""
+"Om du har en annan implementation av detta gränssnitt (t.ex. en CVS "
+"checkout), kan du lägga till den till listan genom att registrera XML-"
+"kanalfilen som följde med denna."
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:12
+msgid ""
+"If you run a program which hasn't been checked for this long, then Zero "
+"Install will check for updates (in the background, while the old version is "
+"actually run)."
+msgstr ""
+"Om du kör ett program som inte har uppdaterats på så här länge, kommer Zero "
+"Install att kontrollera uppgraderingar (i bakgrunden, medan den gamla "
+"versionen i själva verket körs)."
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:13
+msgid ""
+"Implementations at this stability level or higher will be used in preference "
+"to others. You can use this to override the global \"Help test new versions"
+"\" setting just for this interface."
+msgstr ""
+"Implementationer på den här stabilitetsnivån eller högre kommer att användas "
+"istället för andra. Du kan använda detta istället för den globala "
+"inställningen \"Hjälp till att testa nya versioner\" och ställa in enbart "
+"för detta gränssnitt."
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:14
+msgid "Interface properties"
+msgstr "Gränssnittsinställningar"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:15
+msgid "Network use: "
+msgstr "Nätverksanvändning: "
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:16
+msgid "Preferred stability: "
+msgstr "Önskad stabilitet: "
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:17
+msgid "Re_fresh all now"
+msgstr "Uppdatera alla nu"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:18
+msgid "Remove feed"
+msgstr "Ta bort kanal"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:19
+msgid ""
+"This controls whether Zero Install will always try to run the best version, "
+"downloading it if needed, or whether it will prefer to run an older version "
+"that is already on your machine."
+msgstr ""
+"Kontrollerar om Zero Install alltid skall försöka köra den bästa versionen, "
+"ladda ner den om så behövs, eller om den skall välja att köra en äldre "
+"version som redan finns på din maskin."
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:20
+msgid ""
+"Try out new versions as soon as they are available, instead of waiting for "
+"them to be marked as 'stable'. This sets the default policy. Click on "
+"'Interface Properties...' to set the policy for an individual interface."
+msgstr ""
+"Prova nya versioner så snart som de finns tillgängliga, istället för att "
+"vänta tills de är markerade som 'stable'. Detta väljer standardpolicy. "
+"Klicka på 'Gränssnittsinställningar...' för att välja policy för ett enskilt "
+"gränssnitt."
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:21
+msgid ""
+"Use default setting\n"
+"Stable\n"
+"Testing\n"
+"Developer"
+msgstr ""
+"Använd standardinställning\n"
+"Stable\n"
+"Testing\n"
+"Developer"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:25
+msgid "Versions"
+msgstr "Versioner"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:26
+msgid "Zero Install"
+msgstr "Zero Install"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:27
+msgid "Zero Install Preferences"
+msgstr "Zero Install-inställningar"
+
+#: zeroinstall/gtkui/cache.glade.h:1
+msgid "Zero Install cache"
+msgstr "Zero Install cache"
+
+#: zeroinstall/gtkui/desktop.glade.h:1
+msgid "<b>About this program</b>"
+msgstr "<b>Om detta program</b>"
+
+#: zeroinstall/gtkui/desktop.glade.h:3
+msgid "<b>Applications menu</b>"
+msgstr "<b>Programmeny</b>"
+
+#: zeroinstall/gtkui/desktop.glade.h:4
+msgid ""
+"<i>Choose a category for the program to determine where it appears in the "
+"Applications menu.</i>"
+msgstr ""
+"<i>Välj en kategori för programmet för att avgöra var det hamnar i "
+"Programmenyn.</i>"
+
+#: zeroinstall/gtkui/desktop.glade.h:5
+msgid ""
+"<i>Enter the URI of the application you want to install, or drag its link "
+"from a web-browser\n"
+"into this window.</i>"
+msgstr ""
+"<i>Ange URI till programmet som du vill installera, eller dra dess länk från "
+"en webbläsare\n"
+"till detta fönster.</i>"
+
+#: zeroinstall/gtkui/desktop.glade.h:7
+msgid "Add Zero Install Application"
+msgstr "Lägg till Zero Install program"
+
+#: zeroinstall/gtkui/desktop.glade.h:8
+msgid ""
+"AudioVideo\n"
+"Audio\n"
+"Video\n"
+"Development\n"
+"Education\n"
+"Game\n"
+"Graphics\n"
+"Network\n"
+"Office\n"
+"Settings\n"
+"System\n"
+"Utility\n"
+msgstr ""
+"AudioVideo\n"
+"Audio\n"
+"Video\n"
+"Utveckling\n"
+"Utbildning\n"
+"Spel\n"
+"Grafik\n"
+"Nätverk\n"
+"Kontor\n"
+"Inställningar\n"
+"System\n"
+"Verktygsprogram\n"
+
+#: zeroinstall/gtkui/desktop.glade.h:21
+msgid "Category: "
+msgstr "Kategori: "
+
+#: zeroinstall/gtkui/desktop.glade.h:22
+msgid "Show Cache"
+msgstr "Visa cache"
+
+#: zeroinstall/gtkui/desktop.glade.h:23
+msgid ""
+"Show all Zero Install software currently stored on this computer (i.e. those "
+"programs which can be run without a network connection). This can be useful "
+"if you're running out of disk space and need to delete something."
+msgstr ""
+"Visa all Zero Install programvara som för närvarande lagras på denna dator "
+"(dvs. de program som kan köras utan en nätverksförbindelse). Detta kan vara "
+"användbart om du får slut på disk och behöver radera någonting."
+
+#: zeroinstall/gtkui/desktop.glade.h:24
+msgid "URI: "
+msgstr "URI: "
+
+#: zeroinstall/gtkui/desktop.glade.h:25
+msgid "Zero Install applications"
+msgstr "Zero Install -program"
+
+#~ msgid "Interface"
+#~ msgstr "Gränssnitt"
+
+#~ msgid "Choose the versions to use:"
+#~ msgstr "Välj versioner att använda:"
+
+#~ msgid "Show all components currently stored on this computer."
+#~ msgstr "Visa alla komponenter som för närvarande lagras på denna datorn."
+
+#~ msgid "See and edit the details of the selected interface."
+#~ msgstr "Visa och ändra detaljerna för det valda gränssnittet."
+
+#~ msgid "Interface properties..."
+#~ msgstr "Gränssnittsinställningar..."
+
+#~ msgid " \n"
+#~ msgstr " \n"
+
+#~ msgid ""
+#~ "<i>You have said that you trust these keys to sign software updates:</i>"
+#~ msgstr ""
+#~ "<i>Du har sagt att du litar på dessa nycklar att signera "
+#~ "programuppdateringar:</i>"
+
+#~ msgid "<b>Security</b>"
+#~ msgstr "<b>Säkerhet</b>"
