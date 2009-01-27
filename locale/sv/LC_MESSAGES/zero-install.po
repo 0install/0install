@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: zero-install 0.30\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-01-27 22:53+0100\n"
+"POT-Creation-Date: 2009-01-27 23:40+0100\n"
 "PO-Revision-Date: 2007-10-17 00:20+0200\n"
 "Last-Translator: Anders F Björklund <afb@users.sourceforge.net>\n"
 "Language-Team: Swedish <sv@li.org>\n"
@@ -17,7 +17,27 @@ msgstr ""
 
 #: zeroinstall/0launch-gui/bugs.py:131
 msgid "Bugs reports will be sent to:"
-msgstr ""
+msgstr "Buggrapporter skickas till:"
+
+#: zeroinstall/0launch-gui/freshness.py:15
+msgid "No automatic updates"
+msgstr "Inga automatiska uppdateringar"
+
+#: zeroinstall/0launch-gui/freshness.py:18
+msgid "Up to one day old"
+msgstr "Upp till en dag gamla"
+
+#: zeroinstall/0launch-gui/freshness.py:19
+msgid "Up to one week old"
+msgstr "Upp till en vecka gamla"
+
+#: zeroinstall/0launch-gui/freshness.py:20
+msgid "Up to one month old"
+msgstr "Upp till en månad gamla"
+
+#: zeroinstall/0launch-gui/freshness.py:21
+msgid "Up to one year old"
+msgstr "Upp till ett år gamla"
 
 #: zeroinstall/0launch-gui/iface_browser.py:19
 #, python-format
@@ -74,10 +94,12 @@ msgid "Component"
 msgstr "Komponent"
 
 #: zeroinstall/0launch-gui/iface_browser.py:158
+#: zeroinstall/0launch-gui/impl_list.py:76
 msgid "Version"
 msgstr "Version"
 
 #: zeroinstall/0launch-gui/iface_browser.py:159
+#: zeroinstall/0launch-gui/impl_list.py:79
 msgid "Fetch"
 msgstr "Hämta"
 
@@ -121,6 +143,23 @@ msgstr "Cachat: %s"
 msgid "Not yet downloaded (%s)"
 msgstr "Inte ännu nerladdat (%s)"
 
+#: zeroinstall/0launch-gui/impl_list.py:74
+msgid "Stability"
+msgstr "Stabilitet"
+
+#: zeroinstall/0launch-gui/impl_list.py:77
+msgid "Released"
+msgstr "Utgiven"
+
+#: zeroinstall/0launch-gui/impl_list.py:80
+#: zeroinstall/0launch-gui/properties.py:200
+msgid "Arch"
+msgstr "Arch"
+
+#: zeroinstall/0launch-gui/impl_list.py:81
+msgid "Notes"
+msgstr "Anteckningar"
+
 #: zeroinstall/0launch-gui/mainwindow.py:51
 msgid "_Download"
 msgstr "Ladda ner"
@@ -129,10 +168,49 @@ msgstr "Ladda ner"
 msgid "_Run"
 msgstr "Kör"
 
+#: zeroinstall/0launch-gui/mainwindow.py:102
+msgid "Not all downloads succeeded; cannot run program."
+msgstr "Alla nerladdningar lyckades inte; kan inte köra programmet."
+
+#: zeroinstall/0launch-gui/mainwindow.py:153
+#, python-format
+msgid "Downloading one file (%s)"
+msgstr "Laddar ner en fil (%s)"
+
+#: zeroinstall/0launch-gui/mainwindow.py:155
+#, python-format
+msgid "Downloading %d files (%s)"
+msgstr "Laddar ner %d filer (%s)"
+
+#: zeroinstall/0launch-gui/preferences.py:17
+msgid "Off-line"
+msgstr "Off-line"
+
+#: zeroinstall/0launch-gui/preferences.py:18
+msgid "Minimal"
+msgstr "Minimal"
+
+#: zeroinstall/0launch-gui/preferences.py:19
+msgid "Full"
+msgstr "Full"
+
+#: zeroinstall/0launch-gui/preferences.py:90
+msgid "Trusted keys"
+msgstr "Kända nycklar"
+
+#: zeroinstall/0launch-gui/preferences.py:147
+#, python-format
+msgid "Remove key for \"%s\""
+msgstr "Ta bort nyckel för \"%s\""
+
 #: zeroinstall/0launch-gui/properties.py:191
 #, python-format
 msgid "Can't remove '%s' as you didn't add it."
 msgstr "Kan inte ta bort '%s' eftersom du inte lade till det."
+
+#: zeroinstall/0launch-gui/properties.py:199
+msgid "Source"
+msgstr "Källa"
 
 #: zeroinstall/0launch-gui/properties.py:337
 msgid "Enter the URL of the new source of implementations of this interface:"
@@ -145,6 +223,22 @@ msgstr "Ange en URL"
 #: zeroinstall/0launch-gui/properties.py:413
 msgid "Select XML feed file"
 msgstr "Välj XML-kanalfil"
+
+#: zeroinstall/0launch-gui/utils.py:12
+msgid "(local)"
+msgstr "(lokal)"
+
+#: zeroinstall/0launch-gui/utils.py:14
+msgid "(package)"
+msgstr "(paket)"
+
+#: zeroinstall/0launch-gui/utils.py:16
+msgid "(cached)"
+msgstr "(cachad)"
+
+#: zeroinstall/0launch-gui/utils.py:22
+msgid "(unavailable)"
+msgstr "(ej tillgänglig)"
 
 #: zeroinstall/gtkui/cache.py:378
 msgid "Invalid interfaces (unreadable)"
@@ -400,4 +494,3 @@ msgstr "URI: "
 #: zeroinstall/gtkui/desktop.glade.h:25
 msgid "Zero Install applications"
 msgstr "Zero Install -program"
-
