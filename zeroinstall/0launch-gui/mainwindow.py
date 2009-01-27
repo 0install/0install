@@ -48,9 +48,9 @@ class MainWindow:
 
 		# Glade won't let me add this to the template!
 		if download_only:
-			run_button = dialog.MixedButton("_Download", gtk.STOCK_EXECUTE, button = gtk.ToggleButton())
+			run_button = dialog.MixedButton(_("_Download"), gtk.STOCK_EXECUTE, button = gtk.ToggleButton())
 		else:
-			run_button = dialog.MixedButton("_Run", gtk.STOCK_EXECUTE, button = gtk.ToggleButton())
+			run_button = dialog.MixedButton(_("_Run"), gtk.STOCK_EXECUTE, button = gtk.ToggleButton())
 		self.window.add_action_widget(run_button, gtk.RESPONSE_OK)
 		run_button.show_all()
 		run_button.set_flags(gtk.CAN_DEFAULT)
