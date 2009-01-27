@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: zero-install 0.30\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-01-26 23:23+0100\n"
+"POT-Creation-Date: 2009-01-27 22:53+0100\n"
 "PO-Revision-Date: 2007-10-17 00:20+0200\n"
 "Last-Translator: Anders F Björklund <afb@users.sourceforge.net>\n"
 "Language-Team: Swedish <sv@li.org>\n"
@@ -177,6 +177,17 @@ msgstr "Gränssnitt i cache"
 #: zeroinstall/0launch-gui/zero-install.glade.h:1
 msgid "<b>Policy settings</b>"
 msgstr "<b>Policy inställningar</b>"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:2
+msgid "<b>Security</b>"
+msgstr "<b>Säkerhet</b>"
+
+#: zeroinstall/0launch-gui/zero-install.glade.h:3
+msgid ""
+"<i>You have said that you trust these keys to sign software updates:</i>"
+msgstr ""
+"<i>Du har sagt att du litar på dessa nycklar att signera "
+"programuppdateringar:</i>"
 
 #: zeroinstall/0launch-gui/zero-install.glade.h:4
 msgid "Add local feed"
@@ -390,29 +401,3 @@ msgstr "URI: "
 msgid "Zero Install applications"
 msgstr "Zero Install -program"
 
-#~ msgid "Interface"
-#~ msgstr "Gränssnitt"
-
-#~ msgid "Choose the versions to use:"
-#~ msgstr "Välj versioner att använda:"
-
-#~ msgid "Show all components currently stored on this computer."
-#~ msgstr "Visa alla komponenter som för närvarande lagras på denna datorn."
-
-#~ msgid "See and edit the details of the selected interface."
-#~ msgstr "Visa och ändra detaljerna för det valda gränssnittet."
-
-#~ msgid "Interface properties..."
-#~ msgstr "Gränssnittsinställningar..."
-
-#~ msgid " \n"
-#~ msgstr " \n"
-
-#~ msgid ""
-#~ "<i>You have said that you trust these keys to sign software updates:</i>"
-#~ msgstr ""
-#~ "<i>Du har sagt att du litar på dessa nycklar att signera "
-#~ "programuppdateringar:</i>"
-
-#~ msgid "<b>Security</b>"
-#~ msgstr "<b>Säkerhet</b>"
