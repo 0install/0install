@@ -11,9 +11,21 @@ import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 import pygtk; pygtk.require('2.0')
-from gettext import dgettext, bindtextdomain
 
-__builtins__._ = lambda x: dgettext('zero-install', x)
+try:
+	# set up the gettext system and locales
+	from gtk import glade
+	import gettext
+	import locale
+
+	locale.setlocale(locale.LC_ALL, '')
+	for module in glade, gettext:
+		module.bindtextdomain('zero-install', 'locale')
+		module.textdomain('zero-install')
+
+	__builtins__._ = gettext.gettext
+except ImportError:
+	__builtins__._ = lambda x: x
 
 import main
 
