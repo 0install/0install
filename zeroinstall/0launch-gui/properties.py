@@ -196,8 +196,8 @@ class Feeds:
 		self.tv = widgets.get_widget('feeds_list')
 		self.tv.set_model(self.model)
 		text = gtk.CellRendererText()
-		self.tv.append_column(gtk.TreeViewColumn('Source', text, text = Feeds.URI, sensitive = Feeds.USED))
-		self.tv.append_column(gtk.TreeViewColumn('Arch', text, text = Feeds.ARCH, sensitive = Feeds.USED))
+		self.tv.append_column(gtk.TreeViewColumn(_('Source'), text, text = Feeds.URI, sensitive = Feeds.USED))
+		self.tv.append_column(gtk.TreeViewColumn(_('Arch'), text, text = Feeds.ARCH, sensitive = Feeds.USED))
 
 		sel = self.tv.get_selection()
 		sel.set_mode(gtk.SELECTION_BROWSE)

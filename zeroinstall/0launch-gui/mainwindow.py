@@ -99,7 +99,7 @@ class MainWindow:
 					return
 
 			if self.policy.get_uncached_implementations():
-				dialog.alert(self.window, 'Not all downloads succeeded; cannot run program.')
+				dialog.alert(self.window, _('Not all downloads succeeded; cannot run program.'))
 			else:
 				from zeroinstall.injector import selections
 				sels = selections.Selections(self.policy)
@@ -150,9 +150,9 @@ class MainWindow:
 
 		progress_text = '%s / %s' % (pretty_size(done), pretty_size(total))
 		if n_downloads == 1:
-			self.progress.set_text('Downloading one file (%s)' % progress_text)
+			self.progress.set_text(_('Downloading one file (%s)') % progress_text)
 		else:
-			self.progress.set_text('Downloading %d files (%s)' % (n_downloads, progress_text))
+			self.progress.set_text(_('Downloading %d files (%s)') % (n_downloads, progress_text))
 
 		if total == 0 or (n_downloads < 2 and not any_known):
 			self.progress.pulse()

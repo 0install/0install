@@ -71,14 +71,14 @@ class ImplementationList:
 		text = gtk.CellRendererText()
 		text_strike = gtk.CellRendererText()
 
-		stability = gtk.TreeViewColumn('Stability', text, text = STABILITY)
+		stability = gtk.TreeViewColumn(_('Stability'), text, text = STABILITY)
 
-		for column in (gtk.TreeViewColumn('Version', text_strike, text = VERSION, strikethrough = UNUSABLE),
-			       gtk.TreeViewColumn('Released', text, text = RELEASED),
+		for column in (gtk.TreeViewColumn(_('Version'), text_strike, text = VERSION, strikethrough = UNUSABLE),
+			       gtk.TreeViewColumn(_('Released'), text, text = RELEASED),
 			       stability,
-			       gtk.TreeViewColumn('Fetch', text, text = FETCH),
-			       gtk.TreeViewColumn('Arch', text_strike, text = ARCH, strikethrough = UNUSABLE),
-			       gtk.TreeViewColumn('Notes', text, text = NOTES)):
+			       gtk.TreeViewColumn(_('Fetch'), text, text = FETCH),
+			       gtk.TreeViewColumn(_('Arch'), text_strike, text = ARCH, strikethrough = UNUSABLE),
+			       gtk.TreeViewColumn(_('Notes'), text, text = NOTES)):
 			self.tree_view.append_column(column)
 
 		tips = ImplTips(policy, interface)

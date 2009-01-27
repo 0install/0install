@@ -13,6 +13,12 @@ tips = gtk.Tooltips()
 
 SHOW_CACHE = 0
 
+network_names = {
+	'off-line': _('Off-line'),
+	'minimal': _('Minimal'),
+	'full': _('Full'),
+}
+
 class Preferences:
 	def __init__(self, policy):
 		widgets = Template('preferences_box')
@@ -22,7 +28,7 @@ class Preferences:
 
 		network = widgets.get_widget('network_use')
 		for level in network_levels:
-			network.append_text(level.capitalize())
+			network.append_text(network_names.get(level, level.capitalize()))
 		network.set_active(list(network_levels).index(policy.network_use))
 
 		def set_network_use(combo):
@@ -81,7 +87,7 @@ class KeyList:
 	def __init__(self, tv):
 		self.trusted_keys = gtk.TreeStore(str, object)
 		tv.set_model(self.trusted_keys)
-		tc = gtk.TreeViewColumn('Trusted keys', gtk.CellRendererText(), text = 0)
+		tc = gtk.TreeViewColumn(_('Trusted keys'), gtk.CellRendererText(), text = 0)
 		tv.append_column(tc)
 		trust.trust_db.ensure_uptodate()
 
@@ -138,7 +144,7 @@ class KeyList:
 
 				menu = gtk.Menu()
 
-				item = gtk.MenuItem('Remove key for "%s"' % key.get_short_name())
+				item = gtk.MenuItem(_('Remove key for "%s"') % key.get_short_name())
 				item.connect('activate',
 					lambda item, fp = key.fingerprint, d = domain: remove_key(fp, d))
 				item.show()

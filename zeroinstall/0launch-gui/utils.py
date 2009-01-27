@@ -9,14 +9,14 @@ def get_fetch_info(policy, impl):
 		return ""
 	elif policy.get_cached(impl):
 		if impl.id.startswith('/'):
-			return '(local)'
+			return _('(local)')
 		elif impl.id.startswith('package:'):
-			return '(package)'
+			return _('(package)')
 		else:
-			return '(cached)'
+			return _('(cached)')
 	else:
 		src = policy.fetcher.get_best_source(impl)
 		if src:
 			return support.pretty_size(src.size)
 		else:
-			return '(unavailable)'
+			return _('(unavailable)')
