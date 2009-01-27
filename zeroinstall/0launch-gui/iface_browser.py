@@ -336,7 +336,7 @@ class InterfaceBrowser:
 				old_impl = self.original_implementation.get(iface, None)
 				version_str = impl.get_version()
 				if old_impl is not None and old_impl is not impl:
-					version_str += " (was " + old_impl.get_version() + ")"
+					version_str += _(' (was %s)') % old_impl.get_version()
 				self.model[iter][InterfaceBrowser.VERSION] = version_str
 
 				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
@@ -352,10 +352,10 @@ class InterfaceBrowser:
 						child_iter = self.model.append(parent)
 						self.model[child_iter][InterfaceBrowser.INTERFACE_NAME] = '?'
 						self.model[child_iter][InterfaceBrowser.SUMMARY] = \
-							'Unknown dependency type : %s' % child
+							_('Unknown dependency type : %s') % child
 						self.model[child_iter][InterfaceBrowser.ICON] = self.default_icon
 			else:
-				self.model[iter][InterfaceBrowser.VERSION] = '(choose)'
+				self.model[iter][InterfaceBrowser.VERSION] = _('(choose)')
 		add_node(None, self.root)
 		self.tree_view.expand_all()
 	
@@ -428,10 +428,10 @@ class InterfaceBrowser:
 				if expected:
 					fraction = "%s [%.2f%%]" % (pretty_size(expected), 100 * so_far / float(expected))
 				else:
-					fraction = "unknown"
+					fraction = _("unknown")
 				if len(downloads) > 1:
-					fraction += " in %d downloads" % len(downloads)
-				row[InterfaceBrowser.SUMMARY] = "(downloading %s/%s)" % (pretty_size(so_far), fraction)
+					fraction += _(" in %d downloads") % len(downloads)
+				row[InterfaceBrowser.SUMMARY] = _("(downloading %s/%s)") % (pretty_size(so_far), fraction)
 			else:
 				row[InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
 				row[InterfaceBrowser.SUMMARY] = iface.summary

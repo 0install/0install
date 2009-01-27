@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: zero-install 0.30\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-01-27 23:40+0100\n"
+"POT-Creation-Date: 2009-01-27 23:48+0100\n"
 "PO-Revision-Date: 2007-10-17 00:20+0200\n"
 "Last-Translator: Anders F Björklund <afb@users.sourceforge.net>\n"
 "Language-Team: Swedish <sv@li.org>\n"
@@ -107,6 +107,20 @@ msgstr "Hämta"
 msgid "Description"
 msgstr "Beskrivning"
 
+#: zeroinstall/0launch-gui/iface_browser.py:339
+#, python-format
+msgid " (was %s)"
+msgstr " (var %s)"
+
+#: zeroinstall/0launch-gui/iface_browser.py:355
+#, python-format
+msgid "Unknown dependency type : %s"
+msgstr "Okänd beroendetyp: %s"
+
+#: zeroinstall/0launch-gui/iface_browser.py:358
+msgid "(choose)"
+msgstr "(välj)"
+
 #: zeroinstall/0launch-gui/iface_browser.py:373
 msgid "Show Feeds"
 msgstr "Visa kanaler"
@@ -122,6 +136,20 @@ msgstr "Rapportera fel..."
 #: zeroinstall/0launch-gui/iface_browser.py:376
 msgid "Compile..."
 msgstr "Kompilera..."
+
+#: zeroinstall/0launch-gui/iface_browser.py:431
+msgid "unknown"
+msgstr "okänd"
+
+#: zeroinstall/0launch-gui/iface_browser.py:433
+#, python-format
+msgid " in %d downloads"
+msgstr " i %d nerladdningar"
+
+#: zeroinstall/0launch-gui/iface_browser.py:434
+#, python-format
+msgid "(downloading %s/%s)"
+msgstr "(laddar ner %s/%s)"
 
 #: zeroinstall/0launch-gui/impl_list.py:42
 #, python-format
