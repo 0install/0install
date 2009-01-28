@@ -17,3 +17,7 @@ install:
 locale/zero-install.pot: $(PY) $(GLADE)
 	xgettext --language=Python --output=$@ --keyword=_ --keyword=N_ $^
 
+clean:
+	$(PYTHON) setup.py clean
+
+.PHONY: all install clean
