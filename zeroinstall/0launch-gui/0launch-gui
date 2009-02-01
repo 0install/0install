@@ -20,7 +20,7 @@ try:
 
 	locale.setlocale(locale.LC_ALL, '')
 	for module in glade, gettext:
-		localedir = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+		localedir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
                                  'locale')
 		if os.path.isdir(localedir):
 			module.bindtextdomain('zero-install', localedir)
