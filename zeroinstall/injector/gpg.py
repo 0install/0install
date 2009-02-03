@@ -203,7 +203,7 @@ def _check_plain_stream(stream):
 	os.close(status_w)
 
 	try:
-		sigs = _get_sigs_from_gpg_status_stream(status_r, child, errors)
+		sigs = _get_sigs_from_gpg_status_stream(os.fdopen(status_r), child, errors)
 	finally:
 		data.seek(0)
 	return (data, sigs)
@@ -247,22 +247,20 @@ def _check_xml_stream(stream):
 		sig_file.write(sig_data)
 		sig_file.close()
 
-		status_r, status_w = os.pipe()
-
 		# Note: Should ideally close status_r in the child, but we want to support Windows too
 		child = subprocess.Popen(_gnupg_options + [
 						   # Not all versions support this:
 						   #'--max-output', str(1024 * 1024),
 						   '--batch',
-						   '--status-fd', str(status_w),
+						   # Windows GPG can only cope with "1" here
+						   '--status-fd', '1',
 						   '--verify', sig_name, '-'],
 						   stdin = data,
+						   stdout = subprocess.PIPE,
 						   stderr = errors)
 
-		os.close(status_w)
-
 		try:
-			sigs = _get_sigs_from_gpg_status_stream(status_r, child, errors)
+			sigs = _get_sigs_from_gpg_status_stream(child.stdout, child, errors)
 		finally:
 			os.lseek(stream.fileno(), 0, 0)
 			stream.seek(0)
@@ -306,7 +304,7 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 	# Should we error out on bad signatures, even if there's a good
 	# signature too?
 
-	for line in os.fdopen(status_r):
+	for line in status_r:
 		assert line.endswith('\n')
 		assert line.startswith('[GNUPG:] ')
 		line = line[9:-1]
