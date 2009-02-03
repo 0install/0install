@@ -88,7 +88,7 @@ class Download(object):
 
 		# Can't use fork here, because Windows doesn't have it
 		assert self.child is None, self.child
-		self.child = subprocess.Popen([sys.executable, __file__, self.url], stderr = subprocess.PIPE, stdout = self.tempfile)
+		self.child = subprocess.Popen([sys.executable, '-u', __file__, self.url], stderr = subprocess.PIPE, stdout = self.tempfile)
 
 		self.status = download_fetching
 
