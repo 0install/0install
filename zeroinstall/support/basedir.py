@@ -17,19 +17,24 @@ import os
 
 home = os.environ.get('HOME', '/')
 
-if os.geteuid() == 0:
-	# We're running as root. Ensure that $HOME really is root's home,
-	# not the user's home, or we're likely to fill it will unreadable
-	# root-owned files.
-	home_owner = os.stat(home).st_uid
-	if home_owner != 0:
-		import pwd
-		from logging import info
-		old_home = home
-		home = pwd.getpwuid(0).pw_dir or '/'
-		info("$HOME (%s) is owned by user %d, but we are root (0). Using %s instead.", old_home, home_owner, home)
-		del old_home
-		del home_owner
+try:
+	_euid = os.geteuid()
+except AttributeError:
+	pass	# Windows?
+else:
+	if _euid == 0:
+		# We're running as root. Ensure that $HOME really is root's home,
+		# not the user's home, or we're likely to fill it will unreadable
+		# root-owned files.
+		home_owner = os.stat(home).st_uid
+		if home_owner != 0:
+			import pwd
+			from logging import info
+			old_home = home
+			home = pwd.getpwuid(0).pw_dir or '/'
+			info("$HOME (%s) is owned by user %d, but we are root (0). Using %s instead.", old_home, home_owner, home)
+			del old_home
+			del home_owner
 
 xdg_data_home = os.environ.get('XDG_DATA_HOME',
 			os.path.join(home, '.local', 'share'))

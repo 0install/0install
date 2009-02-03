@@ -20,7 +20,7 @@ from zeroinstall.injector.trust import trust_db
 from zeroinstall.injector.model import SafeException
 
 _gnupg_options = ['gpg', '--no-secmem-warning']
-if os.geteuid() == 0 and 'GNUPGHOME' not in os.environ:
+if hasattr(os, 'geteuid') and os.geteuid() == 0 and 'GNUPGHOME' not in os.environ:
 	_gnupg_options += ['--homedir', os.path.join(basedir.home, '.gnupg')]
 	info("Running as root, so setting GnuPG home to %s", _gnupg_options[-1])
 
