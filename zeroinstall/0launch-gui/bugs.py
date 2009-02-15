@@ -40,7 +40,14 @@ def report_bug(policy, iface):
 				text += '  From feed: %s\n' % impl.feed.url
 			text += '         ID: %s\n' % impl.id
 		else:
-			text += '    No implementation selected\n'
+			impls = policy.solver.details.get(chosen_iface, None)
+			if impls:
+				best, reason = impls[0]
+				note = 'best was %s, but: %s' % (best, reason)
+			else:
+				note = 'not considered; %d available' % len(chosen_iface.implementations)
+
+			text += '    No implementation selected (%s)\n' % note
 
 	if hasattr(os, 'uname'):
 		text += '\nSystem:\n  %s\n\nIssue:\n  %s\n' % ('\n  '.join(os.uname()), issue)
