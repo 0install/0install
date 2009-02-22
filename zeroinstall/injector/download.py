@@ -6,7 +6,7 @@ This is the low-level interface for downloading interfaces, implementations, ico
 @see: L{fetch} higher-level API for downloads that uses this module
 """
 
-# Copyright (C) 2006, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import tempfile, os, sys, subprocess

@@ -7,7 +7,7 @@ Zero Install when they are complete.
 To do this, you supply a L{Handler} to the L{policy}.
 """
 
-# Copyright (C) 2006, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 from logging import debug, warn

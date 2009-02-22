@@ -6,7 +6,7 @@ This module is used to invoke GnuPG to check the digital signatures on interface
 @see: L{iface_cache.PendingFeed}
 """
 
-# Copyright (C) 2006, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import subprocess

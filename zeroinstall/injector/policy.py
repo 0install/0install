@@ -4,7 +4,7 @@ L{fetch.Fetcher} to download additional components, and the user's configuration
 settings.
 """
 
-# Copyright (C) 2008, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import time

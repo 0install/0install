@@ -2,7 +2,7 @@
 Save per-interface configuration information.
 """
 
-# Copyright (C) 2006, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import os

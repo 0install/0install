@@ -12,7 +12,7 @@ from zeroinstall.support import tasks
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import handler
 
-# Copyright (C) 2007, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 def _escape_xml(s):

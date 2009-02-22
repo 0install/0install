@@ -10,7 +10,7 @@ from zeroinstall.zerostore import BadDigest, NotStored
 from zeroinstall.injector.arch import machine_groups
 from zeroinstall.injector import model
 
-# Copyright (C) 2008, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 class Solver(object):

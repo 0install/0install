@@ -1,6 +1,6 @@
 """Unpacking archives of various formats."""
 
-# Copyright (C) 2006, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import os, subprocess

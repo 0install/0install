@@ -7,7 +7,7 @@ in some cases and not others.
 @var trust_db: Singleton trust database instance.
 """
 
-# Copyright (C) 2006, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import os

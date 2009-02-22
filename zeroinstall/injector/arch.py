@@ -14,7 +14,7 @@ Each dictionary maps from a supported architecture type to a preference level. L
 better, Unsupported architectures are not listed at all.
 """
 
-# Copyright (C) 2006, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import os

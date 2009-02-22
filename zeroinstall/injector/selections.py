@@ -3,7 +3,7 @@ Load and save a set of chosen implementations.
 @since: 0.27
 """
 
-# Copyright (C) 2007, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall.injector.policy import Policy

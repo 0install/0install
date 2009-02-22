@@ -1,4 +1,4 @@
-# Copyright (C) 2007, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See http://0install.net/0compile.html
 
 import sys, os

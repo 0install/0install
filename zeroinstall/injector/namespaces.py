@@ -8,7 +8,7 @@
 @var injector_gui_uri: The URI of the graphical interface for the injector
 """
 
-# Copyright (C) 2006, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 XMLNS_IFACE = 'http://zero-install.sourceforge.net/2004/injector/interface'

@@ -344,7 +344,7 @@ def main(command_args):
 		elif options.version:
 			import zeroinstall
 			print "0launch (zero-install) " + zeroinstall.version
-			print "Copyright (C) 2007 Thomas Leonard"
+			print "Copyright (C) 2009 Thomas Leonard"
 			print "This program comes with ABSOLUTELY NO WARRANTY,"
 			print "to the extent permitted by law."
 			print "You may redistribute copies of this program"

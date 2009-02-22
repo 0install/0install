@@ -1,7 +1,7 @@
 """Adding icons and menu items using the freedesktop.org system.
 (xdg = X Desktop Group)
 """
-# Copyright (C) 2008, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import shutil, os, tempfile

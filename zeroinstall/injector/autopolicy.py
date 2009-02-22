@@ -8,7 +8,7 @@ is also the policy used to run the injector's GUI.
 @deprecated: The interesting functionality has moved into the L{policy.Policy} base-class.
 """
 
-# Copyright (C) 2006, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 from logging import info

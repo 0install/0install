@@ -1,5 +1,5 @@
 """A GTK dialog which displays a list of Zero Install applications in the menu."""
-# Copyright (C) 2008, Thomas Leonard
+# Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
 import os
