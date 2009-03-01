@@ -2,14 +2,18 @@
 
 PYTHON=python
 
+MO = $(shell find locale -name '*.po' | sed -e 's/\.po/\.mo/')
 PY = $(shell find zeroinstall -name '*.py')
-GLADE = $(shell find zeroinstall -name '*.glade' | sed -e 's/.glade/&.h/')
+GLADE = $(shell find zeroinstall -name '*.glade' | sed -e 's/\.glade/&.h/')
 
-all:
+all: $(MO)
 	$(PYTHON) setup.py build
 
-install:
+install: all
 	$(PYTHON) setup.py install
+
+%.mo: %.po
+	msgfmt -o "$@" "$<"
 
 %.glade.h: %.glade
 	intltool-extract --type=gettext/glade --update "$<"
