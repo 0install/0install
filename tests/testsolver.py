@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.4
+#!/usr/bin/env python2.5
 from basetest import BaseTest
 import sys
 import unittest

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.4
+#!/usr/bin/env python2.5
 # -*- coding: utf-8 -*-
 from basetest import BaseTest, empty_feed
 import sys

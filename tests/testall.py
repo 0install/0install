@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.4
+#!/usr/bin/env python2.5
 import unittest, os, sys
 
 # Catch silly mistakes...
