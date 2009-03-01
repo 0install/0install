@@ -7,8 +7,7 @@ from logging import getLogger, WARN, ERROR
 
 sys.path.insert(0, '..')
 
-# If http_proxy is set it can cause the download tests to fail.
-os.environ["http_proxy"] = ""
+os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall.injector import model, autopolicy, gpg, iface_cache, download, reader, trust, handler, background, arch, selections, qdom
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
@@ -99,7 +98,7 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg')
-			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml', download_only = False,
+			policy = autopolicy.AutoPolicy('http://example.com:8000/Hello.xml', download_only = False,
 						       handler = DummyHandler())
 			assert policy.need_download()
 			sys.stdin = Reply("N\n")
@@ -162,7 +161,7 @@ class TestDownload(BaseTest):
 			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
 			_download_missing_selections(Options(), sels)
-			path = iface_cache.iface_cache.stores.lookup(sels.selections['http://localhost:8000/Hello.xml'].id)
+			path = iface_cache.iface_cache.stores.lookup(sels.selections['http://example.com:8000/Hello.xml'].id)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 			assert sels.download_missing(iface_cache.iface_cache, None) is None
@@ -185,10 +184,10 @@ class TestDownload(BaseTest):
 			from zeroinstall.injector.handler import Handler
 			handler = Handler()
 			fetcher = fetch.Fetcher(handler)
-			handler.wait_for_blocker(fetcher.download_and_import_feed('http://localhost:8000/Hello.xml', iface_cache.iface_cache))
+			handler.wait_for_blocker(fetcher.download_and_import_feed('http://example.com:8000/Hello.xml', iface_cache.iface_cache))
 
 			_download_missing_selections(Options(), sels)
-			path = iface_cache.iface_cache.stores.lookup(sels.selections['http://localhost:8000/Hello.xml'].id)
+			path = iface_cache.iface_cache.stores.lookup(sels.selections['http://example.com:8000/Hello.xml'].id)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 			assert sels.download_missing(iface_cache.iface_cache, None) is None
@@ -281,10 +280,10 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			getLogger().setLevel(ERROR)
-			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'localhost:8000')
+			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg')
-			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml', download_only = False)
-			policy.fetcher.feed_mirror = 'http://localhost:8000/0mirror'
+			policy = autopolicy.AutoPolicy('http://example.com:8000/Hello.xml', download_only = False)
+			policy.fetcher.feed_mirror = 'http://example.com:8000/0mirror'
 
 			refreshed = policy.solve_with_downloads()
 			policy.handler.wait_for_blocker(refreshed)
@@ -297,14 +296,14 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			getLogger().setLevel(ERROR)
-			iface = iface_cache.iface_cache.get_interface('http://localhost:8000/Hello.xml')
+			iface = iface_cache.iface_cache.get_interface('http://example.com:8000/Hello.xml')
 			mtime = int(os.stat('Hello-new.xml').st_mtime)
 			iface_cache.iface_cache.update_interface_from_network(iface, file('Hello-new.xml').read(), mtime + 10000)
 
-			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'localhost:8000')
+			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
-			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml', download_only = False)
-			policy.fetcher.feed_mirror = 'http://localhost:8000/0mirror'
+			policy = autopolicy.AutoPolicy('http://example.com:8000/Hello.xml', download_only = False)
+			policy.fetcher.feed_mirror = 'http://example.com:8000/0mirror'
 
 			# Update from mirror (should ignore out-of-date timestamp)
 			refreshed = policy.fetcher.download_and_import_feed(iface.uri, iface_cache.iface_cache)
@@ -319,12 +318,12 @@ class TestDownload(BaseTest):
 				assert "New interface's modification time is before old version" in str(ex)
 
 			# Must finish with the newest version
-			self.assertEquals(1209206132, iface_cache.iface_cache._get_signature_date(iface.uri))
+			self.assertEquals(1235911552, iface_cache.iface_cache._get_signature_date(iface.uri))
 		finally:
 			sys.stdout = old_out
 
 	def testBackground(self, verbose = False):
-		p = autopolicy.AutoPolicy('http://localhost:8000/Hello.xml')
+		p = autopolicy.AutoPolicy('http://example.com:8000/Hello.xml')
 		reader.update(iface_cache.iface_cache.get_interface(p.root), 'Hello.xml')
 		p.freshness = 0
 		p.network_use = model.network_minimal

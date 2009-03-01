@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <?xml-stylesheet type='text/xsl' href='interface.xsl'?>
-<interface main="HelloWorld/main" uri="http://localhost:8000/Hello.xml" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+<interface main="HelloWorld/main" uri="http://example.com:8000/Hello.xml" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
   <name>Hello</name>
   <summary>Hello</summary>
   <description>Hello</description>
@@ -9,7 +9,7 @@
   </implementation>
 </interface>
 <!-- Base64 Signature
-iD8DBQBIC2uzb88SG+I5DgsRAoSdAJ9ZHyDw+iHUiS/oqfdXh75tWYS80ACfT4jlD83FdEP7KRDn
-BnGEWGrnDNQ=
+iEYEABECAAYFAkmqgqEACgkQb88SG+I5DgvHdgCbBWNXJPIIyYwpLcO4GG6VQE6i89MAniWUyvZd
+RIDJACxauMnd7SIpxdcg
 
 -->

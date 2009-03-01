@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os, sys
+import os, sys, urlparse
 import BaseHTTPServer
 import traceback
 
@@ -17,16 +17,18 @@ class Give404:
 
 class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 	def do_GET(self):
-		leaf = os.path.basename(self.path)
+		parsed = urlparse.urlparse(self.path)
+
+		leaf = os.path.basename(parsed.path)
 
 		acceptable = dict([(str(x), x) for x in next_step])
 
-		resp = acceptable.get(self.path, None) or \
+		resp = acceptable.get(parsed.path, None) or \
 		       acceptable.get(leaf, None) or \
 		       acceptable.get('*', None)
 
 		if not resp:
-			self.send_error(404, "Expected %s; got %s" % (next_step, self.path))
+			self.send_error(404, "Expected %s; got %s" % (next_step, parsed.path))
 			
 		if os.path.exists(leaf) and not isinstance(resp, Give404):
 			self.send_response(200)

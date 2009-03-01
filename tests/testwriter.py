@@ -45,13 +45,13 @@ class TestWriter(BaseTest):
 		self.assertEquals({}, iface.implementations)
 
 	def testStoreStability(self):
-		iface = model.Interface('http://localhost:8000/Hello.xml')
+		iface = model.Interface('http://example.com:8000/Hello.xml')
 		iface._main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello.xml')
 		impl = iface.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
 		impl.user_stability = model.developer
 		writer.save_interface(iface)
 
-		iface = model.Interface('http://localhost:8000/Hello.xml')
+		iface = model.Interface('http://example.com:8000/Hello.xml')
 		self.assertEquals(None, iface.stability_policy)
 		reader.update_user_overrides(iface)
 

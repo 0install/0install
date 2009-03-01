@@ -87,6 +87,9 @@ class Fetcher(object):
 
 	def get_feed_mirror(self, url):
 		"""Return the URL of a mirror for this feed."""
+		import urlparse
+		if urlparse.urlparse(url).hostname == 'localhost':
+			return None
 		return '%s/%s/latest.xml' % (self.feed_mirror, _get_feed_dir(url))
 
 	def download_and_import_feed(self, feed_url, iface_cache, force = False):
@@ -181,6 +184,7 @@ class Fetcher(object):
 		@param use_mirror: False to use primary location; True to use mirror."""
 		if use_mirror:
 			url = self.get_feed_mirror(feed_url)
+			if url is None: return None
 		else:
 			url = feed_url
 
