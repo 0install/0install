@@ -3,9 +3,11 @@
 
 import gtk
 import sys
+from logging import info
+
 from zeroinstall import SafeException
 from zeroinstall.support import tasks, pretty_size
-from zeroinstall.injector import download
+from zeroinstall.injector import download, iface_cache
 from iface_browser import InterfaceBrowser
 import dialog
 from zeroinstall.gtkui import gtkutils
@@ -23,6 +25,7 @@ class MainWindow:
 	cancel_download_and_run = None
 	policy = None
 	comment = None
+	systray_icon = None
 
 	def __init__(self, policy, widgets, download_only):
 		self.policy = policy
@@ -54,6 +57,7 @@ class MainWindow:
 		self.window.add_action_widget(run_button, gtk.RESPONSE_OK)
 		run_button.show_all()
 		run_button.set_flags(gtk.CAN_DEFAULT)
+		self.run_button = run_button
 
 		self.window.set_default_response(gtk.RESPONSE_OK)
 		self.window.default_widget.grab_focus()
@@ -74,6 +78,7 @@ class MainWindow:
 				import preferences
 				preferences.show_preferences(policy)
 		self.window.connect('response', response)
+		self.window.realize()	# Make busy pointer work, even with --systray
 
 	def destroy(self):
 		self.window.destroy()
@@ -108,16 +113,11 @@ class MainWindow:
 				sys.stdout.write(('Length:%8x\n' % len(reply)) + reply)
 				self.window.destroy()
 				sys.exit(0)			# Success
-		except SafeException, ex:
-			run_button.set_active(False)
-			self.policy.handler.report_error(ex)
 		except SystemExit:
 			raise
 		except Exception, ex:
 			run_button.set_active(False)
-			import traceback
-			traceback.print_exc()
-			self.policy.handler.report_error(ex)
+			self.report_exception(ex)
 
 	def update_download_status(self):
 		"""Called at regular intervals while there are downloads in progress,
@@ -166,6 +166,32 @@ class MainWindow:
 		attrs.insert(pango.AttrWeight(pango.WEIGHT_BOLD, end_index = len(message)))
 		self.comment.set_attributes(attrs)
 		self.comment.show()
+
+	def use_systray_icon(self):
+		try:
+			self.systray_icon = gtk.status_icon_new_from_icon_name("zeroinstall-zero2desktop")
+		except Exception, ex:
+			info("No system tray support: %s", ex)
+		else:
+			root_iface = iface_cache.iface_cache.get_interface(self.policy.root)
+			self.systray_icon.set_tooltip('Checking for updates for %s' % root_iface.get_name())
+			self.systray_icon.connect('activate', self.remove_systray_icon)
+
+	def remove_systray_icon(self, i = None):
+		assert self.systray_icon, i
+		self.show()
+		self.systray_icon.set_visible(False)
+		self.systray_icon = None
+
+	def report_exception(self, ex):
+		if not isinstance(ex, SafeException):
+			import traceback
+			traceback.print_exc()
+		if self.systray_icon:
+			self.systray_icon.set_blinking(True)
+			self.systray_icon.set_tooltip(str(ex) + '\n(click for details)')
+		else:
+			dialog.alert(self.window, str(ex))
 
 gui_help = help_box.HelpBox("Injector Help",
 ('Overview', """

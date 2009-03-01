@@ -50,4 +50,4 @@ class GUIHandler(handler.Handler):
 	def report_error(self, ex, tb = None):
 		if isinstance(ex, download.DownloadAborted):
 			return		# No need to tell the user about this, since they caused it
-		dialog.alert(self.mainwindow.window, str(ex))
+		self.mainwindow.report_exception(ex)

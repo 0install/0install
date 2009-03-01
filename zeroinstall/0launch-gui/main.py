@@ -21,6 +21,7 @@ def run_gui(args):
 	parser.add_option("", "--os", help="target operation system type", metavar='OS')
 	parser.add_option("-r", "--refresh", help="check for updates of all interfaces", action='store_true')
 	parser.add_option("-s", "--source", help="select source code", action='store_true')
+	parser.add_option("", "--systray", help="download in the background", action='store_true')
 	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 	parser.add_option("-V", "--version", help="display version information", action='store_true')
 
@@ -111,6 +112,9 @@ def run_gui(args):
 
 	window.window.connect('destroy', lambda w: handler.abort_all_downloads())
 
+	if options.systray:
+		window.use_systray_icon()
+
 	@tasks.async
 	def main():
 		force_refresh = bool(options.refresh)
@@ -119,17 +123,24 @@ def run_gui(args):
 
 			solved = policy.solve_with_downloads(force = force_refresh)
 
-			window.show()
+			if not window.systray_icon:
+				window.show()
 			yield solved
 			try:
 				window.refresh_button.set_sensitive(True)
 				tasks.check(solved)
-			except model.SafeException, ex:
-				dialog.alert(window.window, str(ex))
 			except Exception, ex:
-				import traceback
-				traceback.print_exc()
-				dialog.alert(window.window, str(ex))
+				window.report_exception(ex)
+
+			if window.systray_icon and window.systray_icon.get_visible() and \
+			   window.systray_icon.is_embedded():
+				if policy.ready:
+					window.systray_icon.set_tooltip('Downloading updates for %s' % root_iface.get_name())
+					window.run_button.set_active(True)
+				else:
+					# Should already be reporting an error, but
+					# blink it again just in case
+					window.systray_icon.set_blinking(True)
 
 			yield dialog.ButtonClickedBlocker(window.refresh_button)
 			force_refresh = True
