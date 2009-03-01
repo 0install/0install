@@ -10,7 +10,7 @@ import sys, os
 from logging import info, warn
 from zeroinstall.support import tasks
 from zeroinstall.injector.iface_cache import iface_cache
-from zeroinstall.injector import handler
+from zeroinstall.injector import handler, namespaces
 
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
@@ -35,6 +35,7 @@ class BackgroundHandler(handler.Handler):
 		self.title = title
 		self.notification_service = None
 		self.network_manager = None
+		self.notification_service_caps = []
 
 		try:
 			import dbus
@@ -58,7 +59,8 @@ class BackgroundHandler(handler.Handler):
 			old_stderr = sys.stderr
 			sys.stderr = None
 			try:
-				self.notification_service.GetCapabilities()
+				self.notification_service_caps = [str(s) for s in
+						self.notification_service.GetCapabilities()]
 			finally:
 				sys.stderr = old_stderr
 		except Exception, ex:
@@ -118,6 +120,9 @@ class BackgroundHandler(handler.Handler):
 			hints,
 			timeout * 1000)
 
+	def have_actions_support(self):
+		return 'actions' in self.notification_service_caps
+
 def _detach():
 	"""Fork a detached grandchild.
 	@return: True if we are the original."""
@@ -174,10 +179,14 @@ def _check_for_updates(policy, verbose):
 			policy.handler.notify("Zero Install", "No updates to download.", timeout = 1)
 		sys.exit(0)
 
-	if not policy.handler.notification_service:
+	if not policy.handler.have_actions_support():
 		# Can't ask the user to choose, so just notify them
-		policy.handler.notify("Zero Install", "Updates ready to download for '%s'." % root_iface)
-		sys.exit(0)
+		# In particular, Ubuntu/Jaunty doesn't support actions
+		policy.handler.notify("Zero Install",
+				      "Updates ready to download for '%s'." % root_iface,
+				      timeout = 1)
+		_exec_gui(policy.root, '--refresh', '--download-only', '--systray')
+		sys.exit(1)
 
 	notification_closed = tasks.Blocker("wait for notification response")
 

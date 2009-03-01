@@ -218,6 +218,8 @@ def _normal_mode(options, args):
 				gui_args.append('--download-only')
 			if options.refresh:
 				gui_args.append('--refresh')
+			if options.systray:
+				gui_args.append('--systray')
 			if options.not_before:
 				gui_args.insert(0, options.not_before)
 				gui_args.insert(0, '--not-before')
@@ -322,6 +324,7 @@ def main(command_args):
 	parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
 	parser.add_option("", "--set-selections", help="run versions specified in XML file", metavar='FILE')
 	parser.add_option("-s", "--source", help="select source code", action='store_true')
+	parser.add_option("", "--systray", help="download in the background", action='store_true')
 	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 	parser.add_option("-V", "--version", help="display version information", action='store_true')
 	parser.add_option("-w", "--wrapper", help="execute program using a debugger, etc", metavar='COMMAND')
