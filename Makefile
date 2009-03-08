@@ -6,8 +6,10 @@ MO = $(shell find locale -name '*.po' | sed -e 's/\.po/\.mo/')
 PY = $(shell find zeroinstall -name '*.py')
 GLADE = $(shell find zeroinstall -name '*.glade' | sed -e 's/\.glade/&.h/')
 
-all: $(MO)
+all: translations
 	$(PYTHON) setup.py build
+
+translations: $(MO)
 
 install: all
 	$(PYTHON) setup.py install
