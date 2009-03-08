@@ -30,12 +30,13 @@ class _NetworkState:
 
 class BackgroundHandler(handler.Handler):
 	"""A Handler for non-interactive background updates. Runs the GUI if interaction is required."""
-	def __init__(self, title):
+	def __init__(self, title, root):
 		handler.Handler.__init__(self)
 		self.title = title
 		self.notification_service = None
 		self.network_manager = None
 		self.notification_service_caps = []
+		self.root = root	# If we need to confirm any keys, run the GUI on this
 
 		try:
 			import dbus
@@ -85,8 +86,8 @@ class BackgroundHandler(handler.Handler):
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		"""Run the GUI if we need to confirm any keys."""
-		self.notify("Zero Install", "Can't update interface; signature not yet trusted. Running GUI...", timeout = 2)
-		_exec_gui(interface.uri, '--refresh')
+		info("Can't update interface; signature not yet trusted. Running GUI...")
+		_exec_gui(self.root, '--refresh', '--download-only', '--systray')
 
 	def report_error(self, exception, tb = None):
 		self.notify("Zero Install", "Error updating %s: %s" % (self.title, str(exception)))
@@ -149,7 +150,7 @@ def _detach():
 def _check_for_updates(policy, verbose):
 	root_iface = iface_cache.get_interface(policy.root).get_name()
 
-	policy.handler = BackgroundHandler(root_iface)
+	policy.handler = BackgroundHandler(root_iface, policy.root)
 
 	info("Checking for updates to '%s' in a background process", root_iface)
 	if verbose:
