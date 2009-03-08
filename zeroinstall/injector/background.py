@@ -40,13 +40,12 @@ class BackgroundHandler(handler.Handler):
 		try:
 			import dbus
 			import dbus.glib
-
-			session_bus = dbus.SessionBus()
 		except Exception, ex:
 			info("Failed to import D-BUS bindings: %s", ex)
 			return
 
 		try:
+			session_bus = dbus.SessionBus()
 			remote_object = session_bus.get_object('org.freedesktop.Notifications',
 								'/org/freedesktop/Notifications')
 
