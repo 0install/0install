@@ -1,8 +1,9 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import gobject
+import gobject, sys
 
+from zeroinstall.support import tasks
 from zeroinstall.injector import handler, download
 import dialog
 
@@ -44,8 +45,23 @@ class GUIHandler(handler.Handler):
 		self.mainwindow.update_download_status()
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
-		import trust_box
-		return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.mainwindow.window)
+		def do_confirm():
+			import trust_box
+			return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.mainwindow.window)
+		if self.mainwindow.systray_icon:
+			self.mainwindow.systray_icon.set_tooltip('Need to confirm a new GPG key')
+			self.mainwindow.systray_icon.set_blinking(True)
+			@tasks.async
+			def wait_and_confirm():
+				# Wait for the user to click the icon, then continue
+				yield self.mainwindow.systray_icon_blocker
+				yield tasks.TimeoutBlocker(0.5, 'Delay')
+				conf = do_confirm()
+				if conf:
+					yield conf
+			return wait_and_confirm()
+		else:
+			return do_confirm()
 	
 	def report_error(self, ex, tb = None):
 		if isinstance(ex, download.DownloadAborted):

@@ -26,6 +26,7 @@ class MainWindow:
 	policy = None
 	comment = None
 	systray_icon = None
+	systray_icon_blocker = None
 
 	def __init__(self, policy, widgets, download_only):
 		self.policy = policy
@@ -176,12 +177,15 @@ class MainWindow:
 			root_iface = iface_cache.iface_cache.get_interface(self.policy.root)
 			self.systray_icon.set_tooltip('Checking for updates for %s' % root_iface.get_name())
 			self.systray_icon.connect('activate', self.remove_systray_icon)
+			self.systray_icon_blocker = tasks.Blocker('Tray icon clicked')
 
 	def remove_systray_icon(self, i = None):
 		assert self.systray_icon, i
 		self.show()
 		self.systray_icon.set_visible(False)
 		self.systray_icon = None
+		self.systray_icon_blocker.trigger()
+		self.systray_icon_blocker = None
 
 	def report_exception(self, ex):
 		if not isinstance(ex, SafeException):
