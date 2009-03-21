@@ -10,7 +10,7 @@ from optparse import OptionParser
 import logging
 
 from zeroinstall import SafeException, NeedDownload
-from zeroinstall.injector import model, autopolicy, namespaces
+from zeroinstall.injector import model, autopolicy, namespaces, selections
 from zeroinstall.injector.iface_cache import iface_cache
 
 #def program_log(msg): os.access('MARK: 0launch: ' + msg, os.F_OK)
@@ -210,8 +210,8 @@ def _normal_mode(options, args):
 	prog_args = args[1:]
 
 	try:
+		from zeroinstall.injector import run
 		if options.gui:
-			from zeroinstall.injector import run
 			gui_args = []
 			if options.download_only:
 				# Just changes the button's label
@@ -244,15 +244,20 @@ def _normal_mode(options, args):
 			sels = _fork_gui(iface_uri, gui_args, prog_args, options)
 			if not sels:
 				sys.exit(1)		# Aborted
-			if options.get_selections:
-				doc = sels.toDOM()
-				doc.writexml(sys.stdout)
-				sys.stdout.write('\n')
-			elif not options.download_only:
-				run.execute_selections(sels, prog_args, options.dry_run, options.main, options.wrapper)
 		else:
 			#program_log('download_and_execute ' + iface_uri)
-			policy.download_and_execute(prog_args, refresh = bool(options.refresh), main = options.main)
+			downloaded = policy.solve_and_download_impls(refresh = bool(options.refresh))
+			if downloaded:
+				policy.handler.wait_for_blocker(downloaded)
+			sels = selections.Selections(policy)
+
+		if options.get_selections:
+			doc = sels.toDOM()
+			doc.writexml(sys.stdout)
+			sys.stdout.write('\n')
+		elif not options.download_only:
+			run.execute_selections(sels, prog_args, options.dry_run, options.main, options.wrapper)
+
 	except NeedDownload, ex:
 		# This only happens for dry runs
 		print ex
@@ -280,7 +285,6 @@ def _download_missing_selections(options, sels):
 		handler.wait_for_blocker(blocker)
 
 def _get_selections(policy):
-	import selections
 	doc = selections.Selections(policy).toDOM()
 	doc.writexml(sys.stdout)
 	sys.stdout.write('\n')
@@ -354,7 +358,7 @@ def main(command_args):
 			print "under the terms of the GNU Lesser General Public License."
 			print "For more information about these matters, see the file named COPYING."
 		elif options.set_selections:
-			from zeroinstall.injector import selections, qdom, run
+			from zeroinstall.injector import qdom, run
 			sels = selections.Selections(qdom.parse(file(options.set_selections)))
 			_download_missing_selections(options, sels)
 			if not options.download_only:

@@ -100,7 +100,9 @@ class TestDownload(BaseTest):
 				policy.download_and_execute(['Hello'])
 				assert 0
 			except model.SafeException, ex:
-				if "Not signed with a trusted key" not in str(ex):
+				if "Can't find all required implementations" not in str(ex):
+					raise ex
+				if "Not signed with a trusted key" not in str(policy.handler.ex):
 					raise ex
 	
 	def testRejectKeyXML(self):
@@ -114,7 +116,9 @@ class TestDownload(BaseTest):
 				policy.download_and_execute(['Hello'])
 				assert 0
 			except model.SafeException, ex:
-				if "Not signed with a trusted key" not in str(ex):
+				if "Can't find all required implementations" not in str(ex):
+					raise ex
+				if "Not signed with a trusted key" not in str(policy.handler.ex):
 					raise
 	
 	def testImport(self):

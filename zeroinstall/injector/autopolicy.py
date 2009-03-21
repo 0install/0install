@@ -29,6 +29,7 @@ class AutoPolicy(policy.Policy):
 		self.download_only = download_only
 
 	def execute(self, prog_args, main = None, wrapper = None):
+		"""@deprecated"""
 		downloaded = self.download_uncached_implementations()
 		if downloaded:
 			self.handler.wait_for_blocker(downloaded)
@@ -36,14 +37,10 @@ class AutoPolicy(policy.Policy):
 			run.execute(self, prog_args, dry_run = self.handler.dry_run, main = main, wrapper = wrapper)
 		else:
 			info("Downloads done (download-only mode)")
-	
+
 	def download_and_execute(self, prog_args, refresh = False, main = None):
-		refreshed = self.solve_with_downloads(refresh)
-
-		self.handler.wait_for_blocker(refreshed)
-
-		if not self.solver.ready:
-			raise model.SafeException("Can't find all required implementations:\n" +
-				'\n'.join(["- %s -> %s" % (iface, self.solver.selections[iface])
-					   for iface  in self.solver.selections]))
+		"""@deprecated: use L{solve_and_download_impls} instead"""
+		downloaded = self.solve_and_download_impls(refresh)
+		if downloaded:
+			self.handler.wait_for_blocker(downloaded)
 		self.execute(prog_args, main = main)
