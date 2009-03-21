@@ -1,9 +1,11 @@
 #!/usr/bin/env python2.5
+from __future__ import with_statement
 from basetest import BaseTest
 import sys, tempfile, os
 from StringIO import StringIO
 import unittest, signal
 from logging import getLogger, WARN, ERROR
+from contextlib import contextmanager
 
 sys.path.insert(0, '..')
 
@@ -27,6 +29,18 @@ sys.modules['dbus'] = my_dbus
 sys.modules['dbus.glib'] = my_dbus
 my_dbus.types = my_dbus
 sys.modules['dbus.types'] = my_dbus
+
+@contextmanager
+def output_suppressed():
+	old_stdout = sys.stdout
+	old_stderr = sys.stderr
+	try:
+		sys.stdout = StringIO()
+		sys.stderr = StringIO()
+		yield
+	finally:
+		sys.stdout = old_stdout
+		sys.stderr = old_stderr
 
 class Reply:
 	def __init__(self, reply):
@@ -76,9 +90,7 @@ class TestDownload(BaseTest):
 			self.child = None
 	
 	def testRejectKey(self):
-		old_out = sys.stdout
-		try:
-			sys.stdout = StringIO()
+		with output_suppressed():
 			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg')
 			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False,
 						       handler = DummyHandler())
@@ -90,13 +102,9 @@ class TestDownload(BaseTest):
 			except model.SafeException, ex:
 				if "Not signed with a trusted key" not in str(ex):
 					raise ex
-		finally:
-			sys.stdout = old_out
 	
 	def testRejectKeyXML(self):
-		old_out = sys.stdout
-		try:
-			sys.stdout = StringIO()
+		with output_suppressed():
 			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg')
 			policy = autopolicy.AutoPolicy('http://example.com:8000/Hello.xml', download_only = False,
 						       handler = DummyHandler())
@@ -108,30 +116,26 @@ class TestDownload(BaseTest):
 			except model.SafeException, ex:
 				if "Not signed with a trusted key" not in str(ex):
 					raise
-		finally:
-			sys.stdout = old_out
 	
 	def testImport(self):
-		old_out = sys.stdout
+		from zeroinstall.injector import cli
+
+		rootLogger = getLogger()
+		rootLogger.disabled = True
 		try:
-			from zeroinstall.injector import cli
-
-			rootLogger = getLogger()
-			rootLogger.disabled = True
 			try:
-				try:
-					cli.main(['--import', '-v', 'NO-SUCH-FILE'])
-					assert 0
-				except model.SafeException, ex:
-					assert 'NO-SUCH-FILE' in str(ex)
-			finally:
-				rootLogger.disabled = False
-				rootLogger.setLevel(WARN)
+				cli.main(['--import', '-v', 'NO-SUCH-FILE'])
+				assert 0
+			except model.SafeException, ex:
+				assert 'NO-SUCH-FILE' in str(ex)
+		finally:
+			rootLogger.disabled = False
+			rootLogger.setLevel(WARN)
 
-			hello = iface_cache.iface_cache.get_interface('http://localhost:8000/Hello')
-			self.assertEquals(0, len(hello.implementations))
+		hello = iface_cache.iface_cache.get_interface('http://localhost:8000/Hello')
+		self.assertEquals(0, len(hello.implementations))
 
-			sys.stdout = StringIO()
+		with output_suppressed():
 			self.child = server.handle_requests('6FCF121BE2390E0B.gpg')
 			sys.stdin = Reply("Y\n")
 
@@ -146,8 +150,6 @@ class TestDownload(BaseTest):
 			# Shouldn't need to prompt the second time
 			sys.stdin = None
 			cli.main(['--import', 'Hello'])
-		finally:
-			sys.stdout = old_out
 
 	def testSelections(self):
 		from zeroinstall.injector.cli import _download_missing_selections
@@ -155,9 +157,7 @@ class TestDownload(BaseTest):
 		sels = selections.Selections(root)
 		class Options: dry_run = False
 
-		old_out = sys.stdout
-		try:
-			sys.stdout = StringIO()
+		with output_suppressed():
 			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
 			_download_missing_selections(Options(), sels)
@@ -165,8 +165,6 @@ class TestDownload(BaseTest):
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 			assert sels.download_missing(iface_cache.iface_cache, None) is None
-		finally:
-			sys.stdout = old_out
 
 	def testSelectionsWithFeed(self):
 		from zeroinstall.injector.cli import _download_missing_selections
@@ -174,9 +172,7 @@ class TestDownload(BaseTest):
 		sels = selections.Selections(root)
 		class Options: dry_run = False
 
-		old_out = sys.stdout
-		try:
-			sys.stdout = StringIO()
+		with output_suppressed():
 			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
 
@@ -191,13 +187,9 @@ class TestDownload(BaseTest):
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 			assert sels.download_missing(iface_cache.iface_cache, None) is None
-		finally:
-			sys.stdout = old_out
 	
 	def testAcceptKey(self):
-		old_out = sys.stdout
-		try:
-			sys.stdout = StringIO()
+		with output_suppressed():
 			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
 			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False,
 							handler = DummyHandler())
@@ -209,8 +201,6 @@ class TestDownload(BaseTest):
 			except model.SafeException, ex:
 				if "HelloWorld/Missing" not in str(ex):
 					raise ex
-		finally:
-			sys.stdout = old_out
 	
 	def testRecipe(self):
 		old_out = sys.stdout

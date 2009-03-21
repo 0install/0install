@@ -10,6 +10,7 @@ To do this, you supply a L{Handler} to the L{policy}.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+import sys
 from logging import debug, warn
 
 from zeroinstall import NeedDownload, SafeException
@@ -136,24 +137,26 @@ class Handler(object):
 
 		domain = trust.domain_from_url(interface.uri)
 
-		print "\nInterface:", interface.uri
-		print "The interface is correctly signed with the following keys:"
+		# Ask on stderr, because we may be writing XML to stdout
+		print >>sys.stderr, "\nInterface:", interface.uri
+		print >>sys.stderr, "The interface is correctly signed with the following keys:"
 		for x in valid_sigs:
-			print "-", x
+			print >>sys.stderr, "-", x
 
 		if len(valid_sigs) == 1:
-			print "Do you want to trust this key to sign feeds from '%s'?" % domain
+			print >>sys.stderr, "Do you want to trust this key to sign feeds from '%s'?" % domain
 		else:
-			print "Do you want to trust all of these keys to sign feeds from '%s'?" % domain
+			print >>sys.stderr, "Do you want to trust all of these keys to sign feeds from '%s'?" % domain
 		while True:
-			i = raw_input("Trust [Y/N] ")
+			print >>sys.stderr, "Trust [Y/N] ",
+			i = raw_input()
 			if not i: continue
 			if i in 'Nn':
 				raise NoTrustedKeys('Not signed with a trusted key')
 			if i in 'Yy':
 				break
 		for key in valid_sigs:
-			print "Trusting", key.fingerprint, "for", domain
+			print >>sys.stderr, "Trusting", key.fingerprint, "for", domain
 			trust.trust_db.trust_key(key.fingerprint, domain)
 
 		trust.trust_db.notify()
