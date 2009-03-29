@@ -96,6 +96,8 @@ Uk7hxHFeQPo=
 
 from data import thomas_key
 
+THOMAS_FINGERPRINT = '92429807C9853C0744A68B9AAE07828059A53CC1'
+
 class TestGPG(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
@@ -104,8 +106,7 @@ class TestGPG(BaseTest):
 		stream.write(thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)
-		trust.trust_db.trust_key(
-			'92429807C9853C0744A68B9AAE07828059A53CC1')
+		trust.trust_db.trust_key(THOMAS_FINGERPRINT)
 	
 	def testImportBad(self):
 		stream = tempfile.TemporaryFile()
@@ -197,7 +198,14 @@ class TestGPG(BaseTest):
 			pass	# OK
 	
 	def testLoadKeys(self):
+
 		self.assertEquals({}, gpg.load_keys([]))
+		keys = gpg.load_keys([THOMAS_FINGERPRINT])
+		self.assertEquals(1, len(keys))
+		key = keys[THOMAS_FINGERPRINT]
+		self.assertEquals(THOMAS_FINGERPRINT, key.fingerprint)
+		self.assertEquals('Thomas Leonard <tal197@users.sourceforge.net>',
+				key.name)
 
 suite = unittest.makeSuite(TestGPG)
 if __name__ == '__main__':

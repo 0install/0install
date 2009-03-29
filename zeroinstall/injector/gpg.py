@@ -13,7 +13,7 @@ import subprocess
 import base64, re
 import os
 import tempfile
-from logging import info
+from logging import info, warn
 
 from zeroinstall.support import find_in_path, basedir
 from zeroinstall.injector.trust import trust_db
@@ -133,11 +133,10 @@ def load_keys(fingerprints):
 	current_fpr = None
 	current_uid = None
 
-	cin, cout = os.popen2(_gnupg_options + ['--fixed-list-mode', '--with-colons', '--list-keys',
-				'--with-fingerprint', '--with-fingerprint'] + fingerprints)
-	cin.close()
+	child = subprocess.Popen(_gnupg_options + ['--fixed-list-mode', '--with-colons', '--list-keys',
+				'--with-fingerprint', '--with-fingerprint'] + fingerprints, stdout = subprocess.PIPE)
 	try:
-		for line in cout:
+		for line in child.stdout:
 			if line.startswith('pub:'):
 				current_fpr = None
 				current_uid = None
@@ -157,7 +156,8 @@ def load_keys(fingerprints):
 				if current_fpr in keys:
 					keys[current_fpr].name = current_uid
 	finally:
-		cout.close()
+		if child.wait():
+			warn("gpg --list-keys failed with exit code %d" % child.returncode)
 
 	return keys
 
