@@ -7,7 +7,6 @@ from zeroinstall.gtkui import help_box
 from zeroinstall.injector.model import network_levels
 from zeroinstall.injector import trust, gpg
 from freshness import freshness_levels, Freshness
-from sets import Set
 
 tips = gtk.Tooltips()
 
@@ -108,7 +107,7 @@ class KeyList:
 			for fingerprint in keys:
 				for domain in trust.trust_db.keys[fingerprint]:
 					if domain not in domains:
-						domains[domain] = Set()
+						domains[domain] = set()
 					domains[domain].add(keys[fingerprint])
 			for domain in domains:
 				iter = self.trusted_keys.append(None, [domain, None])
