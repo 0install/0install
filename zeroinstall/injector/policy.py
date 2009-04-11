@@ -355,7 +355,8 @@ class Policy(object):
 	@tasks.async
 	def solve_and_download_impls(self, refresh = False):
 		"""Run L{solve_with_downloads} and then get the selected implementations too.
-		@raise SafeException: if we couldn't select a set of implementations"""
+		@raise SafeException: if we couldn't select a set of implementations
+		@since: 0.40"""
 		refreshed = self.solve_with_downloads(refresh)
 		if refreshed:
 			yield refreshed

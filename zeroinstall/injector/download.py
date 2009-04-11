@@ -45,7 +45,7 @@ class Download(object):
 	@ivar hint: hint passed by and for caller
 	@type hint: object
 	@ivar child: the child process
-	@type child: L{subprocess.Popen}
+	@type child: subprocess.Popen
 	@ivar aborted_by_user: whether anyone has called L{abort}
 	@type aborted_by_user: bool
 	"""

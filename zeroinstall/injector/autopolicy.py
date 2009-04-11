@@ -29,7 +29,7 @@ class AutoPolicy(policy.Policy):
 		self.download_only = download_only
 
 	def execute(self, prog_args, main = None, wrapper = None):
-		"""@deprecated"""
+		"""@deprecated: use L{solve_and_download_impls} and L{run.execute}"""
 		downloaded = self.download_uncached_implementations()
 		if downloaded:
 			self.handler.wait_for_blocker(downloaded)
