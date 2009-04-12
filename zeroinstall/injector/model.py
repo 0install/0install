@@ -131,12 +131,37 @@ class Restriction(object):
 	__slots__ = []
 
 	def meets_restriction(self, impl):
+		"""Called by the L{Solver} to check whether a particular implementation is acceptable.
+		@return: False if this implementation is not a possibility
+		@rtype: bool
+		"""
 		raise NotImplementedError("Abstract")
 	
+class VersionRestriction(Restriction):
+	"""Only select implementations with a particular version number.
+	@since: 0.40"""
+
+	def __init__(self, version):
+		"""@param version: the required version number
+		@see: L{parse_version}; use this to pre-process the version number
+		"""
+		self.version = version
+
+	def meets_restriction(self, impl):
+		return impl.version == self.version
+
+	def __str__(self):
+		return "(restriction: version = %s)" % format_version(self.version)
+
 class VersionRangeRestriction(Restriction):
 	"""Only versions within the given range are acceptable"""
 	__slots__ = ['before', 'not_before']
+
 	def __init__(self, before, not_before):
+		"""@param before: chosen versions must be earlier than this
+		@param not_before: versions must be at least this high
+		@see: L{parse_version}; use this to pre-process the versions
+		"""
 		self.before = before
 		self.not_before = not_before
 	
