@@ -201,8 +201,12 @@ if __name__ == '__main__':
 			else:
 				raise Exception('Unsupported URL protocol in: ' + url)
 
+			try:
+				sock = src.fp._sock
+			except AttributeError:
+				sock = src.fp.fp._sock	# Python 2.5 on FreeBSD
 			while True:
-				data = src.fp._sock.recv(256)
+				data = sock.recv(256)
 				if not data: break
 				os.write(1, data)
 
