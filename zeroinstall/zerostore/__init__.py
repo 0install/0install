@@ -210,6 +210,9 @@ class Store:
 		if extract:
 			os.rmdir(tmp)
 
+	def __repr__(self):
+		return "<store: %s>" % self.dir
+
 class Stores(object):
 	"""A list of L{Store}s. All stores are searched when looking for an implementation.
 	When storing, we use the first of the system caches (if writable), or the user's

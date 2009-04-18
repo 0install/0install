@@ -241,6 +241,9 @@ def _normal_mode(options, args):
 			if options.os:
 				gui_args.insert(0, options.os)
 				gui_args.insert(0, '--os')
+			if options.with_store:
+				for x in options.with_store:
+					gui_args += ['--with-store', x]
 			sels = _fork_gui(iface_uri, gui_args, prog_args, options)
 			if not sels:
 				sys.exit(1)		# Aborted
@@ -331,6 +334,7 @@ def main(command_args):
 	parser.add_option("", "--systray", help="download in the background", action='store_true')
 	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 	parser.add_option("-V", "--version", help="display version information", action='store_true')
+	parser.add_option("", "--with-store", help="add an implementation cache", action='append', metavar='DIR')
 	parser.add_option("-w", "--wrapper", help="execute program using a debugger, etc", metavar='COMMAND')
 	parser.disable_interspersed_args()
 
@@ -344,6 +348,12 @@ def main(command_args):
 			logger.setLevel(logging.DEBUG)
 		import zeroinstall
 		logging.info("Running 0launch %s %s; Python %s", zeroinstall.version, repr(args), sys.version)
+
+	if options.with_store:
+		from zeroinstall import zerostore
+		for x in options.with_store:
+			iface_cache.stores.stores.append(zerostore.Store(os.path.abspath(x)))
+		logging.info("Stores search path is now %s", iface_cache.stores.stores)
 
 	try:
 		if options.list:

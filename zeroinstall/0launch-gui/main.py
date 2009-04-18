@@ -24,6 +24,7 @@ def run_gui(args):
 	parser.add_option("", "--systray", help="download in the background", action='store_true')
 	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 	parser.add_option("-V", "--version", help="display version information", action='store_true')
+	parser.add_option("", "--with-store", help="add an implementation cache", action='append', metavar='DIR')
 
 	parser.disable_interspersed_args()
 
@@ -43,6 +44,11 @@ def run_gui(args):
 			# We exit, so our parent can call waitpid and unblock.
 			sys.exit(0)
 		# The grandchild continues...
+
+	if options.with_store:
+		from zeroinstall import zerostore
+		for x in options.with_store:
+			iface_cache.stores.stores.append(zerostore.Store(os.path.abspath(x)))
 
 	import gui
 
