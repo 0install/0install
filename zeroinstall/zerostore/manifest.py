@@ -90,9 +90,11 @@ class OldSHA1(Algorithm):
 				else:
 					yield "F %s %s %s %s" % (d, int(info.st_mtime) ,info.st_size, leaf)
 			elif stat.S_ISLNK(m):
-				d = sha1_new(os.readlink(full)).hexdigest()
+				target = os.readlink(full)
+				d = sha1_new(target).hexdigest()
 				# Note: Can't use utime on symlinks, so skip mtime
-				yield "S %s %s %s" % (d, info.st_size, leaf)
+				# Note: eCryptfs may report length as zero, so count ourselves instead
+				yield "S %s %s %s" % (d, len(target), leaf)
 			else:
 				raise SafeException("Unknown object '%s' (not a file, directory or symlink)" %
 						full)
@@ -444,9 +446,11 @@ class HashLibAlgorithm(Algorithm):
 					else:
 						yield "F %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
 				elif stat.S_ISLNK(m):
-					d = new_digest(os.readlink(path)).hexdigest()
+					target = os.readlink(path)
+					d = new_digest(target).hexdigest()
 					# Note: Can't use utime on symlinks, so skip mtime
-					yield "S %s %s %s" % (d, info.st_size, leaf)
+					# Note: eCryptfs may report length as zero, so count ourselves instead
+					yield "S %s %s %s" % (d, len(target), leaf)
 				elif stat.S_ISDIR(m):
 					dirs.append(leaf)
 				else:
