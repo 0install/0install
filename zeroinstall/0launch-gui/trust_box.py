@@ -16,6 +16,28 @@ def pretty_fp(fp):
 		s += ' ' + fp[x:x + 4]
 	return s
 
+def left(text):
+	label = gtk.Label(text)
+	label.set_alignment(0, 0.5)
+	label.set_selectable(True)
+	return label
+
+def get_hint(fingerprint):
+	hint_icon = gtk.Image()
+	hint_text = hints.get(fingerprint, None)
+	if hint_text:
+		hint_icon.set_from_stock(gtk.STOCK_YES, gtk.ICON_SIZE_BUTTON)
+	else:
+		hint_icon.set_from_stock(gtk.STOCK_DIALOG_WARNING, gtk.ICON_SIZE_BUTTON)
+		hint_text = 'Warning: Nothing known about this key!'
+	hint = left(hint_text)
+	hint.set_line_wrap(True)
+	hint_hbox = gtk.HBox(False, 4)
+	hint_hbox.pack_start(hint_icon, False, True, 0)
+	hint_hbox.pack_start(hint, True, True, 0)
+	hint_icon.set_alignment(0, 0)
+	return hint_hbox
+
 class TrustBox(dialog.Dialog):
 	interface = None
 	sigs = None
@@ -55,12 +77,6 @@ class TrustBox(dialog.Dialog):
 					next.trust_keys([], domain)
 					next.destroy()	# Will trigger this again...
 		self.connect('destroy', destroy)
-
-		def left(text):
-			label = gtk.Label(text)
-			label.set_alignment(0, 0.5)
-			label.set_selectable(True)
-			return label
 
 		self.interface = interface
 		self.sigs = sigs
@@ -138,9 +154,7 @@ class TrustBox(dialog.Dialog):
 			if name is not None:
 				dialog.frame(page, 'Claimed identity', name)
 
-			hint = left(hints.get(sig.fingerprint, 'Warning: Nothing known about this key!'))
-			hint.set_line_wrap(True)
-			dialog.frame(page, 'Unreliable hints database says', hint)
+			dialog.frame(page, 'Unreliable hints database says', get_hint(sig.fingerprint))
 
 			already_trusted = trust.trust_db.get_trust_domains(sig.fingerprint)
 			if already_trusted:
