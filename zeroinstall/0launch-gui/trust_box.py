@@ -259,6 +259,11 @@ hints = {
 		'Thomas Leonard created Zero Install and ROX. This key is used to sign updates to the '
 		'injector; you should accept it.',
 
+	'DA9825AECAD089757CDABD8E07133F96CA74D8BA' :
+		'Thomas Leonard created Zero Install and ROX. This key is used to sign updates to the '
+		'injector; you should accept it. It was announced on the Zero Install mailing list '
+		'on 2009-05-31.',
+
 	'0597A2AFB6B372ACB97AC6E433B938C2E9D8826D' : 
 		'Stephen Watson is a project admin for the ROX desktop, and has been involved with the '
 		'project since 2000. This key has been used for signing software since the 23 Jul 2005 '
