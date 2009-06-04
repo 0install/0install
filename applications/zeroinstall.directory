@@ -3,3 +3,4 @@ Encoding=UTF-8
 Icon=zeroinstall-zero2desktop
 Type=Directory
 Name=Zero Install
+Name[es]=Zero Install

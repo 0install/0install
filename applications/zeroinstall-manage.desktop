@@ -2,8 +2,11 @@
 Type=Application
 Version=1.0
 Name=Manage Programs
+Name[es]=Administrar programas
 GenericName=Installer
+GenericName[es]=Instalador
 Comment=Update or Remove Zero Install programs on your Applications menu
+Comment[es]=Actualiza o quita programas de tu menu Aplicaciones.
 Exec=0desktop --manage
 Icon=zeroinstall-zero2desktop
 Terminal=false
