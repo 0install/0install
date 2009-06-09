@@ -99,7 +99,7 @@ class BackgroundHandler(handler.Handler):
 			details = '\n' + '\n'.join(traceback.format_exception(type(exception), exception, tb))
 		else:
 			details = str(exception)
-		self.notify("Zero Install", "Error updating %s: %s" % (self.title, details))
+		self.notify("Zero Install", "Error updating %s: %s" % (self.title, details.replace('<', '&lt;')))
 
 	def notify(self, title, message, timeout = 0, actions = []):
 		"""Send a D-BUS notification message if possible. If there is no notification
