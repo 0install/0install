@@ -90,7 +90,16 @@ class BackgroundHandler(handler.Handler):
 		_exec_gui(self.root, '--refresh', '--download-only', '--systray')
 
 	def report_error(self, exception, tb = None):
-		self.notify("Zero Install", "Error updating %s: %s" % (self.title, str(exception)))
+		from zeroinstall.injector import download
+		if isinstance(exception, download.DownloadError):
+			tb = None
+
+		if tb:
+			import traceback
+			details = '\n' + '\n'.join(traceback.format_exception(type(exception), exception, tb))
+		else:
+			details = str(exception)
+		self.notify("Zero Install", "Error updating %s: %s" % (self.title, details))
 
 	def notify(self, title, message, timeout = 0, actions = []):
 		"""Send a D-BUS notification message if possible. If there is no notification
