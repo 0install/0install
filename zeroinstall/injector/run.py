@@ -140,7 +140,7 @@ def _execute(root_impl, prog_args, dry_run, main, wrapper):
 			main = main[1:]
 		elif root_impl.main:
 			main = os.path.join(os.path.dirname(root_impl.main), main)
-		if main:
+		if main is not None:
 			prog_path = os.path.join(_get_implementation_path(root_impl.id), main)
 
 	if main is None:
