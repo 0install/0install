@@ -2,11 +2,11 @@
 Type=Application
 Version=1.0
 Name=Add New Program
-Name[es]=Agregar un nuevo programa.
+Name[es]=Agregar un nuevo programa
 GenericName=Installer
 GenericName[es]=Instalador
 Comment=Adds Zero Install programs to your Applications menu
-Comment[es]=Agrega programas Zero Install a tu menu Aplicaciones.
+Comment[es]=Agrega programas Zero Install a tu menú Aplicaciones
 Exec=0desktop -- %u
 Icon=zeroinstall-zero2desktop
 Terminal=false
