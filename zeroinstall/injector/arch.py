@@ -87,7 +87,7 @@ class Architecture:
 		self.child_arch = self
 	
 	def __str__(self):
-		return "<Arch: %s %s>" % (self.os_ranks, self.machine_ranks)
+		return _("<Arch: %(os_ranks)s %(machine_ranks)s>") % {'os_ranks': self.os_ranks, 'machine_ranks': self.machine_ranks}
 
 class SourceArchitecture(Architecture):
 	"""Matches source code that creates binaries for a particular architecture.

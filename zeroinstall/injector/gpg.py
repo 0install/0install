@@ -22,7 +22,7 @@ from zeroinstall.injector.model import SafeException
 _gnupg_options = ['gpg', '--no-secmem-warning']
 if hasattr(os, 'geteuid') and os.geteuid() == 0 and 'GNUPGHOME' not in os.environ:
 	_gnupg_options += ['--homedir', os.path.join(basedir.home, '.gnupg')]
-	info("Running as root, so setting GnuPG home to %s", _gnupg_options[-1])
+	info(_("Running as root, so setting GnuPG home to %s"), _gnupg_options[-1])
 
 class Signature(object):
 	"""Abstract base class for signature check results."""
@@ -63,7 +63,7 @@ class ValidSig(Signature):
 		child = subprocess.Popen(_gnupg_options + ['--with-colons', '--list-keys', self.fingerprint], stdout = subprocess.PIPE)
 		cout, unused = child.communicate()
 		if child.returncode:
-			info("GPG exited with code %d" % child.returncode)
+			info(_("GPG exited with code %d") % child.returncode)
 		details = []
 		for line in cout.split('\n'):
 			details.append(line.split(':'))
@@ -74,8 +74,8 @@ class BadSig(Signature):
 	KEYID = 0
 
 	def __str__(self):
-		return "BAD signature by " + self.status[self.KEYID] + \
-			" (the message has been tampered with)"
+		return _("BAD signature by %s (the message has been tampered with)") \
+			% self.status[self.KEYID]
 
 class ErrSig(Signature):
 	"""Error while checking a signature."""
@@ -84,14 +84,14 @@ class ErrSig(Signature):
 	RC = -1
 
 	def __str__(self):
-		msg = "ERROR signature by %s: " % self.status[self.KEYID]
+		msg = _("ERROR signature by %s: ") % self.status[self.KEYID]
 		rc = int(self.status[self.RC])
 		if rc == 4:
-			msg += "Unknown or unsupported algorithm '%s'" % self.status[self.ALG]
+			msg += _("Unknown or unsupported algorithm '%s'") % self.status[self.ALG]
 		elif rc == 9:
-			msg += "Unknown key. Try 'gpg --recv-key %s'" % self.status[self.KEYID]
+			msg += _("Unknown key. Try 'gpg --recv-key %s'") % self.status[self.KEYID]
 		else:
-			msg += "Unknown reason code %d" % rc
+			msg += _("Unknown reason code %d") % rc
 		return msg
 
 	def need_key(self):
@@ -157,7 +157,7 @@ def load_keys(fingerprints):
 					keys[current_fpr].name = current_uid
 	finally:
 		if child.wait():
-			warn("gpg --list-keys failed with exit code %d" % child.returncode)
+			warn(_("gpg --list-keys failed with exit code %d") % child.returncode)
 
 	return keys
 
@@ -182,7 +182,7 @@ def import_key(stream):
 	errors.close()
 
 	if error_messages:
-		raise SafeException("Errors from 'gpg --import':\n%s" % error_messages)
+		raise SafeException(_("Errors from 'gpg --import':\n%s") % error_messages)
 
 def _check_plain_stream(stream):
 	data = tempfile.TemporaryFile()	# Python2.2 does not support 'prefix'
@@ -215,7 +215,7 @@ def _check_xml_stream(stream):
 
 	last_comment = data_to_check.rfind('\n' + xml_comment_start)
 	if last_comment < 0:
-		raise SafeException("No signature block in XML. Maybe this file isn't signed?")
+		raise SafeException(_("No signature block in XML. Maybe this file isn't signed?"))
 	last_comment += 1	# Include new-line in data
 	
 	data = tempfile.TemporaryFile()
@@ -227,19 +227,19 @@ def _check_xml_stream(stream):
 
 	sig_lines = data_to_check[last_comment:].split('\n')
 	if sig_lines[0].strip() != xml_comment_start:
-		raise SafeException('Bad signature block: extra data on comment line')
+		raise SafeException(_('Bad signature block: extra data on comment line'))
 	while sig_lines and not sig_lines[-1].strip():
 		del sig_lines[-1]
 	if sig_lines[-1].strip() != '-->':
-		raise SafeException('Bad signature block: last line is not end-of-comment')
+		raise SafeException(_('Bad signature block: last line is not end-of-comment'))
 	sig_data = '\n'.join(sig_lines[1:-1])
 
 	if re.match('^[ A-Za-z0-9+/=\n]+$', sig_data) is None:
-		raise SafeException("Invalid characters found in base 64 encoded signature")
+		raise SafeException(_("Invalid characters found in base 64 encoded signature"))
 	try:
 		sig_data = base64.decodestring(sig_data) # (b64decode is Python 2.4)
 	except Exception, ex:
-		raise SafeException("Invalid base 64 encoded signature: " + str(ex))
+		raise SafeException(_("Invalid base 64 encoded signature: %s") % str(ex))
 
 	sig_fd, sig_name = tempfile.mkstemp(prefix = 'injector-sig-')
 	try:
@@ -276,7 +276,7 @@ def check_stream(stream):
 	@note: Stream returned may or may not be the one passed in. Be careful!
 	@return: (data_stream, [Signatures])"""
 	if not find_in_path('gpg'):
-		raise SafeException("GnuPG is not installed ('gpg' not in $PATH). See http://gnupg.org")
+		raise SafeException(_("GnuPG is not installed ('gpg' not in $PATH). See http://gnupg.org"))
 
 	#stream.seek(0)
 	#all = stream.read()
@@ -288,11 +288,11 @@ def check_stream(stream):
 		return _check_xml_stream(stream)
 	elif start == '-----B':
 		import warnings
-		warnings.warn("Plain GPG-signed feeds are deprecated!", DeprecationWarning, stacklevel = 2)
+		warnings.warn(_("Plain GPG-signed feeds are deprecated!"), DeprecationWarning, stacklevel = 2)
 		os.lseek(stream.fileno(), 0, 0)
 		return _check_plain_stream(stream)
 	else:
-		raise SafeException("This is not a Zero Install feed! It should be an XML document, but it starts:\n%s" % repr(stream.read(120)))
+		raise SafeException(_("This is not a Zero Install feed! It should be an XML document, but it starts:\n%s") % repr(stream.read(120)))
 
 def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 	"""Read messages from status_r and collect signatures from it.
@@ -327,8 +327,8 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 
 	if not sigs:
 		if error_messages:
-			raise SafeException("No signatures found. Errors from GPG:\n%s" % error_messages)
+			raise SafeException(_("No signatures found. Errors from GPG:\n%s") % error_messages)
 		else:
-			raise SafeException("No signatures found. No error messages from GPG.")
+			raise SafeException(_("No signatures found. No error messages from GPG."))
 	
 	return sigs

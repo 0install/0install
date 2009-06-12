@@ -89,7 +89,7 @@ class Handler(object):
 			assert self._loop is None	# Avoid recursion
 			self._loop = gobject.MainLoop(gobject.main_context_default())
 			try:
-				debug("Entering mainloop, waiting for %s", blocker)
+				debug(_("Entering mainloop, waiting for %s"), blocker)
 				self._loop.run()
 			finally:
 				self._loop = None
@@ -152,7 +152,7 @@ class Handler(object):
 			i = raw_input()
 			if not i: continue
 			if i in 'Nn':
-				raise NoTrustedKeys('Not signed with a trusted key')
+				raise NoTrustedKeys(_('Not signed with a trusted key'))
 			if i in 'Yy':
 				break
 		for key in valid_sigs:

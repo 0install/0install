@@ -40,10 +40,10 @@ class Command:
 					status = os.WEXITSTATUS(status)
 					if status == 1 and not self.error:
 						return False # Cancelled
-					dialog.alert(None, "Command failed with exit code %d:\n%s\n" %
-						(status, self.error))
+					dialog.alert(None, _("Command failed with exit code %(status)d:\n%(error)s\n") %
+						{'status': status, 'error': self.error})
 				else:
-					dialog.alert(None, "Command failed:\n%s\n" % self.error)
+					dialog.alert(None, _("Command failed:\n%s\n") % self.error)
 			return False
 
 def compile(policy, interface, autocompile = False):
@@ -51,7 +51,7 @@ def compile(policy, interface, autocompile = False):
 
 	def add_feed():
 		# A new local feed may have been registered, so update the interface from the cache
-		info("0compile command completed successfully. Reloading interface details.")
+		info(_("0compile command completed successfully. Reloading interface details."))
 		reader.update_from_cache(interface)
 		policy.recalculate()
 
@@ -62,7 +62,7 @@ def compile(policy, interface, autocompile = False):
 
 		src_policy.recalculate()
 		if not src_policy.ready:
-			raise Exception('Internal error: required source components not found!')
+			raise Exception(_('Internal error: required source components not found!'))
 
 		root_iface = iface_cache.iface_cache.get_interface(src_policy.root)
 		impl = src_policy.implementation[root_iface]
@@ -75,7 +75,7 @@ def compile(policy, interface, autocompile = False):
 		# Do the whole build-and-register-feed
 		c = Command()
 		c.run(("0launch",
-			'--message', 'Download the 0compile tool, to compile the source code',
+			'--message', _('Download the 0compile tool, to compile the source code'),
 			'--not-before=' + min_version,
 			"http://0install.net/2006/interfaces/0compile.xml",
 			'gui',
@@ -95,5 +95,5 @@ def compile(policy, interface, autocompile = False):
 		# Prompt user to choose source version
 		c = Command()
 		c.run(['0launch',
-			'--message', 'Download the source code to be compiled',
+			'--message', _('Download the source code to be compiled'),
 			'--gui', '--source', '--download-only', interface.uri], build)

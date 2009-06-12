@@ -5,6 +5,7 @@ PYTHON=python
 MO = $(shell find locale -name '*.po' | sed -e 's/\.po/\.mo/')
 PY = $(shell find zeroinstall -name '*.py')
 GLADE = $(shell find zeroinstall -name '*.glade' | sed -e 's/\.glade/&.h/')
+SH = zeroinstall/zerostore/_unlzma
 
 all: translations
 	$(PYTHON) setup.py build
@@ -20,8 +21,9 @@ install: all
 %.glade.h: %.glade
 	intltool-extract --type=gettext/glade --update "$<"
 
-locale/zero-install.pot: $(PY) $(GLADE)
-	xgettext --language=Python --output=$@ --keyword=_ --keyword=N_ $^
+locale/zero-install.pot: $(PY) $(GLADE) $(SH)
+	xgettext --language=Python --output=$@ --keyword=N_ $(PY) $(GLADE)
+	xgettext --language=Shell -j --output=$@ $(SH)
 
 update-po: locale/zero-install.pot
 	@for po in locale/*/LC_MESSAGES/zero-install.po; do \

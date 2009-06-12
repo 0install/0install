@@ -42,7 +42,7 @@ def add_to_menu(iface, icon_path, category):
 		shutil.rmtree(tmpdir)
 
 	if status:
-		raise SafeException('Failed to run xdg-desktop-menu (error code %d)' % status)
+		raise SafeException(_('Failed to run xdg-desktop-menu (error code %d)') % status)
 
 def discover_existing_apps():
 	"""Search through the configured XDG datadirs looking for .desktop files created by L{add_to_menu}.
@@ -64,7 +64,7 @@ def discover_existing_apps():
 							already_installed[uri] = full
 							break
 					else:
-						info("Failed to find Exec line in %s", full)
+						info(_("Failed to find Exec line in %s"), full)
 				except Exception, ex:
-					warn("Failed to load .desktop file %s: %s", full, ex)
+					warn(_("Failed to load .desktop file %(filename)s: %(exceptions"), {'filename': full, 'exception': ex})
 	return already_installed

@@ -30,7 +30,7 @@ class DownloadError(SafeException):
 class DownloadAborted(DownloadError):
 	"""Download aborted because of a call to L{Download.abort}"""
 	def __init__(self, message):
-		SafeException.__init__(self, message or "Download aborted at user's request")
+		SafeException.__init__(self, message or _("Download aborted at user's request"))
 
 class Download(object):
 	"""A download of a single resource to a temporary file.
@@ -136,8 +136,8 @@ class Download(object):
 			return
 
 		if status and not self.aborted_by_user and not errors:
-			errors = 'Download process exited with error status ' \
-				 'code ' + hex(status)
+			errors = _('Download process exited with error status '
+					   'code %s') % hex(status)
 
 		self._final_total_size = self.get_bytes_downloaded_so_far()
 
@@ -155,10 +155,10 @@ class Download(object):
 			if self.expected_size is not None:
 				size = os.fstat(stream.fileno()).st_size
 				if size != self.expected_size:
-					raise SafeException('Downloaded archive has incorrect size.\n'
-							'URL: %s\n'
-							'Expected: %d bytes\n'
-							'Received: %d bytes' % (self.url, self.expected_size, size))
+					raise SafeException(_('Downloaded archive has incorrect size.\n'
+							'URL: %(url)s\n'
+							'Expected: %(expected_size)d bytes\n'
+							'Received: %(size)d bytes') % {'url': self.url, 'expected_size': self.expected_size, 'size': size})
 		except:
 			self.status = download_failed
 			_, ex, tb = sys.exc_info()
@@ -171,7 +171,7 @@ class Download(object):
 		"""Signal the current download to stop.
 		@postcondition: L{aborted_by_user}"""
 		if self.child is not None:
-			info("Killing download process %s", self.child.pid)
+			info(_("Killing download process %s"), self.child.pid)
 			import signal
 			os.kill(self.child.pid, signal.SIGTERM)
 			self.aborted_by_user = True
@@ -203,7 +203,7 @@ class Download(object):
 			return self._final_total_size
 	
 	def __str__(self):
-		return "<Download from %s>" % self.url
+		return _("<Download from %s>") % self.url
 
 if __name__ == '__main__':
 	def _download_as_child(url, if_modified_since):
@@ -223,7 +223,7 @@ if __name__ == '__main__':
 					req.add_header('If-Modified-Since', if_modified_since)
 				src = urlopen(req)
 			else:
-				raise Exception('Unsupported URL protocol in: ' + url)
+				raise Exception(_('Unsupported URL protocol in: %s') % url)
 
 			try:
 				sock = src.fp._sock

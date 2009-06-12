@@ -28,7 +28,7 @@ def parse_script(pathname):
 	template_header = _template[:_template.index("-gd '")]
 	actual_header = stream.read(len(template_header))
 	if template_header != actual_header:
-		raise NotAnAliasScript("'%s' does not look like a script created by 0alias" % pathname)
+		raise NotAnAliasScript(_("'%s' does not look like a script created by 0alias") % pathname)
 	rest = stream.read()	# If it's a 0alias script, it should be quite short!
 	line = rest.split('\n')[2]
 	split = line.rfind("' '")

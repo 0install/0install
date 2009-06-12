@@ -11,24 +11,8 @@ import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 import pygtk; pygtk.require('2.0')
-
-try:
-	# set up the gettext system and locales
-	from gtk import glade
-	import gettext
-	import locale
-
-	locale.setlocale(locale.LC_ALL, '')
-	for module in glade, gettext:
-		localedir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                                 'locale')
-		if os.path.isdir(localedir):
-			module.bindtextdomain('zero-install', localedir)
-		module.textdomain('zero-install')
-
-	__builtins__._ = gettext.gettext
-except ImportError:
-	__builtins__._ = lambda x: x
+from gtk import glade
+glade.textdomain('zero-install')
 
 import main
 

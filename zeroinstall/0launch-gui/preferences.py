@@ -162,37 +162,36 @@ def show_preferences(policy):
 	preferences_box = Preferences(policy)
 	preferences_box.window.show()
 		
-gui_help = help_box.HelpBox("Zero Install Preferences Help",
-('Overview', """
-
-There are three ways to control which implementations are chosen. You can adjust the \
+gui_help = help_box.HelpBox(_("Zero Install Preferences Help"),
+(_('Overview'), '\n\n' +
+_("""There are three ways to control which implementations are chosen. You can adjust the \
 network policy and the overall stability policy, which affect all interfaces, or you \
-can edit the policy of individual interfaces."""),
+can edit the policy of individual interfaces.""")),
 
-('Network use', """
-The 'Network use' option controls how the injector uses the network. If off-line, \
+(_('Network use'), '\n' +
+_("""The 'Network use' option controls how the injector uses the network. If off-line, \
 the network is not used at all. If 'Minimal' is selected then the injector will use \
 the network if needed, but only if it has no choice. It will run an out-of-date \
 version rather than download a newer one. If 'Full' is selected, the injector won't \
-worry about how much it downloads, but will always pick the version it thinks is best."""),
+worry about how much it downloads, but will always pick the version it thinks is best.""")),
 
-('Freshness', """
-The feed files, which provide the information about which versions are \
+(_('Freshness'), '\n' +
+_("""The feed files, which provide the information about which versions are \
 available, are also cached. To update them, click on 'Refresh all now'. You can also \
 get the injector to check for new versions automatically from time to time using \
-the Freshness setting."""),
+the Freshness setting.""")),
 
-('Help test new versions', """
-The overall stability policy can either be to prefer stable versions, or to help test \
+(_('Help test new versions'), '\n' +
+_("""The overall stability policy can either be to prefer stable versions, or to help test \
 new versions. Choose whichever suits you. Since different programmers have different \
 ideas of what 'stable' means, you may wish to override this on a per-interface basis.
 
 To set the policy for an interface individually, select it in the main window and \
-click on 'Interface Properties'. See that dialog's help text for more information."""),
+click on 'Interface Properties'. See that dialog's help text for more information.""")),
 
-('Security', """
-This section lists all keys which you currently trust. When fetching a new program or \
+(_('Security'), '\n' +
+_("""This section lists all keys which you currently trust. When fetching a new program or \
 updates for an existing one, the feed must be signed by one of these keys. If not, \
 you will be prompted to confirm that you trust the new key, and it will then be added \
-to this list. To remove a key, right-click on it and choose 'Remove' from the menu."""),
+to this list. To remove a key, right-click on it and choose 'Remove' from the menu.""")),
 )

@@ -155,10 +155,10 @@ def domain_from_url(url):
 	import urlparse
 	from zeroinstall import SafeException
 	if url.startswith('/'):
-		raise SafeException("Can't get domain from a local path: '%s'" % url)
+		raise SafeException(_("Can't get domain from a local path: '%s'") % url)
 	domain = urlparse.urlparse(url)[1]
 	if domain and domain != '*':
 		return domain
-	raise SafeException("Can't extract domain from URL '%s'" % url)
+	raise SafeException(_("Can't extract domain from URL '%s'") % url)
 
 trust_db = TrustDB()

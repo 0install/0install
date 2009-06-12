@@ -131,7 +131,7 @@ class AddBox:
 							dialog_ok.grab_focus()
 						else:
 							box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
-								'Failed to run 0launch.\n' + errors[0])
+								_('Failed to run 0launch.\n') + errors[0])
 							box.run()
 							box.destroy()
 						return False
@@ -169,7 +169,7 @@ class AddBox:
 		   uri.endswith('.deb') or \
 		   uri.endswith('.tgz'):
 			box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
-				"This URI (%s) looks like an archive, not a Zero Install feed. Make sure you're using the feed link!" % uri)
+				_("This URI (%s) looks like an archive, not a Zero Install feed. Make sure you're using the feed link!") % uri)
 			box.run()
 			box.destroy()
 			return False

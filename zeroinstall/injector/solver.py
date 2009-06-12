@@ -72,7 +72,7 @@ class DefaultSolver(Solver):
 		self._machine_group = None
 
 		restrictions = {}
-		debug("Solve! root = %s", root_interface)
+		debug(_("Solve! root = %s"), root_interface)
 		def process(dep, arch):
 			ready = True
 			iface = self.iface_cache.get_interface(dep.interface)
@@ -90,23 +90,23 @@ class DefaultSolver(Solver):
 
 			impl = get_best_implementation(iface, arch)
 			if impl:
-				debug("Will use implementation %s (version %s)", impl, impl.get_version())
+				debug(_("Will use implementation %(implementation)s (version %(version)s)"), {'implementation': impl, 'version': impl.get_version()})
 				self.selections[iface] = impl
 				if self._machine_group is None and impl.machine and impl.machine != 'src':
 					self._machine_group = machine_groups.get(impl.machine, 0)
-					debug("Now restricted to architecture group %s", self._machine_group)
+					debug(_("Now restricted to architecture group %s"), self._machine_group)
 				for d in impl.requires:
-					debug("Considering dependency %s", d)
+					debug(_("Considering dependency %s"), d)
 					if not process(d, arch.child_arch):
 						ready = False
 			else:
-				debug("No implementation chould be chosen yet");
+				debug(_("No implementation chould be chosen yet"));
 				ready = False
 
 			return ready
 
 		def get_best_implementation(iface, arch):
-			debug("get_best_implementation(%s), with feeds: %s", iface, iface.feeds)
+			debug(_("get_best_implementation(%(interface)s), with feeds: %(feeds)s"), {'interface': iface, 'feeds': iface.feeds})
 
 			iface_restrictions = restrictions.get(iface, [])
 			extra_restrictions = self.extra_restrictions.get(iface, None)
@@ -117,21 +117,21 @@ class DefaultSolver(Solver):
 			impls = []
 			for f in usable_feeds(iface, arch):
 				self.feeds_used.add(f)
-				debug("Processing feed %s", f)
+				debug(_("Processing feed %s"), f)
 
 				try:
 					feed = self.iface_cache.get_interface(f)._main_feed
 					if not feed.last_modified: continue	# DummyFeed
 					if feed.name and iface.uri != feed.url and iface.uri not in feed.feed_for:
-						info("Missing <feed-for> for '%s' in '%s'", iface.uri, f)
+						info(_("Missing <feed-for> for '%(uri)s' in '%(feed)s'"), {'uri': iface.uri, 'feed': f})
 
 					if feed.implementations:
 						impls.extend(feed.implementations.values())
 				except Exception, ex:
-					warn("Failed to load feed %s for %s: %s", f, iface, str(ex))
+					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': str(ex)})
 
 			if not impls:
-				info("Interface %s has no implementations!", iface)
+				info(_("Interface %s has no implementations!"), iface)
 				return None
 
 			if self.record_details:
@@ -147,7 +147,7 @@ class DefaultSolver(Solver):
 						best = x
 			unusable = get_unusable_reason(best, iface_restrictions, arch)
 			if unusable:
-				info("Best implementation of %s is %s, but unusable (%s)", iface, best, unusable)
+				info(_("Best implementation of %(interface)s is %(best)s, but unusable (%(unusable)s)"), {'interface': iface, 'best': best, 'unusable': unusable})
 				return None
 			return best
 		
@@ -215,8 +215,8 @@ class DefaultSolver(Solver):
 				   (f.machine is None or f.machine in arch.machine_ranks):
 					yield f.uri
 				else:
-					debug("Skipping '%s'; unsupported architecture %s-%s",
-						f, f.os, f.machine)
+					debug(_("Skipping '%(feed)s'; unsupported architecture %(os)s-%(machine)s"),
+						{'feed': f, 'os': f.os, 'machine': f.machine})
 		
 		def is_unusable(impl, restrictions, arch):
 			"""@return: whether this implementation is unusable.
@@ -234,25 +234,25 @@ class DefaultSolver(Solver):
 			machine = impl.machine
 			if machine and self._machine_group is not None:
 				if machine_groups.get(machine, 0) != self._machine_group:
-					return "Incompatible with another selection from a different architecture group"
+					return _("Incompatible with another selection from a different architecture group")
 
 			for r in restrictions:
 				if not r.meets_restriction(impl):
-					return "Incompatible with another selected implementation"
+					return _("Incompatible with another selected implementation")
 			stability = impl.get_stability()
 			if stability <= model.buggy:
 				return stability.name
 			if self.network_use == model.network_offline and not get_cached(impl):
-				return "Not cached and we are off-line"
+				return _("Not cached and we are off-line")
 			if impl.os not in arch.os_ranks:
-				return "Unsupported OS"
+				return _("Unsupported OS")
 			# When looking for source code, we need to known if we're
 			# looking at an implementation of the root interface, even if
 			# it's from a feed, hence the sneaky restrictions identity check.
 			if machine not in arch.machine_ranks:
 				if machine == 'src':
-					return "Source code"
-				return "Unsupported machine type"
+					return _("Source code")
+				return _("Unsupported machine type")
 			return None
 
 		def get_cached(impl):

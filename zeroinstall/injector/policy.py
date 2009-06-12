@@ -87,8 +87,8 @@ class Policy(object):
 		# (allow self for backwards compat)
 		self.handler = handler or self
 
-		debug("Supported systems: '%s'", arch.os_ranks)
-		debug("Supported processors: '%s'", arch.machine_ranks)
+		debug(_("Supported systems: '%s'"), arch.os_ranks)
+		debug(_("Supported processors: '%s'"), arch.machine_ranks)
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
@@ -101,7 +101,7 @@ class Policy(object):
 				self.freshness = int(config.get('global', 'freshness'))
 				assert self.solver.network_use in network_levels, self.solver.network_use
 			except Exception, ex:
-				warn("Error loading config: %s", str(ex) or repr(ex))
+				warn(_("Error loading config: %s"), str(ex) or repr(ex))
 
 		self.set_root(root)
 
@@ -153,7 +153,7 @@ class Policy(object):
 			if feed is None or feed.last_modified is None:
 				self.download_and_import_feed_if_online(f)	# Will start a download
 			elif self.is_stale(feed):
-				debug("Adding %s to stale set", f)
+				debug(_("Adding %s to stale set"), f)
 				self.stale_feeds.add(iface_cache.get_interface(f))	# Legacy API
 				if fetch_stale_interfaces:
 					self.download_and_import_feed_if_online(f)	# Will start a download
@@ -176,8 +176,8 @@ class Policy(object):
 			if f.os in arch.os_ranks and f.machine in machine_ranks:
 				yield f
 			else:
-				debug("Skipping '%s'; unsupported architecture %s-%s",
-					f, f.os, f.machine)
+				debug(_("Skipping '%(feed)s'; unsupported architecture %(os)s-%(machine)s"),
+					{'feed': f, 'os': f.os, 'machine': f.machine})
 
 	def is_stale(self, feed):
 		"""Check whether feed needs updating, based on the configured L{freshness}.
@@ -191,14 +191,14 @@ class Policy(object):
 			return True		# Don't even have it yet
 		now = time.time()
 		staleness = now - (feed.last_checked or 0)
-		debug("Staleness for %s is %.2f hours", feed, staleness / 3600.0)
+		debug(_("Staleness for %(feed)s is %(staleness).2f hours"), {'feed': feed, 'staleness': staleness / 3600.0})
 
 		if self.freshness == 0 or staleness < self.freshness:
 			return False		# Fresh enough for us
 
 		last_check_attempt = iface_cache.get_last_check_attempt(feed.url)
 		if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
-			debug("Stale, but tried to check recently (%s) so not rechecking now.", time.ctime(last_check_attempt))
+			debug(_("Stale, but tried to check recently (%s) so not rechecking now."), time.ctime(last_check_attempt))
 			return False
 
 		return True
@@ -206,17 +206,17 @@ class Policy(object):
 	def download_and_import_feed_if_online(self, feed_url):
 		"""If we're online, call L{fetch.Fetcher.download_and_import_feed}. Otherwise, log a suitable warning."""
 		if self.network_use != network_offline:
-			debug("Feed %s not cached and not off-line. Downloading...", feed_url)
+			debug(_("Feed %s not cached and not off-line. Downloading..."), feed_url)
 			return self.fetcher.download_and_import_feed(feed_url, iface_cache)
 		else:
 			if self._warned_offline:
-				debug("Not downloading feed '%s' because we are off-line.", feed_url)
+				debug(_("Not downloading feed '%s' because we are off-line."), feed_url)
 			elif feed_url == injector_gui_uri:
 				# Don't print a warning, because we always switch to off-line mode to
 				# run the GUI the first time.
-				info("Not downloading GUI feed '%s' because we are in off-line mode.", feed_url)
+				info(_("Not downloading GUI feed '%s' because we are in off-line mode."), feed_url)
 			else:
-				warn("Not downloading feed '%s' because we are in off-line mode.", feed_url)
+				warn(_("Not downloading feed '%s' because we are in off-line mode."), feed_url)
 				self._warned_offline = True
 
 	def get_implementation_path(self, impl):
@@ -237,18 +237,20 @@ class Policy(object):
 		assert isinstance(interface, Interface)
 
 		if not interface.name and not interface.feeds:
-			raise SafeException("We don't have enough information to "
+			raise SafeException(_("We don't have enough information to "
 					    "run this program yet. "
-					    "Need to download:\n%s" % interface.uri)
+					    "Need to download:\n%s") % interface.uri)
 		try:
 			return self.implementation[interface]
 		except KeyError, ex:
 			if interface.implementations:
 				offline = ""
 				if self.network_use == network_offline:
-					offline = "\nThis may be because 'Network Use' is set to Off-line."
-				raise SafeException("No usable implementation found for '%s'.%s" %
-						(interface.name, offline))
+					raise SafeException(_("No usable implementation found for '%s'.\n"
+							"This may be because 'Network Use' is set to Off-line.") %
+							interface.name)
+				raise SafeException(_("No usable implementation found for '%s'.") %
+						interface.name)
 			raise ex
 
 	def get_cached(self, impl):
@@ -294,14 +296,14 @@ class Policy(object):
 		feed_iface = iface_cache.get_interface(feed_iface_uri)
 		if not feed_iface.feed_for:
 			if not feed_iface.name:
-				raise SafeException("Can't get feed targets for '%s'; failed to load interface." %
+				raise SafeException(_("Can't get feed targets for '%s'; failed to load interface.") %
 						feed_iface_uri)
-			raise SafeException("Missing <feed-for> element in '%s'; "
-					"this interface can't be used as a feed." % feed_iface_uri)
+			raise SafeException(_("Missing <feed-for> element in '%s'; "
+					"this interface can't be used as a feed.") % feed_iface_uri)
 		feed_targets = feed_iface.feed_for
-		debug("Feed targets: %s", feed_targets)
+		debug(_("Feed targets: %s"), feed_targets)
 		if not feed_iface.name:
-			warn("Warning: unknown interface '%s'" % feed_iface_uri)
+			warn(_("Warning: unknown interface '%s'") % feed_iface_uri)
 		return [iface_cache.get_interface(uri) for uri in feed_targets]
 	
 	@tasks.async
@@ -326,7 +328,7 @@ class Policy(object):
 				break
 			else:
 				if self.network_use == network_offline and not force:
-					info("Can't choose versions and in off-line mode, so aborting")
+					info(_("Can't choose versions and in off-line mode, so aborting"))
 					break
 				# Once we've starting downloading some things,
 				# we might as well get them all.
@@ -363,7 +365,7 @@ class Policy(object):
 			tasks.check(refreshed)
 
 		if not self.solver.ready:
-			raise SafeException("Can't find all required implementations:\n" +
+			raise SafeException(_("Can't find all required implementations:") + '\n' +
 				'\n'.join(["- %s -> %s" % (iface, self.solver.selections[iface])
 					   for iface  in self.solver.selections]))
 		downloaded = self.download_uncached_implementations()
@@ -417,5 +419,5 @@ class Policy(object):
 	def get_interface(self, uri):
 		"""@deprecated: use L{iface_cache.IfaceCache.get_interface} instead"""
 		import warnings
-		warnings.warn("Policy.get_interface is deprecated!", DeprecationWarning, stacklevel = 2)
+		warnings.warn(_("Policy.get_interface is deprecated!"), DeprecationWarning, stacklevel = 2)
 		return iface_cache.get_interface(uri)

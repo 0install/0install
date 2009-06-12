@@ -87,7 +87,7 @@ class PendingFeed(object):
 			if key_id:
 				import urlparse
 				key_url = urlparse.urljoin(key_mirror or self.url, '%s.gpg' % key_id)
-				info("Fetching key from %s", key_url)
+				info(_("Fetching key from %s"), key_url)
 				dl = handler.get_download(key_url, hint = feed_hint)
 				downloads[dl.downloaded] = (dl, dl.tempfile)
 				blockers.append(dl.downloaded)
@@ -114,8 +114,8 @@ class PendingFeed(object):
 					else:
 						blockers.append(b)
 				except Exception:
-					_, exception, tb = sys.exc_info()
-					warn("Failed to import key for '%s': %s", self.url, str(exception))
+					_type, exception, tb = sys.exc_info()
+					warn(_("Failed to import key for '%(url)s': %(exception)s"), {'url': self.url, 'exception': str(exception)})
 
 		if exception and not any_success:
 			raise exception, None, tb
@@ -126,7 +126,7 @@ class PendingFeed(object):
 		import shutil, tempfile
 		from zeroinstall.injector import gpg
 
-		info("Importing key for feed '%s'", self.url)
+		info(_("Importing key for feed '%s'"), self.url)
 
 		# Python2.4: can't call fileno() on stream, so save to tmp file instead
 		tmpfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
@@ -156,7 +156,7 @@ class PendingFeed(object):
 			self.sigs = sigs
 		except:
 			self.signed_data.seek(0)
-			info("Failed to check GPG signature. Data received was:\n" + repr(self.signed_data.read()))
+			info(_("Failed to check GPG signature. Data received was:\n") + repr(self.signed_data.read()))
 			raise
 
 class IfaceCache(object):
@@ -216,8 +216,8 @@ class IfaceCache(object):
 		@type modified_time: long
 		@raises ReplayAttack: if modified_time is older than the currently cached time
 		"""
-		debug("Updating '%s' from network; modified at %s" %
-			(interface.name or interface.uri, _pretty_time(modified_time)))
+		debug(_("Updating '%(interface)s' from network; modified at %(time)s") %
+			{'interface': interface.name or interface.uri, 'time': _pretty_time(modified_time)})
 
 		if '\n<!-- Base64 Signature' not in new_xml:
 			# Only do this for old-style interfaces without
@@ -237,8 +237,8 @@ class IfaceCache(object):
 		interface._main_feed.last_checked = long(time.time())
 		writer.save_interface(interface)
 
-		info("Updated interface cache entry for %s (modified %s)",
-			interface.get_name(), _pretty_time(modified_time))
+		info(_("Updated interface cache entry for %(interface)s (modified %(time)s)"),
+			{'interface': interface.get_name(), 'time': _pretty_time(modified_time)})
 
 	def _import_new_interface(self, interface, new_xml, modified_time):
 		"""Write new_xml into the cache.
@@ -255,7 +255,7 @@ class IfaceCache(object):
 		if os.path.exists(cached):
 			old_xml = file(cached).read()
 			if old_xml == new_xml:
-				debug("No change")
+				debug(_("No change"))
 				return
 
 		stream = file(cached + '.new', 'w')
@@ -272,11 +272,10 @@ class IfaceCache(object):
 		if old_modified:
 			if new_mtime < old_modified:
 				os.unlink(cached + '.new')
-				raise ReplayAttack("New interface's modification time is before old "
-						    "version!"
-						    "\nOld time: " + _pretty_time(old_modified) +
-						    "\nNew time: " + _pretty_time(new_mtime) + 
-						    "\nRefusing update.")
+				raise ReplayAttack(_("New interface's modification time is "
+					"before old version!\nOld time: %(old_time)s\nNew time: %(new_time)s\n"
+					"Refusing update.")
+					% {'old_time': _pretty_time(old_modified), 'new_time': _pretty_time(new_mtime)})
 			if new_mtime == old_modified:
 				# You used to have to update the modification time manually.
 				# Now it comes from the signature, this check isn't useful
@@ -286,7 +285,7 @@ class IfaceCache(object):
 				#raise SafeException("Interface has changed, but modification time "
 				#		    "hasn't! Refusing update.")
 		os.rename(cached + '.new', cached)
-		debug("Saved as " + cached)
+		debug(_("Saved as %s") % cached)
 
 		reader.update_from_cache(interface)
 
@@ -316,7 +315,7 @@ class IfaceCache(object):
 		if uri in self._interfaces:
 			return self._interfaces[uri]
 
-		debug("Initialising new interface object for %s", uri)
+		debug(_("Initialising new interface object for %s"), uri)
 		self._interfaces[uri] = Interface(uri)
 		reader.update_from_cache(self._interfaces[uri])
 		return self._interfaces[uri]
@@ -362,7 +361,7 @@ class IfaceCache(object):
 		try:
 			return gpg.check_stream(file(old_iface))[1]
 		except SafeException, ex:
-			debug("No signatures (old-style interface): %s" % ex)
+			debug(_("No signatures (old-style interface): %s") % ex)
 			return None
 	
 	def _get_signature_date(self, uri):

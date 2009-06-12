@@ -21,12 +21,12 @@ def _escape_slashes(path):
 def _get_feed_dir(feed):
 	"""The algorithm from 0mirror."""
 	if '#' in feed:
-		raise SafeException("Invalid URL '%s'" % feed)
+		raise SafeException(_("Invalid URL '%s'") % feed)
 	scheme, rest = feed.split('://', 1)
 	domain, rest = rest.split('/', 1)
 	for x in [scheme, domain, rest]:
 		if not x or x.startswith(','):
-			raise SafeException("Invalid URL '%s'" % feed)
+			raise SafeException(_("Invalid URL '%s'") % feed)
 	return os.path.join('feeds', scheme, domain, _escape_slashes(rest))
 
 class Fetcher(object):
@@ -102,7 +102,7 @@ class Fetcher(object):
 		@param force: whether to abort and restart an existing download"""
 		from download import DownloadAborted
 		
-		debug("download_and_import_feed %s (force = %d)", feed_url, force)
+		debug(_("download_and_import_feed %(url)s (force = %(force)d)"), {'url': feed_url, 'force': force})
 		assert not feed_url.startswith('/')
 
 		primary = self._download_and_import_feed(feed_url, iface_cache, force, use_mirror = False)
@@ -132,7 +132,7 @@ class Fetcher(object):
 				# Primary failed
 				primary = None
 				primary_ex = ex
-				warn("Trying mirror, as feed download from %s failed: %s", feed_url, ex)
+				warn(_("Trying mirror, as feed download from %(url)s failed: %(exception)s"), {'url': feed_url, 'exception': ex})
 
 			# Start downloading from mirror...
 			mirror = self._download_and_import_feed(feed_url, iface_cache, force, use_mirror = True)
@@ -151,12 +151,12 @@ class Fetcher(object):
 							primary = None
 							# No point carrying on with the mirror once the primary has succeeded
 							if mirror:
-								info("Primary feed download succeeded; aborting mirror download for " + feed_url)
+								info(_("Primary feed download succeeded; aborting mirror download for %s") % feed_url)
 								mirror.dl.abort()
 					except SafeException, ex:
 						primary = None
 						primary_ex = ex
-						info("Feed download from %s failed; still trying mirror: %s", feed_url, ex)
+						info(_("Feed download from %(url)s failed; still trying mirror: %(exception)s"), {'url': feed_url, 'exception': ex})
 
 				if mirror:
 					try:
@@ -168,11 +168,11 @@ class Fetcher(object):
 								# as the mirror download succeeded.
 								primary_ex = None
 					except ReplayAttack, ex:
-						info("Version from mirror is older than cached version; ignoring it: %s", ex)
+						info(_("Version from mirror is older than cached version; ignoring it: %s"), ex)
 						mirror = None
 						primary_ex = None
 					except SafeException, ex:
-						info("Mirror download failed: %s", ex)
+						info(_("Mirror download failed: %s"), ex)
 						mirror = None
 
 			if primary_ex:
@@ -205,7 +205,7 @@ class Fetcher(object):
 			else:
 				key_mirror = None
 
-			keys_downloaded = tasks.Task(pending.download_keys(self.handler, feed_hint = feed_url, key_mirror = key_mirror), "download keys for " + feed_url)
+			keys_downloaded = tasks.Task(pending.download_keys(self.handler, feed_hint = feed_url, key_mirror = key_mirror), _("download keys for %s") % feed_url)
 			yield keys_downloaded.finished
 			tasks.check(keys_downloaded.finished)
 
@@ -216,7 +216,7 @@ class Fetcher(object):
 					yield blocker
 					tasks.check(blocker)
 				if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-					raise NoTrustedKeys("No signing keys trusted; not importing")
+					raise NoTrustedKeys(_("No signing keys trusted; not importing"))
 
 		task = fetch_feed()
 		task.dl = dl
@@ -238,8 +238,8 @@ class Fetcher(object):
 		from zeroinstall.zerostore import manifest
 		alg = impl.id.split('=', 1)[0]
 		if alg not in manifest.algorithms:
-			raise SafeException("Unknown digest algorithm '%s' for '%s' version %s" %
-					(alg, impl.feed.get_name(), impl.get_version()))
+			raise SafeException(_("Unknown digest algorithm '%(algorithm)s' for '%(implementation)s' version %(version)s") %
+					{'algorithm': alg, 'implementation': impl.feed.get_name(), 'version': impl.get_version()})
 
 		@tasks.async
 		def download_impl():
@@ -255,7 +255,7 @@ class Fetcher(object):
 				yield blocker
 				tasks.check(blocker)
 			else:
-				raise Exception("Unknown download type for '%s'" % retrieval_method)
+				raise Exception(_("Unknown download type for '%s'") % retrieval_method)
 
 			self.handler.impl_added_to_store(impl)
 		return download_impl()
@@ -274,13 +274,13 @@ class Fetcher(object):
 
 		url = download_source.url
 		if not (url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:')):
-			raise SafeException("Unknown scheme in download URL '%s'" % url)
+			raise SafeException(_("Unknown scheme in download URL '%s'") % url)
 
 		mime_type = download_source.type
 		if not mime_type:
 			mime_type = unpack.type_from_url(download_source.url)
 		if not mime_type:
-			raise SafeException("No 'type' attribute on archive, and I can't guess from the name (%s)" % download_source.url)
+			raise SafeException(_("No 'type' attribute on archive, and I can't guess from the name (%s)") % download_source.url)
 		unpack.check_type_ok(mime_type)
 		dl = self.handler.get_download(download_source.url, force = force, hint = impl_hint)
 		dl.expected_size = download_source.size + (download_source.start_offset or 0)
@@ -291,20 +291,20 @@ class Fetcher(object):
 		icon cache. If the interface has no icon or we are offline, do nothing.
 		@return: the task doing the import, or None
 		@rtype: L{tasks.Task}"""
-		debug("download_icon %s (force = %d)", interface, force)
+		debug(_("download_icon %(interface)s (force = %(force)d)"), {'interface': interface, 'force': force})
 
 		# Find a suitable icon to download
 		for icon in interface.get_metadata(XMLNS_IFACE, 'icon'):
 			type = icon.getAttribute('type')
 			if type != 'image/png':
-				debug('Skipping non-PNG icon')
+				debug(_('Skipping non-PNG icon'))
 				continue
 			source = icon.getAttribute('href')
 			if source:
 				break
-			warn('Missing "href" attribute on <icon> in %s', interface)
+			warn(_('Missing "href" attribute on <icon> in %s'), interface)
 		else:
-			info('No PNG icons found in %s', interface)
+			info(_('No PNG icons found in %s'), interface)
 			return
 
 		try:
@@ -340,13 +340,12 @@ class Fetcher(object):
 
 		to_download = []
 		for impl in implementations:
-			debug("start_downloading_impls: for %s get %s", impl.feed, impl)
+			debug(_("start_downloading_impls: for %(feed)s get %(implementation)s"), {'feed': impl.feed, 'implementation': impl})
 			source = self.get_best_source(impl)
 			if not source:
-				raise SafeException("Implementation " + impl.id + " of "
-					"interface " + impl.feed.get_name() + " cannot be "
-					"downloaded (no download locations given in "
-					"interface!)")
+				raise SafeException(_("Implementation %(implementation_id)s of interface %(interface)s"
+					" cannot be downloaded (no download locations given in "
+					"interface!)") % {'implementation_id': impl.id, 'interface': impl.feed.get_name()})
 			to_download.append((impl, source))
 
 		for impl, source in to_download:

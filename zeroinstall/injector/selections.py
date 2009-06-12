@@ -66,7 +66,7 @@ class Selections(object):
 			self.selections = {}
 			self._init_from_qdom(source)
 		else:
-			raise Exception("Source not a Policy or qdom.Element!")
+			raise Exception(_("Source not a Policy or qdom.Element!"))
 
 	def _init_from_policy(self, policy):
 		"""Set the selections from a policy.

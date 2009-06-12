@@ -12,6 +12,25 @@ The Python implementation of the Zero Install injector is divided into four sub-
 
 version = '0.41'
 
+#locale and setlocale are not required and may fail, and the program will run
+#anyway
+import locale
+import gettext
+import __builtin__
+from logging import warn
+
+try:
+	locale.setlocale(locale.LC_ALL, '')
+except locale.Error:
+	warn('Error setting locale (eg. Invalid locale)')
+#gettext.install('zero-install', names=['ngettext'])
+#Unicode required for using non ascii chars in optparse
+gettext.install('zero-install', unicode=True, names=['ngettext'])
+
+def N_(message): return message
+__builtin__.__dict__['N_'] = N_
+
+
 class SafeException(Exception):
 	"""An exception that can be reported to the user without a stack trace.
 	The command-line interface's C{--verbose} option will display the full stack trace."""
@@ -20,4 +39,4 @@ class NeedDownload(SafeException):
 	"""Thrown by L{injector.autopolicy.AutoPolicy} if we tried to start a download
 	and downloading is disabled."""
 	def __init__(self, url):
-		Exception.__init__(self, "Would download '%s'" % url)
+		Exception.__init__(self, _("Would download '%s'") % url)

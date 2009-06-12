@@ -12,8 +12,6 @@ from zeroinstall.support import basedir
 from zeroinstall.gtkui.treetips import TreeTips
 from zeroinstall.gtkui import help_box, gtkutils
 
-_ = lambda x: x
-
 __all__ = ['CacheExplorer']
 
 ROX_IFACE = 'http://rox.sourceforge.net/2005/interfaces/ROX-Filer'
@@ -137,7 +135,7 @@ class LocalImplementation:
 		self.impl = impl
 
 	def append_to(self, model, iter):
-		model.append(iter, [self.impl.id, 0, None, 'This is a local version, not held in the cache.', self])
+		model.append(iter, [self.impl.id, 0, None, _('This is a local version, not held in the cache.'), self])
 
 class CachedImplementation:
 	may_delete = True
@@ -177,12 +175,12 @@ class CachedImplementation:
 		else:
 			box = gtk.MessageDialog(None, 0,
 						gtk.MESSAGE_INFO, gtk.BUTTONS_OK,
-						'Contents match digest; nothing has been changed.')
+						_('Contents match digest; nothing has been changed.'))
 		box.run()
 		box.destroy()
 
-	menu_items = [('Open in ROX-Filer', open_rox),
-		      ('Verify integrity', verify)]
+	menu_items = [(_('Open in ROX-Filer'), open_rox),
+		      (_('Verify integrity'), verify)]
 
 class UnusedImplementation(CachedImplementation):
 	def append_to(self, model, iter):
@@ -201,7 +199,7 @@ class KnownImplementation(CachedImplementation):
 
 	def append_to(self, model, iter):
 		model.append(iter,
-			['Version %s : %s' % (self.impl.get_version(), self.impl.id),
+			[_('Version %(implementation_version)s : %(implementation_id)s') % {'implementation_version': self.impl.get_version(), 'implementation_id': self.impl.id},
 			 self.size, None,
 			 None,
 			 self])
@@ -224,13 +222,13 @@ class CacheExplorer:
 		self.tree_view = widgets.get_widget('treeview')
 		self.tree_view.set_model(self.model)
 
-		column = gtk.TreeViewColumn('Item', gtk.CellRendererText(), text = ITEM)
+		column = gtk.TreeViewColumn(_('Item'), gtk.CellRendererText(), text = ITEM)
 		column.set_resizable(True)
 		self.tree_view.append_column(column)
 
 		cell = gtk.CellRendererText()
 		cell.set_property('xalign', 1.0)
-		column = gtk.TreeViewColumn('Size', cell, text = PRETTY_SIZE)
+		column = gtk.TreeViewColumn(_('Size'), cell, text = PRETTY_SIZE)
 		self.tree_view.append_column(column)
 
 		def button_press(tree_view, bev):
@@ -309,7 +307,7 @@ class CacheExplorer:
 		self._update_sizes()
 
 		if errors:
-			gtkutils.show_message_box(self, "Failed to delete:\n%s" % '\n'.join(errors))
+			gtkutils.show_message_box(self, _("Failed to delete:\n%s") % '\n'.join(errors))
 
 	def show(self):
 		"""Display the window and scan the caches to populate it."""
@@ -426,9 +424,9 @@ class CacheExplorer:
 			update(itr)
 			itr = m.iter_next(itr)
 
-cache_help = help_box.HelpBox("Cache Explorer Help",
-('Overview', """
-When you run a program using Zero Install, it downloads the program's 'interface' file, \
+cache_help = help_box.HelpBox(_("Cache Explorer Help"),
+(_('Overview'), '\n' +
+_("""When you run a program using Zero Install, it downloads the program's 'interface' file, \
 which gives information about which versions of the program are available. This interface \
 file is stored in the cache to save downloading it next time you run the program.
 
@@ -440,17 +438,17 @@ different versions of libraries in some cases.
 
 The cache viewer shows you all the interfaces and implementations in your cache. \
 This is useful to find versions you don't need anymore, so that you can delete them and \
-free up some disk space."""),
+free up some disk space.""")),
 
-('Invalid interfaces', """
-The cache viewer gets a list of all interfaces in your cache. However, some may not \
+(_('Invalid interfaces'), '\n' +
+_("""The cache viewer gets a list of all interfaces in your cache. However, some may not \
 be valid; they are shown in the 'Invalid interfaces' section. It should be fine to \
 delete these. An invalid interface may be caused by a local interface that no longer \
 exists, by a failed attempt to download an interface (the name ends in '.new'), or \
-by the interface file format changing since the interface was downloaded."""),
+by the interface file format changing since the interface was downloaded.""")),
 
-('Unowned implementations and temporary files', """
-The cache viewer searches through all the interfaces to find out which implementations \
+(_('Unowned implementations and temporary files'), '\n' +
+_("""The cache viewer searches through all the interfaces to find out which implementations \
 they use. If no interface uses an implementation, it is shown in the 'Unowned implementations' \
 section.
 
@@ -458,10 +456,10 @@ Unowned implementations can result from old versions of a program no longer bein
 in the interface file. Temporary files are created when unpacking an implementation after \
 downloading it. If the archive is corrupted, the unpacked files may be left there. Unless \
 you are currently unpacking new programs, it should be fine to delete everything in this \
-section."""),
+section.""")),
 
-('Interfaces', """
-All remaining interfaces are listed in this section. You may wish to delete old versions of \
+(_('Interfaces'), '\n' +
+_("""All remaining interfaces are listed in this section. You may wish to delete old versions of \
 certain programs. Deleting a program which you may later want to run will require it to be downloaded \
 again. Deleting a version of a program which is currently running may cause it to crash, so be careful!
-"""))
+""")))

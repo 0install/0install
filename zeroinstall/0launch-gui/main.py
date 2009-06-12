@@ -11,20 +11,20 @@ from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.support import tasks
 
 def run_gui(args):
-	parser = OptionParser(usage="usage: %prog [options] interface")
-	parser.add_option("", "--before", help="choose a version before this", metavar='VERSION')
-	parser.add_option("", "--cpu", help="target CPU type", metavar='CPU')
-	parser.add_option("-c", "--cache", help="show the cache", action='store_true')
-	parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
-	parser.add_option("", "--message", help="message to display when interacting with user")
-	parser.add_option("", "--not-before", help="minimum version to choose", metavar='VERSION')
-	parser.add_option("", "--os", help="target operation system type", metavar='OS')
-	parser.add_option("-r", "--refresh", help="check for updates of all interfaces", action='store_true')
-	parser.add_option("-s", "--source", help="select source code", action='store_true')
-	parser.add_option("", "--systray", help="download in the background", action='store_true')
-	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
-	parser.add_option("-V", "--version", help="display version information", action='store_true')
-	parser.add_option("", "--with-store", help="add an implementation cache", action='append', metavar='DIR')
+	parser = OptionParser(usage=_("usage: %prog [options] interface"))
+	parser.add_option("", "--before", help=_("choose a version before this"), metavar='VERSION')
+	parser.add_option("", "--cpu", help=_("target CPU type"), metavar='CPU')
+	parser.add_option("-c", "--cache", help=_("show the cache"), action='store_true')
+	parser.add_option("-d", "--download-only", help=_("fetch but don't run"), action='store_true')
+	parser.add_option("", "--message", help=_("message to display when interacting with user"))
+	parser.add_option("", "--not-before", help=_("minimum version to choose"), metavar='VERSION')
+	parser.add_option("", "--os", help=_("target operation system type"), metavar='OS')
+	parser.add_option("-r", "--refresh", help=_("check for updates of all interfaces"), action='store_true')
+	parser.add_option("-s", "--source", help=_("select source code"), action='store_true')
+	parser.add_option("", "--systray", help=_("download in the background"), action='store_true')
+	parser.add_option("-v", "--verbose", help=_("more verbose output"), action='count')
+	parser.add_option("-V", "--version", help=_("display version information"), action='store_true')
+	parser.add_option("", "--with-store", help=_("add an implementation cache"), action='append', metavar='DIR')
 
 	parser.disable_interspersed_args()
 
@@ -55,11 +55,11 @@ def run_gui(args):
 	if options.version:
 		print "0launch-gui (zero-install) " + gui.version
 		print "Copyright (C) 2007 Thomas Leonard"
-		print "This program comes with ABSOLUTELY NO WARRANTY,"
-		print "to the extent permitted by law."
-		print "You may redistribute copies of this program"
-		print "under the terms of the GNU General Public License."
-		print "For more information about these matters, see the file named COPYING."
+		print _("This program comes with ABSOLUTELY NO WARRANTY,"
+				"\nto the extent permitted by law."
+				"\nYou may redistribute copies of this program"
+				"\nunder the terms of the GNU General Public License."
+				"\nFor more information about these matters, see the file named COPYING.")
 		sys.exit(0)
 
 	import gtk
@@ -142,7 +142,7 @@ def run_gui(args):
 			if window.systray_icon and window.systray_icon.get_visible() and \
 			   window.systray_icon.is_embedded():
 				if policy.ready:
-					window.systray_icon.set_tooltip('Downloading updates for %s' % root_iface.get_name())
+					window.systray_icon.set_tooltip(_('Downloading updates for %s') % root_iface.get_name())
 					window.run_button.set_active(True)
 				else:
 					# Should already be reporting an error, but
