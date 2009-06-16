@@ -132,8 +132,8 @@ class Handler(object):
 		assert sigs
 		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
 		if not valid_sigs:
-			raise SafeException('No valid signatures found. Signatures:' +
-					''.join(['\n- ' + str(s) for s in sigs]))
+			raise SafeException('No valid signatures found on "%s". Signatures:%s' %
+					(interface.uri, ''.join(['\n- ' + str(s) for s in sigs])))
 
 		domain = trust.domain_from_url(interface.uri)
 
