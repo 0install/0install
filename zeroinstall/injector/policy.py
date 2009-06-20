@@ -99,9 +99,9 @@ class Policy(object):
 								'help_with_testing')
 				self.solver.network_use = config.get('global', 'network_use')
 				self.freshness = int(config.get('global', 'freshness'))
-				assert self.solver.network_use in network_levels
+				assert self.solver.network_use in network_levels, self.solver.network_use
 			except Exception, ex:
-				warn("Error loading config: %s", ex)
+				warn("Error loading config: %s", str(ex) or repr(ex))
 
 		self.set_root(root)
 
