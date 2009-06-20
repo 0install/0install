@@ -278,9 +278,13 @@ hints = {
 		'Niklas Höglund is experimenting with using Zero Install on the Nokia 770. This key has '
 		'been known since the announcement of 4 Apr 2006 on the zero-install mailing list.',
 	
-	'B93AAE76C40A3222425A04FA0BDA706F2C21E592' :
+	'B93AAE76C40A3222425A04FA0BDA706F2C21E592' : # expired
 		'Ilja Honkonen is experimenting with packaging software for Zero Install. This key '
 		'was announced on 2006-04-21 on the zero-install mailing list.',
+
+	'6AD4A9C482F1D3F537C0354FC8CC44742B11FF89' :
+		'Ilja Honkonen is experimenting with packaging software for Zero Install. This key '
+		'was announced on 2009-06-18 on the zero-install mailing list.',
  	
 	'5D3D90FB4E6FE10C7F76E94DEE6BC26DBFDE8022' :
 		'Dennis Tomas leads the rox4debian packaging effort. This key has been known since '
