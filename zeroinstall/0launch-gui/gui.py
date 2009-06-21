@@ -46,7 +46,7 @@ class GUIHandler(handler.Handler):
 
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		def do_confirm():
-			import trust_box
+			from zeroinstall.gtkui import trust_box
 			return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.mainwindow.window)
 		if self.mainwindow.systray_icon:
 			self.mainwindow.systray_icon.set_tooltip('Need to confirm a new GPG key')

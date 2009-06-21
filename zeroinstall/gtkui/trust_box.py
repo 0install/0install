@@ -6,9 +6,24 @@ import gtk
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import gpg, trust
 from zeroinstall.support import tasks
-from zeroinstall.gtkui import help_box
+from zeroinstall.gtkui import help_box, gtkutils
 
-import dialog
+def frame(page, title, content, expand = False):
+	frame = gtk.Frame()
+	label = gtk.Label()
+	label.set_markup('<b>%s</b>' % title)
+	frame.set_label_widget(label)
+	frame.set_shadow_type(gtk.SHADOW_NONE)
+	if type(content) in (str, unicode):
+		content = gtk.Label(content)
+		content.set_alignment(0, 0.5)
+		content.set_selectable(True)
+	frame.add(content)
+	if hasattr(content, 'set_padding'):
+		content.set_padding(8, 4)
+	else:
+		content.set_border_width(8)
+	page.pack_start(frame, expand, True, 0)
 
 def pretty_fp(fp):
 	s = fp[0:4]
@@ -38,7 +53,7 @@ def get_hint(fingerprint):
 	hint_icon.set_alignment(0, 0)
 	return hint_hbox
 
-class TrustBox(dialog.Dialog):
+class TrustBox(gtk.Dialog):
 	interface = None
 	sigs = None
 	iface_xml = None
@@ -47,7 +62,9 @@ class TrustBox(dialog.Dialog):
 	closed = None
 
 	def __init__(self, interface, sigs, iface_xml, parent):
-		dialog.Dialog.__init__(self)
+		gtk.Dialog.__init__(self)
+		self.set_has_separator(False)
+		self.set_position(gtk.WIN_POS_CENTER)
 		self.set_transient_for(parent)
 
 		self.closed = tasks.Blocker("confirming keys with user")
@@ -109,7 +126,7 @@ class TrustBox(dialog.Dialog):
 					for key in keys]
 		else:
 			descriptions = ['None']
-		dialog.frame(vbox, 'Keys already approved for "%s"' % domain, '\n'.join(descriptions))
+		frame(vbox, 'Keys already approved for "%s"' % domain, '\n'.join(descriptions))
 
 		if len(self.valid_sigs) == 1:
 			label = left('This key signed the feed:')
@@ -149,16 +166,16 @@ class TrustBox(dialog.Dialog):
 			page = gtk.VBox(False, 4)
 			page.set_border_width(8)
 
-			dialog.frame(page, 'Fingerprint', pretty_fp(sig.fingerprint))
+			frame(page, 'Fingerprint', pretty_fp(sig.fingerprint))
 
 			if name is not None:
-				dialog.frame(page, 'Claimed identity', name)
+				frame(page, 'Claimed identity', name)
 
-			dialog.frame(page, 'Unreliable hints database says', get_hint(sig.fingerprint))
+			frame(page, 'Unreliable hints database says', get_hint(sig.fingerprint))
 
 			already_trusted = trust.trust_db.get_trust_domains(sig.fingerprint)
 			if already_trusted:
-				dialog.frame(page, 'You already trust this key for these domains',
+				frame(page, 'You already trust this key for these domains',
 					'\n'.join(already_trusted))
 
 			trust_checkbox[sig] = gtk.CheckButton('_Trust this key')
@@ -187,7 +204,7 @@ class TrustBox(dialog.Dialog):
 
 			trust.trust_db.notify()
 		except Exception, ex:
-			dialog.alert(None, ex)
+			gtkutils.show_message_box(self, str(ex), gtk.MESSAGE_ERROR)
 			if not isinstance(ex, SafeException):
 				raise
 
