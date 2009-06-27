@@ -361,19 +361,14 @@ class InterfaceBrowser:
 	
 	def show_popup_menu(self, iface, bev):
 		import bugs
+		import compile
 
-		if properties.have_source_for(self.policy, iface):
-			def compile_cb():
-				import compile
-				compile.compile(self.policy, iface)
-		else:
-			compile_cb = None
+		have_source =  properties.have_source_for(self.policy, iface)
 
 		menu = gtk.Menu()
 		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.policy, iface)),
 				  (_('Show Versions'), lambda: properties.edit(self.policy, iface, show_versions = True)),
-				  (_('Report a Bug...'), lambda: bugs.report_bug(self.policy, iface)),
-				  (_('Compile...'), compile_cb)]:
+				  (_('Report a Bug...'), lambda: bugs.report_bug(self.policy, iface))]:
 			item = gtk.MenuItem(label)
 			if cb:
 				item.connect('activate', lambda item, cb=cb: cb())
@@ -381,6 +376,26 @@ class InterfaceBrowser:
 				item.set_sensitive(False)
 			item.show()
 			menu.append(item)
+
+		item = gtk.MenuItem('Compile')
+		item.show()
+		menu.append(item)
+		if have_source:
+			compile_menu = gtk.Menu()
+			item.set_submenu(compile_menu)
+
+			item = gtk.MenuItem('Automatic')
+			item.connect('activate', lambda item: compile.compile(self.policy, iface, autocompile = True))
+			item.show()
+			compile_menu.append(item)
+
+			item = gtk.MenuItem('Manual...')
+			item.connect('activate', lambda item: compile.compile(self.policy, iface, autocompile = False))
+			item.show()
+			compile_menu.append(item)
+		else:
+			item.set_sensitive(False)
+
 		menu.popup(None, None, None, bev.button, bev.time)
 	
 	def set_original_implementations(self):
