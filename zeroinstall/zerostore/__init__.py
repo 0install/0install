@@ -146,6 +146,7 @@ class Store:
 		import subprocess
 		env = os.environ.copy()
 		env['ENV_NOT_CLEARED'] = 'Unclean'	# (warn about insecure configurations)
+		env['HOME'] = 'Unclean'			# (warn about insecure configurations)
 		dev_null = os.open('/dev/null', os.O_RDONLY)
 		try:
 			info("Trying to add to system cache using %s", helper)
@@ -156,7 +157,7 @@ class Store:
 			exit_code = child.wait()
 		finally:
 			os.close(dev_null)
-				
+
 		if exit_code:
 			warn("0store-secure-add-helper failed.")
 			return False
