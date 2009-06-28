@@ -283,13 +283,19 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 	wanted = _parse_manifest(manifest_data)
 
 	tmpdir = tempfile.mkdtemp(prefix = 'tmp-copy-', dir = target)
-
 	try:
 		_copy_files(alg, wanted, source, tmpdir)
 
 		if wanted:
 			raise SafeException('Copy failed; files missing from source:\n- ' +
 					    '\n- '.join(wanted.keys()))
+
+		# Make directories read-only (files are already RO)
+		for root, dirs, files in os.walk(tmpdir):
+			for d in dirs:
+				path = os.path.join(root, d)
+				mode = os.stat(path).st_mode
+				os.chmod(path, mode & 0555)
 
 		# Check that the copy is correct
 		actual_digest = alg.getID(add_manifest_file(tmpdir, alg))
@@ -303,7 +309,8 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 		# TODO: catch already-exists, delete tmpdir and return success
 	except:
 		info("Deleting tmpdir '%s'" % tmpdir)
-		shutil.rmtree(tmpdir)
+		from zeroinstall.support import ro_rmtree
+		ro_rmtree(tmpdir)
 		raise
 
 def _parse_manifest(manifest_data):
