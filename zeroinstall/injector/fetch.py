@@ -13,6 +13,7 @@ from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
 from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, escape
 from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
 from zeroinstall.injector.handler import NoTrustedKeys
+from zeroinstall.injector import download
 
 def _escape_slashes(path):
 	return path.replace('/', '%23')
@@ -285,7 +286,7 @@ class Fetcher(object):
 		dl.expected_size = download_source.size + (download_source.start_offset or 0)
 		return (dl.downloaded, dl.tempfile)
 
-	def download_icon(self, interface, force = False):
+	def download_icon(self, interface, force = False, modification_time = None):
 		"""Download an icon for this interface and add it to the
 		icon cache. If the interface has no icon or we are offline, do nothing.
 		@return: the task doing the import, or None
@@ -306,7 +307,14 @@ class Fetcher(object):
 			info('No PNG icons found in %s', interface)
 			return
 
-		dl = self.handler.get_download(source, force = force, hint = interface)
+		try:
+			dl = self.handler.monitored_downloads[source]
+			if dl and force:
+				dl.abort()
+				raise KeyError
+		except KeyError:
+			dl = download.Download(source, hint = interface, modification_time = modification_time)
+			self.handler.monitor_download(dl)
 
 		@tasks.async
 		def download_and_add_icon():
@@ -314,6 +322,7 @@ class Fetcher(object):
 			yield dl.downloaded
 			try:
 				tasks.check(dl.downloaded)
+				if dl.unmodified: return
 				stream.seek(0)
 
 				import shutil

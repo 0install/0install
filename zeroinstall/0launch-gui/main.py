@@ -126,6 +126,7 @@ def run_gui(args):
 		force_refresh = bool(options.refresh)
 		while True:
 			window.refresh_button.set_sensitive(False)
+			window.browser.set_update_icons(force_refresh)
 
 			solved = policy.solve_with_downloads(force = force_refresh)
 

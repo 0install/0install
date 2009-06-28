@@ -146,6 +146,7 @@ class InterfaceBrowser:
 	cached_icon = None
 	policy = None
 	original_implementation = None
+	update_icons = False
 
 	INTERFACE = 0
 	INTERFACE_NAME = 1
@@ -248,47 +249,60 @@ class InterfaceBrowser:
 	def set_root(self, root):
 		assert isinstance(root, model.Interface)
 		self.root = root
+
+	def set_update_icons(self, update_icons):
+		if update_icons:
+			# Clear icons cache to make sure they're really updated
+			self.cached_icon = {}
+		self.update_icons = update_icons
 	
-	def _get_icon_from_cache(self, iface):
-		path = iface_cache.get_icon_path(iface)
-		if path:
+	def _load_icon(self, path):
+		assert path
+		try:
+			loader = gtk.gdk.PixbufLoader('png')
 			try:
-				loader = gtk.gdk.PixbufLoader('png')
-				try:
-					loader.write(file(path).read())
-				finally:
-					loader.close()
-				icon = loader.get_pixbuf()
-				assert icon, "Failed to load cached PNG icon data"
-			except Exception, ex:
-				warn("Failed to load cached PNG icon: %s", ex)
-				return None
-			w = icon.get_width()
-			h = icon.get_height()
-			scale = max(w, h, 1) / ICON_SIZE
-			icon = icon.scale_simple(int(w / scale),
-						 int(h / scale),
-						 gtk.gdk.INTERP_BILINEAR)
-			self.cached_icon[iface.uri] = icon
-			return icon
-		else:
+				loader.write(file(path).read())
+			finally:
+				loader.close()
+			icon = loader.get_pixbuf()
+			assert icon, "Failed to load cached PNG icon data"
+		except Exception, ex:
+			warn("Failed to load cached PNG icon: %s", ex)
 			return None
+		w = icon.get_width()
+		h = icon.get_height()
+		scale = max(w, h, 1) / ICON_SIZE
+		icon = icon.scale_simple(int(w / scale),
+					 int(h / scale),
+					 gtk.gdk.INTERP_BILINEAR)
+		return icon
 
 	def get_icon(self, iface):
 		"""Get an icon for this interface. If the icon is in the cache, use that.
 		If not, start a download. If we already started a download (successful or
 		not) do nothing. Returns None if no icon is currently available."""
 		try:
+			# Try the in-memory cache
 			return self.cached_icon[iface.uri]
 		except KeyError:
-			icon = self._get_icon_from_cache(iface)
-			if icon:
-				return icon
+			# Try the on-disk cache
+			iconpath = iface_cache.get_icon_path(iface)
+
+			if iconpath:
+				icon = self._load_icon(iconpath)
+				# (if icon is None, cache the fact that we can't load it)
+				self.cached_icon[iface.uri] = icon
 			else:
-				# Try to download the icon
+				icon = None
+
+			# Download a new icon if we don't have one, or if the
+			# user did a 'Refresh'
+			if iconpath is None or self.update_icons:
 				fetcher = self.policy.download_icon(iface)
 				if fetcher:
-					self.cached_icon[iface.uri] = None	# Only try once
+					if iface.uri not in self.cached_icon:
+						self.cached_icon[iface.uri] = None	# Only try once
+
 					@tasks.async
 					def update_display():
 						yield fetcher
@@ -297,18 +311,25 @@ class InterfaceBrowser:
 							# Try to insert new icon into the cache
 							# If it fails, we'll be left with None in the cached_icon so
 							# we don't try again.
-							self._get_icon_from_cache(iface)
-							self.build_tree()
+							iconpath = iface_cache.get_icon_path(iface)
+							if iconpath:
+								self.cached_icon[iface.uri] = self._load_icon(iconpath)
+								self.build_tree()
+							else:
+								warn("Failed to download icon for '%s'", iface)
 						except Exception, ex:
 							import traceback
 							traceback.print_exc()
 							self.policy.handler.report_error(ex)
 					update_display()
-				# Note: if no icon is available for downloading,
-				# more attempts are made later.
-				# It can happen that no icon is yet available because
-				# the interface was not downloaded yet, in which case
-				# it's desireable to try again once the interface is available
+				# elif fetcher is None: don't store anything in cached_icon
+
+			# Note: if no icon is available for downloading,
+			# more attempts are made later.
+			# It can happen that no icon is yet available because
+			# the interface was not downloaded yet, in which case
+			# it's desireable to try again once the interface is available
+			return icon
 
 		return None
 
