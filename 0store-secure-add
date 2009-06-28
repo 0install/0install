@@ -15,7 +15,7 @@ try:
 
 	stores = zerostore.Stores()
 
-	manifest.copy_tree_with_verify('.', stores.get_first_system_store().dir,
+	manifest.copy_tree_with_verify('.', '/var/cache/0install.net/implementations',
 					manifest_data, required_digest)
 except (IOError, SafeException), ex:
 	print >>sys.stderr, ex
