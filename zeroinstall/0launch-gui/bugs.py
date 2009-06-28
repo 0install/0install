@@ -17,7 +17,7 @@ def report_bug(policy, iface):
 	if os.path.exists(issue_file):
 		issue = file(issue_file).read().strip()
 	else:
-		issue = "(file '%s' not found)" % issue
+		issue = "(file '%s' not found)" % issue_file
 
 	text = 'Problem with %s\n' % iface.uri
 	if iface.uri != policy.root:
