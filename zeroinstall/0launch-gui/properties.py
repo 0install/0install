@@ -84,6 +84,13 @@ class Description:
 				import browser
 				browser.open_in_browser(target)
 	
+	def strtime(self, secs):
+		try:
+			from locale import nl_langinfo, D_T_FMT
+			return time.strftime(nl_langinfo(D_T_FMT), time.localtime(secs))
+		except ImportError, ValueError:
+			return time.ctime(secs)
+
 	def set_details(self, interface):
 		buffer = self.buffer
 		heading_style = self.heading_style
@@ -100,20 +107,20 @@ class Description:
 
 		# (converts to local time)
 		if interface.last_modified:
-			buffer.insert(iter, '\nLast upstream change: %s' % time.ctime(interface.last_modified))
+			buffer.insert(iter, '\n' + _('Last upstream change: %s') % self.strtime(interface.last_modified))
 
 		if interface.last_checked:
-			buffer.insert(iter, '\nLast checked: %s' % time.ctime(interface.last_checked))
+			buffer.insert(iter, '\n' + _('Last checked: %s') % self.strtime(interface.last_checked))
 
 		last_check_attempt = iface_cache.get_last_check_attempt(interface.uri)
 		if last_check_attempt:
 			if interface.last_checked and interface.last_checked >= last_check_attempt:
 				pass	# Don't bother reporting successful attempts
 			else:
-				buffer.insert(iter, '\nLast check attempt: %s (failed or in progress)' %
-						time.ctime(last_check_attempt))
+				buffer.insert(iter, '\n' + _('Last check attempt: %s (failed or in progress)') %
+						self.strtime(last_check_attempt))
 
-		buffer.insert_with_tags(iter, '\n\nDescription\n', heading_style)
+		buffer.insert_with_tags(iter, '\n\n' + _('Description') + '\n', heading_style)
 
 		paragraphs = [format_para(p) for p in (interface.description or "-").split('\n\n')]
 
@@ -139,8 +146,8 @@ class Description:
 						if item[0] in ('pub', 'uid') and len(item) > 9:
 							name = item[9]
 							break
-					buffer.insert_with_tags(iter, 'Valid signature by "%s"\n- Dated: %s\n- Fingerprint: %s\n' %
-							(name, time.ctime(sig.get_timestamp()), sig.fingerprint))
+					buffer.insert_with_tags(iter, _('Valid signature by "%s"\n- Dated: %s\n- Fingerprint: %s\n') %
+							(name, self.strtime(sig.get_timestamp()), sig.fingerprint))
 					if not sig.is_trusted():
 						if interface.uri.startswith('/'):
 							buffer.insert_with_tags(iter, 'WARNING: This key is not in the trusted list\n')
