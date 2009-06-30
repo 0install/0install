@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: zero-install 0.30\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-01-27 23:48+0100\n"
+"POT-Creation-Date: 2009-06-28 16:27+0200\n"
 "PO-Revision-Date: 2007-10-17 00:20+0200\n"
 "Last-Translator: Anders F Björklund <afb@users.sourceforge.net>\n"
 "Language-Team: Swedish <sv@li.org>\n"
@@ -15,7 +15,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: zeroinstall/0launch-gui/bugs.py:131
+#: zeroinstall/0launch-gui/bugs.py:138
 msgid "Bugs reports will be sent to:"
 msgstr "Buggrapporter skickas till:"
 
@@ -80,7 +80,7 @@ msgid "This version is already stored on your computer."
 msgstr "Den här versionen är redan lagrad på din dator."
 
 #: zeroinstall/0launch-gui/iface_browser.py:64
-#: zeroinstall/0launch-gui/impl_list.py:53
+#: zeroinstall/0launch-gui/impl_list.py:74
 msgid "No downloads available!"
 msgstr "Inga nerladdningar tillgängliga!"
 
@@ -94,16 +94,17 @@ msgid "Component"
 msgstr "Komponent"
 
 #: zeroinstall/0launch-gui/iface_browser.py:158
-#: zeroinstall/0launch-gui/impl_list.py:76
+#: zeroinstall/0launch-gui/impl_list.py:97
 msgid "Version"
 msgstr "Version"
 
 #: zeroinstall/0launch-gui/iface_browser.py:159
-#: zeroinstall/0launch-gui/impl_list.py:79
+#: zeroinstall/0launch-gui/impl_list.py:100
 msgid "Fetch"
 msgstr "Hämta"
 
 #: zeroinstall/0launch-gui/iface_browser.py:160
+#: zeroinstall/0launch-gui/properties.py:116
 msgid "Description"
 msgstr "Beskrivning"
 
@@ -121,115 +122,190 @@ msgstr "Okänd beroendetyp: %s"
 msgid "(choose)"
 msgstr "(välj)"
 
-#: zeroinstall/0launch-gui/iface_browser.py:373
+#: zeroinstall/0launch-gui/iface_browser.py:369
 msgid "Show Feeds"
 msgstr "Visa kanaler"
 
-#: zeroinstall/0launch-gui/iface_browser.py:374
+#: zeroinstall/0launch-gui/iface_browser.py:370
 msgid "Show Versions"
 msgstr "Visa versioner"
 
-#: zeroinstall/0launch-gui/iface_browser.py:375
+#: zeroinstall/0launch-gui/iface_browser.py:371
 msgid "Report a Bug..."
 msgstr "Rapportera fel..."
 
-#: zeroinstall/0launch-gui/iface_browser.py:376
-msgid "Compile..."
-msgstr "Kompilera..."
+#: zeroinstall/0launch-gui/iface_browser.py:380
+#: zeroinstall/0launch-gui/zero-install.glade.h:7
+msgid "Compile"
+msgstr "Kompilera"
 
-#: zeroinstall/0launch-gui/iface_browser.py:431
+#: zeroinstall/0launch-gui/iface_browser.py:387
+msgid "Automatic"
+msgstr "Automatiskt"
+
+#: zeroinstall/0launch-gui/iface_browser.py:392
+msgid "Manual..."
+msgstr "Manuellt..."
+
+#: zeroinstall/0launch-gui/iface_browser.py:446
 msgid "unknown"
 msgstr "okänd"
 
-#: zeroinstall/0launch-gui/iface_browser.py:433
+#: zeroinstall/0launch-gui/iface_browser.py:448
 #, python-format
 msgid " in %d downloads"
 msgstr " i %d nerladdningar"
 
-#: zeroinstall/0launch-gui/iface_browser.py:434
+#: zeroinstall/0launch-gui/iface_browser.py:449
 #, python-format
 msgid "(downloading %s/%s)"
 msgstr "(laddar ner %s/%s)"
 
-#: zeroinstall/0launch-gui/impl_list.py:42
+#: zeroinstall/0launch-gui/impl_list.py:26
+#, python-format
+msgid "Unset (%s)"
+msgstr "Ej satt (%s)"
+
+#: zeroinstall/0launch-gui/impl_list.py:63
 #, python-format
 msgid "Local: %s"
 msgstr "Lokal: %s"
 
-#: zeroinstall/0launch-gui/impl_list.py:44
+#: zeroinstall/0launch-gui/impl_list.py:65
 #, python-format
 msgid "Native package: %s"
 msgstr "Eget paket: %s"
 
-#: zeroinstall/0launch-gui/impl_list.py:46
+#: zeroinstall/0launch-gui/impl_list.py:67
 #, python-format
 msgid "Cached: %s"
 msgstr "Cachat: %s"
 
-#: zeroinstall/0launch-gui/impl_list.py:51
+#: zeroinstall/0launch-gui/impl_list.py:72
 #, python-format
 msgid "Not yet downloaded (%s)"
 msgstr "Inte ännu nerladdat (%s)"
 
-#: zeroinstall/0launch-gui/impl_list.py:74
+#: zeroinstall/0launch-gui/impl_list.py:95
 msgid "Stability"
 msgstr "Stabilitet"
 
-#: zeroinstall/0launch-gui/impl_list.py:77
+#: zeroinstall/0launch-gui/impl_list.py:98
 msgid "Released"
 msgstr "Utgiven"
 
-#: zeroinstall/0launch-gui/impl_list.py:80
+#: zeroinstall/0launch-gui/impl_list.py:101
 #: zeroinstall/0launch-gui/properties.py:200
 msgid "Arch"
 msgstr "Arch"
 
-#: zeroinstall/0launch-gui/impl_list.py:81
+#: zeroinstall/0launch-gui/impl_list.py:102
 msgid "Notes"
 msgstr "Anteckningar"
 
-#: zeroinstall/0launch-gui/mainwindow.py:51
+#: zeroinstall/0launch-gui/impl_list.py:134
+msgid "Rating"
+msgstr "Betyg"
+
+#: zeroinstall/0launch-gui/impl_list.py:144
+msgid "Open cached copy"
+msgstr "Öppna cachad kopia"
+
+#: zeroinstall/0launch-gui/mainwindow.py:55
 msgid "_Download"
 msgstr "Ladda ner"
 
-#: zeroinstall/0launch-gui/mainwindow.py:53
+#: zeroinstall/0launch-gui/mainwindow.py:57
 msgid "_Run"
 msgstr "Kör"
 
-#: zeroinstall/0launch-gui/mainwindow.py:102
+#: zeroinstall/0launch-gui/mainwindow.py:108
 msgid "Not all downloads succeeded; cannot run program."
 msgstr "Alla nerladdningar lyckades inte; kan inte köra programmet."
 
-#: zeroinstall/0launch-gui/mainwindow.py:153
+#: zeroinstall/0launch-gui/mainwindow.py:154
 #, python-format
 msgid "Downloading one file (%s)"
 msgstr "Laddar ner en fil (%s)"
 
-#: zeroinstall/0launch-gui/mainwindow.py:155
+#: zeroinstall/0launch-gui/mainwindow.py:156
 #, python-format
 msgid "Downloading %d files (%s)"
 msgstr "Laddar ner %d filer (%s)"
 
-#: zeroinstall/0launch-gui/preferences.py:17
+#: zeroinstall/0launch-gui/preferences.py:16
 msgid "Off-line"
 msgstr "Off-line"
 
-#: zeroinstall/0launch-gui/preferences.py:18
+#: zeroinstall/0launch-gui/preferences.py:17
 msgid "Minimal"
 msgstr "Minimal"
 
-#: zeroinstall/0launch-gui/preferences.py:19
+#: zeroinstall/0launch-gui/preferences.py:18
 msgid "Full"
 msgstr "Full"
 
-#: zeroinstall/0launch-gui/preferences.py:90
+#: zeroinstall/0launch-gui/preferences.py:89
 msgid "Trusted keys"
 msgstr "Kända nycklar"
 
-#: zeroinstall/0launch-gui/preferences.py:147
+#: zeroinstall/0launch-gui/preferences.py:146
 #, python-format
 msgid "Remove key for \"%s\""
 msgstr "Ta bort nyckel för \"%s\""
+
+#: zeroinstall/0launch-gui/properties.py:103
+#, python-format
+msgid "Last upstream change: %s"
+msgstr "Senaste uppströmsändring: %s"
+
+#: zeroinstall/0launch-gui/properties.py:106
+msgid "Last checked: %s"
+msgstr "Senast kontrollerad: %s"
+
+#: zeroinstall/0launch-gui/properties.py:113
+#, python-format
+msgid "Last check attempt: %s (failed or in progress)"
+msgstr "Senaste kontrollförsök: %s (misslyckat eller pågående)"
+
+#: zeroinstall/0launch-gui/properties.py:128
+msgid "Homepage: "
+msgstr "Hemsida: "
+
+#: zeroinstall/0launch-gui/properties.py:131
+msgid "Signatures"
+msgstr "Signaturer"
+
+#: zeroinstall/0launch-gui/properties.py:136
+msgid "<unknown>"
+msgstr "<okänd>"
+
+#: zeroinstall/0launch-gui/properties.py:142
+#, python-format
+msgid ""
+"Valid signature by \"%s\"\n"
+"- Dated: %s\n"
+"- Fingerprint: %s\n"
+msgstr ""
+"Giltig signatur från \"%s\"\n"
+"- Daterad: %s\n"
+"- Fingeravtryck: %s\n"
+
+#: zeroinstall/0launch-gui/properties.py:146
+msgid "WARNING: This key is not in the trusted list\n"
+msgstr "VARNING: Denna nyckel är inte i den kända listan\n"
+
+#: zeroinstall/0launch-gui/properties.py:148
+msgid ""
+"WARNING: This key is not in the trusted list (either you removed it, or you "
+"trust one of the other signatures)\n"
+msgstr ""
+"VARNING: Denna nyckel är inte i den kända listan (antingen så tog du bort "
+"den, eller så är en av de andra signaturerna känd)\n"
+
+#: zeroinstall/0launch-gui/properties.py:153
+msgid "No signature information (old style interface or out-of-date cache)\n"
+msgstr "Ingen signaturinformation (gammalt gränssnitt eller utdaterad cache)\n"
 
 #: zeroinstall/0launch-gui/properties.py:191
 #, python-format
@@ -239,6 +315,11 @@ msgstr "Kan inte ta bort '%s' eftersom du inte lade till det."
 #: zeroinstall/0launch-gui/properties.py:199
 msgid "Source"
 msgstr "Källa"
+
+#: zeroinstall/0launch-gui/properties.py:259
+#, python-format
+msgid "Properties for %s"
+msgstr "Inställningar för %s"
 
 #: zeroinstall/0launch-gui/properties.py:337
 msgid "Enter the URL of the new source of implementations of this interface:"
@@ -296,6 +377,60 @@ msgstr "Gränssnitt"
 msgid "Interfaces in the cache"
 msgstr "Gränssnitt i cache"
 
+#: zeroinstall/gtkui/trust_box.py:102
+msgid "Confirm trust"
+msgstr "Bekräfta pålitlighet"
+
+#: zeroinstall/gtkui/trust_box.py:118
+msgid "Checking: "
+msgstr "Kontrollerar: "
+
+#: zeroinstall/gtkui/trust_box.py:125
+#, python-format
+msgid ""
+"%s\n"
+"(fingerprint: %s)"
+msgstr ""
+"%s\n"
+"(fingeravtryck: %s)"
+
+#: zeroinstall/gtkui/trust_box.py:128
+msgid "None"
+msgstr "Inga"
+
+#: zeroinstall/gtkui/trust_box.py:129
+#, python-format
+msgid "Keys already approved for \"%s\""
+msgstr "Nycklar redan godkända för \"%s\""
+
+#: zeroinstall/gtkui/trust_box.py:132
+msgid "This key signed the feed:"
+msgstr "Denna nyckel signerade kanalen:"
+
+#: zeroinstall/gtkui/trust_box.py:134
+msgid "These keys signed the feed:"
+msgstr "Dessa nycklar signerade kanalen:"
+
+#: zeroinstall/gtkui/trust_box.py:169
+msgid "Fingerprint"
+msgstr "Fingeravtryck"
+
+#: zeroinstall/gtkui/trust_box.py:172
+msgid "Claimed identity"
+msgstr "Påstådd identitet"
+
+#: zeroinstall/gtkui/trust_box.py:174
+msgid "Unreliable hints database says"
+msgstr "Otillförlitliga tipsdatabasen säger"
+
+#: zeroinstall/gtkui/trust_box.py:178
+msgid "You already trust this key for these domains"
+msgstr "Du litar redan på denna nyckel för följande domäner"
+
+#: zeroinstall/gtkui/trust_box.py:181
+msgid "_Trust this key"
+msgstr "Lita på denna nyckel"
+
 #: zeroinstall/0launch-gui/zero-install.glade.h:1
 msgid "<b>Policy settings</b>"
 msgstr "<b>Policy inställningar</b>"
@@ -322,10 +457,6 @@ msgstr "Lägg till fjärr-kanal"
 #: zeroinstall/0launch-gui/zero-install.glade.h:6
 msgid "Check all the components for updates."
 msgstr "Kontrollera alla komponenter för uppgraderingar."
-
-#: zeroinstall/0launch-gui/zero-install.glade.h:7
-msgid "Compile"
-msgstr "Kompilera"
 
 #: zeroinstall/0launch-gui/zero-install.glade.h:8
 msgid "Feeds"
@@ -442,6 +573,10 @@ msgstr "Zero Install cache"
 #: zeroinstall/gtkui/desktop.glade.h:1
 msgid "<b>About this program</b>"
 msgstr "<b>Om detta program</b>"
+
+#: zeroinstall/gtkui/desktop.glade.h:2
+msgid "<b>Application to install</b>"
+msgstr "<b>Program att installera</b>"
 
 #: zeroinstall/gtkui/desktop.glade.h:3
 msgid "<b>Applications menu</b>"
