@@ -132,15 +132,15 @@ class Description:
 			if need_gap:
 				buffer.insert(iter, '\n')
 				need_gap = False
-			buffer.insert(iter, 'Homepage: ')
+			buffer.insert(iter, _('Homepage: '))
 			buffer.insert_with_tags(iter, '%s\n' % x.content, self.link_style)
 
-		buffer.insert_with_tags(iter, '\nSignatures\n', heading_style)
+		buffer.insert_with_tags(iter, '\n' + _('Signatures') + '\n', heading_style)
 		sigs = iface_cache.get_cached_signatures(interface.uri)
 		if sigs:
 			for sig in sigs:
 				if isinstance(sig, gpg.ValidSig):
-					name = '<unknown>'
+					name = _('<unknown>')
 					details = sig.get_details()
 					for item in details:
 						if item[0] in ('pub', 'uid') and len(item) > 9:
@@ -150,14 +150,14 @@ class Description:
 							(name, self.strtime(sig.get_timestamp()), sig.fingerprint))
 					if not sig.is_trusted():
 						if interface.uri.startswith('/'):
-							buffer.insert_with_tags(iter, 'WARNING: This key is not in the trusted list\n')
+							buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list\n'))
 						else:
-							buffer.insert_with_tags(iter, 'WARNING: This key is not in the trusted list (either you removed it, or '
-											'you trust one of the other signatures)\n')
+							buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list (either you removed it, or '
+											'you trust one of the other signatures)\n'))
 				else:
 					buffer.insert_with_tags(iter, '%s\n' % sig)
 		else:
-			buffer.insert_with_tags(iter, 'No signature information (old style interface or out-of-date cache)\n')
+			buffer.insert_with_tags(iter, _('No signature information (old style interface or out-of-date cache)\n'))
 
 class Feeds:
 	URI = 0
@@ -263,7 +263,7 @@ class Properties:
 
 		window = widgets.get_widget('interface_properties')
 		self.window = window
-		window.set_title('Properties for ' + interface.get_name())
+		window.set_title(_('Properties for %s') % interface.get_name())
 		window.set_default_size(-1, gtk.gdk.screen_height() / 3)
 
 		self.compile_button = widgets.get_widget('compile')

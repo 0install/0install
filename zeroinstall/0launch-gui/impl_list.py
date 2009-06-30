@@ -23,7 +23,7 @@ def _build_stability_menu(policy, impl):
 		writer.save_feed(impl.feed)
 		policy.recalculate()
 
-	item = gtk.MenuItem('Unset (%s)' % upstream)
+	item = gtk.MenuItem(_('Unset (%s)') % upstream)
 	item.connect('activate', lambda item: set(None))
 	item.show()
 	menu.append(item)
@@ -131,7 +131,7 @@ class ImplementationList:
 
 			menu = gtk.Menu()
 
-			stability_menu = gtk.MenuItem('Rating')
+			stability_menu = gtk.MenuItem(_('Rating'))
 			stability_menu.set_submenu(_build_stability_menu(self.policy, impl))
 			stability_menu.show()
 			menu.append(stability_menu)
@@ -141,7 +141,7 @@ class ImplementationList:
 					os.spawnlp(os.P_WAIT, '0launch',
 						'0launch', rox_filer, '-d',
 						self.policy.get_implementation_path(impl))
-				item = gtk.MenuItem('Open cached copy')
+				item = gtk.MenuItem(_('Open cached copy'))
 				item.connect('activate', lambda item: open())
 				item.show()
 				menu.append(item)

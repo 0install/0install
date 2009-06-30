@@ -398,19 +398,19 @@ class InterfaceBrowser:
 			item.show()
 			menu.append(item)
 
-		item = gtk.MenuItem('Compile')
+		item = gtk.MenuItem(_('Compile'))
 		item.show()
 		menu.append(item)
 		if have_source:
 			compile_menu = gtk.Menu()
 			item.set_submenu(compile_menu)
 
-			item = gtk.MenuItem('Automatic')
+			item = gtk.MenuItem(_('Automatic'))
 			item.connect('activate', lambda item: compile.compile(self.policy, iface, autocompile = True))
 			item.show()
 			compile_menu.append(item)
 
-			item = gtk.MenuItem('Manual...')
+			item = gtk.MenuItem(_('Manual...'))
 			item.connect('activate', lambda item: compile.compile(self.policy, iface, autocompile = False))
 			item.show()
 			compile_menu.append(item)

@@ -99,7 +99,7 @@ class TrustBox(gtk.Dialog):
 		self.sigs = sigs
 		self.iface_xml = iface_xml
 
-		self.set_title('Confirm trust')
+		self.set_title(_('Confirm trust'))
 
 		vbox = gtk.VBox(False, 4)
 		vbox.set_border_width(4)
@@ -115,23 +115,23 @@ class TrustBox(gtk.Dialog):
 		if len(self.valid_sigs) == 1:
 			notebook.set_show_tabs(False)
 
-		label = left('Checking: ' + interface.uri)
+		label = left(_('Checking: ') + interface.uri)
 		label.set_padding(4, 4)
 		vbox.pack_start(label, False, True, 0)
 
 		currently_trusted_keys = trust.trust_db.get_keys_for_domain(domain)
 		if currently_trusted_keys:
 			keys = [gpg.load_key(fingerprint) for fingerprint in currently_trusted_keys]
-			descriptions = ["%s\n(fingerprint: %s)" % (key.name, pretty_fp(key.fingerprint))
+			descriptions = [_("%s\n(fingerprint: %s)") % (key.name, pretty_fp(key.fingerprint))
 					for key in keys]
 		else:
-			descriptions = ['None']
-		frame(vbox, 'Keys already approved for "%s"' % domain, '\n'.join(descriptions))
+			descriptions = [_('None')]
+		frame(vbox, _('Keys already approved for "%s"') % domain, '\n'.join(descriptions))
 
 		if len(self.valid_sigs) == 1:
-			label = left('This key signed the feed:')
+			label = left(_('This key signed the feed:'))
 		else:
-			label = left('These keys signed the feed:')
+			label = left(_('These keys signed the feed:'))
 
 		label.set_padding(4, 4)
 		vbox.pack_start(label, False, True, 0)
@@ -166,19 +166,19 @@ class TrustBox(gtk.Dialog):
 			page = gtk.VBox(False, 4)
 			page.set_border_width(8)
 
-			frame(page, 'Fingerprint', pretty_fp(sig.fingerprint))
+			frame(page, _('Fingerprint'), pretty_fp(sig.fingerprint))
 
 			if name is not None:
-				frame(page, 'Claimed identity', name)
+				frame(page, _('Claimed identity'), name)
 
-			frame(page, 'Unreliable hints database says', get_hint(sig.fingerprint))
+			frame(page, _('Unreliable hints database says'), get_hint(sig.fingerprint))
 
 			already_trusted = trust.trust_db.get_trust_domains(sig.fingerprint)
 			if already_trusted:
-				frame(page, 'You already trust this key for these domains',
+				frame(page, _('You already trust this key for these domains'),
 					'\n'.join(already_trusted))
 
-			trust_checkbox[sig] = gtk.CheckButton('_Trust this key')
+			trust_checkbox[sig] = gtk.CheckButton(_('_Trust this key'))
 			page.pack_start(trust_checkbox[sig], False, True, 0)
 			trust_checkbox[sig].connect('toggled', lambda t: ok_sensitive())
 
