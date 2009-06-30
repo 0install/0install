@@ -3,9 +3,13 @@ import sys, os
 from zeroinstall import zerostore, SafeException
 from zeroinstall.zerostore import cli, manifest
 
+# import logging; logging.getLogger().setLevel(logging.DEBUG)
+
 try:
 	if 'ENV_NOT_CLEARED' in os.environ:
 		raise SafeException("Environment not cleared. Check your sudoers file.")
+	if os.environ['HOME'] == 'Unclean':
+		raise SafeException("$HOME not set. Check your sudoers file has 'always_set_home' turned on for zeroinst.")
 
 	if len(sys.argv) != 2:
 		raise cli.UsageError('Usage: %s DIGEST' % sys.argv[0])
@@ -15,7 +19,7 @@ try:
 
 	stores = zerostore.Stores()
 
-	manifest.copy_tree_with_verify('.', stores.get_first_system_store().dir,
+	manifest.copy_tree_with_verify('.', '/var/cache/0install.net/implementations',
 					manifest_data, required_digest)
 except (IOError, SafeException), ex:
 	print >>sys.stderr, ex
