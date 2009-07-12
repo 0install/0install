@@ -6,6 +6,7 @@ Load and save a set of chosen implementations.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 from zeroinstall.injector.policy import Policy
 from zeroinstall.injector.model import process_binding, process_depends, binding_names
 from zeroinstall.injector.namespaces import XMLNS_IFACE

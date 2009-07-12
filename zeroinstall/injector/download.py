@@ -13,6 +13,7 @@ import tempfile, os, sys, subprocess
 from zeroinstall import SafeException
 from zeroinstall.support import tasks
 from logging import info, debug
+from zeroinstall import _
 
 download_starting = "starting"	# Waiting for UI to start it
 download_fetching = "fetching"	# In progress

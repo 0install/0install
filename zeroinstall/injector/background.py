@@ -6,14 +6,15 @@ process that runs quietly in the background.
 This avoids the need to annoy people with a 'checking for updates' box when they're trying to run things.
 """
 
+# Copyright (C) 2009, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
+
+from zeroinstall import _
 import sys, os
 from logging import info, warn
 from zeroinstall.support import tasks
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import handler, namespaces
-
-# Copyright (C) 2009, Thomas Leonard
-# See the README file for details, or visit http://0install.net.
 
 def _escape_xml(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')

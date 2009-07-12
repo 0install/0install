@@ -17,6 +17,7 @@ better, Unsupported architectures are not listed at all.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os
 
 # os_ranks and mapping are mappings from names to how good they are.

@@ -10,6 +10,7 @@ To do this, you supply a L{Handler} to the L{policy}.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import sys
 from logging import debug, warn
 

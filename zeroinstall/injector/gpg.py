@@ -9,6 +9,7 @@ This module is used to invoke GnuPG to check the digital signatures on interface
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import subprocess
 import base64, re
 import os

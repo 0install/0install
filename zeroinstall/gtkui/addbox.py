@@ -1,7 +1,9 @@
 """A GTK dialog which lets the user add a new application to their desktop."""
+
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os, sys
 import gtk, gobject
 import gtk.glade

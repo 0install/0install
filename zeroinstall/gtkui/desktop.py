@@ -3,6 +3,7 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import sys
 from optparse import OptionParser
 import logging

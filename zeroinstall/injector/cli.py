@@ -5,6 +5,7 @@ This code is here, rather than in B{0launch} itself, simply so that it gets byte
 install time.
 """
 
+from zeroinstall import _
 import os, sys
 from optparse import OptionParser
 import logging

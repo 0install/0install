@@ -5,6 +5,7 @@ Executes a set of implementations as a program.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os, sys
 from logging import debug, info
 

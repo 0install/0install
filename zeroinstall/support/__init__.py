@@ -10,6 +10,7 @@ wish were in the standard library.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os, logging
 
 def find_in_path(prog):

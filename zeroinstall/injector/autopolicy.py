@@ -11,6 +11,7 @@ is also the policy used to run the injector's GUI.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 from logging import info
 
 from zeroinstall.injector import model, policy, run

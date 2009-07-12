@@ -6,6 +6,7 @@ Integration with native distribution package managers.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os, re
 from logging import warn, info
 from zeroinstall.injector import namespaces, model

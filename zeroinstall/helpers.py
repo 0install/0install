@@ -8,6 +8,7 @@ Convenience routines for performing common operations.
 
 import os, sys, logging
 from zeroinstall import support
+from zeroinstall import _
 
 def get_selections_gui(iface_uri, gui_args, test_callback = None):
 	"""Run the GUI to choose and download a set of implementations.

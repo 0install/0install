@@ -5,6 +5,7 @@ Parses an XML interface into a Python representation.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os
 from logging import debug, info, warn
 from os.path import dirname

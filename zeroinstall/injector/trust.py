@@ -10,6 +10,7 @@ in some cases and not others.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os
 
 from zeroinstall.support import basedir

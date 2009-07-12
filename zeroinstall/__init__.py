@@ -8,15 +8,16 @@ The Python implementation of the Zero Install injector is divided into four sub-
 
 @copyright: (C) 2009, Thomas Leonard
 @see: U{http://0install.net}
+
+@var _: a function for translating strings using the zero-install domain (for use internally by Zero Install)
 """
 
 version = '0.41'
 
 import gettext
 
-#gettext.install('zero-install', names=['ngettext'])
-#Unicode required for using non ascii chars in optparse
-gettext.install('zero-install', unicode=True, names=['ngettext'])
+translation = gettext.translation('zero-install', fallback = True)
+_ = translation.ugettext
 
 class SafeException(Exception):
 	"""An exception that can be reported to the user without a stack trace.

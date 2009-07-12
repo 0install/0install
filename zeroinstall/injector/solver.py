@@ -2,6 +2,10 @@
 Chooses a set of components to make a running program.
 """
 
+# Copyright (C) 2009, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
+
+from zeroinstall import _
 import os
 from logging import debug, warn, info
 
@@ -9,9 +13,6 @@ from zeroinstall.zerostore import BadDigest, NotStored
 
 from zeroinstall.injector.arch import machine_groups
 from zeroinstall.injector import model
-
-# Copyright (C) 2009, Thomas Leonard
-# See the README file for details, or visit http://0install.net.
 
 class Solver(object):
 	"""Chooses a set of implementations to satisfy the requirements of a program and its user.

@@ -34,6 +34,10 @@ Tasks use python's generator API to provide a more pleasant interface to
 callbacks. See the Task class (below) for more information.
 """
 
+# Copyright (C) 2009, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
+
+from zeroinstall import _
 import sys
 from logging import info, warn
 import gobject

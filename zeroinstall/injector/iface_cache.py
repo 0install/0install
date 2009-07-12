@@ -3,6 +3,7 @@ Manages the feed cache.
 
 @var iface_cache: A singleton cache object. You should normally use this rather than
 creating new cache objects.
+
 """
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
@@ -31,6 +32,7 @@ import os, sys, time
 from logging import debug, info, warn
 from cStringIO import StringIO
 
+from zeroinstall import _
 from zeroinstall.support import basedir
 from zeroinstall.injector import reader, model
 from zeroinstall.injector.namespaces import config_site, config_prog

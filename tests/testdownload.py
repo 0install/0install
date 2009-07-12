@@ -8,6 +8,7 @@ from logging import getLogger, WARN, ERROR
 from contextlib import contextmanager
 
 sys.path.insert(0, '..')
+os.environ['PYTHONPATH'] = os.path.abspath('..')
 
 os.environ["http_proxy"] = "localhost:8000"
 
