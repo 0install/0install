@@ -54,11 +54,11 @@ def run_gui(args):
 
 	if options.version:
 		print "0launch-gui (zero-install) " + gui.version
-		print "Copyright (C) 2007 Thomas Leonard"
+		print "Copyright (C) 2009 Thomas Leonard"
 		print _("This program comes with ABSOLUTELY NO WARRANTY,"
 				"\nto the extent permitted by law."
 				"\nYou may redistribute copies of this program"
-				"\nunder the terms of the GNU General Public License."
+				"\nunder the terms of the GNU Lesser General Public License."
 				"\nFor more information about these matters, see the file named COPYING.")
 		sys.exit(0)
 
