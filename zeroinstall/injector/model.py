@@ -117,6 +117,7 @@ def process_depends(item):
 						        before = parse_version(e.getAttribute('before'))))
 	return dependency
 
+def N_(message): return message
 
 insecure = Stability(0, N_('insecure'), _('This is a security risk'))
 buggy = Stability(5, N_('buggy'), _('Known to have serious bugs'))
@@ -125,6 +126,8 @@ testing = Stability(20, N_('testing'), _('Stability unknown - please test!'))
 stable = Stability(30, N_('stable'), _('Tested - no serious problems found'))
 packaged = Stability(35, N_('packaged'), _('Supplied by the local package manager'))
 preferred = Stability(40, N_('preferred'), _('Best of all - must be set manually'))
+
+del N_
 
 class Restriction(object):
 	"""A Restriction limits the allowed implementations of an Interface."""
