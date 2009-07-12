@@ -12,17 +12,9 @@ The Python implementation of the Zero Install injector is divided into four sub-
 
 version = '0.41'
 
-#locale and setlocale are not required and may fail, and the program will run
-#anyway
-import locale
 import gettext
 import __builtin__
-from logging import warn
 
-try:
-	locale.setlocale(locale.LC_ALL, '')
-except locale.Error:
-	warn('Error setting locale (eg. Invalid locale)')
 #gettext.install('zero-install', names=['ngettext'])
 #Unicode required for using non ascii chars in optparse
 gettext.install('zero-install', unicode=True, names=['ngettext'])

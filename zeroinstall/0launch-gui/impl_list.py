@@ -177,8 +177,7 @@ class ImplementationList:
 				elif item.user_stability == model.preferred:
 					self.model[new][STABILITY] = _('PREFERRED')
 			else:
-				self.model[new][STABILITY] = _(str(item.upstream_stability)) or \
-							     _(str(model.testing))
+				self.model[new][STABILITY] = _(str(item.upstream_stability) or str(model.testing))
 			self.model[new][ARCH] = item.arch or _('any')
 			self.model[new][UNUSABLE] = bool(unusable)
 			self.model[new][NOTES] = _(unusable)
