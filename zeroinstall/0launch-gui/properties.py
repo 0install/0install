@@ -54,7 +54,7 @@ def have_source_for(policy, interface):
 		except zeroinstall.NeedDownload:
 			pass	# OK, will get called again later
 		except Exception, ex:
-			warn("Failed to load feed '%s': %s", f.uri, str(ex))
+			warn(_("Failed to load feed '%(feed)s': %(exception)s"), {'feed': f.uri, 'exception': str(ex)})
 	for x in impls:
 		if x.machine == 'src':
 			return True
@@ -146,18 +146,18 @@ class Description:
 						if item[0] in ('pub', 'uid') and len(item) > 9:
 							name = item[9]
 							break
-					buffer.insert_with_tags(iter, _('Valid signature by "%s"\n- Dated: %s\n- Fingerprint: %s\n') %
-							(name, self.strtime(sig.get_timestamp()), sig.fingerprint))
+					buffer.insert_with_tags(iter, _('Valid signature by "%(name)s"\n- Dated: %(sig_date)s\n- Fingerprint: %(sig_fingerprint)s\n') %
+							{'name': name, 'sig_date': time.strftime('%c', time.localtime(sig.get_timestamp())), 'sig_fingerprint': sig.fingerprint})
 					if not sig.is_trusted():
 						if interface.uri.startswith('/'):
-							buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list\n'))
+							buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list') + '\n')
 						else:
 							buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list (either you removed it, or '
-											'you trust one of the other signatures)\n'))
+											'you trust one of the other signatures)') + '\n')
 				else:
 					buffer.insert_with_tags(iter, '%s\n' % sig)
 		else:
-			buffer.insert_with_tags(iter, _('No signature information (old style interface or out-of-date cache)\n'))
+			buffer.insert_with_tags(iter, _('No signature information (old style interface or out-of-date cache)') + '\n')
 
 class Feeds:
 	URI = 0
@@ -197,7 +197,7 @@ class Feeds:
 						dialog.alert(self.get_toplevel(),
 							_("Can't remove '%s' as you didn't add it.") % feed_uri)
 						return
-			raise Exception("Missing feed '%s'!" % feed_uri)
+			raise Exception(_("Missing feed '%s'!") % feed_uri)
 		self.remove_feed_button.connect('clicked', remove_feed)
 
 		self.tv = widgets.get_widget('feeds_list')
@@ -287,7 +287,7 @@ class Properties:
 		if interface.stability_policy:
 			i = [stable, testing, developer].index(interface.stability_policy)
 			if i == -1:
-				warn("Unknown stability policy %s", interface.stability_policy)
+				warn(_("Unknown stability policy %s"), interface.stability_policy)
 				i = 0
 		else:
 			i = 0
@@ -332,7 +332,7 @@ class Properties:
 		ranked_items = self.policy.solver.details.get(self.interface, None)
 		if ranked_items is None:
 			# The Solver didn't get this far, but we should still display them!
-			ranked_items = [(impl, "(solve aborted before here)")
+			ranked_items = [(impl, _("(solve aborted before here)"))
 					for impl in self.interface.implementations.values()]
 			ranked_items.sort()
 		self.use_list.set_items(ranked_items)
@@ -392,15 +392,15 @@ def add_remote_feed(policy, parent, interface):
 
 						d.set_sensitive(True)
 						if not iface.name:
-							error('Failed to read interface')
+							error(_('Failed to read interface'))
 							return
 						if not iface.feed_for:
-							error("Feed '%s' is not a feed for '%s'." % (iface.get_name(), interface.get_name()))
+							error(_("Feed '%(feed)s' is not a feed for '%(feed_for)s'.") % {'feed': iface.get_name(), 'feed_for': interface.get_name()})
 						elif interface.uri not in iface.feed_for:
-							error("This is not a feed for '%s'.\nOnly for:\n%s" %
-								(interface.uri, '\n'.join(iface.feed_for)))
+							error(_("This is not a feed for '%(uri)s'.\nOnly for:\n%(feed_for)s") %
+								{'uri': interface.uri, 'feed_for': '\n'.join(iface.feed_for)})
 						elif iface.uri in [f.uri for f in interface.feeds]:
-							error("Feed from '%s' has already been added!" % iface.uri)
+							error(_("Feed from '%s' has already been added!") % iface.uri)
 						else:
 							interface.extra_feeds.append(Feed(iface.uri, arch = None, user_override = True))
 							writer.save_interface(interface)
@@ -425,11 +425,11 @@ def add_local_feed(policy, interface):
 		try:
 			feed_targets = policy.get_feed_targets(feed)
 			if interface not in feed_targets:
-				raise Exception("Not a valid feed for '%s'; this is a feed for:\n%s" %
-						(interface.uri,
-						'\n'.join([f.uri for f in feed_targets])))
+				raise Exception(_("Not a valid feed for '%(uri)s'; this is a feed for:\n%(feed_for)s") %
+						{'uri': interface.uri,
+						'feed_for': '\n'.join([f.uri for f in feed_targets])})
 			if interface.get_feed(feed):
-				dialog.alert(None, 'This feed is already registered.')
+				dialog.alert(None, _('This feed is already registered.'))
 			else:
 				interface.extra_feeds.append(Feed(feed, user_override = True, arch = None))
 
@@ -438,7 +438,7 @@ def add_local_feed(policy, interface):
 			reader.update_from_cache(interface)
 			policy.recalculate()
 		except Exception, ex:
-			dialog.alert(None, "Error in feed file '%s':\n\n%s" % (feed, str(ex)))
+			dialog.alert(None, _("Error in feed file '%(feed)s':\n\n%(exception)s") % {'feed': feed, 'exception': str(ex)})
 		
 	sel.ok_button.connect('clicked', ok)
 	sel.cancel_button.connect('clicked', lambda b: sel.destroy())
@@ -450,14 +450,14 @@ def edit(policy, interface, show_versions = False):
 		_dialogs[interface].destroy()
 	_dialogs[interface] = Properties(policy, interface, show_versions)
 
-properties_help = help_box.HelpBox("Injector Properties Help",
-('Interface properties', """
-This window displays information about an interface. There are two tabs at the top: \
+properties_help = help_box.HelpBox(_("Injector Properties Help"),
+(_('Interface properties'), '\n' +
+_("""This window displays information about an interface. There are two tabs at the top: \
 Feeds shows the places where the injector looks for implementations of the interface, while \
-Versions shows the list of implementations found (from all feeds) in order of preference."""),
+Versions shows the list of implementations found (from all feeds) in order of preference.""")),
 
-('The Feeds tab', """
-At the top is a list of feeds. By default, the injector uses the full name of the interface \
+(_('The Feeds tab'), '\n' +
+_("""At the top is a list of feeds. By default, the injector uses the full name of the interface \
 as the default feed location (so if you ask it to run the program "http://foo/bar.xml" then it will \
 by default get the list of versions by downloading "http://foo/bar.xml".
 
@@ -472,10 +472,10 @@ Below the list of feeds is a box describing the selected one:
 - 'Last upstream change' shows the version of the cached copy of the interface file.
 - 'Last checked' is the last time a fresh copy of the upstream interface file was \
 downloaded.
-- Then there is a longer description of the interface."""),
+- Then there is a longer description of the interface.""")),
 
-('The Versions tab', """
-This tab shows a list of all known implementations of the interface, from all the feeds. \
+(_('The Versions tab'), '\n' +
+_("""This tab shows a list of all known implementations of the interface, from all the feeds. \
 The columns have the following meanings:
 
 Version gives the version number. High-numbered versions are considered to be \
@@ -497,10 +497,9 @@ is provided by your distribution's package manager, not by Zero Install. \
 In off-line mode, only cached implementations are considered for use.
 
 Arch indicates what kind of computer system the implementation is for, or 'any' \
-if it works with all types of system.
-"""),
-('Sort order', """
-The implementations are listed in the injector's currently preferred order (the one \
+if it works with all types of system.""") + '\n'),
+(_('Sort order'), '\n' +
+_("""The implementations are listed in the injector's currently preferred order (the one \
 at the top will actually be used). Usable implementations all come before unusable \
 ones.
 
@@ -520,11 +519,9 @@ non-cached.
 
 - Then, higher-numbered versions come before low-numbered ones.
 
-- Then cached come before non-cached (for 'Full' network use mode).
-"""),
+- Then cached come before non-cached (for 'Full' network use mode).""") + '\n'),
 
-('Compiling', """
-If there is no binary available for your system then you may be able to compile one from \
+(_('Compiling'), '\n' +
+_("""If there is no binary available for your system then you may be able to compile one from \
 source by clicking on the Compile button. If no source is available, the Compile button will \
-be shown shaded.
-"""))
+be shown shaded.""") + '\n'))

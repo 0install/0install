@@ -16,7 +16,8 @@ def _stability(impl):
 	assert impl
 	if impl.user_stability is None:
 		return impl.upstream_stability
-	return _("%s (was %s)") % (impl.user_stability, impl.upstream_stability)
+	return _("%(implementation_user_stability)s (was %(implementation_upstream_stability)s)") \
+		% {'implementation_user_stability': impl.user_stability, 'implementation_upstream_stability': impl.upstream_stability}
 
 ICON_SIZE = 20.0
 CELL_TEXT_INDENT = int(ICON_SIZE) + 4
@@ -46,12 +47,12 @@ class InterfaceTips(TreeTips):
 				 "interface properties to find out why.")
 
 		if model_column == InterfaceBrowser.VERSION:
-			text = _("Currently preferred version: %s (%s)") % \
-					(impl.get_version(), _stability(impl))
+			text = _("Currently preferred version: %(version)s (%(stability)s)") % \
+					{'version': impl.get_version(), 'stability': _stability(impl)}
 			old_impl = self.mainwindow.original_implementation.get(interface, None)
 			if old_impl is not None and old_impl is not impl:
-				text += _('\nPreviously preferred version: %s (%s)') % \
-					(old_impl.get_version(), _stability(old_impl))
+				text += '\n' + _('Previously preferred version: %(version)s (%(stability)s)') % \
+					{'version': old_impl.get_version(), 'stability': _stability(old_impl)}
 			return text
 
 		assert model_column == InterfaceBrowser.DOWNLOAD_SIZE
@@ -62,8 +63,8 @@ class InterfaceTips(TreeTips):
 			src = self.mainwindow.policy.fetcher.get_best_source(impl)
 			if not src:
 				return _("No downloads available!")
-			return _("Need to download %s (%s bytes)") % \
-					(support.pretty_size(src.size), src.size)
+			return _("Need to download %(pretty_size)s (%(size)s bytes)") % \
+					{'pretty_size': support.pretty_size(src.size), 'size': src.size}
 
 class MenuIconRenderer(gtk.GenericCellRenderer):
 	def __init__(self):
@@ -267,7 +268,7 @@ class InterfaceBrowser:
 			icon = loader.get_pixbuf()
 			assert icon, "Failed to load cached PNG icon data"
 		except Exception, ex:
-			warn("Failed to load cached PNG icon: %s", ex)
+			warn(_("Failed to load cached PNG icon: %s"), ex)
 			return None
 		w = icon.get_width()
 		h = icon.get_height()
@@ -462,12 +463,16 @@ class InterfaceBrowser:
 						expected = (expected or 0) + dl.expected_size
 					so_far += dl.get_bytes_downloaded_so_far()
 				if expected:
-					fraction = "%s [%.2f%%]" % (pretty_size(expected), 100 * so_far / float(expected))
+					summary = ngettext("(downloading %(downloaded)s/%(expected)s [%(percentage).2f%%])",
+							   "(downloading %(downloaded)s/%(expected)s [%(percentage).2f%%] in %(number)d downloads)",
+							   downloads)
+					values_dict = {'downloaded': pretty_size(so_far), 'expected': pretty_size(expected), 'percentage': 100 * so_far / float(expected), 'number': len(downloads)}
 				else:
-					fraction = _("unknown")
-				if len(downloads) > 1:
-					fraction += _(" in %d downloads") % len(downloads)
-				row[InterfaceBrowser.SUMMARY] = _("(downloading %s/%s)") % (pretty_size(so_far), fraction)
+					summary = ngettext("(downloading %(downloaded)s/unknown)",
+							   "(downloading %(downloaded)s/unknown in %(number)d downloads)",
+							   downloads)
+					values_dict = {'downloaded': pretty_size(so_far), 'number': len(downloads)}
+				row[InterfaceBrowser.SUMMARY] = summary % values_dict
 			else:
 				row[InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
 				row[InterfaceBrowser.SUMMARY] = iface.summary

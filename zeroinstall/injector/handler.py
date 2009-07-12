@@ -10,6 +10,7 @@ To do this, you supply a L{Handler} to the L{policy}.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import sys
 from logging import debug, warn
 
@@ -89,7 +90,7 @@ class Handler(object):
 			assert self._loop is None	# Avoid recursion
 			self._loop = gobject.MainLoop(gobject.main_context_default())
 			try:
-				debug("Entering mainloop, waiting for %s", blocker)
+				debug(_("Entering mainloop, waiting for %s"), blocker)
 				self._loop.run()
 			finally:
 				self._loop = None
@@ -152,7 +153,7 @@ class Handler(object):
 			i = raw_input()
 			if not i: continue
 			if i in 'Nn':
-				raise NoTrustedKeys('Not signed with a trusted key')
+				raise NoTrustedKeys(_('Not signed with a trusted key'))
 			if i in 'Yy':
 				break
 		for key in valid_sigs:

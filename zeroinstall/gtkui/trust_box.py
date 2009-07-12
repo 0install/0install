@@ -1,6 +1,7 @@
 # Copyright (C) 2009, Thomas Leonard
 # -*- coding: utf-8 -*-
 # See the README file for details, or visit http://0install.net.
+from zeroinstall import _
 
 import gtk
 from zeroinstall.injector.model import SafeException
@@ -44,7 +45,7 @@ def get_hint(fingerprint):
 		hint_icon.set_from_stock(gtk.STOCK_YES, gtk.ICON_SIZE_BUTTON)
 	else:
 		hint_icon.set_from_stock(gtk.STOCK_DIALOG_WARNING, gtk.ICON_SIZE_BUTTON)
-		hint_text = 'Warning: Nothing known about this key!'
+		hint_text = _('Warning: Nothing known about this key!')
 	hint = left(hint_text)
 	hint.set_line_wrap(True)
 	hint_hbox = gtk.HBox(False, 4)
@@ -67,7 +68,7 @@ class TrustBox(gtk.Dialog):
 		self.set_position(gtk.WIN_POS_CENTER)
 		self.set_transient_for(parent)
 
-		self.closed = tasks.Blocker("confirming keys with user")
+		self.closed = tasks.Blocker(_("confirming keys with user"))
 
 		domain = trust.domain_from_url(interface.uri)
 		assert domain
@@ -107,22 +108,22 @@ class TrustBox(gtk.Dialog):
 
 		self.valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
 		if not self.valid_sigs:
-			raise SafeException('No valid signatures found on "%s". Signatures:%s' %
-					(interface.uri, ''.join(['\n- ' + str(s) for s in sigs])))
+			raise SafeException(_('No valid signatures found on "%(uri)s". Signatures:%(signatures)s') %
+					{'uri': interface.uri, 'signatures': ''.join(['\n- ' + str(s) for s in sigs])})
 
 		notebook = gtk.Notebook()
 
 		if len(self.valid_sigs) == 1:
 			notebook.set_show_tabs(False)
 
-		label = left(_('Checking: ') + interface.uri)
+		label = left(_('Checking: %s') % interface.uri)
 		label.set_padding(4, 4)
 		vbox.pack_start(label, False, True, 0)
 
 		currently_trusted_keys = trust.trust_db.get_keys_for_domain(domain)
 		if currently_trusted_keys:
 			keys = [gpg.load_key(fingerprint) for fingerprint in currently_trusted_keys]
-			descriptions = [_("%s\n(fingerprint: %s)") % (key.name, pretty_fp(key.fingerprint))
+			descriptions = [_("%(key_name)s\n(fingerprint: %(key_fingerprint)s)") % {'key_name': key.name, 'key_fingerprint': pretty_fp(key.fingerprint)}
 					for key in keys]
 		else:
 			descriptions = [_('None')]
@@ -226,29 +227,29 @@ def confirm_trust(interface, sigs, iface_xml, parent):
 		_queue[0].show()
 	return box.closed
 
-trust_help = help_box.HelpBox("Trust Help",
-('Overview', """
-When you run a program, it typically has access to all your files and can generally do \
+trust_help = help_box.HelpBox(_("Trust Help"),
+(_('Overview'), '\n' +
+_("""When you run a program, it typically has access to all your files and can generally do \
 anything that you're allowed to do (delete files, send emails, etc). So it's important \
-to make sure that you don't run anything malicious."""),
+to make sure that you don't run anything malicious.""")),
 
-('Digital signatures', """
-Each software author creates a 'key-pair'; a 'public key' and a 'private key'. Without going \
+(_('Digital signatures'), '\n' +
+_("""Each software author creates a 'key-pair'; a 'public key' and a 'private key'. Without going \
 into the maths, only something encrypted with the private key will decrypt with the public key.
 
 So, when a programmer releases some software, they encrypt it with their private key (which no-one \
 else has). When you download it, the injector checks that it decrypts using their public key, thus \
-proving that it came from them and hasn't been tampered with."""),
+proving that it came from them and hasn't been tampered with.""")),
 
-('Trust', """
-After the injector has checked that the software hasn't been modified since it was signed with \
+(_('Trust'), '\n' +
+_("""After the injector has checked that the software hasn't been modified since it was signed with \
 the private key, you still have the following problems:
 
 1. Does the public key you have really belong to the author?
-2. Even if the software really did come from that person, do you trust them?"""),
+2. Even if the software really did come from that person, do you trust them?""")),
 
-('Key fingerprints', """
-To confirm (1), you should compare the public key you have with the genuine one. To make this \
+(_('Key fingerprints'), '\n' +
+_("""To confirm (1), you should compare the public key you have with the genuine one. To make this \
 easier, the injector displays a 'fingerprint' for the key. Look in mailing list postings or some \
 other source to check that the fingerprint is right (a different key will have a different \
 fingerprint).
@@ -256,111 +257,111 @@ fingerprint).
 You're trying to protect against the situation where an attacker breaks into a web site \
 and puts up malicious software, signed with the attacker's private key, and puts up the \
 attacker's public key too. If you've downloaded this software before, you \
-should be suspicious that you're being asked to confirm another key!"""),
+should be suspicious that you're being asked to confirm another key!""")),
 
-('Reputation', """
-In general, most problems seem to come from malicous and otherwise-unknown people \
+(_('Reputation'), '\n' +
+_("""In general, most problems seem to come from malicous and otherwise-unknown people \
 replacing software with modified versions, or creating new programs intended only to \
-cause damage. So, check your programs are signed by a key with a good reputation!"""))
+cause damage. So, check your programs are signed by a key with a good reputation!""")))
 
 hints = {
 	'1DC295D11A3F910DA49D3839AA1A7812B40B0B6E' :
-		'Ken Hayber has been writing ROX applications since 2003. This key '
-		'was announced on the rox-users list on 5 Jun 2005.',
+		_('Ken Hayber has been writing ROX applications since 2003. This key '
+		'was announced on the rox-users list on 5 Jun 2005.'),
 
 	'4338D5420E0BAEB6B2E73530B66A4F24AB8B4B65' :
-		'Thomas Formella is experimenting with packaging programs for 0launch. This key '
-		'was announced on 11 Sep 2005 on the zero-install mailing list.',
+		_('Thomas Formella is experimenting with packaging programs for 0launch. This key '
+		'was announced on 11 Sep 2005 on the zero-install mailing list.'),
 
 	'92429807C9853C0744A68B9AAE07828059A53CC1' :
-		'Thomas Leonard created Zero Install and ROX. This key is used to sign updates to the '
-		'injector; you should accept it.',
+		_('Thomas Leonard created Zero Install and ROX. This key is used to sign updates to the '
+		'injector; you should accept it.'),
 
 	'DA9825AECAD089757CDABD8E07133F96CA74D8BA' :
-		'Thomas Leonard created Zero Install and ROX. This key is used to sign updates to the '
+		_('Thomas Leonard created Zero Install and ROX. This key is used to sign updates to the '
 		'injector; you should accept it. It was announced on the Zero Install mailing list '
-		'on 2009-05-31.',
+		'on 2009-05-31.'),
 
 	'0597A2AFB6B372ACB97AC6E433B938C2E9D8826D' : 
-		'Stephen Watson is a project admin for the ROX desktop, and has been involved with the '
+		_('Stephen Watson is a project admin for the ROX desktop, and has been involved with the '
 		'project since 2000. This key has been used for signing software since the 23 Jul 2005 '
-		'announcement on the zero-install mailing list.',
+		'announcement on the zero-install mailing list.'),
 	
 	'F0A0CA2A8D8FCC123F5EC04CD8D59DC384AE988E' :
-		'Piero Ottuzzi is experimenting with packaging programs for 0launch. This key has been '
+		_('Piero Ottuzzi is experimenting with packaging programs for 0launch. This key has been '
 		'known since a 16 Mar 2005 post to the zero-install mailing list. It was first used to '
-		'sign software in an announcement posted on 9 Aug 2005.',
+		'sign software in an announcement posted on 9 Aug 2005.'),
 	
 	'FC71DC3364367CE82F91472DDF32928893D894E9' :
-		'Niklas Höglund is experimenting with using Zero Install on the Nokia 770. This key has '
-		'been known since the announcement of 4 Apr 2006 on the zero-install mailing list.',
+		_('Niklas Höglund is experimenting with using Zero Install on the Nokia 770. This key has '
+		'been known since the announcement of 4 Apr 2006 on the zero-install mailing list.'),
 	
 	'B93AAE76C40A3222425A04FA0BDA706F2C21E592' : # expired
-		'Ilja Honkonen is experimenting with packaging software for Zero Install. This key '
-		'was announced on 2006-04-21 on the zero-install mailing list.',
+		_('Ilja Honkonen is experimenting with packaging software for Zero Install. This key '
+		'was announced on 2006-04-21 on the zero-install mailing list.'),
 
 	'6AD4A9C482F1D3F537C0354FC8CC44742B11FF89' :
 		'Ilja Honkonen is experimenting with packaging software for Zero Install. This key '
 		'was announced on 2009-06-18 on the zero-install mailing list.',
  	
 	'5D3D90FB4E6FE10C7F76E94DEE6BC26DBFDE8022' :
-		'Dennis Tomas leads the rox4debian packaging effort. This key has been known since '
-		'an email forwarded to the rox-devel list on 2006-05-28.',
+		_('Dennis Tomas leads the rox4debian packaging effort. This key has been known since '
+		'an email forwarded to the rox-devel list on 2006-05-28.'),
 	
 	'2E2B4E59CAC8D874CD2759D34B1095AF2E992B19' :
 		'Lennon Cook creates the FreeBSD-x86 binaries for various ROX applications. '
 		'This key was announced in a Jun 17, 2006 post to the rox-devel mailing list.',
 	
 	'7722DC5085B903FF176CCAA9695BA303C9839ABC' :
-		'Lennon Cook creates the FreeBSD-x86 binaries for various ROX applications. '
-		'This key was announced in an Oct 5, 2006 post to the rox-users mailing list.',
+		_('Lennon Cook creates the FreeBSD-x86 binaries for various ROX applications. '
+		'This key was announced in an Oct 5, 2006 post to the rox-users mailing list.'),
 	
 	'03DC5771716A5A329CA97EA64AB8A8E7613A266F' :
-		'Lennon Cook creates the FreeBSD-x86 binaries for various ROX applications. '
-		'This key was announced in an Oct 7, 2007 post to the rox-users mailing list.',
+		_('Lennon Cook creates the FreeBSD-x86 binaries for various ROX applications. '
+		'This key was announced in an Oct 7, 2007 post to the rox-users mailing list.'),
 
 	'617794D7C3DFE0FFF572065C0529FDB71FB13910' :
-		'This low-security key is used to sign Zero Install interfaces which have been '
+		_('This low-security key is used to sign Zero Install interfaces which have been '
 		"automatically generated by a script. Typically, the upstream software didn't "
 		"come with a signature, so it's impossible to know if the code is actually OK. "
 		"However, there is still some benefit: if the archive is modified after the "
 		"script has signed it then any further changes will be detected, so this isn't "
-		"completely pointless.",
+		"completely pointless."),
 
 	'5E665D0ECCCF1215F725BD2FA7421904E3D1B654' :
-		'Daniel Carrera works on the OpenDocument viewer from opendocumentfellowship.org. '
-		'This key was confirmed in a zero-install mailing list post on 2007-01-09.',
+		_('Daniel Carrera works on the OpenDocument viewer from opendocumentfellowship.org. '
+		'This key was confirmed in a zero-install mailing list post on 2007-01-09.'),
 
 	'635469E565B8D340C2C9EA4C32FBC18CE63EF486' :
-		'Eric Wasylishen is experimenting with packaging software with Zero Install. '
-		'This key was announced on the zero-install mailing list on 2007-01-16 and then lost.',
+		_('Eric Wasylishen is experimenting with packaging software with Zero Install. '
+		'This key was announced on the zero-install mailing list on 2007-01-16 and then lost.'),
 
 	'E5175248514E9D4E558B5925BC456918F32AC5D1' :
-		'Eric Wasylishen is experimenting with packaging software with Zero Install. '
-		'This key was announced on the zero-install mailing list on 2008-12-07',
+		_('Eric Wasylishen is experimenting with packaging software with Zero Install. '
+		'This key was announced on the zero-install mailing list on 2008-12-07'),
 
 	'C82D382AAB381A54529019D6A0F9B035686C6996' :
-		"Justus Winter is generating Zero Install feeds from pkgsrc (which was originally "
+		_("Justus Winter is generating Zero Install feeds from pkgsrc (which was originally "
 		"NetBSD's ports collection). This key was announced on the zero-install mailing list "
-		"on 2007-06-01.",
+		"on 2007-06-01."),
 
 	'D7582A2283A01A6480780AC8E1839306AE83E7E2' :
-		'Tom Adams is experimenting with packaging software with Zero Install. '
-		'This key was announced on the zero-install mailing list on 2007-08-14.',
+		_('Tom Adams is experimenting with packaging software with Zero Install. '
+		'This key was announced on the zero-install mailing list on 2007-08-14.'),
 	
 	'3B2A89E694686DC4FEEFD6F6D00CA21EC004251B' :
-		'Tuomo Valkonen is the author of the Ion tiling window manager. This key fingerprint '
-		'was taken from http://modeemi.fi/~tuomov/ on 2007-11-17.',
+		_('Tuomo Valkonen is the author of the Ion tiling window manager. This key fingerprint '
+		'was taken from http://modeemi.fi/~tuomov/ on 2007-11-17.'),
 
 	'A14924F4DFD1B81DED3436240C9B2C41B8D66FEA' :
-		'Andreas K. Förster is experimenting with creating Zero Install feeds. '
-		'This key was announced in a 2008-01-25 post to the zeroinstall mailing list.',
+		_('Andreas K. Förster is experimenting with creating Zero Install feeds. '
+		'This key was announced in a 2008-01-25 post to the zeroinstall mailing list.'),
 	
 	'520DCCDBE5D38E2B22ADD82672E5E2ACF037FFC4' :
-		'Thierry Goubier creates PPC binaries for the ROX desktop. This key was '
-		'announced in a 2008-02-03 posting to the rox-users list.',
+		_('Thierry Goubier creates PPC binaries for the ROX desktop. This key was '
+		'announced in a 2008-02-03 posting to the rox-users list.'),
 
 	'517085B7261D3B03A97515319C2C2CD1D41AF5BB' :
-		'Frank Richter is a developer of the Crystal Space 3D SDK. This key was '
-		'confirmed in a 2008-09-04 post to the zero-install-devel mailing list.',
+		_('Frank Richter is a developer of the Crystal Space 3D SDK. This key was '
+		'confirmed in a 2008-09-04 post to the zero-install-devel mailing list.'),
 }

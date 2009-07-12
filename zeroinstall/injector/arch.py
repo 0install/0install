@@ -17,6 +17,7 @@ better, Unsupported architectures are not listed at all.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os
 
 # os_ranks and mapping are mappings from names to how good they are.
@@ -87,7 +88,7 @@ class Architecture:
 		self.child_arch = self
 	
 	def __str__(self):
-		return "<Arch: %s %s>" % (self.os_ranks, self.machine_ranks)
+		return _("<Arch: %(os_ranks)s %(machine_ranks)s>") % {'os_ranks': self.os_ranks, 'machine_ranks': self.machine_ranks}
 
 class SourceArchitecture(Architecture):
 	"""Matches source code that creates binaries for a particular architecture.

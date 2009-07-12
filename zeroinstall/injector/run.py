@@ -5,6 +5,7 @@ Executes a set of implementations as a program.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os, sys
 from logging import debug, info
 
@@ -47,7 +48,7 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 			if isinstance(dep_impl, ZeroInstallImplementation):
 				_do_bindings(dep_impl, dep.bindings)
 			else:
-				debug("Implementation %s is native; no bindings needed", dep_impl)
+				debug(_("Implementation %s is native; no bindings needed"), dep_impl)
 
 	root_impl = policy.get_implementation(iface)
 	_execute(root_impl, prog_args, dry_run, main, wrapper)
@@ -113,7 +114,7 @@ def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 				sys.stderr.flush()
 				os._exit(1)
 
-		info("Waiting for test process to finish...")
+		info(_("Waiting for test process to finish..."))
 
 		pid, status = os.waitpid(child, 0)
 		assert pid == child
@@ -121,7 +122,7 @@ def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 		output.seek(0)
 		results = output.read()
 		if status != 0:
-			results += "Error from child process: exit code = %d" % status
+			results += _("Error from child process: exit code = %d") % status
 	finally:
 		output.close()
 	
@@ -144,25 +145,26 @@ def _execute(root_impl, prog_args, dry_run, main, wrapper):
 			prog_path = os.path.join(_get_implementation_path(root_impl.id), main)
 
 	if main is None:
-		raise SafeException("Implementation '%s' cannot be executed directly; it is just a library "
-				    "to be used by other programs (or missing 'main' attribute)" %
+		raise SafeException(_("Implementation '%s' cannot be executed directly; it is just a library "
+				    "to be used by other programs (or missing 'main' attribute)") %
 				    root_impl)
 
 	if not os.path.exists(prog_path):
-		raise SafeException("File '%s' does not exist.\n"
-				"(implementation '%s' + program '%s')" %
-				(prog_path, root_impl.id, main))
+		raise SafeException(_("File '%(program_path)s' does not exist.\n"
+				"(implementation '%(implementation_id)s' + program '%(main)s')") %
+				{'program_path': prog_path, 'implementation_id': root_impl.id,
+				'main': main})
 	if wrapper:
 		prog_args = ['-c', wrapper + ' "$@"', '-', prog_path] + list(prog_args)
 		prog_path = '/bin/sh'
 
 	if dry_run:
-		print "Would execute:", prog_path, ' '.join(prog_args)
+		print _("Would execute: %s") % ' '.join([prog_path] + prog_args)
 	else:
-		info("Executing: %s", prog_path)
+		info(_("Executing: %s"), prog_path)
 		sys.stdout.flush()
 		sys.stderr.flush()
 		try:
 			os.execl(prog_path, prog_path, *prog_args)
 		except OSError, ex:
-			raise SafeException("Failed to run '%s': %s" % (prog_path, str(ex)))
+			raise SafeException(_("Failed to run '%(program_path)s': %(exception)s") % {'program_path': prog_path, 'exception': str(ex)})

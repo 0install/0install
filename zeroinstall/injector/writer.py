@@ -5,6 +5,7 @@ Save per-interface configuration information.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os
 from xml.dom import minidom, XMLNS_NAMESPACE
 

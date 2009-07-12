@@ -10,6 +10,7 @@ wish were in the standard library.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os, logging
 
 def find_in_path(prog):
@@ -40,11 +41,11 @@ def read_bytes(fd, nbytes, null_ok = False):
 		if not got:
 			if null_ok and not data:
 				return None
-			raise Exception("Unexpected end-of-stream. Data so far %s; expecting %d bytes more."
-					% (repr(data), nbytes))
+			raise Exception(_("Unexpected end-of-stream. Data so far %(data)s; expecting %(bytes)d bytes more.")
+					% {'data': repr(data), 'bytes': nbytes})
 		data += got
 		nbytes -= len(got)
-	logging.debug("Message received: %s" % repr(data))
+	logging.debug(_("Message received: %s") % repr(data))
 	return data
 
 def pretty_size(size):
@@ -57,13 +58,13 @@ def pretty_size(size):
 	if size is None:
 		return '?'
 	if size < 2048:
-		return '%d bytes' % size
+		return _('%d bytes') % size
 	size = float(size)
-	for unit in ('KB', 'MB', 'GB', 'TB'):
+	for unit in (_('KB'), _('MB'), _('GB'), _('TB')):
 		size /= 1024
 		if size < 2048:
 			break
-	return '%.1f %s' % (size, unit)
+	return _('%(size).1f %(unit)s') % {'size': size, 'unit': unit}
 
 def ro_rmtree(root):
 	"""Like shutil.rmtree, except that we also delete read-only items.

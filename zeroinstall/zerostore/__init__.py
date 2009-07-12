@@ -5,6 +5,7 @@ Code for managing the implementation cache.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os
 from logging import debug, info, warn
 
@@ -52,18 +53,18 @@ class Store:
 		self.dir = dir
 	
 	def __str__(self):
-		return "Store '%s'" % self.dir
+		return _("Store '%s'") % self.dir
 	
 	def lookup(self, digest):
 		try:
 			alg, value = digest.split('=', 1)
 		except ValueError:
-			raise BadDigest("Digest must be in the form ALG=VALUE, not '%s'" % digest)
+			raise BadDigest(_("Digest must be in the form ALG=VALUE, not '%s'") % digest)
 		try:
 			assert '/' not in value
 			int(value, 16)		# Check valid format
 		except ValueError, ex:
-			raise BadDigest("Bad value for digest: %s" % str(ex))
+			raise BadDigest(_("Bad value for digest: %s") % str(ex))
 		dir = os.path.join(self.dir, digest)
 		if os.path.isdir(dir):
 			return dir
@@ -86,10 +87,10 @@ class Store:
 	
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0, try_helper = False):
 		import unpack
-		info("Caching new implementation (digest %s)", required_digest)
+		info(_("Caching new implementation (digest %s)"), required_digest)
 
 		if self.lookup(required_digest):
-			info("Not adding %s as it already exists!", required_digest)
+			info(_("Not adding %s as it already exists!"), required_digest)
 			return
 
 		tmp = self.get_tmp_dir_for(required_digest)
@@ -103,7 +104,7 @@ class Store:
 		try:
 			self.check_manifest_and_rename(required_digest, tmp, extract, try_helper = try_helper)
 		except Exception, ex:
-			warn("Leaving extracted directory as %s", tmp)
+			warn(_("Leaving extracted directory as %s"), tmp)
 			raise
 	
 	def add_dir_to_cache(self, required_digest, path, try_helper = False):
@@ -116,7 +117,7 @@ class Store:
 		@type try_helper: bool
 		@raise BadDigest: if the contents don't match the given digest."""
 		if self.lookup(required_digest):
-			info("Not adding %s as it already exists!", required_digest)
+			info(_("Not adding %s as it already exists!"), required_digest)
 			return
 
 		tmp = self.get_tmp_dir_for(required_digest)
@@ -124,8 +125,8 @@ class Store:
 			_copytree2(path, tmp)
 			self.check_manifest_and_rename(required_digest, tmp, try_helper = try_helper)
 		except:
-			warn("Error importing directory.")
-			warn("Deleting %s", tmp)
+			warn(_("Error importing directory."))
+			warn(_("Deleting %s"), tmp)
 			support.ro_rmtree(tmp)
 			raise
 
@@ -141,7 +142,7 @@ class Store:
 			return False		# Old digest alg not supported
 		helper = support.find_in_path('0store-secure-add-helper')
 		if not helper:
-			info("'0store-secure-add-helper' command not found. Not adding to system cache.")
+			info(_("'0store-secure-add-helper' command not found. Not adding to system cache."))
 			return False
 		import subprocess
 		env = os.environ.copy()
@@ -149,7 +150,7 @@ class Store:
 		env['HOME'] = 'Unclean'			# (warn about insecure configurations)
 		dev_null = os.open('/dev/null', os.O_RDONLY)
 		try:
-			info("Trying to add to system cache using %s", helper)
+			info(_("Trying to add to system cache using %s"), helper)
 			child = subprocess.Popen([helper, required_digest],
 						 stdin = dev_null,
 						 cwd = path,
@@ -159,10 +160,10 @@ class Store:
 			os.close(dev_null)
 
 		if exit_code:
-			warn("0store-secure-add-helper failed.")
+			warn(_("0store-secure-add-helper failed."))
 			return False
 
-		info("Added succcessfully.")
+		info(_("Added succcessfully."))
 		return True
 
 	def check_manifest_and_rename(self, required_digest, tmp, extract = None, try_helper = False):
@@ -175,7 +176,7 @@ class Store:
 		if extract:
 			extracted = os.path.join(tmp, extract)
 			if not os.path.isdir(extracted):
-				raise Exception('Directory %s not found in archive' % extract)
+				raise Exception(_('Directory %s not found in archive') % extract)
 		else:
 			extracted = tmp
 
@@ -186,20 +187,20 @@ class Store:
 		alg, required_value = manifest.splitID(required_digest)
 		actual_digest = alg.getID(manifest.add_manifest_file(extracted, alg))
 		if actual_digest != required_digest:
-			raise BadDigest('Incorrect manifest -- archive is corrupted.\n'
-					'Required digest: %s\n'
-					'Actual digest: %s\n' %
-					(required_digest, actual_digest))
+			raise BadDigest(_('Incorrect manifest -- archive is corrupted.\n'
+					'Required digest: %(required_digest)s\n'
+					'Actual digest: %(actual_digest)s\n') %
+					{'request_digest': required_digest, 'actual_digest': actual_digest})
 
 		if try_helper:
 			if self._add_with_helper(required_digest, extracted):
 				support.ro_rmtree(tmp)
 				return
-			info("Can't add to system store. Trying user store instead.")
+			info(_("Can't add to system store. Trying user store instead."))
 
 		final_name = os.path.join(self.dir, required_digest)
 		if os.path.isdir(final_name):
-			raise Exception("Item %s already stored." % final_name) # XXX: not really an error
+			raise Exception(_("Item %s already stored.") % final_name) # XXX: not really an error
 
 		# If we just want a subdirectory then the rename will change
 		# extracted/.. and so we'll need write permission on 'extracted'
@@ -226,7 +227,7 @@ class Stores(object):
 
 		impl_dirs = basedir.load_first_config('0install.net', 'injector',
 							  'implementation-dirs')
-		debug("Location of 'implementation-dirs' config file being used: '%s'", impl_dirs)
+		debug(_("Location of 'implementation-dirs' config file being used: '%s'"), impl_dirs)
 		if impl_dirs:
 			dirs = file(impl_dirs)
 		else:
@@ -234,20 +235,20 @@ class Stores(object):
 		for directory in dirs:
 			directory = directory.strip()
 			if directory and not directory.startswith('#'):
-				debug("Added system store '%s'", directory)
+				debug(_("Added system store '%s'"), directory)
 				self.stores.append(Store(directory))
 
 	def lookup(self, digest):
 		"""Search for digest in all stores."""
 		assert digest
 		if '/' in digest or '=' not in digest:
-			raise BadDigest('Syntax error in digest (use ALG=VALUE, not %s)' % digest)
+			raise BadDigest(_('Syntax error in digest (use ALG=VALUE, not %s)') % digest)
 		for store in self.stores:
 			path = store.lookup(digest)
 			if path:
 				return path
-		raise NotStored("Item with digest '%s' not found in stores. Searched:\n- %s" %
-			(digest, '\n- '.join([s.dir for s in self.stores])))
+		raise NotStored(_("Item with digest '%(digest)s' not found in stores. Searched:\n- %(stores)s") %
+			{'digest': digest, 'stores': '\n- '.join([s.dir for s in self.stores])})
 
 	def add_dir_to_cache(self, required_digest, dir):
 		"""Add to the best writable cache.
@@ -267,7 +268,7 @@ class Stores(object):
 				fn(self.get_first_system_store())
 				return
 			except NonwritableStore:
-				debug("%s not-writable. Trying helper instead.", self.get_first_system_store())
+				debug(_("%s not-writable. Trying helper instead."), self.get_first_system_store())
 				pass
 		fn(self.stores[0], try_helper = True)
 
@@ -277,4 +278,4 @@ class Stores(object):
 		try:
 			return self.stores[1]
 		except IndexError:
-			raise SafeException("No system stores have been configured")
+			raise SafeException(_("No system stores have been configured"))

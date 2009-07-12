@@ -1,3 +1,4 @@
+
 """Processing of implementation manifests.
 
 A manifest is a string representing a directory tree, with the property
@@ -25,7 +26,7 @@ A top-level ".manifest" file is ignored.
 
 from __future__ import generators
 import os, stat
-from zeroinstall import SafeException
+from zeroinstall import SafeException, _
 from zeroinstall.zerostore import BadDigest
 
 try:
@@ -96,7 +97,7 @@ class OldSHA1(Algorithm):
 				# Note: eCryptfs may report length as zero, so count ourselves instead
 				yield "S %s %s %s" % (d, len(target), leaf)
 			else:
-				raise SafeException("Unknown object '%s' (not a file, directory or symlink)" %
+				raise SafeException(_("Unknown object '%s' (not a file, directory or symlink)") %
 						full)
 		for x in recurse('/'): yield x
 	
@@ -112,7 +113,7 @@ def get_algorithm(name):
 	try:
 		return algorithms[name]
 	except KeyError:
-		raise BadDigest("Unknown algorithm '%s'" % name)
+		raise BadDigest(_("Unknown algorithm '%s'") % name)
 
 def generate_manifest(root, alg = 'sha1'):
 	"""@deprecated: use L{get_algorithm} and L{Algorithm.generate_manifest} instead."""
@@ -127,7 +128,7 @@ def add_manifest_file(dir, digest_or_alg):
 	here is deprecated."""
 	mfile = os.path.join(dir, '.manifest')
 	if os.path.islink(mfile) or os.path.exists(mfile):
-		raise SafeException("Directory '%s' already contains a .manifest file!" % dir)
+		raise SafeException(_("Directory '%s' already contains a .manifest file!") % dir)
 	manifest = ''
 	if isinstance(digest_or_alg, Algorithm):
 		alg = digest_or_alg
@@ -153,7 +154,7 @@ def splitID(id):
 	@raise BadDigest: if the algorithm isn't known or the ID has the wrong format."""
 	parts = id.split('=', 1)
 	if len(parts) != 2:
-		raise BadDigest("Digest '%s' is not in the form 'algorithm=value'" % id)
+		raise BadDigest(_("Digest '%s' is not in the form 'algorithm=value'") % id)
 	return (get_algorithm(parts[0]), parts[1])
 
 def copy_with_verify(src, dest, mode, alg, required_digest):
@@ -188,9 +189,9 @@ def copy_with_verify(src, dest, mode, alg, required_digest):
 	actual = digest.hexdigest()
 	if actual == required_digest: return
 	os.unlink(dest)
-	raise BadDigest(("Copy failed: file '%s' has wrong digest (may have been tampered with)\n"
-			 "Excepted: %s\n"
-			 "Actual:   %s") % (src, required_digest, actual))
+	raise BadDigest(_("Copy failed: file '%(src)s' has wrong digest (may have been tampered with)\n"
+			 "Expected: %(required_digest)s\n"
+			 "Actual:   %(actual_digest)s") % {'src': src, 'required_digest': required_digest, 'actual_digest': actual})
 
 def verify(root, required_digest = None):
 	"""Ensure that directory 'dir' generates the given digest.
@@ -222,27 +223,28 @@ def verify(root, required_digest = None):
 	if required_digest == actual_digest == manifest_digest:
 		return
 
-	error = BadDigest("Cached item does NOT verify.")
+	error = BadDigest(_("Cached item does NOT verify."))
 	
-	error.detail = " Expected digest: " + required_digest + "\n" + \
-		       "   Actual digest: " + actual_digest + "\n" + \
-		       ".manifest digest: " + (manifest_digest or 'No .manifest file') + "\n\n"
+	error.detail = _(" Expected: %(required_digest)s\n"
+					 "   Actual: %(actual_digest)s\n"
+					 ".manifest digest: %s\n\n") \
+					 % {'required_digest': required_digest, 'actual_digest': actual_digest, 'manifest_digest': manifest_digest or _('No .manifest file')}
 
 	if manifest_digest is None:
-		error.detail += "No .manifest, so no further details available."
+		error.detail += _("No .manifest, so no further details available.")
 	elif manifest_digest == actual_digest:
-		error.detail += "The .manifest file matches the actual contents. Very strange!"
+		error.detail += _("The .manifest file matches the actual contents. Very strange!")
 	elif manifest_digest == required_digest:
 		import difflib
 		diff = difflib.unified_diff(file(manifest_file).readlines(), lines,
 					    'Recorded', 'Actual')
-		error.detail += "The .manifest file matches the directory name.\n" \
-				"The contents of the directory have changed:\n" + \
+		error.detail += _("The .manifest file matches the directory name.\n" \
+				"The contents of the directory have changed:\n") + \
 				''.join(diff)
 	elif required_digest == actual_digest:
-		error.detail += "The directory contents are correct, but the .manifest file is wrong!"
+		error.detail += _("The directory contents are correct, but the .manifest file is wrong!")
 	else:
-		error.detail += "The .manifest file matches neither of the other digests. Odd."
+		error.detail += _("The .manifest file matches neither of the other digests. Odd.")
 	raise error
 
 # XXX: Be more careful about the source tree changing under us. In particular, what happens if:
@@ -261,20 +263,21 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 	alg, digest_value = splitID(required_digest)
 
 	if isinstance(alg, OldSHA1):
-		raise SafeException("Sorry, the 'sha1' algorithm does not support copying.")
+		raise SafeException(_("Sorry, the 'sha1' algorithm does not support copying."))
 
 	digest = alg.new_digest()
 	digest.update(manifest_data)
 	manifest_digest = alg.getID(digest)
 
 	if manifest_digest != required_digest:
-		raise BadDigest("Manifest has been tampered with!\n"
-				"Manifest digest: " + manifest_digest + "\n"
-				"Directory name : " + required_digest)
+		raise BadDigest(_("Manifest has been tampered with!\n"
+						  "Manifest digest: %(actual_digest)s\n"
+						  "Directory name : %(required_digest)s")
+						% {'actual_digest': manifest_digest, 'required_digest': required_digest})
 
 	target_impl = os.path.join(target, required_digest)
 	if os.path.isdir(target_impl):
-		info("Target directory '%s' already exists", target_impl)
+		info(_("Target directory '%s' already exists"), target_impl)
 		return
 
 	# We've checked that the source's manifest matches required_digest, so it
@@ -287,7 +290,7 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 		_copy_files(alg, wanted, source, tmpdir)
 
 		if wanted:
-			raise SafeException('Copy failed; files missing from source:\n- ' +
+			raise SafeException(_('Copy failed; files missing from source:') + '\n- ' +
 					    '\n- '.join(wanted.keys()))
 
 		# Make directories read-only (files are already RO)
@@ -300,15 +303,15 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 		# Check that the copy is correct
 		actual_digest = alg.getID(add_manifest_file(tmpdir, alg))
 		if actual_digest != required_digest:
-			raise SafeException(("Copy failed; double-check of target gave the wrong digest.\n"
+			raise SafeException(_("Copy failed; double-check of target gave the wrong digest.\n"
 					     "Unless the target was modified during the copy, this is a BUG\n"
 					     "in 0store and should be reported.\n"
-					     "Expected: %s\n"
-					     "Actual:   %s") % (required_digest, actual_digest)) 
+					     "Expected: %(required_digest)s\n"
+					     "Actual:   %(actual_digest)s") % {'required_digest': required_digest, 'actual_digest': actual_digest})
 		os.rename(tmpdir, target_impl)
 		# TODO: catch already-exists, delete tmpdir and return success
 	except:
-		info("Deleting tmpdir '%s'" % tmpdir)
+		info(_("Deleting tmpdir '%s'") % tmpdir)
 		from zeroinstall.support import ro_rmtree
 		ro_rmtree(tmpdir)
 		raise
@@ -325,21 +328,21 @@ def _parse_manifest(manifest_data):
 		if not line: break
 		if line[0] == 'D':
 			data = line.split(' ', 1)
-			if len(data) != 2: raise BadDigest("Bad line '%s'" % line)
+			if len(data) != 2: raise BadDigest(_("Bad line '%s'") % line)
 			path = data[-1]
-			if not path.startswith('/'): raise BadDigest("Not absolute: '%s'" % line)
+			if not path.startswith('/'): raise BadDigest(_("Not absolute: '%s'") % line)
 			path = path[1:]
 			dir = path
 		elif line[0] == 'S':
 			data = line.split(' ', 3)
 			path = os.path.join(dir, data[-1])
-			if len(data) != 4: raise BadDigest("Bad line '%s'" % line)
+			if len(data) != 4: raise BadDigest(_("Bad line '%s'") % line)
 		else:
 			data = line.split(' ', 4)
 			path = os.path.join(dir, data[-1])
-			if len(data) != 5: raise BadDigest("Bad line '%s'" % line)
+			if len(data) != 5: raise BadDigest(_("Bad line '%s'") % line)
 		if path in wanted:
-			raise BadDigest('Duplicate entry "%s"' % line)
+			raise BadDigest(_('Duplicate entry "%s"') % line)
 		wanted[path] = data[:-1]
 	return wanted
 
@@ -367,18 +370,18 @@ def _copy_files(alg, wanted, source, target):
 		try:
 			required_details = wanted.pop(path)
 		except KeyError:
-			warn("Skipping file not in manifest: '%s'", path)
+			warn(_("Skipping file not in manifest: '%s'"), path)
 			continue
 		if required_details[0] != type:
-			raise BadDigest("Item '%s' has wrong type!" % path)
+			raise BadDigest(_("Item '%s' has wrong type!") % path)
 		if type == 'D':
 			os.mkdir(os.path.join(target, path))
 		elif type in 'XF':
 			required_type, required_digest, required_mtime, required_size = required_details
 			if required_size != actual_size:
-				raise SafeException("File '%s' has wrong size (%s bytes, but should be "
-						    "%s according to manifest)" %
-						    (path, actual_size, required_size))
+				raise SafeException(_("File '%(path)s' has wrong size (%(actual_size)s bytes, but should be "
+						    "%(required_size)s according to manifest)") %
+						    {'path': path, 'actual_size': actual_size, 'required_size': required_size})
 			required_mtime = int(required_mtime)
 			dest_path = os.path.join(target, path)
 			if type == 'X':
@@ -394,19 +397,19 @@ def _copy_files(alg, wanted, source, target):
 		elif type == 'S':
 			required_type, required_digest, required_size = required_details
 			if required_size != actual_size:
-				raise SafeException("Symlink '%s' has wrong size (%s bytes, but should be "
-						    "%s according to manifest)" %
-						    (path, actual_size, required_size))
+				raise SafeException(_("Symlink '%(path)s' has wrong size (%(actual_size)s bytes, but should be "
+						    "%(required_size)s according to manifest)") %
+						    {'path': path, 'actual_size': actual_size, 'required_size': required_size})
 			symlink_target = os.readlink(os.path.join(source, path))
 			symlink_digest = alg.new_digest()
 			symlink_digest.update(symlink_target)
 			if symlink_digest.hexdigest() != required_digest:
-				raise SafeException("Symlink '%s' has wrong target (digest should be "
-						"%s according to manifest)" % (path, required_digest))
+				raise SafeException(_("Symlink '%(path)s' has wrong target (digest should be "
+						"%(digest)s according to manifest)") % {'path': path, 'digest': required_digest})
 			dest_path = os.path.join(target, path)
 			os.symlink(symlink_target, dest_path)
 		else:
-			raise SafeException("Unknown manifest type %s for '%s'" % (type, path))
+			raise SafeException(_("Unknown manifest type %(type)s for '%(path)s'") % {'type': type, 'path': path})
 
 class HashLibAlgorithm(Algorithm):
 	new_digest = None		# Constructor for digest objects
@@ -425,7 +428,7 @@ class HashLibAlgorithm(Algorithm):
 			# is possible, we require that filenames don't contain newlines.
 			# Otherwise, you can name a file so that the part after the \n
 			# would be interpreted as another line in the manifest.
-			if '\n' in sub: raise BadDigest("Newline in filename '%s'" % sub)
+			if '\n' in sub: raise BadDigest(_("Newline in filename '%s'") % sub)
 			assert sub.startswith('/')
 
 			full = os.path.join(root, sub[1:])
@@ -433,7 +436,7 @@ class HashLibAlgorithm(Algorithm):
 			new_digest = self.new_digest
 			
 			m = info.st_mode
-			if not stat.S_ISDIR(m): raise Exception('Not a directory: "%s"' % full)
+			if not stat.S_ISDIR(m): raise Exception(_('Not a directory: "%s"') % full)
 			if sub != '/':
 				yield "D %s" % sub
 			items = os.listdir(full)
@@ -461,7 +464,7 @@ class HashLibAlgorithm(Algorithm):
 				elif stat.S_ISDIR(m):
 					dirs.append(leaf)
 				else:
-					raise SafeException("Unknown object '%s' (not a file, directory or symlink)" %
+					raise SafeException(_("Unknown object '%s' (not a file, directory or symlink)") %
 							path)
 			for x in dirs:
 				for y in recurse(os.path.join(sub, x)): yield y
@@ -495,7 +498,7 @@ def fixup_permissions(root):
 
 			mode = stat.S_IMODE(raw_mode)
 			if mode & ~0777:
-				raise Exception("Unsafe mode: extracted file '%s' had special bits set in mode '%s'" % (full, oct(mode)))
+				raise Exception(_("Unsafe mode: extracted file '%(filename)s' had special bits set in mode '%(mode)s'") % {'filename': full, 'mode': oct(mode)})
 			if mode & 0111:
 				os.chmod(full, 0555)
 			else:

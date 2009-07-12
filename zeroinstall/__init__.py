@@ -8,9 +8,16 @@ The Python implementation of the Zero Install injector is divided into four sub-
 
 @copyright: (C) 2009, Thomas Leonard
 @see: U{http://0install.net}
+
+@var _: a function for translating strings using the zero-install domain (for use internally by Zero Install)
 """
 
 version = '0.41'
+
+import gettext
+
+translation = gettext.translation('zero-install', fallback = True)
+_ = translation.ugettext
 
 class SafeException(Exception):
 	"""An exception that can be reported to the user without a stack trace.
@@ -20,4 +27,4 @@ class NeedDownload(SafeException):
 	"""Thrown by L{injector.autopolicy.AutoPolicy} if we tried to start a download
 	and downloading is disabled."""
 	def __init__(self, url):
-		Exception.__init__(self, "Would download '%s'" % url)
+		Exception.__init__(self, _("Would download '%s'") % url)

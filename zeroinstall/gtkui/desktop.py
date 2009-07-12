@@ -3,6 +3,7 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import sys
 from optparse import OptionParser
 import logging
@@ -10,10 +11,10 @@ import logging
 def main(command_args):
 	"""Implements the logic of the 0desktop command.
 	@param command_args: the command-line arguments"""
-	parser = OptionParser(usage="usage: %prog [options] [URI]")
-	parser.add_option("-m", "--manage", help="manage added applications", action='store_true')
-	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
-	parser.add_option("-V", "--version", help="display version information", action='store_true')
+	parser = OptionParser(usage=_("usage: %prog [options] [URI]"))
+	parser.add_option("-m", "--manage", help=_("manage added applications"), action='store_true')
+	parser.add_option("-v", "--verbose", help=_("more verbose output"), action='count')
+	parser.add_option("-V", "--version", help=_("display version information"), action='store_true')
 
 	(options, args) = parser.parse_args(command_args)
 
@@ -32,11 +33,11 @@ def main(command_args):
 		import zeroinstall
 		print "0desktop (zero-install) " + zeroinstall.version
 		print "Copyright (C) 2009 Thomas Leonard"
-		print "This program comes with ABSOLUTELY NO WARRANTY,"
-		print "to the extent permitted by law."
-		print "You may redistribute copies of this program"
-		print "under the terms of the GNU Lesser General Public License."
-		print "For more information about these matters, see the file named COPYING."
+		print _("This program comes with ABSOLUTELY NO WARRANTY,"
+				"\nto the extent permitted by law."
+				"\nYou may redistribute copies of this program"
+				"\nunder the terms of the GNU Lesser General Public License."
+				"\nFor more information about these matters, see the file named COPYING.")
 		sys.exit(0)
 
 	if not args:

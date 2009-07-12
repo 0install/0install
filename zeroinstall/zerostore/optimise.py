@@ -1,5 +1,9 @@
 """Optimise the cache."""
 
+# Copyright (C) 2009, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
+
+from zeroinstall import _
 import os
 from logging import warn
 
@@ -22,7 +26,7 @@ def _byte_identical(a, b):
 def _link(a, b, tmpfile):
 	"""Keep 'a', delete 'b' and hard-link to 'a'"""
 	if not _byte_identical(a, b):
-		warn("Files should be identical, but they're not!\n%s\n%s", a, b)
+		warn(_("Files should be identical, but they're not!\n%(file_a)s\n%(file_b)s"), {'file_a': a, 'file_b': b})
 
 	b_dir = os.path.dirname(b)
 	old_mode = os.lstat(b_dir).st_mode
@@ -55,17 +59,17 @@ def optimise(impl_dir):
 		if not os.path.exists(tmpfile):
 			break
 	else:
-		raise Exception("Can't generate unused tempfile name!")
+		raise Exception(_("Can't generate unused tempfile name!"))
 
 	for impl in os.listdir(impl_dir):
 		if impl.startswith('.') or '=' not in impl:
-			warn("Skipping non-implementation '%s'", impl)
+			warn(_("Skipping non-implementation '%s'"), impl)
 			continue
 		manifest_path = os.path.join(impl_dir, impl, '.manifest')
 		try:
 			ms = file(manifest_path)
 		except OSError, ex:
-			warn("Failed to read manifest file '%s': %s", manifest_path, str(ex))
+			warn(_("Failed to read manifest file '%(manifest_path)s': %(exception)s"), {'manifest': manifest_path, 'exception': str(ex)})
 			continue
 
 		alg = impl.split('=', 1)[0]

@@ -13,6 +13,7 @@ well-known variables.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os, re
 from logging import info, debug
 from zeroinstall import SafeException, version
@@ -46,7 +47,7 @@ def _split_arch(arch):
 	if not arch:
 		return None, None
 	elif '-' not in arch:
-		raise SafeException("Malformed arch '%s'" % arch)
+		raise SafeException(_("Malformed arch '%s'") % arch)
 	else:
 		osys, machine = arch.split('-', 1)
 		if osys == '*': osys = None
@@ -75,7 +76,7 @@ class Stability(object):
 		return self.name
 
 	def __repr__(self):
-		return "<Stability: " + self.description + ">"
+		return _("<Stability: %s>") % self.description
 
 def process_binding(e):
 	"""Internal"""
@@ -91,20 +92,20 @@ def process_binding(e):
 					     insert = e.getAttribute('insert'),
 					     default = e.getAttribute('default'),
 					     mode = mode)
-		if not binding.name: raise InvalidInterface("Missing 'name' in binding")
-		if binding.insert is None: raise InvalidInterface("Missing 'insert' in binding")
+		if not binding.name: raise InvalidInterface(_("Missing 'name' in binding"))
+		if binding.insert is None: raise InvalidInterface(_("Missing 'insert' in binding"))
 		return binding
 	elif e.name == 'overlay':
 		return OverlayBinding(e.getAttribute('src'), e.getAttribute('mount-point'))
 	else:
-		raise Exception("Unknown binding type '%s'" % e.name)
+		raise Exception(_("Unknown binding type '%s'") % e.name)
 
 def process_depends(item):
 	"""Internal"""
 	# Note: also called from selections
 	dep_iface = item.getAttribute('interface')
 	if not dep_iface:
-		raise InvalidInterface("Missing 'interface' on <requires>")
+		raise InvalidInterface(_("Missing 'interface' on <requires>"))
 	dependency = InterfaceDependency(dep_iface, metadata = item.attrs)
 
 	for e in item.childNodes:
@@ -117,14 +118,17 @@ def process_depends(item):
 						        before = parse_version(e.getAttribute('before'))))
 	return dependency
 
+def N_(message): return message
 
-insecure = Stability(0, 'insecure', 'This is a security risk')
-buggy = Stability(5, 'buggy', 'Known to have serious bugs')
-developer = Stability(10, 'developer', 'Work-in-progress - bugs likely')
-testing = Stability(20, 'testing', 'Stability unknown - please test!')
-stable = Stability(30, 'stable', 'Tested - no serious problems found')
-packaged = Stability(35, 'packaged', 'Supplied by the local package manager')
-preferred = Stability(40, 'preferred', 'Best of all - must be set manually')
+insecure = Stability(0, N_('insecure'), _('This is a security risk'))
+buggy = Stability(5, N_('buggy'), _('Known to have serious bugs'))
+developer = Stability(10, N_('developer'), _('Work-in-progress - bugs likely'))
+testing = Stability(20, N_('testing'), _('Stability unknown - please test!'))
+stable = Stability(30, N_('stable'), _('Tested - no serious problems found'))
+packaged = Stability(35, N_('packaged'), _('Supplied by the local package manager'))
+preferred = Stability(40, N_('preferred'), _('Best of all - must be set manually'))
+
+del N_
 
 class Restriction(object):
 	"""A Restriction limits the allowed implementations of an Interface."""
@@ -135,7 +139,7 @@ class Restriction(object):
 		@return: False if this implementation is not a possibility
 		@rtype: bool
 		"""
-		raise NotImplementedError("Abstract")
+		raise NotImplementedError(_("Abstract"))
 	
 class VersionRestriction(Restriction):
 	"""Only select implementations with a particular version number.
@@ -151,7 +155,7 @@ class VersionRestriction(Restriction):
 		return impl.version == self.version
 
 	def __str__(self):
-		return "(restriction: version = %s)" % format_version(self.version)
+		return _("(restriction: version = %s)") % format_version(self.version)
 
 class VersionRangeRestriction(Restriction):
 	"""Only versions within the given range are acceptable"""
@@ -182,7 +186,7 @@ class VersionRangeRestriction(Restriction):
 				range += ' < ' + format_version(self.before)
 		else:
 			range = 'none'
-		return "(restriction: %s)" % range
+		return _("(restriction: %s)") % range
 
 class Binding(object):
 	"""Information about how the choice of a Dependency is made known
@@ -204,7 +208,7 @@ class EnvironmentBinding(Binding):
 		self.mode = mode
 	
 	def __str__(self):
-		return "<environ %s %s %s>" % (self.name, self.mode, self.insert)
+		return _("<environ %(name)s %(mode)s %(insert)s>") % {'name': self.name,'mode':  self.mode, 'insert': self.insert}
 
 	__repr__ = __str__
 	
@@ -249,7 +253,7 @@ class OverlayBinding(Binding):
 		self.mount_point = mount_point
 
 	def __str__(self):
-		return "<overlay %s on %s>" % (self.src or '.', self.mount_point or '/')
+		return _("<overlay %(src)s on %(mount_point)s>") % {'src': self.src or '.', 'mount_point': self.mount_point or '/'}
 
 	__repr__ = __str__
 
@@ -322,7 +326,7 @@ class InterfaceDependency(Dependency):
 		self.bindings = []
 	
 	def __str__(self):
-		return "<Dependency on %s; bindings: %s%s>" % (self.interface, self.bindings, self.restrictions)
+		return _("<Dependency on %(interface)s; bindings: %(bindings)s%(restrictions)s>") % {'interface': self.interface, 'bindings': self.bindings, 'restrictions': self.restrictions}
 
 class RetrievalMethod(object):
 	"""A RetrievalMethod provides a way to fetch an implementation."""
@@ -478,8 +482,8 @@ class Interface(object):
 		if uri.startswith('http:') or uri.startswith('/'):
 			self.uri = uri
 		else:
-			raise SafeException("Interface name '%s' doesn't start "
-					    "with 'http:'" % uri)
+			raise SafeException(_("Interface name '%s' doesn't start "
+					    "with 'http:'") % uri)
 		self.reset()
 
 	def _get_feed_for(self):
@@ -500,7 +504,7 @@ class Interface(object):
 		return '(' + os.path.basename(self.uri) + ')'
 	
 	def __repr__(self):
-		return "<Interface %s>" % self.uri
+		return _("<Interface %s>") % self.uri
 	
 	def set_stability_policy(self, new):
 		assert new is None or isinstance(new, Stability)
@@ -532,7 +536,7 @@ def _get_long(elem, attr_name):
 		try:
 			val = long(val)
 		except ValueError, ex:
-			raise SafeException("Invalid value for integer attribute '%s': %s" % (attr_name, val))
+			raise SafeException(_("Invalid value for integer attribute '%(attribute_name)s': %(value)s") % {'attribute_name': attr_name, 'value': val})
 	return val
 
 class ZeroInstallFeed(object):
@@ -585,16 +589,16 @@ class ZeroInstallFeed(object):
 		else:
 			self.url = feed_element.getAttribute('uri')
 			if not self.url:
-				raise InvalidInterface("<interface> uri attribute missing")
+				raise InvalidInterface(_("<interface> uri attribute missing"))
 			local_dir = None	# Can't have relative paths
 
 		min_injector_version = feed_element.getAttribute('min-injector-version')
 		if min_injector_version:
 			if parse_version(min_injector_version) > parse_version(version):
-				raise InvalidInterface("This feed requires version %s or later of "
-							"Zero Install, but I am only version %s. "
-							"You can get a newer version from http://0install.net" %
-							(min_injector_version, version))
+				raise InvalidInterface(_("This feed requires version %(min_version)s or later of "
+							"Zero Install, but I am only version %(version)s. "
+							"You can get a newer version from http://0install.net") %
+							{'min_version': min_injector_version, 'version': version})
 
 		for x in feed_element.childNodes:
 			if x.uri != XMLNS_IFACE:
@@ -609,27 +613,27 @@ class ZeroInstallFeed(object):
 			elif x.name == 'feed-for':
 				feed_iface = x.getAttribute('interface')
 				if not feed_iface:
-					raise InvalidInterface('Missing "interface" attribute in <feed-for>')
+					raise InvalidInterface(_('Missing "interface" attribute in <feed-for>'))
 				self.feed_for.add(feed_iface)
 				# Bug report from a Debian/stable user that --feed gets the wrong value.
 				# Can't reproduce (even in a Debian/stable chroot), but add some logging here
 				# in case it happens again.
-				debug("Is feed-for %s", feed_iface)
+				debug(_("Is feed-for %s"), feed_iface)
 			elif x.name == 'feed':
 				feed_src = x.getAttribute('src')
 				if not feed_src:
-					raise InvalidInterface('Missing "src" attribute in <feed>')
+					raise InvalidInterface(_('Missing "src" attribute in <feed>'))
 				if feed_src.startswith('http:') or local_path:
 					self.feeds.append(Feed(feed_src, x.getAttribute('arch'), False, langs = x.getAttribute('langs')))
 				else:
-					raise InvalidInterface("Invalid feed URL '%s'" % feed_src)
+					raise InvalidInterface(_("Invalid feed URL '%s'") % feed_src)
 			else:
 				self.metadata.append(x)
 
 		if not self.name:
-			raise InvalidInterface("Missing <name> in feed")
+			raise InvalidInterface(_("Missing <name> in feed"))
 		if not self.summary:
-			raise InvalidInterface("Missing <summary> in feed")
+			raise InvalidInterface(_("Missing <summary> in feed"))
 
 		def process_group(group, group_attrs, base_depends, base_bindings):
 			for item in group.childNodes:
@@ -669,17 +673,17 @@ class ZeroInstallFeed(object):
 		def process_impl(item, item_attrs, depends, bindings):
 			id = item.getAttribute('id')
 			if id is None:
-				raise InvalidInterface("Missing 'id' attribute on %s" % item)
+				raise InvalidInterface(_("Missing 'id' attribute on %s") % item)
 			if local_dir and (id.startswith('/') or id.startswith('.')):
 				impl = self._get_impl(os.path.abspath(os.path.join(local_dir, id)))
 			else:
 				if '=' not in id:
-					raise InvalidInterface('Invalid "id"; form is "alg=value" (got "%s")' % id)
+					raise InvalidInterface(_('Invalid "id"; form is "alg=value" (got "%s")') % id)
 				alg, sha1 = id.split('=')
 				try:
 					long(sha1, 16)
 				except Exception, ex:
-					raise InvalidInterface('Bad SHA1 attribute: %s' % ex)
+					raise InvalidInterface(_('Bad SHA1 attribute: %s') % ex)
 				impl = self._get_impl(id)
 
 			impl.metadata = item_attrs
@@ -690,12 +694,12 @@ class ZeroInstallFeed(object):
 					del item_attrs['version-modifier']
 				version = item_attrs['version']
 			except KeyError:
-				raise InvalidInterface("Missing version attribute")
+				raise InvalidInterface(_("Missing version attribute"))
 			impl.version = parse_version(version)
 
 			item_main = item_attrs.get('main', None)
 			if item_main and item_main.startswith('/'):
-				raise InvalidInterface("'main' attribute must be relative, but '%s' starts with '/'!" %
+				raise InvalidInterface(_("'main' attribute must be relative, but '%s' starts with '/'!") %
 							item_main)
 			impl.main = item_main
 
@@ -711,10 +715,10 @@ class ZeroInstallFeed(object):
 			except KeyError:
 				stab = str(item_attrs['stability'])
 				if stab != stab.lower():
-					raise InvalidInterface('Stability "%s" invalid - use lower case!' % item_attrs.stability)
-				raise InvalidInterface('Stability "%s" invalid' % item_attrs['stability'])
+					raise InvalidInterface(_('Stability "%s" invalid - use lower case!') % item_attrs.stability)
+				raise InvalidInterface(_('Stability "%s" invalid') % item_attrs['stability'])
 			if stability >= preferred:
-				raise InvalidInterface("Upstream can't set stability to preferred!")
+				raise InvalidInterface(_("Upstream can't set stability to preferred!"))
 			impl.upstream_stability = stability
 
 			impl.bindings = bindings
@@ -725,10 +729,10 @@ class ZeroInstallFeed(object):
 				if elem.name == 'archive':
 					url = elem.getAttribute('href')
 					if not url:
-						raise InvalidInterface("Missing href attribute on <archive>")
+						raise InvalidInterface(_("Missing href attribute on <archive>"))
 					size = elem.getAttribute('size')
 					if not size:
-						raise InvalidInterface("Missing size attribute on <archive>")
+						raise InvalidInterface(_("Missing size attribute on <archive>"))
 					impl.add_download_source(url = url, size = long(size),
 							extract = elem.getAttribute('extract'),
 							start_offset = _get_long(elem, 'start-offset'),
@@ -739,16 +743,16 @@ class ZeroInstallFeed(object):
 						if recipe_step.uri == XMLNS_IFACE and recipe_step.name == 'archive':
 							url = recipe_step.getAttribute('href')
 							if not url:
-								raise InvalidInterface("Missing href attribute on <archive>")
+								raise InvalidInterface(_("Missing href attribute on <archive>"))
 							size = recipe_step.getAttribute('size')
 							if not size:
-								raise InvalidInterface("Missing size attribute on <archive>")
+								raise InvalidInterface(_("Missing size attribute on <archive>"))
 							recipe.steps.append(DownloadSource(None, url = url, size = long(size),
 									extract = recipe_step.getAttribute('extract'),
 									start_offset = _get_long(recipe_step, 'start-offset'),
 									type = recipe_step.getAttribute('type')))
 						else:
-							info("Unknown step '%s' in recipe; skipping recipe", recipe_step.name)
+							info(_("Unknown step '%s' in recipe; skipping recipe"), recipe_step.name)
 							break
 					else:
 						impl.download_sources.append(recipe)
@@ -756,7 +760,7 @@ class ZeroInstallFeed(object):
 		def process_native_impl(item, item_attrs, depends):
 			package = item_attrs.get('package', None)
 			if package is None:
-				raise InvalidInterface("Missing 'package' attribute on %s" % item)
+				raise InvalidInterface(_("Missing 'package' attribute on %s") % item)
 
 			def factory(id):
 				assert id.startswith('package:')
@@ -766,7 +770,7 @@ class ZeroInstallFeed(object):
 
 				item_main = item_attrs.get('main', None)
 				if item_main and not item_main.startswith('/'):
-					raise InvalidInterface("'main' attribute must be absolute, but '%s' doesn't start with '/'!" %
+					raise InvalidInterface(_("'main' attribute must be absolute, but '%s' doesn't start with '/'!") %
 								item_main)
 				impl.main = item_main
 				impl.upstream_stability = packaged
@@ -785,7 +789,7 @@ class ZeroInstallFeed(object):
 		return self.name or '(' + os.path.basename(self.url) + ')'
 	
 	def __repr__(self):
-		return "<Feed %s>" % self.url
+		return _("<Feed %s>") % self.url
 	
 	def _get_impl(self, id):
 		if id not in self.implementations:
@@ -861,7 +865,7 @@ def canonical_iface_uri(uri):
 	"""
 	if uri.startswith('http://'):
 		if uri.find("/", 7) == -1:
-			raise SafeException("Missing / after hostname in URI '%s'" % uri)
+			raise SafeException(_("Missing / after hostname in URI '%s'") % uri)
 		return uri
 	elif uri.startswith('file:///'):
 		return uri[7:]
@@ -869,10 +873,10 @@ def canonical_iface_uri(uri):
 		iface_uri = os.path.realpath(uri)
 		if os.path.isfile(iface_uri):
 			return iface_uri
-	raise SafeException("Bad interface name '%s'.\n"
+	raise SafeException(_("Bad interface name '%(uri)s'.\n"
 			"(doesn't start with 'http:', and "
-			"doesn't exist as a local file '%s' either)" %
-			(uri, iface_uri))
+			"doesn't exist as a local file '%(interface_uri)s' either)") %
+			{'uri': uri, 'interface_uri': iface_uri})
 
 _version_mod_to_value = {
 	'pre': -2,
@@ -903,7 +907,7 @@ def parse_version(version_string):
 	else:
 		parts.append('')
 	if not parts:
-		raise SafeException("Empty version string!")
+		raise SafeException(_("Empty version string!"))
 	l = len(parts)
 	try:
 		for x in range(0, l, 2):
@@ -916,9 +920,9 @@ def parse_version(version_string):
 			parts[x] = _version_mod_to_value[parts[x]]
 		return parts
 	except ValueError, ex:
-		raise SafeException("Invalid version format in '%s': %s" % (version_string, ex))
+		raise SafeException(_("Invalid version format in '%(version_string)s': %(exception)s") % {'version_string': version_string, 'exception': ex})
 	except KeyError, ex:
-		raise SafeException("Invalid version modifier in '%s': %s" % (version_string, ex))
+		raise SafeException(_("Invalid version modifier in '%(version_string)s': %(exception)s") % {'version_string': version_string, 'exception': ex})
 
 def format_version(version):
 	"""Format a parsed version for display. Undoes the effect of L{parse_version}.

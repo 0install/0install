@@ -162,13 +162,25 @@ class ImplementationList:
 			self.model[new][RELEASED] = item.released or "-"
 			self.model[new][FETCH] = utils.get_fetch_info(self.policy, item)
 			if item.user_stability:
-				self.model[new][STABILITY] = str(item.user_stability).upper()
+				if item.user_stability == model.insecure:
+					self.model[new][STABILITY] = _('INSECURE')
+				elif item.user_stability == model.buggy:
+					self.model[new][STABILITY] = _('BUGGY')
+				elif item.user_stability == model.developer:
+					self.model[new][STABILITY] = _('DEVELOPER')
+				elif item.user_stability == model.testing:
+					self.model[new][STABILITY] = _('TESTING')
+				elif item.user_stability == model.stable:
+					self.model[new][STABILITY] = _('STABLE')
+				elif item.user_stability == model.packaged:
+					self.model[new][STABILITY] = _('PACKAGED')
+				elif item.user_stability == model.preferred:
+					self.model[new][STABILITY] = _('PREFERRED')
 			else:
-				self.model[new][STABILITY] = item.upstream_stability or \
-							     model.testing
-			self.model[new][ARCH] = item.arch or 'any'
+				self.model[new][STABILITY] = _(str(item.upstream_stability) or str(model.testing))
+			self.model[new][ARCH] = item.arch or _('any')
 			self.model[new][UNUSABLE] = bool(unusable)
-			self.model[new][NOTES] = unusable
+			self.model[new][NOTES] = _(unusable)
 	
 	def clear(self):
 		self.model.clear()

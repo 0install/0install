@@ -3,6 +3,7 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os, subprocess
 import shutil
 import traceback
@@ -17,12 +18,12 @@ def _get_cpio_version():
 	global _cpio_version
 	if _cpio_version is None:
 		_cpio_version = os.popen('cpio --version 2>&1').next()
-		debug("cpio version = %s", _cpio_version)
+		debug(_("cpio version = %s"), _cpio_version)
 	return _cpio_version
 
 def _gnu_cpio():
 	gnu_cpio = '(GNU cpio)' in _get_cpio_version()
-	debug("Is GNU cpio = %s", gnu_cpio)
+	debug(_("Is GNU cpio = %s"), gnu_cpio)
 	return gnu_cpio
 
 _tar_version = None
@@ -30,12 +31,12 @@ def _get_tar_version():
 	global _tar_version
 	if _tar_version is None:
 		_tar_version = os.popen('tar --version 2>&1').next().strip()
-		debug("tar version = %s", _tar_version)
+		debug(_("tar version = %s"), _tar_version)
 	return _tar_version
 
 def _gnu_tar():
 	gnu_tar = '(GNU tar)' in _get_tar_version()
-	debug("Is GNU tar = %s", gnu_tar)
+	debug(_("Is GNU tar = %s"), gnu_tar)
 	return gnu_tar
 
 def recent_gnu_tar():
@@ -47,8 +48,8 @@ def recent_gnu_tar():
 			version = map(int, version.group(1).split('.'))
 			recent_gnu_tar = version > [1, 13, 92]
 		else:
-			warn("Failed to extract GNU tar version number")
-	debug("Recent GNU tar = %s", recent_gnu_tar)
+			warn(_("Failed to extract GNU tar version number"))
+	debug(_("Recent GNU tar = %s"), recent_gnu_tar)
 	return recent_gnu_tar
 
 # Disabled, as Plash does not currently support fchmod(2).
@@ -79,40 +80,40 @@ def check_type_ok(mime_type):
 	assert mime_type
 	if mime_type == 'application/x-rpm':
 		if not find_in_path('rpm2cpio'):
-			raise SafeException("This package looks like an RPM, but you don't have the rpm2cpio command "
+			raise SafeException(_("This package looks like an RPM, but you don't have the rpm2cpio command "
 					"I need to extract it. Install the 'rpm' package first (this works even if "
-					"you're on a non-RPM-based distribution such as Debian).")
+					"you're on a non-RPM-based distribution such as Debian)."))
 	elif mime_type == 'application/x-deb':
 		if not find_in_path('ar'):
-			raise SafeException("This package looks like a Debian package, but you don't have the 'ar' command "
+			raise SafeException(_("This package looks like a Debian package, but you don't have the 'ar' command "
 					"I need to extract it. Install the package containing it (sometimes called 'binutils') "
-					"first. This works even if you're on a non-Debian-based distribution such as Red Hat).")
+					"first. This works even if you're on a non-Debian-based distribution such as Red Hat)."))
 	elif mime_type == 'application/x-bzip-compressed-tar':
 		if not find_in_path('bunzip2'):
-			raise SafeException("This package looks like a bzip2-compressed package, but you don't have the 'bunzip2' command "
+			raise SafeException(_("This package looks like a bzip2-compressed package, but you don't have the 'bunzip2' command "
 					"I need to extract it. Install the package containing it (it's probably called 'bzip2') "
-					"first.")
+					"first."))
 	elif mime_type == 'application/zip':
 		if not find_in_path('unzip'):
-			raise SafeException("This package looks like a zip-compressed archive, but you don't have the 'unzip' command "
-					"I need to extract it. Install the package containing it first.")
+			raise SafeException(_("This package looks like a zip-compressed archive, but you don't have the 'unzip' command "
+					"I need to extract it. Install the package containing it first."))
 	elif mime_type == 'application/vnd.ms-cab-compressed':
 		if not find_in_path('cabextract'):
-			raise SafeException("This package looks like a Microsoft Cabinet archive, but you don't have the 'cabextract' command "
-					"I need to extract it. Install the package containing it first.")
+			raise SafeException(_("This package looks like a Microsoft Cabinet archive, but you don't have the 'cabextract' command "
+					"I need to extract it. Install the package containing it first."))
 	elif mime_type == 'application/x-lzma-compressed-tar':
 		pass	# We can get it through Zero Install
 	elif mime_type in ('application/x-compressed-tar', 'application/x-tar'):
 		pass
 	else:
 		from zeroinstall import version
-		raise SafeException("Unsupported archive type '%s' (for injector version %s)" % (mime_type, version))
+		raise SafeException(_("Unsupported archive type '%(type)s' (for injector version %(version)s)") % {'type': mime_type, 'version': version})
 
 def _exec_maybe_sandboxed(writable, prog, *args):
 	"""execlp prog, with (only) the 'writable' directory writable if sandboxing is available.
 	If no sandbox is available, run without a sandbox."""
 	prog_path = find_in_path(prog)
-	if not prog_path: raise Exception("'%s' not found in $PATH" % prog)
+	if not prog_path: raise Exception(_("'%s' not found in $PATH") % prog)
 	if _pola_run is None:
 		os.execlp(prog_path, prog_path, *args)
 	# We have pola-shell :-)
@@ -149,9 +150,9 @@ def unpack_archive_over(url, data, destdir, extract = None, type = None, start_o
 				os.mkdir(target_root)
 			else:
 				if stat.S_ISLNK(info.st_mode):
-					raise SafeException('Attempt to unpack dir over symlink "%s"!' % relative_root)
+					raise SafeException(_('Attempt to unpack dir over symlink "%s"!') % relative_root)
 				elif not stat.S_ISDIR(info.st_mode):
-					raise SafeException('Attempt to unpack dir over non-directory "%s"!' % relative_root)
+					raise SafeException(_('Attempt to unpack dir over non-directory "%s"!') % relative_root)
 			mtimes.append((relative_root, os.lstat(os.path.join(tmpdir, root)).st_mtime))
 
 			for s in dirs:	# Symlinks are counted as directories
@@ -163,7 +164,7 @@ def unpack_archive_over(url, data, destdir, extract = None, type = None, start_o
 				src = os.path.join(tmpdir, relative_root, f)
 				dest = os.path.join(destdir, relative_root, f)
 				if os.path.islink(dest):
-					raise SafeException('Attempt to unpack file over symlink "%s"!' %
+					raise SafeException(_('Attempt to unpack file over symlink "%s"!') %
 							os.path.join(relative_root, f))
 				os.rename(src, dest)
 
@@ -176,7 +177,7 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 	"""Unpack stream 'data' into directory 'destdir'. If extract is given, extract just
 	that sub-directory from the archive. Works out the format from the name."""
 	if type is None: type = type_from_url(url)
-	if type is None: raise SafeException("Unknown extension (and no MIME type given) in '%s'" % url)
+	if type is None: raise SafeException(_("Unknown extension (and no MIME type given) in '%s'") % url)
 	if type == 'application/x-bzip-compressed-tar':
 		extract_tar(data, destdir, extract, 'bzip2', start_offset)
 	elif type == 'application/x-deb':
@@ -194,11 +195,11 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 	elif type == 'application/vnd.ms-cab-compressed':
 		extract_cab(data, destdir, extract, start_offset)
 	else:
-		raise SafeException('Unknown MIME type "%s" for "%s"' % (type, url))
+		raise SafeException(_('Unknown MIME type "%(type)s" for "%(url)s"') % {'type': type, 'url': url})
 
 def extract_deb(stream, destdir, extract = None, start_offset = 0):
 	if extract:
-		raise SafeException('Sorry, but the "extract" attribute is not yet supported for Debs')
+		raise SafeException(_('Sorry, but the "extract" attribute is not yet supported for Debs'))
 
 	stream.seek(start_offset)
 	# ar can't read from stdin, so make a copy...
@@ -215,7 +216,7 @@ def extract_deb(stream, destdir, extract = None, start_offset = 0):
 
 def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 	if extract:
-		raise SafeException('Sorry, but the "extract" attribute is not yet supported for RPMs')
+		raise SafeException(_('Sorry, but the "extract" attribute is not yet supported for RPMs'))
 	fd, cpiopath = mkstemp('-rpm-tmp')
 	try:
 		child = os.fork()
@@ -233,7 +234,7 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 		id, status = os.waitpid(child, 0)
 		assert id == child
 		if status != 0:
-			raise SafeException("rpm2cpio failed; can't unpack RPM archive; exit code %d" % status)
+			raise SafeException(_("rpm2cpio failed; can't unpack RPM archive; exit code %d") % status)
 		os.close(fd)
 		fd = None
 
@@ -253,7 +254,7 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 def extract_cab(stream, destdir, extract, start_offset = 0):
 	"@since: 0.24"
 	if extract:
-		raise SafeException('Sorry, but the "extract" attribute is not yet supported for Cabinet files')
+		raise SafeException(_('Sorry, but the "extract" attribute is not yet supported for Cabinet files'))
 
 	stream.seek(start_offset)
 	# cabextract can't read from stdin, so make a copy...
@@ -270,7 +271,7 @@ def extract_zip(stream, destdir, extract, start_offset = 0):
 		# Limit the characters we accept, to avoid sending dodgy
 		# strings to zip
 		if not re.match('^[a-zA-Z0-9][- _a-zA-Z0-9.]*$', extract):
-			raise SafeException('Illegal character in extract attribute')
+			raise SafeException(_('Illegal character in extract attribute'))
 
 	stream.seek(start_offset)
 	# unzip can't read from stdin, so make a copy...
@@ -299,7 +300,7 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 		# Limit the characters we accept, to avoid sending dodgy
 		# strings to tar
 		if not re.match('^[a-zA-Z0-9][- _a-zA-Z0-9.]*$', extract):
-			raise SafeException('Illegal character in extract attribute')
+			raise SafeException(_('Illegal character in extract attribute'))
 
 	assert decompress in [None, 'bzip2', 'gzip', 'lzma']
 
@@ -335,7 +336,7 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 		elif decompress == 'gzip':
 			rmode = 'r|gz'
 		else:
-			raise SafeException('GNU tar unavailable; unsupported compression format: ' + decompress)
+			raise SafeException(_('GNU tar unavailable; unsupported compression format: %s') % decompress)
 
 		import tarfile
 
@@ -351,7 +352,7 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 			uid = os.geteuid()
 			gid = os.getegid()
 		except:
-			debug("Can't get uid/gid")
+			debug(_("Can't get uid/gid"))
 
 		def chmod_extract(tarinfo):
 			# If any X bit is set, they all must be
@@ -392,7 +393,7 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 		tar.close()
 
 		if extract and not extracted_anything:
-			raise SafeException('Unable to find specified file = %s in archive' % extract)
+			raise SafeException(_('Unable to find specified file = %s in archive') % extract)
 	
 def _extract(stream, destdir, command, start_offset = 0):
 	"""Run execvp('command') inside destdir in a child process, with
@@ -409,4 +410,4 @@ def _extract(stream, destdir, command, start_offset = 0):
 
 	status = child.wait()
 	if status != 0:
-		raise SafeException('Failed to extract archive; exit code %d' % status)
+		raise SafeException(_('Failed to extract archive; exit code %d') % status)

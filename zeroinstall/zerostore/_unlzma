@@ -1,2 +1,7 @@
 #!/bin/sh
-exec 0launch --message="An LZMA decompressor is needed to extract this archive" http://0install.net/2008/interfaces/lzmadec.xml "$@"
+. gettext.sh
+TEXTDOMAIN=zero-install
+export TEXTDOMAIN
+message="`eval_gettext \"An LZMA decompressor is needed to extract this archive\"`"
+
+exec 0launch --message="$message" http://0install.net/2008/interfaces/lzmadec.xml "$@"

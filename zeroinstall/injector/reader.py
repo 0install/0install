@@ -5,6 +5,7 @@ Parses an XML interface into a Python representation.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os
 from logging import debug, info, warn
 from os.path import dirname
@@ -27,20 +28,20 @@ def update_from_cache(interface):
 	main_feed = None
 
 	if interface.uri.startswith('/'):
-		debug("Loading local interface file '%s'", interface.uri)
+		debug(_("Loading local interface file '%s'"), interface.uri)
 		update(interface, interface.uri, local = True)
 		cached = True
 	else:
 		cached = basedir.load_first_cache(config_site, 'interfaces', escape(interface.uri))
 		if cached:
-			debug("Loading cached information for %s from %s", interface, cached)
+			debug(_("Loading cached information for %(interface)s from %(cached)s"), {'interfaces': interface, 'cached': cached})
 			main_feed = update(interface, cached)
 
 	# Add the distribution package manager's version, if any
 	path = basedir.load_first_data(config_site, 'native_feeds', model._pretty_escape(interface.uri))
 	if path:
 		# Resolve any symlinks
-		info("Adding native packager feed '%s'", path)
+		info(_("Adding native packager feed '%s'"), path)
 		interface.extra_feeds.append(Feed(os.path.realpath(path), None, False))
 
 	update_user_overrides(interface, main_feed)
@@ -67,7 +68,7 @@ def update_user_overrides(interface, main_feed = None):
 	try:
 		root = qdom.parse(file(user))
 	except Exception, ex:
-		warn("Error reading '%s': %s", user, ex)
+		warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
 
 	# This is a bit wrong; this information is about the feed,
@@ -90,7 +91,7 @@ def update_user_overrides(interface, main_feed = None):
 				assert '=' in id
 			impl = interface.implementations.get(id, None)
 			if not impl:
-				debug("Ignoring user-override for unknown implementation %s in %s", id, interface)
+				debug(_("Ignoring user-override for unknown implementation %(id)s in %(interface)s"), {'id': id, 'interface': interface})
 				continue
 
 			user_stability = item.getAttribute('user-stability')
@@ -99,7 +100,7 @@ def update_user_overrides(interface, main_feed = None):
 		elif item.name == 'feed':
 			feed_src = item.getAttribute('src')
 			if not feed_src:
-				raise InvalidInterface('Missing "src" attribute in <feed>')
+				raise InvalidInterface(_('Missing "src" attribute in <feed>'))
 			interface.extra_feeds.append(Feed(feed_src, item.getAttribute('arch'), True, langs = item.getAttribute('langs')))
 
 def check_readable(interface_uri, source):
@@ -116,11 +117,12 @@ def check_readable(interface_uri, source):
 	try:
 		update(tmp, source)
 	except InvalidInterface, ex:
-		info("Error loading feed:\n"
-			"Interface URI: %s\n"
-			"Local file: %s\n%s" %
-			(interface_uri, source, ex))
-		raise InvalidInterface("Error loading feed '%s':\n\n%s" % (interface_uri, ex))
+		info(_("Error loading feed:\n"
+			"Interface URI: %(uri)s\n"
+			"Local file: %(source)s\n"
+			"%(exception)s") %
+			{'uri': interface_uri, 'source': source, 'exception': ex})
+		raise InvalidInterface(_("Error loading feed '%(uri)s':\n\n%(exception)s") % {'uri': interface_uri, 'exception': ex})
 	return tmp.last_modified
 
 def update(interface, source, local = False):
@@ -139,10 +141,10 @@ def update(interface, source, local = False):
 		root = qdom.parse(file(source))
 	except IOError, ex:
 		if ex.errno == 2:
-			raise InvalidInterface("Feed not found. Perhaps this is a local feed that no longer exists? You can remove it from the list of feeds in that case.", ex)
-		raise InvalidInterface("Can't read file", ex)
+			raise InvalidInterface(_("Feed not found. Perhaps this is a local feed that no longer exists? You can remove it from the list of feeds in that case."), ex)
+		raise InvalidInterface(_("Can't read file"), ex)
 	except Exception, ex:
-		raise InvalidInterface("Invalid XML", ex)
+		raise InvalidInterface(_("Invalid XML"), ex)
 	
 	if local:
 		local_path = source
@@ -153,10 +155,10 @@ def update(interface, source, local = False):
 
 	if not local:
 		if feed.url != interface.uri:
-			raise InvalidInterface("Incorrect URL used for feed.\n\n"
-						"%s is given in the feed, but\n"
-						"%s was requested" %
-						(feed.url, interface.uri))
+			raise InvalidInterface(_("Incorrect URL used for feed.\n\n"
+						"%(feed_url)s is given in the feed, but\n"
+						"%(interface_uri)s was requested") %
+						{'feed_url': feed.url, 'interface_uri': interface.uri})
 	
 	interface._main_feed = feed
 	return feed

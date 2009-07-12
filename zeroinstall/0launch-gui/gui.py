@@ -49,7 +49,7 @@ class GUIHandler(handler.Handler):
 			from zeroinstall.gtkui import trust_box
 			return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.mainwindow.window)
 		if self.mainwindow.systray_icon:
-			self.mainwindow.systray_icon.set_tooltip('Need to confirm a new GPG key')
+			self.mainwindow.systray_icon.set_tooltip(_('Need to confirm a new GPG key'))
 			self.mainwindow.systray_icon.set_blinking(True)
 			@tasks.async
 			def wait_and_confirm():

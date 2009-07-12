@@ -2,6 +2,7 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 import os
 import gtk, gobject, pango
 import gtk.glade
@@ -28,10 +29,10 @@ class AppList:
 		os.unlink(path)
 
 _tooltips = {
-	0: "Run the application",
-	1: "Show documentation files",
-	2: "Upgrade or change versions",
-	3: "Remove launcher from the menu",
+	0: _("Run the application"),
+	1: _("Show documentation files"),
+	2: _("Upgrade or change versions"),
+	3: _("Remove launcher from the menu"),
 }
 
 class AppListBox:
@@ -131,7 +132,7 @@ class AppListBox:
 
 			iface = self.iface_cache.get_interface(uri)
 			name = iface.get_name()
-			summary = iface.summary or 'No information available'
+			summary = iface.summary or _('No information available')
 			summary = summary[:1].capitalize() + summary[1:]
 
 			model[itr][AppListBox.NAME] = name
@@ -174,7 +175,7 @@ class AppListBox:
 		reader.update_from_cache(iface)
 		p.solve_with_downloads()
 		impl = p.solver.selections[iface]
-		assert impl, "Failed to choose an implementation of " + uri
+		assert impl, "Failed to choose an implementation of %s" % uri
 		help_dir = impl.metadata.get('doc-dir')
 		path = p.get_implementation_path(impl)
 		assert path, "Chosen implementation is not cached!"
@@ -191,7 +192,7 @@ class AppListBox:
 
 		# xdg-open has no "safe" mode, so check we're not "opening" an application.
 		if os.path.exists(os.path.join(path, 'AppRun')):
-			raise Exception("Documentation directory '%s' is an AppDir; refusing to open" % path)
+			raise Exception(_("Documentation directory '%s' is an AppDir; refusing to open") % path)
 
 		subprocess.Popen(['xdg-open', path])
 
@@ -202,7 +203,7 @@ class AppListBox:
 		name = self.iface_cache.get_interface(uri).get_name()
 
 		box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL, "")
-		box.set_markup("Remove <b>%s</b> from the menu?" % _pango_escape(name))
+		box.set_markup(_("Remove <b>%s</b> from the menu?") % _pango_escape(name))
 		box.add_button(gtk.STOCK_DELETE, gtk.RESPONSE_OK)
 		box.set_default_response(gtk.RESPONSE_OK)
 		resp = box.run()
@@ -211,7 +212,7 @@ class AppListBox:
 			try:
 				self.app_list.remove_app(uri)
 			except Exception, ex:
-				box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, "Failed to remove %s: %s" % (name, ex))
+				box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, _("Failed to remove %(interface_name)s: %(exception)s") % {'interface_name': name, 'exception': ex})
 				box.run()
 				box.destroy()
 			self.populate_model()

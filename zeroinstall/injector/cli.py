@@ -5,6 +5,7 @@ This code is here, rather than in B{0launch} itself, simply so that it gets byte
 install time.
 """
 
+from zeroinstall import _
 import os, sys
 from optparse import OptionParser
 import logging
@@ -40,16 +41,16 @@ def _import_feed(args):
 
 	for x in args:
 		if not os.path.isfile(x):
-			raise SafeException("File '%s' does not exist" % x)
-		logging.info("Importing from file '%s'", x)
+			raise SafeException(_("File '%s' does not exist") % x)
+		logging.info(_("Importing from file '%s'"), x)
 		signed_data = file(x)
 		data, sigs = gpg.check_stream(signed_data)
 		doc = minidom.parseString(data.read())
 		uri = doc.documentElement.getAttribute('uri')
 		if not uri:
-			raise SafeException("Missing 'uri' attribute on root element in '%s'" % x)
+			raise SafeException(_("Missing 'uri' attribute on root element in '%s'") % x)
 		iface = iface_cache.get_interface(uri)
-		logging.info("Importing information about interface %s", iface)
+		logging.info(_("Importing information about interface %s"), iface)
 		signed_data.seek(0)
 
 		pending = PendingFeed(uri, signed_data)
@@ -64,13 +65,13 @@ def _import_feed(args):
 					yield blocker
 					tasks.check(blocker)
 				if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-					raise SafeException("No signing keys trusted; not importing")
+					raise SafeException(_("No signing keys trusted; not importing"))
 
 		task = tasks.Task(run(), "import feed")
 
 		errors = handler.wait_for_blocker(task.finished)
 		if errors:
-			raise SafeException("Errors during download: " + '\n'.join(errors))
+			raise SafeException(_("Errors during download: ") + '\n'.join(errors))
 
 def _manage_feeds(options, args):
 	from zeroinstall.injector import writer
@@ -79,7 +80,7 @@ def _manage_feeds(options, args):
 	handler = Handler(dry_run = options.dry_run)
 	if not args: raise UsageError()
 	for x in args:
-		print "Feed '%s':\n" % x
+		print _("Feed '%s':\n") % x
 		x = model.canonical_iface_uri(x)
 		policy = Policy(x, handler)
 		if options.offline:
@@ -88,24 +89,24 @@ def _manage_feeds(options, args):
 		feed = iface_cache.get_feed(x)
 		if policy.network_use != model.network_offline and policy.is_stale(feed):
 			blocker = policy.fetcher.download_and_import_feed(x, iface_cache.iface_cache)
-			print "Downloading feed; please wait..."
+			print _("Downloading feed; please wait...")
 			handler.wait_for_blocker(blocker)
-			print "Done"
+			print _("Done")
 
 		interfaces = policy.get_feed_targets(x)
 		for i in range(len(interfaces)):
 			feed = interfaces[i].get_feed(x)
 			if feed:
-				print "%d) Remove as feed for '%s'" % (i + 1, interfaces[i].uri)
+				print _("%(index)d) Remove as feed for '%(uri)s'") % {'index': i + 1, 'uri': interfaces[i].uri}
 			else:
-				print "%d) Add as feed for '%s'" % (i + 1, interfaces[i].uri)
+				print _("%(index)d) Add as feed for '%(uri)s'") % {'index': i + 1, 'uri': interfaces[i].uri}
 		print
 		while True:
 			try:
-				i = raw_input('Enter a number, or CTRL-C to cancel [1]: ').strip()
+				i = raw_input(_('Enter a number, or CTRL-C to cancel [1]: ')).strip()
 			except KeyboardInterrupt:
 				print
-				raise SafeException("Aborted at user request.")
+				raise SafeException(_("Aborted at user request."))
 			if i == '':
 				i = 1
 			else:
@@ -115,7 +116,7 @@ def _manage_feeds(options, args):
 					i = 0
 			if i > 0 and i <= len(interfaces):
 				break
-			print "Invalid number. Try again. (1 to %d)" % len(interfaces)
+			print _("Invalid number. Try again. (1 to %d)") % len(interfaces)
 		iface = interfaces[i - 1]
 		feed = iface.get_feed(x)
 		if feed:
@@ -123,12 +124,12 @@ def _manage_feeds(options, args):
 		else:
 			iface.extra_feeds.append(model.Feed(x, arch = None, user_override = True))
 		writer.save_interface(iface)
-		print "\nFeed list for interface '%s' is now:" % iface.get_name()
+		print '\n' + _("Feed list for interface '%s' is now:") % iface.get_name()
 		if iface.feeds:
 			for f in iface.feeds:
 				print "- " + f.uri
 		else:
-			print "(no feeds)"
+			print _("(no feeds)")
 
 def _normal_mode(options, args):
 	if len(args) < 1:
@@ -161,9 +162,9 @@ def _normal_mode(options, args):
 
 	if options.get_selections:
 		if len(args) > 1:
-			raise SafeException("Can't use arguments with --get-selections")
+			raise SafeException(_("Can't use arguments with --get-selections"))
 		if options.main:
-			raise SafeException("Can't use --main with --get-selections")
+			raise SafeException(_("Can't use --main with --get-selections"))
 
 	# Note that need_download() triggers a solve
 	if options.refresh or options.gui:
@@ -180,7 +181,7 @@ def _normal_mode(options, args):
 	if can_run_immediately:
 		if stale_feeds:
 			if policy.network_use == model.network_offline:
-				logging.debug("No doing background update because we are in off-line mode.")
+				logging.debug(_("No doing background update because we are in off-line mode."))
 			else:
 				# There are feeds we should update, but we can run without them.
 				# Do the update in the background while the program is running.
@@ -193,7 +194,7 @@ def _normal_mode(options, args):
 				from zeroinstall.injector import run
 				run.execute(policy, args[1:], dry_run = options.dry_run, main = options.main, wrapper = options.wrapper)
 			else:
-				logging.info("Downloads done (download-only mode)")
+				logging.info(_("Downloads done (download-only mode)"))
 			assert options.dry_run or options.download_only
 		return
 
@@ -205,7 +206,7 @@ def _normal_mode(options, args):
 		# the 'checking for updates' box, which is non-interactive
 		# when there are no changes to the selection.
 		options.refresh = True
-		logging.info("Switching to GUI mode... (use --console to disable)")
+		logging.info(_("Switching to GUI mode... (use --console to disable)"))
 
 	prog_args = args[1:]
 
@@ -284,7 +285,7 @@ def _download_missing_selections(options, sels):
 	fetcher = fetch.Fetcher(handler)
 	blocker = sels.download_missing(iface_cache, fetcher)
 	if blocker:
-		logging.info("Waiting for selected implementations to be downloaded...")
+		logging.info(_("Waiting for selected implementations to be downloaded..."))
 		handler.wait_for_blocker(blocker)
 
 def _get_selections(policy):
@@ -309,33 +310,33 @@ def main(command_args):
 				os.dup2(fd, std)
 				os.close(fd)
 
-	parser = OptionParser(usage="usage: %prog [options] interface [args]\n"
+	parser = OptionParser(usage=_("usage: %prog [options] interface [args]\n"
 				    "       %prog --list [search-term]\n"
 				    "       %prog --import [signed-interface-files]\n"
-				    "       %prog --feed [interface]")
-	parser.add_option("", "--before", help="choose a version before this", metavar='VERSION')
-	parser.add_option("-c", "--console", help="never use GUI", action='store_false', dest='gui')
-	parser.add_option("", "--cpu", help="target CPU type", metavar='CPU')
-	parser.add_option("-d", "--download-only", help="fetch but don't run", action='store_true')
-	parser.add_option("-D", "--dry-run", help="just print actions", action='store_true')
-	parser.add_option("-f", "--feed", help="add or remove a feed", action='store_true')
-	parser.add_option("", "--get-selections", help="write selected versions as XML", action='store_true')
-	parser.add_option("-g", "--gui", help="show graphical policy editor", action='store_true')
-	parser.add_option("-i", "--import", help="import from files, not from the network", action='store_true')
-	parser.add_option("-l", "--list", help="list all known interfaces", action='store_true')
-	parser.add_option("-m", "--main", help="name of the file to execute")
-	parser.add_option("", "--message", help="message to display when interacting with user")
-	parser.add_option("", "--not-before", help="minimum version to choose", metavar='VERSION')
-	parser.add_option("", "--os", help="target operation system type", metavar='OS')
-	parser.add_option("-o", "--offline", help="try to avoid using the network", action='store_true')
-	parser.add_option("-r", "--refresh", help="refresh all used interfaces", action='store_true')
-	parser.add_option("", "--set-selections", help="run versions specified in XML file", metavar='FILE')
-	parser.add_option("-s", "--source", help="select source code", action='store_true')
-	parser.add_option("", "--systray", help="download in the background", action='store_true')
-	parser.add_option("-v", "--verbose", help="more verbose output", action='count')
-	parser.add_option("-V", "--version", help="display version information", action='store_true')
-	parser.add_option("", "--with-store", help="add an implementation cache", action='append', metavar='DIR')
-	parser.add_option("-w", "--wrapper", help="execute program using a debugger, etc", metavar='COMMAND')
+				    "       %prog --feed [interface]"))
+	parser.add_option("", "--before", help=_("choose a version before this"), metavar='VERSION')
+	parser.add_option("-c", "--console", help=_("never use GUI"), action='store_false', dest='gui')
+	parser.add_option("", "--cpu", help=_("target CPU type"), metavar='CPU')
+	parser.add_option("-d", "--download-only", help=_("fetch but don't run"), action='store_true')
+	parser.add_option("-D", "--dry-run", help=_("just print actions"), action='store_true')
+	parser.add_option("-f", "--feed", help=_("add or remove a feed"), action='store_true')
+	parser.add_option("", "--get-selections", help=_("write selected versions as XML"), action='store_true')
+	parser.add_option("-g", "--gui", help=_("show graphical policy editor"), action='store_true')
+	parser.add_option("-i", "--import", help=_("import from files, not from the network"), action='store_true')
+	parser.add_option("-l", "--list", help=_("list all known interfaces"), action='store_true')
+	parser.add_option("-m", "--main", help=_("name of the file to execute"))
+	parser.add_option("", "--message", help=_("message to display when interacting with user"))
+	parser.add_option("", "--not-before", help=_("minimum version to choose"), metavar='VERSION')
+	parser.add_option("", "--os", help=_("target operation system type"), metavar='OS')
+	parser.add_option("-o", "--offline", help=_("try to avoid using the network"), action='store_true')
+	parser.add_option("-r", "--refresh", help=_("refresh all used interfaces"), action='store_true')
+	parser.add_option("", "--set-selections", help=_("run versions specified in XML file"), metavar='FILE')
+	parser.add_option("-s", "--source", help=_("select source code"), action='store_true')
+	parser.add_option("", "--systray", help=_("download in the background"), action='store_true')
+	parser.add_option("-v", "--verbose", help=_("more verbose output"), action='count')
+	parser.add_option("-V", "--version", help=_("display version information"), action='store_true')
+	parser.add_option("", "--with-store", help=_("add an implementation cache"), action='append', metavar='DIR')
+	parser.add_option("-w", "--wrapper", help=_("execute program using a debugger, etc"), metavar='COMMAND')
 	parser.disable_interspersed_args()
 
 	(options, args) = parser.parse_args(command_args)
@@ -347,13 +348,13 @@ def main(command_args):
 		else:
 			logger.setLevel(logging.DEBUG)
 		import zeroinstall
-		logging.info("Running 0launch %s %s; Python %s", zeroinstall.version, repr(args), sys.version)
+		logging.info(_("Running 0launch %(version)s %(args)s; Python %(python_version)s"), {'version': zeroinstall.version, 'args': repr(args), 'python_version': sys.version})
 
 	if options.with_store:
 		from zeroinstall import zerostore
 		for x in options.with_store:
 			iface_cache.stores.stores.append(zerostore.Store(os.path.abspath(x)))
-		logging.info("Stores search path is now %s", iface_cache.stores.stores)
+		logging.info(_("Stores search path is now %s"), iface_cache.stores.stores)
 
 	try:
 		if options.list:
@@ -362,11 +363,11 @@ def main(command_args):
 			import zeroinstall
 			print "0launch (zero-install) " + zeroinstall.version
 			print "Copyright (C) 2009 Thomas Leonard"
-			print "This program comes with ABSOLUTELY NO WARRANTY,"
-			print "to the extent permitted by law."
-			print "You may redistribute copies of this program"
-			print "under the terms of the GNU Lesser General Public License."
-			print "For more information about these matters, see the file named COPYING."
+			print _("This program comes with ABSOLUTELY NO WARRANTY,"
+					"\nto the extent permitted by law."
+					"\nYou may redistribute copies of this program"
+					"\nunder the terms of the GNU Lesser General Public License."
+					"\nFor more information about these matters, see the file named COPYING.")
 		elif options.set_selections:
 			from zeroinstall.injector import qdom, run
 			sels = selections.Selections(qdom.parse(file(options.set_selections)))

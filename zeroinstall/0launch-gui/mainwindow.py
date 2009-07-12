@@ -153,7 +153,7 @@ class MainWindow:
 		if n_downloads == 1:
 			self.progress.set_text(_('Downloading one file (%s)') % progress_text)
 		else:
-			self.progress.set_text(_('Downloading %d files (%s)') % (n_downloads, progress_text))
+			self.progress.set_text(_('Downloading %(number)d files (%(progress)s)') % {'number': n_downloads, 'progress': progress_text})
 
 		if total == 0 or (n_downloads < 2 and not any_known):
 			self.progress.pulse()
@@ -172,10 +172,10 @@ class MainWindow:
 		try:
 			self.systray_icon = gtk.status_icon_new_from_icon_name("zeroinstall-zero2desktop")
 		except Exception, ex:
-			info("No system tray support: %s", ex)
+			info(_("No system tray support: %s"), ex)
 		else:
 			root_iface = iface_cache.iface_cache.get_interface(self.policy.root)
-			self.systray_icon.set_tooltip('Checking for updates for %s' % root_iface.get_name())
+			self.systray_icon.set_tooltip(_('Checking for updates for %s') % root_iface.get_name())
 			self.systray_icon.connect('activate', self.remove_systray_icon)
 			self.systray_icon_blocker = tasks.Blocker('Tray icon clicked')
 
@@ -193,13 +193,13 @@ class MainWindow:
 			traceback.print_exc()
 		if self.systray_icon:
 			self.systray_icon.set_blinking(True)
-			self.systray_icon.set_tooltip(str(ex) + '\n(click for details)')
+			self.systray_icon.set_tooltip(str(ex) + '\n' + _('(click for details)'))
 		else:
 			dialog.alert(self.window, str(ex))
 
-gui_help = help_box.HelpBox("Injector Help",
-('Overview', """
-A program is made up of many different components, typically written by different \
+gui_help = help_box.HelpBox(_("Injector Help"),
+(_('Overview'), '\n' +
+_("""A program is made up of many different components, typically written by different \
 groups of people. Each component is available in multiple versions. Zero Install is \
 used when starting a program. Its job is to decide which implementation of each required \
 component to use.
@@ -208,37 +208,34 @@ Zero Install starts with the program you want to run (like 'The Gimp') and choos
 implementation (like 'The Gimp 2.2.0'). However, this implementation \
 will in turn depend on other components, such as 'GTK' (which draws the menus \
 and buttons). Thus, it must choose implementations of \
-each dependency (each of which may require further components, and so on)."""),
+each dependency (each of which may require further components, and so on).""")),
 
-('List of components', """
-The main window displays all these components, and the version of each chosen \
+(_('List of components'), '\n' +
+_("""The main window displays all these components, and the version of each chosen \
 implementation. The top-most one represents the program you tried to run, and each direct \
 child is a dependency. The 'Fetch' column shows the amount of data that needs to be \
 downloaded, or '(cached)' if it is already on this computer.
 
 If you are happy with the choices shown, click on the Download (or Run) button to \
-download (and run) the program."""),
+download (and run) the program.""")),
 
-('Choosing different versions', """
-To control which implementations (versions) are chosen you can click on Preferences \
+(_('Choosing different versions'), '\n' +
+_("""To control which implementations (versions) are chosen you can click on Preferences \
 and adjust the network policy and the overall stability policy. These settings affect \
 all programs run using Zero Install.
 
 Alternatively, you can edit the policy of an individual component by clicking on the \
 button at the end of its line in the table and choosing "Show Versions" from the menu. \
-See that dialog's help text for more information.
-"""),
+See that dialog's help text for more information.""") + '\n'),
 
-('Reporting bugs', """
-To report a bug, right-click over the component which you think contains the problem \
+(_('Reporting bugs'), '\n' +
+_("""To report a bug, right-click over the component which you think contains the problem \
 and choose 'Report a Bug...' from the menu. If you don't know which one is the cause, \
 choose the top one (i.e. the program itself). The program's author can reassign the \
-bug if necessary, or switch to using a different version of the library.
-"""),
+bug if necessary, or switch to using a different version of the library.""") + '\n'),
 
-('The cache', """
-Each version of a program that is downloaded is stored in the Zero Install cache. This \
+(_('The cache'), '\n' +
+_("""Each version of a program that is downloaded is stored in the Zero Install cache. This \
 means that it won't need to be downloaded again each time you run the program. The \
-"0store manage" command can be used to view the cache.
-"""),
+"0store manage" command can be used to view the cache.""") + '\n'),
 )
