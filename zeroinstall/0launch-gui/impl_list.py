@@ -33,7 +33,7 @@ def _build_stability_menu(policy, impl):
 	menu.append(item)
 
 	for value in choices:
-		item = gtk.MenuItem(str(value).capitalize())
+		item = gtk.MenuItem(_(str(value)).capitalize())
 		item.connect('activate', lambda item, v = value: set(v))
 		item.show()
 		menu.append(item)
