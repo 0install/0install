@@ -406,8 +406,10 @@ def _extract(stream, destdir, command, start_offset = 0):
 	stream.seek(start_offset)
 
 	# TODO: use pola-run if available, once it supports fchmod
-	child = subprocess.Popen(command, cwd = destdir, stdin = stream, env = child_env)
+	child = subprocess.Popen(command, cwd = destdir, stdin = stream, stderr = subprocess.PIPE, env = child_env)
+
+	unused, cerr = child.communicate()
 
 	status = child.wait()
 	if status != 0:
-		raise SafeException(_('Failed to extract archive; exit code %d') % status)
+		raise SafeException(_('Failed to extract archive (using %s); exit code %d:\n%s') % (command, status, cerr.strip()))
