@@ -212,7 +212,7 @@ class Fetcher(object):
 
 			iface = iface_cache.get_interface(pending.url)
 			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-				blocker = self.handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+				blocker = self.handler.confirm_keys(pending, self.fetch_key_info)
 				if blocker:
 					yield blocker
 					tasks.check(blocker)
@@ -222,6 +222,9 @@ class Fetcher(object):
 		task = fetch_feed()
 		task.dl = dl
 		return task
+
+	def fetch_key_info(self, fingerprint):
+		return
 
 	def download_impl(self, impl, retrieval_method, stores, force = False):
 		"""Download an implementation.
