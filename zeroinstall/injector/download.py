@@ -219,7 +219,7 @@ if __name__ == '__main__':
 						"exist!" % url
 					return
 				src = file(url)
-			elif url.startswith('http:') or url.startswith('ftp:'):
+			elif url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:'):
 				req = Request(url)
 				if url.startswith('http:') and if_modified_since:
 					req.add_header('If-Modified-Since', if_modified_since)
