@@ -30,6 +30,46 @@ def _get_feed_dir(feed):
 			raise SafeException(_("Invalid URL '%s'") % feed)
 	return os.path.join('feeds', scheme, domain, _escape_slashes(rest))
 
+class KeyInfoFetcher:
+	"""Fetches information about a GPG key from a key-info server.
+	@since: 0.42
+	Example:
+	>>> kf = KeyInfoFetcher('https://server', fingerprint)
+	>>> while True:
+		print "Info:", kf.collect_info()
+		if kf.blocker is None: break
+		print kf.status
+		yield kf.blocker
+	"""
+	def __init__(self, server, fingerprint):
+		self.fingerprint = fingerprint
+		self.info = []
+		self.blocker = None
+
+		if server is None: return
+
+		self.status = 'Fetching key information from %s...' % server
+
+		dl = download.Download(server + '/key/' + fingerprint)
+		dl.start()
+
+		@tasks.async
+		def fetch_key_info():
+			tempfile = dl.tempfile
+			yield dl.downloaded
+			self.blocker = None
+			tasks.check(dl.downloaded)
+			tempfile.seek(0)
+			from xml.dom import minidom
+			doc = minidom.parse(tempfile)
+			if doc.documentElement.localName != 'key-lookup':
+				raise SafeException('Expected <key-lookup>, not <%s>' % doc.documentElement.localName)
+			self.info += doc.documentElement.childNodes
+
+		self.blocker = fetch_key_info()
+
+DEFAULT_KEY_LOOKUP_SERVER = 'https://keylookup.appspot.com'
+
 class Fetcher(object):
 	"""Downloads and stores various things.
 	@ivar handler: handler to use for user-interaction
@@ -42,6 +82,8 @@ class Fetcher(object):
 	def __init__(self, handler):
 		self.handler = handler
 		self.feed_mirror = "http://roscidus.com/0mirror"
+		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
+		self.key_info = {}
 
 	@tasks.async
 	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None):
@@ -212,7 +254,7 @@ class Fetcher(object):
 
 			iface = iface_cache.get_interface(pending.url)
 			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-				blocker = self.handler.confirm_keys(pending, self.fetch_key_info)
+				blocker = self.handler.confirm_keys(pending, lambda fingerprint: KeyInfoFetcher('http://localhost:8080', fingerprint))
 				if blocker:
 					yield blocker
 					tasks.check(blocker)
@@ -222,9 +264,6 @@ class Fetcher(object):
 		task = fetch_feed()
 		task.dl = dl
 		return task
-
-	def fetch_key_info(self, fingerprint):
-		return
 
 	def download_impl(self, impl, retrieval_method, stores, force = False):
 		"""Download an implementation.

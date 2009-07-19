@@ -128,6 +128,7 @@ class Handler(object):
 		new-style, or L{confirm_trust_keys} for older classes. A class
 		is considered old-style if it overrides confirm_trust_keys and
 		not confirm_import_feed.
+		@since: 0.42
 		@arg pending: an object holding details of the updated feed
 		@type pending: L{PendingFeed}
 		@arg fetch_key_info: a function which can be used to fetch information about a key fingerprint
@@ -139,7 +140,7 @@ class Handler(object):
 
 		if hasattr(self.confirm_trust_keys, 'original') or not hasattr(self.confirm_import_feed, 'original'):
 			# new-style class
-			self.confirm_import_feed(pending, fetch_key_info)
+			return self.confirm_import_feed(pending, fetch_key_info)
 		else:
 			# old-style class
 			from zeroinstall.injector import iface_cache
@@ -149,8 +150,10 @@ class Handler(object):
 			iface = iface_cache.iface_cache.get_interface(pending.url)
 			return self.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
 
+	@tasks.async
 	def confirm_import_feed(self, pending, fetch_key_info):
 		"""Sub-classes should override this method to interact with the user about new feeds.
+		@since: 0.42
 		@see: L{confirm_keys}"""
 		from zeroinstall.injector import trust, gpg
 		valid_sigs = [s for s in pending.sigs if isinstance(s, gpg.ValidSig)]
@@ -165,6 +168,36 @@ class Handler(object):
 		print >>sys.stderr, "The feed is correctly signed with the following keys:"
 		for x in valid_sigs:
 			print >>sys.stderr, "-", x
+
+		def text(parent):
+			text = ""
+			for node in parent.childNodes:
+				if node.nodeType == node.TEXT_NODE:
+					text = text + node.data
+			return text
+
+		kfs = [fetch_key_info(sig.fingerprint) for sig in valid_sigs]
+		while kfs:
+			old_kfs = kfs
+			kfs = []
+			for kf in old_kfs:
+				infos = kf.collect_info()
+				if infos:
+					if len(valid_sigs) > 1:
+						print "%s: " % kf.fingerprint
+					for info in infos:
+						print >>sys.stderr, "-", text(info)
+				if kf.blocker:
+					kfs.append(kf)
+			if kfs:
+				for kf in kfs: print >>sys.stderr, kf.status
+				blockers = [kf.blocker for kf in kfs]
+				yield blockers
+				for b in blockers:
+					try:
+						tasks.check(b)
+					except Exception, ex:
+						warn("Failed to get key info: %s", ex)
 
 		if len(valid_sigs) == 1:
 			print >>sys.stderr, "Do you want to trust this key to sign feeds from '%s'?" % domain
@@ -187,6 +220,7 @@ class Handler(object):
 	def confirm_trust_keys(self, interface, sigs, iface_xml):
 		"""We don't trust any of the signatures yet. Ask the user.
 		When done update the L{trust} database, and then call L{trust.TrustDB.notify}.
+		@deprecated: see L{confirm_keys}
 		@arg interface: the interface being updated
 		@arg sigs: a list of signatures (from L{gpg.check_stream})
 		@arg iface_xml: the downloaded data (not yet trusted)
