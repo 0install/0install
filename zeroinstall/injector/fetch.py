@@ -16,6 +16,8 @@ from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
 from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector import download
 
+DEFAULT_KEY_LOOKUP_SERVER = 'https://keylookup.appspot.com'
+
 def _escape_slashes(path):
 	return path.replace('/', '%23')
 
@@ -54,22 +56,27 @@ class KeyInfoFetcher:
 		dl = download.Download(server + '/key/' + fingerprint)
 		dl.start()
 
+		from xml.dom import minidom
+
 		@tasks.async
 		def fetch_key_info():
-			tempfile = dl.tempfile
-			yield dl.downloaded
-			self.blocker = None
-			tasks.check(dl.downloaded)
-			tempfile.seek(0)
-			from xml.dom import minidom
-			doc = minidom.parse(tempfile)
-			if doc.documentElement.localName != 'key-lookup':
-				raise SafeException('Expected <key-lookup>, not <%s>' % doc.documentElement.localName)
-			self.info += doc.documentElement.childNodes
+			try:
+				tempfile = dl.tempfile
+				yield dl.downloaded
+				self.blocker = None
+				tasks.check(dl.downloaded)
+				tempfile.seek(0)
+				doc = minidom.parse(tempfile)
+				if doc.documentElement.localName != 'key-lookup':
+					raise SafeException('Expected <key-lookup>, not <%s>' % doc.documentElement.localName)
+				self.info += doc.documentElement.childNodes
+			except Exception, ex:
+				doc = minidom.parseString('<item vote="bad"/>')
+				root = doc.documentElement
+				root.appendChild(doc.createTextNode('Error getting key information: %s' % ex))
+				self.info.append(root)
 
 		self.blocker = fetch_key_info()
-
-DEFAULT_KEY_LOOKUP_SERVER = 'https://keylookup.appspot.com'
 
 class Fetcher(object):
 	"""Downloads and stores various things.
