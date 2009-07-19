@@ -141,7 +141,18 @@ class Handler(object):
 
 		if hasattr(self.confirm_trust_keys, 'original') or not hasattr(self.confirm_import_feed, 'original'):
 			# new-style class
-			return self._queue_confirm_import_feed(pending, fetch_key_info)
+			from zeroinstall.injector import gpg
+			valid_sigs = [s for s in pending.sigs if isinstance(s, gpg.ValidSig)]
+			if not valid_sigs:
+				raise SafeException('No valid signatures found on "%s". Signatures:%s' %
+						(pending.url, ''.join(['\n- ' + str(s) for s in pending.sigs])))
+
+			# Start downloading information about the keys...
+			kfs = {}
+			for sig in valid_sigs:
+				kfs[sig] = fetch_key_info(sig.fingerprint)
+
+			return self._queue_confirm_import_feed(pending, kfs)
 		else:
 			# old-style class
 			from zeroinstall.injector import iface_cache
@@ -152,25 +163,14 @@ class Handler(object):
 			return self.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
 
 	@tasks.async
-	def _queue_confirm_import_feed(self, pending, fetch_key_info):
-		from zeroinstall.injector import gpg
-		valid_sigs = [s for s in pending.sigs if isinstance(s, gpg.ValidSig)]
-		if not valid_sigs:
-			raise SafeException('No valid signatures found on "%s". Signatures:%s' %
-					(pending.url, ''.join(['\n- ' + str(s) for s in pending.sigs])))
-
-		# Start downloading information about the keys...
-		kfs = {}
-		for sig in valid_sigs:
-			kfs[sig] = fetch_key_info(sig.fingerprint)
-
+	def _queue_confirm_import_feed(self, pending, valid_sigs):
 		# If we're already confirming something else, wait for that to finish...
 		while self._current_confirm is not None:
 			yield self._current_confirm
 
 		self._current_confirm = lock = tasks.Blocker('confirm key lock')
 		try:
-			done = self.confirm_import_feed(pending, kfs)
+			done = self.confirm_import_feed(pending, valid_sigs)
 			yield done
 			tasks.check(done)
 		finally:
