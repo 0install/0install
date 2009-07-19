@@ -15,8 +15,11 @@ os.environ["http_proxy"] = "localhost:8000"
 from zeroinstall.injector import model, autopolicy, gpg, iface_cache, download, reader, trust, handler, background, arch, selections, qdom
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
 from zeroinstall.support import basedir, tasks
+from zeroinstall.injector import fetch
 import data
 import my_dbus
+
+fetch.DEFAULT_KEY_LOOKUP_SERVER = 'http://localhost:3333/key-info'
 
 import server
 
@@ -92,7 +95,7 @@ class TestDownload(BaseTest):
 	
 	def testRejectKey(self):
 		with output_suppressed():
-			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg')
+			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
 			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False,
 						       handler = DummyHandler())
 			assert policy.need_download()
@@ -108,7 +111,7 @@ class TestDownload(BaseTest):
 	
 	def testRejectKeyXML(self):
 		with output_suppressed():
-			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg')
+			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
 			policy = autopolicy.AutoPolicy('http://example.com:8000/Hello.xml', download_only = False,
 						       handler = DummyHandler())
 			assert policy.need_download()
@@ -163,7 +166,7 @@ class TestDownload(BaseTest):
 		class Options: dry_run = False
 
 		with output_suppressed():
-			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
 			_download_missing_selections(Options(), sels)
 			path = iface_cache.iface_cache.stores.lookup(sels.selections['http://example.com:8000/Hello.xml'].id)
@@ -178,10 +181,9 @@ class TestDownload(BaseTest):
 		class Options: dry_run = False
 
 		with output_suppressed():
-			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
 
-			from zeroinstall.injector import fetch
 			from zeroinstall.injector.handler import Handler
 			handler = Handler()
 			fetcher = fetch.Fetcher(handler)
@@ -195,7 +197,7 @@ class TestDownload(BaseTest):
 	
 	def testAcceptKey(self):
 		with output_suppressed():
-			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello', download_only = False,
 							handler = DummyHandler())
 			assert policy.need_download()

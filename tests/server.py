@@ -29,8 +29,12 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 		if not resp:
 			self.send_error(404, "Expected %s; got %s" % (next_step, parsed.path))
-			
-		if os.path.exists(leaf) and not isinstance(resp, Give404):
+		elif parsed.path.startswith('/key-info/'):
+			self.send_response(200)
+			self.end_headers()
+			self.wfile.write('<key-lookup/>')
+			self.wfile.close()
+		elif os.path.exists(leaf) and not isinstance(resp, Give404):
 			self.send_response(200)
 			self.end_headers()
 			self.wfile.write(file(leaf).read())
