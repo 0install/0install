@@ -130,6 +130,7 @@ class Download(object):
 
 		if status == RESULT_NOT_MODIFIED:
 			debug("%s not modified", self.url)
+			self.tempfile = None
 			self.unmodified = True
 			self.status = download_complete
 			self._final_total_size = 0
