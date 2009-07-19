@@ -258,7 +258,7 @@ class Task:
 			return
 		except SystemExit:
 			raise
-		except Exception, ex:
+		except (Exception, KeyboardInterrupt), ex:
 			# Task crashed
 			info(_("Exception from '%(name)s': %(exception)s"), {'name': self.finished.name, 'exception': ex})
 			#import traceback

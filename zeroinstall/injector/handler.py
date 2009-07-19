@@ -168,6 +168,6 @@ class Handler(object):
 		@type exception: L{SafeException}
 		@param tb: optional traceback
 		@since: 0.25"""
-		warn("%s", exception)
+		warn("%s", str(exception) or type(exception))
 		#import traceback
 		#traceback.print_exception(exception, None, tb)
