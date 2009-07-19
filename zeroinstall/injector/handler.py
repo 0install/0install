@@ -207,17 +207,19 @@ class Handler(object):
 					text = text + node.data
 			return text
 
+		shown = set()
 		key_info_fetchers = valid_sigs.values()
 		while key_info_fetchers:
 			old_kfs = key_info_fetchers
 			key_info_fetchers = []
 			for kf in old_kfs:
-				infos = kf.collect_info()
+				infos = set(kf.info) - shown
 				if infos:
 					if len(valid_sigs) > 1:
 						print "%s: " % kf.fingerprint
 					for info in infos:
 						print >>sys.stderr, "-", text(info)
+						shown.add(info)
 				if kf.blocker:
 					key_info_fetchers.append(kf)
 			if key_info_fetchers:

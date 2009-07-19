@@ -32,11 +32,12 @@ def _get_feed_dir(feed):
 
 class KeyInfoFetcher:
 	"""Fetches information about a GPG key from a key-info server.
+	@see: L{Fetcher.fetch_key_info}
 	@since: 0.42
 	Example:
 	>>> kf = KeyInfoFetcher('https://server', fingerprint)
 	>>> while True:
-		print "Info:", kf.collect_info()
+		print kf.info
 		if kf.blocker is None: break
 		print kf.status
 		yield kf.blocker
@@ -74,10 +75,14 @@ class Fetcher(object):
 	"""Downloads and stores various things.
 	@ivar handler: handler to use for user-interaction
 	@type handler: L{handler.Handler}
+	@ivar key_info: caches information about GPG keys
+	@type key_info: {str: L{KeyInfoFetcher}}
+	@ivar key_info_server: the base URL of a key information server
+	@type key_info_server: str
 	@ivar feed_mirror: the base URL of a mirror site for keys and feeds
 	@type feed_mirror: str
 	"""
-	__slots__ = ['handler', 'feed_mirror']
+	__slots__ = ['handler', 'feed_mirror', 'key_info_server', 'key_info']
 
 	def __init__(self, handler):
 		self.handler = handler
@@ -254,7 +259,7 @@ class Fetcher(object):
 
 			iface = iface_cache.get_interface(pending.url)
 			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-				blocker = self.handler.confirm_keys(pending, lambda fingerprint: KeyInfoFetcher('http://localhost:8080', fingerprint))
+				blocker = self.handler.confirm_keys(pending, self.fetch_key_info)
 				if blocker:
 					yield blocker
 					tasks.check(blocker)
@@ -264,6 +269,13 @@ class Fetcher(object):
 		task = fetch_feed()
 		task.dl = dl
 		return task
+
+	def fetch_key_info(self, fingerprint):
+		try:
+			return self.key_info[fingerprint]
+		except KeyError:
+			self.key_info[fingerprint] = info = KeyInfoFetcher(self.key_info_server, fingerprint)
+			return info
 
 	def download_impl(self, impl, retrieval_method, stores, force = False):
 		"""Download an implementation.
