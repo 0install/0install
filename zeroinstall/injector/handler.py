@@ -224,13 +224,17 @@ class Handler(object):
 					key_info_fetchers.append(kf)
 			if key_info_fetchers:
 				for kf in key_info_fetchers: print >>sys.stderr, kf.status
-				blockers = [kf.blocker for kf in key_info_fetchers]
+				stdin = tasks.InputBlocker(0, 'console')
+				blockers = [kf.blocker for kf in key_info_fetchers] + [stdin]
 				yield blockers
 				for b in blockers:
 					try:
 						tasks.check(b)
 					except Exception, ex:
 						warn("Failed to get key info: %s", ex)
+				if stdin.happened:
+					print >>sys.stderr, "Skipping remaining key lookups due to input from user"
+					break
 
 		if len(valid_sigs) == 1:
 			print >>sys.stderr, "Do you want to trust this key to sign feeds from '%s'?" % domain
