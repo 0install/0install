@@ -144,7 +144,7 @@ class Handler(object):
 			from zeroinstall.injector import gpg
 			valid_sigs = [s for s in pending.sigs if isinstance(s, gpg.ValidSig)]
 			if not valid_sigs:
-				raise SafeException('No valid signatures found on "%s". Signatures:%s' %
+				raise SafeException(_('No valid signatures found on "%s". Signatures:%s') %
 						(pending.url, ''.join(['\n- ' + str(s) for s in pending.sigs])))
 
 			# Start downloading information about the keys...
@@ -195,8 +195,8 @@ class Handler(object):
 		domain = trust.domain_from_url(pending.url)
 
 		# Ask on stderr, because we may be writing XML to stdout
-		print >>sys.stderr, "\nFeed:", pending.url
-		print >>sys.stderr, "The feed is correctly signed with the following keys:"
+		print >>sys.stderr, _("Feed: %s"), pending.url
+		print >>sys.stderr, _("The feed is correctly signed with the following keys:")
 		for x in valid_sigs:
 			print >>sys.stderr, "-", x
 
@@ -231,17 +231,17 @@ class Handler(object):
 					try:
 						tasks.check(b)
 					except Exception, ex:
-						warn("Failed to get key info: %s", ex)
+						warn(_("Failed to get key info: %s"), ex)
 				if stdin.happened:
-					print >>sys.stderr, "Skipping remaining key lookups due to input from user"
+					print >>sys.stderr, _("Skipping remaining key lookups due to input from user")
 					break
 
 		if len(valid_sigs) == 1:
-			print >>sys.stderr, "Do you want to trust this key to sign feeds from '%s'?" % domain
+			print >>sys.stderr, _("Do you want to trust this key to sign feeds from '%s'?") % domain
 		else:
-			print >>sys.stderr, "Do you want to trust all of these keys to sign feeds from '%s'?" % domain
+			print >>sys.stderr, _("Do you want to trust all of these keys to sign feeds from '%s'?") % domain
 		while True:
-			print >>sys.stderr, "Trust [Y/N] ",
+			print >>sys.stderr, _("Trust [Y/N] "),
 			i = raw_input()
 			if not i: continue
 			if i in 'Nn':
@@ -249,7 +249,7 @@ class Handler(object):
 			if i in 'Yy':
 				break
 		for key in valid_sigs:
-			print >>sys.stderr, "Trusting", key.fingerprint, "for", domain
+			print >>sys.stderr, _("Trusting %s for %s") % (key.fingerprint, domain)
 			trust.trust_db.trust_key(key.fingerprint, domain)
 
 	confirm_import_feed.original = True

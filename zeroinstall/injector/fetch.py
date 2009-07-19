@@ -51,7 +51,7 @@ class KeyInfoFetcher:
 
 		if server is None: return
 
-		self.status = 'Fetching key information from %s...' % server
+		self.status = _('Fetching key information from %s...') % server
 
 		dl = download.Download(server + '/key/' + fingerprint)
 		dl.start()
@@ -68,12 +68,12 @@ class KeyInfoFetcher:
 				tempfile.seek(0)
 				doc = minidom.parse(tempfile)
 				if doc.documentElement.localName != 'key-lookup':
-					raise SafeException('Expected <key-lookup>, not <%s>' % doc.documentElement.localName)
+					raise SafeException(_('Expected <key-lookup>, not <%s>') % doc.documentElement.localName)
 				self.info += doc.documentElement.childNodes
 			except Exception, ex:
 				doc = minidom.parseString('<item vote="bad"/>')
 				root = doc.documentElement
-				root.appendChild(doc.createTextNode('Error getting key information: %s' % ex))
+				root.appendChild(doc.createTextNode(_('Error getting key information: %s') % ex))
 				self.info.append(root)
 
 		self.blocker = fetch_key_info()
