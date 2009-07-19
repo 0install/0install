@@ -34,7 +34,7 @@ class Handler(object):
 	@type total_bytes_downloaded: int
 	"""
 
-	__slots__ = ['monitored_downloads', '_loop', 'dry_run', 'total_bytes_downloaded', 'n_completed_downloads']
+	__slots__ = ['monitored_downloads', '_loop', 'dry_run', 'total_bytes_downloaded', 'n_completed_downloads', '_current_confirm']
 
 	def __init__(self, mainloop = None, dry_run = False):
 		self.monitored_downloads = {}		
@@ -42,7 +42,8 @@ class Handler(object):
 		self.dry_run = dry_run
 		self.n_completed_downloads = 0
 		self.total_bytes_downloaded = 0
-	
+		self._current_confirm = None
+
 	def monitor_download(self, dl):
 		"""Called when a new L{download} is started.
 		This is mainly used by the GUI to display the progress bar."""
@@ -140,7 +141,7 @@ class Handler(object):
 
 		if hasattr(self.confirm_trust_keys, 'original') or not hasattr(self.confirm_import_feed, 'original'):
 			# new-style class
-			return self.confirm_import_feed(pending, fetch_key_info)
+			return self._queue_confirm_import_feed(pending, fetch_key_info)
 		else:
 			# old-style class
 			from zeroinstall.injector import iface_cache
@@ -151,15 +152,45 @@ class Handler(object):
 			return self.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
 
 	@tasks.async
-	def confirm_import_feed(self, pending, fetch_key_info):
-		"""Sub-classes should override this method to interact with the user about new feeds.
-		@since: 0.42
-		@see: L{confirm_keys}"""
-		from zeroinstall.injector import trust, gpg
+	def _queue_confirm_import_feed(self, pending, fetch_key_info):
+		from zeroinstall.injector import gpg
 		valid_sigs = [s for s in pending.sigs if isinstance(s, gpg.ValidSig)]
 		if not valid_sigs:
 			raise SafeException('No valid signatures found on "%s". Signatures:%s' %
 					(pending.url, ''.join(['\n- ' + str(s) for s in pending.sigs])))
+
+		# Start downloading information about the keys...
+		kfs = {}
+		for sig in valid_sigs:
+			kfs[sig] = fetch_key_info(sig.fingerprint)
+
+		# If we're already confirming something else, wait for that to finish...
+		while self._current_confirm is not None:
+			yield self._current_confirm
+
+		self._current_confirm = lock = tasks.Blocker('confirm key lock')
+		try:
+			done = self.confirm_import_feed(pending, kfs)
+			yield done
+			tasks.check(done)
+		finally:
+			self._current_confirm = None
+			lock.trigger()
+
+	@tasks.async
+	def confirm_import_feed(self, pending, valid_sigs):
+		"""Sub-classes should override this method to interact with the user about new feeds.
+		If multiple feeds need confirmation, L{confirm_keys} will only invoke one instance of this
+		method at a time.
+		@param pending: the new feed to be imported
+		@type pending: L{PendingFeed}
+		@param valid_sigs: maps signatures to a list of fetchers collecting information about the key
+		@type valid_sigs: {L{gpg.ValidSig} : L{fetch.KeyInfoFetcher}}
+		@since: 0.42
+		@see: L{confirm_keys}"""
+		from zeroinstall.injector import trust
+
+		assert valid_sigs
 
 		domain = trust.domain_from_url(pending.url)
 
@@ -176,10 +207,10 @@ class Handler(object):
 					text = text + node.data
 			return text
 
-		kfs = [fetch_key_info(sig.fingerprint) for sig in valid_sigs]
-		while kfs:
-			old_kfs = kfs
-			kfs = []
+		key_info_fetchers = valid_sigs.values()
+		while key_info_fetchers:
+			old_kfs = key_info_fetchers
+			key_info_fetchers = []
 			for kf in old_kfs:
 				infos = kf.collect_info()
 				if infos:
@@ -188,10 +219,10 @@ class Handler(object):
 					for info in infos:
 						print >>sys.stderr, "-", text(info)
 				if kf.blocker:
-					kfs.append(kf)
-			if kfs:
-				for kf in kfs: print >>sys.stderr, kf.status
-				blockers = [kf.blocker for kf in kfs]
+					key_info_fetchers.append(kf)
+			if key_info_fetchers:
+				for kf in key_info_fetchers: print >>sys.stderr, kf.status
+				blockers = [kf.blocker for kf in key_info_fetchers]
 				yield blockers
 				for b in blockers:
 					try:
@@ -262,7 +293,7 @@ class Handler(object):
 		trust.trust_db.notify()
 
 	confirm_trust_keys.original = True		# Detect if someone overrides it
-	
+
 	def report_error(self, exception, tb = None):
 		"""Report an exception to the user.
 		@param exception: the exception to report
