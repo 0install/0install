@@ -144,8 +144,8 @@ class Handler(object):
 			from zeroinstall.injector import gpg
 			valid_sigs = [s for s in pending.sigs if isinstance(s, gpg.ValidSig)]
 			if not valid_sigs:
-				raise SafeException(_('No valid signatures found on "%s". Signatures:%s') %
-						(pending.url, ''.join(['\n- ' + str(s) for s in pending.sigs])))
+				raise SafeException(_('No valid signatures found on "%(url)s". Signatures:%(signatures)s') %
+						{'url': pending.url, 'signatures': ''.join(['\n- ' + str(s) for s in pending.sigs])})
 
 			# Start downloading information about the keys...
 			kfs = {}
@@ -249,7 +249,7 @@ class Handler(object):
 			if i in 'Yy':
 				break
 		for key in valid_sigs:
-			print >>sys.stderr, _("Trusting %s for %s") % (key.fingerprint, domain)
+			print >>sys.stderr, _("Trusting %(key_fingerprint)s for %(domain)s") % {'key_fingerprint': key.fingerprint, 'domain': domain}
 			trust.trust_db.trust_key(key.fingerprint, domain)
 
 	confirm_import_feed.original = True

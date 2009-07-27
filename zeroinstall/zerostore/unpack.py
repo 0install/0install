@@ -412,4 +412,4 @@ def _extract(stream, destdir, command, start_offset = 0):
 
 	status = child.wait()
 	if status != 0:
-		raise SafeException(_('Failed to extract archive (using %s); exit code %d:\n%s') % (command, status, cerr.strip()))
+		raise SafeException(_('Failed to extract archive (using %(command)s); exit code %(status)d:\n%(err)s') % {'command': command, 'status': status, 'err': cerr.strip()})
