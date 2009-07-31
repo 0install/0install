@@ -417,11 +417,9 @@ def add_remote_feed(policy, parent, interface):
 		policy.handler.report_error(ex)
 
 def add_local_feed(policy, interface):
-	sel = gtk.FileSelection(_('Select XML feed file'))
-	sel.set_has_separator(False)
-	def ok(b):
+	chooser = gtk.FileChooserDialog(_('Select XML feed file'), action=gtk.FILE_CHOOSER_ACTION_OPEN, buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+	def ok(feed):
 		from zeroinstall.injector import reader
-		feed = sel.get_filename()
 		try:
 			feed_targets = policy.get_feed_targets(feed)
 			if interface not in feed_targets:
@@ -434,16 +432,21 @@ def add_local_feed(policy, interface):
 				interface.extra_feeds.append(Feed(feed, user_override = True, arch = None))
 
 			writer.save_interface(interface)
-			sel.destroy()
+			chooser.destroy()
 			reader.update_from_cache(interface)
 			policy.recalculate()
 		except Exception, ex:
 			dialog.alert(None, _("Error in feed file '%(feed)s':\n\n%(exception)s") % {'feed': feed, 'exception': str(ex)})
-		
-	sel.ok_button.connect('clicked', ok)
-	sel.cancel_button.connect('clicked', lambda b: sel.destroy())
-	sel.show()
-	
+
+	def check_response(widget, response):
+		if response == gtk.RESPONSE_OK:
+			ok(widget.get_filename())
+		elif response == gtk.RESPONSE_CANCEL:
+			widget.destroy()
+
+	chooser.connect('response', check_response)
+	chooser.show()
+
 def edit(policy, interface, show_versions = False):
 	assert isinstance(interface, Interface)
 	if interface in _dialogs:
