@@ -14,9 +14,9 @@ class build_with_data(build_py):
 		"zeroinstall/0launch-gui/README",
 		"zeroinstall/0launch-gui/0launch-gui",
 		"zeroinstall/0launch-gui/ZeroInstall-GUI.xml",
-		"zeroinstall/0launch-gui/zero-install.glade",
-		"zeroinstall/gtkui/desktop.glade",
-		"zeroinstall/gtkui/cache.glade",
+		"zeroinstall/0launch-gui/zero-install.ui",
+		"zeroinstall/gtkui/desktop.ui",
+		"zeroinstall/gtkui/cache.ui",
 		"zeroinstall/zerostore/_unlzma",
 	]
 	def run(self):

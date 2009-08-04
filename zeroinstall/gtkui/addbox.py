@@ -6,7 +6,6 @@
 from zeroinstall import _
 import os, sys
 import gtk, gobject
-import gtk.glade
 
 from zeroinstall import SafeException
 from zeroinstall.injector import model
@@ -22,22 +21,23 @@ _RESPONSE_NEXT = 1
 class AddBox:
 	"""A dialog box which prompts the user to choose the program to be added."""
 	def __init__(self, interface_uri = None):
-		gladefile = os.path.join(os.path.dirname(__file__), 'desktop.glade')
+		builderfile = os.path.join(os.path.dirname(__file__), 'desktop.ui')
 
-		widgets = gtk.glade.XML(gladefile, 'main')
-		self.window = widgets.get_widget('main')
+		builder = gtk.Builder()
+		builder.add_from_file(builderfile)
+		self.window = builder.get_object('main')
 		self.set_keep_above(True)
 
 		def set_uri_ok(uri):
 			text = uri.get_text()
 			self.window.set_response_sensitive(_RESPONSE_NEXT, bool(text))
 
-		uri = widgets.get_widget('interface_uri')
-		about = widgets.get_widget('about')
-		icon_widget = widgets.get_widget('icon')
-		category = widgets.get_widget('category')
-		dialog_next = widgets.get_widget('dialog_next')
-		dialog_ok = widgets.get_widget('dialog_ok')
+		uri = builder.get_object('interface_uri')
+		about = builder.get_object('about')
+		icon_widget = builder.get_object('icon')
+		category = builder.get_object('category')
+		dialog_next = builder.get_object('dialog_next')
+		dialog_ok = builder.get_object('dialog_ok')
 
 		if interface_uri:
 			uri.set_text(interface_uri)
@@ -65,7 +65,7 @@ class AddBox:
 					gtk.gdk.ACTION_COPY)
 		self.window.connect('drag-data-received', uri_dropped)
 
-		nb = widgets.get_widget('notebook1')
+		nb = builder.get_object('notebook1')
 
 		def update_details_page():
 			iface = iface_cache.get_interface(model.canonical_iface_uri(uri.get_text()))

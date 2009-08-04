@@ -213,7 +213,7 @@ class KnownImplementation(CachedImplementation):
 class CacheExplorer:
 	"""A graphical interface for viewing the cache and deleting old items."""
 	def __init__(self, iface_cache):
-		widgets = gtkutils.Template(os.path.join(os.path.dirname(__file__), 'cache.glade'), 'cache')
+		widgets = gtkutils.Template(os.path.join(os.path.dirname(__file__), 'cache.ui'), 'cache')
 		self.window = window = widgets.get_widget('cache')
 		window.set_default_size(gtk.gdk.screen_width() / 2, gtk.gdk.screen_height() / 2)
 		self.iface_cache = iface_cache

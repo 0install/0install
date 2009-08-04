@@ -4,7 +4,7 @@ PYTHON=python
 
 MO = $(shell find locale -name '*.po' | sed -e 's/\.po/\.mo/')
 PY = $(shell find zeroinstall -name '*.py')
-GLADE = $(shell find zeroinstall -name '*.glade' | sed -e 's/\.glade/&.h/')
+GTKBUILDER = $(shell find zeroinstall -name '*.ui' | sed -e 's/\.ui/&.h/')
 SH = zeroinstall/zerostore/_unlzma
 
 all: translations
@@ -18,11 +18,11 @@ install: all
 %.mo: %.po
 	msgfmt -o "$@" "$<"
 
-%.glade.h: %.glade
+%.ui.h: %.ui
 	intltool-extract --type=gettext/glade --update "$<"
 
-locale/zero-install.pot: $(PY) $(GLADE) $(SH)
-	xgettext --language=Python --output=$@ --keyword=N_ $(PY) $(GLADE)
+locale/zero-install.pot: $(PY) $(GTKBUILDER) $(SH)
+	xgettext --language=Python --output=$@ --keyword=N_ $(PY) $(GTKBUILDER)
 	xgettext --language=Shell -j --output=$@ $(SH)
 
 update-po: locale/zero-install.pot

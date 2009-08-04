@@ -12,12 +12,6 @@ tips = gtk.Tooltips()
 
 SHOW_CACHE = 0
 
-network_names = {
-	'off-line': _('Off-line'),
-	'minimal': _('Minimal'),
-	'full': _('Full'),
-}
-
 class Preferences:
 	def __init__(self, policy):
 		widgets = Template('preferences_box')
@@ -26,8 +20,6 @@ class Preferences:
 		self.window.connect('destroy', lambda w: self.destroyed())
 
 		network = widgets.get_widget('network_use')
-		for level in network_levels:
-			network.append_text(network_names.get(level, level.capitalize()))
 		network.set_active(list(network_levels).index(policy.network_use))
 
 		def set_network_use(combo):

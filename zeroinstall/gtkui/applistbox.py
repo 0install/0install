@@ -5,7 +5,6 @@
 from zeroinstall import _
 import os
 import gtk, gobject, pango
-import gtk.glade
 import subprocess
 
 from zeroinstall.gtkui import icon, xdgutils, treetips
@@ -46,13 +45,14 @@ class AppListBox:
 		@param app_list: used to list or remove applications
 		@type app_list: L{AppList}
 		"""
-		gladefile = os.path.join(os.path.dirname(__file__), 'desktop.glade')
+		builderfile = os.path.join(os.path.dirname(__file__), 'desktop.ui')
 		self.iface_cache = iface_cache
 		self.app_list = app_list
 
-		widgets = gtk.glade.XML(gladefile, 'applist')
-		self.window = widgets.get_widget('applist')
-		tv = widgets.get_widget('treeview')
+		builder = gtk.Builder()
+		builder.add_from_file(builderfile)
+		self.window = builder.get_object('applist')
+		tv = builder.get_object('treeview')
 
 		self.model = gtk.ListStore(gtk.gdk.Pixbuf, str, str, str)
 
@@ -110,7 +110,7 @@ class AppListBox:
 
 		self.model.set_sort_column_id(AppListBox.NAME, gtk.SORT_ASCENDING)
 
-		show_cache = widgets.get_widget('show_cache')
+		show_cache = builder.get_object('show_cache')
 		self.window.action_area.set_child_secondary(show_cache, True)
 
 		def response(box, resp):

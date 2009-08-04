@@ -5,24 +5,24 @@
 
 from zeroinstall import _
 import gtk
-import gtk.glade
 
 class Template:
-	"""Wrapper for glade widget tree that throws a sensible exception if the widget isn't found."""
-	def __init__(self, gladefile, root):
+	"""Wrapper for GtkBuilder widget tree that throws a sensible exception if the widget isn't found."""
+	def __init__(self, builderfile, root):
 		"""Constructor.
-		@param gladefile: pathname of the .glade file to load
+		@param gladefile: pathname of the .ui file to load
 		@param root: the name of the top-level widget inside the file"""
-		self.widgets = gtk.glade.XML(gladefile, root)
-		self.gladefile = gladefile
+		self.builder = gtk.Builder()
+		self.builder.add_from_file(builderfile)
+		self.builderfile = builderfile
 		self.root = root
 
 	def get_widget(self, name = None):
 		"""Look up a widget by name."""
 		if not name:
 			name = self.root
-		widget = self.widgets.get_widget(name)
-		assert widget, "Widget '%s' not found in glade file '%s'" % (name, self.gladefile)
+		widget = self.builder.get_object(name)
+		assert widget, "Widget '%s' not found in GtkBuilder file '%s'" % (name, self.builderfile)
 		return widget
 
 def show_message_box(parent, message, type = gtk.MESSAGE_ERROR):

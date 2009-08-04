@@ -286,9 +286,9 @@ class Properties:
 		stability.set_active(0)
 		if interface.stability_policy:
 			i = [stable, testing, developer].index(interface.stability_policy)
-			if i == -1:
+			i += 1
+			if i == 0:
 				warn(_("Unknown stability policy %s"), interface.stability_policy)
-				i = 0
 		else:
 			i = 0
 		stability.set_active(i)
@@ -321,7 +321,10 @@ class Properties:
 
 		if show_versions:
 			notebook.next_page()
-	
+
+	def show(self):
+		self.window.show()
+
 	def destroy(self):
 		self.window.destroy()
 	
@@ -452,6 +455,7 @@ def edit(policy, interface, show_versions = False):
 	if interface in _dialogs:
 		_dialogs[interface].destroy()
 	_dialogs[interface] = Properties(policy, interface, show_versions)
+	_dialogs[interface].show()
 
 properties_help = help_box.HelpBox(_("Injector Properties Help"),
 (_('Interface properties'), '\n' +
