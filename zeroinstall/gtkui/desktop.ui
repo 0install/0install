@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <interface>
-  <requires lib="gtk+" version="2.16"/>
+  <requires lib="gtk+" version="2.12"/>
   <!-- interface-naming-policy toplevel-contextual -->
   <object class="GtkDialog" id="main">
     <property name="title" translatable="yes">Add Zero Install Application</property>
