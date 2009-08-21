@@ -92,7 +92,11 @@ class CachedDistribution(Distribution):
 		versions = self.versions
 		for line in stream:
 			package, version, zi_arch = line[:-1].split('\t')
-			versions[package] = (version, intern(zi_arch))
+			versionarch = (version, intern(zi_arch))
+			if package not in versions:
+				versions[package] = [versionarch]
+			else:
+				versions[package].append(versionarch)
 
 	def _write_cache(self, cache):
 		#cache.sort() 	# Might be useful later; currently we don't care
@@ -143,7 +147,7 @@ class DebianDistribution(CachedDistribution):
 
 	def get_package_info(self, package, factory):
 		try:
-			version, machine = self.versions[package]
+			version, machine = self.versions[package][0]
 		except KeyError:
 			return
 
@@ -180,14 +184,15 @@ class RPMDistribution(CachedDistribution):
 
 	def get_package_info(self, package, factory):
 		try:
-			version, machine = self.versions[package]
+			versions = self.versions[package]
 		except KeyError:
 			return
 
-		impl = factory('package:rpm:%s:%s' % (package, version)) 
-		impl.version = model.parse_version(version)
-		if machine != '*':
-			impl.machine = machine
+		for version, machine in versions:
+			impl = factory('package:rpm:%s:%s:%s' % (package, version, machine))
+			impl.version = model.parse_version(version)
+			if machine != '*':
+				impl.machine = machine
 
 _host_distribution = None
 def get_host_distribution():

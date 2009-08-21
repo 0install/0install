@@ -51,7 +51,7 @@ class TestDistro(BaseTest):
 
 		rpm.get_package_info('yast2-update', self.factory)
 		self.assertEquals(1, len(self.feed.implementations))
-		yast = self.feed.implementations['package:rpm:yast2-update:2.15.23-21']
+		yast = self.feed.implementations['package:rpm:yast2-update:2.15.23-21:i586']
 		self.assertEquals('2.15.23-21', yast.get_version())
 		self.assertEquals('*-i586', yast.arch)
 
