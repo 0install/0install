@@ -26,21 +26,48 @@ import os
 try:
 	_uname = os.uname()
 except AttributeError:
-	# No uname. Probably Windows (untested).
+	# No uname. Probably Windows.
 	import sys
 	p = sys.platform
-	if p == 'win32':
+	import platform
+	bits, linkage = platform.architecture()
+	if p == 'win32' and (bits == '' or bits == '32bit'):
 		_uname = ('Windows', 'i486')
-	elif p == 'win64':
+	elif p == 'win64' or (p == 'win32' and bits == '64bit'):
 		_uname = ('Windows', 'x86_64')
 	else:
 		_uname = (p, 'i486')
 
-os_ranks = {
-#	'Linux' : 3,		# Linux (lots of systems support emulation)
-	None : 2,		# Any OS
-	_uname[0] : 1,		# Current OS
-}
+def _get_os_ranks(target_os):
+	if target_os.startswith('CYGWIN_NT'):
+		target_os = 'Cygwin'
+	elif target_os == 'SunOS':
+		target_os = 'Solaris'
+
+	# Special case Mac OS X, to separate it from Darwin/X
+	# (Mac OS X also includes the closed Apple frameworks)
+	if os.path.exists('/System/Library/Frameworks/Carbon.framework'):
+		target_os = 'MacOSX'
+
+	# Binaries compiled for _this_ OS are best...
+	os_ranks = {target_os : 1}
+
+	# If target_os appears in the first column of this table, all
+	# following OS types on the line will also run on this one
+	# (earlier ones preferred):
+	_os_matrix = {
+		'Cygwin': ['Windows'],
+		'MacOSX': ['Darwin'],
+	}
+
+	for supported in _os_matrix.get(target_os, []):
+		os_ranks[supported] = len(os_ranks) + 1
+
+	# At the lowest priority, try an OS-independent implementation
+	os_ranks[None] = len(os_ranks) + 1
+	return os_ranks
+
+os_ranks = _get_os_ranks(_uname[0])
 
 # All chosen machine-specific implementations must come from the same group
 # Unlisted archs are in group 0
@@ -50,6 +77,15 @@ machine_groups = {
 }
 
 def _get_machine_ranks(target_machine):
+	if target_machine == 'x86':
+		target_machine = 'i386'
+	elif target_machine == 'amd64':
+		target_machine = 'x86_64'
+	elif target_machine == 'Power Macintosh':
+		target_machine = 'ppc'
+	elif target_machine == 'i86pc':
+		target_machine = 'i686'
+
 	# Binaries compiled for _this_machine are best...
 	machine_ranks = {target_machine : 0}
 
@@ -61,7 +97,8 @@ def _get_machine_ranks(target_machine):
 		'i586': ['i486', 'i386'],
 		'i686': ['i586', 'i486', 'i386'],
 		'x86_64': ['i686', 'i586', 'i486', 'i386'],
-		'ppc64': ['ppc32'],
+		'ppc': ['ppc32'],
+		'ppc64': ['ppc'],
 	}
 	for supported in _machine_matrix.get(target_machine, []):
 		machine_ranks[supported] = len(machine_ranks)
@@ -71,8 +108,7 @@ def _get_machine_ranks(target_machine):
 	return machine_ranks
 
 machine_ranks = _get_machine_ranks(_uname[-1])
-#print machine_ranks
-	
+
 class Architecture:
 	"""A description of an architecture. Use by L{solver} to make sure it chooses
 	compatible versions.
@@ -92,7 +128,7 @@ class Architecture:
 		self.os_ranks = os_ranks
 		self.machine_ranks = machine_ranks
 		self.child_arch = self
-	
+
 	def __str__(self):
 		return _("<Arch: %(os_ranks)s %(machine_ranks)s>") % {'os_ranks': self.os_ranks, 'machine_ranks': self.machine_ranks}
 
@@ -104,7 +140,7 @@ class SourceArchitecture(Architecture):
 	def __init__(self, binary_arch):
 		Architecture.__init__(self, binary_arch.os_ranks, {'src': 1})
 		self.child_arch = binary_arch
-	
+
 def get_host_architecture():
 	"""Get an Architecture that matches implementations that will run on the host machine.
 	@rtype: L{Architecture}"""
@@ -117,15 +153,13 @@ def get_architecture(os, machine):
 	@return: an Architecture object
 	@rtype: L{Architecture}"""
 
-	if os:
-		target_os_ranks = {
-			os : 1,		# Perfer binaries for target OS
-			None : 2,	# Otherwise, generic OS is fine
-		}
-	else:
+	if os is None:
 		target_os_ranks = os_ranks
-	if machine:
-		target_machine_ranks = _get_machine_ranks(machine)
 	else:
+		target_os_ranks = _get_os_ranks(os)
+	if machine is None:
 		target_machine_ranks = machine_ranks
+	else:
+		target_machine_ranks = _get_machine_ranks(machine)
+
 	return Architecture(target_os_ranks, target_machine_ranks)
