@@ -168,6 +168,17 @@ class Handler(object):
 		while self._current_confirm is not None:
 			yield self._current_confirm
 
+		# Check whether we still need to confirm. The user may have
+		# already approved one of the keys while dealing with another
+		# feed.
+		from zeroinstall.injector import trust
+		domain = trust.domain_from_url(pending.url)
+		for sig in valid_sigs:
+			is_trusted = trust.trust_db.is_trusted(sig.fingerprint, domain)
+			if is_trusted:
+				return
+
+		# Take the lock and confirm this feed
 		self._current_confirm = lock = tasks.Blocker('confirm key lock')
 		try:
 			done = self.confirm_import_feed(pending, valid_sigs)

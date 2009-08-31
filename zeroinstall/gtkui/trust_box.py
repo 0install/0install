@@ -55,14 +55,16 @@ def get_hint(fingerprint):
 	return hint_hbox
 
 class TrustBox(gtk.Dialog):
-	interface = None
-	sigs = None
-	iface_xml = None
-	valid_sigs = None
+	"""Display a dialog box asking the user to confirm that one of the
+	keys is trusted for this domain.
+	"""
 	parent = None
 	closed = None
 
-	def __init__(self, interface, sigs, iface_xml, parent):
+	def __init__(self, pending, valid_sigs, parent):
+		"""@since: 0.42"""
+		assert valid_sigs
+
 		gtk.Dialog.__init__(self)
 		self.set_has_separator(False)
 		self.set_position(gtk.WIN_POS_CENTER)
@@ -70,35 +72,13 @@ class TrustBox(gtk.Dialog):
 
 		self.closed = tasks.Blocker(_("confirming keys with user"))
 
-		domain = trust.domain_from_url(interface.uri)
+		domain = trust.domain_from_url(pending.url)
 		assert domain
 
 		def destroy(box):
-			global _queue
-			assert _queue[0] is self
-			del _queue[0]
-
 			self.closed.trigger()
 
-			# Remove any queued boxes that are no longer required
-			def still_untrusted(box):
-				for sig in box.valid_sigs:
-					is_trusted = trust.trust_db.is_trusted(sig.fingerprint, domain)
-					if is_trusted:
-						return False
-				return True
-			if _queue:
-				next = _queue[0]
-				if still_untrusted(next):
-					next.show()
-				else:
-					next.trust_keys([], domain)
-					next.destroy()	# Will trigger this again...
 		self.connect('destroy', destroy)
-
-		self.interface = interface
-		self.sigs = sigs
-		self.iface_xml = iface_xml
 
 		self.set_title(_('Confirm trust'))
 
@@ -106,17 +86,12 @@ class TrustBox(gtk.Dialog):
 		vbox.set_border_width(4)
 		self.vbox.pack_start(vbox, True, True, 0)
 
-		self.valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
-		if not self.valid_sigs:
-			raise SafeException(_('No valid signatures found on "%(uri)s". Signatures:%(signatures)s') %
-					{'uri': interface.uri, 'signatures': ''.join(['\n- ' + str(s) for s in sigs])})
-
 		notebook = gtk.Notebook()
 
-		if len(self.valid_sigs) == 1:
+		if len(valid_sigs) == 1:
 			notebook.set_show_tabs(False)
 
-		label = left(_('Checking: %s') % interface.uri)
+		label = left(_('Checking: %s') % pending.url)
 		label.set_padding(4, 4)
 		vbox.pack_start(label, False, True, 0)
 
@@ -129,7 +104,7 @@ class TrustBox(gtk.Dialog):
 			descriptions = [_('None')]
 		frame(vbox, _('Keys already approved for "%s"') % domain, '\n'.join(descriptions))
 
-		if len(self.valid_sigs) == 1:
+		if len(valid_sigs) == 1:
 			label = left(_('This key signed the feed:'))
 		else:
 			label = left(_('These keys signed the feed:'))
@@ -153,7 +128,7 @@ class TrustBox(gtk.Dialog):
 					break
 			self.set_response_sensitive(gtk.RESPONSE_OK, trust_any)
 
-		for sig in self.valid_sigs:
+		for sig in valid_sigs:
 			if hasattr(sig, 'get_details'):
 				name = '<unknown>'
 				details = sig.get_details()
@@ -197,10 +172,10 @@ class TrustBox(gtk.Dialog):
 			self.destroy()
 		self.connect('response', response)
 	
-	def trust_keys(self, sigs, domain):
+	def trust_keys(self, agreed_sigs, domain):
 		assert domain
 		try:
-			for sig in sigs:
+			for sig in agreed_sigs:
 				trust.trust_db.trust_key(sig.fingerprint, domain)
 
 			trust.trust_db.notify()
@@ -208,24 +183,6 @@ class TrustBox(gtk.Dialog):
 			gtkutils.show_message_box(self, str(ex), gtk.MESSAGE_ERROR)
 			if not isinstance(ex, SafeException):
 				raise
-
-_queue = []
-def confirm_trust(interface, sigs, iface_xml, parent):
-	"""Display a dialog box asking the user to confirm that one of the
-	keys is trusted for this domain. If a trust box is already visible, this
-	one is queued until the existing one is closed.
-	@param interface: the feed being loaded
-	@type interface: L{model.Interface}
-	@param sigs: the signatures on the feed
-	@type sigs: [L{gpg.Signature}]
-	@param iface_xml: the downloaded (untrusted) XML document
-	@type iface_xml: str
-	"""
-	box = TrustBox(interface, sigs, iface_xml, parent)
-	_queue.append(box)
-	if len(_queue) == 1:
-		_queue[0].show()
-	return box.closed
 
 trust_help = help_box.HelpBox(_("Trust Help"),
 (_('Overview'), '\n' +

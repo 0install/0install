@@ -44,25 +44,21 @@ class GUIHandler(handler.Handler):
 	def impl_added_to_store(self, impl):
 		self.mainwindow.update_download_status()
 
-	def confirm_trust_keys(self, interface, sigs, iface_xml):
-		def do_confirm():
-			from zeroinstall.gtkui import trust_box
-			return trust_box.confirm_trust(interface, sigs, iface_xml, parent = self.mainwindow.window)
+	@tasks.async
+	def confirm_import_feed(self, pending, valid_sigs):
 		if self.mainwindow.systray_icon:
 			self.mainwindow.systray_icon.set_tooltip(_('Need to confirm a new GPG key'))
 			self.mainwindow.systray_icon.set_blinking(True)
-			@tasks.async
-			def wait_and_confirm():
-				# Wait for the user to click the icon, then continue
-				yield self.mainwindow.systray_icon_blocker
-				yield tasks.TimeoutBlocker(0.5, 'Delay')
-				conf = do_confirm()
-				if conf:
-					yield conf
-			return wait_and_confirm()
-		else:
-			return do_confirm()
-	
+
+			# Wait for the user to click the icon, then continue
+			yield self.mainwindow.systray_icon_blocker
+			yield tasks.TimeoutBlocker(0.5, 'Delay')
+
+		from zeroinstall.gtkui import trust_box
+		box = trust_box.TrustBox(pending, valid_sigs, parent = self.mainwindow.window)
+		box.show()
+		yield box.closed
+
 	def report_error(self, ex, tb = None):
 		if isinstance(ex, download.DownloadAborted):
 			return		# No need to tell the user about this, since they caused it
