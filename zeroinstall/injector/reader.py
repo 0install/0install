@@ -33,7 +33,7 @@ def update_from_cache(interface):
 	else:
 		cached = basedir.load_first_cache(config_site, 'interfaces', escape(interface.uri))
 		if cached:
-			debug(_("Loading cached information for %(interface)s from %(cached)s"), {'interfaces': interface, 'cached': cached})
+			debug(_("Loading cached information for %(interface)s from %(cached)s"), {'interface': interface, 'cached': cached})
 			main_feed = update(interface, cached)
 
 	# Add the distribution package manager's version, if any
