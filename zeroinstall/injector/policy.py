@@ -16,7 +16,7 @@ import ConfigParser
 from zeroinstall import SafeException
 from zeroinstall.injector import arch
 from zeroinstall.injector.model import Interface, Implementation, network_levels, network_offline, DistributionImplementation, network_full
-from zeroinstall.injector.namespaces import config_site, config_prog, injector_gui_uri
+from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.support import tasks, basedir
 from zeroinstall.injector.iface_cache import iface_cache
 
@@ -212,10 +212,6 @@ class Policy(object):
 		else:
 			if self._warned_offline:
 				debug(_("Not downloading feed '%s' because we are off-line."), feed_url)
-			elif feed_url == injector_gui_uri:
-				# Don't print a warning, because we always switch to off-line mode to
-				# run the GUI the first time.
-				info(_("Not downloading GUI feed '%s' because we are in off-line mode."), feed_url)
 			else:
 				warn(_("Not downloading feed '%s' because we are in off-line mode."), feed_url)
 				self._warned_offline = True

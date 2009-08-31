@@ -12,11 +12,10 @@ from zeroinstall import _
 
 def get_selections_gui(iface_uri, gui_args, test_callback = None):
 	"""Run the GUI to choose and download a set of implementations.
-	If the GUI itself is due for a check, refresh it first.
 	The user may ask the GUI to submit a bug report about the program. In that case,
 	the GUI may ask us to test it. test_callback is called in that case with the implementations
 	to be tested; the callback will typically call L{zeroinstall.injector.run.test_selections} and return the result of that.
-	@param iface_uri: the required program
+	@param iface_uri: the required program, or None to show just the preferences dialog
 	@type iface_uri: str
 	@param gui_args: any additional arguments for the GUI itself
 	@type gui_args: [str]
@@ -26,24 +25,11 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 	@rtype: L{zeroinstall.injector.selections.Selections}
 	@since: 0.28
 	"""
-	from zeroinstall.injector import selections, autopolicy, namespaces, model, run, qdom
+	from zeroinstall.injector import selections, qdom
 	from StringIO import StringIO
 
-	gui_policy = autopolicy.AutoPolicy(namespaces.injector_gui_uri)
-	if iface_uri != namespaces.injector_gui_uri and (gui_policy.need_download() or gui_policy.stale_feeds):
-		# The GUI itself needs updating. Do that first.
-		logging.info("The GUI could do with updating first.")
-		gui_sel = get_selections_gui(namespaces.injector_gui_uri, ['--refresh'])
-		if gui_sel is None:
-			logging.info("Aborted at user request")
-			return None		# Aborted by user
-	else:
-		# Try to start the GUI without using the network.
-		gui_policy.freshness = 0
-		gui_policy.network_use = model.network_offline
-		gui_policy.recalculate()
-		assert gui_policy.ready		# Should always be some version available
-		gui_sel = selections.Selections(gui_policy)
+	from os.path import join, dirname
+	gui_exe = join(dirname(__file__), '0launch-gui', '0launch-gui')
 
 	import socket
 	cli, gui = socket.socketpair()
@@ -58,7 +44,9 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 					# We used to use pipes to support Python2.3...
 					os.dup2(gui.fileno(), 1)
 					os.dup2(gui.fileno(), 0)
-					run.execute_selections(gui_sel, gui_args + ['--', iface_uri])
+					if iface_uri is not None:
+						gui_args = gui_args + ['--', iface_uri]
+					os.execvp(gui_exe, [gui_exe] + gui_args)
 				except:
 					import traceback
 					traceback.print_exc(file = sys.stderr)

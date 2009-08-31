@@ -153,6 +153,7 @@ def show_preferences(policy):
 		preferences_box.destroy()
 	preferences_box = Preferences(policy)
 	preferences_box.window.show()
+	return preferences_box.window
 		
 gui_help = help_box.HelpBox(_("Zero Install Preferences Help"),
 (_('Overview'), '\n\n' +

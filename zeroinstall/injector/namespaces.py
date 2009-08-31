@@ -4,8 +4,6 @@
 
 @var config_site: Where our configuration settings are stored
 @var config_prog: Where our configuration settings are stored
-
-@var injector_gui_uri: The URI of the graphical interface for the injector
 """
 
 # Copyright (C) 2009, Thomas Leonard
@@ -16,5 +14,3 @@ XMLNS_TRUST = 'http://zero-install.sourceforge.net/2007/injector/trust'
 
 config_site = '0install.net'
 config_prog = 'injector'
-
-injector_gui_uri = 'http://0install.net/2008/interfaces/ZeroInstall-GUI.xml'

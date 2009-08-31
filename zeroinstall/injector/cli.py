@@ -11,7 +11,7 @@ from optparse import OptionParser
 import logging
 
 from zeroinstall import SafeException, NeedDownload
-from zeroinstall.injector import model, autopolicy, namespaces, selections
+from zeroinstall.injector import model, autopolicy, selections
 from zeroinstall.injector.iface_cache import iface_cache
 
 #def program_log(msg): os.access('MARK: 0launch: ' + msg, os.F_OK)
@@ -133,11 +133,9 @@ def _manage_feeds(options, args):
 
 def _normal_mode(options, args):
 	if len(args) < 1:
-		# You can use -g on its own to edit the GUI's own policy
-		# Otherwise, failing to give an interface is an error
 		if options.gui:
-			args = [namespaces.injector_gui_uri]
-			options.download_only = True
+			from zeroinstall import helpers
+			return helpers.get_selections_gui(None, [])
 		else:
 			raise UsageError()
 

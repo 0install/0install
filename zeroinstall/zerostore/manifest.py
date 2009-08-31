@@ -257,7 +257,7 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 	The copy is first done to a temporary directory in target, then renamed to the final name
 	only if correct. Therefore, an invalid 'target/required_digest' will never exist.
 	A successful return means than target/required_digest now exists (whether we created it or not)."""
-	import tempfile, shutil
+	import tempfile
 	from logging import info
 
 	alg, digest_value = splitID(required_digest)

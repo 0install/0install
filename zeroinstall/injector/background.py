@@ -14,7 +14,7 @@ import sys, os
 from logging import info, warn
 from zeroinstall.support import tasks
 from zeroinstall.injector.iface_cache import iface_cache
-from zeroinstall.injector import handler, namespaces
+from zeroinstall.injector import handler
 
 def _escape_xml(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')

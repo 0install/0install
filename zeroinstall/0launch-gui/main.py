@@ -81,9 +81,20 @@ def run_gui(args):
 		gtk.main()
 		sys.exit(0)
 
+	handler = gui.GUIHandler()
+
 	if len(args) < 1:
-		parser.print_help()
-		sys.exit(1)
+		import preferences
+		# Once we separate configuration from Policy, this hack can go away
+		class DummyPolicy(Policy):
+			def recalculate(fetch_stale_interfaces = True):
+				pass
+			def solve_with_downloads(force = False):
+				pass
+		box = preferences.show_preferences(DummyPolicy('http://localhost/dummy', handler))
+		box.connect('destroy', gtk.main_quit)
+		gtk.main()
+		sys.exit(0)
 
 	interface_uri = args[0]
 
@@ -100,7 +111,6 @@ def run_gui(args):
 
 	widgets = dialog.Template('main')
 
-	handler = gui.GUIHandler()
 	policy = Policy(interface_uri, handler, src = bool(options.source))
 	policy.target_arch = arch.get_architecture(options.os, options.cpu)
 	root_iface = iface_cache.get_interface(interface_uri)

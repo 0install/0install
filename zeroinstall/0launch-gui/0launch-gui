@@ -2,6 +2,7 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 import os, sys
+from os.path import dirname
 
 import gettext
 import locale
@@ -17,7 +18,12 @@ gettext.install('zero-install', unicode=True, names=['ngettext'])
 # before adding the containing directory to sys.path, which means we don't see
 # the .pyc files. If run as root, this also causes .pyc files to be created in
 # the source directory, leaving a mess when the package is removed.
-sys.path.insert(0, os.path.dirname(__file__))
+_mydir = dirname(__file__)
+sys.path.insert(0, _mydir)
+
+# Make sure we're using our bundled copy of Zero Install, not the system version
+# (if different)
+sys.path.insert(0, dirname(dirname(_mydir)))
 
 import pygtk; pygtk.require('2.0')
 from gtk import glade

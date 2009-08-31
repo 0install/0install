@@ -1,11 +1,10 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import gobject, sys
+import gobject
 
 from zeroinstall.support import tasks
 from zeroinstall.injector import handler, download
-import dialog
 
 version = '0.41'
 

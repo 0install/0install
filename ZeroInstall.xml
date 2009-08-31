@@ -31,7 +31,6 @@ requires first uninstalling another.</description>
     <!-- Update the copy of the version number -->
     <release:action phase="commit-release">sed -i &quot;s/^version = '.*'$/version = '$RELEASE_VERSION'/&quot; zeroinstall/__init__.py</release:action>
     <release:action phase="commit-release">sed -i &quot;s/^version = '.*'$/version = '$RELEASE_VERSION'/&quot; zeroinstall/0launch-gui/gui.py</release:action>
-    <release:action phase="commit-release">0launch http://0install.net/2006/interfaces/0publish --set-released=today --set-version=&quot;$RELEASE_VERSION&quot; zeroinstall/0launch-gui/ZeroInstall-GUI.xml</release:action>
     <release:action phase="generate-archive">make translations</release:action>
   </release:management>
 

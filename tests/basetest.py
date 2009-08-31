@@ -11,10 +11,10 @@ warnings.filterwarnings("ignore", category = DeprecationWarning)
 os.environ['HOME'] = '/home/idontexist'
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import namespaces, qdom
+from zeroinstall.injector import qdom
 from zeroinstall.injector import iface_cache, download, distro
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
-from zeroinstall import support
+from zeroinstall import support, helpers
 from zeroinstall.support import basedir
 
 dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
@@ -23,6 +23,17 @@ empty_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-insta
 <name>Empty</name>
 <summary>just for testing</summary>
 </interface>"""))
+
+mydir = os.path.dirname(__file__)
+
+# Catch us trying to run the GUI and return a dummy string instead
+old_execvp = os.execvp
+def test_execvp(prog, args):
+	if prog.endswith('/0launch-gui'):
+		prog = os.path.join(mydir, 'test-gui')
+	return old_execvp(prog, args)
+
+os.execvp = test_execvp
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):
@@ -45,7 +56,6 @@ class BaseTest(unittest.TestCase):
 
 		if os.environ.has_key('DISPLAY'):
 			del os.environ['DISPLAY']
-		namespaces.injector_gui_uri = os.path.join(os.path.dirname(__file__), 'test-gui.xml')
 
 		logging.getLogger().setLevel(logging.WARN)
 

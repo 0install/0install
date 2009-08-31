@@ -8,11 +8,10 @@ Parses an XML interface into a Python representation.
 from zeroinstall import _
 import os
 from logging import debug, info, warn
-from os.path import dirname
 
 from zeroinstall.support import basedir
 from zeroinstall.injector import qdom, distro
-from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFACE, injector_gui_uri
+from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFACE
 from zeroinstall.injector.model import Interface, InvalidInterface, ZeroInstallFeed, escape, Feed, stability_levels
 from zeroinstall.injector import model
 
@@ -45,11 +44,6 @@ def update_from_cache(interface):
 		interface.extra_feeds.append(Feed(os.path.realpath(path), None, False))
 
 	update_user_overrides(interface, main_feed)
-
-	# Special case: add our fall-back local copy of the injector as a feed
-	if interface.uri == injector_gui_uri:
-		local_gui = os.path.join(os.path.abspath(dirname(dirname(__file__))), '0launch-gui', 'ZeroInstall-GUI.xml')
-		interface.extra_feeds.append(Feed(local_gui, None, False))
 
 	return bool(cached)
 
