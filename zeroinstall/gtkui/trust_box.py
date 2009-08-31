@@ -38,20 +38,59 @@ def left(text):
 	label.set_selectable(True)
 	return label
 
-def get_hint(fingerprint):
+def make_hints_area(closed, key_info_fetcher):
+	def text(parent):
+		text = ""
+		for node in parent.childNodes:
+			if node.nodeType == node.TEXT_NODE:
+				text = text + node.data
+		return text
+
+	hints = gtk.VBox(False, 4)
+
+	shown = set()
+	def add_hints():
+		infos = set(key_info_fetcher.info) - shown
+		for info in infos:
+			hints.add(make_hint(info.getAttribute("vote"), text(info)))
+			shown.add(info)
+
+		if not(key_info_fetcher.blocker or shown):
+			hints.add(make_hint("bad", _('Warning: Nothing known about this key!')))
+
+	if key_info_fetcher.blocker:
+		status = left(key_info_fetcher.status)
+		hints.add(status)
+
+		@tasks.async
+		def update_when_ready():
+			while key_info_fetcher.blocker:
+				yield key_info_fetcher.blocker, closed
+				if closed.happened:
+					# The dialog box was closed. Stop updating.
+					return
+				add_hints()
+			status.destroy()
+		update_when_ready()
+	else:
+		add_hints()
+
+	hints.show()
+	return hints
+
+def make_hint(vote, hint_text):
 	hint_icon = gtk.Image()
-	hint_text = hints.get(fingerprint, None)
-	if hint_text:
+	if vote == "good":
 		hint_icon.set_from_stock(gtk.STOCK_YES, gtk.ICON_SIZE_BUTTON)
 	else:
 		hint_icon.set_from_stock(gtk.STOCK_DIALOG_WARNING, gtk.ICON_SIZE_BUTTON)
-		hint_text = _('Warning: Nothing known about this key!')
 	hint = left(hint_text)
 	hint.set_line_wrap(True)
 	hint_hbox = gtk.HBox(False, 4)
 	hint_hbox.pack_start(hint_icon, False, True, 0)
 	hint_hbox.pack_start(hint, True, True, 0)
 	hint_icon.set_alignment(0, 0)
+	hint_hbox.show_all()
 	return hint_hbox
 
 class TrustBox(gtk.Dialog):
@@ -147,7 +186,7 @@ class TrustBox(gtk.Dialog):
 			if name is not None:
 				frame(page, _('Claimed identity'), name)
 
-			frame(page, _('Unreliable hints database says'), get_hint(sig.fingerprint))
+			frame(page, _('Unreliable hints database says'), make_hints_area(self.closed, valid_sigs[sig]))
 
 			already_trusted = trust.trust_db.get_trust_domains(sig.fingerprint)
 			if already_trusted:
@@ -220,105 +259,3 @@ should be suspicious that you're being asked to confirm another key!""")),
 _("""In general, most problems seem to come from malicous and otherwise-unknown people \
 replacing software with modified versions, or creating new programs intended only to \
 cause damage. So, check your programs are signed by a key with a good reputation!""")))
-
-hints = {
-	'1DC295D11A3F910DA49D3839AA1A7812B40B0B6E' :
-		_('Ken Hayber has been writing ROX applications since 2003. This key '
-		'was announced on the rox-users list on 5 Jun 2005.'),
-
-	'4338D5420E0BAEB6B2E73530B66A4F24AB8B4B65' :
-		_('Thomas Formella is experimenting with packaging programs for 0launch. This key '
-		'was announced on 11 Sep 2005 on the zero-install mailing list.'),
-
-	'92429807C9853C0744A68B9AAE07828059A53CC1' :
-		_('Thomas Leonard created Zero Install and ROX. This key is used to sign updates to the '
-		'injector; you should accept it.'),
-
-	'DA9825AECAD089757CDABD8E07133F96CA74D8BA' :
-		_('Thomas Leonard created Zero Install and ROX. This key is used to sign updates to the '
-		'injector; you should accept it. It was announced on the Zero Install mailing list '
-		'on 2009-05-31.'),
-
-	'0597A2AFB6B372ACB97AC6E433B938C2E9D8826D' : 
-		_('Stephen Watson is a project admin for the ROX desktop, and has been involved with the '
-		'project since 2000. This key has been used for signing software since the 23 Jul 2005 '
-		'announcement on the zero-install mailing list.'),
-	
-	'F0A0CA2A8D8FCC123F5EC04CD8D59DC384AE988E' :
-		_('Piero Ottuzzi is experimenting with packaging programs for 0launch. This key has been '
-		'known since a 16 Mar 2005 post to the zero-install mailing list. It was first used to '
-		'sign software in an announcement posted on 9 Aug 2005.'),
-	
-	'FC71DC3364367CE82F91472DDF32928893D894E9' :
-		_('Niklas Höglund is experimenting with using Zero Install on the Nokia 770. This key has '
-		'been known since the announcement of 4 Apr 2006 on the zero-install mailing list.'),
-	
-	'B93AAE76C40A3222425A04FA0BDA706F2C21E592' : # expired
-		_('Ilja Honkonen is experimenting with packaging software for Zero Install. This key '
-		'was announced on 2006-04-21 on the zero-install mailing list.'),
-
-	'6AD4A9C482F1D3F537C0354FC8CC44742B11FF89' :
-		'Ilja Honkonen is experimenting with packaging software for Zero Install. This key '
-		'was announced on 2009-06-18 on the zero-install mailing list.',
- 	
-	'5D3D90FB4E6FE10C7F76E94DEE6BC26DBFDE8022' :
-		_('Dennis Tomas leads the rox4debian packaging effort. This key has been known since '
-		'an email forwarded to the rox-devel list on 2006-05-28.'),
-	
-	'2E2B4E59CAC8D874CD2759D34B1095AF2E992B19' :
-		'Lennon Cook creates the FreeBSD-x86 binaries for various ROX applications. '
-		'This key was announced in a Jun 17, 2006 post to the rox-devel mailing list.',
-	
-	'7722DC5085B903FF176CCAA9695BA303C9839ABC' :
-		_('Lennon Cook creates the FreeBSD-x86 binaries for various ROX applications. '
-		'This key was announced in an Oct 5, 2006 post to the rox-users mailing list.'),
-	
-	'03DC5771716A5A329CA97EA64AB8A8E7613A266F' :
-		_('Lennon Cook creates the FreeBSD-x86 binaries for various ROX applications. '
-		'This key was announced in an Oct 7, 2007 post to the rox-users mailing list.'),
-
-	'617794D7C3DFE0FFF572065C0529FDB71FB13910' :
-		_('This low-security key is used to sign Zero Install interfaces which have been '
-		"automatically generated by a script. Typically, the upstream software didn't "
-		"come with a signature, so it's impossible to know if the code is actually OK. "
-		"However, there is still some benefit: if the archive is modified after the "
-		"script has signed it then any further changes will be detected, so this isn't "
-		"completely pointless."),
-
-	'5E665D0ECCCF1215F725BD2FA7421904E3D1B654' :
-		_('Daniel Carrera works on the OpenDocument viewer from opendocumentfellowship.org. '
-		'This key was confirmed in a zero-install mailing list post on 2007-01-09.'),
-
-	'635469E565B8D340C2C9EA4C32FBC18CE63EF486' :
-		_('Eric Wasylishen is experimenting with packaging software with Zero Install. '
-		'This key was announced on the zero-install mailing list on 2007-01-16 and then lost.'),
-
-	'E5175248514E9D4E558B5925BC456918F32AC5D1' :
-		_('Eric Wasylishen is experimenting with packaging software with Zero Install. '
-		'This key was announced on the zero-install mailing list on 2008-12-07'),
-
-	'C82D382AAB381A54529019D6A0F9B035686C6996' :
-		_("Justus Winter is generating Zero Install feeds from pkgsrc (which was originally "
-		"NetBSD's ports collection). This key was announced on the zero-install mailing list "
-		"on 2007-06-01."),
-
-	'D7582A2283A01A6480780AC8E1839306AE83E7E2' :
-		_('Tom Adams is experimenting with packaging software with Zero Install. '
-		'This key was announced on the zero-install mailing list on 2007-08-14.'),
-	
-	'3B2A89E694686DC4FEEFD6F6D00CA21EC004251B' :
-		_('Tuomo Valkonen is the author of the Ion tiling window manager. This key fingerprint '
-		'was taken from http://modeemi.fi/~tuomov/ on 2007-11-17.'),
-
-	'A14924F4DFD1B81DED3436240C9B2C41B8D66FEA' :
-		_('Andreas K. Förster is experimenting with creating Zero Install feeds. '
-		'This key was announced in a 2008-01-25 post to the zeroinstall mailing list.'),
-	
-	'520DCCDBE5D38E2B22ADD82672E5E2ACF037FFC4' :
-		_('Thierry Goubier creates PPC binaries for the ROX desktop. This key was '
-		'announced in a 2008-02-03 posting to the rox-users list.'),
-
-	'517085B7261D3B03A97515319C2C2CD1D41AF5BB' :
-		_('Frank Richter is a developer of the Crystal Space 3D SDK. This key was '
-		'confirmed in a 2008-09-04 post to the zero-install-devel mailing list.'),
-}
