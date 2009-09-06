@@ -7,7 +7,9 @@ import os
 import gtk, gobject, pango
 import subprocess
 
+from zeroinstall import support
 from zeroinstall.gtkui import icon, xdgutils, treetips
+from zeroinstall.injector import policy, reader, model, namespaces
 
 def _pango_escape(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')
@@ -160,10 +162,26 @@ class AppListBox:
 			return pixbuf
 
 	def action_run(self, uri):
-		subprocess.Popen(['0launch', '--', uri])
+		iface = self.iface_cache.get_interface(uri)
+		reader.update_from_cache(iface)
+		if len(iface.get_metadata(namespaces.XMLNS_IFACE, 'needs-terminal')):
+			for terminal in ['xterm', 'gnome-terminal', 'rxvt', 'konsole']:
+				exe = support.find_in_path(terminal)
+				if exe:
+					if terminal == 'gnome-terminal':
+						flag = '-x'
+					else:
+						flag = '-e'
+					subprocess.Popen([terminal, flag, '0launch', '--', uri])
+					break
+			else:
+				box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, _("Can't find a suitable terminal emulator"))
+				box.run()
+				box.destroy()
+		else:
+			subprocess.Popen(['0launch', '--', uri])
 
 	def action_help(self, uri):
-		from zeroinstall.injector import policy, reader, model
 		p = policy.Policy(uri)
 		policy.network_use = model.network_offline
 		if p.need_download():
