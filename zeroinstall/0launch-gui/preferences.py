@@ -101,7 +101,7 @@ class KeyList:
 					if domain not in domains:
 						domains[domain] = set()
 					domains[domain].add(keys[fingerprint])
-			for domain in domains:
+			for domain in sorted(domains):
 				iter = self.trusted_keys.append(None, [domain, None])
 				for key in domains[domain]:
 					self.trusted_keys.append(iter, [key.name, key])
