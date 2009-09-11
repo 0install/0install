@@ -764,7 +764,7 @@
                             <property name="visible">True</property>
                             <property name="model">liststore1</property>
                             <child>
-                              <object class="GtkCellRendererText" id="cellrenderertext1"/>
+                              <object class="GtkCellRendererText" id="cellrenderertext3"/>
                               <attributes>
                                 <attribute name="text">0</attribute>
                               </attributes>
