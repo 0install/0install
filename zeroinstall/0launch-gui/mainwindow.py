@@ -13,8 +13,6 @@ import dialog
 from zeroinstall.gtkui import gtkutils
 from zeroinstall.gtkui import help_box
 
-tips = gtk.Tooltips()
-
 SHOW_PREFERENCES = 0
 
 class MainWindow:

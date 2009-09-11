@@ -19,11 +19,6 @@ import compile
 
 _dialogs = {}	# Interface -> Properties
 
-tips = gtk.Tooltips()
-
-# Response codes
-COMPILE = 2
-
 def enumerate(items):
 	x = 0
 	for i in items:
