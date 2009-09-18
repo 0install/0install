@@ -207,12 +207,35 @@ def extract_deb(stream, destdir, extract = None, start_offset = 0):
 	deb_copy = file(deb_copy_name, 'w')
 	shutil.copyfileobj(stream, deb_copy)
 	deb_copy.close()
-	_extract(stream, destdir, ('ar', 'x', 'archive.deb', 'data.tar.gz'))
+
+	data_tar = None
+	p = subprocess.Popen(('ar', 't', 'archive.deb'), stdout=subprocess.PIPE, cwd=destdir, universal_newlines=True)
+	o = p.communicate()[0]
+	for line in o.split('\n'):
+		if line[:8] == 'data.tar':
+			data_tar = line
+			(root, ext) = os.path.splitext(line)
+			if ext == '.tar':
+				data_compression = None
+			elif ext == '.gz':
+				data_compression = 'gzip'
+			elif ext == '.bz2':
+				data_compression = 'bzip2'
+			elif ext == '.lzma':
+				data_compression = 'lzma'
+			else:
+				raise SafeException(_("The '%s' extension is unsupported inside a deb.") % ext)
+			break
+
+	if data_tar == None:
+		raise SafeException(_("File is not a Debian package."))
+
+	_extract(stream, destdir, ('ar', 'x', 'archive.deb', data_tar))
 	os.unlink(deb_copy_name)
-	data_name = os.path.join(destdir, 'data.tar.gz')
+	data_name = os.path.join(destdir, data_tar)
 	data_stream = file(data_name)
 	os.unlink(data_name)
-	extract_tar(data_stream, destdir, None, 'gzip')
+	extract_tar(data_stream, destdir, None, data_compression)
 
 def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 	if extract:
