@@ -212,22 +212,19 @@ def extract_deb(stream, destdir, extract = None, start_offset = 0):
 	p = subprocess.Popen(('ar', 't', 'archive.deb'), stdout=subprocess.PIPE, cwd=destdir, universal_newlines=True)
 	o = p.communicate()[0]
 	for line in o.split('\n'):
-		if line[:8] == 'data.tar':
-			data_tar = line
-			(root, ext) = os.path.splitext(line)
-			if ext == '.tar':
-				data_compression = None
-			elif ext == '.gz':
-				data_compression = 'gzip'
-			elif ext == '.bz2':
-				data_compression = 'bzip2'
-			elif ext == '.lzma':
-				data_compression = 'lzma'
-			else:
-				raise SafeException(_("The '%s' extension is unsupported inside a deb.") % ext)
-			break
-
-	if data_tar == None:
+		if line == 'data.tar':
+			data_compression = None
+		elif line == 'data.tar.gz':
+			data_compression = 'gzip'
+		elif line == 'data.tar.bz2':
+			data_compression = 'bzip2'
+		elif line == 'data.tar.lzma':
+			data_compression = 'lzma'
+		else:
+			continue
+		data_tar = line
+		break
+	else:
 		raise SafeException(_("File is not a Debian package."))
 
 	_extract(stream, destdir, ('ar', 'x', 'archive.deb', data_tar))
