@@ -258,6 +258,7 @@ class IfaceCache(object):
 			old_xml = file(cached).read()
 			if old_xml == new_xml:
 				debug(_("No change"))
+				reader.update_from_cache(interface)
 				return
 
 		stream = file(cached + '.new', 'w')
