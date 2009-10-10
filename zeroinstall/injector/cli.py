@@ -80,7 +80,7 @@ def _manage_feeds(options, args):
 	handler = Handler(dry_run = options.dry_run)
 	if not args: raise UsageError()
 	for x in args:
-		print _("Feed '%s':\n") % x
+		print _("Feed '%s':") % x + '\n'
 		x = model.canonical_iface_uri(x)
 		policy = Policy(x, handler)
 		if options.offline:

@@ -148,10 +148,10 @@ class MainWindow:
 			done += so_far
 
 		progress_text = '%s / %s' % (pretty_size(done), pretty_size(total))
-		if n_downloads == 1:
-			self.progress.set_text(_('Downloading one file (%s)') % progress_text)
-		else:
-			self.progress.set_text(_('Downloading %(number)d files (%(progress)s)') % {'number': n_downloads, 'progress': progress_text})
+		self.progress.set_text(
+			ngettext('Downloading one file (%(progress)s)',
+					 'Downloading %(number)d files (%(progress)s)', n_downloads)
+			% {'progress': progress_text, 'number': n_downloads})
 
 		if total == 0 or (n_downloads < 2 and not any_known):
 			self.progress.pulse()

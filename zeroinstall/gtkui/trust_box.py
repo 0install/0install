@@ -143,10 +143,7 @@ class TrustBox(gtk.Dialog):
 			descriptions = [_('None')]
 		frame(vbox, _('Keys already approved for "%s"') % domain, '\n'.join(descriptions))
 
-		if len(valid_sigs) == 1:
-			label = left(_('This key signed the feed:'))
-		else:
-			label = left(_('These keys signed the feed:'))
+		label = left(ngettext('This key signed the feed:', 'These keys signed the feed:', len(valid_sigs)))
 
 		label.set_padding(4, 4)
 		vbox.pack_start(label, False, True, 0)

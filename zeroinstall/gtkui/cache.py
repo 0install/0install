@@ -462,5 +462,4 @@ section.""")),
 (_('Interfaces'), '\n' +
 _("""All remaining interfaces are listed in this section. You may wish to delete old versions of \
 certain programs. Deleting a program which you may later want to run will require it to be downloaded \
-again. Deleting a version of a program which is currently running may cause it to crash, so be careful!
-""")))
+again. Deleting a version of a program which is currently running may cause it to crash, so be careful!""")))
