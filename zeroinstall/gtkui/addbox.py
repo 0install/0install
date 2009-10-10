@@ -24,6 +24,7 @@ class AddBox:
 		builderfile = os.path.join(os.path.dirname(__file__), 'desktop.ui')
 
 		builder = gtk.Builder()
+		builder.set_translation_domain('zero-install')
 		builder.add_from_file(builderfile)
 		self.window = builder.get_object('main')
 		self.set_keep_above(True)

@@ -26,8 +26,6 @@ sys.path.insert(0, _mydir)
 sys.path.insert(0, dirname(dirname(_mydir)))
 
 import pygtk; pygtk.require('2.0')
-from gtk import glade
-glade.textdomain('zero-install')
 
 import main
 

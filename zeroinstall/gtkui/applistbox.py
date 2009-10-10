@@ -52,6 +52,7 @@ class AppListBox:
 		self.app_list = app_list
 
 		builder = gtk.Builder()
+		builder.set_translation_domain('zero-install')
 		builder.add_from_file(builderfile)
 		self.window = builder.get_object('applist')
 		tv = builder.get_object('treeview')
