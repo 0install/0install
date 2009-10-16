@@ -479,11 +479,11 @@ class Interface(object):
 
 	def __init__(self, uri):
 		assert uri
-		if uri.startswith('http:') or uri.startswith('/'):
+		if uri.startswith('http:') or uri.startswith('https:') or uri.startswith('/'):
 			self.uri = uri
 		else:
 			raise SafeException(_("Interface name '%s' doesn't start "
-					    "with 'http:'") % uri)
+					    "with 'http:' or 'https:'") % uri)
 		self.reset()
 
 	def _get_feed_for(self):
@@ -863,8 +863,8 @@ def canonical_iface_uri(uri):
 	@rtype: str
 	@raise SafeException: if uri isn't valid
 	"""
-	if uri.startswith('http://'):
-		if uri.find("/", 7) == -1:
+	if uri.startswith('http://') or uri.startswith('https://'):
+		if uri.count("/") < 3:
 			raise SafeException(_("Missing / after hostname in URI '%s'") % uri)
 		return uri
 	elif uri.startswith('file:///'):
