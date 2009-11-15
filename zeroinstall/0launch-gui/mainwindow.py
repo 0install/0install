@@ -102,8 +102,10 @@ class MainWindow:
 				if cancelled.happened:
 					return
 
-			if self.policy.get_uncached_implementations():
-				dialog.alert(self.window, _('Not all downloads succeeded; cannot run program.'))
+			uncached = self.policy.get_uncached_implementations()
+			if uncached:
+				missing = '\n- '.join([_('%s %s') % (iface.get_name(), impl.get_version()) for iface, impl in uncached])
+				dialog.alert(self.window, _('Not all downloads succeeded; cannot run program.\n\nFailed to get:') + '\n- ' + missing)
 			else:
 				from zeroinstall.injector import selections
 				sels = selections.Selections(self.policy)
