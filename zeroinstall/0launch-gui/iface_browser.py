@@ -362,10 +362,7 @@ class InterfaceBrowser:
 				self.model[iter][InterfaceBrowser.VERSION] = version_str
 
 				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
-				if hasattr(impl, 'requires'):
-					children = self.policy.solver.requires[iface]
-				else:
-					children = impl.dependencies
+				children = self.policy.solver.requires[iface]
 
 				for child in children:
 					if isinstance(child, model.InterfaceDependency):
