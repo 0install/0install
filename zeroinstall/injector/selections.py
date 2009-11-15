@@ -73,6 +73,7 @@ class Selections(object):
 		"""Set the selections from a policy.
 		@param policy: the policy giving the selected implementations."""
 		self.interface = policy.root
+		solver_requires = policy.solver.requires
 
 		for needed_iface in policy.implementation:
 			impl = policy.implementation[needed_iface]
@@ -84,7 +85,7 @@ class Selections(object):
 			attrs['interface'] = needed_iface.uri
 			attrs['from-feed'] = impl.feed.url
 
-			self.selections[needed_iface.uri] = Selection(impl.requires, impl.bindings, attrs)
+			self.selections[needed_iface.uri] = Selection(solver_requires[needed_iface], impl.bindings, attrs)
 
 	def _init_from_qdom(self, root):
 		"""Parse and load a selections document.

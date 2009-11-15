@@ -6,6 +6,7 @@
   <description>Source</description>
   <feed-for interface='http://foo/Binary.xml'/>
   <group>
+    <requires interface='notused' use='never'/>
     <requires interface='http://foo/Compiler.xml'>
       <environment name='PATH' insert='bin'/>
     </requires>

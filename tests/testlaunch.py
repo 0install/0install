@@ -95,6 +95,11 @@ class TestLaunch(BaseTest):
 		self.assertEquals("Would download 'http://foo/d'\nFinished\n", out)
 		self.assertEquals("", err)
 	
+	def testRun(self):
+		out, err = self.run_0launch(['Local.xml'])
+		self.assertEquals("", out)
+		assert "test-echo' does not exist" in err
+
 	def testOffline(self):
 		out, err = self.run_0launch(['--offline', 'http://foo/d'])
 		self.assertEquals("Can't find all required implementations:\n- <Interface http://foo/d> -> None\n", err)

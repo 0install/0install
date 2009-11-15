@@ -23,6 +23,8 @@ class Solver(object):
 	 4. If it is 'ready' then you can download and run the chosen versions.
 	@ivar selections: the chosen implementation of each interface
 	@type selections: {L{model.Interface}: Implementation}
+	@ivar requires: the selected dependencies for each chosen version
+	@type requires: {L{model.Interface}: [L{model.Dependency}]}
 	@ivar feeds_used: the feeds which contributed to the choice in L{selections}
 	@type feeds_used: set(str)
 	@ivar record_details: whether to record information about unselected implementations
@@ -30,10 +32,10 @@ class Solver(object):
 	@ivar details: extra information, if record_details mode was used
 	@type details: {str: [(Implementation, comment)]}
 	"""
-	__slots__ = ['selections', 'feeds_used', 'details', 'record_details', 'ready']
+	__slots__ = ['selections', 'requires', 'feeds_used', 'details', 'record_details', 'ready']
 
 	def __init__(self):
-		self.selections = self.feeds_used = self.details = None
+		self.selections = self.requires = self.feeds_used = self.details = None
 		self.record_details = False
 		self.ready = False
 	
@@ -68,6 +70,7 @@ class DefaultSolver(Solver):
 
 	def solve(self, root_interface, arch):
 		self.selections = {}
+		self.requires = {}
 		self.feeds_used = set()
 		self.details = self.record_details and {}
 		self._machine_group = None
@@ -85,6 +88,7 @@ class DefaultSolver(Solver):
 						"of '%s' but there are more restrictions! Ignoring the second set.", iface)
 				return ready
 			self.selections[iface] = None	# Avoid cycles
+			self.requires[iface] = selected_requires = []
 
 			assert iface not in restrictions
 			restrictions[iface] = dep.restrictions
@@ -98,8 +102,13 @@ class DefaultSolver(Solver):
 					debug(_("Now restricted to architecture group %s"), self._machine_group)
 				for d in impl.requires:
 					debug(_("Considering dependency %s"), d)
+					use = d.metadata.get("use", None)
+					if use not in arch.use:
+						info("Skipping dependency; use='%s' not in %s", use, arch.use)
+						continue
 					if not process(d, arch.child_arch):
 						ready = False
+					selected_requires.append(d)
 			else:
 				debug(_("No implementation chould be chosen yet"));
 				ready = False

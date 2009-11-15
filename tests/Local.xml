@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Echo</name>
+  <summary>Local feed</summary>
+
+  <implementation id="." main="test-echo" version="0.1">
+    <requires interface="odd" use="never"/>
+  </implementation>
+</interface>

@@ -37,12 +37,11 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 	@type wrapper: str
 	@precondition: C{policy.ready and policy.get_uncached_implementations() == []}
 	"""
-	iface = iface_cache.get_interface(policy.root)
 		
-	for impl in policy.implementation.values():
+	for iface, impl in policy.implementation.iteritems():
 		assert impl
 		_do_bindings(impl, impl.bindings)
-		for dep in impl.requires:
+		for dep in policy.solver.requires[iface]:
 			dep_iface = iface_cache.get_interface(dep.interface)
 			dep_impl = policy.get_implementation(dep_iface)
 			if isinstance(dep_impl, ZeroInstallImplementation):
@@ -50,7 +49,8 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 			else:
 				debug(_("Implementation %s is native; no bindings needed"), dep_impl)
 
-	root_impl = policy.get_implementation(iface)
+	root_iface = iface_cache.get_interface(policy.root)
+	root_impl = policy.get_implementation(root_iface)
 	_execute(root_impl, prog_args, dry_run, main, wrapper)
 
 def _do_bindings(impl, bindings):

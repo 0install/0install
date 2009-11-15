@@ -81,7 +81,13 @@ class Architecture:
 	@ivar machine_ranks: supported CPU types and their desirability
 	@type machine_ranks: {str: int}
 	@ivar child_arch: architecture for dependencies (usually C{self})
-	@type child_arch: L{Architecture}"""
+	@type child_arch: L{Architecture}
+	@ivar use: matching values for <requires use='...'>; otherwise the dependency is ignored
+	@type use: set(str)
+	"""
+
+	use = frozenset([None])
+
 	def __init__(self, os_ranks, machine_ranks):
 		self.os_ranks = os_ranks
 		self.machine_ranks = machine_ranks

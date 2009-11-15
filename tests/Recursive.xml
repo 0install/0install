@@ -8,6 +8,7 @@
     <requires interface='http://foo/Recursive.xml'>
       <environment name='FOO' insert='.'/>
     </requires>
+    <requires interface='http://doesnotexist/missing.xml' use="never"/>
     <implementation id='sha1=abc' version='1.0'/>
   </group>
 </interface>
