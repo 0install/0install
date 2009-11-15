@@ -1,3 +1,7 @@
+"""
+A dialog box for confirming GPG keys.
+"""
+
 # Copyright (C) 2009, Thomas Leonard
 # -*- coding: utf-8 -*-
 # See the README file for details, or visit http://0install.net.

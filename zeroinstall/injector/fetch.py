@@ -34,9 +34,11 @@ def _get_feed_dir(feed):
 
 class KeyInfoFetcher:
 	"""Fetches information about a GPG key from a key-info server.
-	@see: L{Fetcher.fetch_key_info}
+	See L{Fetcher.fetch_key_info} for details.
 	@since: 0.42
+
 	Example:
+
 	>>> kf = KeyInfoFetcher('https://server', fingerprint)
 	>>> while True:
 		print kf.info

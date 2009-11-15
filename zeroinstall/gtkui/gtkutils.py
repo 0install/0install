@@ -10,7 +10,7 @@ class Template:
 	"""Wrapper for GtkBuilder widget tree that throws a sensible exception if the widget isn't found."""
 	def __init__(self, builderfile, root):
 		"""Constructor.
-		@param gladefile: pathname of the .ui file to load
+		@param builderfile: pathname of the .ui file to load
 		@param root: the name of the top-level widget inside the file"""
 		self.builder = gtk.Builder()
 		self.builder.set_translation_domain('zero-install')
