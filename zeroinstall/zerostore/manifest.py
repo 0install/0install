@@ -227,7 +227,7 @@ def verify(root, required_digest = None):
 	
 	error.detail = _(" Expected: %(required_digest)s\n"
 					 "   Actual: %(actual_digest)s\n"
-					 ".manifest digest: %s\n\n") \
+					 ".manifest digest: %(manifest_digest)s\n\n") \
 					 % {'required_digest': required_digest, 'actual_digest': actual_digest, 'manifest_digest': manifest_digest or _('No .manifest file')}
 
 	if manifest_digest is None:
