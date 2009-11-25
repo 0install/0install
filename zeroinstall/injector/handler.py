@@ -182,8 +182,9 @@ class Handler(object):
 		self._current_confirm = lock = tasks.Blocker('confirm key lock')
 		try:
 			done = self.confirm_import_feed(pending, valid_sigs)
-			yield done
-			tasks.check(done)
+			if done is not None:
+				yield done
+				tasks.check(done)
 		finally:
 			self._current_confirm = None
 			lock.trigger()
