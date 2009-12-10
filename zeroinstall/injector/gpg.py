@@ -173,7 +173,7 @@ def import_key(stream):
 	"""Run C{gpg --import} with this stream as stdin."""
 	errors = tempfile.TemporaryFile()
 
-	child = subprocess.Popen(_gnupg_options + ['--quiet', '--import'],
+	child = subprocess.Popen(_gnupg_options + ['--quiet', '--import', '--batch'],
 				stdin = stream, stderr = errors)
 
 	status = child.wait()
