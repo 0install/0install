@@ -10,6 +10,10 @@ This is the low-level interface for downloading interfaces, implementations, ico
 # See the README file for details, or visit http://0install.net.
 
 import tempfile, os, sys, subprocess
+
+if __name__ == '__main__':
+	sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
 from zeroinstall import SafeException
 from zeroinstall.support import tasks
 from logging import info, debug
