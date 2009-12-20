@@ -249,6 +249,7 @@ class TestModel(BaseTest):
 		assert pv('1.0') > pv('1')
 		assert pv('1.0') == pv('1.0')
 		assert pv('0.9.9') < pv('1.0')
+		assert pv('10') > pv('2')
 
 		def invalid(v):
 			try:
@@ -256,6 +257,7 @@ class TestModel(BaseTest):
 				assert False
 			except model.SafeException, ex:
 				pass
+		invalid('.')
 		invalid('hello')
 		invalid('2./1')
 		invalid('.1')
