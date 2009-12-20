@@ -182,8 +182,13 @@ def import_key(stream):
 	error_messages = errors.read().strip()
 	errors.close()
 
-	if error_messages:
-		raise SafeException(_("Errors from 'gpg --import':\n%s") % error_messages)
+	if status != 0:
+		if error_messages:
+			raise SafeException(_("Errors from 'gpg --import':\n%s") % error_messages)
+		else:
+			raise SafeException(_("Non-zero exit code %d from 'gpg --import'") % status)
+	elif error_messages:
+		warn(_("Warnings from 'gpg --import':\n%s") % error_messages)
 
 def _check_plain_stream(stream):
 	data = tempfile.TemporaryFile()	# Python2.2 does not support 'prefix'
