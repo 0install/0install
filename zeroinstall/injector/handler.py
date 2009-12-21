@@ -32,6 +32,8 @@ class Handler(object):
 	@type n_completed_downloads: int
 	@ivar total_bytes_downloaded: informational counter for GUIs, etc (can be reset as desired). Updated when download finishes.
 	@type total_bytes_downloaded: int
+	@ivar dry_run: instead of starting a download, just report what we would have downloaded
+	@type dry_run: bool
 	"""
 
 	__slots__ = ['monitored_downloads', '_loop', 'dry_run', 'total_bytes_downloaded', 'n_completed_downloads', '_current_confirm']
@@ -207,7 +209,7 @@ class Handler(object):
 		domain = trust.domain_from_url(pending.url)
 
 		# Ask on stderr, because we may be writing XML to stdout
-		print >>sys.stderr, _("Feed: %s"), pending.url
+		print >>sys.stderr, _("Feed: %s") % pending.url
 		print >>sys.stderr, _("The feed is correctly signed with the following keys:")
 		for x in valid_sigs:
 			print >>sys.stderr, "-", x
@@ -321,3 +323,86 @@ class Handler(object):
 		warn("%s", str(exception) or type(exception))
 		#import traceback
 		#traceback.print_exception(exception, None, tb)
+
+class ConsoleHandler(Handler):
+	"""A Handler that displays progress on stdout (a tty).
+	@since: 0.44"""
+	last_msg_len = None
+	update = None
+	disable_progress = 0
+	screen_width = None
+
+	def downloads_changed(self):
+		import gobject
+		if self.monitored_downloads and self.update is None:
+			if self.screen_width is None:
+				import curses
+				curses.setupterm()
+				self.screen_width = curses.tigetnum('cols') or 80
+			self.show_progress()
+			self.update = gobject.timeout_add(200, self.show_progress)
+		elif len(self.monitored_downloads) == 0:
+			if self.update:
+				gobject.source_remove(self.update)
+				self.update = None
+				print
+				self.last_msg_len = None
+
+	def show_progress(self):
+		urls = self.monitored_downloads.keys()
+		if not urls: return True
+
+		if self.disable_progress: return True
+
+		screen_width = self.screen_width - 2
+		item_width = max(16, screen_width / len(self.monitored_downloads))
+		url_width = item_width - 7
+
+		msg = ""
+		for url in sorted(urls):
+			dl = self.monitored_downloads[url]
+			so_far = dl.get_bytes_downloaded_so_far()
+			leaf = url.rsplit('/', 1)[-1]
+			if len(leaf) >= url_width:
+				display = leaf[:url_width]
+			else:
+				display = url[-url_width:]
+			if dl.expected_size:
+				msg += "[%s %d%%] " % (display, int(so_far * 100 / dl.expected_size))
+			else:
+				msg += "[%s] " % (display)
+		msg = msg[:screen_width]
+
+		if self.last_msg_len is None:
+			sys.stdout.write(msg)
+		else:
+			sys.stdout.write(chr(13) + msg)
+			if len(msg) < self.last_msg_len:
+				sys.stdout.write(" " * (self.last_msg_len - len(msg)))
+
+		self.last_msg_len = len(msg)
+		sys.stdout.flush()
+
+		return True
+
+	def clear_display(self):
+		if self.last_msg_len != None:
+			sys.stdout.write(chr(13) + " " * self.last_msg_len + chr(13))
+			sys.stdout.flush()
+			self.last_msg_len = None
+
+	def report_error(self, exception, tb = None):
+		self.clear_display()
+		Handler.report_error(self, exception, tb)
+
+	def confirm_import_feed(self, pending, valid_sigs):
+		self.clear_display()
+		self.disable_progress += 1
+		blocker = Handler.confirm_import_feed(self, pending, valid_sigs)
+		@tasks.async
+		def enable():
+			yield blocker
+			self.disable_progress -= 1
+			self.show_progress()
+		enable()
+		return blocker

@@ -132,6 +132,8 @@ def _manage_feeds(options, args):
 			print _("(no feeds)")
 
 def _normal_mode(options, args):
+	from zeroinstall.injector import handler
+
 	if len(args) < 1:
 		if options.gui:
 			from zeroinstall import helpers
@@ -142,9 +144,15 @@ def _normal_mode(options, args):
 	iface_uri = model.canonical_iface_uri(args[0])
 	root_iface = iface_cache.get_interface(iface_uri)
 
+	if os.isatty(1):
+		h = handler.ConsoleHandler()
+	else:
+		h = handler.Handler()
+	h.dry_run = bool(options.dry_run)
+
 	policy = autopolicy.AutoPolicy(iface_uri,
+				handler = h,
 				download_only = bool(options.download_only),
-				dry_run = options.dry_run,
 				src = options.source)
 
 	if options.before or options.not_before:
