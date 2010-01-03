@@ -20,10 +20,18 @@ from zeroinstall.support import find_in_path, basedir
 from zeroinstall.injector.trust import trust_db
 from zeroinstall.injector.model import SafeException
 
-_gnupg_options = ['gpg', '--no-secmem-warning']
-if hasattr(os, 'geteuid') and os.geteuid() == 0 and 'GNUPGHOME' not in os.environ:
-	_gnupg_options += ['--homedir', os.path.join(basedir.home, '.gnupg')]
-	info(_("Running as root, so setting GnuPG home to %s"), _gnupg_options[-1])
+_gnupg_options = None
+def _run_gpg(args, **kwargs):
+	global _gnupg_options
+	if _gnupg_options is None:
+		gpg_path = find_in_path('gpg') or find_in_path('gpg2') or 'gpg'
+		_gnupg_options = [gpg_path, '--no-secmem-warning']
+
+		if hasattr(os, 'geteuid') and os.geteuid() == 0 and 'GNUPGHOME' not in os.environ:
+			_gnupg_options += ['--homedir', os.path.join(basedir.home, '.gnupg')]
+			info(_("Running as root, so setting GnuPG home to %s"), _gnupg_options[-1])
+
+	return subprocess.Popen(_gnupg_options + args, **kwargs)
 
 class Signature(object):
 	"""Abstract base class for signature check results."""
@@ -62,7 +70,7 @@ class ValidSig(Signature):
 		"""Call 'gpg --list-keys' and return the results split into lines and columns.
 		@rtype: [[str]]"""
 		# Note: GnuPG 2 always uses --fixed-list-mode
-		child = subprocess.Popen(_gnupg_options + ['--fixed-list-mode', '--with-colons', '--list-keys', self.fingerprint], stdout = subprocess.PIPE)
+		child = _run_gpg(['--fixed-list-mode', '--with-colons', '--list-keys', self.fingerprint], stdout = subprocess.PIPE)
 		cout, unused = child.communicate()
 		if child.returncode:
 			info(_("GPG exited with code %d") % child.returncode)
@@ -135,7 +143,7 @@ def load_keys(fingerprints):
 	current_fpr = None
 	current_uid = None
 
-	child = subprocess.Popen(_gnupg_options + ['--fixed-list-mode', '--with-colons', '--list-keys',
+	child = _run_gpg(['--fixed-list-mode', '--with-colons', '--list-keys',
 				'--with-fingerprint', '--with-fingerprint'] + fingerprints, stdout = subprocess.PIPE)
 	try:
 		for line in child.stdout:
@@ -174,7 +182,7 @@ def import_key(stream):
 	"""Run C{gpg --import} with this stream as stdin."""
 	errors = tempfile.TemporaryFile()
 
-	child = subprocess.Popen(_gnupg_options + ['--quiet', '--import', '--batch'],
+	child = _run_gpg(['--quiet', '--import', '--batch'],
 				stdin = stream, stderr = errors)
 
 	status = child.wait()
@@ -198,14 +206,14 @@ def _check_plain_stream(stream):
 	status_r, status_w = os.pipe()
 
 	# Note: Should ideally close status_r in the child, but we want to support Windows too
-	child = subprocess.Popen(_gnupg_options + ['--decrypt',
-					   # Not all versions support this:
-					   #'--max-output', str(1024 * 1024),
-					   '--batch',
-					   '--status-fd', str(status_w)],
-				stdin = stream,
-				stdout = data,
-				stderr = errors)
+	child = _run_gpg(['--decrypt',
+			  # Not all versions support this:
+			  #'--max-output', str(1024 * 1024),
+			  '--batch',
+			  '--status-fd', str(status_w)],
+		stdin = stream,
+		stdout = data,
+		stderr = errors)
 
 	os.close(status_w)
 
@@ -255,16 +263,15 @@ def _check_xml_stream(stream):
 		sig_file.close()
 
 		# Note: Should ideally close status_r in the child, but we want to support Windows too
-		child = subprocess.Popen(_gnupg_options + [
-						   # Not all versions support this:
-						   #'--max-output', str(1024 * 1024),
-						   '--batch',
-						   # Windows GPG can only cope with "1" here
-						   '--status-fd', '1',
-						   '--verify', sig_name, '-'],
-						   stdin = data,
-						   stdout = subprocess.PIPE,
-						   stderr = errors)
+		child = _run_gpg([# Not all versions support this:
+				  #'--max-output', str(1024 * 1024),
+				  '--batch',
+				  # Windows GPG can only cope with "1" here
+				  '--status-fd', '1',
+				  '--verify', sig_name, '-'],
+			   stdin = data,
+			   stdout = subprocess.PIPE,
+			   stderr = errors)
 
 		try:
 			sigs = _get_sigs_from_gpg_status_stream(child.stdout, child, errors)
