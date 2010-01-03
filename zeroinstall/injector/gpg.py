@@ -61,7 +61,8 @@ class ValidSig(Signature):
 	def get_details(self):
 		"""Call 'gpg --list-keys' and return the results split into lines and columns.
 		@rtype: [[str]]"""
-		child = subprocess.Popen(_gnupg_options + ['--with-colons', '--list-keys', self.fingerprint], stdout = subprocess.PIPE)
+		# Note: GnuPG 2 always uses --fixed-list-mode
+		child = subprocess.Popen(_gnupg_options + ['--fixed-list-mode', '--with-colons', '--list-keys', self.fingerprint], stdout = subprocess.PIPE)
 		cout, unused = child.communicate()
 		if child.returncode:
 			info(_("GPG exited with code %d") % child.returncode)
