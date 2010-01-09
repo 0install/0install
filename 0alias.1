@@ -1,6 +1,6 @@
 .TH 0ALIAS 1 "2009" "Thomas Leonard" ""
 .SH NAME
-0alias \- create quick scripts to run 0launch
+0alias \(em create quick scripts to run 0launch
 
 .SH SYNOPSIS
 
@@ -23,17 +23,17 @@ A program can be invoked using 0launch:
 .PP
 To avoid having to keep entering the URI, create an alias:
 
-.B 0alias rox-edit http://rox.sourceforge.net/2005/interfaces/Edit
+.B 0alias rox\-edit http://rox.sourceforge.net/2005/interfaces/Edit
 
 .PP
 To run Edit now:
 
-.B rox-edit
+.B rox\-edit
 
 .PP
 To select a different version, or check for updates:
 
-.B 0alias rox-edit
+.B 0alias rox\-edit
 
 .PP
 If an interface provides more than one program, you can specify which
@@ -47,30 +47,30 @@ one to use instead of the default. e.g.
 .SH COMMAND-LINE OPTIONS
 
 .TP
-\fB-d=DIR\fP, \fB--dir=DIR\fP
+\fB\-d=DIR\fP, \fB\-\-dir=DIR\fP
 Install the script into directory DIR, rather than searching for a suitable
 directory in $PATH.
 
 .TP
-\fB-h\fP, \fB--help\fP
+\fB\-h\fP, \fB\-\-help\fP
 Show the built-in help text.
 
 .TP
-\fB-m\fP, \fB--manpage\fP
+\fB\-m\fP, \fB\-\-manpage\fP
 Display the manpage for the alias script given as the single argument. The
 alias can be an absolute pathname, or the name of a script in $PATH. If the
 argument isn't an alias script, or if multiple arguments are given, then all
 arguments are passed to the system 'man' command. This allows you to alias your
 man command like this:
 
-alias man='0alias --manpage'
+alias man='0alias \-\-manpage'
 
 .TP
-\fB-r\fP, \fB--resolve\fP
+\fB\-r\fP, \fB\-\-resolve\fP
 Print the interface URI for the given alias script to stdout.
 
 .TP
-\fB-V\fP, \fB--version\fP
+\fB\-V\fP, \fB\-\-version\fP
 Display version information.
 
 .SH LICENSE

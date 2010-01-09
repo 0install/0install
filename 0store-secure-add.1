@@ -1,10 +1,10 @@
-.TH 0STORE-SECURE-ADD 1 "2009" "Thomas Leonard" ""
+.TH 0STORE\-SECURE\-ADD 1 "2009" "Thomas Leonard" ""
 .SH NAME
-0store-secure-add \- add an implementation to the system cache
+0store\-secure\-add \(em add an implementation to the system cache
 
 .SH SYNOPSIS
 
-.B 0store-secure-add
+.B 0store\-secure\-add
 \fBDIGEST\fP
 
 .SH DESCRIPTION
@@ -30,7 +30,7 @@ To enable sharing, the system administrator should follow these steps:
 .PP
 Create a new system user to own the cache:
 
-.B adduser --system zeroinst
+.B adduser \-\-system zeroinst
 
 .PP
 Create the shared directory, owned by this new user:
@@ -44,18 +44,18 @@ Use visudo(8) to add these lines to /etc/sudoers:
 
 .B Defaults>zeroinst env_reset
 
-.B ALL     ALL=(zeroinst) NOPASSWD: /usr/bin/0store-secure-add
+.B ALL     ALL=(zeroinst) NOPASSWD: /usr/bin/0store\-secure\-add
 
 .P
 Create a script called
-.B 0store-secure-add-helper
+.B 0store\-secure\-add\-helper
 in PATH to call it. This script must be executable and contain these two lines:
 
 .B
 #!/bin/sh
 
 .B
-exec sudo -S -u zeroinst /usr/bin/0store-secure-add "$@" < /dev/null
+exec sudo \-S \-u zeroinst /usr/bin/0store\-secure\-add "$@" < /dev/null
 
 .P
 The other Zero Install programs will call this helper script automatically.
