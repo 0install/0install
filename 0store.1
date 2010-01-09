@@ -39,17 +39,17 @@ cache is updated automatically using 0launch(1).
 .PP
 To add a directory to the store (makes a copy):
 
-.B 0store add sha1=XXX directory
+.B 0store add sha256=XXX directory
 
 .PP
 To add an archive to the store:
 
-.B 0store add sha1=XXX archive.tgz
+.B 0store add sha256=XXX archive.tgz
 
 .PP
 To add a subdirectory of an archive to the store:
 
-.B 0store add sha1=XXX archive.tgz subdir
+.B 0store add sha256=XXX archive.tgz subdir
 
 .PP
 The actual digest is calculated and compared to the given one. If they don't
@@ -74,14 +74,13 @@ a normal recursive directory copy followed by a
 .B 0store verify
 to check that the name matches the contents. E.g.:
 
-.B 0store copy ~someuser/.cache/0install.net/implementations/sha256=XXX
-/var/cache/0install.net/implementations/
+.B 0store copy ~someuser/.cache/0install.net/implementations/sha256=XXX /var/cache/0install.net/implementations/
 
 .SH FIND
 .PP
 To find the path of a stored item:
 
-.B 0store find sha1=XXX
+.B 0store find sha256=XXX
 
 .SH LIST
 
@@ -105,9 +104,9 @@ digest of each file, thus uniquely identifying that particular set of files.
 After the manifest, the last line gives the digest of the manifest itself.
 
 .PP
-This value is needed when creating interface files. However, the 0publish
+This value is needed when creating feed files. However, the 0publish
 command will automatically calculate the required digest for you and add it
-to an interface file. See the packager's guide on the Zero Install web site for
+to a feed file. See the packager's guide on the Zero Install web site for
 details.
 .PP
 Supported algorithms are 'sha1' (supported by all versions), 'sha1new'
@@ -132,7 +131,7 @@ Implementations using the old 'sha1' algorithm are not optimised.
 .PP
 To check that an item is stored correctly:
 
-.B 0store verify /path/to/sha1=XXX
+.B 0store verify /path/to/sha256=XXX
 
 This calculates the manifest of the directory and checks that its digest matches
 the directory's name. It also checks that it matches the digest of the .manifest
@@ -163,7 +162,7 @@ List of system cache directories, one per line.
 
 .SH LICENSE
 .PP
-Copyright (C) 2006 Thomas Leonard.
+Copyright (C) 2010 Thomas Leonard.
 
 .PP
 You may redistribute copies of this program under the terms of the GNU Lesser General Public License.

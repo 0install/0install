@@ -42,7 +42,7 @@ Create the shared directory, owned by this new user:
 .P
 Use visudo(8) to add these lines to /etc/sudoers:
 
-.B Defaults>zeroinst env_reset
+.B Defaults>zeroinst env_reset,always_set_home
 
 .B ALL     ALL=(zeroinst) NOPASSWD: /usr/bin/0store\-secure\-add
 

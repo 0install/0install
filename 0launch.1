@@ -11,7 +11,7 @@
 \-\-list [\fBSEARCH\-TERM\fP]
 
 .B 0launch
-\-\-import [\fBINTERFACE\-FILES\fP]
+\-\-import [\fBFEED\-FILES\fP]
 
 .SH DESCRIPTION
 .PP
@@ -23,13 +23,13 @@ do the same for libraries the program needs.
 .PP
 0launch will also check for updates if it has been a long time since the last
 check (configurable).
-0launch therefore allows users to download and upgrade software without
-needing root access.
 
 .PP
-An INTERFACE can be either a URL in the form `http://site/program' or
-a local path name like `/path/to/program.xml'. For HTTP URLs, the remote
-file is a GPG-signed XML document. Local interface files are not signed.
+Normally, INTERFACE is taken as a FEED, which can be either a URL in the form
+`http://site/program' or a local path name like `/path/to/program.xml'. For
+HTTP URLs, the remote file is a GPG-signed XML document. Local feed files
+are not signed. The default one-to-one mapping from interface URIs to feed
+URLs can be changed using the \-\-feed option.
 
 .SH EXAMPLES
 
@@ -80,22 +80,18 @@ Just print what actions would be taken.
 
 .TP
 \fB\-f\fP, \fB\-\-feed\fP
-Register (or unregister) an additional source of implementations. When you get
-a CVS version of a project, it may contain an interface XML file. To add this
+Register (or unregister) an additional source of implementations. When you check out
+a developer version of a project, it may contain an XML feed file. To add this
 version to the list of available versions, use \-\-feed on this XML file. The
 file is not copied, so you don't need to re-add the file each time it is
 updated.
 
 Note that if you just want to run the program, you can invoke 0launch on the
-interface file directly (without using \-\-feed). This will force the injector to
+feed file directly (without using \-\-feed). This will force the injector to
 use that version, but won't affect what happens when you run it using the URI
-as normal. Use \-\-feed when you want to use the CVS version even when using the
-URI, or if the program is a library (and thus referenced by URI by other
-programs).
-
-Note also that the stability of CVS versions may be set to 'developer', in
-which case you must set this as the preferred stability for the interface
-(using the GUI).
+as normal. Use \-\-feed when you want to use the developer version even when
+using the URI, or if the program is a library (and thus referenced by URI by
+other programs).
 
 .TP
 \fB\-\-get\-selections\fP
@@ -113,8 +109,8 @@ Show the built-in help text.
 
 .TP
 \fB\-i\fP, \fB\-\-import\fP
-Import from files, not from the network. This is useful when testing an
-interface file, to avoid uploading it to a remote server in order to download
+Import from files, not from the network. This is useful when testing a
+feed file, to avoid uploading it to a remote server in order to download
 it again. It might also be useful when installing from a CD or similar.
 The file must have a trusted GPG digital signature, as when fetching from
 the network. For unsigned interfaces, see \-\-feed.
@@ -147,8 +143,7 @@ programs won't be downloaded even if the injector already knows about them
 .TP
 \fB\-r\fP, \fB\-\-refresh\fP
 Fetch a fresh copy of all used interfaces. This will normally switch to GUI
-mode, unless \-\-console is also given. Note that using \-\-refresh and \-\-gui
-together will check for updates to the GUI itself.
+mode, unless \-\-console is also given.
 
 .TP
 \fB\-\-set\-selections=FILE\fP
@@ -160,7 +155,8 @@ the versions given in FILE. A suitable file can be created using the
 \fB\-s\fP, \fB\-\-source\fP
 The implementation of the main (root) interface must have an architecture
 of the form '*\-src' (normally a literal "*", but could be a compatible OS).
-Dependencies are normal implementations, not source ones.
+Dependencies are normal implementations, not source ones. See 0compile for
+details.
 
 .TP
 \fB\-v\fP, \fB\-\-verbose\fP
@@ -207,7 +203,7 @@ Configuration files (see freedesktop.org basedir spec):
 .IP "~/.config/0install.net/injector/global"
 Global configuration settings.
 
-.IP "~/.config/0install.net/injector/trust"
+.IP "~/.config/0install.net/injector/trustdb.xml"
 List of trusted keys.
 
 .IP "~/.config/0install.net/injector/user_overrides"
@@ -217,7 +213,7 @@ Per-interface settings, and extra feeds.
 Cached data (can be re-downloaded if lost):
 
 .IP "~/.cache/0install.net/interfaces"
-Downloaded cached interface files.
+Downloaded cached feed files.
 
 .IP "~/.cache/0install.net/implementations"
 Downloaded cached implementations, indexed by manifest digest.
@@ -227,7 +223,7 @@ See the 0store(1) man page for more information.
 
 .SH LICENSE
 .PP
-Copyright (C) 2009 Thomas Leonard.
+Copyright (C) 2010 Thomas Leonard.
 
 .PP
 You may redistribute copies of this program under the terms of the GNU Lesser General Public License.
