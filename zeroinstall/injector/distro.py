@@ -211,22 +211,28 @@ class GentooDistribution(Distribution):
 	def get_package_info(self, package, factory):
 		_version_start_reqexp = '-[0-9]'
 
-		for path in glob.glob('%s/%s-[0-9]*' % (self._pkgdir, package)):
-			name = file(os.path.join(path, 'PF')).readline().strip()
+		if package.count('/') != 1: return
 
-			match = re.search(_version_start_reqexp, name)
-			if match is None:
-				warn(_('Cannot parse version from Gentoo package ' \
-                       'name %(name)s' % {'name': name}))
-				continue
-			else:
-				version = try_cleanup_distro_version(name[match.start() + 1:])
+		category, leafname = package.split('/')
+		category_dir = os.path.join(self._pkgdir, category)
+		match_prefix = leafname + '-'
 
-			machine = file(os.path.join(path, 'CHOST')).readline().split('-')[0]
+		for filename in os.listdir(category_dir):
+			if filename.startswith(match_prefix) and filename[len(match_prefix)].isdigit():
+				name = file(os.path.join(category_dir, filename, 'PF')).readline().strip()
 
-			impl = factory('package:gentoo:%s:%s:%s' % \
-					(package, version, machine))
-			impl.version = model.parse_version(version)
+				match = re.search(_version_start_reqexp, name)
+				if match is None:
+					warn(_('Cannot parse version from Gentoo package named "%(name)s"'), {'name': name})
+					continue
+				else:
+					version = try_cleanup_distro_version(name[match.start() + 1:])
+
+				machine = file(os.path.join(category_dir, filename, 'CHOST')).readline().split('-')[0]
+
+				impl = factory('package:gentoo:%s:%s:%s' % \
+						(package, version, machine))
+				impl.version = model.parse_version(version)
 
 _host_distribution = None
 def get_host_distribution():
