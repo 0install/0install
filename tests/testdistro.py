@@ -55,9 +55,30 @@ class TestDistro(BaseTest):
 		self.assertEquals('2.15.23-21', yast.get_version())
 		self.assertEquals('*-i586', yast.arch)
 
+	def testGentoo(self):
+		pkgdir = os.path.join(os.path.dirname(__file__), 'gentoo')
+		ebuilds = distro.GentooDistribution(pkgdir)
+
+		ebuilds.get_package_info('gimp', self.factory)
+		self.assertEquals({}, self.feed.implementations)
+
+		ebuilds.get_package_info('sys-apps/portage', self.factory)
+		self.assertEquals(1, len(self.feed.implementations))
+		impl = self.feed.implementations['package:gentoo:sys-apps/portage:2.1.7.16:x86_64']
+		self.assertEquals('2.1.7.16', impl.get_version())
+
+		ebuilds.get_package_info('sys-kernel/gentoo-sources', self.factory)
+		self.assertEquals(3, len(self.feed.implementations))
+		impl = self.feed.implementations['package:gentoo:sys-kernel/gentoo-sources:2.6.30-4:i686']
+		self.assertEquals('2.6.30-4', impl.get_version())
+		impl = self.feed.implementations['package:gentoo:sys-kernel/gentoo-sources:2.6.32:x86_64']
+		self.assertEquals('2.6.32', impl.get_version())
+
 	def testCleanVersion(self):
 		self.assertEquals('1', distro.try_cleanup_distro_version('1:0.3.1-1'))
 		self.assertEquals('0.3.1-1', distro.try_cleanup_distro_version('0.3.1-1ubuntu0'))
+		self.assertEquals('0.3-post1-rc2', distro.try_cleanup_distro_version('0.3-post1-rc2'))
+		self.assertEquals('0.3.1-2', distro.try_cleanup_distro_version('0.3.1-r2-r3'))
 
 suite = unittest.makeSuite(TestDistro)
 if __name__ == '__main__':
