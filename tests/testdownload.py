@@ -208,6 +208,21 @@ class TestDownload(BaseTest):
 				if "HelloWorld/Missing" not in str(ex):
 					raise ex
 	
+	def testWrongSize(self):
+		with output_suppressed():
+			self.child = server.handle_requests('Hello-wrong-size', '6FCF121BE2390E0B.gpg',
+							'/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+			policy = autopolicy.AutoPolicy('http://localhost:8000/Hello-wrong-size', download_only = False,
+							handler = DummyHandler())
+			assert policy.need_download()
+			sys.stdin = Reply("Y\n")
+			try:
+				policy.download_and_execute(['Hello'], main = 'Missing')
+				assert 0
+			except model.SafeException, ex:
+				if "Downloaded archive has incorrect size" not in str(ex):
+					raise ex
+
 	def testRecipe(self):
 		old_out = sys.stdout
 		try:

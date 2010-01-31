@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface main="HelloWorld/main" uri="http://localhost:8000/Hello-wrong-size" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Hello</name>
+  <summary>Hello</summary>
+  <description>
+Hello</description>
+  <implementation id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" version="1">
+    <archive href="http://localhost:8000/HelloWorld.tgz" size="177"/>
+  </implementation>
+</interface>
+<!-- Base64 Signature
+iEYEABECAAYFAktldasACgkQb88SG+I5Dgup8QCeMXiD9XmPwb0oZCVf5y8InNfSk8cAn1c5X2Gm
+/4vNIH4c9xFjRZee5s9n
+
+-->

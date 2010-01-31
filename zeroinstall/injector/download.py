@@ -167,7 +167,7 @@ class Download(object):
 							'Received: %(size)d bytes') % {'url': self.url, 'expected_size': self.expected_size, 'size': size})
 		except:
 			self.status = download_failed
-			_, ex, tb = sys.exc_info()
+			_unused, ex, tb = sys.exc_info()
 			self.downloaded.trigger(exception = (ex, tb))
 		else:
 			self.status = download_complete
