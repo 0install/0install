@@ -1,10 +1,22 @@
 #!/usr/bin/env python2.5
 from basetest import BaseTest, empty_feed
 import sys, os
+from StringIO import StringIO
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import distro, model
+from zeroinstall.injector import distro, model, qdom
+
+def parse_impls(impls, test_distro):
+	xml = """<?xml version="1.0" ?>
+		 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+		   <name>Foo</name>
+		   <summary>Foo</summary>
+		   <description>Foo</description>
+		   %s
+		</interface>""" % impls
+	element = qdom.parse(StringIO(xml))
+	return model.ZeroInstallFeed(element, "myfeed.xml", test_distro)
 
 class TestDistro(BaseTest):
 	def setUp(self):
@@ -54,6 +66,26 @@ class TestDistro(BaseTest):
 		yast = self.feed.implementations['package:rpm:yast2-update:2.15.23-21:i586']
 		self.assertEquals('2.15.23-21', yast.get_version())
 		self.assertEquals('*-i586', yast.arch)
+
+		impls = parse_impls("""
+				<package-implementation distributions="Debian" package="yast2-mail"/>
+				<package-implementation distributions="RPM" package="yast2-update"/>
+				""", rpm).implementations
+		assert len(impls) == 1, impls
+		impl, = impls
+		assert impl == 'package:rpm:yast2-update:2.15.23-21:i586'
+
+		impls = parse_impls("""
+				<package-implementation distributions="RPM" package="yast2-mail"/>
+				<package-implementation distributions="RPM" package="yast2-update"/>
+				""", rpm).implementations
+		assert len(impls) == 2, impls
+
+		impls = parse_impls("""
+				<package-implementation distributions="" package="yast2-mail"/>
+				<package-implementation package="yast2-update"/>
+				""", rpm).implementations
+		assert len(impls) == 2, impls
 
 	def testGentoo(self):
 		pkgdir = os.path.join(os.path.dirname(__file__), 'gentoo')

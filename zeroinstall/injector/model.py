@@ -635,6 +635,8 @@ class ZeroInstallFeed(object):
 		if not self.summary:
 			raise InvalidInterface(_("Missing <summary> in feed"))
 
+		package_impls = [0, []]		# Best score so far and packages with that score
+
 		def process_group(group, group_attrs, base_depends, base_bindings):
 			for item in group.childNodes:
 				if item.uri != XMLNS_IFACE: continue
@@ -666,7 +668,14 @@ class ZeroInstallFeed(object):
 				elif item.name == 'implementation':
 					process_impl(item, item_attrs, depends, bindings)
 				elif item.name == 'package-implementation':
-					process_native_impl(item, item_attrs, depends)
+					distro_names = item_attrs.get('distributions', '')
+					for distro_name in distro_names.split(' '):
+						score = distro.get_score(distro_name)
+						if score > package_impls[0]:
+							package_impls[0] = score
+							package_impls[1] = []
+						if score == package_impls[0]:
+							package_impls[1].append((item, item_attrs, depends))
 				else:
 					assert 0
 
@@ -784,6 +793,9 @@ class ZeroInstallFeed(object):
 		if main:
 			root_attrs['main'] = main
 		process_group(feed_element, root_attrs, [], [])
+
+		for args in package_impls[1]:
+			process_native_impl(*args)
 
 	def get_name(self):
 		return self.name or '(' + os.path.basename(self.url) + ')'

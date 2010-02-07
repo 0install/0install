@@ -52,6 +52,18 @@ class Distribution(object):
 		"""
 		return
 
+	def get_score(self, distribution):
+		"""Indicate how closely the host distribution matches this one.
+		The <package-implementation> with the highest score is passed
+		to L{Distribution.get_package_info}. If several elements get
+		the same score, get_package_info is called for all of them.
+		@param distribution: a distribution name
+		@type distribution: str
+		@return: an integer, or None if there is no match at all
+		@rtype: int | None
+		"""
+		return 0
+
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
 	an external command), we cache the results.
@@ -165,6 +177,9 @@ class DebianDistribution(CachedDistribution):
 		if machine != '*':
 			impl.machine = machine
 
+	def get_score(self, disto_name):
+		return int(disto_name == 'Debian')
+
 class RPMDistribution(CachedDistribution):
 	"""An RPM-based distribution."""
 
@@ -203,6 +218,9 @@ class RPMDistribution(CachedDistribution):
 			if machine != '*':
 				impl.machine = machine
 
+	def get_score(self, disto_name):
+		return int(disto_name == 'RPM')
+
 class GentooDistribution(Distribution):
 
 	def __init__(self, pkgdir):
@@ -233,6 +251,10 @@ class GentooDistribution(Distribution):
 				impl = factory('package:gentoo:%s:%s:%s' % \
 						(package, version, machine))
 				impl.version = model.parse_version(version)
+
+	def get_score(self, disto_name):
+		return int(disto_name == 'Gentoo')
+
 
 _host_distribution = None
 def get_host_distribution():
