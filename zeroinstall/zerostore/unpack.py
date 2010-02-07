@@ -181,7 +181,8 @@ def unpack_archive_over(url, data, destdir, extract = None, type = None, start_o
 
 def unpack_archive(url, data, destdir, extract = None, type = None, start_offset = 0):
 	"""Unpack stream 'data' into directory 'destdir'. If extract is given, extract just
-	that sub-directory from the archive. Works out the format from the name."""
+	that sub-directory from the archive (i.e. destdir/extract will exist afterwards).
+	Works out the format from the name."""
 	if type is None: type = type_from_url(url)
 	if type is None: raise SafeException(_("Unknown extension (and no MIME type given) in '%s'") % url)
 	if type == 'application/x-bzip-compressed-tar':
@@ -315,13 +316,6 @@ def extract_zip(stream, destdir, extract, start_offset = 0):
 
 	_extract(stream, destdir, args)
 	os.unlink(zip_copy_name)
-	
-	if extract:
-		# unzip uses extract just as a filter, so we still need to move things
-		extracted_dir = os.path.join(destdir, extract)
-		for x in os.listdir(extracted_dir):
-			os.rename(os.path.join(extracted_dir, x), os.path.join(destdir, x))
-		os.rmdir(extracted_dir)
 
 def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 	if extract:
