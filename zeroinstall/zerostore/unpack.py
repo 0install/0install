@@ -90,10 +90,7 @@ def check_type_ok(mime_type):
 					"I need to extract it. Install the package containing it (sometimes called 'binutils') "
 					"first. This works even if you're on a non-Debian-based distribution such as Red Hat)."))
 	elif mime_type == 'application/x-bzip-compressed-tar':
-		if not find_in_path('bunzip2'):
-			raise SafeException(_("This package looks like a bzip2-compressed package, but you don't have the 'bunzip2' command "
-					"I need to extract it. Install the package containing it (it's probably called 'bzip2') "
-					"first."))
+		pass	# We'll fall back to Python's built-in tar.bz2 support
 	elif mime_type == 'application/zip':
 		if not find_in_path('unzip'):
 			raise SafeException(_("This package looks like a zip-compressed archive, but you don't have the 'unzip' command "
