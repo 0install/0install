@@ -103,9 +103,12 @@ class TestModel(BaseTest):
 		feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
 		a = feed._get_impl('foo')
 		b = feed._get_impl('bar')
-		c = feed._get_impl('foo')
-		assert a and b and c
-		assert a is c
+		try:
+			c = feed._get_impl('foo')
+			assert 0
+		except:
+			pass
+		assert a and b
 		assert a is not b
 		assert isinstance(a, model.ZeroInstallImplementation)
 	

@@ -804,13 +804,13 @@ class ZeroInstallFeed(object):
 		return _("<Feed %s>") % self.url
 	
 	def _get_impl(self, id):
-		if id not in self.implementations:
-			if id.startswith('package:'):
-				impl = DistributionImplementation(self, id)
-			else:
-				impl = ZeroInstallImplementation(self, id)
-			self.implementations[id] = impl
-		return self.implementations[id]
+		assert id not in self.implementations
+		if id.startswith('package:'):
+			impl = DistributionImplementation(self, id)
+		else:
+			impl = ZeroInstallImplementation(self, id)
+		self.implementations[id] = impl
+		return impl
 	
 	def set_stability_policy(self, new):
 		assert new is None or isinstance(new, Stability)
