@@ -357,7 +357,7 @@ class InterfaceBrowser:
 			if impl:
 				old_impl = self.original_implementation.get(iface, None)
 				version_str = impl.get_version()
-				if old_impl is not None and old_impl is not impl:
+				if old_impl is not None and old_impl.id != impl.id:
 					version_str += _(' (was %s)') % old_impl.get_version()
 				self.model[iter][InterfaceBrowser.VERSION] = version_str
 
