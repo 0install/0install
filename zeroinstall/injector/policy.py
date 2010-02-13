@@ -194,7 +194,7 @@ class Policy(object):
 		staleness = now - (feed.last_checked or 0)
 		debug(_("Staleness for %(feed)s is %(staleness).2f hours"), {'feed': feed, 'staleness': staleness / 3600.0})
 
-		if self.freshness == 0 or staleness < self.freshness:
+		if self.freshness <= 0 or staleness < self.freshness:
 			return False		# Fresh enough for us
 
 		last_check_attempt = iface_cache.get_last_check_attempt(feed.url)
