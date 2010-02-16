@@ -235,6 +235,8 @@ class GentooDistribution(Distribution):
 		category_dir = os.path.join(self._pkgdir, category)
 		match_prefix = leafname + '-'
 
+		if not os.path.isdir(category_dir): return
+
 		for filename in os.listdir(category_dir):
 			if filename.startswith(match_prefix) and filename[len(match_prefix)].isdigit():
 				name = file(os.path.join(category_dir, filename, 'PF')).readline().strip()

@@ -91,7 +91,7 @@ class TestDistro(BaseTest):
 		pkgdir = os.path.join(os.path.dirname(__file__), 'gentoo')
 		ebuilds = distro.GentooDistribution(pkgdir)
 
-		ebuilds.get_package_info('gimp', self.factory)
+		ebuilds.get_package_info('media-gfx/gimp', self.factory)
 		self.assertEquals({}, self.feed.implementations)
 
 		ebuilds.get_package_info('sys-apps/portage', self.factory)
