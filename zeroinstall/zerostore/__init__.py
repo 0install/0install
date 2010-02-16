@@ -190,7 +190,7 @@ class Store:
 			raise BadDigest(_('Incorrect manifest -- archive is corrupted.\n'
 					'Required digest: %(required_digest)s\n'
 					'Actual digest: %(actual_digest)s\n') %
-					{'request_digest': required_digest, 'actual_digest': actual_digest})
+					{'required_digest': required_digest, 'actual_digest': actual_digest})
 
 		if try_helper:
 			if self._add_with_helper(required_digest, extracted):

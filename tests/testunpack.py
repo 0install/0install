@@ -1,10 +1,10 @@
 #!/usr/bin/env python2.5
 from basetest import BaseTest
 import sys, tempfile, os
-import unittest
+import unittest, logging
 
 sys.path.insert(0, '..')
-from zeroinstall.zerostore import unpack, manifest, Store
+from zeroinstall.zerostore import unpack, manifest, Store, BadDigest
 from zeroinstall import SafeException, support
 
 class AbstractTestUnpack(BaseTest):
@@ -95,6 +95,20 @@ class AbstractTestUnpack(BaseTest):
 					   file('HelloWorld.tgz'),
 					   'http://foo/foo.tgz')
 	
+	def testBad(self):
+		logging.getLogger('').setLevel(logging.ERROR)
+
+		store = Store(self.tmpdir)
+		try:
+			store.add_archive_to_cache('sha1=3ce644dc725f1d21cfcf02562c76f375944b266b',
+						   file('HelloWorld.tgz'),
+						   'http://foo/foo.tgz')
+			assert 0
+		except BadDigest:
+			pass
+
+		logging.getLogger('').setLevel(logging.INFO)
+
 	def assert_manifest(self, required):
 		alg_name = required.split('=', 1)[0]
 		manifest.fixup_permissions(self.tmpdir)
