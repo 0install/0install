@@ -289,11 +289,7 @@ def check_stream(stream):
 	data is the original stream). stream must be seekable.
 	@note: Stream returned may or may not be the one passed in. Be careful!
 	@return: (data_stream, [Signatures])"""
-	if not find_in_path('gpg'):
-		raise SafeException(_("GnuPG is not installed ('gpg' not in $PATH). See http://gnupg.org"))
 
-	#stream.seek(0)
-	#all = stream.read()
 	stream.seek(0)
 
 	start = stream.read(6)
