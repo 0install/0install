@@ -362,7 +362,7 @@ class CacheExplorer:
 			else:
 				cached_iface = ValidInterface(iface, iface_size)
 				for impl in iface.implementations.values():
-					if impl.id.startswith('/') or impl.id.startswith('.'):
+					if impl.local_path:
 						cached_iface.in_cache.append(LocalImplementation(impl))
 					if impl.id in unowned:
 						cached_dir = unowned[impl.id].dir

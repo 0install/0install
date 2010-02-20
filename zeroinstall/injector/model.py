@@ -377,6 +377,8 @@ class Implementation(object):
 	@ivar id: a unique identifier for this Implementation
 	@ivar version: a parsed version number
 	@ivar released: release date
+	@ivar local_path: the directory containing this local implementation, or None if it isn't local (id isn't a path)
+	@type local_path: str | None
 	"""
 
 	# Note: user_stability shouldn't really be here
@@ -424,6 +426,8 @@ class Implementation(object):
 
 	os = None
 
+	local_path = None
+
 class DistributionImplementation(Implementation):
 	"""An implementation provided by the distribution. Information such as the version
 	comes from the package manager.
@@ -457,6 +461,12 @@ class ZeroInstallImplementation(Implementation):
 	def set_arch(self, arch):
 		self.os, self.machine = _split_arch(arch)
 	arch = property(lambda self: _join_arch(self.os, self.machine), set_arch)
+
+	@property
+	def local_path(self):
+		if self.id.startswith('/'):
+			return self.id
+		return None
 	
 class Interface(object):
 	"""An Interface represents some contract of behaviour.
@@ -624,6 +634,7 @@ class ZeroInstallFeed(object):
 				if not feed_src:
 					raise InvalidInterface(_('Missing "src" attribute in <feed>'))
 				if feed_src.startswith('http:') or local_path:
+					# XXX
 					self.feeds.append(Feed(feed_src, x.getAttribute('arch'), False, langs = x.getAttribute('langs')))
 				else:
 					raise InvalidInterface(_("Invalid feed URL '%s'") % feed_src)

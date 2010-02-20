@@ -115,11 +115,9 @@ if options.manpage:
 		sys.exit(1)
 
 	selected_impl = sels.selections[interface_uri]
-	if selected_impl.id.startswith('/'):
-		impl_path = selected_impl.id
-	else:
-		from zeroinstall.injector.iface_cache import iface_cache
-		impl_path = iface_cache.stores.lookup(selected_impl.id)
+
+	from zeroinstall.injector.iface_cache import iface_cache
+	impl_path = selected_impl.local_path or iface_cache.stores.lookup(selected_impl.id)
 
 	if main is None:
 		main = selected_impl.main

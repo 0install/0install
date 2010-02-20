@@ -8,7 +8,7 @@ def get_fetch_info(policy, impl):
 	if impl is None:
 		return ""
 	elif policy.get_cached(impl):
-		if impl.id.startswith('/'):
+		if impl.local_path:
 			return _('(local)')
 		elif impl.id.startswith('package:'):
 			return _('(package)')

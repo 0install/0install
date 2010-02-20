@@ -221,9 +221,7 @@ class Policy(object):
 		@rtype: str
 		@raise zeroinstall.zerostore.NotStored: if it needs to be added to the cache first."""
 		assert isinstance(impl, Implementation)
-		if impl.id.startswith('/'):
-			return impl.id
-		return iface_cache.stores.lookup(impl.id)
+		return impl.local_path or iface_cache.stores.lookup(impl.id)
 
 	def get_implementation(self, interface):
 		"""Get the chosen implementation.
@@ -257,8 +255,8 @@ class Policy(object):
 		"""
 		if isinstance(impl, DistributionImplementation):
 			return impl.installed
-		if impl.id.startswith('/'):
-			return os.path.exists(impl.id)
+		if impl.local_path:
+			return os.path.exists(impl.local_path)
 		else:
 			try:
 				path = self.get_implementation_path(impl)

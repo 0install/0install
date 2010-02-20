@@ -56,11 +56,10 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 def _do_bindings(impl, bindings):
 	for b in bindings:
 		if isinstance(b, EnvironmentBinding):
-			do_env_binding(b, _get_implementation_path(impl.id))
+			do_env_binding(b, _get_implementation_path(impl))
 
-def _get_implementation_path(id):
-	if id.startswith('/'): return id
-	return iface_cache.stores.lookup(id)
+def _get_implementation_path(impl):
+	return impl.local_path or iface_cache.stores.lookup(impl.id)
 
 def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
@@ -142,7 +141,7 @@ def _execute(root_impl, prog_args, dry_run, main, wrapper):
 		elif root_impl.main:
 			main = os.path.join(os.path.dirname(root_impl.main), main)
 		if main is not None:
-			prog_path = os.path.join(_get_implementation_path(root_impl.id), main)
+			prog_path = os.path.join(_get_implementation_path(root_impl), main)
 
 	if main is None:
 		raise SafeException(_("Implementation '%s' cannot be executed directly; it is just a library "

@@ -40,6 +40,12 @@ class Selection(object):
 	feed = property(lambda self: self.attrs.get('from-feed', self.interface))
 	main = property(lambda self: self.attrs.get('main', None))
 
+	@property
+	def local_path(self):
+		if self.id.startswith('/'):
+			return self.id
+		return None
+
 	def __repr__(self):
 		return self.id
 
@@ -197,10 +203,9 @@ class Selections(object):
 		# Check that every required selection is cached
 		needed_downloads = []
 		for sel in self.selections.values():
-			iid = sel.id
-			if not iid.startswith('/'):
+			if not sel.local_path:
 				try:
-					iface_cache.stores.lookup(iid)
+					iface_cache.stores.lookup(sel.id)
 				except NotStored, ex:
 					needed_downloads.append(sel)
 		if not needed_downloads:
