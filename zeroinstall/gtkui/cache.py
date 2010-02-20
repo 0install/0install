@@ -308,7 +308,7 @@ class CacheExplorer:
 		self._update_sizes()
 
 		if errors:
-			gtkutils.show_message_box(self, _("Failed to delete:\n%s") % '\n'.join(errors))
+			gtkutils.show_message_box(self.window, _("Failed to delete:\n%s") % '\n'.join(errors))
 
 	def show(self):
 		"""Display the window and scan the caches to populate it."""
