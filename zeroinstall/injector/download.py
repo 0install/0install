@@ -217,13 +217,7 @@ if __name__ == '__main__':
 		from urllib2 import urlopen, Request, HTTPError, URLError
 		try:
 			#print "Child downloading", url
-			if url.startswith('/'):
-				if not os.path.isfile(url):
-					print >>sys.stderr, "File '%s' does not " \
-						"exist!" % url
-					return
-				src = file(url)
-			elif url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:'):
+			if url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:'):
 				req = Request(url)
 				if url.startswith('http:') and if_modified_since:
 					req.add_header('If-Modified-Since', if_modified_since)
