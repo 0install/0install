@@ -74,6 +74,13 @@ def ro_rmtree(root):
 	@type root: str
 	@since: 0.28"""
 	import shutil
-	for main, dirs, files in os.walk(root):
-		os.chmod(main, 0700)
+	import platform
+	if platform.system() == 'Windows':
+		for main, dirs, files in os.walk(root):
+			for i in files + dirs:
+				os.chmod(os.path.join(main, i), 0700)
+		os.chmod(root, 0700)
+	else:
+		for main, dirs, files in os.walk(root):
+			os.chmod(main, 0700)
 	shutil.rmtree(root)
