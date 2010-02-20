@@ -633,8 +633,7 @@ class ZeroInstallFeed(object):
 				feed_src = x.getAttribute('src')
 				if not feed_src:
 					raise InvalidInterface(_('Missing "src" attribute in <feed>'))
-				if feed_src.startswith('http:') or local_path:
-					# XXX
+				if feed_src.startswith('http:') or feed_src.startswith('https:') or local_path:
 					self.feeds.append(Feed(feed_src, x.getAttribute('arch'), False, langs = x.getAttribute('langs')))
 				else:
 					raise InvalidInterface(_("Invalid feed URL '%s'") % feed_src)
