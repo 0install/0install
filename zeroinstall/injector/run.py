@@ -59,7 +59,7 @@ def _do_bindings(impl, bindings):
 			do_env_binding(b, _get_implementation_path(impl))
 
 def _get_implementation_path(impl):
-	return impl.local_path or iface_cache.stores.lookup(impl.id)
+	return impl.local_path or iface_cache.stores.lookup_any(impl.digests)
 
 def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.

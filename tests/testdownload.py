@@ -168,7 +168,7 @@ class TestDownload(BaseTest):
 			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
 			_download_missing_selections(Options(), sels)
-			path = iface_cache.iface_cache.stores.lookup(sels.selections['http://example.com:8000/Hello.xml'].id)
+			path = iface_cache.iface_cache.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 			assert sels.download_missing(iface_cache.iface_cache, None) is None
@@ -189,7 +189,7 @@ class TestDownload(BaseTest):
 			handler.wait_for_blocker(fetcher.download_and_import_feed('http://example.com:8000/Hello.xml', iface_cache.iface_cache))
 
 			_download_missing_selections(Options(), sels)
-			path = iface_cache.iface_cache.stores.lookup(sels.selections['http://example.com:8000/Hello.xml'].id)
+			path = iface_cache.iface_cache.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 			assert sels.download_missing(iface_cache.iface_cache, None) is None

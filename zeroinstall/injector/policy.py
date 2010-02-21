@@ -221,7 +221,7 @@ class Policy(object):
 		@rtype: str
 		@raise zeroinstall.zerostore.NotStored: if it needs to be added to the cache first."""
 		assert isinstance(impl, Implementation)
-		return impl.local_path or iface_cache.stores.lookup(impl.id)
+		return impl.local_path or iface_cache.stores.lookup_any(impl.digests)
 
 	def get_implementation(self, interface):
 		"""Get the chosen implementation.

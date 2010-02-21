@@ -1,11 +1,13 @@
 #!/usr/bin/env python2.5
 from basetest import BaseTest
 from StringIO import StringIO
-import sys
+import sys, os
 import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import selections, model, reader, policy, iface_cache, namespaces, qdom
+
+mydir = os.path.dirname(os.path.abspath(__file__))
 
 class TestSelections(BaseTest):
 	def testSelections(self):
@@ -51,6 +53,7 @@ class TestSelections(BaseTest):
 			dep = sels[1].dependencies[0]
 			self.assertEquals('http://foo/Compiler.xml', dep.interface)
 			self.assertEquals(1, len(dep.bindings))
+			self.assertEquals(["sha1=345"], sels[0].digests)
 
 		s1 = selections.Selections(p)
 		s1.selections['http://foo/Source.xml'].attrs['http://namespace foo'] = 'bar'
@@ -62,6 +65,17 @@ class TestSelections(BaseTest):
 
 		s2 = selections.Selections(root)
 		assertSel(s2)
+	
+	def testLocalPath(self):
+		iface = os.path.join(mydir, "Local.xml")
+		p = policy.Policy(iface)
+		p.recalculate()
+		s1 = selections.Selections(p)
+		xml = s1.toDOM().toxml("utf-8")
+		root = qdom.parse(StringIO(xml))
+		s2 = selections.Selections(root)
+		local_path = s2.selections[iface].local_path
+		assert os.path.isdir(local_path), local_path
 
 suite = unittest.makeSuite(TestSelections)
 if __name__ == '__main__':

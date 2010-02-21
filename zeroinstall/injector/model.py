@@ -15,7 +15,7 @@ well-known variables.
 
 from zeroinstall import _
 import os, re
-from logging import info, debug
+from logging import info, debug, warn
 from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 
@@ -441,14 +441,19 @@ class DistributionImplementation(Implementation):
 	
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.
+	@ivar digests: a list of "algorith=value" strings (since 0.45)
+	@type digests: [str]
 	@since: 0.28"""
-	__slots__ = ['os', 'size']
+	__slots__ = ['os', 'size', 'digests', 'local_path']
 
-	def __init__(self, feed, id):
+	def __init__(self, feed, id, local_path):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
+		assert not id.startswith('package:'), id
 		Implementation.__init__(self, feed, id)
 		self.size = None
 		self.os = None
+		self.digests = []
+		self.local_path = local_path
 
 	# Deprecated
 	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires
@@ -461,12 +466,6 @@ class ZeroInstallImplementation(Implementation):
 	def set_arch(self, arch):
 		self.os, self.machine = _split_arch(arch)
 	arch = property(lambda self: _join_arch(self.os, self.machine), set_arch)
-
-	@property
-	def local_path(self):
-		if self.id.startswith('/'):
-			return self.id
-		return None
 	
 class Interface(object):
 	"""An Interface represents some contract of behaviour.
@@ -694,16 +693,16 @@ class ZeroInstallFeed(object):
 			if id is None:
 				raise InvalidInterface(_("Missing 'id' attribute on %s") % item)
 			if local_dir and (id.startswith('/') or id.startswith('.')):
-				impl = self._get_impl(os.path.abspath(os.path.join(local_dir, id)))
+				id = os.path.abspath(os.path.join(local_dir, id))
+				impl = ZeroInstallImplementation(self, id, id)
 			else:
-				if '=' not in id:
-					raise InvalidInterface(_('Invalid "id"; form is "alg=value" (got "%s")') % id)
-				alg, sha1 = id.split('=')
-				try:
-					long(sha1, 16)
-				except Exception, ex:
-					raise InvalidInterface(_('Bad SHA1 attribute: %s') % ex)
-				impl = self._get_impl(id)
+				impl = ZeroInstallImplementation(self, id, None)
+				if '=' in id:
+					# In older feeds, the ID was the (single) digest
+					impl.digests.append(id)
+			if id in self.implementations:
+				warn(_("Duplicate ID '%s' in feed '%s'"), id, self)
+			self.implementations[id] = impl
 
 			impl.metadata = item_attrs
 			try:
@@ -756,6 +755,11 @@ class ZeroInstallFeed(object):
 							extract = elem.getAttribute('extract'),
 							start_offset = _get_long(elem, 'start-offset'),
 							type = elem.getAttribute('type'))
+				elif elem.name == 'manifest-digest':
+					for aname, avalue in elem.attrs.iteritems():
+						if ' ' not in aname:
+							impl.digests.append('%s=%s' % (aname, avalue))
+					impl.digests.sort()
 				elif elem.name == 'recipe':
 					recipe = Recipe()
 					for recipe_step in elem.childNodes:
@@ -783,7 +787,10 @@ class ZeroInstallFeed(object):
 
 			def factory(id):
 				assert id.startswith('package:')
-				impl = self._get_impl(id)
+				if id in self.implementations:
+					warn(_("Duplicate ID '%s' for DistributionImplementation"), id)
+				impl = DistributionImplementation(self, id)
+				self.implementations[id] = impl
 
 				impl.metadata = item_attrs
 
@@ -813,12 +820,18 @@ class ZeroInstallFeed(object):
 	def __repr__(self):
 		return _("<Feed %s>") % self.url
 	
+	"""@deprecated"""
 	def _get_impl(self, id):
 		assert id not in self.implementations
-		if id.startswith('package:'):
-			impl = DistributionImplementation(self, id)
+
+		if id.startswith('.') or id.startswith('/'):
+			id = os.path.abspath(os.path.join(self.url, id))
+			local_path = id
+			impl = ZeroInstallImplementation(self, id, local_path)
 		else:
-			impl = ZeroInstallImplementation(self, id)
+			impl = ZeroInstallImplementation(self, id, None)
+			impl.digests.append(id)
+
 		self.implementations[id] = impl
 		return impl
 	

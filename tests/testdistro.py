@@ -27,7 +27,10 @@ class TestDistro(BaseTest):
 		BaseTest.tearDown(self)
 
 	def factory(self, id):
-		return self.feed._get_impl(id)
+		impl = model.DistributionImplementation(self.feed, id)
+		assert id not in self.feed.implementations
+		self.feed.implementations[id] = impl
+		return impl
 
 	def testDefault(self):
 		host = distro.Distribution()

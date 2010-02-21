@@ -300,10 +300,16 @@ class Fetcher(object):
 		assert retrieval_method
 
 		from zeroinstall.zerostore import manifest
-		alg = impl.id.split('=', 1)[0]
-		if alg not in manifest.algorithms:
-			raise SafeException(_("Unknown digest algorithm '%(algorithm)s' for '%(implementation)s' version %(version)s") %
-					{'algorithm': alg, 'implementation': impl.feed.get_name(), 'version': impl.get_version()})
+		for required_digest in impl.digests:
+			alg = required_digest.split('=', 1)[0]
+			if alg in manifest.algorithms:
+				break
+		else:
+			if not impl.digests:
+				raise SafeException(_("No <manifest-digest> given for '%(implementation)s' version %(version)s") %
+						{'implementation': impl.feed.get_name(), 'version': impl.get_version()})
+			raise SafeException(_("Unknown digest algorithms '%(algorithms)s' for '%(implementation)s' version %(version)s") %
+					{'algorithms': impl.digests, 'implementation': impl.feed.get_name(), 'version': impl.get_version()})
 
 		@tasks.async
 		def download_impl():
@@ -313,9 +319,9 @@ class Fetcher(object):
 				tasks.check(blocker)
 
 				stream.seek(0)
-				self._add_to_cache(stores, retrieval_method, stream)
+				self._add_to_cache(required_digest, stores, retrieval_method, stream)
 			elif isinstance(retrieval_method, Recipe):
-				blocker = self.cook(impl.id, retrieval_method, stores, force, impl_hint = impl)
+				blocker = self.cook(required_digest, retrieval_method, stores, force, impl_hint = impl)
 				yield blocker
 				tasks.check(blocker)
 			else:
@@ -324,9 +330,8 @@ class Fetcher(object):
 			self.handler.impl_added_to_store(impl)
 		return download_impl()
 	
-	def _add_to_cache(self, stores, retrieval_method, stream):
+	def _add_to_cache(self, required_digest, stores, retrieval_method, stream):
 		assert isinstance(retrieval_method, DownloadSource)
-		required_digest = retrieval_method.implementation.id
 		url = retrieval_method.url
 		stores.add_archive_to_cache(required_digest, stream, retrieval_method.url, retrieval_method.extract,
 						 type = retrieval_method.type, start_offset = retrieval_method.start_offset or 0)

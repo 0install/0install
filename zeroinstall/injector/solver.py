@@ -273,10 +273,10 @@ class DefaultSolver(Solver):
 			if isinstance(impl, model.DistributionImplementation):
 				return impl.installed
 			if impl.local_path:
-				return os.path.exists(impl.id)
+				return os.path.exists(impl.local_path)
 			else:
 				try:
-					path = self.stores.lookup(impl.id)
+					path = self.stores.lookup_any(impl.digests)
 					assert path
 					return True
 				except BadDigest:

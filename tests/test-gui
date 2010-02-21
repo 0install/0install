@@ -2,6 +2,6 @@
 import os, sys
 mydir = os.path.dirname(__file__)
 output = """<?xml version="1.0" ?>
-<selections interface="http://foo" xmlns="http://zero-install.sourceforge.net/2004/injector/interface"><selection id="%s" interface="http://foo" main="basetest.py" version="1"/></selections>""" % mydir
+<selections interface="http://foo" xmlns="http://zero-install.sourceforge.net/2004/injector/interface"><selection id="i0" local-path="%s" interface="http://foo" main="basetest.py" version="1"/></selections>""" % mydir
 sys.stdout.write('Length:%8x\n' % len(output))
 sys.stdout.write(output)

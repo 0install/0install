@@ -98,23 +98,9 @@ class TestModel(BaseTest):
 		i.set_stability_policy(model.buggy)
 		self.assertEquals(model.buggy, i.stability_policy)
 	
-	def testGetImpl(self):
-		i = model.Interface('http://foo')
-		feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
-		a = feed._get_impl('foo')
-		b = feed._get_impl('bar')
-		try:
-			c = feed._get_impl('foo')
-			assert 0
-		except:
-			pass
-		assert a and b
-		assert a is not b
-		assert isinstance(a, model.ZeroInstallImplementation)
-	
 	def testImpl(self):
 		i = model.Interface('http://foo')
-		a = model.ZeroInstallImplementation(i, 'foo')
+		a = model.ZeroInstallImplementation(i, 'foo', None)
 		assert a.id == 'foo'
 		assert a.size == a.version == a.user_stability == None
 		assert a.arch == a.upstream_stability == None
@@ -131,13 +117,13 @@ class TestModel(BaseTest):
 		self.assertEquals('1.2.3-rc2-post', a.get_version())
 		assert str(a) == 'foo'
 
-		b = model.ZeroInstallImplementation(i, 'foo')
+		b = model.ZeroInstallImplementation(i, 'foo', None)
 		b.version = [1,2,1]
 		assert b > a
 	
 	def testDownloadSource(self):
 		f = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
-		a = model.ZeroInstallImplementation(f, 'foo')
+		a = model.ZeroInstallImplementation(f, 'foo', None)
 		a.add_download_source('ftp://foo', 1024, None)
 		a.add_download_source('ftp://foo.tgz', 1025, 'foo')
 		assert a.download_sources[0].url == 'ftp://foo'

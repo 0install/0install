@@ -19,15 +19,19 @@ class Selection(object):
 	@type dependencies: [L{model.Dependency}]
 	@ivar attrs: XML attributes map (name is in the format "{namespace} {localName}")
 	@type attrs: {str: str}
+	@ivar digests: a list of manifest digests
+	@type digests: [str]
 	@ivar version: the implementation's version number
 	@type version: str"""
-	__slots__ = ['bindings', 'dependencies', 'attrs']
+	__slots__ = ['bindings', 'dependencies', 'attrs', 'digests']
 
-	def __init__(self, dependencies, bindings = None, attrs = None):
+	def __init__(self, dependencies, bindings = None, attrs = None, digests = None):
 		if bindings is None: bindings = []
+		if digests is None: digests = []
 		self.dependencies = dependencies
 		self.bindings = bindings
 		self.attrs = attrs
+		self.digests = digests
 
 		assert self.interface
 		assert self.id
@@ -42,6 +46,9 @@ class Selection(object):
 
 	@property
 	def local_path(self):
+		local_path = self.attrs.get('local-path', None)
+		if local_path:
+			return local_path
 		if self.id.startswith('/'):
 			return self.id
 		return None
@@ -90,8 +97,10 @@ class Selections(object):
 			attrs['version'] = impl.get_version()
 			attrs['interface'] = needed_iface.uri
 			attrs['from-feed'] = impl.feed.url
+			if impl.local_path:
+				attrs['local-path'] = impl.local_path
 
-			self.selections[needed_iface.uri] = Selection(solver_requires[needed_iface], impl.bindings, attrs)
+			self.selections[needed_iface.uri] = Selection(solver_requires[needed_iface], impl.bindings, attrs, impl.digests)
 
 	def _init_from_qdom(self, root):
 		"""Parse and load a selections document.
@@ -107,6 +116,7 @@ class Selections(object):
 
 			requires = []
 			bindings = []
+			digests = []
 			for dep_elem in selection.childNodes:
 				if dep_elem.uri != XMLNS_IFACE:
 					continue
@@ -115,8 +125,16 @@ class Selections(object):
 				elif dep_elem.name == 'requires':
 					dep = process_depends(dep_elem)
 					requires.append(dep)
+				elif dep_elem.name == 'manifest-digest':
+					for aname, avalue in dep_elem.attrs.iteritems():
+						digests.append('%s=%s' % (aname, avalue))
 
-			s = Selection(requires, bindings, selection.attrs)
+			# For backwards compatibility, allow getting the digest from the ID
+			sel_id = selection.attrs['id']
+			if (not digests) and '=' in sel_id:
+				digests.append(sel_id)
+
+			s = Selection(requires, bindings, selection.attrs, digests)
 			self.selections[selection.attrs['interface']] = s
 	
 	def toDOM(self):
@@ -163,6 +181,14 @@ class Selections(object):
 					# Don't bother writing from-feed attr if it's the same as the interface
 					selection_elem.setAttributeNS(None, name, value)
 
+			if selection.digests:
+				manifest_digest = doc.createElementNS(XMLNS_IFACE, 'manifest-digest')
+				for digest in selection.digests:
+					aname, avalue = digest.split('=', 1)
+					assert ':' not in aname
+					manifest_digest.setAttribute(aname, avalue)
+				selection_elem.appendChild(manifest_digest)
+
 			for b in selection.bindings:
 				selection_elem.appendChild(b._toxml(doc))
 
@@ -193,7 +219,7 @@ class Selections(object):
 		return "Selections for " + self.interface
 
 	def download_missing(self, iface_cache, fetcher):
-		"""Cache all selected implementations are available.
+		"""Check all selected implementations are available.
 		Download any that are not present.
 		@param iface_cache: cache to find feeds with download information
 		@param fetcher: used to download missing implementations
@@ -205,7 +231,7 @@ class Selections(object):
 		for sel in self.selections.values():
 			if not sel.local_path:
 				try:
-					iface_cache.stores.lookup(sel.id)
+					iface_cache.stores.lookup_any(sel.digests)
 				except NotStored, ex:
 					needed_downloads.append(sel)
 		if not needed_downloads:
@@ -216,6 +242,8 @@ class Selections(object):
 			# We're missing some. For each one, get the feed it came from
 			# and find the corresponding <implementation> in that. This will
 			# tell us where to get it from.
+			# Note: we look for an implementation with the same ID. Maybe we
+			# should check it has the same digest(s) too?
 			needed_impls = []
 			for sel in needed_downloads:
 				feed_url = sel.attrs.get('from-feed', None) or sel.attrs['interface']
