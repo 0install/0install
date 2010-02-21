@@ -40,6 +40,8 @@ except:
 class Algorithm:
 	"""Abstract base class for algorithms.
 	An algorithm knows how to generate a manifest from a directory tree.
+	@ivar rating: how much we like this algorithm (higher is better)
+	@type rating: int
 	"""
 	def generate_manifest(self, root):
 		"""Returns an iterator that yields each line of the manifest for the directory
@@ -57,6 +59,9 @@ class Algorithm:
 
 class OldSHA1(Algorithm):
 	"""@deprecated: Injector versions before 0.20 only supported this algorithm."""
+
+	rating = 10
+
 	def generate_manifest(self, root):
 		def recurse(sub):
 			# To ensure that a line-by-line comparison of the manifests
@@ -414,13 +419,14 @@ def _copy_files(alg, wanted, source, target):
 class HashLibAlgorithm(Algorithm):
 	new_digest = None		# Constructor for digest objects
 
-	def __init__(self, name):
+	def __init__(self, name, rating):
 		if name == 'sha1':
 			self.new_digest = sha1_new
 			self.name = 'sha1new'
 		else:
 			self.new_digest = getattr(hashlib, name)
 			self.name = name
+		self.rating = rating
 
 	def generate_manifest(self, root):
 		def recurse(sub):
@@ -477,11 +483,11 @@ class HashLibAlgorithm(Algorithm):
 
 algorithms = {
 	'sha1': OldSHA1(),
-	'sha1new': HashLibAlgorithm('sha1'),
+	'sha1new': HashLibAlgorithm('sha1', 50),
 }
 
 if hashlib is not None:
-	algorithms['sha256'] = HashLibAlgorithm('sha256')
+	algorithms['sha256'] = HashLibAlgorithm('sha256', 80)
 
 def fixup_permissions(root):
 	"""Set permissions recursively for children of root:

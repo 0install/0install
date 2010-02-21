@@ -759,7 +759,6 @@ class ZeroInstallFeed(object):
 					for aname, avalue in elem.attrs.iteritems():
 						if ' ' not in aname:
 							impl.digests.append('%s=%s' % (aname, avalue))
-					impl.digests.sort()
 				elif elem.name == 'recipe':
 					recipe = Recipe()
 					for recipe_step in elem.childNodes:

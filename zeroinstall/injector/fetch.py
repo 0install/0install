@@ -300,11 +300,15 @@ class Fetcher(object):
 		assert retrieval_method
 
 		from zeroinstall.zerostore import manifest
-		for required_digest in impl.digests:
-			alg = required_digest.split('=', 1)[0]
-			if alg in manifest.algorithms:
-				break
-		else:
+		best = None
+		for digest in impl.digests:
+			alg_name = digest.split('=', 1)[0]
+			alg = manifest.algorithms.get(alg_name, None)
+			if alg and (best is None or best.rating < alg.rating):
+				best = alg
+				required_digest = digest
+
+		if best is None:
 			if not impl.digests:
 				raise SafeException(_("No <manifest-digest> given for '%(implementation)s' version %(version)s") %
 						{'implementation': impl.feed.get_name(), 'version': impl.get_version()})
