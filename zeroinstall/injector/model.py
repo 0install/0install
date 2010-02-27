@@ -425,8 +425,8 @@ class Implementation(object):
 	arch = property(lambda self: _join_arch(self.os, self.machine))
 
 	os = None
-
 	local_path = None
+	digests = None
 
 class DistributionImplementation(Implementation):
 	"""An implementation provided by the distribution. Information such as the version
