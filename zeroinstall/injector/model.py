@@ -694,7 +694,8 @@ class ZeroInstallFeed(object):
 				raise InvalidInterface(_("Missing 'id' attribute on %s") % item)
 			local_path = item_attrs.get('local-path')
 			if local_dir and local_path:
-				impl = ZeroInstallImplementation(self, id, local_path)
+				abs_local_path = os.path.abspath(os.path.join(local_dir, local_path))
+				impl = ZeroInstallImplementation(self, id, abs_local_path)
 			elif local_dir and (id.startswith('/') or id.startswith('.')):
 				# For old feeds
 				id = os.path.abspath(os.path.join(local_dir, id))
