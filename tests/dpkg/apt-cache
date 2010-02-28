@@ -1,0 +1,38 @@
+#!/bin/sh
+if [ "$4" = "python-bittorrent" ]; then
+cat <<EOF
+Package: python-bittorrent
+Priority: optional
+Section: net
+Installed-Size: 336
+Maintainer: Ubuntu Core developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Original-Maintainer: Michael Janssen <jamuraa@debian.org>
+Architecture: all
+Source: bittorrent
+Version: 3.4.2-11.1ubuntu3
+Replaces: bittorrent (<< 3.4.2-10ubuntu2)
+Provides: python2.5-bittorrent, python2.6-bittorrent
+Depends: python (>= 2.3), python-central (>= 0.6.11)
+Filename: pool/main/b/bittorrent/python-bittorrent_3.4.2-11.1ubuntu3_all.deb
+Size: 53142
+MD5sum: ba5781c15297a424fc9590d36c92851c
+SHA1: f37f18302020d75354411f67a8d2d101ff056eb2
+SHA256: b16e0afba58076bc683a2a4bced8f807a5102dbe41fcde63eab2d38b86ffa621
+Description: Scatter-gather network file transfer
+ BitTorrent is a tool for distributing files. It's extremely
+ easy to use - downloads are started by clicking on hyperlinks.
+ Whenever more than one person is downloading at once
+ they send pieces of the file(s) to each other, thus relieving
+ the central server's bandwidth burden. Even with many
+ simultaneous downloads, the upload burden on the central server
+ remains quite small, since each new downloader introduces new
+ upload capacity.
+ .
+ This package contains the python modules.
+Homepage: http://bitconjurer.org/BitTorrent/
+Python-Version: >= 2.3
+Bugs: https://bugs.launchpad.net/ubuntu/+filebug
+Origin: Ubuntu
+
+EOF
+fi

@@ -215,7 +215,7 @@ class TestReader(BaseTest):
 		iface = model.Interface(foo_iface_uri)
 		reader.update(iface, tmp.name, True)
 
-		assert len(iface.implementations) == 1
+		assert len(iface.implementations) == 2
 
 		impl = iface.implementations['package:deb:python-bittorrent:3.4.2-10']
 		assert impl.id == 'package:deb:python-bittorrent:3.4.2-10'

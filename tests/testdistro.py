@@ -74,12 +74,16 @@ class TestDistro(BaseTest):
 		self.assertEquals({}, self.feed.implementations)
 
 		host.get_package_info('python-bittorrent', self.factory)
-		self.assertEquals(1, len(self.feed.implementations))
-		bittorrent = self.feed.implementations['package:deb:python-bittorrent:3.4.2-10']
-		self.assertEquals('3.4.2-10', bittorrent.get_version())
-
-		host.get_package_info('libxcomposite-dev', self.factory)
 		self.assertEquals(2, len(self.feed.implementations))
+		bittorrent_installed = self.feed.implementations['package:deb:python-bittorrent:3.4.2-10']
+		bittorrent_uninstalled = self.feed.implementations['package:deb:python-bittorrent:3.4.2-11.1']
+		self.assertEquals('3.4.2-10', bittorrent_installed.get_version())
+		self.assertTrue(bittorrent_installed.installed)
+		self.assertFalse(bittorrent_uninstalled.installed)
+
+		self.feed = model.ZeroInstallFeed(empty_feed, local_path = '/empty.xml')
+		host.get_package_info('libxcomposite-dev', self.factory)
+		self.assertEquals(1, len(self.feed.implementations))
 		libxcomposite = self.feed.implementations['package:deb:libxcomposite-dev:0.3.1-1']
 		self.assertEquals('0.3.1-1', libxcomposite.get_version())
 	

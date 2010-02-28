@@ -7,7 +7,7 @@ Integration with native distribution package managers.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os, re, glob
+import os, re, glob, subprocess
 from logging import warn, info
 from zeroinstall.injector import namespaces, model
 from zeroinstall.support import basedir
@@ -183,7 +183,7 @@ class CachedDistribution(Distribution):
 
 		if cache_version is None:
 			raise Exception(_('Old cache format'))
-			
+
 		versions = self.versions
 		for line in stream:
 			package, version, zi_arch = line[:-1].split('\t')
@@ -220,6 +220,10 @@ class DebianDistribution(CachedDistribution):
 
 	cache_leaf = 'dpkg-status.cache'
 
+	def __init__(self, dpkg_status):
+		CachedDistribution.__init__(self, dpkg_status)
+		self.apt_cache = Cache('apt-cache-cache', '/var/cache/apt/pkgcache.bin')
+
 	def generate_cache(self):
 		cache = []
 
@@ -242,14 +246,55 @@ class DebianDistribution(CachedDistribution):
 
 	def get_package_info(self, package, factory):
 		try:
-			version, machine = self.versions[package][0]
+			installed_version, machine = self.versions[package][0]
 		except KeyError:
-			return
+			installed_version = None
+		else:
+			impl = factory('package:deb:%s:%s' % (package, installed_version))
+			impl.version = model.parse_version(installed_version)
+			if machine != '*':
+				impl.machine = machine
 
-		impl = factory('package:deb:%s:%s' % (package, version)) 
-		impl.version = model.parse_version(version)
-		if machine != '*':
-			impl.machine = machine
+		# Check to see whether we could get a newer version using apt-get
+
+		cached = self.apt_cache.get(package)
+		if cached is None:
+			try:
+				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE)
+				arch = version = None
+				for line in child.stdout:
+					line = line.strip()
+					if line.startswith('Version: '):
+						version = line[9:]
+						if ':' in version:
+							# Debian's 'epoch' system
+							version = version.split(':', 1)[1]
+						version = try_cleanup_distro_version(version)
+					elif line.startswith('Architecture: '):
+						debarch = line[14:]
+						if debarch == 'amd64\n':
+							arch = 'x86_64'
+						else:
+							arch = '*'
+				if version and arch:
+					cached = '%s\t%s' % (version, arch)
+				else:
+					cached = '-'
+				child.wait()
+			except Exception, ex:
+				warn("'apt-cache show %s' failed: %s", package, ex)
+				cached = '-'
+			# (multi-arch support? can there be multiple candidates?)
+			self.apt_cache.put(package, cached)
+
+		if cached != '-':
+			candidate_version, candidate_arch = cached.split('\t')
+			if candidate_version and candidate_version != installed_version:
+				impl = factory('package:deb:%s:%s' % (package, candidate_version))
+				impl.version = model.parse_version(candidate_version)
+				impl.installed = False
+				if candidate_arch != '*':
+					impl.machine = candidate_arch
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'Debian')
@@ -258,7 +303,7 @@ class RPMDistribution(CachedDistribution):
 	"""An RPM-based distribution."""
 
 	cache_leaf = 'rpm-status.cache'
-	
+
 	def generate_cache(self):
 		cache = []
 
@@ -351,5 +396,5 @@ def get_host_distribution():
 			_host_distribution = RPMDistribution(_rpm_db)
 		else:
 			_host_distribution = Distribution()
-	
+
 	return _host_distribution
