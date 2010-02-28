@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from basetest import BaseTest, empty_feed
-import sys, os
+import sys, os, tempfile
 from StringIO import StringIO
 import unittest
 
@@ -25,6 +25,32 @@ class TestDistro(BaseTest):
 
 	def tearDown(self):	
 		BaseTest.tearDown(self)
+
+	def testCache(self):
+		src = tempfile.NamedTemporaryFile()
+		try:
+			cache = distro.Cache('test-cache', src.name)
+			self.assertEquals(None, cache.get("foo"))
+			cache.put("foo", "1")
+			self.assertEquals("1", cache.get("foo"))
+			cache.put("foo", "2")
+			self.assertEquals("2", cache.get("foo"))
+
+			# new cache...
+			cache = distro.Cache('test-cache', src.name)
+			self.assertEquals("2", cache.get("foo"))
+
+			src.write("hi")
+			src.flush()
+
+			self.assertEquals("2", cache.get("foo"))
+
+			# new cache...
+			cache = distro.Cache('test-cache', src.name)
+			self.assertEquals(None, cache.get("foo"))
+
+		finally:
+			src.close()
 
 	def factory(self, id):
 		impl = model.DistributionImplementation(self.feed, id)

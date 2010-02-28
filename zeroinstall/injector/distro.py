@@ -20,6 +20,80 @@ _zeroinstall_regexp = '(?:%s)(?:-(?:pre|rc|post|)(?:%s))*' % (_dotted_ints, _dot
 # This matches the interesting bits of distribution version numbers
 _version_regexp = '(%s)(-r%s)?' % (_zeroinstall_regexp, _dotted_ints)
 
+# We try to do updates atomically without locking, but we don't worry too much about
+# duplicate entries or being a little out of sync with the on-disk copy.
+class Cache(object):
+	def __init__(self, cache_leaf, source):
+		"""Maintain a cache file (e.g. ~/.cache/0install.net/injector/$name).
+		If the size or mtime of $source has changed, reset the cache first."""
+		self.cache_leaf = cache_leaf
+		self.source = source
+		self.cache_dir = basedir.save_cache_path(namespaces.config_site,
+							 namespaces.config_prog)
+		try:
+			self._load_cache()
+		except Exception, ex:
+			info(_("Failed to load cache (%s). Flushing..."), ex)
+			self.flush()
+
+	def flush(self):
+		try:
+			info = os.stat(self.source)
+			mtime = int(info.st_mtime)
+			size = info.st_size
+		except Exception, ex:
+			warn("Failed to stat %s: %s", self.source, ex)
+			mtime = size = 0
+		self.cache = {}
+		import tempfile
+		tmp, tmp_name = tempfile.mkstemp(dir = self.cache_dir)
+		data = "mtime=%d\nsize=%d\n\n" % (mtime, size)
+		while data:
+			wrote = os.write(tmp, data)
+			data = data[wrote:]
+		os.rename(tmp_name, os.path.join(self.cache_dir, self.cache_leaf))
+
+	# Populate self.cache from our saved cache file.
+	# Throws an exception if the cache doesn't exist or has the wrong format.
+	def _load_cache(self):
+		self.cache = cache = {}
+		stream = file(os.path.join(self.cache_dir, self.cache_leaf))
+		try:
+			info = os.stat(self.source)
+			meta = {}
+			for line in stream:
+				line = line.strip()
+				if not line:
+					break
+				key, value = line.split('=', 1)
+				if key == 'mtime':
+					if int(value) != int(info.st_mtime):
+						raise Exception("Modification time of %s has changed" % self.source)
+				if key == 'size':
+					if int(value) != info.st_size:
+						raise Exception("Size of %s has changed" % self.source)
+
+			for line in stream:
+				key, value = line.split('=', 1)
+				cache[key] = value[:-1]
+		finally:
+			stream.close()
+
+	def get(self, key):
+		return self.cache.get(key, None)
+
+	def put(self, key, value):
+		cache_path = os.path.join(self.cache_dir, self.cache_leaf)
+		self.cache[key] = value
+		try:
+			stream = file(cache_path, 'a')
+			try:
+				stream.write('%s=%s\n' % (key, value))
+			finally:
+				stream.close()
+		except Exception, ex:
+			warn("Failed to write to cache %s: %s=%s: %s", cache_path, key, value, ex)
+
 def try_cleanup_distro_version(version):
 	"""Try to turn a distribution version string into one readable by Zero Install.
 	We do this by stripping off anything we can't parse.
