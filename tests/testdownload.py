@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.5
+#!/usr/bin/env python
 from __future__ import with_statement
 from basetest import BaseTest
 import sys, tempfile, os
