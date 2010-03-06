@@ -26,8 +26,9 @@ class MainWindow:
 	systray_icon = None
 	systray_icon_blocker = None
 
-	def __init__(self, policy, widgets, download_only):
+	def __init__(self, policy, widgets, download_only, select_only = False):
 		self.policy = policy
+		self.select_only = select_only
 
 		policy.watchers.append(lambda: self.window.set_response_sensitive(gtk.RESPONSE_OK, policy.solver.ready))
 
@@ -49,7 +50,9 @@ class MainWindow:
 		self.window.action_area.set_child_secondary(prefs, True)
 
 		# Glade won't let me add this to the template!
-		if download_only:
+		if select_only:
+			run_button = dialog.MixedButton(_("_Select"), gtk.STOCK_EXECUTE, button = gtk.ToggleButton())
+		elif download_only:
 			run_button = dialog.MixedButton(_("_Download"), gtk.STOCK_EXECUTE, button = gtk.ToggleButton())
 		else:
 			run_button = dialog.MixedButton(_("_Run"), gtk.STOCK_EXECUTE, button = gtk.ToggleButton())
@@ -91,18 +94,22 @@ class MainWindow:
 	@tasks.async
 	def download_and_run(self, run_button, cancelled):
 		try:
-			downloaded = self.policy.download_uncached_implementations()
+			if not self.select_only:
+				downloaded = self.policy.download_uncached_implementations()
 
-			if downloaded:
-				# We need to wait until everything is downloaded...
-				blockers = [downloaded, cancelled]
-				yield blockers
-				tasks.check(blockers)
+				if downloaded:
+					# We need to wait until everything is downloaded...
+					blockers = [downloaded, cancelled]
+					yield blockers
+					tasks.check(blockers)
 
-				if cancelled.happened:
-					return
+					if cancelled.happened:
+						return
 
-			uncached = self.policy.get_uncached_implementations()
+				uncached = self.policy.get_uncached_implementations()
+			else:
+				uncached = None		# (we don't care)
+
 			if uncached:
 				missing = '\n- '.join([_('%s %s') % (iface.get_name(), impl.get_version()) for iface, impl in uncached])
 				dialog.alert(self.window, _('Not all downloads succeeded; cannot run program.\n\nFailed to get:') + '\n- ' + missing)

@@ -8,7 +8,7 @@ import logging
 foo_iface_uri = 'http://foo'
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import autopolicy, model, cli
+from zeroinstall.injector import autopolicy, model, cli, namespaces, qdom, selections
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
 from zeroinstall.support import basedir
 
@@ -132,6 +132,22 @@ class TestLaunch(BaseTest):
 		out, err = self.run_0launch(['--download-only', '--dry-run', 'Foo.xml'])
 		self.assertEquals("", err)
 		self.assertEquals("Finished\n", out)
+
+	def testSelectOnly(self):
+		policy = autopolicy.AutoPolicy(foo_iface_uri)
+		policy.save_config()
+		os.environ['DISPLAY'] = ':foo'
+		out, err = self.run_0launch(['--get-selections', '--select-only', 'Hello.xml'])
+		self.assertEquals("", err)
+
+		assert out.endswith("Finished\n")
+		out = out[:-len("Finished\n")]
+
+		root = qdom.parse(StringIO(str(out)))
+		self.assertEquals(namespaces.XMLNS_IFACE, root.uri)
+		sels = selections.Selections(root)
+		sel,= sels.selections.values()
+		self.assertEquals("sha1=3ce644dc725f1d21cfcf02562c76f375944b266a", sel.id)
 
 	def testHello(self):
 		out, err = self.run_0launch(['--dry-run', 'Foo.xml'])

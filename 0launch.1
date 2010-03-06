@@ -1,4 +1,4 @@
-.TH 0LAUNCH 1 "2009" "Thomas Leonard" ""
+.TH 0LAUNCH 1 "2010" "Thomas Leonard" ""
 .SH NAME
 0launch \(em download and run programs by URL
 
@@ -97,6 +97,7 @@ other programs).
 \fB\-\-get\-selections\fP
 Instead of running the program, just print the set of chosen implementations as
 an XML document to stdout. This can be used later with \fB\-\-set\-selections\fP.
+Use \fB\-\-select\-only\fP if you don't even want to download the packages.
 
 .TP
 \fB\-g\fP, \fB\-\-gui\fP
@@ -144,6 +145,12 @@ programs won't be downloaded even if the injector already knows about them
 \fB\-r\fP, \fB\-\-refresh\fP
 Fetch a fresh copy of all used interfaces. This will normally switch to GUI
 mode, unless \-\-console is also given.
+
+.TP
+\fB\-\-select\-only\fP
+Download any required feeds and choose a set of implementations, but don't
+actually download them. If there are stale feeds, check for updates first
+(if we're not off-line).
 
 .TP
 \fB\-\-set\-selections=FILE\fP

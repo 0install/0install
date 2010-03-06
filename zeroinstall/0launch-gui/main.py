@@ -20,6 +20,7 @@ def run_gui(args):
 	parser.add_option("", "--not-before", help=_("minimum version to choose"), metavar='VERSION')
 	parser.add_option("", "--os", help=_("target operation system type"), metavar='OS')
 	parser.add_option("-r", "--refresh", help=_("check for updates of all interfaces"), action='store_true')
+	parser.add_option("", "--select-only", help=_("only download the feeds"), action='store_true')
 	parser.add_option("-s", "--source", help=_("select source code"), action='store_true')
 	parser.add_option("", "--systray", help=_("download in the background"), action='store_true')
 	parser.add_option("-v", "--verbose", help=_("more verbose output"), action='count')
@@ -117,7 +118,7 @@ def run_gui(args):
 	policy.solver.extra_restrictions[root_iface] = restrictions
 	policy.solver.record_details = True
 
-	window = mainwindow.MainWindow(policy, widgets, download_only = bool(options.download_only))
+	window = mainwindow.MainWindow(policy, widgets, download_only = bool(options.download_only), select_only = bool(options.select_only))
 	handler.mainwindow = window
 
 	if options.message:

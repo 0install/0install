@@ -177,7 +177,12 @@ def _normal_mode(options, args):
 		# We could run immediately, but the user asked us not to
 		can_run_immediately = False
 	else:
-		can_run_immediately = (not policy.need_download()) and policy.ready
+		if options.select_only:
+			# --select-only: we only care that we've made a selection, not that we've cached the implementations
+			policy.need_download()
+			can_run_immediately = policy.ready
+		else:
+			can_run_immediately = not policy.need_download()
 
 		stale_feeds = [feed for feed in policy.solver.feeds_used if policy.is_stale(iface_cache.get_feed(feed))]
 
@@ -251,12 +256,15 @@ def _normal_mode(options, args):
 			if options.with_store:
 				for x in options.with_store:
 					gui_args += ['--with-store', x]
+			if options.select_only:
+				gui_args.append('--select-only')
 			sels = _fork_gui(iface_uri, gui_args, prog_args, options)
 			if not sels:
 				sys.exit(1)		# Aborted
 		else:
-			#program_log('download_and_execute ' + iface_uri)
-			downloaded = policy.solve_and_download_impls(refresh = bool(options.refresh))
+			# Note: --download-only also makes us stop and download stale feeds first.
+			downloaded = policy.solve_and_download_impls(refresh = options.refresh or options.download_only or False,
+								     select_only = bool(options.select_only))
 			if downloaded:
 				policy.handler.wait_for_blocker(downloaded)
 			sels = selections.Selections(policy)
@@ -336,6 +344,7 @@ def main(command_args):
 	parser.add_option("", "--os", help=_("target operation system type"), metavar='OS')
 	parser.add_option("-o", "--offline", help=_("try to avoid using the network"), action='store_true')
 	parser.add_option("-r", "--refresh", help=_("refresh all used interfaces"), action='store_true')
+	parser.add_option("", "--select-only", help=_("only download the feeds"), action='store_true')
 	parser.add_option("", "--set-selections", help=_("run versions specified in XML file"), metavar='FILE')
 	parser.add_option("-s", "--source", help=_("select source code"), action='store_true')
 	parser.add_option("", "--systray", help=_("download in the background"), action='store_true')
@@ -355,6 +364,9 @@ def main(command_args):
 			logger.setLevel(logging.DEBUG)
 		import zeroinstall
 		logging.info(_("Running 0launch %(version)s %(args)s; Python %(python_version)s"), {'version': zeroinstall.version, 'args': repr(args), 'python_version': sys.version})
+
+	if options.select_only:
+		options.download_only = True
 
 	if options.with_store:
 		from zeroinstall import zerostore

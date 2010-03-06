@@ -350,7 +350,7 @@ class Policy(object):
 					downloads_finished.add(f)
 
 	@tasks.async
-	def solve_and_download_impls(self, refresh = False):
+	def solve_and_download_impls(self, refresh = False, select_only = False):
 		"""Run L{solve_with_downloads} and then get the selected implementations too.
 		@raise SafeException: if we couldn't select a set of implementations
 		@since: 0.40"""
@@ -363,10 +363,12 @@ class Policy(object):
 			raise SafeException(_("Can't find all required implementations:") + '\n' +
 				'\n'.join(["- %s -> %s" % (iface, self.solver.selections[iface])
 					   for iface  in self.solver.selections]))
-		downloaded = self.download_uncached_implementations()
-		if downloaded:
-			yield downloaded
-			tasks.check(downloaded)
+
+		if not select_only:
+			downloaded = self.download_uncached_implementations()
+			if downloaded:
+				yield downloaded
+				tasks.check(downloaded)
 
 	def need_download(self):
 		"""Decide whether we need to download anything (but don't do it!)
