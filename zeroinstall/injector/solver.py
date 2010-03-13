@@ -86,10 +86,13 @@ class PBSolver(Solver):
 		impl_names = {}	# Impl -> "f1_0"
 		self.feeds_used = set()
 		name_to_impl = {}	# "f1_0" -> (Iface, Impl)
-		self.selections = {}
 		self.requires = {}
 		self.ready = False
 		self.details = self.record_details and {}
+
+		# The results. Pointing the root at None by default is just to make
+		# the unit-tests happy :-/
+		self.selections = {self.iface_cache.get_interface(root_interface) : None}
 
 		comment_problem = False	# debugging only
 
@@ -167,16 +170,22 @@ class PBSolver(Solver):
 			else:
 				problem.append("1 * " + requiring_impl + " = 0")
 
-		def is_unusable(impl, arch):
+		def is_unusable(impl, restrictions, arch):
 			"""@return: whether this implementation is unusable.
 			@rtype: bool"""
-			return get_unusable_reason(impl, arch) != None
+			return get_unusable_reason(impl, restrictions, arch) != None
 
-		def get_unusable_reason(impl, arch):
+		def get_unusable_reason(impl, restrictions, arch):
 			"""
 			@param impl: Implementation to test.
+			@type restrictions: [L{model.Restriction}]
 			@return: The reason why this impl is unusable, or None if it's OK.
-			@rtype: str"""
+			@rtype: str
+			@note: The restrictions are for the interface being requested, not the feed
+			of the implementation; they may be different when feeds are being used."""
+			for r in restrictions:
+				if not r.meets_restriction(impl):
+					return _("Incompatible with another selected implementation")
 			stability = impl.get_stability()
 			if stability <= model.buggy:
 				return stability.name
@@ -229,13 +238,15 @@ class PBSolver(Solver):
 
 			impls.sort()
 
+			my_extra_restrictions = self.extra_restrictions.get(iface, [])
+
 			if self.record_details:
-				self.details[iface] = [(impl, get_unusable_reason(impl, arch)) for impl in impls]
+				self.details[iface] = [(impl, get_unusable_reason(impl, my_extra_restrictions, arch)) for impl in impls]
 
 			rank = 1
 			exprs = []
 			for impl in impls:
-				if is_unusable(impl, arch):
+				if is_unusable(impl, my_extra_restrictions, arch):
 					continue
 
 				name = feed_name(impl.feed) + "_" + str(rank)
