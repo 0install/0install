@@ -9,6 +9,8 @@
       <environment name='FOO' insert='.'/>
     </requires>
     <requires interface='http://doesnotexist/missing.xml' use="never"/>
-    <implementation id='sha1=abc' version='1.0'/>
+    <implementation id='sha1=abc' version='1.0'>
+      <archive href='foo' size='10'/>
+    </implementation>
   </group>
 </interface>

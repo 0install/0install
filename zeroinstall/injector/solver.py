@@ -185,7 +185,9 @@ class PBSolver(Solver):
 			stability = impl.get_stability()
 			if stability <= model.buggy:
 				return stability.name
-			if self.network_use == model.network_offline and not get_cached(impl):
+			if (self.network_use == model.network_offline or not impl.download_sources) and not get_cached(impl):
+				if not impl.download_sources:
+					return _("No retrieval methods")
 				return _("Not cached and we are off-line")
 			if impl.os not in arch.os_ranks:
 				return _("Unsupported OS")

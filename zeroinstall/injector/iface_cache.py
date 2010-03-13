@@ -276,9 +276,9 @@ class IfaceCache(object):
 			if new_mtime < old_modified:
 				os.unlink(cached + '.new')
 				raise ReplayAttack(_("New interface's modification time is "
-					"before old version!\nOld time: %(old_time)s\nNew time: %(new_time)s\n"
+					"before old version!\nInterface: %(iface)s\nOld time: %(old_time)s\nNew time: %(new_time)s\n"
 					"Refusing update.")
-					% {'old_time': _pretty_time(old_modified), 'new_time': _pretty_time(new_mtime)})
+					% {'iface': interface.uri, 'old_time': _pretty_time(old_modified), 'new_time': _pretty_time(new_mtime)})
 			if new_mtime == old_modified:
 				# You used to have to update the modification time manually.
 				# Now it comes from the signature, this check isn't useful
