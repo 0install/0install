@@ -283,15 +283,18 @@ class PBSolver(Solver):
 					bits = line.split(' ')[1:]
 					for bit in bits:
 						if bit.startswith('f'):
-							print bit
 							iface, impl = name_to_impl[bit]
-							print "%s (%s)" % (iface, impl.get_version())
+							if comment_problem:
+								print "%s (%s)" % (iface, impl.get_version())
 							self.selections[iface] = impl
 				elif line == "s OPTIMUM FOUND":
-					print line
+					if comment_problem:
+						print line
 					self.ready = True
+				elif line == "s UNSATISFIABLE":
+					pass
 				elif line:
-					print line
+					warn("Unexpected output from solver: %s", line)
 		finally:
 			if comment_problem:
 				print tmp_name
