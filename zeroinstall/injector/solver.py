@@ -93,6 +93,26 @@ class PBSolver(Solver):
 
 		comment_problem = False	# debugging only
 
+		if self.help_with_testing:
+			# Choose the newest, not the most stable.
+			# Preferred still affects the choice, though.
+			stability_cost = {
+				model.preferred :    0,
+				model.packaged  : 1000,
+				model.stable    : 1000,
+				model.testing   : 1000,
+				model.developer : 1000,
+			}
+		else:
+			# Strongly prefer packaged or stable versions.
+			stability_cost = {
+				model.preferred :    0,
+				model.packaged  : 1000,
+				model.stable    : 1100,
+				model.testing   : 3000,
+				model.developer : 8000,
+			}
+
 		def feed_name(feed):
 			name = feed_names.get(feed, None)
 			if name: return name
@@ -222,7 +242,7 @@ class PBSolver(Solver):
 				assert impl not in impl_names
 				impl_names[impl] = name
 				name_to_impl[name] = (iface, impl)
-				costs[name] = rank
+				costs[name] = rank + stability_cost.get(impl.get_stability(), 1000)
 				rank += 1
 				exprs.append('1 * ' + name)
 
