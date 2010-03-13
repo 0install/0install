@@ -128,6 +128,29 @@ class PBSolver(Solver):
 				# else we filtered that version out, so ignore it
 			problem.append(("-1 * " + requiring_impl) + " " + " + ".join(dep_exprs) + " >= 0")
 
+		def is_unusable(impl, arch):
+			"""@return: whether this implementation is unusable.
+			@rtype: bool"""
+			return get_unusable_reason(impl, arch) != None
+
+		def get_unusable_reason(impl, arch):
+			"""
+			@param impl: Implementation to test.
+			@return: The reason why this impl is unusable, or None if it's OK.
+			@rtype: str"""
+			stability = impl.get_stability()
+			if stability <= model.buggy:
+				return stability.name
+			if self.network_use == model.network_offline and not get_cached(impl):
+				return _("Not cached and we are off-line")
+			if impl.os not in arch.os_ranks:
+				return _("Unsupported OS")
+			if impl.machine not in arch.machine_ranks:
+				if impl.machine == 'src':
+					return _("Source code")
+				return _("Unsupported machine type")
+			return None
+
 		def usable_feeds(iface, arch):
 			"""Return all feeds for iface that support arch.
 			@rtype: generator(ZeroInstallFeed)"""
@@ -169,8 +192,7 @@ class PBSolver(Solver):
 			rank = 1
 			exprs = []
 			for impl in impls:
-				if self.network_use == model.network_offline and not get_cached(impl):
-					print "(ignoring uncached impl %s)" % impl
+				if is_unusable(impl, arch):
 					continue
 
 				name = feed_name(impl.feed) + "_" + str(rank)
@@ -198,8 +220,11 @@ class PBSolver(Solver):
 
 			# Only one implementation of this interface can be selected
 			if uri == root_interface:
-				problem.append(" + ".join(exprs) + " = 1")
-			else:
+				if exprs:
+					problem.append(" + ".join(exprs) + " = 1")
+				else:
+					problem.append("1 * impossible = 2")
+			elif exprs:
 				problem.append(" + ".join(exprs) + " <= 1")
 
 		add_iface(root_interface, root_arch)
@@ -208,7 +233,10 @@ class PBSolver(Solver):
 		try:
 			stream = os.fdopen(prog_fd, 'wb')
 			try:
-				print >>stream, "min:", ' + '.join("%d * %s" % (cost, name) for name, cost in costs.iteritems()) + ";"
+				if costs:
+					print >>stream, "min:", ' + '.join("%d * %s" % (cost, name) for name, cost in costs.iteritems()) + ";"
+				else:
+					print >>stream, "min: 1 * impossible;"
 				for line in problem:
 					print >>stream, line, ";"
 			finally:
