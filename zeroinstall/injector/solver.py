@@ -68,7 +68,7 @@ class PBSolver(Solver):
 		self.help_with_testing = False
 		self.extra_restrictions = extra_restrictions or {}
 
-	def solve(self, root_interface, arch):
+	def solve(self, root_interface, root_arch):
 		# TODO: We need some way to figure out which feeds to include.
 		# Currently, we include any feed referenced from anywhere but
 		# this is probably too much. We could insert a dummy optimial
@@ -80,11 +80,13 @@ class PBSolver(Solver):
 		costs = {}	# impl -> cost
 
 		feed_names = {}	# Feed -> "f1"
-		impl_names = {}
+		impl_names = {}	# Impl -> "f1_0"
 		self.feeds_used = set()
 		name_to_impl = {}	# "f1_0" -> (Iface, Impl)
 		self.selections = {}
+		self.requires = {}
 		self.ready = False
+		self.details = self.record_details and {}
 
 		def feed_name(feed):
 			name = feed_names.get(feed, None)
@@ -94,13 +96,52 @@ class PBSolver(Solver):
 			self.feeds_used.add(feed.url)
 			return name
 
-		def add_iface(uri):
+		def get_cached(impl):
+			"""Check whether an implementation is available locally.
+			@type impl: model.Implementation
+			@rtype: bool
+			"""
+			if isinstance(impl, model.DistributionImplementation):
+				return impl.installed
+			if impl.local_path:
+				return os.path.exists(impl.local_path)
+			else:
+				try:
+					path = self.stores.lookup_any(impl.digests)
+					assert path
+					return True
+				except BadDigest:
+					return False
+				except NotStored:
+					return False
+
+		ifaces_processed = set()
+
+		def find_dependency_candidates(requiring_impl, dependency):
+			dep_iface = self.iface_cache.get_interface(dependency.interface)
+			# TODO: version restrictions
+			dep_exprs = []
+			for candidate in dep_iface.implementations.values():
+				c_name = impl_names.get(candidate, None)
+				if c_name:
+					dep_exprs.append("1 * " + c_name)
+				# else we filtered that version out, so ignore it
+			problem.append(("-1 * " + requiring_impl) + " " + " + ".join(dep_exprs) + " >= 0")
+
+		def add_iface(uri, arch):
 			"""Name implementations from feed, assign costs and assert that one one can be selected."""
+			if uri in ifaces_processed: return
+			ifaces_processed.add(uri)
+
 			iface = self.iface_cache.get_interface(uri)
 			impls = sorted(iface.implementations.values())
 			rank = 1
 			exprs = []
 			for impl in impls:
+				if self.network_use == model.network_offline and not get_cached(impl):
+					print "(ignoring uncached impl %s)" % impl
+					continue
+
 				name = feed_name(impl.feed) + "_" + str(rank)
 				assert impl not in impl_names
 				impl_names[impl] = name
@@ -109,13 +150,28 @@ class PBSolver(Solver):
 				costs[name] = rank
 				rank += 1
 				exprs.append('1 * ' + name)
+
+				self.requires[iface] = selected_requires = []
+				for d in impl.requires:
+					debug(_("Considering dependency %s"), d)
+					use = d.metadata.get("use", None)
+					if use not in arch.use:
+						info("Skipping dependency; use='%s' not in %s", use, arch.use)
+						continue
+
+					add_iface(d.interface, arch.child_arch)
+					selected_requires.append(d)
+
+					# Must choose one version of d if impl is selected
+					find_dependency_candidates(name, d)
+
 			# Only one implementation of this interface can be selected
 			if uri == root_interface:
 				problem.append(" + ".join(exprs) + " = 1")
 			else:
 				problem.append(" + ".join(exprs) + " <= 1")
 
-		add_iface(root_interface)
+		add_iface(root_interface, root_arch)
 
 		prog_fd, tmp_name = tempfile.mkstemp(prefix = '0launch')
 		try:
@@ -127,7 +183,7 @@ class PBSolver(Solver):
 			finally:
 				stream.close()
 			child = subprocess.Popen(['minisat+', tmp_name, '-v0'], stdout = subprocess.PIPE)
-			data, _ = child.communicate()
+			data, used = child.communicate()
 			for line in data.split('\n'):
 				if line.startswith('v '):
 					bits = line.split(' ')[1:]
@@ -142,6 +198,7 @@ class PBSolver(Solver):
 				elif line:
 					print line
 		finally:
+			#print tmp_name
 			os.unlink(tmp_name)
 
 DefaultSolver = PBSolver
