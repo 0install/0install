@@ -129,13 +129,17 @@ class PBSolver(Solver):
 
 		def find_dependency_candidates(requiring_impl, dependency):
 			dep_iface = self.iface_cache.get_interface(dependency.interface)
-			# TODO: version restrictions
 			dep_exprs = []
 			for candidate in dep_iface.implementations.values():
-				c_name = impl_names.get(candidate, None)
-				if c_name:
-					dep_exprs.append("1 * " + c_name)
-				# else we filtered that version out, so ignore it
+				for r in dependency.restrictions:
+					if not r.meets_restriction(candidate):
+						#warn("%s rejected due to %s", candidate.get_version(), r)
+						break
+				else:
+					c_name = impl_names.get(candidate, None)
+					if c_name:
+						dep_exprs.append("1 * " + c_name)
+					# else we filtered that version out, so ignore it
 			if comment_problem:
 				problem.append("* %s requires %s" % (requiring_impl, dependency))
 			if dep_exprs:
@@ -267,7 +271,7 @@ class PBSolver(Solver):
 				problem.append("* select implementations from at most one machine group")
 			problem.append(' + '.join(exprs) + ' <= 1')
 
-		prog_fd, tmp_name = tempfile.mkstemp(prefix = '0launch')
+		prog_fd, tmp_name = tempfile.mkstemp(prefix = '0launch-')
 		try:
 			stream = os.fdopen(prog_fd, 'wb')
 			try:
