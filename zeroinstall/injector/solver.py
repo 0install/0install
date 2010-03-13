@@ -77,7 +77,10 @@ class PBSolver(Solver):
 
 		feeds_added = set()
 		problem = []
-		costs = {}	# impl -> cost
+
+		# 10 points cost for selecting 32-bit binaries (when we could have
+		# chosen 64-bits).
+		costs = {"m0": 10}	# f1_0 -> 2
 
 		feed_names = {}	# Feed -> "f1"
 		impl_names = {}	# Impl -> "f1_0"
@@ -87,6 +90,8 @@ class PBSolver(Solver):
 		self.requires = {}
 		self.ready = False
 		self.details = self.record_details and {}
+
+		comment_problem = False	# debugging only
 
 		def feed_name(feed):
 			name = feed_names.get(feed, None)
@@ -117,6 +122,10 @@ class PBSolver(Solver):
 
 		ifaces_processed = set()
 
+		impls_for_machine_group = {0 : []}		# Machine group (e.g. "64") to [impl] in that group
+		for machine_group in machine_groups.values():
+			impls_for_machine_group[machine_group] = []
+
 		def find_dependency_candidates(requiring_impl, dependency):
 			dep_iface = self.iface_cache.get_interface(dependency.interface)
 			# TODO: version restrictions
@@ -126,7 +135,12 @@ class PBSolver(Solver):
 				if c_name:
 					dep_exprs.append("1 * " + c_name)
 				# else we filtered that version out, so ignore it
-			problem.append(("-1 * " + requiring_impl) + " " + " + ".join(dep_exprs) + " >= 0")
+			if comment_problem:
+				problem.append("* %s requires %s" % (requiring_impl, dependency))
+			if dep_exprs:
+				problem.append(("-1 * " + requiring_impl) + " + " + " + ".join(dep_exprs) + " >= 0")
+			else:
+				problem.append("1 * " + requiring_impl + " = 0")
 
 		def is_unusable(impl, arch):
 			"""@return: whether this implementation is unusable.
@@ -204,6 +218,9 @@ class PBSolver(Solver):
 				rank += 1
 				exprs.append('1 * ' + name)
 
+				if impl.machine and impl.machine != 'src':
+					impls_for_machine_group[machine_groups.get(impl.machine, 0)].append(name)
+
 				self.requires[iface] = selected_requires = []
 				for d in impl.requires:
 					debug(_("Considering dependency %s"), d)
@@ -220,23 +237,37 @@ class PBSolver(Solver):
 
 			# Only one implementation of this interface can be selected
 			if uri == root_interface:
+				if comment_problem:
+					problem.append("* select 1 of root " + uri)
 				if exprs:
 					problem.append(" + ".join(exprs) + " = 1")
 				else:
 					problem.append("1 * impossible = 2")
 			elif exprs:
+				if comment_problem:
+					problem.append("* select at most 1 of " + uri)
 				problem.append(" + ".join(exprs) + " <= 1")
 
 		add_iface(root_interface, root_arch)
+
+		# Require m<group> to be true if we select an implementation in that group
+		exprs = []
+		for machine_group, impls in impls_for_machine_group.iteritems():
+			if impls:
+				if comment_problem:
+					problem.append("* define machine group %d" % machine_group)
+				problem.append(' + '.join("1 * " + impl for impl in impls) + ' - %d * m%d <= 0' % (len(impls), machine_group))
+			exprs.append('1 * m%d' % machine_group)
+		if exprs:
+			if comment_problem:
+				problem.append("* select implementations from at most one machine group")
+			problem.append(' + '.join(exprs) + ' <= 1')
 
 		prog_fd, tmp_name = tempfile.mkstemp(prefix = '0launch')
 		try:
 			stream = os.fdopen(prog_fd, 'wb')
 			try:
-				if costs:
-					print >>stream, "min:", ' + '.join("%d * %s" % (cost, name) for name, cost in costs.iteritems()) + ";"
-				else:
-					print >>stream, "min: 1 * impossible;"
+				print >>stream, "min:", ' + '.join("%d * %s" % (cost, name) for name, cost in costs.iteritems()) + ";"
 				for line in problem:
 					print >>stream, line, ";"
 			finally:
@@ -247,12 +278,13 @@ class PBSolver(Solver):
 				if line.startswith('v '):
 					bits = line.split(' ')[1:]
 					for bit in bits:
-						if not bit.startswith('-'):
+						if bit.startswith('f'):
 							print bit
 							iface, impl = name_to_impl[bit]
 							print "%s (%s)" % (iface, impl.get_version())
 							self.selections[iface] = impl
 				elif line == "s OPTIMUM FOUND":
+					print line
 					self.ready = True
 				elif line:
 					print line
