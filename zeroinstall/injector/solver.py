@@ -6,7 +6,7 @@ Chooses a set of components to make a running program.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os
+import os, tempfile, subprocess
 from logging import debug, warn, info
 
 from zeroinstall.zerostore import BadDigest, NotStored
@@ -48,7 +48,105 @@ class Solver(object):
 		@postcondition: self.ready, self.selections and self.feeds_used are updated"""
 		raise NotImplementedError("Abstract")
 
-class DefaultSolver(Solver):
+class PBSolver(Solver):
+	"""Converts the problem to a set of pseudo-boolean constraints and uses a PB solver to solve them."""
+	def __init__(self, network_use, iface_cache, stores, extra_restrictions = None):
+		"""
+		@param network_use: how much use to make of the network
+		@type network_use: L{model.network_levels}
+		@param iface_cache: a cache of feeds containing information about available versions
+		@type iface_cache: L{iface_cache.IfaceCache}
+		@param stores: a cached of implementations (affects choice when offline or when minimising network use)
+		@type stores: L{zerostore.Stores}
+		@param extra_restrictions: extra restrictions on the chosen implementations
+		@type extra_restrictions: {L{model.Interface}: [L{model.Restriction}]}
+		"""
+		Solver.__init__(self)
+		self.network_use = network_use
+		self.iface_cache = iface_cache
+		self.stores = stores
+		self.help_with_testing = False
+		self.extra_restrictions = extra_restrictions or {}
+
+	def solve(self, root_interface, arch):
+		# TODO: We need some way to figure out which feeds to include.
+		# Currently, we include any feed referenced from anywhere but
+		# this is probably too much. We could insert a dummy optimial
+		# implementation in stale/uncached feeds and see whether it
+		# selects that.
+
+		feeds_added = set()
+		problem = []
+		costs = {}	# impl -> cost
+
+		feed_names = {}	# Feed -> "f1"
+		impl_names = {}
+		self.feeds_used = set()
+		name_to_impl = {}	# "f1_0" -> (Iface, Impl)
+		self.selections = {}
+		self.ready = False
+
+		def feed_name(feed):
+			name = feed_names.get(feed, None)
+			if name: return name
+			feed_names[feed] = name = "f%d" % (len(feed_names))
+			print feed, "is now known as", name
+			self.feeds_used.add(feed.url)
+			return name
+
+		def add_iface(uri):
+			"""Name implementations from feed, assign costs and assert that one one can be selected."""
+			iface = self.iface_cache.get_interface(uri)
+			impls = sorted(iface.implementations.values())
+			rank = 1
+			exprs = []
+			for impl in impls:
+				name = feed_name(impl.feed) + "_" + str(rank)
+				assert impl not in impl_names
+				impl_names[impl] = name
+				name_to_impl[name] = (iface, impl)
+				print "Adding %s as %s" % (impl, name)
+				costs[name] = rank
+				rank += 1
+				exprs.append('1 * ' + name)
+			# Only one implementation of this interface can be selected
+			if uri == root_interface:
+				problem.append(" + ".join(exprs) + " = 1")
+			else:
+				problem.append(" + ".join(exprs) + " <= 1")
+
+		add_iface(root_interface)
+
+		prog_fd, tmp_name = tempfile.mkstemp(prefix = '0launch')
+		try:
+			stream = os.fdopen(prog_fd, 'wb')
+			try:
+				print >>stream, "min:", ' + '.join("%d * %s" % (cost, name) for name, cost in costs.iteritems()) + ";"
+				for line in problem:
+					print >>stream, line, ";"
+			finally:
+				stream.close()
+			child = subprocess.Popen(['minisat+', tmp_name, '-v0'], stdout = subprocess.PIPE)
+			data, _ = child.communicate()
+			for line in data.split('\n'):
+				if line.startswith('v '):
+					bits = line.split(' ')[1:]
+					for bit in bits:
+						if not bit.startswith('-'):
+							print bit
+							iface, impl = name_to_impl[bit]
+							print "%s (%s)" % (iface, impl.get_version())
+							self.selections[iface] = impl
+				elif line == "s OPTIMUM FOUND":
+					self.ready = True
+				elif line:
+					print line
+		finally:
+			os.unlink(tmp_name)
+
+DefaultSolver = PBSolver
+
+class StupidSolver(Solver):
 	"""The standard (rather naive) Zero Install solver."""
 	def __init__(self, network_use, iface_cache, stores, extra_restrictions = None):
 		"""
