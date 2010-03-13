@@ -97,7 +97,8 @@ class PBSolver(Solver):
 			name = feed_names.get(feed, None)
 			if name: return name
 			feed_names[feed] = name = "f%d" % (len(feed_names))
-			print feed, "is now known as", name
+			if comment_problem:
+				problem.append("* feed %s is now known as %s" % (feed, name))
 			self.feeds_used.add(feed.url)
 			return name
 
@@ -217,7 +218,6 @@ class PBSolver(Solver):
 				assert impl not in impl_names
 				impl_names[impl] = name
 				name_to_impl[name] = (iface, impl)
-				print "Adding %s as %s" % (impl, name)
 				costs[name] = rank
 				rank += 1
 				exprs.append('1 * ' + name)

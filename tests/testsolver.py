@@ -57,7 +57,9 @@ class TestSolver(BaseTest):
 		assert s.ready
 
 		assert len(s.details) == 2
-		assert s.details[foo] == [(foo_src._main_feed.implementations['sha1=234'], None), (foo._main_feed.implementations['sha1=123'], 'Unsupported machine type')]
+		self.assertEquals([(foo_src._main_feed.implementations['sha1=234'], None),
+				   (foo._main_feed.implementations['sha1=123'], 'Unsupported machine type')],
+				   sorted(s.details[foo]))
 		assert s.details[compiler] == [(compiler._main_feed.implementations['sha1=345'], None)]
 
 	def testRecursive(self):
