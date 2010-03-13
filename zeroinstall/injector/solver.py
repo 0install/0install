@@ -128,13 +128,44 @@ class PBSolver(Solver):
 				# else we filtered that version out, so ignore it
 			problem.append(("-1 * " + requiring_impl) + " " + " + ".join(dep_exprs) + " >= 0")
 
+		def usable_feeds(iface, arch):
+			"""Return all feeds for iface that support arch.
+			@rtype: generator(ZeroInstallFeed)"""
+			yield iface.uri
+
+			for f in iface.feeds:
+				# Note: when searching for src, None is not in machine_ranks
+				if f.os in arch.os_ranks and \
+				   (f.machine is None or f.machine in arch.machine_ranks):
+					yield f.uri
+				else:
+					debug(_("Skipping '%(feed)s'; unsupported architecture %(os)s-%(machine)s"),
+						{'feed': f, 'os': f.os, 'machine': f.machine})
+
 		def add_iface(uri, arch):
 			"""Name implementations from feed, assign costs and assert that one one can be selected."""
 			if uri in ifaces_processed: return
 			ifaces_processed.add(uri)
 
 			iface = self.iface_cache.get_interface(uri)
-			impls = sorted(iface.implementations.values())
+
+			impls = []
+			for f in usable_feeds(iface, arch):
+				self.feeds_used.add(f)
+				debug(_("Processing feed %s"), f)
+
+				try:
+					feed = self.iface_cache.get_interface(f)._main_feed
+					if not feed.last_modified: continue	# DummyFeed
+					if feed.name and iface.uri != feed.url and iface.uri not in feed.feed_for:
+						info(_("Missing <feed-for> for '%(uri)s' in '%(feed)s'"), {'uri': iface.uri, 'feed': f})
+
+					if feed.implementations:
+						impls.extend(feed.implementations.values())
+				except Exception, ex:
+					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': str(ex)})
+
+			impls.sort()
 			rank = 1
 			exprs = []
 			for impl in impls:
