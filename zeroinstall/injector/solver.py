@@ -38,7 +38,7 @@ class Solver(object):
 		self.selections = self.requires = self.feeds_used = self.details = None
 		self.record_details = False
 		self.ready = False
-	
+
 	def solve(self, root_interface, arch):
 		"""Get the best implementation of root_interface and all of its dependencies.
 		@param root_interface: the URI of the program to be solved
@@ -78,10 +78,6 @@ class PBSolver(Solver):
 		feeds_added = set()
 		problem = []
 
-		# 10 points cost for selecting 32-bit binaries (when we could have
-		# chosen 64-bits).
-		costs = {"m0": 10}	# f1_0 -> 2
-
 		feed_names = {}	# Feed -> "f1"
 		impl_names = {}	# Impl -> "f1_0"
 		self.feeds_used = set()
@@ -90,9 +86,7 @@ class PBSolver(Solver):
 		self.ready = False
 		self.details = self.record_details and {}
 
-		# The results. Pointing the root at None by default is just to make
-		# the unit-tests happy :-/
-		self.selections = {self.iface_cache.get_interface(root_interface) : None}
+		self.selections = None
 
 		comment_problem = False	# debugging only
 
@@ -260,7 +254,6 @@ class PBSolver(Solver):
 				assert impl not in impl_names
 				impl_names[impl] = name
 				name_to_impl[name] = (iface, impl, arch)
-				costs[name] = rank + stability_cost.get(impl.get_stability(), 1000)
 				rank += 1
 				exprs.append('1 * ' + name)
 
@@ -290,13 +283,7 @@ class PBSolver(Solver):
 			elif exprs:
 				if comment_problem:
 					problem.append("* select at most 1 of " + uri)
-				none = iface_name + '_none'
-				problem.append(" + ".join(exprs) + " + 1 * %s = 1" % none)
-
-				# Impose a cost of not selecting anything, so that the stability weights
-				# are relative to installing a stable version. Otherwise, we massively
-				# prefer versions with fewer dependencies!
-				costs[none] = stability_cost[model.stable] + 1
+				problem.append(" + ".join(exprs) + " <= 1")
 
 		add_iface(root_interface, root_arch)
 
@@ -313,46 +300,93 @@ class PBSolver(Solver):
 				problem.append("* select implementations from at most one machine group")
 			problem.append(' + '.join(exprs) + ' <= 1')
 
-		prog_fd, tmp_name = tempfile.mkstemp(prefix = '0launch-')
-		try:
-			stream = os.fdopen(prog_fd, 'wb')
+		def run_solver(minimise):
+			selected = []
+			prog_fd, tmp_name = tempfile.mkstemp(prefix = '0launch-')
 			try:
-				print >>stream, "min:", ' + '.join("%d * %s" % (cost, name) for name, cost in costs.iteritems()) + ";"
-				for line in problem:
-					print >>stream, line, ";"
+				stream = os.fdopen(prog_fd, 'wb')
+				try:
+					print >>stream, "min:", ' + '.join("%d * %s" % (cost, name) for name, cost in minimise.iteritems()) + ";"
+					for line in problem:
+						print >>stream, line, ";"
+				finally:
+					stream.close()
+				if comment_problem:
+					pass# print >>sys.stderr, open(tmp_name).read()
+				child = subprocess.Popen(['minisat+', tmp_name, '-v0'], stdout = subprocess.PIPE)
+				data, used = child.communicate()
+				for line in data.split('\n'):
+					if line.startswith('v '):
+						bits = line.split(' ')[1:]
+						for bit in bits:
+							if comment_problem and not bit.startswith("-"):
+								print >>sys.stderr, bit
+							if bit.startswith('f'):
+								selected.append(bit)
+
+					elif line == "s OPTIMUM FOUND":
+						if comment_problem:
+							print >>sys.stderr, line
+						self.ready = True
+					elif line == "s UNSATISFIABLE":
+						return False
+					elif line:
+						warn("Unexpected output from solver: %s", line)
 			finally:
-				stream.close()
-			if comment_problem:
-				print >>sys.stderr, open(tmp_name).read()
-			child = subprocess.Popen(['minisat+', tmp_name, '-v0'], stdout = subprocess.PIPE)
-			data, used = child.communicate()
-			for line in data.split('\n'):
-				if line.startswith('v '):
-					bits = line.split(' ')[1:]
-					for bit in bits:
-						if comment_problem and not bit.startswith("-"):
-							print >>sys.stderr, bit
-						if bit.startswith('f'):
-							iface, impl, arch = name_to_impl[bit]
-							if comment_problem:
-								print >>sys.stderr, "%s (%s), cost %d" % (iface, impl.get_version(), costs[bit])
-							self.selections[iface] = impl
-							self.requires[iface] = selected_requires = []
-							for d in impl.requires:
-								# (same logic as above)
-								use = d.metadata.get("use", None)
-								if use not in arch.use:
-									continue
-								selected_requires.append(d)
-				elif line == "s OPTIMUM FOUND":
-					if comment_problem:
-						print line
-					self.ready = True
-				elif line == "s UNSATISFIABLE":
-					pass
-				elif line:
-					warn("Unexpected output from solver: %s", line)
-		finally:
-			os.unlink(tmp_name)
+				os.unlink(tmp_name)
+
+			return selected
+
+		def select_recursive(uri):
+			"""Select the best version of iface compatible with all the constraints.
+			When done, add this version as a new constraint and recurse over the dependencies.
+			"""
+			iface = self.iface_cache.get_interface(uri)
+			if iface in self.selections:
+				return	# Break cycles
+
+			# 10 points cost for selecting 32-bit binaries (when we could have
+			# chosen 64-bits).
+			costs = {"m0": 10}	# f1_0 -> 2
+
+			rank = 1
+			for impl in impls_for_iface[iface]:
+				name = impl_names[impl]
+				costs[name] = rank + stability_cost.get(impl.get_stability(), 1000)
+				rank += 1
+			selected = run_solver(costs)
+			if selected is False:
+				# Pointing the root at None by default is just
+				# to make the unit-tests happy :-/
+				self.selections[iface] = None
+				return			# Failed to find any valid combination
+			for name in selected:
+				for_iface, impl, arch = name_to_impl[name]
+
+				# We only care about the selection for the iface we're currently
+				# considering.
+				if for_iface != iface: continue
+
+				if comment_problem:
+					print >>sys.stderr, "%s (%s), cost %d" % (iface, impl.get_version(), costs[name])
+
+				# Fix this version now
+				problem.append("1 * %s = 1" % name)
+
+				self.selections[iface] = impl
+				self.requires[iface] = selected_requires = []
+				for d in impl.requires:
+					# (same logic as above)
+					use = d.metadata.get("use", None)
+					if use not in arch.use:
+						continue
+					selected_requires.append(d)
+					select_recursive(d.interface)
+				break
+			else:
+				assert 0, "No selection for %s in %s!" % (iface, selected)
+
+		self.selections = {}
+		select_recursive(root_interface)
 
 DefaultSolver = PBSolver
