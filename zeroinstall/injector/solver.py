@@ -203,6 +203,10 @@ class PBSolver(Solver):
 					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': str(ex)})
 
 			impls.sort()
+
+			if self.record_details:
+				self.details[iface] = [(impl, get_unusable_reason(impl, arch)) for impl in impls]
+
 			rank = 1
 			exprs = []
 			for impl in impls:
@@ -289,8 +293,10 @@ class PBSolver(Solver):
 				elif line:
 					print line
 		finally:
-			#print tmp_name
-			os.unlink(tmp_name)
+			if comment_problem:
+				print tmp_name
+			else:
+				os.unlink(tmp_name)
 
 DefaultSolver = PBSolver
 
