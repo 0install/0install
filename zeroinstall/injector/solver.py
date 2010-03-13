@@ -6,7 +6,7 @@ Chooses a set of components to make a running program.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os, tempfile, subprocess
+import os, tempfile, subprocess, sys
 from logging import debug, warn, info
 
 from zeroinstall.zerostore import BadDigest, NotStored
@@ -150,10 +150,12 @@ class PBSolver(Solver):
 		for machine_group in machine_groups.values():
 			impls_for_machine_group[machine_group] = []
 
+		impls_for_iface = {}	# Iface -> [impl]
+
 		def find_dependency_candidates(requiring_impl, dependency):
 			dep_iface = self.iface_cache.get_interface(dependency.interface)
 			dep_exprs = []
-			for candidate in dep_iface.implementations.values():
+			for candidate in impls_for_iface[dep_iface]:
 				for r in dependency.restrictions:
 					if not r.meets_restriction(candidate):
 						#warn("%s rejected due to %s", candidate.get_version(), r)
@@ -217,6 +219,7 @@ class PBSolver(Solver):
 			"""Name implementations from feed, assign costs and assert that one one can be selected."""
 			if uri in ifaces_processed: return
 			ifaces_processed.add(uri)
+			iface_name = 'i%d' % len(ifaces_processed)
 
 			iface = self.iface_cache.get_interface(uri)
 
@@ -238,6 +241,8 @@ class PBSolver(Solver):
 
 			impls.sort()
 
+			impls_for_iface[iface] = filtered_impls = []
+
 			my_extra_restrictions = self.extra_restrictions.get(iface, [])
 
 			if self.record_details:
@@ -248,6 +253,8 @@ class PBSolver(Solver):
 			for impl in impls:
 				if is_unusable(impl, my_extra_restrictions, arch):
 					continue
+
+				filtered_impls.append(impl)
 
 				name = feed_name(impl.feed) + "_" + str(rank)
 				assert impl not in impl_names
@@ -285,7 +292,13 @@ class PBSolver(Solver):
 			elif exprs:
 				if comment_problem:
 					problem.append("* select at most 1 of " + uri)
-				problem.append(" + ".join(exprs) + " <= 1")
+				none = iface_name + '_none'
+				problem.append(" + ".join(exprs) + " + 1 * %s = 1" % none)
+
+				# Impose a cost of not selecting anything, so that the stability weights
+				# are relative to installing a stable version. Otherwise, we massively
+				# prefer versions with fewer dependencies!
+				costs[none] = stability_cost[model.stable] + 1
 
 		add_iface(root_interface, root_arch)
 
@@ -311,16 +324,20 @@ class PBSolver(Solver):
 					print >>stream, line, ";"
 			finally:
 				stream.close()
+			if comment_problem:
+				print >>sys.stderr, open(tmp_name).read()
 			child = subprocess.Popen(['minisat+', tmp_name, '-v0'], stdout = subprocess.PIPE)
 			data, used = child.communicate()
 			for line in data.split('\n'):
 				if line.startswith('v '):
 					bits = line.split(' ')[1:]
 					for bit in bits:
+						if comment_problem and not bit.startswith("-"):
+							print >>sys.stderr, bit
 						if bit.startswith('f'):
 							iface, impl = name_to_impl[bit]
 							if comment_problem:
-								print "%s (%s)" % (iface, impl.get_version())
+								print >>sys.stderr, "%s (%s), cost %d" % (iface, impl.get_version(), costs[bit])
 							self.selections[iface] = impl
 				elif line == "s OPTIMUM FOUND":
 					if comment_problem:
@@ -331,10 +348,7 @@ class PBSolver(Solver):
 				elif line:
 					warn("Unexpected output from solver: %s", line)
 		finally:
-			if comment_problem:
-				print tmp_name
-			else:
-				os.unlink(tmp_name)
+			os.unlink(tmp_name)
 
 DefaultSolver = PBSolver
 
