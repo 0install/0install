@@ -14,6 +14,28 @@ from zeroinstall.zerostore import BadDigest, NotStored
 from zeroinstall.injector.arch import machine_groups
 from zeroinstall.injector import model
 
+def _get_cached(stores, impl):
+	"""Check whether an implementation is available locally.
+	@type impl: model.Implementation
+	@rtype: bool
+	"""
+	if isinstance(impl, model.DistributionImplementation):
+		return impl.installed
+	if impl.local_path:
+		return os.path.exists(impl.local_path)
+	else:
+		try:
+			if not impl.digests:
+				warn("No digests given for %s!", impl)
+				return False
+			path = stores.lookup_any(impl.digests)
+			assert path
+			return True
+		except BadDigest:
+			return False
+		except NotStored:
+			return False
+
 class Solver(object):
 	"""Chooses a set of implementations to satisfy the requirements of a program and its user.
 	Typical use:
@@ -68,6 +90,57 @@ class PBSolver(Solver):
 		self.help_with_testing = False
 		self.extra_restrictions = extra_restrictions or {}
 
+	def compare(self, interface, b, a, arch):
+		"""Compare a and b to see which would be chosen first.
+		Does not consider whether the implementations are usable (check for that yourself first).
+		@param interface: The interface we are trying to resolve, which may
+		not be the interface of a or b if they are from feeds.
+		@rtype: int"""
+		a_stab = a.get_stability()
+		b_stab = b.get_stability()
+
+		# Preferred versions come first
+		r = cmp(a_stab == model.preferred, b_stab == model.preferred)
+		if r: return r
+
+		stores = self.stores
+		if self.network_use != model.network_full:
+			r = cmp(_get_cached(stores, a), _get_cached(stores, b))
+			if r: return r
+
+		# Stability
+		stab_policy = interface.stability_policy
+		if not stab_policy:
+			if self.help_with_testing: stab_policy = model.testing
+			else: stab_policy = model.stable
+
+		if a_stab >= stab_policy: a_stab = model.preferred
+		if b_stab >= stab_policy: b_stab = model.preferred
+
+		r = cmp(a_stab, b_stab)
+		if r: return r
+
+		# Newer versions come before older ones
+		r = cmp(a.version, b.version)
+		if r: return r
+
+		# Get best OS
+		r = cmp(arch.os_ranks.get(b.os, None),
+			arch.os_ranks.get(a.os, None))
+		if r: return r
+
+		# Get best machine
+		r = cmp(arch.machine_ranks.get(b.machine, None),
+			arch.machine_ranks.get(a.machine, None))
+		if r: return r
+
+		# Slightly prefer cached versions
+		if self.network_use == model.network_full:
+			r = cmp(_get_cached(stores, a), _get_cached(stores, b))
+			if r: return r
+
+		return cmp(a.id, b.id)
+
 	def solve(self, root_interface, root_arch):
 		# TODO: We need some way to figure out which feeds to include.
 		# Currently, we include any feed referenced from anywhere but
@@ -119,25 +192,6 @@ class PBSolver(Solver):
 			self.feeds_used.add(feed.url)
 			return name
 
-		def get_cached(impl):
-			"""Check whether an implementation is available locally.
-			@type impl: model.Implementation
-			@rtype: bool
-			"""
-			if isinstance(impl, model.DistributionImplementation):
-				return impl.installed
-			if impl.local_path:
-				return os.path.exists(impl.local_path)
-			else:
-				try:
-					path = self.stores.lookup_any(impl.digests)
-					assert path
-					return True
-				except BadDigest:
-					return False
-				except NotStored:
-					return False
-
 		ifaces_processed = set()
 
 		impls_for_machine_group = {0 : []}		# Machine group (e.g. "64") to [impl] in that group
@@ -185,7 +239,7 @@ class PBSolver(Solver):
 			stability = impl.get_stability()
 			if stability <= model.buggy:
 				return stability.name
-			if (self.network_use == model.network_offline or not impl.download_sources) and not get_cached(impl):
+			if (self.network_use == model.network_offline or not impl.download_sources) and not _get_cached(self.stores, impl):
 				if not impl.download_sources:
 					return _("No retrieval methods")
 				return _("Not cached and we are off-line")
@@ -235,7 +289,7 @@ class PBSolver(Solver):
 				except Exception, ex:
 					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': str(ex)})
 
-			impls.sort()
+			impls.sort(lambda a, b: self.compare(iface, a, b, arch))
 
 			impls_for_iface[iface] = filtered_impls = []
 
@@ -354,7 +408,7 @@ class PBSolver(Solver):
 			rank = 1
 			for impl in impls_for_iface[iface]:
 				name = impl_names[impl]
-				costs[name] = rank + stability_cost.get(impl.get_stability(), 1000)
+				costs[name] = rank
 				rank += 1
 			selected = run_solver(costs)
 			if selected is False:

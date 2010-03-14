@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from basetest import BaseTest
-import sys
+import sys, os
 import unittest
 
 sys.path.insert(0, '..')
@@ -115,6 +115,26 @@ class TestSolver(BaseTest):
 		assert None in other.os_ranks
 		assert 'i486' in other.machine_ranks
 		assert 'ppc' not in other.machine_ranks
+	
+	def testRanking(self):
+		s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
+		ranking = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'Ranking.xml')
+		iface = iface_cache.get_interface(ranking)
+
+		binary_arch = arch.get_architecture('Linux', 'x86_64')
+		selected = []
+		while True:
+			s.solve(ranking, binary_arch)
+			if not s.ready:
+				break
+			impl = s.selections[iface]
+			selected.append(impl.get_version() + ' ' + impl.arch)
+			impl.arch = 'Foo-odd'		# prevent reselection
+		self.assertEquals([
+			'0.1 Linux-x86_64',	# 64-bit is best match for host arch
+			'0.2 Linux-i386',	# poor arch, but newest version
+			'0.1 Linux-i686', '0.1 Linux-i586', '0.1 Linux-i486'],	# ordering of x86 versions
+			selected)
 
 suite = unittest.makeSuite(TestSolver)
 if __name__ == '__main__':
