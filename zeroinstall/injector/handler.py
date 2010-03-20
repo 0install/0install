@@ -336,9 +336,13 @@ class ConsoleHandler(Handler):
 		import gobject
 		if self.monitored_downloads and self.update is None:
 			if self.screen_width is None:
-				import curses
-				curses.setupterm()
-				self.screen_width = curses.tigetnum('cols') or 80
+				try:
+					import curses
+					curses.setupterm()
+					self.screen_width = curses.tigetnum('cols') or 80
+				except Exception, ex:
+					info("Failed to initialise curses library: %s", ex)
+					self.screen_width = 80
 			self.show_progress()
 			self.update = gobject.timeout_add(200, self.show_progress)
 		elif len(self.monitored_downloads) == 0:
