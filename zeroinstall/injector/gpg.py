@@ -135,6 +135,7 @@ def load_keys(fingerprints):
 	@return: a list of loaded keys, indexed by fingerprint
 	@rtype: {str: L{Key}}
 	@since: 0.27"""
+	import codecs
 
 	keys = {}
 
@@ -160,7 +161,11 @@ def load_keys(fingerprints):
 					# This is probably a subordinate key, where the fingerprint
 					# comes after the uid, not before. Note: we assume the subkey is
 					# cross-certified, as recent always ones are.
-					keys[current_fpr].name = current_uid
+					try:
+						keys[current_fpr].name = codecs.decode(current_uid, 'utf-8')
+					except:
+						warn("Not UTF-8: %s", current_uid)
+						keys[current_fpr].name = current_uid
 			if line.startswith('uid:'):
 				assert current_fpr is not None
 				# Only take primary UID
