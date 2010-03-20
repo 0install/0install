@@ -89,7 +89,7 @@ class Fetcher(object):
 	@ivar key_info_server: the base URL of a key information server
 	@type key_info_server: str
 	@ivar feed_mirror: the base URL of a mirror site for keys and feeds
-	@type feed_mirror: str
+	@type feed_mirror: str | None
 	"""
 	__slots__ = ['handler', 'feed_mirror', 'key_info_server', 'key_info']
 
@@ -145,6 +145,8 @@ class Fetcher(object):
 
 	def get_feed_mirror(self, url):
 		"""Return the URL of a mirror for this feed."""
+		if self.feed_mirror is None:
+			return None
 		import urlparse
 		if urlparse.urlparse(url).hostname == 'localhost':
 			return None

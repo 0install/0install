@@ -371,6 +371,7 @@ class Implementation(object):
 	@type upstream_stability: [insecure | buggy | developer | testing | stable | packaged | preferred]
 	@ivar langs: natural languages supported by this package
 	@ivar requires: interfaces this package depends on
+	@type requires: [L{Dependency}]
 	@ivar main: the default file to execute when running as a program
 	@ivar metadata: extra metadata from the feed
 	@type metadata: {"[URI ]localName": str}
