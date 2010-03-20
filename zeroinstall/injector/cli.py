@@ -60,7 +60,9 @@ def _import_feed(args):
 			yield keys_downloaded.finished
 			tasks.check(keys_downloaded.finished)
 			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
-				blocker = handler.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+				from zeroinstall.injector import fetch
+				fetcher = fetch.Fetcher(handler)
+				blocker = handler.confirm_keys(pending, fetcher.fetch_key_info)
 				if blocker:
 					yield blocker
 					tasks.check(blocker)

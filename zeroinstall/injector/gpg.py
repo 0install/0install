@@ -34,8 +34,12 @@ def _run_gpg(args, **kwargs):
 	return subprocess.Popen(_gnupg_options + args, **kwargs)
 
 class Signature(object):
-	"""Abstract base class for signature check results."""
+	"""Abstract base class for signature check results.
+	@ivar status: the raw data returned by GPG
+	@ivar messages: any messages printed by GPG which may be relevant to this signature
+	"""
 	status = None
+	messages = None
 
 	def __init__(self, status):
 		self.status = status
@@ -340,5 +344,9 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 			raise SafeException(_("No signatures found. Errors from GPG:\n%s") % error_messages)
 		else:
 			raise SafeException(_("No signatures found. No error messages from GPG."))
+	elif error_messages:
+		# Attach the warnings to all the signatures, in case they're useful.
+		for s in sigs:
+			s.messages = error_messages
 	
 	return sigs

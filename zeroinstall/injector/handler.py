@@ -146,8 +146,13 @@ class Handler(object):
 			from zeroinstall.injector import gpg
 			valid_sigs = [s for s in pending.sigs if isinstance(s, gpg.ValidSig)]
 			if not valid_sigs:
+				def format_sig(sig):
+					msg = str(sig)
+					if sig.messages:
+						msg += "\nMessages from GPG:\n" + sig.messages
+					return msg
 				raise SafeException(_('No valid signatures found on "%(url)s". Signatures:%(signatures)s') %
-						{'url': pending.url, 'signatures': ''.join(['\n- ' + str(s) for s in pending.sigs])})
+						{'url': pending.url, 'signatures': ''.join(['\n- ' + format_sig(s) for s in pending.sigs])})
 
 			# Start downloading information about the keys...
 			kfs = {}
