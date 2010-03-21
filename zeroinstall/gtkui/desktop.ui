@@ -364,44 +364,6 @@
       <!-- column-name gchararray1 -->
       <column type="gchararray"/>
     </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">AudioVideo</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Audio</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Video</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Development</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Education</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Game</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Graphics</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Network</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Office</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Settings</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">System</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Utility</col>
-      </row>
-    </data>
   </object>
   <object class="GtkDialog" id="applist">
     <property name="title" translatable="yes">Zero Install applications</property>

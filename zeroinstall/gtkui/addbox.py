@@ -18,6 +18,23 @@ _UTF_16 = 1
 _RESPONSE_PREV = 0
 _RESPONSE_NEXT = 1
 
+def N_(message): return message
+
+categories = [
+	N_('AudioVideo'),
+	N_('Audio'),
+	N_('Video'),
+	N_('Development'),
+	N_('Education'),
+	N_('Game'),
+	N_('Graphics'),
+	N_('Network'),
+	N_('Office'),
+	N_('Settings'),
+	N_('System'),
+	N_('Utility'),
+	]
+
 class AddBox:
 	"""A dialog box which prompts the user to choose the program to be added."""
 	def __init__(self, interface_uri = None):
@@ -46,6 +63,8 @@ class AddBox:
 		uri.connect('changed', set_uri_ok)
 		set_uri_ok(uri)
 
+		for c in categories:
+			category.append_text(_(c))
 		category.set_active(11)
 
 		def uri_dropped(eb, drag_context, x, y, selection_data, info, timestamp):
@@ -83,8 +102,8 @@ class AddBox:
 				break
 			if feed_category:
 				i = 0
-				for row in category.get_model():
-					if row[0].lower() == feed_category.lower():
+				for row in categories:
+					if row.lower() == feed_category.lower():
 						category.set_active(i)
 						break
 					i += 1
@@ -96,7 +115,7 @@ class AddBox:
 
 			try:
 				icon_path = iface_cache.get_icon_path(iface)
-				xdgutils.add_to_menu(iface, icon_path, category.get_active_text())
+				xdgutils.add_to_menu(iface, icon_path, categories[category.get_active()])
 			except SafeException, ex:
 				box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, str(ex))
 				box.run()
