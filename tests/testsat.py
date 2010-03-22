@@ -8,8 +8,9 @@ from zeroinstall.injector import model, arch, qdom
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 
 #from zeroinstall.injector.origsolver import DefaultSolver as Solver
-from zeroinstall.injector.pbsolver import PBSolver as Solver
+#from zeroinstall.injector.pbsolver import PBSolver as Solver
 #from zeroinstall.injector.sgsolver import DefaultSolver as Solver
+from zeroinstall.injector.solver import SATSolver as Solver
 
 import logging
 logger = logging.getLogger()
@@ -72,7 +73,7 @@ class TestCache:
 	def __init__(self):
 		self.progs = {}
 		self.interfaces = {}
-	
+
 	def get_prog(self, prog):
 		if not prog in self.progs:
 			self.progs[prog] = Program(prog)
@@ -111,20 +112,24 @@ def assertSelection(expected, repo):
 				prog_versions = [int(version_range)]
 			for prog_version in prog_versions:
 				cache.get_prog(prog).get_version(str(prog_version)).add_requires(lib, min_v, max_v)
-	
+
 	root = uri_prefix + expected[0][0]
 	s = Solver(model.network_offline, cache, stores)
 	s.solve(root, arch.get_architecture('Linux', 'x86_64'))
-	assert s.ready
 
-	actual = []
-	for iface, impl in s.selections.iteritems():
-		actual.append(((iface.uri.rsplit('/', 1)[1]), impl.get_version()))
+	if expected[0][1] == 'FAIL':
+		assert not s.ready
+	else:
+		assert s.ready
 
-	expected.sort()
-	actual.sort()
-	if expected != actual:
-		raise Exception("Solve failed:\nExpected: %s\n  Actual: %s" % (expected, actual))
+		actual = []
+		for iface, impl in s.selections.iteritems():
+			actual.append(((iface.uri.rsplit('/', 1)[1]), impl.get_version()))
+
+		expected.sort()
+		actual.sort()
+		if expected != actual:
+			raise Exception("Solve failed:\nExpected: %s\n  Actual: %s" % (expected, actual))
 
 class TestSAT(BaseTest):
 	def testSimple(self):
@@ -156,6 +161,13 @@ class TestSAT(BaseTest):
 			libb[1,9] => libc 1 9
 			libc[1,9] => libd 1 9
 			libd[1,9] => libe 0 0
+			""")
+
+	def testNoSolution(self):
+		assertSelection("prog-FAIL", """
+			prog: 1 2 3
+			liba: 1
+			prog[1,3] => liba 2 3
 			""")
 
 suite = unittest.makeSuite(TestSAT)

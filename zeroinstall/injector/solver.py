@@ -12,7 +12,7 @@ from logging import debug, warn, info
 from zeroinstall.zerostore import BadDigest, NotStored
 
 from zeroinstall.injector.arch import machine_groups
-from zeroinstall.injector import model
+from zeroinstall.injector import model, sat
 
 def _get_cached(stores, impl):
 	"""Check whether an implementation is available locally.
@@ -70,7 +70,7 @@ class Solver(object):
 		@postcondition: self.ready, self.selections and self.feeds_used are updated"""
 		raise NotImplementedError("Abstract")
 
-class PBSolver(Solver):
+class SATSolver(Solver):
 	"""Converts the problem to a set of pseudo-boolean constraints and uses a PB solver to solve them."""
 	def __init__(self, network_use, iface_cache, stores, extra_restrictions = None):
 		"""
@@ -149,7 +149,7 @@ class PBSolver(Solver):
 		# selects that.
 
 		feeds_added = set()
-		problem = []
+		problem = sat.Problem()
 
 		feed_names = {}	# Feed -> "f1"
 		impl_names = {}	# Impl -> "f1_0"
@@ -202,7 +202,7 @@ class PBSolver(Solver):
 
 		def find_dependency_candidates(requiring_impl, dependency):
 			dep_iface = self.iface_cache.get_interface(dependency.interface)
-			dep_exprs = []
+			dep_union = [problem.neg(requiring_impl)]
 			for candidate in impls_for_iface[dep_iface]:
 				for r in dependency.restrictions:
 					if not r.meets_restriction(candidate):
@@ -211,14 +211,14 @@ class PBSolver(Solver):
 				else:
 					c_name = impl_names.get(candidate, None)
 					if c_name:
-						dep_exprs.append("1 * " + c_name)
+						dep_union.append(c_name)
 					# else we filtered that version out, so ignore it
 			if comment_problem:
 				problem.append("* %s requires %s" % (requiring_impl, dependency))
-			if dep_exprs:
-				problem.append(("-1 * " + requiring_impl) + " + " + " + ".join(dep_exprs) + " >= 0")
+			if dep_union:
+				problem.add_clause(dep_union)
 			else:
-				problem.append("1 * " + requiring_impl + " = 0")
+				problem.assign(requiring_impl, 0)
 
 		def is_unusable(impl, restrictions, arch):
 			"""@return: whether this implementation is unusable.
@@ -299,7 +299,7 @@ class PBSolver(Solver):
 				self.details[iface] = [(impl, get_unusable_reason(impl, my_extra_restrictions, arch)) for impl in impls]
 
 			rank = 1
-			exprs = []
+			var_names = []
 			for impl in impls:
 				if is_unusable(impl, my_extra_restrictions, arch):
 					continue
@@ -308,10 +308,11 @@ class PBSolver(Solver):
 
 				name = feed_name(impl.feed) + "_" + str(rank)
 				assert impl not in impl_names
+				problem.add_variable(name)
 				impl_names[impl] = name
 				name_to_impl[name] = (iface, impl, arch)
 				rank += 1
-				exprs.append('1 * ' + name)
+				var_names.append(name)
 
 				if impl.machine and impl.machine != 'src':
 					impls_for_machine_group[machine_groups.get(impl.machine, 0)].append(name)
@@ -332,66 +333,31 @@ class PBSolver(Solver):
 			if uri == root_interface:
 				if comment_problem:
 					problem.append("* select 1 of root " + uri)
-				if exprs:
-					problem.append(" + ".join(exprs) + " = 1")
+				if var_names:
+					problem.exactly_one(var_names)
 				else:
-					problem.append("1 * impossible = 2")
-			elif exprs:
+					problem.impossible()
+			elif var_names:
 				if comment_problem:
 					problem.append("* select at most 1 of " + uri)
-				problem.append(" + ".join(exprs) + " <= 1")
+				problem.at_most_one(var_names)
 
 		add_iface(root_interface, root_arch)
 
 		# Require m<group> to be true if we select an implementation in that group
-		exprs = []
+		m_groups = []
 		for machine_group, impls in impls_for_machine_group.iteritems():
+			m_group = 'm%d' % machine_group
 			if impls:
 				if comment_problem:
-					problem.append("* define machine group %d" % machine_group)
-				problem.append(' + '.join("1 * " + impl for impl in impls) + ' - %d * m%d <= 0' % (len(impls), machine_group))
-			exprs.append('1 * m%d' % machine_group)
-		if exprs:
+					problem.append("* define machine group %d" % m_group)
+				for impl in impls:
+					problem.add_clause([m_group, problem.neg(impl)])
+			m_groups.append(m_group)
+		if m_groups:
 			if comment_problem:
 				problem.append("* select implementations from at most one machine group")
-			problem.append(' + '.join(exprs) + ' <= 1')
-
-		def run_solver(minimise):
-			selected = []
-			prog_fd, tmp_name = tempfile.mkstemp(prefix = '0launch-')
-			try:
-				stream = os.fdopen(prog_fd, 'wb')
-				try:
-					print >>stream, "min:", ' + '.join("%d * %s" % (cost, name) for name, cost in minimise.iteritems()) + ";"
-					for line in problem:
-						print >>stream, line, ";"
-				finally:
-					stream.close()
-				if comment_problem:
-					pass# print >>sys.stderr, open(tmp_name).read()
-				child = subprocess.Popen(['minisat+', tmp_name, '-v0'], stdout = subprocess.PIPE)
-				data, used = child.communicate()
-				for line in data.split('\n'):
-					if line.startswith('v '):
-						bits = line.split(' ')[1:]
-						for bit in bits:
-							if comment_problem and not bit.startswith("-"):
-								print >>sys.stderr, bit
-							if bit.startswith('f'):
-								selected.append(bit)
-
-					elif line == "s OPTIMUM FOUND":
-						if comment_problem:
-							print >>sys.stderr, line
-						self.ready = True
-					elif line == "s UNSATISFIABLE":
-						return False
-					elif line:
-						warn("Unexpected output from solver: %s", line)
-			finally:
-				os.unlink(tmp_name)
-
-			return selected
+			problem.at_most_one(m_groups)
 
 		def select_recursive(uri):
 			"""Select the best version of iface compatible with all the constraints.
@@ -410,7 +376,7 @@ class PBSolver(Solver):
 				name = impl_names[impl]
 				costs[name] = rank
 				rank += 1
-			selected = run_solver(costs)
+			self.ready, selected = problem.run_solver(costs)
 			if selected is False:
 				# Pointing the root at None by default is just
 				# to make the unit-tests happy :-/
@@ -427,7 +393,7 @@ class PBSolver(Solver):
 					print >>sys.stderr, "%s (%s), cost %d" % (iface, impl.get_version(), costs[name])
 
 				# Fix this version now
-				problem.append("1 * %s = 1" % name)
+				problem.add_clause([name])
 
 				self.selections[iface] = impl
 				self.requires[iface] = selected_requires = []
@@ -445,4 +411,4 @@ class PBSolver(Solver):
 		self.selections = {}
 		select_recursive(root_interface)
 
-DefaultSolver = PBSolver
+DefaultSolver = SATSolver
