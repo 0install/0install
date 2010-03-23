@@ -132,6 +132,11 @@ def assertSelection(expected, repo):
 			raise Exception("Solve failed:\nExpected: %s\n  Actual: %s" % (expected, actual))
 
 class TestSAT(BaseTest):
+	def testTrivial(self):
+		assertSelection("prog-2", """
+			prog: 1 2
+			""")
+
 	def testSimple(self):
 		assertSelection("prog-5, liba-5", """
 			prog: 1 2 3 4 5

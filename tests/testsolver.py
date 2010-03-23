@@ -131,8 +131,8 @@ class TestSolver(BaseTest):
 			selected.append(impl.get_version() + ' ' + impl.arch)
 			impl.arch = 'Foo-odd'		# prevent reselection
 		self.assertEquals([
-			'0.1 Linux-x86_64',	# 64-bit is best match for host arch
 			'0.2 Linux-i386',	# poor arch, but newest version
+			'0.1 Linux-x86_64',	# 64-bit is best match for host arch
 			'0.1 Linux-i686', '0.1 Linux-i586', '0.1 Linux-i486'],	# ordering of x86 versions
 			selected)
 

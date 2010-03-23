@@ -36,6 +36,15 @@ def _get_cached(stores, impl):
 		except NotStored:
 			return False
 
+class ImplInfo:
+	def __init__(self, iface, impl, arch):
+		self.iface = iface
+		self.impl = impl
+		self.arch = arch
+	
+	def __repr__(self):
+		return str(self.impl.feed.get_name() + "-" + self.impl.get_version())
+
 class Solver(object):
 	"""Chooses a set of implementations to satisfy the requirements of a program and its user.
 	Typical use:
@@ -149,12 +158,11 @@ class SATSolver(Solver):
 		# selects that.
 
 		feeds_added = set()
-		problem = sat.Problem()
+		problem = sat.Solver()
 
 		feed_names = {}	# Feed -> "f1"
 		impl_names = {}	# Impl -> "f1_0"
 		self.feeds_used = set()
-		name_to_impl = {}	# "f1_0" -> (Iface, Impl, arch)
 		self.requires = {}
 		self.ready = False
 		self.details = self.record_details and {}
@@ -162,6 +170,9 @@ class SATSolver(Solver):
 		self.selections = None
 
 		comment_problem = False	# debugging only
+
+		# TODO: simplify this; there's no need for two mappings!
+		var = {}		# our var names to sat var/literal numbers
 
 		if self.help_with_testing:
 			# Choose the newest, not the most stable.
@@ -200,9 +211,11 @@ class SATSolver(Solver):
 
 		impls_for_iface = {}	# Iface -> [impl]
 
+		group_clause_for = {}	# Iface URI -> AtMostOneClause | bool
+
 		def find_dependency_candidates(requiring_impl, dependency):
 			dep_iface = self.iface_cache.get_interface(dependency.interface)
-			dep_union = [problem.neg(requiring_impl)]
+			dep_union = [sat.neg(var[requiring_impl])]
 			for candidate in impls_for_iface[dep_iface]:
 				for r in dependency.restrictions:
 					if not r.meets_restriction(candidate):
@@ -211,7 +224,7 @@ class SATSolver(Solver):
 				else:
 					c_name = impl_names.get(candidate, None)
 					if c_name:
-						dep_union.append(c_name)
+						dep_union.append(var[c_name])
 					# else we filtered that version out, so ignore it
 			if comment_problem:
 				problem.append("* %s requires %s" % (requiring_impl, dependency))
@@ -306,13 +319,14 @@ class SATSolver(Solver):
 
 				filtered_impls.append(impl)
 
+				# TODO: simplify me!
 				name = feed_name(impl.feed) + "_" + str(rank)
 				assert impl not in impl_names
-				problem.add_variable(name)
+				v = problem.add_variable(ImplInfo(iface, impl, arch))
+				var[name] = v
 				impl_names[impl] = name
-				name_to_impl[name] = (iface, impl, arch)
 				rank += 1
-				var_names.append(name)
+				var_names.append(var[name])
 
 				if impl.machine and impl.machine != 'src':
 					impls_for_machine_group[machine_groups.get(impl.machine, 0)].append(name)
@@ -331,16 +345,23 @@ class SATSolver(Solver):
 
 			# Only one implementation of this interface can be selected
 			if uri == root_interface:
-				if comment_problem:
-					problem.append("* select 1 of root " + uri)
 				if var_names:
-					problem.exactly_one(var_names)
+					clause = problem.at_most_one(var_names)
+					problem.add_clause(var_names)	# at least one
 				else:
 					problem.impossible()
+					clause = False
 			elif var_names:
-				if comment_problem:
-					problem.append("* select at most 1 of " + uri)
-				problem.at_most_one(var_names)
+				clause = problem.at_most_one(var_names)
+			else:
+				# Don't need to add to group_clause_for because we should
+				# never get a possible selection involving this.
+				return
+
+			assert clause is not True
+			assert clause is not None
+			if clause is not False:
+				group_clause_for[uri] = clause
 
 		add_iface(root_interface, root_arch)
 
@@ -348,67 +369,80 @@ class SATSolver(Solver):
 		m_groups = []
 		for machine_group, impls in impls_for_machine_group.iteritems():
 			m_group = 'm%d' % machine_group
+			var[m_group] = problem.add_variable(m_group)
 			if impls:
 				if comment_problem:
 					problem.append("* define machine group %d" % m_group)
 				for impl in impls:
-					problem.add_clause([m_group, problem.neg(impl)])
-			m_groups.append(m_group)
+					problem.add_clause([var[m_group], sat.neg(var[impl])])
+			m_groups.append(var[m_group])
 		if m_groups:
 			if comment_problem:
 				problem.append("* select implementations from at most one machine group")
-			problem.at_most_one(m_groups)
+			m_groups_clause = problem.at_most_one(m_groups)
+		else:
+			m_groups_clause = None
 
-		def select_recursive(uri):
-			"""Select the best version of iface compatible with all the constraints.
-			When done, add this version as a new constraint and recurse over the dependencies.
-			"""
-			iface = self.iface_cache.get_interface(uri)
-			if iface in self.selections:
-				return	# Break cycles
+		def decide():
+			"""Recurse through the current selections until we get to an interface with
+			no chosen version, then tell the solver to try the best version from that."""
 
-			# 10 points cost for selecting 32-bit binaries (when we could have
-			# chosen 64-bits).
-			costs = {"m0": 10}	# f1_0 -> 2
+			seen = set()
+			def find_undecided(uri):
+				if uri in seen:
+					return	# Break cycles
+				seen.add(uri)
 
-			rank = 1
-			for impl in impls_for_iface[iface]:
-				name = impl_names[impl]
-				costs[name] = rank
-				rank += 1
-			self.ready, selected = problem.run_solver(costs)
-			if selected is False:
-				# Pointing the root at None by default is just
-				# to make the unit-tests happy :-/
-				self.selections[iface] = None
-				return			# Failed to find any valid combination
-			for name in selected:
-				for_iface, impl, arch = name_to_impl[name]
+				group = group_clause_for[uri]
+				#print "Group for %s = %s" % (uri, group)
+				lit = group.current
+				if lit is None:
+					return group.best_undecided()
+				# else there was only one choice anyway
 
-				# We only care about the selection for the iface we're currently
-				# considering.
-				if for_iface != iface: continue
+				# Check for undecided dependencies
+				lit_info = problem.get_varinfo_for_lit(lit).obj
 
-				if comment_problem:
-					print >>sys.stderr, "%s (%s), cost %d" % (iface, impl.get_version(), costs[name])
-
-				# Fix this version now
-				problem.add_clause([name])
-
-				self.selections[iface] = impl
-				self.requires[iface] = selected_requires = []
-				for d in impl.requires:
-					# (same logic as above)
-					use = d.metadata.get("use", None)
-					if use not in arch.use:
+				for dep in lit_info.impl.requires:
+					use = dep.metadata.get("use", None)
+					if use not in lit_info.arch.use:
 						continue
-					selected_requires.append(d)
-					select_recursive(d.interface)
-				break
-			else:
-				assert 0, "No selection for %s in %s!" % (iface, selected)
+					dep_lit = find_undecided(dep.interface)
+					if dep_lit is not None:
+						return dep_lit
 
-		self.selections = {}
-		select_recursive(root_interface)
+				# This whole sub-tree is decided
+				return None
+
+			best = find_undecided(root_interface)
+			if best is not None:
+				return best
+
+			# If we're chosen everything we need, we can probably
+			# set everything else to False.
+			for group in group_clause_for.values() + [m_groups_clause]:
+				if group.current is None:
+					best = group.best_undecided()
+					if best is not None:
+						return sat.neg(best)
+
+			return None			# Failed to find any valid combination
+
+		self.ready = problem.run_solver(decide) is True
+
+		# Pointing the root at None by default is just
+		# to make the unit-tests happy :-/
+		self.selections = {self.iface_cache.get_interface(root_interface): None}
+
+		for uri, group in group_clause_for.iteritems():
+			if group.current is not None:
+				lit_info = problem.get_varinfo_for_lit(group.current).obj
+				self.selections[lit_info.iface] = lit_info.impl
+				deps = self.requires[lit_info.iface] = []
+				for dep in lit_info.impl.requires:
+					use = dep.metadata.get("use", None)
+					if use not in lit_info.arch.use:
+						continue
+					deps.append(dep)
 
 DefaultSolver = SATSolver
