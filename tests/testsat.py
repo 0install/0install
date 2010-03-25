@@ -175,6 +175,26 @@ class TestSAT(BaseTest):
 			prog[1,3] => liba 2 3
 			""")
 
+	def testBacktrackSimple(self):
+		# We initially try liba-3 before learning that it
+		# is incompatible and backtracking.
+		# We learn that liba-3 doesn't work ever.
+		assertSelection("prog-1, liba-2", """
+			prog: 1
+			liba: 1 2 3
+			prog[1] => liba 1 2
+			""")
+
+	def testBacktrackLocal(self):
+		# We initially try liba-3 before learning that it
+		# is incompatible and backtracking.
+		# We learn that liba-3 doesn't work with prog-1.
+		assertSelection("prog-2, liba-2", """
+			prog: 1 2
+			liba: 1 2 3
+			prog[1,2] => liba 1 2
+			""")
+
 suite = unittest.makeSuite(TestSAT)
 if __name__ == '__main__':
 	sys.argv.append('-v')

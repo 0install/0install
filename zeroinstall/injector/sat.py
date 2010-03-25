@@ -20,7 +20,8 @@ import tempfile, subprocess, os, sys
 from logging import warn
 
 def debug(msg, *args):
-	pass #print "SAT:", msg % args
+	return
+	print "SAT:", msg % args
 
 # variables are numbered from 0
 # literals have the same number as the corresponding variable,
@@ -71,6 +72,9 @@ def makeAtMostOneClause(solver):
 
 			self.current = lit
 
+			# If we later backtrace, call our undo function to unset current
+			solver.get_varinfo_for_lit(lit).undo.append(self)
+
 			# Re-add ourselves to the watch list.
 			# (we we won't get any more notifications unless we backtrack,
 			# in which case we'd need to get back on the list anyway)
@@ -95,12 +99,26 @@ def makeAtMostOneClause(solver):
 			return True
 
 		def undo(self, lit):
+			debug("backtracking: no longer selected %s" % solver.name_lit(lit))
 			assert lit == self.current
 			self.current = None
 
 		# Why is lit True?
+		# Or, why are we causing a conflict (if lit is None)?
 		def cacl_reason(self, lit):
-			raise Exception("why is %d set?" % lit)
+			if lit is None:
+				# Find two True literals
+				trues = []
+				for l in self.lits:
+					if solver.lit_value(l) is True:
+						trues.append(l)
+						if len(trues) == 2: return trues
+			else:
+				for l in self.lits:
+					if l is not lit and solver.lit_value(l) is True:
+						return [l]
+				# Find one True literal
+			assert 0	# don't know why!
 
 		def best_undecided(self):
 			debug("best_undecided: %s" % (solver.name_lits(self.lits)))
@@ -157,7 +175,7 @@ def makeUnionClause(solver):
 
 			# For simplicity, only handle the case where self.lits[1]
 			# is the one that just got set to False, so that:
-			# - value[lits[0]] = undecided (None)
+			# - value[lits[0]] = None | True
 			# - value[lits[1]] = False
 			# If it's the other way around, just swap them before we start.
 			if self.lits[0] == neg(lit):
@@ -186,8 +204,12 @@ def makeUnionClause(solver):
 		def undo(self, lit): pass
 
 		# Why is lit True?
+		# Or, why are we causing a conflict (if lit is None)?
 		def cacl_reason(self, lit):
-			raise Exception("why is %d set?" % lit)
+			assert lit is None or lit is self.lits[0]
+
+			# The cause is everything except lit.
+			return [neg(l) for l in self.lits if l is not lit]
 
 		def __repr__(self):
 			return "<some: %s>" % (', '.join(solver.name_lits(self.lits)))
@@ -201,7 +223,7 @@ class VarInfo(object):
 		self.value = None		# True/False/None
 		self.reason = None		# The constraint that implied our value, if True or False
 		self.level = -1			# The decision level at which we got a value (when not None)
-		self.undo = None		# Constraints to update if we become unbound (by backtracking)
+		self.undo = []			# Constraints to update if we become unbound (by backtracking)
 		self.obj = obj			# The object this corresponds to (for our caller and for debugging)
 	
 	def __repr__(self):
@@ -269,6 +291,32 @@ class Solver(object):
 		self.propQ.append(lit)
 
 		return True
+
+	# Pop most recent assignment from self.trail
+	def undo_one(self):
+		lit = self.trail[-1]
+		debug("(pop %s)", self.name_lit(lit))
+		var_info = self.get_varinfo_for_lit(lit)
+		var_info.value = None
+		var_info.reason = None
+		var_info.level = -1
+		self.trail.pop()
+
+		while var_info.undo:
+			var_info.undo.pop().undo(lit)
+	
+	def cancel(self):
+		n_this_level = len(self.trail) - self.trail_lim[-1]
+		debug("backtracking from level %d (%d assignments)" %
+				(self.get_decision_level(), n_this_level))
+		while n_this_level != 0:
+			self.undo_one()
+			n_this_level -= 1
+		self.trail_lim.pop()
+
+	def cancel_until(self, level):
+		while self.get_decision_level() > level:
+			self.cancel()
 	
 	# Process the propQ.
 	# Returns None when done, or the clause that caused a conflict.
@@ -330,14 +378,35 @@ class Solver(object):
 	# because this clause is trivially True, or False if the clause is
 	# False.
 	def _add_clause(self, lits, learnt):
-		assert len(lits) > 1
+		if not lits:
+			assert not learnt
+			self.toplevel_conflict = True
+			return False
+		elif len(lits) == 1:
+			# A clause with only a single literal is represented
+			# as an assignment rather than as a clause.
+			if learnt:
+				reason = "learnt"
+			else:
+				reason = "top-level"
+			return self.enqueue(lits[0], reason)
+
 		clause = self.makeUnionClause(lits)
 		clause.learnt = learnt
 		self.constrs.append(clause)
 
 		if learnt:
-			# TODO: pick a second undecided literal and move to lits[1]
-			raise Exception("todo")
+			# lits[0] is None because we just backtracked.
+			# Start watching the next literal that we will
+			# backtrack over.
+			best_level = -1
+			best_i = 1
+			for i in range(1, len(lits)):
+				level = self.get_varinfo_for_lit(lits[i]).level
+				if level > best_level:
+					best_level = level
+					best_i = i
+			lits[1], lits[best_i] = lits[best_i], lits[1]
 
 		# Watch the first two literals in the clause (both must be
 		# undefined at this point).
@@ -372,14 +441,6 @@ class Solver(object):
 		# Remove duplicates and values known to be False
 		lits = [l for l in lit_set if self.lit_value(l) != False]
 
-		if not lits:
-			self.toplevel_conflict = True
-			return False
-		elif len(lits) == 1:
-			# A clause with only a single literal is represented
-			# as an assignment rather than as a clause.
-			return self.enqueue(lits[0], reason = "top-level")
-
 		return self._add_clause(lits, learnt = False)
 
 	def at_most_one(self, lits):
@@ -412,9 +473,136 @@ class Solver(object):
 
 		return clause
 
-	def analyse(self, clause):
-		debug("Why did %s make us fail?" % clause)
-		raise Exception("not implemented")
+	def analyse(self, cause):
+		# After trying some assignments, we've discovered a conflict.
+		# e.g.
+		# - we selected A then B then C
+		# - from A, B, C we got X, Y
+		# - we have a rule: not(A) or not(X) or not(Y)
+		#
+		# The simplest thing to do would be:
+		# 1. add the rule "not(A) or not(B) or not(C)"
+		# 2. unassign C
+		#
+		# Then we we'd deduce not(C) and we could try something else.
+		# However, that would be inefficient. We want to learn a more
+		# general rule that will help us with the rest of the problem.
+		#
+		# We take the clause that caused the conflict ("cause") and
+		# ask it for its cause. In this case:
+		#
+		#  A and X and Y => conflict
+		#
+		# Since X and Y followed logically from A, B, C there's no
+		# point learning this rule; we need to know to avoid A, B, C
+		# *before* choosing C. We ask the two variables deduced at the
+		# current level (X and Y) what caused them, and work backwards.
+		# e.g.
+		#
+		#  X: A and C => X
+		#  Y: C => Y
+		#
+		# Combining these, we get the cause of the conflict in terms of
+		# things we knew before the current decision level:
+		#
+		#  A and X and Y => conflict
+		#  A and (A and C) and (C) => conflict
+		#  A and C => conflict
+		#
+		# We can then learn (record) the more general rule:
+		#
+		#  not(A) or not(C)
+		#
+		# Then, in future, whenever A is selected we can remove C and
+		# everything that depends on it from consideration.
+
+
+		learnt = [None]		# The general rule we're learning
+		btlevel = 0		# The deepest decision in learnt
+		p = None		# The literal we want to expand now
+		seen = set()		# The variables involved in the conflict
+
+		counter = 0
+
+		while True:
+			# cause is the reason why p is True (i.e. it enqueued it).
+			# The first time, p is None, which requests the reason
+			# why it is conflicting.
+			if p is None:
+				debug("Why did %s make us fail?" % cause)
+				p_reason = cause.cacl_reason(p)
+				debug("Because: %s => conflict" % (' and '.join(self.name_lits(p_reason))))
+			else:
+				debug("Why did %s lead to %s?" % (cause, self.name_lit(p)))
+				p_reason = cause.cacl_reason(p)
+				debug("Because: %s => %s" % (' and '.join(self.name_lits(p_reason)), self.name_lit(p)))
+
+			# p_reason is in the form (A and B and ...)
+			# p_reason => p
+
+			# Check each of the variables in p_reason that we haven't
+			# already considered:
+			# - if the variable was assigned at the current level,
+			#   mark it for expansion
+			# - otherwise, add it to learnt
+
+			for lit in p_reason:
+				var_info = self.get_varinfo_for_lit(lit)
+				if var_info not in seen:
+					seen.add(var_info)
+					if var_info.level == self.get_decision_level():
+						# We deduced this var since the last decision.
+						# It must be in self.trail, so we'll get to it
+						# soon. Remember not to stop until we've processed it.
+						counter += 1
+					elif var_info.level > 0:
+						# We won't expand lit, just remember it.
+						# (we could expand it if it's not a decision, but
+						# apparently not doing so is useful)
+						learnt.append(neg(lit))
+						btlevel = max(btlevel, var_info.level)
+				# else we already considered the cause of this assignment
+
+			# At this point, counter is the number of assigned
+			# variables in self.trail at the current decision level that
+			# we've seen. That is, the number left to process. Pop
+			# the next one off self.trail (as well as any unrelated
+			# variables before it; everything up to the previous
+			# decision has to go anyway).
+
+			while True:
+				p = self.trail[-1]
+				var_info = self.get_varinfo_for_lit(p)
+				cause = var_info.reason
+				self.undo_one()
+				if var_info in seen:
+					break
+				debug("(irrelevant)")
+			counter -= 1
+
+			if counter <= 0:
+				# If counter = 0 then we still have one more
+				# literal (p) at the current level that we
+				# could expand. However, apparently it's best
+				# to leave this unprocessed (says the minisat
+				# paper).
+				# If counter is -1 then we popped one extra
+				# assignment, but it doesn't matter because
+				# either it's at this level or it's the
+				# decision that led to this level. Either way,
+				# we'd have removed it anyway.
+				# XXX: is this true? won't self.cancel() get upset?
+				break
+
+		# p is the literal we decided to stop processing on. It's either
+		# a derived variable at the current level, or the decision that
+		# led to this level. Since we're not going to expand it, add it
+		# directly to the learnt clause.
+		learnt[0] = neg(p)
+
+		debug("Learnt: %s" % (' or '.join(self.name_lits(learnt))))
+
+		return learnt, btlevel
 
 	def run_solver(self, decide):
 		# Check whether we detected a trivial problem
@@ -445,20 +633,21 @@ class Solver(object):
 					r = self.enqueue(lit, reason = "considering")
 					assert r is True
 			else:
-				# Figure out the root cause of this failure.
 				if self.get_decision_level() == 0:
-					self.toplevel_conflict = True
-				else:
-					learnt_clause, backtrack_level = self.analyse(conflicting_clause)
-					self.record(learnt_clause)
-
-				if self.toplevel_conflict:
-					# The whole problem is logically impossible.
 					return False
 				else:
-					# An assignment we decided to try was
-					# wrong. Go back.
-					self.backtrack()
+					# Figure out the root cause of this failure.
+					learnt, backtrack_level = self.analyse(conflicting_clause)
+
+					self.cancel_until(backtrack_level)
+
+					c = self._add_clause(learnt, learnt = True)
+
+					if c is not True:
+						# Everything except the first literal in learnt is known to
+						# be False, so the first must be True.
+						e = self.enqueue(learnt[0], c)
+						assert e is True
 
 		return ready, selected
 
