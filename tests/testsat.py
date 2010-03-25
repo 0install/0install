@@ -27,6 +27,7 @@ class Version:
 	def __init__(self, n):
 		self.n = n
 		self.requires = []
+		self.arch = None
 
 	def add_requires(self, lib, min_v, max_v):
 		self.requires.append((lib, min_v, max_v))
@@ -53,10 +54,13 @@ class Program:
 
 		i = 0
 		for version in self.versions.values():
-			impl = child(root, 'implementation', {
+			attrs = {
 				'id': str(i),
 				'version': str(version.n),
-			})
+			}
+			if version.arch:
+				attrs['arch'] = version.arch
+			impl = child(root, 'implementation', attrs)
 			child(impl, 'manifest-digest', {'sha1new': '1234'})
 			for lib, min_v, max_v in version.requires:
 				req = child(impl, 'requires', {'interface': uri_prefix + lib})
@@ -97,8 +101,12 @@ def assertSelection(expected, repo):
 		if ':' in line:
 			prog, versions = line.split(':')
 			prog = prog.strip()
+			if ' ' in prog:
+				prog, prog_arch = prog.split()
+			else:
+				prog_arch = None
 			for v in versions.split():
-				cache.get_prog(prog).get_version(v)
+				cache.get_prog(prog).get_version(v).arch = prog_arch
 		elif '=>' in line:
 			prog, requires = line.split('=>')
 			prog, version_range = prog.strip().split('[')
@@ -193,6 +201,20 @@ class TestSAT(BaseTest):
 			prog: 1 2
 			liba: 1 2 3
 			prog[1,2] => liba 1 2
+			""")
+
+	def testLearning(self):
+		# Prog-2 depends on libb and libz, but we can't have both
+		# at once. The learning means we don't have to explore every
+		# possible combination of liba and libb.
+		assertSelection("prog-1", """
+			prog: 1 2
+			liba: 1 2 3
+			libb Linux-i486: 1 2 3
+			libz Linux-x86_64: 1 2
+			prog[2] => liba 1 3
+			prog[2] => libz 1 2
+			liba[1,3] => libb 1 3
 			""")
 
 suite = unittest.makeSuite(TestSAT)

@@ -63,7 +63,7 @@ def makeAtMostOneClause(solver):
 			assert solver.lit_value(lit) == True
 			assert lit >= 0
 
-			debug("%s: noticed %s has become True" % (self, solver.name_lit(lit)))
+			#debug("%s: noticed %s has become True" % (self, solver.name_lit(lit)))
 
 			# One is already selected
 			if self.current is not None:
@@ -99,7 +99,7 @@ def makeAtMostOneClause(solver):
 			return True
 
 		def undo(self, lit):
-			debug("backtracking: no longer selected %s" % solver.name_lit(lit))
+			debug("(backtracking: no longer selected %s)" % solver.name_lit(lit))
 			assert lit == self.current
 			self.current = None
 
@@ -171,7 +171,7 @@ def makeUnionClause(solver):
 		def propagate(self, lit):
 			# value[get(lit)] has just become False
 
-			debug("%s: noticed %s has become False" % (self, solver.name_lit(neg(lit))))
+			#debug("%s: noticed %s has become False" % (self, solver.name_lit(neg(lit))))
 
 			# For simplicity, only handle the case where self.lits[1]
 			# is the one that just got set to False, so that:
@@ -321,7 +321,7 @@ class Solver(object):
 	# Process the propQ.
 	# Returns None when done, or the clause that caused a conflict.
 	def propagate(self):
-		debug("propagate: queue length = %d", len(self.propQ))
+		#debug("propagate: queue length = %d", len(self.propQ))
 		while self.propQ:
 			lit = self.propQ[0]
 			del self.propQ[0]

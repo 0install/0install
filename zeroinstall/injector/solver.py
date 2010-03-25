@@ -371,14 +371,10 @@ class SATSolver(Solver):
 			m_group = 'm%d' % machine_group
 			var[m_group] = problem.add_variable(m_group)
 			if impls:
-				if comment_problem:
-					problem.append("* define machine group %d" % m_group)
 				for impl in impls:
 					problem.add_clause([var[m_group], sat.neg(var[impl])])
 			m_groups.append(var[m_group])
 		if m_groups:
-			if comment_problem:
-				problem.append("* select implementations from at most one machine group")
 			m_groups_clause = problem.at_most_one(m_groups)
 		else:
 			m_groups_clause = None
