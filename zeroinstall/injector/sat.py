@@ -47,16 +47,6 @@ def makeAtMostOneClause(solver):
 			# The single literal from our set that is True.
 			# We store this explicitly because the decider needs to know quickly.
 			self.current = None
-		
-		# Remove ourself from solver
-		def remove(self):
-			raise "help" #solver.watches.remove(index(neg(lits[0]))]
-
-		# Simplify ourself and return True if we are no longer needed,
-		# or False if we are.
-		def simplify(self):
-			# TODO
-			return False
 
 		def propagate(self, lit):
 			# value[lit] has just become True
@@ -84,11 +74,11 @@ def makeAtMostOneClause(solver):
 			for l in self.lits:
 				value = solver.lit_value(l)
 				#debug("Value of %s is %s" % (solver.name_lit(l), value))
-				if value is True:
-					count += 1
-					if count > 1:
-						debug("CONFLICT: already selected %s" % self.current)
-						return False
+				if value is True and l is not lit:
+					# Due to queuing, we might get called with current = None
+					# and two versions already selected.
+					debug("CONFLICT: already selected %s" % solver.name_lit(l))
+					return False
 				if value is None:
 					# Since one of our lits is already true, all unknown ones
 					# can be set to False.
@@ -138,24 +128,6 @@ def makeUnionClause(solver):
 		def __init__(self, lits):
 			self.lits = lits
 		
-		# Remove ourself from solver
-		def remove(self):
-			raise "help" #solver.watches.remove(index(neg(lits[0]))]
-
-		# Simplify ourself and return True if we are no longer needed,
-		# or False if we are.
-		def simplify(self):
-			new_lits = []
-			for l in self.lits:
-				value = solver.lit_value(l)
-				if value == True:
-					# (... or True or ...) = True
-					return True
-				elif value == None:
-					new_lits.append(l)
-			self.lits = new_lits
-			return False
-
 		# Try to infer new facts.
 		# We can do this only when all of our literals are False except one,
 		# which is undecided. That is,
@@ -235,11 +207,6 @@ class VarInfo(object):
 
 class Solver(object):
 	def __init__(self):
-		# Constraints
-		self.constrs = []		# Constraints set by our user	XXX - do we ever use this?
-		self.learnt = []		# Constraints we learnt while solving
-		# order?
-
 		# Propagation
 		self.watches = []		# watches[2i,2i+1] = constraints to check when literal[i] becomes True/False
 		self.propQ = []			# propagation queue
@@ -393,7 +360,6 @@ class Solver(object):
 
 		clause = self.makeUnionClause(lits)
 		clause.learnt = learnt
-		self.constrs.append(clause)
 
 		if learnt:
 			# lits[0] is None because we just backtracked.
@@ -465,8 +431,6 @@ class Solver(object):
 		lits = [l for l in lits if self.lit_value(l) != False]
 
 		clause = self.makeAtMostOneClause(lits)
-
-		self.constrs.append(clause)
 
 		for lit in lits:
 			self.watch_lit(lit, clause)
@@ -648,6 +612,3 @@ class Solver(object):
 						# be False, so the first must be True.
 						e = self.enqueue(learnt[0], c)
 						assert e is True
-
-		return ready, selected
-
