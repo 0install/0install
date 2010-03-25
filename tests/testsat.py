@@ -11,6 +11,7 @@ from zeroinstall.injector.namespaces import XMLNS_IFACE
 #from zeroinstall.injector.pbsolver import PBSolver as Solver
 #from zeroinstall.injector.sgsolver import DefaultSolver as Solver
 from zeroinstall.injector.solver import SATSolver as Solver
+from zeroinstall.injector import sat
 
 import logging
 logger = logging.getLogger()
@@ -216,6 +217,45 @@ class TestSAT(BaseTest):
 			prog[2] => libz 1 2
 			liba[1,3] => libb 1 3
 			""")
+
+	def testToplevelConflict(self):
+		# We don't detect the conflict until we start solving, but the
+		# conflict is top-level so we abort immediately without
+		# backtracking.
+		assertSelection("prog-FAIL", """
+			prog Linux-i386: 1
+			liba Linux-x86_64: 1
+			prog[1] => liba 1 1
+			""")
+
+	def testDiamondConflict(self):
+		# prog depends on liba and libb, which depend on incompatible
+		# versions of libc.
+		assertSelection("prog-FAIL", """
+			prog: 1
+			liba: 1
+			libb: 1
+			libc: 1 2
+			prog[1] => liba 1 1
+			prog[1] => libb 1 1
+			liba[1] => libc 1 1
+			libb[1] => libc 2 3
+			""")
+
+	def testCoverage(self):
+		# Try to trigger some edge cases...
+
+		# An at_most_one clause must be analysed for causing
+		# a conflict.
+		solver = sat.Solver()
+		v1 = solver.add_variable("v1")
+		v2 = solver.add_variable("v2")
+		v3 = solver.add_variable("v3")
+		solver.at_most_one([v1, v2])
+		solver.add_clause([v1, sat.neg(v3)])
+		solver.add_clause([v2, sat.neg(v3)])
+		solver.add_clause([v1, v3])
+		solver.run_solver(lambda: v3)
 
 suite = unittest.makeSuite(TestSAT)
 if __name__ == '__main__':

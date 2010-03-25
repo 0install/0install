@@ -21,7 +21,7 @@ from logging import warn
 
 def debug(msg, *args):
 	return
-	print "SAT:", msg % args
+	#print "SAT:", msg % args
 
 # variables are numbered from 0
 # literals have the same number as the corresponding variable,
@@ -49,26 +49,29 @@ def makeAtMostOneClause(solver):
 			self.current = None
 
 		def propagate(self, lit):
+			# Re-add ourselves to the watch list.
+			# (we we won't get any more notifications unless we backtrack,
+			# in which case we'd need to get back on the list anyway)
+			solver.watch_lit(lit, self)
+
 			# value[lit] has just become True
 			assert solver.lit_value(lit) == True
 			assert lit >= 0
 
 			#debug("%s: noticed %s has become True" % (self, solver.name_lit(lit)))
 
-			# One is already selected
-			if self.current is not None:
-				debug("CONFLICT: already selected %s" % self.current)
-				return False
+			# If we already propagated successfully when the first
+			# one was set then we set all the others to False and
+			# anyone trying to set one True will get rejected. And
+			# if we didn't propagate yet, current will still be
+			# None, even if we now have a conflict (which we'll
+			# detect below).
+			assert self.current is None
 
 			self.current = lit
 
 			# If we later backtrace, call our undo function to unset current
 			solver.get_varinfo_for_lit(lit).undo.append(self)
-
-			# Re-add ourselves to the watch list.
-			# (we we won't get any more notifications unless we backtrack,
-			# in which case we'd need to get back on the list anyway)
-			solver.watch_lit(lit, self)
 
 			count = 0
 			for l in self.lits:
@@ -166,7 +169,7 @@ def makeUnionClause(solver):
 					# Could be None or True. If it's True then we've already done our job,
 					# so this means we don't get notified unless we backtrack, which is fine.
 					self.lits[1], self.lits[i] = self.lits[i], self.lits[1]
-					solver.watch_lit(self.lits[1], self)	# ??
+					solver.watch_lit(self.lits[1], self)
 					return True
 
 			# Only lits[0], is now undefined.
@@ -242,7 +245,7 @@ class Solver(object):
 				# Conflict
 				return False
 			else:
-				# Already set
+				# Already set (shouldn't happen)
 				return True
 
 		if lit < 0:
@@ -407,7 +410,10 @@ class Solver(object):
 		# Remove duplicates and values known to be False
 		lits = [l for l in lit_set if self.lit_value(l) != False]
 
-		return self._add_clause(lits, learnt = False)
+		retval = self._add_clause(lits, learnt = False)
+		if not retval:
+			self.toplevel_conflict = True
+		return retval
 
 	def at_most_one(self, lits):
 		assert lits
@@ -589,9 +595,7 @@ class Solver(object):
 					# If it leads to a conflict, we'll backtrack and
 					# try it the other way.
 					lit = decide()
-					if lit is None:
-						debug("decide -> None")
-						return False
+					assert lit is not None, "decide function returned None!"
 					assert self.lit_value(lit) is None
 					self.trail_lim.append(len(self.trail))
 					r = self.enqueue(lit, reason = "considering")
