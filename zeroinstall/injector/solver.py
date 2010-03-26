@@ -37,13 +37,32 @@ def _get_cached(stores, impl):
 			return False
 
 class ImplInfo:
-	def __init__(self, iface, impl, arch):
+	is_dummy = False
+
+	def __init__(self, iface, impl, arch, dummy = False):
 		self.iface = iface
 		self.impl = impl
 		self.arch = arch
-	
+		if dummy:
+			self.is_dummy = True
+
 	def __repr__(self):
 		return str(self.impl.feed.get_name() + "-" + self.impl.get_version())
+
+class _DummyImpl:
+	requires = []
+	version = None
+
+	def __repr__(self):
+		return "dummy"
+
+	feed = property(lambda self: self)
+
+	def get_version(self):
+		return "dummy"
+
+	def get_name(self):
+		return "dummy"
 
 class Solver(object):
 	"""Chooses a set of implementations to satisfy the requirements of a program and its user.
@@ -150,7 +169,11 @@ class SATSolver(Solver):
 
 		return cmp(a.id, b.id)
 
-	def solve(self, root_interface, root_arch):
+	def solve(self, root_interface, root_arch, closest_match = False):
+		# closest_match is used internally. It adds a lowest-ranked
+		# by valid implementation to every interface, so we can always
+		# select something. Useful for diagnostics.
+
 		# TODO: We need some way to figure out which feeds to include.
 		# Currently, we include any feed referenced from anywhere but
 		# this is probably too much. We could insert a dummy optimial
@@ -161,7 +184,7 @@ class SATSolver(Solver):
 		problem = sat.Solver()
 
 		feed_names = {}	# Feed -> "f1"
-		impl_names = {}	# Impl -> "f1_0"
+		impl_names = {}	# Impl -> sat var
 		self.feeds_used = set()
 		self.requires = {}
 		self.ready = False
@@ -170,9 +193,6 @@ class SATSolver(Solver):
 		self.selections = None
 
 		comment_problem = False	# debugging only
-
-		# TODO: simplify this; there's no need for two mappings!
-		var = {}		# our var names to sat var/literal numbers
 
 		if self.help_with_testing:
 			# Choose the newest, not the most stable.
@@ -213,25 +233,25 @@ class SATSolver(Solver):
 
 		group_clause_for = {}	# Iface URI -> AtMostOneClause | bool
 
-		def find_dependency_candidates(requiring_impl, dependency):
+		def find_dependency_candidates(requiring_impl_var, dependency):
 			dep_iface = self.iface_cache.get_interface(dependency.interface)
-			dep_union = [sat.neg(var[requiring_impl])]
+			dep_union = [sat.neg(requiring_impl_var)]
 			for candidate in impls_for_iface[dep_iface]:
 				for r in dependency.restrictions:
 					if not r.meets_restriction(candidate):
 						#warn("%s rejected due to %s", candidate.get_version(), r)
-						break
+						if candidate.version is not None:
+							break
+						# else it's the dummy version that matches everything
 				else:
-					c_name = impl_names.get(candidate, None)
-					if c_name:
-						dep_union.append(var[c_name])
+					c_var = impl_names.get(candidate, None)
+					if c_var is not None:
+						dep_union.append(c_var)
 					# else we filtered that version out, so ignore it
-			if comment_problem:
-				problem.append("* %s requires %s" % (requiring_impl, dependency))
 			if dep_union:
 				problem.add_clause(dep_union)
 			else:
-				problem.assign(requiring_impl, 0)
+				problem.assign(requiring_impl_var, 0)
 
 		def is_unusable(impl, restrictions, arch):
 			"""@return: whether this implementation is unusable.
@@ -320,16 +340,14 @@ class SATSolver(Solver):
 				filtered_impls.append(impl)
 
 				# TODO: simplify me!
-				name = feed_name(impl.feed) + "_" + str(rank)
 				assert impl not in impl_names
 				v = problem.add_variable(ImplInfo(iface, impl, arch))
-				var[name] = v
-				impl_names[impl] = name
+				impl_names[impl] = v
 				rank += 1
-				var_names.append(var[name])
+				var_names.append(v)
 
 				if impl.machine and impl.machine != 'src':
-					impls_for_machine_group[machine_groups.get(impl.machine, 0)].append(name)
+					impls_for_machine_group[machine_groups.get(impl.machine, 0)].append(v)
 
 				for d in impl.requires:
 					debug(_("Considering dependency %s"), d)
@@ -341,7 +359,14 @@ class SATSolver(Solver):
 					add_iface(d.interface, arch.child_arch)
 
 					# Must choose one version of d if impl is selected
-					find_dependency_candidates(name, d)
+					find_dependency_candidates(v, d)
+
+			if closest_match:
+				dummy_impl = _DummyImpl()
+				dummy_var = problem.add_variable(ImplInfo(iface, dummy_impl, arch, dummy = True))
+				var_names.append(dummy_var)
+				impl_names[dummy_impl] = dummy_var
+				filtered_impls.append(dummy_impl)
 
 			# Only one implementation of this interface can be selected
 			if uri == root_interface:
@@ -369,11 +394,11 @@ class SATSolver(Solver):
 		m_groups = []
 		for machine_group, impls in impls_for_machine_group.iteritems():
 			m_group = 'm%d' % machine_group
-			var[m_group] = problem.add_variable(m_group)
+			group_var = problem.add_variable(m_group)
 			if impls:
 				for impl in impls:
-					problem.add_clause([var[m_group], sat.neg(var[impl])])
-			m_groups.append(var[m_group])
+					problem.add_clause([group_var, sat.neg(impl)])
+			m_groups.append(group_var)
 		if m_groups:
 			m_groups_clause = problem.at_most_one(m_groups)
 		else:
@@ -424,21 +449,30 @@ class SATSolver(Solver):
 
 			return None			# Failed to find any valid combination
 
-		self.ready = problem.run_solver(decide) is True
+		ready = problem.run_solver(decide) is True
 
-		# Pointing the root at None by default is just
-		# to make the unit-tests happy :-/
-		self.selections = {self.iface_cache.get_interface(root_interface): None}
+		if not ready and not closest_match:
+			# We failed while trying to do a real solve.
+			# Try a closest match solve to get a better
+			# error report for the user.
+			self.solve(root_interface, root_arch, closest_match = True)
+		else:
+			self.ready = ready and not closest_match
+			self.selections = {}
 
-		for uri, group in group_clause_for.iteritems():
-			if group.current is not None:
-				lit_info = problem.get_varinfo_for_lit(group.current).obj
-				self.selections[lit_info.iface] = lit_info.impl
-				deps = self.requires[lit_info.iface] = []
-				for dep in lit_info.impl.requires:
-					use = dep.metadata.get("use", None)
-					if use not in lit_info.arch.use:
-						continue
-					deps.append(dep)
+			for uri, group in group_clause_for.iteritems():
+				if group.current is not None:
+					lit_info = problem.get_varinfo_for_lit(group.current).obj
+					if lit_info.is_dummy:
+						self.selections[lit_info.iface] = None
+					else:
+						self.selections[lit_info.iface] = lit_info.impl
+						deps = self.requires[lit_info.iface] = []
+						for dep in lit_info.impl.requires:
+							use = dep.metadata.get("use", None)
+							if use not in lit_info.arch.use:
+								continue
+							deps.append(dep)
+
 
 DefaultSolver = SATSolver

@@ -139,6 +139,7 @@ def assertSelection(expected, repo):
 		actual.sort()
 		if expected != actual:
 			raise Exception("Solve failed:\nExpected: %s\n  Actual: %s" % (expected, actual))
+	return s
 
 class TestSAT(BaseTest):
 	def testTrivial(self):
@@ -256,6 +257,30 @@ class TestSAT(BaseTest):
 		solver.add_clause([v2, sat.neg(v3)])
 		solver.add_clause([v1, v3])
 		solver.run_solver(lambda: v3)
+
+	def testFailState(self):
+		# If we can't select a valid combination,
+		# try to select as many as we can.
+		s = assertSelection("prog-FAIL", """
+			prog: 1 2
+			liba: 1 2
+			libb: 1 2
+			libc: 5
+			prog[1,2] => liba 1 2
+			liba[1,2] => libb 1 2
+			libb[1,2] => libc 0 0
+			""")
+		assert not s.ready
+		selected = {}
+		for iface, impl in s.selections.iteritems():
+			if impl is not None: impl = impl.get_version()
+			selected[iface.uri.rsplit('/', 1)[1]] = impl
+		self.assertEquals({
+			'prog': '2',
+			'liba': '2',
+			'libb': '2',
+			'libc': None
+		}, selected)
 
 suite = unittest.makeSuite(TestSAT)
 if __name__ == '__main__':

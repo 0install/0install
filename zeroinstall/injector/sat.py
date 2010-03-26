@@ -578,6 +578,7 @@ class Solver(object):
 		# Check whether we detected a trivial problem
 		# during setup.
 		if self.toplevel_conflict:
+			debug("FAIL: toplevel_conflict before starting solve!")
 			return False
 
 		while True:
@@ -602,6 +603,7 @@ class Solver(object):
 					assert r is True
 			else:
 				if self.get_decision_level() == 0:
+					debug("FAIL: conflict found at top level")
 					return False
 				else:
 					# Figure out the root cause of this failure.
