@@ -164,9 +164,9 @@ class TestLaunch(BaseTest):
 		assert 'Compiler.xml' in out
 	
 	def testRanges(self):
-		out, err = self.run_0launch(['--dry-run', '--before=1', '--not-before=0.2', 'Foo.xml'])
-		assert 'tests/two' in err, err
-		self.assertEquals("", out)
+		out, err = self.run_0launch(['--get-selections', '--before=1', '--not-before=0.2', 'Foo.xml'])
+		assert 'tests/rpm' in out, out
+		self.assertEquals("", err)
 	
 	def testLogging(self):
 		log = logging.getLogger()

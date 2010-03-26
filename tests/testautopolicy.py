@@ -40,6 +40,7 @@ class TestAutoPolicy(BaseTest):
 		policy = autopolicy.AutoPolicy(os.path.abspath('Foo.xml'),
 						download_only = False)
 		assert not policy.need_download()
+		assert policy.ready
 	
 	def testUnknownAlg(self):
 		self.cache_iface(foo_iface_uri,
@@ -223,7 +224,9 @@ class TestAutoPolicy(BaseTest):
   <name>Bar</name>
   <summary>Bar</summary>
   <description>Bar</description>
-  <implementation version='1.0' id='sha1=123'/>
+  <implementation version='1.0' id='sha1=123'>
+    <archive href='foo' size='10'/>
+  </implementation>
 </interface>""" % foo_iface_uri)
 		policy = autopolicy.AutoPolicy(foo_iface_uri, False,
 							dry_run = True)
@@ -333,12 +336,7 @@ class TestAutoPolicy(BaseTest):
 						download_only = False)
 		policy.freshness = 0
 		policy.recalculate()
-		assert policy.ready
-		try:
-			policy.download_and_execute([])
-			assert False
-		except model.SafeException, ex:
-			assert 'no download locations' in str(ex), ex
+		assert not policy.ready
 
 	def testCycle(self):
 		self.cache_iface(foo_iface_uri,
@@ -351,7 +349,9 @@ class TestAutoPolicy(BaseTest):
   <description>Foo</description>
   <group>
     <requires interface='%s'/>
-    <implementation id='sha1=123' version='1.0'/>
+    <implementation id='sha1=123' version='1.0'>
+      <archive href='foo' size='10'/>
+    </implementation>
   </group>
 </interface>""" % (foo_iface_uri, foo_iface_uri))
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
@@ -368,9 +368,15 @@ class TestAutoPolicy(BaseTest):
   <name>Bar</name>
   <summary>Bar</summary>
   <description>Bar</description>
-  <implementation id='sha1=100' version='1.0'/>
-  <implementation id='sha1=150' stability='developer' version='1.5'/>
-  <implementation id='sha1=200' version='2.0'/>
+  <implementation id='sha1=100' version='1.0'>
+    <archive href='foo' size='10'/>
+  </implementation>
+  <implementation id='sha1=150' stability='developer' version='1.5'>
+    <archive href='foo' size='10'/>
+  </implementation>
+  <implementation id='sha1=200' version='2.0'>
+    <archive href='foo' size='10'/>
+  </implementation>
 </interface>""")
 		self.cache_iface(foo_iface_uri,
 """<?xml version="1.0" ?>
@@ -384,7 +390,9 @@ class TestAutoPolicy(BaseTest):
    <requires interface='http://bar'>
     <version/>
    </requires>
-   <implementation id='sha1=123' version='1.0'/>
+   <implementation id='sha1=123' version='1.0'>
+    <archive href='foo' size='10'/>
+   </implementation>
   </group>
 </interface>""" % foo_iface_uri)
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
