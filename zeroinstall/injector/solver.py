@@ -47,11 +47,13 @@ class ImplInfo:
 			self.is_dummy = True
 
 	def __repr__(self):
-		return str(self.impl.feed.get_name() + "-" + self.impl.get_version())
+		name = "%s_%s_%s" % (self.impl.feed.get_name(), self.impl.get_version(), self.impl.arch)
+		return name.replace('-', '_').replace('.', '_')
 
 class _DummyImpl:
 	requires = []
 	version = None
+	arch = None
 
 	def __repr__(self):
 		return "dummy"

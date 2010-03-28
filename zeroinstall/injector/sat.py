@@ -226,6 +226,7 @@ class Solver(object):
 		return len(self.trail_lim)
 
 	def add_variable(self, obj):
+		debug("add_variable('%s')", obj)
 		index = len(self.assigns)
 
 		self.watches += [[], []]	# Add watch lists for X and not(X)
@@ -395,7 +396,7 @@ class Solver(object):
 		# Public interface. Only used before the solve starts.
 		assert lits
 
-		debug("add_clause: %s" % self.name_lits(lits))
+		debug("add_clause([%s])" % ', '.join(self.name_lits(lits)))
 
 		if any(self.lit_value(l) == True for l in lits):
 			# Trivially true already.
@@ -416,7 +417,7 @@ class Solver(object):
 	def at_most_one(self, lits):
 		assert lits
 
-		debug("at_most_one: %s" % self.name_lits(lits))
+		debug("at_most_one(%s)" % ', '.join(self.name_lits(lits)))
 
 		# If we have zero or one literals then we're trivially true
 		# and not really needed for the solve. However, Zero Install
