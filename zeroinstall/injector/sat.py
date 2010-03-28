@@ -7,12 +7,11 @@
 #
 # The main differences are:
 #
-# - We care about which solution we find (not use "satisfiable" or "not").
+# - We care about which solution we find (not just "satisfiable" or "not").
 # - We take care to be deterministic (always select the same versions given
 #   the same input). We do not do random restarts, etc.
 # - We add an AtMostOneClause (the paper suggests this in the Excercises, and
 #   it's very useful for our purposes).
-# - We don't currently do conflict-driven learning.
 
 import tempfile, subprocess, os, sys
 from logging import warn
@@ -159,6 +158,8 @@ def makeUnionClause(solver):
 				solver.watch_lit(lit, self)
 				return True
 
+			assert solver.lit_value(self.lits[1]) == False
+
 			# Find a new literal to watch now that lits[1] is resolved,
 			# swap it with lits[1], and start watching it.
 			for i in range(2, len(self.lits)):
@@ -167,7 +168,7 @@ def makeUnionClause(solver):
 					# Could be None or True. If it's True then we've already done our job,
 					# so this means we don't get notified unless we backtrack, which is fine.
 					self.lits[1], self.lits[i] = self.lits[i], self.lits[1]
-					solver.watch_lit(self.lits[1], self)
+					solver.watch_lit(neg(self.lits[1]), self)
 					return True
 
 			# Only lits[0], is now undefined.

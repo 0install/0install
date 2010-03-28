@@ -281,6 +281,29 @@ class TestSAT(BaseTest):
 			'libb': '2',
 			'libc': None
 		}, selected)
+	
+	def testWatch(self):
+		solver = sat.Solver()
+
+		a = solver.add_variable('a')
+		b = solver.add_variable('b')
+		c = solver.add_variable('c')
+
+		# Add a clause. It starts watching the first two variables (a and b).
+		# (use the internal function to avoid variable reordering)
+		solver._add_clause([a, b, c], False)
+		
+		# b is False, so it switches to watching a and c
+		solver.add_clause([sat.neg(b)])
+
+		# Try to trigger bug.
+		solver.add_clause([c])
+
+		decisions = [a]
+		solver.run_solver(lambda: decisions.pop())
+		assert not decisions	# All used up
+
+		assert solver.assigns[a].value == True
 
 suite = unittest.makeSuite(TestSAT)
 if __name__ == '__main__':
