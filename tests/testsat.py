@@ -305,6 +305,22 @@ class TestSAT(BaseTest):
 
 		assert solver.assigns[a].value == True
 
+	def testOverbacktrack(self):
+		# After learning that prog-3 => m0 we backtrack all the way up to the prog-3
+		# assignment, unselecting liba-3, and then select it again.
+		assertSelection("prog-3, liba-3, libb-3, libc-1, libz-2", """
+			prog: 1 2 3
+			liba: 1 2 3
+			libb: 1 2 3
+			libc Linux-x86_64: 2 3
+			libc Linux-i486: 1
+			libz Linux-i386: 1 2
+			prog[2,3] => liba 1 3
+			prog[2,3] => libz 1 2
+			liba[1,3] => libb 1 3
+			libb[1,3] => libc 1 3
+			""")
+
 suite = unittest.makeSuite(TestSAT)
 if __name__ == '__main__':
 	sys.argv.append('-v')

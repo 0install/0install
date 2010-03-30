@@ -540,6 +540,16 @@ class Solver(object):
 			# variables before it; everything up to the previous
 			# decision has to go anyway).
 
+			# On the first time round the loop, we must find the
+			# conflict depends on at least one assignment at the
+			# current level. Otherwise, simply setting the decision
+			# variable caused a clause to conflict, in which case
+			# the clause should have asserted not(decision-variable)
+			# before we ever made the decision.
+			# On later times round the loop, counter was already >
+			# 0 before we started iterating over p_reason.
+			assert counter > 0
+
 			while True:
 				p = self.trail[-1]
 				var_info = self.get_varinfo_for_lit(p)
@@ -551,17 +561,12 @@ class Solver(object):
 			counter -= 1
 
 			if counter <= 0:
+				assert counter == 0
 				# If counter = 0 then we still have one more
 				# literal (p) at the current level that we
 				# could expand. However, apparently it's best
 				# to leave this unprocessed (says the minisat
 				# paper).
-				# If counter is -1 then we popped one extra
-				# assignment, but it doesn't matter because
-				# either it's at this level or it's the
-				# decision that led to this level. Either way,
-				# we'd have removed it anyway.
-				# XXX: is this true? won't self.cancel() get upset?
 				break
 
 		# p is the literal we decided to stop processing on. It's either
