@@ -260,7 +260,10 @@ class DebianDistribution(CachedDistribution):
 		cached = self.apt_cache.get(package)
 		if cached is None:
 			try:
-				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE)
+				null = os.open('/dev/null', os.O_WRONLY)
+				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null)
+				os.close(null)
+
 				arch = version = None
 				for line in child.stdout:
 					line = line.strip()
