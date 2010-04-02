@@ -185,45 +185,13 @@ class SATSolver(Solver):
 		feeds_added = set()
 		problem = sat.Solver()
 
-		feed_names = {}	# Feed -> "f1"
-		impl_names = {}	# Impl -> sat var
+		impl_to_var = {}	# Impl -> sat var
 		self.feeds_used = set()
 		self.requires = {}
 		self.ready = False
 		self.details = self.record_details and {}
 
 		self.selections = None
-
-		comment_problem = False	# debugging only
-
-		if self.help_with_testing:
-			# Choose the newest, not the most stable.
-			# Preferred still affects the choice, though.
-			stability_cost = {
-				model.preferred :    0,
-				model.packaged  : 1000,
-				model.stable    : 1000,
-				model.testing   : 1000,
-				model.developer : 1000,
-			}
-		else:
-			# Strongly prefer packaged or stable versions.
-			stability_cost = {
-				model.preferred :    0,
-				model.packaged  : 1000,
-				model.stable    : 1100,
-				model.testing   : 3000,
-				model.developer : 8000,
-			}
-
-		def feed_name(feed):
-			name = feed_names.get(feed, None)
-			if name: return name
-			feed_names[feed] = name = "f%d" % (len(feed_names))
-			if comment_problem:
-				problem.append("* feed %s is now known as %s" % (feed, name))
-			self.feeds_used.add(feed.url)
-			return name
 
 		ifaces_processed = set()
 
@@ -246,7 +214,7 @@ class SATSolver(Solver):
 							break
 						# else it's the dummy version that matches everything
 				else:
-					c_var = impl_names.get(candidate, None)
+					c_var = impl_to_var.get(candidate, None)
 					if c_var is not None:
 						dep_union.append(c_var)
 					# else we filtered that version out, so ignore it
@@ -341,10 +309,9 @@ class SATSolver(Solver):
 
 				filtered_impls.append(impl)
 
-				# TODO: simplify me!
-				assert impl not in impl_names
+				assert impl not in impl_to_var
 				v = problem.add_variable(ImplInfo(iface, impl, arch))
-				impl_names[impl] = v
+				impl_to_var[impl] = v
 				rank += 1
 				var_names.append(v)
 
@@ -367,7 +334,7 @@ class SATSolver(Solver):
 				dummy_impl = _DummyImpl()
 				dummy_var = problem.add_variable(ImplInfo(iface, dummy_impl, arch, dummy = True))
 				var_names.append(dummy_var)
-				impl_names[dummy_impl] = dummy_var
+				impl_to_var[dummy_impl] = dummy_var
 				filtered_impls.append(dummy_impl)
 
 			# Only one implementation of this interface can be selected
