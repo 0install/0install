@@ -26,7 +26,5 @@ class TestArch(BaseTest):
 		arch = get_architecture('Linux', 'i686')
 		assert ('i386' in arch.machine_ranks)
 
-suite = unittest.makeSuite(TestArch)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

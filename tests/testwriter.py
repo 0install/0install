@@ -66,7 +66,5 @@ class TestWriter(BaseTest):
 		impl = iface.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
 		self.assertEquals(model.developer, impl.user_stability)
 
-suite = unittest.makeSuite(TestWriter)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

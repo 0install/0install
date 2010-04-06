@@ -67,7 +67,5 @@ class TestQDom(BaseTest):
 			'<sub x="2">hi</sub><empty/></root>')
 		assert 'root' in str(root)
 
-suite = unittest.makeSuite(TestQDom)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

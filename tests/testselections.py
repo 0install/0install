@@ -77,7 +77,5 @@ class TestSelections(BaseTest):
 		local_path = s2.selections[iface].local_path
 		assert os.path.isdir(local_path), local_path
 
-suite = unittest.makeSuite(TestSelections)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

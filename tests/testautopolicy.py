@@ -418,7 +418,5 @@ class TestAutoPolicy(BaseTest):
 		policy.recalculate()
 		assert policy.implementation[bar_iface].id == 'sha1=150'
 
-suite = unittest.makeSuite(TestAutoPolicy)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

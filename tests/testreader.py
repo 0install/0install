@@ -257,7 +257,5 @@ class TestReader(BaseTest):
 		self.assertEquals('fr en_GB', iface.implementations['sha1=234'].langs)
 		self.assertEquals(None, iface.implementations['sha1=345'].langs)
 	
-suite = unittest.makeSuite(TestReader)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

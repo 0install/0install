@@ -149,7 +149,5 @@ class TestIfaceCache(BaseTest):
 		self.assertEquals(None, iface_cache.get_last_check_attempt("http://foo/bar2.xml"))
 
 
-suite = unittest.makeSuite(TestIfaceCache)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

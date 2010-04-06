@@ -140,12 +140,9 @@ class TestUnpackGNU(AbstractTestUnpack):
 		unpack.unpack_archive('ftp://foo/file.tar.lzma', file('HelloWorld.tar.lzma'), self.tmpdir)
 		self.assert_manifest('sha1new=290eb133e146635fe37713fd58174324a16d595f')
 
-suite = unittest.TestSuite()
-if unpack._gnu_tar():
-	suite.addTest(unittest.makeSuite(TestUnpackGNU))
-else:
+if not unpack._gnu_tar():
 	print "No GNU tar: SKIPPING tests"
-suite.addTest(unittest.makeSuite(TestUnpackPython))
+	del globals()['TestUnpackGNU']
 
 if __name__ == '__main__':
-	unittest.TextTestRunner(verbosity=2).run(suite)
+	unittest.main()

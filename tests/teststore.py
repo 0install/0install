@@ -203,7 +203,5 @@ class TestStore(BaseTest):
 		finally:
 			support.ro_rmtree(copy)
 
-suite = unittest.makeSuite(TestStore)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

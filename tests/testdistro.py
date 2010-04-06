@@ -145,7 +145,5 @@ class TestDistro(BaseTest):
 		self.assertEquals('0.3-post1-rc2', distro.try_cleanup_distro_version('0.3-post1-rc2'))
 		self.assertEquals('0.3.1-2', distro.try_cleanup_distro_version('0.3.1-r2-r3'))
 
-suite = unittest.makeSuite(TestDistro)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

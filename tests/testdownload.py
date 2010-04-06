@@ -383,7 +383,5 @@ class TestDownload(BaseTest):
 	def testBackgroundVerbose(self):
 		self.testBackground(verbose = True)
 
-suite = unittest.makeSuite(TestDownload)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

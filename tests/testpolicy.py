@@ -32,7 +32,5 @@ class TestPolicy(BaseTest):
 		assert p.implementation[foo].id == 'sha1=234'		# The source
 		assert p.implementation[compiler].id == 'sha1=345'	# A binary needed to compile it
 
-suite = unittest.makeSuite(TestPolicy)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

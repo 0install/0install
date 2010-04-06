@@ -26,7 +26,8 @@ alltests = unittest.TestSuite()
 
 for name in suite_names:
 	m = __import__(name, globals(), locals(), [])
-	alltests.addTest(m.suite)
+	test = unittest.defaultTestLoader.loadTestsFromModule(m)
+	alltests.addTest(test)
 
 a = unittest.TextTestRunner(verbosity=2).run(alltests)
 

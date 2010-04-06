@@ -276,7 +276,5 @@ class TestModel(BaseTest):
 
 		assert pv('2-post999') < pv('3-pre1')
 
-suite = unittest.makeSuite(TestModel)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

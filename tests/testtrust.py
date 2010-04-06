@@ -80,7 +80,5 @@ class TestTrust(BaseTest):
 		self.assertRaises(SafeException, lambda: trust.domain_from_url(''))
 
 
-suite = unittest.makeSuite(TestTrust)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

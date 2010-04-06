@@ -118,7 +118,5 @@ class TestManifest(BaseTest):
 			except BadDigest:
 				pass
 
-suite = unittest.makeSuite(TestManifest)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

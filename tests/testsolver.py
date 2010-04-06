@@ -136,7 +136,5 @@ class TestSolver(BaseTest):
 			'0.1 Linux-i686', '0.1 Linux-i586', '0.1 Linux-i486'],	# ordering of x86 versions
 			selected)
 
-suite = unittest.makeSuite(TestSolver)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

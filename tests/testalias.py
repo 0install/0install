@@ -65,7 +65,5 @@ class TestAlias(BaseTest):
 		except alias.NotAnAliasScript:
 			pass
 
-suite = unittest.makeSuite(TestAlias)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

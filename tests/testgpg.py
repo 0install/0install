@@ -205,7 +205,5 @@ class TestGPG(BaseTest):
 		self.assertEquals('Thomas Leonard <tal197@users.sourceforge.net>',
 				key.name)
 
-suite = unittest.makeSuite(TestGPG)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

@@ -321,7 +321,5 @@ class TestSAT(BaseTest):
 			libb[1,3] => libc 1 3
 			""")
 
-suite = unittest.makeSuite(TestSAT)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()

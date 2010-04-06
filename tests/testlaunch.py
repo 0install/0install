@@ -198,7 +198,5 @@ class TestLaunch(BaseTest):
 		finally:
 			os.dup2(copy, 1)
 
-suite = unittest.makeSuite(TestLaunch)
 if __name__ == '__main__':
-	sys.argv.append('-v')
 	unittest.main()
