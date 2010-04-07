@@ -135,13 +135,22 @@ class TestDistro(BaseTest):
 		self.assertEquals(1, len(self.feed.implementations))
 		impl = self.feed.implementations['package:gentoo:sys-apps/portage:2.1.7.16:x86_64']
 		self.assertEquals('2.1.7.16', impl.get_version())
+		self.assertEquals('x86_64', impl.machine)
 
 		ebuilds.get_package_info('sys-kernel/gentoo-sources', self.factory)
 		self.assertEquals(3, len(self.feed.implementations))
 		impl = self.feed.implementations['package:gentoo:sys-kernel/gentoo-sources:2.6.30-4:i686']
 		self.assertEquals('2.6.30-4', impl.get_version())
+		self.assertEquals('i686', impl.machine)
 		impl = self.feed.implementations['package:gentoo:sys-kernel/gentoo-sources:2.6.32:x86_64']
 		self.assertEquals('2.6.32', impl.get_version())
+		self.assertEquals('x86_64', impl.machine)
+
+		ebuilds.get_package_info('app-emulation/emul-linux-x86-baselibs', self.factory)
+		self.assertEquals(4, len(self.feed.implementations))
+		impl = self.feed.implementations['package:gentoo:app-emulation/emul-linux-x86-baselibs:20100220:i386']
+		self.assertEquals('20100220', impl.get_version())
+		self.assertEquals('i386', impl.machine)
 
 	def testCleanVersion(self):
 		self.assertEquals('1', distro.try_cleanup_distro_version('1:0.3.1-1'))

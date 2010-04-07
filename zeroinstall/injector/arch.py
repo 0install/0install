@@ -76,15 +76,19 @@ machine_groups = {
 	'ppc64': 64,
 }
 
+def canonicalize_machine(machine):
+	if machine == 'x86':
+		machine = 'i386'
+	elif machine == 'amd64':
+		machine = 'x86_64'
+	elif machine == 'Power Macintosh':
+		machine = 'ppc'
+	elif machine == 'i86pc':
+		machine = 'i686'
+	return machine
+
 def _get_machine_ranks(target_machine):
-	if target_machine == 'x86':
-		target_machine = 'i386'
-	elif target_machine == 'amd64':
-		target_machine = 'x86_64'
-	elif target_machine == 'Power Macintosh':
-		target_machine = 'ppc'
-	elif target_machine == 'i86pc':
-		target_machine = 'i686'
+	target_machine = canonicalize_machine(target_machine)
 
 	# Binaries compiled for _this_machine are best...
 	machine_ranks = {target_machine : 0}

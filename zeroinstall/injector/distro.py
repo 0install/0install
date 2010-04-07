@@ -9,7 +9,7 @@ Integration with native distribution package managers.
 from zeroinstall import _
 import os, re, glob, subprocess
 from logging import warn, info
-from zeroinstall.injector import namespaces, model
+from zeroinstall.injector import namespaces, model, arch
 from zeroinstall.support import basedir
 
 _dotted_ints = '[0-9]+(?:\.[0-9]+)*'
@@ -378,11 +378,16 @@ class GentooDistribution(Distribution):
 				else:
 					version = try_cleanup_distro_version(name[match.start() + 1:])
 
-				machine = file(os.path.join(category_dir, filename, 'CHOST')).readline().split('-')[0]
+				if category == 'app-emulation' and name.startswith('emul-'):
+					__, __, machine, __ = name.split('-', 3)
+				else:
+					machine, __ = file(os.path.join(category_dir, filename, 'CHOST')).readline().split('-', 1)
+				machine = arch.canonicalize_machine(machine)
 
 				impl = factory('package:gentoo:%s:%s:%s' % \
 						(package, version, machine))
 				impl.version = model.parse_version(version)
+				impl.machine = machine
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'Gentoo')
