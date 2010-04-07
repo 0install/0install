@@ -236,9 +236,9 @@ class DebianDistribution(CachedDistribution):
 
 	cache_leaf = 'dpkg-status.cache'
 
-	def __init__(self, dpkg_status):
+	def __init__(self, dpkg_status, pkgcache):
 		CachedDistribution.__init__(self, dpkg_status)
-		self.apt_cache = Cache('apt-cache-cache', '/var/cache/apt/pkgcache.bin')
+		self.apt_cache = Cache('apt-cache-cache', pkgcache)
 
 	def generate_cache(self):
 		cache = []
@@ -395,14 +395,15 @@ def get_host_distribution():
 	@rtype: L{Distribution}"""
 	global _host_distribution
 	if not _host_distribution:
-		_dpkg_db_status = '/var/lib/dpkg/status'
+		dpkg_db_status = '/var/lib/dpkg/status'
+		pkgcache = '/var/cache/apt/pkgcache.bin'
 		_rpm_db = '/var/lib/rpm/Packages'
 		_gentoo_db = '/var/db/pkg'
 
 		if os.path.isdir(_gentoo_db):
 			_host_distribution = GentooDistribution(_gentoo_db)
-		elif os.access(_dpkg_db_status, os.R_OK):
-			_host_distribution = DebianDistribution(_dpkg_db_status)
+		elif os.access(dpkg_db_status, os.R_OK):
+			_host_distribution = DebianDistribution(dpkg_db_status, pkgcache)
 		elif os.path.isfile(_rpm_db):
 			_host_distribution = RPMDistribution(_rpm_db)
 		else:

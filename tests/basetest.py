@@ -64,7 +64,8 @@ class BaseTest(unittest.TestCase):
 		self.old_path = os.environ['PATH']
 		os.environ['PATH'] = dpkgdir + ':' + self.old_path
 
-		distro._host_distribution = distro.DebianDistribution(dpkgdir)
+		distro._host_distribution = distro.DebianDistribution(dpkgdir + '/status',
+								      dpkgdir + '/pkgcache.bin')
 	
 	def tearDown(self):
 		shutil.rmtree(self.config_home)
