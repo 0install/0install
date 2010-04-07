@@ -127,8 +127,6 @@ class AppListBox:
 		model = self.model
 		model.clear()
 
-		default_icon = self.window.render_icon(gtk.STOCK_EXECUTE, gtk.ICON_SIZE_DIALOG)
-
 		for uri in self.app_list.get_apps():
 			itr = model.append()
 			model[itr][AppListBox.URI] = uri
@@ -139,28 +137,13 @@ class AppListBox:
 			summary = summary[:1].capitalize() + summary[1:]
 
 			model[itr][AppListBox.NAME] = name
-			pixbuf = icon.load_icon(self.iface_cache.get_icon_path(iface))
-			if not pixbuf:
-				pixbuf = default_icon
-			else:
-				# Cap icon size, some icons are really high resolution
-				pixbuf = self.cap_pixbuf_dimensions(pixbuf, default_icon.get_width())
+			icon_width, icon_height = gtk.icon_size_lookup(gtk.ICON_SIZE_DIALOG)
+			pixbuf = icon.load_icon(self.iface_cache.get_icon_path(iface), icon_width, icon_height)
+			if pixbuf is None:
+				pixbuf = self.window.render_icon(gtk.STOCK_EXECUTE, gtk.ICON_SIZE_DIALOG)
 			model[itr][AppListBox.ICON] = pixbuf
 
 			model[itr][AppListBox.MARKUP] = '<b>%s</b>\n<i>%s</i>' % (_pango_escape(name), _pango_escape(summary))
-
-	def cap_pixbuf_dimensions(self, pixbuf, iconsize):
-			pixbuf_w = pixbuf.get_width()
-			pixbuf_h = pixbuf.get_height()
-			if (pixbuf_w > iconsize) or (pixbuf_h > iconsize):
-				if (pixbuf_w > pixbuf_h):
-					newheight = (pixbuf_w/pixbuf_h) * iconsize
-					newwidth = iconsize
-				else:
-					newwidth = (pixbuf_h/pixbuf_w) * iconsize
-					newheight = iconsize
-				return pixbuf.scale_simple(newwidth, newheight, gtk.gdk.INTERP_BILINEAR)
-			return pixbuf
 
 	def action_run(self, uri):
 		iface = self.iface_cache.get_interface(uri)

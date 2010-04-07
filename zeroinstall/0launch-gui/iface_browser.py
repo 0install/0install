@@ -8,6 +8,7 @@ from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import model
 import properties
 from zeroinstall.gtkui.treetips import TreeTips
+from zeroinstall.gtkui.icon import load_icon
 from zeroinstall import support
 from logging import warn
 import utils
@@ -256,27 +257,6 @@ class InterfaceBrowser:
 			# Clear icons cache to make sure they're really updated
 			self.cached_icon = {}
 		self.update_icons = update_icons
-	
-	def _load_icon(self, path):
-		assert path
-		try:
-			loader = gtk.gdk.PixbufLoader('png')
-			try:
-				loader.write(file(path).read())
-			finally:
-				loader.close()
-			icon = loader.get_pixbuf()
-			assert icon, "Failed to load cached PNG icon data"
-		except Exception, ex:
-			warn(_("Failed to load cached PNG icon: %s"), ex)
-			return None
-		w = icon.get_width()
-		h = icon.get_height()
-		scale = max(w, h, 1) / ICON_SIZE
-		icon = icon.scale_simple(int(w / scale),
-					 int(h / scale),
-					 gtk.gdk.INTERP_BILINEAR)
-		return icon
 
 	def get_icon(self, iface):
 		"""Get an icon for this interface. If the icon is in the cache, use that.
@@ -290,7 +270,7 @@ class InterfaceBrowser:
 			iconpath = iface_cache.get_icon_path(iface)
 
 			if iconpath:
-				icon = self._load_icon(iconpath)
+				icon = load_icon(iconpath, ICON_SIZE, ICON_SIZE)
 				# (if icon is None, cache the fact that we can't load it)
 				self.cached_icon[iface.uri] = icon
 			else:
@@ -314,7 +294,7 @@ class InterfaceBrowser:
 							# we don't try again.
 							iconpath = iface_cache.get_icon_path(iface)
 							if iconpath:
-								self.cached_icon[iface.uri] = self._load_icon(iconpath)
+								self.cached_icon[iface.uri] = load_icon(iconpath, ICON_SIZE, ICON_SIZE)
 								self.build_tree()
 							else:
 								warn("Failed to download icon for '%s'", iface)
