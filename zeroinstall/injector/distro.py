@@ -215,6 +215,22 @@ class CachedDistribution(Distribution):
 			os.unlink(tmpname)
 			raise
 
+# Maps machine type names used in packages to their Zero Install versions
+_canonical_machine = {
+	'all' : '*',
+	'any' : '*',
+	'amd64': 'x86_64',
+	'i386': 'i386',
+}
+
+host_machine = os.uname()[-1]
+def canonical_machine(package_machine):
+	machine = _canonical_machine.get(package_machine, None)
+	if machine is None:
+		# Safe default if we can't understand the arch
+		return host_machine
+	return machine
+
 class DebianDistribution(CachedDistribution):
 	"""A dpkg-based distribution."""
 
@@ -232,13 +248,9 @@ class DebianDistribution(CachedDistribution):
 			if ':' in version:
 				# Debian's 'epoch' system
 				version = version.split(':', 1)[1]
-			if debarch == 'amd64\n':
-				zi_arch = 'x86_64'
-			else:
-				zi_arch = '*'
 			clean_version = try_cleanup_distro_version(version)
 			if clean_version:
-				cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
+				cache.append('%s\t%s\t%s' % (package, clean_version, canonical_machine(debarch.strip())))
 			else:
 				warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
 
@@ -274,11 +286,7 @@ class DebianDistribution(CachedDistribution):
 							version = version.split(':', 1)[1]
 						version = try_cleanup_distro_version(version)
 					elif line.startswith('Architecture: '):
-						debarch = line[14:]
-						if debarch == 'amd64\n':
-							arch = 'x86_64'
-						else:
-							arch = '*'
+						arch = canonical_machine(line[14:].strip())
 				if version and arch:
 					cached = '%s\t%s' % (version, arch)
 				else:

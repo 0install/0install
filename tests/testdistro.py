@@ -80,12 +80,14 @@ class TestDistro(BaseTest):
 		self.assertEquals('3.4.2-10', bittorrent_installed.get_version())
 		self.assertTrue(bittorrent_installed.installed)
 		self.assertFalse(bittorrent_uninstalled.installed)
+		self.assertEquals(None, bittorrent_installed.machine)
 
 		self.feed = model.ZeroInstallFeed(empty_feed, local_path = '/empty.xml')
 		host.get_package_info('libxcomposite-dev', self.factory)
 		self.assertEquals(1, len(self.feed.implementations))
 		libxcomposite = self.feed.implementations['package:deb:libxcomposite-dev:0.3.1-1']
 		self.assertEquals('0.3.1-1', libxcomposite.get_version())
+		self.assertEquals('i386', libxcomposite.machine)
 	
 	def testRPM(self):
 		rpmdir = os.path.join(os.path.dirname(__file__), 'rpm')
