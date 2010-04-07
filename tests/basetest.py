@@ -43,6 +43,7 @@ class BaseTest(unittest.TestCase):
 		self.gnupg_home = tempfile.mktemp()
 		os.environ['GNUPGHOME'] = self.gnupg_home
 		os.environ['XDG_CONFIG_HOME'] = self.config_home
+		os.environ['XDG_CONFIG_DIRS'] = ''
 		os.environ['XDG_CACHE_HOME'] = self.cache_home
 		os.environ['XDG_CACHE_DIRS'] = self.cache_system
 		reload(basedir)
