@@ -6,6 +6,7 @@
 from zeroinstall import _
 import os, subprocess
 import shutil
+import glob
 import traceback
 from tempfile import mkdtemp, mkstemp
 import re
@@ -73,6 +74,7 @@ def type_from_url(url):
 	if url.endswith('.tar'): return 'application/x-tar'
 	if url.endswith('.zip'): return 'application/zip'
 	if url.endswith('.cab'): return 'application/vnd.ms-cab-compressed'
+	if url.endswith('.dmg'): return 'application/x-apple-diskimage'
 	return None
 
 def check_type_ok(mime_type):
@@ -99,6 +101,10 @@ def check_type_ok(mime_type):
 		if not find_in_path('cabextract'):
 			raise SafeException(_("This package looks like a Microsoft Cabinet archive, but you don't have the 'cabextract' command "
 					"I need to extract it. Install the package containing it first."))
+	elif mime_type == 'application/x-apple-diskimage':
+		if not find_in_path('hdiutil'):
+			raise SafeException(_("This package looks like a Apple Disk Image, but you don't have the 'hdiutil' command "
+					"I need to extract it."))
 	elif mime_type == 'application/x-lzma-compressed-tar':
 		pass	# We can get it through Zero Install
 	elif mime_type == 'application/x-xz-compressed-tar':
@@ -200,6 +206,8 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 		extract_tar(data, destdir, extract, 'gzip', start_offset)
 	elif type == 'application/vnd.ms-cab-compressed':
 		extract_cab(data, destdir, extract, start_offset)
+	elif type == 'application/x-apple-diskimage':
+		extract_dmg(data, destdir, extract, start_offset)
 	else:
 		raise SafeException(_('Unknown MIME type "%(type)s" for "%(url)s"') % {'type': type, 'url': url})
 
@@ -291,7 +299,26 @@ def extract_cab(stream, destdir, extract, start_offset = 0):
 
 	_extract(stream, destdir, ['cabextract', '-s', '-q', 'archive.cab'])
 	os.unlink(cab_copy_name)
-	
+
+def extract_dmg(stream, destdir, extract, start_offset = 0):
+	"@since: 0.46"
+	if extract:
+		raise SafeException(_('Sorry, but the "extract" attribute is not yet supported for DMGs'))
+
+	stream.seek(start_offset)
+	# hdiutil can't read from stdin, so make a copy...
+	dmg_copy_name = os.path.join(destdir, 'archive.dmg')
+	dmg_copy = file(dmg_copy_name, 'w')
+	shutil.copyfileobj(stream, dmg_copy)
+	dmg_copy.close()
+
+	mountpoint = mkdtemp(prefix='archive')
+	subprocess.check_call(["hdiutil", "attach", "-quiet", "-mountpoint", mountpoint, "-nobrowse", dmg_copy_name])
+	subprocess.check_call(["cp", "-pR"] + glob.glob("%s/*" % mountpoint) + [destdir])
+	subprocess.check_call(["hdiutil", "detach", "-quiet", mountpoint])
+	os.rmdir(mountpoint)
+	os.unlink(dmg_copy_name)
+
 def extract_zip(stream, destdir, extract, start_offset = 0):
 	if extract:
 		# Limit the characters we accept, to avoid sending dodgy
