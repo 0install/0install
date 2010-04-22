@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <interface>
-  <requires lib="gtk+" version="2.12"/>
+  <!-- interface-requires gtk+ 2.12 -->
   <!-- interface-naming-policy toplevel-contextual -->
   <object class="GtkDialog" id="main">
     <property name="title" translatable="yes">Add Zero Install Application</property>
@@ -38,10 +38,8 @@
                               <object class="GtkLabel" id="label2">
                                 <property name="visible">True</property>
                                 <property name="xalign">0</property>
-                                <property name="label" translatable="yes">Enter the URI of the application you want to install, or drag its link from a web-browser into this window.</property>
-                                <attributes>
-                                  <attribute name="style" value="italic"/>
-                                </attributes>
+                                <property name="label" translatable="yes">&lt;i&gt;Enter the URI of the application you want to install, or drag its link from a web-browser into this window.&lt;/i&gt;</property>
+                                <property name="use_markup">True</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -86,10 +84,8 @@
                     <child type="label">
                       <object class="GtkLabel" id="label1">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">Application to install</property>
-                        <attributes>
-                          <attribute name="weight" value="bold"/>
-                        </attributes>
+                        <property name="label" translatable="yes">&lt;b&gt;Application to install&lt;/b&gt;</property>
+                        <property name="use_markup">True</property>
                       </object>
                     </child>
                   </object>
@@ -149,10 +145,8 @@
                         <child type="label">
                           <object class="GtkLabel" id="label9">
                             <property name="visible">True</property>
-                            <property name="label" translatable="yes">About this program</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
+                            <property name="label" translatable="yes">&lt;b&gt;About this program&lt;/b&gt;</property>
+                            <property name="use_markup">True</property>
                           </object>
                         </child>
                       </object>
@@ -179,10 +173,8 @@
                                   <object class="GtkLabel" id="label11">
                                     <property name="visible">True</property>
                                     <property name="xalign">0</property>
-                                    <property name="label" translatable="yes">Choose a category for the program to determine where it appears in the Applications menu.</property>
-                                    <attributes>
-                                      <attribute name="style" value="italic"/>
-                                    </attributes>
+                                    <property name="label" translatable="yes">&lt;i&gt;Choose a category for the program to determine where it appears in the Applications menu.&lt;/i&gt;</property>
+                                    <property name="use_markup">True</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -231,10 +223,8 @@
                         <child type="label">
                           <object class="GtkLabel" id="label7">
                             <property name="visible">True</property>
-                            <property name="label" translatable="yes">Applications menu</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
+                            <property name="label" translatable="yes">&lt;b&gt;Applications menu&lt;/b&gt;</property>
+                            <property name="use_markup">True</property>
                           </object>
                         </child>
                       </object>
