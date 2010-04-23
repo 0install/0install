@@ -200,6 +200,11 @@ def import_key(stream):
 	error_messages = errors.read().strip()
 	errors.close()
 
+	if error_messages:
+		import codecs
+		decoder = codecs.lookup('utf-8')
+		error_messages = decoder.decode(error_messages, errors = 'replace')[0]
+
 	if status != 0:
 		if error_messages:
 			raise SafeException(_("Errors from 'gpg --import':\n%s") % error_messages)
