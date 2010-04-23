@@ -6,6 +6,17 @@ import unittest, logging
 sys.path.insert(0, '..')
 from zeroinstall.zerostore import unpack, manifest, Store, BadDigest
 from zeroinstall import SafeException, support
+from zeroinstall.support import find_in_path
+
+def skipIf(condition, reason):
+	def wrapped(underlying):
+		if condition:
+			print "Skipped %s: %s" % (underlying.func_name, reason)
+			def run(self): pass
+			return run
+		else:
+			return underlying
+	return wrapped
 
 class AbstractTestUnpack(BaseTest):
 	def setUp(self):
@@ -33,6 +44,7 @@ class AbstractTestUnpack(BaseTest):
 		unpack.unpack_archive('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir)
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 	
+	@skipIf(not find_in_path('hdiutil'), "not running on MacOS X; no hdiutil")
 	def testDmg(self):
 		unpack.unpack_archive('ftp://foo/file.dmg', file('HelloWorld.dmg'), self.tmpdir)
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
