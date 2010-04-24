@@ -1,0 +1,4 @@
+@comment PKG_FORMAT_REVISION:1.1
+@name zeroinstall-injector-0.41_2
+@comment ORIGIN:devel/zeroinstall-injector
+@cwd /usr/local

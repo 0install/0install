@@ -152,6 +152,16 @@ class TestDistro(BaseTest):
 		self.assertEquals('20100220', impl.get_version())
 		self.assertEquals('i386', impl.machine)
 
+	def testPorts(self):
+		pkgdir = os.path.join(os.path.dirname(__file__), 'ports')
+		ports = distro.PortsDistribution(pkgdir)
+
+		ports.get_package_info('zeroinstall-injector', self.factory)
+		self.assertEquals(1, len(self.feed.implementations))
+		impl = self.feed.implementations['package:ports:zeroinstall-injector:0.41:x86_64']
+		self.assertEquals('0.41', impl.get_version())
+		self.assertEquals('x86_64', impl.machine)
+
 	def testCleanVersion(self):
 		self.assertEquals('1', distro.try_cleanup_distro_version('1:0.3.1-1'))
 		self.assertEquals('0.3.1-1', distro.try_cleanup_distro_version('0.3.1-1ubuntu0'))

@@ -7,7 +7,7 @@ Integration with native distribution package managers.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os, re, glob, subprocess
+import os, re, glob, subprocess, sys
 from logging import warn, info
 from zeroinstall.injector import namespaces, model, arch
 from zeroinstall.support import basedir
@@ -392,6 +392,37 @@ class GentooDistribution(Distribution):
 	def get_score(self, disto_name):
 		return int(disto_name == 'Gentoo')
 
+class PortsDistribution(Distribution):
+
+	def __init__(self, pkgdir):
+		self._pkgdir = pkgdir
+
+	def get_package_info(self, package, factory):
+		_version_start_reqexp = '-[0-9]'
+
+		for pkgname in os.listdir(self._pkgdir):
+			pkgdir = os.path.join(self._pkgdir, pkgname)
+			if not os.path.isdir(pkgdir): continue
+
+			#contents = file(os.path.join(pkgdir, '+CONTENTS')).readline().strip()
+
+			match = re.search(_version_start_reqexp, pkgname)
+			if match is None:
+				warn(_('Cannot parse version from Ports package named "%(pkgname)s"'), {'name': pkgname})
+				continue
+			else:
+				name = pkgname[0:match.start()]
+				version = try_cleanup_distro_version(pkgname[match.start() + 1:])
+
+			machine = arch.canonicalize_machine(host_machine)
+
+			impl = factory('package:ports:%s:%s:%s' % \
+						(package, version, machine))
+			impl.version = model.parse_version(version)
+			impl.machine = machine
+
+	def get_score(self, disto_name):
+		return int(disto_name == 'Ports')
 
 _host_distribution = None
 def get_host_distribution():
@@ -403,10 +434,13 @@ def get_host_distribution():
 		dpkg_db_status = '/var/lib/dpkg/status'
 		pkgcache = '/var/cache/apt/pkgcache.bin'
 		_rpm_db = '/var/lib/rpm/Packages'
-		_gentoo_db = '/var/db/pkg'
+		_pkg_db = '/var/db/pkg'
 
-		if os.path.isdir(_gentoo_db):
-			_host_distribution = GentooDistribution(_gentoo_db)
+		if os.path.isdir(_pkg_db):
+			if sys.platform.startswith("linux"):
+				_host_distribution = GentooDistribution(_pkg_db)
+			elif sys.platform.startswith("freebsd"):
+				_host_distribution = PortsDistribution(_pkg_db)
 		elif os.access(dpkg_db_status, os.R_OK):
 			_host_distribution = DebianDistribution(dpkg_db_status, pkgcache)
 		elif os.path.isfile(_rpm_db):
