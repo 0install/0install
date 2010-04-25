@@ -221,6 +221,7 @@ class Selections(object):
 	def download_missing(self, iface_cache, fetcher):
 		"""Check all selected implementations are available.
 		Download any that are not present.
+		Note: package implementations (distribution packages) are ignored.
 		@param iface_cache: cache to find feeds with download information
 		@param fetcher: used to download missing implementations
 		@return: a L{tasks.Blocker} or None"""
@@ -229,7 +230,7 @@ class Selections(object):
 		# Check that every required selection is cached
 		needed_downloads = []
 		for sel in self.selections.values():
-			if not sel.local_path:
+			if (not sel.local_path) and (not sel.id.startswith('package:')):
 				try:
 					iface_cache.stores.lookup_any(sel.digests)
 				except NotStored, ex:
