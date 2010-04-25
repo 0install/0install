@@ -9,6 +9,7 @@ warnings.filterwarnings("ignore", category = DeprecationWarning)
 
 # Catch silly mistakes...
 os.environ['HOME'] = '/home/idontexist'
+os.environ['LANGUAGE'] = 'C'
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import qdom
