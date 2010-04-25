@@ -11,7 +11,6 @@ try:
 	locale.setlocale(locale.LC_ALL, '')
 except locale.Error:
 	warn('Error setting locale (eg. Invalid locale)')
-gettext.install('zero-install', unicode=True, names=['ngettext'])
 
 # This is for pycentral on Debian-type systems. 0launch-gui is a symlink to the
 # copy in the pycentral source directory. Python does a realpath() on this
@@ -24,6 +23,15 @@ sys.path.insert(0, _mydir)
 # Make sure we're using our bundled copy of Zero Install, not the system version
 # (if different)
 sys.path.insert(0, dirname(dirname(_mydir)))
+
+from zeroinstall import translation, localedir, _
+__builtins__._ = _
+__builtins__.ngettext = translation.ngettext
+
+if localedir:
+	# Tell GTK where to find the translations, if they're not in
+	# the default system location.
+	locale.bindtextdomain('zero-install', localedir)
 
 import pygtk; pygtk.require('2.0')
 

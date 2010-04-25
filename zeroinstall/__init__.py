@@ -15,8 +15,16 @@ The Python implementation of the Zero Install injector is divided into four sub-
 version = '0.46'
 
 import gettext
+from os.path import dirname, join
 
-translation = gettext.translation('zero-install', fallback = True)
+try:
+	localedir = None
+	translation = gettext.translation('zero-install', fallback = False)
+except:
+	localedir = join(dirname(dirname(__file__)), 'locale')
+	translation = gettext.translation('zero-install',
+				localedir = localedir,
+				fallback = True)
 _ = translation.ugettext
 
 class SafeException(Exception):
