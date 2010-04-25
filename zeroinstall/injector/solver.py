@@ -290,7 +290,7 @@ class SATSolver(Solver):
 					if feed.implementations:
 						impls.extend(feed.implementations.values())
 				except Exception, ex:
-					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': str(ex)})
+					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
 
 			impls.sort(lambda a, b: self.compare(iface, a, b, arch))
 

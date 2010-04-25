@@ -39,7 +39,17 @@ class InvalidInterface(SafeException):
 	"""Raised when parsing an invalid feed."""
 	def __init__(self, message, ex = None):
 		if ex:
-			message += "\n\n(exact error: %s)" % ex
+			try:
+				message += "\n\n(exact error: %s)" % ex
+			except:
+				# Some Python messages have type str but contain UTF-8 sequences.
+				# (e.g. IOException). Adding these to a Unicode 'message' (e.g.
+				# after gettext translation) will cause an error.
+				import codecs
+				decoder = codecs.lookup('utf-8')
+				decex = decoder.decode(str(ex), errors = 'replace')[0]
+				message += "\n\n(exact error: %s)" % decex
+
 		SafeException.__init__(self, message)
 
 def _split_arch(arch):
