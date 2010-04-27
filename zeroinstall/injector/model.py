@@ -425,7 +425,13 @@ class Implementation(object):
 
 	def __cmp__(self, other):
 		"""Newer versions come first"""
-		return cmp(other.version, self.version)
+		d = cmp(other.version, self.version)
+		if d: return d
+		# If the version number is the same, just give a stable sort order, and
+		# ensure that two different implementations don't compare equal.
+		d = cmp(other.feed.url, self.feed.url)
+		if d: return d
+		return cmp(other.id, self.id)
 
 	def get_version(self):
 		"""Return the version as a string.

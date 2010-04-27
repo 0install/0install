@@ -332,7 +332,8 @@ class Properties:
 			# The Solver didn't get this far, but we should still display them!
 			ranked_items = [(impl, _("(solve aborted before here)"))
 					for impl in self.interface.implementations.values()]
-			ranked_items.sort()
+		# Always sort by version
+		ranked_items.sort()
 		self.use_list.set_items(ranked_items)
 
 @tasks.async
@@ -501,12 +502,11 @@ In off-line mode, only cached implementations are considered for use.
 Arch indicates what kind of computer system the implementation is for, or 'any' \
 if it works with all types of system.""") + '\n'),
 (_('Sort order'), '\n' +
-_("""The implementations are listed in the injector's currently preferred order (the one \
-at the top will actually be used). Usable implementations all come before unusable \
-ones.
+_("""The implementations are ordered by version number (highest first), with the \
+currently selected one in bold. This is the "best" usable version.
 
 Unusable ones are those for incompatible \
-architectures, those marked as 'buggy', versions explicitly marked as incompatible with \
+architectures, those marked as 'buggy' or 'insecure', versions explicitly marked as incompatible with \
 another interface you are using and, in off-line mode, uncached implementations. Unusable \
 implementations are shown crossed out.
 

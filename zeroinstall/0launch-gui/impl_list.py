@@ -1,7 +1,7 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import gtk, gobject, os
+import gtk, gobject, os, pango
 from zeroinstall.injector import model, writer
 from zeroinstall import support
 from zeroinstall.gtkui.treetips import TreeTips
@@ -51,6 +51,7 @@ FETCH = 4
 UNUSABLE = 5
 RELEASED = 6
 NOTES = 7
+WEIGHT = 8	# Selected item is bold
 
 class ImplTips(TreeTips):
 	def __init__(self, policy, interface):
@@ -84,7 +85,7 @@ class ImplementationList:
 		self.policy = policy
 
 		self.model = gtk.ListStore(object, str, str, str,	# Item, arch, stability, version,
-			   str, gobject.TYPE_BOOLEAN, str, str)		# fetch, unusable, released, notes
+			   str, gobject.TYPE_BOOLEAN, str, str, int)	# fetch, unusable, released, notes, weight
 
 		self.tree_view = widgets.get_widget('versions_list')
 		self.tree_view.set_model(self.model)
@@ -94,12 +95,12 @@ class ImplementationList:
 
 		stability = gtk.TreeViewColumn(_('Stability'), text, text = STABILITY)
 
-		for column in (gtk.TreeViewColumn(_('Version'), text_strike, text = VERSION, strikethrough = UNUSABLE),
-			       gtk.TreeViewColumn(_('Released'), text, text = RELEASED),
+		for column in (gtk.TreeViewColumn(_('Version'), text_strike, text = VERSION, strikethrough = UNUSABLE, weight = WEIGHT),
+			       gtk.TreeViewColumn(_('Released'), text, text = RELEASED, weight = WEIGHT),
 			       stability,
-			       gtk.TreeViewColumn(_('Fetch'), text, text = FETCH),
-			       gtk.TreeViewColumn(_('Arch'), text_strike, text = ARCH, strikethrough = UNUSABLE),
-			       gtk.TreeViewColumn(_('Notes'), text, text = NOTES)):
+			       gtk.TreeViewColumn(_('Fetch'), text, text = FETCH, weight = WEIGHT),
+			       gtk.TreeViewColumn(_('Arch'), text_strike, text = ARCH, strikethrough = UNUSABLE, weight = WEIGHT),
+			       gtk.TreeViewColumn(_('Notes'), text, text = NOTES, weight = WEIGHT)):
 			self.tree_view.append_column(column)
 
 		tips = ImplTips(policy, interface)
@@ -155,6 +156,7 @@ class ImplementationList:
 	
 	def set_items(self, items):
 		self.model.clear()
+		selected = self.policy.solver.selections.get(self.interface, None)
 		for item, unusable in items:
 			new = self.model.append()
 			self.model[new][ITEM] = item
@@ -179,6 +181,10 @@ class ImplementationList:
 			else:
 				self.model[new][STABILITY] = _(str(item.upstream_stability) or str(model.testing))
 			self.model[new][ARCH] = item.arch or _('any')
+			if selected == item:
+				self.model[new][WEIGHT] = pango.WEIGHT_BOLD
+			else:
+				self.model[new][WEIGHT] = pango.WEIGHT_NORMAL
 			self.model[new][UNUSABLE] = bool(unusable)
 			self.model[new][NOTES] = _(unusable)
 	
