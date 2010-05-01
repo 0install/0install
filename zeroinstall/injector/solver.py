@@ -50,7 +50,7 @@ class ImplInfo:
 		name = "%s_%s_%s" % (self.impl.feed.get_name(), self.impl.get_version(), self.impl.arch)
 		return name.replace('-', '_').replace('.', '_')
 
-class _DummyImpl:
+class _DummyImpl(object):
 	requires = []
 	version = None
 	arch = None

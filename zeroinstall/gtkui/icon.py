@@ -5,6 +5,7 @@
 from zeroinstall import _
 import gtk
 from logging import warn, debug
+import math
 
 def load_icon(icon_path, icon_width=None, icon_height=None):
 	"""Load icon from path. Icon MUST be in PNG format.
