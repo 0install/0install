@@ -137,7 +137,7 @@ class ImplementationList:
 			stability_menu.show()
 			menu.append(stability_menu)
 
-			if self.policy.get_cached(impl):
+			if not impl.id.startswith('package:') and self.policy.get_cached(impl):
 				def open():
 					os.spawnlp(os.P_WAIT, '0launch',
 						'0launch', rox_filer, '-d',
