@@ -260,7 +260,7 @@ class DebianDistribution(Distribution):
 
 	def __init__(self, dpkg_status, pkgcache):
 		self.dpkg_cache = Cache('dpkg-status.cache', dpkg_status, 2)
-		self.apt_cache = Cache('apt-cache-cache', pkgcache, 2)
+		self.apt_cache = Cache('apt-cache-cache', pkgcache, 3)
 
 	def _query_installed_package(self, package):
 		child = subprocess.Popen(["dpkg-query", "-W", "--showformat=${Version}\t${Architecture}\t${Status}\n", "--", package],
@@ -306,7 +306,7 @@ class DebianDistribution(Distribution):
 				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null)
 				os.close(null)
 
-				arch = version = None
+				arch = version = size = None
 				for line in child.stdout:
 					line = line.strip()
 					if line.startswith('Version: '):
@@ -317,8 +317,10 @@ class DebianDistribution(Distribution):
 						version = try_cleanup_distro_version(version)
 					elif line.startswith('Architecture: '):
 						arch = canonical_machine(line[14:].strip())
+					elif line.startswith('Size: '):
+						size = int(line[6:].strip())
 				if version and arch:
-					cached = '%s\t%s' % (version, arch)
+					cached = '%s\t%s\t%d' % (version, arch, size)
 				else:
 					cached = '-'
 				child.wait()
@@ -329,13 +331,14 @@ class DebianDistribution(Distribution):
 			self.apt_cache.put(package, cached)
 
 		if cached != '-':
-			candidate_version, candidate_arch = cached.split('\t')
+			candidate_version, candidate_arch, candidate_size = cached.split('\t')
 			if candidate_version and candidate_version != installed_version:
 				impl = factory('package:deb:%s:%s' % (package, candidate_version))
 				impl.version = model.parse_version(candidate_version)
 				impl.installed = False
 				if candidate_arch != '*':
 					impl.machine = candidate_arch
+				impl.download_sources.append(model.DistributionSource(package, candidate_size))
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'Debian')

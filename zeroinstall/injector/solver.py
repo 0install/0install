@@ -138,6 +138,10 @@ class SATSolver(Solver):
 			r = cmp(_get_cached(stores, a), _get_cached(stores, b))
 			if r: return r
 
+		# Packages that require admin access to install come last
+		r = cmp(b.requires_root_install, a.requires_root_install)
+		if r: return r
+
 		# Stability
 		stab_policy = interface.stability_policy
 		if not stab_policy:

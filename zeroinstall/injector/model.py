@@ -367,6 +367,20 @@ class Recipe(RetrievalMethod):
 	
 	size = property(lambda self: sum([x.size for x in self.steps]))
 
+class DistributionSource(RetrievalMethod):
+	"""A package that is installed using the distribution's tools (including PackageKit).
+	@ivar package_id: the package name, in a form recognised by the distribution's tools
+	@type package_id: str
+	@ivar size: the download size in bytes
+	@type size: int"""
+
+	__slots__ = ['package_id', 'size']
+
+	def __init__(self, package_id, size):
+		RetrievalMethod.__init__(self)
+		self.package_id = package_id
+		self.size = size
+
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface.
 	@ivar download_sources: list of methods of getting this implementation
@@ -390,6 +404,8 @@ class Implementation(object):
 	@ivar released: release date
 	@ivar local_path: the directory containing this local implementation, or None if it isn't local (id isn't a path)
 	@type local_path: str | None
+	@ivar requires_root_install: whether the user will need admin rights to use this
+	@type requires_root_install: bool
 	"""
 
 	# Note: user_stability shouldn't really be here
@@ -444,6 +460,7 @@ class Implementation(object):
 	os = None
 	local_path = None
 	digests = None
+	requires_root_install = False
 
 class DistributionImplementation(Implementation):
 	"""An implementation provided by the distribution. Information such as the version
@@ -455,7 +472,11 @@ class DistributionImplementation(Implementation):
 		assert id.startswith('package:')
 		Implementation.__init__(self, feed, id)
 		self.installed = True
-	
+
+	@property
+	def requires_root_install(self):
+		return not self.installed
+
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.
 	@ivar digests: a list of "algorith=value" strings (since 0.45)
@@ -475,15 +496,15 @@ class ZeroInstallImplementation(Implementation):
 	# Deprecated
 	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires
 						   if isinstance(x, InterfaceDependency)]))
-	
+
 	def add_download_source(self, url, size, extract, start_offset = 0, type = None):
 		"""Add a download source."""
 		self.download_sources.append(DownloadSource(self, url, size, extract, start_offset, type))
-	
+
 	def set_arch(self, arch):
 		self.os, self.machine = _split_arch(arch)
 	arch = property(lambda self: _join_arch(self.os, self.machine), set_arch)
-	
+
 class Interface(object):
 	"""An Interface represents some contract of behaviour.
 	@ivar uri: the URI for this interface.

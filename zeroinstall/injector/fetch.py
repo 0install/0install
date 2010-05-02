@@ -11,7 +11,7 @@ from logging import info, debug, warn
 
 from zeroinstall.support import tasks, basedir
 from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
-from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, escape
+from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, escape, DistributionSource
 from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
 from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector import download
@@ -301,6 +301,10 @@ class Fetcher(object):
 		assert impl
 		assert retrieval_method
 
+		if isinstance(retrieval_method, DistributionSource):
+			raise SafeException(_("This program depends on '%s', which is a package that is available through your distribution. "
+					"Please install it manually using your distributions tools and try again.") % retrieval_method.package_id)
+
 		from zeroinstall.zerostore import manifest
 		best = None
 		for digest in impl.digests:
@@ -335,7 +339,7 @@ class Fetcher(object):
 
 			self.handler.impl_added_to_store(impl)
 		return download_impl()
-	
+
 	def _add_to_cache(self, required_digest, stores, retrieval_method, stream):
 		assert isinstance(retrieval_method, DownloadSource)
 		url = retrieval_method.url
