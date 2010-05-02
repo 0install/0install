@@ -23,13 +23,16 @@ _version_regexp = '(%s)(-r%s)?' % (_zeroinstall_regexp, _dotted_ints)
 # We try to do updates atomically without locking, but we don't worry too much about
 # duplicate entries or being a little out of sync with the on-disk copy.
 class Cache(object):
-	def __init__(self, cache_leaf, source):
+	def __init__(self, cache_leaf, source, format):
 		"""Maintain a cache file (e.g. ~/.cache/0install.net/injector/$name).
-		If the size or mtime of $source has changed, reset the cache first."""
+		If the size or mtime of $source has changed, or the cache
+		format version if different, reset the cache first."""
 		self.cache_leaf = cache_leaf
 		self.source = source
+		self.format = format
 		self.cache_dir = basedir.save_cache_path(namespaces.config_site,
 							 namespaces.config_prog)
+		self.cached_for = {}		# Attributes of source when cache was created
 		try:
 			self._load_cache()
 		except Exception, ex:
@@ -37,6 +40,7 @@ class Cache(object):
 			self.flush()
 
 	def flush(self):
+		# Wipe the cache
 		try:
 			info = os.stat(self.source)
 			mtime = int(info.st_mtime)
@@ -47,11 +51,13 @@ class Cache(object):
 		self.cache = {}
 		import tempfile
 		tmp, tmp_name = tempfile.mkstemp(dir = self.cache_dir)
-		data = "mtime=%d\nsize=%d\n\n" % (mtime, size)
+		data = "mtime=%d\nsize=%d\nformat=%d\n\n" % (mtime, size, self.format)
 		while data:
 			wrote = os.write(tmp, data)
 			data = data[wrote:]
 		os.rename(tmp_name, os.path.join(self.cache_dir, self.cache_leaf))
+
+		self._load_cache()
 
 	# Populate self.cache from our saved cache file.
 	# Throws an exception if the cache doesn't exist or has the wrong format.
@@ -59,19 +65,17 @@ class Cache(object):
 		self.cache = cache = {}
 		stream = file(os.path.join(self.cache_dir, self.cache_leaf))
 		try:
-			info = os.stat(self.source)
 			meta = {}
+			cached_format = False
 			for line in stream:
 				line = line.strip()
 				if not line:
 					break
 				key, value = line.split('=', 1)
-				if key == 'mtime':
-					if int(value) != int(info.st_mtime):
-						raise Exception("Modification time of %s has changed" % self.source)
-				if key == 'size':
-					if int(value) != info.st_size:
-						raise Exception("Size of %s has changed" % self.source)
+				if key in ('mtime', 'size', 'format'):
+					self.cached_for[key] = int(value)
+
+			self._check_valid()
 
 			for line in stream:
 				key, value = line.split('=', 1)
@@ -79,8 +83,25 @@ class Cache(object):
 		finally:
 			stream.close()
 
+	# Check the source file hasn't changed since we created the cache
+	def _check_valid(self):
+		info = os.stat(self.source)
+		if self.cached_for['mtime'] != int(info.st_mtime):
+			raise Exception("Modification time of %s has changed" % self.source)
+		if self.cached_for['size'] != info.st_size:
+			raise Exception("Size of %s has changed" % self.source)
+		if self.cached_for.get('format', None) != self.format:
+			raise Exception("Format of cache has changed")
+
 	def get(self, key):
-		return self.cache.get(key, None)
+		try:
+			self._check_valid()
+		except Exception, ex:
+			info(_("Cache needs to be refreshed: %s"), ex)
+			self.flush()
+			return None
+		else:
+			return self.cache.get(key, None)
 
 	def put(self, key, value):
 		cache_path = os.path.join(self.cache_dir, self.cache_leaf)
@@ -142,6 +163,7 @@ class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
 	an external command), we cache the results.
 	@since: 0.39
+	@deprecated: use Cache instead
 	"""
 
 	def __init__(self, db_status_file):
@@ -231,41 +253,49 @@ def canonical_machine(package_machine):
 		return host_machine
 	return machine
 
-class DebianDistribution(CachedDistribution):
+class DebianDistribution(Distribution):
 	"""A dpkg-based distribution."""
 
 	cache_leaf = 'dpkg-status.cache'
 
 	def __init__(self, dpkg_status, pkgcache):
-		CachedDistribution.__init__(self, dpkg_status)
-		self.apt_cache = Cache('apt-cache-cache', pkgcache)
+		self.dpkg_cache = Cache('dpkg-status.cache', dpkg_status, 2)
+		self.apt_cache = Cache('apt-cache-cache', pkgcache, 2)
 
-	def generate_cache(self):
-		cache = []
-
-		for line in os.popen("dpkg-query -W --showformat='${Package}\t${Version}\t${Architecture}\n'"):
-			package, version, debarch = line.split('\t', 2)
+	def _query_installed_package(self, package):
+		child = subprocess.Popen(["dpkg-query", "-W", "--showformat=${Version}\t${Architecture}\t${Status}\n", "--", package],
+						stdout = subprocess.PIPE)
+		stdout, stderr = child.communicate()
+		child.wait()
+		for line in stdout.split('\n'):
+			if not line: continue
+			version, debarch, status = line.split('\t', 2)
+			if not status.endswith(' installed'): continue
 			if ':' in version:
 				# Debian's 'epoch' system
 				version = version.split(':', 1)[1]
 			clean_version = try_cleanup_distro_version(version)
 			if clean_version:
-				cache.append('%s\t%s\t%s' % (package, clean_version, canonical_machine(debarch.strip())))
+				return '%s\t%s' % (clean_version, canonical_machine(debarch.strip()))
 			else:
 				warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
 
-		self._write_cache(cache)
+		return '-'
 
 	def get_package_info(self, package, factory):
-		try:
-			installed_version, machine = self.versions[package][0]
-		except KeyError:
-			installed_version = None
-		else:
+		installed_cached_info = self.dpkg_cache.get(package)
+		if installed_cached_info == None:
+			installed_cached_info = self._query_installed_package(package)
+			self.dpkg_cache.put(package, installed_cached_info)
+
+		if installed_cached_info != '-':
+			installed_version, machine = installed_cached_info.split('\t')
 			impl = factory('package:deb:%s:%s' % (package, installed_version))
 			impl.version = model.parse_version(installed_version)
 			if machine != '*':
 				impl.machine = machine
+		else:
+			installed_version = None
 
 		# Check to see whether we could get a newer version using apt-get
 

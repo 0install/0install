@@ -1,3 +1,6 @@
 #!/bin/sh
-echo "python-bittorrent	3.4.2-10ubuntu2	any"
-echo "libxcomposite-dev	1:0.3.1-1	i386"
+if [ "$4" = "python-bittorrent" ]; then
+	echo "3.4.2-10ubuntu2	any	install ok installed"
+elif [ "$4" = "libxcomposite-dev" ]; then
+	echo "1:0.3.1-1	i386	install ok installed"
+fi

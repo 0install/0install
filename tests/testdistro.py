@@ -29,7 +29,7 @@ class TestDistro(BaseTest):
 	def testCache(self):
 		src = tempfile.NamedTemporaryFile()
 		try:
-			cache = distro.Cache('test-cache', src.name)
+			cache = distro.Cache('test-cache', src.name, 1)
 			self.assertEquals(None, cache.get("foo"))
 			cache.put("foo", "1")
 			self.assertEquals("1", cache.get("foo"))
@@ -37,16 +37,17 @@ class TestDistro(BaseTest):
 			self.assertEquals("2", cache.get("foo"))
 
 			# new cache...
-			cache = distro.Cache('test-cache', src.name)
+			cache = distro.Cache('test-cache', src.name, 1)
 			self.assertEquals("2", cache.get("foo"))
 
 			src.write("hi")
 			src.flush()
 
-			self.assertEquals("2", cache.get("foo"))
+			self.assertEquals(None, cache.get("foo"))
+			cache.put("foo", "3")
 
-			# new cache...
-			cache = distro.Cache('test-cache', src.name)
+			# new cache... (format change)
+			cache = distro.Cache('test-cache', src.name, 2)
 			self.assertEquals(None, cache.get("foo"))
 
 		finally:
@@ -69,8 +70,6 @@ class TestDistro(BaseTest):
 		host = distro.DebianDistribution(
 				os.path.join(dpkgdir, 'status'),
 				os.path.join(dpkgdir, 'pkgcache.bin'))
-
-		self.assertEquals(2, len(host.versions))
 
 		host.get_package_info('gimp', self.factory)
 		self.assertEquals({}, self.feed.implementations)
