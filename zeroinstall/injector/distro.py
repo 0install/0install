@@ -159,6 +159,13 @@ class Distribution(object):
 		"""
 		return 0
 
+	def get_installed(self, package_id):
+		"""Check whether 'package' is currently installed.
+		@param package_id: the Implementation ID used by get_package_info
+		@type package_id: str
+		@return: True iff the package is currently installed"""
+		return True
+
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
 	an external command), we cache the results.
@@ -283,10 +290,7 @@ class DebianDistribution(Distribution):
 		return '-'
 
 	def get_package_info(self, package, factory):
-		installed_cached_info = self.dpkg_cache.get(package)
-		if installed_cached_info == None:
-			installed_cached_info = self._query_installed_package(package)
-			self.dpkg_cache.put(package, installed_cached_info)
+		installed_cached_info = self._get_dpkg_info(package)
 
 		if installed_cached_info != '-':
 			installed_version, machine = installed_cached_info.split('\t')
@@ -335,13 +339,30 @@ class DebianDistribution(Distribution):
 			if candidate_version and candidate_version != installed_version:
 				impl = factory('package:deb:%s:%s' % (package, candidate_version))
 				impl.version = model.parse_version(candidate_version)
-				impl.installed = False
 				if candidate_arch != '*':
 					impl.machine = candidate_arch
 				impl.download_sources.append(model.DistributionSource(package, candidate_size))
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'Debian')
+
+	def _get_dpkg_info(self, package):
+		installed_cached_info = self.dpkg_cache.get(package)
+		if installed_cached_info == None:
+			installed_cached_info = self._query_installed_package(package)
+			self.dpkg_cache.put(package, installed_cached_info)
+
+		return installed_cached_info
+
+	def get_installed(self, package_id):
+		details = package_id.split(':', 3)
+		assert details[0] == 'package'
+		package = details[2]
+		info = self._get_dpkg_info(package)
+		if info is '-': return False
+		installed_version, machine = info.split('\t')
+		installed_id = 'package:deb:%s:%s' % (package, installed_version)
+		return package_id == installed_id
 
 class RPMDistribution(CachedDistribution):
 	"""An RPM-based distribution."""

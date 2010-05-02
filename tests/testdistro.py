@@ -53,16 +53,19 @@ class TestDistro(BaseTest):
 		finally:
 			src.close()
 
-	def factory(self, id):
-		impl = model.DistributionImplementation(self.feed, id)
-		assert id not in self.feed.implementations
-		self.feed.implementations[id] = impl
-		return impl
+	def make_factory(self, distro):
+		def factory(id):
+			impl = model.DistributionImplementation(self.feed, id, distro)
+			assert id not in self.feed.implementations
+			self.feed.implementations[id] = impl
+			return impl
+		return factory
 
 	def testDefault(self):
 		host = distro.Distribution()
 
-		host.get_package_info('gimp', self.factory)
+		factory = self.make_factory(host)
+		host.get_package_info('gimp', factory)
 		self.assertEquals(self.feed.implementations, {})
 
 	def testDebian(self):
@@ -71,10 +74,11 @@ class TestDistro(BaseTest):
 				os.path.join(dpkgdir, 'status'),
 				os.path.join(dpkgdir, 'pkgcache.bin'))
 
-		host.get_package_info('gimp', self.factory)
+		factory = self.make_factory(host)
+		host.get_package_info('gimp', factory)
 		self.assertEquals({}, self.feed.implementations)
 
-		host.get_package_info('python-bittorrent', self.factory)
+		host.get_package_info('python-bittorrent', factory)
 		self.assertEquals(2, len(self.feed.implementations))
 		bittorrent_installed = self.feed.implementations['package:deb:python-bittorrent:3.4.2-10']
 		bittorrent_uninstalled = self.feed.implementations['package:deb:python-bittorrent:3.4.2-11.1']
@@ -84,7 +88,7 @@ class TestDistro(BaseTest):
 		self.assertEquals(None, bittorrent_installed.machine)
 
 		self.feed = model.ZeroInstallFeed(empty_feed, local_path = '/empty.xml')
-		host.get_package_info('libxcomposite-dev', self.factory)
+		host.get_package_info('libxcomposite-dev', factory)
 		self.assertEquals(1, len(self.feed.implementations))
 		libxcomposite = self.feed.implementations['package:deb:libxcomposite-dev:0.3.1-1']
 		self.assertEquals('0.3.1-1', libxcomposite.get_version())
@@ -97,7 +101,8 @@ class TestDistro(BaseTest):
 
 		self.assertEquals(2, len(rpm.versions))
 
-		rpm.get_package_info('yast2-update', self.factory)
+		factory = self.make_factory(rpm)
+		rpm.get_package_info('yast2-update', factory)
 		self.assertEquals(1, len(self.feed.implementations))
 		yast = self.feed.implementations['package:rpm:yast2-update:2.15.23-21:i586']
 		self.assertEquals('2.15.23-21', yast.get_version())
@@ -127,16 +132,17 @@ class TestDistro(BaseTest):
 		pkgdir = os.path.join(os.path.dirname(__file__), 'gentoo')
 		ebuilds = distro.GentooDistribution(pkgdir)
 
-		ebuilds.get_package_info('media-gfx/gimp', self.factory)
+		factory = self.make_factory(ebuilds)
+		ebuilds.get_package_info('media-gfx/gimp', factory)
 		self.assertEquals({}, self.feed.implementations)
 
-		ebuilds.get_package_info('sys-apps/portage', self.factory)
+		ebuilds.get_package_info('sys-apps/portage', factory)
 		self.assertEquals(1, len(self.feed.implementations))
 		impl = self.feed.implementations['package:gentoo:sys-apps/portage:2.1.7.16:x86_64']
 		self.assertEquals('2.1.7.16', impl.get_version())
 		self.assertEquals('x86_64', impl.machine)
 
-		ebuilds.get_package_info('sys-kernel/gentoo-sources', self.factory)
+		ebuilds.get_package_info('sys-kernel/gentoo-sources', factory)
 		self.assertEquals(3, len(self.feed.implementations))
 		impl = self.feed.implementations['package:gentoo:sys-kernel/gentoo-sources:2.6.30-4:i686']
 		self.assertEquals('2.6.30-4', impl.get_version())
@@ -145,7 +151,7 @@ class TestDistro(BaseTest):
 		self.assertEquals('2.6.32', impl.get_version())
 		self.assertEquals('x86_64', impl.machine)
 
-		ebuilds.get_package_info('app-emulation/emul-linux-x86-baselibs', self.factory)
+		ebuilds.get_package_info('app-emulation/emul-linux-x86-baselibs', factory)
 		self.assertEquals(4, len(self.feed.implementations))
 		impl = self.feed.implementations['package:gentoo:app-emulation/emul-linux-x86-baselibs:20100220:i386']
 		self.assertEquals('20100220', impl.get_version())
@@ -155,7 +161,8 @@ class TestDistro(BaseTest):
 		pkgdir = os.path.join(os.path.dirname(__file__), 'ports')
 		ports = distro.PortsDistribution(pkgdir)
 
-		ports.get_package_info('zeroinstall-injector', self.factory)
+		factory = self.make_factory(ports)
+		ports.get_package_info('zeroinstall-injector', factory)
 		self.assertEquals(1, len(self.feed.implementations))
 		impl = self.feed.implementations['package:ports:zeroinstall-injector:0.41:x86_64']
 		self.assertEquals('0.41', impl.get_version())

@@ -466,16 +466,19 @@ class DistributionImplementation(Implementation):
 	"""An implementation provided by the distribution. Information such as the version
 	comes from the package manager.
 	@since: 0.28"""
-	__slots__ = ['installed']
 
-	def __init__(self, feed, id):
+	def __init__(self, feed, id, distro):
 		assert id.startswith('package:')
 		Implementation.__init__(self, feed, id)
-		self.installed = True
+		self.distro = distro
 
 	@property
 	def requires_root_install(self):
 		return not self.installed
+
+	@property
+	def installed(self):
+		return self.distro.get_installed(self.id)
 
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.
@@ -831,7 +834,7 @@ class ZeroInstallFeed(object):
 				assert id.startswith('package:')
 				if id in self.implementations:
 					warn(_("Duplicate ID '%s' for DistributionImplementation"), id)
-				impl = DistributionImplementation(self, id)
+				impl = DistributionImplementation(self, id, distro)
 				self.implementations[id] = impl
 
 				impl.metadata = item_attrs
