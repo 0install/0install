@@ -405,5 +405,8 @@ def main(command_args):
 		sys.exit(1)
 	except SafeException, ex:
 		if options.verbose: raise
-		print >>sys.stderr, ex
+		try:
+			print >>sys.stderr, unicode(ex)
+		except:
+			print >>sys.stderr, repr(ex)
 		sys.exit(1)
