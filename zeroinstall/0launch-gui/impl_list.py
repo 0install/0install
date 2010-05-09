@@ -52,6 +52,7 @@ UNUSABLE = 5
 RELEASED = 6
 NOTES = 7
 WEIGHT = 8	# Selected item is bold
+LANGS = 9
 
 class ImplTips(TreeTips):
 	def __init__(self, policy, interface):
@@ -85,7 +86,8 @@ class ImplementationList:
 		self.policy = policy
 
 		self.model = gtk.ListStore(object, str, str, str,	# Item, arch, stability, version,
-			   str, gobject.TYPE_BOOLEAN, str, str, int)	# fetch, unusable, released, notes, weight
+			   str, gobject.TYPE_BOOLEAN, str, str,		# fetch, unusable, released, notes,
+			   int, str)					# weight, langs
 
 		self.tree_view = widgets.get_widget('versions_list')
 		self.tree_view.set_model(self.model)
@@ -100,6 +102,7 @@ class ImplementationList:
 			       stability,
 			       gtk.TreeViewColumn(_('Fetch'), text, text = FETCH, weight = WEIGHT),
 			       gtk.TreeViewColumn(_('Arch'), text_strike, text = ARCH, strikethrough = UNUSABLE, weight = WEIGHT),
+			       gtk.TreeViewColumn(_('Lang'), text_strike, text = LANGS, strikethrough = UNUSABLE, weight = WEIGHT),
 			       gtk.TreeViewColumn(_('Notes'), text, text = NOTES, weight = WEIGHT)):
 			self.tree_view.append_column(column)
 
@@ -186,6 +189,7 @@ class ImplementationList:
 			else:
 				self.model[new][WEIGHT] = pango.WEIGHT_NORMAL
 			self.model[new][UNUSABLE] = bool(unusable)
+			self.model[new][LANGS] = item.langs or '-'
 			self.model[new][NOTES] = _(unusable)
 	
 	def clear(self):
