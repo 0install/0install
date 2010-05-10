@@ -155,8 +155,16 @@ class SATSolver(Solver):
 		if r: return r
 
 		# Newer versions come before older ones
-		r = cmp(a.version, b.version)
-		if r: return r
+		if a.id.startswith('package:') != b.id.startswith('package:'):
+			# If one of packages is native, do not compare full versions since
+			# it is useless to compare native and 0install version revisions
+			r = cmp(a.version[0], b.version[0])
+			if r: return r
+			# Othewise, prefer native package
+			return cmp(a.id.startswith('package:'), b.id.startswith('package:'))
+		else:
+			r = cmp(a.version, b.version)
+			if r: return r
 
 		# Get best OS
 		r = cmp(arch.os_ranks.get(b.os, None),
