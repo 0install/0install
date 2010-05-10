@@ -128,6 +128,20 @@ class TestDistro(BaseTest):
 				""", rpm).implementations
 		assert len(impls) == 2, impls
 
+	def testSlack(self):
+		slackdir = os.path.join(os.path.dirname(__file__), 'slack')
+		slack = distro.SlackDistribution(os.path.join(slackdir, 'packages'))
+
+		factory = self.make_factory(slack)
+		slack.get_package_info('gimp', factory)
+		self.assertEquals({}, self.feed.implementations)
+
+		slack.get_package_info('infozip', factory)
+		self.assertEquals(1, len(self.feed.implementations))
+		zip = self.feed.implementations['package:slack:infozip:5.52-2:i486']
+		self.assertEquals('5.52-2', zip.get_version())
+		self.assertEquals('i486', zip.machine)
+
 	def testGentoo(self):
 		pkgdir = os.path.join(os.path.dirname(__file__), 'gentoo')
 		ebuilds = distro.GentooDistribution(pkgdir)

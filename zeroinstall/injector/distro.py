@@ -405,6 +405,34 @@ class RPMDistribution(CachedDistribution):
 	def get_score(self, disto_name):
 		return int(disto_name == 'RPM')
 
+class SlackDistribution(Distribution):
+	"""A Slack-based distribution."""
+
+	def __init__(self, packages_dir):
+		self._packages_dir = packages_dir
+
+	def get_package_info(self, package, factory):
+		for entry in os.listdir(self._packages_dir):
+			name, version, arch, build = entry.rsplit('-', 3)
+			if name == package:
+				if arch == 'noarch':
+					zi_arch = '*'
+				else:
+					zi_arch = arch
+				clean_version = try_cleanup_distro_version("%s-%s" % (version, build))
+				if not clean_version:
+					warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': name})
+					continue
+	
+				impl = factory('package:slack:%s:%s:%s' % \
+						(package, clean_version, zi_arch))
+				impl.version = model.parse_version(clean_version)
+				if zi_arch != '*':
+					impl.machine = zi_arch
+
+	def get_score(self, disto_name):
+		return int(disto_name == 'Slack')
+
 class GentooDistribution(Distribution):
 
 	def __init__(self, pkgdir):
@@ -488,6 +516,7 @@ def get_host_distribution():
 		dpkg_db_status = '/var/lib/dpkg/status'
 		pkgcache = '/var/cache/apt/pkgcache.bin'
 		_rpm_db = '/var/lib/rpm/Packages'
+		_slack_db = '/var/log/packages'
 		_pkg_db = '/var/db/pkg'
 
 		if os.path.isdir(_pkg_db):
@@ -499,6 +528,8 @@ def get_host_distribution():
 			_host_distribution = DebianDistribution(dpkg_db_status, pkgcache)
 		elif os.path.isfile(_rpm_db):
 			_host_distribution = RPMDistribution(_rpm_db)
+		elif os.path.isdir(_slack_db):
+			_host_distribution = SlackDistribution(_slack_db)
 		else:
 			_host_distribution = Distribution()
 
