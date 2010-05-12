@@ -228,7 +228,7 @@ def do_copy(args):
 	if not os.path.isfile(manifest_path):
 		raise UsageError(_("Source manifest '%s' not found") % manifest_path)
 	required_digest = os.path.basename(source)
-	manifest_data = file(manifest_path).read()
+	manifest_data = file(manifest_path, 'rb').read()
 
 	copy_tree_with_verify(source, target, manifest_data, required_digest)
 

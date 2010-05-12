@@ -146,7 +146,7 @@ def add_manifest_file(dir, digest_or_alg):
 	digest.update(manifest)
 
 	os.chmod(dir, 0755)
-	stream = file(mfile, 'w')
+	stream = file(mfile, 'wb')
 	os.chmod(dir, 0555)
 	stream.write(manifest)
 	stream.close()
@@ -220,7 +220,7 @@ def verify(root, required_digest = None):
 	manifest_file = os.path.join(root, '.manifest')
 	if os.path.isfile(manifest_file):
 		digest = alg.new_digest()
-		digest.update(file(manifest_file).read())
+		digest.update(file(manifest_file, 'rb').read())
 		manifest_digest = alg.getID(digest)
 	else:
 		manifest_digest = None
@@ -241,7 +241,7 @@ def verify(root, required_digest = None):
 		error.detail += _("The .manifest file matches the actual contents. Very strange!")
 	elif manifest_digest == required_digest:
 		import difflib
-		diff = difflib.unified_diff(file(manifest_file).readlines(), lines,
+		diff = difflib.unified_diff(file(manifest_file, 'rb').readlines(), lines,
 					    'Recorded', 'Actual')
 		error.detail += _("The .manifest file matches the directory name.\n" \
 				"The contents of the directory have changed:\n") + \

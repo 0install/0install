@@ -67,7 +67,7 @@ def optimise(impl_dir):
 			continue
 		manifest_path = os.path.join(impl_dir, impl, '.manifest')
 		try:
-			ms = file(manifest_path)
+			ms = file(manifest_path, 'rb')
 		except OSError, ex:
 			warn(_("Failed to read manifest file '%(manifest_path)s': %(exception)s"), {'manifest': manifest_path, 'exception': str(ex)})
 			continue

@@ -63,7 +63,7 @@ class TestStore(BaseTest):
 				digest = alg.new_digest()
 				digest.update('Hello')
 				self.assertEquals("S %s 5 MyLink\n" % digest.hexdigest(),
-						file(mfile).read())
+						file(mfile, 'rb').read())
 				manifest.verify(self.tmp, added_digest)
 				os.chmod(self.tmp, 0700)
 				os.unlink(mfile)
