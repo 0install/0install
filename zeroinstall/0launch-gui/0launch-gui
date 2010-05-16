@@ -31,7 +31,8 @@ __builtins__.ngettext = translation.ngettext
 if localedir:
 	# Tell GTK where to find the translations, if they're not in
 	# the default system location.
-	locale.bindtextdomain('zero-install', localedir)
+	if hasattr(locale, 'bindtextdomain'):
+		locale.bindtextdomain('zero-install', localedir)
 
 import pygtk; pygtk.require('2.0')
 
