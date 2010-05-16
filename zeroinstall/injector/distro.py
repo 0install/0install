@@ -252,7 +252,7 @@ _canonical_machine = {
 	'i386': 'i386',
 }
 
-host_machine = os.uname()[-1]
+host_machine = arch.canonicalize_machine(os.uname()[-1])
 def canonical_machine(package_machine):
 	machine = _canonical_machine.get(package_machine, None)
 	if machine is None:
@@ -496,7 +496,7 @@ class PortsDistribution(Distribution):
 				name = pkgname[0:match.start()]
 				version = try_cleanup_distro_version(pkgname[match.start() + 1:])
 
-			machine = arch.canonicalize_machine(host_machine)
+			machine = host_machine
 
 			impl = factory('package:ports:%s:%s:%s' % \
 						(package, version, machine))
