@@ -248,8 +248,15 @@ class CachedDistribution(Distribution):
 _canonical_machine = {
 	'all' : '*',
 	'any' : '*',
+	'noarch' : '*',
+	'(none)' : '*',
 	'amd64': 'x86_64',
 	'i386': 'i386',
+	'i486': 'i486',
+	'i586': 'i586',
+	'i686': 'i686',
+	'ppc64': 'ppc64',
+	'ppc': 'ppc',
 }
 
 host_machine = arch.canonicalize_machine(os.uname()[-1])
@@ -376,12 +383,7 @@ class RPMDistribution(CachedDistribution):
 			package, version, rpmarch = line.split('\t', 2)
 			if package == 'gpg-pubkey':
 				continue
-			if rpmarch == 'amd64\n':
-				zi_arch = 'x86_64'
-			elif rpmarch == 'noarch\n' or rpmarch == "(none)\n":
-				zi_arch = '*'
-			else:
-				zi_arch = rpmarch.strip()
+			zi_arch = canonical_machine(rpmarch.strip())
 			clean_version = try_cleanup_distro_version(version)
 			if clean_version:
 				cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
@@ -415,10 +417,7 @@ class SlackDistribution(Distribution):
 		for entry in os.listdir(self._packages_dir):
 			name, version, arch, build = entry.rsplit('-', 3)
 			if name == package:
-				if arch == 'noarch':
-					zi_arch = '*'
-				else:
-					zi_arch = arch
+				zi_arch = canonical_machine(arch)
 				clean_version = try_cleanup_distro_version("%s-%s" % (version, build))
 				if not clean_version:
 					warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': name})
