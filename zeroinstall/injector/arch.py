@@ -38,16 +38,21 @@ except AttributeError:
 	else:
 		_uname = (p, 'i486')
 
-def _get_os_ranks(target_os):
-	if target_os.startswith('CYGWIN_NT'):
-		target_os = 'Cygwin'
-	elif target_os == 'SunOS':
-		target_os = 'Solaris'
+def canonicalize_os(os_):
+	if os_.startswith('CYGWIN_NT'):
+		os_ = 'Cygwin'
+	elif os_ == 'SunOS':
+		os_ = 'Solaris'
+	return os_
 
-	# Special case Mac OS X, to separate it from Darwin/X
-	# (Mac OS X also includes the closed Apple frameworks)
-	if os.path.exists('/System/Library/Frameworks/Carbon.framework'):
-		target_os = 'MacOSX'
+def _get_os_ranks(target_os):
+	target_os = canonicalize_os(target_os)
+
+	if target_os == 'Darwin':
+		# Special case Mac OS X, to separate it from Darwin/X
+		# (Mac OS X also includes the closed Apple frameworks)
+		if os.path.exists('/System/Library/Frameworks/Carbon.framework'):
+			target_os = 'MacOSX'
 
 	# Binaries compiled for _this_ OS are best...
 	os_ranks = {target_os : 1}
