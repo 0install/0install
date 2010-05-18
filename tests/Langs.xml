@@ -24,13 +24,13 @@
 		<archive href='foo' size='10'/>
 	</implementation>
 
-	<implementation id='sha1=7' version='7' arch='*-arch_3' langs='en'>
+	<implementation id='sha1=7' version='7' arch='*-arch_3' langs='en_RU'>
 		<archive href='foo' size='10'/>
 	</implementation>
 	<implementation id='sha1=8' version='8' arch='*-arch_3' langs='en_US'>
 		<archive href='foo' size='10'/>
 	</implementation>
-	<implementation id='sha1=9' version='9' arch='*-arch_3' langs='en_RU'>
+	<implementation id='sha1=9' version='9' arch='*-arch_3' langs='en'>
 		<archive href='foo' size='10'/>
 	</implementation>
 
@@ -40,7 +40,7 @@
 	<implementation id='sha1=11' version='11' arch='*-arch_4' langs='en'>
 		<archive href='foo' size='10'/>
 	</implementation>
-	<implementation id='sha1=12' version='12' arch='*-arch_4' langs='en_RU'>
+	<implementation id='sha1=12' version='12' arch='*-arch_4' langs='ru_RU'>
 		<archive href='foo' size='10'/>
 	</implementation>
 

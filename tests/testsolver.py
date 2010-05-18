@@ -144,30 +144,43 @@ class TestSolver(BaseTest):
 			iface = iface_cache.get_interface('http://foo/Langs.xml')
 			reader.update(iface, 'Langs.xml')
 
+			# 1 is the oldest, but the only one in our language
 			binary_arch = arch.get_architecture(None, 'arch_1')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
 			self.assertEquals('sha1=1', s.selections[iface].id)
 
+			# 6 is the newest, and close enough, even though not
+			# quite the right locale
 			binary_arch = arch.get_architecture(None, 'arch_2')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEquals('sha1=4', s.selections[iface].id)
+			self.assertEquals('sha1=6', s.selections[iface].id)
 
+			# 9 is the newest, although 7 is a closer match
 			binary_arch = arch.get_architecture(None, 'arch_3')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEquals('sha1=8', s.selections[iface].id)
+			self.assertEquals('sha1=9', s.selections[iface].id)
 
+			# 11 is the newest we understand
 			binary_arch = arch.get_architecture(None, 'arch_4')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
 			self.assertEquals('sha1=11', s.selections[iface].id)
 
+			# 13 is the newest we understand
 			binary_arch = arch.get_architecture(None, 'arch_5')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
 			self.assertEquals('sha1=13', s.selections[iface].id)
+
+			# We don't understand any, so pick the newest
+			s.langs = ['es_ES']
+			binary_arch = arch.get_architecture(None, 'arch_2')
+			s.solve('http://foo/Langs.xml', binary_arch)
+			assert s.ready
+			self.assertEquals('sha1=6', s.selections[iface].id)
 		finally:
 			locale.setlocale(locale.LC_ALL, '')
 

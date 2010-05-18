@@ -394,6 +394,7 @@ class Implementation(object):
 	@ivar user_stability: the stability as set by the user
 	@type upstream_stability: [insecure | buggy | developer | testing | stable | packaged | preferred]
 	@ivar langs: natural languages supported by this package
+	@type langs: str
 	@ivar requires: interfaces this package depends on
 	@type requires: [L{Dependency}]
 	@ivar main: the default file to execute when running as a program
@@ -426,7 +427,7 @@ class Implementation(object):
 		self.version = None
 		self.released = None
 		self.download_sources = []
-		self.langs = None
+		self.langs = ""
 		self.machine = None
 		self.bindings = []
 
@@ -768,7 +769,7 @@ class ZeroInstallFeed(object):
 			impl.main = item_main
 
 			impl.released = item_attrs.get('released', None)
-			impl.langs = item_attrs.get('langs', None)
+			impl.langs = item_attrs.get('langs', '')
 
 			size = item.getAttribute('size')
 			if size:

@@ -101,7 +101,9 @@ class Solver(object):
 		raise NotImplementedError("Abstract")
 
 class SATSolver(Solver):
-	"""Converts the problem to a set of pseudo-boolean constraints and uses a PB solver to solve them."""
+	"""Converts the problem to a set of pseudo-boolean constraints and uses a PB solver to solve them.
+	@ivar langs: the preferred languages (e.g. ["es_ES", "en"]). Initialised to the current locale.
+	@type langs: str"""
 	def __init__(self, network_use, iface_cache, stores, extra_restrictions = None):
 		"""
 		@param network_use: how much use to make of the network
@@ -120,12 +122,23 @@ class SATSolver(Solver):
 		self.help_with_testing = False
 		self.extra_restrictions = extra_restrictions or {}
 
+		self.langs = [locale.getlocale()[0] or 'en']
+
 	def compare(self, interface, b, a, arch):
 		"""Compare a and b to see which would be chosen first.
 		Does not consider whether the implementations are usable (check for that yourself first).
 		@param interface: The interface we are trying to resolve, which may
 		not be the interface of a or b if they are from feeds.
 		@rtype: int"""
+
+		# Languages we understand come first
+		a_langs = (a.langs or 'en').split()
+		b_langs = (b.langs or 'en').split()
+		main_langs = set(l.split('_')[0] for l in self.langs)
+		r = cmp(any(l.split('_')[0] in main_langs for l in a_langs),
+			any(l.split('_')[0] in main_langs for l in b_langs))
+		if r: return r
+
 		a_stab = a.get_stability()
 		b_stab = b.get_stability()
 
@@ -264,19 +277,6 @@ class SATSolver(Solver):
 				if impl.machine == 'src':
 					return _("Source code")
 				return _("Unsupported machine type")
-			if impl.langs:
-				lang_found = False
-				current_locale = locale.getlocale()[0]
-				for lang in impl.langs.split():
-					if '_' not in lang:
-						current_lang = current_locale.split('_')[0]
-					else:
-						current_lang = current_locale
-					if lang == current_lang:
-						lang_found = True
-						break
-				if not lang_found:
-					return _("Unsupported language")
 			return None
 
 		def usable_feeds(iface, arch):
