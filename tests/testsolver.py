@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from basetest import BaseTest
-import sys, os
+import sys, os, locale
 import unittest
 
 sys.path.insert(0, '..')
@@ -135,6 +135,41 @@ class TestSolver(BaseTest):
 			'0.1 Linux-x86_64',	# 64-bit is best match for host arch
 			'0.1 Linux-i686', '0.1 Linux-i586', '0.1 Linux-i486'],	# ordering of x86 versions
 			selected)
+
+	def testLangs(self):
+		try:
+			locale.setlocale(locale.LC_ALL, 'en_US.UTF8')
+
+			s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
+			iface = iface_cache.get_interface('http://foo/Langs.xml')
+			reader.update(iface, 'Langs.xml')
+
+			binary_arch = arch.get_architecture(None, 'arch_1')
+			s.solve('http://foo/Langs.xml', binary_arch)
+			assert s.ready
+			self.assertEquals('sha1=1', s.selections[iface].id)
+
+			binary_arch = arch.get_architecture(None, 'arch_2')
+			s.solve('http://foo/Langs.xml', binary_arch)
+			assert s.ready
+			self.assertEquals('sha1=4', s.selections[iface].id)
+
+			binary_arch = arch.get_architecture(None, 'arch_3')
+			s.solve('http://foo/Langs.xml', binary_arch)
+			assert s.ready
+			self.assertEquals('sha1=8', s.selections[iface].id)
+
+			binary_arch = arch.get_architecture(None, 'arch_4')
+			s.solve('http://foo/Langs.xml', binary_arch)
+			assert s.ready
+			self.assertEquals('sha1=11', s.selections[iface].id)
+
+			binary_arch = arch.get_architecture(None, 'arch_5')
+			s.solve('http://foo/Langs.xml', binary_arch)
+			assert s.ready
+			self.assertEquals('sha1=13', s.selections[iface].id)
+		finally:
+			locale.setlocale(locale.LC_ALL, '')
 
 if __name__ == '__main__':
 	unittest.main()

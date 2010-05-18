@@ -6,7 +6,7 @@ Chooses a set of components to make a running program.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os, tempfile, subprocess, sys
+import os, tempfile, subprocess, sys, locale
 from logging import debug, warn, info
 
 from zeroinstall.zerostore import BadDigest, NotStored
@@ -264,6 +264,19 @@ class SATSolver(Solver):
 				if impl.machine == 'src':
 					return _("Source code")
 				return _("Unsupported machine type")
+			if impl.langs:
+				lang_found = False
+				current_locale = locale.getlocale()[0]
+				for lang in impl.langs.split():
+					if '_' not in lang:
+						current_lang = current_locale.split('_')[0]
+					else:
+						current_lang = current_locale
+					if lang == current_lang:
+						lang_found = True
+						break
+				if not lang_found:
+					return _("Unsupported language")
 			return None
 
 		def usable_feeds(iface, arch):
