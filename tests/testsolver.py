@@ -175,12 +175,24 @@ class TestSolver(BaseTest):
 			assert s.ready
 			self.assertEquals('sha1=13', s.selections[iface].id)
 
+			def check(target_arch, langs, expected):
+				s.langs = langs
+				binary_arch = arch.get_architecture(None, target_arch)
+				s.solve('http://foo/Langs.xml', binary_arch)
+				assert s.ready
+				self.assertEquals(expected, s.selections[iface].id)
+
 			# We don't understand any, so pick the newest
-			s.langs = ['es_ES']
-			binary_arch = arch.get_architecture(None, 'arch_2')
-			s.solve('http://foo/Langs.xml', binary_arch)
-			assert s.ready
-			self.assertEquals('sha1=6', s.selections[iface].id)
+			check('arch_2', ['es_ES'], 'sha1=6')
+
+			# These two have the same version number. Choose the
+			# one most appropriate to our country
+			check('arch_6', ['zh_CN'], 'sha1=15')
+			check('arch_6', ['zh_TW'], 'sha1=16')
+
+			# Same, but one doesn't have a country code
+			check('arch_7', ['bn'], 'sha1=17')
+			check('arch_7', ['bn_IN'], 'sha1=18')
 		finally:
 			locale.setlocale(locale.LC_ALL, '')
 

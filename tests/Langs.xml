@@ -50,4 +50,18 @@
 	<implementation id='sha1=14' version='14' arch='*-arch_5' langs='fr ru es'>
 		<archive href='foo' size='10'/>
 	</implementation>
+
+	<implementation id='sha1=15' version='15' arch='*-arch_6' langs='zh_CN'>
+		<archive href='foo' size='10'/>
+	</implementation>
+	<implementation id='sha1=16' version='15' arch='*-arch_6' langs='zh_TW'>
+		<archive href='foo' size='10'/>
+	</implementation>
+
+	<implementation id='sha1=17' version='16' arch='*-arch_7' langs='bn'>
+		<archive href='foo' size='10'/>
+	</implementation>
+	<implementation id='sha1=18' version='16' arch='*-arch_7' langs='bn_IN'>
+		<archive href='foo' size='10'/>
+	</implementation>
 </interface>

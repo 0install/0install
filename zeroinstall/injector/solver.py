@@ -189,6 +189,11 @@ class SATSolver(Solver):
 			arch.machine_ranks.get(a.machine, None))
 		if r: return r
 
+		# Slightly prefer languages specialised to our country
+		r = cmp(any(l in self.langs for l in a_langs),
+			any(l in self.langs for l in b_langs))
+		if r: return r
+
 		# Slightly prefer cached versions
 		if self.network_use == model.network_full:
 			r = cmp(_get_cached(stores, a), _get_cached(stores, b))
