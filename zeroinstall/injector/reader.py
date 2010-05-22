@@ -24,17 +24,9 @@ def update_from_cache(interface):
 	always considered to be cached, although they are not actually stored in the cache.
 	@rtype: bool"""
 	interface.reset()
-	main_feed = None
-
-	if interface.uri.startswith('/'):
-		debug(_("Loading local interface file '%s'"), interface.uri)
-		update(interface, interface.uri, local = True)
-		cached = True
-	else:
-		cached = basedir.load_first_cache(config_site, 'interfaces', escape(interface.uri))
-		if cached:
-			debug(_("Loading cached information for %(interface)s from %(cached)s"), {'interface': interface, 'cached': cached})
-			main_feed = update(interface, cached)
+	main_feed = load_feed_from_cache(interface.uri)
+	if main_feed is not None:
+		interface._main_feed = main_feed
 
 	# Add the distribution package manager's version, if any
 	path = basedir.load_first_data(config_site, 'native_feeds', model._pretty_escape(interface.uri))
@@ -45,7 +37,21 @@ def update_from_cache(interface):
 
 	update_user_overrides(interface, main_feed)
 
-	return bool(cached)
+	return main_feed is not None
+
+def load_feed_from_cache(url):
+	"""Load a feed. If the feed is remote, load from the cache. If local, load it directly.
+	@return the feed, or None if it's remote and not cached."""
+	if url.startswith('/'):
+		debug(_("Loading local feed file '%s'"), url)
+		return load_feed(url, local = True)
+	else:
+		cached = basedir.load_first_cache(config_site, 'interfaces', escape(url))
+		if cached:
+			debug(_("Loading cached information for %(interface)s from %(cached)s"), {'interface': url, 'cached': cached})
+			return load_feed(cached, local = False)
+		else:
+			return None
 
 def update_user_overrides(interface, main_feed = None):
 	"""Update an interface with user-supplied information.
