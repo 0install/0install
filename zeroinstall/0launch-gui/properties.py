@@ -86,7 +86,7 @@ class Description:
 		except ImportError, ValueError:
 			return time.ctime(secs)
 
-	def set_details(self, interface):
+	def set_details(self, feed):
 		buffer = self.buffer
 		heading_style = self.heading_style
 
@@ -94,22 +94,26 @@ class Description:
 
 		iter = buffer.get_start_iter()
 
-		buffer.insert_with_tags(iter,
-			'%s ' % interface.get_name(), heading_style)
-		buffer.insert(iter, '(%s)' % interface.summary)
+		if feed is None:
+			buffer.insert(iter, 'Not yet downloaded.')
+			return
 
-		buffer.insert(iter, '\n%s\n' % interface.uri)
+		buffer.insert_with_tags(iter,
+			'%s ' % feed.get_name(), heading_style)
+		buffer.insert(iter, '(%s)' % feed.summary)
+
+		buffer.insert(iter, '\n%s\n' % feed.url)
 
 		# (converts to local time)
-		if interface.last_modified:
-			buffer.insert(iter, '\n' + _('Last upstream change: %s') % self.strtime(interface.last_modified))
+		if feed.last_modified:
+			buffer.insert(iter, '\n' + _('Last upstream change: %s') % self.strtime(feed.last_modified))
 
-		if interface.last_checked:
-			buffer.insert(iter, '\n' + _('Last checked: %s') % self.strtime(interface.last_checked))
+		if feed.last_checked:
+			buffer.insert(iter, '\n' + _('Last checked: %s') % self.strtime(feed.last_checked))
 
-		last_check_attempt = iface_cache.get_last_check_attempt(interface.uri)
+		last_check_attempt = iface_cache.get_last_check_attempt(feed.url)
 		if last_check_attempt:
-			if interface.last_checked and interface.last_checked >= last_check_attempt:
+			if feed.last_checked and feed.last_checked >= last_check_attempt:
 				pass	# Don't bother reporting successful attempts
 			else:
 				buffer.insert(iter, '\n' + _('Last check attempt: %s (failed or in progress)') %
@@ -117,13 +121,13 @@ class Description:
 
 		buffer.insert_with_tags(iter, '\n\n' + _('Description') + '\n', heading_style)
 
-		paragraphs = [format_para(p) for p in (interface.description or "-").split('\n\n')]
+		paragraphs = [format_para(p) for p in (feed.description or "-").split('\n\n')]
 
 		buffer.insert(iter, '\n\n'.join(paragraphs))
 		buffer.insert(iter, '\n')
 
 		need_gap = True
-		for x in interface.get_metadata(namespaces.XMLNS_IFACE, 'homepage'):
+		for x in feed.get_metadata(namespaces.XMLNS_IFACE, 'homepage'):
 			if need_gap:
 				buffer.insert(iter, '\n')
 				need_gap = False
@@ -131,7 +135,7 @@ class Description:
 			buffer.insert_with_tags(iter, '%s\n' % x.content, self.link_style)
 
 		buffer.insert_with_tags(iter, '\n' + _('Signatures') + '\n', heading_style)
-		sigs = iface_cache.get_cached_signatures(interface.uri)
+		sigs = iface_cache.get_cached_signatures(feed.url)
 		if sigs:
 			for sig in sigs:
 				if isinstance(sig, gpg.ValidSig):
@@ -144,7 +148,7 @@ class Description:
 					buffer.insert_with_tags(iter, _('Valid signature by "%(name)s"\n- Dated: %(sig_date)s\n- Fingerprint: %(sig_fingerprint)s\n') %
 							{'name': name, 'sig_date': time.strftime('%c', time.localtime(sig.get_timestamp())), 'sig_fingerprint': sig.fingerprint})
 					if not sig.is_trusted():
-						if interface.uri.startswith('/'):
+						if feed.url.startswith('/'):
 							buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list') + '\n')
 						else:
 							buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list (either you removed it, or '
@@ -152,7 +156,7 @@ class Description:
 				else:
 					buffer.insert_with_tags(iter, '%s\n' % sig)
 		else:
-			buffer.insert_with_tags(iter, _('No signature information (old style interface or out-of-date cache)') + '\n')
+			buffer.insert_with_tags(iter, _('No signature information (old style feed or out-of-date cache)') + '\n')
 
 class Feeds:
 	URI = 0
@@ -222,15 +226,15 @@ class Feeds:
 	def sel_changed(self, sel):
 		model, miter = sel.get_selected()
 		if not miter: return	# build in progress
-		iface = model[miter][Feeds.URI]
+		feed_url = model[miter][Feeds.URI]
 		# Only enable removing user_override feeds
 		enable_remove = False
 		for x in self.interface.feeds:
-			if x.uri == iface:
+			if x.uri == feed_url:
 				if x.user_override:
 					enable_remove = True
 		self.remove_feed_button.set_sensitive( enable_remove )
-		self.description.set_details(iface_cache.get_interface(iface))
+		self.description.set_details(iface_cache.get_feed(feed_url))
 	
 	def updated(self):
 		new_lines = self.build_model()
