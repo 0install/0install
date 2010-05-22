@@ -131,6 +131,28 @@ def update(interface, source, local = False):
 	@see: L{update_from_cache}, which calls this"""
 	assert isinstance(interface, Interface)
 
+	feed = load_feed(source, local)
+
+	if not local:
+		if feed.url != interface.uri:
+			raise InvalidInterface(_("Incorrect URL used for feed.\n\n"
+						"%(feed_url)s is given in the feed, but\n"
+						"%(interface_uri)s was requested") %
+						{'feed_url': feed.url, 'interface_uri': interface.uri})
+
+	interface._main_feed = feed
+	return feed
+
+def load_feed(source, local = False):
+	"""Load a feed from a local file.
+	@param source: the name of the file to read
+	@type source: str
+	@param local: this is a local feed
+	@type local: bool
+	@raise InvalidInterface: if the source's syntax is incorrect
+	@return: the new feed
+	@since: 0.48
+	@see: L{iface_cache.get_feed}, which calls this"""
 	try:
 		root = qdom.parse(file(source))
 	except IOError, ex:
@@ -139,20 +161,11 @@ def update(interface, source, local = False):
 		raise InvalidInterface(_("Can't read file"), ex)
 	except Exception, ex:
 		raise InvalidInterface(_("Invalid XML"), ex)
-	
+
 	if local:
 		local_path = source
 	else:
 		local_path = None
 	feed = ZeroInstallFeed(root, local_path, distro.get_host_distribution())
 	feed.last_modified = int(os.stat(source).st_mtime)
-
-	if not local:
-		if feed.url != interface.uri:
-			raise InvalidInterface(_("Incorrect URL used for feed.\n\n"
-						"%(feed_url)s is given in the feed, but\n"
-						"%(interface_uri)s was requested") %
-						{'feed_url': feed.url, 'interface_uri': interface.uri})
-	
-	interface._main_feed = feed
 	return feed
