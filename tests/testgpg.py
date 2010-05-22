@@ -2,6 +2,7 @@
 from basetest import BaseTest
 import sys, tempfile
 import unittest
+import warnings
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import gpg, model, trust
@@ -107,6 +108,7 @@ class TestGPG(BaseTest):
 		stream.seek(0)
 		gpg.import_key(stream)
 		trust.trust_db.trust_key(THOMAS_FINGERPRINT)
+		warnings.filterwarnings("ignore", category = DeprecationWarning)
 	
 	def testImportBad(self):
 		stream = tempfile.TemporaryFile()

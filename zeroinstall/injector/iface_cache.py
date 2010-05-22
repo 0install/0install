@@ -177,52 +177,63 @@ class IfaceCache(object):
 	@see: L{iface_cache} - the singleton IfaceCache instance.
 	"""
 
-	__slots__ = ['_interfaces', 'stores']
+	__slots__ = ['_interfaces', 'stores', '_feeds']
 
 	def __init__(self):
 		self._interfaces = {}
+		self._feeds = {}
 
 		self.stores = zerostore.Stores()
 	
 	def update_interface_if_trusted(self, interface, sigs, xml):
-		"""Update a cached interface (using L{update_interface_from_network})
+		import warnings
+		warnings.warn(_("Use update_feed_if_trusted instead"), DeprecationWarning, stacklevel = 2)
+		return self.update_feed_if_trusted(interface.uri, sigs, xml)
+
+	def update_feed_if_trusted(self, feed_url, sigs, xml):
+		"""Update a cached feed (using L{update_feed_from_network})
 		if we trust the signatures.
 		If we don't trust any of the signatures, do nothing.
-		@param interface: the interface being updated
-		@type interface: L{model.Interface}
+		@param feed_url: the feed being updated
+		@type feed_url: str
 		@param sigs: signatures from L{gpg.check_stream}
 		@type sigs: [L{gpg.Signature}]
-		@param xml: the downloaded replacement interface document
+		@param xml: the downloaded replacement feed document
 		@type xml: str
-		@return: True if the interface was updated
+		@return: True if the feed was updated
 		@rtype: bool
 		"""
 		import trust
-		updated = self._oldest_trusted(sigs, trust.domain_from_url(interface.uri))
+		updated = self._oldest_trusted(sigs, trust.domain_from_url(feed_url))
 		if updated is None: return False	# None are trusted
 	
-		self.update_interface_from_network(interface, xml, updated)
+		self.update_feed_from_network(feed_url, xml, updated)
 		return True
 
 	def update_interface_from_network(self, interface, new_xml, modified_time):
-		"""Update a cached interface.
-		Called by L{update_interface_if_trusted} if we trust this data.
-		After a successful update, L{writer} is used to update the interface's
+		import warnings
+		warnings.warn(_("Use update_feed_from_network instead"), DeprecationWarning, stacklevel = 2)
+		self.update_feed_from_network(interface.uri, new_xml, modified_time)
+
+	def update_feed_from_network(self, feed_url, new_xml, modified_time):
+		"""Update a cached feed.
+		Called by L{update_feed_if_trusted} if we trust this data.
+		After a successful update, L{writer} is used to update the feed's
 		last_checked time.
-		@param interface: the interface being updated
-		@type interface: L{model.Interface}
-		@param new_xml: the downloaded replacement interface document
+		@param feed_url: the feed being updated
+		@type feed_url: L{model.Interface}
+		@param new_xml: the downloaded replacement feed document
 		@type new_xml: str
 		@param modified_time: the timestamp of the oldest trusted signature
-		(used as an approximation to the interface's modification time)
+		(used as an approximation to the feed's modification time)
 		@type modified_time: long
 		@raises ReplayAttack: if modified_time is older than the currently cached time
 		"""
 		debug(_("Updating '%(interface)s' from network; modified at %(time)s") %
-			{'interface': interface.name or interface.uri, 'time': _pretty_time(modified_time)})
+			{'interface': feed_url, 'time': _pretty_time(modified_time)})
 
 		if '\n<!-- Base64 Signature' not in new_xml:
-			# Only do this for old-style interfaces without
+			# Only do this for old-style feeds without
 			# signatures Otherwise, we can get the time from the
 			# signature, and adding this attribute just makes the
 			# signature invalid.
@@ -233,18 +244,20 @@ class IfaceCache(object):
 			doc.writexml(new_xml)
 			new_xml = new_xml.getvalue()
 
-		self._import_new_interface(interface, new_xml, modified_time)
+		self._import_new_feed(feed_url, new_xml, modified_time)
+
+		feed = self.get_feed(feed_url)
 
 		import writer
-		interface._main_feed.last_checked = long(time.time())
-		writer.save_interface(interface)
+		feed.last_checked = long(time.time())
+		writer.save_feed(feed)
 
-		info(_("Updated interface cache entry for %(interface)s (modified %(time)s)"),
-			{'interface': interface.get_name(), 'time': _pretty_time(modified_time)})
+		info(_("Updated feed cache entry for %(interface)s (modified %(time)s)"),
+			{'interface': feed.get_name(), 'time': _pretty_time(modified_time)})
 
-	def _import_new_interface(self, interface, new_xml, modified_time):
+	def _import_new_feed(self, feed_url, new_xml, modified_time):
 		"""Write new_xml into the cache.
-		@param interface: updated once the new XML is written
+		@param feed_url: the URL for the feed being updated
 		@param new_xml: the data to write
 		@param modified_time: when new_xml was modified
 		@raises ReplayAttack: if the new mtime is older than the current one
@@ -252,33 +265,35 @@ class IfaceCache(object):
 		assert modified_time
 
 		upstream_dir = basedir.save_cache_path(config_site, 'interfaces')
-		cached = os.path.join(upstream_dir, escape(interface.uri))
+		cached = os.path.join(upstream_dir, escape(feed_url))
 
+		old_modified = None
 		if os.path.exists(cached):
 			old_xml = file(cached).read()
 			if old_xml == new_xml:
 				debug(_("No change"))
-				reader.update_from_cache(interface)
+				# Update in-memory copy, in case someone else updated the disk copy
+				self.get_feed(feed_url, force = True)
 				return
+			old_modified = int(os.stat(cached).st_mtime)
 
+		# Do we need to write this temporary file now?
 		stream = file(cached + '.new', 'w')
 		stream.write(new_xml)
 		stream.close()
 		os.utime(cached + '.new', (modified_time, modified_time))
-		new_mtime = reader.check_readable(interface.uri, cached + '.new')
+		new_mtime = reader.check_readable(feed_url, cached + '.new')
 		assert new_mtime == modified_time
 
-		old_modified = self._get_signature_date(interface.uri)
-		if old_modified is None:
-			old_modified = interface.last_modified
+		old_modified = self._get_signature_date(feed_url) or old_modified
 
 		if old_modified:
 			if new_mtime < old_modified:
 				os.unlink(cached + '.new')
-				raise ReplayAttack(_("New interface's modification time is "
+				raise ReplayAttack(_("New feed's modification time is "
 					"before old version!\nInterface: %(iface)s\nOld time: %(old_time)s\nNew time: %(new_time)s\n"
 					"Refusing update.")
-					% {'iface': interface.uri, 'old_time': _pretty_time(old_modified), 'new_time': _pretty_time(new_mtime)})
+					% {'iface': feed_url, 'old_time': _pretty_time(old_modified), 'new_time': _pretty_time(new_mtime)})
 			if new_mtime == old_modified:
 				# You used to have to update the modification time manually.
 				# Now it comes from the signature, this check isn't useful
@@ -290,19 +305,21 @@ class IfaceCache(object):
 		os.rename(cached + '.new', cached)
 		debug(_("Saved as %s") % cached)
 
-		reader.update_from_cache(interface)
+		self.get_feed(feed_url, force = True)
 
-	def get_feed(self, url):
+	def get_feed(self, url, force = False):
 		"""Get a feed from the cache.
 		@param url: the URL of the feed
+		@param force: load the file from disk again
 		@return: the feed, or None if it isn't cached
 		@rtype: L{model.ZeroInstallFeed}"""
-		# TODO: This isn't a good implementation
-		iface = self.get_interface(url)
-		feed = iface._main_feed
-		if not isinstance(feed, model.DummyFeed):
-			return feed
-		return None
+		if not force:
+			feed = self._feeds.get(url, False)
+			if feed != False:
+				return feed
+
+		feed = self._feeds[url] = reader.load_feed_from_cache(url)
+		return feed
 
 	def get_interface(self, uri):
 		"""Get the interface for uri, creating a new one if required.
@@ -405,5 +422,40 @@ class IfaceCache(object):
 		if timestamp_path:
 			return os.stat(timestamp_path).st_mtime
 		return None
+
+	def get_feed_imports(self, iface):
+		"""Get all feeds that add to this interface.
+		This is the feeds explicitly added by the user, feeds added by the distribution,
+		and feeds imported by a <feed> in the main feed (but not recursively, at present).
+		@rtype: L{Feed}"""
+		main_feed = self.get_feed(iface.uri)
+		if main_feed:
+			return iface.extra_feeds + main_feed.feeds
+		else:
+			return iface.extra_feeds
+
+	def get_feeds(self, iface):
+		"""Get all feeds for this interface. This is a mapping from feed URLs
+		to ZeroInstallFeeds. It includes the interface's main feed, plus the
+		resolution of every feed returne by L{get_feed_imports}. Uncached
+		feeds are indicated by a value of None.
+		@rtype: {str: L{ZeroInstallFeed} | None}"""
+		main_feed = self.get_feed(iface.uri)
+		results = {iface.uri: main_feed}
+		for imp in iface.extra_feeds:
+			results[imp.uri] = self.get_feed(imp.uri)
+		if main_feed:
+			for imp in main_feed.feeds:
+				results[imp.uri] = self.get_feed(imp.uri)
+		return results
+
+	def get_implementations(self, iface):
+		"""Return all implementations from all of iface's feeds.
+		@rtype: [L{Implementation}]"""
+		impls = []
+		for feed in self.get_feeds(iface).itervalues():
+			if feed:
+				impls += feed.implementations.values()
+		return impls
 
 iface_cache = IfaceCache()

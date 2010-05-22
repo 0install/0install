@@ -139,8 +139,8 @@ class TestDownload(BaseTest):
 			rootLogger.disabled = False
 			rootLogger.setLevel(WARN)
 
-		hello = iface_cache.iface_cache.get_interface('http://localhost:8000/Hello')
-		self.assertEquals(0, len(hello.implementations))
+		hello = iface_cache.iface_cache.get_feed('http://localhost:8000/Hello')
+		self.assertEquals(None, hello)
 
 		with output_suppressed():
 			self.child = server.handle_requests('6FCF121BE2390E0B.gpg')
@@ -151,7 +151,7 @@ class TestDownload(BaseTest):
 			assert trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
 
 			# Check we imported the interface after trusting the key
-			reader.update_from_cache(hello)
+			hello = iface_cache.iface_cache.get_feed('http://localhost:8000/Hello', force = True)
 			self.assertEquals(1, len(hello.implementations))
 
 			# Shouldn't need to prompt the second time
@@ -309,7 +309,7 @@ class TestDownload(BaseTest):
 			getLogger().setLevel(ERROR)
 			iface = iface_cache.iface_cache.get_interface('http://example.com:8000/Hello.xml')
 			mtime = int(os.stat('Hello-new.xml').st_mtime)
-			iface_cache.iface_cache.update_interface_from_network(iface, file('Hello-new.xml').read(), mtime + 10000)
+			iface_cache.iface_cache.update_feed_from_network(iface.uri, file('Hello-new.xml').read(), mtime + 10000)
 
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
@@ -326,7 +326,7 @@ class TestDownload(BaseTest):
 				policy.handler.wait_for_blocker(refreshed)
 				raise Exception("Should have been rejected!")
 			except model.SafeException, ex:
-				assert "New interface's modification time is before old version" in str(ex)
+				assert "New feed's modification time is before old version" in str(ex)
 
 			# Must finish with the newest version
 			self.assertEquals(1235911552, iface_cache.iface_cache._get_signature_date(iface.uri))
@@ -367,6 +367,8 @@ class TestDownload(BaseTest):
 					raise SystemExit(code)
 				# But, child download processes are OK
 				old_exit(code)
+			key_info = fetch.DEFAULT_KEY_LOOKUP_SERVER
+			fetch.DEFAULT_KEY_LOOKUP_SERVER = None
 			try:
 				try:
 					os._exit = my_exit
@@ -376,6 +378,7 @@ class TestDownload(BaseTest):
 					self.assertEquals(1, ex.code)
 			finally:
 				os._exit = old_exit
+				fetch.DEFAULT_KEY_LOOKUP_SERVER = key_info
 		finally:
 			sys.stdout = old_out
 		assert ran_gui

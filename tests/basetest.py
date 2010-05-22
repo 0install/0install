@@ -4,9 +4,6 @@ import unittest
 import logging
 import warnings
 
-# It's OK to test deprecated features
-warnings.filterwarnings("ignore", category = DeprecationWarning)
-
 # Catch silly mistakes...
 os.environ['HOME'] = '/home/idontexist'
 os.environ['LANGUAGE'] = 'C'
@@ -38,6 +35,7 @@ os.execvp = test_execvp
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):
+		warnings.resetwarnings()
 		self.config_home = tempfile.mktemp()
 		self.cache_home = tempfile.mktemp()
 		self.cache_system = tempfile.mktemp()

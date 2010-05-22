@@ -51,6 +51,7 @@ def handle_requests(*script):
 	# We are the child
 	try:
 		sys.stderr = sys.stdout
+		#sys.stdout = sys.stderr
 		print "Waiting for request"
 		global next_step
 		for next_step in script:

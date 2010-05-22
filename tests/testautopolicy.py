@@ -292,8 +292,8 @@ class TestAutoPolicy(BaseTest):
 		except NeedDownload, ex:
 			pass
 
-		iface = iface_cache.iface_cache.get_interface(foo_iface_uri)
-		iface._main_feed.feeds = [model.Feed('/BadFeed', None, False)]
+		feed = iface_cache.iface_cache.get_feed(foo_iface_uri)
+		feed.feeds = [model.Feed('/BadFeed', None, False)]
 
 		logger.setLevel(logging.ERROR)
 		policy.recalculate()	# Triggers warning

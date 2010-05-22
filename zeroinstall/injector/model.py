@@ -67,7 +67,7 @@ def _split_arch(arch):
 def _join_arch(osys, machine):
 	if osys == machine == None: return None
 	return "%s-%s" % (osys or '*', machine or '*')
-	
+
 class Stability(object):
 	"""A stability rating. Each implementation has an upstream stability rating and,
 	optionally, a user-set rating."""
@@ -78,10 +78,10 @@ class Stability(object):
 		self.description = description
 		assert name not in stability_levels
 		stability_levels[name] = self
-	
+
 	def __cmp__(self, other):
 		return cmp(self.level, other.level)
-	
+
 	def __str__(self):
 		return self.name
 
@@ -516,7 +516,7 @@ class Interface(object):
 	Implementations at this level or higher are preferred.
 	Lower levels are used only if there is no other choice.
 	"""
-	__slots__ = ['uri', 'stability_policy', '_main_feed', 'extra_feeds']
+	__slots__ = ['uri', 'stability_policy', 'extra_feeds']
 
 	implementations = property(lambda self: self._main_feed.implementations)
 	name = property(lambda self: self._main_feed.name)
@@ -546,12 +546,13 @@ class Interface(object):
 
 	def reset(self):
 		self.extra_feeds = []
-		self._main_feed = _dummy_feed
 		self.stability_policy = None
 
 	def get_name(self):
-		if self._main_feed is not _dummy_feed:
-			return self._main_feed.get_name()
+		from zeroinstall.injector.iface_cache import iface_cache
+		feed = iface_cache.get_feed(self.uri)
+		if feed:
+			return feed.get_name()
 		return '(' + os.path.basename(self.uri) + ')'
 	
 	def __repr__(self):
@@ -562,13 +563,26 @@ class Interface(object):
 		self.stability_policy = new
 	
 	def get_feed(self, url):
+		#import warnings
+		#warnings.warn("use iface_cache.get_feed instead", DeprecationWarning, 2)
 		for x in self.extra_feeds:
 			if x.uri == url:
 				return x
-		return self._main_feed.get_feed(url)
+		#return self._main_feed.get_feed(url)
+		return None
 	
 	def get_metadata(self, uri, name):
 		return self._main_feed.get_metadata(uri, name)
+
+	@property
+	def _main_feed(self):
+		#import warnings
+		#warnings.warn("use the feed instead", DeprecationWarning, 3)
+		from zeroinstall.injector.iface_cache import iface_cache
+		feed = iface_cache.get_feed(self.uri)
+		if feed is None:
+			return _dummy_feed
+		return feed
 
 def _merge_attrs(attrs, item):
 	"""Add each attribute of item to a copy of attrs and return the copy.

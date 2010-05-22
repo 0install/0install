@@ -173,7 +173,7 @@ class Policy(object):
 		else:
 			machine_ranks = arch.machine_ranks
 			
-		for f in iface.feeds:
+		for f in iface_cache.get_feed_imports(iface):
 			if f.os in arch.os_ranks and f.machine in machine_ranks:
 				yield f
 			else:
@@ -231,22 +231,10 @@ class Policy(object):
 		chosen."""
 		assert isinstance(interface, Interface)
 
-		if not interface.name and not interface.feeds:
-			raise SafeException(_("We don't have enough information to "
-					    "run this program yet. "
-					    "Need to download:\n%s") % interface.uri)
 		try:
 			return self.implementation[interface]
 		except KeyError, ex:
-			if interface.implementations:
-				offline = ""
-				if self.network_use == network_offline:
-					raise SafeException(_("No usable implementation found for '%s'.\n"
-							"This may be because 'Network Use' is set to Off-line.") %
-							interface.name)
-				raise SafeException(_("No usable implementation found for '%s'.") %
-						interface.name)
-			raise ex
+			raise SafeException(_("No usable implementation found for '%s'.") % interface.uri)
 
 	def get_cached(self, impl):
 		"""Check whether an implementation is available locally.
@@ -334,7 +322,6 @@ class Policy(object):
 					continue
 				if f.startswith('/'):
 					continue
-				feed = iface_cache.get_interface(f)
 				downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
 
 			if not downloads_in_progress:

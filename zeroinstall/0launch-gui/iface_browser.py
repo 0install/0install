@@ -426,7 +426,7 @@ class InterfaceBrowser:
 			# Is this interface the download's hint?
 			downloads = hints.get(iface, [])	# The interface itself	
 		     	downloads += hints.get(iface.uri, [])	# The main feed
-			for feed in iface.feeds:
+			for feed in self.policy.usable_feeds(iface):
 				downloads += hints.get(feed.uri, []) # Other feeds
 			impl = selections.get(iface, None)
 			if impl:

@@ -289,7 +289,13 @@ class SATSolver(Solver):
 			@rtype: generator(ZeroInstallFeed)"""
 			yield iface.uri
 
-			for f in iface.feeds:
+			# Note: we only look one level deep here. Maybe we should recurse further?
+			feeds = iface.extra_feeds
+			main_feed = self.iface_cache.get_feed(iface.uri)
+			if main_feed:
+				feeds = feeds + main_feed.feeds
+
+			for f in feeds:
 				# Note: when searching for src, None is not in machine_ranks
 				if f.os in arch.os_ranks and \
 				   (f.machine is None or f.machine in arch.machine_ranks):
@@ -312,8 +318,8 @@ class SATSolver(Solver):
 				debug(_("Processing feed %s"), f)
 
 				try:
-					feed = self.iface_cache.get_interface(f)._main_feed
-					if not feed.last_modified: continue	# DummyFeed
+					feed = self.iface_cache.get_feed(f)
+					if feed is None: continue
 					if feed.name and iface.uri != feed.url and iface.uri not in feed.feed_for:
 						info(_("Missing <feed-for> for '%(uri)s' in '%(feed)s'"), {'uri': iface.uri, 'feed': f})
 

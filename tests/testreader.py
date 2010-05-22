@@ -6,6 +6,7 @@ import unittest
 sys.path.insert(0, '..')
 
 from zeroinstall.injector import model, gpg, reader
+from zeroinstall.injector.iface_cache import iface_cache
 import data
 
 foo_iface_uri = 'http://foo'
@@ -73,7 +74,9 @@ class TestReader(BaseTest):
 		tmp.flush()
 		iface = model.Interface(foo_iface_uri)
 		reader.update(iface, tmp.name)
-		impl = iface.implementations['sha1=123']
+		feed = iface_cache.get_feed(foo_iface_uri)
+
+		impl = feed.implementations['sha1=123']
 		assert len(impl.dependencies) == 2
 		dep = impl.dependencies[bar_iface_uri]
 		assert len(dep.restrictions) == 1
@@ -111,7 +114,10 @@ class TestReader(BaseTest):
 		tmp.flush()
 		iface = model.Interface(foo_iface_uri)
 		reader.update(iface, tmp.name, local = True)
-		impl = iface.implementations['sha1=123']
+
+		feed = iface_cache.get_feed(foo_iface_uri)
+
+		impl = feed.implementations['sha1=123']
 
 		assert len(impl.bindings) == 1
 		self.assertEquals(model.EnvironmentBinding.REPLACE, impl.bindings[0].mode)
@@ -146,7 +152,8 @@ class TestReader(BaseTest):
 		tmp.flush()
 		iface = model.Interface(foo_iface_uri)
 		reader.update(iface, tmp.name)
-		impl = iface.implementations['sha1=123']
+		feed = iface_cache.get_feed(foo_iface_uri)
+		impl = feed.implementations['sha1=123']
 		assert impl.version == [[1, 0], -1, [3], -2]
 	
 	def testAbsMain(self):
@@ -190,14 +197,16 @@ class TestReader(BaseTest):
 		iface = model.Interface(foo_iface_uri)
 		reader.update(iface, tmp.name)
 
-		assert len(iface.implementations) == 2
+		feed = iface_cache.get_feed(foo_iface_uri)
 
-		assert iface.implementations['sha1=123'].metadata['foo'] == 'foovalue'
-		assert iface.implementations['sha1=123'].metadata['main'] == 'bin/sh'
-		assert iface.implementations['sha1=123'].metadata['http://bob bob'] == 'newbobvalue'
+		assert len(feed.implementations) == 2
 
-		assert iface.implementations['sha1=124'].metadata['http://bob bob'] == 'bobvalue'
-		assert iface.implementations['sha1=124'].metadata['main'] == 'next'
+		assert feed.implementations['sha1=123'].metadata['foo'] == 'foovalue'
+		assert feed.implementations['sha1=123'].metadata['main'] == 'bin/sh'
+		assert feed.implementations['sha1=123'].metadata['http://bob bob'] == 'newbobvalue'
+
+		assert feed.implementations['sha1=124'].metadata['http://bob bob'] == 'bobvalue'
+		assert feed.implementations['sha1=124'].metadata['main'] == 'next'
 	
 	def testNative(self):
 		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
@@ -215,16 +224,18 @@ class TestReader(BaseTest):
 		iface = model.Interface(foo_iface_uri)
 		reader.update(iface, tmp.name, True)
 
-		assert len(iface.implementations) == 2
+		feed = iface_cache.get_feed(foo_iface_uri)
 
-		impl = iface.implementations['package:deb:python-bittorrent:3.4.2-10']
+		assert len(feed.implementations) == 2
+
+		impl = feed.implementations['package:deb:python-bittorrent:3.4.2-10']
 		assert impl.id == 'package:deb:python-bittorrent:3.4.2-10'
 		assert impl.upstream_stability == model.packaged
 		assert impl.user_stability == None
 		assert impl.requires == []
 		assert impl.main == '/usr/bin/pbt'
 		assert impl.metadata['foo'] == 'bar'
-		assert impl.feed == iface._main_feed
+		assert impl.feed == feed
 	
 	def testLang(self):
 		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
@@ -245,17 +256,16 @@ class TestReader(BaseTest):
 </interface>""")
 		tmp.flush()
 
-		iface = model.Interface(foo_iface_uri)
-		reader.update(iface, tmp.name, True)
+		feed = reader.load_feed(tmp.name, local = True)
 
-		assert len(iface.implementations) == 3
-		assert len(iface.feeds) == 1, iface.feeds
+		assert len(feed.implementations) == 3
+		assert len(feed.feeds) == 1, feed.feeds
 
-		self.assertEquals('fr en_GB', iface.feeds[0].langs)
+		self.assertEquals('fr en_GB', feed.feeds[0].langs)
 
-		self.assertEquals('fr', iface.implementations['sha1=124'].langs)
-		self.assertEquals('fr en_GB', iface.implementations['sha1=234'].langs)
-		self.assertEquals('', iface.implementations['sha1=345'].langs)
+		self.assertEquals('fr', feed.implementations['sha1=124'].langs)
+		self.assertEquals('fr en_GB', feed.implementations['sha1=234'].langs)
+		self.assertEquals('', feed.implementations['sha1=345'].langs)
 	
 if __name__ == '__main__':
 	unittest.main()

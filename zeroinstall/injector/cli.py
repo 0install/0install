@@ -49,8 +49,7 @@ def _import_feed(args):
 		uri = doc.documentElement.getAttribute('uri')
 		if not uri:
 			raise SafeException(_("Missing 'uri' attribute on root element in '%s'") % x)
-		iface = iface_cache.get_interface(uri)
-		logging.info(_("Importing information about interface %s"), iface)
+		logging.info(_("Importing information about interface %s"), uri)
 		signed_data.seek(0)
 
 		pending = PendingFeed(uri, signed_data)
@@ -59,14 +58,14 @@ def _import_feed(args):
 			keys_downloaded = tasks.Task(pending.download_keys(handler), "download keys")
 			yield keys_downloaded.finished
 			tasks.check(keys_downloaded.finished)
-			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+			if not iface_cache.update_feed_if_trusted(uri, pending.sigs, pending.new_xml):
 				from zeroinstall.injector import fetch
 				fetcher = fetch.Fetcher(handler)
 				blocker = handler.confirm_keys(pending, fetcher.fetch_key_info)
 				if blocker:
 					yield blocker
 					tasks.check(blocker)
-				if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+				if not iface_cache.update_feed_if_trusted(uri, pending.sigs, pending.new_xml):
 					raise SafeException(_("No signing keys trusted; not importing"))
 
 		task = tasks.Task(run(), "import feed")
@@ -79,6 +78,13 @@ def _manage_feeds(options, args):
 	from zeroinstall.injector import writer
 	from zeroinstall.injector.handler import Handler
 	from zeroinstall.injector.policy import Policy
+
+	def find_feed_import(iface, feed_url):
+		for f in iface.extra_feeds:
+			if f.uri == feed_url:
+				return f
+		return None
+
 	handler = Handler(dry_run = options.dry_run)
 	if not args: raise UsageError()
 	for x in args:
@@ -97,8 +103,7 @@ def _manage_feeds(options, args):
 
 		interfaces = policy.get_feed_targets(x)
 		for i in range(len(interfaces)):
-			feed = interfaces[i].get_feed(x)
-			if feed:
+			if find_feed_import(interfaces[i], x):
 				print _("%(index)d) Remove as feed for '%(uri)s'") % {'index': i + 1, 'uri': interfaces[i].uri}
 			else:
 				print _("%(index)d) Add as feed for '%(uri)s'") % {'index': i + 1, 'uri': interfaces[i].uri}
@@ -120,15 +125,15 @@ def _manage_feeds(options, args):
 				break
 			print _("Invalid number. Try again. (1 to %d)") % len(interfaces)
 		iface = interfaces[i - 1]
-		feed = iface.get_feed(x)
-		if feed:
-			iface.extra_feeds.remove(feed)
+		feed_import = find_feed_import(iface, x)
+		if feed_import:
+			iface.extra_feeds.remove(feed_import)
 		else:
 			iface.extra_feeds.append(model.Feed(x, arch = None, user_override = True))
 		writer.save_interface(iface)
 		print '\n' + _("Feed list for interface '%s' is now:") % iface.get_name()
-		if iface.feeds:
-			for f in iface.feeds:
+		if iface.extra_feeds:
+			for f in iface.extra_feeds:
 				print "- " + f.uri
 		else:
 			print _("(no feeds)")

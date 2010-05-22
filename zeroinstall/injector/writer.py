@@ -30,6 +30,8 @@ def save_feed(feed):
 def save_interface(interface):
 	user_overrides = basedir.save_config_path(config_site, config_prog, 'user_overrides')
 
+	feed = iface_cache.get_feed(interface.uri)
+
 	impl = minidom.getDOMImplementation()
 	doc = impl.createDocument(XMLNS_IFACE, 'interface-preferences', None)
 
@@ -40,21 +42,22 @@ def save_interface(interface):
 	if interface.stability_policy:
 		root.setAttribute('stability-policy', str(interface.stability_policy))
 
-	if interface.last_checked:
-		root.setAttribute('last-checked', str(interface.last_checked))
+	if feed is not None:
+		if feed.last_checked:
+			root.setAttribute('last-checked', str(feed.last_checked))
 
-	impls = interface.implementations.values()
-	impls.sort()
-	for impl in impls:
-		_add_impl(root, impl)
-	
-	for feed in interface.extra_feeds:
-		if feed.user_override:
-			elem = doc.createElementNS(XMLNS_IFACE, 'feed')
-			root.appendChild(elem)
-			elem.setAttribute('src', feed.uri)
-			if feed.arch:
-				elem.setAttribute('arch', feed.arch)
+		impls = feed.implementations.values()
+		impls.sort()
+		for impl in impls:
+			_add_impl(root, impl)
+
+		for feed in interface.extra_feeds:
+			if feed.user_override:
+				elem = doc.createElementNS(XMLNS_IFACE, 'feed')
+				root.appendChild(elem)
+				elem.setAttribute('src', feed.uri)
+				if feed.arch:
+					elem.setAttribute('arch', feed.arch)
 
 	import tempfile
 	tmp_fd, tmp_name = tempfile.mkstemp(dir = user_overrides)

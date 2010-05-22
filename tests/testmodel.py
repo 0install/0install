@@ -7,7 +7,7 @@ import unittest
 from StringIO import StringIO
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import model, qdom
+from zeroinstall.injector import model, qdom, iface_cache
 
 class TestModel(BaseTest):
 	def testLevels(self):
@@ -78,18 +78,16 @@ class TestModel(BaseTest):
 		i = model.Interface('http://foo')
 		self.assertEquals('(foo)', i.get_name())
 		feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
-		i._main_feed = feed
-		self.assertEquals('Empty', i.get_name())
+		self.assertEquals('Empty', feed.get_name())
 		repr(i)
 
 	def testMetadata(self):
-		i = model.Interface('http://foo')
-		i._main_feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
+		main_feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
 		e = qdom.parse(StringIO('<ns:b xmlns:ns="a" foo="bar"/>'))
-		i._main_feed.metadata = [e]
-		assert i.get_metadata('a', 'b') == [e]
-		assert i.get_metadata('b', 'b') == []
-		assert i.get_metadata('a', 'a') == []
+		main_feed.metadata = [e]
+		assert main_feed.get_metadata('a', 'b') == [e]
+		assert main_feed.get_metadata('b', 'b') == []
+		assert main_feed.get_metadata('a', 'a') == []
 		assert e.getAttribute('foo') == 'bar'
 
 	def testStabPolicy(self):

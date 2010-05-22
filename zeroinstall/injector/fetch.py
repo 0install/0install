@@ -16,6 +16,7 @@ from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
 from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector import download
 
+DEFAULT_FEED_MIRROR = "http://roscidus.com/0mirror"
 DEFAULT_KEY_LOOKUP_SERVER = 'https://keylookup.appspot.com'
 
 def _escape_slashes(path):
@@ -95,7 +96,7 @@ class Fetcher(object):
 
 	def __init__(self, handler):
 		self.handler = handler
-		self.feed_mirror = "http://roscidus.com/0mirror"
+		self.feed_mirror = DEFAULT_FEED_MIRROR
 		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
 		self.key_info = {}
 
@@ -179,7 +180,7 @@ class Fetcher(object):
 				if primary.happened:
 					return		# OK, primary succeeded!
 				# OK, maybe it's just being slow...
-				info("Feed download from %s is taking a long time. Trying mirror too...", feed_url)
+				info("Feed download from %s is taking a long time.", feed_url)
 				primary_ex = None
 			except NoTrustedKeys, ex:
 				raise			# Don't bother trying the mirror if we have a trust problem
@@ -191,7 +192,7 @@ class Fetcher(object):
 				# Primary failed
 				primary = None
 				primary_ex = ex
-				warn(_("Trying mirror, as feed download from %(url)s failed: %(exception)s"), {'url': feed_url, 'exception': ex})
+				warn(_("Feed download from %(url)s failed: %(exception)s"), {'url': feed_url, 'exception': ex})
 
 			# Start downloading from mirror...
 			mirror = self._download_and_import_feed(feed_url, iface_cache, force, use_mirror = True)
@@ -245,6 +246,7 @@ class Fetcher(object):
 		if use_mirror:
 			url = self.get_feed_mirror(feed_url)
 			if url is None: return None
+			warn(_("Trying mirror server for feed %s") % feed_url)
 		else:
 			url = feed_url
 
@@ -268,13 +270,12 @@ class Fetcher(object):
 			yield keys_downloaded.finished
 			tasks.check(keys_downloaded.finished)
 
-			iface = iface_cache.get_interface(pending.url)
-			if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+			if not iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
 				blocker = self.handler.confirm_keys(pending, self.fetch_key_info)
 				if blocker:
 					yield blocker
 					tasks.check(blocker)
-				if not iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml):
+				if not iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
 					raise NoTrustedKeys(_("No signing keys trusted; not importing"))
 
 		task = fetch_feed()
@@ -303,7 +304,7 @@ class Fetcher(object):
 
 		if isinstance(retrieval_method, DistributionSource):
 			raise SafeException(_("This program depends on '%s', which is a package that is available through your distribution. "
-					"Please install it manually using your distributions tools and try again.") % retrieval_method.package_id)
+					"Please install it manually using your distribution's tools and try again.") % retrieval_method.package_id)
 
 		from zeroinstall.zerostore import manifest
 		best = None

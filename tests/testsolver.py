@@ -56,11 +56,15 @@ class TestSolver(BaseTest):
 		s.solve('http://foo/Binary.xml', arch.SourceArchitecture(binary_arch))
 		assert s.ready
 
+		foo_src_impls = iface_cache.get_feed(foo_src.uri).implementations
+		foo_impls = iface_cache.get_feed(foo.uri).implementations
+		compiler_impls = iface_cache.get_feed(compiler.uri).implementations
+
 		assert len(s.details) == 2
-		self.assertEquals([(foo_src._main_feed.implementations['sha1=234'], None),
-				   (foo._main_feed.implementations['sha1=123'], 'Unsupported machine type')],
+		self.assertEquals([(foo_src_impls['sha1=234'], None),
+				   (foo_impls['sha1=123'], 'Unsupported machine type')],
 				   sorted(s.details[foo]))
-		assert s.details[compiler] == [(compiler._main_feed.implementations['sha1=345'], None)]
+		assert s.details[compiler] == [(compiler_impls['sha1=345'], None)]
 
 	def testRecursive(self):
 		s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
@@ -73,8 +77,10 @@ class TestSolver(BaseTest):
 		s.solve('http://foo/Recursive.xml', binary_arch)
 		assert s.ready
 
+		foo_impls = iface_cache.get_feed(foo.uri).implementations
+
 		assert len(s.details) == 1
-		assert s.details[foo] == [(foo._main_feed.implementations['sha1=abc'], None)]
+		assert s.details[foo] == [(foo_impls['sha1=abc'], None)]
 		
 	def testMultiArch(self):
 		s = solver.DefaultSolver(model.network_full, iface_cache, Stores())

@@ -85,9 +85,9 @@ class BackgroundHandler(handler.Handler):
 				warn(_("Error getting network state: %s"), ex)
 		return _NetworkState.NM_STATE_UNKNOWN
 
-	def confirm_trust_keys(self, interface, sigs, iface_xml):
+	def confirm_import_feed(self, pending, valid_sigs):
 		"""Run the GUI if we need to confirm any keys."""
-		info(_("Can't update interface; signature not yet trusted. Running GUI..."))
+		info(_("Can't update feed; signature not yet trusted. Running GUI..."))
 		_exec_gui(self.root, '--refresh', '--download-only', '--systray')
 
 	def report_error(self, exception, tb = None):

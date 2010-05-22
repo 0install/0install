@@ -22,7 +22,7 @@ class TestIfaceCache(BaseTest):
 	def testCheckSigned(self):
 		trust.trust_db.trust_key(
 			'92429807C9853C0744A68B9AAE07828059A53CC1')
-		iface = iface_cache.get_interface('http://foo')
+		feed_url = 'http://foo'
 		src = tempfile.TemporaryFile()
 
 		# Unsigned
@@ -30,7 +30,7 @@ class TestIfaceCache(BaseTest):
 		src.flush()
 		src.seek(0)
 		try:
-			PendingFeed(iface.uri, src)
+			PendingFeed(feed_url, src)
 			assert 0
 		except model.SafeException:
 			pass
@@ -43,17 +43,19 @@ class TestIfaceCache(BaseTest):
 
 		# Signed
 		src.seek(0)
-		src.write(data.foo_signed)
+		src.write(data.foo_signed_xml)
 		src.flush()
 		src.seek(0)
 
-		pending = PendingFeed(iface.uri, src)
-		assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
+		pending = PendingFeed(feed_url, src)
+		assert iface_cache.update_feed_if_trusted(feed_url, pending.sigs, pending.new_xml)
 
 		self.assertEquals(['http://foo'],
 				iface_cache.list_all_interfaces())
 
-		self.assertEquals(1116788178,  iface.last_modified)
+		feed = iface_cache.get_feed(feed_url)
+
+		self.assertEquals(1154850229, feed.last_modified)
 
 	def testXMLupdate(self):
 		trust.trust_db.trust_key(
@@ -68,36 +70,36 @@ class TestIfaceCache(BaseTest):
 		src.write(data.foo_signed_xml)
 		src.seek(0)
 		pending = PendingFeed(iface.uri, src)
-		assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
+		assert iface_cache.update_feed_if_trusted(iface.uri, pending.sigs, pending.new_xml)
 
 		iface_cache.__init__()
-		iface = iface_cache.get_interface('http://foo')
-		assert iface.last_modified == 1154850229
+		feed = iface_cache.get_feed('http://foo')
+		assert feed.last_modified == 1154850229
 
 		# mtimes are unreliable because copying often changes them -
 		# check that we extract the time from the signature when upgrading
 		upstream_dir = basedir.save_cache_path(config_site, 'interfaces')
-		cached = os.path.join(upstream_dir, model.escape(iface.uri))
+		cached = os.path.join(upstream_dir, model.escape(feed.url))
 		os.utime(cached, None)
 
 		iface_cache.__init__()
-		iface = iface_cache.get_interface('http://foo')
-		assert iface.last_modified > 1154850229
+		feed = iface_cache.get_feed('http://foo')
+		assert feed.last_modified > 1154850229
 
 		src = tempfile.TemporaryFile()
 		src.write(data.new_foo_signed_xml)
 		src.seek(0)
 
-		pending = PendingFeed(iface.uri, src)
-		assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
+		pending = PendingFeed(feed.url, src)
+		assert iface_cache.update_feed_if_trusted(feed.url, pending.sigs, pending.new_xml)
 
 		# Can't 'update' to an older copy
 		src = tempfile.TemporaryFile()
 		src.write(data.foo_signed_xml)
 		src.seek(0)
 		try:
-			pending = PendingFeed(iface.uri, src)
-			assert iface_cache.update_interface_if_trusted(iface, pending.sigs, pending.new_xml)
+			pending = PendingFeed(feed.url, src)
+			assert iface_cache.update_feed_if_trusted(feed.url, pending.sigs, pending.new_xml)
 
 			assert 0
 		except model.SafeException:

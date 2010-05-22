@@ -35,22 +35,12 @@ def have_source_for(policy, interface):
 	# - We have a feed of type 'src' (not fetched), or
 	# - We have a source implementation in a regular feed
 	have_src = False
-	for f in interface.feeds:
+	for f in iface_cache.get_feed_imports(interface):
 		if f.machine == 'src':
 			return True
 	# Don't have any src feeds. Do we have a source implementation
 	# as part of a regular feed?
-	impls = interface.implementations.values()
-	for f in policy.usable_feeds(interface):
-		try:
-			feed_iface = iface_cache.get_interface(f.uri)
-			if feed_iface.implementations:
-				impls.extend(feed_iface.implementations.values())
-		except zeroinstall.NeedDownload:
-			pass	# OK, will get called again later
-		except Exception, ex:
-			warn(_("Failed to load feed '%(feed)s': %(exception)s"), {'feed': f.uri, 'exception': str(ex)})
-	for x in impls:
+	for x in iface_cache.get_implementations(interface):
 		if x.machine == 'src':
 			return True
 	return False
@@ -185,7 +175,7 @@ class Feeds:
 		def remove_feed(button):
 			model, iter = self.tv.get_selection().get_selected()
 			feed_uri = model[iter][Feeds.URI]
-			for x in interface.feeds:
+			for x in interface.extra_feeds:
 				if x.uri == feed_uri:
 					if x.user_override:
 						interface.extra_feeds.remove(x)
@@ -212,15 +202,14 @@ class Feeds:
 	
 	def build_model(self):
 		usable_feeds = frozenset(self.policy.usable_feeds(self.interface))
-		unusable_feeds = frozenset(self.interface.feeds) - usable_feeds
+		unusable_feeds = frozenset(iface_cache.get_feed_imports(self.interface)) - usable_feeds
 
 		out = [[self.interface.uri, None, True]]
 
-		if self.interface.feeds:
-			for feed in usable_feeds:
-				out.append([feed.uri, feed.arch, True])
-			for feed in unusable_feeds:
-				out.append([feed.uri, feed.arch, False])
+		for feed in usable_feeds:
+			out.append([feed.uri, feed.arch, True])
+		for feed in unusable_feeds:
+			out.append([feed.uri, feed.arch, False])
 		return out
 
 	def sel_changed(self, sel):
@@ -229,7 +218,7 @@ class Feeds:
 		feed_url = model[miter][Feeds.URI]
 		# Only enable removing user_override feeds
 		enable_remove = False
-		for x in self.interface.feeds:
+		for x in self.interface.extra_feeds:
 			if x.uri == feed_url:
 				if x.user_override:
 					enable_remove = True
@@ -402,7 +391,7 @@ def add_remote_feed(policy, parent, interface):
 						elif interface.uri not in iface.feed_for:
 							error(_("This is not a feed for '%(uri)s'.\nOnly for:\n%(feed_for)s") %
 								{'uri': interface.uri, 'feed_for': '\n'.join(iface.feed_for)})
-						elif iface.uri in [f.uri for f in interface.feeds]:
+						elif iface.uri in [f.uri for f in interface.extra_feeds]:
 							error(_("Feed from '%s' has already been added!") % iface.uri)
 						else:
 							interface.extra_feeds.append(Feed(iface.uri, arch = None, user_override = True))
@@ -429,7 +418,7 @@ def add_local_feed(policy, interface):
 				raise Exception(_("Not a valid feed for '%(uri)s'; this is a feed for:\n%(feed_for)s") %
 						{'uri': interface.uri,
 						'feed_for': '\n'.join([f.uri for f in feed_targets])})
-			if interface.get_feed(feed):
+			if feed in [f.uri for f in interface.extra_feeds]:
 				dialog.alert(None, _('This feed is already registered.'))
 			else:
 				interface.extra_feeds.append(Feed(feed, user_override = True, arch = None))

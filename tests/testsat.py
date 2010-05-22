@@ -78,6 +78,7 @@ class TestCache:
 	def __init__(self):
 		self.progs = {}
 		self.interfaces = {}
+		self.feeds = {}
 
 	def get_prog(self, prog):
 		if not prog in self.progs:
@@ -87,9 +88,14 @@ class TestCache:
 	def get_interface(self, uri):
 		if uri not in self.interfaces:
 			iface = model.Interface(uri)
-			iface._main_feed = self.progs[uri.rsplit('/', 1)[1]].build_feed()
 			self.interfaces[uri] = iface
 		return self.interfaces[uri]
+
+	def get_feed(self, url):
+		if url not in self.feeds:
+			feed = self.progs[url.rsplit('/', 1)[1]].build_feed()
+			self.feeds[url] = feed
+		return self.feeds[url]
 
 def assertSelection(expected, repo):
 	cache = TestCache()
