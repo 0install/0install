@@ -184,7 +184,7 @@ class ImplementationList:
 			else:
 				self.model[new][STABILITY] = _(str(item.upstream_stability) or str(model.testing))
 			self.model[new][ARCH] = item.arch or _('any')
-			if selected == item:
+			if selected is item:
 				self.model[new][WEIGHT] = pango.WEIGHT_BOLD
 			else:
 				self.model[new][WEIGHT] = pango.WEIGHT_NORMAL
