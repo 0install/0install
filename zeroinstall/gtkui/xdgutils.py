@@ -17,25 +17,29 @@ _template = """[Desktop Entry]
 # See the Zero Install project for details: http://0install.net
 Type=Application
 Version=1.0
-Name=%s
-Comment=%s
-Exec=0launch -- %s %%f
-Categories=Application;%s
+Name=%(name)s
+Comment=%(comment)s
+Exec=%(0launch)s -- %(iface)s %%f
+Categories=Application;%(category)s
 """
 
 _icon_template = """Icon=%s
 """
 
-def add_to_menu(iface, icon_path, category):
+def add_to_menu(iface, icon_path, category, zlaunch=None):
 	"""Write a .desktop file for this application.
 	@param iface: the program being added
 	@param icon_path: the path of the icon, or None
 	@param category: the freedesktop.org menu category"""
 	tmpdir = tempfile.mkdtemp(prefix = 'zero2desktop-')
 	try:
-		desktop_name = os.path.join(tmpdir, 'zeroinstall-%s.desktop' % iface.get_name().lower().replace(' ', ''))
+		desktop_name = os.path.join(tmpdir, 'zeroinstall-%s.desktop' % iface.get_name().lower().replace(os.sep, '-').replace(' ', ''))
 		desktop = file(desktop_name, 'w')
-		desktop.write(_template % (iface.get_name(), iface.summary, iface.uri, category))
+		desktop.write(_template % {'name': iface.get_name(),
+                                   'comment': iface.summary,
+                                   '0launch': zlaunch or '0launch',
+                                   'iface': iface.uri,
+                                   'category': category})
 		if icon_path:
 			desktop.write(_icon_template % icon_path)
 		if len(iface.get_metadata(namespaces.XMLNS_IFACE, 'needs-terminal')):
