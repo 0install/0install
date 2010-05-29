@@ -5,7 +5,7 @@ A dialog box for confirming GPG keys.
 # Copyright (C) 2009, Thomas Leonard
 # -*- coding: utf-8 -*-
 # See the README file for details, or visit http://0install.net.
-from zeroinstall import _
+from zeroinstall import _, translation
 
 import gtk
 from zeroinstall.injector.model import SafeException
@@ -147,7 +147,7 @@ class TrustBox(gtk.Dialog):
 			descriptions = [_('None')]
 		frame(vbox, _('Keys already approved for "%s"') % domain, '\n'.join(descriptions))
 
-		label = left(ngettext('This key signed the feed:', 'These keys signed the feed:', len(valid_sigs)))
+		label = left(translation.ngettext('This key signed the feed:', 'These keys signed the feed:', len(valid_sigs)))
 
 		label.set_padding(4, 4)
 		vbox.pack_start(label, False, True, 0)
