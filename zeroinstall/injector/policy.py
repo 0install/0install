@@ -73,7 +73,6 @@ class Policy(object):
 		@type src: bool
 		"""
 		self.watchers = []
-		self.freshness = 60 * 60 * 24 * 30
 		self.src = src				# Root impl must be a "src" machine type
 		self.stale_feeds = set()
 
@@ -91,18 +90,24 @@ class Policy(object):
 		debug(_("Supported systems: '%s'"), arch.os_ranks)
 		debug(_("Supported processors: '%s'"), arch.machine_ranks)
 
+		config = ConfigParser.ConfigParser()
+		config.add_section('global')
+		config.set('global', 'help_with_testing', 'False')
+		config.set('global', 'freshness', str(60 * 60 * 24 * 30))	# One month
+		config.set('global', 'network_use', 'full')
+
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
+			info("Loading configuration from %s", path)
 			try:
-				config = ConfigParser.ConfigParser()
 				config.read(path)
-				self.solver.help_with_testing = config.getboolean('global',
-								'help_with_testing')
-				self.solver.network_use = config.get('global', 'network_use')
-				self.freshness = int(config.get('global', 'freshness'))
-				assert self.solver.network_use in network_levels, self.solver.network_use
 			except Exception, ex:
 				warn(_("Error loading config: %s"), str(ex) or repr(ex))
+
+		self.solver.help_with_testing = config.getboolean('global', 'help_with_testing')
+		self.solver.network_use = config.get('global', 'network_use')
+		self.freshness = int(config.get('global', 'freshness'))
+		assert self.solver.network_use in network_levels, self.solver.network_use
 
 		self.set_root(root)
 
