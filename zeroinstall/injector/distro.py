@@ -277,8 +277,10 @@ class DebianDistribution(Distribution):
 		self.apt_cache = Cache('apt-cache-cache', pkgcache, 3)
 
 	def _query_installed_package(self, package):
+		null = os.open('/dev/null', os.O_WRONLY)
 		child = subprocess.Popen(["dpkg-query", "-W", "--showformat=${Version}\t${Architecture}\t${Status}\n", "--", package],
-						stdout = subprocess.PIPE)
+						stdout = subprocess.PIPE, stderr = null)
+		os.close(null)
 		stdout, stderr = child.communicate()
 		child.wait()
 		for line in stdout.split('\n'):
