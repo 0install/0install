@@ -34,18 +34,15 @@ def load_icon(icon_path, icon_width=None, icon_height=None):
 		loader.set_size(int(dest_width), int(dest_height))
 
 	# Restrict icon formats to avoid attacks
-	for format in ('png', 'svg'):
+	try:
+		loader = gtk.gdk.PixbufLoader(format)
+		if icon_width or icon_height:
+			loader.connect('size-prepared', size_prepared_cb)
 		try:
-			loader = gtk.gdk.PixbufLoader(format)
-			if icon_width or icon_height:
-				loader.connect('size-prepared', size_prepared_cb)
-			try:
-				loader.write(file(icon_path).read())
-			finally:
-				loader.close()
-			return loader.get_pixbuf()
-		except Exception, ex:
-			debug(_("Failed to load icon: %s") % ex)
-
-	warn(_("Failed to load cached icon"))
-	return None
+			loader.write(file(icon_path).read())
+		finally:
+			loader.close()
+		return loader.get_pixbuf()
+	except Exception, ex:
+		warn(_("Failed to load cached PNG icon: %s") % ex)
+		return None

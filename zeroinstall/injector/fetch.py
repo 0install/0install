@@ -376,8 +376,8 @@ class Fetcher(object):
 		# Find a suitable icon to download
 		for icon in interface.get_metadata(XMLNS_IFACE, 'icon'):
 			type = icon.getAttribute('type')
-			if type not in ('image/png', 'image/svg+xml', 'image/svg+xml-compressed'):
-				debug(_('MIME type %(mime_type)s is not permited for feed icons'), {'mime_type': type})
+			if type != 'image/png':
+				debug(_('Skipping non-PNG icon'))
 				continue
 			source = icon.getAttribute('href')
 			if source:
