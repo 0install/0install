@@ -76,6 +76,7 @@ class TestSelections(BaseTest):
 		s2 = selections.Selections(root)
 		local_path = s2.selections[iface].local_path
 		assert os.path.isdir(local_path), local_path
+		assert not s2.selections[iface].digests, s2.selections[iface].digests
 
 if __name__ == '__main__':
 	unittest.main()

@@ -4,7 +4,8 @@
   <name>Echo</name>
   <summary>Local feed</summary>
 
-  <implementation id="." main="test-echo" version="0.1">
+  <!-- ensure id isn't mis-interpreted as a digest -->
+  <implementation id="sha1=256" local-path='.' main="test-echo" version="0.1">
     <requires interface="odd" use="never"/>
   </implementation>
 </interface>
