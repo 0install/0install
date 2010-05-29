@@ -187,7 +187,7 @@ class IfaceCache(object):
 	
 	def update_interface_if_trusted(self, interface, sigs, xml):
 		import warnings
-		warnings.warn(_("Use update_feed_if_trusted instead"), DeprecationWarning, stacklevel = 2)
+		warnings.warn("Use update_feed_if_trusted instead", DeprecationWarning, stacklevel = 2)
 		return self.update_feed_if_trusted(interface.uri, sigs, xml)
 
 	def update_feed_if_trusted(self, feed_url, sigs, xml):
@@ -212,7 +212,7 @@ class IfaceCache(object):
 
 	def update_interface_from_network(self, interface, new_xml, modified_time):
 		import warnings
-		warnings.warn(_("Use update_feed_from_network instead"), DeprecationWarning, stacklevel = 2)
+		warnings.warn("Use update_feed_from_network instead", DeprecationWarning, stacklevel = 2)
 		self.update_feed_from_network(interface.uri, new_xml, modified_time)
 
 	def update_feed_from_network(self, feed_url, new_xml, modified_time):

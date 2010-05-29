@@ -167,7 +167,7 @@ class Handler(object):
 			# old-style class
 			from zeroinstall.injector import iface_cache
 			import warnings
-			warnings.warn(_("Should override confirm_import_feed(); using old confirm_trust_keys() for now"), DeprecationWarning, stacklevel = 2)
+			warnings.warn("Should override confirm_import_feed(); using old confirm_trust_keys() for now", DeprecationWarning, stacklevel = 2)
 
 			iface = iface_cache.iface_cache.get_interface(pending.url)
 			return self.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
@@ -286,7 +286,7 @@ class Handler(object):
 		@return: a blocker, if confirmation will happen asynchronously, or None
 		@rtype: L{tasks.Blocker}"""
 		import warnings
-		warnings.warn(_("Use confirm_keys, not confirm_trust_keys"), DeprecationWarning, stacklevel = 2)
+		warnings.warn("Use confirm_keys, not confirm_trust_keys", DeprecationWarning, stacklevel = 2)
 		from zeroinstall.injector import trust, gpg
 		assert sigs
 		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
