@@ -35,7 +35,7 @@ def load_icon(icon_path, icon_width=None, icon_height=None):
 
 	# Restrict icon formats to avoid attacks
 	try:
-		loader = gtk.gdk.PixbufLoader(format)
+		loader = gtk.gdk.PixbufLoader('png')
 		if icon_width or icon_height:
 			loader.connect('size-prepared', size_prepared_cb)
 		try:
