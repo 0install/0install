@@ -1,3 +1,8 @@
+"""
+Internal implementation of a SAT solver, used by L{solver.SATSolver}.
+This is not part of the public API.
+"""
+
 # Copyright (C) 2010, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
@@ -207,7 +212,7 @@ class VarInfo(object):
 	def name(self):
 		return str(self.obj)
 
-class Solver(object):
+class SATProblem(object):
 	def __init__(self):
 		# Propagation
 		self.watches = []		# watches[2i,2i+1] = constraints to check when literal[i] becomes True/False

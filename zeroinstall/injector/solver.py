@@ -213,7 +213,7 @@ class SATSolver(Solver):
 		# selects that.
 
 		feeds_added = set()
-		problem = sat.Solver()
+		problem = sat.SATProblem()
 
 		impl_to_var = {}	# Impl -> sat var
 		self.feeds_used = set()

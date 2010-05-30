@@ -1,5 +1,5 @@
 """
-Records who we trust to sign interfaces.
+Records who we trust to sign feeds.
 
 Trust is divided up into domains, so that it is possible to trust a key
 in some cases and not others.

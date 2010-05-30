@@ -202,6 +202,7 @@ class IfaceCache(object):
 		@type xml: str
 		@return: True if the feed was updated
 		@rtype: bool
+		@since: 0.48
 		"""
 		import trust
 		updated = self._oldest_trusted(sigs, trust.domain_from_url(feed_url))
@@ -228,6 +229,7 @@ class IfaceCache(object):
 		(used as an approximation to the feed's modification time)
 		@type modified_time: long
 		@raises ReplayAttack: if modified_time is older than the currently cached time
+		@since: 0.48
 		"""
 		debug(_("Updating '%(interface)s' from network; modified at %(time)s") %
 			{'interface': feed_url, 'time': _pretty_time(modified_time)})
@@ -427,7 +429,8 @@ class IfaceCache(object):
 		"""Get all feeds that add to this interface.
 		This is the feeds explicitly added by the user, feeds added by the distribution,
 		and feeds imported by a <feed> in the main feed (but not recursively, at present).
-		@rtype: L{Feed}"""
+		@rtype: L{Feed}
+		@since: 0.48"""
 		main_feed = self.get_feed(iface.uri)
 		if main_feed:
 			return iface.extra_feeds + main_feed.feeds
@@ -437,9 +440,10 @@ class IfaceCache(object):
 	def get_feeds(self, iface):
 		"""Get all feeds for this interface. This is a mapping from feed URLs
 		to ZeroInstallFeeds. It includes the interface's main feed, plus the
-		resolution of every feed returne by L{get_feed_imports}. Uncached
+		resolution of every feed returned by L{get_feed_imports}. Uncached
 		feeds are indicated by a value of None.
-		@rtype: {str: L{ZeroInstallFeed} | None}"""
+		@rtype: {str: L{ZeroInstallFeed} | None}
+		@since: 0.48"""
 		main_feed = self.get_feed(iface.uri)
 		results = {iface.uri: main_feed}
 		for imp in iface.extra_feeds:
@@ -451,7 +455,8 @@ class IfaceCache(object):
 
 	def get_implementations(self, iface):
 		"""Return all implementations from all of iface's feeds.
-		@rtype: [L{Implementation}]"""
+		@rtype: [L{Implementation}]
+		@since: 0.48"""
 		impls = []
 		for feed in self.get_feeds(iface).itervalues():
 			if feed:

@@ -145,7 +145,7 @@ class Restriction(object):
 	__slots__ = []
 
 	def meets_restriction(self, impl):
-		"""Called by the L{Solver} to check whether a particular implementation is acceptable.
+		"""Called by the L{solver.Solver} to check whether a particular implementation is acceptable.
 		@return: False if this implementation is not a possibility
 		@rtype: bool
 		"""

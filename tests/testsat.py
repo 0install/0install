@@ -7,9 +7,6 @@ sys.path.insert(0, '..')
 from zeroinstall.injector import model, arch, qdom
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 
-#from zeroinstall.injector.origsolver import DefaultSolver as Solver
-#from zeroinstall.injector.pbsolver import PBSolver as Solver
-#from zeroinstall.injector.sgsolver import DefaultSolver as Solver
 from zeroinstall.injector.solver import SATSolver as Solver
 from zeroinstall.injector import sat
 
@@ -254,7 +251,7 @@ class TestSAT(BaseTest):
 
 		# An at_most_one clause must be analysed for causing
 		# a conflict.
-		solver = sat.Solver()
+		solver = sat.SATProblem()
 		v1 = solver.add_variable("v1")
 		v2 = solver.add_variable("v2")
 		v3 = solver.add_variable("v3")
@@ -289,7 +286,7 @@ class TestSAT(BaseTest):
 		}, selected)
 	
 	def testWatch(self):
-		solver = sat.Solver()
+		solver = sat.SATProblem()
 
 		a = solver.add_variable('a')
 		b = solver.add_variable('b')

@@ -1,5 +1,5 @@
 """
-Parses an XML interface into a Python representation.
+Parses an XML feed into a Python representation. You should probably use L{iface_cache.iface_cache} rather than the functions here.
 """
 
 # Copyright (C) 2009, Thomas Leonard
@@ -40,7 +40,7 @@ def update_from_cache(interface):
 
 def load_feed_from_cache(url):
 	"""Load a feed. If the feed is remote, load from the cache. If local, load it directly.
-	@return the feed, or None if it's remote and not cached."""
+	@return: the feed, or None if it's remote and not cached."""
 	if url.startswith('/'):
 		debug(_("Loading local feed file '%s'"), url)
 		return load_feed(url, local = True)
@@ -169,7 +169,7 @@ def load_feed(source, local = False):
 	@raise InvalidInterface: if the source's syntax is incorrect
 	@return: the new feed
 	@since: 0.48
-	@see: L{iface_cache.get_feed}, which calls this"""
+	@see: L{iface_cache.iface_cache}, which uses this to load the feeds"""
 	try:
 		root = qdom.parse(file(source))
 	except IOError, ex:
