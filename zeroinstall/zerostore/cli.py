@@ -186,11 +186,6 @@ def do_audit(args):
 	if failures:
 		sys.exit(1)
 
-def show_changes(actual, saved):
-	import difflib
-	for line in difflib.unified_diff(saved, actual, 'Recorded', 'Actual'):
-		print line,
-
 def do_list(args):
 	"""list"""
 	if args: raise UsageError(_("List takes no arguments"))

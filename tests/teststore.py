@@ -3,11 +3,16 @@ from basetest import BaseTest
 import sys, tempfile, os
 from StringIO import StringIO
 import unittest
+import logging
+
+logger = logging.getLogger()
 
 sys.path.insert(0, '..')
 
-from zeroinstall.zerostore import Store, manifest, BadDigest, cli
+from zeroinstall.zerostore import Store, manifest, BadDigest, cli, NotStored
 from zeroinstall import SafeException, support
+
+mydir = os.path.dirname(__file__)
 
 class TestStore(BaseTest):
 	def setUp(self):
@@ -26,6 +31,8 @@ class TestStore(BaseTest):
 
 		support.ro_rmtree(self.store_parent)
 		support.ro_rmtree(self.tmp)
+
+		cli.stores = None
 	
 	def testInit(self):
 		assert os.path.isdir(self.store.dir)
@@ -97,6 +104,108 @@ class TestStore(BaseTest):
 		os.symlink('/the/symlink/target',
 			   os.path.join(target, 'a symlink'))
 	
+	def testAdd(self):
+		sample = os.path.join(self.tmp, 'sample')
+		os.mkdir(sample)
+		self.populate_sample(sample)
+		cli.init_stores()
+		digest = 'sha1new=7e3eb25a072988f164bae24d33af69c1814eb99a'
+		try:
+			cli.stores.lookup(digest)
+			assert False
+		except NotStored:
+			pass
+
+		logger.setLevel(logging.ERROR)
+		try:
+			cli.do_add([digest + "b", sample])
+			assert False
+		except BadDigest:
+			pass
+		logger.setLevel(logging.WARN)
+
+		old_stdout = sys.stdout
+
+		cli.do_add([digest, sample])
+		sys.stdout = StringIO()
+		try:
+			cli.do_find([digest])
+			assert False
+		except SystemExit, ex:
+			assert ex.code == 0
+		cached = sys.stdout.getvalue().strip()
+		assert cached == cli.stores.lookup(digest)
+
+		for alg in [[], ['sha1new']]:
+			sys.stdout = StringIO()
+			try:
+				cli.do_manifest([cached] + alg)
+				assert False
+			except SystemExit, ex:
+				assert ex.code == 0
+			result = sys.stdout.getvalue()
+			assert 'MyFile' in result
+			assert result.split('\n')[-2] == digest
+
+		# Verify...
+		sys.stdout = StringIO()
+		cli.do_verify([cached, digest])
+		cli.do_verify([cached])
+		cli.do_verify([digest])
+
+		# Full audit
+		cli.do_audit([os.path.dirname(cached)])
+
+		# Corrupt it...
+		os.chmod(cached, 0700)
+		open(os.path.join(cached, 'hacked'), 'w').close()
+
+		# Verify again...
+		sys.stdout = StringIO()
+		try:
+			cli.do_verify([cached, digest])
+			assert False
+		except SystemExit, ex:
+			assert ex.code == 1
+			result = sys.stdout.getvalue()
+			sys.stdout = old_stdout
+			assert 'Cached item does NOT verify' in result
+
+		# Full audit
+		sys.stdout = StringIO()
+		try:
+			cli.do_audit([os.path.dirname(cached)])
+		except SystemExit, ex:
+			assert ex.code == 1
+			result = sys.stdout.getvalue()
+			sys.stdout = old_stdout
+			assert 'Cached item does NOT verify' in result
+
+	def testList(self):
+		cli.init_stores()
+
+		old_stdout = sys.stdout
+		sys.stdout = StringIO()
+		cli.do_list([])
+		result = sys.stdout.getvalue()
+		assert 'User store' in result
+
+		sys.stdout = old_stdout
+
+	def testAddArchive(self):
+		cli.init_stores()
+		digest = 'sha1new=290eb133e146635fe37713fd58174324a16d595f'
+
+		try:
+			cli.stores.lookup(digest)
+			assert False
+		except NotStored:
+			pass
+
+		cli.do_add([digest, os.path.join(mydir, 'HelloWorld.tgz')])
+		cli.do_add([digest, os.path.join(mydir, 'HelloWorld.tgz')])
+		cli.stores.lookup(digest)
+
 	def testOptimise(self):
 		sample = os.path.join(self.tmp, 'sample')
 		os.mkdir(sample)
