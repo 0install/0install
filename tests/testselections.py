@@ -78,5 +78,22 @@ class TestSelections(BaseTest):
 		assert os.path.isdir(local_path), local_path
 		assert not s2.selections[iface].digests, s2.selections[iface].digests
 
+		feed = iface_cache.iface_cache.get_feed(iface)
+		impl = model.ZeroInstallImplementation(feed, "foo bar=123", local_path = None)
+		impl.version = model.parse_version('1.0')
+		impl.add_download_source('http://localhost/bar.tgz', 1000, None)
+		feed.implementations = {impl.id: impl}
+		p.recalculate()
+		assert p.ready
+		s1 = selections.Selections(p)
+		xml = s1.toDOM().toxml("utf-8")
+		root = qdom.parse(StringIO(xml))
+		s2 = selections.Selections(root)
+		xml = s2.toDOM().toxml("utf-8")
+		qdom.parse(StringIO(xml))
+		assert s2.selections[iface].local_path is None
+		assert not s2.selections[iface].digests, s2.selections[iface].digests
+		assert s2.selections[iface].id == 'foo bar=123'
+
 if __name__ == '__main__':
 	unittest.main()

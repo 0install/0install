@@ -132,9 +132,10 @@ class Selections(object):
 			# For backwards compatibility, allow getting the digest from the ID
 			sel_id = selection.attrs['id']
 			local_path = selection.attrs.get("local-path", None)
-			if (not digests and not local_path) and '=' in sel_id and not sel_id[0] in "./":
-				assert not sel_id.startswith('.'), sel_id
-				digests.append(sel_id)
+			if (not digests and not local_path) and '=' in sel_id:
+				alg = sel_id.split('=', 1)[0]
+				if alg in ('sha1', 'sha1new', 'sha256'):
+					digests.append(sel_id)
 
 			s = Selection(requires, bindings, selection.attrs, digests)
 			self.selections[selection.attrs['interface']] = s
