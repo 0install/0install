@@ -14,7 +14,7 @@ well-known variables.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os, re
+import os, re, locale
 from logging import info, debug, warn
 from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
@@ -665,6 +665,17 @@ class ZeroInstallFeed(object):
 							"You can get a newer version from http://0install.net") %
 							{'min_version': min_injector_version, 'version': version})
 
+		def language_matches(nodelang):
+			(language, encoding) = locale.getlocale(locale.LC_MESSAGES)
+			if nodelang == None:
+				return True
+			if language == None:
+				return False
+			if nodelang.find('_') != -1:
+				return nodelang == language
+			else:
+				return language.startswith(nodelang + "_")
+
 		for x in feed_element.childNodes:
 			if x.uri != XMLNS_IFACE:
 				self.metadata.append(x)
@@ -672,9 +683,13 @@ class ZeroInstallFeed(object):
 			if x.name == 'name':
 				self.name = x.content
 			elif x.name == 'description':
-				self.description = x.content
+				lang = x.attrs.get("http://www.w3.org/XML/1998/namespace lang", None)
+				if language_matches(lang):
+					self.description = x.content
 			elif x.name == 'summary':
-				self.summary = x.content
+				lang = x.attrs.get("http://www.w3.org/XML/1998/namespace lang", None)
+				if language_matches(lang):
+					self.summary = x.content
 			elif x.name == 'feed-for':
 				feed_iface = x.getAttribute('interface')
 				if not feed_iface:
