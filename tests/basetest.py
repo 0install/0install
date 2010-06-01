@@ -10,7 +10,7 @@ os.environ['LANGUAGE'] = 'C'
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import qdom
-from zeroinstall.injector import iface_cache, download, distro
+from zeroinstall.injector import iface_cache, download, distro, model
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
 from zeroinstall import support, helpers
 from zeroinstall.support import basedir
@@ -32,6 +32,14 @@ def test_execvp(prog, args):
 	return old_execvp(prog, args)
 
 os.execvp = test_execvp
+
+test_locale = (None, None)
+assert model.locale
+class TestLocale:
+	LC_MESSAGES = 0
+	def getlocale(self, x):
+		return test_locale
+model.locale = TestLocale()
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):

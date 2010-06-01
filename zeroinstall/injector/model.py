@@ -68,6 +68,12 @@ def _join_arch(osys, machine):
 	if osys == machine == None: return None
 	return "%s-%s" % (osys or '*', machine or '*')
 
+def _best_language_match(options):
+	(language, encoding) = locale.getlocale(locale.LC_MESSAGES)
+	return (options.get(language, None) or
+		options.get(language.split('_', 1)[0], None) or
+		options.get(None, None))
+
 class Stability(object):
 	"""A stability rating. Each implementation has an upstream stability rating and,
 	optionally, a user-set rating."""
@@ -610,8 +616,10 @@ class ZeroInstallFeed(object):
 	@ivar implementations: Implementations in this feed, indexed by ID
 	@type implementations: {str: L{Implementation}}
 	@ivar name: human-friendly name
-	@ivar summary: short textual description
-	@ivar description: long textual description
+	@ivar summaries: short textual description (in various languages, since 0.49)
+	@type summaries: {str: str}
+	@ivar descriptions: long textual description (in various languages, since 0.49)
+	@type descriptions: {str: str}
 	@ivar last_modified: timestamp on signature
 	@ivar last_checked: time feed was last successfully downloaded and updated
 	@ivar feeds: list of <feed> elements in this feed
@@ -621,7 +629,7 @@ class ZeroInstallFeed(object):
 	@ivar metadata: extra elements we didn't understand
 	"""
 	# _main is deprecated
-	__slots__ = ['url', 'implementations', 'name', 'description', 'summary',
+	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'summaries',
 		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata']
 
 	def __init__(self, feed_element, local_path = None, distro = None):
@@ -634,8 +642,8 @@ class ZeroInstallFeed(object):
 		assert feed_element
 		self.implementations = {}
 		self.name = None
-		self.summary = None
-		self.description = ""
+		self.summaries = {}	# { lang: str }
+		self.descriptions = {}	# { lang: str }
 		self.last_modified = None
 		self.feeds = []
 		self.feed_for = set()
@@ -665,17 +673,6 @@ class ZeroInstallFeed(object):
 							"You can get a newer version from http://0install.net") %
 							{'min_version': min_injector_version, 'version': version})
 
-		def language_matches(nodelang):
-			(language, encoding) = locale.getlocale(locale.LC_MESSAGES)
-			if nodelang == None:
-				return True
-			if language == None:
-				return False
-			if nodelang.find('_') != -1:
-				return nodelang == language
-			else:
-				return language.startswith(nodelang + "_")
-
 		for x in feed_element.childNodes:
 			if x.uri != XMLNS_IFACE:
 				self.metadata.append(x)
@@ -683,13 +680,9 @@ class ZeroInstallFeed(object):
 			if x.name == 'name':
 				self.name = x.content
 			elif x.name == 'description':
-				lang = x.attrs.get("http://www.w3.org/XML/1998/namespace lang", None)
-				if language_matches(lang):
-					self.description = x.content
+				self.descriptions[x.attrs.get("http://www.w3.org/XML/1998/namespace lang", None)] = x.content
 			elif x.name == 'summary':
-				lang = x.attrs.get("http://www.w3.org/XML/1998/namespace lang", None)
-				if language_matches(lang):
-					self.summary = x.content
+				self.summaries[x.attrs.get("http://www.w3.org/XML/1998/namespace lang", None)] = x.content
 			elif x.name == 'feed-for':
 				feed_iface = x.getAttribute('interface')
 				if not feed_iface:
@@ -926,6 +919,14 @@ class ZeroInstallFeed(object):
 	def get_metadata(self, uri, name):
 		"""Return a list of interface metadata elements with this name and namespace URI."""
 		return [m for m in self.metadata if m.name == name and m.uri == uri]
+
+	@property
+	def summary(self):
+		return _best_language_match(self.summaries)
+
+	@property
+	def description(self):
+		return _best_language_match(self.descriptions)
 
 class DummyFeed(object):
 	"""Temporary class used during API transition."""

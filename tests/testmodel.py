@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import basetest
 from basetest import BaseTest, empty_feed
-import sys
+import sys, os, locale
 from xml.dom import minidom
 import unittest
 from StringIO import StringIO
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import model, qdom, iface_cache
+
+mydir = os.path.dirname(__file__)
 
 class TestModel(BaseTest):
 	def testLevels(self):
@@ -90,12 +93,35 @@ class TestModel(BaseTest):
 		assert main_feed.get_metadata('a', 'a') == []
 		assert e.getAttribute('foo') == 'bar'
 
+	def testLocale(self):
+		local_path = os.path.join(mydir, 'Local.xml')
+		dom = qdom.parse(open(local_path))
+		feed = model.ZeroInstallFeed(dom, local_path = local_path)
+		self.assertEquals("Local feed", feed.summary)
+		self.assertEquals("English", feed.description)
+
+		self.assertEquals(4, len(feed.summaries))
+		self.assertEquals(2, len(feed.descriptions))
+
+		try:
+			basetest.test_locale = ('es_ES', 'UTF8')
+
+			self.assertEquals("Fuente local", feed.summary)
+			self.assertEquals(u"Español", feed.description)
+
+			basetest.test_locale = ('fr_FR', 'UTF8')
+
+			self.assertEquals("Local feed", feed.summary)
+			self.assertEquals("English", feed.description)
+		finally:
+			basetest.test_locale = (None, None)
+
 	def testStabPolicy(self):
 		i = model.Interface('http://foo')
 		self.assertEquals(None, i.stability_policy)
 		i.set_stability_policy(model.buggy)
 		self.assertEquals(model.buggy, i.stability_policy)
-	
+
 	def testImpl(self):
 		i = model.Interface('http://foo')
 		a = model.ZeroInstallImplementation(i, 'foo', None)
