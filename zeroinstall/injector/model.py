@@ -243,9 +243,9 @@ class EnvironmentBinding(Binding):
 		if old_value is None:
 			return extra
 		if self.mode == EnvironmentBinding.PREPEND:
-			return extra + ':' + old_value
+			return extra + os.pathsep + old_value
 		else:
-			return old_value + ':' + extra
+			return old_value + os.pathsep + extra
 
 	def _toxml(self, doc):
 		"""Create a DOM element for this binding.
