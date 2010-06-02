@@ -37,23 +37,38 @@ else:
 			del old_home
 			del home_owner
 
-xdg_data_home = os.environ.get('XDG_DATA_HOME',
-			os.path.join(home, '.local', 'share'))
+if os.name == "nt":
+	from win32com.shell import shell, shellcon
+	appData = shell.SHGetFolderPath(0, shellcon.CSIDL_APPDATA, 0, 0)
+	localAppData = shell.SHGetFolderPath(0, shellcon.CSIDL_LOCAL_APPDATA, 0, 0)
+	commonAppData = shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0)
 
-xdg_data_dirs = [xdg_data_home] + \
-	os.environ.get('XDG_DATA_DIRS', '/usr/local/share:/usr/share').split(':')
+	xdg_data_home = appData
+	xdg_data_dirs = [xdg_data_home, commonAppData]
 
-xdg_cache_home = os.environ.get('XDG_CACHE_HOME',
-			os.path.join(home, '.cache'))
+	xdg_cache_home = localAppData
+	xdg_cache_dirs = [xdg_cache_home, commonAppData]
 
-xdg_cache_dirs = [xdg_cache_home] + \
-	os.environ.get('XDG_CACHE_DIRS', '/var/cache').split(':')
+	xdg_config_home = appData
+	xdg_config_dirs = [xdg_config_home, commonAppData]
+else:
+	xdg_data_home = os.environ.get('XDG_DATA_HOME',
+				os.path.join(home, '.local', 'share'))
 
-xdg_config_home = os.environ.get('XDG_CONFIG_HOME',
-			os.path.join(home, '.config'))
+	xdg_data_dirs = [xdg_data_home] + \
+		os.environ.get('XDG_DATA_DIRS', '/usr/local/share:/usr/share').split(':')
 
-xdg_config_dirs = [xdg_config_home] + \
-	os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(':')
+	xdg_cache_home = os.environ.get('XDG_CACHE_HOME',
+				os.path.join(home, '.cache'))
+
+	xdg_cache_dirs = [xdg_cache_home] + \
+		os.environ.get('XDG_CACHE_DIRS', '/var/cache').split(':')
+
+	xdg_config_home = os.environ.get('XDG_CONFIG_HOME',
+				os.path.join(home, '.config'))
+
+	xdg_config_dirs = [xdg_config_home] + \
+		os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(':')
 
 xdg_data_dirs = filter(lambda x: x, xdg_data_dirs)
 xdg_cache_dirs = filter(lambda x: x, xdg_cache_dirs)
@@ -65,7 +80,7 @@ def save_config_path(*resource):
 	when SAVING configuration settings. Use the xdg_config_dirs variable
 	for loading."""
 	resource = os.path.join(*resource)
-	assert not resource.startswith('/')
+	assert not os.path.isabs(resource)
 	path = os.path.join(xdg_config_home, resource)
 	if not os.path.isdir(path):
 		os.makedirs(path, 0700)
@@ -91,7 +106,7 @@ def save_cache_path(*resource):
 	"""Ensure $XDG_CACHE_HOME/<resource>/ exists, and return its path.
 	'resource' should normally be the name of your application."""
 	resource = os.path.join(*resource)
-	assert not resource.startswith('/')
+	assert not os.path.isabs(resource)
 	path = os.path.join(xdg_cache_home, resource)
 	if not os.path.isdir(path):
 		os.makedirs(path, 0700)
