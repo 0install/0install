@@ -20,6 +20,8 @@ better, Unsupported architectures are not listed at all.
 from zeroinstall import _
 import os
 
+# TODO: "import platform"?
+
 # os_ranks and mapping are mappings from names to how good they are.
 # 1 => Native (best)
 # Higher numbers are worse but usable.

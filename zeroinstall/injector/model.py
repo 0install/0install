@@ -69,7 +69,7 @@ def _join_arch(osys, machine):
 	return "%s-%s" % (osys or '*', machine or '*')
 
 def _best_language_match(options):
-	(language, encoding) = locale.getlocale(locale.LC_MESSAGES)
+	(language, encoding) = locale.getlocale(locale.LC_ALL)
 	return (options.get(language, None) or
 		options.get(language.split('_', 1)[0], None) or
 		options.get(None, None))

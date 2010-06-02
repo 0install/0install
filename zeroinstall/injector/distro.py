@@ -7,7 +7,7 @@ Integration with native distribution package managers.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os, re, glob, subprocess, sys
+import os, platform, re, glob, subprocess, sys
 from logging import warn, info
 from zeroinstall.injector import namespaces, model, arch
 from zeroinstall.support import basedir
@@ -259,7 +259,7 @@ _canonical_machine = {
 	'ppc': 'ppc',
 }
 
-host_machine = arch.canonicalize_machine(os.uname()[-1])
+host_machine = arch.canonicalize_machine(platform.uname()[4])
 def canonical_machine(package_machine):
 	machine = _canonical_machine.get(package_machine, None)
 	if machine is None:
