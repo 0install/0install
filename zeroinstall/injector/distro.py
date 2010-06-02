@@ -481,21 +481,24 @@ class PortsDistribution(Distribution):
 		self._pkgdir = pkgdir
 
 	def get_package_info(self, package, factory):
-		_version_start_reqexp = '-[0-9]'
+		_name_version_regexp = '^(.+)-([^-]+)$'
 
+		nameversion = re.compile(_name_version_regexp)
 		for pkgname in os.listdir(self._pkgdir):
 			pkgdir = os.path.join(self._pkgdir, pkgname)
 			if not os.path.isdir(pkgdir): continue
 
 			#contents = file(os.path.join(pkgdir, '+CONTENTS')).readline().strip()
 
-			match = re.search(_version_start_reqexp, pkgname)
+			match = nameversion.search(pkgname)
 			if match is None:
-				warn(_('Cannot parse version from Ports package named "%(pkgname)s"'), {'name': pkgname})
+				warn(_('Cannot parse version from Ports package named "%(pkgname)s"'), {'pkgname': pkgname})
 				continue
 			else:
-				name = pkgname[0:match.start()]
-				version = try_cleanup_distro_version(pkgname[match.start() + 1:])
+				name = match.group(1)
+				if name != package:
+					continue
+				version = try_cleanup_distro_version(match.group(2))
 
 			machine = host_machine
 
