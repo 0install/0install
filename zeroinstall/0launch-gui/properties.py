@@ -286,7 +286,7 @@ class Properties:
 			if i == 0:
 				new_stability = None
 			else:
-				name = stability.get_model()[i][0].lower()
+				name = ['stable', 'testing', 'developer'][i-1]
 				new_stability = stability_levels[name]
 			interface.set_stability_policy(new_stability)
 			writer.save_interface(interface)
