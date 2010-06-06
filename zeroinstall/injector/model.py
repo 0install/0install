@@ -770,7 +770,7 @@ class ZeroInstallFeed(object):
 					# In older feeds, the ID was the (single) digest
 					impl.digests.append(id)
 			if id in self.implementations:
-				warn(_("Duplicate ID '%s' in feed '%s'"), id, self)
+				warn(_("Duplicate ID '%(id)s' in feed '%(feed)s'"), {'id': id, 'feed': self})
 			self.implementations[id] = impl
 
 			impl.metadata = item_attrs

@@ -111,7 +111,7 @@ class MainWindow:
 				uncached = None		# (we don't care)
 
 			if uncached:
-				missing = '\n- '.join([_('%s %s') % (iface.get_name(), impl.get_version()) for iface, impl in uncached])
+				missing = '\n- '.join([_('%(iface_name)s %(impl_version)s') % {'iface_name': iface.get_name(), 'impl_version': impl.get_version()} for iface, impl in uncached])
 				dialog.alert(self.window, _('Not all downloads succeeded; cannot run program.\n\nFailed to get:') + '\n- ' + missing)
 			else:
 				from zeroinstall.injector import selections
