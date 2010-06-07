@@ -41,7 +41,7 @@ def update_from_cache(interface):
 def load_feed_from_cache(url):
 	"""Load a feed. If the feed is remote, load from the cache. If local, load it directly.
 	@return: the feed, or None if it's remote and not cached."""
-	if url.startswith('/'):
+	if os.path.isabs(url):
 		debug(_("Loading local feed file '%s'"), url)
 		return load_feed(url, local = True)
 	else:
@@ -86,7 +86,7 @@ def update_user_overrides(interface, main_feed = None):
 		if item.name == 'implementation':
 			id = item.getAttribute('id')
 			assert id is not None
-			if not (id.startswith('/') or id.startswith('.') or id.startswith('package:')):
+			if not (os.path.isabs(id) or id.startswith('.') or id.startswith('package:')):
 				assert '=' in id
 			if main_feed:
 				impl = main_feed.implementations.get(id, None)

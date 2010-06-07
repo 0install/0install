@@ -536,7 +536,7 @@ class Interface(object):
 
 	def __init__(self, uri):
 		assert uri
-		if uri.startswith('http:') or uri.startswith('https:') or uri.startswith('/'):
+		if uri.startswith('http:') or uri.startswith('https:') or os.path.isabs(uri):
 			self.uri = uri
 		else:
 			raise SafeException(_("Interface name '%s' doesn't start "

@@ -27,7 +27,7 @@ class TestManifest(BaseTest):
 			'\n'.join(manifest.generate_manifest(self.tmpdir)))
 	
 	def write(self, path, contents, time = None):
-		assert not path.startswith('/')
+		assert not os.path.isabs(path)
 		myfile = os.path.join(self.tmpdir, path)
 		stream = file(myfile, 'w')
 		stream.write(contents)

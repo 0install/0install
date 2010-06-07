@@ -374,7 +374,7 @@ class IfaceCache(object):
 		@rtype: [L{gpg.Signature}] or None
 		@since: 0.25"""
 		import gpg
-		if uri.startswith('/'):
+		if os.path.isabs(uri):
 			old_iface = uri
 		else:
 			old_iface = basedir.load_first_cache(config_site, 'interfaces', escape(uri))
@@ -407,7 +407,7 @@ class IfaceCache(object):
 		If url is a local path, nothing happens.
 		This prevents us from repeatedly trying to download a failing feed many
 		times in a short period."""
-		if url.startswith('/'):
+		if os.path.isabs(url):
 			return
 		feeds_dir = basedir.save_cache_path(config_site, config_prog, 'last-check-attempt')
 		timestamp_path = os.path.join(feeds_dir, model._pretty_escape(url))

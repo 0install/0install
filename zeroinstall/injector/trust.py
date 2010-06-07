@@ -155,7 +155,7 @@ def domain_from_url(url):
 	@raise SafeException: the URL can't be parsed"""
 	import urlparse
 	from zeroinstall import SafeException
-	if url.startswith('/'):
+	if os.path.isabs(url):
 		raise SafeException(_("Can't get domain from a local path: '%s'") % url)
 	domain = urlparse.urlparse(url)[1]
 	if domain and domain != '*':

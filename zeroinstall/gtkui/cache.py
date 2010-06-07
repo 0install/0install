@@ -83,7 +83,7 @@ class CachedInterface(object):
 		self.size = size
 
 	def delete(self):
-		if not self.uri.startswith('/'):
+		if not os.path.isabs(self.uri):
 			cached_iface = basedir.load_first_cache(namespaces.config_site,
 					'interfaces', model.escape(self.uri))
 			if cached_iface:
@@ -346,7 +346,7 @@ class CacheExplorer:
 		for uri in all:
 			iface_size = 0
 			try:
-				if uri.startswith('/'):
+				if os.path.isabs(uri):
 					cached_iface = uri
 				else:
 					cached_iface = basedir.load_first_cache(namespaces.config_site,

@@ -2,6 +2,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import zeroinstall
+import os
 from zeroinstall.support import tasks
 from zeroinstall.injector.model import Interface, Feed, stable, testing, developer, stability_levels
 from zeroinstall.injector.iface_cache import iface_cache
@@ -138,7 +139,7 @@ class Description:
 					buffer.insert_with_tags(iter, _('Valid signature by "%(name)s"\n- Dated: %(sig_date)s\n- Fingerprint: %(sig_fingerprint)s\n') %
 							{'name': name, 'sig_date': time.strftime('%c', time.localtime(sig.get_timestamp())), 'sig_fingerprint': sig.fingerprint})
 					if not sig.is_trusted():
-						if feed.url.startswith('/'):
+						if os.path.isabs(feed.url):
 							buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list') + '\n')
 						else:
 							buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list (either you removed it, or '

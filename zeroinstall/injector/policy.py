@@ -154,7 +154,7 @@ class Policy(object):
 
 		blockers = []
 		for f in self.solver.feeds_used:
-			if f.startswith('/'): continue
+			if os.path.isabs(f): continue
 			feed = iface_cache.get_feed(f)
 			if feed is None or feed.last_modified is None:
 				self.download_and_import_feed_if_online(f)	# Will start a download
@@ -191,7 +191,7 @@ class Policy(object):
 		@return: true if feed is stale or missing."""
 		if feed is None:
 			return True
-		if feed.url.startswith('/'):
+		if os.path.isabs(feed.url):
 			return False		# Local feeds are never stale
 		if feed.last_modified is None:
 			return True		# Don't even have it yet
@@ -325,7 +325,7 @@ class Policy(object):
 			for f in self.solver.feeds_used:
 				if f in downloads_finished or f in downloads_in_progress:
 					continue
-				if f.startswith('/'):
+				if os.path.isabs(f):
 					continue
 				downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
 

@@ -163,7 +163,7 @@ class Fetcher(object):
 		from download import DownloadAborted
 		
 		debug(_("download_and_import_feed %(url)s (force = %(force)d)"), {'url': feed_url, 'force': force})
-		assert not feed_url.startswith('/')
+		assert not os.path.isabs(feed_url)
 
 		primary = self._download_and_import_feed(feed_url, iface_cache, force, use_mirror = False)
 
