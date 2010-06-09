@@ -86,8 +86,6 @@ def update_user_overrides(interface, main_feed = None):
 		if item.name == 'implementation':
 			id = item.getAttribute('id')
 			assert id is not None
-			if not (os.path.isabs(id) or id.startswith('.') or id.startswith('package:')):
-				assert '=' in id
 			if main_feed:
 				impl = main_feed.implementations.get(id, None)
 			else:
