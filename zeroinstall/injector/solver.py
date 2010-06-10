@@ -238,11 +238,10 @@ class SATSolver(Solver):
 			dep_union = [sat.neg(requiring_impl_var)]
 			for candidate in impls_for_iface[dep_iface]:
 				for r in dependency.restrictions:
-					if not r.meets_restriction(candidate):
+					if candidate.__class__ is not _DummyImpl and not r.meets_restriction(candidate):
 						#warn("%s rejected due to %s", candidate.get_version(), r)
 						if candidate.version is not None:
 							break
-						# else it's the dummy version that matches everything
 				else:
 					c_var = impl_to_var.get(candidate, None)
 					if c_var is not None:
