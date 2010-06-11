@@ -138,16 +138,24 @@ def unpack_archive_over(url, data, destdir, extract = None, type = None, start_o
 	then move things over, checking that we're not following symlinks at each stage.
 	Use this when you want to unpack an unarchive into a directory which already has
 	stuff in it.
+	@note: Since 0.49, the leading "extract" component is removed (unlike unpack_archive).
 	@since: 0.28"""
 	import stat
 	tmpdir = mkdtemp(dir = destdir)
+	assert extract is None or os.sep not in extract, extract
 	try:
 		mtimes = []
 
 		unpack_archive(url, data, tmpdir, extract, type, start_offset)
 
-		stem_len = len(tmpdir)
-		for root, dirs, files in os.walk(tmpdir):
+		if extract is None:
+			srcdir = tmpdir
+		else:
+			srcdir = os.path.join(tmpdir, extract)
+			assert not os.path.islink(srcdir)
+
+		stem_len = len(srcdir)
+		for root, dirs, files in os.walk(srcdir):
 			relative_root = root[stem_len + 1:] or '.'
 			target_root = os.path.join(destdir, relative_root)
 			try:
@@ -162,15 +170,15 @@ def unpack_archive_over(url, data, destdir, extract = None, type = None, start_o
 					raise SafeException(_('Attempt to unpack dir over symlink "%s"!') % relative_root)
 				elif not stat.S_ISDIR(info.st_mode):
 					raise SafeException(_('Attempt to unpack dir over non-directory "%s"!') % relative_root)
-			mtimes.append((relative_root, os.lstat(os.path.join(tmpdir, root)).st_mtime))
+			mtimes.append((relative_root, os.lstat(os.path.join(srcdir, root)).st_mtime))
 
 			for s in dirs:	# Symlinks are counted as directories
-				src = os.path.join(tmpdir, relative_root, s)
+				src = os.path.join(srcdir, relative_root, s)
 				if os.path.islink(src):
 					files.append(s)
 
 			for f in files:
-				src = os.path.join(tmpdir, relative_root, f)
+				src = os.path.join(srcdir, relative_root, f)
 				dest = os.path.join(destdir, relative_root, f)
 				if os.path.islink(dest):
 					raise SafeException(_('Attempt to unpack file over symlink "%s"!') %

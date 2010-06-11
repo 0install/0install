@@ -18,7 +18,7 @@ def skipIf(condition, reason):
 			return underlying
 	return wrapped
 
-class AbstractTestUnpack(BaseTest):
+class AbstractTestUnpack():
 	def setUp(self):
 		BaseTest.setUp(self)
 
@@ -57,6 +57,10 @@ class AbstractTestUnpack(BaseTest):
 		unpack.unpack_archive('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir, extract = 'HelloWorld')
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 	
+	def testExtractOver(self):
+		unpack.unpack_archive_over('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir, extract = 'HelloWorld')
+		self.assert_manifest('sha1=491678c37f77fadafbaae66b13d48d237773a68f')
+
 	def testExtractZip(self):
 		unpack.unpack_archive('ftp://foo/file.zip', file('HelloWorld.zip'), self.tmpdir, extract = 'HelloWorld')
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
@@ -139,13 +143,13 @@ class AbstractTestUnpack(BaseTest):
 				full_mode = os.stat(full).st_mode
 				self.assertEquals(0444, full_mode & 0666)	# Must be r-?r-?r-?
 
-class TestUnpackPython(AbstractTestUnpack):
+class TestUnpackPython(BaseTest, AbstractTestUnpack):
 	def setUp(self):
 		AbstractTestUnpack.setUp(self)
 		unpack._tar_version = 'Solaris tar'
 		assert not unpack._gnu_tar()
 
-class TestUnpackGNU(AbstractTestUnpack):
+class TestUnpackGNU(BaseTest, AbstractTestUnpack):
 	def setUp(self):
 		AbstractTestUnpack.setUp(self)
 		unpack._tar_version = None
