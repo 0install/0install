@@ -319,8 +319,8 @@ class SATSolver(Solver):
 				try:
 					feed = self.iface_cache.get_feed(f)
 					if feed is None: continue
-					if feed.name and iface.uri != feed.url and iface.uri not in feed.feed_for:
-						info(_("Missing <feed-for> for '%(uri)s' in '%(feed)s'"), {'uri': iface.uri, 'feed': f})
+					#if feed.name and iface.uri != feed.url and iface.uri not in feed.feed_for:
+					#	info(_("Missing <feed-for> for '%(uri)s' in '%(feed)s'"), {'uri': iface.uri, 'feed': f})
 
 					if feed.implementations:
 						impls.extend(feed.implementations.values())

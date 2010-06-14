@@ -191,7 +191,9 @@ def _normal_mode(options, args):
 		else:
 			can_run_immediately = not policy.need_download()
 
-		stale_feeds = [feed for feed in policy.solver.feeds_used if policy.is_stale(iface_cache.get_feed(feed))]
+		stale_feeds = [feed for feed in policy.solver.feeds_used if
+				not feed.startswith('distribution:') and	# Ignore (memory-only) PackageKit feeds
+				policy.is_stale(iface_cache.get_feed(feed))]
 
 		if options.download_only and stale_feeds:
 			can_run_immediately = False

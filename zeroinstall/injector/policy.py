@@ -298,11 +298,12 @@ class Policy(object):
 		return [iface_cache.get_interface(uri) for uri in feed_targets]
 	
 	@tasks.async
-	def solve_with_downloads(self, force = False):
+	def solve_with_downloads(self, force = False, update_local = False):
 		"""Run the solver, then download any feeds that are missing or
 		that need to be updated. Each time a new feed is imported into
 		the cache, the solver is run again, possibly adding new downloads.
-		@param force: whether to download even if we're already ready to run."""
+		@param force: whether to download even if we're already ready to run.
+		@param update_local: fetch PackageKit feeds even if we're ready to run."""
 		
 		downloads_finished = set()		# Successful or otherwise
 		downloads_in_progress = {}		# URL -> Download
@@ -311,16 +312,26 @@ class Policy(object):
 		if self.src:
 			host_arch = arch.SourceArchitecture(host_arch)
 
+		# There are three cases:
+		# 1. We want to run immediately if possible. If not, download all the information we can.
+		#    (force = False, update_local = False)
+		# 2. We're in no hurry, but don't want to use the network unnecessarily.
+		#    We should still update local information (from PackageKit).
+		#    (force = False, update_local = True)
+		# 3. The user explicitly asked us to refresh everything.
+		#    (force = True)
+
+		try_quick_exit = not (force or update_local)
+
 		while True:
 			self.solver.solve(self.root, host_arch)
 			for w in self.watchers: w()
 
-			if self.solver.ready and not force:
+			if try_quick_exit and self.solver.ready:
 				break
-			else:
-				if self.network_use == network_offline and not force:
-					info(_("Can't choose versions and in off-line mode, so aborting"))
-					break
+			try_quick_exit = False
+
+			if not self.solver.ready:
 				# Once we've starting downloading some things,
 				# we might as well get them all.
 				force = True
@@ -330,11 +341,18 @@ class Policy(object):
 					continue
 				if os.path.isabs(f):
 					continue
-				downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
+				elif f.startswith('distribution:'):
+					if force or update_local:
+						downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
+				elif force and self.network_use != network_offline:
+					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
 
 			if not downloads_in_progress:
+				if self.network_use == network_offline:
+					info(_("Can't choose versions and in off-line mode, so aborting"))
 				break
 
+			# Wait for at least one download to finish
 			blockers = downloads_in_progress.values()
 			yield blockers
 			tasks.check(blockers, self.handler.report_error)
