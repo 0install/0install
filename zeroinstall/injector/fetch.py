@@ -154,6 +154,22 @@ class Fetcher(object):
 			return None
 		return '%s/%s/latest.xml' % (self.feed_mirror, _get_feed_dir(url))
 
+	@tasks.async
+	def get_packagekit_feed(self, iface_cache, feed_url):
+		"""Send a query to PackageKit (if available) for information about this package.
+		On success, the result is added to iface_cache.
+		"""
+		assert feed_url.startswith('distribution:'), feed_url
+		master_feed = iface_cache.get_feed(feed_url.split(':', 1)[1])
+		if master_feed:
+			fetch = iface_cache.distro.fetch_candidates(master_feed)
+			yield fetch
+			tasks.check(fetch)
+
+			# Force feed to be regenerated with the new information
+			if feed_url in iface_cache._feeds:
+				del iface_cache._feeds[feed_url]
+
 	def download_and_import_feed(self, feed_url, iface_cache, force = False):
 		"""Download the feed, download any required keys, confirm trust if needed and import.
 		@param feed_url: the feed to be downloaded
@@ -165,6 +181,9 @@ class Fetcher(object):
 		
 		debug(_("download_and_import_feed %(url)s (force = %(force)d)"), {'url': feed_url, 'force': force})
 		assert not os.path.isabs(feed_url)
+
+		if feed_url.startswith('distribution:'):
+			return self.get_packagekit_feed(iface_cache, feed_url)
 
 		primary = self._download_and_import_feed(feed_url, iface_cache, force, use_mirror = False)
 

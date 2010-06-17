@@ -208,6 +208,34 @@ class TestDownload(BaseTest):
 				if "HelloWorld/Missing" not in str(ex):
 					raise ex
 	
+	def testDistro(self):
+		with output_suppressed():
+			native_url = 'http://example.com:8000/Native.xml'
+
+			# Initially, we don't have the feed at all...
+			master_feed = iface_cache.iface_cache.get_feed(native_url)
+			assert master_feed is None, master_feed
+
+			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+			self.child = server.handle_requests('Native.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
+			h = DummyHandler()
+			policy = autopolicy.AutoPolicy(native_url, download_only = False, handler = h)
+			assert policy.need_download()
+
+			solve = policy.solve_with_downloads()
+			h.wait_for_blocker(solve)
+			tasks.check(solve)
+
+			master_feed = iface_cache.iface_cache.get_feed(native_url)
+			assert master_feed is not None
+			assert master_feed.implementations == {}
+
+			distro_feed_url = master_feed.get_distro_feed()
+			assert distro_feed_url is not None
+			distro_feed = iface_cache.iface_cache.get_feed(distro_feed_url)
+			assert distro_feed is not None
+			assert len(distro_feed.implementations) == 2, distro_feed.implementations
+
 	def testWrongSize(self):
 		with output_suppressed():
 			self.child = server.handle_requests('Hello-wrong-size', '6FCF121BE2390E0B.gpg',

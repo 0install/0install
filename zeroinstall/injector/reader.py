@@ -206,6 +206,6 @@ def load_feed(source, local = False):
 		local_path = source
 	else:
 		local_path = None
-	feed = ZeroInstallFeed(root, local_path, distro.get_host_distribution())
+	feed = ZeroInstallFeed(root, local_path)
 	feed.last_modified = int(os.stat(source).st_mtime)
 	return feed

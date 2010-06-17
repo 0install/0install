@@ -10,7 +10,7 @@ from zeroinstall import _
 import os, platform, re, glob, subprocess, sys
 from logging import warn, info
 from zeroinstall.injector import namespaces, model, arch
-from zeroinstall.support import basedir
+from zeroinstall.support import basedir, tasks
 
 _dotted_ints = '[0-9]+(?:\.[0-9]+)*'
 
@@ -166,6 +166,52 @@ class Distribution(object):
 		@return: True iff the package is currently installed"""
 		return True
 
+	def get_feed(self, master_feed):
+		"""Generate a feed containing information about distribution packages.
+		This should immediately return a feed containing an implementation for the
+		package if it's already installed. Information about versions that could be
+		installed using the distribution's package manager can be added asynchronously
+		later (see L{fetch_candidates}).
+		@param master_feed: feed containing the <package-implementation> elements
+		@type master_feed: L{model.ZeroInstallFeed}
+		@rtype: L{model.ZeroInstallFeed}"""
+
+		feed = model.ZeroInstallFeed(None)
+		feed.url = 'distribution:' + master_feed.url
+
+		for item, item_attrs in master_feed.get_package_impls(self):
+			package = item_attrs.get('package', None)
+			if package is None:
+				raise model.InvalidInterface(_("Missing 'package' attribute on %s") % item)
+
+			def factory(id):
+				assert id.startswith('package:')
+				if id in feed.implementations:
+					warn(_("Duplicate ID '%s' for DistributionImplementation"), id)
+				impl = model.DistributionImplementation(feed, id, self)
+				feed.implementations[id] = impl
+
+				impl.metadata = item_attrs
+
+				item_main = item_attrs.get('main', None)
+				if item_main and not item_main.startswith('/'):
+					raise model.InvalidInterface(_("'main' attribute must be absolute, but '%s' doesn't start with '/'!") %
+								item_main)
+				impl.main = item_main
+				impl.upstream_stability = model.packaged
+
+				return impl
+
+			self.get_package_info(package, factory)
+		return feed
+
+	@tasks.async
+	def fetch_candidates(self, master_feed):
+		"""Collect information about versions we could install using
+		the distribution's package manager. On success, the distribution
+		feed in iface_cache is updated."""
+		yield
+
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
 	an external command), we cache the results.
@@ -310,40 +356,8 @@ class DebianDistribution(Distribution):
 		else:
 			installed_version = None
 
-		# Check to see whether we could get a newer version using apt-get
-
 		cached = self.apt_cache.get(package)
-		if cached is None:
-			try:
-				null = os.open('/dev/null', os.O_WRONLY)
-				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null)
-				os.close(null)
-
-				arch = version = size = None
-				for line in child.stdout:
-					line = line.strip()
-					if line.startswith('Version: '):
-						version = line[9:]
-						if ':' in version:
-							# Debian's 'epoch' system
-							version = version.split(':', 1)[1]
-						version = try_cleanup_distro_version(version)
-					elif line.startswith('Architecture: '):
-						arch = canonical_machine(line[14:].strip())
-					elif line.startswith('Size: '):
-						size = int(line[6:].strip())
-				if version and arch:
-					cached = '%s\t%s\t%d' % (version, arch, size)
-				else:
-					cached = '-'
-				child.wait()
-			except Exception, ex:
-				warn("'apt-cache show %s' failed: %s", package, ex)
-				cached = '-'
-			# (multi-arch support? can there be multiple candidates?)
-			self.apt_cache.put(package, cached)
-
-		if cached != '-':
+		if cached not in (None, '-'):
 			candidate_version, candidate_arch, candidate_size = cached.split('\t')
 			if candidate_version and candidate_version != installed_version:
 				impl = factory('package:deb:%s:%s' % (package, candidate_version))
@@ -372,6 +386,44 @@ class DebianDistribution(Distribution):
 		installed_version, machine = info.split('\t')
 		installed_id = 'package:deb:%s:%s' % (package, installed_version)
 		return package_id == installed_id
+
+	@tasks.async
+	def fetch_candidates(self, master_feed):
+		package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self)]
+		yield
+
+		for package in package_names:
+			# Check to see whether we could get a newer version using apt-get
+			cached = self.apt_cache.get(package)
+			if cached is None:
+				try:
+					null = os.open('/dev/null', os.O_WRONLY)
+					child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null)
+					os.close(null)
+
+					arch = version = size = None
+					for line in child.stdout:
+						line = line.strip()
+						if line.startswith('Version: '):
+							version = line[9:]
+							if ':' in version:
+								# Debian's 'epoch' system
+								version = version.split(':', 1)[1]
+							version = try_cleanup_distro_version(version)
+						elif line.startswith('Architecture: '):
+							arch = canonical_machine(line[14:].strip())
+						elif line.startswith('Size: '):
+							size = int(line[6:].strip())
+					if version and arch:
+						cached = '%s\t%s\t%d' % (version, arch, size)
+					else:
+						cached = '-'
+					child.wait()
+				except Exception, ex:
+					warn("'apt-cache show %s' failed: %s", package, ex)
+					cached = '-'
+				# (multi-arch support? can there be multiple candidates?)
+				self.apt_cache.put(package, cached)
 
 class RPMDistribution(CachedDistribution):
 	"""An RPM-based distribution."""
