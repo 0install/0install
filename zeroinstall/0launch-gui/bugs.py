@@ -7,6 +7,7 @@ import dialog
 
 import zeroinstall
 from zeroinstall import support
+from zeroinstall.injector import selections
 
 def report_bug(policy, iface):
 	assert iface
@@ -53,6 +54,10 @@ def report_bug(policy, iface):
 		text += '\nSystem:\n  %s\n\nIssue:\n  %s\n' % ('\n  '.join(os.uname()), issue)
 	else:
 		text += '\nSystem without uname()\n'
+
+	if policy.solver.ready:
+		sels = selections.Selections(policy)
+		text += "\n" + sels.toDOM().toprettyxml(encoding = 'utf-8')
 
 	reporter = BugReporter(policy, iface, text)
 	reporter.show()
