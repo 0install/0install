@@ -73,7 +73,7 @@ class OldSHA1(Algorithm):
 
 			if sub == '/.manifest': return
 
-			full = os.path.join(root, str.replace(sub[1:], '/', os.sep))
+			full = os.path.join(root, sub[1:].replace('/', os.sep))
 			info = os.lstat(full)
 			
 			m = info.st_mode
