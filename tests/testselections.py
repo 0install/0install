@@ -21,7 +21,7 @@ class TestSelections(BaseTest):
 		p.network_use = model.network_full
 		#import logging
 		#logging.getLogger().setLevel(logging.DEBUG)
-		p.recalculate()
+		assert p.need_download()
 
 		def assertSel(s):
 			self.assertEquals('http://foo/Source.xml', s.interface)
@@ -69,7 +69,7 @@ class TestSelections(BaseTest):
 	def testLocalPath(self):
 		iface = os.path.join(mydir, "Local.xml")
 		p = policy.Policy(iface)
-		p.recalculate()
+		p.need_download()
 		s1 = selections.Selections(p)
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(StringIO(xml))
@@ -83,7 +83,7 @@ class TestSelections(BaseTest):
 		impl.version = model.parse_version('1.0')
 		impl.add_download_source('http://localhost/bar.tgz', 1000, None)
 		feed.implementations = {impl.id: impl}
-		p.recalculate()
+		assert p.need_download()
 		assert p.ready
 		s1 = selections.Selections(p)
 		xml = s1.toDOM().toxml("utf-8")

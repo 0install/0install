@@ -7,13 +7,16 @@ import unittest
 sys.path.insert(0, '..')
 
 from zeroinstall import NeedDownload
-from zeroinstall.injector import model, autopolicy, gpg, iface_cache, namespaces, reader
+from zeroinstall.injector import model, autopolicy, gpg, iface_cache, namespaces, reader, handler
 from zeroinstall.support import basedir
 import data
 
 foo_iface_uri = 'http://foo'
 
 logger = logging.getLogger()
+
+def recalculate(policy):
+	policy.need_download()
 
 class TestAutoPolicy(BaseTest):
 	def setUp(self):
@@ -122,7 +125,7 @@ class TestAutoPolicy(BaseTest):
 		policy = autopolicy.AutoPolicy(foo_iface_uri, False, True)
 		policy.freshness = 0
 		policy.network_use = model.network_full
-		policy.recalculate()
+		recalculate(policy)
 		assert policy.need_download()
 		assert policy.ready
 		try:
@@ -232,7 +235,7 @@ class TestAutoPolicy(BaseTest):
 							dry_run = True)
 		policy.freshness = 0
 		policy.network_use = model.network_full
-		policy.recalculate()
+		recalculate(policy)
 		assert policy.ready
 		foo_iface = iface_cache.iface_cache.get_interface(foo_iface_uri)
 		self.assertEquals('sha1=123', policy.implementation[foo_iface].id)
@@ -286,17 +289,13 @@ class TestAutoPolicy(BaseTest):
 		policy.network_use = model.network_full
 		policy.freshness = 0
 
-		try:
-			policy.recalculate()
-			assert False
-		except NeedDownload, ex:
-			pass
+		assert policy.need_download()
 
 		feed = iface_cache.iface_cache.get_feed(foo_iface_uri)
 		feed.feeds = [model.Feed('/BadFeed', None, False)]
 
 		logger.setLevel(logging.ERROR)
-		policy.recalculate()	# Triggers warning
+		assert policy.need_download()	# Triggers warning
 		logger.setLevel(logging.WARN)
 
 	def testBestUnusable(self):
@@ -313,7 +312,7 @@ class TestAutoPolicy(BaseTest):
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
 						download_only = False)
 		policy.network_use = model.network_offline
-		policy.recalculate()
+		recalculate(policy)
 		assert not policy.ready, policy.implementation
 		try:
 			policy.download_and_execute([])
@@ -335,7 +334,7 @@ class TestAutoPolicy(BaseTest):
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
 						download_only = False)
 		policy.freshness = 0
-		policy.recalculate()
+		recalculate(policy)
 		assert not policy.ready
 
 	def testCycle(self):
@@ -357,7 +356,7 @@ class TestAutoPolicy(BaseTest):
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
 						download_only = False)
 		policy.freshness = 0
-		policy.recalculate()
+		recalculate(policy)
 
 	def testConstraints(self):
 		self.cache_iface('http://bar',
@@ -400,7 +399,7 @@ class TestAutoPolicy(BaseTest):
 		policy.network_use = model.network_full
 		policy.freshness = 0
 		#logger.setLevel(logging.DEBUG)
-		policy.recalculate()
+		recalculate(policy)
 		#logger.setLevel(logging.WARN)
 		foo_iface = iface_cache.iface_cache.get_interface(foo_iface_uri)
 		bar_iface = iface_cache.iface_cache.get_interface('http://bar')
@@ -411,11 +410,11 @@ class TestAutoPolicy(BaseTest):
 		restriction = dep.restrictions[0]
 
 		restriction.before = model.parse_version('2.0')
-		policy.recalculate()
+		recalculate(policy)
 		assert policy.implementation[bar_iface].id == 'sha1=100'
 
 		restriction.not_before = model.parse_version('1.5')
-		policy.recalculate()
+		recalculate(policy)
 		assert policy.implementation[bar_iface].id == 'sha1=150'
 
 if __name__ == '__main__':

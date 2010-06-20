@@ -27,6 +27,7 @@ def _get_feed_dir(feed):
 	if '#' in feed:
 		raise SafeException(_("Invalid URL '%s'") % feed)
 	scheme, rest = feed.split('://', 1)
+	assert '/' in rest, "Missing / in %s" % feed
 	domain, rest = rest.split('/', 1)
 	for x in [scheme, domain, rest]:
 		if not x or x.startswith(','):

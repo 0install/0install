@@ -142,6 +142,9 @@ class Policy(object):
 	
 	def recalculate(self, fetch_stale_interfaces = True):
 		"""@deprecated: see L{solve_with_downloads} """
+		import warnings
+		warnings.warn("Policy.recalculate is deprecated!", DeprecationWarning, stacklevel = 2)
+
 		self.stale_feeds = set()
 
 		host_arch = self.target_arch

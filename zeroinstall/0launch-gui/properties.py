@@ -181,7 +181,8 @@ class Feeds:
 					if x.user_override:
 						interface.extra_feeds.remove(x)
 						writer.save_interface(interface)
-						policy.recalculate()
+						import main
+						main.recalculate()
 						return
 					else:
 						dialog.alert(self.get_toplevel(),
@@ -291,7 +292,8 @@ class Properties:
 				new_stability = stability_levels[name]
 			interface.set_stability_policy(new_stability)
 			writer.save_interface(interface)
-			policy.recalculate()
+			import main
+			main.recalculate()
 		stability.connect('changed', set_stability_policy)
 
 		self.use_list = ImplementationList(policy, interface, widgets)
@@ -398,7 +400,8 @@ def add_remote_feed(policy, parent, interface):
 							interface.extra_feeds.append(Feed(iface.uri, arch = None, user_override = True))
 							writer.save_interface(interface)
 							d.destroy()
-							policy.recalculate()
+							import main
+							main.recalculate()
 				except zeroinstall.SafeException, ex:
 					error(str(ex))
 			else:
@@ -427,7 +430,8 @@ def add_local_feed(policy, interface):
 			writer.save_interface(interface)
 			chooser.destroy()
 			reader.update_from_cache(interface)
-			policy.recalculate()
+			import main
+			main.recalculate()
 		except Exception, ex:
 			dialog.alert(None, _("Error in feed file '%(feed)s':\n\n%(exception)s") % {'feed': feed, 'exception': str(ex)})
 

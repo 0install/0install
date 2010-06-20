@@ -37,10 +37,11 @@ class Preferences:
 		for level in freshness_levels:
 			freshness.append_text(str(level))
 		freshness.set_active(times.index(policy.freshness))
-		def set_freshness(combo):
+		def set_freshness(combo, freshness = freshness): # (pygtk bug?)
 			policy.freshness = freshness_levels[freshness.get_active()].time
 			policy.save_config()
-			policy.recalculate()
+			import main
+			main.recalculate()
 		freshness.connect('changed', set_freshness)
 
 		stable_toggle = widgets.get_widget('help_test')
@@ -48,7 +49,8 @@ class Preferences:
 		def toggle_stability(toggle):
 			policy.help_with_testing = toggle.get_active()
 			policy.save_config()
-			policy.recalculate()
+			import main
+			main.recalculate()
 		stable_toggle.connect('toggled', toggle_stability)
 
 		# Keys

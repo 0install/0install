@@ -21,7 +21,8 @@ def _build_stability_menu(policy, impl):
 		else:
 			impl.user_stability = None
 		writer.save_feed(impl.feed)
-		policy.recalculate()
+		import main
+		main.recalculate()
 
 	item = gtk.MenuItem(_('Unset (%s)') % upstream)
 	item.connect('activate', lambda item: set(None))

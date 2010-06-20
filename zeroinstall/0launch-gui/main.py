@@ -10,6 +10,15 @@ from zeroinstall.injector.policy import Policy
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.support import tasks
 
+_recalculate = tasks.Blocker('recalculate')
+
+def recalculate():
+	"""Ask the mainloop to recalculate. If we're already recalculating, wait for that to finish
+	and then do it again."""
+	global _recalculate
+	_recalculate.trigger()
+	_recalculate = tasks.Blocker('recalculate')
+
 def run_gui(args):
 	parser = OptionParser(usage=_("usage: %prog [options] interface"))
 	parser.add_option("", "--before", help=_("choose a version before this"), metavar='VERSION')
@@ -160,7 +169,10 @@ def run_gui(args):
 					# blink it again just in case
 					window.systray_icon.set_blinking(True)
 
-			yield dialog.ButtonClickedBlocker(window.refresh_button)
-			force_refresh = True
+			refresh_clicked = dialog.ButtonClickedBlocker(window.refresh_button)
+			yield refresh_clicked, _recalculate
+
+			if refresh_clicked.happened:
+				force_refresh = True
 
 	handler.wait_for_blocker(main())
