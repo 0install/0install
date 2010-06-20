@@ -362,6 +362,14 @@ class Policy(object):
 					del downloads_in_progress[f]
 					downloads_finished.add(f)
 
+					# Need to refetch any "distribution" feed that
+					# depends on this one
+					distro_feed_url = 'distribution:' + f
+					if distro_feed_url in downloads_finished:
+						downloads_finished.remove(distro_feed_url)
+					if distro_feed_url in downloads_in_progress:
+						del downloads_in_progress[distro_feed_url]
+
 	@tasks.async
 	def solve_and_download_impls(self, refresh = False, select_only = False):
 		"""Run L{solve_with_downloads} and then get the selected implementations too.

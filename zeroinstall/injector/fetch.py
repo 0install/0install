@@ -167,8 +167,7 @@ class Fetcher(object):
 			tasks.check(fetch)
 
 			# Force feed to be regenerated with the new information
-			if feed_url in iface_cache._feeds:
-				del iface_cache._feeds[feed_url]
+			iface_cache.get_feed(feed_url, force = True)
 
 	def download_and_import_feed(self, feed_url, iface_cache, force = False):
 		"""Download the feed, download any required keys, confirm trust if needed and import.

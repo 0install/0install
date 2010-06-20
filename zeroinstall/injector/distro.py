@@ -320,7 +320,7 @@ class DebianDistribution(Distribution):
 
 	def __init__(self, dpkg_status, pkgcache):
 		self.dpkg_cache = Cache('dpkg-status.cache', dpkg_status, 2)
-		self.apt_cache = Cache('apt-cache-cache', pkgcache, 3)
+		self.apt_cache = {}
 
 	def _query_installed_package(self, package):
 		null = os.open('/dev/null', os.O_WRONLY)
@@ -356,9 +356,9 @@ class DebianDistribution(Distribution):
 		else:
 			installed_version = None
 
-		cached = self.apt_cache.get(package)
-		if cached not in (None, '-'):
-			candidate_version, candidate_arch, candidate_size = cached.split('\t')
+		cached = self.apt_cache.get(package, None)
+		if cached:
+			candidate_version, candidate_arch, candidate_size = cached
 			if candidate_version and candidate_version != installed_version:
 				impl = factory('package:deb:%s:%s' % (package, candidate_version))
 				impl.version = model.parse_version(candidate_version)
@@ -394,36 +394,34 @@ class DebianDistribution(Distribution):
 
 		for package in package_names:
 			# Check to see whether we could get a newer version using apt-get
-			cached = self.apt_cache.get(package)
-			if cached is None:
-				try:
-					null = os.open('/dev/null', os.O_WRONLY)
-					child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null)
-					os.close(null)
+			try:
+				null = os.open('/dev/null', os.O_WRONLY)
+				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null)
+				os.close(null)
 
-					arch = version = size = None
-					for line in child.stdout:
-						line = line.strip()
-						if line.startswith('Version: '):
-							version = line[9:]
-							if ':' in version:
-								# Debian's 'epoch' system
-								version = version.split(':', 1)[1]
-							version = try_cleanup_distro_version(version)
-						elif line.startswith('Architecture: '):
-							arch = canonical_machine(line[14:].strip())
-						elif line.startswith('Size: '):
-							size = int(line[6:].strip())
-					if version and arch:
-						cached = '%s\t%s\t%d' % (version, arch, size)
-					else:
-						cached = '-'
-					child.wait()
-				except Exception, ex:
-					warn("'apt-cache show %s' failed: %s", package, ex)
-					cached = '-'
-				# (multi-arch support? can there be multiple candidates?)
-				self.apt_cache.put(package, cached)
+				arch = version = size = None
+				for line in child.stdout:
+					line = line.strip()
+					if line.startswith('Version: '):
+						version = line[9:]
+						if ':' in version:
+							# Debian's 'epoch' system
+							version = version.split(':', 1)[1]
+						version = try_cleanup_distro_version(version)
+					elif line.startswith('Architecture: '):
+						arch = canonical_machine(line[14:].strip())
+					elif line.startswith('Size: '):
+						size = int(line[6:].strip())
+				if version and arch:
+					cached = (version, arch, size)
+				else:
+					cached = None
+				child.wait()
+			except Exception, ex:
+				warn("'apt-cache show %s' failed: %s", package, ex)
+				cached = None
+			# (multi-arch support? can there be multiple candidates?)
+			self.apt_cache[package] = cached
 
 class RPMDistribution(CachedDistribution):
 	"""An RPM-based distribution."""
