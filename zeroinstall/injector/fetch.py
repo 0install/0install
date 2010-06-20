@@ -163,8 +163,9 @@ class Fetcher(object):
 		master_feed = iface_cache.get_feed(feed_url.split(':', 1)[1])
 		if master_feed:
 			fetch = iface_cache.distro.fetch_candidates(master_feed)
-			yield fetch
-			tasks.check(fetch)
+			if fetch:
+				yield fetch
+				tasks.check(fetch)
 
 			# Force feed to be regenerated with the new information
 			iface_cache.get_feed(feed_url, force = True)

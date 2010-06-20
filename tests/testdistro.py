@@ -86,12 +86,8 @@ class TestDistro(BaseTest):
 		master_feed = parse_impls("""<package-implementation package='python-bittorrent'/>""")
 		h = handler.Handler()
 		candidates = host.fetch_candidates(master_feed)
-		# Async, so nothing yet...
-		self.feed = model.ZeroInstallFeed(empty_feed, local_path = '/empty.xml')
-		host.get_package_info('python-bittorrent', factory)
-		self.assertEquals(1, len(self.feed.implementations))
-
-		h.wait_for_blocker(candidates)
+		if candidates:
+			h.wait_for_blocker(candidates)
 		# Now we see the uninstalled package
 		self.feed = model.ZeroInstallFeed(empty_feed, local_path = '/empty.xml')
 		host.get_package_info('python-bittorrent', factory)

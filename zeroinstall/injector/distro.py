@@ -205,12 +205,12 @@ class Distribution(object):
 			self.get_package_info(package, factory)
 		return feed
 
-	@tasks.async
 	def fetch_candidates(self, master_feed):
 		"""Collect information about versions we could install using
 		the distribution's package manager. On success, the distribution
-		feed in iface_cache is updated."""
-		yield
+		feed in iface_cache is updated.
+		@return: a L{tasks.Blocker} if the task is in progress, or None if not"""
+		pass
 
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
@@ -387,10 +387,8 @@ class DebianDistribution(Distribution):
 		installed_id = 'package:deb:%s:%s' % (package, installed_version)
 		return package_id == installed_id
 
-	@tasks.async
 	def fetch_candidates(self, master_feed):
 		package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self)]
-		yield
 
 		for package in package_names:
 			# Check to see whether we could get a newer version using apt-get
