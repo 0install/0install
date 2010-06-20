@@ -320,7 +320,10 @@ class IfaceCache(object):
 			if feed != False:
 				return feed
 
-		feed = self._feeds[url] = reader.load_feed_from_cache(url)
+		feed = reader.load_feed_from_cache(url)
+		if feed:
+			reader.update_user_feed_overrides(feed)
+		self._feeds[url] = feed
 		return feed
 
 	def get_interface(self, uri):

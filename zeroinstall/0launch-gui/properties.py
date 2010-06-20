@@ -282,7 +282,7 @@ class Properties:
 			i = 0
 		stability.set_active(i)
 
-		def set_stability_policy(combo):
+		def set_stability_policy(combo, stability = stability):	# (pygtk bug?)
 			i = stability.get_active()
 			if i == 0:
 				new_stability = None

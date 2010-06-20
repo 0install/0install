@@ -22,10 +22,10 @@ def update_from_cache(interface):
 	@return: True if cached version and user overrides loaded OK.
 	False if upstream not cached. Local interfaces (starting with /) are
 	always considered to be cached, although they are not actually stored in the cache.
+	Internal: use L{iface_cache.iface_cache.get_interface} instread.
 	@rtype: bool"""
 	interface.reset()
 	from zeroinstall.injector.iface_cache import iface_cache
-	main_feed = iface_cache.get_feed(interface.uri, force = True)
 
 	# Add the distribution package manager's version, if any
 	path = basedir.load_first_data(config_site, 'native_feeds', model._pretty_escape(interface.uri))
@@ -34,7 +34,11 @@ def update_from_cache(interface):
 		info(_("Adding native packager feed '%s'"), path)
 		interface.extra_feeds.append(Feed(os.path.realpath(path), None, False))
 
-	update_user_overrides(interface, main_feed)
+	update_user_overrides(interface)
+
+	main_feed = iface_cache.get_feed(interface.uri, force = True)
+	if main_feed:
+		update_user_feed_overrides(main_feed)
 
 	return main_feed is not None
 
@@ -52,15 +56,18 @@ def load_feed_from_cache(url):
 		else:
 			return None
 
-def update_user_overrides(interface, main_feed = None):
-	"""Update an interface with user-supplied information.
-	@param interface: the interface object to update
-	@type interface: L{model.Interface}
-	@param main_feed: feed to update with last_checked information
-	@note: feed updates shouldn't really be here. main_feed may go away in future.
+def update_user_feed_overrides(feed):
+	"""Update a feed with user-supplied information.
+	Sets last_checked and user_stability ratings.
+	@param feed: feed to update
+	@since 0.49
 	"""
 	user = basedir.load_first_config(config_site, config_prog,
-					   'user_overrides', escape(interface.uri))
+					   'feeds', model._pretty_escape(feed.url))
+	if user is None:
+		# For files saved by 0launch < 0.49
+		user = basedir.load_first_config(config_site, config_prog,
+						   'user_overrides', escape(feed.url))
 	if not user:
 		return
 
@@ -70,12 +77,44 @@ def update_user_overrides(interface, main_feed = None):
 		warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
 
-	# This is a bit wrong; this information is about the feed,
-	# not the interface.
-	if main_feed:
-		last_checked = root.getAttribute('last-checked')
-		if last_checked:
-			main_feed.last_checked = int(last_checked)
+	last_checked = root.getAttribute('last-checked')
+	if last_checked:
+		feed.last_checked = int(last_checked)
+
+	for item in root.childNodes:
+		if item.uri != XMLNS_IFACE: continue
+		if item.name == 'implementation':
+			id = item.getAttribute('id')
+			assert id is not None
+			impl = feed.implementations.get(id, None)
+			if not impl:
+				debug(_("Ignoring user-override for unknown implementation %(id)s in %(interface)s"), {'id': id, 'interface': feed})
+				continue
+
+			user_stability = item.getAttribute('user-stability')
+			if user_stability:
+				impl.user_stability = stability_levels[str(user_stability)]
+
+def update_user_overrides(interface):
+	"""Update an interface with user-supplied information.
+	Sets preferred stability and updates extra_feeds.
+	@param interface: the interface object to update
+	@type interface: L{model.Interface}
+	"""
+	user = basedir.load_first_config(config_site, config_prog,
+					   'interfaces', model._pretty_escape(interface.uri))
+	if user is None:
+		# For files saved by 0launch < 0.49
+		user = basedir.load_first_config(config_site, config_prog,
+						   'user_overrides', escape(interface.uri))
+	if not user:
+		return
+
+	try:
+		root = qdom.parse(file(user))
+	except Exception, ex:
+		warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
+		raise
 
 	stability_policy = root.getAttribute('stability-policy')
 	if stability_policy:
@@ -83,21 +122,7 @@ def update_user_overrides(interface, main_feed = None):
 
 	for item in root.childNodes:
 		if item.uri != XMLNS_IFACE: continue
-		if item.name == 'implementation':
-			id = item.getAttribute('id')
-			assert id is not None
-			if main_feed:
-				impl = main_feed.implementations.get(id, None)
-			else:
-				impl = None
-			if not impl:
-				debug(_("Ignoring user-override for unknown implementation %(id)s in %(interface)s"), {'id': id, 'interface': interface})
-				continue
-
-			user_stability = item.getAttribute('user-stability')
-			if user_stability:
-				impl.user_stability = stability_levels[str(user_stability)]
-		elif item.name == 'feed':
+		if item.name == 'feed':
 			feed_src = item.getAttribute('src')
 			if not feed_src:
 				raise InvalidInterface(_('Missing "src" attribute in <feed>'))

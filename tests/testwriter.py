@@ -23,12 +23,14 @@ class TestWriter(BaseTest):
 		iface.extra_feeds.append(model.Feed('http://sys-feed', None, False))
 		iface.extra_feeds.append(model.Feed('http://user-feed', 'Linux-*', True))
 		writer.save_interface(iface)
+		writer.save_feed(main_feed)
 
 		iface = model.Interface('http://test/test')
 		self.assertEquals(None, iface.stability_policy)
 		main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello')
 		iface_cache.iface_cache._feeds[iface.uri] = main_feed
-		reader.update_user_overrides(iface, main_feed)
+		reader.update_user_overrides(iface)
+		reader.update_user_feed_overrides(main_feed)
 		self.assertEquals(model.developer, iface.stability_policy)
 		self.assertEquals(100, main_feed.last_checked)
 		self.assertEquals("[<Feed from http://user-feed>]", str(iface.extra_feeds))
@@ -50,23 +52,14 @@ class TestWriter(BaseTest):
 		self.assertEquals(None, feed)
 
 	def testStoreStability(self):
-		iface = model.Interface('http://example.com:8000/Hello.xml')
-		main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello.xml')
-		iface_cache.iface_cache._feeds[iface.uri] = main_feed
+		main_feed = reader.load_feed('Hello.xml', local = True)
 		impl = main_feed.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
 		impl.user_stability = model.developer
-		writer.save_interface(iface)
+		writer.save_feed(main_feed)
 
-		iface = model.Interface('http://example.com:8000/Hello.xml')
-		self.assertEquals(None, iface.stability_policy)
-		reader.update_user_overrides(iface)
-
-		del iface_cache.iface_cache._feeds[iface.uri]
-
-		# Now visible
-		reader.update(iface, 'Hello.xml')
-		main_feed = iface_cache.iface_cache.get_feed(iface.uri)
-		reader.update_user_overrides(iface, main_feed)
+		# Rating now visible
+		main_feed = reader.load_feed('Hello.xml', local = True)
+		reader.update_user_feed_overrides(main_feed)
 		self.assertEquals(1, len(main_feed.implementations))
 
 		impl = main_feed.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
