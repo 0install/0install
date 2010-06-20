@@ -91,12 +91,12 @@ class Solver(object):
 		self.record_details = False
 		self.ready = False
 
-	def solve(self, root_interface, arch):
+	def solve(self, root_interface, root_arch):
 		"""Get the best implementation of root_interface and all of its dependencies.
 		@param root_interface: the URI of the program to be solved
 		@type root_interface: str
-		@param arch: the desired target architecture
-		@type arch: L{arch.Architecture}
+		@param root_arch: the desired target architecture
+		@type root_arch: L{arch.Architecture}
 		@postcondition: self.ready, self.selections and self.feeds_used are updated"""
 		raise NotImplementedError("Abstract")
 
