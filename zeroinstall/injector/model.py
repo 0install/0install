@@ -375,17 +375,20 @@ class Recipe(RetrievalMethod):
 
 class DistributionSource(RetrievalMethod):
 	"""A package that is installed using the distribution's tools (including PackageKit).
+	@ivar install: a function to call to install this package
+	@type install: (L{handler.Handler}) -> L{tasks.Blocker}
 	@ivar package_id: the package name, in a form recognised by the distribution's tools
 	@type package_id: str
 	@ivar size: the download size in bytes
 	@type size: int"""
 
-	__slots__ = ['package_id', 'size']
+	__slots__ = ['package_id', 'size', 'install']
 
-	def __init__(self, package_id, size):
+	def __init__(self, package_id, size, install):
 		RetrievalMethod.__init__(self)
 		self.package_id = package_id
 		self.size = size
+		self.install = install
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface.

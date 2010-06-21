@@ -332,8 +332,6 @@ class Policy(object):
 			try_quick_exit = False
 
 			if not self.solver.ready:
-				# Once we've starting downloading some things,
-				# we might as well get them all.
 				force = True
 
 			for f in self.solver.feeds_used:
@@ -346,6 +344,9 @@ class Policy(object):
 						downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
 				elif force and self.network_use != network_offline:
 					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
+					# Once we've starting downloading some things,
+					# we might as well get them all.
+					force = True
 
 			if not downloads_in_progress:
 				if self.network_use == network_offline:
@@ -358,7 +359,7 @@ class Policy(object):
 			tasks.check(blockers, self.handler.report_error)
 
 			for f in downloads_in_progress.keys():
-				if downloads_in_progress[f].happened:
+				if f in downloads_in_progress and downloads_in_progress[f].happened:
 					del downloads_in_progress[f]
 					downloads_finished.add(f)
 

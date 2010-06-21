@@ -22,6 +22,14 @@ empty_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-insta
 <summary>just for testing</summary>
 </interface>"""))
 
+import my_dbus
+sys.modules['dbus'] = my_dbus
+sys.modules['dbus.glib'] = my_dbus
+my_dbus.types = my_dbus
+sys.modules['dbus.types'] = my_dbus
+sys.modules['dbus.mainloop'] = my_dbus
+sys.modules['dbus.mainloop.glib'] = my_dbus
+
 mydir = os.path.dirname(__file__)
 
 # Catch us trying to run the GUI and return a dummy string instead

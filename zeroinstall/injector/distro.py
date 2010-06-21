@@ -206,6 +206,9 @@ class Distribution(object):
 				return impl
 
 			self.get_package_info(package, factory)
+
+			if self.packagekit.available:
+				self.packagekit.get_candidates(package, feed, factory, 'package:deb')
 		return feed
 
 	def fetch_candidates(self, master_feed):
@@ -213,7 +216,9 @@ class Distribution(object):
 		the distribution's package manager. On success, the distribution
 		feed in iface_cache is updated.
 		@return: a L{tasks.Blocker} if the task is in progress, or None if not"""
-		pass
+		if self.packagekit.available:
+			package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self)]
+			return self.packagekit.fetch_candidates(package_names)
 
 	@property
 	def packagekit(self):
@@ -354,6 +359,7 @@ class DebianDistribution(Distribution):
 		return '-'
 
 	def get_package_info(self, package, factory):
+		# Add any already-installed package...
 		installed_cached_info = self._get_dpkg_info(package)
 
 		if installed_cached_info != '-':
@@ -365,10 +371,11 @@ class DebianDistribution(Distribution):
 		else:
 			installed_version = None
 
+		# Add any uninstalled candidates...
 		if self.packagekit.available:
-			cached = self.packagekit.get_candidate(package)
-		else:
-			cached = self.apt_cache.get(package, None)
+			return
+
+		cached = self.apt_cache.get(package, None)
 
 		if cached:
 			candidate_version = cached['version']
@@ -378,7 +385,10 @@ class DebianDistribution(Distribution):
 				impl.version = model.parse_version(candidate_version)
 				if candidate_arch != '*':
 					impl.machine = candidate_arch
-				impl.download_sources.append(model.DistributionSource(package, cached['size']))
+				def install(handler):
+					raise model.SafeException(_("This program depends on '%s', which is a package that is available through your distribution. "
+							"Please install it manually using your distribution's tools and try again.") % package)
+				impl.download_sources.append(model.DistributionSource(package, cached['size'], install))
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'Debian')

@@ -28,10 +28,6 @@ def raise_gui(*args):
 	ran_gui = True
 background._detach = lambda: False
 background._exec_gui = raise_gui
-sys.modules['dbus'] = my_dbus
-sys.modules['dbus.glib'] = my_dbus
-my_dbus.types = my_dbus
-sys.modules['dbus.types'] = my_dbus
 
 @contextmanager
 def output_suppressed():

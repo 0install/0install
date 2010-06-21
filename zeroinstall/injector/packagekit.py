@@ -10,14 +10,13 @@ import dbus
 import locale
 import logging
 import dbus.mainloop.glib
-from zeroinstall import _
+from zeroinstall import _, SafeException
 
 from zeroinstall.support import tasks
 from zeroinstall.injector import download, model
 
 dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 _logger_pk = logging.getLogger('packagekit')
-_installed = {}
 
 class PackageKit:
 	def __init__(self):
@@ -33,104 +32,127 @@ class PackageKit:
 
 		self._candidates = {}	# { package_name : (version, arch, size) | Blocker }
 
-		self._pending_resolves = {}	# { package_name : Blocker }
-
 	@property
 	def available(self):
 		return self.pk is not None
 
-	def get_candidate(self, package_name):
+	def get_candidates(self, package_name, feed, factory, prefix):
 		candidate = self._candidates.get(package_name, None)
-		if isinstance(candidate, tasks.Blocker):
-			candidate = None	# Fetch still in progress
-		return candidate
+		if candidate is None:
+			return
 
+		if isinstance(candidate, tasks.Blocker):
+			return		# Fetch still in progress
+
+		impl_name = '%s:%s:%s' % (prefix, package_name, candidate['version'])
+		if impl_name in feed.implementations:
+			# (checking this way because the cached candidate['installed'] may be stale)
+			return		# Already installed
+
+		impl = factory(impl_name)
+		impl.version = model.parse_version(candidate['version'])
+		if candidate['arch'] != '*':
+			impl.machine = candidate['arch']
+
+		def install(handler):
+			packagekit_id = candidate['packagekit_id']
+			def download_factory(url, hint):
+				return PackageKitDownload(url, hint, pk = self.pk, packagekit_id = packagekit_id)
+			dl = handler.get_download('packagekit:' + packagekit_id, factory = download_factory, hint = impl)
+			dl.expected_size = candidate['size']
+			return dl.downloaded
+		impl.download_sources.append(model.DistributionSource(package_name, candidate['size'], install))
+
+	@tasks.async
 	def fetch_candidates(self, package_names):
 		assert self.pk
+
+		known = [self._candidates[p] for p in package_names if p in self._candidates]
+		in_progress = [b for b in known if isinstance(b, tasks.Blocker)]
+		_logger_pk.debug('Already downloading: %s', in_progress)
 
 		# Filter out the ones we've already fetched
 		package_names = [p for p in package_names if p not in self._candidates]
 
-		if not package_names:
-			return		# Nothing to do
+		if package_names:
+			versions = {}
 
-		versions = {}
+			blocker = None
 
-		blocker = None
-
-		def error_cb(sender):
-			blocker.trigger()
-
-		def details_cb(sender):
-			if sender.details:
-				for packagekit_id, info in versions.items():
-					info.update(sender.details[packagekit_id])
-					self._candidates[info['name']] = info
-			else:
-				_logger_pk.warn(_('Empty details for %s'), package_names)
-			blocker.trigger()
-
-		def resolve_cb(sender):
-			if sender.package:
-				versions.update(sender.package)
-				tran = _PackageKitTransaction(self.pk, details_cb, error_cb)
-				tran.proxy.GetDetails(versions.keys())
-			else:
-				_logger_pk.warn(_('Empty resolve for %s'), package_names)
+			def error_cb(sender):
+				_logger_pk.warn(_('Transaction failed: %s(%s)'), sender.error_code, sender.error_details)
 				blocker.trigger()
 
-		# Send queries
-		blocker = tasks.Blocker('PackageKit %s' % package_names)
-		for package in package_names:
-			self._candidates[package] = blocker
+			def details_cb(sender):
+				if sender.details:
+					for packagekit_id, info in versions.items():
+						info.update(sender.details[packagekit_id])
+						info['packagekit_id'] = packagekit_id
+						self._candidates[info['name']] = info
+				else:
+					_logger_pk.warn(_('Empty details for %s'), package_names)
+				blocker.trigger()
 
-		_logger_pk.debug(_('Ask for %s'), package_names)
-		tran = _PackageKitTransaction(self.pk, resolve_cb, error_cb)
-		tran.proxy.Resolve('none', package_names)
+			def resolve_cb(sender):
+				if sender.package:
+					versions.update(sender.package)
+					tran = _PackageKitTransaction(self.pk, details_cb, error_cb)
+					tran.proxy.GetDetails(versions.keys())
+				else:
+					_logger_pk.warn(_('Empty resolve for %s'), package_names)
+					blocker.trigger()
 
-		return blocker
+			# Send queries
+			blocker = tasks.Blocker('PackageKit %s' % package_names)
+			for package in package_names:
+				self._candidates[package] = blocker
 
-def exists(id):
-	return id in _installed
+			_logger_pk.debug(_('Ask for %s'), package_names)
+			tran = _PackageKitTransaction(self.pk, resolve_cb, error_cb)
+			tran.proxy.Resolve('none', package_names)
+
+			in_progress.append(blocker)
+
+		while in_progress:
+			yield in_progress
+			in_progress = [b for b in in_progress if not b.happened]
 
 class PackageKitDownload(download.Download):
-	def __init__(self, url, hint):
-		if not _check():
-			raise SafeException(_("This program depends on '%s', which is a package that is available through your distribution. "
-				"Please install it manually using your distribution's tools and try again "
-				"(note: if PackageKit were installed I could do it for you).") % package_id)
-
+	def __init__(self, url, hint, pk, packagekit_id):
 		download.Download.__init__(self, url, hint)
 
-		self._id = url
+		self.packagekit_id = packagekit_id
 		self._impl = hint
 		self._transaction = None
+		self.pk = pk
 
 	def start(self):
 		assert self.status == download.download_starting
 		assert self.downloaded is None
 
 		def error_cb(sender):
-			self.abort()
+			self.status = download.download_failed
+			ex = SafeException('PackageKit install failed: %s' % (sender.error_details or sender.error_code))
+			self.downloaded.trigger(exception = (ex, None))
 
 		def installed_cb(sender):
-			_installed[self._id] = True
 			self.status = download.download_complete
 			self.downloaded.trigger()
 
 		def install_packages():
-			package_name = self._id
-			self._transaction = _PackageKitTransaction(installed_cb, error_cb)
+			package_name = self.packagekit_id
+			self._transaction = _PackageKitTransaction(self.pk, installed_cb, error_cb)
 			self._transaction.compat_call('InstallPackages',
 					[([package_name]), (False, [package_name])])
 
 		_auth_wrapper(install_packages)
 
 		self.status = download.download_fetching
-		self.downloaded = tasks.Blocker('PackageKit install %s' % self._id)
+		self.downloaded = tasks.Blocker('PackageKit install %s' % self.packagekit_id)
 
 	def abort(self):
 		_logger_pk.debug(_('Cancel transaction'))
+		self.aborted_by_user = True
 		self._transaction.proxy.Cancel()
 		self.status = download.download_failed
 		self.downloaded.trigger()
@@ -180,7 +202,8 @@ class _PackageKitTransaction(object):
 	def __init__(self, pk, finished_cb=None, error_cb=None):
 		self._finished_cb = finished_cb
 		self._error_cb = error_cb
-		self._error_code = None
+		self.error_code = None
+		self.error_details = None
 		self.package = {}
 		self.details = {}
 		self.files = {}
@@ -213,14 +236,15 @@ class _PackageKitTransaction(object):
 
 	def __finished_cb(self, exit, runtime):
 		_logger_pk.debug(_('Transaction finished: %s'), exit)
-		if self._error_code is not None:
+		if self.error_code is not None:
 			self._error_cb(self)
 		else:
 			self._finished_cb(self)
 
 	def __error_code_cb(self, code, details):
-		_logger_pk.warn(_('Transaction failed: %s(%s)'), details, code)
-		self._error_code = code
+		_logger_pk.info(_('Transaction failed: %s(%s)'), details, code)
+		self.error_code = code
+		self.error_details = details
 
 	def __package_cb(self, status, id, summary):
 		from zeroinstall.injector import distro

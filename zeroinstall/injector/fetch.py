@@ -323,8 +323,7 @@ class Fetcher(object):
 		assert retrieval_method
 
 		if isinstance(retrieval_method, DistributionSource):
-			raise SafeException(_("This program depends on '%s', which is a package that is available through your distribution. "
-					"Please install it manually using your distribution's tools and try again.") % retrieval_method.package_id)
+			return retrieval_method.install(self.handler)
 
 		from zeroinstall.zerostore import manifest
 		best = None
