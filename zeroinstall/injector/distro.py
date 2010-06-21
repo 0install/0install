@@ -120,6 +120,8 @@ def try_cleanup_distro_version(version):
 	We do this by stripping off anything we can't parse.
 	@return: the part we understood, or None if we couldn't parse anything
 	@rtype: str"""
+	if ':' in version:
+		version = version.split(':')[1]	# Skip 'epoch'
 	match = re.match(_version_regexp, version)
 	if match:
 		version, revision = match.groups()
@@ -333,9 +335,6 @@ class DebianDistribution(Distribution):
 			if not line: continue
 			version, debarch, status = line.split('\t', 2)
 			if not status.endswith(' installed'): continue
-			if ':' in version:
-				# Debian's 'epoch' system
-				version = version.split(':', 1)[1]
 			clean_version = try_cleanup_distro_version(version)
 			if clean_version:
 				return '%s\t%s' % (clean_version, canonical_machine(debarch.strip()))
@@ -358,13 +357,14 @@ class DebianDistribution(Distribution):
 
 		cached = self.apt_cache.get(package, None)
 		if cached:
-			candidate_version, candidate_arch, candidate_size = cached
+			candidate_version = cached['version']
+			candidate_arch = cached['arch']
 			if candidate_version and candidate_version != installed_version:
 				impl = factory('package:deb:%s:%s' % (package, candidate_version))
 				impl.version = model.parse_version(candidate_version)
 				if candidate_arch != '*':
 					impl.machine = candidate_arch
-				impl.download_sources.append(model.DistributionSource(package, candidate_size))
+				impl.download_sources.append(model.DistributionSource(package, cached['size']))
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'Debian')
@@ -402,16 +402,13 @@ class DebianDistribution(Distribution):
 					line = line.strip()
 					if line.startswith('Version: '):
 						version = line[9:]
-						if ':' in version:
-							# Debian's 'epoch' system
-							version = version.split(':', 1)[1]
 						version = try_cleanup_distro_version(version)
 					elif line.startswith('Architecture: '):
 						arch = canonical_machine(line[14:].strip())
 					elif line.startswith('Size: '):
 						size = int(line[6:].strip())
 				if version and arch:
-					cached = (version, arch, size)
+					cached = {'version': version, 'arch': arch, 'size': size}
 				else:
 					cached = None
 				child.wait()

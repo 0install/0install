@@ -209,7 +209,7 @@ class TestDistro(BaseTest):
 		self.assertEquals('x86_64', impl.machine)
 
 	def testCleanVersion(self):
-		self.assertEquals('1', distro.try_cleanup_distro_version('1:0.3.1-1'))
+		self.assertEquals('0.3.1-1', distro.try_cleanup_distro_version('1:0.3.1-1'))
 		self.assertEquals('0.3.1-1', distro.try_cleanup_distro_version('0.3.1-1ubuntu0'))
 		self.assertEquals('0.3-post1-rc2', distro.try_cleanup_distro_version('0.3-post1-rc2'))
 		self.assertEquals('0.3.1-2', distro.try_cleanup_distro_version('0.3.1-r2-r3'))
