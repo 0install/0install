@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from basetest import BaseTest, empty_feed
+from basetest import BaseTest, empty_feed, DummyPackageKit
 import sys, os, tempfile
 from StringIO import StringIO
 import unittest
@@ -73,6 +73,7 @@ class TestDistro(BaseTest):
 		host = distro.DebianDistribution(
 				os.path.join(dpkgdir, 'status'),
 				os.path.join(dpkgdir, 'pkgcache.bin'))
+		host._packagekit = DummyPackageKit()
 
 		factory = self.make_factory(host)
 		host.get_package_info('gimp', factory)

@@ -137,6 +137,7 @@ class Distribution(object):
 	particular distributions. This base class ignores the native package manager.
 	@since: 0.28
 	"""
+	_packagekit = None
 
 	def get_package_info(self, package, factory):
 		"""Get information about the given package.
@@ -213,6 +214,15 @@ class Distribution(object):
 		feed in iface_cache is updated.
 		@return: a L{tasks.Blocker} if the task is in progress, or None if not"""
 		pass
+
+	@property
+	def packagekit(self):
+		"""For use by subclasses.
+		@rtype: L{packagekit.PackageKit}"""
+		if not self._packagekit:
+			from zeroinstall.injector import packagekit
+			self._packagekit = packagekit.PackageKit()
+		return self._packagekit
 
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
@@ -355,7 +365,11 @@ class DebianDistribution(Distribution):
 		else:
 			installed_version = None
 
-		cached = self.apt_cache.get(package, None)
+		if self.packagekit.available:
+			cached = self.packagekit.get_candidate(package)
+		else:
+			cached = self.apt_cache.get(package, None)
+
 		if cached:
 			candidate_version = cached['version']
 			candidate_arch = cached['arch']
@@ -390,6 +404,10 @@ class DebianDistribution(Distribution):
 	def fetch_candidates(self, master_feed):
 		package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self)]
 
+		if self.packagekit.available:
+			return self.packagekit.fetch_candidates(package_names)
+
+		# No PackageKit. Use apt-cache directly.
 		for package in package_names:
 			# Check to see whether we could get a newer version using apt-get
 			try:

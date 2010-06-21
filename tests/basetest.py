@@ -41,6 +41,9 @@ class TestLocale:
 		return test_locale
 model.locale = TestLocale()
 
+class DummyPackageKit:
+	available = False
+
 class BaseTest(unittest.TestCase):
 	def setUp(self):
 		warnings.resetwarnings()
@@ -74,6 +77,7 @@ class BaseTest(unittest.TestCase):
 
 		distro._host_distribution = distro.DebianDistribution(dpkgdir + '/status',
 								      dpkgdir + '/pkgcache.bin')
+		distro._host_distribution._packagekit = DummyPackageKit()
 	
 	def tearDown(self):
 		shutil.rmtree(self.config_home)
