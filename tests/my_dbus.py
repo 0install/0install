@@ -1,4 +1,9 @@
 user_callback = None		# Invoked in a callback when a question box is displayed
+class mainloop:
+	class glib:
+		@classmethod
+		def DBusGMainLoop(a, set_as_default = False):
+			pass
 
 class SessionBus:
 	def get_object(self, service, path):

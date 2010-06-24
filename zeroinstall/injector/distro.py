@@ -10,7 +10,7 @@ from zeroinstall import _
 import os, platform, re, glob, subprocess, sys
 from logging import warn, info
 from zeroinstall.injector import namespaces, model, arch
-from zeroinstall.support import basedir
+from zeroinstall.support import basedir, tasks
 
 _dotted_ints = '[0-9]+(?:\.[0-9]+)*'
 
@@ -120,6 +120,8 @@ def try_cleanup_distro_version(version):
 	We do this by stripping off anything we can't parse.
 	@return: the part we understood, or None if we couldn't parse anything
 	@rtype: str"""
+	if ':' in version:
+		version = version.split(':')[1]	# Skip 'epoch'
 	match = re.match(_version_regexp, version)
 	if match:
 		version, revision = match.groups()
@@ -135,6 +137,7 @@ class Distribution(object):
 	particular distributions. This base class ignores the native package manager.
 	@since: 0.28
 	"""
+	_packagekit = None
 
 	def get_package_info(self, package, factory):
 		"""Get information about the given package.
@@ -165,6 +168,66 @@ class Distribution(object):
 		@type package_id: str
 		@return: True iff the package is currently installed"""
 		return True
+
+	def get_feed(self, master_feed):
+		"""Generate a feed containing information about distribution packages.
+		This should immediately return a feed containing an implementation for the
+		package if it's already installed. Information about versions that could be
+		installed using the distribution's package manager can be added asynchronously
+		later (see L{fetch_candidates}).
+		@param master_feed: feed containing the <package-implementation> elements
+		@type master_feed: L{model.ZeroInstallFeed}
+		@rtype: L{model.ZeroInstallFeed}"""
+
+		feed = model.ZeroInstallFeed(None)
+		feed.url = 'distribution:' + master_feed.url
+
+		for item, item_attrs in master_feed.get_package_impls(self):
+			package = item_attrs.get('package', None)
+			if package is None:
+				raise model.InvalidInterface(_("Missing 'package' attribute on %s") % item)
+
+			def factory(id):
+				assert id.startswith('package:')
+				if id in feed.implementations:
+					warn(_("Duplicate ID '%s' for DistributionImplementation"), id)
+				impl = model.DistributionImplementation(feed, id, self)
+				feed.implementations[id] = impl
+
+				impl.metadata = item_attrs
+
+				item_main = item_attrs.get('main', None)
+				if item_main and not item_main.startswith('/'):
+					raise model.InvalidInterface(_("'main' attribute must be absolute, but '%s' doesn't start with '/'!") %
+								item_main)
+				impl.main = item_main
+				impl.upstream_stability = model.packaged
+
+				return impl
+
+			self.get_package_info(package, factory)
+
+			if self.packagekit.available:
+				self.packagekit.get_candidates(package, feed, factory, 'package:deb')
+		return feed
+
+	def fetch_candidates(self, master_feed):
+		"""Collect information about versions we could install using
+		the distribution's package manager. On success, the distribution
+		feed in iface_cache is updated.
+		@return: a L{tasks.Blocker} if the task is in progress, or None if not"""
+		if self.packagekit.available:
+			package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self)]
+			return self.packagekit.fetch_candidates(package_names)
+
+	@property
+	def packagekit(self):
+		"""For use by subclasses.
+		@rtype: L{packagekit.PackageKit}"""
+		if not self._packagekit:
+			from zeroinstall.injector import packagekit
+			self._packagekit = packagekit.PackageKit()
+		return self._packagekit
 
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
@@ -274,7 +337,7 @@ class DebianDistribution(Distribution):
 
 	def __init__(self, dpkg_status, pkgcache):
 		self.dpkg_cache = Cache('dpkg-status.cache', dpkg_status, 2)
-		self.apt_cache = Cache('apt-cache-cache', pkgcache, 3)
+		self.apt_cache = {}
 
 	def _query_installed_package(self, package):
 		null = os.open('/dev/null', os.O_WRONLY)
@@ -287,9 +350,6 @@ class DebianDistribution(Distribution):
 			if not line: continue
 			version, debarch, status = line.split('\t', 2)
 			if not status.endswith(' installed'): continue
-			if ':' in version:
-				# Debian's 'epoch' system
-				version = version.split(':', 1)[1]
 			clean_version = try_cleanup_distro_version(version)
 			if clean_version:
 				return '%s\t%s' % (clean_version, canonical_machine(debarch.strip()))
@@ -299,6 +359,7 @@ class DebianDistribution(Distribution):
 		return '-'
 
 	def get_package_info(self, package, factory):
+		# Add any already-installed package...
 		installed_cached_info = self._get_dpkg_info(package)
 
 		if installed_cached_info != '-':
@@ -310,47 +371,24 @@ class DebianDistribution(Distribution):
 		else:
 			installed_version = None
 
-		# Check to see whether we could get a newer version using apt-get
+		# Add any uninstalled candidates...
+		if self.packagekit.available:
+			return
 
-		cached = self.apt_cache.get(package)
-		if cached is None:
-			try:
-				null = os.open('/dev/null', os.O_WRONLY)
-				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null)
-				os.close(null)
+		cached = self.apt_cache.get(package, None)
 
-				arch = version = size = None
-				for line in child.stdout:
-					line = line.strip()
-					if line.startswith('Version: '):
-						version = line[9:]
-						if ':' in version:
-							# Debian's 'epoch' system
-							version = version.split(':', 1)[1]
-						version = try_cleanup_distro_version(version)
-					elif line.startswith('Architecture: '):
-						arch = canonical_machine(line[14:].strip())
-					elif line.startswith('Size: '):
-						size = int(line[6:].strip())
-				if version and arch:
-					cached = '%s\t%s\t%d' % (version, arch, size)
-				else:
-					cached = '-'
-				child.wait()
-			except Exception, ex:
-				warn("'apt-cache show %s' failed: %s", package, ex)
-				cached = '-'
-			# (multi-arch support? can there be multiple candidates?)
-			self.apt_cache.put(package, cached)
-
-		if cached != '-':
-			candidate_version, candidate_arch, candidate_size = cached.split('\t')
+		if cached:
+			candidate_version = cached['version']
+			candidate_arch = cached['arch']
 			if candidate_version and candidate_version != installed_version:
 				impl = factory('package:deb:%s:%s' % (package, candidate_version))
 				impl.version = model.parse_version(candidate_version)
 				if candidate_arch != '*':
 					impl.machine = candidate_arch
-				impl.download_sources.append(model.DistributionSource(package, candidate_size))
+				def install(handler):
+					raise model.SafeException(_("This program depends on '%s', which is a package that is available through your distribution. "
+							"Please install it manually using your distribution's tools and try again.") % package)
+				impl.download_sources.append(model.DistributionSource(package, cached['size'], install))
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'Debian')
@@ -372,6 +410,41 @@ class DebianDistribution(Distribution):
 		installed_version, machine = info.split('\t')
 		installed_id = 'package:deb:%s:%s' % (package, installed_version)
 		return package_id == installed_id
+
+	def fetch_candidates(self, master_feed):
+		package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self)]
+
+		if self.packagekit.available:
+			return self.packagekit.fetch_candidates(package_names)
+
+		# No PackageKit. Use apt-cache directly.
+		for package in package_names:
+			# Check to see whether we could get a newer version using apt-get
+			try:
+				null = os.open('/dev/null', os.O_WRONLY)
+				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null)
+				os.close(null)
+
+				arch = version = size = None
+				for line in child.stdout:
+					line = line.strip()
+					if line.startswith('Version: '):
+						version = line[9:]
+						version = try_cleanup_distro_version(version)
+					elif line.startswith('Architecture: '):
+						arch = canonical_machine(line[14:].strip())
+					elif line.startswith('Size: '):
+						size = int(line[6:].strip())
+				if version and arch:
+					cached = {'version': version, 'arch': arch, 'size': size}
+				else:
+					cached = None
+				child.wait()
+			except Exception, ex:
+				warn("'apt-cache show %s' failed: %s", package, ex)
+				cached = None
+			# (multi-arch support? can there be multiple candidates?)
+			self.apt_cache[package] = cached
 
 class RPMDistribution(CachedDistribution):
 	"""An RPM-based distribution."""

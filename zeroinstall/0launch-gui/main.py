@@ -148,7 +148,7 @@ def run_gui(args):
 			window.refresh_button.set_sensitive(False)
 			window.browser.set_update_icons(force_refresh)
 
-			solved = policy.solve_with_downloads(force = force_refresh)
+			solved = policy.solve_with_downloads(force = force_refresh, update_local = True)
 
 			if not window.systray_icon:
 				window.show()

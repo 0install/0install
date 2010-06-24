@@ -174,16 +174,31 @@ class IfaceCache(object):
 	cache of L{model.Interface} objects, and an on-disk cache of L{model.ZeroInstallFeed}s.
 	It will probably be split into two in future.
 
+	@ivar distro: the native distribution proxy
+	@type distro: L[distro.Distribution}
+
 	@see: L{iface_cache} - the singleton IfaceCache instance.
 	"""
 
-	__slots__ = ['_interfaces', 'stores', '_feeds']
+	__slots__ = ['_interfaces', 'stores', '_feeds', '_distro']
 
-	def __init__(self):
+	def __init__(self, distro = None):
+		"""@param distro: distribution used to fetch "distribution:" feeds (since 0.49)
+		@type distro: L[distro.Distribution}, or None to use the host distribution
+		"""
 		self._interfaces = {}
 		self._feeds = {}
 
 		self.stores = zerostore.Stores()
+
+		self._distro = distro
+
+	@property
+	def distro(self):
+		if self._distro is None:
+			from zeroinstall.injector.distro import get_host_distribution
+			self._distro = get_host_distribution()
+		return self._distro
 	
 	def update_interface_if_trusted(self, interface, sigs, xml):
 		import warnings
@@ -320,7 +335,13 @@ class IfaceCache(object):
 			if feed != False:
 				return feed
 
-		feed = reader.load_feed_from_cache(url)
+		if url.startswith('distribution:'):
+			master_feed = self.get_feed(url.split(':', 1)[1])
+			if not master_feed:
+				return None	# Can't happen?
+			feed = self.distro.get_feed(master_feed)
+		else:
+			feed = reader.load_feed_from_cache(url)
 		if feed:
 			reader.update_user_feed_overrides(feed)
 		self._feeds[url] = feed

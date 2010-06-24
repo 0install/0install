@@ -375,17 +375,20 @@ class Recipe(RetrievalMethod):
 
 class DistributionSource(RetrievalMethod):
 	"""A package that is installed using the distribution's tools (including PackageKit).
+	@ivar install: a function to call to install this package
+	@type install: (L{handler.Handler}) -> L{tasks.Blocker}
 	@ivar package_id: the package name, in a form recognised by the distribution's tools
 	@type package_id: str
 	@ivar size: the download size in bytes
 	@type size: int"""
 
-	__slots__ = ['package_id', 'size']
+	__slots__ = ['package_id', 'size', 'install']
 
-	def __init__(self, package_id, size):
+	def __init__(self, package_id, size, install):
 		RetrievalMethod.__init__(self)
 		self.package_id = package_id
 		self.size = size
+		self.install = install
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface.
@@ -629,17 +632,14 @@ class ZeroInstallFeed(object):
 	@ivar metadata: extra elements we didn't understand
 	"""
 	# _main is deprecated
-	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'summaries',
+	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'summaries', '_package_implementations',
 		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata']
 
 	def __init__(self, feed_element, local_path = None, distro = None):
 		"""Create a feed object from a DOM.
 		@param feed_element: the root element of a feed file
 		@type feed_element: L{qdom.Element}
-		@param local_path: the pathname of this local feed, or None for remote feeds
-		@param distro: used to resolve distribution package references
-		@type distro: L{distro.Distribution} or None"""
-		assert feed_element
+		@param local_path: the pathname of this local feed, or None for remote feeds"""
 		self.implementations = {}
 		self.name = None
 		self.summaries = {}	# { lang: str }
@@ -649,6 +649,14 @@ class ZeroInstallFeed(object):
 		self.feed_for = set()
 		self.metadata = []
 		self.last_checked = None
+		self._package_implementations = []
+
+		if distro is not None:
+			import warnings
+			warnings.warn("distro argument is now ignored", DeprecationWarning, 2)
+
+		if feed_element is None:
+			return			# XXX subclass?
 
 		assert feed_element.name in ('interface', 'feed'), "Root element should be <interface>, not %s" % feed_element
 		assert feed_element.uri == XMLNS_IFACE, "Wrong namespace on root element: %s" % feed_element.uri
@@ -708,8 +716,6 @@ class ZeroInstallFeed(object):
 		if not self.summary:
 			raise InvalidInterface(_("Missing <summary> in feed"))
 
-		package_impls = [0, []]		# Best score so far and packages with that score
-
 		def process_group(group, group_attrs, base_depends, base_bindings):
 			for item in group.childNodes:
 				if item.uri != XMLNS_IFACE: continue
@@ -741,14 +747,9 @@ class ZeroInstallFeed(object):
 				elif item.name == 'implementation':
 					process_impl(item, item_attrs, depends, bindings)
 				elif item.name == 'package-implementation':
-					distro_names = item_attrs.get('distributions', '')
-					for distro_name in distro_names.split(' '):
-						score = distro.get_score(distro_name)
-						if score > package_impls[0]:
-							package_impls[0] = score
-							package_impls[1] = []
-						if score == package_impls[0]:
-							package_impls[1].append((item, item_attrs, depends))
+					if depends:
+						warn("A <package-implementation> with dependencies in %s!", self.url)
+					self._package_implementations.append((item, item_attrs))
 				else:
 					assert 0
 
@@ -848,39 +849,40 @@ class ZeroInstallFeed(object):
 					else:
 						impl.download_sources.append(recipe)
 
-		def process_native_impl(item, item_attrs, depends):
-			package = item_attrs.get('package', None)
-			if package is None:
-				raise InvalidInterface(_("Missing 'package' attribute on %s") % item)
-
-			def factory(id):
-				assert id.startswith('package:')
-				if id in self.implementations:
-					warn(_("Duplicate ID '%s' for DistributionImplementation"), id)
-				impl = DistributionImplementation(self, id, distro)
-				self.implementations[id] = impl
-
-				impl.metadata = item_attrs
-
-				item_main = item_attrs.get('main', None)
-				if item_main and not item_main.startswith('/'):
-					raise InvalidInterface(_("'main' attribute must be absolute, but '%s' doesn't start with '/'!") %
-								item_main)
-				impl.main = item_main
-				impl.upstream_stability = packaged
-				impl.requires = depends
-
-				return impl
-
-			distro.get_package_info(package, factory)
-		
 		root_attrs = {'stability': 'testing'}
 		if main:
 			root_attrs['main'] = main
 		process_group(feed_element, root_attrs, [], [])
+	
+	def get_distro_feed(self):
+		"""Does this feed contain any <pacakge-implementation> elements?
+		i.e. is it worth asking the package manager for more information?
+		@return: the URL of the virtual feed, or None
+		@since: 0.49"""
+		if self._package_implementations:
+			return "distribution:" + self.url
+		return None
 
-		for args in package_impls[1]:
-			process_native_impl(*args)
+	def get_package_impls(self, distro):
+		"""Find the best <pacakge-implementation> element(s) for the given distribution.
+		@param distro: the distribution to use to rate them
+		@type distro: L{distro.Distribution}
+		@return: a list of tuples for the best ranked elements
+		@rtype: [str]
+		@since: 0.49"""
+		best_score = 0
+		best_impls = []
+
+		for item, item_attrs in self._package_implementations:
+			distro_names = item_attrs.get('distributions', '')
+			for distro_name in distro_names.split(' '):
+				score = distro.get_score(distro_name)
+				if score > best_score:
+					best_score = score
+					best_impls = []
+				if score == best_score:
+					best_impls.append((item, item_attrs))
+		return best_impls
 
 	def get_name(self):
 		return self.name or '(' + os.path.basename(self.url) + ')'

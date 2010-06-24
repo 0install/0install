@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-from basetest import BaseTest, empty_feed
+from basetest import BaseTest, empty_feed, DummyPackageKit
 import sys, os, tempfile
 from StringIO import StringIO
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import distro, model, qdom
+from zeroinstall.injector import distro, model, qdom, iface_cache, handler
 
-def parse_impls(impls, test_distro):
+def parse_impls(impls):
 	xml = """<?xml version="1.0" ?>
 		 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
 		   <name>Foo</name>
@@ -16,7 +16,7 @@ def parse_impls(impls, test_distro):
 		   %s
 		</interface>""" % impls
 	element = qdom.parse(StringIO(xml))
-	return model.ZeroInstallFeed(element, "myfeed.xml", test_distro)
+	return model.ZeroInstallFeed(element, "myfeed.xml")
 
 class TestDistro(BaseTest):
 	def setUp(self):
@@ -73,12 +73,27 @@ class TestDistro(BaseTest):
 		host = distro.DebianDistribution(
 				os.path.join(dpkgdir, 'status'),
 				os.path.join(dpkgdir, 'pkgcache.bin'))
+		host._packagekit = DummyPackageKit()
 
 		factory = self.make_factory(host)
 		host.get_package_info('gimp', factory)
 		self.assertEquals({}, self.feed.implementations)
 
+		# Initially, we only get information about the installed version...
 		host.get_package_info('python-bittorrent', factory)
+		self.assertEquals(1, len(self.feed.implementations))
+
+		# Tell distro to fetch information about candidates...
+		master_feed = parse_impls("""<package-implementation package='python-bittorrent'/>""")
+		h = handler.Handler()
+		candidates = host.fetch_candidates(master_feed)
+		if candidates:
+			h.wait_for_blocker(candidates)
+		# Now we see the uninstalled package
+		self.feed = model.ZeroInstallFeed(empty_feed, local_path = '/empty.xml')
+		host.get_package_info('python-bittorrent', factory)
+		self.assertEquals(2, len(self.feed.implementations))
+
 		self.assertEquals(2, len(self.feed.implementations))
 		bittorrent_installed = self.feed.implementations['package:deb:python-bittorrent:3.4.2-10']
 		bittorrent_uninstalled = self.feed.implementations['package:deb:python-bittorrent:3.4.2-11.1']
@@ -108,24 +123,36 @@ class TestDistro(BaseTest):
 		self.assertEquals('2.15.23-21', yast.get_version())
 		self.assertEquals('*-i586', yast.arch)
 
-		impls = parse_impls("""
+		icache = iface_cache.IfaceCache(distro = rpm)
+
+		feed = parse_impls("""
 				<package-implementation distributions="Debian" package="yast2-mail"/>
 				<package-implementation distributions="RPM" package="yast2-update"/>
-				""", rpm).implementations
+				""")
+		icache._feeds[feed.url] = feed
+		distro_feed_url = feed.get_distro_feed()
+		impls = icache.get_feed(distro_feed_url).implementations
+		self.assertEquals("distribution:myfeed.xml", distro_feed_url)
 		assert len(impls) == 1, impls
 		impl, = impls
 		assert impl == 'package:rpm:yast2-update:2.15.23-21:i586'
 
-		impls = parse_impls("""
+		feed = parse_impls("""
 				<package-implementation distributions="RPM" package="yast2-mail"/>
 				<package-implementation distributions="RPM" package="yast2-update"/>
-				""", rpm).implementations
+				""")
+		icache._feeds[feed.url] = feed
+		del icache._feeds['distribution:' + feed.url]
+		impls = icache.get_feed(feed.get_distro_feed()).implementations
 		assert len(impls) == 2, impls
 
-		impls = parse_impls("""
+		feed = parse_impls("""
 				<package-implementation distributions="" package="yast2-mail"/>
 				<package-implementation package="yast2-update"/>
-				""", rpm).implementations
+				""")
+		icache._feeds[feed.url] = feed
+		del icache._feeds['distribution:' + feed.url]
+		impls = icache.get_feed(feed.get_distro_feed()).implementations
 		assert len(impls) == 2, impls
 
 	def testSlack(self):
@@ -183,7 +210,7 @@ class TestDistro(BaseTest):
 		self.assertEquals('x86_64', impl.machine)
 
 	def testCleanVersion(self):
-		self.assertEquals('1', distro.try_cleanup_distro_version('1:0.3.1-1'))
+		self.assertEquals('0.3.1-1', distro.try_cleanup_distro_version('1:0.3.1-1'))
 		self.assertEquals('0.3.1-1', distro.try_cleanup_distro_version('0.3.1-1ubuntu0'))
 		self.assertEquals('0.3-post1-rc2', distro.try_cleanup_distro_version('0.3-post1-rc2'))
 		self.assertEquals('0.3.1-2', distro.try_cleanup_distro_version('0.3.1-r2-r3'))

@@ -224,9 +224,12 @@ class TestReader(BaseTest):
 		iface = model.Interface(foo_iface_uri)
 		reader.update(iface, tmp.name, True)
 
-		feed = iface_cache.get_feed(foo_iface_uri)
+		master_feed = iface_cache.get_feed(foo_iface_uri)
+		assert len(master_feed.implementations) == 0
+		distro_feed_url = master_feed.get_distro_feed()
 
-		assert len(feed.implementations) == 2
+		feed = iface_cache.get_feed(distro_feed_url)
+		assert len(feed.implementations) == 1
 
 		impl = feed.implementations['package:deb:python-bittorrent:3.4.2-10']
 		assert impl.id == 'package:deb:python-bittorrent:3.4.2-10'

@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface uri="http://example.com:8000/Native.xml" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Native</name>
+  <summary>Native</summary>
+  <package-implementation package="python-bittorrent"/>
+</interface>
+<!-- Base64 Signature
+iEYEABECAAYFAkweJVMACgkQb88SG+I5DgsqrgCeNU96nDpeyqRz7vftbDH29XiKIEUAn1n9nNB1
+yoO302I1LQ/Tem3iUIhs
+
+-->

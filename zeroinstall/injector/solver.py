@@ -288,13 +288,7 @@ class SATSolver(Solver):
 			@rtype: generator(ZeroInstallFeed)"""
 			yield iface.uri
 
-			# Note: we only look one level deep here. Maybe we should recurse further?
-			feeds = iface.extra_feeds
-			main_feed = self.iface_cache.get_feed(iface.uri)
-			if main_feed:
-				feeds = feeds + main_feed.feeds
-
-			for f in feeds:
+			for f in self.iface_cache.get_feed_imports(iface):
 				# Note: when searching for src, None is not in machine_ranks
 				if f.os in arch.os_ranks and \
 				   (f.machine is None or f.machine in arch.machine_ranks):
@@ -319,11 +313,18 @@ class SATSolver(Solver):
 				try:
 					feed = self.iface_cache.get_feed(f)
 					if feed is None: continue
-					if feed.name and iface.uri != feed.url and iface.uri not in feed.feed_for:
-						info(_("Missing <feed-for> for '%(uri)s' in '%(feed)s'"), {'uri': iface.uri, 'feed': f})
+					#if feed.name and iface.uri != feed.url and iface.uri not in feed.feed_for:
+					#	info(_("Missing <feed-for> for '%(uri)s' in '%(feed)s'"), {'uri': iface.uri, 'feed': f})
 
 					if feed.implementations:
 						impls.extend(feed.implementations.values())
+
+					distro_feed_url = feed.get_distro_feed()
+					if distro_feed_url:
+						self.feeds_used.add(distro_feed_url)
+						distro_feed = self.iface_cache.get_feed(distro_feed_url)
+						if distro_feed.implementations:
+							impls.extend(distro_feed.implementations.values())
 				except Exception, ex:
 					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
 

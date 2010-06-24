@@ -94,6 +94,9 @@ class TestCache:
 			self.feeds[url] = feed
 		return self.feeds[url]
 
+	def get_feed_imports(self, iface):
+		return []
+
 def assertSelection(expected, repo):
 	cache = TestCache()
 
