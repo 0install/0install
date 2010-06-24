@@ -80,7 +80,8 @@ class PackageKit:
 			blocker = None
 
 			def error_cb(sender):
-				_logger_pk.warn(_('Transaction failed: %s(%s)'), sender.error_code, sender.error_details)
+				# Note: probably just means the package wasn't found
+				_logger_pk.info(_('Transaction failed: %s(%s)'), sender.error_code, sender.error_details)
 				blocker.trigger()
 
 			def details_cb(sender):
