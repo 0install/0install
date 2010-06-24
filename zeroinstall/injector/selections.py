@@ -253,11 +253,16 @@ class Selections(object):
 				feed_url = sel.attrs.get('from-feed', None) or sel.attrs['interface']
 				feed = iface_cache.get_feed(feed_url)
 				if feed is None or sel.id not in feed.implementations:
-					yield fetcher.download_and_import_feed(feed_url, iface_cache)
+					fetch_feed = fetcher.download_and_import_feed(feed_url, iface_cache)
+					yield fetch_feed
+					tasks.check(fetch_feed)
+
 					feed = iface_cache.get_feed(feed_url)
 					assert feed, "Failed to get feed for %s" % feed_url
 				impl = feed.implementations[sel.id]
 				needed_impls.append(impl)
 
-			yield fetcher.download_impls(needed_impls, iface_cache.stores)
+			fetch_impls = fetcher.download_impls(needed_impls, iface_cache.stores)
+			yield fetch_impls
+			tasks.check(fetch_impls)
 		return download()
