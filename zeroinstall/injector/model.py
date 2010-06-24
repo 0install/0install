@@ -747,7 +747,8 @@ class ZeroInstallFeed(object):
 				elif item.name == 'implementation':
 					process_impl(item, item_attrs, depends, bindings)
 				elif item.name == 'package-implementation':
-					assert depends == [], "A <package-implementation> with dependencies in %s!" % self.url
+					if depends:
+						warn("A <package-implementation> with dependencies in %s!", self.url)
 					self._package_implementations.append((item, item_attrs))
 				else:
 					assert 0
