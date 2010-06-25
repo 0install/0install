@@ -143,13 +143,13 @@ class AbstractTestUnpack():
 				full_mode = os.stat(full).st_mode
 				self.assertEquals(0444, full_mode & 0666)	# Must be r-?r-?r-?
 
-class TestUnpackPython(BaseTest, AbstractTestUnpack):
+class TestUnpackPython(AbstractTestUnpack, BaseTest):
 	def setUp(self):
 		AbstractTestUnpack.setUp(self)
 		unpack._tar_version = 'Solaris tar'
 		assert not unpack._gnu_tar()
 
-class TestUnpackGNU(BaseTest, AbstractTestUnpack):
+class TestUnpackGNU(AbstractTestUnpack, BaseTest):
 	def setUp(self):
 		AbstractTestUnpack.setUp(self)
 		unpack._tar_version = None
