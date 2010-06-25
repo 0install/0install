@@ -82,8 +82,11 @@ class OldSHA1(Algorithm):
 					yield "D %s %s" % (int(info.st_mtime), sub)
 				items = os.listdir(full)
 				items.sort()
+				subdir = sub
+				if not subdir.endswith('/'):
+					subdir += '/'
 				for x in items:
-					for y in recurse(os.path.join(sub, x)):
+					for y in recurse(subdir + x):
 						yield y
 				return
 
@@ -472,8 +475,12 @@ class HashLibAlgorithm(Algorithm):
 				else:
 					raise SafeException(_("Unknown object '%s' (not a file, directory or symlink)") %
 							path)
+
+			if not sub.endswith('/'):
+				sub += '/'
 			for x in dirs:
-				for y in recurse(os.path.join(sub, x)): yield y
+				# Note: "sub" is always Unix style. Don't use os.path.join here.
+				for y in recurse(sub + x): yield y
 			return
 
 		for x in recurse('/'): yield x
