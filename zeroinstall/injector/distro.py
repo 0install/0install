@@ -468,16 +468,17 @@ class RPMDistribution(CachedDistribution):
 		self._write_cache(cache)
 
 	def get_package_info(self, package, factory):
-		try:
-			versions = self.versions[package]
-		except KeyError:
-			return
+		# Add installed versions...
+		versions = self.versions.get(package, [])
 
 		for version, machine in versions:
 			impl = factory('package:rpm:%s:%s:%s' % (package, version, machine))
 			impl.version = model.parse_version(version)
 			if machine != '*':
 				impl.machine = machine
+
+		# Add any uninstalled candidates found by PackageKit
+		self.packagekit.get_candidates(package, factory, 'package:rpm')
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'RPM')
@@ -489,6 +490,7 @@ class SlackDistribution(Distribution):
 		self._packages_dir = packages_dir
 
 	def get_package_info(self, package, factory):
+		# Add installed versions...
 		for entry in os.listdir(self._packages_dir):
 			name, version, arch, build = entry.rsplit('-', 3)
 			if name == package:
@@ -504,6 +506,9 @@ class SlackDistribution(Distribution):
 				if zi_arch != '*':
 					impl.machine = zi_arch
 
+		# Add any uninstalled candidates found by PackageKit
+		self.packagekit.get_candidates(package, factory, 'package:slack')
+
 	def get_score(self, disto_name):
 		return int(disto_name == 'Slack')
 
@@ -513,6 +518,7 @@ class GentooDistribution(Distribution):
 		self._pkgdir = pkgdir
 
 	def get_package_info(self, package, factory):
+		# Add installed versions...
 		_version_start_reqexp = '-[0-9]'
 
 		if package.count('/') != 1: return
@@ -544,6 +550,9 @@ class GentooDistribution(Distribution):
 						(package, version, machine))
 				impl.version = model.parse_version(version)
 				impl.machine = machine
+
+		# Add any uninstalled candidates found by PackageKit
+		self.packagekit.get_candidates(package, factory, 'package:gentoo')
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'Gentoo')
