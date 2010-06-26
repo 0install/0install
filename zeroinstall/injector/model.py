@@ -476,19 +476,17 @@ class DistributionImplementation(Implementation):
 	"""An implementation provided by the distribution. Information such as the version
 	comes from the package manager.
 	@since: 0.28"""
+	__slots__ = ['distro', 'installed']
 
 	def __init__(self, feed, id, distro):
 		assert id.startswith('package:')
 		Implementation.__init__(self, feed, id)
 		self.distro = distro
+		self.installed = False
 
 	@property
 	def requires_root_install(self):
 		return not self.installed
-
-	@property
-	def installed(self):
-		return self.distro.get_installed(self.id)
 
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.

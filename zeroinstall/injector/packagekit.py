@@ -58,7 +58,7 @@ class PackageKit:
 
 		impl_name = '%s:%s:%s' % (prefix, package_name, candidate['version'])
 
-		impl = factory(impl_name, only_if_missing = True)
+		impl = factory(impl_name, only_if_missing = True, installed = candidate['installed'])
 		if impl is None:
 			# (checking this way because the cached candidate['installed'] may be stale)
 			return		# Already installed
@@ -150,6 +150,7 @@ class PackageKitDownload(download.Download):
 			self.downloaded.trigger(exception = (ex, None))
 
 		def installed_cb(sender):
+			self._impl.installed = True;
 			self.status = download.download_complete
 			self.downloaded.trigger()
 

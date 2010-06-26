@@ -54,10 +54,12 @@ class TestDistro(BaseTest):
 			src.close()
 
 	def make_factory(self, distro):
-		def factory(id):
+		def factory(id, only_if_missing = False, installed = True):
+			assert not only_if_missing
 			impl = model.DistributionImplementation(self.feed, id, distro)
 			assert id not in self.feed.implementations
 			self.feed.implementations[id] = impl
+			impl.installed = installed
 			return impl
 		return factory
 

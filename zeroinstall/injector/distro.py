@@ -162,13 +162,6 @@ class Distribution(object):
 		"""
 		return 0
 
-	def get_installed(self, package_id):
-		"""Check whether 'package' is currently installed.
-		@param package_id: the Implementation ID used by get_package_info
-		@type package_id: str
-		@return: True iff the package is currently installed"""
-		return True
-
 	def get_feed(self, master_feed):
 		"""Generate a feed containing information about distribution packages.
 		This should immediately return a feed containing an implementation for the
@@ -187,7 +180,7 @@ class Distribution(object):
 			if package is None:
 				raise model.InvalidInterface(_("Missing 'package' attribute on %s") % item)
 
-			def factory(id, only_if_missing = False):
+			def factory(id, only_if_missing = False, installed = True):
 				assert id.startswith('package:')
 				if id in feed.implementations:
 					if only_if_missing:
@@ -196,6 +189,7 @@ class Distribution(object):
 				impl = model.DistributionImplementation(feed, id, self)
 				feed.implementations[id] = impl
 
+				impl.installed = installed
 				impl.metadata = item_attrs
 
 				item_main = item_attrs.get('main', None)
@@ -381,7 +375,7 @@ class DebianDistribution(Distribution):
 			candidate_version = cached['version']
 			candidate_arch = cached['arch']
 			if candidate_version and candidate_version != installed_version:
-				impl = factory('package:deb:%s:%s' % (package, candidate_version))
+				impl = factory('package:deb:%s:%s' % (package, candidate_version), installed = False)
 				impl.version = model.parse_version(candidate_version)
 				if candidate_arch != '*':
 					impl.machine = candidate_arch
@@ -400,16 +394,6 @@ class DebianDistribution(Distribution):
 			self.dpkg_cache.put(package, installed_cached_info)
 
 		return installed_cached_info
-
-	def get_installed(self, package_id):
-		details = package_id.split(':', 3)
-		assert details[0] == 'package'
-		package = details[2]
-		info = self._get_dpkg_info(package)
-		if info is '-': return False
-		installed_version, machine = info.split('\t')
-		installed_id = 'package:deb:%s:%s' % (package, installed_version)
-		return package_id == installed_id
 
 	def fetch_candidates(self, master_feed):
 		package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self)]
