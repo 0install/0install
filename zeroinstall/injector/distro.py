@@ -187,9 +187,11 @@ class Distribution(object):
 			if package is None:
 				raise model.InvalidInterface(_("Missing 'package' attribute on %s") % item)
 
-			def factory(id):
+			def factory(id, only_if_missing = False):
 				assert id.startswith('package:')
 				if id in feed.implementations:
+					if only_if_missing:
+						return None
 					warn(_("Duplicate ID '%s' for DistributionImplementation"), id)
 				impl = model.DistributionImplementation(feed, id, self)
 				feed.implementations[id] = impl
@@ -206,9 +208,6 @@ class Distribution(object):
 				return impl
 
 			self.get_package_info(package, factory)
-
-			if self.packagekit.available:
-				self.packagekit.get_candidates(package, feed, factory, 'package:deb')
 		return feed
 
 	def fetch_candidates(self, master_feed):
@@ -371,12 +370,13 @@ class DebianDistribution(Distribution):
 		else:
 			installed_version = None
 
-		# Add any uninstalled candidates...
-		if self.packagekit.available:
-			return
+		# Add any uninstalled candidates (note: only one of these two methods will add anything)
 
+		# From PackageKit...
+		self.packagekit.get_candidates(package, factory, 'package:deb')
+
+		# From apt-cache...
 		cached = self.apt_cache.get(package, None)
-
 		if cached:
 			candidate_version = cached['version']
 			candidate_arch = cached['arch']

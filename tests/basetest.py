@@ -52,6 +52,9 @@ model.locale = TestLocale()
 class DummyPackageKit:
 	available = False
 
+	def get_candidates(self, package, factory, prefix):
+		pass
+
 class BaseTest(unittest.TestCase):
 	def setUp(self):
 		warnings.resetwarnings()

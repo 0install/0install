@@ -20,15 +20,7 @@ _logger_pk = logging.getLogger('packagekit')
 
 class PackageKit:
 	def __init__(self):
-		try:
-			self.pk = dbus.Interface(dbus.SystemBus().get_object(
-						'org.freedesktop.PackageKit',
-						'/org/freedesktop/PackageKit', False),
-					'org.freedesktop.PackageKit')
-			_logger_pk.info(_('PackageKit dbus service found'))
-		except:
-			_logger_pk.info(_('PackageKit dbus service not found'))
-			self.pk = None
+		self._pk = False
 
 		self._candidates = {}	# { package_name : (version, arch, size) | Blocker }
 
@@ -36,7 +28,27 @@ class PackageKit:
 	def available(self):
 		return self.pk is not None
 
-	def get_candidates(self, package_name, feed, factory, prefix):
+	@property
+	def pk(self):
+		if self._pk is False:
+			try:
+				self._pk = dbus.Interface(dbus.SystemBus().get_object(
+							'org.freedesktop.PackageKit',
+							'/org/freedesktop/PackageKit', False),
+						'org.freedesktop.PackageKit')
+				_logger_pk.info(_('PackageKit dbus service found'))
+			except:
+				_logger_pk.info(_('PackageKit dbus service not found'))
+				self.pk = None
+		return self._pk
+
+	def get_candidates(self, package_name, factory, prefix):
+		"""Add any cached candidates.
+		The candidates are those discovered by a previous call to L{fetch_candidates}.
+		@param package_name: the distribution's name for the package
+		@param factory: a function to add a new implementation to the feed
+		@param prefix: the prefix for the implementation's ID
+		"""
 		candidate = self._candidates.get(package_name, None)
 		if candidate is None:
 			return
@@ -45,11 +57,12 @@ class PackageKit:
 			return		# Fetch still in progress
 
 		impl_name = '%s:%s:%s' % (prefix, package_name, candidate['version'])
-		if impl_name in feed.implementations:
+
+		impl = factory(impl_name, only_if_missing = True)
+		if impl is None:
 			# (checking this way because the cached candidate['installed'] may be stale)
 			return		# Already installed
 
-		impl = factory(impl_name)
 		impl.version = model.parse_version(candidate['version'])
 		if candidate['arch'] != '*':
 			impl.machine = candidate['arch']
