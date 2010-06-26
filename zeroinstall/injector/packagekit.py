@@ -113,7 +113,7 @@ class PackageKit:
 					tran = _PackageKitTransaction(self.pk, details_cb, error_cb)
 					tran.proxy.GetDetails(versions.keys())
 				else:
-					_logger_pk.warn(_('Empty resolve for %s'), package_names)
+					_logger_pk.info(_('Empty resolve for %s'), package_names)
 					blocker.trigger()
 
 			# Send queries
