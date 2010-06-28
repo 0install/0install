@@ -6,17 +6,22 @@ PackageKit integration.
 # See the README file for details, or visit http://0install.net.
 
 import os
-import dbus
 import locale
 import logging
-import dbus.mainloop.glib
 from zeroinstall import _, SafeException
 
 from zeroinstall.support import tasks
 from zeroinstall.injector import download, model
 
-dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 _logger_pk = logging.getLogger('packagekit')
+
+try:
+	import dbus
+	import dbus.mainloop.glib
+	dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+except Exception, ex:
+	_logger_pk.info("D-BUS not available: %s", ex)
+	dbus = None
 
 class PackageKit(object):
 	def __init__(self):
@@ -37,9 +42,9 @@ class PackageKit(object):
 							'/org/freedesktop/PackageKit', False),
 						'org.freedesktop.PackageKit')
 				_logger_pk.info(_('PackageKit dbus service found'))
-			except:
-				_logger_pk.info(_('PackageKit dbus service not found'))
-				self.pk = None
+			except Exception, ex:
+				_logger_pk.info(_('PackageKit dbus service not found: %s'), ex)
+				self._pk = None
 		return self._pk
 
 	def get_candidates(self, package_name, factory, prefix):
