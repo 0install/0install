@@ -122,6 +122,7 @@ def try_cleanup_distro_version(version):
 	@rtype: str"""
 	if ':' in version:
 		version = version.split(':')[1]	# Skip 'epoch'
+	version = version.replace('_', '-')
 	match = re.match(_version_regexp, version)
 	if match:
 		version, revision = match.groups()
