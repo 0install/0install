@@ -18,7 +18,7 @@ from zeroinstall.injector import download, model
 dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 _logger_pk = logging.getLogger('packagekit')
 
-class PackageKit:
+class PackageKit(object):
 	def __init__(self):
 		self._pk = False
 
@@ -246,7 +246,7 @@ class _PackageKitTransaction(object):
 	def getPercentage(self):
 		result = self.get_prop('Percentage')
 		if result is None:
-			result, __, __, __ = self._transaction.proxy.GetProgress()
+			result, __, __, __ = self.proxy.GetProgress()
 		return result
 
 	def get_prop(self, prop, default = None):
@@ -286,7 +286,7 @@ class _PackageKitTransaction(object):
 		package_name, version, arch, repo_ = id.split(';')
 		clean_version = distro.try_cleanup_distro_version(version)
 		if not clean_version:
-			_logger_pk.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
+			_logger_pk.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package_name})
 		clean_arch = distro.canonical_machine(arch)
 		package = {'version': clean_version,
 			   'name': package_name,
