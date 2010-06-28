@@ -157,8 +157,10 @@ class PackageKitDownload(download.Download):
 		def install_packages():
 			package_name = self.packagekit_id
 			self._transaction = _PackageKitTransaction(self.pk, installed_cb, error_cb)
-			self._transaction.compat_call('InstallPackages',
-					[([package_name]), (False, [package_name])])
+			self._transaction.compat_call([
+					('InstallPackages', [package_name]),
+					('InstallPackages', False, [package_name]),
+					])
 
 		_auth_wrapper(install_packages)
 
@@ -175,8 +177,7 @@ class PackageKitDownload(download.Download):
 	def get_current_fraction(self):
 		if self._transaction is None:
 			return None
-		(percentage, subpercentage_, elapsed_, remaining_) = \
-				self._transaction.proxy.GetProgress()
+		percentage = self._transaction.getPercentage()
 		if percentage > 100:
 			return None
 		else:
@@ -227,6 +228,7 @@ class _PackageKitTransaction(object):
 				'org.freedesktop.PackageKit', pk.GetTid(), False)
 		self.proxy = dbus.Interface(self.object,
 				'org.freedesktop.PackageKit.Transaction')
+		self._props = dbus.Interface(self.object, dbus.PROPERTIES_IFACE)
 
 		for signal, cb in [('Finished', self.__finished_cb),
 				   ('ErrorCode', self.__error_code_cb),
@@ -236,18 +238,35 @@ class _PackageKitTransaction(object):
 				   ('Files', self.__files_cb)]:
 			self.proxy.connect_to_signal(signal, cb)
 
-		self.proxy.SetLocale(locale.getdefaultlocale()[0])
+		self.compat_call([
+				('SetLocale', locale.getdefaultlocale()[0]),
+				('SetHints', ['locale=%s' % locale.getdefaultlocale()[0]]),
+				])
 
-	def compat_call(self, method, arg_sets):
-		dbus_method = self.proxy.get_dbus_method(method)
-		for args in arg_sets:
+	def getPercentage(self):
+		result = self.get_prop('Percentage')
+		if result is None:
+			result, __, __, __ = self._transaction.proxy.GetProgress()
+		return result
+
+	def get_prop(self, prop, default = None):
+		try:
+			return self._props.Get('org.freedesktop.PackageKit.Transaction', prop)
+		except:
+			return default
+
+	def compat_call(self, calls):
+		for call in calls:
+			method = call[0]
+			args = call[1:]
 			try:
+				dbus_method = self.proxy.get_dbus_method(method)
 				return dbus_method(*args)
 			except dbus.exceptions.DBusException, e:
 				if e.get_dbus_name() != \
 						'org.freedesktop.DBus.Error.UnknownMethod':
 					raise
-		raise
+		raise Exception('Cannot call %r DBus method' % calls)
 
 	def __finished_cb(self, exit, runtime):
 		_logger_pk.debug(_('Transaction finished: %s'), exit)
