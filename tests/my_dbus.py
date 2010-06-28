@@ -12,7 +12,7 @@ class SessionBus:
 		return None
 
 class SystemBus:
-	def get_object(self, service, path):
+	def get_object(self, service, path, follow_name_owner_changes = False):
 		service = system_services.get(service, None)
 		if service:
 			return service[path]
@@ -46,3 +46,13 @@ class NotifyCb:
 class Byte:
 	def __init__(self, value):
 		pass
+
+PROPERTIES_IFACE = 'org.freedesktop.DBus.Properties'
+
+class exceptions:
+	class DBusException(Exception):
+		def __init__(self, name):
+			self.name = name
+
+		def get_dbus_name(self):
+			return self.name
