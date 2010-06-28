@@ -69,6 +69,10 @@ class DummyHandler(handler.Handler):
 		#import traceback
 		#traceback.print_exc()
 
+class NetworkManager:
+	def state(self):
+		return 3	# NM_STATUS_CONNECTED
+
 class TestDownload(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
@@ -381,6 +385,7 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg')
+			my_dbus.system_services = {"org.freedesktop.NetworkManager": {"/org/freedesktop/NetworkManager": NetworkManager()}}
 			my_dbus.user_callback = choose_download
 			pid = os.getpid()
 			old_exit = os._exit

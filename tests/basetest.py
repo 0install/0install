@@ -89,6 +89,8 @@ class BaseTest(unittest.TestCase):
 		distro._host_distribution = distro.DebianDistribution(dpkgdir + '/status',
 								      dpkgdir + '/pkgcache.bin')
 		distro._host_distribution._packagekit = DummyPackageKit()
+
+		my_dbus.system_services = {}
 	
 	def tearDown(self):
 		shutil.rmtree(self.config_home)
