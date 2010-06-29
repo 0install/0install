@@ -2,9 +2,9 @@
 
 PYTHON=python
 
-MO = $(shell find locale -name '*.po' | sed -e 's/\.po/\.mo/')
-PY = $(shell find zeroinstall -name '*.py')
-GTKBUILDER = $(shell find zeroinstall -name '*.ui' | sed -e 's/\.ui/&.h/')
+MO = $(shell find locale -name '*.po' | sort | sed -e 's/\.po/\.mo/')
+PY = $(shell find zeroinstall -name '*.py' | sort)
+GTKBUILDER = $(shell find zeroinstall -name '*.ui' | sort | sed -e 's/\.ui/&.h/')
 SH = zeroinstall/zerostore/_unlzma
 
 all: translations
