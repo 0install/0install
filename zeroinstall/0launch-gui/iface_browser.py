@@ -16,9 +16,10 @@ import utils
 def _stability(impl):
 	assert impl
 	if impl.user_stability is None:
-		return impl.upstream_stability
+		return _(str(impl.upstream_stability))
 	return _("%(implementation_user_stability)s (was %(implementation_upstream_stability)s)") \
-		% {'implementation_user_stability': impl.user_stability, 'implementation_upstream_stability': impl.upstream_stability}
+		% {'implementation_user_stability': _(str(impl.user_stability)),
+		   'implementation_upstream_stability': _(str(impl.upstream_stability))}
 
 ICON_SIZE = 20.0
 CELL_TEXT_INDENT = int(ICON_SIZE) + 4
