@@ -24,7 +24,7 @@ def _build_stability_menu(policy, impl):
 		import main
 		main.recalculate()
 
-	item = gtk.MenuItem(_('Unset (%s)') % upstream)
+	item = gtk.MenuItem(_('Unset (%s)') % _(str(upstream).capitalize()).lower())
 	item.connect('activate', lambda item: set(None))
 	item.show()
 	menu.append(item)
@@ -191,7 +191,7 @@ class ImplementationList:
 				self.model[new][WEIGHT] = pango.WEIGHT_NORMAL
 			self.model[new][UNUSABLE] = bool(unusable)
 			self.model[new][LANGS] = item.langs or '-'
-			self.model[new][NOTES] = _(unusable)
+			self.model[new][NOTES] = unusable and _(unusable) or _('None')
 	
 	def clear(self):
 		self.model.clear()
