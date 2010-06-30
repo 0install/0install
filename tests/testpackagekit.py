@@ -136,7 +136,7 @@ class TestPackageKit(BaseTest):
 			return impl
 
 		pk.get_candidates('gimp', factory, 'package:test')
-		self.assertEquals(["package:test:gimp:2.6.8-2"], impls.keys())
+		self.assertEquals(["package:test:gimp:2.6.8-2:x86_64"], impls.keys())
 
 if __name__ == '__main__':
 	unittest.main()

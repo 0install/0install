@@ -358,7 +358,7 @@ class DebianDistribution(Distribution):
 
 		if installed_cached_info != '-':
 			installed_version, machine = installed_cached_info.split('\t')
-			impl = factory('package:deb:%s:%s' % (package, installed_version))
+			impl = factory('package:deb:%s:%s:%s' % (package, installed_version, machine))
 			impl.version = model.parse_version(installed_version)
 			if machine != '*':
 				impl.machine = machine
@@ -376,7 +376,7 @@ class DebianDistribution(Distribution):
 			candidate_version = cached['version']
 			candidate_arch = cached['arch']
 			if candidate_version and candidate_version != installed_version:
-				impl = factory('package:deb:%s:%s' % (package, candidate_version), installed = False)
+				impl = factory('package:deb:%s:%s:%s' % (package, candidate_version, candidate_arch), installed = False)
 				impl.version = model.parse_version(candidate_version)
 				if candidate_arch != '*':
 					impl.machine = candidate_arch

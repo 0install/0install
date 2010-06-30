@@ -231,8 +231,8 @@ class TestReader(BaseTest):
 		feed = iface_cache.get_feed(distro_feed_url)
 		assert len(feed.implementations) == 1
 
-		impl = feed.implementations['package:deb:python-bittorrent:3.4.2-10']
-		assert impl.id == 'package:deb:python-bittorrent:3.4.2-10'
+		impl = feed.implementations['package:deb:python-bittorrent:3.4.2-10:*']
+		assert impl.id == 'package:deb:python-bittorrent:3.4.2-10:*'
 		assert impl.upstream_stability == model.packaged
 		assert impl.user_stability == None
 		assert impl.requires == []

@@ -61,7 +61,7 @@ class PackageKit(object):
 		if isinstance(candidate, tasks.Blocker):
 			return		# Fetch still in progress
 
-		impl_name = '%s:%s:%s' % (prefix, package_name, candidate['version'])
+		impl_name = '%s:%s:%s:%s' % (prefix, package_name, candidate['version'], candidate['arch'])
 
 		impl = factory(impl_name, only_if_missing = True, installed = candidate['installed'])
 		if impl is None:
