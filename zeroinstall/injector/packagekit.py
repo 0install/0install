@@ -193,6 +193,8 @@ class PackageKitDownload(download.Download):
 		if fraction is None:
 			return 0
 		else:
+			if self.expected_size is None:
+				return 0
 			return int(self.expected_size * fraction)
 
 def _auth_wrapper(method, *args):
