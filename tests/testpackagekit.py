@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import packagekit, handler, model
+from zeroinstall.injector import packagekit, handler, model, fetch
 from zeroinstall.support import tasks
 
 h = handler.Handler()
@@ -63,6 +63,44 @@ class PackageKit05:
 				self.signals['Finished']("success", 100)
 			later()
 
+	class Install(Tid):
+		def GetProgress(self):
+			# %task, %sub-task, time-task, time-sub-task
+			return (50, 101, 351, 0)
+
+		def InstallPackages(self, only_trusted, package_ids = None):
+			if package_ids is None:
+				# newer 2-arg form
+				raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownMethod')
+
+			assert only_trusted == False
+			@tasks.async
+			def later():
+				yield
+				for package_id in package_ids:
+					assert package_id == "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu"
+					self.signals['StatusChanged']("setup")
+
+					# Unknown % for task and subtask
+					# 0s time used so far
+					#self.signals['ProgressChanged'](101, 101, 0, 0)
+
+					yield
+
+					#self.signals['ProgressChanged'](50, 101, 351, 0)
+
+					#self.signals['AllowCancel'](False)
+					self.signals['Package']("installing", "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu", "Graphics package")
+
+					yield
+
+					#self.signals['ProgressChanged'](100, 101, 1351, 0)
+					self.signals['Package']("finished", "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu", "Graphics package")
+
+				yield
+				self.signals['Finished']("success", 100)
+			later()
+
 class TestPackageKit(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
@@ -110,6 +148,7 @@ class TestPackageKit(BaseTest):
 			'/org/freedesktop/PackageKit': PackageKit05(),
 			'/tid/1': PackageKit05.Tid1(),
 			'/tid/2': PackageKit05.Tid2(),
+			'/tid/3': PackageKit05.Install(),
 		}
 		reload(packagekit)
 		pk = packagekit.PackageKit()
@@ -137,6 +176,12 @@ class TestPackageKit(BaseTest):
 
 		pk.get_candidates('gimp', factory, 'package:test')
 		self.assertEquals(["package:test:gimp:2.6.8-2:x86_64"], impls.keys())
+
+		impl, = impls.values()
+		fetcher = fetch.Fetcher(handler = h)
+		b = fetcher.download_impl(impl, impl.download_sources[0], stores = None)
+		h.wait_for_blocker(b)
+		tasks.check(b)
 
 if __name__ == '__main__':
 	unittest.main()
