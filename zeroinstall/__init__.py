@@ -6,7 +6,7 @@ The Python implementation of the Zero Install injector is divided into four sub-
  - L{zeroinstall.gtkui} contains code for making GTK user-interfaces
  - L{zeroinstall.support} contains helper code (not really specific to Zero Install)
 
-@copyright: (C) 2009, Thomas Leonard
+@copyright: (C) 2010, Thomas Leonard
 @see: U{http://0install.net}
 
 @var _: a function for translating strings using the zero-install domain (for use internally by Zero Install)
