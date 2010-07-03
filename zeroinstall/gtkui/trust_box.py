@@ -168,6 +168,7 @@ class TrustBox(gtk.Dialog):
 					break
 			self.set_response_sensitive(gtk.RESPONSE_OK, trust_any)
 
+		first = True
 		for sig in valid_sigs:
 			if hasattr(sig, 'get_details'):
 				name = '<unknown>'
@@ -199,18 +200,31 @@ class TrustBox(gtk.Dialog):
 
 			notebook.append_page(page, gtk.Label(name or 'Signature'))
 
+			if first:
+				trust_checkbox[sig].set_active(True)
+				first = False
+
 		ok_sensitive()
 		self.vbox.show_all()
+
+		if len(valid_sigs) == 1:
+			for box in trust_checkbox.values():
+				box.hide()
 
 		def response(box, resp):
 			if resp == gtk.RESPONSE_HELP:
 				trust_help.display()
 				return
 			if resp == gtk.RESPONSE_OK:
-				self.trust_keys([sig for sig in trust_checkbox if trust_checkbox[sig].get_active()], domain)
+				to_trust = [sig for sig in trust_checkbox if trust_checkbox[sig].get_active()]
+
+				if not self._confirm_unknown_keys(to_trust, valid_sigs):
+					return
+
+				self.trust_keys(to_trust, domain)
 			self.destroy()
 		self.connect('response', response)
-	
+
 	def trust_keys(self, agreed_sigs, domain):
 		assert domain
 		try:
@@ -222,6 +236,36 @@ class TrustBox(gtk.Dialog):
 			gtkutils.show_message_box(self, str(ex), gtk.MESSAGE_ERROR)
 			if not isinstance(ex, SafeException):
 				raise
+
+	def _confirm_unknown_keys(self, to_trust, valid_sigs):
+		"""Check the key-info server's results for these keys. If we don't know any of them,
+		ask for extra confirmation from the user.
+		@param to_trust: the signatures the user wants to trust
+		@return: True to continue"""
+
+		def is_unknown(sig):
+			for note in valid_sigs[sig].info:
+				if note.getAttribute("vote") == "good":
+					return False
+			return True
+		unknown = [sig for sig in to_trust if is_unknown(sig)]
+
+		if unknown:
+			if len(unknown) == 1:
+				msg = _('WARNING: you are confirming a key which was not known to the key server. Are you sure?')
+			else:
+				msg = _('WARNING: you are confirming keys which were not known to the key server. Are you sure?')
+
+			box = gtk.MessageDialog(self,
+						gtk.DIALOG_DESTROY_WITH_PARENT,
+						gtk.MESSAGE_QUESTION, gtk.BUTTONS_OK_CANCEL,
+						msg)
+			box.set_position(gtk.WIN_POS_CENTER)
+			response = box.run()
+			box.destroy()
+			return response == gtk.RESPONSE_OK
+
+		return True
 
 trust_help = help_box.HelpBox(_("Trust Help"),
 (_('Overview'), '\n' +
