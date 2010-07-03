@@ -57,7 +57,11 @@ def check(blockers, reporter = None):
 		if b.exception:
 			b.exception_read = True
 			if reporter:
-				reporter(*b.exception)
+				try:
+					reporter(*b.exception)
+				except:
+					warn("Failure reporting error! Error was: %s", repr(b.exception[0]))
+					raise
 			elif ex is None:
 				ex = b.exception
 			else:

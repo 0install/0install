@@ -99,7 +99,10 @@ class BackgroundHandler(handler.Handler):
 			import traceback
 			details = '\n' + '\n'.join(traceback.format_exception(type(exception), exception, tb))
 		else:
-			details = str(exception)
+			try:
+				details = unicode(exception)
+			except:
+				details = repr(exception)
 		self.notify("Zero Install", _("Error updating %(title)s: %(details)s") % {'title': self.title, 'details': details.replace('<', '&lt;')})
 
 	def notify(self, title, message, timeout = 0, actions = []):
