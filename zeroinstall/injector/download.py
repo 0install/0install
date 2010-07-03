@@ -34,7 +34,7 @@ class DownloadError(SafeException):
 
 class DownloadAborted(DownloadError):
 	"""Download aborted because of a call to L{Download.abort}"""
-	def __init__(self, message):
+	def __init__(self, message = None):
 		SafeException.__init__(self, message or _("Download aborted at user's request"))
 
 class Download(object):

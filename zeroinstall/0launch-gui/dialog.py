@@ -17,8 +17,6 @@ class Template(gtkutils.Template):
 		gtkutils.Template.__init__(self, builderfile, root)
 
 class Dialog(gtk.Dialog):
-	__shown = False
-
 	def __init__(self):
 		gtk.Dialog.__init__(self)
 		self.set_has_separator(False)

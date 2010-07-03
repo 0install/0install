@@ -123,6 +123,9 @@ class MainWindow:
 				sys.exit(0)			# Success
 		except SystemExit:
 			raise
+		except download.DownloadAborted, ex:
+			run_button.set_active(False)
+			# Don't bother reporting this to the user
 		except Exception, ex:
 			run_button.set_active(False)
 			self.report_exception(ex)

@@ -434,8 +434,12 @@ class Fetcher(object):
 		return download_and_add_icon()
 
 	def download_impls(self, implementations, stores):
-		"""Download the given implementations, choosing a suitable retrieval method for each."""
-		blockers = []
+		"""Download the given implementations, choosing a suitable retrieval method for each.
+		If any of the retrieval methods are DistributionSources and
+		need confirmation, handler.confirm is called to check that the
+		installation should proceed.
+		"""
+		unsafe_impls = []
 
 		to_download = []
 		for impl in implementations:
@@ -447,14 +451,25 @@ class Fetcher(object):
 					"interface!)") % {'implementation_id': impl.id, 'interface': impl.feed.get_name()})
 			to_download.append((impl, source))
 
-		for impl, source in to_download:
-			blockers.append(self.download_impl(impl, source, stores))
-
-		if not blockers:
-			return None
+			if isinstance(source, DistributionSource) and source.needs_confirmation:
+				unsafe_impls.append(source.package_id)
 
 		@tasks.async
-		def download_impls(blockers):
+		def download_impls():
+			if unsafe_impls:
+				confirm = self.handler.confirm_install(_('The following components need to be installed using native packages. '
+					'These come from your distribution, and should therefore be trustworthy, but they also '
+					'run with extra privileges. In particular, installing them may run extra services on your '
+					'computer or affect other users. You may be asked to enter a password to confirm. The '
+					'packages are:\n\n') + ('\n'.join('- ' + x for x in unsafe_impls)))
+				yield confirm
+				tasks.check(confirm)
+
+			blockers = []
+
+			for impl, source in to_download:
+				blockers.append(self.download_impl(impl, source, stores))
+
 			# Record the first error log the rest
 			error = []
 			def dl_error(ex, tb = None):
@@ -470,7 +485,10 @@ class Fetcher(object):
 			if error:
 				raise error[0]
 
-		return download_impls(blockers)
+		if not to_download:
+			return None
+
+		return download_impls()
 
 	def get_best_source(self, impl):
 		"""Return the best download source for this implementation.

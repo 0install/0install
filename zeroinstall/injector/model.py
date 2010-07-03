@@ -380,15 +380,18 @@ class DistributionSource(RetrievalMethod):
 	@ivar package_id: the package name, in a form recognised by the distribution's tools
 	@type package_id: str
 	@ivar size: the download size in bytes
-	@type size: int"""
+	@type size: int
+	@ivar needs_confirmation: whether the user should be asked to confirm before calling install()
+	@type needs_confirmation: bool"""
 
-	__slots__ = ['package_id', 'size', 'install']
+	__slots__ = ['package_id', 'size', 'install', 'needs_confirmation']
 
-	def __init__(self, package_id, size, install):
+	def __init__(self, package_id, size, install, needs_confirmation = True):
 		RetrievalMethod.__init__(self)
 		self.package_id = package_id
 		self.size = size
 		self.install = install
+		self.needs_confirmation = needs_confirmation
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface.

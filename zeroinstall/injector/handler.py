@@ -298,16 +298,16 @@ class Handler(object):
 
 		# Ask on stderr, because we may be writing XML to stdout
 		print >>sys.stderr, "\nInterface:", interface.uri
-		print >>sys.stderr, "The interface is correctly signed with the following keys:"
+		print >>sys.stderr, _("The feed is correctly signed with the following keys:")
 		for x in valid_sigs:
 			print >>sys.stderr, "-", x
 
 		if len(valid_sigs) == 1:
-			print >>sys.stderr, "Do you want to trust this key to sign feeds from '%s'?" % domain
+			print >>sys.stderr, _("Do you want to trust this key to sign feeds from '%s'?") % domain
 		else:
-			print >>sys.stderr, "Do you want to trust all of these keys to sign feeds from '%s'?" % domain
+			print >>sys.stderr, _("Do you want to trust all of these keys to sign feeds from '%s'?") % domain
 		while True:
-			print >>sys.stderr, "Trust [Y/N] ",
+			print >>sys.stderr, _("Trust [Y/N] "),
 			i = raw_input()
 			if not i: continue
 			if i in 'Nn':
@@ -315,12 +315,27 @@ class Handler(object):
 			if i in 'Yy':
 				break
 		for key in valid_sigs:
-			print >>sys.stderr, "Trusting", key.fingerprint, "for", domain
+			print >>sys.stderr, _("Trusting %s for %s") % (key.fingerprint, domain)
 			trust.trust_db.trust_key(key.fingerprint, domain)
 
 		trust.trust_db.notify()
 
 	confirm_trust_keys.original = True		# Detect if someone overrides it
+
+	@tasks.async
+	def confirm_install(self, msg):
+		"""We need to check something with the user before continuing with the install.
+		@raise download.DownloadAborted: if the user cancels"""
+		yield
+		print >>sys.stderr, msg
+		while True:
+			sys.stderr.write(_("Install [Y/N] "))
+			i = raw_input()
+			if not i: continue
+			if i in 'Nn':
+				raise download.DownloadAborted()
+			if i in 'Yy':
+				break
 
 	def report_error(self, exception, tb = None):
 		"""Report an exception to the user.
