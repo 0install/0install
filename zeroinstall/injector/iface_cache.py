@@ -175,7 +175,7 @@ class IfaceCache(object):
 	It will probably be split into two in future.
 
 	@ivar distro: the native distribution proxy
-	@type distro: L[distro.Distribution}
+	@type distro: L{distro.Distribution}
 
 	@see: L{iface_cache} - the singleton IfaceCache instance.
 	"""
@@ -184,7 +184,8 @@ class IfaceCache(object):
 
 	def __init__(self, distro = None):
 		"""@param distro: distribution used to fetch "distribution:" feeds (since 0.49)
-		@type distro: L[distro.Distribution}, or None to use the host distribution
+		@param distro: distribution used to resolve "distribution:" feeds
+		@type distro: L{distro.Distribution}, or None to use the host distribution
 		"""
 		self._interfaces = {}
 		self._feeds = {}

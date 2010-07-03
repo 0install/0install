@@ -30,7 +30,7 @@ def _atomic_save(doc, parent, uri):
 
 def save_feed(feed):
 	"""Save information about a feed. Currently, this is the last_checked time and any user-set stability ratings.
-	@since 0.49"""
+	@since: 0.49"""
 	feeds = basedir.save_config_path(config_site, config_prog, 'feeds')
 
 	impl = minidom.getDOMImplementation()

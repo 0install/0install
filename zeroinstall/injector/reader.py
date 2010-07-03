@@ -22,7 +22,7 @@ def update_from_cache(interface):
 	@return: True if cached version and user overrides loaded OK.
 	False if upstream not cached. Local interfaces (starting with /) are
 	always considered to be cached, although they are not actually stored in the cache.
-	Internal: use L{iface_cache.iface_cache.get_interface} instread.
+	Internal: use L{iface_cache.IfaceCache.get_interface} instread.
 	@rtype: bool"""
 	interface.reset()
 	from zeroinstall.injector.iface_cache import iface_cache
