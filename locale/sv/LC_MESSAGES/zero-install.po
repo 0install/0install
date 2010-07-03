@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: zero-install 0.48-post\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2010-07-03 13:11+0100\n"
-"PO-Revision-Date: 2010-06-29 11:15+0100\n"
+"PO-Revision-Date: 2010-07-03 14:00+0200\n"
 "Last-Translator: Anders F Bjorklund <afb@users.sourceforge.net>\n"
 "Language-Team: Swedish <sv@li.org>\n"
 "MIME-Version: 1.0\n"
@@ -23,11 +23,11 @@ msgstr "Rapportera fel"
 
 #: zeroinstall/0launch-gui/bugs.py:118
 msgid "What doesn't work?"
-msgstr ""
+msgstr "What doesn't work? (Vad fungerar inte ?)"
 
 #: zeroinstall/0launch-gui/bugs.py:121
 msgid "What did you expect to happen?"
-msgstr ""
+msgstr "What did you expect to happen? (Vad förväntade du dig skulle hända?)"
 
 #: zeroinstall/0launch-gui/bugs.py:129
 msgid "Run it now and record the output"
@@ -36,6 +36,7 @@ msgstr "Kör nu och spara resultatet"
 #: zeroinstall/0launch-gui/bugs.py:133
 msgid "Are any errors or warnings displayed?"
 msgstr ""
+"Are any errors or warnings displayed? (Visas några fel eller varningar?)"
 
 #: zeroinstall/0launch-gui/bugs.py:139
 msgid "Information about your setup"
@@ -115,12 +116,11 @@ msgstr "Behöver bekräfta ny GPG-nyckel"
 
 #: zeroinstall/0launch-gui/gui.py:67
 msgid "Need to confirm installation of distribution packages"
-msgstr ""
+msgstr "Behöver bekräfta installation av distributionspaket"
 
 #: zeroinstall/0launch-gui/gui.py:79
-#, fuzzy
 msgid "Install"
-msgstr "Zero Install"
+msgstr "Installera"
 
 #: zeroinstall/0launch-gui/iface_browser.py:20
 #, python-format
@@ -467,13 +467,13 @@ msgstr "(klicka för detaljer)"
 
 #: zeroinstall/0launch-gui/mainwindow.py:210
 msgid "Injector Help"
-msgstr ""
+msgstr "Injektorhjälp"
 
 #: zeroinstall/0launch-gui/mainwindow.py:211
 #: zeroinstall/0launch-gui/preferences.py:159 zeroinstall/gtkui/cache.py:429
 #: zeroinstall/gtkui/trust_box.py:227
 msgid "Overview"
-msgstr ""
+msgstr "Översikt"
 
 #: zeroinstall/0launch-gui/mainwindow.py:212
 msgid ""
@@ -488,10 +488,21 @@ msgid ""
 "draws the menus and buttons). Thus, it must choose implementations of each "
 "dependency (each of which may require further components, and so on)."
 msgstr ""
+"Ett program består av flera olika komponenter, vanligtvis skrivna av olika "
+"grupper av människor. Varje komponent finns i flera versioner. Zero Install "
+"används när ett program startas. Dess uppgift är att avgöra vilken "
+"implementation som skall användas av varje behövd komponent.\n"
+"\n"
+"Zero Install börjar med programmet som du vill köra (t ex. 'Gimp') och "
+"väljer en implementation (som 'Gimp 2.2.0'). Denna implementation kommer i "
+"sin tur att bero på andra komponenter, som till exempel 'GTK' (som ritar "
+"menyer och knappar). Därför måste det välja implementationer av varje "
+"beroende (var och en av dessa kan kräva ytterligare komponenter, och så "
+"vidare)."
 
 #: zeroinstall/0launch-gui/mainwindow.py:223
 msgid "List of components"
-msgstr ""
+msgstr "Lista över komponenter"
 
 #: zeroinstall/0launch-gui/mainwindow.py:224
 msgid ""
@@ -504,10 +515,18 @@ msgid ""
 "If you are happy with the choices shown, click on the Download (or Run) "
 "button to download (and run) the program."
 msgstr ""
+"Huvudfönstret visar alla dessa komponenter, och versionen av varje vald "
+"implementation. De översta representerar programmet som du försökte köra, "
+"och varje direkt barn är ett beroende. Kolumnen 'Hämta' visar hur mycket "
+"data som behöver laddas ner, eller '(cachad)' ifall den redan finns på den "
+"här datorn.\n"
+"\n"
+"Om du är nöjd med de val som visas, klicka på knappen Ladda ner (eller Kör) "
+"för att ladda ner (och köra) programmet."
 
 #: zeroinstall/0launch-gui/mainwindow.py:232
 msgid "Choosing different versions"
-msgstr ""
+msgstr "Välja olika versioner"
 
 #: zeroinstall/0launch-gui/mainwindow.py:233
 msgid ""
@@ -520,10 +539,18 @@ msgid ""
 "\"Show Versions\" from the menu. See that dialog's help text for more "
 "information."
 msgstr ""
+"För att styra vilka implementationer (versioner) som väljs kan du klicka på "
+"Inställningar och ändra nätverkspolicy och övergripande stabilitetspolicy. "
+"Dessa inställningar påverkar alla program som körs genom Zero Install.\n"
+"\n"
+"Alternativt så kan du redigera policyn host en individuell komponent genom "
+"att trycka på knappen vid slutet av dess rad i tabellen och välja \"Visa "
+"versioner\n"
+" från menyn. Se den dialogens hjälptext för mer information."
 
 #: zeroinstall/0launch-gui/mainwindow.py:241
 msgid "Reporting bugs"
-msgstr ""
+msgstr "Rapportera buggar"
 
 #: zeroinstall/0launch-gui/mainwindow.py:242
 msgid ""
@@ -533,10 +560,15 @@ msgid ""
 "program's author can reassign the bug if necessary, or switch to using a "
 "different version of the library."
 msgstr ""
+"För att rapportera en bugg, högerklicka den komponent du tycker innehåller "
+"problemet och välj 'Rapportera fel...' från menyn. Om du inte vet vilken som "
+"är orsaken, välj den översta (dvs. programmet självt). Programmets skapare "
+"kan förflytta buggen om så behövs, eller välja att använda en annan version "
+"av biblioteket."
 
 #: zeroinstall/0launch-gui/mainwindow.py:247
 msgid "The cache"
-msgstr ""
+msgstr "Cache"
 
 #: zeroinstall/0launch-gui/mainwindow.py:248
 msgid ""
@@ -544,6 +576,9 @@ msgid ""
 "cache. This means that it won't need to be downloaded again each time you "
 "run the program. The \"0store manage\" command can be used to view the cache."
 msgstr ""
+"Varje version av ett program som laddas ner lagras i Zero Install cache. "
+"Detta betyder att det inte behöver laddas ner igen varje gång du kör "
+"programmet. Kommandot  \"0store manage\" kan användas för att visa cache."
 
 #: zeroinstall/0launch-gui/preferences.py:81
 msgid "Trusted keys"
@@ -556,7 +591,7 @@ msgstr "Ta bort nyckel för \"%s\""
 
 #: zeroinstall/0launch-gui/preferences.py:158
 msgid "Zero Install Preferences Help"
-msgstr ""
+msgstr "Zero Install-inställningar Hjälp"
 
 #: zeroinstall/0launch-gui/preferences.py:160
 msgid ""
@@ -564,10 +599,14 @@ msgid ""
 "adjust the network policy and the overall stability policy, which affect all "
 "interfaces, or you can edit the policy of individual interfaces."
 msgstr ""
+"Det finns tre sätt att kontrollera vilka implementationer som används. Du "
+"kan ändra nätverkspolicyn och den övergripande stabilitetspolicyn, som "
+"påverkar alla gränssnitt, eller så kan du redigera policyn hos individuella "
+"gränssnitt."
 
 #: zeroinstall/0launch-gui/preferences.py:164
 msgid "Network use"
-msgstr ""
+msgstr "Nätverksanvändning"
 
 #: zeroinstall/0launch-gui/preferences.py:165
 msgid ""
@@ -578,10 +617,16 @@ msgid ""
 "is selected, the injector won't worry about how much it downloads, but will "
 "always pick the version it thinks is best."
 msgstr ""
+"Alternativet 'Nätverksanvändning' styr hur injektorn använder nätverket. Om "
+"off-line, används inte nätverket alls. Om 'Minimal' väljs kommer injektorn "
+"att använda nätverket vid behov, men bara om den inte har något val. Den "
+"kommer att köra en utdaterad version hellre en att ladda ner en ny. Om "
+"'Full' väljs, kommer injektorn inte att bry sig om hur mycket den laddar "
+"ner, utan alltid välja den version som den tycker är bäst."
 
 #: zeroinstall/0launch-gui/preferences.py:171
 msgid "Freshness"
-msgstr ""
+msgstr "Färskhet"
 
 #: zeroinstall/0launch-gui/preferences.py:172
 msgid ""
@@ -590,11 +635,15 @@ msgid ""
 "can also get the injector to check for new versions automatically from time "
 "to time using the Freshness setting."
 msgstr ""
+"Kanalfilerna, som innehåller information om vilka versioner som finns "
+"tillgängliga, är också cachade. För att uppdatera dem, klicka på 'Uppdatera "
+"alla nu'. Du kan också be injektorn att leta efter nya versioner automatiskt "
+"då och då genom att använda inställningen för Färskhet."
 
 #: zeroinstall/0launch-gui/preferences.py:177
 #: zeroinstall/0launch-gui/zero-install.ui.h:12
 msgid "Help test new versions"
-msgstr ""
+msgstr "Hjälp till att testa nya versioner"
 
 #: zeroinstall/0launch-gui/preferences.py:178
 msgid ""
@@ -607,10 +656,18 @@ msgid ""
 "window and click on 'Interface Properties'. See that dialog's help text for "
 "more information."
 msgstr ""
+"Den övergripande stabilitetspolicyn kan antingen vara att föredra stabila "
+"versioner, eller att hjälpa till att testa nya versioner. Välj den som "
+"passar dig. Eftersom olika programmerare har olika ideer om vad 'stabil' "
+"betyder, kan du vilja ändra detta på gränssnittsnivå senare.\n"
+"\n"
+"För att ändra policyn för ett gränssnitt individuellt, välj det i "
+"huvudfönstret och klicka på 'Gränssnittsinställningar'. Se den dialogens "
+"hjälptext för mer information."
 
 #: zeroinstall/0launch-gui/preferences.py:185
 msgid "Security"
-msgstr ""
+msgstr "Säkerhet"
 
 #: zeroinstall/0launch-gui/preferences.py:186
 msgid ""
@@ -620,6 +677,12 @@ msgid ""
 "key, and it will then be added to this list. To remove a key, right-click on "
 "it and choose 'Remove' from the menu."
 msgstr ""
+"Denna sektion listar alla nycklar som du litar på för närvarande. När du "
+"hämtar ett nytt program eller uppdateringar för ett existerande, måste "
+"kanalen vara signerad av en av dessa nycklar. Om inte, kommer du att frågas "
+"om du litar på den nya nyckeln, och i så fall kommer den att läggas till "
+"listan. För att ta bort en nyckel, högerklicka på den och välj 'Ta bort' "
+"från menyn."
 
 #: zeroinstall/0launch-gui/properties.py:100
 #, python-format
@@ -766,12 +829,12 @@ msgstr ""
 
 #: zeroinstall/0launch-gui/properties.py:454
 msgid "Injector Properties Help"
-msgstr ""
+msgstr "Injektoregenskaper Hjälp"
 
 #: zeroinstall/0launch-gui/properties.py:455
 #: zeroinstall/0launch-gui/zero-install.ui.h:16
 msgid "Interface properties"
-msgstr ""
+msgstr "Gränssnittsinställningar"
 
 #: zeroinstall/0launch-gui/properties.py:456
 msgid ""
@@ -780,10 +843,14 @@ msgid ""
 "of the interface, while Versions shows the list of implementations found "
 "(from all feeds) in order of preference."
 msgstr ""
+"Detta fönster visar information om ett gränssnitt. Det finns två flikar "
+"längst upp: Kanaler visar de ställen där injektorn letar efter nya "
+"implementationer för gränssnittet medan Versioner visar en lista över "
+"hittade implementationer (från alla kanaler) i föredragen ordning."
 
 #: zeroinstall/0launch-gui/properties.py:460
 msgid "The Feeds tab"
-msgstr ""
+msgstr "Kanalfliken"
 
 #: zeroinstall/0launch-gui/properties.py:461
 msgid ""
@@ -807,10 +874,29 @@ msgid ""
 "file was downloaded.\n"
 "- Then there is a longer description of the interface."
 msgstr ""
+"Längst upp är en kanallista. Som förval använder injektorn hela namnet på "
+"gränssnittet som förvald kanalplats (så ifall du ber den att köra programmet "
+"\"http://foo/bar.xml\" kommer den som förval att hämta listan av versioner "
+"genom att ladda ner  \"http://foo/bar.xml\".\n"
+"\n"
+"Du kan lägga till och ta bort kanaler genom att använda knapparna till "
+"höger. Huvudkanalen kan också lägga till extra kanaler. Ifall du checkat ut "
+"en utvecklingsversion av ett program, kan du använda knappen 'Lägg till "
+"lokal-kanal...' för att låta injektorn veta detta, till exempel.\n"
+"\n"
+"Under listan med kanaler är en ruta som beskriver den valda:\n"
+"\n"
+"- Längst upp är dess korta namn.\n"
+"- Under det är addressen (en URL eller filnamn).\n"
+"- 'Senaste uppströmsändring' visa versionen av den cachade kopian av "
+"gränssnittsfilen.\n"
+"- 'Senast kontrollerad' visar den senaste gången en färsk kopia av "
+"uppströmsgränssnittsfilen laddades ner.\n"
+"- Sedan följer en längre beskrivning av gränssnittet."
 
 #: zeroinstall/0launch-gui/properties.py:478
 msgid "The Versions tab"
-msgstr ""
+msgstr "Versionsfliken"
 
 #: zeroinstall/0launch-gui/properties.py:479
 msgid ""
@@ -840,10 +926,35 @@ msgid ""
 "Arch indicates what kind of computer system the implementation is for, or "
 "'any' if it works with all types of system."
 msgstr ""
+"Denna flik visar en lista över alla kända implementationer av gränssnittet, "
+"från alla kanaler. Kolumnerna har följande betydelse:\n"
+"\n"
+"Version visar versionsnumret. Högre versionsnummer anses vara bättre än "
+"lägre versionsnummer.\n"
+"\n"
+"Utgiven visar datumet som denna implementation lades till kanalen.\n"
+"\n"
+"Stabilitet är 'stabil' ifall implementationen anses vara stabil, 'felaktig' "
+"om den innehåller kända allvarliga fel, och 'uttestning' ifall stabiliteten "
+"ännu inte är den känd. Denna informationen tillhandahålls och uppdateras "
+"vanligen av programmets skapare, men du kan ändra deras betyg genom att "
+"högerklicka här (ändrade värden visas med stora bokstäver). Du kan också "
+"använda den speciella nivån 'föredragen'.\n"
+"\n"
+"Hämta anger hur mycket data som behöver laddas ner för att hämta denna "
+"version om du inte har den. Om implementationen redan har hämtats till din "
+"dator, står det (cachad). (lokal) betyder att du installerade denna version "
+"manuellt och talade om det för Zero Install genom att lägga till en kanal. "
+"(paketerad) betyder att den här versionen tillhandahålls av din "
+"distributions pakethanterare, inte av Zero Install. I offline-läge, övervägs "
+"endast cachade implementationer för användning.\n"
+"\n"
+"Arkitektur visar vilken sorts datorsystem denna implementation är tänkt för, "
+"eller 'alla' om den fungerar med alla typer av system."
 
 #: zeroinstall/0launch-gui/properties.py:502
 msgid "Sort order"
-msgstr ""
+msgstr "Sorteringsordning"
 
 #: zeroinstall/0launch-gui/properties.py:503
 msgid ""
@@ -869,6 +980,28 @@ msgid ""
 "\n"
 "- Then cached come before non-cached (for 'Full' network use mode)."
 msgstr ""
+"Implementationerna ordnas efter versionsnummer (högst först), med den "
+"nuvarande valda i fetstil. Detta är den \"bästa\" användbara versionen.\n"
+"\n"
+"Oanvändbara versioner är de för inkompatibla arkitekturer, de som är "
+"markerade 'felaktiga' eller 'osäkra', versioner explicit markerade som "
+"inkompatible med ett annat gränssnitt du använder och, i offline-läge, "
+"ocachade implementationer. Oanvändbara implementationer visas överstrukna.\n"
+"\n"
+"För de användbara implementationerna, är ordningen som följer:\n"
+"\n"
+"- Föredragna implementationer kommer först.\n"
+"\n"
+"- Sedan, ifall nätverksanvändningen är satt till 'Minimal', kommer cachade "
+"implemenationer före icke-cachade.\n"
+"\n"
+"- Sedan, kommer implementationer med samma eller bättre stabilitetsnivå än "
+"den valda före alla övriga.\n"
+"\n"
+"- Sedan, kommer versioner med högre nummer före de med lägre nummer.\n"
+"\n"
+"- Sedan kommer cachade versioner före icke-cachade (för 'Full' "
+"nätverksanvändning)."
 
 #: zeroinstall/0launch-gui/properties.py:524
 msgid "Compiling"
@@ -880,6 +1013,9 @@ msgid ""
 "compile one from source by clicking on the Compile button. If no source is "
 "available, the Compile button will be shown shaded."
 msgstr ""
+"Om det inte finns någon binär tillgänglig för ditt system kan du eventuellt "
+"kompilera en från källkod genom att trycka på knappen Kompilera. Om det inte "
+"finns någon källkod tillgänglig, kommer knappen Kompilera att visas skuggad."
 
 #: zeroinstall/0launch-gui/utils.py:12
 msgid "(local)"
@@ -1219,7 +1355,7 @@ msgstr "Gränssnitt i cache"
 
 #: zeroinstall/gtkui/cache.py:428
 msgid "Cache Explorer Help"
-msgstr ""
+msgstr "Cache-utforskarhjälp"
 
 #: zeroinstall/gtkui/cache.py:430
 msgid ""
@@ -1239,6 +1375,21 @@ msgid ""
 "cache. This is useful to find versions you don't need anymore, so that you "
 "can delete them and free up some disk space."
 msgstr ""
+"När du kör ett program med Zero Install, laddar det ner programmets "
+"'gränssnitts'-fil, som innehåller information om vilka versioner av "
+"programmet som är tillgängliga. Denna gränssnittsfil lagras i cache för att "
+"slippa ladda ner den nästa gång du vill köra programmet.\n"
+"\n"
+"När du har valt vilken version (implementation) av programmet som du vill "
+"köra, laddar Zero Install ner den versionen och lagrar den också i cache. "
+"Zero Install låter dig ha många olika versioner av varje program på din "
+"dator på en gång. Detta är användbart, eftersom det låter dig använda en "
+"gammal version om så behövs, och olika program kan behöva olika versioner av "
+"bibliotek i vissa fall.\n"
+"\n"
+"Cachevisaren visar dig alla gränssnitt och implementationer i din cache. "
+"Detta är användbart för att hitta versioner som du inte använder längre, så "
+"att du kan ta bort dem och frigöra lite diskutrymme."
 
 #: zeroinstall/gtkui/cache.py:444
 msgid "Invalid interfaces"
@@ -1253,6 +1404,12 @@ msgid ""
 "interface (the name ends in '.new'), or by the interface file format "
 "changing since the interface was downloaded."
 msgstr ""
+"Cachevisaren har en lista med alla gränssnitt i ditt cache. Några är kanske "
+"inte längra giltiga, de visas i sektionen 'Ogiltiga gränssnitt'. Det bör "
+"inte vara några problem att ta bort dessa. Ett ogiltigt gränssnitt kan "
+"orsakas av ett lokalt gränssnitt som inte längre existerar, av ett "
+"misslyckat försök att ladda ner ett gränssnitt (namnet slutar med '.new'), "
+"eller att gränssnittsfilformatet har ändrats sedan gränssnittet laddades ner."
 
 #: zeroinstall/gtkui/cache.py:452
 msgid ""
@@ -1267,6 +1424,15 @@ msgid ""
 "unpacking new programs, it should be fine to delete everything in this "
 "section."
 msgstr ""
+"Cachevisaren söker igenom alla gränssnitt för att ta reda på vilka "
+"implementationer de använder. Om inget gränssnitt använder en "
+"implementation, visas den i sektionen 'Ägarlösa implementationer'.\n"
+"\n"
+"Ägarlösa implementationer kan uppstå om gamla versioner av ett program inte "
+"längre listas i gränssnittsfilen. Tillfälliga filer skapas när en "
+"implementation packas upp efter att ha laddats ner. Om arkivet är skadat, "
+"kan upppackade filer lämnas kvar. Ifall du inte håller på att packa upp nya "
+"program, bör det inte vara några problem att ta bort allt i denna sektion."
 
 #: zeroinstall/gtkui/cache.py:463
 msgid ""
@@ -1275,10 +1441,14 @@ msgid ""
 "want to run will require it to be downloaded again. Deleting a version of a "
 "program which is currently running may cause it to crash, so be careful!"
 msgstr ""
+"Alla återstående gränssnitt listas i denna sektion. Du kan vilja ta bort "
+"gamla versioner av vissa program. Att ta bort ett program som du senare vill "
+"köra kommer att kräva att det laddas ner igen. Att ta bort ett program som "
+"för närvarande körs kan få det att krascha, så var försiktig!"
 
 #: zeroinstall/gtkui/cache.ui.h:1
 msgid "Zero Install cache"
-msgstr "Zero Install cache"
+msgstr "Zero Install-cache"
 
 #: zeroinstall/gtkui/desktop.py:14
 msgid "usage: %prog [options] [URI]"
@@ -1344,7 +1514,7 @@ msgstr "URI: "
 
 #: zeroinstall/gtkui/desktop.ui.h:11
 msgid "Zero Install applications"
-msgstr "Zero Install -program"
+msgstr "Zero Install-program"
 
 #: zeroinstall/gtkui/icon.py:47
 #, python-format
@@ -1410,7 +1580,7 @@ msgstr "Lita på denna nyckel"
 
 #: zeroinstall/gtkui/trust_box.py:226
 msgid "Trust Help"
-msgstr ""
+msgstr "Tillitshjälp"
 
 #: zeroinstall/gtkui/trust_box.py:228
 msgid ""
@@ -1418,10 +1588,14 @@ msgid ""
 "generally do anything that you're allowed to do (delete files, send emails, "
 "etc). So it's important to make sure that you don't run anything malicious."
 msgstr ""
+"När du kör ett program, har det normalt sett tillgång till alla dina filer "
+"och kan generellt sett göra allting som du är tillåten att göra (ta bort "
+"filer, skicka epost, osv). Så det är viktigt att se till att du inte kör "
+"någonting skadligt."
 
 #: zeroinstall/gtkui/trust_box.py:232
 msgid "Digital signatures"
-msgstr ""
+msgstr "Digitala signaturer"
 
 #: zeroinstall/gtkui/trust_box.py:233
 msgid ""
@@ -1434,10 +1608,18 @@ msgid ""
 "checks that it decrypts using their public key, thus proving that it came "
 "from them and hasn't been tampered with."
 msgstr ""
+"Varje programskapare skapar ett 'nyckelpar'; en 'publik nyckel' och en "
+"'privat nyckel'. Utan att gå in på matte, endast något krypterat med den "
+"privata nyckeln kan dekrypteras med den publika nyckeln.\n"
+"\n"
+"Så, när en programmerare släpper någon programvara, krypterar de den med sin "
+"privata nyckel (som ingen annan har). När du laddar ner den, så kontrollerar "
+"injektorn att den dekrypterar med deras publika nyckel, och bevisar på så "
+"sätt att den kom från dem och inte har manipulerats"
 
 #: zeroinstall/gtkui/trust_box.py:240
 msgid "Trust"
-msgstr ""
+msgstr "Tillit"
 
 #: zeroinstall/gtkui/trust_box.py:241
 msgid ""
@@ -1447,10 +1629,16 @@ msgid ""
 "1. Does the public key you have really belong to the author?\n"
 "2. Even if the software really did come from that person, do you trust them?"
 msgstr ""
+"Efter injektorn har kontrollerat att programvara inte har modifierats sedan "
+"den signerades med den privata nyckeln, har du fortfarande följande "
+"problem:\n"
+"\n"
+"1. Tillhör den publika nyckeln du har verkligen skaparen?\n"
+"2. Även om programvaran verkligen kom från den personen, litar du på dem?"
 
 #: zeroinstall/gtkui/trust_box.py:247
 msgid "Key fingerprints"
-msgstr ""
+msgstr "Nycklars fingeravtryck"
 
 #: zeroinstall/gtkui/trust_box.py:248
 msgid ""
@@ -1465,10 +1653,20 @@ msgid ""
 "this software before, you should be suspicious that you're being asked to "
 "confirm another key!"
 msgstr ""
+"För att bekräfta (1), bör du jämföra den publika nyckeln med den riktiga. "
+"För att göra detta enklare, visar injektorn ett 'fingeravtryck' för nyckeln. "
+"Kontrollera i epostlistor eller någon annan källa för att kontrollera att "
+"fingeravtrycket är riktigt (en annan nyckel har ett annat fingeravtryck).\n"
+"\n"
+"Du försöker skydda mot situationen där en angripare bryter sig in på en "
+"webbplats och lägger upp skadlig programvara, signerad med angriparens "
+"privata nyckel, och lägger upp angriparens publika nyckel också. Om du har "
+"laddat ner denna programvara tidigare, bör du vara misstänksam mot att du "
+"ombeds bekräfta ytterligare en nyckel!"
 
 #: zeroinstall/gtkui/trust_box.py:258
 msgid "Reputation"
-msgstr ""
+msgstr "Rykte"
 
 #: zeroinstall/gtkui/trust_box.py:259
 msgid ""
@@ -1477,6 +1675,10 @@ msgid ""
 "intended only to cause damage. So, check your programs are signed by a key "
 "with a good reputation!"
 msgstr ""
+"I allmänhet kommer de flesta problem från att illvilliga och för övrigt "
+"okända människor byter ut programvara med ändrade versioner, eller skapar "
+"nya program enbart avsedda att orsaka skada. Så, kontrollera att dina "
+"program är signerade av en nyckel med ett gott rykte!"
 
 #: zeroinstall/gtkui/xdgutils.py:53
 #, python-format
@@ -1983,6 +2185,11 @@ msgid ""
 "password to confirm. The packages are:\n"
 "\n"
 msgstr ""
+"Följande komponenter behöver installeras med hjälp av egna paket. Dessa "
+"kommer från din distribution, och borde därför vara pålitliga, men de kan "
+"också köras med extra privilegier. Mer specifikt, att installera dem kan "
+"köra extra tjänster på din dator eller påverka andra användare. Paketen är:\n"
+"\n"
 
 #: zeroinstall/injector/gpg.py:32
 #, python-format
@@ -2146,14 +2353,13 @@ msgid "Trusting %(key_fingerprint)s for %(domain)s"
 msgstr "Litar på %(key_fingerprint)s för %(domain)s"
 
 #: zeroinstall/injector/handler.py:318
-#, fuzzy, python-format
+#, python-format
 msgid "Trusting %s for %s"
-msgstr "Fel för %s"
+msgstr "Litar på %s för %s"
 
 #: zeroinstall/injector/handler.py:332
-#, fuzzy
 msgid "Install [Y/N] "
-msgstr "Lita på dessa nycklar [J/N] "
+msgstr "Installera [J/N] "
 
 #: zeroinstall/injector/iface_cache.py:92
 #, python-format
@@ -3200,7 +3406,7 @@ msgstr ""
 "Kopieringen misslyckades: filem '%(src)s' har fel kontrollsumma (kan ha "
 "manipulerats)\n"
 "Förväntad: %(required_digest)s\n"
-"Erhållen:   %(actual_digest)s"
+"Erhållen:  %(actual_digest)s"
 
 #: zeroinstall/zerostore/manifest.py:234
 msgid "Cached item does NOT verify."
@@ -3533,7 +3739,7 @@ msgstr "Beklagar, men attributet \"extract\" stöds ännu inte för RPMs"
 #: zeroinstall/zerostore/unpack.py:279
 #, python-format
 msgid "rpm2cpio failed; can't unpack RPM archive; exit code %d"
-msgstr "rpm2cpio misslyckads; kan inte packa upp RPM-arkiv; slutstatus %d"
+msgstr "rpm2cpio misslyckades; kan inte packa upp RPM-arkiv; slutstatus %d"
 
 #: zeroinstall/zerostore/unpack.py:299
 msgid ""
