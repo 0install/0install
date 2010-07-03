@@ -22,8 +22,8 @@ install: all
 	intltool-extract --type=gettext/glade --update "$<"
 
 locale/zero-install.pot: $(PY) $(GTKBUILDER) $(SH)
-	xgettext --language=Python --output=$@ --keyword=N_ $(PY) $(GTKBUILDER)
-	xgettext --language=Shell -j --output=$@ $(SH)
+	xgettext --sort-by-file --language=Python --output=$@ --keyword=N_ $(PY) $(GTKBUILDER)
+	xgettext --sort-by-file --language=Shell -j --output=$@ $(SH)
 
 update-po: locale/zero-install.pot
 	@for po in locale/*/LC_MESSAGES/zero-install.po; do \
