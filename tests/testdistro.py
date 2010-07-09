@@ -207,9 +207,9 @@ class TestDistro(BaseTest):
 		factory = self.make_factory(ports)
 		ports.get_package_info('zeroinstall-injector', factory)
 		self.assertEquals(1, len(self.feed.implementations))
-		impl = self.feed.implementations['package:ports:zeroinstall-injector:0.41-2:x86_64']
+		impl = self.feed.implementations['package:ports:zeroinstall-injector:0.41-2:' + distro.host_machine]
 		self.assertEquals('0.41-2', impl.get_version())
-		self.assertEquals('x86_64', impl.machine)
+		self.assertEquals(distro.host_machine, impl.machine)
 
 	def testCleanVersion(self):
 		self.assertEquals('0.3.1-1', distro.try_cleanup_distro_version('1:0.3.1-1'))
