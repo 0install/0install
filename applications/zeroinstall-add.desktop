@@ -11,6 +11,6 @@ Comment=Adds Zero Install programs to your Applications menu
 Comment[es]=Agrega programas Zero Install a tu menú Aplicaciones
 Comment[sv]=Lägger till Zero Install-program till menyn Program
 Exec=0desktop -- %u
-Icon=zeroinstall-zero2desktop
+Icon=zeroinstall
 Terminal=false
 Categories=PackageManager;GTK;

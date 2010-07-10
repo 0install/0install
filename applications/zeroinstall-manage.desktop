@@ -11,6 +11,6 @@ Comment=Update or Remove Zero Install programs on your Applications menu
 Comment[es]=Actualiza o quita programas de tu menú Aplicaciones
 Comment[sv]=Uppdatera eller ta bort Zero Install-program i menyn Program
 Exec=0desktop --manage
-Icon=zeroinstall-zero2desktop
+Icon=zeroinstall
 Terminal=false
 Categories=PackageManager;GTK;
