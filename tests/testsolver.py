@@ -144,7 +144,7 @@ class TestSolver(BaseTest):
 
 	def testLangs(self):
 		try:
-			locale.setlocale(locale.LC_ALL, 'en_US.UTF8')
+			locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 			s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
 			iface = iface_cache.get_interface('http://foo/Langs.xml')
