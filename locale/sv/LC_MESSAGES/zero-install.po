@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: zero-install 0.48-post\n"
+"Project-Id-Version: zero-install 0.49-post\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2010-07-03 13:11+0100\n"
-"PO-Revision-Date: 2010-07-03 14:00+0200\n"
+"POT-Creation-Date: 2010-07-25 12:45+0200\n"
+"PO-Revision-Date: 2010-07-25 13:00+0200\n"
 "Last-Translator: Anders F Bjorklund <afb@users.sourceforge.net>\n"
 "Language-Team: Swedish <sv@li.org>\n"
 "MIME-Version: 1.0\n"
@@ -471,7 +471,7 @@ msgstr "Injektorhjälp"
 
 #: zeroinstall/0launch-gui/mainwindow.py:211
 #: zeroinstall/0launch-gui/preferences.py:159 zeroinstall/gtkui/cache.py:429
-#: zeroinstall/gtkui/trust_box.py:227
+#: zeroinstall/gtkui/trust_box.py:271
 msgid "Overview"
 msgstr "Översikt"
 
@@ -1558,31 +1558,47 @@ msgid_plural "These keys signed the feed:"
 msgstr[0] "Denna nyckel signerade kanalen:"
 msgstr[1] "Dessa nycklar signerade kanalen:"
 
-#: zeroinstall/gtkui/trust_box.py:184
+#: zeroinstall/gtkui/trust_box.py:185
 msgid "Fingerprint"
 msgstr "Fingeravtryck"
 
-#: zeroinstall/gtkui/trust_box.py:187
+#: zeroinstall/gtkui/trust_box.py:188
 msgid "Claimed identity"
 msgstr "Påstådd identitet"
 
-#: zeroinstall/gtkui/trust_box.py:189
+#: zeroinstall/gtkui/trust_box.py:190
 msgid "Unreliable hints database says"
 msgstr "Otillförlitliga tipsdatabasen säger"
 
-#: zeroinstall/gtkui/trust_box.py:193
+#: zeroinstall/gtkui/trust_box.py:194
 msgid "You already trust this key for these domains"
 msgstr "Du litar redan på denna nyckel för följande domäner"
 
-#: zeroinstall/gtkui/trust_box.py:196
+#: zeroinstall/gtkui/trust_box.py:197
 msgid "_Trust this key"
 msgstr "Lita på denna nyckel"
 
-#: zeroinstall/gtkui/trust_box.py:226
+#: zeroinstall/gtkui/trust_box.py:255
+msgid ""
+"WARNING: you are confirming a key which was not known to the key server. Are "
+"you sure?"
+msgstr ""
+"VARNING: du bekräftar en nyckel som inte var känd av nyckelservern. Är du "
+"säker?"
+
+#: zeroinstall/gtkui/trust_box.py:257
+msgid ""
+"WARNING: you are confirming keys which were not known to the key server. Are "
+"you sure?"
+msgstr ""
+"VARNING: du bekräftar nycklar som inte var kända av nyckelservern. Är du "
+"säker?"
+
+#: zeroinstall/gtkui/trust_box.py:270
 msgid "Trust Help"
 msgstr "Tillitshjälp"
 
-#: zeroinstall/gtkui/trust_box.py:228
+#: zeroinstall/gtkui/trust_box.py:272
 msgid ""
 "When you run a program, it typically has access to all your files and can "
 "generally do anything that you're allowed to do (delete files, send emails, "
@@ -1593,11 +1609,11 @@ msgstr ""
 "filer, skicka epost, osv). Så det är viktigt att se till att du inte kör "
 "någonting skadligt."
 
-#: zeroinstall/gtkui/trust_box.py:232
+#: zeroinstall/gtkui/trust_box.py:276
 msgid "Digital signatures"
 msgstr "Digitala signaturer"
 
-#: zeroinstall/gtkui/trust_box.py:233
+#: zeroinstall/gtkui/trust_box.py:277
 msgid ""
 "Each software author creates a 'key-pair'; a 'public key' and a 'private "
 "key'. Without going into the maths, only something encrypted with the "
@@ -1617,11 +1633,11 @@ msgstr ""
 "injektorn att den dekrypterar med deras publika nyckel, och bevisar på så "
 "sätt att den kom från dem och inte har manipulerats"
 
-#: zeroinstall/gtkui/trust_box.py:240
+#: zeroinstall/gtkui/trust_box.py:284
 msgid "Trust"
 msgstr "Tillit"
 
-#: zeroinstall/gtkui/trust_box.py:241
+#: zeroinstall/gtkui/trust_box.py:285
 msgid ""
 "After the injector has checked that the software hasn't been modified since "
 "it was signed with the private key, you still have the following problems:\n"
@@ -1636,11 +1652,11 @@ msgstr ""
 "1. Tillhör den publika nyckeln du har verkligen skaparen?\n"
 "2. Även om programvaran verkligen kom från den personen, litar du på dem?"
 
-#: zeroinstall/gtkui/trust_box.py:247
+#: zeroinstall/gtkui/trust_box.py:291
 msgid "Key fingerprints"
 msgstr "Nycklars fingeravtryck"
 
-#: zeroinstall/gtkui/trust_box.py:248
+#: zeroinstall/gtkui/trust_box.py:292
 msgid ""
 "To confirm (1), you should compare the public key you have with the genuine "
 "one. To make this easier, the injector displays a 'fingerprint' for the key. "
@@ -1664,11 +1680,11 @@ msgstr ""
 "laddat ner denna programvara tidigare, bör du vara misstänksam mot att du "
 "ombeds bekräfta ytterligare en nyckel!"
 
-#: zeroinstall/gtkui/trust_box.py:258
+#: zeroinstall/gtkui/trust_box.py:302
 msgid "Reputation"
 msgstr "Rykte"
 
-#: zeroinstall/gtkui/trust_box.py:259
+#: zeroinstall/gtkui/trust_box.py:303
 msgid ""
 "In general, most problems seem to come from malicous and otherwise-unknown "
 "people replacing software with modified versions, or creating new programs "
@@ -1732,40 +1748,40 @@ msgid "Can't update feed; signature not yet trusted. Running GUI..."
 msgstr ""
 "Kan inte uppdatera kanalen; signaturen är inte pålitlig ännu. Kör GUI..."
 
-#: zeroinstall/injector/background.py:103
+#: zeroinstall/injector/background.py:106
 #, python-format
 msgid "Error updating %(title)s: %(details)s"
 msgstr "Fel vid uppdatering av %(title)s: %(details)s"
 
-#: zeroinstall/injector/background.py:165
+#: zeroinstall/injector/background.py:168
 #, python-format
 msgid "Checking for updates to '%s' in a background process"
 msgstr "Kontrollerar uppdateringar för '%s' i en bakgrundsprocess"
 
-#: zeroinstall/injector/background.py:167
+#: zeroinstall/injector/background.py:170
 #, python-format
 msgid "Checking for updates to '%s'..."
 msgstr "Kontrollerar uppdateringar för '%s'..."
 
-#: zeroinstall/injector/background.py:171
+#: zeroinstall/injector/background.py:174
 #, python-format
 msgid "Not yet connected to network (status = %d). Sleeping for a bit..."
 msgstr "Inte ansluten till nätverk ännu (status = %d). Sover en stund..."
 
-#: zeroinstall/injector/background.py:175
+#: zeroinstall/injector/background.py:178
 msgid "Still not connected to network. Giving up."
 msgstr "Fortfarande inte ansluten till nätverk. Ger upp."
 
-#: zeroinstall/injector/background.py:178
+#: zeroinstall/injector/background.py:181
 msgid "NetworkManager says we're on-line. Good!"
 msgstr "NetworkManager säger att vi är on-line. Bra!"
 
-#: zeroinstall/injector/background.py:189
+#: zeroinstall/injector/background.py:192
 msgid "No updates to download."
 msgstr "Inga uppdateringar att ladda ner."
 
-#: zeroinstall/injector/background.py:196
-#: zeroinstall/injector/background.py:216
+#: zeroinstall/injector/background.py:199
+#: zeroinstall/injector/background.py:219
 #, python-format
 msgid "Updates ready to download for '%s'."
 msgstr "Uppdateringar är klara att laddas ner för '%s'"
@@ -3043,17 +3059,17 @@ msgstr ""
 "$HOME (%(home)s) ägs av användare %(user)d, men vi är root (0). Använder %"
 "(root_home)s istället."
 
-#: zeroinstall/support/tasks.py:64
+#: zeroinstall/support/tasks.py:68
 #, python-format
 msgid "Multiple exceptions waiting; skipping %s"
 msgstr "Flera avbrott väntar; hoppar över %s"
 
-#: zeroinstall/support/tasks.py:124
+#: zeroinstall/support/tasks.py:128
 #, python-format
 msgid "Exception from '%s', but nothing is waiting for it"
 msgstr "Avbrott från '%s', men inget väntar på det"
 
-#: zeroinstall/support/tasks.py:130
+#: zeroinstall/support/tasks.py:134
 #, python-format
 msgid ""
 "Blocker %(blocker)s garbage collected without having it's exception read: %"
@@ -3062,32 +3078,32 @@ msgstr ""
 "Blockerare %(blocker)s skräphanterad utan att dess avbrott avlästes: %"
 "(exception)s"
 
-#: zeroinstall/support/tasks.py:245
+#: zeroinstall/support/tasks.py:249
 #, python-format
 msgid "Scheduling new task: %s"
 msgstr "Schemalägger ny uppgift: %s"
 
-#: zeroinstall/support/tasks.py:263
+#: zeroinstall/support/tasks.py:267
 #, python-format
 msgid "Exception from '%(name)s': %(exception)s"
 msgstr "Avbrott från '%(name)s': %(exception)s"
 
-#: zeroinstall/support/tasks.py:281
+#: zeroinstall/support/tasks.py:285
 #, python-format
 msgid "Task '%(task)s' waiting on ready blocker %(blocker)s!"
 msgstr "Uppgift '%(task)s' väntar på färdig blockerare %(blocker)s!"
 
-#: zeroinstall/support/tasks.py:284
+#: zeroinstall/support/tasks.py:288
 #, python-format
 msgid "Task '%(task)s' stopping and waiting for '%(new_blockers)s'"
 msgstr "Uppgift '%(task)s' stoppar och väntar på  '%(new_blockers)s'"
 
-#: zeroinstall/support/tasks.py:313
+#: zeroinstall/support/tasks.py:317
 #, python-format
 msgid "Running %(task)s due to triggering of '%(next)s'"
 msgstr "Kör %(task)s på grund av '%(next)s'"
 
-#: zeroinstall/support/tasks.py:315
+#: zeroinstall/support/tasks.py:319
 #, python-format
 msgid "Running %s"
 msgstr "Kör %s"
