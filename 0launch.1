@@ -159,6 +159,13 @@ the versions given in FILE. A suitable file can be created using the
 \fB\-\-get\-selections\fP option described above.
 
 .TP
+\fB\-\-show\fP
+Print the selected versions in a human-readable format to stdout. The display
+is similar to the GUI; it shows the program being run and its dependencies.
+For each selected component, the version number is displayed and its location
+on the file-system. Implies \-\-download-only.
+
+.TP
 \fB\-s\fP, \fB\-\-source\fP
 The implementation of the main (root) interface must have an architecture
 of the form '*\-src' (normally a literal "*", but could be a compatible OS).

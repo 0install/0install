@@ -208,7 +208,7 @@ def _normal_mode(options, args):
 				import background
 				background.spawn_background_update(policy, options.verbose > 0)
 		if options.get_selections:
-			_get_selections(policy)
+			_get_selections(selections.Selections(policy), options)
 		else:
 			if not options.download_only:
 				from zeroinstall.injector import run
@@ -279,9 +279,7 @@ def _normal_mode(options, args):
 			sels = selections.Selections(policy)
 
 		if options.get_selections:
-			doc = sels.toDOM()
-			doc.writexml(sys.stdout)
-			sys.stdout.write('\n')
+			_get_selections(sels, options)
 		elif not options.download_only:
 			run.execute_selections(sels, prog_args, options.dry_run, options.main, options.wrapper)
 
@@ -311,10 +309,38 @@ def _download_missing_selections(options, sels):
 		logging.info(_("Waiting for selected implementations to be downloaded..."))
 		handler.wait_for_blocker(blocker)
 
-def _get_selections(policy):
-	doc = selections.Selections(policy).toDOM()
-	doc.writexml(sys.stdout)
-	sys.stdout.write('\n')
+def _get_selections(sels, options):
+	if options.show:
+		from zeroinstall import zerostore
+		done = set()	# detect cycles
+		def print_node(uri, indent):
+			if uri in done: return
+			done.add(uri)
+			impl = sels.selections.get(uri, None)
+			print indent + "- URI:", uri
+			if impl:
+				print indent + "  Version:", impl.version
+				try:
+					if impl.id.startswith('package:'):
+						path = "(" + impl.id + ")"
+					else:
+						path = impl.local_path or iface_cache.stores.lookup_any(impl.digests)
+				except zerostore.NotStored:
+					path = "(not cached)"
+				print indent + "  Path:", path
+				indent += "  "
+				for child in impl.dependencies:
+					if isinstance(child, model.InterfaceDependency):
+						print_node(child.interface, indent)
+			else:
+				print indent + "  No selected version"
+
+
+		print_node(sels.interface, "")
+	else:
+		doc = sels.toDOM()
+		doc.writexml(sys.stdout)
+		sys.stdout.write('\n')
 
 class UsageError(Exception): pass
 
@@ -355,6 +381,7 @@ def main(command_args):
 	parser.add_option("-r", "--refresh", help=_("refresh all used interfaces"), action='store_true')
 	parser.add_option("", "--select-only", help=_("only download the feeds"), action='store_true')
 	parser.add_option("", "--set-selections", help=_("run versions specified in XML file"), metavar='FILE')
+	parser.add_option("", "--show", help=_("show where components are installed"), action='store_true')
 	parser.add_option("-s", "--source", help=_("select source code"), action='store_true')
 	parser.add_option("", "--systray", help=_("download in the background"), action='store_true')
 	parser.add_option("-v", "--verbose", help=_("more verbose output"), action='count')
@@ -374,8 +401,11 @@ def main(command_args):
 		import zeroinstall
 		logging.info(_("Running 0launch %(version)s %(args)s; Python %(python_version)s"), {'version': zeroinstall.version, 'args': repr(args), 'python_version': sys.version})
 
-	if options.select_only:
+	if options.select_only or options.show:
 		options.download_only = True
+
+	if options.show:
+		options.get_selections = True
 
 	if options.with_store:
 		from zeroinstall import zerostore
