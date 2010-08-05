@@ -429,7 +429,9 @@ def main(command_args):
 			from zeroinstall.injector import qdom, run
 			sels = selections.Selections(qdom.parse(file(options.set_selections)))
 			_download_missing_selections(options, sels)
-			if not options.download_only:
+			if options.get_selections:
+				_get_selections(sels, options)
+			elif not options.download_only:
 				run.execute_selections(sels, args, options.dry_run, options.main, options.wrapper)
 		elif getattr(options, 'import'):
 			_import_feed(args)
