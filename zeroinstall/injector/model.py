@@ -973,6 +973,7 @@ def _pretty_escape(uri):
 def canonical_iface_uri(uri):
 	"""If uri is a relative path, convert to an absolute one.
 	A "file:///foo" URI is converted to "/foo".
+	An "alias:prog" URI expands to the URI in the 0alias script
 	Otherwise, return it unmodified.
 	@rtype: str
 	@raise SafeException: if uri isn't valid
@@ -983,6 +984,17 @@ def canonical_iface_uri(uri):
 		return uri
 	elif uri.startswith('file:///'):
 		return uri[7:]
+	elif uri.startswith('alias:'):
+		from zeroinstall import alias, support
+		alias_prog = uri[6:]
+		if not os.path.isabs(alias_prog):
+			full_path = support.find_in_path(alias_prog)
+			if not full_path:
+				raise alias.NotAnAliasScript("Not found in $PATH: " + alias_prog)
+		else:
+			full_path = alias_prog
+		interface_uri, main = alias.parse_script(full_path)
+		return interface_uri
 	else:
 		iface_uri = os.path.realpath(uri)
 		if os.path.isfile(iface_uri):
