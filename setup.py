@@ -1,5 +1,6 @@
 from distutils.core import setup
 from distutils.util import convert_path
+from distutils.core import Command
 from distutils.command.build_py import build_py
 from distutils.command.install import install
 from distutils.command.install_lib import install_lib
@@ -7,6 +8,43 @@ from distutils.command.install_data import install_data
 import os, subprocess, sys
 import glob
 import zeroinstall
+
+class adjust_scripts_for_home(Command):
+	"""setup.py install --home puts libraries in ~/lib/python, but Python doesn't look there.
+	If we're installing with --home, modify the scripts to add this to sys.path.
+	Don't do this otherwise; the system copy mustn't conflict with the copy in $HOME.
+	"""
+	description = "(used internally when using --home)"
+
+	user_options = [
+		    ('scripts-dir=', 'd', "directory to install scripts to"),
+		    ('lib-dir=', 'd', "directory libraries install to"),
+	]
+
+	def initialize_options (self):
+		self.scripts_dir = None
+		self.lib_dir = None
+
+	def finalize_options (self):
+		self.set_undefined_options('install',
+				('install_scripts', 'scripts_dir'),
+				('install_lib', 'lib_dir'),
+			)
+
+	def run(self):
+		for script in self.distribution.scripts:
+			outfile = os.path.join(self.scripts_dir, os.path.basename(script))
+
+			stream = open(outfile)
+			code = stream.read()
+			stream.close()
+
+			code = code.replace('## PATH ##', '''
+import os, sys
+sys.path.insert(0, %s)''' % repr(self.lib_dir))
+			stream = open(outfile, 'w')
+			stream.write(code)
+			stream.close()
 
 class build_with_data(build_py):
 	"""Python < 2.4 doesn't support package_data_files, so add it manually."""
@@ -69,6 +107,9 @@ class my_install(install):
 		menu = convert_path('applications/zeroinstall.menu')
 		self.copy_file(menu, menus_dir)
 
+		if self.home:
+			self.run_command('adjust_scripts_for_home')
+
 setup(name="zeroinstall-injector",
       version=zeroinstall.version,
       description="The Zero Install Injector (0launch)",
@@ -86,6 +127,7 @@ setup(name="zeroinstall-injector",
 	'build_py': build_with_data,
 	'install_lib': install_lib_exec,
 	'install_data': install_data_locale,
+	'adjust_scripts_for_home': adjust_scripts_for_home,
 	'install': my_install,
       },
       long_description="""\
