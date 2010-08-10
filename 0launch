@@ -7,6 +7,7 @@ try:
 except locale.Error:
 	warn('Error setting locale (eg. Invalid locale)')
 
+import os, sys; sys.path.append(os.path.expanduser('~/lib/python'))
+
 from zeroinstall.injector import cli
-import sys
 cli.main(sys.argv[1:])

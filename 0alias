@@ -7,7 +7,7 @@ try:
 except locale.Error:
 	warn('Error setting locale (eg. Invalid locale)')
 
-import os, sys
+import os, sys; sys.path.append(os.path.expanduser('~/lib/python'))
 from optparse import OptionParser
 
 from zeroinstall.injector import reader, model
