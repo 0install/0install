@@ -30,6 +30,8 @@
 .B 0store verify
 ( \fBDIGEST\fP | \fBDIRECTORY\fP )
 
+.B 0store manage
+
 .SH DESCRIPTION
 .PP
 0store provides access to the low-level implementation cache. Normally, the
@@ -91,6 +93,18 @@ See the list of implementation caches currently configured:
 
 To add directories to this list, add them to your 'implementation\-dirs'
 configuration file.
+
+.SH MANAGE
+.PP
+To open a window showing the contents of the cache:
+
+.B 0store manage
+
+You can use this to delete versions of programs you no longer need. However, this
+doesn't remove any launchers you added (trying to launch the program will prompt
+you to download the missing files again). For that, try:
+
+.B 0desktop --manage
 
 .SH MANIFEST
 .PP
