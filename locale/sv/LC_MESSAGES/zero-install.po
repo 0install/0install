@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: zero-install 0.49-post\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2010-07-25 12:45+0200\n"
+"POT-Creation-Date: 2010-08-18 20:11+0100\n"
 "PO-Revision-Date: 2010-07-25 13:00+0200\n"
 "Last-Translator: Anders F Bjorklund <afb@users.sourceforge.net>\n"
 "Language-Team: Swedish <sv@li.org>\n"
@@ -340,11 +340,11 @@ msgstr "Inga"
 msgid "usage: %prog [options] interface"
 msgstr "använding: %prog [flaggor] gränssnitt"
 
-#: zeroinstall/0launch-gui/main.py:24 zeroinstall/injector/cli.py:340
+#: zeroinstall/0launch-gui/main.py:24 zeroinstall/injector/cli.py:366
 msgid "choose a version before this"
 msgstr "välj en version före detta"
 
-#: zeroinstall/0launch-gui/main.py:25 zeroinstall/injector/cli.py:342
+#: zeroinstall/0launch-gui/main.py:25 zeroinstall/injector/cli.py:368
 msgid "target CPU type"
 msgstr "målets CPU-typ"
 
@@ -352,19 +352,19 @@ msgstr "målets CPU-typ"
 msgid "show the cache"
 msgstr "visa cache"
 
-#: zeroinstall/0launch-gui/main.py:27 zeroinstall/injector/cli.py:343
+#: zeroinstall/0launch-gui/main.py:27 zeroinstall/injector/cli.py:369
 msgid "fetch but don't run"
 msgstr "hämta men kör inte"
 
-#: zeroinstall/0launch-gui/main.py:28 zeroinstall/injector/cli.py:351
+#: zeroinstall/0launch-gui/main.py:28 zeroinstall/injector/cli.py:377
 msgid "message to display when interacting with user"
 msgstr "meddelande att visa vid interaktion med användare"
 
-#: zeroinstall/0launch-gui/main.py:29 zeroinstall/injector/cli.py:352
+#: zeroinstall/0launch-gui/main.py:29 zeroinstall/injector/cli.py:378
 msgid "minimum version to choose"
 msgstr "minsta version att välja"
 
-#: zeroinstall/0launch-gui/main.py:30 zeroinstall/injector/cli.py:353
+#: zeroinstall/0launch-gui/main.py:30 zeroinstall/injector/cli.py:379
 msgid "target operation system type"
 msgstr "målets operativsystem-typ"
 
@@ -372,34 +372,34 @@ msgstr "målets operativsystem-typ"
 msgid "check for updates of all interfaces"
 msgstr "kontrollera uppdateringar av alla gränssnitt"
 
-#: zeroinstall/0launch-gui/main.py:32 zeroinstall/injector/cli.py:356
+#: zeroinstall/0launch-gui/main.py:32 zeroinstall/injector/cli.py:382
 msgid "only download the feeds"
 msgstr "hämta endast kanalerna"
 
-#: zeroinstall/0launch-gui/main.py:33 zeroinstall/injector/cli.py:358
+#: zeroinstall/0launch-gui/main.py:33 zeroinstall/injector/cli.py:385
 msgid "select source code"
 msgstr "välj källkod"
 
-#: zeroinstall/0launch-gui/main.py:34 zeroinstall/injector/cli.py:359
+#: zeroinstall/0launch-gui/main.py:34 zeroinstall/injector/cli.py:386
 msgid "download in the background"
 msgstr "ladda ner i bakgrunden"
 
 #: zeroinstall/0launch-gui/main.py:35 zeroinstall/gtkui/desktop.py:16
-#: zeroinstall/injector/cli.py:360
+#: zeroinstall/injector/cli.py:387
 msgid "more verbose output"
 msgstr "mer detaljrik utdata"
 
 #: zeroinstall/0launch-gui/main.py:36 zeroinstall/gtkui/desktop.py:17
-#: zeroinstall/injector/cli.py:361
+#: zeroinstall/injector/cli.py:388
 msgid "display version information"
 msgstr "visa versionsinformation"
 
-#: zeroinstall/0launch-gui/main.py:37 zeroinstall/injector/cli.py:362
+#: zeroinstall/0launch-gui/main.py:37 zeroinstall/injector/cli.py:389
 msgid "add an implementation cache"
 msgstr "lägg till implementations-cache"
 
 #: zeroinstall/0launch-gui/main.py:68 zeroinstall/gtkui/desktop.py:36
-#: zeroinstall/injector/cli.py:393
+#: zeroinstall/injector/cli.py:423
 msgid ""
 "This program comes with ABSOLUTELY NO WARRANTY,\n"
 "to the extent permitted by law.\n"
@@ -1875,11 +1875,11 @@ msgstr "Uppdaterar inte i bakgrunden eftersom vi är i offline-läge."
 msgid "Switching to GUI mode... (use --console to disable)"
 msgstr "Byter till GUI-läge... (använd --console för att undvika)"
 
-#: zeroinstall/injector/cli.py:311
+#: zeroinstall/injector/cli.py:309
 msgid "Waiting for selected implementations to be downloaded..."
 msgstr "Väntar på att valda implementationer skall laddas ner..."
 
-#: zeroinstall/injector/cli.py:336
+#: zeroinstall/injector/cli.py:362
 msgid ""
 "usage: %prog [options] interface [args]\n"
 "       %prog --list [search-term]\n"
@@ -1891,60 +1891,64 @@ msgstr ""
 "            %prog --import [signerade-gränssnitts-filer]\n"
 "            %prog --feed [gränssnitt]"
 
-#: zeroinstall/injector/cli.py:341
+#: zeroinstall/injector/cli.py:367
 msgid "never use GUI"
 msgstr "använd aldrig GUI"
 
-#: zeroinstall/injector/cli.py:344
+#: zeroinstall/injector/cli.py:370
 msgid "just print actions"
 msgstr "skriv endast ut handlingar"
 
-#: zeroinstall/injector/cli.py:345
+#: zeroinstall/injector/cli.py:371
 msgid "add or remove a feed"
 msgstr "lägg till eller ta bort en kanal"
 
-#: zeroinstall/injector/cli.py:346
+#: zeroinstall/injector/cli.py:372
 msgid "write selected versions as XML"
 msgstr "skriv ut valda versioner som XML"
 
-#: zeroinstall/injector/cli.py:347
+#: zeroinstall/injector/cli.py:373
 msgid "show graphical policy editor"
 msgstr "visa grafisk policyeditor"
 
-#: zeroinstall/injector/cli.py:348
+#: zeroinstall/injector/cli.py:374
 msgid "import from files, not from the network"
 msgstr "importera från filer, inte från nätverket"
 
-#: zeroinstall/injector/cli.py:349
+#: zeroinstall/injector/cli.py:375
 msgid "list all known interfaces"
 msgstr "lista alla kända gränssnitt"
 
-#: zeroinstall/injector/cli.py:350
+#: zeroinstall/injector/cli.py:376
 msgid "name of the file to execute"
 msgstr "namn på filen som skall exekveras"
 
-#: zeroinstall/injector/cli.py:354
+#: zeroinstall/injector/cli.py:380
 msgid "try to avoid using the network"
 msgstr "försök undvika att använda nätverket"
 
-#: zeroinstall/injector/cli.py:355
+#: zeroinstall/injector/cli.py:381
 msgid "refresh all used interfaces"
 msgstr "uppdatera alla använda gränssnitt"
 
-#: zeroinstall/injector/cli.py:357
+#: zeroinstall/injector/cli.py:383
 msgid "run versions specified in XML file"
 msgstr "kör versioner angivna i XML-filen"
 
-#: zeroinstall/injector/cli.py:363
+#: zeroinstall/injector/cli.py:384
+msgid "show where components are installed"
+msgstr "visa var komponenter är installerade"
+
+#: zeroinstall/injector/cli.py:390
 msgid "execute program using a debugger, etc"
 msgstr "exekvera program med en avlusare eller motsvarande"
 
-#: zeroinstall/injector/cli.py:375
+#: zeroinstall/injector/cli.py:402
 #, python-format
 msgid "Running 0launch %(version)s %(args)s; Python %(python_version)s"
 msgstr "Kör 0launch %(version)s %(args)s; Python %(python_version)s"
 
-#: zeroinstall/injector/cli.py:384
+#: zeroinstall/injector/cli.py:414
 #, python-format
 msgid "Stores search path is now %s"
 msgstr "Lagrets sökväg är nu %s"
@@ -2659,12 +2663,12 @@ msgstr "Okänt steg '%s' i recept; skippar recept"
 msgid "<Feed %s>"
 msgstr "<Kanal %s>"
 
-#: zeroinstall/injector/model.py:982
+#: zeroinstall/injector/model.py:983
 #, python-format
 msgid "Missing / after hostname in URI '%s'"
 msgstr "Saknat / efter värdnamn i URI '%s'"
 
-#: zeroinstall/injector/model.py:990
+#: zeroinstall/injector/model.py:1002
 #, python-format
 msgid ""
 "Bad interface name '%(uri)s'.\n"
@@ -2675,16 +2679,16 @@ msgstr ""
 "(börjar inte med 'http:', och existerar inte som en lokal fil '%"
 "(interface_uri)s' heller)"
 
-#: zeroinstall/injector/model.py:1024
+#: zeroinstall/injector/model.py:1036
 msgid "Empty version string!"
 msgstr "Tom versionssträng!"
 
-#: zeroinstall/injector/model.py:1037
+#: zeroinstall/injector/model.py:1049
 #, python-format
 msgid "Invalid version format in '%(version_string)s': %(exception)s"
 msgstr "Ogiltigt versionsformat i '%(version_string)s': %(exception)s"
 
-#: zeroinstall/injector/model.py:1039
+#: zeroinstall/injector/model.py:1051
 #, python-format
 msgid "Invalid version modifier in '%(version_string)s': %(exception)s"
 msgstr "Ogiltig versionsmodifierare i '%(version_string)s': %(exception)s"

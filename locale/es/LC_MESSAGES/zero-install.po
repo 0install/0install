@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: zero-install 0.48-post\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2010-07-03 13:11+0100\n"
+"POT-Creation-Date: 2010-08-18 20:11+0100\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Rene Lopez <rsl@members.fsf.org>\n"
 "Language-Team: \n"
@@ -340,11 +340,11 @@ msgstr "Nada"
 msgid "usage: %prog [options] interface"
 msgstr "Modo de empleo: %prog [opciones] interfaz"
 
-#: zeroinstall/0launch-gui/main.py:24 zeroinstall/injector/cli.py:340
+#: zeroinstall/0launch-gui/main.py:24 zeroinstall/injector/cli.py:366
 msgid "choose a version before this"
 msgstr "selecciona una versión antes de esto"
 
-#: zeroinstall/0launch-gui/main.py:25 zeroinstall/injector/cli.py:342
+#: zeroinstall/0launch-gui/main.py:25 zeroinstall/injector/cli.py:368
 msgid "target CPU type"
 msgstr "tipo de CPU objetivo"
 
@@ -352,19 +352,19 @@ msgstr "tipo de CPU objetivo"
 msgid "show the cache"
 msgstr "mostrar almacén"
 
-#: zeroinstall/0launch-gui/main.py:27 zeroinstall/injector/cli.py:343
+#: zeroinstall/0launch-gui/main.py:27 zeroinstall/injector/cli.py:369
 msgid "fetch but don't run"
 msgstr "adquirir pero no ejecutar"
 
-#: zeroinstall/0launch-gui/main.py:28 zeroinstall/injector/cli.py:351
+#: zeroinstall/0launch-gui/main.py:28 zeroinstall/injector/cli.py:377
 msgid "message to display when interacting with user"
 msgstr "mensaje a desplegar cuando se interactúe con el usuario"
 
-#: zeroinstall/0launch-gui/main.py:29 zeroinstall/injector/cli.py:352
+#: zeroinstall/0launch-gui/main.py:29 zeroinstall/injector/cli.py:378
 msgid "minimum version to choose"
 msgstr "Versión mínima a elegir"
 
-#: zeroinstall/0launch-gui/main.py:30 zeroinstall/injector/cli.py:353
+#: zeroinstall/0launch-gui/main.py:30 zeroinstall/injector/cli.py:379
 msgid "target operation system type"
 msgstr "tipo de sistema operativo objetivo "
 
@@ -372,34 +372,34 @@ msgstr "tipo de sistema operativo objetivo "
 msgid "check for updates of all interfaces"
 msgstr "comprueba todas las interfaces para actualizaciones"
 
-#: zeroinstall/0launch-gui/main.py:32 zeroinstall/injector/cli.py:356
+#: zeroinstall/0launch-gui/main.py:32 zeroinstall/injector/cli.py:382
 msgid "only download the feeds"
 msgstr "solo descarga las fuentes"
 
-#: zeroinstall/0launch-gui/main.py:33 zeroinstall/injector/cli.py:358
+#: zeroinstall/0launch-gui/main.py:33 zeroinstall/injector/cli.py:385
 msgid "select source code"
 msgstr "selecciona el código fuente"
 
-#: zeroinstall/0launch-gui/main.py:34 zeroinstall/injector/cli.py:359
+#: zeroinstall/0launch-gui/main.py:34 zeroinstall/injector/cli.py:386
 msgid "download in the background"
 msgstr "descarga en segundo plano"
 
 #: zeroinstall/0launch-gui/main.py:35 zeroinstall/gtkui/desktop.py:16
-#: zeroinstall/injector/cli.py:360
+#: zeroinstall/injector/cli.py:387
 msgid "more verbose output"
 msgstr "salida detallada"
 
 #: zeroinstall/0launch-gui/main.py:36 zeroinstall/gtkui/desktop.py:17
-#: zeroinstall/injector/cli.py:361
+#: zeroinstall/injector/cli.py:388
 msgid "display version information"
 msgstr "muestra la información de versión"
 
-#: zeroinstall/0launch-gui/main.py:37 zeroinstall/injector/cli.py:362
+#: zeroinstall/0launch-gui/main.py:37 zeroinstall/injector/cli.py:389
 msgid "add an implementation cache"
 msgstr "agrega un almacén de implementación"
 
 #: zeroinstall/0launch-gui/main.py:68 zeroinstall/gtkui/desktop.py:36
-#: zeroinstall/injector/cli.py:393
+#: zeroinstall/injector/cli.py:423
 msgid ""
 "This program comes with ABSOLUTELY NO WARRANTY,\n"
 "to the extent permitted by law.\n"
@@ -473,7 +473,7 @@ msgstr "Ayudad de injector"
 
 #: zeroinstall/0launch-gui/mainwindow.py:211
 #: zeroinstall/0launch-gui/preferences.py:159 zeroinstall/gtkui/cache.py:429
-#: zeroinstall/gtkui/trust_box.py:227
+#: zeroinstall/gtkui/trust_box.py:271
 msgid "Overview"
 msgstr "Descripción general"
 
@@ -1581,31 +1581,43 @@ msgid_plural "These keys signed the feed:"
 msgstr[0] "Esta clave firmo la fuente:"
 msgstr[1] "Estas claves firmaron la fuente:"
 
-#: zeroinstall/gtkui/trust_box.py:184
+#: zeroinstall/gtkui/trust_box.py:185
 msgid "Fingerprint"
 msgstr "Huella"
 
-#: zeroinstall/gtkui/trust_box.py:187
+#: zeroinstall/gtkui/trust_box.py:188
 msgid "Claimed identity"
 msgstr "Identidad declarada"
 
-#: zeroinstall/gtkui/trust_box.py:189
+#: zeroinstall/gtkui/trust_box.py:190
 msgid "Unreliable hints database says"
 msgstr "Base de datos de consejos no fiables dice"
 
-#: zeroinstall/gtkui/trust_box.py:193
+#: zeroinstall/gtkui/trust_box.py:194
 msgid "You already trust this key for these domains"
 msgstr "Tu ya confías en esta clave para esos dominios"
 
-#: zeroinstall/gtkui/trust_box.py:196
+#: zeroinstall/gtkui/trust_box.py:197
 msgid "_Trust this key"
 msgstr "C_onfiar en esta clave"
 
-#: zeroinstall/gtkui/trust_box.py:226
+#: zeroinstall/gtkui/trust_box.py:255
+msgid ""
+"WARNING: you are confirming a key which was not known to the key server. Are "
+"you sure?"
+msgstr ""
+
+#: zeroinstall/gtkui/trust_box.py:257
+msgid ""
+"WARNING: you are confirming keys which were not known to the key server. Are "
+"you sure?"
+msgstr ""
+
+#: zeroinstall/gtkui/trust_box.py:270
 msgid "Trust Help"
 msgstr "Ayuda acerca de confianza"
 
-#: zeroinstall/gtkui/trust_box.py:228
+#: zeroinstall/gtkui/trust_box.py:272
 msgid ""
 "When you run a program, it typically has access to all your files and can "
 "generally do anything that you're allowed to do (delete files, send emails, "
@@ -1616,11 +1628,11 @@ msgstr ""
 "hacer (borrar archivos, enviar correos, etc). Es importante asegurar que no "
 "ejecutes nada malicioso."
 
-#: zeroinstall/gtkui/trust_box.py:232
+#: zeroinstall/gtkui/trust_box.py:276
 msgid "Digital signatures"
 msgstr "Firmas digitales"
 
-#: zeroinstall/gtkui/trust_box.py:233
+#: zeroinstall/gtkui/trust_box.py:277
 msgid ""
 "Each software author creates a 'key-pair'; a 'public key' and a 'private "
 "key'. Without going into the maths, only something encrypted with the "
@@ -1640,11 +1652,11 @@ msgstr ""
 "comprueba que esta se descifre usando la clave publica, probando que viene "
 "de el y no ha sido alterado."
 
-#: zeroinstall/gtkui/trust_box.py:240
+#: zeroinstall/gtkui/trust_box.py:284
 msgid "Trust"
 msgstr "Confianza"
 
-#: zeroinstall/gtkui/trust_box.py:241
+#: zeroinstall/gtkui/trust_box.py:285
 msgid ""
 "After the injector has checked that the software hasn't been modified since "
 "it was signed with the private key, you still have the following problems:\n"
@@ -1659,11 +1671,11 @@ msgstr ""
 "1. La clave publica que tienes ¿en realidad pertenece al autor?\n"
 "2. Aun si el software en realidad vino de esa persona, ¿confías en el?"
 
-#: zeroinstall/gtkui/trust_box.py:247
+#: zeroinstall/gtkui/trust_box.py:291
 msgid "Key fingerprints"
 msgstr "Huellas de clave"
 
-#: zeroinstall/gtkui/trust_box.py:248
+#: zeroinstall/gtkui/trust_box.py:292
 msgid ""
 "To confirm (1), you should compare the public key you have with the genuine "
 "one. To make this easier, the injector displays a 'fingerprint' for the key. "
@@ -1687,11 +1699,11 @@ msgstr ""
 "descargado este software antes, ¡deberías de sospechar si se te hace "
 "confirmar otra clave!"
 
-#: zeroinstall/gtkui/trust_box.py:258
+#: zeroinstall/gtkui/trust_box.py:302
 msgid "Reputation"
 msgstr "Reputación"
 
-#: zeroinstall/gtkui/trust_box.py:259
+#: zeroinstall/gtkui/trust_box.py:303
 msgid ""
 "In general, most problems seem to come from malicous and otherwise-unknown "
 "people replacing software with modified versions, or creating new programs "
@@ -1763,44 +1775,44 @@ msgstr ""
 msgid "Can't update feed; signature not yet trusted. Running GUI..."
 msgstr ""
 
-#: zeroinstall/injector/background.py:103
+#: zeroinstall/injector/background.py:106
 #, python-format
 msgid "Error updating %(title)s: %(details)s"
 msgstr "Error al actualizar %(title)s: %(details)s"
 
 # INFO
-#: zeroinstall/injector/background.py:165
+#: zeroinstall/injector/background.py:168
 #, python-format
 msgid "Checking for updates to '%s' in a background process"
 msgstr ""
 
-#: zeroinstall/injector/background.py:167
+#: zeroinstall/injector/background.py:170
 #, python-format
 msgid "Checking for updates to '%s'..."
 msgstr "Comprobando actualizaciones para  '%s'..."
 
 # INFO
-#: zeroinstall/injector/background.py:171
+#: zeroinstall/injector/background.py:174
 #, python-format
 msgid "Not yet connected to network (status = %d). Sleeping for a bit..."
 msgstr ""
 
 # INFO
-#: zeroinstall/injector/background.py:175
+#: zeroinstall/injector/background.py:178
 msgid "Still not connected to network. Giving up."
 msgstr ""
 
 # INFO
-#: zeroinstall/injector/background.py:178
+#: zeroinstall/injector/background.py:181
 msgid "NetworkManager says we're on-line. Good!"
 msgstr ""
 
-#: zeroinstall/injector/background.py:189
+#: zeroinstall/injector/background.py:192
 msgid "No updates to download."
 msgstr "No hay actualizaciones para descargar."
 
-#: zeroinstall/injector/background.py:196
-#: zeroinstall/injector/background.py:216
+#: zeroinstall/injector/background.py:199
+#: zeroinstall/injector/background.py:219
 #, python-format
 msgid "Updates ready to download for '%s'."
 msgstr "Actualizaciones listas para descargar. para  '%s'."
@@ -1899,11 +1911,11 @@ msgid "Switching to GUI mode... (use --console to disable)"
 msgstr ""
 
 # INFO
-#: zeroinstall/injector/cli.py:311
+#: zeroinstall/injector/cli.py:309
 msgid "Waiting for selected implementations to be downloaded..."
 msgstr ""
 
-#: zeroinstall/injector/cli.py:336
+#: zeroinstall/injector/cli.py:362
 msgid ""
 "usage: %prog [options] interface [args]\n"
 "       %prog --list [search-term]\n"
@@ -1915,63 +1927,67 @@ msgstr ""
 "                %prog --import [archivos-de-interfaz-firmados]\n"
 "                %prog --feed [interfaz]"
 
-#: zeroinstall/injector/cli.py:341
+#: zeroinstall/injector/cli.py:367
 msgid "never use GUI"
 msgstr "nunca usar GUI"
 
-#: zeroinstall/injector/cli.py:344
+#: zeroinstall/injector/cli.py:370
 msgid "just print actions"
 msgstr "sólo imprimir acciones"
 
-#: zeroinstall/injector/cli.py:345
+#: zeroinstall/injector/cli.py:371
 msgid "add or remove a feed"
 msgstr "Añadir o eliminar fuentes"
 
-#: zeroinstall/injector/cli.py:346
+#: zeroinstall/injector/cli.py:372
 msgid "write selected versions as XML"
 msgstr "escribe las versiones seleccionadas como XML"
 
 # ¿?
-#: zeroinstall/injector/cli.py:347
+#: zeroinstall/injector/cli.py:373
 msgid "show graphical policy editor"
 msgstr "mostrar el editor gráfico de preferencias"
 
-#: zeroinstall/injector/cli.py:348
+#: zeroinstall/injector/cli.py:374
 msgid "import from files, not from the network"
 msgstr "importar desde archivos, no desde la rec"
 
-#: zeroinstall/injector/cli.py:349
+#: zeroinstall/injector/cli.py:375
 msgid "list all known interfaces"
 msgstr "listar todas las interfaces conocidas"
 
-#: zeroinstall/injector/cli.py:350
+#: zeroinstall/injector/cli.py:376
 msgid "name of the file to execute"
 msgstr "Nombre del archivo a ejecutar"
 
-#: zeroinstall/injector/cli.py:354
+#: zeroinstall/injector/cli.py:380
 msgid "try to avoid using the network"
 msgstr "intenta evitar el uso de la red"
 
-#: zeroinstall/injector/cli.py:355
+#: zeroinstall/injector/cli.py:381
 msgid "refresh all used interfaces"
 msgstr "actualizar todas las interfaces usadas"
 
-#: zeroinstall/injector/cli.py:357
+#: zeroinstall/injector/cli.py:383
 msgid "run versions specified in XML file"
 msgstr "ejecutar versiones especificadas en un archivo XML"
 
-#: zeroinstall/injector/cli.py:363
+#: zeroinstall/injector/cli.py:384
+msgid "show where components are installed"
+msgstr ""
+
+#: zeroinstall/injector/cli.py:390
 msgid "execute program using a debugger, etc"
 msgstr "ejecuta el programa usando un depurador, etc"
 
 # INFO
-#: zeroinstall/injector/cli.py:375
+#: zeroinstall/injector/cli.py:402
 #, python-format
 msgid "Running 0launch %(version)s %(args)s; Python %(python_version)s"
 msgstr ""
 
 # INFO
-#: zeroinstall/injector/cli.py:384
+#: zeroinstall/injector/cli.py:414
 #, python-format
 msgid "Stores search path is now %s"
 msgstr ""
@@ -2726,12 +2742,12 @@ msgstr ""
 msgid "<Feed %s>"
 msgstr "<Fuente %s>"
 
-#: zeroinstall/injector/model.py:982
+#: zeroinstall/injector/model.py:983
 #, python-format
 msgid "Missing / after hostname in URI '%s'"
 msgstr "Falta / después del hostname en el URI '%s'"
 
-#: zeroinstall/injector/model.py:990
+#: zeroinstall/injector/model.py:1002
 #, python-format
 msgid ""
 "Bad interface name '%(uri)s'.\n"
@@ -2742,16 +2758,16 @@ msgstr ""
 "(no empieza con 'http:', y tampoco existe como una archivo local '%"
 "(interface_uri)s')"
 
-#: zeroinstall/injector/model.py:1024
+#: zeroinstall/injector/model.py:1036
 msgid "Empty version string!"
 msgstr "¡Cadena de versión vacía!"
 
-#: zeroinstall/injector/model.py:1037
+#: zeroinstall/injector/model.py:1049
 #, python-format
 msgid "Invalid version format in '%(version_string)s': %(exception)s"
 msgstr "Formato de versión invalido '%(version_string)s': %(exception)s"
 
-#: zeroinstall/injector/model.py:1039
+#: zeroinstall/injector/model.py:1051
 #, python-format
 msgid "Invalid version modifier in '%(version_string)s': %(exception)s"
 msgstr "Modificador de version Invalido en '%(version_string)s': %(exception)s"
@@ -3148,19 +3164,19 @@ msgid ""
 msgstr ""
 
 # WARN
-#: zeroinstall/support/tasks.py:64
+#: zeroinstall/support/tasks.py:68
 #, python-format
 msgid "Multiple exceptions waiting; skipping %s"
 msgstr ""
 
 # INFO
-#: zeroinstall/support/tasks.py:124
+#: zeroinstall/support/tasks.py:128
 #, python-format
 msgid "Exception from '%s', but nothing is waiting for it"
 msgstr ""
 
 # WARN
-#: zeroinstall/support/tasks.py:130
+#: zeroinstall/support/tasks.py:134
 #, python-format
 msgid ""
 "Blocker %(blocker)s garbage collected without having it's exception read: %"
@@ -3168,37 +3184,37 @@ msgid ""
 msgstr ""
 
 # INFO
-#: zeroinstall/support/tasks.py:245
+#: zeroinstall/support/tasks.py:249
 #, python-format
 msgid "Scheduling new task: %s"
 msgstr ""
 
 # INFO
-#: zeroinstall/support/tasks.py:263
+#: zeroinstall/support/tasks.py:267
 #, python-format
 msgid "Exception from '%(name)s': %(exception)s"
 msgstr ""
 
 # INFO
-#: zeroinstall/support/tasks.py:281
+#: zeroinstall/support/tasks.py:285
 #, python-format
 msgid "Task '%(task)s' waiting on ready blocker %(blocker)s!"
 msgstr ""
 
 # INFO
-#: zeroinstall/support/tasks.py:284
+#: zeroinstall/support/tasks.py:288
 #, python-format
 msgid "Task '%(task)s' stopping and waiting for '%(new_blockers)s'"
 msgstr ""
 
 # INFO
-#: zeroinstall/support/tasks.py:313
+#: zeroinstall/support/tasks.py:317
 #, python-format
 msgid "Running %(task)s due to triggering of '%(next)s'"
 msgstr ""
 
 # INFO
-#: zeroinstall/support/tasks.py:315
+#: zeroinstall/support/tasks.py:319
 #, python-format
 msgid "Running %s"
 msgstr ""
