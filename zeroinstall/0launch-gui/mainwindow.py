@@ -197,10 +197,10 @@ class MainWindow:
 		self.systray_icon_blocker.trigger()
 		self.systray_icon_blocker = None
 
-	def report_exception(self, ex):
+	def report_exception(self, ex, tb = None):
 		if not isinstance(ex, SafeException):
 			import traceback
-			traceback.print_exc()
+			traceback.print_exception(ex, None, tb)
 		if self.systray_icon:
 			self.systray_icon.set_blinking(True)
 			self.systray_icon.set_tooltip(str(ex) + '\n' + _('(click for details)'))
