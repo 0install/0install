@@ -3,6 +3,7 @@ import sys, tempfile, os, shutil, StringIO
 import unittest
 import logging
 import warnings
+warnings.filterwarnings("ignore", message = 'The CObject type')
 
 # Catch silly mistakes...
 os.environ['HOME'] = '/home/idontexist'

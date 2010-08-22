@@ -24,6 +24,7 @@ download_fetching = "fetching"	# In progress
 download_complete = "complete"	# Downloaded and cached OK
 download_failed = "failed"
 
+# NB: duplicated in _download_child.py
 RESULT_OK = 0
 RESULT_FAILED = 1
 RESULT_NOT_MODIFIED = 2
@@ -104,7 +105,8 @@ class Download(object):
 
 		# Can't use fork here, because Windows doesn't have it
 		assert self.child is None, self.child
-		child_args = [sys.executable, '-u', __file__, self.url]
+		my_dir = os.path.dirname(__file__)
+		child_args = [sys.executable, '-u', os.path.join(my_dir, '_download_child.py'), self.url]
 		if self.modification_time: child_args.append(self.modification_time)
 		self.child = subprocess.Popen(child_args, stderr = subprocess.PIPE, stdout = self.tempfile)
 
@@ -210,39 +212,3 @@ class Download(object):
 	
 	def __str__(self):
 		return _("<Download from %s>") % self.url
-
-if __name__ == '__main__':
-	def _download_as_child(url, if_modified_since):
-		from httplib import HTTPException
-		from urllib2 import urlopen, Request, HTTPError, URLError
-		try:
-			#print "Child downloading", url
-			if url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:'):
-				req = Request(url)
-				if url.startswith('http:') and if_modified_since:
-					req.add_header('If-Modified-Since', if_modified_since)
-				src = urlopen(req)
-			else:
-				raise Exception(_('Unsupported URL protocol in: %s') % url)
-
-			try:
-				sock = src.fp._sock
-			except AttributeError:
-				sock = src.fp.fp._sock	# Python 2.5 on FreeBSD
-			while True:
-				data = sock.recv(256)
-				if not data: break
-				os.write(1, data)
-
-			sys.exit(RESULT_OK)
-		except (HTTPError, URLError, HTTPException), ex:
-			if isinstance(ex, HTTPError) and ex.code == 304: # Not modified
-				sys.exit(RESULT_NOT_MODIFIED)
-			print >>sys.stderr, "Error downloading '" + url + "': " + (str(ex) or str(ex.__class__.__name__))
-			sys.exit(RESULT_FAILED)
-	assert (len(sys.argv) == 2) or (len(sys.argv) == 3), "Usage: download URL [If-Modified-Since-Date], not %s" % sys.argv
-	if len(sys.argv) >= 3:
-		if_modified_since_date = sys.argv[2]
-	else:
-		if_modified_since_date = None
-	_download_as_child(sys.argv[1], if_modified_since_date)

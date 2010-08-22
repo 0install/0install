@@ -284,7 +284,7 @@ class TestDownload(BaseTest):
 				assert False
 			except model.SafeException, ex:
 				if 'Attempt to unpack dir over symlink "HelloWorld"' not in str(ex):
-					raise ex
+					raise
 			self.assertEquals(None, basedir.load_first_cache('0install.net', 'implementations', 'main'))
 		finally:
 			sys.stdout = old_out
