@@ -36,7 +36,13 @@ def output_suppressed():
 	try:
 		sys.stdout = StringIO()
 		sys.stderr = StringIO()
-		yield
+		try:
+			yield
+		except Exception:
+			raise
+		except BaseException, ex:
+			# Don't abort unit-tests if someone raises SystemExit
+			raise Exception(str(type(ex)) + " " + str(ex))
 	finally:
 		sys.stdout = old_stdout
 		sys.stderr = old_stderr
