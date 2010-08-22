@@ -104,7 +104,7 @@ class my_install(install):
 		install.run(self)	# super.run()
 		menus_dir = os.path.join(self.__config_dir, 'menus/applications-merged')
 		self.mkpath(menus_dir)
-		menu = convert_path('applications/zeroinstall.menu')
+		menu = convert_path('share/applications/zeroinstall.menu')
 		self.copy_file(menu, menus_dir)
 
 		if self.home:
@@ -118,10 +118,10 @@ setup(name="zeroinstall-injector",
       url="http://0install.net",
       scripts=['0launch', '0alias', '0store', '0store-secure-add', '0desktop'],
       data_files = [('man/man1', ['0launch.1', '0alias.1', '0store-secure-add.1', '0store.1', '0desktop.1']),
-		    ('share/applications', ['applications/zeroinstall-add.desktop', 'applications/zeroinstall-manage.desktop']),
-		    ('share/desktop-directories', ['applications/zeroinstall.directory']),
-		    ('share/icons/hicolor/24x24/apps', ['applications/24x24/zeroinstall.png']),
-		    ('share/icons/hicolor/48x48/apps', ['applications/48x48/zeroinstall.png'])],
+		    ('share/applications', ['share/applications/zeroinstall-add.desktop', 'share/applications/zeroinstall-manage.desktop']),
+		    ('share/desktop-directories', ['share/desktop-directories/zeroinstall.directory']),
+		    ('share/icons/hicolor/24x24/apps', ['share/icons/24x24/zeroinstall.png']),
+		    ('share/icons/hicolor/48x48/apps', ['share/icons/48x48/zeroinstall.png'])],
       license='LGPL',
       cmdclass={
 	'build_py': build_with_data,
