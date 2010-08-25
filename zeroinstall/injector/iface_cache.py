@@ -472,7 +472,10 @@ class IfaceCache(object):
 		main_feed = self.get_feed(iface.uri)
 		results = {iface.uri: main_feed}
 		for imp in iface.extra_feeds:
-			results[imp.uri] = self.get_feed(imp.uri)
+			try:
+				results[imp.uri] = self.get_feed(imp.uri)
+			except SafeException, ex:
+				warn("Failed to load feed '%s: %s", imp.uri, ex)
 		if main_feed:
 			for imp in main_feed.feeds:
 				results[imp.uri] = self.get_feed(imp.uri)

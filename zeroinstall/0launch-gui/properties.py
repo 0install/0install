@@ -89,6 +89,10 @@ class Description:
 			buffer.insert(iter, 'Not yet downloaded.')
 			return
 
+		if isinstance(feed, Exception):
+			buffer.insert(iter, unicode(feed))
+			return
+
 		buffer.insert_with_tags(iter,
 			'%s ' % feed.get_name(), heading_style)
 		buffer.insert(iter, '(%s)' % feed.summary)
@@ -225,7 +229,10 @@ class Feeds:
 				if x.user_override:
 					enable_remove = True
 		self.remove_feed_button.set_sensitive( enable_remove )
-		self.description.set_details(iface_cache.get_feed(feed_url))
+		try:
+			self.description.set_details(iface_cache.get_feed(feed_url))
+		except zeroinstall.SafeException, ex:
+			self.description.set_details(ex)
 	
 	def updated(self):
 		new_lines = self.build_model()
