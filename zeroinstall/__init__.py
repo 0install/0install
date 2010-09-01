@@ -21,7 +21,7 @@ try:
 	localedir = None
 	translation = gettext.translation('zero-install', fallback = False)
 except:
-	localedir = join(dirname(dirname(__file__)), 'locale')
+	localedir = join(dirname(dirname(__file__)), 'share', 'locale')
 	translation = gettext.translation('zero-install',
 				localedir = localedir,
 				fallback = True)
