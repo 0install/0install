@@ -31,6 +31,7 @@ class TestPolicy(BaseTest):
 
 		# Now ask for source instead
 		p.src = True
+		p.command = 'compile'
 		p.recalculate()
 		assert p.implementation[foo].id == 'sha1=234'		# The source
 		assert p.implementation[compiler].id == 'sha1=345'	# A binary needed to compile it

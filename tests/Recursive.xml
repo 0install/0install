@@ -4,7 +4,7 @@
   <name>Recursive</name>
   <summary>Recursive</summary>
   <description>Recursive</description>
-  <group>
+  <group main='dummy'>
     <requires interface='http://foo/Recursive.xml'>
       <environment name='FOO' insert='.'/>
     </requires>

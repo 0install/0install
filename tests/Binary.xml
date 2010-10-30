@@ -5,7 +5,7 @@
   <summary>Binary</summary>
   <description>Binary</description>
   <feed src='http://foo/Source.xml' arch='*-src'/>
-  <implementation id='sha1=123' version='1.0'>
+  <implementation id='sha1=123' version='1.0' main='dummy'>
     <archive href='foo' size='10'/>
   </implementation>
 </interface>

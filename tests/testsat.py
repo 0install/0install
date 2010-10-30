@@ -55,6 +55,7 @@ class Program:
 			attrs = {
 				'id': str(i),
 				'version': str(version.n),
+				'main': 'dummy',
 			}
 			if version.arch:
 				attrs['arch'] = version.arch

@@ -18,6 +18,7 @@ import os, re, locale
 from logging import info, debug, warn
 from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
+from zeroinstall.injector import qdom
 
 # Element names for bindings in feed files
 binding_names = frozenset(['environment', 'overlay'])
@@ -400,6 +401,32 @@ class DistributionSource(RetrievalMethod):
 		self.install = install
 		self.needs_confirmation = needs_confirmation
 
+class Command(object):
+	"""A Command is a way of running an Implementation as a program."""
+
+	__slots__ = ['qdom', '_depends']
+
+	def __init__(self, qdom):
+		assert qdom.name == 'command', 'not <command>: %s' % qdom
+		self.qdom = qdom
+		self._depends = None
+
+	path = property(lambda self: self.qdom.attrs.get("path", None))
+
+	def _toxml(self, doc, prefixes):
+		return self.qdom.toDOM(doc, prefixes)
+
+	@property
+	def requires(self):
+		if self._depends is None:
+			depends = []
+			for child in self.qdom.childNodes:
+				if child.name == 'requires':
+					dep = process_depends(child)
+					depends.append(dep)
+			self._depends = depends
+		return self._depends
+
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface.
 	@ivar download_sources: list of methods of getting this implementation
@@ -416,7 +443,8 @@ class Implementation(object):
 	@type langs: str
 	@ivar requires: interfaces this package depends on
 	@type requires: [L{Dependency}]
-	@ivar main: the default file to execute when running as a program
+	@ivar commands: ways to execute as a program
+	@type commands: {str: Command}
 	@ivar metadata: extra metadata from the feed
 	@type metadata: {"[URI ]localName": str}
 	@ivar id: a unique identifier for this Implementation
@@ -431,14 +459,13 @@ class Implementation(object):
 	# Note: user_stability shouldn't really be here
 
 	__slots__ = ['upstream_stability', 'user_stability', 'langs',
-		     'requires', 'main', 'metadata', 'download_sources',
+		     'requires', 'metadata', 'download_sources', 'commands',
 		     'id', 'feed', 'version', 'released', 'bindings', 'machine']
 
 	def __init__(self, feed, id):
 		assert id
 		self.feed = feed
 		self.id = id
-		self.main = None
 		self.user_stability = None
 		self.upstream_stability = None
 		self.metadata = {}	# [URI + " "] + localName -> value
@@ -449,6 +476,7 @@ class Implementation(object):
 		self.langs = ""
 		self.machine = None
 		self.bindings = []
+		self.commands = {}
 
 	def get_stability(self):
 		return self.user_stability or self.upstream_stability or testing
@@ -481,6 +509,21 @@ class Implementation(object):
 	local_path = None
 	digests = None
 	requires_root_install = False
+
+	def _get_main(self):
+		""""@deprecated: use commands["run"] instead"""
+		main = self.commands.get("run", None)
+		if main is not None:
+			return main.path
+		return None
+	def _set_main(self, path):
+		""""@deprecated: use commands["run"] instead"""
+		if path is None:
+			if "run" in self.commands:
+				del self.commands["run"]
+		else:
+			self.commands["run"] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': path}))
+	main = property(_get_main, _set_main)
 
 class DistributionImplementation(Implementation):
 	"""An implementation provided by the distribution. Information such as the version
@@ -724,7 +767,7 @@ class ZeroInstallFeed(object):
 		if not self.summary:
 			raise InvalidInterface(_("Missing <summary> in feed"))
 
-		def process_group(group, group_attrs, base_depends, base_bindings):
+		def process_group(group, group_attrs, base_depends, base_bindings, base_commands):
 			for item in group.childNodes:
 				if item.uri != XMLNS_IFACE: continue
 
@@ -733,6 +776,7 @@ class ZeroInstallFeed(object):
 
 				depends = base_depends[:]
 				bindings = base_bindings[:]
+				commands = base_commands.copy()
 
 				item_attrs = _merge_attrs(group_attrs, item)
 
@@ -747,13 +791,28 @@ class ZeroInstallFeed(object):
 					if child.name == 'requires':
 						dep = process_depends(child)
 						depends.append(dep)
+					elif child.name == 'command':
+						command_name = child.attrs.get('name', None)
+						if not command_name:
+							raise InvalidInterface('Missing name for <command>')
+						commands[command_name] = Command(child)
 					elif child.name in binding_names:
 						bindings.append(process_binding(child))
 
+				for attr, command in [('main', 'run'),
+						      ('self-test', 'test')]:
+					value = item.attrs.get(attr, None)
+					if value is not None:
+						commands[command] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': value}))
+
+				compile_command = item.attrs.get('http://zero-install.sourceforge.net/2006/namespaces/0compile command')
+				if compile_command is not None:
+					commands['compile'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'shell-command': compile_command}))
+
 				if item.name == 'group':
-					process_group(item, item_attrs, depends, bindings)
+					process_group(item, item_attrs, depends, bindings, commands)
 				elif item.name == 'implementation':
-					process_impl(item, item_attrs, depends, bindings)
+					process_impl(item, item_attrs, depends, bindings, commands)
 				elif item.name == 'package-implementation':
 					if depends:
 						warn("A <package-implementation> with dependencies in %s!", self.url)
@@ -761,7 +820,7 @@ class ZeroInstallFeed(object):
 				else:
 					assert 0
 
-		def process_impl(item, item_attrs, depends, bindings):
+		def process_impl(item, item_attrs, depends, bindings, commands):
 			id = item.getAttribute('id')
 			if id is None:
 				raise InvalidInterface(_("Missing 'id' attribute on %s") % item)
@@ -793,11 +852,8 @@ class ZeroInstallFeed(object):
 				raise InvalidInterface(_("Missing version attribute"))
 			impl.version = parse_version(version)
 
-			item_main = item_attrs.get('main', None)
-			if item_main and item_main.startswith('/'):
-				raise InvalidInterface(_("'main' attribute must be relative, but '%s' starts with '/'!") %
-							item_main)
-			impl.main = item_main
+			item_main = commands.get('run', None)
+			impl.commands = commands
 
 			impl.released = item_attrs.get('released', None)
 			impl.langs = item_attrs.get('langs', '')
@@ -858,9 +914,11 @@ class ZeroInstallFeed(object):
 						impl.download_sources.append(recipe)
 
 		root_attrs = {'stability': 'testing'}
+		root_commands = {}
 		if main:
-			root_attrs['main'] = main
-		process_group(feed_element, root_attrs, [], [])
+			info("Note: @main on document element is deprecated in %s", self)
+			root_commands['run'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': main}))
+		process_group(feed_element, root_attrs, [], [], root_commands)
 	
 	def get_distro_feed(self):
 		"""Does this feed contain any <pacakge-implementation> elements?

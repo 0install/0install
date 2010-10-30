@@ -23,7 +23,7 @@ from logging import warn
 
 def debug(msg, *args):
 	return
-	#print "SAT:", msg % args
+	print "SAT:", msg % args
 
 # variables are numbered from 0
 # literals have the same number as the corresponding variable,
@@ -606,6 +606,7 @@ class SATProblem(object):
 					# If it leads to a conflict, we'll backtrack and
 					# try it the other way.
 					lit = decide()
+					#print "TRYING:", self.name_lit(lit)
 					assert lit is not None, "decide function returned None!"
 					assert self.lit_value(lit) is None
 					self.trail_lim.append(len(self.trail))

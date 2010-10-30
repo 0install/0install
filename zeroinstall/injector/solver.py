@@ -36,6 +36,17 @@ def _get_cached(stores, impl):
 		except NotStored:
 			return False
 
+class CommandInfo:
+	def __init__(self, name, command, impl, arch):
+		self.name = name
+		self.command = command
+		self.impl = impl
+		self.arch = arch
+
+	def __repr__(self):
+		name = "%s_%s_%s_%s" % (self.impl.feed.get_name(), self.impl.get_version(), self.impl.arch, self.name)
+		return name.replace('-', '_').replace('.', '_')
+
 class ImplInfo:
 	is_dummy = False
 
@@ -54,6 +65,7 @@ class _DummyImpl(object):
 	requires = []
 	version = None
 	arch = None
+	commands = {}
 
 	def __repr__(self):
 		return "dummy"
@@ -91,16 +103,21 @@ class Solver(object):
 		self.record_details = False
 		self.ready = False
 
-	def solve(self, root_interface, root_arch):
+	def solve(self, root_interface, root_arch, command_name = 'run'):
 		"""Get the best implementation of root_interface and all of its dependencies.
 		@param root_interface: the URI of the program to be solved
 		@type root_interface: str
 		@param root_arch: the desired target architecture
 		@type root_arch: L{arch.Architecture}
+		@param command_name: which <command> element to select
+		@type command_name: str
 		@postcondition: self.ready, self.selections and self.feeds_used are updated"""
 		raise NotImplementedError("Abstract")
 
 class SATSolver(Solver):
+	__slots__ = ['_failure_reason', 'network_use', 'iface_cache', 'stores', 'help_with_testing', 'extra_restrictions',
+			'langs']
+
 	"""Converts the problem to a set of pseudo-boolean constraints and uses a PB solver to solve them.
 	@ivar langs: the preferred languages (e.g. ["es_ES", "en"]). Initialised to the current locale.
 	@type langs: str"""
@@ -201,7 +218,7 @@ class SATSolver(Solver):
 
 		return cmp(a.id, b.id)
 
-	def solve(self, root_interface, root_arch, closest_match = False):
+	def solve(self, root_interface, root_arch, command_name = 'run', closest_match = False):
 		# closest_match is used internally. It adds a lowest-ranked
 		# by valid implementation to every interface, so we can always
 		# select something. Useful for diagnostics.
@@ -222,6 +239,7 @@ class SATSolver(Solver):
 		self.details = self.record_details and {}
 
 		self.selections = None
+		self._failure_reason = None
 
 		ifaces_processed = set()
 
@@ -232,10 +250,24 @@ class SATSolver(Solver):
 		impls_for_iface = {}	# Iface -> [impl]
 
 		group_clause_for = {}	# Iface URI -> AtMostOneClause | bool
+		group_clause_for_command = {}	# (Iface URI, command name) -> AtMostOneClause | bool
 
+		# Return the dependencies of impl that we should consider.
+		# Skips dependencies if the use flag isn't what we need.
+		# (note: impl may also be a model.Command)
+		def deps_in_use(impl, arch):
+			for dep in impl.requires:
+				use = dep.metadata.get("use", None)
+				if use not in arch.use:
+					continue
+				yield dep
+
+		# Add a clause so that if requiring_impl_var is True then an implementation
+		# matching 'dependency' must also be selected.
+		# Must have already done add_iface on dependency.interface.
 		def find_dependency_candidates(requiring_impl_var, dependency):
 			dep_iface = self.iface_cache.get_interface(dependency.interface)
-			dep_union = [sat.neg(requiring_impl_var)]
+			dep_union = [sat.neg(requiring_impl_var)]	# Either requiring_impl_var is False, or ...
 			for candidate in impls_for_iface[dep_iface]:
 				for r in dependency.restrictions:
 					if candidate.__class__ is not _DummyImpl and not r.meets_restriction(candidate):
@@ -250,6 +282,7 @@ class SATSolver(Solver):
 			if dep_union:
 				problem.add_clause(dep_union)
 			else:
+				assert 0	# XXX: how can this happen?
 				problem.assign(requiring_impl_var, 0)
 
 		def is_unusable(impl, restrictions, arch):
@@ -298,7 +331,7 @@ class SATSolver(Solver):
 						{'feed': f, 'os': f.os, 'machine': f.machine})
 
 		def add_iface(uri, arch):
-			"""Name implementations from feed, assign costs and assert that one one can be selected."""
+			"""Name implementations from feed and assert that only one can be selected."""
 			if uri in ifaces_processed: return
 			ifaces_processed.add(uri)
 			iface_name = 'i%d' % len(ifaces_processed)
@@ -354,12 +387,8 @@ class SATSolver(Solver):
 				if impl.machine and impl.machine != 'src':
 					impls_for_machine_group[machine_groups.get(impl.machine, 0)].append(v)
 
-				for d in impl.requires:
+				for d in deps_in_use(impl, arch):
 					debug(_("Considering dependency %s"), d)
-					use = d.metadata.get("use", None)
-					if use not in arch.use:
-						info("Skipping dependency; use='%s' not in %s", use, arch.use)
-						continue
 
 					add_iface(d.interface, arch.child_arch)
 
@@ -393,7 +422,59 @@ class SATSolver(Solver):
 			if clause is not False:
 				group_clause_for[uri] = clause
 
-		add_iface(root_interface, root_arch)
+		def add_command_iface(uri, arch, command_name):
+			"""Add every <command> in interface 'uri' with this name.
+			Each one depends on the corresponding implementation and only
+			one can be selected."""
+
+			# First ensure that the interface itself has been processed
+			# We'll reuse the ordering of the implementations to order
+			# the commands too.
+			add_iface(uri, arch)
+
+			iface = self.iface_cache.get_interface(uri)
+			filtered_impls = impls_for_iface[iface]
+
+			var_names = []
+			for impl in filtered_impls:
+				command = impl.commands.get(command_name, None)
+				if not command: continue
+
+				# We have a candidate <command>. Require that if it's selected
+				# then we select the corresponding <implementation> too.
+				command_var = problem.add_variable(CommandInfo(command_name, command, impl, arch))
+				problem.add_clause([impl_to_var[impl], sat.neg(command_var)])
+
+				var_names.append(command_var)
+
+				for d in deps_in_use(command, arch):
+					debug(_("Considering command dependency %s"), d)
+
+					add_iface(d.interface, arch.child_arch)
+
+					# Must choose one version of d if impl is selected
+					find_dependency_candidates(command_var, d)
+
+			return var_names
+
+		commands = add_command_iface(root_interface, root_arch, command_name)
+		if commands:
+			problem.add_clause(commands)		# At least one
+			group_clause_for_command[(root_interface, command_name)] = problem.at_most_one(commands)
+		else:
+			# (note: might be because we haven't cached it yet)
+			info("No %s <command> in %s", command_name, root_interface)
+
+			impls = impls_for_iface[self.iface_cache.get_interface(root_interface)]
+			if impls == [] or (len(impls) == 1 and isinstance(impls[0], _DummyImpl)):
+				# There were no candidates at all.
+				self._failure_reason = _("Interface '%s' has no usable implementations") % root_interface
+			else:
+				# We had some candidates implementations, but none for the command we need
+				self._failure_reason = _("Interface '%s' cannot be executed directly; it is just a library "
+					    "to be used by other programs (or missing '%s' command)") % (root_interface, command_name)
+
+			problem.impossible()
 
 		# Require m<group> to be true if we select an implementation in that group
 		m_groups = []
@@ -413,6 +494,14 @@ class SATSolver(Solver):
 			"""Recurse through the current selections until we get to an interface with
 			no chosen version, then tell the solver to try the best version from that."""
 
+			def find_undecided_dep(impl_or_command, arch):
+				# Check for undecided dependencies of impl_or_command
+				for dep in deps_in_use(impl_or_command, arch):
+					dep_lit = find_undecided(dep.interface)
+					if dep_lit is not None:
+						return dep_lit
+				return None
+
 			seen = set()
 			def find_undecided(uri):
 				if uri in seen:
@@ -428,19 +517,24 @@ class SATSolver(Solver):
 
 				# Check for undecided dependencies
 				lit_info = problem.get_varinfo_for_lit(lit).obj
+				return find_undecided_dep(lit_info.impl, lit_info.arch)
 
-				for dep in lit_info.impl.requires:
-					use = dep.metadata.get("use", None)
-					if use not in lit_info.arch.use:
-						continue
-					dep_lit = find_undecided(dep.interface)
-					if dep_lit is not None:
-						return dep_lit
+			def find_undecided_command(uri, name):
+				if name is None: return find_undecided(uri)
 
-				# This whole sub-tree is decided
-				return None
+				group = group_clause_for_command[(uri, name)]
+				lit = group.current
+				if lit is None:
+					return group.best_undecided()
+				# else we've already chosen which <command> to use
 
-			best = find_undecided(root_interface)
+				# Check for undecided command-specific dependencies, and then for
+				# implementation dependencies.
+				lit_info = problem.get_varinfo_for_lit(lit).obj
+				return find_undecided_dep(lit_info.command, lit_info.arch) or \
+				       find_undecided_dep(lit_info.impl, lit_info.arch)
+
+			best = find_undecided_command(root_interface, command_name)
 			if best is not None:
 				return best
 
@@ -460,7 +554,7 @@ class SATSolver(Solver):
 			# We failed while trying to do a real solve.
 			# Try a closest match solve to get a better
 			# error report for the user.
-			self.solve(root_interface, root_arch, closest_match = True)
+			self.solve(root_interface, root_arch, command_name = command_name, closest_match = True)
 		else:
 			self.ready = ready and not closest_match
 			self.selections = selections.Selections(None)
@@ -477,12 +571,24 @@ class SATSolver(Solver):
 						impl = lit_info.impl
 
 						deps = self.requires[lit_info.iface] = []
-						for dep in impl.requires:
-							use = dep.metadata.get("use", None)
-							if use not in lit_info.arch.use:
-								continue
+						for dep in deps_in_use(lit_info.impl, lit_info.arch):
 							deps.append(dep)
-
+	
 						sels[lit_info.iface.uri] = selections.ImplSelection(lit_info.iface.uri, impl, deps)
+
+			root_sel = sels.get(root_interface, None)
+			if root_sel:
+				self.selections.command = root_sel.impl.commands[command_name]
+
+	def get_failure_reason(self):
+		"""Return an exception explaining why the solve failed."""
+		assert not self.ready
+
+		if self._failure_reason:
+			return model.SafeException(self._failure_reason)
+
+		return model.SafeException(_("Can't find all required implementations:") + '\n' +
+				'\n'.join(["- %s -> %s" % (iface, self.selections[iface])
+					   for iface  in self.selections]))
 
 DefaultSolver = SATSolver

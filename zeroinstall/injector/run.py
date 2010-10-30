@@ -47,33 +47,6 @@ def _do_bindings(impl, bindings):
 def _get_implementation_path(impl):
 	return impl.local_path or iface_cache.stores.lookup_any(impl.digests)
 
-def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None):
-	"""Execute program. On success, doesn't return. On failure, raises an Exception.
-	Returns normally only for a successful dry run.
-	@param selections: the selected versions
-	@type selections: L{selections.Selections}
-	@param prog_args: arguments to pass to the program
-	@type prog_args: [str]
-	@param dry_run: if True, just print a message about what would have happened
-	@type dry_run: bool
-	@param main: the name of the binary to run, or None to use the default
-	@type main: str
-	@param wrapper: a command to use to actually run the binary, or None to run the binary directly
-	@type wrapper: str
-	@since: 0.27
-	@precondition: All implementations are in the cache.
-	"""
-	sels = selections.selections
-	for selection in sels.values():
-		_do_bindings(selection, selection.bindings)
-		for dep in selection.dependencies:
-			dep_impl = sels[dep.interface]
-			if not dep_impl.id.startswith('package:'):
-				_do_bindings(dep_impl, dep.bindings)
-	
-	root_impl = sels[selections.interface]
-	_execute(root_impl, prog_args, dry_run, main, wrapper)
-
 def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 	"""Run the program in a child process, collecting stdout and stderr.
 	@return: the output produced by the process
@@ -113,31 +86,71 @@ def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 	
 	return results
 
-def _execute(root_impl, prog_args, dry_run, main, wrapper):
-	assert root_impl is not None
+def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None):
+	"""Execute program. On success, doesn't return. On failure, raises an Exception.
+	Returns normally only for a successful dry run.
+	@param selections: the selected versions
+	@type selections: L{selections.Selections}
+	@param prog_args: arguments to pass to the program
+	@type prog_args: [str]
+	@param dry_run: if True, just print a message about what would have happened
+	@type dry_run: bool
+	@param main: the name of the binary to run, or None to use the default
+	@type main: str
+	@param wrapper: a command to use to actually run the binary, or None to run the binary directly
+	@type wrapper: str
+	@since: 0.27
+	@precondition: All implementations are in the cache.
+	"""
+	sels = selections.selections
+	for selection in sels.values():
+		_do_bindings(selection, selection.bindings)
+		for dep in selection.dependencies:
+			dep_impl = sels[dep.interface]
+			if not dep_impl.id.startswith('package:'):
+				_do_bindings(dep_impl, dep.bindings)
 
-	if root_impl.id.startswith('package:'):
-		main = main or root_impl.main
+	root_sel = sels[selections.interface]
+
+	assert root_sel is not None
+
+	command = selections.command
+
+	# Process command's dependencies' bindings
+	for dep in command.requires:
+		dep_impl = sels[dep.interface]
+		if not dep_impl.id.startswith('package:'):
+			_do_bindings(dep_impl, dep.bindings)
+
+	command_path = command.path
+
+	if root_sel.id.startswith('package:'):
+		main = main or command_path
 		prog_path = main
 	else:
+		if command_path and command_path.startswith('/'):
+			raise SafeException(_("Command path must be relative, but '%s' starts with '/'!") %
+						command_path)
 		if main is None:
-			main = root_impl.main
+			main = command_path		# User didn't specify a main path
 		elif main.startswith('/'):
-			main = main[1:]
-		elif root_impl.main:
-			main = os.path.join(os.path.dirname(root_impl.main), main)
+			main = main[1:]			# User specified a path relative to the package root
+		elif command_path:
+			main = os.path.join(os.path.dirname(command_path), main)	# User main is relative to command's name
+
 		if main is not None:
-			prog_path = os.path.join(_get_implementation_path(root_impl), main)
+			prog_path = os.path.join(_get_implementation_path(root_sel), main)
 
 	if main is None:
-		raise SafeException(_("Implementation '%s' cannot be executed directly; it is just a library "
+		# This shouldn't happen, because the solve would fail first.
+		raise Exception(_("Implementation '%s' cannot be executed directly; it is just a library "
 				    "to be used by other programs (or missing 'main' attribute)") %
-				    root_impl)
+				    root_sel)
 
 	if not os.path.exists(prog_path):
 		raise SafeException(_("File '%(program_path)s' does not exist.\n"
 				"(implementation '%(implementation_id)s' + program '%(main)s')") %
-				{'program_path': prog_path, 'implementation_id': root_impl.id,
+				{'program_path': prog_path, 'implementation_id': root_sel.id,
 				'main': main})
 	if wrapper:
 		prog_args = ['-c', wrapper + ' "$@"', '-', prog_path] + list(prog_args)

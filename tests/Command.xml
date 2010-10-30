@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+	   xmlns:custom='http://custom'>
+  <name>Commands</name>
+  <summary>Local feed</summary>
+
+  <group main='foo' self-test='test-foo' local-path='.'>
+    <implementation id="a" version="0.1"/>
+    <implementation id="b" main='bar' version="0.1"/>
+    <implementation id="c" version="0.1">
+      <command name='run' path="baz" custom:attr='namespaced'>
+	<custom:child/>
+      </command>
+      <command name='test' path="test-baz"/>
+    </implementation>
+  </group>
+</interface>
