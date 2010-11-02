@@ -1,9 +1,9 @@
 <?xml version="1.0" ?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
   <name>Echo</name>
-  <summary>Local feed</summary>
-  <summary xml:lang='en'>Local feed (English)</summary>
-  <summary xml:lang='en_GB'>Local feed (English GB)</summary>
+  <summary>Local feed (English)</summary>
+  <summary xml:lang='gr'>Local feed (Greek)</summary>
+  <summary xml:lang='en-GB'>Local feed (English GB)</summary>
   <summary xml:lang='es'>Fuente local</summary>
 
   <description>English</description>

@@ -78,9 +78,16 @@ def _join_arch(osys, machine):
 
 def _best_language_match(options):
 	(language, encoding) = locale.getlocale(locale.LC_ALL)
-	return (options.get(language, None) or
-		(language and options.get(language.split('_', 1)[0], None)) or
-		options.get(None, None))
+
+	if language:
+		# xml:lang uses '-', while LANG uses '_'
+		language = language.replace('_', '-')
+	else:
+		language = 'en-US'
+
+	return (options.get(language, None) or			# Exact match (language+region)
+		options.get(language.split('-', 1)[0], None) or	# Matching language
+		options.get('en', None))			# English
 
 class Stability(object):
 	"""A stability rating. Each implementation has an upstream stability rating and,
@@ -801,9 +808,9 @@ class ZeroInstallFeed(object):
 			if x.name == 'name':
 				self.name = x.content
 			elif x.name == 'description':
-				self.descriptions[x.attrs.get("http://www.w3.org/XML/1998/namespace lang", None)] = x.content
+				self.descriptions[x.attrs.get("http://www.w3.org/XML/1998/namespace lang", 'en')] = x.content
 			elif x.name == 'summary':
-				self.summaries[x.attrs.get("http://www.w3.org/XML/1998/namespace lang", None)] = x.content
+				self.summaries[x.attrs.get("http://www.w3.org/XML/1998/namespace lang", 'en')] = x.content
 			elif x.name == 'feed-for':
 				feed_iface = x.getAttribute('interface')
 				if not feed_iface:

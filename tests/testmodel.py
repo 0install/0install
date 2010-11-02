@@ -97,7 +97,8 @@ class TestModel(BaseTest):
 		local_path = os.path.join(mydir, 'Local.xml')
 		dom = qdom.parse(open(local_path))
 		feed = model.ZeroInstallFeed(dom, local_path = local_path)
-		self.assertEquals("Local feed", feed.summary)
+		# (defaults to en-US if no language is set in the locale)
+		self.assertEquals("Local feed (English)", feed.summary)
 		self.assertEquals("English", feed.description)
 
 		self.assertEquals(4, len(feed.summaries))
@@ -109,9 +110,13 @@ class TestModel(BaseTest):
 			self.assertEquals("Fuente local", feed.summary)
 			self.assertEquals(u"Español", feed.description)
 
+			basetest.test_locale = ('en_GB', 'UTF8')
+
+			self.assertEquals("Local feed (English GB)", feed.summary)
+
 			basetest.test_locale = ('fr_FR', 'UTF8')
 
-			self.assertEquals("Local feed", feed.summary)
+			self.assertEquals("Local feed (English)", feed.summary)
 			self.assertEquals("English", feed.description)
 		finally:
 			basetest.test_locale = (None, None)
