@@ -1,0 +1,7 @@
+#!/bin/sh
+. gettext.sh
+TEXTDOMAIN=zero-install
+export TEXTDOMAIN
+message="`eval_gettext \"An XZ decompressor is needed to extract this archive\"`"
+
+exec 0launch --message="$message" http://0install.net/2010/interfaces/xzdec.xml "$@"

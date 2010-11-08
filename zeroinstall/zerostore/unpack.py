@@ -389,7 +389,10 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 					unlzma = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unlzma'))
 				ext_cmd.append('--use-compress-program=' + unlzma)
 			elif decompress == 'xz':
-				ext_cmd.append('--use-compress-program=unxz')
+				unxz = find_in_path('unxz')
+				if not unxz:
+					unxz = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unxz'))
+				ext_cmd.append('--use-compress-program=' + unxz)
 
 		if recent_gnu_tar():
 			ext_cmd.extend(('-x', '--no-same-owner', '--no-same-permissions'))
