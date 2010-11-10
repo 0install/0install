@@ -45,16 +45,20 @@ def update_from_cache(interface):
 def load_feed_from_cache(url):
 	"""Load a feed. If the feed is remote, load from the cache. If local, load it directly.
 	@return: the feed, or None if it's remote and not cached."""
-	if os.path.isabs(url):
-		debug(_("Loading local feed file '%s'"), url)
-		return load_feed(url, local = True)
-	else:
-		cached = basedir.load_first_cache(config_site, 'interfaces', escape(url))
-		if cached:
-			debug(_("Loading cached information for %(interface)s from %(cached)s"), {'interface': url, 'cached': cached})
-			return load_feed(cached, local = False)
+	try:
+		if os.path.isabs(url):
+			debug(_("Loading local feed file '%s'"), url)
+			return load_feed(url, local = True)
 		else:
-			return None
+			cached = basedir.load_first_cache(config_site, 'interfaces', escape(url))
+			if cached:
+				debug(_("Loading cached information for %(interface)s from %(cached)s"), {'interface': url, 'cached': cached})
+				return load_feed(cached, local = False)
+			else:
+				return None
+	except InvalidInterface, ex:
+		ex.feed_url = url
+		raise
 
 def update_user_feed_overrides(feed):
 	"""Update a feed with user-supplied information.

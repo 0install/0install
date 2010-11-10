@@ -37,6 +37,8 @@ defaults = {
 
 class InvalidInterface(SafeException):
 	"""Raised when parsing an invalid feed."""
+	feed_url = None
+
 	def __init__(self, message, ex = None):
 		if ex:
 			try:
@@ -51,6 +53,11 @@ class InvalidInterface(SafeException):
 				message += "\n\n(exact error: %s)" % decex
 
 		SafeException.__init__(self, message)
+
+	def __str__(self):
+		if self.feed_url:
+			return SafeException.__str__(self) + ' in ' + self.feed_url
+		return SafeException.__str__(self)
 
 def _split_arch(arch):
 	"""Split an arch into an (os, machine) tuple. Either or both parts may be None."""
