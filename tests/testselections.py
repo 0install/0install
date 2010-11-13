@@ -108,24 +108,24 @@ class TestSelections(BaseTest):
 
 		impl = p.solver.selections[iface_cache.iface_cache.get_interface(iface)]
 		assert impl.id == 'c'
-		assert impl.main == 'baz'
+		assert impl.main == 'runnable/missing'
 
 		dep_impl_uri = impl.commands['run'].requires[0].interface
 		dep_impl = p.solver.selections[iface_cache.iface_cache.get_interface(dep_impl_uri)]
 		assert dep_impl.id == 'sha1=256'
 
 		s1 = selections.Selections(p)
-		assert s1.command.path == 'baz'
+		assert s1.commands[0].path == 'runnable/missing'
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(StringIO(xml))
 		s2 = selections.Selections(root)
 
-		assert s2.command.path == 'baz'
+		assert s2.commands[0].path == 'runnable/missing'
 		impl = s2.selections[iface]
 		assert impl.id == 'c'
 
-		assert s2.command.qdom.attrs['http://custom attr'] == 'namespaced'
-		custom_element = s2.command.qdom.childNodes[0]
+		assert s2.commands[0].qdom.attrs['http://custom attr'] == 'namespaced'
+		custom_element = s2.commands[0].qdom.childNodes[0]
 		assert custom_element.name == 'child'
 
 		dep_impl = s2.selections[dep_impl_uri]

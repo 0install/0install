@@ -585,9 +585,17 @@ class SATSolver(Solver):
 	
 						sels[lit_info.iface.uri] = selections.ImplSelection(lit_info.iface.uri, impl, deps)
 
-			root_sel = sels.get(root_interface, None)
-			if root_sel:
-				self.selections.command = root_sel.impl.commands[command_name]
+			def add_command(iface, name):
+				sel = sels.get(iface, None)
+				if sel:
+					command = sel.impl.commands[name]
+					self.selections.commands.append(command)
+					runner = command.get_runner()
+					if runner:
+						# TODO: allow depending on other commands, besides 'run'?
+						add_command(runner.metadata['interface'], 'run')
+
+			add_command(root_interface, command_name)
 
 	def get_failure_reason(self):
 		"""Return an exception explaining why the solve failed."""

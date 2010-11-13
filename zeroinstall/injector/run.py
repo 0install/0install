@@ -9,8 +9,8 @@ from zeroinstall import _
 import os, sys
 from logging import debug, info
 
-from zeroinstall.injector.model import SafeException, EnvironmentBinding
-from zeroinstall.injector import namespaces
+from zeroinstall.injector.model import SafeException, EnvironmentBinding, Command
+from zeroinstall.injector import namespaces, qdom
 from zeroinstall.injector.iface_cache import iface_cache
 
 def do_env_binding(binding, path):
@@ -103,6 +103,7 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 	@since: 0.27
 	@precondition: All implementations are in the cache.
 	"""
+	commands = selections.commands
 	sels = selections.selections
 	for selection in sels.values():
 		_do_bindings(selection, selection.bindings)
@@ -110,67 +111,68 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 			dep_impl = sels[dep.interface]
 			if not dep_impl.id.startswith('package:'):
 				_do_bindings(dep_impl, dep.bindings)
+	# Process commands' dependencies' bindings too
+	# (do this here because we still want the bindings, even with --main)
+	for command in commands:
+		for dep in command.requires:
+			dep_impl = sels[dep.interface]
+			if not dep_impl.id.startswith('package:'):
+				_do_bindings(dep_impl, dep.bindings)
+
 
 	root_sel = sels[selections.interface]
 
 	assert root_sel is not None
 
-	command = selections.command
+	if main is not None:
+		# Replace first command with user's input
+		old_path = commands[0].path
+		if main.startswith('/'):
+			main = main[1:]			# User specified a path relative to the package root
+		else:
+			assert old_path
+			main = os.path.join(os.path.dirname(old_path), main)	# User main is relative to command's name
+		user_command = Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': main}), None)
+		commands = [user_command] + commands[1:]
 
-	# Process command's dependencies' bindings
-	for dep in command.requires:
-		dep_impl = sels[dep.interface]
-		if not dep_impl.id.startswith('package:'):
-			_do_bindings(dep_impl, dep.bindings)
+	command_iface = selections.interface
+	for command in commands:
+		command_sel = sels[command_iface]
 
-	command_path = command.path
-
-	if main is None:
 		command_args = []
 		for child in command.qdom.childNodes:
 			if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
 				command_args.append(child.content)
-		prog_args = command_args + prog_args
 
-	if root_sel.id.startswith('package:'):
-		main = main or command_path
-		prog_path = main
-	else:
-		if command_path and command_path.startswith('/'):
-			raise SafeException(_("Command path must be relative, but '%s' starts with '/'!") %
-						command_path)
-		if main is None:
-			main = command_path		# User didn't specify a main path
-		elif main.startswith('/'):
-			main = main[1:]			# User specified a path relative to the package root
-		elif command_path:
-			main = os.path.join(os.path.dirname(command_path), main)	# User main is relative to command's name
+		command_path = command.path
 
-		if main is not None:
-			prog_path = os.path.join(_get_implementation_path(root_sel), main)
+		if command_sel.id.startswith('package:'):
+			prog_path = command_path
+		else:
+			if command_path.startswith('/'):
+				raise SafeException(_("Command path must be relative, but '%s' starts with '/'!") %
+							command_path)
+			prog_path = os.path.join(_get_implementation_path(root_sel), command_path)
 
-	if main is None:
-		# This shouldn't happen, because the solve would fail first.
-		raise Exception(_("Implementation '%s' cannot be executed directly; it is just a library "
-				    "to be used by other programs (or missing 'main' attribute)") %
-				    root_sel)
+		assert prog_path is not None
 
-	if not os.path.exists(prog_path):
+		prog_args = [prog_path] + command_args + prog_args
+
+	if not os.path.exists(prog_args[0]):
 		raise SafeException(_("File '%(program_path)s' does not exist.\n"
 				"(implementation '%(implementation_id)s' + program '%(main)s')") %
-				{'program_path': prog_path, 'implementation_id': root_sel.id,
-				'main': main})
+				{'program_path': prog_args[0], 'implementation_id': root_sel.id,
+				'main': commands[0].path})
 	if wrapper:
-		prog_args = ['-c', wrapper + ' "$@"', '-', prog_path] + list(prog_args)
-		prog_path = '/bin/sh'
+		prog_args = ['/bin/sh', '-c', wrapper + ' "$@"', '-'] + list(prog_args)
 
 	if dry_run:
-		print _("Would execute: %s") % ' '.join([prog_path] + prog_args)
+		print _("Would execute: %s") % ' '.join(prog_args)
 	else:
-		info(_("Executing: %s"), prog_path)
+		info(_("Executing: %s"), prog_args)
 		sys.stdout.flush()
 		sys.stderr.flush()
 		try:
-			os.execl(prog_path, prog_path, *prog_args)
+			os.execv(prog_args[0], prog_args)
 		except OSError, ex:
-			raise SafeException(_("Failed to run '%(program_path)s': %(exception)s") % {'program_path': prog_path, 'exception': str(ex)})
+			raise SafeException(_("Failed to run '%(program_path)s': %(exception)s") % {'program_path': prog_args[0], 'exception': str(ex)})

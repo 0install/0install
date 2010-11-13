@@ -359,9 +359,10 @@ class InterfaceBrowser:
 						self.model[child_iter][InterfaceBrowser.ICON] = self.default_icon
 			else:
 				self.model[iter][InterfaceBrowser.VERSION] = _('(choose)')
-		command = self.policy.solver.selections.command
-		if command:
-			add_node(None, self.root, command)
+		commands = self.policy.solver.selections.commands
+		if commands:
+			for command in commands:
+				add_node(None, self.root, command)
 		else:
 			# Nothing could be selected
 			add_node(None, self.root, None)

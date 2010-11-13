@@ -344,7 +344,8 @@ def _get_selections(sels, options):
 
 
 		uri = sels.interface
-		print_node(uri, sels.command, "")
+		for command in sels.commands:
+			print_node(uri, command, "")
 
 	else:
 		doc = sels.toDOM()

@@ -414,7 +414,7 @@ class DistributionSource(RetrievalMethod):
 class Command(object):
 	"""A Command is a way of running an Implementation as a program."""
 
-	__slots__ = ['qdom', '_depends', '_local_dir']
+	__slots__ = ['qdom', '_depends', '_local_dir', '_runner']
 
 	def __init__(self, qdom, local_dir):
 		"""@param qdom: the <command> element
@@ -433,13 +433,24 @@ class Command(object):
 	@property
 	def requires(self):
 		if self._depends is None:
+			self._runner = None
 			depends = []
 			for child in self.qdom.childNodes:
 				if child.name == 'requires':
 					dep = process_depends(child, self._local_dir)
 					depends.append(dep)
+				elif child.name == 'runner':
+					if self._runner:
+						raise InvalidInterface(_("Multiple <runner>s in <command>!"))
+					dep = process_depends(child, self._local_dir)
+					depends.append(dep)
+					self._runner = dep
 			self._depends = depends
 		return self._depends
+
+	def get_runner(self):
+		self.requires		# (sets _runner)
+		return self._runner
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface.

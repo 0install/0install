@@ -8,7 +8,7 @@
     <implementation id="a" version="0.1"/>
     <implementation id="b" main='bar' version="0.1"/>
     <implementation id="c" version="0.1">
-      <command name='run' path="baz" custom:attr='namespaced'>
+      <command name='run' path="runnable/missing" custom:attr='namespaced'>
         <custom:child/>
 	<requires interface='./Local.xml'>
 	  <environment name='LOCAL' insert='local'/>

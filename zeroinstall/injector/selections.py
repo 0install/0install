@@ -86,12 +86,12 @@ class Selections(object):
 	A selected set of components which will make up a complete program.
 	@ivar interface: the interface of the program
 	@type interface: str
-	@ivar command: how to run this selection
-	@type command: {L{Command}}
+	@ivar commands: how to run this selection (will contain more than one item if runners are used)
+	@type commands: [{L{Command}}]
 	@ivar selections: the selected implementations
 	@type selections: {str: L{Selection}}
 	"""
-	__slots__ = ['interface', 'selections', 'command']
+	__slots__ = ['interface', 'selections', 'commands']
 
 	def __init__(self, source):
 		"""Constructor.
@@ -101,7 +101,7 @@ class Selections(object):
 		self.selections = {}
 
 		if source is None:
-			self.command = None
+			self.commands = []
 			# (Solver will fill everything in)
 		elif isinstance(source, Policy):
 			self._init_from_policy(source)
@@ -116,21 +116,21 @@ class Selections(object):
 		@param policy: the policy giving the selected implementations."""
 		self.interface = policy.root
 		self.selections = policy.solver.selections.selections
-		self.command = policy.solver.selections.command
+		self.commands = policy.solver.selections.commands
 
 	def _init_from_qdom(self, root):
 		"""Parse and load a selections document.
 		@param root: a saved set of selections."""
 		self.interface = root.getAttribute('interface')
 		assert self.interface
-		self.command = None
+		self.commands = []
 
 		for selection in root.childNodes:
 			if selection.uri != XMLNS_IFACE:
 				continue
 			if selection.name != 'selection':
 				if selection.name == 'command':
-					self.command = Command(selection, None)
+					self.commands.append(Command(selection, None))
 				continue
 
 			requires = []
@@ -157,13 +157,17 @@ class Selections(object):
 					digests.append(sel_id)
 
 			iface_uri = selection.attrs['interface']
-			if iface_uri == self.interface:
-				main = selection.attrs.get('main', None)
-				if main is not None:
-					self.command = Command(Element(XMLNS_IFACE, 'command', {'path': main}), None)
 
 			s = XMLSelection(requires, bindings, selection.attrs, digests)
 			self.selections[iface_uri] = s
+
+		if not self.commands:
+			# Old-style selections document; use the main attribute
+			if iface_uri == self.interface:
+				root_sel = self.selections[self.interface]
+				main = root_sel.attrs.get('main', None)
+				if main is not None:
+					self.commands = [Command(Element(XMLNS_IFACE, 'command', {'path': main}), None)]
 	
 	def toDOM(self):
 		"""Create a DOM document for the selected implementations.
@@ -231,8 +235,8 @@ class Selections(object):
 				for b in dep.bindings:
 					dep_elem.appendChild(b._toxml(doc))
 
-		if self.command:
-			root.appendChild(self.command._toxml(doc, prefixes))
+		for command in self.commands:
+			root.appendChild(command._toxml(doc, prefixes))
 
 		for ns, prefix in prefixes.prefixes.items():
 			root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns:' + prefix, ns)
