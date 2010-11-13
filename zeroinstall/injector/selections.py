@@ -101,7 +101,8 @@ class Selections(object):
 		self.selections = {}
 
 		if source is None:
-			pass
+			self.command = None
+			# (Solver will fill everything in)
 		elif isinstance(source, Policy):
 			self._init_from_policy(source)
 		elif isinstance(source, Element):

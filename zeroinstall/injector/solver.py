@@ -455,6 +455,14 @@ class SATSolver(Solver):
 					# Must choose one version of d if impl is selected
 					find_dependency_candidates(command_var, d)
 
+			# Tell the user why we couldn't use this version
+			if self.record_details:
+				def new_reason(impl, old_reason):
+					if command_name in impl.commands:
+						return old_reason
+					return old_reason or (_('No %s command') % command_name)
+				self.details[iface] = [(impl, new_reason(impl, reason)) for (impl, reason) in self.details[iface]]
+
 			return var_names
 
 		commands = add_command_iface(root_interface, root_arch, command_name)
