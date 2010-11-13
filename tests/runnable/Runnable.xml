@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Runnable</name>
+  <summary>test script that needs a runner</summary>
+
+  <implementation id="test" local-path="." version="1">
+    <command name="run" path="script">
+      <arg>command-arg</arg>
+      <arg>--</arg>
+    </command>
+  </implementation>
+</interface>

@@ -10,6 +10,7 @@ import os, sys
 from logging import debug, info
 
 from zeroinstall.injector.model import SafeException, EnvironmentBinding
+from zeroinstall.injector import namespaces
 from zeroinstall.injector.iface_cache import iface_cache
 
 def do_env_binding(binding, path):
@@ -123,6 +124,13 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 			_do_bindings(dep_impl, dep.bindings)
 
 	command_path = command.path
+
+	if main is None:
+		command_args = []
+		for child in command.qdom.childNodes:
+			if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
+				command_args.append(child.content)
+		prog_args = command_args + prog_args
 
 	if root_sel.id.startswith('package:'):
 		main = main or command_path

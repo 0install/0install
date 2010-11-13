@@ -9,8 +9,15 @@ sys.path.insert(0, '..')
 from zeroinstall.injector import policy, run, handler, model
 
 mydir = os.path.abspath(os.path.dirname(__file__))
+local_0launch = os.path.join(os.path.dirname(mydir), '0launch')
+runnable = os.path.join(mydir, 'runnable', 'Runnable.xml')
 
 class TestRun(BaseTest):
+	def testRunnable(self):
+		child = subprocess.Popen([local_0launch, '--', runnable, 'user-arg'], stdout = subprocess.PIPE)
+		stdout, _ = child.communicate()
+		assert 'Args: command-arg -- user-arg' in stdout, stdout
+
 	def testCommandBindings(self):
 		command_feed = os.path.join(mydir, 'Command.xml')
 		h = handler.Handler()
