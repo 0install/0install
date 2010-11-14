@@ -85,7 +85,7 @@ class TestSelections(BaseTest):
 		feed = iface_cache.iface_cache.get_feed(iface)
 		impl = model.ZeroInstallImplementation(feed, "foo bar=123", local_path = None)
 		impl.version = model.parse_version('1.0')
-		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': 'dummy'}))
+		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': 'dummy'}), None)
 		impl.add_download_source('http://localhost/bar.tgz', 1000, None)
 		feed.implementations = {impl.id: impl}
 		assert p.need_download()
@@ -104,8 +104,9 @@ class TestSelections(BaseTest):
 		iface = os.path.join(mydir, "Command.xml")
 		p = policy.Policy(iface)
 		p.need_download()
+		assert p.ready
 
-		impl, = p.solver.selections.values()
+		impl = p.solver.selections[iface_cache.iface_cache.get_interface(iface)]
 		assert impl.id == 'c'
 		assert impl.main == 'baz'
 
@@ -116,11 +117,11 @@ class TestSelections(BaseTest):
 		s2 = selections.Selections(root)
 
 		assert s2.command.path == 'baz'
-		impl, = s2.selections.values()
+		impl = s2.selections[iface]
 		assert impl.id == 'c'
 
 		assert s2.command.qdom.attrs['http://custom attr'] == 'namespaced'
-		custom_element, = s2.command.qdom.childNodes
+		custom_element = s2.command.qdom.childNodes[0]
 		assert custom_element.name == 'child'
 
 if __name__ == '__main__':

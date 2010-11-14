@@ -129,7 +129,7 @@ class Selections(object):
 				continue
 			if selection.name != 'selection':
 				if selection.name == 'command':
-					self.command = Command(selection)
+					self.command = Command(selection, None)
 				continue
 
 			requires = []
@@ -141,7 +141,7 @@ class Selections(object):
 				if dep_elem.name in binding_names:
 					bindings.append(process_binding(dep_elem))
 				elif dep_elem.name == 'requires':
-					dep = process_depends(dep_elem)
+					dep = process_depends(dep_elem, None)
 					requires.append(dep)
 				elif dep_elem.name == 'manifest-digest':
 					for aname, avalue in dep_elem.attrs.iteritems():
@@ -159,7 +159,7 @@ class Selections(object):
 			if iface_uri == self.interface:
 				main = selection.attrs.get('main', None)
 				if main is not None:
-					self.command = Command(Element(XMLNS_IFACE, 'command', {'path': main}))
+					self.command = Command(Element(XMLNS_IFACE, 'command', {'path': main}), None)
 
 			s = XMLSelection(requires, bindings, selection.attrs, digests)
 			self.selections[iface_uri] = s

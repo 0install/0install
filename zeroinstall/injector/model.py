@@ -124,13 +124,21 @@ def process_binding(e):
 	else:
 		raise Exception(_("Unknown binding type '%s'") % e.name)
 
-def process_depends(item):
+def process_depends(item, local_feed_dir):
 	"""Internal"""
 	# Note: also called from selections
+	attrs = item.attrs
 	dep_iface = item.getAttribute('interface')
 	if not dep_iface:
-		raise InvalidInterface(_("Missing 'interface' on <requires>"))
-	dependency = InterfaceDependency(dep_iface, metadata = item.attrs)
+		raise InvalidInterface(_("Missing 'interface' on <%s>") % item.name)
+	if dep_iface.startswith('./'):
+		if local_feed_dir:
+			dep_iface = os.path.abspath(os.path.join(local_feed_dir, dep_iface))
+			# (updates the element too, in case we write it out again)
+			attrs['interface'] = dep_iface
+		else:
+			raise InvalidInterface(_('Relative interface URI "%s" in non-local feed') % dep_iface)
+	dependency = InterfaceDependency(dep_iface, metadata = attrs)
 
 	for e in item.childNodes:
 		if e.uri != XMLNS_IFACE: continue
@@ -334,6 +342,8 @@ class InterfaceDependency(Dependency):
 	@type restrictions: [L{Restriction}]
 	@ivar bindings: how to make the choice of implementation known
 	@type bindings: [L{Binding}]
+	@ivar metadata: attributes from the XML element
+	@type metadata: {str: str}
 	@since: 0.28
 	"""
 	__slots__ = ['interface', 'restrictions', 'bindings', 'metadata']
@@ -404,11 +414,15 @@ class DistributionSource(RetrievalMethod):
 class Command(object):
 	"""A Command is a way of running an Implementation as a program."""
 
-	__slots__ = ['qdom', '_depends']
+	__slots__ = ['qdom', '_depends', '_local_dir']
 
-	def __init__(self, qdom):
+	def __init__(self, qdom, local_dir):
+		"""@param qdom: the <command> element
+		@param local_dir: the directory containing the feed (for relative dependencies), or None if not local
+		"""
 		assert qdom.name == 'command', 'not <command>: %s' % qdom
 		self.qdom = qdom
+		self._local_dir = local_dir
 		self._depends = None
 
 	path = property(lambda self: self.qdom.attrs.get("path", None))
@@ -422,7 +436,7 @@ class Command(object):
 			depends = []
 			for child in self.qdom.childNodes:
 				if child.name == 'requires':
-					dep = process_depends(child)
+					dep = process_depends(child, self._local_dir)
 					depends.append(dep)
 			self._depends = depends
 		return self._depends
@@ -522,7 +536,7 @@ class Implementation(object):
 			if "run" in self.commands:
 				del self.commands["run"]
 		else:
-			self.commands["run"] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': path}))
+			self.commands["run"] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': path}), None)
 	main = property(_get_main, _set_main)
 
 class DistributionImplementation(Implementation):
@@ -789,13 +803,13 @@ class ZeroInstallFeed(object):
 				for child in item.childNodes:
 					if child.uri != XMLNS_IFACE: continue
 					if child.name == 'requires':
-						dep = process_depends(child)
+						dep = process_depends(child, local_dir)
 						depends.append(dep)
 					elif child.name == 'command':
 						command_name = child.attrs.get('name', None)
 						if not command_name:
 							raise InvalidInterface('Missing name for <command>')
-						commands[command_name] = Command(child)
+						commands[command_name] = Command(child, local_dir)
 					elif child.name in binding_names:
 						bindings.append(process_binding(child))
 
@@ -803,11 +817,11 @@ class ZeroInstallFeed(object):
 						      ('self-test', 'test')]:
 					value = item.attrs.get(attr, None)
 					if value is not None:
-						commands[command] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': value}))
+						commands[command] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': value}), None)
 
 				compile_command = item.attrs.get('http://zero-install.sourceforge.net/2006/namespaces/0compile command')
 				if compile_command is not None:
-					commands['compile'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'shell-command': compile_command}))
+					commands['compile'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'shell-command': compile_command}), None)
 
 				if item.name == 'group':
 					process_group(item, item_attrs, depends, bindings, commands)
@@ -917,7 +931,7 @@ class ZeroInstallFeed(object):
 		root_commands = {}
 		if main:
 			info("Note: @main on document element is deprecated in %s", self)
-			root_commands['run'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': main}))
+			root_commands['run'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': main}), None)
 		process_group(feed_element, root_attrs, [], [], root_commands)
 	
 	def get_distro_feed(self):

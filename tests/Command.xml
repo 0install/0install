@@ -9,7 +9,10 @@
     <implementation id="b" main='bar' version="0.1"/>
     <implementation id="c" version="0.1">
       <command name='run' path="baz" custom:attr='namespaced'>
-	<custom:child/>
+        <custom:child/>
+	<requires interface='./Local.xml'>
+	  <environment name='LOCAL' insert='local'/>
+	</requires>
       </command>
       <command name='test' path="test-baz"/>
     </implementation>
