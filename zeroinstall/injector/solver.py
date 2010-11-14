@@ -12,7 +12,7 @@ from logging import debug, warn, info
 from zeroinstall.zerostore import BadDigest, NotStored
 
 from zeroinstall.injector.arch import machine_groups
-from zeroinstall.injector import model, sat
+from zeroinstall.injector import model, sat, selections
 
 def _get_cached(stores, impl):
 	"""Check whether an implementation is available locally.
@@ -74,7 +74,7 @@ class Solver(object):
 	 3. If any of the returned feeds_used are stale or missing, you may like to start downloading them
 	 4. If it is 'ready' then you can download and run the chosen versions.
 	@ivar selections: the chosen implementation of each interface
-	@type selections: {L{model.Interface}: Implementation}
+	@type selections: L{selections.Selections}
 	@ivar requires: the selected dependencies for each chosen version
 	@type requires: {L{model.Interface}: [L{model.Dependency}]}
 	@ivar feeds_used: the feeds which contributed to the choice in L{selections}
@@ -463,21 +463,26 @@ class SATSolver(Solver):
 			self.solve(root_interface, root_arch, closest_match = True)
 		else:
 			self.ready = ready and not closest_match
-			self.selections = {}
+			self.selections = selections.Selections(None)
+			self.selections.interface = root_interface
+
+			sels = self.selections.selections
 
 			for uri, group in group_clause_for.iteritems():
 				if group.current is not None:
 					lit_info = problem.get_varinfo_for_lit(group.current).obj
 					if lit_info.is_dummy:
-						self.selections[lit_info.iface] = None
+						sels[lit_info.iface.uri] = None
 					else:
-						self.selections[lit_info.iface] = lit_info.impl
+						impl = lit_info.impl
+
 						deps = self.requires[lit_info.iface] = []
-						for dep in lit_info.impl.requires:
+						for dep in impl.requires:
 							use = dep.metadata.get("use", None)
 							if use not in lit_info.arch.use:
 								continue
 							deps.append(dep)
 
+						sels[lit_info.iface.uri] = selections.ImplSelection(lit_info.iface.uri, impl, deps)
 
 DefaultSolver = SATSolver

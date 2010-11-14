@@ -23,20 +23,6 @@ class Selection(object):
 	@type digests: [str]
 	@ivar version: the implementation's version number
 	@type version: str"""
-	__slots__ = ['bindings', 'dependencies', 'attrs', 'digests']
-
-	def __init__(self, dependencies, bindings = None, attrs = None, digests = None):
-		if bindings is None: bindings = []
-		if digests is None: digests = []
-		self.dependencies = dependencies
-		self.bindings = bindings
-		self.attrs = attrs
-		self.digests = digests
-
-		assert self.interface
-		assert self.id
-		assert self.version
-		assert self.feed
 
 	interface = property(lambda self: self.attrs['interface'])
 	id = property(lambda self: self.attrs['id'])
@@ -56,6 +42,45 @@ class Selection(object):
 	def __repr__(self):
 		return self.id
 
+class ImplSelection(Selection):
+	__slots__ = ['impl', 'dependencies', 'attrs']
+
+	def __init__(self, iface_uri, impl, dependencies):
+		assert impl
+		self.impl = impl
+		self.dependencies = dependencies
+
+		attrs = impl.metadata.copy()
+		attrs['id'] = impl.id
+		attrs['version'] = impl.get_version()
+		attrs['interface'] = iface_uri
+		attrs['from-feed'] = impl.feed.url
+		if impl.local_path:
+			attrs['local-path'] = impl.local_path
+		self.attrs = attrs
+
+	@property
+	def bindings(self): return self.impl.bindings
+
+	@property
+	def digests(self): return self.impl.digests
+
+class XMLSelection(Selection):
+	__slots__ = ['bindings', 'dependencies', 'attrs', 'digests']
+
+	def __init__(self, dependencies, bindings = None, attrs = None, digests = None):
+		if bindings is None: bindings = []
+		if digests is None: digests = []
+		self.dependencies = dependencies
+		self.bindings = bindings
+		self.attrs = attrs
+		self.digests = digests
+
+		assert self.interface
+		assert self.id
+		assert self.version
+		assert self.feed
+
 class Selections(object):
 	"""
 	A selected set of components which will make up a complete program.
@@ -71,36 +96,23 @@ class Selections(object):
 		@param source: a map of implementations, policy or selections document
 		@type source: {str: L{Selection}} | L{Policy} | L{Element}
 		"""
-		if isinstance(source, dict):
-			self.selections = source
+		self.selections = {}
+
+		if source is None:
+			pass
 		elif isinstance(source, Policy):
-			self.selections = {}
 			self._init_from_policy(source)
 		elif isinstance(source, Element):
-			self.selections = {}
 			self._init_from_qdom(source)
 		else:
 			raise Exception(_("Source not a Policy or qdom.Element!"))
 
 	def _init_from_policy(self, policy):
 		"""Set the selections from a policy.
+		@deprecated: use Solver.selections instead
 		@param policy: the policy giving the selected implementations."""
 		self.interface = policy.root
-		solver_requires = policy.solver.requires
-
-		for needed_iface in policy.implementation:
-			impl = policy.implementation[needed_iface]
-			assert impl
-
-			attrs = impl.metadata.copy()
-			attrs['id'] = impl.id
-			attrs['version'] = impl.get_version()
-			attrs['interface'] = needed_iface.uri
-			attrs['from-feed'] = impl.feed.url
-			if impl.local_path:
-				attrs['local-path'] = impl.local_path
-
-			self.selections[needed_iface.uri] = Selection(solver_requires[needed_iface], impl.bindings, attrs, impl.digests)
+		self.selections = policy.solver.selections.selections
 
 	def _init_from_qdom(self, root):
 		"""Parse and load a selections document.
@@ -137,7 +149,7 @@ class Selections(object):
 				if alg in ('sha1', 'sha1new', 'sha256'):
 					digests.append(sel_id)
 
-			s = Selection(requires, bindings, selection.attrs, digests)
+			s = XMLSelection(requires, bindings, selection.attrs, digests)
 			self.selections[selection.attrs['interface']] = s
 	
 	def toDOM(self):
@@ -266,3 +278,48 @@ class Selections(object):
 			yield fetch_impls
 			tasks.check(fetch_impls)
 		return download()
+
+	# These (deprecated) methods are to make a Selections object look like the old Policy.implementation map...
+
+	def __getitem__(self, key):
+		# Deprecated
+		if isinstance(key, basestring):
+			return self.selections[key]
+		sel = self.selections[key.uri]
+		return sel and sel.impl
+
+	def iteritems(self):
+		# Deprecated
+		from zeroinstall.injector.iface_cache import iface_cache
+		for (uri, sel) in self.selections.iteritems():
+			yield (iface_cache.get_interface(uri), sel and sel.impl)
+
+	def values(self):
+		# Deprecated
+		from zeroinstall.injector.iface_cache import iface_cache
+		for (uri, sel) in self.selections.iteritems():
+			yield sel and sel.impl
+
+	def __iter__(self):
+		# Deprecated
+		from zeroinstall.injector.iface_cache import iface_cache
+		for (uri, sel) in self.selections.iteritems():
+			yield iface_cache.get_interface(uri)
+
+	def get(self, iface, if_missing):
+		# Deprecated
+		sel = self.selections.get(iface.uri, None)
+		if sel:
+			return sel.impl
+		return if_missing
+
+	def copy(self):
+		# Deprecated
+		s = Selections(None)
+		s.interface = self.interface
+		s.selections = self.selections.copy()
+		return s
+
+	def items(self):
+		# Deprecated
+		return list(self.iteritems())
