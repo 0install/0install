@@ -279,11 +279,9 @@ class SATSolver(Solver):
 					if c_var is not None:
 						dep_union.append(c_var)
 					# else we filtered that version out, so ignore it
-			if dep_union:
-				problem.add_clause(dep_union)
-			else:
-				assert 0	# XXX: how can this happen?
-				problem.assign(requiring_impl_var, 0)
+
+			assert dep_union
+			problem.add_clause(dep_union)
 
 		def is_unusable(impl, restrictions, arch):
 			"""@return: whether this implementation is unusable.
@@ -438,7 +436,10 @@ class SATSolver(Solver):
 			var_names = []
 			for impl in filtered_impls:
 				command = impl.commands.get(command_name, None)
-				if not command: continue
+				if not command:
+					# Mark implementation as unselectable
+					problem.add_clause([sat.neg(impl_to_var[impl])])
+					continue
 
 				# We have a candidate <command>. Require that if it's selected
 				# then we select the corresponding <implementation> too.
