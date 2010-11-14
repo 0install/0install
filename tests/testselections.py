@@ -110,6 +110,10 @@ class TestSelections(BaseTest):
 		assert impl.id == 'c'
 		assert impl.main == 'baz'
 
+		dep_impl_uri = impl.commands['run'].requires[0].interface
+		dep_impl = p.solver.selections[iface_cache.iface_cache.get_interface(dep_impl_uri)]
+		assert dep_impl.id == 'sha1=256'
+
 		s1 = selections.Selections(p)
 		assert s1.command.path == 'baz'
 		xml = s1.toDOM().toxml("utf-8")
@@ -123,6 +127,9 @@ class TestSelections(BaseTest):
 		assert s2.command.qdom.attrs['http://custom attr'] == 'namespaced'
 		custom_element = s2.command.qdom.childNodes[0]
 		assert custom_element.name == 'child'
+
+		dep_impl = s2.selections[dep_impl_uri]
+		assert dep_impl.id == 'sha1=256'
 
 if __name__ == '__main__':
 	unittest.main()

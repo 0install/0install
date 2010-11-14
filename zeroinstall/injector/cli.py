@@ -313,7 +313,7 @@ def _get_selections(sels, options):
 	if options.show:
 		from zeroinstall import zerostore
 		done = set()	# detect cycles
-		def print_node(uri, indent):
+		def print_node(uri, command, indent):
 			if uri in done: return
 			done.add(uri)
 			impl = sels.selections.get(uri, None)
@@ -329,14 +329,19 @@ def _get_selections(sels, options):
 					path = "(not cached)"
 				print indent + "  Path:", path
 				indent += "  "
-				for child in impl.dependencies:
+				deps = impl.dependencies
+				if command:
+					deps += command.requires
+				for child in deps:
 					if isinstance(child, model.InterfaceDependency):
-						print_node(child.interface, indent)
+						print_node(child.interface, None, indent)
 			else:
 				print indent + "  No selected version"
 
 
-		print_node(sels.interface, "")
+		uri = sels.interface
+		print_node(uri, sels.command, "")
+
 	else:
 		doc = sels.toDOM()
 		doc.writexml(sys.stdout)

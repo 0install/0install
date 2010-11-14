@@ -13,6 +13,8 @@ from zeroinstall.injector import autopolicy, model, cli, namespaces, qdom, selec
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
 from zeroinstall.support import basedir
 
+mydir = os.path.abspath(os.path.dirname(__file__))
+
 class SilenceLogger(logging.Filter):
 	def filter(self, record):
 		return 0
@@ -220,6 +222,12 @@ class TestLaunch(BaseTest):
 			cli.main(['--list', 'UNKNOWN'])
 		finally:
 			os.dup2(copy, 1)
+
+	def testShow(self):
+		command_feed = os.path.join(mydir, 'Command.xml')
+		out, err = self.run_0launch(['--show', command_feed])
+		self.assertEquals("", err)
+		assert 'Local.xml' in out, out
 
 if __name__ == '__main__':
 	unittest.main()
