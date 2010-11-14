@@ -9,7 +9,7 @@ from zeroinstall import _
 import os, sys
 from logging import debug, info
 
-from zeroinstall.injector.model import SafeException, EnvironmentBinding, ZeroInstallImplementation
+from zeroinstall.injector.model import SafeException, EnvironmentBinding
 from zeroinstall.injector.iface_cache import iface_cache
 
 def do_env_binding(binding, path):
@@ -37,21 +37,7 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 	@type wrapper: str
 	@precondition: C{policy.ready and policy.get_uncached_implementations() == []}
 	"""
-		
-	for iface, impl in policy.implementation.iteritems():
-		assert impl
-		_do_bindings(impl, impl.bindings)
-		for dep in policy.solver.requires[iface]:
-			dep_iface = iface_cache.get_interface(dep.interface)
-			dep_impl = policy.get_implementation(dep_iface)
-			if isinstance(dep_impl, ZeroInstallImplementation):
-				_do_bindings(dep_impl, dep.bindings)
-			else:
-				debug(_("Implementation %s is native; no bindings needed"), dep_impl)
-
-	root_iface = iface_cache.get_interface(policy.root)
-	root_impl = policy.get_implementation(root_iface)
-	_execute(root_impl, prog_args, dry_run, main, wrapper)
+	execute_selections(policy.solver.selections, prog_args, dry_run, main, wrapper)
 
 def _do_bindings(impl, bindings):
 	for b in bindings:
