@@ -359,7 +359,12 @@ class InterfaceBrowser:
 						self.model[child_iter][InterfaceBrowser.ICON] = self.default_icon
 			else:
 				self.model[iter][InterfaceBrowser.VERSION] = _('(choose)')
-		add_node(None, self.root, self.policy.solver.selections.command)
+		command = self.policy.solver.selections.command
+		if command:
+			add_node(None, self.root, command)
+		else:
+			# Nothing could be selected
+			add_node(None, self.root, None)
 		self.tree_view.expand_all()
 	
 	def show_popup_menu(self, iface, bev):
