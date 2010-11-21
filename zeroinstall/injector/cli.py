@@ -160,7 +160,8 @@ def _normal_mode(options, args):
 	policy = autopolicy.AutoPolicy(iface_uri,
 				handler = h,
 				download_only = bool(options.download_only),
-				src = options.source)
+				src = options.source,
+				command = options.command)
 
 	if options.before or options.not_before:
 		policy.solver.extra_restrictions[root_iface] = [model.VersionRangeRestriction(model.parse_version(options.before),
@@ -267,6 +268,9 @@ def _normal_mode(options, args):
 					gui_args += ['--with-store', x]
 			if options.select_only:
 				gui_args.append('--select-only')
+			if options.command:
+				gui_args.append('--command')
+				gui_args.append(options.command)
 			sels = _fork_gui(iface_uri, gui_args, prog_args, options)
 			if not sels:
 				sys.exit(1)		# Aborted
@@ -369,6 +373,7 @@ def main(command_args):
 				    "       %prog --import [signed-interface-files]\n"
 				    "       %prog --feed [interface]"))
 	parser.add_option("", "--before", help=_("choose a version before this"), metavar='VERSION')
+	parser.add_option("", "--command", help=_("command to select"), metavar='COMMAND')
 	parser.add_option("-c", "--console", help=_("never use GUI"), action='store_false', dest='gui')
 	parser.add_option("", "--cpu", help=_("target CPU type"), metavar='CPU')
 	parser.add_option("-d", "--download-only", help=_("fetch but don't run"), action='store_true')

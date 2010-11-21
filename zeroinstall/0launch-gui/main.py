@@ -24,6 +24,7 @@ def run_gui(args):
 	parser.add_option("", "--before", help=_("choose a version before this"), metavar='VERSION')
 	parser.add_option("", "--cpu", help=_("target CPU type"), metavar='CPU')
 	parser.add_option("-c", "--cache", help=_("show the cache"), action='store_true')
+	parser.add_option("", "--command", help=_("command to select"), metavar='COMMAND')
 	parser.add_option("-d", "--download-only", help=_("fetch but don't run"), action='store_true')
 	parser.add_option("", "--message", help=_("message to display when interacting with user"))
 	parser.add_option("", "--not-before", help=_("minimum version to choose"), metavar='VERSION')
@@ -64,7 +65,7 @@ def run_gui(args):
 
 	if options.version:
 		print "0launch-gui (zero-install) " + gui.version
-		print "Copyright (C) 2009 Thomas Leonard"
+		print "Copyright (C) 2010 Thomas Leonard"
 		print _("This program comes with ABSOLUTELY NO WARRANTY,"
 				"\nto the extent permitted by law."
 				"\nYou may redistribute copies of this program"
@@ -121,7 +122,7 @@ def run_gui(args):
 
 	widgets = dialog.Template('main')
 
-	policy = Policy(interface_uri, handler, src = bool(options.source))
+	policy = Policy(interface_uri, handler, src = bool(options.source), command = options.command)
 	policy.target_arch = arch.get_architecture(options.os, options.cpu)
 	root_iface = iface_cache.get_interface(interface_uri)
 	policy.solver.extra_restrictions[root_iface] = restrictions
