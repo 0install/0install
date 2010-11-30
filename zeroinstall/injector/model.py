@@ -138,7 +138,7 @@ def process_depends(item, local_feed_dir):
 			attrs['interface'] = dep_iface
 		else:
 			raise InvalidInterface(_('Relative interface URI "%s" in non-local feed') % dep_iface)
-	dependency = InterfaceDependency(dep_iface, metadata = attrs)
+	dependency = InterfaceDependency(dep_iface, element = item)
 
 	for e in item.childNodes:
 		if e.uri != XMLNS_IFACE: continue
@@ -322,17 +322,20 @@ class Feed(object):
 class Dependency(object):
 	"""A Dependency indicates that an Implementation requires some additional
 	code to function. This is an abstract base class.
+	@ivar qdom: the XML element for this Dependency (since 0launch 0.51)
+	@type qdom: L{qdom.Element}
 	@ivar metadata: any extra attributes from the XML element
 	@type metadata: {str: str}
 	"""
-	__slots__ = ['metadata']
+	__slots__ = ['qdom']
 
-	def __init__(self, metadata):
-		if metadata is None:
-			metadata = {}
-		else:
-			assert not isinstance(metadata, basestring)	# Use InterfaceDependency instead!
-		self.metadata = metadata
+	def __init__(self, element):
+		assert isinstance(element, qdom.Element), type(element)	# Use InterfaceDependency instead!
+		self.qdom = element
+
+	@property
+	def metadata(self):
+		return self.qdom.attrs
 
 class InterfaceDependency(Dependency):
 	"""A Dependency on a Zero Install interface.
@@ -342,14 +345,12 @@ class InterfaceDependency(Dependency):
 	@type restrictions: [L{Restriction}]
 	@ivar bindings: how to make the choice of implementation known
 	@type bindings: [L{Binding}]
-	@ivar metadata: attributes from the XML element
-	@type metadata: {str: str}
 	@since: 0.28
 	"""
-	__slots__ = ['interface', 'restrictions', 'bindings', 'metadata']
+	__slots__ = ['interface', 'restrictions', 'bindings']
 
-	def __init__(self, interface, restrictions = None, metadata = None):
-		Dependency.__init__(self, metadata)
+	def __init__(self, interface, restrictions = None, element = None):
+		Dependency.__init__(self, element)
 		assert isinstance(interface, (str, unicode))
 		assert interface
 		self.interface = interface
@@ -358,7 +359,7 @@ class InterfaceDependency(Dependency):
 		else:
 			self.restrictions = restrictions
 		self.bindings = []
-	
+
 	def __str__(self):
 		return _("<Dependency on %(interface)s; bindings: %(bindings)s%(restrictions)s>") % {'interface': self.interface, 'bindings': self.bindings, 'restrictions': self.restrictions}
 

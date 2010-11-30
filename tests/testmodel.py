@@ -8,7 +8,7 @@ import unittest
 from StringIO import StringIO
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import model, qdom, iface_cache
+from zeroinstall.injector import model, qdom, iface_cache, namespaces
 
 mydir = os.path.dirname(__file__)
 
@@ -220,7 +220,7 @@ class TestModel(BaseTest):
 			self.assertEquals(expected, str(new_ol))
 	
 	def testDep(self):
-		b = model.InterfaceDependency('http://foo')
+		b = model.InterfaceDependency('http://foo', element = qdom.Element(namespaces.XMLNS_IFACE, 'requires', {}))
 		assert not b.restrictions
 		assert not b.bindings
 		str(b)

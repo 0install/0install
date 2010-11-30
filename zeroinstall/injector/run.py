@@ -142,27 +142,35 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		command_sel = sels[command_iface]
 
 		command_args = []
+
+		# Add extra arguments for runner
+		runner = command.get_runner()
+		if runner:
+			command_iface = runner.interface
+			for child in runner.qdom.childNodes:
+				if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
+					command_args.append(child.content)
+
+		# Add main program path
+		command_path = command.path
+		if command_path is not None:
+			if command_sel.id.startswith('package:'):
+				prog_path = command_path
+			else:
+				if command_path.startswith('/'):
+					raise SafeException(_("Command path must be relative, but '%s' starts with '/'!") %
+								command_path)
+				prog_path = os.path.join(_get_implementation_path(command_sel), command_path)
+
+			assert prog_path is not None
+			command_args.append(prog_path)
+
+		# Add extra arguments for program
 		for child in command.qdom.childNodes:
 			if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
 				command_args.append(child.content)
 
-		command_path = command.path
-
-		if command_sel.id.startswith('package:'):
-			prog_path = command_path
-		else:
-			if command_path.startswith('/'):
-				raise SafeException(_("Command path must be relative, but '%s' starts with '/'!") %
-							command_path)
-			prog_path = os.path.join(_get_implementation_path(command_sel), command_path)
-
-		assert prog_path is not None
-
-		prog_args = [prog_path] + command_args + prog_args
-
-		runner = command.get_runner()
-		if runner:
-			command_iface = runner.interface
+		prog_args = command_args + prog_args
 
 	if not os.path.exists(prog_args[0]):
 		raise SafeException(_("File '%(program_path)s' does not exist.\n"

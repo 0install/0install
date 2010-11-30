@@ -5,7 +5,9 @@
 
   <implementation id="test" local-path="." version="1">
     <command name="run" path="script">
-      <runner interface='./Runner.xml'/>
+      <runner interface='./Runner.xml'>
+	<arg>arg-for-runner</arg>
+      </runner>
       <arg>command-arg</arg>
       <arg>--</arg>
     </command>

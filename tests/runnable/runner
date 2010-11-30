@@ -3,6 +3,10 @@ if [ "$1" != "runner-arg" ]; then
   exit 1
 fi
 shift
+if [ "$1" != "arg-for-runner" ]; then
+  exit 1
+fi
+shift
 script=$1
 shift
 echo Runner: script=`cat $script`: args=$@
