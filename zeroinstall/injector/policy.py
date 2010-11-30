@@ -50,7 +50,7 @@ class Policy(object):
 	@ivar stale_feeds: set of feeds which are present but haven't been checked for a long time
 	@type stale_feeds: set
 	"""
-	__slots__ = ['root', 'watchers',
+	__slots__ = ['root', 'watchers', 'command',
 		     'freshness', 'handler', '_warned_offline',
 		     'target_arch', 'src', 'stale_feeds', 'solver', '_fetcher']
 	
@@ -64,17 +64,25 @@ class Policy(object):
 
 	ready = property(lambda self: self.solver.ready)
 
-	def __init__(self, root, handler = None, src = False):
+	def __init__(self, root, handler = None, src = False, command = None):
 		"""
 		@param root: The URI of the root interface (the program we want to run).
 		@param handler: A handler for main-loop integration.
 		@type handler: L{zeroinstall.injector.handler.Handler}
 		@param src: Whether we are looking for source code.
 		@type src: bool
+		@param command: The name of the command to run (e.g. 'run', 'test', 'compile', etc)
+		@type command: str
 		"""
 		self.watchers = []
 		self.src = src				# Root impl must be a "src" machine type
 		self.stale_feeds = set()
+		if command is None:
+			if src:
+				command = 'compile'
+			else:
+				command = 'run'
+		self.command = command
 
 		from zeroinstall.injector.solver import DefaultSolver
 		self.solver = DefaultSolver(network_full, iface_cache, iface_cache.stores)
@@ -150,7 +158,7 @@ class Policy(object):
 		host_arch = self.target_arch
 		if self.src:
 			host_arch = arch.SourceArchitecture(host_arch)
-		self.solver.solve(self.root, host_arch)
+		self.solver.solve(self.root, host_arch, command_name = self.command)
 
 		if self.network_use == network_offline:
 			fetch_stale_interfaces = False
@@ -324,7 +332,7 @@ class Policy(object):
 		try_quick_exit = not (force or update_local)
 
 		while True:
-			self.solver.solve(self.root, host_arch)
+			self.solver.solve(self.root, host_arch, command_name = self.command)
 			for w in self.watchers: w()
 
 			if try_quick_exit and self.solver.ready:
@@ -382,9 +390,7 @@ class Policy(object):
 			tasks.check(refreshed)
 
 		if not self.solver.ready:
-			raise SafeException(_("Can't find all required implementations:") + '\n' +
-				'\n'.join(["- %s -> %s" % (iface, self.solver.selections[iface])
-					   for iface  in self.solver.selections]))
+			raise self.solver.get_failure_reason()
 
 		if not select_only:
 			downloaded = self.download_uncached_implementations()
@@ -399,7 +405,7 @@ class Policy(object):
 		host_arch = self.target_arch
 		if self.src:
 			host_arch = arch.SourceArchitecture(host_arch)
-		self.solver.solve(self.root, host_arch)
+		self.solver.solve(self.root, host_arch, command_name = self.command)
 		for w in self.watchers: w()
 
 		if not self.solver.ready:

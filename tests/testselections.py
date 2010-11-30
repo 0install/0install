@@ -67,24 +67,29 @@ class TestSelections(BaseTest):
 		assertSel(s2)
 	
 	def testLocalPath(self):
+		# 0launch --get-selections Local.xml
 		iface = os.path.join(mydir, "Local.xml")
 		p = policy.Policy(iface)
 		p.need_download()
 		s1 = selections.Selections(p)
 		xml = s1.toDOM().toxml("utf-8")
+
+		# Reload selections and check they're the same
 		root = qdom.parse(StringIO(xml))
 		s2 = selections.Selections(root)
 		local_path = s2.selections[iface].local_path
 		assert os.path.isdir(local_path), local_path
 		assert not s2.selections[iface].digests, s2.selections[iface].digests
 
+		# Add a newer implementation and try again
 		feed = iface_cache.iface_cache.get_feed(iface)
 		impl = model.ZeroInstallImplementation(feed, "foo bar=123", local_path = None)
 		impl.version = model.parse_version('1.0')
+		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': 'dummy'}), None)
 		impl.add_download_source('http://localhost/bar.tgz', 1000, None)
 		feed.implementations = {impl.id: impl}
 		assert p.need_download()
-		assert p.ready
+		assert p.ready, p.solver.get_failure_reason()
 		s1 = selections.Selections(p)
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(StringIO(xml))
@@ -94,6 +99,37 @@ class TestSelections(BaseTest):
 		assert s2.selections[iface].local_path is None
 		assert not s2.selections[iface].digests, s2.selections[iface].digests
 		assert s2.selections[iface].id == 'foo bar=123'
+
+	def testCommands(self):
+		iface = os.path.join(mydir, "Command.xml")
+		p = policy.Policy(iface)
+		p.need_download()
+		assert p.ready
+
+		impl = p.solver.selections[iface_cache.iface_cache.get_interface(iface)]
+		assert impl.id == 'c'
+		assert impl.main == 'runnable/missing'
+
+		dep_impl_uri = impl.commands['run'].requires[0].interface
+		dep_impl = p.solver.selections[iface_cache.iface_cache.get_interface(dep_impl_uri)]
+		assert dep_impl.id == 'sha1=256'
+
+		s1 = selections.Selections(p)
+		assert s1.commands[0].path == 'runnable/missing'
+		xml = s1.toDOM().toxml("utf-8")
+		root = qdom.parse(StringIO(xml))
+		s2 = selections.Selections(root)
+
+		assert s2.commands[0].path == 'runnable/missing'
+		impl = s2.selections[iface]
+		assert impl.id == 'c'
+
+		assert s2.commands[0].qdom.attrs['http://custom attr'] == 'namespaced'
+		custom_element = s2.commands[0].qdom.childNodes[0]
+		assert custom_element.name == 'child'
+
+		dep_impl = s2.selections[dep_impl_uri]
+		assert dep_impl.id == 'sha1=256'
 
 if __name__ == '__main__':
 	unittest.main()

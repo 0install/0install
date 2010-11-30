@@ -323,7 +323,7 @@ class InterfaceBrowser:
 
 		self.model.clear()
 		parent = None
-		def add_node(parent, iface):
+		def add_node(parent, iface, command = None):
 			if iface in done:
 				return
 			done[iface] = True
@@ -334,8 +334,9 @@ class InterfaceBrowser:
 			self.model[iter][InterfaceBrowser.SUMMARY] = iface.summary
 			self.model[iter][InterfaceBrowser.ICON] = self.get_icon(iface) or self.default_icon
 
-			impl = self.policy.implementation.get(iface, None)
-			if impl:
+			sel = self.policy.solver.selections.selections.get(iface.uri, None)
+			if sel:
+				impl = sel.impl
 				old_impl = self.original_implementation.get(iface, None)
 				version_str = impl.get_version()
 				if old_impl is not None and old_impl.id != impl.id:
@@ -343,9 +344,11 @@ class InterfaceBrowser:
 				self.model[iter][InterfaceBrowser.VERSION] = version_str
 
 				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
-				children = self.policy.solver.requires[iface]
 
-				for child in children:
+				deps = sel.dependencies
+				if command:
+					deps += command.requires
+				for child in deps:
 					if isinstance(child, model.InterfaceDependency):
 						add_node(iter, iface_cache.get_interface(child.interface))
 					else:
@@ -356,7 +359,13 @@ class InterfaceBrowser:
 						self.model[child_iter][InterfaceBrowser.ICON] = self.default_icon
 			else:
 				self.model[iter][InterfaceBrowser.VERSION] = _('(choose)')
-		add_node(None, self.root)
+		commands = self.policy.solver.selections.commands
+		if commands:
+			for command in commands:
+				add_node(None, self.root, command)
+		else:
+			# Nothing could be selected
+			add_node(None, self.root, None)
 		self.tree_view.expand_all()
 	
 	def show_popup_menu(self, iface, bev):
@@ -406,6 +415,9 @@ class InterfaceBrowser:
 		"""Called at regular intervals while there are downloads in progress,
 		and once at the end. Also called when things are added to the store.
 		Update the TreeView with the interfaces."""
+
+		# A download may be for a feed, an interface or an implementation.
+		# Create the reverse mapping (item -> download)
 		hints = {}
 		for dl in self.policy.handler.monitored_downloads.values():
 			if dl.hint:

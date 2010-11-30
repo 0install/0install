@@ -1,5 +1,6 @@
 <?xml version="1.0" ?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+	   xmlns:compile='http://zero-install.sourceforge.net/2006/namespaces/0compile'
 	   uri='http://foo/Source.xml'>
   <name>Source</name>
   <summary>Source</summary>
@@ -10,7 +11,7 @@
     <requires interface='http://foo/Compiler.xml'>
       <environment name='PATH' insert='bin'/>
     </requires>
-    <implementation id='sha1=234' version='1' version-modifier='.0' arch='*-src'>
+    <implementation id='sha1=234' version='1' version-modifier='.0' arch='*-src' compile:command='make'>
       <archive href='foo' size='10'/>
     </implementation>
     <environment name='SRCDIR' insert='.' mode='replace'/>

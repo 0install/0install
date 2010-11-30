@@ -4,64 +4,66 @@
 	<name>Langs</name>
 	<summary>Langs</summary>
 
-	<implementation id='sha1=1' version='1' arch='*-arch_1'>
-		<archive href='foo' size='10'/>
-	</implementation>
-	<implementation id='sha1=2' version='2' arch='*-arch_1' langs='ru'>
-		<archive href='foo' size='10'/>
-	</implementation>
-	<implementation id='sha1=3' version='3' arch='*-arch_1' langs='fr'>
-		<archive href='foo' size='10'/>
-	</implementation>
+	<group main='dummy'>
+		<implementation id='sha1=1' version='1' arch='*-arch_1'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=2' version='2' arch='*-arch_1' langs='ru'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=3' version='3' arch='*-arch_1' langs='fr'>
+			<archive href='foo' size='10'/>
+		</implementation>
 
-	<implementation id='sha1=4' version='4' arch='*-arch_2' langs='en'>
-		<archive href='foo' size='10'/>
-	</implementation>
-	<implementation id='sha1=5' version='5' arch='*-arch_2' langs='ru'>
-		<archive href='foo' size='10'/>
-	</implementation>
-	<implementation id='sha1=6' version='6' arch='*-arch_2' langs='en_RU'>
-		<archive href='foo' size='10'/>
-	</implementation>
+		<implementation id='sha1=4' version='4' arch='*-arch_2' langs='en'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=5' version='5' arch='*-arch_2' langs='ru'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=6' version='6' arch='*-arch_2' langs='en_RU'>
+			<archive href='foo' size='10'/>
+		</implementation>
 
-	<implementation id='sha1=7' version='7' arch='*-arch_3' langs='en_RU'>
-		<archive href='foo' size='10'/>
-	</implementation>
-	<implementation id='sha1=8' version='8' arch='*-arch_3' langs='en_US'>
-		<archive href='foo' size='10'/>
-	</implementation>
-	<implementation id='sha1=9' version='9' arch='*-arch_3' langs='en'>
-		<archive href='foo' size='10'/>
-	</implementation>
+		<implementation id='sha1=7' version='7' arch='*-arch_3' langs='en_RU'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=8' version='8' arch='*-arch_3' langs='en_US'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=9' version='9' arch='*-arch_3' langs='en'>
+			<archive href='foo' size='10'/>
+		</implementation>
 
-	<implementation id='sha1=10' version='10' arch='*-arch_4' langs='en_US'>
-		<archive href='foo' size='10'/>
-	</implementation>
-	<implementation id='sha1=11' version='11' arch='*-arch_4' langs='en'>
-		<archive href='foo' size='10'/>
-	</implementation>
-	<implementation id='sha1=12' version='12' arch='*-arch_4' langs='ru_RU'>
-		<archive href='foo' size='10'/>
-	</implementation>
+		<implementation id='sha1=10' version='10' arch='*-arch_4' langs='en_US'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=11' version='11' arch='*-arch_4' langs='en'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=12' version='12' arch='*-arch_4' langs='ru_RU'>
+			<archive href='foo' size='10'/>
+		</implementation>
 
-	<implementation id='sha1=13' version='13' arch='*-arch_5' langs='fr ru en'>
-		<archive href='foo' size='10'/>
-	</implementation>
-	<implementation id='sha1=14' version='14' arch='*-arch_5' langs='fr ru es'>
-		<archive href='foo' size='10'/>
-	</implementation>
+		<implementation id='sha1=13' version='13' arch='*-arch_5' langs='fr ru en'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=14' version='14' arch='*-arch_5' langs='fr ru es'>
+			<archive href='foo' size='10'/>
+		</implementation>
 
-	<implementation id='sha1=15' version='15' arch='*-arch_6' langs='zh_CN'>
-		<archive href='foo' size='10'/>
-	</implementation>
-	<implementation id='sha1=16' version='15' arch='*-arch_6' langs='zh_TW'>
-		<archive href='foo' size='10'/>
-	</implementation>
+		<implementation id='sha1=15' version='15' arch='*-arch_6' langs='zh_CN'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=16' version='15' arch='*-arch_6' langs='zh_TW'>
+			<archive href='foo' size='10'/>
+		</implementation>
 
-	<implementation id='sha1=17' version='16' arch='*-arch_7' langs='bn'>
-		<archive href='foo' size='10'/>
-	</implementation>
-	<implementation id='sha1=18' version='16' arch='*-arch_7' langs='bn_IN'>
-		<archive href='foo' size='10'/>
-	</implementation>
+		<implementation id='sha1=17' version='16' arch='*-arch_7' langs='bn'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=18' version='16' arch='*-arch_7' langs='bn_IN'>
+			<archive href='foo' size='10'/>
+		</implementation>
+	</group>
 </interface>

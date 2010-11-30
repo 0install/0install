@@ -8,9 +8,9 @@ Load and save a set of chosen implementations.
 
 from zeroinstall import _
 from zeroinstall.injector.policy import Policy
-from zeroinstall.injector.model import process_binding, process_depends, binding_names
+from zeroinstall.injector.model import process_binding, process_depends, binding_names, Command
 from zeroinstall.injector.namespaces import XMLNS_IFACE
-from zeroinstall.injector.qdom import Element
+from zeroinstall.injector.qdom import Element, Prefixes
 from zeroinstall.support import tasks
 
 class Selection(object):
@@ -86,10 +86,12 @@ class Selections(object):
 	A selected set of components which will make up a complete program.
 	@ivar interface: the interface of the program
 	@type interface: str
+	@ivar commands: how to run this selection (will contain more than one item if runners are used)
+	@type commands: [{L{Command}}]
 	@ivar selections: the selected implementations
 	@type selections: {str: L{Selection}}
 	"""
-	__slots__ = ['interface', 'selections']
+	__slots__ = ['interface', 'selections', 'commands']
 
 	def __init__(self, source):
 		"""Constructor.
@@ -99,7 +101,8 @@ class Selections(object):
 		self.selections = {}
 
 		if source is None:
-			pass
+			self.commands = []
+			# (Solver will fill everything in)
 		elif isinstance(source, Policy):
 			self._init_from_policy(source)
 		elif isinstance(source, Element):
@@ -113,17 +116,21 @@ class Selections(object):
 		@param policy: the policy giving the selected implementations."""
 		self.interface = policy.root
 		self.selections = policy.solver.selections.selections
+		self.commands = policy.solver.selections.commands
 
 	def _init_from_qdom(self, root):
 		"""Parse and load a selections document.
 		@param root: a saved set of selections."""
 		self.interface = root.getAttribute('interface')
 		assert self.interface
+		self.commands = []
 
 		for selection in root.childNodes:
 			if selection.uri != XMLNS_IFACE:
 				continue
 			if selection.name != 'selection':
+				if selection.name == 'command':
+					self.commands.append(Command(selection, None))
 				continue
 
 			requires = []
@@ -135,7 +142,7 @@ class Selections(object):
 				if dep_elem.name in binding_names:
 					bindings.append(process_binding(dep_elem))
 				elif dep_elem.name == 'requires':
-					dep = process_depends(dep_elem)
+					dep = process_depends(dep_elem, None)
 					requires.append(dep)
 				elif dep_elem.name == 'manifest-digest':
 					for aname, avalue in dep_elem.attrs.iteritems():
@@ -149,8 +156,18 @@ class Selections(object):
 				if alg in ('sha1', 'sha1new', 'sha256'):
 					digests.append(sel_id)
 
+			iface_uri = selection.attrs['interface']
+
 			s = XMLSelection(requires, bindings, selection.attrs, digests)
-			self.selections[selection.attrs['interface']] = s
+			self.selections[iface_uri] = s
+
+		if not self.commands:
+			# Old-style selections document; use the main attribute
+			if iface_uri == self.interface:
+				root_sel = self.selections[self.interface]
+				main = root_sel.attrs.get('main', None)
+				if main is not None:
+					self.commands = [Command(Element(XMLNS_IFACE, 'command', {'path': main}), None)]
 	
 	def toDOM(self):
 		"""Create a DOM document for the selected implementations.
@@ -171,15 +188,7 @@ class Selections(object):
 
 		root.setAttributeNS(None, 'interface', self.interface)
 
-		def ensure_prefix(prefixes, ns):
-			prefix = prefixes.get(ns, None)
-			if prefix:
-				return prefix
-			prefix = 'ns%d' % len(prefixes)
-			prefixes[ns] = prefix
-			return prefix
-
-		prefixes = {}
+		prefixes = Prefixes()
 
 		for iface, selection in sorted(self.selections.items()):
 			selection_elem = doc.createElementNS(XMLNS_IFACE, 'selection')
@@ -189,11 +198,12 @@ class Selections(object):
 			for name, value in selection.attrs.iteritems():
 				if ' ' in name:
 					ns, localName = name.split(' ', 1)
-					selection_elem.setAttributeNS(ns, ensure_prefix(prefixes, ns) + ':' + localName, value)
-				elif name != 'from-feed':
-					selection_elem.setAttributeNS(None, name, value)
-				elif value != selection.attrs['interface']:
+					selection_elem.setAttributeNS(ns, prefixes.get(ns) + ':' + localName, value)
+				elif name == 'from-feed':
 					# Don't bother writing from-feed attr if it's the same as the interface
+					if value != selection.attrs['interface']:
+						selection_elem.setAttributeNS(None, name, value)
+				elif name not in ('main', 'self-test'):	# (replaced by <command>)
 					selection_elem.setAttributeNS(None, name, value)
 
 			if selection.digests:
@@ -220,12 +230,15 @@ class Selections(object):
 						dep_elem.setAttributeNS(None, localName, dep.metadata[m])
 					else:
 						ns, localName = parts
-						dep_elem.setAttributeNS(ns, ensure_prefix(prefixes, ns) + ':' + localName, dep.metadata[m])
+						dep_elem.setAttributeNS(ns, prefixes.get(ns) + ':' + localName, dep.metadata[m])
 
 				for b in dep.bindings:
 					dep_elem.appendChild(b._toxml(doc))
 
-		for ns, prefix in prefixes.items():
+		for command in self.commands:
+			root.appendChild(command._toxml(doc, prefixes))
+
+		for ns, prefix in prefixes.prefixes.items():
 			root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns:' + prefix, ns)
 
 		return doc

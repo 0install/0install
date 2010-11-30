@@ -4,7 +4,7 @@
   <name>Compiler</name>
   <summary>Compiler</summary>
   <description>Compiler</description>
-  <implementation id='sha1=345' version='1.0'>
+  <implementation id='sha1=345' version='1.0' main='gcc'>
     <archive href='foo' size='10'/>
   </implementation>
 </interface>

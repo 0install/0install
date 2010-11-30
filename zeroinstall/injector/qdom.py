@@ -16,7 +16,7 @@ class Element(object):
 	@type uri: str
 	@ivar name: the element's localName
 	@type name: str
-	@ivar attrs: the element's attributes (key is in the form [namespace " "] localName
+	@ivar attrs: the element's attributes (key is in the form [namespace " "] localName)
 	@type attrs: {str: str}
 	@ivar childNodes: children
 	@type childNodes: [L{Element}]
@@ -27,6 +27,7 @@ class Element(object):
 		self.uri = uri
 		self.name = name
 		self.attrs = attrs.copy()
+		self.content = None
 		self.childNodes = []
 	
 	def __str__(self):
@@ -41,6 +42,25 @@ class Element(object):
 	
 	def getAttribute(self, name):
 		return self.attrs.get(name, None)
+
+	def toDOM(self, doc, prefixes):
+		"""Create a DOM Element for this qdom.Element.
+		@param doc: document to use to create the element
+		@return: the new element
+		"""
+		elem = doc.createElementNS(self.uri, self.name)
+		for fullname, value in self.attrs.iteritems():
+			if ' ' in fullname:
+				ns, localName = fullname.split(' ', 1)
+				name = prefixes.get(ns) + ':' + localName
+			else:
+				ns, name = None, fullname
+			elem.setAttributeNS(ns, name, value)
+		for child in self.childNodes:
+			elem.appendChild(child.toDOM(doc, prefixes))
+		if self.content:
+			elem.appendChild(doc.createTextNode(self.content))
+		return elem
 
 class QSAXhandler:
 	"""SAXHandler that builds a tree of L{Element}s"""
@@ -83,3 +103,18 @@ def parse(source):
 
 	parser.ParseFile(source)
 	return handler.doc
+
+class Prefixes:
+	"""Keep track of namespace prefixes. Used when serialising a document.
+	@since: 0.51
+	"""
+	def __init__(self):
+		self.prefixes = {}
+
+	def get(self, ns):
+		prefix = self.prefixes.get(ns, None)
+		if prefix:
+			return prefix
+		prefix = 'ns%d' % len(self.prefixes)
+		self.prefixes[ns] = prefix
+		return prefix

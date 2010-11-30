@@ -1,0 +1,8 @@
+#!/bin/sh
+if [ "$1" != "runner-arg" ]; then
+  exit 1
+fi
+shift
+script=$1
+shift
+echo Runner: script=`cat $script`: args=$@

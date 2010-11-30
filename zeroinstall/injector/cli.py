@@ -160,7 +160,8 @@ def _normal_mode(options, args):
 	policy = autopolicy.AutoPolicy(iface_uri,
 				handler = h,
 				download_only = bool(options.download_only),
-				src = options.source)
+				src = options.source,
+				command = options.command)
 
 	if options.before or options.not_before:
 		policy.solver.extra_restrictions[root_iface] = [model.VersionRangeRestriction(model.parse_version(options.before),
@@ -267,6 +268,9 @@ def _normal_mode(options, args):
 					gui_args += ['--with-store', x]
 			if options.select_only:
 				gui_args.append('--select-only')
+			if options.command:
+				gui_args.append('--command')
+				gui_args.append(options.command)
 			sels = _fork_gui(iface_uri, gui_args, prog_args, options)
 			if not sels:
 				sys.exit(1)		# Aborted
@@ -313,7 +317,7 @@ def _get_selections(sels, options):
 	if options.show:
 		from zeroinstall import zerostore
 		done = set()	# detect cycles
-		def print_node(uri, indent):
+		def print_node(uri, command, indent):
 			if uri in done: return
 			done.add(uri)
 			impl = sels.selections.get(uri, None)
@@ -329,14 +333,20 @@ def _get_selections(sels, options):
 					path = "(not cached)"
 				print indent + "  Path:", path
 				indent += "  "
-				for child in impl.dependencies:
+				deps = impl.dependencies
+				if command:
+					deps += command.requires
+				for child in deps:
 					if isinstance(child, model.InterfaceDependency):
-						print_node(child.interface, indent)
+						print_node(child.interface, None, indent)
 			else:
 				print indent + "  No selected version"
 
 
-		print_node(sels.interface, "")
+		uri = sels.interface
+		for command in sels.commands:
+			print_node(uri, command, "")
+
 	else:
 		doc = sels.toDOM()
 		doc.writexml(sys.stdout)
@@ -364,6 +374,7 @@ def main(command_args):
 				    "       %prog --import [signed-interface-files]\n"
 				    "       %prog --feed [interface]"))
 	parser.add_option("", "--before", help=_("choose a version before this"), metavar='VERSION')
+	parser.add_option("", "--command", help=_("command to select"), metavar='COMMAND')
 	parser.add_option("-c", "--console", help=_("never use GUI"), action='store_false', dest='gui')
 	parser.add_option("", "--cpu", help=_("target CPU type"), metavar='CPU')
 	parser.add_option("-d", "--download-only", help=_("fetch but don't run"), action='store_true')

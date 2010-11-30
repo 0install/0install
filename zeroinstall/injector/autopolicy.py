@@ -20,13 +20,13 @@ from zeroinstall.injector.handler import Handler
 class AutoPolicy(policy.Policy):
 	__slots__ = ['download_only']
 
-	def __init__(self, interface_uri, download_only = False, dry_run = False, src = False, handler = None):
+	def __init__(self, interface_uri, download_only = False, dry_run = False, src = False, handler = None, command = 'run'):
 		"""@param handler: (new in 0.30) handler to use, or None to create a L{Handler}"""
 		handler = handler or Handler()
 		if dry_run:
 			info(_("Note: dry_run is deprecated. Pass it to the handler instead!"))
 			handler.dry_run = True
-		policy.Policy.__init__(self, interface_uri, handler, src = src)
+		policy.Policy.__init__(self, interface_uri, handler, src = src, command = command)
 		self.download_only = download_only
 
 	def execute(self, prog_args, main = None, wrapper = None):

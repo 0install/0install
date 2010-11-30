@@ -54,7 +54,7 @@ class TestAutoPolicy(BaseTest):
   <name>Foo</name>
   <summary>Foo</summary>
   <description>Foo</description>
-  <implementation id='unknown=123' version='1.0'>
+  <implementation main='.' id='unknown=123' version='1.0'>
     <archive href='http://foo/foo.tgz' size='100'/>
   </implementation>
 </interface>""" % foo_iface_uri)
@@ -105,7 +105,7 @@ class TestAutoPolicy(BaseTest):
 			policy.download_and_execute(['Hello'])
 			assert 0
 		except model.SafeException, ex:
-			assert "library" in str(ex)
+			assert "library" in str(ex), ex
 		tmp.close()
 
 	def testNeedDL(self):
@@ -227,7 +227,7 @@ class TestAutoPolicy(BaseTest):
   <name>Bar</name>
   <summary>Bar</summary>
   <description>Bar</description>
-  <implementation version='1.0' id='sha1=123'>
+  <implementation version='1.0' id='sha1=123' main='dummy'>
     <archive href='foo' size='10'/>
   </implementation>
 </interface>""" % foo_iface_uri)
@@ -307,7 +307,7 @@ class TestAutoPolicy(BaseTest):
   <name>Foo</name>
   <summary>Foo</summary>
   <description>Foo</description>
-  <implementation id='sha1=123' version='1.0' arch='odd-weird'/>
+  <implementation id='sha1=123' version='1.0' arch='odd-weird' main='dummy'/>
 </interface>""" % foo_iface_uri)
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
 						download_only = False)
@@ -318,7 +318,7 @@ class TestAutoPolicy(BaseTest):
 			policy.download_and_execute([])
 			assert False
 		except model.SafeException, ex:
-			assert "Can't find all required implementations" in str(ex)
+			assert "has no usable implementations" in str(ex), ex
 
 	def testNoArchives(self):
 		self.cache_iface(foo_iface_uri,
@@ -329,7 +329,7 @@ class TestAutoPolicy(BaseTest):
   <name>Foo</name>
   <summary>Foo</summary>
   <description>Foo</description>
-  <implementation id='sha1=123' version='1.0'/>
+  <implementation id='sha1=123' version='1.0' main='dummy'/>
 </interface>""" % foo_iface_uri)
 		policy = autopolicy.AutoPolicy(foo_iface_uri,
 						download_only = False)
@@ -385,7 +385,7 @@ class TestAutoPolicy(BaseTest):
   <name>Foo</name>
   <summary>Foo</summary>
   <description>Foo</description>
-  <group>
+  <group main='dummy'>
    <requires interface='http://bar'>
     <version/>
    </requires>

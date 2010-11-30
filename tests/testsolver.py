@@ -33,8 +33,9 @@ class TestSolver(BaseTest):
 
 		# Now ask for source instead
 		s.solve('http://foo/Binary.xml',
-				arch.SourceArchitecture(binary_arch))
-		assert s.ready
+				arch.SourceArchitecture(binary_arch),
+				command_name = 'compile')
+		assert s.ready, s.get_failure_reason()
 		assert s.feeds_used == set([foo.uri, foo_src.uri, compiler.uri]), s.feeds_used
 		assert s.selections[foo].id == 'sha1=234'		# The source
 		assert s.selections[compiler].id == 'sha1=345'	# A binary needed to compile it
@@ -53,8 +54,8 @@ class TestSolver(BaseTest):
 
 		binary_arch = arch.Architecture({None: 1}, {None: 1})
 		s.record_details = True
-		s.solve('http://foo/Binary.xml', arch.SourceArchitecture(binary_arch))
-		assert s.ready
+		s.solve('http://foo/Binary.xml', arch.SourceArchitecture(binary_arch), command_name = 'compile')
+		assert s.ready, s.get_failure_reason()
 
 		foo_src_impls = iface_cache.get_feed(foo_src.uri).implementations
 		foo_impls = iface_cache.get_feed(foo.uri).implementations

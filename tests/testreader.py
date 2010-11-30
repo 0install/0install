@@ -156,28 +156,6 @@ class TestReader(BaseTest):
 		impl = feed.implementations['sha1=123']
 		assert impl.version == [[1, 0], -1, [3], -2]
 	
-	def testAbsMain(self):
-		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
-		tmp.write(
-"""<?xml version="1.0" ?>
-<interface last-modified="1110752708"
- uri="%s"
- xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <name>Foo</name>
-  <summary>Foo</summary>
-  <description>Foo</description>
-  <group main='/bin/sh'>
-   <implementation id='sha1=123' version='1'/>
-  </group>
-</interface>""" % foo_iface_uri)
-		tmp.flush()
-		iface = model.Interface(foo_iface_uri)
-		try:
-			reader.update(iface, tmp.name)
-			assert False
-		except reader.InvalidInterface, ex:
-			assert 'main' in str(ex)
-	
 	def testAttrs(self):
 		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
 		tmp.write(

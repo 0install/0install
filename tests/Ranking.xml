@@ -3,9 +3,11 @@
   <name>Ranking</name>
   <summary>ranking</summary>
 
-  <implementation local-path='.' id='i686' version='0.1' arch='Linux-i686'/>
-  <implementation local-path='.' id='i486' version='0.1' arch='Linux-i486'/>
-  <implementation local-path='.' id='64-bit' version='0.1' arch='Linux-x86_64'/>
-  <implementation local-path='.' id='i586' version='0.1' arch='Linux-i586'/>
-  <implementation local-path='.' id='i386' version='0.2' arch='Linux-i386'/>
+  <group main='dummy'>
+    <implementation local-path='.' id='i686' version='0.1' arch='Linux-i686'/>
+    <implementation local-path='.' id='i486' version='0.1' arch='Linux-i486'/>
+    <implementation local-path='.' id='64-bit' version='0.1' arch='Linux-x86_64'/>
+    <implementation local-path='.' id='i586' version='0.1' arch='Linux-i586'/>
+    <implementation local-path='.' id='i386' version='0.2' arch='Linux-i386'/>
+  </group>
 </interface>

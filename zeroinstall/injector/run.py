@@ -9,7 +9,8 @@ from zeroinstall import _
 import os, sys
 from logging import debug, info
 
-from zeroinstall.injector.model import SafeException, EnvironmentBinding
+from zeroinstall.injector.model import SafeException, EnvironmentBinding, Command
+from zeroinstall.injector import namespaces, qdom
 from zeroinstall.injector.iface_cache import iface_cache
 
 def do_env_binding(binding, path):
@@ -46,33 +47,6 @@ def _do_bindings(impl, bindings):
 
 def _get_implementation_path(impl):
 	return impl.local_path or iface_cache.stores.lookup_any(impl.digests)
-
-def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None):
-	"""Execute program. On success, doesn't return. On failure, raises an Exception.
-	Returns normally only for a successful dry run.
-	@param selections: the selected versions
-	@type selections: L{selections.Selections}
-	@param prog_args: arguments to pass to the program
-	@type prog_args: [str]
-	@param dry_run: if True, just print a message about what would have happened
-	@type dry_run: bool
-	@param main: the name of the binary to run, or None to use the default
-	@type main: str
-	@param wrapper: a command to use to actually run the binary, or None to run the binary directly
-	@type wrapper: str
-	@since: 0.27
-	@precondition: All implementations are in the cache.
-	"""
-	sels = selections.selections
-	for selection in sels.values():
-		_do_bindings(selection, selection.bindings)
-		for dep in selection.dependencies:
-			dep_impl = sels[dep.interface]
-			if not dep_impl.id.startswith('package:'):
-				_do_bindings(dep_impl, dep.bindings)
-	
-	root_impl = sels[selections.interface]
-	_execute(root_impl, prog_args, dry_run, main, wrapper)
 
 def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 	"""Run the program in a child process, collecting stdout and stderr.
@@ -113,43 +87,92 @@ def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 	
 	return results
 
-def _execute(root_impl, prog_args, dry_run, main, wrapper):
-	assert root_impl is not None
+def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None):
+	"""Execute program. On success, doesn't return. On failure, raises an Exception.
+	Returns normally only for a successful dry run.
+	@param selections: the selected versions
+	@type selections: L{selections.Selections}
+	@param prog_args: arguments to pass to the program
+	@type prog_args: [str]
+	@param dry_run: if True, just print a message about what would have happened
+	@type dry_run: bool
+	@param main: the name of the binary to run, or None to use the default
+	@type main: str
+	@param wrapper: a command to use to actually run the binary, or None to run the binary directly
+	@type wrapper: str
+	@since: 0.27
+	@precondition: All implementations are in the cache.
+	"""
+	commands = selections.commands
+	sels = selections.selections
+	for selection in sels.values():
+		_do_bindings(selection, selection.bindings)
+		for dep in selection.dependencies:
+			dep_impl = sels[dep.interface]
+			if not dep_impl.id.startswith('package:'):
+				_do_bindings(dep_impl, dep.bindings)
+	# Process commands' dependencies' bindings too
+	# (do this here because we still want the bindings, even with --main)
+	for command in commands:
+		for dep in command.requires:
+			dep_impl = sels[dep.interface]
+			if not dep_impl.id.startswith('package:'):
+				_do_bindings(dep_impl, dep.bindings)
 
-	if root_impl.id.startswith('package:'):
-		main = main or root_impl.main
-		prog_path = main
-	else:
-		if main is None:
-			main = root_impl.main
-		elif main.startswith('/'):
-			main = main[1:]
-		elif root_impl.main:
-			main = os.path.join(os.path.dirname(root_impl.main), main)
-		if main is not None:
-			prog_path = os.path.join(_get_implementation_path(root_impl), main)
 
-	if main is None:
-		raise SafeException(_("Implementation '%s' cannot be executed directly; it is just a library "
-				    "to be used by other programs (or missing 'main' attribute)") %
-				    root_impl)
+	root_sel = sels[selections.interface]
 
-	if not os.path.exists(prog_path):
+	assert root_sel is not None
+
+	if main is not None:
+		# Replace first command with user's input
+		old_path = commands[0].path
+		if main.startswith('/'):
+			main = main[1:]			# User specified a path relative to the package root
+		else:
+			assert old_path
+			main = os.path.join(os.path.dirname(old_path), main)	# User main is relative to command's name
+		user_command = Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': main}), None)
+		commands = [user_command] + commands[1:]
+
+	command_iface = selections.interface
+	for command in commands:
+		command_sel = sels[command_iface]
+
+		command_args = []
+		for child in command.qdom.childNodes:
+			if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
+				command_args.append(child.content)
+
+		command_path = command.path
+
+		if command_sel.id.startswith('package:'):
+			prog_path = command_path
+		else:
+			if command_path.startswith('/'):
+				raise SafeException(_("Command path must be relative, but '%s' starts with '/'!") %
+							command_path)
+			prog_path = os.path.join(_get_implementation_path(root_sel), command_path)
+
+		assert prog_path is not None
+
+		prog_args = [prog_path] + command_args + prog_args
+
+	if not os.path.exists(prog_args[0]):
 		raise SafeException(_("File '%(program_path)s' does not exist.\n"
 				"(implementation '%(implementation_id)s' + program '%(main)s')") %
-				{'program_path': prog_path, 'implementation_id': root_impl.id,
-				'main': main})
+				{'program_path': prog_args[0], 'implementation_id': root_sel.id,
+				'main': commands[0].path})
 	if wrapper:
-		prog_args = ['-c', wrapper + ' "$@"', '-', prog_path] + list(prog_args)
-		prog_path = '/bin/sh'
+		prog_args = ['/bin/sh', '-c', wrapper + ' "$@"', '-'] + list(prog_args)
 
 	if dry_run:
-		print _("Would execute: %s") % ' '.join([prog_path] + prog_args)
+		print _("Would execute: %s") % ' '.join(prog_args)
 	else:
-		info(_("Executing: %s"), prog_path)
+		info(_("Executing: %s"), prog_args)
 		sys.stdout.flush()
 		sys.stderr.flush()
 		try:
-			os.execl(prog_path, prog_path, *prog_args)
+			os.execv(prog_args[0], prog_args)
 		except OSError, ex:
-			raise SafeException(_("Failed to run '%(program_path)s': %(exception)s") % {'program_path': prog_path, 'exception': str(ex)})
+			raise SafeException(_("Failed to run '%(program_path)s': %(exception)s") % {'program_path': prog_args[0], 'exception': str(ex)})

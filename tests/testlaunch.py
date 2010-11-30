@@ -8,9 +8,12 @@ import logging
 foo_iface_uri = 'http://foo'
 
 sys.path.insert(0, '..')
+from zeroinstall import SafeException
 from zeroinstall.injector import autopolicy, model, cli, namespaces, qdom, selections
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
 from zeroinstall.support import basedir
+
+mydir = os.path.abspath(os.path.dirname(__file__))
 
 class SilenceLogger(logging.Filter):
 	def filter(self, record):
@@ -98,11 +101,33 @@ class TestLaunch(BaseTest):
 	def testRun(self):
 		out, err = self.run_0launch(['Local.xml'])
 		self.assertEquals("", out)
-		assert "test-echo' does not exist" in err
+		assert "test-echo' does not exist" in err, err
+
+	def testAbsMain(self):
+		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp.write(
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <group main='/bin/sh'>
+   <implementation id='.' version='1'/>
+  </group>
+</interface>""" % foo_iface_uri)
+		tmp.flush()
+		policy = autopolicy.AutoPolicy(tmp.name)
+		try:
+			policy.download_and_execute([])
+			assert False
+		except SafeException, ex:
+			assert 'Command path must be relative' in str(ex), ex
 
 	def testOffline(self):
 		out, err = self.run_0launch(['--offline', 'http://foo/d'])
-		self.assertEquals("Can't find all required implementations:\n- <Interface http://foo/d> -> None\n", err)
+		self.assertEquals("Interface 'http://foo/d' has no usable implementations\n", err)
 		self.assertEquals("", out)
 
 	def testDisplay(self):
@@ -197,6 +222,12 @@ class TestLaunch(BaseTest):
 			cli.main(['--list', 'UNKNOWN'])
 		finally:
 			os.dup2(copy, 1)
+
+	def testShow(self):
+		command_feed = os.path.join(mydir, 'Command.xml')
+		out, err = self.run_0launch(['--show', command_feed])
+		self.assertEquals("", err)
+		assert 'Local.xml' in out, out
 
 if __name__ == '__main__':
 	unittest.main()

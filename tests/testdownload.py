@@ -109,7 +109,7 @@ class TestDownload(BaseTest):
 				policy.download_and_execute(['Hello'])
 				assert 0
 			except model.SafeException, ex:
-				if "Can't find all required implementations" not in str(ex):
+				if "has no usable implementations" not in str(ex):
 					raise ex
 				if "Not signed with a trusted key" not in str(policy.handler.ex):
 					raise ex
@@ -125,7 +125,7 @@ class TestDownload(BaseTest):
 				policy.download_and_execute(['Hello'])
 				assert 0
 			except model.SafeException, ex:
-				if "Can't find all required implementations" not in str(ex):
+				if "has no usable implementations" not in str(ex):
 					raise ex
 				if "Not signed with a trusted key" not in str(policy.handler.ex):
 					raise
