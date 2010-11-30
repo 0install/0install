@@ -119,7 +119,6 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 			if not dep_impl.id.startswith('package:'):
 				_do_bindings(dep_impl, dep.bindings)
 
-
 	root_sel = sels[selections.interface]
 
 	assert root_sel is not None
@@ -134,6 +133,9 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 			main = os.path.join(os.path.dirname(old_path), main)	# User main is relative to command's name
 		user_command = Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': main}), None)
 		commands = [user_command] + commands[1:]
+
+	if commands[-1].path is None:
+		raise SafeException("Missing 'path' attribute on <command>")
 
 	command_iface = selections.interface
 	for command in commands:
@@ -152,17 +154,21 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 			if command_path.startswith('/'):
 				raise SafeException(_("Command path must be relative, but '%s' starts with '/'!") %
 							command_path)
-			prog_path = os.path.join(_get_implementation_path(root_sel), command_path)
+			prog_path = os.path.join(_get_implementation_path(command_sel), command_path)
 
 		assert prog_path is not None
 
 		prog_args = [prog_path] + command_args + prog_args
 
+		runner = command.get_runner()
+		if runner:
+			command_iface = runner.interface
+
 	if not os.path.exists(prog_args[0]):
 		raise SafeException(_("File '%(program_path)s' does not exist.\n"
 				"(implementation '%(implementation_id)s' + program '%(main)s')") %
-				{'program_path': prog_args[0], 'implementation_id': root_sel.id,
-				'main': commands[0].path})
+				{'program_path': prog_args[0], 'implementation_id': command_sel.id,
+				'main': commands[-1].path})
 	if wrapper:
 		prog_args = ['/bin/sh', '-c', wrapper + ' "$@"', '-'] + list(prog_args)
 
