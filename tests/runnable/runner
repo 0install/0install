@@ -3,6 +3,11 @@ if [ "$1" != "runner-arg" ]; then
   exit 1
 fi
 shift
+mydir="$1"
+if [ ! -f "$mydir/Runnable.xml" ]; then
+  exit 1
+fi
+shift
 if [ "$1" != "arg-for-runner" ]; then
   exit 1
 fi

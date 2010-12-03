@@ -4,8 +4,10 @@
   <summary>test runner</summary>
 
   <implementation id="test" local-path="." version="1">
+    <environment name='SELF' insert='.' mode='replace'/>
     <command name="run" path="runner">
       <arg>runner-arg</arg>
+      <arg>${SELF}</arg>
     </command>
   </implementation>
 </interface>

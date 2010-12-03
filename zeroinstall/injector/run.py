@@ -8,6 +8,7 @@ Executes a set of implementations as a program.
 from zeroinstall import _
 import os, sys
 from logging import debug, info
+from string import Template
 
 from zeroinstall.injector.model import SafeException, EnvironmentBinding, Command
 from zeroinstall.injector import namespaces, qdom
@@ -87,6 +88,12 @@ def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 	
 	return results
 
+def _process_args(args, element):
+	"""Append each <arg> under <element> to args, performing $-expansion."""
+	for child in element.childNodes:
+		if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
+			args.append(Template(child.content).substitute(os.environ))
+
 def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
 	Returns normally only for a successful dry run.
@@ -147,9 +154,7 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		runner = command.get_runner()
 		if runner:
 			command_iface = runner.interface
-			for child in runner.qdom.childNodes:
-				if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
-					command_args.append(child.content)
+			_process_args(command_args, runner.qdom)
 
 		# Add main program path
 		command_path = command.path
@@ -166,9 +171,7 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 			command_args.append(prog_path)
 
 		# Add extra arguments for program
-		for child in command.qdom.childNodes:
-			if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
-				command_args.append(child.content)
+		_process_args(command_args, command.qdom)
 
 		prog_args = command_args + prog_args
 
