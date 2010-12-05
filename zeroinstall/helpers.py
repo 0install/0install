@@ -105,7 +105,7 @@ def ensure_cached(uri, command = 'run'):
 	available, or the console otherwise.
 	@param uri: the required interface
 	@type uri: str
-	@return: a new policy for this program, or None if the user cancelled
+	@return: the selected implementations, or None if the user cancelled
 	@rtype: L{zeroinstall.injector.selections.Selections}
 	"""
 	from zeroinstall.injector import autopolicy, selections
@@ -117,8 +117,7 @@ def ensure_cached(uri, command = 'run'):
 		if os.environ.get('DISPLAY', None):
 			return get_selections_gui(uri, ['--command', command])
 		else:
-			p.recalculate_with_dl()
-			p.start_downloading_impls()
-			p.handler.wait_for_downloads()
+			done = p.solve_and_download_impls()
+			p.handler.wait_for_blocker(done)
 
 	return selections.Selections(p)
