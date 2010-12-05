@@ -85,7 +85,7 @@ class install_data_locale(install_data):
 		mo_files = glob.glob("share/locale/*/LC_MESSAGES/zero-install.mo")
 		assert mo_files
 		for mo in mo_files:
-			dest = os.path.dirname(os.path.join('share', mo))
+			dest = os.path.dirname(mo)
 			i18nfiles.append((dest, [mo]))
 		return i18nfiles
 
