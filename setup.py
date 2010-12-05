@@ -82,7 +82,9 @@ class install_data_locale(install_data):
 
 	def _compile_po_files(self):
 		i18nfiles = []
-		for mo in glob.glob("locale/*/LC_MESSAGES/zero-install.mo"):
+		mo_files = glob.glob("share/locale/*/LC_MESSAGES/zero-install.mo")
+		assert mo_files
+		for mo in mo_files:
 			dest = os.path.dirname(os.path.join('share', mo))
 			i18nfiles.append((dest, [mo]))
 		return i18nfiles
