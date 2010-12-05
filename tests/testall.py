@@ -46,6 +46,7 @@ if coverage:
 		for x in os.listdir(d):
 			if x.endswith('.py'):
 				all_sources.append(os.path.join(d, x))
+	incl('../zeroinstall')
 	incl('../zeroinstall/injector')
 	incl('../zeroinstall/zerostore')
 	coverage.report(all_sources + ['../0launch'])
