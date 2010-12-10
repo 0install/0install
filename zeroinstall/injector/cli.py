@@ -157,11 +157,16 @@ def _normal_mode(options, args):
 		h = handler.Handler()
 	h.dry_run = bool(options.dry_run)
 
+	command_name = options.command
+	if command_name is None:
+		command_name = 'run'
+	elif command_name == '':
+		command_name = None
 	policy = autopolicy.AutoPolicy(iface_uri,
 				handler = h,
 				download_only = bool(options.download_only),
 				src = options.source,
-				command = options.command)
+				command = command_name)
 
 	if options.before or options.not_before:
 		policy.solver.extra_restrictions[root_iface] = [model.VersionRangeRestriction(model.parse_version(options.before),
@@ -268,9 +273,9 @@ def _normal_mode(options, args):
 					gui_args += ['--with-store', x]
 			if options.select_only:
 				gui_args.append('--select-only')
-			if options.command:
+			if command_name is not None:
 				gui_args.append('--command')
-				gui_args.append(options.command)
+				gui_args.append(command_name)
 			sels = _fork_gui(iface_uri, gui_args, prog_args, options)
 			if not sels:
 				sys.exit(1)		# Aborted

@@ -64,7 +64,7 @@ class Policy(object):
 
 	ready = property(lambda self: self.solver.ready)
 
-	def __init__(self, root, handler = None, src = False, command = None):
+	def __init__(self, root, handler = None, src = False, command = -1):
 		"""
 		@param root: The URI of the root interface (the program we want to run).
 		@param handler: A handler for main-loop integration.
@@ -77,7 +77,7 @@ class Policy(object):
 		self.watchers = []
 		self.src = src				# Root impl must be a "src" machine type
 		self.stale_feeds = set()
-		if command is None:
+		if command == -1:
 			if src:
 				command = 'compile'
 			else:

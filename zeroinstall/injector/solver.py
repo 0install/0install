@@ -110,7 +110,7 @@ class Solver(object):
 		@param root_arch: the desired target architecture
 		@type root_arch: L{arch.Architecture}
 		@param command_name: which <command> element to select
-		@type command_name: str
+		@type command_name: str | None
 		@postcondition: self.ready, self.selections and self.feeds_used are updated"""
 		raise NotImplementedError("Abstract")
 
@@ -466,24 +466,27 @@ class SATSolver(Solver):
 
 			return var_names
 
-		commands = add_command_iface(root_interface, root_arch, command_name)
-		if commands:
-			problem.add_clause(commands)		# At least one
-			group_clause_for_command[(root_interface, command_name)] = problem.at_most_one(commands)
+		if command_name is None:
+			add_iface(root_interface, root_arch)
 		else:
-			# (note: might be because we haven't cached it yet)
-			info("No %s <command> in %s", command_name, root_interface)
-
-			impls = impls_for_iface[self.iface_cache.get_interface(root_interface)]
-			if impls == [] or (len(impls) == 1 and isinstance(impls[0], _DummyImpl)):
-				# There were no candidates at all.
-				self._failure_reason = _("Interface '%s' has no usable implementations") % root_interface
+			commands = add_command_iface(root_interface, root_arch, command_name)
+			if commands:
+				problem.add_clause(commands)		# At least one
+				group_clause_for_command[(root_interface, command_name)] = problem.at_most_one(commands)
 			else:
-				# We had some candidates implementations, but none for the command we need
-				self._failure_reason = _("Interface '%s' cannot be executed directly; it is just a library "
-					    "to be used by other programs (or missing '%s' command)") % (root_interface, command_name)
+				# (note: might be because we haven't cached it yet)
+				info("No %s <command> in %s", command_name, root_interface)
 
-			problem.impossible()
+				impls = impls_for_iface[self.iface_cache.get_interface(root_interface)]
+				if impls == [] or (len(impls) == 1 and isinstance(impls[0], _DummyImpl)):
+					# There were no candidates at all.
+					self._failure_reason = _("Interface '%s' has no usable implementations") % root_interface
+				else:
+					# We had some candidates implementations, but none for the command we need
+					self._failure_reason = _("Interface '%s' cannot be executed directly; it is just a library "
+						    "to be used by other programs (or missing '%s' command)") % (root_interface, command_name)
+
+				problem.impossible()
 
 		# Require m<group> to be true if we select an implementation in that group
 		m_groups = []
@@ -595,7 +598,8 @@ class SATSolver(Solver):
 						# TODO: allow depending on other commands, besides 'run'?
 						add_command(runner.metadata['interface'], 'run')
 
-			add_command(root_interface, command_name)
+			if command_name is not None:
+				add_command(root_interface, command_name)
 
 	def get_failure_reason(self):
 		"""Return an exception explaining why the solve failed."""
