@@ -399,8 +399,8 @@ class Fetcher(object):
 		if not mime_type:
 			raise SafeException(_("No 'type' attribute on archive, and I can't guess from the name (%s)") % download_source.url)
 		unpack.check_type_ok(mime_type)
-		dl = self.handler.get_download(download_source.url, force = force, hint = impl_hint)
-		dl.expected_size = download_source.size + (download_source.start_offset or 0)
+		expected_size = download_source.size + (download_source.start_offset or 0)
+		dl = self.handler.get_download(download_source.url, force = force, hint = impl_hint, expected_size = expected_size)
 		return (dl.downloaded, dl.tempfile)
 
 	def download_icon(self, interface, force = False, modification_time = None):

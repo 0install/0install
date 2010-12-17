@@ -38,7 +38,7 @@ class DownloadAborted(DownloadError):
 	def __init__(self, message = None):
 		SafeException.__init__(self, message or _("Download aborted at user's request"))
 
-class Download(object):
+class ForkDownload(object):
 	"""A download of a single resource to a temporary file.
 	@ivar url: the URL of the resource being fetched
 	@type url: str
@@ -212,3 +212,6 @@ class Download(object):
 	
 	def __str__(self):
 		return _("<Download from %s>") % self.url
+
+
+Download = ForkDownload

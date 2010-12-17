@@ -159,12 +159,24 @@ class IdleBlocker(Blocker):
 		Blocker.add_task(self, task)
 		self.trigger()
 
+main_context = gobject.main_context_default()
+
+def timeout_add(interval, callback, *args):
+    source = gobject.Timeout(interval)
+    source.set_callback(callback, *args)
+    return source.attach(main_context)
+
+def idle_add(callback, *args):
+    source = gobject.Idle()
+    source.set_callback(callback, *args)
+    return source.attach(main_context)
+
 class TimeoutBlocker(Blocker):
 	"""Triggers after a set number of seconds."""
 	def __init__(self, timeout, name):
 		"""Trigger after 'timeout' seconds (may be a fraction)."""
 		Blocker.__init__(self, name)
-		gobject.timeout_add(long(timeout * 1000), self._timeout)
+		timeout_add(long(timeout * 1000), self._timeout)
 	
 	def _timeout(self):
 		self.trigger()
@@ -300,7 +312,7 @@ class Task:
 # Must append to _run_queue right after calling this!
 def _schedule():
 	assert not _run_queue
-	gobject.idle_add(_handle_run_queue)
+	idle_add(_handle_run_queue)
 
 def _handle_run_queue():
 	global _idle_blocker
