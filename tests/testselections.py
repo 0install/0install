@@ -131,5 +131,38 @@ class TestSelections(BaseTest):
 		dep_impl = s2.selections[dep_impl_uri]
 		assert dep_impl.id == 'sha1=256'
 
+	def testCache(self):
+		url = 'http://foo/Binary.xml'
+		iface = iface_cache.iface_cache.get_interface(url)
+		reader.update(iface, 'Binary.xml')
+
+		p = policy.Policy(url)
+		p.need_download()
+		sels = selections.Selections(p)
+		assert not sels.staled
+		touch("Binary.xml")
+		assert sels.staled
+
+		reader.update(iface, 'Binary.xml')
+		p.need_download()
+		sels = selections.Selections(p)
+		assert not sels.staled
+
+		assert selections.get_cached(url) is None
+		selections.set_cached(sels)
+		cached_sels = selections.get_cached(url)
+		assert cached_sels is not None
+		assert sels.toDOM().toxml() == cached_sels.toDOM().toxml()
+
+def touch(path):
+	if os.path.exists(path):
+		text = file(path).read()
+	else:
+		os.makedirs(os.path.dirname(path))
+		text = ""
+	f = file(path, 'w')
+	f.write(text)
+	f.close()
+
 if __name__ == '__main__':
 	unittest.main()

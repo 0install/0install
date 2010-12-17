@@ -53,6 +53,15 @@ class Preferences:
 			main.recalculate()
 		stable_toggle.connect('toggled', toggle_stability)
 
+		cache_toggle = widgets.get_widget('selections_cache')
+		cache_toggle.set_active(policy.selections_cache)
+		def toggle_cache(toggle):
+			policy.selections_cache = toggle.get_active()
+			policy.save_config()
+			import main
+			main.recalculate()
+		cache_toggle.connect('toggled', toggle_cache)
+
 		# Keys
 		keys_view = widgets.get_widget('trusted_keys')
 		KeyList(keys_view)

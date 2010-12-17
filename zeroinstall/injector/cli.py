@@ -168,6 +168,17 @@ def _normal_mode(options, args):
 				src = options.source,
 				command = command_name)
 
+	if not (options.refresh or options.gui) and \
+			(options.selections_cache or policy.selections_cache):
+		sels = selections.get_cached(iface_uri)
+		if sels is not None:
+			_download_missing_selections(options, sels)
+			if not options.download_only:
+				logging.debug(_("Lauch from cached selection"))
+				from zeroinstall.injector import run
+				run.execute_selections(sels, args[1:], options.dry_run, options.main, options.wrapper)
+			return
+
 	if options.before or options.not_before:
 		policy.solver.extra_restrictions[root_iface] = [model.VersionRangeRestriction(model.parse_version(options.before),
 									      		      model.parse_version(options.not_before))]
@@ -287,6 +298,9 @@ def _normal_mode(options, args):
 				policy.handler.wait_for_blocker(downloaded)
 			sels = selections.Selections(policy)
 
+		if options.selections_cache or policy.selections_cache:
+			selections.set_cached(sels)
+
 		if options.get_selections:
 			_get_selections(sels, options)
 		elif not options.download_only:
@@ -404,6 +418,7 @@ def main(command_args):
 	parser.add_option("-V", "--version", help=_("display version information"), action='store_true')
 	parser.add_option("", "--with-store", help=_("add an implementation cache"), action='append', metavar='DIR')
 	parser.add_option("-w", "--wrapper", help=_("execute program using a debugger, etc"), metavar='COMMAND')
+	parser.add_option("", "--selections_cache", help=_("force using selection caches"), action='store_true')
 	parser.disable_interspersed_args()
 
 	(options, args) = parser.parse_args(command_args)

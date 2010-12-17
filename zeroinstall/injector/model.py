@@ -706,11 +706,13 @@ class ZeroInstallFeed(object):
 	@type feeds: [L{Feed}]
 	@ivar feed_for: interfaces for which this could be a feed
 	@type feed_for: set(str)
+	@ivar feed_path: local filesystem path to the feed file
+	@type feed_path: set(str)
 	@ivar metadata: extra elements we didn't understand
 	"""
 	# _main is deprecated
 	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'summaries', '_package_implementations',
-		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata']
+		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata', 'feed_path']
 
 	def __init__(self, feed_element, local_path = None, distro = None):
 		"""Create a feed object from a DOM.
@@ -726,6 +728,7 @@ class ZeroInstallFeed(object):
 		self.feed_for = set()
 		self.metadata = []
 		self.last_checked = None
+		self.feed_path = None
 		self._package_implementations = []
 
 		if distro is not None:

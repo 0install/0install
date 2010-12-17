@@ -49,10 +49,12 @@ class Policy(object):
 	@type src: bool
 	@ivar stale_feeds: set of feeds which are present but haven't been checked for a long time
 	@type stale_feeds: set
+	@ivar selections_cache: seepup launching by keeping solved selections
+	@type selections_cache: bool
 	"""
 	__slots__ = ['root', 'watchers', 'command',
 		     'freshness', 'handler', '_warned_offline',
-		     'target_arch', 'src', 'stale_feeds', 'solver', '_fetcher']
+		     'target_arch', 'src', 'stale_feeds', 'solver', '_fetcher', 'selections_cache']
 	
 	help_with_testing = property(lambda self: self.solver.help_with_testing,
 				     lambda self, value: setattr(self.solver, 'help_with_testing', value))
@@ -103,6 +105,7 @@ class Policy(object):
 		config.set('global', 'help_with_testing', 'False')
 		config.set('global', 'freshness', str(60 * 60 * 24 * 30))	# One month
 		config.set('global', 'network_use', 'full')
+		config.set('global', 'selections_cache', 'False')
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
@@ -115,6 +118,7 @@ class Policy(object):
 		self.solver.help_with_testing = config.getboolean('global', 'help_with_testing')
 		self.solver.network_use = config.get('global', 'network_use')
 		self.freshness = int(config.get('global', 'freshness'))
+		self.selections_cache = config.getboolean('global', 'selections_cache')
 		assert self.solver.network_use in network_levels, self.solver.network_use
 
 		self.set_root(root)
@@ -142,6 +146,7 @@ class Policy(object):
 		config.set('global', 'help_with_testing', self.help_with_testing)
 		config.set('global', 'network_use', self.network_use)
 		config.set('global', 'freshness', self.freshness)
+		config.set('global', 'selections_cache', self.selections_cache)
 
 		path = basedir.save_config_path(config_site, config_prog)
 		path = os.path.join(path, 'global')

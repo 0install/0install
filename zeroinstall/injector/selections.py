@@ -6,12 +6,15 @@ Load and save a set of chosen implementations.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+import os
+from logging import warn
+
 from zeroinstall import _
 from zeroinstall.injector.policy import Policy
-from zeroinstall.injector.model import process_binding, process_depends, binding_names, Command
-from zeroinstall.injector.namespaces import XMLNS_IFACE
-from zeroinstall.injector.qdom import Element, Prefixes
-from zeroinstall.support import tasks
+from zeroinstall.injector.model import process_binding, process_depends, binding_names, Command, escape
+from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
+from zeroinstall.injector.qdom import Element, Prefixes, parse
+from zeroinstall.support import tasks, basedir
 
 class Selection(object):
 	"""A single selected implementation in a L{Selections} set.
@@ -55,6 +58,8 @@ class ImplSelection(Selection):
 		attrs['version'] = impl.get_version()
 		attrs['interface'] = iface_uri
 		attrs['from-feed'] = impl.feed.url
+		attrs['feed-mtime'] = str(impl.feed.last_modified)
+		attrs['feed-path'] = impl.feed.feed_path
 		if impl.local_path:
 			attrs['local-path'] = impl.local_path
 		self.attrs = attrs
@@ -91,7 +96,7 @@ class Selections(object):
 	@ivar selections: the selected implementations
 	@type selections: {str: L{Selection}}
 	"""
-	__slots__ = ['interface', 'selections', 'commands']
+	__slots__ = ['interface', 'selections', 'commands', 'staled']
 
 	def __init__(self, source):
 		"""Constructor.
@@ -109,6 +114,19 @@ class Selections(object):
 			self._init_from_qdom(source)
 		else:
 			raise Exception(_("Source not a Policy or qdom.Element!"))
+
+	@property
+	def staled(self):
+		"""Whether selection is based on feeds that were updated in local storage."""
+		for impl in self.selections.values():
+			if not set(impl.attrs) & set(['feed-path', 'feed-mtime']):
+				continue
+			feed_path = impl.attrs['feed-path']
+			feed_mtime = int(impl.attrs['feed-mtime'])
+			if not os.path.exists(feed_path) or \
+					int(os.stat(feed_path).st_mtime) != feed_mtime:
+				return True
+		return False
 
 	def _init_from_policy(self, policy):
 		"""Set the selections from a policy.
@@ -336,3 +354,34 @@ class Selections(object):
 	def items(self):
 		# Deprecated
 		return list(self.iteritems())
+
+def get_cached(uri):
+	"""Load previously cached selections.
+	@param uri: feed url to load cache for
+	@type uri: str
+	"""
+	cache_path = basedir.load_first_cache(config_site, 'selections', escape(uri))
+	if not cache_path or not os.path.exists(cache_path):
+		return None
+
+	try:
+		sels = Selections(parse(file(cache_path)))
+	except Exception, ex:
+		warn(_("Error reading cached selection from '%(path)s': %(exception)s"), {'path': cache_path, 'exception': ex})
+		return None
+
+	if sels.staled:
+		return None
+	else:
+		return sels
+
+def set_cached(sels):
+	"""Save selections on disk for further reusing.
+	@param sels: Selection to save
+	@type sels: L{Selection}
+	"""
+	cache_dir = basedir.save_cache_path(config_site, 'selections')
+	cache = file(os.path.join(cache_dir, escape(sels.interface)), 'w')
+	doc = sels.toDOM()
+	doc.writexml(cache)
+	cache.close()
