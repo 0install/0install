@@ -6,7 +6,7 @@ import gobject
 import dialog
 from logging import info
 
-from zeroinstall.injector import reader, iface_cache, model
+from zeroinstall.injector import iface_cache, model
 from zeroinstall.injector.policy import Policy
 	
 XMLNS_0COMPILE = 'http://zero-install.sourceforge.net/2006/namespaces/0compile'
@@ -46,18 +46,12 @@ class Command:
 					dialog.alert(None, _("Command failed:\n%s\n") % self.error)
 			return False
 
-def compile(policy, interface, autocompile = False):
+def compile(on_success, interface_uri, autocompile = False):
 	our_min_version = '0.18'	# The oldest version of 0compile we support
-
-	def add_feed():
-		# A new local feed may have been registered, so update the interface from the cache
-		info(_("0compile command completed successfully. Reloading interface details."))
-		reader.update_from_cache(interface)
-		policy.recalculate()
 
 	def build():
 		# Get the chosen versions
-		src_policy = Policy(interface.uri, src = True)
+		src_policy = Policy(interface_uri, src = True)
 		src_policy.freshness = 0
 
 		src_policy.recalculate()
@@ -80,7 +74,7 @@ def compile(policy, interface, autocompile = False):
 			"http://0install.net/2006/interfaces/0compile.xml",
 			'gui',
 			'--no-prompt',
-			interface.uri), add_feed)
+			interface_uri), on_success)
 
 	if autocompile:
 		c = Command()
@@ -90,10 +84,10 @@ def compile(policy, interface, autocompile = False):
 			"http://0install.net/2006/interfaces/0compile.xml",
 			'autocompile',
 			'--gui',
-			interface.uri), add_feed)
+			interface_uri), on_success)
 	else:
 		# Prompt user to choose source version
 		c = Command()
 		c.run(['0launch',
 			'--message', _('Download the source code to be compiled'),
-			'--gui', '--source', '--download-only', interface.uri], build)
+			'--gui', '--source', '--download-only', interface_uri], build)

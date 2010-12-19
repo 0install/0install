@@ -16,7 +16,6 @@ from dialog import DialogResponse, Template
 from impl_list import ImplementationList
 import time
 import dialog
-import compile
 
 _dialogs = {}	# Interface -> Properties
 
@@ -251,7 +250,7 @@ class Properties:
 	window = None
 	policy = None
 
-	def __init__(self, policy, interface, show_versions = False):
+	def __init__(self, policy, interface, compile, show_versions = False):
 		self.policy = policy
 
 		widgets = Template('interface_properties')
@@ -264,7 +263,7 @@ class Properties:
 		window.set_default_size(-1, gtk.gdk.screen_height() / 3)
 
 		self.compile_button = widgets.get_widget('compile')
-		self.compile_button.connect('clicked', lambda b: compile.compile(policy, interface))
+		self.compile_button.connect('clicked', lambda b: compile(interface))
 		window.set_default_response(gtk.RESPONSE_CANCEL)
 
 		def response(dialog, resp):
@@ -451,11 +450,11 @@ def add_local_feed(policy, interface):
 	chooser.connect('response', check_response)
 	chooser.show()
 
-def edit(policy, interface, show_versions = False):
+def edit(policy, interface, compile, show_versions = False):
 	assert isinstance(interface, Interface)
 	if interface in _dialogs:
 		_dialogs[interface].destroy()
-	_dialogs[interface] = Properties(policy, interface, show_versions)
+	_dialogs[interface] = Properties(policy, interface, compile, show_versions = show_versions)
 	_dialogs[interface].show()
 
 properties_help = help_box.HelpBox(_("Injector Properties Help"),

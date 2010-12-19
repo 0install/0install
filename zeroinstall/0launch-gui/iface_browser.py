@@ -5,12 +5,12 @@ import gtk, gobject, pango
 
 from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector.iface_cache import iface_cache
-from zeroinstall.injector import model
+from zeroinstall.injector import model, reader
 import properties
 from zeroinstall.gtkui.treetips import TreeTips
 from zeroinstall.gtkui.icon import load_icon
 from zeroinstall import support
-from logging import warn
+from logging import warn, info
 import utils
 
 def _stability(impl):
@@ -243,7 +243,7 @@ class InterfaceBrowser:
 				return True
 			if bev.button != 1 or bev.type != gtk.gdk._2BUTTON_PRESS:
 				return False
-			properties.edit(policy, self.model[path][InterfaceBrowser.INTERFACE])
+			properties.edit(policy, self.model[path][InterfaceBrowser.INTERFACE], self.compile)
 		tree_view.connect('button-press-event', button_press)
 
 		tree_view.connect('destroy', lambda s: policy.watchers.remove(self.build_tree))
@@ -370,13 +370,12 @@ class InterfaceBrowser:
 	
 	def show_popup_menu(self, iface, bev):
 		import bugs
-		import compile
 
 		have_source =  properties.have_source_for(self.policy, iface)
 
 		menu = gtk.Menu()
-		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.policy, iface)),
-				  (_('Show Versions'), lambda: properties.edit(self.policy, iface, show_versions = True)),
+		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.policy, iface, self.compile)),
+				  (_('Show Versions'), lambda: properties.edit(self.policy, iface, self.compile, show_versions = True)),
 				  (_('Report a Bug...'), lambda: bugs.report_bug(self.policy, iface))]:
 			item = gtk.MenuItem(label)
 			if cb:
@@ -394,12 +393,12 @@ class InterfaceBrowser:
 			item.set_submenu(compile_menu)
 
 			item = gtk.MenuItem(_('Automatic'))
-			item.connect('activate', lambda item: compile.compile(self.policy, iface, autocompile = True))
+			item.connect('activate', lambda item: self.compile(iface, autocompile = True))
 			item.show()
 			compile_menu.append(item)
 
 			item = gtk.MenuItem(_('Manual...'))
-			item.connect('activate', lambda item: compile.compile(self.policy, iface, autocompile = False))
+			item.connect('activate', lambda item: self.compile(iface, autocompile = False))
 			item.show()
 			compile_menu.append(item)
 		else:
@@ -407,6 +406,17 @@ class InterfaceBrowser:
 
 		menu.popup(None, None, None, bev.button, bev.time)
 	
+	def compile(self, interface, autocompile = False):
+		import compile
+		def on_success():
+			# A new local feed may have been registered, so reload it from the disk cache
+			info(_("0compile command completed successfully. Reloading interface details."))
+			reader.update_from_cache(interface)
+			for feed in interface.extra_feeds:
+				 iface_cache.get_feed(feed.uri, force = True)
+			self.policy.recalculate()
+		compile.compile(on_success, interface.uri, autocompile = autocompile)
+
 	def set_original_implementations(self):
 		assert self.original_implementation is None
 		self.original_implementation = self.policy.implementation.copy()
