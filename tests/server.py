@@ -27,6 +27,10 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		       acceptable.get(leaf, None) or \
 		       acceptable.get('*', None)
 
+		# (don't use a symlink as they don't work on Windows)
+		if leaf == 'latest.xml':
+			leaf = 'Hello.xml'
+
 		if not resp:
 			self.send_error(404, "Expected %s; got %s" % (next_step, parsed.path))
 		elif parsed.path.startswith('/key-info/'):
