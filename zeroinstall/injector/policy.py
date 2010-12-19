@@ -346,6 +346,9 @@ class Policy(object):
 				if f in downloads_finished or f in downloads_in_progress:
 					continue
 				if os.path.isabs(f):
+					if force:
+						iface_cache.get_feed(f, force = True)
+						downloads_in_progress[f] = tasks.IdleBlocker('Refresh local feed')
 					continue
 				elif f.startswith('distribution:'):
 					if force or update_local:
