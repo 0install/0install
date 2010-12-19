@@ -245,10 +245,12 @@ class _PackageKitTransaction(object):
 				   ('Files', self.__files_cb)]:
 			self.proxy.connect_to_signal(signal, cb)
 
-		self.compat_call([
-				('SetLocale', locale.getdefaultlocale()[0]),
-				('SetHints', ['locale=%s' % locale.getdefaultlocale()[0]]),
-				])
+		defaultlocale = locale.getdefaultlocale()[0]
+		if defaultlocale is not None:
+			self.compat_call([
+					('SetLocale', defaultlocale),
+					('SetHints', ['locale=%s' % defaultlocale]),
+					])
 
 	def getPercentage(self):
 		result = self.get_prop('Percentage')
