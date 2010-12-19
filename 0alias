@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# Copyright (C) 2010, Thomas Leonard
+# See the README file for details, or visit http://0install.net.
 
 import locale
 from logging import warn
@@ -42,13 +44,16 @@ def find_path(paths):
 # But, don't abort if there isn't one because we might
 # be doing something else (e.g. --manpage)
 first_path = find_path(os.environ['PATH'].split(':'))
+in_path = first_path is not None
+if not in_path:
+	first_path = os.path.expanduser('~/bin/')
 
-parser = OptionParser(usage="usage: %%prog [options] alias [interface [command]]\n\n"
-		"Creates a script in the first usable directory in $PATH\n"
-		"(%s) to run 'interface' unless overridden by --dir.\n"
+parser = OptionParser(usage="usage: %%prog [options] alias [interface [main]]\n\n"
+		"Creates a script to run 'interface' (will be created in\n"
+		"%s unless overridden by --dir).\n"
 		"If no interface is given, edits the policy for an existing alias.\n"
-		"For interfaces providing more than one command, the desired command\n"
-		"may also be given." % first_path)
+		"For interfaces providing more than one executable, the desired\n"
+		"'main' binary may also be given." % first_path)
 parser.add_option("-m", "--manpage", help="show the manual page for an existing alias", action='store_true')
 parser.add_option("-r", "--resolve", help="show the URI for an alias", action='store_true')
 parser.add_option("-V", "--version", help="display version information", action='store_true')
@@ -60,7 +65,7 @@ parser.disable_interspersed_args()
 if options.version:
 	import zeroinstall
 	print "0alias (zero-install) " + zeroinstall.version
-	print "Copyright (C) 2009 Thomas Leonard"
+	print "Copyright (C) 2010 Thomas Leonard"
 	print "This program comes with ABSOLUTELY NO WARRANTY,"
 	print "to the extent permitted by law."
 	print "You may redistribute copies of this program"
@@ -85,9 +90,6 @@ if options.resolve or options.manpage:
 
 if options.user_path:
 	first_path = options.user_path
-	if not os.path.isdir(first_path):
-		print >>sys.stderr, "Directory '%s' does not exist." % first_path
-		sys.exit(1)
 
 if interface_uri is None:
 	try:
@@ -169,14 +171,9 @@ if options.manpage:
 			print os.path.join(root, file)
 	sys.exit(1)
 
-if first_path is None:
-	print >>sys.stderr, ("No writable non-cache directory in $PATH, which currently contains:\n\n%s\n\n"
-			     "To create a directory for your scripts, use these commands:\n"
-			     "$ mkdir ~/bin\n"
-			     "$ %s\n"
-			     "or specify a writable path with --path"
-			     % ('\n'.join(os.environ['PATH'].split(':')), export('PATH', '$HOME/bin:$PATH')))
-	sys.exit(1)
+if not os.path.isdir(first_path):
+	print "(creating directory %s)" % first_path
+	os.makedirs(first_path)
 
 if len(args) == 1:
 	os.execlp('0launch', '0launch', '-gd', '--', interface_uri)
@@ -206,6 +203,13 @@ alias.write_script(wrapper, interface_uri, main)
 os.chmod(script, 0111 | os.fstat(wrapper.fileno()).st_mode)
 wrapper.close()
 
-print "Created script '%s'." % script
-print "To edit policy: 0alias %s" % alias_prog
-print "(note: some shells require you to type 'rehash' now)"
+#print "Created script '%s'." % script
+#print "To edit policy: 0alias %s" % alias_prog
+if options.user_path:
+	pass		# Assume user knows what they're doing
+elif not in_path:
+	print >>sys.stderr, 'Warning: %s is not in $PATH. Add it with:\n%s' % (first_path, export('PATH', first_path + ':$PATH'))
+else:
+	shell = os.environ.get('SHELL', '?')
+	if not shell.endswith('/zsh'):
+		print "(note: some shells require you to type 'rehash' now)"
