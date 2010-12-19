@@ -1,20 +1,26 @@
-The Zero Install Injector
+Zero Install
 
-Copyright Thomas Leonard, 2008
+Copyright Thomas Leonard, 2010
 
 
 INTRODUCTION
 
-A program is made up of many different components, typically written by
-different groups of people. Each component is available in multiple versions.
-The injector is used when starting a program. Its job is to decide which
-implementation of each required component to use.
+The 0launch command can be used to run a program, by giving it the program's
+full name (a web address or "URL"). It does not need to be installed or run as
+root. It does not write to any shared directories (like /usr/bin or /usr/lib).
+It stores downloads in a cache directory so that you don't need to download
+anything twice, and programs can still be used when you are off-line.
 
-An interface describes what a component does. The injector starts with the
+A complete program is made up of many different components, typically written
+by different groups of people. Each component is available in multiple
+versions. 0launch is used when starting a program. Its job is to decide
+which implementation of each required component to use.
+
+An interface describes what a component does. Zero Install starts with the
 interface for the program you want to run (like 'The Gimp') and chooses an
 implementation (like 'The Gimp 2.2.0'). However, this implementation will in
 turn depend on other interfaces, such as 'GTK' (which draws the menus and
-buttons). Thus, the injector must choose implementations of each dependancy
+buttons). Thus, Zero Install must choose implementations of each dependancy
 (each of which may require further interfaces, and so on).
 
 See http://0install.net/injector.html for details.
@@ -22,27 +28,33 @@ See http://0install.net/injector.html for details.
 
 INSTALLATION
 
-The injector uses the normal Python distutils method of installation. To
-install, become root and run setup.py like this:
+Zero Install uses the normal Python distutils method of installation. To
+install system-wide, run setup.py like this:
 
-  $ su
-  [ enter root password ]
-  # python setup.py install
-  # exit
-  $
+  $ sudo python setup.py install
+
+You can also install just to your home directory (this doesn't require root
+access):
+
+  $ python setup.py install --home ~ --install-data ~/.local
+  $ export PATH=$HOME/bin:$PATH
+
+Logging out and back in again will ensure $PATH and the Applications menu get
+updated correctly, on Ubuntu at least.
 
 
 USE
 
 To run a program by its URI:
 
-$ 0launch http://rox.sourceforge.net/2005/interfaces/Edit
+  $ 0launch http://rox.sourceforge.net/2005/interfaces/Edit
 
-To run create short-cut:
+To create a short-cut:
 
-$ 0alias rox-edit http://rox.sourceforge.net/2005/interfaces/Edit
+  $ 0alias rox-edit http://rox.sourceforge.net/2005/interfaces/Edit
 
 For more information, see the man-pages for 0launch, 0alias and 0store.
+
 
 CONDITIONS
 
@@ -65,4 +77,4 @@ BUG REPORTS
 
 Please report any bugs to the mailing list:
 
-	http://0install.net/support.html
+  http://0install.net/support.html
