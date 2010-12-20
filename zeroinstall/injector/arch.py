@@ -143,6 +143,11 @@ class Architecture:
 	def __str__(self):
 		return _("<Arch: %(os_ranks)s %(machine_ranks)s>") % {'os_ranks': self.os_ranks, 'machine_ranks': self.machine_ranks}
 
+	def copy(self):
+		other = Architecture(self.os_ranks.copy(), self.machine_ranks.copy())
+		other.child_arch = self.child_arch
+		return other
+
 class SourceArchitecture(Architecture):
 	"""Matches source code that creates binaries for a particular architecture.
 	Note that the L{child_arch} here is the binary; source code depends on binary tools,

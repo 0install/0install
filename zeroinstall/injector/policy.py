@@ -54,7 +54,7 @@ class Policy(object):
 	"""
 	__slots__ = ['root', 'watchers', 'command',
 		     'freshness', 'handler', '_warned_offline',
-		     'target_arch', 'src', 'stale_feeds', 'solver', '_fetcher', 'selections_cache']
+		     'target_arch', 'src', 'stale_feeds', 'solver', '_fetcher', 'selections_cache', 'autocompile']
 	
 	help_with_testing = property(lambda self: self.solver.help_with_testing,
 				     lambda self, value: setattr(self.solver, 'help_with_testing', value))
@@ -106,6 +106,7 @@ class Policy(object):
 		config.set('global', 'freshness', str(60 * 60 * 24 * 30))	# One month
 		config.set('global', 'network_use', 'full')
 		config.set('global', 'selections_cache', 'False')
+		config.set('global', 'autocompile', 'False')
 
 		path = basedir.load_first_config(config_site, config_prog, 'global')
 		if path:
@@ -119,6 +120,7 @@ class Policy(object):
 		self.solver.network_use = config.get('global', 'network_use')
 		self.freshness = int(config.get('global', 'freshness'))
 		self.selections_cache = config.getboolean('global', 'selections_cache')
+		self.autocompile = config.getboolean('global', 'autocompile')
 		assert self.solver.network_use in network_levels, self.solver.network_use
 
 		self.set_root(root)
@@ -160,9 +162,7 @@ class Policy(object):
 
 		self.stale_feeds = set()
 
-		host_arch = self.target_arch
-		if self.src:
-			host_arch = arch.SourceArchitecture(host_arch)
+		host_arch = self._get_host_arch()
 		self.solver.solve(self.root, host_arch, command_name = self.command)
 
 		if self.network_use == network_offline:
@@ -321,9 +321,7 @@ class Policy(object):
 		downloads_finished = set()		# Successful or otherwise
 		downloads_in_progress = {}		# URL -> Download
 
-		host_arch = self.target_arch
-		if self.src:
-			host_arch = arch.SourceArchitecture(host_arch)
+		host_arch = self._get_host_arch()
 
 		# There are three cases:
 		# 1. We want to run immediately if possible. If not, download all the information we can.
@@ -410,9 +408,7 @@ class Policy(object):
 		"""Decide whether we need to download anything (but don't do it!)
 		@return: true if we MUST download something (feeds or implementations)
 		@rtype: bool"""
-		host_arch = self.target_arch
-		if self.src:
-			host_arch = arch.SourceArchitecture(host_arch)
+		host_arch = self._get_host_arch()
 		self.solver.solve(self.root, host_arch, command_name = self.command)
 		for w in self.watchers: w()
 
@@ -454,3 +450,12 @@ class Policy(object):
 		import warnings
 		warnings.warn("Policy.get_interface is deprecated!", DeprecationWarning, stacklevel = 2)
 		return iface_cache.get_interface(uri)
+
+	def _get_host_arch(self):
+		host_arch = self.target_arch.copy()
+		if self.src:
+			host_arch = arch.SourceArchitecture(host_arch)
+		elif self.autocompile and 'src' not in host_arch.machine_ranks:
+			host_arch.machine_ranks['src'] = len(host_arch.machine_ranks)
+			host_arch.machine_ranks[None] = len(host_arch.machine_ranks)
+		return host_arch

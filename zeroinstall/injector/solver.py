@@ -242,6 +242,7 @@ class SATSolver(Solver):
 		self._failure_reason = None
 
 		ifaces_processed = set()
+		chosen_commands = set([command_name])
 
 		impls_for_machine_group = {0 : []}		# Machine group (e.g. "64") to [impl] in that group
 		for machine_group in machine_groups.values():
@@ -441,6 +442,17 @@ class SATSolver(Solver):
 					problem.add_clause([sat.neg(impl_to_var[impl])])
 					continue
 
+				if impl.machine == 'src' and command_name != 'compile':
+					# autocompile mode, need to add compile command as well
+					compile_command = impl.commands.get('compile', None)
+					if compile_command is None:
+						# Mark implementation as unselectable
+						problem.add_clause([sat.neg(impl_to_var[impl])])
+						continue
+					chosen_commands.add('compile')
+				else:
+					compile_command = None
+
 				# We have a candidate <command>. Require that if it's selected
 				# then we select the corresponding <implementation> too.
 				command_var = problem.add_variable(CommandInfo(command_name, command, impl, arch))
@@ -455,6 +467,17 @@ class SATSolver(Solver):
 
 					# Must choose one version of d if impl is selected
 					find_dependency_candidates(command_var, d)
+
+				if compile_command is not None:
+					command_var = problem.add_variable(CommandInfo(command_name, compile_command, impl, arch))
+					problem.add_clause([impl_to_var[impl], sat.neg(command_var)])
+
+					var_names.append(command_var)
+
+					for d in deps_in_use(compile_command, arch):
+						debug(_("Considering compile command dependency %s"), d)
+						add_iface(d.interface, arch.child_arch)
+						find_dependency_candidates(command_var, d)
 
 			# Tell the user why we couldn't use this version
 			if self.record_details:
@@ -590,7 +613,7 @@ class SATSolver(Solver):
 
 			def add_command(iface, name):
 				sel = sels.get(iface, None)
-				if sel:
+				if sel and name in sel.impl.commands:
 					command = sel.impl.commands[name]
 					self.selections.commands.append(command)
 					runner = command.get_runner()
@@ -598,8 +621,8 @@ class SATSolver(Solver):
 						# TODO: allow depending on other commands, besides 'run'?
 						add_command(runner.metadata['interface'], 'run')
 
-			if command_name is not None:
-				add_command(root_interface, command_name)
+			for i in chosen_commands:
+				add_command(root_interface, i)
 
 	def get_failure_reason(self):
 		"""Return an exception explaining why the solve failed."""
