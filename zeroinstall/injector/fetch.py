@@ -256,7 +256,9 @@ class Fetcher(object):
 						mirror = None
 
 			if primary_ex:
-				raise primary_ex
+				from zerosugar.local import hooks
+				if not hooks.absent_feed(feed_url):
+					raise primary_ex
 
 		return wait_for_downloads(primary)
 

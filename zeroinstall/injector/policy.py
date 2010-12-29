@@ -364,6 +364,14 @@ class Policy(object):
 
 			if not downloads_in_progress:
 				if self.network_use == network_offline:
+					re_solve = False
+					for f in self.solver.feeds_used:
+						feed = iface_cache.get_feed(f)
+						if feed is None:
+							from zerosugar.local import hooks
+							re_solve = re_solve or hooks.absent_feed(f)
+					if re_solve:
+						continue
 					info(_("Can't choose versions and in off-line mode, so aborting"))
 				break
 

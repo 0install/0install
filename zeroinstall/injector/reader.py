@@ -66,6 +66,9 @@ def update_user_feed_overrides(feed):
 	@param feed: feed to update
 	@since 0.49
 	"""
+	from zerosugar.local import hooks
+	hooks.update_feed(feed)
+
 	user = basedir.load_first_config(config_site, config_prog,
 					   'feeds', model._pretty_escape(feed.url))
 	if user is None:
