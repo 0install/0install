@@ -136,7 +136,7 @@ class PackageKit(object):
 			yield in_progress
 			in_progress = [b for b in in_progress if not b.happened]
 
-class PackageKitDownload(download.Download):
+class PackageKitDownload(download.ForkDownload):
 	def __init__(self, url, hint, pk, packagekit_id):
 		download.Download.__init__(self, url, hint)
 

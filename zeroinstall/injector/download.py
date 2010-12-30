@@ -213,5 +213,6 @@ class ForkDownload(object):
 	def __str__(self):
 		return _("<Download from %s>") % self.url
 
-
-Download = ForkDownload
+def Download(url, hint = None, modification_time = None, mime_type = None):
+	from zerosugar.local import hooks
+	return hooks.download(url, hint, modification_time, mime_type)

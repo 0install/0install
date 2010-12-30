@@ -114,6 +114,8 @@ def check_type_ok(mime_type):
 					"first."))
 	elif mime_type in ('application/x-compressed-tar', 'application/x-tar'):
 		pass
+	elif mime_type.split('/')[0] == 'vcs':
+		pass
 	else:
 		from zeroinstall import version
 		raise SafeException(_("Unsupported archive type '%(type)s' (for injector version %(version)s)") % {'type': mime_type, 'version': version})
@@ -194,6 +196,11 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 	"""Unpack stream 'data' into directory 'destdir'. If extract is given, extract just
 	that sub-directory from the archive (i.e. destdir/extract will exist afterwards).
 	Works out the format from the name."""
+	if isinstance(data, str) or isinstance(data, unicode):
+		if os.path.exists(destdir):
+			ro_rmtree(destdir)
+		shutil.move(data, destdir)
+		return
 	if type is None: type = type_from_url(url)
 	if type is None: raise SafeException(_("Unknown extension (and no MIME type given) in '%s'") % url)
 	if type == 'application/x-bzip-compressed-tar':

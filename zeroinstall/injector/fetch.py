@@ -393,7 +393,8 @@ class Fetcher(object):
 
 		url = download_source.url
 		if not (url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:')):
-			raise SafeException(_("Unknown scheme in download URL '%s'") % url)
+			# support vcs urls, also would be useful to check url in downloader
+			pass
 
 		mime_type = download_source.type
 		if not mime_type:
@@ -402,7 +403,7 @@ class Fetcher(object):
 			raise SafeException(_("No 'type' attribute on archive, and I can't guess from the name (%s)") % download_source.url)
 		unpack.check_type_ok(mime_type)
 		expected_size = download_source.size + (download_source.start_offset or 0)
-		dl = self.handler.get_download(download_source.url, force = force, hint = impl_hint, expected_size = expected_size)
+		dl = self.handler.get_download(download_source.url, force = force, hint = impl_hint, expected_size = expected_size, mime_type = mime_type)
 		return (dl.downloaded, dl.tempfile)
 
 	def download_icon(self, interface, force = False, modification_time = None):
