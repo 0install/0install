@@ -9,7 +9,7 @@ from zeroinstall import _
 import os
 from logging import info, debug, warn
 
-from zeroinstall.support import tasks, basedir
+from zeroinstall.support import tasks, basedir, ro_rmtree
 from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
 from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, escape, DistributionSource
 from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
@@ -263,6 +263,18 @@ class Fetcher(object):
 	def _download_and_import_feed(self, feed_url, iface_cache, force, use_mirror):
 		"""Download and import a feed.
 		@param use_mirror: False to use primary location; True to use mirror."""
+
+		impls = {}
+
+		feed = iface_cache.get_feed(feed_url)
+		if feed is not None:
+			for impl in feed.implementations.values():
+				try:
+					path = iface_cache.stores.lookup_any(impl.digests)
+					impls[impl.id] = path
+				except SafeException:
+					pass
+
 		if use_mirror:
 			url = self.get_feed_mirror(feed_url)
 			if url is None: return None
@@ -297,6 +309,12 @@ class Fetcher(object):
 					tasks.check(blocker)
 				if not iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
 					raise NoTrustedKeys(_("No signing keys trusted; not importing"))
+
+			feed = iface_cache.get_feed(feed_url)
+			if feed is not None:
+				for impl_id in set(impls.keys()) - set(feed.implementations.keys()):
+					info('Remove orphaned implementation %s', impl_id)
+					ro_rmtree(impls[impl_id])
 
 		task = fetch_feed()
 		task.dl = dl

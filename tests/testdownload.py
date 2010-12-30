@@ -12,8 +12,8 @@ sys.path.insert(0, '..')
 os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall.injector import model, autopolicy, gpg, iface_cache, download, reader, trust, handler, background, arch, selections, qdom
-from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
-from zeroinstall.support import basedir, tasks
+from zeroinstall.zerostore import Store, NotStored; Store._add_with_helper = lambda *unused: False
+from zeroinstall.support import basedir, tasks, ro_rmtree
 from zeroinstall.injector import fetch
 import data
 import my_dbus
@@ -347,6 +347,43 @@ class TestDownload(BaseTest):
 		finally:
 			sys.stdout = old_out
 
+	def testDeleOrphanedImpls(self):
+		old_out = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			getLogger().setLevel(ERROR)
+
+			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
+			policy = autopolicy.AutoPolicy('http://example.com:8000/Hello.xml', download_only = False)
+
+			iface = iface_cache.iface_cache.get_interface('http://example.com:8000/Hello.xml')
+			refreshed = policy.fetcher.download_and_import_feed(iface.uri, iface_cache.iface_cache)
+			policy.handler.wait_for_blocker(refreshed)
+
+			fake_id = 'sha1=f00'
+
+			feed = iface_cache.iface_cache.get_feed(
+					'http://example.com:8000/Hello.xml')
+			fake_impl = model.ZeroInstallImplementation(feed, fake_id, None)
+			fake_impl.digests = [fake_id]
+			feed.implementations[fake_id] = fake_impl
+
+			fake_dir = os.path.join(
+					iface_cache.iface_cache.stores.stores[0].dir, fake_id)
+			os.makedirs(fake_dir)
+			assert fake_dir == iface_cache.iface_cache.stores.lookup(fake_id)
+
+			refreshed = policy.fetcher.download_and_import_feed(
+					iface.uri, iface_cache.iface_cache)
+			policy.handler.wait_for_blocker(refreshed)
+			self.assertRaises(NotStored,
+                    lambda: iface_cache.iface_cache.stores.lookup(fake_id))
+			assert not os.path.exists(fake_dir)
+
+		finally:
+			sys.stdout = old_out
+
 	def testReplay(self):
 		old_out = sys.stdout
 		try:
@@ -377,6 +414,16 @@ class TestDownload(BaseTest):
 			self.assertEquals(1235911552, iface_cache.iface_cache._get_signature_date(iface.uri))
 		finally:
 			sys.stdout = old_out
+
+
+
+
+
+
+
+
+
+
 
 	def testBackground(self, verbose = False):
 		p = autopolicy.AutoPolicy('http://example.com:8000/Hello.xml')
