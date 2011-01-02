@@ -148,6 +148,10 @@ class SATSolver(Solver):
 		not be the interface of a or b if they are from feeds.
 		@rtype: int"""
 
+		from zerosugar.local import hooks
+		r = hooks.compare_impls(interface, b, a, arch)
+		if r: return r
+
 		# Languages we understand come first
 		a_langs = (a.langs or 'en').split()
 		b_langs = (b.langs or 'en').split()
