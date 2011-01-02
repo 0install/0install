@@ -271,6 +271,8 @@ class Fetcher(object):
 		feed = iface_cache.get_feed(feed_url)
 		if feed is not None:
 			for impl in feed.implementations.values():
+				if impl.local_path:
+					continue
 				try:
 					path = iface_cache.stores.lookup_any(impl.digests)
 					impls[impl.id] = path

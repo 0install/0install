@@ -58,8 +58,9 @@ class ImplSelection(Selection):
 		attrs['version'] = impl.get_version()
 		attrs['interface'] = iface_uri
 		attrs['from-feed'] = impl.feed.url
-		attrs['feed-mtime'] = str(impl.feed.last_modified)
-		attrs['feed-path'] = impl.feed.feed_path
+		if impl.feed.feed_path:
+			attrs['feed-mtime'] = str(impl.feed.last_modified)
+			attrs['feed-path'] = impl.feed.feed_path
 		if impl.local_path:
 			attrs['local-path'] = impl.local_path
 		self.attrs = attrs
