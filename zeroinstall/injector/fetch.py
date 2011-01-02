@@ -213,6 +213,10 @@ class Fetcher(object):
 				primary = None
 				primary_ex = ex
 				warn(_("Feed download from %(url)s failed: %(exception)s"), {'url': feed_url, 'exception': ex})
+			except BaseException:
+				from zerosugar.local import hooks
+				if not hooks.fail_feed_update(feed_url, iface_cache):
+					raise
 
 			# Start downloading from mirror...
 			mirror = self._download_and_import_feed(feed_url, iface_cache, force, use_mirror = True)
@@ -257,7 +261,7 @@ class Fetcher(object):
 
 			if primary_ex:
 				from zerosugar.local import hooks
-				if not hooks.absent_feed(feed_url):
+				if not hooks.fail_feed_update(feed_url, iface_cache):
 					raise primary_ex
 
 		return wait_for_downloads(primary)

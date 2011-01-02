@@ -369,7 +369,7 @@ class Policy(object):
 						feed = iface_cache.get_feed(f)
 						if feed is None:
 							from zerosugar.local import hooks
-							re_solve = re_solve or hooks.absent_feed(f)
+							re_solve = re_solve or hooks.fail_feed_update(f, iface_cache)
 					if re_solve:
 						continue
 					info(_("Can't choose versions and in off-line mode, so aborting"))
