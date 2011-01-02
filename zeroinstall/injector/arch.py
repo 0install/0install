@@ -145,7 +145,11 @@ class Architecture:
 
 	def copy(self):
 		other = Architecture(self.os_ranks.copy(), self.machine_ranks.copy())
-		other.child_arch = self.child_arch
+		if self.child_arch is self:
+			other.child_arch = other
+		else:
+			other.child_arch = Architecture(self.child_arch.os_ranks.copy(),
+					self.child_arch.machine_ranks.copy())
 		return other
 
 class SourceArchitecture(Architecture):
