@@ -88,7 +88,7 @@ class TestDistro(BaseTest):
 		# Tell distro to fetch information about candidates...
 		master_feed = parse_impls("""<package-implementation package='python-bittorrent'/>""")
 		h = handler.Handler()
-		candidates = host.fetch_candidates(master_feed)
+		candidates = host.fetch_candidates(master_feed, 'bin')
 		if candidates:
 			h.wait_for_blocker(candidates)
 		# Now we see the uninstalled package
@@ -134,7 +134,7 @@ class TestDistro(BaseTest):
 		icache._feeds[feed.url] = feed
 		distro_feed_url = feed.get_distro_feed()
 		impls = icache.get_feed(distro_feed_url).implementations
-		self.assertEquals("distribution:myfeed.xml", distro_feed_url)
+		self.assertEquals("distribution:bin:myfeed.xml", distro_feed_url)
 		assert len(impls) == 1, impls
 		impl, = impls
 		assert impl == 'package:rpm:yast2-update:2.15.23-21:i586'
@@ -144,7 +144,7 @@ class TestDistro(BaseTest):
 				<package-implementation distributions="RPM" package="yast2-update"/>
 				""")
 		icache._feeds[feed.url] = feed
-		del icache._feeds['distribution:' + feed.url]
+		del icache._feeds['distribution:bin:' + feed.url]
 		impls = icache.get_feed(feed.get_distro_feed()).implementations
 		assert len(impls) == 2, impls
 
@@ -153,7 +153,7 @@ class TestDistro(BaseTest):
 				<package-implementation package="yast2-update"/>
 				""")
 		icache._feeds[feed.url] = feed
-		del icache._feeds['distribution:' + feed.url]
+		del icache._feeds['distribution:bin:' + feed.url]
 		impls = icache.get_feed(feed.get_distro_feed()).implementations
 		assert len(impls) == 2, impls
 
