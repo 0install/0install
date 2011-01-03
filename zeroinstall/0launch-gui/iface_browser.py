@@ -323,7 +323,9 @@ class InterfaceBrowser:
 
 		self.model.clear()
 		parent = None
-		def add_node(parent, iface, command = None):
+		commands = self.policy.solver.selections.commands
+		def add_node(parent, iface, command):
+			# (command is the index into commands, if any)
 			if iface in done:
 				return
 			done[iface] = True
@@ -346,11 +348,15 @@ class InterfaceBrowser:
 				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
 
 				deps = sel.dependencies
-				if command:
-					deps += command.requires
+				if command is not None:
+					deps += commands[command].requires
 				for child in deps:
 					if isinstance(child, model.InterfaceDependency):
-						add_node(iter, iface_cache.get_interface(child.interface))
+						if child.qdom.name == 'runner':
+							child_command = command + 1
+						else:
+							child_command = None
+						add_node(iter, iface_cache.get_interface(child.interface), child_command)
 					else:
 						child_iter = self.model.append(parent)
 						self.model[child_iter][InterfaceBrowser.INTERFACE_NAME] = '?'
@@ -359,12 +365,10 @@ class InterfaceBrowser:
 						self.model[child_iter][InterfaceBrowser.ICON] = self.default_icon
 			else:
 				self.model[iter][InterfaceBrowser.VERSION] = _('(choose)')
-		commands = self.policy.solver.selections.commands
 		if commands:
-			for command in commands:
-				add_node(None, self.root, command)
+			add_node(None, self.root, 0)
 		else:
-			# Nothing could be selected
+			# Nothing could be selected, or no command requested
 			add_node(None, self.root, None)
 		self.tree_view.expand_all()
 	
