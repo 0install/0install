@@ -348,9 +348,10 @@ def _get_selections(sels, options):
 				print indent + "  No selected version"
 
 
-		uri = sels.interface
-		for command in sels.commands:
-			print_node(uri, command, "")
+		if sels.commands:
+			print_node(sels.interface, sels.commands[0], "")
+		else:
+			print_node(sels.interface, None, "")
 
 	else:
 		doc = sels.toDOM()
