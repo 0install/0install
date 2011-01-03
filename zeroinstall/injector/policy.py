@@ -395,7 +395,7 @@ class Policy(object):
 							break
 					for i in downloads_in_progress.keys():
 						if i.startswith('distribution:') and i.split(':', 2)[-1] == f:
-							del downloads_in_progress[distro_feed_url]
+							del downloads_in_progress[i]
 							break
 
 	@tasks.async

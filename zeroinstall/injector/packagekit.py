@@ -138,7 +138,7 @@ class PackageKit(object):
 
 class PackageKitDownload(download.ForkDownload):
 	def __init__(self, url, hint, pk, packagekit_id):
-		download.Download.__init__(self, url, hint)
+		download.ForkDownload.__init__(self, url, hint)
 
 		self.packagekit_id = packagekit_id
 		self._impl = hint
