@@ -356,7 +356,7 @@ class Policy(object):
 						downloads_in_progress[f] = tasks.IdleBlocker('Refresh local feed')
 					continue
 				elif f.startswith('distribution:'):
-					if force or update_local:
+					if (force or update_local) and self.network_use != network_offline:
 						downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
 				elif force and self.network_use != network_offline:
 					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
