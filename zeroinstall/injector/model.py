@@ -966,7 +966,7 @@ class ZeroInstallFeed(object):
 		@rtype: [str]
 		@since: 0.49"""
 		best_score = 0
-		best_impls = []
+		best_impls = {}
 
 		for item, item_attrs in self._package_implementations:
 			if 'type' in item_attrs and item_attrs['type'] != pkg_type:
@@ -976,10 +976,10 @@ class ZeroInstallFeed(object):
 				score = distro.get_score(distro_name)
 				if score > best_score:
 					best_score = score
-					best_impls = []
+					best_impls = {}
 				if score == best_score:
-					best_impls.append((item, item_attrs))
-		return best_impls
+					best_impls[item_attrs.get('package')] = (item, item_attrs)
+		return best_impls.values()
 
 	def get_name(self):
 		return self.name or '(' + os.path.basename(self.url) + ')'
