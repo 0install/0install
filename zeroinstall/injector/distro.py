@@ -163,7 +163,7 @@ class Distribution(object):
 		"""
 		return 0
 
-	def get_feed(self, master_feed):
+	def get_feed(self, master_feed, pkg_type):
 		"""Generate a feed containing information about distribution packages.
 		This should immediately return a feed containing an implementation for the
 		package if it's already installed. Information about versions that could be
@@ -174,9 +174,9 @@ class Distribution(object):
 		@rtype: L{model.ZeroInstallFeed}"""
 
 		feed = model.ZeroInstallFeed(None)
-		feed.url = 'distribution:' + master_feed.url
+		feed.url = 'distribution:%s:%s' % (pkg_type, master_feed.url)
 
-		for item, item_attrs in master_feed.get_package_impls(self):
+		for item, item_attrs in master_feed.get_package_impls(self, pkg_type):
 			package = item_attrs.get('package', None)
 			if package is None:
 				raise model.InvalidInterface(_("Missing 'package' attribute on %s") % item)
@@ -205,13 +205,13 @@ class Distribution(object):
 			self.get_package_info(package, factory)
 		return feed
 
-	def fetch_candidates(self, master_feed):
+	def fetch_candidates(self, master_feed, pkg_type):
 		"""Collect information about versions we could install using
 		the distribution's package manager. On success, the distribution
 		feed in iface_cache is updated.
 		@return: a L{tasks.Blocker} if the task is in progress, or None if not"""
 		if self.packagekit.available:
-			package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self)]
+			package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self, pkg_type)]
 			return self.packagekit.fetch_candidates(package_names)
 
 	@property
@@ -396,8 +396,8 @@ class DebianDistribution(Distribution):
 
 		return installed_cached_info
 
-	def fetch_candidates(self, master_feed):
-		package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self)]
+	def fetch_candidates(self, master_feed, pkg_type):
+		package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self, pkg_type)]
 
 		if self.packagekit.available:
 			return self.packagekit.fetch_candidates(package_names)

@@ -103,7 +103,7 @@ class Solver(object):
 		self.record_details = False
 		self.ready = False
 
-	def solve(self, root_interface, root_arch, command_name = 'run'):
+	def solve(self, root_interface, root_arch, command_name = 'run', pkg_type = 'bin'):
 		"""Get the best implementation of root_interface and all of its dependencies.
 		@param root_interface: the URI of the program to be solved
 		@type root_interface: str
@@ -222,7 +222,7 @@ class SATSolver(Solver):
 
 		return cmp(a.id, b.id)
 
-	def solve(self, root_interface, root_arch, command_name = 'run', closest_match = False):
+	def solve(self, root_interface, root_arch, command_name = 'run', closest_match = False, pkg_type = 'bin'):
 		# closest_match is used internally. It adds a lowest-ranked
 		# by valid implementation to every interface, so we can always
 		# select something. Useful for diagnostics.
@@ -355,7 +355,7 @@ class SATSolver(Solver):
 					if feed.implementations:
 						impls.extend(feed.implementations.values())
 
-					distro_feed_url = feed.get_distro_feed()
+					distro_feed_url = feed.get_distro_feed(pkg_type)
 					if distro_feed_url:
 						self.feeds_used.add(distro_feed_url)
 						distro_feed = self.iface_cache.get_feed(distro_feed_url)
@@ -593,7 +593,7 @@ class SATSolver(Solver):
 			# We failed while trying to do a real solve.
 			# Try a closest match solve to get a better
 			# error report for the user.
-			self.solve(root_interface, root_arch, command_name = command_name, closest_match = True)
+			self.solve(root_interface, root_arch, command_name = command_name, closest_match = True, pkg_type = pkg_type)
 		else:
 			self.ready = ready and not closest_match
 			self.selections = selections.Selections(None)

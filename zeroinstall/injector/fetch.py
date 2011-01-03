@@ -160,9 +160,10 @@ class Fetcher(object):
 		On success, the result is added to iface_cache.
 		"""
 		assert feed_url.startswith('distribution:'), feed_url
-		master_feed = iface_cache.get_feed(feed_url.split(':', 1)[1])
+		__, pkg_type, master_feed_url = feed_url.split(':', 2)
+		master_feed = iface_cache.get_feed(master_feed_url)
 		if master_feed:
-			fetch = iface_cache.distro.fetch_candidates(master_feed)
+			fetch = iface_cache.distro.fetch_candidates(master_feed, pkg_type)
 			if fetch:
 				yield fetch
 				tasks.check(fetch)

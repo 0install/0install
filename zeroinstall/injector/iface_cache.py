@@ -337,10 +337,11 @@ class IfaceCache(object):
 				return feed
 
 		if url.startswith('distribution:'):
-			master_feed = self.get_feed(url.split(':', 1)[1])
+			__, pkg_type, master_feed_url = url.split(':', 2)
+			master_feed = self.get_feed(master_feed_url)
 			if not master_feed:
 				return None	# Can't happen?
-			feed = self.distro.get_feed(master_feed)
+			feed = self.distro.get_feed(master_feed, pkg_type)
 		else:
 			feed = reader.load_feed_from_cache(url)
 		if feed:

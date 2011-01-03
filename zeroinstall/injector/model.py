@@ -949,16 +949,16 @@ class ZeroInstallFeed(object):
 			root_commands['run'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': main}), None)
 		process_group(feed_element, root_attrs, [], [], root_commands)
 	
-	def get_distro_feed(self):
+	def get_distro_feed(self, pkg_type = 'bin'):
 		"""Does this feed contain any <pacakge-implementation> elements?
 		i.e. is it worth asking the package manager for more information?
 		@return: the URL of the virtual feed, or None
 		@since: 0.49"""
 		if self._package_implementations:
-			return "distribution:" + self.url
+			return "distribution:%s:%s" % (pkg_type, self.url)
 		return None
 
-	def get_package_impls(self, distro):
+	def get_package_impls(self, distro, pkg_type):
 		"""Find the best <pacakge-implementation> element(s) for the given distribution.
 		@param distro: the distribution to use to rate them
 		@type distro: L{distro.Distribution}
@@ -969,6 +969,8 @@ class ZeroInstallFeed(object):
 		best_impls = []
 
 		for item, item_attrs in self._package_implementations:
+			if 'type' in item_attrs and item_attrs['type'] != pkg_type:
+				continue
 			distro_names = item_attrs.get('distributions', '')
 			for distro_name in distro_names.split(' '):
 				score = distro.get_score(distro_name)

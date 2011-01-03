@@ -54,7 +54,7 @@ class Policy(object):
 	"""
 	__slots__ = ['root', 'watchers', 'command',
 		     'freshness', 'handler', '_warned_offline',
-		     'target_arch', 'src', 'stale_feeds', 'solver', '_fetcher', 'selections_cache', 'autocompile']
+		     'target_arch', 'src', 'stale_feeds', 'solver', '_fetcher', 'selections_cache', 'autocompile', 'pkg_type']
 	
 	help_with_testing = property(lambda self: self.solver.help_with_testing,
 				     lambda self, value: setattr(self.solver, 'help_with_testing', value))
@@ -76,6 +76,8 @@ class Policy(object):
 		@param command: The name of the command to run (e.g. 'run', 'test', 'compile', etc)
 		@type command: str
 		"""
+		self.pkg_type = 'bin'
+
 		self.watchers = []
 		self.src = src				# Root impl must be a "src" machine type
 		self.stale_feeds = set()
@@ -163,7 +165,7 @@ class Policy(object):
 		self.stale_feeds = set()
 
 		host_arch = self._get_host_arch()
-		self.solver.solve(self.root, host_arch, command_name = self.command)
+		self.solver.solve(self.root, host_arch, command_name = self.command, pkg_type = self.pkg_type)
 
 		if self.network_use == network_offline:
 			fetch_stale_interfaces = False
@@ -335,7 +337,7 @@ class Policy(object):
 		try_quick_exit = not (force or update_local)
 
 		while True:
-			self.solver.solve(self.root, host_arch, command_name = self.command)
+			self.solver.solve(self.root, host_arch, command_name = self.command, pkg_type = self.pkg_type)
 			for w in self.watchers: w()
 
 			if try_quick_exit and self.solver.ready:
@@ -387,11 +389,14 @@ class Policy(object):
 
 					# Need to refetch any "distribution" feed that
 					# depends on this one
-					distro_feed_url = 'distribution:' + f
-					if distro_feed_url in downloads_finished:
-						downloads_finished.remove(distro_feed_url)
-					if distro_feed_url in downloads_in_progress:
-						del downloads_in_progress[distro_feed_url]
+					for i in downloads_finished:
+						if i.startswith('distribution:') and i.split(':', 2)[-1] == f:
+							downloads_finished.remove(i)
+							break
+					for i in downloads_in_progress.keys():
+						if i.startswith('distribution:') and i.split(':', 2)[-1] == f:
+							del downloads_in_progress[distro_feed_url]
+							break
 
 	@tasks.async
 	def solve_and_download_impls(self, refresh = False, select_only = False):
@@ -417,7 +422,7 @@ class Policy(object):
 		@return: true if we MUST download something (feeds or implementations)
 		@rtype: bool"""
 		host_arch = self._get_host_arch()
-		self.solver.solve(self.root, host_arch, command_name = self.command)
+		self.solver.solve(self.root, host_arch, command_name = self.command, pkg_type = self.pkg_type)
 		for w in self.watchers: w()
 
 		if not self.solver.ready:
