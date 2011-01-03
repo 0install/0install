@@ -1,0 +1,365 @@
+.TH 0INSTALL 1 "2011" "Thomas Leonard" ""
+.SH NAME
+0install \(em a decentralised software installation system
+
+.SH SYNOPSIS
+
+.SS Downloading and running:
+
+.B 0install select \fBURI\fP
+
+.B 0install download \fBURI\fP
+
+.B 0install run \fBURI\fP [\fBARG\fP]...
+
+.B 0install update \fBURI\fP
+
+.SS Other commands:
+
+.B 0install add-feed \fBFEED\fP
+
+.B 0install config [NAME [VALUE]]
+
+.B 0install import \fBFEED\fP
+
+.B 0install list \fBPATTERN\fP
+
+.B 0install remove-feed \fBFEED\fP
+
+.SH DESCRIPTION
+.PP
+Zero Install is a decentralised cross-distribution software installation
+system. Programs and libraries are identified by URIs, and there is no need
+for a central repository. Zero Install ensures that packages cannot conflict
+with each other and that programs can be shared between mutually untrusting
+users. See the web-site for more information:
+
+http://0install.net/
+
+The simplest case is to ask 0install to run a program, given its URI. For
+example:
+
+.B 0install run http://rox.sourceforge.net/2005/interfaces/Edit
+
+.PP
+The first time you do this, details about available versions of the program are
+downloaded and cached, along with details about any libraries it depends on.
+
+Zero Install will run a solver to select the best version of each component
+to use. For example, it will select binaries that are compatible with your
+CPU and operating system, in your preferred language, and marked "stable" (by
+default).
+
+If $DISPLAY is set, 0install will display a window where you can confirm (or
+change) the selected versions.
+
+It will then download the corresponding archives for those version and store
+them in the cache too. Each package unpacks to its own directory.
+
+Finally, 0install will launch the program, setting environment variables to
+let it locate its libraries.
+
+.SH GLOBAL OPTIONS
+
+The first non-option argument to 0install is the particular sub-command you
+want to perform; these are described in detail in the next section.
+
+However, there are some options that apply to all operations. These are:
+
+.TP
+\fB\-c\fP, \fB\-\-console\fP
+Never use the GUI. Normally, 0launch switches to graphical mode if it needs to
+download anything from the network (unless DISPLAY is not set).
+
+.TP
+\fB\-h\fP, \fB\-\-help\fP
+Show the built-in help text.
+
+.TP
+\fB\-o\fP, \fB\-\-offline\fP
+Run in off-line mode, overriding the default setting. This prevents 0install
+from checking for updates, and from downloading updates even if it knows about
+them.
+
+.TP
+\fB\-v\fP, \fB\-\-verbose\fP
+More verbose output. Use twice for even more verbose output.
+
+.TP
+\fB\-V\fP, \fB\-\-version\fP
+Display version information.
+
+.TP
+\fB\-\-with\-store=DIR\fP
+Append a directory to the list of implementation caches. Each sub-directory
+of DIR contains the contents of one version of a program or library.
+
+.SH SUB-COMMANDS
+
+.SS 0install select [OPTIONS] URI
+
+.PP
+Select a version of the program identified by URI, and compatible versions of
+all of its dependencies. The information about available version is
+downloaded if it's not yet in the cache.
+
+.PP
+The URI can be either an HTTP URL, such as
+`http://site/program.xml', or a local path name like `/path/to/program.xml'.
+
+.PP
+For HTTP URLs, the remote file is a signed XML document. If the key is not
+known and trusted, you will be prompted to accept it first. Local feed files
+are not signed (any signature will be ignored).
+
+.PP
+You can also specificy a local selections document, as created previously using
+the \fB\-\-xml\fP option, rather than a feed. In that case, 0install simply
+uses those versions without running the solver.
+
+.PP
+After selecting (but not downloading) a set of versions, the selection is
+displayed in a human-readable format. Use \fB\-\-xml\fP to get
+machine-readable output.
+
+.PP
+If a set of versions cannot be selected using the cached information, 0install
+will check for updates first.
+
+.PP
+If a set of versions can be selected based on the currently-cached information,
+but that information is getting stale, 0install will immediately return the
+current selection and will also start a background process to check for updates.
+The `freshness' configuration setting controls when cached information is
+considered to be stale.
+
+.PP
+Options for select:
+
+.TP
+\fB\-\-before=VERSION\fP
+Select a version earlier than VERSION (i.e. force the use of an old version of
+the program). You can only restrict the version of the program itself using this
+option, not the version of any dependencies.
+
+.TP
+\fB\-\-command=COMMAND\fP
+Some programs provide multiple commands. This selects which one you want. Common
+values are `run' (the default), `test' (used by 0test) and `compile' (used by
+0compile). You can also use \fB\-\-command=""\fP if you don't want to run any
+command (for example, if the package contains data rather than a program).
+
+.TP
+\fB\-\-xml\fP
+Print the set of chosen implementations as an XML document to stdout. This can
+be used later with the `download' and `run' sub-commands.
+
+.TP
+\fB\-\-not\-before=VERSION\fP
+The selected version must not be earlier than VERSION.
+e.g. if you want to run version 2.0 or later, use \fB\-\-not\-before=2.0\fP.
+
+.TP
+\fB\-\-refresh\fP
+Download a fresh copy of all used feeds before selecting. Normally, cached
+copies will be used if available (checking for updates later, in the
+background).
+
+.TP
+\fB\-\-source\fP
+Select source code rather than a binary. This is used internally by `0compile'.
+
+.PP
+`select' returns an exit status of zero if it selected a set of versions, and
+a status of 1 if it could not find a consistent set.
+
+
+.SS 0install download [OPTIONS] URI
+
+This behaves similarly to `0install select', except that it also downloads the
+selected versions if they are not already cached. Unlike `select', it does not
+print the selected versions by default.
+
+All options for `select' can also be used for `download'. In addition, these
+options are available:
+
+.TP
+\fB\-\-show\fP
+Print the selected versions in a human-readable format to stdout.
+
+.PP
+`download' returns an exit status of zero if it selected a suitable set of
+versions and they are now all downloaded and in the cache. It returns a
+status of 1 otherwise.
+
+
+.SS 0install run [OPTIONS] URI [ARGS]
+
+.PP
+This behaves similarly to `0install download', except that it also runs the
+program after ensuring it is in the cache.
+
+.PP
+To avoid having to keep typing the full URI, use the 0alias(1) command
+to create shortcuts to run your programs.
+
+.PP
+All options for `select' and `download' can also be used for `run'. In
+addition, these options are available:
+
+.TP
+\fB\-m\fP, \fB\-\-main=MAIN\fP
+Run the specified executable instead of the default. If MAIN starts with '/'
+then the path is relative to the implementation's top-level directory,
+whereas otherwise it is relative to the directory containing the default
+MAIN program. For example, if the default MAIN is \fBbin/svn\fP then
+using \fB\-\-main=svnadmin\fP will run \fB.../bin/svnadmin\fP instead.
+This option has been largely superseded by the newer \fB\-\-command\fP option.
+
+.TP
+\fB\-w\fP, \fB\-\-wrapper=WRAPPER\fP
+Instead of executing the chosen program directly, run \fBWRAPPER PROGRAM ARGS\fP.
+This is useful for running debuggers and tracing tools on the program (rather
+than on 0install!). Note that the wrapper is executed in the environment selected
+by the program; hence, this mechanism cannot be used for sandboxing. See the
+DEBUGGING section below.
+
+.PP
+`run' returns an exit status of 1 if the download step failed. Otherwise,
+the exit status will be the exit status of the program being run.
+
+.SS 0install update [OPTIONS] URI
+
+.PP
+Check for updates to the program and download them if found. This is similar to
+\fB0install download \-\-refresh\fP, except that it prints information about
+whether any changes were found.
+
+.PP
+The options are the same as for `download'.
+
+.SS 0install import FEED
+
+.PP
+Import a feed from a local file, as if it had been downloaded from the network.
+This is useful when testing a feed file, to avoid uploading it to a remote
+server in order to download it again. The file must have a trusted digital
+signature, as when fetching from the network.
+
+.PP
+It is also useful when installing a feed from a CD or similar. Note: to create
+a full bundle, for archiving or distribution on CD, see 0export(1).
+
+.SS 0install add-feed FEED
+
+.PP
+Register an additional source of implementations (versions) of a program.
+
+.PP
+For example, when you check out a developer version of a project, it may
+contain an XML feed file. To add this version to the list of available
+versions, use `add-feed' on the XML file. The file is not copied, so you don't
+need to re-add the feed each time it is updated. You will probably also want to
+set the `help_with_testing' configuration option to ensure that testing
+versions are selected by default.
+
+.PP
+Note that if you just want to run the program, you can invoke 0install on the
+feed file directly (without using `add-feed'). This will force the it to
+use that version, but won't affect what happens when you run it using the URI
+as normal. Use `add-feed' when you want to use the developer version even when
+using the URI, or if the program is a library (and thus referenced by URI by
+other programs).
+
+.SS 0install remove-feed FEED
+
+.PP
+Un-register a feed, reversing the effect of `add-feed'.
+
+.SS 0install list PATTERN
+
+.PP
+List all known interface (program) URIs. If a search term is given, only
+URIs containing that string are shown (case insensitive).
+
+.SS 0install config [NAME [VALUE]]
+
+.PP
+View or change configuration settings.
+
+.PP
+With no arguments, `0install config' displays all configuration settings.
+With one argument, it displays the current value of the named setting.
+With two arguments, it sets the setting to the given value.
+
+
+.SH DEBUGGING TIPS
+
+.PP
+To debug 0install itself, use the \-\-verbose and \-\-console options. For
+example:
+
+.B $ 0install \-vvc run http://myprog
+
+.PP
+To trace or debug programs run by 0install, use the \-\-wrapper option.
+For example, to run \fBmyprog \-\-help\fP, displaying all calls to open(2):
+
+.B $ 0install run \-\-wrapper="strace \-e open" http://myprog \-\-help
+
+If your program is interpreted (e.g. a Python program), and you wish to debug
+the interpreter running it, you can do it like this:
+
+.B $ 0install run \-\-wrapper="gdb \-\-args python" http://myprog \-\-help
+
+.SH FILES
+
+Configuration files (see freedesktop.org basedir spec):
+
+.IP "~/.config/0install.net/injector/global"
+Global configuration settings.
+
+.IP "~/.config/0install.net/injector/trustdb.xml"
+List of trusted keys.
+
+.IP "~/.config/0install.net/injector/feeds"
+Per-feed information (e.g. time of last check).
+
+.IP "~/.config/0install.net/injector/interfaces"
+Per-interface settings (preferred stability and any extra feeds that have been
+registered).
+
+.PP
+Cached data (can be re-downloaded if lost):
+
+.IP "~/.cache/0install.net/interfaces"
+Downloaded cached feed files.
+
+.IP "~/.cache/0install.net/implementations"
+Downloaded cached implementations, indexed by manifest digest.
+
+.PP
+See the 0store(1) man page for more information.
+
+.SH LICENSE
+.PP
+Copyright (C) 2010 Thomas Leonard.
+
+.PP
+You may redistribute copies of this program under the terms of the GNU Lesser General Public License.
+.SH BUGS
+.PP
+Please report bugs to the developer mailing list:
+
+http://0install.net/support.html
+
+.SH AUTHOR
+.PP
+The Zero Install Injector was created by Thomas Leonard.
+
+.SH SEE ALSO
+0alias(1), 0store(1), 0launch(1)
+.PP
+The Zero Install web-site:
+
+.B http://0install.net
