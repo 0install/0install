@@ -8,7 +8,7 @@ import gtk, gobject, pango
 import subprocess
 
 from zeroinstall import support
-from zeroinstall.gtkui import icon, xdgutils, treetips
+from zeroinstall.gtkui import icon, xdgutils
 from zeroinstall.injector import policy, reader, model, namespaces
 
 def _pango_escape(s):
@@ -84,30 +84,34 @@ class AppListBox:
 				area = tv.get_cell_area(path, actions_column)
 				tv.queue_draw_area(*area)
 
-		tips = treetips.TreeTips()
-		def motion(widget, mev):
-			if mev.window == tv.get_bin_window():
+		tv.set_property('has-tooltip', True)
+		def query_tooltip(widget, x, y, keyboard_mode, tooltip):
+			x, y = tv.convert_widget_to_bin_window_coords(x, y)
+			pos = tv.get_path_at_pos(x, y)
+			if pos:
 				new_hover = (None, None, None)
-				pos = tv.get_path_at_pos(int(mev.x), int(mev.y))
-				if pos:
-					path, col, x, y = pos
-					if col == actions_column:
-						area = tv.get_cell_area(path, col)
-						iface = self.model[path][AppListBox.URI]
-						action = cell_actions.get_action(area, x, y)
-						if action is not None:
-							new_hover = (path, iface, action)
+				path, col, x, y = pos
+				if col == actions_column:
+					area = tv.get_cell_area(path, col)
+					iface = self.model[path][AppListBox.URI]
+					action = cell_actions.get_action(area, x, y)
+					if action is not None:
+						new_hover = (path, iface, action)
 				if new_hover != cell_actions.hover:
 					redraw_actions(cell_actions.hover[0])
 					cell_actions.hover = new_hover
 					redraw_actions(cell_actions.hover[0])
-					tips.prime(tv, _tooltips.get(cell_actions.hover[2], None))
-		tv.connect('motion-notify-event', motion)
+				tv.set_tooltip_cell(tooltip, pos[0], pos[1], None)
+
+				if new_hover[2] is not None:
+					tooltip.set_text(_tooltips[cell_actions.hover[2]])
+					return True
+			return False
+		tv.connect('query-tooltip', query_tooltip)
 
 		def leave(widget, lev):
 			redraw_actions(cell_actions.hover[0])
 			cell_actions.hover = (None, None, None)
-			tips.hide()
 
 		tv.connect('leave-notify-event', leave)
 
@@ -307,8 +311,3 @@ class ActionsRenderer(gtk.GenericCellRenderer):
 		if x > s * 2:
 			return None
 		return int(x > s) + lower
-
-if gtk.pygtk_version < (2, 8, 0):
-	# Note sure exactly which versions need this.
-	# 2.8.0 gives a warning if you include it, though.
-	gobject.type_register(ActionsRenderer)

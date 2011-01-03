@@ -4,7 +4,6 @@
 import gtk, gobject, os, pango
 from zeroinstall.injector import model, writer
 from zeroinstall import support
-from zeroinstall.gtkui.treetips import TreeTips
 import utils
 
 def _build_stability_menu(policy, impl):
@@ -55,26 +54,20 @@ NOTES = 7
 WEIGHT = 8	# Selected item is bold
 LANGS = 9
 
-class ImplTips(TreeTips):
-	def __init__(self, policy, interface):
-		self.policy = policy
-		self.interface = interface
+def get_tooltip_text(policy, interface, impl):
+	if impl.local_path:
+		return _("Local: %s") % impl.local_path
+	if impl.id.startswith('package:'):
+		return _("Native package: %s") % impl.id.split(':', 1)[1]
+	if policy.get_cached(impl):
+		return _("Cached: %s") % policy.get_implementation_path(impl)
 
-	def get_tooltip_text(self):
-		impl = self.item
-		if impl.local_path:
-			return _("Local: %s") % impl.local_path
-		if impl.id.startswith('package:'):
-			return _("Native package: %s") % impl.id.split(':', 1)[1]
-		if self.policy.get_cached(impl):
-			return _("Cached: %s") % self.policy.get_implementation_path(impl)
-
-		src = self.policy.fetcher.get_best_source(impl)
-		if src:
-			size = support.pretty_size(src.size)
-			return _("Not yet downloaded (%s)") % size
-		else:
-			return _("No downloads available!")
+	src = policy.fetcher.get_best_source(impl)
+	if src:
+		size = support.pretty_size(src.size)
+		return _("Not yet downloaded (%s)") % size
+	else:
+		return _("No downloads available!")
 
 class ImplementationList:
 	tree_view = None
@@ -107,23 +100,19 @@ class ImplementationList:
 			       gtk.TreeViewColumn(_('Notes'), text, text = NOTES, weight = WEIGHT)):
 			self.tree_view.append_column(column)
 
-		tips = ImplTips(policy, interface)
-
-		def motion(tree_view, ev):
-			if ev.window is not tree_view.get_bin_window():
-				return False
-			pos = tree_view.get_path_at_pos(int(ev.x), int(ev.y))
+		self.tree_view.set_property('has-tooltip', True)
+		def tooltip_callback(widget, x, y, keyboard_mode, tooltip):
+			x, y = self.tree_view.convert_widget_to_bin_window_coords(x, y)
+			pos = self.tree_view.get_path_at_pos(x, y)
 			if pos:
+				self.tree_view.set_tooltip_cell(tooltip, pos[0], None, None)
 				path = pos[0]
 				row = self.model[path]
-				if row[ITEM] is not tips.item:
-					tips.prime(tree_view, row[ITEM])
-			else:
-				tips.hide()
-
-		self.tree_view.connect('motion-notify-event', motion)
-		self.tree_view.connect('leave-notify-event', lambda tv, ev: tips.hide())
-		self.tree_view.connect('destroy', lambda tv: tips.hide())
+				if row[ITEM]:
+					tooltip.set_text(get_tooltip_text(policy, interface, row[ITEM]))
+					return True
+			return False
+		self.tree_view.connect('query-tooltip', tooltip_callback)
 
 		def button_press(tree_view, bev):
 			if bev.button not in (1, 3):

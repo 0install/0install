@@ -7,7 +7,6 @@ from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import model, reader
 import properties
-from zeroinstall.gtkui.treetips import TreeTips
 from zeroinstall.gtkui.icon import load_icon
 from zeroinstall import support
 from logging import warn, info
@@ -24,49 +23,42 @@ def _stability(impl):
 ICON_SIZE = 20.0
 CELL_TEXT_INDENT = int(ICON_SIZE) + 4
 
-class InterfaceTips(TreeTips):
-	mainwindow = None
+def get_tooltip_text(mainwindow, interface, model_column):
+	assert interface
+	if model_column == InterfaceBrowser.INTERFACE_NAME:
+		return _("Full name: %s") % interface.uri
+	elif model_column == InterfaceBrowser.SUMMARY:
+		if not interface.description:
+			return _("(no description available)")
+		first_para = interface.description.split('\n\n', 1)[0]
+		return first_para.replace('\n', ' ')
+	elif model_column is None:
+		return _("Click here for more options...")
 
-	def __init__(self, mainwindow):
-		self.mainwindow = mainwindow
+	impl = mainwindow.policy.implementation.get(interface, None)
+	if not impl:
+		return _("No suitable implementation was found. Check the "
+			 "interface properties to find out why.")
 
-	def get_tooltip_text(self):
-		interface, model_column = self.item
-		assert interface
-		if model_column == InterfaceBrowser.INTERFACE_NAME:
-			return _("Full name: %s") % interface.uri
-		elif model_column == InterfaceBrowser.SUMMARY:
-			if not interface.description:
-				return None
-			first_para = interface.description.split('\n\n', 1)[0]
-			return first_para.replace('\n', ' ')
-		elif model_column is None:
-			return _("Click here for more options...")
+	if model_column == InterfaceBrowser.VERSION:
+		text = _("Currently preferred version: %(version)s (%(stability)s)") % \
+				{'version': impl.get_version(), 'stability': _stability(impl)}
+		old_impl = mainwindow.original_implementation.get(interface, None)
+		if old_impl is not None and old_impl is not impl:
+			text += '\n' + _('Previously preferred version: %(version)s (%(stability)s)') % \
+				{'version': old_impl.get_version(), 'stability': _stability(old_impl)}
+		return text
 
-		impl = self.mainwindow.policy.implementation.get(interface, None)
-		if not impl:
-			return _("No suitable implementation was found. Check the "
-				 "interface properties to find out why.")
+	assert model_column == InterfaceBrowser.DOWNLOAD_SIZE
 
-		if model_column == InterfaceBrowser.VERSION:
-			text = _("Currently preferred version: %(version)s (%(stability)s)") % \
-					{'version': impl.get_version(), 'stability': _stability(impl)}
-			old_impl = self.mainwindow.original_implementation.get(interface, None)
-			if old_impl is not None and old_impl is not impl:
-				text += '\n' + _('Previously preferred version: %(version)s (%(stability)s)') % \
-					{'version': old_impl.get_version(), 'stability': _stability(old_impl)}
-			return text
-
-		assert model_column == InterfaceBrowser.DOWNLOAD_SIZE
-
-		if self.mainwindow.policy.get_cached(impl):
-			return _("This version is already stored on your computer.")
-		else:
-			src = self.mainwindow.policy.fetcher.get_best_source(impl)
-			if not src:
-				return _("No downloads available!")
-			return _("Need to download %(pretty_size)s (%(size)s bytes)") % \
-					{'pretty_size': support.pretty_size(src.size), 'size': src.size}
+	if mainwindow.policy.get_cached(impl):
+		return _("This version is already stored on your computer.")
+	else:
+		src = mainwindow.policy.fetcher.get_best_source(impl)
+		if not src:
+			return _("No downloads available!")
+		return _("Need to download %(pretty_size)s (%(size)s bytes)") % \
+				{'pretty_size': support.pretty_size(src.size), 'size': src.size}
 
 class MenuIconRenderer(gtk.GenericCellRenderer):
 	def __init__(self):
@@ -165,9 +157,26 @@ class InterfaceBrowser:
 		   ('', None)]
 
 	def __init__(self, policy, widgets):
-		tips = InterfaceTips(self)
-
 		tree_view = widgets.get_widget('components')
+		tree_view.set_property('has-tooltip', True)
+		def callback(widget, x, y, keyboard_mode, tooltip):
+			x, y = tree_view.convert_widget_to_bin_window_coords(x, y)
+			pos = tree_view.get_path_at_pos(x, y)
+			if pos:
+				tree_view.set_tooltip_cell(tooltip, pos[0], pos[1], None)
+				path = pos[0]
+				try:
+					col_index = column_objects.index(pos[1])
+				except ValueError:
+					return False
+				else:
+					col = self.columns[col_index][1]
+					row = self.model[path]
+					tooltip.set_text(get_tooltip_text(self, row[InterfaceBrowser.INTERFACE], col))
+				return True
+			else:
+				return False
+		tree_view.connect('query-tooltip', callback)
 
 		self.policy = policy
 		self.cached_icon = {}	# URI -> GdkPixbuf
@@ -206,28 +215,6 @@ class InterfaceBrowser:
 		tree_view.set_enable_search(True)
 
 		selection = tree_view.get_selection()
-
-		def motion(tree_view, ev):
-			if ev.window is not tree_view.get_bin_window():
-				return False
-			pos = tree_view.get_path_at_pos(int(ev.x), int(ev.y))
-			if pos:
-				path = pos[0]
-				try:
-					col_index = column_objects.index(pos[1])
-				except ValueError:
-					tips.hide()
-				else:
-					col = self.columns[col_index][1]
-					row = self.model[path]
-					item = (row[InterfaceBrowser.INTERFACE], col)
-					if item != tips.item:
-						tips.prime(tree_view, item)
-			else:
-				tips.hide()
-
-		tree_view.connect('motion-notify-event', motion)
-		tree_view.connect('leave-notify-event', lambda tv, ev: tips.hide())
 
 		def button_press(tree_view, bev):
 			pos = tree_view.get_path_at_pos(int(bev.x), int(bev.y))

@@ -10,7 +10,6 @@ from zeroinstall.injector import namespaces, model
 from zeroinstall.zerostore import BadDigest, manifest
 from zeroinstall import support
 from zeroinstall.support import basedir
-from zeroinstall.gtkui.treetips import TreeTips
 from zeroinstall.gtkui import help_box, gtkutils
 
 __all__ = ['CacheExplorer']
@@ -71,8 +70,6 @@ def get_selected_paths(tree_view):
 		paths.append(path)
 	selection.selected_foreach(add)
 	return paths
-
-tips = TreeTips()
 
 # Responses
 DELETE = 0
@@ -245,24 +242,20 @@ class CacheExplorer:
 		self.tree_view.connect('button-press-event', button_press)
 
 		# Tree tooltips
-		def motion(tree_view, ev):
-			if ev.window is not tree_view.get_bin_window():
-				return False
-			pos = tree_view.get_path_at_pos(int(ev.x), int(ev.y))
+		self.tree_view.set_property('has-tooltip', True)
+		def query_tooltip(widget, x, y, keyboard_mode, tooltip):
+			x, y = self.tree_view.convert_widget_to_bin_window_coords(x, y)
+			pos = self.tree_view.get_path_at_pos(x, y)
 			if pos:
 				path = pos[0]
 				row = self.model[path]
 				tip = row[TOOLTIP]
 				if tip:
-					if tip != tips.item:
-						tips.prime(tree_view, tip)
-				else:
-					tips.hide()
-			else:
-				tips.hide()
-
-		self.tree_view.connect('motion-notify-event', motion)
-		self.tree_view.connect('leave-notify-event', lambda tv, ev: tips.hide())
+					self.tree_view.set_tooltip_cell(tooltip, pos[0], None, None)
+					tooltip.set_text(tip)
+					return True
+			return False
+		self.tree_view.connect('query-tooltip', query_tooltip)
 
 		# Responses
 		window.set_default_response(gtk.RESPONSE_CLOSE)
