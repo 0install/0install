@@ -339,17 +339,21 @@ def _get_selections(sels, options):
 				print indent + "  Path:", path
 				indent += "  "
 				deps = impl.dependencies
-				if command:
-					deps += command.requires
+				if command is not None:
+					deps += sels.commands[command].requires
 				for child in deps:
 					if isinstance(child, model.InterfaceDependency):
-						print_node(child.interface, None, indent)
+						if child.qdom.name == 'runner':
+							child_command = command + 1
+						else:
+							child_command = None
+						print_node(child.interface, child_command, indent)
 			else:
 				print indent + "  No selected version"
 
 
 		if sels.commands:
-			print_node(sels.interface, sels.commands[0], "")
+			print_node(sels.interface, 0, "")
 		else:
 			print_node(sels.interface, None, "")
 
