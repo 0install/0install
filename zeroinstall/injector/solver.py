@@ -61,6 +61,10 @@ class ImplInfo:
 		name = "%s_%s_%s" % (self.impl.feed.get_name(), self.impl.get_version(), self.impl.arch)
 		return name.replace('-', '_').replace('.', '_')
 
+def _get_command_name(runner):
+	"""Returns the 'command' attribute of a <runner>, or 'run' if there isn't one."""
+	return runner.qdom.attrs.get('command', 'run')
+
 class _DummyImpl(object):
 	requires = []
 	version = None
@@ -424,7 +428,6 @@ class SATSolver(Solver):
 			"""Add every <command> in interface 'uri' with this name.
 			Each one depends on the corresponding implementation and only
 			one can be selected."""
-
 			# First ensure that the interface itself has been processed
 			# We'll reuse the ordering of the implementations to order
 			# the commands too.
@@ -448,10 +451,23 @@ class SATSolver(Solver):
 
 				var_names.append(command_var)
 
+				runner = command.get_runner()
 				for d in deps_in_use(command, arch):
-					debug(_("Considering command dependency %s"), d)
-
-					add_iface(d.interface, arch.child_arch)
+					if d is runner:
+						# With a <runner>, we depend on a command rather than on an
+						# implementation. This allows us to support recursive <runner>s, etc.
+						debug(_("Considering command runner %s"), d)
+						runner_command_name = _get_command_name(d)
+						runner_vars = add_command_iface(d.interface, arch.child_arch, runner_command_name)
+						# If the parent command is chosen, one of the candidate runner commands
+						# must be too. If there aren't any, then this command is unselectable.
+						problem.add_clause([sat.neg(command_var)] + runner_vars)
+						if runner_vars:
+							# Can't select more than one of them.
+							group_clause_for_command[(d.interface, runner_command_name)] = problem.at_most_one(runner_vars)
+					else:
+						debug(_("Considering command dependency %s"), d)
+						add_iface(d.interface, arch.child_arch)
 
 					# Must choose one version of d if impl is selected
 					find_dependency_candidates(command_var, d)
@@ -509,7 +525,10 @@ class SATSolver(Solver):
 			def find_undecided_dep(impl_or_command, arch):
 				# Check for undecided dependencies of impl_or_command
 				for dep in deps_in_use(impl_or_command, arch):
-					dep_lit = find_undecided(dep.interface)
+					if dep.qdom.name == 'runner':
+						dep_lit = find_undecided_command(dep.interface, _get_command_name(dep))
+					else:
+						dep_lit = find_undecided(dep.interface)
 					if dep_lit is not None:
 						return dep_lit
 				return None
@@ -552,7 +571,7 @@ class SATSolver(Solver):
 
 			# If we're chosen everything we need, we can probably
 			# set everything else to False.
-			for group in group_clause_for.values() + [m_groups_clause]:
+			for group in group_clause_for.values() + group_clause_for_command.values() + [m_groups_clause]:
 				if group.current is None:
 					best = group.best_undecided()
 					if best is not None:
@@ -595,8 +614,7 @@ class SATSolver(Solver):
 					self.selections.commands.append(command)
 					runner = command.get_runner()
 					if runner:
-						# TODO: allow depending on other commands, besides 'run'?
-						add_command(runner.metadata['interface'], 'run')
+						add_command(runner.metadata['interface'], _get_command_name(runner))
 
 			if command_name is not None:
 				add_command(root_interface, command_name)

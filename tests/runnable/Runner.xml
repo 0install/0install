@@ -5,7 +5,7 @@
 
   <implementation id="test" local-path="." version="1">
     <environment name='SELF' insert='.' mode='replace'/>
-    <command name="run" path="runner">
+    <command name="runme" path="runner">
       <arg>runner-arg</arg>
       <arg>${SELF}</arg>
     </command>

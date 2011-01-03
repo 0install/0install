@@ -1,14 +1,14 @@
 <?xml version="1.0" ?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <name>Runnable</name>
-  <summary>test script that needs a runner</summary>
+  <name>Recursive Runnable</name>
+  <summary>our runner has a runner of its own</summary>
 
   <implementation id="test" local-path="." version="1">
-    <command name="run" path="script">
-      <runner interface='./Runner.xml' command='runme'>
-	<arg>arg-for-runner</arg>
+    <command name="run">
+      <runner interface='./Runnable.xml'>
+	<arg>arg-for-runnable</arg>
       </runner>
-      <arg>command-arg</arg>
+      <arg>recursive-arg</arg>
       <arg>--</arg>
     </command>
   </implementation>
