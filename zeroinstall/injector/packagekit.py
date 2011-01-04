@@ -87,54 +87,47 @@ class PackageKit(object):
 
 		known = [self._candidates[p] for p in package_names if p in self._candidates]
 		in_progress = [b for b in known if isinstance(b, tasks.Blocker)]
-		_logger_pk.debug('Already downloading: %s', in_progress)
+		if in_progress:
+			_logger_pk.debug('Already downloading: %s', in_progress)
 
 		# Filter out the ones we've already fetched
 		package_names = [p for p in package_names if p not in self._candidates]
 
-		if package_names:
-			versions = {}
-
-			blocker = None
-
-			def error_cb(sender):
-				# Note: probably just means the package wasn't found
-				_logger_pk.info(_('Transaction failed: %s(%s)'), sender.error_code, sender.error_details)
-				blocker.trigger()
-
-			def details_cb(sender):
-				if sender.details:
-					for packagekit_id, info in versions.items():
-						info.update(sender.details[packagekit_id])
-						info['packagekit_id'] = packagekit_id
-						self._candidates[info['name']] = info
-				else:
-					_logger_pk.warn(_('Empty details for %s'), package_names)
-				blocker.trigger()
-
-			def resolve_cb(sender):
-				if sender.package:
-					versions.update(sender.package)
-					tran = _PackageKitTransaction(self.pk, details_cb, error_cb)
-					tran.proxy.GetDetails(versions.keys())
-				else:
-					_logger_pk.info(_('Empty resolve for %s'), package_names)
-					blocker.trigger()
-
-			# Send queries
-			blocker = tasks.Blocker('PackageKit %s' % package_names)
-			for package in package_names:
-				self._candidates[package] = blocker
-
-			_logger_pk.debug(_('Ask for %s'), package_names)
-			tran = _PackageKitTransaction(self.pk, resolve_cb, error_cb)
-			tran.proxy.Resolve('none', package_names)
-
-			in_progress.append(blocker)
+		for package in package_names:
+			in_progress.append(self._resolve(package))
 
 		while in_progress:
 			yield in_progress
 			in_progress = [b for b in in_progress if not b.happened]
+
+	def _resolve(self, package):
+		blocker = tasks.Blocker('PackageKit %s' % package)
+		self._candidates[package] = blocker
+
+		package_details = {}
+
+		def error_cb(sender):
+			# Note: probably just means the package wasn't found
+			_logger_pk.info(_('Transaction failed: %s(%s)'),
+					sender.error_code, sender.error_details)
+			blocker.trigger()
+
+		def details_cb(sender):
+			package_details.update(sender.details)
+			self._candidates[package] = package_details
+			blocker.trigger()
+
+		def resolve_cb(sender):
+			package_details.update(sender.info)
+			tran = _PackageKitTransaction(self.pk, details_cb, error_cb)
+			tran.proxy.GetDetails([sender.info['packagekit_id']])
+
+		# Send queries
+		_logger_pk.debug(_('Ask for %s'), package)
+		tran = _PackageKitTransaction(self.pk, resolve_cb, error_cb)
+		tran.proxy.Resolve('none', [package])
+
+		return blocker
 
 class PackageKitDownload(download.ForkDownload):
 	def __init__(self, url, hint, pk, packagekit_id):
@@ -227,8 +220,8 @@ class _PackageKitTransaction(object):
 		self._error_cb = error_cb
 		self.error_code = None
 		self.error_details = None
-		self.package = {}
-		self.details = {}
+		self.info = None
+		self.details = None
 		self.files = {}
 
 		self.object = dbus.SystemBus().get_object(
@@ -297,21 +290,24 @@ class _PackageKitTransaction(object):
 		if not clean_version:
 			_logger_pk.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package_name})
 		clean_arch = distro.canonical_machine(arch)
-		package = {'version': clean_version,
-			   'name': package_name,
-			   'arch': clean_arch,
-			   'installed': (status == 'installed')}
-		_logger_pk.debug(_('Package: %s %r'), id, package)
-		self.package[str(id)] = package
+		self.info = {
+				'packagekit_id': str(id),
+				'version': clean_version,
+				'name': package_name,
+				'arch': clean_arch,
+				'installed': (status == 'installed'),
+				}
+		_logger_pk.debug(_('Package: %s %r'), id, self.info)
 
 	def __details_cb(self, id, licence, group, detail, url, size):
-		details = {'licence': str(licence),
-				   'group': str(group),
-				   'detail': str(detail),
-				   'url': str(url),
-				   'size': long(size)}
-		_logger_pk.debug(_('Details: %s %r'), id, details)
-		self.details[id] = details
+		self.details = {
+				'licence': str(licence),
+				'group': str(group),
+				'detail': str(detail),
+				'url': str(url),
+				'size': long(size),
+				}
+		_logger_pk.debug(_('Details: %s %r'), id, self.details)
 
 	def __files_cb(self, id, files):
 		self.files[id] = files.split(';')
