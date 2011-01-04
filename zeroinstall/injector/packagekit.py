@@ -26,7 +26,7 @@ except Exception, ex:
 class PackageKit(object):
 	def __init__(self):
 		self._pk = False
-
+		self._resolving = None
 		self._candidates = {}	# { package_name : (version, arch, size) | Blocker }
 
 	@property
@@ -85,52 +85,55 @@ class PackageKit(object):
 	def fetch_candidates(self, package_names):
 		assert self.pk
 
-		known = [self._candidates[p] for p in package_names if p in self._candidates]
-		in_progress = [b for b in known if isinstance(b, tasks.Blocker) and not b.happened]
-		if in_progress:
-			_logger_pk.debug('Already downloading: %s', in_progress)
+		new_names = set(package_names) - set(self._candidates.keys())
 
-		# Filter out the ones we've already fetched
-		package_names = [p for p in package_names if p not in self._candidates]
+		for package in new_names:
+			self._candidates[package] = tasks.Blocker('PackageKit %s' % package)
 
-		for package in package_names:
-			in_progress.append(self._resolve(package))
-
+		in_progress = [self._candidates[i] for i in package_names \
+				if isinstance(self._candidates[i], tasks.Blocker)]
 		while in_progress:
+			self._next_resolve()
 			yield in_progress
-			in_progress = [b for b in in_progress if not b.happened]
+			in_progress = [i for i in in_progress if not i.happened]
+			self._next_resolve()
 
-	def _resolve(self, package):
-		blocker = tasks.Blocker('PackageKit %s' % package)
-		self._candidates[package] = blocker
+	def _next_resolve(self):
+		if self._resolving is not None:
+			return
+
+		for package, blocker in self._candidates.items():
+			if isinstance(blocker, tasks.Blocker) and not blocker.happened:
+				self._resolving = package
+				break
+		else:
+			return
 
 		package_details = {}
 
-		def details_cb(sender, error):
-			if error or sender.details is None:
-				_logger_pk.info(_('Getting details failed for %s: %s'),
-						package, error or _('no result'))
-			else:
-				package_details.update(sender.details)
-				self._candidates[package] = package_details
+		def error_cb(sender, message):
+			# Note: probably just means the package wasn't found
+			_logger_pk.info(_('Transaction failed: %s'), message)
+			self._resolving = None
 			blocker.trigger()
 
-		def resolve_cb(sender, error):
-			if error or sender.details is None:
-				_logger_pk.info(_('Resolve failed for %s: %s'),
-						package, error or _('no result'))
-				blocker.trigger()
-			else:
-				package_details.update(sender.details)
-				tran = _PackageKitTransaction(self.pk, details_cb)
-				tran.proxy.GetDetails([sender.details['packagekit_id']])
+		def details_cb(sender):
+			assert sender.details
+			package_details.update(sender.details)
+			self._candidates[package] = package_details
+			self._resolving = None
+			blocker.trigger()
+
+		def resolve_cb(sender):
+			assert sender.details
+			package_details.update(sender.details)
+			tran = _PackageKitTransaction(self.pk, details_cb, error_cb)
+			tran.proxy.GetDetails([package_details['packagekit_id']])
 
 		# Send queries
 		_logger_pk.debug(_('Ask for %s'), package)
-		tran = _PackageKitTransaction(self.pk, resolve_cb)
+		tran = _PackageKitTransaction(self.pk, resolve_cb, error_cb)
 		tran.proxy.Resolve('none', [package])
-
-		return blocker
 
 class PackageKitDownload(download.ForkDownload):
 	def __init__(self, url, hint, pk, packagekit_id):
@@ -145,20 +148,19 @@ class PackageKitDownload(download.ForkDownload):
 		assert self.status == download.download_starting
 		assert self.downloaded is None
 
-		def installed_cb(sender, error):
-			if error:
-				self.status = download.download_failed
-				ex = SafeException('PackageKit install failed for %s: %s' % \
-						(self.packagekit_id, error))
-				self.downloaded.trigger(exception = (ex, None))
-			else:
-				self._impl.installed = True;
-				self.status = download.download_complete
-				self.downloaded.trigger()
+		def error_cb(sender, message):
+			self.status = download.download_failed
+			ex = SafeException('PackageKit install failed: %s' % message)
+			self.downloaded.trigger(exception = (ex, None))
+
+		def installed_cb(sender):
+			self._impl.installed = True;
+			self.status = download.download_complete
+			self.downloaded.trigger()
 
 		def install_packages():
 			package_name = self.packagekit_id
-			self._transaction = _PackageKitTransaction(self.pk, installed_cb)
+			self._transaction = _PackageKitTransaction(self.pk, installed_cb, error_cb)
 			self._transaction.compat_call([
 					('InstallPackages', [package_name]),
 					('InstallPackages', False, [package_name]),
@@ -219,8 +221,9 @@ def _auth_wrapper(method, *args):
 		return method(*args)
 
 class _PackageKitTransaction(object):
-	def __init__(self, pk, finished_cb=None):
+	def __init__(self, pk, finished_cb=None, error_cb=None):
 		self._finished_cb = finished_cb
+		self._error_cb = error_cb
 		self._errors = []
 		self.details = None
 		self.files = {}
@@ -273,7 +276,10 @@ class _PackageKitTransaction(object):
 
 	def __finished_cb(self, exit, runtime):
 		_logger_pk.debug(_('Transaction finished: %s'), exit)
-		self._finished_cb(self, ', '.join(self._errors))
+		if self._errors:
+			self._error_cb(self, ', '.join(self._errors))
+		else:
+			self._finished_cb(self)
 
 	def __error_code_cb(self, code, details):
 		self._errors.append('%s (%s)' % (code, details))
