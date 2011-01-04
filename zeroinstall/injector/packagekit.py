@@ -106,25 +106,28 @@ class PackageKit(object):
 
 		package_details = {}
 
-		def error_cb(sender):
-			# Note: probably just means the package wasn't found
-			_logger_pk.info(_('Transaction failed: %s(%s)'),
-					sender.error_code, sender.error_details)
+		def details_cb(sender, errors):
+			if errors or sender.details is None:
+				_logger_pk.info(_('Getting details failed: %s'),
+						', '.join(errors) if errors else _('no result'))
+			else:
+				package_details.update(sender.details)
+				self._candidates[package] = package_details
 			blocker.trigger()
 
-		def details_cb(sender):
-			package_details.update(sender.details)
-			self._candidates[package] = package_details
-			blocker.trigger()
-
-		def resolve_cb(sender):
-			package_details.update(sender.info)
-			tran = _PackageKitTransaction(self.pk, details_cb, error_cb)
-			tran.proxy.GetDetails([sender.info['packagekit_id']])
+		def resolve_cb(sender, errors):
+			if errors or sender.details is None:
+				_logger_pk.info(_('Resolve failed: %s'),
+						', '.join(errors) if errors else _('no result'))
+				blocker.trigger()
+			else:
+				package_details.update(sender.details)
+				tran = _PackageKitTransaction(self.pk, details_cb)
+				tran.proxy.GetDetails([sender.details['packagekit_id']])
 
 		# Send queries
 		_logger_pk.debug(_('Ask for %s'), package)
-		tran = _PackageKitTransaction(self.pk, resolve_cb, error_cb)
+		tran = _PackageKitTransaction(self.pk, resolve_cb)
 		tran.proxy.Resolve('none', [package])
 
 		return blocker
@@ -142,19 +145,20 @@ class PackageKitDownload(download.ForkDownload):
 		assert self.status == download.download_starting
 		assert self.downloaded is None
 
-		def error_cb(sender):
-			self.status = download.download_failed
-			ex = SafeException('PackageKit install failed: %s' % (sender.error_details or sender.error_code))
-			self.downloaded.trigger(exception = (ex, None))
-
-		def installed_cb(sender):
-			self._impl.installed = True;
-			self.status = download.download_complete
-			self.downloaded.trigger()
+		def installed_cb(sender, errors):
+			if errors:
+				self.status = download.download_failed
+				ex = SafeException('PackageKit install failed: %s' % \
+						', '.join(errors))
+				self.downloaded.trigger(exception = (ex, None))
+			else:
+				self._impl.installed = True;
+				self.status = download.download_complete
+				self.downloaded.trigger()
 
 		def install_packages():
 			package_name = self.packagekit_id
-			self._transaction = _PackageKitTransaction(self.pk, installed_cb, error_cb)
+			self._transaction = _PackageKitTransaction(self.pk, installed_cb)
 			self._transaction.compat_call([
 					('InstallPackages', [package_name]),
 					('InstallPackages', False, [package_name]),
@@ -215,12 +219,9 @@ def _auth_wrapper(method, *args):
 		return method(*args)
 
 class _PackageKitTransaction(object):
-	def __init__(self, pk, finished_cb=None, error_cb=None):
+	def __init__(self, pk, finished_cb=None):
 		self._finished_cb = finished_cb
-		self._error_cb = error_cb
-		self.error_code = None
-		self.error_details = None
-		self.info = None
+		self._errors = []
 		self.details = None
 		self.files = {}
 
@@ -272,15 +273,10 @@ class _PackageKitTransaction(object):
 
 	def __finished_cb(self, exit, runtime):
 		_logger_pk.debug(_('Transaction finished: %s'), exit)
-		if self.error_code is not None:
-			self._error_cb(self)
-		else:
-			self._finished_cb(self)
+		self._finished_cb(self, self._errors)
 
 	def __error_code_cb(self, code, details):
-		_logger_pk.info(_('Transaction failed: %s(%s)'), details, code)
-		self.error_code = code
-		self.error_details = details
+		self._errors.append('%s (%s)' % (code, details))
 
 	def __package_cb(self, status, id, summary):
 		from zeroinstall.injector import distro
@@ -290,14 +286,14 @@ class _PackageKitTransaction(object):
 		if not clean_version:
 			_logger_pk.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package_name})
 		clean_arch = distro.canonical_machine(arch)
-		self.info = {
+		self.details = {
 				'packagekit_id': str(id),
 				'version': clean_version,
 				'name': package_name,
 				'arch': clean_arch,
 				'installed': (status == 'installed'),
 				}
-		_logger_pk.debug(_('Package: %s %r'), id, self.info)
+		_logger_pk.debug(_('Package: %s %r'), id, self.details)
 
 	def __details_cb(self, id, licence, group, detail, url, size):
 		self.details = {
