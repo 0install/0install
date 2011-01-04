@@ -340,7 +340,9 @@ class Policy(object):
 			self.solver.solve(self.root, host_arch, command_name = self.command, pkg_type = self.pkg_type)
 			for w in self.watchers: w()
 
-			if try_quick_exit and self.solver.ready:
+			if try_quick_exit and self.solver.ready and \
+					not [i for i in self.solver.feeds_used \
+						if _feed_needs_distro_fetch(i)]:
 				break
 			try_quick_exit = False
 
@@ -356,7 +358,8 @@ class Policy(object):
 						downloads_in_progress[f] = tasks.IdleBlocker('Refresh local feed')
 					continue
 				elif f.startswith('distribution:'):
-					if (force or update_local) and self.network_use != network_offline:
+					if (force or update_local or _feed_needs_distro_fetch(f)) \
+                            and self.network_use != network_offline:
 						downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
 				elif force and self.network_use != network_offline:
 					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
@@ -472,3 +475,13 @@ class Policy(object):
 			host_arch.machine_ranks['src'] = len(host_arch.machine_ranks)
 			host_arch.machine_ranks[None] = len(host_arch.machine_ranks)
 		return host_arch
+
+def _feed_needs_distro_fetch(url):
+	feed = iface_cache.get_feed(url)
+
+	if feed is not None:
+		for impl in feed.implementations.values():
+			if impl.id.startswith('package:'):
+				break
+		else:
+			return True
