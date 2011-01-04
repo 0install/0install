@@ -86,7 +86,7 @@ class PackageKit(object):
 		assert self.pk
 
 		known = [self._candidates[p] for p in package_names if p in self._candidates]
-		in_progress = [b for b in known if isinstance(b, tasks.Blocker)]
+		in_progress = [b for b in known if isinstance(b, tasks.Blocker) and not b.happened]
 		if in_progress:
 			_logger_pk.debug('Already downloading: %s', in_progress)
 
@@ -106,19 +106,19 @@ class PackageKit(object):
 
 		package_details = {}
 
-		def details_cb(sender, errors):
-			if errors or sender.details is None:
-				_logger_pk.info(_('Getting details failed: %s'),
-						', '.join(errors) if errors else _('no result'))
+		def details_cb(sender, error):
+			if error or sender.details is None:
+				_logger_pk.info(_('Getting details failed for %s: %s'),
+						package, error or _('no result'))
 			else:
 				package_details.update(sender.details)
 				self._candidates[package] = package_details
 			blocker.trigger()
 
-		def resolve_cb(sender, errors):
-			if errors or sender.details is None:
-				_logger_pk.info(_('Resolve failed: %s'),
-						', '.join(errors) if errors else _('no result'))
+		def resolve_cb(sender, error):
+			if error or sender.details is None:
+				_logger_pk.info(_('Resolve failed for %s: %s'),
+						package, error or _('no result'))
 				blocker.trigger()
 			else:
 				package_details.update(sender.details)
@@ -145,11 +145,11 @@ class PackageKitDownload(download.ForkDownload):
 		assert self.status == download.download_starting
 		assert self.downloaded is None
 
-		def installed_cb(sender, errors):
-			if errors:
+		def installed_cb(sender, error):
+			if error:
 				self.status = download.download_failed
-				ex = SafeException('PackageKit install failed: %s' % \
-						', '.join(errors))
+				ex = SafeException('PackageKit install failed for %s: %s' % \
+						(self.packagekit_id, error))
 				self.downloaded.trigger(exception = (ex, None))
 			else:
 				self._impl.installed = True;
@@ -273,7 +273,7 @@ class _PackageKitTransaction(object):
 
 	def __finished_cb(self, exit, runtime):
 		_logger_pk.debug(_('Transaction finished: %s'), exit)
-		self._finished_cb(self, self._errors)
+		self._finished_cb(self, ', '.join(self._errors))
 
 	def __error_code_cb(self, code, details):
 		self._errors.append('%s (%s)' % (code, details))
