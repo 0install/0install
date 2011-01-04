@@ -461,7 +461,7 @@ class Fetcher(object):
 
 		return download_and_add_icon()
 
-	def download_impls(self, implementations, stores):
+	def download_impls(self, implementations, stores, abort_on_fail=False):
 		"""Download the given implementations, choosing a suitable retrieval method for each.
 		If any of the retrieval methods are DistributionSources and
 		need confirmation, handler.confirm is called to check that the
@@ -501,6 +501,10 @@ class Fetcher(object):
 			# Record the first error log the rest
 			error = []
 			def dl_error(ex, tb = None):
+				if abort_on_fail:
+					for dl in self.handler.monitored_downloads.values():
+						dl.abort()
+					raise ex, None, tb
 				if error:
 					self.handler.report_error(ex)
 				else:

@@ -8,6 +8,7 @@ PackageKit integration.
 import os
 import locale
 import logging
+import gobject
 from zeroinstall import _, SafeException
 
 from zeroinstall.support import tasks
@@ -162,7 +163,9 @@ class PackageKitDownload(download.ForkDownload):
 	def _next_install(self):
 
 		def installed():
-			PackageKitDownload._queue.pop(0)
+			self._transaction = None
+			if PackageKitDownload._queue:
+				PackageKitDownload._queue.pop(0)
 			if PackageKitDownload._queue:
 				PackageKitDownload._queue[0]._next_install()
 
@@ -170,7 +173,7 @@ class PackageKitDownload(download.ForkDownload):
 			self.status = download.download_failed
 			ex = SafeException('PackageKit install failed: %s' % message)
 			self.downloaded.trigger(exception = (ex, None))
-			installed()
+			gobject.idle_add(installed)
 
 		def installed_cb(sender):
 			self._impl.installed = True;
@@ -193,7 +196,7 @@ class PackageKitDownload(download.ForkDownload):
 
 		if self._transaction is not None:
 			self._transaction.proxy.Cancel()
-		if self in PackageKitDownload._queue:
+		elif self in PackageKitDownload._queue:
 			PackageKitDownload._queue.remove(self)
 
 		self.aborted_by_user = True
