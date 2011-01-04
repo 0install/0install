@@ -136,6 +136,9 @@ class PackageKit(object):
 		tran.proxy.Resolve('none', [package])
 
 class PackageKitDownload(download.ForkDownload):
+
+	_queue = []
+
 	def __init__(self, url, hint, pk, packagekit_id):
 		download.ForkDownload.__init__(self, url, hint)
 
@@ -148,33 +151,52 @@ class PackageKitDownload(download.ForkDownload):
 		assert self.status == download.download_starting
 		assert self.downloaded is None
 
+		self.status = download.download_fetching
+		self.downloaded = tasks.Blocker(
+				'PackageKit install %s' % self.packagekit_id)
+
+		PackageKitDownload._queue.append(self)
+		if len(PackageKitDownload._queue) == 1:
+			self._next_install()
+
+	def _next_install(self):
+
+		def installed():
+			PackageKitDownload._queue.pop(0)
+			if PackageKitDownload._queue:
+				PackageKitDownload._queue[0]._next_install()
+
 		def error_cb(sender, message):
 			self.status = download.download_failed
 			ex = SafeException('PackageKit install failed: %s' % message)
 			self.downloaded.trigger(exception = (ex, None))
+			installed()
 
 		def installed_cb(sender):
 			self._impl.installed = True;
 			self.status = download.download_complete
 			self.downloaded.trigger()
+			installed()
 
 		def install_packages():
-			package_name = self.packagekit_id
-			self._transaction = _PackageKitTransaction(self.pk, installed_cb, error_cb)
+			self._transaction = _PackageKitTransaction(self.pk,
+					installed_cb, error_cb)
 			self._transaction.compat_call([
-					('InstallPackages', [package_name]),
-					('InstallPackages', False, [package_name]),
+					('InstallPackages', [self.packagekit_id]),
+					('InstallPackages', True, [self.packagekit_id]),
 					])
 
 		_auth_wrapper(install_packages)
 
-		self.status = download.download_fetching
-		self.downloaded = tasks.Blocker('PackageKit install %s' % self.packagekit_id)
-
 	def abort(self):
 		_logger_pk.debug(_('Cancel transaction'))
+
+		if self._transaction is not None:
+			self._transaction.proxy.Cancel()
+		if self in PackageKitDownload._queue:
+			PackageKitDownload._queue.remove(self)
+
 		self.aborted_by_user = True
-		self._transaction.proxy.Cancel()
 		self.status = download.download_failed
 		self.downloaded.trigger()
 
