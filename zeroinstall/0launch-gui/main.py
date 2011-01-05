@@ -23,7 +23,6 @@ def run_gui(args):
 	parser = OptionParser(usage=_("usage: %prog [options] interface"))
 	parser.add_option("", "--before", help=_("choose a version before this"), metavar='VERSION')
 	parser.add_option("", "--cpu", help=_("target CPU type"), metavar='CPU')
-	parser.add_option("-c", "--cache", help=_("show the cache"), action='store_true')
 	parser.add_option("", "--command", help=_("command to select"), metavar='COMMAND')
 	parser.add_option("-d", "--download-only", help=_("fetch but don't run"), action='store_true')
 	parser.add_option("", "--message", help=_("message to display when interacting with user"))
@@ -49,13 +48,6 @@ def run_gui(args):
 		else:
 			logger.setLevel(logging.DEBUG)
 
-	if options.cache:
-		# Must fork before importing gtk, or ATK dies
-		if os.fork():
-			# We exit, so our parent can call waitpid and unblock.
-			sys.exit(0)
-		# The grandchild continues...
-
 	if options.with_store:
 		from zeroinstall import zerostore
 		for x in options.with_store:
@@ -80,17 +72,6 @@ def run_gui(args):
 
 	if not hasattr(gtk, 'combo_box_new_text'):
 		import combo_compat
-
-	if options.cache:
-		import cache
-		cache_explorer = cache.CacheExplorer()
-		cache_explorer.show()
-		cache_explorer.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.WATCH))
-		gtk.gdk.flush()
-		cache_explorer.populate_model()
-		cache_explorer.window.set_cursor(None)
-		gtk.main()
-		sys.exit(0)
 
 	handler = gui.GUIHandler()
 
