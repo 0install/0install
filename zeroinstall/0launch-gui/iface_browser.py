@@ -37,8 +37,8 @@ def get_tooltip_text(mainwindow, interface, model_column):
 
 	impl = mainwindow.policy.implementation.get(interface, None)
 	if not impl:
-		return _("No suitable implementation was found. Check the "
-			 "interface properties to find out why.")
+		return _("No suitable version was found. Double-click "
+			 "here to find out why.")
 
 	if model_column == InterfaceBrowser.VERSION:
 		text = _("Currently preferred version: %(version)s (%(stability)s)") % \
@@ -149,6 +149,7 @@ class InterfaceBrowser:
 	SUMMARY = 3
 	DOWNLOAD_SIZE = 4
 	ICON = 5
+	BACKGROUND = 6
 
 	columns = [(_('Component'), INTERFACE_NAME),
 		   (_('Version'), VERSION),
@@ -183,13 +184,14 @@ class InterfaceBrowser:
 		self.default_icon = tree_view.style.lookup_icon_set(gtk.STOCK_EXECUTE).render_icon(tree_view.style,
 			gtk.TEXT_DIR_NONE, gtk.STATE_NORMAL, gtk.ICON_SIZE_SMALL_TOOLBAR, tree_view, None)
 
-		self.model = gtk.TreeStore(object, str, str, str, str, gtk.gdk.Pixbuf)
+		self.model = gtk.TreeStore(object, str, str, str, str, gtk.gdk.Pixbuf, str)
 		self.tree_view = tree_view
 		tree_view.set_model(self.model)
 
 		column_objects = []
 
 		text = gtk.CellRendererText()
+		coloured_text = gtk.CellRendererText()
 
 		for name, model_column in self.columns:
 			if model_column == InterfaceBrowser.INTERFACE_NAME:
@@ -207,6 +209,9 @@ class InterfaceBrowser:
 						pass
 					column = gtk.TreeViewColumn(name, text_ellip, text = model_column)
 					column.set_expand(True)
+				elif model_column == InterfaceBrowser.VERSION:
+					column = gtk.TreeViewColumn(name, coloured_text, text = model_column,
+								    background = InterfaceBrowser.BACKGROUND)
 				else:
 					column = gtk.TreeViewColumn(name, text, text = model_column)
 			tree_view.append_column(column)
@@ -230,7 +235,7 @@ class InterfaceBrowser:
 				return True
 			if bev.button != 1 or bev.type != gtk.gdk._2BUTTON_PRESS:
 				return False
-			properties.edit(policy, self.model[path][InterfaceBrowser.INTERFACE], self.compile)
+			properties.edit(policy, self.model[path][InterfaceBrowser.INTERFACE], self.compile, show_versions = True)
 		tree_view.connect('button-press-event', button_press)
 
 		tree_view.connect('destroy', lambda s: policy.watchers.remove(self.build_tree))
@@ -351,7 +356,8 @@ class InterfaceBrowser:
 							_('Unknown dependency type : %s') % child
 						self.model[child_iter][InterfaceBrowser.ICON] = self.default_icon
 			else:
-				self.model[iter][InterfaceBrowser.VERSION] = _('(choose)')
+				self.model[iter][InterfaceBrowser.VERSION] = _('(problem)')
+				self.model[iter][InterfaceBrowser.BACKGROUND] = '#f88'
 		if commands:
 			add_node(None, self.root, 0)
 		else:
