@@ -440,8 +440,9 @@ class SATSolver(Solver):
 			for impl in filtered_impls:
 				command = impl.commands.get(command_name, None)
 				if not command:
-					# Mark implementation as unselectable
-					problem.add_clause([sat.neg(impl_to_var[impl])])
+					if not isinstance(impl, _DummyImpl):
+						# Mark implementation as unselectable
+						problem.add_clause([sat.neg(impl_to_var[impl])])
 					continue
 
 				# We have a candidate <command>. Require that if it's selected
@@ -459,6 +460,10 @@ class SATSolver(Solver):
 						debug(_("Considering command runner %s"), d)
 						runner_command_name = _get_command_name(d)
 						runner_vars = add_command_iface(d.interface, arch.child_arch, runner_command_name)
+
+						if closest_match:
+							dummy_command = problem.add_variable(None)
+							runner_vars.append(dummy_command)
 						# If the parent command is chosen, one of the candidate runner commands
 						# must be too. If there aren't any, then this command is unselectable.
 						problem.add_clause([sat.neg(command_var)] + runner_vars)
@@ -562,6 +567,9 @@ class SATSolver(Solver):
 				# Check for undecided command-specific dependencies, and then for
 				# implementation dependencies.
 				lit_info = problem.get_varinfo_for_lit(lit).obj
+				if lit_info is None:
+					assert closest_match
+					return None	# (a dummy command added for better diagnostics; has no dependencies)
 				return find_undecided_dep(lit_info.command, lit_info.arch) or \
 				       find_undecided_dep(lit_info.impl, lit_info.arch)
 
