@@ -358,8 +358,8 @@ class Policy(object):
 						downloads_in_progress[f] = tasks.IdleBlocker('Refresh local feed')
 					continue
 				elif f.startswith('distribution:'):
-					if (force or update_local or _feed_needs_distro_fetch(f)) \
-                            and self.network_use != network_offline:
+					if (update_local or _feed_needs_distro_fetch(f)) \
+							and self.network_use != network_offline:
 						downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
 				elif force and self.network_use != network_offline:
 					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
@@ -481,7 +481,10 @@ def _feed_needs_distro_fetch(url):
 
 	if feed is not None:
 		for impl in feed.implementations.values():
-			if impl.id.startswith('package:'):
-				break
-		else:
-			return True
+			if impl.machine != 'src':
+				return False
+
+	if url.startswith('distribution:'):
+		return _feed_needs_distro_fetch(url.split(':', 2)[-1])
+
+	return True
