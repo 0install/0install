@@ -325,7 +325,7 @@ class Handler(object):
 	confirm_trust_keys.original = True		# Detect if someone overrides it
 
 	@tasks.async
-	def confirm_install(self, msg):
+	def confirm_install(self, msg, packages):
 		"""We need to check something with the user before continuing with the install.
 		@raise download.DownloadAborted: if the user cancels"""
 		yield

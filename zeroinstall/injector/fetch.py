@@ -489,7 +489,8 @@ class Fetcher(object):
 					'These come from your distribution, and should therefore be trustworthy, but they also '
 					'run with extra privileges. In particular, installing them may run extra services on your '
 					'computer or affect other users. You may be asked to enter a password to confirm. The '
-					'packages are:\n\n') + ('\n'.join('- ' + x for x in unsafe_impls)))
+					'packages are:\n\n') + ('\n'.join('- ' + x for x in unsafe_impls)),
+                    unsafe_impls)
 				yield confirm
 				tasks.check(confirm)
 
