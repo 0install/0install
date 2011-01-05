@@ -124,26 +124,31 @@ class AppListBox:
 		self.window.connect('response', response)
 
 	def populate_model(self):
-		model = self.model
-		model.clear()
+		m = self.model
+		m.clear()
 
 		for uri in self.app_list.get_apps():
-			itr = model.append()
-			model[itr][AppListBox.URI] = uri
+			itr = m.append()
+			m[itr][AppListBox.URI] = uri
 
-			iface = self.iface_cache.get_interface(uri)
-			name = iface.get_name()
-			summary = iface.summary or _('No information available')
-			summary = summary[:1].capitalize() + summary[1:]
+			try:
+				iface = self.iface_cache.get_interface(uri)
+				name = iface.get_name()
+				summary = iface.summary or _('No information available')
+				summary = summary[:1].capitalize() + summary[1:]
+				icon_width, icon_height = gtk.icon_size_lookup(gtk.ICON_SIZE_DIALOG)
+				pixbuf = icon.load_icon(self.iface_cache.get_icon_path(iface), icon_width, icon_height)
+			except model.InvalidInterface, ex:
+				name = uri
+				summary = unicode(ex)
+				pixbuf = None
 
-			model[itr][AppListBox.NAME] = name
-			icon_width, icon_height = gtk.icon_size_lookup(gtk.ICON_SIZE_DIALOG)
-			pixbuf = icon.load_icon(self.iface_cache.get_icon_path(iface), icon_width, icon_height)
+			m[itr][AppListBox.NAME] = name
 			if pixbuf is None:
 				pixbuf = self.window.render_icon(gtk.STOCK_EXECUTE, gtk.ICON_SIZE_DIALOG)
-			model[itr][AppListBox.ICON] = pixbuf
+			m[itr][AppListBox.ICON] = pixbuf
 
-			model[itr][AppListBox.MARKUP] = '<b>%s</b>\n<i>%s</i>' % (_pango_escape(name), _pango_escape(summary))
+			m[itr][AppListBox.MARKUP] = '<b>%s</b>\n<i>%s</i>' % (_pango_escape(name), _pango_escape(summary))
 
 	def action_run(self, uri):
 		iface = self.iface_cache.get_interface(uri)
@@ -202,7 +207,10 @@ class AppListBox:
 		subprocess.Popen(['0launch', '--gui', '--', uri])
 
 	def action_remove(self, uri):
-		name = self.iface_cache.get_interface(uri).get_name()
+		try:
+			name = self.iface_cache.get_interface(uri).get_name()
+		except model.InvalidInterface:
+			name = uri
 
 		box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL, "")
 		box.set_markup(_("Remove <b>%s</b> from the menu?") % _pango_escape(name))
