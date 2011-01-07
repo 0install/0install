@@ -239,6 +239,13 @@ class Distribution(object):
 			self._packagekit = packagekit.PackageKit()
 		return self._packagekit
 
+class WindowsDistribution(Distribution):
+	def get_package_info(self, package, factory):
+		if package == 'openjdk-6-jre':
+			impl = factory('package:windows:%s:%s' % (package, '6'))
+			impl.version = model.parse_version('6')
+			impl.main = os.environ["ProgramFiles"] + r"\Java\jre6\bin\java.exe"
+
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
 	an external command), we cache the results.
@@ -659,7 +666,9 @@ def get_host_distribution():
 		_pkg_db = '/var/db/pkg'
 		_macports_db = '/opt/local/var/macports/registry/registry.db'
 
-		if os.path.isdir(_pkg_db):
+		if os.name == "nt":
+			_host_distribution = WindowsDistribution()
+		elif os.path.isdir(_pkg_db):
 			if sys.platform.startswith("linux"):
 				_host_distribution = GentooDistribution(_pkg_db)
 			elif sys.platform.startswith("freebsd"):
