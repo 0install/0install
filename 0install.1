@@ -150,9 +150,9 @@ values are `run' (the default), `test' (used by 0test) and `compile' (used by
 command (for example, if the package contains data rather than a program).
 
 .TP
-\fB\-\-xml\fP
-Print the set of chosen implementations as an XML document to stdout. This can
-be used later with the `download' and `run' sub-commands.
+\fB\-\-message=MESSAGE\fP
+If we show a dialog box for the download, display MESSAGE to the user to
+explain why the download is needed.
 
 .TP
 \fB\-\-not\-before=VERSION\fP
@@ -168,6 +168,12 @@ background).
 .TP
 \fB\-\-source\fP
 Select source code rather than a binary. This is used internally by `0compile'.
+
+.TP
+\fB\-\-xml\fP
+Print the set of chosen implementations as an XML document to stdout. This can
+be used later with the `download' and `run' sub-commands.
+
 
 .PP
 `select' returns an exit status of zero if it selected a set of versions, and
