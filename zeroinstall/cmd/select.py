@@ -170,43 +170,49 @@ def handle(options, args):
 		sys.exit(1)	# Aborted by user
 
 	if options.xml:
-		doc = sels.toDOM()
-		doc.writexml(sys.stdout)
-		sys.stdout.write('\n')
+		show_xml(sels)
 	else:
-		from zeroinstall import zerostore
-		done = set()	# detect cycles
-		def print_node(uri, command, indent):
-			if uri in done: return
-			done.add(uri)
-			impl = sels.selections.get(uri, None)
-			print indent + "- URI:", uri
-			if impl:
-				print indent + "  Version:", impl.version
-				try:
-					if impl.id.startswith('package:'):
-						path = "(" + impl.id + ")"
+		show_human(sels)
+
+def show_xml(sels):
+	doc = sels.toDOM()
+	doc.writexml(sys.stdout)
+	sys.stdout.write('\n')
+
+def show_human(sels):
+	from zeroinstall import zerostore
+	done = set()	# detect cycles
+	def print_node(uri, command, indent):
+		if uri in done: return
+		done.add(uri)
+		impl = sels.selections.get(uri, None)
+		print indent + "- URI:", uri
+		if impl:
+			print indent + "  Version:", impl.version
+			try:
+				if impl.id.startswith('package:'):
+					path = "(" + impl.id + ")"
+				else:
+					path = impl.local_path or iface_cache.stores.lookup_any(impl.digests)
+			except zerostore.NotStored:
+				path = "(not cached)"
+			print indent + "  Path:", path
+			indent += "  "
+			deps = impl.dependencies
+			if command is not None:
+				deps += sels.commands[command].requires
+			for child in deps:
+				if isinstance(child, model.InterfaceDependency):
+					if child.qdom.name == 'runner':
+						child_command = command + 1
 					else:
-						path = impl.local_path or iface_cache.stores.lookup_any(impl.digests)
-				except zerostore.NotStored:
-					path = "(not cached)"
-				print indent + "  Path:", path
-				indent += "  "
-				deps = impl.dependencies
-				if command is not None:
-					deps += sels.commands[command].requires
-				for child in deps:
-					if isinstance(child, model.InterfaceDependency):
-						if child.qdom.name == 'runner':
-							child_command = command + 1
-						else:
-							child_command = None
-						print_node(child.interface, child_command, indent)
-			else:
-				print indent + "  No selected version"
-
-
-		if sels.commands:
-			print_node(sels.interface, 0, "")
+						child_command = None
+					print_node(child.interface, child_command, indent)
 		else:
-			print_node(sels.interface, None, "")
+			print indent + "  No selected version"
+
+
+	if sels.commands:
+		print_node(sels.interface, 0, "")
+	else:
+		print_node(sels.interface, None, "")
