@@ -23,7 +23,6 @@ def add_options(parser):
 def handle(options, args):
 	if len(args) != 1:
 		raise UsageError()
-	uri = args[0]
 	iface_uri = model.canonical_iface_uri(args[0])
 
 	sels = select.get_selections(options, iface_uri,

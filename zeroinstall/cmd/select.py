@@ -16,7 +16,8 @@ from zeroinstall.injector.iface_cache import iface_cache
 
 syntax = "URI"
 
-def add_options(parser):
+def add_generic_select_options(parser):
+	"""All options for selecting."""
 	parser.add_option("", "--before", help=_("choose a version before this"), metavar='VERSION')
 	parser.add_option("", "--command", help=_("command to select"), metavar='COMMAND')
 	parser.add_option("", "--cpu", help=_("target CPU type"), metavar='CPU')
@@ -26,6 +27,10 @@ def add_options(parser):
 	parser.add_option("", "--os", help=_("target operation system type"), metavar='OS')
 	parser.add_option("-r", "--refresh", help=_("refresh all used interfaces"), action='store_true')
 	parser.add_option("-s", "--source", help=_("select source code"), action='store_true')
+
+def add_options(parser):
+	"""Options for 'select' and 'download' (but not 'run')"""
+	add_generic_select_options(parser)
 	parser.add_option("", "--xml", help=_("write selected versions as XML"), action='store_true')
 
 def get_selections(options, iface_uri, select_only, download_only, test_callback):
@@ -161,7 +166,6 @@ def get_selections(options, iface_uri, select_only, download_only, test_callback
 def handle(options, args):
 	if len(args) != 1:
 		raise UsageError()
-	uri = args[0]
 	iface_uri = model.canonical_iface_uri(args[0])
 
 	sels = get_selections(options, iface_uri,
