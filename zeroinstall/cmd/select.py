@@ -49,6 +49,7 @@ def get_selections(options, iface_uri, select_only, download_only, test_callback
 		h = handler.ConsoleHandler()
 	else:
 		h = handler.Handler()
+	h.dry_run = bool(options.dry_run)
 
 	command_name = options.command
 	if command_name is None:

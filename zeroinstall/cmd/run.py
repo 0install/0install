@@ -41,4 +41,4 @@ def handle(options, args):
 		sys.exit(1)	# Aborted by user
 
 	from zeroinstall.injector import run
-	run.execute_selections(sels, prog_args, main = options.main, wrapper = options.wrapper)
+	run.execute_selections(sels, prog_args, dry_run = options.dry_run, main = options.main, wrapper = options.wrapper)

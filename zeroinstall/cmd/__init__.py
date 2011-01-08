@@ -79,6 +79,7 @@ def main(command_args):
 		parser = OptionParser(usage=_("usage: %%prog %s [OPTIONS] %s") % (command, cmd.syntax))
 
 		parser.add_option("-c", "--console", help=_("never use GUI"), action='store_false', dest='gui')
+		parser.add_option("", "--dry-run", help=_("just print what would be executed"), action='store_true')
 		parser.add_option("-g", "--gui", help=_("show graphical policy editor"), action='store_true')
 		parser.add_option("-v", "--verbose", help=_("more verbose output"), action='count')
 		parser.add_option("", "--with-store", help=_("add an implementation cache"), action='append', metavar='DIR')
