@@ -141,4 +141,4 @@ use.
 The injector solves this problem by selecting components to meet a program's
 requirements, according to a policy you give it. The injector finds out which
 versions are available, and downloads and runs the ones you choose.""",
-      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.zerostore", "zeroinstall.injector", "zeroinstall.0launch-gui", "zeroinstall.gtkui"])
+      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.zerostore", "zeroinstall.injector", "zeroinstall.0launch-gui", "zeroinstall.gtkui", "zeroinstall.cmd"])
