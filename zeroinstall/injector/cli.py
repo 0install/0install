@@ -13,24 +13,12 @@ import logging
 from zeroinstall import SafeException, NeedDownload
 from zeroinstall.injector import model, autopolicy, selections
 from zeroinstall.injector.iface_cache import iface_cache
+from zeroinstall.cmd import UsageError
 
 #def program_log(msg): os.access('MARK: 0launch: ' + msg, os.F_OK)
 #import __main__
 #__main__.__builtins__.program_log = program_log
 #program_log('0launch ' + ' '.join((sys.argv[1:])))
-
-def _list_interfaces(args):
-	if len(args) == 0:
-		matches = iface_cache.list_all_interfaces()
-	elif len(args) == 1:
-		match = args[0].lower()
-		matches = [i for i in iface_cache.list_all_interfaces() if match in i.lower()]
-	else:
-		raise UsageError()
-
-	matches.sort()
-	for i in matches:
-		print i
 
 def _manage_feeds(options, args):
 	from zeroinstall.injector import writer
@@ -150,8 +138,6 @@ def _get_selections(sels, options):
 		doc.writexml(sys.stdout)
 		sys.stdout.write('\n')
 
-class UsageError(Exception): pass
-
 def main(command_args):
 	"""Act as if 0launch was run with the given arguments.
 	@arg command_args: array of arguments (e.g. C{sys.argv[1:]})
@@ -221,7 +207,8 @@ def main(command_args):
 
 	try:
 		if options.list:
-			_list_interfaces(args)
+			from zeroinstall.cmd import list
+			list.handle(options, args)
 		elif options.version:
 			import zeroinstall
 			print "0launch (zero-install) " + zeroinstall.version
