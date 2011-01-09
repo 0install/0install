@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from basetest import BaseTest
 import sys, os, locale
+import ConfigParser
 import unittest
 
 sys.path.insert(0, '..')
@@ -12,9 +13,15 @@ import logging
 logger = logging.getLogger()
 #logger.setLevel(logging.DEBUG)
 
+test_config = ConfigParser.ConfigParser()
+test_config.add_section('global')
+test_config.set('global', 'help_with_testing', 'False')
+test_config.set('global', 'freshness', str(60 * 60 * 24 * 30))	# One month
+test_config.set('global', 'network_use', 'full')
+
 class TestSolver(BaseTest):
 	def testSimple(self):
-		s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
+		s = solver.DefaultSolver(test_config, iface_cache, Stores())
 
 		foo = iface_cache.get_interface('http://foo/Binary.xml')
 		reader.update(foo, 'Binary.xml')
@@ -43,7 +50,7 @@ class TestSolver(BaseTest):
 		assert not s.details
 	
 	def testDetails(self):
-		s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
+		s = solver.DefaultSolver(test_config, iface_cache, Stores())
 
 		foo = iface_cache.get_interface('http://foo/Binary.xml')
 		reader.update(foo, 'Binary.xml')
@@ -68,7 +75,7 @@ class TestSolver(BaseTest):
 		assert s.details[compiler] == [(compiler_impls['sha1=345'], None)]
 
 	def testRecursive(self):
-		s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
+		s = solver.DefaultSolver(test_config, iface_cache, Stores())
 
 		foo = iface_cache.get_interface('http://foo/Recursive.xml')
 		reader.update(foo, 'Recursive.xml')
@@ -84,7 +91,7 @@ class TestSolver(BaseTest):
 		assert s.details[foo] == [(foo_impls['sha1=abc'], None)]
 		
 	def testMultiArch(self):
-		s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
+		s = solver.DefaultSolver(test_config, iface_cache, Stores())
 
 		foo = iface_cache.get_interface('http://foo/MultiArch.xml')
 		reader.update(foo, 'MultiArch.xml')
@@ -124,7 +131,7 @@ class TestSolver(BaseTest):
 		assert 'ppc' not in other.machine_ranks
 	
 	def testRanking(self):
-		s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
+		s = solver.DefaultSolver(test_config, iface_cache, Stores())
 		ranking = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'Ranking.xml')
 		iface = iface_cache.get_interface(ranking)
 
@@ -147,7 +154,7 @@ class TestSolver(BaseTest):
 		try:
 			locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
-			s = solver.DefaultSolver(model.network_full, iface_cache, Stores())
+			s = solver.DefaultSolver(test_config, iface_cache, Stores())
 			iface = iface_cache.get_interface('http://foo/Langs.xml')
 			reader.update(iface, 'Langs.xml')
 

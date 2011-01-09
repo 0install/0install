@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from basetest import BaseTest
+import ConfigParser
 import sys, os
 import unittest
 
@@ -130,7 +131,13 @@ def assertSelection(expected, repo):
 				cache.get_prog(prog).get_version(str(prog_version)).add_requires(lib, min_v, max_v)
 
 	root = uri_prefix + expected[0][0]
-	s = Solver(model.network_offline, cache, stores)
+
+	test_config = ConfigParser.RawConfigParser()
+	test_config.add_section('global')
+	test_config.set('global', 'help_with_testing', 'False')
+	test_config.set('global', 'network_use', model.network_offline)
+
+	s = Solver(test_config, cache, stores)
 	s.solve(root, arch.get_architecture('Linux', 'x86_64'))
 
 	if expected[0][1] == 'FAIL':

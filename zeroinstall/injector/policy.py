@@ -23,6 +23,23 @@ from zeroinstall.injector.iface_cache import iface_cache
 # If we started a check within this period, don't start another one:
 FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
 
+def load_config():
+	config = ConfigParser.RawConfigParser()
+	config.add_section('global')
+	config.set('global', 'help_with_testing', 'False')
+	config.set('global', 'freshness', str(60 * 60 * 24 * 30))	# One month
+	config.set('global', 'network_use', 'full')
+
+	path = basedir.load_first_config(config_site, config_prog, 'global')
+	if path:
+		info("Loading configuration from %s", path)
+		try:
+			config.read(path)
+		except Exception, ex:
+			warn(_("Error loading config: %s"), str(ex) or repr(ex))
+
+	return config
+
 class Policy(object):
 	"""Chooses a set of implementations based on a policy.
 	Typical use:
@@ -50,21 +67,24 @@ class Policy(object):
 	@ivar stale_feeds: set of feeds which are present but haven't been checked for a long time
 	@type stale_feeds: set
 	"""
-	__slots__ = ['root', 'watchers', 'command',
-		     'freshness', 'handler', '_warned_offline',
+	__slots__ = ['root', 'watchers', 'command', 'config',
+		     'handler', '_warned_offline',
 		     'target_arch', 'src', 'stale_feeds', 'solver', '_fetcher']
 	
-	help_with_testing = property(lambda self: self.solver.help_with_testing,
-				     lambda self, value: setattr(self.solver, 'help_with_testing', value))
+	help_with_testing = property(lambda self: self.config.getboolean('global', 'help_with_testing'),
+				     lambda self, value: self.config.set('global', 'help_with_testing', bool(value)))
 
-	network_use = property(lambda self: self.solver.network_use,
-				     lambda self, value: setattr(self.solver, 'network_use', value))
+	network_use = property(lambda self: self.config.get('global', 'network_use'),
+				     lambda self, value: self.config.set('global', 'network_use', value))
+
+	freshness = property(lambda self: int(self.config.get('global', 'freshness')),
+				     lambda self, value: self.config.set('global', 'freshness', str(value)))
 
 	implementation = property(lambda self: self.solver.selections)
 
 	ready = property(lambda self: self.solver.ready)
 
-	def __init__(self, root, handler = None, src = False, command = -1):
+	def __init__(self, root, handler = None, src = False, command = -1, config = None):
 		"""
 		@param root: The URI of the root interface (the program we want to run).
 		@param handler: A handler for main-loop integration.
@@ -73,6 +93,8 @@ class Policy(object):
 		@type src: bool
 		@param command: The name of the command to run (e.g. 'run', 'test', 'compile', etc)
 		@type command: str
+		@param config: The configuration settings to use, or None to load from disk.
+		@type config: L{ConfigParser.ConfigParser}
 		"""
 		self.watchers = []
 		self.src = src				# Root impl must be a "src" machine type
@@ -84,8 +106,13 @@ class Policy(object):
 				command = 'run'
 		self.command = command
 
+		if config is None:
+			self.config = load_config()
+		else:
+			self.config = config
+
 		from zeroinstall.injector.solver import DefaultSolver
-		self.solver = DefaultSolver(network_full, iface_cache, iface_cache.stores)
+		self.solver = DefaultSolver(self.config, iface_cache, iface_cache.stores)
 
 		# If we need to download something but can't because we are offline,
 		# warn the user. But only the first time.
@@ -98,25 +125,7 @@ class Policy(object):
 		debug(_("Supported systems: '%s'"), arch.os_ranks)
 		debug(_("Supported processors: '%s'"), arch.machine_ranks)
 
-		config = ConfigParser.ConfigParser()
-		config.add_section('global')
-		config.set('global', 'help_with_testing', 'False')
-		config.set('global', 'freshness', str(60 * 60 * 24 * 30))	# One month
-		config.set('global', 'network_use', 'full')
-
-		path = basedir.load_first_config(config_site, config_prog, 'global')
-		if path:
-			info("Loading configuration from %s", path)
-			try:
-				config.read(path)
-			except Exception, ex:
-				warn(_("Error loading config: %s"), str(ex) or repr(ex))
-
-		self.solver.help_with_testing = config.getboolean('global', 'help_with_testing')
-		self.solver.network_use = config.get('global', 'network_use')
-		self.freshness = int(config.get('global', 'freshness'))
-		assert self.solver.network_use in network_levels, self.solver.network_use
-
+		assert self.network_use in network_levels, self.network_use
 		self.set_root(root)
 
 		self.target_arch = arch.get_host_architecture()
@@ -136,16 +145,9 @@ class Policy(object):
 
 	def save_config(self):
 		"""Write global settings."""
-		config = ConfigParser.ConfigParser()
-		config.add_section('global')
-
-		config.set('global', 'help_with_testing', self.help_with_testing)
-		config.set('global', 'network_use', self.network_use)
-		config.set('global', 'freshness', self.freshness)
-
 		path = basedir.save_config_path(config_site, config_prog)
 		path = os.path.join(path, 'global')
-		config.write(file(path + '.new', 'w'))
+		self.config.write(file(path + '.new', 'w'))
 		os.rename(path + '.new', path)
 	
 	def recalculate(self, fetch_stale_interfaces = True):

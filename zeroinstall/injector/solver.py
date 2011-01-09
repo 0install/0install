@@ -119,13 +119,12 @@ class Solver(object):
 		raise NotImplementedError("Abstract")
 
 class SATSolver(Solver):
-	__slots__ = ['_failure_reason', 'network_use', 'iface_cache', 'stores', 'help_with_testing', 'extra_restrictions',
-			'langs']
+	__slots__ = ['_failure_reason', 'config', 'iface_cache', 'stores', 'extra_restrictions', 'langs']
 
 	"""Converts the problem to a set of pseudo-boolean constraints and uses a PB solver to solve them.
 	@ivar langs: the preferred languages (e.g. ["es_ES", "en"]). Initialised to the current locale.
 	@type langs: str"""
-	def __init__(self, network_use, iface_cache, stores, extra_restrictions = None):
+	def __init__(self, config, iface_cache, stores, extra_restrictions = None):
 		"""
 		@param network_use: how much use to make of the network
 		@type network_use: L{model.network_levels}
@@ -137,13 +136,21 @@ class SATSolver(Solver):
 		@type extra_restrictions: {L{model.Interface}: [L{model.Restriction}]}
 		"""
 		Solver.__init__(self)
-		self.network_use = network_use
+		assert not isinstance(config, str), "API change!"
+		self.config = config
 		self.iface_cache = iface_cache
 		self.stores = stores
-		self.help_with_testing = False
 		self.extra_restrictions = extra_restrictions or {}
 
 		self.langs = [locale.getlocale()[0] or 'en']
+
+	@property
+	def network_use(self):
+		return self.config.get('global', 'network_use')
+
+	@property
+	def help_with_testing(self):
+		return self.config.getboolean('global', 'help_with_testing')
 
 	def compare(self, interface, b, a, arch):
 		"""Compare a and b to see which would be chosen first.
