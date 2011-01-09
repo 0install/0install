@@ -33,6 +33,14 @@ def add_options(parser):
 	add_generic_select_options(parser)
 	parser.add_option("", "--xml", help=_("write selected versions as XML"), action='store_true')
 
+def _download_missing_selections(h, sels):
+	from zeroinstall.injector import fetch
+	fetcher = fetch.Fetcher(h)
+	blocker = sels.download_missing(iface_cache, fetcher)
+	if blocker:
+		logging.info(_("Waiting for selected implementations to be downloaded..."))
+		h.wait_for_blocker(blocker)
+
 def get_selections(options, iface_uri, select_only, download_only, test_callback):
 	"""Get selections for iface_uri, according to the options passed.
 	Will switch to GUI mode if necessary.
@@ -43,20 +51,21 @@ def get_selections(options, iface_uri, select_only, download_only, test_callback
 	@return: the selected versions, or None if the user cancels
 	@rtype: L{selections.Selections} | None
 	"""
-
-	# Try to load it as a feed. If it is a feed, it'll get cached. If not, it's a
-	# selections document and we return immediately.
-	maybe_selections = iface_cache.get_feed(iface_uri, selections_ok = True)
-	if isinstance(maybe_selections, selections.Selections):
-		return maybe_selections
-
-	root_iface = iface_cache.get_interface(iface_uri)
-
 	if os.isatty(1):
 		h = handler.ConsoleHandler()
 	else:
 		h = handler.Handler()
 	h.dry_run = bool(options.dry_run)
+
+	# Try to load it as a feed. If it is a feed, it'll get cached. If not, it's a
+	# selections document and we return immediately.
+	maybe_selections = iface_cache.get_feed(iface_uri, selections_ok = True)
+	if isinstance(maybe_selections, selections.Selections):
+		if not select_only:
+			_download_missing_selections(h, maybe_selections)
+		return maybe_selections
+
+	root_iface = iface_cache.get_interface(iface_uri)
 
 	command_name = options.command
 	if command_name is None:

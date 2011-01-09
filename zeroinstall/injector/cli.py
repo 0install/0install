@@ -84,60 +84,6 @@ def _manage_feeds(options, args):
 		else:
 			print _("(no feeds)")
 
-def _download_missing_selections(options, sels):
-	from zeroinstall.injector import fetch
-	from zeroinstall.injector.handler import Handler
-	handler = Handler(dry_run = options.dry_run)
-	fetcher = fetch.Fetcher(handler)
-	blocker = sels.download_missing(iface_cache, fetcher)
-	if blocker:
-		logging.info(_("Waiting for selected implementations to be downloaded..."))
-		handler.wait_for_blocker(blocker)
-
-def _get_selections(sels, options):
-	if options.show:
-		from zeroinstall import zerostore
-		done = set()	# detect cycles
-		def print_node(uri, command, indent):
-			if uri in done: return
-			done.add(uri)
-			impl = sels.selections.get(uri, None)
-			print indent + "- URI:", uri
-			if impl:
-				print indent + "  Version:", impl.version
-				try:
-					if impl.id.startswith('package:'):
-						path = "(" + impl.id + ")"
-					else:
-						path = impl.local_path or iface_cache.stores.lookup_any(impl.digests)
-				except zerostore.NotStored:
-					path = "(not cached)"
-				print indent + "  Path:", path
-				indent += "  "
-				deps = impl.dependencies
-				if command is not None:
-					deps += sels.commands[command].requires
-				for child in deps:
-					if isinstance(child, model.InterfaceDependency):
-						if child.qdom.name == 'runner':
-							child_command = command + 1
-						else:
-							child_command = None
-						print_node(child.interface, child_command, indent)
-			else:
-				print indent + "  No selected version"
-
-
-		if sels.commands:
-			print_node(sels.interface, 0, "")
-		else:
-			print_node(sels.interface, None, "")
-
-	else:
-		doc = sels.toDOM()
-		doc.writexml(sys.stdout)
-		sys.stdout.write('\n')
-
 def main(command_args):
 	"""Act as if 0launch was run with the given arguments.
 	@arg command_args: array of arguments (e.g. C{sys.argv[1:]})
@@ -205,6 +151,9 @@ def main(command_args):
 			iface_cache.stores.stores.append(zerostore.Store(os.path.abspath(x)))
 		logging.info(_("Stores search path is now %s"), iface_cache.stores.stores)
 
+	if options.set_selections:
+		args = [options.set_selections] + args
+
 	try:
 		if options.list:
 			from zeroinstall.cmd import list
@@ -218,14 +167,6 @@ def main(command_args):
 					"\nYou may redistribute copies of this program"
 					"\nunder the terms of the GNU Lesser General Public License."
 					"\nFor more information about these matters, see the file named COPYING.")
-		elif options.set_selections:
-			from zeroinstall.injector import qdom, run
-			sels = selections.Selections(qdom.parse(file(options.set_selections)))
-			_download_missing_selections(options, sels)
-			if options.xml:
-				_get_selections(sels, options)
-			elif not options.download_only:
-				run.execute_selections(sels, args, options.dry_run, options.main, options.wrapper)
 		elif getattr(options, 'import'):
 			# (import is a keyword)
 			cmd = __import__('zeroinstall.cmd.import', globals(), locals(), ["import"], 0)

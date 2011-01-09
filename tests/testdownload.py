@@ -12,7 +12,7 @@ sys.path.insert(0, '..')
 os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall.injector import model, autopolicy, gpg, iface_cache, download, reader, trust, handler, background, arch, selections, qdom
-from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
+from zeroinstall.zerostore import Store, NotStored; Store._add_with_helper = lambda *unused: False
 from zeroinstall.support import basedir, tasks
 from zeroinstall.injector import fetch
 import data
@@ -165,7 +165,7 @@ class TestDownload(BaseTest):
 			cli.main(['--import', 'Hello'])
 
 	def testSelections(self):
-		from zeroinstall.injector.cli import _download_missing_selections
+		from zeroinstall.injector import cli
 		root = qdom.parse(file("selections.xml"))
 		sels = selections.Selections(root)
 		class Options: dry_run = False
@@ -173,7 +173,12 @@ class TestDownload(BaseTest):
 		with output_suppressed():
 			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
-			_download_missing_selections(Options(), sels)
+			try:
+				iface_cache.iface_cache.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
+				assert False
+			except NotStored:
+				pass
+			cli.main(['--download-only', 'selections.xml'])
 			path = iface_cache.iface_cache.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
@@ -191,10 +196,9 @@ class TestDownload(BaseTest):
 			assert sels.download_missing(iface_cache.iface_cache, None) is None
 
 	def testSelectionsWithFeed(self):
-		from zeroinstall.injector.cli import _download_missing_selections
+		from zeroinstall.injector import cli
 		root = qdom.parse(file("selections.xml"))
 		sels = selections.Selections(root)
-		class Options: dry_run = False
 
 		with output_suppressed():
 			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
@@ -205,7 +209,7 @@ class TestDownload(BaseTest):
 			fetcher = fetch.Fetcher(handler)
 			handler.wait_for_blocker(fetcher.download_and_import_feed('http://example.com:8000/Hello.xml', iface_cache.iface_cache))
 
-			_download_missing_selections(Options(), sels)
+			cli.main(['--download-only', 'selections.xml'])
 			path = iface_cache.iface_cache.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
