@@ -43,6 +43,13 @@ def get_selections(options, iface_uri, select_only, download_only, test_callback
 	@return: the selected versions, or None if the user cancels
 	@rtype: L{selections.Selections} | None
 	"""
+
+	# Try to load it as a feed. If it is a feed, it'll get cached. If not, it's a
+	# selections document and we return immediately.
+	maybe_selections = iface_cache.get_feed(iface_uri, selections_ok = True)
+	if isinstance(maybe_selections, selections.Selections):
+		return maybe_selections
+
 	root_iface = iface_cache.get_interface(iface_uri)
 
 	if os.isatty(1):
