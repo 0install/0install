@@ -295,10 +295,10 @@ class Policy(object):
 		feed_iface = iface_cache.get_interface(feed_iface_uri)
 		if not feed_iface.feed_for:
 			if not feed_iface.name:
-				raise SafeException(_("Can't get feed targets for '%s'; failed to load interface.") %
+				raise SafeException(_("Can't get feed targets for '%s'; failed to load it.") %
 						feed_iface_uri)
 			raise SafeException(_("Missing <feed-for> element in '%s'; "
-					"this interface can't be used as a feed.") % feed_iface_uri)
+					"it can't be used as a feed for any other interface.") % feed_iface_uri)
 		feed_targets = feed_iface.feed_for
 		debug(_("Feed targets: %s"), feed_targets)
 		if not feed_iface.name:

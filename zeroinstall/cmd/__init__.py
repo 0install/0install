@@ -75,7 +75,8 @@ def main(command_args):
 			raise SafeException(_("Unknown sub-command '%s': try --help") % command)
 
 		# Configure a parser for the given command
-		cmd = __import__('zeroinstall.cmd.' + command, globals(), locals(), [command], 0)
+		module_name = command.replace('-', '_')
+		cmd = __import__('zeroinstall.cmd.' + module_name, globals(), locals(), [module_name], 0)
 		parser = OptionParser(usage=_("usage: %%prog %s [OPTIONS] %s") % (command, cmd.syntax))
 
 		parser.add_option("-c", "--console", help=_("never use GUI"), action='store_false', dest='gui')

@@ -20,70 +20,6 @@ from zeroinstall.cmd import UsageError
 #__main__.__builtins__.program_log = program_log
 #program_log('0launch ' + ' '.join((sys.argv[1:])))
 
-def _manage_feeds(options, args):
-	from zeroinstall.injector import writer
-	from zeroinstall.injector.handler import Handler
-	from zeroinstall.injector.policy import Policy
-
-	def find_feed_import(iface, feed_url):
-		for f in iface.extra_feeds:
-			if f.uri == feed_url:
-				return f
-		return None
-
-	handler = Handler(dry_run = options.dry_run)
-	if not args: raise UsageError()
-	for x in args:
-		print _("Feed '%s':") % x + '\n'
-		x = model.canonical_iface_uri(x)
-		policy = Policy(x, handler)
-		if options.offline:
-			policy.network_use = model.network_offline
-
-		feed = iface_cache.get_feed(x)
-		if policy.network_use != model.network_offline and policy.is_stale(feed):
-			blocker = policy.fetcher.download_and_import_feed(x, iface_cache.iface_cache)
-			print _("Downloading feed; please wait...")
-			handler.wait_for_blocker(blocker)
-			print _("Done")
-
-		interfaces = policy.get_feed_targets(x)
-		for i in range(len(interfaces)):
-			if find_feed_import(interfaces[i], x):
-				print _("%(index)d) Remove as feed for '%(uri)s'") % {'index': i + 1, 'uri': interfaces[i].uri}
-			else:
-				print _("%(index)d) Add as feed for '%(uri)s'") % {'index': i + 1, 'uri': interfaces[i].uri}
-		print
-		while True:
-			try:
-				i = raw_input(_('Enter a number, or CTRL-C to cancel [1]: ')).strip()
-			except KeyboardInterrupt:
-				print
-				raise SafeException(_("Aborted at user request."))
-			if i == '':
-				i = 1
-			else:
-				try:
-					i = int(i)
-				except ValueError:
-					i = 0
-			if i > 0 and i <= len(interfaces):
-				break
-			print _("Invalid number. Try again. (1 to %d)") % len(interfaces)
-		iface = interfaces[i - 1]
-		feed_import = find_feed_import(iface, x)
-		if feed_import:
-			iface.extra_feeds.remove(feed_import)
-		else:
-			iface.extra_feeds.append(model.Feed(x, arch = None, user_override = True))
-		writer.save_interface(iface)
-		print '\n' + _("Feed list for interface '%s' is now:") % iface.get_name()
-		if iface.extra_feeds:
-			for f in iface.extra_feeds:
-				print "- " + f.uri
-		else:
-			print _("(no feeds)")
-
 def main(command_args):
 	"""Act as if 0launch was run with the given arguments.
 	@arg command_args: array of arguments (e.g. C{sys.argv[1:]})
@@ -172,7 +108,8 @@ def main(command_args):
 			cmd = __import__('zeroinstall.cmd.import', globals(), locals(), ["import"], 0)
 			cmd.handle(options, args)
 		elif options.feed:
-			_manage_feeds(options, args)
+			from zeroinstall.cmd import add_feed
+			add_feed.handle(options, args, add_ok = True, remove_ok = True)
 		elif options.select_only:
 			from zeroinstall.cmd import select
 			if not options.show:
