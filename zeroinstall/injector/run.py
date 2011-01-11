@@ -138,7 +138,13 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		else:
 			assert old_path
 			main = os.path.join(os.path.dirname(old_path), main)	# User main is relative to command's name
-		user_command = Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': main}), None)
+		# Copy all child nodes (e.g. <runner>) except for the arguments
+		user_command_element = qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': main})
+		for child in commands[0].qdom.childNodes:
+			if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
+				continue
+			user_command_element.childNodes.append(child)
+		user_command = Command(user_command_element, None)
 		commands = [user_command] + commands[1:]
 
 	if commands[-1].path is None:
