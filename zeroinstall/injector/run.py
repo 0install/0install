@@ -7,7 +7,7 @@ Executes a set of implementations as a program.
 
 from zeroinstall import _
 import os, sys
-from logging import debug, info
+from logging import info
 from string import Template
 
 from zeroinstall.injector.model import SafeException, EnvironmentBinding, Command
@@ -45,7 +45,6 @@ def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 	@return: the output produced by the process
 	@since: 0.27
 	"""
-	args = []
 	import tempfile
 	output = tempfile.TemporaryFile(prefix = '0launch-test')
 	try:
@@ -101,7 +100,7 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 	@since: 0.27
 	@precondition: All implementations are in the cache.
 	"""
-	assert stores is not None
+	#assert stores is not None
 	if stores is None:
 		from zeroinstall import zerostore
 		stores = zerostore.Stores()

@@ -5,13 +5,11 @@ The B{0install download} command-line interface.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from optparse import OptionParser
-import os, sys
-import logging
+import sys
 
-from zeroinstall import cmd, SafeException, _
+from zeroinstall import _
 from zeroinstall.cmd import UsageError, select
-from zeroinstall.injector import model, autopolicy, selections, handler
+from zeroinstall.injector import model
 
 syntax = "URI"
 

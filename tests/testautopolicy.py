@@ -6,8 +6,8 @@ import unittest
 
 sys.path.insert(0, '..')
 
-from zeroinstall import NeedDownload
-from zeroinstall.injector import model, autopolicy, gpg, iface_cache, namespaces, reader, handler
+from zeroinstall.injector import model, gpg, namespaces, reader, run, fetch
+from zeroinstall.injector.policy import Policy
 from zeroinstall.support import basedir
 import data
 
@@ -17,6 +17,12 @@ logger = logging.getLogger()
 
 def recalculate(policy):
 	policy.need_download()
+
+def download_and_execute(policy, prog_args, main = None, dry_run = True):
+	downloaded = policy.solve_and_download_impls()
+	if downloaded:
+		policy.config.handler.wait_for_blocker(downloaded)
+	run.execute_selections(policy.solver.selections, prog_args, stores = policy.config.stores, main = main, dry_run = dry_run)
 
 class TestAutoPolicy(BaseTest):
 	def setUp(self):
@@ -35,13 +41,11 @@ class TestAutoPolicy(BaseTest):
 		f.close()
 
 	def testNoNeedDl(self):
-		policy = autopolicy.AutoPolicy(foo_iface_uri,
-						download_only = False)
+		policy = Policy(foo_iface_uri, config = self.config)
 		policy.freshness = 0
 		assert policy.need_download()
 
-		policy = autopolicy.AutoPolicy(os.path.abspath('Foo.xml'),
-						download_only = False)
+		policy = Policy(os.path.abspath('Foo.xml'), config = self.config)
 		assert not policy.need_download()
 		assert policy.ready
 	
@@ -58,12 +62,12 @@ class TestAutoPolicy(BaseTest):
     <archive href='http://foo/foo.tgz' size='100'/>
   </implementation>
 </interface>""" % foo_iface_uri)
-		policy = autopolicy.AutoPolicy(foo_iface_uri,
-						download_only = False)
+		self.config.fetcher = fetch.Fetcher(self.config.handler)
+		policy = Policy(foo_iface_uri, config = self.config)
 		policy.freshness = 0
 		try:
 			assert policy.need_download()
-			policy.execute([])
+			download_and_execute(policy, [])
 		except model.SafeException, ex:
 			assert 'Unknown digest algorithm' in str(ex)
 	
@@ -80,9 +84,9 @@ class TestAutoPolicy(BaseTest):
   <implementation version='1.0' id='/bin'/>
 </interface>""")
 		tmp.flush()
-		policy = autopolicy.AutoPolicy(tmp.name, False, False)
+		policy = Policy(tmp.name, config = self.config)
 		try:
-			policy.download_and_execute(['Hello'])
+			download_and_execute(policy, ['Hello'])
 			assert 0
 		except model.SafeException, ex:
 			assert "ThisBetterNotExist" in str(ex)
@@ -100,9 +104,9 @@ class TestAutoPolicy(BaseTest):
   <implementation version='1.0' id='/bin'/>
 </interface>""")
 		tmp.flush()
-		policy = autopolicy.AutoPolicy(tmp.name, False, False)
+		policy = Policy(tmp.name, config = self.config)
 		try:
-			policy.download_and_execute(['Hello'])
+			download_and_execute(policy, ['Hello'])
 			assert 0
 		except model.SafeException, ex:
 			assert "library" in str(ex), ex
@@ -122,17 +126,12 @@ class TestAutoPolicy(BaseTest):
     <archive href='http://foo/foo.tgz' size='100'/>
   </implementation>
 </interface>""" % foo_iface_uri)
-		policy = autopolicy.AutoPolicy(foo_iface_uri, False, True)
+		policy = Policy(foo_iface_uri, config = self.config)
 		policy.freshness = 0
 		policy.network_use = model.network_full
 		recalculate(policy)
 		assert policy.need_download()
 		assert policy.ready
-		try:
-			policy.execute([], main = 'NOTHING')
-			assert False
-		except NeedDownload, ex:
-			pass
 
 	def testBinding(self):
 		local_impl = os.path.dirname(os.path.abspath(__file__))
@@ -171,13 +170,12 @@ class TestAutoPolicy(BaseTest):
 		cached_impl = basedir.save_cache_path('0install.net',
 							'implementations',
 							'sha1=123')
-		policy = autopolicy.AutoPolicy(tmp.name, False,
-						dry_run = True)
+		policy = Policy(tmp.name, config = self.config)
 		policy.network_use = model.network_offline
 		os.environ['FOO_PATH'] = "old"
 		old, sys.stdout = sys.stdout, StringIO()
 		try:
-			policy.download_and_execute(['Hello'])
+			download_and_execute(policy, ['Hello'])
 		finally:
 			sys.stdout = old
 		self.assertEquals(cached_impl + '/.:old',
@@ -194,7 +192,7 @@ class TestAutoPolicy(BaseTest):
 		os.environ['BAR_PATH'] = '/old'
 		old, sys.stdout = sys.stdout, StringIO()
 		try:
-			policy.download_and_execute(['Hello'])
+			download_and_execute(policy, ['Hello'])
 		finally:
 			sys.stdout = old
 		self.assertEquals(cached_impl + '/.',
@@ -203,9 +201,6 @@ class TestAutoPolicy(BaseTest):
 				os.environ['BAR_PATH'])
 		self.assertEquals(cached_impl + '/.:/usr/local/share:/usr/share',
 				os.environ['XDG_DATA_DIRS'])
-
-		policy.download_only = True
-		policy.download_and_execute(['Hello'])
 	
 	def testFeeds(self):
 		self.cache_iface(foo_iface_uri,
@@ -231,13 +226,12 @@ class TestAutoPolicy(BaseTest):
     <archive href='foo' size='10'/>
   </implementation>
 </interface>""" % foo_iface_uri)
-		policy = autopolicy.AutoPolicy(foo_iface_uri, False,
-							dry_run = True)
+		policy = Policy(foo_iface_uri, config = self.config)
 		policy.freshness = 0
 		policy.network_use = model.network_full
 		recalculate(policy)
 		assert policy.ready
-		foo_iface = iface_cache.iface_cache.get_interface(foo_iface_uri)
+		foo_iface = self.config.iface_cache.get_interface(foo_iface_uri)
 		self.assertEquals('sha1=123', policy.implementation[foo_iface].id)
 
 	def testBadConfig(self):
@@ -250,8 +244,7 @@ class TestAutoPolicy(BaseTest):
 		stream.close()
 
 		logger.setLevel(logging.ERROR)
-		policy = autopolicy.AutoPolicy(foo_iface_uri,
-						download_only = False)
+		Policy(foo_iface_uri, config = self.config)
 		logger.setLevel(logging.WARN)
 
 	def testNoLocal(self):
@@ -265,11 +258,9 @@ class TestAutoPolicy(BaseTest):
   <description>Foo</description>
   <feed src='/etc/passwd'/>
 </interface>""" % foo_iface_uri)
-		policy = autopolicy.AutoPolicy(foo_iface_uri,
-						download_only = False)
-		policy.network_use = model.network_offline
+		self.config.network_use = model.network_offline
 		try:
-			iface_cache.iface_cache.get_interface(foo_iface_uri)
+			self.config.iface_cache.get_interface(foo_iface_uri)
 			assert False
 		except reader.InvalidInterface, ex:
 			assert 'Invalid feed URL' in str(ex)
@@ -285,13 +276,13 @@ class TestAutoPolicy(BaseTest):
   <description>Foo</description>
   <feed src='http://example.com'/>
 </interface>""" % foo_iface_uri)
-		policy = autopolicy.AutoPolicy(foo_iface_uri, dry_run = True)
+		policy = Policy(foo_iface_uri, config = self.config)
 		policy.network_use = model.network_full
 		policy.freshness = 0
 
 		assert policy.need_download()
 
-		feed = iface_cache.iface_cache.get_feed(foo_iface_uri)
+		feed = self.config.iface_cache.get_feed(foo_iface_uri)
 		feed.feeds = [model.Feed('/BadFeed', None, False)]
 
 		logger.setLevel(logging.ERROR)
@@ -309,13 +300,12 @@ class TestAutoPolicy(BaseTest):
   <description>Foo</description>
   <implementation id='sha1=123' version='1.0' arch='odd-weird' main='dummy'/>
 </interface>""" % foo_iface_uri)
-		policy = autopolicy.AutoPolicy(foo_iface_uri,
-						download_only = False)
+		policy = Policy(foo_iface_uri, config = self.config)
 		policy.network_use = model.network_offline
 		recalculate(policy)
 		assert not policy.ready, policy.implementation
 		try:
-			policy.download_and_execute([])
+			download_and_execute(policy, [])
 			assert False
 		except model.SafeException, ex:
 			assert "has no usable implementations" in str(ex), ex
@@ -331,8 +321,7 @@ class TestAutoPolicy(BaseTest):
   <description>Foo</description>
   <implementation id='sha1=123' version='1.0' main='dummy'/>
 </interface>""" % foo_iface_uri)
-		policy = autopolicy.AutoPolicy(foo_iface_uri,
-						download_only = False)
+		policy = Policy(foo_iface_uri, config = self.config)
 		policy.freshness = 0
 		recalculate(policy)
 		assert not policy.ready
@@ -353,8 +342,7 @@ class TestAutoPolicy(BaseTest):
     </implementation>
   </group>
 </interface>""" % (foo_iface_uri, foo_iface_uri))
-		policy = autopolicy.AutoPolicy(foo_iface_uri,
-						download_only = False)
+		policy = Policy(foo_iface_uri, config = self.config)
 		policy.freshness = 0
 		recalculate(policy)
 
@@ -394,15 +382,14 @@ class TestAutoPolicy(BaseTest):
    </implementation>
   </group>
 </interface>""" % foo_iface_uri)
-		policy = autopolicy.AutoPolicy(foo_iface_uri,
-						download_only = False)
+		policy = Policy(foo_iface_uri, config = self.config)
 		policy.network_use = model.network_full
 		policy.freshness = 0
 		#logger.setLevel(logging.DEBUG)
 		recalculate(policy)
 		#logger.setLevel(logging.WARN)
-		foo_iface = iface_cache.iface_cache.get_interface(foo_iface_uri)
-		bar_iface = iface_cache.iface_cache.get_interface('http://bar')
+		foo_iface = self.config.iface_cache.get_interface(foo_iface_uri)
+		bar_iface = self.config.iface_cache.get_interface('http://bar')
 		assert policy.implementation[bar_iface].id == 'sha1=200'
 
 		dep = policy.implementation[foo_iface].dependencies['http://bar']

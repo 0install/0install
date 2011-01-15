@@ -6,7 +6,7 @@ Chooses a set of components to make a running program.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os, tempfile, subprocess, sys, locale
+import os, locale
 from logging import debug, warn, info
 
 from zeroinstall.zerostore import BadDigest, NotStored
@@ -121,6 +121,10 @@ class Solver(object):
 class SATSolver(Solver):
 	__slots__ = ['_failure_reason', 'config', 'extra_restrictions', 'langs']
 
+	@property
+	def iface_cache(self):
+		return self.config.iface_cache	# (deprecated; used by 0compile)
+
 	"""Converts the problem to a set of pseudo-boolean constraints and uses a PB solver to solve them.
 	@ivar langs: the preferred languages (e.g. ["es_ES", "en"]). Initialised to the current locale.
 	@type langs: str"""
@@ -229,7 +233,6 @@ class SATSolver(Solver):
 		# selects that.
 		iface_cache = self.config.iface_cache
 
-		feeds_added = set()
 		problem = sat.SATProblem()
 
 		impl_to_var = {}	# Impl -> sat var
@@ -332,7 +335,6 @@ class SATSolver(Solver):
 			"""Name implementations from feed and assert that only one can be selected."""
 			if uri in ifaces_processed: return
 			ifaces_processed.add(uri)
-			iface_name = 'i%d' % len(ifaces_processed)
 
 			iface = iface_cache.get_interface(uri)
 
@@ -358,7 +360,7 @@ class SATSolver(Solver):
 							impls.extend(distro_feed.implementations.values())
 				except Exception, ex:
 					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
-					raise
+					#raise
 
 			impls.sort(lambda a, b: self.compare(iface, a, b, arch))
 

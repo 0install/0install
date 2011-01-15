@@ -7,11 +7,12 @@ import data
 sys.path.insert(0, '..')
 from zeroinstall.injector import model, gpg, trust
 from zeroinstall.injector.namespaces import config_site
-from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
+from zeroinstall.injector.iface_cache import PendingFeed
 from zeroinstall.support import basedir
 
 class TestIfaceCache(BaseTest):
 	def testList(self):
+		iface_cache = self.config.iface_cache
 		self.assertEquals([], iface_cache.list_all_interfaces())
 		iface_dir = basedir.save_cache_path(config_site, 'interfaces')
 		file(os.path.join(iface_dir, 'http%3a%2f%2ffoo'), 'w').close()
@@ -20,6 +21,7 @@ class TestIfaceCache(BaseTest):
 		# TODO: test overrides
 
 	def testCheckSigned(self):
+		iface_cache = self.config.iface_cache
 		trust.trust_db.trust_key(
 			'92429807C9853C0744A68B9AAE07828059A53CC1')
 		feed_url = 'http://foo'
@@ -58,6 +60,7 @@ class TestIfaceCache(BaseTest):
 		self.assertEquals(1154850229, feed.last_modified)
 
 	def testXMLupdate(self):
+		iface_cache = self.config.iface_cache
 		trust.trust_db.trust_key(
 			'92429807C9853C0744A68B9AAE07828059A53CC1')
 		stream = tempfile.TemporaryFile()
@@ -106,6 +109,7 @@ class TestIfaceCache(BaseTest):
 			pass
 
 	def testTimes(self):
+		iface_cache = self.config.iface_cache
 		stream = tempfile.TemporaryFile()
 		stream.write(data.thomas_key)
 		stream.seek(0)
@@ -139,6 +143,7 @@ class TestIfaceCache(BaseTest):
 		assert signed == None
 
 	def testCheckAttempt(self):
+		iface_cache = self.config.iface_cache
 		self.assertEquals(None, iface_cache.get_last_check_attempt("http://foo/bar.xml"))
 
 		start_time = time.time() - 5	# Seems to be some odd rounding here

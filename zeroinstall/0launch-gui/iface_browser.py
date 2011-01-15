@@ -4,7 +4,6 @@
 import gtk, gobject, pango
 
 from zeroinstall.support import tasks, pretty_size
-from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import model, reader
 import properties
 from zeroinstall.gtkui.icon import load_icon
@@ -23,14 +22,14 @@ def _stability(impl):
 ICON_SIZE = 20.0
 CELL_TEXT_INDENT = int(ICON_SIZE) + 4
 
-def get_tooltip_text(mainwindow, interface, model_column):
+def get_tooltip_text(mainwindow, interface, main_feed, model_column):
 	assert interface
 	if model_column == InterfaceBrowser.INTERFACE_NAME:
 		return _("Full name: %s") % interface.uri
 	elif model_column == InterfaceBrowser.SUMMARY:
-		if not interface.description:
+		if main_feed is None or not main_feed.description:
 			return _("(no description available)")
-		first_para = interface.description.split('\n\n', 1)[0]
+		first_para = main_feed.description.split('\n\n', 1)[0]
 		return first_para.replace('\n', ' ')
 	elif model_column is None:
 		return _("Click here for more options...")
@@ -173,7 +172,9 @@ class InterfaceBrowser:
 				else:
 					col = self.columns[col_index][1]
 					row = self.model[path]
-					tooltip.set_text(get_tooltip_text(self, row[InterfaceBrowser.INTERFACE], col))
+					iface = row[InterfaceBrowser.INTERFACE]
+					main_feed = self.policy.config.iface_cache.get_feed(iface.uri)
+					tooltip.set_text(get_tooltip_text(self, iface, main_feed, col))
 				return True
 			else:
 				return False
@@ -260,7 +261,7 @@ class InterfaceBrowser:
 			return self.cached_icon[iface.uri]
 		except KeyError:
 			# Try the on-disk cache
-			iconpath = iface_cache.get_icon_path(iface)
+			iconpath = self.policy.config.iface_cache.get_icon_path(iface)
 
 			if iconpath:
 				icon = load_icon(iconpath, ICON_SIZE, ICON_SIZE)
@@ -285,7 +286,7 @@ class InterfaceBrowser:
 							# Try to insert new icon into the cache
 							# If it fails, we'll be left with None in the cached_icon so
 							# we don't try again.
-							iconpath = iface_cache.get_icon_path(iface)
+							iconpath = self.policy.config.iface_cache.get_icon_path(iface)
 							if iconpath:
 								self.cached_icon[iface.uri] = load_icon(iconpath, ICON_SIZE, ICON_SIZE)
 								self.build_tree()
@@ -308,13 +309,14 @@ class InterfaceBrowser:
 		return None
 
 	def build_tree(self):
+		iface_cache = self.policy.config.iface_cache
+
 		if self.original_implementation is None:
 			self.set_original_implementations()
 
 		done = {}	# Detect cycles
 
 		self.model.clear()
-		parent = None
 		commands = self.policy.solver.selections.commands
 		def add_node(parent, iface, command):
 			# (command is the index into commands, if any)
@@ -322,10 +324,18 @@ class InterfaceBrowser:
 				return
 			done[iface] = True
 
+			main_feed = iface_cache.get_feed(iface.uri)
+			if main_feed:
+				name = main_feed.get_name()
+				summary = main_feed.summary
+			else:
+				name = iface.get_name()
+				summary = None
+
 			iter = self.model.append(parent)
 			self.model[iter][InterfaceBrowser.INTERFACE] = iface
-			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = iface.get_name()
-			self.model[iter][InterfaceBrowser.SUMMARY] = iface.summary
+			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = name
+			self.model[iter][InterfaceBrowser.SUMMARY] = summary
 			self.model[iter][InterfaceBrowser.ICON] = self.get_icon(iface) or self.default_icon
 
 			sel = self.policy.solver.selections.selections.get(iface.uri, None)
@@ -364,7 +374,7 @@ class InterfaceBrowser:
 			# Nothing could be selected, or no command requested
 			add_node(None, self.root, None)
 		self.tree_view.expand_all()
-	
+
 	def show_popup_menu(self, iface, bev):
 		import bugs
 
@@ -402,7 +412,7 @@ class InterfaceBrowser:
 			item.set_sensitive(False)
 
 		menu.popup(None, None, None, bev.button, bev.time)
-	
+
 	def compile(self, interface, autocompile = False):
 		import compile
 		def on_success():
@@ -410,7 +420,7 @@ class InterfaceBrowser:
 			info(_("0compile command completed successfully. Reloading interface details."))
 			reader.update_from_cache(interface)
 			for feed in interface.extra_feeds:
-				 iface_cache.get_feed(feed.uri, force = True)
+				 self.policy.config.iface_cache.get_feed(feed.uri, force = True)
 			self.policy.recalculate()
 		compile.compile(on_success, interface.uri, autocompile = autocompile)
 
@@ -431,7 +441,7 @@ class InterfaceBrowser:
 				if dl.hint not in hints:
 					hints[dl.hint] = []
 				hints[dl.hint].append(dl)
-			
+
 		selections = self.policy.solver.selections
 
 		def walk(it):
@@ -442,9 +452,9 @@ class InterfaceBrowser:
 
 		for row in walk(self.model.get_iter_root()):
 			iface = row[InterfaceBrowser.INTERFACE]
-			
+
 			# Is this interface the download's hint?
-			downloads = hints.get(iface, [])	# The interface itself	
+			downloads = hints.get(iface, [])	# The interface itself
 		     	downloads += hints.get(iface.uri, [])	# The main feed
 			for feed in self.policy.usable_feeds(iface):
 				downloads += hints.get(feed.uri, []) # Other feeds

@@ -5,13 +5,10 @@ The B{0install config} command-line interface.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os, sys
-import logging
-import ConfigParser
+import os
 
-from zeroinstall import cmd, SafeException, _
-from zeroinstall.support import basedir
-from zeroinstall.injector import policy, namespaces, model
+from zeroinstall import SafeException, _
+from zeroinstall.injector import model
 from zeroinstall.cmd import UsageError
 
 syntax = "[NAME [VALUE]]"
@@ -31,17 +28,22 @@ class String:
 class TimeInterval:
 	@staticmethod
 	def format(value):
+		def s(v):
+			if int(v) == v:
+				return str(int(v))
+			else:
+				return str(v)
 		value = float(value)
 		if value < 60:
-			return str(value) + "s"
+			return s(value) + "s"
 		value /= 60
 		if value < 60:
-			return str(value) + "m"
+			return s(value) + "m"
 		value /= 60
 		if value < 24:
-			return str(value) + "h"
+			return s(value) + "h"
 		value /= 24
-		return str(value) + "d"
+		return s(value) + "d"
 
 	@staticmethod
 	def parse(value):

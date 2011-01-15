@@ -5,12 +5,9 @@ The B{0install add-feed} command-line interface.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os, sys
-import logging
-
-from zeroinstall import cmd, SafeException, _
+from zeroinstall import SafeException, _
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, writer, handler
+from zeroinstall.injector import model, writer
 from zeroinstall.injector.policy import Policy
 
 syntax = "NEW-FEED"
@@ -21,12 +18,6 @@ def add_options(parser):
 def handle(config, options, args, add_ok = True, remove_ok = False):
 	if not args: raise UsageError()
 
-	if os.isatty(1):
-		h = handler.ConsoleHandler()
-	else:
-		h = handler.Handler()
-	h.dry_run = bool(options.dry_run)
-
 	def find_feed_import(iface, feed_url):
 		for f in iface.extra_feeds:
 			if f.uri == feed_url:
@@ -36,15 +27,15 @@ def handle(config, options, args, add_ok = True, remove_ok = False):
 	for x in args:
 		print _("Feed '%s':") % x + '\n'
 		x = model.canonical_iface_uri(x)
-		policy = Policy(x, h)
+		policy = Policy(x, config = config)
 		if options.offline:
-			policy.network_use = model.network_offline
+			config.network_use = model.network_offline
 
 		feed = config.iface_cache.get_feed(x)
 		if policy.network_use != model.network_offline and policy.is_stale(feed):
 			blocker = policy.fetcher.download_and_import_feed(x, config.iface_cache)
 			print _("Downloading feed; please wait...")
-			h.wait_for_blocker(blocker)
+			config.handler.wait_for_blocker(blocker)
 			print _("Done")
 
 		candidate_interfaces = policy.get_feed_targets(x)

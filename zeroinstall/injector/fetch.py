@@ -109,7 +109,6 @@ class Fetcher(object):
 		# Maybe we're taking this metaphor too far?
 
 		# Start downloading all the ingredients.
-		downloads = {}	# Downloads that are not yet successful
 		streams = {}	# Streams collected from successful downloads
 
 		# Start a download for each ingredient
@@ -306,8 +305,8 @@ class Fetcher(object):
 		try:
 			return self.key_info[fingerprint]
 		except KeyError:
-			self.key_info[fingerprint] = info = KeyInfoFetcher(self.key_info_server, fingerprint)
-			return info
+			self.key_info[fingerprint] = key_info = KeyInfoFetcher(self.key_info_server, fingerprint)
+			return key_info
 
 	def download_impl(self, impl, retrieval_method, stores, force = False):
 		"""Download an implementation.
@@ -362,7 +361,6 @@ class Fetcher(object):
 
 	def _add_to_cache(self, required_digest, stores, retrieval_method, stream):
 		assert isinstance(retrieval_method, DownloadSource)
-		url = retrieval_method.url
 		stores.add_archive_to_cache(required_digest, stream, retrieval_method.url, retrieval_method.extract,
 						 type = retrieval_method.type, start_offset = retrieval_method.start_offset or 0)
 

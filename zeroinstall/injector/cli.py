@@ -11,7 +11,7 @@ from optparse import OptionParser
 import logging
 
 from zeroinstall import SafeException, NeedDownload
-from zeroinstall.injector import model, policy, autopolicy, selections
+from zeroinstall.injector import handler, policy
 from zeroinstall.cmd import UsageError
 
 #def program_log(msg): os.access('MARK: 0launch: ' + msg, os.F_OK)
@@ -19,7 +19,7 @@ from zeroinstall.cmd import UsageError
 #__main__.__builtins__.program_log = program_log
 #program_log('0launch ' + ' '.join((sys.argv[1:])))
 
-def main(command_args):
+def main(command_args, config = None):
 	"""Act as if 0launch was run with the given arguments.
 	@arg command_args: array of arguments (e.g. C{sys.argv[1:]})
 	@type command_args: [str]
@@ -80,7 +80,14 @@ def main(command_args):
 	if options.select_only or options.show:
 		options.download_only = True
 
-	config = policy.load_config()
+	if os.isatty(1):
+		h = handler.ConsoleHandler()
+	else:
+		h = handler.Handler()
+	h.dry_run = bool(options.dry_run)
+
+	if config is None:
+		config = policy.load_config(h)
 
 	if options.with_store:
 		from zeroinstall import zerostore
@@ -94,7 +101,7 @@ def main(command_args):
 	try:
 		if options.list:
 			from zeroinstall.cmd import list
-			list.handle(options, args)
+			list.handle(config, options, args)
 		elif options.version:
 			import zeroinstall
 			print "0launch (zero-install) " + zeroinstall.version
@@ -107,18 +114,18 @@ def main(command_args):
 		elif getattr(options, 'import'):
 			# (import is a keyword)
 			cmd = __import__('zeroinstall.cmd.import', globals(), locals(), ["import"], 0)
-			cmd.handle(options, args)
+			cmd.handle(config, options, args)
 		elif options.feed:
 			from zeroinstall.cmd import add_feed
-			add_feed.handle(options, args, add_ok = True, remove_ok = True)
+			add_feed.handle(config, options, args, add_ok = True, remove_ok = True)
 		elif options.select_only:
 			from zeroinstall.cmd import select
 			if not options.show:
 				options.quiet = True
-			select.handle(options, args)
+			select.handle(config, options, args)
 		elif options.download_only or options.xml or options.show:
 			from zeroinstall.cmd import download
-			download.handle(options, args)
+			download.handle(config, options, args)
 		else:
 			if len(args) < 1:
 				if options.gui:
@@ -128,7 +135,7 @@ def main(command_args):
 					raise UsageError()
 			else:
 				from zeroinstall.cmd import run
-				run.handle(options, args)
+				run.handle(config, options, args)
 	except NeedDownload, ex:
 		# This only happens for dry runs
 		print ex

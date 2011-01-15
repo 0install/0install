@@ -5,11 +5,9 @@ The B{0install download} command-line interface.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from optparse import OptionParser
-import os, sys
-import logging
+import sys
 
-from zeroinstall import cmd, SafeException, _
+from zeroinstall import SafeException, _
 from zeroinstall.injector import model
 from zeroinstall.cmd import UsageError, select
 
@@ -35,7 +33,7 @@ def handle(config, options, args):
 	try:
 		old_sels = select.get_selections(config, options, iface_uri,
 					select_only = True, download_only = False, test_callback = None)
-	except SafeException, ex:
+	except SafeException:
 		old_selections = {}
 	else:
 		if old_sels is None:
@@ -44,6 +42,7 @@ def handle(config, options, args):
 			old_selections = old_sels.selections
 
 	# Download in online mode to get the new values
+	config.network_use = model.network_full
 	options.offline = False
 	options.gui = old_gui
 	options.refresh = True

@@ -4,7 +4,7 @@ import sys, StringIO
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import writer, model, reader, qdom, iface_cache
+from zeroinstall.injector import writer, model, reader, qdom
 
 test_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
 <name>Test</name>
@@ -17,7 +17,7 @@ class TestWriter(BaseTest):
 	def testFeeds(self):
 		iface = model.Interface('http://test/test')
 		main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello')
-		iface_cache.iface_cache._feeds[iface.uri] = main_feed
+		self.config.iface_cache._feeds[iface.uri] = main_feed
 		iface.stability_policy = model.developer
 		main_feed.last_checked = 100
 		iface.extra_feeds.append(model.Feed('http://sys-feed', None, False))
@@ -28,7 +28,7 @@ class TestWriter(BaseTest):
 		iface = model.Interface('http://test/test')
 		self.assertEquals(None, iface.stability_policy)
 		main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello')
-		iface_cache.iface_cache._feeds[iface.uri] = main_feed
+		self.config.iface_cache._feeds[iface.uri] = main_feed
 		reader.update_user_overrides(iface)
 		reader.update_user_feed_overrides(main_feed)
 		self.assertEquals(model.developer, iface.stability_policy)
@@ -48,7 +48,7 @@ class TestWriter(BaseTest):
 		self.assertEquals(None, iface.stability_policy)
 		reader.update_user_overrides(iface)
 
-		feed = iface_cache.iface_cache.get_feed(iface.uri)
+		feed = self.config.iface_cache.get_feed(iface.uri)
 		self.assertEquals(None, feed)
 
 	def testStoreStability(self):

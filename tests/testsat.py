@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from basetest import BaseTest
-import ConfigParser
-import sys, os
+import sys
 import unittest
 
 sys.path.insert(0, '..')
@@ -132,12 +131,13 @@ def assertSelection(expected, repo):
 
 	root = uri_prefix + expected[0][0]
 
-	test_config = ConfigParser.RawConfigParser()
-	test_config.add_section('global')
-	test_config.set('global', 'help_with_testing', 'False')
-	test_config.set('global', 'network_use', model.network_offline)
+	class TestConfig:
+		help_with_testing = False
+		network_use = model.network_offline
+		stores = stores
+		iface_cache = cache
 
-	s = Solver(test_config, cache, stores)
+	s = Solver(TestConfig())
 	s.solve(root, arch.get_architecture('Linux', 'x86_64'))
 
 	if expected[0][1] == 'FAIL':
@@ -146,8 +146,8 @@ def assertSelection(expected, repo):
 		assert s.ready
 
 		actual = []
-		for iface, impl in s.selections.iteritems():
-			actual.append(((iface.uri.rsplit('/', 1)[1]), impl.get_version()))
+		for iface_uri, impl in s.selections.selections.iteritems():
+			actual.append(((iface_uri.rsplit('/', 1)[1]), impl.version))
 
 		expected.sort()
 		actual.sort()
@@ -286,9 +286,9 @@ class TestSAT(BaseTest):
 			""")
 		assert not s.ready
 		selected = {}
-		for iface, impl in s.selections.iteritems():
-			if impl is not None: impl = impl.get_version()
-			selected[iface.uri.rsplit('/', 1)[1]] = impl
+		for iface_uri, impl in s.selections.selections.iteritems():
+			if impl is not None: impl = impl.version
+			selected[iface_uri.rsplit('/', 1)[1]] = impl
 		self.assertEquals({
 			'prog': '2',
 			'liba': '2',

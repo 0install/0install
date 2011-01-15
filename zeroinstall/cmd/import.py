@@ -5,12 +5,12 @@ The B{0install import} command-line interface.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os, sys
+import os
 import logging
 
-from zeroinstall import cmd, SafeException, _
+from zeroinstall import SafeException, _
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, autopolicy, selections, gpg, fetch
+from zeroinstall.injector import gpg
 from zeroinstall.injector.iface_cache import PendingFeed
 from zeroinstall.support import tasks
 from xml.dom import minidom
@@ -46,8 +46,7 @@ def handle(config, options, args):
 			yield keys_downloaded.finished
 			tasks.check(keys_downloaded.finished)
 			if not config.iface_cache.update_feed_if_trusted(uri, pending.sigs, pending.new_xml):
-				fetcher = fetch.Fetcher(h)
-				blocker = h.confirm_keys(pending, fetcher.fetch_key_info)
+				blocker = h.confirm_keys(pending, config.fetcher.fetch_key_info)
 				if blocker:
 					yield blocker
 					tasks.check(blocker)

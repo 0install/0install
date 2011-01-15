@@ -4,64 +4,78 @@
 import os, subprocess
 import gobject
 import dialog
-from logging import info
+from StringIO import StringIO
 
-from zeroinstall.injector import iface_cache, model
-from zeroinstall.injector.policy import Policy
-	
+from zeroinstall.injector import model, selections, qdom
+
 XMLNS_0COMPILE = 'http://zero-install.sourceforge.net/2006/namespaces/0compile'
 
 class Command:
 	def __init__(self):
 		self.child = None
 		self.error = ""
+		self.stdout = ""
+		self.watched_streams = 0
 
-	def run(self, command, success):
+	def run(self, command, success, get_stdout = False):
 		assert self.child is None
 		self.success = success
-		self.child = subprocess.Popen(command,
-						stdout = subprocess.PIPE,
-						stderr = subprocess.STDOUT)
-		gobject.io_add_watch(self.child.stdout, gobject.IO_IN | gobject.IO_HUP, self.got_data)
-	
-	def got_data(self, src, cond):
+		if get_stdout:
+			self.child = subprocess.Popen(command,
+							stdout = subprocess.PIPE,
+							stderr = subprocess.PIPE)
+			gobject.io_add_watch(self.child.stdout, gobject.IO_IN | gobject.IO_HUP, self.got_stdout)
+			gobject.io_add_watch(self.child.stderr, gobject.IO_IN | gobject.IO_HUP, self.got_errors)
+			self.watched_streams = 2
+		else:
+			self.child = subprocess.Popen(command,
+							stdout = subprocess.PIPE,
+							stderr = subprocess.STDOUT)
+			gobject.io_add_watch(self.child.stdout, gobject.IO_IN | gobject.IO_HUP, self.got_errors)
+			self.watched_streams = 1
+
+	def got_stdout(self, src, cond):
+		data = os.read(src.fileno(), 100)
+		if data:
+			self.stdout += data
+			return True
+		else:
+			self.done()
+			return False
+
+	def done(self):
+		self.watched_streams -= 1
+		if self.watched_streams == 0:
+			status = self.child.wait()
+			self.child = None
+
+			if status == 0:
+				self.success(self.stdout)
+			else:
+				if status == 1 and not self.error:
+					return False # Cancelled
+				dialog.alert(None, _("Command failed with exit code %(status)d:\n%(error)s\n") %
+					{'status': status, 'error': self.error})
+
+	def got_errors(self, src, cond):
 		data = os.read(src.fileno(), 100)
 		if data:
 			self.error += data
 			return True
 		else:
-			status = self.child.wait()
-			self.child = None
-
-			if os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0:
-				self.success()
-			else:
-				if os.WIFEXITED(status):
-					status = os.WEXITSTATUS(status)
-					if status == 1 and not self.error:
-						return False # Cancelled
-					dialog.alert(None, _("Command failed with exit code %(status)d:\n%(error)s\n") %
-						{'status': status, 'error': self.error})
-				else:
-					dialog.alert(None, _("Command failed:\n%s\n") % self.error)
+			self.done()
 			return False
 
 def compile(on_success, interface_uri, autocompile = False):
 	our_min_version = '0.18'	# The oldest version of 0compile we support
 
-	def build():
+	def build(selections_xml):
 		# Get the chosen versions
-		src_policy = Policy(interface_uri, src = True)
-		src_policy.freshness = 0
+		sels = selections.Selections(qdom.parse(StringIO(selections_xml)))
 
-		src_policy.recalculate()
-		if not src_policy.ready:
-			raise Exception(_('Internal error: required source components not found!'))
+		impl = sels.selections[interface_uri]
 
-		root_iface = iface_cache.iface_cache.get_interface(src_policy.root)
-		impl = src_policy.implementation[root_iface]
-
-		min_version = impl.metadata.get(XMLNS_0COMPILE + ' min-version', our_min_version)
+		min_version = impl.attrs.get(XMLNS_0COMPILE + ' min-version', our_min_version)
 		# Check the syntax is valid and the version is high enough
 		if model.parse_version(min_version) < model.parse_version(our_min_version):
 			min_version = our_min_version
@@ -73,8 +87,7 @@ def compile(on_success, interface_uri, autocompile = False):
 			'--not-before=' + min_version,
 			"http://0install.net/2006/interfaces/0compile.xml",
 			'gui',
-			'--no-prompt',
-			interface_uri), on_success)
+			interface_uri), lambda unused: on_success())
 
 	if autocompile:
 		c = Command()
@@ -84,10 +97,10 @@ def compile(on_success, interface_uri, autocompile = False):
 			"http://0install.net/2006/interfaces/0compile.xml",
 			'autocompile',
 			'--gui',
-			interface_uri), on_success)
+			interface_uri), lambda unused: on_success())
 	else:
 		# Prompt user to choose source version
 		c = Command()
-		c.run(['0launch',
+		c.run(['0install', 'download', '--xml',
 			'--message', _('Download the source code to be compiled'),
-			'--gui', '--source', '--download-only', interface_uri], build)
+			'--gui', '--source', '--', interface_uri], build, get_stdout = True)

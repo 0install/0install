@@ -5,17 +5,17 @@ import sys, os
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import selections, model, reader, policy, iface_cache, namespaces, qdom
+from zeroinstall.injector import selections, model, policy, namespaces, qdom
 
 mydir = os.path.dirname(os.path.abspath(__file__))
 
 class TestSelections(BaseTest):
 	def testSelections(self):
-		p = policy.Policy('http://foo/Source.xml', src = True)
-		source = iface_cache.iface_cache.get_interface('http://foo/Source.xml')
-		compiler = iface_cache.iface_cache.get_interface('http://foo/Compiler.xml')
-		reader.update(source, 'Source.xml')
-		reader.update(compiler, 'Compiler.xml')
+		p = policy.Policy('http://foo/Source.xml', src = True, config = self.config)
+		source = self.config.iface_cache.get_interface('http://foo/Source.xml')
+		compiler = self.config.iface_cache.get_interface('http://foo/Compiler.xml')
+		self.import_feed(source.uri, 'Source.xml')
+		self.import_feed(compiler.uri, 'Compiler.xml')
 
 		p.freshness = 0
 		p.network_use = model.network_full
@@ -69,7 +69,7 @@ class TestSelections(BaseTest):
 	def testLocalPath(self):
 		# 0launch --get-selections Local.xml
 		iface = os.path.join(mydir, "Local.xml")
-		p = policy.Policy(iface)
+		p = policy.Policy(iface, config = self.config)
 		p.need_download()
 		s1 = selections.Selections(p)
 		xml = s1.toDOM().toxml("utf-8")
@@ -82,7 +82,7 @@ class TestSelections(BaseTest):
 		assert not s2.selections[iface].digests, s2.selections[iface].digests
 
 		# Add a newer implementation and try again
-		feed = iface_cache.iface_cache.get_feed(iface)
+		feed = self.config.iface_cache.get_feed(iface)
 		impl = model.ZeroInstallImplementation(feed, "foo bar=123", local_path = None)
 		impl.version = model.parse_version('1.0')
 		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': 'dummy'}), None)
@@ -102,16 +102,16 @@ class TestSelections(BaseTest):
 
 	def testCommands(self):
 		iface = os.path.join(mydir, "Command.xml")
-		p = policy.Policy(iface)
+		p = policy.Policy(iface, config = self.config)
 		p.need_download()
 		assert p.ready
 
-		impl = p.solver.selections[iface_cache.iface_cache.get_interface(iface)]
+		impl = p.solver.selections[self.config.iface_cache.get_interface(iface)]
 		assert impl.id == 'c'
 		assert impl.main == 'runnable/missing'
 
 		dep_impl_uri = impl.commands['run'].requires[0].interface
-		dep_impl = p.solver.selections[iface_cache.iface_cache.get_interface(dep_impl_uri)]
+		dep_impl = p.solver.selections[self.config.iface_cache.get_interface(dep_impl_uri)]
 		assert dep_impl.id == 'sha1=256'
 
 		s1 = selections.Selections(p)

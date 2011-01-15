@@ -250,7 +250,6 @@ class Task:
 	
 	def _resume(self):
 		# Remove from our blockers' queues
-		exception = None
 		for blocker in self._zero_blockers:
 			blocker.remove_task(self)
 		# Resume the task

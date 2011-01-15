@@ -5,9 +5,8 @@ import os, sys
 
 from optparse import OptionParser
 
-from zeroinstall.injector import model, arch
-from zeroinstall.injector.policy import Policy
-from zeroinstall.injector.iface_cache import iface_cache
+from zeroinstall.injector import requirements
+from zeroinstall.injector.policy import Policy, load_config
 from zeroinstall.support import tasks
 
 _recalculate = tasks.Blocker('recalculate')
@@ -48,11 +47,6 @@ def run_gui(args):
 		else:
 			logger.setLevel(logging.DEBUG)
 
-	if options.with_store:
-		from zeroinstall import zerostore
-		for x in options.with_store:
-			iface_cache.stores.stores.append(zerostore.Store(os.path.abspath(x)))
-
 	import gui
 
 	if options.version:
@@ -70,20 +64,18 @@ def run_gui(args):
 		print >>sys.stderr, "Failed to connect to display. Aborting."
 		sys.exit(1)
 
-	if not hasattr(gtk, 'combo_box_new_text'):
-		import combo_compat
-
 	handler = gui.GUIHandler()
+
+	config = load_config(handler)
+
+	if options.with_store:
+		from zeroinstall import zerostore
+		for x in options.with_store:
+			config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
 
 	if len(args) < 1:
 		import preferences
-		# Once we separate configuration from Policy, this hack can go away
-		class DummyPolicy(Policy):
-			def recalculate(fetch_stale_interfaces = True):
-				pass
-			def solve_with_downloads(force = False):
-				pass
-		box = preferences.show_preferences(DummyPolicy('http://localhost/dummy', handler))
+		box = preferences.show_preferences(config)
 		box.connect('destroy', gtk.main_quit)
 		gtk.main()
 		sys.exit(0)
@@ -96,17 +88,13 @@ def run_gui(args):
 
 	import mainwindow, dialog
 
-	restrictions = []
-	if options.before or options.not_before:
-		restrictions.append(model.VersionRangeRestriction(model.parse_version(options.before),
-								  model.parse_version(options.not_before)))
+	r = requirements.Requirements(interface_uri)
+	r.parse_options(options)
 
 	widgets = dialog.Template('main')
 
-	policy = Policy(interface_uri, handler, src = bool(options.source), command = options.command)
-	policy.target_arch = arch.get_architecture(options.os, options.cpu)
-	root_iface = iface_cache.get_interface(interface_uri)
-	policy.solver.extra_restrictions[root_iface] = restrictions
+	policy = Policy(config = config, requirements = r)
+	root_iface = config.iface_cache.get_interface(interface_uri)
 	policy.solver.record_details = True
 
 	window = mainwindow.MainWindow(policy, widgets, download_only = bool(options.download_only), select_only = bool(options.select_only))
@@ -115,7 +103,7 @@ def run_gui(args):
 	if options.message:
 		window.set_message(options.message)
 
-	root = iface_cache.get_interface(policy.root)
+	root = config.iface_cache.get_interface(policy.root)
 	window.browser.set_root(root)
 
 	window.window.connect('destroy', lambda w: handler.abort_all_downloads())

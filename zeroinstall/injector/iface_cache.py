@@ -37,7 +37,7 @@ from zeroinstall.support import basedir
 from zeroinstall.injector import reader, model
 from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.injector.model import Interface, escape, unescape
-from zeroinstall import zerostore, SafeException
+from zeroinstall import SafeException
 
 def _pretty_time(t):
 	assert isinstance(t, (int, long)), t
@@ -193,9 +193,7 @@ class IfaceCache(object):
 
 	@property
 	def stores(self):
-		"""deprecated"""
 		from zeroinstall.injector import policy
-		raise Exception("iface_cache.stores")
 		return policy.get_deprecated_singleton_config().stores
 
 	@property
@@ -372,7 +370,7 @@ class IfaceCache(object):
 
 		debug(_("Initialising new interface object for %s"), uri)
 		self._interfaces[uri] = Interface(uri)
-		reader.update_from_cache(self._interfaces[uri])
+		reader.update_from_cache(self._interfaces[uri], iface_cache = self)
 		return self._interfaces[uri]
 
 	def list_all_interfaces(self):
@@ -499,4 +497,4 @@ class IfaceCache(object):
 				impls += feed.implementations.values()
 		return impls
 
-#iface_cache = IfaceCache()
+iface_cache = IfaceCache()
