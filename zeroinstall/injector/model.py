@@ -115,9 +115,13 @@ def process_binding(e):
 		binding = EnvironmentBinding(e.getAttribute('name'),
 					     insert = e.getAttribute('insert'),
 					     default = e.getAttribute('default'),
+					     value = e.getAttribute('value'),
 					     mode = mode)
 		if not binding.name: raise InvalidInterface(_("Missing 'name' in binding"))
-		if binding.insert is None: raise InvalidInterface(_("Missing 'insert' in binding"))
+		if binding.insert is None and binding.value is None:
+			raise InvalidInterface(_("Missing 'insert' or 'value' in binding"))
+		if binding.insert is not None and binding.value is not None:
+			raise InvalidInterface(_("Binding contains both 'insert' and 'value'"))
 		return binding
 	elif e.name == 'overlay':
 		return OverlayBinding(e.getAttribute('src'), e.getAttribute('mount-point'))
@@ -226,21 +230,25 @@ class Binding(object):
 
 class EnvironmentBinding(Binding):
 	"""Indicate the chosen implementation using an environment variable."""
-	__slots__ = ['name', 'insert', 'default', 'mode']
+	__slots__ = ['name', 'insert', 'default', 'mode', 'value']
 
 	PREPEND = 'prepend'
 	APPEND = 'append'
 	REPLACE = 'replace'
 
-	def __init__(self, name, insert, default = None, mode = PREPEND):
-		"""mode argument added in version 0.28"""
+	def __init__(self, name, insert, default = None, mode = PREPEND, value=None):
+		"""
+		mode argument added in version 0.28
+		value argument added in version 0.52
+		"""
 		self.name = name
 		self.insert = insert
 		self.default = default
 		self.mode = mode
+		self.value = value
 	
 	def __str__(self):
-		return _("<environ %(name)s %(mode)s %(insert)s>") % {'name': self.name,'mode':  self.mode, 'insert': self.insert}
+		return _("<environ %(name)s %(mode)s %(insert)s %(value)s>") % {'name': self.name,'mode':  self.mode, 'insert': self.insert, 'value': self.value}
 
 	__repr__ = __str__
 	
@@ -249,7 +257,12 @@ class EnvironmentBinding(Binding):
 		@param path: the path to the selected implementation
 		@param old_value: the current value of the environment variable
 		@return: the new value for the environment variable"""
-		extra = os.path.join(path, self.insert)
+
+		if self.insert is not None:
+			extra = os.path.join(path, self.insert)
+		else:
+			assert self.value is not None
+			extra = self.value
 
 		if self.mode == EnvironmentBinding.REPLACE:
 			return extra
@@ -270,7 +283,10 @@ class EnvironmentBinding(Binding):
 		"""
 		env_elem = doc.createElementNS(XMLNS_IFACE, 'environment')
 		env_elem.setAttributeNS(None, 'name', self.name)
-		env_elem.setAttributeNS(None, 'insert', self.insert)
+		if self.insert is not None:
+			env_elem.setAttributeNS(None, 'insert', self.insert)
+		else:
+			env_elem.setAttributeNS(None, 'value', self.value)
 		if self.default:
 			env_elem.setAttributeNS(None, 'default', self.default)
 		return env_elem

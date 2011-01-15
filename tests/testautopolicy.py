@@ -148,6 +148,7 @@ class TestAutoPolicy(BaseTest):
     <requires interface='%s'>
       <environment name='FOO_PATH' insert='.'/>
       <environment name='BAR_PATH' insert='.' default='/a:/b'/>
+      <environment name='NO_PATH' value='val'/>
       <environment name='XDG_DATA_DIRS' insert='.'/>
     </requires>
     <environment name='SELF_GROUP' insert='group' mode='replace'/>
@@ -182,6 +183,7 @@ class TestAutoPolicy(BaseTest):
 				os.environ['FOO_PATH'])
 		self.assertEquals(cached_impl + '/.:/a:/b',
 				os.environ['BAR_PATH'])
+		self.assertEquals('val', os.environ['NO_PATH'])
 		
 		self.assertEquals(os.path.join(local_impl, 'group'), os.environ['SELF_GROUP'])
 		self.assertEquals(os.path.join(local_impl, 'impl'), os.environ['SELF_IMPL'])

@@ -35,6 +35,26 @@ class TestReader(BaseTest):
 </interface>""" % (foo_iface_uri, version))
 		tmp.flush()
 		return tmp
+
+	def write_with_bindings(self, bindings):
+		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp.write(
+"""<?xml version="1.0" ?>
+<interface last-modified="1110752708"
+ uri="%s"
+ xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo</description>
+  <group>
+   <requires interface='%s2'>
+     %s
+   </requires>
+   <implementation id='sha1=123' version='1'/>
+  </group>
+</interface>""" % (foo_iface_uri, foo_iface_uri, bindings))
+		tmp.flush()
+		return tmp
 	
 	def testNoVersion(self):
 		tmp = self.write_with_version('')
@@ -48,9 +68,20 @@ class TestReader(BaseTest):
 		tmp = self.write_with_version('min-injector-version="1000"')
 		try:
 			reader.check_readable(foo_iface_uri, tmp.name)
+			self.fail()
 		except reader.InvalidInterface, ex:
 			assert "1000" in str(ex)
 	
+	def testCantUseBothInsertAndValueInEnvironmentBinding(self):
+		tmp = self.write_with_bindings("""
+			<environment name="DATA" value="" insert=""/>
+		""")
+		try:
+			reader.check_readable(foo_iface_uri, tmp.name)
+			self.fail()
+		except reader.InvalidInterface, ex:
+			assert "Binding contains both 'insert' and 'value'" in str(ex)
+
 	def testRequiresVersion(self):
 		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
 		tmp.write(
