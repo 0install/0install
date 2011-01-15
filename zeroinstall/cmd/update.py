@@ -17,7 +17,7 @@ syntax = "URI"
 
 add_options = select.add_generic_select_options
 
-def handle(options, args):
+def handle(config, options, args):
 	if len(args) != 1:
 		raise UsageError()
 
@@ -33,7 +33,7 @@ def handle(options, args):
 	options.refresh = False
 
 	try:
-		old_sels = select.get_selections(options, iface_uri,
+		old_sels = select.get_selections(config, options, iface_uri,
 					select_only = True, download_only = False, test_callback = None)
 	except SafeException, ex:
 		old_selections = {}
@@ -48,7 +48,7 @@ def handle(options, args):
 	options.gui = old_gui
 	options.refresh = True
 
-	sels = select.get_selections(options, iface_uri,
+	sels = select.get_selections(config, options, iface_uri,
 				select_only = False, download_only = True, test_callback = None)
 	if not sels:
 		sys.exit(1)	# Aborted by user

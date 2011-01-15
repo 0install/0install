@@ -12,14 +12,13 @@ from zeroinstall import cmd, SafeException, _
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, writer, handler
 from zeroinstall.injector.policy import Policy
-from zeroinstall.injector.iface_cache import iface_cache
 
 syntax = "NEW-FEED"
 
 def add_options(parser):
 	parser.add_option("-o", "--offline", help=_("try to avoid using the network"), action='store_true')
 
-def handle(options, args, add_ok = True, remove_ok = False):
+def handle(config, options, args, add_ok = True, remove_ok = False):
 	if not args: raise UsageError()
 
 	if os.isatty(1):
@@ -41,9 +40,9 @@ def handle(options, args, add_ok = True, remove_ok = False):
 		if options.offline:
 			policy.network_use = model.network_offline
 
-		feed = iface_cache.get_feed(x)
+		feed = config.iface_cache.get_feed(x)
 		if policy.network_use != model.network_offline and policy.is_stale(feed):
-			blocker = policy.fetcher.download_and_import_feed(x, iface_cache)
+			blocker = policy.fetcher.download_and_import_feed(x, config.iface_cache)
 			print _("Downloading feed; please wait...")
 			h.wait_for_blocker(blocker)
 			print _("Done")

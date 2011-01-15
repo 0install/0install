@@ -119,38 +119,26 @@ class Solver(object):
 		raise NotImplementedError("Abstract")
 
 class SATSolver(Solver):
-	__slots__ = ['_failure_reason', 'config', 'iface_cache', 'stores', 'extra_restrictions', 'langs']
+	__slots__ = ['_failure_reason', 'config', 'extra_restrictions', 'langs']
 
 	"""Converts the problem to a set of pseudo-boolean constraints and uses a PB solver to solve them.
 	@ivar langs: the preferred languages (e.g. ["es_ES", "en"]). Initialised to the current locale.
 	@type langs: str"""
-	def __init__(self, config, iface_cache, stores, extra_restrictions = None):
+	def __init__(self, config, extra_restrictions = None):
 		"""
 		@param network_use: how much use to make of the network
 		@type network_use: L{model.network_levels}
-		@param iface_cache: a cache of feeds containing information about available versions
-		@type iface_cache: L{iface_cache.IfaceCache}
-		@param stores: a cached of implementations (affects choice when offline or when minimising network use)
-		@type stores: L{zerostore.Stores}
+		@param config: policy preferences (e.g. stability), the iface_cache and the stores to use
+		@type config: L{policy.Config}
 		@param extra_restrictions: extra restrictions on the chosen implementations
 		@type extra_restrictions: {L{model.Interface}: [L{model.Restriction}]}
 		"""
 		Solver.__init__(self)
 		assert not isinstance(config, str), "API change!"
 		self.config = config
-		self.iface_cache = iface_cache
-		self.stores = stores
 		self.extra_restrictions = extra_restrictions or {}
 
 		self.langs = [locale.getlocale()[0] or 'en']
-
-	@property
-	def network_use(self):
-		return self.config.get('global', 'network_use')
-
-	@property
-	def help_with_testing(self):
-		return self.config.getboolean('global', 'help_with_testing')
 
 	def compare(self, interface, b, a, arch):
 		"""Compare a and b to see which would be chosen first.
@@ -174,8 +162,8 @@ class SATSolver(Solver):
 		r = cmp(a_stab == model.preferred, b_stab == model.preferred)
 		if r: return r
 
-		stores = self.stores
-		if self.network_use != model.network_full:
+		stores = self.config.stores
+		if self.config.network_use != model.network_full:
 			r = cmp(_get_cached(stores, a), _get_cached(stores, b))
 			if r: return r
 
@@ -186,7 +174,7 @@ class SATSolver(Solver):
 		# Stability
 		stab_policy = interface.stability_policy
 		if not stab_policy:
-			if self.help_with_testing: stab_policy = model.testing
+			if self.config.help_with_testing: stab_policy = model.testing
 			else: stab_policy = model.stable
 
 		if a_stab >= stab_policy: a_stab = model.preferred
@@ -223,7 +211,7 @@ class SATSolver(Solver):
 		if r: return r
 
 		# Slightly prefer cached versions
-		if self.network_use == model.network_full:
+		if self.config.network_use == model.network_full:
 			r = cmp(_get_cached(stores, a), _get_cached(stores, b))
 			if r: return r
 
@@ -239,6 +227,7 @@ class SATSolver(Solver):
 		# this is probably too much. We could insert a dummy optimial
 		# implementation in stale/uncached feeds and see whether it
 		# selects that.
+		iface_cache = self.config.iface_cache
 
 		feeds_added = set()
 		problem = sat.SATProblem()
@@ -277,7 +266,7 @@ class SATSolver(Solver):
 		# matching 'dependency' must also be selected.
 		# Must have already done add_iface on dependency.interface.
 		def find_dependency_candidates(requiring_impl_var, dependency):
-			dep_iface = self.iface_cache.get_interface(dependency.interface)
+			dep_iface = iface_cache.get_interface(dependency.interface)
 			dep_union = [sat.neg(requiring_impl_var)]	# Either requiring_impl_var is False, or ...
 			for candidate in impls_for_iface[dep_iface]:
 				for r in dependency.restrictions:
@@ -313,7 +302,7 @@ class SATSolver(Solver):
 			stability = impl.get_stability()
 			if stability <= model.buggy:
 				return stability.name
-			if (self.network_use == model.network_offline or not impl.download_sources) and not _get_cached(self.stores, impl):
+			if (self.config.network_use == model.network_offline or not impl.download_sources) and not _get_cached(self.config.stores, impl):
 				if not impl.download_sources:
 					return _("No retrieval methods")
 				return _("Not cached and we are off-line")
@@ -330,7 +319,7 @@ class SATSolver(Solver):
 			@rtype: generator(ZeroInstallFeed)"""
 			yield iface.uri
 
-			for f in self.iface_cache.get_feed_imports(iface):
+			for f in iface_cache.get_feed_imports(iface):
 				# Note: when searching for src, None is not in machine_ranks
 				if f.os in arch.os_ranks and \
 				   (f.machine is None or f.machine in arch.machine_ranks):
@@ -345,7 +334,7 @@ class SATSolver(Solver):
 			ifaces_processed.add(uri)
 			iface_name = 'i%d' % len(ifaces_processed)
 
-			iface = self.iface_cache.get_interface(uri)
+			iface = iface_cache.get_interface(uri)
 
 			impls = []
 			for f in usable_feeds(iface, arch):
@@ -353,7 +342,7 @@ class SATSolver(Solver):
 				debug(_("Processing feed %s"), f)
 
 				try:
-					feed = self.iface_cache.get_feed(f)
+					feed = iface_cache.get_feed(f)
 					if feed is None: continue
 					#if feed.name and iface.uri != feed.url and iface.uri not in feed.feed_for:
 					#	info(_("Missing <feed-for> for '%(uri)s' in '%(feed)s'"), {'uri': iface.uri, 'feed': f})
@@ -364,11 +353,12 @@ class SATSolver(Solver):
 					distro_feed_url = feed.get_distro_feed()
 					if distro_feed_url:
 						self.feeds_used.add(distro_feed_url)
-						distro_feed = self.iface_cache.get_feed(distro_feed_url)
+						distro_feed = iface_cache.get_feed(distro_feed_url)
 						if distro_feed.implementations:
 							impls.extend(distro_feed.implementations.values())
 				except Exception, ex:
 					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
+					raise
 
 			impls.sort(lambda a, b: self.compare(iface, a, b, arch))
 
@@ -440,7 +430,7 @@ class SATSolver(Solver):
 			# the commands too.
 			add_iface(uri, arch)
 
-			iface = self.iface_cache.get_interface(uri)
+			iface = iface_cache.get_interface(uri)
 			filtered_impls = impls_for_iface[iface]
 
 			var_names = []
@@ -505,7 +495,7 @@ class SATSolver(Solver):
 				# (note: might be because we haven't cached it yet)
 				info("No %s <command> in %s", command_name, root_interface)
 
-				impls = impls_for_iface[self.iface_cache.get_interface(root_interface)]
+				impls = impls_for_iface[iface_cache.get_interface(root_interface)]
 				if impls == [] or (len(impls) == 1 and isinstance(impls[0], _DummyImpl)):
 					# There were no candidates at all.
 					self._failure_reason = _("Interface '%s' has no usable implementations") % root_interface

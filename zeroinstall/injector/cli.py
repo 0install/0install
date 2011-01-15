@@ -11,8 +11,7 @@ from optparse import OptionParser
 import logging
 
 from zeroinstall import SafeException, NeedDownload
-from zeroinstall.injector import model, autopolicy, selections
-from zeroinstall.injector.iface_cache import iface_cache
+from zeroinstall.injector import model, policy, autopolicy, selections
 from zeroinstall.cmd import UsageError
 
 #def program_log(msg): os.access('MARK: 0launch: ' + msg, os.F_OK)
@@ -81,11 +80,13 @@ def main(command_args):
 	if options.select_only or options.show:
 		options.download_only = True
 
+	config = policy.load_config()
+
 	if options.with_store:
 		from zeroinstall import zerostore
 		for x in options.with_store:
-			iface_cache.stores.stores.append(zerostore.Store(os.path.abspath(x)))
-		logging.info(_("Stores search path is now %s"), iface_cache.stores.stores)
+			config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
+		logging.info(_("Stores search path is now %s"), config.stores.stores)
 
 	if options.set_selections:
 		args = [options.set_selections] + args

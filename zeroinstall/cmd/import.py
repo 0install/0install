@@ -10,8 +10,8 @@ import logging
 
 from zeroinstall import cmd, SafeException, _
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, autopolicy, selections, handler, gpg, fetch
-from zeroinstall.injector.iface_cache import iface_cache, PendingFeed
+from zeroinstall.injector import model, autopolicy, selections, gpg, fetch
+from zeroinstall.injector.iface_cache import PendingFeed
 from zeroinstall.support import tasks
 from xml.dom import minidom
 
@@ -20,8 +20,11 @@ syntax = "FEED"
 def add_options(parser):
 	pass
 
-def handle(options, args):
-	h = handler.Handler()
+def handle(config, options, args):
+	if not args:
+		raise UsageError()
+
+	h = config.handler
 
 	for x in args:
 		if not os.path.isfile(x):
@@ -42,13 +45,13 @@ def handle(options, args):
 			keys_downloaded = tasks.Task(pending.download_keys(h), "download keys")
 			yield keys_downloaded.finished
 			tasks.check(keys_downloaded.finished)
-			if not iface_cache.update_feed_if_trusted(uri, pending.sigs, pending.new_xml):
+			if not config.iface_cache.update_feed_if_trusted(uri, pending.sigs, pending.new_xml):
 				fetcher = fetch.Fetcher(h)
 				blocker = h.confirm_keys(pending, fetcher.fetch_key_info)
 				if blocker:
 					yield blocker
 					tasks.check(blocker)
-				if not iface_cache.update_feed_if_trusted(uri, pending.sigs, pending.new_xml):
+				if not config.iface_cache.update_feed_if_trusted(uri, pending.sigs, pending.new_xml):
 					raise SafeException(_("No signing keys trusted; not importing"))
 
 		task = tasks.Task(run(), "import feed")

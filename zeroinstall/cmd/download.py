@@ -12,7 +12,6 @@ import logging
 from zeroinstall import cmd, SafeException, _
 from zeroinstall.cmd import UsageError, select
 from zeroinstall.injector import model, autopolicy, selections, handler
-from zeroinstall.injector.iface_cache import iface_cache
 
 syntax = "URI"
 
@@ -20,12 +19,12 @@ def add_options(parser):
 	select.add_options(parser)
 	parser.add_option("", "--show", help=_("show where components are installed"), action='store_true')
 
-def handle(options, args):
+def handle(config, options, args):
 	if len(args) != 1:
 		raise UsageError()
 	iface_uri = model.canonical_iface_uri(args[0])
 
-	sels = select.get_selections(options, iface_uri,
+	sels = select.get_selections(config, options, iface_uri,
 				select_only = False, download_only = True, test_callback = None)
 	if not sels:
 		sys.exit(1)	# Aborted by user
@@ -33,4 +32,4 @@ def handle(options, args):
 	if options.xml:
 		select.show_xml(sels)
 	if options.show:
-		select.show_human(sels)
+		select.show_human(sels, config.stores)

@@ -11,5 +11,5 @@ from zeroinstall.cmd import add_feed
 
 add_options = add_feed.add_options
 
-def handle(options, args):
-	return add_feed.handle(options, args, add_ok = False, remove_ok = True)
+def handle(config, options, args):
+	return add_feed.handle(config, options, args, add_ok = False, remove_ok = True)

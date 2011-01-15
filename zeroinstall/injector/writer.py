@@ -13,7 +13,6 @@ from zeroinstall.support import basedir
 
 from zeroinstall.injector import model
 from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFACE
-from zeroinstall.injector.iface_cache import iface_cache
 
 def _atomic_save(doc, parent, uri):
 	import tempfile

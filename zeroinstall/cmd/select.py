@@ -11,8 +11,8 @@ import logging
 
 from zeroinstall import cmd, SafeException, _
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, autopolicy, selections, handler
-from zeroinstall.injector.iface_cache import iface_cache
+from zeroinstall.injector import model, selections, handler
+from zeroinstall.injector.policy import Policy
 
 syntax = "URI"
 
@@ -33,15 +33,7 @@ def add_options(parser):
 	add_generic_select_options(parser)
 	parser.add_option("", "--xml", help=_("write selected versions as XML"), action='store_true')
 
-def _download_missing_selections(h, sels):
-	from zeroinstall.injector import fetch
-	fetcher = fetch.Fetcher(h)
-	blocker = sels.download_missing(iface_cache, fetcher)
-	if blocker:
-		logging.info(_("Waiting for selected implementations to be downloaded..."))
-		h.wait_for_blocker(blocker)
-
-def get_selections(options, iface_uri, select_only, download_only, test_callback):
+def get_selections(config, options, iface_uri, select_only, download_only, test_callback):
 	"""Get selections for iface_uri, according to the options passed.
 	Will switch to GUI mode if necessary.
 	@param options: options from OptionParser
@@ -51,32 +43,32 @@ def get_selections(options, iface_uri, select_only, download_only, test_callback
 	@return: the selected versions, or None if the user cancels
 	@rtype: L{selections.Selections} | None
 	"""
-	if os.isatty(1):
-		h = handler.ConsoleHandler()
-	else:
-		h = handler.Handler()
-	h.dry_run = bool(options.dry_run)
-
 	# Try to load it as a feed. If it is a feed, it'll get cached. If not, it's a
 	# selections document and we return immediately.
-	maybe_selections = iface_cache.get_feed(iface_uri, selections_ok = True)
+	maybe_selections = config.iface_cache.get_feed(iface_uri, selections_ok = True)
 	if isinstance(maybe_selections, selections.Selections):
 		if not select_only:
+			from zeroinstall.injector import fetch
+			fetcher = fetch.Fetcher(h)
+			blocker = maybe_selections.download_missing(config.iface_cache, fetcher)
+			if blocker:
+				logging.info(_("Waiting for selected implementations to be downloaded..."))
+				h.wait_for_blocker(blocker)
 			_download_missing_selections(h, maybe_selections)
 		return maybe_selections
 
-	root_iface = iface_cache.get_interface(iface_uri)
+	root_iface = config.iface_cache.get_interface(iface_uri)
 
 	command_name = options.command
 	if command_name is None:
 		command_name = 'run'
 	elif command_name == '':
 		command_name = None
-	policy = autopolicy.AutoPolicy(iface_uri,
-				handler = h,
-				download_only = True,	# unused?
-				src = options.source,
-				command = command_name)
+	policy = Policy(iface_uri,
+			handler = None,		# (use config instead)
+			src = options.source,
+			command = command_name,
+			config = config)
 
 	if options.before or options.not_before:
 		policy.solver.extra_restrictions[root_iface] = [
@@ -104,7 +96,7 @@ def get_selections(options, iface_uri, select_only, download_only, test_callback
 
 		stale_feeds = [feed for feed in policy.solver.feeds_used if
 				not feed.startswith('distribution:') and	# Ignore (memory-only) PackageKit feeds
-				policy.is_stale(iface_cache.get_feed(feed))]
+				policy.is_stale(config.iface_cache.get_feed(feed))]
 
 		if download_only and stale_feeds:
 			can_run_immediately = False
@@ -180,12 +172,12 @@ def get_selections(options, iface_uri, select_only, download_only, test_callback
 
 	return sels
 
-def handle(options, args):
+def handle(config, options, args):
 	if len(args) != 1:
 		raise UsageError()
 	iface_uri = model.canonical_iface_uri(args[0])
 
-	sels = get_selections(options, iface_uri,
+	sels = get_selections(config, options, iface_uri,
 				select_only = True, download_only = False, test_callback = None)
 	if not sels:
 		sys.exit(1)	# Aborted by user
@@ -193,14 +185,14 @@ def handle(options, args):
 	if options.xml:
 		show_xml(sels)
 	else:
-		show_human(sels)
+		show_human(sels, config.stores)
 
 def show_xml(sels):
 	doc = sels.toDOM()
 	doc.writexml(sys.stdout)
 	sys.stdout.write('\n')
 
-def show_human(sels):
+def show_human(sels, stores):
 	from zeroinstall import zerostore
 	done = set()	# detect cycles
 	def print_node(uri, command, indent):
@@ -214,7 +206,7 @@ def show_human(sels):
 				if impl.id.startswith('package:'):
 					path = "(" + impl.id + ")"
 				else:
-					path = impl.local_path or iface_cache.stores.lookup_any(impl.digests)
+					path = impl.local_path or stores.lookup_any(impl.digests)
 			except zerostore.NotStored:
 				path = "(not cached)"
 			print indent + "  Path:", path

@@ -635,10 +635,9 @@ class Interface(object):
 		self.stability_policy = None
 
 	def get_name(self):
-		from zeroinstall.injector.iface_cache import iface_cache
-		feed = iface_cache.get_feed(self.uri)
-		if feed:
-			return feed.get_name()
+		#feed = self._main_feed
+		#if feed:
+		#	return feed.get_name()
 		return '(' + os.path.basename(self.uri) + ')'
 	
 	def __repr__(self):
@@ -664,7 +663,8 @@ class Interface(object):
 	def _main_feed(self):
 		#import warnings
 		#warnings.warn("use the feed instead", DeprecationWarning, 3)
-		from zeroinstall.injector.iface_cache import iface_cache
+		from zeroinstall.injector import policy
+		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 		feed = iface_cache.get_feed(self.uri)
 		if feed is None:
 			return _dummy_feed

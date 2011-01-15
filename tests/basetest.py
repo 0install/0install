@@ -70,7 +70,7 @@ class BaseTest(unittest.TestCase):
 		os.environ['XDG_CACHE_DIRS'] = self.cache_system
 		reload(basedir)
 		assert basedir.xdg_config_home == self.config_home
-		iface_cache.iface_cache.__init__()
+		#iface_cache.iface_cache.__init__()
 
 		os.mkdir(self.config_home, 0700)
 		os.mkdir(self.cache_home, 0700)

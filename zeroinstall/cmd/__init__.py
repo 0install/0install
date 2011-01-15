@@ -12,7 +12,6 @@ import logging
 
 from zeroinstall import SafeException, NeedDownload
 from zeroinstall.injector import model, autopolicy, selections
-from zeroinstall.injector.iface_cache import iface_cache
 
 valid_commands = ['select', 'download', 'run', 'update',
 		  'config', 'import', 'list', 'add-feed', 'remove-feed']
@@ -50,12 +49,20 @@ def _no_command(command_args):
 	parser.print_help()
 	sys.exit(2)
 
-def main(command_args):
+def main(command_args, config = None):
 	"""Act as if 0install was run with the given arguments.
 	@arg command_args: array of arguments (e.g. C{sys.argv[1:]})
 	@type command_args: [str]
 	"""
 	_ensure_standard_fds()
+
+	if config is None:
+		from zeroinstall.injector import policy, handler
+		if os.isatty(1):
+			h = handler.ConsoleHandler()
+		else:
+			h = handler.Handler()
+		config = policy.load_config(h)
 
 	# The first non-option argument is the command name (or "help" if none is found).
 	command = None
@@ -103,10 +110,12 @@ def main(command_args):
 		if options.with_store:
 			from zeroinstall import zerostore
 			for x in options.with_store:
-				iface_cache.stores.stores.append(zerostore.Store(os.path.abspath(x)))
-			logging.info(_("Stores search path is now %s"), iface_cache.stores.stores)
+				config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
+			logging.info(_("Stores search path is now %s"), config.stores.stores)
 
-		cmd.handle(options, args)
+		h.dry_run = bool(options.dry_run)
+
+		cmd.handle(config, options, args)
 	except UsageError:
 		parser.print_help()
 		sys.exit(1)

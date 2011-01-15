@@ -12,7 +12,6 @@ import logging
 from zeroinstall import cmd, SafeException, _
 from zeroinstall.cmd import UsageError, select
 from zeroinstall.injector import model, autopolicy, selections, handler
-from zeroinstall.injector.iface_cache import iface_cache
 
 syntax = "URI [ARGS]"
 
@@ -22,7 +21,7 @@ def add_options(parser):
 	parser.add_option("-w", "--wrapper", help=_("execute program using a debugger, etc"), metavar='COMMAND')
 	parser.disable_interspersed_args()
 
-def handle(options, args):
+def handle(config, options, args):
 	if len(args) < 1:
 		raise UsageError()
 	iface_uri = model.canonical_iface_uri(args[0])
@@ -34,11 +33,11 @@ def handle(options, args):
 					     False,	# dry-run
 					     options.main)
 
-	sels = select.get_selections(options, iface_uri,
+	sels = select.get_selections(config, options, iface_uri,
 				select_only = False, download_only = False,
 				test_callback = test_callback)
 	if not sels:
 		sys.exit(1)	# Aborted by user
 
 	from zeroinstall.injector import run
-	run.execute_selections(sels, prog_args, dry_run = options.dry_run, main = options.main, wrapper = options.wrapper)
+	run.execute_selections(sels, prog_args, dry_run = options.dry_run, main = options.main, wrapper = options.wrapper, stores = config.stores)

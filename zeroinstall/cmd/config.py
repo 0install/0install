@@ -19,8 +19,68 @@ syntax = "[NAME [VALUE]]"
 def add_options(parser):
 	pass
 
-def handle(options, args):
-	config = policy.load_config()
+class String:
+	@staticmethod
+	def format(value):
+		return value
+
+	@staticmethod
+	def parse(value):
+		return value
+
+class TimeInterval:
+	@staticmethod
+	def format(value):
+		value = float(value)
+		if value < 60:
+			return str(value) + "s"
+		value /= 60
+		if value < 60:
+			return str(value) + "m"
+		value /= 60
+		if value < 24:
+			return str(value) + "h"
+		value /= 24
+		return str(value) + "d"
+
+	@staticmethod
+	def parse(value):
+		v = float(value[:-1])
+		unit = value[-1]
+		if unit == 's':
+			return int(v)
+		v *= 60
+		if unit == 'm':
+			return int(v)
+		v *= 60
+		if unit == 'h':
+			return int(v)
+		v *= 24
+		if unit == 'd':
+			return int(v)
+		raise SafeException(_('Unknown unit "%s" - use e.g. 5d for 5 days') % unit)
+
+class Boolean:
+	@staticmethod
+	def format(value):
+		return value
+
+	@staticmethod
+	def parse(value):
+		if value.lower() == 'true':
+			return True
+		elif value.lower() == 'false':
+			return False
+		else:
+			raise SafeException(_('Must be True or False, not "%s"') % value)
+
+settings = {
+	'network_use': String,
+	'freshness': TimeInterval,
+	'help_with_testing': Boolean,
+}
+
+def handle(config, options, args):
 	if len(args) == 0:
 		if options.gui is None and os.environ.get('DISPLAY', None):
 			options.gui = True
@@ -28,44 +88,24 @@ def handle(options, args):
 			from zeroinstall import helpers
 			return helpers.get_selections_gui(None, [])
 		else:
-			config.write(sys.stdout)
+			for key, setting_type in settings.iteritems():
+				value = getattr(config, key)
+				print key, "=", setting_type.format(value)
 		return
 	elif len(args) > 2:
 		raise UsageError()
 
-	if '.' not in args[0]:
-		raise SafeException(_('Missing section name in "%s" (e.g. try "global.freshness")') % args[0])
-	section, option = args[0].split('.', 1)
+	option = args[0]
+	if option not in settings:
+		raise SafeException(_('Unknown option "%s"') % option)
 
 	if len(args) == 1:
-		try:
-			print config.get(section, option)
-		except ConfigParser.NoOptionError, ex:
-			raise SafeException(str(ex))
-		except ConfigParser.NoSectionError, ex:
-			raise SafeException(str(ex))
+		value = getattr(config, option)
+		print settings[option].format(value)
 	else:
-		if section != 'global':
-			raise SafeException(_('Unknown section "%s" (try "global")' % section))
+		value = settings[option].parse(args[1])
+		if option == 'network_use' and value not in model.network_levels:
+			raise SafeException(_("Must be one of %s") % list(model.network_levels))
+		setattr(config, option, value)
 
-		value = args[1]
-		if option == 'freshness':
-			int(value)
-		elif option == 'help_with_testing':
-			if value.lower() == 'true':
-				value = 'True'
-			elif value.lower() == 'false':
-				value = 'False'
-			else:
-				raise SafeException(_('Must be True or False, not "%s"') % value)
-		elif option == 'network_use':
-			if value not in model.network_levels:
-				raise SafeException(_("Must be one of %s") % list(model.network_levels))
-		else:
-			raise SafeException(_('Unknown option "%s"') % option)
-
-		config.set(section, option, value)
-		path = basedir.save_config_path(namespaces.config_site, namespaces.config_prog)
-		path = os.path.join(path, 'global')
-		config.write(file(path + '.new', 'w'))
-		os.rename(path + '.new', path)
+		config.save_globals()

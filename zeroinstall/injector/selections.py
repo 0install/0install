@@ -303,19 +303,22 @@ class Selections(object):
 
 	def iteritems(self):
 		# Deprecated
-		from zeroinstall.injector.iface_cache import iface_cache
+		from zeroinstall.injector import policy
+		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 		for (uri, sel) in self.selections.iteritems():
 			yield (iface_cache.get_interface(uri), sel and sel.impl)
 
 	def values(self):
 		# Deprecated
-		from zeroinstall.injector.iface_cache import iface_cache
+		from zeroinstall.injector import policy
+		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 		for (uri, sel) in self.selections.iteritems():
 			yield sel and sel.impl
 
 	def __iter__(self):
 		# Deprecated
-		from zeroinstall.injector.iface_cache import iface_cache
+		from zeroinstall.injector import policy
+		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 		for (uri, sel) in self.selections.iteritems():
 			yield iface_cache.get_interface(uri)
 
