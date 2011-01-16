@@ -125,6 +125,7 @@ def run_gui(args):
 			yield solved
 			try:
 				window.refresh_button.set_sensitive(True)
+				window.browser.highlight_problems()
 				tasks.check(solved)
 			except Exception, ex:
 				window.report_exception(ex)

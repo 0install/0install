@@ -134,6 +134,12 @@ if gtk.pygtk_version < (2, 8, 0):
 	gobject.type_register(IconAndTextRenderer)
 	gobject.type_register(MenuIconRenderer)
 
+def walk(model, it):
+	while it:
+		yield model[it]
+		for x in walk(model, model.iter_children(it)): yield x
+		it = model.iter_next(it)
+
 class InterfaceBrowser:
 	model = None
 	root = None
@@ -367,7 +373,6 @@ class InterfaceBrowser:
 						self.model[child_iter][InterfaceBrowser.ICON] = self.default_icon
 			else:
 				self.model[iter][InterfaceBrowser.VERSION] = _('(problem)')
-				self.model[iter][InterfaceBrowser.BACKGROUND] = '#f88'
 		if commands:
 			add_node(None, self.root, 0)
 		else:
@@ -444,13 +449,7 @@ class InterfaceBrowser:
 
 		selections = self.policy.solver.selections
 
-		def walk(it):
-			while it:
-				yield self.model[it]
-				for x in walk(self.model.iter_children(it)): yield x
-				it = self.model.iter_next(it)
-
-		for row in walk(self.model.get_iter_root()):
+		for row in walk(self.model, self.model.get_iter_root()):
 			iface = row[InterfaceBrowser.INTERFACE]
 
 			# Is this interface the download's hint?
@@ -483,3 +482,12 @@ class InterfaceBrowser:
 			else:
 				row[InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
 				row[InterfaceBrowser.SUMMARY] = iface.summary
+
+	def highlight_problems(self):
+		"""Called when the solve finishes. Highlight any missing implementations."""
+		for row in walk(self.model, self.model.get_iter_root()):
+			iface = row[InterfaceBrowser.INTERFACE]
+			sel = self.policy.solver.selections.selections.get(iface.uri, None)
+
+			if sel is None:
+				row[InterfaceBrowser.BACKGROUND] = '#f88'
