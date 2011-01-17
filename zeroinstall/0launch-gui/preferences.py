@@ -11,46 +11,46 @@ from freshness import freshness_levels, Freshness
 SHOW_CACHE = 0
 
 class Preferences:
-	def __init__(self, policy):
+	def __init__(self, config, notify_cb = None):
+		if notify_cb is None:
+			notify_cb = lambda: None
+
 		widgets = Template('preferences_box')
 
 		self.window = widgets.get_widget('preferences_box')
 		self.window.connect('destroy', lambda w: self.destroyed())
 
 		network = widgets.get_widget('network_use')
-		network.set_active(list(network_levels).index(policy.network_use))
+		network.set_active(list(network_levels).index(config.network_use))
 
 		def set_network_use(combo):
-			policy.network_use = network_levels[network.get_active()]
-			policy.save_config()
-			policy.solve_with_downloads()
+			config.network_use = network_levels[network.get_active()]
+			config.save_globals()
+			notify_cb()
 		network.connect('changed', set_network_use)
 
 		# Freshness
 		times = [x.time for x in freshness_levels]
-		if policy.freshness not in times:
-			freshness_levels.append(Freshness(policy.freshness,
-							  '%d seconds' % policy.freshness))
-			times.append(policy.freshness)
-		eb = gtk.EventBox()	# For the tooltip
+		if config.freshness not in times:
+			freshness_levels.append(Freshness(config.freshness,
+							  '%d seconds' % config.freshness))
+			times.append(config.freshness)
 		freshness = widgets.get_widget('freshness')
 		for level in freshness_levels:
 			freshness.append_text(str(level))
-		freshness.set_active(times.index(policy.freshness))
+		freshness.set_active(times.index(config.freshness))
 		def set_freshness(combo, freshness = freshness): # (pygtk bug?)
-			policy.freshness = freshness_levels[freshness.get_active()].time
-			policy.save_config()
-			import main
-			main.recalculate()
+			config.freshness = freshness_levels[freshness.get_active()].time
+			config.save_globals()
+			notify_cb()
 		freshness.connect('changed', set_freshness)
 
 		stable_toggle = widgets.get_widget('help_test')
-		stable_toggle.set_active(policy.help_with_testing)
+		stable_toggle.set_active(config.help_with_testing)
 		def toggle_stability(toggle):
-			policy.help_with_testing = toggle.get_active()
-			policy.save_config()
-			import main
-			main.recalculate()
+			config.help_with_testing = toggle.get_active()
+			config.save_globals()
+			notify_cb()
 		stable_toggle.connect('toggled', toggle_stability)
 
 		# Keys
@@ -147,11 +147,11 @@ class KeyList:
 		tv.connect('button-press-event', trusted_keys_button_press)
 
 preferences_box = None
-def show_preferences(policy):
+def show_preferences(config, notify_cb = None):
 	global preferences_box
 	if preferences_box:
 		preferences_box.destroy()
-	preferences_box = Preferences(policy)
+	preferences_box = Preferences(config, notify_cb)
 	preferences_box.window.show()
 	return preferences_box.window
 		

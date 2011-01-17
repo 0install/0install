@@ -26,7 +26,6 @@ def _copytree2(src, dst):
 	import shutil
 	names = os.listdir(src)
 	assert os.path.isdir(dst)
-	errors = []
 	for name in names:
 		srcname = os.path.join(src, name)
 		dstname = os.path.join(dst, name)
@@ -87,7 +86,7 @@ class Store:
 	
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0, try_helper = False):
 		import unpack
-		info(_("Caching new implementation (digest %s)"), required_digest)
+		info(_("Caching new implementation (digest %s) in %s"), required_digest, self.dir)
 
 		if self.lookup(required_digest):
 			info(_("Not adding %s as it already exists!"), required_digest)
@@ -103,7 +102,7 @@ class Store:
 
 		try:
 			self.check_manifest_and_rename(required_digest, tmp, extract, try_helper = try_helper)
-		except Exception, ex:
+		except Exception:
 			warn(_("Leaving extracted directory as %s"), tmp)
 			raise
 	

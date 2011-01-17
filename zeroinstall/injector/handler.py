@@ -88,7 +88,7 @@ class Handler(object):
 			def quitter():
 				yield blocker
 				self._loop.quit()
-			quit = tasks.Task(quitter(), "quitter")
+			tasks.Task(quitter(), "quitter")
 
 			assert self._loop is None	# Avoid recursion
 			self._loop = gobject.MainLoop(gobject.main_context_default())
@@ -239,9 +239,9 @@ class Handler(object):
 				if infos:
 					if len(valid_sigs) > 1:
 						print "%s: " % kf.fingerprint
-					for info in infos:
-						print >>sys.stderr, "-", text(info)
-						shown.add(info)
+					for key_info in infos:
+						print >>sys.stderr, "-", text(key_info)
+						shown.add(key_info)
 				if kf.blocker:
 					key_info_fetchers.append(kf)
 			if key_info_fetchers:

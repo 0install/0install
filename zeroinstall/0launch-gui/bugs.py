@@ -32,15 +32,16 @@ def report_bug(policy, iface):
 	if not policy.ready:
 		text += '  Failed to select all required implementations\n'
 
-	for chosen_iface in policy.implementation:
-		text += '\n  Interface: %s\n' % chosen_iface.uri
-		impl = policy.implementation[chosen_iface]
+	for chosen_iface_uri, impl in policy.solver.selections.selections.iteritems():
+		text += '\n  Interface: %s\n' % chosen_iface_uri
 		if impl:
-			text += '    Version: %s\n' % impl.get_version()
-			if impl.feed.url != chosen_iface.uri:
-				text += '  From feed: %s\n' % impl.feed.url
+			text += '    Version: %s\n' % impl.version
+			feed_url = impl.attrs['from-feed']
+			if feed_url != chosen_iface_uri:
+				text += '  From feed: %s\n' % feed_url
 			text += '         ID: %s\n' % impl.id
 		else:
+			chosen_iface = policy.config.iface_cache.get_interface(chosen_iface_uri)
 			impls = policy.solver.details.get(chosen_iface, None)
 			if impls:
 				best, reason = impls[0]

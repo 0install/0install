@@ -7,7 +7,8 @@ Load and save a set of chosen implementations.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-from zeroinstall.injector.policy import Policy
+from zeroinstall.injector import model
+from zeroinstall.injector.policy import Policy, get_deprecated_singleton_config
 from zeroinstall.injector.model import process_binding, process_depends, binding_names, Command
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.qdom import Element, Prefixes
@@ -246,25 +247,34 @@ class Selections(object):
 	def __repr__(self):
 		return "Selections for " + self.interface
 
-	def download_missing(self, iface_cache, fetcher):
+	def download_missing(self, config, _old = None):
 		"""Check all selected implementations are available.
 		Download any that are not present.
 		Note: package implementations (distribution packages) are ignored.
-		@param iface_cache: cache to find feeds with download information
-		@param fetcher: used to download missing implementations
+		@param config: used to get iface_cache, stores and fetcher
 		@return: a L{tasks.Blocker} or None"""
 		from zeroinstall.zerostore import NotStored
+
+		if _old:
+			config = get_deprecated_singleton_config()
+
+		iface_cache = config.iface_cache
+		stores = config.stores
 
 		# Check that every required selection is cached
 		needed_downloads = []
 		for sel in self.selections.values():
 			if (not sel.local_path) and (not sel.id.startswith('package:')):
 				try:
-					iface_cache.stores.lookup_any(sel.digests)
-				except NotStored, ex:
+					stores.lookup_any(sel.digests)
+				except NotStored:
 					needed_downloads.append(sel)
 		if not needed_downloads:
 			return
+
+		if config.network_use == model.network_offline:
+			from zeroinstall import NeedDownload
+			raise NeedDownload(', '.join([str(x) for x in needed_downloads]))
 
 		@tasks.async
 		def download():
@@ -278,7 +288,7 @@ class Selections(object):
 				feed_url = sel.attrs.get('from-feed', None) or sel.attrs['interface']
 				feed = iface_cache.get_feed(feed_url)
 				if feed is None or sel.id not in feed.implementations:
-					fetch_feed = fetcher.download_and_import_feed(feed_url, iface_cache)
+					fetch_feed = config.fetcher.download_and_import_feed(feed_url, iface_cache)
 					yield fetch_feed
 					tasks.check(fetch_feed)
 
@@ -287,7 +297,7 @@ class Selections(object):
 				impl = feed.implementations[sel.id]
 				needed_impls.append(impl)
 
-			fetch_impls = fetcher.download_impls(needed_impls, iface_cache.stores)
+			fetch_impls = config.fetcher.download_impls(needed_impls, stores)
 			yield fetch_impls
 			tasks.check(fetch_impls)
 		return download()
@@ -303,19 +313,18 @@ class Selections(object):
 
 	def iteritems(self):
 		# Deprecated
-		from zeroinstall.injector.iface_cache import iface_cache
+		iface_cache = get_deprecated_singleton_config().iface_cache
 		for (uri, sel) in self.selections.iteritems():
 			yield (iface_cache.get_interface(uri), sel and sel.impl)
 
 	def values(self):
 		# Deprecated
-		from zeroinstall.injector.iface_cache import iface_cache
 		for (uri, sel) in self.selections.iteritems():
 			yield sel and sel.impl
 
 	def __iter__(self):
 		# Deprecated
-		from zeroinstall.injector.iface_cache import iface_cache
+		iface_cache = get_deprecated_singleton_config().iface_cache
 		for (uri, sel) in self.selections.iteritems():
 			yield iface_cache.get_interface(uri)
 

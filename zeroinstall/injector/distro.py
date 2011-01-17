@@ -7,10 +7,10 @@ Integration with native distribution package managers.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os, platform, re, glob, subprocess, sys
+import os, platform, re, subprocess, sys
 from logging import warn, info
 from zeroinstall.injector import namespaces, model, arch
-from zeroinstall.support import basedir, tasks
+from zeroinstall.support import basedir
 
 _dotted_ints = '[0-9]+(?:\.[0-9]+)*'
 
@@ -65,8 +65,6 @@ class Cache(object):
 		self.cache = cache = {}
 		stream = file(os.path.join(self.cache_dir, self.cache_leaf))
 		try:
-			meta = {}
-			cached_format = False
 			for line in stream:
 				line = line.strip()
 				if not line:

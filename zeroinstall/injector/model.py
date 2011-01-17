@@ -664,7 +664,8 @@ class Interface(object):
 	def _main_feed(self):
 		#import warnings
 		#warnings.warn("use the feed instead", DeprecationWarning, 3)
-		from zeroinstall.injector.iface_cache import iface_cache
+		from zeroinstall.injector import policy
+		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 		feed = iface_cache.get_feed(self.uri)
 		if feed is None:
 			return _dummy_feed
@@ -686,7 +687,7 @@ def _get_long(elem, attr_name):
 	if val is not None:
 		try:
 			val = long(val)
-		except ValueError, ex:
+		except ValueError:
 			raise SafeException(_("Invalid value for integer attribute '%(attribute_name)s': %(value)s") % {'attribute_name': attr_name, 'value': val})
 	return val
 
@@ -878,7 +879,6 @@ class ZeroInstallFeed(object):
 				raise InvalidInterface(_("Missing version attribute"))
 			impl.version = parse_version(version)
 
-			item_main = commands.get('run', None)
 			impl.commands = commands
 
 			impl.released = item_attrs.get('released', None)

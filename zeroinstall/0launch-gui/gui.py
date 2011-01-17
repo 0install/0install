@@ -67,7 +67,6 @@ class GUIHandler(handler.Handler):
 		yield self._switch_to_main_window(_('Need to confirm installation of distribution packages'))
 
 		from zeroinstall.injector.download import DownloadAborted
-		from zeroinstall.gtkui import gtkutils
 		import dialog
 		import gtk
 		box = gtk.MessageDialog(self.mainwindow.window,

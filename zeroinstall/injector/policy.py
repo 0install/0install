@@ -13,15 +13,89 @@ import os
 from logging import info, debug, warn
 import ConfigParser
 
-from zeroinstall import SafeException
-from zeroinstall.injector import arch
+from zeroinstall import zerostore, SafeException
+from zeroinstall.injector import arch, model
 from zeroinstall.injector.model import Interface, Implementation, network_levels, network_offline, DistributionImplementation, network_full
+from zeroinstall.injector.handler import Handler
 from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.support import tasks, basedir
-from zeroinstall.injector.iface_cache import iface_cache
 
 # If we started a check within this period, don't start another one:
 FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
+
+class Config(object):
+	"""
+	@ivar handler: handler for main-loop integration
+	@type handler: L{handler.Handler}
+	"""
+
+	__slots__ = ['help_with_testing', 'freshness', 'network_use', '_fetcher', '_stores', '_iface_cache', 'handler']
+	def __init__(self, handler):
+		assert handler is not None
+		self.help_with_testing = False
+		self.freshness = 60 * 60 * 24 * 30
+		self.network_use = network_full
+		self.handler = handler
+		self._fetcher = self._stores = self._iface_cache = None
+
+	@property
+	def stores(self):
+		if not self._stores:
+			self._stores = zerostore.Stores()
+		return self._stores
+
+	@property
+	def iface_cache(self):
+		if not self._iface_cache:
+			from zeroinstall.injector import iface_cache
+			self._iface_cache = iface_cache.iface_cache
+			#self._iface_cache = iface_cache.IfaceCache()
+		return self._iface_cache
+
+	@property
+	def fetcher(self):
+		if not self._fetcher:
+			from zeroinstall.injector import fetch
+			self._fetcher = fetch.Fetcher(self.handler)
+		return self._fetcher
+
+	def save_globals(self):
+               """Write global settings."""
+               parser = ConfigParser.ConfigParser()
+               parser.add_section('global')
+
+               parser.set('global', 'help_with_testing', self.help_with_testing)
+               parser.set('global', 'network_use', self.network_use)
+               parser.set('global', 'freshness', self.freshness)
+
+               path = basedir.save_config_path(config_site, config_prog)
+               path = os.path.join(path, 'global')
+               parser.write(file(path + '.new', 'w'))
+               os.rename(path + '.new', path)
+
+def load_config(handler):
+	config = Config(handler)
+	parser = ConfigParser.RawConfigParser()
+	parser.add_section('global')
+	parser.set('global', 'help_with_testing', 'False')
+	parser.set('global', 'freshness', str(60 * 60 * 24 * 30))	# One month
+	parser.set('global', 'network_use', 'full')
+
+	path = basedir.load_first_config(config_site, config_prog, 'global')
+	if path:
+		info("Loading configuration from %s", path)
+		try:
+			parser.read(path)
+		except Exception, ex:
+			warn(_("Error loading config: %s"), str(ex) or repr(ex))
+
+	config.help_with_testing = parser.getboolean('global', 'help_with_testing')
+	config.network_use = parser.get('global', 'network_use')
+	config.freshness = int(parser.get('global', 'freshness'))
+
+	assert config.network_use in network_levels, config.network_use
+
+	return config
 
 class Policy(object):
 	"""Chooses a set of implementations based on a policy.
@@ -43,111 +117,87 @@ class Policy(object):
 	@ivar network_use: one of the model.network_* values
 	@ivar freshness: seconds allowed since last update
 	@type freshness: int
-	@ivar handler: handler for main-loop integration
-	@type handler: L{handler.Handler}
-	@ivar src: whether we are looking for source code
-	@type src: bool
 	@ivar stale_feeds: set of feeds which are present but haven't been checked for a long time
 	@type stale_feeds: set
 	"""
-	__slots__ = ['root', 'watchers', 'command',
-		     'freshness', 'handler', '_warned_offline',
-		     'target_arch', 'src', 'stale_feeds', 'solver', '_fetcher']
-	
-	help_with_testing = property(lambda self: self.solver.help_with_testing,
-				     lambda self, value: setattr(self.solver, 'help_with_testing', value))
+	__slots__ = ['root', 'watchers', 'requirements', 'config', '_warned_offline',
+		     'command', 'target_arch',
+		     'stale_feeds', 'solver']
 
-	network_use = property(lambda self: self.solver.network_use,
-				     lambda self, value: setattr(self.solver, 'network_use', value))
+	help_with_testing = property(lambda self: self.config.help_with_testing,
+				     lambda self, value: setattr(self.config, 'help_with_testing', bool(value)))
+
+	network_use = property(lambda self: self.config.network_use,
+			       lambda self, value: setattr(self.config, 'network_use', value))
+
+	freshness = property(lambda self: self.config.freshness,
+			     lambda self, value: setattr(self.config, 'freshness', str(value)))
 
 	implementation = property(lambda self: self.solver.selections)
 
 	ready = property(lambda self: self.solver.ready)
 
-	def __init__(self, root, handler = None, src = False, command = -1):
+	# (used by 0test)
+	handler = property(lambda self: self.config.handler,
+			   lambda self, value: setattr(self.config, 'handler', value))
+
+
+	def __init__(self, root = None, handler = None, src = None, command = -1, config = None, requirements = None):
 		"""
-		@param root: The URI of the root interface (the program we want to run).
-		@param handler: A handler for main-loop integration.
-		@type handler: L{zeroinstall.injector.handler.Handler}
-		@param src: Whether we are looking for source code.
-		@type src: bool
-		@param command: The name of the command to run (e.g. 'run', 'test', 'compile', etc)
-		@type command: str
+		@param requirements: Details about the program we want to run
+		@type requirements: L{requirements.Requirements}
+		@param config: The configuration settings to use, or None to load from disk.
+		@type config: L{ConfigParser.ConfigParser}
+		Note: all other arguments are deprecated (since 0launch 0.52)
 		"""
 		self.watchers = []
-		self.src = src				# Root impl must be a "src" machine type
+		if requirements is None:
+			from zeroinstall.injector.requirements import Requirements
+			requirements = Requirements(root)
+			requirements.source = bool(src)				# Root impl must be a "src" machine type
+			if command == -1:
+				if src:
+					command = 'compile'
+				else:
+					command = 'run'
+			requirements.command = command
+			self.target_arch = arch.get_host_architecture()
+		else:
+			assert root == src == None
+			assert command == -1
+			self.target_arch = arch.get_architecture(requirements.os, requirements.cpu)
+		self.requirements = requirements
+
 		self.stale_feeds = set()
-		if command == -1:
-			if src:
-				command = 'compile'
-			else:
-				command = 'run'
-		self.command = command
+
+		if config is None:
+			self.config = load_config(handler or Handler())
+		else:
+			assert handler is None, "can't pass a handler and a config"
+			self.config = config
 
 		from zeroinstall.injector.solver import DefaultSolver
-		self.solver = DefaultSolver(network_full, iface_cache, iface_cache.stores)
+		self.solver = DefaultSolver(self.config)
 
 		# If we need to download something but can't because we are offline,
 		# warn the user. But only the first time.
 		self._warned_offline = False
-		self._fetcher = None
-
-		# (allow self for backwards compat)
-		self.handler = handler or self
 
 		debug(_("Supported systems: '%s'"), arch.os_ranks)
 		debug(_("Supported processors: '%s'"), arch.machine_ranks)
 
-		config = ConfigParser.ConfigParser()
-		config.add_section('global')
-		config.set('global', 'help_with_testing', 'False')
-		config.set('global', 'freshness', str(60 * 60 * 24 * 30))	# One month
-		config.set('global', 'network_use', 'full')
-
-		path = basedir.load_first_config(config_site, config_prog, 'global')
-		if path:
-			info("Loading configuration from %s", path)
-			try:
-				config.read(path)
-			except Exception, ex:
-				warn(_("Error loading config: %s"), str(ex) or repr(ex))
-
-		self.solver.help_with_testing = config.getboolean('global', 'help_with_testing')
-		self.solver.network_use = config.get('global', 'network_use')
-		self.freshness = int(config.get('global', 'freshness'))
-		assert self.solver.network_use in network_levels, self.solver.network_use
-
-		self.set_root(root)
-
-		self.target_arch = arch.get_host_architecture()
+		if requirements.before or requirements.not_before:
+			self.solver.extra_restrictions[config.iface_cache.get_interface(requirements.interface_uri)] = [
+					model.VersionRangeRestriction(model.parse_version(requirements.before),
+								      model.parse_version(requirements.not_before))]
 
 	@property
 	def fetcher(self):
-		if not self._fetcher:
-			import fetch
-			self._fetcher = fetch.Fetcher(self.handler)
-		return self._fetcher
-	
-	def set_root(self, root):
-		"""Change the root interface URI."""
-		assert isinstance(root, (str, unicode))
-		self.root = root
-		for w in self.watchers: w()
+		return self.config.fetcher
 
 	def save_config(self):
-		"""Write global settings."""
-		config = ConfigParser.ConfigParser()
-		config.add_section('global')
+		self.config.save_globals()
 
-		config.set('global', 'help_with_testing', self.help_with_testing)
-		config.set('global', 'network_use', self.network_use)
-		config.set('global', 'freshness', self.freshness)
-
-		path = basedir.save_config_path(config_site, config_prog)
-		path = os.path.join(path, 'global')
-		config.write(file(path + '.new', 'w'))
-		os.rename(path + '.new', path)
-	
 	def recalculate(self, fetch_stale_interfaces = True):
 		"""@deprecated: see L{solve_with_downloads} """
 		import warnings
@@ -156,7 +206,7 @@ class Policy(object):
 		self.stale_feeds = set()
 
 		host_arch = self.target_arch
-		if self.src:
+		if self.requirements.source:
 			host_arch = arch.SourceArchitecture(host_arch)
 		self.solver.solve(self.root, host_arch, command_name = self.command)
 
@@ -166,30 +216,30 @@ class Policy(object):
 		blockers = []
 		for f in self.solver.feeds_used:
 			if os.path.isabs(f): continue
-			feed = iface_cache.get_feed(f)
+			feed = self.config.iface_cache.get_feed(f)
 			if feed is None or feed.last_modified is None:
 				self.download_and_import_feed_if_online(f)	# Will start a download
 			elif self.is_stale(feed):
 				debug(_("Adding %s to stale set"), f)
-				self.stale_feeds.add(iface_cache.get_interface(f))	# Legacy API
+				self.stale_feeds.add(self.config.iface_cache.get_interface(f))	# Legacy API
 				if fetch_stale_interfaces:
 					self.download_and_import_feed_if_online(f)	# Will start a download
 
 		for w in self.watchers: w()
 
 		return blockers
-	
+
 	def usable_feeds(self, iface):
 		"""Generator for C{iface.feeds} that are valid for our architecture.
 		@rtype: generator
 		@see: L{arch}"""
-		if self.src and iface.uri == self.root:
+		if self.requirements.source and iface.uri == self.root:
 			# Note: when feeds are recursive, we'll need a better test for root here
 			machine_ranks = {'src': 1}
 		else:
 			machine_ranks = arch.machine_ranks
-			
-		for f in iface_cache.get_feed_imports(iface):
+
+		for f in self.config.iface_cache.get_feed_imports(iface):
 			if f.os in arch.os_ranks and f.machine in machine_ranks:
 				yield f
 			else:
@@ -213,18 +263,18 @@ class Policy(object):
 		if self.freshness <= 0 or staleness < self.freshness:
 			return False		# Fresh enough for us
 
-		last_check_attempt = iface_cache.get_last_check_attempt(feed.url)
+		last_check_attempt = self.config.iface_cache.get_last_check_attempt(feed.url)
 		if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
 			debug(_("Stale, but tried to check recently (%s) so not rechecking now."), time.ctime(last_check_attempt))
 			return False
 
 		return True
-	
+
 	def download_and_import_feed_if_online(self, feed_url):
 		"""If we're online, call L{fetch.Fetcher.download_and_import_feed}. Otherwise, log a suitable warning."""
 		if self.network_use != network_offline:
 			debug(_("Feed %s not cached and not off-line. Downloading..."), feed_url)
-			return self.fetcher.download_and_import_feed(feed_url, iface_cache)
+			return self.fetcher.download_and_import_feed(feed_url, self.config.iface_cache)
 		else:
 			if self._warned_offline:
 				debug(_("Not downloading feed '%s' because we are off-line."), feed_url)
@@ -237,7 +287,7 @@ class Policy(object):
 		@rtype: str
 		@raise zeroinstall.zerostore.NotStored: if it needs to be added to the cache first."""
 		assert isinstance(impl, Implementation)
-		return impl.local_path or iface_cache.stores.lookup_any(impl.digests)
+		return impl.local_path or self.config.stores.lookup_any(impl.digests)
 
 	def get_implementation(self, interface):
 		"""Get the chosen implementation.
@@ -249,7 +299,7 @@ class Policy(object):
 
 		try:
 			return self.implementation[interface]
-		except KeyError, ex:
+		except KeyError:
 			raise SafeException(_("No usable implementation found for '%s'.") % interface.uri)
 
 	def get_cached(self, impl):
@@ -269,42 +319,45 @@ class Policy(object):
 			except:
 				pass # OK
 		return False
-	
+
 	def get_uncached_implementations(self):
 		"""List all chosen implementations which aren't yet available locally.
 		@rtype: [(L{model.Interface}, L{model.Implementation})]"""
+		iface_cache = self.config.iface_cache
 		uncached = []
-		for iface in self.solver.selections:
-			impl = self.solver.selections[iface]
+		for uri, selection in self.solver.selections.selections.iteritems():
+			impl = selection.impl
 			assert impl, self.solver.selections
 			if not self.get_cached(impl):
-				uncached.append((iface, impl))
+				uncached.append((iface_cache.get_interface(uri), impl))
 		return uncached
-	
+
 	def refresh_all(self, force = True):
 		"""Start downloading all feeds for all selected interfaces.
 		@param force: Whether to restart existing downloads."""
 		return self.solve_with_downloads(force = True)
-	
-	def get_feed_targets(self, feed_iface_uri):
-		"""Return a list of Interfaces for which feed_iface can be a feed.
-		This is used by B{0launch --feed}.
+
+	def get_feed_targets(self, feed):
+		"""Return a list of Interfaces for which feed can be a feed.
+		This is used by B{0install add-feed}.
+		@param feed: the feed
+		@type feed: L{model.ZeroInstallFeed} (or, deprecated, a URL)
 		@rtype: [model.Interface]
 		@raise SafeException: If there are no known feeds."""
-		# TODO: what if it isn't cached yet?
-		feed_iface = iface_cache.get_interface(feed_iface_uri)
-		if not feed_iface.feed_for:
-			if not feed_iface.name:
-				raise SafeException(_("Can't get feed targets for '%s'; failed to load interface.") %
-						feed_iface_uri)
+
+		if not isinstance(feed, model.ZeroInstallFeed):
+			# (deprecated)
+			feed = self.config.iface_cache.get_feed(feed)
+			if feed is None:
+				raise SafeException("Feed is not cached and using deprecated API")
+
+		if not feed.feed_for:
 			raise SafeException(_("Missing <feed-for> element in '%s'; "
-					"this interface can't be used as a feed.") % feed_iface_uri)
-		feed_targets = feed_iface.feed_for
+					"it can't be used as a feed for any other interface.") % feed.url)
+		feed_targets = feed.feed_for
 		debug(_("Feed targets: %s"), feed_targets)
-		if not feed_iface.name:
-			warn(_("Warning: unknown interface '%s'") % feed_iface_uri)
-		return [iface_cache.get_interface(uri) for uri in feed_targets]
-	
+		return [self.config.iface_cache.get_interface(uri) for uri in feed_targets]
+
 	@tasks.async
 	def solve_with_downloads(self, force = False, update_local = False):
 		"""Run the solver, then download any feeds that are missing or
@@ -312,12 +365,12 @@ class Policy(object):
 		the cache, the solver is run again, possibly adding new downloads.
 		@param force: whether to download even if we're already ready to run.
 		@param update_local: fetch PackageKit feeds even if we're ready to run."""
-		
+
 		downloads_finished = set()		# Successful or otherwise
 		downloads_in_progress = {}		# URL -> Download
 
 		host_arch = self.target_arch
-		if self.src:
+		if self.requirements.source:
 			host_arch = arch.SourceArchitecture(host_arch)
 
 		# There are three cases:
@@ -347,14 +400,14 @@ class Policy(object):
 					continue
 				if os.path.isabs(f):
 					if force:
-						iface_cache.get_feed(f, force = True)
+						self.config.iface_cache.get_feed(f, force = True)
 						downloads_in_progress[f] = tasks.IdleBlocker('Refresh local feed')
 					continue
 				elif f.startswith('distribution:'):
 					if force or update_local:
-						downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
+						downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, self.config.iface_cache)
 				elif force and self.network_use != network_offline:
-					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, iface_cache)
+					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, self.config.iface_cache)
 					# Once we've starting downloading some things,
 					# we might as well get them all.
 					force = True
@@ -406,24 +459,24 @@ class Policy(object):
 		@return: true if we MUST download something (feeds or implementations)
 		@rtype: bool"""
 		host_arch = self.target_arch
-		if self.src:
+		if self.requirements.source:
 			host_arch = arch.SourceArchitecture(host_arch)
 		self.solver.solve(self.root, host_arch, command_name = self.command)
 		for w in self.watchers: w()
 
 		if not self.solver.ready:
 			return True		# Maybe a newer version will work?
-		
+
 		if self.get_uncached_implementations():
 			return True
 
 		return False
-	
+
 	def download_uncached_implementations(self):
 		"""Download all implementations chosen by the solver that are missing from the cache."""
 		assert self.solver.ready, "Solver is not ready!\n%s" % self.solver.selections
 		return self.fetcher.download_impls([impl for impl in self.solver.selections.values() if not self.get_cached(impl)],
-						   iface_cache.stores)
+						   self.config.stores)
 
 	def download_icon(self, interface, force = False):
 		"""Download an icon for this interface and add it to the
@@ -436,7 +489,7 @@ class Policy(object):
 
 		modification_time = None
 
-		existing_icon = iface_cache.get_icon_path(interface)
+		existing_icon = self.config.iface_cache.get_icon_path(interface)
 		if existing_icon:
 			file_mtime = os.stat(existing_icon).st_mtime
 			from email.utils import formatdate
@@ -448,4 +501,19 @@ class Policy(object):
 		"""@deprecated: use L{iface_cache.IfaceCache.get_interface} instead"""
 		import warnings
 		warnings.warn("Policy.get_interface is deprecated!", DeprecationWarning, stacklevel = 2)
-		return iface_cache.get_interface(uri)
+		return self.config.iface_cache.get_interface(uri)
+
+	@property
+	def command(self):
+		return self.requirements.command
+
+	@property
+	def root(self):
+		return self.requirements.interface_uri
+
+_config = None
+def get_deprecated_singleton_config():
+	global _config
+	if _config is None:
+		_config = load_config(Handler())
+	return _config

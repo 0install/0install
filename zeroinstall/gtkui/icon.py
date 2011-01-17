@@ -4,7 +4,7 @@
 
 from zeroinstall import _
 import gtk
-from logging import warn, debug
+from logging import warn
 import math
 
 def load_icon(icon_path, icon_width=None, icon_height=None):

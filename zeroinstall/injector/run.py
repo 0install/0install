@@ -7,12 +7,11 @@ Executes a set of implementations as a program.
 
 from zeroinstall import _
 import os, sys
-from logging import debug, info
+from logging import info
 from string import Template
 
 from zeroinstall.injector.model import SafeException, EnvironmentBinding, Command
 from zeroinstall.injector import namespaces, qdom
-from zeroinstall.injector.iface_cache import iface_cache
 
 def do_env_binding(binding, path):
 	"""Update this process's environment by applying the binding.
@@ -41,20 +40,11 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 	"""
 	execute_selections(policy.solver.selections, prog_args, dry_run, main, wrapper)
 
-def _do_bindings(impl, bindings):
-	for b in bindings:
-		if isinstance(b, EnvironmentBinding):
-			do_env_binding(b, _get_implementation_path(impl))
-
-def _get_implementation_path(impl):
-	return impl.local_path or iface_cache.stores.lookup_any(impl.digests)
-
 def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 	"""Run the program in a child process, collecting stdout and stderr.
 	@return: the output produced by the process
 	@since: 0.27
 	"""
-	args = []
 	import tempfile
 	output = tempfile.TemporaryFile(prefix = '0launch-test')
 	try:
@@ -94,7 +84,7 @@ def _process_args(args, element):
 		if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
 			args.append(Template(child.content).substitute(os.environ))
 
-def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None):
+def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None, stores = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
 	Returns normally only for a successful dry run.
 	@param selections: the selected versions
@@ -110,6 +100,19 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 	@since: 0.27
 	@precondition: All implementations are in the cache.
 	"""
+	#assert stores is not None
+	if stores is None:
+		from zeroinstall import zerostore
+		stores = zerostore.Stores()
+
+	def _do_bindings(impl, bindings):
+		for b in bindings:
+			if isinstance(b, EnvironmentBinding):
+				do_env_binding(b, _get_implementation_path(impl))
+
+	def _get_implementation_path(impl):
+		return impl.local_path or stores.lookup_any(impl.digests)
+
 	commands = selections.commands
 	sels = selections.selections
 	for selection in sels.values():

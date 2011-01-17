@@ -118,8 +118,8 @@ setup(name="zeroinstall-injector",
       author="Thomas Leonard",
       author_email="zero-install-devel@lists.sourceforge.net",
       url="http://0install.net",
-      scripts=['0launch', '0alias', '0store', '0store-secure-add', '0desktop'],
-      data_files = [('man/man1', ['0launch.1', '0alias.1', '0store-secure-add.1', '0store.1', '0desktop.1']),
+      scripts=['0launch', '0alias', '0store', '0store-secure-add', '0desktop', '0install'],
+      data_files = [('man/man1', ['0launch.1', '0alias.1', '0store-secure-add.1', '0store.1', '0desktop.1', '0install.1']),
 		    ('share/applications', ['share/applications/zeroinstall-add.desktop', 'share/applications/zeroinstall-manage.desktop']),
 		    ('share/desktop-directories', ['share/desktop-directories/zeroinstall.directory']),
 		    ('share/icons/hicolor/24x24/apps', ['share/icons/24x24/zeroinstall.png']),
@@ -141,4 +141,4 @@ use.
 The injector solves this problem by selecting components to meet a program's
 requirements, according to a policy you give it. The injector finds out which
 versions are available, and downloads and runs the ones you choose.""",
-      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.zerostore", "zeroinstall.injector", "zeroinstall.0launch-gui", "zeroinstall.gtkui"])
+      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.zerostore", "zeroinstall.injector", "zeroinstall.0launch-gui", "zeroinstall.gtkui", "zeroinstall.cmd"])

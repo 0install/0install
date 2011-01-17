@@ -37,7 +37,7 @@ from zeroinstall.support import basedir
 from zeroinstall.injector import reader, model
 from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.injector.model import Interface, escape, unescape
-from zeroinstall import zerostore, SafeException
+from zeroinstall import SafeException
 
 def _pretty_time(t):
 	assert isinstance(t, (int, long)), t
@@ -180,7 +180,7 @@ class IfaceCache(object):
 	@see: L{iface_cache} - the singleton IfaceCache instance.
 	"""
 
-	__slots__ = ['_interfaces', 'stores', '_feeds', '_distro']
+	__slots__ = ['_interfaces', '_feeds', '_distro', '_config']
 
 	def __init__(self, distro = None):
 		"""@param distro: distribution used to fetch "distribution:" feeds (since 0.49)
@@ -189,10 +189,12 @@ class IfaceCache(object):
 		"""
 		self._interfaces = {}
 		self._feeds = {}
-
-		self.stores = zerostore.Stores()
-
 		self._distro = distro
+
+	@property
+	def stores(self):
+		from zeroinstall.injector import policy
+		return policy.get_deprecated_singleton_config().stores
 
 	@property
 	def distro(self):
@@ -200,7 +202,7 @@ class IfaceCache(object):
 			from zeroinstall.injector.distro import get_host_distribution
 			self._distro = get_host_distribution()
 		return self._distro
-	
+
 	def update_interface_if_trusted(self, interface, sigs, xml):
 		import warnings
 		warnings.warn("Use update_feed_if_trusted instead", DeprecationWarning, stacklevel = 2)
@@ -223,7 +225,7 @@ class IfaceCache(object):
 		import trust
 		updated = self._oldest_trusted(sigs, trust.domain_from_url(feed_url))
 		if updated is None: return False	# None are trusted
-	
+
 		self.update_feed_from_network(feed_url, xml, updated)
 		return True
 
@@ -325,10 +327,11 @@ class IfaceCache(object):
 
 		self.get_feed(feed_url, force = True)
 
-	def get_feed(self, url, force = False):
+	def get_feed(self, url, force = False, selections_ok = False):
 		"""Get a feed from the cache.
 		@param url: the URL of the feed
 		@param force: load the file from disk again
+		@param selections_ok: if url is a local selections file, return that instead
 		@return: the feed, or None if it isn't cached
 		@rtype: L{model.ZeroInstallFeed}"""
 		if not force:
@@ -342,7 +345,10 @@ class IfaceCache(object):
 				return None	# Can't happen?
 			feed = self.distro.get_feed(master_feed)
 		else:
-			feed = reader.load_feed_from_cache(url)
+			feed = reader.load_feed_from_cache(url, selections_ok = selections_ok)
+			if selections_ok and feed and not isinstance(feed, model.ZeroInstallFeed):
+				assert feed.selections is not None
+				return feed	# (it's actually a selections document)
 		if feed:
 			reader.update_user_feed_overrides(feed)
 		self._feeds[url] = feed
@@ -364,7 +370,7 @@ class IfaceCache(object):
 
 		debug(_("Initialising new interface object for %s"), uri)
 		self._interfaces[uri] = Interface(uri)
-		reader.update_from_cache(self._interfaces[uri])
+		reader.update_from_cache(self._interfaces[uri], iface_cache = self)
 		return self._interfaces[uri]
 
 	def list_all_interfaces(self):
@@ -410,7 +416,7 @@ class IfaceCache(object):
 		except SafeException, ex:
 			debug(_("No signatures (old-style interface): %s") % ex)
 			return None
-	
+
 	def _get_signature_date(self, uri):
 		"""Read the date-stamp from the signature of the cached interface.
 		If the date-stamp is unavailable, returns None."""
@@ -418,7 +424,7 @@ class IfaceCache(object):
 		sigs = self.get_cached_signatures(uri)
 		if sigs:
 			return self._oldest_trusted(sigs, trust.domain_from_url(uri))
-	
+
 	def _oldest_trusted(self, sigs, domain):
 		"""Return the date of the oldest trusted signature in the list, or None if there
 		are no trusted sigs in the list."""

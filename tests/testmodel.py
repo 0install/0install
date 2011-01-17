@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 import basetest
 from basetest import BaseTest, empty_feed
-import sys, os, locale
+import sys, os
 from xml.dom import minidom
 import unittest
 from StringIO import StringIO
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import model, qdom, iface_cache, namespaces
+from zeroinstall.injector import model, qdom, namespaces
 
 mydir = os.path.dirname(__file__)
 
@@ -285,7 +285,7 @@ class TestModel(BaseTest):
 			try:
 				pv(v)
 				assert False
-			except model.SafeException, ex:
+			except model.SafeException:
 				pass
 		invalid('.')
 		invalid('hello')

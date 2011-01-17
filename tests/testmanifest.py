@@ -39,7 +39,7 @@ class TestManifest(BaseTest):
 	def testOldSHA(self):
 		mydir = os.path.join(self.tmpdir, 'MyDir')
 		os.mkdir(mydir)
-		myfile = self.write('MyDir/Hello', 'Hello World', 30)
+		self.write('MyDir/Hello', 'Hello World', 30)
 		myexec = self.write('MyDir/Run me', 'Bang!', 40)
 		os.symlink('Hello', os.path.join(self.tmpdir, 'MyDir/Sym link'))
 		os.chmod(myexec, 0700)
@@ -54,7 +54,7 @@ class TestManifest(BaseTest):
 	def testNewSHA1(self):
 		mydir = os.path.join(self.tmpdir, 'MyDir')
 		os.mkdir(mydir)
-		myfile = self.write('MyDir/Hello', 'Hello World', 30)
+		self.write('MyDir/Hello', 'Hello World', 30)
 		myexec = self.write('MyDir/Run me', 'Bang!', 40)
 		os.symlink('Hello', os.path.join(self.tmpdir, 'MyDir/Sym link'))
 		os.chmod(myexec, 0700)
@@ -69,8 +69,8 @@ class TestManifest(BaseTest):
 	def testOrderingSHA1(self):
 		mydir = os.path.join(self.tmpdir, 'Dir')
 		os.mkdir(mydir)
-		myfile = self.write('Hello', 'Hello World', 30)
-		myfile = self.write('Dir/Hello', 'Hello World', 30)
+		self.write('Hello', 'Hello World', 30)
+		self.write('Dir/Hello', 'Hello World', 30)
 		os.utime(mydir, (10, 20))
 		self.assertEquals([
 			'F 0a4d55a8d778e5022fab701977c5d840bbc486d0 30 11 Hello',
@@ -81,7 +81,7 @@ class TestManifest(BaseTest):
 	def testNewSHA256(self):
 		mydir = os.path.join(self.tmpdir, 'MyDir')
 		os.mkdir(mydir)
-		myfile = self.write('MyDir/Hello', 'Hello World', 30)
+		self.write('MyDir/Hello', 'Hello World', 30)
 		myexec = self.write('MyDir/Run me', 'Bang!', 40)
 		os.symlink('Hello', os.path.join(self.tmpdir, 'MyDir/Sym link'))
 		os.chmod(myexec, 0700)
@@ -95,7 +95,7 @@ class TestManifest(BaseTest):
 	def testOrdering(self):
 		mydir = os.path.join(self.tmpdir, 'Dir')
 		os.mkdir(mydir)
-		myfile = self.write('Hello', 'Hello World', 30)
+		self.write('Hello', 'Hello World', 30)
 		os.utime(mydir, (10, 20))
 		self.assertEquals([
 			'F a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e 30 11 Hello',

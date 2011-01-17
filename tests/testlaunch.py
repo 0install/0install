@@ -9,9 +9,9 @@ foo_iface_uri = 'http://foo'
 
 sys.path.insert(0, '..')
 from zeroinstall import SafeException
-from zeroinstall.injector import autopolicy, model, cli, namespaces, qdom, selections
+from zeroinstall.injector.policy import Policy
+from zeroinstall.injector import run, cli, namespaces, qdom, selections
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
-from zeroinstall.support import basedir
 
 mydir = os.path.abspath(os.path.dirname(__file__))
 
@@ -118,9 +118,12 @@ class TestLaunch(BaseTest):
   </group>
 </interface>""" % foo_iface_uri)
 		tmp.flush()
-		policy = autopolicy.AutoPolicy(tmp.name)
+		policy = Policy(tmp.name, config = self.config)
 		try:
-			policy.download_and_execute([])
+			downloaded = policy.solve_and_download_impls()
+			if downloaded:
+				policy.handler.wait_for_blocker(downloaded)
+			run.execute_selections(policy.solver.selections, [], stores = policy.config.stores)
 			assert False
 		except SafeException, ex:
 			assert 'Command path must be relative' in str(ex), ex
@@ -151,16 +154,12 @@ class TestLaunch(BaseTest):
 		self.assertEquals("", err)
 	
 	def testNeedDownload(self):
-		policy = autopolicy.AutoPolicy(foo_iface_uri)
-		policy.save_config()
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--download-only', '--dry-run', 'Foo.xml'])
 		self.assertEquals("", err)
 		self.assertEquals("Finished\n", out)
 
 	def testSelectOnly(self):
-		policy = autopolicy.AutoPolicy(foo_iface_uri)
-		policy.save_config()
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--get-selections', '--select-only', 'Hello.xml'])
 		self.assertEquals("", err)

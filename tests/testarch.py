@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-from basetest import BaseTest, empty_feed
-import sys, os
+from basetest import BaseTest
+import sys
 import unittest
 
 sys.path.insert(0, '..')

@@ -5,7 +5,6 @@ import zeroinstall
 import os
 from zeroinstall.support import tasks
 from zeroinstall.injector.model import Interface, Feed, stable, testing, developer, stability_levels
-from zeroinstall.injector.iface_cache import iface_cache
 from zeroinstall.injector import writer, namespaces, gpg
 from zeroinstall.gtkui import help_box
 
@@ -30,11 +29,11 @@ def format_para(para):
 	return ' '.join(lines)
 
 def have_source_for(policy, interface):
+	iface_cache = policy.config.iface_cache
 	# Note: we don't want to actually fetch the source interfaces at
 	# this point, so we check whether:
 	# - We have a feed of type 'src' (not fetched), or
 	# - We have a source implementation in a regular feed
-	have_src = False
 	for f in iface_cache.get_feed_imports(interface):
 		if f.machine == 'src':
 			return True
@@ -73,10 +72,10 @@ class Description:
 		try:
 			from locale import nl_langinfo, D_T_FMT
 			return time.strftime(nl_langinfo(D_T_FMT), time.localtime(secs))
-		except ImportError, ValueError:
+		except (ImportError, ValueError):
 			return time.ctime(secs)
 
-	def set_details(self, feed):
+	def set_details(self, iface_cache, feed):
 		buffer = self.buffer
 		heading_style = self.heading_style
 
@@ -206,6 +205,8 @@ class Feeds:
 		sel.select_path((0,))
 	
 	def build_model(self):
+		iface_cache = self.policy.config.iface_cache
+
 		usable_feeds = frozenset(self.policy.usable_feeds(self.interface))
 		unusable_feeds = frozenset(iface_cache.get_feed_imports(self.interface)) - usable_feeds
 
@@ -218,6 +219,8 @@ class Feeds:
 		return out
 
 	def sel_changed(self, sel):
+		iface_cache = self.policy.config.iface_cache
+
 		model, miter = sel.get_selected()
 		if not miter: return	# build in progress
 		feed_url = model[miter][Feeds.URI]
@@ -229,9 +232,9 @@ class Feeds:
 					enable_remove = True
 		self.remove_feed_button.set_sensitive( enable_remove )
 		try:
-			self.description.set_details(iface_cache.get_feed(feed_url))
+			self.description.set_details(iface_cache, iface_cache.get_feed(feed_url))
 		except zeroinstall.SafeException, ex:
-			self.description.set_details(ex)
+			self.description.set_details(iface_cache, ex)
 	
 	def updated(self):
 		new_lines = self.build_model()
@@ -341,6 +344,8 @@ class Properties:
 @tasks.async
 def add_remote_feed(policy, parent, interface):
 	try:
+		iface_cache = policy.config.iface_cache
+
 		d = gtk.MessageDialog(parent, 0, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL,
 			_('Enter the URL of the new source of implementations of this interface:'))
 		d.add_button(gtk.STOCK_ADD, gtk.RESPONSE_OK)

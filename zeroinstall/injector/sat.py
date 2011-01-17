@@ -18,9 +18,6 @@ This is not part of the public API.
 # - We add an AtMostOneClause (the paper suggests this in the Excercises, and
 #   it's very useful for our purposes).
 
-import tempfile, subprocess, os, sys
-from logging import warn
-
 def debug(msg, *args):
 	return
 	print "SAT:", msg % args
@@ -75,7 +72,6 @@ def makeAtMostOneClause(solver):
 			# If we later backtrace, call our undo function to unset current
 			solver.get_varinfo_for_lit(lit).undo.append(self)
 
-			count = 0
 			for l in self.lits:
 				value = solver.lit_value(l)
 				#debug("Value of %s is %s" % (solver.name_lit(l), value))
@@ -300,7 +296,6 @@ class SATProblem(object):
 		while self.propQ:
 			lit = self.propQ[0]
 			del self.propQ[0]
-			var_info = self.get_varinfo_for_lit(lit)
 			wi = watch_index(lit)
 			watches = self.watches[wi]
 			self.watches[wi] = []

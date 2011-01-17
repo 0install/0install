@@ -10,12 +10,12 @@ import os
 from logging import debug, info, warn
 
 from zeroinstall.support import basedir
-from zeroinstall.injector import qdom, distro
+from zeroinstall.injector import qdom
 from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFACE
 from zeroinstall.injector.model import Interface, InvalidInterface, ZeroInstallFeed, escape, Feed, stability_levels
 from zeroinstall.injector import model
 
-def update_from_cache(interface):
+def update_from_cache(interface, iface_cache = None):
 	"""Read a cached interface and any native feeds or user overrides.
 	@param interface: the interface object to update
 	@type interface: L{model.Interface}
@@ -25,7 +25,9 @@ def update_from_cache(interface):
 	Internal: use L{iface_cache.IfaceCache.get_interface} instread.
 	@rtype: bool"""
 	interface.reset()
-	from zeroinstall.injector.iface_cache import iface_cache
+	if iface_cache is None:
+		from zeroinstall.injector import policy
+		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 
 	# Add the distribution package manager's version, if any
 	path = basedir.load_first_data(config_site, 'native_feeds', model._pretty_escape(interface.uri))
@@ -42,13 +44,13 @@ def update_from_cache(interface):
 
 	return main_feed is not None
 
-def load_feed_from_cache(url):
+def load_feed_from_cache(url, selections_ok = False):
 	"""Load a feed. If the feed is remote, load from the cache. If local, load it directly.
 	@return: the feed, or None if it's remote and not cached."""
 	try:
 		if os.path.isabs(url):
 			debug(_("Loading local feed file '%s'"), url)
-			return load_feed(url, local = True)
+			return load_feed(url, local = True, selections_ok = selections_ok)
 		else:
 			cached = basedir.load_first_cache(config_site, 'interfaces', escape(url))
 			if cached:
@@ -159,7 +161,7 @@ def check_readable(feed_url, source):
 			{'uri': feed_url, 'source': source, 'exception': ex})
 		raise InvalidInterface(_("Error loading feed '%(uri)s':\n\n%(exception)s") % {'uri': feed_url, 'exception': ex})
 
-def update(interface, source, local = False):
+def update(interface, source, local = False, iface_cache = None):
 	"""Read in information about an interface.
 	Deprecated.
 	@param interface: the interface object to update
@@ -181,18 +183,21 @@ def update(interface, source, local = False):
 						"%(interface_uri)s was requested") %
 						{'feed_url': feed.url, 'interface_uri': interface.uri})
 
-	# Hack.
-	from zeroinstall.injector.iface_cache import iface_cache
+	if iface_cache is None:
+		from zeroinstall.injector import policy
+		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 	iface_cache._feeds[unicode(interface.uri)] = feed
 
 	return feed
 
-def load_feed(source, local = False):
+def load_feed(source, local = False, selections_ok = False):
 	"""Load a feed from a local file.
 	@param source: the name of the file to read
 	@type source: str
 	@param local: this is a local feed
 	@type local: bool
+	@param selections_ok: if it turns out to be a local selections document, return that instead
+	@type selections_ok: bool
 	@raise InvalidInterface: if the source's syntax is incorrect
 	@return: the new feed
 	@since: 0.48
@@ -207,6 +212,9 @@ def load_feed(source, local = False):
 		raise InvalidInterface(_("Invalid XML"), ex)
 
 	if local:
+		if selections_ok and root.uri == XMLNS_IFACE and root.name == 'selections':
+			from zeroinstall.injector import selections
+			return selections.Selections(root)
 		local_path = source
 	else:
 		local_path = None
