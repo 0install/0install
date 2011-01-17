@@ -30,7 +30,11 @@ class MainWindow:
 		self.policy = policy
 		self.select_only = select_only
 
-		policy.watchers.append(lambda: self.window.set_response_sensitive(gtk.RESPONSE_OK, policy.solver.ready))
+		def update_ok_state():
+			self.window.set_response_sensitive(gtk.RESPONSE_OK, policy.solver.ready)
+			if policy.solver.ready and self.window.get_focus() is None:
+				run_button.grab_focus()
+		policy.watchers.append(update_ok_state)
 
 		self.window = widgets.get_widget('main')
 		self.window.set_default_size(gtk.gdk.screen_width() * 2 / 5, 300)
@@ -61,8 +65,7 @@ class MainWindow:
 		run_button.set_flags(gtk.CAN_DEFAULT)
 		self.run_button = run_button
 
-		self.window.set_default_response(gtk.RESPONSE_OK)
-		self.window.default_widget.grab_focus()
+		run_button.grab_focus()
 
 		def response(dialog, resp):
 			if resp in (gtk.RESPONSE_CANCEL, gtk.RESPONSE_DELETE_EVENT):
