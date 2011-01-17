@@ -26,7 +26,6 @@ def add_generic_select_options(parser):
 	parser.add_option("", "--os", help=_("target operation system type"), metavar='OS')
 	parser.add_option("-r", "--refresh", help=_("refresh all used interfaces"), action='store_true')
 	parser.add_option("-s", "--source", help=_("select source code"), action='store_true')
-	parser.add_option("", "--systray", help=_("download in the background"), action='store_true')
 
 def add_options(parser):
 	"""Options for 'select' and 'download' (but not 'run')"""
@@ -116,8 +115,6 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 				gui_args += ['--with-store', x]
 		if select_only:
 			gui_args.append('--select-only')
-		if options.systray:
-			gui_args.append('--systray')
 
 		from zeroinstall import helpers
 		sels = helpers.get_selections_gui(iface_uri, gui_args, test_callback)

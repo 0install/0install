@@ -59,7 +59,6 @@ def main(command_args, config = None):
 	parser.add_option("", "--set-selections", help=_("run versions specified in XML file"), metavar='FILE')
 	parser.add_option("", "--show", help=_("show where components are installed"), action='store_true')
 	parser.add_option("-s", "--source", help=_("select source code"), action='store_true')
-	parser.add_option("", "--systray", help=_("download in the background"), action='store_true')
 	parser.add_option("-v", "--verbose", help=_("more verbose output"), action='count')
 	parser.add_option("-V", "--version", help=_("display version information"), action='store_true')
 	parser.add_option("", "--with-store", help=_("add an implementation cache"), action='append', metavar='DIR')
