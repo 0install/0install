@@ -108,6 +108,10 @@ class AbstractTestUnpack():
 		unpack.unpack_archive('ftp://foo/file.deb', file('dummy_1-1_all.deb'), self.tmpdir)
 		self.assert_manifest('sha1new=2c725156ec3832b7980a3de2270b3d8d85d4e3ea')
 	
+	def testGem(self):
+		unpack.unpack_archive('ftp://foo/file.gem', file('hello-0.1.gem'), self.tmpdir)
+		self.assert_manifest('sha1new=fbd4827be7a18f9821790bdfd83132ee60d54647')
+
 	def testSpecial(self):
 		os.chmod(self.tmpdir, 02755)
 		store = Store(self.tmpdir)

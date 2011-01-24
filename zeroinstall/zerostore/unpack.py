@@ -75,6 +75,7 @@ def type_from_url(url):
 	if url.endswith('.zip'): return 'application/zip'
 	if url.endswith('.cab'): return 'application/vnd.ms-cab-compressed'
 	if url.endswith('.dmg'): return 'application/x-apple-diskimage'
+	if url.endswith('.gem'): return 'application/x-ruby-gem'
 	return None
 
 def check_type_ok(mime_type):
@@ -216,6 +217,8 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 		extract_cab(data, destdir, extract, start_offset)
 	elif type == 'application/x-apple-diskimage':
 		extract_dmg(data, destdir, extract, start_offset)
+	elif type == 'application/x-ruby-gem':
+		extract_gem(data, destdir, extract, start_offset)
 	else:
 		raise SafeException(_('Unknown MIME type "%(type)s" for "%(url)s"') % {'type': type, 'url': url})
 
@@ -292,6 +295,21 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 		if fd is not None:
 			os.close(fd)
 		os.unlink(cpiopath)
+
+def extract_gem(stream, destdir, extract = None, start_offset = 0):
+	"@since 0.53"
+	stream.seek(start_offset)
+	payload = 'data.tar.gz'
+	payload_stream = None
+	tmpdir = mkdtemp(dir = destdir)
+	try:
+		extract_tar(stream, destdir=tmpdir, extract=payload, decompress=None)
+		payload_stream = file(os.path.join(tmpdir, payload))
+		extract_tar(payload_stream, destdir=destdir, extract=extract, decompress='gzip')
+	finally:
+		if payload_stream:
+			payload_stream.close()
+		ro_rmtree(tmpdir)
 
 def extract_cab(stream, destdir, extract, start_offset = 0):
 	"@since: 0.24"
