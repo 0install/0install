@@ -119,13 +119,17 @@ if options.manpage:
 		# Cancelled by user
 		sys.exit(1)
 
+	if sels.commands:
+		selected_command = sels.commands[0]
+	else:
+		print >>sys.stderr, "No <command> in selections!"
 	selected_impl = sels.selections[interface_uri]
 
 	from zeroinstall.injector.iface_cache import iface_cache
-	impl_path = selected_impl.local_path or iface_cache.stores.lookup(selected_impl.id)
+	impl_path = selected_impl.local_path or iface_cache.stores.lookup_any(selected_impl.digests)
 
 	if main is None:
-		main = selected_impl.main
+		main = selected_command.path
 		if main is None:
 			print >>sys.stderr, "No main program for interface '%s'" % interface_uri
 			sys.exit(1)
