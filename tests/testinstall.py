@@ -248,12 +248,17 @@ class TestInstall(BaseTest):
 			assert cmd.config.TimeInterval.format(secs) == period
 
 	def testAddFeed(self):
+		binary_iface = self.config.iface_cache.get_interface('http://foo/Binary.xml')
+
+		out, err = self.run_0install(['list-feeds', binary_iface.uri])
+		assert "(no feeds)" in out, out
+		assert not err, err
+
 		out, err = self.run_0install(['add-feed'])
 		assert out.lower().startswith("usage:")
 		assert 'NEW-FEED' in out
 
 		sys.stdin = Reply('1')
-		binary_iface = self.config.iface_cache.get_interface('http://foo/Binary.xml')
 		assert binary_iface.extra_feeds == []
 
 		out, err = self.run_0install(['add-feed', 'Source.xml'])
@@ -261,6 +266,9 @@ class TestInstall(BaseTest):
 		assert "Add as feed for 'http://foo/Binary.xml'" in out, out
 		assert len(binary_iface.extra_feeds) == 1
 
+		out, err = self.run_0install(['list-feeds', binary_iface.uri])
+		assert "Source.xml" in out
+		assert not err, err
 
 		out, err = self.run_0install(['remove-feed', 'Source.xml'])
 		assert not err, err

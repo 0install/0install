@@ -16,15 +16,17 @@
 
 .SS Other commands:
 
-.B 0install add-feed \fBFEED\fP
-
 .B 0install config [NAME [VALUE]]
 
 .B 0install import \fBFEED\fP
 
 .B 0install list \fBPATTERN\fP
 
+.B 0install add-feed \fBFEED\fP
+
 .B 0install remove-feed \fBFEED\fP
+
+.B 0install list-feeds \fBURI\fP
 
 .SH DESCRIPTION
 .PP
@@ -277,6 +279,11 @@ other programs).
 
 .PP
 Un-register a feed, reversing the effect of `add-feed'.
+
+.SS 0install list-feeds URI
+
+.PP
+List all extra feeds added to URI using `add-feed'.
 
 .SS 0install list PATTERN
 

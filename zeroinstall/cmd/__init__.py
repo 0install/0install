@@ -13,7 +13,7 @@ import logging
 from zeroinstall import SafeException
 
 valid_commands = ['select', 'download', 'run', 'update',
-		  'config', 'import', 'list', 'add-feed', 'remove-feed']
+		  'config', 'import', 'list', 'add-feed', 'remove-feed', 'list-feeds']
 
 class UsageError(Exception): pass
 
