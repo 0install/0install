@@ -18,6 +18,8 @@ from zeroinstall import NeedDownload, SafeException
 from zeroinstall.support import tasks
 from zeroinstall.injector import download
 
+KEY_INFO_TIMEOUT = 10	# Maximum time to wait for response from key-info-server
+
 class NoTrustedKeys(SafeException):
 	"""Thrown by L{Handler.confirm_trust_keys} on failure."""
 	pass
@@ -174,8 +176,23 @@ class Handler(object):
 
 	@tasks.async
 	def _queue_confirm_import_feed(self, pending, valid_sigs):
+		# Wait up to KEY_INFO_TIMEOUT seconds for key information to arrive. Avoids having the dialog
+		# box update while the user is looking at it, and may allow it to be skipped completely in some
+		# cases.
+		timeout = tasks.TimeoutBlocker(KEY_INFO_TIMEOUT, "key info timeout")
+		while True:
+			key_info_blockers = [sig_info.blocker for sig_info in valid_sigs.values() if sig_info.blocker is not None]
+			if not key_info_blockers:
+				break
+			info("Waiting for response from key-info server: %s", key_info_blockers)
+			yield [timeout] + key_info_blockers
+			if timeout.happened:
+				info("Timeout waiting for key info response")
+				break
+
 		# If we're already confirming something else, wait for that to finish...
 		while self._current_confirm is not None:
+			info("Waiting for previous key confirmations to finish")
 			yield self._current_confirm
 
 		# Check whether we still need to confirm. The user may have
