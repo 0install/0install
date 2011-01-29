@@ -41,14 +41,14 @@ class KeyInfoFetcher:
 
 	Example:
 
-	>>> kf = KeyInfoFetcher('https://server', fingerprint)
+	>>> kf = KeyInfoFetcher(handler, 'https://server', fingerprint)
 	>>> while True:
 		print kf.info
 		if kf.blocker is None: break
 		print kf.status
 		yield kf.blocker
 	"""
-	def __init__(self, server, fingerprint):
+	def __init__(self, handler, server, fingerprint):
 		self.fingerprint = fingerprint
 		self.info = []
 		self.blocker = None
@@ -57,8 +57,7 @@ class KeyInfoFetcher:
 
 		self.status = _('Fetching key information from %s...') % server
 
-		dl = download.Download(server + '/key/' + fingerprint)
-		dl.start()
+		dl = handler.get_download(server + '/key/' + fingerprint)
 
 		from xml.dom import minidom
 
@@ -305,7 +304,8 @@ class Fetcher(object):
 		try:
 			return self.key_info[fingerprint]
 		except KeyError:
-			self.key_info[fingerprint] = key_info = KeyInfoFetcher(self.key_info_server, fingerprint)
+			self.key_info[fingerprint] = key_info = KeyInfoFetcher(self.handler,
+									self.key_info_server, fingerprint)
 			return key_info
 
 	def download_impl(self, impl, retrieval_method, stores, force = False):
