@@ -135,18 +135,19 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 
 	if main is not None:
 		# Replace first command with user's input
-		old_path = commands[0].path
 		if main.startswith('/'):
 			main = main[1:]			# User specified a path relative to the package root
 		else:
-			assert old_path
+			old_path = commands[0].path
+			assert old_path, "Can't use a relative replacement main when there is no original one!"
 			main = os.path.join(os.path.dirname(old_path), main)	# User main is relative to command's name
 		# Copy all child nodes (e.g. <runner>) except for the arguments
 		user_command_element = qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': main})
-		for child in commands[0].qdom.childNodes:
-			if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
-				continue
-			user_command_element.childNodes.append(child)
+		if commands:
+			for child in commands[0].qdom.childNodes:
+				if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
+					continue
+				user_command_element.childNodes.append(child)
 		user_command = Command(user_command_element, None)
 		commands = [user_command] + commands[1:]
 
