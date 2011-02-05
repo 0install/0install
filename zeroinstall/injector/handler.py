@@ -21,7 +21,7 @@ from zeroinstall.injector import download
 KEY_INFO_TIMEOUT = 10	# Maximum time to wait for response from key-info-server
 
 class NoTrustedKeys(SafeException):
-	"""Thrown by L{Handler.confirm_trust_keys} on failure."""
+	"""Thrown by L{Handler.confirm_import_feed} on failure."""
 	pass
 
 class Handler(object):
@@ -132,10 +132,7 @@ class Handler(object):
 	def confirm_keys(self, pending, fetch_key_info):
 		"""We don't trust any of the signatures yet. Ask the user.
 		When done update the L{trust} database, and then call L{trust.TrustDB.notify}.
-		This method just calls L{confirm_import_feed} if the handler (self) is
-		new-style, or L{confirm_trust_keys} for older classes. A class
-		is considered old-style if it overrides confirm_trust_keys and
-		not confirm_import_feed.
+		This method starts downloading information about the signing keys and calls L{confirm_import_feed}.
 		@since: 0.42
 		@arg pending: an object holding details of the updated feed
 		@type pending: L{PendingFeed}
@@ -146,33 +143,23 @@ class Handler(object):
 
 		assert pending.sigs
 
-		if hasattr(self.confirm_trust_keys, 'original') or not hasattr(self.confirm_import_feed, 'original'):
-			# new-style class
-			from zeroinstall.injector import gpg
-			valid_sigs = [s for s in pending.sigs if isinstance(s, gpg.ValidSig)]
-			if not valid_sigs:
-				def format_sig(sig):
-					msg = str(sig)
-					if sig.messages:
-						msg += "\nMessages from GPG:\n" + sig.messages
-					return msg
-				raise SafeException(_('No valid signatures found on "%(url)s". Signatures:%(signatures)s') %
-						{'url': pending.url, 'signatures': ''.join(['\n- ' + format_sig(s) for s in pending.sigs])})
+		from zeroinstall.injector import gpg
+		valid_sigs = [s for s in pending.sigs if isinstance(s, gpg.ValidSig)]
+		if not valid_sigs:
+			def format_sig(sig):
+				msg = str(sig)
+				if sig.messages:
+					msg += "\nMessages from GPG:\n" + sig.messages
+				return msg
+			raise SafeException(_('No valid signatures found on "%(url)s". Signatures:%(signatures)s') %
+					{'url': pending.url, 'signatures': ''.join(['\n- ' + format_sig(s) for s in pending.sigs])})
 
-			# Start downloading information about the keys...
-			kfs = {}
-			for sig in valid_sigs:
-				kfs[sig] = fetch_key_info(sig.fingerprint)
+		# Start downloading information about the keys...
+		kfs = {}
+		for sig in valid_sigs:
+			kfs[sig] = fetch_key_info(sig.fingerprint)
 
-			return self._queue_confirm_import_feed(pending, kfs)
-		else:
-			# old-style class
-			from zeroinstall.injector import iface_cache
-			import warnings
-			warnings.warn("Should override confirm_import_feed(); using old confirm_trust_keys() for now", DeprecationWarning, stacklevel = 2)
-
-			iface = iface_cache.iface_cache.get_interface(pending.url)
-			return self.confirm_trust_keys(iface, pending.sigs, pending.new_xml)
+		return self._queue_confirm_import_feed(pending, kfs)
 
 	@tasks.async
 	def _queue_confirm_import_feed(self, pending, valid_sigs):
@@ -292,52 +279,6 @@ class Handler(object):
 			trust.trust_db.trust_key(key.fingerprint, domain)
 
 	confirm_import_feed.original = True
-
-	def confirm_trust_keys(self, interface, sigs, iface_xml):
-		"""We don't trust any of the signatures yet. Ask the user.
-		When done update the L{trust} database, and then call L{trust.TrustDB.notify}.
-		@deprecated: see L{confirm_keys}
-		@arg interface: the interface being updated
-		@arg sigs: a list of signatures (from L{gpg.check_stream})
-		@arg iface_xml: the downloaded data (not yet trusted)
-		@return: a blocker, if confirmation will happen asynchronously, or None
-		@rtype: L{tasks.Blocker}"""
-		import warnings
-		warnings.warn("Use confirm_keys, not confirm_trust_keys", DeprecationWarning, stacklevel = 2)
-		from zeroinstall.injector import trust, gpg
-		assert sigs
-		valid_sigs = [s for s in sigs if isinstance(s, gpg.ValidSig)]
-		if not valid_sigs:
-			raise SafeException('No valid signatures found on "%s". Signatures:%s' %
-					(interface.uri, ''.join(['\n- ' + str(s) for s in sigs])))
-
-		domain = trust.domain_from_url(interface.uri)
-
-		# Ask on stderr, because we may be writing XML to stdout
-		print >>sys.stderr, "\nInterface:", interface.uri
-		print >>sys.stderr, _("The feed is correctly signed with the following keys:")
-		for x in valid_sigs:
-			print >>sys.stderr, "-", x
-
-		if len(valid_sigs) == 1:
-			print >>sys.stderr, _("Do you want to trust this key to sign feeds from '%s'?") % domain
-		else:
-			print >>sys.stderr, _("Do you want to trust all of these keys to sign feeds from '%s'?") % domain
-		while True:
-			print >>sys.stderr, _("Trust [Y/N] "),
-			i = raw_input()
-			if not i: continue
-			if i in 'Nn':
-				raise NoTrustedKeys(_('Not signed with a trusted key'))
-			if i in 'Yy':
-				break
-		for key in valid_sigs:
-			print >>sys.stderr, _("Trusting %s for %s") % (key.fingerprint, domain)
-			trust.trust_db.trust_key(key.fingerprint, domain)
-
-		trust.trust_db.notify()
-
-	confirm_trust_keys.original = True		# Detect if someone overrides it
 
 	@tasks.async
 	def confirm_install(self, msg):
