@@ -137,7 +137,7 @@ class Policy(object):
 
 	ready = property(lambda self: self.solver.ready)
 
-	# (used by 0test)
+	# (was used by 0test)
 	handler = property(lambda self: self.config.handler,
 			   lambda self, value: setattr(self.config, 'handler', value))
 

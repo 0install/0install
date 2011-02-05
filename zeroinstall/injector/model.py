@@ -998,21 +998,6 @@ class ZeroInstallFeed(object):
 	def __repr__(self):
 		return _("<Feed %s>") % self.url
 	
-	"""@deprecated"""
-	def _get_impl(self, id):
-		assert id not in self.implementations
-
-		if id.startswith('.') or id.startswith('/'):
-			id = os.path.abspath(os.path.join(self.url, id))
-			local_path = id
-			impl = ZeroInstallImplementation(self, id, local_path)
-		else:
-			impl = ZeroInstallImplementation(self, id, None)
-			impl.digests.append(id)
-
-		self.implementations[id] = impl
-		return impl
-	
 	def set_stability_policy(self, new):
 		assert new is None or isinstance(new, Stability)
 		self.stability_policy = new
