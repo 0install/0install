@@ -32,7 +32,7 @@ class SafeException(Exception):
 	The command-line interface's C{--verbose} option will display the full stack trace."""
 
 class NeedDownload(SafeException):
-	"""Thrown by L{injector.autopolicy.AutoPolicy} if we tried to start a download
-	and downloading is disabled."""
+	"""Thrown if we tried to start a download and downloading is
+	disabled."""
 	def __init__(self, url):
 		Exception.__init__(self, _("Would download '%s'") % url)
