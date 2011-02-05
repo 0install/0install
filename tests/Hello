@@ -1,21 +1,15 @@
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
-
 <?xml version="1.0" ?>
-<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
-	   uri='http://localhost:8000/Hello'
-	   main='HelloWorld/main'>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface main="HelloWorld/main" uri="http://localhost:8000/Hello" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
   <name>Hello</name>
   <summary>Hello</summary>
   <description>Hello</description>
-  <implementation id='sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' version='1'>
-    <archive href='http://localhost:8000/HelloWorld.tgz' size='176'/>
+  <implementation id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" version="1">
+    <archive href="http://localhost:8000/HelloWorld.tgz" size="176"/>
   </implementation>
 </interface>
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.1 (GNU/Linux)
+<!-- Base64 Signature
+iEYEABECAAYFAk1NWaAACgkQb88SG+I5Dgue/gCeNU1Tu7ZrZ+1vaFlqAsHgIUVjylUAoIneWd/u
+r3dCxmLYSH5vOFUR5lUZ
 
-iD8DBQFDLBi0b88SG+I5DgsRAkgtAJwInQjqEgmS6ZoAzMvi7fHAmFagXQCfWAHU
-+7Q3Q97UGY6mVmd7hampJE8=
-=BhVc
------END PGP SIGNATURE-----
+-->

@@ -213,30 +213,6 @@ def import_key(stream):
 	elif error_messages:
 		warn(_("Warnings from 'gpg --import':\n%s") % error_messages)
 
-def _check_plain_stream(stream):
-	data = tempfile.TemporaryFile()	# Python2.2 does not support 'prefix'
-	errors = tempfile.TemporaryFile()
-
-	status_r, status_w = os.pipe()
-
-	# Note: Should ideally close status_r in the child, but we want to support Windows too
-	child = _run_gpg(['--decrypt',
-			  # Not all versions support this:
-			  #'--max-output', str(1024 * 1024),
-			  '--batch',
-			  '--status-fd', str(status_w)],
-		stdin = stream,
-		stdout = data,
-		stderr = errors)
-
-	os.close(status_w)
-
-	try:
-		sigs = _get_sigs_from_gpg_status_stream(os.fdopen(status_r), child, errors)
-	finally:
-		data.seek(0)
-	return (data, sigs)
-
 def _check_xml_stream(stream):
 	xml_comment_start = '<!-- Base64 Signature'
 
@@ -311,10 +287,7 @@ def check_stream(stream):
 	if start == "<?xml ":
 		return _check_xml_stream(stream)
 	elif start == '-----B':
-		import warnings
-		warnings.warn("Plain GPG-signed feeds are deprecated!", DeprecationWarning, stacklevel = 2)
-		os.lseek(stream.fileno(), 0, 0)
-		return _check_plain_stream(stream)
+		raise SafeException(_("Plain GPG-signed feeds no longer supported"))
 	else:
 		raise SafeException(_("This is not a Zero Install feed! It should be an XML document, but it starts:\n%s") % repr(stream.read(120)))
 

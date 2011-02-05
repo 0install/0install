@@ -7,39 +7,18 @@ import warnings
 sys.path.insert(0, '..')
 from zeroinstall.injector import gpg, model, trust
 
-err_sig = """-----BEGIN PGP MESSAGE-----
-Version: GnuPG v1.4.0 (GNU/Linux)
+err_sig = """<?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>test</name>
+  <summary>test</summary>
+</interface>
+<!-- Base64 Signature
+iJwEAAECAAYFAk1NVyAACgkQerial32qo5eVCgP/RYEzT43M2Dj3winnkX2HQDO2Fx5dq83pmidd
+LDEID3FxbuIpMUP/2rvPmNM3itRo/J4R2xkM65TEol/55uxDC1bbuarKf3wbgwEF60srFEDeeiYM
+FmTQtWYPtrzAGtNRTgKfD75xk9lcM2GHmKNlgSQ7G8ZsfL6KaraF4Wa6nqU=
 
-owGbwMvMwCTYk9R5Infvsj7G01xJDE513j1OiSlcHfbMrCDOBJisINP6XQwLGjzn
-tMxedXc3y75I7r1hQZFTb/ewMcx3yefZ8zb/vZd10I7LEYdDj4fnKsYAAA==
-=kMeU
------END PGP MESSAGE-----
-"""
-
-bad_sig = """-----BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
-
-Hell0
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.0 (GNU/Linux)
-
-iD8DBQFCfk3grgeCgFmlPMERAhl8AKC0aktrLzz646zTY0TRzdnxPdbLBgCeJWbk
-GRVbJusevCKvtoSn7RAW2mg=
-=xQJ5
------END PGP SIGNATURE-----
-"""
-
-good_sig = """-----BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
-
-Hello
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.0 (GNU/Linux)
-
-iD8DBQFCfk3grgeCgFmlPMERAhl8AKC0aktrLzz646zTY0TRzdnxPdbLBgCeJWbk
-GRVbJusevCKvtoSn7RAW2mg=
-=xQJ5
------END PGP SIGNATURE-----
+-->
 """
 
 bad_xml_main = """<?xml version='1.0'?>
@@ -125,16 +104,13 @@ class TestGPG(BaseTest):
 		stream.write(err_sig)
 		stream.seek(0)
 		data, sigs = gpg.check_stream(stream)
-		self.assertEquals("Bad\n", data.read())
+		self.assertEquals(err_sig, data.read())
 		assert len(sigs) == 1
 		assert isinstance(sigs[0], gpg.ErrSig)
-		assert sigs[0].need_key() == "8C6289C86DBDA68E"
-		self.assertEquals("17", sigs[0].status[gpg.ErrSig.ALG])
+		assert sigs[0].need_key() == "7AB89A977DAAA397"
+		self.assertEquals("1", sigs[0].status[gpg.ErrSig.ALG])
 		assert sigs[0].is_trusted() is False
 		assert str(sigs[0]).startswith('ERROR')
-
-	def testBadSig(self):
-		self.assertEquals("Hell0\n", self.check_bad(bad_sig))
 
 	def testBadXMLSig(self):
 		self.assertEquals(bad_xml_sig, self.check_bad(bad_xml_sig))
@@ -160,9 +136,6 @@ class TestGPG(BaseTest):
 		assert sigs[0].need_key() is None
 		assert str(sigs[0]).startswith('BAD')
 		return data.read()
-
-	def testGoodSig(self):
-		self.assertEquals("Hello\n", self.check_good(good_sig))
 
 	def testGoodXMLSig(self):
 		self.assertEquals(good_xml_sig, self.check_good(good_xml_sig))

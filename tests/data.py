@@ -26,24 +26,6 @@ YkxNRG4ozQP5gwBO8CDdGVAAn0P7xyghEym4gcy7/rvwkY7JIar5
 -----END PGP PUBLIC KEY BLOCK-----
 """
 
-foo_signed = """-----BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
-
-<?xml version="1.0" ?>
-<interface uri="http://foo" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <name>Foo</name>
-  <summary>Foo</summary>
-  <description>Foo</description>
-</interface>
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.0 (GNU/Linux)
-
-iD8DBQFCkNXSrgeCgFmlPMERAgIpAKCgQrp+Kzf2PkHx6iUtDNXmIsm5RwCg2Mzs
-k9abKV4GJUVEqlJVMtOcRkE=
-=mvQS
------END PGP SIGNATURE-----
-"""
-
 foo_signed_xml = """<?xml version="1.0" ?>
 <interface uri="http://foo" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
   <name>Foo</name>
