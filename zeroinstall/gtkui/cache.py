@@ -133,15 +133,15 @@ class LocalImplementation:
 		self.impl = impl
 
 	def append_to(self, model, iter):
-		model.append(iter, [self.impl.id, 0, None, _('This is a local version, not held in the cache.'), self])
+		model.append(iter, [self.impl.local_path, 0, None, _('This is a local version, not held in the cache.'), self])
 
 class CachedImplementation:
 	may_delete = True
 
-	def __init__(self, cache_dir, name):
-		self.impl_path = os.path.join(cache_dir, name)
+	def __init__(self, cache_dir, digest):
+		self.impl_path = os.path.join(cache_dir, digest)
 		self.size = get_size(self.impl_path)
-		self.name = name
+		self.digest = digest
 
 	def delete(self):
 		#print "Delete", self.impl_path
@@ -182,11 +182,11 @@ class CachedImplementation:
 
 class UnusedImplementation(CachedImplementation):
 	def append_to(self, model, iter):
-		model.append(iter, [self.name, self.size, None, self.impl_path, self])
+		model.append(iter, [self.digest, self.size, None, self.impl_path, self])
 
 class KnownImplementation(CachedImplementation):
-	def __init__(self, cached_iface, cache_dir, impl, impl_size):
-		CachedImplementation.__init__(self, cache_dir, impl.id)
+	def __init__(self, cached_iface, cache_dir, impl, impl_size, digest):
+		CachedImplementation.__init__(self, cache_dir, digest)
 		self.cached_iface = cached_iface
 		self.impl = impl
 		self.size = impl_size
@@ -357,12 +357,13 @@ class CacheExplorer:
 				for impl in iface.implementations.values():
 					if impl.local_path:
 						cached_iface.in_cache.append(LocalImplementation(impl))
-					if impl.id in unowned:
-						cached_dir = unowned[impl.id].dir
-						impl_path = os.path.join(cached_dir, impl.id)
-						impl_size = get_size(impl_path)
-						cached_iface.in_cache.append(KnownImplementation(cached_iface, cached_dir, impl, impl_size))
-						del unowned[impl.id]
+					for digest in impl.digests:
+						if digest in unowned:
+							cached_dir = unowned[digest].dir
+							impl_path = os.path.join(cached_dir, digest)
+							impl_size = get_size(impl_path)
+							cached_iface.in_cache.append(KnownImplementation(cached_iface, cached_dir, impl, impl_size, digest))
+							del unowned[digest]
 				cached_iface.in_cache.sort()
 				ok_interfaces.append(cached_iface)
 
