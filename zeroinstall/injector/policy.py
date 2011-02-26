@@ -307,18 +307,7 @@ class Policy(object):
 		@type impl: model.Implementation
 		@rtype: bool
 		"""
-		if isinstance(impl, DistributionImplementation):
-			return impl.installed
-		if impl.local_path:
-			return os.path.exists(impl.local_path)
-		else:
-			try:
-				path = self.get_implementation_path(impl)
-				assert path
-				return True
-			except:
-				pass # OK
-		return False
+		return impl.is_available(self.config.stores)
 
 	def get_uncached_implementations(self):
 		"""List all chosen implementations which aren't yet available locally.

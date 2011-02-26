@@ -14,7 +14,7 @@ import logging
 logger = logging.getLogger()
 
 class Stores:
-	def lookup_any(self, digests):
+	def lookup_maybe(self, digests):
 		return "/"
 
 stores = Stores()

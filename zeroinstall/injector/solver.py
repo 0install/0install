@@ -14,28 +14,6 @@ from zeroinstall.zerostore import BadDigest, NotStored
 from zeroinstall.injector.arch import machine_groups
 from zeroinstall.injector import model, sat, selections
 
-def _get_cached(stores, impl):
-	"""Check whether an implementation is available locally.
-	@type impl: model.Implementation
-	@rtype: bool
-	"""
-	if isinstance(impl, model.DistributionImplementation):
-		return impl.installed
-	if impl.local_path:
-		return os.path.exists(impl.local_path)
-	else:
-		try:
-			if not impl.digests:
-				warn("No digests given for %s!", impl)
-				return False
-			path = stores.lookup_any(impl.digests)
-			assert path
-			return True
-		except BadDigest:
-			return False
-		except NotStored:
-			return False
-
 class CommandInfo:
 	def __init__(self, name, command, impl, arch):
 		self.name = name
@@ -168,7 +146,7 @@ class SATSolver(Solver):
 
 		stores = self.config.stores
 		if self.config.network_use != model.network_full:
-			r = cmp(_get_cached(stores, a), _get_cached(stores, b))
+			r = cmp(a.is_available(stores), b.is_available(stores))
 			if r: return r
 
 		# Packages that require admin access to install come last
@@ -216,7 +194,7 @@ class SATSolver(Solver):
 
 		# Slightly prefer cached versions
 		if self.config.network_use == model.network_full:
-			r = cmp(_get_cached(stores, a), _get_cached(stores, b))
+			r = cmp(a.is_available(stores), b.is_available(stores))
 			if r: return r
 
 		return cmp(a.id, b.id)
@@ -305,7 +283,7 @@ class SATSolver(Solver):
 			stability = impl.get_stability()
 			if stability <= model.buggy:
 				return stability.name
-			if (self.config.network_use == model.network_offline or not impl.download_sources) and not _get_cached(self.config.stores, impl):
+			if (self.config.network_use == model.network_offline or not impl.download_sources) and not impl.is_available(self.config.stores):
 				if not impl.download_sources:
 					return _("No retrieval methods")
 				return _("Not cached and we are off-line")

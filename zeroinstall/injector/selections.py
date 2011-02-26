@@ -43,6 +43,14 @@ class Selection(object):
 	def __repr__(self):
 		return self.id
 
+	def is_available(self, stores):
+		"""@since 0.53"""
+		path = self.local_path
+		if path is not None:
+			return os.path.exists(path)
+		path = stores.lookup_maybe(self.digests)
+		return path is not None
+
 class ImplSelection(Selection):
 	__slots__ = ['impl', 'dependencies', 'attrs']
 

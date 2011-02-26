@@ -250,10 +250,21 @@ class Stores(object):
 				self.stores.append(Store(directory))
 
 	def lookup(self, digest):
+		"""@deprecated: use lookup_any instead"""
 		return self.lookup_any([digest])
 
 	def lookup_any(self, digests):
-		"""Search for digest in all stores."""
+		"""Search for digest in all stores.
+		@raises NotStored: if not found"""
+		path = self.lookup_maybe(digests)
+		if path:
+			return path
+		raise NotStored(_("Item with digests '%(digests)s' not found in stores. Searched:\n- %(stores)s") %
+			{'digests': digests, 'stores': '\n- '.join([s.dir for s in self.stores])})
+
+	def lookup_maybe(self, digests):
+		"""Like lookup_any, but return None if it isn't found.
+		@since: 0.53"""
 		assert digests
 		for digest in digests:
 			assert digest
@@ -263,8 +274,7 @@ class Stores(object):
 				path = store.lookup(digest)
 				if path:
 					return path
-		raise NotStored(_("Item with digests '%(digests)s' not found in stores. Searched:\n- %(stores)s") %
-			{'digests': digests, 'stores': '\n- '.join([s.dir for s in self.stores])})
+		return None
 
 	def add_dir_to_cache(self, required_digest, dir):
 		"""Add to the best writable cache.

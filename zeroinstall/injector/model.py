@@ -567,6 +567,14 @@ class Implementation(object):
 			self.commands["run"] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': path}), None)
 	main = property(_get_main, _set_main)
 
+	def is_available(self, stores):
+		"""Is this Implementation available locally?
+		(a local implementation, an installed distribution package, or a cached ZeroInstallImplementation)
+		@rtype: bool
+		@since: 0.53
+		"""
+		raise NotImplementedError("abstract")
+
 class DistributionImplementation(Implementation):
 	"""An implementation provided by the distribution. Information such as the version
 	comes from the package manager.
@@ -582,6 +590,9 @@ class DistributionImplementation(Implementation):
 	@property
 	def requires_root_install(self):
 		return not self.installed
+
+	def is_available(self, stores):
+		return self.installed
 
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.
@@ -610,6 +621,14 @@ class ZeroInstallImplementation(Implementation):
 	def set_arch(self, arch):
 		self.os, self.machine = _split_arch(arch)
 	arch = property(lambda self: _join_arch(self.os, self.machine), set_arch)
+
+	def is_available(self, stores):
+		if self.local_path is not None:
+			return os.path.exists(self.local_path)
+		if self.digests:
+			path = stores.lookup_maybe(self.digests)
+			return path is not None
+		return False	# (0compile creates fake entries with no digests)
 
 class Interface(object):
 	"""An Interface represents some contract of behaviour.

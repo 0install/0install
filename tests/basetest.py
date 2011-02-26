@@ -132,10 +132,16 @@ class TestStores:
 	def add_fake(self, digest):
 		self.fake_impls.add(digest)
 
-	def lookup_any(self, digests):
+	def lookup_maybe(self, digests):
 		for d in digests:
 			if d in self.fake_impls:
 				return '/fake_store/' + d
+		return None
+
+	def lookup_any(self, digests):
+		path = self.lookup_maybe(digests)
+		if path:
+			return path
 		raise NotStored()
 
 class TestConfig:
