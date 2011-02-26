@@ -297,7 +297,7 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 		os.unlink(cpiopath)
 
 def extract_gem(stream, destdir, extract = None, start_offset = 0):
-	"@since 0.53"
+	"@since: 0.53"
 	stream.seek(start_offset)
 	payload = 'data.tar.gz'
 	payload_stream = None

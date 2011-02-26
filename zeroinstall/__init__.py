@@ -1,6 +1,7 @@
 """
-The Python implementation of the Zero Install injector is divided into four sub-packages:
+The Python implementation of the Zero Install injector is divided into five sub-packages:
 
+ - L{zeroinstall.cmd} contains one module for each 0install sub-command (providing the shell-scripting interface)
  - L{zeroinstall.injector} contains most of the interesting stuff for managing feeds, keys and downloads and for selecting versions
  - L{zeroinstall.zerostore} contains low-level code for handling the implementation cache (where unpacked packages are stored)
  - L{zeroinstall.gtkui} contains code for making GTK user-interfaces

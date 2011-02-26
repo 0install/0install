@@ -20,8 +20,6 @@ class Selection(object):
 	@type dependencies: [L{model.Dependency}]
 	@ivar attrs: XML attributes map (name is in the format "{namespace} {localName}")
 	@type attrs: {str: str}
-	@ivar digests: a list of manifest digests
-	@type digests: [str]
 	@ivar version: the implementation's version number
 	@type version: str"""
 
@@ -44,7 +42,10 @@ class Selection(object):
 		return self.id
 
 	def is_available(self, stores):
-		"""@since 0.53"""
+		"""Is this implementation available locally?
+		(a local implementation or a cached ZeroInstallImplementation)
+		@rtype: bool
+		@since: 0.53"""
 		path = self.local_path
 		if path is not None:
 			return os.path.exists(path)
@@ -52,6 +53,8 @@ class Selection(object):
 		return path is not None
 
 class ImplSelection(Selection):
+	"""A Selection created from an Implementation"""
+
 	__slots__ = ['impl', 'dependencies', 'attrs']
 
 	def __init__(self, iface_uri, impl, dependencies):
@@ -75,6 +78,10 @@ class ImplSelection(Selection):
 	def digests(self): return self.impl.digests
 
 class XMLSelection(Selection):
+	"""A Selection created by reading an XML selections document.
+	@ivar digests: a list of manifest digests
+	@type digests: [str]
+	"""
 	__slots__ = ['bindings', 'dependencies', 'attrs', 'digests']
 
 	def __init__(self, dependencies, bindings = None, attrs = None, digests = None):

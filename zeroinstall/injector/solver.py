@@ -108,8 +108,6 @@ class SATSolver(Solver):
 	@type langs: str"""
 	def __init__(self, config, extra_restrictions = None):
 		"""
-		@param network_use: how much use to make of the network
-		@type network_use: L{model.network_levels}
 		@param config: policy preferences (e.g. stability), the iface_cache and the stores to use
 		@type config: L{policy.Config}
 		@param extra_restrictions: extra restrictions on the chosen implementations
