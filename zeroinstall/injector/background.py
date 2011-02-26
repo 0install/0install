@@ -198,34 +198,11 @@ def _check_for_updates(old_policy, verbose):
 			policy.handler.notify("Zero Install", _("No updates to download."), timeout = 1)
 		sys.exit(0)
 
-	if not policy.handler.have_actions_support():
-		# Can't ask the user to choose, so just notify them
-		# In particular, Ubuntu/Jaunty doesn't support actions
-		policy.handler.notify("Zero Install",
-				      _("Updates ready to download for '%s'.") % root_iface,
-				      timeout = 1)
-		_exec_gui(policy.root, '--refresh', '--systray')
-		sys.exit(1)
-
-	notification_closed = tasks.Blocker("wait for notification response")
-
-	def _NotificationClosed(nid, *unused):
-		if nid != our_question: return
-		notification_closed.trigger()
-
-	def _ActionInvoked(nid, action):
-		if nid != our_question: return
-		if action == 'download':
-			_exec_gui(policy.root)
-		notification_closed.trigger()
-
-	policy.handler.notification_service.connect_to_signal('NotificationClosed', _NotificationClosed)
-	policy.handler.notification_service.connect_to_signal('ActionInvoked', _ActionInvoked)
-
-	our_question = policy.handler.notify("Zero Install", _("Updates ready to download for '%s'.") % root_iface,
-				actions = ['download', 'Download'])
-
-	tasks.wait_for_blocker(notification_closed)
+	policy.handler.notify("Zero Install",
+			      _("Updates ready to download for '%s'.") % root_iface,
+			      timeout = 1)
+	_exec_gui(policy.root, '--refresh', '--systray')
+	sys.exit(1)
 
 def spawn_background_update(policy, verbose):
 	"""Spawn a detached child process to check for updates.
