@@ -6,7 +6,8 @@ import os, sys
 from optparse import OptionParser
 
 from zeroinstall.injector import requirements
-from zeroinstall.injector.policy import Policy, load_config
+from zeroinstall.injector.policy import Policy
+from zeroinstall.injector.config import load_config
 from zeroinstall.support import tasks
 
 _recalculate = tasks.Blocker('recalculate')

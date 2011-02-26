@@ -11,7 +11,7 @@ from optparse import OptionParser
 import logging
 
 from zeroinstall import SafeException, NeedDownload
-from zeroinstall.injector import handler, policy
+from zeroinstall.injector.config import load_config
 from zeroinstall.cmd import UsageError
 
 #def program_log(msg): os.access('MARK: 0launch: ' + msg, os.F_OK)
@@ -79,14 +79,9 @@ def main(command_args, config = None):
 	if options.select_only or options.show:
 		options.download_only = True
 
-	if os.isatty(1):
-		h = handler.ConsoleHandler()
-	else:
-		h = handler.Handler()
-	h.dry_run = bool(options.dry_run)
-
 	if config is None:
-		config = policy.load_config(h)
+		config = load_config()
+		config.handler.dry_run = bool(options.dry_run)
 
 	if options.with_store:
 		from zeroinstall import zerostore

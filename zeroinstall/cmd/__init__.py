@@ -56,12 +56,8 @@ def main(command_args, config = None):
 	_ensure_standard_fds()
 
 	if config is None:
-		from zeroinstall.injector import policy, handler
-		if os.isatty(1):
-			h = handler.ConsoleHandler()
-		else:
-			h = handler.Handler()
-		config = policy.load_config(h)
+		from zeroinstall.injector.config import load_config
+		config = load_config()
 
 	# The first non-option argument is the command name (or "help" if none is found).
 	command = None

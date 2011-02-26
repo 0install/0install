@@ -11,91 +11,16 @@ from zeroinstall import _
 import time
 import os
 from logging import info, debug, warn
-import ConfigParser
 
-from zeroinstall import zerostore, SafeException
+from zeroinstall import SafeException
 from zeroinstall.injector import arch, model
 from zeroinstall.injector.model import Interface, Implementation, network_levels, network_offline, network_full
-from zeroinstall.injector.handler import Handler
 from zeroinstall.injector.namespaces import config_site, config_prog
-from zeroinstall.support import tasks, basedir
+from zeroinstall.injector.config import load_config
+from zeroinstall.support import tasks
 
 # If we started a check within this period, don't start another one:
 FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
-
-class Config(object):
-	"""
-	@ivar handler: handler for main-loop integration
-	@type handler: L{handler.Handler}
-	"""
-
-	__slots__ = ['help_with_testing', 'freshness', 'network_use', '_fetcher', '_stores', '_iface_cache', 'handler']
-	def __init__(self, handler):
-		assert handler is not None
-		self.help_with_testing = False
-		self.freshness = 60 * 60 * 24 * 30
-		self.network_use = network_full
-		self.handler = handler
-		self._fetcher = self._stores = self._iface_cache = None
-
-	@property
-	def stores(self):
-		if not self._stores:
-			self._stores = zerostore.Stores()
-		return self._stores
-
-	@property
-	def iface_cache(self):
-		if not self._iface_cache:
-			from zeroinstall.injector import iface_cache
-			self._iface_cache = iface_cache.iface_cache
-			#self._iface_cache = iface_cache.IfaceCache()
-		return self._iface_cache
-
-	@property
-	def fetcher(self):
-		if not self._fetcher:
-			from zeroinstall.injector import fetch
-			self._fetcher = fetch.Fetcher(self.handler)
-		return self._fetcher
-
-	def save_globals(self):
-               """Write global settings."""
-               parser = ConfigParser.ConfigParser()
-               parser.add_section('global')
-
-               parser.set('global', 'help_with_testing', self.help_with_testing)
-               parser.set('global', 'network_use', self.network_use)
-               parser.set('global', 'freshness', self.freshness)
-
-               path = basedir.save_config_path(config_site, config_prog)
-               path = os.path.join(path, 'global')
-               parser.write(file(path + '.new', 'w'))
-               os.rename(path + '.new', path)
-
-def load_config(handler):
-	config = Config(handler)
-	parser = ConfigParser.RawConfigParser()
-	parser.add_section('global')
-	parser.set('global', 'help_with_testing', 'False')
-	parser.set('global', 'freshness', str(60 * 60 * 24 * 30))	# One month
-	parser.set('global', 'network_use', 'full')
-
-	path = basedir.load_first_config(config_site, config_prog, 'global')
-	if path:
-		info("Loading configuration from %s", path)
-		try:
-			parser.read(path)
-		except Exception, ex:
-			warn(_("Error loading config: %s"), str(ex) or repr(ex))
-
-	config.help_with_testing = parser.getboolean('global', 'help_with_testing')
-	config.network_use = parser.get('global', 'network_use')
-	config.freshness = int(parser.get('global', 'freshness'))
-
-	assert config.network_use in network_levels, config.network_use
-
-	return config
 
 class Policy(object):
 	"""Chooses a set of implementations based on a policy.
@@ -147,7 +72,7 @@ class Policy(object):
 		@param requirements: Details about the program we want to run
 		@type requirements: L{requirements.Requirements}
 		@param config: The configuration settings to use, or None to load from disk.
-		@type config: L{ConfigParser.ConfigParser}
+		@type config: L{config.Config}
 		Note: all other arguments are deprecated (since 0launch 0.52)
 		"""
 		self.watchers = []
@@ -171,7 +96,7 @@ class Policy(object):
 		self.stale_feeds = set()
 
 		if config is None:
-			self.config = load_config(handler or Handler())
+			self.config = load_config(handler)
 		else:
 			assert handler is None, "can't pass a handler and a config"
 			self.config = config
@@ -504,5 +429,5 @@ _config = None
 def get_deprecated_singleton_config():
 	global _config
 	if _config is None:
-		_config = load_config(Handler())
+		_config = load_config()
 	return _config

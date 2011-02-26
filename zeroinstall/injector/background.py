@@ -162,7 +162,8 @@ def _detach():
 	return False
 
 def _check_for_updates(old_policy, verbose):
-	from zeroinstall.injector.policy import load_config, Policy
+	from zeroinstall.injector.policy import Policy
+	from zeroinstall.injector.config import load_config
 
 	iface_cache = old_policy.config.iface_cache
 	root_iface = iface_cache.get_interface(old_policy.root).get_name()
