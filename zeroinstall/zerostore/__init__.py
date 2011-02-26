@@ -61,7 +61,7 @@ class Store:
 			raise BadDigest(_("Digest must be in the form ALG=VALUE, not '%s'") % digest)
 		try:
 			assert '/' not in value
-			int(value, 16)		# Check valid format
+			assert value not in ('', '.', '..')
 		except ValueError, ex:
 			raise BadDigest(_("Bad value for digest: %s") % str(ex))
 		dir = os.path.join(self.dir, digest)
