@@ -497,4 +497,51 @@ class IfaceCache(object):
 				impls += feed.implementations.values()
 		return impls
 
+	def get_feed_targets(self, feed):
+		"""Return a list of Interfaces for which feed can be a feed.
+		This is used by B{0install add-feed}.
+		@param feed: the feed
+		@type feed: L{model.ZeroInstallFeed} (or, deprecated, a URL)
+		@rtype: [model.Interface]
+		@raise SafeException: If there are no known feeds.
+		@since: 0.53"""
+
+		if not isinstance(feed, model.ZeroInstallFeed):
+			# (deprecated)
+			feed = self.get_feed(feed)
+			if feed is None:
+				raise SafeException("Feed is not cached and using deprecated API")
+
+		if not feed.feed_for:
+			raise SafeException(_("Missing <feed-for> element in '%s'; "
+					"it can't be used as a feed for any other interface.") % feed.url)
+		feed_targets = feed.feed_for
+		debug(_("Feed targets: %s"), feed_targets)
+		return [self.get_interface(uri) for uri in feed_targets]
+
+	def is_stale(self, feed, freshness_threshold):
+		"""Check whether feed needs updating, based on the configured L{freshness}.
+		None is considered to be stale.
+		@return: true if feed is stale or missing.
+		@since: 0.53"""
+		if feed is None:
+			return True
+		if os.path.isabs(feed.url):
+			return False		# Local feeds are never stale
+		if feed.last_modified is None:
+			return True		# Don't even have it yet
+		now = time.time()
+		staleness = now - (feed.last_checked or 0)
+		debug(_("Staleness for %(feed)s is %(staleness).2f hours"), {'feed': feed, 'staleness': staleness / 3600.0})
+
+		if freshness_threshold <= 0 or staleness < freshness_threshold:
+			return False		# Fresh enough for us
+
+		last_check_attempt = self.get_last_check_attempt(feed.url)
+		if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
+			debug(_("Stale, but tried to check recently (%s) so not rechecking now."), time.ctime(last_check_attempt))
+			return False
+
+		return True
+
 iface_cache = IfaceCache()

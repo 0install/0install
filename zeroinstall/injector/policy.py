@@ -8,7 +8,6 @@ settings.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import time
 import os
 from logging import info, debug, warn
 
@@ -172,28 +171,8 @@ class Policy(object):
 					{'feed': f, 'os': f.os, 'machine': f.machine})
 
 	def is_stale(self, feed):
-		"""Check whether feed needs updating, based on the configured L{freshness}.
-		None is considered to be stale.
-		@return: true if feed is stale or missing."""
-		if feed is None:
-			return True
-		if os.path.isabs(feed.url):
-			return False		# Local feeds are never stale
-		if feed.last_modified is None:
-			return True		# Don't even have it yet
-		now = time.time()
-		staleness = now - (feed.last_checked or 0)
-		debug(_("Staleness for %(feed)s is %(staleness).2f hours"), {'feed': feed, 'staleness': staleness / 3600.0})
-
-		if self.freshness <= 0 or staleness < self.freshness:
-			return False		# Fresh enough for us
-
-		last_check_attempt = self.config.iface_cache.get_last_check_attempt(feed.url)
-		if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
-			debug(_("Stale, but tried to check recently (%s) so not rechecking now."), time.ctime(last_check_attempt))
-			return False
-
-		return True
+		"""@deprecated: use IfaceCache.is_stale"""
+		return self.config.iface_cache.is_stale(feed, self.config.freshness)
 
 	def download_and_import_feed_if_online(self, feed_url):
 		"""If we're online, call L{fetch.Fetcher.download_and_import_feed}. Otherwise, log a suitable warning."""
@@ -252,25 +231,8 @@ class Policy(object):
 		return self.solve_with_downloads(force = True)
 
 	def get_feed_targets(self, feed):
-		"""Return a list of Interfaces for which feed can be a feed.
-		This is used by B{0install add-feed}.
-		@param feed: the feed
-		@type feed: L{model.ZeroInstallFeed} (or, deprecated, a URL)
-		@rtype: [model.Interface]
-		@raise SafeException: If there are no known feeds."""
-
-		if not isinstance(feed, model.ZeroInstallFeed):
-			# (deprecated)
-			feed = self.config.iface_cache.get_feed(feed)
-			if feed is None:
-				raise SafeException("Feed is not cached and using deprecated API")
-
-		if not feed.feed_for:
-			raise SafeException(_("Missing <feed-for> element in '%s'; "
-					"it can't be used as a feed for any other interface.") % feed.url)
-		feed_targets = feed.feed_for
-		debug(_("Feed targets: %s"), feed_targets)
-		return [self.config.iface_cache.get_interface(uri) for uri in feed_targets]
+		"""@deprecated: use IfaceCache.get_feed_targets"""
+		return self.config.iface_cache.get_feed_targets(feed)
 
 	@tasks.async
 	def solve_with_downloads(self, force = False, update_local = False):
