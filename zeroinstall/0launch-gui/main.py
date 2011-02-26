@@ -146,4 +146,4 @@ def run_gui(args):
 			if refresh_clicked.happened:
 				force_refresh = True
 
-	handler.wait_for_blocker(main())
+	tasks.wait_for_blocker(main())

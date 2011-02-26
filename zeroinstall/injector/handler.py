@@ -38,11 +38,10 @@ class Handler(object):
 	@type dry_run: bool
 	"""
 
-	__slots__ = ['monitored_downloads', '_loop', 'dry_run', 'total_bytes_downloaded', 'n_completed_downloads', '_current_confirm']
+	__slots__ = ['monitored_downloads', 'dry_run', 'total_bytes_downloaded', 'n_completed_downloads', '_current_confirm']
 
 	def __init__(self, mainloop = None, dry_run = False):
 		self.monitored_downloads = {}		
-		self._loop = None
 		self.dry_run = dry_run
 		self.n_completed_downloads = 0
 		self.total_bytes_downloaded = 0
@@ -81,28 +80,8 @@ class Handler(object):
 		pass
 	
 	def wait_for_blocker(self, blocker):
-		"""Run a recursive mainloop until blocker is triggered.
-		@param blocker: event to wait on
-		@type blocker: L{tasks.Blocker}"""
-		if not blocker.happened:
-			import gobject
-
-			def quitter():
-				yield blocker
-				self._loop.quit()
-			tasks.Task(quitter(), "quitter")
-
-			assert self._loop is None	# Avoid recursion
-			self._loop = gobject.MainLoop(gobject.main_context_default())
-			try:
-				debug(_("Entering mainloop, waiting for %s"), blocker)
-				self._loop.run()
-			finally:
-				self._loop = None
-
-			assert blocker.happened, "Someone quit the main loop!"
-
-		tasks.check(blocker)
+		"""@deprecated: use tasks.wait_for_blocker instead"""
+		tasks.wait_for_blocker(blocker)
 	
 	def get_download(self, url, force = False, hint = None, factory = None):
 		"""Return the Download object currently downloading 'url'.

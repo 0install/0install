@@ -187,7 +187,7 @@ def _check_for_updates(old_policy, verbose):
 
 	policy.freshness = 0			# Don't bother trying to refresh when getting the interface
 	refresh = policy.refresh_all()		# (causes confusing log messages)
-	policy.handler.wait_for_blocker(refresh)
+	tasks.wait_for_blocker(refresh)
 
 	# We could even download the archives here, but for now just
 	# update the interfaces.
@@ -224,7 +224,7 @@ def _check_for_updates(old_policy, verbose):
 	our_question = policy.handler.notify("Zero Install", _("Updates ready to download for '%s'.") % root_iface,
 				actions = ['download', 'Download'])
 
-	policy.handler.wait_for_blocker(notification_closed)
+	tasks.wait_for_blocker(notification_closed)
 
 def spawn_background_update(policy, verbose):
 	"""Spawn a detached child process to check for updates.

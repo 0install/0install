@@ -9,6 +9,7 @@ Convenience routines for performing common operations.
 import os, sys, logging
 from zeroinstall import support
 from zeroinstall import _
+from zeroinstall.support import tasks
 
 def get_selections_gui(iface_uri, gui_args, test_callback = None):
 	"""Run the GUI to choose and download a set of implementations.
@@ -119,6 +120,6 @@ def ensure_cached(uri, command = 'run'):
 			return get_selections_gui(uri, ['--command', command])
 		else:
 			done = p.solve_and_download_impls()
-			p.handler.wait_for_blocker(done)
+			tasks.wait_for_blocker(done)
 
 	return selections.Selections(p)

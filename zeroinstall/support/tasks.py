@@ -39,7 +39,7 @@ callbacks. See the Task class (below) for more information.
 
 from zeroinstall import _
 import sys
-from logging import info, warn
+from logging import info, warn, debug
 import gobject
 
 # The list of Blockers whose event has happened, in the order they were
@@ -349,3 +349,29 @@ def async(fn):
 		return Task(fn(*args, **kwargs), fn.__name__).finished
 	run.__name__ = fn.__name__
 	return run
+
+def wait_for_blocker(blocker):
+	"""Run a recursive mainloop until blocker is triggered.
+	@param blocker: event to wait on
+	@type blocker: L{Blocker}
+	@since: 0.53
+	"""
+	assert wait_for_blocker.loop is None	# Avoid recursion
+
+	if not blocker.happened:
+		def quitter():
+			yield blocker
+			wait_for_blocker.loop.quit()
+		Task(quitter(), "quitter")
+
+		wait_for_blocker.loop = gobject.MainLoop(gobject.main_context_default())
+		try:
+			debug(_("Entering mainloop, waiting for %s"), blocker)
+			wait_for_blocker.loop.run()
+		finally:
+			wait_for_blocker.loop = None
+
+		assert blocker.happened, "Someone quit the main loop!"
+
+	check(blocker)
+wait_for_blocker.loop = None

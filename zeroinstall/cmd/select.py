@@ -12,6 +12,7 @@ from zeroinstall import _
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, selections, requirements
 from zeroinstall.injector.policy import Policy
+from zeroinstall.support import tasks
 
 syntax = "URI"
 
@@ -53,7 +54,7 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 			blocker = maybe_selections.download_missing(config)
 			if blocker:
 				logging.info(_("Waiting for selected implementations to be downloaded..."))
-				config.handler.wait_for_blocker(blocker)
+				tasks.wait_for_blocker(blocker)
 		return maybe_selections
 
 	r = requirements.Requirements(iface_uri)
@@ -126,7 +127,7 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 		downloaded = policy.solve_and_download_impls(refresh = options.refresh or download_only or False,
 							     select_only = select_only)
 		if downloaded:
-			config.handler.wait_for_blocker(downloaded)
+			tasks.wait_for_blocker(downloaded)
 		sels = selections.Selections(policy)
 
 	return sels

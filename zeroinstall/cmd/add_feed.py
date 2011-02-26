@@ -6,6 +6,7 @@ The B{0install add-feed} command-line interface.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import SafeException, _
+from zeroinstall.support import tasks
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, writer
 from zeroinstall.injector.policy import Policy
@@ -35,7 +36,7 @@ def handle(config, options, args, add_ok = True, remove_ok = False):
 		if policy.network_use != model.network_offline and policy.is_stale(feed):
 			blocker = policy.fetcher.download_and_import_feed(x, config.iface_cache)
 			print _("Downloading feed; please wait...")
-			config.handler.wait_for_blocker(blocker)
+			tasks.wait_for_blocker(blocker)
 			print _("Done")
 
 		candidate_interfaces = policy.get_feed_targets(x)
