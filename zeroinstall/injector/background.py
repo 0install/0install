@@ -115,7 +115,7 @@ class BackgroundHandler(handler.Handler):
 
 		LOW = 0
 		NORMAL = 1
-		CRITICAL = 2
+		#CRITICAL = 2
 
 		import dbus.types
 

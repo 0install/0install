@@ -315,7 +315,7 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 		elif code == 'ERRSIG':
 			sigs.append(ErrSig(args))
 
-	status = child.wait()
+	child.wait()	# (ignore exit status)
 
 	errors.seek(0)
 

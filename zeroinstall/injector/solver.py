@@ -6,10 +6,8 @@ Chooses a set of components to make a running program.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os, locale
+import locale
 from logging import debug, warn, info
-
-from zeroinstall.zerostore import BadDigest, NotStored
 
 from zeroinstall.injector.arch import machine_groups
 from zeroinstall.injector import model, sat, selections

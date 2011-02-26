@@ -6,6 +6,7 @@ Load and save a set of chosen implementations.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+import os
 from zeroinstall import _
 from zeroinstall.injector import model
 from zeroinstall.injector.policy import Policy, get_deprecated_singleton_config

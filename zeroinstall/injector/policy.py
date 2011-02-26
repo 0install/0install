@@ -15,7 +15,7 @@ import ConfigParser
 
 from zeroinstall import zerostore, SafeException
 from zeroinstall.injector import arch, model
-from zeroinstall.injector.model import Interface, Implementation, network_levels, network_offline, DistributionImplementation, network_full
+from zeroinstall.injector.model import Interface, Implementation, network_levels, network_offline, network_full
 from zeroinstall.injector.handler import Handler
 from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.support import tasks, basedir

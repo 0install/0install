@@ -12,7 +12,7 @@ To do this, you supply a L{Handler} to the L{policy}.
 
 from zeroinstall import _
 import sys
-from logging import debug, warn, info
+from logging import warn, info
 
 from zeroinstall import NeedDownload, SafeException
 from zeroinstall.support import tasks
