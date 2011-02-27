@@ -5,8 +5,6 @@ Holds information about what the user asked for (which program, version constrai
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
-
 class Requirements(object):
 	"""
 	Holds information about what the user asked for (which program, version constraints, etc).

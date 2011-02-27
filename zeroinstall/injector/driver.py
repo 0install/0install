@@ -12,11 +12,8 @@ from zeroinstall import _
 import os
 from logging import info, debug
 
-from zeroinstall import SafeException
 from zeroinstall.injector import arch, model
-from zeroinstall.injector.model import Interface, Implementation, network_levels, network_offline, network_full
-from zeroinstall.injector.namespaces import config_site, config_prog
-from zeroinstall.injector.config import load_config
+from zeroinstall.injector.model import network_offline
 from zeroinstall.support import tasks
 
 class Driver(object):

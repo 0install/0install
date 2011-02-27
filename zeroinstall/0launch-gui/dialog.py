@@ -3,7 +3,6 @@
 
 import gtk
 import os
-from zeroinstall import _
 from zeroinstall.support import tasks
 from zeroinstall.gtkui import gtkutils
 

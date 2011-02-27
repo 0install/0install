@@ -8,15 +8,12 @@ settings.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os
-from logging import info, debug
+from logging import info
 
 from zeroinstall import SafeException
-from zeroinstall.injector import arch, model, driver
-from zeroinstall.injector.model import Interface, Implementation, network_levels, network_offline, network_full
-from zeroinstall.injector.namespaces import config_site, config_prog
+from zeroinstall.injector import driver
+from zeroinstall.injector.model import Interface, Implementation, network_offline
 from zeroinstall.injector.config import load_config
-from zeroinstall.support import tasks
 
 class Policy(object):
 	"""@deprecated: Use Driver instead."""
