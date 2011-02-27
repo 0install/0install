@@ -4,6 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, '..')
+from zeroinstall.support import tasks
 from zeroinstall.injector import model
 from zeroinstall.injector.policy import Policy
 
@@ -15,7 +16,6 @@ logger = logging.getLogger()
 class TestPolicy(BaseTest):
 	def testSource(self):
 		iface_cache = self.config.iface_cache
-		warnings.filterwarnings("ignore", category = DeprecationWarning)
 
 		foo = iface_cache.get_interface('http://foo/Binary.xml')
 		self.import_feed(foo.uri, 'Binary.xml')
@@ -24,16 +24,16 @@ class TestPolicy(BaseTest):
 		compiler = iface_cache.get_interface('http://foo/Compiler.xml')
 		self.import_feed(compiler.uri, 'Compiler.xml')
 
+		self.config.freshness = 0
+		self.config.network_use = model.network_full
 		p = Policy('http://foo/Binary.xml', config = self.config)
-		p.freshness = 0
-		p.network_use = model.network_full
-		p.recalculate()	# Deprecated
+		tasks.wait_for_blocker(p.solve_with_downloads())
 		assert p.implementation[foo].id == 'sha1=123'
 
 		# Now ask for source instead
 		p.requirements.source = True
 		p.requirements.command = 'compile'
-		p.recalculate()
+		tasks.wait_for_blocker(p.solve_with_downloads())
 		assert p.solver.ready, p.solver.get_failure_reason()
 		assert p.implementation[foo].id == 'sha1=234'		# The source
 		assert p.implementation[compiler].id == 'sha1=345'	# A binary needed to compile it

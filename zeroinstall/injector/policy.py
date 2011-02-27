@@ -9,7 +9,7 @@ settings.
 
 from zeroinstall import _
 import os
-from logging import info, debug, warn
+from logging import info, debug
 
 from zeroinstall import SafeException
 from zeroinstall.injector import arch, model
@@ -119,37 +119,6 @@ class Policy(object):
 	def save_config(self):
 		self.config.save_globals()
 
-	def recalculate(self, fetch_stale_interfaces = True):
-		"""@deprecated: see L{solve_with_downloads} """
-		import warnings
-		warnings.warn("Policy.recalculate is deprecated!", DeprecationWarning, stacklevel = 2)
-
-		self.stale_feeds = set()
-
-		host_arch = self.target_arch
-		if self.requirements.source:
-			host_arch = arch.SourceArchitecture(host_arch)
-		self.solver.solve(self.root, host_arch, command_name = self.command)
-
-		if self.network_use == network_offline:
-			fetch_stale_interfaces = False
-
-		blockers = []
-		for f in self.solver.feeds_used:
-			if os.path.isabs(f): continue
-			feed = self.config.iface_cache.get_feed(f)
-			if feed is None or feed.last_modified is None:
-				self.download_and_import_feed_if_online(f)	# Will start a download
-			elif self.is_stale(feed):
-				debug(_("Adding %s to stale set"), f)
-				self.stale_feeds.add(self.config.iface_cache.get_interface(f))	# Legacy API
-				if fetch_stale_interfaces:
-					self.download_and_import_feed_if_online(f)	# Will start a download
-
-		for w in self.watchers: w()
-
-		return blockers
-
 	def usable_feeds(self, iface):
 		"""Generator for C{iface.feeds} that are valid for our architecture.
 		@rtype: generator
@@ -170,18 +139,6 @@ class Policy(object):
 	def is_stale(self, feed):
 		"""@deprecated: use IfaceCache.is_stale"""
 		return self.config.iface_cache.is_stale(feed, self.config.freshness)
-
-	def download_and_import_feed_if_online(self, feed_url):
-		"""If we're online, call L{fetch.Fetcher.download_and_import_feed}. Otherwise, log a suitable warning."""
-		if self.network_use != network_offline:
-			debug(_("Feed %s not cached and not off-line. Downloading..."), feed_url)
-			return self.fetcher.download_and_import_feed(feed_url, self.config.iface_cache)
-		else:
-			if self._warned_offline:
-				debug(_("Not downloading feed '%s' because we are off-line."), feed_url)
-			else:
-				warn(_("Not downloading feed '%s' because we are in off-line mode."), feed_url)
-				self._warned_offline = True
 
 	def get_implementation_path(self, impl):
 		"""Return the local path of impl.

@@ -429,7 +429,8 @@ class InterfaceBrowser:
 			reader.update_from_cache(interface)
 			for feed in interface.extra_feeds:
 				 self.policy.config.iface_cache.get_feed(feed.uri, force = True)
-			self.policy.recalculate()
+			import main
+			main.recalculate()
 		compile.compile(on_success, interface.uri, autocompile = autocompile)
 
 	def set_original_implementations(self):
