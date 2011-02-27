@@ -12,38 +12,15 @@ import os
 from logging import info, debug
 
 from zeroinstall import SafeException
-from zeroinstall.injector import arch, model
+from zeroinstall.injector import arch, model, driver
 from zeroinstall.injector.model import Interface, Implementation, network_levels, network_offline, network_full
 from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.injector.config import load_config
 from zeroinstall.support import tasks
 
 class Policy(object):
-	"""Chooses a set of implementations based on a policy.
-	Typical use:
-	 1. Create a Policy object, giving it the URI of the program to be run and a handler.
-	 2. Call L{solve_with_downloads}. If more information is needed, a L{fetch.Fetcher} will be used to download it.
-	 3. When all downloads are complete, the L{solver} contains the chosen versions.
-	 4. Use L{get_uncached_implementations} to find where to get these versions and download them
-	    using L{download_uncached_implementations}.
-
-	@ivar target_arch: target architecture for binaries
-	@type target_arch: L{arch.Architecture}
-	@ivar root: URI of the root interface
-	@ivar solver: solver used to choose a set of implementations
-	@type solver: L{solve.Solver}
-	@ivar watchers: callbacks to invoke after recalculating
-	@ivar help_with_testing: default stability policy
-	@type help_with_testing: bool
-	@ivar network_use: one of the model.network_* values
-	@ivar freshness: seconds allowed since last update
-	@type freshness: int
-	@ivar stale_feeds: set of feeds which are present but haven't been checked for a long time
-	@type stale_feeds: set
-	"""
-	__slots__ = ['root', 'watchers', 'requirements', 'config', '_warned_offline',
-		     'command', 'target_arch',
-		     'stale_feeds', 'solver']
+	"""@deprecated: Use Driver instead."""
+	__slots__ = ['driver']
 
 	help_with_testing = property(lambda self: self.config.help_with_testing,
 				     lambda self, value: setattr(self.config, 'help_with_testing', bool(value)))
@@ -54,9 +31,14 @@ class Policy(object):
 	freshness = property(lambda self: self.config.freshness,
 			     lambda self, value: setattr(self.config, 'freshness', str(value)))
 
+	target_arch = property(lambda self: self.driver.target_arch,
+			     lambda self, value: setattr(self.driver, 'target_arch', value))
+
 	implementation = property(lambda self: self.solver.selections)
 
 	ready = property(lambda self: self.solver.ready)
+	config = property(lambda self: self.driver.config)
+	requirements = property(lambda self: self.driver.requirements)
 
 	# (was used by 0test)
 	handler = property(lambda self: self.config.handler,
@@ -71,7 +53,6 @@ class Policy(object):
 		@type config: L{config.Config}
 		Note: all other arguments are deprecated (since 0launch 0.52)
 		"""
-		self.watchers = []
 		if requirements is None:
 			from zeroinstall.injector.requirements import Requirements
 			requirements = Requirements(root)
@@ -82,39 +63,28 @@ class Policy(object):
 				else:
 					command = 'run'
 			requirements.command = command
-			self.target_arch = arch.get_host_architecture()
 		else:
 			assert root == src == None
 			assert command == -1
-			self.target_arch = arch.get_architecture(requirements.os, requirements.cpu)
-		self.requirements = requirements
-
-		self.stale_feeds = set()
 
 		if config is None:
-			self.config = load_config(handler)
+			config = load_config(handler)
 		else:
 			assert handler is None, "can't pass a handler and a config"
-			self.config = config
 
-		from zeroinstall.injector.solver import DefaultSolver
-		self.solver = DefaultSolver(self.config)
-
-		# If we need to download something but can't because we are offline,
-		# warn the user. But only the first time.
-		self._warned_offline = False
-
-		debug(_("Supported systems: '%s'"), arch.os_ranks)
-		debug(_("Supported processors: '%s'"), arch.machine_ranks)
-
-		if requirements.before or requirements.not_before:
-			self.solver.extra_restrictions[config.iface_cache.get_interface(requirements.interface_uri)] = [
-					model.VersionRangeRestriction(model.parse_version(requirements.before),
-								      model.parse_version(requirements.not_before))]
+		self.driver = driver.Driver(config = config, requirements = requirements)
 
 	@property
 	def fetcher(self):
 		return self.config.fetcher
+
+	@property
+	def watchers(self):
+		return self.driver.watchers
+
+	@property
+	def solver(self):
+		return self.driver.solver
 
 	def save_config(self):
 		self.config.save_globals()
@@ -168,16 +138,7 @@ class Policy(object):
 		return impl.is_available(self.config.stores)
 
 	def get_uncached_implementations(self):
-		"""List all chosen implementations which aren't yet available locally.
-		@rtype: [(L{model.Interface}, L{model.Implementation})]"""
-		iface_cache = self.config.iface_cache
-		uncached = []
-		for uri, selection in self.solver.selections.selections.iteritems():
-			impl = selection.impl
-			assert impl, self.solver.selections
-			if not self.get_cached(impl):
-				uncached.append((iface_cache.get_interface(uri), impl))
-		return uncached
+		return self.driver.get_uncached_implementations()
 
 	def refresh_all(self, force = True):
 		"""Start downloading all feeds for all selected interfaces.
@@ -188,125 +149,17 @@ class Policy(object):
 		"""@deprecated: use IfaceCache.get_feed_targets"""
 		return self.config.iface_cache.get_feed_targets(feed)
 
-	@tasks.async
 	def solve_with_downloads(self, force = False, update_local = False):
-		"""Run the solver, then download any feeds that are missing or
-		that need to be updated. Each time a new feed is imported into
-		the cache, the solver is run again, possibly adding new downloads.
-		@param force: whether to download even if we're already ready to run.
-		@param update_local: fetch PackageKit feeds even if we're ready to run."""
+		return self.driver.solve_with_downloads(force, update_local)
 
-		downloads_finished = set()		# Successful or otherwise
-		downloads_in_progress = {}		# URL -> Download
-
-		host_arch = self.target_arch
-		if self.requirements.source:
-			host_arch = arch.SourceArchitecture(host_arch)
-
-		# There are three cases:
-		# 1. We want to run immediately if possible. If not, download all the information we can.
-		#    (force = False, update_local = False)
-		# 2. We're in no hurry, but don't want to use the network unnecessarily.
-		#    We should still update local information (from PackageKit).
-		#    (force = False, update_local = True)
-		# 3. The user explicitly asked us to refresh everything.
-		#    (force = True)
-
-		try_quick_exit = not (force or update_local)
-
-		while True:
-			self.solver.solve(self.root, host_arch, command_name = self.command)
-			for w in self.watchers: w()
-
-			if try_quick_exit and self.solver.ready:
-				break
-			try_quick_exit = False
-
-			if not self.solver.ready:
-				force = True
-
-			for f in self.solver.feeds_used:
-				if f in downloads_finished or f in downloads_in_progress:
-					continue
-				if os.path.isabs(f):
-					if force:
-						self.config.iface_cache.get_feed(f, force = True)
-						downloads_in_progress[f] = tasks.IdleBlocker('Refresh local feed')
-					continue
-				elif f.startswith('distribution:'):
-					if force or update_local:
-						downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, self.config.iface_cache)
-				elif force and self.network_use != network_offline:
-					downloads_in_progress[f] = self.fetcher.download_and_import_feed(f, self.config.iface_cache)
-					# Once we've starting downloading some things,
-					# we might as well get them all.
-					force = True
-
-			if not downloads_in_progress:
-				if self.network_use == network_offline:
-					info(_("Can't choose versions and in off-line mode, so aborting"))
-				break
-
-			# Wait for at least one download to finish
-			blockers = downloads_in_progress.values()
-			yield blockers
-			tasks.check(blockers, self.handler.report_error)
-
-			for f in downloads_in_progress.keys():
-				if f in downloads_in_progress and downloads_in_progress[f].happened:
-					del downloads_in_progress[f]
-					downloads_finished.add(f)
-
-					# Need to refetch any "distribution" feed that
-					# depends on this one
-					distro_feed_url = 'distribution:' + f
-					if distro_feed_url in downloads_finished:
-						downloads_finished.remove(distro_feed_url)
-					if distro_feed_url in downloads_in_progress:
-						del downloads_in_progress[distro_feed_url]
-
-	@tasks.async
 	def solve_and_download_impls(self, refresh = False, select_only = False):
-		"""Run L{solve_with_downloads} and then get the selected implementations too.
-		@raise SafeException: if we couldn't select a set of implementations
-		@since: 0.40"""
-		refreshed = self.solve_with_downloads(refresh)
-		if refreshed:
-			yield refreshed
-			tasks.check(refreshed)
-
-		if not self.solver.ready:
-			raise self.solver.get_failure_reason()
-
-		if not select_only:
-			downloaded = self.download_uncached_implementations()
-			if downloaded:
-				yield downloaded
-				tasks.check(downloaded)
+		return self.driver.solve_and_download_impls(refresh, select_only)
 
 	def need_download(self):
-		"""Decide whether we need to download anything (but don't do it!)
-		@return: true if we MUST download something (feeds or implementations)
-		@rtype: bool"""
-		host_arch = self.target_arch
-		if self.requirements.source:
-			host_arch = arch.SourceArchitecture(host_arch)
-		self.solver.solve(self.root, host_arch, command_name = self.command)
-		for w in self.watchers: w()
-
-		if not self.solver.ready:
-			return True		# Maybe a newer version will work?
-
-		if self.get_uncached_implementations():
-			return True
-
-		return False
+		return self.driver.need_download()
 
 	def download_uncached_implementations(self):
-		"""Download all implementations chosen by the solver that are missing from the cache."""
-		assert self.solver.ready, "Solver is not ready!\n%s" % self.solver.selections
-		return self.fetcher.download_impls([impl for impl in self.solver.selections.values() if not self.get_cached(impl)],
-						   self.config.stores)
+		return self.driver.download_uncached_implementations()
 
 	def download_icon(self, interface, force = False):
 		"""Download an icon for this interface and add it to the
