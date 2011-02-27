@@ -158,37 +158,38 @@ class Fetcher(object):
 		return '%s/%s/latest.xml' % (self.feed_mirror, _get_feed_dir(url))
 
 	@tasks.async
-	def get_packagekit_feed(self, iface_cache, feed_url):
+	def get_packagekit_feed(self, feed_url):
 		"""Send a query to PackageKit (if available) for information about this package.
 		On success, the result is added to iface_cache.
 		"""
 		assert feed_url.startswith('distribution:'), feed_url
-		master_feed = iface_cache.get_feed(feed_url.split(':', 1)[1])
+		master_feed = self.config.iface_cache.get_feed(feed_url.split(':', 1)[1])
 		if master_feed:
-			fetch = iface_cache.distro.fetch_candidates(master_feed)
+			fetch = self.config.iface_cache.distro.fetch_candidates(master_feed)
 			if fetch:
 				yield fetch
 				tasks.check(fetch)
 
 			# Force feed to be regenerated with the new information
-			iface_cache.get_feed(feed_url, force = True)
+			self.config.iface_cache.get_feed(feed_url, force = True)
 
-	def download_and_import_feed(self, feed_url, iface_cache, force = False):
+	def download_and_import_feed(self, feed_url, iface_cache = None, force = False):
 		"""Download the feed, download any required keys, confirm trust if needed and import.
 		@param feed_url: the feed to be downloaded
 		@type feed_url: str
-		@param iface_cache: cache in which to store the feed
-		@type iface_cache: L{iface_cache.IfaceCache}
+		@param iface_cache: (deprecated)
 		@param force: whether to abort and restart an existing download"""
 		from download import DownloadAborted
+
+		assert iface_cache is None or iface_cache is self.config.iface_cache
 		
 		debug(_("download_and_import_feed %(url)s (force = %(force)d)"), {'url': feed_url, 'force': force})
 		assert not os.path.isabs(feed_url)
 
 		if feed_url.startswith('distribution:'):
-			return self.get_packagekit_feed(iface_cache, feed_url)
+			return self.get_packagekit_feed(feed_url)
 
-		primary = self._download_and_import_feed(feed_url, iface_cache, force, use_mirror = False)
+		primary = self._download_and_import_feed(feed_url, force, use_mirror = False)
 
 		@tasks.named_async("monitor feed downloads for " + feed_url)
 		def wait_for_downloads(primary):
@@ -218,7 +219,7 @@ class Fetcher(object):
 				warn(_("Feed download from %(url)s failed: %(exception)s"), {'url': feed_url, 'exception': ex})
 
 			# Start downloading from mirror...
-			mirror = self._download_and_import_feed(feed_url, iface_cache, force, use_mirror = True)
+			mirror = self._download_and_import_feed(feed_url, force, use_mirror = True)
 
 			# Wait until both mirror and primary tasks are complete...
 			while True:
@@ -263,7 +264,7 @@ class Fetcher(object):
 
 		return wait_for_downloads(primary)
 
-	def _download_and_import_feed(self, feed_url, iface_cache, force, use_mirror):
+	def _download_and_import_feed(self, feed_url, force, use_mirror):
 		"""Download and import a feed.
 		@param use_mirror: False to use primary location; True to use mirror."""
 		if use_mirror:
@@ -293,12 +294,12 @@ class Fetcher(object):
 			yield keys_downloaded.finished
 			tasks.check(keys_downloaded.finished)
 
-			if not iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
+			if not self.config.iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
 				blocker = self.handler.confirm_keys(pending, self.fetch_key_info)
 				if blocker:
 					yield blocker
 					tasks.check(blocker)
-				if not iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
+				if not self.config.iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
 					raise NoTrustedKeys(_("No signing keys trusted; not importing"))
 
 		task = fetch_feed()
