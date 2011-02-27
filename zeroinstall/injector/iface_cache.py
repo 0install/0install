@@ -548,4 +548,16 @@ class IfaceCache(object):
 
 		return True
 
+	def usable_feeds(self, iface, arch):
+		"""Generator for C{iface.feeds} that are valid for this architecture.
+		@rtype: generator
+		@see: L{arch}
+		@since: 0.53"""
+		for f in self.get_feed_imports(iface):
+			if f.os in arch.os_ranks and f.machine in arch.machine_ranks:
+				yield f
+			else:
+				debug(_("Skipping '%(feed)s'; unsupported architecture %(os)s-%(machine)s"),
+					{'feed': f, 'os': f.os, 'machine': f.machine})
+
 iface_cache = IfaceCache()

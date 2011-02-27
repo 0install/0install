@@ -93,18 +93,11 @@ class Policy(object):
 		"""Generator for C{iface.feeds} that are valid for our architecture.
 		@rtype: generator
 		@see: L{arch}"""
-		if self.requirements.source and iface.uri == self.root:
-			# Note: when feeds are recursive, we'll need a better test for root here
-			machine_ranks = {'src': 1}
-		else:
-			machine_ranks = arch.machine_ranks
-
-		for f in self.config.iface_cache.get_feed_imports(iface):
-			if f.os in arch.os_ranks and f.machine in machine_ranks:
-				yield f
-			else:
-				debug(_("Skipping '%(feed)s'; unsupported architecture %(os)s-%(machine)s"),
-					{'feed': f, 'os': f.os, 'machine': f.machine})
+		a = self.driver.target_arch
+		if iface.uri != self.root:
+			# note: assumes that only the root arch may be different (e.g. if using --source)
+			a = a.child_arch
+		return self.config.iface_cache.usable_feeds(iface, a)
 
 	def is_stale(self, feed):
 		"""@deprecated: use IfaceCache.is_stale"""
