@@ -83,8 +83,8 @@ class KeyInfoFetcher:
 
 class Fetcher(object):
 	"""Downloads and stores various things.
-	@ivar handler: handler to use for user-interaction
-	@type handler: L{handler.Handler}
+	@ivar config: used to get handler, iface_cache and stores
+	@type config: L{config.Config}
 	@ivar key_info: caches information about GPG keys
 	@type key_info: {str: L{KeyInfoFetcher}}
 	@ivar key_info_server: the base URL of a key information server
@@ -92,13 +92,18 @@ class Fetcher(object):
 	@ivar feed_mirror: the base URL of a mirror site for keys and feeds
 	@type feed_mirror: str | None
 	"""
-	__slots__ = ['handler', 'feed_mirror', 'key_info_server', 'key_info']
+	__slots__ = ['config', 'feed_mirror', 'key_info_server', 'key_info']
 
-	def __init__(self, handler):
-		self.handler = handler
+	def __init__(self, config):
+		assert config.handler, "API change!"
+		self.config = config
 		self.feed_mirror = DEFAULT_FEED_MIRROR
 		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
 		self.key_info = {}
+
+	@property
+	def handler(self):
+		return self.config.handler
 
 	@tasks.async
 	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None):
@@ -383,12 +388,19 @@ class Fetcher(object):
 		dl.expected_size = download_source.size + (download_source.start_offset or 0)
 		return (dl.downloaded, dl.tempfile)
 
-	def download_icon(self, interface, force = False, modification_time = None):
+	def download_icon(self, interface, force = False):
 		"""Download an icon for this interface and add it to the
-		icon cache. If the interface has no icon or we are offline, do nothing.
+		icon cache. If the interface has no icon do nothing.
 		@return: the task doing the import, or None
 		@rtype: L{tasks.Task}"""
-		debug(_("download_icon %(interface)s (force = %(force)d)"), {'interface': interface, 'force': force})
+		debug("download_icon %(interface)s (force = %(force)d)", {'interface': interface, 'force': force})
+
+		modification_time = None
+		existing_icon = self.config.iface_cache.get_icon_path(interface)
+		if existing_icon:
+			file_mtime = os.stat(existing_icon).st_mtime
+			from email.utils import formatdate
+			modification_time = formatdate(timeval = file_mtime, localtime = False, usegmt = True)
 
 		# Find a suitable icon to download
 		for icon in interface.get_metadata(XMLNS_IFACE, 'icon'):

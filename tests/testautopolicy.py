@@ -62,7 +62,7 @@ class TestAutoPolicy(BaseTest):
     <archive href='http://foo/foo.tgz' size='100'/>
   </implementation>
 </interface>""" % foo_iface_uri)
-		self.config.fetcher = fetch.Fetcher(self.config.handler)
+		self.config.fetcher = fetch.Fetcher(self.config)
 		policy = Policy(foo_iface_uri, config = self.config)
 		policy.freshness = 0
 		try:

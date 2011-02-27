@@ -70,7 +70,7 @@ class TestDownload(BaseTest):
 		BaseTest.setUp(self)
 
 		self.config.handler.allow_downloads = True
-		self.config.fetcher = fetch.Fetcher(self.config.handler)
+		self.config.fetcher = fetch.Fetcher(self.config)
 
 		stream = tempfile.TemporaryFile()
 		stream.write(data.thomas_key)

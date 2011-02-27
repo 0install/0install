@@ -47,7 +47,7 @@ class Config(object):
 	def fetcher(self):
 		if not self._fetcher:
 			from zeroinstall.injector import fetch
-			self._fetcher = fetch.Fetcher(self.handler)
+			self._fetcher = fetch.Fetcher(self)
 		return self._fetcher
 
 	@property

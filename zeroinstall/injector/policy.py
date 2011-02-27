@@ -317,15 +317,7 @@ class Policy(object):
 			info("Not downloading icon for %s as we are off-line", interface)
 			return
 
-		modification_time = None
-
-		existing_icon = self.config.iface_cache.get_icon_path(interface)
-		if existing_icon:
-			file_mtime = os.stat(existing_icon).st_mtime
-			from email.utils import formatdate
-			modification_time = formatdate(timeval = file_mtime, localtime = False, usegmt = True)
-
-		return self.fetcher.download_icon(interface, force, modification_time)
+		return self.fetcher.download_icon(interface, force)
 
 	def get_interface(self, uri):
 		"""@deprecated: use L{iface_cache.IfaceCache.get_interface} instead"""

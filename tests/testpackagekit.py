@@ -7,8 +7,6 @@ sys.path.insert(0, '..')
 from zeroinstall.injector import packagekit, handler, model, fetch
 from zeroinstall.support import tasks
 
-h = handler.Handler()
-
 import dbus
 
 class PackageKit05:
@@ -158,7 +156,7 @@ class TestPackageKit(BaseTest):
 		pk.get_candidates('gimp', factory, 'package:test')
 
 		blocker = pk.fetch_candidates(["gimp"])
-		h.wait_for_blocker(blocker)
+		tasks.wait_for_blocker(blocker)
 		tasks.check(blocker)
 
 		impls = {}
@@ -178,9 +176,10 @@ class TestPackageKit(BaseTest):
 		self.assertEquals(["package:test:gimp:2.6.8-2:x86_64"], impls.keys())
 
 		impl, = impls.values()
-		fetcher = fetch.Fetcher(handler = h)
+		fetcher = fetch.Fetcher(config = self.config)
+		self.config.handler.allow_downloads = True
 		b = fetcher.download_impl(impl, impl.download_sources[0], stores = None)
-		h.wait_for_blocker(b)
+		tasks.wait_for_blocker(b)
 		tasks.check(b)
 
 if __name__ == '__main__':
