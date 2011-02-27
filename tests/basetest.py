@@ -209,4 +209,5 @@ class BaseTest(unittest.TestCase):
 	def import_feed(self, url, path):
 		iface_cache = self.config.iface_cache
 		iface_cache.get_interface(url)
-		iface_cache._feeds[url] = reader.load_feed(path)
+		feed = iface_cache._feeds[url] = reader.load_feed(path)
+		return feed

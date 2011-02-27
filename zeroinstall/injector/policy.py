@@ -18,9 +18,6 @@ from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.injector.config import load_config
 from zeroinstall.support import tasks
 
-# If we started a check within this period, don't start another one:
-FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
-
 class Policy(object):
 	"""Chooses a set of implementations based on a policy.
 	Typical use:

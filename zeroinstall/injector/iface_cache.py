@@ -39,6 +39,9 @@ from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.injector.model import Interface, escape, unescape
 from zeroinstall import SafeException
 
+# If we started a check within this period, don't start another one:
+FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
+
 def _pretty_time(t):
 	assert isinstance(t, (int, long)), t
 	return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.localtime(t))
@@ -522,7 +525,8 @@ class IfaceCache(object):
 	def is_stale(self, feed, freshness_threshold):
 		"""Check whether feed needs updating, based on the configured L{freshness}.
 		None is considered to be stale.
-		@return: true if feed is stale or missing.
+		If we already tried to update the feed within FAILED_CHECK_DELAY, returns false.
+		@return: True if feed should be updated
 		@since: 0.53"""
 		if feed is None:
 			return True

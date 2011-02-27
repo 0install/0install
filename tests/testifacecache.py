@@ -155,6 +155,13 @@ class TestIfaceCache(BaseTest):
 
 		self.assertEquals(None, iface_cache.get_last_check_attempt("http://foo/bar2.xml"))
 
+	def testIsStale(self):
+		iface_cache = self.config.iface_cache
+		feed = self.import_feed('http://localhost:8000/Hello', 'Hello')
+		assert iface_cache.is_stale(feed, 1) == True
+		assert iface_cache.is_stale(feed, time.time() + 1) == False
+		iface_cache.mark_as_checking(feed.url)
+		assert iface_cache.is_stale(feed, 1) == False
 
 if __name__ == '__main__':
 	unittest.main()
