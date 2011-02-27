@@ -6,6 +6,7 @@ import gtk, pango
 import dialog
 
 import zeroinstall
+from zeroinstall import _
 from zeroinstall import support
 from zeroinstall.injector import selections
 

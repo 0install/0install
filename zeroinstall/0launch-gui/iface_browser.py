@@ -3,6 +3,7 @@
 
 import gtk, gobject, pango
 
+from zeroinstall import _, translation
 from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector import model, reader
 import properties
@@ -10,6 +11,8 @@ from zeroinstall.gtkui.icon import load_icon
 from zeroinstall import support
 from logging import warn, info
 import utils
+
+ngettext = translation.ngettext
 
 def _stability(impl):
 	assert impl

@@ -6,6 +6,7 @@ import gobject
 import dialog
 from StringIO import StringIO
 
+from zeroinstall import _
 from zeroinstall.injector import model, selections, qdom
 
 XMLNS_0COMPILE = 'http://zero-install.sourceforge.net/2006/namespaces/0compile'

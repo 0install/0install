@@ -3,6 +3,7 @@
 
 import gtk
 from dialog import Template
+from zeroinstall import _
 from zeroinstall.gtkui import help_box
 from zeroinstall.injector.model import network_levels
 from zeroinstall.injector import trust, gpg

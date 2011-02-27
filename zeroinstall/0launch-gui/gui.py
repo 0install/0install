@@ -3,6 +3,7 @@
 
 import gobject
 
+from zeroinstall import _
 from zeroinstall.support import tasks
 from zeroinstall.injector import handler, download
 

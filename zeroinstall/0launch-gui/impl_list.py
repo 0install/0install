@@ -2,6 +2,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import gtk, gobject, os, pango
+from zeroinstall import _
 from zeroinstall.injector import model, writer
 from zeroinstall import support
 import utils

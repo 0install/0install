@@ -1,6 +1,7 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from zeroinstall import _
 from zeroinstall import support
 
 def get_fetch_info(policy, impl):

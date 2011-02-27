@@ -5,6 +5,7 @@ import gtk
 import sys
 from logging import info
 
+from zeroinstall import _, translation
 from zeroinstall import SafeException
 from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector import download, iface_cache
@@ -12,6 +13,8 @@ from iface_browser import InterfaceBrowser
 import dialog
 from zeroinstall.gtkui import gtkutils
 from zeroinstall.gtkui import help_box
+
+ngettext = translation.ngettext
 
 SHOW_PREFERENCES = 0
 

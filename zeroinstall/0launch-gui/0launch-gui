@@ -24,9 +24,7 @@ sys.path.insert(0, _mydir)
 # (if different)
 sys.path.insert(0, dirname(dirname(_mydir)))
 
-from zeroinstall import translation, localedir, _
-__builtins__._ = _
-__builtins__.ngettext = translation.ngettext
+from zeroinstall import localedir
 
 if localedir:
 	# Tell GTK where to find the translations, if they're not in

@@ -5,6 +5,7 @@ import os, sys
 
 from optparse import OptionParser
 
+from zeroinstall import _
 from zeroinstall.injector import requirements
 from zeroinstall.injector.policy import Policy
 from zeroinstall.injector.config import load_config
