@@ -407,14 +407,34 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 
 		_extract(stream, destdir, ext_cmd, start_offset)
 	else:
+		import tempfile
+
 		# Since we don't have GNU tar, use python's tarfile module. This will probably
 		# be a lot slower and we do not support lzma and xz; however, it is portable.
+		# (lzma and xz are handled by first uncompressing stream to a temporary file.
+		# this is simple to do, but less efficient than piping through the program)
 		if decompress is None:
 			rmode = 'r|'
 		elif decompress == 'bzip2':
 			rmode = 'r|bz2'
 		elif decompress == 'gzip':
 			rmode = 'r|gz'
+		elif decompress == 'lzma':
+			unlzma = find_in_path('unlzma')
+			if not unlzma:
+				unlzma = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unlzma'))
+			temp = tempfile.NamedTemporaryFile(suffix='.tar')
+			subprocess.check_call((unlzma), stdin=stream, stdout=temp)
+			rmode = 'r|'
+			stream = temp
+		elif decompress == 'xz':
+			unxz = find_in_path('unxz')
+			if not unxz:
+				unxz = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unxz'))
+			temp = tempfile.NamedTemporaryFile(suffix='.tar')
+			subprocess.check_call((unxz), stdin=stream, stdout=temp)
+			rmode = 'r|'
+			stream = temp
 		else:
 			raise SafeException(_('GNU tar unavailable; unsupported compression format: %s') % decompress)
 
