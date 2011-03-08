@@ -752,7 +752,7 @@ class ZeroInstallFeed(object):
 	@ivar metadata: extra elements we didn't understand
 	"""
 	# _main is deprecated
-	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'summaries', '_package_implementations',
+	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'first_description', 'summaries', 'first_summary', '_package_implementations',
 		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata']
 
 	def __init__(self, feed_element, local_path = None, distro = None):
@@ -763,7 +763,9 @@ class ZeroInstallFeed(object):
 		self.implementations = {}
 		self.name = None
 		self.summaries = {}	# { lang: str }
+		self.first_summary = None
 		self.descriptions = {}	# { lang: str }
+		self.first_description = None
 		self.last_modified = None
 		self.feeds = []
 		self.feed_for = set()
@@ -808,8 +810,12 @@ class ZeroInstallFeed(object):
 			if x.name == 'name':
 				self.name = x.content
 			elif x.name == 'description':
+				if self.first_description == None:
+					self.first_description = x.content
 				self.descriptions[x.attrs.get("http://www.w3.org/XML/1998/namespace lang", 'en')] = x.content
 			elif x.name == 'summary':
+				if self.first_summary == None:
+					self.first_summary = x.content
 				self.summaries[x.attrs.get("http://www.w3.org/XML/1998/namespace lang", 'en')] = x.content
 			elif x.name == 'feed-for':
 				feed_iface = x.getAttribute('interface')
@@ -1043,11 +1049,11 @@ class ZeroInstallFeed(object):
 
 	@property
 	def summary(self):
-		return _best_language_match(self.summaries)
+		return _best_language_match(self.summaries) or self.first_summary
 
 	@property
 	def description(self):
-		return _best_language_match(self.descriptions)
+		return _best_language_match(self.descriptions) or self.first_description
 
 class DummyFeed(object):
 	"""Temporary class used during API transition."""
