@@ -14,7 +14,7 @@ from zeroinstall import _
 import os
 
 from zeroinstall.support import basedir
-from namespaces import config_site, config_prog, XMLNS_TRUST
+from .namespaces import config_site, config_prog, XMLNS_TRUST
 
 class TrustDB(object):
 	"""A database of trusted keys.

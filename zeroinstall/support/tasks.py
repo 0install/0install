@@ -164,7 +164,7 @@ class TimeoutBlocker(Blocker):
 	def __init__(self, timeout, name):
 		"""Trigger after 'timeout' seconds (may be a fraction)."""
 		Blocker.__init__(self, name)
-		gobject.timeout_add(long(timeout * 1000), self._timeout)
+		gobject.timeout_add(int(timeout * 1000), self._timeout)
 	
 	def _timeout(self):
 		self.trigger()

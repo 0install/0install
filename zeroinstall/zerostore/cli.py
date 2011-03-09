@@ -99,7 +99,7 @@ def do_optimise(args):
 
 	print _("Optimising"), cache_dir
 
-	import optimise
+	from . import optimise
 	uniq_size, dup_size, already_linked, man_size = optimise.optimise(cache_dir)
 	print _("Original size  : %(size)s (excluding the %(manifest_size)s of manifests)") % {'size': support.pretty_size(uniq_size + dup_size), 'manifest_size': support.pretty_size(man_size)}
 	print _("Already saved  : %s") % support.pretty_size(already_linked)

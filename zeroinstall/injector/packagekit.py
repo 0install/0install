@@ -309,7 +309,7 @@ class _PackageKitTransaction(object):
 				   'group': str(group),
 				   'detail': str(detail),
 				   'url': str(url),
-				   'size': long(size)}
+				   'size': int(size)}
 		_logger_pk.debug(_('Details: %s %r'), id, details)
 		self.details[id] = details
 

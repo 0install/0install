@@ -110,7 +110,7 @@ class AddBox:
 			self.window.set_response_sensitive(_RESPONSE_PREV, True)
 
 		def finish():
-			import xdgutils
+			from . import xdgutils
 			iface = iface_cache.get_interface(model.canonical_iface_uri(uri.get_text()))
 
 			try:

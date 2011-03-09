@@ -49,7 +49,7 @@ def get_size(path):
 		size = os.path.getsize(man)
 		for line in file(man, 'rb'):
 			if line[:1] in "XF":
-				size += long(line.split(' ', 4)[3])
+				size += int(line.split(' ', 4)[3])
 	else:
 		size = 0
 		for root, dirs, files in os.walk(path):

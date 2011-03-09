@@ -24,7 +24,7 @@ A top-level ".manifest" file is ignored.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from __future__ import generators
+
 import os, stat
 from zeroinstall import SafeException, _
 from zeroinstall.zerostore import BadDigest

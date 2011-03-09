@@ -147,7 +147,7 @@ class PendingFeed(object):
 	def recheck(self):
 		"""Set new_xml and sigs by reading signed_data.
 		You need to call this when previously-missing keys are added to the GPG keyring."""
-		import gpg
+		from . import gpg
 		try:
 			self.signed_data.seek(0)
 			stream, sigs = gpg.check_stream(self.signed_data)
@@ -225,7 +225,7 @@ class IfaceCache(object):
 		@rtype: bool
 		@since: 0.48
 		"""
-		import trust
+		from . import trust
 		updated = self._oldest_trusted(sigs, trust.domain_from_url(feed_url))
 		if updated is None: return False	# None are trusted
 
@@ -271,8 +271,8 @@ class IfaceCache(object):
 
 		feed = self.get_feed(feed_url)
 
-		import writer
-		feed.last_checked = long(time.time())
+		from . import writer
+		feed.last_checked = int(time.time())
 		writer.save_feed(feed)
 
 		info(_("Updated feed cache entry for %(interface)s (modified %(time)s)"),
@@ -407,7 +407,7 @@ class IfaceCache(object):
 		@return: a list of signatures, or None
 		@rtype: [L{gpg.Signature}] or None
 		@since: 0.25"""
-		import gpg
+		from . import gpg
 		if os.path.isabs(uri):
 			old_iface = uri
 		else:
@@ -423,7 +423,7 @@ class IfaceCache(object):
 	def _get_signature_date(self, uri):
 		"""Read the date-stamp from the signature of the cached interface.
 		If the date-stamp is unavailable, returns None."""
-		import trust
+		from . import trust
 		sigs = self.get_cached_signatures(uri)
 		if sigs:
 			return self._oldest_trusted(sigs, trust.domain_from_url(uri))

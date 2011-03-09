@@ -85,7 +85,7 @@ class Store:
 			raise NonwritableStore(str(ex))
 	
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0, try_helper = False):
-		import unpack
+		from . import unpack
 		info(_("Caching new implementation (digest %s) in %s"), required_digest, self.dir)
 
 		if self.lookup(required_digest):
@@ -180,7 +180,7 @@ class Store:
 		else:
 			extracted = tmp
 
-		import manifest
+		from . import manifest
 
 		manifest.fixup_permissions(extracted)
 

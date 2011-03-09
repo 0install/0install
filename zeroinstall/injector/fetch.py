@@ -179,7 +179,7 @@ class Fetcher(object):
 		@type feed_url: str
 		@param iface_cache: (deprecated)
 		@param force: whether to abort and restart an existing download"""
-		from download import DownloadAborted
+		from .download import DownloadAborted
 
 		assert iface_cache is None or iface_cache is self.config.iface_cache
 		

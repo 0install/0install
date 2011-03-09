@@ -87,14 +87,14 @@ def optimise(impl_dir):
 
 			if line[0] == "S":
 				itype, digest, size, rest = line.split(' ', 3)
-				uniq_size += long(size)
+				uniq_size += int(size)
 				continue
 
 			assert line[0] in "FX"
 
 			itype, digest, mtime, size, path = line.split(' ', 4)
 			path = path[:-1]	# Strip newline
-			size = long(size)
+			size = int(size)
 
 			key = (itype, digest, mtime, size)
 			loc_path = (impl, dir, path)

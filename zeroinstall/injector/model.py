@@ -728,7 +728,7 @@ def _get_long(elem, attr_name):
 	val = elem.getAttribute(attr_name)
 	if val is not None:
 		try:
-			val = long(val)
+			val = int(val)
 		except ValueError:
 			raise SafeException(_("Invalid value for integer attribute '%(attribute_name)s': %(value)s") % {'attribute_name': attr_name, 'value': val})
 	return val
@@ -934,7 +934,7 @@ class ZeroInstallFeed(object):
 
 			size = item.getAttribute('size')
 			if size:
-				impl.size = long(size)
+				impl.size = int(size)
 			impl.arch = item_attrs.get('arch', None)
 			try:
 				stability = stability_levels[str(item_attrs['stability'])]
@@ -959,7 +959,7 @@ class ZeroInstallFeed(object):
 					size = elem.getAttribute('size')
 					if not size:
 						raise InvalidInterface(_("Missing size attribute on <archive>"))
-					impl.add_download_source(url = url, size = long(size),
+					impl.add_download_source(url = url, size = int(size),
 							extract = elem.getAttribute('extract'),
 							start_offset = _get_long(elem, 'start-offset'),
 							type = elem.getAttribute('type'))
@@ -977,7 +977,7 @@ class ZeroInstallFeed(object):
 							size = recipe_step.getAttribute('size')
 							if not size:
 								raise InvalidInterface(_("Missing size attribute on <archive>"))
-							recipe.steps.append(DownloadSource(None, url = url, size = long(size),
+							recipe.steps.append(DownloadSource(None, url = url, size = int(size),
 									extract = recipe_step.getAttribute('extract'),
 									start_offset = _get_long(recipe_step, 'start-offset'),
 									type = recipe_step.getAttribute('type')))
