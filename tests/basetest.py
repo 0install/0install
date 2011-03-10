@@ -176,7 +176,7 @@ class BaseTest(unittest.TestCase):
 		os.mkdir(self.cache_system, 0500)
 		os.mkdir(self.gnupg_home, 0700)
 
-		if os.environ.has_key('DISPLAY'):
+		if 'DISPLAY' in os.environ:
 			del os.environ['DISPLAY']
 
 		self.config = TestConfig()
