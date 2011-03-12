@@ -400,7 +400,14 @@ class SATSolver(Solver):
 		def add_command_iface(uri, arch, command_name):
 			"""Add every <command> in interface 'uri' with this name.
 			Each one depends on the corresponding implementation and only
-			one can be selected."""
+			one can be selected. If closest_match is on, include a dummy
+			command that can always be selected."""
+
+			# Check whether we've already processed this (interface,command) pair
+			existing = group_clause_for_command.get((uri, command_name), None)
+			if existing is not None:
+				return existing.lits
+
 			# First ensure that the interface itself has been processed
 			# We'll reuse the ordering of the implementations to order
 			# the commands too.
@@ -434,15 +441,9 @@ class SATSolver(Solver):
 						runner_command_name = _get_command_name(d)
 						runner_vars = add_command_iface(d.interface, arch.child_arch, runner_command_name)
 
-						if closest_match:
-							dummy_command = problem.add_variable(None)
-							runner_vars.append(dummy_command)
 						# If the parent command is chosen, one of the candidate runner commands
 						# must be too. If there aren't any, then this command is unselectable.
 						problem.add_clause([sat.neg(command_var)] + runner_vars)
-						if runner_vars:
-							# Can't select more than one of them.
-							group_clause_for_command[(d.interface, runner_command_name)] = problem.at_most_one(runner_vars)
 					else:
 						debug(_("Considering command dependency %s"), d)
 						add_iface(d.interface, arch.child_arch)
@@ -458,15 +459,24 @@ class SATSolver(Solver):
 					return old_reason or (_('No %s command') % command_name)
 				self.details[iface] = [(impl, new_reason(impl, reason)) for (impl, reason) in self.details[iface]]
 
+			if closest_match:
+				dummy_command = problem.add_variable(None)
+				var_names.append(dummy_command)
+
+			if var_names:
+				# Can't select more than one of them.
+				assert (uri, command_name) not in group_clause_for_command
+				group_clause_for_command[(uri, command_name)] = problem.at_most_one(var_names)
+
 			return var_names
 
 		if command_name is None:
 			add_iface(root_interface, root_arch)
 		else:
 			commands = add_command_iface(root_interface, root_arch, command_name)
-			if commands:
+			if len(commands) > int(closest_match):
+				# (we have at least one non-dummy command)
 				problem.add_clause(commands)		# At least one
-				group_clause_for_command[(root_interface, command_name)] = problem.at_most_one(commands)
 			else:
 				# (note: might be because we haven't cached it yet)
 				info("No %s <command> in %s", command_name, root_interface)

@@ -1,0 +1,18 @@
+<?xml version="1.0" ?>
+<interface uri="http://gfxmonk.net/dist/0install/watchdog.xml" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+	<name>watchdog</name>
+	<summary>Cross-platform filesystem monitoring for python</summary>
+	<homepage>https://github.com/gorakhargosh/watchdog</homepage>
+	<group main="watchdog/watchmedo.py">
+		<command name="test">
+			<runner interface="./nose.xml"/>
+		</command>
+		<implementation id="sha1new=32616e915c5ee25d835ed38421f15ebbe84b438f" released="2011-01-22" version="0.5.0">
+			<archive href="http://gfxmonk.net/dist/0install/watchdog/watchdog-0.5.0.tgz" size="83809"/>
+		</implementation>
+		<implementation id="sha1new=b6d40c5d38b58c1be359d879dadc90d212f9294c" released="2011-02-09" version="0.5.3">
+			<archive href="http://gfxmonk.net/dist/0install/watchdog/watchdog-0.5.3.tgz" size="83971"/>
+		</implementation>
+		<implementation id="." released="2011-02-09" version="0.5.3-pre"/>
+	</group>
+</interface>

@@ -208,5 +208,10 @@ class TestSolver(BaseTest):
 		finally:
 			locale.setlocale(locale.LC_ALL, '')
 
+	def testDecideBug(self):
+		s = solver.DefaultSolver(self.config)
+		watch_xml = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'watchdog.xml')
+		s.solve(watch_xml, arch.get_architecture(None, None), command_name = 'test')
+
 if __name__ == '__main__':
 	unittest.main()

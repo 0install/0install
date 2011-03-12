@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<interface uri="http://gfxmonk.net/dist/0install/nose.xml" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+	<name>nosetests</name>
+	<summary>is nicer testing for python</summary>
+
+	<group main="bin/nose">
+		<implementation id="sha1new=9e367bae00e50616d6b612e94713616a7fb5af4d" main="bin/nosetests" released="2010-07-19" version="0.11.2">
+			<archive extract="nose-0.11.2" href="http://somethingaboutorange.com/mrl/projects/nose/nose-0.11.2.tar.gz" size="256587" type="application/x-compressed-tar"/>
+		</implementation>
+	</group>
+</interface>
