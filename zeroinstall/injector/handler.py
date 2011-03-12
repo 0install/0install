@@ -18,15 +18,13 @@ from zeroinstall import NeedDownload, SafeException
 from zeroinstall.support import tasks
 from zeroinstall.injector import download
 
-KEY_INFO_TIMEOUT = 10	# Maximum time to wait for response from key-info-server
-
 class NoTrustedKeys(SafeException):
 	"""Thrown by L{Handler.confirm_import_feed} on failure."""
 	pass
 
 class Handler(object):
 	"""
-	This implementation uses the GLib mainloop. Note that QT4 can use the GLib mainloop too.
+	A Handler is used to interact with the user (e.g. to confirm keys, display download progress, etc).
 
 	@ivar monitored_downloads: dict of downloads in progress
 	@type monitored_downloads: {URL: L{download.Download}}
@@ -38,14 +36,13 @@ class Handler(object):
 	@type dry_run: bool
 	"""
 
-	__slots__ = ['monitored_downloads', 'dry_run', 'total_bytes_downloaded', 'n_completed_downloads', '_current_confirm']
+	__slots__ = ['monitored_downloads', 'dry_run', 'total_bytes_downloaded', 'n_completed_downloads']
 
 	def __init__(self, mainloop = None, dry_run = False):
 		self.monitored_downloads = {}		
 		self.dry_run = dry_run
 		self.n_completed_downloads = 0
 		self.total_bytes_downloaded = 0
-		self._current_confirm = None
 
 	def monitor_download(self, dl):
 		"""Called when a new L{download} is started.
@@ -108,91 +105,16 @@ class Handler(object):
 			self.monitor_download(dl)
 		return dl
 
-	def confirm_keys(self, pending, fetch_key_info):
-		"""We don't trust any of the signatures yet. Ask the user.
-		When done update the L{trust} database, and then call L{trust.TrustDB.notify}.
-		This method starts downloading information about the signing keys and calls L{confirm_import_feed}.
-		@since: 0.42
-		@arg pending: an object holding details of the updated feed
-		@type pending: L{PendingFeed}
-		@arg fetch_key_info: a function which can be used to fetch information about a key fingerprint
-		@type fetch_key_info: str -> L{Blocker}
-		@return: A blocker that triggers when the user has chosen, or None if already done.
-		@rtype: None | L{Blocker}"""
-
-		assert pending.sigs
-
-		from zeroinstall.injector import gpg
-		valid_sigs = [s for s in pending.sigs if isinstance(s, gpg.ValidSig)]
-		if not valid_sigs:
-			def format_sig(sig):
-				msg = str(sig)
-				if sig.messages:
-					msg += "\nMessages from GPG:\n" + sig.messages
-				return msg
-			raise SafeException(_('No valid signatures found on "%(url)s". Signatures:%(signatures)s') %
-					{'url': pending.url, 'signatures': ''.join(['\n- ' + format_sig(s) for s in pending.sigs])})
-
-		# Start downloading information about the keys...
-		kfs = {}
-		for sig in valid_sigs:
-			kfs[sig] = fetch_key_info(sig.fingerprint)
-
-		return self._queue_confirm_import_feed(pending, kfs)
-
-	@tasks.async
-	def _queue_confirm_import_feed(self, pending, valid_sigs):
-		# Wait up to KEY_INFO_TIMEOUT seconds for key information to arrive. Avoids having the dialog
-		# box update while the user is looking at it, and may allow it to be skipped completely in some
-		# cases.
-		timeout = tasks.TimeoutBlocker(KEY_INFO_TIMEOUT, "key info timeout")
-		while True:
-			key_info_blockers = [sig_info.blocker for sig_info in valid_sigs.values() if sig_info.blocker is not None]
-			if not key_info_blockers:
-				break
-			info("Waiting for response from key-info server: %s", key_info_blockers)
-			yield [timeout] + key_info_blockers
-			if timeout.happened:
-				info("Timeout waiting for key info response")
-				break
-
-		# If we're already confirming something else, wait for that to finish...
-		while self._current_confirm is not None:
-			info("Waiting for previous key confirmations to finish")
-			yield self._current_confirm
-
-		# Check whether we still need to confirm. The user may have
-		# already approved one of the keys while dealing with another
-		# feed.
-		from zeroinstall.injector import trust
-		domain = trust.domain_from_url(pending.url)
-		for sig in valid_sigs:
-			is_trusted = trust.trust_db.is_trusted(sig.fingerprint, domain)
-			if is_trusted:
-				return
-
-		# Take the lock and confirm this feed
-		self._current_confirm = lock = tasks.Blocker('confirm key lock')
-		try:
-			done = self.confirm_import_feed(pending, valid_sigs)
-			if done is not None:
-				yield done
-				tasks.check(done)
-		finally:
-			self._current_confirm = None
-			lock.trigger()
-
 	@tasks.async
 	def confirm_import_feed(self, pending, valid_sigs):
 		"""Sub-classes should override this method to interact with the user about new feeds.
-		If multiple feeds need confirmation, L{confirm_keys} will only invoke one instance of this
+		If multiple feeds need confirmation, L{trust.TrustMgr.confirm_keys} will only invoke one instance of this
 		method at a time.
 		@param pending: the new feed to be imported
 		@type pending: L{PendingFeed}
 		@param valid_sigs: maps signatures to a list of fetchers collecting information about the key
 		@type valid_sigs: {L{gpg.ValidSig} : L{fetch.KeyInfoFetcher}}
-		@since: 0.42
-		@see: L{confirm_keys}"""
+		@since: 0.42"""
 		from zeroinstall.injector import trust
 
 		assert valid_sigs
@@ -240,6 +162,8 @@ class Handler(object):
 				if stdin.happened:
 					print >>sys.stderr, _("Skipping remaining key lookups due to input from user")
 					break
+		if not shown:
+			print >>sys.stderr, _("Warning: Nothing known about this key!")
 
 		if len(valid_sigs) == 1:
 			print >>sys.stderr, _("Do you want to trust this key to sign feeds from '%s'?") % domain
@@ -256,8 +180,6 @@ class Handler(object):
 		for key in valid_sigs:
 			print >>sys.stderr, _("Trusting %(key_fingerprint)s for %(domain)s") % {'key_fingerprint': key.fingerprint, 'domain': domain}
 			trust.trust_db.trust_key(key.fingerprint, domain)
-
-	confirm_import_feed.original = True
 
 	@tasks.async
 	def confirm_install(self, msg):

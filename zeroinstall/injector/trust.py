@@ -10,11 +10,14 @@ in some cases and not others.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, SafeException
 import os
+from logging import info
 
-from zeroinstall.support import basedir
+from zeroinstall.support import basedir, tasks
 from .namespaces import config_site, config_prog, XMLNS_TRUST
+
+KEY_INFO_TIMEOUT = 10	# Maximum time to wait for response from key-info-server
 
 class TrustDB(object):
 	"""A database of trusted keys.
@@ -154,7 +157,6 @@ def domain_from_url(url):
 	@since: 0.27
 	@raise SafeException: the URL can't be parsed"""
 	import urlparse
-	from zeroinstall import SafeException
 	if os.path.isabs(url):
 		raise SafeException(_("Can't get domain from a local path: '%s'") % url)
 	domain = urlparse.urlparse(url)[1]
@@ -163,3 +165,83 @@ def domain_from_url(url):
 	raise SafeException(_("Can't extract domain from URL '%s'") % url)
 
 trust_db = TrustDB()
+
+class TrustMgr(object):
+	"""A TrustMgr handles the process of deciding whether to trust new keys
+	(contacting the key information server, prompting the user, accepting automatically, etc)
+	@since: 0.53"""
+
+	__slots__ = ['config', '_current_confirm']
+
+	def __init__(self, config):
+		self.config = config
+		self._current_confirm = None	# (a lock to prevent asking the user multiple questions at once)
+
+	@tasks.async
+	def confirm_keys(self, pending):
+		"""We don't trust any of the signatures yet. Collect information about them and add the keys to the
+		trusted list, possibly after confirming with the user (via config.handler).
+		Updates the L{trust} database, and then calls L{trust.TrustDB.notify}.
+		@since: 0.53
+		@arg pending: an object holding details of the updated feed
+		@type pending: L{PendingFeed}
+		@return: A blocker that triggers when the user has chosen, or None if already done.
+		@rtype: None | L{Blocker}"""
+
+		assert pending.sigs
+
+		from zeroinstall.injector import gpg
+		valid_sigs = [s for s in pending.sigs if isinstance(s, gpg.ValidSig)]
+		if not valid_sigs:
+			def format_sig(sig):
+				msg = str(sig)
+				if sig.messages:
+					msg += "\nMessages from GPG:\n" + sig.messages
+				return msg
+			raise SafeException(_('No valid signatures found on "%(url)s". Signatures:%(signatures)s') %
+					{'url': pending.url, 'signatures': ''.join(['\n- ' + format_sig(s) for s in pending.sigs])})
+
+		# Start downloading information about the keys...
+		fetcher = self.config.fetcher
+		kfs = {}
+		for sig in valid_sigs:
+			kfs[sig] = fetcher.fetch_key_info(sig.fingerprint)
+
+		# Wait up to KEY_INFO_TIMEOUT seconds for key information to arrive. Avoids having the dialog
+		# box update while the user is looking at it, and may allow it to be skipped completely in some
+		# cases.
+		timeout = tasks.TimeoutBlocker(KEY_INFO_TIMEOUT, "key info timeout")
+		while True:
+			key_info_blockers = [sig_info.blocker for sig_info in kfs.values() if sig_info.blocker is not None]
+			if not key_info_blockers:
+				break
+			info("Waiting for response from key-info server: %s", key_info_blockers)
+			yield [timeout] + key_info_blockers
+			if timeout.happened:
+				info("Timeout waiting for key info response")
+				break
+
+		# If we're already confirming something else, wait for that to finish...
+		while self._current_confirm is not None:
+			info("Waiting for previous key confirmations to finish")
+			yield self._current_confirm
+
+		# Check whether we still need to confirm. The user may have
+		# already approved one of the keys while dealing with another
+		# feed.
+		domain = domain_from_url(pending.url)
+		for sig in kfs:
+			is_trusted = trust_db.is_trusted(sig.fingerprint, domain)
+			if is_trusted:
+				return
+
+		# Take the lock and confirm this feed
+		self._current_confirm = lock = tasks.Blocker('confirm key lock')
+		try:
+			done = self.config.handler.confirm_import_feed(pending, kfs)
+			if done is not None:
+				yield done
+				tasks.check(done)
+		finally:
+			self._current_confirm = None
+			lock.trigger()

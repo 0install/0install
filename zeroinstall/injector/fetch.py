@@ -16,9 +16,6 @@ from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
 from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector import download
 
-DEFAULT_FEED_MIRROR = "http://roscidus.com/0mirror"
-DEFAULT_KEY_LOOKUP_SERVER = 'https://keylookup.appspot.com'
-
 def _escape_slashes(path):
 	return path.replace('/', '%23')
 
@@ -87,18 +84,12 @@ class Fetcher(object):
 	@type config: L{config.Config}
 	@ivar key_info: caches information about GPG keys
 	@type key_info: {str: L{KeyInfoFetcher}}
-	@ivar key_info_server: the base URL of a key information server
-	@type key_info_server: str
-	@ivar feed_mirror: the base URL of a mirror site for keys and feeds
-	@type feed_mirror: str | None
 	"""
-	__slots__ = ['config', 'feed_mirror', 'key_info_server', 'key_info']
+	__slots__ = ['config', 'key_info']
 
 	def __init__(self, config):
 		assert config.handler, "API change!"
 		self.config = config
-		self.feed_mirror = DEFAULT_FEED_MIRROR
-		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
 		self.key_info = {}
 
 	@property
@@ -150,12 +141,12 @@ class Fetcher(object):
 
 	def get_feed_mirror(self, url):
 		"""Return the URL of a mirror for this feed."""
-		if self.feed_mirror is None:
+		if self.config.feed_mirror is None:
 			return None
 		import urlparse
 		if urlparse.urlparse(url).hostname == 'localhost':
 			return None
-		return '%s/%s/latest.xml' % (self.feed_mirror, _get_feed_dir(url))
+		return '%s/%s/latest.xml' % (self.config.feed_mirror, _get_feed_dir(url))
 
 	@tasks.async
 	def get_packagekit_feed(self, feed_url):
@@ -286,7 +277,7 @@ class Fetcher(object):
 
 			if use_mirror:
 				# If we got the feed from a mirror, get the key from there too
-				key_mirror = self.feed_mirror + '/keys/'
+				key_mirror = self.config.feed_mirror + '/keys/'
 			else:
 				key_mirror = None
 
@@ -295,7 +286,7 @@ class Fetcher(object):
 			tasks.check(keys_downloaded.finished)
 
 			if not self.config.iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
-				blocker = self.handler.confirm_keys(pending, self.fetch_key_info)
+				blocker = self.config.trust_mgr.confirm_keys(pending)
 				if blocker:
 					yield blocker
 					tasks.check(blocker)
@@ -311,7 +302,7 @@ class Fetcher(object):
 			return self.key_info[fingerprint]
 		except KeyError:
 			self.key_info[fingerprint] = key_info = KeyInfoFetcher(self.handler,
-									self.key_info_server, fingerprint)
+									self.config.key_info_server, fingerprint)
 			return key_info
 
 	def download_impl(self, impl, retrieval_method, stores, force = False):

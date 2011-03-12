@@ -15,19 +15,30 @@ from zeroinstall.injector.model import network_levels, network_full
 from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.support import basedir
 
+DEFAULT_FEED_MIRROR = "http://roscidus.com/0mirror"
+DEFAULT_KEY_LOOKUP_SERVER = 'https://keylookup.appspot.com'
+
 class Config(object):
 	"""
 	@ivar handler: handler for main-loop integration
 	@type handler: L{handler.Handler}
+	@ivar key_info_server: the base URL of a key information server
+	@type key_info_server: str
+	@ivar feed_mirror: the base URL of a mirror site for keys and feeds
+	@type feed_mirror: str | None
 	"""
 
-	__slots__ = ['help_with_testing', 'freshness', 'network_use', '_fetcher', '_stores', '_iface_cache', '_handler']
+	__slots__ = ['help_with_testing', 'freshness', 'network_use', 'feed_mirror', 'key_info_server',
+		     '_fetcher', '_stores', '_iface_cache', '_handler', '_trust_mgr']
+
 	def __init__(self, handler = None):
 		self.help_with_testing = False
 		self.freshness = 60 * 60 * 24 * 30
 		self.network_use = network_full
 		self._handler = handler
-		self._fetcher = self._stores = self._iface_cache = None
+		self._fetcher = self._stores = self._iface_cache = self._trust_mgr = None
+		self.feed_mirror = DEFAULT_FEED_MIRROR
+		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
 
 	@property
 	def stores(self):
@@ -49,6 +60,18 @@ class Config(object):
 			from zeroinstall.injector import fetch
 			self._fetcher = fetch.Fetcher(self)
 		return self._fetcher
+
+	@property
+	def trust_mgr(self):
+		if not self._trust_mgr:
+			from zeroinstall.injector import trust
+			self._trust_mgr = trust.TrustMgr(self)
+		return self._trust_mgr
+
+	@property
+	def trust_db(self):
+		from zeroinstall.injector import trust
+		self._trust_db = trust.trust_db
 
 	@property
 	def handler(self):

@@ -12,7 +12,7 @@ os.environ['LANGUAGE'] = 'C'
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import qdom
-from zeroinstall.injector import iface_cache, download, distro, model, handler, policy, reader
+from zeroinstall.injector import iface_cache, download, distro, model, handler, policy, reader, trust
 from zeroinstall.zerostore import NotStored, Store, Stores; Store._add_with_helper = lambda *unused: False
 from zeroinstall import support
 from zeroinstall.support import basedir, tasks
@@ -148,12 +148,15 @@ class TestConfig:
 	freshness = 0
 	help_with_testing = False
 	network_use = model.network_full
+	key_info_server = None
 
 	def __init__(self):
 		self.iface_cache = iface_cache.IfaceCache()
 		self.handler = DummyHandler()
 		self.stores = Stores()
 		self.fetcher = TestFetcher(self)
+		self.trust_db = trust.trust_db
+		self.trust_mgr = trust.TrustMgr(self)
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):

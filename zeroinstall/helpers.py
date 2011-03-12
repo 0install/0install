@@ -99,7 +99,7 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 	
 	return sels
 
-def ensure_cached(uri, command = 'run'):
+def ensure_cached(uri, command = 'run', config = None):
 	"""Ensure that an implementation of uri is cached.
 	If not, it downloads one. It uses the GUI if a display is
 	available, or the console otherwise.
@@ -109,9 +109,10 @@ def ensure_cached(uri, command = 'run'):
 	@rtype: L{zeroinstall.injector.selections.Selections}
 	"""
 	from zeroinstall.injector import policy, selections
-	from zeroinstall.injector.config import load_config
 
-	config = load_config()
+	if config is None:
+		from zeroinstall.injector.config import load_config
+		config = load_config()
 	p = policy.Policy(uri, command = command, config = config)
 	p.freshness = 0		# Don't check for updates
 

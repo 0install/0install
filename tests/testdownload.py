@@ -19,8 +19,6 @@ from zeroinstall.injector import fetch
 import data
 import my_dbus
 
-fetch.DEFAULT_KEY_LOOKUP_SERVER = 'http://localhost:3333/key-info'
-
 import server
 
 ran_gui = False
@@ -70,6 +68,8 @@ class TestDownload(BaseTest):
 		BaseTest.setUp(self)
 
 		self.config.handler.allow_downloads = True
+		self.config.key_info_server = 'http://localhost:3333/key-info'
+
 		self.config.fetcher = fetch.Fetcher(self.config)
 
 		stream = tempfile.TemporaryFile()
@@ -167,7 +167,7 @@ class TestDownload(BaseTest):
 				assert False
 			except NotStored:
 				pass
-			cli.main(['--download-only', 'selections.xml'])
+			cli.main(['--download-only', 'selections.xml'], config = self.config)
 			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
@@ -179,7 +179,7 @@ class TestDownload(BaseTest):
 		with output_suppressed():
 			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
-			sels = helpers.ensure_cached('http://example.com:8000/Hello.xml')
+			sels = helpers.ensure_cached('http://example.com:8000/Hello.xml', config = self.config)
 			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 			assert sels.download_missing(self.config) is None
@@ -324,7 +324,7 @@ class TestDownload(BaseTest):
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg')
 			policy = Policy('http://example.com:8000/Hello.xml', config = self.config)
-			policy.fetcher.feed_mirror = 'http://example.com:8000/0mirror'
+			self.config.feed_mirror = 'http://example.com:8000/0mirror'
 
 			refreshed = policy.solve_with_downloads()
 			policy.handler.wait_for_blocker(refreshed)
@@ -344,7 +344,7 @@ class TestDownload(BaseTest):
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
 			policy = Policy('http://example.com:8000/Hello.xml', config = self.config)
-			policy.fetcher.feed_mirror = 'http://example.com:8000/0mirror'
+			self.config.feed_mirror = 'http://example.com:8000/0mirror'
 
 			# Update from mirror (should ignore out-of-date timestamp)
 			refreshed = policy.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)
@@ -398,8 +398,9 @@ class TestDownload(BaseTest):
 					raise SystemExit(code)
 				# But, child download processes are OK
 				old_exit(code)
-			key_info = fetch.DEFAULT_KEY_LOOKUP_SERVER
-			fetch.DEFAULT_KEY_LOOKUP_SERVER = None
+			from zeroinstall.injector import config
+			key_info = config.DEFAULT_KEY_LOOKUP_SERVER
+			config.DEFAULT_KEY_LOOKUP_SERVER = None
 			try:
 				try:
 					os._exit = my_exit
@@ -409,7 +410,7 @@ class TestDownload(BaseTest):
 					self.assertEquals(1, ex.code)
 			finally:
 				os._exit = old_exit
-				fetch.DEFAULT_KEY_LOOKUP_SERVER = key_info
+				config.DEFAULT_KEY_LOOKUP_SERVER = key_info
 		finally:
 			sys.stdout = old_out
 		assert ran_gui
