@@ -226,10 +226,24 @@ class TrustMgr(object):
 			info("Waiting for previous key confirmations to finish")
 			yield self._current_confirm
 
+		domain = domain_from_url(pending.url)
+
+		if self.config.auto_approve_keys:
+			existing_feed = self.config.iface_cache.get_feed(pending.url)
+			if not existing_feed:
+				changes = False
+				for sig, kf in kfs.iteritems():
+					for key_info in kf.info:
+						if key_info.getAttribute("vote") == "good":
+							info(_("Automatically approving key for new feed %s based on response from key info server"), pending.url)
+							trust_db.trust_key(sig.fingerprint, domain)
+							changes = True
+				if changes:
+					trust_db.notify()
+
 		# Check whether we still need to confirm. The user may have
 		# already approved one of the keys while dealing with another
-		# feed.
-		domain = domain_from_url(pending.url)
+		# feed, or we may have just auto-approved it.
 		for sig in kfs:
 			is_trusted = trust_db.is_trusted(sig.fingerprint, domain)
 			if is_trusted:

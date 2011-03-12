@@ -126,7 +126,7 @@ class TestDownload(BaseTest):
 		rootLogger.disabled = True
 		try:
 			try:
-				cli.main(['--import', '-v', 'NO-SUCH-FILE'])
+				cli.main(['--import', '-v', 'NO-SUCH-FILE'], config = self.config)
 				assert 0
 			except model.SafeException, ex:
 				assert 'NO-SUCH-FILE' in str(ex)
@@ -142,7 +142,7 @@ class TestDownload(BaseTest):
 			sys.stdin = Reply("Y\n")
 
 			assert not trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
-			cli.main(['--import', 'Hello'])
+			cli.main(['--import', 'Hello'], config = self.config)
 			assert trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
 
 			# Check we imported the interface after trusting the key
@@ -151,7 +151,7 @@ class TestDownload(BaseTest):
 
 			# Shouldn't need to prompt the second time
 			sys.stdin = None
-			cli.main(['--import', 'Hello'])
+			cli.main(['--import', 'Hello'], config = self.config)
 
 	def testSelections(self):
 		from zeroinstall.injector import cli
@@ -214,6 +214,20 @@ class TestDownload(BaseTest):
 				if "HelloWorld/Missing" not in str(ex):
 					raise
 	
+	def testAutoAcceptKey(self):
+		self.config.auto_approve_keys = True
+		with output_suppressed():
+			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+			policy = Policy('http://localhost:8000/Hello', config = self.config)
+			assert policy.need_download()
+			sys.stdin = Reply("")
+			try:
+				download_and_execute(policy, ['Hello'], main = 'Missing')
+				assert 0
+			except model.SafeException, ex:
+				if "HelloWorld/Missing" not in str(ex):
+					raise
+
 	def testDistro(self):
 		with output_suppressed():
 			native_url = 'http://example.com:8000/Native.xml'

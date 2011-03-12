@@ -149,6 +149,7 @@ class TestConfig:
 	help_with_testing = False
 	network_use = model.network_full
 	key_info_server = None
+	auto_approve_keys = False
 
 	def __init__(self):
 		self.iface_cache = iface_cache.IfaceCache()

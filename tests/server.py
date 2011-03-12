@@ -36,7 +36,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		elif parsed.path.startswith('/key-info/'):
 			self.send_response(200)
 			self.end_headers()
-			self.wfile.write('<key-lookup/>')
+			self.wfile.write('<key-lookup><item vote="good">Approved for testing</item></key-lookup>')
 			self.wfile.close()
 		elif os.path.exists(leaf) and not isinstance(resp, Give404):
 			self.send_response(200)

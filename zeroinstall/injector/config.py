@@ -20,6 +20,8 @@ DEFAULT_KEY_LOOKUP_SERVER = 'https://keylookup.appspot.com'
 
 class Config(object):
 	"""
+	@ivar auto_approve_keys: whether to approve known keys automatically
+	@type auto_approve_keys: bool
 	@ivar handler: handler for main-loop integration
 	@type handler: L{handler.Handler}
 	@ivar key_info_server: the base URL of a key information server
@@ -28,7 +30,7 @@ class Config(object):
 	@type feed_mirror: str | None
 	"""
 
-	__slots__ = ['help_with_testing', 'freshness', 'network_use', 'feed_mirror', 'key_info_server',
+	__slots__ = ['help_with_testing', 'freshness', 'network_use', 'feed_mirror', 'key_info_server', 'auto_approve_keys',
 		     '_fetcher', '_stores', '_iface_cache', '_handler', '_trust_mgr']
 
 	def __init__(self, handler = None):
@@ -39,6 +41,7 @@ class Config(object):
 		self._fetcher = self._stores = self._iface_cache = self._trust_mgr = None
 		self.feed_mirror = DEFAULT_FEED_MIRROR
 		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
+		self.auto_approve_keys = True
 
 	@property
 	def stores(self):
@@ -91,6 +94,7 @@ class Config(object):
                parser.set('global', 'help_with_testing', self.help_with_testing)
                parser.set('global', 'network_use', self.network_use)
                parser.set('global', 'freshness', self.freshness)
+               parser.set('global', 'auto_approve_keys', self.auto_approve_keys)
 
                path = basedir.save_config_path(config_site, config_prog)
                path = os.path.join(path, 'global')
@@ -104,6 +108,7 @@ def load_config(handler = None):
 	parser.set('global', 'help_with_testing', 'False')
 	parser.set('global', 'freshness', str(60 * 60 * 24 * 30))	# One month
 	parser.set('global', 'network_use', 'full')
+	parser.set('global', 'auto_approve_keys', 'True')
 
 	path = basedir.load_first_config(config_site, config_prog, 'global')
 	if path:
@@ -116,6 +121,7 @@ def load_config(handler = None):
 	config.help_with_testing = parser.getboolean('global', 'help_with_testing')
 	config.network_use = parser.get('global', 'network_use')
 	config.freshness = int(parser.get('global', 'freshness'))
+	config.auto_approve_keys = parser.getboolean('global', 'auto_approve_keys')
 
 	assert config.network_use in network_levels, config.network_use
 

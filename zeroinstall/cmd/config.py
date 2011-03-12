@@ -80,6 +80,7 @@ settings = {
 	'network_use': String,
 	'freshness': TimeInterval,
 	'help_with_testing': Boolean,
+	'auto_approve_keys': Boolean,
 }
 
 def handle(config, options, args):

@@ -16,6 +16,15 @@ class Preferences:
 		if notify_cb is None:
 			notify_cb = lambda: None
 
+		def connect_toggle(widget_name, setting_name):
+			widget = widgets.get_widget(widget_name)
+			widget.set_active(getattr(config, setting_name))
+			def toggle(w, config = config, setting_name = setting_name):
+				setattr(config, setting_name, w.get_active())
+				config.save_globals()
+				notify_cb()
+			widget.connect('toggled', toggle)
+
 		widgets = Template('preferences_box')
 
 		self.window = widgets.get_widget('preferences_box')
@@ -46,17 +55,12 @@ class Preferences:
 			notify_cb()
 		freshness.connect('changed', set_freshness)
 
-		stable_toggle = widgets.get_widget('help_test')
-		stable_toggle.set_active(config.help_with_testing)
-		def toggle_stability(toggle):
-			config.help_with_testing = toggle.get_active()
-			config.save_globals()
-			notify_cb()
-		stable_toggle.connect('toggled', toggle_stability)
+		connect_toggle('help_test', 'help_with_testing')
 
 		# Keys
 		keys_view = widgets.get_widget('trusted_keys')
 		KeyList(keys_view)
+		connect_toggle('auto_approve', 'auto_approve_keys')
 
 		# Responses
 		self.window.set_default_response(gtk.RESPONSE_CLOSE)
@@ -187,5 +191,11 @@ click on 'Interface Properties'. See that dialog's help text for more informatio
 _("""This section lists all keys which you currently trust. When fetching a new program or \
 updates for an existing one, the feed must be signed by one of these keys. If not, \
 you will be prompted to confirm that you trust the new key, and it will then be added \
-to this list. To remove a key, right-click on it and choose 'Remove' from the menu.""")),
+to this list.
+
+If "Automatic approval for new feeds" is on, new keys will be automatically approved if \
+you haven't used the program before and the key is known to the key information server. \
+When updating feeds, confirmation for new keys is always required.
+
+To remove a key, right-click on it and choose 'Remove' from the menu.""")),
 )
