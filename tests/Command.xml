@@ -7,7 +7,7 @@
   <group main='foo' self-test='test-foo' local-path='.'>
     <implementation id="a" version="0.1"/>
     <implementation id="b" main='bar' version="0.1"/>
-    <implementation id="c" version="0.1">
+    <implementation id="c" version="0.1" main='ignored'>
       <command name='run' path="runnable/missing" custom:attr='namespaced'>
         <custom:child/>
 	<requires interface='./Local.xml'>

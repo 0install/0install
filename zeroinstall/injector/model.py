@@ -849,18 +849,23 @@ class ZeroInstallFeed(object):
 				if item.name not in ('group', 'implementation', 'package-implementation'):
 					continue
 
-				depends = base_depends[:]
-				bindings = base_bindings[:]
-				commands = base_commands.copy()
-
-				item_attrs = _merge_attrs(group_attrs, item)
-
-				# We've found a group or implementation. Scan for dependencies
-				# and bindings. Doing this here means that:
+				# We've found a group or implementation. Scan for dependencies,
+				# bindings and commands. Doing this here means that:
 				# - We can share the code for groups and implementations here.
 				# - The order doesn't matter, because these get processed first.
 				# A side-effect is that the document root cannot contain
 				# these.
+
+				depends = base_depends[:]
+				bindings = base_bindings[:]
+				commands = base_commands.copy()
+
+				for attr, command in [('main', 'run'),
+						      ('self-test', 'test')]:
+					value = item.attrs.get(attr, None)
+					if value is not None:
+						commands[command] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': value}), None)
+
 				for child in item.childNodes:
 					if child.uri != XMLNS_IFACE: continue
 					if child.name == 'requires':
@@ -874,15 +879,11 @@ class ZeroInstallFeed(object):
 					elif child.name in binding_names:
 						bindings.append(process_binding(child))
 
-				for attr, command in [('main', 'run'),
-						      ('self-test', 'test')]:
-					value = item.attrs.get(attr, None)
-					if value is not None:
-						commands[command] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': value}), None)
-
 				compile_command = item.attrs.get('http://zero-install.sourceforge.net/2006/namespaces/0compile command')
 				if compile_command is not None:
 					commands['compile'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'shell-command': compile_command}), None)
+
+				item_attrs = _merge_attrs(group_attrs, item)
 
 				if item.name == 'group':
 					process_group(item, item_attrs, depends, bindings, commands)
