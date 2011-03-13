@@ -261,7 +261,7 @@ class Fetcher(object):
 		if use_mirror:
 			url = self.get_feed_mirror(feed_url)
 			if url is None: return None
-			warn(_("Trying mirror server for feed %s") % feed_url)
+			info(_("Trying mirror server for feed %s") % feed_url)
 		else:
 			url = feed_url
 
