@@ -31,7 +31,7 @@ requires first uninstalling another.</description>
     <!-- Update the copy of the version number -->
     <release:action phase="commit-release">sed -i &quot;s/^version = '.*'$/version = '$RELEASE_VERSION'/&quot; zeroinstall/__init__.py</release:action>
     <release:action phase="commit-release">sed -i &quot;s/^version = '.*'$/version = '$RELEASE_VERSION'/&quot; zeroinstall/0launch-gui/gui.py</release:action>
-    <release:action phase="generate-archive">make translations</release:action>
+    <release:action phase="generate-archive">rm .gitignore; make translations</release:action>
   </release:management>
 
   <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch" self-test="tests/allpython.sh">
