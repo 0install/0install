@@ -9,6 +9,10 @@ from zeroinstall.support import tasks
 
 import dbus
 
+class Connection:
+	def remove(self):
+		pass
+
 class PackageKit05:
 	x = 0
 
@@ -22,6 +26,7 @@ class PackageKit05:
 
 		def connect_to_signal(self, signal, cb):
 			self.signals[signal] = cb
+			return Connection()
 
 		def get_dbus_method(self, method):
 			if hasattr(self, method):

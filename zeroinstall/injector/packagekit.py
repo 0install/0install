@@ -237,13 +237,14 @@ class _PackageKitTransaction(object):
 				'org.freedesktop.PackageKit.Transaction')
 		self._props = dbus.Interface(self.object, dbus.PROPERTIES_IFACE)
 
+		self._signals = []
 		for signal, cb in [('Finished', self.__finished_cb),
 				   ('ErrorCode', self.__error_code_cb),
 				   ('StatusChanged', self.__status_changed_cb),
 				   ('Package', self.__package_cb),
 				   ('Details', self.__details_cb),
 				   ('Files', self.__files_cb)]:
-			self.proxy.connect_to_signal(signal, cb)
+			self._signals.append(self.proxy.connect_to_signal(signal, cb))
 
 		defaultlocale = locale.getdefaultlocale()[0]
 		if defaultlocale is not None:
@@ -279,6 +280,10 @@ class _PackageKitTransaction(object):
 
 	def __finished_cb(self, exit, runtime):
 		_logger_pk.debug(_('Transaction finished: %s'), exit)
+
+		for i in self._signals:
+			i.remove()
+
 		if self.error_code is not None:
 			self._error_cb(self)
 		else:
