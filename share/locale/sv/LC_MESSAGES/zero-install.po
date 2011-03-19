@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: zero-install 0.49-post\n"
+"Project-Id-Version: zero-install 0.53-post\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2011-03-20 11:18+0000\n"
-"PO-Revision-Date: 2010-07-25 13:00+0200\n"
+"POT-Creation-Date: 2011-03-19 10:00+0100\n"
+"PO-Revision-Date: 2011-03-19 10:20+0100\n"
 "Last-Translator: Anders F Bjorklund <afb@users.sourceforge.net>\n"
 "Language-Team: Swedish <sv@li.org>\n"
 "Language: sv\n"
@@ -117,20 +117,18 @@ msgid "Full name: %s"
 msgstr "Fullständigt namn: %s"
 
 #: zeroinstall/0launch-gui/iface_browser.py:34
-#, fuzzy
 msgid "(no description available)"
-msgstr "Ingen information tillgänglig!"
+msgstr "(ingen beskrivning tillgänglig)"
 
 #: zeroinstall/0launch-gui/iface_browser.py:38
 msgid "Click here for more options..."
 msgstr "Klicka här för flera alternativ..."
 
 #: zeroinstall/0launch-gui/iface_browser.py:42
-#, fuzzy
 msgid "No suitable version was found. Double-click here to find out why."
 msgstr ""
-"Ingen passande implementation kunde hittas. Kontrollera "
-"gränssnittsinställingarna för att ta reda på varför."
+"Ingen passande version kunde hittas. Dubbelklicka här för att ta reda "
+"på varför."
 
 #: zeroinstall/0launch-gui/iface_browser.py:46
 #, python-format
@@ -187,7 +185,7 @@ msgstr "Okänd beroendetyp: %s"
 
 #: zeroinstall/0launch-gui/iface_browser.py:378
 msgid "(problem)"
-msgstr ""
+msgstr "(problem)"
 
 #: zeroinstall/0launch-gui/iface_browser.py:392
 msgid "Show Feeds"
@@ -344,7 +342,7 @@ msgstr "målets CPU-typ"
 #: zeroinstall/0launch-gui/main.py:27 zeroinstall/cmd/select.py:22
 #: zeroinstall/injector/cli.py:42
 msgid "command to select"
-msgstr ""
+msgstr "kommano att välja"
 
 #: zeroinstall/0launch-gui/main.py:28 zeroinstall/injector/cli.py:45
 msgid "fetch but don't run"
@@ -669,7 +667,6 @@ msgid "Security"
 msgstr "Säkerhet"
 
 #: zeroinstall/0launch-gui/preferences.py:191
-#, fuzzy
 msgid ""
 "This section lists all keys which you currently trust. When fetching a new "
 "program or updates for an existing one, the feed must be signed by one of "
@@ -689,6 +686,11 @@ msgstr ""
 "om du litar på den nya nyckeln, och i så fall kommer den att läggas till "
 "listan. För att ta bort en nyckel, högerklicka på den och välj 'Ta bort' "
 "från menyn."
+"\n"
+"Om \"Automatiskt godkännande för nya kanaler\" är på, kommer nya nycklar "
+"att automatiskt godkännas om du inte har använt programmet tidigare och "
+"nyckeln är känd av nyckelinformationsservern. När kanalerna uppdateras, "
+"krävs alltid bekräftelse av nya nycklar."
 
 #: zeroinstall/0launch-gui/properties.py:103
 #, python-format
@@ -1048,11 +1050,9 @@ msgid "<b>Security</b>"
 msgstr "<b>Säkerhet</b>"
 
 #: zeroinstall/0launch-gui/zero-install.ui.h:3
-#, fuzzy
 msgid "<i>These keys may sign software updates:</i>"
 msgstr ""
-"<i>Du har sagt att du litar på dessa nycklar att signera "
-"programuppdateringar:</i>"
+"<i>Dessa nycklar kan signera programuppdateringar:</i>"
 
 #: zeroinstall/0launch-gui/zero-install.ui.h:4
 msgid "Add local feed"
@@ -1064,7 +1064,7 @@ msgstr "Lägg till fjärr-kanal"
 
 #: zeroinstall/0launch-gui/zero-install.ui.h:6
 msgid "Automatic approval for new feeds"
-msgstr ""
+msgstr "Automatiskt godkännande för nya kanaler"
 
 #: zeroinstall/0launch-gui/zero-install.ui.h:7
 msgid "Check all the components for updates."
@@ -1184,6 +1184,8 @@ msgid ""
 "When fetching a feed for the first time, if the key is known to the key "
 "information server then approve it automatically without confirmation."
 msgstr ""
+"När en kanal hämtas för första gången, om nyckeln är känd av nyckel"
+"informationsservern så godkänn den automatiskt utan bekräftelse."
 
 #: zeroinstall/0launch-gui/zero-install.ui.h:31
 msgid "Zero Install"
@@ -1209,16 +1211,19 @@ msgid ""
 "\n"
 "Try --help with one of these:"
 msgstr ""
+"användning: %prog KOMMANDO\n"
+"\n"
+"Försök --help med en av dessa:"
 
 #: zeroinstall/cmd/__init__.py:78
 #, python-format
 msgid "Unknown sub-command '%s': try --help"
-msgstr ""
+msgstr "Okänt sub-kommando '%s': try --help"
 
 #: zeroinstall/cmd/__init__.py:83
-#, fuzzy, python-format
+#, python-format
 msgid "usage: %%prog %s [OPTIONS] %s"
-msgstr "användning: %prog [flaggor] [URI]"
+msgstr "användning: %%prog %s [flaggor] %s"
 
 #: zeroinstall/cmd/__init__.py:85 zeroinstall/injector/cli.py:43
 msgid "never use GUI"
@@ -1226,16 +1231,16 @@ msgstr "använd aldrig GUI"
 
 #: zeroinstall/cmd/__init__.py:86
 msgid "just print what would be executed"
-msgstr ""
+msgstr "skriv endast ut vad som skulle utföras"
 
 #: zeroinstall/cmd/__init__.py:87 zeroinstall/injector/cli.py:49
 msgid "show graphical policy editor"
 msgstr "visa grafisk policyeditor"
 
 #: zeroinstall/cmd/__init__.py:101
-#, fuzzy, python-format
+#, python-format
 msgid "Running 0install %(version)s %(args)s; Python %(python_version)s"
-msgstr "Kör 0launch %(version)s %(args)s; Python %(python_version)s"
+msgstr "Kör 0install %(version)s %(args)s; Python %(python_version)s"
 
 #: zeroinstall/cmd/__init__.py:107 zeroinstall/injector/cli.py:90
 #, python-format
@@ -1271,14 +1276,14 @@ msgid "%(index)d) Add as feed for '%(uri)s'"
 msgstr "%(index)d) Lägg till som kanal för '%(uri)s'"
 
 #: zeroinstall/cmd/add_feed.py:57
-#, fuzzy, python-format
+#, python-format
 msgid "%(feed)s is not registered as a feed for %(interface)s"
-msgstr "Kanalen '%(feed)s' är inte en kanal för '%(feed_for)s'."
+msgstr "%(feed)s är inte en registrerad kanal för %(interface)s"
 
 #: zeroinstall/cmd/add_feed.py:60
 #, python-format
 msgid "%(feed)s already registered as a feed for %(interface)s"
-msgstr ""
+msgstr "%(feed)s är redan registrerad som kanal för %(interface)s"
 
 #: zeroinstall/cmd/add_feed.py:65
 msgid "Enter a number, or CTRL-C to cancel [1]: "
@@ -1305,22 +1310,22 @@ msgstr "(inga kanaler)"
 #: zeroinstall/cmd/config.py:63
 #, python-format
 msgid "Unknown unit \"%s\" - use e.g. 5d for 5 days"
-msgstr ""
+msgstr "Okänd enhet \"%s\" - använd t.ex. 5d för 5 dagar"
 
 #: zeroinstall/cmd/config.py:77
 #, python-format
 msgid "Must be True or False, not \"%s\""
-msgstr ""
+msgstr "Måste vara True eller False, inte \"%s\""
 
 #: zeroinstall/cmd/config.py:103
-#, fuzzy, python-format
+#, python-format
 msgid "Unknown option \"%s\""
-msgstr "Okänd algoritm '%s'"
+msgstr "Okänd flagga '%s'"
 
 #: zeroinstall/cmd/config.py:111
 #, python-format
 msgid "Must be one of %s"
-msgstr ""
+msgstr "Måste vara en av %s"
 
 #: zeroinstall/cmd/download.py:18 zeroinstall/injector/cli.py:60
 msgid "show where components are installed"
@@ -1385,22 +1390,21 @@ msgstr "Byter till GUI-läge... (använd --console för att undvika)"
 #: zeroinstall/cmd/update.py:60
 #, python-format
 msgid "No longer used: %s"
-msgstr ""
+msgstr "Används inte längre: %s"
 
 #: zeroinstall/cmd/update.py:63
 #, python-format
 msgid "%s: %s -> %s"
-msgstr ""
+msgstr "%s: %s -> %s"
 
 #: zeroinstall/cmd/update.py:68
 #, python-format
 msgid "%s: new -> %s"
-msgstr ""
+msgstr "%s: ny -> %s"
 
 #: zeroinstall/cmd/update.py:72
-#, fuzzy
 msgid "No updates found."
-msgstr "Inga uppdateringar att ladda ner."
+msgstr "Inga uppdateringar hittade."
 
 #: zeroinstall/gtkui/addbox.py:24
 msgid "AudioVideo"
@@ -2039,54 +2043,54 @@ msgstr "Kör 0launch %(version)s %(args)s; Python %(python_version)s"
 msgid "Error loading config: %s"
 msgstr "Fel vid inläsning av konfiguration: %s"
 
-#: zeroinstall/injector/distro.py:39
+#: zeroinstall/injector/distro.py:39 zeroinstall/injector/system.py:39
 #, python-format
 msgid "Failed to load cache (%s). Flushing..."
 msgstr "Misslyckades ladda cache (%s). Läser om..."
 
-#: zeroinstall/injector/distro.py:98
+#: zeroinstall/injector/distro.py:98 zeroinstall/injector/system.py:100
 #, python-format
 msgid "Cache needs to be refreshed: %s"
 msgstr "Cache behöver laddas om: %s"
 
-#: zeroinstall/injector/distro.py:180
+#: zeroinstall/injector/distro.py:180 zeroinstall/injector/system.py:170
 #, python-format
 msgid "Missing 'package' attribute on %s"
 msgstr "Saknat 'package'-attribut för %s"
 
-#: zeroinstall/injector/distro.py:187
+#: zeroinstall/injector/distro.py:187 zeroinstall/injector/system.py:177
 #, python-format
 msgid "Duplicate ID '%s' for DistributionImplementation"
 msgstr "Dublett ID '%s' för DistributionImplementation"
 
-#: zeroinstall/injector/distro.py:196
+#: zeroinstall/injector/distro.py:196 zeroinstall/injector/system.py:186
 #, python-format
 msgid "'main' attribute must be absolute, but '%s' doesn't start with '/'!"
-msgstr "'main'-attributet måste vara absolut, med '%s' börjar inte med '/'!"
+msgstr "'main'-attributet måste vara absolut, men '%s' börjar inte med '/'!"
 
-#: zeroinstall/injector/distro.py:242
+#: zeroinstall/injector/distro.py:242 zeroinstall/injector/system.py:232
 #, python-format
 msgid "Failed to load distribution database cache (%s). Regenerating..."
 msgstr "Misslyckades läsa distributionsdatabascache (%s). Skapar om..."
 
-#: zeroinstall/injector/distro.py:247
+#: zeroinstall/injector/distro.py:247 zeroinstall/injector/system.py:237
 #, python-format
 msgid "Failed to regenerate distribution database cache: %s"
 msgstr "Misslyckades skapa om distributionsdatabascache: %s"
 
-#: zeroinstall/injector/distro.py:260
+#: zeroinstall/injector/distro.py:260 zeroinstall/injector/system.py:250
 msgid "Modification time of package database file has changed"
 msgstr "Ändringstiden på paketdatabasfilen har ändrats"
 
-#: zeroinstall/injector/distro.py:262
+#: zeroinstall/injector/distro.py:262 zeroinstall/injector/system.py:252
 msgid "Size of package database file has changed"
 msgstr "Storleken på paketdatabasfilen har ändrats"
 
-#: zeroinstall/injector/distro.py:266
+#: zeroinstall/injector/distro.py:266 zeroinstall/injector/system.py:256
 msgid "Invalid cache format (bad header)"
 msgstr "Ogiltigt cacheformat (fel huvud)"
 
-#: zeroinstall/injector/distro.py:269
+#: zeroinstall/injector/distro.py:269 zeroinstall/injector/system.py:259
 msgid "Old cache format"
 msgstr "Gammalt cacheformat"
 
@@ -2387,7 +2391,7 @@ msgstr "Ogiltig base 64-kodad signatur: %s"
 
 #: zeroinstall/injector/gpg.py:290
 msgid "Plain GPG-signed feeds no longer supported"
-msgstr ""
+msgstr "Enkla GPG-signerade kanaler stöds inte längre"
 
 #: zeroinstall/injector/gpg.py:292
 #, python-format
@@ -2523,13 +2527,13 @@ msgid "No signatures (old-style interface): %s"
 msgstr "Inga signaturer (gammalt gränssnitt): %s"
 
 #: zeroinstall/injector/iface_cache.py:519
-#, fuzzy, python-format
+#, python-format
 msgid ""
 "Missing <feed-for> element in '%s'; it can't be used as a feed for any other "
 "interface."
 msgstr ""
-"Saknat <feed-for>-element i '%s'; det här gränssnittet kan inte användas som "
-"kanal."
+"Saknat <feed-for>-element i '%s'; kan inte användas som kanal för något annat "
+"gränssnitt."
 
 #: zeroinstall/injector/iface_cache.py:522
 #, python-format
@@ -2567,13 +2571,12 @@ msgid "Missing 'name' in binding"
 msgstr "Saknat 'name' i bindning"
 
 #: zeroinstall/injector/model.py:129
-#, fuzzy
 msgid "Missing 'insert' or 'value' in binding"
-msgstr "Saknat 'insert' i bindning"
+msgstr "Saknat 'insert' eller 'value' i bindning"
 
 #: zeroinstall/injector/model.py:131
 msgid "Binding contains both 'insert' and 'value'"
-msgstr ""
+msgstr "Bindingen innehåller både 'insert' och 'value'"
 
 #: zeroinstall/injector/model.py:136
 #, python-format
@@ -2581,14 +2584,14 @@ msgid "Unknown binding type '%s'"
 msgstr "Okänd bindningstyp '%s'"
 
 #: zeroinstall/injector/model.py:144
-#, fuzzy, python-format
+#, python-format
 msgid "Missing 'interface' on <%s>"
-msgstr "Saknat 'interface' på <requires>"
+msgstr "Saknat 'interface' på <%s>"
 
 #: zeroinstall/injector/model.py:151
 #, python-format
 msgid "Relative interface URI \"%s\" in non-local feed"
-msgstr ""
+msgstr "Relativ gränssnitts-URI \"%s\" i icke-lokal kanal"
 
 #: zeroinstall/injector/model.py:166
 msgid "This is a security risk"
@@ -2661,9 +2664,9 @@ msgid "(restriction: %s)"
 msgstr "(restriktion: %s)"
 
 #: zeroinstall/injector/model.py:258
-#, fuzzy, python-format
+#, python-format
 msgid "<environ %(name)s %(mode)s %(insert)s %(value)s>"
-msgstr "<environ %(name)s %(mode)s %(insert)s>"
+msgstr "<environ %(name)s %(mode)s %(insert)s %(value)s>"
 
 #: zeroinstall/injector/model.py:311
 #, python-format
@@ -2677,7 +2680,7 @@ msgstr "<Beroende på %(interface)s; bindningar: %(bindings)s%(restrictions)s>"
 
 #: zeroinstall/injector/model.py:468
 msgid "Multiple <runner>s in <command>!"
-msgstr ""
+msgstr "Multipla <runner> i <command>!"
 
 #: zeroinstall/injector/model.py:664
 #, python-format
@@ -2960,9 +2963,9 @@ msgid "Error from child process: exit code = %d"
 msgstr "Fel från barnprocess: slutstatus = %d"
 
 #: zeroinstall/injector/run.py:176
-#, fuzzy, python-format
+#, python-format
 msgid "Command path must be relative, but '%s' starts with '/'!"
-msgstr "'main'-attributet måste vara relativt, med '%s' börjar med '/'!"
+msgstr "Kommandosökvägen måste vara relativ, men '%s' börjar med '/'!"
 
 #: zeroinstall/injector/run.py:189
 #, python-format
@@ -3032,33 +3035,33 @@ msgid "Considering dependency %s"
 msgstr "Överväger beroende %s"
 
 #: zeroinstall/injector/solver.py:440
-#, fuzzy, python-format
+#, python-format
 msgid "Considering command runner %s"
-msgstr "Överväger beroende %s"
+msgstr "Överväger kommandokörare %s"
 
 #: zeroinstall/injector/solver.py:448
-#, fuzzy, python-format
+#, python-format
 msgid "Considering command dependency %s"
-msgstr "Överväger beroende %s"
+msgstr "Överväger kommandoberoende %s"
 
 #: zeroinstall/injector/solver.py:459
 #, python-format
 msgid "No %s command"
-msgstr ""
+msgstr "Inget %s kommando"
 
 #: zeroinstall/injector/solver.py:487
-#, fuzzy, python-format
+#, python-format
 msgid "Interface '%s' has no usable implementations"
-msgstr "Inkompatibel med en annan vald implementation"
+msgstr "Gränssnittet '%s' har inga användbara implementationer"
 
 #: zeroinstall/injector/solver.py:490
-#, fuzzy, python-format
+#, python-format
 msgid ""
 "Interface '%s' cannot be executed directly; it is just a library to be used "
 "by other programs (or missing '%s' command)"
 msgstr ""
-"Implementationen '%s' kan inte köras direkt; den är en endast ett bibliotek "
-"som används av andra program (eller så saknas 'main'-attributet)"
+"Gränssnittet '%s' kan inte köras direkt; det är en endast ett bibliotek "
+"som används av andra program (eller så saknas '%s' kommando)"
 
 #: zeroinstall/injector/solver.py:620
 msgid "Can't find all required implementations:"
@@ -3086,6 +3089,8 @@ msgid ""
 "Automatically approving key for new feed %s based on response from key info "
 "server"
 msgstr ""
+"Automatiskt godkänna nyckel för ny kanal %s baserat på svar från nyckelinfo"
+"rmationsserver"
 
 #: zeroinstall/support/__init__.py:46
 #, python-format
@@ -3206,9 +3211,9 @@ msgid "Bad value for digest: %s"
 msgstr "Dåligt värde på kontrollsumma: %s"
 
 #: zeroinstall/zerostore/__init__.py:89
-#, fuzzy, python-format
+#, python-format
 msgid "Caching new implementation (digest %s) in %s"
-msgstr "Cachar ny implementation (kontrollsumma %s)"
+msgstr "Cachar ny implementation (kontrollsumma %s) i %s"
 
 #: zeroinstall/zerostore/__init__.py:92 zeroinstall/zerostore/__init__.py:120
 #, python-format
