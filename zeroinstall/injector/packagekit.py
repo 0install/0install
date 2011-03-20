@@ -103,13 +103,13 @@ class PackageKit(object):
 				blocker.trigger()
 
 			def details_cb(sender):
-				if sender.details:
-					for packagekit_id, info in versions.items():
+				for packagekit_id, info in versions.items():
+					if packagekit_id in sender.details:
 						info.update(sender.details[packagekit_id])
 						info['packagekit_id'] = packagekit_id
 						self._candidates[info['name']] = info
-				else:
-					_logger_pk.warn(_('Empty details for %s'), package_names)
+					else:
+						_logger_pk.info(_('Empty details for %s'), packagekit_id)
 				blocker.trigger()
 
 			def resolve_cb(sender):
