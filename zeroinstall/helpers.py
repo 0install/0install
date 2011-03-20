@@ -46,7 +46,7 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 					os.dup2(gui.fileno(), 0)
 					if iface_uri is not None:
 						gui_args = gui_args + ['--', iface_uri]
-					os.execvp(gui_exe, [gui_exe] + gui_args)
+					os.execvp(sys.executable, [sys.executable, gui_exe] + gui_args)
 				except:
 					import traceback
 					traceback.print_exc(file = sys.stderr)

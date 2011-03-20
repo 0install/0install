@@ -37,7 +37,7 @@ mydir = os.path.dirname(__file__)
 # Catch us trying to run the GUI and return a dummy string instead
 old_execvp = os.execvp
 def test_execvp(prog, args):
-	if prog.endswith('/0launch-gui'):
+	if prog == sys.executable and args[1].endswith('/0launch-gui'):
 		prog = os.path.join(mydir, 'test-gui')
 	return old_execvp(prog, args)
 
