@@ -201,6 +201,21 @@ class Distribution(object):
 				return impl
 
 			self.get_package_info(package, factory)
+
+		if master_feed.url == 'http://repo.roscidus.com/python/python' and all(not impl.installed for impl in feed.implementations.values()):
+			# Hack: we can support Python on platforms with unsupported package managers
+			# by adding the implementation of Python running us now to the list.
+			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
+			impl_id = 'package:host:python:' + python_version
+			assert impl_id not in feed.implementations
+			impl = model.DistributionImplementation(feed, impl_id, self)
+			impl.installed = True
+			impl.version = model.parse_version(python_version)
+			impl.main = sys.executable
+			impl.upstream_stability = model.packaged
+			impl.machine = host_machine	# (hopefully)
+			feed.implementations[impl_id] = impl
+
 		return feed
 
 	def fetch_candidates(self, master_feed):

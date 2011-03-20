@@ -70,6 +70,12 @@ class TestDistro(BaseTest):
 		host.get_package_info('gimp', factory)
 		self.assertEquals(self.feed.implementations, {})
 
+		# Special case: we can always find a version of Python
+		master_feed = model.ZeroInstallFeed(None)
+		master_feed.url = 'http://repo.roscidus.com/python/python'
+		feed = host.get_feed(master_feed)
+		self.assertEquals(1, len(feed.implementations))
+
 	def testDebian(self):
 		dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
 		host = distro.DebianDistribution(
