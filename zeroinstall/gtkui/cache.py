@@ -259,6 +259,8 @@ class ValidInterface(CachedInterface):
 	def copy_uri(self, explorer):
 		clipboard = gtk.clipboard_get()
 		clipboard.set_text(self.uri)
+		primary = gtk.clipboard_get('PRIMARY')
+		primary.set_text(self.uri)
 	
 	def deletable_children(self):
 		return list(filter(lambda child: child.may_delete, self.in_cache))
@@ -273,7 +275,7 @@ class ValidInterface(CachedInterface):
 			return ACTION_REMOVE
 	
 	menu_items = [(_('Launch with GUI'), launch),
-	              (_('Copy URI to clipboard'), copy_uri),
+	              (_('Copy URI'), copy_uri),
 	              (_('Delete'), prompt_delete)]
 
 class RemoteInterface(ValidInterface):
