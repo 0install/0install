@@ -16,14 +16,114 @@ __all__ = ['CacheExplorer']
 
 ROX_IFACE = 'http://rox.sourceforge.net/2005/interfaces/ROX-Filer'
 
-# Model columns
-ITEM = 0
-SELF_SIZE = 1
-PRETTY_SIZE = 2
-TOOLTIP = 3
-ITEM_OBJECT = 4
+# Tree view columns
+class Column(object):
+	columns = []
+	def __init__(self, name, column_type, resizable=False, props={}, hide=False, markup=False):
+		self.idx = len(self.columns)
+		self.columns.append(self)
+		self.name = name
+		self.column_type = column_type
+		self.props = props
+		self.resizable = resizable
+		self.hide = hide
+		self.markup = markup
 
-def popup_menu(bev, obj):
+	@classmethod
+	def column_types(cls):
+		return [col.column_type for col in cls.columns]
+	
+	@classmethod
+	def add_all(cls, tree_view):
+		[col.add(tree_view) for col in cls.columns]
+	
+	def get_cell(self):
+		cell = gtk.CellRendererText()
+		self.set_props(cell, self.props)
+		return cell
+	
+	def set_props(self, obj, props):
+		for k,v in props.items():
+			obj.set_property(k, v)
+
+	def get_column(self):
+		if self.markup:
+			kwargs = {'markup': self.idx}
+		else:
+			kwargs = {'text': self.idx}
+		column = gtk.TreeViewColumn(self.name, self.get_cell(), **kwargs)
+		if 'xalign' in self.props:
+			self.set_props(column, {'alignment': self.props['xalign']})
+		return column
+
+	def add(self, tree_view):
+		if self.hide:
+			return
+		column = self.get_column()
+		if self.resizable: column.set_resizable(True)
+		tree_view.append_column(column)
+
+NAME = Column(_('Name'), str, hide=True)
+URI = Column(_('URI'), str, hide=True)
+TOOLTIP = Column(_('Description'), str, hide=True)
+ITEM_VIEW = Column(_('Item'), str, props={'ypad': 6, 'yalign': 0}, resizable=True, markup=True)
+SELF_SIZE = Column(_('Self Size'), int, hide=True)
+TOTAL_SIZE = Column(_('Total Size'), int, hide=True)
+PRETTY_SIZE = Column(_('Size'), str, props={'xalign':1.0})
+ITEM_OBJECT = Column(_('Object'), object, hide=True)
+
+ACTION_REMOVE = object() # just make a unique value
+
+class Section(object):
+	may_delete = False
+	def __init__(self, name, tooltip):
+		self.name = name
+		self.tooltip = tooltip
+
+	def append_to(self, model):
+		return model.append(None, extract_columns(
+			name=self.name,
+			tooltip=self.tooltip,
+			object=self,
+		))
+
+SECTION_INTERFACES = Section(
+	_("Feeds"),
+	_("Feeds in the cache"))
+SECTION_UNOWNED_IMPLEMENTATIONS = Section(
+	_("Unowned implementations and temporary files"),
+	_("These probably aren't needed any longer. You can delete them."))
+SECTION_INVALID_INTERFACES = Section(
+	_("Invalid feeds (unreadable)"),
+	_("These feeds exist in the cache but cannot be read. You should probably delete them."))
+
+import cgi
+def extract_columns(**d):
+	vals = list(map(lambda x:None, Column.columns))
+	def setcol(column, val):
+		vals[column.idx] = val
+
+	name = d.get('name', None)
+	desc = d.get('desc', None)
+	uri = d.get('uri', None)
+
+	setcol(NAME, name)
+	setcol(URI, uri)
+	if name and uri:
+		setcol(ITEM_VIEW, '<span font-size="larger" weight="bold">%s</span>\n'
+		'<span color="#666666">%s</span>' % tuple(map(cgi.escape, (name, uri))))
+	else:
+		setcol(ITEM_VIEW, cgi.escape(name or desc))
+
+	size = d.get('size', 0)
+	setcol(SELF_SIZE, size)
+	setcol(TOTAL_SIZE, 0) # must be set to prevent type error
+	setcol(TOOLTIP, d.get('tooltip', None))
+	setcol(ITEM_OBJECT, d.get('object', None))
+	return vals
+
+
+def popup_menu(bev, obj, model, path, cache_explorer):
 	menu = gtk.Menu()
 	for i in obj.menu_items:
 		if i is None:
@@ -31,10 +131,27 @@ def popup_menu(bev, obj):
 		else:
 			name, cb = i
 			item = gtk.MenuItem(name)
-			item.connect('activate', lambda item, cb=cb: cb(obj))
+			def _cb(item, cb=cb):
+				action_required = cb(obj, cache_explorer)
+				if action_required is ACTION_REMOVE:
+					model.remove(model.get_iter(path))
+			item.connect('activate', _cb)
 		item.show()
 		menu.append(item)
 	menu.popup(None, None, None, bev.button, bev.time)
+
+def warn(message, parent=None):
+	"Present a blocking warning message with OK/Cancel buttons, and return True if OK was pressed"
+	dialog = gtk.MessageDialog(parent=parent, buttons=gtk.BUTTONS_OK_CANCEL, type=gtk.MESSAGE_WARNING)
+	dialog.set_property('text', message)
+	response = []
+	def _response(dialog, resp):
+		if resp == gtk.RESPONSE_OK:
+			response.append(True)
+	dialog.connect('response', _response)
+	dialog.run()
+	dialog.destroy()
+	return bool(response)
 
 def size_if_exists(path):
 	"Get the size for a file, or 0 if it doesn't exist."
@@ -57,10 +174,10 @@ def get_size(path):
 				size += os.path.getsize(os.path.join(root, name))
 	return size
 
-def summary(iface):
-	if iface.summary:
-		return iface.get_name() + ' - ' + iface.summary
-	return iface.get_name()
+def summary(feed):
+	if feed.summary:
+		return feed.get_name() + ' - ' + feed.summary
+	return feed.get_name()
 
 def get_selected_paths(tree_view):
 	"GTK 2.0 doesn't have this built-in"
@@ -71,10 +188,19 @@ def get_selected_paths(tree_view):
 	selection.selected_foreach(add)
 	return paths
 
+def all_children(model, iter):
+	"make a python generator out of the children of `iter`"
+	iter = model.iter_children(iter)
+	while iter:
+		yield iter
+		iter = model.iter_next(iter)
+
 # Responses
 DELETE = 0
+SAFE_MODE = False # really delete things
+#SAFE_MODE = True # print deletes, instead of performing them
 
-class CachedInterface(object):
+class CachedFeed(object):
 	def __init__(self, uri, size):
 		self.uri = uri
 		self.size = size
@@ -84,47 +210,94 @@ class CachedInterface(object):
 			cached_iface = basedir.load_first_cache(namespaces.config_site,
 					'interfaces', model.escape(self.uri))
 			if cached_iface:
-				#print "Delete", cached_iface
-				os.unlink(cached_iface)
+				if SAFE_MODE:
+					print "Delete", cached_iface
+				else:
+					os.unlink(cached_iface)
 		user_overrides = basedir.load_first_config(namespaces.config_site,
 					namespaces.config_prog,
 					'user_overrides', model.escape(self.uri))
 		if user_overrides:
-			#print "Delete", user_overrides
-			os.unlink(user_overrides)
+			if SAFE_MODE:
+				print "Delete", cached_iface
+			else:
+				os.unlink(user_overrides)
 	
 	def __cmp__(self, other):
 		return self.uri.__cmp__(other.uri)
 
-class ValidInterface(CachedInterface):
-	def __init__(self, iface, size):
-		CachedInterface.__init__(self, iface.uri, size)
-		self.iface = iface
+class ValidFeed(CachedFeed):
+	def __init__(self, feed, size):
+		CachedFeed.__init__(self, feed.url, size)
+		self.feed = feed
 		self.in_cache = []
 
+	def delete_children(self):
+		deletable = self.deletable_children()
+		undeletable = list(filter(lambda child: not child.may_delete, self.in_cache))
+		# the only undeletable items we expect to encounter are LocalImplementations
+		unexpected_undeletable = list(filter(lambda child: not isinstance(child, LocalImplementation), undeletable))
+		assert not unexpected_undeletable, "unexpected undeletable items!: %r" % (unexpected_undeletable,)
+		[child.delete() for child in deletable]
+
+	def delete(self):
+		self.delete_children()
+		super(ValidFeed, self).delete()
+
 	def append_to(self, model, iter):
-		iter2 = model.append(iter,
-				  [self.uri, self.size, None, summary(self.iface), self])
+		iter2 = model.append(iter, extract_columns(
+			name=self.feed.get_name(),
+			uri=self.uri,
+			tooltip=self.feed.summary,
+			object=self))
 		for cached_impl in self.in_cache:
 			cached_impl.append_to(model, iter2)
-	
-	def get_may_delete(self):
-		for c in self.in_cache:
-			if not isinstance(c, LocalImplementation):
-				return False	# Still some impls cached
-		return True
 
-	may_delete = property(get_may_delete)
+	def launch(self, explorer):
+		os.spawnlp(os.P_NOWAIT, '0launch', '0launch', '--gui', self.uri)
 	
-class InvalidInterface(CachedInterface):
+	def copy_uri(self, explorer):
+		clipboard = gtk.clipboard_get()
+		clipboard.set_text(self.uri)
+		primary = gtk.clipboard_get('PRIMARY')
+		primary.set_text(self.uri)
+	
+	def deletable_children(self):
+		return list(filter(lambda child: child.may_delete, self.in_cache))
+	
+	def prompt_delete(self, cache_explorer):
+		description = "\"%s\"" % (self.feed.get_name(),)
+		num_children = len(self.deletable_children())
+		if self.in_cache:
+			description += _(" (and %s %s)") % (num_children, _("implementation") if num_children == 1 else _("implementations"))
+		if warn(_("Really delete %s?") % (description,), parent=cache_explorer.window):
+			self.delete()
+			return ACTION_REMOVE
+	
+	menu_items = [(_('Launch with GUI'), launch),
+	              (_('Copy URI'), copy_uri),
+	              (_('Delete'), prompt_delete)]
+
+class RemoteFeed(ValidFeed):
+	may_delete = True
+
+class LocalFeed(ValidFeed):
+	may_delete = False
+
+class InvalidFeed(CachedFeed):
 	may_delete = True
 
 	def __init__(self, uri, ex, size):
-		CachedInterface.__init__(self, uri, size)
+		CachedFeed.__init__(self, uri, size)
 		self.ex = ex
 
 	def append_to(self, model, iter):
-		model.append(iter, [self.uri, self.size, None, self.ex, self])
+		model.append(iter, extract_columns(
+			name=self.uri.rsplit('/', 1)[-1],
+			uri=self.uri,
+			size=self.size,
+			tooltip=self.ex,
+			object=self))
 	
 class LocalImplementation:
 	may_delete = False
@@ -133,7 +306,11 @@ class LocalImplementation:
 		self.impl = impl
 
 	def append_to(self, model, iter):
-		model.append(iter, [self.impl.local_path, 0, None, _('This is a local version, not held in the cache.'), self])
+		model.append(iter, extract_columns(
+			name=self.impl.local_path,
+			tooltip=_('This is a local version, not held in the cache.'),
+			object=self))
+
 
 class CachedImplementation:
 	may_delete = True
@@ -144,13 +321,15 @@ class CachedImplementation:
 		self.digest = digest
 
 	def delete(self):
-		#print "Delete", self.impl_path
-		support.ro_rmtree(self.impl_path)
+		if SAFE_MODE:
+			print "Delete", self.impl_path
+		else:
+			support.ro_rmtree(self.impl_path)
 	
-	def open_rox(self):
+	def open_rox(self, explorer):
 		os.spawnlp(os.P_WAIT, '0launch', '0launch', ROX_IFACE, '-d', self.impl_path)
 	
-	def verify(self):
+	def verify(self, explorer):
 		try:
 			manifest.verify(self.impl_path)
 		except BadDigest, ex:
@@ -176,13 +355,23 @@ class CachedImplementation:
 						_('Contents match digest; nothing has been changed.'))
 		box.run()
 		box.destroy()
+	
+	def prompt_delete(self, explorer):
+		if warn(_("Really delete implementation?"), parent=explorer.window):
+			self.delete()
+			return ACTION_REMOVE
 
 	menu_items = [(_('Open in ROX-Filer'), open_rox),
-		      (_('Verify integrity'), verify)]
+	              (_('Verify integrity'), verify),
+	              (_('Delete'), prompt_delete)]
 
 class UnusedImplementation(CachedImplementation):
 	def append_to(self, model, iter):
-		model.append(iter, [self.digest, self.size, None, self.impl_path, self])
+		model.append(iter, extract_columns(
+			name=self.digest,
+			size=self.size,
+			tooltip=self.impl_path,
+			object=self))
 
 class KnownImplementation(CachedImplementation):
 	def __init__(self, cached_iface, cache_dir, impl, impl_size, digest):
@@ -192,16 +381,24 @@ class KnownImplementation(CachedImplementation):
 		self.size = impl_size
 	
 	def delete(self):
-		CachedImplementation.delete(self)
-		self.cached_iface.in_cache.remove(self)
+		if SAFE_MODE:
+			print "Delete", self.impl
+		else:
+			CachedImplementation.delete(self)
+			self.cached_iface.in_cache.remove(self)
 
 	def append_to(self, model, iter):
-		model.append(iter,
-			[_('Version %(implementation_version)s : %(implementation_id)s') % {'implementation_version': self.impl.get_version(), 'implementation_id': self.impl.id},
-			 self.size, None,
-			 None,
-			 self])
-	
+		impl = self.impl
+		label = _('Version %(implementation_version)s (%(arch)s)') % {
+				'implementation_version': impl.get_version(),
+				'arch': impl.arch or 'any platform'}
+
+		model.append(iter, extract_columns(
+			name=label,
+			size=self.size,
+			tooltip=self.impl_path,
+			object=self))
+
 	def __cmp__(self, other):
 		if hasattr(other, 'impl'):
 			return self.impl.__cmp__(other.impl)
@@ -209,6 +406,7 @@ class KnownImplementation(CachedImplementation):
 
 class CacheExplorer:
 	"""A graphical interface for viewing the cache and deleting old items."""
+
 	def __init__(self, iface_cache):
 		widgets = gtkutils.Template(os.path.join(os.path.dirname(__file__), 'cache.ui'), 'cache')
 		self.window = window = widgets.get_widget('cache')
@@ -216,18 +414,45 @@ class CacheExplorer:
 		self.iface_cache = iface_cache
 
 		# Model
-		self.model = gtk.TreeStore(str, int, str, str, object)
+		self.raw_model = gtk.TreeStore(*Column.column_types())
+		self.view_model = self.raw_model.filter_new()
+		self.model.set_sort_column_id(URI.idx, gtk.SORT_ASCENDING)
 		self.tree_view = widgets.get_widget('treeview')
-		self.tree_view.set_model(self.model)
+		self.tree_view.set_model(self.view_model)
+		Column.add_all(self.tree_view)
 
-		column = gtk.TreeViewColumn(_('Item'), gtk.CellRendererText(), text = ITEM)
-		column.set_resizable(True)
-		self.tree_view.append_column(column)
+		# Sort / Filter options:
 
-		cell = gtk.CellRendererText()
-		cell.set_property('xalign', 1.0)
-		column = gtk.TreeViewColumn(_('Size'), cell, text = PRETTY_SIZE)
-		self.tree_view.append_column(column)
+		def init_combo(combobox, items, on_select):
+			liststore = gtk.ListStore(str)
+			combobox.set_model(liststore)
+			cell = gtk.CellRendererText()
+			combobox.pack_start(cell, True)
+			combobox.add_attribute(cell, 'text', 0)
+			for item in items:
+				combobox.append_text(item[0])
+			combobox.set_active(0)
+			def _on_select(*a):
+				selected_item = combobox.get_active()
+				on_select(selected_item)
+			combobox.connect('changed', lambda *a: on_select(items[combobox.get_active()]))
+
+		def set_sort_order(sort_order):
+			#print "SORT: %r" % (sort_order,)
+			name, column, order = sort_order
+			self.model.set_sort_column_id(column.idx, order)
+		self.sort_combo = widgets.get_widget('sort_combo')
+		init_combo(self.sort_combo, SORT_OPTIONS, set_sort_order)
+
+		def set_filter(f):
+			#print "FILTER: %r" % (f,)
+			description, filter_func = f
+			self.view_model = self.model.filter_new()
+			self.view_model.set_visible_func(filter_func)
+			self.tree_view.set_model(self.view_model)
+			self.set_initial_expansion()
+		self.filter_combo = widgets.get_widget('filter_combo')
+		init_combo(self.filter_combo, FILTER_OPTIONS, set_filter)
 
 		def button_press(tree_view, bev):
 			if bev.button != 3:
@@ -236,26 +461,10 @@ class CacheExplorer:
 			if not pos:
 				return False
 			path, col, x, y = pos
-			obj = self.model[path][ITEM_OBJECT]
+			obj = self.model[path][ITEM_OBJECT.idx]
 			if obj and hasattr(obj, 'menu_items'):
-				popup_menu(bev, obj)
+				popup_menu(bev, obj, model=self.model, path=path, cache_explorer=self)
 		self.tree_view.connect('button-press-event', button_press)
-
-		# Tree tooltips
-		self.tree_view.set_property('has-tooltip', True)
-		def query_tooltip(widget, x, y, keyboard_mode, tooltip):
-			x, y = self.tree_view.convert_widget_to_bin_window_coords(x, y)
-			pos = self.tree_view.get_path_at_pos(x, y)
-			if pos:
-				path = pos[0]
-				row = self.model[path]
-				tip = row[TOOLTIP]
-				if tip:
-					self.tree_view.set_tooltip_cell(tooltip, pos[0], None, None)
-					tooltip.set_text(tip)
-					return True
-			return False
-		self.tree_view.connect('query-tooltip', query_tooltip)
 
 		# Responses
 		window.set_default_response(gtk.RESPONSE_CLOSE)
@@ -264,7 +473,7 @@ class CacheExplorer:
 		def selection_changed(selection):
 			any_selected = False
 			for x in get_selected_paths(self.tree_view):
-				obj = self.model[x][ITEM_OBJECT]
+				obj = self.model[x][ITEM_OBJECT.idx]
 				if obj is None or not obj.may_delete:
 					window.set_response_sensitive(DELETE, False)
 					return
@@ -283,6 +492,10 @@ class CacheExplorer:
 				self._delete()
 		window.connect('response', response)
 	
+	@property
+	def model(self):
+		return self.view_model.get_model()
+
 	def _delete(self):
 		errors = []
 
@@ -290,7 +503,7 @@ class CacheExplorer:
 		paths = get_selected_paths(self.tree_view)
 		paths.reverse()
 		for path in paths:
-			item = model[path][ITEM_OBJECT]
+			item = model[path][ITEM_OBJECT.idx]
 			assert item.delete
 			try:
 				item.delete()
@@ -308,12 +521,18 @@ class CacheExplorer:
 		self.window.show()
 		self.window.window.set_cursor(gtkutils.get_busy_pointer())
 		gtk.gdk.flush()
+		self._populate_model()
+		self.set_initial_expansion()
+	
+	def set_initial_expansion(self):
+		model = self.model
 		try:
-			self._populate_model()
-			i = self.model.get_iter_root()
+			i = model.get_iter_root()
 			while i:
-				self.tree_view.expand_row(self.model.get_path(i), False)
-				i = self.model.iter_next(i)
+				# expand only "Feeds"
+				if model[i][ITEM_OBJECT.idx] is SECTION_INTERFACES:
+					self.tree_view.expand_row(model.get_path(i), False)
+				i = model.iter_next(i)
 		finally:
 			self.window.window.set_cursor(None)
 
@@ -330,52 +549,62 @@ class CacheExplorer:
 						duplicates.append(id)
 					unowned[id] = s
 
-		ok_interfaces = []
-		error_interfaces = []
+		ok_feeds = []
+		error_feeds = []
 
-		# Look through cached interfaces for implementation owners
-		all = self.iface_cache.list_all_interfaces()
-		all.sort()
-		for uri in all:
-			iface_size = 0
+		# Look through cached feeds for implementation owners
+		all_interfaces = self.iface_cache.list_all_interfaces()
+		all_feeds = {}
+		for uri in all_interfaces:
 			try:
-				if os.path.isabs(uri):
-					cached_iface = uri
-				else:
-					cached_iface = basedir.load_first_cache(namespaces.config_site,
-							'interfaces', model.escape(uri))
-				user_overrides = basedir.load_first_config(namespaces.config_site,
-							namespaces.config_prog,
-							'user_overrides', model.escape(uri))
-
-				iface_size = size_if_exists(cached_iface) + size_if_exists(user_overrides)
 				iface = self.iface_cache.get_interface(uri)
 			except Exception, ex:
-				error_interfaces.append((uri, str(ex), iface_size))
+				error_feeds.append((uri, str(ex), 0))
 			else:
-				cached_iface = ValidInterface(iface, iface_size)
-				for impl in iface.implementations.values():
+				all_feeds.update(self.iface_cache.get_feeds(iface))
+
+		for url, feed in all_feeds.iteritems():
+			if not feed: continue
+			feed_size = 0
+			try:
+				if url != feed.url:
+					# (e.g. for .new feeds)
+					raise Exception('Incorrect URL for feed (%s vs %s)' % (url, feed.url))
+
+				if os.path.isabs(url):
+					cached_feed = url
+					feed_type = LocalFeed
+				else:
+					feed_type = RemoteFeed
+					cached_feed = basedir.load_first_cache(namespaces.config_site,
+							'interfaces', model.escape(url))
+				user_overrides = basedir.load_first_config(namespaces.config_site,
+							namespaces.config_prog,
+							'user_overrides', model.escape(url))
+
+				feed_size = size_if_exists(cached_feed) + size_if_exists(user_overrides)
+			except Exception, ex:
+				error_feeds.append((url, str(ex), feed_size))
+			else:
+				cached_feed = feed_type(feed, feed_size)
+				for impl in feed.implementations.values():
 					if impl.local_path:
-						cached_iface.in_cache.append(LocalImplementation(impl))
+						cached_feed.in_cache.append(LocalImplementation(impl))
 					for digest in impl.digests:
 						if digest in unowned:
 							cached_dir = unowned[digest].dir
 							impl_path = os.path.join(cached_dir, digest)
 							impl_size = get_size(impl_path)
-							cached_iface.in_cache.append(KnownImplementation(cached_iface, cached_dir, impl, impl_size, digest))
+							cached_feed.in_cache.append(KnownImplementation(cached_feed, cached_dir, impl, impl_size, digest))
 							del unowned[digest]
-				cached_iface.in_cache.sort()
-				ok_interfaces.append(cached_iface)
+				cached_feed.in_cache.sort()
+				ok_feeds.append(cached_feed)
 
-		if error_interfaces:
-			iter = self.model.append(None, [_("Invalid interfaces (unreadable)"),
-						 0, None,
-						 _("These interfaces exist in the cache but cannot be "
-						   "read. You should probably delete them."),
-						   None])
-			for uri, ex, size in error_interfaces:
-				item = InvalidInterface(uri, ex, size)
-				item.append_to(self.model, iter)
+		if error_feeds:
+			iter = SECTION_INVALID_INTERFACES.append_to(self.raw_model)
+			for uri, ex, size in error_feeds:
+				item = InvalidFeed(uri, ex, size)
+				item.append_to(self.raw_model, iter)
 
 		unowned_sizes = []
 		local_dir = os.path.join(basedir.xdg_cache_home, '0install.net', 'implementations')
@@ -384,45 +613,70 @@ class CacheExplorer:
 				impl = UnusedImplementation(local_dir, id)
 				unowned_sizes.append((impl.size, impl))
 		if unowned_sizes:
-			iter = self.model.append(None, [_("Unowned implementations and temporary files"),
-						0, None,
-						_("These probably aren't needed any longer. You can "
-						  "delete them."), None])
-			unowned_sizes.sort()
-			unowned_sizes.reverse()
+			iter = SECTION_UNOWNED_IMPLEMENTATIONS.append_to(self.raw_model)
 			for size, item in unowned_sizes:
-				item.append_to(self.model, iter)
+				item.append_to(self.raw_model, iter)
 
-		if ok_interfaces:
-			iter = self.model.append(None,
-				[_("Interfaces"),
-				 0, None,
-				 _("Interfaces in the cache"),
-				   None])
-			for item in ok_interfaces:
-				item.append_to(self.model, iter)
+		if ok_feeds:
+			iter = SECTION_INTERFACES.append_to(self.raw_model)
+			for item in ok_feeds:
+				item.append_to(self.raw_model, iter)
 		self._update_sizes()
 	
 	def _update_sizes(self):
-		"""Set PRETTY_SIZE to the total size, including all children."""
-		m = self.model
+		"""Set TOTAL_SIZE and PRETTY_SIZE to the total size, including all children."""
+		m = self.raw_model
 		def update(itr):
-			total = m[itr][SELF_SIZE]
-			child = m.iter_children(itr)
-			while child:
-				total += update(child)
-				child = m.iter_next(child)
-			m[itr][PRETTY_SIZE] = support.pretty_size(total)
+			total = m[itr][SELF_SIZE.idx]
+			total += sum(map(update, all_children(m, itr)))
+			m[itr][PRETTY_SIZE.idx] = support.pretty_size(total) if total else '-'
+			m[itr][TOTAL_SIZE.idx] = total
 			return total
 		itr = m.get_iter_root()
 		while itr:
 			update(itr)
 			itr = m.iter_next(itr)
 
+
+SORT_OPTIONS = [
+	('URI', URI, gtk.SORT_ASCENDING),
+	('Name', NAME, gtk.SORT_ASCENDING),
+	('Size', TOTAL_SIZE, gtk.SORT_DESCENDING),
+]
+
+def init_filters():
+	def filter_only(filterable_types, filter_func):
+		def _filter(model, iter):
+			obj = model.get_value(iter, ITEM_OBJECT.idx)
+			if any((isinstance(obj, t) for t in filterable_types)):
+				result = filter_func(model, iter)
+				return result
+			return True
+		return _filter
+
+	def not_(func):
+		return lambda *a: not func(*a)
+
+	def is_local_feed(model, iter):
+		return isinstance(model[iter][ITEM_OBJECT.idx], LocalFeed)
+
+	def has_implementations(model, iter):
+		return model.iter_has_child(iter)
+
+	return [
+		('All', lambda *a: True),
+		('Feeds with implementations', filter_only([ValidFeed], has_implementations)),
+		('Feeds without implementations', filter_only([ValidFeed], not_(has_implementations))),
+		('Local Feeds', filter_only([ValidFeed], is_local_feed)),
+		('Remote Feeds', filter_only([ValidFeed], not_(is_local_feed))),
+	]
+FILTER_OPTIONS = init_filters()
+
+
 cache_help = help_box.HelpBox(_("Cache Explorer Help"),
 (_('Overview'), '\n' +
-_("""When you run a program using Zero Install, it downloads the program's 'interface' file, \
-which gives information about which versions of the program are available. This interface \
+_("""When you run a program using Zero Install, it downloads the program's 'feed' file, \
+which gives information about which versions of the program are available. This feed \
 file is stored in the cache to save downloading it next time you run the program.
 
 When you have chosen which version (implementation) of the program you want to \
@@ -431,29 +685,28 @@ you have many different versions of each program on your computer at once. This 
 since it lets you use an old version if needed, and different programs may need to use \
 different versions of libraries in some cases.
 
-The cache viewer shows you all the interfaces and implementations in your cache. \
+The cache viewer shows you all the feeds and implementations in your cache. \
 This is useful to find versions you don't need anymore, so that you can delete them and \
 free up some disk space.""")),
 
-(_('Invalid interfaces'), '\n' +
-_("""The cache viewer gets a list of all interfaces in your cache. However, some may not \
-be valid; they are shown in the 'Invalid interfaces' section. It should be fine to \
-delete these. An invalid interface may be caused by a local interface that no longer \
-exists, by a failed attempt to download an interface (the name ends in '.new'), or \
-by the interface file format changing since the interface was downloaded.""")),
+(_('Invalid feeds'), '\n' +
+_("""The cache viewer gets a list of all feeds in your cache. However, some may not \
+be valid; they are shown in the 'Invalid feeds' section. It should be fine to \
+delete these. An invalid feed may be caused by a local feed that no longer \
+exists or by a failed attempt to download a feed (the name ends in '.new').""")),
 
 (_('Unowned implementations and temporary files'), '\n' +
-_("""The cache viewer searches through all the interfaces to find out which implementations \
-they use. If no interface uses an implementation, it is shown in the 'Unowned implementations' \
+_("""The cache viewer searches through all the feeds to find out which implementations \
+they use. If no feed uses an implementation, it is shown in the 'Unowned implementations' \
 section.
 
 Unowned implementations can result from old versions of a program no longer being listed \
-in the interface file. Temporary files are created when unpacking an implementation after \
+in the feed file. Temporary files are created when unpacking an implementation after \
 downloading it. If the archive is corrupted, the unpacked files may be left there. Unless \
 you are currently unpacking new programs, it should be fine to delete everything in this \
 section.""")),
 
-(_('Interfaces'), '\n' +
-_("""All remaining interfaces are listed in this section. You may wish to delete old versions of \
+(_('Feeds'), '\n' +
+_("""All remaining feeds are listed in this section. You may wish to delete old versions of \
 certain programs. Deleting a program which you may later want to run will require it to be downloaded \
 again. Deleting a version of a program which is currently running may cause it to crash, so be careful!""")))

@@ -1,14 +1,96 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <!-- interface-requires gtk+ 2.12 -->
   <!-- interface-naming-policy toplevel-contextual -->
   <object class="GtkDialog" id="cache">
     <property name="title" translatable="yes">Zero Install cache</property>
     <property name="type_hint">dialog</property>
-    <property name="has_separator">False</property>
     <child internal-child="vbox">
       <object class="GtkVBox" id="dialog-vbox1">
         <property name="visible">True</property>
+        <child>
+          <object class="GtkHBox" id="hbox1">
+            <property name="visible">True</property>
+            <property name="spacing">20</property>
+            <child>
+              <object class="GtkTable" id="table1">
+                <property name="visible">True</property>
+                <property name="n_columns">2</property>
+                <property name="column_spacing">5</property>
+                <child>
+                  <object class="GtkLabel" id="sort_label">
+                    <property name="visible">True</property>
+                    <property name="xalign">1</property>
+                    <property name="label" translatable="yes">Sort by:</property>
+                    <property name="single_line_mode">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkComboBox" id="sort_combo">
+                    <property name="visible">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="right_attach">2</property>
+                    <property name="y_options"></property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="padding">5</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkTable" id="table2">
+                <property name="visible">True</property>
+                <property name="n_columns">2</property>
+                <property name="column_spacing">5</property>
+                <child>
+                  <object class="GtkLabel" id="filter_label">
+                    <property name="visible">True</property>
+                    <property name="xalign">1</property>
+                    <property name="label" translatable="yes">Show:</property>
+                    <property name="single_line_mode">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkComboBox" id="filter_combo">
+                    <property name="visible">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="right_attach">2</property>
+                    <property name="y_options">GTK_EXPAND</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="padding">5</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="padding">8</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkHSeparator" id="hseparator1">
+            <property name="visible">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
         <child>
           <object class="GtkScrolledWindow" id="scrolledwindow1">
             <property name="visible">True</property>
@@ -18,12 +100,16 @@
               <object class="GtkTreeView" id="treeview">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="headers_clickable">False</property>
+                <property name="reorderable">True</property>
                 <property name="rules_hint">True</property>
+                <property name="search_column">0</property>
+                <property name="tooltip_column">2</property>
               </object>
             </child>
           </object>
           <packing>
-            <property name="position">1</property>
+            <property name="position">2</property>
           </packing>
         </child>
         <child internal-child="action_area">
@@ -79,7 +165,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="pack_type">end</property>
-            <property name="position">0</property>
+            <property name="position">3</property>
           </packing>
         </child>
       </object>
