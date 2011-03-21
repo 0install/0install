@@ -88,14 +88,14 @@ class Section(object):
 		))
 
 SECTION_INTERFACES = Section(
-	_("Interfaces"),
-	_("Interfaces in the cache"))
+	_("Feeds"),
+	_("Feeds in the cache"))
 SECTION_UNOWNED_IMPLEMENTATIONS = Section(
 	_("Unowned implementations and temporary files"),
 	_("These probably aren't needed any longer. You can delete them."))
 SECTION_INVALID_INTERFACES = Section(
-	_("Invalid interfaces (unreadable)"),
-	_("These interfaces exist in the cache but cannot be read. You should probably delete them."))
+	_("Invalid feeds (unreadable)"),
+	_("These feeds exist in the cache but cannot be read. You should probably delete them."))
 
 import cgi
 def extract_columns(**d):
@@ -174,10 +174,10 @@ def get_size(path):
 				size += os.path.getsize(os.path.join(root, name))
 	return size
 
-def summary(iface):
-	if iface.summary:
-		return iface.get_name() + ' - ' + iface.summary
-	return iface.get_name()
+def summary(feed):
+	if feed.summary:
+		return feed.get_name() + ' - ' + feed.summary
+	return feed.get_name()
 
 def get_selected_paths(tree_view):
 	"GTK 2.0 doesn't have this built-in"
@@ -200,7 +200,7 @@ DELETE = 0
 SAFE_MODE = False # really delete things
 #SAFE_MODE = True # print deletes, instead of performing them
 
-class CachedInterface(object):
+class CachedFeed(object):
 	def __init__(self, uri, size):
 		self.uri = uri
 		self.size = size
@@ -226,10 +226,10 @@ class CachedInterface(object):
 	def __cmp__(self, other):
 		return self.uri.__cmp__(other.uri)
 
-class ValidInterface(CachedInterface):
-	def __init__(self, iface, size):
-		CachedInterface.__init__(self, iface.uri, size)
-		self.iface = iface
+class ValidFeed(CachedFeed):
+	def __init__(self, feed, size):
+		CachedFeed.__init__(self, feed.url, size)
+		self.feed = feed
 		self.in_cache = []
 
 	def delete_children(self):
@@ -242,13 +242,13 @@ class ValidInterface(CachedInterface):
 
 	def delete(self):
 		self.delete_children()
-		super(ValidInterface, self).delete()
+		super(ValidFeed, self).delete()
 
 	def append_to(self, model, iter):
 		iter2 = model.append(iter, extract_columns(
-			name=self.iface.get_name(),
+			name=self.feed.get_name(),
 			uri=self.uri,
-			tooltip=self.iface.summary,
+			tooltip=self.feed.summary,
 			object=self))
 		for cached_impl in self.in_cache:
 			cached_impl.append_to(model, iter2)
@@ -266,7 +266,7 @@ class ValidInterface(CachedInterface):
 		return list(filter(lambda child: child.may_delete, self.in_cache))
 	
 	def prompt_delete(self, cache_explorer):
-		description = "\"%s\"" % (self.iface.get_name(),)
+		description = "\"%s\"" % (self.feed.get_name(),)
 		num_children = len(self.deletable_children())
 		if self.in_cache:
 			description += _(" (and %s %s)") % (num_children, _("implementation") if num_children == 1 else _("implementations"))
@@ -278,17 +278,17 @@ class ValidInterface(CachedInterface):
 	              (_('Copy URI'), copy_uri),
 	              (_('Delete'), prompt_delete)]
 
-class RemoteInterface(ValidInterface):
+class RemoteFeed(ValidFeed):
 	may_delete = True
 
-class LocalInterface(ValidInterface):
+class LocalFeed(ValidFeed):
 	may_delete = False
 
-class InvalidInterface(CachedInterface):
+class InvalidFeed(CachedFeed):
 	may_delete = True
 
 	def __init__(self, uri, ex, size):
-		CachedInterface.__init__(self, uri, size)
+		CachedFeed.__init__(self, uri, size)
 		self.ex = ex
 
 	def append_to(self, model, iter):
@@ -529,7 +529,7 @@ class CacheExplorer:
 		try:
 			i = model.get_iter_root()
 			while i:
-				# expand only "Interfaces"
+				# expand only "Feeds"
 				if model[i][ITEM_OBJECT.idx] is SECTION_INTERFACES:
 					self.tree_view.expand_row(model.get_path(i), False)
 				i = model.iter_next(i)
@@ -549,49 +549,61 @@ class CacheExplorer:
 						duplicates.append(id)
 					unowned[id] = s
 
-		ok_interfaces = []
-		error_interfaces = []
+		ok_feeds = []
+		error_feeds = []
 
-		# Look through cached interfaces for implementation owners
-		all = self.iface_cache.list_all_interfaces()
-		all.sort()
-		for uri in all:
-			iface_size = 0
+		# Look through cached feeds for implementation owners
+		all_interfaces = self.iface_cache.list_all_interfaces()
+		all_feeds = {}
+		for uri in all_interfaces:
 			try:
-				if os.path.isabs(uri):
-					cached_iface = uri
-					interface_type = LocalInterface
-				else:
-					interface_type = RemoteInterface
-					cached_iface = basedir.load_first_cache(namespaces.config_site,
-							'interfaces', model.escape(uri))
-				user_overrides = basedir.load_first_config(namespaces.config_site,
-							namespaces.config_prog,
-							'user_overrides', model.escape(uri))
-
-				iface_size = size_if_exists(cached_iface) + size_if_exists(user_overrides)
 				iface = self.iface_cache.get_interface(uri)
 			except Exception, ex:
-				error_interfaces.append((uri, str(ex), iface_size))
+				error_feeds.append((uri, str(ex), 0))
 			else:
-				cached_iface = interface_type(iface, iface_size)
-				for impl in iface.implementations.values():
+				all_feeds.update(self.iface_cache.get_feeds(iface))
+
+		for url, feed in all_feeds.iteritems():
+			if not feed: continue
+			feed_size = 0
+			try:
+				if url != feed.url:
+					# (e.g. for .new feeds)
+					raise Exception('Incorrect URL for feed (%s vs %s)' % (url, feed.url))
+
+				if os.path.isabs(url):
+					cached_feed = url
+					feed_type = LocalFeed
+				else:
+					feed_type = RemoteFeed
+					cached_feed = basedir.load_first_cache(namespaces.config_site,
+							'interfaces', model.escape(url))
+				user_overrides = basedir.load_first_config(namespaces.config_site,
+							namespaces.config_prog,
+							'user_overrides', model.escape(url))
+
+				feed_size = size_if_exists(cached_feed) + size_if_exists(user_overrides)
+			except Exception, ex:
+				error_feeds.append((url, str(ex), feed_size))
+			else:
+				cached_feed = feed_type(feed, feed_size)
+				for impl in feed.implementations.values():
 					if impl.local_path:
-						cached_iface.in_cache.append(LocalImplementation(impl))
+						cached_feed.in_cache.append(LocalImplementation(impl))
 					for digest in impl.digests:
 						if digest in unowned:
 							cached_dir = unowned[digest].dir
 							impl_path = os.path.join(cached_dir, digest)
 							impl_size = get_size(impl_path)
-							cached_iface.in_cache.append(KnownImplementation(cached_iface, cached_dir, impl, impl_size, digest))
+							cached_feed.in_cache.append(KnownImplementation(cached_feed, cached_dir, impl, impl_size, digest))
 							del unowned[digest]
-				cached_iface.in_cache.sort()
-				ok_interfaces.append(cached_iface)
+				cached_feed.in_cache.sort()
+				ok_feeds.append(cached_feed)
 
-		if error_interfaces:
+		if error_feeds:
 			iter = SECTION_INVALID_INTERFACES.append_to(self.raw_model)
-			for uri, ex, size in error_interfaces:
-				item = InvalidInterface(uri, ex, size)
+			for uri, ex, size in error_feeds:
+				item = InvalidFeed(uri, ex, size)
 				item.append_to(self.raw_model, iter)
 
 		unowned_sizes = []
@@ -605,9 +617,9 @@ class CacheExplorer:
 			for size, item in unowned_sizes:
 				item.append_to(self.raw_model, iter)
 
-		if ok_interfaces:
+		if ok_feeds:
 			iter = SECTION_INTERFACES.append_to(self.raw_model)
-			for item in ok_interfaces:
+			for item in ok_feeds:
 				item.append_to(self.raw_model, iter)
 		self._update_sizes()
 	
@@ -646,25 +658,25 @@ def init_filters():
 		return lambda *a: not func(*a)
 
 	def is_local_feed(model, iter):
-		return isinstance(model[iter][ITEM_OBJECT.idx], LocalInterface)
+		return isinstance(model[iter][ITEM_OBJECT.idx], LocalFeed)
 
 	def has_implementations(model, iter):
 		return model.iter_has_child(iter)
 
 	return [
 		('All', lambda *a: True),
-		('Feeds with implementations', filter_only([ValidInterface], has_implementations)),
-		('Feeds without implementations', filter_only([ValidInterface], not_(has_implementations))),
-		('Local Feeds', filter_only([ValidInterface], is_local_feed)),
-		('Remote Feeds', filter_only([ValidInterface], not_(is_local_feed))),
+		('Feeds with implementations', filter_only([ValidFeed], has_implementations)),
+		('Feeds without implementations', filter_only([ValidFeed], not_(has_implementations))),
+		('Local Feeds', filter_only([ValidFeed], is_local_feed)),
+		('Remote Feeds', filter_only([ValidFeed], not_(is_local_feed))),
 	]
 FILTER_OPTIONS = init_filters()
 
 
 cache_help = help_box.HelpBox(_("Cache Explorer Help"),
 (_('Overview'), '\n' +
-_("""When you run a program using Zero Install, it downloads the program's 'interface' file, \
-which gives information about which versions of the program are available. This interface \
+_("""When you run a program using Zero Install, it downloads the program's 'feed' file, \
+which gives information about which versions of the program are available. This feed \
 file is stored in the cache to save downloading it next time you run the program.
 
 When you have chosen which version (implementation) of the program you want to \
@@ -673,29 +685,28 @@ you have many different versions of each program on your computer at once. This 
 since it lets you use an old version if needed, and different programs may need to use \
 different versions of libraries in some cases.
 
-The cache viewer shows you all the interfaces and implementations in your cache. \
+The cache viewer shows you all the feeds and implementations in your cache. \
 This is useful to find versions you don't need anymore, so that you can delete them and \
 free up some disk space.""")),
 
-(_('Invalid interfaces'), '\n' +
-_("""The cache viewer gets a list of all interfaces in your cache. However, some may not \
-be valid; they are shown in the 'Invalid interfaces' section. It should be fine to \
-delete these. An invalid interface may be caused by a local interface that no longer \
-exists, by a failed attempt to download an interface (the name ends in '.new'), or \
-by the interface file format changing since the interface was downloaded.""")),
+(_('Invalid feeds'), '\n' +
+_("""The cache viewer gets a list of all feeds in your cache. However, some may not \
+be valid; they are shown in the 'Invalid feeds' section. It should be fine to \
+delete these. An invalid feed may be caused by a local feed that no longer \
+exists or by a failed attempt to download a feed (the name ends in '.new').""")),
 
 (_('Unowned implementations and temporary files'), '\n' +
-_("""The cache viewer searches through all the interfaces to find out which implementations \
-they use. If no interface uses an implementation, it is shown in the 'Unowned implementations' \
+_("""The cache viewer searches through all the feeds to find out which implementations \
+they use. If no feed uses an implementation, it is shown in the 'Unowned implementations' \
 section.
 
 Unowned implementations can result from old versions of a program no longer being listed \
-in the interface file. Temporary files are created when unpacking an implementation after \
+in the feed file. Temporary files are created when unpacking an implementation after \
 downloading it. If the archive is corrupted, the unpacked files may be left there. Unless \
 you are currently unpacking new programs, it should be fine to delete everything in this \
 section.""")),
 
-(_('Interfaces'), '\n' +
-_("""All remaining interfaces are listed in this section. You may wish to delete old versions of \
+(_('Feeds'), '\n' +
+_("""All remaining feeds are listed in this section. You may wish to delete old versions of \
 certain programs. Deleting a program which you may later want to run will require it to be downloaded \
 again. Deleting a version of a program which is currently running may cause it to crash, so be careful!""")))
