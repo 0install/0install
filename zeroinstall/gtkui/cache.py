@@ -113,7 +113,7 @@ def extract_columns(**d):
 		setcol(ITEM_VIEW, '<span font-size="larger" weight="bold">%s</span>\n'
 		'<span color="#666666">%s</span>' % tuple(map(cgi.escape, (name, uri))))
 	else:
-		setcol(ITEM_VIEW, name or desc)
+		setcol(ITEM_VIEW, cgi.escape(name or desc))
 
 	size = d.get('size', 0)
 	setcol(SELF_SIZE, size)
@@ -152,8 +152,6 @@ def warn(message, parent=None):
 	dialog.run()
 	dialog.destroy()
 	return bool(response)
-	if response:
-		return True
 
 def size_if_exists(path):
 	"Get the size for a file, or 0 if it doesn't exist."
@@ -292,7 +290,12 @@ class InvalidInterface(CachedInterface):
 		self.ex = ex
 
 	def append_to(self, model, iter):
-		model.append(iter, [self.uri, self.size, None, self.ex, self])
+		model.append(iter, extract_columns(
+			name=self.uri.rsplit('/', 1)[-1],
+			uri=self.uri,
+			size=self.size,
+			tooltip=self.ex,
+			object=self))
 	
 class LocalImplementation:
 	may_delete = False
@@ -428,14 +431,14 @@ class CacheExplorer:
 			combobox.connect('changed', lambda *a: on_select(items[combobox.get_active()]))
 
 		def set_sort_order(sort_order):
-			print "SORT: %r" % (sort_order,)
+			#print "SORT: %r" % (sort_order,)
 			name, column, order = sort_order
 			self.model.set_sort_column_id(column.idx, order)
 		self.sort_combo = widgets.get_widget('sort_combo')
 		init_combo(self.sort_combo, SORT_OPTIONS, set_sort_order)
 
 		def set_filter(f):
-			print "FILTER: %r" % (f,)
+			#print "FILTER: %r" % (f,)
 			description, filter_func = f
 			self.view_model = self.model.filter_new()
 			self.view_model.set_visible_func(filter_func)
