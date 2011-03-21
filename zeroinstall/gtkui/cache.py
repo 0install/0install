@@ -388,8 +388,13 @@ class KnownImplementation(CachedImplementation):
 			self.cached_iface.in_cache.remove(self)
 
 	def append_to(self, model, iter):
+		impl = self.impl
+		label = _('Version %(implementation_version)s (%(arch)s)') % {
+				'implementation_version': impl.get_version(),
+				'arch': impl.arch or 'any platform'}
+
 		model.append(iter, extract_columns(
-			name=_('Version %(implementation_version)s : %(implementation_id)s') % {'implementation_version': self.impl.get_version(), 'implementation_id': self.impl.id},
+			name=label,
 			size=self.size,
 			tooltip=self.impl_path,
 			object=self))
