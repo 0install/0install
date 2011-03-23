@@ -274,10 +274,10 @@ class TestReader(BaseTest):
 		assert len(feed.implementations) == 3
 		assert len(feed.feeds) == 1, feed.feeds
 
-		self.assertEquals('fr en_GB', feed.feeds[0].langs)
+		self.assertEquals('fr en-GB', feed.feeds[0].langs)
 
 		self.assertEquals('fr', feed.implementations['sha1=124'].langs)
-		self.assertEquals('fr en_GB', feed.implementations['sha1=234'].langs)
+		self.assertEquals('fr en-GB', feed.implementations['sha1=234'].langs)
 		self.assertEquals('', feed.implementations['sha1=345'].langs)
 	
 if __name__ == '__main__':

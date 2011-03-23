@@ -95,15 +95,16 @@ class Solver(object):
 		raise NotImplementedError("Abstract")
 
 class SATSolver(Solver):
-	__slots__ = ['_failure_reason', 'config', 'extra_restrictions', 'langs']
+	"""Converts the problem to a set of pseudo-boolean constraints and uses a PB solver to solve them.
+	@ivar langs: the preferred languages (e.g. ["es_ES", "en"]). Initialised to the current locale.
+	@type langs: str"""
+
+	__slots__ = ['_failure_reason', 'config', 'extra_restrictions', '_lang_ranks', '_langs']
 
 	@property
 	def iface_cache(self):
 		return self.config.iface_cache	# (deprecated; used by 0compile)
 
-	"""Converts the problem to a set of pseudo-boolean constraints and uses a PB solver to solve them.
-	@ivar langs: the preferred languages (e.g. ["es_ES", "en"]). Initialised to the current locale.
-	@type langs: str"""
 	def __init__(self, config, extra_restrictions = None):
 		"""
 		@param config: policy preferences (e.g. stability), the iface_cache and the stores to use
@@ -116,7 +117,29 @@ class SATSolver(Solver):
 		self.config = config
 		self.extra_restrictions = extra_restrictions or {}
 
-		self.langs = [locale.getlocale()[0] or 'en']
+		# By default, prefer the current locale's language first and English second
+		self.langs = [locale.getlocale()[0] or 'en', 'en']
+
+	def set_langs(self, langs):
+		"""Set the preferred languages.
+		@param lang: languages (and regions), first choice first
+		@type lang: [str]
+		"""
+		# _lang_ranks is a map from locale string to score (higher is better)
+		_lang_ranks = {}
+		score = 0
+		i = len(langs)
+		# (is there are duplicates, the first occurance takes precedence)
+		while i > 0:
+			i -= 1
+			lang = langs[i].replace('_', '-')
+			_lang_ranks[lang.split('-')[0]] = score
+			_lang_ranks[lang] = score + 1
+			score += 2
+		self._langs = langs
+		self._lang_ranks = _lang_ranks
+
+	langs = property(lambda self: self._langs, set_langs)
 
 	def compare(self, interface, b, a, arch):
 		"""Compare a and b to see which would be chosen first.
@@ -128,9 +151,10 @@ class SATSolver(Solver):
 		# Languages we understand come first
 		a_langs = (a.langs or 'en').split()
 		b_langs = (b.langs or 'en').split()
-		main_langs = set(l.split('_')[0] for l in self.langs)
-		r = cmp(any(l.split('_')[0] in main_langs for l in a_langs),
-			any(l.split('_')[0] in main_langs for l in b_langs))
+		my_langs = self._lang_ranks
+
+		r = cmp(max(my_langs.get(l.split('-')[0], -1) for l in a_langs),
+			max(my_langs.get(l.split('-')[0], -1) for l in b_langs))
 		if r: return r
 
 		a_stab = a.get_stability()
@@ -184,8 +208,9 @@ class SATSolver(Solver):
 		if r: return r
 
 		# Slightly prefer languages specialised to our country
-		r = cmp(any(l in self.langs for l in a_langs),
-			any(l in self.langs for l in b_langs))
+		# (we know a and b have the same base language at this point)
+		r = cmp(max(my_langs.get(l, -1) for l in a_langs),
+			max(my_langs.get(l, -1) for l in b_langs))
 		if r: return r
 
 		# Slightly prefer cached versions
