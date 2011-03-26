@@ -47,14 +47,14 @@ class Element(object):
 		@param doc: document to use to create the element
 		@return: the new element
 		"""
-		elem = doc.createElementNS(self.uri, self.name)
+		elem = prefixes.createElementNS(doc, self.uri, self.name)
+
 		for fullname, value in self.attrs.iteritems():
 			if ' ' in fullname:
 				ns, localName = fullname.split(' ', 1)
-				name = prefixes.get(ns) + ':' + localName
 			else:
-				ns, name = None, fullname
-			elem.setAttributeNS(ns, name, value)
+				ns, localName = None, fullname
+			prefixes.setAttributeNS(elem, ns, localName, value)
 		for child in self.childNodes:
 			elem.appendChild(child.toDOM(doc, prefixes))
 		if self.content:
@@ -105,10 +105,11 @@ def parse(source):
 
 class Prefixes:
 	"""Keep track of namespace prefixes. Used when serialising a document.
-	@since: 0.51
+	@since: 0.54
 	"""
-	def __init__(self):
+	def __init__(self, default_ns):
 		self.prefixes = {}
+		self.default_ns = default_ns
 
 	def get(self, ns):
 		prefix = self.prefixes.get(ns, None)
@@ -117,3 +118,15 @@ class Prefixes:
 		prefix = 'ns%d' % len(self.prefixes)
 		self.prefixes[ns] = prefix
 		return prefix
+
+	def setAttributeNS(self, elem, uri, localName, value):
+		if uri is None:
+			elem.setAttributeNS(None, localName, value)
+		else:
+			elem.setAttributeNS(uri, self.get(uri) + ':' + localName, value)
+	
+	def createElementNS(self, doc, uri, localName):
+		if uri == self.default_ns:
+			return doc.createElementNS(uri, localName)
+		else:
+			return doc.createElementNS(uri, self.get(uri) + ':' + localName)

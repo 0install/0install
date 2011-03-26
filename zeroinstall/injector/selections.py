@@ -205,7 +205,7 @@ class Selections(object):
 
 		root.setAttributeNS(None, 'interface', self.interface)
 
-		prefixes = Prefixes()
+		prefixes = Prefixes(XMLNS_IFACE)
 
 		for iface, selection in sorted(self.selections.items()):
 			selection_elem = doc.createElementNS(XMLNS_IFACE, 'selection')
@@ -215,7 +215,7 @@ class Selections(object):
 			for name, value in selection.attrs.iteritems():
 				if ' ' in name:
 					ns, localName = name.split(' ', 1)
-					selection_elem.setAttributeNS(ns, prefixes.get(ns) + ':' + localName, value)
+					prefixes.setAttributeNS(selection_elem, ns, localName, value)
 				elif name == 'from-feed':
 					# Don't bother writing from-feed attr if it's the same as the interface
 					if value != selection.attrs['interface']:
@@ -247,7 +247,7 @@ class Selections(object):
 						dep_elem.setAttributeNS(None, localName, dep.metadata[m])
 					else:
 						ns, localName = parts
-						dep_elem.setAttributeNS(ns, prefixes.get(ns) + ':' + localName, dep.metadata[m])
+						prefixes.setAttributeNS(dep_elem, ns, localName, dep.metadata[m])
 
 				for b in dep.bindings:
 					dep_elem.appendChild(b._toxml(doc))
