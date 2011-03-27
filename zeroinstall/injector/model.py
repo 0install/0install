@@ -77,7 +77,7 @@ def _join_arch(osys, machine):
 	return "%s-%s" % (osys or '*', machine or '*')
 
 def _best_language_match(options):
-	(language, encoding) = locale.getlocale(locale.LC_ALL)
+	(language, encoding) = locale.getlocale()
 
 	if language:
 		# xml:lang uses '-', while LANG uses '_'

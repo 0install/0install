@@ -46,8 +46,9 @@ os.execvp = test_execvp
 test_locale = (None, None)
 assert model.locale
 class TestLocale:
-	LC_ALL = 0	# Note: LC_MESSAGES not present on Windows
-	def getlocale(self, x):
+	LC_ALL = 'LC_ALL'	# Note: LC_MESSAGES not present on Windows
+	def getlocale(self, x = None):
+		assert x is not TestLocale.LC_ALL
 		return test_locale
 model.locale = TestLocale()
 
