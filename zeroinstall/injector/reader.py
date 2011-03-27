@@ -15,6 +15,9 @@ from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFAC
 from zeroinstall.injector.model import Interface, InvalidInterface, ZeroInstallFeed, escape, Feed, stability_levels
 from zeroinstall.injector import model
 
+class MissingLocalFeed(InvalidInterface):
+	pass
+
 def update_from_cache(interface, iface_cache = None):
 	"""Read a cached interface and any native feeds or user overrides.
 	@param interface: the interface object to update
@@ -205,8 +208,8 @@ def load_feed(source, local = False, selections_ok = False):
 	try:
 		root = qdom.parse(file(source))
 	except IOError, ex:
-		if ex.errno == 2:
-			raise InvalidInterface(_("Feed not found. Perhaps this is a local feed that no longer exists? You can remove it from the list of feeds in that case."), ex)
+		if ex.errno == 2 and local:
+			raise MissingLocalFeed(_("Feed not found. Perhaps this is a local feed that no longer exists? You can remove it from the list of feeds in that case."))
 		raise InvalidInterface(_("Can't read file"), ex)
 	except Exception, ex:
 		raise InvalidInterface(_("Invalid XML"), ex)

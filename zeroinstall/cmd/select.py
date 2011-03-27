@@ -46,9 +46,11 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 	if options.offline:
 		config.network_use = model.network_offline
 
+	iface_cache = config.iface_cache
+
 	# Try to load it as a feed. If it is a feed, it'll get cached. If not, it's a
 	# selections document and we return immediately.
-	maybe_selections = config.iface_cache.get_feed(iface_uri, selections_ok = True)
+	maybe_selections = iface_cache.get_feed(iface_uri, selections_ok = True)
 	if isinstance(maybe_selections, selections.Selections):
 		if not select_only:
 			blocker = maybe_selections.download_missing(config)
@@ -75,8 +77,9 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 			can_run_immediately = not policy.need_download()
 
 		stale_feeds = [feed for feed in policy.solver.feeds_used if
+				not os.path.isabs(feed) and			# Ignore local feeds (note: file might be missing too)
 				not feed.startswith('distribution:') and	# Ignore (memory-only) PackageKit feeds
-				policy.is_stale(config.iface_cache.get_feed(feed))]
+				iface_cache.is_stale(iface_cache.get_feed(feed), config.freshness)]
 
 		if download_only and stale_feeds:
 			can_run_immediately = False

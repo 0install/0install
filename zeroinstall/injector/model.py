@@ -55,10 +55,14 @@ class InvalidInterface(SafeException):
 
 		SafeException.__init__(self, message)
 
-	def __str__(self):
-		if self.feed_url:
-			return SafeException.__str__(self) + ' in ' + self.feed_url
-		return SafeException.__str__(self)
+	def __unicode__(self):
+		if hasattr(SafeException, '__unicode__'):
+			# Python >= 2.6
+			if self.feed_url:
+				return _('%s [%s]') % (SafeException.__unicode__(self), self.feed_url)
+			return SafeException.__unicode__(self)
+		else:
+			return unicode(SafeException.__str__(self))
 
 def _split_arch(arch):
 	"""Split an arch into an (os, machine) tuple. Either or both parts may be None."""
