@@ -9,6 +9,7 @@ from zeroinstall import _
 import locale
 from logging import debug, warn, info
 
+from zeroinstall.injector.reader import MissingLocalFeed
 from zeroinstall.injector.arch import machine_groups
 from zeroinstall.injector import model, sat, selections
 
@@ -357,6 +358,10 @@ class SATSolver(Solver):
 						distro_feed = iface_cache.get_feed(distro_feed_url)
 						if distro_feed.implementations:
 							impls.extend(distro_feed.implementations.values())
+				except MissingLocalFeed, ex:
+					warn(_("Missing local feed; if it's no longer required, remove it with:") +
+							'\n0install remove-feed ' + iface.uri + ' ' + f,
+						{'feed': f, 'interface': iface, 'exception': ex})
 				except Exception, ex:
 					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
 					#raise

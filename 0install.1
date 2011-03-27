@@ -24,7 +24,7 @@
 
 .B 0install add-feed \fBFEED\fP
 
-.B 0install remove-feed \fBFEED\fP
+.B 0install remove-feed [\fBINTERFACE\fP] \fBFEED\fP
 
 .B 0install list-feeds \fBURI\fP
 
@@ -275,10 +275,11 @@ as normal. Use `add-feed' when you want to use the developer version even when
 using the URI, or if the program is a library (and thus referenced by URI by
 other programs).
 
-.SS 0install remove-feed FEED
+.SS 0install remove-feed [INTERFACE] FEED
 
 .PP
-Un-register a feed, reversing the effect of `add-feed'.
+Un-register a feed, reversing the effect of `add-feed'. If INTERFACE is not
+given, you will be prompted to choose which INTERFACE to remove it from.
 
 .SS 0install list-feeds URI
 
