@@ -421,7 +421,7 @@ class InterfaceBrowser:
 
 		menu.popup(None, None, None, bev.button, bev.time)
 
-	def compile(self, interface, autocompile = False):
+	def compile(self, interface, autocompile = True):
 		import compile
 		def on_success():
 			# A new local feed may have been registered, so reload it from the disk cache
