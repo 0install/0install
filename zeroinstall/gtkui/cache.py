@@ -216,10 +216,10 @@ class CachedFeed(object):
 					os.unlink(cached_iface)
 		user_overrides = basedir.load_first_config(namespaces.config_site,
 					namespaces.config_prog,
-					'user_overrides', model.escape(self.uri))
+					'interfaces', model._pretty_escape(self.uri))
 		if user_overrides:
 			if SAFE_MODE:
-				print "Delete", cached_iface
+				print "Delete", user_overrides
 			else:
 				os.unlink(user_overrides)
 	
@@ -580,7 +580,7 @@ class CacheExplorer:
 							'interfaces', model.escape(url))
 				user_overrides = basedir.load_first_config(namespaces.config_site,
 							namespaces.config_prog,
-							'user_overrides', model.escape(url))
+							'interfaces', model._pretty_escape(url))
 
 				feed_size = size_if_exists(cached_feed) + size_if_exists(user_overrides)
 			except Exception, ex:

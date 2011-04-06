@@ -385,10 +385,6 @@ class IfaceCache(object):
 			for leaf in os.listdir(d):
 				if not leaf.startswith('.'):
 					all.add(unescape(leaf))
-		for d in basedir.load_config_paths(config_site, config_prog, 'user_overrides'):
-			for leaf in os.listdir(d):
-				if not leaf.startswith('.'):
-					all.add(unescape(leaf))
 		return list(all)	# Why not just return the set?
 
 	def get_icon_path(self, iface):
