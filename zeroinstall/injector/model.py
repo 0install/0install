@@ -1097,7 +1097,13 @@ def _pretty_escape(uri):
 	: is preserved and / becomes #. This makes for nicer strings,
 	and may replace L{escape} everywhere in future.
 	@rtype: str"""
-	return re.sub('[^-_.a-zA-Z0-9:/]',
+	if os.name == "posix":
+		# Only preserve : on Posix systems
+		preserveRegex = '[^-_.a-zA-Z0-9:/]'
+	else:
+		# Other OSes may not allow the : character in file names
+		preserveRegex = '[^-_.a-zA-Z0-9/]'
+	return re.sub(preserveRegex,
 		lambda match: '%%%02x' % ord(match.group(0)),
 		uri.encode('utf-8')).replace('/', '#')
 
