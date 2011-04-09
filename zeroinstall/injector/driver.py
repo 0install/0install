@@ -31,7 +31,7 @@ class Driver(object):
 	@type solver: L{solve.Solver}
 	@ivar watchers: callbacks to invoke after solving
 	"""
-	__slots__ = ['watchers', 'requirements', 'config', '_warned_offline', 'target_arch', 'solver']
+	__slots__ = ['watchers', 'requirements', 'config', 'target_arch', 'solver']
 
 	def __init__(self, config, requirements):
 		"""
@@ -53,10 +53,6 @@ class Driver(object):
 
 		from zeroinstall.injector.solver import DefaultSolver
 		self.solver = DefaultSolver(self.config)
-
-		# If we need to download something but can't because we are offline,
-		# warn the user. But only the first time.
-		self._warned_offline = False
 
 		debug(_("Supported systems: '%s'"), arch.os_ranks)
 		debug(_("Supported processors: '%s'"), arch.machine_ranks)

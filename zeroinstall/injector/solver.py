@@ -514,7 +514,10 @@ class SATSolver(Solver):
 				impls = impls_for_iface[iface_cache.get_interface(root_interface)]
 				if impls == [] or (len(impls) == 1 and isinstance(impls[0], _DummyImpl)):
 					# There were no candidates at all.
-					self._failure_reason = _("Interface '%s' has no usable implementations") % root_interface
+					if self.config.network_use == model.network_offline:
+						self._failure_reason = _("Interface '%s' has no usable implementations in the cache (and 0install is in off-line mode)") % root_interface
+					else:
+						self._failure_reason = _("Interface '%s' has no usable implementations") % root_interface
 				else:
 					# We had some candidates implementations, but none for the command we need
 					self._failure_reason = _("Interface '%s' cannot be executed directly; it is just a library "
