@@ -35,6 +35,6 @@ requires first uninstalling another.</description>
   </release:management>
 
   <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch" self-test="tests/allpython.sh">
-    <implementation id="." version="0.53-post"/>
+    <implementation id="." released="2011-04-09" version="0.54"/>
   </group>
 </interface>
