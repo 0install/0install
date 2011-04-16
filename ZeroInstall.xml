@@ -22,7 +22,7 @@ requires first uninstalling another.</description>
 
   <homepage>http://0install.net/</homepage>
 
-  <icon href="http://0install.net/feed_icons/Zero2Desktop.png" type="image/png"/>
+  <icon href="http://0install.net/feed_icons/ZeroInstall.png" type="image/png"/>
 
   <feed-for interface="http://0install.net/2007/interfaces/ZeroInstall.xml"/>
   <category>System</category>
@@ -35,6 +35,11 @@ requires first uninstalling another.</description>
   </release:management>
 
   <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch" self-test="tests/allpython.sh">
+    <command name='run' path='0launch'>
+      <runner interface='http://repo.roscidus.com/python/python'>
+	<version before='3'/>
+      </runner>
+    </command>
     <implementation id="." version="0.54-post"/>
   </group>
 </interface>
