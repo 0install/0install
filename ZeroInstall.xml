@@ -34,8 +34,13 @@ requires first uninstalling another.</description>
     <release:action phase="generate-archive">rm .gitignore; make translations</release:action>
   </release:management>
 
-  <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch" self-test="tests/allpython.sh">
+  <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch">
     <command name='run' path='0launch'>
+      <runner interface='http://repo.roscidus.com/python/python'>
+	<version before='3'/>
+      </runner>
+    </command>
+    <command name='test' path='tests/testall.py'>
       <runner interface='http://repo.roscidus.com/python/python'>
 	<version before='3'/>
       </runner>
