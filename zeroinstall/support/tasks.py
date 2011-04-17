@@ -137,6 +137,7 @@ class Blocker:
 		"""Called by the schedular when a Task yields this
 		Blocker. If you override this method, be sure to still
 		call this method with Blocker.add_task(self)!"""
+		assert task not in self._zero_lib_tasks, "Blocking on a single task twice: %s (%s)" % (task, self)
 		self._zero_lib_tasks.add(task)
 	
 	def remove_task(self, task):

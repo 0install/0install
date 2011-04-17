@@ -86,7 +86,9 @@ class PackageKit(object):
 		assert self.pk
 
 		known = [self._candidates[p] for p in package_names if p in self._candidates]
-		in_progress = [b for b in known if isinstance(b, tasks.Blocker)]
+		# (use set because a single task may be checking multiple packages and we need
+		# to avoid duplicates).
+		in_progress = list(set([b for b in known if isinstance(b, tasks.Blocker)]))
 		_logger_pk.debug('Already downloading: %s', in_progress)
 
 		# Filter out the ones we've already fetched
