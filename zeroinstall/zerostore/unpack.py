@@ -116,7 +116,7 @@ def check_type_ok(mime_type):
 			raise SafeException(_("This package looks like a xz-compressed package, but you don't have the 'unxz' command "
 					"I need to extract it. Install the package containing it (it's probably called 'xz-utils') "
 					"first."))
-	elif mime_type in ('application/x-compressed-tar', 'application/x-tar'):
+	elif mime_type in ('application/x-compressed-tar', 'application/x-tar', 'application/x-ruby-gem'):
 		pass
 	else:
 		from zeroinstall import version
