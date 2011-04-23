@@ -33,10 +33,11 @@ except AttributeError:
 	p = sys.platform
 	import platform
 	bits, linkage = platform.architecture()
-	if p == 'win32' and (bits == '' or bits == '32bit'):
-		_uname = ('Windows', 'i486')
-	elif p == 'win64' or (p == 'win32' and bits == '64bit'):
+	from win32process import IsWow64Process
+	if p == 'win64' or (p == 'win32' and IsWow64Process()):
 		_uname = ('Windows', 'x86_64')
+	elif p == 'win32':
+		_uname = ('Windows', 'i486')
 	else:
 		_uname = (p, 'i486')
 
