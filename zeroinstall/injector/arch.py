@@ -27,6 +27,11 @@ import os
 # Higher numbers are worse but usable.
 try:
 	_uname = os.uname()
+	# On Darwin, machine is wrong.
+	if _uname[0] == 'Darwin' and _uname[-1] == 'i386':
+		_cpu64 = os.popen('sysctl -n hw.cpu64bit_capable 2>&1').next().strip()
+		if _cpu64 == '1':
+			_uname = tuple(list(_uname[:-1])+['x86_64'])
 except AttributeError:
 	# No uname. Probably Windows.
 	import sys
