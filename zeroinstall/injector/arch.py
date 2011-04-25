@@ -31,12 +31,14 @@ except AttributeError:
 	# No uname. Probably Windows.
 	import sys
 	p = sys.platform
-	import platform
-	bits, linkage = platform.architecture()
-	if p == 'win32' and (bits == '' or bits == '32bit'):
-		_uname = ('Windows', 'i486')
-	elif p == 'win64' or (p == 'win32' and bits == '64bit'):
+	if p == 'win64':
 		_uname = ('Windows', 'x86_64')
+	elif p == 'win32':
+		from win32process import IsWow64Process
+		if IsWow64Process():
+			_uname = ('Windows', 'x86_64')
+		else:
+			_uname = ('Windows', 'i486')
 	else:
 		_uname = (p, 'i486')
 
