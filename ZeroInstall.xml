@@ -35,16 +35,16 @@ requires first uninstalling another.</description>
   </release:management>
 
   <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch">
-    <command name='run' path='0launch'>
-      <runner interface='http://repo.roscidus.com/python/python'>
-	<version before='3'/>
+    <command name="run" path="0launch">
+      <runner interface="http://repo.roscidus.com/python/python">
+	<version before="3"/>
       </runner>
     </command>
-    <command name='test' path='tests/testall.py'>
-      <runner interface='http://repo.roscidus.com/python/python'>
-	<version before='3'/>
+    <command name="test" path="tests/testall.py">
+      <runner interface="http://repo.roscidus.com/python/python">
+	<version before="3"/>
       </runner>
     </command>
-    <implementation id="." version="0.54-post"/>
+    <implementation id="." released="2011-04-29" version="1.0-rc1"/>
   </group>
 </interface>
