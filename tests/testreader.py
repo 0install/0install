@@ -2,6 +2,7 @@
 from basetest import BaseTest
 import sys, tempfile, logging
 import unittest
+import os
 
 sys.path.insert(0, '..')
 
@@ -135,6 +136,7 @@ class TestReader(BaseTest):
      <environment name='PATH' insert='bin' mode='prepend'/>
      <environment name='PATH' insert='bin' default='/bin' mode='append'/>
      <environment name='PATH' insert='bin' mode='replace'/>
+     <environment name='PATH' insert='bin' separator=',' />
    </requires>
    <implementation id='sha1=123' version='1'>
      <environment name='SELF' insert='.' mode='replace'/>
@@ -155,7 +157,7 @@ class TestReader(BaseTest):
 		assert len(impl.requires) == 1
 		dep = impl.requires[0]
 
-		assert len(dep.bindings) == 4
+		assert len(dep.bindings) == 5
 		for b in dep.bindings:
 			self.assertEquals('PATH', b.name)
 			self.assertEquals('bin', b.insert)
@@ -163,6 +165,12 @@ class TestReader(BaseTest):
 		self.assertEquals(model.EnvironmentBinding.PREPEND, dep.bindings[1].mode)
 		self.assertEquals(model.EnvironmentBinding.APPEND, dep.bindings[2].mode)
 		self.assertEquals(model.EnvironmentBinding.REPLACE, dep.bindings[3].mode)
+		self.assertEquals(model.EnvironmentBinding.PREPEND, dep.bindings[4].mode)
+
+		self.assertEquals(os.path.join('/impl', 'bin:current'), 
+				dep.bindings[0].get_value('/impl', 'current'))
+		self.assertEquals(os.path.join('/impl', 'bin,current'), 
+			dep.bindings[4].get_value('/impl', 'current'))
 
 		self.assertEquals(None, dep.bindings[1].default)
 		self.assertEquals('/bin', dep.bindings[2].default)

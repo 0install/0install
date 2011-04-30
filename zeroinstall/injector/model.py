@@ -127,7 +127,8 @@ def process_binding(e):
 					     insert = e.getAttribute('insert'),
 					     default = e.getAttribute('default'),
 					     value = e.getAttribute('value'),
-					     mode = mode)
+					     mode = mode,
+					     separator = e.getAttribute('separator'))
 		if not binding.name: raise InvalidInterface(_("Missing 'name' in binding"))
 		if binding.insert is None and binding.value is None:
 			raise InvalidInterface(_("Missing 'insert' or 'value' in binding"))
@@ -247,7 +248,7 @@ class EnvironmentBinding(Binding):
 	APPEND = 'append'
 	REPLACE = 'replace'
 
-	def __init__(self, name, insert, default = None, mode = PREPEND, value=None):
+	def __init__(self, name, insert, default = None, mode = PREPEND, value=None, separator=None):
 		"""
 		mode argument added in version 0.28
 		value argument added in version 0.52
@@ -257,9 +258,14 @@ class EnvironmentBinding(Binding):
 		self.default = default
 		self.mode = mode
 		self.value = value
+		if separator is None:
+			self.separator = os.pathsep
+		else:
+			self.separator = separator
+
 	
 	def __str__(self):
-		return _("<environ %(name)s %(mode)s %(insert)s %(value)s>") % {'name': self.name,'mode':  self.mode, 'insert': self.insert, 'value': self.value}
+		return _("<environ %(name)s %(mode)s %(insert)s %(value)s>") % {'name': self.name,'mode': self.mode, 'insert': self.insert, 'value': self.value}
 
 	__repr__ = __str__
 	
@@ -283,9 +289,9 @@ class EnvironmentBinding(Binding):
 		if old_value is None:
 			return extra
 		if self.mode == EnvironmentBinding.PREPEND:
-			return extra + os.pathsep + old_value
+			return extra + self.separator + old_value
 		else:
-			return old_value + os.pathsep + extra
+			return old_value + self.separator + extra
 
 	def _toxml(self, doc):
 		"""Create a DOM element for this binding.
