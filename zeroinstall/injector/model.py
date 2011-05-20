@@ -294,6 +294,8 @@ class EnvironmentBinding(Binding):
 		"""
 		env_elem = doc.createElementNS(XMLNS_IFACE, 'environment')
 		env_elem.setAttributeNS(None, 'name', self.name)
+		if self.mode is not None:
+			env_elem.setAttributeNS(None, 'mode', self.mode)
 		if self.insert is not None:
 			env_elem.setAttributeNS(None, 'insert', self.insert)
 		else:

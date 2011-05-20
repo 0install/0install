@@ -52,12 +52,17 @@ class TestSelections(BaseTest):
 			self.assertEquals(1, len(sels[1].dependencies))
 			dep = sels[1].dependencies[0]
 			self.assertEquals('http://foo/Compiler.xml', dep.interface)
-			self.assertEquals(2, len(dep.bindings))
+			self.assertEquals(3, len(dep.bindings))
 			self.assertEquals('bin', dep.bindings[0].insert)
 			self.assertEquals('PATH', dep.bindings[0].name)
+			self.assertEquals('prepend', dep.bindings[0].mode)
 
 			self.assertEquals('bin', dep.bindings[1].value)
 			self.assertEquals('NO_PATH', dep.bindings[1].name)
+
+			self.assertEquals('bin', dep.bindings[2].insert)
+			self.assertEquals('BINDIR', dep.bindings[2].name)
+			self.assertEquals('replace', dep.bindings[2].mode)
 
 			self.assertEquals(["sha1=345"], sels[0].digests)
 

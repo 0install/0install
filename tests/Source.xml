@@ -11,6 +11,7 @@
     <requires interface='http://foo/Compiler.xml'>
       <environment name='PATH' insert='bin'/>
       <environment name='NO_PATH' value='bin'/>
+      <environment name='BINDIR' insert='bin' mode='replace'/>
     </requires>
     <implementation id='sha1=234' version='1' version-modifier='.0' arch='*-src' compile:command='make'>
       <archive href='foo' size='10'/>
