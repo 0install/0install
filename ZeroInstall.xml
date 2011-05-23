@@ -45,6 +45,6 @@ requires first uninstalling another.</description>
 	<version before="3"/>
       </runner>
     </command>
-    <implementation id="." version="1.0-rc1-post"/>
+    <implementation id="." released="2011-05-23" version="1.0"/>
   </group>
 </interface>
