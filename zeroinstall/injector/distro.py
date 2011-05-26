@@ -287,12 +287,32 @@ class WindowsDistribution(Distribution):
 				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'i486'))
 				impl.machine = 'i486';
 				impl.version = model.parse_version('6')
+				impl.upstream_stability = model.packaged
 				impl.main = java32_home + r"\bin\java.exe"
 
 			if os.path.isfile(java64_home + r"\bin\java.exe"):
 				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'x86_64'))
 				impl.machine = 'x86_64';
 				impl.version = model.parse_version('6')
+				impl.upstream_stability = model.packaged
+				impl.main = java64_home + r"\bin\java.exe"
+
+		if package == 'openjdk-6-jdk':
+			(java32_home, java64_home) = _read_hklm_reg(r"SOFTWARE\JavaSoft\Java Development Kit\1.6", "JavaHome")
+			import os.path
+
+			if os.path.isfile(java32_home + r"\bin\java.exe"):
+				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'i486'))
+				impl.machine = 'i486';
+				impl.version = model.parse_version('6')
+				impl.upstream_stability = model.packaged
+				impl.main = java32_home + r"\bin\java.exe"
+
+			if os.path.isfile(java64_home + r"\bin\java.exe"):
+				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'x86_64'))
+				impl.machine = 'x86_64';
+				impl.version = model.parse_version('6')
+				impl.upstream_stability = model.packaged
 				impl.main = java64_home + r"\bin\java.exe"
 
 class CachedDistribution(Distribution):
