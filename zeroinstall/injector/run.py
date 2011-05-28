@@ -75,7 +75,7 @@ def test_selections(selections, prog_args, dry_run, main, wrapper = None):
 			results += _("Error from child process: exit code = %d") % status
 	finally:
 		output.close()
-	
+
 	return results
 
 def _process_args(args, element):
@@ -83,6 +83,107 @@ def _process_args(args, element):
 	for child in element.childNodes:
 		if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
 			args.append(Template(child.content).substitute(os.environ))
+
+class Setup(object):
+	"""@since: 1.1"""
+	stores = None
+
+	def __init__(self, stores):
+		"""@param stores: where to find cached implementations
+		@type stores: L{zerostore.Stores}"""
+		self.stores = stores
+
+	def build_command_args(self, selections, commands = None):
+		"""Create a list of strings to be passed to exec to run the <command>s in the selections.
+		@param selections: the selections containing the commands
+		@type selections: L{selections.Selections}
+		@param commands: the commands to be used (taken from selections is None)
+		@type commands: [L{model.Command}]
+		@return: the argument list
+		@rtype: [str]"""
+
+		prog_args = []
+		commands = commands or selections.commands
+		sels = selections.selections
+
+		# Each command is run by the next, but the last one is run by exec, and we
+		# need a path for that.
+		if commands[-1].path is None:
+			raise SafeException("Missing 'path' attribute on <command>")
+
+		command_iface = selections.interface
+		for command in commands:
+			command_sel = sels[command_iface]
+
+			command_args = []
+
+			# Add extra arguments for runner
+			runner = command.get_runner()
+			if runner:
+				command_iface = runner.interface
+				_process_args(command_args, runner.qdom)
+
+			# Add main program path
+			command_path = command.path
+			if command_path is not None:
+				if command_sel.id.startswith('package:'):
+					prog_path = command_path
+				else:
+					if command_path.startswith('/'):
+						raise SafeException(_("Command path must be relative, but '%s' starts with '/'!") %
+									command_path)
+					prog_path = os.path.join(self._get_implementation_path(command_sel), command_path)
+
+				assert prog_path is not None
+
+				if not os.path.exists(prog_path):
+					raise SafeException(_("File '%(program_path)s' does not exist.\n"
+							"(implementation '%(implementation_id)s' + program '%(main)s')") %
+							{'program_path': prog_path, 'implementation_id': command_sel.id,
+							'main': command_path})
+
+				command_args.append(prog_path)
+
+			# Add extra arguments for program
+			_process_args(command_args, command.qdom)
+
+			prog_args = command_args + prog_args
+
+		return prog_args
+
+	def _get_implementation_path(self, impl):
+		return impl.local_path or self.stores.lookup_any(impl.digests)
+
+	def prepare_env(self, selections):
+		"""Do all the environment bindings in selections (setting os.environ).
+		@param selections: the selections to be used
+		@type selections: L{selections.Selections}"""
+
+		def _do_bindings(impl, bindings):
+			for b in bindings:
+				self.do_binding(impl, b)
+
+		commands = selections.commands
+		sels = selections.selections
+		for selection in sels.values():
+			_do_bindings(selection, selection.bindings)
+			for dep in selection.dependencies:
+				dep_impl = sels[dep.interface]
+				if not dep_impl.id.startswith('package:'):
+					_do_bindings(dep_impl, dep.bindings)
+		# Process commands' dependencies' bindings too
+		# (do this here because we still want the bindings, even with --main)
+		for command in commands:
+			for dep in command.requires:
+				dep_impl = sels[dep.interface]
+				if not dep_impl.id.startswith('package:'):
+					_do_bindings(dep_impl, dep.bindings)
+	
+	def do_binding(self, impl, binding):
+		"""Called by L{prepare_env} for each binding.
+		Sub-classes may wish to override this."""
+		if isinstance(binding, EnvironmentBinding):
+			do_env_binding(binding, self._get_implementation_path(impl))
 
 def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None, stores = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
@@ -105,34 +206,9 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		from zeroinstall import zerostore
 		stores = zerostore.Stores()
 
-	def _do_bindings(impl, bindings):
-		for b in bindings:
-			if isinstance(b, EnvironmentBinding):
-				do_env_binding(b, _get_implementation_path(impl))
-
-	def _get_implementation_path(impl):
-		return impl.local_path or stores.lookup_any(impl.digests)
+	setup = Setup(stores)
 
 	commands = selections.commands
-	sels = selections.selections
-	for selection in sels.values():
-		_do_bindings(selection, selection.bindings)
-		for dep in selection.dependencies:
-			dep_impl = sels[dep.interface]
-			if not dep_impl.id.startswith('package:'):
-				_do_bindings(dep_impl, dep.bindings)
-	# Process commands' dependencies' bindings too
-	# (do this here because we still want the bindings, even with --main)
-	for command in commands:
-		for dep in command.requires:
-			dep_impl = sels[dep.interface]
-			if not dep_impl.id.startswith('package:'):
-				_do_bindings(dep_impl, dep.bindings)
-
-	root_sel = sels[selections.interface]
-
-	assert root_sel is not None
-
 	if main is not None:
 		# Replace first command with user's input
 		if main.startswith('/'):
@@ -151,45 +227,9 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		user_command = Command(user_command_element, None)
 		commands = [user_command] + commands[1:]
 
-	if commands[-1].path is None:
-		raise SafeException("Missing 'path' attribute on <command>")
+	setup.prepare_env(selections)
+	prog_args = setup.build_command_args(selections, commands) + prog_args
 
-	command_iface = selections.interface
-	for command in commands:
-		command_sel = sels[command_iface]
-
-		command_args = []
-
-		# Add extra arguments for runner
-		runner = command.get_runner()
-		if runner:
-			command_iface = runner.interface
-			_process_args(command_args, runner.qdom)
-
-		# Add main program path
-		command_path = command.path
-		if command_path is not None:
-			if command_sel.id.startswith('package:'):
-				prog_path = command_path
-			else:
-				if command_path.startswith('/'):
-					raise SafeException(_("Command path must be relative, but '%s' starts with '/'!") %
-								command_path)
-				prog_path = os.path.join(_get_implementation_path(command_sel), command_path)
-
-			assert prog_path is not None
-			command_args.append(prog_path)
-
-		# Add extra arguments for program
-		_process_args(command_args, command.qdom)
-
-		prog_args = command_args + prog_args
-
-	if not os.path.exists(prog_args[0]):
-		raise SafeException(_("File '%(program_path)s' does not exist.\n"
-				"(implementation '%(implementation_id)s' + program '%(main)s')") %
-				{'program_path': prog_args[0], 'implementation_id': command_sel.id,
-				'main': commands[-1].path})
 	if wrapper:
 		prog_args = ['/bin/sh', '-c', wrapper + ' "$@"', '-'] + list(prog_args)
 
