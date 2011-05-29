@@ -275,8 +275,8 @@ class ValidFeed(CachedFeed):
 			return ACTION_REMOVE
 	
 	menu_items = [(_('Launch with GUI'), launch),
-	              (_('Copy URI'), copy_uri),
-	              (_('Delete'), prompt_delete)]
+		      (_('Copy URI'), copy_uri),
+		      (_('Delete'), prompt_delete)]
 
 class RemoteFeed(ValidFeed):
 	may_delete = True
@@ -362,8 +362,8 @@ class CachedImplementation:
 			return ACTION_REMOVE
 
 	menu_items = [(_('Open in ROX-Filer'), open_rox),
-	              (_('Verify integrity'), verify),
-	              (_('Delete'), prompt_delete)]
+		      (_('Verify integrity'), verify),
+		      (_('Delete'), prompt_delete)]
 
 class UnusedImplementation(CachedImplementation):
 	def append_to(self, model, iter):

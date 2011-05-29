@@ -31,10 +31,10 @@ if options.verbose:
 		logger.setLevel(logging.INFO)
 	else:
 		logger.setLevel(logging.DEBUG)
-        hdlr = logging.StreamHandler()
-        fmt = logging.Formatter("%(levelname)s:%(message)s")
-        hdlr.setFormatter(fmt)
-        logger.addHandler(hdlr)
+	hdlr = logging.StreamHandler()
+	fmt = logging.Formatter("%(levelname)s:%(message)s")
+	hdlr.setFormatter(fmt)
+	logger.addHandler(hdlr)
 
 if options.version:
 	import zeroinstall

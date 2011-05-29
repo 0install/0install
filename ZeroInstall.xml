@@ -39,7 +39,9 @@ requires first uninstalling another.</description>
       <runner interface="http://repo.roscidus.com/python/python"/>
     </command>
     <command name="test" path="tests/testall.py">
-      <runner interface="http://repo.roscidus.com/python/python"/>
+      <runner interface="http://repo.roscidus.com/python/python">
+	<arg>-tt</arg>
+      </runner>
     </command>
 
     <!-- Also restrict the verison of Python for older 0install and when used as a library. -->
