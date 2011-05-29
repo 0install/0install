@@ -216,6 +216,8 @@ class Selections(object):
 				if ' ' in name:
 					ns, localName = name.split(' ', 1)
 					prefixes.setAttributeNS(selection_elem, ns, localName, value)
+				elif name == 'stability':
+					pass
 				elif name == 'from-feed':
 					# Don't bother writing from-feed attr if it's the same as the interface
 					if value != selection.attrs['interface']:
