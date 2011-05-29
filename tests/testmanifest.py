@@ -42,7 +42,7 @@ class TestManifest(BaseTest):
 		self.write('MyDir/Hello', 'Hello World', 30)
 		myexec = self.write('MyDir/Run me', 'Bang!', 40)
 		os.symlink('Hello', os.path.join(self.tmpdir, 'MyDir/Sym link'))
-		os.chmod(myexec, 0700)
+		os.chmod(myexec, 0o700)
 		os.utime(mydir, (10, 20))
 		self.assertEquals([
 			'D 20 /MyDir',
@@ -57,7 +57,7 @@ class TestManifest(BaseTest):
 		self.write('MyDir/Hello', 'Hello World', 30)
 		myexec = self.write('MyDir/Run me', 'Bang!', 40)
 		os.symlink('Hello', os.path.join(self.tmpdir, 'MyDir/Sym link'))
-		os.chmod(myexec, 0700)
+		os.chmod(myexec, 0o700)
 		os.utime(mydir, (10, 20))
 		self.assertEquals([
 			'D /MyDir',
@@ -84,7 +84,7 @@ class TestManifest(BaseTest):
 		self.write('MyDir/Hello', 'Hello World', 30)
 		myexec = self.write('MyDir/Run me', 'Bang!', 40)
 		os.symlink('Hello', os.path.join(self.tmpdir, 'MyDir/Sym link'))
-		os.chmod(myexec, 0700)
+		os.chmod(myexec, 0o700)
 		self.assertEquals([
 			'D /MyDir',
 			'F a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e 30 11 Hello',

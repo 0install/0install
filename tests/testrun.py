@@ -50,7 +50,7 @@ class TestRun(BaseTest):
 				run.execute_selections(p.solver.selections, [], main = '/runnable/not-there', dry_run = True, stores = self.config.stores)
 			finally:
 				sys.stdout = old_stdout
-		except SafeException, ex:
+		except SafeException as ex:
 			assert 'not-there' in unicode(ex)
 
 	def testArgs(self):

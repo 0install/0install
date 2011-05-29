@@ -60,7 +60,7 @@ class Handler(object):
 				self.total_bytes_downloaded += dl.get_bytes_downloaded_so_far()
 				del self.monitored_downloads[dl.url]
 				self.downloads_changed()
-			except Exception, ex:
+			except Exception as ex:
 				self.report_error(ex)
 		download_done_stats()
 
@@ -157,7 +157,7 @@ class Handler(object):
 				for b in blockers:
 					try:
 						tasks.check(b)
-					except Exception, ex:
+					except Exception as ex:
 						warn(_("Failed to get key info: %s"), ex)
 				if stdin.happened:
 					print >>sys.stderr, _("Skipping remaining key lookups due to input from user")
@@ -222,7 +222,7 @@ class ConsoleHandler(Handler):
 					import curses
 					curses.setupterm()
 					self.screen_width = curses.tigetnum('cols') or 80
-				except Exception, ex:
+				except Exception as ex:
 					info("Failed to initialise curses library: %s", ex)
 					self.screen_width = 80
 			self.show_progress()

@@ -129,7 +129,7 @@ def run_gui(args):
 				window.refresh_button.set_sensitive(True)
 				window.browser.highlight_problems()
 				tasks.check(solved)
-			except Exception, ex:
+			except Exception as ex:
 				window.report_exception(ex)
 
 			if window.systray_icon and window.systray_icon.get_visible() and \

@@ -21,6 +21,6 @@ try:
 
 	manifest.copy_tree_with_verify('.', '/var/cache/0install.net/implementations',
 					manifest_data, required_digest)
-except (IOError, SafeException), ex:
+except (IOError, SafeException) as ex:
 	print >>sys.stderr, ex
 	sys.exit(1)

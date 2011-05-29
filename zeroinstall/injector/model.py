@@ -1184,9 +1184,9 @@ def parse_version(version_string):
 		for x in range(1, l, 2):
 			parts[x] = _version_mod_to_value[parts[x]]
 		return parts
-	except ValueError, ex:
+	except ValueError as ex:
 		raise SafeException(_("Invalid version format in '%(version_string)s': %(exception)s") % {'version_string': version_string, 'exception': ex})
-	except KeyError, ex:
+	except KeyError as ex:
 		raise SafeException(_("Invalid version modifier in '%(version_string)s': %(exception)s") % {'version_string': version_string, 'exception': ex})
 
 def format_version(version):

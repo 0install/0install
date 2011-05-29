@@ -164,7 +164,7 @@ def unpack_archive_over(url, data, destdir, extract = None, type = None, start_o
 			target_root = os.path.join(destdir, relative_root)
 			try:
 				info = os.lstat(target_root)
-			except OSError, ex:
+			except OSError as ex:
 				if ex.errno != 2:
 					raise	# Some odd error.
 				# Doesn't exist. OK.
@@ -456,12 +456,12 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 
 		def chmod_extract(tarinfo):
 			# If any X bit is set, they all must be
-			if tarinfo.mode & 0111:
-				tarinfo.mode |= 0111
+			if tarinfo.mode & 0o111:
+				tarinfo.mode |= 0o111
 
 			# Everyone gets read and write (subject to the umask)
 			# No special bits are allowed.
-			tarinfo.mode = ((tarinfo.mode | 0666) & ~current_umask) & 0777
+			tarinfo.mode = ((tarinfo.mode | 0o666) & ~current_umask) & 0o777
 
 			# Don't change owner, even if run as root
 			if uid:

@@ -19,9 +19,9 @@ class TestStore(BaseTest):
 		BaseTest.setUp(self)
 
 		self.store_parent = tempfile.mktemp()
-		os.mkdir(self.store_parent, 0700)
+		os.mkdir(self.store_parent, 0o700)
 		self.store = Store(self.store_parent + '/implementations')
-		os.mkdir(self.store.dir, 0700)
+		os.mkdir(self.store.dir, 0o700)
 
 		self.tmp = tempfile.mktemp()
 		os.mkdir(self.tmp)
@@ -72,9 +72,9 @@ class TestStore(BaseTest):
 				self.assertEquals("S %s 5 MyLink\n" % digest.hexdigest(),
 						file(mfile, 'rb').read())
 				manifest.verify(self.tmp, added_digest)
-				os.chmod(self.tmp, 0700)
+				os.chmod(self.tmp, 0o700)
 				os.unlink(mfile)
-			except BadDigest, ex:
+			except BadDigest as ex:
 				raise Exception("%s: %s\n%s" % (alg_name, ex, ex.detail))
 	
 	def populate_sample(self, target):
@@ -98,7 +98,7 @@ class TestStore(BaseTest):
 		f = file(subfile, 'w')
 		f.write('Some code.')
 		f.close()
-		os.chmod(subfile, 0500)
+		os.chmod(subfile, 0o500)
 		os.utime(subfile, (1, 2))
 
 		os.symlink('/the/symlink/target',
@@ -131,7 +131,7 @@ class TestStore(BaseTest):
 		try:
 			cli.do_find([digest])
 			assert False
-		except SystemExit, ex:
+		except SystemExit as ex:
 			assert ex.code == 0
 		cached = sys.stdout.getvalue().strip()
 		assert cached == cli.stores.lookup(digest)
@@ -141,7 +141,7 @@ class TestStore(BaseTest):
 			try:
 				cli.do_manifest([cached] + alg)
 				assert False
-			except SystemExit, ex:
+			except SystemExit as ex:
 				assert ex.code == 0
 			result = sys.stdout.getvalue()
 			assert 'MyFile' in result
@@ -157,7 +157,7 @@ class TestStore(BaseTest):
 		cli.do_audit([os.path.dirname(cached)])
 
 		# Corrupt it...
-		os.chmod(cached, 0700)
+		os.chmod(cached, 0o700)
 		open(os.path.join(cached, 'hacked'), 'w').close()
 
 		# Verify again...
@@ -165,7 +165,7 @@ class TestStore(BaseTest):
 		try:
 			cli.do_verify([cached, digest])
 			assert False
-		except SystemExit, ex:
+		except SystemExit as ex:
 			assert ex.code == 1
 			result = sys.stdout.getvalue()
 			sys.stdout = old_stdout
@@ -175,7 +175,7 @@ class TestStore(BaseTest):
 		sys.stdout = StringIO()
 		try:
 			cli.do_audit([os.path.dirname(cached)])
-		except SystemExit, ex:
+		except SystemExit as ex:
 			assert ex.code == 1
 			result = sys.stdout.getvalue()
 			sys.stdout = old_stdout
@@ -215,7 +215,7 @@ class TestStore(BaseTest):
 					   try_helper = False)
 		subfile = os.path.join(sample, 'My Dir', '!a file!.exe')
 		mtime = os.stat(subfile).st_mtime
-		os.chmod(subfile, 0755)
+		os.chmod(subfile, 0o755)
 		stream = file(subfile, 'w')
 		stream.write('Extra!\n')
 		stream.close()
@@ -280,7 +280,7 @@ class TestStore(BaseTest):
 			try:
 				cli.do_copy([source, copy])
 				assert 0
-			except BadDigest, ex:
+			except BadDigest as ex:
 				assert 'badname' in str(ex)
 			source, badname = os.path.join(self.tmp, digest), source
 			os.rename(badname, source)
@@ -288,17 +288,17 @@ class TestStore(BaseTest):
 			# Can't copy sha1 implementations (unsafe)
 			try:
 				cli.do_copy([source, copy])
-			except SafeException, ex:
+			except SafeException as ex:
 				assert 'sha1' in str(ex)
 
 			# Already have a .manifest
 			try:
 				manifest.add_manifest_file(source, sha1new)
 				assert 0
-			except SafeException, ex:
+			except SafeException as ex:
 				assert '.manifest' in str(ex)
 
-			os.chmod(source, 0700)
+			os.chmod(source, 0o700)
 			os.unlink(os.path.join(source, '.manifest'))
 
 			# Switch to sha1new

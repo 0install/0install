@@ -176,10 +176,10 @@ class BaseTest(unittest.TestCase):
 		reload(basedir)
 		assert basedir.xdg_config_home == self.config_home
 
-		os.mkdir(self.config_home, 0700)
-		os.mkdir(self.cache_home, 0700)
-		os.mkdir(self.cache_system, 0500)
-		os.mkdir(self.gnupg_home, 0700)
+		os.mkdir(self.config_home, 0o700)
+		os.mkdir(self.cache_home, 0o700)
+		os.mkdir(self.cache_system, 0o500)
+		os.mkdir(self.gnupg_home, 0o700)
 
 		if 'DISPLAY' in os.environ:
 			del os.environ['DISPLAY']

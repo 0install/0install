@@ -241,5 +241,5 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		sys.stderr.flush()
 		try:
 			os.execv(prog_args[0], prog_args)
-		except OSError, ex:
+		except OSError as ex:
 			raise SafeException(_("Failed to run '%(program_path)s': %(exception)s") % {'program_path': prog_args[0], 'exception': str(ex)})

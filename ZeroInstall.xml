@@ -36,15 +36,17 @@ requires first uninstalling another.</description>
 
   <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch">
     <command name="run" path="0launch">
-      <runner interface="http://repo.roscidus.com/python/python">
-	<version before="3"/>
-      </runner>
+      <runner interface="http://repo.roscidus.com/python/python"/>
     </command>
     <command name="test" path="tests/testall.py">
-      <runner interface="http://repo.roscidus.com/python/python">
-	<version before="3"/>
-      </runner>
+      <runner interface="http://repo.roscidus.com/python/python"/>
     </command>
+
+    <!-- Also restrict the verison of Python for older 0install and when used as a library. -->
+    <requires interface="http://repo.roscidus.com/python/python">
+      <version not-before='2.6' before="3"/>
+    </requires>
+
     <implementation id="." version="1.0-post"/>
   </group>
 </interface>

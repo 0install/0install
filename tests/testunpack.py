@@ -24,20 +24,20 @@ class AbstractTestUnpack():
 
 		self.tmpdir = tempfile.mkdtemp('-testunpack')
 
-		os.umask(0022)
+		os.umask(0o022)
 	
 	def tearDown(self):
 		BaseTest.tearDown(self)
 
 		support.ro_rmtree(self.tmpdir)
 
-		assert os.umask(0022) == 0022
+		assert os.umask(0o022) == 0o022
 	
 	def testBadExt(self):
 		try:
 			unpack.unpack_archive('ftp://foo/file.foo', file('HelloWorld.tgz'), self.tmpdir)
 			assert False
-		except SafeException, ex:
+		except SafeException as ex:
 			assert 'Unknown extension' in str(ex)
 	
 	def testTgz(self):
@@ -69,7 +69,7 @@ class AbstractTestUnpack():
 		try:
 			unpack.unpack_archive('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir, extract = 'Hello`World`')
 			assert False
-		except SafeException, ex:
+		except SafeException as ex:
 			assert 'Illegal' in str(ex)
 	
 	def testExtractFails(self):
@@ -81,7 +81,7 @@ class AbstractTestUnpack():
 			try:
 				unpack.unpack_archive('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir, extract = 'HelloWorld2')
 				assert False
-			except SafeException, ex:
+			except SafeException as ex:
 				if ('Failed to extract' not in str(ex) and	# GNU tar
 				    'Unable to find' not in str(ex)):		# Python tar
 					raise ex
@@ -113,7 +113,7 @@ class AbstractTestUnpack():
 		self.assert_manifest('sha1new=fbd4827be7a18f9821790bdfd83132ee60d54647')
 
 	def testSpecial(self):
-		os.chmod(self.tmpdir, 02755)
+		os.chmod(self.tmpdir, 0o2755)
 		store = Store(self.tmpdir)
 		store.add_archive_to_cache('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a',
 					   file('HelloWorld.tgz'),
@@ -145,7 +145,7 @@ class AbstractTestUnpack():
 				full = os.path.join(root, f)
 				if os.path.islink(full): continue
 				full_mode = os.stat(full).st_mode
-				self.assertEquals(0444, full_mode & 0666)	# Must be r-?r-?r-?
+				self.assertEquals(0o444, full_mode & 0o666)	# Must be r-?r-?r-?
 
 class TestUnpackPython(AbstractTestUnpack, BaseTest):
 	def setUp(self):

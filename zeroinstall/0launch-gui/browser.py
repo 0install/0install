@@ -11,7 +11,7 @@ def open_in_browser(link):
 		try:
 			os.spawnlp(os.P_NOWAIT, browser, browser, link)
 			os._exit(0)
-		except Exception, ex:
+		except Exception as ex:
 			print >>sys.stderr, "Error", ex
 			os._exit(1)
 	os.waitpid(child, 0)

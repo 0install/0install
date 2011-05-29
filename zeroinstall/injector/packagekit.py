@@ -19,7 +19,7 @@ try:
 	import dbus
 	import dbus.mainloop.glib
 	dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-except Exception, ex:
+except Exception as ex:
 	_logger_pk.info("D-BUS not available: %s", ex)
 	dbus = None
 
@@ -42,7 +42,7 @@ class PackageKit(object):
 							'/org/freedesktop/PackageKit', False),
 						'org.freedesktop.PackageKit')
 				_logger_pk.info(_('PackageKit dbus service found'))
-			except Exception, ex:
+			except Exception as ex:
 				_logger_pk.info(_('PackageKit dbus service not found: %s'), ex)
 				self._pk = None
 		return self._pk
@@ -202,7 +202,7 @@ class PackageKitDownload(download.Download):
 def _auth_wrapper(method, *args):
 	try:
 		return method(*args)
-	except dbus.exceptions.DBusException, e:
+	except dbus.exceptions.DBusException as e:
 		if e.get_dbus_name() != \
 				'org.freedesktop.PackageKit.Transaction.RefusedByPolicy':
 			raise
@@ -274,7 +274,7 @@ class _PackageKitTransaction(object):
 			try:
 				dbus_method = self.proxy.get_dbus_method(method)
 				return dbus_method(*args)
-			except dbus.exceptions.DBusException, e:
+			except dbus.exceptions.DBusException as e:
 				if e.get_dbus_name() != \
 						'org.freedesktop.DBus.Error.UnknownMethod':
 					raise

@@ -115,7 +115,7 @@ def load_config(handler = None):
 		info("Loading configuration from %s", path)
 		try:
 			parser.read(path)
-		except Exception, ex:
+		except Exception as ex:
 			warn(_("Error loading config: %s"), str(ex) or repr(ex))
 
 	config.help_with_testing = parser.getboolean('global', 'help_with_testing')

@@ -34,7 +34,7 @@ def _download_as_child(url, if_modified_since):
 			os.write(1, data)
 
 		sys.exit(RESULT_OK)
-	except (HTTPError, URLError, HTTPException), ex:
+	except (HTTPError, URLError, HTTPException) as ex:
 		if isinstance(ex, HTTPError) and ex.code == 304: # Not modified
 			sys.exit(RESULT_NOT_MODIFIED)
 		print >>sys.stderr, "Error downloading '" + url + "': " + (str(ex) or str(ex.__class__.__name__))

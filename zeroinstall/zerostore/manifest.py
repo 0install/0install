@@ -94,7 +94,7 @@ class OldSHA1(Algorithm):
 			leaf = os.path.basename(sub[1:])
 			if stat.S_ISREG(m):
 				d = sha1_new(file(full).read()).hexdigest()
-				if m & 0111:
+				if m & 0o111:
 					yield "X %s %s %s %s" % (d, int(info.st_mtime) ,info.st_size, leaf)
 				else:
 					yield "F %s %s %s %s" % (d, int(info.st_mtime) ,info.st_size, leaf)
@@ -148,12 +148,12 @@ def add_manifest_file(dir, digest_or_alg):
 		manifest += line + '\n'
 	digest.update(manifest)
 
-	os.chmod(dir, 0755)
+	os.chmod(dir, 0o755)
 	stream = file(mfile, 'wb')
-	os.chmod(dir, 0555)
+	os.chmod(dir, 0o555)
 	stream.write(manifest)
 	stream.close()
-	os.chmod(mfile, 0444)
+	os.chmod(mfile, 0o444)
 	return digest
 
 def splitID(id):
@@ -306,7 +306,7 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 			for d in dirs:
 				path = os.path.join(root, d)
 				mode = os.stat(path).st_mode
-				os.chmod(path, mode & 0555)
+				os.chmod(path, mode & 0o555)
 
 		# Check that the copy is correct
 		actual_digest = alg.getID(add_manifest_file(tmpdir, alg))
@@ -393,9 +393,9 @@ def _copy_files(alg, wanted, source, target):
 			required_mtime = int(required_mtime)
 			dest_path = os.path.join(target, path)
 			if type == 'X':
-				mode = 0555
+				mode = 0o555
 			else:
-				mode = 0444
+				mode = 0o444
 			copy_with_verify(os.path.join(source, path),
 					dest_path,
 					mode,
@@ -460,7 +460,7 @@ class HashLibAlgorithm(Algorithm):
 					if leaf == '.manifest': continue
 
 					d = new_digest(file(path).read()).hexdigest()
-					if m & 0111:
+					if m & 0o111:
 						yield "X %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
 					else:
 						yield "F %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
@@ -510,9 +510,9 @@ def fixup_permissions(root):
 			if stat.S_ISLNK(raw_mode): continue
 
 			mode = stat.S_IMODE(raw_mode)
-			if mode & ~0777:
+			if mode & ~0o777:
 				raise Exception(_("Unsafe mode: extracted file '%(filename)s' had special bits set in mode '%(mode)s'") % {'filename': full, 'mode': oct(mode)})
-			if mode & 0111:
-				os.chmod(full, 0555)
+			if mode & 0o111:
+				os.chmod(full, 0o555)
 			else:
-				os.chmod(full, 0444)
+				os.chmod(full, 0o444)

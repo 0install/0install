@@ -412,7 +412,7 @@ class IfaceCache(object):
 				return None
 		try:
 			return gpg.check_stream(file(old_iface))[1]
-		except SafeException, ex:
+		except SafeException as ex:
 			debug(_("No signatures (old-style interface): %s") % ex)
 			return None
 
@@ -441,7 +441,7 @@ class IfaceCache(object):
 			return
 		feeds_dir = basedir.save_cache_path(config_site, config_prog, 'last-check-attempt')
 		timestamp_path = os.path.join(feeds_dir, model._pretty_escape(url))
-		fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0644)
+		fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0o644)
 		os.close(fd)
 		os.utime(timestamp_path, None)	# In case file already exists
 
@@ -479,7 +479,7 @@ class IfaceCache(object):
 		for imp in iface.extra_feeds:
 			try:
 				results[imp.uri] = self.get_feed(imp.uri)
-			except SafeException, ex:
+			except SafeException as ex:
 				warn("Failed to load feed '%s: %s", imp.uri, ex)
 		if main_feed:
 			for imp in main_feed.feeds:

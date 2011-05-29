@@ -61,7 +61,7 @@ def load_feed_from_cache(url, selections_ok = False):
 				return load_feed(cached, local = False)
 			else:
 				return None
-	except InvalidInterface, ex:
+	except InvalidInterface as ex:
 		ex.feed_url = url
 		raise
 
@@ -82,7 +82,7 @@ def update_user_feed_overrides(feed):
 
 	try:
 		root = qdom.parse(file(user))
-	except Exception, ex:
+	except Exception as ex:
 		warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
 
@@ -121,7 +121,7 @@ def update_user_overrides(interface):
 
 	try:
 		root = qdom.parse(file(user))
-	except Exception, ex:
+	except Exception as ex:
 		warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
 
@@ -156,7 +156,7 @@ def check_readable(feed_url, source):
 						"%(interface_uri)s was requested") %
 						{'feed_url': feed.url, 'interface_uri': feed_url})
 		return feed.last_modified
-	except InvalidInterface, ex:
+	except InvalidInterface as ex:
 		info(_("Error loading feed:\n"
 			"Interface URI: %(uri)s\n"
 			"Local file: %(source)s\n"
@@ -207,11 +207,11 @@ def load_feed(source, local = False, selections_ok = False):
 	@see: L{iface_cache.iface_cache}, which uses this to load the feeds"""
 	try:
 		root = qdom.parse(file(source))
-	except IOError, ex:
+	except IOError as ex:
 		if ex.errno == 2 and local:
 			raise MissingLocalFeed(_("Feed not found. Perhaps this is a local feed that no longer exists? You can remove it from the list of feeds in that case."))
 		raise InvalidInterface(_("Can't read file"), ex)
-	except Exception, ex:
+	except Exception as ex:
 		raise InvalidInterface(_("Invalid XML"), ex)
 
 	if local:

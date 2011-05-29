@@ -73,6 +73,6 @@ def discover_existing_apps():
 							break
 					else:
 						info(_("Failed to find Exec line in %s"), full)
-				except Exception, ex:
+				except Exception as ex:
 					warn(_("Failed to load .desktop file %(filename)s: %(exceptions"), {'filename': full, 'exception': ex})
 	return already_installed

@@ -43,7 +43,7 @@ class BackgroundHandler(handler.Handler):
 		try:
 			import dbus
 			import dbus.glib
-		except Exception, ex:
+		except Exception as ex:
 			info(_("Failed to import D-BUS bindings: %s"), ex)
 			return
 
@@ -65,7 +65,7 @@ class BackgroundHandler(handler.Handler):
 						self.notification_service.GetCapabilities()]
 			finally:
 				sys.stderr = old_stderr
-		except Exception, ex:
+		except Exception as ex:
 			info(_("No D-BUS notification service available: %s"), ex)
 
 		try:
@@ -75,14 +75,14 @@ class BackgroundHandler(handler.Handler):
 
 			self.network_manager = dbus.Interface(remote_object,
 							'org.freedesktop.NetworkManager')
-		except Exception, ex:
+		except Exception as ex:
 			info(_("No D-BUS network manager service available: %s"), ex)
 
 	def get_network_state(self):
 		if self.network_manager:
 			try:
 				return self.network_manager.state()
-			except Exception, ex:
+			except Exception as ex:
 				warn(_("Error getting network state: %s"), ex)
 		return _NetworkState.NM_STATE_UNKNOWN
 

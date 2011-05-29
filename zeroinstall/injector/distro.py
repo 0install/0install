@@ -35,7 +35,7 @@ class Cache(object):
 		self.cached_for = {}		# Attributes of source when cache was created
 		try:
 			self._load_cache()
-		except Exception, ex:
+		except Exception as ex:
 			info(_("Failed to load cache (%s). Flushing..."), ex)
 			self.flush()
 
@@ -45,7 +45,7 @@ class Cache(object):
 			info = os.stat(self.source)
 			mtime = int(info.st_mtime)
 			size = info.st_size
-		except Exception, ex:
+		except Exception as ex:
 			warn("Failed to stat %s: %s", self.source, ex)
 			mtime = size = 0
 		self.cache = {}
@@ -94,7 +94,7 @@ class Cache(object):
 	def get(self, key):
 		try:
 			self._check_valid()
-		except Exception, ex:
+		except Exception as ex:
 			info(_("Cache needs to be refreshed: %s"), ex)
 			self.flush()
 			return None
@@ -110,7 +110,7 @@ class Cache(object):
 				stream.write('%s=%s\n' % (key, value))
 			finally:
 				stream.close()
-		except Exception, ex:
+		except Exception as ex:
 			warn("Failed to write to cache %s: %s=%s: %s", cache_path, key, value, ex)
 
 def try_cleanup_distro_version(version):
@@ -253,12 +253,12 @@ class CachedDistribution(Distribution):
 
 		try:
 			self._load_cache()
-		except Exception, ex:
+		except Exception as ex:
 			info(_("Failed to load distribution database cache (%s). Regenerating..."), ex)
 			try:
 				self.generate_cache()
 				self._load_cache()
-			except Exception, ex:
+			except Exception as ex:
 				warn(_("Failed to regenerate distribution database cache: %s"), ex)
 
 	def _load_cache(self):
@@ -438,7 +438,7 @@ class DebianDistribution(Distribution):
 				else:
 					cached = None
 				child.wait()
-			except Exception, ex:
+			except Exception as ex:
 				warn("'apt-cache show %s' failed: %s", package, ex)
 				cached = None
 			# (multi-arch support? can there be multiple candidates?)

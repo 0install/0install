@@ -232,7 +232,7 @@ class TrustBox(gtk.Dialog):
 				trust.trust_db.trust_key(sig.fingerprint, domain)
 
 			trust.trust_db.notify()
-		except Exception, ex:
+		except Exception as ex:
 			gtkutils.show_message_box(self, str(ex), gtk.MESSAGE_ERROR)
 			if not isinstance(ex, SafeException):
 				raise

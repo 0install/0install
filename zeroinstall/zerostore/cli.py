@@ -43,9 +43,9 @@ def do_find(args):
 	try:
 		print stores.lookup(args[0])
 		sys.exit(0)
-	except zerostore.BadDigest, ex:
+	except zerostore.BadDigest as ex:
 		print >>sys.stderr, ex
-	except zerostore.NotStored, ex:
+	except zerostore.NotStored as ex:
 		print >>sys.stderr, ex
 	sys.exit(1)
 
@@ -73,7 +73,7 @@ def do_add(args):
 	else:
 		try:
 			os.stat(args[1])
-		except OSError, ex:
+		except OSError as ex:
 			if ex.errno != 2:			# No such file or directory
 				raise UsageError(str(ex))	# E.g. permission denied
 		raise UsageError(_("No such file or directory '%s'") % args[1])
@@ -126,7 +126,7 @@ def do_verify(args):
 	try:
 		verify(root, required_digest)
 		print _("OK")
-	except zerostore.BadDigest, ex:
+	except zerostore.BadDigest as ex:
 		print str(ex)
 		if ex.detail:
 			print
@@ -168,7 +168,7 @@ def do_audit(args):
 				verify(path, required_digest)
 				print "\r" + (" " * len(msg)) + "\r",
 				verified += 1
-			except zerostore.BadDigest, ex:
+			except zerostore.BadDigest as ex:
 				print
 				failures.append(path)
 				print str(ex)
@@ -201,7 +201,7 @@ def get_stored(dir_or_digest):
 	else:
 		try:
 			return stores.lookup(dir_or_digest)
-		except zerostore.NotStored, ex:
+		except zerostore.NotStored as ex:
 			print >>sys.stderr, ex
 		sys.exit(1)
 

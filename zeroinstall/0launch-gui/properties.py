@@ -234,7 +234,7 @@ class Feeds:
 		self.remove_feed_button.set_sensitive( enable_remove )
 		try:
 			self.description.set_details(iface_cache, iface_cache.get_feed(feed_url))
-		except zeroinstall.SafeException, ex:
+		except zeroinstall.SafeException as ex:
 			self.description.set_details(iface_cache, ex)
 	
 	def updated(self):
@@ -414,12 +414,12 @@ def add_remote_feed(policy, parent, interface):
 							d.destroy()
 							import main
 							main.recalculate()
-				except zeroinstall.SafeException, ex:
+				except zeroinstall.SafeException as ex:
 					error(str(ex))
 			else:
 				d.destroy()
 				return
-	except Exception, ex:
+	except Exception as ex:
 		import traceback
 		traceback.print_exc()
 		policy.handler.report_error(ex)
@@ -444,7 +444,7 @@ def add_local_feed(policy, interface):
 			reader.update_from_cache(interface)
 			import main
 			main.recalculate()
-		except Exception, ex:
+		except Exception as ex:
 			dialog.alert(None, _("Error in feed file '%(feed)s':\n\n%(exception)s") % {'feed': feed, 'exception': str(ex)})
 
 	def check_response(widget, response):

@@ -332,7 +332,7 @@ class CachedImplementation:
 	def verify(self, explorer):
 		try:
 			manifest.verify(self.impl_path)
-		except BadDigest, ex:
+		except BadDigest as ex:
 			box = gtk.MessageDialog(None, 0,
 						gtk.MESSAGE_WARNING, gtk.BUTTONS_OK, str(ex))
 			if ex.detail:
@@ -507,7 +507,7 @@ class CacheExplorer:
 			assert item.delete
 			try:
 				item.delete()
-			except OSError, ex:
+			except OSError as ex:
 				errors.append(str(ex))
 			else:
 				model.remove(model.get_iter(path))
@@ -558,7 +558,7 @@ class CacheExplorer:
 		for uri in all_interfaces:
 			try:
 				iface = self.iface_cache.get_interface(uri)
-			except Exception, ex:
+			except Exception as ex:
 				error_feeds.append((uri, str(ex), 0))
 			else:
 				all_feeds.update(self.iface_cache.get_feeds(iface))
@@ -583,7 +583,7 @@ class CacheExplorer:
 							'interfaces', model._pretty_escape(url))
 
 				feed_size = size_if_exists(cached_feed) + size_if_exists(user_overrides)
-			except Exception, ex:
+			except Exception as ex:
 				error_feeds.append((url, str(ex), feed_size))
 			else:
 				cached_feed = feed_type(feed, feed_size)

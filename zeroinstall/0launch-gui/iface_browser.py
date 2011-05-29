@@ -301,7 +301,7 @@ class InterfaceBrowser:
 								self.build_tree()
 							else:
 								warn("Failed to download icon for '%s'", iface)
-						except Exception, ex:
+						except Exception as ex:
 							import traceback
 							traceback.print_exc()
 							self.policy.handler.report_error(ex)

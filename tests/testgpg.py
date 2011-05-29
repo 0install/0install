@@ -119,7 +119,7 @@ class TestGPG(BaseTest):
 		for error, sig in invalid_xmls_sigs:
 			try:
 				self.check_bad(bad_xml_main + '\n' + sig)
-			except model.SafeException, ex:
+			except model.SafeException as ex:
 				if error not in str(ex):
 					raise model.SafeException(str(ex) + '\nSig:\n' + sig)
 

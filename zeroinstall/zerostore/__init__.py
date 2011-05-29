@@ -62,7 +62,7 @@ class Store:
 		try:
 			assert '/' not in value
 			assert value not in ('', '.', '..')
-		except ValueError, ex:
+		except ValueError as ex:
 			raise BadDigest(_("Bad value for digest: %s") % str(ex))
 		dir = os.path.join(self.dir, digest)
 		if os.path.isdir(dir):
@@ -79,9 +79,9 @@ class Store:
 				os.makedirs(self.dir)
 			from tempfile import mkdtemp
 			tmp = mkdtemp(dir = self.dir, prefix = 'tmp-')
-			os.chmod(tmp, 0755)	# r-x for all; needed by 0store-helper
+			os.chmod(tmp, 0o755)	# r-x for all; needed by 0store-helper
 			return tmp
-		except OSError, ex:
+		except OSError as ex:
 			raise NonwritableStore(str(ex))
 	
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0, try_helper = False):
@@ -205,9 +205,9 @@ class Store:
 		# If we just want a subdirectory then the rename will change
 		# extracted/.. and so we'll need write permission on 'extracted'
 
-		os.chmod(extracted, 0755)
+		os.chmod(extracted, 0o755)
 		os.rename(extracted, final_name)
-		os.chmod(final_name, 0555)
+		os.chmod(final_name, 0o555)
 
 		if extract:
 			os.rmdir(tmp)

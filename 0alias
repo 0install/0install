@@ -101,7 +101,7 @@ if interface_uri is None:
 			full_path = alias_prog
 
 		interface_uri, main = alias.parse_script(full_path)
-	except alias.NotAnAliasScript, ex:
+	except alias.NotAnAliasScript as ex:
 		if options.manpage:
 			os.execlp('man', 'man', *args)
 		print >>sys.stderr, str(ex)
@@ -196,7 +196,7 @@ try:
 	if os.path.exists(script):
 		raise model.SafeException("File '%s' already exists. Delete it first." % script)
 		sys.exit(1)
-except model.SafeException, ex:
+except model.SafeException as ex:
 	print >>sys.stderr, ex
 	sys.exit(1)
 
@@ -204,7 +204,7 @@ wrapper = file(script, 'w')
 alias.write_script(wrapper, interface_uri, main)
 
 # Make new script executable
-os.chmod(script, 0111 | os.fstat(wrapper.fileno()).st_mode)
+os.chmod(script, 0o111 | os.fstat(wrapper.fileno()).st_mode)
 wrapper.close()
 
 #print "Created script '%s'." % script

@@ -130,13 +130,13 @@ def main(command_args, config = None):
 			else:
 				from zeroinstall.cmd import run
 				run.handle(config, options, args)
-	except NeedDownload, ex:
+	except NeedDownload as ex:
 		# This only happens for dry runs
 		print ex
 	except UsageError:
 		parser.print_help()
 		sys.exit(1)
-	except SafeException, ex:
+	except SafeException as ex:
 		if options.verbose: raise
 		try:
 			print >>sys.stderr, unicode(ex)

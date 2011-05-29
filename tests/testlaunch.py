@@ -41,7 +41,7 @@ class TestLaunch(BaseTest):
 				raise
 			except AssertionError:
 				raise
-			except Exception, ex:
+			except Exception as ex:
 				pass
 			out = sys.stdout.getvalue()
 			err = sys.stderr.getvalue()
@@ -125,7 +125,7 @@ class TestLaunch(BaseTest):
 				policy.handler.wait_for_blocker(downloaded)
 			run.execute_selections(policy.solver.selections, [], stores = policy.config.stores)
 			assert False
-		except SafeException, ex:
+		except SafeException as ex:
 			assert 'Command path must be relative' in str(ex), ex
 
 	def testOffline(self):

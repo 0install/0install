@@ -70,7 +70,7 @@ class KeyInfoFetcher:
 				if doc.documentElement.localName != 'key-lookup':
 					raise SafeException(_('Expected <key-lookup>, not <%s>') % doc.documentElement.localName)
 				self.info += doc.documentElement.childNodes
-			except Exception, ex:
+			except Exception as ex:
 				doc = minidom.parseString('<item vote="bad"/>')
 				root = doc.documentElement
 				root.appendChild(doc.createTextNode(_('Error getting key information: %s') % ex))
@@ -200,13 +200,13 @@ class Fetcher(object):
 				# OK, maybe it's just being slow...
 				info("Feed download from %s is taking a long time.", feed_url)
 				primary_ex = None
-			except NoTrustedKeys, ex:
+			except NoTrustedKeys as ex:
 				raise			# Don't bother trying the mirror if we have a trust problem
-			except ReplayAttack, ex:
+			except ReplayAttack as ex:
 				raise			# Don't bother trying the mirror if we have a replay attack
-			except DownloadAborted, ex:
+			except DownloadAborted as ex:
 				raise			# Don't bother trying the mirror if the user cancelled
-			except SafeException, ex:
+			except SafeException as ex:
 				# Primary failed
 				primary = None
 				primary_ex = ex
@@ -231,7 +231,7 @@ class Fetcher(object):
 							if mirror:
 								info(_("Primary feed download succeeded; aborting mirror download for %s") % feed_url)
 								mirror.dl.abort()
-					except SafeException, ex:
+					except SafeException as ex:
 						primary = None
 						primary_ex = ex
 						info(_("Feed download from %(url)s failed; still trying mirror: %(exception)s"), {'url': feed_url, 'exception': ex})
@@ -245,11 +245,11 @@ class Fetcher(object):
 								# We already warned; no need to raise an exception too,
 								# as the mirror download succeeded.
 								primary_ex = None
-					except ReplayAttack, ex:
+					except ReplayAttack as ex:
 						info(_("Version from mirror is older than cached version; ignoring it: %s"), ex)
 						mirror = None
 						primary_ex = None
-					except SafeException, ex:
+					except SafeException as ex:
 						info(_("Mirror download failed: %s"), ex)
 						mirror = None
 
@@ -433,7 +433,7 @@ class Fetcher(object):
 				icons_cache = basedir.save_cache_path(config_site, 'interface_icons')
 				icon_file = file(os.path.join(icons_cache, escape(interface.uri)), 'w')
 				shutil.copyfileobj(stream, icon_file)
-			except Exception, ex:
+			except Exception as ex:
 				self.handler.report_error(ex)
 
 		return download_and_add_icon()

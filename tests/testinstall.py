@@ -35,7 +35,7 @@ class TestInstall(BaseTest):
 				raise
 			except AssertionError:
 				raise
-			except Exception, ex:
+			except Exception as ex:
 				pass
 			out = sys.stdout.getvalue()
 			err = sys.stderr.getvalue()

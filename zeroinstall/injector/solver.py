@@ -358,11 +358,11 @@ class SATSolver(Solver):
 						distro_feed = iface_cache.get_feed(distro_feed_url)
 						if distro_feed.implementations:
 							impls.extend(distro_feed.implementations.values())
-				except MissingLocalFeed, ex:
+				except MissingLocalFeed as ex:
 					warn(_("Missing local feed; if it's no longer required, remove it with:") +
 							'\n0install remove-feed ' + iface.uri + ' ' + f,
 						{'feed': f, 'interface': iface, 'exception': ex})
-				except Exception, ex:
+				except Exception as ex:
 					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
 					#raise
 

@@ -256,14 +256,14 @@ class TestModel(BaseTest):
 		try:
 			f = model.Feed('http://feed', arch = 'i386', user_override = True)
 			assert False
-		except model.SafeException, ex:
+		except model.SafeException as ex:
 			assert 'Malformed arch' in str(ex)
 	
 	def testCanonical(self):
 		try:
 			model.canonical_iface_uri('http://foo')
 			assert False
-		except model.SafeException, ex:
+		except model.SafeException as ex:
 			assert 'Missing /' in str(ex)
 
 		self.assertEquals('http://foo/',
@@ -271,7 +271,7 @@ class TestModel(BaseTest):
 		try:
 			model.canonical_iface_uri('bad-name')
 			assert False
-		except model.SafeException, ex:
+		except model.SafeException as ex:
 			assert 'Bad interface name' in str(ex)
 	
 	def testVersions(self):

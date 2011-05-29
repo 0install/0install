@@ -69,7 +69,7 @@ class TestReader(BaseTest):
 		try:
 			reader.check_readable(foo_iface_uri, tmp.name)
 			self.fail()
-		except reader.InvalidInterface, ex:
+		except reader.InvalidInterface as ex:
 			assert "1000" in str(ex)
 	
 	def testCantUseBothInsertAndValueInEnvironmentBinding(self):
@@ -79,7 +79,7 @@ class TestReader(BaseTest):
 		try:
 			reader.check_readable(foo_iface_uri, tmp.name)
 			self.fail()
-		except reader.InvalidInterface, ex:
+		except reader.InvalidInterface as ex:
 			assert "Binding contains both 'insert' and 'value'" in str(ex)
 
 	def testRequiresVersion(self):

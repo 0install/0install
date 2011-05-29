@@ -63,22 +63,22 @@ try:
 		raise SafeException("What do you mean by '%s'?\n%s" %
 			(pattern, '\n'.join(['- ' + x.__name__[3:] for x in matches])))
 	matches[0](args[1:])
-except KeyboardInterrupt, ex:
+except KeyboardInterrupt as ex:
 	print >>sys.stderr, "Interrupted"
 	sys.exit(1)
-except OSError, ex:
+except OSError as ex:
 	if options.verbose: raise
 	print >>sys.stderr, str(ex)
 	sys.exit(1)
-except IOError, ex:
+except IOError as ex:
 	if options.verbose: raise
 	print >>sys.stderr, str(ex)
 	sys.exit(1)
-except cli.UsageError, ex:
+except cli.UsageError as ex:
 	print >>sys.stderr, str(ex)
 	print >>sys.stderr, "usage: " + sys.argv[0] + " " + matches[0].__doc__
 	sys.exit(1)
-except SafeException, ex:
+except SafeException as ex:
 	if options.verbose: raise
 	print >>sys.stderr, str(ex)
 	sys.exit(1)

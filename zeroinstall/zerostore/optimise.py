@@ -30,7 +30,7 @@ def _link(a, b, tmpfile):
 
 	b_dir = os.path.dirname(b)
 	old_mode = os.lstat(b_dir).st_mode
-	os.chmod(b_dir, old_mode | 0200)	# Need write access briefly
+	os.chmod(b_dir, old_mode | 0o200)	# Need write access briefly
 	try:
 		os.link(a, tmpfile)
 		try:
@@ -68,7 +68,7 @@ def optimise(impl_dir):
 		manifest_path = os.path.join(impl_dir, impl, '.manifest')
 		try:
 			ms = file(manifest_path, 'rb')
-		except OSError, ex:
+		except OSError as ex:
 			warn(_("Failed to read manifest file '%(manifest_path)s': %(exception)s"), {'manifest': manifest_path, 'exception': str(ex)})
 			continue
 

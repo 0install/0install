@@ -39,7 +39,7 @@ def output_suppressed():
 			yield
 		except Exception:
 			raise
-		except BaseException, ex:
+		except BaseException as ex:
 			# Don't abort unit-tests if someone raises SystemExit
 			raise Exception(str(type(ex)) + " " + str(ex))
 	finally:
@@ -96,7 +96,7 @@ class TestDownload(BaseTest):
 			try:
 				download_and_execute(policy, ['Hello'])
 				assert 0
-			except model.SafeException, ex:
+			except model.SafeException as ex:
 				if "has no usable implementations" not in str(ex):
 					raise ex
 				if "Not signed with a trusted key" not in str(policy.handler.ex):
@@ -112,7 +112,7 @@ class TestDownload(BaseTest):
 			try:
 				download_and_execute(policy, ['Hello'])
 				assert 0
-			except model.SafeException, ex:
+			except model.SafeException as ex:
 				if "has no usable implementations" not in str(ex):
 					raise ex
 				if "Not signed with a trusted key" not in str(policy.handler.ex):
@@ -128,7 +128,7 @@ class TestDownload(BaseTest):
 			try:
 				cli.main(['--import', '-v', 'NO-SUCH-FILE'], config = self.config)
 				assert 0
-			except model.SafeException, ex:
+			except model.SafeException as ex:
 				assert 'NO-SUCH-FILE' in str(ex)
 		finally:
 			rootLogger.disabled = False
@@ -210,7 +210,7 @@ class TestDownload(BaseTest):
 			try:
 				download_and_execute(policy, ['Hello'], main = 'Missing')
 				assert 0
-			except model.SafeException, ex:
+			except model.SafeException as ex:
 				if "HelloWorld/Missing" not in str(ex):
 					raise
 	
@@ -224,7 +224,7 @@ class TestDownload(BaseTest):
 			try:
 				download_and_execute(policy, ['Hello'], main = 'Missing')
 				assert 0
-			except model.SafeException, ex:
+			except model.SafeException as ex:
 				if "HelloWorld/Missing" not in str(ex):
 					raise
 
@@ -265,7 +265,7 @@ class TestDownload(BaseTest):
 			try:
 				download_and_execute(policy, ['Hello'], main = 'Missing')
 				assert 0
-			except model.SafeException, ex:
+			except model.SafeException as ex:
 				if "Downloaded archive has incorrect size" not in str(ex):
 					raise ex
 
@@ -278,7 +278,7 @@ class TestDownload(BaseTest):
 			try:
 				download_and_execute(policy, [])
 				assert False
-			except model.SafeException, ex:
+			except model.SafeException as ex:
 				if "HelloWorld/Missing" not in str(ex):
 					raise ex
 		finally:
@@ -293,7 +293,7 @@ class TestDownload(BaseTest):
 			try:
 				download_and_execute(policy, [])
 				assert False
-			except model.SafeException, ex:
+			except model.SafeException as ex:
 				if 'Attempt to unpack dir over symlink "HelloWorld"' not in str(ex):
 					raise
 			self.assertEquals(None, basedir.load_first_cache('0install.net', 'implementations', 'main'))
@@ -309,7 +309,7 @@ class TestDownload(BaseTest):
 			try:
 				download_and_execute(policy, [])
 				assert False
-			except model.SafeException, ex:
+			except model.SafeException as ex:
 				if "HelloWorld/Missing" not in str(ex):
 					raise
 		finally:
@@ -324,7 +324,7 @@ class TestDownload(BaseTest):
 			try:
 				download_and_execute(policy, [])
 				assert False
-			except download.DownloadError, ex:
+			except download.DownloadError as ex:
 				if "Connection" not in str(ex):
 					raise
 		finally:
@@ -369,7 +369,7 @@ class TestDownload(BaseTest):
 			try:
 				policy.handler.wait_for_blocker(refreshed)
 				raise Exception("Should have been rejected!")
-			except model.SafeException, ex:
+			except model.SafeException as ex:
 				assert "New feed's modification time is before old version" in str(ex)
 
 			# Must finish with the newest version
@@ -420,7 +420,7 @@ class TestDownload(BaseTest):
 					os._exit = my_exit
 					background.spawn_background_update(p, verbose)
 					assert False
-				except SystemExit, ex:
+				except SystemExit as ex:
 					self.assertEquals(1, ex.code)
 			finally:
 				os._exit = old_exit

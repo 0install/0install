@@ -68,7 +68,7 @@ class TestAutoPolicy(BaseTest):
 		try:
 			assert policy.need_download()
 			download_and_execute(policy, [])
-		except model.SafeException, ex:
+		except model.SafeException as ex:
 			assert 'Unknown digest algorithm' in str(ex)
 	
 	def testDownload(self):
@@ -88,7 +88,7 @@ class TestAutoPolicy(BaseTest):
 		try:
 			download_and_execute(policy, ['Hello'])
 			assert 0
-		except model.SafeException, ex:
+		except model.SafeException as ex:
 			assert "ThisBetterNotExist" in str(ex)
 		tmp.close()
 
@@ -108,7 +108,7 @@ class TestAutoPolicy(BaseTest):
 		try:
 			download_and_execute(policy, ['Hello'])
 			assert 0
-		except model.SafeException, ex:
+		except model.SafeException as ex:
 			assert "library" in str(ex), ex
 		tmp.close()
 
@@ -264,7 +264,7 @@ class TestAutoPolicy(BaseTest):
 		try:
 			self.config.iface_cache.get_interface(foo_iface_uri)
 			assert False
-		except reader.InvalidInterface, ex:
+		except reader.InvalidInterface as ex:
 			assert 'Invalid feed URL' in str(ex)
 
 	def testDLfeed(self):
@@ -309,7 +309,7 @@ class TestAutoPolicy(BaseTest):
 		try:
 			download_and_execute(policy, [])
 			assert False
-		except model.SafeException, ex:
+		except model.SafeException as ex:
 			assert "has no usable implementations" in str(ex), ex
 
 	def testNoArchives(self):

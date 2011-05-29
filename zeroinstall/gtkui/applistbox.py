@@ -142,7 +142,7 @@ class AppListBox:
 				summary = summary[:1].capitalize() + summary[1:]
 				icon_width, icon_height = gtk.icon_size_lookup(gtk.ICON_SIZE_DIALOG)
 				pixbuf = icon.load_icon(self.iface_cache.get_icon_path(iface), icon_width, icon_height)
-			except model.InvalidInterface, ex:
+			except model.InvalidInterface as ex:
 				name = uri
 				summary = unicode(ex)
 				pixbuf = None
@@ -225,7 +225,7 @@ class AppListBox:
 		if resp == gtk.RESPONSE_OK:
 			try:
 				self.app_list.remove_app(uri)
-			except Exception, ex:
+			except Exception as ex:
 				box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, _("Failed to remove %(interface_name)s: %(exception)s") % {'interface_name': name, 'exception': ex})
 				box.run()
 				box.destroy()

@@ -129,10 +129,10 @@ class MainWindow:
 				sys.exit(0)			# Success
 		except SystemExit:
 			raise
-		except download.DownloadAborted, ex:
+		except download.DownloadAborted as ex:
 			run_button.set_active(False)
 			# Don't bother reporting this to the user
-		except Exception, ex:
+		except Exception as ex:
 			run_button.set_active(False)
 			self.report_exception(ex)
 
@@ -187,7 +187,7 @@ class MainWindow:
 	def use_systray_icon(self):
 		try:
 			self.systray_icon = gtk.status_icon_new_from_icon_name("zeroinstall")
-		except Exception, ex:
+		except Exception as ex:
 			info(_("No system tray support: %s"), ex)
 		else:
 			root_iface = iface_cache.iface_cache.get_interface(self.policy.root)

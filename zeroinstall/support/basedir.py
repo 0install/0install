@@ -83,7 +83,7 @@ def save_config_path(*resource):
 	assert not os.path.isabs(resource)
 	path = os.path.join(xdg_config_home, resource)
 	if not os.path.isdir(path):
-		os.makedirs(path, 0700)
+		os.makedirs(path, 0o700)
 	return path
 
 def load_config_paths(*resource):
@@ -109,7 +109,7 @@ def save_cache_path(*resource):
 	assert not os.path.isabs(resource)
 	path = os.path.join(xdg_cache_home, resource)
 	if not os.path.isdir(path):
-		os.makedirs(path, 0700)
+		os.makedirs(path, 0o700)
 	return path
 
 def load_cache_paths(*resource):

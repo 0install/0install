@@ -243,7 +243,7 @@ def _check_xml_stream(stream):
 		raise SafeException(_("Invalid characters found in base 64 encoded signature"))
 	try:
 		sig_data = base64.decodestring(sig_data) # (b64decode is Python 2.4)
-	except Exception, ex:
+	except Exception as ex:
 		raise SafeException(_("Invalid base 64 encoded signature: %s") % str(ex))
 
 	sig_fd, sig_name = tempfile.mkstemp(prefix = 'injector-sig-')

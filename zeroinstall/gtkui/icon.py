@@ -43,6 +43,6 @@ def load_icon(icon_path, icon_width=None, icon_height=None):
 		finally:
 			loader.close()
 		return loader.get_pixbuf()
-	except Exception, ex:
+	except Exception as ex:
 		warn(_("Failed to load cached PNG icon: %s") % ex)
 		return None

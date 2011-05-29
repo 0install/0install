@@ -112,7 +112,7 @@ def main(command_args, config = None):
 	except UsageError:
 		parser.print_help()
 		sys.exit(1)
-	except SafeException, ex:
+	except SafeException as ex:
 		if verbose: raise
 		try:
 			print >>sys.stderr, unicode(ex)
