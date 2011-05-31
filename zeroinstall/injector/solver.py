@@ -265,26 +265,45 @@ class SATSolver(Solver):
 					continue
 				yield dep
 
-		# Add a clause so that if requiring_impl_var is True then an implementation
-		# matching 'dependency' must also be selected.
 		# Must have already done add_iface on dependency.interface.
+		# If dependency is essential:
+		#   Add a clause so that if requiring_impl_var is True then an implementation
+		#   matching 'dependency' must also be selected.
+		# If dependency is optional:
+		#   Require that no incompatible version is selected.
 		def find_dependency_candidates(requiring_impl_var, dependency):
+			def meets_restrictions(candidate):
+				for r in dependency.restrictions:
+					if not r.meets_restriction(candidate):
+						#warn("%s rejected due to %s", candidate.get_version(), r)
+						return False
+				return True
+
+			essential = dependency.importance == model.Dependency.Essential
+
 			dep_iface = iface_cache.get_interface(dependency.interface)
 			dep_union = [sat.neg(requiring_impl_var)]	# Either requiring_impl_var is False, or ...
 			for candidate in impls_for_iface[dep_iface]:
-				for r in dependency.restrictions:
-					if candidate.__class__ is not _DummyImpl and not r.meets_restriction(candidate):
-						#warn("%s rejected due to %s", candidate.get_version(), r)
-						if candidate.version is not None:
-							break
+				if (candidate.__class__ is _DummyImpl) or meets_restrictions(candidate):
+					if essential:
+						c_var = impl_to_var.get(candidate, None)
+						if c_var is not None:
+							dep_union.append(c_var)
+						# else we filtered that version out, so ignore it
 				else:
-					c_var = impl_to_var.get(candidate, None)
-					if c_var is not None:
-						dep_union.append(c_var)
-					# else we filtered that version out, so ignore it
+					# Candidate doesn't meet our requirements
+					# If the dependency is optional add a rule to make sure we don't
+					# select this candidate.
+					# (for essential dependencies this isn't necessary because we must
+					# select a good version and we can't select two)
+					if not essential:
+						c_var = impl_to_var.get(candidate, None)
+						if c_var is not None:
+							problem.add_clause(dep_union + [sat.neg(c_var)])
+						# else we filtered that version out, so ignore it
 
-			assert dep_union
-			problem.add_clause(dep_union)
+			if essential:
+				problem.add_clause(dep_union)
 
 		def is_unusable(impl, restrictions, arch):
 			"""@return: whether this implementation is unusable.

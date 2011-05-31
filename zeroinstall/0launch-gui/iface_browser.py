@@ -158,6 +158,7 @@ class InterfaceBrowser:
 	DOWNLOAD_SIZE = 4
 	ICON = 5
 	BACKGROUND = 6
+	PROBLEM = 7
 
 	columns = [(_('Component'), INTERFACE_NAME),
 		   (_('Version'), VERSION),
@@ -194,7 +195,7 @@ class InterfaceBrowser:
 		self.default_icon = tree_view.style.lookup_icon_set(gtk.STOCK_EXECUTE).render_icon(tree_view.style,
 			gtk.TEXT_DIR_NONE, gtk.STATE_NORMAL, gtk.ICON_SIZE_SMALL_TOOLBAR, tree_view, None)
 
-		self.model = gtk.TreeStore(object, str, str, str, str, gtk.gdk.Pixbuf, str)
+		self.model = gtk.TreeStore(object, str, str, str, str, gtk.gdk.Pixbuf, str, bool)
 		self.tree_view = tree_view
 		tree_view.set_model(self.model)
 
@@ -327,7 +328,7 @@ class InterfaceBrowser:
 
 		self.model.clear()
 		commands = self.policy.solver.selections.commands
-		def add_node(parent, iface, command):
+		def add_node(parent, iface, command, essential):
 			# (command is the index into commands, if any)
 			if iface in done:
 				return
@@ -346,6 +347,7 @@ class InterfaceBrowser:
 			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = name
 			self.model[iter][InterfaceBrowser.SUMMARY] = summary
 			self.model[iter][InterfaceBrowser.ICON] = self.get_icon(iface) or self.default_icon
+			self.model[iter][InterfaceBrowser.PROBLEM] = False
 
 			sel = self.policy.solver.selections.selections.get(iface.uri, None)
 			if sel:
@@ -367,7 +369,7 @@ class InterfaceBrowser:
 							child_command = command + 1
 						else:
 							child_command = None
-						add_node(iter, iface_cache.get_interface(child.interface), child_command)
+						add_node(iter, iface_cache.get_interface(child.interface), child_command, child.importance == model.Dependency.Essential)
 					else:
 						child_iter = self.model.append(parent)
 						self.model[child_iter][InterfaceBrowser.INTERFACE_NAME] = '?'
@@ -375,12 +377,13 @@ class InterfaceBrowser:
 							_('Unknown dependency type : %s') % child
 						self.model[child_iter][InterfaceBrowser.ICON] = self.default_icon
 			else:
-				self.model[iter][InterfaceBrowser.VERSION] = _('(problem)')
+				self.model[iter][InterfaceBrowser.PROBLEM] = essential
+				self.model[iter][InterfaceBrowser.VERSION] = _('(problem)') if essential else _('(none)')
 		if commands:
-			add_node(None, self.root, 0)
+			add_node(None, self.root, 0, essential = True)
 		else:
 			# Nothing could be selected, or no command requested
-			add_node(None, self.root, None)
+			add_node(None, self.root, None, essential = True)
 		self.tree_view.expand_all()
 
 	def show_popup_menu(self, iface, bev):
@@ -493,5 +496,5 @@ class InterfaceBrowser:
 			iface = row[InterfaceBrowser.INTERFACE]
 			sel = self.policy.solver.selections.selections.get(iface.uri, None)
 
-			if sel is None:
+			if sel is None and row[InterfaceBrowser.PROBLEM]:
 				row[InterfaceBrowser.BACKGROUND] = '#f88'

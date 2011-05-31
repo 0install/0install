@@ -82,6 +82,7 @@ class TestSelections(BaseTest):
 		iface = os.path.join(mydir, "Local.xml")
 		p = policy.Policy(iface, config = self.config)
 		p.need_download()
+		assert p.ready
 		s1 = selections.Selections(p)
 		xml = s1.toDOM().toxml("utf-8")
 

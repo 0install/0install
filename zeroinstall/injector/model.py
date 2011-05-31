@@ -358,6 +358,9 @@ class Dependency(object):
 	"""
 	__slots__ = ['qdom']
 
+	Essential = "essential"
+	Recommended = "recommended"
+
 	def __init__(self, element):
 		assert isinstance(element, qdom.Element), type(element)	# Use InterfaceDependency instead!
 		self.qdom = element
@@ -365,6 +368,10 @@ class Dependency(object):
 	@property
 	def metadata(self):
 		return self.qdom.attrs
+
+	@property
+	def importance(self):
+		return self.qdom.getAttribute("importance") or Dependency.Essential
 
 class InterfaceDependency(Dependency):
 	"""A Dependency on a Zero Install interface.

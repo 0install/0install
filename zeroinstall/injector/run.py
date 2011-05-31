@@ -10,7 +10,7 @@ import os, sys
 from logging import info
 from string import Template
 
-from zeroinstall.injector.model import SafeException, EnvironmentBinding, Command
+from zeroinstall.injector.model import SafeException, EnvironmentBinding, Command, Dependency
 from zeroinstall.injector import namespaces, qdom
 
 def do_env_binding(binding, path):
@@ -168,15 +168,19 @@ class Setup(object):
 		for selection in sels.values():
 			_do_bindings(selection, selection.bindings)
 			for dep in selection.dependencies:
-				dep_impl = sels[dep.interface]
-				if not dep_impl.id.startswith('package:'):
+				dep_impl = sels.get(dep.interface, None)
+				if dep_impl is None:
+					assert dep.importance != Dependency.Essential, dep
+				elif not dep_impl.id.startswith('package:'):
 					_do_bindings(dep_impl, dep.bindings)
 		# Process commands' dependencies' bindings too
 		# (do this here because we still want the bindings, even with --main)
 		for command in commands:
 			for dep in command.requires:
-				dep_impl = sels[dep.interface]
-				if not dep_impl.id.startswith('package:'):
+				dep_impl = sels.get(dep.interface, None)
+				if dep_impl is None:
+					assert dep.importance != Dependency.Essential, dep
+				elif not dep_impl.id.startswith('package:'):
 					_do_bindings(dep_impl, dep.bindings)
 	
 	def do_binding(self, impl, binding):

@@ -5,6 +5,10 @@
   <summary>Local feed</summary>
 
   <group main='foo' self-test='test-foo' local-path='.'>
+    <requires interface="./Binary.xml" importance='optional'>
+      <version not-before='9999'/>
+    </requires>
+
     <implementation id="a" version="0.1"/>
     <implementation id="b" main='bar' version="0.1"/>
     <implementation id="c" version="0.1" main='ignored'>
