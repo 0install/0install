@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 from basetest import BaseTest, TestStores
-import sys
+import sys, os, tempfile
 from StringIO import StringIO
 import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall import cmd
 from zeroinstall.injector import model, selections, qdom, reader, policy, handler, gpg
+
+mydir = os.path.dirname(__file__)
 
 class Reply:
 	def __init__(self, reply):
@@ -327,6 +329,26 @@ class TestInstall(BaseTest):
 		assert not err, err
 		assert 'arg-for-runner' in out, out
 		assert '--help' in out, out
+
+	def testDigest(self):
+		hw = os.path.join(mydir, 'HelloWorld.tgz')
+		out, err = self.run_0install(['digest', '--algorithm=sha1', hw])
+		assert out == 'sha1=3ce644dc725f1d21cfcf02562c76f375944b266a\n', out
+		assert not err, err
+
+		out, err = self.run_0install(['digest', hw])
+		assert out == 'sha1new=290eb133e146635fe37713fd58174324a16d595f\n', out
+		assert not err, err
+
+		out, err = self.run_0install(['digest', hw, 'HelloWorld'])
+		assert out == 'sha1new=491678c37f77fadafbaae66b13d48d237773a68f\n', out
+		assert not err, err
+
+		tmp = tempfile.mkdtemp(prefix = '0install')
+		out, err = self.run_0install(['digest', tmp])
+		assert out == 'sha1new=da39a3ee5e6b4b0d3255bfef95601890afd80709\n', out
+		assert not err, err
+		os.rmdir(tmp)
 
 if __name__ == '__main__':
 	unittest.main()
