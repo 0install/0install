@@ -29,7 +29,7 @@ class PackageKit(object):
 	def __init__(self):
 		self._pk = False
 
-		self._candidates = {}	# { package_name : (version, arch, size) | Blocker }
+		self._candidates = {}	# { package_name : [ (version, arch, size) ] | Blocker }
 
 		# PackageKit is really slow at handling separate queries, so we use this to
 		# batch them up.
@@ -60,32 +60,33 @@ class PackageKit(object):
 		@param factory: a function to add a new implementation to the feed
 		@param prefix: the prefix for the implementation's ID
 		"""
-		candidate = self._candidates.get(package_name, None)
-		if candidate is None:
+		candidates = self._candidates.get(package_name, None)
+		if candidates is None:
 			return
 
-		if isinstance(candidate, tasks.Blocker):
+		if isinstance(candidates, tasks.Blocker):
 			return		# Fetch still in progress
 
-		impl_name = '%s:%s:%s:%s' % (prefix, package_name, candidate['version'], candidate['arch'])
+		for candidate in candidates:
+			impl_name = '%s:%s:%s:%s' % (prefix, package_name, candidate['version'], candidate['arch'])
 
-		impl = factory(impl_name, only_if_missing = True, installed = candidate['installed'])
-		if impl is None:
-			# (checking this way because the cached candidate['installed'] may be stale)
-			return		# Already installed
+			impl = factory(impl_name, only_if_missing = True, installed = candidate['installed'])
+			if impl is None:
+				# (checking this way because the cached candidate['installed'] may be stale)
+				return		# Already installed
 
-		impl.version = model.parse_version(candidate['version'])
-		if candidate['arch'] != '*':
-			impl.machine = candidate['arch']
+			impl.version = model.parse_version(candidate['version'])
+			if candidate['arch'] != '*':
+				impl.machine = candidate['arch']
 
-		def install(handler):
-			packagekit_id = candidate['packagekit_id']
-			def download_factory(url, hint):
-				return PackageKitDownload(url, hint, pk = self.pk, packagekit_id = packagekit_id)
-			dl = handler.get_download('packagekit:' + packagekit_id, factory = download_factory, hint = impl)
-			dl.expected_size = candidate['size']
-			return dl.downloaded
-		impl.download_sources.append(model.DistributionSource(package_name, candidate['size'], install))
+			def install(handler):
+				packagekit_id = candidate['packagekit_id']
+				def download_factory(url, hint):
+					return PackageKitDownload(url, hint, pk = self.pk, packagekit_id = packagekit_id)
+				dl = handler.get_download('packagekit:' + packagekit_id, factory = download_factory, hint = impl)
+				dl.expected_size = candidate['size']
+				return dl.downloaded
+			impl.download_sources.append(model.DistributionSource(package_name, candidate['size'], install))
 
 	@tasks.async
 	def fetch_candidates(self, package_names):
@@ -124,7 +125,11 @@ class PackageKit(object):
 					if packagekit_id in sender.details:
 						info.update(sender.details[packagekit_id])
 						info['packagekit_id'] = packagekit_id
-						self._candidates[info['name']] = info
+						if (info['name'] not in self._candidates or
+						    isinstance(self._candidates[info['name']], tasks.Blocker)):
+							self._candidates[info['name']] = [info]
+						else:
+							self._candidates[info['name']].append(info)
 					else:
 						_logger_pk.info(_('Empty details for %s'), packagekit_id)
 				blocker.trigger()
