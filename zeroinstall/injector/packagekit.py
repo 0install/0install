@@ -128,7 +128,12 @@ class PackageKit(object):
 
 			def resolve_cb(sender):
 				if sender.package:
-					versions.update(sender.package)
+					for packagekit_id, info in sender.package.iteritems():
+						parts = packagekit_id.split(';', 3)
+						if ':' in parts[3]:
+							parts[3] = parts[3].split(':', 1)[0]
+							packagekit_id = ';'.join(parts)
+						versions[packagekit_id] = info
 					tran = _PackageKitTransaction(self.pk, details_cb, error_cb)
 					tran.proxy.GetDetails(versions.keys())
 				else:
