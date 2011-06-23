@@ -593,6 +593,40 @@ class PortsDistribution(Distribution):
 	def get_score(self, disto_name):
 		return int(disto_name == 'Ports')
 
+class MacPortsDistribution(CachedDistribution):
+
+	cache_leaf = 'macports-status.cache'
+
+	def generate_cache(self):
+		cache = []
+
+		for line in os.popen("port echo active"):
+			package, version = line.split()
+			version = version.lstrip('@')
+			version = re.sub(r"\+.*","",version) # strip variants
+			zi_arch = '*' # TODO: get port archs too
+			clean_version = try_cleanup_distro_version(version)
+			if clean_version:
+				cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
+			else:
+				warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
+
+		self._write_cache(cache)
+
+	def get_package_info(self, package, factory):
+		# Add installed versions...
+		versions = self.versions.get(package, [])
+
+		for version, machine in versions:
+			impl = factory('package:macports:%s:%s:%s' % (package, version, machine))
+			impl.version = model.parse_version(version)
+			if machine != '*':
+			    impl.machine = machine
+
+	def get_score(self, disto_name):
+		return int(disto_name == 'MacPorts')
+
+
 _host_distribution = None
 def get_host_distribution():
 	"""Get a Distribution suitable for the host operating system.
@@ -605,12 +639,15 @@ def get_host_distribution():
 		_rpm_db = '/var/lib/rpm/Packages'
 		_slack_db = '/var/log/packages'
 		_pkg_db = '/var/db/pkg'
+		_macports_db = '/opt/local/var/macports/registry/registry.db'
 
 		if os.path.isdir(_pkg_db):
 			if sys.platform.startswith("linux"):
 				_host_distribution = GentooDistribution(_pkg_db)
 			elif sys.platform.startswith("freebsd"):
 				_host_distribution = PortsDistribution(_pkg_db)
+		elif os.path.isfile(_macports_db):
+			_host_distribution = MacPortsDistribution(_macports_db)
 		elif os.access(dpkg_db_status, os.R_OK):
 			_host_distribution = DebianDistribution(dpkg_db_status, pkgcache)
 		elif os.path.isfile(_rpm_db):

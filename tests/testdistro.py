@@ -217,6 +217,18 @@ class TestDistro(BaseTest):
 		self.assertEquals('0.41-2', impl.get_version())
 		self.assertEquals(distro.host_machine, impl.machine)
 
+	def testMacPorts(self):
+		pkgdir = os.path.join(os.path.dirname(__file__), 'macports')
+		os.environ['PATH'] = pkgdir + ':' + self.old_path
+		ports = distro.MacPortsDistribution(os.path.join(pkgdir, 'registry.db'))
+
+		factory = self.make_factory(ports)
+		ports.get_package_info('zeroinstall-injector', factory)
+		self.assertEquals(1, len(self.feed.implementations))
+		impl = self.feed.implementations['package:macports:zeroinstall-injector:0.54-0:*']
+		self.assertEquals('0.54-0', impl.get_version())
+		self.assertEquals(None, impl.machine)
+
 	def testCleanVersion(self):
 		self.assertEquals('0.3.1-1', distro.try_cleanup_distro_version('1:0.3.1-1'))
 		self.assertEquals('0.3.1-1', distro.try_cleanup_distro_version('0.3.1-1ubuntu0'))
