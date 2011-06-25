@@ -46,9 +46,9 @@ requires first uninstalling another.</description>
 
     <!-- Also restrict the verison of Python for older 0install and when used as a library. -->
     <requires interface="http://repo.roscidus.com/python/python">
-      <version not-before='2.6' before="3"/>
+      <version before="3" not-before="2.6"/>
     </requires>
 
-    <implementation id="." version="1.0-post"/>
+    <implementation id="." released="2011-06-25" version="1.1"/>
   </group>
 </interface>
