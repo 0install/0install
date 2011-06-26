@@ -29,6 +29,10 @@ class PackageKit(object):
 
 		self._candidates = {}	# { package_name : (version, arch, size) | Blocker }
 
+		# PackageKit is really slow at handling separate queries, so we use this to
+		# batch them up.
+		self._next_batch = set()
+
 	@property
 	def available(self):
 		return self.pk is not None
@@ -84,6 +88,14 @@ class PackageKit(object):
 	@tasks.async
 	def fetch_candidates(self, package_names):
 		assert self.pk
+
+		# Batch requests up
+		self._next_batch |= set(package_names)
+		yield
+		package_names = self._next_batch
+		self._next_batch = set()
+		# The first fetch_candidates instance will now have all the packages
+		# For the others, package_names will now be empty
 
 		known = [self._candidates[p] for p in package_names if p in self._candidates]
 		# (use set because a single task may be checking multiple packages and we need
