@@ -136,12 +136,12 @@ class MainWindow:
 			run_button.set_active(False)
 			self.report_exception(ex)
 
-	def update_download_status(self):
+	def update_download_status(self, only_update_visible = False):
 		"""Called at regular intervals while there are downloads in progress,
 		and once at the end. Update the display."""
 		monitored_downloads = self.policy.handler.monitored_downloads
 
-		self.browser.update_download_status()
+		self.browser.update_download_status(only_update_visible)
 
 		if not monitored_downloads:
 			self.progress_area.hide()

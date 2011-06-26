@@ -27,7 +27,7 @@ class GUIHandler(handler.Handler):
 	def downloads_changed(self):
 		if self.monitored_downloads and self.pulse is None:
 			def pulse():
-				self.mainwindow.update_download_status()
+				self.mainwindow.update_download_status(only_update_visible = True)
 				return True
 			pulse()
 			self.pulse = gobject.timeout_add(200, pulse)

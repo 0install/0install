@@ -139,7 +139,7 @@ if gtk.pygtk_version < (2, 8, 0):
 
 def walk(model, it):
 	while it:
-		yield model[it]
+		yield it
 		for x in walk(model, model.iter_children(it)): yield x
 		it = model.iter_next(it)
 
@@ -440,7 +440,7 @@ class InterfaceBrowser:
 		assert self.original_implementation is None
 		self.original_implementation = self.policy.implementation.copy()
 
-	def update_download_status(self):
+	def update_download_status(self, only_update_visible = False):
 		"""Called at regular intervals while there are downloads in progress,
 		and once at the end. Also called when things are added to the store.
 		Update the TreeView with the interfaces."""
@@ -456,7 +456,18 @@ class InterfaceBrowser:
 
 		selections = self.policy.solver.selections
 
-		for row in walk(self.model, self.model.get_iter_root()):
+		# Only update currently visible rows
+		if only_update_visible and self.tree_view.get_visible_range() != None:
+			firstVisiblePath, lastVisiblePath = self.tree_view.get_visible_range()
+			firstVisibleIter = self.model.get_iter(firstVisiblePath)
+		else:
+			# (or should we just wait until the TreeView has settled enough to tell
+			# us what is visible?)
+			firstVisibleIter = self.model.get_iter_root()
+			lastVisiblePath = None
+
+		for it in walk(self.model, firstVisibleIter):
+			row = self.model[it]
 			iface = row[InterfaceBrowser.INTERFACE]
 
 			# Is this interface the download's hint?
@@ -490,9 +501,13 @@ class InterfaceBrowser:
 				row[InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
 				row[InterfaceBrowser.SUMMARY] = iface.summary
 
+			if self.model.get_path(it) == lastVisiblePath:
+				break
+
 	def highlight_problems(self):
 		"""Called when the solve finishes. Highlight any missing implementations."""
-		for row in walk(self.model, self.model.get_iter_root()):
+		for it in walk(self.model, self.model.get_iter_root()):
+			row = self.model[it]
 			iface = row[InterfaceBrowser.INTERFACE]
 			sel = self.policy.solver.selections.selections.get(iface.uri, None)
 
