@@ -8,13 +8,17 @@ Support code for 0alias scripts.
 
 from zeroinstall import _
 
-_template = '''#!/bin/sh
+_old_template = '''#!/bin/sh
 if [ "$*" = "--versions" ]; then
   exec 0launch -gd '%s' "$@"
 else
   exec 0launch %s '%s' "$@"
 fi
 ''' 
+
+_template = '''#!/bin/sh
+exec 0launch %s '%s' "$@"
+'''
 
 class NotAnAliasScript(Exception):
 	pass
@@ -27,12 +31,22 @@ def parse_script(pathname):
 	@raise NotAnAliasScript: if we can't parse the script
 	"""
 	stream = file(pathname)
-	template_header = _template[:_template.index("-gd '")]
+	template_header = _template[:_template.index("%s '")]
 	actual_header = stream.read(len(template_header))
-	if template_header != actual_header:
-		raise NotAnAliasScript(_("'%s' does not look like a script created by 0alias") % pathname)
-	rest = stream.read()	# If it's a 0alias script, it should be quite short!
-	line = rest.split('\n')[2]
+	stream.seek(0)
+	if template_header == actual_header:
+		# If it's a 0alias script, it should be quite short!
+		rest = stream.read()
+		line = rest.split('\n')[1]
+	else:
+		old_template_header = \
+		    _old_template[:_old_template.index("-gd '")]
+		actual_header = stream.read(len(old_template_header))
+		if old_template_header != actual_header:
+			raise NotAnAliasScript(_("'%s' does not look like a script created by 0alias") % pathname)
+		rest = stream.read()
+		line = rest.split('\n')[2]
+
 	split = line.rfind("' '")
 	if split != -1:
 		# We have a --main
@@ -57,4 +71,4 @@ def write_script(stream, interface_uri, main = None):
 	else:
 		main_arg = ""
 
-	stream.write(_template % (interface_uri, main_arg, interface_uri))
+	stream.write(_template % (main_arg, interface_uri))

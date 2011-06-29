@@ -9,14 +9,22 @@ sys.path.insert(0, '..')
 from zeroinstall import alias
 
 expected_script = """#!/bin/sh
+exec 0launch  'http://example.com/foo.xml' "$@"
+"""
+
+old_script = """#!/bin/sh
 if [ "$*" = "--versions" ]; then
   exec 0launch -gd 'http://example.com/foo.xml' "$@"
 else
   exec 0launch  'http://example.com/foo.xml' "$@"
 fi
-"""
+ """
 
 expected_script_main = """#!/bin/sh
+exec 0launch --main 'a'\\'''\\''\\test' 'http://example.com/foo.xml' "$@"
+"""
+
+old_script_main = """#!/bin/sh
 if [ "$*" = "--versions" ]; then
   exec 0launch -gd 'http://example.com/foo.xml' "$@"
 else
@@ -48,6 +56,23 @@ class TestAlias(BaseTest):
 
 		tmp = tempfile.NamedTemporaryFile()
 		tmp.write(expected_script_main)
+		tmp.flush()
+		tmp.seek(0)
+		uri, main = alias.parse_script(tmp.name)
+		self.assertEquals('http://example.com/foo.xml', uri)
+		self.assertEquals('a\'\'\\test', main)
+
+	def testParseOld(self):
+		tmp = tempfile.NamedTemporaryFile()
+		tmp.write(old_script)
+		tmp.flush()
+		tmp.seek(0)
+		uri, main = alias.parse_script(tmp.name)
+		self.assertEquals('http://example.com/foo.xml', uri)
+		self.assertEquals(None, main)
+
+		tmp = tempfile.NamedTemporaryFile()
+		tmp.write(old_script_main)
 		tmp.flush()
 		tmp.seek(0)
 		uri, main = alias.parse_script(tmp.name)
