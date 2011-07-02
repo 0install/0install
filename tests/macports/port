@@ -1,0 +1,4 @@
+#!/bin/sh
+cat << EOF
+zeroinstall-injector           @0.54_0 
+EOF
