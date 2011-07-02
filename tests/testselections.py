@@ -56,9 +56,11 @@ class TestSelections(BaseTest):
 			self.assertEquals('bin', dep.bindings[0].insert)
 			self.assertEquals('PATH', dep.bindings[0].name)
 			self.assertEquals('prepend', dep.bindings[0].mode)
+			assert dep.bindings[0].separator in ';:'
 
 			self.assertEquals('bin', dep.bindings[1].value)
 			self.assertEquals('NO_PATH', dep.bindings[1].name)
+			self.assertEquals(',', dep.bindings[1].separator)
 
 			self.assertEquals('bin', dep.bindings[2].insert)
 			self.assertEquals('BINDIR', dep.bindings[2].name)

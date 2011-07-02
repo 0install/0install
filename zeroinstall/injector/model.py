@@ -308,6 +308,8 @@ class EnvironmentBinding(Binding):
 			env_elem.setAttributeNS(None, 'value', self.value)
 		if self.default:
 			env_elem.setAttributeNS(None, 'default', self.default)
+		if self.separator:
+			env_elem.setAttributeNS(None, 'separator', self.separator)
 		return env_elem
 
 class OverlayBinding(Binding):
