@@ -225,8 +225,8 @@ class TestDistro(BaseTest):
 		factory = self.make_factory(ports)
 		ports.get_package_info('zeroinstall-injector', factory)
 		self.assertEquals(1, len(self.feed.implementations))
-		impl = self.feed.implementations['package:macports:zeroinstall-injector:0.54-0:*']
-		self.assertEquals('0.54-0', impl.get_version())
+		impl = self.feed.implementations['package:macports:zeroinstall-injector:1.0-0:*']
+		self.assertEquals('1.0-0', impl.get_version())
 		self.assertEquals(None, impl.machine)
 
 	def testCleanVersion(self):

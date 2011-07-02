@@ -323,6 +323,7 @@ _canonical_machine = {
 	'any' : '*',
 	'noarch' : '*',
 	'(none)' : '*',
+	'x86_64': 'x86_64',
 	'amd64': 'x86_64',
 	'i386': 'i386',
 	'i486': 'i486',
@@ -600,14 +601,30 @@ class MacPortsDistribution(CachedDistribution):
 	def generate_cache(self):
 		cache = []
 
-		for line in os.popen("port echo active"):
-			package, version = line.split()
+#		for line in os.popen("port echo active"):
+		for line in os.popen("port -v installed"):
+			if line == 'The following ports are currently installed:\n':
+				continue
+			if line.strip().count(" ") > 1:
+				package, version, extra = line.split(None, 2)
+			else:
+				package, version = line.split()
+				extra = ""
+			if not extra.startswith("(active)"):
+				continue
 			version = version.lstrip('@')
 			version = re.sub(r"\+.*","",version) # strip variants
-			zi_arch = '*' # TODO: get port archs too
+			zi_arch = '*'
 			clean_version = try_cleanup_distro_version(version)
 			if clean_version:
-				cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
+				match = re.match(r" platform='([^' ]*)( \d+)?' archs='([^']*)'", extra)
+				if match:
+					platform, major, archs = match.groups()
+					for arch in archs.split():
+						zi_arch = canonical_machine(arch)
+						cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
+				else:
+					cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
 			else:
 				warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
 
