@@ -9,7 +9,7 @@ sys.path.insert(0, '..')
 from zeroinstall import alias
 
 expected_script = """#!/bin/sh
-exec 0launch  'http://example.com/foo.xml' "$@"
+exec 0launch 'http://example.com/foo.xml' "$@"
 """
 
 old_script = """#!/bin/sh

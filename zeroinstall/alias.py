@@ -17,7 +17,7 @@ fi
 ''' 
 
 _template = '''#!/bin/sh
-exec 0launch %s '%s' "$@"
+exec 0launch %s'%s' "$@"
 '''
 
 class NotAnAliasScript(Exception):
@@ -31,7 +31,7 @@ def parse_script(pathname):
 	@raise NotAnAliasScript: if we can't parse the script
 	"""
 	stream = file(pathname)
-	template_header = _template[:_template.index("%s '")]
+	template_header = _template[:_template.index("%s'")]
 	actual_header = stream.read(len(template_header))
 	stream.seek(0)
 	if template_header == actual_header:
@@ -67,7 +67,7 @@ def write_script(stream, interface_uri, main = None):
 	assert "\\" not in interface_uri
 
 	if main is not None:
-		main_arg = "--main '%s'" % main.replace("'", "'\\''")
+		main_arg = "--main '%s' " % main.replace("'", "'\\''")
 	else:
 		main_arg = ""
 
