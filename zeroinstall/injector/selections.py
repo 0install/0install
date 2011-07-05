@@ -113,7 +113,7 @@ class Selections(object):
 	def __init__(self, source):
 		"""Constructor.
 		@param source: a map of implementations, policy or selections document
-		@type source: {str: L{Selection}} | L{Policy} | L{Element}
+		@type source: L{Element}
 		"""
 		self.selections = {}
 
@@ -121,11 +121,13 @@ class Selections(object):
 			self.commands = []
 			# (Solver will fill everything in)
 		elif isinstance(source, Policy):
+			import warnings
+			warnings.warn("Use policy.solver.selections instead", DeprecationWarning, 2)
 			self._init_from_policy(source)
 		elif isinstance(source, Element):
 			self._init_from_qdom(source)
 		else:
-			raise Exception(_("Source not a Policy or qdom.Element!"))
+			raise Exception(_("Source not a qdom.Element!"))
 
 	def _init_from_policy(self, policy):
 		"""Set the selections from a policy.

@@ -123,4 +123,4 @@ def ensure_cached(uri, command = 'run', config = None):
 			done = p.solve_and_download_impls()
 			tasks.wait_for_blocker(done)
 
-	return selections.Selections(p)
+	return p.solver.selections

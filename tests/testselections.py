@@ -68,7 +68,7 @@ class TestSelections(BaseTest):
 
 			self.assertEquals(["sha1=345"], sels[0].digests)
 
-		s1 = selections.Selections(p)
+		s1 = p.solver.selections
 		s1.selections['http://foo/Source.xml'].attrs['http://namespace foo'] = 'bar'
 		assertSel(s1)
 
@@ -85,7 +85,7 @@ class TestSelections(BaseTest):
 		p = policy.Policy(iface, config = self.config)
 		p.need_download()
 		assert p.ready
-		s1 = selections.Selections(p)
+		s1 = p.solver.selections
 		xml = s1.toDOM().toxml("utf-8")
 
 		# Reload selections and check they're the same
@@ -104,7 +104,7 @@ class TestSelections(BaseTest):
 		feed.implementations = {impl.id: impl}
 		assert p.need_download()
 		assert p.ready, p.solver.get_failure_reason()
-		s1 = selections.Selections(p)
+		s1 = p.solver.selections
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(StringIO(xml))
 		s2 = selections.Selections(root)
@@ -128,7 +128,7 @@ class TestSelections(BaseTest):
 		dep_impl = p.solver.selections[self.config.iface_cache.get_interface(dep_impl_uri)]
 		assert dep_impl.id == 'sha1=256'
 
-		s1 = selections.Selections(p)
+		s1 = p.solver.selections
 		assert s1.commands[0].path == 'runnable/missing'
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(StringIO(xml))

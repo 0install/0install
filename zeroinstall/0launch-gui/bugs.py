@@ -58,7 +58,7 @@ def report_bug(policy, iface):
 		text += '\nSystem without uname()\n'
 
 	if policy.solver.ready:
-		sels = selections.Selections(policy)
+		sels = policy.solver.selections
 		text += "\n" + sels.toDOM().toprettyxml(encoding = 'utf-8')
 
 	reporter = BugReporter(policy, iface, text)
@@ -191,7 +191,7 @@ class BugReporter(dialog.Dialog):
 			return
 
 		from zeroinstall.injector import selections
-		sels = selections.Selections(self.policy)
+		sels = self.policy.solver.selections
 		doc = sels.toDOM()
 
 		self.hide()

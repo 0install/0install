@@ -131,7 +131,7 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 							     select_only = select_only)
 		if downloaded:
 			tasks.wait_for_blocker(downloaded)
-		sels = selections.Selections(policy)
+		sels = policy.solver.selections
 
 	return sels
 
