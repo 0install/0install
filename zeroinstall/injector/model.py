@@ -407,6 +407,11 @@ class InterfaceDependency(Dependency):
 	def __str__(self):
 		return _("<Dependency on %(interface)s; bindings: %(bindings)s%(restrictions)s>") % {'interface': self.interface, 'bindings': self.bindings, 'restrictions': self.restrictions}
 
+	@property
+	def command(self):
+		return self.qdom.getAttribute("command") or ('run' if self.qdom.name == 'runner' else None)
+
+
 class RetrievalMethod(object):
 	"""A RetrievalMethod provides a way to fetch an implementation."""
 	__slots__ = []

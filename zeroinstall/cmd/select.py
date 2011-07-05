@@ -165,6 +165,7 @@ def show_human(sels, stores):
 		print indent + "- URI:", uri
 		if impl:
 			print indent + "  Version:", impl.version
+			#print indent + "  Command:", command
 			try:
 				if impl.id.startswith('package:'):
 					path = "(" + impl.id + ")"
@@ -174,21 +175,15 @@ def show_human(sels, stores):
 				path = "(not cached)"
 			print indent + "  Path:", path
 			indent += "  "
+
 			deps = impl.dependencies
 			if command is not None:
-				deps += sels.commands[command].requires
+				deps += impl.get_command(command).requires
 			for child in deps:
 				if isinstance(child, model.InterfaceDependency):
-					if child.qdom.name == 'runner':
-						child_command = command + 1
-					else:
-						child_command = None
-					print_node(child.interface, child_command, indent)
+					print_node(child.interface, child.command, indent)
 		else:
 			print indent + "  No selected version"
 
 
-	if sels.commands:
-		print_node(sels.interface, 0, "")
-	else:
-		print_node(sels.interface, None, "")
+	print_node(sels.interface, sels.command, "")
