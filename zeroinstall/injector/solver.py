@@ -654,12 +654,13 @@ class SATSolver(Solver):
 				sel = sels.get(iface, None)
 				if sel:
 					command = sel.impl.commands[name]
-					self.selections.commands.append(command)
+					sel._used_commands.add(name)
 					runner = command.get_runner()
 					if runner:
 						add_command(runner.metadata['interface'], _get_command_name(runner))
 
 			if command_name is not None:
+				self.selections.command = command_name
 				add_command(root_interface, command_name)
 
 	def get_failure_reason(self):

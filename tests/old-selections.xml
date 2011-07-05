@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<selections xmlns="http://zero-install.sourceforge.net/2004/injector/interface" interface="http://www.serscis.eu/0install/serscis-access-modeller">
+  <selection doc-dir="doc" id="sha1new=daf7bfada93ec758baeef1c714f3239ce0a5a462" interface="http://repo.roscidus.com/java/iris" license="OSI Approved :: GNU General Public License v2" released="2011-03-26" version="0.60">
+    <manifest-digest sha1new="daf7bfada93ec758baeef1c714f3239ce0a5a462"/>
+    <environment insert="iris-0.60.jar" mode="prepend" name="CLASSPATH"/>
+    <environment insert="iris-app-0.60.jar" mode="prepend" name="CLASSPATH"/>
+    <environment insert="iris-parser-0.60.jar" mode="prepend" name="CLASSPATH"/>
+  </selection>
+  <selection arch="Linux-x86_64" id="sha1new=3ede8dc4b83dd3d7705ee3a427b637a2cb98d789" interface="http://repo.roscidus.com/java/openjdk-6-jre" released="2011-05-29" version="6.18-1.8.7-2">
+    <manifest-digest sha1new="3ede8dc4b83dd3d7705ee3a427b637a2cb98d789"/>
+  </selection>
+  <selection distributions="Debian" from-feed="distribution:http://repo.roscidus.com/utils/graphviz" id="package:deb:graphviz:2.26.3-7:x86_64" interface="http://repo.roscidus.com/utils/graphviz" package="graphviz" version="2.26.3-7"/>
+  <selection id="sha1new=55b14f34a76a28c4ca3f4f7c08ebacb8ca87c52e" interface="http://www.serscis.eu/0install/serscis-access-modeller" released="2011-06-23" version="0.4">
+    <manifest-digest sha1new="55b14f34a76a28c4ca3f4f7c08ebacb8ca87c52e" sha256="d5f30349df0fac73c4621cc3161ab125ba5f83ba9ec35e27fbb0f3a7392070eb"/>
+    <environment insert="." mode="prepend" name="CLASSPATH"/>
+    <requires interface="http://repo.roscidus.com/java/iris"/>
+    <requires interface="http://repo.roscidus.com/utils/graphviz">
+      <environment insert="." mode="prepend" name="GRAPHVIZ_HOME"/>
+    </requires>
+  </selection>
+  <command name="run">
+    <runner interface="http://repo.roscidus.com/java/openjdk-6-jre"/>
+    <arg>eu.serscis.Eval</arg>
+  </command>
+  <command path="bin/java"/>
+</selections>

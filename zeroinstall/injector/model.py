@@ -497,6 +497,9 @@ class Command(object):
 		self.requires		# (sets _runner)
 		return self._runner
 
+	def __str__(self):
+		return str(self.qdom)
+
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface.
 	@ivar download_sources: list of methods of getting this implementation
@@ -887,7 +890,7 @@ class ZeroInstallFeed(object):
 						      ('self-test', 'test')]:
 					value = item.attrs.get(attr, None)
 					if value is not None:
-						commands[command] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': value}), None)
+						commands[command] = Command(qdom.Element(XMLNS_IFACE, 'command', {'name': command, 'path': value}), None)
 
 				for child in item.childNodes:
 					if child.uri != XMLNS_IFACE: continue
@@ -904,7 +907,7 @@ class ZeroInstallFeed(object):
 
 				compile_command = item.attrs.get('http://zero-install.sourceforge.net/2006/namespaces/0compile command')
 				if compile_command is not None:
-					commands['compile'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'shell-command': compile_command}), None)
+					commands['compile'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'name': 'compile', 'shell-command': compile_command}), None)
 
 				item_attrs = _merge_attrs(group_attrs, item)
 
