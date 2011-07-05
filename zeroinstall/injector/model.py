@@ -21,7 +21,7 @@ from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector import qdom
 
 # Element names for bindings in feed files
-binding_names = frozenset(['environment', 'overlay'])
+binding_names = frozenset(['environment', 'overlay', 'executable'])
 
 network_offline = 'off-line'
 network_minimal = 'minimal'
@@ -135,6 +135,8 @@ def process_binding(e):
 		if binding.insert is not None and binding.value is not None:
 			raise InvalidInterface(_("Binding contains both 'insert' and 'value'"))
 		return binding
+	elif e.name == 'executable':
+		return ExecutableBinding(e)
 	elif e.name == 'overlay':
 		return OverlayBinding(e.getAttribute('src'), e.getAttribute('mount-point'))
 	else:
@@ -293,7 +295,7 @@ class EnvironmentBinding(Binding):
 		else:
 			return old_value + self.separator + extra
 
-	def _toxml(self, doc):
+	def _toxml(self, doc, prefixes):
 		"""Create a DOM element for this binding.
 		@param doc: document to use to create the element
 		@return: the new element
@@ -311,6 +313,25 @@ class EnvironmentBinding(Binding):
 		if self.separator:
 			env_elem.setAttributeNS(None, 'separator', self.separator)
 		return env_elem
+
+class ExecutableBinding(Binding):
+	"""Make the chosen command available in $PATH."""
+	__slots__ = ['qdom']
+
+	def __init__(self, qdom):
+		self.qdom = qdom
+
+	def __str__(self):
+		return str(self.qdom)
+
+	__repr__ = __str__
+
+	def _toxml(self, doc, prefixes):
+		return self.qdom.toDOM(doc, prefixes)
+
+	@property
+	def name(self):
+		return self.qdom.getAttribute('name')
 
 class OverlayBinding(Binding):
 	"""Make the chosen implementation available by overlaying it onto another part of the file-system.

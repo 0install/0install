@@ -282,7 +282,7 @@ class Selections(object):
 				selection_elem.appendChild(manifest_digest)
 
 			for b in selection.bindings:
-				selection_elem.appendChild(b._toxml(doc))
+				selection_elem.appendChild(b._toxml(doc, prefixes))
 
 			for dep in selection.dependencies:
 				dep_elem = doc.createElementNS(XMLNS_IFACE, 'requires')
@@ -300,7 +300,7 @@ class Selections(object):
 						prefixes.setAttributeNS(dep_elem, ns, localName, dep.metadata[m])
 
 				for b in dep.bindings:
-					dep_elem.appendChild(b._toxml(doc))
+					dep_elem.appendChild(b._toxml(doc, prefixes))
 
 			for command in selection.get_commands().values():
 				selection_elem.appendChild(command._toxml(doc, prefixes))

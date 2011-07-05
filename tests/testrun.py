@@ -12,6 +12,7 @@ from zeroinstall import SafeException
 mydir = os.path.abspath(os.path.dirname(__file__))
 local_0launch = os.path.join(os.path.dirname(mydir), '0launch')
 runnable = os.path.join(mydir, 'runnable', 'Runnable.xml')
+runexec = os.path.join(mydir, 'runnable', 'RunExec.xml')
 recursive_runner = os.path.join(mydir, 'runnable', 'RecursiveRunner.xml')
 command_feed = os.path.join(mydir, 'Command.xml')
 
@@ -83,6 +84,11 @@ class TestRun(BaseTest):
 		child = subprocess.Popen([local_0launch, '--', recursive_runner, 'user-arg'], stdout = subprocess.PIPE)
 		stdout, _ = child.communicate()
 		assert 'Runner: script=A test script: args=command-arg -- arg-for-runnable recursive-arg -- user-arg' in stdout, stdout
+
+	def testExecutable(self):
+		child = subprocess.Popen([local_0launch, '--', runexec, 'user-arg-run'], stdout = subprocess.PIPE)
+		stdout, _ = child.communicate()
+		assert 'Runner: script=A test script: args=command-arg -- user-arg-run' in stdout, stdout
 	
 if __name__ == '__main__':
 	unittest.main()
