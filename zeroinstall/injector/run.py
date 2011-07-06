@@ -229,13 +229,14 @@ class Setup(object):
 			runenv = os.path.join(main_dir, 'runenv.py')
 			if not os.path.exists(runenv):
 				tmp = tempfile.NamedTemporaryFile('w', dir = main_dir, delete = False)
-				tmp.write("#!%s\nfrom zeroinstall.injector import _runenv; _runenv.main()" % sys.executable)
+				tmp.write("#!%s\nfrom zeroinstall.injector import _runenv; _runenv.main()\n" % sys.executable)
 				tmp.close()
 				os.chmod(tmp.name, 0555)
 				os.rename(tmp.name, runenv)
 
 			# Symlink ~/.cache/0install.net/injector/executables/$name/$name to runenv.py
 			os.symlink('../../runenv.py', exec_path)
+			os.chmod(exec_dir, 0o500)
 
 		if binding.in_path:
 			path = os.environ["PATH"] = exec_dir + os.pathsep + os.environ["PATH"]
