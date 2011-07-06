@@ -21,7 +21,7 @@ from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector import qdom
 
 # Element names for bindings in feed files
-binding_names = frozenset(['environment', 'overlay', 'executable'])
+binding_names = frozenset(['environment', 'overlay', 'executable-in-path'])
 
 network_offline = 'off-line'
 network_minimal = 'minimal'
@@ -135,7 +135,7 @@ def process_binding(e):
 		if binding.insert is not None and binding.value is not None:
 			raise InvalidInterface(_("Binding contains both 'insert' and 'value'"))
 		return binding
-	elif e.name == 'executable':
+	elif e.name == 'executable-in-path':
 		return ExecutableBinding(e)
 	elif e.name == 'overlay':
 		return OverlayBinding(e.getAttribute('src'), e.getAttribute('mount-point'))

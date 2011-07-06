@@ -6,7 +6,7 @@
   <implementation id="test" local-path="." version="1">
     <command name="run" path="go.sh"/>
     <requires interface='./Runnable.xml' command='run'>
-      <executable name='0testprog'/>
+      <executable-in-path name='0testprog'/>
     </requires>
   </implementation>
 </interface>

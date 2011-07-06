@@ -213,9 +213,9 @@ class Setup(object):
 
 	def do_exec_binding(self, binding, dep):
 		if dep is None:
-			raise SafeException("<executable> can only appear within a <requires>")
+			raise SafeException("<%s> can only appear within a <requires>" % binding.qdom.name)
 		if dep.command is None:
-			raise SafeException("<executable> can only appear within a <requires> with a command attribute set")
+			raise SafeException("<%s> can only appear within a <requires> with a command attribute set" % binding.qdom.name)
 		name = binding.name
 		if '/' in name or name.startswith('.') or "'" in name:
 			raise SafeException("Invalid <executable> name '%s'" % name)
