@@ -237,8 +237,12 @@ class Setup(object):
 			# Symlink ~/.cache/0install.net/injector/executables/$name/$name to runenv.py
 			os.symlink('../../runenv.py', exec_path)
 
-		path = os.environ["PATH"] = exec_dir + os.pathsep + os.environ["PATH"]
-		info("PATH=%s", path)
+		if binding.in_path:
+			path = os.environ["PATH"] = exec_dir + os.pathsep + os.environ["PATH"]
+			info("PATH=%s", path)
+		else:
+			os.environ[name] = exec_path
+			info("%s=%s", name, exec_path)
 
 		import json
 		args = self.build_command(dep.interface, dep.command)

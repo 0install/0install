@@ -21,7 +21,7 @@ from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector import qdom
 
 # Element names for bindings in feed files
-binding_names = frozenset(['environment', 'overlay', 'executable-in-path'])
+binding_names = frozenset(['environment', 'overlay', 'executable-in-path', 'executable-in-var'])
 
 network_offline = 'off-line'
 network_minimal = 'minimal'
@@ -136,7 +136,9 @@ def process_binding(e):
 			raise InvalidInterface(_("Binding contains both 'insert' and 'value'"))
 		return binding
 	elif e.name == 'executable-in-path':
-		return ExecutableBinding(e)
+		return ExecutableBinding(e, in_path = True)
+	elif e.name == 'executable-in-var':
+		return ExecutableBinding(e, in_path = False)
 	elif e.name == 'overlay':
 		return OverlayBinding(e.getAttribute('src'), e.getAttribute('mount-point'))
 	else:
@@ -315,11 +317,15 @@ class EnvironmentBinding(Binding):
 		return env_elem
 
 class ExecutableBinding(Binding):
-	"""Make the chosen command available in $PATH."""
+	"""Make the chosen command available in $PATH.
+	@ivar in_path: True to add the named command to $PATH, False to store in named variable
+	@type in_path: bool
+	"""
 	__slots__ = ['qdom']
 
-	def __init__(self, qdom):
+	def __init__(self, qdom, in_path):
 		self.qdom = qdom
+		self.in_path = in_path
 
 	def __str__(self):
 		return str(self.qdom)

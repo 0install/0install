@@ -1,2 +1,3 @@
 #!/bin/sh
-exec 0testprog "$@"
+"$PROG" var "$@"
+exec 0testprog path "$@"
