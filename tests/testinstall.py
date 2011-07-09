@@ -89,6 +89,10 @@ class TestInstall(BaseTest):
 		assert 'Version: 1\n' in out
 		assert '(not cached)' in out
 
+		out, err = self.run_0install(['select', 'runnable/RunExec.xml'])
+		assert not err, err
+		assert 'Runner' in out, out
+
 	def testDownload(self):
 		out, err = self.run_0install(['download'])
 		assert out.lower().startswith("usage:")

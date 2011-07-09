@@ -158,7 +158,7 @@ def show_xml(sels):
 def show_human(sels, stores):
 	from zeroinstall import zerostore
 	done = set()	# detect cycles
-	def print_node(uri, command, indent):
+	def print_node(uri, commands, indent):
 		if uri in done: return
 		done.add(uri)
 		impl = sels.selections.get(uri, None)
@@ -177,13 +177,12 @@ def show_human(sels, stores):
 			indent += "  "
 
 			deps = impl.dependencies
-			if command is not None:
-				deps += impl.get_command(command).requires
+			for c in commands:
+				deps += impl.get_command(c).requires
 			for child in deps:
-				if isinstance(child, model.InterfaceDependency):
-					print_node(child.interface, child.command, indent)
+				print_node(child.interface, child.get_required_commands(), indent)
 		else:
 			print indent + "  No selected version"
 
 
-	print_node(sels.interface, sels.command, "")
+	print_node(sels.interface, [sels.command], "")

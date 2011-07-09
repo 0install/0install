@@ -329,7 +329,7 @@ class InterfaceBrowser:
 		sels = self.policy.solver.selections
 
 		self.model.clear()
-		def add_node(parent, iface, command, essential):
+		def add_node(parent, iface, commands, essential):
 			if iface in done:
 				return
 			done[iface] = True
@@ -361,11 +361,14 @@ class InterfaceBrowser:
 				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
 
 				deps = sel.dependencies
-				if command is not None:
-					deps += sel.get_command(command).requires
+				for c in commands:
+					deps += sel.get_command(c).requires
 				for child in deps:
 					if isinstance(child, model.InterfaceDependency):
-						add_node(iter, iface_cache.get_interface(child.interface), child.command, child.importance == model.Dependency.Essential)
+						add_node(iter,
+							 iface_cache.get_interface(child.interface),
+							 child.get_required_commands(),
+							 child.importance == model.Dependency.Essential)
 					else:
 						child_iter = self.model.append(parent)
 						self.model[child_iter][InterfaceBrowser.INTERFACE_NAME] = '?'
@@ -375,7 +378,7 @@ class InterfaceBrowser:
 			else:
 				self.model[iter][InterfaceBrowser.PROBLEM] = essential
 				self.model[iter][InterfaceBrowser.VERSION] = _('(problem)') if essential else _('(none)')
-		add_node(None, self.root, sels.command, essential = True)
+		add_node(None, self.root, [sels.command], essential = True)
 		self.tree_view.expand_all()
 
 	def show_popup_menu(self, iface, bev):
