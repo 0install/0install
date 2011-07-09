@@ -11,5 +11,12 @@
       <arg>command-arg</arg>
       <arg>--</arg>
     </command>
+    <command name="foo" path="script">
+      <runner interface='./Runner.xml' command='runme'>
+	<arg>arg-for-runner</arg>
+      </runner>
+      <arg>foo-arg</arg>
+      <arg>--</arg>
+    </command>
   </implementation>
 </interface>

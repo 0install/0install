@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>RunExec</name>
+  <summary>script that uses a command</summary>
+
+  <implementation id="test" local-path="." version="1">
+    <command name="run" path="go.sh"/>
+    <requires interface='./Runnable.xml'>
+      <executable-in-path name='0testprog'/>
+      <executable-in-var name='PROG' command='foo'/>
+    </requires>
+  </implementation>
+</interface>

@@ -21,7 +21,7 @@ from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector import qdom
 
 # Element names for bindings in feed files
-binding_names = frozenset(['environment', 'overlay'])
+binding_names = frozenset(['environment', 'overlay', 'executable-in-path', 'executable-in-var'])
 
 network_offline = 'off-line'
 network_minimal = 'minimal'
@@ -135,6 +135,10 @@ def process_binding(e):
 		if binding.insert is not None and binding.value is not None:
 			raise InvalidInterface(_("Binding contains both 'insert' and 'value'"))
 		return binding
+	elif e.name == 'executable-in-path':
+		return ExecutableBinding(e, in_path = True)
+	elif e.name == 'executable-in-var':
+		return ExecutableBinding(e, in_path = False)
 	elif e.name == 'overlay':
 		return OverlayBinding(e.getAttribute('src'), e.getAttribute('mount-point'))
 	else:
@@ -240,6 +244,12 @@ class Binding(object):
 	"""Information about how the choice of a Dependency is made known
 	to the application being run."""
 
+	@property
+	def command(self):
+		""""Returns the name of the specific command needed by this binding, if any.
+		@since: 1.2"""
+		return None
+
 class EnvironmentBinding(Binding):
 	"""Indicate the chosen implementation using an environment variable."""
 	__slots__ = ['name', 'insert', 'default', 'mode', 'value']
@@ -293,7 +303,7 @@ class EnvironmentBinding(Binding):
 		else:
 			return old_value + self.separator + extra
 
-	def _toxml(self, doc):
+	def _toxml(self, doc, prefixes):
 		"""Create a DOM element for this binding.
 		@param doc: document to use to create the element
 		@return: the new element
@@ -311,6 +321,33 @@ class EnvironmentBinding(Binding):
 		if self.separator:
 			env_elem.setAttributeNS(None, 'separator', self.separator)
 		return env_elem
+
+class ExecutableBinding(Binding):
+	"""Make the chosen command available in $PATH.
+	@ivar in_path: True to add the named command to $PATH, False to store in named variable
+	@type in_path: bool
+	"""
+	__slots__ = ['qdom']
+
+	def __init__(self, qdom, in_path):
+		self.qdom = qdom
+		self.in_path = in_path
+
+	def __str__(self):
+		return str(self.qdom)
+
+	__repr__ = __str__
+
+	def _toxml(self, doc, prefixes):
+		return self.qdom.toDOM(doc, prefixes)
+
+	@property
+	def name(self):
+		return self.qdom.getAttribute('name')
+
+	@property
+	def command(self):
+		return self.qdom.getAttribute("command") or 'run'
 
 class OverlayBinding(Binding):
 	"""Make the chosen implementation available by overlaying it onto another part of the file-system.
@@ -381,6 +418,10 @@ class Dependency(object):
 	def importance(self):
 		return self.qdom.getAttribute("importance") or Dependency.Essential
 
+	def get_required_commands(self):
+		"""Return a list of command names needed by this dependency"""
+		return []
+
 class InterfaceDependency(Dependency):
 	"""A Dependency on a Zero Install interface.
 	@ivar interface: the interface required by this dependency
@@ -406,6 +447,24 @@ class InterfaceDependency(Dependency):
 
 	def __str__(self):
 		return _("<Dependency on %(interface)s; bindings: %(bindings)s%(restrictions)s>") % {'interface': self.interface, 'bindings': self.bindings, 'restrictions': self.restrictions}
+
+	def get_required_commands(self):
+		"""Return a list of command names needed by this dependency"""
+		if self.qdom.name == 'runner':
+			commands = [self.qdom.getAttribute('command') or 'run']
+		else:
+			commands = []
+		for b in self.bindings:
+			c = b.command
+			if c is not None:
+				commands.append(c)
+		return commands
+
+	@property
+	def command(self):
+		if self.qdom.name == 'runner':
+			return self.qdom.getAttribute('command') or 'run'
+		return None
 
 class RetrievalMethod(object):
 	"""A RetrievalMethod provides a way to fetch an implementation."""
@@ -496,6 +555,9 @@ class Command(object):
 	def get_runner(self):
 		self.requires		# (sets _runner)
 		return self._runner
+
+	def __str__(self):
+		return str(self.qdom)
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface.
@@ -887,7 +949,7 @@ class ZeroInstallFeed(object):
 						      ('self-test', 'test')]:
 					value = item.attrs.get(attr, None)
 					if value is not None:
-						commands[command] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': value}), None)
+						commands[command] = Command(qdom.Element(XMLNS_IFACE, 'command', {'name': command, 'path': value}), None)
 
 				for child in item.childNodes:
 					if child.uri != XMLNS_IFACE: continue
@@ -904,7 +966,7 @@ class ZeroInstallFeed(object):
 
 				compile_command = item.attrs.get('http://zero-install.sourceforge.net/2006/namespaces/0compile command')
 				if compile_command is not None:
-					commands['compile'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'shell-command': compile_command}), None)
+					commands['compile'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'name': 'compile', 'shell-command': compile_command}), None)
 
 				item_attrs = _merge_attrs(group_attrs, item)
 

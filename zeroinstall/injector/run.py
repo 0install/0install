@@ -10,8 +10,9 @@ import os, sys
 from logging import info
 from string import Template
 
-from zeroinstall.injector.model import SafeException, EnvironmentBinding, Command, Dependency
+from zeroinstall.injector.model import SafeException, EnvironmentBinding, ExecutableBinding, Command, Dependency
 from zeroinstall.injector import namespaces, qdom
+from zeroinstall.support import basedir
 
 def do_env_binding(binding, path):
 	"""Update this process's environment by applying the binding.
@@ -85,35 +86,37 @@ def _process_args(args, element):
 			args.append(Template(child.content).substitute(os.environ))
 
 class Setup(object):
-	"""@since: 1.1"""
+	"""@since: 1.2"""
 	stores = None
+	selections = None
+	_exec_bindings = None
 
-	def __init__(self, stores):
+	def __init__(self, stores, selections):
 		"""@param stores: where to find cached implementations
 		@type stores: L{zerostore.Stores}"""
 		self.stores = stores
+		self.selections = selections
 
-	def build_command_args(self, selections, commands = None):
+	def build_command(self, command_iface, command_name, user_command = None):
 		"""Create a list of strings to be passed to exec to run the <command>s in the selections.
-		@param selections: the selections containing the commands
-		@type selections: L{selections.Selections}
 		@param commands: the commands to be used (taken from selections is None)
 		@type commands: [L{model.Command}]
 		@return: the argument list
 		@rtype: [str]"""
 
+		assert command_name
+
 		prog_args = []
-		commands = commands or selections.commands
-		sels = selections.selections
+		sels = self.selections.selections
 
-		# Each command is run by the next, but the last one is run by exec, and we
-		# need a path for that.
-		if commands[-1].path is None:
-			raise SafeException("Missing 'path' attribute on <command>")
-
-		command_iface = selections.interface
-		for command in commands:
+		while command_name:
 			command_sel = sels[command_iface]
+
+			if user_command is None:
+				command = command_sel.get_command(command_name)
+			else:
+				command = user_command
+				user_command = None
 
 			command_args = []
 
@@ -121,7 +124,11 @@ class Setup(object):
 			runner = command.get_runner()
 			if runner:
 				command_iface = runner.interface
+				command_name = runner.command
 				_process_args(command_args, runner.qdom)
+			else:
+				command_iface = None
+				command_name = None
 
 			# Add main program path
 			command_path = command.path
@@ -149,45 +156,96 @@ class Setup(object):
 
 			prog_args = command_args + prog_args
 
+		# Each command is run by the next, but the last one is run by exec, and we
+		# need a path for that.
+		if command.path is None:
+			raise SafeException("Missing 'path' attribute on <command>")
+
 		return prog_args
 
 	def _get_implementation_path(self, impl):
 		return impl.local_path or self.stores.lookup_any(impl.digests)
 
-	def prepare_env(self, selections):
-		"""Do all the environment bindings in selections (setting os.environ).
-		@param selections: the selections to be used
-		@type selections: L{selections.Selections}"""
+	def prepare_env(self):
+		"""Do all the environment bindings in the selections (setting os.environ)."""
+		self._exec_bindings = []
 
-		def _do_bindings(impl, bindings):
+		def _do_bindings(impl, bindings, dep):
 			for b in bindings:
-				self.do_binding(impl, b)
+				self.do_binding(impl, b, dep)
 
-		commands = selections.commands
-		sels = selections.selections
+		def _do_deps(deps):
+			for dep in deps:
+				dep_impl = sels.get(dep.interface, None)
+				if dep_impl is None:
+					assert dep.importance != Dependency.Essential, dep
+				elif not dep_impl.id.startswith('package:'):
+					_do_bindings(dep_impl, dep.bindings, dep)
+
+		sels = self.selections.selections
 		for selection in sels.values():
-			_do_bindings(selection, selection.bindings)
-			for dep in selection.dependencies:
-				dep_impl = sels.get(dep.interface, None)
-				if dep_impl is None:
-					assert dep.importance != Dependency.Essential, dep
-				elif not dep_impl.id.startswith('package:'):
-					_do_bindings(dep_impl, dep.bindings)
-		# Process commands' dependencies' bindings too
-		# (do this here because we still want the bindings, even with --main)
-		for command in commands:
-			for dep in command.requires:
-				dep_impl = sels.get(dep.interface, None)
-				if dep_impl is None:
-					assert dep.importance != Dependency.Essential, dep
-				elif not dep_impl.id.startswith('package:'):
-					_do_bindings(dep_impl, dep.bindings)
+			_do_bindings(selection, selection.bindings, None)
+			_do_deps(selection.dependencies)
+
+			# Process commands' dependencies' bindings too
+			for command in selection.get_commands().values():
+				_do_deps(command.requires)
+
+		# Do these after <environment>s, because they may do $-expansion
+		for binding, dep in self._exec_bindings:
+			self.do_exec_binding(binding, dep)
+		self._exec_bindings = None
 	
-	def do_binding(self, impl, binding):
+	def do_binding(self, impl, binding, dep):
 		"""Called by L{prepare_env} for each binding.
-		Sub-classes may wish to override this."""
+		Sub-classes may wish to override this.
+		@param impl: the selected implementation
+		@type impl: L{selections.Selection}
+		@param binding: the binding to be processed
+		@type binding: L{model.Binding}
+		@param dep: the dependency containing the binding, or None for implementation bindings
+		@type dep: L{model.Dependency}
+		"""
 		if isinstance(binding, EnvironmentBinding):
 			do_env_binding(binding, self._get_implementation_path(impl))
+		elif isinstance(binding, ExecutableBinding):
+			self._exec_bindings.append((binding, dep))
+
+	def do_exec_binding(self, binding, dep):
+		if dep is None:
+			raise SafeException("<%s> can only appear within a <requires>" % binding.qdom.name)
+		name = binding.name
+		if '/' in name or name.startswith('.') or "'" in name:
+			raise SafeException("Invalid <executable> name '%s'" % name)
+		exec_dir = basedir.save_cache_path(namespaces.config_site, namespaces.config_prog, 'executables', name)
+		exec_path = os.path.join(exec_dir, name)
+		if not os.path.exists(exec_path):
+			import tempfile
+
+			# Create the runenv.py helper script under ~/.cache if missing
+			main_dir = basedir.save_cache_path(namespaces.config_site, namespaces.config_prog)
+			runenv = os.path.join(main_dir, 'runenv.py')
+			if not os.path.exists(runenv):
+				tmp = tempfile.NamedTemporaryFile('w', dir = main_dir, delete = False)
+				tmp.write("#!%s\nfrom zeroinstall.injector import _runenv; _runenv.main()\n" % sys.executable)
+				tmp.close()
+				os.chmod(tmp.name, 0555)
+				os.rename(tmp.name, runenv)
+
+			# Symlink ~/.cache/0install.net/injector/executables/$name/$name to runenv.py
+			os.symlink('../../runenv.py', exec_path)
+			os.chmod(exec_dir, 0o500)
+
+		if binding.in_path:
+			path = os.environ["PATH"] = exec_dir + os.pathsep + os.environ["PATH"]
+			info("PATH=%s", path)
+		else:
+			os.environ[name] = exec_path
+			info("%s=%s", name, exec_path)
+
+		import json
+		args = self.build_command(dep.interface, binding.command)
+		os.environ["0install-runenv-" + name] = json.dumps(args)
 
 def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None, stores = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
@@ -210,7 +268,7 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		from zeroinstall import zerostore
 		stores = zerostore.Stores()
 
-	setup = Setup(stores)
+	setup = Setup(stores, selections)
 
 	commands = selections.commands
 	if main is not None:
@@ -229,10 +287,11 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 					continue
 				user_command_element.childNodes.append(child)
 		user_command = Command(user_command_element, None)
-		commands = [user_command] + commands[1:]
+	else:
+		user_command = None
 
-	setup.prepare_env(selections)
-	prog_args = setup.build_command_args(selections, commands) + prog_args
+	setup.prepare_env()
+	prog_args = setup.build_command(selections.interface, selections.command, user_command) + prog_args
 
 	if wrapper:
 		prog_args = ['/bin/sh', '-c', wrapper + ' "$@"', '-'] + list(prog_args)

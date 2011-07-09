@@ -56,12 +56,13 @@ class Selection(object):
 class ImplSelection(Selection):
 	"""A Selection created from an Implementation"""
 
-	__slots__ = ['impl', 'dependencies', 'attrs']
+	__slots__ = ['impl', 'dependencies', 'attrs', '_used_commands']
 
 	def __init__(self, iface_uri, impl, dependencies):
 		assert impl
 		self.impl = impl
 		self.dependencies = dependencies
+		self._used_commands = set()
 
 		attrs = impl.metadata.copy()
 		attrs['id'] = impl.id
@@ -78,37 +79,54 @@ class ImplSelection(Selection):
 	@property
 	def digests(self): return self.impl.digests
 
+	def get_command(self, name):
+		assert name in self._used_commands
+		return self.impl.commands[name]
+
+	def get_commands(self):
+		commands = {}
+		for c in self._used_commands:
+			commands[c] = self.impl.commands[c]
+		return commands
+
 class XMLSelection(Selection):
 	"""A Selection created by reading an XML selections document.
 	@ivar digests: a list of manifest digests
 	@type digests: [str]
 	"""
-	__slots__ = ['bindings', 'dependencies', 'attrs', 'digests']
+	__slots__ = ['bindings', 'dependencies', 'attrs', 'digests', 'commands']
 
-	def __init__(self, dependencies, bindings = None, attrs = None, digests = None):
+	def __init__(self, dependencies, bindings = None, attrs = None, digests = None, commands = None):
 		if bindings is None: bindings = []
 		if digests is None: digests = []
 		self.dependencies = dependencies
 		self.bindings = bindings
 		self.attrs = attrs
 		self.digests = digests
+		self.commands = commands
 
 		assert self.interface
 		assert self.id
 		assert self.version
 		assert self.feed
 
+	def get_command(self, name):
+		return self.commands[name]
+
+	def get_commands(self):
+		return self.commands
+
 class Selections(object):
 	"""
 	A selected set of components which will make up a complete program.
 	@ivar interface: the interface of the program
 	@type interface: str
-	@ivar commands: how to run this selection (will contain more than one item if runners are used)
-	@type commands: [{L{Command}}]
+	@ivar command: the command to run on 'interface'
+	@type command: str
 	@ivar selections: the selected implementations
 	@type selections: {str: L{Selection}}
 	"""
-	__slots__ = ['interface', 'selections', 'commands']
+	__slots__ = ['interface', 'selections', 'command']
 
 	def __init__(self, source):
 		"""Constructor.
@@ -116,10 +134,11 @@ class Selections(object):
 		@type source: L{Element}
 		"""
 		self.selections = {}
+		self.command = None
 
 		if source is None:
-			self.commands = []
 			# (Solver will fill everything in)
+			pass
 		elif isinstance(source, Policy):
 			import warnings
 			warnings.warn("Use policy.solver.selections instead", DeprecationWarning, 2)
@@ -141,31 +160,35 @@ class Selections(object):
 		"""Parse and load a selections document.
 		@param root: a saved set of selections."""
 		self.interface = root.getAttribute('interface')
+		self.command = root.getAttribute('command')
 		assert self.interface
-		self.commands = []
+		old_commands = []
 
 		for selection in root.childNodes:
 			if selection.uri != XMLNS_IFACE:
 				continue
 			if selection.name != 'selection':
 				if selection.name == 'command':
-					self.commands.append(Command(selection, None))
+					old_commands.append(Command(selection, None))
 				continue
 
 			requires = []
 			bindings = []
 			digests = []
-			for dep_elem in selection.childNodes:
-				if dep_elem.uri != XMLNS_IFACE:
+			commands = {}
+			for elem in selection.childNodes:
+				if elem.uri != XMLNS_IFACE:
 					continue
-				if dep_elem.name in binding_names:
-					bindings.append(process_binding(dep_elem))
-				elif dep_elem.name == 'requires':
-					dep = process_depends(dep_elem, None)
+				if elem.name in binding_names:
+					bindings.append(process_binding(elem))
+				elif elem.name == 'requires':
+					dep = process_depends(elem, None)
 					requires.append(dep)
-				elif dep_elem.name == 'manifest-digest':
-					for aname, avalue in dep_elem.attrs.iteritems():
+				elif elem.name == 'manifest-digest':
+					for aname, avalue in elem.attrs.iteritems():
 						digests.append('%s=%s' % (aname, avalue))
+				elif elem.name == 'command':
+					commands[elem.getAttribute('name')] = Command(elem, None)
 
 			# For backwards compatibility, allow getting the digest from the ID
 			sel_id = selection.attrs['id']
@@ -177,17 +200,38 @@ class Selections(object):
 
 			iface_uri = selection.attrs['interface']
 
-			s = XMLSelection(requires, bindings, selection.attrs, digests)
+			s = XMLSelection(requires, bindings, selection.attrs, digests, commands)
 			self.selections[iface_uri] = s
 
-		if not self.commands:
-			# Old-style selections document; use the main attribute
-			if iface_uri == self.interface:
+		if self.command is None:
+			# Old style selections document
+			if old_commands:
+				# 0launch 0.52 to 1.1
+				self.command = 'run'
+				iface = self.interface
+				last_command = None
+
+				for command in old_commands:
+					command.qdom.attrs['name'] = 'run'
+					self.selections[iface].commands['run'] = command
+					runner = command.get_runner()
+					if runner:
+						iface = runner.interface
+					else:
+						iface = None
+			else:
+				# 0launch < 0.51
 				root_sel = self.selections[self.interface]
 				main = root_sel.attrs.get('main', None)
 				if main is not None:
-					self.commands = [Command(Element(XMLNS_IFACE, 'command', {'path': main}), None)]
-	
+					root_sel.commands['run'] = Command(Element(XMLNS_IFACE, 'command', {'path': main}), None)
+					self.command = 'run'
+
+		elif self.command == '':
+			# New style, but no command requested
+			self.command = None
+			assert not old_commands, "<command> list in new-style selections document!"
+
 	def toDOM(self):
 		"""Create a DOM document for the selected implementations.
 		The document gives the URI of the root, plus each selected implementation.
@@ -206,6 +250,8 @@ class Selections(object):
 		root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns', XMLNS_IFACE)
 
 		root.setAttributeNS(None, 'interface', self.interface)
+
+		root.setAttributeNS(None, 'command', self.command or "")
 
 		prefixes = Prefixes(XMLNS_IFACE)
 
@@ -236,7 +282,7 @@ class Selections(object):
 				selection_elem.appendChild(manifest_digest)
 
 			for b in selection.bindings:
-				selection_elem.appendChild(b._toxml(doc))
+				selection_elem.appendChild(b._toxml(doc, prefixes))
 
 			for dep in selection.dependencies:
 				dep_elem = doc.createElementNS(XMLNS_IFACE, 'requires')
@@ -254,10 +300,10 @@ class Selections(object):
 						prefixes.setAttributeNS(dep_elem, ns, localName, dep.metadata[m])
 
 				for b in dep.bindings:
-					dep_elem.appendChild(b._toxml(doc))
+					dep_elem.appendChild(b._toxml(doc, prefixes))
 
-		for command in self.commands:
-			root.appendChild(command._toxml(doc, prefixes))
+			for command in selection.get_commands().values():
+				selection_elem.appendChild(command._toxml(doc, prefixes))
 
 		for ns, prefix in prefixes.prefixes.items():
 			root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns:' + prefix, ns)
@@ -365,3 +411,23 @@ class Selections(object):
 	def items(self):
 		# Deprecated
 		return list(self.iteritems())
+
+	@property
+	def commands(self):
+		i = self.interface
+		c = self.command
+		commands = []
+		while c is not None:
+			sel = self.selections[i]
+			command = sel.get_command(c)
+
+			commands.append(command)
+
+			runner = command.get_runner()
+			if not runner:
+				break
+
+			i = runner.metadata['interface']
+			c = runner.qdom.attrs.get('command', 'run')
+
+		return commands

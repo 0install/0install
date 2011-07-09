@@ -38,10 +38,6 @@ class ImplInfo:
 		name = "%s_%s_%s" % (self.impl.feed.get_name(), self.impl.get_version(), self.impl.arch)
 		return name.replace('-', '_').replace('.', '_')
 
-def _get_command_name(runner):
-	"""Returns the 'command' attribute of a <runner>, or 'run' if there isn't one."""
-	return runner.qdom.attrs.get('command', 'run')
-
 class _DummyImpl(object):
 	requires = []
 	version = None
@@ -226,6 +222,18 @@ class SATSolver(Solver):
 		# by valid implementation to every interface, so we can always
 		# select something. Useful for diagnostics.
 
+		# The basic plan is this:
+		# 1. Scan the root interface and all dependencies recursively, building up a SAT problem.
+		# 2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
+		# 3. Create a Selections object from the results.
+		#
+		# All three involve recursively walking the tree in a similar way:
+		# 1) we follow every dependency of every implementation (order not important)
+		# 2) we follow every dependency of every selected implementation (better versions first)
+		# 3) we follow every dependency of every selected implementation (order doesn't matter)
+		#
+		# In all cases, a dependency may be on an <implementation> or on a specific <command>.
+
 		# TODO: We need some way to figure out which feeds to include.
 		# Currently, we include any feed referenced from anywhere but
 		# this is probably too much. We could insert a dummy optimial
@@ -271,6 +279,7 @@ class SATSolver(Solver):
 		#   matching 'dependency' must also be selected.
 		# If dependency is optional:
 		#   Require that no incompatible version is selected.
+		# This ignores any 'command' required. Handle that separately.
 		def find_dependency_candidates(requiring_impl_var, dependency):
 			def meets_restrictions(candidate):
 				for r in dependency.restrictions:
@@ -350,6 +359,25 @@ class SATSolver(Solver):
 					debug(_("Skipping '%(feed)s'; unsupported architecture %(os)s-%(machine)s"),
 						{'feed': f, 'os': f.os, 'machine': f.machine})
 
+		# If requiring_var is True then all of requirer's dependencies must be satisfied.
+		# requirer can be a <command> or an <implementation>
+		def process_dependencies(requiring_var, requirer, arch):
+			for d in deps_in_use(requirer, arch):
+				debug(_("Considering command dependency %s"), d)
+
+				add_iface(d.interface, arch.child_arch)
+
+				for c in d.get_required_commands():
+					# We depend on a specific command within the implementation.
+					command_vars = add_command_iface(d.interface, arch.child_arch, c)
+
+					# If the parent command/impl is chosen, one of the candidate commands
+					# must be too. If there aren't any, then this command is unselectable.
+					problem.add_clause([sat.neg(requiring_var)] + command_vars)
+
+				# Must choose one version of d if impl is selected
+				find_dependency_candidates(requiring_var, d)
+
 		def add_iface(uri, arch):
 			"""Name implementations from feed and assert that only one can be selected."""
 			if uri in ifaces_processed: return
@@ -411,13 +439,7 @@ class SATSolver(Solver):
 				if impl.machine and impl.machine != 'src':
 					impls_for_machine_group[machine_groups.get(impl.machine, 0)].append(v)
 
-				for d in deps_in_use(impl, arch):
-					debug(_("Considering dependency %s"), d)
-
-					add_iface(d.interface, arch.child_arch)
-
-					# Must choose one version of d if impl is selected
-					find_dependency_candidates(v, d)
+				process_dependencies(v, impl, arch)
 
 			if closest_match:
 				dummy_impl = _DummyImpl()
@@ -481,24 +503,7 @@ class SATSolver(Solver):
 
 				var_names.append(command_var)
 
-				runner = command.get_runner()
-				for d in deps_in_use(command, arch):
-					if d is runner:
-						# With a <runner>, we depend on a command rather than on an
-						# implementation. This allows us to support recursive <runner>s, etc.
-						debug(_("Considering command runner %s"), d)
-						runner_command_name = _get_command_name(d)
-						runner_vars = add_command_iface(d.interface, arch.child_arch, runner_command_name)
-
-						# If the parent command is chosen, one of the candidate runner commands
-						# must be too. If there aren't any, then this command is unselectable.
-						problem.add_clause([sat.neg(command_var)] + runner_vars)
-					else:
-						debug(_("Considering command dependency %s"), d)
-						add_iface(d.interface, arch.child_arch)
-
-					# Must choose one version of d if impl is selected
-					find_dependency_candidates(command_var, d)
+				process_dependencies(command_var, command, arch)
 
 			# Tell the user why we couldn't use this version
 			if self.record_details:
@@ -565,10 +570,11 @@ class SATSolver(Solver):
 			def find_undecided_dep(impl_or_command, arch):
 				# Check for undecided dependencies of impl_or_command
 				for dep in deps_in_use(impl_or_command, arch):
-					if dep.qdom.name == 'runner':
-						dep_lit = find_undecided_command(dep.interface, _get_command_name(dep))
-					else:
-						dep_lit = find_undecided(dep.interface)
+					for c in dep.get_required_commands():
+						dep_lit = find_undecided_command(dep.interface, c)
+						if dep_lit is not None:
+							return dep_lit
+					dep_lit = find_undecided(dep.interface)
 					if dep_lit is not None:
 						return dep_lit
 				return None
@@ -636,6 +642,8 @@ class SATSolver(Solver):
 
 			sels = self.selections.selections
 
+			commands_needed = []
+
 			for uri, group in group_clause_for.iteritems():
 				if group.current is not None:
 					lit_info = problem.get_varinfo_for_lit(group.current).obj
@@ -647,6 +655,8 @@ class SATSolver(Solver):
 						deps = self.requires[lit_info.iface] = []
 						for dep in deps_in_use(lit_info.impl, lit_info.arch):
 							deps.append(dep)
+							for c in dep.get_required_commands():
+								commands_needed.append((dep.interface, c))
 	
 						sels[lit_info.iface.uri] = selections.ImplSelection(lit_info.iface.uri, impl, deps)
 
@@ -654,12 +664,16 @@ class SATSolver(Solver):
 				sel = sels.get(iface, None)
 				if sel:
 					command = sel.impl.commands[name]
-					self.selections.commands.append(command)
+					sel._used_commands.add(name)
 					runner = command.get_runner()
 					if runner:
-						add_command(runner.metadata['interface'], _get_command_name(runner))
+						add_command(runner.metadata['interface'], runner.command)
+
+			for iface, command in commands_needed:
+				add_command(iface, command)
 
 			if command_name is not None:
+				self.selections.command = command_name
 				add_command(root_interface, command_name)
 
 	def get_failure_reason(self):

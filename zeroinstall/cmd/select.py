@@ -158,13 +158,14 @@ def show_xml(sels):
 def show_human(sels, stores):
 	from zeroinstall import zerostore
 	done = set()	# detect cycles
-	def print_node(uri, command, indent):
+	def print_node(uri, commands, indent):
 		if uri in done: return
 		done.add(uri)
 		impl = sels.selections.get(uri, None)
 		print indent + "- URI:", uri
 		if impl:
 			print indent + "  Version:", impl.version
+			#print indent + "  Command:", command
 			try:
 				if impl.id.startswith('package:'):
 					path = "(" + impl.id + ")"
@@ -174,21 +175,14 @@ def show_human(sels, stores):
 				path = "(not cached)"
 			print indent + "  Path:", path
 			indent += "  "
+
 			deps = impl.dependencies
-			if command is not None:
-				deps += sels.commands[command].requires
+			for c in commands:
+				deps += impl.get_command(c).requires
 			for child in deps:
-				if isinstance(child, model.InterfaceDependency):
-					if child.qdom.name == 'runner':
-						child_command = command + 1
-					else:
-						child_command = None
-					print_node(child.interface, child_command, indent)
+				print_node(child.interface, child.get_required_commands(), indent)
 		else:
 			print indent + "  No selected version"
 
 
-	if sels.commands:
-		print_node(sels.interface, 0, "")
-	else:
-		print_node(sels.interface, None, "")
+	print_node(sels.interface, [sels.command], "")

@@ -326,10 +326,10 @@ class InterfaceBrowser:
 
 		done = {}	# Detect cycles
 
+		sels = self.policy.solver.selections
+
 		self.model.clear()
-		commands = self.policy.solver.selections.commands
-		def add_node(parent, iface, command, essential):
-			# (command is the index into commands, if any)
+		def add_node(parent, iface, commands, essential):
 			if iface in done:
 				return
 			done[iface] = True
@@ -349,7 +349,7 @@ class InterfaceBrowser:
 			self.model[iter][InterfaceBrowser.ICON] = self.get_icon(iface) or self.default_icon
 			self.model[iter][InterfaceBrowser.PROBLEM] = False
 
-			sel = self.policy.solver.selections.selections.get(iface.uri, None)
+			sel = sels.selections.get(iface.uri, None)
 			if sel:
 				impl = sel.impl
 				old_impl = self.original_implementation.get(iface, None)
@@ -361,15 +361,14 @@ class InterfaceBrowser:
 				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
 
 				deps = sel.dependencies
-				if command is not None:
-					deps += commands[command].requires
+				for c in commands:
+					deps += sel.get_command(c).requires
 				for child in deps:
 					if isinstance(child, model.InterfaceDependency):
-						if child.qdom.name == 'runner':
-							child_command = command + 1
-						else:
-							child_command = None
-						add_node(iter, iface_cache.get_interface(child.interface), child_command, child.importance == model.Dependency.Essential)
+						add_node(iter,
+							 iface_cache.get_interface(child.interface),
+							 child.get_required_commands(),
+							 child.importance == model.Dependency.Essential)
 					else:
 						child_iter = self.model.append(parent)
 						self.model[child_iter][InterfaceBrowser.INTERFACE_NAME] = '?'
@@ -379,11 +378,7 @@ class InterfaceBrowser:
 			else:
 				self.model[iter][InterfaceBrowser.PROBLEM] = essential
 				self.model[iter][InterfaceBrowser.VERSION] = _('(problem)') if essential else _('(none)')
-		if commands:
-			add_node(None, self.root, 0, essential = True)
-		else:
-			# Nothing could be selected, or no command requested
-			add_node(None, self.root, None, essential = True)
+		add_node(None, self.root, [sels.command], essential = True)
 		self.tree_view.expand_all()
 
 	def show_popup_menu(self, iface, bev):

@@ -145,5 +145,22 @@ class TestSelections(BaseTest):
 		dep_impl = s2.selections[dep_impl_uri]
 		assert dep_impl.id == 'sha1=256'
 
+	def testOldCommands(self):
+		command_feed = os.path.join(mydir, 'old-selections.xml')
+		with open(command_feed) as stream:
+			s1 = selections.Selections(qdom.parse(stream))
+		self.assertEquals("run", s1.command)
+		self.assertEquals(2, len(s1.commands))
+		self.assertEquals("bin/java", s1.commands[1].path)
+
+		xml = s1.toDOM().toxml("utf-8")
+		root = qdom.parse(StringIO(xml))
+		s2 = selections.Selections(root)
+
+		self.assertEquals("run", s2.command)
+		self.assertEquals(2, len(s2.commands))
+		self.assertEquals("bin/java", s2.commands[1].path)
+
+
 if __name__ == '__main__':
 	unittest.main()
