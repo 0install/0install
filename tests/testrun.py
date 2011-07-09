@@ -88,7 +88,7 @@ class TestRun(BaseTest):
 	def testExecutable(self):
 		child = subprocess.Popen([local_0launch, '--', runexec, 'user-arg-run'], stdout = subprocess.PIPE)
 		stdout, _ = child.communicate()
-		assert 'Runner: script=A test script: args=command-arg -- var user-arg-run' in stdout, stdout
+		assert 'Runner: script=A test script: args=foo-arg -- var user-arg-run' in stdout, stdout
 		assert 'Runner: script=A test script: args=command-arg -- path user-arg-run' in stdout, stdout
 	
 if __name__ == '__main__':

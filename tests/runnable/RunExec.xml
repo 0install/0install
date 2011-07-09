@@ -5,9 +5,9 @@
 
   <implementation id="test" local-path="." version="1">
     <command name="run" path="go.sh"/>
-    <requires interface='./Runnable.xml' command='run'>
+    <requires interface='./Runnable.xml'>
       <executable-in-path name='0testprog'/>
-      <executable-in-var name='PROG'/>
+      <executable-in-var name='PROG' command='foo'/>
     </requires>
   </implementation>
 </interface>

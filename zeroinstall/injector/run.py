@@ -214,8 +214,6 @@ class Setup(object):
 	def do_exec_binding(self, binding, dep):
 		if dep is None:
 			raise SafeException("<%s> can only appear within a <requires>" % binding.qdom.name)
-		if dep.command is None:
-			raise SafeException("<%s> can only appear within a <requires> with a command attribute set" % binding.qdom.name)
 		name = binding.name
 		if '/' in name or name.startswith('.') or "'" in name:
 			raise SafeException("Invalid <executable> name '%s'" % name)
@@ -246,7 +244,7 @@ class Setup(object):
 			info("%s=%s", name, exec_path)
 
 		import json
-		args = self.build_command(dep.interface, dep.command)
+		args = self.build_command(dep.interface, binding.command)
 		os.environ["0install-runenv-" + name] = json.dumps(args)
 
 def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None, stores = None):

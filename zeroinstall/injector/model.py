@@ -244,6 +244,12 @@ class Binding(object):
 	"""Information about how the choice of a Dependency is made known
 	to the application being run."""
 
+	@property
+	def command(self):
+		""""Returns the name of the specific command needed by this binding, if any.
+		@since: 1.2"""
+		return None
+
 class EnvironmentBinding(Binding):
 	"""Indicate the chosen implementation using an environment variable."""
 	__slots__ = ['name', 'insert', 'default', 'mode', 'value']
@@ -339,6 +345,10 @@ class ExecutableBinding(Binding):
 	def name(self):
 		return self.qdom.getAttribute('name')
 
+	@property
+	def command(self):
+		return self.qdom.getAttribute("command") or 'run'
+
 class OverlayBinding(Binding):
 	"""Make the chosen implementation available by overlaying it onto another part of the file-system.
 	This is to support legacy programs which use hard-coded paths."""
@@ -408,6 +418,10 @@ class Dependency(object):
 	def importance(self):
 		return self.qdom.getAttribute("importance") or Dependency.Essential
 
+	def get_required_commands(self):
+		"""Return a list of command names needed by this dependency"""
+		return []
+
 class InterfaceDependency(Dependency):
 	"""A Dependency on a Zero Install interface.
 	@ivar interface: the interface required by this dependency
@@ -434,10 +448,23 @@ class InterfaceDependency(Dependency):
 	def __str__(self):
 		return _("<Dependency on %(interface)s; bindings: %(bindings)s%(restrictions)s>") % {'interface': self.interface, 'bindings': self.bindings, 'restrictions': self.restrictions}
 
+	def get_required_commands(self):
+		"""Return a list of command names needed by this dependency"""
+		if self.qdom.name == 'runner':
+			commands = [self.qdom.getAttribute('command') or 'run']
+		else:
+			commands = []
+		for b in self.bindings:
+			c = b.command
+			if c is not None:
+				commands.append(c)
+		return commands
+
 	@property
 	def command(self):
-		return self.qdom.getAttribute("command") or ('run' if self.qdom.name == 'runner' else None)
-
+		if self.qdom.name == 'runner':
+			return self.qdom.getAttribute('command') or 'run'
+		return None
 
 class RetrievalMethod(object):
 	"""A RetrievalMethod provides a way to fetch an implementation."""

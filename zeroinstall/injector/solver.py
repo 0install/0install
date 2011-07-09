@@ -363,19 +363,17 @@ class SATSolver(Solver):
 		# requirer can be a <command> or an <implementation>
 		def process_dependencies(requiring_var, requirer, arch):
 			for d in deps_in_use(requirer, arch):
-				c = d.command
+				debug(_("Considering command dependency %s"), d)
 
-				debug(_("Considering command dependency %s (%s)"), d, c)
+				add_iface(d.interface, arch.child_arch)
 
-				if c:
-					# We depend on a command rather than on an implementation.
+				for c in d.get_required_commands():
+					# We depend on a specific command within the implementation.
 					command_vars = add_command_iface(d.interface, arch.child_arch, c)
 
-					# If the parent command/impl is chosen, one of the candidate runner commands
+					# If the parent command/impl is chosen, one of the candidate commands
 					# must be too. If there aren't any, then this command is unselectable.
 					problem.add_clause([sat.neg(requiring_var)] + command_vars)
-				else:
-					add_iface(d.interface, arch.child_arch)
 
 				# Must choose one version of d if impl is selected
 				find_dependency_candidates(requiring_var, d)
@@ -572,11 +570,11 @@ class SATSolver(Solver):
 			def find_undecided_dep(impl_or_command, arch):
 				# Check for undecided dependencies of impl_or_command
 				for dep in deps_in_use(impl_or_command, arch):
-					c = dep.command
-					if c:
+					for c in dep.get_required_commands():
 						dep_lit = find_undecided_command(dep.interface, c)
-					else:
-						dep_lit = find_undecided(dep.interface)
+						if dep_lit is not None:
+							return dep_lit
+					dep_lit = find_undecided(dep.interface)
 					if dep_lit is not None:
 						return dep_lit
 				return None
@@ -657,8 +655,7 @@ class SATSolver(Solver):
 						deps = self.requires[lit_info.iface] = []
 						for dep in deps_in_use(lit_info.impl, lit_info.arch):
 							deps.append(dep)
-							c = dep.command
-							if c:
+							for c in dep.get_required_commands():
 								commands_needed.append((dep.interface, c))
 	
 						sels[lit_info.iface.uri] = selections.ImplSelection(lit_info.iface.uri, impl, deps)
