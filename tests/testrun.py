@@ -6,7 +6,7 @@ from StringIO import StringIO
 
 sys.path.insert(0, '..')
 
-from zeroinstall.injector import policy, run
+from zeroinstall.injector import policy, run, namespaces
 from zeroinstall import SafeException
 
 mydir = os.path.abspath(os.path.dirname(__file__))
@@ -86,6 +86,18 @@ class TestRun(BaseTest):
 		assert 'Runner: script=A test script: args=command-arg -- arg-for-runnable recursive-arg -- user-arg' in stdout, stdout
 
 	def testExecutable(self):
+		child = subprocess.Popen([local_0launch, '--', runexec, 'user-arg-run'], stdout = subprocess.PIPE)
+		stdout, _ = child.communicate()
+		assert 'Runner: script=A test script: args=foo-arg -- var user-arg-run' in stdout, stdout
+		assert 'Runner: script=A test script: args=command-arg -- path user-arg-run' in stdout, stdout
+
+		# Check runenv.py is updated correctly
+		from zeroinstall.support import basedir
+		runenv = basedir.load_first_cache(namespaces.config_site, namespaces.config_prog, 'runenv.py')
+		os.chmod(runenv, 0700)
+		with open(runenv, 'wb') as s:
+			s.write('#!/\n')
+
 		child = subprocess.Popen([local_0launch, '--', runexec, 'user-arg-run'], stdout = subprocess.PIPE)
 		stdout, _ = child.communicate()
 		assert 'Runner: script=A test script: args=foo-arg -- var user-arg-run' in stdout, stdout

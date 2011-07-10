@@ -90,6 +90,7 @@ class Setup(object):
 	stores = None
 	selections = None
 	_exec_bindings = None
+	_checked_runenv = False
 
 	def __init__(self, stores, selections):
 		"""@param stores: where to find cached implementations
@@ -219,19 +220,11 @@ class Setup(object):
 			raise SafeException("Invalid <executable> name '%s'" % name)
 		exec_dir = basedir.save_cache_path(namespaces.config_site, namespaces.config_prog, 'executables', name)
 		exec_path = os.path.join(exec_dir, name)
+
+		if not self._checked_runenv:
+			self._check_runenv()
+
 		if not os.path.exists(exec_path):
-			import tempfile
-
-			# Create the runenv.py helper script under ~/.cache if missing
-			main_dir = basedir.save_cache_path(namespaces.config_site, namespaces.config_prog)
-			runenv = os.path.join(main_dir, 'runenv.py')
-			if not os.path.exists(runenv):
-				tmp = tempfile.NamedTemporaryFile('w', dir = main_dir, delete = False)
-				tmp.write("#!%s\nfrom zeroinstall.injector import _runenv; _runenv.main()\n" % sys.executable)
-				tmp.close()
-				os.chmod(tmp.name, 0555)
-				os.rename(tmp.name, runenv)
-
 			# Symlink ~/.cache/0install.net/injector/executables/$name/$name to runenv.py
 			os.symlink('../../runenv.py', exec_path)
 			os.chmod(exec_dir, 0o500)
@@ -246,6 +239,28 @@ class Setup(object):
 		import json
 		args = self.build_command(dep.interface, binding.command)
 		os.environ["0install-runenv-" + name] = json.dumps(args)
+
+	def _check_runenv(self):
+		# Create the runenv.py helper script under ~/.cache if missing or out-of-date
+		main_dir = basedir.save_cache_path(namespaces.config_site, namespaces.config_prog)
+		runenv = os.path.join(main_dir, 'runenv.py')
+		expected_contents = "#!%s\nfrom zeroinstall.injector import _runenv; _runenv.main()\n" % sys.executable
+
+		actual_contents = None
+		if os.path.exists(runenv):
+			with open(runenv) as s:
+				actual_contents = s.read()
+
+		if actual_contents != expected_contents:
+			import tempfile
+			tmp = tempfile.NamedTemporaryFile('w', dir = main_dir, delete = False)
+			info("Updating %s", runenv)
+			tmp.write(expected_contents)
+			tmp.close()
+			os.chmod(tmp.name, 0555)
+			os.rename(tmp.name, runenv)
+
+		self._checked_runenv = True
 
 def execute_selections(selections, prog_args, dry_run = False, main = None, wrapper = None, stores = None):
 	"""Execute program. On success, doesn't return. On failure, raises an Exception.
