@@ -126,8 +126,8 @@ class Blocker:
 			assert isinstance(exception, tuple), exception
 			if not self._zero_lib_tasks:
 				info(_("Exception from '%s', but nothing is waiting for it"), self)
-			#import traceback
-			#traceback.print_exception(exception[0], None, exception[1])
+			import traceback
+			debug(''.join(traceback.format_exception(*sys.exc_info())))
 
 	def __del__(self):
 		if self.exception and not self.exception_read:
@@ -266,7 +266,7 @@ class Task:
 			# Task crashed
 			info(_("Exception from '%(name)s': %(exception)s"), {'name': self.finished.name, 'exception': ex})
 			#import traceback
-			#traceback.print_exc()
+			#debug(''.join(traceback.format_exception(*sys.exc_info())))
 			tb = sys.exc_info()[2]
 			self.finished.trigger(exception = (ex, tb))
 			return
