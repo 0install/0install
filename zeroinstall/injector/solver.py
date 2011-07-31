@@ -119,8 +119,8 @@ class SATSolver(Solver):
 
 	def set_langs(self, langs):
 		"""Set the preferred languages.
-		@param lang: languages (and regions), first choice first
-		@type lang: [str]
+		@param langs: languages (and regions), first choice first
+		@type langs: [str]
 		"""
 		# _lang_ranks is a map from locale string to score (higher is better)
 		_lang_ranks = {}

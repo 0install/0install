@@ -100,8 +100,12 @@ class Setup(object):
 
 	def build_command(self, command_iface, command_name, user_command = None):
 		"""Create a list of strings to be passed to exec to run the <command>s in the selections.
-		@param commands: the commands to be used (taken from selections is None)
-		@type commands: [L{model.Command}]
+		@param command_iface: the interface of the program being run
+		@type command_iface: str
+		@param command_name: the name of the command being run
+		@type command_name: str
+		@param user_command: a custom command to use instead
+		@type user_command: L{model.Command}
 		@return: the argument list
 		@rtype: [str]"""
 
