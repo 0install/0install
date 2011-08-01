@@ -215,5 +215,5 @@ elif not in_path:
 	print >>sys.stderr, 'Warning: %s is not in $PATH. Add it with:\n%s' % (first_path, export('PATH', first_path + ':$PATH'))
 else:
 	shell = os.environ.get('SHELL', '?')
-	if not shell.endswith('/zsh'):
+	if not (shell.endswith('/zsh') or shell.endswith('/bash')):
 		print "(note: some shells require you to type 'rehash' now)"
