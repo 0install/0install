@@ -50,10 +50,11 @@ if not in_path:
 
 parser = OptionParser(usage="usage: %%prog [options] alias [interface [main]]\n\n"
 		"Creates a script to run 'interface' (will be created in\n"
-		"%s unless overridden by --dir).\n"
+		"%s unless overridden by --dir).\n\n"
 		"If no interface is given, edits the policy for an existing alias.\n"
 		"For interfaces providing more than one executable, the desired\n"
-		"'main' binary may also be given." % first_path)
+		"'main' binary or command may also be given." % first_path)
+parser.add_option("-c", "--command", help="the command the alias will run (default 'run')", metavar='COMMNAD')
 parser.add_option("-m", "--manpage", help="show the manual page for an existing alias", action='store_true')
 parser.add_option("-r", "--resolve", help="show the URI for an alias", action='store_true')
 parser.add_option("-V", "--version", help="display version information", action='store_true')
@@ -82,6 +83,7 @@ if len(args) < 1 or len(args) > 3:
 	parser.print_help()
 	sys.exit(1)
 alias_prog, interface_uri, main = (list(args) + [None, None])[:3]
+command = options.command or 'run'
 
 if options.resolve or options.manpage:
 	if interface_uri is not None:
@@ -92,6 +94,9 @@ if options.user_path:
 	first_path = options.user_path
 
 if interface_uri is None:
+	if options.command:
+		print >>sys.stderr, "Can't use --command when editing an existing alias"
+		sys.exit(1)
 	try:
 		if not os.path.isabs(alias_prog):
 			full_path = support.find_in_path(alias_prog)
@@ -100,7 +105,10 @@ if interface_uri is None:
 		else:
 			full_path = alias_prog
 
-		interface_uri, main = alias.parse_script(full_path)
+		alias_info = alias.parse_script(full_path)
+		interface_uri = alias_info.uri
+		main = alias_info.main
+		command = alias_info.command
 	except alias.NotAnAliasScript as ex:
 		if options.manpage:
 			os.execlp('man', 'man', *args)
@@ -114,7 +122,7 @@ if options.resolve:
 	sys.exit(0)
 
 if options.manpage:
-	sels = helpers.ensure_cached(interface_uri)
+	sels = helpers.ensure_cached(interface_uri, command = command)
 	if not sels:
 		# Cancelled by user
 		sys.exit(1)
@@ -201,7 +209,7 @@ except model.SafeException as ex:
 	sys.exit(1)
 
 wrapper = file(script, 'w')
-alias.write_script(wrapper, interface_uri, main)
+alias.write_script(wrapper, interface_uri, main, command = command)
 
 # Make new script executable
 os.chmod(script, 0o111 | os.fstat(wrapper.fileno()).st_mode)

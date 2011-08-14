@@ -23,11 +23,21 @@ exec 0launch %s'%s' "$@"
 class NotAnAliasScript(Exception):
 	pass
 
+class ScriptInfo:
+	"""@since: 1.3"""
+	uri = None
+	main = None
+	command = None
+
+	# For backwards compatibility
+	def __iter__(self):
+		return iter([self.uri, self.main])
+
 def parse_script(pathname):
 	"""Extract the URI and main values from a 0alias script.
 	@param pathname: the script to be examined
-	@return: a tuple containing the URI and the main (or None if not set)
-	@rtype: (str, str | None)
+	@return: information about the alias script
+	@rtype: L{ScriptInfo}
 	@raise NotAnAliasScript: if we can't parse the script
 	"""
 	stream = file(pathname)
@@ -47,28 +57,40 @@ def parse_script(pathname):
 		rest = stream.read()
 		line = rest.split('\n')[2]
 
+	info = ScriptInfo()
 	split = line.rfind("' '")
 	if split != -1:
-		# We have a --main
-		uri = line[split + 3:].split("'")[0]
-		main = line[:split].split("'", 1)[1].replace("'\\''", "'")
+		# We have a --main or --command
+		info.uri = line[split + 3:].split("'")[0]
+		start, value = line[:split].split("'", 1)
+		option = start.split('--', 1)[1].strip()
+		value = value.replace("'\\''", "'")
+		if option == 'main':
+			info.main = value
+		elif option == 'command':
+			info.command = value
+		else:
+			raise NotAnAliasScript("Unknown option '{option}' in alias script".format(option = option))
 	else:
-		main = None
-		uri = line.split("'",2)[1]
+		info.uri = line.split("'",2)[1]
 
-	return (uri, main)
+	return info
 
-def write_script(stream, interface_uri, main = None):
+def write_script(stream, interface_uri, main = None, command = None):
 	"""Write a shell script to stream that will launch the given program.
 	@param stream: the stream to write to
 	@param interface_uri: the program to launch
-	@param main: the --main argument to pass to 0launch, if any"""
+	@param main: the --main argument to pass to 0launch, if any
+	@param command: the --command argument to pass to 0launch, if any"""
 	assert "'" not in interface_uri
 	assert "\\" not in interface_uri
+	assert main is None or command is None, "Can't set --main and --command together"
 
 	if main is not None:
-		main_arg = "--main '%s' " % main.replace("'", "'\\''")
+		option = "--main '%s' " % main.replace("'", "'\\''")
+	elif command is not None:
+		option = "--command '%s' " % command.replace("'", "'\\''")
 	else:
-		main_arg = ""
+		option = ""
 
-	stream.write(_template % (main_arg, interface_uri))
+	stream.write(_template % (option, interface_uri))

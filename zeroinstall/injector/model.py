@@ -1209,8 +1209,7 @@ def canonical_iface_uri(uri):
 				raise alias.NotAnAliasScript("Not found in $PATH: " + alias_prog)
 		else:
 			full_path = alias_prog
-		interface_uri, main = alias.parse_script(full_path)
-		return interface_uri
+		return alias.parse_script(full_path).uri
 	else:
 		iface_uri = os.path.realpath(uri)
 		if os.path.isfile(iface_uri):

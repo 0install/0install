@@ -24,6 +24,10 @@ expected_script_main = """#!/bin/sh
 exec 0launch --main 'a'\\'''\\''\\test' 'http://example.com/foo.xml' "$@"
 """
 
+expected_script_command = """#!/bin/sh
+exec 0launch --command 'a'\\'''\\''\\test' 'http://example.com/foo.xml' "$@"
+"""
+
 old_script_main = """#!/bin/sh
 if [ "$*" = "--versions" ]; then
   exec 0launch -gd 'http://example.com/foo.xml' "$@"
@@ -45,6 +49,10 @@ class TestAlias(BaseTest):
 		alias.write_script(buf, 'http://example.com/foo.xml', 'a\'\'\\test')
 		self.assertEquals(expected_script_main, buf.getvalue())
 
+		buf = StringIO()
+		alias.write_script(buf, 'http://example.com/foo.xml', command = 'a\'\'\\test')
+		self.assertEquals(expected_script_command, buf.getvalue())
+
 	def testParse(self):
 		tmp = tempfile.NamedTemporaryFile()
 		tmp.write(expected_script)
@@ -61,6 +69,15 @@ class TestAlias(BaseTest):
 		uri, main = alias.parse_script(tmp.name)
 		self.assertEquals('http://example.com/foo.xml', uri)
 		self.assertEquals('a\'\'\\test', main)
+
+		tmp = tempfile.NamedTemporaryFile()
+		tmp.write(expected_script_command)
+		tmp.flush()
+		tmp.seek(0)
+		info = alias.parse_script(tmp.name)
+		self.assertEquals('http://example.com/foo.xml', info.uri)
+		self.assertEquals('a\'\'\\test', info.command)
+		self.assertEquals(None, info.main)
 
 	def testParseOld(self):
 		tmp = tempfile.NamedTemporaryFile()
@@ -88,6 +105,17 @@ class TestAlias(BaseTest):
 			alias.parse_script(tmp.name)
 			assert False
 		except alias.NotAnAliasScript:
+			pass
+
+		tmp = tempfile.NamedTemporaryFile()
+		tmp.write(expected_script_command.replace('command', 'bob'))
+		tmp.flush()
+		tmp.seek(0)
+		try:
+			alias.parse_script(tmp.name)
+			assert False
+		except alias.NotAnAliasScript, ex:
+			assert 'bob' in str(ex)
 			pass
 
 if __name__ == '__main__':

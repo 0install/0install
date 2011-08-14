@@ -1,11 +1,11 @@
-.TH 0ALIAS 1 "2010" "Thomas Leonard" ""
+.TH 0ALIAS 1 "2011" "Thomas Leonard" ""
 .SH NAME
 0alias \(em create quick scripts to run 0launch
 
 .SH SYNOPSIS
 
 .B 0alias
-\fBALIAS\fP [\fBINTERFACE\fP [\fBCOMMAND\fP]]
+\fBALIAS\fP [\fBINTERFACE\fP [\fBMAIN\fP]]
 
 .SH DESCRIPTION
 .PP
@@ -43,8 +43,16 @@ one to use instead of the default. e.g.
 
 .B 0alias svnadmin http://example.com/subversion svnadmin
 
+.PP
+(this is for older programs that use MAIN; for newer programs you may need to
+use \-\-command instead)
+
 
 .SH COMMAND-LINE OPTIONS
+
+.TP
+\fB\-c=COMMAND\fP, \fB\-\-command=COMMAND\fP
+The generated script will execute COMMAND rather than the default ("run").
 
 .TP
 \fB\-d=DIR\fP, \fB\-\-dir=DIR\fP
@@ -75,7 +83,7 @@ Display version information.
 
 .SH LICENSE
 .PP
-Copyright (C) 2007 Thomas Leonard.
+Copyright (C) 2011 Thomas Leonard.
 
 .PP
 You may redistribute copies of this program under the terms of the GNU Lesser General Public License.
