@@ -211,7 +211,7 @@ class MainWindow:
 			self.systray_icon.set_blinking(True)
 			self.systray_icon.set_tooltip(str(ex) + '\n' + _('(click for details)'))
 		else:
-			dialog.alert(self.window, str(ex))
+			dialog.alert(self.window, str(ex) or repr(ex))
 
 gui_help = help_box.HelpBox(_("Injector Help"),
 (_('Overview'), '\n' +

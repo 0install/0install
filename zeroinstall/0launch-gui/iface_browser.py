@@ -378,7 +378,10 @@ class InterfaceBrowser:
 			else:
 				self.model[iter][InterfaceBrowser.PROBLEM] = essential
 				self.model[iter][InterfaceBrowser.VERSION] = _('(problem)') if essential else _('(none)')
-		add_node(None, self.root, [sels.command], essential = True)
+		if sels.command:
+			add_node(None, self.root, [sels.command], essential = True)
+		else:
+			add_node(None, self.root, [], essential = True)
 		self.tree_view.expand_all()
 
 	def show_popup_menu(self, iface, bev):

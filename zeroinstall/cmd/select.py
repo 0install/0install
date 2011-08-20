@@ -185,4 +185,7 @@ def show_human(sels, stores):
 			print indent + "  No selected version"
 
 
-	print_node(sels.interface, [sels.command], "")
+	if sels.command:
+		print_node(sels.interface, [sels.command], "")
+	else:
+		print_node(sels.interface, [], "")

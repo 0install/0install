@@ -75,6 +75,10 @@ class TestInstall(BaseTest):
 		assert not err, err
 		assert 'Version: 0.1' in out
 
+		out, err = self.run_0install(['select', 'Local.xml', '--command='])
+		assert not err, err
+		assert 'Version: 0.1' in out
+
 		local_uri = model.canonical_iface_uri('Local.xml')
 		out, err = self.run_0install(['select', 'Local.xml'])
 		assert not err, err
