@@ -518,7 +518,7 @@ class DistributionSource(RetrievalMethod):
 class Command(object):
 	"""A Command is a way of running an Implementation as a program."""
 
-	__slots__ = ['qdom', '_depends', '_local_dir', '_runner']
+	__slots__ = ['qdom', '_depends', '_local_dir', '_runner', '_bindings']
 
 	def __init__(self, qdom, local_dir):
 		"""@param qdom: the <command> element
@@ -528,6 +528,7 @@ class Command(object):
 		self.qdom = qdom
 		self._local_dir = local_dir
 		self._depends = None
+		self._bindings = None
 
 	path = property(lambda self: self.qdom.attrs.get("path", None))
 
@@ -558,6 +559,18 @@ class Command(object):
 
 	def __str__(self):
 		return str(self.qdom)
+
+	@property
+	def bindings(self):
+		"""@since: 1.3"""
+		if self._bindings is None:
+			bindings = []
+			for e in self.qdom.childNodes:
+				if e.uri != XMLNS_IFACE: continue
+				if e.name in binding_names:
+					bindings.append(process_binding(e))
+			self._bindings = bindings
+		return self._bindings
 
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface.

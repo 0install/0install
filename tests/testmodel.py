@@ -134,8 +134,8 @@ class TestModel(BaseTest):
 		assert feed.implementations['b'].commands['run'].path == 'bar'
 		assert feed.implementations['b'].commands['test'].path == 'test-foo'
 
-		assert feed.implementations['c'].main == 'runnable/missing'
-		assert feed.implementations['c'].commands['run'].path == 'runnable/missing'
+		assert feed.implementations['c'].main == 'test-gui'
+		assert feed.implementations['c'].commands['run'].path == 'test-gui'
 		assert feed.implementations['c'].commands['test'].path == 'test-baz'
 
 	def testStabPolicy(self):

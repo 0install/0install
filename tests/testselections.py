@@ -5,9 +5,11 @@ import sys, os
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import selections, model, policy, namespaces, qdom
+from zeroinstall.injector import selections, model, policy, namespaces, qdom, driver, requirements
 
 mydir = os.path.dirname(os.path.abspath(__file__))
+runexec = os.path.join(mydir, 'runnable', 'RunExec.xml')
+runnable = os.path.join(mydir, 'runnable', 'Runnable.xml')
 
 class TestSelections(BaseTest):
 	def testSelections(self):
@@ -122,19 +124,19 @@ class TestSelections(BaseTest):
 
 		impl = p.solver.selections[self.config.iface_cache.get_interface(iface)]
 		assert impl.id == 'c'
-		assert impl.main == 'runnable/missing'
+		assert impl.main == 'test-gui'
 
 		dep_impl_uri = impl.commands['run'].requires[0].interface
 		dep_impl = p.solver.selections[self.config.iface_cache.get_interface(dep_impl_uri)]
 		assert dep_impl.id == 'sha1=256'
 
 		s1 = p.solver.selections
-		assert s1.commands[0].path == 'runnable/missing'
+		assert s1.commands[0].path == 'test-gui'
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(StringIO(xml))
 		s2 = selections.Selections(root)
 
-		assert s2.commands[0].path == 'runnable/missing'
+		assert s2.commands[0].path == 'test-gui'
 		impl = s2.selections[iface]
 		assert impl.id == 'c'
 
@@ -144,6 +146,17 @@ class TestSelections(BaseTest):
 
 		dep_impl = s2.selections[dep_impl_uri]
 		assert dep_impl.id == 'sha1=256'
+
+		d = driver.Driver(self.config, requirements.Requirements(runexec))
+		need_download = d.need_download()
+		assert need_download == False
+
+		xml = d.solver.selections.toDOM().toxml("utf-8")
+		root = qdom.parse(StringIO(xml))
+		s3 = selections.Selections(root)
+		runnable_impl = s3.selections[runnable]
+		assert 'foo' in runnable_impl.commands
+		assert 'run' in runnable_impl.commands
 
 	def testOldCommands(self):
 		command_feed = os.path.join(mydir, 'old-selections.xml')

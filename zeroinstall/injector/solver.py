@@ -652,6 +652,11 @@ class SATSolver(Solver):
 					else:
 						impl = lit_info.impl
 
+						for b in impl.bindings:
+							c = b.command
+							if c is not None:
+								commands.append((uri, c))
+
 						deps = self.requires[lit_info.iface] = []
 						for dep in deps_in_use(lit_info.impl, lit_info.arch):
 							deps.append(dep)
@@ -664,10 +669,19 @@ class SATSolver(Solver):
 				sel = sels.get(iface, None)
 				if sel:
 					command = sel.impl.commands[name]
+					if name in sel._used_commands:
+						return	# Already added
 					sel._used_commands.add(name)
 					runner = command.get_runner()
 					if runner:
 						add_command(runner.metadata['interface'], runner.command)
+
+					# A <command> can depend on another <command> in the same interface
+					# (e.g. the tests depending on the main program)
+					for b in command.bindings:
+						c = b.command
+						if c is not None:
+							add_command(iface, c)
 
 			for iface, command in commands_needed:
 				add_command(iface, command)

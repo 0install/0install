@@ -175,9 +175,9 @@ class Setup(object):
 		"""Do all the environment bindings in the selections (setting os.environ)."""
 		self._exec_bindings = []
 
-		def _do_bindings(impl, bindings, dep):
+		def _do_bindings(impl, bindings, iface):
 			for b in bindings:
-				self.do_binding(impl, b, dep)
+				self.do_binding(impl, b, iface)
 
 		def _do_deps(deps):
 			for dep in deps:
@@ -185,40 +185,44 @@ class Setup(object):
 				if dep_impl is None:
 					assert dep.importance != Dependency.Essential, dep
 				elif not dep_impl.id.startswith('package:'):
-					_do_bindings(dep_impl, dep.bindings, dep)
+					_do_bindings(dep_impl, dep.bindings, dep.interface)
 
 		sels = self.selections.selections
 		for selection in sels.values():
-			_do_bindings(selection, selection.bindings, None)
+			_do_bindings(selection, selection.bindings, selection.interface)
 			_do_deps(selection.dependencies)
 
 			# Process commands' dependencies' bindings too
 			for command in selection.get_commands().values():
+				_do_bindings(selection, command.bindings, selection.interface)
 				_do_deps(command.requires)
 
 		# Do these after <environment>s, because they may do $-expansion
-		for binding, dep in self._exec_bindings:
-			self.do_exec_binding(binding, dep)
+		for binding, iface in self._exec_bindings:
+			self.do_exec_binding(binding, iface)
 		self._exec_bindings = None
 	
-	def do_binding(self, impl, binding, dep):
+	def do_binding(self, impl, binding, iface):
 		"""Called by L{prepare_env} for each binding.
 		Sub-classes may wish to override this.
 		@param impl: the selected implementation
 		@type impl: L{selections.Selection}
 		@param binding: the binding to be processed
 		@type binding: L{model.Binding}
-		@param dep: the dependency containing the binding, or None for implementation bindings
-		@type dep: L{model.Dependency}
+		@param iface: the interface containing impl
+		@type iface: L{model.Interface}
 		"""
 		if isinstance(binding, EnvironmentBinding):
 			do_env_binding(binding, self._get_implementation_path(impl))
 		elif isinstance(binding, ExecutableBinding):
-			self._exec_bindings.append((binding, dep))
+			if isinstance(iface, Dependency):
+				import warnings
+				warnings.warn("Pass an interface URI instead", DeprecationWarning, 2)
+				iface = iface.interface
+			self._exec_bindings.append((binding, iface))
 
-	def do_exec_binding(self, binding, dep):
-		if dep is None:
-			raise SafeException("<%s> can only appear within a <requires>" % binding.qdom.name)
+	def do_exec_binding(self, binding, iface):
+		assert iface is not None
 		name = binding.name
 		if '/' in name or name.startswith('.') or "'" in name:
 			raise SafeException("Invalid <executable> name '%s'" % name)
@@ -241,7 +245,7 @@ class Setup(object):
 			info("%s=%s", name, exec_path)
 
 		import json
-		args = self.build_command(dep.interface, binding.command)
+		args = self.build_command(iface, binding.command)
 		os.environ["0install-runenv-" + name] = json.dumps(args)
 
 	def _check_runenv(self):

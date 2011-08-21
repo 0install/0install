@@ -23,15 +23,19 @@ class TestRun(BaseTest):
 		assert 'Runner: script=A test script: args=command-arg -- user-arg' in stdout, stdout
 
 	def testCommandBindings(self):
+		if 'SELF_COMMAND' in os.environ:
+			del os.environ['SELF_COMMAND']
+
 		p = policy.Policy(command_feed, config = self.config)
 		self.config.handler.wait_for_blocker(p.solve_with_downloads())
 		old_stdout = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			run.execute_selections(p.solver.selections, [], main = 'runner', dry_run = True, stores = self.config.stores)
+			run.execute_selections(p.solver.selections, [], main = 'runnable/go.sh', dry_run = True, stores = self.config.stores)
 		finally:
 			sys.stdout = old_stdout
 		assert 'local' in os.environ['LOCAL'], os.environ['LOCAL']
+		assert 'SELF_COMMAND' in os.environ
 
 	def testAbsMain(self):
 		p = policy.Policy(command_feed, config = self.config)
