@@ -111,6 +111,8 @@ class XMLSelection(Selection):
 		assert self.feed
 
 	def get_command(self, name):
+		if name not in self.commands:
+			raise model.SafeException("Command '{name}' not present in selections for {iface}".format(name = name, iface = self.interface))
 		return self.commands[name]
 
 	def get_commands(self):
@@ -188,7 +190,9 @@ class Selections(object):
 					for aname, avalue in elem.attrs.iteritems():
 						digests.append('%s=%s' % (aname, avalue))
 				elif elem.name == 'command':
-					commands[elem.getAttribute('name')] = Command(elem, None)
+					name = elem.getAttribute('name')
+					assert name, "Missing name attribute on <command>"
+					commands[name] = Command(elem, None)
 
 			# For backwards compatibility, allow getting the digest from the ID
 			sel_id = selection.attrs['id']
@@ -224,7 +228,7 @@ class Selections(object):
 				root_sel = self.selections[self.interface]
 				main = root_sel.attrs.get('main', None)
 				if main is not None:
-					root_sel.commands['run'] = Command(Element(XMLNS_IFACE, 'command', {'path': main}), None)
+					root_sel.commands['run'] = Command(Element(XMLNS_IFACE, 'command', {'path': main, 'name': 'run'}), None)
 					self.command = 'run'
 
 		elif self.command == '':

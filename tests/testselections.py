@@ -101,7 +101,7 @@ class TestSelections(BaseTest):
 		feed = self.config.iface_cache.get_feed(iface)
 		impl = model.ZeroInstallImplementation(feed, "foo bar=123", local_path = None)
 		impl.version = model.parse_version('1.0')
-		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': 'dummy'}), None)
+		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': 'dummy', 'name': 'run'}), None)
 		impl.add_download_source('http://localhost/bar.tgz', 1000, None)
 		feed.implementations = {impl.id: impl}
 		assert p.need_download()

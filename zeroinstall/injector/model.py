@@ -667,7 +667,7 @@ class Implementation(object):
 			if "run" in self.commands:
 				del self.commands["run"]
 		else:
-			self.commands["run"] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': path}), None)
+			self.commands["run"] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': path, 'name': 'run'}), None)
 	main = property(_get_main, _set_main)
 
 	def is_available(self, stores):
@@ -1090,7 +1090,7 @@ class ZeroInstallFeed(object):
 		root_commands = {}
 		if main:
 			info("Note: @main on document element is deprecated in %s", self)
-			root_commands['run'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': main}), None)
+			root_commands['run'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': main, 'name': 'run'}), None)
 		process_group(feed_element, root_attrs, [], [], root_commands)
 	
 	def get_distro_feed(self):
