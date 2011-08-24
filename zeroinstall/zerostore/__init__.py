@@ -86,7 +86,6 @@ class Store:
 	
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0, try_helper = False):
 		from . import unpack
-		info(_("Caching new implementation (digest %s) in %s"), required_digest, self.dir)
 
 		if self.lookup(required_digest):
 			info(_("Not adding %s as it already exists!"), required_digest)
@@ -197,6 +196,8 @@ class Store:
 				support.ro_rmtree(tmp)
 				return
 			info(_("Can't add to system store. Trying user store instead."))
+
+		info(_("Caching new implementation (digest %s) in %s"), required_digest, self.dir)
 
 		final_name = os.path.join(self.dir, required_digest)
 		if os.path.isdir(final_name):
