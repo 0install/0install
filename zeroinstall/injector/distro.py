@@ -18,7 +18,8 @@ _dotted_ints = '[0-9]+(?:\.[0-9]+)*'
 _zeroinstall_regexp = '(?:%s)(?:-(?:pre|rc|post|)(?:%s))*' % (_dotted_ints, _dotted_ints)
 
 # This matches the interesting bits of distribution version numbers
-_version_regexp = '(%s)(-r%s)?' % (_zeroinstall_regexp, _dotted_ints)
+# (first bit is for Java-style 6b17 syntax)
+_version_regexp = '({ints}b)?({zero})(-r{ints})?'.format(zero = _zeroinstall_regexp, ints = _dotted_ints)
 
 # We try to do updates atomically without locking, but we don't worry too much about
 # duplicate entries or being a little out of sync with the on-disk copy.
@@ -123,7 +124,9 @@ def try_cleanup_distro_version(version):
 	version = version.replace('_', '-')
 	match = re.match(_version_regexp, version)
 	if match:
-		version, revision = match.groups()
+		major, version, revision = match.groups()
+		if major is not None:
+			version = major[:-1] + '.' + version
 		if revision is None:
 			return version
 		else:
