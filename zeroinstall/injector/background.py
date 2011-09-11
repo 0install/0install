@@ -107,7 +107,7 @@ class BackgroundHandler(handler.Handler):
 	def confirm_import_feed(self, pending, valid_sigs):
 		"""Run the GUI if we need to confirm any keys."""
 		info(_("Can't update feed; signature not yet trusted. Running GUI..."))
-		_exec_gui(self.root, '--refresh', '--systray')
+		_exec_gui(self.root, '--download', '--refresh', '--systray')
 
 	def report_error(self, exception, tb = None):
 		from zeroinstall.injector import download
