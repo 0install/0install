@@ -25,10 +25,23 @@ def _exec_gui(uri, *args):
 
 class _NetworkState:
 	NM_STATE_UNKNOWN = 0
-	NM_STATE_ASLEEP = 1
-	NM_STATE_CONNECTING = 2
-	NM_STATE_CONNECTED = 3
-	NM_STATE_DISCONNECTED = 4
+	NM_STATE_ASLEEP = 10
+	NM_STATE_DISCONNECTED = 20
+	NM_STATE_DISCONNECTING = 30
+	NM_STATE_CONNECTING = 40
+	NM_STATE_CONNECTED_LOCAL = 50
+	NM_STATE_CONNECTED_SITE = 60
+	NM_STATE_CONNECTED_GLOBAL = 70
+
+	# Maps enum values from version <= 0.8 to current (0.9) values
+	v0_8 = {
+		0: NM_STATE_UNKNOWN,
+		1: NM_STATE_ASLEEP,
+		2: NM_STATE_CONNECTING,
+		3: NM_STATE_CONNECTED_GLOBAL,
+		4: NM_STATE_DISCONNECTED,
+	}
+
 
 class BackgroundHandler(handler.Handler):
 	"""A Handler for non-interactive background updates. Runs the GUI if interaction is required."""
@@ -81,7 +94,12 @@ class BackgroundHandler(handler.Handler):
 	def get_network_state(self):
 		if self.network_manager:
 			try:
-				return self.network_manager.state()
+				state = self.network_manager.state()
+				if state < 10:
+					state = _NetworkState.v0_8.get(state,
+								_NetworkState.NM_STATE_UNKNOWN)
+				return state
+
 			except Exception as ex:
 				warn(_("Error getting network state: %s"), ex)
 		return _NetworkState.NM_STATE_UNKNOWN
@@ -134,9 +152,6 @@ class BackgroundHandler(handler.Handler):
 			hints,
 			timeout * 1000)
 
-	def have_actions_support(self):
-		return 'actions' in self.notification_service_caps
-
 def _detach():
 	"""Fork a detached grandchild.
 	@return: True if we are the original."""
@@ -176,7 +191,7 @@ def _check_for_updates(old_policy, verbose):
 		policy.handler.notify("Zero Install", _("Checking for updates to '%s'...") % root_iface, timeout = 1)
 
 	network_state = policy.handler.get_network_state()
-	if network_state != _NetworkState.NM_STATE_CONNECTED:
+	if network_state not in (_NetworkState.NM_STATE_CONNECTED_SITE, _NetworkState.NM_STATE_CONNECTED_GLOBAL):
 		info(_("Not yet connected to network (status = %d). Sleeping for a bit..."), network_state)
 		import time
 		time.sleep(120)
