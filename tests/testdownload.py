@@ -63,6 +63,19 @@ class NetworkManager:
 	def state(self):
 		return 3	# NM_STATUS_CONNECTED
 
+server_process = None
+def kill_server_process():
+	global server_process
+	if server_process is not None:
+		os.kill(server_process, signal.SIGTERM)
+		os.waitpid(server_process, 0)
+		server_process = None
+
+def run_server(*args):
+	global server_process
+	assert server_process is None
+	server_process = server.handle_requests(*args)
+
 class TestDownload(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
@@ -76,20 +89,16 @@ class TestDownload(BaseTest):
 		stream.write(data.thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)
-		self.child = None
 
 		trust.trust_db.watchers = []
 
 	def tearDown(self):
 		BaseTest.tearDown(self)
-		if self.child is not None:
-			os.kill(self.child, signal.SIGTERM)
-			os.waitpid(self.child, 0)
-			self.child = None
+		kill_server_process()
 
 	def testRejectKey(self):
 		with output_suppressed():
-			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
+			run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
 			policy = Policy('http://localhost:8000/Hello', config = self.config)
 			assert policy.need_download()
 			sys.stdin = Reply("N\n")
@@ -105,7 +114,7 @@ class TestDownload(BaseTest):
 
 	def testRejectKeyXML(self):
 		with output_suppressed():
-			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
+			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
 			policy = Policy('http://example.com:8000/Hello.xml', config = self.config)
 			assert policy.need_download()
 			sys.stdin = Reply("N\n")
@@ -138,7 +147,7 @@ class TestDownload(BaseTest):
 		self.assertEquals(None, hello)
 
 		with output_suppressed():
-			self.child = server.handle_requests('6FCF121BE2390E0B.gpg')
+			run_server('6FCF121BE2390E0B.gpg')
 			sys.stdin = Reply("Y\n")
 
 			assert not trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
@@ -160,7 +169,7 @@ class TestDownload(BaseTest):
 		class Options: dry_run = False
 
 		with output_suppressed():
-			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
 			try:
 				self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
@@ -177,7 +186,7 @@ class TestDownload(BaseTest):
 		from zeroinstall import helpers
 
 		with output_suppressed():
-			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
 			sels = helpers.ensure_cached('http://example.com:8000/Hello.xml', config = self.config)
 			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
@@ -190,7 +199,7 @@ class TestDownload(BaseTest):
 		sels = selections.Selections(root)
 
 		with output_suppressed():
-			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
 
 			self.config.handler.wait_for_blocker(self.config.fetcher.download_and_import_feed('http://example.com:8000/Hello.xml', self.config.iface_cache))
@@ -203,7 +212,7 @@ class TestDownload(BaseTest):
 	
 	def testAcceptKey(self):
 		with output_suppressed():
-			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+			run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			policy = Policy('http://localhost:8000/Hello', config = self.config)
 			assert policy.need_download()
 			sys.stdin = Reply("Y\n")
@@ -217,7 +226,7 @@ class TestDownload(BaseTest):
 	def testAutoAcceptKey(self):
 		self.config.auto_approve_keys = True
 		with output_suppressed():
-			self.child = server.handle_requests('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+			run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			policy = Policy('http://localhost:8000/Hello', config = self.config)
 			assert policy.need_download()
 			sys.stdin = Reply("")
@@ -237,7 +246,7 @@ class TestDownload(BaseTest):
 			assert master_feed is None, master_feed
 
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-			self.child = server.handle_requests('Native.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
+			run_server('Native.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
 			policy = Policy(native_url, config = self.config)
 			assert policy.need_download()
 
@@ -257,7 +266,7 @@ class TestDownload(BaseTest):
 
 	def testWrongSize(self):
 		with output_suppressed():
-			self.child = server.handle_requests('Hello-wrong-size', '6FCF121BE2390E0B.gpg',
+			run_server('Hello-wrong-size', '6FCF121BE2390E0B.gpg',
 							'/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			policy = Policy('http://localhost:8000/Hello-wrong-size', config = self.config)
 			assert policy.need_download()
@@ -273,7 +282,7 @@ class TestDownload(BaseTest):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			self.child = server.handle_requests(('HelloWorld.tar.bz2', 'dummy_1-1_all.deb'))
+			run_server(('HelloWorld.tar.bz2', 'dummy_1-1_all.deb'))
 			policy = Policy(os.path.abspath('Recipe.xml'), config = self.config)
 			try:
 				download_and_execute(policy, [])
@@ -288,7 +297,7 @@ class TestDownload(BaseTest):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			self.child = server.handle_requests(('HelloWorld.tar.bz2', 'HelloSym.tgz'))
+			run_server(('HelloWorld.tar.bz2', 'HelloSym.tgz'))
 			policy = Policy(os.path.abspath('RecipeSymlink.xml'), config = self.config)
 			try:
 				download_and_execute(policy, [])
@@ -304,7 +313,7 @@ class TestDownload(BaseTest):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			self.child = server.handle_requests('HelloWorld.autopackage')
+			run_server('HelloWorld.autopackage')
 			policy = Policy(os.path.abspath('Autopackage.xml'), config = self.config)
 			try:
 				download_and_execute(policy, [])
@@ -319,7 +328,7 @@ class TestDownload(BaseTest):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			self.child = server.handle_requests('*')
+			run_server('*')
 			policy = Policy(os.path.abspath('Recipe.xml'), config = self.config)
 			try:
 				download_and_execute(policy, [])
@@ -336,7 +345,7 @@ class TestDownload(BaseTest):
 			sys.stdout = StringIO()
 			getLogger().setLevel(ERROR)
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg')
+			run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg')
 			policy = Policy('http://example.com:8000/Hello.xml', config = self.config)
 			self.config.feed_mirror = 'http://example.com:8000/0mirror'
 
@@ -356,7 +365,7 @@ class TestDownload(BaseTest):
 			self.config.iface_cache.update_feed_from_network(iface.uri, file('Hello-new.xml').read(), mtime + 10000)
 
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-			self.child = server.handle_requests(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
+			run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
 			policy = Policy('http://example.com:8000/Hello.xml', config = self.config)
 			self.config.feed_mirror = 'http://example.com:8000/0mirror'
 
@@ -400,7 +409,7 @@ class TestDownload(BaseTest):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			self.child = server.handle_requests('Hello.xml', '6FCF121BE2390E0B.gpg')
+			run_server('Hello.xml', '6FCF121BE2390E0B.gpg')
 			my_dbus.system_services = {"org.freedesktop.NetworkManager": {"/org/freedesktop/NetworkManager": NetworkManager()}}
 			my_dbus.user_callback = choose_download
 			pid = os.getpid()
@@ -433,4 +442,7 @@ class TestDownload(BaseTest):
 		self.testBackground(verbose = True)
 
 if __name__ == '__main__':
-	unittest.main()
+	try:
+		unittest.main()
+	finally:
+		kill_server_process()
