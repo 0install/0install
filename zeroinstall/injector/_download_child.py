@@ -1,20 +1,15 @@
-# Copyright (C) 2010, Thomas Leonard
+# Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+import sys
 
 from zeroinstall import _
+from zeroinstall.injector import download
 
-# NB: duplicated in download.py
-RESULT_OK = 0
-RESULT_FAILED = 1
-RESULT_NOT_MODIFIED = 2
-
-def _download_as_child(url, if_modified_since):
-	from httplib import HTTPException
-	from urllib2 import urlopen, Request, HTTPError, URLError
+def download_in_thread(url, target_file, if_modified_since, notify_done):
 	try:
+		from httplib import HTTPException
+		from urllib2 import urlopen, Request, HTTPError, URLError
 		#print "Child downloading", url
 		if url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:'):
 			req = Request(url)
@@ -31,19 +26,17 @@ def _download_as_child(url, if_modified_since):
 		while True:
 			data = sock.recv(256)
 			if not data: break
-			os.write(1, data)
+			target_file.write(data)
+			target_file.flush()
 
-		sys.exit(RESULT_OK)
+		notify_done(download.RESULT_OK)
 	except (HTTPError, URLError, HTTPException) as ex:
 		if isinstance(ex, HTTPError) and ex.code == 304: # Not modified
-			sys.exit(RESULT_NOT_MODIFIED)
-		print >>sys.stderr, "Error downloading '" + url + "': " + (str(ex) or str(ex.__class__.__name__))
-		sys.exit(RESULT_FAILED)
-
-if __name__ == '__main__':
-	assert (len(sys.argv) == 2) or (len(sys.argv) == 3), "Usage: download URL [If-Modified-Since-Date], not %s" % sys.argv
-	if len(sys.argv) >= 3:
-		if_modified_since_date = sys.argv[2]
-	else:
-		if_modified_since_date = None
-	_download_as_child(sys.argv[1], if_modified_since_date)
+			notify_done(download.RESULT_NOT_MODIFIED)
+		else:
+			#print >>sys.stderr, "Error downloading '" + url + "': " + (str(ex) or str(ex.__class__.__name__))
+			__, ex, tb = sys.exc_info()
+			notify_done(download.RESULT_FAILED, (download.DownloadError(unicode(ex)), tb))
+	except Exception as ex:
+		__, ex, tb = sys.exc_info()
+		notify_done(download.RESULT_FAILED, (ex, tb))
