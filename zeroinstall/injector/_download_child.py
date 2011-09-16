@@ -1,21 +1,47 @@
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import sys
+import sys, os, socket, ssl
 
 from zeroinstall import _
 from zeroinstall.injector import download
 
+import urllib2, httplib
+
+# This works on Debian. It probably needs to be updated to handle other platforms.
+ca_file = "/etc/ssl/certs/ca-certificates.crt"
+
+if os.path.exists(ca_file):
+	class ValidatingHTTPSConnection(httplib.HTTPSConnection):
+		def connect(self):
+			sock = socket.create_connection((self.host, self.port), self.timeout)
+			if self._tunnel_host:
+				self.sock = sock
+				self._tunnel()
+			self.sock = ssl.wrap_socket(sock, cert_reqs = ssl.CERT_REQUIRED, ca_certs = ca_file)
+
+	class ValidatingHTTPSHandler(urllib2.HTTPSHandler):
+		def https_open(self, req):
+			return self.do_open(self.getConnection, req)
+
+		def getConnection(self, host, timeout=300):
+			return ValidatingHTTPSConnection(host)
+
+	urlopener = urllib2.build_opener(ValidatingHTTPSHandler)
+
+	# Builds an opener that overrides the default HTTPS handler with our one
+	_my_urlopen = urllib2.build_opener(ValidatingHTTPSHandler()).open
+else:
+	_my_urlopen = urllib2.urlopen
+
 def download_in_thread(url, target_file, if_modified_since, notify_done):
 	try:
-		from httplib import HTTPException
-		from urllib2 import urlopen, Request, HTTPError, URLError
 		#print "Child downloading", url
 		if url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:'):
-			req = Request(url)
+			req = urllib2.Request(url)
 			if url.startswith('http:') and if_modified_since:
 				req.add_header('If-Modified-Since', if_modified_since)
-			src = urlopen(req)
+			src = _my_urlopen(req)
 		else:
 			raise Exception(_('Unsupported URL protocol in: %s') % url)
 
@@ -30,8 +56,8 @@ def download_in_thread(url, target_file, if_modified_since, notify_done):
 			target_file.flush()
 
 		notify_done(download.RESULT_OK)
-	except (HTTPError, URLError, HTTPException) as ex:
-		if isinstance(ex, HTTPError) and ex.code == 304: # Not modified
+	except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException) as ex:
+		if isinstance(ex, urllib2.HTTPError) and ex.code == 304: # Not modified
 			notify_done(download.RESULT_NOT_MODIFIED)
 		else:
 			#print >>sys.stderr, "Error downloading '" + url + "': " + (str(ex) or str(ex.__class__.__name__))
