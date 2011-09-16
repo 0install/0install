@@ -8,30 +8,34 @@ from zeroinstall.injector import download
 
 import urllib2, httplib
 
-# This works on Debian. It probably needs to be updated to handle other platforms.
-ca_file = "/etc/ssl/certs/ca-certificates.crt"
+for ca_bundle in ["/etc/ssl/certs/ca-certificates.crt",	# Debian/Ubuntu/Arch Linux
+		  "/etc/pki/tls/certs/ca-bundle.crt",	# Fedora/RHEL
+		  "/etc/ssl/ca-bundle.pem",		# openSUSE/SLE (claimed)
+		  "/var/lib/ca-certificates/ca-bundle.pem.new"]: # openSUSE (actual)
+	if os.path.exists(ca_bundle):
+		class ValidatingHTTPSConnection(httplib.HTTPSConnection):
+			def connect(self):
+				sock = socket.create_connection((self.host, self.port), self.timeout)
+				if self._tunnel_host:
+					self.sock = sock
+					self._tunnel()
+				self.sock = ssl.wrap_socket(sock, cert_reqs = ssl.CERT_REQUIRED, ca_certs = ca_bundle)
 
-if os.path.exists(ca_file):
-	class ValidatingHTTPSConnection(httplib.HTTPSConnection):
-		def connect(self):
-			sock = socket.create_connection((self.host, self.port), self.timeout)
-			if self._tunnel_host:
-				self.sock = sock
-				self._tunnel()
-			self.sock = ssl.wrap_socket(sock, cert_reqs = ssl.CERT_REQUIRED, ca_certs = ca_file)
+		class ValidatingHTTPSHandler(urllib2.HTTPSHandler):
+			def https_open(self, req):
+				return self.do_open(self.getConnection, req)
 
-	class ValidatingHTTPSHandler(urllib2.HTTPSHandler):
-		def https_open(self, req):
-			return self.do_open(self.getConnection, req)
+			def getConnection(self, host, timeout=300):
+				return ValidatingHTTPSConnection(host)
 
-		def getConnection(self, host, timeout=300):
-			return ValidatingHTTPSConnection(host)
+		urlopener = urllib2.build_opener(ValidatingHTTPSHandler)
 
-	urlopener = urllib2.build_opener(ValidatingHTTPSHandler)
-
-	# Builds an opener that overrides the default HTTPS handler with our one
-	_my_urlopen = urllib2.build_opener(ValidatingHTTPSHandler()).open
+		# Builds an opener that overrides the default HTTPS handler with our one
+		_my_urlopen = urllib2.build_opener(ValidatingHTTPSHandler()).open
+		break
 else:
+	from logging import warn
+	warn("No root CA's found; security of HTTPS connections cannot be verified")
 	_my_urlopen = urllib2.urlopen
 
 def download_in_thread(url, target_file, if_modified_since, notify_done):
