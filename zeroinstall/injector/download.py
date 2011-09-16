@@ -9,7 +9,7 @@ This is the low-level interface for downloading interfaces, implementations, ico
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import tempfile, os, sys, threading
+import tempfile, os, sys, threading, gobject
 
 from zeroinstall import SafeException
 from zeroinstall.support import tasks
@@ -25,8 +25,6 @@ download_failed = "failed"
 RESULT_OK = 0
 RESULT_FAILED = 1
 RESULT_NOT_MODIFIED = 2
-
-import gobject; gobject.threads_init()
 
 class DownloadError(SafeException):
 	"""Download process failed."""

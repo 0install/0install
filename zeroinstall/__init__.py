@@ -15,6 +15,8 @@ The Python implementation of the Zero Install injector is divided into five sub-
 
 version = '1.2'
 
+import gobject; gobject.threads_init()
+
 import gettext
 from os.path import dirname, join
 
