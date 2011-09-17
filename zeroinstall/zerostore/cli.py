@@ -4,7 +4,7 @@
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import sys, os
+import sys, os, errno
 from zeroinstall.zerostore.manifest import verify, get_algorithm, copy_tree_with_verify
 from zeroinstall import zerostore, SafeException, support
 
@@ -74,7 +74,7 @@ def do_add(args):
 		try:
 			os.stat(args[1])
 		except OSError as ex:
-			if ex.errno != 2:			# No such file or directory
+			if ex.errno != errno.ENOENT:		# No such file or directory
 				raise UsageError(str(ex))	# E.g. permission denied
 		raise UsageError(_("No such file or directory '%s'") % args[1])
 
