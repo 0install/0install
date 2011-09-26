@@ -644,12 +644,15 @@ class SATSolver(Solver):
 
 			commands_needed = []
 
+			# Popular sels with the selected implementations.
+			# Also, note down all the commands we need.
 			for uri, group in group_clause_for.iteritems():
 				if group.current is not None:
 					lit_info = problem.get_varinfo_for_lit(group.current).obj
 					if lit_info.is_dummy:
 						sels[lit_info.iface.uri] = None
 					else:
+						# We selected an implementation for interface 'uri'
 						impl = lit_info.impl
 
 						for b in impl.bindings:
@@ -665,6 +668,7 @@ class SATSolver(Solver):
 	
 						sels[lit_info.iface.uri] = selections.ImplSelection(lit_info.iface.uri, impl, deps)
 
+			# Now all all the commands in too.
 			def add_command(iface, name):
 				sel = sels.get(iface, None)
 				if sel:
@@ -672,9 +676,10 @@ class SATSolver(Solver):
 					if name in sel._used_commands:
 						return	# Already added
 					sel._used_commands.add(name)
-					runner = command.get_runner()
-					if runner:
-						add_command(runner.metadata['interface'], runner.command)
+
+					for dep in command.requires:
+						for dep_command_name in dep.get_required_commands():
+							add_command(dep.interface, dep_command_name)
 
 					# A <command> can depend on another <command> in the same interface
 					# (e.g. the tests depending on the main program)

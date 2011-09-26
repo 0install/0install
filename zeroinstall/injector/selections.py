@@ -80,7 +80,7 @@ class ImplSelection(Selection):
 	def digests(self): return self.impl.digests
 
 	def get_command(self, name):
-		assert name in self._used_commands
+		assert name in self._used_commands, "internal error: '{command}' not in my commands list".format(command = name)
 		return self.impl.commands[name]
 
 	def get_commands(self):
