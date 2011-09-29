@@ -8,6 +8,7 @@ Parses an XML feed into a Python representation. You should probably use L{iface
 from zeroinstall import _
 import os
 from logging import debug, info, warn
+import errno
 
 from zeroinstall.support import basedir
 from zeroinstall.injector import qdom
@@ -208,7 +209,7 @@ def load_feed(source, local = False, selections_ok = False):
 	try:
 		root = qdom.parse(file(source))
 	except IOError as ex:
-		if ex.errno == 2 and local:
+		if ex.errno == errno.ENOENT and local:
 			raise MissingLocalFeed(_("Feed not found. Perhaps this is a local feed that no longer exists? You can remove it from the list of feeds in that case."))
 		raise InvalidInterface(_("Can't read file"), ex)
 	except Exception as ex:

@@ -11,6 +11,7 @@ import traceback
 from tempfile import mkdtemp, mkstemp
 import re
 from logging import debug, warn
+import errno
 from zeroinstall import SafeException
 from zeroinstall.support import find_in_path, ro_rmtree
 
@@ -165,7 +166,7 @@ def unpack_archive_over(url, data, destdir, extract = None, type = None, start_o
 			try:
 				info = os.lstat(target_root)
 			except OSError as ex:
-				if ex.errno != 2:
+				if ex.errno != errno.ENOENT:
 					raise	# Some odd error.
 				# Doesn't exist. OK.
 				os.mkdir(target_root)

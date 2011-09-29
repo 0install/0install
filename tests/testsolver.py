@@ -10,6 +10,9 @@ import logging
 logger = logging.getLogger()
 #logger.setLevel(logging.DEBUG)
 
+mydir = os.path.dirname(os.path.abspath(__file__))
+command_dep = os.path.join(mydir, 'command-dep.xml')
+
 class TestSolver(BaseTest):
 	def testSimple(self):
 		iface_cache = self.config.iface_cache
@@ -41,6 +44,15 @@ class TestSolver(BaseTest):
 
 		assert not s.details
 	
+	def testCommand(self):
+		s = solver.DefaultSolver(self.config)
+		binary_arch = arch.Architecture({None: 1}, {None: 1})
+		s.solve(command_dep, binary_arch)
+		command = s.selections.selections[s.selections.interface].get_command("run")
+		dep, = command.requires
+		dep_impl = s.selections.selections[dep.interface]
+		assert dep_impl.get_command("run").path == "test-gui"
+
 	def testDetails(self):
 		iface_cache = self.config.iface_cache
 		s = solver.DefaultSolver(self.config)

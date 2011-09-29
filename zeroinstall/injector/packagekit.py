@@ -5,7 +5,7 @@ PackageKit integration.
 # Copyright (C) 2010, Aleksey Lim
 # See the README file for details, or visit http://0install.net.
 
-import os
+import os, sys
 import locale
 import logging
 from zeroinstall import _, SafeException
@@ -22,6 +22,8 @@ try:
 except Exception as ex:
 	_logger_pk.info("D-BUS not available: %s", ex)
 	dbus = None
+
+MAX_PACKAGE_KIT_TRANSACTION_SIZE = 100
 
 class PackageKit(object):
 	def __init__(self):
@@ -106,7 +108,8 @@ class PackageKit(object):
 		# Filter out the ones we've already fetched
 		package_names = [p for p in package_names if p not in self._candidates]
 
-		if package_names:
+		def do_batch(package_names):
+			#_logger_pk.info("sending %d packages in batch", len(package_names))
 			versions = {}
 
 			blocker = None
@@ -145,19 +148,39 @@ class PackageKit(object):
 			for package in package_names:
 				self._candidates[package] = blocker
 
-			_logger_pk.debug(_('Ask for %s'), package_names)
-			tran = _PackageKitTransaction(self.pk, resolve_cb, error_cb)
-			tran.proxy.Resolve('none', package_names)
+			try:
+				_logger_pk.debug(_('Ask for %s'), package_names)
+				tran = _PackageKitTransaction(self.pk, resolve_cb, error_cb)
+				tran.proxy.Resolve('none', package_names)
 
-			in_progress.append(blocker)
+				in_progress.append(blocker)
+			except:
+				__, ex, tb = sys.exc_info()
+				blocker.trigger((ex, tb))
+				raise
+
+		# Now we've collected all the requests together, split them up into chunks
+		# that PackageKit can handle ( < 100 per batch )
+		#_logger_pk.info("sending %d packages", len(package_names))
+		while package_names:
+			next_batch = package_names[:MAX_PACKAGE_KIT_TRANSACTION_SIZE]
+			package_names = package_names[MAX_PACKAGE_KIT_TRANSACTION_SIZE:]
+			do_batch(next_batch)
 
 		while in_progress:
 			yield in_progress
 			in_progress = [b for b in in_progress if not b.happened]
 
-class PackageKitDownload(download.Download):
+class PackageKitDownload:
 	def __init__(self, url, hint, pk, packagekit_id):
-		download.Download.__init__(self, url, hint)
+		self.url = url
+		self.status = download.download_starting
+		self.hint = hint
+		self.aborted_by_user = False
+
+		self.downloaded = None
+
+		self.expected_size = None	# Final size (excluding skipped bytes)
 
 		self.packagekit_id = packagekit_id
 		self._impl = hint

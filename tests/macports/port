@@ -1,9 +1,9 @@
 #!/bin/sh
-if [ "$1 $2" == "echo installed" ]; then
+if [ "$1 $2" = "echo installed" ]; then
 cat << EOF
 zeroinstall-injector           @0.54_0 
 EOF
-elif [ "$1 $2" == "-v installed" ]; then
+elif [ "$1 $2" = "-v installed" ]; then
 cat << EOF
 The following ports are currently installed:
   zeroinstall-injector @0.54_0

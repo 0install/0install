@@ -83,7 +83,7 @@ class Blocker:
 		yield kettle_boiled
 		print "Pour water into cup"
 		print "Brew..."
-		yield tasks.TimeoutBlocker(120)
+		yield tasks.TimeoutBlocker(120, "Brewing")
 		print "Add milk"
 		print "Ready!"
 	>>> tasks.Task(make_tea())

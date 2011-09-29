@@ -13,7 +13,9 @@ The Python implementation of the Zero Install injector is divided into five sub-
 @var _: a function for translating strings using the zero-install domain (for use internally by Zero Install)
 """
 
-version = '1.2'
+version = '1.3'
+
+import gobject; gobject.threads_init()
 
 import gettext
 from os.path import dirname, join

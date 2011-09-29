@@ -1,26 +1,51 @@
-# Copyright (C) 2010, Thomas Leonard
+# Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+import sys, os, socket, ssl
 
 from zeroinstall import _
+from zeroinstall.injector import download
 
-# NB: duplicated in download.py
-RESULT_OK = 0
-RESULT_FAILED = 1
-RESULT_NOT_MODIFIED = 2
+import urllib2, httplib
 
-def _download_as_child(url, if_modified_since):
-	from httplib import HTTPException
-	from urllib2 import urlopen, Request, HTTPError, URLError
+for ca_bundle in ["/etc/ssl/certs/ca-certificates.crt",	# Debian/Ubuntu/Arch Linux
+		  "/etc/pki/tls/certs/ca-bundle.crt",	# Fedora/RHEL
+		  "/etc/ssl/ca-bundle.pem",		# openSUSE/SLE (claimed)
+		  "/var/lib/ca-certificates/ca-bundle.pem.new"]: # openSUSE (actual)
+	if os.path.exists(ca_bundle):
+		class ValidatingHTTPSConnection(httplib.HTTPSConnection):
+			def connect(self):
+				sock = socket.create_connection((self.host, self.port), self.timeout)
+				if self._tunnel_host:
+					self.sock = sock
+					self._tunnel()
+				self.sock = ssl.wrap_socket(sock, cert_reqs = ssl.CERT_REQUIRED, ca_certs = ca_bundle)
+
+		class ValidatingHTTPSHandler(urllib2.HTTPSHandler):
+			def https_open(self, req):
+				return self.do_open(self.getConnection, req)
+
+			def getConnection(self, host, timeout=300):
+				return ValidatingHTTPSConnection(host)
+
+		urlopener = urllib2.build_opener(ValidatingHTTPSHandler)
+
+		# Builds an opener that overrides the default HTTPS handler with our one
+		_my_urlopen = urllib2.build_opener(ValidatingHTTPSHandler()).open
+		break
+else:
+	from logging import warn
+	warn("No root CA's found; security of HTTPS connections cannot be verified")
+	_my_urlopen = urllib2.urlopen
+
+def download_in_thread(url, target_file, if_modified_since, notify_done):
 	try:
 		#print "Child downloading", url
 		if url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:'):
-			req = Request(url)
+			req = urllib2.Request(url)
 			if url.startswith('http:') and if_modified_since:
 				req.add_header('If-Modified-Since', if_modified_since)
-			src = urlopen(req)
+			src = _my_urlopen(req)
 		else:
 			raise Exception(_('Unsupported URL protocol in: %s') % url)
 
@@ -31,19 +56,17 @@ def _download_as_child(url, if_modified_since):
 		while True:
 			data = sock.recv(256)
 			if not data: break
-			os.write(1, data)
+			target_file.write(data)
+			target_file.flush()
 
-		sys.exit(RESULT_OK)
-	except (HTTPError, URLError, HTTPException) as ex:
-		if isinstance(ex, HTTPError) and ex.code == 304: # Not modified
-			sys.exit(RESULT_NOT_MODIFIED)
-		print >>sys.stderr, "Error downloading '" + url + "': " + (str(ex) or str(ex.__class__.__name__))
-		sys.exit(RESULT_FAILED)
-
-if __name__ == '__main__':
-	assert (len(sys.argv) == 2) or (len(sys.argv) == 3), "Usage: download URL [If-Modified-Since-Date], not %s" % sys.argv
-	if len(sys.argv) >= 3:
-		if_modified_since_date = sys.argv[2]
-	else:
-		if_modified_since_date = None
-	_download_as_child(sys.argv[1], if_modified_since_date)
+		notify_done(download.RESULT_OK)
+	except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException) as ex:
+		if isinstance(ex, urllib2.HTTPError) and ex.code == 304: # Not modified
+			notify_done(download.RESULT_NOT_MODIFIED)
+		else:
+			#print >>sys.stderr, "Error downloading '" + url + "': " + (str(ex) or str(ex.__class__.__name__))
+			__, ex, tb = sys.exc_info()
+			notify_done(download.RESULT_FAILED, (download.DownloadError(unicode(ex)), tb))
+	except Exception as ex:
+		__, ex, tb = sys.exc_info()
+		notify_done(download.RESULT_FAILED, (ex, tb))
