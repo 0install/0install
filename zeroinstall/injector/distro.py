@@ -603,7 +603,7 @@ class MacPortsDistribution(CachedDistribution):
 
 #		for line in os.popen("port echo active"):
 		for line in os.popen("port -v installed"):
-			if line == 'The following ports are currently installed:\n':
+			if not line.startswith(" "):
 				continue
 			if line.strip().count(" ") > 1:
 				package, version, extra = line.split(None, 2)
