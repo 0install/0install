@@ -83,7 +83,7 @@ if len(args) < 1 or len(args) > 3:
 	parser.print_help()
 	sys.exit(1)
 alias_prog, interface_uri, main = (list(args) + [None, None])[:3]
-command = options.command or 'run'
+command = options.command
 
 if options.resolve or options.manpage:
 	if interface_uri is not None:
