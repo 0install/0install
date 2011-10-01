@@ -316,13 +316,18 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 					     "in 0store and should be reported.\n"
 					     "Expected: %(required_digest)s\n"
 					     "Actual:   %(actual_digest)s") % {'required_digest': required_digest, 'actual_digest': actual_digest})
-		os.rename(tmpdir, target_impl)
-		# TODO: catch already-exists, delete tmpdir and return success
-	except:
-		info(_("Deleting tmpdir '%s'") % tmpdir)
-		from zeroinstall.support import ro_rmtree
-		ro_rmtree(tmpdir)
-		raise
+		try:
+			os.rename(tmpdir, target_impl)
+			tmpdir = None
+		except OSError:
+			if not os.path.isdir(target_impl):
+				raise
+			# else someone else installed it already - return success
+	finally:
+		if tmpdir is not None:
+			info(_("Deleting tmpdir '%s'") % tmpdir)
+			from zeroinstall.support import ro_rmtree
+			ro_rmtree(tmpdir)
 
 def _parse_manifest(manifest_data):
 	"""Parse a manifest file.
