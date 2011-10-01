@@ -59,7 +59,6 @@ parser.add_option("-m", "--manpage", help="show the manual page for an existing 
 parser.add_option("-r", "--resolve", help="show the URI for an alias", action='store_true')
 parser.add_option("-V", "--version", help="display version information", action='store_true')
 parser.add_option("-d", "--dir", help="install in DIR", dest="user_path", metavar="DIR")
-parser.disable_interspersed_args()
 
 (options, args) = parser.parse_args()
 
