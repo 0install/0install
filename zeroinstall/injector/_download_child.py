@@ -60,13 +60,13 @@ def download_in_thread(url, target_file, if_modified_since, notify_done):
 			target_file.flush()
 
 		notify_done(download.RESULT_OK)
-	except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException) as ex:
+	except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException, socket.error) as ex:
 		if isinstance(ex, urllib2.HTTPError) and ex.code == 304: # Not modified
 			notify_done(download.RESULT_NOT_MODIFIED)
 		else:
 			#print >>sys.stderr, "Error downloading '" + url + "': " + (str(ex) or str(ex.__class__.__name__))
 			__, ex, tb = sys.exc_info()
-			notify_done(download.RESULT_FAILED, (download.DownloadError(unicode(ex)), tb))
+			notify_done(download.RESULT_FAILED, (download.DownloadError(_('Error downloading {url}: {ex}').format(url = url, ex = ex)), tb))
 	except Exception as ex:
 		__, ex, tb = sys.exc_info()
 		notify_done(download.RESULT_FAILED, (ex, tb))
