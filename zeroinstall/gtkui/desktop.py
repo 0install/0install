@@ -3,6 +3,8 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 from zeroinstall import _
 import sys
 from optparse import OptionParser
@@ -31,13 +33,13 @@ def main(command_args):
 
 	if options.version:
 		import zeroinstall
-		print "0desktop (zero-install) " + zeroinstall.version
-		print "Copyright (C) 2009 Thomas Leonard"
-		print _("This program comes with ABSOLUTELY NO WARRANTY,"
+		print("0desktop (zero-install) " + zeroinstall.version)
+		print("Copyright (C) 2009 Thomas Leonard")
+		print(_("This program comes with ABSOLUTELY NO WARRANTY,"
 				"\nto the extent permitted by law."
 				"\nYou may redistribute copies of this program"
 				"\nunder the terms of the GNU Lesser General Public License."
-				"\nFor more information about these matters, see the file named COPYING.")
+				"\nFor more information about these matters, see the file named COPYING."))
 		sys.exit(0)
 
 	if not args:

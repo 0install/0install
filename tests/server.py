@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+
+from __future__ import print_function
+
 import os, sys, urlparse
 import BaseHTTPServer
 import traceback
@@ -56,13 +59,13 @@ def handle_requests(*script):
 	try:
 		sys.stderr = sys.stdout
 		#sys.stdout = sys.stderr
-		print "Waiting for request"
+		print("Waiting for request")
 		global next_step
 		for next_step in script:
 			if type(next_step) != tuple: next_step = (next_step,)
 			for x in next_step:
 				httpd.handle_request()
-		print "Done"
+		print("Done")
 		os._exit(0)
 	except:
 		traceback.print_exc()

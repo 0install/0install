@@ -5,6 +5,8 @@ The B{0install list-feeds} command-line interface.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 from zeroinstall import _
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model
@@ -21,6 +23,6 @@ def handle(config, options, args):
 
 	if iface.extra_feeds:
 		for f in iface.extra_feeds:
-			print f.uri
+			print(f.uri)
 	else:
-		print _("(no feeds)")
+		print(_("(no feeds)"))

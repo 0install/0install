@@ -3,6 +3,8 @@ Internal implementation of a SAT solver, used by L{solver.SATSolver}.
 This is not part of the public API.
 """
 
+from __future__ import print_function
+
 # Copyright (C) 2010, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
@@ -20,7 +22,7 @@ This is not part of the public API.
 
 def debug(msg, *args):
 	return
-	print "SAT:", msg % args
+	print("SAT:", msg % args)
 
 # variables are numbered from 0
 # literals have the same number as the corresponding variable,

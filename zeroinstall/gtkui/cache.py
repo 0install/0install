@@ -2,6 +2,8 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 from zeroinstall import _
 import os
 import gtk
@@ -211,7 +213,7 @@ class CachedFeed(object):
 					'interfaces', model.escape(self.uri))
 			if cached_iface:
 				if SAFE_MODE:
-					print "Delete", cached_iface
+					print("Delete", cached_iface)
 				else:
 					os.unlink(cached_iface)
 		user_overrides = basedir.load_first_config(namespaces.config_site,
@@ -219,7 +221,7 @@ class CachedFeed(object):
 					'interfaces', model._pretty_escape(self.uri))
 		if user_overrides:
 			if SAFE_MODE:
-				print "Delete", user_overrides
+				print("Delete", user_overrides)
 			else:
 				os.unlink(user_overrides)
 	
@@ -322,7 +324,7 @@ class CachedImplementation:
 
 	def delete(self):
 		if SAFE_MODE:
-			print "Delete", self.impl_path
+			print("Delete", self.impl_path)
 		else:
 			support.ro_rmtree(self.impl_path)
 	
@@ -382,7 +384,7 @@ class KnownImplementation(CachedImplementation):
 	
 	def delete(self):
 		if SAFE_MODE:
-			print "Delete", self.impl
+			print("Delete", self.impl)
 		else:
 			CachedImplementation.delete(self)
 			self.cached_iface.in_cache.remove(self)

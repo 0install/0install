@@ -5,6 +5,8 @@ This code is here, rather than in B{0launch} itself, simply so that it gets byte
 install time.
 """
 
+from __future__ import print_function
+
 from zeroinstall import _
 import os, sys
 from optparse import OptionParser
@@ -98,13 +100,13 @@ def main(command_args, config = None):
 			list.handle(config, options, args)
 		elif options.version:
 			import zeroinstall
-			print "0launch (zero-install) " + zeroinstall.version
-			print "Copyright (C) 2010 Thomas Leonard"
-			print _("This program comes with ABSOLUTELY NO WARRANTY,"
+			print("0launch (zero-install) " + zeroinstall.version)
+			print("Copyright (C) 2010 Thomas Leonard")
+			print(_("This program comes with ABSOLUTELY NO WARRANTY,"
 					"\nto the extent permitted by law."
 					"\nYou may redistribute copies of this program"
 					"\nunder the terms of the GNU Lesser General Public License."
-					"\nFor more information about these matters, see the file named COPYING.")
+					"\nFor more information about these matters, see the file named COPYING."))
 		elif getattr(options, 'import'):
 			# (import is a keyword)
 			cmd = __import__('zeroinstall.cmd.import', globals(), locals(), ["import"], 0)
@@ -132,14 +134,14 @@ def main(command_args, config = None):
 				run.handle(config, options, args)
 	except NeedDownload as ex:
 		# This only happens for dry runs
-		print ex
+		print(ex)
 	except UsageError:
 		parser.print_help()
 		sys.exit(1)
 	except SafeException as ex:
 		if options.verbose: raise
 		try:
-			print >>sys.stderr, unicode(ex)
+			print(unicode(ex), file=sys.stderr)
 		except:
-			print >>sys.stderr, repr(ex)
+			print(repr(ex), file=sys.stderr)
 		sys.exit(1)

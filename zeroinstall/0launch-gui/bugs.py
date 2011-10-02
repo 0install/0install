@@ -1,6 +1,8 @@
 # Copyright (C) 2009, Thomas Leonard
 # See http://0install.net/0compile.html
 
+from __future__ import print_function
+
 import sys, os
 import gtk, pango
 import dialog
@@ -236,5 +238,5 @@ class BugReporter(dialog.Dialog):
 			stream.close()
 		except:
 			# Write to stderr in the hope that it doesn't get lost
-			print >>sys.stderr, "Error sending bug report: %s\n\n%s" % (title, text)
+			print("Error sending bug report: %s\n\n%s" % (title, text), file=sys.stderr)
 			raise

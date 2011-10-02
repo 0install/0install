@@ -10,6 +10,8 @@ To do this, you supply a L{Handler} to the L{policy}.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 from zeroinstall import _
 import sys
 from logging import warn, info
@@ -122,10 +124,10 @@ class Handler(object):
 		domain = trust.domain_from_url(pending.url)
 
 		# Ask on stderr, because we may be writing XML to stdout
-		print >>sys.stderr, _("Feed: %s") % pending.url
-		print >>sys.stderr, _("The feed is correctly signed with the following keys:")
+		print(_("Feed: %s") % pending.url, file=sys.stderr)
+		print(_("The feed is correctly signed with the following keys:"), file=sys.stderr)
 		for x in valid_sigs:
-			print >>sys.stderr, "-", x
+			print("-", x, file=sys.stderr)
 
 		def text(parent):
 			text = ""
@@ -143,14 +145,14 @@ class Handler(object):
 				infos = set(kf.info) - shown
 				if infos:
 					if len(valid_sigs) > 1:
-						print "%s: " % kf.fingerprint
+						print("%s: " % kf.fingerprint)
 					for key_info in infos:
-						print >>sys.stderr, "-", text(key_info)
+						print("-", text(key_info), file=sys.stderr)
 						shown.add(key_info)
 				if kf.blocker:
 					key_info_fetchers.append(kf)
 			if key_info_fetchers:
-				for kf in key_info_fetchers: print >>sys.stderr, kf.status
+				for kf in key_info_fetchers: print(kf.status, file=sys.stderr)
 				stdin = tasks.InputBlocker(0, 'console')
 				blockers = [kf.blocker for kf in key_info_fetchers] + [stdin]
 				yield blockers
@@ -160,17 +162,17 @@ class Handler(object):
 					except Exception as ex:
 						warn(_("Failed to get key info: %s"), ex)
 				if stdin.happened:
-					print >>sys.stderr, _("Skipping remaining key lookups due to input from user")
+					print(_("Skipping remaining key lookups due to input from user"), file=sys.stderr)
 					break
 		if not shown:
-			print >>sys.stderr, _("Warning: Nothing known about this key!")
+			print(_("Warning: Nothing known about this key!"), file=sys.stderr)
 
 		if len(valid_sigs) == 1:
-			print >>sys.stderr, _("Do you want to trust this key to sign feeds from '%s'?") % domain
+			print(_("Do you want to trust this key to sign feeds from '%s'?") % domain, file=sys.stderr)
 		else:
-			print >>sys.stderr, _("Do you want to trust all of these keys to sign feeds from '%s'?") % domain
+			print(_("Do you want to trust all of these keys to sign feeds from '%s'?") % domain, file=sys.stderr)
 		while True:
-			print >>sys.stderr, _("Trust [Y/N] "),
+			print(_("Trust [Y/N] "), end=' ', file=sys.stderr)
 			i = raw_input()
 			if not i: continue
 			if i in 'Nn':
@@ -178,7 +180,7 @@ class Handler(object):
 			if i in 'Yy':
 				break
 		for key in valid_sigs:
-			print >>sys.stderr, _("Trusting %(key_fingerprint)s for %(domain)s") % {'key_fingerprint': key.fingerprint, 'domain': domain}
+			print(_("Trusting %(key_fingerprint)s for %(domain)s") % {'key_fingerprint': key.fingerprint, 'domain': domain}, file=sys.stderr)
 			trust.trust_db.trust_key(key.fingerprint, domain)
 
 	@tasks.async
@@ -186,7 +188,7 @@ class Handler(object):
 		"""We need to check something with the user before continuing with the install.
 		@raise download.DownloadAborted: if the user cancels"""
 		yield
-		print >>sys.stderr, msg
+		print(msg, file=sys.stderr)
 		while True:
 			sys.stderr.write(_("Install [Y/N] "))
 			i = raw_input()
@@ -231,7 +233,7 @@ class ConsoleHandler(Handler):
 			if self.update:
 				gobject.source_remove(self.update)
 				self.update = None
-				print
+				print()
 				self.last_msg_len = None
 
 	def show_progress(self):

@@ -5,6 +5,8 @@ The B{0install download} command-line interface.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 import sys
 
 from zeroinstall import SafeException, _
@@ -57,16 +59,16 @@ def handle(config, options, args):
 	for iface, old_sel in old_selections.iteritems():
 		new_sel = sels.selections.get(iface, None)
 		if new_sel is None:
-			print _("No longer used: %s") % iface
+			print(_("No longer used: %s") % iface)
 			changes = True
 		elif old_sel.version != new_sel.version:
-			print _("%s: %s -> %s") % (iface, old_sel.version, new_sel.version)
+			print(_("%s: %s -> %s") % (iface, old_sel.version, new_sel.version))
 			changes = True
 
 	for iface, new_sel in sels.selections.iteritems():
 		if iface not in old_selections:
-			print _("%s: new -> %s") % (iface, new_sel.version)
+			print(_("%s: new -> %s") % (iface, new_sel.version))
 			changes = True
 
 	if not changes:
-		print _("No updates found.")
+		print(_("No updates found."))

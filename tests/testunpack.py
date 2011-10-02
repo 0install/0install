@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+
+from __future__ import print_function
+
 from basetest import BaseTest
 import sys, tempfile, os
 import unittest, logging
@@ -11,7 +14,7 @@ from zeroinstall.support import find_in_path
 def skipIf(condition, reason):
 	def wrapped(underlying):
 		if condition:
-			print "Skipped %s: %s" % (underlying.func_name, reason)
+			print("Skipped %s: %s" % (underlying.func_name, reason))
 			def run(self): pass
 			return run
 		else:
@@ -165,7 +168,7 @@ class TestUnpackGNU(AbstractTestUnpack, BaseTest):
 		self.assert_manifest('sha1new=290eb133e146635fe37713fd58174324a16d595f')
 
 if not unpack._gnu_tar():
-	print "No GNU tar: SKIPPING tests"
+	print("No GNU tar: SKIPPING tests")
 	del globals()['TestUnpackGNU']
 
 if __name__ == '__main__':

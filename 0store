@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import locale
 from logging import warn
 try:
@@ -38,13 +40,13 @@ if options.verbose:
 
 if options.version:
 	import zeroinstall
-	print "0store (zero-install) " + zeroinstall.version
-	print "Copyright (C) 2009 Thomas Leonard"
-	print "This program comes with ABSOLUTELY NO WARRANTY,"
-	print "to the extent permitted by law."
-	print "You may redistribute copies of this program"
-	print "under the terms of the GNU Lesser General Public License."
-	print "For more information about these matters, see the file named COPYING."
+	print("0store (zero-install) " + zeroinstall.version)
+	print("Copyright (C) 2009 Thomas Leonard")
+	print("This program comes with ABSOLUTELY NO WARRANTY,")
+	print("to the extent permitted by law.")
+	print("You may redistribute copies of this program")
+	print("under the terms of the GNU Lesser General Public License.")
+	print("For more information about these matters, see the file named COPYING.")
 	sys.exit(0)
 
 if len(args) < 1:
@@ -64,21 +66,21 @@ try:
 			(pattern, '\n'.join(['- ' + x.__name__[3:] for x in matches])))
 	matches[0](args[1:])
 except KeyboardInterrupt as ex:
-	print >>sys.stderr, "Interrupted"
+	print("Interrupted", file=sys.stderr)
 	sys.exit(1)
 except OSError as ex:
 	if options.verbose: raise
-	print >>sys.stderr, str(ex)
+	print(str(ex), file=sys.stderr)
 	sys.exit(1)
 except IOError as ex:
 	if options.verbose: raise
-	print >>sys.stderr, str(ex)
+	print(str(ex), file=sys.stderr)
 	sys.exit(1)
 except cli.UsageError as ex:
-	print >>sys.stderr, str(ex)
-	print >>sys.stderr, "usage: " + sys.argv[0] + " " + matches[0].__doc__
+	print(str(ex), file=sys.stderr)
+	print("usage: " + sys.argv[0] + " " + matches[0].__doc__, file=sys.stderr)
 	sys.exit(1)
 except SafeException as ex:
 	if options.verbose: raise
-	print >>sys.stderr, str(ex)
+	print(str(ex), file=sys.stderr)
 	sys.exit(1)

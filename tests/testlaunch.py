@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+
+from __future__ import print_function
+
 from basetest import BaseTest
 import sys, tempfile, os
 from StringIO import StringIO
@@ -30,7 +33,7 @@ class TestLaunch(BaseTest):
 			ex = None
 			try:
 				cli.main(args)
-				print "Finished"
+				print("Finished")
 			except NameError:
 				raise
 			except SystemExit:

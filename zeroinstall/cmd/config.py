@@ -5,6 +5,8 @@ The B{0install config} command-line interface.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 import os
 
 from zeroinstall import SafeException, _
@@ -93,7 +95,7 @@ def handle(config, options, args):
 		else:
 			for key, setting_type in settings.iteritems():
 				value = getattr(config, key)
-				print key, "=", setting_type.format(value)
+				print(key, "=", setting_type.format(value))
 		return
 	elif len(args) > 2:
 		raise UsageError()
@@ -104,7 +106,7 @@ def handle(config, options, args):
 
 	if len(args) == 1:
 		value = getattr(config, option)
-		print settings[option].format(value)
+		print(settings[option].format(value))
 	else:
 		value = settings[option].parse(args[1])
 		if option == 'network_use' and value not in model.network_levels:

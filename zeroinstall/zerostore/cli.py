@@ -3,6 +3,8 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 from zeroinstall import _
 import sys, os, errno
 from zeroinstall.zerostore.manifest import verify, get_algorithm, copy_tree_with_verify
@@ -32,21 +34,21 @@ def do_manifest(args):
 			alg = get_algorithm('sha1new')
 	digest = alg.new_digest()
 	for line in alg.generate_manifest(args[0]):
-		print line
+		print(line)
 		digest.update(line + '\n')
-	print alg.getID(digest)
+	print(alg.getID(digest))
 	sys.exit(0)
 
 def do_find(args):
 	"""find DIGEST"""
 	if len(args) != 1: raise UsageError(_("Wrong number of arguments"))
 	try:
-		print stores.lookup(args[0])
+		print(stores.lookup(args[0]))
 		sys.exit(0)
 	except zerostore.BadDigest as ex:
-		print >>sys.stderr, ex
+		print(ex, file=sys.stderr)
 	except zerostore.NotStored as ex:
-		print >>sys.stderr, ex
+		print(ex, file=sys.stderr)
 	sys.exit(1)
 
 def do_add(args):
@@ -97,19 +99,19 @@ def do_optimise(args):
 		raise UsageError(_("Cache directory should be named 'implementations', not\n"
 				"'%(name)s' (in '%(cache_dir)s')") % {'name': impl_name, 'cache_dir': cache_dir})
 
-	print _("Optimising"), cache_dir
+	print(_("Optimising"), cache_dir)
 
 	from . import optimise
 	uniq_size, dup_size, already_linked, man_size = optimise.optimise(cache_dir)
-	print _("Original size  : %(size)s (excluding the %(manifest_size)s of manifests)") % {'size': support.pretty_size(uniq_size + dup_size), 'manifest_size': support.pretty_size(man_size)}
-	print _("Already saved  : %s") % support.pretty_size(already_linked)
+	print(_("Original size  : %(size)s (excluding the %(manifest_size)s of manifests)") % {'size': support.pretty_size(uniq_size + dup_size), 'manifest_size': support.pretty_size(man_size)})
+	print(_("Already saved  : %s") % support.pretty_size(already_linked))
 	if dup_size == 0:
-		print _("No duplicates found; no changes made.")
+		print(_("No duplicates found; no changes made."))
 	else:
-		print _("Optimised size : %s") % support.pretty_size(uniq_size)
+		print(_("Optimised size : %s") % support.pretty_size(uniq_size))
 		perc = (100 * float(dup_size)) / (uniq_size + dup_size)
-		print _("Space freed up : %(size)s (%(percentage).2f%%)") % {'size': support.pretty_size(dup_size), 'percentage': perc}
-	print _("Optimisation complete.")
+		print(_("Space freed up : %(size)s (%(percentage).2f%%)") % {'size': support.pretty_size(dup_size), 'percentage': perc})
+	print(_("Optimisation complete."))
 
 def do_verify(args):
 	"""verify (DIGEST | (DIRECTORY [DIGEST])"""
@@ -122,15 +124,15 @@ def do_verify(args):
 	else:
 	     raise UsageError(_("Missing DIGEST or DIRECTORY"))
 
-	print _("Verifying"), root
+	print(_("Verifying"), root)
 	try:
 		verify(root, required_digest)
-		print _("OK")
+		print(_("OK"))
 	except zerostore.BadDigest as ex:
-		print str(ex)
+		print(str(ex))
 		if ex.detail:
-			print
-			print ex.detail
+			print()
+			print(ex.detail)
 			sys.exit(1)
 
 def do_audit(args):
@@ -154,46 +156,46 @@ def do_audit(args):
 	failures = []
 	i = 0
 	for root, impls in audit_ls:
-		print _("Scanning %s") % root
+		print(_("Scanning %s") % root)
 		for required_digest in impls:
 			i += 1
 			path = os.path.join(root, required_digest)
 			if '=' not in required_digest:
-				print _("Skipping non-implementation directory %s") % path
+				print(_("Skipping non-implementation directory %s") % path)
 				continue
 			try:
 				msg = _("[%(done)d / %(total)d] Verifying %(digest)s") % {'done': i, 'total': total, 'digest': required_digest}
-				print msg,
+				print(msg, end=' ')
 				sys.stdout.flush()
 				verify(path, required_digest)
-				print "\r" + (" " * len(msg)) + "\r",
+				print("\r" + (" " * len(msg)) + "\r", end=' ')
 				verified += 1
 			except zerostore.BadDigest as ex:
-				print
+				print()
 				failures.append(path)
-				print str(ex)
+				print(str(ex))
 				if ex.detail:
-					print
-					print ex.detail
+					print()
+					print(ex.detail)
 	if failures:
-		print '\n' + _("List of corrupted or modified implementations:")
+		print('\n' + _("List of corrupted or modified implementations:"))
 		for x in failures:
-			print x
-		print
-	print _("Checked %d items") % i
-	print _("Successfully verified implementations: %d") % verified
-	print _("Corrupted or modified implementations: %d") % len(failures)
+			print(x)
+		print()
+	print(_("Checked %d items") % i)
+	print(_("Successfully verified implementations: %d") % verified)
+	print(_("Corrupted or modified implementations: %d") % len(failures))
 	if failures:
 		sys.exit(1)
 
 def do_list(args):
 	"""list"""
 	if args: raise UsageError(_("List takes no arguments"))
-	print _("User store (writable) : %s") % stores.stores[0].dir
+	print(_("User store (writable) : %s") % stores.stores[0].dir)
 	for s in stores.stores[1:]:
-		print _("System store          : %s") % s.dir
+		print(_("System store          : %s") % s.dir)
 	if len(stores.stores) < 2:
-		print _("No system stores.")
+		print(_("No system stores."))
 
 def get_stored(dir_or_digest):
 	if os.path.isdir(dir_or_digest):
@@ -202,7 +204,7 @@ def get_stored(dir_or_digest):
 		try:
 			return stores.lookup(dir_or_digest)
 		except zerostore.NotStored as ex:
-			print >>sys.stderr, ex
+			print(ex, file=sys.stderr)
 		sys.exit(1)
 
 def do_copy(args):

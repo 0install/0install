@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+
+from __future__ import print_function
+
 import sys, os
 from zeroinstall import zerostore, SafeException
 from zeroinstall.zerostore import cli, manifest
@@ -26,5 +29,5 @@ try:
 	manifest.copy_tree_with_verify('.', '/var/cache/0install.net/implementations',
 					manifest_data, required_digest)
 except (IOError, SafeException) as ex:
-	print >>sys.stderr, ex
+	print(ex, file=sys.stderr)
 	sys.exit(1)

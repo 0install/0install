@@ -5,6 +5,8 @@ Executes a set of implementations as a program.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 from zeroinstall import _
 import os, sys
 from logging import info
@@ -320,7 +322,7 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		prog_args = ['/bin/sh', '-c', wrapper + ' "$@"', '-'] + list(prog_args)
 
 	if dry_run:
-		print _("Would execute: %s") % ' '.join(prog_args)
+		print(_("Would execute: %s") % ' '.join(prog_args))
 	else:
 		info(_("Executing: %s"), prog_args)
 		sys.stdout.flush()

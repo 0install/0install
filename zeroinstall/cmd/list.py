@@ -5,6 +5,8 @@ The B{0install list} command-line interface.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 from zeroinstall.cmd import UsageError
 
 syntax = "PATTERN"
@@ -23,4 +25,4 @@ def handle(config, options, args):
 
 	matches.sort()
 	for i in matches:
-		print i
+		print(i)

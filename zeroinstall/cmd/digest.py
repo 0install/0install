@@ -5,6 +5,8 @@ The B{0install digest} command-line interface.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 import os, tempfile
 
 from zeroinstall import SafeException, _
@@ -36,7 +38,7 @@ def handle(config, options, args):
 		digest = alg.new_digest()
 		for line in alg.generate_manifest(d):
 			digest.update(line + '\n')
-		print alg.getID(digest)
+		print(alg.getID(digest))
 
 	if os.path.isdir(source):
 		if extract is not None:

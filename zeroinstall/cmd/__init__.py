@@ -5,6 +5,8 @@ The B{0install} command-line interface.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 from zeroinstall import _
 import os, sys
 from optparse import OptionParser
@@ -38,13 +40,13 @@ def _no_command(command_args):
 	(options, args) = parser.parse_args(command_args)
 	if options.version:
 		import zeroinstall
-		print "0install (zero-install) " + zeroinstall.version
-		print "Copyright (C) 2011 Thomas Leonard"
-		print _("This program comes with ABSOLUTELY NO WARRANTY,"
+		print("0install (zero-install) " + zeroinstall.version)
+		print("Copyright (C) 2011 Thomas Leonard")
+		print(_("This program comes with ABSOLUTELY NO WARRANTY,"
 				"\nto the extent permitted by law."
 				"\nYou may redistribute copies of this program"
 				"\nunder the terms of the GNU Lesser General Public License."
-				"\nFor more information about these matters, see the file named COPYING.")
+				"\nFor more information about these matters, see the file named COPYING."))
 		sys.exit(0)
 	parser.print_help()
 	sys.exit(2)
@@ -116,8 +118,8 @@ def main(command_args, config = None):
 	except SafeException as ex:
 		if verbose: raise
 		try:
-			print >>sys.stderr, unicode(ex)
+			print(unicode(ex), file=sys.stderr)
 		except:
-			print >>sys.stderr, repr(ex)
+			print(repr(ex), file=sys.stderr)
 		sys.exit(1)
 	return

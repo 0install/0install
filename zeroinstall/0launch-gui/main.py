@@ -1,6 +1,8 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 import os, sys
 
 from optparse import OptionParser
@@ -52,18 +54,18 @@ def run_gui(args):
 	import gui
 
 	if options.version:
-		print "0launch-gui (zero-install) " + gui.version
-		print "Copyright (C) 2010 Thomas Leonard"
-		print _("This program comes with ABSOLUTELY NO WARRANTY,"
+		print("0launch-gui (zero-install) " + gui.version)
+		print("Copyright (C) 2010 Thomas Leonard")
+		print(_("This program comes with ABSOLUTELY NO WARRANTY,"
 				"\nto the extent permitted by law."
 				"\nYou may redistribute copies of this program"
 				"\nunder the terms of the GNU Lesser General Public License."
-				"\nFor more information about these matters, see the file named COPYING.")
+				"\nFor more information about these matters, see the file named COPYING."))
 		sys.exit(0)
 
 	import gtk
 	if gtk.gdk.get_display() is None:
-		print >>sys.stderr, "Failed to connect to display. Aborting."
+		print("Failed to connect to display. Aborting.", file=sys.stderr)
 		sys.exit(1)
 
 	handler = gui.GUIHandler()
