@@ -121,7 +121,7 @@ if options.resolve:
 	sys.exit(0)
 
 if options.manpage:
-	sels = helpers.ensure_cached(interface_uri, command = command)
+	sels = helpers.ensure_cached(interface_uri, command = command or 'run')
 	if not sels:
 		# Cancelled by user
 		sys.exit(1)
