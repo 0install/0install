@@ -399,7 +399,8 @@ class DebianDistribution(Distribution):
 					impl.machine = candidate_arch
 				def install(handler):
 					raise model.SafeException(_("This program depends on '%s', which is a package that is available through your distribution. "
-							"Please install it manually using your distribution's tools and try again.") % package)
+							"Please install it manually using your distribution's tools and try again. Or, install 'packagekit' and I can "
+							"use that to install it.") % package)
 				impl.download_sources.append(model.DistributionSource(package, cached['size'], install, needs_confirmation = False))
 
 	def get_score(self, disto_name):
