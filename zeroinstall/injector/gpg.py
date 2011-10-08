@@ -258,6 +258,8 @@ def _check_xml_stream(stream):
 				  '--batch',
 				  # Windows GPG can only cope with "1" here
 				  '--status-fd', '1',
+				  # Don't try to download missing keys; we'll do that
+				  '--keyserver-options', 'no-auto-key-retrieve',
 				  '--verify', sig_name, '-'],
 			   stdin = data,
 			   stdout = subprocess.PIPE,
@@ -303,7 +305,12 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 
 	for line in status_r:
 		assert line.endswith('\n')
-		assert line.startswith('[GNUPG:] ')
+		if not line.startswith('[GNUPG:] '):
+			# The docs says every line starts with this, but if auto-key-retrieve
+			# is on then they might not. See bug #3420548
+			warn("Invalid output from GnuPG: %r", line)
+			continue
+
 		line = line[9:-1]
 		split_line = line.split(' ')
 		code = split_line[0]
