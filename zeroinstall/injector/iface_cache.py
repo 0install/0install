@@ -433,7 +433,7 @@ class IfaceCache(object):
 		return None
 
 	def mark_as_checking(self, url):
-		"""Touch a 'last_check_attempt_timestamp' file for this feed.
+		"""Touch a 'last-check-attempt' timestamp file for this feed.
 		If url is a local path, nothing happens.
 		This prevents us from repeatedly trying to download a failing feed many
 		times in a short period."""

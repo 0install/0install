@@ -176,6 +176,8 @@ class Fetcher(object):
 		from .download import DownloadAborted
 
 		assert iface_cache is None or iface_cache is self.config.iface_cache
+
+		self.config.iface_cache.mark_as_checking(feed_url)
 		
 		debug(_("download_and_import_feed %(url)s (force = %(force)d)"), {'url': feed_url, 'force': force})
 		assert not os.path.isabs(feed_url)
