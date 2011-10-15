@@ -22,6 +22,10 @@ def do_env_binding(binding, path):
 	@type binding: L{model.EnvironmentBinding}
 	@param path: the selected implementation
 	@type path: str"""
+	if binding.insert is not None and path is None:
+		# Skip insert bindings for package implementations
+		debug("not setting %s as we selected a package implementation", binding.name)
+		return
 	os.environ[binding.name] = binding.get_value(path,
 					os.environ.get(binding.name, None))
 	info("%s=%s", binding.name, os.environ[binding.name])
@@ -171,6 +175,7 @@ class Setup(object):
 		return prog_args
 
 	def _get_implementation_path(self, impl):
+		if impl.id.startswith('package:'): return None
 		return impl.local_path or self.stores.lookup_any(impl.digests)
 
 	def prepare_env(self):
@@ -186,7 +191,7 @@ class Setup(object):
 				dep_impl = sels.get(dep.interface, None)
 				if dep_impl is None:
 					assert dep.importance != Dependency.Essential, dep
-				elif not dep_impl.id.startswith('package:'):
+				else:
 					_do_bindings(dep_impl, dep.bindings, dep.interface)
 
 		sels = self.selections.selections
