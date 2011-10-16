@@ -9,7 +9,7 @@ from __future__ import print_function
 
 from zeroinstall import _
 import os, sys
-from logging import info
+from logging import info, debug
 from string import Template
 
 from zeroinstall.injector.model import SafeException, EnvironmentBinding, ExecutableBinding, Command, Dependency
