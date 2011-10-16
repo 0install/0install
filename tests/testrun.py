@@ -15,6 +15,7 @@ runnable = os.path.join(mydir, 'runnable', 'Runnable.xml')
 runexec = os.path.join(mydir, 'runnable', 'RunExec.xml')
 recursive_runner = os.path.join(mydir, 'runnable', 'RecursiveRunner.xml')
 command_feed = os.path.join(mydir, 'Command.xml')
+package_selections = os.path.join(mydir, 'package-selection.xml')
 
 class TestRun(BaseTest):
 	def testRunnable(self):
@@ -106,6 +107,13 @@ class TestRun(BaseTest):
 		stdout, _ = child.communicate()
 		assert 'Runner: script=A test script: args=foo-arg -- var user-arg-run' in stdout, stdout
 		assert 'Runner: script=A test script: args=command-arg -- path user-arg-run' in stdout, stdout
+	
+	def testRunPackage(self):
+		if 'TEST' in os.environ:
+			del os.environ['TEST']
+		child = subprocess.Popen([local_0launch, '--wrapper', 'echo $TEST #', '--', package_selections], stdout = subprocess.PIPE)
+		stdout, _ = child.communicate()
+		assert stdout.strip() == 'OK', stdout
 	
 if __name__ == '__main__':
 	unittest.main()
