@@ -165,7 +165,7 @@ def do_audit(args):
 				continue
 			try:
 				msg = _("[%(done)d / %(total)d] Verifying %(digest)s") % {'done': i, 'total': total, 'digest': required_digest}
-				print(msg, end=' ')
+				print(msg, end='')
 				sys.stdout.flush()
 				verify(path, required_digest)
 				print("\r" + (" " * len(msg)) + "\r", end=' ')

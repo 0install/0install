@@ -3,8 +3,10 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 from zeroinstall import _
-import os
+import os, sys
 from logging import warn
 
 def _already_linked(a, b):
@@ -61,7 +63,17 @@ def optimise(impl_dir):
 	else:
 		raise Exception(_("Can't generate unused tempfile name!"))
 
-	for impl in os.listdir(impl_dir):
+	dirs = os.listdir(impl_dir)
+	total = len(dirs)
+	msg = ""
+	def clear():
+		print("\r" + (" " * len(msg)) + "\r", end='')
+	for i, impl in enumerate(dirs):
+		clear()
+		msg = _("[%(done)d / %(total)d] Reading manifests...") % {'done': i, 'total': total}
+		print(msg, end='')
+		sys.stdout.flush()
+
 		if impl.startswith('.') or '=' not in impl:
 			warn(_("Skipping non-implementation '%s'"), impl)
 			continue
@@ -111,4 +123,5 @@ def optimise(impl_dir):
 			else:
 				first_copy[key] = loc_path
 				uniq_size += size
+	clear()
 	return (uniq_size, dup_size, already_linked, man_size)
