@@ -33,7 +33,7 @@ else:
 			from logging import info
 			old_home = home
 			home = pwd.getpwuid(0).pw_dir or '/'
-			info(_("$HOME (%(home)s) is owned by user %(user)d, but we are root (0). Using %(root_home)s instead."), {'old_home': old_home, 'user': home_owner, 'root_home': home})
+			info(_("$HOME (%(home)s) is owned by user %(user)d, but we are root (0). Using %(root_home)s instead."), {'home': old_home, 'user': home_owner, 'root_home': home})
 			del old_home
 			del home_owner
 
