@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from basetest import BaseTest
-import sys
+import sys, imp
 import unittest
 
 sys.path.insert(0, '..')
@@ -125,7 +125,7 @@ class TestPackageKit(BaseTest):
 			sys.meta_path = [self]
 			del sys.modules['dbus']
 
-			reload(packagekit)
+			imp.reload(packagekit)
 
 			pk = packagekit.PackageKit()
 			assert pk.available == False
@@ -137,7 +137,7 @@ class TestPackageKit(BaseTest):
 			sys.modules['dbus'] = old_dbus
 
 	def testNoPackageKit(self):
-		reload(packagekit)
+		imp.reload(packagekit)
 		pk = packagekit.PackageKit()
 		assert not pk.available
 
@@ -153,7 +153,7 @@ class TestPackageKit(BaseTest):
 			'/tid/2': PackageKit05.Tid2(),
 			'/tid/3': PackageKit05.Install(),
 		}
-		reload(packagekit)
+		imp.reload(packagekit)
 		pk = packagekit.PackageKit()
 		assert pk.available
 

@@ -294,7 +294,8 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 		_extract(open(cpiopath), destdir, args)
 		# Set the mtime of every directory under 'tmp' to 0, since cpio doesn't
 		# preserve directory mtimes.
-		os.path.walk(destdir, lambda arg, dirname, names: os.utime(dirname, (0, 0)), None)
+		for root, dirs, files in os.walk(destdir):
+			os.utime(root, (0, 0))
 	finally:
 		if fd is not None:
 			os.close(fd)

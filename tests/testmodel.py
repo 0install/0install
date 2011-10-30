@@ -10,7 +10,7 @@ from StringIO import StringIO
 sys.path.insert(0, '..')
 from zeroinstall.injector import model, qdom, namespaces
 
-mydir = os.path.dirname(__file__)
+mydir = os.path.dirname(os.path.abspath(__file__))
 
 class TestModel(BaseTest):
 	def testLevels(self):
@@ -164,7 +164,7 @@ class TestModel(BaseTest):
 		assert str(a) == 'foo'
 
 		b = model.ZeroInstallImplementation(i, 'foo', None)
-		b.version = [1,2,1]
+		b.version = model.parse_version("1.2.1")
 		assert b > a
 	
 	def testDownloadSource(self):

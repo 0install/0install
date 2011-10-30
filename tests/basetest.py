@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys, tempfile, os, shutil, StringIO
+import sys, tempfile, os, shutil, StringIO, imp
 import unittest
 import logging
 import warnings
@@ -173,7 +173,7 @@ class BaseTest(unittest.TestCase):
 		os.environ['XDG_CONFIG_DIRS'] = ''
 		os.environ['XDG_CACHE_HOME'] = self.cache_home
 		os.environ['XDG_CACHE_DIRS'] = self.cache_system
-		reload(basedir)
+		imp.reload(basedir)
 		assert basedir.xdg_config_home == self.config_home
 
 		os.mkdir(self.config_home, 0o700)
