@@ -71,7 +71,7 @@ def do_add(args):
 			raise SafeException(_("Unknown extension in '%s' - can't guess MIME type") % args[1])
 		unpack.check_type_ok(type)
 
-		stores.add_archive_to_cache(digest, file(args[1]), args[1], extract, type = type)
+		stores.add_archive_to_cache(digest, open(args[1]), args[1], extract, type = type)
 	else:
 		try:
 			os.stat(args[1])
@@ -225,7 +225,7 @@ def do_copy(args):
 	if not os.path.isfile(manifest_path):
 		raise UsageError(_("Source manifest '%s' not found") % manifest_path)
 	required_digest = os.path.basename(source)
-	manifest_data = file(manifest_path, 'rb').read()
+	manifest_data = open(manifest_path, 'rb').read()
 
 	copy_tree_with_verify(source, target, manifest_data, required_digest)
 

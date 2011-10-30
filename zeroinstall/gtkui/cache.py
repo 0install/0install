@@ -166,7 +166,7 @@ def get_size(path):
 	man = os.path.join(path, '.manifest')
 	if os.path.exists(man):
 		size = os.path.getsize(man)
-		for line in file(man, 'rb'):
+		for line in open(man, 'rb'):
 			if line[:1] in "XF":
 				size += int(line.split(' ', 4)[3])
 	else:

@@ -29,7 +29,7 @@ class TestManifest(BaseTest):
 	def write(self, path, contents, time = None):
 		assert not os.path.isabs(path)
 		myfile = os.path.join(self.tmpdir, path)
-		stream = file(myfile, 'w')
+		stream = open(myfile, 'w')
 		stream.write(contents)
 		stream.close()
 		if time is not None:

@@ -30,7 +30,7 @@ def handle(config, options, args):
 		if not os.path.isfile(x):
 			raise SafeException(_("File '%s' does not exist") % x)
 		logging.info(_("Importing from file '%s'"), x)
-		signed_data = file(x)
+		signed_data = open(x)
 		data, sigs = gpg.check_stream(signed_data)
 		doc = minidom.parseString(data.read())
 		uri = doc.documentElement.getAttribute('uri')

@@ -19,7 +19,7 @@ def report_bug(policy, iface):
 
 	issue_file = '/etc/issue'
 	if os.path.exists(issue_file):
-		issue = file(issue_file).read().strip()
+		issue = open(issue_file).read().strip()
 	else:
 		issue = "(file '%s' not found)" % issue_file
 

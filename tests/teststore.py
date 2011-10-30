@@ -44,7 +44,7 @@ class TestStore(BaseTest):
 
 	def testSimpleManifest(self):
 		path = os.path.join(self.tmp, 'MyFile')
-		f = file(path, 'w')
+		f = open(path, 'w')
 		f.write('Hello')
 		f.close()
 		os.utime(path, (1, 2))
@@ -70,7 +70,7 @@ class TestStore(BaseTest):
 				digest = alg.new_digest()
 				digest.update('Hello')
 				self.assertEquals("S %s 5 MyLink\n" % digest.hexdigest(),
-						file(mfile, 'rb').read())
+						open(mfile, 'rb').read())
 				manifest.verify(self.tmp, added_digest)
 				os.chmod(self.tmp, 0o700)
 				os.unlink(mfile)
@@ -80,7 +80,7 @@ class TestStore(BaseTest):
 	def populate_sample(self, target):
 		"""Create a set of files, links and directories in target for testing."""
 		path = os.path.join(target, 'MyFile')
-		f = file(path, 'w')
+		f = open(path, 'w')
 		f.write('Hello')
 		f.close()
 		os.utime(path, (1, 2))
@@ -89,13 +89,13 @@ class TestStore(BaseTest):
 		os.mkdir(subdir)
 
 		subfile = os.path.join(subdir, '!a file!')
-		f = file(subfile, 'w')
+		f = open(subfile, 'w')
 		f.write('Some data.')
 		f.close()
 		os.utime(subfile, (1, 2))
 
 		subfile += '.exe'
-		f = file(subfile, 'w')
+		f = open(subfile, 'w')
 		f.write('Some code.')
 		f.close()
 		os.chmod(subfile, 0o500)
@@ -216,7 +216,7 @@ class TestStore(BaseTest):
 		subfile = os.path.join(sample, 'My Dir', '!a file!.exe')
 		mtime = os.stat(subfile).st_mtime
 		os.chmod(subfile, 0o755)
-		stream = file(subfile, 'w')
+		stream = open(subfile, 'w')
 		stream.write('Extra!\n')
 		stream.close()
 		os.utime(subfile, (mtime, mtime))
@@ -308,7 +308,7 @@ class TestStore(BaseTest):
 
 			cli.do_copy([source, copy])
 
-			self.assertEquals('Hello', file(os.path.join(copy, digest, 'MyFile')).read())
+			self.assertEquals('Hello', open(os.path.join(copy, digest, 'MyFile')).read())
 		finally:
 			support.ro_rmtree(copy)
 

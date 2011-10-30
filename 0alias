@@ -209,7 +209,7 @@ except model.SafeException as ex:
 	print(ex, file=sys.stderr)
 	sys.exit(1)
 
-wrapper = file(script, 'w')
+wrapper = open(script, 'w')
 alias.write_script(wrapper, interface_uri, main, command = command)
 
 # Make new script executable

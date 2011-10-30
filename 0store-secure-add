@@ -22,7 +22,7 @@ try:
 		raise cli.UsageError('Usage: %s DIGEST' % sys.argv[0])
 	required_digest = sys.argv[1]
 
-	manifest_data = file('.manifest', 'rb').read()
+	manifest_data = open('.manifest', 'rb').read()
 
 	stores = zerostore.Stores()
 

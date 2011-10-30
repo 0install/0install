@@ -93,7 +93,7 @@ class OldSHA1(Algorithm):
 			assert sub[1:]
 			leaf = os.path.basename(sub[1:])
 			if stat.S_ISREG(m):
-				d = sha1_new(file(full).read()).hexdigest()
+				d = sha1_new(open(full).read()).hexdigest()
 				if m & 0o111:
 					yield "X %s %s %s %s" % (d, int(info.st_mtime) ,info.st_size, leaf)
 				else:
@@ -149,7 +149,7 @@ def add_manifest_file(dir, digest_or_alg):
 	digest.update(manifest)
 
 	os.chmod(dir, 0o755)
-	stream = file(mfile, 'wb')
+	stream = open(mfile, 'wb')
 	os.chmod(dir, 0o555)
 	stream.write(manifest)
 	stream.close()
@@ -179,7 +179,7 @@ def copy_with_verify(src, dest, mode, alg, required_digest):
 	@param required_digest: expected digest value
 	@type required_digest: str
 	@raise BadDigest: the contents of the file don't match required_digest"""
-	src_obj = file(src)
+	src_obj = open(src)
 	dest_fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
 	try:
 		digest = alg.new_digest()
@@ -223,7 +223,7 @@ def verify(root, required_digest = None):
 	manifest_file = os.path.join(root, '.manifest')
 	if os.path.isfile(manifest_file):
 		digest = alg.new_digest()
-		digest.update(file(manifest_file, 'rb').read())
+		digest.update(open(manifest_file, 'rb').read())
 		manifest_digest = alg.getID(digest)
 	else:
 		manifest_digest = None
@@ -244,7 +244,7 @@ def verify(root, required_digest = None):
 		error.detail += _("The .manifest file matches the actual contents. Very strange!")
 	elif manifest_digest == required_digest:
 		import difflib
-		diff = difflib.unified_diff(file(manifest_file, 'rb').readlines(), lines,
+		diff = difflib.unified_diff(open(manifest_file, 'rb').readlines(), lines,
 					    'Recorded', 'Actual')
 		error.detail += _("The .manifest file matches the directory name.\n" \
 				"The contents of the directory have changed:\n") + \
@@ -464,7 +464,7 @@ class HashLibAlgorithm(Algorithm):
 				if stat.S_ISREG(m):
 					if leaf == '.manifest': continue
 
-					d = new_digest(file(path).read()).hexdigest()
+					d = new_digest(open(path).read()).hexdigest()
 					if m & 0o111:
 						yield "X %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
 					else:

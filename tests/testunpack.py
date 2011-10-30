@@ -38,39 +38,39 @@ class AbstractTestUnpack():
 	
 	def testBadExt(self):
 		try:
-			unpack.unpack_archive('ftp://foo/file.foo', file('HelloWorld.tgz'), self.tmpdir)
+			unpack.unpack_archive('ftp://foo/file.foo', open('HelloWorld.tgz'), self.tmpdir)
 			assert False
 		except SafeException as ex:
 			assert 'Unknown extension' in str(ex)
 	
 	def testTgz(self):
-		unpack.unpack_archive('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir)
+		unpack.unpack_archive('ftp://foo/file.tgz', open('HelloWorld.tgz'), self.tmpdir)
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 	
 	@skipIf(not find_in_path('hdiutil'), "not running on MacOS X; no hdiutil")
 	def testDmg(self):
-		unpack.unpack_archive('ftp://foo/file.dmg', file('HelloWorld.dmg'), self.tmpdir)
+		unpack.unpack_archive('ftp://foo/file.dmg', open('HelloWorld.dmg'), self.tmpdir)
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 	
 	def testZip(self):
-		unpack.unpack_archive('ftp://foo/file.zip', file('HelloWorld.zip'), self.tmpdir)
+		unpack.unpack_archive('ftp://foo/file.zip', open('HelloWorld.zip'), self.tmpdir)
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 	
 	def testExtract(self):
-		unpack.unpack_archive('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir, extract = 'HelloWorld')
+		unpack.unpack_archive('ftp://foo/file.tgz', open('HelloWorld.tgz'), self.tmpdir, extract = 'HelloWorld')
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 	
 	def testExtractOver(self):
-		unpack.unpack_archive_over('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir, extract = 'HelloWorld')
+		unpack.unpack_archive_over('ftp://foo/file.tgz', open('HelloWorld.tgz'), self.tmpdir, extract = 'HelloWorld')
 		self.assert_manifest('sha1=491678c37f77fadafbaae66b13d48d237773a68f')
 
 	def testExtractZip(self):
-		unpack.unpack_archive('ftp://foo/file.zip', file('HelloWorld.zip'), self.tmpdir, extract = 'HelloWorld')
+		unpack.unpack_archive('ftp://foo/file.zip', open('HelloWorld.zip'), self.tmpdir, extract = 'HelloWorld')
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 
 	def testExtractIllegal(self):
 		try:
-			unpack.unpack_archive('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir, extract = 'Hello`World`')
+			unpack.unpack_archive('ftp://foo/file.tgz', open('HelloWorld.tgz'), self.tmpdir, extract = 'Hello`World`')
 			assert False
 		except SafeException as ex:
 			assert 'Illegal' in str(ex)
@@ -82,7 +82,7 @@ class AbstractTestUnpack():
 			os.close(2)
 			os.dup2(null, 2)
 			try:
-				unpack.unpack_archive('ftp://foo/file.tgz', file('HelloWorld.tgz'), self.tmpdir, extract = 'HelloWorld2')
+				unpack.unpack_archive('ftp://foo/file.tgz', open('HelloWorld.tgz'), self.tmpdir, extract = 'HelloWorld2')
 				assert False
 			except SafeException as ex:
 				if ('Failed to extract' not in str(ex) and	# GNU tar
@@ -92,34 +92,34 @@ class AbstractTestUnpack():
 			os.dup2(stderr, 2)
 	
 	def testTargz(self):
-		unpack.unpack_archive('ftp://foo/file.tar.GZ', file('HelloWorld.tgz'), self.tmpdir)
+		unpack.unpack_archive('ftp://foo/file.tar.GZ', open('HelloWorld.tgz'), self.tmpdir)
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 	
 	def testTbz(self):
-		unpack.unpack_archive('ftp://foo/file.tar.bz2', file('HelloWorld.tar.bz2'), self.tmpdir)
+		unpack.unpack_archive('ftp://foo/file.tar.bz2', open('HelloWorld.tar.bz2'), self.tmpdir)
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 	
 	def testTar(self):
-		unpack.unpack_archive('ftp://foo/file.tar', file('HelloWorld.tar'), self.tmpdir)
+		unpack.unpack_archive('ftp://foo/file.tar', open('HelloWorld.tar'), self.tmpdir)
 		self.assert_manifest('sha1new=290eb133e146635fe37713fd58174324a16d595f')
 	
 	def testRPM(self):
-		unpack.unpack_archive('ftp://foo/file.rpm', file('dummy-1-1.noarch.rpm'), self.tmpdir)
+		unpack.unpack_archive('ftp://foo/file.rpm', open('dummy-1-1.noarch.rpm'), self.tmpdir)
 		self.assert_manifest('sha1=7be9228c8fe2a1434d4d448c4cf130e3c8a4f53d')
 	
 	def testDeb(self):
-		unpack.unpack_archive('ftp://foo/file.deb', file('dummy_1-1_all.deb'), self.tmpdir)
+		unpack.unpack_archive('ftp://foo/file.deb', open('dummy_1-1_all.deb'), self.tmpdir)
 		self.assert_manifest('sha1new=2c725156ec3832b7980a3de2270b3d8d85d4e3ea')
 	
 	def testGem(self):
-		unpack.unpack_archive('ftp://foo/file.gem', file('hello-0.1.gem'), self.tmpdir)
+		unpack.unpack_archive('ftp://foo/file.gem', open('hello-0.1.gem'), self.tmpdir)
 		self.assert_manifest('sha1new=fbd4827be7a18f9821790bdfd83132ee60d54647')
 
 	def testSpecial(self):
 		os.chmod(self.tmpdir, 0o2755)
 		store = Store(self.tmpdir)
 		store.add_archive_to_cache('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a',
-					   file('HelloWorld.tgz'),
+					   open('HelloWorld.tgz'),
 					   'http://foo/foo.tgz')
 	
 	def testBad(self):
@@ -128,7 +128,7 @@ class AbstractTestUnpack():
 		store = Store(self.tmpdir)
 		try:
 			store.add_archive_to_cache('sha1=3ce644dc725f1d21cfcf02562c76f375944b266b',
-						   file('HelloWorld.tgz'),
+						   open('HelloWorld.tgz'),
 						   'http://foo/foo.tgz')
 			assert 0
 		except BadDigest:
@@ -164,7 +164,7 @@ class TestUnpackGNU(AbstractTestUnpack, BaseTest):
 
 	# Only available with GNU tar
 	def testLzma(self):
-		unpack.unpack_archive('ftp://foo/file.tar.lzma', file('HelloWorld.tar.lzma'), self.tmpdir)
+		unpack.unpack_archive('ftp://foo/file.tar.lzma', open('HelloWorld.tar.lzma'), self.tmpdir)
 		self.assert_manifest('sha1new=290eb133e146635fe37713fd58174324a16d595f')
 
 if not unpack._gnu_tar():

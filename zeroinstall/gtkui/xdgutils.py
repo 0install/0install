@@ -34,7 +34,7 @@ def add_to_menu(iface, icon_path, category, zlaunch=None):
 	tmpdir = tempfile.mkdtemp(prefix = 'zero2desktop-')
 	try:
 		desktop_name = os.path.join(tmpdir, 'zeroinstall-%s.desktop' % iface.get_name().lower().replace(os.sep, '-').replace(' ', ''))
-		desktop = file(desktop_name, 'w')
+		desktop = open(desktop_name, 'w')
 		desktop.write(_template % {'name': iface.get_name(),
                                    'comment': iface.summary,
                                    '0launch': zlaunch or '0launch',
@@ -61,7 +61,7 @@ def discover_existing_apps():
 			if desktop_file.startswith('zeroinstall-') and desktop_file.endswith('.desktop'):
 				full = os.path.join(d, desktop_file)
 				try:
-					for line in file(full):
+					for line in open(full):
 						line = line.strip()
 						if line.startswith('Exec=0launch '):
 							bits = line.split(' -- ', 1)

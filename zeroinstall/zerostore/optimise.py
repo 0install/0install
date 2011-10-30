@@ -15,8 +15,8 @@ def _already_linked(a, b):
 	return (ai.st_dev, ai.st_ino) == (bi.st_dev, bi.st_ino)
 
 def _byte_identical(a, b):
-	af = file(a, 'rb')
-	bf = file(b, 'rb')
+	af = open(a, 'rb')
+	bf = open(b, 'rb')
 	while True:
 		adata = af.read(100)
 		bdata = bf.read(100)
@@ -79,7 +79,7 @@ def optimise(impl_dir):
 			continue
 		manifest_path = os.path.join(impl_dir, impl, '.manifest')
 		try:
-			ms = file(manifest_path, 'rb')
+			ms = open(manifest_path, 'rb')
 		except OSError as ex:
 			warn(_("Failed to read manifest file '%(manifest_path)s': %(exception)s"), {'manifest': manifest_path, 'exception': str(ex)})
 			continue

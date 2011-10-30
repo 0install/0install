@@ -433,7 +433,7 @@ class Fetcher(object):
 
 				import shutil
 				icons_cache = basedir.save_cache_path(config_site, 'interface_icons')
-				icon_file = file(os.path.join(icons_cache, escape(interface.uri)), 'w')
+				icon_file = open(os.path.join(icons_cache, escape(interface.uri)), 'w')
 				shutil.copyfileobj(stream, icon_file)
 			except Exception as ex:
 				self.handler.report_error(ex)

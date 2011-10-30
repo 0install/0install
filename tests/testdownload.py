@@ -164,7 +164,7 @@ class TestDownload(BaseTest):
 
 	def testSelections(self):
 		from zeroinstall.injector import cli
-		root = qdom.parse(file("selections.xml"))
+		root = qdom.parse(open("selections.xml"))
 		sels = selections.Selections(root)
 		class Options: dry_run = False
 
@@ -195,7 +195,7 @@ class TestDownload(BaseTest):
 
 	def testSelectionsWithFeed(self):
 		from zeroinstall.injector import cli
-		root = qdom.parse(file("selections.xml"))
+		root = qdom.parse(open("selections.xml"))
 		sels = selections.Selections(root)
 
 		with output_suppressed():
@@ -362,7 +362,7 @@ class TestDownload(BaseTest):
 			getLogger().setLevel(ERROR)
 			iface = self.config.iface_cache.get_interface('http://example.com:8000/Hello.xml')
 			mtime = int(os.stat('Hello-new.xml').st_mtime)
-			self.config.iface_cache.update_feed_from_network(iface.uri, file('Hello-new.xml').read(), mtime + 10000)
+			self.config.iface_cache.update_feed_from_network(iface.uri, open('Hello-new.xml').read(), mtime + 10000)
 
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')

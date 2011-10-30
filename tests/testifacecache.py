@@ -15,7 +15,7 @@ class TestIfaceCache(BaseTest):
 		iface_cache = self.config.iface_cache
 		self.assertEquals([], iface_cache.list_all_interfaces())
 		iface_dir = basedir.save_cache_path(config_site, 'interfaces')
-		file(os.path.join(iface_dir, 'http%3a%2f%2ffoo'), 'w').close()
+		open(os.path.join(iface_dir, 'http%3a%2f%2ffoo'), 'w').close()
 		self.assertEquals(['http://foo'],
 				iface_cache.list_all_interfaces())
 		# TODO: test overrides
@@ -118,7 +118,7 @@ class TestIfaceCache(BaseTest):
 		upstream_dir = basedir.save_cache_path(config_site, 'interfaces')
 		cached = os.path.join(upstream_dir, model.escape('http://foo'))
 
-		stream = file(cached, 'w')
+		stream = open(cached, 'w')
 		stream.write(data.foo_signed_xml)
 		stream.close()
 
@@ -131,7 +131,7 @@ class TestIfaceCache(BaseTest):
 		signed = iface_cache._get_signature_date('http://foo')
 		assert signed == 1154850229
 
-		stream = file(cached, 'w+')
+		stream = open(cached, 'w+')
 		stream.seek(0)
 		stream.write('Hello')
 		stream.close()

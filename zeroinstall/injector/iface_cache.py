@@ -292,7 +292,7 @@ class IfaceCache(object):
 
 		old_modified = None
 		if os.path.exists(cached):
-			old_xml = file(cached).read()
+			old_xml = open(cached).read()
 			if old_xml == new_xml:
 				debug(_("No change"))
 				# Update in-memory copy, in case someone else updated the disk copy
@@ -301,7 +301,7 @@ class IfaceCache(object):
 			old_modified = int(os.stat(cached).st_mtime)
 
 		# Do we need to write this temporary file now?
-		stream = file(cached + '.new', 'w')
+		stream = open(cached + '.new', 'w')
 		stream.write(new_xml)
 		stream.close()
 		os.utime(cached + '.new', (modified_time, modified_time))
@@ -411,7 +411,7 @@ class IfaceCache(object):
 			if old_iface is None:
 				return None
 		try:
-			return gpg.check_stream(file(old_iface))[1]
+			return gpg.check_stream(open(old_iface))[1]
 		except SafeException as ex:
 			debug(_("No signatures (old-style interface): %s") % ex)
 			return None

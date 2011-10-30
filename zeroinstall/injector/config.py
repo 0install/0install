@@ -98,7 +98,7 @@ class Config(object):
 
                path = basedir.save_config_path(config_site, config_prog)
                path = os.path.join(path, 'global')
-               parser.write(file(path + '.new', 'w'))
+               parser.write(open(path + '.new', 'w'))
                os.rename(path + '.new', path)
 
 def load_config(handler = None):

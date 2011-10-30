@@ -64,7 +64,7 @@ class Cache(object):
 	# Throws an exception if the cache doesn't exist or has the wrong format.
 	def _load_cache(self):
 		self.cache = cache = {}
-		stream = file(os.path.join(self.cache_dir, self.cache_leaf))
+		stream = open(os.path.join(self.cache_dir, self.cache_leaf))
 		try:
 			for line in stream:
 				line = line.strip()
@@ -106,7 +106,7 @@ class Cache(object):
 		cache_path = os.path.join(self.cache_dir, self.cache_leaf)
 		self.cache[key] = value
 		try:
-			stream = file(cache_path, 'a')
+			stream = open(cache_path, 'a')
 			try:
 				stream.write('%s=%s\n' % (key, value))
 			finally:
@@ -267,7 +267,7 @@ class CachedDistribution(Distribution):
 	def _load_cache(self):
 		"""Load {cache_leaf} cache file into self.versions if it is available and up-to-date.
 		Throws an exception if the cache should be (re)created."""
-		stream = file(os.path.join(self.cache_dir, self.cache_leaf))
+		stream = open(os.path.join(self.cache_dir, self.cache_leaf))
 
 		cache_version = None
 		for line in stream:
@@ -534,7 +534,7 @@ class GentooDistribution(Distribution):
 
 		for filename in os.listdir(category_dir):
 			if filename.startswith(match_prefix) and filename[len(match_prefix)].isdigit():
-				name = file(os.path.join(category_dir, filename, 'PF')).readline().strip()
+				name = open(os.path.join(category_dir, filename, 'PF')).readline().strip()
 
 				match = re.search(_version_start_reqexp, name)
 				if match is None:
@@ -546,7 +546,7 @@ class GentooDistribution(Distribution):
 				if category == 'app-emulation' and name.startswith('emul-'):
 					__, __, machine, __ = name.split('-', 3)
 				else:
-					machine, __ = file(os.path.join(category_dir, filename, 'CHOST')).readline().split('-', 1)
+					machine, __ = open(os.path.join(category_dir, filename, 'CHOST')).readline().split('-', 1)
 				machine = arch.canonicalize_machine(machine)
 
 				impl = factory('package:gentoo:%s:%s:%s' % \
@@ -573,7 +573,7 @@ class PortsDistribution(Distribution):
 			pkgdir = os.path.join(self._pkgdir, pkgname)
 			if not os.path.isdir(pkgdir): continue
 
-			#contents = file(os.path.join(pkgdir, '+CONTENTS')).readline().strip()
+			#contents = open(os.path.join(pkgdir, '+CONTENTS')).readline().strip()
 
 			match = nameversion.search(pkgname)
 			if match is None:

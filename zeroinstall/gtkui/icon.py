@@ -39,7 +39,7 @@ def load_icon(icon_path, icon_width=None, icon_height=None):
 		if icon_width or icon_height:
 			loader.connect('size-prepared', size_prepared_cb)
 		try:
-			loader.write(file(icon_path).read())
+			loader.write(open(icon_path).read())
 		finally:
 			loader.close()
 		return loader.get_pixbuf()

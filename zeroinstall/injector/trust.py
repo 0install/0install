@@ -138,7 +138,7 @@ class TrustDB(object):
 			trust = basedir.load_first_config(config_site, config_prog, 'trust')
 			if trust:
 				#print "Loading trust from", trust_db
-				for key in file(trust).read().split('\n'):
+				for key in open(trust).read().split('\n'):
 					if key:
 						self.keys[key] = set(['*'])
 			else:

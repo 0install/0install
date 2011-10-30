@@ -297,7 +297,7 @@ class TestInstall(BaseTest):
 		assert out.lower().startswith("usage:")
 		assert 'FEED' in out
 
-		stream = file('6FCF121BE2390E0B.gpg')
+		stream = open('6FCF121BE2390E0B.gpg')
 		gpg.import_key(stream)
 		stream.close()
 		sys.stdin = Reply('Y\n')

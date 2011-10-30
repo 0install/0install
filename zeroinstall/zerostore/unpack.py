@@ -233,7 +233,7 @@ def extract_deb(stream, destdir, extract = None, start_offset = 0):
 	stream.seek(start_offset)
 	# ar can't read from stdin, so make a copy...
 	deb_copy_name = os.path.join(destdir, 'archive.deb')
-	deb_copy = file(deb_copy_name, 'w')
+	deb_copy = open(deb_copy_name, 'w')
 	shutil.copyfileobj(stream, deb_copy)
 	deb_copy.close()
 
@@ -259,7 +259,7 @@ def extract_deb(stream, destdir, extract = None, start_offset = 0):
 	_extract(stream, destdir, ('ar', 'x', 'archive.deb', data_tar))
 	os.unlink(deb_copy_name)
 	data_name = os.path.join(destdir, data_tar)
-	data_stream = file(data_name)
+	data_stream = open(data_name)
 	os.unlink(data_name)
 	extract_tar(data_stream, destdir, None, data_compression)
 
@@ -291,7 +291,7 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 		if _gnu_cpio():
 			args.append('--quiet')
 
-		_extract(file(cpiopath), destdir, args)
+		_extract(open(cpiopath), destdir, args)
 		# Set the mtime of every directory under 'tmp' to 0, since cpio doesn't
 		# preserve directory mtimes.
 		os.path.walk(destdir, lambda arg, dirname, names: os.utime(dirname, (0, 0)), None)
@@ -308,7 +308,7 @@ def extract_gem(stream, destdir, extract = None, start_offset = 0):
 	tmpdir = mkdtemp(dir = destdir)
 	try:
 		extract_tar(stream, destdir=tmpdir, extract=payload, decompress=None)
-		payload_stream = file(os.path.join(tmpdir, payload))
+		payload_stream = open(os.path.join(tmpdir, payload))
 		extract_tar(payload_stream, destdir=destdir, extract=extract, decompress='gzip')
 	finally:
 		if payload_stream:
@@ -323,7 +323,7 @@ def extract_cab(stream, destdir, extract, start_offset = 0):
 	stream.seek(start_offset)
 	# cabextract can't read from stdin, so make a copy...
 	cab_copy_name = os.path.join(destdir, 'archive.cab')
-	cab_copy = file(cab_copy_name, 'w')
+	cab_copy = open(cab_copy_name, 'w')
 	shutil.copyfileobj(stream, cab_copy)
 	cab_copy.close()
 
@@ -338,7 +338,7 @@ def extract_dmg(stream, destdir, extract, start_offset = 0):
 	stream.seek(start_offset)
 	# hdiutil can't read from stdin, so make a copy...
 	dmg_copy_name = os.path.join(destdir, 'archive.dmg')
-	dmg_copy = file(dmg_copy_name, 'w')
+	dmg_copy = open(dmg_copy_name, 'w')
 	shutil.copyfileobj(stream, dmg_copy)
 	dmg_copy.close()
 
@@ -359,7 +359,7 @@ def extract_zip(stream, destdir, extract, start_offset = 0):
 	stream.seek(start_offset)
 	# unzip can't read from stdin, so make a copy...
 	zip_copy_name = os.path.join(destdir, 'archive.zip')
-	zip_copy = file(zip_copy_name, 'w')
+	zip_copy = open(zip_copy_name, 'w')
 	shutil.copyfileobj(stream, zip_copy)
 	zip_copy.close()
 

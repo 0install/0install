@@ -82,7 +82,7 @@ def update_user_feed_overrides(feed):
 		return
 
 	try:
-		root = qdom.parse(file(user))
+		root = qdom.parse(open(user))
 	except Exception as ex:
 		warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
@@ -121,7 +121,7 @@ def update_user_overrides(interface):
 		return
 
 	try:
-		root = qdom.parse(file(user))
+		root = qdom.parse(open(user))
 	except Exception as ex:
 		warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
@@ -207,7 +207,7 @@ def load_feed(source, local = False, selections_ok = False):
 	@since: 0.48
 	@see: L{iface_cache.iface_cache}, which uses this to load the feeds"""
 	try:
-		root = qdom.parse(file(source))
+		root = qdom.parse(open(source))
 	except IOError as ex:
 		if ex.errno == errno.ENOENT and local:
 			raise MissingLocalFeed(_("Feed not found. Perhaps this is a local feed that no longer exists? You can remove it from the list of feeds in that case."))

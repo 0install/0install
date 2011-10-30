@@ -68,7 +68,7 @@ class TestLaunch(BaseTest):
 					'0install.net', 'interfaces')
 
 		os.makedirs(cached_ifaces)
-		file(os.path.join(cached_ifaces, 'file%3a%2f%2ffoo'), 'w').close()
+		open(os.path.join(cached_ifaces, 'file%3a%2f%2ffoo'), 'w').close()
 
 		out, err = self.run_0launch(['--list'])
 		assert not err

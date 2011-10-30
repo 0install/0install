@@ -40,7 +40,7 @@ def parse_script(pathname):
 	@rtype: L{ScriptInfo}
 	@raise NotAnAliasScript: if we can't parse the script
 	"""
-	stream = file(pathname)
+	stream = open(pathname)
 	template_header = _template[:_template.index("%s'")]
 	actual_header = stream.read(len(template_header))
 	stream.seek(0)

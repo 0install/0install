@@ -36,7 +36,7 @@ class TestAutoPolicy(BaseTest):
 		cached_ifaces = basedir.save_cache_path('0install.net',
 							'interfaces')
 
-		f = file(os.path.join(cached_ifaces, model.escape(name)), 'w')
+		f = open(os.path.join(cached_ifaces, model.escape(name)), 'w')
 		f.write(data)
 		f.close()
 
@@ -241,7 +241,7 @@ class TestAutoPolicy(BaseTest):
 						namespaces.config_prog)
 		glob = os.path.join(path, 'global')
 		assert not os.path.exists(glob)
-		stream = file(glob, 'w')
+		stream = open(glob, 'w')
 		stream.write('hello!')
 		stream.close()
 

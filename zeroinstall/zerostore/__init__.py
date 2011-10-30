@@ -230,7 +230,7 @@ class Stores(object):
 							  'implementation-dirs')
 		debug(_("Location of 'implementation-dirs' config file being used: '%s'"), impl_dirs)
 		if impl_dirs:
-			dirs = file(impl_dirs)
+			dirs = open(impl_dirs)
 		else:
 			if os.name == "nt":
 				from win32com.shell import shell, shellcon

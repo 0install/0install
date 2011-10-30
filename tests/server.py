@@ -44,7 +44,7 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		elif os.path.exists(leaf) and not isinstance(resp, Give404):
 			self.send_response(200)
 			self.end_headers()
-			self.wfile.write(file(leaf).read())
+			self.wfile.write(open(leaf).read())
 			self.wfile.close()
 		else:
 			self.send_error(404, "Missing: %s" % leaf)
