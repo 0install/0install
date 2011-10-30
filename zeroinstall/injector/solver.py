@@ -138,37 +138,12 @@ class SATSolver(Solver):
 
 	langs = property(lambda self: self._langs, set_langs)
 
-	def compare(self, interface, b, a, arch):
-		"""Compare a and b to see which would be chosen first.
-		Does not consider whether the implementations are usable (check for that yourself first).
-		@param interface: The interface we are trying to resolve, which may
-		not be the interface of a or b if they are from feeds.
-		@rtype: int"""
-
-		# Languages we understand come first
-		a_langs = (a.langs or 'en').split()
-		b_langs = (b.langs or 'en').split()
+	def get_rating(self, interface, impl, arch):
+		impl_langs = (impl.langs or 'en').split()
 		my_langs = self._lang_ranks
 
-		r = cmp(max(my_langs.get(l.split('-')[0], -1) for l in a_langs),
-			max(my_langs.get(l.split('-')[0], -1) for l in b_langs))
-		if r: return r
-
-		a_stab = a.get_stability()
-		b_stab = b.get_stability()
-
-		# Preferred versions come first
-		r = cmp(a_stab == model.preferred, b_stab == model.preferred)
-		if r: return r
-
 		stores = self.config.stores
-		if self.config.network_use != model.network_full:
-			r = cmp(a.is_available(stores), b.is_available(stores))
-			if r: return r
-
-		# Packages that require admin access to install come last
-		r = cmp(b.requires_root_install, a.requires_root_install)
-		if r: return r
+		is_available = impl.is_available(stores)
 
 		# Stability
 		stab_policy = interface.stability_policy
@@ -176,46 +151,56 @@ class SATSolver(Solver):
 			if self.config.help_with_testing: stab_policy = model.testing
 			else: stab_policy = model.stable
 
-		if a_stab >= stab_policy: a_stab = model.preferred
-		if b_stab >= stab_policy: b_stab = model.preferred
-
-		r = cmp(a_stab, b_stab)
-		if r: return r
-
-		# Newer versions come before older ones
-		if a.id.startswith('package:') != b.id.startswith('package:'):
-			# If one of packages is native, do not compare full versions since
-			# it is useless to compare native and 0install version revisions
-			r = cmp(a.version[0], b.version[0])
-			if r: return r
-			# Othewise, prefer native package
-			return cmp(a.id.startswith('package:'), b.id.startswith('package:'))
+		stability = impl.get_stability()
+		if stability >= stab_policy:
+			stability_limited = model.preferred
 		else:
-			r = cmp(a.version, b.version)
-			if r: return r
+			stability_limited = stability
 
-		# Get best OS
-		r = cmp(arch.os_ranks.get(b.os, None),
-			arch.os_ranks.get(a.os, None))
-		if r: return r
+		return [
+			# Languages we understand come first
+			max(my_langs.get(l.split('-')[0], -1) for l in impl_langs),
 
-		# Get best machine
-		r = cmp(arch.machine_ranks.get(b.machine, None),
-			arch.machine_ranks.get(a.machine, None))
-		if r: return r
+			# Preferred versions come first
+			stability == model.preferred,
 
-		# Slightly prefer languages specialised to our country
-		# (we know a and b have the same base language at this point)
-		r = cmp(max(my_langs.get(l, -1) for l in a_langs),
-			max(my_langs.get(l, -1) for l in b_langs))
-		if r: return r
+			# Prefer available implementations next if we have limited network access
+			self.config.network_use != model.network_full and is_available,
 
-		# Slightly prefer cached versions
-		if self.config.network_use == model.network_full:
-			r = cmp(a.is_available(stores), b.is_available(stores))
-			if r: return r
+			# Packages that require admin access to install come last
+			not impl.requires_root_install,
 
-		return cmp(a.id, b.id)
+			# Prefer more stable versions, but treat everything over stab_policy the same
+			# (so we prefer stable over testing if the policy is to prefer "stable", otherwise
+			# we don't care)
+			stability_limited,
+
+			# Newer versions come before older ones (ignoring modifiers)
+			impl.version[0],
+
+			# Prefer native packages if the main part of the versions are the same
+			impl.id.startswith('package:'),
+
+			# Full version compare (after package check, since comparing modifiers between native and non-native
+			# packages doesn't make sense).
+			impl.version,
+
+			# Get best OS
+			-arch.os_ranks.get(impl.os, 999),
+
+			# Get best machine
+			-arch.machine_ranks.get(impl.machine, 999),
+
+			# Slightly prefer languages specialised to our country
+			# (we know a and b have the same base language at this point)
+			max(my_langs.get(l, -1) for l in impl_langs),
+
+			# Slightly prefer cached versions
+			is_available,
+
+			# Order by ID so the order isn't random
+			impl.id
+		]
 
 	def solve(self, root_interface, root_arch, command_name = 'run', closest_match = False):
 		# closest_match is used internally. It adds a lowest-ranked
@@ -413,7 +398,7 @@ class SATSolver(Solver):
 					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
 					#raise
 
-			impls.sort(lambda a, b: self.compare(iface, a, b, arch))
+			impls.sort(key = lambda impl: self.get_rating(iface, impl, arch), reverse = True)
 
 			impls_for_iface[iface] = filtered_impls = []
 
