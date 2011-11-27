@@ -5,6 +5,7 @@
 from __future__ import print_function
 
 import locale
+import logging
 from logging import warn
 try:
 	locale.setlocale(locale.LC_ALL, '')
@@ -59,10 +60,22 @@ parser = OptionParser(usage="usage: %%prog [options] alias [interface [main]]\n\
 parser.add_option("-c", "--command", help="the command the alias will run (default 'run')", metavar='COMMNAD')
 parser.add_option("-m", "--manpage", help="show the manual page for an existing alias", action='store_true')
 parser.add_option("-r", "--resolve", help="show the URI for an alias", action='store_true')
+parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 parser.add_option("-V", "--version", help="display version information", action='store_true')
 parser.add_option("-d", "--dir", help="install in DIR", dest="user_path", metavar="DIR")
 
 (options, args) = parser.parse_args()
+
+if options.verbose:
+	logger = logging.getLogger()
+	if options.verbose == 1:
+		logger.setLevel(logging.INFO)
+	else:
+		logger.setLevel(logging.DEBUG)
+	hdlr = logging.StreamHandler()
+	fmt = logging.Formatter("%(levelname)s:%(message)s")
+	hdlr.setFormatter(fmt)
+	logger.addHandler(hdlr)
 
 if options.version:
 	import zeroinstall
@@ -110,8 +123,10 @@ if interface_uri is None:
 		interface_uri = alias_info.uri
 		main = alias_info.main
 		command = alias_info.command
-	except alias.NotAnAliasScript as ex:
+	except (alias.NotAnAliasScript, IOError) as ex:
+		# (we get IOError if e.g. the script isn't readable)
 		if options.manpage:
+			logging.debug("not a 0alias script '%s': %s", alias_prog, ex)
 			os.execlp('man', 'man', *args)
 		print(str(ex), file=sys.stderr)
 		sys.exit(1)
