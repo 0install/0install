@@ -220,7 +220,7 @@ class TestModel(BaseTest):
 			self.assertEqual(expected, str(ol))
 
 			doc = minidom.parseString('<doc/>')
-			new_xml = str(ol._toxml(doc).toxml())
+			new_xml = str(ol._toxml(doc, None).toxml())
 			new_e = qdom.parse(BytesIO(new_xml))
 			new_ol = model.process_binding(new_e)
 			self.assertEqual(expected, str(new_ol))

@@ -48,8 +48,9 @@ class TestSelections(BaseTest):
 			self.assertEqual(0, len(sels[0].bindings))
 			self.assertEqual(0, len(sels[0].dependencies))
 
-			self.assertEqual(1, len(sels[1].bindings))
+			self.assertEqual(2, len(sels[1].bindings))
 			self.assertEqual('.', sels[1].bindings[0].insert)
+			self.assertEqual('/', sels[1].bindings[1].mount_point)
 
 			self.assertEqual(1, len(sels[1].dependencies))
 			dep = sels[1].dependencies[0]

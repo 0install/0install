@@ -363,7 +363,7 @@ class OverlayBinding(Binding):
 
 	__repr__ = __str__
 
-	def _toxml(self, doc):
+	def _toxml(self, doc, prefixes):
 		"""Create a DOM element for this binding.
 		@param doc: document to use to create the element
 		@return: the new element

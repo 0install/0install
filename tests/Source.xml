@@ -17,5 +17,6 @@
       <archive href='foo' size='10'/>
     </implementation>
     <environment name='SRCDIR' insert='.' mode='replace'/>
+    <overlay src='.' mount-point='/'/>
   </group>
 </interface>
