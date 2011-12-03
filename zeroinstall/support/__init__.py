@@ -84,3 +84,9 @@ def ro_rmtree(root):
 		for main, dirs, files in os.walk(root):
 			os.chmod(main, 0o700)
 	shutil.rmtree(root)
+
+def raise_with_traceback(ex, tb):
+	if hasattr(ex, 'with_traceback'):
+		raise ex.with_traceback(tb)			# Python 3
+	eval("raise ex, None, tb", {'ex': ex, 'tb': tb})	# Python 2
+	assert 0

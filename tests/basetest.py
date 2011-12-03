@@ -1,9 +1,10 @@
 #!/usr/bin/env python
-import sys, tempfile, os, shutil, StringIO, imp
+import sys, tempfile, os, shutil, imp
 import unittest
 import logging
 import warnings
 from xml.dom import minidom
+from io import BytesIO
 warnings.filterwarnings("ignore", message = 'The CObject type')
 
 # Catch silly mistakes...
@@ -19,7 +20,7 @@ from zeroinstall.support import basedir, tasks
 
 dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
 
-empty_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
+empty_feed = qdom.parse(BytesIO(b"""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
 <name>Empty</name>
 <summary>just for testing</summary>
 </interface>"""))
@@ -75,7 +76,7 @@ class DummyHandler(handler.Handler):
 		self.ex = None
 		handler.Handler.wait_for_blocker(self, blocker)
 		if self.ex:
-			raise self.ex, None, self.tb
+			support.raise_with_traceback(self.ex, self.tb)
 
 	def report_error(self, ex, tb = None):
 		assert self.ex is None, self.ex

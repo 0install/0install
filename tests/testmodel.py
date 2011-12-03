@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 import basetest
 from basetest import BaseTest, empty_feed
 import sys, os
 from xml.dom import minidom
 import unittest
-from StringIO import StringIO
+from io import BytesIO
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import model, qdom, namespaces
@@ -64,11 +65,11 @@ class TestModel(BaseTest):
 			self.assertEquals(str, model.unescape(model.escape(str)))
 			self.assertEquals(str, model.unescape(model._pretty_escape(str)))
 
-		check(u'http://example.com')
-		check(u'http://example%46com')
-		check(u'http:##example#com')
-		check(u'http://example.com/foo/bar.xml')
-		check(u'%20%21~&!"£ :@;,./{}$%^&()')
+		check('http://example.com')
+		check('http://example%46com')
+		check('http:##example#com')
+		check('http://example.com/foo/bar.xml')
+		check('%20%21~&!"£ :@;,./{}$%^&()')
 
 	def testBadInterface(self):
 		try:
@@ -86,7 +87,7 @@ class TestModel(BaseTest):
 
 	def testMetadata(self):
 		main_feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
-		e = qdom.parse(StringIO('<ns:b xmlns:ns="a" foo="bar"/>'))
+		e = qdom.parse(BytesIO(b'<ns:b xmlns:ns="a" foo="bar"/>'))
 		main_feed.metadata = [e]
 		assert main_feed.get_metadata('a', 'b') == [e]
 		assert main_feed.get_metadata('b', 'b') == []
@@ -108,7 +109,7 @@ class TestModel(BaseTest):
 			basetest.test_locale = ('es_ES', 'UTF8')
 
 			self.assertEquals("Fuente local", feed.summary)
-			self.assertEquals(u"Español", feed.description)
+			self.assertEquals("Español", feed.description)
 
 			basetest.test_locale = ('en_GB', 'UTF8')
 
@@ -211,16 +212,16 @@ class TestModel(BaseTest):
 		assert model.EnvironmentBinding('PYTHONPATH', 'lib').mode == model.EnvironmentBinding.PREPEND
 
 	def testOverlay(self):
-		for xml, expected in [('<overlay/>', '<overlay . on />'),
-				      ('<overlay src="usr"/>', '<overlay usr on />'),
-				      ('<overlay src="package" mount-point="/usr/games"/>', '<overlay package on /usr/games>')]:
-			e = qdom.parse(StringIO(xml))
+		for xml, expected in [(b'<overlay/>', '<overlay . on />'),
+				      (b'<overlay src="usr"/>', '<overlay usr on />'),
+				      (b'<overlay src="package" mount-point="/usr/games"/>', '<overlay package on /usr/games>')]:
+			e = qdom.parse(BytesIO(xml))
 			ol = model.process_binding(e)
 			self.assertEquals(expected, str(ol))
 
 			doc = minidom.parseString('<doc/>')
 			new_xml = str(ol._toxml(doc).toxml())
-			new_e = qdom.parse(StringIO(new_xml))
+			new_e = qdom.parse(BytesIO(new_xml))
 			new_ol = model.process_binding(new_e)
 			self.assertEquals(expected, str(new_ol))
 	
