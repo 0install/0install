@@ -36,4 +36,7 @@ import pygtk; pygtk.require('2.0')
 
 import main
 
-main.run_gui(sys.argv[1:])
+try:
+	main.run_gui(sys.argv[1:])
+except KeyboardInterrupt:
+	sys.exit(1)

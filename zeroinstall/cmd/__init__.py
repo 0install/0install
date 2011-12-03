@@ -112,6 +112,9 @@ def main(command_args, config = None):
 		config.handler.dry_run = bool(options.dry_run)
 
 		cmd.handle(config, options, args)
+	except KeyboardInterrupt:
+		logging.info("KeyboardInterrupt")
+		sys.exit(1)
 	except UsageError:
 		parser.print_help()
 		sys.exit(1)

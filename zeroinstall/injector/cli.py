@@ -135,6 +135,9 @@ def main(command_args, config = None):
 	except NeedDownload as ex:
 		# This only happens for dry runs
 		print(ex)
+	except KeyboardInterrupt:
+		logging.info("KeyboardInterrupt")
+		sys.exit(1)
 	except UsageError:
 		parser.print_help()
 		sys.exit(1)
