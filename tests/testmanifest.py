@@ -23,7 +23,7 @@ class TestManifest(BaseTest):
 			pass
 	
 	def testEmpty(self):
-		self.assertEquals('',
+		self.assertEqual('',
 			'\n'.join(manifest.generate_manifest(self.tmpdir)))
 	
 	def write(self, path, contents, time = None):
@@ -44,7 +44,7 @@ class TestManifest(BaseTest):
 		os.symlink('Hello', os.path.join(self.tmpdir, 'MyDir/Sym link'))
 		os.chmod(myexec, 0o700)
 		os.utime(mydir, (10, 20))
-		self.assertEquals([
+		self.assertEqual([
 			'D 20 /MyDir',
 			'F 0a4d55a8d778e5022fab701977c5d840bbc486d0 30 11 Hello',
 			'X 4001b8c42ddfb61c453d04930e8ce78fb3a40bc8 40 5 Run me',
@@ -59,7 +59,7 @@ class TestManifest(BaseTest):
 		os.symlink('Hello', os.path.join(self.tmpdir, 'MyDir/Sym link'))
 		os.chmod(myexec, 0o700)
 		os.utime(mydir, (10, 20))
-		self.assertEquals([
+		self.assertEqual([
 			'D /MyDir',
 			'F 0a4d55a8d778e5022fab701977c5d840bbc486d0 30 11 Hello',
 			'X 4001b8c42ddfb61c453d04930e8ce78fb3a40bc8 40 5 Run me',
@@ -72,7 +72,7 @@ class TestManifest(BaseTest):
 		self.write('Hello', 'Hello World', 30)
 		self.write('Dir/Hello', 'Hello World', 30)
 		os.utime(mydir, (10, 20))
-		self.assertEquals([
+		self.assertEqual([
 			'F 0a4d55a8d778e5022fab701977c5d840bbc486d0 30 11 Hello',
 			'D /Dir',
 			'F 0a4d55a8d778e5022fab701977c5d840bbc486d0 30 11 Hello'],
@@ -85,7 +85,7 @@ class TestManifest(BaseTest):
 		myexec = self.write('MyDir/Run me', 'Bang!', 40)
 		os.symlink('Hello', os.path.join(self.tmpdir, 'MyDir/Sym link'))
 		os.chmod(myexec, 0o700)
-		self.assertEquals([
+		self.assertEqual([
 			'D /MyDir',
 			'F a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e 30 11 Hello',
 			'X 640628586b08f8ed3910bd1e75ba02818959e843b54efafb9c2260a1f77e3ddf 40 5 Run me',
@@ -97,13 +97,13 @@ class TestManifest(BaseTest):
 		os.mkdir(mydir)
 		self.write('Hello', 'Hello World', 30)
 		os.utime(mydir, (10, 20))
-		self.assertEquals([
+		self.assertEqual([
 			'F a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e 30 11 Hello',
 			'D /Dir'],
 			list(manifest.generate_manifest(self.tmpdir, alg='sha256')))
 
 	def testParseManifest(self):
-		self.assertEquals({}, manifest._parse_manifest(''))
+		self.assertEqual({}, manifest._parse_manifest(''))
 		parsed = manifest._parse_manifest('F e3d5983c3dfd415af24772b48276d16122fe5a87 1172429666 2980 README\n'
 						  'X 8a1f3c5f416f0e63140928102c44cd16ec2c6100 1172429666 5816 install.sh\n'
 						  'D /0install\n'

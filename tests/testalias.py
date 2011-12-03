@@ -43,15 +43,15 @@ class TestAlias(BaseTest):
 	def testWrite(self):
 		buf = StringIO()
 		alias.write_script(buf, 'http://example.com/foo.xml', None)
-		self.assertEquals(expected_script, buf.getvalue())
+		self.assertEqual(expected_script, buf.getvalue())
 
 		buf = StringIO()
 		alias.write_script(buf, 'http://example.com/foo.xml', 'a\'\'\\test')
-		self.assertEquals(expected_script_main, buf.getvalue())
+		self.assertEqual(expected_script_main, buf.getvalue())
 
 		buf = StringIO()
 		alias.write_script(buf, 'http://example.com/foo.xml', command = 'a\'\'\\test')
-		self.assertEquals(expected_script_command, buf.getvalue())
+		self.assertEqual(expected_script_command, buf.getvalue())
 
 	def testParse(self):
 		tmp = tempfile.NamedTemporaryFile()
@@ -59,25 +59,25 @@ class TestAlias(BaseTest):
 		tmp.flush()
 		tmp.seek(0)
 		uri, main = alias.parse_script(tmp.name)
-		self.assertEquals('http://example.com/foo.xml', uri)
-		self.assertEquals(None, main)
+		self.assertEqual('http://example.com/foo.xml', uri)
+		self.assertEqual(None, main)
 
 		tmp = tempfile.NamedTemporaryFile()
 		tmp.write(expected_script_main)
 		tmp.flush()
 		tmp.seek(0)
 		uri, main = alias.parse_script(tmp.name)
-		self.assertEquals('http://example.com/foo.xml', uri)
-		self.assertEquals('a\'\'\\test', main)
+		self.assertEqual('http://example.com/foo.xml', uri)
+		self.assertEqual('a\'\'\\test', main)
 
 		tmp = tempfile.NamedTemporaryFile()
 		tmp.write(expected_script_command)
 		tmp.flush()
 		tmp.seek(0)
 		info = alias.parse_script(tmp.name)
-		self.assertEquals('http://example.com/foo.xml', info.uri)
-		self.assertEquals('a\'\'\\test', info.command)
-		self.assertEquals(None, info.main)
+		self.assertEqual('http://example.com/foo.xml', info.uri)
+		self.assertEqual('a\'\'\\test', info.command)
+		self.assertEqual(None, info.main)
 
 	def testParseOld(self):
 		tmp = tempfile.NamedTemporaryFile()
@@ -85,16 +85,16 @@ class TestAlias(BaseTest):
 		tmp.flush()
 		tmp.seek(0)
 		uri, main = alias.parse_script(tmp.name)
-		self.assertEquals('http://example.com/foo.xml', uri)
-		self.assertEquals(None, main)
+		self.assertEqual('http://example.com/foo.xml', uri)
+		self.assertEqual(None, main)
 
 		tmp = tempfile.NamedTemporaryFile()
 		tmp.write(old_script_main)
 		tmp.flush()
 		tmp.seek(0)
 		uri, main = alias.parse_script(tmp.name)
-		self.assertEquals('http://example.com/foo.xml', uri)
-		self.assertEquals('a\'\'\\test', main)
+		self.assertEqual('http://example.com/foo.xml', uri)
+		self.assertEqual('a\'\'\\test', main)
 	
 	def testParseException(self):
 		tmp = tempfile.NamedTemporaryFile()

@@ -104,16 +104,16 @@ class TestGPG(BaseTest):
 		stream.write(err_sig)
 		stream.seek(0)
 		data, sigs = gpg.check_stream(stream)
-		self.assertEquals(err_sig, data.read())
+		self.assertEqual(err_sig, data.read())
 		assert len(sigs) == 1
 		assert isinstance(sigs[0], gpg.ErrSig)
 		assert sigs[0].need_key() == "7AB89A977DAAA397"
-		self.assertEquals("1", sigs[0].status[gpg.ErrSig.ALG])
+		self.assertEqual("1", sigs[0].status[gpg.ErrSig.ALG])
 		assert sigs[0].is_trusted() is False
 		assert str(sigs[0]).startswith('ERROR')
 
 	def testBadXMLSig(self):
-		self.assertEquals(bad_xml_sig, self.check_bad(bad_xml_sig))
+		self.assertEqual(bad_xml_sig, self.check_bad(bad_xml_sig))
 
 	def testInvalidXMLSig(self):
 		for error, sig in invalid_xmls_sigs:
@@ -130,7 +130,7 @@ class TestGPG(BaseTest):
 		data, sigs = gpg.check_stream(stream)
 		assert len(sigs) == 1
 		assert isinstance(sigs[0], gpg.BadSig)
-		self.assertEquals("AE07828059A53CC1",
+		self.assertEqual("AE07828059A53CC1",
 				  sigs[0].status[gpg.BadSig.KEYID])
 		assert sigs[0].is_trusted() is False
 		assert sigs[0].need_key() is None
@@ -138,7 +138,7 @@ class TestGPG(BaseTest):
 		return data.read()
 
 	def testGoodXMLSig(self):
-		self.assertEquals(good_xml_sig, self.check_good(good_xml_sig))
+		self.assertEqual(good_xml_sig, self.check_good(good_xml_sig))
 	
 	def check_good(self, sig):
 		stream = tempfile.TemporaryFile()
@@ -147,7 +147,7 @@ class TestGPG(BaseTest):
 		data, sigs = gpg.check_stream(stream)
 		assert len(sigs) == 1
 		assert isinstance(sigs[0], gpg.ValidSig)
-		self.assertEquals("92429807C9853C0744A68B9AAE07828059A53CC1",
+		self.assertEqual("92429807C9853C0744A68B9AAE07828059A53CC1",
 				  sigs[0].fingerprint)
 		assert sigs[0].is_trusted() is True
 		assert sigs[0].need_key() is None
@@ -172,12 +172,12 @@ class TestGPG(BaseTest):
 	
 	def testLoadKeys(self):
 
-		self.assertEquals({}, gpg.load_keys([]))
+		self.assertEqual({}, gpg.load_keys([]))
 		keys = gpg.load_keys([THOMAS_FINGERPRINT])
-		self.assertEquals(1, len(keys))
+		self.assertEqual(1, len(keys))
 		key = keys[THOMAS_FINGERPRINT]
-		self.assertEquals(THOMAS_FINGERPRINT, key.fingerprint)
-		self.assertEquals('Thomas Leonard <tal197@users.sourceforge.net>',
+		self.assertEqual(THOMAS_FINGERPRINT, key.fingerprint)
+		self.assertEqual('Thomas Leonard <tal197@users.sourceforge.net>',
 				key.name)
 
 if __name__ == '__main__':

@@ -36,11 +36,11 @@ class TestStore(BaseTest):
 	
 	def testInit(self):
 		assert os.path.isdir(self.store.dir)
-		self.assertEquals([], os.listdir(self.store.dir))
+		self.assertEqual([], os.listdir(self.store.dir))
 
 	def testEmptyManifest(self):
 		lines = list(manifest.generate_manifest(self.tmp))
-		self.assertEquals([], lines)
+		self.assertEqual([], lines)
 
 	def testSimpleManifest(self):
 		path = os.path.join(self.tmp, 'MyFile')
@@ -49,14 +49,14 @@ class TestStore(BaseTest):
 		f.close()
 		os.utime(path, (1, 2))
 		lines = list(manifest.generate_manifest(self.tmp))
-		self.assertEquals(['F f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0 2 5 MyFile'],
+		self.assertEqual(['F f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0 2 5 MyFile'],
 				lines)
 
 	def testLinkManifest(self):
 		path = os.path.join(self.tmp, 'MyLink')
 		os.symlink('Hello', path)
 		lines = list(manifest.generate_manifest(self.tmp))
-		self.assertEquals(['S f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0 5 MyLink'],
+		self.assertEqual(['S f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0 5 MyLink'],
 				lines)
 
 	def testVerify(self):
@@ -69,7 +69,7 @@ class TestStore(BaseTest):
 				added_digest = alg.getID(manifest.add_manifest_file(self.tmp, alg))
 				digest = alg.new_digest()
 				digest.update('Hello')
-				self.assertEquals("S %s 5 MyLink\n" % digest.hexdigest(),
+				self.assertEqual("S %s 5 MyLink\n" % digest.hexdigest(),
 						open(mfile, 'rb').read())
 				manifest.verify(self.tmp, added_digest)
 				os.chmod(self.tmp, 0o700)
@@ -265,7 +265,7 @@ class TestStore(BaseTest):
 		self.populate_sample(source)
 
 		lines = list(sha1new.generate_manifest(source))
-		self.assertEquals(['F f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0 2 5 MyFile',
+		self.assertEqual(['F f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0 2 5 MyFile',
 				   'S 570b0ce957ab43e774c82fca0ea3873fc452278b 19 a symlink',
 				   'D /My Dir',
 				   'F 0236ef92e1e37c57f0eb161e7e2f8b6a8face705 2 10 !a file!',
@@ -308,7 +308,7 @@ class TestStore(BaseTest):
 
 			cli.do_copy([source, copy])
 
-			self.assertEquals('Hello', open(os.path.join(copy, digest, 'MyFile')).read())
+			self.assertEqual('Hello', open(os.path.join(copy, digest, 'MyFile')).read())
 		finally:
 			support.ro_rmtree(copy)
 

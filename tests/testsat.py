@@ -289,7 +289,7 @@ class TestSAT(BaseTest):
 		for iface_uri, impl in s.selections.selections.iteritems():
 			if impl is not None: impl = impl.version
 			selected[iface_uri.rsplit('/', 1)[1]] = impl
-		self.assertEquals({
+		self.assertEqual({
 			'prog': '2',
 			'liba': '2',
 			'libb': '2',

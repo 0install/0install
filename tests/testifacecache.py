@@ -13,10 +13,10 @@ from zeroinstall.support import basedir
 class TestIfaceCache(BaseTest):
 	def testList(self):
 		iface_cache = self.config.iface_cache
-		self.assertEquals([], iface_cache.list_all_interfaces())
+		self.assertEqual([], iface_cache.list_all_interfaces())
 		iface_dir = basedir.save_cache_path(config_site, 'interfaces')
 		open(os.path.join(iface_dir, 'http%3a%2f%2ffoo'), 'w').close()
-		self.assertEquals(['http://foo'],
+		self.assertEqual(['http://foo'],
 				iface_cache.list_all_interfaces())
 		# TODO: test overrides
 
@@ -52,12 +52,12 @@ class TestIfaceCache(BaseTest):
 		pending = PendingFeed(feed_url, src)
 		assert iface_cache.update_feed_if_trusted(feed_url, pending.sigs, pending.new_xml)
 
-		self.assertEquals(['http://foo'],
+		self.assertEqual(['http://foo'],
 				iface_cache.list_all_interfaces())
 
 		feed = iface_cache.get_feed(feed_url)
 
-		self.assertEquals(1154850229, feed.last_modified)
+		self.assertEqual(1154850229, feed.last_modified)
 
 	def testXMLupdate(self):
 		iface_cache = self.config.iface_cache
@@ -144,7 +144,7 @@ class TestIfaceCache(BaseTest):
 
 	def testCheckAttempt(self):
 		iface_cache = self.config.iface_cache
-		self.assertEquals(None, iface_cache.get_last_check_attempt("http://foo/bar.xml"))
+		self.assertEqual(None, iface_cache.get_last_check_attempt("http://foo/bar.xml"))
 
 		start_time = time.time() - 5	# Seems to be some odd rounding here
 		iface_cache.mark_as_checking("http://foo/bar.xml")
@@ -153,7 +153,7 @@ class TestIfaceCache(BaseTest):
 		assert last_check is not None
 		assert last_check >= start_time, (last_check, start_time)
 
-		self.assertEquals(None, iface_cache.get_last_check_attempt("http://foo/bar2.xml"))
+		self.assertEqual(None, iface_cache.get_last_check_attempt("http://foo/bar2.xml"))
 
 	def testIsStale(self):
 		iface_cache = self.config.iface_cache

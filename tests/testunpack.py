@@ -140,7 +140,7 @@ class AbstractTestUnpack():
 		alg_name = required.split('=', 1)[0]
 		manifest.fixup_permissions(self.tmpdir)
 		sha1 = alg_name + '=' + manifest.add_manifest_file(self.tmpdir, manifest.get_algorithm(alg_name)).hexdigest()
-		self.assertEquals(sha1, required)
+		self.assertEqual(sha1, required)
 
 		# Check permissions are sensible
 		for root, dirs, files in os.walk(self.tmpdir):
@@ -148,7 +148,7 @@ class AbstractTestUnpack():
 				full = os.path.join(root, f)
 				if os.path.islink(full): continue
 				full_mode = os.stat(full).st_mode
-				self.assertEquals(0o444, full_mode & 0o666)	# Must be r-?r-?r-?
+				self.assertEqual(0o444, full_mode & 0o666)	# Must be r-?r-?r-?
 
 class TestUnpackPython(AbstractTestUnpack, BaseTest):
 	def setUp(self):

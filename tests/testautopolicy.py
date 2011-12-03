@@ -179,14 +179,14 @@ class TestAutoPolicy(BaseTest):
 			download_and_execute(policy, ['Hello'])
 		finally:
 			sys.stdout = old
-		self.assertEquals(cached_impl + '/.:old',
+		self.assertEqual(cached_impl + '/.:old',
 				os.environ['FOO_PATH'])
-		self.assertEquals(cached_impl + '/.:/a:/b',
+		self.assertEqual(cached_impl + '/.:/a:/b',
 				os.environ['BAR_PATH'])
-		self.assertEquals('val', os.environ['NO_PATH'])
+		self.assertEqual('val', os.environ['NO_PATH'])
 		
-		self.assertEquals(os.path.join(local_impl, 'group'), os.environ['SELF_GROUP'])
-		self.assertEquals(os.path.join(local_impl, 'impl'), os.environ['SELF_IMPL'])
+		self.assertEqual(os.path.join(local_impl, 'group'), os.environ['SELF_GROUP'])
+		self.assertEqual(os.path.join(local_impl, 'impl'), os.environ['SELF_IMPL'])
 
 		del os.environ['FOO_PATH']
 		if 'XDG_DATA_DIRS' in os.environ:
@@ -197,11 +197,11 @@ class TestAutoPolicy(BaseTest):
 			download_and_execute(policy, ['Hello'])
 		finally:
 			sys.stdout = old
-		self.assertEquals(cached_impl + '/.',
+		self.assertEqual(cached_impl + '/.',
 				os.environ['FOO_PATH'])
-		self.assertEquals(cached_impl + '/.:/old',
+		self.assertEqual(cached_impl + '/.:/old',
 				os.environ['BAR_PATH'])
-		self.assertEquals(cached_impl + '/.:/usr/local/share:/usr/share',
+		self.assertEqual(cached_impl + '/.:/usr/local/share:/usr/share',
 				os.environ['XDG_DATA_DIRS'])
 	
 	def testFeeds(self):
@@ -234,7 +234,7 @@ class TestAutoPolicy(BaseTest):
 		recalculate(policy)
 		assert policy.ready
 		foo_iface = self.config.iface_cache.get_interface(foo_iface_uri)
-		self.assertEquals('sha1=123', policy.implementation[foo_iface].id)
+		self.assertEqual('sha1=123', policy.implementation[foo_iface].id)
 
 	def testBadConfig(self):
 		path = basedir.save_config_path(namespaces.config_site,

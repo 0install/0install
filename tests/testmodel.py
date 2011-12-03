@@ -29,41 +29,41 @@ class TestModel(BaseTest):
 		str(model.insecure)
 	
 	def testEscape(self):
-		self.assertEquals("", model.escape(""))
-		self.assertEquals("hello", model.escape("hello"))
-		self.assertEquals("%20", model.escape(" "))
+		self.assertEqual("", model.escape(""))
+		self.assertEqual("hello", model.escape("hello"))
+		self.assertEqual("%20", model.escape(" "))
 
-		self.assertEquals("file%3a%2f%2ffoo%7ebar",
+		self.assertEqual("file%3a%2f%2ffoo%7ebar",
 				model.escape("file://foo~bar"))
-		self.assertEquals("file%3a%2f%2ffoo%25bar",
+		self.assertEqual("file%3a%2f%2ffoo%25bar",
 				model.escape("file://foo%bar"))
 
-		self.assertEquals("file:##foo%7ebar",
+		self.assertEqual("file:##foo%7ebar",
 				model._pretty_escape("file://foo~bar"))
-		self.assertEquals("file:##foo%25bar",
+		self.assertEqual("file:##foo%25bar",
 				model._pretty_escape("file://foo%bar"))
 
 	def testUnescape(self):
-		self.assertEquals("", model.unescape(""))
-		self.assertEquals("hello", model.unescape("hello"))
-		self.assertEquals(" ", model.unescape("%20"))
+		self.assertEqual("", model.unescape(""))
+		self.assertEqual("hello", model.unescape("hello"))
+		self.assertEqual(" ", model.unescape("%20"))
 
-		self.assertEquals("file://foo~bar",
+		self.assertEqual("file://foo~bar",
 				model.unescape("file%3a%2f%2ffoo%7ebar"))
-		self.assertEquals("file://foo%bar",
+		self.assertEqual("file://foo%bar",
 				model.unescape("file%3a%2f%2ffoo%25bar"))
 
-		self.assertEquals("file://foo",
+		self.assertEqual("file://foo",
 				model.unescape("file:##foo"))
-		self.assertEquals("file://foo~bar",
+		self.assertEqual("file://foo~bar",
 				model.unescape("file:##foo%7ebar"))
-		self.assertEquals("file://foo%bar",
+		self.assertEqual("file://foo%bar",
 				model.unescape("file:##foo%25bar"))
 	
 	def testEscaping(self):
 		def check(str):
-			self.assertEquals(str, model.unescape(model.escape(str)))
-			self.assertEquals(str, model.unescape(model._pretty_escape(str)))
+			self.assertEqual(str, model.unescape(model.escape(str)))
+			self.assertEqual(str, model.unescape(model._pretty_escape(str)))
 
 		check('http://example.com')
 		check('http://example%46com')
@@ -80,9 +80,9 @@ class TestModel(BaseTest):
 	
 	def testInterface(self):
 		i = model.Interface('http://foo')
-		self.assertEquals('(foo)', i.get_name())
+		self.assertEqual('(foo)', i.get_name())
 		feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
-		self.assertEquals('Empty', feed.get_name())
+		self.assertEqual('Empty', feed.get_name())
 		repr(i)
 
 	def testMetadata(self):
@@ -99,26 +99,26 @@ class TestModel(BaseTest):
 		dom = qdom.parse(open(local_path))
 		feed = model.ZeroInstallFeed(dom, local_path = local_path)
 		# (defaults to en-US if no language is set in the locale)
-		self.assertEquals("Local feed (English)", feed.summary)
-		self.assertEquals("English", feed.description)
+		self.assertEqual("Local feed (English)", feed.summary)
+		self.assertEqual("English", feed.description)
 
-		self.assertEquals(4, len(feed.summaries))
-		self.assertEquals(2, len(feed.descriptions))
+		self.assertEqual(4, len(feed.summaries))
+		self.assertEqual(2, len(feed.descriptions))
 
 		try:
 			basetest.test_locale = ('es_ES', 'UTF8')
 
-			self.assertEquals("Fuente local", feed.summary)
-			self.assertEquals("Español", feed.description)
+			self.assertEqual("Fuente local", feed.summary)
+			self.assertEqual("Español", feed.description)
 
 			basetest.test_locale = ('en_GB', 'UTF8')
 
-			self.assertEquals("Local feed (English GB)", feed.summary)
+			self.assertEqual("Local feed (English GB)", feed.summary)
 
 			basetest.test_locale = ('fr_FR', 'UTF8')
 
-			self.assertEquals("Local feed (English)", feed.summary)
-			self.assertEquals("English", feed.description)
+			self.assertEqual("Local feed (English)", feed.summary)
+			self.assertEqual("English", feed.description)
 		finally:
 			basetest.test_locale = (None, None)
 
@@ -141,9 +141,9 @@ class TestModel(BaseTest):
 
 	def testStabPolicy(self):
 		i = model.Interface('http://foo')
-		self.assertEquals(None, i.stability_policy)
+		self.assertEqual(None, i.stability_policy)
 		i.set_stability_policy(model.buggy)
-		self.assertEquals(model.buggy, i.stability_policy)
+		self.assertEqual(model.buggy, i.stability_policy)
 
 	def testImpl(self):
 		i = model.Interface('http://foo')
@@ -159,9 +159,9 @@ class TestModel(BaseTest):
 		a.user_stability = model.buggy
 		assert a.get_stability() is model.buggy
 		a.version = model.parse_version('1.2.3')
-		self.assertEquals('1.2.3', a.get_version())
+		self.assertEqual('1.2.3', a.get_version())
 		a.version = model.parse_version('1.2.3-rc2-post')
-		self.assertEquals('1.2.3-rc2-post', a.get_version())
+		self.assertEqual('1.2.3-rc2-post', a.get_version())
 		assert str(a) == 'foo'
 
 		b = model.ZeroInstallImplementation(i, 'foo', None)
@@ -190,24 +190,24 @@ class TestModel(BaseTest):
 		assert prepend.insert == 'lib'
 		assert prepend.mode is model.EnvironmentBinding.PREPEND
 
-		self.assertEquals('/impl/lib:/usr/lib', prepend.get_value('/impl', '/usr/lib'))
-		self.assertEquals('/impl/lib', prepend.get_value('/impl', None))
+		self.assertEqual('/impl/lib:/usr/lib', prepend.get_value('/impl', '/usr/lib'))
+		self.assertEqual('/impl/lib', prepend.get_value('/impl', None))
 
 		append = model.EnvironmentBinding('PYTHONPATH', 'lib', '/opt/lib', model.EnvironmentBinding.APPEND)
 		assert append.name == 'PYTHONPATH'
 		assert append.insert == 'lib'
 		assert append.mode is model.EnvironmentBinding.APPEND
 
-		self.assertEquals('/usr/lib:/impl/lib', append.get_value('/impl', '/usr/lib'))
-		self.assertEquals('/opt/lib:/impl/lib', append.get_value('/impl', None))
+		self.assertEqual('/usr/lib:/impl/lib', append.get_value('/impl', '/usr/lib'))
+		self.assertEqual('/opt/lib:/impl/lib', append.get_value('/impl', None))
 		
 		append = model.EnvironmentBinding('PYTHONPATH', 'lib', None, model.EnvironmentBinding.REPLACE)
 		assert append.name == 'PYTHONPATH'
 		assert append.insert == 'lib'
 		assert append.mode is model.EnvironmentBinding.REPLACE
 
-		self.assertEquals('/impl/lib', append.get_value('/impl', '/usr/lib'))
-		self.assertEquals('/impl/lib', append.get_value('/impl', None))
+		self.assertEqual('/impl/lib', append.get_value('/impl', '/usr/lib'))
+		self.assertEqual('/impl/lib', append.get_value('/impl', None))
 
 		assert model.EnvironmentBinding('PYTHONPATH', 'lib').mode == model.EnvironmentBinding.PREPEND
 
@@ -217,13 +217,13 @@ class TestModel(BaseTest):
 				      (b'<overlay src="package" mount-point="/usr/games"/>', '<overlay package on /usr/games>')]:
 			e = qdom.parse(BytesIO(xml))
 			ol = model.process_binding(e)
-			self.assertEquals(expected, str(ol))
+			self.assertEqual(expected, str(ol))
 
 			doc = minidom.parseString('<doc/>')
 			new_xml = str(ol._toxml(doc).toxml())
 			new_e = qdom.parse(BytesIO(new_xml))
 			new_ol = model.process_binding(new_e)
-			self.assertEquals(expected, str(new_ol))
+			self.assertEqual(expected, str(new_ol))
 	
 	def testDep(self):
 		b = model.InterfaceDependency('http://foo', element = qdom.Element(namespaces.XMLNS_IFACE, 'requires', {}))
@@ -267,7 +267,7 @@ class TestModel(BaseTest):
 		except model.SafeException as ex:
 			assert 'Missing /' in str(ex)
 
-		self.assertEquals('http://foo/',
+		self.assertEqual('http://foo/',
 				model.canonical_iface_uri('http://foo/'))
 		try:
 			model.canonical_iface_uri('bad-name')

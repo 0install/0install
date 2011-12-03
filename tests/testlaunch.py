@@ -63,7 +63,7 @@ class TestLaunch(BaseTest):
 	def testList(self):
 		out, err = self.run_0launch(['--list'])
 		assert not err
-		self.assertEquals("Finished\n", out)
+		self.assertEqual("Finished\n", out)
 		cached_ifaces = os.path.join(self.cache_home,
 					'0install.net', 'interfaces')
 
@@ -72,15 +72,15 @@ class TestLaunch(BaseTest):
 
 		out, err = self.run_0launch(['--list'])
 		assert not err
-		self.assertEquals("file://foo\nFinished\n", out)
+		self.assertEqual("file://foo\nFinished\n", out)
 
 		out, err = self.run_0launch(['--list', 'foo'])
 		assert not err
-		self.assertEquals("file://foo\nFinished\n", out)
+		self.assertEqual("file://foo\nFinished\n", out)
 
 		out, err = self.run_0launch(['--list', 'bar'])
 		assert not err
-		self.assertEquals("Finished\n", out)
+		self.assertEqual("Finished\n", out)
 
 		out, err = self.run_0launch(['--list', 'one', 'two'])
 		assert not err
@@ -98,12 +98,12 @@ class TestLaunch(BaseTest):
 	
 	def testOK(self):
 		out, err = self.run_0launch(['--dry-run', 'http://foo/d'])
-		self.assertEquals("Would download 'http://foo/d'\nFinished\n", out)
-		self.assertEquals("", err)
+		self.assertEqual("Would download 'http://foo/d'\nFinished\n", out)
+		self.assertEqual("", err)
 	
 	def testRun(self):
 		out, err = self.run_0launch(['Local.xml'])
-		self.assertEquals("", out)
+		self.assertEqual("", out)
 		assert "test-echo' does not exist" in err, err
 
 	def testAbsMain(self):
@@ -133,8 +133,8 @@ class TestLaunch(BaseTest):
 
 	def testOffline(self):
 		out, err = self.run_0launch(['--offline', 'http://foo/d'])
-		self.assertEquals("Interface 'http://foo/d' has no usable implementations in the cache (and 0install is in off-line mode)\n", err)
-		self.assertEquals("", out)
+		self.assertEqual("Interface 'http://foo/d' has no usable implementations in the cache (and 0install is in off-line mode)\n", err)
+		self.assertEqual("", out)
 
 	def testDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
@@ -142,43 +142,43 @@ class TestLaunch(BaseTest):
 		# Uses local copy of GUI
 		assert out.startswith("Would execute: ")
 		assert 'basetest.py' in out
-		self.assertEquals("", err)
+		self.assertEqual("", err)
 
 		del os.environ['DISPLAY']
 		out, err = self.run_0launch(['--gui', '--dry-run'])
-		self.assertEquals("", err)
-		self.assertEquals("Finished\n", out)
+		self.assertEqual("", err)
+		self.assertEqual("Finished\n", out)
 
 	def testRefreshDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--dry-run', '--refresh', 'http://foo/d'])
 		assert out.startswith("Would execute: ")
 		assert 'basetest.py' in out
-		self.assertEquals("", err)
+		self.assertEqual("", err)
 	
 	def testNeedDownload(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--download-only', '--dry-run', 'Foo.xml'])
-		self.assertEquals("", err)
-		self.assertEquals("Finished\n", out)
+		self.assertEqual("", err)
+		self.assertEqual("Finished\n", out)
 
 	def testSelectOnly(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--get-selections', '--select-only', 'Hello.xml'])
-		self.assertEquals("", err)
+		self.assertEqual("", err)
 
 		assert out.endswith("Finished\n")
 		out = out[:-len("Finished\n")]
 
 		root = qdom.parse(StringIO(str(out)))
-		self.assertEquals(namespaces.XMLNS_IFACE, root.uri)
+		self.assertEqual(namespaces.XMLNS_IFACE, root.uri)
 		sels = selections.Selections(root)
 		sel,= sels.selections.values()
-		self.assertEquals("sha1=3ce644dc725f1d21cfcf02562c76f375944b266a", sel.id)
+		self.assertEqual("sha1=3ce644dc725f1d21cfcf02562c76f375944b266a", sel.id)
 
 	def testHello(self):
 		out, err = self.run_0launch(['--dry-run', 'Foo.xml'])
-		self.assertEquals("", err)
+		self.assertEqual("", err)
 		assert out.startswith("Would execute: ")
 
 		out, err = self.run_0launch(['Foo.xml'])
@@ -187,34 +187,34 @@ class TestLaunch(BaseTest):
 
 	def testSource(self):
 		out, err = self.run_0launch(['--dry-run', '--source', 'Source.xml'])
-		self.assertEquals("", err)
+		self.assertEqual("", err)
 		assert 'Compiler.xml' in out
 	
 	def testRanges(self):
 		out, err = self.run_0launch(['--get-selections', '--before=1', '--not-before=0.2', 'Foo.xml'])
 		assert 'tests/rpm' in out, out
-		self.assertEquals("", err)
+		self.assertEqual("", err)
 	
 	def testLogging(self):
 		log = logging.getLogger()
 		log.addFilter(silenceLogger)
 
 		out, err = self.run_0launch(['-v', '--list', 'UNKNOWN'])
-		self.assertEquals(logging.INFO, log.level)
+		self.assertEqual(logging.INFO, log.level)
 
 		out, err = self.run_0launch(['-vv', '--version'])
-		self.assertEquals(logging.DEBUG, log.level)
+		self.assertEqual(logging.DEBUG, log.level)
 
 		log.removeFilter(silenceLogger)
 		log.setLevel(logging.WARN)
 	
 	def testHelp2(self):
 		out, err = self.run_0launch(['--help'])
-		self.assertEquals("", err)
+		self.assertEqual("", err)
 		assert 'options:' in out.lower()
 
 		out, err = self.run_0launch([])
-		self.assertEquals("", err)
+		self.assertEqual("", err)
 		assert 'options:' in out.lower()
 	
 	def testBadFD(self):
@@ -228,7 +228,7 @@ class TestLaunch(BaseTest):
 	def testShow(self):
 		command_feed = os.path.join(mydir, 'Command.xml')
 		out, err = self.run_0launch(['--show', command_feed])
-		self.assertEquals("", err)
+		self.assertEqual("", err)
 		assert 'Local.xml' in out, out
 
 if __name__ == '__main__':

@@ -152,28 +152,28 @@ class TestReader(BaseTest):
 		impl = feed.implementations['sha1=123']
 
 		assert len(impl.bindings) == 1
-		self.assertEquals(model.EnvironmentBinding.REPLACE, impl.bindings[0].mode)
+		self.assertEqual(model.EnvironmentBinding.REPLACE, impl.bindings[0].mode)
 
 		assert len(impl.requires) == 1
 		dep = impl.requires[0]
 
 		assert len(dep.bindings) == 5
 		for b in dep.bindings:
-			self.assertEquals('PATH', b.name)
-			self.assertEquals('bin', b.insert)
-		self.assertEquals(model.EnvironmentBinding.PREPEND, dep.bindings[0].mode)
-		self.assertEquals(model.EnvironmentBinding.PREPEND, dep.bindings[1].mode)
-		self.assertEquals(model.EnvironmentBinding.APPEND, dep.bindings[2].mode)
-		self.assertEquals(model.EnvironmentBinding.REPLACE, dep.bindings[3].mode)
-		self.assertEquals(model.EnvironmentBinding.PREPEND, dep.bindings[4].mode)
+			self.assertEqual('PATH', b.name)
+			self.assertEqual('bin', b.insert)
+		self.assertEqual(model.EnvironmentBinding.PREPEND, dep.bindings[0].mode)
+		self.assertEqual(model.EnvironmentBinding.PREPEND, dep.bindings[1].mode)
+		self.assertEqual(model.EnvironmentBinding.APPEND, dep.bindings[2].mode)
+		self.assertEqual(model.EnvironmentBinding.REPLACE, dep.bindings[3].mode)
+		self.assertEqual(model.EnvironmentBinding.PREPEND, dep.bindings[4].mode)
 
-		self.assertEquals(os.path.join('/impl', 'bin:current'), 
+		self.assertEqual(os.path.join('/impl', 'bin:current'), 
 				dep.bindings[0].get_value('/impl', 'current'))
-		self.assertEquals(os.path.join('/impl', 'bin,current'), 
+		self.assertEqual(os.path.join('/impl', 'bin,current'), 
 			dep.bindings[4].get_value('/impl', 'current'))
 
-		self.assertEquals(None, dep.bindings[1].default)
-		self.assertEquals('/bin', dep.bindings[2].default)
+		self.assertEqual(None, dep.bindings[1].default)
+		self.assertEqual('/bin', dep.bindings[2].default)
 
 	def testVersions(self):
 		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
@@ -282,11 +282,11 @@ class TestReader(BaseTest):
 		assert len(feed.implementations) == 3
 		assert len(feed.feeds) == 1, feed.feeds
 
-		self.assertEquals('fr en-GB', feed.feeds[0].langs)
+		self.assertEqual('fr en-GB', feed.feeds[0].langs)
 
-		self.assertEquals('fr', feed.implementations['sha1=124'].langs)
-		self.assertEquals('fr en-GB', feed.implementations['sha1=234'].langs)
-		self.assertEquals('', feed.implementations['sha1=345'].langs)
+		self.assertEqual('fr', feed.implementations['sha1=124'].langs)
+		self.assertEqual('fr en-GB', feed.implementations['sha1=234'].langs)
+		self.assertEqual('', feed.implementations['sha1=345'].langs)
 	
 if __name__ == '__main__':
 	unittest.main()

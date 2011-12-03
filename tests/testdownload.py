@@ -144,7 +144,7 @@ class TestDownload(BaseTest):
 			rootLogger.setLevel(WARN)
 
 		hello = self.config.iface_cache.get_feed('http://localhost:8000/Hello')
-		self.assertEquals(None, hello)
+		self.assertEqual(None, hello)
 
 		with output_suppressed():
 			run_server('6FCF121BE2390E0B.gpg')
@@ -156,7 +156,7 @@ class TestDownload(BaseTest):
 
 			# Check we imported the interface after trusting the key
 			hello = self.config.iface_cache.get_feed('http://localhost:8000/Hello', force = True)
-			self.assertEquals(1, len(hello.implementations))
+			self.assertEqual(1, len(hello.implementations))
 
 			# Shouldn't need to prompt the second time
 			sys.stdin = None
@@ -305,7 +305,7 @@ class TestDownload(BaseTest):
 			except model.SafeException as ex:
 				if 'Attempt to unpack dir over symlink "HelloWorld"' not in str(ex):
 					raise
-			self.assertEquals(None, basedir.load_first_cache('0install.net', 'implementations', 'main'))
+			self.assertEqual(None, basedir.load_first_cache('0install.net', 'implementations', 'main'))
 		finally:
 			sys.stdout = old_out
 
@@ -382,7 +382,7 @@ class TestDownload(BaseTest):
 				assert "New feed's modification time is before old version" in str(ex)
 
 			# Must finish with the newest version
-			self.assertEquals(1235911552, self.config.iface_cache._get_signature_date(iface.uri))
+			self.assertEqual(1235911552, self.config.iface_cache._get_signature_date(iface.uri))
 		finally:
 			sys.stdout = old_out
 
@@ -430,7 +430,7 @@ class TestDownload(BaseTest):
 					background.spawn_background_update(p, verbose)
 					assert False
 				except SystemExit as ex:
-					self.assertEquals(1, ex.code)
+					self.assertEqual(1, ex.code)
 			finally:
 				os._exit = old_exit
 				config.DEFAULT_KEY_LOOKUP_SERVER = key_info

@@ -75,7 +75,7 @@ class TestSolver(BaseTest):
 		compiler_impls = iface_cache.get_feed(compiler.uri).implementations
 
 		assert len(s.details) == 2
-		self.assertEquals([(foo_src_impls['sha1=234'], None),
+		self.assertEqual([(foo_src_impls['sha1=234'], None),
 				   (foo_impls['sha1=123'], 'Unsupported machine type')],
 				   sorted(s.details[foo]))
 		assert s.details[compiler] == [(compiler_impls['sha1=345'], None)]
@@ -127,11 +127,11 @@ class TestSolver(BaseTest):
 	def testArch(self):
 		host_arch = arch.get_host_architecture()
 		host_arch2 = arch.get_architecture(None, None)
-		self.assertEquals(host_arch.os_ranks, host_arch2.os_ranks)
-		self.assertEquals(host_arch.machine_ranks, host_arch2.machine_ranks)
+		self.assertEqual(host_arch.os_ranks, host_arch2.os_ranks)
+		self.assertEqual(host_arch.machine_ranks, host_arch2.machine_ranks)
 
 		other = arch.get_architecture('FooBar', 'i486')
-		self.assertEquals(2, len(other.os_ranks))
+		self.assertEqual(2, len(other.os_ranks))
 
 		assert 'FooBar' in other.os_ranks
 		assert None in other.os_ranks
@@ -153,7 +153,7 @@ class TestSolver(BaseTest):
 			impl = s.selections[iface]
 			selected.append(impl.get_version() + ' ' + impl.arch)
 			impl.arch = 'Foo-odd'		# prevent reselection
-		self.assertEquals([
+		self.assertEqual([
 			'0.2 Linux-i386',	# poor arch, but newest version
 			'0.1 Linux-x86_64',	# 64-bit is best match for host arch
 			'0.1 Linux-i686', '0.1 Linux-i586', '0.1 Linux-i486'],	# ordering of x86 versions
@@ -172,39 +172,39 @@ class TestSolver(BaseTest):
 			binary_arch = arch.get_architecture(None, 'arch_1')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEquals('sha1=1', s.selections[iface].id)
+			self.assertEqual('sha1=1', s.selections[iface].id)
 
 			# 6 is the newest, and close enough, even though not
 			# quite the right locale
 			binary_arch = arch.get_architecture(None, 'arch_2')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEquals('sha1=6', s.selections[iface].id)
+			self.assertEqual('sha1=6', s.selections[iface].id)
 
 			# 9 is the newest, although 7 is a closer match
 			binary_arch = arch.get_architecture(None, 'arch_3')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEquals('sha1=9', s.selections[iface].id)
+			self.assertEqual('sha1=9', s.selections[iface].id)
 
 			# 11 is the newest we understand
 			binary_arch = arch.get_architecture(None, 'arch_4')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEquals('sha1=11', s.selections[iface].id)
+			self.assertEqual('sha1=11', s.selections[iface].id)
 
 			# 13 is the newest we understand
 			binary_arch = arch.get_architecture(None, 'arch_5')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEquals('sha1=13', s.selections[iface].id)
+			self.assertEqual('sha1=13', s.selections[iface].id)
 
 			def check(target_arch, langs, expected):
 				s.langs = langs
 				binary_arch = arch.get_architecture(None, target_arch)
 				s.solve('http://foo/Langs.xml', binary_arch)
 				assert s.ready
-				self.assertEquals(expected, s.selections[iface].id)
+				self.assertEqual(expected, s.selections[iface].id)
 
 			# We don't understand any, so pick the newest
 			check('arch_2', ['es_ES'], 'sha1=6')

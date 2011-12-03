@@ -26,49 +26,49 @@ class TestSelections(BaseTest):
 		assert p.need_download()
 
 		def assertSel(s):
-			self.assertEquals('http://foo/Source.xml', s.interface)
-			self.assertEquals(2, len(s.selections))
+			self.assertEqual('http://foo/Source.xml', s.interface)
+			self.assertEqual(2, len(s.selections))
 
 			sels = [(sel.interface, sel) for sel in s.selections.values()]
 			sels.sort()
 			sels = [sel for uri,sel in sels]
 			
-			self.assertEquals('http://foo/Compiler.xml', sels[0].interface)
-			self.assertEquals('http://foo/Source.xml', sels[1].interface)
+			self.assertEqual('http://foo/Compiler.xml', sels[0].interface)
+			self.assertEqual('http://foo/Source.xml', sels[1].interface)
 
-			self.assertEquals("sha1=345", sels[0].id)
-			self.assertEquals("1.0", sels[0].version)
+			self.assertEqual("sha1=345", sels[0].id)
+			self.assertEqual("1.0", sels[0].version)
 
-			self.assertEquals('sha1=234', sels[1].id)
-			self.assertEquals("1.0", sels[1].version)
-			self.assertEquals("bar", sels[1].attrs['http://namespace foo'])
-			self.assertEquals("1.0", sels[1].attrs['version'])
+			self.assertEqual('sha1=234', sels[1].id)
+			self.assertEqual("1.0", sels[1].version)
+			self.assertEqual("bar", sels[1].attrs['http://namespace foo'])
+			self.assertEqual("1.0", sels[1].attrs['version'])
 			assert 'version-modifier' not in sels[1].attrs
 
-			self.assertEquals(0, len(sels[0].bindings))
-			self.assertEquals(0, len(sels[0].dependencies))
+			self.assertEqual(0, len(sels[0].bindings))
+			self.assertEqual(0, len(sels[0].dependencies))
 
-			self.assertEquals(1, len(sels[1].bindings))
-			self.assertEquals('.', sels[1].bindings[0].insert)
+			self.assertEqual(1, len(sels[1].bindings))
+			self.assertEqual('.', sels[1].bindings[0].insert)
 
-			self.assertEquals(1, len(sels[1].dependencies))
+			self.assertEqual(1, len(sels[1].dependencies))
 			dep = sels[1].dependencies[0]
-			self.assertEquals('http://foo/Compiler.xml', dep.interface)
-			self.assertEquals(3, len(dep.bindings))
-			self.assertEquals('bin', dep.bindings[0].insert)
-			self.assertEquals('PATH', dep.bindings[0].name)
-			self.assertEquals('prepend', dep.bindings[0].mode)
+			self.assertEqual('http://foo/Compiler.xml', dep.interface)
+			self.assertEqual(3, len(dep.bindings))
+			self.assertEqual('bin', dep.bindings[0].insert)
+			self.assertEqual('PATH', dep.bindings[0].name)
+			self.assertEqual('prepend', dep.bindings[0].mode)
 			assert dep.bindings[0].separator in ';:'
 
-			self.assertEquals('bin', dep.bindings[1].value)
-			self.assertEquals('NO_PATH', dep.bindings[1].name)
-			self.assertEquals(',', dep.bindings[1].separator)
+			self.assertEqual('bin', dep.bindings[1].value)
+			self.assertEqual('NO_PATH', dep.bindings[1].name)
+			self.assertEqual(',', dep.bindings[1].separator)
 
-			self.assertEquals('bin', dep.bindings[2].insert)
-			self.assertEquals('BINDIR', dep.bindings[2].name)
-			self.assertEquals('replace', dep.bindings[2].mode)
+			self.assertEqual('bin', dep.bindings[2].insert)
+			self.assertEqual('BINDIR', dep.bindings[2].name)
+			self.assertEqual('replace', dep.bindings[2].mode)
 
-			self.assertEquals(["sha1=345"], sels[0].digests)
+			self.assertEqual(["sha1=345"], sels[0].digests)
 
 		s1 = p.solver.selections
 		s1.selections['http://foo/Source.xml'].attrs['http://namespace foo'] = 'bar'
@@ -76,7 +76,7 @@ class TestSelections(BaseTest):
 
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(StringIO(xml))
-		self.assertEquals(namespaces.XMLNS_IFACE, root.uri)
+		self.assertEqual(namespaces.XMLNS_IFACE, root.uri)
 
 		s2 = selections.Selections(root)
 		assertSel(s2)
@@ -162,17 +162,17 @@ class TestSelections(BaseTest):
 		command_feed = os.path.join(mydir, 'old-selections.xml')
 		with open(command_feed) as stream:
 			s1 = selections.Selections(qdom.parse(stream))
-		self.assertEquals("run", s1.command)
-		self.assertEquals(2, len(s1.commands))
-		self.assertEquals("bin/java", s1.commands[1].path)
+		self.assertEqual("run", s1.command)
+		self.assertEqual(2, len(s1.commands))
+		self.assertEqual("bin/java", s1.commands[1].path)
 
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(StringIO(xml))
 		s2 = selections.Selections(root)
 
-		self.assertEquals("run", s2.command)
-		self.assertEquals(2, len(s2.commands))
-		self.assertEquals("bin/java", s2.commands[1].path)
+		self.assertEqual("run", s2.command)
+		self.assertEqual(2, len(s2.commands))
+		self.assertEqual("bin/java", s2.commands[1].path)
 
 
 if __name__ == '__main__':

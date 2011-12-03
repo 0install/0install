@@ -26,30 +26,30 @@ class TestWriter(BaseTest):
 		writer.save_feed(main_feed)
 
 		iface = model.Interface('http://test/test')
-		self.assertEquals(None, iface.stability_policy)
+		self.assertEqual(None, iface.stability_policy)
 		main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello')
 		self.config.iface_cache._feeds[iface.uri] = main_feed
 		reader.update_user_overrides(iface)
 		reader.update_user_feed_overrides(main_feed)
-		self.assertEquals(model.developer, iface.stability_policy)
-		self.assertEquals(100, main_feed.last_checked)
-		self.assertEquals("[<Feed from http://user-feed>]", str(iface.extra_feeds))
+		self.assertEqual(model.developer, iface.stability_policy)
+		self.assertEqual(100, main_feed.last_checked)
+		self.assertEqual("[<Feed from http://user-feed>]", str(iface.extra_feeds))
 
 		feed = iface.extra_feeds[0]
-		self.assertEquals('http://user-feed', feed.uri)
-		self.assertEquals('Linux', feed.os)
-		self.assertEquals(None, feed.machine)
+		self.assertEqual('http://user-feed', feed.uri)
+		self.assertEqual('Linux', feed.os)
+		self.assertEqual(None, feed.machine)
 
 	def testStoreNothing(self):
 		iface = model.Interface('http://test/test')
 		writer.save_interface(iface)
 
 		iface = model.Interface('http://test/test')
-		self.assertEquals(None, iface.stability_policy)
+		self.assertEqual(None, iface.stability_policy)
 		reader.update_user_overrides(iface)
 
 		feed = self.config.iface_cache.get_feed(iface.uri)
-		self.assertEquals(None, feed)
+		self.assertEqual(None, feed)
 
 	def testStoreStability(self):
 		main_feed = reader.load_feed('Hello.xml', local = True)
@@ -60,10 +60,10 @@ class TestWriter(BaseTest):
 		# Rating now visible
 		main_feed = reader.load_feed('Hello.xml', local = True)
 		reader.update_user_feed_overrides(main_feed)
-		self.assertEquals(1, len(main_feed.implementations))
+		self.assertEqual(1, len(main_feed.implementations))
 
 		impl = main_feed.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
-		self.assertEquals(model.developer, impl.user_stability)
+		self.assertEqual(model.developer, impl.user_stability)
 
 if __name__ == '__main__':
 	unittest.main()
