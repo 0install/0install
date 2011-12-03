@@ -176,15 +176,16 @@ def _detach():
 
 	return False
 
-def _check_for_updates(old_policy, verbose):
+def _check_for_updates(requirements, verbose):
 	from zeroinstall.injector.policy import Policy
 	from zeroinstall.injector.config import load_config
 
-	iface_cache = old_policy.config.iface_cache
-	root_iface = iface_cache.get_interface(old_policy.root).get_name()
+	background_handler = BackgroundHandler(requirements.interface_uri, requirements.interface_uri)
+	background_config = load_config(background_handler)
+	root_iface = background_config.iface_cache.get_interface(requirements.interface_uri).get_name()
+	background_handler.title = root_iface
 
-	background_config = load_config(BackgroundHandler(root_iface, old_policy.root))
-	policy = Policy(config = background_config, requirements = old_policy.requirements)
+	policy = Policy(config = background_config, requirements = requirements)
 
 	info(_("Checking for updates to '%s' in a background process"), root_iface)
 	if verbose:
@@ -219,27 +220,26 @@ def _check_for_updates(old_policy, verbose):
 	_exec_gui(policy.root, '--refresh', '--systray')
 	sys.exit(1)
 
-def spawn_background_update(policy, verbose):
+def spawn_background_update(driver, verbose):
 	"""Spawn a detached child process to check for updates.
-	@param policy: policy containing interfaces to update
-	@type policy: L{policy.Policy}
+	@param driver: driver containing interfaces to update
+	@type policy: L{driver.Driver}
 	@param verbose: whether to notify the user about minor events
-	@type verbose: bool"""
-	iface_cache = policy.config.iface_cache
+	@type verbose: bool
+	@since: 1.5 (used to take a Policy)"""
+	iface_cache = driver.config.iface_cache
 	# Mark all feeds as being updated. Do this before forking, so that if someone is
 	# running lots of 0launch commands in series on the same program we don't start
 	# huge numbers of processes.
-	for uri in policy.solver.selections.selections:
-		iface_cache.mark_as_checking(uri)			# Main feed
-		for f in policy.usable_feeds(iface_cache.get_interface(uri)):
-			iface_cache.mark_as_checking(f.uri)		# Extra feeds
+	for uri in driver.solver.feeds_used:
+		iface_cache.mark_as_checking(uri)
 
 	if _detach():
 		return
 
 	try:
 		try:
-			_check_for_updates(policy, verbose)
+			_check_for_updates(driver.requirements, verbose)
 		except SystemExit:
 			raise
 		except:

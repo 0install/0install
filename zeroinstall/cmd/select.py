@@ -13,7 +13,7 @@ import logging
 from zeroinstall import _
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, selections, requirements
-from zeroinstall.injector.policy import Policy
+from zeroinstall.injector.driver import Driver
 from zeroinstall.support import tasks
 
 syntax = "URI"
@@ -64,7 +64,7 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 	r = requirements.Requirements(iface_uri)
 	r.parse_options(options)
 
-	policy = Policy(config = config, requirements = r)
+	driver = Driver(config = config, requirements = r)
 
 	# Note that need_download() triggers a solve
 	if options.refresh or options.gui:
@@ -73,12 +73,12 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 	else:
 		if select_only:
 			# --select-only: we only care that we've made a selection, not that we've cached the implementations
-			policy.need_download()
-			can_run_immediately = policy.ready
+			driver.need_download()
+			can_run_immediately = driver.solver.ready
 		else:
-			can_run_immediately = not policy.need_download()
+			can_run_immediately = not driver.need_download()
 
-		stale_feeds = [feed for feed in policy.solver.feeds_used if
+		stale_feeds = [feed for feed in driver.solver.feeds_used if
 				not os.path.isabs(feed) and			# Ignore local feeds (note: file might be missing too)
 				not feed.startswith('distribution:') and	# Ignore (memory-only) PackageKit feeds
 				iface_cache.is_stale(iface_cache.get_feed(feed), config.freshness)]
@@ -88,14 +88,14 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 
 	if can_run_immediately:
 		if stale_feeds:
-			if policy.network_use == model.network_offline:
+			if config.network_use == model.network_offline:
 				logging.debug(_("No doing background update because we are in off-line mode."))
 			else:
 				# There are feeds we should update, but we can run without them.
 				# Do the update in the background while the program is running.
 				from zeroinstall.injector import background
-				background.spawn_background_update(policy, options.verbose > 0)
-		return policy.solver.selections
+				background.spawn_background_update(driver, options.verbose > 0)
+		return driver.solver.selections
 
 	# If the user didn't say whether to use the GUI, choose for them.
 	if options.gui is None and os.environ.get('DISPLAY', None):
@@ -106,7 +106,7 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 		logging.info(_("Switching to GUI mode... (use --console to disable)"))
 
 	if options.gui:
-		gui_args = policy.requirements.get_as_options()
+		gui_args = driver.requirements.get_as_options()
 		if download_only:
 			# Just changes the button's label
 			gui_args.append('--download-only')
@@ -129,11 +129,11 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 			return None		# Aborted
 	else:
 		# Note: --download-only also makes us stop and download stale feeds first.
-		downloaded = policy.solve_and_download_impls(refresh = options.refresh or download_only or False,
+		downloaded = driver.solve_and_download_impls(refresh = options.refresh or download_only or False,
 							     select_only = select_only)
 		if downloaded:
 			tasks.wait_for_blocker(downloaded)
-		sels = policy.solver.selections
+		sels = driver.solver.selections
 
 	return sels
 
