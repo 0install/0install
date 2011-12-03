@@ -120,7 +120,6 @@ class MainWindow:
 				missing = '\n- '.join([_('%(iface_name)s %(impl_version)s') % {'iface_name': iface.get_name(), 'impl_version': impl.get_version()} for iface, impl in uncached])
 				dialog.alert(self.window, _('Not all downloads succeeded; cannot run program.\n\nFailed to get:') + '\n- ' + missing)
 			else:
-				from zeroinstall.injector import selections
 				sels = self.policy.solver.selections
 				doc = sels.toDOM()
 				reply = doc.toxml('utf-8')

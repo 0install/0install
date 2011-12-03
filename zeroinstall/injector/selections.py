@@ -213,7 +213,6 @@ class Selections(object):
 				# 0launch 0.52 to 1.1
 				self.command = 'run'
 				iface = self.interface
-				last_command = None
 
 				for command in old_commands:
 					command.qdom.attrs['name'] = 'run'

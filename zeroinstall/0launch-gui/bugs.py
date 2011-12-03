@@ -10,7 +10,6 @@ import dialog
 import zeroinstall
 from zeroinstall import _
 from zeroinstall import support
-from zeroinstall.injector import selections
 
 def report_bug(policy, iface):
 	assert iface
@@ -192,7 +191,6 @@ class BugReporter(dialog.Dialog):
 				"\n\n- " . join(['%s version %s\n  (%s)' %(x[0].uri, x[1].get_version(), x[1].id) for x in uncached]))
 			return
 
-		from zeroinstall.injector import selections
 		sels = self.policy.solver.selections
 		doc = sels.toDOM()
 
