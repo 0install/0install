@@ -239,6 +239,82 @@ class Distribution(object):
 			self._packagekit = packagekit.PackageKit()
 		return self._packagekit
 
+class WindowsDistribution(Distribution):
+	def get_package_info(self, package, factory):
+		def _is_64bit_windows():
+			import sys
+			p = sys.platform
+			import platform
+			bits, linkage = platform.architecture()
+			from win32process import IsWow64Process
+			if p == 'win64' or (p == 'win32' and IsWow64Process()): return True
+			elif p == 'win32': return False
+			else: raise Exception(_("WindowsDistribution may only be used on the Windows platform"))
+
+		def _read_hklm_reg(key_name, value_name):
+			from win32api import RegOpenKeyEx, RegQueryValueEx, RegCloseKey
+			from win32con import HKEY_LOCAL_MACHINE, KEY_READ
+			KEY_WOW64_64KEY = 0x0100
+			KEY_WOW64_32KEY	= 0x0200
+			if _is_64bit_windows():
+				try:
+					key32 = RegOpenKeyEx(HKEY_LOCAL_MACHINE, key_name, 0, KEY_READ | KEY_WOW64_32KEY)
+					(value32, _) = RegQueryValueEx(key32, value_name)
+					RegCloseKey(key32)
+				except:
+					value32 = ''
+				try:
+					key64 = RegOpenKeyEx(HKEY_LOCAL_MACHINE, key_name, 0, KEY_READ | KEY_WOW64_64KEY)
+					(value64, _) = RegQueryValueEx(key64, value_name)
+					RegCloseKey(key64)
+				except:
+					value64 = ''
+			else:
+				try:
+					key32 = RegOpenKeyEx(HKEY_LOCAL_MACHINE, key_name, 0, KEY_READ)
+					(value32, _) = RegQueryValueEx(key32, value_name)
+					RegCloseKey(key32)
+				except:
+					value32 = ''
+				value64 = ''
+			return (value32, value64)
+
+		if package == 'openjdk-6-jre':
+			(java32_home, java64_home) = _read_hklm_reg(r"SOFTWARE\JavaSoft\Java Runtime Environment\1.6", "JavaHome")
+			import os.path
+
+			if os.path.isfile(java32_home + r"\bin\java.exe"):
+				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'i486'))
+				impl.machine = 'i486';
+				impl.version = model.parse_version('6')
+				impl.upstream_stability = model.packaged
+				impl.main = java32_home + r"\bin\java.exe"
+
+			if os.path.isfile(java64_home + r"\bin\java.exe"):
+				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'x86_64'))
+				impl.machine = 'x86_64';
+				impl.version = model.parse_version('6')
+				impl.upstream_stability = model.packaged
+				impl.main = java64_home + r"\bin\java.exe"
+
+		if package == 'openjdk-6-jdk':
+			(java32_home, java64_home) = _read_hklm_reg(r"SOFTWARE\JavaSoft\Java Development Kit\1.6", "JavaHome")
+			import os.path
+
+			if os.path.isfile(java32_home + r"\bin\java.exe"):
+				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'i486'))
+				impl.machine = 'i486';
+				impl.version = model.parse_version('6')
+				impl.upstream_stability = model.packaged
+				impl.main = java32_home + r"\bin\java.exe"
+
+			if os.path.isfile(java64_home + r"\bin\java.exe"):
+				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'x86_64'))
+				impl.machine = 'x86_64';
+				impl.version = model.parse_version('6')
+				impl.upstream_stability = model.packaged
+				impl.main = java64_home + r"\bin\java.exe"
+
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
 	an external command), we cache the results.
@@ -659,7 +735,9 @@ def get_host_distribution():
 		_pkg_db = '/var/db/pkg'
 		_macports_db = '/opt/local/var/macports/registry/registry.db'
 
-		if os.path.isdir(_pkg_db):
+		if os.name == "nt":
+			_host_distribution = WindowsDistribution()
+		elif os.path.isdir(_pkg_db):
 			if sys.platform.startswith("linux"):
 				_host_distribution = GentooDistribution(_pkg_db)
 			elif sys.platform.startswith("freebsd"):
