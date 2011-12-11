@@ -21,7 +21,7 @@ class GUIHandler(handler.Handler):
 		return False
 
 	def abort_all_downloads(self):
-		for dl in self.monitored_downloads.values():
+		for dl in self.monitored_downloads:
 			dl.abort()
 
 	def downloads_changed(self):

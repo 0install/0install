@@ -446,7 +446,7 @@ class InterfaceBrowser:
 		# A download may be for a feed, an interface or an implementation.
 		# Create the reverse mapping (item -> download)
 		hints = {}
-		for dl in self.policy.handler.monitored_downloads.values():
+		for dl in self.policy.handler.monitored_downloads:
 			if dl.hint:
 				if dl.hint not in hints:
 					hints[dl.hint] = []

@@ -155,7 +155,7 @@ class MainWindow:
 		done = total = self.policy.handler.total_bytes_downloaded	# Completed downloads
 		n_downloads = self.policy.handler.n_completed_downloads
 		# Now add downloads in progress...
-		for x in monitored_downloads.values():
+		for x in monitored_downloads:
 			if x.status != download.download_fetching: continue
 			n_downloads += 1
 			if x.expected_size:

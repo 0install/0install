@@ -5,7 +5,7 @@ Downloads feeds, keys, packages and icons.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, NeedDownload
 import os
 from logging import info, debug, warn
 
@@ -413,14 +413,10 @@ class Fetcher(object):
 			info(_('No PNG icons found in %s'), interface)
 			return
 
-		try:
-			dl = self.handler.monitored_downloads[source]
-			if dl and force:
-				dl.abort()
-				raise KeyError
-		except KeyError:
-			dl = download.Download(source, hint = interface, modification_time = modification_time)
-			self.handler.monitor_download(dl)
+		if self.handler.dry_run:
+			raise NeedDownload(source)
+		dl = download.Download(source, hint = interface, modification_time = modification_time)
+		self.handler.monitor_download(dl)
 
 		@tasks.async
 		def download_and_add_icon():

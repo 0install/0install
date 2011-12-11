@@ -28,8 +28,8 @@ class Handler(object):
 	"""
 	A Handler is used to interact with the user (e.g. to confirm keys, display download progress, etc).
 
-	@ivar monitored_downloads: dict of downloads in progress
-	@type monitored_downloads: {URL: L{download.Download}}
+	@ivar monitored_downloads: set of downloads in progress
+	@type monitored_downloads: {L{download.Download}}
 	@ivar n_completed_downloads: number of downloads which have finished for GUIs, etc (can be reset as desired).
 	@type n_completed_downloads: int
 	@ivar total_bytes_downloaded: informational counter for GUIs, etc (can be reset as desired). Updated when download finishes.
@@ -41,7 +41,7 @@ class Handler(object):
 	__slots__ = ['monitored_downloads', 'dry_run', 'total_bytes_downloaded', 'n_completed_downloads']
 
 	def __init__(self, mainloop = None, dry_run = False):
-		self.monitored_downloads = {}		
+		self.monitored_downloads = set()
 		self.dry_run = dry_run
 		self.n_completed_downloads = 0
 		self.total_bytes_downloaded = 0
@@ -50,7 +50,7 @@ class Handler(object):
 		"""Called when a new L{download} is started.
 		This is mainly used by the GUI to display the progress bar."""
 		dl.start()
-		self.monitored_downloads[dl.url] = dl
+		self.monitored_downloads.add(dl)
 		self.downloads_changed()
 
 		@tasks.async
@@ -60,7 +60,7 @@ class Handler(object):
 			try:
 				self.n_completed_downloads += 1
 				self.total_bytes_downloaded += dl.get_bytes_downloaded_so_far()
-				del self.monitored_downloads[dl.url]
+				self.monitored_downloads.remove(dl)
 				self.downloads_changed()
 			except Exception as ex:
 				self.report_error(ex)
@@ -83,28 +83,17 @@ class Handler(object):
 		tasks.wait_for_blocker(blocker)
 	
 	def get_download(self, url, force = False, hint = None, factory = None):
-		"""Return the Download object currently downloading 'url'.
-		If no download for this URL has been started, start one now (and
-		start monitoring it).
-		If the download failed and force is False, return it anyway.
-		If force is True, abort any current or failed download and start
-		a new one.
+		"""Create a Download object to download 'url'.
 		@rtype: L{download.Download}
 		"""
 		if self.dry_run:
 			raise NeedDownload(url)
 
-		try:
-			dl = self.monitored_downloads[url]
-			if dl and force:
-				dl.abort()
-				raise KeyError
-		except KeyError:
-			if factory is None:
-				dl = download.Download(url, hint)
-			else:
-				dl = factory(url, hint)
-			self.monitor_download(dl)
+		if factory is None:
+			dl = download.Download(url, hint)
+		else:
+			dl = factory(url, hint)
+		self.monitor_download(dl)
 		return dl
 
 	@tasks.async
@@ -237,8 +226,8 @@ class ConsoleHandler(Handler):
 				self.last_msg_len = None
 
 	def show_progress(self):
-		urls = self.monitored_downloads.keys()
-		if not urls: return True
+		if not self.monitored_downloads: return True
+		urls = [(dl.url, dl) for dl in self.monitored_downloads]
 
 		if self.disable_progress: return True
 
@@ -247,8 +236,7 @@ class ConsoleHandler(Handler):
 		url_width = item_width - 7
 
 		msg = ""
-		for url in sorted(urls):
-			dl = self.monitored_downloads[url]
+		for url, dl in sorted(urls):
 			so_far = dl.get_bytes_downloaded_so_far()
 			leaf = url.rsplit('/', 1)[-1]
 			if len(leaf) >= url_width:
