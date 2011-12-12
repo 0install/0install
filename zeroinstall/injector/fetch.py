@@ -38,14 +38,14 @@ class KeyInfoFetcher:
 
 	Example:
 
-	>>> kf = KeyInfoFetcher(handler, 'https://server', fingerprint)
+	>>> kf = KeyInfoFetcher(fetcher, 'https://server', fingerprint)
 	>>> while True:
 		print kf.info
 		if kf.blocker is None: break
 		print kf.status
 		yield kf.blocker
 	"""
-	def __init__(self, handler, server, fingerprint):
+	def __init__(self, fetcher, server, fingerprint):
 		self.fingerprint = fingerprint
 		self.info = []
 		self.blocker = None
@@ -54,7 +54,7 @@ class KeyInfoFetcher:
 
 		self.status = _('Fetching key information from %s...') % server
 
-		dl = handler.get_download(server + '/key/' + fingerprint)
+		dl = fetcher.download_url(server + '/key/' + fingerprint)
 
 		from xml.dom import minidom
 
@@ -167,25 +167,24 @@ class Fetcher(object):
 			# Force feed to be regenerated with the new information
 			self.config.iface_cache.get_feed(feed_url, force = True)
 
-	def download_and_import_feed(self, feed_url, iface_cache = None, force = False):
+	def download_and_import_feed(self, feed_url, iface_cache = None):
 		"""Download the feed, download any required keys, confirm trust if needed and import.
 		@param feed_url: the feed to be downloaded
 		@type feed_url: str
-		@param iface_cache: (deprecated)
-		@param force: whether to abort and restart an existing download"""
+		@param iface_cache: (deprecated)"""
 		from .download import DownloadAborted
 
 		assert iface_cache is None or iface_cache is self.config.iface_cache
 
 		self.config.iface_cache.mark_as_checking(feed_url)
 		
-		debug(_("download_and_import_feed %(url)s (force = %(force)d)"), {'url': feed_url, 'force': force})
+		debug(_("download_and_import_feed %(url)s"), {'url': feed_url})
 		assert not os.path.isabs(feed_url)
 
 		if feed_url.startswith('distribution:'):
 			return self.get_packagekit_feed(feed_url)
 
-		primary = self._download_and_import_feed(feed_url, force, use_mirror = False)
+		primary = self._download_and_import_feed(feed_url, use_mirror = False)
 
 		@tasks.named_async("monitor feed downloads for " + feed_url)
 		def wait_for_downloads(primary):
@@ -215,7 +214,7 @@ class Fetcher(object):
 				warn(_("Feed download from %(url)s failed: %(exception)s"), {'url': feed_url, 'exception': ex})
 
 			# Start downloading from mirror...
-			mirror = self._download_and_import_feed(feed_url, force, use_mirror = True)
+			mirror = self._download_and_import_feed(feed_url, use_mirror = True)
 
 			# Wait until both mirror and primary tasks are complete...
 			while True:
@@ -260,7 +259,7 @@ class Fetcher(object):
 
 		return wait_for_downloads(primary)
 
-	def _download_and_import_feed(self, feed_url, force, use_mirror):
+	def _download_and_import_feed(self, feed_url, use_mirror):
 		"""Download and import a feed.
 		@param use_mirror: False to use primary location; True to use mirror."""
 		if use_mirror:
@@ -270,7 +269,7 @@ class Fetcher(object):
 		else:
 			url = feed_url
 
-		dl = self.handler.get_download(url, force = force, hint = feed_url)
+		dl = self.download_url(url, hint = feed_url)
 		stream = dl.tempfile
 
 		@tasks.named_async("fetch_feed " + url)
@@ -286,7 +285,7 @@ class Fetcher(object):
 			else:
 				key_mirror = None
 
-			keys_downloaded = tasks.Task(pending.download_keys(self.handler, feed_hint = feed_url, key_mirror = key_mirror), _("download keys for %s") % feed_url)
+			keys_downloaded = tasks.Task(pending.download_keys(self, feed_hint = feed_url, key_mirror = key_mirror), _("download keys for %s") % feed_url)
 			yield keys_downloaded.finished
 			tasks.check(keys_downloaded.finished)
 
@@ -306,7 +305,7 @@ class Fetcher(object):
 		try:
 			return self.key_info[fingerprint]
 		except KeyError:
-			self.key_info[fingerprint] = key_info = KeyInfoFetcher(self.handler,
+			self.key_info[fingerprint] = key_info = KeyInfoFetcher(self,
 									self.config.key_info_server, fingerprint)
 			return key_info
 
@@ -366,6 +365,7 @@ class Fetcher(object):
 		stores.add_archive_to_cache(required_digest, stream, retrieval_method.url, retrieval_method.extract,
 						 type = retrieval_method.type, start_offset = retrieval_method.start_offset or 0)
 
+	# (force is deprecated and ignored)
 	def download_archive(self, download_source, force = False, impl_hint = None):
 		"""Fetch an archive. You should normally call L{download_impl}
 		instead, since it handles other kinds of retrieval method too."""
@@ -381,16 +381,17 @@ class Fetcher(object):
 		if not mime_type:
 			raise SafeException(_("No 'type' attribute on archive, and I can't guess from the name (%s)") % download_source.url)
 		unpack.check_type_ok(mime_type)
-		dl = self.handler.get_download(download_source.url, force = force, hint = impl_hint)
+		dl = self.download_url(download_source.url, hint = impl_hint)
 		dl.expected_size = download_source.size + (download_source.start_offset or 0)
 		return (dl.downloaded, dl.tempfile)
 
+	# (force is deprecated and ignored)
 	def download_icon(self, interface, force = False):
 		"""Download an icon for this interface and add it to the
 		icon cache. If the interface has no icon do nothing.
 		@return: the task doing the import, or None
 		@rtype: L{tasks.Task}"""
-		debug("download_icon %(interface)s (force = %(force)d)", {'interface': interface, 'force': force})
+		debug("download_icon %(interface)s", {'interface': interface})
 
 		modification_time = None
 		existing_icon = self.config.iface_cache.get_icon_path(interface)
@@ -413,10 +414,7 @@ class Fetcher(object):
 			info(_('No PNG icons found in %s'), interface)
 			return
 
-		if self.handler.dry_run:
-			raise NeedDownload(source)
-		dl = download.Download(source, hint = interface, modification_time = modification_time)
-		self.handler.monitor_download(dl)
+		dl = self.download_url(source, hint = interface, modification_time = modification_time)
 
 		@tasks.async
 		def download_and_add_icon():
@@ -500,3 +498,17 @@ class Fetcher(object):
 			return impl.download_sources[0]
 		return None
 
+	def download_url(self, url, hint = None, modification_time = None):
+		"""The most low-level method here; just download a raw URL.
+		@param url: the location to download from
+		@param hint: user-defined data to store on the Download (e.g. used by the GUI)
+		@param modification_time: don't download unless newer than this
+		@rtype: L{download.Download}
+		@since: 1.5
+		"""
+		if self.handler.dry_run:
+			raise NeedDownload(url)
+
+		dl = download.Download(url, hint = hint, modification_time = modification_time)
+		self.handler.monitor_download(dl)
+		return dl

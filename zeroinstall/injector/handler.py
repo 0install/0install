@@ -86,6 +86,8 @@ class Handler(object):
 		"""Create a Download object to download 'url'.
 		@rtype: L{download.Download}
 		"""
+		import warnings
+		warnings.warn("Handler.get_download is deprecated (use Fetcher.download_url instead)", DeprecationWarning, stacklevel = 2)
 		if self.dry_run:
 			raise NeedDownload(url)
 
@@ -95,6 +97,10 @@ class Handler(object):
 			dl = factory(url, hint)
 		self.monitor_download(dl)
 		return dl
+
+	# Allows code that used to take a Handler and now expects a Fetcher to
+	# cope if it gets passed a Handler from some old code.
+	download_url = get_download
 
 	@tasks.async
 	def confirm_import_feed(self, pending, valid_sigs):

@@ -24,8 +24,6 @@ def handle(config, options, args):
 	if not args:
 		raise UsageError()
 
-	h = config.handler
-
 	for x in args:
 		if not os.path.isfile(x):
 			raise SafeException(_("File '%s' does not exist") % x)
@@ -42,7 +40,7 @@ def handle(config, options, args):
 		pending = PendingFeed(uri, signed_data)
 
 		def run():
-			keys_downloaded = tasks.Task(pending.download_keys(h), "download keys")
+			keys_downloaded = tasks.Task(pending.download_keys(config.fetcher), "download keys")
 			yield keys_downloaded.finished
 			tasks.check(keys_downloaded.finished)
 			if not config.iface_cache.update_feed_if_trusted(uri, pending.sigs, pending.new_xml):

@@ -76,12 +76,12 @@ class PendingFeed(object):
 		self.signed_data = signed_data
 		self.recheck()
 
-	def download_keys(self, handler, feed_hint = None, key_mirror = None):
+	def download_keys(self, fetcher, feed_hint = None, key_mirror = None):
 		"""Download any required GPG keys not already on our keyring.
 		When all downloads are done (successful or otherwise), add any new keys
 		to the keyring, L{recheck}.
-		@param handler: handler to manage the download
-		@type handler: L{handler.Handler}
+		@param fetcher: fetcher to manage the download (was Handler before version 1.5)
+		@type fetcher: L{fetcher.Fetcher}
 		@param key_mirror: URL of directory containing keys, or None to use feed's directory
 		@type key_mirror: str
 		"""
@@ -93,7 +93,7 @@ class PendingFeed(object):
 				import urlparse
 				key_url = urlparse.urljoin(key_mirror or self.url, '%s.gpg' % key_id)
 				info(_("Fetching key from %s"), key_url)
-				dl = handler.get_download(key_url, hint = feed_hint)
+				dl = fetcher.download_url(key_url, hint = feed_hint)
 				downloads[dl.downloaded] = (dl, dl.tempfile)
 				blockers.append(dl.downloaded)
 

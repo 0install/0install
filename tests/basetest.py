@@ -67,11 +67,6 @@ class DummyHandler(handler.Handler):
 		self.ex = None
 		self.allow_downloads = False
 
-	def get_download(self, url, force = False, hint = None, factory = None):
-		if self.allow_downloads:
-			return handler.Handler.get_download(self, url, force, hint, factory)
-		raise model.SafeException("DummyHandler: " + url)
-
 	def wait_for_blocker(self, blocker):
 		self.ex = None
 		handler.Handler.wait_for_blocker(self, blocker)
