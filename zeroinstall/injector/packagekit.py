@@ -81,10 +81,9 @@ class PackageKit(object):
 
 			def install(handler):
 				packagekit_id = candidate['packagekit_id']
-				def download_factory(url, hint):
-					return PackageKitDownload(url, hint, pk = self.pk, packagekit_id = packagekit_id)
-				dl = handler.get_download('packagekit:' + packagekit_id, factory = download_factory, hint = impl)
+				dl = PackageKitDownload('packagekit:' + packagekit_id, hint = impl, pk = self.pk, packagekit_id = packagekit_id)
 				dl.expected_size = candidate['size']
+				handler.monitor_download(dl)
 				return dl.downloaded
 			impl.download_sources.append(model.DistributionSource(package_name, candidate['size'], install))
 
