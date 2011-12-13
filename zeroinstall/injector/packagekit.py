@@ -81,8 +81,7 @@ class PackageKit(object):
 
 			def install(handler):
 				packagekit_id = candidate['packagekit_id']
-				dl = PackageKitDownload('packagekit:' + packagekit_id, hint = impl, pk = self.pk, packagekit_id = packagekit_id)
-				dl.expected_size = candidate['size']
+				dl = PackageKitDownload('packagekit:' + packagekit_id, hint = impl, pk = self.pk, packagekit_id = packagekit_id, expected_size = candidate['size'])
 				handler.monitor_download(dl)
 				return dl.downloaded
 			impl.download_sources.append(model.DistributionSource(package_name, candidate['size'], install))
@@ -176,24 +175,20 @@ class PackageKit(object):
 			in_progress = [b for b in in_progress if not b.happened]
 
 class PackageKitDownload:
-	def __init__(self, url, hint, pk, packagekit_id):
+	def __init__(self, url, hint, pk, packagekit_id, expected_size):
 		self.url = url
-		self.status = download.download_starting
+		self.status = download.download_fetching
 		self.hint = hint
 		self.aborted_by_user = False
 
 		self.downloaded = None
 
-		self.expected_size = None	# Final size (excluding skipped bytes)
+		self.expected_size = expected_size
 
 		self.packagekit_id = packagekit_id
 		self._impl = hint
 		self._transaction = None
 		self.pk = pk
-
-	def start(self):
-		assert self.status == download.download_starting
-		assert self.downloaded is None
 
 		def error_cb(sender):
 			self.status = download.download_failed
@@ -215,7 +210,6 @@ class PackageKitDownload:
 
 		_auth_wrapper(install_packages)
 
-		self.status = download.download_fetching
 		self.downloaded = tasks.Blocker('PackageKit install %s' % self.packagekit_id)
 
 	def abort(self):

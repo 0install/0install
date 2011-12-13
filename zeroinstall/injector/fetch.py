@@ -499,7 +499,7 @@ class Fetcher(object):
 			return impl.download_sources[0]
 		return None
 
-	def download_url(self, url, hint = None, modification_time = None):
+	def download_url(self, url, hint = None, modification_time = None, expected_size = None):
 		"""The most low-level method here; just download a raw URL.
 		@param url: the location to download from
 		@param hint: user-defined data to store on the Download (e.g. used by the GUI)
@@ -510,6 +510,6 @@ class Fetcher(object):
 		if self.handler.dry_run:
 			raise NeedDownload(url)
 
-		dl = download.Download(url, hint = hint, modification_time = modification_time)
+		dl = download.Download(url, hint = hint, modification_time = modification_time, expected_size = expected_size)
 		self.handler.monitor_download(dl)
 		return dl

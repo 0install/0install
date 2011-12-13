@@ -49,7 +49,6 @@ class Handler(object):
 	def monitor_download(self, dl):
 		"""Called when a new L{download} is started.
 		This is mainly used by the GUI to display the progress bar."""
-		dl.start()
 		self.monitored_downloads.add(dl)
 		self.downloads_changed()
 
