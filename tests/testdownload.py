@@ -282,7 +282,7 @@ class TestDownload(BaseTest):
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
-			run_server(('HelloWorld.tar.bz2', 'dummy_1-1_all.deb'))
+			run_server(('HelloWorld.tar.bz2', 'redirect/dummy_1-1_all.deb', 'dummy_1-1_all.deb'))
 			policy = Policy(os.path.abspath('Recipe.xml'), config = self.config)
 			try:
 				download_and_execute(policy, [])

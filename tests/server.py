@@ -22,6 +22,12 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 	def do_GET(self):
 		parsed = urlparse.urlparse(self.path)
 
+		print(parsed)
+		if parsed.path.startswith('/redirect/'):
+			self.send_response(302)
+			self.wfile.write('Location: /' + parsed.path[1:].split('/', 1)[1])
+			return
+
 		leaf = os.path.basename(parsed.path)
 
 		acceptable = dict([(str(x), x) for x in next_step])

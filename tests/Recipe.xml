@@ -6,7 +6,7 @@
   <implementation id='sha1=e5a72a9c46eaf767ba93babe51babe399a64e232' version='0.1' main='HelloWorld/Missing'>
     <recipe>
      <archive href='http://localhost:8000/HelloWorld.tar.bz2' size='185' type='application/x-bzip-compressed-tar'/>
-     <archive href='http://localhost:8000/dummy_1-1_all.deb' size='1002' start-offset='0'/>
+     <archive href='http://localhost:8000/redirect/dummy_1-1_all.deb' size='1002' start-offset='0'/>
     </recipe>
   </implementation>
 </interface>
