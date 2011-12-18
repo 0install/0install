@@ -198,7 +198,8 @@ class BaseTest(unittest.TestCase):
 		my_dbus.system_services = {}
 
 	def tearDown(self):
-		assert self.config.handler.ex is None, self.config.handler.ex
+		if self.config.handler.ex:
+			support.raise_with_traceback(self.config.handler.ex, self.config.handler.tb)
 
 		shutil.rmtree(self.config_home)
 		support.ro_rmtree(self.cache_home)

@@ -88,5 +88,5 @@ def ro_rmtree(root):
 def raise_with_traceback(ex, tb):
 	if hasattr(ex, 'with_traceback'):
 		raise ex.with_traceback(tb)			# Python 3
-	eval("raise ex, None, tb", {'ex': ex, 'tb': tb})	# Python 2
+	exec("raise ex, None, tb", {'ex': ex, 'tb': tb})	# Python 2
 	assert 0

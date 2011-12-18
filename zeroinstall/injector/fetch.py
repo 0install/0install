@@ -477,14 +477,15 @@ class Fetcher(object):
 				if error:
 					self.handler.report_error(ex)
 				else:
-					error.append(ex)
+					error.append((ex, tb))
 			while blockers:
 				yield blockers
 				tasks.check(blockers, dl_error)
 
 				blockers = [b for b in blockers if not b.happened]
 			if error:
-				raise error[0]
+				from zeroinstall import support
+				support.raise_with_traceback(*error[0])
 
 		if not to_download:
 			return None
