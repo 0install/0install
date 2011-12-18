@@ -21,10 +21,10 @@ download_fetching = "fetching"	# In progress
 download_complete = "complete"	# Downloaded and cached OK
 download_failed = "failed"
 
-# NB: duplicated in _download_child.py
 RESULT_OK = 0
 RESULT_FAILED = 1
 RESULT_NOT_MODIFIED = 2
+RESULT_REDIRECT = 3
 
 class DownloadError(SafeException):
 	"""Download process failed."""
@@ -87,28 +87,48 @@ class Download(object):
 		"""Will trigger L{downloaded} when done (on success or failure)."""
 		from ._download_child import download_in_thread
 
-		result = []
-		thread_blocker = tasks.Blocker("wait for thread " + self.url)
-		def notify_done(status, ex = None):
-			result.append(status)
-			def wake_up_main():
-				thread_blocker.trigger(ex)
-				return False
-			gobject.idle_add(wake_up_main)
-		child = threading.Thread(target = lambda: download_in_thread(self.url, self.tempfile, self.modification_time, notify_done))
-		child.daemon = True
-		child.start()
+		# (changed if we get redirected)
+		current_url = self.url
 
-		# Wait for child to complete download.
-		yield thread_blocker
+		redirections_remaining = 10
 
-		# Download is complete...
-		child.join()
+		while True:
+			result = []
+			thread_blocker = tasks.Blocker("wait for thread " + current_url)
+			def notify_done(status, ex = None, redirect = None):
+				result.append((status, redirect))
+				def wake_up_main():
+					thread_blocker.trigger(ex)
+					return False
+				gobject.idle_add(wake_up_main)
+			child = threading.Thread(target = lambda: download_in_thread(current_url, self.tempfile, self.modification_time, notify_done))
+			child.daemon = True
+			child.start()
+
+			# Wait for child to complete download.
+			yield thread_blocker
+
+			# Download is complete...
+			child.join()
+
+			(status, redirect), = result
+
+			if status != RESULT_REDIRECT:
+				assert not redirect, redirect
+				break
+
+			assert redirect
+			current_url = redirect
+
+			if redirections_remaining == 0:
+				raise DownloadError("Too many redirections {url} -> {current}".format(
+						url = self.url,
+						current = current_url))
+			redirections_remaining -= 1
+			# (else go around the loop again)
 
 		assert self.status is download_fetching
 		assert self.tempfile is not None
-
-		status, = result
 
 		if status == RESULT_NOT_MODIFIED:
 			debug("%s not modified", self.url)

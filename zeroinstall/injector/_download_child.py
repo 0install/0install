@@ -27,16 +27,34 @@ for ca_bundle in ["/etc/ssl/certs/ca-certificates.crt",	# Debian/Ubuntu/Arch Lin
 
 			def getConnection(self, host, timeout=300):
 				return ValidatingHTTPSConnection(host)
-
-		urlopener = urllib2.build_opener(ValidatingHTTPSHandler)
-
-		# Builds an opener that overrides the default HTTPS handler with our one
-		_my_urlopen = urllib2.build_opener(ValidatingHTTPSHandler()).open
+		MyHTTPSHandler = ValidatingHTTPSHandler
 		break
 else:
 	from logging import warn
 	warn("No root CA's found; security of HTTPS connections cannot be verified")
-	_my_urlopen = urllib2.urlopen
+	MyHTTPSHandler = urllib2.HTTPSHandler
+
+class Redirect(Exception):
+	def __init__(self, req):
+		Exception.__init__(self, "Redirect")
+		self.req = req
+
+class MyRedirectHandler(urllib2.HTTPRedirectHandler):
+	"""Throw an exception on redirects instead of continuing. The redirect will be handled in the main thread
+	so it can work with connection pooling."""
+	def redirect_request(self, req, fp, code, msg, headers, newurl):
+		new_req = urllib2.HTTPRedirectHandler.redirect_request(self, req, fp, code, msg, headers, newurl)
+		if new_req:
+			raise Redirect(new_req)
+
+# Our handler differs from the Python default in that:
+# - we don't support file:// URLs
+# - we don't follow HTTP redirects
+_my_urlopen = urllib2.OpenerDirector()
+for klass in [urllib2.ProxyHandler, urllib2.UnknownHandler, urllib2.HTTPHandler,
+                       urllib2.HTTPDefaultErrorHandler, MyRedirectHandler,
+		       urllib2.FTPHandler, urllib2.HTTPErrorProcessor, MyHTTPSHandler]:
+	_my_urlopen.add_handler(klass())
 
 def download_in_thread(url, target_file, if_modified_since, notify_done):
 	try:
@@ -45,7 +63,7 @@ def download_in_thread(url, target_file, if_modified_since, notify_done):
 			req = urllib2.Request(url)
 			if url.startswith('http:') and if_modified_since:
 				req.add_header('If-Modified-Since', if_modified_since)
-			src = _my_urlopen(req)
+			src = _my_urlopen.open(req)
 		else:
 			raise Exception(_('Unsupported URL protocol in: %s') % url)
 
@@ -67,6 +85,8 @@ def download_in_thread(url, target_file, if_modified_since, notify_done):
 			#print >>sys.stderr, "Error downloading '" + url + "': " + (str(ex) or str(ex.__class__.__name__))
 			__, ex, tb = sys.exc_info()
 			notify_done(download.RESULT_FAILED, (download.DownloadError(_('Error downloading {url}: {ex}').format(url = url, ex = ex)), tb))
+	except Redirect as ex:
+		notify_done(download.RESULT_REDIRECT, redirect = ex.req.get_full_url())
 	except Exception as ex:
 		__, ex, tb = sys.exc_info()
 		notify_done(download.RESULT_FAILED, (ex, tb))
