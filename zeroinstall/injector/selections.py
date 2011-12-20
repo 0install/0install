@@ -316,11 +316,14 @@ class Selections(object):
 	def __repr__(self):
 		return "Selections for " + self.interface
 
-	def download_missing(self, config, _old = None):
+	def download_missing(self, config, _old = None, include_packages = False):
 		"""Check all selected implementations are available.
-		Download any that are not present.
+		Download any that are not present. Since native distribution packages are usually
+		only available in a single version, which is unlikely to be the one in the
+		selections document, we ignore them by default.
 		Note: package implementations (distribution packages) are ignored.
 		@param config: used to get iface_cache, stores and fetcher
+		@param include_packages: also try to install native packages (since 1.5)
 		@return: a L{tasks.Blocker} or None"""
 		from zeroinstall.zerostore import NotStored
 
@@ -331,13 +334,22 @@ class Selections(object):
 		stores = config.stores
 
 		# Check that every required selection is cached
-		needed_downloads = []
-		for sel in self.selections.values():
-			if (not sel.local_path) and (not sel.id.startswith('package:')):
+		def needs_download(sel):
+			if sel.id.startswith('package:'):
+				if not include_packages: return False
+				feed = iface_cache.get_feed(sel.feed)
+				if not feed: return False
+				impl = feed.implementations.get(sel.id, None)
+				return impl is None or not impl.installed
+			elif sel.local_path:
+				return False
+			else:
 				try:
 					stores.lookup_any(sel.digests)
 				except NotStored:
-					needed_downloads.append(sel)
+					return True
+
+		needed_downloads = list(filter(needs_download, self.selections.values()))
 		if not needed_downloads:
 			return
 
