@@ -4,6 +4,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import gtk
+from zeroinstall.support import tasks
 
 class Template:
 	"""Wrapper for GtkBuilder widget tree that throws a sensible exception if the widget isn't found."""
@@ -76,3 +77,48 @@ def get_busy_pointer():
 		#old bug http://bugzilla.gnome.org/show_bug.cgi?id=103616
 		_busy_pointer = gtk.gdk.Cursor(gtk.gdk.WATCH)
 	return _busy_pointer
+
+class DialogResponse(tasks.Blocker):
+	"""Triggers when the GtkDialog gets a response.
+	@since: 1.5"""
+	response = None
+	def __init__(self, dialog):
+		tasks.Blocker.__init__(self, dialog.get_title())
+		a = None
+		def response(d, resp):
+			self.response = resp
+			d.disconnect(a)
+			self.trigger()
+		a = dialog.connect('response', response)
+
+class ButtonClickedBlocker(tasks.Blocker):
+	"""Triggers when the GtkButton is activated.
+	@since: 1.5"""
+	def __init__(self, button):
+		tasks.Blocker.__init__(self, "Button click")
+		a = None
+		def clicked(b):
+			b.disconnect(a)
+			self.trigger()
+		a = button.connect('clicked', lambda b: self.trigger())
+
+def MixedButton(message, stock, x_align = 0.5, button = None):
+	"""A GtkButton with a stock icon.
+	@since: 1.5"""
+	if button is None:
+		button = gtk.Button()
+
+	label = gtk.Label('')
+	label.set_text_with_mnemonic(message)
+	label.set_mnemonic_widget(button)
+
+	image = gtk.image_new_from_stock(stock, gtk.ICON_SIZE_BUTTON)
+	box = gtk.HBox(False, 2)
+	align = gtk.Alignment(x_align, 0.5, 0.0, 0.0)
+
+	box.pack_start(image, False, False, 0)
+	box.pack_end(label, False, False, 0)
+
+	button.add(align)
+	align.add(box)
+	return button
