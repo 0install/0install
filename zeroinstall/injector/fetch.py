@@ -85,16 +85,24 @@ class Fetcher(object):
 	@ivar key_info: caches information about GPG keys
 	@type key_info: {str: L{KeyInfoFetcher}}
 	"""
-	__slots__ = ['config', 'key_info']
+	__slots__ = ['config', 'key_info', '_scheduler']
 
 	def __init__(self, config):
 		assert config.handler, "API change!"
 		self.config = config
 		self.key_info = {}
+		self._scheduler = None
 
 	@property
 	def handler(self):
 		return self.config.handler
+
+	@property
+	def scheduler(self):
+		if self._scheduler is None:
+			from . import scheduler
+			self._scheduler = scheduler.DownloadScheduler()
+		return self._scheduler
 
 	@tasks.async
 	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None):
@@ -512,4 +520,5 @@ class Fetcher(object):
 
 		dl = download.Download(url, hint = hint, modification_time = modification_time, expected_size = expected_size)
 		self.handler.monitor_download(dl)
+		dl.downloaded = self.scheduler.download(dl)
 		return dl

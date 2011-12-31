@@ -56,7 +56,7 @@ class Download(object):
 	"""
 	__slots__ = ['url', 'tempfile', 'status', 'expected_size', 'downloaded',
 		     'hint', '_final_total_size', 'aborted_by_user',
-		     'modification_time', 'unmodified']
+		     'modification_time', 'unmodified', '_aborted']
 
 	def __init__(self, url, hint = None, modification_time = None, expected_size = None):
 		"""Create a new download object.
@@ -67,7 +67,7 @@ class Download(object):
 		@postcondition: L{status} == L{download_fetching}."""
 		self.url = url
 		self.hint = hint
-		self.aborted_by_user = False
+		self.aborted_by_user = False		# replace with _aborted?
 		self.modification_time = modification_time
 		self.unmodified = False
 
@@ -80,55 +80,12 @@ class Download(object):
 		self.status = download_fetching
 		self.tempfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
 
-		task = tasks.Task(self._do_download(), "download " + self.url)
-		self.downloaded = task.finished
+		self._aborted = tasks.Blocker("abort " + url)
 
-	def _do_download(self):
-		"""Will trigger L{downloaded} when done (on success or failure)."""
-		from ._download_child import download_in_thread
-
-		# (changed if we get redirected)
-		current_url = self.url
-
-		redirections_remaining = 10
-
-		while True:
-			result = []
-			thread_blocker = tasks.Blocker("wait for thread " + current_url)
-			def notify_done(status, ex = None, redirect = None):
-				result.append((status, redirect))
-				def wake_up_main():
-					thread_blocker.trigger(ex)
-					return False
-				gobject.idle_add(wake_up_main)
-			child = threading.Thread(target = lambda: download_in_thread(current_url, self.tempfile, self.modification_time, notify_done))
-			child.daemon = True
-			child.start()
-
-			# Wait for child to complete download.
-			yield thread_blocker
-
-			# Download is complete...
-			child.join()
-
-			(status, redirect), = result
-
-			if status != RESULT_REDIRECT:
-				assert not redirect, redirect
-				break
-
-			assert redirect
-			current_url = redirect
-
-			if redirections_remaining == 0:
-				raise DownloadError("Too many redirections {url} -> {current}".format(
-						url = self.url,
-						current = current_url))
-			redirections_remaining -= 1
-			# (else go around the loop again)
-
+	def _finish(self, status):
 		assert self.status is download_fetching
 		assert self.tempfile is not None
+		assert not self.aborted_by_user
 
 		if status == RESULT_NOT_MODIFIED:
 			debug("%s not modified", self.url)
@@ -136,21 +93,13 @@ class Download(object):
 			self.unmodified = True
 			self.status = download_complete
 			self._final_total_size = 0
-			self.downloaded.trigger()
 			return
 
 		self._final_total_size = self.get_bytes_downloaded_so_far()
 
 		self.tempfile = None
 
-		if self.aborted_by_user:
-			assert self.downloaded.happened
-			raise DownloadAborted()
-
 		try:
-
-			tasks.check(thread_blocker)
-
 			assert status == RESULT_OK
 
 			# Check that the download has the correct size, if we know what it should be.
@@ -162,11 +111,9 @@ class Download(object):
 							'Received: %(size)d bytes') % {'url': self.url, 'expected_size': self.expected_size, 'size': self._final_total_size})
 		except:
 			self.status = download_failed
-			_unused, ex, tb = sys.exc_info()
-			self.downloaded.trigger(exception = (ex, tb))
+			raise
 		else:
 			self.status = download_complete
-			self.downloaded.trigger()
 	
 	def abort(self):
 		"""Signal the current download to stop.
@@ -183,7 +130,7 @@ class Download(object):
 			self.aborted_by_user = True
 			self.tempfile.close()
 			self.tempfile = None
-			self.downloaded.trigger((DownloadAborted(), None))
+			self._aborted.trigger()
 
 	def get_current_fraction(self):
 		"""Returns the current fraction of this download that has been fetched (from 0 to 1),
