@@ -81,7 +81,7 @@ class PendingFeed(object):
 		When all downloads are done (successful or otherwise), add any new keys
 		to the keyring, L{recheck}.
 		@param fetcher: fetcher to manage the download (was Handler before version 1.5)
-		@type fetcher: L{fetcher.Fetcher}
+		@type fetcher: L{fetch.Fetcher}
 		@param key_mirror: URL of directory containing keys, or None to use feed's directory
 		@type key_mirror: str
 		"""
@@ -519,7 +519,7 @@ class IfaceCache(object):
 		return [self.get_interface(uri) for uri in feed_targets]
 
 	def is_stale(self, feed, freshness_threshold):
-		"""Check whether feed needs updating, based on the configured L{freshness}.
+		"""Check whether feed needs updating, based on the configured L{config.Config.freshness}.
 		None is considered to be stale.
 		If we already tried to update the feed within FAILED_CHECK_DELAY, returns false.
 		@return: True if feed should be updated

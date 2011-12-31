@@ -28,6 +28,8 @@ class Config(object):
 	@type key_info_server: str
 	@ivar feed_mirror: the base URL of a mirror site for keys and feeds
 	@type feed_mirror: str | None
+	@ivar freshness: seconds since a feed was last checked before it is considered stale
+	@type freshness: int
 	"""
 
 	__slots__ = ['help_with_testing', 'freshness', 'network_use', 'feed_mirror', 'key_info_server', 'auto_approve_keys',

@@ -8,13 +8,13 @@ while the user does other things. There are four ways to do this:
  - Use a recursive mainloop.
  - Use this module.
 
-Using threads causes a number of problems. Some builds of pygtk/python don't
-support them, they introduce race conditions, often lead to many subtle
-bugs, and they require lots of resources (you probably wouldn't want 10,000
-threads running at once). In particular, two threads can run at exactly the
-same time (perhaps on different processors), so you have to be really careful
-that they don't both try to update the same variable at the same time. This
-requires lots of messy locking, which is hard to get right.
+Using threads causes a number of problems: they introduce race conditions,
+often lead to many subtle bugs, and they require lots of resources (you
+probably wouldn't want 10,000 threads running at once). In particular, two
+threads can run at exactly the same time (perhaps on different processors), so
+you have to be really careful that they don't both try to update the same
+variables at the same time. This requires lots of messy locking, which is hard
+to get right.
 
 Callbacks work within a single thread. For example, you open a dialog box and
 then tell the system to call one function if it's closed, and another if the
@@ -26,11 +26,9 @@ save state somewhere and then pass it to the functions when they're called.
 
 A recursive mainloop only works with nested tasks (you can create a
 sub-task, but the main task can't continue until the sub-task has
-finished). We use these for, eg, rox.alert() boxes since you don't
-normally want to do anything else until the box is closed, but it is not
-appropriate for long-running jobs.
+finished), so they are not appropriate for long-running jobs.
 
-Tasks use python's generator API to provide a more pleasant interface to
+Tasks use Python's generator API to provide a more pleasant interface to
 callbacks. See the Task class (below) for more information.
 """
 

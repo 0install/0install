@@ -1,7 +1,5 @@
 """
-This class brings together a L{solve.Solver} to choose a set of implmentations, a
-L{fetch.Fetcher} to download additional components, and the user's configuration
-settings.
+@deprecated: see L{driver} instead.
 """
 
 # Copyright (C) 2009, Thomas Leonard
