@@ -57,7 +57,7 @@ default).
 If $DISPLAY is set, 0install will display a window where you can confirm (or
 change) the selected versions.
 
-It will then download the corresponding archives for those version and store
+It will then download the corresponding archives for those versions and store
 them in the cache too. Each package unpacks to its own directory.
 
 Finally, 0install will launch the program, setting environment variables to
@@ -72,7 +72,7 @@ However, there are some options that apply to all operations. These are:
 
 .TP
 \fB\-c\fP, \fB\-\-console\fP
-Never use the GUI. Normally, 0launch switches to graphical mode if it needs to
+Never use the GUI. Normally, 0install switches to graphical mode if it needs to
 download anything from the network (unless DISPLAY is not set).
 
 .TP
@@ -100,7 +100,7 @@ of DIR contains the contents of one version of a program or library.
 
 .PP
 Select a version of the program identified by URI, and compatible versions of
-all of its dependencies. The information about available version is
+all of its dependencies. The information about available versions is
 downloaded if it's not yet in the cache.
 
 .PP
@@ -113,7 +113,7 @@ known and trusted, you will be prompted to accept it first. Local feed files
 are not signed (any signature will be ignored).
 
 .PP
-You can also specificy a local selections document, as created previously using
+You can also specify a local selections document, as created previously using
 the \fB\-\-xml\fP option, rather than a feed. In that case, 0install simply
 uses those versions without running the solver.
 
@@ -374,7 +374,7 @@ See the 0store(1) man page for more information.
 
 .SH LICENSE
 .PP
-Copyright (C) 2010 Thomas Leonard.
+Copyright (C) 2011 Thomas Leonard.
 
 .PP
 You may redistribute copies of this program under the terms of the GNU Lesser General Public License.
@@ -386,7 +386,7 @@ http://0install.net/support.html
 
 .SH AUTHOR
 .PP
-The Zero Install Injector was created by Thomas Leonard.
+Zero Install was created by Thomas Leonard, with help from many others. See the Git log for details.
 
 .SH SEE ALSO
 0alias(1), 0store(1), 0launch(1)

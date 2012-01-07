@@ -1,35 +1,34 @@
-.TH 0LAUNCH 1 "2010" "Thomas Leonard" ""
+.TH 0LAUNCH 1 "2011" "Thomas Leonard" ""
 .SH NAME
 0launch \(em download and run programs by URL
 
 .SH SYNOPSIS
 
 .B 0launch
-[\fBOPTION\fP]... \fBINTERFACE\fP [\fBARG\fP]...
-
-.B 0launch
-\-\-list [\fBSEARCH\-TERM\fP]
-
-.B 0launch
-\-\-import [\fBFEED\-FILES\fP]
+[\fBOPTION\fP]... \fBPROGRAM\fP [\fBARG\fP]...
 
 .SH DESCRIPTION
 .PP
-0launch runs a program, identified by an `INTERFACE'. If the program is not
-already on your computer, it downloads information about which versions are
-available, and lets you choose one to download. It will also (automatically)
-do the same for libraries the program needs.
+0launch runs the given program. PROGRAM is either a URL in the form
+`http://site/program.xml' or a local path name like `/path/to/program.xml'.
 
 .PP
-0launch will also check for updates if it has been a long time since the last
-check (configurable).
+If the program is not already on your computer, 0launch downloads information about
+which versions are available, and lets you choose one to download. It will also
+(automatically) do the same for any libraries the program needs.
 
 .PP
-Normally, INTERFACE is taken as a FEED, which can be either a URL in the form
-`http://site/program' or a local path name like `/path/to/program.xml'. For
-HTTP URLs, the remote file is a GPG-signed XML document. Local feed files
-are not signed. The default one-to-one mapping from interface URIs to feed
-URLs can be changed using the \-\-feed option.
+Note that much of the functionality that was originally in 0launch has now moved to
+0install(1).
+
+.B 0launch PROGRAM ARGS
+
+.PP
+is roughly equivalent to
+
+.B 0install run PROGRAM ARGS
+
+See the 0install(1) man-page for more information.
 
 .SH EXAMPLES
 
@@ -50,147 +49,45 @@ To check for new versions:
 .B 0launch \-\-refresh http://rox.sourceforge.net/2005/interfaces/Edit
 
 .PP
-To search the list of cached URLs:
-
-.B 0launch \-\-list Edit
-
-.PP
 To avoid having to keep typing the full URI, use the 0alias(1) command
 to create shortcuts to run your programs.
 
 .SH COMMAND-LINE OPTIONS
 
 .TP
-\fB\-\-before=VERSION\fP
-Chosen implementation's version number must be earlier than VERSION. i.e., force
-the use of an old version the program.
-
-.TP
-\fB\-c\fP, \fB\-\-console\fP
-Never use the GUI. Normally, 0launch switches to graphical mode if it needs to
-download anything from the network (unless DISPLAY is not set).
+0launch takes many of the same options as "0install run". This page just lists the differences:
 
 .TP
 \fB\-d\fP, \fB\-\-download\-only\fP
-Download any needed files, but stop before actually running the program.
-
-.TP
-\fB\-D\fP, \fB\-\-dry\-run\fP
-Just print what actions would be taken.
+Deprecated. Use "0install download" instead.
 
 .TP
 \fB\-f\fP, \fB\-\-feed\fP
-Register (or unregister) an additional source of implementations. When you check out
-a developer version of a project, it may contain an XML feed file. To add this
-version to the list of available versions, use \-\-feed on this XML file. The
-file is not copied, so you don't need to re-add the file each time it is
-updated.
-
-Note that if you just want to run the program, you can invoke 0launch on the
-feed file directly (without using \-\-feed). This will force the injector to
-use that version, but won't affect what happens when you run it using the URI
-as normal. Use \-\-feed when you want to use the developer version even when
-using the URI, or if the program is a library (and thus referenced by URI by
-other programs).
+Deprecated. Use "0install add-feed" or "0install remove-feed" instead.
 
 .TP
 \fB\-\-get\-selections\fP
-Instead of running the program, just print the set of chosen implementations as
-an XML document to stdout. This can be used later with \fB\-\-set\-selections\fP.
-Use \fB\-\-select\-only\fP if you don't even want to download the packages.
-
-.TP
-\fB\-g\fP, \fB\-\-gui\fP
-Show the graphical policy editor. This allows you to select which version of
-a program or library to use.
-
-.TP
-\fB\-h\fP, \fB\-\-help\fP
-Show the built-in help text.
+Deprecated. Use "0install select" instead.
 
 .TP
 \fB\-i\fP, \fB\-\-import\fP
-Import from files, not from the network. This is useful when testing a
-feed file, to avoid uploading it to a remote server in order to download
-it again. It might also be useful when installing from a CD or similar.
-The file must have a trusted GPG digital signature, as when fetching from
-the network. For unsigned interfaces, see \-\-feed.
+Deprecated. Use "0install import" instead.
 
 .TP
 \fB\-l\fP, \fB\-\-list\fP
-List all known interface (program) URIs. If a search term is given, only
-URIs containing that string are shown (case insensitive).
-
-.TP
-\fB\-m\fP, \fB\-\-main=MAIN\fP
-Run the specified executable instead of the default. If MAIN starts with '/'
-then the path is relative to the implementation's top-level directory,
-whereas otherwise it is relative to the directory containing the default
-MAIN program. For example, if the default MAIN is \fBbin/svn\fP then
-using \fB\-\-main=svnadmin\fP will run \fB.../bin/svnadmin\fP instead.
-
-.TP
-\fB\-\-not\-before=VERSION\fP
-Chosen implementation's version number must not be earlier than VERSION.
-E.g., if you want to run version 2.0 or later, use \fB\-\-not\-before=2.0\fP.
-
-.TP
-\fB\-o\fP, \fB\-\-offline\fP
-Run in off-line mode, overriding the default setting. In off-line mode, no
-interfaces are refreshed even if they are out-of-date, and newer versions of
-programs won't be downloaded even if the injector already knows about them
-(e.g. from a previous refresh).
-
-.TP
-\fB\-r\fP, \fB\-\-refresh\fP
-Fetch a fresh copy of all used interfaces. This will normally switch to GUI
-mode, unless \-\-console is also given.
+Deprecated. Use "0install list" instead.
 
 .TP
 \fB\-\-select\-only\fP
-Download any required feeds and choose a set of implementations, but don't
-actually download them. If there are stale feeds, check for updates first
-(if we're not off-line).
+Deprecated. Use "0install select" instead.
 
 .TP
 \fB\-\-set\-selections=FILE\fP
-Instead of choosing suitable implementations using the policy, run exactly
-the versions given in FILE. A suitable file can be created using the
-\fB\-\-get\-selections\fP option described above.
+Deprecated. Just give FILE as the PROGRAM.
 
 .TP
 \fB\-\-show\fP
-Print the selected versions in a human-readable format to stdout. The display
-is similar to the GUI; it shows the program being run and its dependencies.
-For each selected component, the version number is displayed and its location
-on the file-system. Implies \-\-download-only.
-
-.TP
-\fB\-s\fP, \fB\-\-source\fP
-The implementation of the main (root) interface must have an architecture
-of the form '*\-src' (normally a literal "*", but could be a compatible OS).
-Dependencies are normal implementations, not source ones. See 0compile for
-details.
-
-.TP
-\fB\-v\fP, \fB\-\-verbose\fP
-More verbose output. Use twice for even more verbose output.
-
-.TP
-\fB\-V\fP, \fB\-\-version\fP
-Display version information.
-
-.TP
-\fB\-w\fP, \fB\-\-wrapper=COMMAND\fP
-Instead of executing the chosen program directly, run \fBCOMMAND PROGRAM ARGS\fP.
-This is useful for running debuggers and tracing tools on the program (rather
-than on 0launch!). Note that the wrapper is executed in the environment selected
-by the program; hence, this mechanism cannot be used for sandboxing. See the
-DEBUGGING section below.
-
-.TP
-\fB\-\-with\-store=DIR\fP
-Append a directory to the list of implementation caches.
+Deprecated. Use "0install select" instead.
 
 .SH DEBUGGING TIPS
 
@@ -237,7 +134,7 @@ See the 0store(1) man page for more information.
 
 .SH LICENSE
 .PP
-Copyright (C) 2010 Thomas Leonard.
+Copyright (C) 2011 Thomas Leonard.
 
 .PP
 You may redistribute copies of this program under the terms of the GNU Lesser General Public License.
@@ -249,7 +146,7 @@ http://0install.net/support.html
 
 .SH AUTHOR
 .PP
-The Zero Install Injector was created by Thomas Leonard.
+Zero Install was created by Thomas Leonard.
 
 .SH SEE ALSO
 0install(1), 0alias(1), 0store(1)
