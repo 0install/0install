@@ -188,7 +188,7 @@ class TestDistro(BaseTest):
 		arch.get_package_info('zeroinstall-injector', factory)
 		self.assertEqual(1, len(self.feed.implementations))
 		print self.feed.implementations
-		zip = self.feed.implementations['package:arch:zeroinstall-injector:1.5-1:' + distro.host_machine]
+		zip = self.feed.implementations['package:arch:zeroinstall-injector:1.5-1:*']
 		self.assertEqual('1.5-1', zip.get_version())
 
 	def testGentoo(self):

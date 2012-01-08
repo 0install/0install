@@ -602,9 +602,15 @@ class ArchDistribution(Distribution):
 		for entry in os.listdir(self._packages_dir):
 			name, version, build = entry.rsplit('-', 2)
 			if name == package:
-				# TODO: parse %ARCH% from "desc"
-				#zi_arch = canonical_machine(arch)
-				zi_arch = host_machine
+				gotarch = False
+				for line in open(os.path.join(self._packages_dir, entry, "desc")):
+					if line == "%ARCH%\n":
+						gotarch = True
+						continue
+					if gotarch:
+						arch = line.strip()
+						break
+				zi_arch = canonical_machine(arch)
 				clean_version = try_cleanup_distro_version("%s-%s" % (version, build))
 				if not clean_version:
 					warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': name})
