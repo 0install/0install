@@ -591,6 +591,37 @@ class SlackDistribution(Distribution):
 	def get_score(self, disto_name):
 		return int(disto_name == 'Slack')
 
+class ArchDistribution(Distribution):
+	"""An Arch Linux distribution."""
+
+	def __init__(self, packages_dir):
+		self._packages_dir = os.path.join(packages_dir, "local")
+
+	def get_package_info(self, package, factory):
+		# Add installed versions...
+		for entry in os.listdir(self._packages_dir):
+			name, version, build = entry.rsplit('-', 2)
+			if name == package:
+				# TODO: parse %ARCH% from "desc"
+				#zi_arch = canonical_machine(arch)
+				zi_arch = host_machine
+				clean_version = try_cleanup_distro_version("%s-%s" % (version, build))
+				if not clean_version:
+					warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': name})
+					continue
+	
+				impl = factory('package:arch:%s:%s:%s' % \
+						(package, clean_version, zi_arch))
+				impl.version = model.parse_version(clean_version)
+				if zi_arch != '*':
+					impl.machine = zi_arch
+
+		# Add any uninstalled candidates found by PackageKit
+		self.packagekit.get_candidates(package, factory, 'package:arch')
+
+	def get_score(self, disto_name):
+		return int(disto_name == 'Arch')
+
 class GentooDistribution(Distribution):
 
 	def __init__(self, pkgdir):
@@ -732,6 +763,7 @@ def get_host_distribution():
 		pkgcache = '/var/cache/apt/pkgcache.bin'
 		_rpm_db = '/var/lib/rpm/Packages'
 		_slack_db = '/var/log/packages'
+		_arch_db = '/var/lib/pacman'
 		_pkg_db = '/var/db/pkg'
 		_macports_db = '/opt/local/var/macports/registry/registry.db'
 
@@ -750,6 +782,8 @@ def get_host_distribution():
 			_host_distribution = RPMDistribution(_rpm_db)
 		elif os.path.isdir(_slack_db):
 			_host_distribution = SlackDistribution(_slack_db)
+		elif os.path.isdir(_arch_db):
+			_host_distribution = ArchDistribution(_arch_db)
 		else:
 			_host_distribution = Distribution()
 
