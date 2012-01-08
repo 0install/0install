@@ -1,0 +1,40 @@
+%NAME%
+zeroinstall-injector
+
+%VERSION%
+1.5-1
+
+%DESC%
+A decentralised loosly-coupled secure installation system
+
+%URL%
+http://zero-install.sourceforge.net/
+
+%LICENSE%
+GPL2
+LGPL
+
+%ARCH%
+any
+
+%BUILDDATE%
+1326038881
+
+%INSTALLDATE%
+1326038910
+
+%PACKAGER%
+Unknown Packager
+
+%SIZE%
+2244608
+
+%DEPENDS%
+pygtk
+gnupg
+hicolor-icon-theme
+desktop-file-utils
+
+%OPTDEPENDS%
+xdg-utils: GNOME and KDE desktop integration
+

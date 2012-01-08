@@ -177,6 +177,19 @@ class TestDistro(BaseTest):
 		self.assertEqual('5.52-2', zip.get_version())
 		self.assertEqual('i486', zip.machine)
 
+	def testArch(self):
+		archdir = os.path.join(os.path.dirname(__file__), 'arch')
+		arch = distro.ArchDistribution(archdir)
+
+		factory = self.make_factory(arch)
+		arch.get_package_info('gimp', factory)
+		self.assertEqual({}, self.feed.implementations)
+
+		arch.get_package_info('zeroinstall-injector', factory)
+		self.assertEqual(1, len(self.feed.implementations))
+		zip = self.feed.implementations['package:arch:zeroinstall-injector:1.5-1:*']
+		self.assertEqual('1.5-1', zip.get_version())
+
 	def testGentoo(self):
 		pkgdir = os.path.join(os.path.dirname(__file__), 'gentoo')
 		ebuilds = distro.GentooDistribution(pkgdir)

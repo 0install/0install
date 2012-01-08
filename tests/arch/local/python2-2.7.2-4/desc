@@ -1,0 +1,45 @@
+%NAME%
+python2
+
+%VERSION%
+2.7.2-4
+
+%DESC%
+A high-level scripting language
+
+%URL%
+http://www.python.org/
+
+%LICENSE%
+PSF
+
+%ARCH%
+x86_64
+
+%BUILDDATE%
+1321896418
+
+%INSTALLDATE%
+1326037157
+
+%PACKAGER%
+Stéphane Gaudreault <stephane@archlinux.org>
+
+%SIZE%
+72404992
+
+%DEPENDS%
+bzip2
+gdbm
+openssl
+zlib
+expat
+sqlite3
+libffi
+
+%OPTDEPENDS%
+tk: for IDLE
+
+%CONFLICTS%
+python<3
+
