@@ -19,7 +19,7 @@ import os, sys
 from optparse import OptionParser
 
 from zeroinstall.injector import reader, model
-from zeroinstall import support, alias, helpers
+from zeroinstall import support, alias, helpers, _
 from zeroinstall.support import basedir
 
 def export(name, value):
@@ -208,6 +208,10 @@ if len(args) == 1:
 	sys.exit(1)
 
 try:
+	if not options.user_path:
+		if alias_prog == '0launch':
+			raise model.SafeException(_('Refusing to create an alias named "0launch" (to avoid an infinite loop)'))
+
 	interface = model.Interface(interface_uri)
 	if not reader.update_from_cache(interface):
 		print("Interface '%s' not currently in cache. Fetching..." % interface_uri, file=sys.stderr)
