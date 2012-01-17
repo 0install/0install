@@ -70,5 +70,16 @@ def handle(config, options, args):
 			print(_("%s: new -> %s") % (iface, new_sel.version))
 			changes = True
 
-	if not changes:
-		print(_("No updates found."))
+	root_sel = sels[iface_uri]
+	root_iface = config.iface_cache.get_interface(iface_uri)
+	latest = max((impl.version, impl) for impl in root_iface.implementations.values())[1]
+	if latest.version > model.parse_version(sels[iface_uri].version):
+		print(_("A later version ({name} {latest}) exists but was not selected. Using {version} instead.").format(
+				latest = latest.get_version(),
+				name = root_iface.get_name(),
+				version = root_sel.version))
+		if not config.help_with_testing and latest.get_stability() < model.stable:
+			print(_('To select "testing" versions, use:\n0install config help_with_testing True'))
+	else:
+		if not changes:
+			print(_("No updates found. Continuing with version {version}.").format(version = root_sel.version))
