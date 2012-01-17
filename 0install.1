@@ -104,13 +104,15 @@ all of its dependencies. The information about available versions is
 downloaded if it's not yet in the cache.
 
 .PP
-The URI can be either an HTTP URL, such as
-`http://site/program.xml', or a local path name like `/path/to/program.xml'.
+The URI can be an HTTP URL, such as
+`http://site/program.xml', a local path name like `file:///path/to/program.xml',
+or an alias like `alias:prog'.
 
 .PP
 For HTTP URLs, the remote file is a signed XML document. If the key is not
 known and trusted, you will be prompted to accept it first. Local feed files
-are not signed (any signature will be ignored).
+are not signed (any signature will be ignored). Aliases are created using
+0alias(1).
 
 .PP
 You can also specify a local selections document, as created previously using
