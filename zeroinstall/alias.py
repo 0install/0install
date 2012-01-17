@@ -6,7 +6,7 @@ Support code for 0alias scripts.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, SafeException
 
 _old_template = '''#!/bin/sh
 if [ "$*" = "--versions" ]; then
@@ -20,7 +20,7 @@ _template = '''#!/bin/sh
 exec 0launch %s'%s' "$@"
 '''
 
-class NotAnAliasScript(Exception):
+class NotAnAliasScript(SafeException):
 	pass
 
 class ScriptInfo:

@@ -1212,7 +1212,11 @@ def canonical_iface_uri(uri):
 			raise SafeException(_("Missing / after hostname in URI '%s'") % uri)
 		return uri
 	elif uri.startswith('file:///'):
-		return uri[7:]
+		path = uri[7:]
+	elif uri.startswith('file:'):
+		if uri[5] == '/':
+			raise SafeException(_('Use file:///path for absolute paths, not {uri}').format(uri = uri))
+		path = os.path.abspath(uri[5:])
 	elif uri.startswith('alias:'):
 		from zeroinstall import alias, support
 		alias_prog = uri[6:]
@@ -1224,13 +1228,14 @@ def canonical_iface_uri(uri):
 			full_path = alias_prog
 		return alias.parse_script(full_path).uri
 	else:
-		iface_uri = os.path.realpath(uri)
-		if os.path.isfile(iface_uri):
-			return iface_uri
+		path = os.path.realpath(uri)
+
+	if os.path.isfile(path):
+		return path
 	raise SafeException(_("Bad interface name '%(uri)s'.\n"
 			"(doesn't start with 'http:', and "
 			"doesn't exist as a local file '%(interface_uri)s' either)") %
-			{'uri': uri, 'interface_uri': iface_uri})
+			{'uri': uri, 'interface_uri': path})
 
 _version_mod_to_value = {
 	'pre': -2,

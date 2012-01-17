@@ -261,6 +261,7 @@ class TestModel(BaseTest):
 			assert 'Malformed arch' in str(ex)
 	
 	def testCanonical(self):
+		# HTTP
 		try:
 			model.canonical_iface_uri('http://foo')
 			assert False
@@ -274,6 +275,31 @@ class TestModel(BaseTest):
 			assert False
 		except model.SafeException as ex:
 			assert 'Bad interface name' in str(ex)
+
+		# Bare relative path
+		model.canonical_iface_uri('Command.xml')
+		try:
+			model.canonical_iface_uri('CommandMissing.xml')
+			assert False
+		except model.SafeException as ex:
+			assert "Bad interface name 'CommandMissing.xml'" in str(ex), ex
+
+		# file:absolute
+		model.canonical_iface_uri('file://{path}/Command.xml'.format(path = mydir))
+		try:
+			print model.canonical_iface_uri('file://{path}/CommandMissing.xml'.format(path = mydir))
+			assert False
+		except model.SafeException as ex:
+			assert "Bad interface name 'file://" in str(ex), ex
+
+		# file:relative
+		model.canonical_iface_uri('file:Command.xml')
+		try:
+			model.canonical_iface_uri('file:CommandMissing.xml')
+			assert False
+		except model.SafeException as ex:
+			assert "Bad interface name 'file:CommandMissing.xml'" in str(ex), ex
+
 	
 	def testVersions(self):
 		def pv(v):
