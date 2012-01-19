@@ -5,6 +5,7 @@ import sys, os, socket, ssl
 
 from zeroinstall import _
 from zeroinstall.injector import download
+from zeroinstall.support import ssl_match_hostname
 
 import urllib2, httplib
 
@@ -19,7 +20,9 @@ for ca_bundle in ["/etc/ssl/certs/ca-certificates.crt",	# Debian/Ubuntu/Arch Lin
 				if self._tunnel_host:
 					self.sock = sock
 					self._tunnel()
-				self.sock = ssl.wrap_socket(sock, cert_reqs = ssl.CERT_REQUIRED, ca_certs = ca_bundle)
+				sock = ssl.wrap_socket(sock, cert_reqs = ssl.CERT_REQUIRED, ca_certs = ca_bundle)
+				ssl_match_hostname.match_hostname(sock.getpeercert(), self.host)
+				self.sock = sock
 
 		class ValidatingHTTPSHandler(urllib2.HTTPSHandler):
 			def https_open(self, req):
