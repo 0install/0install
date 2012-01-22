@@ -767,7 +767,7 @@ def get_host_distribution():
 	if not _host_distribution:
 		dpkg_db_status = '/var/lib/dpkg/status'
 		pkgcache = '/var/cache/apt/pkgcache.bin'
-		_rpm_db = '/var/lib/rpm/Packages'
+		rpm_db_packages = '/var/lib/rpm/Packages'
 		_slack_db = '/var/log/packages'
 		_arch_db = '/var/lib/pacman'
 		_pkg_db = '/var/db/pkg'
@@ -785,8 +785,8 @@ def get_host_distribution():
 				_host_distribution = MacPortsDistribution(_macports_db)
 		elif os.access(dpkg_db_status, os.R_OK):
 			_host_distribution = DebianDistribution(dpkg_db_status, pkgcache)
-		elif os.path.isfile(_rpm_db):
-			_host_distribution = RPMDistribution(_rpm_db)
+		elif os.path.isfile(rpm_db_packages):
+			_host_distribution = RPMDistribution(rpm_db_packages)
 		elif os.path.isdir(_slack_db):
 			_host_distribution = SlackDistribution(_slack_db)
 		elif os.path.isdir(_arch_db):
