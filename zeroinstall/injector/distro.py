@@ -773,6 +773,11 @@ def get_host_distribution():
 		_pkg_db = '/var/db/pkg'
 		_macports_db = '/opt/local/var/macports/registry/registry.db'
 
+		if sys.prefix == "/sw":
+			dpkg_db_status = os.path.join(sys.prefix, dpkg_db_status)
+			pkgcache = os.path.join(sys.prefix, pkgcache)
+			rpm_db_packages = os.path.join(sys.prefix, rpm_db_packages)
+
 		if os.name == "nt":
 			_host_distribution = WindowsDistribution()
 		elif os.path.isdir(_pkg_db):
