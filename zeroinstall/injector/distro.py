@@ -780,8 +780,9 @@ def get_host_distribution():
 				_host_distribution = GentooDistribution(_pkg_db)
 			elif sys.platform.startswith("freebsd"):
 				_host_distribution = PortsDistribution(_pkg_db)
-		elif os.path.isfile(_macports_db):
-			_host_distribution = MacPortsDistribution(_macports_db)
+		elif os.path.isfile(_macports_db) \
+			and sys.prefix.startswith("/opt/local"):
+				_host_distribution = MacPortsDistribution(_macports_db)
 		elif os.access(dpkg_db_status, os.R_OK):
 			_host_distribution = DebianDistribution(dpkg_db_status, pkgcache)
 		elif os.path.isfile(_rpm_db):
