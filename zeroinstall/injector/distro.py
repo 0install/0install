@@ -438,6 +438,8 @@ class DebianDistribution(Distribution):
 			version, debarch, status = line.split('\t', 2)
 			if not status.endswith(' installed'): continue
 			clean_version = try_cleanup_distro_version(version)
+			if debarch.find("-") != -1:
+				debarch = debarch.split("-")[-1]
 			if clean_version:
 				return '%s\t%s' % (clean_version, canonical_machine(debarch.strip()))
 			else:
