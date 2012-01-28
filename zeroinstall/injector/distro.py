@@ -790,7 +790,8 @@ def get_host_distribution():
 		elif os.path.isfile(_macports_db) \
 			and sys.prefix.startswith("/opt/local"):
 				_host_distribution = MacPortsDistribution(_macports_db)
-		elif os.access(dpkg_db_status, os.R_OK):
+		elif os.access(dpkg_db_status, os.R_OK) \
+			and os.path.getsize(dpkg_db_status) > 0:
 			_host_distribution = DebianDistribution(dpkg_db_status, pkgcache)
 		elif os.path.isfile(rpm_db_packages):
 			_host_distribution = RPMDistribution(rpm_db_packages)
