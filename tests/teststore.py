@@ -283,7 +283,9 @@ class TestStore(BaseTest):
 			except BadDigest as ex:
 				assert 'badname' in str(ex)
 			source, badname = os.path.join(self.tmp, digest), source
+			os.chmod(badname, 0o755)		# can't rename RO directories on MacOS X
 			os.rename(badname, source)
+			os.chmod(source, 0o555)
 
 			# Can't copy sha1 implementations (unsafe)
 			try:
@@ -304,7 +306,9 @@ class TestStore(BaseTest):
 			# Switch to sha1new
 			digest = sha1new.getID(manifest.add_manifest_file(source, sha1new))
 			source, badname = os.path.join(self.tmp, digest), source
+			os.chmod(badname, 0o755)
 			os.rename(badname, source)
+			os.chmod(source, 0o555)
 
 			cli.do_copy([source, copy])
 

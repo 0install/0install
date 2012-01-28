@@ -317,7 +317,9 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 					     "Expected: %(required_digest)s\n"
 					     "Actual:   %(actual_digest)s") % {'required_digest': required_digest, 'actual_digest': actual_digest})
 		try:
+			os.chmod(tmpdir, 0o755)		# need write permission to rename on MacOS X
 			os.rename(tmpdir, target_impl)
+			os.chmod(target_impl, 0o555)
 			tmpdir = None
 		except OSError:
 			if not os.path.isdir(target_impl):
