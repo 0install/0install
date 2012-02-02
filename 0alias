@@ -30,9 +30,15 @@ def export(name, value):
 	return "export %s=%s" % (name, value)
 
 def find_path(paths):
-	"""Find the first writable path in : separated list."""
+	"""Find the first writable path in the list,
+	skipping /bin, /sbin and everything under /usr except /usr/local/bin"""
 	for path in paths:
-		if os.path.realpath(path).startswith(basedir.xdg_cache_home):
+		if path.startswith('/usr/') and not path.startswith('/usr/local/bin'):
+			# (/usr/local/bin is OK if we're running as root)
+			pass
+		elif path.startswith('/bin') or path.startswith('/sbin'):
+			pass
+		elif os.path.realpath(path).startswith(basedir.xdg_cache_home):
 			pass # print "Skipping cache", first_path
 		elif not os.access(path, os.W_OK):
 			pass # print "No access", first_path
