@@ -9,10 +9,16 @@ from zeroinstall.support import ssl_match_hostname
 
 import urllib2, httplib
 
-for ca_bundle in ["/etc/ssl/certs/ca-certificates.crt",	# Debian/Ubuntu/Arch Linux
-		  "/etc/pki/tls/certs/ca-bundle.crt",	# Fedora/RHEL
-		  "/etc/ssl/ca-bundle.pem",		# openSUSE/SLE (claimed)
-		  "/var/lib/ca-certificates/ca-bundle.pem.new"]: # openSUSE (actual)
+# Note: on MacOS X at least, it will also look in the system keychain provided that you supply *some* CAs.
+# (if you don't specify any trusted CAs, Python trusts everything!)
+# So, the "fallback" option doesn't necessarily mean that other sites won't work.
+for ca_bundle in [
+		"/etc/ssl/certs/ca-certificates.crt",	# Debian/Ubuntu/Arch Linux
+		"/etc/pki/tls/certs/ca-bundle.crt",	# Fedora/RHEL
+		"/etc/ssl/ca-bundle.pem",		# openSUSE/SLE (claimed)
+		"/var/lib/ca-certificates/ca-bundle.pem.new", # openSUSE (actual)
+		os.path.join(os.path.dirname(__file__), "EquifaxSecureCA.crt"),	# Fallback (last known signer of keylookup)
+		]:
 	if os.path.exists(ca_bundle):
 		class ValidatingHTTPSConnection(httplib.HTTPSConnection):
 			def connect(self):
@@ -33,9 +39,7 @@ for ca_bundle in ["/etc/ssl/certs/ca-certificates.crt",	# Debian/Ubuntu/Arch Lin
 		MyHTTPSHandler = ValidatingHTTPSHandler
 		break
 else:
-	from logging import warn
-	warn("No root CA's found; security of HTTPS connections cannot be verified")
-	MyHTTPSHandler = urllib2.HTTPSHandler
+	raise Exception("No root CA's found (not even the built-in one!); security of HTTPS connections cannot be verified")
 
 class Redirect(Exception):
 	def __init__(self, req):

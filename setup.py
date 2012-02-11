@@ -54,6 +54,7 @@ class build_with_data(build_py):
 		"zeroinstall/0launch-gui/zero-install.ui",
 		"zeroinstall/gtkui/desktop.ui",
 		"zeroinstall/gtkui/cache.ui",
+		"zeroinstall/injector/EquifaxSecureCA.crt",
 		"zeroinstall/zerostore/_unlzma",
 	]
 	def run(self):
