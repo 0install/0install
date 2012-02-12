@@ -42,15 +42,18 @@ class PackageKit(object):
 	@property
 	def pk(self):
 		if self._pk is False:
-			try:
-				self._pk = dbus.Interface(dbus.SystemBus().get_object(
-							'org.freedesktop.PackageKit',
-							'/org/freedesktop/PackageKit', False),
-						'org.freedesktop.PackageKit')
-				_logger_pk.info(_('PackageKit dbus service found'))
-			except Exception as ex:
-				_logger_pk.info(_('PackageKit dbus service not found: %s'), ex)
+			if dbus is None:
 				self._pk = None
+			else:
+				try:
+					self._pk = dbus.Interface(dbus.SystemBus().get_object(
+								'org.freedesktop.PackageKit',
+								'/org/freedesktop/PackageKit', False),
+							'org.freedesktop.PackageKit')
+					_logger_pk.info(_('PackageKit dbus service found'))
+				except Exception as ex:
+					_logger_pk.info(_('PackageKit dbus service not found: %s'), ex)
+					self._pk = None
 		return self._pk
 
 	def get_candidates(self, package_name, factory, prefix):
