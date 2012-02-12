@@ -759,6 +759,44 @@ class MacPortsDistribution(CachedDistribution):
 	def get_score(self, disto_name):
 		return int(disto_name == 'MacPorts')
 
+class CygwinDistribution(CachedDistribution):
+	"""A Cygwin-based distribution."""
+
+	cache_leaf = 'cygcheck-status.cache'
+
+	def generate_cache(self):
+		cache = []
+
+		zi_arch = canonical_machine(arch)
+		for line in os.popen("cygcheck -c -d"):
+			if line == "Cygwin Package Information\r\n":
+				continue
+			if line == "\n":
+				continue
+			package, version = line.split()
+			if package == "Package" and version == "Version":
+				continue
+			clean_version = try_cleanup_distro_version(version)
+			if clean_version:
+				cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
+			else:
+				warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
+
+		self._write_cache(cache)
+
+	def get_package_info(self, package, factory):
+		# Add installed versions...
+		versions = self.versions.get(package, [])
+
+		for version, machine in versions:
+			impl = factory('package:cygwin:%s:%s:%s' % (package, version, machine))
+			impl.version = model.parse_version(version)
+			if machine != '*':
+			    impl.machine = machine
+
+	def get_score(self, disto_name):
+		return int(disto_name == 'Cygwin')
+
 
 _host_distribution = None
 def get_host_distribution():
@@ -774,6 +812,7 @@ def get_host_distribution():
 		_arch_db = '/var/lib/pacman'
 		_pkg_db = '/var/db/pkg'
 		_macports_db = '/opt/local/var/macports/registry/registry.db'
+		_cygwin_log = '/var/log/setup.log'
 
 		if sys.prefix == "/sw":
 			dpkg_db_status = os.path.join(sys.prefix, dpkg_db_status)
@@ -790,6 +829,8 @@ def get_host_distribution():
 		elif os.path.isfile(_macports_db) \
 			and sys.prefix.startswith("/opt/local"):
 				_host_distribution = MacPortsDistribution(_macports_db)
+		elif os.path.isfile(_cygwin_log) and sys.platform == "cygwin":
+			_host_distribution = CygwinDistribution(_cygwin_log)
 		elif os.access(dpkg_db_status, os.R_OK) \
 			and os.path.getsize(dpkg_db_status) > 0:
 			_host_distribution = DebianDistribution(dpkg_db_status, pkgcache)
