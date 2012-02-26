@@ -6,6 +6,9 @@ from StringIO import StringIO
 
 sys.path.insert(0, '..')
 
+# (testing command support imports zeroinstall.injector._runenv in a sub-process)
+os.environ['PYTHONPATH'] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 from zeroinstall.injector import policy, run, namespaces
 from zeroinstall import SafeException
 
