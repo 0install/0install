@@ -841,6 +841,8 @@ class ZeroInstallFeed(object):
 	@type descriptions: {str: str}
 	@ivar last_modified: timestamp on signature
 	@ivar last_checked: time feed was last successfully downloaded and updated
+	@ivar local_path: the path of this local feed, or None if remote (since 1.7)
+	@type local_path: str | None
 	@ivar feeds: list of <feed> elements in this feed
 	@type feeds: [L{Feed}]
 	@ivar feed_for: interfaces for which this could be a feed
@@ -849,13 +851,14 @@ class ZeroInstallFeed(object):
 	"""
 	# _main is deprecated
 	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'first_description', 'summaries', 'first_summary', '_package_implementations',
-		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata']
+		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata', 'local_path']
 
 	def __init__(self, feed_element, local_path = None, distro = None):
 		"""Create a feed object from a DOM.
 		@param feed_element: the root element of a feed file
 		@type feed_element: L{qdom.Element}
 		@param local_path: the pathname of this local feed, or None for remote feeds"""
+		self.local_path = local_path
 		self.implementations = {}
 		self.name = None
 		self.summaries = {}	# { lang: str }
@@ -886,6 +889,7 @@ class ZeroInstallFeed(object):
 			self.url = local_path
 			local_dir = os.path.dirname(local_path)
 		else:
+			assert local_path is None
 			self.url = feed_element.getAttribute('uri')
 			if not self.url:
 				raise InvalidInterface(_("<interface> uri attribute missing"))

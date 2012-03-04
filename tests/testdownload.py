@@ -158,6 +158,8 @@ class TestDownload(BaseTest):
 			hello = self.config.iface_cache.get_feed('http://localhost:8000/Hello', force = True)
 			self.assertEqual(1, len(hello.implementations))
 
+			self.assertEqual(None, hello.local_path)
+
 			# Shouldn't need to prompt the second time
 			sys.stdin = None
 			cli.main(['--import', 'Hello'], config = self.config)

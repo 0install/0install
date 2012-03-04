@@ -87,6 +87,7 @@ class TestModel(BaseTest):
 
 	def testMetadata(self):
 		main_feed = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
+		assert main_feed.local_path == "/foo"
 		e = qdom.parse(BytesIO(b'<ns:b xmlns:ns="a" foo="bar"/>'))
 		main_feed.metadata = [e]
 		assert main_feed.get_metadata('a', 'b') == [e]
