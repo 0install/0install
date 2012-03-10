@@ -407,7 +407,6 @@ class SATSolver(Solver):
 			if self.record_details:
 				self.details[iface] = [(impl, get_unusable_reason(impl, my_extra_restrictions, arch)) for impl in impls]
 
-			rank = 1
 			var_names = []
 			for impl in impls:
 				if is_unusable(impl, my_extra_restrictions, arch):
@@ -418,7 +417,6 @@ class SATSolver(Solver):
 				assert impl not in impl_to_var
 				v = problem.add_variable(ImplInfo(iface, impl, arch))
 				impl_to_var[impl] = v
-				rank += 1
 				var_names.append(v)
 
 				if impl.machine and impl.machine != 'src':

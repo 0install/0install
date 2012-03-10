@@ -5,6 +5,8 @@ Copyright: Python Software Foundation
 License: MIT License
 Downloaded from: http://pypi.python.org/pypi/backports.ssl_match_hostname/"""
 
+# pylint: disable=W0312
+
 import re
 
 class CertificateError(ValueError):

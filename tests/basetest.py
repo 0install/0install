@@ -191,8 +191,7 @@ class BaseTest(unittest.TestCase):
 		self.old_path = os.environ['PATH']
 		os.environ['PATH'] = dpkgdir + ':' + self.old_path
 
-		distro._host_distribution = distro.DebianDistribution(dpkgdir + '/status',
-								      dpkgdir + '/pkgcache.bin')
+		distro._host_distribution = distro.DebianDistribution(dpkgdir + '/status')
 		distro._host_distribution._packagekit = DummyPackageKit()
 
 		my_dbus.system_services = {}

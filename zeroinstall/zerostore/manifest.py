@@ -95,9 +95,9 @@ class OldSHA1(Algorithm):
 			if stat.S_ISREG(m):
 				d = sha1_new(open(full).read()).hexdigest()
 				if m & 0o111:
-					yield "X %s %s %s %s" % (d, int(info.st_mtime) ,info.st_size, leaf)
+					yield "X %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
 				else:
-					yield "F %s %s %s %s" % (d, int(info.st_mtime) ,info.st_size, leaf)
+					yield "F %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
 			elif stat.S_ISLNK(m):
 				target = os.readlink(full)
 				d = sha1_new(target).hexdigest()

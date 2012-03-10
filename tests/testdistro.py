@@ -79,8 +79,7 @@ class TestDistro(BaseTest):
 	def testDebian(self):
 		dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
 		host = distro.DebianDistribution(
-				os.path.join(dpkgdir, 'status'),
-				os.path.join(dpkgdir, 'pkgcache.bin'))
+				os.path.join(dpkgdir, 'status'))
 		host._packagekit = DummyPackageKit()
 
 		factory = self.make_factory(host)

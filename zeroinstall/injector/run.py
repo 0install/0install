@@ -47,7 +47,7 @@ def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
 	"""
 	execute_selections(policy.solver.selections, prog_args, dry_run, main, wrapper)
 
-def test_selections(selections, prog_args, dry_run, main, wrapper = None):
+def test_selections(selections, prog_args, dry_run, main):
 	"""Run the program in a child process, collecting stdout and stderr.
 	@return: the output produced by the process
 	@since: 0.27

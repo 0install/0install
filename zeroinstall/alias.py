@@ -72,7 +72,7 @@ def parse_script(pathname):
 		else:
 			raise NotAnAliasScript("Unknown option '{option}' in alias script".format(option = option))
 	else:
-		info.uri = line.split("'",2)[1]
+		info.uri = line.split("'", 2)[1]
 
 	return info
 

@@ -47,7 +47,7 @@ def read_bytes(fd, nbytes, null_ok = False):
 					% {'data': repr(data), 'bytes': nbytes})
 		data += got
 		nbytes -= len(got)
-	logging.debug(_("Message received: %s") % repr(data))
+	logging.debug(_("Message received: %r"), data)
 	return data
 
 def pretty_size(size):
@@ -86,6 +86,7 @@ def ro_rmtree(root):
 	shutil.rmtree(root)
 
 def raise_with_traceback(ex, tb):
+	"""Raise an exception in a way that works on Python 2 and Python 3"""
 	if hasattr(ex, 'with_traceback'):
 		raise ex.with_traceback(tb)			# Python 3
 	exec("raise ex, None, tb", {'ex': ex, 'tb': tb})	# Python 2

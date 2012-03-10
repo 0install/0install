@@ -9,7 +9,7 @@ Load and save a set of chosen implementations.
 import os
 from zeroinstall import _
 from zeroinstall.injector import model
-from zeroinstall.injector.policy import Policy, get_deprecated_singleton_config
+from zeroinstall.injector.policy import get_deprecated_singleton_config
 from zeroinstall.injector.model import process_binding, process_depends, binding_names, Command
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.qdom import Element, Prefixes
@@ -141,22 +141,10 @@ class Selections(object):
 		if source is None:
 			# (Solver will fill everything in)
 			pass
-		elif isinstance(source, Policy):
-			import warnings
-			warnings.warn("Use policy.solver.selections instead", DeprecationWarning, 2)
-			self._init_from_policy(source)
 		elif isinstance(source, Element):
 			self._init_from_qdom(source)
 		else:
 			raise Exception(_("Source not a qdom.Element!"))
-
-	def _init_from_policy(self, policy):
-		"""Set the selections from a policy.
-		@deprecated: use Solver.selections instead
-		@param policy: the policy giving the selected implementations."""
-		self.interface = policy.root
-		self.selections = policy.solver.selections.selections
-		self.commands = policy.solver.selections.commands
 
 	def _init_from_qdom(self, root):
 		"""Parse and load a selections document.

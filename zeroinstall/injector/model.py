@@ -275,7 +275,8 @@ class EnvironmentBinding(Binding):
 
 	
 	def __str__(self):
-		return _("<environ %(name)s %(mode)s %(insert)s %(value)s>") % {'name': self.name,'mode': self.mode, 'insert': self.insert, 'value': self.value}
+		return _("<environ %(name)s %(mode)s %(insert)s %(value)s>") % \
+			{'name': self.name, 'mode': self.mode, 'insert': self.insert, 'value': self.value}
 
 	__repr__ = __str__
 	

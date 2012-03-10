@@ -16,7 +16,7 @@ from zeroinstall import _
 import sys
 from logging import warn, info
 
-from zeroinstall import NeedDownload, SafeException
+from zeroinstall import SafeException
 from zeroinstall.support import tasks
 from zeroinstall.injector import download
 

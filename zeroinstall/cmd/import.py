@@ -53,6 +53,4 @@ def handle(config, options, args):
 
 		task = tasks.Task(run(), "import feed")
 
-		errors = tasks.wait_for_blocker(task.finished)
-		if errors:
-			raise SafeException(_("Errors during download: ") + '\n'.join(errors))
+		tasks.wait_for_blocker(task.finished)

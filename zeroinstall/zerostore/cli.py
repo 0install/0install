@@ -122,7 +122,7 @@ def do_verify(args):
 		root = get_stored(args[0])
 		required_digest = None		# Get from name
 	else:
-	     raise UsageError(_("Missing DIGEST or DIRECTORY"))
+		raise UsageError(_("Missing DIGEST or DIRECTORY"))
 
 	print(_("Verifying"), root)
 	try:

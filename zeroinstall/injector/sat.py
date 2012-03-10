@@ -364,7 +364,6 @@ class SATProblem(object):
 			return self.enqueue(lits[0], reason)
 
 		clause = self.makeUnionClause(lits)
-		clause.learnt = learnt
 
 		if learnt:
 			# lits[0] is None because we just backtracked.

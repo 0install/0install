@@ -33,14 +33,14 @@ class Config(object):
 	"""
 
 	__slots__ = ['help_with_testing', 'freshness', 'network_use', 'feed_mirror', 'key_info_server', 'auto_approve_keys',
-		     '_fetcher', '_stores', '_iface_cache', '_handler', '_trust_mgr']
+		     '_fetcher', '_stores', '_iface_cache', '_handler', '_trust_mgr', '_trust_db']
 
 	def __init__(self, handler = None):
 		self.help_with_testing = False
 		self.freshness = 60 * 60 * 24 * 30
 		self.network_use = network_full
 		self._handler = handler
-		self._fetcher = self._stores = self._iface_cache = self._trust_mgr = None
+		self._fetcher = self._stores = self._iface_cache = self._trust_mgr = self._trust_db = None
 		self.feed_mirror = DEFAULT_FEED_MIRROR
 		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
 		self.auto_approve_keys = True
@@ -89,19 +89,19 @@ class Config(object):
 		return self._handler
 
 	def save_globals(self):
-               """Write global settings."""
-               parser = ConfigParser.ConfigParser()
-               parser.add_section('global')
+		"""Write global settings."""
+		parser = ConfigParser.ConfigParser()
+		parser.add_section('global')
 
-               parser.set('global', 'help_with_testing', self.help_with_testing)
-               parser.set('global', 'network_use', self.network_use)
-               parser.set('global', 'freshness', self.freshness)
-               parser.set('global', 'auto_approve_keys', self.auto_approve_keys)
+		parser.set('global', 'help_with_testing', self.help_with_testing)
+		parser.set('global', 'network_use', self.network_use)
+		parser.set('global', 'freshness', self.freshness)
+		parser.set('global', 'auto_approve_keys', self.auto_approve_keys)
 
-               path = basedir.save_config_path(config_site, config_prog)
-               path = os.path.join(path, 'global')
-               parser.write(open(path + '.new', 'w'))
-               os.rename(path + '.new', path)
+		path = basedir.save_config_path(config_site, config_prog)
+		path = os.path.join(path, 'global')
+		parser.write(open(path + '.new', 'w'))
+		os.rename(path + '.new', path)
 
 def load_config(handler = None):
 	config = Config(handler)

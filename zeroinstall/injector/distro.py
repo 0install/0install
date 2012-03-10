@@ -242,10 +242,7 @@ class Distribution(object):
 class WindowsDistribution(Distribution):
 	def get_package_info(self, package, factory):
 		def _is_64bit_windows():
-			import sys
 			p = sys.platform
-			import platform
-			bits, linkage = platform.architecture()
 			from win32process import IsWow64Process
 			if p == 'win64' or (p == 'win32' and IsWow64Process()): return True
 			elif p == 'win32': return False
@@ -281,36 +278,34 @@ class WindowsDistribution(Distribution):
 
 		if package == 'openjdk-6-jre':
 			(java32_home, java64_home) = _read_hklm_reg(r"SOFTWARE\JavaSoft\Java Runtime Environment\1.6", "JavaHome")
-			import os.path
 
 			if os.path.isfile(java32_home + r"\bin\java.exe"):
 				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'i486'))
-				impl.machine = 'i486';
+				impl.machine = 'i486'
 				impl.version = model.parse_version('6')
 				impl.upstream_stability = model.packaged
 				impl.main = java32_home + r"\bin\java.exe"
 
 			if os.path.isfile(java64_home + r"\bin\java.exe"):
 				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'x86_64'))
-				impl.machine = 'x86_64';
+				impl.machine = 'x86_64'
 				impl.version = model.parse_version('6')
 				impl.upstream_stability = model.packaged
 				impl.main = java64_home + r"\bin\java.exe"
 
 		if package == 'openjdk-6-jdk':
 			(java32_home, java64_home) = _read_hklm_reg(r"SOFTWARE\JavaSoft\Java Development Kit\1.6", "JavaHome")
-			import os.path
 
 			if os.path.isfile(java32_home + r"\bin\java.exe"):
 				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'i486'))
-				impl.machine = 'i486';
+				impl.machine = 'i486'
 				impl.version = model.parse_version('6')
 				impl.upstream_stability = model.packaged
 				impl.main = java32_home + r"\bin\java.exe"
 
 			if os.path.isfile(java64_home + r"\bin\java.exe"):
 				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'x86_64'))
-				impl.machine = 'x86_64';
+				impl.machine = 'x86_64'
 				impl.version = model.parse_version('6')
 				impl.upstream_stability = model.packaged
 				impl.main = java64_home + r"\bin\java.exe"
@@ -422,7 +417,7 @@ class DebianDistribution(Distribution):
 
 	cache_leaf = 'dpkg-status.cache'
 
-	def __init__(self, dpkg_status, pkgcache):
+	def __init__(self, dpkg_status):
 		self.dpkg_cache = Cache('dpkg-status.cache', dpkg_status, 2)
 		self.apt_cache = {}
 
@@ -729,7 +724,7 @@ class MacPortsDistribution(CachedDistribution):
 			if not extra.startswith("(active)"):
 				continue
 			version = version.lstrip('@')
-			version = re.sub(r"\+.*","",version) # strip variants
+			version = re.sub(r"\+.*", "", version) # strip variants
 			zi_arch = '*'
 			clean_version = try_cleanup_distro_version(version)
 			if clean_version:
@@ -754,7 +749,7 @@ class MacPortsDistribution(CachedDistribution):
 			impl = factory('package:macports:%s:%s:%s' % (package, version, machine))
 			impl.version = model.parse_version(version)
 			if machine != '*':
-			    impl.machine = machine
+				impl.machine = machine
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'MacPorts')
@@ -792,7 +787,7 @@ class CygwinDistribution(CachedDistribution):
 			impl = factory('package:cygwin:%s:%s:%s' % (package, version, machine))
 			impl.version = model.parse_version(version)
 			if machine != '*':
-			    impl.machine = machine
+				impl.machine = machine
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'Cygwin')
@@ -806,7 +801,6 @@ def get_host_distribution():
 	global _host_distribution
 	if not _host_distribution:
 		dpkg_db_status = '/var/lib/dpkg/status'
-		pkgcache = '/var/cache/apt/pkgcache.bin'
 		rpm_db_packages = '/var/lib/rpm/Packages'
 		_slack_db = '/var/log/packages'
 		_arch_db = '/var/lib/pacman'
@@ -816,7 +810,6 @@ def get_host_distribution():
 
 		if sys.prefix == "/sw":
 			dpkg_db_status = os.path.join(sys.prefix, dpkg_db_status)
-			pkgcache = os.path.join(sys.prefix, pkgcache)
 			rpm_db_packages = os.path.join(sys.prefix, rpm_db_packages)
 
 		if os.name == "nt":
@@ -833,7 +826,7 @@ def get_host_distribution():
 			_host_distribution = CygwinDistribution(_cygwin_log)
 		elif os.access(dpkg_db_status, os.R_OK) \
 			and os.path.getsize(dpkg_db_status) > 0:
-			_host_distribution = DebianDistribution(dpkg_db_status, pkgcache)
+			_host_distribution = DebianDistribution(dpkg_db_status)
 		elif os.path.isfile(rpm_db_packages):
 			_host_distribution = RPMDistribution(rpm_db_packages)
 		elif os.path.isdir(_slack_db):
