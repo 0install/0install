@@ -83,8 +83,13 @@ class install_data_locale(install_data):
 
 	def _compile_po_files(self):
 		i18nfiles = []
-		mo_files = glob.glob("share/locale/*/LC_MESSAGES/zero-install.mo")
-		assert mo_files
+		mo_pattern = "share/locale/*/LC_MESSAGES/zero-install.mo"
+		mo_files = glob.glob(mo_pattern)
+		if not mo_files:
+			print "No translations (Git checkout?)... trying to build them..."
+			subprocess.check_call(["make", "translations"])
+			mo_files = glob.glob(mo_pattern)
+			assert mo_files
 		for mo in mo_files:
 			dest = os.path.dirname(mo)
 			i18nfiles.append((dest, [mo]))
