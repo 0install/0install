@@ -316,8 +316,9 @@ class _PackageKitTransaction(object):
 				dbus_method = self.proxy.get_dbus_method(method)
 				return dbus_method(*args)
 			except dbus.exceptions.DBusException as e:
-				if e.get_dbus_name() != \
-						'org.freedesktop.DBus.Error.UnknownMethod':
+				if e.get_dbus_name() not in (
+				   'org.freedesktop.DBus.Error.UnknownMethod',
+				   'org.freedesktop.DBus.Error.InvalidArgs'):
 					raise
 		raise Exception('Cannot call %r DBus method' % calls)
 
