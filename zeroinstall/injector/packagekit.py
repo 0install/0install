@@ -207,8 +207,8 @@ class PackageKitDownload:
 			package_name = self.packagekit_id
 			self._transaction = _PackageKitTransaction(self.pk, installed_cb, error_cb)
 			self._transaction.compat_call([
-					('InstallPackages', [package_name]),
 					('InstallPackages', False, [package_name]),
+					('InstallPackages', [package_name]),
 					])
 
 		_auth_wrapper(install_packages)
@@ -292,8 +292,8 @@ class _PackageKitTransaction(object):
 		defaultlocale = locale.getdefaultlocale()[0]
 		if defaultlocale is not None:
 			self.compat_call([
-					('SetLocale', defaultlocale),
 					('SetHints', ['locale=%s' % defaultlocale]),
+					('SetLocale', defaultlocale),
 					])
 
 	def getPercentage(self):
@@ -308,6 +308,8 @@ class _PackageKitTransaction(object):
 		except:
 			return default
 
+	# note: Ubuntu's aptdaemon implementation of PackageKit crashes if passed the wrong
+	# arguments (rather than returning InvalidArgs), so always try its API first.
 	def compat_call(self, calls):
 		for call in calls:
 			method = call[0]
