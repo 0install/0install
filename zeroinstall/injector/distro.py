@@ -56,6 +56,7 @@ class Cache(object):
 		while data:
 			wrote = os.write(tmp, data)
 			data = data[wrote:]
+		os.close(tmp)
 		os.rename(tmp_name, os.path.join(self.cache_dir, self.cache_leaf))
 
 		self._load_cache()
@@ -64,8 +65,7 @@ class Cache(object):
 	# Throws an exception if the cache doesn't exist or has the wrong format.
 	def _load_cache(self):
 		self.cache = cache = {}
-		stream = open(os.path.join(self.cache_dir, self.cache_leaf))
-		try:
+		with open(os.path.join(self.cache_dir, self.cache_leaf)) as stream:
 			for line in stream:
 				line = line.strip()
 				if not line:
@@ -79,8 +79,6 @@ class Cache(object):
 			for line in stream:
 				key, value = line.split('=', 1)
 				cache[key] = value[:-1]
-		finally:
-			stream.close()
 
 	# Check the source file hasn't changed since we created the cache
 	def _check_valid(self):
@@ -106,11 +104,8 @@ class Cache(object):
 		cache_path = os.path.join(self.cache_dir, self.cache_leaf)
 		self.cache[key] = value
 		try:
-			stream = open(cache_path, 'a')
-			try:
+			with open(cache_path, 'a') as stream:
 				stream.write('%s=%s\n' % (key, value))
-			finally:
-				stream.close()
 		except Exception as ex:
 			warn("Failed to write to cache %s: %s=%s: %s", cache_path, key, value, ex)
 
@@ -338,33 +333,32 @@ class CachedDistribution(Distribution):
 	def _load_cache(self):
 		"""Load {cache_leaf} cache file into self.versions if it is available and up-to-date.
 		Throws an exception if the cache should be (re)created."""
-		stream = open(os.path.join(self.cache_dir, self.cache_leaf))
-
-		cache_version = None
-		for line in stream:
-			if line == '\n':
-				break
-			name, value = line.split(': ')
-			if name == 'mtime' and int(value) != int(self._status_details.st_mtime):
-				raise Exception(_("Modification time of package database file has changed"))
-			if name == 'size' and int(value) != self._status_details.st_size:
-				raise Exception(_("Size of package database file has changed"))
-			if name == 'version':
-				cache_version = int(value)
-		else:
-			raise Exception(_('Invalid cache format (bad header)'))
-
-		if cache_version is None:
-			raise Exception(_('Old cache format'))
-
-		versions = self.versions
-		for line in stream:
-			package, version, zi_arch = line[:-1].split('\t')
-			versionarch = (version, intern(zi_arch))
-			if package not in versions:
-				versions[package] = [versionarch]
+		with open(os.path.join(self.cache_dir, self.cache_leaf)) as stream:
+			cache_version = None
+			for line in stream:
+				if line == '\n':
+					break
+				name, value = line.split(': ')
+				if name == 'mtime' and int(value) != int(self._status_details.st_mtime):
+					raise Exception(_("Modification time of package database file has changed"))
+				if name == 'size' and int(value) != self._status_details.st_size:
+					raise Exception(_("Size of package database file has changed"))
+				if name == 'version':
+					cache_version = int(value)
 			else:
-				versions[package].append(versionarch)
+				raise Exception(_('Invalid cache format (bad header)'))
+
+			if cache_version is None:
+				raise Exception(_('Old cache format'))
+
+			versions = self.versions
+			for line in stream:
+				package, version, zi_arch = line[:-1].split('\t')
+				versionarch = (version, intern(zi_arch))
+				if package not in versions:
+					versions[package] = [versionarch]
+				else:
+					versions[package].append(versionarch)
 
 	def _write_cache(self, cache):
 		#cache.sort() 	# Might be useful later; currently we don't care

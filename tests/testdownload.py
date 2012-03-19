@@ -56,7 +56,7 @@ class Reply:
 def download_and_execute(policy, prog_args, main = None):
 	downloaded = policy.solve_and_download_impls()
 	if downloaded:
-		policy.config.handler.wait_for_blocker(downloaded)
+		tasks.wait_for_blocker(downloaded)
 	run.execute_selections(policy.solver.selections, prog_args, stores = policy.config.stores, main = main)
 
 class NetworkManager:
@@ -89,6 +89,7 @@ class TestDownload(BaseTest):
 		stream.write(data.thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)
+		stream.close()
 
 		trust.trust_db.watchers = []
 

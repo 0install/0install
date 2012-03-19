@@ -439,6 +439,8 @@ class Fetcher(object):
 				shutil.copyfileobj(stream, icon_file)
 			except Exception as ex:
 				self.handler.report_error(ex)
+			finally:
+				stream.close()
 
 		return download_and_add_icon()
 
