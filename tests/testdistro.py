@@ -247,5 +247,20 @@ class TestDistro(BaseTest):
 		self.assertEqual('0.3-post1-rc2', distro.try_cleanup_distro_version('0.3-post1-rc2'))
 		self.assertEqual('0.3.1-2', distro.try_cleanup_distro_version('0.3.1-r2-r3'))
 
+	def testCommand(self):
+		dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
+		host = distro.DebianDistribution(
+				os.path.join(dpkgdir, 'status'))
+		host._packagekit = DummyPackageKit()
+
+		factory = self.make_factory(host)
+
+		master_feed = parse_impls("""<package-implementation main='/unused' package='python-bittorrent'><command path='/bin/sh' name='run'/></package-implementation>""")
+		icache = iface_cache.IfaceCache(distro = host)
+		icache._feeds[master_feed.url] = master_feed
+		#del icache._feeds['distribution:' + master_feed.url]
+		impl, = icache.get_feed(master_feed.get_distro_feed()).implementations.values()
+		self.assertEqual('/bin/sh', impl.main)
+
 if __name__ == '__main__':
 	unittest.main()

@@ -183,17 +183,20 @@ class Distribution(object):
 					if only_if_missing:
 						return None
 					warn(_("Duplicate ID '%s' for DistributionImplementation"), id)
-				impl = model.DistributionImplementation(feed, id, self)
+				impl = model.DistributionImplementation(feed, id, self, item)
 				feed.implementations[id] = impl
 
 				impl.installed = installed
 				impl.metadata = item_attrs
 
-				item_main = item_attrs.get('main', None)
-				if item_main and not item_main.startswith('/'):
-					raise model.InvalidInterface(_("'main' attribute must be absolute, but '%s' doesn't start with '/'!") %
-								item_main)
-				impl.main = item_main
+				if 'run' not in impl.commands:
+					item_main = item_attrs.get('main', None)
+					if item_main:
+						if item_main.startswith('/'):
+							impl.main = item_main
+						else:
+							raise model.InvalidInterface(_("'main' attribute must be absolute, but '%s' doesn't start with '/'!") %
+										item_main)
 				impl.upstream_stability = model.packaged
 
 				return impl

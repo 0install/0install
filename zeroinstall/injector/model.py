@@ -682,14 +682,26 @@ class Implementation(object):
 class DistributionImplementation(Implementation):
 	"""An implementation provided by the distribution. Information such as the version
 	comes from the package manager.
+	@ivar package_implementation: the <package-implementation> element that generated this impl (since 1.7)
+	@type package_implementation: L{qdom.Element}
 	@since: 0.28"""
-	__slots__ = ['distro', 'installed']
+	__slots__ = ['distro', 'installed', 'package_implementation']
 
-	def __init__(self, feed, id, distro):
+	def __init__(self, feed, id, distro, package_implementation = None):
 		assert id.startswith('package:')
 		Implementation.__init__(self, feed, id)
 		self.distro = distro
 		self.installed = False
+		self.package_implementation = package_implementation
+
+		if package_implementation:
+			for child in package_implementation.childNodes:
+				if child.uri != XMLNS_IFACE: continue
+				if child.name == 'command':
+					command_name = child.attrs.get('name', None)
+					if not command_name:
+						raise InvalidInterface('Missing name for <command>')
+					self.commands[command_name] = Command(child, local_dir = None)
 
 	@property
 	def requires_root_install(self):
