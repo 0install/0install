@@ -341,19 +341,23 @@ class _PackageKitTransaction(object):
 		self.error_details = details
 
 	def __package_cb(self, status, id, summary):
-		from zeroinstall.injector import distro
+		try:
+			from zeroinstall.injector import distro
 
-		package_name, version, arch, repo_ = id.split(';')
-		clean_version = distro.try_cleanup_distro_version(version)
-		if not clean_version:
-			_logger_pk.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package_name})
-		clean_arch = distro.canonical_machine(arch)
-		package = {'version': clean_version,
-			   'name': package_name,
-			   'arch': clean_arch,
-			   'installed': (status == 'installed')}
-		_logger_pk.debug(_('Package: %s %r'), id, package)
-		self.package[str(id)] = package
+			package_name, version, arch, repo_ = id.split(';')
+			clean_version = distro.try_cleanup_distro_version(version)
+			if not clean_version:
+				_logger_pk.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package_name})
+				return
+			clean_arch = distro.canonical_machine(arch)
+			package = {'version': clean_version,
+				   'name': package_name,
+				   'arch': clean_arch,
+				   'installed': (status == 'installed')}
+			_logger_pk.debug(_('Package: %s %r'), id, package)
+			self.package[str(id)] = package
+		except Exception as ex:
+			_logger_pk.warn("__package_cb(%s, %s, %s): %s", status, id, summary, ex)
 
 	def __details_cb(self, id, licence, group, detail, url, size):
 		details = {'licence': str(licence),
