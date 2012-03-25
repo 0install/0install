@@ -19,8 +19,11 @@ import os, sys
 from optparse import OptionParser
 
 from zeroinstall.injector import reader, model
+from zeroinstall.injector.config import load_config
 from zeroinstall import support, alias, helpers, _
 from zeroinstall.support import basedir
+
+config = load_config()
 
 def export(name, value):
 	"""Try to guess the command to set an environment variable."""
@@ -155,8 +158,7 @@ if options.manpage:
 		print("No <command> in selections!", file=sys.stderr)
 	selected_impl = sels.selections[interface_uri]
 
-	from zeroinstall.injector.iface_cache import iface_cache
-	impl_path = selected_impl.local_path or iface_cache.stores.lookup_any(selected_impl.digests)
+	impl_path = selected_impl.local_path or config.iface_cache.stores.lookup_any(selected_impl.digests)
 
 	if main is None:
 		main = selected_command.path
@@ -233,6 +235,12 @@ try:
 except model.SafeException as ex:
 	print(ex, file=sys.stderr)
 	sys.exit(1)
+
+feed = config.iface_cache.get_feed(interface_uri)
+replacement_uri = feed.get_replaced_by()
+if replacement_uri is not None:
+	print(_("(interface {old} has been replaced by {new}; using that instead)").format(old = interface_uri, new = replacement_uri))
+	interface_uri = replacement_uri
 
 wrapper = open(script, 'w')
 alias.write_script(wrapper, interface_uri, main, command = command)

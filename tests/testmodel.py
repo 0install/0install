@@ -94,6 +94,7 @@ class TestModel(BaseTest):
 		assert main_feed.get_metadata('b', 'b') == []
 		assert main_feed.get_metadata('a', 'a') == []
 		assert e.getAttribute('foo') == 'bar'
+		self.assertEqual(None, main_feed.get_replaced_by())
 
 	def testLocale(self):
 		local_path = os.path.join(mydir, 'Local.xml')
@@ -225,13 +226,20 @@ class TestModel(BaseTest):
 			new_e = qdom.parse(BytesIO(new_xml))
 			new_ol = model.process_binding(new_e)
 			self.assertEqual(expected, str(new_ol))
-	
+
+	def testReplaced(self):
+		local_path = os.path.join(mydir, 'Replaced.xml')
+		with open(local_path) as stream:
+			dom = qdom.parse(stream)
+		feed = model.ZeroInstallFeed(dom, local_path = local_path)
+		self.assertEqual("http://localhost:8000/Hello", feed.get_replaced_by())
+
 	def testDep(self):
 		b = model.InterfaceDependency('http://foo', element = qdom.Element(namespaces.XMLNS_IFACE, 'requires', {}))
 		assert not b.restrictions
 		assert not b.bindings
 		str(b)
-	
+
 	def testFeed(self):
 		f = model.Feed('http://feed', arch = None, user_override = False)
 		assert f.uri == 'http://feed'

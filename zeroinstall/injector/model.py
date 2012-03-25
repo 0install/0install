@@ -1171,6 +1171,18 @@ class ZeroInstallFeed(object):
 	def description(self):
 		return _best_language_match(self.descriptions) or self.first_description
 
+	def get_replaced_by(self):
+		"""Return the URI of the interface that replaced the one with the URI of this feed's URL.
+		This is the value of the feed's <replaced-by interface'...'/> element.
+		@return: the new URI, or None if it hasn't been replaced
+		@since: 1.7"""
+		for child in self.metadata:
+			if child.uri == XMLNS_IFACE and child.name == 'replaced-by':
+				new_uri = child.getAttribute('interface')
+				if new_uri:
+					return new_uri
+		return None
+
 class DummyFeed(object):
 	"""Temporary class used during API transition."""
 	last_modified = None
