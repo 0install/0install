@@ -83,3 +83,9 @@ def handle(config, options, args):
 	else:
 		if not changes:
 			print(_("No updates found. Continuing with version {version}.").format(version = root_sel.version))
+
+	root_feed = config.iface_cache.get_feed(iface_uri)
+	if root_feed:
+		target = root_feed.get_replaced_by()
+		if target is not None:
+			print(_("Warning: interface {old} has been replaced by {new}".format(old = iface_uri, new = target)))

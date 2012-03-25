@@ -1179,7 +1179,7 @@ class ZeroInstallFeed(object):
 		for child in self.metadata:
 			if child.uri == XMLNS_IFACE and child.name == 'replaced-by':
 				new_uri = child.getAttribute('interface')
-				if new_uri:
+				if new_uri and (new_uri.startswith('http:') or new_uri.startswith('https:') or self.local_path):
 					return new_uri
 		return None
 

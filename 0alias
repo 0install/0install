@@ -236,10 +236,15 @@ except model.SafeException as ex:
 	print(ex, file=sys.stderr)
 	sys.exit(1)
 
-feed = config.iface_cache.get_feed(interface_uri)
-replacement_uri = feed.get_replaced_by()
-if replacement_uri is not None:
+seen = set([interface_uri])
+while True:
+	feed = config.iface_cache.get_feed(interface_uri)
+	replacement_uri = feed.get_replaced_by()
+	if replacement_uri is None:
+		break
 	print(_("(interface {old} has been replaced by {new}; using that instead)").format(old = interface_uri, new = replacement_uri))
+	assert replacement_uri not in seen, "loop detected!"
+	seen.add(replacement_uri)
 	interface_uri = replacement_uri
 
 wrapper = open(script, 'w')
