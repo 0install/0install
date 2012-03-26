@@ -347,7 +347,7 @@ class _PackageKitTransaction(object):
 			package_name, version, arch, repo_ = id.split(';')
 			clean_version = distro.try_cleanup_distro_version(version)
 			if not clean_version:
-				_logger_pk.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package_name})
+				_logger_pk.info(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package_name})
 				return
 			clean_arch = distro.canonical_machine(arch)
 			package = {'version': clean_version,
