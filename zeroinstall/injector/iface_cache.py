@@ -302,29 +302,33 @@ class IfaceCache(object):
 
 		# Do we need to write this temporary file now?
 		stream = open(cached + '.new', 'w')
-		stream.write(new_xml)
-		stream.close()
-		os.utime(cached + '.new', (modified_time, modified_time))
-		new_mtime = reader.check_readable(feed_url, cached + '.new')
-		assert new_mtime == modified_time
+		try:
+			stream.write(new_xml)
+			stream.close()
+			os.utime(cached + '.new', (modified_time, modified_time))
+			new_mtime = reader.check_readable(feed_url, cached + '.new')
+			assert new_mtime == modified_time
 
-		old_modified = self._get_signature_date(feed_url) or old_modified
+			old_modified = self._get_signature_date(feed_url) or old_modified
 
-		if old_modified:
-			if new_mtime < old_modified:
-				os.unlink(cached + '.new')
-				raise ReplayAttack(_("New feed's modification time is "
-					"before old version!\nInterface: %(iface)s\nOld time: %(old_time)s\nNew time: %(new_time)s\n"
-					"Refusing update.")
-					% {'iface': feed_url, 'old_time': _pretty_time(old_modified), 'new_time': _pretty_time(new_mtime)})
-			if new_mtime == old_modified:
-				# You used to have to update the modification time manually.
-				# Now it comes from the signature, this check isn't useful
-				# and often causes problems when the stored format changes
-				# (e.g., when we stopped writing last-modified attributes)
-				pass
-				#raise SafeException("Interface has changed, but modification time "
-				#		    "hasn't! Refusing update.")
+			if old_modified:
+				if new_mtime < old_modified:
+					raise ReplayAttack(_("New feed's modification time is "
+						"before old version!\nInterface: %(iface)s\nOld time: %(old_time)s\nNew time: %(new_time)s\n"
+						"Refusing update.")
+						% {'iface': feed_url, 'old_time': _pretty_time(old_modified), 'new_time': _pretty_time(new_mtime)})
+				if new_mtime == old_modified:
+					# You used to have to update the modification time manually.
+					# Now it comes from the signature, this check isn't useful
+					# and often causes problems when the stored format changes
+					# (e.g., when we stopped writing last-modified attributes)
+					pass
+					#raise SafeException("Interface has changed, but modification time "
+					#		    "hasn't! Refusing update.")
+		except:
+			os.unlink(cached + '.new')
+			raise
+
 		os.rename(cached + '.new', cached)
 		debug(_("Saved as %s") % cached)
 
