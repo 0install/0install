@@ -158,9 +158,12 @@ class TestIfaceCache(BaseTest):
 	def testIsStale(self):
 		iface_cache = self.config.iface_cache
 		feed = self.import_feed('http://localhost:8000/Hello', 'Hello')
-		assert iface_cache.is_stale(feed, 1) == True
-		assert iface_cache.is_stale(feed, time.time() + 1) == False
+		assert iface_cache.is_stale(feed.url, 1) == True
+		assert iface_cache.is_stale(feed.url, time.time() + 1) == False
 		iface_cache.mark_as_checking(feed.url)
+		assert iface_cache.is_stale(feed.url, 1) == False
+
+		# Old API
 		assert iface_cache.is_stale(feed, 1) == False
 
 if __name__ == '__main__':

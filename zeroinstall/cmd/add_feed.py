@@ -11,7 +11,6 @@ from zeroinstall import SafeException, _
 from zeroinstall.support import tasks
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, writer
-from zeroinstall.injector.policy import Policy
 
 syntax = "NEW-FEED"
 
@@ -31,18 +30,16 @@ def handle(config, options, args, add_ok = True, remove_ok = False):
 
 	print(_("Feed '%s':") % x + '\n')
 	x = model.canonical_iface_uri(x)
-	policy = Policy(x, config = config)
 	if options.offline:
 		config.network_use = model.network_offline
 
-	feed = config.iface_cache.get_feed(x)
-	if policy.network_use != model.network_offline and policy.is_stale(feed):
-		blocker = policy.fetcher.download_and_import_feed(x, config.iface_cache)
+	if config.network_use != model.network_offline and config.iface_cache.is_stale(x, config.freshness):
+		blocker = config.fetcher.download_and_import_feed(x, config.iface_cache)
 		print(_("Downloading feed; please wait..."))
 		tasks.wait_for_blocker(blocker)
 		print(_("Done"))
 
-	candidate_interfaces = policy.get_feed_targets(x)
+	candidate_interfaces = config.iface_cache.get_feed_targets(x)
 	assert candidate_interfaces
 	interfaces = []
 	for i in range(len(candidate_interfaces)):

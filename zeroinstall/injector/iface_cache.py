@@ -522,26 +522,33 @@ class IfaceCache(object):
 		debug(_("Feed targets: %s"), feed_targets)
 		return [self.get_interface(uri) for uri in feed_targets]
 
-	def is_stale(self, feed, freshness_threshold):
+	def is_stale(self, feed_url, freshness_threshold):
 		"""Check whether feed needs updating, based on the configured L{config.Config.freshness}.
 		None is considered to be stale.
 		If we already tried to update the feed within FAILED_CHECK_DELAY, returns false.
 		@return: True if feed should be updated
 		@since: 0.53"""
-		if feed is None:
-			return True
-		if os.path.isabs(feed.url):
-			return False		# Local feeds are never stale
-		if feed.last_modified is None:
-			return True		# Don't even have it yet
+		if isinstance(feed_url, model.ZeroInstallFeed):
+			feed_url = feed_url.url		# old API
+		elif feed_url is None:
+			return True			# old API
+
 		now = time.time()
-		staleness = now - (feed.last_checked or 0)
-		debug(_("Staleness for %(feed)s is %(staleness).2f hours"), {'feed': feed, 'staleness': staleness / 3600.0})
 
-		if freshness_threshold <= 0 or staleness < freshness_threshold:
-			return False		# Fresh enough for us
+		feed = self.get_feed(feed_url)
+		if feed is not None:
+			if feed.local_path is not None:
+				return False		# Local feeds are never stale
 
-		last_check_attempt = self.get_last_check_attempt(feed.url)
+			if feed.last_modified is not None:
+				staleness = now - (feed.last_checked or 0)
+				debug(_("Staleness for %(feed)s is %(staleness).2f hours"), {'feed': feed, 'staleness': staleness / 3600.0})
+
+				if freshness_threshold <= 0 or staleness < freshness_threshold:
+					return False		# Fresh enough for us
+		# else we've never had it
+
+		last_check_attempt = self.get_last_check_attempt(feed_url)
 		if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
 			debug(_("Stale, but tried to check recently (%s) so not rechecking now."), time.ctime(last_check_attempt))
 			return False

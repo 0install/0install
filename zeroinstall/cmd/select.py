@@ -79,9 +79,8 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 			can_run_immediately = not driver.need_download()
 
 		stale_feeds = [feed for feed in driver.solver.feeds_used if
-				not os.path.isabs(feed) and			# Ignore local feeds (note: file might be missing too)
 				not feed.startswith('distribution:') and	# Ignore (memory-only) PackageKit feeds
-				iface_cache.is_stale(iface_cache.get_feed(feed), config.freshness)]
+				iface_cache.is_stale(feed, config.freshness)]
 
 		if download_only and stale_feeds:
 			can_run_immediately = False
