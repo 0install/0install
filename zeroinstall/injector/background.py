@@ -1,6 +1,6 @@
 """
 Check for updates in a background process. If we can start a program immediately, but some of our information
-is rather old (longer that the L{policy.Policy.freshness} threshold) then we run it anyway, and check for updates using a new
+is rather old (longer that the L{config.freshness} threshold) then we run it anyway, and check for updates using a new
 process that runs quietly in the background.
 
 This avoids the need to annoy people with a 'checking for updates' box when they're trying to run things.
@@ -177,7 +177,7 @@ def _detach():
 	return False
 
 def _check_for_updates(requirements, verbose):
-	from zeroinstall.injector.policy import Policy
+	from zeroinstall.injector.driver import Driver
 	from zeroinstall.injector.config import load_config
 
 	background_handler = BackgroundHandler(requirements.interface_uri, requirements.interface_uri)
@@ -185,13 +185,13 @@ def _check_for_updates(requirements, verbose):
 	root_iface = background_config.iface_cache.get_interface(requirements.interface_uri).get_name()
 	background_handler.title = root_iface
 
-	policy = Policy(config = background_config, requirements = requirements)
+	driver = Driver(config = background_config, requirements = requirements)
 
 	info(_("Checking for updates to '%s' in a background process"), root_iface)
 	if verbose:
-		policy.handler.notify("Zero Install", _("Checking for updates to '%s'...") % root_iface, timeout = 1)
+		background_handler.notify("Zero Install", _("Checking for updates to '%s'...") % root_iface, timeout = 1)
 
-	network_state = policy.handler.get_network_state()
+	network_state = background_handler.get_network_state()
 	if network_state not in (_NetworkState.NM_STATE_CONNECTED_SITE, _NetworkState.NM_STATE_CONNECTED_GLOBAL):
 		info(_("Not yet connected to network (status = %d). Sleeping for a bit..."), network_state)
 		import time
@@ -202,28 +202,28 @@ def _check_for_updates(requirements, verbose):
 	else:
 		info(_("NetworkManager says we're on-line. Good!"))
 
-	policy.freshness = 0			# Don't bother trying to refresh when getting the interface
-	refresh = policy.refresh_all()		# (causes confusing log messages)
+	background_config.freshness = 0			# Don't bother trying to refresh when getting the interface
+	refresh = driver.solve_with_downloads(force = True)	# (causes confusing log messages)
 	tasks.wait_for_blocker(refresh)
 
 	# We could even download the archives here, but for now just
 	# update the interfaces.
 
-	if not policy.need_download():
+	if not driver.need_download():
 		if verbose:
-			policy.handler.notify("Zero Install", _("No updates to download."), timeout = 1)
+			background_handler.notify("Zero Install", _("No updates to download."), timeout = 1)
 		sys.exit(0)
 
-	policy.handler.notify("Zero Install",
+	background_handler.notify("Zero Install",
 			      _("Updates ready to download for '%s'.") % root_iface,
 			      timeout = 1)
-	_exec_gui(policy.root, '--refresh', '--systray')
+	_exec_gui(requirements.interface_uri, '--refresh', '--systray')
 	sys.exit(1)
 
 def spawn_background_update(driver, verbose):
 	"""Spawn a detached child process to check for updates.
 	@param driver: driver containing interfaces to update
-	@type policy: L{driver.Driver}
+	@type driver: L{driver.Driver}
 	@param verbose: whether to notify the user about minor events
 	@type verbose: bool
 	@since: 1.5 (used to take a Policy)"""
