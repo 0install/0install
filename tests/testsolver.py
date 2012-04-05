@@ -225,5 +225,10 @@ class TestSolver(BaseTest):
 		watch_xml = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'watchdog.xml')
 		s.solve(watch_xml, arch.get_architecture(None, None), command_name = 'test')
 
+	def testRecommendBug(self):
+		s = solver.DefaultSolver(self.config)
+		optional_missing_xml = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'OptionalMissing.xml')
+		s.solve(optional_missing_xml, arch.get_architecture(None, None), command_name = None)
+
 if __name__ == '__main__':
 	unittest.main()

@@ -568,7 +568,13 @@ class SATSolver(Solver):
 					return	# Break cycles
 				seen.add(uri)
 
-				group = group_clause_for[uri]
+				group = group_clause_for.get(uri, None)
+
+				if group is None:
+					# (can be None if the selected impl has an optional dependency on 
+					# a feed with no implementations)
+					return
+
 				#print "Group for %s = %s" % (uri, group)
 				lit = group.current
 				if lit is None:
