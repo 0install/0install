@@ -12,7 +12,8 @@ sys.path.insert(0, '..')
 os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall.injector import model, gpg, download, trust, background, arch, selections, qdom, run
-from zeroinstall.injector.policy import Policy
+from zeroinstall.injector.requirements import Requirements
+from zeroinstall.injector.driver import Driver
 from zeroinstall.zerostore import Store, NotStored; Store._add_with_helper = lambda *unused: False
 from zeroinstall.support import basedir, tasks
 from zeroinstall.injector import fetch
@@ -53,11 +54,11 @@ class Reply:
 	def readline(self):
 		return self.reply
 
-def download_and_execute(policy, prog_args, main = None):
-	downloaded = policy.solve_and_download_impls()
+def download_and_execute(driver, prog_args, main = None):
+	downloaded = driver.solve_and_download_impls()
 	if downloaded:
 		tasks.wait_for_blocker(downloaded)
-	run.execute_selections(policy.solver.selections, prog_args, stores = policy.config.stores, main = main)
+	run.execute_selections(driver.solver.selections, prog_args, stores = driver.config.stores, main = main)
 
 class NetworkManager:
 	def state(self):
@@ -100,32 +101,32 @@ class TestDownload(BaseTest):
 	def testRejectKey(self):
 		with output_suppressed():
 			run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
-			policy = Policy('http://localhost:8000/Hello', config = self.config)
-			assert policy.need_download()
+			driver = Driver(requirements = Requirements('http://localhost:8000/Hello'), config = self.config)
+			assert driver.need_download()
 			sys.stdin = Reply("N\n")
 			try:
-				download_and_execute(policy, ['Hello'])
+				download_and_execute(driver, ['Hello'])
 				assert 0
 			except model.SafeException as ex:
 				if "has no usable implementations" not in str(ex):
 					raise ex
-				if "Not signed with a trusted key" not in str(policy.handler.ex):
+				if "Not signed with a trusted key" not in str(self.config.handler.ex):
 					raise ex
 				self.config.handler.ex = None
 
 	def testRejectKeyXML(self):
 		with output_suppressed():
 			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
-			policy = Policy('http://example.com:8000/Hello.xml', config = self.config)
-			assert policy.need_download()
+			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
+			assert driver.need_download()
 			sys.stdin = Reply("N\n")
 			try:
-				download_and_execute(policy, ['Hello'])
+				download_and_execute(driver, ['Hello'])
 				assert 0
 			except model.SafeException as ex:
 				if "has no usable implementations" not in str(ex):
 					raise ex
-				if "Not signed with a trusted key" not in str(policy.handler.ex):
+				if "Not signed with a trusted key" not in str(self.config.handler.ex):
 					raise
 				self.config.handler.ex = None
 	
@@ -205,7 +206,7 @@ class TestDownload(BaseTest):
 			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 			sys.stdin = Reply("Y\n")
 
-			self.config.handler.wait_for_blocker(self.config.fetcher.download_and_import_feed('http://example.com:8000/Hello.xml', self.config.iface_cache))
+			tasks.wait_for_blocker(self.config.fetcher.download_and_import_feed('http://example.com:8000/Hello.xml', self.config.iface_cache))
 
 			cli.main(['--download-only', 'selections.xml'], config = self.config)
 			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
@@ -216,11 +217,11 @@ class TestDownload(BaseTest):
 	def testAcceptKey(self):
 		with output_suppressed():
 			run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-			policy = Policy('http://localhost:8000/Hello', config = self.config)
-			assert policy.need_download()
+			driver = Driver(requirements = Requirements('http://localhost:8000/Hello'), config = self.config)
+			assert driver.need_download()
 			sys.stdin = Reply("Y\n")
 			try:
-				download_and_execute(policy, ['Hello'], main = 'Missing')
+				download_and_execute(driver, ['Hello'], main = 'Missing')
 				assert 0
 			except model.SafeException as ex:
 				if "HelloWorld/Missing" not in str(ex):
@@ -230,11 +231,11 @@ class TestDownload(BaseTest):
 		self.config.auto_approve_keys = True
 		with output_suppressed():
 			run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-			policy = Policy('http://localhost:8000/Hello', config = self.config)
-			assert policy.need_download()
+			driver = Driver(requirements = Requirements('http://localhost:8000/Hello'), config = self.config)
+			assert driver.need_download()
 			sys.stdin = Reply("")
 			try:
-				download_and_execute(policy, ['Hello'], main = 'Missing')
+				download_and_execute(driver, ['Hello'], main = 'Missing')
 				assert 0
 			except model.SafeException as ex:
 				if "HelloWorld/Missing" not in str(ex):
@@ -250,11 +251,11 @@ class TestDownload(BaseTest):
 
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			run_server('Native.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
-			policy = Policy(native_url, config = self.config)
-			assert policy.need_download()
+			driver = Driver(requirements = Requirements(native_url), config = self.config)
+			assert driver.need_download()
 
-			solve = policy.solve_with_downloads()
-			self.config.handler.wait_for_blocker(solve)
+			solve = driver.solve_with_downloads()
+			tasks.wait_for_blocker(solve)
 			tasks.check(solve)
 
 			master_feed = self.config.iface_cache.get_feed(native_url)
@@ -271,11 +272,11 @@ class TestDownload(BaseTest):
 		with output_suppressed():
 			run_server('Hello-wrong-size', '6FCF121BE2390E0B.gpg',
 							'/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-			policy = Policy('http://localhost:8000/Hello-wrong-size', config = self.config)
-			assert policy.need_download()
+			driver = Driver(requirements = Requirements('http://localhost:8000/Hello-wrong-size'), config = self.config)
+			assert driver.need_download()
 			sys.stdin = Reply("Y\n")
 			try:
-				download_and_execute(policy, ['Hello'], main = 'Missing')
+				download_and_execute(driver, ['Hello'], main = 'Missing')
 				assert 0
 			except model.SafeException as ex:
 				if "Downloaded archive has incorrect size" not in str(ex):
@@ -286,9 +287,9 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			run_server(('HelloWorld.tar.bz2', 'redirect/dummy_1-1_all.deb', 'dummy_1-1_all.deb'))
-			policy = Policy(os.path.abspath('Recipe.xml'), config = self.config)
+			driver = Driver(requirements = Requirements(os.path.abspath('Recipe.xml')), config = self.config)
 			try:
-				download_and_execute(policy, [])
+				download_and_execute(driver, [])
 				assert False
 			except model.SafeException as ex:
 				if "HelloWorld/Missing" not in str(ex):
@@ -301,9 +302,9 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			run_server(('HelloWorld.tar.bz2', 'HelloSym.tgz'))
-			policy = Policy(os.path.abspath('RecipeSymlink.xml'), config = self.config)
+			driver = Driver(requirements = Requirements(os.path.abspath('RecipeSymlink.xml')), config = self.config)
 			try:
-				download_and_execute(policy, [])
+				download_and_execute(driver, [])
 				assert False
 			except model.SafeException as ex:
 				if 'Attempt to unpack dir over symlink "HelloWorld"' not in str(ex):
@@ -317,9 +318,9 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			run_server('HelloWorld.autopackage')
-			policy = Policy(os.path.abspath('Autopackage.xml'), config = self.config)
+			driver = Driver(requirements = Requirements(os.path.abspath('Autopackage.xml')), config = self.config)
 			try:
-				download_and_execute(policy, [])
+				download_and_execute(driver, [])
 				assert False
 			except model.SafeException as ex:
 				if "HelloWorld/Missing" not in str(ex):
@@ -332,9 +333,9 @@ class TestDownload(BaseTest):
 		try:
 			sys.stdout = StringIO()
 			run_server('*')
-			policy = Policy(os.path.abspath('Recipe.xml'), config = self.config)
+			driver = Driver(requirements = Requirements(os.path.abspath('Recipe.xml')), config = self.config)
 			try:
-				download_and_execute(policy, [])
+				download_and_execute(driver, [])
 				assert False
 			except download.DownloadError as ex:
 				if "Connection" not in str(ex):
@@ -349,12 +350,12 @@ class TestDownload(BaseTest):
 			getLogger().setLevel(ERROR)
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg')
-			policy = Policy('http://example.com:8000/Hello.xml', config = self.config)
+			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
 			self.config.feed_mirror = 'http://example.com:8000/0mirror'
 
-			refreshed = policy.solve_with_downloads()
-			policy.handler.wait_for_blocker(refreshed)
-			assert policy.ready
+			refreshed = driver.solve_with_downloads()
+			tasks.wait_for_blocker(refreshed)
+			assert driver.solver.ready
 		finally:
 			sys.stdout = old_out
 
@@ -369,17 +370,17 @@ class TestDownload(BaseTest):
 
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
-			policy = Policy('http://example.com:8000/Hello.xml', config = self.config)
+			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
 			self.config.feed_mirror = 'http://example.com:8000/0mirror'
 
 			# Update from mirror (should ignore out-of-date timestamp)
-			refreshed = policy.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)
-			policy.handler.wait_for_blocker(refreshed)
+			refreshed = self.config.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)
+			tasks.wait_for_blocker(refreshed)
 
 			# Update from upstream (should report an error)
-			refreshed = policy.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)
+			refreshed = self.config.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)
 			try:
-				policy.handler.wait_for_blocker(refreshed)
+				tasks.wait_for_blocker(refreshed)
 				raise Exception("Should have been rejected!")
 			except model.SafeException as ex:
 				assert "New feed's modification time is before old version" in str(ex)
@@ -390,12 +391,13 @@ class TestDownload(BaseTest):
 			sys.stdout = old_out
 
 	def testBackground(self, verbose = False):
-		p = Policy('http://example.com:8000/Hello.xml', config = self.config)
-		self.import_feed(p.root, 'Hello.xml')
-		p.freshness = 0
-		p.network_use = model.network_minimal
-		p.solver.solve(p.root, arch.get_host_architecture())
-		assert p.ready, p.solver.get_failure_reason()
+		r = Requirements('http://example.com:8000/Hello.xml')
+		d = Driver(requirements = r, config = self.config)
+		self.import_feed(r.interface_uri, 'Hello.xml')
+		self.config.freshness = 0
+		self.config.network_use = model.network_minimal
+		d.solver.solve(r.interface_uri, arch.get_host_architecture())
+		assert d.solver.ready, d.solver.get_failure_reason()
 
 		@tasks.async
 		def choose_download(registed_cb, nid, actions):
@@ -430,7 +432,7 @@ class TestDownload(BaseTest):
 			try:
 				try:
 					os._exit = my_exit
-					background.spawn_background_update(p, verbose)
+					background.spawn_background_update(d, verbose)
 					assert False
 				except SystemExit as ex:
 					self.assertEqual(1, ex.code)

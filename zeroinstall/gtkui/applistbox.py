@@ -9,7 +9,7 @@ import subprocess
 
 from zeroinstall import support
 from zeroinstall.gtkui import icon, xdgutils
-from zeroinstall.injector import policy, reader, model, namespaces
+from zeroinstall.injector import reader, model, namespaces
 
 def _pango_escape(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')
@@ -175,31 +175,34 @@ class AppListBox:
 			subprocess.Popen(['0launch', '--', uri])
 
 	def action_help(self, uri):
-		p = policy.Policy(uri)
-		policy.network_use = model.network_offline
-		if p.need_download():
-			child = subprocess.Popen(['0launch', '-d', '--', uri])
-			child.wait()
-			if child.returncode:
-				return
-		iface = self.iface_cache.get_interface(uri)
-		reader.update_from_cache(iface)
-		p.solve_with_downloads()
-		impl = p.solver.selections[iface]
+		from zeroinstall.injector.config import load_config
+		from zeroinstall import helpers
+		c = load_config()
+		sels = helpers.ensure_cached(uri, config = c)
+		if not sels:
+			return
+
+		impl = sels.selections[uri]
 		assert impl, "Failed to choose an implementation of %s" % uri
-		help_dir = impl.metadata.get('doc-dir')
-		path = p.get_implementation_path(impl)
-		assert path, "Chosen implementation is not cached!"
-		if help_dir:
-			path = os.path.join(path, help_dir)
+		help_dir = impl.attrs.get('doc-dir')
+
+		if impl.id.startswith('package:'):
+			assert os.path.isabs(help_dir), "Package doc-dir must be absolute!"
+			path = help_dir
 		else:
-			main = impl.main
-			if main:
-				# Hack for ROX applications. They should be updated to
-				# set doc-dir.
-				help_dir = os.path.join(path, os.path.dirname(main), 'Help')
-				if os.path.isdir(help_dir):
-					path = help_dir
+			path = impl.local_path or c.stores.lookup_any(impl.digests)
+
+			assert path, "Chosen implementation is not cached!"
+			if help_dir:
+				path = os.path.join(path, help_dir)
+			else:
+				main = impl.main
+				if main:
+					# Hack for ROX applications. They should be updated to
+					# set doc-dir.
+					help_dir = os.path.join(path, os.path.dirname(main), 'Help')
+					if os.path.isdir(help_dir):
+						path = help_dir
 
 		# xdg-open has no "safe" mode, so check we're not "opening" an application.
 		if os.path.exists(os.path.join(path, 'AppRun')):

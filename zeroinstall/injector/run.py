@@ -30,26 +30,6 @@ def do_env_binding(binding, path):
 					os.environ.get(binding.name, None))
 	info("%s=%s", binding.name, os.environ[binding.name])
 
-def execute(policy, prog_args, dry_run = False, main = None, wrapper = None):
-	"""Execute program. On success, doesn't return. On failure, raises an Exception.
-	Returns normally only for a successful dry run.
-	@deprecated: use L{execute_selections} instead
-	@param policy: a policy with the selected versions
-	@type policy: L{policy.Policy}
-	@param prog_args: arguments to pass to the program
-	@type prog_args: [str]
-	@param dry_run: if True, just print a message about what would have happened
-	@type dry_run: bool
-	@param main: the name of the binary to run, or None to use the default
-	@type main: str
-	@param wrapper: a command to use to actually run the binary, or None to run the binary directly
-	@type wrapper: str
-	@precondition: C{policy.ready and policy.get_uncached_implementations() == []}
-	"""
-	import warnings
-	warnings.warn("run.execute is deprecated; use execute_selections instead", DeprecationWarning, 2)
-	execute_selections(policy.solver.selections, prog_args, dry_run, main, wrapper)
-
 def test_selections(selections, prog_args, dry_run, main):
 	"""Run the program in a child process, collecting stdout and stderr.
 	@return: the output produced by the process

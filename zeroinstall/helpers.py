@@ -108,19 +108,23 @@ def ensure_cached(uri, command = 'run', config = None):
 	@return: the selected implementations, or None if the user cancelled
 	@rtype: L{zeroinstall.injector.selections.Selections}
 	"""
-	from zeroinstall.injector import policy
+	from zeroinstall.injector.driver import Driver
 
 	if config is None:
 		from zeroinstall.injector.config import load_config
 		config = load_config()
-	p = policy.Policy(uri, command = command, config = config)
-	p.freshness = 0		# Don't check for updates
 
-	if p.need_download() or not p.ready:
+	from zeroinstall.injector.requirements import Requirements
+	requirements = Requirements(uri)
+	requirements.command = command
+
+	d = Driver(config, requirements)
+
+	if d.need_download() or not d.solver.ready:
 		if os.environ.get('DISPLAY', None):
 			return get_selections_gui(uri, ['--command', command])
 		else:
-			done = p.solve_and_download_impls()
+			done = d.solve_and_download_impls()
 			tasks.wait_for_blocker(done)
 
-	return p.solver.selections
+	return d.solver.selections

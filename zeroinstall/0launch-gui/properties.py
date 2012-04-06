@@ -29,8 +29,8 @@ def format_para(para):
 	lines = [l.strip() for l in para.split('\n')]
 	return ' '.join(lines)
 
-def have_source_for(policy, interface):
-	iface_cache = policy.config.iface_cache
+def have_source_for(config, interface):
+	iface_cache = config.iface_cache
 	# Note: we don't want to actually fetch the source interfaces at
 	# this point, so we check whether:
 	# - We have a feed of type 'src' (not fetched), or
@@ -170,10 +170,10 @@ class Feeds:
 			self.model.append(line)
 
 		add_remote_feed_button = widgets.get_widget('add_remote_feed')
-		add_remote_feed_button.connect('clicked', lambda b: add_remote_feed(policy, widgets.get_widget(), interface))
+		add_remote_feed_button.connect('clicked', lambda b: add_remote_feed(policy.config, widgets.get_widget(), interface))
 
 		add_local_feed_button = widgets.get_widget('add_local_feed')
-		add_local_feed_button.connect('clicked', lambda b: add_local_feed(policy, interface))
+		add_local_feed_button.connect('clicked', lambda b: add_local_feed(policy.config, interface))
 
 		self.remove_feed_button = widgets.get_widget('remove_feed')
 		def remove_feed(button):
@@ -330,7 +330,7 @@ class Properties:
 		self.window.destroy()
 	
 	def shade_compile(self):
-		self.compile_button.set_sensitive(have_source_for(self.policy, self.interface))
+		self.compile_button.set_sensitive(have_source_for(self.policy.config, self.interface))
 	
 	def update_list(self):
 		ranked_items = self.policy.solver.details.get(self.interface, None)
@@ -343,9 +343,9 @@ class Properties:
 		self.use_list.set_items(ranked_items)
 
 @tasks.async
-def add_remote_feed(policy, parent, interface):
+def add_remote_feed(config, parent, interface):
 	try:
-		iface_cache = policy.config.iface_cache
+		iface_cache = config.iface_cache
 
 		d = gtk.MessageDialog(parent, 0, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL,
 			_('Enter the URL of the new source of implementations of this interface:'))
@@ -388,7 +388,7 @@ def add_remote_feed(policy, parent, interface):
 					url = entry.get_text()
 					if not url:
 						raise zeroinstall.SafeException(_('Enter a URL'))
-					fetch = policy.fetcher.download_and_import_feed(url, iface_cache)
+					fetch = config.fetcher.download_and_import_feed(url, iface_cache)
 					if fetch:
 						d.set_sensitive(False)
 						yield fetch
@@ -422,14 +422,14 @@ def add_remote_feed(policy, parent, interface):
 	except Exception as ex:
 		import traceback
 		traceback.print_exc()
-		policy.handler.report_error(ex)
+		config.handler.report_error(ex)
 
-def add_local_feed(policy, interface):
+def add_local_feed(config, interface):
 	chooser = gtk.FileChooserDialog(_('Select XML feed file'), action=gtk.FILE_CHOOSER_ACTION_OPEN, buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
 	def ok(feed):
 		from zeroinstall.injector import reader
 		try:
-			feed_targets = policy.get_feed_targets(feed)
+			feed_targets = config.iface_cache.get_feed_targets(feed)
 			if interface not in feed_targets:
 				raise Exception(_("Not a valid feed for '%(uri)s'; this is a feed for:\n%(feed_for)s") %
 						{'uri': interface.uri,

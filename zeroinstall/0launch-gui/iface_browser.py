@@ -387,7 +387,7 @@ class InterfaceBrowser:
 	def show_popup_menu(self, iface, bev):
 		import bugs
 
-		have_source =  properties.have_source_for(self.policy, iface)
+		have_source =  properties.have_source_for(self.policy.config, iface)
 
 		menu = gtk.Menu()
 		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.policy, iface, self.compile)),
