@@ -158,7 +158,7 @@ class AppListBox:
 		iface = self.iface_cache.get_interface(uri)
 		reader.update_from_cache(iface)
 		if len(iface.get_metadata(namespaces.XMLNS_IFACE, 'needs-terminal')):
-			for terminal in ['xterm', 'gnome-terminal', 'rxvt', 'konsole']:
+			for terminal in ['x-terminal-emulator', 'xterm', 'gnome-terminal', 'rxvt', 'konsole']:
 				exe = support.find_in_path(terminal)
 				if exe:
 					if terminal == 'gnome-terminal':
