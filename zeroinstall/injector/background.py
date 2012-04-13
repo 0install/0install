@@ -1,6 +1,6 @@
 """
 Check for updates in a background process. If we can start a program immediately, but some of our information
-is rather old (longer that the L{config.freshness} threshold) then we run it anyway, and check for updates using a new
+is rather old (longer that the L{config.Config.freshness} threshold) then we run it anyway, and check for updates using a new
 process that runs quietly in the background.
 
 This avoids the need to annoy people with a 'checking for updates' box when they're trying to run things.
