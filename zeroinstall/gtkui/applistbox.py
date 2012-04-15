@@ -158,6 +158,12 @@ class AppListBox:
 		iface = self.iface_cache.get_interface(uri)
 		reader.update_from_cache(iface)
 		if len(iface.get_metadata(namespaces.XMLNS_IFACE, 'needs-terminal')):
+			if gtk.pygtk_version >= (2,16,0) and gtk.gdk.WINDOWING == 'quartz':
+				script = ['0launch', '--', uri]
+				osascript = support.find_in_path('osascript')
+				subprocess.Popen([osascript, '-e', 'tell app "Terminal"', '-e', 'activate',
+							     '-e', 'do script "%s"' % ' '.join(script), '-e', 'end tell'])
+				return
 			for terminal in ['x-terminal-emulator', 'xterm', 'gnome-terminal', 'rxvt', 'konsole']:
 				exe = support.find_in_path(terminal)
 				if exe:
