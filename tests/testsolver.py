@@ -131,12 +131,17 @@ class TestSolver(BaseTest):
 		self.assertEqual(host_arch.machine_ranks, host_arch2.machine_ranks)
 
 		other = arch.get_architecture('FooBar', 'i486')
-		self.assertEqual(2, len(other.os_ranks))
+		self.assertEqual(3, len(other.os_ranks))
 
+		assert 'POSIX' in other.os_ranks
 		assert 'FooBar' in other.os_ranks
 		assert None in other.os_ranks
 		assert 'i486' in other.machine_ranks
 		assert 'ppc' not in other.machine_ranks
+
+		win = arch.get_architecture('Windows', 'i486')
+		self.assertEqual(2, len(win.os_ranks))
+		assert 'POSIX' not in win.os_ranks
 	
 	def testRanking(self):
 		iface_cache = self.config.iface_cache

@@ -66,6 +66,11 @@ def _get_os_ranks(target_os):
 	# Binaries compiled for _this_ OS are best...
 	os_ranks = {target_os : 1}
 
+	# Assume everything supports POSIX except Windows
+	# (but Cygwin is POSIX)
+	if target_os != 'Windows':
+		os_ranks['POSIX'] = len(os_ranks) + 1
+
 	# If target_os appears in the first column of this table, all
 	# following OS types on the line will also run on this one
 	# (earlier ones preferred):
