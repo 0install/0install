@@ -327,6 +327,8 @@ class SATSolver(Solver):
 			if impl.machine not in arch.machine_ranks:
 				if impl.machine == 'src':
 					return _("Source code")
+				elif 'src' in arch.machine_ranks:
+					return _("Not source code")
 				return _("Unsupported machine type")
 			return None
 

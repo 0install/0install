@@ -76,7 +76,7 @@ class TestSolver(BaseTest):
 
 		assert len(s.details) == 2
 		self.assertEqual([(foo_src_impls['sha1=234'], None),
-				   (foo_impls['sha1=123'], 'Unsupported machine type')],
+				   (foo_impls['sha1=123'], 'Not source code')],
 				   sorted(s.details[foo]))
 		assert s.details[compiler] == [(compiler_impls['sha1=345'], None)]
 
