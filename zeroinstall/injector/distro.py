@@ -18,8 +18,8 @@ _dotted_ints = '[0-9]+(?:\.[0-9]+)*'
 _zeroinstall_regexp = '(?:%s)(?:-(?:pre|rc|post|)(?:%s))*' % (_dotted_ints, _dotted_ints)
 
 # This matches the interesting bits of distribution version numbers
-# (first bit is for Java-style 6b17 syntax)
-_version_regexp = '({ints}b)?({zero})(-r{ints})?'.format(zero = _zeroinstall_regexp, ints = _dotted_ints)
+# (first matching group is for Java-style 6b17 syntax, or "major")
+_version_regexp = '(?:[a-z])?({ints}b)?({zero})(-r{ints})?'.format(zero = _zeroinstall_regexp, ints = _dotted_ints)
 
 # We try to do updates atomically without locking, but we don't worry too much about
 # duplicate entries or being a little out of sync with the on-disk copy.

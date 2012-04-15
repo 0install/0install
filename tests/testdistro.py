@@ -246,6 +246,10 @@ class TestDistro(BaseTest):
 		self.assertEqual('0.3.1-1', distro.try_cleanup_distro_version('0.3.1-1ubuntu0'))
 		self.assertEqual('0.3-post1-rc2', distro.try_cleanup_distro_version('0.3-post1-rc2'))
 		self.assertEqual('0.3.1-2', distro.try_cleanup_distro_version('0.3.1-r2-r3'))
+		self.assertEqual('6.17', distro.try_cleanup_distro_version('6b17'))
+		self.assertEqual('20-1', distro.try_cleanup_distro_version('b20_1'))
+		self.assertEqual('17', distro.try_cleanup_distro_version('p17'))
+		self.assertEqual(None, distro.try_cleanup_distro_version('cvs'))
 
 	def testCommand(self):
 		dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
