@@ -98,12 +98,12 @@ class Setup(object):
 		@return: the argument list
 		@rtype: [str]"""
 
-		assert command_name
+		assert command_name or user_command
 
 		prog_args = []
 		sels = self.selections.selections
 
-		while command_name:
+		while command_name or user_command:
 			command_sel = sels[command_iface]
 
 			if user_command is None:
