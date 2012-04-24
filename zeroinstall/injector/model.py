@@ -151,7 +151,7 @@ def process_depends(item, local_feed_dir):
 	dep_iface = item.getAttribute('interface')
 	if not dep_iface:
 		raise InvalidInterface(_("Missing 'interface' on <%s>") % item.name)
-	if dep_iface.startswith('./'):
+	if dep_iface.startswith('.'):
 		if local_feed_dir:
 			dep_iface = os.path.abspath(os.path.join(local_feed_dir, dep_iface))
 			# (updates the element too, in case we write it out again)
