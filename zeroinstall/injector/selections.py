@@ -53,6 +53,27 @@ class Selection(object):
 		path = stores.lookup_maybe(self.digests)
 		return path is not None
 
+	def get_path(self, stores, missing_ok = False):
+		"""Return the root directory of this implementation.
+		For local implementations, this is L{local_path}.
+		For cached implementations, this is the directory in the cache.
+		@param stores: stores to search
+		@type stores: L{zerostore.Stores}
+		@param missing_ok: return None for uncached implementations
+		@type missing_ok: bool
+		@return: the path of the directory
+		@rtype: str | None
+		@since: 1.8"""
+		if self.local_path is not None:
+			return self.local_path
+		if not self.digests:
+			# (for now, we assume this is always an error, even for missing_ok)
+			raise model.SafeException("No digests for {feed} {version}".format(feed = self.feed, version = self.version))
+		if missing_ok:
+			return stores.lookup_maybe(self.digests)
+		else:
+			return stores.lookup_any(self.digests)
+
 class ImplSelection(Selection):
 	"""A Selection created from an Implementation"""
 
@@ -332,10 +353,7 @@ class Selections(object):
 			elif sel.local_path:
 				return False
 			else:
-				try:
-					stores.lookup_any(sel.digests)
-				except NotStored:
-					return True
+				return sel.get_path(stores, missing_ok = True) is None
 
 		needed_downloads = list(filter(needs_download, self.selections.values()))
 		if not needed_downloads:

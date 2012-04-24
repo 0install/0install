@@ -133,7 +133,7 @@ class Setup(object):
 					if command_path.startswith('/'):
 						raise SafeException(_("Command path must be relative, but '%s' starts with '/'!") %
 									command_path)
-					prog_path = os.path.join(self._get_implementation_path(command_sel), command_path)
+					prog_path = os.path.join(command_sel.get_path(self.stores), command_path)
 
 				assert prog_path is not None
 
@@ -156,10 +156,6 @@ class Setup(object):
 			raise SafeException("Missing 'path' attribute on <command>")
 
 		return prog_args
-
-	def _get_implementation_path(self, impl):
-		if impl.id.startswith('package:'): return None
-		return impl.local_path or self.stores.lookup_any(impl.digests)
 
 	def prepare_env(self):
 		"""Do all the environment bindings in the selections (setting os.environ)."""
@@ -203,7 +199,11 @@ class Setup(object):
 		@type iface: L{model.Interface}
 		"""
 		if isinstance(binding, EnvironmentBinding):
-			do_env_binding(binding, self._get_implementation_path(impl))
+			if impl.id.startswith('package:'):
+				path = None		# (but still do the binding, e.g. for values)
+			else:
+				path = impl.get_path(self.stores)
+			do_env_binding(binding, path)
 		elif isinstance(binding, ExecutableBinding):
 			if isinstance(iface, Dependency):
 				import warnings

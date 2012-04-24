@@ -167,13 +167,10 @@ def show_human(sels, stores):
 		if impl:
 			print(indent + "  Version:", impl.version)
 			#print indent + "  Command:", command
-			try:
-				if impl.id.startswith('package:'):
-					path = "(" + impl.id + ")"
-				else:
-					path = impl.local_path or stores.lookup_any(impl.digests)
-			except zerostore.NotStored:
-				path = "(not cached)"
+			if impl.id.startswith('package:'):
+				path = "(" + impl.id + ")"
+			else:
+				path = impl.get_path(stores, missing_ok = True) or _("(not cached)")
 			print(indent + "  Path:", path)
 			indent += "  "
 
