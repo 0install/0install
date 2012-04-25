@@ -26,7 +26,7 @@ def _ensure_standard_fds():
 		try:
 			os.fstat(std)
 		except OSError:
-			fd = os.open('/dev/null', os.O_RDONLY)
+			fd = os.open(os.devnull, os.O_RDONLY)
 			if fd != std:
 				os.dup2(fd, std)
 				os.close(fd)

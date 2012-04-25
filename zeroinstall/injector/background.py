@@ -166,7 +166,7 @@ def _detach():
 	# Note: this only fixes the most common case; it could be waiting
 	# on any other FD as well. We should really use gobject.spawn_async
 	# to close *all* FDs.
-	null = os.open('/dev/null', os.O_RDWR)
+	null = os.open(os.devnull, os.O_RDWR)
 	os.dup2(null, 1)
 	os.close(null)
 

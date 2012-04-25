@@ -31,7 +31,7 @@ def main(command_args, config = None):
 		try:
 			os.fstat(std)
 		except OSError:
-			fd = os.open('/dev/null', os.O_RDONLY)
+			fd = os.open(os.devnull, os.O_RDONLY)
 			if fd != std:
 				os.dup2(fd, std)
 				os.close(fd)

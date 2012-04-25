@@ -78,7 +78,7 @@ class AbstractTestUnpack():
 	def testExtractFails(self):
 		stderr = os.dup(2)
 		try:
-			null = os.open('/dev/null', os.O_WRONLY)
+			null = os.open(os.devnull, os.O_WRONLY)
 			os.close(2)
 			os.dup2(null, 2)
 			try:

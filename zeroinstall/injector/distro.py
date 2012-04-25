@@ -419,7 +419,7 @@ class DebianDistribution(Distribution):
 		self.apt_cache = {}
 
 	def _query_installed_package(self, package):
-		null = os.open('/dev/null', os.O_WRONLY)
+		null = os.open(os.devnull, os.O_WRONLY)
 		child = subprocess.Popen(["dpkg-query", "-W", "--showformat=${Version}\t${Architecture}\t${Status}\n", "--", package],
 						stdout = subprocess.PIPE, stderr = null)
 		os.close(null)
@@ -494,7 +494,7 @@ class DebianDistribution(Distribution):
 		for package in package_names:
 			# Check to see whether we could get a newer version using apt-get
 			try:
-				null = os.open('/dev/null', os.O_WRONLY)
+				null = os.open(os.devnull, os.O_WRONLY)
 				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null)
 				os.close(null)
 

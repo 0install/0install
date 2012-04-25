@@ -147,7 +147,7 @@ class Store:
 		env = os.environ.copy()
 		env['ENV_NOT_CLEARED'] = 'Unclean'	# (warn about insecure configurations)
 		env['HOME'] = 'Unclean'			# (warn about insecure configurations)
-		dev_null = os.open('/dev/null', os.O_RDONLY)
+		dev_null = os.open(os.devnull, os.O_RDONLY)
 		try:
 			info(_("Trying to add to system cache using %s"), helper)
 			child = subprocess.Popen([helper, required_digest],
