@@ -9,6 +9,14 @@ from zeroinstall.support import ssl_match_hostname
 
 import urllib2, httplib
 
+try:
+	# http://pypi.python.org/pypi/certifi
+	import certifi
+	_fallback_ca_bundle = certifi.where()
+except:
+	# Final fallback (last known signer of keylookup)
+	_fallback_ca_bundle = os.path.join(os.path.dirname(__file__), "EquifaxSecureCA.crt")
+
 # Note: on MacOS X at least, it will also look in the system keychain provided that you supply *some* CAs.
 # (if you don't specify any trusted CAs, Python trusts everything!)
 # So, the "fallback" option doesn't necessarily mean that other sites won't work.
@@ -17,8 +25,7 @@ for ca_bundle in [
 		"/etc/pki/tls/certs/ca-bundle.crt",	# Fedora/RHEL
 		"/etc/ssl/ca-bundle.pem",		# openSUSE/SLE (claimed)
 		"/var/lib/ca-certificates/ca-bundle.pem.new", # openSUSE (actual)
-		os.path.join(os.path.dirname(__file__), "EquifaxSecureCA.crt"),	# Fallback (last known signer of keylookup)
-		]:
+		_fallback_ca_bundle]:
 	if os.path.exists(ca_bundle):
 		class ValidatingHTTPSConnection(httplib.HTTPSConnection):
 			def connect(self):
