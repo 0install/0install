@@ -157,7 +157,6 @@ def show_xml(sels):
 	sys.stdout.write('\n')
 
 def show_human(sels, stores):
-	from zeroinstall import zerostore
 	done = set()	# detect cycles
 	def print_node(uri, commands, indent):
 		if uri in done: return

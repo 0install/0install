@@ -334,8 +334,6 @@ class Selections(object):
 		@param config: used to get iface_cache, stores and fetcher
 		@param include_packages: also try to install native packages (since 1.5)
 		@return: a L{tasks.Blocker} or None"""
-		from zeroinstall.zerostore import NotStored
-
 		if _old:
 			config = get_deprecated_singleton_config()
 
