@@ -12,7 +12,7 @@ from zeroinstall.support import tasks
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, writer
 
-syntax = "NEW-FEED"
+syntax = "[INTERFACE] NEW-FEED"
 
 def add_options(parser):
 	parser.add_option("-o", "--offline", help=_("try to avoid using the network"), action='store_true')
@@ -24,7 +24,18 @@ def find_feed_import(iface, feed_url):
 	return None
 
 def handle(config, options, args, add_ok = True, remove_ok = False):
-	if len(args) != 1: raise UsageError()
+	if len(args) == 2:
+		iface = config.iface_cache.get_interface(model.canonical_iface_uri(args[0]))
+		feed_url = model.canonical_iface_uri(args[1])
+
+		feed_import = find_feed_import(iface, feed_url)
+		if feed_import:
+			raise SafeException(_('Interface %(interface)s already has a feed %(feed)s') %
+						{'interface': iface.uri, 'feed': feed_url})
+		iface.extra_feeds.append(model.Feed(feed_url, arch = None, user_override = True))
+		writer.save_interface(iface)
+		return
+	elif len(args) != 1: raise UsageError()
 
 	x = args[0]
 

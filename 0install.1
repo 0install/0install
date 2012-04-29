@@ -1,4 +1,4 @@
-.TH 0INSTALL 1 "2011" "Thomas Leonard" ""
+.TH 0INSTALL 1 "2012" "Thomas Leonard" ""
 .SH NAME
 0install \(em a decentralised software installation system
 
@@ -22,7 +22,7 @@
 
 .B 0install list \fBPATTERN\fP
 
-.B 0install add-feed \fBFEED\fP
+.B 0install add-feed [\fBINTERFACE\fP] \fBFEED\fP
 
 .B 0install remove-feed [\fBINTERFACE\fP] \fBFEED\fP
 
@@ -258,7 +258,7 @@ signature, as when fetching from the network.
 It is also useful when installing a feed from a CD or similar. Note: to create
 a full bundle, for archiving or distribution on CD, see 0export(1).
 
-.SS 0install add-feed FEED
+.SS 0install add-feed [INTERFACE] FEED
 
 .PP
 Register an additional source of implementations (versions) of a program.
@@ -376,7 +376,7 @@ See the 0store(1) man page for more information.
 
 .SH LICENSE
 .PP
-Copyright (C) 2011 Thomas Leonard.
+Copyright (C) 2012 Thomas Leonard.
 
 .PP
 You may redistribute copies of this program under the terms of the GNU Lesser General Public License.
