@@ -206,15 +206,15 @@ def load_feed(source, local = False, selections_ok = False):
 	@return: the new feed
 	@since: 0.48
 	@see: L{iface_cache.iface_cache}, which uses this to load the feeds"""
-	with open(source) as stream:
-		try:
+	try:
+		with open(source) as stream:
 			root = qdom.parse(stream)
-		except IOError as ex:
-			if ex.errno == errno.ENOENT and local:
-				raise MissingLocalFeed(_("Feed not found. Perhaps this is a local feed that no longer exists? You can remove it from the list of feeds in that case."))
-			raise InvalidInterface(_("Can't read file"), ex)
-		except Exception as ex:
-			raise InvalidInterface(_("Invalid XML"), ex)
+	except IOError as ex:
+		if ex.errno == errno.ENOENT and local:
+			raise MissingLocalFeed(_("Feed not found. Perhaps this is a local feed that no longer exists? You can remove it from the list of feeds in that case."))
+		raise InvalidInterface(_("Can't read file"), ex)
+	except Exception as ex:
+		raise InvalidInterface(_("Invalid XML"), ex)
 
 	if local:
 		if selections_ok and root.uri == XMLNS_IFACE and root.name == 'selections':
