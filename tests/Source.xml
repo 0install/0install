@@ -19,4 +19,18 @@
     <environment name='SRCDIR' insert='.' mode='replace'/>
     <overlay src='.' mount-point='/'/>
   </group>
+
+  <implementation id='old' version='0.1' arch='*-src' compile:command='make'>
+    <manifest-digest sha1='666'/>
+    <archive href='foo' size='10'/>
+  </implementation>
+
+  <implementation id='impossible' version='3' arch='*-src' compile:command='make'>
+    <requires interface='http://foo/Compiler.xml'>
+      <version before='1.0'/>
+      <version not-before='1.0'/>
+    </requires>
+    <manifest-digest sha1='666'/>
+    <archive href='foo' size='10'/>
+  </implementation>
 </interface>

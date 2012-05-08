@@ -5,6 +5,7 @@ import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import solver, arch
+from zeroinstall.injector.requirements import Requirements
 
 import logging
 logger = logging.getLogger()
@@ -65,20 +66,44 @@ class TestSolver(BaseTest):
 		compiler = iface_cache.get_interface('http://foo/Compiler.xml')
 		self.import_feed(compiler.uri, 'Compiler.xml')
 
-		binary_arch = arch.Architecture({None: 1}, {None: 1})
+		r = Requirements('http://foo/Binary.xml')
+		r.source = True
+		r.command = 'compile'
+
 		s.record_details = True
-		s.solve('http://foo/Binary.xml', arch.SourceArchitecture(binary_arch), command_name = 'compile')
+		s.solve_for(r)
 		assert s.ready, s.get_failure_reason()
 
+		foo_bin_impls = iface_cache.get_feed(foo_binary_uri).implementations
 		foo_src_impls = iface_cache.get_feed(foo_src.uri).implementations
 		foo_impls = iface_cache.get_feed(foo.uri).implementations
 		compiler_impls = iface_cache.get_feed(compiler.uri).implementations
 
 		assert len(s.details) == 2
-		self.assertEqual([(foo_src_impls['sha1=234'], None),
-				   (foo_impls['sha1=123'], 'Not source code')],
-				   sorted(s.details[foo]))
-		assert s.details[compiler] == [(compiler_impls['sha1=345'], None)]
+		self.assertEqual([
+				(foo_src_impls['impossible'], None),
+				(foo_src_impls['sha1=234'], None),
+				(foo_impls['sha1=123'], 'Not source code'),
+				(foo_src_impls['old'], None),
+			], sorted(s.details[foo]))
+		self.assertEqual([
+				(compiler_impls['sha1=345'], None),
+				(compiler_impls['sha1=678'], None),
+			], s.details[compiler])
+
+		def justify(uri, impl, expected):
+			iface = iface_cache.get_interface(uri)
+			e = s.justify_decision(r, iface, impl)
+			self.assertEqual(expected, e)
+
+		justify(foo_binary_uri, foo_bin_impls["sha1=123"],
+				'Binary 1.0 cannot be used (regardless of other components): Not source code')
+		justify(foo_binary_uri, foo_src_impls["sha1=234"],
+				'Binary 1.0 was selected as the preferred version')
+		justify(foo_binary_uri, foo_src_impls["old"],
+				'Binary 0.1 is selectable, but a better choice was available')
+		justify(foo_binary_uri, foo_src_impls["impossible"],
+				'''There is no possible selection using Binary 3.\nCan't find all required implementations:\n- <Interface http://foo/Binary.xml> -> impossible\n- <Interface http://foo/Compiler.xml> -> None''')
 
 	def testRecursive(self):
 		iface_cache = self.config.iface_cache

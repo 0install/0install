@@ -54,6 +54,15 @@ class _DummyImpl(object):
 	def get_name(self):
 		return "dummy"
 
+class _ForceImpl(model.Restriction):
+	"""Used by L{SATSolver.justify_decision}."""
+
+	def __init__(self, impl_id):
+		self.impl_id = impl_id
+
+	def meets_restriction(self, impl):
+		return impl.id == self.impl_id
+
 class Solver(object):
 	"""Chooses a set of implementations to satisfy the requirements of a program and its user.
 	Typical use:
@@ -707,5 +716,38 @@ class SATSolver(Solver):
 		return model.SafeException(_("Can't find all required implementations:") + '\n' +
 				'\n'.join(["- %s -> %s" % (iface, self.selections[iface])
 					   for iface  in self.selections]))
+
+	def justify_decision(self, requirements, iface, impl):
+		"""Run a solve with impl_id forced to be selected, and explain why it wasn't (or was)
+		selected in the normal case."""
+		assert isinstance(iface, model.Interface), iface
+
+		restrictions = self.extra_restrictions.copy()
+		ir = restrictions.get(iface, [])
+		restrictions[iface] = ir
+		ir.append(_ForceImpl(impl.id))
+		s = SATSolver(self.config, restrictions)
+		s.record_details = True
+		s.solve_for(requirements)
+
+		wanted = "{iface} {version}".format(iface = iface.get_name(), version = impl.get_version())
+
+		if not s.ready:
+			reasons = s.details.get(iface, [])
+			for (rid, rstr) in reasons:
+				if rid.id == impl.id and rstr is not None:
+					return _("{wanted} cannot be used (regardless of other components): {reason}").format(
+							wanted = wanted,
+							reason = rstr)
+
+			return _("There is no possible selection using {wanted}.\n{reason}").format(
+				wanted = wanted,
+				reason = s.get_failure_reason())
+
+		actual_selection = self.selections[iface]
+		if actual_selection.id == impl.id:
+			return _("{wanted} was selected as the preferred version").format(wanted = wanted)
+
+		return _("{wanted} is selectable, but a better choice was available").format(wanted = wanted)
 
 DefaultSolver = SATSolver

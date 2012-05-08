@@ -186,7 +186,7 @@ class TestLaunch(BaseTest):
 		assert "Permission denied" in err or "Is a directory" in err
 
 	def testSource(self):
-		out, err = self.run_0launch(['--dry-run', '--source', 'Source.xml'])
+		out, err = self.run_0launch(['--dry-run', '--source', '--not-before=1', 'Source.xml'])
 		self.assertEqual("", err)
 		assert 'Compiler.xml' in out
 	
