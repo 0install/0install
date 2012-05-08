@@ -734,7 +734,7 @@ class SATSolver(Solver):
 		wanted = "{iface} {version}".format(iface = iface.get_name(), version = impl.get_version())
 
 		# Could a selection involving impl even be valid?
-		if not s.ready:
+		if not s.ready or iface.uri not in s.selections.selections:
 			reasons = s.details.get(iface, [])
 			for (rid, rstr) in reasons:
 				if rid.id == impl.id and rstr is not None:
@@ -742,9 +742,10 @@ class SATSolver(Solver):
 							wanted = wanted,
 							reason = rstr)
 
-			return _("There is no possible selection using {wanted}.\n{reason}").format(
-				wanted = wanted,
-				reason = s.get_failure_reason())
+			if not s.ready:
+				return _("There is no possible selection using {wanted}.\n{reason}").format(
+					wanted = wanted,
+					reason = s.get_failure_reason())
 
 		actual_selection = self.selections.get(iface, None)
 		if actual_selection is not None:
@@ -782,25 +783,29 @@ class SATSolver(Solver):
 								actual = actual_selection.get_version(),
 								why = _ranking_component_reason[i])
 
+		used_impl = iface.uri in s.selections.selections
+
 		# Impl is selectable and ranked higher than the selected version. Selecting it would cause
 		# a problem elsewhere.
 		changes = []
 		for old_iface, old_sel in self.selections.selections.iteritems():
-			if old_iface == iface.uri: continue
+			if old_iface == iface.uri and used_impl: continue
 			new_sel = s.selections.selections.get(old_iface, None)
 			if new_sel is None:
 				changes.append(_("{interface}: no longer used").format(interface = old_iface))
 			elif old_sel.version != new_sel.version:
-				changes.append(_("%s: %s -> %s") % (old_iface, old_sel.version, new_sel.version))
+				changes.append(_("{interface}: {old} to {new}").format(interface = old_iface, old = old_sel.version, new = new_sel.version))
 			elif old_sel.id != new_sel.id:
-				changes.append(_("%s: %s -> %s") % (old_iface, old_sel.id, new_sel.id))
+				changes.append(_("{interface}: {old} to {new}").format(interface = old_iface, old = old_sel.id, new = new_sel.id))
 
 		if changes:
-			changes_text = '\n\n' + _('Selecting {wanted} would cause these changes:').format(
-					wanted = wanted) + '\n\n' + '\n'.join(changes)
+			changes_text = '\n\n' + _('The changes would be:') + '\n\n' + '\n'.join(changes)
 		else:
 			changes_text = ''
 
-		return _("{wanted} is selectable, but using it would produce a less optimal solution overall.").format(wanted = wanted) + changes_text
+		if used_impl:
+			return _("{wanted} is selectable, but using it would produce a less optimal solution overall.").format(wanted = wanted) + changes_text
+		else:
+			return _("If {wanted} were the only option, the best available solution wouldn't use it.").format(wanted = wanted) + changes_text
 
 DefaultSolver = SATSolver

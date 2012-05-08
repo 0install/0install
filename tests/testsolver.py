@@ -106,7 +106,7 @@ class TestSolver(BaseTest):
 		justify(foo_binary_uri, foo_src_impls["impossible"],
 				'''There is no possible selection using Binary 3.\nCan't find all required implementations:\n- <Interface http://foo/Binary.xml> -> impossible\n- <Interface http://foo/Compiler.xml> -> None''')
 		justify(compiler.uri, compiler_impls["sha1=999"],
-				'''Compiler 5 is selectable, but using it would produce a less optimal solution overall.\n\nSelecting Compiler 5 would cause these changes:\n\nhttp://foo/Binary.xml: 1.0 -> 0.1''')
+				'''Compiler 5 is selectable, but using it would produce a less optimal solution overall.\n\nThe changes would be:\n\nhttp://foo/Binary.xml: 1.0 to 0.1''')
 
 	def testRecursive(self):
 		iface_cache = self.config.iface_cache
