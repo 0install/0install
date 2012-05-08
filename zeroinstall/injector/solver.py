@@ -176,6 +176,7 @@ class SATSolver(Solver):
 		else:
 			stability_limited = stability
 
+		# Note: this list must match _ranking_component_reason above
 		return [
 			# Languages we understand come first
 			max(my_langs.get(l.split('-')[0], -1) for l in impl_langs),
@@ -655,7 +656,7 @@ class SATSolver(Solver):
 
 			commands_needed = []
 
-			# Popular sels with the selected implementations.
+			# Populate sels with the selected implementations.
 			# Also, note down all the commands we need.
 			for uri, group in group_clause_for.iteritems():
 				if group.current is not None:
@@ -732,6 +733,7 @@ class SATSolver(Solver):
 
 		wanted = "{iface} {version}".format(iface = iface.get_name(), version = impl.get_version())
 
+		# Could a selection involving impl even be valid?
 		if not s.ready:
 			reasons = s.details.get(iface, [])
 			for (rid, rstr) in reasons:
@@ -744,10 +746,44 @@ class SATSolver(Solver):
 				wanted = wanted,
 				reason = s.get_failure_reason())
 
-		actual_selection = self.selections[iface]
-		if actual_selection.id == impl.id:
-			return _("{wanted} was selected as the preferred version").format(wanted = wanted)
+		actual_selection = self.selections.get(iface, None)
+		if actual_selection is not None:
+			# Was impl actually selected anyway?
+			if actual_selection.id == impl.id:
+				return _("{wanted} was selected as the preferred version.").format(wanted = wanted)
 
+			# Was impl ranked below the selected version?
+			iface_arch = arch.get_architecture(requirements.os, requirements.cpu)
+			if requirements.source and iface.uri == requirements.interface_uri:
+				iface_arch = arch.SourceArchitecture(iface_arch)
+			wanted_rating = self.get_rating(iface, impl, arch)
+			selected_rating = self.get_rating(iface, actual_selection, arch)
+
+			if wanted_rating < selected_rating:
+				_ranking_component_reason = [
+					_("natural language is understood"),
+					_("preferred versions come first"),
+					_("perfer available versions when network is limited"),
+					_("requires admin access to install"),
+					_("more stable versions preferred"),
+					_("newer versions are preferred"),
+					_("native packages are preferred"),
+					_("newer versions are preferred"),
+					_("better OS match"),
+					_("better CPU match"),
+					_("better locale match"),
+					_("is locally available"),
+					_("better ID (tie-breaker)"),
+				]
+				for i in range(len(wanted_rating)):
+					if wanted_rating[i] < selected_rating[i]:
+						return _("{wanted} is ranked lower than {actual}: {why}").format(
+								wanted = wanted,
+								actual = actual_selection.get_version(),
+								why = _ranking_component_reason[i])
+
+		# Impl is selectable and ranked higher than the selected version. Selecting it would cause
+		# a problem elsewhere.
 		changes = []
 		for old_iface, old_sel in self.selections.selections.iteritems():
 			if old_iface == iface.uri: continue
@@ -760,11 +796,11 @@ class SATSolver(Solver):
 				changes.append(_("%s: %s -> %s") % (old_iface, old_sel.id, new_sel.id))
 
 		if changes:
-			changes_text = '\n' + _('Selecting {wanted} would cause these changes:').format(
+			changes_text = '\n\n' + _('Selecting {wanted} would cause these changes:').format(
 					wanted = wanted) + '\n\n' + '\n'.join(changes)
 		else:
 			changes_text = ''
 
-		return _("{wanted} is selectable, but a better choice was available").format(wanted = wanted) + changes_text
+		return _("{wanted} is selectable, but using it would produce a less optimal solution overall.").format(wanted = wanted) + changes_text
 
 DefaultSolver = SATSolver

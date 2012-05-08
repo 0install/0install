@@ -87,6 +87,7 @@ class TestSolver(BaseTest):
 				(foo_src_impls['old'], None),
 			], sorted(s.details[foo]))
 		self.assertEqual([
+				(compiler_impls['sha1=999'], None),
 				(compiler_impls['sha1=345'], None),
 				(compiler_impls['sha1=678'], None),
 			], s.details[compiler])
@@ -99,11 +100,13 @@ class TestSolver(BaseTest):
 		justify(foo_binary_uri, foo_bin_impls["sha1=123"],
 				'Binary 1.0 cannot be used (regardless of other components): Not source code')
 		justify(foo_binary_uri, foo_src_impls["sha1=234"],
-				'Binary 1.0 was selected as the preferred version')
+				'Binary 1.0 was selected as the preferred version.')
 		justify(foo_binary_uri, foo_src_impls["old"],
-				'Binary 0.1 is selectable, but a better choice was available')
+				'Binary 0.1 is ranked lower than 1.0: newer versions are preferred')
 		justify(foo_binary_uri, foo_src_impls["impossible"],
 				'''There is no possible selection using Binary 3.\nCan't find all required implementations:\n- <Interface http://foo/Binary.xml> -> impossible\n- <Interface http://foo/Compiler.xml> -> None''')
+		justify(compiler.uri, compiler_impls["sha1=999"],
+				'''Compiler 5 is selectable, but using it would produce a less optimal solution overall.\n\nSelecting Compiler 5 would cause these changes:\n\nhttp://foo/Binary.xml: 1.0 -> 0.1''')
 
 	def testRecursive(self):
 		iface_cache = self.config.iface_cache

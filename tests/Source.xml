@@ -9,6 +9,7 @@
   <group>
     <requires interface='notused' use='never'/>
     <requires interface='http://foo/Compiler.xml'>
+      <version before='2'/>
       <environment name='PATH' insert='bin'/>
       <environment name='NO_PATH' value='bin' separator=','/>
       <environment name='BINDIR' insert='bin' mode='replace'/>
