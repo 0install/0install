@@ -10,8 +10,7 @@ import locale
 from logging import debug, warn, info
 
 from zeroinstall.injector.reader import MissingLocalFeed
-from zeroinstall.injector.arch import machine_groups
-from zeroinstall.injector import model, sat, selections
+from zeroinstall.injector import model, sat, selections, arch
 
 class CommandInfo:
 	def __init__(self, name, command, impl, arch):
@@ -79,6 +78,17 @@ class Solver(object):
 		self.selections = self.requires = self.feeds_used = self.details = None
 		self.record_details = False
 		self.ready = False
+
+	def solve_for(self, requirements):
+		"""Solve for given requirements.
+		@param requirements: the interface, architecture and command to solve for
+		@type requirements: L{requirements.Requirements}
+		@postcondition: self.ready, self.selections and self.feeds_used are updated
+		@since: 1.8"""
+		root_arch = arch.get_architecture(requirements.os, requirements.cpu)
+		if requirements.source:
+			root_arch = arch.SourceArchitecture(root_arch)
+		return self.solve(requirements.interface_uri, root_arch, requirements.command)
 
 	def solve(self, root_interface, root_arch, command_name = 'run'):
 		"""Get the best implementation of root_interface and all of its dependencies.
@@ -239,6 +249,7 @@ class SATSolver(Solver):
 
 		ifaces_processed = set()
 
+		machine_groups = arch.machine_groups
 		impls_for_machine_group = {0 : []}		# Machine group (e.g. "64") to [impl] in that group
 		for machine_group in machine_groups.values():
 			impls_for_machine_group[machine_group] = []

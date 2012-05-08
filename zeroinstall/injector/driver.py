@@ -25,7 +25,7 @@ class Driver(object):
 	 4. Use L{get_uncached_implementations} to find where to get these versions and download them
 	    using L{download_uncached_implementations}.
 
-	@ivar target_arch: target architecture for binaries
+	@ivar target_arch: target architecture for binaries (deprecated)
 	@type target_arch: L{arch.Architecture}
 	@ivar solver: solver used to choose a set of implementations
 	@type solver: L{solve.Solver}
@@ -86,10 +86,6 @@ class Driver(object):
 		downloads_finished = set()		# Successful or otherwise
 		downloads_in_progress = {}		# URL -> Download
 
-		host_arch = self.target_arch
-		if self.requirements.source:
-			host_arch = arch.SourceArchitecture(host_arch)
-
 		# There are three cases:
 		# 1. We want to run immediately if possible. If not, download all the information we can.
 		#    (force = False, update_local = False)
@@ -102,7 +98,7 @@ class Driver(object):
 		try_quick_exit = not (force or update_local)
 
 		while True:
-			self.solver.solve(self.requirements.interface_uri, host_arch, command_name = self.requirements.command)
+			self.solver.solve_for(self.requirements)
 			for w in self.watchers: w()
 
 			if try_quick_exit and self.solver.ready:
@@ -175,10 +171,7 @@ class Driver(object):
 		"""Decide whether we need to download anything (but don't do it!)
 		@return: true if we MUST download something (feeds or implementations)
 		@rtype: bool"""
-		host_arch = self.target_arch
-		if self.requirements.source:
-			host_arch = arch.SourceArchitecture(host_arch)
-		self.solver.solve(self.requirements.interface_uri, host_arch, command_name = self.requirements.command)
+		self.solver.solve_for(self.requirements)
 		for w in self.watchers: w()
 
 		if not self.solver.ready:
