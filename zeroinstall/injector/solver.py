@@ -724,9 +724,7 @@ class SATSolver(Solver):
 		assert isinstance(iface, model.Interface), iface
 
 		restrictions = self.extra_restrictions.copy()
-		ir = restrictions.get(iface, [])
-		restrictions[iface] = ir
-		ir.append(_ForceImpl(impl.id))
+		restrictions[iface] = restrictions.get(iface, []) + [_ForceImpl(impl.id)]
 		s = SATSolver(self.config, restrictions)
 		s.record_details = True
 		s.solve_for(requirements)
