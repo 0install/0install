@@ -10,8 +10,7 @@ import locale
 from logging import debug, warn, info
 
 from zeroinstall.injector.reader import MissingLocalFeed
-from zeroinstall.injector.arch import machine_groups
-from zeroinstall.injector import model, sat, selections
+from zeroinstall.injector import model, sat, selections, arch
 
 class CommandInfo:
 	def __init__(self, name, command, impl, arch):
@@ -55,6 +54,15 @@ class _DummyImpl(object):
 	def get_name(self):
 		return "dummy"
 
+class _ForceImpl(model.Restriction):
+	"""Used by L{SATSolver.justify_decision}."""
+
+	def __init__(self, impl_id):
+		self.impl_id = impl_id
+
+	def meets_restriction(self, impl):
+		return impl.id == self.impl_id
+
 class Solver(object):
 	"""Chooses a set of implementations to satisfy the requirements of a program and its user.
 	Typical use:
@@ -79,6 +87,17 @@ class Solver(object):
 		self.selections = self.requires = self.feeds_used = self.details = None
 		self.record_details = False
 		self.ready = False
+
+	def solve_for(self, requirements):
+		"""Solve for given requirements.
+		@param requirements: the interface, architecture and command to solve for
+		@type requirements: L{requirements.Requirements}
+		@postcondition: self.ready, self.selections and self.feeds_used are updated
+		@since: 1.8"""
+		root_arch = arch.get_architecture(requirements.os, requirements.cpu)
+		if requirements.source:
+			root_arch = arch.SourceArchitecture(root_arch)
+		return self.solve(requirements.interface_uri, root_arch, requirements.command)
 
 	def solve(self, root_interface, root_arch, command_name = 'run'):
 		"""Get the best implementation of root_interface and all of its dependencies.
@@ -157,6 +176,7 @@ class SATSolver(Solver):
 		else:
 			stability_limited = stability
 
+		# Note: this list must match _ranking_component_reason above
 		return [
 			# Languages we understand come first
 			max(my_langs.get(l.split('-')[0], -1) for l in impl_langs),
@@ -239,6 +259,7 @@ class SATSolver(Solver):
 
 		ifaces_processed = set()
 
+		machine_groups = arch.machine_groups
 		impls_for_machine_group = {0 : []}		# Machine group (e.g. "64") to [impl] in that group
 		for machine_group in machine_groups.values():
 			impls_for_machine_group[machine_group] = []
@@ -635,7 +656,7 @@ class SATSolver(Solver):
 
 			commands_needed = []
 
-			# Popular sels with the selected implementations.
+			# Populate sels with the selected implementations.
 			# Also, note down all the commands we need.
 			for uri, group in group_clause_for.iteritems():
 				if group.current is not None:
@@ -696,5 +717,95 @@ class SATSolver(Solver):
 		return model.SafeException(_("Can't find all required implementations:") + '\n' +
 				'\n'.join(["- %s -> %s" % (iface, self.selections[iface])
 					   for iface  in self.selections]))
+
+	def justify_decision(self, requirements, iface, impl):
+		"""Run a solve with impl_id forced to be selected, and explain why it wasn't (or was)
+		selected in the normal case."""
+		assert isinstance(iface, model.Interface), iface
+
+		restrictions = self.extra_restrictions.copy()
+		ir = restrictions.get(iface, [])
+		restrictions[iface] = ir
+		ir.append(_ForceImpl(impl.id))
+		s = SATSolver(self.config, restrictions)
+		s.record_details = True
+		s.solve_for(requirements)
+
+		wanted = "{iface} {version}".format(iface = iface.get_name(), version = impl.get_version())
+
+		# Could a selection involving impl even be valid?
+		if not s.ready or iface.uri not in s.selections.selections:
+			reasons = s.details.get(iface, [])
+			for (rid, rstr) in reasons:
+				if rid.id == impl.id and rstr is not None:
+					return _("{wanted} cannot be used (regardless of other components): {reason}").format(
+							wanted = wanted,
+							reason = rstr)
+
+			if not s.ready:
+				return _("There is no possible selection using {wanted}.\n{reason}").format(
+					wanted = wanted,
+					reason = s.get_failure_reason())
+
+		actual_selection = self.selections.get(iface, None)
+		if actual_selection is not None:
+			# Was impl actually selected anyway?
+			if actual_selection.id == impl.id:
+				return _("{wanted} was selected as the preferred version.").format(wanted = wanted)
+
+			# Was impl ranked below the selected version?
+			iface_arch = arch.get_architecture(requirements.os, requirements.cpu)
+			if requirements.source and iface.uri == requirements.interface_uri:
+				iface_arch = arch.SourceArchitecture(iface_arch)
+			wanted_rating = self.get_rating(iface, impl, arch)
+			selected_rating = self.get_rating(iface, actual_selection, arch)
+
+			if wanted_rating < selected_rating:
+				_ranking_component_reason = [
+					_("natural language is understood"),
+					_("preferred versions come first"),
+					_("perfer available versions when network is limited"),
+					_("requires admin access to install"),
+					_("more stable versions preferred"),
+					_("newer versions are preferred"),
+					_("native packages are preferred"),
+					_("newer versions are preferred"),
+					_("better OS match"),
+					_("better CPU match"),
+					_("better locale match"),
+					_("is locally available"),
+					_("better ID (tie-breaker)"),
+				]
+				for i in range(len(wanted_rating)):
+					if wanted_rating[i] < selected_rating[i]:
+						return _("{wanted} is ranked lower than {actual}: {why}").format(
+								wanted = wanted,
+								actual = actual_selection.get_version(),
+								why = _ranking_component_reason[i])
+
+		used_impl = iface.uri in s.selections.selections
+
+		# Impl is selectable and ranked higher than the selected version. Selecting it would cause
+		# a problem elsewhere.
+		changes = []
+		for old_iface, old_sel in self.selections.selections.iteritems():
+			if old_iface == iface.uri and used_impl: continue
+			new_sel = s.selections.selections.get(old_iface, None)
+			if new_sel is None:
+				changes.append(_("{interface}: no longer used").format(interface = old_iface))
+			elif old_sel.version != new_sel.version:
+				changes.append(_("{interface}: {old} to {new}").format(interface = old_iface, old = old_sel.version, new = new_sel.version))
+			elif old_sel.id != new_sel.id:
+				changes.append(_("{interface}: {old} to {new}").format(interface = old_iface, old = old_sel.id, new = new_sel.id))
+
+		if changes:
+			changes_text = '\n\n' + _('The changes would be:') + '\n\n' + '\n'.join(changes)
+		else:
+			changes_text = ''
+
+		if used_impl:
+			return _("{wanted} is selectable, but using it would produce a less optimal solution overall.").format(wanted = wanted) + changes_text
+		else:
+			return _("If {wanted} were the only option, the best available solution wouldn't use it.").format(wanted = wanted) + changes_text
 
 DefaultSolver = SATSolver

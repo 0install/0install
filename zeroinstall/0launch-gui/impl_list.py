@@ -5,6 +5,7 @@ import gtk, gobject, os, pango
 from zeroinstall import _
 from zeroinstall.injector import model, writer
 from zeroinstall import support
+from zeroinstall.gtkui import gtkutils
 import utils
 
 def _build_stability_menu(policy, impl):
@@ -141,9 +142,18 @@ class ImplementationList:
 				item.show()
 				menu.append(item)
 
+			item = gtk.MenuItem(_('Explain this decision'))
+			item.connect('activate', lambda item: self.show_explaination(impl))
+			item.show()
+			menu.append(item)
+
 			menu.popup(None, None, None, bev.button, bev.time)
 
 		self.tree_view.connect('button-press-event', button_press)
+	
+	def show_explaination(self, impl):
+		reason = self.policy.solver.justify_decision(self.policy.requirements, self.interface, impl)
+		gtkutils.show_message_box(self.tree_view.get_toplevel(), reason, gtk.MESSAGE_INFO)
 	
 	def get_selection(self):
 		return self.tree_view.get_selection()

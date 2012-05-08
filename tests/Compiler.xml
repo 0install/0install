@@ -7,4 +7,10 @@
   <implementation id='sha1=345' version='1.0' main='gcc'>
     <archive href='foo' size='10'/>
   </implementation>
+  <implementation id='sha1=678' version='0.1' main='gcc'>
+    <archive href='foo' size='10'/>
+  </implementation>
+  <implementation id='sha1=999' version='5' main='gcc'>
+    <archive href='foo' size='10'/>
+  </implementation>
 </interface>

@@ -510,7 +510,11 @@ is provided by your distribution's package manager, not by Zero Install. \
 In off-line mode, only cached implementations are considered for use.
 
 Arch indicates what kind of computer system the implementation is for, or 'any' \
-if it works with all types of system.""") + '\n'),
+if it works with all types of system.
+
+If you want to know why a particular version wasn't chosen, right-click over it \
+and choose "Explain this decision" from the popup menu.
+""") + '\n'),
 (_('Sort order'), '\n' +
 _("""The implementations are ordered by version number (highest first), with the \
 currently selected one in bold. This is the "best" usable version.

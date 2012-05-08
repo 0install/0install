@@ -9,6 +9,7 @@
   <group>
     <requires interface='notused' use='never'/>
     <requires interface='http://foo/Compiler.xml'>
+      <version before='2'/>
       <environment name='PATH' insert='bin'/>
       <environment name='NO_PATH' value='bin' separator=','/>
       <environment name='BINDIR' insert='bin' mode='replace'/>
@@ -19,4 +20,19 @@
     <environment name='SRCDIR' insert='.' mode='replace'/>
     <overlay src='.' mount-point='/'/>
   </group>
+
+  <implementation id='old' version='0.1' arch='*-src' compile:command='make'>
+    <requires interface='http://foo/Compiler.xml'/>
+    <manifest-digest sha1='666'/>
+    <archive href='foo' size='10'/>
+  </implementation>
+
+  <implementation id='impossible' version='3' arch='*-src' compile:command='make'>
+    <requires interface='http://foo/Compiler.xml'>
+      <version before='1.0'/>
+      <version not-before='1.0'/>
+    </requires>
+    <manifest-digest sha1='666'/>
+    <archive href='foo' size='10'/>
+  </implementation>
 </interface>
