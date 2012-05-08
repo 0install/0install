@@ -748,6 +748,23 @@ class SATSolver(Solver):
 		if actual_selection.id == impl.id:
 			return _("{wanted} was selected as the preferred version").format(wanted = wanted)
 
-		return _("{wanted} is selectable, but a better choice was available").format(wanted = wanted)
+		changes = []
+		for old_iface, old_sel in self.selections.selections.iteritems():
+			if old_iface == iface.uri: continue
+			new_sel = s.selections.selections.get(old_iface, None)
+			if new_sel is None:
+				changes.append(_("{interface}: no longer used").format(interface = old_iface))
+			elif old_sel.version != new_sel.version:
+				changes.append(_("%s: %s -> %s") % (old_iface, old_sel.version, new_sel.version))
+			elif old_sel.id != new_sel.id:
+				changes.append(_("%s: %s -> %s") % (old_iface, old_sel.id, new_sel.id))
+
+		if changes:
+			changes_text = '\n' + _('Selecting {wanted} would cause these changes:').format(
+					wanted = wanted) + '\n\n' + '\n'.join(changes)
+		else:
+			changes_text = ''
+
+		return _("{wanted} is selectable, but a better choice was available").format(wanted = wanted) + changes_text
 
 DefaultSolver = SATSolver
