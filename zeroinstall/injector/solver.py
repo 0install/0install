@@ -774,11 +774,23 @@ class SATSolver(Solver):
 					_("is locally available"),
 					_("better ID (tie-breaker)"),
 				]
+
+				actual = actual_selection.get_version()
+				if impl.get_version() == actual:
+					def detail(i):
+						if len(i.id) < 18:
+							return " (" + i.id + ")"
+						else:
+							return " (" + i.id[:16] + "...)"
+
+					wanted += detail(impl)
+					actual += detail(actual_selection)
+
 				for i in range(len(wanted_rating)):
 					if wanted_rating[i] < selected_rating[i]:
 						return _("{wanted} is ranked lower than {actual}: {why}").format(
 								wanted = wanted,
-								actual = actual_selection.get_version(),
+								actual = actual,
 								why = _ranking_component_reason[i])
 
 		used_impl = iface.uri in s.selections.selections
