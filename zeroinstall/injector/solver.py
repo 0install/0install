@@ -760,10 +760,10 @@ class SATSolver(Solver):
 
 			if wanted_rating < selected_rating:
 				_ranking_component_reason = [
-					_("natural language is understood"),
+					_("natural languages we understand are preferred"),
 					_("preferred versions come first"),
-					_("perfer available versions when network is limited"),
-					_("requires admin access to install"),
+					_("locally-available versions are preferred when network use is limited"),
+					_("packages that don't require admin access to install are preferred"),
 					_("more stable versions preferred"),
 					_("newer versions are preferred"),
 					_("native packages are preferred"),
