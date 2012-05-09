@@ -33,14 +33,14 @@ class Config(object):
 	"""
 
 	__slots__ = ['help_with_testing', 'freshness', 'network_use', 'feed_mirror', 'key_info_server', 'auto_approve_keys',
-		     '_fetcher', '_stores', '_iface_cache', '_handler', '_trust_mgr', '_trust_db']
+		     '_fetcher', '_stores', '_iface_cache', '_handler', '_trust_mgr', '_trust_db', '_app_mgr']
 
 	def __init__(self, handler = None):
 		self.help_with_testing = False
 		self.freshness = 60 * 60 * 24 * 30
 		self.network_use = network_full
 		self._handler = handler
-		self._fetcher = self._stores = self._iface_cache = self._trust_mgr = self._trust_db = None
+		self._app_mgr = self._fetcher = self._stores = self._iface_cache = self._trust_mgr = self._trust_db = None
 		self.feed_mirror = DEFAULT_FEED_MIRROR
 		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
 		self.auto_approve_keys = True
@@ -87,6 +87,13 @@ class Config(object):
 			else:
 				self._handler = handler.Handler()
 		return self._handler
+
+	@property
+	def app_mgr(self):
+		if not self._app_mgr:
+			from zeroinstall import apps
+			self._app_mgr = apps.AppManager(self)
+		return self._app_mgr
 
 	def save_globals(self):
 		"""Write global settings."""

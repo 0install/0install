@@ -15,7 +15,7 @@ sys.path.insert(0, '..')
 from zeroinstall.injector import qdom
 from zeroinstall.injector import iface_cache, download, distro, model, handler, policy, reader, trust
 from zeroinstall.zerostore import NotStored, Store, Stores; Store._add_with_helper = lambda *unused: False
-from zeroinstall import support
+from zeroinstall import support, apps
 from zeroinstall.support import basedir, tasks
 
 dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
@@ -155,6 +155,7 @@ class TestConfig:
 		self.fetcher = TestFetcher(self)
 		self.trust_db = trust.trust_db
 		self.trust_mgr = trust.TrustMgr(self)
+		self.app_mgr = apps.AppManager(self)
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):

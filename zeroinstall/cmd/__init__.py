@@ -14,7 +14,7 @@ import logging
 
 from zeroinstall import SafeException
 
-valid_commands = ['select', 'download', 'run', 'update',
+valid_commands = ['add', 'select', 'download', 'run', 'update', 'destroy',
 		  'config', 'import', 'list', 'add-feed', 'remove-feed', 'list-feeds',
 		  'digest']
 

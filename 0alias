@@ -20,7 +20,7 @@ from optparse import OptionParser
 
 from zeroinstall.injector import reader, model
 from zeroinstall.injector.config import load_config
-from zeroinstall import support, alias, helpers, _
+from zeroinstall import support, alias, helpers, apps, _
 from zeroinstall.support import basedir
 
 config = load_config()
@@ -32,30 +32,10 @@ def export(name, value):
 		return "setenv %s %s" % (name, value)
 	return "export %s=%s" % (name, value)
 
-def find_path(paths):
-	"""Find the first writable path in the list,
-	skipping /bin, /sbin and everything under /usr except /usr/local/bin"""
-	for path in paths:
-		if path.startswith('/usr/') and not path.startswith('/usr/local/bin'):
-			# (/usr/local/bin is OK if we're running as root)
-			pass
-		elif path.startswith('/bin') or path.startswith('/sbin'):
-			pass
-		elif os.path.realpath(path).startswith(basedir.xdg_cache_home):
-			pass # print "Skipping cache", first_path
-		elif not os.access(path, os.W_OK):
-			pass # print "No access", first_path
-		else:
-			break
-	else:
-		return None
-
-	return path
-
 # Do this here so we can include it in the help message.
 # But, don't abort if there isn't one because we might
 # be doing something else (e.g. --manpage)
-first_path = find_path(os.environ['PATH'].split(':'))
+first_path = apps.find_bin_dir()
 in_path = first_path is not None
 if not in_path:
 	first_path = os.path.expanduser('~/bin/')
