@@ -66,35 +66,59 @@ class DownloadScheduler:
 			redirections_remaining -= 1
 			# (else go around the loop again)
 
+MAX_DOWNLOADS_PER_SITE = 5
+
+def _spawn_thread(step):
+	from ._download_child import download_in_thread
+
+	thread_blocker = tasks.Blocker("wait for thread " + step.url)
+	def notify_done(status, ex = None, redirect = None):
+		step.status = status
+		step.redirect = redirect
+		def wake_up_main():
+			child.join()
+			thread_blocker.trigger(ex)
+			return False
+		gobject.idle_add(wake_up_main)
+	child = threading.Thread(target = lambda: download_in_thread(step.url, step.dl.tempfile, step.dl.modification_time, notify_done))
+	child.daemon = True
+	child.start()
+
+	return thread_blocker
+
 class Site:
 	"""Represents a service accepting download requests. All requests with the same scheme, host and port are
 	handled by the same Site object, allowing it to do connection pooling and queuing, although the current
 	implementation doesn't do either."""
+	def __init__(self):
+		self.queue = []
+		self.active = 0
+
 	@tasks.async
 	def download(self, step):
-		from ._download_child import download_in_thread
+		if self.active == MAX_DOWNLOADS_PER_SITE:
+			# Too busy to start a new download now. Queue this one and wait.
+			ticket = tasks.Blocker('queued download for ' + step.url)
+			self.queue.append(ticket)
+			yield ticket, step.dl._aborted
+			if step.dl._aborted.happened:
+				raise download.DownloadAborted()
 
-		thread_blocker = tasks.Blocker("wait for thread " + step.url)
-		def notify_done(status, ex = None, redirect = None):
-			step.status = status
-			step.redirect = redirect
-			def wake_up_main():
-				thread_blocker.trigger(ex)
-				return False
-			gobject.idle_add(wake_up_main)
-		child = threading.Thread(target = lambda: download_in_thread(step.url, step.dl.tempfile, step.dl.modification_time, notify_done))
-		child.daemon = True
-		child.start()
+		# Start a new thread for the download
+		thread_blocker = _spawn_thread(step)
 
-		# Wait for child to complete download.
+		self.active += 1
+
+		# Wait for thread to complete download.
 		yield thread_blocker, step.dl._aborted
+
+		self.active -= 1
+		if self.active < MAX_DOWNLOADS_PER_SITE:
+			self.process_next()		# Start next queued download, if any
 
 		if step.dl._aborted.happened:
 			# Don't wait for child to finish (might be stuck doing IO)
 			raise download.DownloadAborted()
-
-		# Download is complete...
-		child.join()
 
 		tasks.check(thread_blocker)
 
@@ -105,3 +129,10 @@ class Site:
 		assert not step.redirect, step.redirect
 
 		step.dl._finish(step.status)
+
+	def process_next(self):
+		assert self.active < MAX_DOWNLOADS_PER_SITE
+
+		if self.queue:
+			nxt = self.queue.pop()
+			nxt.trigger()
