@@ -18,11 +18,6 @@ from zeroinstall.injector import handler
 def _escape_xml(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')
 
-def _exec_gui(uri, *args):
-	parent_dir = os.path.dirname(os.path.dirname(__file__))
-	child_args = [sys.executable, '-u', os.path.join(parent_dir, '0launch-gui/0launch-gui')] + list(args) + [uri]
-	os.execvp(sys.executable, child_args)
-
 class _NetworkState:
 	NM_STATE_UNKNOWN = 0
 	NM_STATE_ASLEEP = 10
@@ -42,7 +37,6 @@ class _NetworkState:
 		4: NM_STATE_DISCONNECTED,
 	}
 
-
 class BackgroundHandler(handler.Handler):
 	"""A Handler for non-interactive background updates. Runs the GUI if interaction is required."""
 	def __init__(self, title, root):
@@ -52,6 +46,7 @@ class BackgroundHandler(handler.Handler):
 		self.network_manager = None
 		self.notification_service_caps = []
 		self.root = root	# If we need to confirm any keys, run the GUI on this
+		self.need_gui = False
 
 		try:
 			import dbus
@@ -106,8 +101,20 @@ class BackgroundHandler(handler.Handler):
 
 	def confirm_import_feed(self, pending, valid_sigs):
 		"""Run the GUI if we need to confirm any keys."""
-		info(_("Can't update feed; signature not yet trusted. Running GUI..."))
-		_exec_gui(self.root, '--download', '--refresh', '--systray')
+
+		if os.environ.get('DISPLAY', None):
+			info(_("Can't update feed; signature not yet trusted. Running GUI..."))
+
+			self.need_gui = True
+
+			for dl in self.monitored_downloads:
+				dl.abort()
+
+			raise handler.NoTrustedKeys("need to switch to GUI to confirm keys")
+		else:
+			raise handler.NoTrustedKeys(_("Background update for {iface} needed to confirm keys, but no GUI available!").format(
+					iface = self.root))
+
 
 	def report_error(self, exception, tb = None):
 		from zeroinstall.injector import download
@@ -176,7 +183,10 @@ def _detach():
 
 	return False
 
-def _check_for_updates(requirements, verbose):
+def _check_for_updates(requirements, verbose, app):
+	if app is not None:
+		old_sels = app.get_selections()
+
 	from zeroinstall.injector.driver import Driver
 	from zeroinstall.injector.config import load_config
 
@@ -206,19 +216,31 @@ def _check_for_updates(requirements, verbose):
 	refresh = driver.solve_with_downloads(force = True)	# (causes confusing log messages)
 	tasks.wait_for_blocker(refresh)
 
-	# We could even download the archives here, but for now just
-	# update the interfaces.
+	if background_handler.need_gui or driver.get_uncached_implementations():
+		background_handler.notify("Zero Install",
+				      _("Updates ready to download for '%s'.") % root_iface,
+				      timeout = 1)
 
-	if not driver.need_download():
+		if os.environ.get('DISPLAY', None):
+			# Run the GUI...
+			from zeroinstall import helpers
+			gui_args = ['--refresh', '--systray', '--download'] + requirements.get_as_options()
+			new_sels = helpers.get_selections_gui(requirements.interface_uri, gui_args)
+		else:
+			tasks.wait_for_blocker(driver.download_uncached_implementations())
+			new_sels = driver.solver.selections
+	else:
 		if verbose:
 			background_handler.notify("Zero Install", _("No updates to download."), timeout = 1)
-		sys.exit(0)
+		new_sels = driver.solver.selections
 
-	background_handler.notify("Zero Install",
-			      _("Updates ready to download for '%s'.") % root_iface,
-			      timeout = 1)
-	_exec_gui(requirements.interface_uri, '--refresh', '--systray')
-	sys.exit(1)
+	if app is not None:
+		assert driver.solver.ready
+		from zeroinstall.support import xmltools
+		if not xmltools.nodes_equal(new_sels.toDOM(), old_sels.toDOM()):
+			app.set_selections(new_sels)
+	sys.exit(0)
+
 
 def spawn_background_update(driver, verbose):
 	"""Spawn a detached child process to check for updates.
@@ -234,12 +256,23 @@ def spawn_background_update(driver, verbose):
 	for uri in driver.solver.feeds_used:
 		iface_cache.mark_as_checking(uri)
 
+	spawn_background_update2(driver.requirements, verbose)
+
+def spawn_background_update2(requirements, verbose, app = None):
+	"""Spawn a detached child process to check for updates.
+	@param requirements: requirements for the new selections
+	@type requirements: L{requirements.Requirements}
+	@param verbose: whether to notify the user about minor events
+	@type verbose: bool
+	@param app: application to update (if any)
+	@type app: L{apps.App} | None
+	@since: 1.8"""
 	if _detach():
 		return
 
 	try:
 		try:
-			_check_for_updates(driver.requirements, verbose)
+			_check_for_updates(requirements, verbose, app)
 		except SystemExit:
 			raise
 		except:

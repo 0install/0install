@@ -77,33 +77,36 @@ class App:
 		self.set_last_check()
 
 	def get_selections(self):
+		"""Load the selections. Does not check whether they are cached, nor trigger updates."""
 		sels_file = os.path.join(self.path, 'selections.xml')
 		with open(sels_file) as stream:
-			sels = selections.Selections(qdom.parse(stream))
+			return selections.Selections(qdom.parse(stream))
 
+	def download_selections(self, sels):
 		stores = self.config.stores
 
-		for iface, sel in sels.selections.iteritems():
-			#print iface, sel
-			if sel.id.startswith('package:'):
-				pass		# TODO: check version is the same
-			elif not sel.is_available(stores):
-				print "missing", sel	# TODO: download
+		# Check the selections are still available
+		blocker = sels.download_missing(self.config)	# TODO: package impls
 
-		# Check the selections are still available and up-to-date
-		timestamp_path = os.path.join(self.path, 'last-check')
-		try:
-			utime = os.stat(timestamp_path).st_mtime
-			staleness = time.time() - utime
-			info("Staleness of app %s is %d hours", self, staleness / (60 * 60))
-			need_update = False
-		except Exception as ex:
-			warn("Failed to get time-stamp of %s: %s", timestamp_path, ex)
-			need_update = True
+		if blocker:
+			return blocker
+		else:
+			# Nothing to download, but is it time for a background update?
+			timestamp_path = os.path.join(self.path, 'last-check')
+			try:
+				utime = os.stat(timestamp_path).st_mtime
+				staleness = time.time() - utime
+				info("Staleness of app %s is %d hours", self, staleness / (60 * 60))
+				freshness_threshold = self.config.freshness
+				need_update = freshness_threshold > 0 and staleness >= freshness_threshold
+			except Exception as ex:
+				warn("Failed to get time-stamp of %s: %s", timestamp_path, ex)
+				need_update = True
 
-		# TODO: update if need_update
-
-		return sels
+			if need_update:
+				from zeroinstall.injector import background, requirements
+				r = requirements.Requirements(sels.interface)	# TODO: custom requirements
+				background.spawn_background_update2(r, True, self)
 
 	def set_last_check(self):
 		timestamp_path = os.path.join(self.path, 'last-check')

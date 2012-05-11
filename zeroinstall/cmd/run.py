@@ -8,6 +8,7 @@ The B{0install run} command-line interface.
 import sys
 
 from zeroinstall import _
+from zeroinstall.support import tasks
 from zeroinstall.cmd import UsageError, select
 from zeroinstall.injector import model
 
@@ -34,6 +35,10 @@ def handle(config, options, args):
 	app = config.app_mgr.lookup_app(args[0], missing_ok = True)
 	if app is not None:
 		sels = app.get_selections()
+		dl = app.download_selections(sels)
+		if dl:
+			tasks.wait_for_blocker(dl)
+			tasks.check(dl)
 	else:
 		iface_uri = model.canonical_iface_uri(args[0])
 

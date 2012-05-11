@@ -11,11 +11,12 @@ sys.path.insert(0, '..')
 
 os.environ["http_proxy"] = "localhost:8000"
 
+from zeroinstall import helpers
 from zeroinstall.injector import model, gpg, download, trust, background, arch, selections, qdom, run
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver
 from zeroinstall.zerostore import Store, NotStored; Store._add_with_helper = lambda *unused: False
-from zeroinstall.support import basedir, tasks
+from zeroinstall.support import basedir, tasks, ro_rmtree
 from zeroinstall.injector import fetch
 import data
 import my_dbus
@@ -27,7 +28,11 @@ def raise_gui(*args):
 	global ran_gui
 	ran_gui = True
 background._detach = lambda: False
-background._exec_gui = raise_gui
+
+local_hello = """<?xml version="1.0" ?>
+<selections command="run" interface="http://example.com:8000/Hello.xml" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <selection id="." local-path='.' interface="http://example.com:8000/Hello.xml" version="0.1"><command name="run" path="foo"/></selection>
+</selections>"""
 
 @contextmanager
 def output_suppressed():
@@ -46,6 +51,27 @@ def output_suppressed():
 	finally:
 		sys.stdout = old_stdout
 		sys.stderr = old_stderr
+
+@contextmanager
+def trapped_exit(expected_exit_status):
+	pid = os.getpid()
+	old_exit = os._exit
+	def my_exit(code):
+		# The background handler runs in the same process
+		# as the tests, so don't let it abort.
+		if os.getpid() == pid:
+			raise SystemExit(code)
+		# But, child download processes are OK
+		old_exit(code)
+	os._exit = my_exit
+	try:
+		try:
+			yield
+			assert False
+		except SystemExit as ex:
+			assert ex.code == expected_exit_status
+	finally:
+		os._exit = old_exit
 
 class Reply:
 	def __init__(self, reply):
@@ -77,6 +103,8 @@ def run_server(*args):
 	assert server_process is None
 	server_process = server.handle_requests(*args)
 
+real_get_selections_gui = helpers.get_selections_gui
+
 class TestDownload(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
@@ -94,7 +122,13 @@ class TestDownload(BaseTest):
 
 		trust.trust_db.watchers = []
 
+		helpers.get_selections_gui = raise_gui
+
+		global ran_gui
+		ran_gui = False
+
 	def tearDown(self):
+		helpers.get_selections_gui = real_get_selections_gui
 		BaseTest.tearDown(self)
 		kill_server_process()
 
@@ -413,40 +447,134 @@ class TestDownload(BaseTest):
 
 		global ran_gui
 		ran_gui = False
+		os.environ['DISPLAY'] = 'dummy'
 		old_out = sys.stdout
 		try:
 			sys.stdout = StringIO()
 			run_server('Hello.xml', '6FCF121BE2390E0B.gpg')
 			my_dbus.system_services = {"org.freedesktop.NetworkManager": {"/org/freedesktop/NetworkManager": NetworkManager()}}
 			my_dbus.user_callback = choose_download
-			pid = os.getpid()
-			old_exit = os._exit
-			def my_exit(code):
-				# The background handler runs in the same process
-				# as the tests, so don't let it abort.
-				if os.getpid() == pid:
-					raise SystemExit(code)
-				# But, child download processes are OK
-				old_exit(code)
-			from zeroinstall.injector import config
-			key_info = config.DEFAULT_KEY_LOOKUP_SERVER
-			config.DEFAULT_KEY_LOOKUP_SERVER = None
-			try:
+
+			with trapped_exit(1):
+				from zeroinstall.injector import config
+				key_info = config.DEFAULT_KEY_LOOKUP_SERVER
+				config.DEFAULT_KEY_LOOKUP_SERVER = None
 				try:
-					os._exit = my_exit
 					background.spawn_background_update(d, verbose)
-					assert False
-				except SystemExit as ex:
-					self.assertEqual(1, ex.code)
-			finally:
-				os._exit = old_exit
-				config.DEFAULT_KEY_LOOKUP_SERVER = key_info
+				finally:
+					config.DEFAULT_KEY_LOOKUP_SERVER = key_info
 		finally:
 			sys.stdout = old_out
 		assert ran_gui
 
 	def testBackgroundVerbose(self):
 		self.testBackground(verbose = True)
+
+	def testBackgroundApp(self):
+		my_dbus.system_services = {"org.freedesktop.NetworkManager": {"/org/freedesktop/NetworkManager": NetworkManager()}}
+
+		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+
+		with output_suppressed():
+			# Select a version of Hello
+			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
+			tasks.wait_for_blocker(driver.solve_with_downloads())
+			assert driver.solver.ready
+			kill_server_process()
+
+			# Save it as an app
+			app = self.config.app_mgr.create_app('test-app')
+			app.set_selections(driver.solver.selections)
+			timestamp = os.path.join(app.path, 'last-check')
+
+			# Download the implementation
+			sels = app.get_selections()
+			run_server('HelloWorld.tgz')
+			tasks.wait_for_blocker(app.download_selections(sels))
+			kill_server_process()
+
+			# Not time for a background update yet
+			self.config.freshness = 100
+			dl = app.download_selections(sels)
+			assert dl == None
+			assert not ran_gui
+
+			# Trigger a background update - no updates found
+			os.utime(timestamp, (1, 1))
+			run_server('Hello.xml')
+			with trapped_exit(1):
+				dl = app.download_selections(sels)
+				assert dl == None
+			assert not ran_gui
+			self.assertEqual(1, os.stat(timestamp).st_mtime)
+			kill_server_process()
+
+			# Change the selections
+			sels_path = os.path.join(app.path, 'selections.xml')
+			with open(sels_path) as stream:
+				old = stream.read()
+			with open(sels_path, 'w') as stream:
+				stream.write(old.replace('Hello', 'Goodbye'))
+
+			# Trigger another background update - metadata changes found
+			os.utime(timestamp, (1, 1))
+			run_server('Hello.xml')
+			with trapped_exit(1):
+				dl = app.download_selections(sels)
+				assert dl == None
+			assert not ran_gui
+			self.assertNotEqual(1, os.stat(timestamp).st_mtime)
+			kill_server_process()
+
+			# Trigger another background update - GUI needed now
+
+			# Delete cached implementation so we need to download it again
+			stored = sels.selections['http://example.com:8000/Hello.xml'].get_path(self.config.stores)
+			assert os.path.basename(stored).startswith('sha1')
+			ro_rmtree(stored)
+
+			# Replace with a valid local feed so we don't have to download immediately
+			with open(sels_path, 'w') as stream:
+				stream.write(local_hello)
+			sels = app.get_selections()
+
+			os.environ['DISPLAY'] = 'dummy'
+			os.utime(timestamp, (1, 1))
+			run_server('Hello.xml')
+			with trapped_exit(1):
+				dl = app.download_selections(sels)
+				assert dl == None
+			assert ran_gui	# (so doesn't actually update)
+			kill_server_process()
+
+			# Now again with no DISPLAY
+			del os.environ['DISPLAY']
+			run_server('Hello.xml', 'HelloWorld.tgz')
+			with trapped_exit(1):
+				dl = app.download_selections(sels)
+				assert dl == None
+			assert ran_gui	# (so doesn't actually update)
+
+			self.assertNotEqual(1, os.stat(timestamp).st_mtime)
+			kill_server_process()
+
+			sels = app.get_selections()
+			sel, = sels.selections.values()
+			self.assertEqual("sha1=3ce644dc725f1d21cfcf02562c76f375944b266a", sel.id)
+
+			# Untrust the key
+			trust.trust_db.untrust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+
+			os.environ['DISPLAY'] = 'dummy'
+			os.utime(timestamp, (1, 1))
+			run_server('Hello.xml')
+			with trapped_exit(1):
+				#import logging; logging.getLogger().setLevel(logging.INFO)
+				dl = app.download_selections(sels)
+				assert dl == None
+			assert ran_gui
+			kill_server_process()
 
 if __name__ == '__main__':
 	try:
