@@ -7,10 +7,10 @@ Support for managing apps (as created with "0install add").
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _, SafeException
-from zeroinstall.support import basedir
+from zeroinstall.support import basedir, portable_rename
 from zeroinstall.injector import namespaces, selections, qdom
 from logging import warn
-import re, os, time
+import re, os, time, tempfile
 
 # Avoid characters that are likely to cause problems (reject : and ; everywhere
 # so that apps can be portable between POSIX and Windows).
@@ -52,10 +52,28 @@ class App:
 		self.path = path
 
 	def set_selections(self, sels):
-		sels_file = os.path.join(self.path, 'selections.xml')
+		"""Store a new set of selections. We include today's date in the filename
+		so that we keep a history of previous selections (max one per day), in case
+		we want to to roll back later."""
+		date = time.strftime('%Y-%m-%d')
+		sels_file = os.path.join(self.path, 'selections-{date}.xml'.format(date = date))
 		dom = sels.toDOM()
-		with open(sels_file, 'w') as stream:
-			dom.writexml(stream, addindent="  ", newl="\n", encoding = 'utf-8')
+
+		tmp = tempfile.NamedTemporaryFile(prefix = 'selections.xml-', dir = self.path, delete = False)
+		try:
+			dom.writexml(tmp, addindent="  ", newl="\n", encoding = 'utf-8')
+		except:
+			tmp.close()
+			os.unlink(tmp.name)
+			raise
+		tmp.close()
+		portable_rename(tmp.name, sels_file)
+
+		sels_latest = os.path.join(self.path, 'selections.xml')
+		if os.path.exists(sels_latest):
+			os.unlink(sels_latest)
+		os.symlink(os.path.basename(sels_file), sels_latest)
+
 		self.set_last_check()
 
 	def get_selections(self):
