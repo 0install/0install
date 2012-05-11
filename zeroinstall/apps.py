@@ -56,6 +56,7 @@ class App:
 		dom = sels.toDOM()
 		with open(sels_file, 'w') as stream:
 			dom.writexml(stream, addindent="  ", newl="\n", encoding = 'utf-8')
+		self.set_last_check()
 
 	def get_selections(self):
 		sels_file = os.path.join(self.path, 'selections.xml')

@@ -23,25 +23,31 @@ def handle(config, options, args):
 
 	assert not options.offline
 
-	iface_uri = model.canonical_iface_uri(args[0])
-
 	old_gui = options.gui
 
-	# Select once in offline console mode to get the old values
-	options.offline = True
-	options.gui = False
-	options.refresh = False
-
-	try:
-		old_sels = select.get_selections(config, options, iface_uri,
-					select_only = True, download_only = False, test_callback = None)
-	except SafeException:
-		old_selections = {}
+	app = config.app_mgr.lookup_app(args[0], missing_ok = True)
+	if app is not None:
+		old_sels = app.get_selections()
+		old_selections = old_sels.selections
+		iface_uri = old_sels.interface
 	else:
-		if old_sels is None:
+		iface_uri = model.canonical_iface_uri(args[0])
+
+		# Select once in offline console mode to get the old values
+		options.offline = True
+		options.gui = False
+		options.refresh = False
+
+		try:
+			old_sels = select.get_selections(config, options, iface_uri,
+						select_only = True, download_only = False, test_callback = None)
+		except SafeException:
 			old_selections = {}
 		else:
-			old_selections = old_sels.selections
+			if old_sels is None:
+				old_selections = {}
+			else:
+				old_selections = old_sels.selections
 
 	# Download in online mode to get the new values
 	config.network_use = model.network_full
@@ -53,6 +59,12 @@ def handle(config, options, args):
 				select_only = False, download_only = True, test_callback = None)
 	if not sels:
 		sys.exit(1)	# Aborted by user
+
+	root_feed = config.iface_cache.get_feed(iface_uri)
+	if root_feed:
+		target = root_feed.get_replaced_by()
+		if target is not None:
+			print(_("Warning: interface {old} has been replaced by {new}".format(old = iface_uri, new = target)))
 
 	changes = False
 
@@ -80,12 +92,15 @@ def handle(config, options, args):
 				version = root_sel.version))
 		if not config.help_with_testing and latest.get_stability() < model.stable:
 			print(_('To select "testing" versions, use:\n0install config help_with_testing True'))
-	else:
-		if not changes:
-			print(_("No updates found. Continuing with version {version}.").format(version = root_sel.version))
+	elif not changes:
+		from zeroinstall.support import xmltools
 
-	root_feed = config.iface_cache.get_feed(iface_uri)
-	if root_feed:
-		target = root_feed.get_replaced_by()
-		if target is not None:
-			print(_("Warning: interface {old} has been replaced by {new}".format(old = iface_uri, new = target)))
+		# No obvious changes, but check for more subtle updates.
+		if xmltools.nodes_equal(sels.toDOM(), old_sels.toDOM()):
+			print(_("No updates found. Continuing with version {version}.").format(version = root_sel.version))
+		else:
+			changes = True
+			print(_("Updates to metadata found, but no change to version ({version}).").format(version = root_sel.version))
+
+	if changes and app is not None:
+		app.set_selections(sels)

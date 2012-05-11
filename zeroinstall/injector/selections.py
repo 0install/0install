@@ -321,7 +321,7 @@ class Selections(object):
 			root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns:' + prefix, ns)
 
 		return doc
-	
+
 	def __repr__(self):
 		return "Selections for " + self.interface
 
