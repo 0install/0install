@@ -9,7 +9,7 @@ Support for managing apps (as created with "0install add").
 from zeroinstall import _, SafeException
 from zeroinstall.support import basedir, portable_rename
 from zeroinstall.injector import namespaces, selections, qdom
-from logging import warn
+from logging import warn, info
 import re, os, time, tempfile
 
 # Avoid characters that are likely to cause problems (reject : and ; everywhere
@@ -94,7 +94,8 @@ class App:
 		timestamp_path = os.path.join(self.path, 'last-check')
 		try:
 			utime = os.stat(timestamp_path).st_mtime
-			#print "Staleness", time.time() - utime
+			staleness = time.time() - utime
+			info("Staleness of app %s is %d hours", self, staleness / (60 * 60))
 			need_update = False
 		except Exception as ex:
 			warn("Failed to get time-stamp of %s: %s", timestamp_path, ex)
@@ -144,6 +145,9 @@ class App:
 
 	def get_name(self):
 		return os.path.basename(self.path)
+
+	def __str__(self):
+		return '<app ' + self.get_name() + '>'
 
 class AppManager:
 	def __init__(self, config):
