@@ -16,7 +16,10 @@ add_options = add_feed.add_options
 def handle(config, options, args):
 	if len(args) == 2:
 		iface = config.iface_cache.get_interface(model.canonical_iface_uri(args[0]))
-		feed_url = model.canonical_iface_uri(args[1])
+		try:
+			feed_url = model.canonical_iface_uri(args[1])
+		except SafeException:
+			feed_url = args[1]		# File might not exist any longer
 
 		feed_import = add_feed.find_feed_import(iface, feed_url)
 		if not feed_import:
