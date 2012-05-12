@@ -349,7 +349,9 @@ class TestDownload(BaseTest):
 			sys.stdout = StringIO()
 			getLogger().setLevel(ERROR)
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-			run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg')
+			run_server(server.Give404('/Hello.xml'),
+					'/0mirror/feeds/http/example.com:8000/Hello.xml/latest.xml',
+					'/0mirror/keys/6FCF121BE2390E0B.gpg')
 			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
 			self.config.feed_mirror = 'http://example.com:8000/0mirror'
 

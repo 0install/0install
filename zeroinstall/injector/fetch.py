@@ -27,9 +27,9 @@ def _get_feed_dir(feed):
 	assert '/' in rest, "Missing / in %s" % feed
 	domain, rest = rest.split('/', 1)
 	for x in [scheme, domain, rest]:
-		if not x or x.startswith(','):
+		if not x or x.startswith('.'):
 			raise SafeException(_("Invalid URL '%s'") % feed)
-	return os.path.join('feeds', scheme, domain, _escape_slashes(rest))
+	return '/'.join(['feeds', scheme, domain, _escape_slashes(rest)])
 
 class KeyInfoFetcher:
 	"""Fetches information about a GPG key from a key-info server.
