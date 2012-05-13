@@ -355,6 +355,10 @@ an easy way to run the application. For example, to add and run ROX-Filer:
 
 .B $ rox
 
+.PP
+If additional requirements are given (as for "0install select", e.g. --before), they
+are stored with the application and apply to all updates.
+
 .SS 0install update NAME
 
 .PP
@@ -363,6 +367,11 @@ is generated and saved into the application's directory. Even if you don't run
 this command explicitly, 0install will check for updates if you run the program
 and it hasn't been updated for a while. This happens in the background and does
 not delay starting the program.
+
+.PP
+If additional requirements are given (as for "0install select", e.g. --before),
+they update the requirements stored with the application and apply to this and
+future updates.
 
 .SS 0install destroy NAME
 The application \fBNAME\fP is deleted, along with any launchers added for it.

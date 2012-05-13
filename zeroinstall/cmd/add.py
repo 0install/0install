@@ -9,13 +9,12 @@ from __future__ import print_function
 
 from zeroinstall import SafeException, _
 from zeroinstall.cmd import UsageError, select
-from zeroinstall.injector import model
+from zeroinstall.injector import model, requirements
 
 syntax = "PET-NAME INTERFACE"
 
 def add_options(parser):
-	# TODO: allow passing options to control the selection
-	pass #select.add_options(parser)
+	select.add_options(parser)
 
 def handle(config, options, args):
 	if len(args) != 2:
@@ -28,6 +27,9 @@ def handle(config, options, args):
 	if not sels:
 		sys.exit(1)	# Aborted by user
 
-	app = config.app_mgr.create_app(pet_name)
+	r = requirements.Requirements(iface_uri)
+	r.parse_options(options)
+
+	app = config.app_mgr.create_app(pet_name, r)
 	app.set_selections(sels)
 	app.integrate_shell(pet_name)

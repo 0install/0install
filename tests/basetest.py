@@ -190,7 +190,7 @@ class BaseTest(unittest.TestCase):
 		download._downloads = {}
 
 		self.old_path = os.environ['PATH']
-		os.environ['PATH'] = dpkgdir + ':' + self.old_path
+		os.environ['PATH'] = self.config_home + ':' + dpkgdir + ':' + self.old_path
 
 		distro._host_distribution = distro.DebianDistribution(dpkgdir + '/status')
 		distro._host_distribution._packagekit = DummyPackageKit()

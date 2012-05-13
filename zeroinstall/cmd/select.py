@@ -64,7 +64,17 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 	r = requirements.Requirements(iface_uri)
 	r.parse_options(options)
 
-	driver = Driver(config = config, requirements = r)
+	return get_selections_for(r, config, options, select_only, download_only, test_callback)
+
+def get_selections_for(requirements, config, options, select_only, download_only, test_callback):
+	"""Get selections for given requirements.
+	@since: 1.8"""
+	if options.offline:
+		config.network_use = model.network_offline
+
+	iface_cache = config.iface_cache
+
+	driver = Driver(config = config, requirements = requirements)
 
 	# Note that need_download() triggers a solve
 	if options.refresh or options.gui:
@@ -122,7 +132,7 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 			gui_args.append('--select-only')
 
 		from zeroinstall import helpers
-		sels = helpers.get_selections_gui(iface_uri, gui_args, test_callback)
+		sels = helpers.get_selections_gui(requirements.interface_uri, gui_args, test_callback)
 
 		if not sels:
 			return None		# Aborted

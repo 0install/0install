@@ -357,6 +357,15 @@ class TestInstall(BaseTest):
 		assert out == 'sha1new=da39a3ee5e6b4b0d3255bfef95601890afd80709\n', out
 		assert not err, err
 		os.rmdir(tmp)
+	
+	def testAdd(self):
+		out, err = self.run_0install(['add', 'local-app'])
+		assert out.lower().startswith("usage:")
+
+		local_feed = os.path.join(mydir, 'Local.xml')
+		out, err = self.run_0install(['add', 'local-app', local_feed])
+		assert not out, out
+		assert not err, err
 
 if __name__ == '__main__':
 	unittest.main()

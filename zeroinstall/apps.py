@@ -113,9 +113,34 @@ class App:
 
 			if need_update:
 				self.set_last_check_attempt()
-				from zeroinstall.injector import background, requirements
-				r = requirements.Requirements(sels.interface)	# TODO: custom requirements
+				from zeroinstall.injector import background
+				r = self.get_requirements()
 				background.spawn_background_update2(r, True, self)
+
+	def set_requirements(self, requirements):
+		import json
+		tmp = tempfile.NamedTemporaryFile(prefix = 'tmp-requirements-', dir = self.path, delete = False)
+		try:
+			json.dump(dict((key, getattr(requirements, key)) for key in requirements.__slots__), tmp)
+		except:
+			tmp.close()
+			os.unlink(tmp.name)
+			raise
+		tmp.close()
+
+		reqs_file = os.path.join(self.path, 'requirements.json')
+		portable_rename(tmp.name, reqs_file)
+
+	def get_requirements(self):
+		import json
+		from zeroinstall.injector import requirements
+		r = requirements.Requirements(None)
+		reqs_file = os.path.join(self.path, 'requirements.json')
+		with open(reqs_file) as stream:
+			values = json.load(stream)
+		for k, v in values.items():
+			setattr(r, k, v)
+		return r
 
 	def set_last_check_attempt(self):
 		timestamp_path = os.path.join(self.path, 'last-check-attempt')
@@ -171,15 +196,19 @@ class AppManager:
 	def __init__(self, config):
 		self.config = config
 
-	def create_app(self, name):
+	def create_app(self, name, requirements):
 		validate_name(name)
+
 		apps_dir = basedir.save_config_path(namespaces.config_site, "apps")
 		app_dir = os.path.join(apps_dir, name)
 		if os.path.isdir(app_dir):
 			raise SafeException(_("Application '{name}' already exists: {path}").format(name = name, path = app_dir))
 		os.mkdir(app_dir)
+
 		app = App(self.config, app_dir)
+		app.set_requirements(requirements)
 		app.set_last_checked()
+
 		return app
 
 	def lookup_app(self, name, missing_ok = False):

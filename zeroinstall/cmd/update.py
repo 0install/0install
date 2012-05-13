@@ -10,7 +10,7 @@ from __future__ import print_function
 import sys
 
 from zeroinstall import SafeException, _
-from zeroinstall.injector import model
+from zeroinstall.injector import model, requirements
 from zeroinstall.cmd import UsageError, select
 
 syntax = "URI"
@@ -30,8 +30,13 @@ def handle(config, options, args):
 		old_sels = app.get_selections()
 		old_selections = old_sels.selections
 		iface_uri = old_sels.interface
+		r = app.get_requirements()
+		r.parse_update_options(options)
 	else:
 		iface_uri = model.canonical_iface_uri(args[0])
+
+		r = requirements.Requirements(iface_uri)
+		r.parse_options(options)
 
 		# Select once in offline console mode to get the old values
 		options.offline = True
@@ -39,7 +44,7 @@ def handle(config, options, args):
 		options.refresh = False
 
 		try:
-			old_sels = select.get_selections(config, options, iface_uri,
+			old_sels = select.get_selections_for(r, config, options,
 						select_only = True, download_only = False, test_callback = None)
 		except SafeException:
 			old_selections = {}
@@ -55,7 +60,7 @@ def handle(config, options, args):
 	options.gui = old_gui
 	options.refresh = True
 
-	sels = select.get_selections(config, options, iface_uri,
+	sels = select.get_selections_for(r, config, options,
 				select_only = False, download_only = True, test_callback = None)
 	if not sels:
 		sys.exit(1)	# Aborted by user
@@ -102,5 +107,7 @@ def handle(config, options, args):
 			changes = True
 			print(_("Updates to metadata found, but no change to version ({version}).").format(version = root_sel.version))
 
-	if changes and app is not None:
-		app.set_selections(sels)
+	if app is not None:
+		if changes:
+			app.set_selections(sels)
+		app.set_requirements(r)

@@ -9,6 +9,8 @@ class Requirements(object):
 	"""
 	Holds information about what the user asked for (which program, version constraints, etc).
 	"""
+
+	# Note: apps.py serialises our __slots__
 	__slots__ = [
 		'interface_uri',
 		'command',
@@ -44,6 +46,19 @@ class Requirements(object):
 				self.command = 'run'
 		else:
 			self.command = options.command or None
+
+	def parse_update_options(self, options):
+		"""Update the settings based on the options (used for "0install update APP").
+		@since: 1.8"""
+		for key in ['not_before', 'before', 'message', 'cpu', 'os', 'command']:
+			value = getattr(options, key)
+			if value is not None:
+				setattr(self, key, value)
+		if options.source and not self.source:
+			# (partly because it doesn't make much sense, and partly because you
+			# can't undo it, as there's no --not-source option)
+			from zeroinstall import SafeException
+			raise SafeException("Can't update from binary to source type!")
 
 	def get_as_options(self):
 		gui_args = []

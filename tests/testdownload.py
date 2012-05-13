@@ -478,13 +478,14 @@ class TestDownload(BaseTest):
 		with output_suppressed():
 			# Select a version of Hello
 			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
-			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
+			r = Requirements('http://example.com:8000/Hello.xml')
+			driver = Driver(requirements = r, config = self.config)
 			tasks.wait_for_blocker(driver.solve_with_downloads())
 			assert driver.solver.ready
 			kill_server_process()
 
 			# Save it as an app
-			app = self.config.app_mgr.create_app('test-app')
+			app = self.config.app_mgr.create_app('test-app', r)
 			app.set_selections(driver.solver.selections)
 			timestamp = os.path.join(app.path, 'last-checked')
 			last_check_attempt = os.path.join(app.path, 'last-check-attempt')
