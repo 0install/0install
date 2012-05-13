@@ -14,6 +14,14 @@
 
 .B 0install update \fBURI\fP
 
+.SS Applications:
+
+.B 0install add \fBNAME\fP \fBURI\fP
+
+.B 0install update \fBNAME\fP
+
+.B 0install destroy \fBNAME\fP
+
 .SS Other commands:
 
 .B 0install config [NAME [VALUE]]
@@ -325,6 +333,39 @@ See also: 0store(1)'s manifest command.
 
 .SS 0install --version
 This can be used (without any command) the get version of 0install itself:
+
+.SH APPLICATIONS
+
+An application provides an easy way to run a program without typing the full URL
+each time.
+
+.SS 0install add NAME URI
+
+.PP
+Creates a new application called \fBNAME\fP (which can be whatever you want) to run
+the program \fBURI\fP. A directory (by default, ~/.config/0install.net/apps/NAME) is
+created to record the current selections, as would be produced by "0install
+select --xml URI".
+
+.PP
+A launcher command (also called \fBNAME\fP) will be created in $PATH to provide
+an easy way to run the application. For example, to add and run ROX-Filer:
+
+.B $ 0install add rox http://rox.sourceforge.net/2005/interfaces/ROX-Filer
+
+.B $ rox
+
+.SS 0install update NAME
+
+.PP
+The feeds used to make the selections are updated and a new set of selections
+is generated and saved into the application's directory. Even if you don't run
+this command explicitly, 0install will check for updates if you run the program
+and it hasn't been updated for a while. This happens in the background and does
+not delay starting the program.
+
+.SS 0install destroy NAME
+The application \fBNAME\fP is deleted, along with any launchers added for it.
 
 .SH DEBUGGING TIPS
 
