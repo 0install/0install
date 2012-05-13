@@ -239,6 +239,7 @@ def _check_for_updates(requirements, verbose, app):
 		from zeroinstall.support import xmltools
 		if not xmltools.nodes_equal(new_sels.toDOM(), old_sels.toDOM()):
 			app.set_selections(new_sels)
+		app.set_last_checked()
 	sys.exit(0)
 
 

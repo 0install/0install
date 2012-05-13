@@ -74,7 +74,7 @@ class App:
 			os.unlink(sels_latest)
 		os.symlink(os.path.basename(sels_file), sels_latest)
 
-		self.set_last_check()
+		self.set_last_checked()
 
 	def get_selections(self):
 		"""Load the selections. Does not check whether they are cached, nor trigger updates."""
@@ -92,24 +92,39 @@ class App:
 			return blocker
 		else:
 			# Nothing to download, but is it time for a background update?
-			timestamp_path = os.path.join(self.path, 'last-check')
+			timestamp_path = os.path.join(self.path, 'last-checked')
 			try:
 				utime = os.stat(timestamp_path).st_mtime
 				staleness = time.time() - utime
 				info("Staleness of app %s is %d hours", self, staleness / (60 * 60))
 				freshness_threshold = self.config.freshness
 				need_update = freshness_threshold > 0 and staleness >= freshness_threshold
+
+				if need_update:
+					last_check_attempt_path = os.path.join(self.path, 'last-check-attempt')
+					if os.path.exists(last_check_attempt_path):
+						last_check_attempt = os.stat(last_check_attempt_path).st_mtime
+						if last_check_attempt + 60 * 60 > time.time():
+							info("Tried to check within last hour; not trying again now")
+							need_update = False
 			except Exception as ex:
 				warn("Failed to get time-stamp of %s: %s", timestamp_path, ex)
 				need_update = True
 
 			if need_update:
+				self.set_last_check_attempt()
 				from zeroinstall.injector import background, requirements
 				r = requirements.Requirements(sels.interface)	# TODO: custom requirements
 				background.spawn_background_update2(r, True, self)
 
-	def set_last_check(self):
-		timestamp_path = os.path.join(self.path, 'last-check')
+	def set_last_check_attempt(self):
+		timestamp_path = os.path.join(self.path, 'last-check-attempt')
+		fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0o644)
+		os.close(fd)
+		os.utime(timestamp_path, None)	# In case file already exists
+
+	def set_last_checked(self):
+		timestamp_path = os.path.join(self.path, 'last-checked')
 		fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0o644)
 		os.close(fd)
 		os.utime(timestamp_path, None)	# In case file already exists
@@ -164,7 +179,7 @@ class AppManager:
 			raise SafeException(_("Application '{name}' already exists: {path}").format(name = name, path = app_dir))
 		os.mkdir(app_dir)
 		app = App(self.config, app_dir)
-		app.set_last_check()
+		app.set_last_checked()
 		return app
 
 	def lookup_app(self, name, missing_ok = False):

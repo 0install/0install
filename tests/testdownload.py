@@ -486,7 +486,15 @@ class TestDownload(BaseTest):
 			# Save it as an app
 			app = self.config.app_mgr.create_app('test-app')
 			app.set_selections(driver.solver.selections)
-			timestamp = os.path.join(app.path, 'last-check')
+			timestamp = os.path.join(app.path, 'last-checked')
+			last_check_attempt = os.path.join(app.path, 'last-check-attempt')
+			selections_path = os.path.join(app.path, 'selections.xml')
+
+			def reset_timestamps():
+				os.utime(timestamp, (1, 1))		# 1970
+				os.utime(selections_path, (1, 1))
+				if os.path.exists(last_check_attempt):
+					os.unlink(last_check_attempt)
 
 			# Download the implementation
 			sels = app.get_selections()
@@ -501,13 +509,14 @@ class TestDownload(BaseTest):
 			assert not ran_gui
 
 			# Trigger a background update - no updates found
-			os.utime(timestamp, (1, 1))
+			reset_timestamps()
 			run_server('Hello.xml')
 			with trapped_exit(1):
 				dl = app.download_selections(sels)
 				assert dl == None
 			assert not ran_gui
-			self.assertEqual(1, os.stat(timestamp).st_mtime)
+			self.assertNotEqual(1, os.stat(timestamp).st_mtime)
+			self.assertEqual(1, os.stat(selections_path).st_mtime)
 			kill_server_process()
 
 			# Change the selections
@@ -518,13 +527,14 @@ class TestDownload(BaseTest):
 				stream.write(old.replace('Hello', 'Goodbye'))
 
 			# Trigger another background update - metadata changes found
-			os.utime(timestamp, (1, 1))
+			reset_timestamps()
 			run_server('Hello.xml')
 			with trapped_exit(1):
 				dl = app.download_selections(sels)
 				assert dl == None
 			assert not ran_gui
 			self.assertNotEqual(1, os.stat(timestamp).st_mtime)
+			self.assertNotEqual(1, os.stat(selections_path).st_mtime)
 			kill_server_process()
 
 			# Trigger another background update - GUI needed now
@@ -540,7 +550,7 @@ class TestDownload(BaseTest):
 			sels = app.get_selections()
 
 			os.environ['DISPLAY'] = 'dummy'
-			os.utime(timestamp, (1, 1))
+			reset_timestamps()
 			run_server('Hello.xml')
 			with trapped_exit(1):
 				dl = app.download_selections(sels)
@@ -549,6 +559,7 @@ class TestDownload(BaseTest):
 			kill_server_process()
 
 			# Now again with no DISPLAY
+			reset_timestamps()
 			del os.environ['DISPLAY']
 			run_server('Hello.xml', 'HelloWorld.tgz')
 			with trapped_exit(1):
@@ -557,6 +568,7 @@ class TestDownload(BaseTest):
 			assert ran_gui	# (so doesn't actually update)
 
 			self.assertNotEqual(1, os.stat(timestamp).st_mtime)
+			self.assertNotEqual(1, os.stat(selections_path).st_mtime)
 			kill_server_process()
 
 			sels = app.get_selections()
@@ -567,7 +579,7 @@ class TestDownload(BaseTest):
 			trust.trust_db.untrust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 
 			os.environ['DISPLAY'] = 'dummy'
-			os.utime(timestamp, (1, 1))
+			reset_timestamps()
 			run_server('Hello.xml')
 			with trapped_exit(1):
 				#import logging; logging.getLogger().setLevel(logging.INFO)
