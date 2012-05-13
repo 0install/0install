@@ -475,6 +475,8 @@ class TestDownload(BaseTest):
 
 		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 
+		global ran_gui
+
 		with output_suppressed():
 			# Select a version of Hello
 			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
@@ -492,6 +494,7 @@ class TestDownload(BaseTest):
 			selections_path = os.path.join(app.path, 'selections.xml')
 
 			def reset_timestamps():
+				ran_gui = False
 				os.utime(timestamp, (1, 1))		# 1970
 				os.utime(selections_path, (1, 1))
 				if os.path.exists(last_check_attempt):
@@ -588,6 +591,14 @@ class TestDownload(BaseTest):
 				assert dl == None
 			assert ran_gui
 			kill_server_process()
+
+			# Update not triggered because of last-check-attempt
+			ran_gui = False
+			os.utime(timestamp, (1, 1))		# 1970
+			os.utime(selections_path, (1, 1))
+			dl = app.download_selections(sels)
+			assert dl == None
+			assert not ran_gui
 
 if __name__ == '__main__':
 	try:

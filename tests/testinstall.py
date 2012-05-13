@@ -358,14 +358,38 @@ class TestInstall(BaseTest):
 		assert not err, err
 		os.rmdir(tmp)
 	
-	def testAdd(self):
+	def testApps(self):
 		out, err = self.run_0install(['add', 'local-app'])
 		assert out.lower().startswith("usage:")
 
+		out, err = self.run_0install(['destroy', 'local-app', 'uri'])
+		assert out.lower().startswith("usage:")
+
 		local_feed = os.path.join(mydir, 'Local.xml')
+
+		out, err = self.run_0install(['add', 'local:app', local_feed])
+		assert not out, out
+		assert "Invalid application name 'local:app'" in err, err
+
 		out, err = self.run_0install(['add', 'local-app', local_feed])
 		assert not out, out
 		assert not err, err
+
+		out, err = self.run_0install(['add', 'local-app', local_feed])
+		assert not out, out
+		assert "Application 'local-app' already exists" in err, err
+
+		out, err = self.run_0install(['update', 'local-app'])
+		assert "No updates found. Continuing with version 0.1." in out, out
+		assert not err, err
+
+		out, err = self.run_0install(['destroy', 'local-app'])
+		assert not out, out
+		assert not err, err
+
+		out, err = self.run_0install(['destroy', 'local-app'])
+		assert not out, out
+		assert "No such application 'local-app'" in err, err
 
 if __name__ == '__main__':
 	unittest.main()
