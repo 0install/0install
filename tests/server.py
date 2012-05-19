@@ -5,6 +5,7 @@ from __future__ import print_function
 import os, sys, urlparse
 import BaseHTTPServer
 import traceback
+import cPickle as pickle
 
 next_step = None
 
@@ -56,16 +57,41 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 			self.send_error(404, "Missing: %s" % leaf)
 
 def handle_requests(*script):
+	from subprocess import Popen, PIPE
+
+	# If the caller has set up some kind of funky non-file to feed
+	# as input (likely a testdownload.Reply instance), we'll have
+	# to pipe it into the process (see below)
+	stdin = PIPE if \
+	    sys.stdin and not isinstance(sys.stdin, file) \
+	    else sys.stdin
+
+	# Pass the script on the command line as a pickle.
+	child = Popen(
+		[sys.executable, __file__, pickle.dumps(script) ], 
+		stdin=stdin, stdout=PIPE, universal_newlines=True)
+
+	# Here's the funky non-file handling mentioned above
+	if stdin is PIPE:
+		child.stdin.write(sys.stdin.readline())
+		child.stdin.flush()
+
+	# Make sure the server is actually running before we try to
+	# interact with it.
+	l = child.stdout.readline()
+	assert l == 'Waiting for request\n'
+	return child
+
+def main():
+	# Grab the script that was passed on the command line from the parent
+	script = pickle.loads(sys.argv[1])
 	server_address = ('localhost', 8000)
 	httpd = BaseHTTPServer.HTTPServer(server_address, MyHandler)
-	child = os.fork()
-	if child:
-		return child
-	# We are the child
 	try:
 		sys.stderr = sys.stdout
 		#sys.stdout = sys.stderr
 		print("Waiting for request")
+		sys.stdout.flush() # Make sure the "Waiting..." message is seen by the parent
 		global next_step
 		for next_step in script:
 			if type(next_step) != tuple: next_step = (next_step,)
@@ -76,3 +102,11 @@ def handle_requests(*script):
 	except:
 		traceback.print_exc()
 		os._exit(1)
+
+if __name__ == '__main__':
+	# This is the child process.  We have to import ourself and
+	# run the main routine there, or the pickled Give404 instances
+	# passed from the parent won't be recognized as having the
+	# same class (server.Give404).
+	import server
+	server.main()

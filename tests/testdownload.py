@@ -94,8 +94,22 @@ server_process = None
 def kill_server_process():
 	global server_process
 	if server_process is not None:
-		os.kill(server_process, signal.SIGTERM)
-		os.waitpid(server_process, 0)
+		# The process may still be running.  See
+		# http://bugs.python.org/issue14252 for why this is so
+		# complicated.
+		if os.name != 'nt':
+			server_process.kill()
+		else:
+			try:
+				server_process.kill()
+			except WindowsError, e:
+				# This is what happens when terminate
+				# is called after the process has died.
+				if e.winerror == 5 and e.strerror == 'Access is denied':
+					assert not server_process.poll()
+				else:
+					raise
+		server_process.wait()
 		server_process = None
 
 def run_server(*args):
