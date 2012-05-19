@@ -49,6 +49,6 @@ requires first uninstalling another.</description>
       <version before="3" not-before="2.6"/>
     </requires>
 
-    <implementation id="." released="2012-05-19" version="1.8"/>
+    <implementation id="." version="1.8-post"/>
   </group>
 </interface>
