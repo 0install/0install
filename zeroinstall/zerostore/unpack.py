@@ -233,7 +233,7 @@ def extract_deb(stream, destdir, extract = None, start_offset = 0):
 	stream.seek(start_offset)
 	# ar can't read from stdin, so make a copy...
 	deb_copy_name = os.path.join(destdir, 'archive.deb')
-	deb_copy = open(deb_copy_name, 'w')
+	deb_copy = open(deb_copy_name, 'wb')
 	shutil.copyfileobj(stream, deb_copy)
 	deb_copy.close()
 
@@ -324,7 +324,7 @@ def extract_cab(stream, destdir, extract, start_offset = 0):
 	stream.seek(start_offset)
 	# cabextract can't read from stdin, so make a copy...
 	cab_copy_name = os.path.join(destdir, 'archive.cab')
-	cab_copy = open(cab_copy_name, 'w')
+	cab_copy = open(cab_copy_name, 'wb')
 	shutil.copyfileobj(stream, cab_copy)
 	cab_copy.close()
 
@@ -339,7 +339,7 @@ def extract_dmg(stream, destdir, extract, start_offset = 0):
 	stream.seek(start_offset)
 	# hdiutil can't read from stdin, so make a copy...
 	dmg_copy_name = os.path.join(destdir, 'archive.dmg')
-	dmg_copy = open(dmg_copy_name, 'w')
+	dmg_copy = open(dmg_copy_name, 'wb')
 	shutil.copyfileobj(stream, dmg_copy)
 	dmg_copy.close()
 
@@ -360,7 +360,7 @@ def extract_zip(stream, destdir, extract, start_offset = 0):
 	stream.seek(start_offset)
 	# unzip can't read from stdin, so make a copy...
 	zip_copy_name = os.path.join(destdir, 'archive.zip')
-	zip_copy = open(zip_copy_name, 'w')
+	zip_copy = open(zip_copy_name, 'wb')
 	shutil.copyfileobj(stream, zip_copy)
 	zip_copy.close()
 
