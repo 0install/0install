@@ -2215,7 +2215,7 @@ msgstr "Versionen ausführen, die in der XML-Datei angegeben sind"
 #: zeroinstall/injector/cli.py:79
 #, python-format
 msgid "Running 0launch %(version)s %(args)s; Python %(python_version)s"
-msgstr "0launch %(version)s %(args) wird ausgeführt; Python %(python_version)s"
+msgstr "0launch %(version)s %(args)s wird ausgeführt; Python %(python_version)s"
 
 #: zeroinstall/injector/config.py:121
 #, python-format
