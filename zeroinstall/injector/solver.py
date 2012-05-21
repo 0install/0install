@@ -97,6 +97,11 @@ class Solver(object):
 		root_arch = arch.get_architecture(requirements.os, requirements.cpu)
 		if requirements.source:
 			root_arch = arch.SourceArchitecture(root_arch)
+		if requirements.command == 'test':
+			# This is for old feeds that have use='testing' instead of the newer
+			# 'test' command for giving test-only dependencies.
+			root_arch = arch.Architecture(root_arch.os_ranks, root_arch.machine_ranks)
+			root_arch.use = frozenset([None, "testing"])
 		return self.solve(requirements.interface_uri, root_arch, requirements.command)
 
 	def solve(self, root_interface, root_arch, command_name = 'run'):
