@@ -1,5 +1,5 @@
 """Convenience functions for handling XML.
-@since: 1.8
+@since: 1.9
 """
 
 # Copyright (C) 2012, Thomas Leonard

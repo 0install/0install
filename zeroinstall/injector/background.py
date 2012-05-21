@@ -267,7 +267,7 @@ def spawn_background_update2(requirements, verbose, app = None):
 	@type verbose: bool
 	@param app: application to update (if any)
 	@type app: L{apps.App} | None
-	@since: 1.8"""
+	@since: 1.9"""
 	if _detach():
 		return
 

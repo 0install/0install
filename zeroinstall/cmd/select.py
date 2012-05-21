@@ -68,7 +68,7 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 
 def get_selections_for(requirements, config, options, select_only, download_only, test_callback):
 	"""Get selections for given requirements.
-	@since: 1.8"""
+	@since: 1.9"""
 	if options.offline:
 		config.network_use = model.network_offline
 

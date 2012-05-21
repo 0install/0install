@@ -96,7 +96,7 @@ def portable_rename(src, dst):
 	"""Rename 'src' to 'dst', which must be on the same filesystem.
 	On POSIX systems, this operation is atomic.
 	On Windows, do the best we can by deleting dst and then renaming.
-	@since: 1.8"""
+	@since: 1.9"""
 	if os.name == "nt" and os.path.exists(dst):
 		os.unlink(dst)
 	os.rename(src, dst)

@@ -1,6 +1,6 @@
 """
 Support for managing apps (as created with "0install add").
-@since: 1.8
+@since: 1.9
 """
 
 # Copyright (C) 2012, Thomas Leonard

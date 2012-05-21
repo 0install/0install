@@ -49,7 +49,7 @@ class Requirements(object):
 
 	def parse_update_options(self, options):
 		"""Update the settings based on the options (used for "0install update APP").
-		@since: 1.8"""
+		@since: 1.9"""
 		for key in ['not_before', 'before', 'message', 'cpu', 'os', 'command']:
 			value = getattr(options, key)
 			if value is not None:
