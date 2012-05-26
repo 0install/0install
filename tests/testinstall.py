@@ -379,6 +379,10 @@ class TestInstall(BaseTest):
 		assert not out, out
 		assert "Application 'local-app' already exists" in err, err
 
+		out, err = self.run_0install(['select', 'local-app'])
+		assert "Version: 0.1" in out, out
+		assert not err, err
+
 		out, err = self.run_0install(['update', 'local-app'])
 		assert "No updates found. Continuing with version 0.1." in out, out
 		assert not err, err

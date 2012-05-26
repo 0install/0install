@@ -149,12 +149,16 @@ def get_selections_for(requirements, config, options, select_only, download_only
 def handle(config, options, args):
 	if len(args) != 1:
 		raise UsageError()
-	iface_uri = model.canonical_iface_uri(args[0])
 
-	sels = get_selections(config, options, iface_uri,
-				select_only = True, download_only = False, test_callback = None)
-	if not sels:
-		sys.exit(1)	# Aborted by user
+	app = config.app_mgr.lookup_app(args[0], missing_ok = True)
+	if app is not None:
+		sels = app.get_selections()
+	else:
+		iface_uri = model.canonical_iface_uri(args[0])
+		sels = get_selections(config, options, iface_uri,
+					select_only = True, download_only = False, test_callback = None)
+		if not sels:
+			sys.exit(1)	# Aborted by user
 
 	if options.xml:
 		show_xml(sels)
