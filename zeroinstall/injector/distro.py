@@ -10,7 +10,7 @@ from zeroinstall import _
 import os, platform, re, subprocess, sys
 from logging import warn, info
 from zeroinstall.injector import namespaces, model, arch
-from zeroinstall.support import basedir
+from zeroinstall.support import basedir, portable_rename
 
 _dotted_ints = '[0-9]+(?:\.[0-9]+)*'
 
@@ -57,7 +57,7 @@ class Cache(object):
 			wrote = os.write(tmp, data)
 			data = data[wrote:]
 		os.close(tmp)
-		os.rename(tmp_name, os.path.join(self.cache_dir, self.cache_leaf))
+		portable_rename(tmp_name, os.path.join(self.cache_dir, self.cache_leaf))
 
 		self._load_cache()
 
@@ -378,7 +378,7 @@ class CachedDistribution(Distribution):
 				stream.write(line + '\n')
 			stream.close()
 
-			os.rename(tmpname,
+			portable_rename(tmpname,
 				  os.path.join(self.cache_dir,
 					       self.cache_leaf))
 		except:

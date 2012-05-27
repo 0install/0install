@@ -33,7 +33,7 @@ from logging import debug, info, warn
 from cStringIO import StringIO
 
 from zeroinstall import _
-from zeroinstall.support import basedir
+from zeroinstall.support import basedir, portable_rename
 from zeroinstall.injector import reader, model
 from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.injector.model import Interface, escape, unescape
@@ -329,7 +329,7 @@ class IfaceCache(object):
 			os.unlink(cached + '.new')
 			raise
 
-		os.rename(cached + '.new', cached)
+		portable_rename(cached + '.new', cached)
 		debug(_("Saved as %s") % cached)
 
 		self.get_feed(feed_url, force = True)

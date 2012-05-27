@@ -8,6 +8,7 @@ Save per-interface and per-feed configuration information.
 import os
 from xml.dom import minidom, XMLNS_NAMESPACE
 
+from zeroinstall import support
 from zeroinstall.support import basedir
 
 from zeroinstall.injector import model
@@ -21,7 +22,7 @@ def _atomic_save(doc, parent, uri):
 		doc.writexml(tmp_file, addindent = " ", newl = '\n')
 		tmp_file.close()
 		path = os.path.join(parent, model._pretty_escape(uri))
-		os.rename(tmp_name, path)
+		support.portable_rename(tmp_name, path)
 	except:
 		os.unlink(tmp_name)
 		raise

@@ -5,7 +5,7 @@ Holds user settings and various helper objects.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import support, _
 import os
 from logging import info, warn
 import ConfigParser
@@ -108,7 +108,7 @@ class Config(object):
 		path = basedir.save_config_path(config_site, config_prog)
 		path = os.path.join(path, 'global')
 		parser.write(open(path + '.new', 'w'))
-		os.rename(path + '.new', path)
+		support.portable_rename(path + '.new', path)
 
 def load_config(handler = None):
 	config = Config(handler)

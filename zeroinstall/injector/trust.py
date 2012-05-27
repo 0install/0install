@@ -14,6 +14,7 @@ from zeroinstall import _, SafeException
 import os
 from logging import info
 
+from zeroinstall import support
 from zeroinstall.support import basedir, tasks
 from .namespaces import config_site, config_prog, XMLNS_TRUST
 
@@ -111,7 +112,7 @@ class TrustDB(object):
 		doc.writexml(tmp, indent = "", addindent = "  ", newl = "\n")
 		tmp.close()
 
-		os.rename(tmpname, os.path.join(d, 'trustdb.xml'))
+		support.portable_rename(tmpname, os.path.join(d, 'trustdb.xml'))
 	
 	def notify(self):
 		"""Call all watcher callbacks.
