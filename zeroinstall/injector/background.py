@@ -226,6 +226,8 @@ def _check_for_updates(requirements, verbose, app):
 			from zeroinstall import helpers
 			gui_args = ['--refresh', '--systray', '--download'] + requirements.get_as_options()
 			new_sels = helpers.get_selections_gui(requirements.interface_uri, gui_args)
+			if new_sels is None:
+				sys.exit(0)	# Cancelled by user
 		else:
 			tasks.wait_for_blocker(driver.download_uncached_implementations())
 			new_sels = driver.solver.selections
