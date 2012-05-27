@@ -71,21 +71,8 @@ def handle(config, options, args):
 		if target is not None:
 			print(_("Warning: interface {old} has been replaced by {new}".format(old = iface_uri, new = target)))
 
-	changes = False
-
-	for iface, old_sel in old_selections.iteritems():
-		new_sel = sels.selections.get(iface, None)
-		if new_sel is None:
-			print(_("No longer used: %s") % iface)
-			changes = True
-		elif old_sel.version != new_sel.version:
-			print(_("%s: %s -> %s") % (iface, old_sel.version, new_sel.version))
-			changes = True
-
-	for iface, new_sel in sels.selections.iteritems():
-		if iface not in old_selections:
-			print(_("%s: new -> %s") % (iface, new_sel.version))
-			changes = True
+	from zeroinstall.cmd import whatchanged
+	changes = whatchanged.show_changes(old_selections, sels.selections)
 
 	root_sel = sels[iface_uri]
 	root_iface = config.iface_cache.get_interface(iface_uri)

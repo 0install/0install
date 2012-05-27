@@ -76,13 +76,38 @@ class App:
 
 		self.set_last_checked()
 
-	def get_selections(self):
-		"""Load the selections. Does not check whether they are cached, nor trigger updates."""
-		sels_file = os.path.join(self.path, 'selections.xml')
+	def get_selections(self, snapshot_date = None):
+		"""Load the selections. Does not check whether they are cached, nor trigger updates.
+		@param date: get a historical snapshot
+		@type date: (as returned by L{get_history})
+		@return: the selections
+		@rtype: L{selections.Selections}"""
+		if snapshot_date:
+			sels_file = os.path.join(self.path, 'selections-' + snapshot_date + '.xml')
+		else:
+			sels_file = os.path.join(self.path, 'selections.xml')
 		with open(sels_file) as stream:
 			return selections.Selections(qdom.parse(stream))
 
+	def get_history(self):
+		"""Get the dates of the available snapshots, starting with the most recent.
+		@rtype: [str]"""
+		date_re = re.compile('selections-(\d\d\d\d-\d\d-\d\d).xml')
+		snapshots = []
+		for f in os.listdir(self.path):
+			match = date_re.match(f)
+			if match:
+				snapshots.append(match.group(1))
+		snapshots.sort(reverse = True)
+		return snapshots
+
 	def download_selections(self, sels):
+		"""Download any missing implementations in the given selections.
+		If no downloads are needed, but we haven't checked for a while, start
+		a background process to check for updates (but return None immediately).
+		@return: a blocker which resolves when all needed implementations are available
+		@rtype: L{tasks.Blocker} | None
+		"""
 		stores = self.config.stores
 
 		# Check the selections are still available
@@ -147,6 +172,31 @@ class App:
 		fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0o644)
 		os.close(fd)
 		os.utime(timestamp_path, None)	# In case file already exists
+
+	def get_last_checked(self):
+		"""Get the time of the last successful check for updates.
+		@return: the timestamp (or None on error)
+		@rtype: float | None"""
+		last_updated_path = os.path.join(self.path, 'last-checked')
+		try:
+			return os.stat(last_updated_path).st_mtime
+		except Exception as ex:
+			warn("Failed to get time-stamp of %s: %s", last_updated_path, ex)
+			return None
+
+	def get_last_check_attempt(self):
+		"""Get the time of the last attempted check.
+		@return: the timestamp, or None if we updated successfully.
+		@rtype: float | None"""
+		last_check_attempt_path = os.path.join(self.path, 'last-check-attempt')
+		if os.path.exists(last_check_attempt_path):
+			last_check_attempt = os.stat(last_check_attempt_path).st_mtime
+
+			last_checked = self.get_last_checked()
+
+			if last_checked < last_check_attempt:
+				return last_check_attempt
+		return None
 
 	def set_last_checked(self):
 		timestamp_path = os.path.join(self.path, 'last-checked')

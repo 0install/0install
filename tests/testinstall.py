@@ -387,6 +387,29 @@ class TestInstall(BaseTest):
 		assert "No updates found. Continuing with version 0.1." in out, out
 		assert not err, err
 
+		# whatchanged
+		out, err = self.run_0install(['whatchanged', 'local-app', 'uri'])
+		assert out.lower().startswith("usage:")
+
+		out, err = self.run_0install(['whatchanged', 'local-app'])
+		assert "No previous history to compare against." in out, out
+		assert not err, err
+
+		app = self.config.app_mgr.lookup_app('local-app')
+		with open(os.path.join(app.path, "selections.xml")) as stream:
+			old_local = stream.read()
+		new_local = old_local.replace('0.1', '0.1-pre')
+		with open(os.path.join(app.path, "selections-2012-01-01.xml"), 'w') as stream:
+			stream.write(new_local)
+
+		out, err = self.run_0install(['whatchanged', 'local-app'])
+		assert "Local.xml: 0.1-pre -> 0.1" in out, out
+		assert not err, err
+
+		out, err = self.run_0install(['whatchanged', 'local-app', '--full'])
+		assert "--- 2012-01-01" in out, out
+		assert not err, err
+
 		out, err = self.run_0install(['destroy', 'local-app'])
 		assert not out, out
 		assert not err, err

@@ -20,6 +20,8 @@
 
 .B 0install update \fBNAME\fP
 
+.B 0install whatchanged \fBNAME\fP
+
 .B 0install destroy \fBNAME\fP
 
 .SS Other commands:
@@ -372,6 +374,22 @@ not delay starting the program.
 If additional requirements are given (as for "0install select", e.g. --before),
 they update the requirements stored with the application and apply to this and
 future updates.
+
+.B 0install whatchanged \fBNAME\fP
+
+.PP
+Show the differences between the current and previous selections for this
+application. Various times may also be displayed: "Last checked" is the last
+time we successfully checked for updates (even if none was found), "Last
+attempted update" is the last time we tried to check for updates, and "Last
+update" is the last time changes were found. If "Last attempted update" is
+shown, then either the last updated failed or an update is currently in
+progress.
+
+.PP
+By default, only changes that resulted in a different version being selected
+are shown. To see all changes, use \-\-full. Note that at most one set of
+selections is saved per day.
 
 .SS 0install destroy NAME
 The application \fBNAME\fP is deleted, along with any launchers added for it.
