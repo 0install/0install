@@ -363,7 +363,7 @@ def wait_for_blocker(blocker):
 			wait_for_blocker.loop.quit()
 		Task(quitter(), "quitter")
 
-		wait_for_blocker.loop = gobject.MainLoop(gobject.main_context_default())
+		wait_for_blocker.loop = gobject.MainLoop()
 		try:
 			debug(_("Entering mainloop, waiting for %s"), blocker)
 			wait_for_blocker.loop.run()
