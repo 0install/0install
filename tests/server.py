@@ -59,22 +59,10 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 def handle_requests(*script):
 	from subprocess import Popen, PIPE
 
-	# If the caller has set up some kind of funky non-file to feed
-	# as input (likely a testdownload.Reply instance), we'll have
-	# to pipe it into the process (see below)
-	stdin = PIPE if \
-	    sys.stdin and not isinstance(sys.stdin, file) \
-	    else sys.stdin
-
 	# Pass the script on the command line as a pickle.
 	child = Popen(
 		[sys.executable, __file__, pickle.dumps(script) ], 
-		stdin=stdin, stdout=PIPE, universal_newlines=True)
-
-	# Here's the funky non-file handling mentioned above
-	if stdin is PIPE:
-		child.stdin.write(sys.stdin.readline())
-		child.stdin.flush()
+		stdout=PIPE, universal_newlines=True)
 
 	# Make sure the server is actually running before we try to
 	# interact with it.
