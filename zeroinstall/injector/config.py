@@ -1,5 +1,6 @@
 """
 Holds user settings and various helper objects.
+@since: 0.53
 """
 
 # Copyright (C) 2011, Thomas Leonard
