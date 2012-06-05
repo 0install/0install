@@ -188,7 +188,7 @@ class Feeds:
 						main.recalculate()
 						return
 					else:
-						dialog.alert(self.get_toplevel(),
+						dialog.alert(self.remove_feed_button.get_toplevel(),
 							_("Can't remove '%s' as you didn't add it.") % feed_uri)
 						return
 			raise Exception(_("Missing feed '%s'!") % feed_uri)
