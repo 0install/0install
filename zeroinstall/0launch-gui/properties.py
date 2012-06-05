@@ -157,8 +157,9 @@ class Feeds:
 	ARCH = 1
 	USED = 2
 
-	def __init__(self, policy, interface, widgets):
-		self.policy = policy
+	def __init__(self, config, arch, interface, widgets):
+		self.config = config
+		self.arch = arch
 		self.interface = interface
 
 		self.model = gtk.ListStore(str, str, bool)
@@ -170,10 +171,10 @@ class Feeds:
 			self.model.append(line)
 
 		add_remote_feed_button = widgets.get_widget('add_remote_feed')
-		add_remote_feed_button.connect('clicked', lambda b: add_remote_feed(policy.config, widgets.get_widget(), interface))
+		add_remote_feed_button.connect('clicked', lambda b: add_remote_feed(config, widgets.get_widget(), interface))
 
 		add_local_feed_button = widgets.get_widget('add_local_feed')
-		add_local_feed_button.connect('clicked', lambda b: add_local_feed(policy.config, interface))
+		add_local_feed_button.connect('clicked', lambda b: add_local_feed(config, interface))
 
 		self.remove_feed_button = widgets.get_widget('remove_feed')
 		def remove_feed(button):
@@ -206,9 +207,9 @@ class Feeds:
 		sel.select_path((0,))
 	
 	def build_model(self):
-		iface_cache = self.policy.config.iface_cache
+		iface_cache = self.config.iface_cache
 
-		usable_feeds = frozenset(self.policy.usable_feeds(self.interface))
+		usable_feeds = frozenset(self.config.iface_cache.usable_feeds(self.interface, self.arch))
 		unusable_feeds = frozenset(iface_cache.get_feed_imports(self.interface)) - usable_feeds
 
 		out = [[self.interface.uri, None, True]]
@@ -220,7 +221,7 @@ class Feeds:
 		return out
 
 	def sel_changed(self, sel):
-		iface_cache = self.policy.config.iface_cache
+		iface_cache = self.config.iface_cache
 
 		model, miter = sel.get_selected()
 		if not miter: return	# build in progress
@@ -280,7 +281,8 @@ class Properties:
 		notebook = widgets.get_widget('interface_notebook')
 		assert notebook
 
-		feeds = Feeds(policy, interface, widgets)
+		target_arch = self.policy.solver.get_arch_for(policy.requirements, interface = interface)
+		feeds = Feeds(policy.config, target_arch, interface, widgets)
 
 		stability = widgets.get_widget('preferred_stability')
 		stability.set_active(0)
