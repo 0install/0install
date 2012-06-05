@@ -159,7 +159,7 @@ class TestDownload(BaseTest):
 				if "has no usable implementations" not in str(ex):
 					raise ex
 				if "Not signed with a trusted key" not in str(self.config.handler.ex):
-					raise ex
+					raise self.config.handler.ex
 				self.config.handler.ex = None
 
 	def testRejectKeyXML(self):
