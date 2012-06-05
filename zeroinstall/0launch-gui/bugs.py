@@ -11,7 +11,7 @@ import zeroinstall
 from zeroinstall import _
 from zeroinstall import support
 
-def report_bug(policy, iface):
+def report_bug(driver, iface):
 	assert iface
 
 	# TODO: Check the interface to decide where to send bug reports
@@ -22,19 +22,21 @@ def report_bug(policy, iface):
 	else:
 		issue = "(file '%s' not found)" % issue_file
 
+	requirements = driver.requirements
+
 	text = 'Problem with %s\n' % iface.uri
-	if iface.uri != policy.root:
-		text = '  (while attempting to run %s)\n' % policy.root
+	if iface.uri != requirements.interface_uri:
+		text = '  (while attempting to run %s)\n' % requirements.interface_uri
 	text += '\n'
 
 	text += 'Zero Install: Version %s, with Python %s\n' % (zeroinstall.version, sys.version)
 
 	text += '\nChosen implementations:\n'
 
-	if not policy.ready:
+	if not driver.solver.ready:
 		text += '  Failed to select all required implementations\n'
 
-	for chosen_iface_uri, impl in policy.solver.selections.selections.iteritems():
+	for chosen_iface_uri, impl in driver.solver.selections.selections.iteritems():
 		text += '\n  Interface: %s\n' % chosen_iface_uri
 		if impl:
 			text += '    Version: %s\n' % impl.version
@@ -43,8 +45,8 @@ def report_bug(policy, iface):
 				text += '  From feed: %s\n' % feed_url
 			text += '         ID: %s\n' % impl.id
 		else:
-			chosen_iface = policy.config.iface_cache.get_interface(chosen_iface_uri)
-			impls = policy.solver.details.get(chosen_iface, None)
+			chosen_iface = driver.config.iface_cache.get_interface(chosen_iface_uri)
+			impls = driver.solver.details.get(chosen_iface, None)
 			if impls:
 				best, reason = impls[0]
 				note = 'best was %s, but: %s' % (best, reason)
@@ -58,15 +60,15 @@ def report_bug(policy, iface):
 	else:
 		text += '\nSystem without uname()\n'
 
-	if policy.solver.ready:
-		sels = policy.solver.selections
+	if driver.solver.ready:
+		sels = driver.solver.selections
 		text += "\n" + sels.toDOM().toprettyxml(encoding = 'utf-8')
 
-	reporter = BugReporter(policy, iface, text)
+	reporter = BugReporter(driver, iface, text)
 	reporter.show()
 
 class BugReporter(dialog.Dialog):
-	def __init__(self, policy, iface, env):
+	def __init__(self, driver, iface, env):
 		dialog.Dialog.__init__(self)
 
 		self.sf_group_id = 76468
@@ -75,7 +77,7 @@ class BugReporter(dialog.Dialog):
 		self.set_title(_('Report a Bug'))
 		self.set_modal(True)
 		self.set_has_separator(False)
-		self.policy = policy
+		self.driver = driver
 		self.frames = []
 
 		vbox = gtk.VBox(False, 4)
@@ -180,18 +182,19 @@ class BugReporter(dialog.Dialog):
 		iter = buffer.get_end_iter()
 		buffer.place_cursor(iter)
 
-		if not self.policy.ready:
-			missing = [iface.uri for iface in self.policy.implementation if self.policy.implementation[iface] is None]
-			buffer.insert_at_cursor("Can't run: no version has been selected for:\n- " +
-					"\n- ".join(missing))
+		if not self.driver.solver.ready:
+			sels = self.driver.solver.selections
+			missing = [iface_uri for iface_uri in sels if sels.selections[iface_uri] is None]
+			buffer.insert_at_cursor("Can't run:\n{reason}".format(
+					reason = self.driver.solver.get_failure_reason()))
 			return
-		uncached = self.policy.get_uncached_implementations()
+		uncached = self.driver.get_uncached_implementations()
 		if uncached:
 			buffer.insert_at_cursor("Can't run: the chosen versions have not been downloaded yet. I need:\n\n- " +
 				"\n\n- " . join(['%s version %s\n  (%s)' %(x[0].uri, x[1].get_version(), x[1].id) for x in uncached]))
 			return
 
-		sels = self.policy.solver.selections
+		sels = self.driver.solver.selections
 		doc = sels.toDOM()
 
 		self.hide()

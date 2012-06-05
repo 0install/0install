@@ -253,10 +253,10 @@ class Properties:
 	interface = None
 	use_list = None
 	window = None
-	policy = None
+	driver = None
 
-	def __init__(self, policy, interface, compile, show_versions = False):
-		self.policy = policy
+	def __init__(self, driver, interface, compile, show_versions = False):
+		self.driver = driver
 
 		widgets = Template('interface_properties')
 
@@ -281,8 +281,8 @@ class Properties:
 		notebook = widgets.get_widget('interface_notebook')
 		assert notebook
 
-		target_arch = self.policy.solver.get_arch_for(policy.requirements, interface = interface)
-		feeds = Feeds(policy.config, target_arch, interface, widgets)
+		target_arch = self.driver.solver.get_arch_for(driver.requirements, interface = interface)
+		feeds = Feeds(driver.config, target_arch, interface, widgets)
 
 		stability = widgets.get_widget('preferred_stability')
 		stability.set_active(0)
@@ -308,7 +308,7 @@ class Properties:
 			main.recalculate()
 		stability.connect('changed', set_stability_policy)
 
-		self.use_list = ImplementationList(policy, interface, widgets)
+		self.use_list = ImplementationList(driver, interface, widgets)
 
 		self.update_list()
 
@@ -318,8 +318,8 @@ class Properties:
 			self.update_list()
 			feeds.updated()
 			self.shade_compile()
-		window.connect('destroy', lambda s: policy.watchers.remove(updated))
-		policy.watchers.append(updated)
+		window.connect('destroy', lambda s: driver.watchers.remove(updated))
+		driver.watchers.append(updated)
 		self.shade_compile()
 
 		if show_versions:
@@ -332,10 +332,10 @@ class Properties:
 		self.window.destroy()
 	
 	def shade_compile(self):
-		self.compile_button.set_sensitive(have_source_for(self.policy.config, self.interface))
+		self.compile_button.set_sensitive(have_source_for(self.driver.config, self.interface))
 	
 	def update_list(self):
-		ranked_items = self.policy.solver.details.get(self.interface, None)
+		ranked_items = self.driver.solver.details.get(self.interface, None)
 		if ranked_items is None:
 			# The Solver didn't get this far, but we should still display them!
 			ranked_items = [(impl, _("(solve aborted before here)"))
@@ -458,11 +458,11 @@ def add_local_feed(config, interface):
 	chooser.connect('response', check_response)
 	chooser.show()
 
-def edit(policy, interface, compile, show_versions = False):
+def edit(driver, interface, compile, show_versions = False):
 	assert isinstance(interface, Interface)
 	if interface in _dialogs:
 		_dialogs[interface].destroy()
-	_dialogs[interface] = Properties(policy, interface, compile, show_versions = show_versions)
+	_dialogs[interface] = Properties(driver, interface, compile, show_versions = show_versions)
 	_dialogs[interface].show()
 
 properties_help = help_box.HelpBox(_("Injector Properties Help"),

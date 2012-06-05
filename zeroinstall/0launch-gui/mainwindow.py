@@ -24,20 +24,20 @@ class MainWindow:
 	browser = None
 	window = None
 	cancel_download_and_run = None
-	policy = None
+	driver = None
 	comment = None
 	systray_icon = None
 	systray_icon_blocker = None
 
-	def __init__(self, policy, widgets, download_only, select_only = False):
-		self.policy = policy
+	def __init__(self, driver, widgets, download_only, select_only = False):
+		self.driver = driver
 		self.select_only = select_only
 
 		def update_ok_state():
-			self.window.set_response_sensitive(gtk.RESPONSE_OK, policy.solver.ready)
-			if policy.solver.ready and self.window.get_focus() is None:
+			self.window.set_response_sensitive(gtk.RESPONSE_OK, driver.solver.ready)
+			if driver.solver.ready and self.window.get_focus() is None:
 				run_button.grab_focus()
-		policy.watchers.append(update_ok_state)
+		driver.watchers.append(update_ok_state)
 
 		self.window = widgets.get_widget('main')
 		self.window.set_default_size(gtk.gdk.screen_width() * 2 / 5, 300)
@@ -46,12 +46,12 @@ class MainWindow:
 		self.progress_area = widgets.get_widget('progress_area')
 		self.comment = widgets.get_widget('comment')
 
-		widgets.get_widget('stop').connect('clicked', lambda b: policy.handler.abort_all_downloads())
+		widgets.get_widget('stop').connect('clicked', lambda b: driver.config.handler.abort_all_downloads())
 
 		self.refresh_button = widgets.get_widget('refresh')
 
 		# Tree view
-		self.browser = InterfaceBrowser(policy, widgets)
+		self.browser = InterfaceBrowser(driver, widgets)
 
 		prefs = widgets.get_widget('preferences')
 		self.window.action_area.set_child_secondary(prefs, True)
@@ -84,7 +84,7 @@ class MainWindow:
 				gui_help.display()
 			elif resp == SHOW_PREFERENCES:
 				import preferences
-				preferences.show_preferences(policy.config, notify_cb = lambda: policy.solve_with_downloads())
+				preferences.show_preferences(driver.config, notify_cb = lambda: driver.solve_with_downloads())
 		self.window.connect('response', response)
 		self.window.realize()	# Make busy pointer work, even with --systray
 
@@ -101,7 +101,7 @@ class MainWindow:
 	def download_and_run(self, run_button, cancelled):
 		try:
 			if not self.select_only:
-				downloaded = self.policy.download_uncached_implementations()
+				downloaded = self.driver.download_uncached_implementations()
 
 				if downloaded:
 					# We need to wait until everything is downloaded...
@@ -112,7 +112,7 @@ class MainWindow:
 					if cancelled.happened:
 						return
 
-				uncached = self.policy.get_uncached_implementations()
+				uncached = self.driver.get_uncached_implementations()
 			else:
 				uncached = None		# (we don't care)
 
@@ -120,7 +120,7 @@ class MainWindow:
 				missing = '\n- '.join([_('%(iface_name)s %(impl_version)s') % {'iface_name': iface.get_name(), 'impl_version': impl.get_version()} for iface, impl in uncached])
 				dialog.alert(self.window, _('Not all downloads succeeded; cannot run program.\n\nFailed to get:') + '\n- ' + missing)
 			else:
-				sels = self.policy.solver.selections
+				sels = self.driver.solver.selections
 				doc = sels.toDOM()
 				reply = doc.toxml('utf-8')
 				sys.stdout.write(('Length:%8x\n' % len(reply)) + reply)
@@ -138,7 +138,7 @@ class MainWindow:
 	def update_download_status(self, only_update_visible = False):
 		"""Called at regular intervals while there are downloads in progress,
 		and once at the end. Update the display."""
-		monitored_downloads = self.policy.handler.monitored_downloads
+		monitored_downloads = self.driver.config.handler.monitored_downloads
 
 		self.browser.update_download_status(only_update_visible)
 
@@ -152,8 +152,8 @@ class MainWindow:
 			self.window.window.set_cursor(gtkutils.get_busy_pointer())
 
 		any_known = False
-		done = total = self.policy.handler.total_bytes_downloaded	# Completed downloads
-		n_downloads = self.policy.handler.n_completed_downloads
+		done = total = self.driver.config.handler.total_bytes_downloaded	# Completed downloads
+		n_downloads = self.driver.config.handler.n_completed_downloads
 		# Now add downloads in progress...
 		for x in monitored_downloads:
 			if x.status != download.download_fetching: continue
@@ -189,7 +189,7 @@ class MainWindow:
 		except Exception as ex:
 			info(_("No system tray support: %s"), ex)
 		else:
-			root_iface = iface_cache.iface_cache.get_interface(self.policy.root)
+			root_iface = iface_cache.iface_cache.get_interface(self.driver.requirements.interface_uri)
 			self.systray_icon.set_tooltip(_('Checking for updates for %s') % root_iface.get_name())
 			self.systray_icon.connect('activate', self.remove_systray_icon)
 			self.systray_icon_blocker = tasks.Blocker('Tray icon clicked')

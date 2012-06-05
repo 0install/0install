@@ -9,7 +9,7 @@ from optparse import OptionParser
 
 from zeroinstall import _
 from zeroinstall.injector import requirements
-from zeroinstall.injector.policy import Policy
+from zeroinstall.injector.driver import Driver
 from zeroinstall.injector.config import load_config
 from zeroinstall.support import tasks
 
@@ -97,11 +97,11 @@ def run_gui(args):
 
 	widgets = dialog.Template('main')
 
-	policy = Policy(config = config, requirements = r)
+	driver = Driver(config = config, requirements = r)
 	root_iface = config.iface_cache.get_interface(interface_uri)
-	policy.solver.record_details = True
+	driver.solver.record_details = True
 
-	window = mainwindow.MainWindow(policy, widgets, download_only = bool(options.download_only), select_only = bool(options.select_only))
+	window = mainwindow.MainWindow(driver, widgets, download_only = bool(options.download_only), select_only = bool(options.select_only))
 	handler.mainwindow = window
 
 	if options.message:
@@ -122,7 +122,7 @@ def run_gui(args):
 			window.refresh_button.set_sensitive(False)
 			window.browser.set_update_icons(force_refresh)
 
-			solved = policy.solve_with_downloads(force = force_refresh, update_local = True)
+			solved = driver.solve_with_downloads(force = force_refresh, update_local = True)
 
 			if not window.systray_icon:
 				window.show()
@@ -136,7 +136,7 @@ def run_gui(args):
 
 			if window.systray_icon and window.systray_icon.get_visible() and \
 			   window.systray_icon.is_embedded():
-				if policy.ready:
+				if driver.solver.ready:
 					window.systray_icon.set_tooltip(_('Downloading updates for %s') % root_iface.get_name())
 					window.run_button.set_active(True)
 				else:

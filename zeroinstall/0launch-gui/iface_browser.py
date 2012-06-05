@@ -37,7 +37,7 @@ def get_tooltip_text(mainwindow, interface, main_feed, model_column):
 	elif model_column is None:
 		return _("Click here for more options...")
 
-	impl = mainwindow.policy.implementation.get(interface, None)
+	impl = mainwindow.driver.solver.selections.get(interface, None)
 	if not impl:
 		return _("No suitable version was found. Double-click "
 			 "here to find out why.")
@@ -53,10 +53,10 @@ def get_tooltip_text(mainwindow, interface, main_feed, model_column):
 
 	assert model_column == InterfaceBrowser.DOWNLOAD_SIZE
 
-	if impl.is_available(mainwindow.policy.config.stores):
+	if impl.is_available(mainwindow.driver.config.stores):
 		return _("This version is already stored on your computer.")
 	else:
-		src = mainwindow.policy.config.fetcher.get_best_source(impl)
+		src = mainwindow.driver.config.fetcher.get_best_source(impl)
 		if not src:
 			return _("No downloads available!")
 		return _("Need to download %(pretty_size)s (%(size)s bytes)") % \
@@ -147,7 +147,7 @@ class InterfaceBrowser:
 	model = None
 	root = None
 	cached_icon = None
-	policy = None
+	driver = None
 	config = None
 	original_implementation = None
 	update_icons = False
@@ -167,9 +167,9 @@ class InterfaceBrowser:
 		   (_('Description'), SUMMARY),
 		   ('', None)]
 
-	def __init__(self, policy, widgets):
-		self.policy = policy
-		self.config = policy.config
+	def __init__(self, driver, widgets):
+		self.driver = driver
+		self.config = driver.config
 
 		tree_view = widgets.get_widget('components')
 		tree_view.set_property('has-tooltip', True)
@@ -249,11 +249,11 @@ class InterfaceBrowser:
 				return True
 			if bev.button != 1 or bev.type != gtk.gdk._2BUTTON_PRESS:
 				return False
-			properties.edit(policy, self.model[path][InterfaceBrowser.INTERFACE], self.compile, show_versions = True)
+			properties.edit(driver, self.model[path][InterfaceBrowser.INTERFACE], self.compile, show_versions = True)
 		tree_view.connect('button-press-event', button_press)
 
-		tree_view.connect('destroy', lambda s: policy.watchers.remove(self.build_tree))
-		policy.watchers.append(self.build_tree)
+		tree_view.connect('destroy', lambda s: driver.watchers.remove(self.build_tree))
+		driver.watchers.append(self.build_tree)
 
 	def set_root(self, root):
 		assert isinstance(root, model.Interface)
@@ -332,7 +332,7 @@ class InterfaceBrowser:
 
 		done = {}	# Detect cycles
 
-		sels = self.policy.solver.selections
+		sels = self.driver.solver.selections
 
 		self.model.clear()
 		def add_node(parent, iface, commands, essential):
@@ -396,9 +396,9 @@ class InterfaceBrowser:
 		have_source =  properties.have_source_for(self.config, iface)
 
 		menu = gtk.Menu()
-		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.policy, iface, self.compile)),
-				  (_('Show Versions'), lambda: properties.edit(self.policy, iface, self.compile, show_versions = True)),
-				  (_('Report a Bug...'), lambda: bugs.report_bug(self.policy, iface))]:
+		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.driver, iface, self.compile)),
+				  (_('Show Versions'), lambda: properties.edit(self.driver, iface, self.compile, show_versions = True)),
+				  (_('Report a Bug...'), lambda: bugs.report_bug(self.driver, iface))]:
 			item = gtk.MenuItem(label)
 			if cb:
 				item.connect('activate', lambda item, cb=cb: cb())
@@ -435,14 +435,14 @@ class InterfaceBrowser:
 			info(_("0compile command completed successfully. Reloading interface details."))
 			reader.update_from_cache(interface)
 			for feed in interface.extra_feeds:
-				 self.config.iface_cache.get_feed(feed.uri, force = True)
+				self.config.iface_cache.get_feed(feed.uri, force = True)
 			import main
 			main.recalculate()
 		compile.compile(on_success, interface.uri, autocompile = autocompile)
 
 	def set_original_implementations(self):
 		assert self.original_implementation is None
-		self.original_implementation = self.policy.implementation.copy()
+		self.original_implementation = self.driver.solver.selections.copy()
 
 	def update_download_status(self, only_update_visible = False):
 		"""Called at regular intervals while there are downloads in progress,
@@ -458,7 +458,7 @@ class InterfaceBrowser:
 					hints[dl.hint] = []
 				hints[dl.hint].append(dl)
 
-		selections = self.policy.solver.selections
+		selections = self.driver.solver.selections
 
 		# Only update currently visible rows
 		if only_update_visible and self.tree_view.get_visible_range() != None:
@@ -470,14 +470,20 @@ class InterfaceBrowser:
 			firstVisibleIter = self.model.get_iter_root()
 			lastVisiblePath = None
 
+		solver = self.driver.solver
+		requirements = self.driver.requirements
+		iface_cache = self.config.iface_cache
+
 		for it in walk(self.model, firstVisibleIter):
 			row = self.model[it]
 			iface = row[InterfaceBrowser.INTERFACE]
 
 			# Is this interface the download's hint?
 			downloads = hints.get(iface, [])	# The interface itself
-		     	downloads += hints.get(iface.uri, [])	# The main feed
-			for feed in self.policy.usable_feeds(iface):
+			downloads += hints.get(iface.uri, [])	# The main feed
+
+			arch = solver.get_arch_for(requirements, iface)
+			for feed in iface_cache.usable_feeds(iface, arch):
 				downloads += hints.get(feed.uri, []) # Other feeds
 			impl = selections.get(iface, None)
 			if impl:
@@ -513,7 +519,7 @@ class InterfaceBrowser:
 		for it in walk(self.model, self.model.get_iter_root()):
 			row = self.model[it]
 			iface = row[InterfaceBrowser.INTERFACE]
-			sel = self.policy.solver.selections.selections.get(iface.uri, None)
+			sel = self.driver.solver.selections.selections.get(iface.uri, None)
 
 			if sel is None and row[InterfaceBrowser.PROBLEM]:
 				row[InterfaceBrowser.BACKGROUND] = '#f88'

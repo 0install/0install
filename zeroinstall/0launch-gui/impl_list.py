@@ -56,15 +56,15 @@ NOTES = 7
 WEIGHT = 8	# Selected item is bold
 LANGS = 9
 
-def get_tooltip_text(policy, interface, impl):
+def get_tooltip_text(config, interface, impl):
 	if impl.local_path:
 		return _("Local: %s") % impl.local_path
 	if impl.id.startswith('package:'):
 		return _("Native package: %s") % impl.id.split(':', 1)[1]
-	if policy.get_cached(impl):
-		return _("Cached: %s") % policy.get_implementation_path(impl)
+	if impl.is_available(config.stores):
+		return _("Cached: %s") % config.stores.lookup_any(impl.digests)
 
-	src = policy.fetcher.get_best_source(impl)
+	src = config.fetcher.get_best_source(impl)
 	if src:
 		size = support.pretty_size(src.size)
 		return _("Not yet downloaded (%s)") % size
@@ -75,11 +75,11 @@ class ImplementationList:
 	tree_view = None
 	model = None
 	interface = None
-	policy = None
+	driver = None
 
-	def __init__(self, policy, interface, widgets):
+	def __init__(self, driver, interface, widgets):
 		self.interface = interface
-		self.policy = policy
+		self.driver = driver
 
 		self.model = gtk.ListStore(object, str, str, str,	# Item, arch, stability, version,
 			   str, gobject.TYPE_BOOLEAN, str, str,		# fetch, unusable, released, notes,
@@ -111,7 +111,7 @@ class ImplementationList:
 				path = pos[0]
 				row = self.model[path]
 				if row[ITEM]:
-					tooltip.set_text(get_tooltip_text(policy, interface, row[ITEM]))
+					tooltip.set_text(get_tooltip_text(driver.config, interface, row[ITEM]))
 					return True
 			return False
 		self.tree_view.connect('query-tooltip', tooltip_callback)
@@ -132,11 +132,11 @@ class ImplementationList:
 			stability_menu.show()
 			menu.append(stability_menu)
 
-			if not impl.id.startswith('package:') and self.policy.get_cached(impl):
+			if not impl.id.startswith('package:') and impl.is_available(self.driver.config.stores):
 				def open():
 					os.spawnlp(os.P_WAIT, '0launch',
 						'0launch', rox_filer, '-d',
-						self.policy.get_implementation_path(impl))
+						impl.local_path or self.driver.config.stores.lookup_any(impl.digests))
 				item = gtk.MenuItem(_('Open cached copy'))
 				item.connect('activate', lambda item: open())
 				item.show()
@@ -152,7 +152,7 @@ class ImplementationList:
 		self.tree_view.connect('button-press-event', button_press)
 	
 	def show_explaination(self, impl):
-		reason = self.policy.solver.justify_decision(self.policy.requirements, self.interface, impl)
+		reason = self.driver.solver.justify_decision(self.driver.requirements, self.interface, impl)
 		gtkutils.show_message_box(self.tree_view.get_toplevel(), reason, gtk.MESSAGE_INFO)
 	
 	def get_selection(self):
@@ -160,13 +160,13 @@ class ImplementationList:
 	
 	def set_items(self, items):
 		self.model.clear()
-		selected = self.policy.solver.selections.get(self.interface, None)
+		selected = self.driver.solver.selections.get(self.interface, None)
 		for item, unusable in items:
 			new = self.model.append()
 			self.model[new][ITEM] = item
 			self.model[new][VERSION] = item.get_version()
 			self.model[new][RELEASED] = item.released or "-"
-			self.model[new][FETCH] = utils.get_fetch_info(self.policy.config, item)
+			self.model[new][FETCH] = utils.get_fetch_info(self.driver.config, item)
 			if item.user_stability:
 				if item.user_stability == model.insecure:
 					self.model[new][STABILITY] = _('INSECURE')
