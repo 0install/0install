@@ -53,10 +53,10 @@ def get_tooltip_text(mainwindow, interface, main_feed, model_column):
 
 	assert model_column == InterfaceBrowser.DOWNLOAD_SIZE
 
-	if mainwindow.policy.get_cached(impl):
+	if impl.is_available(mainwindow.policy.config.stores):
 		return _("This version is already stored on your computer.")
 	else:
-		src = mainwindow.policy.fetcher.get_best_source(impl)
+		src = mainwindow.policy.config.fetcher.get_best_source(impl)
 		if not src:
 			return _("No downloads available!")
 		return _("Need to download %(pretty_size)s (%(size)s bytes)") % \
@@ -148,6 +148,7 @@ class InterfaceBrowser:
 	root = None
 	cached_icon = None
 	policy = None
+	config = None
 	original_implementation = None
 	update_icons = False
 
@@ -167,6 +168,9 @@ class InterfaceBrowser:
 		   ('', None)]
 
 	def __init__(self, policy, widgets):
+		self.policy = policy
+		self.config = policy.config
+
 		tree_view = widgets.get_widget('components')
 		tree_view.set_property('has-tooltip', True)
 		def callback(widget, x, y, keyboard_mode, tooltip):
@@ -183,14 +187,13 @@ class InterfaceBrowser:
 					col = self.columns[col_index][1]
 					row = self.model[path]
 					iface = row[InterfaceBrowser.INTERFACE]
-					main_feed = self.policy.config.iface_cache.get_feed(iface.uri)
+					main_feed = self.config.iface_cache.get_feed(iface.uri)
 					tooltip.set_text(get_tooltip_text(self, iface, main_feed, col))
 				return True
 			else:
 				return False
 		tree_view.connect('query-tooltip', callback)
 
-		self.policy = policy
 		self.cached_icon = {}	# URI -> GdkPixbuf
 		self.default_icon = tree_view.style.lookup_icon_set(gtk.STOCK_EXECUTE).render_icon(tree_view.style,
 			gtk.TEXT_DIR_NONE, gtk.STATE_NORMAL, gtk.ICON_SIZE_SMALL_TOOLBAR, tree_view, None)
@@ -271,7 +274,7 @@ class InterfaceBrowser:
 			return self.cached_icon[iface.uri]
 		except KeyError:
 			# Try the on-disk cache
-			iconpath = self.policy.config.iface_cache.get_icon_path(iface)
+			iconpath = self.config.iface_cache.get_icon_path(iface)
 
 			if iconpath:
 				icon = load_icon(iconpath, ICON_SIZE, ICON_SIZE)
@@ -283,7 +286,10 @@ class InterfaceBrowser:
 			# Download a new icon if we don't have one, or if the
 			# user did a 'Refresh'
 			if iconpath is None or self.update_icons:
-				fetcher = self.policy.download_icon(iface)
+				if self.config.network_use == model.network_offline:
+					fetcher = None
+				else:
+					fetcher = self.config.fetcher.download_icon(iface)
 				if fetcher:
 					if iface.uri not in self.cached_icon:
 						self.cached_icon[iface.uri] = None	# Only try once
@@ -296,7 +302,7 @@ class InterfaceBrowser:
 							# Try to insert new icon into the cache
 							# If it fails, we'll be left with None in the cached_icon so
 							# we don't try again.
-							iconpath = self.policy.config.iface_cache.get_icon_path(iface)
+							iconpath = self.config.iface_cache.get_icon_path(iface)
 							if iconpath:
 								self.cached_icon[iface.uri] = load_icon(iconpath, ICON_SIZE, ICON_SIZE)
 								self.build_tree()
@@ -305,7 +311,7 @@ class InterfaceBrowser:
 						except Exception as ex:
 							import traceback
 							traceback.print_exc()
-							self.policy.handler.report_error(ex)
+							self.config.handler.report_error(ex)
 					update_display()
 				# elif fetcher is None: don't store anything in cached_icon
 
@@ -319,7 +325,7 @@ class InterfaceBrowser:
 		return None
 
 	def build_tree(self):
-		iface_cache = self.policy.config.iface_cache
+		iface_cache = self.config.iface_cache
 
 		if self.original_implementation is None:
 			self.set_original_implementations()
@@ -358,7 +364,7 @@ class InterfaceBrowser:
 					version_str += _(' (was %s)') % old_impl.get_version()
 				self.model[iter][InterfaceBrowser.VERSION] = version_str
 
-				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
+				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.config, impl)
 
 				deps = sel.dependencies
 				for c in commands:
@@ -387,7 +393,7 @@ class InterfaceBrowser:
 	def show_popup_menu(self, iface, bev):
 		import bugs
 
-		have_source =  properties.have_source_for(self.policy.config, iface)
+		have_source =  properties.have_source_for(self.config, iface)
 
 		menu = gtk.Menu()
 		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.policy, iface, self.compile)),
@@ -429,7 +435,7 @@ class InterfaceBrowser:
 			info(_("0compile command completed successfully. Reloading interface details."))
 			reader.update_from_cache(interface)
 			for feed in interface.extra_feeds:
-				 self.policy.config.iface_cache.get_feed(feed.uri, force = True)
+				 self.config.iface_cache.get_feed(feed.uri, force = True)
 			import main
 			main.recalculate()
 		compile.compile(on_success, interface.uri, autocompile = autocompile)
@@ -446,7 +452,7 @@ class InterfaceBrowser:
 		# A download may be for a feed, an interface or an implementation.
 		# Create the reverse mapping (item -> download)
 		hints = {}
-		for dl in self.policy.handler.monitored_downloads:
+		for dl in self.config.handler.monitored_downloads:
 			if dl.hint:
 				if dl.hint not in hints:
 					hints[dl.hint] = []
@@ -496,7 +502,7 @@ class InterfaceBrowser:
 					values_dict = {'downloaded': pretty_size(so_far), 'number': len(downloads)}
 				row[InterfaceBrowser.SUMMARY] = summary % values_dict
 			else:
-				row[InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.policy, impl)
+				row[InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.config, impl)
 				row[InterfaceBrowser.SUMMARY] = iface.summary
 
 			if self.model.get_path(it) == lastVisiblePath:

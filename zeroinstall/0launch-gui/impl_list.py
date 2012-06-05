@@ -8,7 +8,7 @@ from zeroinstall import support
 from zeroinstall.gtkui import gtkutils
 import utils
 
-def _build_stability_menu(policy, impl):
+def _build_stability_menu(impl):
 	menu = gtk.Menu()
 
 	upstream = impl.upstream_stability or model.testing
@@ -128,7 +128,7 @@ class ImplementationList:
 			menu = gtk.Menu()
 
 			stability_menu = gtk.MenuItem(_('Rating'))
-			stability_menu.set_submenu(_build_stability_menu(self.policy, impl))
+			stability_menu.set_submenu(_build_stability_menu(impl))
 			stability_menu.show()
 			menu.append(stability_menu)
 
@@ -166,7 +166,7 @@ class ImplementationList:
 			self.model[new][ITEM] = item
 			self.model[new][VERSION] = item.get_version()
 			self.model[new][RELEASED] = item.released or "-"
-			self.model[new][FETCH] = utils.get_fetch_info(self.policy, item)
+			self.model[new][FETCH] = utils.get_fetch_info(self.policy.config, item)
 			if item.user_stability:
 				if item.user_stability == model.insecure:
 					self.model[new][STABILITY] = _('INSECURE')

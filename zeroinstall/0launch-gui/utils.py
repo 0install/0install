@@ -4,11 +4,11 @@
 from zeroinstall import _
 from zeroinstall import support
 
-def get_fetch_info(policy, impl):
+def get_fetch_info(config, impl):
 	"""Get the text for a Fetch column."""
 	if impl is None:
 		return ""
-	elif policy.get_cached(impl):
+	elif impl.is_available(config.stores):
 		if impl.local_path:
 			return _('(local)')
 		elif impl.id.startswith('package:'):
@@ -16,7 +16,7 @@ def get_fetch_info(policy, impl):
 		else:
 			return _('(cached)')
 	else:
-		src = policy.fetcher.get_best_source(impl)
+		src = config.fetcher.get_best_source(impl)
 		if src:
 			return support.pretty_size(src.size)
 		else:

@@ -107,7 +107,7 @@ def run_gui(args):
 	if options.message:
 		window.set_message(options.message)
 
-	root = config.iface_cache.get_interface(policy.root)
+	root = config.iface_cache.get_interface(r.interface_uri)
 	window.browser.set_root(root)
 
 	window.window.connect('destroy', lambda w: handler.abort_all_downloads())
