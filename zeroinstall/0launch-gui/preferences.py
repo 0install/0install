@@ -155,7 +155,7 @@ preferences_box = None
 def show_preferences(config, notify_cb = None):
 	global preferences_box
 	if preferences_box:
-		preferences_box.destroy()
+		preferences_box.window.destroy()
 	preferences_box = Preferences(config, notify_cb)
 	preferences_box.window.show()
 	return preferences_box.window
