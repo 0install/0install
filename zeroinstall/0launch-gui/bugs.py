@@ -148,7 +148,7 @@ class BugReporter(dialog.Dialog):
 		location_hbox.pack_start(gtk.Label(_('Bugs reports will be sent to:')), False, True, 0)
 		if hasattr(gtk, 'LinkButton'):
 			import browser
-			url_box = gtk.LinkButton(browse_url)
+			url_box = gtk.LinkButton(browse_url, label = browse_url)
 			url_box.connect('clicked', lambda button: browser.open_in_browser(browse_url))
 		else:
 			url_box = gtk.Label(browse_url)
@@ -169,9 +169,9 @@ class BugReporter(dialog.Dialog):
 					text += '%s\n\n%s\n\n' % (title, buffer.get_text(start, end).strip())
 				title = _('Bug for %s') % iface.get_name()
 				self.report_bug(title, text)
-				self.destroy()
-				dialog.alert(self, _("Your bug report has been sent. Thank you."),
+				dialog.alert(None, _("Your bug report has been sent. Thank you."),
 					     type = gtk.MESSAGE_INFO)
+				self.destroy()
 			else:
 				self.destroy()
 		self.connect('response', resp)
