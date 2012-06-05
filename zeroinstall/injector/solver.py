@@ -94,15 +94,7 @@ class Solver(object):
 		@type requirements: L{requirements.Requirements}
 		@postcondition: self.ready, self.selections and self.feeds_used are updated
 		@since: 1.8"""
-		root_arch = arch.get_architecture(requirements.os, requirements.cpu)
-		if requirements.source:
-			root_arch = arch.SourceArchitecture(root_arch)
-		if requirements.command == 'test':
-			# This is for old feeds that have use='testing' instead of the newer
-			# 'test' command for giving test-only dependencies.
-			root_arch = arch.Architecture(root_arch.os_ranks, root_arch.machine_ranks)
-			root_arch.use = frozenset([None, "testing"])
-		return self.solve(requirements.interface_uri, root_arch, requirements.command)
+		return self.solve(requirements.interface_uri, self.get_arch_for(requirements), requirements.command)
 
 	def solve(self, root_interface, root_arch, command_name = 'run'):
 		"""Get the best implementation of root_interface and all of its dependencies.
@@ -114,6 +106,33 @@ class Solver(object):
 		@type command_name: str | None
 		@postcondition: self.ready, self.selections and self.feeds_used are updated"""
 		raise NotImplementedError("Abstract")
+
+	def get_arch_for(self, requirements, interface = None):
+		"""Return the Architecture we would use when solving for this interface.
+		Normally, this architecture is constructed from the OS and CPU type in the requirements,
+		using the host platform's settings if these are not given.
+		If interface is the root, then we wrap this in a SourceArchitecture if looking
+		for source code and (for backwards compatibility) we enable use="testing" dependencies
+		if the command is "test".
+		@param requirements: the overall requirements for the solve
+		@type requirements: L{requirements.Requirements}
+		@param interface: the interface of interest
+		@type interface: L{model.Interface}
+		@return: the architecture that would be used
+		@rtype: L{architecture.Architecture}
+		@since: 1.9"""
+		root_arch = arch.get_architecture(requirements.os, requirements.cpu)
+		if interface is None or interface.uri == requirements.interface_uri:
+			if requirements.source:
+				root_arch = arch.SourceArchitecture(root_arch)
+			if requirements.command == 'test':
+				# This is for old feeds that have use='testing' instead of the newer
+				# 'test' command for giving test-only dependencies.
+				root_arch = arch.Architecture(root_arch.os_ranks, root_arch.machine_ranks)
+				root_arch.use = frozenset([None, "testing"])
+			return root_arch
+		# Assume we use the same arch for all descendants
+		return root_arch.child_arch
 
 class SATSolver(Solver):
 	"""Converts the problem to a set of pseudo-boolean constraints and uses a PB solver to solve them.

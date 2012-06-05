@@ -557,6 +557,7 @@ class IfaceCache(object):
 
 	def usable_feeds(self, iface, arch):
 		"""Generator for C{iface.feeds} that are valid for this architecture.
+		@type iface: L{model.Interface}
 		@rtype: generator
 		@see: L{arch}
 		@since: 0.53"""

@@ -90,10 +90,7 @@ class Policy(object):
 		"""Generator for C{iface.feeds} that are valid for our architecture.
 		@rtype: generator
 		@see: L{arch}"""
-		a = self.driver.target_arch
-		if iface.uri != self.root:
-			# note: assumes that only the root arch may be different (e.g. if using --source)
-			a = a.child_arch
+		a = self.driver.solver.get_arch_for(self.requirements, iface.uri)
 		return self.config.iface_cache.usable_feeds(iface, a)
 
 	def is_stale(self, feed):

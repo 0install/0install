@@ -171,6 +171,26 @@ class TestSolver(BaseTest):
 		self.assertEqual(2, len(win.os_ranks))
 		assert 'POSIX' not in win.os_ranks
 	
+	def testArchFor(self):
+		s = solver.DefaultSolver(self.config)
+		r = Requirements('http://foo/Binary.xml')
+
+		r.cpu = 'i386'
+		bin_arch = s.get_arch_for(r)
+		self.assertEqual({'i386': 0, None: 1}, bin_arch.machine_ranks)
+
+		r.source = True
+		src_arch = s.get_arch_for(r)
+		self.assertEqual({'src': 1}, src_arch.machine_ranks)
+
+		child = self.config.iface_cache.get_interface('http://foo/Dep.xml')
+		arch = s.get_arch_for(r, child)
+		self.assertEqual(arch.machine_ranks, bin_arch.machine_ranks)
+
+		child = self.config.iface_cache.get_interface(r.interface_uri)
+		arch = s.get_arch_for(r, child)
+		self.assertEqual(arch.machine_ranks, src_arch.machine_ranks)
+
 	def testRanking(self):
 		iface_cache = self.config.iface_cache
 		s = solver.DefaultSolver(self.config)
