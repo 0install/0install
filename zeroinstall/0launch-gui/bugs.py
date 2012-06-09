@@ -184,7 +184,6 @@ class BugReporter(dialog.Dialog):
 
 		if not self.driver.solver.ready:
 			sels = self.driver.solver.selections
-			missing = [iface_uri for iface_uri in sels if sels.selections[iface_uri] is None]
 			buffer.insert_at_cursor("Can't run:\n{reason}".format(
 					reason = self.driver.solver.get_failure_reason()))
 			return

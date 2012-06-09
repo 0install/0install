@@ -108,8 +108,6 @@ class App:
 		@return: a blocker which resolves when all needed implementations are available
 		@rtype: L{tasks.Blocker} | None
 		"""
-		stores = self.config.stores
-
 		# Check the selections are still available
 		blocker = sels.download_missing(self.config)	# TODO: package impls
 

@@ -10,7 +10,7 @@ from __future__ import print_function
 import os
 
 from zeroinstall import _, SafeException
-from zeroinstall.cmd import UsageError, select
+from zeroinstall.cmd import UsageError
 
 syntax = "APP-NAME"
 

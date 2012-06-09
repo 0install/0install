@@ -7,7 +7,8 @@ The B{0install add} command-line interface.
 
 from __future__ import print_function
 
-from zeroinstall import SafeException, _
+import sys
+
 from zeroinstall.cmd import UsageError, select
 from zeroinstall.injector import model, requirements
 
