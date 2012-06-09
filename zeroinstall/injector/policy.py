@@ -48,8 +48,8 @@ class Policy(object):
 		@type config: L{config.Config}
 		Note: all other arguments are deprecated (since 0launch 0.52)
 		"""
-		#import warnings
-		#warnings.warn("Policy is deprecated; use a Driver instead", DeprecationWarning, 2)
+		import warnings
+		warnings.warn("Policy is deprecated; use a Driver instead", DeprecationWarning, 2)
 		if requirements is None:
 			from zeroinstall.injector.requirements import Requirements
 			requirements = Requirements(root)

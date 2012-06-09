@@ -7,24 +7,25 @@ import unittest
 sys.path.insert(0, '..')
 
 from zeroinstall.injector import model, gpg, namespaces, reader, run, fetch
-from zeroinstall.injector.policy import Policy
-from zeroinstall.support import basedir
+from zeroinstall.injector.requirements import Requirements
+from zeroinstall.injector.driver import Driver
+from zeroinstall.support import basedir, tasks
 import data
 
 foo_iface_uri = 'http://foo'
 
 logger = logging.getLogger()
 
-def recalculate(policy):
-	policy.need_download()
+def recalculate(driver):
+	driver.need_download()
 
-def download_and_execute(policy, prog_args, main = None, dry_run = True):
-	downloaded = policy.solve_and_download_impls()
+def download_and_execute(driver, prog_args, main = None, dry_run = True):
+	downloaded = driver.solve_and_download_impls()
 	if downloaded:
-		policy.config.handler.wait_for_blocker(downloaded)
-	run.execute_selections(policy.solver.selections, prog_args, stores = policy.config.stores, main = main, dry_run = dry_run)
+		tasks.wait_for_blocker(downloaded)
+	run.execute_selections(driver.solver.selections, prog_args, stores = driver.config.stores, main = main, dry_run = dry_run)
 
-class TestAutoPolicy(BaseTest):
+class TestDriver(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
 		stream = tempfile.TemporaryFile()
@@ -41,13 +42,12 @@ class TestAutoPolicy(BaseTest):
 		f.close()
 
 	def testNoNeedDl(self):
-		policy = Policy(foo_iface_uri, config = self.config)
-		policy.freshness = 0
-		assert policy.need_download()
+		driver = Driver(requirements = Requirements(foo_iface_uri), config = self.config)
+		assert driver.need_download()
 
-		policy = Policy(os.path.abspath('Foo.xml'), config = self.config)
-		assert not policy.need_download()
-		assert policy.ready
+		driver = Driver(requirements = Requirements(os.path.abspath('Foo.xml')), config = self.config)
+		assert not driver.need_download()
+		assert driver.solver.ready
 	
 	def testUnknownAlg(self):
 		self.cache_iface(foo_iface_uri,
@@ -63,11 +63,10 @@ class TestAutoPolicy(BaseTest):
   </implementation>
 </interface>""" % foo_iface_uri)
 		self.config.fetcher = fetch.Fetcher(self.config)
-		policy = Policy(foo_iface_uri, config = self.config)
-		policy.freshness = 0
+		driver = Driver(requirements = Requirements(foo_iface_uri), config = self.config)
 		try:
-			assert policy.need_download()
-			download_and_execute(policy, [])
+			assert driver.need_download()
+			download_and_execute(driver, [])
 		except model.SafeException as ex:
 			assert 'Unknown digest algorithm' in str(ex)
 	
@@ -84,9 +83,9 @@ class TestAutoPolicy(BaseTest):
   <implementation version='1.0' id='/bin'/>
 </interface>""")
 		tmp.flush()
-		policy = Policy(tmp.name, config = self.config)
+		driver = Driver(requirements = Requirements(tmp.name), config = self.config)
 		try:
-			download_and_execute(policy, ['Hello'])
+			download_and_execute(driver, ['Hello'])
 			assert 0
 		except model.SafeException as ex:
 			assert "ThisBetterNotExist" in str(ex)
@@ -104,9 +103,9 @@ class TestAutoPolicy(BaseTest):
   <implementation version='1.0' id='/bin'/>
 </interface>""")
 		tmp.flush()
-		policy = Policy(tmp.name, config = self.config)
+		driver = Driver(requirements = Requirements(tmp.name), config = self.config)
 		try:
-			download_and_execute(policy, ['Hello'])
+			download_and_execute(driver, ['Hello'])
 			assert 0
 		except model.SafeException as ex:
 			assert "library" in str(ex), ex
@@ -126,12 +125,11 @@ class TestAutoPolicy(BaseTest):
     <archive href='http://foo/foo.tgz' size='100'/>
   </implementation>
 </interface>""" % foo_iface_uri)
-		policy = Policy(foo_iface_uri, config = self.config)
-		policy.freshness = 0
-		policy.network_use = model.network_full
-		recalculate(policy)
-		assert policy.need_download()
-		assert policy.ready
+		driver = Driver(requirements = Requirements(foo_iface_uri), config = self.config)
+		self.config.network_use = model.network_full
+		recalculate(driver)
+		assert driver.need_download()
+		assert driver.solver.ready
 
 	def testBinding(self):
 		local_impl = os.path.dirname(os.path.abspath(__file__))
@@ -139,7 +137,7 @@ class TestAutoPolicy(BaseTest):
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface
- main='testautopolicy.py'
+ main='testdriver.py'
  xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
   <name>Bar</name>
   <summary>Bar</summary>
@@ -171,12 +169,12 @@ class TestAutoPolicy(BaseTest):
 		cached_impl = basedir.save_cache_path('0install.net',
 							'implementations',
 							'sha1=123')
-		policy = Policy(tmp.name, config = self.config)
-		policy.network_use = model.network_offline
+		driver = Driver(requirements = Requirements(tmp.name), config = self.config)
+		self.config.network_use = model.network_offline
 		os.environ['FOO_PATH'] = "old"
 		old, sys.stdout = sys.stdout, StringIO()
 		try:
-			download_and_execute(policy, ['Hello'])
+			download_and_execute(driver, ['Hello'])
 		finally:
 			sys.stdout = old
 		self.assertEqual(cached_impl + '/.:old',
@@ -194,7 +192,7 @@ class TestAutoPolicy(BaseTest):
 		os.environ['BAR_PATH'] = '/old'
 		old, sys.stdout = sys.stdout, StringIO()
 		try:
-			download_and_execute(policy, ['Hello'])
+			download_and_execute(driver, ['Hello'])
 		finally:
 			sys.stdout = old
 		self.assertEqual(cached_impl + '/.',
@@ -228,13 +226,12 @@ class TestAutoPolicy(BaseTest):
     <archive href='foo' size='10'/>
   </implementation>
 </interface>""" % foo_iface_uri)
-		policy = Policy(foo_iface_uri, config = self.config)
-		policy.freshness = 0
-		policy.network_use = model.network_full
-		recalculate(policy)
-		assert policy.ready
+		driver = Driver(requirements = Requirements(foo_iface_uri), config = self.config)
+		self.config.network_use = model.network_full
+		recalculate(driver)
+		assert driver.solver.ready
 		foo_iface = self.config.iface_cache.get_interface(foo_iface_uri)
-		self.assertEqual('sha1=123', policy.implementation[foo_iface].id)
+		self.assertEqual('sha1=123', driver.solver.selections[foo_iface].id)
 
 	def testBadConfig(self):
 		path = basedir.save_config_path(namespaces.config_site,
@@ -246,7 +243,7 @@ class TestAutoPolicy(BaseTest):
 		stream.close()
 
 		logger.setLevel(logging.ERROR)
-		Policy(foo_iface_uri, config = self.config)
+		Driver(requirements = Requirements(foo_iface_uri), config = self.config)
 		logger.setLevel(logging.WARN)
 
 	def testNoLocal(self):
@@ -278,17 +275,16 @@ class TestAutoPolicy(BaseTest):
   <description>Foo</description>
   <feed src='http://example.com'/>
 </interface>""" % foo_iface_uri)
-		policy = Policy(foo_iface_uri, config = self.config)
-		policy.network_use = model.network_full
-		policy.freshness = 0
+		driver = Driver(requirements = Requirements(foo_iface_uri), config = self.config)
+		self.config.network_use = model.network_full
 
-		assert policy.need_download()
+		assert driver.need_download()
 
 		feed = self.config.iface_cache.get_feed(foo_iface_uri)
 		feed.feeds = [model.Feed('/BadFeed', None, False)]
 
 		logger.setLevel(logging.ERROR)
-		assert policy.need_download()	# Triggers warning
+		assert driver.need_download()	# Triggers warning
 		logger.setLevel(logging.WARN)
 
 	def testBestUnusable(self):
@@ -302,12 +298,12 @@ class TestAutoPolicy(BaseTest):
   <description>Foo</description>
   <implementation id='sha1=123' version='1.0' arch='odd-weird' main='dummy'/>
 </interface>""" % foo_iface_uri)
-		policy = Policy(foo_iface_uri, config = self.config)
-		policy.network_use = model.network_offline
-		recalculate(policy)
-		assert not policy.ready, policy.implementation
+		driver = Driver(requirements = Requirements(foo_iface_uri), config = self.config)
+		self.config.network_use = model.network_offline
+		recalculate(driver)
+		assert not driver.solver.ready, driver.implementation
 		try:
-			download_and_execute(policy, [])
+			download_and_execute(driver, [])
 			assert False
 		except model.SafeException as ex:
 			assert "has no usable implementations" in str(ex), ex
@@ -323,10 +319,9 @@ class TestAutoPolicy(BaseTest):
   <description>Foo</description>
   <implementation id='sha1=123' version='1.0' main='dummy'/>
 </interface>""" % foo_iface_uri)
-		policy = Policy(foo_iface_uri, config = self.config)
-		policy.freshness = 0
-		recalculate(policy)
-		assert not policy.ready
+		driver = Driver(requirements = Requirements(foo_iface_uri), config = self.config)
+		recalculate(driver)
+		assert not driver.solver.ready
 
 	def testCycle(self):
 		self.cache_iface(foo_iface_uri,
@@ -344,9 +339,8 @@ class TestAutoPolicy(BaseTest):
     </implementation>
   </group>
 </interface>""" % (foo_iface_uri, foo_iface_uri))
-		policy = Policy(foo_iface_uri, config = self.config)
-		policy.freshness = 0
-		recalculate(policy)
+		driver = Driver(requirements = Requirements(foo_iface_uri), config = self.config)
+		recalculate(driver)
 
 	def testConstraints(self):
 		self.cache_iface('http://bar',
@@ -384,27 +378,50 @@ class TestAutoPolicy(BaseTest):
    </implementation>
   </group>
 </interface>""" % foo_iface_uri)
-		policy = Policy(foo_iface_uri, config = self.config)
-		policy.network_use = model.network_full
-		policy.freshness = 0
+		driver = Driver(requirements = Requirements(foo_iface_uri), config = self.config)
+		self.config.network_use = model.network_full
 		#logger.setLevel(logging.DEBUG)
-		recalculate(policy)
+		recalculate(driver)
 		#logger.setLevel(logging.WARN)
 		foo_iface = self.config.iface_cache.get_interface(foo_iface_uri)
 		bar_iface = self.config.iface_cache.get_interface('http://bar')
-		assert policy.implementation[bar_iface].id == 'sha1=200'
+		assert driver.solver.selections[bar_iface].id == 'sha1=200'
 
-		dep = policy.implementation[foo_iface].dependencies['http://bar']
+		dep = driver.solver.selections[foo_iface].dependencies['http://bar']
 		assert len(dep.restrictions) == 1
 		restriction = dep.restrictions[0]
 
 		restriction.before = model.parse_version('2.0')
-		recalculate(policy)
-		assert policy.implementation[bar_iface].id == 'sha1=100'
+		recalculate(driver)
+		assert driver.solver.selections[bar_iface].id == 'sha1=100'
 
 		restriction.not_before = model.parse_version('1.5')
-		recalculate(policy)
-		assert policy.implementation[bar_iface].id == 'sha1=150'
+		recalculate(driver)
+		assert driver.solver.selections[bar_iface].id == 'sha1=150'
+
+	def testSource(self):
+		iface_cache = self.config.iface_cache
+
+		foo = iface_cache.get_interface('http://foo/Binary.xml')
+		self.import_feed(foo.uri, 'Binary.xml')
+		foo_src = iface_cache.get_interface('http://foo/Source.xml')
+		self.import_feed(foo_src.uri, 'Source.xml')
+		compiler = iface_cache.get_interface('http://foo/Compiler.xml')
+		self.import_feed(compiler.uri, 'Compiler.xml')
+
+		self.config.freshness = 0
+		self.config.network_use = model.network_full
+		driver = Driver(requirements = Requirements('http://foo/Binary.xml'), config = self.config)
+		tasks.wait_for_blocker(driver.solve_with_downloads())
+		assert driver.solver.selections[foo].id == 'sha1=123'
+
+		# Now ask for source instead
+		driver.requirements.source = True
+		driver.requirements.command = 'compile'
+		tasks.wait_for_blocker(driver.solve_with_downloads())
+		assert driver.solver.ready, driver.solver.get_failure_reason()
+		assert driver.solver.selections[foo].id == 'sha1=234'		# The source
+		assert driver.solver.selections[compiler].id == 'sha1=345'	# A binary needed to compile it
 
 if __name__ == '__main__':
 	unittest.main()

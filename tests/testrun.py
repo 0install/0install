@@ -9,8 +9,11 @@ sys.path.insert(0, '..')
 # (testing command support imports zeroinstall.injector._runenv in a sub-process)
 os.environ['PYTHONPATH'] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-from zeroinstall.injector import policy, run, namespaces
+from zeroinstall.support import tasks
+from zeroinstall.injector import run, namespaces
 from zeroinstall import SafeException
+from zeroinstall.injector.requirements import Requirements
+from zeroinstall.injector.driver import Driver
 
 mydir = os.path.abspath(os.path.dirname(__file__))
 local_0launch = os.path.join(os.path.dirname(mydir), '0launch')
@@ -30,8 +33,8 @@ class TestRun(BaseTest):
 		if 'SELF_COMMAND' in os.environ:
 			del os.environ['SELF_COMMAND']
 
-		p = policy.Policy(command_feed, config = self.config)
-		self.config.handler.wait_for_blocker(p.solve_with_downloads())
+		p = Driver(requirements = Requirements(command_feed), config = self.config)
+		tasks.wait_for_blocker(p.solve_with_downloads())
 		old_stdout = sys.stdout
 		try:
 			sys.stdout = StringIO()
@@ -42,7 +45,7 @@ class TestRun(BaseTest):
 		assert 'SELF_COMMAND' in os.environ
 
 	def testAbsMain(self):
-		p = policy.Policy(command_feed, config = self.config)
+		p = Driver(requirements = Requirements(command_feed), config = self.config)
 		self.config.handler.wait_for_blocker(p.solve_with_downloads())
 
 		old_stdout = sys.stdout
@@ -63,7 +66,7 @@ class TestRun(BaseTest):
 			assert 'not-there' in unicode(ex)
 
 	def testArgs(self):
-		p = policy.Policy(runnable, config = self.config)
+		p = Driver(requirements = Requirements(runnable), config = self.config)
 		self.config.handler.wait_for_blocker(p.solve_with_downloads())
 		old_stdout = sys.stdout
 		try:
@@ -75,7 +78,7 @@ class TestRun(BaseTest):
 		assert 'runner-arg' in out, out
 
 	def testWrapper(self):
-		p = policy.Policy(runnable, config = self.config)
+		p = Driver(requirements = Requirements(runnable), config = self.config)
 		self.config.handler.wait_for_blocker(p.solve_with_downloads())
 		old_stdout = sys.stdout
 		try:

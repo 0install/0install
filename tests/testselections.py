@@ -5,7 +5,9 @@ import sys, os
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import selections, model, policy, namespaces, qdom, driver, requirements
+from zeroinstall.injector import selections, model, namespaces, qdom, requirements
+from zeroinstall.injector.requirements import Requirements
+from zeroinstall.injector.driver import Driver
 
 mydir = os.path.dirname(os.path.abspath(__file__))
 runexec = os.path.join(mydir, 'runnable', 'RunExec.xml')
@@ -13,17 +15,19 @@ runnable = os.path.join(mydir, 'runnable', 'Runnable.xml')
 
 class TestSelections(BaseTest):
 	def testSelections(self):
-		p = policy.Policy('http://foo/Source.xml', src = True, config = self.config)
+		requirements = Requirements('http://foo/Source.xml')
+		requirements.source = True
+		requirements.command = 'compile'
+		driver = Driver(requirements = requirements, config = self.config)
 		source = self.config.iface_cache.get_interface('http://foo/Source.xml')
 		compiler = self.config.iface_cache.get_interface('http://foo/Compiler.xml')
 		self.import_feed(source.uri, 'Source.xml')
 		self.import_feed(compiler.uri, 'Compiler.xml')
 
-		p.freshness = 0
-		p.network_use = model.network_full
+		self.config.network_use = model.network_full
 		#import logging
 		#logging.getLogger().setLevel(logging.DEBUG)
-		assert p.need_download()
+		assert driver.need_download()
 
 		def assertSel(s):
 			self.assertEqual('http://foo/Source.xml', s.interface)
@@ -71,7 +75,8 @@ class TestSelections(BaseTest):
 
 			self.assertEqual(["sha1=345"], sels[0].digests)
 
-		s1 = p.solver.selections
+		assert driver.solver.ready, driver.solver.get_failure_reason()
+		s1 = driver.solver.selections
 		s1.selections['http://foo/Source.xml'].attrs['http://namespace foo'] = 'bar'
 		assertSel(s1)
 
@@ -85,10 +90,10 @@ class TestSelections(BaseTest):
 	def testLocalPath(self):
 		# 0launch --get-selections Local.xml
 		iface = os.path.join(mydir, "Local.xml")
-		p = policy.Policy(iface, config = self.config)
-		p.need_download()
-		assert p.ready
-		s1 = p.solver.selections
+		driver = Driver(requirements = Requirements(iface), config = self.config)
+		driver.need_download()
+		assert driver.solver.ready
+		s1 = driver.solver.selections
 		xml = s1.toDOM().toxml("utf-8")
 
 		# Reload selections and check they're the same
@@ -105,9 +110,9 @@ class TestSelections(BaseTest):
 		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': 'dummy', 'name': 'run'}), None)
 		impl.add_download_source('http://localhost/bar.tgz', 1000, None)
 		feed.implementations = {impl.id: impl}
-		assert p.need_download()
-		assert p.ready, p.solver.get_failure_reason()
-		s1 = p.solver.selections
+		assert driver.need_download()
+		assert driver.solver.ready, driver.solver.get_failure_reason()
+		s1 = driver.solver.selections
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(StringIO(xml))
 		s2 = selections.Selections(root)
@@ -119,19 +124,19 @@ class TestSelections(BaseTest):
 
 	def testCommands(self):
 		iface = os.path.join(mydir, "Command.xml")
-		p = policy.Policy(iface, config = self.config)
-		p.need_download()
-		assert p.ready
+		driver = Driver(requirements = Requirements(iface), config = self.config)
+		driver.need_download()
+		assert driver.solver.ready
 
-		impl = p.solver.selections[self.config.iface_cache.get_interface(iface)]
+		impl = driver.solver.selections[self.config.iface_cache.get_interface(iface)]
 		assert impl.id == 'c'
 		assert impl.main == 'test-gui'
 
 		dep_impl_uri = impl.commands['run'].requires[0].interface
-		dep_impl = p.solver.selections[self.config.iface_cache.get_interface(dep_impl_uri)]
+		dep_impl = driver.solver.selections[self.config.iface_cache.get_interface(dep_impl_uri)]
 		assert dep_impl.id == 'sha1=256'
 
-		s1 = p.solver.selections
+		s1 = driver.solver.selections
 		assert s1.commands[0].path == 'test-gui'
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(StringIO(xml))
@@ -148,7 +153,7 @@ class TestSelections(BaseTest):
 		dep_impl = s2.selections[dep_impl_uri]
 		assert dep_impl.id == 'sha1=256'
 
-		d = driver.Driver(self.config, requirements.Requirements(runexec))
+		d = Driver(self.config, requirements.Requirements(runexec))
 		need_download = d.need_download()
 		assert need_download == False
 

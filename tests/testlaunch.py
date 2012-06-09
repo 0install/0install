@@ -12,9 +12,11 @@ foo_iface_uri = 'http://foo'
 
 sys.path.insert(0, '..')
 from zeroinstall import SafeException
-from zeroinstall.injector.policy import Policy
+from zeroinstall.support import tasks
 from zeroinstall.injector import run, cli, namespaces, qdom, selections
 from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
+from zeroinstall.injector.requirements import Requirements
+from zeroinstall.injector.driver import Driver
 
 mydir = os.path.abspath(os.path.dirname(__file__))
 
@@ -121,12 +123,12 @@ class TestLaunch(BaseTest):
   </group>
 </interface>""" % foo_iface_uri)
 		tmp.flush()
-		policy = Policy(tmp.name, config = self.config)
+		driver = Driver(requirements = Requirements(tmp.name), config = self.config)
 		try:
-			downloaded = policy.solve_and_download_impls()
+			downloaded = driver.solve_and_download_impls()
 			if downloaded:
-				policy.handler.wait_for_blocker(downloaded)
-			run.execute_selections(policy.solver.selections, [], stores = policy.config.stores)
+				tasks.wait_for_blocker(downloaded)
+			run.execute_selections(driver.solver.selections, [], stores = self.config.stores)
 			assert False
 		except SafeException as ex:
 			assert 'Command path must be relative' in str(ex), ex

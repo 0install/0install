@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall import cmd
-from zeroinstall.injector import model, selections, qdom, reader, policy, handler, gpg
+from zeroinstall.injector import model, selections, qdom, reader, handler, gpg, config
 
 mydir = os.path.dirname(__file__)
 
@@ -223,7 +223,7 @@ class TestInstall(BaseTest):
 		out, err = self.run_0install(['config', 'help_with_testing'])
 		assert out == 'False\n', out
 
-		file_config = policy.load_config(handler.Handler())
+		file_config = config.load_config(handler.Handler())
 		def get_value(name):
 			old_stdout = sys.stdout
 			sys.stdout = StringIO()
@@ -245,7 +245,7 @@ class TestInstall(BaseTest):
 		assert file_config.network_use == model.network_minimal
 		assert file_config.help_with_testing == True
 
-		file_config2 = policy.load_config(handler.Handler())
+		file_config2 = config.load_config(handler.Handler())
 		assert file_config2.freshness == 5 * 60
 		assert file_config2.network_use == model.network_minimal
 		assert file_config2.help_with_testing == True
