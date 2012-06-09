@@ -38,6 +38,9 @@ requires first uninstalling another.</description>
     <command name="run" path="0launch">
       <runner interface="http://repo.roscidus.com/python/python"/>
     </command>
+    <command name="0install" path="0install">
+      <runner interface="http://repo.roscidus.com/python/python"/>
+    </command>
     <command name="test" path="tests/testall.py">
       <runner interface="http://repo.roscidus.com/python/python">
 	<arg>-tt</arg>
