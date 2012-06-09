@@ -9,7 +9,7 @@ from zeroinstall import _, NeedDownload
 import os
 from logging import info, debug, warn
 
-from zeroinstall.support import tasks, basedir
+from zeroinstall.support import tasks, basedir, portable_rename
 from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
 from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, escape, DistributionSource
 from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
@@ -433,10 +433,15 @@ class Fetcher(object):
 				if dl.unmodified: return
 				stream.seek(0)
 
-				import shutil
+				import shutil, tempfile
 				icons_cache = basedir.save_cache_path(config_site, 'interface_icons')
-				icon_file = open(os.path.join(icons_cache, escape(interface.uri)), 'w')
-				shutil.copyfileobj(stream, icon_file)
+
+				tmp_file = tempfile.NamedTemporaryFile(dir = icons_cache, delete = False)
+				shutil.copyfileobj(stream, tmp_file)
+				tmp_file.close()
+
+				icon_file = os.path.join(icons_cache, escape(interface.uri))
+				portable_rename(tmp_file.name, icon_file)
 			except Exception as ex:
 				self.handler.report_error(ex)
 			finally:
