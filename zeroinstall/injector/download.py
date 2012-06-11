@@ -58,7 +58,7 @@ class Download(object):
 		     'hint', '_final_total_size', 'aborted_by_user',
 		     'modification_time', 'unmodified', '_aborted']
 
-	def __init__(self, url, hint = None, modification_time = None, expected_size = None):
+	def __init__(self, url, hint = None, modification_time = None, expected_size = None, auto_delete = True):
 		"""Create a new download object.
 		@param url: the resource to download
 		@param hint: object with which this download is associated (an optional hint for the GUI)
@@ -78,7 +78,7 @@ class Download(object):
 		self._final_total_size = None	# Set when download is finished
 	
 		self.status = download_fetching
-		self.tempfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
+		self.tempfile = tempfile.NamedTemporaryFile(prefix = 'injector-dl-data-', delete = auto_delete)
 
 		self._aborted = tasks.Blocker("abort " + url)
 

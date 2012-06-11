@@ -85,13 +85,14 @@ class Fetcher(object):
 	@ivar key_info: caches information about GPG keys
 	@type key_info: {str: L{KeyInfoFetcher}}
 	"""
-	__slots__ = ['config', 'key_info', '_scheduler']
+	__slots__ = ['config', 'key_info', '_scheduler', 'external_store']
 
 	def __init__(self, config):
 		assert config.handler, "API change!"
 		self.config = config
 		self.key_info = {}
 		self._scheduler = None
+		self.external_store = os.environ.get('ZEROINSTALL_EXTERNAL_STORE')
 
 	@property
 	def handler(self):
@@ -129,26 +130,29 @@ class Fetcher(object):
 
 		from zeroinstall.zerostore import unpack
 
-		# Create an empty directory for the new implementation
-		store = stores.stores[0]
-		tmpdir = store.get_tmp_dir_for(required_digest)
-		try:
-			# Unpack each of the downloaded archives into it in turn
-			for step in recipe.steps:
-				stream = streams[step]
-				stream.seek(0)
-				unpack.unpack_archive_over(step.url, stream, tmpdir,
-						extract = step.extract,
-						type = step.type,
-						start_offset = step.start_offset or 0)
-			# Check that the result is correct and store it in the cache
-			store.check_manifest_and_rename(required_digest, tmpdir)
-			tmpdir = None
-		finally:
-			# If unpacking fails, remove the temporary directory
-			if tmpdir is not None:
-				from zeroinstall import support
-				support.ro_rmtree(tmpdir)
+		if self.external_store:
+			self._add_to_external_store(required_digest, recipe.steps, streams)
+		else:
+			# Create an empty directory for the new implementation
+			store = stores.stores[0]
+			tmpdir = store.get_tmp_dir_for(required_digest)
+			try:
+				# Unpack each of the downloaded archives into it in turn
+				for step in recipe.steps:
+					stream = streams[step]
+					stream.seek(0)
+					unpack.unpack_archive_over(step.url, stream, tmpdir,
+							extract = step.extract,
+							type = step.type,
+							start_offset = step.start_offset or 0)
+				# Check that the result is correct and store it in the cache
+				store.check_manifest_and_rename(required_digest, tmpdir)
+				tmpdir = None
+			finally:
+				# If unpacking fails, remove the temporary directory
+				if tmpdir is not None:
+					from zeroinstall import support
+					support.ro_rmtree(tmpdir)
 
 	def get_feed_mirror(self, url):
 		"""Return the URL of a mirror for this feed."""
@@ -357,7 +361,10 @@ class Fetcher(object):
 				tasks.check(blocker)
 
 				stream.seek(0)
-				self._add_to_cache(required_digest, stores, retrieval_method, stream)
+				if self.external_store:
+					self._add_to_external_store(required_digest, [retrieval_method], [stream])
+				else:
+					self._add_to_cache(required_digest, stores, retrieval_method, stream)
 			elif isinstance(retrieval_method, Recipe):
 				blocker = self.cook(required_digest, retrieval_method, stores, force, impl_hint = impl)
 				yield blocker
@@ -372,6 +379,28 @@ class Fetcher(object):
 		assert isinstance(retrieval_method, DownloadSource)
 		stores.add_archive_to_cache(required_digest, stream, retrieval_method.url, retrieval_method.extract,
 						 type = retrieval_method.type, start_offset = retrieval_method.start_offset or 0)
+
+	def _add_to_external_store(self, required_digest, steps, streams):
+		# combine archive path, extract directory and MIME type arguments in an alternating fashion
+		paths = map(lambda stream: stream.name, streams)
+		extracts = map(lambda step: step.extract, steps)
+		types = map(lambda step: step.type, steps)
+		args = [None]*(len(paths)+len(extracts)+len(types))
+		args[::3] = paths
+		args[1::3] = extracts
+		args[2::3] = types
+
+		# close file handles to allow external processes access
+		for stream in streams:
+			stream.close()
+
+		# delegate extracting archives to external tool
+		import subprocess
+		subprocess.call([self.external_store, "add", required_digest] + args)
+
+		# delete temp files
+		for path in paths:
+			os.remove(path)
 
 	# (force is deprecated and ignored)
 	def download_archive(self, download_source, force = False, impl_hint = None):
@@ -525,7 +554,7 @@ class Fetcher(object):
 		if self.handler.dry_run:
 			raise NeedDownload(url)
 
-		dl = download.Download(url, hint = hint, modification_time = modification_time, expected_size = expected_size)
+		dl = download.Download(url, hint = hint, modification_time = modification_time, expected_size = expected_size, auto_delete = not self.external_store)
 		self.handler.monitor_download(dl)
 		dl.downloaded = self.scheduler.download(dl)
 		return dl
