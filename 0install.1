@@ -442,6 +442,13 @@ Downloaded cached implementations, indexed by manifest digest.
 .PP
 See the 0store(1) man page for more information.
 
+.SH ENVIRONMENT VARIABLES
+
+The configuration and cache directories can be changed using \fBXDG_CONFIG_HOME\fP,
+\fBXDG_CONFIG_DIRS\fP, \fBXDG_CACHE_HOME\fP and \fBXDG_CACHE_DIRS\fP, as usual.
+
+If \fBZEROINSTALL_PORTABLE_BASE\fP is set, then the XDG_ variables are ignored and the configuration and cache are stored in \fB$ZEROINSTALL_PORTABLE_BASE/config\fP and \fB$ZEROINSTALL_PORTABLE_BASE/cache\fP instead.
+
 .SH LICENSE
 .PP
 Copyright (C) 2012 Thomas Leonard.

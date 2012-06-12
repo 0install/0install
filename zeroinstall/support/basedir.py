@@ -37,7 +37,15 @@ else:
 			del old_home
 			del home_owner
 
-if os.name == "nt":
+portable_base = os.environ.get('ZEROINSTALL_PORTABLE_BASE')
+if portable_base:
+	xdg_data_home = os.path.join(portable_base, "data")
+	xdg_data_dirs = [xdg_data_home]
+	xdg_cache_home = os.path.join(portable_base, "cache")
+	xdg_cache_dirs = [xdg_cache_home]
+	xdg_config_home = os.path.join(portable_base, "config")
+	xdg_config_dirs = [xdg_config_home]
+elif os.name == "nt":
 	from win32com.shell import shell, shellcon
 	appData = shell.SHGetFolderPath(0, shellcon.CSIDL_APPDATA, 0, 0)
 	localAppData = shell.SHGetFolderPath(0, shellcon.CSIDL_LOCAL_APPDATA, 0, 0)
