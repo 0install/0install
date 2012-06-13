@@ -255,18 +255,6 @@ class IfaceCache(object):
 		debug(_("Updating '%(interface)s' from network; modified at %(time)s") %
 			{'interface': feed_url, 'time': _pretty_time(modified_time)})
 
-		if '\n<!-- Base64 Signature' not in new_xml:
-			# Only do this for old-style feeds without
-			# signatures Otherwise, we can get the time from the
-			# signature, and adding this attribute just makes the
-			# signature invalid.
-			from xml.dom import minidom
-			doc = minidom.parseString(new_xml)
-			doc.documentElement.setAttribute('last-modified', str(modified_time))
-			new_xml = StringIO()
-			doc.writexml(new_xml)
-			new_xml = new_xml.getvalue()
-
 		self._import_new_feed(feed_url, new_xml, modified_time)
 
 		feed = self.get_feed(feed_url)
