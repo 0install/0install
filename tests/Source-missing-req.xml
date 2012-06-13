@@ -1,0 +1,31 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+	   xmlns:compile='http://zero-install.sourceforge.net/2006/namespaces/0compile'
+	   uri='http://foo/Source.xml'>
+  <name>Source</name>
+  <summary>Source</summary>
+  <description>Source</description>
+  <feed-for interface='http://foo/Binary.xml'/>
+  <group>
+    <implementation id='sha1=234' version='1' version-modifier='.0' arch='*-src' compile:command='make'>
+      <archive href='foo' size='10'/>
+    </implementation>
+    <environment name='SRCDIR' insert='.' mode='replace'/>
+    <overlay src='.' mount-point='/'/>
+  </group>
+
+  <implementation id='old' version='0.1' arch='*-src' compile:command='make'>
+    <requires interface='http://foo/Compiler.xml'/>
+    <manifest-digest sha1='666'/>
+    <archive href='foo' size='10'/>
+  </implementation>
+
+  <implementation id='impossible' version='3' arch='*-src' compile:command='make'>
+    <requires interface='http://foo/Compiler.xml'>
+      <version before='1.0'/>
+      <version not-before='1.0'/>
+    </requires>
+    <manifest-digest sha1='666'/>
+    <archive href='foo' size='10'/>
+  </implementation>
+</interface>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys, tempfile, os, shutil, imp
+import sys, tempfile, os, shutil, imp, time
 import unittest
 import logging
 import warnings
@@ -97,8 +97,9 @@ class TestFetcher:
 		assert isinstance(self.config.stores, TestStores)
 		self.allowed_downloads.add(digest)
 
-	def allow_feed_download(self, url, feed):
-		self.allowed_feed_downloads[url] = feed
+	def allow_feed_download(self, url, feed_xml):
+		assert isinstance(feed_xml, basestring), feed_xml
+		self.allowed_feed_downloads[url] = feed_xml
 
 	def download_impls(self, impls, stores):
 		@tasks.async
@@ -114,8 +115,9 @@ class TestFetcher:
 		@tasks.async
 		def fake_download():
 			yield
-			assert feed_url in self.allowed_feed_downloads, feed_url
-			self.config.iface_cache._feeds[feed_url] = self.allowed_feed_downloads[feed_url]
+			feed_xml = self.allowed_feed_downloads.get(feed_url, None)
+			assert feed_xml, feed_url
+			self.config.iface_cache.update_feed_from_network(feed_url, feed_xml, int(time.time()))
 			del self.allowed_feed_downloads[feed_url]
 		return fake_download()
 

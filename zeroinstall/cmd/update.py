@@ -76,7 +76,13 @@ def handle(config, options, args):
 
 	root_sel = sels[iface_uri]
 	root_iface = config.iface_cache.get_interface(iface_uri)
-	latest = max((impl.version, impl) for impl in root_iface.implementations.values())[1]
+	# Force a reload, since we may have used the GUI to update it
+	for feed in config.iface_cache.get_feeds(root_iface):
+		config.iface_cache.get_feed(feed, force = True)
+	
+	root_impls = config.iface_cache.get_implementations(root_iface)
+
+	latest = max((impl.version, impl) for impl in root_impls)[1]
 	if latest.version > model.parse_version(sels[iface_uri].version):
 		print(_("A later version ({name} {latest}) exists but was not selected. Using {version} instead.").format(
 				latest = latest.get_version(),

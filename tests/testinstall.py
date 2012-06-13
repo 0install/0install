@@ -37,6 +37,8 @@ class TestInstall(BaseTest):
 				raise
 			except AssertionError:
 				raise
+			except ValueError:
+				raise
 			except Exception as ex:
 				pass
 			out = sys.stdout.getvalue()
@@ -136,7 +138,7 @@ class TestInstall(BaseTest):
 		self.config.stores = TestStores()
 		digest = 'sha1=3ce644dc725f1d21cfcf02562c76f375944b266a'
 		self.config.fetcher.allow_download(digest)
-		hello = reader.load_feed('Hello.xml')
+		with open('Hello.xml') as stream: hello = stream.read()
 		self.config.fetcher.allow_feed_download('http://example.com:8000/Hello.xml', hello)
 		out, err = self.run_0install(['download', 'selections.xml', '--show'])
 		assert not err, err
@@ -155,7 +157,7 @@ class TestInstall(BaseTest):
 
 		# Using a remote feed for the first time
 		self.config.stores = TestStores()
-		binary_feed = reader.load_feed('Binary.xml')
+		with open('Binary.xml') as stream: binary_feed = stream.read()
 		self.config.fetcher.allow_download('sha1=123')
 		self.config.fetcher.allow_feed_download('http://foo/Binary.xml', binary_feed)
 		out, err = self.run_0install(['update', 'http://foo/Binary.xml'])
@@ -169,16 +171,16 @@ class TestInstall(BaseTest):
 		assert 'No updates found' in out, out
 
 		# New binary release available.
-		new_binary_feed = reader.load_feed('Binary.xml')
-		new_binary_feed.implementations['sha1=123'].version = model.parse_version('1.1')
+		new_binary_feed = binary_feed.replace("version='1.0'", "version='1.1'")
+		assert binary_feed != new_binary_feed
 		self.config.fetcher.allow_feed_download('http://foo/Binary.xml', new_binary_feed)
 		out, err = self.run_0install(['update', 'http://foo/Binary.xml'])
 		assert not err, err
 		assert 'Binary.xml: 1.0 -> 1.1' in out, out
 
 		# Compiling from source for the first time.
-		source_feed = reader.load_feed('Source.xml')
-		compiler_feed = reader.load_feed('Compiler.xml')
+		with open('Source.xml') as stream: source_feed = stream.read()
+		with open('Compiler.xml') as stream: compiler_feed = stream.read()
 		self.config.fetcher.allow_download('sha1=234')
 		self.config.fetcher.allow_download('sha1=345')
 		self.config.fetcher.allow_feed_download('http://foo/Compiler.xml', compiler_feed)
@@ -190,8 +192,10 @@ class TestInstall(BaseTest):
 		assert 'Compiler.xml: new -> 1.0' in out, out
 
 		# New compiler released.
-		new_compiler_feed = reader.load_feed('Compiler.xml')
-		new_compiler_feed.implementations['sha1=345'].version = model.parse_version('1.1')
+		new_compiler_feed = compiler_feed.replace(
+				"id='sha1=345' version='1.0'",
+				"id='sha1=345' version='1.1'")
+		assert new_compiler_feed != compiler_feed
 		self.config.fetcher.allow_feed_download('http://foo/Compiler.xml', new_compiler_feed)
 		self.config.fetcher.allow_feed_download('http://foo/Binary.xml', binary_feed)
 		self.config.fetcher.allow_feed_download('http://foo/Source.xml', source_feed)
@@ -200,8 +204,7 @@ class TestInstall(BaseTest):
 		assert 'Compiler.xml: 1.0 -> 1.1' in out, out
 
 		# A dependency disappears.
-		new_source_feed = reader.load_feed('Source.xml')
-		new_source_feed.implementations['sha1=234'].requires = []
+		with open('Source-missing-req.xml') as stream: new_source_feed = stream.read()
 		self.config.fetcher.allow_feed_download('http://foo/Compiler.xml', new_compiler_feed)
 		self.config.fetcher.allow_feed_download('http://foo/Binary.xml', binary_feed)
 		self.config.fetcher.allow_feed_download('http://foo/Source.xml', new_source_feed)
@@ -285,7 +288,7 @@ class TestInstall(BaseTest):
 		assert "Remove as feed for 'http://foo/Binary.xml'" in out, out
 		assert len(binary_iface.extra_feeds) == 0
 
-		source_feed = reader.load_feed('Source.xml')
+		with open('Source.xml') as stream: source_feed = stream.read()
 		self.config.fetcher.allow_feed_download('http://foo/Source.xml', source_feed)
 		out, err = self.run_0install(['add-feed', 'http://foo/Source.xml'])
 		assert not err, err
