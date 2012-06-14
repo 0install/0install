@@ -39,48 +39,49 @@ else:
 
 portable_base = os.environ.get('ZEROINSTALL_PORTABLE_BASE')
 if portable_base:
-	xdg_data_home = os.path.join(portable_base, "data")
-	xdg_data_dirs = [xdg_data_home]
-	xdg_cache_home = os.path.join(portable_base, "cache")
-	xdg_cache_dirs = [xdg_cache_home]
-	xdg_config_home = os.path.join(portable_base, "config")
-	xdg_config_dirs = [xdg_config_home]
-elif os.name == "nt":
-	from win32com.shell import shell, shellcon
-	appData = shell.SHGetFolderPath(0, shellcon.CSIDL_APPDATA, 0, 0)
-	localAppData = shell.SHGetFolderPath(0, shellcon.CSIDL_LOCAL_APPDATA, 0, 0)
-	commonAppData = shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0)
-
-	xdg_data_home = appData
-	xdg_data_dirs = [xdg_data_home, commonAppData]
-
-	xdg_cache_home = localAppData
-	xdg_cache_dirs = [xdg_cache_home, commonAppData]
-
-	xdg_config_home = appData
-	xdg_config_dirs = [xdg_config_home, commonAppData]
+	xdg_data_dirs = [os.path.join(portable_base, "data")]
+	xdg_cache_dirs = [os.path.join(portable_base, "cache")]
+	xdg_config_dirs = [os.path.join(portable_base, "config")]
 else:
-	xdg_data_home = os.environ.get('XDG_DATA_HOME',
-				os.path.join(home, '.local', 'share'))
+	if os.name == "nt":
+		from win32com.shell import shell, shellcon
+		appData = shell.SHGetFolderPath(0, shellcon.CSIDL_APPDATA, 0, 0)
+		localAppData = shell.SHGetFolderPath(0, shellcon.CSIDL_LOCAL_APPDATA, 0, 0)
+		commonAppData = shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0)
 
-	xdg_data_dirs = [xdg_data_home] + \
-		os.environ.get('XDG_DATA_DIRS', '/usr/local/share:/usr/share').split(':')
+		_default_paths = {
+			'DATA' : [appData, commonAppData],
+			'CACHE' : [localAppData, commonAppData],
+			'CONFIG' : [appData, commonAppData],
+		}
+	else:
+		_default_paths = {
+			'DATA' : [os.path.join(home, '.local', 'share'), '/usr/local/share', '/usr/share'],
+			'CACHE' : [os.path.join(home, '.cache'), '/var/cache'],
+			'CONFIG' : [os.path.join(home, '.config'), '/etc/xdg'],
+		}
 
-	xdg_cache_home = os.environ.get('XDG_CACHE_HOME',
-				os.path.join(home, '.cache'))
+	def _get_path(home_var, dirs_var, default_paths):
+		paths = default_paths
 
-	xdg_cache_dirs = [xdg_cache_home] + \
-		os.environ.get('XDG_CACHE_DIRS', '/var/cache').split(':')
+		x = os.environ.get(home_var, None)
+		if x is not None:
+			paths[0] = x
 
-	xdg_config_home = os.environ.get('XDG_CONFIG_HOME',
-				os.path.join(home, '.config'))
+		x = os.environ.get(dirs_var, None)
+		if x is not None:
+			paths[1:] = filter(None, x.split(os.path.pathsep))
 
-	xdg_config_dirs = [xdg_config_home] + \
-		os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(':')
+		return paths
 
-xdg_data_dirs = filter(lambda x: x, xdg_data_dirs)
-xdg_cache_dirs = filter(lambda x: x, xdg_cache_dirs)
-xdg_config_dirs = filter(lambda x: x, xdg_config_dirs)
+	xdg_data_dirs = _get_path('XDG_DATA_HOME', 'XDG_DATA_DIRS', _default_paths['DATA'])
+	xdg_cache_dirs = _get_path('XDG_CACHE_HOME', 'XDG_CACHE_DIRS', _default_paths['CACHE'])
+	xdg_config_dirs = _get_path('XDG_CONFIG_HOME', 'XDG_CONFIG_DIRS', _default_paths['CONFIG'])
+
+# Maybe we should get rid of these?
+xdg_data_home = xdg_data_dirs[0]
+xdg_cache_home = xdg_cache_dirs[0]
+xdg_config_home = xdg_config_dirs[0]
 
 def save_config_path(*resource):
 	"""Ensure $XDG_CONFIG_HOME/<resource>/ exists, and return its path.

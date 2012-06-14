@@ -173,6 +173,8 @@ class BaseTest(unittest.TestCase):
 		os.environ['XDG_CONFIG_DIRS'] = ''
 		os.environ['XDG_CACHE_HOME'] = self.cache_home
 		os.environ['XDG_CACHE_DIRS'] = self.cache_system
+		if 'ZEROINSTALL_PORTABLE_BASE' in os.environ:
+			del os.environ['ZEROINSTALL_PORTABLE_BASE']
 		imp.reload(basedir)
 		assert basedir.xdg_config_home == self.config_home
 
