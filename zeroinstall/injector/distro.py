@@ -308,6 +308,40 @@ class WindowsDistribution(Distribution):
 				impl.upstream_stability = model.packaged
 				impl.main = java64_home + r"\bin\java.exe"
 
+		if package == 'openjdk-7-jre':
+			(java32_home, java64_home) = _read_hklm_reg(r"SOFTWARE\JavaSoft\Java Runtime Environment\1.7", "JavaHome")
+
+			if os.path.isfile(java32_home + r"\bin\java.exe"):
+				impl = factory('package:windows:%s:%s:%s' % (package, '7', 'i486'))
+				impl.machine = 'i486'
+				impl.version = model.parse_version('7')
+				impl.upstream_stability = model.packaged
+				impl.main = java32_home + r"\bin\java.exe"
+
+			if os.path.isfile(java64_home + r"\bin\java.exe"):
+				impl = factory('package:windows:%s:%s:%s' % (package, '7', 'x86_64'))
+				impl.machine = 'x86_64'
+				impl.version = model.parse_version('7')
+				impl.upstream_stability = model.packaged
+				impl.main = java64_home + r"\bin\java.exe"
+
+		if package == 'openjdk-7-jdk':
+			(java32_home, java64_home) = _read_hklm_reg(r"SOFTWARE\JavaSoft\Java Development Kit\1.7", "JavaHome")
+
+			if os.path.isfile(java32_home + r"\bin\java.exe"):
+				impl = factory('package:windows:%s:%s:%s' % (package, '7', 'i486'))
+				impl.machine = 'i486'
+				impl.version = model.parse_version('7')
+				impl.upstream_stability = model.packaged
+				impl.main = java32_home + r"\bin\java.exe"
+
+			if os.path.isfile(java64_home + r"\bin\java.exe"):
+				impl = factory('package:windows:%s:%s:%s' % (package, '7', 'x86_64'))
+				impl.machine = 'x86_64'
+				impl.version = model.parse_version('7')
+				impl.upstream_stability = model.packaged
+				impl.main = java64_home + r"\bin\java.exe"
+
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
 	an external command), we cache the results.
