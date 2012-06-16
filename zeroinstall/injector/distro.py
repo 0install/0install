@@ -274,73 +274,27 @@ class WindowsDistribution(Distribution):
 				value64 = ''
 			return (value32, value64)
 
+		def find_java(part, win_version, zero_version):
+			reg_path = r"SOFTWARE\JavaSoft\{part}\{win_version}".format(part = part, win_version = win_version)
+			(java32_home, java64_home) = _read_hklm_reg(reg_path, "JavaHome")
+
+			for (home, arch) in [(java32_home, 'i486'),
+					     (java64_home, 'x86_64')]:
+				if os.path.isfile(home + r"\bin\java.exe"):
+					impl = factory('package:windows:%s:%s:%s' % (package, zero_version, arch))
+					impl.machine = arch
+					impl.version = model.parse_version(zero_version)
+					impl.upstream_stability = model.packaged
+					impl.main = home + r"\bin\java.exe"
+
 		if package == 'openjdk-6-jre':
-			(java32_home, java64_home) = _read_hklm_reg(r"SOFTWARE\JavaSoft\Java Runtime Environment\1.6", "JavaHome")
-
-			if os.path.isfile(java32_home + r"\bin\java.exe"):
-				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'i486'))
-				impl.machine = 'i486'
-				impl.version = model.parse_version('6')
-				impl.upstream_stability = model.packaged
-				impl.main = java32_home + r"\bin\java.exe"
-
-			if os.path.isfile(java64_home + r"\bin\java.exe"):
-				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'x86_64'))
-				impl.machine = 'x86_64'
-				impl.version = model.parse_version('6')
-				impl.upstream_stability = model.packaged
-				impl.main = java64_home + r"\bin\java.exe"
-
-		if package == 'openjdk-6-jdk':
-			(java32_home, java64_home) = _read_hklm_reg(r"SOFTWARE\JavaSoft\Java Development Kit\1.6", "JavaHome")
-
-			if os.path.isfile(java32_home + r"\bin\java.exe"):
-				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'i486'))
-				impl.machine = 'i486'
-				impl.version = model.parse_version('6')
-				impl.upstream_stability = model.packaged
-				impl.main = java32_home + r"\bin\java.exe"
-
-			if os.path.isfile(java64_home + r"\bin\java.exe"):
-				impl = factory('package:windows:%s:%s:%s' % (package, '6', 'x86_64'))
-				impl.machine = 'x86_64'
-				impl.version = model.parse_version('6')
-				impl.upstream_stability = model.packaged
-				impl.main = java64_home + r"\bin\java.exe"
-
-		if package == 'openjdk-7-jre':
-			(java32_home, java64_home) = _read_hklm_reg(r"SOFTWARE\JavaSoft\Java Runtime Environment\1.7", "JavaHome")
-
-			if os.path.isfile(java32_home + r"\bin\java.exe"):
-				impl = factory('package:windows:%s:%s:%s' % (package, '7', 'i486'))
-				impl.machine = 'i486'
-				impl.version = model.parse_version('7')
-				impl.upstream_stability = model.packaged
-				impl.main = java32_home + r"\bin\java.exe"
-
-			if os.path.isfile(java64_home + r"\bin\java.exe"):
-				impl = factory('package:windows:%s:%s:%s' % (package, '7', 'x86_64'))
-				impl.machine = 'x86_64'
-				impl.version = model.parse_version('7')
-				impl.upstream_stability = model.packaged
-				impl.main = java64_home + r"\bin\java.exe"
-
-		if package == 'openjdk-7-jdk':
-			(java32_home, java64_home) = _read_hklm_reg(r"SOFTWARE\JavaSoft\Java Development Kit\1.7", "JavaHome")
-
-			if os.path.isfile(java32_home + r"\bin\java.exe"):
-				impl = factory('package:windows:%s:%s:%s' % (package, '7', 'i486'))
-				impl.machine = 'i486'
-				impl.version = model.parse_version('7')
-				impl.upstream_stability = model.packaged
-				impl.main = java32_home + r"\bin\java.exe"
-
-			if os.path.isfile(java64_home + r"\bin\java.exe"):
-				impl = factory('package:windows:%s:%s:%s' % (package, '7', 'x86_64'))
-				impl.machine = 'x86_64'
-				impl.version = model.parse_version('7')
-				impl.upstream_stability = model.packaged
-				impl.main = java64_home + r"\bin\java.exe"
+			find_java("Java Runtime Environment", "1.6", '6')
+		elif package == 'openjdk-6-jdk':
+			find_java("Java Development Kit", "1.6", '6')
+		elif package == 'openjdk-7-jre':
+			find_java("Java Runtime Environment", "1.7", '7')
+		elif package == 'openjdk-7-jdk':
+			find_java("Java Development Kit", "1.7", '7')
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'Windows')
