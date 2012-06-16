@@ -342,6 +342,9 @@ class WindowsDistribution(Distribution):
 				impl.upstream_stability = model.packaged
 				impl.main = java64_home + r"\bin\java.exe"
 
+	def get_score(self, disto_name):
+		return int(disto_name == 'Windows')
+
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
 	an external command), we cache the results.
