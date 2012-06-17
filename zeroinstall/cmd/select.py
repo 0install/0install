@@ -153,8 +153,15 @@ def handle(config, options, args):
 	app = config.app_mgr.lookup_app(args[0], missing_ok = True)
 	if app is not None:
 		sels = app.get_selections()
+
+		r = app.get_requirements()
+		do_select = r.parse_update_options(options)
+		iface_uri = sels.interface
 	else:
 		iface_uri = model.canonical_iface_uri(args[0])
+		do_select = True
+
+	if do_select:
 		sels = get_selections(config, options, iface_uri,
 					select_only = True, download_only = False, test_callback = None)
 		if not sels:
@@ -164,6 +171,8 @@ def handle(config, options, args):
 		show_xml(sels)
 	else:
 		show_human(sels, config.stores)
+		if app is not None and do_select:
+			print(_("(use '0install update' to save the new parameters)"))
 
 def show_xml(sels):
 	doc = sels.toDOM()

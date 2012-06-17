@@ -49,16 +49,21 @@ class Requirements(object):
 
 	def parse_update_options(self, options):
 		"""Update the settings based on the options (used for "0install update APP").
+		@return: whether any settings were changed
+		@rtype: bool
 		@since: 1.9"""
+		changed = False
 		for key in ['not_before', 'before', 'message', 'cpu', 'os', 'command']:
 			value = getattr(options, key)
 			if value is not None:
+				changed = changed or value != getattr(self, key)
 				setattr(self, key, value)
 		if options.source and not self.source:
 			# (partly because it doesn't make much sense, and partly because you
 			# can't undo it, as there's no --not-source option)
 			from zeroinstall import SafeException
 			raise SafeException("Can't update from binary to source type!")
+		return changed
 
 	def get_as_options(self):
 		gui_args = []
