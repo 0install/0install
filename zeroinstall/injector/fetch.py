@@ -419,7 +419,8 @@ class Fetcher(object):
 			mime_type = unpack.type_from_url(download_source.url)
 		if not mime_type:
 			raise SafeException(_("No 'type' attribute on archive, and I can't guess from the name (%s)") % download_source.url)
-		unpack.check_type_ok(mime_type)
+		if not self.external_store:
+			unpack.check_type_ok(mime_type)
 		dl = self.download_url(download_source.url, hint = impl_hint)
 		dl.expected_size = download_source.size + (download_source.start_offset or 0)
 		return (dl.downloaded, dl.tempfile)
