@@ -71,5 +71,7 @@ def save_interface(interface):
 			elem.setAttribute('src', feed.uri)
 			if feed.arch:
 				elem.setAttribute('arch', feed.arch)
+			if feed.site_package:
+				elem.setAttribute('site-package', 'True')
 
 	_atomic_save(doc, user_overrides, interface.uri)

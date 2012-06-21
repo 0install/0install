@@ -231,9 +231,10 @@ class Feeds:
 		enable_remove = False
 		for x in self.interface.extra_feeds:
 			if x.uri == feed_url:
-				if x.user_override:
+				if x.user_override and not x.site_package:
 					enable_remove = True
-		self.remove_feed_button.set_sensitive( enable_remove )
+					break
+		self.remove_feed_button.set_sensitive(enable_remove)
 		try:
 			self.description.set_details(iface_cache, iface_cache.get_feed(feed_url))
 		except zeroinstall.SafeException as ex:

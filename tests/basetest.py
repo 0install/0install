@@ -167,12 +167,15 @@ class BaseTest(unittest.TestCase):
 		self.config_home = tempfile.mktemp()
 		self.cache_home = tempfile.mktemp()
 		self.cache_system = tempfile.mktemp()
+		self.data_home = tempfile.mktemp()
 		self.gnupg_home = tempfile.mktemp()
 		os.environ['GNUPGHOME'] = self.gnupg_home
 		os.environ['XDG_CONFIG_HOME'] = self.config_home
 		os.environ['XDG_CONFIG_DIRS'] = ''
 		os.environ['XDG_CACHE_HOME'] = self.cache_home
 		os.environ['XDG_CACHE_DIRS'] = self.cache_system
+		os.environ['XDG_DATA_HOME'] = self.data_home
+		os.environ['XDG_DATA_DIRS'] = ''
 		if 'ZEROINSTALL_PORTABLE_BASE' in os.environ:
 			del os.environ['ZEROINSTALL_PORTABLE_BASE']
 		imp.reload(basedir)

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 from basetest import BaseTest
-import sys, StringIO
+import sys, StringIO, os, shutil
 import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import writer, model, reader, qdom
+from zeroinstall.support import basedir
 
 test_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
 <name>Test</name>
@@ -12,6 +13,8 @@ test_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-instal
 <implementation id='sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' version='1'/>
 </interface>
 """))
+
+mydir = os.path.dirname(__file__)
 
 class TestWriter(BaseTest):
 	def testFeeds(self):
@@ -64,6 +67,58 @@ class TestWriter(BaseTest):
 
 		impl = main_feed.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
 		self.assertEqual(model.developer, impl.user_stability)
+	
+	def testSitePackages(self):
+		# The old system (0install < 1.9):
+		# - 0compile stores implementations to ~/.cache, and 
+		# - adds to extra_feeds
+		# The new system (0install >= 1.9):
+		# - 0compile stores implementations to ~/.local/0install.net/site-packages, and
+		# - 0install finds them automatically
+
+		# For backwards compatibility, 0install >= 1.9:
+		# - writes discovered feeds to extra_feeds
+		# - skips such entries in extra_feeds when loading
+
+		meta_dir = basedir.save_data_path('0install.net', 'site-packages',
+						   'http:##example.com#prog.xml', '1.0', '0install')
+		feed = os.path.join(meta_dir, 'feed.xml')
+		shutil.copyfile(os.path.join(mydir, 'Local.xml'), feed)
+
+		# Check that we find the feed without us having to register it
+		iface = self.config.iface_cache.get_interface('http://example.com/prog.xml')
+		self.assertEqual(1, len(iface.extra_feeds))
+		site_feed, = iface.extra_feeds
+		self.assertEqual(True, site_feed.site_package)
+
+		# Check that we write it out, so that older 0installs can find it
+		writer.save_interface(iface)
+
+		config_file = basedir.load_first_config('0install.net', 'injector',
+							'interfaces', 'http:##example.com#prog.xml')
+		with open(config_file) as s:
+			doc = qdom.parse(s)
+
+		feed_node = None
+		for item in doc.childNodes:
+			if item.name == 'feed':
+				feed_node = item
+		self.assertEqual('True', feed_node.getAttribute('site-package'))
+
+		# Check we ignore this element
+		iface.reset()
+		self.assertEqual([], iface.extra_feeds)
+		reader.update_user_overrides(iface)
+		self.assertEqual([], iface.extra_feeds)
+
+		# Check feeds are automatically removed again
+		reader.update_from_cache(iface)
+		self.assertEqual(1, len(iface.extra_feeds))
+		shutil.rmtree(basedir.load_first_data('0install.net', 'site-packages',
+							'http:##example.com#prog.xml'))
+
+		reader.update_from_cache(iface)
+		self.assertEqual(0, len(iface.extra_feeds))
 
 if __name__ == '__main__':
 	unittest.main()

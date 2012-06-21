@@ -19,6 +19,19 @@ from zeroinstall.injector import model
 class MissingLocalFeed(InvalidInterface):
 	pass
 
+def _add_site_packages(interface, site_packages, known_site_feeds):
+	for impl in os.listdir(site_packages):
+		if impl.startswith('.'): continue
+		feed = os.path.join(site_packages, impl, '0install', 'feed.xml')
+		if not os.path.exists(feed):
+			warn(_("Site-local feed {path} not found").format(path = feed))
+		debug("Adding site-local feed '%s'", feed)
+
+		# (we treat these as user overrides in order to let old versions of 0install
+		# find them)
+		interface.extra_feeds.append(Feed(feed, None, user_override = True, site_package = True))
+		known_site_feeds.add(feed)
+
 def update_from_cache(interface, iface_cache = None):
 	"""Read a cached interface and any native feeds or user overrides.
 	@param interface: the interface object to update
@@ -33,14 +46,23 @@ def update_from_cache(interface, iface_cache = None):
 		from zeroinstall.injector import policy
 		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 
+	escaped_uri = model._pretty_escape(interface.uri)
 	# Add the distribution package manager's version, if any
-	path = basedir.load_first_data(config_site, 'native_feeds', model._pretty_escape(interface.uri))
+	path = basedir.load_first_data(config_site, 'native_feeds', escaped_uri)
 	if path:
 		# Resolve any symlinks
 		info(_("Adding native packager feed '%s'"), path)
 		interface.extra_feeds.append(Feed(os.path.realpath(path), None, False))
 
-	update_user_overrides(interface)
+	# Add locally-compiled binaries, if any
+	known_site_feeds = set()
+	for path in basedir.load_data_paths(config_site, 'site-packages', escaped_uri):
+		try:
+			_add_site_packages(interface, path, known_site_feeds)
+		except Exception as ex:
+			warn("Error loading site packages from {path}: {ex}".format(path = path, ex = ex))
+
+	update_user_overrides(interface, known_site_feeds)
 
 	main_feed = iface_cache.get_feed(interface.uri, force = True)
 	if main_feed:
@@ -105,11 +127,12 @@ def update_user_feed_overrides(feed):
 			if user_stability:
 				impl.user_stability = stability_levels[str(user_stability)]
 
-def update_user_overrides(interface):
+def update_user_overrides(interface, known_site_feeds = frozenset()):
 	"""Update an interface with user-supplied information.
 	Sets preferred stability and updates extra_feeds.
 	@param interface: the interface object to update
 	@type interface: L{model.Interface}
+	@param known_site_feeds: feeds to ignore (for backwards compatibility)
 	"""
 	user = basedir.load_first_config(config_site, config_prog,
 					   'interfaces', model._pretty_escape(interface.uri))
@@ -136,6 +159,13 @@ def update_user_overrides(interface):
 			feed_src = item.getAttribute('src')
 			if not feed_src:
 				raise InvalidInterface(_('Missing "src" attribute in <feed>'))
+			if item.getAttribute('site-package'):
+				# Site packages are detected earlier. This test isn't completely reliable,
+				# since older versions will remove the attribute when saving the config
+				# (hence the next test).
+				continue
+			if feed_src in known_site_feeds:
+				continue
 			interface.extra_feeds.append(Feed(feed_src, item.getAttribute('arch'), True, langs = item.getAttribute('langs')))
 
 def check_readable(feed_url, source):

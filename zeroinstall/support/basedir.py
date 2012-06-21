@@ -154,3 +154,13 @@ def load_first_data(*resource):
 	for x in load_data_paths(*resource):
 		return x
 	return None
+
+def save_data_path(*resource):
+	"""Ensure $XDG_DATA_HOME/<resource>/ exists, and return its path.
+	'resource' should normally be the name of your application."""
+	resource = os.path.join(*resource)
+	assert not os.path.isabs(resource)
+	path = os.path.join(xdg_data_home, resource)
+	if not os.path.isdir(path):
+		os.makedirs(path, 0o700)
+	return path

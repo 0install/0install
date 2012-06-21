@@ -379,14 +379,15 @@ class OverlayBinding(Binding):
 class Feed(object):
 	"""An interface's feeds are other interfaces whose implementations can also be
 	used as implementations of this interface."""
-	__slots__ = ['uri', 'os', 'machine', 'user_override', 'langs']
-	def __init__(self, uri, arch, user_override, langs = None):
+	__slots__ = ['uri', 'os', 'machine', 'user_override', 'langs', 'site_package']
+	def __init__(self, uri, arch, user_override, langs = None, site_package = False):
 		self.uri = uri
 		# This indicates whether the feed comes from the user's overrides
 		# file. If true, writer.py will write it when saving.
 		self.user_override = user_override
 		self.os, self.machine = _split_arch(arch)
 		self.langs = langs
+		self.site_package = site_package
 	
 	def __str__(self):
 		return "<Feed from %s>" % self.uri
