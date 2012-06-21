@@ -381,10 +381,12 @@ class Fetcher(object):
 						 type = retrieval_method.type, start_offset = retrieval_method.start_offset or 0)
 
 	def _add_to_external_store(self, required_digest, steps, streams):
+		from zeroinstall.zerostore.unpack import type_from_url
+
 		# combine archive path, extract directory and MIME type arguments in an alternating fashion
 		paths = map(lambda stream: stream.name, streams)
-		extracts = map(lambda step: step.extract, steps)
-		types = map(lambda step: step.type, steps)
+		extracts = map(lambda step: step.extract or "", steps)
+		types = map(lambda step: step.type or type_from_url(step.url), steps)
 		args = [None]*(len(paths)+len(extracts)+len(types))
 		args[::3] = paths
 		args[1::3] = extracts
