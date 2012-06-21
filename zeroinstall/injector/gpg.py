@@ -24,7 +24,7 @@ _gnupg_options = None
 def _run_gpg(args, **kwargs):
 	global _gnupg_options
 	if _gnupg_options is None:
-		gpg_path = find_in_path('gpg') or find_in_path('gpg2') or 'gpg'
+		gpg_path = os.environ.get('ZEROINSTALL_GPG') or find_in_path('gpg') or find_in_path('gpg2') or 'gpg'
 		_gnupg_options = [gpg_path, '--no-secmem-warning']
 
 		if hasattr(os, 'geteuid') and os.geteuid() == 0 and 'GNUPGHOME' not in os.environ:

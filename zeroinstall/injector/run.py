@@ -316,6 +316,11 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		sys.stdout.flush()
 		sys.stderr.flush()
 		try:
-			os.execv(prog_args[0], prog_args)
+			env = os.environ.copy()
+			for x in ['0install-runenv-ZEROINSTALL_GPG', 'ZEROINSTALL_GPG']:
+				if x in env:
+					del env[x]
+
+			os.execve(prog_args[0], prog_args, env)
 		except OSError as ex:
 			raise SafeException(_("Failed to run '%(program_path)s': %(exception)s") % {'program_path': prog_args[0], 'exception': str(ex)})
