@@ -78,7 +78,10 @@ class Download(object):
 		self._final_total_size = None	# Set when download is finished
 	
 		self.status = download_fetching
-		self.tempfile = tempfile.NamedTemporaryFile(prefix = 'injector-dl-data-', delete = auto_delete)
+		if auto_delete:
+			self.tempfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
+		else:
+			self.tempfile = tempfile.NamedTemporaryFile(prefix = 'injector-dl-data-', delete = True)
 
 		self._aborted = tasks.Blocker("abort " + url)
 
@@ -129,7 +132,7 @@ class Download(object):
 			# on us.
 			self.aborted_by_user = True
 			self.tempfile.close()
-			if not self.tempfile.delete:
+			if hasattr(self.tempfile, 'delete') and not self.tempfile.delete:
 				os.remove(self.tempfile.name)
 			self.tempfile = None
 			self._aborted.trigger()
