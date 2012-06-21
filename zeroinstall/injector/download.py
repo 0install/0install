@@ -129,6 +129,8 @@ class Download(object):
 			# on us.
 			self.aborted_by_user = True
 			self.tempfile.close()
+			if not self.tempfile.delete:
+				os.remove(self.tempfile.name)
 			self.tempfile = None
 			self._aborted.trigger()
 
