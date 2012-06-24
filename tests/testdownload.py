@@ -81,10 +81,13 @@ class Reply:
 		return self.reply
 
 def download_and_execute(driver, prog_args, main = None):
+	driver_download(driver)
+	run.execute_selections(driver.solver.selections, prog_args, stores = driver.config.stores, main = main)
+
+def driver_download(driver):
 	downloaded = driver.solve_and_download_impls()
 	if downloaded:
 		tasks.wait_for_blocker(downloaded)
-	run.execute_selections(driver.solver.selections, prog_args, stores = driver.config.stores, main = main)
 
 class NetworkManager:
 	def state(self):
@@ -344,6 +347,19 @@ class TestDownload(BaseTest):
 					raise ex
 		finally:
 			sys.stdout = old_out
+	
+	def testRename(self):
+		with output_suppressed():
+			run_server(('HelloWorld.tar.bz2',))
+			requirements = Requirements(os.path.abspath('RecipeRename.xml'))
+			requirements.command = None
+			driver = Driver(requirements = requirements, config = self.config)
+			driver_download(driver)
+			digests = driver.solver.selections[requirements.interface_uri].digests
+			path = self.config.stores.lookup_any(digests)
+			assert os.path.exists(os.path.join(path, 'HelloUniverse', 'minor'))
+			assert not os.path.exists(os.path.join(path, 'HelloWorld'))
+			assert not os.path.exists(os.path.join(path, 'HelloUniverse', 'main'))
 
 	def testSymlink(self):
 		old_out = sys.stdout

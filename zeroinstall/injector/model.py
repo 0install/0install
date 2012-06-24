@@ -496,6 +496,14 @@ class DownloadSource(RetrievalMethod):
 		self.start_offset = start_offset
 		self.type = type		# MIME type - see unpack.py
 
+class RenameStep(RetrievalMethod):
+	"""A Rename provides a way to rename / move a file within an implementation."""
+	__slots__ = ['source', 'dest']
+
+	def __init__(self, source, dest):
+		self.source = source
+		self.dest = dest
+
 class Recipe(RetrievalMethod):
 	"""Get an implementation by following a series of steps.
 	@ivar size: the combined download sizes from all the steps
@@ -1128,6 +1136,14 @@ class ZeroInstallFeed(object):
 									extract = recipe_step.getAttribute('extract'),
 									start_offset = _get_long(recipe_step, 'start-offset'),
 									type = recipe_step.getAttribute('type')))
+						elif recipe_step.uri == XMLNS_IFACE and recipe_step.name == 'rename':
+							source = recipe_step.getAttribute('source')
+							if not source:
+								raise InvalidInterface(_("Missing source attribute on <rename>"))
+							dest = recipe_step.getAttribute('dest')
+							if not dest:
+								raise InvalidInterface(_("Missing dest attribute on <rename>"))
+							recipe.steps.append(RenameStep(source=source, dest=dest))
 						else:
 							info(_("Unknown step '%s' in recipe; skipping recipe"), recipe_step.name)
 							break

@@ -9,8 +9,10 @@ from zeroinstall import _, NeedDownload
 import os
 from logging import info, debug, warn
 
+from zeroinstall import support
 from zeroinstall.support import tasks, basedir, portable_rename
 from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
+from zeroinstall.injector import model
 from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, escape, DistributionSource
 from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
 from zeroinstall.injector.handler import NoTrustedKeys
@@ -112,25 +114,24 @@ class Fetcher(object):
 		@see: L{download_impl} uses this method when appropriate"""
 		# Maybe we're taking this metaphor too far?
 
-		# Start downloading all the ingredients.
-		streams = {}	# Streams collected from successful downloads
-
 		# Start a download for each ingredient
 		blockers = []
-		for step in recipe.steps:
-			blocker, stream = self.download_archive(step, force = force, impl_hint = impl_hint)
-			assert stream
-			blockers.append(blocker)
-			streams[step] = stream
+		steps = []
+		for stepdata in recipe.steps:
+			cls = StepRunner.class_for(stepdata)
+			step = cls(stepdata, force=force, impl_hint=impl_hint)
+			step.prepare(self, blockers)
+			steps.append(step)
 
 		while blockers:
 			yield blockers
 			tasks.check(blockers)
 			blockers = [b for b in blockers if not b.happened]
 
-		from zeroinstall.zerostore import unpack
 
 		if self.external_store:
+			# Note: external_store will not yet work with non-<archive> steps.
+			streams = [step.stream for step in steps]
 			self._add_to_external_store(required_digest, recipe.steps, streams)
 		else:
 			# Create an empty directory for the new implementation
@@ -138,20 +139,14 @@ class Fetcher(object):
 			tmpdir = store.get_tmp_dir_for(required_digest)
 			try:
 				# Unpack each of the downloaded archives into it in turn
-				for step in recipe.steps:
-					stream = streams[step]
-					stream.seek(0)
-					unpack.unpack_archive_over(step.url, stream, tmpdir,
-							extract = step.extract,
-							type = step.type,
-							start_offset = step.start_offset or 0)
+				for step in steps:
+					step.apply(tmpdir)
 				# Check that the result is correct and store it in the cache
 				store.check_manifest_and_rename(required_digest, tmpdir)
 				tmpdir = None
 			finally:
 				# If unpacking fails, remove the temporary directory
 				if tmpdir is not None:
-					from zeroinstall import support
 					support.ro_rmtree(tmpdir)
 
 	def get_feed_mirror(self, url):
@@ -561,3 +556,63 @@ class Fetcher(object):
 		self.handler.monitor_download(dl)
 		dl.downloaded = self.scheduler.download(dl)
 		return dl
+
+class StepRunner(object):
+	"""The base class of all step runners"""
+	def __init__(self, stepdata, force, impl_hint):
+		self.stepdata = stepdata
+		self.force = force
+		self.impl_hint = impl_hint
+
+	def prepare(self, fetcher, blockers):
+		pass
+
+	@classmethod
+	def class_for(cls, model):
+		for subcls in cls.__subclasses__():
+			if subcls.model_type == type(model):
+				return subcls
+		assert False, "Couldn't find step runner for %s" % (type(model),)
+
+class RenameStepRunner(StepRunner):
+	"""A step runner for the <rename> step"""
+
+	model_type = model.RenameStep
+
+	def apply(self, basedir):
+		source = native_path_within_base(basedir, self.stepdata.source)
+		dest = native_path_within_base(basedir, self.stepdata.dest)
+		os.rename(source, dest)
+
+class DownloadStepRunner(StepRunner):
+	"""A step runner for the <archive> step"""
+
+	model_type = model.DownloadSource
+
+	def prepare(self, fetcher, blockers):
+		self.blocker, self.stream = fetcher.download_archive(self.stepdata, force = self.force, impl_hint = self.impl_hint)
+		assert self.stream
+		blockers.append(self.blocker)
+	
+	def apply(self, basedir):
+		from zeroinstall.zerostore import unpack
+		assert self.blocker.happened
+		unpack.unpack_archive_over(self.stepdata.url, self.stream, basedir,
+				extract = self.stepdata.extract,
+				type=self.stepdata.type,
+				start_offset = self.stepdata.start_offset or 0)
+
+def native_path_within_base(base, crossplatform_path):
+	"""Takes a cross-platform relative path (i.e using forward slashes, even on windows)
+	and returns the absolute, platform-native version of the path.
+	If the path does not resolve to a location within `base`, a SafeError is raised.
+	"""
+	assert os.path.isabs(base)
+	if crossplatform_path.startswith("/"):
+		raise SafeException("path %r is not within the base directory" % (crossplatform_path,))
+	native_path = os.path.join(*crossplatform_path.split("/"))
+	fullpath = os.path.realpath(os.path.join(base, native_path))
+	base = os.path.realpath(base)
+	if not fullpath.startswith(base + os.path.sep):
+		raise SafeException("path %r is not within the base directory" % (crossplatform_path,))
+	return fullpath
