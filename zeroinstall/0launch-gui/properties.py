@@ -128,29 +128,30 @@ class Description:
 			buffer.insert(iter, _('Homepage: '))
 			buffer.insert_with_tags(iter, '%s\n' % x.content, self.link_style)
 
-		buffer.insert_with_tags(iter, '\n' + _('Signatures') + '\n', heading_style)
-		sigs = iface_cache.get_cached_signatures(feed.url)
-		if sigs:
-			for sig in sigs:
-				if isinstance(sig, gpg.ValidSig):
-					name = _('<unknown>')
-					details = sig.get_details()
-					for item in details:
-						if item[0] == 'uid' and len(item) > 9:
-							name = item[9]
-							break
-					buffer.insert_with_tags(iter, _('Valid signature by "%(name)s"\n- Dated: %(sig_date)s\n- Fingerprint: %(sig_fingerprint)s\n') %
-							{'name': name, 'sig_date': time.strftime('%c', time.localtime(sig.get_timestamp())), 'sig_fingerprint': sig.fingerprint})
-					if not sig.is_trusted():
-						if os.path.isabs(feed.url):
-							buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list') + '\n')
-						else:
-							buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list (either you removed it, or '
-											'you trust one of the other signatures)') + '\n')
-				else:
-					buffer.insert_with_tags(iter, '%s\n' % sig)
-		else:
-			buffer.insert_with_tags(iter, _('No signature information (old style feed or out-of-date cache)') + '\n')
+		if feed.local_path is None:
+			buffer.insert_with_tags(iter, '\n' + _('Signatures') + '\n', heading_style)
+			sigs = iface_cache.get_cached_signatures(feed.url)
+			if sigs:
+				for sig in sigs:
+					if isinstance(sig, gpg.ValidSig):
+						name = _('<unknown>')
+						details = sig.get_details()
+						for item in details:
+							if item[0] == 'uid' and len(item) > 9:
+								name = item[9]
+								break
+						buffer.insert_with_tags(iter, _('Valid signature by "%(name)s"\n- Dated: %(sig_date)s\n- Fingerprint: %(sig_fingerprint)s\n') %
+								{'name': name, 'sig_date': time.strftime('%c', time.localtime(sig.get_timestamp())), 'sig_fingerprint': sig.fingerprint})
+						if not sig.is_trusted():
+							if os.path.isabs(feed.url):
+								buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list') + '\n')
+							else:
+								buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list (either you removed it, or '
+												'you trust one of the other signatures)') + '\n')
+					else:
+						buffer.insert_with_tags(iter, '%s\n' % sig)
+			else:
+				buffer.insert_with_tags(iter, _('No signature information (old style feed or out-of-date cache)') + '\n')
 
 class Feeds:
 	URI = 0
