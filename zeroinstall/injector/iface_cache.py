@@ -30,7 +30,6 @@ creating new cache objects.
 
 import os, sys, time
 from logging import debug, info, warn
-from cStringIO import StringIO
 
 from zeroinstall import _
 from zeroinstall.support import basedir, portable_rename
