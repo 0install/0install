@@ -52,10 +52,10 @@ requires first uninstalling another.</description>
       <version before="3" not-before="2.6"/>
     </requires>
 
-    <requires interface='http://repo.roscidus.com/security/gnupg'>
-      <executable-in-var name='ZEROINSTALL_GPG'/>
+    <requires interface="http://repo.roscidus.com/security/gnupg">
+      <executable-in-var name="ZEROINSTALL_GPG"/>
     </requires>
 
-    <implementation id="." version="1.8-post"/>
+    <implementation id="." released="2012-06-27" version="1.9"/>
   </group>
 </interface>
