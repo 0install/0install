@@ -78,8 +78,8 @@ class App:
 
 	def get_selections(self, snapshot_date = None):
 		"""Load the selections. Does not check whether they are cached, nor trigger updates.
-		@param date: get a historical snapshot
-		@type date: (as returned by L{get_history})
+		@param snapshot_date: get a historical snapshot
+		@type snapshot_date: (as returned by L{get_history}) | None
 		@return: the selections
 		@rtype: L{selections.Selections}"""
 		if snapshot_date:
@@ -263,7 +263,7 @@ class AppManager:
 		"""Get the App for name.
 		Returns None if name is not an application (doesn't exist or is not a valid name).
 		Since / and : are not valid name characters, it is generally safe to try this
-		before calling L{model.canonical_iface_uri}."""
+		before calling L{injector.model.canonical_iface_uri}."""
 		if not valid_name.match(name):
 			if missing_ok:
 				return None
