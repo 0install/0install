@@ -161,7 +161,7 @@ def handle(config, options, args):
 		iface_uri = model.canonical_iface_uri(args[0])
 		do_select = True
 
-	if do_select:
+	if do_select or options.gui:
 		sels = get_selections(config, options, iface_uri,
 					select_only = True, download_only = False, test_callback = None)
 		if not sels:
