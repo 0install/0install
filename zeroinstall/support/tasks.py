@@ -35,7 +35,7 @@ callbacks. See the Task class (below) for more information.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, support
 import sys
 from logging import info, warn, debug
 import gobject
@@ -65,7 +65,7 @@ def check(blockers, reporter = None):
 			else:
 				warn(_("Multiple exceptions waiting; skipping %s"), b.exception[0])
 	if ex:
-		raise ex[0], None, ex[1]
+		support.raise_with_traceback(ex[0], ex[1])
 
 class Blocker:
 	"""A Blocker object starts life with 'happened = False'. Tasks can

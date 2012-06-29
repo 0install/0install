@@ -51,13 +51,10 @@ class Cache(object):
 			mtime = size = 0
 		self.cache = {}
 		import tempfile
-		tmp, tmp_name = tempfile.mkstemp(dir = self.cache_dir)
-		data = "mtime=%d\nsize=%d\nformat=%d\n\n" % (mtime, size, self.format)
-		while data:
-			wrote = os.write(tmp, data)
-			data = data[wrote:]
-		os.close(tmp)
-		portable_rename(tmp_name, os.path.join(self.cache_dir, self.cache_leaf))
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt', dir = self.cache_dir, delete = False)
+		tmp.write("mtime=%d\nsize=%d\nformat=%d\n\n" % (mtime, size, self.format))
+		tmp.close()
+		portable_rename(tmp.name, os.path.join(self.cache_dir, self.cache_leaf))
 
 		self._load_cache()
 

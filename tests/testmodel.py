@@ -98,7 +98,8 @@ class TestModel(BaseTest):
 
 	def testLocale(self):
 		local_path = os.path.join(mydir, 'Local.xml')
-		dom = qdom.parse(open(local_path))
+		with open(local_path, 'rb') as stream:
+			dom = qdom.parse(stream)
 		feed = model.ZeroInstallFeed(dom, local_path = local_path)
 		# (defaults to en-US if no language is set in the locale)
 		self.assertEqual("Local feed (English)", feed.summary)
@@ -126,7 +127,8 @@ class TestModel(BaseTest):
 
 	def testCommand(self):
 		local_path = os.path.join(mydir, 'Command.xml')
-		dom = qdom.parse(open(local_path))
+		with open(local_path, 'rb') as stream:
+			dom = qdom.parse(stream)
 		feed = model.ZeroInstallFeed(dom, local_path = local_path)
 
 		assert feed.implementations['a'].main == 'foo'
@@ -148,8 +150,9 @@ class TestModel(BaseTest):
 		self.assertEqual(model.buggy, i.stability_policy)
 
 	def testImpl(self):
-		i = model.Interface('http://foo')
-		a = model.ZeroInstallImplementation(i, 'foo', None)
+		f = model.ZeroInstallFeed(None)
+		f.url = 'http://foo'
+		a = model.ZeroInstallImplementation(f, 'foo', None)
 		assert a.id == 'foo'
 		assert a.size == a.version == a.user_stability == None
 		assert a.arch == a.upstream_stability == None
@@ -166,7 +169,7 @@ class TestModel(BaseTest):
 		self.assertEqual('1.2.3-rc2-post', a.get_version())
 		assert str(a) == 'foo'
 
-		b = model.ZeroInstallImplementation(i, 'foo', None)
+		b = model.ZeroInstallImplementation(f, 'foo', None)
 		b.version = model.parse_version("1.2.1")
 		assert b > a
 	
@@ -222,14 +225,14 @@ class TestModel(BaseTest):
 			self.assertEqual(expected, str(ol))
 
 			doc = minidom.parseString('<doc/>')
-			new_xml = str(ol._toxml(doc, None).toxml())
+			new_xml = ol._toxml(doc, None).toxml(encoding = 'utf-8')
 			new_e = qdom.parse(BytesIO(new_xml))
 			new_ol = model.process_binding(new_e)
 			self.assertEqual(expected, str(new_ol))
 
 	def testReplaced(self):
 		local_path = os.path.join(mydir, 'Replaced.xml')
-		with open(local_path) as stream:
+		with open(local_path, 'rb') as stream:
 			dom = qdom.parse(stream)
 		feed = model.ZeroInstallFeed(dom, local_path = local_path)
 		self.assertEqual("http://localhost:8000/Hello", feed.get_replaced_by())
@@ -296,7 +299,7 @@ class TestModel(BaseTest):
 		# file:absolute
 		model.canonical_iface_uri('file://{path}/Command.xml'.format(path = mydir))
 		try:
-			print model.canonical_iface_uri('file://{path}/CommandMissing.xml'.format(path = mydir))
+			model.canonical_iface_uri('file://{path}/CommandMissing.xml'.format(path = mydir))
 			assert False
 		except model.SafeException as ex:
 			assert "Bad interface name 'file://" in str(ex), ex

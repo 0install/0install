@@ -9,7 +9,11 @@ Holds user settings and various helper objects.
 from zeroinstall import support, _
 import os
 from logging import info, warn
-import ConfigParser
+
+try:
+	import ConfigParser
+except ImportError:
+	import configparser as ConfigParser
 
 from zeroinstall import zerostore
 from zeroinstall.injector.model import network_levels, network_full

@@ -14,7 +14,7 @@ well-known variables.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os, re, locale
+import os, re, locale, sys
 from logging import info, debug, warn
 from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
@@ -106,6 +106,18 @@ class Stability(object):
 
 	def __cmp__(self, other):
 		return cmp(self.level, other.level)
+
+	def __lt__(self, other):
+		if isinstance(other, Stability):
+			return self.level < other.level
+		else:
+			return NotImplemented
+
+	def __eq__(self, other):
+		if isinstance(other, Stability):
+			return self.level == other.level
+		else:
+			return NotImplemented
 
 	def __str__(self):
 		return self.name
@@ -643,6 +655,24 @@ class Implementation(object):
 		d = cmp(other.feed.url, self.feed.url)
 		if d: return d
 		return cmp(other.id, self.id)
+
+	def __eq__(self, other):
+		if isinstance(other, Implementation):
+			return self.id == other.id
+		else:
+			return NotImplemented
+
+	def __le__(self, other):
+		if isinstance(other, Implementation):
+			if other.version < self.version: return True
+			elif other.version > self.version: return False
+
+			if other.feed.url < self.feed.url: return True
+			elif other.feed.url > self.feed.url: return False
+
+			return other.id <= self.id
+		else:
+			return NotImplemented
 
 	def get_version(self):
 		"""Return the version as a string.
@@ -1198,36 +1228,77 @@ class DummyFeed(object):
 	def get_metadata(self, uri, name): return []
 _dummy_feed = DummyFeed()
 
-def unescape(uri):
-	"""Convert each %20 to a space, etc.
-	@rtype: str"""
-	uri = uri.replace('#', '/')
-	if '%' not in uri: return uri
-	return re.sub('%[0-9a-fA-F][0-9a-fA-F]',
-		lambda match: chr(int(match.group(0)[1:], 16)),
-		uri).decode('utf-8')
+if sys.version_info[0] > 2:
+	# Python 3
+	from functools import total_ordering
+	Stability = total_ordering(Stability)
+	Implementation = total_ordering(Implementation)
 
-def escape(uri):
-	"""Convert each space to %20, etc
-	@rtype: str"""
-	return re.sub('[^-_.a-zA-Z0-9]',
-		lambda match: '%%%02x' % ord(match.group(0)),
-		uri.encode('utf-8'))
+	unicode = str
+	# These could be replaced by urllib.parse.quote, except that
+	# it uses upper-case escapes and we use lower-case ones...
+	def unescape(uri):
+		"""Convert each %20 to a space, etc.
+		@rtype: str"""
+		uri = uri.replace('#', '/')
+		if '%' not in uri: return uri
+		return re.sub(b'%[0-9a-fA-F][0-9a-fA-F]',
+			lambda match: bytes([int(match.group(0)[1:], 16)]),
+			uri.encode('ascii')).decode('utf-8')
 
-def _pretty_escape(uri):
-	"""Convert each space to %20, etc
-	: is preserved and / becomes #. This makes for nicer strings,
-	and may replace L{escape} everywhere in future.
-	@rtype: str"""
-	if os.name == "posix":
-		# Only preserve : on Posix systems
-		preserveRegex = '[^-_.a-zA-Z0-9:/]'
-	else:
-		# Other OSes may not allow the : character in file names
-		preserveRegex = '[^-_.a-zA-Z0-9/]'
-	return re.sub(preserveRegex,
-		lambda match: '%%%02x' % ord(match.group(0)),
-		uri.encode('utf-8')).replace('/', '#')
+	def escape(uri):
+		"""Convert each space to %20, etc
+		@rtype: str"""
+		return re.sub(b'[^-_.a-zA-Z0-9]',
+			lambda match: ('%%%02x' % ord(match.group(0))).encode('ascii'),
+			uri.encode('utf-8')).decode('ascii')
+
+	def _pretty_escape(uri):
+		"""Convert each space to %20, etc
+		: is preserved and / becomes #. This makes for nicer strings,
+		and may replace L{escape} everywhere in future.
+		@rtype: str"""
+		if os.name == "posix":
+			# Only preserve : on Posix systems
+			preserveRegex = b'[^-_.a-zA-Z0-9:/]'
+		else:
+			# Other OSes may not allow the : character in file names
+			preserveRegex = b'[^-_.a-zA-Z0-9/]'
+		return re.sub(preserveRegex,
+			lambda match: ('%%%02x' % ord(match.group(0))).encode('ascii'),
+			uri.encode('utf-8')).decode('ascii').replace('/', '#')
+else:
+	# Python 2
+	def unescape(uri):
+		"""Convert each %20 to a space, etc.
+		@rtype: str"""
+		uri = uri.replace('#', '/')
+		if '%' not in uri: return uri
+		return re.sub('%[0-9a-fA-F][0-9a-fA-F]',
+			lambda match: chr(int(match.group(0)[1:], 16)),
+			uri).decode('utf-8')
+
+	def escape(uri):
+		"""Convert each space to %20, etc
+		@rtype: str"""
+		return re.sub('[^-_.a-zA-Z0-9]',
+			lambda match: '%%%02x' % ord(match.group(0)),
+			uri.encode('utf-8'))
+
+	def _pretty_escape(uri):
+		"""Convert each space to %20, etc
+		: is preserved and / becomes #. This makes for nicer strings,
+		and may replace L{escape} everywhere in future.
+		@rtype: str"""
+		if os.name == "posix":
+			# Only preserve : on Posix systems
+			preserveRegex = '[^-_.a-zA-Z0-9:/]'
+		else:
+			# Other OSes may not allow the : character in file names
+			preserveRegex = '[^-_.a-zA-Z0-9/]'
+		return re.sub(preserveRegex,
+			lambda match: '%%%02x' % ord(match.group(0)),
+			uri.encode('utf-8')).replace('/', '#')
 
 def canonical_iface_uri(uri):
 	"""If uri is a relative path, convert to an absolute one.
@@ -1302,7 +1373,7 @@ def parse_version(version_string):
 		for x in range(0, l, 2):
 			part = parts[x]
 			if part:
-				parts[x] = map(int, parts[x].split('.'))
+				parts[x] = list(map(int, parts[x].split('.')))
 			else:
 				parts[x] = []	# (because ''.split('.') == [''], not [])
 		for x in range(1, l, 2):

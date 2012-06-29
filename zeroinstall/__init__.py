@@ -28,7 +28,10 @@ except:
 	translation = gettext.translation('zero-install',
 				localedir = localedir,
 				fallback = True)
-_ = translation.ugettext
+try:
+	_ = translation.ugettext	# Python 2
+except AttributeError:
+	_ = translation.gettext		# Python 3
 
 class SafeException(Exception):
 	"""An exception that can be reported to the user without a stack trace.

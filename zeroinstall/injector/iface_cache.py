@@ -32,7 +32,7 @@ import os, sys, time
 from logging import debug, info, warn
 
 from zeroinstall import _
-from zeroinstall.support import basedir, portable_rename
+from zeroinstall.support import basedir, portable_rename, raise_with_traceback
 from zeroinstall.injector import reader, model
 from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.injector.model import Interface, escape, unescape
@@ -122,7 +122,7 @@ class PendingFeed(object):
 					warn(_("Failed to import key for '%(url)s': %(exception)s"), {'url': self.url, 'exception': str(exception)})
 
 		if exception and not any_success:
-			raise exception, None, tb
+			raise_with_traceback(exception, tb)
 
 		self.recheck()
 
