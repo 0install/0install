@@ -87,14 +87,14 @@ def download_in_thread(url, target_file, if_modified_since, notify_done):
 			raise Exception(_('Unsupported URL protocol in: %s') % url)
 
 		if sys.version_info[0] > 2:
-			sock = src.fp.raw._sock		# Python 3
+			sock_recv = src.fp.read1		# Python 3
 		else:
 			try:
-				sock = src.fp._sock	# Python 2
+				sock_recv = src.fp._sock.recv	# Python 2
 			except AttributeError:
-				sock = src.fp.fp._sock	# Python 2.5 on FreeBSD
+				sock_recv = src.fp.fp._sock.recv	# Python 2.5 on FreeBSD
 		while True:
-			data = sock.recv(256)
+			data = sock_recv(256)
 			if not data: break
 			target_file.write(data)
 			target_file.flush()

@@ -639,9 +639,7 @@ class TestDownload(BaseTest):
 
 	def testAbort(self):
 		dl = download.Download("http://localhost/test.tgz", auto_delete = True)
-		path = dl.tempfile.name
 		dl.abort()
-		assert not os.path.exists(path)
 		assert dl._aborted.happened
 		assert dl.tempfile is None
 

@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 from basetest import BaseTest
 import sys, tempfile, os, logging
-from io import StringIO
+if sys.version_info[0] > 2:
+	from io import StringIO
+else:
+	from StringIO import StringIO
 import unittest
 
 sys.path.insert(0, '..')
@@ -28,7 +31,7 @@ def download_and_execute(driver, prog_args, main = None, dry_run = True):
 class TestDriver(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
-		stream = tempfile.TemporaryFile(mode = 'w+t')
+		stream = tempfile.TemporaryFile(mode = 'w+b')
 		stream.write(data.thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)

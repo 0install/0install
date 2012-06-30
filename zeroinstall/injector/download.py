@@ -79,9 +79,9 @@ class Download(object):
 	
 		self.status = download_fetching
 		if auto_delete:
-			self.tempfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
+			self.tempfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-', mode = 'w+b')
 		else:
-			self.tempfile = tempfile.NamedTemporaryFile(prefix = 'injector-dl-data-', delete = False)
+			self.tempfile = tempfile.NamedTemporaryFile(prefix = 'injector-dl-data-', mode = 'w+b', delete = False)
 
 		self._aborted = tasks.Blocker("abort " + url)
 
