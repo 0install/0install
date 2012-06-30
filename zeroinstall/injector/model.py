@@ -1178,13 +1178,15 @@ class ZeroInstallFeed(object):
 
 		for item, item_attrs in self._package_implementations:
 			distro_names = item_attrs.get('distributions', '')
+			added_this = False
 			for distro_name in distro_names.split(' '):
 				score = distro.get_score(distro_name) if distro_name else 0.5
 				if score > best_score:
 					best_score = score
 					best_impls = []
-				if score == best_score:
+				if score == best_score and not added_this:
 					best_impls.append((item, item_attrs))
+					added_this = True
 		return best_impls
 
 	def get_name(self):

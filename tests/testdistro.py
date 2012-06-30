@@ -163,6 +163,14 @@ class TestDistro(BaseTest):
 		impls = icache.get_feed(feed.get_distro_feed()).implementations
 		assert len(impls) == 2, impls
 
+		feed = parse_impls("""
+				<package-implementation distributions="Foo Bar Baz" package="yast2-mail"/>
+				""")
+		icache._feeds[feed.url] = feed
+		del icache._feeds['distribution:' + feed.url]
+		impls = icache.get_feed(feed.get_distro_feed()).implementations
+		assert len(impls) == 1, impls
+
 	def testSlack(self):
 		slackdir = os.path.join(os.path.dirname(__file__), 'slack')
 		slack = distro.SlackDistribution(os.path.join(slackdir, 'packages'))
