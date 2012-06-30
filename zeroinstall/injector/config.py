@@ -112,7 +112,8 @@ class Config(object):
 
 		path = basedir.save_config_path(config_site, config_prog)
 		path = os.path.join(path, 'global')
-		parser.write(open(path + '.new', 'w'))
+		with open(path + '.new', 'wt') as stream:
+			parser.write(stream)
 		support.portable_rename(path + '.new', path)
 
 def load_config(handler = None):

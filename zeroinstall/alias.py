@@ -7,6 +7,7 @@ Support code for 0alias scripts.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _, SafeException
+from zeroinstall import support
 
 _old_template = '''#!/bin/sh
 if [ "$*" = "--versions" ]; then
@@ -40,22 +41,22 @@ def parse_script(pathname):
 	@rtype: L{ScriptInfo}
 	@raise NotAnAliasScript: if we can't parse the script
 	"""
-	stream = open(pathname)
-	template_header = _template[:_template.index("%s'")]
-	actual_header = stream.read(len(template_header))
-	stream.seek(0)
-	if template_header == actual_header:
-		# If it's a 0alias script, it should be quite short!
-		rest = stream.read()
-		line = rest.split('\n')[1]
-	else:
-		old_template_header = \
-		    _old_template[:_old_template.index("-gd '")]
-		actual_header = stream.read(len(old_template_header))
-		if old_template_header != actual_header:
-			raise NotAnAliasScript(_("'%s' does not look like a script created by 0alias") % pathname)
-		rest = stream.read()
-		line = rest.split('\n')[2]
+	with open(pathname, 'rt') as stream:
+		template_header = _template[:_template.index("%s'")]
+		actual_header = stream.read(len(template_header))
+		stream.seek(0)
+		if template_header == actual_header:
+			# If it's a 0alias script, it should be quite short!
+			rest = stream.read()
+			line = rest.split('\n')[1]
+		else:
+			old_template_header = \
+			    _old_template[:_old_template.index("-gd '")]
+			actual_header = stream.read(len(old_template_header))
+			if old_template_header != actual_header:
+				raise NotAnAliasScript(_("'%s' does not look like a script created by 0alias") % pathname)
+			rest = stream.read()
+			line = rest.split('\n')[2]
 
 	info = ScriptInfo()
 	split = line.rfind("' '")
@@ -93,4 +94,4 @@ def write_script(stream, interface_uri, main = None, command = None):
 	else:
 		option = ""
 
-	stream.write(_template % (option, interface_uri))
+	stream.write(support.unicode(_template) % (option, interface_uri))

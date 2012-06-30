@@ -135,7 +135,7 @@ class Driver(object):
 			yield blockers
 			tasks.check(blockers, self.config.handler.report_error)
 
-			for f in downloads_in_progress.keys():
+			for f in list(downloads_in_progress.keys()):
 				if f in downloads_in_progress and downloads_in_progress[f].happened:
 					del downloads_in_progress[f]
 					downloads_finished.add(f)

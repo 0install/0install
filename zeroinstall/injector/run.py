@@ -255,7 +255,7 @@ class Setup(object):
 			info("Updating %s", runenv)
 			tmp.write(expected_contents)
 			tmp.close()
-			os.chmod(tmp.name, 0555)
+			os.chmod(tmp.name, 0o555)
 			os.rename(tmp.name, runenv)
 
 		self._checked_runenv = True

@@ -2,7 +2,10 @@
 from __future__ import with_statement
 from basetest import BaseTest
 import sys, tempfile, os
-from StringIO import StringIO
+if sys.version_info[0] > 2:
+	from io import StringIO
+else:
+	from StringIO import StringIO
 import unittest, signal
 from logging import getLogger, WARN, ERROR
 from contextlib import contextmanager
@@ -100,12 +103,13 @@ def kill_server_process():
 		# The process may still be running.  See
 		# http://bugs.python.org/issue14252 for why this is so
 		# complicated.
+		server_process.stdout.close()
 		if os.name != 'nt':
 			server_process.kill()
 		else:
 			try:
 				server_process.kill()
-			except WindowsError, e:
+			except WindowsError as e:
 				# This is what happens when terminate
 				# is called after the process has died.
 				if e.winerror == 5 and e.strerror == 'Access is denied':
@@ -219,7 +223,8 @@ class TestDownload(BaseTest):
 
 	def testSelections(self):
 		from zeroinstall.injector import cli
-		root = qdom.parse(open("selections.xml"))
+		with open("selections.xml", 'rb') as stream:
+			root = qdom.parse(stream)
 		sels = selections.Selections(root)
 		class Options: dry_run = False
 
@@ -250,7 +255,8 @@ class TestDownload(BaseTest):
 
 	def testSelectionsWithFeed(self):
 		from zeroinstall.injector import cli
-		root = qdom.parse(open("selections.xml"))
+		with open("selections.xml", 'rb') as stream:
+			root = qdom.parse(stream)
 		sels = selections.Selections(root)
 
 		with output_suppressed():
@@ -432,7 +438,8 @@ class TestDownload(BaseTest):
 			getLogger().setLevel(ERROR)
 			iface = self.config.iface_cache.get_interface('http://example.com:8000/Hello.xml')
 			mtime = int(os.stat('Hello-new.xml').st_mtime)
-			self.config.iface_cache.update_feed_from_network(iface.uri, open('Hello-new.xml').read(), mtime + 10000)
+			with open('Hello-new.xml', 'rb') as stream:
+				self.config.iface_cache.update_feed_from_network(iface.uri, stream.read(), mtime + 10000)
 
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')

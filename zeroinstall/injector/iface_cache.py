@@ -32,7 +32,7 @@ import os, sys, time
 from logging import debug, info, warn
 
 from zeroinstall import _
-from zeroinstall.support import basedir, portable_rename, raise_with_traceback
+from zeroinstall.support import basedir, portable_rename, raise_with_traceback, unicode
 from zeroinstall.injector import reader, model
 from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.injector.model import Interface, escape, unescape
@@ -42,7 +42,7 @@ from zeroinstall import SafeException
 FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
 
 def _pretty_time(t):
-	assert isinstance(t, (int, long)), t
+	#assert isinstance(t, (int, long)), t
 	return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.localtime(t))
 
 class ReplayAttack(SafeException):
@@ -89,7 +89,10 @@ class PendingFeed(object):
 		for x in self.sigs:
 			key_id = x.need_key()
 			if key_id:
-				import urlparse
+				try:
+					import urlparse
+				except ImportError:
+					from urllib import parse as urlparse	# Python 3
 				key_url = urlparse.urljoin(key_mirror or self.url, '%s.gpg' % key_id)
 				info(_("Fetching key from %s"), key_url)
 				dl = fetcher.download_url(key_url, hint = feed_hint)
@@ -279,7 +282,8 @@ class IfaceCache(object):
 
 		old_modified = None
 		if os.path.exists(cached):
-			old_xml = open(cached).read()
+			with open(cached) as stream:
+				old_xml = stream.read()
 			if old_xml == new_xml:
 				debug(_("No change"))
 				# Update in-memory copy, in case someone else updated the disk copy
@@ -288,10 +292,9 @@ class IfaceCache(object):
 			old_modified = int(os.stat(cached).st_mtime)
 
 		# Do we need to write this temporary file now?
-		stream = open(cached + '.new', 'w')
 		try:
-			stream.write(new_xml)
-			stream.close()
+			with open(cached + '.new', 'wb') as stream:
+				stream.write(new_xml)
 			os.utime(cached + '.new', (modified_time, modified_time))
 			new_mtime = reader.check_readable(feed_url, cached + '.new')
 			assert new_mtime == modified_time
@@ -356,8 +359,8 @@ class IfaceCache(object):
 		@rtype: L{model.Interface}
 		"""
 		if type(uri) == str:
-			uri = model.unicode(uri)
-		assert isinstance(uri, model.unicode)
+			uri = unicode(uri)
+		assert isinstance(uri, unicode)
 
 		if uri in self._interfaces:
 			return self._interfaces[uri]
@@ -402,9 +405,10 @@ class IfaceCache(object):
 			if old_iface is None:
 				return None
 		try:
-			return gpg.check_stream(open(old_iface))[1]
+			with open(old_iface, 'rb') as stream:
+				return gpg.check_stream(stream)[1]
 		except SafeException as ex:
-			debug(_("No signatures (old-style interface): %s") % ex)
+			info(_("No signatures (old-style interface): %s") % ex)
 			return None
 
 	def _get_signature_date(self, uri):

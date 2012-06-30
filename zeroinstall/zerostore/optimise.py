@@ -15,15 +15,15 @@ def _already_linked(a, b):
 	return (ai.st_dev, ai.st_ino) == (bi.st_dev, bi.st_ino)
 
 def _byte_identical(a, b):
-	af = open(a, 'rb')
-	bf = open(b, 'rb')
-	while True:
-		adata = af.read(100)
-		bdata = bf.read(100)
-		if adata != bdata:
-			return False
-		if not adata:
-			return True
+	with open(a, 'rb') as af:
+		with open(b, 'rb') as bf:
+			while True:
+				adata = af.read(100)
+				bdata = bf.read(100)
+				if adata != bdata:
+					return False
+				if not adata:
+					return True
 
 def _link(a, b, tmpfile):
 	"""Keep 'a', delete 'b' and hard-link to 'a'"""

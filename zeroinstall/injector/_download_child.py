@@ -7,7 +7,12 @@ from zeroinstall import _
 from zeroinstall.injector import download
 from zeroinstall.support import ssl_match_hostname
 
-import urllib2, httplib
+if sys.version_info[0] > 2:
+	from urllib import request as urllib2
+	from http.client import HTTPSConnection, HTTPException
+else:
+	import urllib2
+	from httplib import HTTPSConnection, HTTPException
 
 try:
 	# http://pypi.python.org/pypi/certifi
@@ -27,7 +32,7 @@ for ca_bundle in [
 		"/var/lib/ca-certificates/ca-bundle.pem.new", # openSUSE (actual)
 		_fallback_ca_bundle]:
 	if os.path.exists(ca_bundle):
-		class ValidatingHTTPSConnection(httplib.HTTPSConnection):
+		class ValidatingHTTPSConnection(HTTPSConnection):
 			def connect(self):
 				sock = socket.create_connection((self.host, self.port), self.timeout)
 				if hasattr(self, '_tunnel_host') and self._tunnel_host:
@@ -81,10 +86,13 @@ def download_in_thread(url, target_file, if_modified_since, notify_done):
 		else:
 			raise Exception(_('Unsupported URL protocol in: %s') % url)
 
-		try:
-			sock = src.fp._sock
-		except AttributeError:
-			sock = src.fp.fp._sock	# Python 2.5 on FreeBSD
+		if sys.version_info[0] > 2:
+			sock = src.fp.raw._sock		# Python 3
+		else:
+			try:
+				sock = src.fp._sock	# Python 2
+			except AttributeError:
+				sock = src.fp.fp._sock	# Python 2.5 on FreeBSD
 		while True:
 			data = sock.recv(256)
 			if not data: break
@@ -92,7 +100,7 @@ def download_in_thread(url, target_file, if_modified_since, notify_done):
 			target_file.flush()
 
 		notify_done(download.RESULT_OK)
-	except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException, socket.error) as ex:
+	except (urllib2.HTTPError, urllib2.URLError, HTTPException, socket.error) as ex:
 		if isinstance(ex, urllib2.HTTPError) and ex.code == 304: # Not modified
 			notify_done(download.RESULT_NOT_MODIFIED)
 		else:

@@ -10,7 +10,7 @@ from zeroinstall import _
 import os, platform, re, subprocess, sys
 from logging import warn, info
 from zeroinstall.injector import namespaces, model, arch
-from zeroinstall.support import basedir, portable_rename
+from zeroinstall.support import basedir, portable_rename, intern
 
 _dotted_ints = '[0-9]+(?:\.[0-9]+)*'
 
@@ -345,7 +345,7 @@ class CachedDistribution(Distribution):
 			versions = self.versions
 			for line in stream:
 				package, version, zi_arch = line[:-1].split('\t')
-				versionarch = (version, model.intern(zi_arch))
+				versionarch = (version, intern(zi_arch))
 				if package not in versions:
 					versions[package] = [versionarch]
 				else:

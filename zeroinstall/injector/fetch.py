@@ -154,8 +154,7 @@ class Fetcher(object):
 		"""Return the URL of a mirror for this feed."""
 		if self.config.feed_mirror is None:
 			return None
-		import urlparse
-		if urlparse.urlparse(url).hostname == 'localhost':
+		if support.urlparse(url).hostname == 'localhost':
 			return None
 		return '%s/%s/latest.xml' % (self.config.feed_mirror, _get_feed_dir(url))
 
@@ -226,7 +225,7 @@ class Fetcher(object):
 
 			# Wait until both mirror and primary tasks are complete...
 			while True:
-				blockers = filter(None, [primary, mirror])
+				blockers = list(filter(None, [primary, mirror]))
 				if not blockers:
 					break
 				yield blockers

@@ -59,7 +59,7 @@ class App:
 		sels_file = os.path.join(self.path, 'selections-{date}.xml'.format(date = date))
 		dom = sels.toDOM()
 
-		tmp = tempfile.NamedTemporaryFile(prefix = 'selections.xml-', dir = self.path, delete = False)
+		tmp = tempfile.NamedTemporaryFile(prefix = 'selections.xml-', dir = self.path, delete = False, mode = 'wt')
 		try:
 			dom.writexml(tmp, addindent="  ", newl="\n", encoding = 'utf-8')
 		except:
@@ -86,7 +86,7 @@ class App:
 			sels_file = os.path.join(self.path, 'selections-' + snapshot_date + '.xml')
 		else:
 			sels_file = os.path.join(self.path, 'selections.xml')
-		with open(sels_file) as stream:
+		with open(sels_file, 'rb') as stream:
 			return selections.Selections(qdom.parse(stream))
 
 	def get_history(self):
@@ -142,7 +142,7 @@ class App:
 
 	def set_requirements(self, requirements):
 		import json
-		tmp = tempfile.NamedTemporaryFile(prefix = 'tmp-requirements-', dir = self.path, delete = False)
+		tmp = tempfile.NamedTemporaryFile(prefix = 'tmp-requirements-', dir = self.path, delete = False, mode = 'wt')
 		try:
 			json.dump(dict((key, getattr(requirements, key)) for key in requirements.__slots__), tmp)
 		except:
@@ -159,7 +159,7 @@ class App:
 		from zeroinstall.injector import requirements
 		r = requirements.Requirements(None)
 		reqs_file = os.path.join(self.path, 'requirements.json')
-		with open(reqs_file) as stream:
+		with open(reqs_file, 'rt') as stream:
 			values = json.load(stream)
 		for k, v in values.items():
 			setattr(r, k, v)

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 
-thomas_key = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+thomas_key = b"""-----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: GnuPG v1.0.7 (GNU/Linux)
 
 mQGiBD1JRcERBADIOjwNaBjmv44a3DPJeVwqrdVO6nuYF16UwKXTAh3ZZNAYecD8
@@ -37,7 +38,7 @@ iD8DBQBE1Z21rgeCgFmlPMERApswAJ43LSCUPXhd4FfyS/GfVtoOhzBHqgCgngVu4Yiap6ipOfO4
 04M7BexGZLc=
 
 -->
-"""
+""".encode('utf-8')
 
 new_foo_signed_xml = """<?xml version="1.0" ?>
 <interface uri="http://foo" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
@@ -51,4 +52,4 @@ iD8DBQBE1Z3VrgeCgFmlPMERApXYAJ42erHAoTU4LNRRxM4kt3lSqud66wCgrgQOQ/QLiRVT6z7f
 zNaZYKyBM4c=
 
 -->
-"""
+""".encode('utf-8')

@@ -11,7 +11,7 @@ wish were in the standard library.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os, logging
+import sys, os, logging
 
 def find_in_path(prog):
 	"""Search $PATH for prog.
@@ -100,3 +100,24 @@ def portable_rename(src, dst):
 	if os.name == "nt" and os.path.exists(dst):
 		os.unlink(dst)
 	os.rename(src, dst)
+
+if sys.version_info[0] > 2:
+	# Python 3
+	unicode = str
+	basestring = str
+	intern = sys.intern
+	raw_input = input
+
+	def urlparse(url):
+		from urllib import parse
+		return parse.urlparse(url)
+else:
+	# Python 2
+	unicode = unicode		# (otherwise it can't be imported)
+	basestring = basestring
+	intern = intern
+	raw_input = raw_input
+
+	def urlparse(url):
+		import urlparse
+		return urlparse.urlparse(url)

@@ -7,7 +7,13 @@ connections.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import urlparse
+import sys
+
+if sys.version_info[0] > 2:
+	from urllib import parse as urlparse	# Python 3
+else:
+	import urlparse
+
 from collections import defaultdict
 import threading, gobject
 

@@ -93,7 +93,8 @@ class OldSHA1(Algorithm):
 			assert sub[1:]
 			leaf = os.path.basename(sub[1:])
 			if stat.S_ISREG(m):
-				d = sha1_new(open(full).read()).hexdigest()
+				with open(full, 'rb') as stream:
+					d = sha1_new(stream.read()).hexdigest()		# XXX could be very large!
 				if m & 0o111:
 					yield "X %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
 				else:
@@ -146,13 +147,13 @@ def add_manifest_file(dir, digest_or_alg):
 		alg = get_algorithm('sha1')
 	for line in alg.generate_manifest(dir):
 		manifest += line + '\n'
+	manifest = manifest.encode('utf-8')
 	digest.update(manifest)
 
 	os.chmod(dir, 0o755)
-	stream = open(mfile, 'wb')
-	os.chmod(dir, 0o555)
-	stream.write(manifest)
-	stream.close()
+	with open(mfile, 'wb') as stream:
+		os.chmod(dir, 0o555)
+		stream.write(manifest)
 	os.chmod(mfile, 0o444)
 	return digest
 
@@ -179,21 +180,20 @@ def copy_with_verify(src, dest, mode, alg, required_digest):
 	@param required_digest: expected digest value
 	@type required_digest: str
 	@raise BadDigest: the contents of the file don't match required_digest"""
-	src_obj = open(src)
-	dest_fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
-	try:
-		digest = alg.new_digest()
-		while True:
-			data = src_obj.read(256)
-			if not data: break
-			digest.update(data)
-			while data:
-				written = os.write(dest_fd, data)
-				assert written >= 0
-				data = data[written:]
-	finally:
-		os.close(dest_fd)
-		src_obj.close()
+	with open(src, 'rb') as src_obj:
+		dest_fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+		try:
+			digest = alg.new_digest()
+			while True:
+				data = src_obj.read(256)
+				if not data: break
+				digest.update(data)
+				while data:
+					written = os.write(dest_fd, data)
+					assert written >= 0
+					data = data[written:]
+		finally:
+			os.close(dest_fd)
 	actual = digest.hexdigest()
 	if actual == required_digest: return
 	os.unlink(dest)
@@ -223,7 +223,8 @@ def verify(root, required_digest = None):
 	manifest_file = os.path.join(root, '.manifest')
 	if os.path.isfile(manifest_file):
 		digest = alg.new_digest()
-		digest.update(open(manifest_file, 'rb').read())
+		with open(manifest_file, 'rt') as stream:
+			digest.update(stream.read())
 		manifest_digest = alg.getID(digest)
 	else:
 		manifest_digest = None
@@ -244,8 +245,9 @@ def verify(root, required_digest = None):
 		error.detail += _("The .manifest file matches the actual contents. Very strange!")
 	elif manifest_digest == required_digest:
 		import difflib
-		diff = difflib.unified_diff(open(manifest_file, 'rb').readlines(), lines,
-					    'Recorded', 'Actual')
+		with open(manifest_file, 'rb') as stream:
+			diff = difflib.unified_diff(stream.readlines(), lines,
+						    'Recorded', 'Actual')
 		error.detail += _("The .manifest file matches the directory name.\n" \
 				"The contents of the directory have changed:\n") + \
 				''.join(diff)
@@ -466,7 +468,8 @@ class HashLibAlgorithm(Algorithm):
 				if stat.S_ISREG(m):
 					if leaf == '.manifest': continue
 
-					d = new_digest(open(path).read()).hexdigest()
+					with open(path, 'rb') as stream:
+						d = new_digest(stream.read()).hexdigest()
 					if m & 0o111:
 						yield "X %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
 					else:

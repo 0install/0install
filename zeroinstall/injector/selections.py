@@ -13,7 +13,7 @@ from zeroinstall.injector.policy import get_deprecated_singleton_config
 from zeroinstall.injector.model import process_binding, process_depends, binding_names, Command
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.qdom import Element, Prefixes
-from zeroinstall.support import tasks
+from zeroinstall.support import tasks, basestring
 
 class Selection(object):
 	"""A single selected implementation in a L{Selections} set.
@@ -391,7 +391,7 @@ class Selections(object):
 
 	def __getitem__(self, key):
 		# Deprecated
-		if isinstance(key, model.basestring):
+		if isinstance(key, basestring):
 			return self.selections[key]
 		sel = self.selections[key.uri]
 		return sel and sel.impl

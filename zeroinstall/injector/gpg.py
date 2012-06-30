@@ -31,7 +31,7 @@ def _run_gpg(args, **kwargs):
 			_gnupg_options += ['--homedir', os.path.join(basedir.home, '.gnupg')]
 			info(_("Running as root, so setting GnuPG home to %s"), _gnupg_options[-1])
 
-	return subprocess.Popen(_gnupg_options + args, **kwargs)
+	return subprocess.Popen(_gnupg_options + args, universal_newlines = True, **kwargs)
 
 class Signature(object):
 	"""Abstract base class for signature check results.
@@ -175,6 +175,8 @@ def load_keys(fingerprints):
 				if current_fpr in keys:
 					keys[current_fpr].name = current_uid
 	finally:
+		child.stdout.close()
+
 		if child.wait():
 			warn(_("gpg --list-keys failed with exit code %d") % child.returncode)
 
@@ -189,21 +191,14 @@ def load_key(fingerprint):
 
 def import_key(stream):
 	"""Run C{gpg --import} with this stream as stdin."""
-	errors = tempfile.TemporaryFile()
+	with tempfile.TemporaryFile(mode = 'w+t') as errors:
+		child = _run_gpg(['--quiet', '--import', '--batch'],
+					stdin = stream, stderr = errors)
 
-	child = _run_gpg(['--quiet', '--import', '--batch'],
-				stdin = stream, stderr = errors)
+		status = child.wait()
 
-	status = child.wait()
-
-	errors.seek(0)
-	error_messages = errors.read().strip()
-	errors.close()
-
-	if error_messages:
-		import codecs
-		decoder = codecs.lookup('utf-8')
-		error_messages = decoder.decode(error_messages, errors = 'replace')[0]
+		errors.seek(0)
+		error_messages = errors.read().strip()
 
 	if status != 0:
 		if error_messages:
@@ -214,65 +209,71 @@ def import_key(stream):
 		warn(_("Warnings from 'gpg --import':\n%s") % error_messages)
 
 def _check_xml_stream(stream):
-	xml_comment_start = '<!-- Base64 Signature'
+	xml_comment_start = b'<!-- Base64 Signature'
 
 	data_to_check = stream.read()
 
-	last_comment = data_to_check.rfind('\n' + xml_comment_start)
+	last_comment = data_to_check.rfind(b'\n' + xml_comment_start)
 	if last_comment < 0:
 		raise SafeException(_("No signature block in XML. Maybe this file isn't signed?"))
 	last_comment += 1	# Include new-line in data
 	
-	data = tempfile.TemporaryFile()
-	data.write(data_to_check[:last_comment])
-	data.flush()
-	os.lseek(data.fileno(), 0, 0)
+	# Copy the file to 'data', without the signature
+	# Copy the signature to 'sig'
 
-	errors = tempfile.TemporaryFile()
+	with tempfile.TemporaryFile(mode = 'w+b') as data:
+		data.write(data_to_check[:last_comment])
+		data.flush()
+		os.lseek(data.fileno(), 0, 0)
 
-	sig_lines = data_to_check[last_comment:].split('\n')
-	if sig_lines[0].strip() != xml_comment_start:
-		raise SafeException(_('Bad signature block: extra data on comment line'))
-	while sig_lines and not sig_lines[-1].strip():
-		del sig_lines[-1]
-	if sig_lines[-1].strip() != '-->':
-		raise SafeException(_('Bad signature block: last line is not end-of-comment'))
-	sig_data = '\n'.join(sig_lines[1:-1])
+		with tempfile.TemporaryFile('w+t') as errors:
+			sig_lines = data_to_check[last_comment:].split(b'\n')
+			if sig_lines[0].strip() != xml_comment_start:
+				raise SafeException(_('Bad signature block: extra data on comment line'))
+			while sig_lines and not sig_lines[-1].strip():
+				del sig_lines[-1]
+			if sig_lines[-1].strip() != b'-->':
+				raise SafeException(_('Bad signature block: last line is not end-of-comment'))
+			sig_data = b'\n'.join(sig_lines[1:-1])
 
-	if re.match('^[ A-Za-z0-9+/=\n]+$', sig_data) is None:
-		raise SafeException(_("Invalid characters found in base 64 encoded signature"))
-	try:
-		sig_data = base64.decodestring(sig_data) # (b64decode is Python 2.4)
-	except Exception as ex:
-		raise SafeException(_("Invalid base 64 encoded signature: %s") % str(ex))
+			if re.match(b'^[ A-Za-z0-9+/=\n]+$', sig_data) is None:
+				raise SafeException(_("Invalid characters found in base 64 encoded signature"))
+			try:
+				if hasattr(base64, 'decodebytes'):
+					sig_data = base64.decodebytes(sig_data) # Python 3
+				else:
+					sig_data = base64.decodestring(sig_data) # Python 2
+			except Exception as ex:
+				raise SafeException(_("Invalid base 64 encoded signature: %s") % str(ex))
 
-	sig_fd, sig_name = tempfile.mkstemp(prefix = 'injector-sig-')
-	try:
-		sig_file = os.fdopen(sig_fd, 'w')
-		sig_file.write(sig_data)
-		sig_file.close()
+			with tempfile.NamedTemporaryFile(prefix = 'injector-sig-', mode = 'wb', delete = False) as sig_file:
+				sig_file.write(sig_data)
 
-		# Note: Should ideally close status_r in the child, but we want to support Windows too
-		child = _run_gpg([# Not all versions support this:
-				  #'--max-output', str(1024 * 1024),
-				  '--batch',
-				  # Windows GPG can only cope with "1" here
-				  '--status-fd', '1',
-				  # Don't try to download missing keys; we'll do that
-				  '--keyserver-options', 'no-auto-key-retrieve',
-				  '--verify', sig_name, '-'],
-			   stdin = data,
-			   stdout = subprocess.PIPE,
-			   stderr = errors)
+			try:
+				# Note: Should ideally close status_r in the child, but we want to support Windows too
+				child = _run_gpg([# Not all versions support this:
+						  #'--max-output', str(1024 * 1024),
+						  '--batch',
+						  # Windows GPG can only cope with "1" here
+						  '--status-fd', '1',
+						  # Don't try to download missing keys; we'll do that
+						  '--keyserver-options', 'no-auto-key-retrieve',
+						  '--verify', sig_file.name, '-'],
+					   stdin = data,
+					   stdout = subprocess.PIPE,
+					   stderr = errors)
 
-		try:
-			sigs = _get_sigs_from_gpg_status_stream(child.stdout, child, errors)
-		finally:
-			os.lseek(stream.fileno(), 0, 0)
-			stream.seek(0)
-	finally:
-		os.unlink(sig_name)
-	return (stream, sigs)
+				try:
+					sigs = _get_sigs_from_gpg_status_stream(child.stdout, child, errors)
+				finally:
+					os.lseek(stream.fileno(), 0, 0)
+					errors.close()
+					child.stdout.close()
+					child.wait()
+					stream.seek(0)
+			finally:
+				os.unlink(sig_file.name)
+			return (stream, sigs)
 
 def check_stream(stream):
 	"""Pass stream through gpg --decrypt to get the data, the error text,
@@ -286,9 +287,9 @@ def check_stream(stream):
 
 	start = stream.read(6)
 	stream.seek(0)
-	if start == "<?xml ":
+	if start == b"<?xml ":
 		return _check_xml_stream(stream)
-	elif start == '-----B':
+	elif start == b'-----B':
 		raise SafeException(_("Plain GPG-signed feeds no longer supported"))
 	else:
 		raise SafeException(_("This is not a Zero Install feed! It should be an XML document, but it starts:\n%s") % repr(stream.read(120)))
@@ -322,12 +323,9 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 		elif code == 'ERRSIG':
 			sigs.append(ErrSig(args))
 
-	child.wait()	# (ignore exit status)
-
 	errors.seek(0)
 
 	error_messages = errors.read().strip()
-	errors.close()
 
 	if not sigs:
 		if error_messages:
@@ -338,5 +336,5 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 		# Attach the warnings to all the signatures, in case they're useful.
 		for s in sigs:
 			s.messages = error_messages
-	
+
 	return sigs

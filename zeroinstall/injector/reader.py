@@ -10,6 +10,7 @@ import os
 from logging import debug, info, warn
 import errno
 
+from zeroinstall import support
 from zeroinstall.support import basedir
 from zeroinstall.injector import qdom
 from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFACE
@@ -222,7 +223,7 @@ def update(interface, source, local = False, iface_cache = None):
 	if iface_cache is None:
 		from zeroinstall.injector import policy
 		iface_cache = policy.get_deprecated_singleton_config().iface_cache
-	iface_cache._feeds[model.unicode(interface.uri)] = feed
+	iface_cache._feeds[support.unicode(interface.uri)] = feed
 
 	return feed
 

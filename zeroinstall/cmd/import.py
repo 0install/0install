@@ -28,29 +28,29 @@ def handle(config, options, args):
 		if not os.path.isfile(x):
 			raise SafeException(_("File '%s' does not exist") % x)
 		logging.info(_("Importing from file '%s'"), x)
-		signed_data = open(x)
-		data, sigs = gpg.check_stream(signed_data)
-		doc = minidom.parseString(data.read())
-		uri = doc.documentElement.getAttribute('uri')
-		if not uri:
-			raise SafeException(_("Missing 'uri' attribute on root element in '%s'") % x)
-		logging.info(_("Importing information about interface %s"), uri)
-		signed_data.seek(0)
+		with open(x, 'rb') as signed_data:
+			data, sigs = gpg.check_stream(signed_data)
+			doc = minidom.parseString(data.read())
+			uri = doc.documentElement.getAttribute('uri')
+			if not uri:
+				raise SafeException(_("Missing 'uri' attribute on root element in '%s'") % x)
+			logging.info(_("Importing information about interface %s"), uri)
+			signed_data.seek(0)
 
-		pending = PendingFeed(uri, signed_data)
+			pending = PendingFeed(uri, signed_data)
 
-		def run():
-			keys_downloaded = tasks.Task(pending.download_keys(config.fetcher), "download keys")
-			yield keys_downloaded.finished
-			tasks.check(keys_downloaded.finished)
-			if not config.iface_cache.update_feed_if_trusted(uri, pending.sigs, pending.new_xml):
-				blocker = config.trust_mgr.confirm_keys(pending)
-				if blocker:
-					yield blocker
-					tasks.check(blocker)
+			def run():
+				keys_downloaded = tasks.Task(pending.download_keys(config.fetcher), "download keys")
+				yield keys_downloaded.finished
+				tasks.check(keys_downloaded.finished)
 				if not config.iface_cache.update_feed_if_trusted(uri, pending.sigs, pending.new_xml):
-					raise SafeException(_("No signing keys trusted; not importing"))
+					blocker = config.trust_mgr.confirm_keys(pending)
+					if blocker:
+						yield blocker
+						tasks.check(blocker)
+					if not config.iface_cache.update_feed_if_trusted(uri, pending.sigs, pending.new_xml):
+						raise SafeException(_("No signing keys trusted; not importing"))
 
-		task = tasks.Task(run(), "import feed")
+			task = tasks.Task(run(), "import feed")
 
-		tasks.wait_for_blocker(task.finished)
+			tasks.wait_for_blocker(task.finished)

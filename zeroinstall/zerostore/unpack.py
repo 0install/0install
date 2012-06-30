@@ -19,7 +19,12 @@ _cpio_version = None
 def _get_cpio_version():
 	global _cpio_version
 	if _cpio_version is None:
-		_cpio_version = os.popen('cpio --version 2>&1').next()
+		child = subprocess.Popen(['cpio', '--version'], stdout = subprocess.PIPE,
+					stderr = subprocess.STDOUT, universal_newlines = True)
+		out, unused = child.communicate()
+		child.stdout.close()
+		child.wait()
+		_cpio_version = out.split('\n', 1)[0]
 		debug(_("cpio version = %s"), _cpio_version)
 	return _cpio_version
 
@@ -32,7 +37,12 @@ _tar_version = None
 def _get_tar_version():
 	global _tar_version
 	if _tar_version is None:
-		_tar_version = os.popen('tar --version 2>&1').next().strip()
+		child = subprocess.Popen(['tar', '--version'], stdout = subprocess.PIPE,
+					stderr = subprocess.STDOUT, universal_newlines = True)
+		out, unused = child.communicate()
+		child.stdout.close()
+		child.wait()
+		_tar_version = out.split('\n', 1)[0]
 		debug(_("tar version = %s"), _tar_version)
 	return _tar_version
 
@@ -47,7 +57,7 @@ def recent_gnu_tar():
 	if _gnu_tar():
 		version = re.search(r'\)\s*(\d+(\.\d+)*)', _get_tar_version())
 		if version:
-			version = map(int, version.group(1).split('.'))
+			version = list(map(int, version.group(1).split('.')))
 			recent_gnu_tar = version > [1, 13, 92]
 		else:
 			warn(_("Failed to extract GNU tar version number"))
@@ -233,9 +243,8 @@ def extract_deb(stream, destdir, extract = None, start_offset = 0):
 	stream.seek(start_offset)
 	# ar can't read from stdin, so make a copy...
 	deb_copy_name = os.path.join(destdir, 'archive.deb')
-	deb_copy = open(deb_copy_name, 'wb')
-	shutil.copyfileobj(stream, deb_copy)
-	deb_copy.close()
+	with open(deb_copy_name, 'wb') as deb_copy:
+		shutil.copyfileobj(stream, deb_copy)
 
 	data_tar = None
 	p = subprocess.Popen(('ar', 't', 'archive.deb'), stdout=subprocess.PIPE, cwd=destdir, universal_newlines=True)
@@ -259,9 +268,9 @@ def extract_deb(stream, destdir, extract = None, start_offset = 0):
 	_extract(stream, destdir, ('ar', 'x', 'archive.deb', data_tar))
 	os.unlink(deb_copy_name)
 	data_name = os.path.join(destdir, data_tar)
-	data_stream = open(data_name)
-	os.unlink(data_name)
-	extract_tar(data_stream, destdir, None, data_compression)
+	with open(data_name, 'rb') as data_stream:
+		os.unlink(data_name)
+		extract_tar(data_stream, destdir, None, data_compression)
 
 def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 	if extract:
@@ -291,7 +300,8 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 		if _gnu_cpio():
 			args.append('--quiet')
 
-		_extract(open(cpiopath), destdir, args)
+		with open(cpiopath, 'rb') as cpio_stream:
+			_extract(cpio_stream, destdir, args)
 		# Set the mtime of every directory under 'tmp' to 0, since cpio doesn't
 		# preserve directory mtimes.
 		for root, dirs, files in os.walk(destdir):
@@ -309,8 +319,8 @@ def extract_gem(stream, destdir, extract = None, start_offset = 0):
 	tmpdir = mkdtemp(dir = destdir)
 	try:
 		extract_tar(stream, destdir=tmpdir, extract=payload, decompress=None)
-		payload_stream = open(os.path.join(tmpdir, payload))
-		extract_tar(payload_stream, destdir=destdir, extract=extract, decompress='gzip')
+		with open(os.path.join(tmpdir, payload), 'rb') as payload_stream:
+			extract_tar(payload_stream, destdir=destdir, extract=extract, decompress='gzip')
 	finally:
 		if payload_stream:
 			payload_stream.close()
@@ -360,9 +370,8 @@ def extract_zip(stream, destdir, extract, start_offset = 0):
 	stream.seek(start_offset)
 	# unzip can't read from stdin, so make a copy...
 	zip_copy_name = os.path.join(destdir, 'archive.zip')
-	zip_copy = open(zip_copy_name, 'wb')
-	shutil.copyfileobj(stream, zip_copy)
-	zip_copy.close()
+	with open(zip_copy_name, 'wb') as zip_copy:
+		shutil.copyfileobj(stream, zip_copy)
 
 	args = ['unzip', '-q', '-o', 'archive.zip']
 
@@ -425,7 +434,7 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 			unlzma = find_in_path('unlzma')
 			if not unlzma:
 				unlzma = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unlzma'))
-			temp = tempfile.NamedTemporaryFile(suffix='.tar')
+			temp = tempfile.NamedTemporaryFile(suffix='.tar', mode='w+b')
 			subprocess.check_call((unlzma), stdin=stream, stdout=temp)
 			rmode = 'r|'
 			stream = temp
@@ -433,7 +442,7 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 			unxz = find_in_path('unxz')
 			if not unxz:
 				unxz = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unxz'))
-			temp = tempfile.NamedTemporaryFile(suffix='.tar')
+			temp = tempfile.NamedTemporaryFile(suffix='.tar', mode='w+b')
 			subprocess.check_call((unxz), stdin=stream, stdout=temp)
 			rmode = 'r|'
 			stream = temp

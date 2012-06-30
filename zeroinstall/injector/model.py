@@ -19,6 +19,7 @@ from logging import info, debug, warn
 from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector import qdom
+from zeroinstall import support
 
 # Element names for bindings in feed files
 binding_names = frozenset(['environment', 'overlay', 'executable-in-path', 'executable-in-var'])
@@ -62,7 +63,7 @@ class InvalidInterface(SafeException):
 				return _('%s [%s]') % (SafeException.__unicode__(self), self.feed_url)
 			return SafeException.__unicode__(self)
 		else:
-			return unicode(SafeException.__str__(self))
+			return support.unicode(SafeException.__str__(self))
 
 def _split_arch(arch):
 	"""Split an arch into an (os, machine) tuple. Either or both parts may be None."""
@@ -450,7 +451,7 @@ class InterfaceDependency(Dependency):
 
 	def __init__(self, interface, restrictions = None, element = None):
 		Dependency.__init__(self, element)
-		assert isinstance(interface, (str, unicode))
+		assert isinstance(interface, (str, support.unicode))
 		assert interface
 		self.interface = interface
 		if restrictions is None:
@@ -1248,13 +1249,10 @@ _dummy_feed = DummyFeed()
 
 if sys.version_info[0] > 2:
 	# Python 3
+
 	from functools import total_ordering
 	Stability = total_ordering(Stability)
 	Implementation = total_ordering(Implementation)
-
-	unicode = str
-	basestring = str
-	intern = sys.intern
 
 	# These could be replaced by urllib.parse.quote, except that
 	# it uses upper-case escapes and we use lower-case ones...
@@ -1290,9 +1288,6 @@ if sys.version_info[0] > 2:
 			uri.encode('utf-8')).decode('ascii').replace('/', '#')
 else:
 	# Python 2
-	unicode = unicode		# (otherwise it can't be imported)
-	basestring = basestring
-	intern = intern
 
 	def unescape(uri):
 		"""Convert each %20 to a space, etc.
@@ -1344,7 +1339,7 @@ def canonical_iface_uri(uri):
 			raise SafeException(_('Use file:///path for absolute paths, not {uri}').format(uri = uri))
 		path = os.path.abspath(uri[5:])
 	elif uri.startswith('alias:'):
-		from zeroinstall import alias, support
+		from zeroinstall import alias
 		alias_prog = uri[6:]
 		if not os.path.isabs(alias_prog):
 			full_path = support.find_in_path(alias_prog)

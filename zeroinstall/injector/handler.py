@@ -17,6 +17,7 @@ import sys
 from logging import warn, info
 
 from zeroinstall import SafeException
+from zeroinstall import support
 from zeroinstall.support import tasks
 from zeroinstall.injector import download
 
@@ -147,7 +148,7 @@ class Handler(object):
 			print(_("Do you want to trust all of these keys to sign feeds from '%s'?") % domain, file=sys.stderr)
 		while True:
 			print(_("Trust [Y/N] "), end=' ', file=sys.stderr)
-			i = raw_input()
+			i = support.raw_input()
 			if not i: continue
 			if i in 'Nn':
 				raise NoTrustedKeys(_('Not signed with a trusted key'))

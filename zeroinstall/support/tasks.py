@@ -125,11 +125,12 @@ class Blocker:
 			if not self._zero_lib_tasks:
 				info(_("Exception from '%s', but nothing is waiting for it"), self)
 			import traceback
-			debug(''.join(traceback.format_exception(*sys.exc_info())))
+			debug(''.join(traceback.format_exception(type(exception[0]), exception[0], exception[1])))
 
-	def __del__(self):
-		if self.exception and not self.exception_read:
-			warn(_("Blocker %(blocker)s garbage collected without having it's exception read: %(exception)s"), {'blocker': self, 'exception': self.exception})
+	# (causes leaks by preventing blockers from being GC'd if in cycles)
+	#def __del__(self):
+	#	if self.exception and not self.exception_read:
+	#		warn(_("Blocker %(blocker)s garbage collected without having it's exception read: %(exception)s"), {'blocker': self, 'exception': self.exception})
 	
 	def add_task(self, task):
 		"""Called by the schedular when a Task yields this
@@ -236,10 +237,9 @@ class Task:
 	"""
 
 	def __init__(self, iterator, name):
-		"""Call iterator.next() from a glib idle function. This function
+		"""Call next(iterator) from a glib idle function. This function
 		can yield Blocker() objects to suspend processing while waiting
 		for events. name is used only for debugging."""
-		assert iterator.next, "Object passed is not an iterator!"
 		self.iterator = iterator
 		self.finished = Blocker(name)
 		# Block new task on the idle handler...
@@ -253,7 +253,7 @@ class Task:
 			blocker.remove_task(self)
 		# Resume the task
 		try:
-			new_blockers = self.iterator.next()
+			new_blockers = next(self.iterator)
 		except StopIteration:
 			# Task ended
 			self.finished.trigger()

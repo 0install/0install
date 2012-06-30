@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from basetest import BaseTest
 import sys
-from StringIO import StringIO
+from io import BytesIO
 import unittest
 
 sys.path.insert(0, '..')
@@ -9,7 +9,7 @@ sys.path.insert(0, '..')
 from zeroinstall.injector import qdom
 
 def parseString(s):
-	return qdom.parse(StringIO(s))
+	return qdom.parse(BytesIO(s.encode('utf-8')))
 
 class TestQDom(BaseTest):
 	def testSimple(self):

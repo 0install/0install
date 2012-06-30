@@ -2,10 +2,17 @@
 
 from __future__ import print_function
 
-import os, sys, urlparse
-import BaseHTTPServer
+import os, sys
 import traceback
-import cPickle as pickle
+
+if sys.version_info[0] > 2:
+	from urllib import parse as urlparse	# Python 3
+	from http import server
+	import pickle
+else:
+	import urlparse
+	import BaseHTTPServer as server
+	import cPickle as pickle
 
 next_step = None
 
@@ -19,7 +26,7 @@ class Give404:
 	def __repr__(self):
 		return "404 on " + self.path
 
-class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class MyHandler(server.BaseHTTPRequestHandler):
 	def do_GET(self):
 		parsed = urlparse.urlparse(self.path)
 
@@ -51,7 +58,8 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		elif os.path.exists(leaf) and not isinstance(resp, Give404):
 			self.send_response(200)
 			self.end_headers()
-			self.wfile.write(open(leaf).read())
+			with open(leaf, 'rb') as stream:
+				self.wfile.write(stream.read())
 			self.wfile.close()
 		else:
 			self.send_error(404, "Missing: %s" % leaf)
@@ -61,20 +69,20 @@ def handle_requests(*script):
 
 	# Pass the script on the command line as a pickle.
 	child = Popen(
-		[sys.executable, __file__, pickle.dumps(script) ], 
+		[sys.executable, __file__, repr(pickle.dumps(script)) ],
 		stdout=PIPE, universal_newlines=True)
 
 	# Make sure the server is actually running before we try to
 	# interact with it.
 	l = child.stdout.readline()
-	assert l == 'Waiting for request\n'
+	assert l == 'Waiting for request\n', l
 	return child
 
 def main():
 	# Grab the script that was passed on the command line from the parent
-	script = pickle.loads(sys.argv[1])
+	script = pickle.loads(eval(sys.argv[1]))
 	server_address = ('localhost', 8000)
-	httpd = BaseHTTPServer.HTTPServer(server_address, MyHandler)
+	httpd = server.HTTPServer(server_address, MyHandler)
 	try:
 		sys.stderr = sys.stdout
 		#sys.stdout = sys.stderr

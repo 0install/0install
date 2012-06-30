@@ -107,12 +107,10 @@ class TrustDB(object):
 				keyelem.appendChild(domainelem)
 
 		d = basedir.save_config_path(config_site, config_prog)
-		fd, tmpname = tempfile.mkstemp(dir = d, prefix = 'trust-')
-		tmp = os.fdopen(fd, 'wb')
-		doc.writexml(tmp, indent = "", addindent = "  ", newl = "\n")
-		tmp.close()
 
-		support.portable_rename(tmpname, os.path.join(d, 'trustdb.xml'))
+		with tempfile.NamedTemporaryFile(dir = d, prefix = 'trust-', delete = False, mode = 'wt') as tmp:
+			doc.writexml(tmp, indent = "", addindent = "  ", newl = "\n", encoding = 'utf-8')
+		support.portable_rename(tmp.name, os.path.join(d, 'trustdb.xml'))
 	
 	def notify(self):
 		"""Call all watcher callbacks.
@@ -139,9 +137,10 @@ class TrustDB(object):
 			trust = basedir.load_first_config(config_site, config_prog, 'trust')
 			if trust:
 				#print "Loading trust from", trust_db
-				for key in open(trust).read().split('\n'):
-					if key:
-						self.keys[key] = set(['*'])
+				with open(trust, 'rt') as stream:
+					for key in stream:
+						if key:
+							self.keys[key] = set(['*'])
 			else:
 				# No trust database found.
 				# Trust Thomas Leonard's key for 0install.net by default.
@@ -157,7 +156,11 @@ def domain_from_url(url):
 	@rtype: str
 	@since: 0.27
 	@raise SafeException: the URL can't be parsed"""
-	import urlparse
+	try:
+		import urlparse
+	except ImportError:
+		from urllib import parse as urlparse	# Python 3
+
 	if os.path.isabs(url):
 		raise SafeException(_("Can't get domain from a local path: '%s'") % url)
 	domain = urlparse.urlparse(url)[1]

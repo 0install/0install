@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from basetest import BaseTest
 import sys, tempfile, os, logging
-from StringIO import StringIO
+from io import StringIO
 import unittest
 
 sys.path.insert(0, '..')
@@ -28,10 +28,11 @@ def download_and_execute(driver, prog_args, main = None, dry_run = True):
 class TestDriver(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
-		stream = tempfile.TemporaryFile()
+		stream = tempfile.TemporaryFile(mode = 'w+t')
 		stream.write(data.thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)
+		stream.close()
 	
 	def cache_iface(self, name, data):
 		cached_ifaces = basedir.save_cache_path('0install.net',
@@ -71,7 +72,7 @@ class TestDriver(BaseTest):
 			assert 'Unknown digest algorithm' in str(ex)
 	
 	def testDownload(self):
-		tmp = tempfile.NamedTemporaryFile()
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt')
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface
@@ -92,7 +93,7 @@ class TestDriver(BaseTest):
 		tmp.close()
 
 	def testNoMain(self):
-		tmp = tempfile.NamedTemporaryFile()
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt')
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface
@@ -133,7 +134,7 @@ class TestDriver(BaseTest):
 
 	def testBinding(self):
 		local_impl = os.path.dirname(os.path.abspath(__file__))
-		tmp = tempfile.NamedTemporaryFile()
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt')
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface
