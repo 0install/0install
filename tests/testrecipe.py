@@ -30,7 +30,6 @@ class TestRecipe(BaseTest):
 		super(TestRecipe, self).tearDown()
 
 	def _apply_step(self, step, **k):
-		if not 'force' in k: k['force'] = False
 		if not 'impl_hint' in k: k['impl_hint'] = None
 		cls = StepRunner.class_for(step)
 		runner = cls(step, **k)

@@ -107,6 +107,7 @@ class Fetcher(object):
 			self._scheduler = scheduler.DownloadScheduler()
 		return self._scheduler
 
+	# (force is deprecated and ignored)
 	@tasks.async
 	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None):
 		"""Follow a Recipe.
@@ -119,7 +120,7 @@ class Fetcher(object):
 		steps = []
 		for stepdata in recipe.steps:
 			cls = StepRunner.class_for(stepdata)
-			step = cls(stepdata, force=force, impl_hint=impl_hint)
+			step = cls(stepdata, impl_hint=impl_hint)
 			step.prepare(self, blockers)
 			steps.append(step)
 
@@ -316,6 +317,7 @@ class Fetcher(object):
 									self.config.key_info_server, fingerprint)
 			return key_info
 
+	# (force is deprecated and ignored)
 	def download_impl(self, impl, retrieval_method, stores, force = False):
 		"""Download an implementation.
 		@param impl: the selected implementation
@@ -324,7 +326,6 @@ class Fetcher(object):
 		@type retrieval_method: L{model.RetrievalMethod}
 		@param stores: where to store the downloaded implementation
 		@type stores: L{zerostore.Stores}
-		@param force: whether to abort and restart an existing download
 		@rtype: L{tasks.Blocker}"""
 		assert impl
 		assert retrieval_method
@@ -351,7 +352,7 @@ class Fetcher(object):
 		@tasks.async
 		def download_impl():
 			if isinstance(retrieval_method, DownloadSource):
-				blocker, stream = self.download_archive(retrieval_method, force = force, impl_hint = impl)
+				blocker, stream = self.download_archive(retrieval_method, impl_hint = impl)
 				yield blocker
 				tasks.check(blocker)
 
@@ -361,7 +362,7 @@ class Fetcher(object):
 				else:
 					self._add_to_cache(required_digest, stores, retrieval_method, stream)
 			elif isinstance(retrieval_method, Recipe):
-				blocker = self.cook(required_digest, retrieval_method, stores, force, impl_hint = impl)
+				blocker = self.cook(required_digest, retrieval_method, stores, impl_hint = impl)
 				yield blocker
 				tasks.check(blocker)
 			else:
@@ -559,9 +560,8 @@ class Fetcher(object):
 
 class StepRunner(object):
 	"""The base class of all step runners"""
-	def __init__(self, stepdata, force, impl_hint):
+	def __init__(self, stepdata, impl_hint):
 		self.stepdata = stepdata
-		self.force = force
 		self.impl_hint = impl_hint
 
 	def prepare(self, fetcher, blockers):
@@ -590,7 +590,7 @@ class DownloadStepRunner(StepRunner):
 	model_type = model.DownloadSource
 
 	def prepare(self, fetcher, blockers):
-		self.blocker, self.stream = fetcher.download_archive(self.stepdata, force = self.force, impl_hint = self.impl_hint)
+		self.blocker, self.stream = fetcher.download_archive(self.stepdata, impl_hint = self.impl_hint)
 		assert self.stream
 		blockers.append(self.blocker)
 	
