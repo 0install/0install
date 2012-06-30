@@ -151,8 +151,8 @@ class Distribution(object):
 		the same score, get_package_info is called for all of them.
 		@param distribution: a distribution name
 		@type distribution: str
-		@return: an integer, or None if there is no match at all
-		@rtype: int | None
+		@return: an integer, or -1 if there is no match at all
+		@rtype: int
 		"""
 		return 0
 
