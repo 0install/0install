@@ -515,7 +515,7 @@ class Recipe(RetrievalMethod):
 	def __init__(self):
 		self.steps = []
 	
-	size = property(lambda self: sum([x.size for x in self.steps]))
+	size = property(lambda self: sum([x.size for x in self.steps if isinstance(x, DownloadSource)]))
 
 class DistributionSource(RetrievalMethod):
 	"""A package that is installed using the distribution's tools (including PackageKit).
