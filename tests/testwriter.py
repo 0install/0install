@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 from basetest import BaseTest
-import sys, StringIO, os, shutil
+import sys, io, os, shutil
 import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import writer, model, reader, qdom
 from zeroinstall.support import basedir
 
-test_feed = qdom.parse(StringIO.StringIO("""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
+test_feed = qdom.parse(io.BytesIO(b"""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
 <name>Test</name>
 <summary>for testing</summary>
 <implementation id='sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' version='1'/>
@@ -96,7 +96,7 @@ class TestWriter(BaseTest):
 
 		config_file = basedir.load_first_config('0install.net', 'injector',
 							'interfaces', 'http:##example.com#prog.xml')
-		with open(config_file) as s:
+		with open(config_file, 'rb') as s:
 			doc = qdom.parse(s)
 
 		feed_node = None

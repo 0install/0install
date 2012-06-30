@@ -324,7 +324,7 @@ class CachedDistribution(Distribution):
 	def _load_cache(self):
 		"""Load {cache_leaf} cache file into self.versions if it is available and up-to-date.
 		Throws an exception if the cache should be (re)created."""
-		with open(os.path.join(self.cache_dir, self.cache_leaf)) as stream:
+		with open(os.path.join(self.cache_dir, self.cache_leaf), 'rt') as stream:
 			cache_version = None
 			for line in stream:
 				if line == '\n':
@@ -345,7 +345,7 @@ class CachedDistribution(Distribution):
 			versions = self.versions
 			for line in stream:
 				package, version, zi_arch = line[:-1].split('\t')
-				versionarch = (version, intern(zi_arch))
+				versionarch = (version, model.intern(zi_arch))
 				if package not in versions:
 					versions[package] = [versionarch]
 				else:
@@ -357,7 +357,7 @@ class CachedDistribution(Distribution):
 		fd, tmpname = tempfile.mkstemp(prefix = 'zeroinstall-cache-tmp',
 					       dir = self.cache_dir)
 		try:
-			stream = os.fdopen(fd, 'wb')
+			stream = os.fdopen(fd, 'wt')
 			stream.write('version: 2\n')
 			stream.write('mtime: %d\n' % int(self._status_details.st_mtime))
 			stream.write('size: %d\n' % self._status_details.st_size)
@@ -409,7 +409,8 @@ class DebianDistribution(Distribution):
 	def _query_installed_package(self, package):
 		null = os.open(os.devnull, os.O_WRONLY)
 		child = subprocess.Popen(["dpkg-query", "-W", "--showformat=${Version}\t${Architecture}\t${Status}\n", "--", package],
-						stdout = subprocess.PIPE, stderr = null)
+						stdout = subprocess.PIPE, stderr = null,
+						universal_newlines = True)	# Needed for Python 3
 		os.close(null)
 		stdout, stderr = child.communicate()
 		child.wait()
@@ -483,7 +484,7 @@ class DebianDistribution(Distribution):
 			# Check to see whether we could get a newer version using apt-get
 			try:
 				null = os.open(os.devnull, os.O_WRONLY)
-				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null)
+				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null, universal_newlines = True)
 				os.close(null)
 
 				arch = version = size = None
@@ -500,6 +501,7 @@ class DebianDistribution(Distribution):
 					cached = {'version': version, 'arch': arch, 'size': size}
 				else:
 					cached = None
+				child.stdout.close()
 				child.wait()
 			except Exception as ex:
 				warn("'apt-cache show %s' failed: %s", package, ex)
@@ -515,7 +517,9 @@ class RPMDistribution(CachedDistribution):
 	def generate_cache(self):
 		cache = []
 
-		for line in os.popen("rpm -qa --qf='%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n'"):
+		child = subprocess.Popen(["rpm", "-qa", "--qf=%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n"],
+					stdout = subprocess.PIPE, universal_newlines = True)
+		for line in child.stdout:
 			package, version, rpmarch = line.split('\t', 2)
 			if package == 'gpg-pubkey':
 				continue
@@ -527,6 +531,8 @@ class RPMDistribution(CachedDistribution):
 				warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
 
 		self._write_cache(cache)
+		child.stdout.close()
+		child.wait()
 
 	def get_package_info(self, package, factory):
 		# Add installed versions...
@@ -585,13 +591,14 @@ class ArchDistribution(Distribution):
 			name, version, build = entry.rsplit('-', 2)
 			if name == package:
 				gotarch = False
-				for line in open(os.path.join(self._packages_dir, entry, "desc")):
-					if line == "%ARCH%\n":
-						gotarch = True
-						continue
-					if gotarch:
-						arch = line.strip()
-						break
+				with open(os.path.join(self._packages_dir, entry, "desc"), 'rt') as stream:
+					for line in stream:
+						if line == "%ARCH%\n":
+							gotarch = True
+							continue
+						if gotarch:
+							arch = line.strip()
+							break
 				zi_arch = canonical_machine(arch)
 				clean_version = try_cleanup_distro_version("%s-%s" % (version, build))
 				if not clean_version:
@@ -629,7 +636,8 @@ class GentooDistribution(Distribution):
 
 		for filename in os.listdir(category_dir):
 			if filename.startswith(match_prefix) and filename[len(match_prefix)].isdigit():
-				name = open(os.path.join(category_dir, filename, 'PF')).readline().strip()
+				with open(os.path.join(category_dir, filename, 'PF'), 'rt') as stream:
+					name = stream.readline().strip()
 
 				match = re.search(_version_start_reqexp, name)
 				if match is None:
@@ -641,7 +649,8 @@ class GentooDistribution(Distribution):
 				if category == 'app-emulation' and name.startswith('emul-'):
 					__, __, machine, __ = name.split('-', 3)
 				else:
-					machine, __ = open(os.path.join(category_dir, filename, 'CHOST')).readline().split('-', 1)
+					with open(os.path.join(category_dir, filename, 'CHOST'), 'rt') as stream:
+						machine, __ = stream.readline().split('-', 1)
 				machine = arch.canonicalize_machine(machine)
 
 				impl = factory('package:gentoo:%s:%s:%s' % \
@@ -697,8 +706,9 @@ class MacPortsDistribution(CachedDistribution):
 	def generate_cache(self):
 		cache = []
 
-#		for line in os.popen("port echo active"):
-		for line in os.popen("port -v installed"):
+		child = subprocess.Popen(["port", "-v", "installed"],
+					  stdout = subprocess.PIPE, universal_newlines = True)
+		for line in child.stdout:
 			if not line.startswith(" "):
 				continue
 			if line.strip().count(" ") > 1:
@@ -723,8 +733,9 @@ class MacPortsDistribution(CachedDistribution):
 					cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
 			else:
 				warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
-
 		self._write_cache(cache)
+		child.stdout.close()
+		child.wait()
 
 	def get_package_info(self, package, factory):
 		# Add installed versions...

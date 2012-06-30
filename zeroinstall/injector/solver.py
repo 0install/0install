@@ -581,7 +581,7 @@ class SATSolver(Solver):
 
 		# Require m<group> to be true if we select an implementation in that group
 		m_groups = []
-		for machine_group, impls in impls_for_machine_group.iteritems():
+		for machine_group, impls in impls_for_machine_group.items():
 			m_group = 'm%d' % machine_group
 			group_var = problem.add_variable(m_group)
 			if impls:
@@ -656,7 +656,7 @@ class SATSolver(Solver):
 
 			# If we're chosen everything we need, we can probably
 			# set everything else to False.
-			for group in group_clause_for.values() + group_clause_for_command.values() + [m_groups_clause]:
+			for group in list(group_clause_for.values()) + list(group_clause_for_command.values()) + [m_groups_clause]:
 				if group.current is None:
 					best = group.best_undecided()
 					if best is not None:
@@ -682,7 +682,7 @@ class SATSolver(Solver):
 
 			# Populate sels with the selected implementations.
 			# Also, note down all the commands we need.
-			for uri, group in group_clause_for.iteritems():
+			for uri, group in group_clause_for.items():
 				if group.current is not None:
 					lit_info = problem.get_varinfo_for_lit(group.current).obj
 					if lit_info.is_dummy:
@@ -822,7 +822,7 @@ class SATSolver(Solver):
 		# Impl is selectable and ranked higher than the selected version. Selecting it would cause
 		# a problem elsewhere.
 		changes = []
-		for old_iface, old_sel in self.selections.selections.iteritems():
+		for old_iface, old_sel in self.selections.selections.items():
 			if old_iface == iface.uri and used_impl: continue
 			new_sel = s.selections.selections.get(old_iface, None)
 			if new_sel is None:

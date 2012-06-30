@@ -104,7 +104,8 @@ def update_user_feed_overrides(feed):
 		return
 
 	try:
-		root = qdom.parse(open(user))
+		with open(user, 'rb') as stream:
+			root = qdom.parse(stream)
 	except Exception as ex:
 		warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
@@ -144,7 +145,8 @@ def update_user_overrides(interface, known_site_feeds = frozenset()):
 		return
 
 	try:
-		root = qdom.parse(open(user))
+		with open(user, 'rb') as stream:
+			root = qdom.parse(stream)
 	except Exception as ex:
 		warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
@@ -220,7 +222,7 @@ def update(interface, source, local = False, iface_cache = None):
 	if iface_cache is None:
 		from zeroinstall.injector import policy
 		iface_cache = policy.get_deprecated_singleton_config().iface_cache
-	iface_cache._feeds[unicode(interface.uri)] = feed
+	iface_cache._feeds[model.unicode(interface.uri)] = feed
 
 	return feed
 
@@ -237,7 +239,7 @@ def load_feed(source, local = False, selections_ok = False):
 	@since: 0.48
 	@see: L{iface_cache.iface_cache}, which uses this to load the feeds"""
 	try:
-		with open(source) as stream:
+		with open(source, 'rb') as stream:
 			root = qdom.parse(stream)
 	except IOError as ex:
 		if ex.errno == errno.ENOENT and local:

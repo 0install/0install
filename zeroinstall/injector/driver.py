@@ -68,7 +68,7 @@ class Driver(object):
 		iface_cache = self.config.iface_cache
 		stores = self.config.stores
 		uncached = []
-		for uri, selection in self.solver.selections.selections.iteritems():
+		for uri, selection in self.solver.selections.selections.items():
 			impl = selection.impl
 			assert impl, self.solver.selections
 			if not impl.is_available(stores):

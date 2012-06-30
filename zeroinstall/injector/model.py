@@ -656,11 +656,11 @@ class Implementation(object):
 		if d: return d
 		return cmp(other.id, self.id)
 
+	def __hash__(self):
+		return self.id.__hash__()
+
 	def __eq__(self, other):
-		if isinstance(other, Implementation):
-			return self.id == other.id
-		else:
-			return NotImplemented
+		return self is other
 
 	def __le__(self, other):
 		if isinstance(other, Implementation):
@@ -1111,7 +1111,7 @@ class ZeroInstallFeed(object):
 							start_offset = _get_long(elem, 'start-offset'),
 							type = elem.getAttribute('type'))
 				elif elem.name == 'manifest-digest':
-					for aname, avalue in elem.attrs.iteritems():
+					for aname, avalue in elem.attrs.items():
 						if ' ' not in aname:
 							impl.digests.append('%s=%s' % (aname, avalue))
 				elif elem.name == 'recipe':
@@ -1235,6 +1235,9 @@ if sys.version_info[0] > 2:
 	Implementation = total_ordering(Implementation)
 
 	unicode = str
+	basestring = str
+	intern = sys.intern
+
 	# These could be replaced by urllib.parse.quote, except that
 	# it uses upper-case escapes and we use lower-case ones...
 	def unescape(uri):
@@ -1269,6 +1272,10 @@ if sys.version_info[0] > 2:
 			uri.encode('utf-8')).decode('ascii').replace('/', '#')
 else:
 	# Python 2
+	unicode = unicode		# (otherwise it can't be imported)
+	basestring = basestring
+	intern = intern
+
 	def unescape(uri):
 		"""Convert each %20 to a space, etc.
 		@rtype: str"""

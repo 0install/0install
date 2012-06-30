@@ -93,7 +93,7 @@ def handle(config, options, args):
 			from zeroinstall import helpers
 			return helpers.get_selections_gui(None, [])
 		else:
-			for key, setting_type in settings.iteritems():
+			for key, setting_type in settings.items():
 				value = getattr(config, key)
 				print(key, "=", setting_type.format(value))
 		return

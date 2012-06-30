@@ -18,13 +18,14 @@ class TestReader(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
 
-		stream = tempfile.TemporaryFile()
+		stream = tempfile.TemporaryFile(mode = 'wt')
 		stream.write(data.thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)
+		stream.close()
 	
 	def write_with_version(self, version):
-		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt', prefix = 'test-')
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface last-modified="1110752708"
@@ -38,7 +39,7 @@ class TestReader(BaseTest):
 		return tmp
 
 	def write_with_bindings(self, bindings):
-		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt', prefix = 'test-')
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface last-modified="1110752708"
@@ -84,7 +85,7 @@ class TestReader(BaseTest):
 			assert "Binding contains both 'insert' and 'value'" in str(ex)
 
 	def testRequiresVersion(self):
-		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt', prefix = 'test-')
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface last-modified="1110752708"
@@ -123,7 +124,7 @@ class TestReader(BaseTest):
 		assert dep.metadata.get('http://my/namespace food', None) == None
 	
 	def testBindings(self):
-		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt', prefix = 'test-')
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
@@ -176,7 +177,7 @@ class TestReader(BaseTest):
 		self.assertEqual('/bin', dep.bindings[2].default)
 
 	def testVersions(self):
-		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt', prefix = 'test-')
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface
@@ -196,7 +197,7 @@ class TestReader(BaseTest):
 	
 	def testAttrs(self):
 		iface_cache = self.config.iface_cache
-		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt', prefix = 'test-')
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface last-modified="1110752708"
@@ -227,7 +228,7 @@ class TestReader(BaseTest):
 	
 	def testNative(self):
 		iface_cache = self.config.iface_cache
-		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt', prefix = 'test-')
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
@@ -259,7 +260,7 @@ class TestReader(BaseTest):
 		assert impl.feed == feed
 	
 	def testLang(self):
-		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
+		tmp = tempfile.NamedTemporaryFile(mode = 'wt', prefix = 'test-')
 		tmp.write(
 """<?xml version="1.0" ?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">

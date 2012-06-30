@@ -146,7 +146,7 @@ def assertSelection(expected, repo):
 		assert s.ready
 
 		actual = []
-		for iface_uri, impl in s.selections.selections.iteritems():
+		for iface_uri, impl in s.selections.selections.items():
 			actual.append(((iface_uri.rsplit('/', 1)[1]), impl.version))
 
 		expected.sort()
@@ -286,7 +286,7 @@ class TestSAT(BaseTest):
 			""")
 		assert not s.ready
 		selected = {}
-		for iface_uri, impl in s.selections.selections.iteritems():
+		for iface_uri, impl in s.selections.selections.items():
 			if impl is not None: impl = impl.version
 			selected[iface_uri.rsplit('/', 1)[1]] = impl
 		self.assertEqual({

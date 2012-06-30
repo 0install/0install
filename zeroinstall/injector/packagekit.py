@@ -137,7 +137,7 @@ class PackageKit(object):
 
 			def resolve_cb(sender):
 				if sender.package:
-					for packagekit_id, info in sender.package.iteritems():
+					for packagekit_id, info in sender.package.items():
 						parts = packagekit_id.split(';', 3)
 						if ':' in parts[3]:
 							parts[3] = parts[3].split(':', 1)[0]

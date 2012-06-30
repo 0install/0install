@@ -196,7 +196,7 @@ class Selections(object):
 					dep = process_depends(elem, None)
 					requires.append(dep)
 				elif elem.name == 'manifest-digest':
-					for aname, avalue in elem.attrs.iteritems():
+					for aname, avalue in elem.attrs.items():
 						digests.append('%s=%s' % (aname, avalue))
 				elif elem.name == 'command':
 					name = elem.getAttribute('name')
@@ -272,7 +272,7 @@ class Selections(object):
 			selection_elem.setAttributeNS(None, 'interface', selection.interface)
 			root.appendChild(selection_elem)
 
-			for name, value in selection.attrs.iteritems():
+			for name, value in selection.attrs.items():
 				if ' ' in name:
 					ns, localName = name.split(' ', 1)
 					prefixes.setAttributeNS(selection_elem, ns, localName, value)
@@ -391,7 +391,7 @@ class Selections(object):
 
 	def __getitem__(self, key):
 		# Deprecated
-		if isinstance(key, basestring):
+		if isinstance(key, model.basestring):
 			return self.selections[key]
 		sel = self.selections[key.uri]
 		return sel and sel.impl
@@ -399,18 +399,18 @@ class Selections(object):
 	def iteritems(self):
 		# Deprecated
 		iface_cache = get_deprecated_singleton_config().iface_cache
-		for (uri, sel) in self.selections.iteritems():
+		for (uri, sel) in self.selections.items():
 			yield (iface_cache.get_interface(uri), sel and sel.impl)
 
 	def values(self):
 		# Deprecated
-		for (uri, sel) in self.selections.iteritems():
+		for (uri, sel) in self.selections.items():
 			yield sel and sel.impl
 
 	def __iter__(self):
 		# Deprecated
 		iface_cache = get_deprecated_singleton_config().iface_cache
-		for (uri, sel) in self.selections.iteritems():
+		for (uri, sel) in self.selections.items():
 			yield iface_cache.get_interface(uri)
 
 	def get(self, iface, if_missing):

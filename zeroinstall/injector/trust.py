@@ -233,7 +233,7 @@ class TrustMgr(object):
 			existing_feed = self.config.iface_cache.get_feed(pending.url)
 			if not existing_feed:
 				changes = False
-				for sig, kf in kfs.iteritems():
+				for sig, kf in kfs.items():
 					for key_info in kf.info:
 						if key_info.getAttribute("vote") == "good":
 							info(_("Automatically approving key for new feed %s based on response from key info server"), pending.url)

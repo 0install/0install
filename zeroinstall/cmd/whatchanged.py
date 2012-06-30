@@ -74,7 +74,7 @@ def handle(config, options, args):
 def show_changes(old_selections, new_selections):
 	changes = False
 
-	for iface, old_sel in old_selections.iteritems():
+	for iface, old_sel in old_selections.items():
 		new_sel = new_selections.get(iface, None)
 		if new_sel is None:
 			print(_("No longer used: %s") % iface)
@@ -83,7 +83,7 @@ def show_changes(old_selections, new_selections):
 			print(_("%s: %s -> %s") % (iface, old_sel.version, new_sel.version))
 			changes = True
 
-	for iface, new_sel in new_selections.iteritems():
+	for iface, new_sel in new_selections.items():
 		if iface not in old_selections:
 			print(_("%s: new -> %s") % (iface, new_sel.version))
 			changes = True

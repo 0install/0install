@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from basetest import BaseTest, empty_feed, DummyPackageKit
 import sys, os, tempfile, imp
-from StringIO import StringIO
+from io import BytesIO
 import unittest
 
 sys.path.insert(0, '..')
@@ -14,9 +14,9 @@ def parse_impls(impls):
 		   <name>Foo</name>
 		   <summary>Foo</summary>
 		   <description>Foo</description>
-		   %s
-		</interface>""" % impls
-	element = qdom.parse(StringIO(xml))
+		   {impls}
+		</interface>""".format(impls = impls)
+	element = qdom.parse(BytesIO(xml.encode('utf-8')))
 	return model.ZeroInstallFeed(element, "myfeed.xml")
 
 class TestDistro(BaseTest):
@@ -28,7 +28,7 @@ class TestDistro(BaseTest):
 		BaseTest.tearDown(self)
 
 	def testCache(self):
-		src = tempfile.NamedTemporaryFile()
+		src = tempfile.NamedTemporaryFile(mode = 'wt')
 		try:
 			cache = distro.Cache('test-cache', src.name, 1)
 			self.assertEqual(None, cache.get("foo"))

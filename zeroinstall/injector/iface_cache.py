@@ -356,8 +356,8 @@ class IfaceCache(object):
 		@rtype: L{model.Interface}
 		"""
 		if type(uri) == str:
-			uri = unicode(uri)
-		assert isinstance(uri, unicode)
+			uri = model.unicode(uri)
+		assert isinstance(uri, model.unicode)
 
 		if uri in self._interfaces:
 			return self._interfaces[uri]

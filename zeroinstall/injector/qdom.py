@@ -49,7 +49,7 @@ class Element(object):
 		"""
 		elem = prefixes.createElementNS(doc, self.uri, self.name)
 
-		for fullname, value in self.attrs.iteritems():
+		for fullname, value in self.attrs.items():
 			if ' ' in fullname:
 				ns, localName = fullname.split(' ', 1)
 			else:

@@ -565,7 +565,7 @@ class CacheExplorer:
 			else:
 				all_feeds.update(self.iface_cache.get_feeds(iface))
 
-		for url, feed in all_feeds.iteritems():
+		for url, feed in all_feeds.items():
 			if not feed: continue
 			feed_size = 0
 			try:

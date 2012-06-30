@@ -36,7 +36,7 @@ def report_bug(driver, iface):
 	if not driver.solver.ready:
 		text += '  Failed to select all required implementations\n'
 
-	for chosen_iface_uri, impl in driver.solver.selections.selections.iteritems():
+	for chosen_iface_uri, impl in driver.solver.selections.selections.items():
 		text += '\n  Interface: %s\n' % chosen_iface_uri
 		if impl:
 			text += '    Version: %s\n' % impl.version
