@@ -35,18 +35,24 @@ def handle(config, options, args):
 	app = config.app_mgr.lookup_app(args[0], missing_ok = True)
 	if app is not None:
 		sels = app.get_selections()
-		dl = app.download_selections(sels)
-		if dl:
-			tasks.wait_for_blocker(dl)
-			tasks.check(dl)
+		r = app.get_requirements()
+		do_select = r.parse_update_options(options)
+		iface_uri = sels.interface
 	else:
 		iface_uri = model.canonical_iface_uri(args[0])
+		do_select = True
 
+	if do_select or options.gui:
 		sels = select.get_selections(config, options, iface_uri,
 					select_only = False, download_only = False,
 					test_callback = test_callback)
 		if not sels:
 			sys.exit(1)	# Aborted by user
+	else:
+		dl = app.download_selections(sels)
+		if dl:
+			tasks.wait_for_blocker(dl)
+			tasks.check(dl)
 
 	from zeroinstall.injector import run
 	run.execute_selections(sels, prog_args, dry_run = options.dry_run, main = options.main, wrapper = options.wrapper, stores = config.stores)
