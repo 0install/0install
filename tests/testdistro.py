@@ -266,8 +266,6 @@ class TestDistro(BaseTest):
 				os.path.join(dpkgdir, 'status'))
 		host._packagekit = DummyPackageKit()
 
-		factory = self.make_factory(host)
-
 		master_feed = parse_impls("""<package-implementation main='/unused' package='python-bittorrent'><command path='/bin/sh' name='run'/></package-implementation>""")
 		icache = iface_cache.IfaceCache(distro = host)
 		icache._feeds[master_feed.url] = master_feed

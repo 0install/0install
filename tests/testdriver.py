@@ -1,10 +1,6 @@
 #!/usr/bin/env python
-from basetest import BaseTest
+from basetest import BaseTest, StringIO
 import sys, tempfile, os, logging
-if sys.version_info[0] > 2:
-	from io import StringIO
-else:
-	from StringIO import StringIO
 import unittest
 
 sys.path.insert(0, '..')

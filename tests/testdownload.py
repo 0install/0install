@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 from __future__ import with_statement
-from basetest import BaseTest
-import warnings
+from basetest import BaseTest, StringIO
 import sys, tempfile, os
-if sys.version_info[0] > 2:
-	from io import StringIO
-else:
-	from StringIO import StringIO
-import unittest, signal
+import unittest
 from logging import getLogger, WARN, ERROR
 from contextlib import contextmanager
 
@@ -444,7 +439,6 @@ class TestDownload(BaseTest):
 
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
-			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
 			self.config.feed_mirror = 'http://example.com:8000/0mirror'
 
 			# Update from mirror (should ignore out-of-date timestamp)
@@ -532,6 +526,7 @@ class TestDownload(BaseTest):
 			selections_path = os.path.join(app.path, 'selections.xml')
 
 			def reset_timestamps():
+				global ran_gui
 				ran_gui = False
 				os.utime(timestamp, (1, 1))		# 1970
 				os.utime(selections_path, (1, 1))
@@ -607,7 +602,7 @@ class TestDownload(BaseTest):
 			with trapped_exit(1):
 				dl = app.download_selections(sels)
 				assert dl == None
-			assert ran_gui	# (so doesn't actually update)
+			assert not ran_gui	# (so doesn't actually update)
 
 			self.assertNotEqual(1, os.stat(timestamp).st_mtime)
 			self.assertNotEqual(1, os.stat(selections_path).st_mtime)

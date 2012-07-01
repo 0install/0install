@@ -2,16 +2,10 @@
 
 from __future__ import print_function
 
-from basetest import BaseTest
+from basetest import BaseTest, StringIO, BytesIO
 import sys, tempfile, os
 import unittest
 import logging
-
-if sys.version_info[0] > 2:
-	from io import StringIO, BytesIO
-else:
-	from StringIO import StringIO
-	BytesIO = StringIO
 
 foo_iface_uri = 'http://foo'
 

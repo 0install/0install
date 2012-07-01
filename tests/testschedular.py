@@ -43,7 +43,7 @@ class TestSchedular(BaseTest):
 			yield resume
 			try:
 				tasks.check(resume)
-			except Exception as ex:
+			except Exception:
 				step.status = "fail"
 			else:
 				step.status = "ok"

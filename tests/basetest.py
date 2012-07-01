@@ -4,7 +4,11 @@ import unittest
 import logging
 import warnings
 from xml.dom import minidom
-from io import BytesIO
+if sys.version_info[0] > 2:
+	from io import StringIO, BytesIO
+else:
+	from StringIO import StringIO
+	BytesIO = StringIO
 warnings.filterwarnings("ignore", message = 'The CObject type')
 
 # Catch silly mistakes...
@@ -16,7 +20,7 @@ from zeroinstall.injector import qdom
 from zeroinstall.injector import iface_cache, download, distro, model, handler, policy, reader, trust
 from zeroinstall.zerostore import NotStored, Store, Stores; Store._add_with_helper = lambda *unused: False
 from zeroinstall import support, apps
-from zeroinstall.support import basedir, tasks, basestring
+from zeroinstall.support import basedir, tasks
 
 dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
 

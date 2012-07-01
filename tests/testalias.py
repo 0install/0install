@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-from basetest import BaseTest
+from basetest import BaseTest, StringIO
 import sys, tempfile
-from io import StringIO
 import unittest
 
 sys.path.insert(0, '..')

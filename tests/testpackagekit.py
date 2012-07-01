@@ -4,7 +4,7 @@ import sys, imp
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import packagekit, handler, model, fetch
+from zeroinstall.injector import packagekit, model, fetch
 from zeroinstall.support import tasks
 
 import dbus
