@@ -33,7 +33,7 @@ class MyHandler(server.BaseHTTPRequestHandler):
 		print(parsed)
 		if parsed.path.startswith('/redirect/'):
 			self.send_response(302)
-			self.wfile.write('Location: /' + parsed.path[1:].split('/', 1)[1])
+			self.wfile.write(('Location: /' + parsed.path[1:].split('/', 1)[1]).encode('utf-8'))
 			return
 
 		leaf = os.path.basename(parsed.path)
