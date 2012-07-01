@@ -37,7 +37,7 @@ def read_bytes(fd, nbytes, null_ok = False):
 	@return: the bytes read
 	@raise Exception: if we received less than nbytes of data
 	"""
-	data = ''
+	data = b''
 	while nbytes:
 		got = os.read(fd, nbytes)
 		if not got:
@@ -88,7 +88,7 @@ def ro_rmtree(root):
 def raise_with_traceback(ex, tb):
 	"""Raise an exception in a way that works on Python 2 and Python 3"""
 	if hasattr(ex, 'with_traceback'):
-		raise ex.with_traceback(tb)			# Python 3
+		raise ex					# Python 3
 	exec("raise ex, None, tb", {'ex': ex, 'tb': tb})	# Python 2
 	assert 0
 

@@ -2,7 +2,7 @@
 from basetest import BaseTest
 import os, sys, subprocess
 import unittest
-from StringIO import StringIO
+from io import StringIO
 
 sys.path.insert(0, '..')
 
@@ -14,6 +14,7 @@ from zeroinstall.injector import run, namespaces
 from zeroinstall import SafeException
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver
+from zeroinstall.support import unicode
 
 mydir = os.path.abspath(os.path.dirname(__file__))
 local_0launch = os.path.join(os.path.dirname(mydir), '0launch')
@@ -25,7 +26,7 @@ package_selections = os.path.join(mydir, 'package-selection.xml')
 
 class TestRun(BaseTest):
 	def testRunnable(self):
-		child = subprocess.Popen([local_0launch, '--', runnable, 'user-arg'], stdout = subprocess.PIPE)
+		child = subprocess.Popen([local_0launch, '--', runnable, 'user-arg'], stdout = subprocess.PIPE, universal_newlines = True)
 		stdout, _ = child.communicate()
 		assert 'Runner: script=A test script: args=command-arg -- user-arg' in stdout, stdout
 
@@ -92,12 +93,12 @@ class TestRun(BaseTest):
 		assert 'script' in out, out
 
 	def testRecursive(self):
-		child = subprocess.Popen([local_0launch, '--', recursive_runner, 'user-arg'], stdout = subprocess.PIPE)
+		child = subprocess.Popen([local_0launch, '--', recursive_runner, 'user-arg'], stdout = subprocess.PIPE, universal_newlines = True)
 		stdout, _ = child.communicate()
 		assert 'Runner: script=A test script: args=command-arg -- arg-for-runnable recursive-arg -- user-arg' in stdout, stdout
 
 	def testExecutable(self):
-		child = subprocess.Popen([local_0launch, '--', runexec, 'user-arg-run'], stdout = subprocess.PIPE)
+		child = subprocess.Popen([local_0launch, '--', runexec, 'user-arg-run'], stdout = subprocess.PIPE, universal_newlines = True)
 		stdout, _ = child.communicate()
 		assert 'Runner: script=A test script: args=foo-arg -- var user-arg-run' in stdout, stdout
 		assert 'Runner: script=A test script: args=command-arg -- path user-arg-run' in stdout, stdout
@@ -105,11 +106,11 @@ class TestRun(BaseTest):
 		# Check runenv.py is updated correctly
 		from zeroinstall.support import basedir
 		runenv = basedir.load_first_cache(namespaces.config_site, namespaces.config_prog, 'runenv.py')
-		os.chmod(runenv, 0700)
+		os.chmod(runenv, 0o700)
 		with open(runenv, 'wb') as s:
-			s.write('#!/\n')
+			s.write(b'#!/\n')
 
-		child = subprocess.Popen([local_0launch, '--', runexec, 'user-arg-run'], stdout = subprocess.PIPE)
+		child = subprocess.Popen([local_0launch, '--', runexec, 'user-arg-run'], stdout = subprocess.PIPE, universal_newlines = True)
 		stdout, _ = child.communicate()
 		assert 'Runner: script=A test script: args=foo-arg -- var user-arg-run' in stdout, stdout
 		assert 'Runner: script=A test script: args=command-arg -- path user-arg-run' in stdout, stdout
@@ -117,7 +118,7 @@ class TestRun(BaseTest):
 	def testRunPackage(self):
 		if 'TEST' in os.environ:
 			del os.environ['TEST']
-		child = subprocess.Popen([local_0launch, '--wrapper', 'echo $TEST #', '--', package_selections], stdout = subprocess.PIPE)
+		child = subprocess.Popen([local_0launch, '--wrapper', 'echo $TEST #', '--', package_selections], stdout = subprocess.PIPE, universal_newlines = True)
 		stdout, _ = child.communicate()
 		assert stdout.strip() == 'OK', stdout
 	

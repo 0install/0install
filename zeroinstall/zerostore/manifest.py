@@ -100,7 +100,7 @@ class OldSHA1(Algorithm):
 				else:
 					yield "F %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
 			elif stat.S_ISLNK(m):
-				target = os.readlink(full)
+				target = os.readlink(full).encode('utf-8')
 				d = sha1_new(target).hexdigest()
 				# Note: Can't use utime on symlinks, so skip mtime
 				# Note: eCryptfs may report length as zero, so count ourselves instead
@@ -216,14 +216,14 @@ def verify(root, required_digest = None):
 	lines = []
 	for line in alg.generate_manifest(root):
 		line += '\n'
-		digest.update(line)
+		digest.update(line.encode('utf-8'))
 		lines.append(line)
 	actual_digest = alg.getID(digest)
 
 	manifest_file = os.path.join(root, '.manifest')
 	if os.path.isfile(manifest_file):
 		digest = alg.new_digest()
-		with open(manifest_file, 'rt') as stream:
+		with open(manifest_file, 'rb') as stream:
 			digest.update(stream.read())
 		manifest_digest = alg.getID(digest)
 	else:
@@ -245,7 +245,7 @@ def verify(root, required_digest = None):
 		error.detail += _("The .manifest file matches the actual contents. Very strange!")
 	elif manifest_digest == required_digest:
 		import difflib
-		with open(manifest_file, 'rb') as stream:
+		with open(manifest_file, 'rt') as stream:
 			diff = difflib.unified_diff(stream.readlines(), lines,
 						    'Recorded', 'Actual')
 		error.detail += _("The .manifest file matches the directory name.\n" \
@@ -293,7 +293,7 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 	# We've checked that the source's manifest matches required_digest, so it
 	# is what we want. Make a list of all the files we need to copy...
 
-	wanted = _parse_manifest(manifest_data)
+	wanted = _parse_manifest(manifest_data.decode('utf-8'))
 
 	tmpdir = tempfile.mkdtemp(prefix = 'tmp-copy-', dir = target)
 	try:
@@ -419,7 +419,7 @@ def _copy_files(alg, wanted, source, target):
 						    {'path': path, 'actual_size': actual_size, 'required_size': required_size})
 			symlink_target = os.readlink(os.path.join(source, path))
 			symlink_digest = alg.new_digest()
-			symlink_digest.update(symlink_target)
+			symlink_digest.update(symlink_target.encode('utf-8'))
 			if symlink_digest.hexdigest() != required_digest:
 				raise SafeException(_("Symlink '%(path)s' has wrong target (digest should be "
 						"%(digest)s according to manifest)") % {'path': path, 'digest': required_digest})
@@ -475,7 +475,7 @@ class HashLibAlgorithm(Algorithm):
 					else:
 						yield "F %s %s %s %s" % (d, int(info.st_mtime), info.st_size, leaf)
 				elif stat.S_ISLNK(m):
-					target = os.readlink(path)
+					target = os.readlink(path).encode('utf-8')
 					d = new_digest(target).hexdigest()
 					# Note: Can't use utime on symlinks, so skip mtime
 					# Note: eCryptfs may report length as zero, so count ourselves instead

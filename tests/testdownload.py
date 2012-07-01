@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import with_statement
 from basetest import BaseTest
+import warnings
 import sys, tempfile, os
 if sys.version_info[0] > 2:
 	from io import StringIO

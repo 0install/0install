@@ -178,7 +178,7 @@ class TestPackageKit(BaseTest):
 			return impl
 
 		pk.get_candidates('gimp', factory, 'package:test')
-		self.assertEqual(["package:test:gimp:2.6.8-2:x86_64"], impls.keys())
+		self.assertEqual(["package:test:gimp:2.6.8-2:x86_64"], list(impls.keys()))
 
 		impl, = impls.values()
 		fetcher = fetch.Fetcher(config = self.config)

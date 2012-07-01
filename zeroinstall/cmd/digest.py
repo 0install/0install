@@ -37,7 +37,7 @@ def handle(config, options, args):
 			d = os.path.join(d, extract)
 		digest = alg.new_digest()
 		for line in alg.generate_manifest(d):
-			digest.update(line + '\n')
+			digest.update((line + '\n').encode('utf-8'))
 		print(alg.getID(digest))
 
 	if os.path.isdir(source):

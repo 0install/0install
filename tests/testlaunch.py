@@ -4,9 +4,14 @@ from __future__ import print_function
 
 from basetest import BaseTest
 import sys, tempfile, os
-from StringIO import StringIO
 import unittest
 import logging
+
+if sys.version_info[0] > 2:
+	from io import StringIO, BytesIO
+else:
+	from StringIO import StringIO
+	BytesIO = StringIO
 
 foo_iface_uri = 'http://foo'
 
@@ -46,8 +51,8 @@ class TestLaunch(BaseTest):
 				raise
 			except AssertionError:
 				raise
-			except Exception as ex:
-				pass
+			except Exception as ex2:
+				ex = ex2		# Python 3
 			out = sys.stdout.getvalue()
 			err = sys.stderr.getvalue()
 			if ex is not None:
@@ -109,8 +114,8 @@ class TestLaunch(BaseTest):
 		assert "test-echo' does not exist" in err, err
 
 	def testAbsMain(self):
-		tmp = tempfile.NamedTemporaryFile(prefix = 'test-')
-		tmp.write(
+		with tempfile.NamedTemporaryFile(prefix = 'test-', delete = False) as tmp:
+			tmp.write((
 """<?xml version="1.0" ?>
 <interface last-modified="1110752708"
  uri="%s"
@@ -121,8 +126,8 @@ class TestLaunch(BaseTest):
   <group main='/bin/sh'>
    <implementation id='.' version='1'/>
   </group>
-</interface>""" % foo_iface_uri)
-		tmp.flush()
+</interface>""" % foo_iface_uri).encode('utf-8'))
+
 		driver = Driver(requirements = Requirements(tmp.name), config = self.config)
 		try:
 			downloaded = driver.solve_and_download_impls()
@@ -142,7 +147,7 @@ class TestLaunch(BaseTest):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--dry-run', 'http://foo/d'])
 		# Uses local copy of GUI
-		assert out.startswith("Would execute: ")
+		assert out.startswith("Would execute: "), repr((out, err))
 		assert 'basetest.py' in out
 		self.assertEqual("", err)
 
@@ -172,7 +177,7 @@ class TestLaunch(BaseTest):
 		assert out.endswith("Finished\n")
 		out = out[:-len("Finished\n")]
 
-		root = qdom.parse(StringIO(str(out)))
+		root = qdom.parse(BytesIO(str(out).encode('utf-8')))
 		self.assertEqual(namespaces.XMLNS_IFACE, root.uri)
 		sels = selections.Selections(root)
 		sel,= sels.selections.values()

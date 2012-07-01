@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 from basetest import BaseTest, TestStores
 import sys, os, tempfile
-from StringIO import StringIO
+if sys.version_info[0] > 2:
+	from io import StringIO, BytesIO
+else:
+	from StringIO import StringIO
+	BytesIO = StringIO
 import unittest
 
 sys.path.insert(0, '..')
@@ -39,8 +43,9 @@ class TestInstall(BaseTest):
 				raise
 			except ValueError:
 				raise
-			except Exception as ex:
-				pass
+			except Exception as ex2:
+				ex = ex2		# Python 3
+				raise
 			out = sys.stdout.getvalue()
 			err = sys.stderr.getvalue()
 			if ex is not None:
@@ -87,7 +92,7 @@ class TestInstall(BaseTest):
 		assert 'Version: 0.1' in out
 
 		out, err = self.run_0install(['select', 'Local.xml', '--xml'])
-		sels = selections.Selections(qdom.parse(StringIO(str(out))))
+		sels = selections.Selections(qdom.parse(BytesIO(str(out).encode('utf-8'))))
 		assert sels.selections[local_uri].version == '0.1'
 
 		out, err = self.run_0install(['select', 'selections.xml'])
@@ -111,7 +116,7 @@ class TestInstall(BaseTest):
 		local_uri = model.canonical_iface_uri('Local.xml')
 		out, err = self.run_0install(['download', 'Local.xml', '--xml'])
 		assert not err, err
-		sels = selections.Selections(qdom.parse(StringIO(str(out))))
+		sels = selections.Selections(qdom.parse(BytesIO(str(out).encode('utf-8'))))
 		assert sels.selections[local_uri].version == '0.1'
 
 		out, err = self.run_0install(['download', 'Local.xml', '--show', '--with-store=/foo'])

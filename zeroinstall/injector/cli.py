@@ -15,6 +15,7 @@ import logging
 from zeroinstall import SafeException, NeedDownload
 from zeroinstall.injector.config import load_config
 from zeroinstall.cmd import UsageError
+from zeroinstall import support
 
 #def program_log(msg): os.access('MARK: 0launch: ' + msg, os.F_OK)
 #import __main__
@@ -144,7 +145,7 @@ def main(command_args, config = None):
 	except SafeException as ex:
 		if options.verbose: raise
 		try:
-			print(unicode(ex), file=sys.stderr)
+			print(support.unicode(ex), file=sys.stderr)
 		except:
 			print(repr(ex), file=sys.stderr)
 		sys.exit(1)

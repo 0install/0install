@@ -18,7 +18,7 @@ class TestReader(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
 
-		stream = tempfile.TemporaryFile(mode = 'wt')
+		stream = tempfile.TemporaryFile(mode = 'wb')
 		stream.write(data.thomas_key)
 		stream.seek(0)
 		gpg.import_key(stream)

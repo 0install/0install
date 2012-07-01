@@ -35,7 +35,7 @@ def do_manifest(args):
 	digest = alg.new_digest()
 	for line in alg.generate_manifest(args[0]):
 		print(line)
-		digest.update(line + '\n')
+		digest.update((line + '\n').encode('utf-8'))
 	print(alg.getID(digest))
 	sys.exit(0)
 
@@ -226,7 +226,7 @@ def do_copy(args):
 	if not os.path.isfile(manifest_path):
 		raise UsageError(_("Source manifest '%s' not found") % manifest_path)
 	required_digest = os.path.basename(source)
-	with open(manifest_path, 'rt') as stream:
+	with open(manifest_path, 'rb') as stream:
 		manifest_data = stream.read()
 
 	copy_tree_with_verify(source, target, manifest_data, required_digest)

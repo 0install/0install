@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from basetest import BaseTest
-from StringIO import StringIO
+from io import BytesIO
 import sys, os
 import unittest
 
@@ -81,7 +81,7 @@ class TestSelections(BaseTest):
 		assertSel(s1)
 
 		xml = s1.toDOM().toxml("utf-8")
-		root = qdom.parse(StringIO(xml))
+		root = qdom.parse(BytesIO(xml))
 		self.assertEqual(namespaces.XMLNS_IFACE, root.uri)
 
 		s2 = selections.Selections(root)
@@ -97,7 +97,7 @@ class TestSelections(BaseTest):
 		xml = s1.toDOM().toxml("utf-8")
 
 		# Reload selections and check they're the same
-		root = qdom.parse(StringIO(xml))
+		root = qdom.parse(BytesIO(xml))
 		s2 = selections.Selections(root)
 		local_path = s2.selections[iface].local_path
 		assert os.path.isdir(local_path), local_path
@@ -114,10 +114,10 @@ class TestSelections(BaseTest):
 		assert driver.solver.ready, driver.solver.get_failure_reason()
 		s1 = driver.solver.selections
 		xml = s1.toDOM().toxml("utf-8")
-		root = qdom.parse(StringIO(xml))
+		root = qdom.parse(BytesIO(xml))
 		s2 = selections.Selections(root)
 		xml = s2.toDOM().toxml("utf-8")
-		qdom.parse(StringIO(xml))
+		qdom.parse(BytesIO(xml))
 		assert s2.selections[iface].local_path is None
 		assert not s2.selections[iface].digests, s2.selections[iface].digests
 		assert s2.selections[iface].id == 'foo bar=123'
@@ -139,7 +139,7 @@ class TestSelections(BaseTest):
 		s1 = driver.solver.selections
 		assert s1.commands[0].path == 'test-gui'
 		xml = s1.toDOM().toxml("utf-8")
-		root = qdom.parse(StringIO(xml))
+		root = qdom.parse(BytesIO(xml))
 		s2 = selections.Selections(root)
 
 		assert s2.commands[0].path == 'test-gui'
@@ -158,7 +158,7 @@ class TestSelections(BaseTest):
 		assert need_download == False
 
 		xml = d.solver.selections.toDOM().toxml("utf-8")
-		root = qdom.parse(StringIO(xml))
+		root = qdom.parse(BytesIO(xml))
 		s3 = selections.Selections(root)
 		runnable_impl = s3.selections[runnable]
 		assert 'foo' in runnable_impl.commands
@@ -166,14 +166,14 @@ class TestSelections(BaseTest):
 
 	def testOldCommands(self):
 		command_feed = os.path.join(mydir, 'old-selections.xml')
-		with open(command_feed) as stream:
+		with open(command_feed, 'rb') as stream:
 			s1 = selections.Selections(qdom.parse(stream))
 		self.assertEqual("run", s1.command)
 		self.assertEqual(2, len(s1.commands))
 		self.assertEqual("bin/java", s1.commands[1].path)
 
 		xml = s1.toDOM().toxml("utf-8")
-		root = qdom.parse(StringIO(xml))
+		root = qdom.parse(BytesIO(xml))
 		s2 = selections.Selections(root)
 
 		self.assertEqual("run", s2.command)

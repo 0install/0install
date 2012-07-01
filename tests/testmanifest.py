@@ -108,7 +108,7 @@ class TestManifest(BaseTest):
 						  'X 8a1f3c5f416f0e63140928102c44cd16ec2c6100 1172429666 5816 install.sh\n'
 						  'D /0install\n'
 						  'S 2b37e4457a1a38cfab89391ce1bfbe4dc5473fc3 26 mime-application:x-java-archive.png\n')
-		keys = parsed.keys()
+		keys = list(parsed.keys())
 		keys.sort()
 		assert keys == ['0install', '0install/mime-application:x-java-archive.png', 'README', 'install.sh']
 		for bad in ['Hello', 'D bob\n', 'D /bob\nD /bob\n']:

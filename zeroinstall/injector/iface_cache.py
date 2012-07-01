@@ -276,13 +276,14 @@ class IfaceCache(object):
 		@raises ReplayAttack: if the new mtime is older than the current one
 		"""
 		assert modified_time
+		assert isinstance(new_xml, bytes), repr(new_xml)
 
 		upstream_dir = basedir.save_cache_path(config_site, 'interfaces')
 		cached = os.path.join(upstream_dir, escape(feed_url))
 
 		old_modified = None
 		if os.path.exists(cached):
-			with open(cached) as stream:
+			with open(cached, 'rb') as stream:
 				old_xml = stream.read()
 			if old_xml == new_xml:
 				debug(_("No change"))
@@ -486,7 +487,7 @@ class IfaceCache(object):
 		@rtype: [L{Implementation}]
 		@since: 0.48"""
 		impls = []
-		for feed in self.get_feeds(iface).itervalues():
+		for feed in self.get_feeds(iface).values():
 			if feed:
 				impls += feed.implementations.values()
 		return impls

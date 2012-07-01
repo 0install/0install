@@ -16,7 +16,7 @@ from zeroinstall.injector import qdom
 from zeroinstall.injector import iface_cache, download, distro, model, handler, policy, reader, trust
 from zeroinstall.zerostore import NotStored, Store, Stores; Store._add_with_helper = lambda *unused: False
 from zeroinstall import support, apps
-from zeroinstall.support import basedir, tasks
+from zeroinstall.support import basedir, tasks, basestring
 
 dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
 
@@ -98,7 +98,7 @@ class TestFetcher:
 		self.allowed_downloads.add(digest)
 
 	def allow_feed_download(self, url, feed_xml):
-		assert isinstance(feed_xml, basestring), feed_xml
+		assert isinstance(feed_xml, support.basestring), feed_xml
 		self.allowed_feed_downloads[url] = feed_xml
 
 	def download_impls(self, impls, stores):
@@ -117,6 +117,8 @@ class TestFetcher:
 			yield
 			feed_xml = self.allowed_feed_downloads.get(feed_url, None)
 			assert feed_xml, feed_url
+			if not isinstance(feed_xml, bytes):
+				feed_xml = feed_xml.encode('utf-8')
 			self.config.iface_cache.update_feed_from_network(feed_url, feed_xml, int(time.time()))
 			del self.allowed_feed_downloads[feed_url]
 		return fake_download()
@@ -163,6 +165,10 @@ class TestConfig:
 class BaseTest(unittest.TestCase):
 	def setUp(self):
 		warnings.resetwarnings()
+
+		if sys.version_info[0] > 2:
+			# Currently, we rely on the GC to close download streams automatically, so don't warn about it.
+			warnings.filterwarnings("ignore", category = ResourceWarning)
 
 		self.config_home = tempfile.mktemp()
 		self.cache_home = tempfile.mktemp()

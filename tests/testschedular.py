@@ -66,7 +66,7 @@ class TestSchedular(BaseTest):
 			self.assertEqual(2, len(downloads))
 
 			# Let one of them complete
-			url, blocker = downloads.items()[0]
+			url, blocker = list(downloads.items())[0]
 			blocker.trigger()
 			for x in range(10): yield
 			self.assertEqual(3, len(downloads))
@@ -76,7 +76,7 @@ class TestSchedular(BaseTest):
 			del downloads[url]
 
 			# Let the next one fail
-			url, blocker = downloads.items()[0]
+			url, blocker = list(downloads.items())[0]
 			blocker.trigger(exception = (Exception("test"), None))
 			for x in range(10): yield
 			self.assertEqual(3, len(downloads))
@@ -87,11 +87,11 @@ class TestSchedular(BaseTest):
 
 			# The last two should both be in progress now.
 			# Allow them both to finish.
-			blockers = downloads.values()
+			blockers = list(downloads.values())
 			blockers[0].trigger()
 			blockers[1].trigger()
 			for x in range(10): yield
-			results = downloads.values()
+			results = list(downloads.values())
 			self.assertEqual(["ok", "ok"], results)
 
 		tasks.wait_for_blocker(collect())

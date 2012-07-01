@@ -105,10 +105,10 @@ class Config(object):
 		parser = ConfigParser.ConfigParser()
 		parser.add_section('global')
 
-		parser.set('global', 'help_with_testing', self.help_with_testing)
+		parser.set('global', 'help_with_testing', str(self.help_with_testing))
 		parser.set('global', 'network_use', self.network_use)
-		parser.set('global', 'freshness', self.freshness)
-		parser.set('global', 'auto_approve_keys', self.auto_approve_keys)
+		parser.set('global', 'freshness', str(self.freshness))
+		parser.set('global', 'auto_approve_keys', str(self.auto_approve_keys))
 
 		path = basedir.save_config_path(config_site, config_prog)
 		path = os.path.join(path, 'global')

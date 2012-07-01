@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 from basetest import BaseTest
 import sys, tempfile, os
-from StringIO import StringIO
+if sys.version_info[0] > 2:
+	from io import StringIO
+else:
+	from StringIO import StringIO
 import unittest
 import logging
 
@@ -68,9 +71,10 @@ class TestStore(BaseTest):
 				alg = manifest.get_algorithm(alg_name)
 				added_digest = alg.getID(manifest.add_manifest_file(self.tmp, alg))
 				digest = alg.new_digest()
-				digest.update('Hello')
-				self.assertEqual("S %s 5 MyLink\n" % digest.hexdigest(),
-						open(mfile, 'rb').read())
+				digest.update(b'Hello')
+				with open(mfile, 'rb') as stream:
+					self.assertEqual(("S %s 5 MyLink\n" % digest.hexdigest()).encode('utf-8'),
+							stream.read())
 				manifest.verify(self.tmp, added_digest)
 				os.chmod(self.tmp, 0o700)
 				os.unlink(mfile)

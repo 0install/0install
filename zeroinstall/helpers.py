@@ -26,7 +26,7 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 	@since: 0.28
 	"""
 	from zeroinstall.injector import selections, qdom
-	from StringIO import StringIO
+	from io import BytesIO
 
 	from os.path import join, dirname
 	gui_exe = join(dirname(__file__), '0launch-gui', '0launch-gui')
@@ -62,11 +62,12 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 
 			reply = support.read_bytes(cli.fileno(), len('Length:') + 9, null_ok = True)
 			if reply:
-				if not reply.startswith('Length:'):
+				if not reply.startswith(b'Length:'):
 					raise Exception("Expected Length:, but got %s" % repr(reply))
+				reply = reply.decode('ascii')
 				xml = support.read_bytes(cli.fileno(), int(reply.split(':', 1)[1], 16))
 
-				dom = qdom.parse(StringIO(xml))
+				dom = qdom.parse(BytesIO(xml))
 				sels = selections.Selections(dom)
 
 				if dom.getAttribute('run-test'):

@@ -8,7 +8,7 @@ The B{0install add-feed} command-line interface.
 from __future__ import print_function
 
 from zeroinstall import SafeException, _
-from zeroinstall.support import tasks
+from zeroinstall.support import tasks, raw_input
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, writer
 
