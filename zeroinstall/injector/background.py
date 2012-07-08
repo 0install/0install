@@ -217,9 +217,10 @@ def _check_for_updates(requirements, verbose, app):
 	tasks.wait_for_blocker(refresh)
 
 	if background_handler.need_gui or driver.get_uncached_implementations():
-		background_handler.notify("Zero Install",
-				      _("Updates ready to download for '%s'.") % root_iface,
-				      timeout = 1)
+		if verbose:
+			background_handler.notify("Zero Install",
+					      _("Updates ready to download for '%s'.") % root_iface,
+					      timeout = 1)
 
 		if os.environ.get('DISPLAY', None):
 			# Run the GUI...
@@ -231,6 +232,11 @@ def _check_for_updates(requirements, verbose, app):
 		else:
 			tasks.wait_for_blocker(driver.download_uncached_implementations())
 			new_sels = driver.solver.selections
+
+		if app is None:
+			background_handler.notify("Zero Install",
+					      _("{name} updated.").format(name = root_iface),
+					      timeout = 1)
 	else:
 		if verbose:
 			background_handler.notify("Zero Install", _("No updates to download."), timeout = 1)
@@ -241,6 +247,9 @@ def _check_for_updates(requirements, verbose, app):
 		from zeroinstall.support import xmltools
 		if not xmltools.nodes_equal(new_sels.toDOM(), old_sels.toDOM()):
 			app.set_selections(new_sels)
+			background_handler.notify("Zero Install",
+					      _("{app} updated.").format(app = app.get_name()),
+					      timeout = 1)
 		app.set_last_checked()
 	sys.exit(0)
 

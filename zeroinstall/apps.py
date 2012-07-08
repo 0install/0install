@@ -138,7 +138,7 @@ class App:
 				self.set_last_check_attempt()
 				from zeroinstall.injector import background
 				r = self.get_requirements()
-				background.spawn_background_update2(r, True, self)
+				background.spawn_background_update2(r, False, self)
 
 	def set_requirements(self, requirements):
 		import json
