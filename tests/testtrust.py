@@ -11,7 +11,6 @@ from zeroinstall import SafeException
 
 class TestTrust(BaseTest):
 	def testInit(self):
-		trust.trust_db.untrust_key(thomas_fingerprint, domain = '0install.net')	# Gets added by default
 		assert not trust.trust_db.is_trusted(thomas_fingerprint)
 		assert not trust.trust_db.is_trusted("1234")
 		assert len(trust.trust_db.keys) == 0

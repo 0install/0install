@@ -141,12 +141,6 @@ class TrustDB(object):
 					for key in stream:
 						if key:
 							self.keys[key] = set(['*'])
-			else:
-				# No trust database found.
-				# Trust Thomas Leonard's key for 0install.net by default.
-				# Avoids distracting confirmation box on first run when we check
-				# for updates to the GUI.
-				self.keys['92429807C9853C0744A68B9AAE07828059A53CC1'] = set(['0install.net'])
 
 def domain_from_url(url):
 	"""Extract the trust domain for a URL.
