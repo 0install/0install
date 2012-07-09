@@ -94,7 +94,7 @@ class KeyList:
 			# Remember which ones are open
 			expanded_elements = set()
 			def add_row(tv, path, unused = None):
-				if len(path) == 1:
+				if gtk.path_depth(path) == 1:
 					domain = self.trusted_keys[path][0]
 					expanded_elements.add(domain)
 			tv.map_expanded_rows(add_row, None)
@@ -141,6 +141,7 @@ class KeyList:
 				key = self.trusted_keys[path][1]
 				domain = self.trusted_keys[gtk.path_parent(path)][0]
 
+				global menu	# Needed to stop Python 3 GCing the menu and closing it instantly
 				menu = gtk.Menu()
 
 				item = gtk.MenuItem(_('Remove key for "%s"') % key.get_short_name())
