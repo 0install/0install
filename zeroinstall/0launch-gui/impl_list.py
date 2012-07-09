@@ -25,7 +25,8 @@ def _build_stability_menu(impl):
 		import main
 		main.recalculate()
 
-	item = gtk.MenuItem(_('Unset (%s)') % _(str(upstream).capitalize()).lower())
+	item = gtk.MenuItem()
+	item.set_label(_('Unset (%s)') % _(str(upstream).capitalize()).lower())
 	item.connect('activate', lambda item: set(None))
 	item.show()
 	menu.append(item)
@@ -35,7 +36,8 @@ def _build_stability_menu(impl):
 	menu.append(item)
 
 	for value in choices:
-		item = gtk.MenuItem(_(str(value)).capitalize())
+		item = gtk.MenuItem()
+		item.set_label(_(str(value)).capitalize())
 		item.connect('activate', lambda item, v = value: set(v))
 		item.show()
 		menu.append(item)
@@ -127,7 +129,8 @@ class ImplementationList:
 
 			menu = gtk.Menu()
 
-			stability_menu = gtk.MenuItem(_('Rating'))
+			stability_menu = gtk.MenuItem()
+			stability_menu.set_label(_('Rating'))
 			stability_menu.set_submenu(_build_stability_menu(impl))
 			stability_menu.show()
 			menu.append(stability_menu)
@@ -137,12 +140,14 @@ class ImplementationList:
 					os.spawnlp(os.P_WAIT, '0launch',
 						'0launch', rox_filer, '-d',
 						impl.local_path or self.driver.config.stores.lookup_any(impl.digests))
-				item = gtk.MenuItem(_('Open cached copy'))
+				item = gtk.MenuItem()
+				item.set_label(_('Open cached copy'))
 				item.connect('activate', lambda item: open())
 				item.show()
 				menu.append(item)
 
-			item = gtk.MenuItem(_('Explain this decision'))
+			item = gtk.MenuItem()
+			item.set_label(_('Explain this decision'))
 			item.connect('activate', lambda item: self.show_explaination(impl))
 			item.show()
 			menu.append(item)

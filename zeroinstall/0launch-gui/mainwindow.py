@@ -54,7 +54,7 @@ class MainWindow:
 		self.browser = InterfaceBrowser(driver, widgets)
 
 		prefs = widgets.get_widget('preferences')
-		self.window.action_area.set_child_secondary(prefs, True)
+		self.window.get_action_area().set_child_secondary(prefs, True)
 
 		# Glade won't let me add this to the template!
 		if select_only:
@@ -65,7 +65,7 @@ class MainWindow:
 			run_button = dialog.MixedButton(_("_Run"), gtk.STOCK_EXECUTE, button = gtk.ToggleButton())
 		self.window.add_action_widget(run_button, gtk.RESPONSE_OK)
 		run_button.show_all()
-		run_button.set_flags(gtk.CAN_DEFAULT)
+		run_button.set_can_default(True)
 		self.run_button = run_button
 
 		run_button.grab_focus()

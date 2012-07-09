@@ -377,6 +377,12 @@ def enable_gtk(version='2.0'):
     Gtk.Widget.size_request = size_request
     Gtk.Widget.hide_all = Gtk.Widget.hide
 
+    def widget_set_flags(widget, flags):
+        assert flags == Gtk.CAN_DEFAULT, flags
+        widget.set_can_default(True)
+
+    Gtk.Widget.set_flags = widget_set_flags
+
     class BaseGetter(object):
         def __init__(self, context):
             self.context = context
@@ -421,6 +427,10 @@ def enable_gtk(version='2.0'):
             setattr(keysyms, target, value)
 
     Gtk.TreePath.__len__ = lambda path: path.get_depth()
+
+    # TreeStore
+
+    Gtk.TreeStore.get_iter_root = Gtk.TreeStore.get_iter_first
 
 def enable_vte():
     gi.require_version('Vte', '0.0')

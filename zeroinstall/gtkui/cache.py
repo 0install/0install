@@ -132,7 +132,8 @@ def popup_menu(bev, obj, model, path, cache_explorer):
 			item = gtk.SeparatorMenuItem()
 		else:
 			name, cb = i
-			item = gtk.MenuItem(name)
+			item = gtk.MenuItem()
+			item.set_label(name)
 			def _cb(item, cb=cb):
 				action_required = cb(obj, cache_explorer)
 				if action_required is ACTION_REMOVE:

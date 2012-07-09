@@ -113,7 +113,9 @@ def MixedButton(message, stock, x_align = 0.5, button = None):
 	label.set_mnemonic_widget(button)
 
 	image = gtk.image_new_from_stock(stock, gtk.ICON_SIZE_BUTTON)
-	box = gtk.HBox(False, 2)
+	box = gtk.HBox()
+	box.set_homogeneous(False)
+	box.set_spacing(2)
 	align = gtk.Alignment(x_align, 0.5, 0.0, 0.0)
 
 	box.pack_start(image, False, False, 0)

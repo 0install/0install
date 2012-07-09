@@ -195,7 +195,7 @@ class InterfaceBrowser:
 		tree_view.connect('query-tooltip', callback)
 
 		self.cached_icon = {}	# URI -> GdkPixbuf
-		self.default_icon = tree_view.style.lookup_icon_set(gtk.STOCK_EXECUTE).render_icon(tree_view.style,
+		self.default_icon = tree_view.get_style().lookup_icon_set(gtk.STOCK_EXECUTE).render_icon(tree_view.get_style(),
 			gtk.TEXT_DIR_NONE, gtk.STATE_NORMAL, gtk.ICON_SIZE_SMALL_TOOLBAR, tree_view, None)
 
 		self.model = gtk.TreeStore(object, str, str, str, str, gtk.gdk.Pixbuf, str, bool)
@@ -399,7 +399,8 @@ class InterfaceBrowser:
 		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.driver, iface, self.compile)),
 				  (_('Show Versions'), lambda: properties.edit(self.driver, iface, self.compile, show_versions = True)),
 				  (_('Report a Bug...'), lambda: bugs.report_bug(self.driver, iface))]:
-			item = gtk.MenuItem(label)
+			item = gtk.MenuItem()
+			item.set_label(label)
 			if cb:
 				item.connect('activate', lambda item, cb=cb: cb())
 			else:
@@ -407,19 +408,22 @@ class InterfaceBrowser:
 			item.show()
 			menu.append(item)
 
-		item = gtk.MenuItem(_('Compile'))
+		item = gtk.MenuItem()
+		item.set_label(_('Compile'))
 		item.show()
 		menu.append(item)
 		if have_source:
 			compile_menu = gtk.Menu()
 			item.set_submenu(compile_menu)
 
-			item = gtk.MenuItem(_('Automatic'))
+			item = gtk.MenuItem()
+			item.set_label(_('Automatic'))
 			item.connect('activate', lambda item: self.compile(iface, autocompile = True))
 			item.show()
 			compile_menu.append(item)
 
-			item = gtk.MenuItem(_('Manual...'))
+			item = gtk.MenuItem()
+			item.set_label(_('Manual...'))
 			item.connect('activate', lambda item: self.compile(iface, autocompile = False))
 			item.show()
 			compile_menu.append(item)
