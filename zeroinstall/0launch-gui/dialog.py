@@ -1,8 +1,9 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+import gtk
 import os
-from zeroinstall.gtkui import gtkutils, gtk
+from zeroinstall.gtkui import gtkutils
 
 last_error = None
 

@@ -2,7 +2,7 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall.gtkui import gtk
+import gtk
 import sys
 
 class HelpBox:

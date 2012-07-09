@@ -2,7 +2,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import sys
-from zeroinstall.gtkui import gtk
+import gtk
 from dialog import Template
 from zeroinstall import _
 from zeroinstall.gtkui import help_box
@@ -31,14 +31,15 @@ class Preferences:
 		self.window = widgets.get_widget('preferences_box')
 		self.window.connect('destroy', lambda w: self.destroyed())
 
-		network = widgets.get_widget('network_use')
-		network.set_active(list(network_levels).index(config.network_use))
+		# (attribute to avoid: free variable 'network' referenced before assignment in enclosing scope)
+		self.network = widgets.get_widget('network_use')
+		self.network.set_active(list(network_levels).index(config.network_use))
 
 		def set_network_use(combo):
-			config.network_use = network_levels[network.get_active()]
+			config.network_use = network_levels[self.network.get_active()]
 			config.save_globals()
 			notify_cb()
-		network.connect('changed', set_network_use)
+		self.network.connect('changed', set_network_use)
 
 		# Freshness
 		times = [x.time for x in freshness_levels]
@@ -94,7 +95,7 @@ class KeyList:
 			# Remember which ones are open
 			expanded_elements = set()
 			def add_row(tv, path, unused = None):
-				if gtk.path_depth(path) == 1:
+				if len(path) == 1:
 					domain = self.trusted_keys[path][0]
 					expanded_elements.add(domain)
 			tv.map_expanded_rows(add_row, None)
@@ -115,7 +116,7 @@ class KeyList:
 					self.trusted_keys.append(iter, [key.name, key])
 
 			def may_expand(model, path, iter, unused):
-				if gtk.path_depth(path) == 1:
+				if len(path) == 1:
 					if model[iter][0] in expanded_elements:
 						tv.expand_row(path, False)
 			self.trusted_keys.foreach(may_expand, None)
@@ -135,16 +136,21 @@ class KeyList:
 				if not pos:
 					return False
 				path, col, x, y = pos
-				if gtk.path_depth(path) != 2:
+				if len(path) != 2:
 					return False
 
 				key = self.trusted_keys[path][1]
-				domain = self.trusted_keys[gtk.path_parent(path)][0]
+				if isinstance(path, tuple):
+					path = path[:-1]		# PyGTK
+				else:
+					path.up()			# PyGObject
+				domain = self.trusted_keys[path][0]
 
 				global menu	# Needed to stop Python 3 GCing the menu and closing it instantly
 				menu = gtk.Menu()
 
-				item = gtk.MenuItem(_('Remove key for "%s"') % key.get_short_name())
+				item = gtk.MenuItem()
+				item.set_label(_('Remove key for "%s"') % key.get_short_name())
 				item.connect('activate',
 					lambda item, fp = key.fingerprint, d = domain: remove_key(fp, d))
 				item.show()

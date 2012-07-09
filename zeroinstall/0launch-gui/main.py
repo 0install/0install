@@ -63,7 +63,11 @@ def run_gui(args):
 				"\nFor more information about these matters, see the file named COPYING."))
 		sys.exit(0)
 
-	from zeroinstall.gtkui import gtk
+	if sys.version_info[0] > 2:
+		from zeroinstall.gtkui import pygtkcompat
+		pygtkcompat.enable()
+		pygtkcompat.enable_gtk(version = '3.0')
+	import gtk
 	if gtk.gdk.get_display() is None:
 		print("Failed to connect to display. Aborting.", file=sys.stderr)
 		sys.exit(1)
