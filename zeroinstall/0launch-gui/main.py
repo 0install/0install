@@ -63,7 +63,7 @@ def run_gui(args):
 				"\nFor more information about these matters, see the file named COPYING."))
 		sys.exit(0)
 
-	import gtk
+	from zeroinstall.gtkui import gtk
 	if gtk.gdk.get_display() is None:
 		print("Failed to connect to display. Aborting.", file=sys.stderr)
 		sys.exit(1)
@@ -78,10 +78,14 @@ def run_gui(args):
 			config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
 
 	if len(args) < 1:
-		import preferences
-		box = preferences.show_preferences(config)
-		box.connect('destroy', gtk.main_quit)
-		gtk.main()
+		@tasks.async
+		def prefs_main():
+			import preferences
+			box = preferences.show_preferences(config)
+			done = tasks.Blocker('close preferences')
+			box.connect('destroy', lambda w: done.trigger())
+			yield done
+		tasks.wait_for_blocker(prefs_main())
 		sys.exit(0)
 
 	interface_uri = args[0]

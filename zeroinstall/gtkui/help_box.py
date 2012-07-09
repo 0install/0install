@@ -2,7 +2,8 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import gtk
+from zeroinstall.gtkui import gtk
+import sys
 
 class HelpBox:
 	"""A dialog for showing longish help texts.
@@ -27,16 +28,16 @@ class HelpBox:
 			assert not self.box
 
 		self.box = box = gtk.Dialog()
-		self.box.set_has_separator(False)
+		if sys.version_info[0] < 3:
+			self.box.set_has_separator(False)
 		self.box.set_position(gtk.WIN_POS_CENTER)
 		box.set_title(self.title)
-		box.set_has_separator(False)
 
 		swin = gtk.ScrolledWindow(None, None)
 		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
 		swin.set_shadow_type(gtk.SHADOW_IN)
 		swin.set_border_width(2)
-		box.vbox.pack_start(swin, True, True)
+		box.get_content_area().pack_start(swin, True, True, 0)
 
 		text = gtk.TextView()
 		text.set_left_margin(4)

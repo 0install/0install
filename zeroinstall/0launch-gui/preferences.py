@@ -1,7 +1,8 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import gtk
+import sys
+from zeroinstall.gtkui import gtk
 from dialog import Template
 from zeroinstall import _
 from zeroinstall.gtkui import help_box
@@ -46,8 +47,10 @@ class Preferences:
 							  '%d seconds' % config.freshness))
 			times.append(config.freshness)
 		freshness = widgets.get_widget('freshness')
+		freshness_model = freshness.get_model()
 		for level in freshness_levels:
-			freshness.append_text(str(level))
+			i = freshness_model.append()
+			freshness_model.set_value(i, 0, str(level))
 		freshness.set_active(times.index(config.freshness))
 		def set_freshness(combo, freshness = freshness): # (pygtk bug?)
 			config.freshness = freshness_levels[freshness.get_active()].time
@@ -64,7 +67,7 @@ class Preferences:
 
 		# Responses
 		self.window.set_default_response(gtk.RESPONSE_CLOSE)
-		self.window.default_widget.grab_focus()
+		self.window.get_default_widget().grab_focus()
 
 		def response(dialog, resp):
 			if resp in (gtk.RESPONSE_CLOSE, gtk.RESPONSE_DELETE_EVENT):
@@ -90,16 +93,16 @@ class KeyList:
 		def update_keys():
 			# Remember which ones are open
 			expanded_elements = set()
-			def add_row(tv, path):
+			def add_row(tv, path, unused = None):
 				if len(path) == 1:
 					domain = self.trusted_keys[path][0]
 					expanded_elements.add(domain)
-			tv.map_expanded_rows(add_row)
+			tv.map_expanded_rows(add_row, None)
 
 			self.trusted_keys.clear()
 			domains = {}
 
-			keys = gpg.load_keys(trust.trust_db.keys.keys())
+			keys = gpg.load_keys(list(trust.trust_db.keys.keys()))
 
 			for fingerprint in keys:
 				for domain in trust.trust_db.keys[fingerprint]:
@@ -111,11 +114,11 @@ class KeyList:
 				for key in domains[domain]:
 					self.trusted_keys.append(iter, [key.name, key])
 
-			def may_expand(model, path, iter):
-				if len(path) == 1:
+			def may_expand(model, path, iter, unused):
+				if gtk.path_depth(path) == 1:
 					if model[iter][0] in expanded_elements:
 						tv.expand_row(path, False)
-			self.trusted_keys.foreach(may_expand)
+			self.trusted_keys.foreach(may_expand, None)
 
 		trust.trust_db.watchers.append(update_keys)
 		tv.connect('destroy', lambda w: trust.trust_db.watchers.remove(update_keys))
@@ -132,11 +135,11 @@ class KeyList:
 				if not pos:
 					return False
 				path, col, x, y = pos
-				if len(path) != 2:
+				if gtk.path_depth(path) != 2:
 					return False
 
-				domain = self.trusted_keys[path[:-1]][0]
 				key = self.trusted_keys[path][1]
+				domain = self.trusted_keys[gtk.path_parent(path)][0]
 
 				menu = gtk.Menu()
 
@@ -146,7 +149,10 @@ class KeyList:
 				item.show()
 				menu.append(item)
 
-				menu.popup(None, None, None, bev.button, bev.time)
+				if sys.version_info[0] > 2:
+					menu.popup(None, None, None, None, bev.button, bev.time)
+				else:
+					menu.popup(None, None, None, bev.button, bev.time)
 				return True
 			return False
 		tv.connect('button-press-event', trusted_keys_button_press)
