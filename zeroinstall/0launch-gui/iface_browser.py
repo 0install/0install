@@ -87,7 +87,7 @@ class MenuIconRenderer(gtk.GenericCellRenderer):
 
 class IconAndTextRenderer(gtk.GenericCellRenderer):
 	__gproperties__ = {
-		"image": (gobject.TYPE_OBJECT, "Image", "Image", gobject.PARAM_READWRITE),
+		"image": (gobject.TYPE_PYOBJECT, "Image", "Image", gobject.PARAM_READWRITE),
 		"text": (gobject.TYPE_STRING, "Text", "Text", "-", gobject.PARAM_READWRITE),
 	}
 
@@ -198,7 +198,7 @@ class InterfaceBrowser:
 		self.default_icon = tree_view.get_style().lookup_icon_set(gtk.STOCK_EXECUTE).render_icon(tree_view.get_style(),
 			gtk.TEXT_DIR_NONE, gtk.STATE_NORMAL, gtk.ICON_SIZE_SMALL_TOOLBAR, tree_view, None)
 
-		self.model = gtk.TreeStore(object, str, str, str, str, gtk.gdk.Pixbuf, str, bool)
+		self.model = gtk.TreeStore(object, str, str, str, str, gobject.TYPE_PYOBJECT, str, bool)
 		self.tree_view = tree_view
 		tree_view.set_model(self.model)
 
