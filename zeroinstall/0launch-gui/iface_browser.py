@@ -62,6 +62,8 @@ def get_tooltip_text(mainwindow, interface, main_feed, model_column):
 		return _("Need to download %(pretty_size)s (%(size)s bytes)") % \
 				{'pretty_size': support.pretty_size(src.size), 'size': src.size}
 
+import math
+angle_right = math.pi / 2
 class MenuIconRenderer(gtk.GenericCellRenderer):
 	def __init__(self):
 		gtk.GenericCellRenderer.__init__(self)
@@ -70,20 +72,28 @@ class MenuIconRenderer(gtk.GenericCellRenderer):
 	def do_set_property(self, prop, value):
 		setattr(self, prop.name, value)
 
-	def on_get_size(self, widget, cell_area, layout = None):
+	def do_get_size(self, widget, cell_area, layout = None):
 		return (0, 0, 20, 20)
+	on_get_size = do_get_size		# GTK 2
 
-	def on_render(self, window, widget, background_area, cell_area, expose_area, flags):
-		if flags & gtk.CELL_RENDERER_PRELIT:
-			state = gtk.STATE_PRELIGHT
-		else:
-			state = gtk.STATE_NORMAL
+	if gtk.pygtk_version >= (2, 90):
+		# note: if you get "TypeError: Couldn't find conversion for foreign struct 'cairo.Context'", you need "python3-gi-cairo"
+		def do_render(self, cr, widget, background_area, cell_area, flags):	# GTK 3
+			context = widget.get_style_context()
+			gtk.render_arrow(context, cr, angle_right,
+						cell_area.x + 5, cell_area.y + 5, max(cell_area.width, cell_area.height) - 10)
+	else:
+		def on_render(self, window, widget, background_area, cell_area, expose_area, flags):	# GTK 2
+			if flags & gtk.CELL_RENDERER_PRELIT:
+				state = gtk.STATE_PRELIGHT
+			else:
+				state = gtk.STATE_NORMAL
 
-		widget.style.paint_box(window, state, gtk.SHADOW_OUT, expose_area, widget, None,
-					cell_area.x, cell_area.y, cell_area.width, cell_area.height)
-		widget.style.paint_arrow(window, state, gtk.SHADOW_NONE, expose_area, widget, None,
-					gtk.ARROW_RIGHT, True,
-					cell_area.x + 5, cell_area.y + 5, cell_area.width - 10, cell_area.height - 10)
+			widget.style.paint_box(window, state, gtk.SHADOW_OUT, expose_area, widget, None,
+						cell_area.x, cell_area.y, cell_area.width, cell_area.height)
+			widget.style.paint_arrow(window, state, gtk.SHADOW_NONE, expose_area, widget, None,
+						gtk.ARROW_RIGHT, True,
+						cell_area.x + 5, cell_area.y + 5, cell_area.width - 10, cell_area.height - 10)
 
 class IconAndTextRenderer(gtk.GenericCellRenderer):
 	__gproperties__ = {
@@ -94,42 +104,62 @@ class IconAndTextRenderer(gtk.GenericCellRenderer):
 	def do_set_property(self, prop, value):
 		setattr(self, prop.name, value)
 
-	def on_get_size(self, widget, cell_area, layout = None):
+	def do_get_size(self, widget, cell_area, layout = None):
 		if not layout:
 			layout = widget.create_pango_layout(self.text)
 		a, rect = layout.get_pixel_extents()
 
 		pixmap_height = self.image.get_height()
 
+		if not isinstance(rect, tuple):
+			rect = (rect.x, rect.y, rect.width, rect.height)	# GTK 3
+
 		both_height = max(rect[1] + rect[3], pixmap_height)
 
 		return (0, 0,
 			rect[0] + rect[2] + CELL_TEXT_INDENT,
 			both_height)
+	on_get_size = do_get_size 	# GTK 2
 
-	def on_render(self, window, widget, background_area, cell_area, expose_area, flags):
-		layout = widget.create_pango_layout(self.text)
-		a, rect = layout.get_pixel_extents()
+	if gtk.pygtk_version >= (2, 90):
+		def do_render(self, cr, widget, background_area, cell_area, flags):	# GTK 3
+			layout = widget.create_pango_layout(self.text)
+			a, rect = layout.get_pixel_extents()
+			context = widget.get_style_context()
 
-		if flags & gtk.CELL_RENDERER_SELECTED:
-			state = gtk.STATE_SELECTED
-		elif flags & gtk.CELL_RENDERER_PRELIT:
-			state = gtk.STATE_PRELIGHT
-		else:
-			state = gtk.STATE_NORMAL
+			image_y = int(0.5 * (cell_area.height - self.image.get_height()))
+			gtk.render_icon(context, cr, self.image, cell_area.x, cell_area.y)
 
-		image_y = int(0.5 * (cell_area.height - self.image.get_height()))
-		window.draw_pixbuf(widget.style.white_gc, self.image, 0, 0,
-				cell_area.x,
-				cell_area.y + image_y)
+			text_y = int(0.5 * (cell_area.height - (rect.y + rect.height)))
 
-		text_y = int(0.5 * (cell_area.height - (rect[1] + rect[3])))
+			gtk.render_layout(context, cr,
+				cell_area.x + CELL_TEXT_INDENT,
+				cell_area.y + text_y,
+				layout)
+	else:
+		def on_render(self, window, widget, background_area, cell_area, expose_area, flags):	# GTK 2
+			layout = widget.create_pango_layout(self.text)
+			a, rect = layout.get_pixel_extents()
 
-		widget.style.paint_layout(window, state, True,
-			expose_area, widget, "cellrenderertext",
-			cell_area.x + CELL_TEXT_INDENT,
-			cell_area.y + text_y,
-			layout)
+			if flags & gtk.CELL_RENDERER_SELECTED:
+				state = gtk.STATE_SELECTED
+			elif flags & gtk.CELL_RENDERER_PRELIT:
+				state = gtk.STATE_PRELIGHT
+			else:
+				state = gtk.STATE_NORMAL
+
+			image_y = int(0.5 * (cell_area.height - self.image.get_height()))
+			window.draw_pixbuf(widget.style.white_gc, self.image, 0, 0,
+					cell_area.x,
+					cell_area.y + image_y)
+
+			text_y = int(0.5 * (cell_area.height - (rect[1] + rect[3])))
+
+			widget.style.paint_layout(window, state, True,
+				expose_area, widget, "cellrenderertext",
+				cell_area.x + CELL_TEXT_INDENT,
+				cell_area.y + text_y,
+				layout)
 
 if gtk.pygtk_version < (2, 8, 0):
 	# Note sure exactly which versions need this.
@@ -395,6 +425,7 @@ class InterfaceBrowser:
 
 		have_source =  properties.have_source_for(self.config, iface)
 
+		global menu		# Fix GC problem in PyGObject
 		menu = gtk.Menu()
 		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.driver, iface, self.compile)),
 				  (_('Show Versions'), lambda: properties.edit(self.driver, iface, self.compile, show_versions = True)),
@@ -430,7 +461,10 @@ class InterfaceBrowser:
 		else:
 			item.set_sensitive(False)
 
-		menu.popup(None, None, None, bev.button, bev.time)
+		if gtk.pygtk_version >= (2, 90):
+			menu.popup(None, None, None, None, bev.button, bev.time)
+		else:
+			menu.popup(None, None, None, bev.button, bev.time)
 
 	def compile(self, interface, autocompile = True):
 		import compile
