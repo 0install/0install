@@ -144,7 +144,7 @@ class PackageKit(object):
 							packagekit_id = ';'.join(parts)
 						versions[packagekit_id] = info
 					tran = _PackageKitTransaction(self.pk, details_cb, error_cb)
-					tran.proxy.GetDetails(versions.keys())
+					tran.proxy.GetDetails(list(versions.keys()))
 				else:
 					_logger_pk.info(_('Empty resolve for %s'), package_names)
 					blocker.trigger()
