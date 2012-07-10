@@ -103,7 +103,7 @@ def get_selections_for(requirements, config, options, select_only, download_only
 				# There are feeds we should update, but we can run without them.
 				# Do the update in the background while the program is running.
 				from zeroinstall.injector import background
-				background.spawn_background_update(driver, options.verbose > 0)
+				background.spawn_background_update(driver, options.verbose)
 		return driver.solver.selections
 
 	# If the user didn't say whether to use the GUI, choose for them.

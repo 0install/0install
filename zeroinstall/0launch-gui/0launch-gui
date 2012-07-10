@@ -32,7 +32,8 @@ if localedir:
 	if hasattr(locale, 'bindtextdomain'):
 		locale.bindtextdomain('zero-install', localedir)
 
-import pygtk; pygtk.require('2.0')
+if sys.version_info[0] < 3:
+	import pygtk; pygtk.require('2.0')
 
 import main
 

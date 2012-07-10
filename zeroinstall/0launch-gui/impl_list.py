@@ -1,7 +1,8 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import gtk, gobject, os, pango
+from zeroinstall import gobject
+import gtk, os, pango, sys
 from zeroinstall import _
 from zeroinstall.injector import model, writer
 from zeroinstall import support
@@ -12,7 +13,7 @@ def _build_stability_menu(impl):
 	menu = gtk.Menu()
 
 	upstream = impl.upstream_stability or model.testing
-	choices = model.stability_levels.values()
+	choices = list(model.stability_levels.values())
 	choices.sort()
 	choices.reverse()
 
@@ -127,6 +128,7 @@ class ImplementationList:
 			path, col, x, y = pos
 			impl = self.model[path][ITEM]
 
+			global menu		# Fix GC problem with PyGObject
 			menu = gtk.Menu()
 
 			stability_menu = gtk.MenuItem()
@@ -152,7 +154,10 @@ class ImplementationList:
 			item.show()
 			menu.append(item)
 
-			menu.popup(None, None, None, bev.button, bev.time)
+			if sys.version_info[0] < 3:
+				menu.popup(None, None, None, bev.button, bev.time)
+			else:
+				menu.popup(None, None, None, None, bev.button, bev.time)
 
 		self.tree_view.connect('button-press-event', button_press)
 	

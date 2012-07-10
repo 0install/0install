@@ -2,9 +2,9 @@
 # See the README file for details, or visit http://0install.net.
 
 import os, subprocess
-import gobject
+from zeroinstall import gobject
 import dialog
-from StringIO import StringIO
+from io import BytesIO
 
 from zeroinstall import _
 from zeroinstall.injector import model, selections, qdom
@@ -72,7 +72,7 @@ def compile(on_success, interface_uri, autocompile = False):
 
 	def build(selections_xml):
 		# Get the chosen versions
-		sels = selections.Selections(qdom.parse(StringIO(selections_xml)))
+		sels = selections.Selections(qdom.parse(ByteIO(selections_xml)))
 
 		impl = sels.selections[interface_uri]
 

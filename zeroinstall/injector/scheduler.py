@@ -15,8 +15,9 @@ else:
 	import urlparse
 
 from collections import defaultdict
-import threading, gobject
+import threading
 
+from zeroinstall import gobject
 from zeroinstall.support import tasks
 from zeroinstall.injector import download
 

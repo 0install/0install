@@ -3,7 +3,7 @@
 
 import gtk
 import sys
-from logging import info
+from logging import info, warn
 
 from zeroinstall import _, translation
 from zeroinstall import SafeException
@@ -123,7 +123,11 @@ class MainWindow:
 				sels = self.driver.solver.selections
 				doc = sels.toDOM()
 				reply = doc.toxml('utf-8')
-				sys.stdout.write(('Length:%8x\n' % len(reply)) + reply)
+				if sys.version_info[0] > 2:
+					stdout = sys.stdout.buffer
+				else:
+					stdout = sys.stdout
+				stdout.write(('Length:%8x\n' % len(reply)).encode('utf-8') + reply)
 				self.window.destroy()
 				sys.exit(0)			# Success
 		except SystemExit:
@@ -144,12 +148,12 @@ class MainWindow:
 
 		if not monitored_downloads:
 			self.progress_area.hide()
-			self.window.window.set_cursor(None)
+			self.window.get_window().set_cursor(None)
 			return
 
 		if not self.progress_area.get_property('visible'):
 			self.progress_area.show()
-			self.window.window.set_cursor(gtkutils.get_busy_pointer())
+			self.window.get_window().set_cursor(gtkutils.get_busy_pointer())
 
 		any_known = False
 		done = total = self.driver.config.handler.total_bytes_downloaded	# Completed downloads
@@ -204,8 +208,10 @@ class MainWindow:
 
 	def report_exception(self, ex, tb = None):
 		if not isinstance(ex, SafeException):
-			import traceback
-			traceback.print_exception(ex, None, tb)
+			if tb is None:
+				warn(ex, exc_info = True)
+			else:
+				warn(ex, exc_info = (type(ex), ex, tb))
 		if self.systray_icon:
 			self.systray_icon.set_blinking(True)
 			self.systray_icon.set_tooltip(str(ex) + '\n' + _('(click for details)'))

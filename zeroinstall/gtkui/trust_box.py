@@ -10,7 +10,7 @@ from zeroinstall import _, translation
 import gtk
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import gpg, trust
-from zeroinstall.support import tasks
+from zeroinstall.support import tasks, unicode
 from zeroinstall.gtkui import help_box, gtkutils
 
 def frame(page, title, content, expand = False):
@@ -109,7 +109,8 @@ class TrustBox(gtk.Dialog):
 		assert valid_sigs
 
 		gtk.Dialog.__init__(self)
-		self.set_has_separator(False)
+		if hasattr(self, 'set_has_separator'):
+			self.set_has_separator(False)
 		self.set_position(gtk.WIN_POS_CENTER)
 		self.set_transient_for(parent)
 

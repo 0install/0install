@@ -1,7 +1,8 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import gtk, gobject, pango
+from zeroinstall import gobject
+import gtk, pango
 
 from zeroinstall import _, translation
 from zeroinstall.support import tasks, pretty_size
@@ -109,7 +110,10 @@ class IconAndTextRenderer(gtk.GenericCellRenderer):
 			layout = widget.create_pango_layout(self.text)
 		a, rect = layout.get_pixel_extents()
 
-		pixmap_height = self.image.get_height()
+		if self.image:
+			pixmap_height = self.image.get_height()
+		else:
+			pixmap_height = 32
 
 		if not isinstance(rect, tuple):
 			rect = (rect.x, rect.y, rect.width, rect.height)	# GTK 3
@@ -381,7 +385,7 @@ class InterfaceBrowser:
 			iter = self.model.append(parent)
 			self.model[iter][InterfaceBrowser.INTERFACE] = iface
 			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = name
-			self.model[iter][InterfaceBrowser.SUMMARY] = summary
+			self.model[iter][InterfaceBrowser.SUMMARY] = summary or ''
 			self.model[iter][InterfaceBrowser.ICON] = self.get_icon(iface) or self.default_icon
 			self.model[iter][InterfaceBrowser.PROBLEM] = False
 
@@ -414,11 +418,15 @@ class InterfaceBrowser:
 			else:
 				self.model[iter][InterfaceBrowser.PROBLEM] = essential
 				self.model[iter][InterfaceBrowser.VERSION] = _('(problem)') if essential else _('(none)')
-		if sels.command:
-			add_node(None, self.root, [sels.command], essential = True)
-		else:
-			add_node(None, self.root, [], essential = True)
-		self.tree_view.expand_all()
+		try:
+			if sels.command:
+				add_node(None, self.root, [sels.command], essential = True)
+			else:
+				add_node(None, self.root, [], essential = True)
+			self.tree_view.expand_all()
+		except Exception as ex:
+			warn("Failed to build tree: %s", ex, exc_info = ex)
+			raise
 
 	def show_popup_menu(self, iface, bev):
 		import bugs

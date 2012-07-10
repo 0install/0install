@@ -50,7 +50,11 @@ class BackgroundHandler(handler.Handler):
 
 		try:
 			import dbus
-			import dbus.glib
+			try:
+				from dbus.mainloop.glib import DBusGMainLoop
+				DBusGMainLoop(set_as_default=True)
+			except ImportError:
+				import dbus.glib		# Python 2
 		except Exception as ex:
 			info(_("Failed to import D-BUS bindings: %s"), ex)
 			return

@@ -192,7 +192,7 @@ class ConsoleHandler(Handler):
 	screen_width = None
 
 	def downloads_changed(self):
-		import gobject
+		from zeroinstall import gobject
 		if self.monitored_downloads and self.update is None:
 			if self.screen_width is None:
 				try:

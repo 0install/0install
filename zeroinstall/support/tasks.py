@@ -35,10 +35,9 @@ callbacks. See the Task class (below) for more information.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, support
+from zeroinstall import _, support, gobject
 import sys
 from logging import info, warn, debug
-import gobject
 
 # The list of Blockers whose event has happened, in the order they were
 # triggered
