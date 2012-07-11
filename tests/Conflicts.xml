@@ -1,0 +1,27 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Conflicts</name>
+  <summary>test conflicts</summary>
+
+  <group main='missing' local-path='.'>
+    <restricts interface="./Versions.xml">
+      <version before='4'/>
+    </restricts>
+
+    <!-- Doesn't select from Versions at all -->
+    <implementation id="1" version="0.1"/>
+
+    <!-- Select version 3 -->
+    <implementation id="2" version="0.2">
+      <requires interface="./Versions.xml" importance='optional'/>
+    </implementation>
+
+    <!-- Impossible -->
+    <implementation id="3" version="0.3">
+      <requires interface="./Versions.xml">
+	<version not-before='4'/>
+      </requires>
+    </implementation>
+  </group>
+</interface>

@@ -24,6 +24,8 @@ from zeroinstall import support
 # Element names for bindings in feed files
 binding_names = frozenset(['environment', 'overlay', 'executable-in-path', 'executable-in-var'])
 
+_dependency_names = frozenset(['requires', 'restricts'])
+
 network_offline = 'off-line'
 network_minimal = 'minimal'
 network_full = 'full'
@@ -171,7 +173,11 @@ def process_depends(item, local_feed_dir):
 			attrs['interface'] = dep_iface
 		else:
 			raise InvalidInterface(_('Relative interface URI "%s" in non-local feed') % dep_iface)
-	dependency = InterfaceDependency(dep_iface, element = item)
+
+	if item.name == 'restricts':
+		dependency = InterfaceRestriction(dep_iface, element = item)
+	else:
+		dependency = InterfaceDependency(dep_iface, element = item)
 
 	for e in item.childNodes:
 		if e.uri != XMLNS_IFACE: continue
@@ -418,8 +424,9 @@ class Dependency(object):
 	"""
 	__slots__ = ['qdom']
 
-	Essential = "essential"
-	Recommended = "recommended"
+	Essential = "essential"		# Must select a version of the dependency
+	Recommended = "recommended"	# Prefer to select a version
+	Restricts = "restricts"		# Just adds restrictions without expressing any opinion
 
 	def __init__(self, element):
 		assert isinstance(element, qdom.Element), type(element)	# Use InterfaceDependency instead!
@@ -429,25 +436,19 @@ class Dependency(object):
 	def metadata(self):
 		return self.qdom.attrs
 
-	@property
-	def importance(self):
-		return self.qdom.getAttribute("importance") or Dependency.Essential
-
 	def get_required_commands(self):
 		"""Return a list of command names needed by this dependency"""
 		return []
 
-class InterfaceDependency(Dependency):
-	"""A Dependency on a Zero Install interface.
+class InterfaceRestriction(Dependency):
+	"""A Dependency that restricts the possible choices of a Zero Install interface.
 	@ivar interface: the interface required by this dependency
 	@type interface: str
 	@ivar restrictions: a list of constraints on acceptable implementations
 	@type restrictions: [L{Restriction}]
-	@ivar bindings: how to make the choice of implementation known
-	@type bindings: [L{Binding}]
-	@since: 0.28
+	@since: 1.10
 	"""
-	__slots__ = ['interface', 'restrictions', 'bindings']
+	__slots__ = ['interface', 'restrictions']
 
 	def __init__(self, interface, restrictions = None, element = None):
 		Dependency.__init__(self, element)
@@ -458,10 +459,35 @@ class InterfaceDependency(Dependency):
 			self.restrictions = []
 		else:
 			self.restrictions = restrictions
+
+	importance = Dependency.Restricts
+	bindings = ()
+
+	def __str__(self):
+		return _("<Restriction on %(interface)s; %(restrictions)s>") % {'interface': self.interface, 'restrictions': self.restrictions}
+
+class InterfaceDependency(InterfaceRestriction):
+	"""A Dependency on a Zero Install interface.
+	@ivar interface: the interface required by this dependency
+	@type interface: str
+	@ivar restrictions: a list of constraints on acceptable implementations
+	@type restrictions: [L{Restriction}]
+	@ivar bindings: how to make the choice of implementation known
+	@type bindings: [L{Binding}]
+	@since: 0.28
+	"""
+	__slots__ = ['bindings']
+
+	def __init__(self, interface, restrictions = None, element = None):
+		InterfaceRestriction.__init__(self, interface, restrictions, element)
 		self.bindings = []
 
 	def __str__(self):
 		return _("<Dependency on %(interface)s; bindings: %(bindings)s%(restrictions)s>") % {'interface': self.interface, 'bindings': self.bindings, 'restrictions': self.restrictions}
+
+	@property
+	def importance(self):
+		return self.qdom.getAttribute("importance") or Dependency.Essential
 
 	def get_required_commands(self):
 		"""Return a list of command names needed by this dependency"""
@@ -564,7 +590,7 @@ class Command(object):
 			self._runner = None
 			depends = []
 			for child in self.qdom.childNodes:
-				if child.name == 'requires':
+				if child.name in _dependency_names:
 					dep = process_depends(child, self._local_dir)
 					depends.append(dep)
 				elif child.name == 'runner':
@@ -768,7 +794,7 @@ class ZeroInstallImplementation(Implementation):
 
 	# Deprecated
 	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires
-						   if isinstance(x, InterfaceDependency)]))
+						   if isinstance(x, InterfaceRestriction)]))
 
 	def add_download_source(self, url, size, extract, start_offset = 0, type = None):
 		"""Add a download source."""
@@ -1023,7 +1049,7 @@ class ZeroInstallFeed(object):
 
 				for child in item.childNodes:
 					if child.uri != XMLNS_IFACE: continue
-					if child.name == 'requires':
+					if child.name in _dependency_names:
 						dep = process_depends(child, local_dir)
 						depends.append(dep)
 					elif child.name == 'command':

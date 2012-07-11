@@ -4,7 +4,7 @@ import sys, os, locale
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import solver, arch
+from zeroinstall.injector import solver, arch, model
 from zeroinstall.injector.requirements import Requirements
 
 import logging
@@ -211,6 +211,31 @@ class TestSolver(BaseTest):
 			'0.1 Linux-x86_64',	# 64-bit is best match for host arch
 			'0.1 Linux-i686', '0.1 Linux-i586', '0.1 Linux-i486'],	# ordering of x86 versions
 			selected)
+
+	def testRestricts(self):
+		iface_cache = self.config.iface_cache
+		s = solver.DefaultSolver(self.config)
+		uri = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'Conflicts.xml')
+		versions = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'Versions.xml')
+		iface = iface_cache.get_interface(uri)
+
+		r = Requirements(uri)
+
+		# Selects 0.2 as the highest version, applying the restriction to versions < 4.
+		s.solve_for(r)
+		assert s.ready
+		self.assertEqual("0.2", s.selections.selections[uri].version)
+		self.assertEqual("3", s.selections.selections[versions].version)
+
+		s.extra_restrictions[iface] = [model.VersionRestriction(model.parse_version('0.1'))]
+		s.solve_for(r)
+		assert s.ready
+		self.assertEqual("0.1", s.selections.selections[uri].version)
+		self.assertEqual(None, s.selections.selections.get(versions, None))
+
+		s.extra_restrictions[iface] = [model.VersionRestriction(model.parse_version('0.3'))]
+		s.solve_for(r)
+		assert not s.ready
 
 	def testLangs(self):
 		iface_cache = self.config.iface_cache

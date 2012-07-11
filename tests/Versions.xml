@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+	   uri='http://foo/Langs.xml'>
+	<name>Versions</name>
+	<summary>Versions</summary>
+
+	<group main='dummy'>
+		<implementation id='sha1=1' version='1'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=2' version='2'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=3' version='3'>
+			<archive href='foo' size='10'/>
+		</implementation>
+
+		<implementation id='sha1=4' version='4'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=5' version='5'>
+			<archive href='foo' size='10'/>
+		</implementation>
+		<implementation id='sha1=6' version='6'>
+			<archive href='foo' size='10'/>
+		</implementation>
+	</group>
+</interface>

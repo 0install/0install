@@ -297,6 +297,8 @@ class Selections(object):
 				selection_elem.appendChild(b._toxml(doc, prefixes))
 
 			for dep in selection.dependencies:
+				if not isinstance(dep, model.InterfaceDependency): continue
+
 				dep_elem = doc.createElementNS(XMLNS_IFACE, 'requires')
 				dep_elem.setAttributeNS(None, 'interface', dep.interface)
 				selection_elem.appendChild(dep_elem)

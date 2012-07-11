@@ -409,7 +409,7 @@ class InterfaceBrowser:
 							 iface_cache.get_interface(child.interface),
 							 child.get_required_commands(),
 							 child.importance == model.Dependency.Essential)
-					else:
+					elif not isinstance(child, model.InterfaceRestriction):
 						child_iter = self.model.append(parent)
 						self.model[child_iter][InterfaceBrowser.INTERFACE_NAME] = '?'
 						self.model[child_iter][InterfaceBrowser.SUMMARY] = \

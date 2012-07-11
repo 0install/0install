@@ -290,7 +290,9 @@ class SATSolver(Solver):
 
 		impls_for_iface = {}	# Iface -> [impl]
 
-		group_clause_for = {}	# Iface URI -> AtMostOneClause | bool
+		# For each interface, the group clause says we can't select two implementations of it at once.
+		# We use this map at the end to find out what was actually selected.
+		group_clause_for = {}	# Iface URI -> AtMostOneClause
 		group_clause_for_command = {}	# (Iface URI, command name) -> AtMostOneClause | bool
 
 		# Return the dependencies of impl that we should consider.
@@ -594,12 +596,18 @@ class SATSolver(Solver):
 			m_groups_clause = None
 
 		def decide():
-			"""Recurse through the current selections until we get to an interface with
+			"""This is called by the SAT solver when it cannot simplify the problem further.
+			Our job is to find the most-optimal next selection to try.
+			Recurse through the current selections until we get to an interface with
 			no chosen version, then tell the solver to try the best version from that."""
 
 			def find_undecided_dep(impl_or_command, arch):
 				# Check for undecided dependencies of impl_or_command
 				for dep in deps_in_use(impl_or_command, arch):
+					# Restrictions don't express that we do or don't want the
+					# dependency, so skip them here.
+					if dep.importance == model.Dependency.Restricts: continue
+
 					for c in dep.get_required_commands():
 						dep_lit = find_undecided_command(dep.interface, c)
 						if dep_lit is not None:
