@@ -75,6 +75,10 @@ def ro_rmtree(root):
 	@since: 0.28"""
 	import shutil
 	import platform
+	if os.getcwd().startswith(root):
+		import warnings
+		warnings.warn("Removing tree ({tree}) containing the current directory ({cwd}) - this will not work on Windows".format(cwd = os.getcwd(), tree = root), stacklevel = 2)
+
 	if platform.system() == 'Windows':
 		for main, dirs, files in os.walk(root):
 			for i in files + dirs:
