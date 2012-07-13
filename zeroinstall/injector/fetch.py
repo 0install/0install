@@ -332,10 +332,10 @@ class Fetcher(object):
 		if isinstance(retrieval_method, DistributionSource):
 			return retrieval_method.install(self.handler)
 
-		from zeroinstall.zerostore import manifest
+		from zeroinstall.zerostore import manifest, parse_algorithm_digest_pair
 		best = None
 		for digest in impl.digests:
-			alg_name = digest.split('=', 1)[0]
+			alg_name, digest_value = parse_algorithm_digest_pair(digest)
 			alg = manifest.algorithms.get(alg_name, None)
 			if alg and (best is None or best.rating < alg.rating):
 				best = alg

@@ -40,6 +40,45 @@ def _copytree2(src, dst):
 		else:
 			shutil.copy2(srcname, dstname)
 
+def _validate_pair(value):
+	if '/' in value or \
+	   '\\' in value or \
+	   value.startswith('.'):
+		raise BadDigest("Invalid digest '{value}'".format(value = value))
+
+def parse_algorithm_digest_pair(src):
+	"""Break apart an algorithm/digest into in a tuple.
+	Old algorithms use '=' as the separator, while newer ones use '_'.
+	@param src: the combined string
+	@type src: str
+	@return: the parsed values
+	@rtype: (str, str)
+	@raise BadDigest: if it can't be parsed
+	@since: 1.10"""
+	_validate_pair(src)
+	if src.startswith('sha1=') or src.startswith('sha1new=') or src.startswith('sha256='):
+		return src.split('=', 1)
+	result = src.split('_', 1)
+	if len(result) != 2:
+		if '=' in src:
+			raise BadDigest("Use '_' not '=' for new algorithms, in {src}".format(src = src))
+		raise BadDigest("Can't parse digest {src}".format(src = src))
+	return result
+
+def format_algorithm_digest_pair(alg, digest):
+	"""The opposite of L{parse_algorithm_digest_pair}.
+	The result is suitable for use as a directory name (does not contain '/' characters).
+	@raise BadDigest: if the result is invalid
+	@type alg: str
+	@type digest: str
+	@since: 1.10"""
+	if alg in ('sha1', 'sha1new', 'sha256'):
+		result = alg + '=' + digest
+	else:
+		result = alg + '_' + digest
+	_validate_pair(result)
+	return result
+
 class Store:
 	"""A directory for storing implementations."""
 
@@ -55,15 +94,7 @@ class Store:
 		return _("Store '%s'") % self.dir
 	
 	def lookup(self, digest):
-		try:
-			alg, value = digest.split('=', 1)
-		except ValueError:
-			raise BadDigest(_("Digest must be in the form ALG=VALUE, not '%s'") % digest)
-		try:
-			assert '/' not in value
-			assert value not in ('', '.', '..')
-		except ValueError as ex:
-			raise BadDigest(_("Bad value for digest: %s") % str(ex))
+		alg, value = parse_algorithm_digest_pair(digest)
 		dir = os.path.join(self.dir, digest)
 		if os.path.isdir(dir):
 			return dir
@@ -270,8 +301,7 @@ class Stores(object):
 		assert digests
 		for digest in digests:
 			assert digest
-			if '/' in digest or '=' not in digest:
-				raise BadDigest(_('Syntax error in digest (use ALG=VALUE, not %s)') % digest)
+			_validate_pair(digest)
 			for store in self.stores:
 				path = store.lookup(digest)
 				if path:

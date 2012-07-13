@@ -62,7 +62,7 @@ class TestStore(BaseTest):
 		path = os.path.join(self.tmp, 'MyLink')
 		os.symlink('Hello', path)
 		mfile = os.path.join(self.tmp, '.manifest')
-		for alg_name in ['sha1', 'sha256', 'sha1new']:
+		for alg_name in ['sha1', 'sha256', 'sha1new', 'sha256new']:
 			try:
 				alg = manifest.get_algorithm(alg_name)
 				added_digest = alg.getID(manifest.add_manifest_file(self.tmp, alg))

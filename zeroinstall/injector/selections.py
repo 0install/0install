@@ -7,7 +7,7 @@ Load and save a set of chosen implementations.
 # See the README file for details, or visit http://0install.net.
 
 import os
-from zeroinstall import _
+from zeroinstall import _, zerostore
 from zeroinstall.injector import model
 from zeroinstall.injector.policy import get_deprecated_singleton_config
 from zeroinstall.injector.model import process_binding, process_depends, binding_names, Command
@@ -197,7 +197,7 @@ class Selections(object):
 					requires.append(dep)
 				elif elem.name == 'manifest-digest':
 					for aname, avalue in elem.attrs.items():
-						digests.append('%s=%s' % (aname, avalue))
+						digests.append(zerostore.format_algorithm_digest_pair(aname, avalue))
 				elif elem.name == 'command':
 					name = elem.getAttribute('name')
 					assert name, "Missing name attribute on <command>"
@@ -288,7 +288,7 @@ class Selections(object):
 			if selection.digests:
 				manifest_digest = doc.createElementNS(XMLNS_IFACE, 'manifest-digest')
 				for digest in selection.digests:
-					aname, avalue = digest.split('=', 1)
+					aname, avalue = zerostore.parse_algorithm_digest_pair(digest)
 					assert ':' not in aname
 					manifest_digest.setAttribute(aname, avalue)
 				selection_elem.appendChild(manifest_digest)

@@ -5,6 +5,7 @@
   <summary>Compiler</summary>
   <description>Compiler</description>
   <implementation id='sha1=345' version='1.0' main='gcc'>
+    <manifest-digest sha256new='345'/>
     <archive href='foo' size='10'/>
   </implementation>
   <implementation id='sha1=678' version='0.1' main='gcc'>

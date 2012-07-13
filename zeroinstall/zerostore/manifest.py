@@ -25,17 +25,12 @@ A top-level ".manifest" file is ignored.
 # See the README file for details, or visit http://0install.net.
 
 
-import os, stat
+import os, stat, base64
 from zeroinstall import SafeException, _
-from zeroinstall.zerostore import BadDigest
+from zeroinstall.zerostore import BadDigest, parse_algorithm_digest_pair, format_algorithm_digest_pair
 
-try:
-	import hashlib
-	sha1_new = hashlib.sha1
-except:
-	import sha
-	sha1_new = sha.new
-	hashlib = None
+import hashlib
+sha1_new = hashlib.sha1
 
 class Algorithm:
 	"""Abstract base class for algorithms.
@@ -161,10 +156,8 @@ def splitID(id):
 	"""Take an ID in the form 'alg=value' and return a tuple (alg, value),
 	where 'alg' is an instance of Algorithm and 'value' is a string.
 	@raise BadDigest: if the algorithm isn't known or the ID has the wrong format."""
-	parts = id.split('=', 1)
-	if len(parts) != 2:
-		raise BadDigest(_("Digest '%s' is not in the form 'algorithm=value'") % id)
-	return (get_algorithm(parts[0]), parts[1])
+	alg, digest = parse_algorithm_digest_pair(id)
+	return (get_algorithm(alg), digest)
 
 def copy_with_verify(src, dest, mode, alg, required_digest):
 	"""Copy path src to dest, checking that the contents give the right digest.
@@ -431,13 +424,9 @@ def _copy_files(alg, wanted, source, target):
 class HashLibAlgorithm(Algorithm):
 	new_digest = None		# Constructor for digest objects
 
-	def __init__(self, name, rating):
-		if name == 'sha1':
-			self.new_digest = sha1_new
-			self.name = 'sha1new'
-		else:
-			self.new_digest = getattr(hashlib, name)
-			self.name = name
+	def __init__(self, name, rating, hash_name = None):
+		self.name = name
+		self.new_digest = getattr(hashlib, hash_name or name)
 		self.rating = rating
 
 	def generate_manifest(self, root):
@@ -496,15 +485,22 @@ class HashLibAlgorithm(Algorithm):
 		for x in recurse('/'): yield x
 
 	def getID(self, digest):
-		return self.name + '=' + digest.hexdigest()
+		if self.name in ('sha1new', 'sha256'):
+			digest_str = digest.hexdigest()
+		else:
+			# Base32-encode newer algorithms to make the digest shorter.
+			# We can't use base64 as Windows is case insensitive.
+			# There's no need for padding (and = characters in paths cause problems for some software).
+			digest_str = base64.b32encode(digest.digest()).rstrip(b'=').decode('ascii')
+		return format_algorithm_digest_pair(self.name, digest_str)
 
 algorithms = {
 	'sha1': OldSHA1(),
-	'sha1new': HashLibAlgorithm('sha1', 50),
+	'sha1new': HashLibAlgorithm('sha1new', 50, 'sha1'),
+	'sha256': HashLibAlgorithm('sha256', 80),
+	'sha256new': HashLibAlgorithm('sha256new', 90, 'sha256'),
 }
 
-if hashlib is not None:
-	algorithms['sha256'] = HashLibAlgorithm('sha256', 80)
 
 def fixup_permissions(root):
 	"""Set permissions recursively for children of root:

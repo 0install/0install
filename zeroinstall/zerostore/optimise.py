@@ -55,6 +55,7 @@ def optimise(impl_dir):
 	dup_size = uniq_size = already_linked = man_size = 0
 
 	import random
+	from zeroinstall.zerostore import BadDigest, parse_algorithm_digest_pair
 
 	for x in range(10):
 		tmpfile = os.path.join(impl_dir, 'optimise-%d' % random.randint(0, 1000000))
@@ -74,7 +75,9 @@ def optimise(impl_dir):
 		print(msg, end='')
 		sys.stdout.flush()
 
-		if impl.startswith('.') or '=' not in impl:
+		try:
+			alg, manifest_digest = parse_algorithm_digest_pair(impl)
+		except BadDigest:
 			warn(_("Skipping non-implementation '%s'"), impl)
 			continue
 		manifest_path = os.path.join(impl_dir, impl, '.manifest')
@@ -84,7 +87,6 @@ def optimise(impl_dir):
 			warn(_("Failed to read manifest file '%(manifest_path)s': %(exception)s"), {'manifest': manifest_path, 'exception': str(ex)})
 			continue
 
-		alg = impl.split('=', 1)[0]
 		if alg == 'sha1': continue
 
 		man_size += os.path.getsize(manifest_path)

@@ -9,6 +9,6 @@
      <rename source="HelloWorld" dest="HelloUniverse"/>
      <rename source="HelloUniverse/main" dest="HelloUniverse/minor"/>
     </recipe>
-    <manifest-digest sha256="f92395ac2731814dd20d8fc9a4c192f09af0b302e5f5ac005a1e63374ed43eec"/>
+    <manifest-digest sha256new="7ERZLLBHGGAU3UQNR7E2JQMS6CNPBMYC4X22YAC2DZRTOTWUH3WA"/>
   </implementation>
 </interface>

@@ -19,7 +19,7 @@ from logging import info, debug, warn
 from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector import qdom
-from zeroinstall import support
+from zeroinstall import support, zerostore
 
 # Element names for bindings in feed files
 binding_names = frozenset(['environment', 'overlay', 'executable-in-path', 'executable-in-var'])
@@ -778,7 +778,7 @@ class DistributionImplementation(Implementation):
 
 class ZeroInstallImplementation(Implementation):
 	"""An implementation where all the information comes from Zero Install.
-	@ivar digests: a list of "algorith=value" strings (since 0.45)
+	@ivar digests: a list of "algorith=value" or "algorith_value" strings (since 0.45)
 	@type digests: [str]
 	@since: 0.28"""
 	__slots__ = ['os', 'size', 'digests', 'local_path']
@@ -1148,7 +1148,7 @@ class ZeroInstallFeed(object):
 				elif elem.name == 'manifest-digest':
 					for aname, avalue in elem.attrs.items():
 						if ' ' not in aname:
-							impl.digests.append('%s=%s' % (aname, avalue))
+							impl.digests.append(zerostore.format_algorithm_digest_pair(aname, avalue))
 				elif elem.name == 'recipe':
 					recipe = Recipe()
 					for recipe_step in elem.childNodes:

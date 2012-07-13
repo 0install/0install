@@ -73,7 +73,7 @@ class TestSelections(BaseTest):
 			self.assertEqual('BINDIR', dep.bindings[2].name)
 			self.assertEqual('replace', dep.bindings[2].mode)
 
-			self.assertEqual(["sha1=345"], sels[0].digests)
+			self.assertEqual(["sha1=345", 'sha256new_345'], sels[0].digests)
 
 		assert driver.solver.ready, driver.solver.get_failure_reason()
 		s1 = driver.solver.selections

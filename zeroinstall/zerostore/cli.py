@@ -7,6 +7,7 @@ from __future__ import print_function
 
 from zeroinstall import _
 import sys, os, errno
+from zeroinstall.zerostore import manifest
 from zeroinstall.zerostore.manifest import verify, get_algorithm, copy_tree_with_verify
 from zeroinstall import zerostore, SafeException, support
 
@@ -28,9 +29,9 @@ def do_manifest(args):
 	else:
 		# If no algorithm was given, guess from the directory name
 		name = os.path.basename(args[0])
-		if '=' in name:
-			alg = get_algorithm(name.split('=', 1)[0])
-		else:
+		try:
+			alg, unused = manifest.splitID(name)
+		except zerostore.BadDigest:
 			alg = get_algorithm('sha1new')
 	digest = alg.new_digest()
 	for line in alg.generate_manifest(args[0]):
@@ -159,11 +160,13 @@ def do_audit(args):
 	for root, impls in audit_ls:
 		print(_("Scanning %s") % root)
 		for required_digest in impls:
-			i += 1
 			path = os.path.join(root, required_digest)
-			if '=' not in required_digest:
+			try:
+				(alg, digest) = zerostore.parse_algorithm_digest_pair(required_digest)
+			except zerostore.BadDigest:
 				print(_("Skipping non-implementation directory %s") % path)
 				continue
+			i += 1
 			try:
 				msg = _("[%(done)d / %(total)d] Verifying %(digest)s") % {'done': i, 'total': total, 'digest': required_digest}
 				print(msg, end='')

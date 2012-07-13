@@ -68,7 +68,7 @@ class TestDriver(BaseTest):
 			assert driver.need_download()
 			download_and_execute(driver, [])
 		except model.SafeException as ex:
-			assert 'Unknown digest algorithm' in str(ex)
+			assert "Use '_' not '=' for new algorithms, in unknown=123" in str(ex), ex
 	
 	def testDownload(self):
 		tmp = tempfile.NamedTemporaryFile(mode = 'wt')
