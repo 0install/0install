@@ -172,7 +172,7 @@ def do_audit(args):
 				print(msg, end='')
 				sys.stdout.flush()
 				verify(path, required_digest)
-				print("\r" + (" " * len(msg)) + "\r", end=' ')
+				print("\r" + (" " * len(msg)) + "\r", end='')
 				verified += 1
 			except zerostore.BadDigest as ex:
 				print()
