@@ -162,6 +162,19 @@ class Fetcher(object):
 		"""Return the URL of a mirror for this feed."""
 		return self._get_mirror_url(url, 'latest.xml')
 
+	def _get_archive_mirror(self, source):
+		if self.config.mirror is None:
+			return None
+		if support.urlparse(source.url).hostname == 'localhost':
+			return None
+		if sys.version_info[0] > 2:
+			from urllib.parse import quote
+		else:
+			from urllib import quote
+		return '{mirror}/archive/{archive}'.format(
+				mirror = self.config.mirror,
+				archive = quote(source.url.replace('/', '#'), safe = ''))
+
 	def _get_impl_mirror(self, impl):
 		return self._get_mirror_url(impl.feed.url, 'impl/' + _escape_slashes(impl.id))
 
@@ -356,26 +369,44 @@ class Fetcher(object):
 					{'algorithms': impl.digests, 'implementation': impl.feed.get_name(), 'version': impl.get_version()})
 
 		@tasks.async
-		def download_impl():
-			if isinstance(retrieval_method, DownloadSource):
-				blocker, stream = self.download_archive(retrieval_method, impl_hint = impl)
-				yield blocker
-				tasks.check(blocker)
+		def download_impl(method):
+			original_exception = None
+			while True:
+				try:
+					if isinstance(method, DownloadSource):
+						blocker, stream = self.download_archive(method, impl_hint = impl,
+									may_use_mirror = original_exception is None)
+						yield blocker
+						tasks.check(blocker)
 
-				stream.seek(0)
-				if self.external_store:
-					self._add_to_external_store(required_digest, [retrieval_method], [stream])
-				else:
-					self._add_to_cache(required_digest, stores, retrieval_method, stream)
-			elif isinstance(retrieval_method, Recipe):
-				blocker = self.cook(required_digest, retrieval_method, stores, impl_hint = impl)
-				yield blocker
-				tasks.check(blocker)
-			else:
-				raise Exception(_("Unknown download type for '%s'") % retrieval_method)
+						stream.seek(0)
+						if self.external_store:
+							self._add_to_external_store(required_digest, [method], [stream])
+						else:
+							self._add_to_cache(required_digest, stores, method, stream)
+					elif isinstance(method, Recipe):
+						blocker = self.cook(required_digest, method, stores, impl_hint = impl)
+						yield blocker
+						tasks.check(blocker)
+					else:
+						raise Exception(_("Unknown download type for '%s'") % method)
+				except download.DownloadError as ex:
+					if original_exception:
+						info("Error from mirror: %s", ex)
+						raise original_exception
+					else:
+						original_exception = ex
+					mirror_url = self._get_impl_mirror(impl)
+					if mirror_url is not None:
+						info("%s: trying implementation mirror at %s", ex, mirror_url)
+						method = model.DownloadSource(impl, mirror_url,
+									None, None, type = 'application/x-bzip-compressed-tar')
+						continue		# Retry
+					raise
+				break
 
 			self.handler.impl_added_to_store(impl)
-		return download_impl()
+		return download_impl(retrieval_method)
 
 	def _add_to_cache(self, required_digest, stores, retrieval_method, stream):
 		assert isinstance(retrieval_method, DownloadSource)
@@ -407,7 +438,7 @@ class Fetcher(object):
 			os.remove(path)
 
 	# (force is deprecated and ignored)
-	def download_archive(self, download_source, force = False, impl_hint = None):
+	def download_archive(self, download_source, force = False, impl_hint = None, may_use_mirror = False):
 		"""Fetch an archive. You should normally call L{download_impl}
 		instead, since it handles other kinds of retrieval method too."""
 		from zeroinstall.zerostore import unpack
@@ -424,13 +455,15 @@ class Fetcher(object):
 		if not self.external_store:
 			unpack.check_type_ok(mime_type)
 
-		if impl_hint:
-			mirror = self._get_impl_mirror(impl_hint)
+		if may_use_mirror:
+			mirror = self._get_archive_mirror(download_source)
 		else:
 			mirror = None
 
 		dl = self.download_url(download_source.url, hint = impl_hint, mirror_url = mirror)
-		dl.expected_size = download_source.size + (download_source.start_offset or 0)
+		if download_source.size is not None:
+			dl.expected_size = download_source.size + (download_source.start_offset or 0)
+		# (else don't know sizes for mirrored archives)
 		return (dl.downloaded, dl.tempfile)
 
 	# (force is deprecated and ignored)
@@ -609,7 +642,7 @@ class DownloadStepRunner(StepRunner):
 	model_type = model.DownloadSource
 
 	def prepare(self, fetcher, blockers):
-		self.blocker, self.stream = fetcher.download_archive(self.stepdata, impl_hint = self.impl_hint)
+		self.blocker, self.stream = fetcher.download_archive(self.stepdata, impl_hint = self.impl_hint, may_use_mirror = True)
 		assert self.stream
 		blockers.append(self.blocker)
 	

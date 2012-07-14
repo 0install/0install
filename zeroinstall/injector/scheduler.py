@@ -74,9 +74,12 @@ class DownloadScheduler:
 				if mirror_url is None:
 					raise original_exception
 
-				# Try mirror
-				logging.warn("%s: trying mirror at %s", ex, mirror_url)
-				dl.expected_size = None
+				# Try the mirror.
+				# There are actually two places where we try to use the mirror: this one
+				# looks to see if we have an exact copy of same file somewhere else. If this
+				# fails, Fetcher will also look for a different archive that would generate
+				# the required implementation.
+				logging.warn("%s: trying archive mirror at %s", ex, mirror_url)
 				step.redirect = mirror_url
 				redirections_remaining = 10
 

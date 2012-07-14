@@ -5,11 +5,11 @@
   <summary>Hello</summary>
   <description>Hello</description>
   <implementation id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" version="1">
-    <archive href="http://localhost:8000/HelloWorld.tgz" size="176"/>
+    <archive href="http://example.com:8000/HelloWorld.tgz" size="176"/>
   </implementation>
 </interface>
 <!-- Base64 Signature
-iEYEABECAAYFAkmqgqEACgkQb88SG+I5DgvHdgCbBWNXJPIIyYwpLcO4GG6VQE6i89MAniWUyvZd
-RIDJACxauMnd7SIpxdcg
+iEYEABECAAYFAlABppoACgkQb88SG+I5DgsR3QCaAkM2qiKiySu44+MLhgh23WtAMoMAn1y5R51V
+xsiIzigNDJMBHGLXa20V
 
 -->

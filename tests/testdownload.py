@@ -398,7 +398,6 @@ class TestDownload(BaseTest):
 	def testRecipeFailure(self):
 		old_out = sys.stdout
 		try:
-			sys.stdout = StringIO()
 			run_server('*')
 			driver = Driver(requirements = Requirements(os.path.abspath('Recipe.xml')), config = self.config)
 			try:
@@ -417,7 +416,7 @@ class TestDownload(BaseTest):
 				'/0mirror/feeds/http/example.com:8000/Hello.xml/latest.xml',
 				'/0mirror/keys/6FCF121BE2390E0B.gpg',
 				server.Give404('/HelloWorld.tgz'),
-				'/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+				'/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz')
 		driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
 		self.config.mirror = 'http://example.com:8000/0mirror'
 
@@ -426,6 +425,28 @@ class TestDownload(BaseTest):
 		assert driver.solver.ready
 
 		#getLogger().setLevel(logging.WARN)
+		downloaded = driver.download_uncached_implementations()
+		tasks.wait_for_blocker(downloaded)
+		path = self.config.stores.lookup_any(driver.solver.selections.selections['http://example.com:8000/Hello.xml'].digests)
+		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+
+	def testImplMirror(self):
+		# This is like testMirror, except we have a different archive (that generates the same content),
+		# rather than an exact copy of the unavailable archive.
+		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+		run_server('/Hello.xml',
+				'/6FCF121BE2390E0B.gpg',
+				server.Give404('/HelloWorld.tgz'),
+				server.Give404('/0mirror/archive/http%3A%2F%2Flocalhost%3A8000%2FHelloWorld.tgz'),
+				'/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+		driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
+		self.config.mirror = 'http://example.com:8000/0mirror'
+
+		refreshed = driver.solve_with_downloads()
+		tasks.wait_for_blocker(refreshed)
+		assert driver.solver.ready
+
+		getLogger().setLevel(logging.ERROR)
 		downloaded = driver.download_uncached_implementations()
 		tasks.wait_for_blocker(downloaded)
 		path = self.config.stores.lookup_any(driver.solver.selections.selections['http://example.com:8000/Hello.xml'].digests)
@@ -458,7 +479,7 @@ class TestDownload(BaseTest):
 				assert "New feed's modification time is before old version" in str(ex)
 
 			# Must finish with the newest version
-			self.assertEqual(1235911552, self.config.iface_cache._get_signature_date(iface.uri))
+			self.assertEqual(1342285569, self.config.iface_cache._get_signature_date(iface.uri))
 		finally:
 			sys.stdout = old_out
 

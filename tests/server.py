@@ -47,8 +47,10 @@ class MyHandler(server.BaseHTTPRequestHandler):
 		# (don't use a symlink as they don't work on Windows)
 		if leaf == 'latest.xml':
 			leaf = 'Hello.xml'
-		elif parsed.path == '/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a':
+		elif parsed.path == '/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz':
 			leaf = 'HelloWorld.tgz'
+		elif parsed.path == '/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a':
+			leaf = 'HelloWorld.tar.bz2'
 
 		if not resp:
 			self.send_error(404, "Expected %s; got %s" % (next_step, parsed.path))
