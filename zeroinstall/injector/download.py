@@ -53,9 +53,11 @@ class Download(object):
 	@type aborted_by_user: bool
 	@ivar unmodified: whether the resource was not modified since the modification_time given at construction
 	@type unmodified: bool
+	@ivar mirror: an alternative URL to try if this download fails
+	@type mirror: str | None
 	"""
 	__slots__ = ['url', 'tempfile', 'status', 'expected_size', 'downloaded',
-		     'hint', '_final_total_size', 'aborted_by_user',
+		     'hint', '_final_total_size', 'aborted_by_user', 'mirror',
 		     'modification_time', 'unmodified', '_aborted']
 
 	def __init__(self, url, hint = None, modification_time = None, expected_size = None, auto_delete = True):
@@ -73,6 +75,7 @@ class Download(object):
 
 		self.tempfile = None		# Stream for result
 		self.downloaded = None
+		self.mirror = None
 
 		self.expected_size = expected_size	# Final size (excluding skipped bytes)
 		self._final_total_size = None	# Set when download is finished
@@ -156,6 +159,12 @@ class Download(object):
 			return os.fstat(self.tempfile.fileno()).st_size
 		else:
 			return self._final_total_size or 0
+
+	def get_next_mirror_url(self):
+		"""Return an alternative download URL to try, or None if we're out of options."""
+		mirror = self.mirror
+		self.mirror = None
+		return mirror
 	
 	def __str__(self):
 		return _("<Download from %s>") % self.url

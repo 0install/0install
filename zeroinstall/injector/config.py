@@ -20,7 +20,7 @@ from zeroinstall.injector.model import network_levels, network_full
 from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.support import basedir
 
-DEFAULT_FEED_MIRROR = "http://roscidus.com/0mirror"
+DEFAULT_MIRROR = "http://roscidus.com/0mirror"
 DEFAULT_KEY_LOOKUP_SERVER = 'https://keylookup.appspot.com'
 
 class Config(object):
@@ -31,13 +31,13 @@ class Config(object):
 	@type handler: L{handler.Handler}
 	@ivar key_info_server: the base URL of a key information server
 	@type key_info_server: str
-	@ivar feed_mirror: the base URL of a mirror site for keys and feeds
-	@type feed_mirror: str | None
+	@ivar mirror: the base URL of a mirror site for feeds, keys and implementations (since 1.10)
+	@type mirror: str | None
 	@ivar freshness: seconds since a feed was last checked before it is considered stale
 	@type freshness: int
 	"""
 
-	__slots__ = ['help_with_testing', 'freshness', 'network_use', 'feed_mirror', 'key_info_server', 'auto_approve_keys',
+	__slots__ = ['help_with_testing', 'freshness', 'network_use', 'mirror', 'key_info_server', 'auto_approve_keys',
 		     '_fetcher', '_stores', '_iface_cache', '_handler', '_trust_mgr', '_trust_db', '_app_mgr']
 
 	def __init__(self, handler = None):
@@ -46,9 +46,11 @@ class Config(object):
 		self.network_use = network_full
 		self._handler = handler
 		self._app_mgr = self._fetcher = self._stores = self._iface_cache = self._trust_mgr = self._trust_db = None
-		self.feed_mirror = DEFAULT_FEED_MIRROR
+		self.mirror = DEFAULT_MIRROR
 		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
 		self.auto_approve_keys = True
+
+	feed_mirror = property(lambda self: self.mirror, lambda self, value: setattr(self, 'mirror', value))
 
 	@property
 	def stores(self):

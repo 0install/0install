@@ -16,6 +16,7 @@ else:
 
 from collections import defaultdict
 import threading
+import logging
 
 from zeroinstall import gobject
 from zeroinstall.support import tasks
@@ -44,6 +45,8 @@ class DownloadScheduler:
 
 		redirections_remaining = 10
 
+		original_exception = None
+
 		# Assign the Download to a Site based on its scheme, host and port. If the result is a redirect,
 		# reassign it to the appropriate new site. Note that proxy handling happens later; we want to group
 		# and limit by the target site, not treat everything as going to a single site (the proxy).
@@ -59,8 +62,24 @@ class DownloadScheduler:
 			step.url = current_url
 			blocker = self._sites[site_key].download(step)
 			yield blocker
-			tasks.check(blocker)
-			
+
+			try:
+				tasks.check(blocker)
+			except download.DownloadError as ex:
+				if original_exception is None:
+					original_exception = ex
+				else:
+					logging.warn("%s (while trying mirror)", ex)
+				mirror_url = step.dl.get_next_mirror_url()
+				if mirror_url is None:
+					raise original_exception
+
+				# Try mirror
+				logging.warn("%s: trying mirror at %s", ex, mirror_url)
+				dl.expected_size = None
+				step.redirect = mirror_url
+				redirections_remaining = 10
+
 			if not step.redirect:
 				break
 

@@ -3,6 +3,7 @@ from __future__ import with_statement
 from basetest import BaseTest, StringIO
 import sys, tempfile, os
 import unittest
+import logging
 from logging import getLogger, WARN, ERROR
 from contextlib import contextmanager
 
@@ -410,22 +411,25 @@ class TestDownload(BaseTest):
 			sys.stdout = old_out
 
 	def testMirrors(self):
-		old_out = sys.stdout
-		try:
-			sys.stdout = StringIO()
-			getLogger().setLevel(ERROR)
-			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-			run_server(server.Give404('/Hello.xml'),
-					'/0mirror/feeds/http/example.com:8000/Hello.xml/latest.xml',
-					'/0mirror/keys/6FCF121BE2390E0B.gpg')
-			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
-			self.config.feed_mirror = 'http://example.com:8000/0mirror'
+		getLogger().setLevel(logging.ERROR)
+		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+		run_server(server.Give404('/Hello.xml'),
+				'/0mirror/feeds/http/example.com:8000/Hello.xml/latest.xml',
+				'/0mirror/keys/6FCF121BE2390E0B.gpg',
+				server.Give404('/HelloWorld.tgz'),
+				'/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+		driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
+		self.config.mirror = 'http://example.com:8000/0mirror'
 
-			refreshed = driver.solve_with_downloads()
-			tasks.wait_for_blocker(refreshed)
-			assert driver.solver.ready
-		finally:
-			sys.stdout = old_out
+		refreshed = driver.solve_with_downloads()
+		tasks.wait_for_blocker(refreshed)
+		assert driver.solver.ready
+
+		#getLogger().setLevel(logging.WARN)
+		downloaded = driver.download_uncached_implementations()
+		tasks.wait_for_blocker(downloaded)
+		path = self.config.stores.lookup_any(driver.solver.selections.selections['http://example.com:8000/Hello.xml'].digests)
+		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 	def testReplay(self):
 		old_out = sys.stdout
@@ -439,7 +443,7 @@ class TestDownload(BaseTest):
 
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 			run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
-			self.config.feed_mirror = 'http://example.com:8000/0mirror'
+			self.config.mirror = 'http://example.com:8000/0mirror'
 
 			# Update from mirror (should ignore out-of-date timestamp)
 			refreshed = self.config.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)

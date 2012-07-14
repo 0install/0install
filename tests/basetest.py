@@ -155,7 +155,7 @@ class TestConfig:
 	network_use = model.network_full
 	key_info_server = None
 	auto_approve_keys = False
-	feed_mirror = None
+	mirror = None
 
 	def __init__(self):
 		self.iface_cache = iface_cache.IfaceCache()

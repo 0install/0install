@@ -6,7 +6,7 @@ Downloads feeds, keys, packages and icons.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _, NeedDownload
-import os
+import os, sys
 from logging import info, debug, warn
 
 from zeroinstall import support
@@ -150,13 +150,20 @@ class Fetcher(object):
 				if tmpdir is not None:
 					support.ro_rmtree(tmpdir)
 
+	def _get_mirror_url(self, feed_url, resource):
+		"""Return the URL of a mirror for this feed."""
+		if self.config.mirror is None:
+			return None
+		if support.urlparse(feed_url).hostname == 'localhost':
+			return None
+		return '%s/%s/%s' % (self.config.mirror, _get_feed_dir(feed_url), resource)
+
 	def get_feed_mirror(self, url):
 		"""Return the URL of a mirror for this feed."""
-		if self.config.feed_mirror is None:
-			return None
-		if support.urlparse(url).hostname == 'localhost':
-			return None
-		return '%s/%s/latest.xml' % (self.config.feed_mirror, _get_feed_dir(url))
+		return self._get_mirror_url(url, 'latest.xml')
+
+	def _get_impl_mirror(self, impl):
+		return self._get_mirror_url(impl.feed.url, 'impl/' + _escape_slashes(impl.id))
 
 	@tasks.async
 	def get_packagekit_feed(self, feed_url):
@@ -288,7 +295,7 @@ class Fetcher(object):
 
 			if use_mirror:
 				# If we got the feed from a mirror, get the key from there too
-				key_mirror = self.config.feed_mirror + '/keys/'
+				key_mirror = self.config.mirror + '/keys/'
 			else:
 				key_mirror = None
 
@@ -416,7 +423,13 @@ class Fetcher(object):
 			raise SafeException(_("No 'type' attribute on archive, and I can't guess from the name (%s)") % download_source.url)
 		if not self.external_store:
 			unpack.check_type_ok(mime_type)
-		dl = self.download_url(download_source.url, hint = impl_hint)
+
+		if impl_hint:
+			mirror = self._get_impl_mirror(impl_hint)
+		else:
+			mirror = None
+
+		dl = self.download_url(download_source.url, hint = impl_hint, mirror_url = mirror)
 		dl.expected_size = download_source.size + (download_source.start_offset or 0)
 		return (dl.downloaded, dl.tempfile)
 
@@ -541,11 +554,13 @@ class Fetcher(object):
 			return impl.download_sources[0]
 		return None
 
-	def download_url(self, url, hint = None, modification_time = None, expected_size = None):
+	def download_url(self, url, hint = None, modification_time = None, expected_size = None, mirror_url = None):
 		"""The most low-level method here; just download a raw URL.
 		@param url: the location to download from
 		@param hint: user-defined data to store on the Download (e.g. used by the GUI)
 		@param modification_time: don't download unless newer than this
+		@param mirror_url: an altertive URL to try if this one fails
+		@type mirror_url: str
 		@rtype: L{download.Download}
 		@since: 1.5
 		"""
@@ -553,6 +568,7 @@ class Fetcher(object):
 			raise NeedDownload(url)
 
 		dl = download.Download(url, hint = hint, modification_time = modification_time, expected_size = expected_size, auto_delete = not self.external_store)
+		dl.mirror = mirror_url
 		self.handler.monitor_download(dl)
 		dl.downloaded = self.scheduler.download(dl)
 		return dl
