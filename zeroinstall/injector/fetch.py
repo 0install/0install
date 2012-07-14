@@ -558,7 +558,9 @@ class Fetcher(object):
 		return dl
 
 class StepRunner(object):
-	"""The base class of all step runners"""
+	"""The base class of all step runners.
+	@since: 1.10"""
+
 	def __init__(self, stepdata, impl_hint):
 		self.stepdata = stepdata
 		self.impl_hint = impl_hint
@@ -574,7 +576,8 @@ class StepRunner(object):
 		assert False, "Couldn't find step runner for %s" % (type(model),)
 
 class RenameStepRunner(StepRunner):
-	"""A step runner for the <rename> step"""
+	"""A step runner for the <rename> step.
+	@since: 1.10"""
 
 	model_type = model.RenameStep
 
@@ -584,7 +587,8 @@ class RenameStepRunner(StepRunner):
 		os.rename(source, dest)
 
 class DownloadStepRunner(StepRunner):
-	"""A step runner for the <archive> step"""
+	"""A step runner for the <archive> step.
+	@since: 1.10"""
 
 	model_type = model.DownloadSource
 
@@ -605,6 +609,7 @@ def native_path_within_base(base, crossplatform_path):
 	"""Takes a cross-platform relative path (i.e using forward slashes, even on windows)
 	and returns the absolute, platform-native version of the path.
 	If the path does not resolve to a location within `base`, a SafeError is raised.
+	@since: 1.10
 	"""
 	assert os.path.isabs(base)
 	if crossplatform_path.startswith("/"):
