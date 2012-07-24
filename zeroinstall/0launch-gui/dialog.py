@@ -27,6 +27,10 @@ class Dialog(gtk.Dialog):
 		button.show_all()
 		return button
 
+	def set_has_separator(self, value):
+		if hasattr(gtk.Dialog, 'set_has_separator'):
+			gtk.Dialog.set_has_separator(self, value)
+
 def alert(parent, message, type = gtk.MESSAGE_ERROR):
 	if type == gtk.MESSAGE_ERROR:
 		global last_error

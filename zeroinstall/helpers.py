@@ -73,11 +73,11 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 				if dom.getAttribute('run-test'):
 					logging.info("Testing program, as requested by GUI...")
 					if test_callback is None:
-						output = "Can't test: no test_callback was passed to get_selections_gui()\n"
+						output = b"Can't test: no test_callback was passed to get_selections_gui()\n"
 					else:
 						output = test_callback(sels)
 					logging.info("Sending results to GUI...")
-					output = ('Length:%8x\n' % len(output)) + output
+					output = ('Length:%8x\n' % len(output)).encode('utf-8') + output
 					logging.debug("Sending: %s", repr(output))
 					while output:
 						sent = cli.send(output)

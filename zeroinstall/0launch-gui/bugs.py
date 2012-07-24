@@ -18,7 +18,8 @@ def report_bug(driver, iface):
 
 	issue_file = '/etc/issue'
 	if os.path.exists(issue_file):
-		issue = open(issue_file).read().strip()
+		with open(issue_file, 'rt') as stream:
+			issue = stream.read().strip()
 	else:
 		issue = "(file '%s' not found)" % issue_file
 
@@ -62,7 +63,7 @@ def report_bug(driver, iface):
 
 	if driver.solver.ready:
 		sels = driver.solver.selections
-		text += "\n" + sels.toDOM().toprettyxml(encoding = 'utf-8')
+		text += "\n" + sels.toDOM().toprettyxml()
 
 	reporter = BugReporter(driver, iface, text)
 	reporter.show()
@@ -76,7 +77,6 @@ class BugReporter(dialog.Dialog):
 
 		self.set_title(_('Report a Bug'))
 		self.set_modal(True)
-		self.set_has_separator(False)
 		self.driver = driver
 		self.frames = []
 
@@ -166,7 +166,7 @@ class BugReporter(dialog.Dialog):
 				for title, buffer in self.frames:
 					start = buffer.get_start_iter()
 					end = buffer.get_end_iter()
-					text += '%s\n\n%s\n\n' % (title, buffer.get_text(start, end).strip())
+					text += '%s\n\n%s\n\n' % (title, buffer.get_text(start, end, include_hidden_chars = False).strip())
 				title = _('Bug for %s') % iface.get_name()
 				self.report_bug(title, text)
 				dialog.alert(None, _("Your bug report has been sent. Thank you."),
@@ -205,12 +205,16 @@ class BugReporter(dialog.Dialog):
 			# Tell 0launch to run the program
 			doc.documentElement.setAttribute('run-test', 'true')
 			payload = doc.toxml('utf-8')
-			sys.stdout.write(('Length:%8x\n' % len(payload)) + payload)
-			sys.stdout.flush()
+			if sys.version_info[0] > 2:
+				stdout = sys.stdout.buffer
+			else:
+				stdout = sys.stdout
+			stdout.write(('Length:%8x\n' % len(payload)).encode('utf-8') + payload)
+			stdout.flush()
 
 			reply = support.read_bytes(0, len('Length:') + 9)
-			assert reply.startswith('Length:')
-			test_output = support.read_bytes(0, int(reply.split(':', 1)[1], 16))
+			assert reply.startswith(b'Length:')
+			test_output = support.read_bytes(0, int(reply.split(b':', 1)[1], 16))
 
 			# Cope with invalid UTF-8
 			import codecs
@@ -223,17 +227,21 @@ class BugReporter(dialog.Dialog):
 	
 	def report_bug(self, title, text):
 		try:
-			import urllib
-			from urllib2 import urlopen
+			if sys.version_info[0] > 2:
+				from urllib.request import urlopen
+				from urllib.parse import urlencode
+			else:
+				from urllib2 import urlopen
+				from urllib import urlencode
 
 			stream = urlopen('http://sourceforge.net/tracker/index.php',
-				urllib.urlencode({
+				urlencode({
 				'group_id': str(self.sf_group_id),
 				'atid': str(self.sf_artifact_id),
 				'func': 'postadd',
 				'is_private': '0',
 				'summary': title,
-				'details': text}))
+				'details': text}).encode('utf-8'))
 			stream.read()
 			stream.close()
 		except:
