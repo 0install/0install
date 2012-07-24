@@ -4,7 +4,7 @@
 import zeroinstall
 import os
 from zeroinstall import _
-from zeroinstall.support import tasks
+from zeroinstall.support import tasks, unicode
 from zeroinstall.injector.model import Interface, Feed, stable, testing, developer, stability_levels
 from zeroinstall.injector import writer, namespaces, gpg
 from zeroinstall.gtkui import help_box

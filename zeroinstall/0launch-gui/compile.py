@@ -14,8 +14,8 @@ XMLNS_0COMPILE = 'http://zero-install.sourceforge.net/2006/namespaces/0compile'
 class Command:
 	def __init__(self):
 		self.child = None
-		self.error = ""
-		self.stdout = ""
+		self.error = b""
+		self.stdout = b""
 		self.watched_streams = 0
 
 	def run(self, command, success, get_stdout = False):
@@ -72,7 +72,7 @@ def compile(on_success, interface_uri, autocompile = False):
 
 	def build(selections_xml):
 		# Get the chosen versions
-		sels = selections.Selections(qdom.parse(ByteIO(selections_xml)))
+		sels = selections.Selections(qdom.parse(BytesIO(selections_xml)))
 
 		impl = sels.selections[interface_uri]
 
