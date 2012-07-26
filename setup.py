@@ -63,9 +63,9 @@ class build_with_data(build_py):
 		for data_file in self.package_data_files:
 			outfile = os.path.join(self.build_lib, data_file)
 			self.copy_file(data_file, outfile, preserve_mode=0)
-			executable = (os.stat(data_file).st_mode & 0111) != 0
+			executable = (os.stat(data_file).st_mode & 0o111) != 0
 			if executable:
-				os.chmod(outfile, os.stat(outfile).st_mode | 0111)
+				os.chmod(outfile, os.stat(outfile).st_mode | 0o111)
 
 class install_lib_exec(install_lib):
 	def run(self):
@@ -73,7 +73,7 @@ class install_lib_exec(install_lib):
 		if os.name != 'posix': return
 
 		launch = os.path.join(self.install_dir, 'zeroinstall/0launch-gui/0launch-gui')
-		os.chmod(launch, os.stat(launch).st_mode | 0111)
+		os.chmod(launch, os.stat(launch).st_mode | 0o111)
 
 class install_data_locale(install_data):
 	def run(self):
@@ -85,7 +85,7 @@ class install_data_locale(install_data):
 		mo_pattern = "share/locale/*/LC_MESSAGES/zero-install.mo"
 		mo_files = glob.glob(mo_pattern)
 		if not mo_files:
-			print "No translations (Git checkout?)... trying to build them..."
+			print("No translations (Git checkout?)... trying to build them...")
 			subprocess.check_call(["make", "translations"])
 			mo_files = glob.glob(mo_pattern)
 			assert mo_files
