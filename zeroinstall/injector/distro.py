@@ -296,6 +296,39 @@ class WindowsDistribution(Distribution):
 	def get_score(self, disto_name):
 		return int(disto_name == 'Windows')
 
+class DarwinDistribution(Distribution):
+	def get_package_info(self, package, factory):
+		def java_home(version, arch):
+			null = os.open(os.devnull, os.O_WRONLY)
+			child = subprocess.Popen(["/usr/libexec/java_home", "--failfast", "--version", version, "--arch", arch],
+							stdout = subprocess.PIPE, stderr = null, universal_newlines = True)
+			home = child.stdout.read().strip()
+			child.stdout.close()
+			child.wait()
+			return home
+
+		def find_java(part, jvm_version, zero_version):
+			for arch in ['i386', 'x86_64']:
+				home = java_home(jvm_version, arch)
+				if os.path.isfile(home + "/bin/java"):
+					impl = factory('package:darwin:%s:%s:%s' % (package, zero_version, arch))
+					impl.machine = arch
+					impl.version = model.parse_version(zero_version)
+					impl.upstream_stability = model.packaged
+					impl.main = home + "/bin/java"
+
+		if package == 'openjdk-6-jre':
+			find_java("Java Runtime Environment", "1.6", '6')
+		elif package == 'openjdk-6-jdk':
+			find_java("Java Development Kit", "1.6", '6')
+		elif package == 'openjdk-7-jre':
+			find_java("Java Runtime Environment", "1.7", '7')
+		elif package == 'openjdk-7-jdk':
+			find_java("Java Development Kit", "1.7", '7')
+
+	def get_score(self, disto_name):
+		return int(disto_name == 'Darwin')
+
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
 	an external command), we cache the results.
@@ -829,6 +862,8 @@ def get_host_distribution():
 			_host_distribution = SlackDistribution(_slack_db)
 		elif os.path.isdir(_arch_db):
 			_host_distribution = ArchDistribution(_arch_db)
+		elif sys.platform == "darwin":
+			_host_distribution = DarwinDistribution()
 		else:
 			_host_distribution = Distribution()
 
