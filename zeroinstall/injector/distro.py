@@ -821,6 +821,9 @@ class PortsDistribution(Distribution):
 		return int(disto_name == 'Ports')
 
 class MacPortsDistribution(CachedDistribution):
+	def __init__(self, db_status_file):
+		super(MacPortsDistribution, self).__init__(db_status_file)
+		self.darwin = DarwinDistribution()
 
 	cache_leaf = 'macports-status.cache'
 
@@ -859,6 +862,8 @@ class MacPortsDistribution(CachedDistribution):
 		child.wait()
 
 	def get_package_info(self, package, factory):
+		self.darwin.get_package_info(package, factory)
+
 		# Add installed versions...
 		versions = self.versions.get(package, [])
 
@@ -869,7 +874,11 @@ class MacPortsDistribution(CachedDistribution):
 				impl.machine = machine
 
 	def get_score(self, disto_name):
-		return int(disto_name == 'MacPorts')
+		# We support both sources of packages.
+		# In theory, we should route 'Darwin' package names to DarwinDistribution, and
+		# Mac Ports names to MacPortsDistribution. But since we only use Darwin for Java,
+		# having one object handle both is OK.
+		return int(disto_name in ('Darwin', 'MacPorts'))
 
 class CygwinDistribution(CachedDistribution):
 	"""A Cygwin-based distribution."""
