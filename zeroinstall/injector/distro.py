@@ -9,7 +9,7 @@ Integration with native distribution package managers.
 from zeroinstall import _
 import os, platform, re, subprocess, sys
 from logging import warn, info
-from zeroinstall.injector import namespaces, model, arch
+from zeroinstall.injector import namespaces, model, arch, qdom
 from zeroinstall.support import basedir, portable_rename, intern
 
 _dotted_ints = '[0-9]+(?:\.[0-9]+)*'
@@ -178,6 +178,8 @@ class Distribution(object):
 			if package is None:
 				raise model.InvalidInterface(_("Missing 'package' attribute on %s") % item)
 
+			new_impls = []
+
 			def factory(id, only_if_missing = False, installed = True):
 				assert id.startswith('package:')
 				if id in feed.implementations:
@@ -186,6 +188,7 @@ class Distribution(object):
 					warn(_("Duplicate ID '%s' for DistributionImplementation"), id)
 				impl = model.DistributionImplementation(feed, id, self, item)
 				feed.implementations[id] = impl
+				new_impls.append(impl)
 
 				impl.installed = installed
 				impl.metadata = item_attrs
@@ -203,6 +206,9 @@ class Distribution(object):
 				return impl
 
 			self.get_package_info(package, factory)
+
+			for impl in new_impls:
+				self.fixup(package, impl)
 
 		if master_feed.url == 'http://repo.roscidus.com/python/python' and all(not impl.installed for impl in feed.implementations.values()):
 			# Hack: we can support Python on platforms with unsupported package managers
@@ -237,6 +243,14 @@ class Distribution(object):
 			from zeroinstall.injector import packagekit
 			self._packagekit = packagekit.PackageKit()
 		return self._packagekit
+
+	def fixup(self, package, impl):
+		"""Some packages require special handling (e.g. Java). This is called for each
+		package that was added by L{get_package_info} after it returns. The default
+		method does nothing.
+		@param package: the name of the package
+		@param impl: the constructed implementation"""
+		pass
 
 class WindowsDistribution(Distribution):
 	def get_package_info(self, package, factory):
@@ -411,6 +425,7 @@ class CachedDistribution(Distribution):
 			raise
 
 # Maps machine type names used in packages to their Zero Install versions
+# (updates to this might require changing the reverse Java mapping)
 _canonical_machine = {
 	'all' : '*',
 	'any' : '*',
@@ -498,6 +513,34 @@ class DebianDistribution(Distribution):
 							"Please install it manually using your distribution's tools and try again. Or, install 'packagekit' and I can "
 							"use that to install it.") % package)
 				impl.download_sources.append(model.DistributionSource(package, cached['size'], install, needs_confirmation = False))
+	
+	def fixup(self, package, impl):
+		# Hack: If we added any Java implementations, find the corresponding JAVA_HOME...
+		if package == 'openjdk-6-jre':
+			java_version = '6-openjdk'
+		elif package == 'openjdk-7-jre':
+			java_version = '7-openjdk'
+		else:
+			return
+
+		if impl.machine == 'x86_64':
+			java_arch = 'amd64'
+		else:
+			java_arch = impl.machine
+
+		java_bin = '/usr/lib/jvm/java-%s-%s/jre/bin/java' % (java_version, java_arch)
+		if not os.path.exists(java_bin):
+			# Try without the arch...
+			java_bin = '/usr/lib/jvm/java-%s/jre/bin/java' % java_version
+			if not os.path.exists(java_bin):
+				info("Java binary not found (%s, %s)", java_bin)
+				if impl.main is None:
+					java_bin = '/usr/bin/java'
+				else:
+					return
+
+		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command',
+			{'path': java_bin, 'name': 'run'}), None)
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'Debian')
