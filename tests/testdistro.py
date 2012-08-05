@@ -258,6 +258,7 @@ class TestDistro(BaseTest):
 		self.assertEqual('6.17', distro.try_cleanup_distro_version('6b17'))
 		self.assertEqual('20-1', distro.try_cleanup_distro_version('b20_1'))
 		self.assertEqual('17', distro.try_cleanup_distro_version('p17'))
+		self.assertEqual('7-pre3-2.1.1-3', distro.try_cleanup_distro_version('7~u3-2.1.1-3'))	# Debian snapshot
 		self.assertEqual(None, distro.try_cleanup_distro_version('cvs'))
 
 	def testCommand(self):

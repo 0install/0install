@@ -114,15 +114,19 @@ def try_cleanup_distro_version(version):
 	if ':' in version:
 		version = version.split(':')[1]	# Skip 'epoch'
 	version = version.replace('_', '-')
+	if '~' in version:
+		version, suffix = version.split('~', 1)
+		suffix = '-pre' + try_cleanup_distro_version(suffix)
+	else:
+		suffix = ''
 	match = re.match(_version_regexp, version)
 	if match:
 		major, version, revision = match.groups()
 		if major is not None:
 			version = major[:-1] + '.' + version
-		if revision is None:
-			return version
-		else:
-			return '%s-%s' % (version, revision[2:])
+		if revision is not None:
+			version = '%s-%s' % (version, revision[2:])
+		return version + suffix
 	return None
 
 class Distribution(object):
