@@ -308,5 +308,14 @@ class TestSolver(BaseTest):
 		optional_missing_xml = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'OptionalMissing.xml')
 		s.solve(optional_missing_xml, arch.get_architecture(None, None), command_name = None)
 
+	def testFeedBug(self):
+		self.import_feed('http://foo/Build.xml', 'Build.xml')
+		self.import_feed('http://foo/Compiler.xml', 'Compiler.xml')
+		self.import_feed('http://foo/Compiler-new.xml', 'Compiler-new.xml')
+		s = solver.DefaultSolver(self.config)
+		s.solve('http://foo/Build.xml', arch.get_architecture(None, None))
+		assert s.ready, s.get_failure_reason()
+		assert s.selections
+
 if __name__ == '__main__':
 	unittest.main()

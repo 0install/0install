@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+	   uri='http://foo/Compiler-new.xml'>
+  <name>Compiler-new</name>
+  <summary>Compiler-new</summary>
+
+  <feed src='http://foo/Compiler.xml'/>
+</interface>

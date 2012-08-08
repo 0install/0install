@@ -1,0 +1,18 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+	   uri='http://foo/Build.xml'>
+  <name>Build</name>
+  <summary>Build</summary>
+
+  <implementation id='1' version='1' main='idontexist'>
+    <requires interface='http://foo/Compiler.xml'/>
+    <manifest-digest sha256new='abc'/>
+    <archive href='foo' size='10'/>
+  </implementation>
+
+  <implementation id='2' version='2' main='idontexist'>
+    <requires interface='http://foo/Compiler-new.xml'/>
+    <manifest-digest sha256new='def'/>
+    <archive href='foo' size='10'/>
+  </implementation>
+</interface>

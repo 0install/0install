@@ -7,6 +7,7 @@ Chooses a set of components to make a running program.
 
 from zeroinstall import _
 import locale
+import collections
 from logging import debug, warn, info
 
 from zeroinstall.injector.reader import MissingLocalFeed
@@ -272,7 +273,14 @@ class SATSolver(Solver):
 
 		problem = sat.SATProblem()
 
-		impl_to_var = {}	# Impl -> sat var
+		# For each (interface, impl) we have a sat variable which, if true, means that we have selected
+		# that impl as the implementation of the interface. We have to index on interface and impl (not
+		# just impl) because the same feed can provide implementations for different interfaces. This
+		# happens, for example, when an interface is renamed and the new interface imports the old feed:
+		# old versions of a program are likely to use the old interface name while new ones use the new
+		# name.
+		iface_to_vars = collections.defaultdict(lambda: {})	# Iface -> (Impl -> sat var)
+
 		self.feeds_used = set()
 		self.requires = {}
 		self.ready = False
@@ -324,6 +332,9 @@ class SATSolver(Solver):
 
 			dep_iface = iface_cache.get_interface(dependency.interface)
 			dep_union = [sat.neg(requiring_impl_var)]	# Either requiring_impl_var is False, or ...
+
+			impl_to_var = iface_to_vars[dep_iface]		# Impl -> sat var
+
 			for candidate in impls_for_iface[dep_iface]:
 				if (candidate.__class__ is _DummyImpl) or meets_restrictions(candidate):
 					if essential:
@@ -456,6 +467,8 @@ class SATSolver(Solver):
 			if self.record_details:
 				self.details[iface] = [(impl, get_unusable_reason(impl, my_extra_restrictions, arch)) for impl in impls]
 
+			impl_to_var = iface_to_vars[iface]		# Impl -> sat var
+
 			var_names = []
 			for impl in impls:
 				if is_unusable(impl, my_extra_restrictions, arch):
@@ -518,6 +531,7 @@ class SATSolver(Solver):
 
 			iface = iface_cache.get_interface(uri)
 			filtered_impls = impls_for_iface[iface]
+			impl_to_var = iface_to_vars[iface]		# Impl -> sat var
 
 			var_names = []
 			for impl in filtered_impls:
