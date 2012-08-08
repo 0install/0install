@@ -208,6 +208,10 @@ class MainWindow:
 
 	def report_exception(self, ex, tb = None):
 		if not isinstance(ex, SafeException):
+			if isinstance(ex, AssertionError):
+				# Assertions often don't say that they're errors (and are frequently
+				# blank).
+				ex = repr(ex)
 			if tb is None:
 				warn(ex, exc_info = True)
 			else:

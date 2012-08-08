@@ -463,7 +463,7 @@ class SATSolver(Solver):
 
 				filtered_impls.append(impl)
 
-				assert impl not in impl_to_var
+				assert impl not in impl_to_var, impl
 				v = problem.add_variable(ImplInfo(iface, impl, arch))
 				impl_to_var[impl] = v
 				var_names.append(v)
