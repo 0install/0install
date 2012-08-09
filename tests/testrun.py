@@ -65,6 +65,24 @@ class TestRun(BaseTest):
 		except SafeException as ex:
 			assert 'not-there' in unicode(ex)
 
+	def testBadMain(self):
+		r = Requirements(command_feed)
+		r.command = None
+		d = Driver(requirements = r, config = self.config)
+		self.config.handler.wait_for_blocker(d.solve_with_downloads())
+
+		try:
+			run.execute_selections(d.solver.selections, [], dry_run = True, stores = self.config.stores)
+			assert 0
+		except SafeException as ex:
+			self.assertEqual("Can't run: no command specified!", unicode(ex))
+
+		try:
+			run.execute_selections(d.solver.selections, [], main = 'relpath', dry_run = True, stores = self.config.stores)
+			assert 0
+		except SafeException as ex:
+			self.assertEqual("Can't use a relative replacement main when there is no original one!", unicode(ex))
+
 	def testArgs(self):
 		p = Driver(requirements = Requirements(runnable), config = self.config)
 		self.config.handler.wait_for_blocker(p.solve_with_downloads())

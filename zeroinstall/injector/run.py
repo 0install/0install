@@ -98,7 +98,8 @@ class Setup(object):
 		@return: the argument list
 		@rtype: [str]"""
 
-		assert command_name or user_command
+		if not (command_name or user_command):
+			raise SafeException(_("Can't run: no command specified!"))
 
 		prog_args = []
 		sels = self.selections.selections
@@ -289,8 +290,9 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		if main.startswith('/'):
 			main = main[1:]			# User specified a path relative to the package root
 		else:
-			old_path = commands[0].path
-			assert old_path, "Can't use a relative replacement main when there is no original one!"
+			old_path = commands[0].path if commands else None
+			if not old_path:
+				raise SafeException(_("Can't use a relative replacement main when there is no original one!"))
 			main = os.path.join(os.path.dirname(old_path), main)	# User main is relative to command's name
 		# Copy all child nodes (e.g. <runner>) except for the arguments
 		user_command_element = qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': main})
