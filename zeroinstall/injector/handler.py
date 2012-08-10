@@ -218,7 +218,7 @@ class ConsoleHandler(Handler):
 		if self.disable_progress: return True
 
 		screen_width = self.screen_width - 2
-		item_width = max(16, screen_width / len(self.monitored_downloads))
+		item_width = max(16, screen_width // len(self.monitored_downloads))
 		url_width = item_width - 7
 
 		msg = ""
