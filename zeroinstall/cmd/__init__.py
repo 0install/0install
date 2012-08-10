@@ -93,6 +93,7 @@ def main(command_args, config = None):
 
 		cmd.add_options(parser)
 		(options, args) = parser.parse_args(command_args)
+		verbose = options.verbose
 
 		if options.verbose:
 			logger = logging.getLogger()
@@ -121,6 +122,7 @@ def main(command_args, config = None):
 	except SafeException as ex:
 		if verbose: raise
 		try:
+			from zeroinstall.support import unicode
 			print(unicode(ex), file=sys.stderr)
 		except:
 			print(repr(ex), file=sys.stderr)
