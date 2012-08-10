@@ -24,9 +24,16 @@ import my_dbus
 import server
 
 ran_gui = False
-def raise_gui(*args):
+def raise_gui(*args, **kwargs):
 	global ran_gui
-	ran_gui = True
+	use_gui = kwargs.get('use_gui', True)
+	assert use_gui != False
+	if 'DISPLAY' in os.environ:
+		ran_gui = True
+	else:
+		assert use_gui is None
+		return helpers.DontUseGUI
+
 background._detach = lambda: False
 
 local_hello = """<?xml version="1.0" ?>

@@ -106,15 +106,12 @@ def get_selections_for(requirements, config, options, select_only, download_only
 				background.spawn_background_update(driver, options.verbose)
 		return driver.solver.selections
 
-	# If the user didn't say whether to use the GUI, choose for them.
-	if options.gui is None and os.environ.get('DISPLAY', None):
-		options.gui = True
-		# If we need to download anything, we might as well
-		# refresh all the feeds first.
-		options.refresh = True
-		logging.info(_("Switching to GUI mode... (use --console to disable)"))
+	# If we need to download anything, we might as well
+	# refresh all the feeds first.
+	options.refresh = True
 
-	if options.gui:
+	if options.gui != False:
+		# If the user didn't say whether to use the GUI, choose for them.
 		gui_args = driver.requirements.get_as_options()
 		if download_only:
 			# Just changes the button's label
@@ -132,11 +129,16 @@ def get_selections_for(requirements, config, options, select_only, download_only
 			gui_args.append('--select-only')
 
 		from zeroinstall import helpers
-		sels = helpers.get_selections_gui(requirements.interface_uri, gui_args, test_callback)
+		sels = helpers.get_selections_gui(requirements.interface_uri, gui_args, test_callback, use_gui = options.gui)
 
 		if not sels:
 			return None		# Aborted
+		elif sels is helpers.DontUseGUI:
+			sels = None
 	else:
+		sels = None
+
+	if sels is None:
 		# Note: --download-only also makes us stop and download stale feeds first.
 		downloaded = driver.solve_and_download_impls(refresh = options.refresh or download_only or False,
 							     select_only = select_only)

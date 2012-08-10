@@ -146,9 +146,9 @@ class TestLaunch(BaseTest):
 		self.assertEqual("", err)
 
 		del os.environ['DISPLAY']
-		out, err = self.run_0launch(['--gui', '--dry-run'])
-		self.assertEqual("", err)
-		self.assertEqual("Finished\n", out)
+		out, err = self.run_0launch(['--gui'])
+		self.assertEqual("Can't use GUI because $DISPLAY is not set\n", err)
+		self.assertEqual("", out)
 
 	def testRefreshDisplay(self):
 		os.environ['DISPLAY'] = ':foo'

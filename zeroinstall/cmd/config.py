@@ -87,15 +87,12 @@ settings = {
 
 def handle(config, options, args):
 	if len(args) == 0:
-		if options.gui is None and os.environ.get('DISPLAY', None):
-			options.gui = True
-		if options.gui:
-			from zeroinstall import helpers
-			return helpers.get_selections_gui(None, [])
-		else:
+		from zeroinstall import helpers
+		if helpers.get_selections_gui(None, [], use_gui = options.gui) == helpers.DontUseGUI:
 			for key, setting_type in settings.items():
 				value = getattr(config, key)
 				print(key, "=", setting_type.format(value))
+		# (else we displayed the preferences dialog in the GUI)
 		return
 	elif len(args) > 2:
 		raise UsageError()

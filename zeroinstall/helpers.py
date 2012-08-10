@@ -7,10 +7,12 @@ Convenience routines for performing common operations.
 # See the README file for details, or visit http://0install.net.
 
 import os, sys, logging
-from zeroinstall import support
+from zeroinstall import support, SafeException
 from zeroinstall.support import tasks
 
-def get_selections_gui(iface_uri, gui_args, test_callback = None):
+DontUseGUI = object()
+
+def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True):
 	"""Run the GUI to choose and download a set of implementations.
 	The user may ask the GUI to submit a bug report about the program. In that case,
 	the GUI may ask us to test it. test_callback is called in that case with the implementations
@@ -21,10 +23,21 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 	@type gui_args: [str]
 	@param test_callback: function to use to try running the program
 	@type test_callback: L{zeroinstall.injector.selections.Selections} -> str
+	@param use_gui: if True, raise a SafeException if the GUI is not available. If None, returns DontUseGUI if the GUI cannot be started. If False, returns DontUseGUI always. (since 1.11)
+	@param use_gui: bool | None
 	@return: the selected implementations
 	@rtype: L{zeroinstall.injector.selections.Selections}
 	@since: 0.28
 	"""
+	if use_gui is False:
+		return DontUseGUI
+
+	if 'DISPLAY' not in os.environ:
+		if use_gui is None:
+			return DontUseGUI
+		else:
+			raise SafeException("Can't use GUI because $DISPLAY is not set")
+
 	from zeroinstall.injector import selections, qdom
 	from io import BytesIO
 
@@ -44,6 +57,8 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 					# We used to use pipes to support Python2.3...
 					os.dup2(gui.fileno(), 1)
 					os.dup2(gui.fileno(), 0)
+					if use_gui is True:
+						gui_args = ['-g'] + gui_args
 					if iface_uri is not None:
 						gui_args = gui_args + ['--', iface_uri]
 					os.execvp(sys.executable, [sys.executable, gui_exe] + gui_args)
@@ -91,6 +106,11 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None):
 			if status == 1 << 8:
 				logging.info("User cancelled the GUI; aborting")
 				return None		# Aborted
+			elif status == 100 << 8:
+				if use_gui is None:
+					return DontUseGUI
+				else:
+					raise SafeException("No GUI available")
 			if status != 0:
 				raise Exception("Error from GUI: code = %d" % status)
 			break
@@ -122,10 +142,10 @@ def ensure_cached(uri, command = 'run', config = None):
 	d = Driver(config, requirements)
 
 	if d.need_download() or not d.solver.ready:
-		if os.environ.get('DISPLAY', None):
-			return get_selections_gui(uri, ['--command', command])
-		else:
-			done = d.solve_and_download_impls()
-			tasks.wait_for_blocker(done)
+		sels = get_selections_gui(uri, ['--command', command], use_gui = None)
+		if sels != DontUseGUI:
+			return sels
+		done = d.solve_and_download_impls()
+		tasks.wait_for_blocker(done)
 
 	return d.solver.selections

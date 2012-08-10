@@ -4,10 +4,12 @@
 from __future__ import print_function
 
 import os, sys
+import logging
+import warnings
 
 from optparse import OptionParser
 
-from zeroinstall import _
+from zeroinstall import _, SafeException
 from zeroinstall.injector import requirements
 from zeroinstall.injector.driver import Driver
 from zeroinstall.injector.config import load_config
@@ -28,6 +30,7 @@ def run_gui(args):
 	parser.add_option("", "--cpu", help=_("target CPU type"), metavar='CPU')
 	parser.add_option("", "--command", help=_("command to select"), metavar='COMMAND')
 	parser.add_option("-d", "--download-only", help=_("fetch but don't run"), action='store_true')
+	parser.add_option("-g", "--force-gui", help=_("display an error if there's no GUI"), action='store_true')
 	parser.add_option("", "--message", help=_("message to display when interacting with user"))
 	parser.add_option("", "--not-before", help=_("minimum version to choose"), metavar='VERSION')
 	parser.add_option("", "--os", help=_("target operation system type"), metavar='OS')
@@ -44,14 +47,11 @@ def run_gui(args):
 	(options, args) = parser.parse_args(args)
 
 	if options.verbose:
-		import logging
 		logger = logging.getLogger()
 		if options.verbose == 1:
 			logger.setLevel(logging.INFO)
 		else:
 			logger.setLevel(logging.DEBUG)
-
-	import gui
 
 	if options.version:
 		print("0launch-gui (zero-install) " + gui.version)
@@ -63,14 +63,39 @@ def run_gui(args):
 				"\nFor more information about these matters, see the file named COPYING."))
 		sys.exit(0)
 
-	if sys.version_info[0] > 2:
-		from zeroinstall.gtkui import pygtkcompat
-		pygtkcompat.enable()
-		pygtkcompat.enable_gtk(version = '3.0')
-	import gtk
-	if gtk.gdk.get_display() is None:
-		print("Failed to connect to display. Aborting.", file=sys.stderr)
-		sys.exit(1)
+	def nogui(ex):
+		if options.force_gui:
+			fn = logging.warn
+		else:
+			fn = logging.info
+			fn("No GUI available", exc_info = ex)
+		sys.exit(100)
+
+	with warnings.catch_warnings():
+		if not options.force_gui:
+			warnings.filterwarnings("ignore")
+		if sys.version_info[0] < 3:
+			try:
+				import pygtk; pygtk.require('2.0')
+			except ImportError as ex:
+				nogui(ex)
+
+		import gui
+
+		try:
+			if sys.version_info[0] > 2:
+				from zeroinstall.gtkui import pygtkcompat
+				pygtkcompat.enable()
+				pygtkcompat.enable_gtk(version = '3.0')
+			import gtk
+		except (ImportError, ValueError) as ex:
+			nogui(ex)
+
+		if gtk.gdk.get_display() is None:
+			try:
+				raise SafeException("Failed to connect to display.")
+			except SafeException as ex:
+				nogui(ex)	# logging needs this as a raised exception
 
 	handler = gui.GUIHandler()
 
