@@ -189,7 +189,10 @@ class MainWindow:
 
 	def use_systray_icon(self):
 		try:
-			self.systray_icon = gtk.status_icon_new_from_icon_name("zeroinstall")
+			if sys.version_info[0] > 2:
+				self.systray_icon = gtk.StatusIcon.new_from_icon_name("zeroinstall")
+			else:
+				self.systray_icon = gtk.status_icon_new_from_icon_name("zeroinstall")
 		except Exception as ex:
 			info(_("No system tray support: %s"), ex)
 		else:
