@@ -73,8 +73,15 @@ def handle(config, options, args):
 
 	from zeroinstall.cmd import whatchanged
 	changes = whatchanged.show_changes(old_selections, sels.selections)
-
 	root_sel = sels[iface_uri]
+
+	if not changes:
+		from zeroinstall.support import xmltools
+		# No obvious changes, but check for more subtle updates.
+		if not xmltools.nodes_equal(sels.toDOM(), old_sels.toDOM()):
+			changes = True
+			print(_("Updates to metadata found, but no change to version ({version}).").format(version = root_sel.version))
+
 	root_iface = config.iface_cache.get_interface(iface_uri)
 	# Force a reload, since we may have used the GUI to update it
 	for feed in config.iface_cache.get_feeds(root_iface):
@@ -91,14 +98,7 @@ def handle(config, options, args):
 		if not config.help_with_testing and latest.get_stability() < model.stable:
 			print(_('To select "testing" versions, use:\n0install config help_with_testing True'))
 	elif not changes:
-		from zeroinstall.support import xmltools
-
-		# No obvious changes, but check for more subtle updates.
-		if xmltools.nodes_equal(sels.toDOM(), old_sels.toDOM()):
-			print(_("No updates found. Continuing with version {version}.").format(version = root_sel.version))
-		else:
-			changes = True
-			print(_("Updates to metadata found, but no change to version ({version}).").format(version = root_sel.version))
+		print(_("No updates found. Continuing with version {version}.").format(version = root_sel.version))
 
 	if app is not None:
 		if changes:
