@@ -634,6 +634,11 @@ class RPMDistribution(CachedDistribution):
 			if impl.version[0][0] == 1:
 				# OpenSUSE uses 1.6 to mean 6
 				del impl.version[0][0]
+		elif package == 'java-1_6_0-openjdk-devel':
+			if impl.version[0][0] == 1:
+				# OpenSUSE uses 1.6 to mean 6
+				del impl.version[0][0]
+			return
 		else:
 			return
 
