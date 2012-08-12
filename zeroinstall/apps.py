@@ -48,6 +48,8 @@ def find_bin_dir(paths = None):
 		path = os.path.expanduser('~/bin/')
 		warn('%s is not in $PATH. Add it with:\n%s' % (path, _export('PATH', path + ':$PATH')))
 
+		if not os.path.isdir(path):
+			os.makedirs(path)
 	return path
 
 _command_template = """#!/bin/sh
