@@ -20,6 +20,13 @@ def validate_name(name):
 	if valid_name.match(name): return
 	raise SafeException("Invalid application name '{name}'".format(name = name))
 
+def _export(name, value):
+	"""Try to guess the command to set an environment variable."""
+	shell = os.environ.get('SHELL', '?')
+	if 'csh' in shell:
+		return "setenv %s %s" % (name, value)
+	return "export %s=%s" % (name, value)
+
 def find_bin_dir(paths = None):
 	"""Find the first writable path in the list (default $PATH),
 	skipping /bin, /sbin and everything under /usr except /usr/local/bin"""
@@ -38,7 +45,8 @@ def find_bin_dir(paths = None):
 		else:
 			break
 	else:
-		return None
+		path = os.path.expanduser('~/bin/')
+		warn('%s is not in $PATH. Add it with:\n%s' % (path, _export('PATH', path + ':$PATH')))
 
 	return path
 
