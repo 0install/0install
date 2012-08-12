@@ -533,7 +533,7 @@ class DebianDistribution(Distribution):
 			# Try without the arch...
 			java_bin = '/usr/lib/jvm/java-%s/jre/bin/java' % java_version
 			if not os.path.exists(java_bin):
-				info("Java binary not found (%s, %s)", java_bin)
+				info("Java binary not found (%s)", java_bin)
 				if impl.main is None:
 					java_bin = '/usr/bin/java'
 				else:
@@ -626,6 +626,27 @@ class RPMDistribution(CachedDistribution):
 
 		# Add any uninstalled candidates found by PackageKit
 		self.packagekit.get_candidates(package, factory, 'package:rpm')
+
+	def fixup(self, package, impl):
+		# Hack: If we added any Java implementations, find the corresponding JAVA_HOME...
+		if package == 'java-1_6_0-openjdk':
+			java_version = '1.6.0-openjdk'
+			if impl.version[0][0] == 1:
+				# OpenSUSE uses 1.6 to mean 6
+				del impl.version[0][0]
+		else:
+			return
+
+		java_bin = '/usr/lib/jvm/jre-%s/bin/java' % java_version
+		if not os.path.exists(java_bin):
+			info("Java binary not found (%s)", java_bin)
+			if impl.main is None:
+				java_bin = '/usr/bin/java'
+			else:
+				return
+
+		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command',
+			{'path': java_bin, 'name': 'run'}), None)
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'RPM')
