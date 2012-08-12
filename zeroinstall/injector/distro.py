@@ -629,12 +629,15 @@ class RPMDistribution(CachedDistribution):
 
 	def fixup(self, package, impl):
 		# Hack: If we added any Java implementations, find the corresponding JAVA_HOME...
-		if package == 'java-1_6_0-openjdk':
+
+		# OpenSUSE uses _, Fedora uses .
+		package = package.replace('_', '.')
+
+		if package == 'java-1.6.0-openjdk':
 			java_version = '1.6.0-openjdk'
-			if impl.version[0][0] == 1:
-				# OpenSUSE uses 1.6 to mean 6
-				del impl.version[0][0]
-		elif package == 'java-1_6_0-openjdk-devel':
+		elif package == 'java-1.7.0-openjdk':
+			java_version = '1.7.0-openjdk'
+		elif package in ('java-1.6.0-openjdk-devel', 'java-1.7.0-openjdk-devel'):
 			if impl.version[0][0] == 1:
 				# OpenSUSE uses 1.6 to mean 6
 				del impl.version[0][0]
@@ -642,13 +645,22 @@ class RPMDistribution(CachedDistribution):
 		else:
 			return
 
-		java_bin = '/usr/lib/jvm/jre-%s/bin/java' % java_version
+		if impl.version[0][0] == 1:
+			# OpenSUSE uses 1.6 to mean 6
+			del impl.version[0][0]
+
+		# On Fedora, unlike Debian, the arch is x86_64, not amd64
+
+		java_bin = '/usr/lib/jvm/jre-%s.%s/bin/java' % (java_version, impl.machine)
 		if not os.path.exists(java_bin):
-			info("Java binary not found (%s)", java_bin)
-			if impl.main is None:
-				java_bin = '/usr/bin/java'
-			else:
-				return
+			# Try without the arch...
+			java_bin = '/usr/lib/jvm/jre-%s/bin/java' % java_version
+			if not os.path.exists(java_bin):
+				info("Java binary not found (%s)", java_bin)
+				if impl.main is None:
+					java_bin = '/usr/bin/java'
+				else:
+					return
 
 		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command',
 			{'path': java_bin, 'name': 'run'}), None)
