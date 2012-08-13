@@ -15,7 +15,7 @@ The Python implementation of the Zero Install injector is divided into five sub-
 
 version = '1.10'
 
-import sys
+import sys, logging
 if sys.version_info[0] > 2:
 	try:
 		from gi.repository import GObject as gobject
@@ -24,6 +24,11 @@ if sys.version_info[0] > 2:
 else:
 	import gobject
 gobject.threads_init()
+
+logger = logging.getLogger('0install')
+
+# Configure some basic logging, if the caller hasn't already done so.
+logging.basicConfig()
 
 import gettext
 from os.path import dirname, join

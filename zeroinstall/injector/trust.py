@@ -10,9 +10,8 @@ in some cases and not others.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, SafeException
+from zeroinstall import _, SafeException, logger
 import os
-from logging import info
 
 from zeroinstall import support
 from zeroinstall.support import basedir, tasks
@@ -213,15 +212,15 @@ class TrustMgr(object):
 			key_info_blockers = [sig_info.blocker for sig_info in kfs.values() if sig_info.blocker is not None]
 			if not key_info_blockers:
 				break
-			info("Waiting for response from key-info server: %s", key_info_blockers)
+			logger.info("Waiting for response from key-info server: %s", key_info_blockers)
 			yield [timeout] + key_info_blockers
 			if timeout.happened:
-				info("Timeout waiting for key info response")
+				logger.info("Timeout waiting for key info response")
 				break
 
 		# If we're already confirming something else, wait for that to finish...
 		while self._current_confirm is not None:
-			info("Waiting for previous key confirmations to finish")
+			logger.info("Waiting for previous key confirmations to finish")
 			yield self._current_confirm
 
 		domain = domain_from_url(pending.url)
@@ -233,7 +232,7 @@ class TrustMgr(object):
 				for sig, kf in kfs.items():
 					for key_info in kf.info:
 						if key_info.getAttribute("vote") == "good":
-							info(_("Automatically approving key for new feed %s based on response from key info server"), pending.url)
+							logger.info(_("Automatically approving key for new feed %s based on response from key info server"), pending.url)
 							trust_db.trust_key(sig.fingerprint, domain)
 							changes = True
 				if changes:

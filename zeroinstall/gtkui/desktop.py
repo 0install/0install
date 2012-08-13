@@ -5,7 +5,7 @@
 
 from __future__ import print_function
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import sys
 from optparse import OptionParser
 import logging
@@ -21,7 +21,6 @@ def main(command_args):
 	(options, args) = parser.parse_args(command_args)
 
 	if options.verbose:
-		logger = logging.getLogger()
 		if options.verbose == 1:
 			logger.setLevel(logging.INFO)
 		else:

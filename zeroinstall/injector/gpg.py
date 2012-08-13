@@ -9,12 +9,11 @@ This module is used to invoke GnuPG to check the digital signatures on interface
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import subprocess
 import base64, re
 import os
 import tempfile
-from logging import info, warn
 
 from zeroinstall.support import find_in_path, basedir
 from zeroinstall.injector.trust import trust_db
@@ -29,7 +28,7 @@ def _run_gpg(args, **kwargs):
 
 		if hasattr(os, 'geteuid') and os.geteuid() == 0 and 'GNUPGHOME' not in os.environ:
 			_gnupg_options += ['--homedir', os.path.join(basedir.home, '.gnupg')]
-			info(_("Running as root, so setting GnuPG home to %s"), _gnupg_options[-1])
+			logger.info(_("Running as root, so setting GnuPG home to %s"), _gnupg_options[-1])
 
 	return subprocess.Popen(_gnupg_options + args, universal_newlines = True, **kwargs)
 
@@ -77,7 +76,7 @@ class ValidSig(Signature):
 		child = _run_gpg(['--fixed-list-mode', '--with-colons', '--list-keys', self.fingerprint], stdout = subprocess.PIPE)
 		cout, unused = child.communicate()
 		if child.returncode:
-			info(_("GPG exited with code %d") % child.returncode)
+			logger.info(_("GPG exited with code %d") % child.returncode)
 		details = []
 		for line in cout.split('\n'):
 			details.append(line.split(':'))
@@ -164,7 +163,7 @@ def load_keys(fingerprints):
 					try:
 						keys[current_fpr].name = codecs.decode(current_uid, 'utf-8')
 					except:
-						warn("Not UTF-8: %s", current_uid)
+						logger.warn("Not UTF-8: %s", current_uid)
 						keys[current_fpr].name = current_uid
 			if line.startswith('uid:'):
 				assert current_fpr is not None
@@ -178,7 +177,7 @@ def load_keys(fingerprints):
 		child.stdout.close()
 
 		if child.wait():
-			warn(_("gpg --list-keys failed with exit code %d") % child.returncode)
+			logger.warn(_("gpg --list-keys failed with exit code %d") % child.returncode)
 
 	return keys
 
@@ -206,7 +205,7 @@ def import_key(stream):
 		else:
 			raise SafeException(_("Non-zero exit code %d from 'gpg --import'") % status)
 	elif error_messages:
-		warn(_("Warnings from 'gpg --import':\n%s") % error_messages)
+		logger.warn(_("Warnings from 'gpg --import':\n%s") % error_messages)
 
 def _check_xml_stream(stream):
 	xml_comment_start = b'<!-- Base64 Signature'
@@ -309,7 +308,7 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 		if not line.startswith('[GNUPG:] '):
 			# The docs says every line starts with this, but if auto-key-retrieve
 			# is on then they might not. See bug #3420548
-			warn("Invalid output from GnuPG: %r", line)
+			logger.warn("Invalid output from GnuPG: %r", line)
 			continue
 
 		line = line[9:-1]

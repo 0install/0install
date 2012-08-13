@@ -26,7 +26,7 @@ A top-level ".manifest" file is ignored.
 
 
 import os, stat, base64
-from zeroinstall import SafeException, _
+from zeroinstall import SafeException, _, logger
 from zeroinstall.zerostore import BadDigest, parse_algorithm_digest_pair, format_algorithm_digest_pair
 
 import hashlib
@@ -261,7 +261,6 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 	only if correct. Therefore, an invalid 'target/required_digest' will never exist.
 	A successful return means than target/required_digest now exists (whether we created it or not)."""
 	import tempfile
-	from logging import info
 
 	alg, digest_value = splitID(required_digest)
 
@@ -280,7 +279,7 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 
 	target_impl = os.path.join(target, required_digest)
 	if os.path.isdir(target_impl):
-		info(_("Target directory '%s' already exists"), target_impl)
+		logger.info(_("Target directory '%s' already exists"), target_impl)
 		return
 
 	# We've checked that the source's manifest matches required_digest, so it
@@ -322,7 +321,7 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 			# else someone else installed it already - return success
 	finally:
 		if tmpdir is not None:
-			info(_("Deleting tmpdir '%s'") % tmpdir)
+			logger.info(_("Deleting tmpdir '%s'") % tmpdir)
 			from zeroinstall.support import ro_rmtree
 			ro_rmtree(tmpdir)
 
@@ -362,7 +361,6 @@ def _copy_files(alg, wanted, source, target):
 	then copy it into 'target'.
 	If it's not in wanted, warn and skip it.
 	On exit, wanted contains only files that were not found."""
-	from logging import warn
 	dir = ''
 	for line in alg.generate_manifest(source):
 		if line[0] == 'D':
@@ -380,7 +378,7 @@ def _copy_files(alg, wanted, source, target):
 		try:
 			required_details = wanted.pop(path)
 		except KeyError:
-			warn(_("Skipping file not in manifest: '%s'"), path)
+			logger.warn(_("Skipping file not in manifest: '%s'"), path)
 			continue
 		if required_details[0] != type:
 			raise BadDigest(_("Item '%s' has wrong type!") % path)

@@ -9,9 +9,8 @@ This avoids the need to annoy people with a 'checking for updates' box when they
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import sys, os
-from logging import info, warn
 from zeroinstall.support import tasks
 from zeroinstall.injector import handler
 
@@ -56,7 +55,7 @@ class BackgroundHandler(handler.Handler):
 			except ImportError:
 				import dbus.glib		# Python 2
 		except Exception as ex:
-			info(_("Failed to import D-BUS bindings: %s"), ex)
+			logger.info(_("Failed to import D-BUS bindings: %s"), ex)
 			return
 
 		try:
@@ -78,7 +77,7 @@ class BackgroundHandler(handler.Handler):
 			finally:
 				sys.stderr = old_stderr
 		except Exception as ex:
-			info(_("No D-BUS notification service available: %s"), ex)
+			logger.info(_("No D-BUS notification service available: %s"), ex)
 
 		try:
 			system_bus = dbus.SystemBus()
@@ -88,7 +87,7 @@ class BackgroundHandler(handler.Handler):
 			self.network_manager = dbus.Interface(remote_object,
 							'org.freedesktop.NetworkManager')
 		except Exception as ex:
-			info(_("No D-BUS network manager service available: %s"), ex)
+			logger.info(_("No D-BUS network manager service available: %s"), ex)
 
 	def get_network_state(self):
 		if self.network_manager:
@@ -100,14 +99,14 @@ class BackgroundHandler(handler.Handler):
 				return state
 
 			except Exception as ex:
-				warn(_("Error getting network state: %s"), ex)
+				logger.warn(_("Error getting network state: %s"), ex)
 		return _NetworkState.NM_STATE_UNKNOWN
 
 	def confirm_import_feed(self, pending, valid_sigs):
 		"""Run the GUI if we need to confirm any keys."""
 
 		if os.environ.get('DISPLAY', None):
-			info(_("Can't update feed; signature not yet trusted. Running GUI..."))
+			logger.info(_("Can't update feed; signature not yet trusted. Running GUI..."))
 
 			self.need_gui = True
 
@@ -139,7 +138,7 @@ class BackgroundHandler(handler.Handler):
 		"""Send a D-BUS notification message if possible. If there is no notification
 		service available, log the message instead."""
 		if not self.notification_service:
-			info('%s: %s', title, message)
+			logger.info('%s: %s', title, message)
 			return None
 
 		LOW = 0
@@ -201,20 +200,20 @@ def _check_for_updates(requirements, verbose, app):
 
 	driver = Driver(config = background_config, requirements = requirements)
 
-	info(_("Checking for updates to '%s' in a background process"), root_iface)
+	logger.info(_("Checking for updates to '%s' in a background process"), root_iface)
 	if verbose:
 		background_handler.notify("Zero Install", _("Checking for updates to '%s'...") % root_iface, timeout = 1)
 
 	network_state = background_handler.get_network_state()
 	if network_state not in (_NetworkState.NM_STATE_CONNECTED_SITE, _NetworkState.NM_STATE_CONNECTED_GLOBAL):
-		info(_("Not yet connected to network (status = %d). Sleeping for a bit..."), network_state)
+		logger.info(_("Not yet connected to network (status = %d). Sleeping for a bit..."), network_state)
 		import time
 		time.sleep(120)
 		if network_state in (_NetworkState.NM_STATE_DISCONNECTED, _NetworkState.NM_STATE_ASLEEP):
-			info(_("Still not connected to network. Giving up."))
+			logger.info(_("Still not connected to network. Giving up."))
 			sys.exit(1)
 	else:
-		info(_("NetworkManager says we're on-line. Good!"))
+		logger.info(_("NetworkManager says we're on-line. Good!"))
 
 	background_config.freshness = 0			# Don't bother trying to refresh when getting the interface
 	refresh = driver.solve_with_downloads(force = True)	# (causes confusing log messages)

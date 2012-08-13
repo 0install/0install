@@ -10,8 +10,8 @@ wish were in the standard library.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
-import sys, os, logging
+from zeroinstall import _, logger
+import sys, os
 
 def find_in_path(prog):
 	"""Search $PATH for prog.
@@ -47,7 +47,7 @@ def read_bytes(fd, nbytes, null_ok = False):
 					% {'data': repr(data), 'bytes': nbytes})
 		data += got
 		nbytes -= len(got)
-	logging.debug(_("Message received: %r"), data)
+	logger.debug(_("Message received: %r"), data)
 	return data
 
 def pretty_size(size):

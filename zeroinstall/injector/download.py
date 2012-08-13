@@ -13,8 +13,7 @@ import tempfile, os
 
 from zeroinstall import SafeException
 from zeroinstall.support import tasks
-from logging import info, debug
-from zeroinstall import _
+from zeroinstall import _, logger
 
 download_starting = "starting"	# Waiting for UI to start it (no longer used)
 download_fetching = "fetching"	# In progress
@@ -94,7 +93,7 @@ class Download(object):
 		assert not self.aborted_by_user
 
 		if status == RESULT_NOT_MODIFIED:
-			debug("%s not modified", self.url)
+			logger.debug("%s not modified", self.url)
 			self.tempfile = None
 			self.unmodified = True
 			self.status = download_complete
@@ -127,7 +126,7 @@ class Download(object):
 		self.status = download_failed
 
 		if self.tempfile is not None:
-			info(_("Aborting download of %s"), self.url)
+			logger.info(_("Aborting download of %s"), self.url)
 			# TODO: we currently just close the output file; the thread will end when it tries to
 			# write to it. We should try harder to stop the thread immediately (e.g. by closing its
 			# socket when known), although we can never cover all cases (e.g. a stuck DNS lookup).

@@ -5,9 +5,8 @@ Downloads feeds, keys, packages and icons.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, NeedDownload
+from zeroinstall import _, NeedDownload, logger
 import os, sys
-from logging import info, debug, warn
 
 from zeroinstall import support
 from zeroinstall.support import tasks, basedir, portable_rename
@@ -205,7 +204,7 @@ class Fetcher(object):
 
 		self.config.iface_cache.mark_as_checking(feed_url)
 		
-		debug(_("download_and_import_feed %(url)s"), {'url': feed_url})
+		logger.debug(_("download_and_import_feed %(url)s"), {'url': feed_url})
 		assert not os.path.isabs(feed_url)
 
 		if feed_url.startswith('distribution:'):
@@ -226,7 +225,7 @@ class Fetcher(object):
 				if primary.happened:
 					return		# OK, primary succeeded!
 				# OK, maybe it's just being slow...
-				info("Feed download from %s is taking a long time.", feed_url)
+				logger.info("Feed download from %s is taking a long time.", feed_url)
 				primary_ex = None
 			except NoTrustedKeys as ex:
 				raise			# Don't bother trying the mirror if we have a trust problem
@@ -238,7 +237,7 @@ class Fetcher(object):
 				# Primary failed
 				primary = None
 				primary_ex = ex
-				warn(_("Feed download from %(url)s failed: %(exception)s"), {'url': feed_url, 'exception': ex})
+				logger.warn(_("Feed download from %(url)s failed: %(exception)s"), {'url': feed_url, 'exception': ex})
 
 			# Start downloading from mirror...
 			mirror = self._download_and_import_feed(feed_url, use_mirror = True)
@@ -257,12 +256,12 @@ class Fetcher(object):
 							primary = None
 							# No point carrying on with the mirror once the primary has succeeded
 							if mirror:
-								info(_("Primary feed download succeeded; aborting mirror download for %s") % feed_url)
+								logger.info(_("Primary feed download succeeded; aborting mirror download for %s") % feed_url)
 								mirror.dl.abort()
 					except SafeException as ex:
 						primary = None
 						primary_ex = ex
-						info(_("Feed download from %(url)s failed; still trying mirror: %(exception)s"), {'url': feed_url, 'exception': ex})
+						logger.info(_("Feed download from %(url)s failed; still trying mirror: %(exception)s"), {'url': feed_url, 'exception': ex})
 
 				if mirror:
 					try:
@@ -274,11 +273,11 @@ class Fetcher(object):
 								# as the mirror download succeeded.
 								primary_ex = None
 					except ReplayAttack as ex:
-						info(_("Version from mirror is older than cached version; ignoring it: %s"), ex)
+						logger.info(_("Version from mirror is older than cached version; ignoring it: %s"), ex)
 						mirror = None
 						primary_ex = None
 					except SafeException as ex:
-						info(_("Mirror download failed: %s"), ex)
+						logger.info(_("Mirror download failed: %s"), ex)
 						mirror = None
 
 			if primary_ex:
@@ -292,7 +291,7 @@ class Fetcher(object):
 		if use_mirror:
 			url = self.get_feed_mirror(feed_url)
 			if url is None: return None
-			info(_("Trying mirror server for feed %s") % feed_url)
+			logger.info(_("Trying mirror server for feed %s") % feed_url)
 		else:
 			url = feed_url
 
@@ -392,13 +391,13 @@ class Fetcher(object):
 						raise Exception(_("Unknown download type for '%s'") % method)
 				except download.DownloadError as ex:
 					if original_exception:
-						info("Error from mirror: %s", ex)
+						logger.info("Error from mirror: %s", ex)
 						raise original_exception
 					else:
 						original_exception = ex
 					mirror_url = self._get_impl_mirror(impl)
 					if mirror_url is not None:
-						info("%s: trying implementation mirror at %s", ex, mirror_url)
+						logger.info("%s: trying implementation mirror at %s", ex, mirror_url)
 						method = model.DownloadSource(impl, mirror_url,
 									None, None, type = 'application/x-bzip-compressed-tar')
 						continue		# Retry
@@ -472,7 +471,7 @@ class Fetcher(object):
 		icon cache. If the interface has no icon do nothing.
 		@return: the task doing the import, or None
 		@rtype: L{tasks.Task}"""
-		debug("download_icon %(interface)s", {'interface': interface})
+		logger.debug("download_icon %(interface)s", {'interface': interface})
 
 		modification_time = None
 		existing_icon = self.config.iface_cache.get_icon_path(interface)
@@ -485,14 +484,14 @@ class Fetcher(object):
 		for icon in interface.get_metadata(XMLNS_IFACE, 'icon'):
 			type = icon.getAttribute('type')
 			if type != 'image/png':
-				debug(_('Skipping non-PNG icon'))
+				logger.debug(_('Skipping non-PNG icon'))
 				continue
 			source = icon.getAttribute('href')
 			if source:
 				break
-			warn(_('Missing "href" attribute on <icon> in %s'), interface)
+			logger.warn(_('Missing "href" attribute on <icon> in %s'), interface)
 		else:
-			info(_('No PNG icons found in %s'), interface)
+			logger.info(_('No PNG icons found in %s'), interface)
 			return
 
 		dl = self.download_url(source, hint = interface, modification_time = modification_time)
@@ -532,7 +531,7 @@ class Fetcher(object):
 
 		to_download = []
 		for impl in implementations:
-			debug(_("start_downloading_impls: for %(feed)s get %(implementation)s"), {'feed': impl.feed, 'implementation': impl})
+			logger.debug(_("start_downloading_impls: for %(feed)s get %(implementation)s"), {'feed': impl.feed, 'implementation': impl})
 			source = self.get_best_source(impl)
 			if not source:
 				raise SafeException(_("Implementation %(implementation_id)s of interface %(interface)s"

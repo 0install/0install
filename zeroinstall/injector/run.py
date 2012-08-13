@@ -7,9 +7,8 @@ Executes a set of implementations as a program.
 
 from __future__ import print_function
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import os, sys
-from logging import info, debug
 from string import Template
 
 from zeroinstall.injector.model import SafeException, EnvironmentBinding, ExecutableBinding, Command, Dependency
@@ -24,11 +23,11 @@ def do_env_binding(binding, path):
 	@type path: str"""
 	if binding.insert is not None and path is None:
 		# Skip insert bindings for package implementations
-		debug("not setting %s as we selected a package implementation", binding.name)
+		logger.debug("not setting %s as we selected a package implementation", binding.name)
 		return
 	os.environ[binding.name] = binding.get_value(path,
 					os.environ.get(binding.name, None))
-	info("%s=%s", binding.name, os.environ[binding.name])
+	logger.info("%s=%s", binding.name, os.environ[binding.name])
 
 def test_selections(selections, prog_args, dry_run, main):
 	"""Run the program in a child process, collecting stdout and stderr.
@@ -54,7 +53,7 @@ def test_selections(selections, prog_args, dry_run, main):
 				sys.stderr.flush()
 				os._exit(1)
 
-		info(_("Waiting for test process to finish..."))
+		logger.info(_("Waiting for test process to finish..."))
 
 		pid, status = os.waitpid(child, 0)
 		assert pid == child
@@ -230,10 +229,10 @@ class Setup(object):
 
 		if binding.in_path:
 			path = os.environ["PATH"] = exec_dir + os.pathsep + os.environ["PATH"]
-			info("PATH=%s", path)
+			logger.info("PATH=%s", path)
 		else:
 			os.environ[name] = exec_path
-			info("%s=%s", name, exec_path)
+			logger.info("%s=%s", name, exec_path)
 
 		import json
 		args = self.build_command(iface, binding.command)
@@ -253,7 +252,7 @@ class Setup(object):
 		if actual_contents != expected_contents:
 			import tempfile
 			tmp = tempfile.NamedTemporaryFile('w', dir = main_dir, delete = False)
-			info("Updating %s", runenv)
+			logger.info("Updating %s", runenv)
 			tmp.write(expected_contents)
 			tmp.close()
 			os.chmod(tmp.name, 0o555)
@@ -314,7 +313,7 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 	if dry_run:
 		print(_("Would execute: %s") % ' '.join(prog_args))
 	else:
-		info(_("Executing: %s"), prog_args)
+		logger.info(_("Executing: %s"), prog_args)
 		sys.stdout.flush()
 		sys.stderr.flush()
 		try:

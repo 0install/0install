@@ -6,9 +6,8 @@ The B{0install import} command-line interface.
 # See the README file for details, or visit http://0install.net.
 
 import os
-import logging
 
-from zeroinstall import SafeException, _
+from zeroinstall import SafeException, _, logger
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import gpg
 from zeroinstall.injector.iface_cache import PendingFeed
@@ -27,14 +26,14 @@ def handle(config, options, args):
 	for x in args:
 		if not os.path.isfile(x):
 			raise SafeException(_("File '%s' does not exist") % x)
-		logging.info(_("Importing from file '%s'"), x)
+		logger.info(_("Importing from file '%s'"), x)
 		with open(x, 'rb') as signed_data:
 			data, sigs = gpg.check_stream(signed_data)
 			doc = minidom.parseString(data.read())
 			uri = doc.documentElement.getAttribute('uri')
 			if not uri:
 				raise SafeException(_("Missing 'uri' attribute on root element in '%s'") % x)
-			logging.info(_("Importing information about interface %s"), uri)
+			logger.info(_("Importing information about interface %s"), uri)
 			signed_data.seek(0)
 
 			pending = PendingFeed(uri, signed_data)

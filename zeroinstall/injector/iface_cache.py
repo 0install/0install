@@ -29,9 +29,8 @@ creating new cache objects.
 # Eventually, support for the first and third cases will be removed.
 
 import os, sys, time
-from logging import debug, info, warn
 
-from zeroinstall import _
+from zeroinstall import _, logger
 from zeroinstall.support import basedir, portable_rename, raise_with_traceback, unicode
 from zeroinstall.injector import reader, model
 from zeroinstall.injector.namespaces import config_site, config_prog
@@ -94,7 +93,7 @@ class PendingFeed(object):
 				except ImportError:
 					from urllib import parse as urlparse	# Python 3
 				key_url = urlparse.urljoin(key_mirror or self.url, '%s.gpg' % key_id)
-				info(_("Fetching key from %s"), key_url)
+				logger.info(_("Fetching key from %s"), key_url)
 				dl = fetcher.download_url(key_url, hint = feed_hint)
 				downloads[dl.downloaded] = (dl, dl.tempfile)
 				blockers.append(dl.downloaded)
@@ -122,7 +121,7 @@ class PendingFeed(object):
 						blockers.append(b)
 				except Exception:
 					_type, exception, tb = sys.exc_info()
-					warn(_("Failed to import key for '%(url)s': %(exception)s"), {'url': self.url, 'exception': str(exception)})
+					logger.warn(_("Failed to import key for '%(url)s': %(exception)s"), {'url': self.url, 'exception': str(exception)})
 
 		if exception and not any_success:
 			raise_with_traceback(exception, tb)
@@ -133,7 +132,7 @@ class PendingFeed(object):
 		import shutil, tempfile
 		from zeroinstall.injector import gpg
 
-		info(_("Importing key for feed '%s'"), self.url)
+		logger.info(_("Importing key for feed '%s'"), self.url)
 
 		# Python2.4: can't call fileno() on stream, so save to tmp file instead
 		tmpfile = tempfile.TemporaryFile(prefix = 'injector-dl-data-')
@@ -163,7 +162,7 @@ class PendingFeed(object):
 			self.sigs = sigs
 		except:
 			self.signed_data.seek(0)
-			info(_("Failed to check GPG signature. Data received was:\n") + repr(self.signed_data.read()))
+			logger.info(_("Failed to check GPG signature. Data received was:\n") + repr(self.signed_data.read()))
 			raise
 
 class IfaceCache(object):
@@ -254,7 +253,7 @@ class IfaceCache(object):
 		@raises ReplayAttack: if modified_time is older than the currently cached time
 		@since: 0.48
 		"""
-		debug(_("Updating '%(interface)s' from network; modified at %(time)s") %
+		logger.debug(_("Updating '%(interface)s' from network; modified at %(time)s") %
 			{'interface': feed_url, 'time': _pretty_time(modified_time)})
 
 		self._import_new_feed(feed_url, new_xml, modified_time)
@@ -265,7 +264,7 @@ class IfaceCache(object):
 		feed.last_checked = int(time.time())
 		writer.save_feed(feed)
 
-		info(_("Updated feed cache entry for %(interface)s (modified %(time)s)"),
+		logger.info(_("Updated feed cache entry for %(interface)s (modified %(time)s)"),
 			{'interface': feed.get_name(), 'time': _pretty_time(modified_time)})
 
 	def _import_new_feed(self, feed_url, new_xml, modified_time):
@@ -286,7 +285,7 @@ class IfaceCache(object):
 			with open(cached, 'rb') as stream:
 				old_xml = stream.read()
 			if old_xml == new_xml:
-				debug(_("No change"))
+				logger.debug(_("No change"))
 				# Update in-memory copy, in case someone else updated the disk copy
 				self.get_feed(feed_url, force = True)
 				return
@@ -321,7 +320,7 @@ class IfaceCache(object):
 			raise
 
 		portable_rename(cached + '.new', cached)
-		debug(_("Saved as %s") % cached)
+		logger.debug(_("Saved as %s") % cached)
 
 		self.get_feed(feed_url, force = True)
 
@@ -366,7 +365,7 @@ class IfaceCache(object):
 		if uri in self._interfaces:
 			return self._interfaces[uri]
 
-		debug(_("Initialising new interface object for %s"), uri)
+		logger.debug(_("Initialising new interface object for %s"), uri)
 		self._interfaces[uri] = Interface(uri)
 		reader.update_from_cache(self._interfaces[uri], iface_cache = self)
 		return self._interfaces[uri]
@@ -409,7 +408,7 @@ class IfaceCache(object):
 			with open(old_iface, 'rb') as stream:
 				return gpg.check_stream(stream)[1]
 		except SafeException as ex:
-			info(_("No signatures (old-style interface): %s") % ex)
+			logger.info(_("No signatures (old-style interface): %s") % ex)
 			return None
 
 	def _get_signature_date(self, uri):
@@ -476,7 +475,7 @@ class IfaceCache(object):
 			try:
 				results[imp.uri] = self.get_feed(imp.uri)
 			except SafeException as ex:
-				warn("Failed to load feed '%s: %s", imp.uri, ex)
+				logger.warn("Failed to load feed '%s: %s", imp.uri, ex)
 		if main_feed:
 			for imp in main_feed.feeds:
 				results[imp.uri] = self.get_feed(imp.uri)
@@ -511,7 +510,7 @@ class IfaceCache(object):
 			raise SafeException(_("Missing <feed-for> element in '%s'; "
 					"it can't be used as a feed for any other interface.") % feed.url)
 		feed_targets = feed.feed_for
-		debug(_("Feed targets: %s"), feed_targets)
+		logger.debug(_("Feed targets: %s"), feed_targets)
 		return [self.get_interface(uri) for uri in feed_targets]
 
 	def is_stale(self, feed_url, freshness_threshold):
@@ -534,7 +533,7 @@ class IfaceCache(object):
 
 			if feed.last_modified is not None:
 				staleness = now - (feed.last_checked or 0)
-				debug(_("Staleness for %(feed)s is %(staleness).2f hours"), {'feed': feed, 'staleness': staleness / 3600.0})
+				logger.debug(_("Staleness for %(feed)s is %(staleness).2f hours"), {'feed': feed, 'staleness': staleness / 3600.0})
 
 				if freshness_threshold <= 0 or staleness < freshness_threshold:
 					return False		# Fresh enough for us
@@ -542,7 +541,7 @@ class IfaceCache(object):
 
 		last_check_attempt = self.get_last_check_attempt(feed_url)
 		if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
-			debug(_("Stale, but tried to check recently (%s) so not rechecking now."), time.ctime(last_check_attempt))
+			logger.debug(_("Stale, but tried to check recently (%s) so not rechecking now."), time.ctime(last_check_attempt))
 			return False
 
 		return True
@@ -557,7 +556,7 @@ class IfaceCache(object):
 			if f.os in arch.os_ranks and f.machine in arch.machine_ranks:
 				yield f
 			else:
-				debug(_("Skipping '%(feed)s'; unsupported architecture %(os)s-%(machine)s"),
+				logger.debug(_("Skipping '%(feed)s'; unsupported architecture %(os)s-%(machine)s"),
 					{'feed': f, 'os': f.os, 'machine': f.machine})
 
 iface_cache = IfaceCache()

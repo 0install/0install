@@ -5,9 +5,8 @@ Parses an XML feed into a Python representation. You should probably use L{iface
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import os
-from logging import debug, info, warn
 import errno
 
 from zeroinstall import support
@@ -25,8 +24,8 @@ def _add_site_packages(interface, site_packages, known_site_feeds):
 		if impl.startswith('.'): continue
 		feed = os.path.join(site_packages, impl, '0install', 'feed.xml')
 		if not os.path.exists(feed):
-			warn(_("Site-local feed {path} not found").format(path = feed))
-		debug("Adding site-local feed '%s'", feed)
+			logger.warn(_("Site-local feed {path} not found").format(path = feed))
+		logger.debug("Adding site-local feed '%s'", feed)
 
 		# (we treat these as user overrides in order to let old versions of 0install
 		# find them)
@@ -52,7 +51,7 @@ def update_from_cache(interface, iface_cache = None):
 	path = basedir.load_first_data(config_site, 'native_feeds', escaped_uri)
 	if path:
 		# Resolve any symlinks
-		info(_("Adding native packager feed '%s'"), path)
+		logger.info(_("Adding native packager feed '%s'"), path)
 		interface.extra_feeds.append(Feed(os.path.realpath(path), None, False))
 
 	# Add locally-compiled binaries, if any
@@ -61,7 +60,7 @@ def update_from_cache(interface, iface_cache = None):
 		try:
 			_add_site_packages(interface, path, known_site_feeds)
 		except Exception as ex:
-			warn("Error loading site packages from {path}: {ex}".format(path = path, ex = ex))
+			logger.warn("Error loading site packages from {path}: {ex}".format(path = path, ex = ex))
 
 	update_user_overrides(interface, known_site_feeds)
 
@@ -76,12 +75,12 @@ def load_feed_from_cache(url, selections_ok = False):
 	@return: the feed, or None if it's remote and not cached."""
 	try:
 		if os.path.isabs(url):
-			debug(_("Loading local feed file '%s'"), url)
+			logger.debug(_("Loading local feed file '%s'"), url)
 			return load_feed(url, local = True, selections_ok = selections_ok)
 		else:
 			cached = basedir.load_first_cache(config_site, 'interfaces', escape(url))
 			if cached:
-				debug(_("Loading cached information for %(interface)s from %(cached)s"), {'interface': url, 'cached': cached})
+				logger.debug(_("Loading cached information for %(interface)s from %(cached)s"), {'interface': url, 'cached': cached})
 				return load_feed(cached, local = False)
 			else:
 				return None
@@ -108,7 +107,7 @@ def update_user_feed_overrides(feed):
 		with open(user, 'rb') as stream:
 			root = qdom.parse(stream)
 	except Exception as ex:
-		warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
+		logger.warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
 
 	last_checked = root.getAttribute('last-checked')
@@ -122,7 +121,7 @@ def update_user_feed_overrides(feed):
 			assert id is not None
 			impl = feed.implementations.get(id, None)
 			if not impl:
-				debug(_("Ignoring user-override for unknown implementation %(id)s in %(interface)s"), {'id': id, 'interface': feed})
+				logger.debug(_("Ignoring user-override for unknown implementation %(id)s in %(interface)s"), {'id': id, 'interface': feed})
 				continue
 
 			user_stability = item.getAttribute('user-stability')
@@ -149,7 +148,7 @@ def update_user_overrides(interface, known_site_feeds = frozenset()):
 		with open(user, 'rb') as stream:
 			root = qdom.parse(stream)
 	except Exception as ex:
-		warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
+		logger.warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
 
 	stability_policy = root.getAttribute('stability-policy')
@@ -191,7 +190,7 @@ def check_readable(feed_url, source):
 						{'feed_url': feed.url, 'interface_uri': feed_url})
 		return feed.last_modified
 	except InvalidInterface as ex:
-		info(_("Error loading feed:\n"
+		logger.info(_("Error loading feed:\n"
 			"Interface URI: %(uri)s\n"
 			"Local file: %(source)s\n"
 			"%(exception)s") %

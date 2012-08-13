@@ -8,9 +8,8 @@ The B{0install select} command-line interface.
 from __future__ import print_function
 
 import os, sys
-import logging
 
-from zeroinstall import _
+from zeroinstall import _, logger
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, selections, requirements
 from zeroinstall.injector.driver import Driver
@@ -57,7 +56,7 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 		if not select_only:
 			blocker = maybe_selections.download_missing(config)
 			if blocker:
-				logging.info(_("Waiting for selected implementations to be downloaded..."))
+				logger.info(_("Waiting for selected implementations to be downloaded..."))
 				tasks.wait_for_blocker(blocker)
 		return maybe_selections
 
@@ -98,7 +97,7 @@ def get_selections_for(requirements, config, options, select_only, download_only
 	if can_run_immediately:
 		if stale_feeds:
 			if config.network_use == model.network_offline:
-				logging.debug(_("No doing background update because we are in off-line mode."))
+				logger.debug(_("No doing background update because we are in off-line mode."))
 			else:
 				# There are feeds we should update, but we can run without them.
 				# Do the update in the background while the program is running.

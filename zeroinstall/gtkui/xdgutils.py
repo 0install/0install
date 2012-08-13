@@ -4,9 +4,8 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import shutil, os, tempfile
-from logging import info, warn
 
 from zeroinstall import SafeException
 from zeroinstall.support import basedir
@@ -72,7 +71,7 @@ def discover_existing_apps():
 							already_installed[uri] = full
 							break
 					else:
-						info(_("Failed to find Exec line in %s"), full)
+						logger.info(_("Failed to find Exec line in %s"), full)
 				except Exception as ex:
-					warn(_("Failed to load .desktop file %(filename)s: %(exceptions"), {'filename': full, 'exception': ex})
+					logger.warn(_("Failed to load .desktop file %(filename)s: %(exceptions"), {'filename': full, 'exception': ex})
 	return already_installed

@@ -6,10 +6,9 @@ Support for managing apps (as created with "0install add").
 # Copyright (C) 2012, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, SafeException
+from zeroinstall import _, SafeException, logger
 from zeroinstall.support import basedir, portable_rename
 from zeroinstall.injector import namespaces, selections, qdom
-from logging import warn, info
 import re, os, time, tempfile
 
 # Avoid characters that are likely to cause problems (reject : and ; everywhere
@@ -46,7 +45,7 @@ def find_bin_dir(paths = None):
 			break
 	else:
 		path = os.path.expanduser('~/bin/')
-		warn('%s is not in $PATH. Add it with:\n%s' % (path, _export('PATH', path + ':$PATH')))
+		logger.warn('%s is not in $PATH. Add it with:\n%s' % (path, _export('PATH', path + ':$PATH')))
 
 		if not os.path.isdir(path):
 			os.makedirs(path)
@@ -129,7 +128,7 @@ class App:
 			try:
 				utime = os.stat(timestamp_path).st_mtime
 				staleness = time.time() - utime
-				info("Staleness of app %s is %d hours", self, staleness / (60 * 60))
+				logger.info("Staleness of app %s is %d hours", self, staleness / (60 * 60))
 				freshness_threshold = self.config.freshness
 				need_update = freshness_threshold > 0 and staleness >= freshness_threshold
 
@@ -138,10 +137,10 @@ class App:
 					if os.path.exists(last_check_attempt_path):
 						last_check_attempt = os.stat(last_check_attempt_path).st_mtime
 						if last_check_attempt + 60 * 60 > time.time():
-							info("Tried to check within last hour; not trying again now")
+							logger.info("Tried to check within last hour; not trying again now")
 							need_update = False
 			except Exception as ex:
-				warn("Failed to get time-stamp of %s: %s", timestamp_path, ex)
+				logger.warn("Failed to get time-stamp of %s: %s", timestamp_path, ex)
 				need_update = True
 
 			if need_update:
@@ -189,7 +188,7 @@ class App:
 		try:
 			return os.stat(last_updated_path).st_mtime
 		except Exception as ex:
-			warn("Failed to get time-stamp of %s: %s", last_updated_path, ex)
+			logger.warn("Failed to get time-stamp of %s: %s", last_updated_path, ex)
 			return None
 
 	def get_last_check_attempt(self):

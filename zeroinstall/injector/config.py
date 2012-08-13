@@ -6,9 +6,8 @@ Holds user settings and various helper objects.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import support, _
+from zeroinstall import support, _, logger
 import os
-from logging import info, warn
 
 try:
 	import ConfigParser
@@ -129,11 +128,11 @@ def load_config(handler = None):
 
 	path = basedir.load_first_config(config_site, config_prog, 'global')
 	if path:
-		info("Loading configuration from %s", path)
+		logger.info("Loading configuration from %s", path)
 		try:
 			parser.read(path)
 		except Exception as ex:
-			warn(_("Error loading config: %s"), str(ex) or repr(ex))
+			logger.warn(_("Error loading config: %s"), str(ex) or repr(ex))
 
 	config.help_with_testing = parser.getboolean('global', 'help_with_testing')
 	config.network_use = parser.get('global', 'network_use')

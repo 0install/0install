@@ -5,10 +5,9 @@ Chooses a set of components to make a running program.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import locale
 import collections
-from logging import debug, warn, info
 
 from zeroinstall.injector.reader import MissingLocalFeed
 from zeroinstall.injector import model, sat, selections, arch
@@ -401,14 +400,14 @@ class SATSolver(Solver):
 				   (f.machine is None or f.machine in arch.machine_ranks):
 					yield f.uri
 				else:
-					debug(_("Skipping '%(feed)s'; unsupported architecture %(os)s-%(machine)s"),
+					logger.debug(_("Skipping '%(feed)s'; unsupported architecture %(os)s-%(machine)s"),
 						{'feed': f, 'os': f.os, 'machine': f.machine})
 
 		# If requiring_var is True then all of requirer's dependencies must be satisfied.
 		# requirer can be a <command> or an <implementation>
 		def process_dependencies(requiring_var, requirer, arch):
 			for d in deps_in_use(requirer, arch):
-				debug(_("Considering command dependency %s"), d)
+				logger.debug(_("Considering command dependency %s"), d)
 
 				add_iface(d.interface, arch.child_arch)
 
@@ -433,7 +432,7 @@ class SATSolver(Solver):
 			impls = []
 			for f in usable_feeds(iface, arch):
 				self.feeds_used.add(f)
-				debug(_("Processing feed %s"), f)
+				logger.debug(_("Processing feed %s"), f)
 
 				try:
 					feed = iface_cache.get_feed(f)
@@ -451,11 +450,11 @@ class SATSolver(Solver):
 						if distro_feed.implementations:
 							impls.extend(distro_feed.implementations.values())
 				except MissingLocalFeed as ex:
-					warn(_("Missing local feed; if it's no longer required, remove it with:") +
+					logger.warn(_("Missing local feed; if it's no longer required, remove it with:") +
 							'\n0install remove-feed ' + iface.uri + ' ' + f,
 						{'feed': f, 'interface': iface, 'exception': ex})
 				except Exception as ex:
-					warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
+					logger.warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
 					#raise
 
 			impls.sort(key = lambda impl: self.get_rating(iface, impl, arch), reverse = True)
@@ -579,7 +578,7 @@ class SATSolver(Solver):
 				problem.add_clause(commands)		# At least one
 			else:
 				# (note: might be because we haven't cached it yet)
-				info("No %s <command> in %s", command_name, root_interface)
+				logger.info("No %s <command> in %s", command_name, root_interface)
 
 				impls = impls_for_iface[iface_cache.get_interface(root_interface)]
 				if impls == [] or (len(impls) == 1 and isinstance(impls[0], _DummyImpl)):

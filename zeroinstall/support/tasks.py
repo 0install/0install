@@ -35,9 +35,8 @@ callbacks. See the Task class (below) for more information.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, support, gobject
+from zeroinstall import _, support, gobject, logger
 import sys
-from logging import info, warn, debug
 
 # The list of Blockers whose event has happened, in the order they were
 # triggered
@@ -57,12 +56,12 @@ def check(blockers, reporter = None):
 				try:
 					reporter(*b.exception)
 				except:
-					warn("Failure reporting error! Error was: %s", repr(b.exception[0]))
+					logger.warn("Failure reporting error! Error was: %s", repr(b.exception[0]))
 					raise
 			elif ex is None:
 				ex = b.exception
 			else:
-				warn(_("Multiple exceptions waiting; skipping %s"), b.exception[0])
+				logger.warn(_("Multiple exceptions waiting; skipping %s"), b.exception[0])
 	if ex:
 		support.raise_with_traceback(ex[0], ex[1])
 
@@ -122,9 +121,9 @@ class Blocker:
 		if exception:
 			assert isinstance(exception, tuple), exception
 			if not self._zero_lib_tasks:
-				info(_("Exception from '%s', but nothing is waiting for it"), self)
+				logger.info(_("Exception from '%s', but nothing is waiting for it"), self)
 			import traceback
-			debug(''.join(traceback.format_exception(type(exception[0]), exception[0], exception[1])))
+			logger.debug(''.join(traceback.format_exception(type(exception[0]), exception[0], exception[1])))
 
 	# (causes leaks by preventing blockers from being GC'd if in cycles)
 	#def __del__(self):
@@ -244,7 +243,7 @@ class Task:
 		# Block new task on the idle handler...
 		_idle_blocker.add_task(self)
 		self._zero_blockers = (_idle_blocker,)
-		info(_("Scheduling new task: %s"), self)
+		logger.info(_("Scheduling new task: %s"), self)
 	
 	def _resume(self):
 		# Remove from our blockers' queues
@@ -261,7 +260,7 @@ class Task:
 			raise
 		except (Exception, KeyboardInterrupt) as ex:
 			# Task crashed
-			info(_("Exception from '%(name)s': %(exception)s"), {'name': self.finished.name, 'exception': ex})
+			logger.info(_("Exception from '%(name)s': %(exception)s"), {'name': self.finished.name, 'exception': ex})
 			#import traceback
 			#debug(''.join(traceback.format_exception(*sys.exc_info())))
 			tb = sys.exc_info()[2]
@@ -279,10 +278,10 @@ class Task:
 				assert hasattr(blocker, 'happened'), "Not a Blocker: %s from %s" % (blocker, self)
 				if blocker.happened:
 					new_blockers = (_idle_blocker,)
-					info(_("Task '%(task)s' waiting on ready blocker %(blocker)s!"), {'task': self, 'blocker': blocker})
+					logger.info(_("Task '%(task)s' waiting on ready blocker %(blocker)s!"), {'task': self, 'blocker': blocker})
 					break
 			else:
-				info(_("Task '%(task)s' stopping and waiting for '%(new_blockers)s'"), {'task': self, 'new_blockers': new_blockers})
+				logger.info(_("Task '%(task)s' stopping and waiting for '%(new_blockers)s'"), {'task': self, 'new_blockers': new_blockers})
 		# Add to new blockers' queues
 		for blocker in new_blockers:
 			blocker.add_task(self)
@@ -311,9 +310,9 @@ def _handle_run_queue():
 		# new one for future idling.
 		_idle_blocker = IdleBlocker("(idle)")
 	elif next._zero_lib_tasks:
-		info(_("Running %(task)s due to triggering of '%(next)s'"), {'task': next._zero_lib_tasks, 'next': next})
+		logger.info(_("Running %(task)s due to triggering of '%(next)s'"), {'task': next._zero_lib_tasks, 'next': next})
 	else:
-		info(_("Running %s"), next)
+		logger.info(_("Running %s"), next)
 	
 	tasks = frozenset(next._zero_lib_tasks)
 	if tasks:
@@ -364,7 +363,7 @@ def wait_for_blocker(blocker):
 
 		wait_for_blocker.loop = gobject.MainLoop()
 		try:
-			debug(_("Entering mainloop, waiting for %s"), blocker)
+			logger.debug(_("Entering mainloop, waiting for %s"), blocker)
 			wait_for_blocker.loop.run()
 		finally:
 			wait_for_blocker.loop = None

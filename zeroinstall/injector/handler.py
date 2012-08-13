@@ -12,9 +12,8 @@ To do this, you supply a L{Handler} to the L{policy}.
 
 from __future__ import print_function
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import sys
-from logging import warn, info
 
 from zeroinstall import SafeException
 from zeroinstall import support
@@ -135,7 +134,7 @@ class Handler(object):
 					try:
 						tasks.check(b)
 					except Exception as ex:
-						warn(_("Failed to get key info: %s"), ex)
+						logger.warn(_("Failed to get key info: %s"), ex)
 				if stdin.happened:
 					print(_("Skipping remaining key lookups due to input from user"), file=sys.stderr)
 					break
@@ -179,7 +178,7 @@ class Handler(object):
 		@type exception: L{SafeException}
 		@param tb: optional traceback
 		@since: 0.25"""
-		warn("%s", str(exception) or type(exception))
+		logger.warn("%s", str(exception) or type(exception))
 		#import traceback
 		#traceback.print_exception(exception, None, tb)
 
@@ -200,7 +199,7 @@ class ConsoleHandler(Handler):
 					curses.setupterm()
 					self.screen_width = curses.tigetnum('cols') or 80
 				except Exception as ex:
-					info("Failed to initialise curses library: %s", ex)
+					logger.info("Failed to initialise curses library: %s", ex)
 					self.screen_width = 80
 			self.show_progress()
 			self.update = gobject.timeout_add(200, self.show_progress)

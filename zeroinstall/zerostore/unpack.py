@@ -3,14 +3,13 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import os, subprocess
 import shutil
 import glob
 import traceback
 from tempfile import mkdtemp, mkstemp
 import re
-from logging import debug, warn
 import errno
 from zeroinstall import SafeException
 from zeroinstall.support import find_in_path, ro_rmtree
@@ -25,12 +24,12 @@ def _get_cpio_version():
 		child.stdout.close()
 		child.wait()
 		_cpio_version = out.split('\n', 1)[0]
-		debug(_("cpio version = %s"), _cpio_version)
+		logger.debug(_("cpio version = %s"), _cpio_version)
 	return _cpio_version
 
 def _gnu_cpio():
 	gnu_cpio = '(GNU cpio)' in _get_cpio_version()
-	debug(_("Is GNU cpio = %s"), gnu_cpio)
+	logger.debug(_("Is GNU cpio = %s"), gnu_cpio)
 	return gnu_cpio
 
 _tar_version = None
@@ -43,12 +42,12 @@ def _get_tar_version():
 		child.stdout.close()
 		child.wait()
 		_tar_version = out.split('\n', 1)[0]
-		debug(_("tar version = %s"), _tar_version)
+		logger.debug(_("tar version = %s"), _tar_version)
 	return _tar_version
 
 def _gnu_tar():
 	gnu_tar = '(GNU tar)' in _get_tar_version()
-	debug(_("Is GNU tar = %s"), gnu_tar)
+	logger.debug(_("Is GNU tar = %s"), gnu_tar)
 	return gnu_tar
 
 def recent_gnu_tar():
@@ -60,8 +59,8 @@ def recent_gnu_tar():
 			version = list(map(int, version.group(1).split('.')))
 			recent_gnu_tar = version > [1, 13, 92]
 		else:
-			warn(_("Failed to extract GNU tar version number"))
-	debug(_("Recent GNU tar = %s"), recent_gnu_tar)
+			logger.warn(_("Failed to extract GNU tar version number"))
+	logger.debug(_("Recent GNU tar = %s"), recent_gnu_tar)
 	return recent_gnu_tar
 
 # Disabled, as Plash does not currently support fchmod(2).
@@ -463,7 +462,7 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 			uid = os.geteuid()
 			gid = os.getegid()
 		except:
-			debug(_("Can't get uid/gid"))
+			logger.debug(_("Can't get uid/gid"))
 
 		def chmod_extract(tarinfo):
 			# If any X bit is set, they all must be

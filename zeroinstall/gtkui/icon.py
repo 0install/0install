@@ -2,9 +2,8 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import gtk
-from logging import warn
 import math
 
 def load_icon(icon_path, icon_width=None, icon_height=None):
@@ -45,5 +44,5 @@ def load_icon(icon_path, icon_width=None, icon_height=None):
 			loader.close()
 		return loader.get_pixbuf()
 	except Exception as ex:
-		warn(_("Failed to load cached PNG icon: %s") % ex)
+		logger.warn(_("Failed to load cached PNG icon: %s") % ex)
 		return None

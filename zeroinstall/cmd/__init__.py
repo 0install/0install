@@ -7,7 +7,7 @@ The B{0install} command-line interface.
 
 from __future__ import print_function
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import os, sys
 from optparse import OptionParser
 import logging
@@ -96,25 +96,24 @@ def main(command_args, config = None):
 		verbose = options.verbose
 
 		if options.verbose:
-			logger = logging.getLogger()
 			if options.verbose == 1:
 				logger.setLevel(logging.INFO)
 			else:
 				logger.setLevel(logging.DEBUG)
 			import zeroinstall
-			logging.info(_("Running 0install %(version)s %(args)s; Python %(python_version)s"), {'version': zeroinstall.version, 'args': repr(command_args), 'python_version': sys.version})
+			logger.info(_("Running 0install %(version)s %(args)s; Python %(python_version)s"), {'version': zeroinstall.version, 'args': repr(command_args), 'python_version': sys.version})
 
 		if options.with_store:
 			from zeroinstall import zerostore
 			for x in options.with_store:
 				config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
-			logging.info(_("Stores search path is now %s"), config.stores.stores)
+			logger.info(_("Stores search path is now %s"), config.stores.stores)
 
 		config.handler.dry_run = bool(options.dry_run)
 
 		cmd.handle(config, options, args)
 	except KeyboardInterrupt:
-		logging.info("KeyboardInterrupt")
+		logger.info("KeyboardInterrupt")
 		sys.exit(1)
 	except UsageError:
 		parser.print_help()

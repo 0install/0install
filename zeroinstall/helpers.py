@@ -6,8 +6,8 @@ Convenience routines for performing common operations.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-import os, sys, logging
-from zeroinstall import support, SafeException
+import os, sys
+from zeroinstall import support, SafeException, logger
 from zeroinstall.support import tasks
 
 DontUseGUI = object()
@@ -73,7 +73,7 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True
 		gui = None
 
 		while True:
-			logging.info("Waiting for selections from GUI...")
+			logger.info("Waiting for selections from GUI...")
 
 			reply = support.read_bytes(cli.fileno(), len('Length:') + 9, null_ok = True)
 			if reply:
@@ -86,14 +86,14 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True
 				sels = selections.Selections(dom)
 
 				if dom.getAttribute('run-test'):
-					logging.info("Testing program, as requested by GUI...")
+					logger.info("Testing program, as requested by GUI...")
 					if test_callback is None:
 						output = b"Can't test: no test_callback was passed to get_selections_gui()\n"
 					else:
 						output = test_callback(sels)
-					logging.info("Sending results to GUI...")
+					logger.info("Sending results to GUI...")
 					output = ('Length:%8x\n' % len(output)).encode('utf-8') + output
-					logging.debug("Sending: %s", repr(output))
+					logger.debug("Sending: %s", repr(output))
 					while output:
 						sent = cli.send(output)
 						output = output[sent:]
@@ -104,7 +104,7 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True
 			pid, status = os.waitpid(child, 0)
 			assert pid == child
 			if status == 1 << 8:
-				logging.info("User cancelled the GUI; aborting")
+				logger.info("User cancelled the GUI; aborting")
 				return None		# Aborted
 			elif status == 100 << 8:
 				if use_gui is None:

@@ -13,9 +13,8 @@ well-known variables.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import os, re, locale, sys
-from logging import info, debug, warn
 from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector import qdom
@@ -1004,7 +1003,7 @@ class ZeroInstallFeed(object):
 				# Bug report from a Debian/stable user that --feed gets the wrong value.
 				# Can't reproduce (even in a Debian/stable chroot), but add some logging here
 				# in case it happens again.
-				debug(_("Is feed-for %s"), feed_iface)
+				logger.debug(_("Is feed-for %s"), feed_iface)
 			elif x.name == 'feed':
 				feed_src = x.getAttribute('src')
 				if not feed_src:
@@ -1075,7 +1074,7 @@ class ZeroInstallFeed(object):
 					process_impl(item, item_attrs, depends, bindings, commands)
 				elif item.name == 'package-implementation':
 					if depends:
-						warn("A <package-implementation> with dependencies in %s!", self.url)
+						logger.warn("A <package-implementation> with dependencies in %s!", self.url)
 					self._package_implementations.append((item, item_attrs))
 				else:
 					assert 0
@@ -1098,7 +1097,7 @@ class ZeroInstallFeed(object):
 					# In older feeds, the ID was the (single) digest
 					impl.digests.append(id)
 			if id in self.implementations:
-				warn(_("Duplicate ID '%(id)s' in feed '%(feed)s'"), {'id': id, 'feed': self})
+				logger.warn(_("Duplicate ID '%(id)s' in feed '%(feed)s'"), {'id': id, 'feed': self})
 			self.implementations[id] = impl
 
 			impl.metadata = item_attrs
@@ -1175,7 +1174,7 @@ class ZeroInstallFeed(object):
 								raise InvalidInterface(_("Missing dest attribute on <rename>"))
 							recipe.steps.append(RenameStep(source=source, dest=dest))
 						else:
-							info(_("Unknown step '%s' in recipe; skipping recipe"), recipe_step.name)
+							logger.info(_("Unknown step '%s' in recipe; skipping recipe"), recipe_step.name)
 							break
 					else:
 						impl.download_sources.append(recipe)
@@ -1183,7 +1182,7 @@ class ZeroInstallFeed(object):
 		root_attrs = {'stability': 'testing'}
 		root_commands = {}
 		if main:
-			info("Note: @main on document element is deprecated in %s", self)
+			logger.info("Note: @main on document element is deprecated in %s", self)
 			root_commands['run'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': main, 'name': 'run'}), None)
 		process_group(feed_element, root_attrs, [], [], root_commands)
 	

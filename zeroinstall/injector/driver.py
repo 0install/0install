@@ -8,9 +8,8 @@ settings.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import os
-from logging import info, debug
 
 from zeroinstall.injector import arch, model
 from zeroinstall.injector.model import network_offline
@@ -54,8 +53,8 @@ class Driver(object):
 		from zeroinstall.injector.solver import DefaultSolver
 		self.solver = DefaultSolver(self.config)
 
-		debug(_("Supported systems: '%s'"), arch.os_ranks)
-		debug(_("Supported processors: '%s'"), arch.machine_ranks)
+		logger.debug(_("Supported systems: '%s'"), arch.os_ranks)
+		logger.debug(_("Supported processors: '%s'"), arch.machine_ranks)
 
 		if requirements.before or requirements.not_before:
 			self.solver.extra_restrictions[config.iface_cache.get_interface(requirements.interface_uri)] = [
@@ -127,7 +126,7 @@ class Driver(object):
 
 			if not downloads_in_progress:
 				if self.config.network_use == network_offline:
-					info(_("Can't choose versions and in off-line mode, so aborting"))
+					logger.info(_("Can't choose versions and in off-line mode, so aborting"))
 				break
 
 			# Wait for at least one download to finish

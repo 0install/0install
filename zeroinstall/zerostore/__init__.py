@@ -5,9 +5,8 @@ Code for managing the implementation cache.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import os
-from logging import debug, info, warn
 
 from zeroinstall.support import basedir
 from zeroinstall import SafeException, support
@@ -119,7 +118,7 @@ class Store:
 		from . import unpack
 
 		if self.lookup(required_digest):
-			info(_("Not adding %s as it already exists!"), required_digest)
+			logger.info(_("Not adding %s as it already exists!"), required_digest)
 			return
 
 		tmp = self.get_tmp_dir_for(required_digest)
@@ -147,7 +146,7 @@ class Store:
 		@type try_helper: bool
 		@raise BadDigest: if the contents don't match the given digest."""
 		if self.lookup(required_digest):
-			info(_("Not adding %s as it already exists!"), required_digest)
+			logger.info(_("Not adding %s as it already exists!"), required_digest)
 			return
 
 		tmp = self.get_tmp_dir_for(required_digest)
@@ -155,8 +154,8 @@ class Store:
 			_copytree2(path, tmp)
 			self.check_manifest_and_rename(required_digest, tmp, try_helper = try_helper)
 		except:
-			warn(_("Error importing directory."))
-			warn(_("Deleting %s"), tmp)
+			logger.warn(_("Error importing directory."))
+			logger.warn(_("Deleting %s"), tmp)
 			support.ro_rmtree(tmp)
 			raise
 
@@ -172,7 +171,7 @@ class Store:
 			return False		# Old digest alg not supported
 		helper = support.find_in_path('0store-secure-add-helper')
 		if not helper:
-			info(_("'0store-secure-add-helper' command not found. Not adding to system cache."))
+			logger.info(_("'0store-secure-add-helper' command not found. Not adding to system cache."))
 			return False
 		import subprocess
 		env = os.environ.copy()
@@ -180,7 +179,7 @@ class Store:
 		env['HOME'] = 'Unclean'			# (warn about insecure configurations)
 		dev_null = os.open(os.devnull, os.O_RDONLY)
 		try:
-			info(_("Trying to add to system cache using %s"), helper)
+			logger.info(_("Trying to add to system cache using %s"), helper)
 			child = subprocess.Popen([helper, required_digest],
 						 stdin = dev_null,
 						 cwd = path,
@@ -190,10 +189,10 @@ class Store:
 			os.close(dev_null)
 
 		if exit_code:
-			warn(_("0store-secure-add-helper failed."))
+			logger.warn(_("0store-secure-add-helper failed."))
 			return False
 
-		info(_("Added succcessfully."))
+		logger.info(_("Added succcessfully."))
 		return True
 
 	def check_manifest_and_rename(self, required_digest, tmp, extract = None, try_helper = False):
@@ -226,9 +225,9 @@ class Store:
 			if self._add_with_helper(required_digest, extracted):
 				support.ro_rmtree(tmp)
 				return
-			info(_("Can't add to system store. Trying user store instead."))
+			logger.info(_("Can't add to system store. Trying user store instead."))
 
-		info(_("Caching new implementation (digest %s) in %s"), required_digest, self.dir)
+		logger.info(_("Caching new implementation (digest %s) in %s"), required_digest, self.dir)
 
 		final_name = os.path.join(self.dir, required_digest)
 		if os.path.isdir(final_name):
@@ -259,7 +258,7 @@ class Stores(object):
 
 		impl_dirs = basedir.load_first_config('0install.net', 'injector',
 							  'implementation-dirs')
-		debug(_("Location of 'implementation-dirs' config file being used: '%s'"), impl_dirs)
+		logger.debug(_("Location of 'implementation-dirs' config file being used: '%s'"), impl_dirs)
 		if impl_dirs:
 			with open(impl_dirs, 'rt') as stream:
 				dirs = stream.readlines()
@@ -279,7 +278,7 @@ class Stores(object):
 		for directory in dirs:
 			directory = directory.strip()
 			if directory and not directory.startswith('#'):
-				debug(_("Added system store '%s'"), directory)
+				logger.debug(_("Added system store '%s'"), directory)
 				self.stores.append(Store(directory))
 
 	def lookup(self, digest):
@@ -326,7 +325,7 @@ class Stores(object):
 				fn(self.get_first_system_store())
 				return
 			except NonwritableStore:
-				debug(_("%s not-writable. Trying helper instead."), self.get_first_system_store())
+				logger.debug(_("%s not-writable. Trying helper instead."), self.get_first_system_store())
 				pass
 		fn(self.stores[0], try_helper = True)
 

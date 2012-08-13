@@ -13,7 +13,7 @@ from zeroinstall import _, SafeException
 from zeroinstall.support import tasks
 from zeroinstall.injector import download, model
 
-_logger_pk = logging.getLogger('packagekit')
+_logger_pk = logging.getLogger('0install.packagekit')
 
 try:
 	import dbus
