@@ -11,6 +11,7 @@ from zeroinstall import _, logger
 import os, sys
 from string import Template
 
+from zeroinstall import support
 from zeroinstall.injector.model import SafeException, EnvironmentBinding, ExecutableBinding, Command, Dependency
 from zeroinstall.injector import namespaces, qdom
 from zeroinstall.support import basedir
@@ -217,15 +218,20 @@ class Setup(object):
 		if '/' in name or name.startswith('.') or "'" in name:
 			raise SafeException("Invalid <executable> name '%s'" % name)
 		exec_dir = basedir.save_cache_path(namespaces.config_site, namespaces.config_prog, 'executables', name)
-		exec_path = os.path.join(exec_dir, name)
+		exec_path = os.path.join(exec_dir, name + ".exe" if os.name == "nt" else name)
 
 		if not self._checked_runenv:
 			self._check_runenv()
 
 		if not os.path.exists(exec_path):
-			# Symlink ~/.cache/0install.net/injector/executables/$name/$name to runenv.py
-			os.symlink('../../runenv.py', exec_path)
-			os.chmod(exec_dir, 0o500)
+			if os.name == "nt":
+				# Copy runenv.cli.template to ~/.cache/0install.net/injector/executables/$name/$name
+				import shutil
+				shutil.copyfile(os.path.join(os.path.dirname(__file__), "runenv.cli.template"), exec_path)
+			else:
+				# Symlink ~/.cache/0install.net/injector/executables/$name/$name to runenv.py
+				os.symlink('../../runenv.py', exec_path)
+				os.chmod(exec_dir, 0o500)
 
 		if binding.in_path:
 			path = os.environ["PATH"] = exec_dir + os.pathsep + os.environ["PATH"]
@@ -234,9 +240,13 @@ class Setup(object):
 			os.environ[name] = exec_path
 			logger.info("%s=%s", name, exec_path)
 
-		import json
 		args = self.build_command(iface, binding.command)
-		os.environ["0install-runenv-" + name] = json.dumps(args)
+		if os.name == "nt":
+			os.environ["0install-runenv-file-" + name + ".exe"] = args[0]
+			os.environ["0install-runenv-args-" + name + ".exe"] = support.windows_args_escape(args[1:])
+		else:
+			import json
+			os.environ["0install-runenv-" + name] = json.dumps(args)
 
 	def _check_runenv(self):
 		# Create the runenv.py helper script under ~/.cache if missing or out-of-date

@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import distro, model, qdom, iface_cache, handler
-from zeroinstall.support import basedir
+from zeroinstall.support import basedir, windows_args_escape
 
 def parse_impls(impls):
 	xml = """<?xml version="1.0" ?>
@@ -304,6 +304,12 @@ class TestDistro(BaseTest):
 		self.assertEqual(['/home/me/config', '/system/config'], basedir.xdg_config_dirs)
 		self.assertEqual(['/home/me/cache', '/system/cache'], basedir.xdg_cache_dirs)
 		self.assertEqual(['/home/me/data', '/system/data', '/disto/data'], basedir.xdg_data_dirs)
+
+	def testWindowsSupport(self):
+		self.assertEqual("foo bar", windows_args_escape(["foo", "bar"]))
+		self.assertEqual('"foo bar"', windows_args_escape(["foo bar"]))
+		self.assertEqual(r'"foo \"bar\""', windows_args_escape(['foo "bar"']))
+		self.assertEqual(r'"foo \\\"bar\""', windows_args_escape(['foo \\"bar"']))
 
 if __name__ == '__main__':
 	unittest.main()

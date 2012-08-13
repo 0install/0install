@@ -105,6 +105,36 @@ def portable_rename(src, dst):
 		os.unlink(dst)
 	os.rename(src, dst)
 
+def windows_args_escape(args):
+	"""Combines multiple strings into one for use as a Windows command-line argument.
+	This coressponds to Windows' handling of command-line arguments as specified in: http://msdn.microsoft.com/library/17w5ykft.
+	@since: 1.11"""
+	def _escape(arg):
+		# Add leading quotation mark if there are whitespaces
+		import string
+		contains_whitespace = any(whitespace in arg for whitespace in string.whitespace)
+		result = '"' if contains_whitespace else ''
+
+		# Split by quotation marks
+		parts = arg.split('"')
+		for i, part in enumerate(parts):
+			# Count slashes preceeding the quotation mark
+			slashes_count = len(part) - len(part.rstrip('\\'))
+
+			result = result + part
+			if i < len(parts) - 1:
+				# Not last part
+				result = result + ("\\" * slashes_count) # Double number of slashes
+				result = result + "\\" + '"' # Escaped quotation mark
+			elif contains_whitespace:
+				# Last part if there are whitespaces
+				result = result + ("\\" * slashes_count) # Double number of slashes
+				result = result + '"' # Non-escaped quotation mark
+
+		return result
+
+	return ' '.join(map(_escape, args))
+
 if sys.version_info[0] > 2:
 	# Python 3
 	unicode = str
