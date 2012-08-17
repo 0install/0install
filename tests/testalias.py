@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from basetest import BaseTest, StringIO
-import sys, tempfile
+import sys, tempfile, os
 import unittest
 
 sys.path.insert(0, '..')
@@ -96,6 +96,16 @@ class TestAlias(BaseTest):
 			self.assertEqual('a\'\'\\test', main)
 	
 	def testParseException(self):
+		tmp = tempfile.NamedTemporaryFile(mode = 'wb', delete = False)
+		tmp.write(bytes([240]))
+		tmp.close()
+		try:
+			alias.parse_script(tmp.name)
+			assert False
+		except alias.NotAnAliasScript:
+			pass
+		os.unlink(tmp.name)
+
 		tmp = tempfile.NamedTemporaryFile(mode = 'wt')
 		tmp.write('hi' + expected_script)
 		tmp.flush()

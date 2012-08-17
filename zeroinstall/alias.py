@@ -42,21 +42,24 @@ def parse_script(pathname):
 	@raise NotAnAliasScript: if we can't parse the script
 	"""
 	with open(pathname, 'rt') as stream:
-		template_header = _template[:_template.index("%s'")]
-		actual_header = stream.read(len(template_header))
-		stream.seek(0)
-		if template_header == actual_header:
-			# If it's a 0alias script, it should be quite short!
-			rest = stream.read()
-			line = rest.split('\n')[1]
-		else:
-			old_template_header = \
-			    _old_template[:_old_template.index("-gd '")]
-			actual_header = stream.read(len(old_template_header))
-			if old_template_header != actual_header:
-				raise NotAnAliasScript(_("'%s' does not look like a script created by 0alias") % pathname)
-			rest = stream.read()
-			line = rest.split('\n')[2]
+		try:
+			template_header = _template[:_template.index("%s'")]
+			actual_header = stream.read(len(template_header))
+			stream.seek(0)
+			if template_header == actual_header:
+				# If it's a 0alias script, it should be quite short!
+				rest = stream.read()
+				line = rest.split('\n')[1]
+			else:
+				old_template_header = \
+				    _old_template[:_old_template.index("-gd '")]
+				actual_header = stream.read(len(old_template_header))
+				if old_template_header != actual_header:
+					raise NotAnAliasScript(_("'%s' does not look like a script created by 0alias") % pathname)
+				rest = stream.read()
+				line = rest.split('\n')[2]
+		except UnicodeDecodeError as ex:
+			raise NotAnAliasScript(repr(ex))
 
 	info = ScriptInfo()
 	split = line.rfind("' '")
