@@ -173,7 +173,7 @@ if options.manpage:
 			if manpage_file.endswith('.1') or \
 			   manpage_file.endswith('.6') or \
 			   manpage_file.endswith('.8'):
-			   	manpage_prog = manpage_file[:-2]
+				manpage_prog = manpage_file[:-2]
 				if manpage_prog == prog_name or manpage_prog == alias_name:
 					os.execlp('man', 'man', os.path.join(root, f))
 					sys.exit(1)

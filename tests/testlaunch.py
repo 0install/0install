@@ -3,7 +3,7 @@
 from __future__ import print_function
 
 from basetest import BaseTest, StringIO, BytesIO
-import sys, tempfile, os
+import sys, tempfile, os, imp
 import unittest
 import logging
 
@@ -231,6 +231,30 @@ class TestLaunch(BaseTest):
 		out, err = self.run_0launch(['--show', command_feed])
 		self.assertEqual("", err)
 		assert 'Local.xml' in out, out
+
+	def testExecutables(self):
+		# Check top-level scripts are readable (detects white-space errors)
+		for script in ['0launch', '0alias', '0store', '0desktop', '0install']:
+			path = os.path.join('..', script)
+
+			old_stdout = sys.stdout
+			old_stderr = sys.stderr
+			old_argv = sys.argv
+			try:
+				sys.argv = [script, '--help']
+				sys.stderr = sys.stdout = StringIO()
+
+				imp.load_source(script, path)
+			except SystemExit as ex:
+				out = sys.stdout.getvalue()
+				assert 'Usage: ' in out, (script, out)
+			else:
+				assert False
+			finally:
+				sys.stdout = old_stdout
+				sys.stderr = old_stderr
+				sys.argv = old_argv
+
 
 if __name__ == '__main__':
 	unittest.main()
