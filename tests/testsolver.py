@@ -317,5 +317,29 @@ class TestSolver(BaseTest):
 		assert s.ready, s.get_failure_reason()
 		assert s.selections
 
+	def testReplacedConflicts(self):
+		self.import_feed('http://localhost:8000/Hello', 'Hello')
+		s = solver.DefaultSolver(self.config)
+		replaced_path = model.canonical_iface_uri(os.path.join(mydir, 'Replaced.xml'))
+		replaced_conflicts_path = model.canonical_iface_uri(os.path.join(mydir, 'ReplacedConflicts.xml'))
+		r = Requirements(replaced_conflicts_path)
+		s.solve_for(r)
+		assert s.ready, s.get_failure_reason()
+		assert s.selections
+		self.assertEqual("b", s.selections.selections[replaced_conflicts_path].id)
+		self.assertEqual("2", s.selections.selections[replaced_conflicts_path].version)
+		self.assertEqual("sha1=3ce644dc725f1d21cfcf02562c76f375944b266a", s.selections.selections["http://localhost:8000/Hello"].id)
+		self.assertEqual(2, len(s.selections.selections))
+
+		s.extra_restrictions[self.config.iface_cache.get_interface(r.interface_uri)] = [
+				model.VersionRangeRestriction(model.parse_version('2'), None)]
+
+		s.solve_for(r)
+		assert s.ready, s.get_failure_reason()
+		assert s.selections
+		self.assertEqual("1", s.selections.selections[replaced_conflicts_path].version)
+		self.assertEqual("0", s.selections.selections[replaced_path].version)
+		self.assertEqual(2, len(s.selections.selections))
+
 if __name__ == '__main__':
 	unittest.main()

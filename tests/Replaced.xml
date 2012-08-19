@@ -3,4 +3,6 @@
   <name>Hello</name>
   <summary>Hello</summary>
   <replaced-by interface='http://localhost:8000/Hello'/>
+
+  <implementation version='0' id='.'/>
 </interface>

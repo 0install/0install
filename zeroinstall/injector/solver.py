@@ -422,12 +422,20 @@ class SATSolver(Solver):
 				# Must choose one version of d if impl is selected
 				find_dependency_candidates(requiring_var, d)
 
+		replacement_for = {}		# Interface -> Replacement Interface
+
 		def add_iface(uri, arch):
 			"""Name implementations from feed and assert that only one can be selected."""
 			if uri in ifaces_processed: return
 			ifaces_processed.add(uri)
 
 			iface = iface_cache.get_interface(uri)
+
+			main_feed = iface_cache.get_feed(uri)
+			if main_feed:
+				replacement = main_feed.get_replaced_by()
+				if replacement is not None:
+					replacement_for[iface] = iface_cache.get_interface(replacement)
 
 			impls = []
 			for f in usable_feeds(iface, arch):
@@ -607,6 +615,15 @@ class SATSolver(Solver):
 			m_groups_clause = problem.at_most_one(m_groups)
 		else:
 			m_groups_clause = None
+
+		# Can't select an implementation of an interface and of its replacement
+		for original, replacement in replacement_for.items():
+			rep_impls = iface_to_vars.get(replacement, None)
+			if rep_impls is None:
+				# We didn't even look at the replacement interface, so no risk here
+				continue
+			all_impls = list(rep_impls.values()) + list(iface_to_vars[original].values())
+			problem.at_most_one(all_impls)
 
 		def decide():
 			"""This is called by the SAT solver when it cannot simplify the problem further.

@@ -1,0 +1,21 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>ReplacedConflicts</name>
+  <summary>replaced-by conflicts</summary>
+
+  <group main='missing' local-path='.'>
+    <implementation id='a' version='1'>
+      <requires interface='./Replaced.xml'/>
+    </implementation>
+
+    <implementation id='b' version='2'>
+      <requires interface='http://localhost:8000/Hello'/>
+    </implementation>
+
+    <!-- Can't select this version because an interface conflicts with its replacement. -->
+    <implementation id='c' version='3'>
+      <requires interface='./Replaced.xml'/>
+      <requires interface='http://localhost:8000/Hello'/>
+    </implementation>
+  </group>
+</interface>
