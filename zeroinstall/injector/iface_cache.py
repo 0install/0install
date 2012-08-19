@@ -110,18 +110,20 @@ class PendingFeed(object):
 			blockers = []
 
 			for b in old_blockers:
+				dl, stream = downloads[b]
 				try:
 					tasks.check(b)
 					if b.happened:
-						dl, stream = downloads[b]
 						stream.seek(0)
 						self._downloaded_key(stream)
 						any_success = True
+						stream.close()
 					else:
 						blockers.append(b)
 				except Exception:
 					_type, exception, tb = sys.exc_info()
 					logger.warn(_("Failed to import key for '%(url)s': %(exception)s"), {'url': self.url, 'exception': str(exception)})
+					stream.close()
 
 		if exception and not any_success:
 			raise_with_traceback(exception, tb)

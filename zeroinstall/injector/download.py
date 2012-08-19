@@ -155,7 +155,10 @@ class Download(object):
 		"""Get the download progress. Will be zero if the download has not yet started.
 		@rtype: int"""
 		if self.status is download_fetching:
-			return os.fstat(self.tempfile.fileno()).st_size
+			if self.tempfile.closed:
+				return 1
+			else:
+				return os.fstat(self.tempfile.fileno()).st_size
 		else:
 			return self._final_total_size or 0
 

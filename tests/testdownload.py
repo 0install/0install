@@ -3,7 +3,7 @@ from __future__ import with_statement
 from basetest import BaseTest, StringIO
 import sys, tempfile, os
 import unittest
-import logging
+import logging, warnings
 from logging import getLogger, WARN, ERROR
 from contextlib import contextmanager
 
@@ -79,6 +79,17 @@ def trapped_exit(expected_exit_status):
 			assert ex.code == expected_exit_status
 	finally:
 		os._exit = old_exit
+
+@contextmanager
+def resourcewarnings_suppressed():
+	import gc
+	if sys.version_info[0] < 3:
+		yield
+	else:
+		with warnings.catch_warnings():
+			warnings.filterwarnings("ignore", category = ResourceWarning)
+			yield
+			gc.collect()
 
 class Reply:
 	def __init__(self, reply):
@@ -156,6 +167,9 @@ class TestDownload(BaseTest):
 		helpers.get_selections_gui = real_get_selections_gui
 		BaseTest.tearDown(self)
 		kill_server_process()
+
+		# Flush out ResourceWarnings
+		import gc; gc.collect()
 
 	def testRejectKey(self):
 		with output_suppressed():
@@ -403,92 +417,96 @@ class TestDownload(BaseTest):
 			sys.stdout = old_out
 
 	def testRecipeFailure(self):
-		old_out = sys.stdout
-		try:
-			run_server('*')
-			driver = Driver(requirements = Requirements(os.path.abspath('Recipe.xml')), config = self.config)
+		with resourcewarnings_suppressed():
+			old_out = sys.stdout
 			try:
-				download_and_execute(driver, [])
-				assert False
-			except download.DownloadError as ex:
-				if "Connection" not in str(ex):
-					raise
-		finally:
-			sys.stdout = old_out
+				run_server('*')
+				driver = Driver(requirements = Requirements(os.path.abspath('Recipe.xml')), config = self.config)
+				try:
+					download_and_execute(driver, [])
+					assert False
+				except download.DownloadError as ex:
+					if "Connection" not in str(ex):
+						raise
+			finally:
+				sys.stdout = old_out
 
 	def testMirrors(self):
-		getLogger().setLevel(logging.ERROR)
-		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-		run_server(server.Give404('/Hello.xml'),
-				'/0mirror/feeds/http/example.com:8000/Hello.xml/latest.xml',
-				'/0mirror/keys/6FCF121BE2390E0B.gpg',
-				server.Give404('/HelloWorld.tgz'),
-				'/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz')
-		driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
-		self.config.mirror = 'http://example.com:8000/0mirror'
-
-		refreshed = driver.solve_with_downloads()
-		tasks.wait_for_blocker(refreshed)
-		assert driver.solver.ready
-
-		#getLogger().setLevel(logging.WARN)
-		downloaded = driver.download_uncached_implementations()
-		tasks.wait_for_blocker(downloaded)
-		path = self.config.stores.lookup_any(driver.solver.selections.selections['http://example.com:8000/Hello.xml'].digests)
-		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
-
-	def testImplMirror(self):
-		# This is like testMirror, except we have a different archive (that generates the same content),
-		# rather than an exact copy of the unavailable archive.
-		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-		run_server('/Hello.xml',
-				'/6FCF121BE2390E0B.gpg',
-				server.Give404('/HelloWorld.tgz'),
-				server.Give404('/0mirror/archive/http%3A%2F%2Flocalhost%3A8000%2FHelloWorld.tgz'),
-				'/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
-		driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
-		self.config.mirror = 'http://example.com:8000/0mirror'
-
-		refreshed = driver.solve_with_downloads()
-		tasks.wait_for_blocker(refreshed)
-		assert driver.solver.ready
-
-		getLogger().setLevel(logging.ERROR)
-		downloaded = driver.download_uncached_implementations()
-		tasks.wait_for_blocker(downloaded)
-		path = self.config.stores.lookup_any(driver.solver.selections.selections['http://example.com:8000/Hello.xml'].digests)
-		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
-
-	def testReplay(self):
-		old_out = sys.stdout
-		try:
-			sys.stdout = StringIO()
-			getLogger().setLevel(ERROR)
-			iface = self.config.iface_cache.get_interface('http://example.com:8000/Hello.xml')
-			mtime = int(os.stat('Hello-new.xml').st_mtime)
-			with open('Hello-new.xml', 'rb') as stream:
-				self.config.iface_cache.update_feed_from_network(iface.uri, stream.read(), mtime + 10000)
-
+		with resourcewarnings_suppressed():
+			getLogger().setLevel(logging.ERROR)
 			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-			run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
+			run_server(server.Give404('/Hello.xml'),
+					'/0mirror/feeds/http/example.com:8000/Hello.xml/latest.xml',
+					'/0mirror/keys/6FCF121BE2390E0B.gpg',
+					server.Give404('/HelloWorld.tgz'),
+					'/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz')
+			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
 			self.config.mirror = 'http://example.com:8000/0mirror'
 
-			# Update from mirror (should ignore out-of-date timestamp)
-			refreshed = self.config.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)
+			refreshed = driver.solve_with_downloads()
 			tasks.wait_for_blocker(refreshed)
+			assert driver.solver.ready
 
-			# Update from upstream (should report an error)
-			refreshed = self.config.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)
+			#getLogger().setLevel(logging.WARN)
+			downloaded = driver.download_uncached_implementations()
+			tasks.wait_for_blocker(downloaded)
+			path = self.config.stores.lookup_any(driver.solver.selections.selections['http://example.com:8000/Hello.xml'].digests)
+			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+
+	def testImplMirror(self):
+		with resourcewarnings_suppressed():
+			# This is like testMirror, except we have a different archive (that generates the same content),
+			# rather than an exact copy of the unavailable archive.
+			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+			run_server('/Hello.xml',
+					'/6FCF121BE2390E0B.gpg',
+					server.Give404('/HelloWorld.tgz'),
+					server.Give404('/0mirror/archive/http%3A%2F%2Flocalhost%3A8000%2FHelloWorld.tgz'),
+					'/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
+			self.config.mirror = 'http://example.com:8000/0mirror'
+
+			refreshed = driver.solve_with_downloads()
+			tasks.wait_for_blocker(refreshed)
+			assert driver.solver.ready
+
+			getLogger().setLevel(logging.ERROR)
+			downloaded = driver.download_uncached_implementations()
+			tasks.wait_for_blocker(downloaded)
+			path = self.config.stores.lookup_any(driver.solver.selections.selections['http://example.com:8000/Hello.xml'].digests)
+			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+
+	def testReplay(self):
+		with resourcewarnings_suppressed():
+			old_out = sys.stdout
 			try:
-				tasks.wait_for_blocker(refreshed)
-				raise Exception("Should have been rejected!")
-			except model.SafeException as ex:
-				assert "New feed's modification time is before old version" in str(ex)
+				sys.stdout = StringIO()
+				getLogger().setLevel(ERROR)
+				iface = self.config.iface_cache.get_interface('http://example.com:8000/Hello.xml')
+				mtime = int(os.stat('Hello-new.xml').st_mtime)
+				with open('Hello-new.xml', 'rb') as stream:
+					self.config.iface_cache.update_feed_from_network(iface.uri, stream.read(), mtime + 10000)
 
-			# Must finish with the newest version
-			self.assertEqual(1342285569, self.config.iface_cache._get_signature_date(iface.uri))
-		finally:
-			sys.stdout = old_out
+				trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+				run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
+				self.config.mirror = 'http://example.com:8000/0mirror'
+
+				# Update from mirror (should ignore out-of-date timestamp)
+				refreshed = self.config.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)
+				tasks.wait_for_blocker(refreshed)
+
+				# Update from upstream (should report an error)
+				refreshed = self.config.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)
+				try:
+					tasks.wait_for_blocker(refreshed)
+					raise Exception("Should have been rejected!")
+				except model.SafeException as ex:
+					assert "New feed's modification time is before old version" in str(ex)
+
+				# Must finish with the newest version
+				self.assertEqual(1342285569, self.config.iface_cache._get_signature_date(iface.uri))
+			finally:
+				sys.stdout = old_out
 
 	def testBackground(self, verbose = False):
 		r = Requirements('http://example.com:8000/Hello.xml')

@@ -170,10 +170,6 @@ class BaseTest(unittest.TestCase):
 	def setUp(self):
 		warnings.resetwarnings()
 
-		if sys.version_info[0] > 2:
-			# Currently, we rely on the GC to close download streams automatically, so don't warn about it.
-			warnings.filterwarnings("ignore", category = ResourceWarning)
-
 		self.config_home = tempfile.mktemp()
 		self.cache_home = tempfile.mktemp()
 		self.cache_system = tempfile.mktemp()

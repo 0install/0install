@@ -61,8 +61,8 @@ class KeyInfoFetcher:
 
 		@tasks.async
 		def fetch_key_info():
+			tempfile = dl.tempfile
 			try:
-				tempfile = dl.tempfile
 				yield dl.downloaded
 				self.blocker = None
 				tasks.check(dl.downloaded)
@@ -76,6 +76,8 @@ class KeyInfoFetcher:
 				root = doc.documentElement
 				root.appendChild(doc.createTextNode(_('Error getting key information: %s') % ex))
 				self.info.append(root)
+			finally:
+				tempfile.close()
 
 		self.blocker = fetch_key_info()
 
@@ -117,37 +119,41 @@ class Fetcher(object):
 		# Start a download for each ingredient
 		blockers = []
 		steps = []
-		for stepdata in recipe.steps:
-			cls = StepRunner.class_for(stepdata)
-			step = cls(stepdata, impl_hint=impl_hint)
-			step.prepare(self, blockers)
-			steps.append(step)
+		try:
+			for stepdata in recipe.steps:
+				cls = StepRunner.class_for(stepdata)
+				step = cls(stepdata, impl_hint=impl_hint)
+				step.prepare(self, blockers)
+				steps.append(step)
 
-		while blockers:
-			yield blockers
-			tasks.check(blockers)
-			blockers = [b for b in blockers if not b.happened]
+			while blockers:
+				yield blockers
+				tasks.check(blockers)
+				blockers = [b for b in blockers if not b.happened]
 
 
-		if self.external_store:
-			# Note: external_store will not yet work with non-<archive> steps.
-			streams = [step.stream for step in steps]
-			self._add_to_external_store(required_digest, recipe.steps, streams)
-		else:
-			# Create an empty directory for the new implementation
-			store = stores.stores[0]
-			tmpdir = store.get_tmp_dir_for(required_digest)
-			try:
-				# Unpack each of the downloaded archives into it in turn
-				for step in steps:
-					step.apply(tmpdir)
-				# Check that the result is correct and store it in the cache
-				store.check_manifest_and_rename(required_digest, tmpdir)
-				tmpdir = None
-			finally:
-				# If unpacking fails, remove the temporary directory
-				if tmpdir is not None:
-					support.ro_rmtree(tmpdir)
+			if self.external_store:
+				# Note: external_store will not yet work with non-<archive> steps.
+				streams = [step.stream for step in steps]
+				self._add_to_external_store(required_digest, recipe.steps, streams)
+			else:
+				# Create an empty directory for the new implementation
+				store = stores.stores[0]
+				tmpdir = store.get_tmp_dir_for(required_digest)
+				try:
+					# Unpack each of the downloaded archives into it in turn
+					for step in steps:
+						step.apply(tmpdir)
+					# Check that the result is correct and store it in the cache
+					store.check_manifest_and_rename(required_digest, tmpdir)
+					tmpdir = None
+				finally:
+					# If unpacking fails, remove the temporary directory
+					if tmpdir is not None:
+						support.ro_rmtree(tmpdir)
+		finally:
+			for step in steps:
+				step.close()
 
 	def _get_mirror_url(self, feed_url, resource):
 		"""Return the URL of a mirror for this feed."""
@@ -300,28 +306,31 @@ class Fetcher(object):
 
 		@tasks.named_async("fetch_feed " + url)
 		def fetch_feed():
-			yield dl.downloaded
-			tasks.check(dl.downloaded)
+			try:
+				yield dl.downloaded
+				tasks.check(dl.downloaded)
 
-			pending = PendingFeed(feed_url, stream)
+				pending = PendingFeed(feed_url, stream)
 
-			if use_mirror:
-				# If we got the feed from a mirror, get the key from there too
-				key_mirror = self.config.mirror + '/keys/'
-			else:
-				key_mirror = None
+				if use_mirror:
+					# If we got the feed from a mirror, get the key from there too
+					key_mirror = self.config.mirror + '/keys/'
+				else:
+					key_mirror = None
 
-			keys_downloaded = tasks.Task(pending.download_keys(self, feed_hint = feed_url, key_mirror = key_mirror), _("download keys for %s") % feed_url)
-			yield keys_downloaded.finished
-			tasks.check(keys_downloaded.finished)
+				keys_downloaded = tasks.Task(pending.download_keys(self, feed_hint = feed_url, key_mirror = key_mirror), _("download keys for %s") % feed_url)
+				yield keys_downloaded.finished
+				tasks.check(keys_downloaded.finished)
 
-			if not self.config.iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
-				blocker = self.config.trust_mgr.confirm_keys(pending)
-				if blocker:
-					yield blocker
-					tasks.check(blocker)
 				if not self.config.iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
-					raise NoTrustedKeys(_("No signing keys trusted; not importing"))
+					blocker = self.config.trust_mgr.confirm_keys(pending)
+					if blocker:
+						yield blocker
+						tasks.check(blocker)
+					if not self.config.iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
+						raise NoTrustedKeys(_("No signing keys trusted; not importing"))
+			finally:
+				stream.close()
 
 		task = fetch_feed()
 		task.dl = dl
@@ -375,14 +384,17 @@ class Fetcher(object):
 					if isinstance(method, DownloadSource):
 						blocker, stream = self.download_archive(method, impl_hint = impl,
 									may_use_mirror = original_exception is None)
-						yield blocker
-						tasks.check(blocker)
+						try:
+							yield blocker
+							tasks.check(blocker)
 
-						stream.seek(0)
-						if self.external_store:
-							self._add_to_external_store(required_digest, [method], [stream])
-						else:
-							self._add_to_cache(required_digest, stores, method, stream)
+							stream.seek(0)
+							if self.external_store:
+								self._add_to_external_store(required_digest, [method], [stream])
+							else:
+								self._add_to_cache(required_digest, stores, method, stream)
+						finally:
+							stream.close()
 					elif isinstance(method, Recipe):
 						blocker = self.cook(required_digest, method, stores, impl_hint = impl)
 						yield blocker
@@ -439,7 +451,9 @@ class Fetcher(object):
 	# (force is deprecated and ignored)
 	def download_archive(self, download_source, force = False, impl_hint = None, may_use_mirror = False):
 		"""Fetch an archive. You should normally call L{download_impl}
-		instead, since it handles other kinds of retrieval method too."""
+		instead, since it handles other kinds of retrieval method too.
+		It is the caller's responsibility to ensure that the returned stream is closed.
+		"""
 		from zeroinstall.zerostore import unpack
 
 		url = download_source.url
@@ -499,8 +513,8 @@ class Fetcher(object):
 		@tasks.async
 		def download_and_add_icon():
 			stream = dl.tempfile
-			yield dl.downloaded
 			try:
+				yield dl.downloaded
 				tasks.check(dl.downloaded)
 				if dl.unmodified: return
 				stream.seek(0)
@@ -588,6 +602,7 @@ class Fetcher(object):
 
 	def download_url(self, url, hint = None, modification_time = None, expected_size = None, mirror_url = None):
 		"""The most low-level method here; just download a raw URL.
+		It is the caller's responsibility to ensure that dl.stream is closed.
 		@param url: the location to download from
 		@param hint: user-defined data to store on the Download (e.g. used by the GUI)
 		@param modification_time: don't download unless newer than this
@@ -622,6 +637,10 @@ class StepRunner(object):
 			if subcls.model_type == type(model):
 				return subcls
 		assert False, "Couldn't find step runner for %s" % (type(model),)
+	
+	def close(self):
+		"""Release any resources (called on success or failure)."""
+		pass
 
 class RenameStepRunner(StepRunner):
 	"""A step runner for the <rename> step.
@@ -652,6 +671,9 @@ class DownloadStepRunner(StepRunner):
 				extract = self.stepdata.extract,
 				type=self.stepdata.type,
 				start_offset = self.stepdata.start_offset or 0)
+	
+	def close(self):
+		self.stream.close()
 
 def native_path_within_base(base, crossplatform_path):
 	"""Takes a cross-platform relative path (i.e using forward slashes, even on windows)

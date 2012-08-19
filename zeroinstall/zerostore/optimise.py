@@ -124,5 +124,7 @@ def optimise(impl_dir):
 			else:
 				first_copy[key] = loc_path
 				uniq_size += size
+
+		ms.close()
 	clear()
 	return (uniq_size, dup_size, already_linked, man_size)

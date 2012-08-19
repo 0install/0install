@@ -312,7 +312,8 @@ class TestStore(BaseTest):
 
 			cli.do_copy([source, copy])
 
-			self.assertEqual('Hello', open(os.path.join(copy, digest, 'MyFile')).read())
+			with open(os.path.join(copy, digest, 'MyFile'), 'rt') as stream:
+				self.assertEqual('Hello', stream.read())
 		finally:
 			support.ro_rmtree(copy)
 

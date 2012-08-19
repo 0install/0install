@@ -76,6 +76,7 @@ for klass in [urllib2.ProxyHandler, urllib2.UnknownHandler, urllib2.HTTPHandler,
 	_my_urlopen.add_handler(klass())
 
 def download_in_thread(url, target_file, if_modified_since, notify_done):
+	src = None
 	try:
 		#print "Child downloading", url
 		if url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:'):
@@ -112,3 +113,6 @@ def download_in_thread(url, target_file, if_modified_since, notify_done):
 	except Exception as ex:
 		__, ex, tb = sys.exc_info()
 		notify_done(download.RESULT_FAILED, (ex, tb))
+	finally:
+		if src is not None:
+			src.close()
