@@ -116,6 +116,12 @@ class TestDistro(BaseTest):
 		libxcomposite = self.feed.implementations['package:deb:libxcomposite-dev:0.3.1-1:i386']
 		self.assertEqual('0.3.1-1', libxcomposite.get_version())
 		self.assertEqual('i386', libxcomposite.machine)
+
+		# Java is special...
+		master_feed = parse_impls("""<package-implementation package='openjdk-7-jre'/>""")
+		feed = host.get_feed(master_feed)
+		self.assertEqual(1, len(feed.implementations))
+		self.assertEqual('7.3-2.1.1-3', list(feed.implementations.values())[0].get_version())
 	
 	def testRPM(self):
 		rpmdir = os.path.join(os.path.dirname(__file__), 'rpm')

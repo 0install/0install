@@ -522,6 +522,10 @@ class DebianDistribution(Distribution):
 		else:
 			return
 
+		# Debian marks all Java versions as pre-releases
+		# See: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=685276
+		impl.version = model.parse_version(impl.get_version().replace('-pre', '.'))
+
 		if impl.machine == 'x86_64':
 			java_arch = 'amd64'
 		else:
