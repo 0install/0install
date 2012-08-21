@@ -115,7 +115,9 @@ def try_cleanup_distro_version(version):
 	version = version.replace('_', '-')
 	if '~' in version:
 		version, suffix = version.split('~', 1)
-		suffix = '-pre' + try_cleanup_distro_version(suffix)
+		if suffix.startswith('pre'):
+			suffix = suffix[3:]
+		suffix = '-pre' + (try_cleanup_distro_version(suffix) or '')
 	else:
 		suffix = ''
 	match = re.match(_version_regexp, version)
