@@ -72,9 +72,6 @@ class BugReporter(dialog.Dialog):
 	def __init__(self, driver, iface, env):
 		dialog.Dialog.__init__(self)
 
-		self.sf_group_id = 76468
-		self.sf_artifact_id = 929902
-
 		self.set_title(_('Report a Bug'))
 		self.driver = driver
 		self.frames = []
@@ -142,18 +139,20 @@ class BugReporter(dialog.Dialog):
 		environ = text_area(env, mono = True)
 		frame(_('Information about your setup'), *environ)
 
-		browse_url = 'http://sourceforge.net/tracker/?group_id=%d&atid=%d' % (self.sf_group_id, self.sf_artifact_id)
-		location_hbox = gtk.HBox(False, 4)
-		location_hbox.pack_start(gtk.Label(_('Bugs reports will be sent to:')), False, True, 0)
-		if hasattr(gtk, 'LinkButton'):
-			import browser
-			url_box = gtk.LinkButton(browse_url, label = browse_url)
-			url_box.connect('clicked', lambda button: browser.open_in_browser(browse_url))
-		else:
-			url_box = gtk.Label(browse_url)
-			url_box.set_selectable(True)
-		location_hbox.pack_start(url_box, False, True, 0)
-		vbox.pack_start(location_hbox, False, True, 0)
+		# (not working since sf.net update)
+		#
+		# browse_url = 'http://sourceforge.net/tracker/?group_id=%d&atid=%d' % (self.sf_group_id, self.sf_artifact_id)
+		# location_hbox = gtk.HBox(False, 4)
+		# location_hbox.pack_start(gtk.Label(_('Bugs reports will be sent to:')), False, True, 0)
+		# if hasattr(gtk, 'LinkButton'):
+		# 	import browser
+		# 	url_box = gtk.LinkButton(browse_url, label = browse_url)
+		# 	url_box.connect('clicked', lambda button: browser.open_in_browser(browse_url))
+		# else:
+		# 	url_box = gtk.Label(browse_url)
+		# 	url_box.set_selectable(True)
+		# location_hbox.pack_start(url_box, False, True, 0)
+		# vbox.pack_start(location_hbox, False, True, 0)
 
 		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
 		self.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
@@ -167,12 +166,12 @@ class BugReporter(dialog.Dialog):
 					end = buffer.get_end_iter()
 					text += '%s\n\n%s\n\n' % (title, buffer.get_text(start, end, include_hidden_chars = False).strip())
 				try:
-					self.report_bug(iface, text)
+					message = self.report_bug(iface, text)
 				except Exception as ex:
 					dialog.alert(None, _("Error sending bug report: {ex}".format(ex = ex)),
 						     type = gtk.MESSAGE_ERROR)
 				else:
-					dialog.alert(None, _("Your bug report has been sent. Thank you."),
+					dialog.alert(None, _("Success: {msg}").format(msg = message),
 						     type = gtk.MESSAGE_INFO)
 					self.destroy()
 			else:
@@ -230,7 +229,6 @@ class BugReporter(dialog.Dialog):
 	
 	def report_bug(self, iface, text):
 		try:
-			title = _('Bug for %s') % iface.get_name()
 			if sys.version_info[0] > 2:
 				from urllib.request import urlopen
 				from urllib.parse import urlencode
@@ -238,17 +236,14 @@ class BugReporter(dialog.Dialog):
 				from urllib2 import urlopen
 				from urllib import urlencode
 
-			stream = urlopen('http://sourceforge.net/tracker/index.php',
-				urlencode({
-				'group_id': str(self.sf_group_id),
-				'atid': str(self.sf_artifact_id),
-				'func': 'postadd',
-				'is_private': '0',
-				'summary': title,
-				'details': text}).encode('utf-8'))
-			stream.read()
+			data = urlencode({
+				'uri': iface.uri,
+				'body': text}).encode('utf-8')
+			stream = urlopen('http://0install.net/api/report-bug/', data = data)
+			reply = stream.read().decode('utf-8')
 			stream.close()
+			return reply
 		except:
 			# Write to stderr in the hope that it doesn't get lost
-			print("Error sending bug report: %s\n\n%s" % (title, text), file=sys.stderr)
+			print("Error sending bug report: %s\n\n%s" % (iface, text), file=sys.stderr)
 			raise
