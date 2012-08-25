@@ -76,7 +76,6 @@ class BugReporter(dialog.Dialog):
 		self.sf_artifact_id = 929902
 
 		self.set_title(_('Report a Bug'))
-		self.set_modal(True)
 		self.driver = driver
 		self.frames = []
 
@@ -167,11 +166,15 @@ class BugReporter(dialog.Dialog):
 					start = buffer.get_start_iter()
 					end = buffer.get_end_iter()
 					text += '%s\n\n%s\n\n' % (title, buffer.get_text(start, end, include_hidden_chars = False).strip())
-				title = _('Bug for %s') % iface.get_name()
-				self.report_bug(title, text)
-				dialog.alert(None, _("Your bug report has been sent. Thank you."),
-					     type = gtk.MESSAGE_INFO)
-				self.destroy()
+				try:
+					self.report_bug(iface, text)
+				except Exception as ex:
+					dialog.alert(None, _("Error sending bug report: {ex}".format(ex = ex)),
+						     type = gtk.MESSAGE_ERROR)
+				else:
+					dialog.alert(None, _("Your bug report has been sent. Thank you."),
+						     type = gtk.MESSAGE_INFO)
+					self.destroy()
 			else:
 				self.destroy()
 		self.connect('response', resp)
@@ -225,8 +228,9 @@ class BugReporter(dialog.Dialog):
 		finally:
 			self.show()
 	
-	def report_bug(self, title, text):
+	def report_bug(self, iface, text):
 		try:
+			title = _('Bug for %s') % iface.get_name()
 			if sys.version_info[0] > 2:
 				from urllib.request import urlopen
 				from urllib.parse import urlencode
