@@ -644,27 +644,18 @@ class RPMDistribution(CachedDistribution):
 		# Add any uninstalled candidates found by PackageKit
 		self.packagekit.get_candidates(package, factory, 'package:rpm')
 
-	def fixup(self, package, impl):
+	def installed_fixup(self, impl):
+		# OpenSUSE uses _, Fedora uses .
+		impl_id = impl.id.replace('_', '.')
+
 		# Hack: If we added any Java implementations, find the corresponding JAVA_HOME...
 
-		# OpenSUSE uses _, Fedora uses .
-		package = package.replace('_', '.')
-
-		if package == 'java-1.6.0-openjdk':
+		if impl_id.startswith('package:rpm:java-1.6.0-openjdk:'):
 			java_version = '1.6.0-openjdk'
-		elif package == 'java-1.7.0-openjdk':
+		elif impl_id.startswith('package:rpm:java-1.7.0-openjdk:'):
 			java_version = '1.7.0-openjdk'
-		elif package in ('java-1.6.0-openjdk-devel', 'java-1.7.0-openjdk-devel'):
-			if impl.version[0][0] == 1:
-				# OpenSUSE uses 1.6 to mean 6
-				del impl.version[0][0]
-			return
 		else:
 			return
-
-		if impl.version[0][0] == 1:
-			# OpenSUSE uses 1.6 to mean 6
-			del impl.version[0][0]
 
 		# On Fedora, unlike Debian, the arch is x86_64, not amd64
 
@@ -681,6 +672,16 @@ class RPMDistribution(CachedDistribution):
 
 		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command',
 			{'path': java_bin, 'name': 'run'}), None)
+
+	def fixup(self, package, impl):
+		# OpenSUSE uses _, Fedora uses .
+		package = package.replace('_', '.')
+
+		if package in ('java-1.6.0-openjdk', 'java-1.7.0-openjdk',
+			       'java-1.6.0-openjdk-devel', 'java-1.7.0-openjdk-devel'):
+			if impl.version[0][0] == 1:
+				# OpenSUSE uses 1.6 to mean 6
+				del impl.version[0][0]
 
 	def get_score(self, disto_name):
 		return int(disto_name == 'RPM')
