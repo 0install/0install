@@ -10,7 +10,7 @@ import locale
 import logging
 from zeroinstall import _, SafeException
 
-from zeroinstall.support import tasks
+from zeroinstall.support import tasks, unicode
 from zeroinstall.injector import download, model
 
 _logger_pk = logging.getLogger('0install.packagekit')
@@ -122,9 +122,18 @@ class PackageKit(object):
 				blocker.trigger()
 
 			def details_cb(sender):
+				# The key can be a dbus.String sometimes, so convert to a Python
+				# string to be sure we get a match.
+				details = {}
+				for packagekit_id, d in sender.details.items():
+					details[unicode(packagekit_id)] = d
+
+				_logger_pk.debug("Got: %r", details)
+				_logger_pk.debug("Expecting: %r", versions)
+
 				for packagekit_id, info in versions.items():
-					if packagekit_id in sender.details:
-						info.update(sender.details[packagekit_id])
+					if packagekit_id in details:
+						info.update(details[packagekit_id])
 						info['packagekit_id'] = packagekit_id
 						if (info['name'] not in self._candidates or
 						    isinstance(self._candidates[info['name']], tasks.Blocker)):
@@ -137,7 +146,9 @@ class PackageKit(object):
 
 			def resolve_cb(sender):
 				if sender.package:
+					_logger_pk.debug(_('Resolved %r'), sender.package)
 					for packagekit_id, info in sender.package.items():
+						packagekit_id = unicode(packagekit_id)	# Can be a dbus.String sometimes
 						parts = packagekit_id.split(';', 3)
 						if ':' in parts[3]:
 							parts[3] = parts[3].split(':', 1)[0]
