@@ -239,8 +239,14 @@ def do_manage(args):
 	if args:
 		raise UsageError(_("manage command takes no arguments"))
 
-	import pygtk
-	pygtk.require('2.0')
+	if sys.version_info[0] < 3:
+		import pygtk
+		pygtk.require('2.0')
+	else:
+		from zeroinstall.gtkui import pygtkcompat
+		pygtkcompat.enable()
+		pygtkcompat.enable_gtk(version = '3.0')
+
 	import gtk
 	from zeroinstall.gtkui import cache
 	from zeroinstall.injector.iface_cache import iface_cache

@@ -5,13 +5,13 @@
 from __future__ import print_function
 
 from zeroinstall import _
-import os
+import os, sys
 import gtk
 
 from zeroinstall.injector import namespaces, model
 from zeroinstall.zerostore import BadDigest, manifest
 from zeroinstall import support
-from zeroinstall.support import basedir
+from zeroinstall.support import basedir, tasks
 from zeroinstall.gtkui import help_box, gtkutils
 
 __all__ = ['CacheExplorer']
@@ -124,8 +124,9 @@ def extract_columns(**d):
 	setcol(ITEM_OBJECT, d.get('object', None))
 	return vals
 
-
+menu = None
 def popup_menu(bev, obj, model, path, cache_explorer):
+	global menu	# Fixes Python 3 GC issues
 	menu = gtk.Menu()
 	for i in obj.menu_items:
 		if i is None:
@@ -141,7 +142,10 @@ def popup_menu(bev, obj, model, path, cache_explorer):
 			item.connect('activate', _cb)
 		item.show()
 		menu.append(item)
-	menu.popup(None, None, None, bev.button, bev.time)
+	if gtk.pygtk_version >= (2, 90):
+		menu.popup(None, None, None, None, bev.button, bev.time)
+	else:
+		menu.popup(None, None, None, bev.button, bev.time)
 
 def warn(message, parent=None):
 	"Present a blocking warning message with OK/Cancel buttons, and return True if OK was pressed"
@@ -167,9 +171,10 @@ def get_size(path):
 	man = os.path.join(path, '.manifest')
 	if os.path.exists(man):
 		size = os.path.getsize(man)
-		for line in open(man, 'rb'):
-			if line[:1] in "XF":
-				size += int(line.split(' ', 4)[3])
+		with open(man, 'rt') as stream:
+			for line in stream:
+				if line[:1] in "XF":
+					size += int(line.split(' ', 4)[3])
 	else:
 		size = 0
 		for root, dirs, files in os.walk(path):
@@ -183,12 +188,7 @@ def summary(feed):
 	return feed.get_name()
 
 def get_selected_paths(tree_view):
-	"GTK 2.0 doesn't have this built-in"
-	selection = tree_view.get_selection()
-	paths = []
-	def add(model, path, iter):
-		paths.append(path)
-	selection.selected_foreach(add)
+	model, paths = tree_view.get_selection().get_selected_rows()
 	return paths
 
 def all_children(model, iter):
@@ -364,6 +364,13 @@ class CachedImplementation:
 			self.delete()
 			return ACTION_REMOVE
 
+	if sys.version_info[0] > 2:
+		def __lt__(self, other):
+			return self.digest < other.digest
+
+		def __eq__(self, other):
+			return self.digest == other.digest
+
 	menu_items = [(_('Open in ROX-Filer'), open_rox),
 		      (_('Verify integrity'), verify),
 		      (_('Delete'), prompt_delete)]
@@ -407,6 +414,13 @@ class KnownImplementation(CachedImplementation):
 			return self.impl.__cmp__(other.impl)
 		return -1
 
+	if sys.version_info[0] > 2:
+		def __lt__(self, other):
+			return self.impl.__lt__(other.impl)
+
+		def __eq__(self, other):
+			return self.impl.__eq__(other.impl)
+
 class CacheExplorer:
 	"""A graphical interface for viewing the cache and deleting old items."""
 
@@ -421,7 +435,6 @@ class CacheExplorer:
 		self.view_model = self.raw_model.filter_new()
 		self.model.set_sort_column_id(URI.idx, gtk.SORT_ASCENDING)
 		self.tree_view = widgets.get_widget('treeview')
-		self.tree_view.set_model(self.view_model)
 		Column.add_all(self.tree_view)
 
 		# Sort / Filter options:
@@ -522,10 +535,23 @@ class CacheExplorer:
 	def show(self):
 		"""Display the window and scan the caches to populate it."""
 		self.window.show()
-		self.window.window.set_cursor(gtkutils.get_busy_pointer())
+		self.window.get_window().set_cursor(gtkutils.get_busy_pointer())
 		gtk.gdk.flush()
-		self._populate_model()
-		self.set_initial_expansion()
+		# (async so that the busy pointer works on GTK 3)
+		@tasks.async
+		def populate():
+			populate = self._populate_model()
+			yield populate
+			try:
+				tasks.check(populate)
+			except:
+				import logging
+				logging.warn("fail", exc_info = True)
+				raise
+			# (we delay until here because inserting with the view set is very slow)
+			self.tree_view.set_model(self.view_model)
+			self.set_initial_expansion()
+		return populate()
 	
 	def set_initial_expansion(self):
 		model = self.model
@@ -537,8 +563,9 @@ class CacheExplorer:
 					self.tree_view.expand_row(model.get_path(i), False)
 				i = model.iter_next(i)
 		finally:
-			self.window.window.set_cursor(None)
+			self.window.get_window().set_cursor(None)
 
+	@tasks.async
 	def _populate_model(self):
 		# Find cached implementations
 
@@ -568,6 +595,7 @@ class CacheExplorer:
 
 		for url, feed in all_feeds.items():
 			if not feed: continue
+			yield
 			feed_size = 0
 			try:
 				if url != feed.url:
@@ -623,6 +651,7 @@ class CacheExplorer:
 		if ok_feeds:
 			iter = SECTION_INTERFACES.append_to(self.raw_model)
 			for item in ok_feeds:
+				yield
 				item.append_to(self.raw_model, iter)
 		self._update_sizes()
 	
