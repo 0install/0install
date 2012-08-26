@@ -199,7 +199,10 @@ class PackageKitDownload:
 			self.downloaded.trigger(exception = (ex, None))
 
 		def installed_cb(sender):
+			assert not self._impl.installed, impl
 			self._impl.installed = True
+			self._impl.distro.installed_fixup(self._impl)
+
 			self.status = download.download_complete
 			self.downloaded.trigger()
 

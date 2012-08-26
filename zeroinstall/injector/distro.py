@@ -210,6 +210,8 @@ class Distribution(object):
 
 			for impl in new_impls:
 				self.fixup(package, impl)
+				if impl.installed:
+					self.installed_fixup(impl)
 
 		if master_feed.url == 'http://repo.roscidus.com/python/python' and all(not impl.installed for impl in feed.implementations.values()):
 			# Hack: we can support Python on platforms with unsupported package managers
@@ -251,6 +253,13 @@ class Distribution(object):
 		method does nothing.
 		@param package: the name of the package
 		@param impl: the constructed implementation"""
+		pass
+
+	def installed_fixup(self, impl):
+		"""Called when an installed package is added (after L{fixup}), or when installation
+		completes. This is useful to fix up the main value.
+		@type impl: L{DistributionImplementation}
+		@since: 1.11"""
 		pass
 
 class WindowsDistribution(Distribution):
@@ -516,17 +525,20 @@ class DebianDistribution(Distribution):
 				impl.download_sources.append(model.DistributionSource(package, cached['size'], install, needs_confirmation = False))
 	
 	def fixup(self, package, impl):
+		if impl.id.startswith('package:deb:openjdk-6-jre:') or \
+		   impl.id.startswith('package:deb:openjdk-7-jre:'):
+			# Debian marks all Java versions as pre-releases
+			# See: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=685276
+			impl.version = model.parse_version(impl.get_version().replace('-pre', '.'))
+
+	def installed_fixup(self, impl):
 		# Hack: If we added any Java implementations, find the corresponding JAVA_HOME...
-		if package == 'openjdk-6-jre':
+		if impl.id.startswith('package:deb:openjdk-6-jre:'):
 			java_version = '6-openjdk'
-		elif package == 'openjdk-7-jre':
+		elif impl.id.startswith('package:deb:openjdk-7-jre:'):
 			java_version = '7-openjdk'
 		else:
 			return
-
-		# Debian marks all Java versions as pre-releases
-		# See: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=685276
-		impl.version = model.parse_version(impl.get_version().replace('-pre', '.'))
 
 		if impl.machine == 'x86_64':
 			java_arch = 'amd64'
