@@ -128,8 +128,9 @@ class PackageKit(object):
 				for packagekit_id, d in sender.details.items():
 					details[unicode(packagekit_id)] = d
 
-				_logger_pk.debug("Got: %r", details)
-				_logger_pk.debug("Expecting: %r", versions)
+				for packagekit_id in details:
+					if packagekit_id not in versions:
+						_logger_pk.info("Unexpected package info for '%s'; was expecting one of %r", packagekit_id, list(versions.keys()))
 
 				for packagekit_id, info in versions.items():
 					if packagekit_id in details:
