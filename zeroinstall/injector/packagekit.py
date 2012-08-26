@@ -82,7 +82,7 @@ class PackageKit(object):
 			if candidate['arch'] != '*':
 				impl.machine = candidate['arch']
 
-			def install(handler):
+			def install(handler, candidate = candidate, impl = impl):
 				packagekit_id = candidate['packagekit_id']
 				dl = PackageKitDownload('packagekit:' + packagekit_id, hint = impl, pk = self.pk, packagekit_id = packagekit_id, expected_size = candidate['size'])
 				handler.monitor_download(dl)
