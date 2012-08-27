@@ -54,9 +54,12 @@ class build_with_data(build_py):
 		"zeroinstall/gtkui/desktop.ui",
 		"zeroinstall/gtkui/cache.ui",
 		"zeroinstall/injector/EquifaxSecureCA.crt",
-		"zeroinstall/injector/runenv.cli.template",
 		"zeroinstall/zerostore/_unlzma",
 	]
+
+	if os.name == "nt":
+		package_data_files.append("zeroinstall/injector/runenv.cli.template")
+
 	def run(self):
 		# Copy .py files and build, as usual
 		build_py.run(self)
