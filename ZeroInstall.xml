@@ -51,6 +51,6 @@ requires first uninstalling another.</description>
       <executable-in-var name="ZEROINSTALL_GPG"/>
     </requires>
 
-    <implementation id="." released="2012-08-27" version="1.11"/>
+    <implementation id="." version="1.11-post"/>
   </group>
 </interface>
