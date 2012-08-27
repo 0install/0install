@@ -43,6 +43,8 @@ def update_from_cache(interface, iface_cache = None):
 	@rtype: bool"""
 	interface.reset()
 	if iface_cache is None:
+		import warnings
+		warnings.warn("iface_cache should be specified", DeprecationWarning, 2)
 		from zeroinstall.injector import policy
 		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 
@@ -220,6 +222,8 @@ def update(interface, source, local = False, iface_cache = None):
 						{'feed_url': feed.url, 'interface_uri': interface.uri})
 
 	if iface_cache is None:
+		import warnings
+		warnings.warn("iface_cache should be specified", DeprecationWarning, 2)
 		from zeroinstall.injector import policy
 		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 	iface_cache._feeds[support.unicode(interface.uri)] = feed

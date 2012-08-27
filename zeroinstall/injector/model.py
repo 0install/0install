@@ -878,8 +878,8 @@ class Interface(object):
 
 	@property
 	def _main_feed(self):
-		#import warnings
-		#warnings.warn("use the feed instead", DeprecationWarning, 3)
+		import warnings
+		warnings.warn("use the feed instead", DeprecationWarning, 3)
 		from zeroinstall.injector import policy
 		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 		feed = iface_cache.get_feed(self.uri)

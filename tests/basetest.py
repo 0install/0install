@@ -17,7 +17,7 @@ os.environ['LANGUAGE'] = 'C'
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import qdom
-from zeroinstall.injector import iface_cache, download, distro, model, handler, policy, reader, trust
+from zeroinstall.injector import iface_cache, download, distro, model, handler, reader, trust
 from zeroinstall.zerostore import NotStored, Store, Stores; Store._add_with_helper = lambda *unused: False
 from zeroinstall import support, apps
 from zeroinstall.support import basedir, tasks
@@ -196,7 +196,6 @@ class BaseTest(unittest.TestCase):
 			del os.environ['DISPLAY']
 
 		self.config = TestConfig()
-		policy._config = self.config	# XXX
 		iface_cache.iface_cache = self.config.iface_cache
 
 		logging.getLogger().setLevel(logging.WARN)

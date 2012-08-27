@@ -112,12 +112,12 @@ class TestWriter(BaseTest):
 		self.assertEqual([], iface.extra_feeds)
 
 		# Check feeds are automatically removed again
-		reader.update_from_cache(iface)
+		reader.update_from_cache(iface, iface_cache = self.config.iface_cache)
 		self.assertEqual(1, len(iface.extra_feeds))
 		shutil.rmtree(basedir.load_first_data('0install.net', 'site-packages',
 							'http:##example.com#prog.xml'))
 
-		reader.update_from_cache(iface)
+		reader.update_from_cache(iface, iface_cache = self.config.iface_cache)
 		self.assertEqual(0, len(iface.extra_feeds))
 
 if __name__ == '__main__':
