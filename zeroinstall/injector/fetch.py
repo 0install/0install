@@ -494,8 +494,12 @@ class Fetcher(object):
 			from email.utils import formatdate
 			modification_time = formatdate(timeval = file_mtime, localtime = False, usegmt = True)
 
+		feed = self.config.iface_cache.get_feed(interface.uri)
+		if feed is None:
+			return None
+
 		# Find a suitable icon to download
-		for icon in interface.get_metadata(XMLNS_IFACE, 'icon'):
+		for icon in feed.get_metadata(XMLNS_IFACE, 'icon'):
 			type = icon.getAttribute('type')
 			if type != 'image/png':
 				logger.debug(_('Skipping non-PNG icon'))
@@ -528,8 +532,6 @@ class Fetcher(object):
 
 				icon_file = os.path.join(icons_cache, escape(interface.uri))
 				portable_rename(tmp_file.name, icon_file)
-			except Exception as ex:
-				self.handler.report_error(ex)
 			finally:
 				stream.close()
 

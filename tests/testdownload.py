@@ -696,6 +696,17 @@ class TestDownload(BaseTest):
 		assert dl._aborted.happened
 		assert dl.tempfile is None
 
+	def testDownloadIconFails(self):
+		mydir = os.path.dirname(os.path.abspath(__file__))
+		path = model.canonical_iface_uri(os.path.join(mydir, 'Binary.xml'))
+		iface = self.config.iface_cache.get_interface(path)
+		blocker = self.config.fetcher.download_icon(iface)
+		try:
+			tasks.wait_for_blocker(blocker)
+			assert False
+		except download.DownloadError as ex:
+			assert "Error downloading http://localhost/missing.png" in str(ex), ex
+
 if __name__ == '__main__':
 	try:
 		unittest.main()
