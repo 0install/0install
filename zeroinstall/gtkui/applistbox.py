@@ -3,13 +3,15 @@
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _, gobject
-import os
+import os, sys
 import gtk, pango
 import subprocess
 
 from zeroinstall import support
 from zeroinstall.gtkui import icon, xdgutils
 from zeroinstall.injector import reader, model, namespaces
+
+gtk2 = sys.version_info[0] < 3
 
 def _pango_escape(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')
@@ -82,7 +84,10 @@ class AppListBox:
 		def redraw_actions(path):
 			if path is not None:
 				area = tv.get_cell_area(path, actions_column)
-				tv.queue_draw_area(*area)
+				if gtk2:
+					tv.queue_draw_area(*area)
+				else:
+					tv.queue_draw_area(area.x, area.y, area.width, area.height)
 
 		tv.set_property('has-tooltip', True)
 		def query_tooltip(widget, x, y, keyboard_mode, tooltip):
@@ -140,7 +145,8 @@ class AppListBox:
 				name = iface.get_name()
 				summary = iface.summary or _('No information available')
 				summary = summary[:1].capitalize() + summary[1:]
-				icon_width, icon_height = gtk.icon_size_lookup(gtk.ICON_SIZE_DIALOG)
+				# (GTK3 returns an extra boolean at the start)
+				icon_width, icon_height = gtk.icon_size_lookup(gtk.ICON_SIZE_DIALOG)[-2:]
 				pixbuf = icon.load_icon(self.iface_cache.get_icon_path(iface), icon_width, icon_height)
 			except model.InvalidInterface as ex:
 				name = uri
@@ -271,11 +277,12 @@ class ActionsRenderer(gtk.GenericCellRenderer):
 	def do_set_property(self, prop, value):
 		setattr(self, prop.name, value)
 
-	def on_get_size(self, widget, cell_area, layout = None):
+	def do_get_size(self, widget, cell_area, layout = None):
 		total_size = self.size * 2 + self.padding * 4
 		return (0, 0, total_size, total_size)
+	on_get_size = do_get_size		# GTK 2
 
-	def on_render(self, window, widget, background_area, cell_area, expose_area, flags):
+	def render(self, cr, widget, background_area, cell_area, flags, expose_area = None):
 		hovering = self.uri == self.hover[1]
 
 		s = self.size
@@ -290,15 +297,29 @@ class ActionsRenderer(gtk.GenericCellRenderer):
 			     ((ss, 0), self.help),
 			     ((0, ss), self.properties),
 			     ((ss, ss), self.remove)]:
-			if hovering and b == self.hover[2]:
-				widget.style.paint_box(window, gtk.STATE_NORMAL, gtk.SHADOW_OUT,
-						expose_area, widget, None,
-						cx + x - 2, cy + y - 2, s + 4, s + 4)
+			if gtk2:
+				if hovering and b == self.hover[2]:
+					widget.style.paint_box(cr, gtk.STATE_NORMAL, gtk.SHADOW_OUT,
+							expose_area, widget, None,
+							cx + x - 2, cy + y - 2, s + 4, s + 4)
 
-			window.draw_pixbuf(widget.style.white_gc, icon,
+				cr.draw_pixbuf(widget.style.white_gc, icon,
 						0, 0,		# Source x,y
 						cx + x, cy + y)
+			else:
+				if hovering and b == self.hover[2]:
+					gtk.render_focus(widget.get_style_context(), cr,
+							cx + x - 2, cy + y - 2, s + 4, s + 4)
+				gtk.gdk.cairo_set_source_pixbuf(cr, icon, cx + x, cy + y)
+				cr.paint()
 			b += 1
+
+	if gtk2:
+		def on_render(self, window, widget, background_area, cell_area, expose_area, flags):
+			self.render(window, widget, background_area, cell_area, flags, expose_area = expose_area)
+
+	else:
+		do_render = render
 
 	def on_activate(self, event, widget, path, background_area, cell_area, flags):
 		if event.type != gtk.gdk.BUTTON_PRESS:
@@ -312,6 +333,7 @@ class ActionsRenderer(gtk.GenericCellRenderer):
 			self.applist.action_properties(self.uri)
 		elif action == 3:
 			self.applist.action_remove(self.uri)
+	do_activate = on_activate
 
 	def get_action(self, area, x, y):
 		lower = int(y > (area.height / 2)) * 2
