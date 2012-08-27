@@ -49,7 +49,13 @@ def main(command_args):
 		parser.print_help()
 		sys.exit(1)
 
-	import pygtk; pygtk.require('2.0')
+	if sys.version_info[0] < 3:
+		import pygtk
+		pygtk.require('2.0')
+	else:
+		from zeroinstall.gtkui import pygtkcompat
+		pygtkcompat.enable()
+		pygtkcompat.enable_gtk(version = '3.0')
 	import gtk
 
 	if options.manage:

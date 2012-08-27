@@ -68,21 +68,31 @@ class AddBox:
 		category.set_active(11)
 
 		def uri_dropped(eb, drag_context, x, y, selection_data, info, timestamp):
-			if info == _UTF_16:
-				import codecs
-				data = codecs.getdecoder('utf16')(selection_data.data)[0]
-				data = data.split('\n', 1)[0].strip()
+			uris = selection_data.get_uris()
+			if uris:
+				assert len(uris) == 1, uris
+				data, = uris
 			else:
-				data = selection_data.data.split('\n', 1)[0].strip()
+				if info == _UTF_16:
+					import codecs
+					data = codecs.getdecoder('utf16')(selection_data.get_data())[0]
+					data = data.split('\n', 1)[0].strip()
+				else:
+					data = selection_data.get_text().split('\n', 1)[0].strip()
 			if self._sanity_check(data):
 				uri.set_text(data)
 				drag_context.finish(True, False, timestamp)
 				self.window.response(_RESPONSE_NEXT)
 			return True
+		if sys.version_info[0] < 3:
+			def TargetEntry(*args): return args
+		else:
+			TargetEntry = gtk.TargetEntry.new
 		self.window.drag_dest_set(gtk.DEST_DEFAULT_MOTION | gtk.DEST_DEFAULT_DROP | gtk.DEST_DEFAULT_HIGHLIGHT,
-					[('text/uri-list', 0, _URI_LIST),
-					 ('text/x-moz-url', 0, _UTF_16)],
+					[TargetEntry('text/uri-list', 0, _URI_LIST),
+					 TargetEntry('text/x-moz-url', 0, _UTF_16)],
 					gtk.gdk.ACTION_COPY)
+		self.window.drag_dest_add_uri_targets()	# Needed for GTK 3
 		self.window.connect('drag-data-received', uri_dropped)
 
 		nb = builder.get_object('notebook1')
