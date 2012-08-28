@@ -554,8 +554,9 @@ class InterfaceBrowser:
 					values_dict = {'downloaded': pretty_size(so_far), 'number': len(downloads)}
 				row[InterfaceBrowser.SUMMARY] = summary % values_dict
 			else:
+				feed = iface_cache.get_feed(iface.uri)
 				row[InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.config, impl)
-				row[InterfaceBrowser.SUMMARY] = iface.summary
+				row[InterfaceBrowser.SUMMARY] = feed.summary if feed else "-"
 
 			if self.model.get_path(it) == lastVisiblePath:
 				break

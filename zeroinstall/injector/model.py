@@ -1278,6 +1278,7 @@ if sys.version_info[0] > 2:
 	# Python 3
 
 	from functools import total_ordering
+	# (note: delete these two lines when generating epydoc)
 	Stability = total_ordering(Stability)
 	Implementation = total_ordering(Implementation)
 
