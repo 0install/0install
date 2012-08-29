@@ -165,7 +165,7 @@ class Handler(object):
 		print(msg, file=sys.stderr)
 		while True:
 			sys.stderr.write(_("Install [Y/N] "))
-			i = raw_input()
+			i = support.raw_input()
 			if not i: continue
 			if i in 'Nn':
 				raise download.DownloadAborted()
