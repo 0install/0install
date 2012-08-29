@@ -14,6 +14,7 @@ from zeroinstall.support import tasks, unicode
 from zeroinstall.injector import download, model
 
 _logger_pk = logging.getLogger('0install.packagekit')
+#_logger_pk.setLevel(logging.DEBUG)
 
 try:
 	import dbus
@@ -96,19 +97,32 @@ class PackageKit(object):
 		# Batch requests up
 		self._next_batch |= set(package_names)
 		yield
-		package_names = self._next_batch
+		batched_package_names = self._next_batch
 		self._next_batch = set()
-		# The first fetch_candidates instance will now have all the packages
-		# For the others, package_names will now be empty
+		# The first fetch_candidates instance will now have all the packages.
+		# For the others, batched_package_names will now be empty.
+		# Fetch any we're missing.
+		self._fetch_batch(list(batched_package_names))
 
-		known = [self._candidates[p] for p in package_names if p in self._candidates]
-		# (use set because a single task may be checking multiple packages and we need
-		# to avoid duplicates).
-		in_progress = list(set([b for b in known if isinstance(b, tasks.Blocker)]))
-		_logger_pk.debug('Already downloading: %s', in_progress)
+		results = [self._candidates[p] for p in package_names]
 
-		# Filter out the ones we've already fetched
-		package_names = [p for p in package_names if p not in self._candidates]
+		# (use set because a single Blocker may be checking multiple
+		# packages and we need to avoid duplicates).
+		in_progress = list(set([b for b in results if isinstance(b, tasks.Blocker)]))
+		_logger_pk.debug('Currently querying PackageKit for: %s', in_progress)
+
+		while in_progress:
+			yield in_progress
+			in_progress = [b for b in in_progress if not b.happened]
+
+	def _fetch_batch(self, package_names):
+		"""Ensure that each of these packages is in self._candidates.
+		Start a new fetch if necessary. Ignore packages that are already downloaded or
+		in the process of being downloaded.
+		"""
+		# (do we need a 'force' argument here?)
+
+		package_names = [n for n in package_names if n not in self._candidates]
 
 		def do_batch(package_names):
 			#_logger_pk.info("sending %d packages in batch", len(package_names))
@@ -170,8 +184,6 @@ class PackageKit(object):
 				_logger_pk.debug(_('Ask for %s'), package_names)
 				tran = _PackageKitTransaction(self.pk, resolve_cb, error_cb)
 				tran.proxy.Resolve('none', package_names)
-
-				in_progress.append(blocker)
 			except:
 				__, ex, tb = sys.exc_info()
 				blocker.trigger((ex, tb))
@@ -184,10 +196,6 @@ class PackageKit(object):
 			next_batch = package_names[:MAX_PACKAGE_KIT_TRANSACTION_SIZE]
 			package_names = package_names[MAX_PACKAGE_KIT_TRANSACTION_SIZE:]
 			do_batch(next_batch)
-
-		while in_progress:
-			yield in_progress
-			in_progress = [b for b in in_progress if not b.happened]
 
 class PackageKitDownload:
 	def __init__(self, url, hint, pk, packagekit_id, expected_size):

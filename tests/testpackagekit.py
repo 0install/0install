@@ -145,10 +145,14 @@ class TestPackageKit(BaseTest):
 		pk.get_candidates('gimp', factory, 'package:null')
 
 	def testPackageKit05(self):
-		#import logging; logging.getLogger().setLevel(logging.DEBUG)
+		#import logging
+		#_logger_pk = logging.getLogger('0install.packagekit')
+		#_logger_pk.setLevel(logging.DEBUG)
+
+		pk05 = PackageKit05()
 
 		dbus.system_services['org.freedesktop.PackageKit'] = {
-			'/org/freedesktop/PackageKit': PackageKit05(),
+			'/org/freedesktop/PackageKit': pk05,
 			'/tid/1': PackageKit05.Tid1(),
 			'/tid/2': PackageKit05.Tid2(),
 			'/tid/3': PackageKit05.Install(),
@@ -157,12 +161,21 @@ class TestPackageKit(BaseTest):
 		pk = packagekit.PackageKit()
 		assert pk.available
 
+		# Check none is found yet
 		factory = Exception("not called")
 		pk.get_candidates('gimp', factory, 'package:test')
 
 		blocker = pk.fetch_candidates(["gimp"])
-		tasks.wait_for_blocker(blocker)
-		tasks.check(blocker)
+		blocker2 = pk.fetch_candidates(["gimp"])		# Check batching too
+
+		@tasks.async
+		def wait():
+			yield blocker, blocker2
+			if blocker.happened:
+				tasks.check(blocker)
+			else:
+				tasks.check(blocker2)
+		tasks.wait_for_blocker(wait())
 
 		impls = {}
 		def factory(impl_id, only_if_missing, installed):
@@ -188,6 +201,13 @@ class TestPackageKit(BaseTest):
 		tasks.wait_for_blocker(b)
 		tasks.check(b)
 		self.assertEqual("/usr/bin/fixed", list(impls.values())[0].main)
+
+		tasks.wait_for_blocker(blocker)
+		tasks.wait_for_blocker(blocker2)
+
+		# Don't fetch it again
+		tasks.wait_for_blocker(pk.fetch_candidates(["gimp"]))
+		self.assertEqual(3, pk05.x)
 	
 	def installed_fixup(self, impl):
 		impl.main = '/usr/bin/fixed'
