@@ -183,9 +183,11 @@ class TestDownload(BaseTest):
 			except model.SafeException as ex:
 				if "has no usable implementations" not in str(ex):
 					raise ex
-				if "Not signed with a trusted key" not in str(self.config.handler.ex):
-					raise self.config.handler.ex
+
+				ex = self.config.handler.ex
 				self.config.handler.ex = None
+				if "Not signed with a trusted key" not in str(ex):
+					raise ex
 
 	def testRejectKeyXML(self):
 		with output_suppressed():
