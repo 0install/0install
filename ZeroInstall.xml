@@ -1,24 +1,17 @@
 <?xml version="1.0" ?>
 <?xml-stylesheet type='text/xsl' href='interface.xsl'?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <name>ZeroInstall-Injector</name>
+  <name>0install</name>
   <summary>decentralised installation system</summary>
   <description>
-Zero Install is a cross-platform, decentralised installation system. Instead of
-having a central repository in which all software is placed under a naming
-scheme managed by some central authority, programs and libraries in Zero Install
-are identified by URIs. Anyone who can create a web-page can publish software.
-Anyone can install software (not just root).
-
-Conceptually, you can imagine that the software is 'installed' only on a remote
-machine and that you are simply running it (on your own machine) using a network
-filesystem. Caching makes this fast and allows off-line use. The cache is
-indexed using a cryptographic hash, allowing it to be shared between mutually
-untrusting users automatically.
-
-Zero Install resolves dependencies (such as libraries) on a per-program basis,
-which eliminates conflicts. You will never be told that installing one program
-requires first uninstalling another.</description>
+Zero Install is a decentralised cross-platform software installation
+system available under the LGPL. It allows software developers to publish
+programs directly from their own web-sites, while supporting features familiar
+from centralised distribution repositories such as shared libraries, automatic
+updates and digital signatures. It is intended to complement, rather than
+replace, the operating system's package management. 0install packages never
+interfere with those provided by the distribution.
+</description>
 
   <homepage>http://0install.net/</homepage>
 
