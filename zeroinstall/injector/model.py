@@ -1073,9 +1073,7 @@ class ZeroInstallFeed(object):
 				elif item.name == 'implementation':
 					process_impl(item, item_attrs, depends, bindings, commands)
 				elif item.name == 'package-implementation':
-					if depends:
-						logger.warn("A <package-implementation> with dependencies in %s!", self.url)
-					self._package_implementations.append((item, item_attrs))
+					self._package_implementations.append((item, item_attrs, depends))
 				else:
 					assert 0
 
@@ -1205,7 +1203,7 @@ class ZeroInstallFeed(object):
 		best_score = 0
 		best_impls = []
 
-		for item, item_attrs in self._package_implementations:
+		for item, item_attrs, depends in self._package_implementations:
 			distro_names = item_attrs.get('distributions', '')
 			score_this_item = max(
 				distro.get_score(distro_name) if distro_name else 0.5
@@ -1214,7 +1212,7 @@ class ZeroInstallFeed(object):
 				best_score = score_this_item
 				best_impls = []
 			if score_this_item == best_score:
-				best_impls.append((item, item_attrs))
+				best_impls.append((item, item_attrs, depends))
 		return best_impls
 
 	def get_name(self):

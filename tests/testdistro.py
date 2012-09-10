@@ -92,15 +92,24 @@ class TestDistro(BaseTest):
 		self.assertEqual(1, len(self.feed.implementations))
 
 		# Tell distro to fetch information about candidates...
-		master_feed = parse_impls("""<package-implementation package='python-bittorrent'/>""")
+		master_feed = parse_impls("""<package-implementation package='python-bittorrent'>
+					       <restricts interface='http://python.org/python'>
+					         <version not-before='3'/>
+					       </restricts>
+					     </package-implementation>
+					  """)
 		h = handler.Handler()
 		candidates = host.fetch_candidates(master_feed)
 		if candidates:
 			h.wait_for_blocker(candidates)
 		# Now we see the uninstalled package
-		self.feed = model.ZeroInstallFeed(empty_feed, local_path = '/empty.xml')
-		host.get_package_info('python-bittorrent', factory)
+		self.feed = host.get_feed(master_feed)
 		self.assertEqual(2, len(self.feed.implementations))
+
+		# Check restriction appears for both candidates
+		for impl in self.feed.implementations.values():
+			self.assertEqual(1, len(impl.requires))
+			self.assertEqual("http://python.org/python", impl.requires[0].interface)
 
 		self.assertEqual(2, len(self.feed.implementations))
 		bittorrent_installed = self.feed.implementations['package:deb:python-bittorrent:3.4.2-10:*']

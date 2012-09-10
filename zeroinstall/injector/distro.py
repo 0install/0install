@@ -174,7 +174,7 @@ class Distribution(object):
 		feed = model.ZeroInstallFeed(None)
 		feed.url = 'distribution:' + master_feed.url
 
-		for item, item_attrs in master_feed.get_package_impls(self):
+		for item, item_attrs, depends in master_feed.get_package_impls(self):
 			package = item_attrs.get('package', None)
 			if package is None:
 				raise model.InvalidInterface(_("Missing 'package' attribute on %s") % item)
@@ -193,6 +193,7 @@ class Distribution(object):
 
 				impl.installed = installed
 				impl.metadata = item_attrs
+				impl.requires = depends
 
 				if 'run' not in impl.commands:
 					item_main = item_attrs.get('main', None)
@@ -235,7 +236,7 @@ class Distribution(object):
 		feed in iface_cache is updated.
 		@return: a L{tasks.Blocker} if the task is in progress, or None if not"""
 		if self.packagekit.available:
-			package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self)]
+			package_names = [item.getAttribute("package") for item, item_attrs, depends in master_feed.get_package_impls(self)]
 			return self.packagekit.fetch_candidates(package_names)
 
 	@property
@@ -571,7 +572,7 @@ class DebianDistribution(Distribution):
 		return installed_cached_info
 
 	def fetch_candidates(self, master_feed):
-		package_names = [item.getAttribute("package") for item, item_attrs in master_feed.get_package_impls(self)]
+		package_names = [item.getAttribute("package") for item, item_attrs, depends in master_feed.get_package_impls(self)]
 
 		if self.packagekit.available:
 			return self.packagekit.fetch_candidates(package_names)
