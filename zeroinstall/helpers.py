@@ -6,9 +6,12 @@ Convenience routines for performing common operations.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
+from __future__ import print_function
+
 import os, sys
 from zeroinstall import support, SafeException, logger
 from zeroinstall.support import tasks
+from zeroinstall import logger
 
 DontUseGUI = object()
 
@@ -149,3 +152,76 @@ def ensure_cached(uri, command = 'run', config = None):
 		tasks.wait_for_blocker(done)
 
 	return d.solver.selections
+
+def exec_man(stores, sels, main = None, fallback_name = None):
+	"""Exec the man command to show the man-page for this interface.
+	Never returns.
+	@since: 1.12"""
+	interface_uri = sels.interface
+	selected_impl = sels.selections[interface_uri]
+
+	if selected_impl.id.startswith('package'):
+		impl_path = None
+	else:
+		impl_path = selected_impl.get_path(stores)
+
+	if main is None:
+		if sels.commands:
+			selected_command = sels.commands[0]
+		else:
+			print("No <command> in selections!", file=sys.stderr)
+			sys.exit(1)
+		main = selected_command.path
+		if main is None:
+			print("No main program for interface '%s'" % interface_uri, file=sys.stderr)
+			sys.exit(1)
+
+	prog_name = os.path.basename(main)
+
+	if impl_path is None:
+		# Package implementation
+		logger.debug("Searching for man-page native command %s (from %s)" % (prog_name, fallback_name))
+		os.execlp('man', 'man', prog_name)
+
+	assert impl_path
+
+	logger.debug("Searching for man-page for %s or %s in %s" % (prog_name, fallback_name, impl_path))
+
+	# TODO: the feed should say where the man-pages are, but for now we'll accept
+	# a directory called man in some common locations...
+	for mandir in ['man', 'share/man', 'usr/man', 'usr/share/man']:
+		manpath = os.path.join(impl_path, mandir)
+		if os.path.isdir(manpath):
+			# Note: unlike "man -M", this also copes with LANG settings...
+			os.environ['MANPATH'] = manpath
+			os.execlp('man', 'man', prog_name)
+			sys.exit(1)
+
+	# No man directory given or found, so try searching for man files
+
+	manpages = []
+	for root, dirs, files in os.walk(impl_path):
+		for f in files:
+			if f.endswith('.gz'):
+				manpage_file = f[:-3]
+			else:
+				manpage_file = f
+			if manpage_file.endswith('.1') or \
+			   manpage_file.endswith('.6') or \
+			   manpage_file.endswith('.8'):
+				manpage_prog = manpage_file[:-2]
+				if manpage_prog == prog_name or manpage_prog == fallback_name:
+					os.execlp('man', 'man', os.path.join(root, f))
+					sys.exit(1)
+				else:
+					manpages.append((root, f))
+		for d in list(dirs):
+			if d.startswith('.'):
+				dirs.remove(d)
+
+	print("No matching manpage was found for '%s' (%s)" % (fallback_name, interface_uri))
+	if manpages:
+		print("These non-matching man-pages were found, however:")
+		for root, file in manpages:
+			print(os.path.join(root, file))
+	sys.exit(1)

@@ -124,7 +124,7 @@ class TestAlias(BaseTest):
 			alias.parse_script(tmp.name)
 			assert False
 		except alias.NotAnAliasScript as ex:
-			assert 'bob' in str(ex)
+			assert 'does not look like a script created by 0alias' in str(ex)
 			pass
 
 if __name__ == '__main__':

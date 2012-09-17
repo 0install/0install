@@ -38,6 +38,8 @@
 
 .B 0install list-feeds \fBURI\fP
 
+.B 0install man \fBCOMMAND\fP
+
 .B 0install digest \fBDIRECTORY\fP | \fBARCHIVE\fP [\fBEXTRACT\fP]
 
 .SH DESCRIPTION
@@ -315,6 +317,16 @@ View or change configuration settings.
 With no arguments, `0install config' displays all configuration settings.
 With one argument, it displays the current value of the named setting.
 With two arguments, it sets the setting to the given value.
+
+.SS 0install man COMMAND
+
+.PP
+Show the man-page of the given command. If the single argument \fBCOMMAND\fP is
+a launcher script (created by "0install add" or "0alias") then the man-page is
+searched for by 0install, otherwise the arguments are passed through directly
+to the system's man command. This allows you to do:
+
+.B alias man="0install man --"
 
 .SS 0install digest DIRECTORY | ARCHIVE [EXTRACT]
 

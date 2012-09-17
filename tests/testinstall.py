@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-from basetest import BaseTest, TestStores, StringIO, BytesIO
-import sys, os, tempfile
+from basetest import BaseTest, TestStores, StringIO, BytesIO, ExecMan
+import sys, os, tempfile, subprocess
 import unittest
 
 sys.path.insert(0, '..')
@@ -382,6 +382,8 @@ class TestInstall(BaseTest):
 		assert not out, out
 		assert "Application 'local-app' already exists" in err, err
 
+		self.check_man(['local-app'], 'tests/test-echo.1')
+
 		out, err = self.run_0install(['select', 'local-app'])
 		assert "Version: 0.1" in out, out
 		assert not err, err
@@ -420,6 +422,47 @@ class TestInstall(BaseTest):
 		out, err = self.run_0install(['destroy', 'local-app'])
 		assert not out, out
 		assert "No such application 'local-app'" in err, err
+
+	def check_man(self, args, expected):
+		try:
+			out, err = self.run_0install(['man'] + args)
+			assert 0, (out, err)
+		except ExecMan as ex:
+			if len(ex.man_args) == 2:
+				arg = ex.man_args[1]
+				if '/tests/' in arg:
+					arg = 'tests/' + ex.man_args[1].rsplit('/tests/', 1)[1]
+				self.assertEqual(expected, arg)
+			else:
+				self.assertEqual(expected, ex.man_args)
+
+	def testMan(self):
+		out, err = self.run_0install(['man', '--help'])
+		assert out.lower().startswith("usage:")
+
+		# Wrong number of args: pass-through
+		self.check_man(['git', 'config'], ('man', 'git', 'config'))
+		self.check_man([], ('man',))
+
+		alias_path = os.path.join(mydir, '..', '0alias')
+		local_feed = os.path.join(mydir, 'Local.xml')
+		subprocess.check_call([alias_path, 'my-test-alias', local_feed])
+		self.check_man(['my-test-alias'], 'tests/test-echo.1')
+
+		self.check_man(['__i_dont_exist'], '__i_dont_exist')
+		self.check_man(['ls'], 'ls')
+
+		# No man-page
+		binary_feed = os.path.join(mydir, 'Command.xml')
+		subprocess.check_call([alias_path, 'my-binary-alias', binary_feed])
+
+		out, err = self.run_0install(['man', 'my-binary-alias'])
+		assert not err, err
+		assert "No matching manpage was found for 'my-binary-alias'" in out, out
+
+		with open(os.path.join(self.config_home, 'bad-unicode'), 'wb') as stream:
+			stream.write(bytes([198, 65]))
+		self.check_man(['bad-unicode'], 'bad-unicode')
 
 if __name__ == '__main__':
 	unittest.main()

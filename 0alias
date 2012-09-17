@@ -87,6 +87,10 @@ if len(args) < 1 or len(args) > 3:
 	sys.exit(1)
 alias_prog, interface_uri, main = (list(args) + [None, None])[:3]
 command = options.command
+if command is None:
+	command = 'run'
+elif command is '':
+	command = None
 
 if options.resolve or options.manpage:
 	if interface_uri is not None:
@@ -127,65 +131,13 @@ if options.resolve:
 	sys.exit(0)
 
 if options.manpage:
-	sels = helpers.ensure_cached(interface_uri, command = command or 'run')
+	sels = helpers.ensure_cached(interface_uri, command, config = config)
 	if not sels:
 		# Cancelled by user
 		sys.exit(1)
-
-	if sels.commands:
-		selected_command = sels.commands[0]
-	else:
-		print("No <command> in selections!", file=sys.stderr)
-	selected_impl = sels.selections[interface_uri]
-
-	impl_path = selected_impl.local_path or config.iface_cache.stores.lookup_any(selected_impl.digests)
-
-	if main is None:
-		main = selected_command.path
-		if main is None:
-			print("No main program for interface '%s'" % interface_uri, file=sys.stderr)
-			sys.exit(1)
-
-	prog_name = os.path.basename(main)
 	alias_name = os.path.basename(args[0])
-
-	assert impl_path
-
-	# TODO: the feed should say where the man-pages are, but for now we'll accept
-	# a directory called man in some common locations...
-	for mandir in ['man', 'share/man', 'usr/man', 'usr/share/man']:
-		manpath = os.path.join(impl_path, mandir)
-		if os.path.isdir(manpath):
-			# Note: unlike "man -M", this also copes with LANG settings...
-			os.environ['MANPATH'] = manpath
-			os.execlp('man', 'man', prog_name)
-			sys.exit(1)
-
-	# No man directory given or found, so try searching for man files
-
-	manpages = []
-	for root, dirs, files in os.walk(impl_path):
-		for f in files:
-			if f.endswith('.gz'):
-				manpage_file = f[:-3]
-			else:
-				manpage_file = f
-			if manpage_file.endswith('.1') or \
-			   manpage_file.endswith('.6') or \
-			   manpage_file.endswith('.8'):
-				manpage_prog = manpage_file[:-2]
-				if manpage_prog == prog_name or manpage_prog == alias_name:
-					os.execlp('man', 'man', os.path.join(root, f))
-					sys.exit(1)
-				else:
-					manpages.append((root, f))
-
-	print("No matching manpage was found for '%s' (%s)" % (alias_name, interface_uri))
-	if manpages:
-		print("These non-matching man-pages were found, however:")
-		for root, file in manpages:
-			print(os.path.join(root, file))
-	sys.exit(1)
+	helpers.exec_man(config.stores, sels, main = main, fallback_name = alias_name)
+	assert 0
 
 if not os.path.isdir(first_path):
 	print("(creating directory %s)" % first_path)
@@ -200,13 +152,9 @@ try:
 		if alias_prog == '0launch':
 			raise model.SafeException(_('Refusing to create an alias named "0launch" (to avoid an infinite loop)'))
 
-	interface = model.Interface(interface_uri)
-	if not reader.update_from_cache(interface):
-		print("Interface '%s' not currently in cache. Fetching..." % interface_uri, file=sys.stderr)
-		if os.spawnlp(os.P_WAIT, '0launch', '0launch', '-d', interface_uri):
-			raise model.SafeException("0launch failed")
-		if not reader.update_from_cache(interface):
-			raise model.SafeException("Interface still not in cache. Aborting.")
+	# Ensure it's cached, because the user probably wants it cached, and this checks that the URI is valid.
+	if not helpers.ensure_cached(interface_uri, command, config = config):
+		sys.exit(1)	# User cancelled
 
 	script = os.path.join(first_path, alias_prog)
 	if os.path.exists(script):
@@ -228,7 +176,7 @@ while True:
 	interface_uri = replacement_uri
 
 wrapper = open(script, 'w')
-alias.write_script(wrapper, interface_uri, main, command = command)
+alias.write_script(wrapper, interface_uri, main, command = options.command)
 
 # Make new script executable
 os.chmod(script, 0o111 | os.fstat(wrapper.fileno()).st_mode)

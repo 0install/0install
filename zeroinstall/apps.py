@@ -55,6 +55,37 @@ _command_template = """#!/bin/sh
 exec 0install run {app} "$@"
 """
 
+class AppScriptInfo:
+	"""@since: 1.12"""
+	name = None
+	command = None
+
+def parse_script_header(stream):
+	"""If stream is a shell script for an application, return the app details.
+	@param stream: the executable file's stream (will seek)
+	@type stream: file-like object
+	@return: the app details, if any
+	@rtype: L{AppScriptInfo} | None
+	@since: 1.12"""
+	try:
+		stream.seek(0)
+		template_header = _command_template[:_command_template.index("{app}")]
+		actual_header = stream.read(len(template_header))
+		stream.seek(0)
+		if template_header == actual_header:
+			# If it's a launcher script, it should be quite short!
+			rest = stream.read()
+			line = rest.split('\n')[1]
+		else:
+			return None
+	except UnicodeDecodeError as ex:
+		logger.info("Not an app script '%s': %s", stream, ex)
+		return None
+
+	info = AppScriptInfo()
+	info.name = line.split()[3]
+	return info
+
 class App:
 	def __init__(self, config, path):
 		self.config = config

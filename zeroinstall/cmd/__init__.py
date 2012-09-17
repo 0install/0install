@@ -16,7 +16,7 @@ from zeroinstall import SafeException
 
 valid_commands = ['add', 'select', 'download', 'run', 'update', 'whatchanged', 'destroy',
 		  'config', 'import', 'list', 'add-feed', 'remove-feed', 'list-feeds',
-		  'digest']
+		  'man', 'digest']
 
 class UsageError(Exception): pass
 

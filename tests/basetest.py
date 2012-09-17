@@ -39,11 +39,18 @@ sys.modules['dbus.mainloop.glib'] = my_dbus
 
 mydir = os.path.dirname(__file__)
 
+class ExecMan(Exception):
+	def __init__(self, args):
+		self.man_args = args
+		Exception.__init__(self, 'ExecMan')
+
 # Catch us trying to run the GUI and return a dummy string instead
 old_execvp = os.execvp
 def test_execvp(prog, args):
 	if prog == sys.executable and args[1].endswith('/0launch-gui'):
 		prog = os.path.join(mydir, 'test-gui')
+	if prog == 'man':
+		raise ExecMan(args)
 	return old_execvp(prog, args)
 
 os.execvp = test_execvp
