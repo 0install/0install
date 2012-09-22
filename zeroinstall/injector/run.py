@@ -227,7 +227,7 @@ class Setup(object):
 			if os.name == "nt":
 				# Copy runenv.cli.template to ~/.cache/0install.net/injector/executables/$name/$name
 				import shutil
-				shutil.copyfile(os.path.join(os.path.dirname(__file__), "runenv.cli.template"), exec_path)
+				shutil.copyfile(os.environ['ZEROINSTALL_CLI_TEMPLATE'], exec_path)
 			else:
 				# Symlink ~/.cache/0install.net/injector/executables/$name/$name to runenv.py
 				os.symlink('../../runenv.py', exec_path)

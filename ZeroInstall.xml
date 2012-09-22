@@ -1,5 +1,4 @@
 <?xml version="1.0" ?>
-<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
   <name>0install</name>
   <summary>decentralised installation system</summary>
@@ -42,6 +41,10 @@ interfere with those provided by the distribution.
 
     <requires interface="http://repo.roscidus.com/security/gnupg">
       <executable-in-var name="ZEROINSTALL_GPG"/>
+    </requires>
+
+    <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml">
+      <environment name='ZEROINSTALL_CLI_TEMPLATE' insert='runenv.cli.template' mode='replace'/>
     </requires>
 
     <implementation id="." version="1.11-post"/>
