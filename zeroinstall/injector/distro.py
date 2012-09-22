@@ -326,6 +326,7 @@ class WindowsDistribution(Distribution):
 		return int(disto_name == 'Windows')
 
 class DarwinDistribution(Distribution):
+	"""@since: 1.11"""
 	def get_package_info(self, package, factory):
 		def java_home(version, arch):
 			null = os.open(os.devnull, os.O_WRONLY)
