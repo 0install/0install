@@ -153,7 +153,13 @@ class Fetcher(object):
 						support.ro_rmtree(tmpdir)
 		finally:
 			for step in steps:
-				step.close()
+				try:
+					step.close()
+				except IOError as ex:
+					# Can get "close() called during
+					# concurrent operation on the same file
+					# object." if we're unlucky (Python problem).
+					logger.info("Failed to close: %s", ex)
 
 	def _get_mirror_url(self, feed_url, resource):
 		"""Return the URL of a mirror for this feed."""
