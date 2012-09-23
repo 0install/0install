@@ -214,7 +214,7 @@ class Distribution(object):
 				if impl.installed:
 					self.installed_fixup(impl)
 
-		if master_feed.url == 'http://repo.roscidus.com/python/python' and all(not impl.installed for impl in feed.implementations.values()):
+		if master_feed.url == 'http://repo.roscidus.com/python/python' and os.name != "nt" and all(not impl.installed for impl in feed.implementations.values()):
 			# Hack: we can support Python on platforms with unsupported package managers
 			# by adding the implementation of Python running us now to the list.
 			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
