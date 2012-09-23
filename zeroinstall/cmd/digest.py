@@ -18,6 +18,8 @@ syntax = "DIRECTORY | ARCHIVE [EXTRACT]"
 
 def add_options(parser):
 	parser.add_option("", "--algorithm", help=_("the hash function to use"), metavar="HASH")
+	parser.add_option("-m", "--manifest", help=_("print the manifest"), action='store_true')
+	parser.add_option("-d", "--digest", help=_("print the digest"), action='store_true')
 
 def handle(config, options, args):
 	if len(args) == 1:
@@ -32,13 +34,19 @@ def handle(config, options, args):
 	if alg is None:
 		raise SafeException(_('Unknown algorithm "%s"') % alg)
 
+	show_manifest = bool(options.manifest)
+	show_digest = bool(options.digest) or not show_manifest
+
 	def do_manifest(d):
 		if extract is not None:
 			d = os.path.join(d, extract)
 		digest = alg.new_digest()
 		for line in alg.generate_manifest(d):
+			if show_manifest:
+				print(line)
 			digest.update((line + '\n').encode('utf-8'))
-		print(alg.getID(digest))
+		if show_digest:
+			print(alg.getID(digest))
 
 	if os.path.isdir(source):
 		if extract is not None:

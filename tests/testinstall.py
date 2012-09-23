@@ -347,6 +347,14 @@ class TestInstall(BaseTest):
 		assert out == 'sha1=3ce644dc725f1d21cfcf02562c76f375944b266a\n', out
 		assert not err, err
 
+		out, err = self.run_0install(['digest', '-m', '--algorithm=sha256new', hw])
+		assert out == 'D /HelloWorld\nX 4a6dfb4375ee2a63a656c8cbd6873474da67e21558f2219844f6578db8f89fca 1126963163 27 main\n', out
+		assert not err, err
+
+		out, err = self.run_0install(['digest', '-d', '--algorithm=sha256new', hw])
+		assert out == 'sha256new_RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA\n', out
+		assert not err, err
+
 		out, err = self.run_0install(['digest', hw])
 		assert out == 'sha1new=290eb133e146635fe37713fd58174324a16d595f\n', out
 		assert not err, err

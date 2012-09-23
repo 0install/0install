@@ -338,12 +338,20 @@ program using 0install, this value must be placed in the XML file.
 .TP
 \fB\-m\fP, \fB\-\-algorithm=HASH\fP
 Select the secure hash function to be used. Supported values are "sha1new" (the
-default) or "sha256".
+default), "sha256" and "sha256new".
 
 .PP
 If an archive is given then the hash is for the directory that would be created if
 the archive were unpacked (or the EXTRACT subdirectory of it, if one is specified).
-See also: 0store(1)'s manifest command.
+
+.TP
+\fB\-m\fP, \fB\-\-manifest\fP
+.PP
+\fB\-d\fP, \fB\-\-digest\fP
+.PP
+These options control whether to display the manifest itself (one line for each file or
+directory) or the manifest's digest (or both). If neither option is given, the digest
+is displayed.
 
 .SS 0install --version
 This can be used (without any command) the get version of 0install itself:
