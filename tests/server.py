@@ -26,13 +26,14 @@ class Give404:
 	def __repr__(self):
 		return "404 on " + self.path
 
+request_log = []
+
 class MyHandler(server.BaseHTTPRequestHandler):
 	def __init__(self, *args):
-		self.request_log = []
 		server.BaseHTTPRequestHandler.__init__(self, *args)
 
 	def do_GET(self):
-		self.request_log.append(self.path)
+		request_log.append(self.path)
 
 		parsed = urlparse.urlparse(self.path)
 
@@ -59,7 +60,7 @@ class MyHandler(server.BaseHTTPRequestHandler):
 			leaf = 'HelloWorld.tar.bz2'
 
 		if not resp:
-			self.send_error(404, "Expected %s; got %s" % (next_step, self.request_log))
+			self.send_error(404, "Expected %s; got %s" % (next_step, request_log))
 		elif parsed.path.startswith('/key-info/'):
 			self.send_response(200)
 			self.end_headers()
