@@ -48,6 +48,6 @@ interfere with those provided by the distribution.
       <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
     </requires>
 
-    <implementation id="." released="2012-09-24" version="1.12"/>
+    <implementation id="." version="1.12-post"/>
   </group>
 </interface>
