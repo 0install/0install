@@ -164,6 +164,13 @@ class TestDownload(BaseTest):
 		ran_gui = False
 
 	def tearDown(self):
+		# Wait for all downloads to finish, otherwise they may interfere with other tests
+		for dl in list(self.config.handler.monitored_downloads):
+			try:
+				tasks.wait_for_blocker(dl.downloaded)
+			except:
+				pass
+
 		helpers.get_selections_gui = real_get_selections_gui
 		BaseTest.tearDown(self)
 		kill_server_process()
