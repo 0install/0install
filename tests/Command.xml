@@ -17,6 +17,7 @@
 	<requires interface='./Local.xml'>
 	  <environment name='LOCAL' insert='local'/>
 	</requires>
+	<requires interface='./Missing.xml' os='nosuchos'/>
 	<executable-in-var name='SELF_COMMAND'/>
       </command>
       <command name='test' path="test-baz"/>

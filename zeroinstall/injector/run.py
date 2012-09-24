@@ -170,7 +170,7 @@ class Setup(object):
 			for dep in deps:
 				dep_impl = sels.get(dep.interface, None)
 				if dep_impl is None:
-					assert dep.importance != Dependency.Essential, dep
+					assert dep.importance != Dependency.Essential or dep.metadata.get('os', None), dep
 				else:
 					_do_bindings(dep_impl, dep.bindings, dep.interface)
 

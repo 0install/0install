@@ -310,6 +310,12 @@ class SATSolver(Solver):
 				use = dep.metadata.get("use", None)
 				if use not in arch.use:
 					continue
+
+				# Ignore dependency if 'os' attribute is present and doesn't match
+				os = dep.metadata.get("os", None)
+				if os and os not in arch.os_ranks:
+					continue
+
 				yield dep
 
 		# Must have already done add_iface on dependency.interface.

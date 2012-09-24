@@ -43,7 +43,7 @@ interfere with those provided by the distribution.
       <executable-in-var name="ZEROINSTALL_GPG"/>
     </requires>
 
-    <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml">
+    <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os='Windows'>
       <environment name='ZEROINSTALL_CLI_TEMPLATE' insert='runenv.cli.template' mode='replace'/>
     </requires>
 
