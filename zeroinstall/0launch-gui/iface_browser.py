@@ -6,7 +6,7 @@ import gtk, pango
 
 from zeroinstall import _, translation
 from zeroinstall.support import tasks, pretty_size
-from zeroinstall.injector import model, reader
+from zeroinstall.injector import model, reader, download
 import properties
 from zeroinstall.gtkui.icon import load_icon
 from zeroinstall import support
@@ -342,6 +342,9 @@ class InterfaceBrowser:
 								self.build_tree()
 							else:
 								warn("Failed to download icon for '%s'", iface)
+						except download.DownloadAborted as ex:
+							info("Icon download aborted: %s", ex)
+							# Don't report further; the user knows they cancelled
 						except Exception as ex:
 							import traceback
 							traceback.print_exc()
