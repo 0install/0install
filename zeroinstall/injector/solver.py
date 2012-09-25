@@ -10,7 +10,7 @@ import locale
 import collections
 
 from zeroinstall.injector.reader import MissingLocalFeed
-from zeroinstall.injector import model, sat, selections, arch
+from zeroinstall.injector import model, sat, selections, arch, qdom
 
 class CommandInfo:
 	def __init__(self, name, command, impl, arch):
@@ -317,6 +317,20 @@ class SATSolver(Solver):
 					continue
 
 				yield dep
+
+		def clone_command_for(command, arch):
+			# This is a bit messy. We need to make a copy of the command, without the
+			# unnecessary <requires> elements.
+			all_dep_elems = set(dep.qdom for dep in command.requires)
+			required_dep_elems = set(dep.qdom for dep in deps_in_use(command, arch))
+			if all_dep_elems == required_dep_elems:
+				return command		# No change
+			dep_elems_to_remove = all_dep_elems - required_dep_elems
+			old_root = command.qdom
+			new_qdom = qdom.Element(old_root.uri, old_root.name, old_root.attrs)
+			new_qdom.childNodes = [node for node in command.qdom.childNodes if
+					       node not in dep_elems_to_remove]
+			return model.Command(new_qdom, command._local_dir)
 
 		# Must have already done add_iface on dependency.interface.
 		# If dependency is essential:
@@ -746,7 +760,8 @@ class SATSolver(Solver):
 							for c in dep.get_required_commands():
 								commands_needed.append((dep.interface, c))
 	
-						sels[lit_info.iface.uri] = selections.ImplSelection(lit_info.iface.uri, impl, deps)
+						sel = sels[lit_info.iface.uri] = selections.ImplSelection(lit_info.iface.uri, impl, deps)
+						sel.__arch = lit_info.arch
 
 			# Now all all the commands in too.
 			def add_command(iface, name):
@@ -755,7 +770,7 @@ class SATSolver(Solver):
 					command = sel.impl.commands[name]
 					if name in sel._used_commands:
 						return	# Already added
-					sel._used_commands.add(name)
+					sel._used_commands[name] = clone_command_for(command, sel.__arch)
 
 					for dep in command.requires:
 						for dep_command_name in dep.get_required_commands():

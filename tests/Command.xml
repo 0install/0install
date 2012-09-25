@@ -18,9 +18,11 @@
 	  <environment name='LOCAL' insert='local'/>
 	</requires>
 	<requires interface='./Missing.xml' os='nosuchos'/>
+	<requires interface='./Missing2.xml' use='never'/>
 	<executable-in-var name='SELF_COMMAND'/>
       </command>
       <command name='test' path="test-baz"/>
+      <requires interface='./Missing3.xml' use='never'/>
     </implementation>
   </group>
 </interface>

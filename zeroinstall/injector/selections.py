@@ -83,7 +83,7 @@ class ImplSelection(Selection):
 		assert impl
 		self.impl = impl
 		self.dependencies = dependencies
-		self._used_commands = set()
+		self._used_commands = {}		# name -> Command
 
 		attrs = impl.metadata.copy()
 		attrs['id'] = impl.id
@@ -102,13 +102,10 @@ class ImplSelection(Selection):
 
 	def get_command(self, name):
 		assert name in self._used_commands, "internal error: '{command}' not in my commands list".format(command = name)
-		return self.impl.commands[name]
+		return self._used_commands[name]
 
 	def get_commands(self):
-		commands = {}
-		for c in self._used_commands:
-			commands[c] = self.impl.commands[c]
-		return commands
+		return self._used_commands
 
 class XMLSelection(Selection):
 	"""A Selection created by reading an XML selections document.
