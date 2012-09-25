@@ -54,6 +54,7 @@ def run_gui(args):
 			logger.setLevel(logging.DEBUG)
 
 	if options.version:
+		import gui
 		print("0launch-gui (zero-install) " + gui.version)
 		print("Copyright (C) 2010 Thomas Leonard")
 		print(_("This program comes with ABSOLUTELY NO WARRANTY,"

@@ -7,8 +7,6 @@ The B{0install config} command-line interface.
 
 from __future__ import print_function
 
-import os
-
 from zeroinstall import SafeException, _
 from zeroinstall.injector import model
 from zeroinstall.cmd import UsageError

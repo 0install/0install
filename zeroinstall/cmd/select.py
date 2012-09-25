@@ -7,7 +7,7 @@ The B{0install select} command-line interface.
 
 from __future__ import print_function
 
-import os, sys
+import sys
 
 from zeroinstall import _, logger
 from zeroinstall.cmd import UsageError

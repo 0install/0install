@@ -132,7 +132,7 @@ class IconAndTextRenderer(gtk.GenericCellRenderer):
 			context = widget.get_style_context()
 
 			image_y = int(0.5 * (cell_area.height - self.image.get_height()))
-			gtk.render_icon(context, cr, self.image, cell_area.x, cell_area.y)
+			gtk.render_icon(context, cr, self.image, cell_area.x, cell_area.y + image_y)
 
 			text_y = int(0.5 * (cell_area.height - (rect.y + rect.height)))
 

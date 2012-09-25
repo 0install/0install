@@ -56,7 +56,7 @@ def parse_script_header(stream):
 				return None
 			rest = stream.read()
 			line = rest.split('\n')[2]
-	except UnicodeDecodeError as ex:
+	except UnicodeDecodeError:
 		return None
 
 	info = ScriptInfo()

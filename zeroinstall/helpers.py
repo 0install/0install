@@ -11,7 +11,6 @@ from __future__ import print_function
 import os, sys
 from zeroinstall import support, SafeException, logger
 from zeroinstall.support import tasks
-from zeroinstall import logger
 
 DontUseGUI = object()
 

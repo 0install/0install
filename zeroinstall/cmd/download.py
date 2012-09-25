@@ -10,6 +10,7 @@ import sys
 from zeroinstall import _
 from zeroinstall.cmd import UsageError, select
 from zeroinstall.injector import model
+from zeroinstall.support import tasks
 
 syntax = "URI"
 
