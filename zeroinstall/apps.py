@@ -148,37 +148,34 @@ class App:
 		@return: a blocker which resolves when all needed implementations are available
 		@rtype: L{tasks.Blocker} | None
 		"""
-		# Check the selections are still available
-		blocker = sels.download_missing(self.config)	# TODO: package impls
-
-		if blocker:
-			return blocker
-		else:
-			# Nothing to download, but is it time for a background update?
-			timestamp_path = os.path.join(self.path, 'last-checked')
-			try:
-				utime = os.stat(timestamp_path).st_mtime
-				staleness = time.time() - utime
-				logger.info("Staleness of app %s is %d hours", self, staleness / (60 * 60))
-				freshness_threshold = self.config.freshness
-				need_update = freshness_threshold > 0 and staleness >= freshness_threshold
-
-				if need_update:
-					last_check_attempt_path = os.path.join(self.path, 'last-check-attempt')
-					if os.path.exists(last_check_attempt_path):
-						last_check_attempt = os.stat(last_check_attempt_path).st_mtime
-						if last_check_attempt + 60 * 60 > time.time():
-							logger.info("Tried to check within last hour; not trying again now")
-							need_update = False
-			except Exception as ex:
-				logger.warn("Failed to get time-stamp of %s: %s", timestamp_path, ex)
-				need_update = True
+		# Is it time for a background update?
+		timestamp_path = os.path.join(self.path, 'last-checked')
+		try:
+			utime = os.stat(timestamp_path).st_mtime
+			staleness = time.time() - utime
+			logger.info("Staleness of app %s is %d hours", self, staleness / (60 * 60))
+			freshness_threshold = self.config.freshness
+			need_update = freshness_threshold > 0 and staleness >= freshness_threshold
 
 			if need_update:
-				self.set_last_check_attempt()
-				from zeroinstall.injector import background
-				r = self.get_requirements()
-				background.spawn_background_update2(r, False, self)
+				last_check_attempt_path = os.path.join(self.path, 'last-check-attempt')
+				if os.path.exists(last_check_attempt_path):
+					last_check_attempt = os.stat(last_check_attempt_path).st_mtime
+					if last_check_attempt + 60 * 60 > time.time():
+						logger.info("Tried to check within last hour; not trying again now")
+						need_update = False
+		except Exception as ex:
+			logger.warn("Failed to get time-stamp of %s: %s", timestamp_path, ex)
+			need_update = True
+
+		if need_update:
+			self.set_last_check_attempt()
+			from zeroinstall.injector import background
+			r = self.get_requirements()
+			background.spawn_background_update2(r, False, self)
+
+		# Check the selections are still available
+		return sels.download_missing(self.config)	# TODO: package impls
 
 	def set_requirements(self, requirements):
 		import json
