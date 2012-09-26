@@ -34,8 +34,6 @@ def raise_gui(*args, **kwargs):
 		assert use_gui is None
 		return helpers.DontUseGUI
 
-background._detach = lambda: False
-
 local_hello = """<?xml version="1.0" ?>
 <selections command="run" interface="http://example.com:8000/Hello.xml" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
   <selection id="." local-path='.' interface="http://example.com:8000/Hello.xml" version="0.1"><command name="run" path="foo"/></selection>
@@ -144,6 +142,8 @@ real_get_selections_gui = helpers.get_selections_gui
 class TestDownload(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
+
+		background._detach = lambda: False
 
 		self.config.handler.allow_downloads = True
 		self.config.key_info_server = 'http://localhost:3333/key-info'
@@ -593,14 +593,14 @@ class TestDownload(BaseTest):
 					os.unlink(last_check_attempt)
 
 			# Download the implementation
-			sels = app.get_selections()
+			sels = app.get_selections(may_update = True)
 			run_server('HelloWorld.tgz')
 			tasks.wait_for_blocker(app.download_selections(sels))
 			kill_server_process()
 
 			# Not time for a background update yet
 			self.config.freshness = 100
-			dl = app.download_selections(sels)
+			dl = app.download_selections(app.get_selections(may_update = True))
 			assert dl == None
 			assert not ran_gui
 
@@ -608,7 +608,7 @@ class TestDownload(BaseTest):
 			reset_timestamps()
 			run_server('Hello.xml')
 			with trapped_exit(1):
-				dl = app.download_selections(sels)
+				dl = app.download_selections(app.get_selections(may_update = True))
 				assert dl == None
 			assert not ran_gui
 			self.assertNotEqual(1, os.stat(timestamp).st_mtime)
@@ -626,7 +626,7 @@ class TestDownload(BaseTest):
 			reset_timestamps()
 			run_server('Hello.xml')
 			with trapped_exit(1):
-				dl = app.download_selections(sels)
+				dl = app.download_selections(app.get_selections(may_update = True))
 				assert dl == None
 			assert not ran_gui
 			self.assertNotEqual(1, os.stat(timestamp).st_mtime)
@@ -643,13 +643,12 @@ class TestDownload(BaseTest):
 			# Replace with a valid local feed so we don't have to download immediately
 			with open(sels_path, 'w') as stream:
 				stream.write(local_hello)
-			sels = app.get_selections()
 
 			os.environ['DISPLAY'] = 'dummy'
 			reset_timestamps()
 			run_server('Hello.xml')
 			with trapped_exit(1):
-				dl = app.download_selections(sels)
+				dl = app.download_selections(app.get_selections(may_update = True))
 				assert dl == None
 			assert ran_gui	# (so doesn't actually update)
 			kill_server_process()
@@ -659,7 +658,7 @@ class TestDownload(BaseTest):
 			del os.environ['DISPLAY']
 			run_server('Hello.xml', 'HelloWorld.tgz')
 			with trapped_exit(1):
-				dl = app.download_selections(sels)
+				dl = app.download_selections(app.get_selections(may_update = True))
 				assert dl == None
 			assert not ran_gui	# (so doesn't actually update)
 
@@ -679,7 +678,7 @@ class TestDownload(BaseTest):
 			run_server('Hello.xml')
 			with trapped_exit(1):
 				#import logging; logging.getLogger().setLevel(logging.INFO)
-				dl = app.download_selections(sels)
+				dl = app.download_selections(app.get_selections(may_update = True))
 				assert dl == None
 			assert ran_gui
 			kill_server_process()
@@ -688,7 +687,7 @@ class TestDownload(BaseTest):
 			ran_gui = False
 			os.utime(timestamp, (1, 1))		# 1970
 			os.utime(selections_path, (1, 1))
-			dl = app.download_selections(sels)
+			dl = app.download_selections(app.get_selections(may_update = True))
 			assert dl == None
 			assert not ran_gui
 

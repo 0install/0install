@@ -34,7 +34,7 @@ def handle(config, options, args):
 
 	app = config.app_mgr.lookup_app(args[0], missing_ok = True)
 	if app is not None:
-		sels = app.get_selections()
+		sels = app.get_selections(may_update = True)
 		r = app.get_requirements()
 		do_select = r.parse_update_options(options)
 		iface_uri = sels.interface

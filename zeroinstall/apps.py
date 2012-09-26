@@ -91,7 +91,7 @@ class App:
 		self.config = config
 		self.path = path
 
-	def set_selections(self, sels):
+	def set_selections(self, sels, set_last_checked = True):
 		"""Store a new set of selections. We include today's date in the filename
 		so that we keep a history of previous selections (max one per day), in case
 		we want to to roll back later."""
@@ -114,10 +114,13 @@ class App:
 			os.unlink(sels_latest)
 		os.symlink(os.path.basename(sels_file), sels_latest)
 
-		self.set_last_checked()
+		if set_last_checked:
+			self.set_last_checked()
 
-	def get_selections(self, snapshot_date = None):
-		"""Load the selections. Does not check whether they are cached, nor trigger updates.
+	def get_selections(self, snapshot_date = None, may_update = False):
+		"""Load the selections.
+		@param may_update: whether to check for updates
+		@type may_update: bool
 		@param snapshot_date: get a historical snapshot
 		@type snapshot_date: (as returned by L{get_history}) | None
 		@return: the selections
@@ -127,7 +130,12 @@ class App:
 		else:
 			sels_file = os.path.join(self.path, 'selections.xml')
 		with open(sels_file, 'rb') as stream:
-			return selections.Selections(qdom.parse(stream))
+			sels = selections.Selections(qdom.parse(stream))
+
+		if may_update:
+			sels = self._check_for_updates(sels)
+
+		return sels
 
 	def get_history(self):
 		"""Get the dates of the available snapshots, starting with the most recent.
@@ -142,31 +150,80 @@ class App:
 		return snapshots
 
 	def download_selections(self, sels):
-		"""Download any missing implementations in the given selections.
-		If no downloads are needed, but we haven't checked for a while, start
-		a background process to check for updates (but return None immediately).
+		"""Download any missing implementations.
 		@return: a blocker which resolves when all needed implementations are available
-		@rtype: L{tasks.Blocker} | None
-		"""
-		# Is it time for a background update?
-		timestamp_path = os.path.join(self.path, 'last-checked')
+		@rtype: L{tasks.Blocker} | None"""
+		return sels.download_missing(self.config)	# TODO: package impls
+
+	def _check_for_updates(self, sels):
+		"""Check whether the selections need to be updated.
+		If any input feeds have changed, we re-run the solver. If the
+		new selections require a download, we schedule one in the
+		background and return the old selections. Otherwise, we return the
+		new selections. If we can select better versions without downloading,
+		we update the app's selections and return the new selections.
+		We also schedule a background update from time-to-time anyway.
+		@return: the selections to use
+		@rtype: L{selections.Selections}"""
+		need_solve = False		# Rerun solver (cached feeds have changed)
+		need_update = False		# Update over the network
+
+		utime = self._get_mtime('last-checked', warn_if_missing = True)
+		last_solve = max(self._get_mtime('last-solve', warn_if_missing = False), utime)
+
+		# If any of the feeds we used have been updated since the last check, do a quick re-solve
+		iface_cache = self.config.iface_cache
 		try:
-			utime = os.stat(timestamp_path).st_mtime
+			for sel in sels.selections.values():
+				logger.info("Checking %s", sel.feed)
+				feed = iface_cache.get_feed(sel.feed)
+				if not feed:
+					logger.info("Input %s missing; update", sel.feed)
+					need_solve = True
+					need_update = True
+					break
+				else:
+					if feed.local_path:
+						mtime = os.stat(feed.local_path).st_mtime
+					else:
+						mtime = feed.last_modified
+					if mtime and mtime > last_solve:
+						logger.info("Triggering update to %s because %s has changed", self, feed)
+						need_solve = True
+						break
+		except Exception as ex:
+			logger.warn("Error checking modification times: %s", ex)
+			need_solve = True
+			need_update = True
+
+		# Is it time for a background update anyway?
+		if not need_update:
 			staleness = time.time() - utime
 			logger.info("Staleness of app %s is %d hours", self, staleness / (60 * 60))
 			freshness_threshold = self.config.freshness
-			need_update = freshness_threshold > 0 and staleness >= freshness_threshold
+			if freshness_threshold > 0 and staleness >= freshness_threshold:
+				need_update = True
 
-			if need_update:
-				last_check_attempt_path = os.path.join(self.path, 'last-check-attempt')
-				if os.path.exists(last_check_attempt_path):
-					last_check_attempt = os.stat(last_check_attempt_path).st_mtime
-					if last_check_attempt + 60 * 60 > time.time():
-						logger.info("Tried to check within last hour; not trying again now")
-						need_update = False
-		except Exception as ex:
-			logger.warn("Failed to get time-stamp of %s: %s", timestamp_path, ex)
-			need_update = True
+		if need_solve:
+			from zeroinstall.injector.driver import Driver
+			driver = Driver(config = self.config, requirements = self.get_requirements())
+			if driver.need_download():
+				# Continue with the current (hopefully cached) selections while we download
+				need_update = True
+			else:
+				old_sels = sels
+				sels = driver.solver.selections
+				from zeroinstall.support import xmltools
+				if not xmltools.nodes_equal(sels.toDOM(), old_sels.toDOM()):
+					self.set_selections(sels, set_last_checked = False)
+			self._touch('last-solve')
+
+		# If we tried to check within the last hour, don't try again.
+		if need_update:
+			last_check_attempt = self._get_mtime('last-check-attempt', warn_if_missing = False)
+			if last_check_attempt and last_check_attempt + 60 * 60 > time.time():
+				logger.info("Tried to check within last hour; not trying again now")
+				need_update = False
 
 		if need_update:
 			self.set_last_check_attempt()
@@ -174,8 +231,7 @@ class App:
 			r = self.get_requirements()
 			background.spawn_background_update2(r, False, self)
 
-		# Check the selections are still available
-		return sels.download_missing(self.config)	# TODO: package impls
+		return sels
 
 	def set_requirements(self, requirements):
 		import json
@@ -203,41 +259,43 @@ class App:
 		return r
 
 	def set_last_check_attempt(self):
-		timestamp_path = os.path.join(self.path, 'last-check-attempt')
+		self._touch('last-check-attempt')
+
+	def set_last_checked(self):
+		self._touch('last-checked')
+
+	def _touch(self, name):
+		timestamp_path = os.path.join(self.path, name)
 		fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0o644)
 		os.close(fd)
 		os.utime(timestamp_path, None)	# In case file already exists
+
+	def _get_mtime(self, name, warn_if_missing = True):
+		timestamp_path = os.path.join(self.path, name)
+		try:
+			return os.stat(timestamp_path).st_mtime
+		except Exception as ex:
+			if warn_if_missing:
+				logger.warn("Failed to get time-stamp of %s: %s", timestamp_path, ex)
+			return 0
 
 	def get_last_checked(self):
 		"""Get the time of the last successful check for updates.
 		@return: the timestamp (or None on error)
 		@rtype: float | None"""
-		last_updated_path = os.path.join(self.path, 'last-checked')
-		try:
-			return os.stat(last_updated_path).st_mtime
-		except Exception as ex:
-			logger.warn("Failed to get time-stamp of %s: %s", last_updated_path, ex)
-			return None
+		return self._get_mtime('last-checked', warn_if_missing = True)
 
 	def get_last_check_attempt(self):
 		"""Get the time of the last attempted check.
 		@return: the timestamp, or None if we updated successfully.
 		@rtype: float | None"""
-		last_check_attempt_path = os.path.join(self.path, 'last-check-attempt')
-		if os.path.exists(last_check_attempt_path):
-			last_check_attempt = os.stat(last_check_attempt_path).st_mtime
-
+		last_check_attempt = self._get_mtime('last-check-attempt', warn_if_missing = False)
+		if last_check_attempt:
 			last_checked = self.get_last_checked()
 
 			if last_checked < last_check_attempt:
 				return last_check_attempt
 		return None
-
-	def set_last_checked(self):
-		timestamp_path = os.path.join(self.path, 'last-checked')
-		fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0o644)
-		os.close(fd)
-		os.utime(timestamp_path, None)	# In case file already exists
 
 	def destroy(self):
 		# Check for shell command

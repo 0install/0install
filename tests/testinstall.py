@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-from basetest import BaseTest, TestStores, StringIO, BytesIO, ExecMan
-import sys, os, tempfile, subprocess
+from basetest import BaseTest, TestStores, StringIO, BytesIO, ExecMan, BackgroundException
+import sys, os, tempfile, subprocess, shutil
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall import cmd
-from zeroinstall.injector import model, selections, qdom, handler, gpg, config
+from zeroinstall import cmd, logger
+from zeroinstall.injector import model, selections, qdom, handler, gpg, config, background
 
 mydir = os.path.dirname(__file__)
 
@@ -471,6 +471,78 @@ class TestInstall(BaseTest):
 		with open(os.path.join(self.config_home, 'bad-unicode'), 'wb') as stream:
 			stream.write(bytes([198, 65]))
 		self.check_man(['bad-unicode'], 'bad-unicode')
+
+	def testAdd(self):
+		out, err = self.run_0install(['add', '--help'])
+		assert out.lower().startswith("usage:")
+
+		local_feed = os.path.join(mydir, 'Local.xml')
+		local_copy = os.path.join(self.data_home, 'Local.xml')
+
+		os.mkdir(self.data_home)
+		shutil.copyfile(local_feed, local_copy)
+
+		out, err = self.run_0install(['add', 'local-app', local_copy])
+		assert not out, out
+		assert not err, err
+
+		app = self.config.app_mgr.lookup_app('local-app')
+
+		# Because the unit-tests run very quickly, we have to back-date things
+		# a bit...
+		def set_mtime(name, t):
+			os.utime(name, (t, t))
+		set_mtime(local_copy, 100)				# Feed edited at t=100
+		set_mtime(os.path.join(app.path, 'last-checked'), 200)	# Added at t=200
+
+		# Can run without using the solver...
+		sels = app.get_selections(may_update = True)
+		blocker = app.download_selections(sels)
+		self.assertEqual(None, blocker)
+		self.assertEqual(0, app._get_mtime('last-solve', warn_if_missing = False))
+
+		# But if the feed is modifier, we resolve...
+		set_mtime(local_copy, 300)
+		blocker = app.download_selections(app.get_selections(may_update = True))
+		self.assertEqual(None, blocker)
+		self.assertNotEqual(0, app._get_mtime('last-solve', warn_if_missing = False))
+
+		set_mtime(os.path.join(app.path, 'last-solve'), 400)
+		blocker = app.download_selections(app.get_selections(may_update = True))
+		self.assertEqual(None, blocker)
+		self.assertEqual(400, app._get_mtime('last-solve', warn_if_missing = False))
+
+		import logging; logger.setLevel(logging.ERROR)	# Will display a warning
+		os.unlink(local_copy)
+		app._touch('last-check-attempt')	# Prevent background update
+		blocker = app.download_selections(app.get_selections(may_update = True))
+		self.assertEqual(None, blocker)
+		self.assertNotEqual(400, app._get_mtime('last-solve', warn_if_missing = False))
+
+		# Local feed is updated; now requires a download
+		os.unlink(os.path.join(app.path, 'last-check-attempt'))
+		hello_feed = os.path.join(mydir, 'Hello.xml')
+		set_mtime(os.path.join(app.path, 'last-solve'), 400)
+		self.config.iface_cache._interfaces = {}
+		self.config.iface_cache._feeds = {}
+		shutil.copyfile(hello_feed, local_copy)
+		try:
+			blocker = app.download_selections(app.get_selections(may_update = True))
+			assert 0
+		except BackgroundException:
+			pass
+
+		# Selections changed, but no download required
+		with open(local_copy, 'rt') as stream:
+			data = stream.read()
+		data = data.replace(' version="1">',
+				    ' version="1.1" main="missing">')
+		with open(local_copy, 'wt') as stream:
+			stream.write(data)
+		set_mtime(os.path.join(app.path, 'last-solve'), 400)
+
+		blocker = app.download_selections(app.get_selections(may_update = True))
+		self.assertEqual(None, blocker)
 
 if __name__ == '__main__':
 	unittest.main()
