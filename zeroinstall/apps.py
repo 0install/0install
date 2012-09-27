@@ -8,7 +8,7 @@ Support for managing apps (as created with "0install add").
 
 from zeroinstall import _, SafeException, logger
 from zeroinstall.support import basedir, portable_rename
-from zeroinstall.injector import namespaces, selections, qdom
+from zeroinstall.injector import namespaces, selections, qdom, model
 import re, os, time, tempfile
 
 # Avoid characters that are likely to cause problems (reject : and ; everywhere
@@ -171,28 +171,51 @@ class App:
 		utime = self._get_mtime('last-checked', warn_if_missing = True)
 		last_solve = max(self._get_mtime('last-solve', warn_if_missing = False), utime)
 
-		# If any of the feeds we used have been updated since the last check, do a quick re-solve
-		iface_cache = self.config.iface_cache
-		try:
+		# Ideally, this would return all the files which were inputs into the solver's
+		# decision. Currently, we approximate with:
+		# - the previously selected feed files (local or cached)
+		# - configuration files for the selected interfaces
+		# - the global configuration
+		# We currently ignore feeds and interfaces which were
+		# considered but not selected.
+		# Can yield None (ignored), paths or (path, mtime) tuples.
+		# If this throws an exception, we will log it and resolve anyway.
+		def get_inputs():
 			for sel in sels.selections.values():
 				logger.info("Checking %s", sel.feed)
 				feed = iface_cache.get_feed(sel.feed)
 				if not feed:
-					logger.info("Input %s missing; update", sel.feed)
-					need_solve = True
-					need_update = True
-					break
+					raise IOError("Input %s missing; update" % sel.feed)
 				else:
 					if feed.local_path:
-						mtime = os.stat(feed.local_path).st_mtime
+						yield feed.local_path
 					else:
-						mtime = feed.last_modified
-					if mtime and mtime > last_solve:
-						logger.info("Triggering update to %s because %s has changed", self, feed)
-						need_solve = True
-						break
+						yield (feed.url, feed.last_modified)
+
+				# Per-feed configuration
+				yield basedir.load_first_config(namespaces.config_site, namespaces.config_prog,
+								   'interfaces', model._pretty_escape(sel.interface))
+
+			# Global configuration
+			yield basedir.load_first_config(namespaces.config_site, namespaces.config_prog, 'global')
+
+		# If any of the feeds we used have been updated since the last check, do a quick re-solve
+		iface_cache = self.config.iface_cache
+		try:
+			for item in get_inputs():
+				if not item: continue
+				if isinstance(item, tuple):
+					path, mtime = item
+				else:
+					path = item
+					mtime = os.stat(path).st_mtime
+
+				if mtime and mtime > last_solve:
+					logger.info("Triggering update to %s because %s has changed", self, path)
+					need_solve = True
+					break
 		except Exception as ex:
-			logger.warn("Error checking modification times: %s", ex)
+			logger.info("Error checking modification times: %s", ex)
 			need_solve = True
 			need_update = True
 
