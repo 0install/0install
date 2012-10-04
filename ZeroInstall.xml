@@ -46,6 +46,7 @@ interfere with those provided by the distribution.
 
     <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os="Windows">
       <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
+      <version not-before="1.12.1" />
     </requires>
 
     <implementation id="." version="1.12-post"/>

@@ -242,8 +242,8 @@ class Setup(object):
 
 		args = self.build_command(iface, binding.command)
 		if os.name == "nt":
-			os.environ["0install-runenv-file-" + name + ".exe"] = args[0]
-			os.environ["0install-runenv-args-" + name + ".exe"] = support.windows_args_escape(args[1:])
+			os.environ["0install-runenv-file-" + name] = args[0]
+			os.environ["0install-runenv-args-" + name] = support.windows_args_escape(args[1:])
 		else:
 			import json
 			os.environ["0install-runenv-" + name] = json.dumps(args)
