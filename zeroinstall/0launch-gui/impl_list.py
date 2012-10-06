@@ -163,7 +163,22 @@ class ImplementationList:
 	
 	def show_explaination(self, impl):
 		reason = self.driver.solver.justify_decision(self.driver.requirements, self.interface, impl)
-		gtkutils.show_message_box(self.tree_view.get_toplevel(), reason, gtk.MESSAGE_INFO)
+
+		parent = self.tree_view.get_toplevel()
+		box = gtk.Dialog("Version " + impl.get_version(),
+				parent,
+				gtk.DIALOG_DESTROY_WITH_PARENT,
+				(gtk.STOCK_OK, gtk.RESPONSE_OK))
+
+		text = gtk.Label(reason)
+		text.show()
+		box.vbox.pack_start(text)
+
+		box.set_position(gtk.WIN_POS_CENTER)
+		def resp(b, r):
+			b.destroy()
+		box.connect('response', resp)
+		box.show()
 	
 	def get_selection(self):
 		return self.tree_view.get_selection()
