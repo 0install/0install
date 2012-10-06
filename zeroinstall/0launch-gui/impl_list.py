@@ -165,7 +165,14 @@ class ImplementationList:
 		reason = self.driver.solver.justify_decision(self.driver.requirements, self.interface, impl)
 
 		parent = self.tree_view.get_toplevel()
-		box = gtk.Dialog("Version " + impl.get_version(),
+
+		if '\n' not in reason:
+			gtkutils.show_message_box(parent, reason, gtk.MESSAGE_INFO)
+			return
+
+		box = gtk.Dialog(_("{prog} version {version}").format(
+					prog = self.interface.get_name(),
+					version = impl.get_version()),
 				parent,
 				gtk.DIALOG_DESTROY_WITH_PARENT,
 				(gtk.STOCK_OK, gtk.RESPONSE_OK))
@@ -181,6 +188,9 @@ class ImplementationList:
 		def resp(b, r):
 			b.destroy()
 		box.connect('response', resp)
+
+		box.set_default_size(gtk.gdk.screen_width() * 3 / 4, gtk.gdk.screen_height() / 3)
+
 		box.show()
 	
 	def get_selection(self):
