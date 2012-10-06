@@ -345,6 +345,9 @@ class InterfaceBrowser:
 						except download.DownloadAborted as ex:
 							info("Icon download aborted: %s", ex)
 							# Don't report further; the user knows they cancelled
+						except download.DownloadError as ex:
+							warn("Icon download failed: %s", ex)
+							# Not worth showing a dialog box for this
 						except Exception as ex:
 							import traceback
 							traceback.print_exc()

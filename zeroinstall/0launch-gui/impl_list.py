@@ -163,7 +163,35 @@ class ImplementationList:
 	
 	def show_explaination(self, impl):
 		reason = self.driver.solver.justify_decision(self.driver.requirements, self.interface, impl)
-		gtkutils.show_message_box(self.tree_view.get_toplevel(), reason, gtk.MESSAGE_INFO)
+
+		parent = self.tree_view.get_toplevel()
+
+		if '\n' not in reason:
+			gtkutils.show_message_box(parent, reason, gtk.MESSAGE_INFO)
+			return
+
+		box = gtk.Dialog(_("{prog} version {version}").format(
+					prog = self.interface.get_name(),
+					version = impl.get_version()),
+				parent,
+				gtk.DIALOG_DESTROY_WITH_PARENT,
+				(gtk.STOCK_OK, gtk.RESPONSE_OK))
+
+		swin = gtk.ScrolledWindow()
+		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+		text = gtk.Label(reason)
+		swin.add_with_viewport(text)
+		swin.show_all()
+		box.vbox.pack_start(swin)
+
+		box.set_position(gtk.WIN_POS_CENTER)
+		def resp(b, r):
+			b.destroy()
+		box.connect('response', resp)
+
+		box.set_default_size(gtk.gdk.screen_width() * 3 / 4, gtk.gdk.screen_height() / 3)
+
+		box.show()
 	
 	def get_selection(self):
 		return self.tree_view.get_selection()
