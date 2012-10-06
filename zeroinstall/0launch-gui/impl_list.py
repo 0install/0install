@@ -170,9 +170,12 @@ class ImplementationList:
 				gtk.DIALOG_DESTROY_WITH_PARENT,
 				(gtk.STOCK_OK, gtk.RESPONSE_OK))
 
+		swin = gtk.ScrolledWindow()
+		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
 		text = gtk.Label(reason)
-		text.show()
-		box.vbox.pack_start(text)
+		swin.add_with_viewport(text)
+		swin.show_all()
+		box.vbox.pack_start(swin)
 
 		box.set_position(gtk.WIN_POS_CENTER)
 		def resp(b, r):
