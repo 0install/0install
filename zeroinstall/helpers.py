@@ -14,6 +14,37 @@ from zeroinstall.support import tasks
 
 DontUseGUI = object()
 
+import threading
+import socket
+
+try:
+    pairfamily = socket.AF_UNIX
+except AttributeError:
+    pairfamily = socket.AF_INET
+
+def socketpair(family=pairfamily, type_=socket.SOCK_STREAM, proto=socket.IPPROTO_IP):
+        """Wraps socketpair() to support Windows using local ephemeral ports"""
+        import socket
+        if hasattr(socket,'socketpair'):
+                return socket.socketpair(family, type_, proto)
+
+        listensock = socket.socket(family, type_, proto)
+        listensock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listensock.bind( ('localhost', 0) )
+        iface, ephport = listensock.getsockname()
+        listensock.listen(1)
+
+        sock1 = socket.socket(family, type_, proto)
+        connthread = threading.Thread(target=pairConnect, args=[sock1, ephport])
+        connthread.setDaemon(1)
+        connthread.start()
+        sock2, sock2addr = listensock.accept()
+        listensock.close()
+        return (sock1, sock2)
+
+def pairConnect(sock, port):
+    sock.connect( ('localhost', port) )
+
 def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True):
 	"""Run the GUI to choose and download a set of implementations.
 	The user may ask the GUI to submit a bug report about the program. In that case,
@@ -46,8 +77,7 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True
 	from os.path import join, dirname
 	gui_exe = join(dirname(__file__), '0launch-gui', '0launch-gui')
 
-	import socket
-	cli, gui = socket.socketpair()
+	cli, gui = socketpair()
 
 	try:
 		child = os.fork()
