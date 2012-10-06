@@ -806,7 +806,7 @@ class SATSolver(Solver):
 			# Find all restrictions that are in play and affect this interface
 			sel = sels[iface_uri]
 			if sel:
-				msg = str(sel)
+				msg = '{version} ({impl})'.format(version = sel.version, impl = sel.id)
 			else:
 				msg = "(problem)"
 
