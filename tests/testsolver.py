@@ -104,7 +104,7 @@ class TestSolver(BaseTest):
 		justify(foo_binary_uri, foo_src_impls["old"],
 				'Binary 0.1 is ranked lower than 1.0: newer versions are preferred')
 		justify(foo_binary_uri, foo_src_impls["impossible"],
-				'''There is no possible selection using Binary 3.\nCan't find all required implementations:\n- <Interface http://foo/Binary.xml> -> impossible\n- <Interface http://foo/Compiler.xml> -> None''')
+				'''There is no possible selection using Binary 3.\nCan't find all required implementations:\n- http://foo/Binary.xml -> impossible\n    User requested implementation 'impossible'\n- http://foo/Compiler.xml -> (problem)\n    http://foo/Binary.xml 3 requires version < 1.0, 1.0 <= version''')
 		justify(compiler.uri, compiler_impls["sha1=999"],
 				'''Compiler 5 is selectable, but using it would produce a less optimal solution overall.\n\nThe changes would be:\n\nhttp://foo/Binary.xml: 1.0 to 0.1''')
 

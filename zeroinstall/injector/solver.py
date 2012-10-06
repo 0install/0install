@@ -63,6 +63,9 @@ class _ForceImpl(model.Restriction):
 	def meets_restriction(self, impl):
 		return impl.id == self.impl_id
 
+	def __str__(self):
+		return _("implementation '{impl}'").format(impl = self.impl_id)
+
 class Solver(object):
 	"""Chooses a set of implementations to satisfy the requirements of a program and its user.
 	Typical use:
@@ -797,9 +800,39 @@ class SATSolver(Solver):
 		if self._failure_reason:
 			return model.SafeException(self._failure_reason)
 
+		sels = self.selections.selections
+
+		def show(iface_uri):
+			# Find all restrictions that are in play and affect this interface
+			sel = sels[iface_uri]
+			if sel:
+				msg = str(sel)
+			else:
+				msg = "(problem)"
+
+			# For each selected implementation...
+			for other_uri, other_sel in sels.items():
+				if not other_sel: continue
+				for dep in other_sel.impl.requires:
+					if not isinstance(dep, model.InterfaceRestriction): continue
+					# If it depends on us and has restrictions...
+					if dep.interface == iface_uri and dep.restrictions:
+						msg += "\n    " + _("{iface} {version} requires {reqs}").format(
+								iface = other_uri,
+								version = other_sel.version,
+								reqs = ', '.join(str(r) for r in dep.restrictions))
+
+			# Check for user-supplied restrictions
+			iface = self.config.iface_cache.get_interface(iface_uri)
+			user = self.extra_restrictions.get(iface, [])
+			if user:
+				msg += "\n    " + _("User requested {reqs}").format(
+								reqs = ', '.join(str(r) for r in user))
+
+			return msg
+
 		return model.SafeException(_("Can't find all required implementations:") + '\n' +
-				'\n'.join(["- %s -> %s" % (iface, self.selections[iface])
-					   for iface  in self.selections]))
+				'\n'.join(["- %s -> %s" % (iface, show(iface)) for iface in sels]))
 
 	def justify_decision(self, requirements, iface, impl):
 		"""Run a solve with impl_id forced to be selected, and explain why it wasn't (or was)

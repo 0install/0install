@@ -225,7 +225,7 @@ class VersionRestriction(Restriction):
 		return impl.version == self.version
 
 	def __str__(self):
-		return _("(restriction: version = %s)") % format_version(self.version)
+		return _("version = %s") % format_version(self.version)
 
 class VersionRangeRestriction(Restriction):
 	"""Only versions within the given range are acceptable"""
@@ -256,7 +256,7 @@ class VersionRangeRestriction(Restriction):
 				range += ' < ' + format_version(self.before)
 		else:
 			range = 'none'
-		return _("(restriction: %s)") % range
+		return range
 
 class Binding(object):
 	"""Information about how the choice of a Dependency is made known
