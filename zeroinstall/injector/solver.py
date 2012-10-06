@@ -430,7 +430,7 @@ class SATSolver(Solver):
 		# requirer can be a <command> or an <implementation>
 		def process_dependencies(requiring_var, requirer, arch):
 			for d in deps_in_use(requirer, arch):
-				logger.debug(_("Considering command dependency %s"), d)
+				#logger.debug(_("Considering command dependency %s"), d)
 
 				add_iface(d.interface, arch.child_arch)
 

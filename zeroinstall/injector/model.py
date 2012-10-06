@@ -210,6 +210,9 @@ class Restriction(object):
 		@rtype: bool
 		"""
 		raise NotImplementedError(_("Abstract"))
+
+	def __repr__(self):
+		return "<restriction: %s>" % self
 	
 class VersionRestriction(Restriction):
 	"""Only select implementations with a particular version number.
