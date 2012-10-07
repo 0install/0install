@@ -875,7 +875,16 @@ class SATSolver(Solver):
 				else:
 					# Might still be unusable e.g. if missing a required command. Show reasons, if any.
 					shown = 0
+					candidate_impls = set(impls)
 					for i, reason in all_impls:
+						if reason is _ForceImpl.reason:
+							# We're doing a justify_decision, and this wasn't the one the user specified
+							continue
+
+						if i not in candidate_impls:
+							# Skip, as hopefully obvious from above restrictions why not chosen
+							continue
+
 						if reason is None and example_machine_impl:
 							# Could be an architecture problem
 							this_machine_group = get_machine_group(i)
@@ -884,9 +893,12 @@ class SATSolver(Solver):
 										this_arch = i.machine,
 										other_name = example_machine_impl.feed.get_name(),
 										other_arch = example_machine_impl.machine)
-						if reason and reason is not _ForceImpl.reason:
+						if reason is None:
+							reason = "(BUG) reason for rejection unknown"
+
+						if reason is not _ForceImpl.reason:
 							if shown == 0:
-								msg += "\n    " + _("Problems:")
+								msg += "\n    " + _("Rejected candidates:")
 							msg += "\n      {impl}: {reason}".format(impl = i, reason = reason)
 							shown += 1
 							if shown >= 5: break

@@ -277,6 +277,8 @@ class TestSolver(BaseTest):
 
 			self.assertEqual(expected_error, str(s.get_failure_reason()))
 
+			return s
+
 		s = test("", "",
 			"Can't find all required implementations:\n" +
 			"- http://localhost/top.xml -> (problem)\n" +
@@ -298,7 +300,7 @@ class TestSolver(BaseTest):
 			 "",
 			 "Can't find all required implementations:\n" +
 			 "- http://localhost/top.xml -> (problem)\n" +
-			 "    Problems:\n" +
+			 "    Rejected candidates:\n" +
 			 "      1: No run command")
 
 		s = test("""<implementation version='1' id='1' main='foo'>
@@ -332,8 +334,46 @@ class TestSolver(BaseTest):
 			 "Can't find all required implementations:\n" +
 			 "- http://localhost/top.xml -> 1 (1)\n" +
 			 "- http://localhost/diagnostics.xml -> (problem)\n" +
-			 "    Problems:\n" +
+			 "    Rejected candidates:\n" +
 			 "      diag-5: Can't use x86_64 with selection of Top-level (i486)")
+
+		s = test("""<group>
+			      <requires interface='{diag}'>
+			        <version before='6'/>
+			      </requires>
+			      <implementation version='1' id='1' main='foo' arch='Windows-i486'>
+				<archive href='http://localhost:3000/foo.tgz' size='100'/>
+			     </implementation>
+			   </group>""".format(diag = diag_uri),
+			 """<group>
+			      <implementation version='5' id='diag-5' arch='Windows-x86_64'>
+				<archive href='http://localhost:3000/diag.tgz' size='100'/>
+			     </implementation>
+			      <implementation version='6' id='diag-6' arch='Windows-i486'>
+				<archive href='http://localhost:3000/diag.tgz' size='100'/>
+			     </implementation>
+			   </group>
+			 """,
+			 "Can't find all required implementations:\n" +
+			 "- http://localhost/top.xml -> 1 (1)\n" +
+			 "- http://localhost/diagnostics.xml -> (problem)\n" +
+			 "    http://localhost/top.xml 1 requires version < 6\n" +
+			 "    Rejected candidates:\n" +
+			 "      diag-5: Can't use x86_64 with selection of Top-level (i486)")
+
+		iface = self.config.iface_cache.get_interface(diag_uri)
+		impl = self.config.iface_cache.get_feed(diag_uri).implementations['diag-5']
+		r = Requirements(top_uri)
+		r.os = 'Windows'
+		self.assertEqual("There is no possible selection using Diagnostics 5.\n"
+				 "Can't find all required implementations:\n"
+				 "- http://localhost/top.xml -> 1 (1)\n"
+				 "- http://localhost/diagnostics.xml -> (problem)\n"
+				 "    http://localhost/top.xml 1 requires version < 6\n"
+				 "    User requested implementation 5 (diag-5)\n"
+				 "    Rejected candidates:\n"
+				 "      diag-5: Can't use x86_64 with selection of Top-level (i486)",
+				s.justify_decision(r, iface, impl))
 
 	def testLangs(self):
 		iface_cache = self.config.iface_cache
