@@ -10,15 +10,15 @@
     </restricts>
 
     <!-- Doesn't select from Versions at all -->
-    <implementation id="1" version="0.1"/>
+    <implementation id="0.1" version="0.1"/>
 
     <!-- Select version 3 -->
-    <implementation id="2" version="0.2">
+    <implementation id="0.2" version="0.2">
       <requires interface="./Versions.xml" importance='optional'/>
     </implementation>
 
     <!-- Impossible -->
-    <implementation id="3" version="0.3">
+    <implementation id="0.3" version="0.3">
       <requires interface="./Versions.xml">
 	<version not-before='4'/>
       </requires>
