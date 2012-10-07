@@ -57,14 +57,16 @@ class _DummyImpl(object):
 class _ForceImpl(model.Restriction):
 	"""Used by L{SATSolver.justify_decision}."""
 
-	def __init__(self, impl_id):
-		self.impl_id = impl_id
+	reason = "Excluded by justify_decision"		# not shown to user
+
+	def __init__(self, impl):
+		self.impl = impl
 
 	def meets_restriction(self, impl):
-		return impl.id == self.impl_id
+		return impl.id == self.impl.id
 
 	def __str__(self):
-		return _("implementation '{impl}'").format(impl = self.impl_id)
+		return _("implementation {version} ({impl})").format(version = self.impl.get_version(), impl = self.impl.id)
 
 class Solver(object):
 	"""Chooses a set of implementations to satisfy the requirements of a program and its user.
@@ -142,7 +144,7 @@ class SATSolver(Solver):
 	@ivar langs: the preferred languages (e.g. ["es_ES", "en"]). Initialised to the current locale.
 	@type langs: str"""
 
-	__slots__ = ['_failure_reason', 'config', 'extra_restrictions', '_lang_ranks', '_langs']
+	__slots__ = ['_impls_for_iface', 'config', 'extra_restrictions', '_lang_ranks', '_langs']
 
 	@property
 	def iface_cache(self):
@@ -286,10 +288,10 @@ class SATSolver(Solver):
 		self.feeds_used = set()
 		self.requires = {}
 		self.ready = False
-		self.details = self.record_details and {}
+		self.details = {} if self.record_details or closest_match else False
 
 		self.selections = None
-		self._failure_reason = None
+		self._impls_for_iface = None			# Only set if there is an error
 
 		ifaces_processed = set()
 
@@ -387,6 +389,7 @@ class SATSolver(Solver):
 		def get_unusable_reason(impl, restrictions, arch):
 			"""
 			@param impl: Implementation to test.
+			@param restrictions: user-provided restrictions (extra_restrictions)
 			@type restrictions: [L{model.Restriction}]
 			@return: The reason why this impl is unusable, or None if it's OK.
 			@rtype: str
@@ -394,7 +397,7 @@ class SATSolver(Solver):
 			of the implementation; they may be different when feeds are being used."""
 			for r in restrictions:
 				if not r.meets_restriction(impl):
-					return _("Incompatible with another selected implementation")
+					return r.reason
 			stability = impl.get_stability()
 			if stability <= model.buggy:
 				return stability.name
@@ -494,7 +497,7 @@ class SATSolver(Solver):
 
 			my_extra_restrictions = self.extra_restrictions.get(iface, [])
 
-			if self.record_details:
+			if self.details is not False:
 				self.details[iface] = [(impl, get_unusable_reason(impl, my_extra_restrictions, arch)) for impl in impls]
 
 			impl_to_var = iface_to_vars[iface]		# Impl -> sat var
@@ -582,7 +585,7 @@ class SATSolver(Solver):
 				process_dependencies(command_var, command, arch)
 
 			# Tell the user why we couldn't use this version
-			if self.record_details:
+			if self.details is not False:
 				def new_reason(impl, old_reason):
 					if command_name in impl.commands:
 						return old_reason
@@ -610,18 +613,6 @@ class SATSolver(Solver):
 			else:
 				# (note: might be because we haven't cached it yet)
 				logger.info("No %s <command> in %s", command_name, root_interface)
-
-				impls = impls_for_iface[iface_cache.get_interface(root_interface)]
-				if impls == [] or (len(impls) == 1 and isinstance(impls[0], _DummyImpl)):
-					# There were no candidates at all.
-					if self.config.network_use == model.network_offline:
-						self._failure_reason = _("Interface '%s' has no usable implementations in the cache (and 0install is in off-line mode)") % root_interface
-					else:
-						self._failure_reason = _("Interface '%s' has no usable implementations") % root_interface
-				else:
-					# We had some candidates implementations, but none for the command we need
-					self._failure_reason = _("Interface '%s' cannot be executed directly; it is just a library "
-						    "to be used by other programs (or missing '%s' command)") % (root_interface, command_name)
 
 				problem.impossible()
 
@@ -737,6 +728,9 @@ class SATSolver(Solver):
 			self.selections = selections.Selections(None)
 			self.selections.interface = root_interface
 
+			if not self.ready:
+				self._impls_for_iface = impls_for_iface	# Useful for get_failure_reason()
+
 			sels = self.selections.selections
 
 			commands_needed = []
@@ -793,14 +787,19 @@ class SATSolver(Solver):
 				self.selections.command = command_name
 				add_command(root_interface, command_name)
 
+			if root_interface not in sels:
+				sels[root_interface] = None		# Useful for get_failure_reason()
+
 	def get_failure_reason(self):
 		"""Return an exception explaining why the solve failed."""
 		assert not self.ready
 
-		if self._failure_reason:
-			return model.SafeException(self._failure_reason)
-
 		sels = self.selections.selections
+
+		iface_cache = self.config.iface_cache
+
+		impls_for_iface = self._impls_for_iface
+		assert impls_for_iface
 
 		def show(iface_uri):
 			# Find all restrictions that are in play and affect this interface
@@ -810,6 +809,20 @@ class SATSolver(Solver):
 			else:
 				msg = "(problem)"
 
+			iface = iface_cache.get_interface(iface_uri)
+		
+			impls = impls_for_iface[iface_cache.get_interface(iface_uri)]
+			impls = [i for i in impls if not isinstance(i, _DummyImpl)]
+
+			def apply_restrictions(impls, restrictions):
+				for r in restrictions:
+					impls = [i for i in impls if r.meets_restriction(i)]
+				return impls
+
+			# orig_impls is all the implementations passed to the SAT solver (these are the
+			# ones with a compatible OS, CPU, etc). They are sorted most desirable first.
+			orig_impls = impls
+
 			# For each selected implementation...
 			for other_uri, other_sel in sels.items():
 				if not other_sel: continue
@@ -817,22 +830,54 @@ class SATSolver(Solver):
 					if not isinstance(dep, model.InterfaceRestriction): continue
 					# If it depends on us and has restrictions...
 					if dep.interface == iface_uri and dep.restrictions:
+						# Report the restriction
 						msg += "\n    " + _("{iface} {version} requires {reqs}").format(
 								iface = other_uri,
 								version = other_sel.version,
 								reqs = ', '.join(str(r) for r in dep.restrictions))
 
+						# Remove implementations incompatible with the other selections
+						impls = apply_restrictions(impls, dep.restrictions)
+
 			# Check for user-supplied restrictions
-			iface = self.config.iface_cache.get_interface(iface_uri)
 			user = self.extra_restrictions.get(iface, [])
 			if user:
 				msg += "\n    " + _("User requested {reqs}").format(
 								reqs = ', '.join(str(r) for r in user))
+				impls = apply_restrictions(impls, user)
+
+			# Report on available implementations
+			all_impls = self.details.get(iface, {})
+			if not orig_impls:
+				if not all_impls:
+					msg += "\n    " + _("No known implementations at all")
+				else:
+					# No implementations were passed to the solver.
+					msg += "\n    " + _("No usable implementations:")
+					for i, reason in all_impls[:5]:
+						msg += "\n      {impl}: {reason}".format(impl = i, reason = reason)
+			elif not impls:
+				msg += "\n    " + _("No usable implementations satisfy the restrictions")
+			else:
+				# Might still be unusable e.g. if missing a required command. Show reasons, if any.
+				shown = 0
+				for i, reason in all_impls:
+					if reason and reason is not _ForceImpl.reason:
+						if shown == 0:
+							msg += "\n    " + _("Problems:")
+						msg += "\n      {impl}: {reason}".format(impl = i, reason = reason)
+						shown += 1
+						if shown >= 5: break
 
 			return msg
 
-		return model.SafeException(_("Can't find all required implementations:") + '\n' +
-				'\n'.join(["- %s -> %s" % (iface, show(iface)) for iface in sels]))
+		msg = _("Can't find all required implementations:") + '\n' + \
+				'\n'.join(["- %s -> %s" % (iface, show(iface)) for iface in sels])
+
+		if self.config.network_use == model.network_offline:
+			msg += "\nNote: 0install is in off-line mode"
+
+		return model.SafeException(msg)
 
 	def justify_decision(self, requirements, iface, impl):
 		"""Run a solve with impl_id forced to be selected, and explain why it wasn't (or was)
@@ -840,7 +885,7 @@ class SATSolver(Solver):
 		assert isinstance(iface, model.Interface), iface
 
 		restrictions = self.extra_restrictions.copy()
-		restrictions[iface] = restrictions.get(iface, []) + [_ForceImpl(impl.id)]
+		restrictions[iface] = restrictions.get(iface, []) + [_ForceImpl(impl)]
 		s = SATSolver(self.config, restrictions)
 		s.record_details = True
 		s.solve_for(requirements)

@@ -108,7 +108,7 @@ class TestDriver(BaseTest):
 			download_and_execute(driver, ['Hello'])
 			assert 0
 		except model.SafeException as ex:
-			assert "library" in str(ex), ex
+			assert "No run command" in str(ex), ex
 		tmp.close()
 
 	def testNeedDL(self):
@@ -306,7 +306,7 @@ class TestDriver(BaseTest):
 			download_and_execute(driver, [])
 			assert False
 		except model.SafeException as ex:
-			assert "has no usable implementations" in str(ex), ex
+			assert "No usable implementations" in str(ex), ex
 
 	def testNoArchives(self):
 		self.cache_iface(foo_iface_uri,

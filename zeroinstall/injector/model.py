@@ -204,6 +204,8 @@ class Restriction(object):
 	"""A Restriction limits the allowed implementations of an Interface."""
 	__slots__ = []
 
+	reason = _("Incompatible with user-specified requirements")
+
 	def meets_restriction(self, impl):
 		"""Called by the L{solver.Solver} to check whether a particular implementation is acceptable.
 		@return: False if this implementation is not a possibility

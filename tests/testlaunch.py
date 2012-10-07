@@ -134,7 +134,10 @@ class TestLaunch(BaseTest):
 
 	def testOffline(self):
 		out, err = self.run_0launch(['--offline', 'http://foo/d'])
-		self.assertEqual("Interface 'http://foo/d' has no usable implementations in the cache (and 0install is in off-line mode)\n", err)
+		self.assertEqual("Can't find all required implementations:\n"
+				 "- http://foo/d -> (problem)\n"
+				 "    No known implementations at all\n"
+				 "Note: 0install is in off-line mode\n", err)
 		self.assertEqual("", out)
 
 	def testDisplay(self):

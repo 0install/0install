@@ -236,8 +236,15 @@ class BaseTest(unittest.TestCase):
 
 		os.environ['PATH'] = self.old_path
 
-	def import_feed(self, url, path):
+	def import_feed(self, url, contents):
+		"""contents can be a path or an Element."""
 		iface_cache = self.config.iface_cache
 		iface_cache.get_interface(url)
-		feed = iface_cache._feeds[url] = reader.load_feed(path)
+
+		if isinstance(contents, qdom.Element):
+			feed = model.ZeroInstallFeed(contents)
+		else:
+			feed = reader.load_feed(contents)
+
+		iface_cache._feeds[url] = feed
 		return feed

@@ -188,7 +188,7 @@ class TestDownload(BaseTest):
 				download_and_execute(driver, ['Hello'])
 				assert 0
 			except model.SafeException as ex:
-				if "has no usable implementations" not in str(ex):
+				if "No known implementations at all" not in str(ex):
 					raise ex
 
 				ex = self.config.handler.ex
@@ -206,7 +206,7 @@ class TestDownload(BaseTest):
 				download_and_execute(driver, ['Hello'])
 				assert 0
 			except model.SafeException as ex:
-				if "has no usable implementations" not in str(ex):
+				if "No known implementations at all" not in str(ex):
 					raise ex
 				if "Not signed with a trusted key" not in str(self.config.handler.ex):
 					raise

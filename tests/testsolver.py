@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-from basetest import BaseTest
+from basetest import BaseTest, BytesIO
 import sys, os, locale
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import solver, arch, model
+from zeroinstall.injector import solver, arch, model, qdom
 from zeroinstall.injector.requirements import Requirements
 
 import logging
@@ -29,7 +29,7 @@ class TestSolver(BaseTest):
 		binary_arch = arch.Architecture({None: 1}, {None: 1})
 		assert str(binary_arch).startswith("<Arch")
 		s.solve('http://foo/Binary.xml', binary_arch)
-				
+
 		assert s.ready
 		assert s.feeds_used == set([foo.uri]), s.feeds_used
 		assert s.selections[foo].id == 'sha1=123'
@@ -44,7 +44,7 @@ class TestSolver(BaseTest):
 		assert s.selections[compiler].id == 'sha1=345'	# A binary needed to compile it
 
 		assert not s.details
-	
+
 	def testCommand(self):
 		s = solver.DefaultSolver(self.config)
 		binary_arch = arch.Architecture({None: 1}, {None: 1})
@@ -104,7 +104,13 @@ class TestSolver(BaseTest):
 		justify(foo_binary_uri, foo_src_impls["old"],
 				'Binary 0.1 is ranked lower than 1.0: newer versions are preferred')
 		justify(foo_binary_uri, foo_src_impls["impossible"],
-				'''There is no possible selection using Binary 3.\nCan't find all required implementations:\n- http://foo/Binary.xml -> 3 (impossible)\n    User requested implementation 'impossible'\n- http://foo/Compiler.xml -> (problem)\n    http://foo/Binary.xml 3 requires version < 1.0, 1.0 <= version''')
+				"There is no possible selection using Binary 3.\n"
+				"Can't find all required implementations:\n"
+				"- http://foo/Binary.xml -> 3 (impossible)\n"
+				"    User requested implementation 3 (impossible)\n"
+				"- http://foo/Compiler.xml -> (problem)\n"
+				"    http://foo/Binary.xml 3 requires version < 1.0, 1.0 <= version\n"
+				"    No usable implementations satisfy the restrictions")
 		justify(compiler.uri, compiler_impls["sha1=999"],
 				'''Compiler 5 is selectable, but using it would produce a less optimal solution overall.\n\nThe changes would be:\n\nhttp://foo/Binary.xml: 1.0 to 0.1''')
 
@@ -236,6 +242,78 @@ class TestSolver(BaseTest):
 		s.extra_restrictions[iface] = [model.VersionRestriction(model.parse_version('0.3'))]
 		s.solve_for(r)
 		assert not s.ready
+
+	def testDiagnostics(self):
+		top_uri = 'http://localhost/top.xml'
+		diag_uri = 'http://localhost/diagnostics.xml'
+
+		def test(top_xml, diag_xml, expected_error):
+			root = qdom.parse(BytesIO("""<?xml version="1.0" ?>
+			<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface" uri="{top}">
+			  <name>Top-level</name>
+			  <summary>Top-level</summary>
+			  <group>
+			    {top_xml}
+			  </group>
+			</interface>""".format(top = top_uri, top_xml = top_xml).encode("utf-8")))
+			self.import_feed(top_uri, root)
+
+			root = qdom.parse(BytesIO("""<?xml version="1.0" ?>
+			<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface" uri="{diag}">
+			  <name>Diagnostics</name>
+			  <summary>Diagnostics</summary>
+			  <group>
+			    {impls}
+			  </group>
+			</interface>""".format(diag = diag_uri, impls = diag_xml).encode("utf-8")))
+			self.import_feed(diag_uri, root)
+
+			r = Requirements(top_uri)
+			s = solver.DefaultSolver(self.config)
+			s.solve_for(r)
+			assert not s.ready
+
+			self.assertEqual(expected_error, str(s.get_failure_reason()))
+
+		s = test("", "",
+			"Can't find all required implementations:\n" +
+			"- http://localhost/top.xml -> (problem)\n" +
+			"    No known implementations at all")
+
+		s = test("<implementation version='1' id='1'><requires interface='{diag}'/></implementation>".format(diag = diag_uri),
+			 "",
+			 "Can't find all required implementations:\n" +
+			 "- http://localhost/top.xml -> (problem)\n" +
+			 "    No usable implementations:\n" +
+			 "      1: No retrieval methods")
+
+		s = test("""<implementation version='1' id='1'>
+				<archive href='http://localhost:3000/foo.tgz' size='100'/>
+				<requires interface='{diag}'>
+				  <version not-before='100'/>
+				</requires>
+			     </implementation>""".format(diag = diag_uri),
+			 "",
+			 "Can't find all required implementations:\n" +
+			 "- http://localhost/top.xml -> (problem)\n" +
+			 "    Problems:\n" +
+			 "      1: No run command")
+
+		s = test("""<implementation version='1' id='1' main='foo'>
+				<archive href='http://localhost:3000/foo.tgz' size='100'/>
+				<requires interface='{diag}'>
+				  <version not-before='100'/>
+				</requires>
+			     </implementation>""".format(diag = diag_uri),
+			 """<implementation version='5' id='diag-5'>
+				<archive href='http://localhost:3000/diag.tgz' size='100'/>
+			     </implementation>
+			 """,
+			 "Can't find all required implementations:\n" +
+			 "- http://localhost/top.xml -> 1 (1)\n" +
+			 "- http://localhost/diagnostics.xml -> (problem)\n" +
+			 "    http://localhost/top.xml 1 requires 100 <= version\n" +
+			 "    No usable implementations satisfy the restrictions")
 
 	def testLangs(self):
 		iface_cache = self.config.iface_cache
