@@ -269,9 +269,11 @@ class TestSolver(BaseTest):
 			self.import_feed(diag_uri, root)
 
 			r = Requirements(top_uri)
+			r.os = "Windows"
+			r.cpu = "x86_64"
 			s = solver.DefaultSolver(self.config)
 			s.solve_for(r)
-			assert not s.ready
+			assert not s.ready, s.selections.selections
 
 			self.assertEqual(expected_error, str(s.get_failure_reason()))
 
@@ -314,6 +316,24 @@ class TestSolver(BaseTest):
 			 "- http://localhost/diagnostics.xml -> (problem)\n" +
 			 "    http://localhost/top.xml 1 requires 100 <= version\n" +
 			 "    No usable implementations satisfy the restrictions")
+
+		s = test("""<group>
+			      <requires interface='{diag}'/>
+			      <implementation version='1' id='1' main='foo' arch='Windows-i486'>
+				<archive href='http://localhost:3000/foo.tgz' size='100'/>
+			     </implementation>
+			   </group>""".format(diag = diag_uri),
+			 """<group>
+			      <implementation version='5' id='diag-5' arch='Windows-x86_64'>
+				<archive href='http://localhost:3000/diag.tgz' size='100'/>
+			     </implementation>
+			   </group>
+			 """,
+			 "Can't find all required implementations:\n" +
+			 "- http://localhost/top.xml -> 1 (1)\n" +
+			 "- http://localhost/diagnostics.xml -> (problem)\n" +
+			 "    Problems:\n" +
+			 "      diag-5: Can't use x86_64 with selection of Top-level (i486)")
 
 	def testLangs(self):
 		iface_cache = self.config.iface_cache

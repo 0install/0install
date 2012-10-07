@@ -823,9 +823,22 @@ class SATSolver(Solver):
 			# ones with a compatible OS, CPU, etc). They are sorted most desirable first.
 			orig_impls = impls
 
+			def get_machine_group(impl):
+				machine = impl.machine
+				if machine and machine != 'src':
+					return arch.machine_groups.get(machine, 0)
+				return None
+
+			example_machine_impl = None		# An example chosen impl with a machine type
+
 			# For each selected implementation...
 			for other_uri, other_sel in sels.items():
 				if not other_sel: continue
+
+				if example_machine_impl is None:
+					example_machine_impl = other_sel.impl
+					required_machine_group = get_machine_group(example_machine_impl)
+
 				for dep in other_sel.impl.requires:
 					if not isinstance(dep, model.InterfaceRestriction): continue
 					# If it depends on us and has restrictions...
@@ -863,6 +876,14 @@ class SATSolver(Solver):
 					# Might still be unusable e.g. if missing a required command. Show reasons, if any.
 					shown = 0
 					for i, reason in all_impls:
+						if reason is None and example_machine_impl:
+							# Could be an architecture problem
+							this_machine_group = get_machine_group(i)
+							if this_machine_group is not None and this_machine_group != required_machine_group:
+								reason = _("Can't use {this_arch} with selection of {other_name} ({other_arch})").format(
+										this_arch = i.machine,
+										other_name = example_machine_impl.feed.get_name(),
+										other_arch = example_machine_impl.machine)
 						if reason and reason is not _ForceImpl.reason:
 							if shown == 0:
 								msg += "\n    " + _("Problems:")
