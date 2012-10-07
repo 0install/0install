@@ -846,28 +846,29 @@ class SATSolver(Solver):
 								reqs = ', '.join(str(r) for r in user))
 				impls = apply_restrictions(impls, user)
 
-			# Report on available implementations
-			all_impls = self.details.get(iface, {})
-			if not orig_impls:
-				if not all_impls:
-					msg += "\n    " + _("No known implementations at all")
+			if sel is None:
+				# Report on available implementations
+				all_impls = self.details.get(iface, {})
+				if not orig_impls:
+					if not all_impls:
+						msg += "\n    " + _("No known implementations at all")
+					else:
+						# No implementations were passed to the solver.
+						msg += "\n    " + _("No usable implementations:")
+						for i, reason in all_impls[:5]:
+							msg += "\n      {impl}: {reason}".format(impl = i, reason = reason)
+				elif not impls:
+					msg += "\n    " + _("No usable implementations satisfy the restrictions")
 				else:
-					# No implementations were passed to the solver.
-					msg += "\n    " + _("No usable implementations:")
-					for i, reason in all_impls[:5]:
-						msg += "\n      {impl}: {reason}".format(impl = i, reason = reason)
-			elif not impls:
-				msg += "\n    " + _("No usable implementations satisfy the restrictions")
-			else:
-				# Might still be unusable e.g. if missing a required command. Show reasons, if any.
-				shown = 0
-				for i, reason in all_impls:
-					if reason and reason is not _ForceImpl.reason:
-						if shown == 0:
-							msg += "\n    " + _("Problems:")
-						msg += "\n      {impl}: {reason}".format(impl = i, reason = reason)
-						shown += 1
-						if shown >= 5: break
+					# Might still be unusable e.g. if missing a required command. Show reasons, if any.
+					shown = 0
+					for i, reason in all_impls:
+						if reason and reason is not _ForceImpl.reason:
+							if shown == 0:
+								msg += "\n    " + _("Problems:")
+							msg += "\n      {impl}: {reason}".format(impl = i, reason = reason)
+							shown += 1
+							if shown >= 5: break
 
 			return msg
 
