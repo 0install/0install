@@ -63,8 +63,17 @@ class Element(object):
 
 class QSAXhandler:
 	"""SAXHandler that builds a tree of L{Element}s"""
-	def __init__(self):
+	filter_range = lambda x: True
+
+	def __init__(self, filter_for_version = False):
+		"""@param filter_for_version: skip elements if their
+		if-0install-version attribute doesn't match L{zeroinstall.version} (since 1.13)."""
 		self.stack = []
+		if filter_for_version:
+			import zeroinstall
+			from zeroinstall.injector import model
+			_parsed_version = model.parse_version(zeroinstall.version)
+			self.filter_range = lambda r: model.parse_version_range(r)(_parsed_version)
 	
 	def startElementNS(self, fullname, attrs):
 		split = fullname.split(' ', 1)
@@ -83,17 +92,23 @@ class QSAXhandler:
 		self.contents = ''
 		new = self.stack.pop()
 		if self.stack:
+			target_versions = new.attrs.get('if-0install-version')
+			if target_versions and not self.filter_range(target_versions):
+				return
+
 			self.stack[-1].childNodes.append(new)
 		else:
 			self.doc = new
 
-def parse(source):
+def parse(source, filter_for_version = False):
 	"""Parse an XML stream into a tree of L{Element}s.
 	@param source: data to parse
 	@type source: file
+	@param filter_for_version: skip elements if their
+	if-0install-version attribute doesn't match L{zeroinstall.version} (since 1.13).
 	@return: the root
 	@rtype: L{Element}"""
-	handler = QSAXhandler()
+	handler = QSAXhandler(filter_for_version)
 	parser = expat.ParserCreate(namespace_separator = ' ')
 
 	parser.StartElementHandler = handler.startElementNS

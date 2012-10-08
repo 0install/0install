@@ -273,7 +273,13 @@ class VersionRangeRestriction(Restriction):
 			range = 'none'
 		return range
 
-def _parse_version_range(r):
+def parse_version_range(r):
+	"""Parse a range expression.
+	@param r: the range expression
+	@type r: str
+	@return: a function which returns whether a parsed version is in the range
+	@type: parsed_version -> bool
+	@since: 1.13"""
 	parts = r.split('..', 1)
 	if len(parts) == 1:
 		if r.startswith('!'):
@@ -312,7 +318,7 @@ class VersionExpressionRestriction(Restriction):
 		@param expr: the expression, in the form "2.6..!3 | 3.2.2.."
 		@type expr: str"""
 		self.expr = expr
-		self.parsed = [_parse_version_range(r.strip()) for r in expr.split('|')]
+		self.parsed = [parse_version_range(r.strip()) for r in expr.split('|')]
 
 	def meets_restriction(self, impl):
 		v = impl.version

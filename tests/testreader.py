@@ -187,6 +187,8 @@ class TestReader(BaseTest):
   <summary>Foo</summary>
   <description>Foo</description>
   <implementation id='sha1=123' version='1.0-rc3' version-modifier='-pre'/>
+  <implementation id='skipped' if-0install-version='..!1'/>
+  <implementation id='used' version='2' if-0install-version='1..'/>
 </interface>""" % foo_iface_uri)
 		tmp.flush()
 		iface = model.Interface(foo_iface_uri)
@@ -194,7 +196,9 @@ class TestReader(BaseTest):
 		feed = self.config.iface_cache.get_feed(foo_iface_uri)
 		impl = feed.implementations['sha1=123']
 		assert impl.version == [[1, 0], -1, [3], -2]
-	
+		assert len(feed.implementations) == 2
+		assert feed.implementations['used'].get_version() == '2'
+
 	def testAttrs(self):
 		iface_cache = self.config.iface_cache
 		tmp = tempfile.NamedTemporaryFile(mode = 'wt', prefix = 'test-')

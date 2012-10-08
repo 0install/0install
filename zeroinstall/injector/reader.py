@@ -244,7 +244,7 @@ def load_feed(source, local = False, selections_ok = False):
 	@see: L{iface_cache.iface_cache}, which uses this to load the feeds"""
 	try:
 		with open(source, 'rb') as stream:
-			root = qdom.parse(stream)
+			root = qdom.parse(stream, filter_for_version = True)
 	except IOError as ex:
 		if ex.errno == errno.ENOENT and local:
 			raise MissingLocalFeed(_("Feed not found. Perhaps this is a local feed that no longer exists? You can remove it from the list of feeds in that case."))
