@@ -870,6 +870,8 @@ class SATSolver(Solver):
 						msg += "\n    " + _("No usable implementations:")
 						for i, reason in all_impls[:5]:
 							msg += "\n      {impl}: {reason}".format(impl = i, reason = reason)
+						if len(all_impls) > 5:
+							msg += "\n      ..."
 				elif not impls:
 					msg += "\n    " + _("No usable implementations satisfy the restrictions")
 				else:
@@ -897,11 +899,13 @@ class SATSolver(Solver):
 							reason = "(BUG) reason for rejection unknown"
 
 						if reason is not _ForceImpl.reason:
+							if shown >= 5:
+								msg += "\n      ..."
+								break
 							if shown == 0:
 								msg += "\n    " + _("Rejected candidates:")
 							msg += "\n      {impl}: {reason}".format(impl = i, reason = reason)
 							shown += 1
-							if shown >= 5: break
 
 			return msg
 

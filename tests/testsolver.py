@@ -368,6 +368,32 @@ class TestSolver(BaseTest):
 			 "      diag-5: Can't use x86_64 with selection of Top-level (i486)")
 
 		s = test("""<group>
+			      <requires interface='{diag}'/>
+			      <implementation version='1' id='1' main='foo'>
+				<archive href='http://localhost:3000/foo.tgz' size='100'/>
+			     </implementation>
+			   </group>""".format(diag = diag_uri),
+			 """<group>
+			      <implementation version='1' id='diag-1'/>
+			      <implementation version='2' id='diag-2'/>
+			      <implementation version='3' id='diag-3'/>
+			      <implementation version='4' id='diag-4'/>
+			      <implementation version='5' id='diag-5'/>
+			      <implementation version='6' id='diag-6'/>
+			   </group>
+			 """,
+			 "Can't find all required implementations:\n"
+			 "- http://localhost/top.xml -> 1 (1)\n"
+			 "- http://localhost/diagnostics.xml -> (problem)\n"
+			 "    No usable implementations:\n"
+			 "      diag-6: No retrieval methods\n"
+			 "      diag-5: No retrieval methods\n"
+			 "      diag-4: No retrieval methods\n"
+			 "      diag-3: No retrieval methods\n"
+			 "      diag-2: No retrieval methods\n"
+			 "      ...")
+
+		s = test("""<group>
 			      <requires interface='{diag}'>
 			        <version before='6'/>
 			      </requires>
@@ -379,17 +405,26 @@ class TestSolver(BaseTest):
 			      <implementation version='5' id='diag-5' arch='Windows-x86_64'>
 				<archive href='http://localhost:3000/diag.tgz' size='100'/>
 			     </implementation>
-			      <implementation version='6' id='diag-6' arch='Windows-i486'>
+			     <implementation version='6' id='diag-6' arch='Windows-i486'>
 				<archive href='http://localhost:3000/diag.tgz' size='100'/>
 			     </implementation>
+			     {others}
 			   </group>
-			 """,
-			 "Can't find all required implementations:\n" +
-			 "- http://localhost/top.xml -> 1 (1)\n" +
-			 "- http://localhost/diagnostics.xml -> (problem)\n" +
-			 "    http://localhost/top.xml 1 requires version < 6\n" +
-			 "    Rejected candidates:\n" +
-			 "      diag-5: Can't use x86_64 with selection of Top-level (i486)")
+			 """.format(others = "\n".join(
+			  """<implementation version='{i}' id='diag-{i}' arch='Windows-x86_64'>
+				<archive href='http://localhost:3000/diag.tgz' size='100'/>
+			     </implementation>""".format(i = i) for i in range(0, 5))),
+			 "Can't find all required implementations:\n"
+			 "- http://localhost/top.xml -> 1 (1)\n"
+			 "- http://localhost/diagnostics.xml -> (problem)\n"
+			 "    http://localhost/top.xml 1 requires version < 6\n"
+			 "    Rejected candidates:\n"
+			 "      diag-5: Can't use x86_64 with selection of Top-level (i486)\n"
+			 "      diag-4: Can't use x86_64 with selection of Top-level (i486)\n"
+			 "      diag-3: Can't use x86_64 with selection of Top-level (i486)\n"
+			 "      diag-2: Can't use x86_64 with selection of Top-level (i486)\n"
+			 "      diag-1: Can't use x86_64 with selection of Top-level (i486)\n"
+			 "      ...")
 
 		iface = self.config.iface_cache.get_interface(diag_uri)
 		impl = self.config.iface_cache.get_feed(diag_uri).implementations['diag-5']
