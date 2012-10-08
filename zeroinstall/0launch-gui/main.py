@@ -89,7 +89,7 @@ def run_gui(args):
 				pygtkcompat.enable()
 				pygtkcompat.enable_gtk(version = '3.0')
 			import gtk
-		except (ImportError, ValueError) as ex:
+		except (ImportError, ValueError, RuntimeError) as ex:
 			nogui(ex)
 
 		if gtk.gdk.get_display() is None:
