@@ -305,6 +305,36 @@ class TestSolver(BaseTest):
 
 		s = test("""<implementation version='1' id='1' main='foo'>
 				<archive href='http://localhost:3000/foo.tgz' size='100'/>
+				<requires interface='{diag}' version='100..!200'/>
+			     </implementation>""".format(diag = diag_uri),
+			 """<implementation version='5' id='diag-5'>
+				<archive href='http://localhost:3000/diag.tgz' size='100'/>
+			     </implementation>
+			 """,
+			 "Can't find all required implementations:\n" +
+			 "- http://localhost/top.xml -> 1 (1)\n" +
+			 "- http://localhost/diagnostics.xml -> (problem)\n" +
+			 "    http://localhost/top.xml 1 requires version 100..!200\n" +
+			 "    No usable implementations satisfy the restrictions")
+
+		logger.setLevel(logging.ERROR)
+		s = test("""<implementation version='1' id='1' main='foo'>
+				<archive href='http://localhost:3000/foo.tgz' size='100'/>
+				<requires interface='{diag}' version='100..200'/>
+			     </implementation>""".format(diag = diag_uri),
+			 """<implementation version='5' id='diag-5'>
+				<archive href='http://localhost:3000/diag.tgz' size='100'/>
+			     </implementation>
+			 """,
+			 "Can't find all required implementations:\n" +
+			 "- http://localhost/top.xml -> 1 (1)\n" +
+			 "- http://localhost/diagnostics.xml -> (problem)\n" +
+			 "    http://localhost/top.xml 1 requires <impossible: Can't parse version restriction '100..200': End of range must be exclusive (use '..!200', not '..200')>\n" +
+			 "    No usable implementations satisfy the restrictions")
+		logger.setLevel(logging.WARNING)
+
+		s = test("""<implementation version='1' id='1' main='foo'>
+				<archive href='http://localhost:3000/foo.tgz' size='100'/>
 				<requires interface='{diag}'>
 				  <version not-before='100'/>
 				</requires>

@@ -361,5 +361,42 @@ class TestModel(BaseTest):
 
 		assert pv('2-post999') < pv('3-pre1')
 
+	def testRanges(self):
+		r = model.VersionExpressionRestriction('2.6..!3 | 3.2.2.. | 1 | ..!0.2')
+
+		def test(v, result):
+			class DummyImpl:
+				version = model.parse_version(v)
+			self.assertEqual(result, r.meets_restriction(DummyImpl()))
+
+		test('0.1', True)
+		test('0.2', False)
+		test('0.3', False)
+		test('1', True)
+		test('2.5', False)
+		test('2.6', True)
+		test('2.7', True)
+		test('3-pre', True)
+		test('3', False)
+		test('3.1', False)
+		test('3.2.1', False)
+		test('3.2.2', True)
+		test('3.3', True)
+
+		r = model.VersionExpressionRestriction('!7')
+		test('1', True)
+		test('7', False)
+		test('8', True)
+
+		def fail(expr, msg):
+			try:
+				model.VersionExpressionRestriction(expr)
+				assert 0
+			except model.SafeException as ex:
+				self.assertEqual(msg, str(ex))
+
+		fail('1..2', "End of range must be exclusive (use '..!2', not '..2')")
+		fail('.2', "Invalid version format in '.2': invalid literal for int() with base 10: ''")
+
 if __name__ == '__main__':
 	unittest.main()

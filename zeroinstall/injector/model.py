@@ -136,7 +136,7 @@ def process_binding(e):
 			'append': EnvironmentBinding.APPEND,
 			'replace': EnvironmentBinding.REPLACE,
 		}[e.getAttribute('mode')]
-			
+
 		binding = EnvironmentBinding(e.getAttribute('name'),
 					     insert = e.getAttribute('insert'),
 					     default = e.getAttribute('default'),
@@ -178,6 +178,16 @@ def process_depends(item, local_feed_dir):
 	else:
 		dependency = InterfaceDependency(dep_iface, element = item)
 
+	version = item.getAttribute('version')
+	if version:
+		try:
+			r = VersionExpressionRestriction(version)
+		except SafeException as ex:
+			msg = "Can't parse version restriction '{version}': {error}".format(version = version, error = ex)
+			logger.warn(msg)
+			r = ImpossibleRestriction(msg)
+		dependency.restrictions.append(r)
+
 	for e in item.childNodes:
 		if e.uri != XMLNS_IFACE: continue
 		if e.name in binding_names:
@@ -215,7 +225,7 @@ class Restriction(object):
 
 	def __repr__(self):
 		return "<restriction: %s>" % self
-	
+
 class VersionRestriction(Restriction):
 	"""Only select implementations with a particular version number.
 	@since: 0.40"""
@@ -243,14 +253,14 @@ class VersionRangeRestriction(Restriction):
 		"""
 		self.before = before
 		self.not_before = not_before
-	
+
 	def meets_restriction(self, impl):
 		if self.not_before and impl.version < self.not_before:
 			return False
 		if self.before and impl.version >= self.before:
 			return False
 		return True
-	
+
 	def __str__(self):
 		if self.not_before is not None or self.before is not None:
 			range = ''
@@ -262,6 +272,68 @@ class VersionRangeRestriction(Restriction):
 		else:
 			range = 'none'
 		return range
+
+def _parse_version_range(r):
+	parts = r.split('..', 1)
+	if len(parts) == 1:
+		if r.startswith('!'):
+			v = parse_version(r[1:])
+			return lambda x: x != v
+		else:
+			v = parse_version(r)
+			return lambda x: x == v
+
+	start, end = parts
+	if start:
+		start = parse_version(start)
+	else:
+		start = None
+	if end:
+		if not end.startswith('!'):
+			raise SafeException("End of range must be exclusive (use '..!{end}', not '..{end}')".format(end = end))
+		end = parse_version(end[1:])
+	else:
+		end = None
+
+	def test(v):
+		if start is not None and v < start: return False
+		if end is not None and v >= end: return False
+		return True
+
+	return test
+
+class VersionExpressionRestriction(Restriction):
+	"""Only versions for which the expression is true are acceptable.
+	@since 1.13"""
+	__slots__ = ['expr', 'parsed']
+
+	def __init__(self, expr):
+		"""Constructor.
+		@param expr: the expression, in the form "2.6..!3 | 3.2.2.."
+		@type expr: str"""
+		self.expr = expr
+		self.parsed = [_parse_version_range(r.strip()) for r in expr.split('|')]
+
+	def meets_restriction(self, impl):
+		v = impl.version
+		return any(test(v) for test in self.parsed)
+
+	def __str__(self):
+		return "version " + self.expr
+
+class ImpossibleRestriction(Restriction):
+	"""A restriction that can never be met.
+	This is used when we can't understand some other restriction.
+	@since: 1.13"""
+
+	def __init__(self, reason):
+		self.reason = reason
+
+	def meets_restriction(self, impl):
+		return False
+
+	def __str__(self):
+		return "<impossible: %s>" % self.reason
 
 class Binding(object):
 	"""Information about how the choice of a Dependency is made known
@@ -296,13 +368,13 @@ class EnvironmentBinding(Binding):
 		else:
 			self.separator = separator
 
-	
+
 	def __str__(self):
 		return _("<environ %(name)s %(mode)s %(insert)s %(value)s>") % \
 			{'name': self.name, 'mode': self.mode, 'insert': self.insert, 'value': self.value}
 
 	__repr__ = __str__
-	
+
 	def get_value(self, path, old_value):
 		"""Calculate the new value of the environment variable after applying this binding.
 		@param path: the path to the selected implementation
@@ -411,7 +483,7 @@ class Feed(object):
 		self.os, self.machine = _split_arch(arch)
 		self.langs = langs
 		self.site_package = site_package
-	
+
 	def __str__(self):
 		return "<Feed from %s>" % self.uri
 	__repr__ = __str__
@@ -545,7 +617,7 @@ class Recipe(RetrievalMethod):
 
 	def __init__(self):
 		self.steps = []
-	
+
 	size = property(lambda self: sum([x.size for x in self.steps if isinstance(x, DownloadSource)]))
 
 class DistributionSource(RetrievalMethod):
@@ -678,7 +750,7 @@ class Implementation(object):
 
 	def get_stability(self):
 		return self.user_stability or self.upstream_stability or testing
-	
+
 	def __str__(self):
 		return self.id
 
@@ -861,14 +933,14 @@ class Interface(object):
 		if feed:
 			return feed.get_name()
 		return '(' + os.path.basename(self.uri) + ')'
-	
+
 	def __repr__(self):
 		return _("<Interface %s>") % self.uri
-	
+
 	def set_stability_policy(self, new):
 		assert new is None or isinstance(new, Stability)
 		self.stability_policy = new
-	
+
 	def get_feed(self, url):
 		#import warnings
 		#warnings.warn("use iface_cache.get_feed instead", DeprecationWarning, 2)
@@ -877,7 +949,7 @@ class Interface(object):
 				return x
 		#return self._main_feed.get_feed(url)
 		return None
-	
+
 	def get_metadata(self, uri, name):
 		return self._main_feed.get_metadata(uri, name)
 
@@ -1188,7 +1260,7 @@ class ZeroInstallFeed(object):
 			logger.info("Note: @main on document element is deprecated in %s", self)
 			root_commands['run'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': main, 'name': 'run'}), None)
 		process_group(feed_element, root_attrs, [], [], root_commands)
-	
+
 	def get_distro_feed(self):
 		"""Does this feed contain any <pacakge-implementation> elements?
 		i.e. is it worth asking the package manager for more information?
@@ -1222,23 +1294,23 @@ class ZeroInstallFeed(object):
 
 	def get_name(self):
 		return self.name or '(' + os.path.basename(self.url) + ')'
-	
+
 	def __repr__(self):
 		return _("<Feed %s>") % self.url
-	
+
 	def set_stability_policy(self, new):
 		assert new is None or isinstance(new, Stability)
 		self.stability_policy = new
-	
+
 	def get_feed(self, url):
 		for x in self.feeds:
 			if x.uri == url:
 				return x
 		return None
-	
+
 	def add_metadata(self, elem):
 		self.metadata.append(elem)
-	
+
 	def get_metadata(self, uri, name):
 		"""Return a list of interface metadata elements with this name and namespace URI."""
 		return [m for m in self.metadata if m.name == name and m.uri == uri]
