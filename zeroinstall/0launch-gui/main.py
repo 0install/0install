@@ -40,6 +40,8 @@ def run_gui(args):
 	parser.add_option("", "--systray", help=_("download in the background"), action='store_true')
 	parser.add_option("-v", "--verbose", help=_("more verbose output"), action='count')
 	parser.add_option("-V", "--version", help=_("display version information"), action='store_true')
+	parser.add_option("", "--version-for", help=_("set version constraints for a specific interface"),
+			nargs=2, metavar='URI RANGE', action='append')
 	parser.add_option("", "--with-store", help=_("add an implementation cache"), action='append', metavar='DIR')
 
 	parser.disable_interspersed_args()

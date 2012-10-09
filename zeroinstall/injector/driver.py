@@ -56,10 +56,7 @@ class Driver(object):
 		logger.debug(_("Supported systems: '%s'"), arch.os_ranks)
 		logger.debug(_("Supported processors: '%s'"), arch.machine_ranks)
 
-		if requirements.before or requirements.not_before:
-			self.solver.extra_restrictions[config.iface_cache.get_interface(requirements.interface_uri)] = [
-					model.VersionRangeRestriction(model.parse_version(requirements.before),
-								      model.parse_version(requirements.not_before))]
+		self.solver.extra_restrictions = requirements.get_extra_restrictions(self.config.iface_cache)
 
 	def get_uncached_implementations(self):
 		"""List all chosen implementations which aren't yet available locally.

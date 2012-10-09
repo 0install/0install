@@ -28,6 +28,9 @@ def add_generic_select_options(parser):
 	parser.add_option("", "--os", help=_("target operation system type"), metavar='OS')
 	parser.add_option("-r", "--refresh", help=_("refresh all used interfaces"), action='store_true')
 	parser.add_option("-s", "--source", help=_("select source code"), action='store_true')
+	parser.add_option("", "--version", help=_("specify version contraint (e.g. '3' or '3..')"), metavar='RANGE')
+	parser.add_option("", "--version-for", help=_("set version constraints for a specific interface"),
+			nargs=2, metavar='URI RANGE', action='append')
 
 def add_options(parser):
 	"""Options for 'select' and 'download' (but not 'run')"""

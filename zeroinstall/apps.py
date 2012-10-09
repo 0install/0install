@@ -277,6 +277,17 @@ class App:
 		reqs_file = os.path.join(self.path, 'requirements.json')
 		with open(reqs_file, 'rt') as stream:
 			values = json.load(stream)
+
+		# Update old before/not-before values
+		before = values.pop('before', None)
+		not_before = values.pop('not_before', None)
+		if before or not_before:
+			assert not values.extra_restrictions
+			expr = (not_before or '') + '..'
+			if before:
+				expr += '!' + before
+			values['extra_restrictions'] = {values['interface_uri']: expr}
+
 		for k, v in values.items():
 			setattr(r, k, v)
 		return r
