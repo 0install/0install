@@ -108,8 +108,8 @@ class Requirements(object):
 		"""Create list of L{model.Restriction}s for each interface, based on these requirements."""
 		from zeroinstall.injector import model
 
-		return {iface_cache.get_interface(uri): [model.VersionExpressionRestriction(expr)]
-				for uri, expr in self.extra_restrictions.items()}
+		return dict((iface_cache.get_interface(uri), [model.VersionExpressionRestriction(expr)])
+				for uri, expr in self.extra_restrictions.items())
 
 	def _handle_restrictions(self, options):
 		"""Gets the list of restrictions specified by the user.
@@ -131,7 +131,7 @@ class Requirements(object):
 			else:
 				version = ''		# Reset
 
-		restrictions = {uri: (expr or None) for (uri, expr) in (options.version_for or [])}
+		restrictions = dict((uri, (expr or None)) for (uri, expr) in (options.version_for or []))
 
 		# Convert the --version short-cut to --version-for
 		if version is not None:
