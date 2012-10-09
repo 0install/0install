@@ -397,6 +397,7 @@ class TestModel(BaseTest):
 
 		fail('1..2', "End of range must be exclusive (use '..!2', not '..2')")
 		fail('.2', "Invalid version format in '.2': invalid literal for int() with base 10: ''")
+		fail('0.2-hi', "Invalid version modifier in '0.2-hi': 'hi'")
 
 if __name__ == '__main__':
 	unittest.main()

@@ -9,6 +9,11 @@ This is our light-weight version.
 
 from xml.parsers import expat
 
+import zeroinstall
+from zeroinstall.injector import versions
+
+_parsed_version = versions.parse_version(zeroinstall.version)
+
 class Element(object):
 	"""An XML element.
 	@ivar uri: the element's namespace
@@ -70,10 +75,7 @@ class QSAXhandler:
 		if-0install-version attribute doesn't match L{zeroinstall.version} (since 1.13)."""
 		self.stack = []
 		if filter_for_version:
-			import zeroinstall
-			from zeroinstall.injector import model
-			_parsed_version = model.parse_version(zeroinstall.version)
-			self.filter_range = lambda r: model.parse_version_range(r)(_parsed_version)
+			self.filter_range = lambda r: versions.parse_version_range(r)(_parsed_version)
 	
 	def startElementNS(self, fullname, attrs):
 		split = fullname.split(' ', 1)
