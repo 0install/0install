@@ -34,7 +34,7 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True
 	if use_gui is False:
 		return DontUseGUI
 
-	if 'DISPLAY' not in os.environ:
+	if not os.environ.get('DISPLAY', None):
 		if use_gui is None:
 			return DontUseGUI
 		else:
