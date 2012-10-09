@@ -75,7 +75,7 @@ class QSAXhandler:
 		if-0install-version attribute doesn't match L{zeroinstall.version} (since 1.13)."""
 		self.stack = []
 		if filter_for_version:
-			self.filter_range = lambda r: versions.parse_version_range(r)(_parsed_version)
+			self.filter_range = lambda expr: versions.parse_version_expression(expr)(_parsed_version)
 	
 	def startElementNS(self, fullname, attrs):
 		split = fullname.split(' ', 1)

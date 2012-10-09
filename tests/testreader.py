@@ -187,7 +187,7 @@ class TestReader(BaseTest):
   <summary>Foo</summary>
   <description>Foo</description>
   <implementation id='sha1=123' version='1.0-rc3' version-modifier='-pre'/>
-  <implementation id='skipped' if-0install-version='..!1'/>
+  <implementation id='skipped' if-0install-version='..!1 | 2'/>
   <implementation id='used' version='2' if-0install-version='1..'/>
 </interface>""" % foo_iface_uri)
 		tmp.flush()

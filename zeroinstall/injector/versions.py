@@ -1,4 +1,5 @@
 """Functions for processing version numbers.
+@since: 1.13
 """
 
 # Copyright (C) 2012, Thomas Leonard
@@ -103,3 +104,13 @@ def parse_version_range(r):
 		return True
 
 	return test
+
+def parse_version_expression(expr):
+	"""Parse an expression of the form "RANGE | RANGE | ...".
+	@param expr: the expression to parse
+	@type expr: str
+	@return: a function which tests whether a parsed version is in the range
+	@type: parsed_version -> bool
+	@since: 1.13"""
+	tests = [parse_version_range(r.strip()) for r in expr.split('|')]
+	return lambda v: any(test(v) for test in tests)

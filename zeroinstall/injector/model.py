@@ -277,18 +277,17 @@ class VersionRangeRestriction(Restriction):
 class VersionExpressionRestriction(Restriction):
 	"""Only versions for which the expression is true are acceptable.
 	@since 1.13"""
-	__slots__ = ['expr', 'parsed']
+	__slots__ = ['expr', '_test_fn']
 
 	def __init__(self, expr):
 		"""Constructor.
 		@param expr: the expression, in the form "2.6..!3 | 3.2.2.."
 		@type expr: str"""
 		self.expr = expr
-		self.parsed = [versions.parse_version_range(r.strip()) for r in expr.split('|')]
+		self._test_fn = versions.parse_version_expression(expr)
 
 	def meets_restriction(self, impl):
-		v = impl.version
-		return any(test(v) for test in self.parsed)
+		return self._test_fn(impl.version)
 
 	def __str__(self):
 		return "version " + self.expr
