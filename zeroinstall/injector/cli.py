@@ -63,10 +63,18 @@ def main(command_args, config = None):
 	parser.add_option("", "--show", help=_("show where components are installed"), action='store_true')
 	parser.add_option("-s", "--source", help=_("select source code"), action='store_true')
 	parser.add_option("-v", "--verbose", help=_("more verbose output"), action='count')
-	parser.add_option("-V", "--version", help=_("display version information"), action='store_true')
 	parser.add_option("", "--with-store", help=_("add an implementation cache"), action='append', metavar='DIR')
 	parser.add_option("-w", "--wrapper", help=_("execute program using a debugger, etc"), metavar='COMMAND')
 	parser.disable_interspersed_args()
+
+	# (hack to support double meaning of --version)
+	allow_version_expr = any(not arg.startswith('-') for arg in command_args)
+	if allow_version_expr:
+		parser.add_option("", "--version", help=_("specify version contraint (e.g. '3' or '3..')"), metavar='RANGE')
+		parser.add_option("", "--version-for", help=_("set version constraints for a specific interface"),
+				nargs=2, metavar='URI RANGE', action='append')
+	else:
+		parser.add_option("-V", "--version", help=_("display version information"), action='store_true')
 
 	(options, args) = parser.parse_args(command_args)
 
@@ -99,7 +107,7 @@ def main(command_args, config = None):
 		if options.list:
 			from zeroinstall.cmd import list
 			list.handle(config, options, args)
-		elif options.version:
+		elif options.version and not allow_version_expr:
 			import zeroinstall
 			print("0launch (zero-install) " + zeroinstall.version)
 			print("Copyright (C) 2010 Thomas Leonard")

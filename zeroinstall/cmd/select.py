@@ -161,6 +161,12 @@ def handle(config, options, args):
 		r = app.get_requirements()
 		do_select = r.parse_update_options(options)
 		iface_uri = sels.interface
+
+		if not do_select and r.extra_restrictions:
+			print("User-provided restrictions in force:")
+			for uri, expr in r.extra_restrictions.items():
+				print("  {uri}: {expr}".format(uri = uri, expr = expr))
+			print()
 	else:
 		iface_uri = model.canonical_iface_uri(args[0])
 		do_select = True

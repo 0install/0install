@@ -400,6 +400,41 @@ class TestInstall(BaseTest):
 		assert "No updates found. Continuing with version 0.1." in out, out
 		assert not err, err
 
+		# restrictions
+		path = os.path.dirname(model.canonical_iface_uri(local_feed))
+		out, err = self.run_0install(['update', 'local-app', '--version=10..'])
+		self.assertEqual("Can't find all required implementations:\n"
+				 "- {path}/Local.xml -> (problem)\n"
+				 "    User requested version 10..\n"
+				 "    No usable implementations:\n"
+				 "      sha1=256: Incompatible with user-specified requirements\n".format(path = path), err)
+		assert not out, out
+
+		out, err = self.run_0install(['update', 'local-app', '--version=0.1..'])
+		assert "No updates found. Continuing with version 0.1." in out, out
+		assert not err, err
+
+		out, err = self.run_0install(['select', 'local-app'])
+		assert not err, err
+		self.assertEqual("User-provided restrictions in force:\n"
+				 "  {path}/Local.xml: 0.1..\n"
+				 "\n"
+				 "- URI: {path}/Local.xml\n"
+				 "  Version: 0.1\n"
+				 "  Path: {path}\n".format(path = path), out)
+
+		# remove restrictions
+		out, err = self.run_0install(['update', 'local-app', '--version-for', path + '/Local.xml', ''])
+		assert "No updates found. Continuing with version 0.1." in out, out
+		assert not err, err
+
+		out, err = self.run_0install(['select', 'local-app'])
+		assert not err, err
+		self.assertEqual("- URI: {path}/Local.xml\n"
+				 "  Version: 0.1\n"
+				 "  Path: {path}\n".format(path = path), out)
+
+
 		# whatchanged
 		out, err = self.run_0install(['whatchanged', 'local-app', 'uri'])
 		assert out.lower().startswith("usage:")
