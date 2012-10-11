@@ -82,12 +82,18 @@ xdg_data_home = xdg_data_dirs[0]
 xdg_cache_home = xdg_cache_dirs[0]
 xdg_config_home = xdg_config_dirs[0]
 
+def _join_resource_path(resource):
+	if portable_base and resource[0] == "0install.net":
+		return os.path.join(*(resource[1:]))
+	else:
+		return os.path.join(*resource)
+
 def save_config_path(*resource):
 	"""Ensure $XDG_CONFIG_HOME/<resource>/ exists, and return its path.
 	'resource' should normally be the name of your application. Use this
 	when SAVING configuration settings. Use the xdg_config_dirs variable
 	for loading."""
-	resource = os.path.join(*resource)
+	resource = _join_resource_path(resource)
 	assert not os.path.isabs(resource)
 	path = os.path.join(xdg_config_home, resource)
 	if not os.path.isdir(path):
@@ -98,7 +104,7 @@ def load_config_paths(*resource):
 	"""Returns an iterator which gives each directory named 'resource' in the
 	configuration search path. Information provided by earlier directories should
 	take precedence over later ones (ie, the user's config dir comes first)."""
-	resource = os.path.join(*resource)
+	resource = _join_resource_path(resource)
 	for config_dir in xdg_config_dirs:
 		path = os.path.join(config_dir, resource)
 		if os.path.exists(path): yield path
@@ -113,7 +119,7 @@ def load_first_config(*resource):
 def save_cache_path(*resource):
 	"""Ensure $XDG_CACHE_HOME/<resource>/ exists, and return its path.
 	'resource' should normally be the name of your application."""
-	resource = os.path.join(*resource)
+	resource = _join_resource_path(resource)
 	assert not os.path.isabs(resource)
 	path = os.path.join(xdg_cache_home, resource)
 	if not os.path.isdir(path):
@@ -124,7 +130,7 @@ def load_cache_paths(*resource):
 	"""Returns an iterator which gives each directory named 'resource' in the
 	cache search path. Information provided by earlier directories should
 	take precedence over later ones (ie, the user's cache dir comes first)."""
-	resource = os.path.join(*resource)
+	resource = _join_resource_path(resource)
 	for cache_dir in xdg_cache_dirs:
 		path = os.path.join(cache_dir, resource)
 		if os.path.exists(path): yield path
@@ -141,7 +147,7 @@ def load_data_paths(*resource):
 	shared data search path. Information provided by earlier directories should
 	take precedence over later ones.
 	@since: 0.28"""
-	resource = os.path.join(*resource)
+	resource = _join_resource_path(resource)
 	for data_dir in xdg_data_dirs:
 		path = os.path.join(data_dir, resource)
 		if os.path.exists(path): yield path
@@ -157,7 +163,7 @@ def load_first_data(*resource):
 def save_data_path(*resource):
 	"""Ensure $XDG_DATA_HOME/<resource>/ exists, and return its path.
 	'resource' should normally be the name of your application."""
-	resource = os.path.join(*resource)
+	resource = _join_resource_path(resource)
 	assert not os.path.isabs(resource)
 	path = os.path.join(xdg_data_home, resource)
 	if not os.path.isdir(path):
