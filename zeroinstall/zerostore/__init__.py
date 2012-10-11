@@ -253,33 +253,32 @@ class Stores(object):
 	__slots__ = ['stores']
 
 	def __init__(self):
+		# Always add the user cache to have a reliable fallback location for storage
 		user_store = os.path.join(basedir.xdg_cache_home, '0install.net', 'implementations')
 		self.stores = [Store(user_store)]
 
-		impl_dirs = basedir.load_first_config('0install.net', 'injector',
-							  'implementation-dirs')
-		logger.debug(_("Location of 'implementation-dirs' config file being used: '%s'"), impl_dirs)
-		if impl_dirs:
+		# Add custom cache locations
+		dirs = []
+		for impl_dirs in basedir.load_config_paths('0install.net', 'injector', 'implementation-dirs'):
 			with open(impl_dirs, 'rt') as stream:
-				dirs = stream.readlines()
-		else:
-			if os.name == "nt":
-				from win32com.shell import shell, shellcon
-				localAppData = shell.SHGetFolderPath(0, shellcon.CSIDL_LOCAL_APPDATA, 0, 0)
-				commonAppData = shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0)
-
-				userCache = os.path.join(localAppData, "0install.net", "implementations")
-				sharedCache = os.path.join(commonAppData, "0install.net", "implementations")
-				dirs = [userCache, sharedCache]
-
-			else:
-				dirs = ['/var/cache/0install.net/implementations']
-
+				dirs.extend(stream.readlines())
 		for directory in dirs:
 			directory = directory.strip()
 			if directory and not directory.startswith('#'):
 				logger.debug(_("Added system store '%s'"), directory)
 				self.stores.append(Store(directory))
+
+		# Add the system cache when not in portable mode
+		if not os.environ.get('ZEROINSTALL_PORTABLE_BASE'):
+			if os.name == "nt":
+				from win32com.shell import shell, shellcon
+				commonAppData = shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0)
+				systemCachePath = os.path.join(commonAppData, "0install.net", "implementations")
+				# Only use shared cache location on Windows if it was explicitly created
+				if os.path.isdir(systemCachePath):
+					self.stores.append(Store(systemCachePath))
+			else:
+				self.stores.append(Store('/var/cache/0install.net/implementations'))
 
 	def lookup(self, digest):
 		"""@deprecated: use lookup_any instead"""
