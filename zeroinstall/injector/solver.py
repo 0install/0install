@@ -844,8 +844,24 @@ class SATSolver(Solver):
 
 			example_machine_impl = None		# An example chosen impl with a machine type
 
+			our_feed = iface_cache.get_feed(iface_uri)
+			our_replacement = our_feed.get_replaced_by() if our_feed else None
+
 			# For each selected implementation...
 			for other_uri, other_sel in sels.items():
+				# Check for interface-level conflicts
+				other_iface = iface_cache.get_feed(other_uri)
+				if other_iface and other_iface.get_replaced_by() == iface_uri:
+					msg += "\n    " + _("Replaces (and therefore conflicts with) {old}").format(old = other_uri)
+					if other_sel:
+						impls = []
+
+				if our_replacement == other_uri:
+					msg += "\n    " + _("Replaced by (and therefore conflicts with) {old}").format(old = other_uri)
+					if other_sel:
+						impls = []
+
+				# Otherwise, if we didn't select an implementation then that can't be causing a problem
 				if not other_sel: continue
 
 				if example_machine_impl is None:

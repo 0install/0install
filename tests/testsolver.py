@@ -245,6 +245,7 @@ class TestSolver(BaseTest):
 
 	def testDiagnostics(self):
 		top_uri = 'http://localhost/top.xml'
+		old_uri = 'http://localhost/diagnostics-old.xml'
 		diag_uri = 'http://localhost/diagnostics.xml'
 
 		def test(top_xml, diag_xml, expected_error):
@@ -267,6 +268,15 @@ class TestSolver(BaseTest):
 			  </group>
 			</interface>""".format(diag = diag_uri, impls = diag_xml).encode("utf-8")))
 			self.import_feed(diag_uri, root)
+
+			root = qdom.parse(BytesIO("""<?xml version="1.0" ?>
+			<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface" uri="{old}">
+			  <name>Old</name>
+			  <summary>Old</summary>
+			  <feed src='{diag}'/>
+			  <replaced-by interface='{diag}'/>
+			</interface>""".format(diag = diag_uri, old = old_uri).encode("utf-8")))
+			self.import_feed(old_uri, root)
 
 			r = Requirements(top_uri)
 			r.os = "Windows"
@@ -439,6 +449,28 @@ class TestSolver(BaseTest):
 				 "      diag-5: Can't use x86_64 with selection of Top-level (i486)\n"
 				 "- http://localhost/top.xml -> 1 (1)",
 				s.justify_decision(r, iface, impl))
+
+		# Can't select old and diag because they conflict
+		test("""<group>
+			  <requires interface='{diag}'/>
+			  <requires interface='{old}'/>
+			  <implementation version='1' id='1' main='foo'>
+			    <archive href='http://localhost:3000/foo.tgz' size='100'/>
+			  </implementation>
+		        </group>""".format(diag = diag_uri, old = old_uri),
+		    """<group>
+			 <implementation version='5' id='diag-5'>
+			   <archive href='http://localhost:3000/diag.tgz' size='100'/>
+			 </implementation>
+		       </group>
+		    """,
+		    "Can't find all required implementations:\n"
+		    "- http://localhost/diagnostics-old.xml -> (problem)\n"
+		    "    Replaced by (and therefore conflicts with) http://localhost/diagnostics.xml\n"
+		    "    No usable implementations satisfy the restrictions\n"
+		    "- http://localhost/diagnostics.xml -> 5 (diag-5)\n"
+		    "    Replaces (and therefore conflicts with) http://localhost/diagnostics-old.xml\n"
+		    "- http://localhost/top.xml -> 1 (1)")
 
 	def testLangs(self):
 		iface_cache = self.config.iface_cache
