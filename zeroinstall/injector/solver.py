@@ -915,7 +915,7 @@ class SATSolver(Solver):
 			return msg
 
 		msg = _("Can't find all required implementations:") + '\n' + \
-				'\n'.join(["- %s -> %s" % (iface, show(iface)) for iface in sels])
+				'\n'.join(["- %s -> %s" % (iface, show(iface)) for iface in sorted(sels)])
 
 		if self.config.network_use == model.network_offline:
 			msg += "\nNote: 0install is in off-line mode"

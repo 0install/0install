@@ -311,11 +311,11 @@ class TestSolver(BaseTest):
 				<archive href='http://localhost:3000/diag.tgz' size='100'/>
 			     </implementation>
 			 """,
-			 "Can't find all required implementations:\n" +
-			 "- http://localhost/top.xml -> 1 (1)\n" +
-			 "- http://localhost/diagnostics.xml -> (problem)\n" +
-			 "    http://localhost/top.xml 1 requires version 100..!200\n" +
-			 "    No usable implementations satisfy the restrictions")
+			 "Can't find all required implementations:\n"
+			 "- http://localhost/diagnostics.xml -> (problem)\n"
+			 "    http://localhost/top.xml 1 requires version 100..!200\n"
+			 "    No usable implementations satisfy the restrictions\n"
+			 "- http://localhost/top.xml -> 1 (1)")
 
 		logger.setLevel(logging.ERROR)
 		s = test("""<implementation version='1' id='1' main='foo'>
@@ -326,11 +326,11 @@ class TestSolver(BaseTest):
 				<archive href='http://localhost:3000/diag.tgz' size='100'/>
 			     </implementation>
 			 """,
-			 "Can't find all required implementations:\n" +
-			 "- http://localhost/top.xml -> 1 (1)\n" +
-			 "- http://localhost/diagnostics.xml -> (problem)\n" +
-			 "    http://localhost/top.xml 1 requires <impossible: Can't parse version restriction '100..200': End of range must be exclusive (use '..!200', not '..200')>\n" +
-			 "    No usable implementations satisfy the restrictions")
+			 "Can't find all required implementations:\n"
+			 "- http://localhost/diagnostics.xml -> (problem)\n"
+			 "    http://localhost/top.xml 1 requires <impossible: Can't parse version restriction '100..200': End of range must be exclusive (use '..!200', not '..200')>\n"
+			 "    No usable implementations satisfy the restrictions\n"
+			 "- http://localhost/top.xml -> 1 (1)")
 		logger.setLevel(logging.WARNING)
 
 		s = test("""<implementation version='1' id='1' main='foo'>
@@ -343,11 +343,11 @@ class TestSolver(BaseTest):
 				<archive href='http://localhost:3000/diag.tgz' size='100'/>
 			     </implementation>
 			 """,
-			 "Can't find all required implementations:\n" +
-			 "- http://localhost/top.xml -> 1 (1)\n" +
-			 "- http://localhost/diagnostics.xml -> (problem)\n" +
-			 "    http://localhost/top.xml 1 requires 100 <= version\n" +
-			 "    No usable implementations satisfy the restrictions")
+			 "Can't find all required implementations:\n"
+			 "- http://localhost/diagnostics.xml -> (problem)\n"
+			 "    http://localhost/top.xml 1 requires 100 <= version\n"
+			 "    No usable implementations satisfy the restrictions\n"
+			 "- http://localhost/top.xml -> 1 (1)")
 
 		s = test("""<group>
 			      <requires interface='{diag}'/>
@@ -361,11 +361,11 @@ class TestSolver(BaseTest):
 			     </implementation>
 			   </group>
 			 """,
-			 "Can't find all required implementations:\n" +
-			 "- http://localhost/top.xml -> 1 (1)\n" +
-			 "- http://localhost/diagnostics.xml -> (problem)\n" +
-			 "    Rejected candidates:\n" +
-			 "      diag-5: Can't use x86_64 with selection of Top-level (i486)")
+			 "Can't find all required implementations:\n"
+			 "- http://localhost/diagnostics.xml -> (problem)\n"
+			 "    Rejected candidates:\n"
+			 "      diag-5: Can't use x86_64 with selection of Top-level (i486)\n"
+			 "- http://localhost/top.xml -> 1 (1)")
 
 		s = test("""<group>
 			      <requires interface='{diag}'/>
@@ -383,7 +383,6 @@ class TestSolver(BaseTest):
 			   </group>
 			 """,
 			 "Can't find all required implementations:\n"
-			 "- http://localhost/top.xml -> 1 (1)\n"
 			 "- http://localhost/diagnostics.xml -> (problem)\n"
 			 "    No usable implementations:\n"
 			 "      diag-6: No retrieval methods\n"
@@ -391,7 +390,8 @@ class TestSolver(BaseTest):
 			 "      diag-4: No retrieval methods\n"
 			 "      diag-3: No retrieval methods\n"
 			 "      diag-2: No retrieval methods\n"
-			 "      ...")
+			 "      ...\n"
+			 "- http://localhost/top.xml -> 1 (1)")
 
 		s = test("""<group>
 			      <requires interface='{diag}'>
@@ -415,7 +415,6 @@ class TestSolver(BaseTest):
 				<archive href='http://localhost:3000/diag.tgz' size='100'/>
 			     </implementation>""".format(i = i) for i in range(0, 5))),
 			 "Can't find all required implementations:\n"
-			 "- http://localhost/top.xml -> 1 (1)\n"
 			 "- http://localhost/diagnostics.xml -> (problem)\n"
 			 "    http://localhost/top.xml 1 requires version < 6\n"
 			 "    Rejected candidates:\n"
@@ -424,7 +423,8 @@ class TestSolver(BaseTest):
 			 "      diag-3: Can't use x86_64 with selection of Top-level (i486)\n"
 			 "      diag-2: Can't use x86_64 with selection of Top-level (i486)\n"
 			 "      diag-1: Can't use x86_64 with selection of Top-level (i486)\n"
-			 "      ...")
+			 "      ...\n"
+			 "- http://localhost/top.xml -> 1 (1)")
 
 		iface = self.config.iface_cache.get_interface(diag_uri)
 		impl = self.config.iface_cache.get_feed(diag_uri).implementations['diag-5']
@@ -432,12 +432,12 @@ class TestSolver(BaseTest):
 		r.os = 'Windows'
 		self.assertEqual("There is no possible selection using Diagnostics 5.\n"
 				 "Can't find all required implementations:\n"
-				 "- http://localhost/top.xml -> 1 (1)\n"
 				 "- http://localhost/diagnostics.xml -> (problem)\n"
 				 "    http://localhost/top.xml 1 requires version < 6\n"
 				 "    User requested implementation 5 (diag-5)\n"
 				 "    Rejected candidates:\n"
-				 "      diag-5: Can't use x86_64 with selection of Top-level (i486)",
+				 "      diag-5: Can't use x86_64 with selection of Top-level (i486)\n"
+				 "- http://localhost/top.xml -> 1 (1)",
 				s.justify_decision(r, iface, impl))
 
 	def testLangs(self):
