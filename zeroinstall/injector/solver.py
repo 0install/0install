@@ -639,7 +639,15 @@ class SATSolver(Solver):
 			if rep_impls is None:
 				# We didn't even look at the replacement interface, so no risk here
 				continue
-			all_impls = list(rep_impls.values()) + list(iface_to_vars[original].values())
+			# Must select one implementation out of all candidates from both interface.
+			# Dummy implementations don't conflict, though.
+			all_impls = []
+			for impl, var in rep_impls.items():
+				if not isinstance(impl, _DummyImpl):
+					all_impls.append(var)
+			for impl, var in iface_to_vars[original].items():
+				if not isinstance(impl, _DummyImpl):
+					all_impls.append(var)
 			if all_impls:
 				problem.at_most_one(all_impls)
 			# else: neither feed has any usable impls anyway
