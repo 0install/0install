@@ -632,12 +632,17 @@ class SATSolver(Solver):
 
 		# Can't select an implementation of an interface and of its replacement
 		for original, replacement in replacement_for.items():
+			if original == replacement:
+				logger.warn("Interface %s replaced-by itself!", original)
+				continue
 			rep_impls = iface_to_vars.get(replacement, None)
 			if rep_impls is None:
 				# We didn't even look at the replacement interface, so no risk here
 				continue
 			all_impls = list(rep_impls.values()) + list(iface_to_vars[original].values())
-			problem.at_most_one(all_impls)
+			if all_impls:
+				problem.at_most_one(all_impls)
+			# else: neither feed has any usable impls anyway
 
 		def decide():
 			"""This is called by the SAT solver when it cannot simplify the problem further.
