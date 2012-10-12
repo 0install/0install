@@ -122,7 +122,7 @@ def makeAtMostOneClause(solver):
 			return None
 
 		def __repr__(self):
-			return "<lone: %s>" % (', '.join(solver.name_lits(self.lits)))
+			return "<at most one: %s>" % (', '.join(solver.name_lits(self.lits)))
 
 	return AtMostOneClause
 

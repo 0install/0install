@@ -144,7 +144,7 @@ class SATSolver(Solver):
 	@ivar langs: the preferred languages (e.g. ["es_ES", "en"]). Initialised to the current locale.
 	@type langs: str"""
 
-	__slots__ = ['_impls_for_iface', 'config', 'extra_restrictions', '_lang_ranks', '_langs']
+	__slots__ = ['_impls_for_iface', '_iface_to_vars', '_problem', 'config', 'extra_restrictions', '_lang_ranks', '_langs']
 
 	@property
 	def iface_cache(self):
@@ -291,7 +291,11 @@ class SATSolver(Solver):
 		self.details = {} if self.record_details or closest_match else False
 
 		self.selections = None
-		self._impls_for_iface = None			# Only set if there is an error
+
+		# Only set if there is an error
+		self._impls_for_iface = None
+		self._iface_to_vars = None
+		self._problem = None
 
 		ifaces_processed = set()
 
@@ -742,7 +746,10 @@ class SATSolver(Solver):
 			self.selections.interface = root_interface
 
 			if not self.ready:
-				self._impls_for_iface = impls_for_iface	# Useful for get_failure_reason()
+				# Store some things useful for get_failure_reason()
+				self._impls_for_iface = impls_for_iface
+				self._iface_to_vars = iface_to_vars
+				self._problem = problem
 
 			sels = self.selections.selections
 
@@ -811,6 +818,7 @@ class SATSolver(Solver):
 
 		iface_cache = self.config.iface_cache
 
+		problem = self._problem
 		impls_for_iface = self._impls_for_iface
 		assert impls_for_iface
 
@@ -925,7 +933,14 @@ class SATSolver(Solver):
 										other_name = example_machine_impl.feed.get_name(),
 										other_arch = example_machine_impl.machine)
 						if reason is None:
-							reason = "(BUG) reason for rejection unknown"
+							var = self._iface_to_vars[iface].get(i, None)
+							if var is None:
+								reason = "BUG: no var for impl!"
+							else:
+								varinfo = problem.get_varinfo_for_lit(var)
+								reason = "Hard to explain. Internal reason: {reason} => {assignment}".format(
+									reason = varinfo.reason,
+									assignment = varinfo)
 
 						if reason is not _ForceImpl.reason:
 							if shown >= 5:
