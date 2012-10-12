@@ -349,7 +349,7 @@ class SATProblem(object):
 	# Returns the new clause if one was added, True if none was added
 	# because this clause is trivially True, or False if the clause is
 	# False.
-	def _add_clause(self, lits, learnt):
+	def _add_clause(self, lits, learnt, reason):
 		if not lits:
 			assert not learnt
 			self.toplevel_conflict = True
@@ -357,10 +357,6 @@ class SATProblem(object):
 		elif len(lits) == 1:
 			# A clause with only a single literal is represented
 			# as an assignment rather than as a clause.
-			if learnt:
-				reason = "learnt"
-			else:
-				reason = "top-level"
 			return self.enqueue(lits[0], reason)
 
 		clause = self.makeUnionClause(lits)
@@ -411,7 +407,7 @@ class SATProblem(object):
 		# Remove duplicates and values known to be False
 		lits = [l for l in lit_set if self.lit_value(l) != False]
 
-		retval = self._add_clause(lits, learnt = False)
+		retval = self._add_clause(lits, learnt = False, reason = "input fact")
 		if not retval:
 			self.toplevel_conflict = True
 		return retval
@@ -618,7 +614,7 @@ class SATProblem(object):
 
 					self.cancel_until(backtrack_level)
 
-					c = self._add_clause(learnt, learnt = True)
+					c = self._add_clause(learnt, learnt = True, reason = conflicting_clause)
 
 					if c is not True:
 						# Everything except the first literal in learnt is known to

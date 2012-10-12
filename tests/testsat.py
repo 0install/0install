@@ -305,7 +305,7 @@ class TestSAT(BaseTest):
 
 		# Add a clause. It starts watching the first two variables (a and b).
 		# (use the internal function to avoid variable reordering)
-		solver._add_clause([a, b, c], False)
+		solver._add_clause([a, b, c], False, reason = "testing")
 		
 		# b is False, so it switches to watching a and c
 		solver.add_clause([sat.neg(b)])
