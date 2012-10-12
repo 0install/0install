@@ -98,7 +98,7 @@ def makeAtMostOneClause(solver):
 
 		# Why is lit True?
 		# Or, why are we causing a conflict (if lit is None)?
-		def cacl_reason(self, lit):
+		def calc_reason(self, lit):
 			if lit is None:
 				# Find two True literals
 				trues = []
@@ -182,7 +182,7 @@ def makeUnionClause(solver):
 
 		# Why is lit True?
 		# Or, why are we causing a conflict (if lit is None)?
-		def cacl_reason(self, lit):
+		def calc_reason(self, lit):
 			assert lit is None or lit is self.lits[0]
 
 			# The cause is everything except lit.
@@ -218,8 +218,8 @@ class SATProblem(object):
 
 		# Assignments
 		self.assigns = []		# [VarInfo]
-		self.trail = []			# order of assignments
-		self.trail_lim = []		# decision levels
+		self.trail = []			# order of assignments [lit]
+		self.trail_lim = []		# decision levels (len(trail) at each decision)
 
 		self.toplevel_conflict = False
 
@@ -501,11 +501,11 @@ class SATProblem(object):
 			# why it is conflicting.
 			if p is None:
 				debug("Why did %s make us fail?" % cause)
-				p_reason = cause.cacl_reason(p)
+				p_reason = cause.calc_reason(p)
 				debug("Because: %s => conflict" % (' and '.join(self.name_lits(p_reason))))
 			else:
 				debug("Why did %s lead to %s?" % (cause, self.name_lit(p)))
-				p_reason = cause.cacl_reason(p)
+				p_reason = cause.calc_reason(p)
 				debug("Because: %s => %s" % (' and '.join(self.name_lits(p_reason)), self.name_lit(p)))
 
 			# p_reason is in the form (A and B and ...)
