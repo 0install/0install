@@ -28,49 +28,6 @@ class TestModel(BaseTest):
 		assert 'preferred' in model.stability_levels
 		str(model.insecure)
 	
-	def testEscape(self):
-		self.assertEqual("", model.escape(""))
-		self.assertEqual("hello", model.escape("hello"))
-		self.assertEqual("%20", model.escape(" "))
-
-		self.assertEqual("file%3a%2f%2ffoo%7ebar",
-				model.escape("file://foo~bar"))
-		self.assertEqual("file%3a%2f%2ffoo%25bar",
-				model.escape("file://foo%bar"))
-
-		self.assertEqual("file:##foo%7ebar",
-				model._pretty_escape("file://foo~bar"))
-		self.assertEqual("file:##foo%25bar",
-				model._pretty_escape("file://foo%bar"))
-
-	def testUnescape(self):
-		self.assertEqual("", model.unescape(""))
-		self.assertEqual("hello", model.unescape("hello"))
-		self.assertEqual(" ", model.unescape("%20"))
-
-		self.assertEqual("file://foo~bar",
-				model.unescape("file%3a%2f%2ffoo%7ebar"))
-		self.assertEqual("file://foo%bar",
-				model.unescape("file%3a%2f%2ffoo%25bar"))
-
-		self.assertEqual("file://foo",
-				model.unescape("file:##foo"))
-		self.assertEqual("file://foo~bar",
-				model.unescape("file:##foo%7ebar"))
-		self.assertEqual("file://foo%bar",
-				model.unescape("file:##foo%25bar"))
-	
-	def testEscaping(self):
-		def check(str):
-			self.assertEqual(str, model.unescape(model.escape(str)))
-			self.assertEqual(str, model.unescape(model._pretty_escape(str)))
-
-		check('http://example.com')
-		check('http://example%46com')
-		check('http:##example#com')
-		check('http://example.com/foo/bar.xml')
-		check('%20%21~&!"£ :@;,./{}$%^&()')
-
 	def testBadInterface(self):
 		try:
 			model.Interface('foo')

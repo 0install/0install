@@ -48,17 +48,17 @@ def update_from_cache(interface, iface_cache = None):
 		from zeroinstall.injector import policy
 		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 
-	escaped_uri = model._pretty_escape(interface.uri)
 	# Add the distribution package manager's version, if any
-	path = basedir.load_first_data(config_site, 'native_feeds', escaped_uri)
+	path = basedir.load_first_data(config_site, 'native_feeds', model._pretty_escape(interface.uri))
 	if path:
 		# Resolve any symlinks
 		logger.info(_("Adding native packager feed '%s'"), path)
 		interface.extra_feeds.append(Feed(os.path.realpath(path), None, False))
 
 	# Add locally-compiled binaries, if any
+	escaped_uri = model.escape_interface_uri(interface.uri)
 	known_site_feeds = set()
-	for path in basedir.load_data_paths(config_site, 'site-packages', escaped_uri):
+	for path in basedir.load_data_paths(config_site, 'site-packages', *escaped_uri):
 		try:
 			_add_site_packages(interface, path, known_site_feeds)
 		except Exception as ex:
@@ -163,7 +163,9 @@ def update_user_overrides(interface, known_site_feeds = frozenset()):
 			feed_src = item.getAttribute('src')
 			if not feed_src:
 				raise InvalidInterface(_('Missing "src" attribute in <feed>'))
-			if item.getAttribute('site-package'):
+			# (note: 0install 1.9..1.12 used a different scheme and the "site-package" attribute;
+			# we deliberately use a different attribute name to avoid confusion)
+			if item.getAttribute('is-site-package'):
 				# Site packages are detected earlier. This test isn't completely reliable,
 				# since older versions will remove the attribute when saving the config
 				# (hence the next test).
@@ -256,6 +258,7 @@ def load_feed(source, local = False, selections_ok = False):
 		if selections_ok and root.uri == XMLNS_IFACE and root.name == 'selections':
 			from zeroinstall.injector import selections
 			return selections.Selections(root)
+		assert os.path.isabs(source), source
 		local_path = source
 	else:
 		local_path = None

@@ -55,13 +55,14 @@ class TestWriter(BaseTest):
 		self.assertEqual(None, feed)
 
 	def testStoreStability(self):
-		main_feed = reader.load_feed('Hello.xml', local = True)
+		iface_uri = model.canonical_iface_uri('Hello.xml')
+		main_feed = reader.load_feed(iface_uri, local = True)
 		impl = main_feed.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
 		impl.user_stability = model.developer
 		writer.save_feed(main_feed)
 
 		# Rating now visible
-		main_feed = reader.load_feed('Hello.xml', local = True)
+		main_feed = reader.load_feed(iface_uri, local = True)
 		reader.update_user_feed_overrides(main_feed)
 		self.assertEqual(1, len(main_feed.implementations))
 
@@ -72,7 +73,13 @@ class TestWriter(BaseTest):
 		# The old system (0install < 1.9):
 		# - 0compile stores implementations to ~/.cache, and 
 		# - adds to extra_feeds
-		# The new system (0install >= 1.9):
+		#
+		# The middle system (0install 1.9..1.12)
+		# - 0compile stores implementations to ~/.local/0install.net/site-packages
+		#   but using an obsolete escaping scheme, and
+		# - modern 0install finds them via extra_feeds
+		#
+		# The new system (0install >= 1.13):
 		# - 0compile stores implementations to ~/.local/0install.net/site-packages, and
 		# - 0install finds them automatically
 
@@ -80,13 +87,15 @@ class TestWriter(BaseTest):
 		# - writes discovered feeds to extra_feeds
 		# - skips such entries in extra_feeds when loading
 
+		expected_escape = 'section__prog_5f_1.xml'
+
 		meta_dir = basedir.save_data_path('0install.net', 'site-packages',
-						   'http:##example.com#prog.xml', '1.0', '0install')
+						   'http', 'example.com', expected_escape, '1.0', '0install')
 		feed = os.path.join(meta_dir, 'feed.xml')
 		shutil.copyfile(os.path.join(mydir, 'Local.xml'), feed)
 
 		# Check that we find the feed without us having to register it
-		iface = self.config.iface_cache.get_interface('http://example.com/prog.xml')
+		iface = self.config.iface_cache.get_interface('http://example.com/section/prog_1.xml')
 		self.assertEqual(1, len(iface.extra_feeds))
 		site_feed, = iface.extra_feeds
 		self.assertEqual(True, site_feed.site_package)
@@ -95,7 +104,7 @@ class TestWriter(BaseTest):
 		writer.save_interface(iface)
 
 		config_file = basedir.load_first_config('0install.net', 'injector',
-							'interfaces', 'http:##example.com#prog.xml')
+							'interfaces', 'http:##example.com#section#prog_1.xml')
 		with open(config_file, 'rb') as s:
 			doc = qdom.parse(s)
 
@@ -103,7 +112,7 @@ class TestWriter(BaseTest):
 		for item in doc.childNodes:
 			if item.name == 'feed':
 				feed_node = item
-		self.assertEqual('True', feed_node.getAttribute('site-package'))
+		self.assertEqual('True', feed_node.getAttribute('is-site-package'))
 
 		# Check we ignore this element
 		iface.reset()
@@ -115,7 +124,7 @@ class TestWriter(BaseTest):
 		reader.update_from_cache(iface, iface_cache = self.config.iface_cache)
 		self.assertEqual(1, len(iface.extra_feeds))
 		shutil.rmtree(basedir.load_first_data('0install.net', 'site-packages',
-							'http:##example.com#prog.xml'))
+							'http', 'example.com', expected_escape))
 
 		reader.update_from_cache(iface, iface_cache = self.config.iface_cache)
 		self.assertEqual(0, len(iface.extra_feeds))

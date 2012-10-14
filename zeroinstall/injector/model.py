@@ -20,6 +20,7 @@ from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.versions import parse_version, format_version
 from zeroinstall.injector import qdom, versions
 from zeroinstall import support, zerostore
+from zeroinstall.support import escaping
 
 # Element names for bindings in feed files
 binding_names = frozenset(['environment', 'overlay', 'executable-in-path', 'executable-in-var'])
@@ -1393,6 +1394,23 @@ else:
 		return re.sub(preserveRegex,
 			lambda match: '%%%02x' % ord(match.group(0)),
 			uri.encode('utf-8')).replace('/', '#')
+
+def escape_interface_uri(uri):
+	"""Convert an interface URI to a list of path components.
+	e.g. "http://example.com/foo.xml" becomes ["http", "example.com", "foo.xml"], while
+	"file:///root/feed.xml" becomes ["file", "root__feed.xml"]
+	The number of components is determined by the scheme (three for http, two for file).
+	Uses L{support.escaping.underscore_escape} to escape each component.
+	"""
+	if uri.startswith('http://') or uri.startswith('https://'):
+		scheme, rest = uri.split('://', 1)
+		parts = rest.split('/', 1)
+	else:
+		assert os.path.isabs(uri), uri
+		scheme = 'file'
+		parts = [uri[1:]]
+	
+	return [scheme] + [escaping.underscore_escape(part) for part in parts]
 
 def canonical_iface_uri(uri):
 	"""If uri is a relative path, convert to an absolute one.
