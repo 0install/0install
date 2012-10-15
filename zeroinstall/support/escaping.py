@@ -42,7 +42,13 @@ def underscore_escape(src):
 	@type src: str
 	@return: the escaped string
 	@rtype: str"""
-	return re.sub(_troublesome_re, _under_escape, src)
+	escaped = re.sub(_troublesome_re, _under_escape, src)
+
+	# Avoid creating hidden files, or specials (. and ..)
+	if escaped.startswith("."):
+		return "_2e_" + escaped[1:]
+
+	return escaped
 
 _escaped_code_re = re.compile('_([0-9a-fA-F]*)_')
 
