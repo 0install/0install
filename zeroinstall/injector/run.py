@@ -220,7 +220,7 @@ class Setup(object):
 		exec_dir = basedir.save_cache_path(namespaces.config_site, namespaces.config_prog, 'executables', name)
 		exec_path = os.path.join(exec_dir, name + ".exe" if os.name == "nt" else name)
 
-		if not self._checked_runenv:
+		if os.name != "nt" and not self._checked_runenv:
 			self._check_runenv()
 
 		if not os.path.exists(exec_path):
