@@ -102,6 +102,8 @@ def portable_rename(src, dst):
 	On Windows, do the best we can by deleting dst and then renaming.
 	@since: 1.9"""
 	if os.name == "nt" and os.path.exists(dst):
+		if not os.access(dst, os.W_OK):
+			os.chmod(dst, 0o222)
 		os.unlink(dst)
 	os.rename(src, dst)
 

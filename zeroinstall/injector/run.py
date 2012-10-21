@@ -14,7 +14,7 @@ from string import Template
 from zeroinstall import support
 from zeroinstall.injector.model import SafeException, EnvironmentBinding, ExecutableBinding, Command, Dependency
 from zeroinstall.injector import namespaces, qdom
-from zeroinstall.support import basedir
+from zeroinstall.support import basedir, portable_rename
 
 def do_env_binding(binding, path):
 	"""Update this process's environment by applying the binding.
@@ -266,7 +266,7 @@ class Setup(object):
 			tmp.write(expected_contents)
 			tmp.close()
 			os.chmod(tmp.name, 0o555)
-			os.rename(tmp.name, runenv)
+			portable_rename(tmp.name, runenv)
 
 		self._checked_runenv = True
 
