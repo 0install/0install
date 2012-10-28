@@ -95,7 +95,8 @@ machine_groups = {
 	'ppc64': 64,
 }
 
-def canonicalize_machine(machine):
+def canonicalize_machine(machine_):
+	machine = machine_.lower()
 	if machine == 'x86':
 		machine = 'i386'
 	elif machine == 'amd64':
