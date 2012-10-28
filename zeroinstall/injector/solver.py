@@ -873,8 +873,9 @@ class SATSolver(Solver):
 				if not other_sel: continue
 
 				if example_machine_impl is None:
-					example_machine_impl = other_sel.impl
-					required_machine_group = get_machine_group(example_machine_impl)
+					required_machine_group = get_machine_group(other_sel.impl)
+					if required_machine_group is not None:
+						example_machine_impl = other_sel.impl
 
 				for dep in other_sel.impl.requires:
 					if not isinstance(dep, model.InterfaceRestriction): continue
