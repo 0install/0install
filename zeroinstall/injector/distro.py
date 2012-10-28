@@ -455,10 +455,10 @@ _canonical_machine = {
 
 host_machine = arch.canonicalize_machine(platform.uname()[4])
 def canonical_machine(package_machine):
-	machine = _canonical_machine.get(package_machine, None)
+	machine = _canonical_machine.get(package_machine.lower(), None)
 	if machine is None:
 		# Safe default if we can't understand the arch
-		return host_machine
+		return host_machine.lower()
 	return machine
 
 class DebianDistribution(Distribution):
