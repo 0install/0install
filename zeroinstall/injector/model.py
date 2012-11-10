@@ -163,6 +163,7 @@ def process_binding(e):
 def process_depends(item, local_feed_dir):
 	"""Internal"""
 	# Note: also called from selections
+	# Note: used by 0compile
 	attrs = item.attrs
 	dep_iface = item.getAttribute('interface')
 	if not dep_iface:
@@ -638,6 +639,7 @@ class Command(object):
 			self._runner = None
 			depends = []
 			for child in self.qdom.childNodes:
+				if child.uri != XMLNS_IFACE: continue
 				if child.name in _dependency_names:
 					dep = process_depends(child, self._local_dir)
 					depends.append(dep)
