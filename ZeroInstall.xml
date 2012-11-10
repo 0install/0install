@@ -44,13 +44,13 @@ interfere with those provided by the distribution.
       <executable-in-var name="ZEROINSTALL_GPG"/>
     </requires>
 
-    <restricts interface="http://repo.roscidus.com/python/python" version='2.6..!3 | 3.2.2..'/>
+    <restricts interface="http://repo.roscidus.com/python/python" version="2.6..!3 | 3.2.2.."/>
 
     <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os="Windows">
       <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
-      <version not-before="1.12.1" />
+      <version not-before="1.12.1"/>
     </requires>
 
-    <implementation id="." version="1.12-post"/>
+    <implementation id="." released="2012-11-10" version="1.13"/>
   </group>
 </interface>
