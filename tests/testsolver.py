@@ -440,6 +440,7 @@ class TestSolver(BaseTest):
 		impl = self.config.iface_cache.get_feed(diag_uri).implementations['diag-5']
 		r = Requirements(top_uri)
 		r.os = 'Windows'
+		r.cpu = 'x86_64'
 		self.assertEqual("There is no possible selection using Diagnostics 5.\n"
 				 "Can't find all required implementations:\n"
 				 "- http://localhost/diagnostics.xml -> (problem)\n"
