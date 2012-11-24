@@ -1447,6 +1447,19 @@ def canonical_iface_uri(uri):
 
 	if os.path.isfile(path):
 		return path
+
+	if '/' not in uri:
+		path = support.find_in_path(uri)
+		if path is not None:
+			from zeroinstall import alias
+			try:
+				alias.parse_script(path)
+			except alias.NotAnAliasScript:
+				pass
+			else:
+				raise SafeException(_("Bad interface name '{uri}'.\n"
+					"(hint: try 'alias:{uri}' instead)".format(uri = uri)))
+
 	raise SafeException(_("Bad interface name '%(uri)s'.\n"
 			"(doesn't start with 'http:', and "
 			"doesn't exist as a local file '%(interface_uri)s' either)") %

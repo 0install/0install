@@ -479,6 +479,14 @@ class TestInstall(BaseTest):
 			else:
 				self.assertEqual(expected, ex.man_args)
 
+	def testAlias(self):
+		alias_path = os.path.join(mydir, '..', '0alias')
+		local_feed = os.path.join(mydir, 'Local.xml')
+		subprocess.check_call([alias_path, 'my-test-alias', local_feed])
+		out, err = self.run_0install(['update', 'my-test-alias'])
+		self.assertEqual("Bad interface name 'my-test-alias'.\n(hint: try 'alias:my-test-alias' instead)\n", err)
+		self.assertEqual("", out)
+
 	def testMan(self):
 		out, err = self.run_0install(['man', '--help'])
 		assert out.lower().startswith("usage:")
