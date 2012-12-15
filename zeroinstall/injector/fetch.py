@@ -165,9 +165,11 @@ class Fetcher(object):
 		"""Return the URL of a mirror for this feed."""
 		if self.config.mirror is None:
 			return None
-		if support.urlparse(feed_url).hostname == 'localhost':
-			return None
-		return '%s/%s/%s' % (self.config.mirror, _get_feed_dir(feed_url), resource)
+		if feed_url.startswith('http://') or feed_url.startswith('https://'):
+			if support.urlparse(feed_url).hostname == 'localhost':
+				return None
+			return '%s/%s/%s' % (self.config.mirror, _get_feed_dir(feed_url), resource)
+		return None
 
 	def get_feed_mirror(self, url):
 		"""Return the URL of a mirror for this feed."""

@@ -470,7 +470,7 @@ class TestDownload(BaseTest):
 			run_server('/Hello.xml',
 					'/6FCF121BE2390E0B.gpg',
 					server.Give404('/HelloWorld.tgz'),
-					server.Give404('/0mirror/archive/http%3A%2F%2Flocalhost%3A8000%2FHelloWorld.tgz'),
+					server.Give404('/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'),
 					'/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
 			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
 			self.config.mirror = 'http://example.com:8000/0mirror'
@@ -483,6 +483,25 @@ class TestDownload(BaseTest):
 			downloaded = driver.download_uncached_implementations()
 			tasks.wait_for_blocker(downloaded)
 			path = self.config.stores.lookup_any(driver.solver.selections.selections['http://example.com:8000/Hello.xml'].digests)
+			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+
+	def testLocalFeedMirror(self):
+		with resourcewarnings_suppressed():
+			# This is like testImplMirror, except we have a local feed.
+			run_server(server.Give404('/HelloWorld.tgz'),
+					'/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz')
+			iface_uri = model.canonical_iface_uri('Hello.xml')
+			driver = Driver(requirements = Requirements(iface_uri), config = self.config)
+			self.config.mirror = 'http://example.com:8000/0mirror'
+
+			refreshed = driver.solve_with_downloads()
+			tasks.wait_for_blocker(refreshed)
+			assert driver.solver.ready
+
+			getLogger().setLevel(logging.ERROR)
+			downloaded = driver.download_uncached_implementations()
+			tasks.wait_for_blocker(downloaded)
+			path = self.config.stores.lookup_any(driver.solver.selections.selections[iface_uri].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 	def testReplay(self):
