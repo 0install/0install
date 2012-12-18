@@ -162,7 +162,7 @@ def handle(config, options, args):
 		do_select = r.parse_update_options(options)
 		iface_uri = sels.interface
 
-		if not do_select and r.extra_restrictions:
+		if not do_select and r.extra_restrictions and not options.xml:
 			print("User-provided restrictions in force:")
 			for uri, expr in r.extra_restrictions.items():
 				print("  {uri}: {expr}".format(uri = uri, expr = expr))
