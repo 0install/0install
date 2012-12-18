@@ -18,6 +18,8 @@
 
 .B 0install add \fBNAME\fP \fBURI\fP
 
+.B 0install show \fBNAME\fP
+
 .B 0install update \fBNAME\fP
 
 .B 0install whatchanged \fBNAME\fP
@@ -389,6 +391,18 @@ an easy way to run the application. For example, to add and run ROX-Filer:
 .PP
 If additional requirements are given (as for "0install select", e.g. \-\-before), they
 are stored with the application and apply to all updates.
+
+.SS 0install show NAME | SELECTIONS
+
+.PP
+Show the current selections for this application (or the contents of the given
+selections file). By default, the output is in the same format as for
+"0install select", and the \-\-xml option has the same effect.
+
+.TP
+\fB\-r\fP, \fB\-\-root-uri\fP
+Just display the root interface URI (e.g. the URI passed to "0install add" when this application
+was created).
 
 .SS 0install update NAME
 

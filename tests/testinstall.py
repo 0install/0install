@@ -68,6 +68,20 @@ class TestInstall(BaseTest):
 		out, err = self.run_0install(['foobar'])
 		assert 'Unknown sub-command' in err, err
 
+	def testShow(self):
+		out, err = self.run_0install(['show'])
+		assert out.lower().startswith("usage:")
+		assert '--xml' in out
+
+		out, err = self.run_0install(['show', 'selections.xml'])
+		assert not err, err
+		assert 'Version: 1\n' in out
+		assert '(not cached)' in out
+
+		out, err = self.run_0install(['show', 'selections.xml', '-r'])
+		assert not err, err
+		self.assertEqual("http://example.com:8000/Hello.xml\n", out)
+
 	def testSelect(self):
 		out, err = self.run_0install(['select'])
 		assert out.lower().startswith("usage:")
@@ -393,6 +407,10 @@ class TestInstall(BaseTest):
 		self.check_man(['local-app'], 'tests/test-echo.1')
 
 		out, err = self.run_0install(['select', 'local-app'])
+		assert "Version: 0.1" in out, out
+		assert not err, err
+
+		out, err = self.run_0install(['show', 'local-app'])
 		assert "Version: 0.1" in out, out
 		assert not err, err
 
