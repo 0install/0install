@@ -109,8 +109,11 @@ def main(command_args, config = None):
 				config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
 			logger.info(_("Stores search path is now %s"), config.stores.stores)
 
-		if hasattr(options, 'dry_run'):
-			config.handler.dry_run = bool(options.dry_run)
+		config.handler.dry_run = bool(options.dry_run)
+		if config.handler.dry_run:
+			if options.gui is True:
+				raise SafeException(_("Can't use --gui with --dry-run"))
+			options.gui = False
 
 		cmd.handle(config, options, args)
 	except KeyboardInterrupt:
