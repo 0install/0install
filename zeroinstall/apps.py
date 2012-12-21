@@ -376,7 +376,7 @@ class App:
 			raise SafeException("Command already exists: {path}".format(path = launcher))
 
 		if self.config.handler.dry_run:
-			print(_("[dry-run] write launcher script {path}").format(path = launcher))
+			print(_("[dry-run] would write launcher script {path}").format(path = launcher))
 		else:
 			with open(launcher, 'w') as stream:
 				stream.write(_command_template.format(app = self.get_name()))
@@ -402,8 +402,9 @@ class AppManager:
 			raise SafeException(_("Application '{name}' already exists: {path}").format(name = name, path = app_dir))
 
 		if self.config.handler.dry_run:
-			raise DryRun(_("would create {path}").format(path = app_dir))
-		os.mkdir(app_dir)
+			print(_("[dry-run] would create directory {path}").format(path = app_dir))
+		else:
+			os.mkdir(app_dir)
 
 		app = App(self.config, app_dir)
 		app.set_requirements(requirements)

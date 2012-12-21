@@ -397,7 +397,8 @@ class TestInstall(BaseTest):
 		assert "Invalid application name 'local:app'" in err, err
 
 		out, err = self.run_0install(['add', '--dry-run', 'local-app', local_feed])
-		assert out.startswith("[dry-run] would create "), out
+		assert out.startswith("[dry-run] would create directory "), out
+		assert "[dry-run] would write launcher script " in out, out
 		assert not err, err
 
 		out, err = self.run_0install(['add', 'local-app', local_feed])

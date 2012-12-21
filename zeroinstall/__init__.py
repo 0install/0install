@@ -57,4 +57,5 @@ class NeedDownload(SafeException):
 		Exception.__init__(self, _("Would download '%s'") % url)
 
 class DryRun(SafeException):
-	"""We can't do something because this is a dry run (--dry-run)."""
+	"""We can't do something because this is a dry run (--dry-run).
+	@since: 1.14"""
