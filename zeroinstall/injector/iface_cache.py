@@ -28,6 +28,8 @@ creating new cache objects.
 #
 # Eventually, support for the first and third cases will be removed.
 
+from __future__ import print_function
+
 import os, sys, time
 
 from zeroinstall import _, logger
