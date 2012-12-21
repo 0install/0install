@@ -356,6 +356,30 @@ class DarwinDistribution(Distribution):
 		elif package == 'openjdk-7-jdk':
 			find_java("Java Development Kit", "1.7", '7')
 
+		def get_output(args):
+			child = subprocess.Popen(args, stdout = subprocess.PIPE, universal_newlines = True)
+			return child.communicate()[0]
+
+		def get_version(program):
+			stdout = get_output([program, "--version"])
+			return stdout.strip().split('\n')[0].split()[-1] # the last word of the first line
+
+		def find_program(file):
+			if os.path.isfile(file) and os.access(file, os.X_OK):
+				program_version = get_version(file)
+				impl = factory('package:darwin:%s:%s' % (package, program_version), True)
+				if impl:
+					impl.installed = True
+					impl.version = model.parse_version(program_version)
+					impl.upstream_stability = model.packaged
+					impl.machine = host_machine	# (hopefully)
+					impl.main = file
+
+		if package == 'gnupg':
+			find_program("/usr/local/bin/gpg")
+		elif package == 'gnupg2':
+			find_program("/usr/local/bin/gpg2")
+
 	def get_score(self, disto_name):
 		return int(disto_name == 'Darwin')
 
