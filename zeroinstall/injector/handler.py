@@ -15,6 +15,11 @@ from __future__ import print_function
 from zeroinstall import _, logger
 import sys
 
+if sys.version_info[0] < 3:
+	import __builtin__ as builtins
+else:
+	import builtins
+
 from zeroinstall import SafeException
 from zeroinstall import support
 from zeroinstall.support import tasks
@@ -182,7 +187,7 @@ class Handler(object):
 		logger.warn("%s", str(exception) or type(exception))
 		#import traceback
 		#traceback.print_exception(exception, None, tb)
-
+	
 class ConsoleHandler(Handler):
 	"""A Handler that displays progress on stdout (a tty).
 	@since: 0.44"""
@@ -190,6 +195,9 @@ class ConsoleHandler(Handler):
 	update = None
 	disable_progress = 0
 	screen_width = None
+
+	# While we are displaying progress, we override builtins.print to clear the display first.
+	original_print = None
 
 	def downloads_changed(self):
 		from zeroinstall import gobject
@@ -203,11 +211,15 @@ class ConsoleHandler(Handler):
 					logger.info("Failed to initialise curses library: %s", ex)
 					self.screen_width = 80
 			self.show_progress()
+			self.original_print = print
+			builtins.print = self.print
 			self.update = gobject.timeout_add(200, self.show_progress)
 		elif len(self.monitored_downloads) == 0:
 			if self.update:
 				gobject.source_remove(self.update)
 				self.update = None
+				builtins.print = self.original_print
+				self.original_print = None
 				print()
 				self.last_msg_len = None
 
@@ -268,3 +280,7 @@ class ConsoleHandler(Handler):
 			self.show_progress()
 		enable()
 		return blocker
+
+	def print(self, *args, **kwargs):
+		self.clear_display()
+		self.original_print(*args, **kwargs)
