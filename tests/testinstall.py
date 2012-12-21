@@ -396,6 +396,10 @@ class TestInstall(BaseTest):
 		assert not out, out
 		assert "Invalid application name 'local:app'" in err, err
 
+		out, err = self.run_0install(['add', '--dry-run', 'local-app', local_feed])
+		assert out.startswith("[dry-run] would create "), out
+		assert not err, err
+
 		out, err = self.run_0install(['add', 'local-app', local_feed])
 		assert not out, out
 		assert not err, err
@@ -440,6 +444,12 @@ class TestInstall(BaseTest):
 				 "- URI: {path}/Local.xml\n"
 				 "  Version: 0.1\n"
 				 "  Path: {path}\n".format(path = path), out)
+
+		# remove restrictions [dry-run]
+		out, err = self.run_0install(['update', '--dry-run', 'local-app', '--version-for', path + '/Local.xml', ''])
+		assert "No updates found. Continuing with version 0.1." in out, out
+		assert "[dry-run] would write " in out, out
+		assert not err, err
 
 		# remove restrictions
 		out, err = self.run_0install(['update', 'local-app', '--version-for', path + '/Local.xml', ''])

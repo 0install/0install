@@ -321,7 +321,7 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		prog_args = ['/bin/sh', '-c', wrapper + ' "$@"', '-'] + list(prog_args)
 
 	if dry_run:
-		print(_("Would execute: %s") % ' '.join(prog_args))
+		print(_("[dry-run] would execute: %s") % ' '.join(prog_args))
 	else:
 		logger.info(_("Executing: %s"), prog_args)
 		sys.stdout.flush()

@@ -6,7 +6,7 @@ Support for managing apps (as created with "0install add").
 # Copyright (C) 2012, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, SafeException, logger
+from zeroinstall import _, SafeException, logger, DryRun
 from zeroinstall.support import basedir, portable_rename
 from zeroinstall.injector import namespaces, selections, qdom, model
 import re, os, time, tempfile
@@ -99,20 +99,26 @@ class App:
 		sels_file = os.path.join(self.path, 'selections-{date}.xml'.format(date = date))
 		dom = sels.toDOM()
 
-		tmp = tempfile.NamedTemporaryFile(prefix = 'selections.xml-', dir = self.path, delete = False, mode = 'wt')
-		try:
-			dom.writexml(tmp, addindent="  ", newl="\n", encoding = 'utf-8')
-		except:
+		if self.config.handler.dry_run:
+			print(_("[dry-run] would write selections to {file}").format(file = sels_file))
+		else:
+			tmp = tempfile.NamedTemporaryFile(prefix = 'selections.xml-', dir = self.path, delete = False, mode = 'wt')
+			try:
+				dom.writexml(tmp, addindent="  ", newl="\n", encoding = 'utf-8')
+			except:
+				tmp.close()
+				os.unlink(tmp.name)
+				raise
 			tmp.close()
-			os.unlink(tmp.name)
-			raise
-		tmp.close()
-		portable_rename(tmp.name, sels_file)
+			portable_rename(tmp.name, sels_file)
 
 		sels_latest = os.path.join(self.path, 'selections.xml')
-		if os.path.exists(sels_latest):
-			os.unlink(sels_latest)
-		os.symlink(os.path.basename(sels_file), sels_latest)
+		if self.config.handler.dry_run:
+			print(_("[dry-run] would update {link} to point to new selections file").format(link = sels_latest))
+		else:
+			if os.path.exists(sels_latest):
+				os.unlink(sels_latest)
+			os.symlink(os.path.basename(sels_file), sels_latest)
 
 		if set_last_checked:
 			self.set_last_checked()
@@ -257,18 +263,21 @@ class App:
 		return sels
 
 	def set_requirements(self, requirements):
-		import json
-		tmp = tempfile.NamedTemporaryFile(prefix = 'tmp-requirements-', dir = self.path, delete = False, mode = 'wt')
-		try:
-			json.dump(dict((key, getattr(requirements, key)) for key in requirements.__slots__), tmp)
-		except:
-			tmp.close()
-			os.unlink(tmp.name)
-			raise
-		tmp.close()
-
 		reqs_file = os.path.join(self.path, 'requirements.json')
-		portable_rename(tmp.name, reqs_file)
+		if self.config.handler.dry_run:
+			print(_("[dry-run] would write {file}").format(file = reqs_file))
+		else:
+			import json
+			tmp = tempfile.NamedTemporaryFile(prefix = 'tmp-requirements-', dir = self.path, delete = False, mode = 'wt')
+			try:
+				json.dump(dict((key, getattr(requirements, key)) for key in requirements.__slots__), tmp)
+			except:
+				tmp.close()
+				os.unlink(tmp.name)
+				raise
+			tmp.close()
+
+			portable_rename(tmp.name, reqs_file)
 
 	def get_requirements(self):
 		import json
@@ -300,9 +309,12 @@ class App:
 
 	def _touch(self, name):
 		timestamp_path = os.path.join(self.path, name)
-		fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0o644)
-		os.close(fd)
-		os.utime(timestamp_path, None)	# In case file already exists
+		if self.config.handler.dry_run:
+			print(_("[dry-run] would update timestamp file {file}").format(file = timestamp_path))
+		else:
+			fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0o644)
+			os.close(fd)
+			os.utime(timestamp_path, None)	# In case file already exists
 
 	def _get_mtime(self, name, warn_if_missing = True):
 		timestamp_path = os.path.join(self.path, name)
@@ -342,12 +354,17 @@ class App:
 			with open(launcher, 'r') as stream:
 				contents = stream.read()
 			if contents == expanded_template:
-				#print "rm", launcher
-				os.unlink(launcher)
+				if self.config.handler.dry_run:
+					print(_("[dry-run] would delete launcher script {file}").format(file = launcher))
+				else:
+					os.unlink(launcher)
 
-		# Remove the app itself
-		import shutil
-		shutil.rmtree(self.path)
+		if self.config.handler.dry_run:
+			print(_("[dry-run] would delete directory {path}").format(path = self.path))
+		else:
+			# Remove the app itself
+			import shutil
+			shutil.rmtree(self.path)
 
 	def integrate_shell(self, name):
 		# TODO: remember which commands we create
@@ -358,10 +375,13 @@ class App:
 		if os.path.exists(launcher):
 			raise SafeException("Command already exists: {path}".format(path = launcher))
 
-		with open(launcher, 'w') as stream:
-			stream.write(_command_template.format(app = self.get_name()))
-			# Make new script executable
-			os.chmod(launcher, 0o111 | os.fstat(stream.fileno()).st_mode)
+		if self.config.handler.dry_run:
+			print(_("[dry-run] write launcher script {path}").format(path = launcher))
+		else:
+			with open(launcher, 'w') as stream:
+				stream.write(_command_template.format(app = self.get_name()))
+				# Make new script executable
+				os.chmod(launcher, 0o111 | os.fstat(stream.fileno()).st_mode)
 
 	def get_name(self):
 		return os.path.basename(self.path)
@@ -380,6 +400,9 @@ class AppManager:
 		app_dir = os.path.join(apps_dir, name)
 		if os.path.isdir(app_dir):
 			raise SafeException(_("Application '{name}' already exists: {path}").format(name = name, path = app_dir))
+
+		if self.config.handler.dry_run:
+			raise DryRun(_("would create {path}").format(path = app_dir))
 		os.mkdir(app_dir)
 
 		app = App(self.config, app_dir)

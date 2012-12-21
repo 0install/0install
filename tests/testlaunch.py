@@ -144,7 +144,7 @@ class TestLaunch(BaseTest):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--dry-run', 'http://foo/d'])
 		# Uses local copy of GUI
-		assert out.startswith("Would execute: "), repr((out, err))
+		assert out.startswith("[dry-run] would execute: "), repr((out, err))
 		assert 'basetest.py' in out
 		self.assertEqual("", err)
 
@@ -156,7 +156,7 @@ class TestLaunch(BaseTest):
 	def testRefreshDisplay(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--dry-run', '--refresh', 'http://foo/d'])
-		assert out.startswith("Would execute: ")
+		assert out.startswith("[dry-run] would execute: ")
 		assert 'basetest.py' in out
 		self.assertEqual("", err)
 	
@@ -183,7 +183,7 @@ class TestLaunch(BaseTest):
 	def testHello(self):
 		out, err = self.run_0launch(['--dry-run', 'Foo.xml'])
 		self.assertEqual("", err)
-		assert out.startswith("Would execute: ")
+		assert out.startswith("[dry-run] would execute: ")
 
 		out, err = self.run_0launch(['Foo.xml'])
 		# (Foo.xml tries to run a directory; plash gives a different error)

@@ -12,7 +12,7 @@ import os, sys
 from optparse import OptionParser
 import logging
 
-from zeroinstall import SafeException
+from zeroinstall import SafeException, DryRun
 
 valid_commands = ['add', 'select', 'show', 'download', 'run', 'update', 'whatchanged', 'destroy',
 		  'config', 'import', 'list', 'add-feed', 'remove-feed', 'list-feeds',
@@ -109,7 +109,8 @@ def main(command_args, config = None):
 				config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
 			logger.info(_("Stores search path is now %s"), config.stores.stores)
 
-		config.handler.dry_run = bool(options.dry_run)
+		if hasattr(options, 'dry_run'):
+			config.handler.dry_run = bool(options.dry_run)
 
 		cmd.handle(config, options, args)
 	except KeyboardInterrupt:
@@ -118,6 +119,8 @@ def main(command_args, config = None):
 	except UsageError:
 		parser.print_help()
 		sys.exit(1)
+	except DryRun as ex:
+		print(_("[dry-run]"), ex)
 	except SafeException as ex:
 		if verbose: raise
 		try:

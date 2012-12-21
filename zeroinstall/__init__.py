@@ -55,3 +55,6 @@ class NeedDownload(SafeException):
 	disabled."""
 	def __init__(self, url):
 		Exception.__init__(self, _("Would download '%s'") % url)
+
+class DryRun(SafeException):
+	"""We can't do something because this is a dry run (--dry-run)."""
