@@ -330,12 +330,13 @@ class Fetcher(object):
 				yield keys_downloaded.finished
 				tasks.check(keys_downloaded.finished)
 
-				if not self.config.iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
+				dry_run = self.handler.dry_run
+				if not self.config.iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml, dry_run = dry_run):
 					blocker = self.config.trust_mgr.confirm_keys(pending)
 					if blocker:
 						yield blocker
 						tasks.check(blocker)
-					if not self.config.iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml):
+					if not self.config.iface_cache.update_feed_if_trusted(pending.url, pending.sigs, pending.new_xml, dry_run = dry_run):
 						raise NoTrustedKeys(_("No signing keys trusted; not importing"))
 			finally:
 				stream.close()
@@ -430,7 +431,8 @@ class Fetcher(object):
 	def _add_to_cache(self, required_digest, stores, retrieval_method, stream):
 		assert isinstance(retrieval_method, DownloadSource)
 		stores.add_archive_to_cache(required_digest, stream, retrieval_method.url, retrieval_method.extract,
-						 type = retrieval_method.type, start_offset = retrieval_method.start_offset or 0)
+						 type = retrieval_method.type, start_offset = retrieval_method.start_offset or 0,
+						 dry_run = self.handler.dry_run)
 
 	def _add_to_external_store(self, required_digest, steps, streams):
 		from zeroinstall.zerostore.unpack import type_from_url
@@ -621,9 +623,6 @@ class Fetcher(object):
 		@rtype: L{download.Download}
 		@since: 1.5
 		"""
-		if self.handler.dry_run:
-			raise NeedDownload(url)
-
 		dl = download.Download(url, hint = hint, modification_time = modification_time, expected_size = expected_size, auto_delete = not self.external_store)
 		dl.mirror = mirror_url
 		self.handler.monitor_download(dl)

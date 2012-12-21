@@ -88,6 +88,7 @@ class Store:
 		@param public: deprecated
 		@type public: bool"""
 		self.dir = dir
+		self.dry_run_names = set()
 	
 	def __str__(self):
 		return _("Store '%s'") % self.dir
@@ -95,7 +96,7 @@ class Store:
 	def lookup(self, digest):
 		alg, value = parse_algorithm_digest_pair(digest)
 		dir = os.path.join(self.dir, digest)
-		if os.path.isdir(dir):
+		if os.path.isdir(dir) or digest in self.dry_run_names:
 			return dir
 		return None
 	
@@ -114,7 +115,7 @@ class Store:
 		except OSError as ex:
 			raise NonwritableStore(str(ex))
 	
-	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0, try_helper = False):
+	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0, try_helper = False, dry_run = False):
 		from . import unpack
 
 		if self.lookup(required_digest):
@@ -130,13 +131,13 @@ class Store:
 			raise
 
 		try:
-			self.check_manifest_and_rename(required_digest, tmp, extract, try_helper = try_helper)
+			self.check_manifest_and_rename(required_digest, tmp, extract, try_helper = try_helper, dry_run = dry_run)
 		except Exception:
 			#warn(_("Leaving extracted directory as %s"), tmp)
 			support.ro_rmtree(tmp)
 			raise
 	
-	def add_dir_to_cache(self, required_digest, path, try_helper = False):
+	def add_dir_to_cache(self, required_digest, path, try_helper = False, dry_run = False):
 		"""Copy the contents of path to the cache.
 		@param required_digest: the expected digest
 		@type required_digest: str
@@ -152,14 +153,14 @@ class Store:
 		tmp = self.get_tmp_dir_for(required_digest)
 		try:
 			_copytree2(path, tmp)
-			self.check_manifest_and_rename(required_digest, tmp, try_helper = try_helper)
+			self.check_manifest_and_rename(required_digest, tmp, try_helper = try_helper, dry_run = dry_run)
 		except:
 			logger.warn(_("Error importing directory."))
 			logger.warn(_("Deleting %s"), tmp)
 			support.ro_rmtree(tmp)
 			raise
 
-	def _add_with_helper(self, required_digest, path):
+	def _add_with_helper(self, required_digest, path, dry_run):
 		"""Use 0store-secure-add to copy 'path' to the system store.
 		@param required_digest: the digest for path
 		@type required_digest: str
@@ -173,6 +174,12 @@ class Store:
 		if not helper:
 			logger.info(_("'0store-secure-add-helper' command not found. Not adding to system cache."))
 			return False
+		if dry_run:
+			print(_("[dry-run] would use {helper} to store {required_digest} in system store").format(
+				helper = helper,
+				required_digest = required_digest))
+			self.dry_run_names.add(required_digest)
+			return True
 		import subprocess
 		env = os.environ.copy()
 		env['ENV_NOT_CLEARED'] = 'Unclean'	# (warn about insecure configurations)
@@ -195,12 +202,14 @@ class Store:
 		logger.info(_("Added succcessfully."))
 		return True
 
-	def check_manifest_and_rename(self, required_digest, tmp, extract = None, try_helper = False):
+	def check_manifest_and_rename(self, required_digest, tmp, extract = None, try_helper = False, dry_run = False):
 		"""Check that tmp[/extract] has the required_digest.
 		On success, rename the checked directory to the digest, and
 		make the whole tree read-only.
 		@param try_helper: attempt to use privileged helper to import to system cache first (since 0.26)
 		@type try_helper: bool
+		@param dry_run: just print what we would do to stdout (and delete tmp)
+		@type dry_run: bool
 		@raise BadDigest: if the input directory doesn't match the given digest"""
 		if extract:
 			extracted = os.path.join(tmp, extract)
@@ -222,7 +231,7 @@ class Store:
 					{'required_digest': required_digest, 'actual_digest': actual_digest})
 
 		if try_helper:
-			if self._add_with_helper(required_digest, extracted):
+			if self._add_with_helper(required_digest, extracted, dry_run = dry_run):
 				support.ro_rmtree(tmp)
 				return
 			logger.info(_("Can't add to system store. Trying user store instead."))
@@ -231,14 +240,21 @@ class Store:
 
 		final_name = os.path.join(self.dir, required_digest)
 		if os.path.isdir(final_name):
-			raise Exception(_("Item %s already stored.") % final_name) # XXX: not really an error
+			logger.warn(_("Item %s already stored.") % final_name) # not really an error
+			return
 
-		# If we just want a subdirectory then the rename will change
-		# extracted/.. and so we'll need write permission on 'extracted'
+		if dry_run:
+			print(_("[dry-run] would store implementation as {path}").format(path = final_name))
+			self.dry_run_names.add(required_digest)
+			support.ro_rmtree(tmp)
+			return
+		else:
+			# If we just want a subdirectory then the rename will change
+			# extracted/.. and so we'll need write permission on 'extracted'
 
-		os.chmod(extracted, 0o755)
-		os.rename(extracted, final_name)
-		os.chmod(final_name, 0o555)
+			os.chmod(extracted, 0o755)
+			os.rename(extracted, final_name)
+			os.chmod(final_name, 0o555)
 
 		if extract:
 			os.rmdir(tmp)
@@ -306,16 +322,16 @@ class Stores(object):
 					return path
 		return None
 
-	def add_dir_to_cache(self, required_digest, dir):
+	def add_dir_to_cache(self, required_digest, dir, dry_run = False):
 		"""Add to the best writable cache.
 		@see: L{Store.add_dir_to_cache}"""
-		self._write_store(lambda store, **kwargs: store.add_dir_to_cache(required_digest, dir, **kwargs))
+		self._write_store(lambda store, **kwargs: store.add_dir_to_cache(required_digest, dir, dry_run = dry_run, **kwargs))
 
-	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0):
+	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0, dry_run = False):
 		"""Add to the best writable cache.
 		@see: L{Store.add_archive_to_cache}"""
 		self._write_store(lambda store, **kwargs: store.add_archive_to_cache(required_digest,
-						data, url, extract, type = type, start_offset = start_offset, **kwargs))
+						data, url, extract, type = type, start_offset = start_offset, dry_run = dry_run, **kwargs))
 	
 	def _write_store(self, fn):
 		"""Call fn(first_system_store). If it's read-only, try again with the user store."""

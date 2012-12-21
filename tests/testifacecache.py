@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from basetest import BaseTest
+from basetest import BaseTest, StringIO
 import sys, tempfile, os, time
 import unittest
 import data
@@ -93,6 +93,14 @@ class TestIfaceCache(BaseTest):
 			src.seek(0)
 
 			pending = PendingFeed(feed.url, src)
+
+			old_stdout = sys.stdout
+			sys.stdout = StringIO()
+			try:
+				assert iface_cache.update_feed_if_trusted(feed.url, pending.sigs, pending.new_xml, dry_run = True)
+			finally:
+				sys.stdout = old_stdout
+
 			assert iface_cache.update_feed_if_trusted(feed.url, pending.sigs, pending.new_xml)
 
 		# Can't 'update' to an older copy

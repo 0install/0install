@@ -84,11 +84,13 @@ class TestDriver(BaseTest):
 </interface>""")
 		tmp.flush()
 		driver = Driver(requirements = Requirements(tmp.name), config = self.config)
+		old, sys.stdout = sys.stdout, StringIO()
 		try:
 			download_and_execute(driver, ['Hello'])
-			assert 0
-		except model.SafeException as ex:
-			assert "ThisBetterNotExist" in str(ex)
+			out = sys.stdout.getvalue()
+		finally:
+			sys.stdout = old
+		assert "[dry-run] would execute: /bin/ThisBetterNotExist Hello\n" == out, out
 		tmp.close()
 
 	def testNoMain(self):

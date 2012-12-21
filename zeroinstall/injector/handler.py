@@ -34,7 +34,7 @@ class Handler(object):
 	@type n_completed_downloads: int
 	@ivar total_bytes_downloaded: informational counter for GUIs, etc (can be reset as desired). Updated when download finishes.
 	@type total_bytes_downloaded: int
-	@ivar dry_run: instead of starting a download, just report what we would have downloaded
+	@ivar dry_run: don't write or execute any files, just print notes about what we would have done to stdout
 	@type dry_run: bool
 	"""
 
@@ -153,6 +153,7 @@ class Handler(object):
 				raise NoTrustedKeys(_('Not signed with a trusted key'))
 			if i in 'Yy':
 				break
+		trust.trust_db._dry_run = self.dry_run
 		for key in valid_sigs:
 			print(_("Trusting %(key_fingerprint)s for %(domain)s") % {'key_fingerprint': key.fingerprint, 'domain': domain}, file=sys.stderr)
 			trust.trust_db.trust_key(key.fingerprint, domain)

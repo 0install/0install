@@ -214,7 +214,7 @@ class IfaceCache(object):
 		warnings.warn("Use update_feed_if_trusted instead", DeprecationWarning, stacklevel = 2)
 		return self.update_feed_if_trusted(interface.uri, sigs, xml)
 
-	def update_feed_if_trusted(self, feed_url, sigs, xml):
+	def update_feed_if_trusted(self, feed_url, sigs, xml, dry_run = False):
 		"""Update a cached feed (using L{update_feed_from_network})
 		if we trust the signatures.
 		If we don't trust any of the signatures, do nothing.
@@ -232,7 +232,7 @@ class IfaceCache(object):
 		updated = self._oldest_trusted(sigs, trust.domain_from_url(feed_url))
 		if updated is None: return False	# None are trusted
 
-		self.update_feed_from_network(feed_url, xml, updated)
+		self.update_feed_from_network(feed_url, xml, updated, dry_run = dry_run)
 		return True
 
 	def update_interface_from_network(self, interface, new_xml, modified_time):
@@ -240,7 +240,7 @@ class IfaceCache(object):
 		warnings.warn("Use update_feed_from_network instead", DeprecationWarning, stacklevel = 2)
 		self.update_feed_from_network(interface.uri, new_xml, modified_time)
 
-	def update_feed_from_network(self, feed_url, new_xml, modified_time):
+	def update_feed_from_network(self, feed_url, new_xml, modified_time, dry_run = False):
 		"""Update a cached feed.
 		Called by L{update_feed_if_trusted} if we trust this data.
 		After a successful update, L{writer} is used to update the feed's
@@ -257,6 +257,18 @@ class IfaceCache(object):
 		"""
 		logger.debug(_("Updating '%(interface)s' from network; modified at %(time)s") %
 			{'interface': feed_url, 'time': _pretty_time(modified_time)})
+
+		if dry_run:
+			print(_("[dry-run] would cache feed {url} in {cache_dir}").format(
+				url = feed_url,
+				cache_dir = os.path.join(basedir.xdg_cache_home, config_site)))
+			from io import BytesIO
+			from zeroinstall.injector import qdom
+			root = qdom.parse(BytesIO(new_xml), filter_for_version = True)
+			feed = model.ZeroInstallFeed(root)
+			reader.update_user_feed_overrides(feed)
+			self._feeds[feed_url] = feed
+			return
 
 		self._import_new_feed(feed_url, new_xml, modified_time)
 

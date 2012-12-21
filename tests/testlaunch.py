@@ -13,7 +13,7 @@ sys.path.insert(0, '..')
 from zeroinstall import SafeException
 from zeroinstall.support import tasks
 from zeroinstall.injector import run, cli, namespaces, qdom, selections
-from zeroinstall.zerostore import Store; Store._add_with_helper = lambda *unused: False
+from zeroinstall.zerostore import Store
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver
 
@@ -96,11 +96,6 @@ class TestLaunch(BaseTest):
 		a = tempfile.NamedTemporaryFile()
 		out, err = self.run_0launch(['-q', a.name])
 		assert err
-	
-	def testOK(self):
-		out, err = self.run_0launch(['--dry-run', 'http://foo/d'])
-		self.assertEqual("Would download 'http://foo/d'\nFinished\n", out)
-		self.assertEqual("", err)
 	
 	def testRun(self):
 		out, err = self.run_0launch(['Local.xml'])
@@ -189,11 +184,6 @@ class TestLaunch(BaseTest):
 		# (Foo.xml tries to run a directory; plash gives a different error)
 		assert "Permission denied" in err or "Is a directory" in err
 
-	def testSource(self):
-		out, err = self.run_0launch(['--dry-run', '--source', '--not-before=1', 'Source.xml'])
-		self.assertEqual("", err)
-		assert 'Compiler.xml' in out
-	
 	def testRanges(self):
 		out, err = self.run_0launch(['--get-selections', '--before=1', '--not-before=0.2', 'Foo.xml'])
 		assert 'tests/rpm' in out, out

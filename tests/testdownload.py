@@ -15,7 +15,7 @@ from zeroinstall import helpers
 from zeroinstall.injector import model, gpg, download, trust, background, arch, selections, qdom, run
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver
-from zeroinstall.zerostore import Store, NotStored; Store._add_with_helper = lambda *unused: False
+from zeroinstall.zerostore import Store, NotStored
 from zeroinstall.support import basedir, tasks, ro_rmtree
 from zeroinstall.injector import fetch
 import data
@@ -96,9 +96,9 @@ class Reply:
 	def readline(self):
 		return self.reply
 
-def download_and_execute(driver, prog_args, main = None):
+def download_and_execute(driver, prog_args, main = None, dry_run = False):
 	driver_download(driver)
-	run.execute_selections(driver.solver.selections, prog_args, stores = driver.config.stores, main = main)
+	run.execute_selections(driver.solver.selections, prog_args, stores = driver.config.stores, main = main, dry_run = dry_run)
 
 def driver_download(driver):
 	downloaded = driver.solve_and_download_impls()
@@ -310,6 +310,22 @@ class TestDownload(BaseTest):
 			except model.SafeException as ex:
 				if "HelloWorld/Missing" not in str(ex):
 					raise
+	
+	def testDryRun(self):
+		with output_suppressed():
+			run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+			self.config.handler.dry_run = True
+			driver = Driver(requirements = Requirements('http://localhost:8000/Hello'), config = self.config)
+			assert driver.need_download()
+			sys.stdin = Reply("Y\n")
+			sys.stdout = StringIO()
+			download_and_execute(driver, ['Hello'], main = 'Missing', dry_run = True)
+
+			out = sys.stdout.getvalue()
+			assert '[dry-run] would trust key DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000' in out, out
+			assert '[dry-run] would cache feed http://localhost:8000/Hello in ' in out, out
+			assert '[dry-run] would store implementation as ' in out, out
+			assert '[dry-run] would execute:' in out, out
 	
 	def testAutoAcceptKey(self):
 		self.config.auto_approve_keys = True

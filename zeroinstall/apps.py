@@ -310,7 +310,7 @@ class App:
 	def _touch(self, name):
 		timestamp_path = os.path.join(self.path, name)
 		if self.config.handler.dry_run:
-			print(_("[dry-run] would update timestamp file {file}").format(file = timestamp_path))
+			pass #print(_("[dry-run] would update timestamp file {file}").format(file = timestamp_path))
 		else:
 			fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0o644)
 			os.close(fd)

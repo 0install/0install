@@ -87,7 +87,7 @@ class Setup(object):
 		self.stores = stores
 		self.selections = selections
 
-	def build_command(self, command_iface, command_name, user_command = None):
+	def build_command(self, command_iface, command_name, user_command = None, dry_run = False):
 		"""Create a list of strings to be passed to exec to run the <command>s in the selections.
 		@param command_iface: the interface of the program being run
 		@type command_iface: str
@@ -138,7 +138,7 @@ class Setup(object):
 
 				assert prog_path is not None
 
-				if not os.path.exists(prog_path):
+				if not os.path.exists(prog_path) and not dry_run:
 					raise SafeException(_("File '%(program_path)s' does not exist.\n"
 							"(implementation '%(implementation_id)s' + program '%(main)s')") %
 							{'program_path': prog_path, 'implementation_id': command_sel.id,
@@ -315,7 +315,7 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		user_command = None
 
 	setup.prepare_env()
-	prog_args = setup.build_command(selections.interface, selections.command, user_command) + prog_args
+	prog_args = setup.build_command(selections.interface, selections.command, user_command, dry_run = dry_run) + prog_args
 
 	if wrapper:
 		prog_args = ['/bin/sh', '-c', wrapper + ' "$@"', '-'] + list(prog_args)

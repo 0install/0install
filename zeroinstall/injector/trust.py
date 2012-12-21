@@ -25,11 +25,12 @@ class TrustDB(object):
 	@type keys: {str: set(str)}
 	@ivar watchers: callbacks invoked by L{notify}
 	@see: L{trust_db} - the singleton instance of this class"""
-	__slots__ = ['keys', 'watchers']
+	__slots__ = ['keys', 'watchers', '_dry_run']
 
 	def __init__(self):
 		self.keys = None
 		self.watchers = []
+		self._dry_run = False
 	
 	def is_trusted(self, fingerprint, domain = None):
 		self.ensure_uptodate()
@@ -66,6 +67,9 @@ class TrustDB(object):
 		@note: call L{notify} after trusting one or more new keys"""
 		if self.is_trusted(fingerprint, domain): return
 
+		if self._dry_run:
+			print(_("[dry-run] would trust key {key} for {domain}").format(key = fingerprint, domain = domain))
+
 		int(fingerprint, 16)		# Ensure fingerprint is valid
 
 		if fingerprint not in self.keys:
@@ -78,6 +82,8 @@ class TrustDB(object):
 		self.save()
 	
 	def untrust_key(self, key, domain = '*'):
+		if self._dry_run:
+			print(_("[dry-run] would untrust key {key} for {domain}").format(key = key, domain = domain))
 		self.ensure_uptodate()
 		self.keys[key].remove(domain)
 
@@ -88,6 +94,7 @@ class TrustDB(object):
 		self.save()
 	
 	def save(self):
+		if self._dry_run: return
 		from xml.dom import minidom
 		import tempfile
 
@@ -118,6 +125,9 @@ class TrustDB(object):
 		for w in self.watchers: w()
 	
 	def ensure_uptodate(self):
+		if self._dry_run:
+			if self.keys is None: self.keys = {}
+			return
 		from xml.dom import minidom
 
 		# This is a bit inefficient... (could cache things)
