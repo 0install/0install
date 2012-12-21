@@ -101,6 +101,8 @@ def get_selections_for(requirements, config, options, select_only, download_only
 		if stale_feeds:
 			if config.network_use == model.network_offline:
 				logger.debug(_("No doing background update because we are in off-line mode."))
+			elif options.dry_run:
+				print(_("[dry-run] would check for updates in the background"))
 			else:
 				# There are feeds we should update, but we can run without them.
 				# Do the update in the background while the program is running.
