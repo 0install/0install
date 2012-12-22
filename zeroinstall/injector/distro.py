@@ -366,7 +366,7 @@ class DarwinDistribution(Distribution):
 
 		def find_program(file):
 			if os.path.isfile(file) and os.access(file, os.X_OK):
-				program_version = get_version(file)
+				program_version = try_cleanup_distro_version(get_version(file))
 				impl = factory('package:darwin:%s:%s' % (package, program_version), True)
 				if impl:
 					impl.installed = True
