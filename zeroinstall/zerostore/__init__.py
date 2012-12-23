@@ -172,6 +172,8 @@ class Store:
 		"""
 		if required_digest.startswith('sha1='):
 			return False		# Old digest alg not supported
+		if os.environ.get('ZEROINSTALL_PORTABLE_BASE'):
+			return False		# Can't use helper with portable mode
 		helper = support.find_in_path('0store-secure-add-helper')
 		if not helper:
 			logger.info(_("'0store-secure-add-helper' command not found. Not adding to system cache."))
