@@ -310,6 +310,8 @@ class Fetcher(object):
 		else:
 			url = feed_url
 
+		if self.config.handler.dry_run:
+			print(_("[dry-run] downloading feed {url}").format(url = url))
 		dl = self.download_url(url, hint = feed_url)
 		stream = dl.tempfile
 
@@ -350,6 +352,10 @@ class Fetcher(object):
 		try:
 			return self.key_info[fingerprint]
 		except KeyError:
+			if self.config.handler.dry_run:
+				print(_("[dry-run] asking {url} about key {key}").format(
+					url = self.config.key_info_server,
+					key = fingerprint))
 			self.key_info[fingerprint] = key_info = KeyInfoFetcher(self,
 									self.config.key_info_server, fingerprint)
 			return key_info
@@ -484,6 +490,8 @@ class Fetcher(object):
 		else:
 			mirror = None
 
+		if self.config.handler.dry_run:
+			print(_("[dry-run] downloading archive {url}").format(url = download_source.url))
 		dl = self.download_url(download_source.url, hint = impl_hint, mirror_url = mirror)
 		if download_source.size is not None:
 			dl.expected_size = download_source.size + (download_source.start_offset or 0)

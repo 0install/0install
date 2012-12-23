@@ -94,7 +94,11 @@ class TrustDB(object):
 		self.save()
 	
 	def save(self):
-		if self._dry_run: return
+		d = basedir.save_config_path(config_site, config_prog)
+		db_file = os.path.join(d, 'trustdb.xml')
+		if self._dry_run:
+			print(_("[dry-run] would update trust database {file}").format(file = db_file))
+			return
 		from xml.dom import minidom
 		import tempfile
 
@@ -112,11 +116,9 @@ class TrustDB(object):
 				domainelem.setAttribute('value', domain)
 				keyelem.appendChild(domainelem)
 
-		d = basedir.save_config_path(config_site, config_prog)
-
 		with tempfile.NamedTemporaryFile(dir = d, prefix = 'trust-', delete = False, mode = 'wt') as tmp:
 			doc.writexml(tmp, indent = "", addindent = "  ", newl = "\n", encoding = 'utf-8')
-		support.portable_rename(tmp.name, os.path.join(d, 'trustdb.xml'))
+		support.portable_rename(tmp.name, db_file)
 	
 	def notify(self):
 		"""Call all watcher callbacks.
@@ -239,6 +241,7 @@ class TrustMgr(object):
 			existing_feed = self.config.iface_cache.get_feed(pending.url)
 			if not existing_feed:
 				changes = False
+				trust_db._dry_run = self.config.handler.dry_run
 				for sig, kf in kfs.items():
 					for key_info in kf.info:
 						if key_info.getAttribute("vote") == "good":
