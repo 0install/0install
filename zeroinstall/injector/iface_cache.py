@@ -260,19 +260,9 @@ class IfaceCache(object):
 		logger.debug(_("Updating '%(interface)s' from network; modified at %(time)s") %
 			{'interface': feed_url, 'time': _pretty_time(modified_time)})
 
-		if dry_run:
-			print(_("[dry-run] would cache feed {url} in {cache_dir}").format(
-				url = feed_url,
-				cache_dir = os.path.join(basedir.xdg_cache_home, config_site)))
-			from io import BytesIO
-			from zeroinstall.injector import qdom
-			root = qdom.parse(BytesIO(new_xml), filter_for_version = True)
-			feed = model.ZeroInstallFeed(root)
-			reader.update_user_feed_overrides(feed)
-			self._feeds[feed_url] = feed
-			return
+		self._import_new_feed(feed_url, new_xml, modified_time, dry_run)
 
-		self._import_new_feed(feed_url, new_xml, modified_time)
+		if dry_run: return
 
 		feed = self.get_feed(feed_url)
 
@@ -283,7 +273,7 @@ class IfaceCache(object):
 		logger.info(_("Updated feed cache entry for %(interface)s (modified %(time)s)"),
 			{'interface': feed.get_name(), 'time': _pretty_time(modified_time)})
 
-	def _import_new_feed(self, feed_url, new_xml, modified_time):
+	def _import_new_feed(self, feed_url, new_xml, modified_time, dry_run):
 		"""Write new_xml into the cache.
 		@param feed_url: the URL for the feed being updated
 		@param new_xml: the data to write
@@ -306,6 +296,18 @@ class IfaceCache(object):
 				self.get_feed(feed_url, force = True)
 				return
 			old_modified = int(os.stat(cached).st_mtime)
+
+		if dry_run:
+			print(_("[dry-run] would cache feed {url} as {cached}").format(
+				url = feed_url,
+				cached = cached))
+			from io import BytesIO
+			from zeroinstall.injector import qdom
+			root = qdom.parse(BytesIO(new_xml), filter_for_version = True)
+			feed = model.ZeroInstallFeed(root)
+			reader.update_user_feed_overrides(feed)
+			self._feeds[feed_url] = feed
+			return
 
 		# Do we need to write this temporary file now?
 		try:

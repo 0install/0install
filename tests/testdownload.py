@@ -323,7 +323,7 @@ class TestDownload(BaseTest):
 
 			out = sys.stdout.getvalue()
 			assert '[dry-run] would trust key DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000' in out, out
-			assert '[dry-run] would cache feed http://localhost:8000/Hello in ' in out, out
+			assert '[dry-run] would cache feed http://localhost:8000/Hello as ' in out, out
 			assert '[dry-run] would store implementation as ' in out, out
 			assert '[dry-run] would execute:' in out, out
 	
