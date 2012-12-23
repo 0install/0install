@@ -220,9 +220,7 @@ class ConsoleHandler(Handler):
 				self.update = None
 				builtins.print = self.original_print
 				self.original_print = None
-				if self.last_msg_len != None:
-					print()
-					self.last_msg_len = None
+				self.clear_display()
 
 	def show_progress(self):
 		if not self.monitored_downloads: return True
