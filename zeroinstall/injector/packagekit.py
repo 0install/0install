@@ -297,8 +297,13 @@ class _PackageKitTransaction(object):
 		self.details = {}
 		self.files = {}
 
+		try:
+			tid = pk.CreateTransaction()
+		except dbus.exceptions.DBusException:
+			tid = pk.GetTid()
+
 		self.object = dbus.SystemBus().get_object(
-				'org.freedesktop.PackageKit', pk.GetTid(), False)
+				'org.freedesktop.PackageKit', tid, False)
 		self.proxy = dbus.Interface(self.object,
 				'org.freedesktop.PackageKit.Transaction')
 		self._props = dbus.Interface(self.object, dbus.PROPERTIES_IFACE)
