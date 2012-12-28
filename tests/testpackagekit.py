@@ -13,96 +13,112 @@ class Connection:
 	def remove(self):
 		pass
 
-class PackageKit05:
-	x = 0
+def makeFakePackageKit(version):
+	class FakePackageKit:
+		x = 0
 
-	def GetTid(self):
-		self.x += 1
-		return "/tid/%d" % self.x
+		def GetTid(self):
+			self.x += 1
+			return "/tid/%d" % self.x
 
-	class Tid:
-		def __init__(self):
-			self.signals = {}
+		class Tid:
+			def __init__(self):
+				self.signals = {}
 
-		def connect_to_signal(self, signal, cb):
-			self.signals[signal] = cb
-			return Connection()
+			def connect_to_signal(self, signal, cb):
+				self.signals[signal] = cb
+				return Connection()
 
-		def get_dbus_method(self, method):
-			if hasattr(self, method):
-				return getattr(self, method)
-			raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownMethod')
-
-		def SetLocale(self, locale):
-			pass
-
-	class Tid1(Tid):
-		def Resolve(self, query, package_names):
-			@tasks.async
-			def later():
-				yield
-				result = "success"
-				for package_name in package_names:
-					if package_name == 'gimp':
-						info = {}
-						self.signals['Package'](info, "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu", "summary")
-					else:
-						self.signals['Error']("package-not-found", "Package name %s could not be resolved" % package_name)
-						result = "failed"
-				yield
-				self.signals['Finished'](result, 100)
-			later()
-
-	class Tid2(Tid):
-		def GetDetails(self, package_ids):
-			@tasks.async
-			def later():
-				yield
-				for package_id in package_ids:
-					assert package_id == "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu"
-					self.signals['Details'](package_id, "GPL", "Graphics", "detail", "http://foo", 100)
-
-				yield
-				self.signals['Finished']("success", 100)
-			later()
-
-	class Install(Tid):
-		def GetProgress(self):
-			# %task, %sub-task, time-task, time-sub-task
-			return (50, 101, 351, 0)
-
-		def InstallPackages(self, only_trusted, package_ids = None):
-			if package_ids is None:
-				# newer 2-arg form
+			def get_dbus_method(self, method):
+				if hasattr(self, method):
+					return getattr(self, method)
 				raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownMethod')
 
-			assert only_trusted == False
-			@tasks.async
-			def later():
-				yield
-				for package_id in package_ids:
-					assert package_id == "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu"
-					self.signals['StatusChanged']("setup")
+			if version == '0.5':
+				def SetLocale(self, locale):
+					pass
+			else:
+				def SetHints(self, hints):
+					pass
 
-					# Unknown % for task and subtask
-					# 0s time used so far
-					#self.signals['ProgressChanged'](101, 101, 0, 0)
+		class Tid1(Tid):
+			def Resolve(self, query, package_names):
+				@tasks.async
+				def later():
+					yield
+					result = "success"
+					for package_name in package_names:
+						if package_name == 'gimp':
+							info = {}
+							self.signals['Package'](info, "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu", "summary")
+						else:
+							self.signals['Error']("package-not-found", "Package name %s could not be resolved" % package_name)
+							result = "failed"
+					yield
+					self.signals['Finished'](result, 100)
+				later()
+
+		class Tid2(Tid):
+			def GetDetails(self, package_ids):
+				@tasks.async
+				def later():
+					yield
+					for package_id in package_ids:
+						assert package_id == "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu"
+						self.signals['Details'](package_id, "GPL", "Graphics", "detail", "http://foo", 100)
 
 					yield
+					self.signals['Finished']("success", 100)
+				later()
 
-					#self.signals['ProgressChanged'](50, 101, 351, 0)
+		class Install(Tid):
+			def GetProgress(self):
+				# %task, %sub-task, time-task, time-sub-task
+				return (50, 101, 351, 0)
 
-					#self.signals['AllowCancel'](False)
-					self.signals['Package']("installing", "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu", "Graphics package")
+			def InstallPackages(self, arg1, arg2 = None):
+				if version == '0.5':
+					if arg2 is None:
+						# newer 2-arg form
+						raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownMethod')
+					only_trusted = arg1
+					package_ids = arg2
+				else:
+					assert version == '0.6'
+					if arg2 is not None:
+						# older 3-arg form
+						raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownMethod')
+					only_trusted = False
+					package_ids = arg1
+
+				assert only_trusted == False
+				@tasks.async
+				def later():
+					yield
+					for package_id in package_ids:
+						assert package_id == "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu"
+						self.signals['StatusChanged']("setup")
+
+						# Unknown % for task and subtask
+						# 0s time used so far
+						#self.signals['ProgressChanged'](101, 101, 0, 0)
+
+						yield
+
+						#self.signals['ProgressChanged'](50, 101, 351, 0)
+
+						#self.signals['AllowCancel'](False)
+						self.signals['Package']("installing", "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu", "Graphics package")
+
+						yield
+
+						#self.signals['ProgressChanged'](100, 101, 1351, 0)
+						self.signals['Package']("finished", "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu", "Graphics package")
 
 					yield
-
-					#self.signals['ProgressChanged'](100, 101, 1351, 0)
-					self.signals['Package']("finished", "gimp;2.6.8-2ubuntu1.1;amd64;Ubuntu", "Graphics package")
-
-				yield
-				self.signals['Finished']("success", 100)
-			later()
+					self.signals['Finished']("success", 100)
+				later()
+	return FakePackageKit()
 
 class TestPackageKit(BaseTest):
 	def setUp(self):
@@ -144,19 +160,25 @@ class TestPackageKit(BaseTest):
 		factory = Exception("not called")
 		pk.get_candidates('gimp', factory, 'package:null')
 
-	def testPackageKit05(self):
+	def testPackageKit(self):
 		#import logging
 		#_logger_pk = logging.getLogger('0install.packagekit')
 		#_logger_pk.setLevel(logging.DEBUG)
 
-		pk05 = PackageKit05()
+		for version in ['0.5', '0.6']:
+			#print(version)
+			pk = makeFakePackageKit(version)
 
-		dbus.system_services['org.freedesktop.PackageKit'] = {
-			'/org/freedesktop/PackageKit': pk05,
-			'/tid/1': PackageKit05.Tid1(),
-			'/tid/2': PackageKit05.Tid2(),
-			'/tid/3': PackageKit05.Install(),
-		}
+			dbus.system_services['org.freedesktop.PackageKit'] = {
+				'/org/freedesktop/PackageKit': pk,
+				'/tid/1': pk.Tid1(),
+				'/tid/2': pk.Tid2(),
+				'/tid/3': pk.Install(),
+			}
+			self.doTest()
+			self.assertEqual(3, pk.x)
+
+	def doTest(self):
 		imp.reload(packagekit)
 		pk = packagekit.PackageKit()
 		assert pk.available
@@ -207,8 +229,7 @@ class TestPackageKit(BaseTest):
 
 		# Don't fetch it again
 		tasks.wait_for_blocker(pk.fetch_candidates(["gimp"]))
-		self.assertEqual(3, pk05.x)
-	
+
 	def installed_fixup(self, impl):
 		impl.main = '/usr/bin/fixed'
 
