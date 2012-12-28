@@ -18,8 +18,16 @@ def makeFakePackageKit(version):
 		x = 0
 
 		def GetTid(self):
-			self.x += 1
-			return "/tid/%d" % self.x
+			if version in ('0.5', '0.6'):
+				self.x += 1
+				return "/tid/%d" % self.x
+			else:
+				raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownMethod')
+
+		if version == '0.8.1':
+			def CreateTransaction(self):
+				self.x += 1
+				return "/tid/%d" % self.x
 
 		class Tid:
 			def __init__(self):
@@ -43,6 +51,10 @@ def makeFakePackageKit(version):
 
 		class Tid1(Tid):
 			def Resolve(self, query, package_names):
+				if version == '0.8.1':
+					assert isinstance(query, dbus.UInt64), query
+				else:
+					assert query == 'none'
 				@tasks.async
 				def later():
 					yield
@@ -84,7 +96,6 @@ def makeFakePackageKit(version):
 					only_trusted = arg1
 					package_ids = arg2
 				else:
-					assert version == '0.6'
 					if arg2 is not None:
 						# older 3-arg form
 						raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownMethod')
@@ -165,7 +176,7 @@ class TestPackageKit(BaseTest):
 		#_logger_pk = logging.getLogger('0install.packagekit')
 		#_logger_pk.setLevel(logging.DEBUG)
 
-		for version in ['0.5', '0.6']:
+		for version in ['0.5', '0.6', '0.8.1']:
 			#print(version)
 			pk = makeFakePackageKit(version)
 

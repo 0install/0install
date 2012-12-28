@@ -56,3 +56,7 @@ class exceptions:
 
 		def get_dbus_name(self):
 			return self.name
+
+class UInt64:
+	def __init__(self, value):
+		self.value = value

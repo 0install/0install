@@ -183,7 +183,7 @@ class PackageKit(object):
 			try:
 				_logger_pk.debug(_('Ask for %s'), package_names)
 				tran = _PackageKitTransaction(self.pk, resolve_cb, error_cb)
-				tran.proxy.Resolve('none', package_names)
+				tran.Resolve(package_names)
 			except:
 				__, ex, tb = sys.exc_info()
 				blocker.trigger((ex, tb))
@@ -298,9 +298,13 @@ class _PackageKitTransaction(object):
 		self.files = {}
 
 		try:
-			tid = pk.CreateTransaction()
-		except dbus.exceptions.DBusException:
+			# Put this first in case Ubuntu's aptdaemon doesn't like
+			# CreateTransaction.
 			tid = pk.GetTid()
+			self.have_0_8_1_api = False
+		except dbus.exceptions.DBusException:
+			tid = pk.CreateTransaction()
+			self.have_0_8_1_api = True
 
 		self.object = dbus.SystemBus().get_object(
 				'org.freedesktop.PackageKit', tid, False)
@@ -401,3 +405,9 @@ class _PackageKitTransaction(object):
 
 	def __status_changed_cb(self, status):
 		pass
+
+	def Resolve(self, package_names):
+		if self.have_0_8_1_api:
+			self.proxy.Resolve(dbus.UInt64(0), package_names)
+		else:
+			self.proxy.Resolve('none', package_names)
