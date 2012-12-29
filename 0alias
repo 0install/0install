@@ -78,6 +78,7 @@ if options.version:
 	sys.exit(0)
 
 if options.manpage:
+	print('"0alias --manpage" is deprecated; use "0install man" instead', file = sys.stderr)
 	if len(args) != 1:
 		os.execlp('man', 'man', *args)
 		sys.exit(1)
