@@ -261,6 +261,10 @@ by the program; hence, this mechanism cannot be used for sandboxing. See the
 DEBUGGING section below.
 
 .PP
+Note that any options after `URI' will be passed to the program being run rather
+than being interpreted by 0install.
+
+.PP
 `run' returns an exit status of 1 if the download step failed. Otherwise,
 the exit status will be the exit status of the program being run.
 
@@ -423,7 +427,7 @@ If additional requirements are given (as for "0install select", e.g. \-\-before)
 they update the requirements stored with the application and apply to this and
 future updates.
 
-.B 0install whatchanged \fBNAME\fP
+.SS 0install whatchanged \fBNAME\fP
 
 .PP
 Show the differences between the current and previous selections for this
