@@ -51,7 +51,7 @@ parser.add_option("-m", "--manpage", help="show the manual page for an existing 
 parser.add_option("-r", "--resolve", help="show the URI for an alias", action='store_true')
 parser.add_option("-v", "--verbose", help="more verbose output", action='count')
 parser.add_option("-V", "--version", help="display version information", action='store_true')
-parser.add_option("-d", "--dir", help="install in DIR", dest="user_path", metavar="DIR")
+#parser.add_option("-d", "--dir", help="install in DIR", dest="user_path", metavar="DIR")
 
 (options, args) = parser.parse_args()
 
@@ -98,8 +98,8 @@ if options.resolve or options.manpage:
 		parser.print_help()
 		sys.exit(1)
 
-if options.user_path:
-	first_path = options.user_path
+#if options.user_path:
+#	first_path = options.user_path
 
 if interface_uri is None:
 	if options.command:
@@ -140,56 +140,25 @@ if options.manpage:
 	helpers.exec_man(config.stores, sels, main = main, fallback_name = alias_name)
 	assert 0
 
-if not os.path.isdir(first_path):
-	print("(creating directory %s)" % first_path)
-	os.makedirs(first_path)
-
 if len(args) == 1:
 	os.execlp('0launch', '0launch', '-gd', '--', interface_uri)
 	sys.exit(1)
 
-try:
-	if not options.user_path:
-		if alias_prog == '0launch':
-			raise model.SafeException(_('Refusing to create an alias named "0launch" (to avoid an infinite loop)'))
+print(_('("0alias" is deprecated; using "0install add" instead)'))
 
-	# Ensure it's cached, because the user probably wants it cached, and this checks that the URI is valid.
-	if not helpers.ensure_cached(interface_uri, command, config = config):
-		sys.exit(1)	# User cancelled
-
-	script = os.path.join(first_path, alias_prog)
-	if os.path.exists(script):
-		raise model.SafeException("File '%s' already exists. Delete it first." % script)
-		sys.exit(1)
-except model.SafeException as ex:
-	print(ex, file=sys.stderr)
+from zeroinstall import cmd
+args = ['add']
+if options.command:
+	args.append('--command=' + options.command)
+if main is not None:
+	print("Sorry, using a custom main is no longer supported.", file = sys.stderr)
 	sys.exit(1)
 
-seen = set([interface_uri])
-while True:
-	feed = config.iface_cache.get_feed(interface_uri)
-	replacement_uri = feed.get_replaced_by()
-	if replacement_uri is None:
-		break
-	print(_("(interface {old} has been replaced by {new}; using that instead)").format(old = interface_uri, new = replacement_uri))
-	assert replacement_uri not in seen, "loop detected!"
-	seen.add(replacement_uri)
-	interface_uri = replacement_uri
+print('0install {options} {alias} {uri}'.format(
+	options = ' '.join(args),
+	alias = alias_prog,
+	uri = interface_uri))
 
-wrapper = open(script, 'w')
-alias.write_script(wrapper, interface_uri, main, command = options.command)
+args += ['--', alias_prog, interface_uri]
 
-# Make new script executable
-os.chmod(script, 0o111 | os.fstat(wrapper.fileno()).st_mode)
-wrapper.close()
-
-#print "Created script '%s'." % script
-#print "To edit policy: 0alias %s" % alias_prog
-if options.user_path:
-	pass		# Assume user knows what they're doing
-elif not in_path:
-	print('Warning: %s is not in $PATH. Add it with:\n%s' % (first_path, export('PATH', first_path + ':$PATH')), file=sys.stderr)
-else:
-	shell = os.environ.get('SHELL', '?')
-	if not (shell.endswith('/zsh') or shell.endswith('/bash')):
-		print("(note: some shells require you to type 'rehash' now)")
+cmd.main(args, config = config)

@@ -126,14 +126,12 @@ downloaded if it's not yet in the cache.
 
 .PP
 The URI can be an HTTP URL, such as
-`http://site/program.xml', a local path name like `file:///path/to/program.xml',
-or an alias like `alias:prog'.
+`http://site/program.xml' or a local path name like `file:///path/to/program.xml'.
 
 .PP
 For HTTP URLs, the remote file is a signed XML document. If the key is not
 known and trusted, you will be prompted to accept it first. Local feed files
-are not signed (any signature will be ignored). Aliases are created using
-0alias(1).
+are not signed (any signature will be ignored).
 
 .PP
 You can also specify a local selections document, as created previously using
@@ -238,7 +236,7 @@ This behaves similarly to `0install download', except that it also runs the
 program after ensuring it is in the cache.
 
 .PP
-To avoid having to keep typing the full URI, use the 0alias(1) command
+To avoid having to keep typing the full URI, use the `0install add' command
 to create shortcuts to run your programs.
 
 .PP
@@ -340,7 +338,7 @@ With two arguments, it sets the setting to the given value.
 
 .PP
 Show the man-page of the given command. If the single argument \fBCOMMAND\fP is
-a launcher script (created by "0install add" or "0alias") then the man-page is
+a launcher script (created by "0install add") then the man-page is
 searched for by 0install, otherwise the arguments are passed through directly
 to the system's man command. This allows you to do:
 
@@ -523,7 +521,7 @@ http://0install.net/support.html
 Zero Install was created by Thomas Leonard, with help from many others. See the Git log for details.
 
 .SH SEE ALSO
-0alias(1), 0store(1), 0launch(1)
+0store(1), 0launch(1)
 .PP
 The Zero Install web-site:
 

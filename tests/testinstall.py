@@ -4,7 +4,7 @@ import sys, os, tempfile, subprocess, shutil
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall import cmd, logger
+from zeroinstall import cmd, logger, apps, alias
 from zeroinstall.injector import model, selections, qdom, handler, gpg, config, background
 
 mydir = os.path.dirname(__file__)
@@ -508,10 +508,12 @@ class TestInstall(BaseTest):
 			else:
 				self.assertEqual(expected, ex.man_args)
 
-	def testAlias(self):
-		alias_path = os.path.join(mydir, '..', '0alias')
+	def testUpdateAlias(self):
 		local_feed = os.path.join(mydir, 'Local.xml')
-		subprocess.check_call([alias_path, 'my-test-alias', local_feed])
+		launcher_script = os.path.join(apps.find_bin_dir(), 'my-test-alias')
+		with open(launcher_script, 'w') as stream:
+			alias.write_script(stream, local_feed, None)
+
 		out, err = self.run_0install(['update', 'my-test-alias'])
 		self.assertEqual("Bad interface name 'my-test-alias'.\n(hint: try 'alias:my-test-alias' instead)\n", err)
 		self.assertEqual("", out)
@@ -526,7 +528,9 @@ class TestInstall(BaseTest):
 
 		alias_path = os.path.join(mydir, '..', '0alias')
 		local_feed = os.path.join(mydir, 'Local.xml')
-		subprocess.check_call([alias_path, 'my-test-alias', local_feed])
+		launcher_script = os.path.join(apps.find_bin_dir(), 'my-test-alias')
+		with open(launcher_script, 'w') as stream:
+			alias.write_script(stream, model.canonical_iface_uri(local_feed), None)
 		self.check_man(['my-test-alias'], 'tests/test-echo.1')
 
 		self.check_man(['__i_dont_exist'], '__i_dont_exist')
@@ -534,7 +538,9 @@ class TestInstall(BaseTest):
 
 		# No man-page
 		binary_feed = os.path.join(mydir, 'Command.xml')
-		subprocess.check_call([alias_path, 'my-binary-alias', binary_feed])
+		launcher_script = os.path.join(apps.find_bin_dir(), 'my-binary-alias')
+		with open(launcher_script, 'w') as stream:
+			alias.write_script(stream, model.canonical_iface_uri(binary_feed), None)
 
 		out, err = self.run_0install(['man', 'my-binary-alias'])
 		assert not err, err
@@ -543,6 +549,17 @@ class TestInstall(BaseTest):
 		with open(os.path.join(self.config_home, 'bad-unicode'), 'wb') as stream:
 			stream.write(bytes([198, 65]))
 		self.check_man(['bad-unicode'], 'bad-unicode')
+
+	def testAlias(self):
+		local_feed = model.canonical_iface_uri(os.path.join(mydir, 'Local.xml'))
+		alias_path = os.path.join(mydir, '..', '0alias')
+		child = subprocess.Popen([alias_path, 'local-app', local_feed], stdout = subprocess.PIPE, stderr = subprocess.STDOUT, universal_newlines = True)
+		out, err = child.communicate()
+		assert '("0alias" is deprecated; using "0install add" instead)' in out, out
+		assert not err, err
+
+		app = self.config.app_mgr.lookup_app('local-app')
+		assert app.get_requirements().interface_uri == local_feed
 
 	def testAdd(self):
 		out, err = self.run_0install(['add', '--help'])
