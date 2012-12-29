@@ -16,6 +16,8 @@ import re, os, time, tempfile
 valid_name = re.compile(r'''^[^./\\:=;'"][^/\\:=;'"]*$''')
 
 def validate_name(name):
+	if name == '0install':
+		raise SafeException("Creating an app called '0install' would cause trouble; try e.g. '00install' instead")
 	if valid_name.match(name): return
 	raise SafeException("Invalid application name '{name}'".format(name = name))
 
