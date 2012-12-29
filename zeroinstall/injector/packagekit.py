@@ -229,10 +229,7 @@ class PackageKitDownload:
 		def install_packages():
 			package_name = self.packagekit_id
 			self._transaction = _PackageKitTransaction(self.pk, installed_cb, error_cb)
-			self._transaction.compat_call([
-					('InstallPackages', False, [package_name]),
-					('InstallPackages', [package_name]),
-					])
+			self._transaction.InstallPackages([package_name])
 
 		_auth_wrapper(install_packages)
 
@@ -411,3 +408,12 @@ class _PackageKitTransaction(object):
 			self.proxy.Resolve(dbus.UInt64(0), package_names)
 		else:
 			self.proxy.Resolve('none', package_names)
+
+	def InstallPackages(self, package_names):
+		if self.have_0_8_1_api:
+			self.proxy.InstallPackages(dbus.UInt64(0), package_names)
+		else:
+			self.compat_call([
+					('InstallPackages', False, package_names),
+					('InstallPackages', package_names),
+			])

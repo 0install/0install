@@ -95,12 +95,19 @@ def makeFakePackageKit(version):
 						raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownMethod')
 					only_trusted = arg1
 					package_ids = arg2
-				else:
+				elif version == '0.6':
 					if arg2 is not None:
 						# older 3-arg form
 						raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownMethod')
 					only_trusted = False
 					package_ids = arg1
+				else:
+					if arg2 is None:
+						# older 3-arg form
+						raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownMethod')
+					# (note: PK docs are very unclear on this flag)
+					only_trusted = bool(arg1.value & 2)
+					package_ids = arg2
 
 				assert only_trusted == False
 				@tasks.async
