@@ -183,7 +183,7 @@ class AddBox:
 				box.destroy()
 		self.window.connect('response', response)
 
-		if len(sys.argv) > 1:
+		if interface_uri:
 			self.window.response(_RESPONSE_NEXT)
 
 	def set_keep_above(self, above):
