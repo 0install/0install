@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: zero-install 1.13-post\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-01-01 12:30+0100\n"
-"PO-Revision-Date: 2011-03-19 10:20+0100\n"
+"POT-Creation-Date: 2013-01-01 18:00+0100\n"
+"PO-Revision-Date: 2013-01-01 18:05+0100\n"
 "Last-Translator: Anders F Bjorklund <afb@users.sourceforge.net>\n"
 "Language-Team: Swedish <sv@li.org>\n"
 "Language: sv\n"
@@ -334,7 +334,7 @@ msgstr "Inga"
 
 #: zeroinstall/0launch-gui/main.py:28
 msgid "usage: %prog [options] interface"
-msgstr "använding: %prog [flaggor] gränssnitt"
+msgstr "användning: %prog [flaggor] gränssnitt"
 
 #: zeroinstall/0launch-gui/main.py:29 zeroinstall/cmd/select.py:22
 #: zeroinstall/injector/cli.py:44
@@ -349,7 +349,7 @@ msgstr "målets CPU-typ"
 #: zeroinstall/0launch-gui/main.py:31 zeroinstall/cmd/select.py:23
 #: zeroinstall/injector/cli.py:45
 msgid "command to select"
-msgstr "kommano att välja"
+msgstr "kommando att välja"
 
 #: zeroinstall/0launch-gui/main.py:32 zeroinstall/injector/cli.py:48
 msgid "fetch but don't run"
@@ -455,6 +455,7 @@ msgid ""
 "Failed to get:"
 msgstr ""
 "Alla nerladdningar lyckades inte; kan inte köra programmet.\n"
+"\n"
 "Misslyckades att hämta:"
 
 #: zeroinstall/0launch-gui/mainwindow.py:173
@@ -467,7 +468,7 @@ msgstr[1] "Laddar ner %(number)d filer (%(progress)s)"
 #: zeroinstall/0launch-gui/mainwindow.py:197
 #, python-format
 msgid "No system tray support: %s"
-msgstr "Inget stöd för system: %s"
+msgstr "Inget stöd för systembricka: %s"
 
 #: zeroinstall/0launch-gui/mainwindow.py:200
 #, python-format
@@ -962,10 +963,10 @@ msgstr ""
 "\n"
 "Stabilitet är 'stabil' ifall implementationen anses vara stabil, 'felaktig' "
 "om den innehåller kända allvarliga fel, och 'uttestning' ifall stabiliteten "
-"ännu inte är känd. Denna information tillhandahålls och uppdateras "
-"vanligen av programmets skapare, men du kan ändra deras betyg genom att "
-"högerklicka här (ändrade värden visas med stora bokstäver). Du kan också "
-"använda den speciella nivån 'föredragen'.\n"
+"ännu inte är känd. Denna information tillhandahålls och uppdateras vanligen "
+"av programmets skapare, men du kan ändra deras betyg genom att högerklicka "
+"här (ändrade värden visas med stora bokstäver). Du kan också använda den "
+"speciella nivån 'föredragen'.\n"
 "\n"
 "Hämta anger hur mycket data som behöver laddas ner för att hämta denna "
 "version om du inte har den. Om implementationen redan har hämtats till din "
@@ -976,8 +977,7 @@ msgstr ""
 "endast cachade implementationer för användning.\n"
 "\n"
 "Arkitektur visar vilken sorts datorsystem denna implementation är tänkt för, "
-"eller 'alla' om den fungerar med alla typer av system."
-"\n"
+"eller 'alla' om den fungerar med alla typer av system.\n"
 "Om du vill veta varför en specifik version inte valdes, högerklicka den och "
 "välj \"Förklara detta val\" från menyn.\n"
 
@@ -1497,7 +1497,8 @@ msgstr "Varning: gränssnittet {old} har ersatts med {new}"
 
 #: zeroinstall/cmd/update.py:83
 msgid "Updates to metadata found, but no change to version ({version})."
-msgstr "Hittade metadatauppdateringar, men ingen skillnad i version ({version})."
+msgstr ""
+"Hittade metadatauppdateringar, men ingen skillnad i version ({version})."
 
 #: zeroinstall/cmd/update.py:94
 msgid ""
@@ -1525,7 +1526,8 @@ msgstr "visa skillnad i XML"
 
 #: zeroinstall/cmd/whatchanged.py:29
 msgid "Invalid application: no selections found! Try '0install destroy {name}'"
-msgstr "Ogiltlig applikation: inga val hittades! Försök med '0install destroy {name}'"
+msgstr ""
+"Ogiltlig applikation: inga val hittades! Försök med '0install destroy {name}'"
 
 #: zeroinstall/cmd/whatchanged.py:35
 msgid "Last checked    : {date}"
@@ -1553,7 +1555,8 @@ msgstr "Tidigare uppdatering : {date}"
 
 #: zeroinstall/cmd/whatchanged.py:68
 msgid "No changes to versions (use --full to see all changes)."
-msgstr "Inga ändringar av  versioner (använd --full för att se alla ändringar)."
+msgstr ""
+"Inga ändringar av  versioner (använd --full för att se alla ändringar)."
 
 #: zeroinstall/cmd/whatchanged.py:71
 msgid "To run using the previous selections, use:"
@@ -1651,25 +1654,25 @@ msgstr "Uppgradera eller byt versioner"
 msgid "Remove launcher from the menu"
 msgstr "Ta bort startare från menyn"
 
-#: zeroinstall/gtkui/applistbox.py:146
+#: zeroinstall/gtkui/applistbox.py:148 zeroinstall/gtkui/applistbox.py:152
 msgid "No information available"
 msgstr "Ingen information tillgänglig!"
 
-#: zeroinstall/gtkui/applistbox.py:183
+#: zeroinstall/gtkui/applistbox.py:188
 msgid "Can't find a suitable terminal emulator"
 msgstr "Kan inte hitta en lämplig terminalemulator"
 
-#: zeroinstall/gtkui/applistbox.py:221
+#: zeroinstall/gtkui/applistbox.py:226
 #, python-format
 msgid "Documentation directory '%s' is an AppDir; refusing to open"
 msgstr "Dokumentationskatalogen '%s' är ett AppDir; vägrar öppna"
 
-#: zeroinstall/gtkui/applistbox.py:235
+#: zeroinstall/gtkui/applistbox.py:240
 #, python-format
 msgid "Remove <b>%s</b> from the menu?"
 msgstr "Ta bort <b>%s</b> från menyn?"
 
-#: zeroinstall/gtkui/applistbox.py:244
+#: zeroinstall/gtkui/applistbox.py:249
 #, python-format
 msgid "Failed to remove %(interface_name)s: %(exception)s"
 msgstr "%(interface_name)s: %(exception)s"
@@ -1758,7 +1761,7 @@ msgstr "Ta bort"
 
 #: zeroinstall/gtkui/cache.py:314
 msgid "This is a local version, not held in the cache."
-msgstr "Detta är en lokala version, sparas inte i cache."
+msgstr "Detta är en lokal version, sparas inte i cache."
 
 #: zeroinstall/gtkui/cache.py:358
 msgid "Contents match digest; nothing has been changed."
@@ -1812,10 +1815,10 @@ msgid ""
 "This is useful to find versions you don't need anymore, so that you can "
 "delete them and free up some disk space."
 msgstr ""
-"När du kör ett program med Zero Install, laddar det ner programmets "
-"'kanal'-fil, som innehåller information om vilka versioner av "
-"programmet som är tillgängliga. Denna gränssnittsfil lagras i cache för att "
-"slippa ladda ner den nästa gång du vill köra programmet.\n"
+"När du kör ett program med Zero Install, laddar det ner programmets 'kanal'-"
+"fil, som innehåller information om vilka versioner av programmet som är "
+"tillgängliga. Denna gränssnittsfil lagras i cache för att slippa ladda ner "
+"den nästa gång du vill köra programmet.\n"
 "\n"
 "När du har valt vilken version (implementation) av programmet som du vill "
 "köra, laddar Zero Install ner den versionen och lagrar den också i cache. "
@@ -1824,9 +1827,9 @@ msgstr ""
 "gammal version om så behövs, och olika program kan behöva olika versioner av "
 "bibliotek i vissa fall.\n"
 "\n"
-"Cachevisaren visar dig alla kanaler och implementationer i din cache. "
-"Detta är användbart för att hitta versioner som du inte använder längre, så "
-"att du kan ta bort dem och frigöra lite diskutrymme."
+"Cachevisaren visar dig alla kanaler och implementationer i din cache. Detta "
+"är användbart för att hitta versioner som du inte använder längre, så att du "
+"kan ta bort dem och frigöra lite diskutrymme."
 
 #: zeroinstall/gtkui/cache.py:724
 msgid "Invalid feeds"
@@ -1840,11 +1843,11 @@ msgid ""
 "longer exists or by a failed attempt to download a feed (the name ends in '."
 "new')."
 msgstr ""
-"Cachevisaren har en lista med alla kanaler i din cache. Några är kanske "
-"inte längre giltiga, de visas i sektionen 'Ogiltiga kanaler'. Det bör "
-"inte vara några problem att ta bort dessa. En ogiltig kanal kan "
-"orsakas av en lokal kanal som inte längre existerar, av ett "
-"misslyckat försök att ladda ner en kanal (namnet slutar med '.new')."
+"Cachevisaren har en lista med alla kanaler i din cache. Några är kanske inte "
+"längre giltiga, de visas i sektionen 'Ogiltiga kanaler'. Det bör inte vara "
+"några problem att ta bort dessa. En ogiltig kanal kan orsakas av en lokal "
+"kanal som inte längre existerar, av ett misslyckat försök att ladda ner en "
+"kanal (namnet slutar med '.new')."
 
 #: zeroinstall/gtkui/cache.py:731
 msgid ""
@@ -1859,14 +1862,14 @@ msgid ""
 "programs, it should be fine to delete everything in this section."
 msgstr ""
 "Cachevisaren söker igenom alla kanaler för att ta reda på vilka "
-"implementationer de använder. Om ingen kanal använder en "
-"implementation, visas den i sektionen 'Ägarlösa implementationer'.\n"
+"implementationer de använder. Om ingen kanal använder en implementation, "
+"visas den i sektionen 'Ägarlösa implementationer'.\n"
 "\n"
 "Ägarlösa implementationer kan uppstå om gamla versioner av ett program inte "
-"längre listas i kanalfilen. Tillfälliga filer skapas när en "
-"implementation packas upp efter att ha laddats ner. Om arkivet är skadat, "
-"kan upppackade filer lämnas kvar. Ifall du inte håller på att packa upp nya "
-"program, bör det inte vara några problem att ta bort allt i denna sektion."
+"längre listas i kanalfilen. Tillfälliga filer skapas när en implementation "
+"packas upp efter att ha laddats ner. Om arkivet är skadat, kan upppackade "
+"filer lämnas kvar. Ifall du inte håller på att packa upp nya program, bör "
+"det inte vara några problem att ta bort allt i denna sektion."
 
 #: zeroinstall/gtkui/cache.py:742
 msgid ""
@@ -1875,10 +1878,10 @@ msgid ""
 "run will require it to be downloaded again. Deleting a version of a program "
 "which is currently running may cause it to crash, so be careful!"
 msgstr ""
-"Alla återstående kanaler listas i denna sektion. Du kan vilja ta bort "
-"gamla versioner av vissa program. Att ta bort ett program som du senare vill "
-"köra kommer att kräva att det laddas ner igen. Att ta bort ett program som "
-"för närvarande körs kan få det att krascha, så var försiktig!"
+"Alla återstående kanaler listas i denna sektion. Du kan vilja ta bort gamla "
+"versioner av vissa program. Att ta bort ett program som du senare vill köra "
+"kommer att kräva att det laddas ner igen. Att ta bort ett program som för "
+"närvarande körs kan få det att krascha, så var försiktig!"
 
 #: zeroinstall/gtkui/cache.ui.h:1
 msgid "Show:"
@@ -2360,8 +2363,8 @@ msgid ""
 msgstr ""
 "Detta program beror på '%s', som är ett paket tillgängligt genom din "
 "distribution. Var god installera det manuellt med verktygen från din "
-"distribution och försök igen. Eller installera 'packagekit' och det "
-"kan användas för att installera paketet."
+"distribution och försök igen. Eller installera 'packagekit' och det kan "
+"användas för att installera paketet."
 
 #: zeroinstall/injector/distro.py:806
 #, python-format
@@ -3262,7 +3265,9 @@ msgstr ""
 
 #: zeroinstall/injector/run.py:304
 msgid "Can't use a relative replacement main when there is no original one!"
-msgstr "Kan inte använda en relativ main-ersättning när det inte finns något original!"
+msgstr ""
+"Kan inte använda en relativ main-ersättning när det inte finns något "
+"original!"
 
 #: zeroinstall/injector/run.py:324
 #, python-format
@@ -3396,7 +3401,8 @@ msgstr "föredragna versioner kommer först"
 
 #: zeroinstall/injector/solver.py:1009
 msgid "locally-available versions are preferred when network use is limited"
-msgstr "lokalt tillgängliga versioner föredras när nätverksanvändningen är begränsad"
+msgstr ""
+"lokalt tillgängliga versioner föredras när nätverksanvändningen är begränsad"
 
 #: zeroinstall/injector/solver.py:1010
 msgid "packages that don't require admin access to install are preferred"
@@ -3463,8 +3469,8 @@ msgid ""
 "If {wanted} were the only option, the best available solution wouldn't use "
 "it."
 msgstr ""
-"Om {wanted} var det enda alternativet, skulle den bästa tillgängliga lösningen "
-"inte använda den."
+"Om {wanted} var det enda alternativet, skulle den bästa tillgängliga "
+"lösningen inte använda den."
 
 #: zeroinstall/injector/trust.py:71
 msgid "[dry-run] would trust key {key} for {domain}"
@@ -3639,7 +3645,8 @@ msgstr ""
 
 #: zeroinstall/zerostore/__init__.py:182
 msgid "[dry-run] would use {helper} to store {required_digest} in system store"
-msgstr "[torrsim] skulle använda {helper} för att lagra {required_digest} i "
+msgstr ""
+"[torrsim] skulle använda {helper} för att lagra {required_digest} i "
 "systemlager"
 
 #: zeroinstall/zerostore/__init__.py:193
@@ -4279,4 +4286,3 @@ msgid ""
 msgstr ""
 "Misslyckades packa upp arkivet (med  %(command)s); slutstatus %(status)d:\n"
 "%(err)s"
-
