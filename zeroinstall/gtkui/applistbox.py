@@ -142,9 +142,14 @@ class AppListBox:
 
 			try:
 				iface = self.iface_cache.get_interface(uri)
-				name = iface.get_name()
-				summary = iface.summary or _('No information available')
-				summary = summary[:1].capitalize() + summary[1:]
+				feed = self.iface_cache.get_feed(uri)
+				if feed:
+					name = feed.get_name()
+					summary = feed.summary or _('No information available')
+					summary = summary[:1].capitalize() + summary[1:]
+				else:
+					name = iface.get_name()
+					summary = _('No information available')
 				# (GTK3 returns an extra boolean at the start)
 				icon_width, icon_height = gtk.icon_size_lookup(gtk.ICON_SIZE_DIALOG)[-2:]
 				pixbuf = icon.load_icon(self.iface_cache.get_icon_path(iface), icon_width, icon_height)
