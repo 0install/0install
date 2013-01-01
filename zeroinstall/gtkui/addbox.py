@@ -146,7 +146,7 @@ class AddBox:
 						  '--', iface],
 						  stdout = subprocess.PIPE,
 						  stderr = subprocess.STDOUT)
-				errors = ['']
+				errors = [b'']
 				def output_ready(src, cond):
 					got = os.read(src.fileno(), 100)
 					if got:
@@ -163,7 +163,7 @@ class AddBox:
 							dialog_ok.grab_focus()
 						else:
 							box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
-								_('Failed to run 0launch.\n') + errors[0])
+								_('Failed to run 0launch.\n') + errors[0].decode('utf-8'))
 							box.run()
 							box.destroy()
 						return False
