@@ -126,8 +126,13 @@ class AppListBox:
 		self.window.action_area.set_child_secondary(show_cache, True)
 
 		def response(box, resp):
-			if resp == 0:
+			if resp == 0:	# Show Cache
 				subprocess.Popen(['0store', 'manage'])
+			elif resp == 1:	# Add
+				from zeroinstall.gtkui.addbox import AddBox
+				box = AddBox()
+				box.window.connect('destroy', lambda dialog: self.populate_model())
+				box.window.show()
 			else:
 				box.destroy()
 		self.window.connect('response', response)
