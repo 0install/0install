@@ -293,7 +293,7 @@ class App:
 		before = values.pop('before', None)
 		not_before = values.pop('not_before', None)
 		if before or not_before:
-			assert not values.extra_restrictions
+			assert 'extra_restrictions' not in values, values
 			expr = (not_before or '') + '..'
 			if before:
 				expr += '!' + before
