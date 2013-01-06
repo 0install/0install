@@ -72,6 +72,9 @@ class TestInstall(BaseTest):
 		out, err = self.run_0install(['show'])
 		assert out.lower().startswith("usage:")
 		assert '--xml' in out
+		assert '--xml' in self.complete(["show", "-"], 2)
+
+		assert 'file\n' in self.complete(["show", ""], 2)
 
 		out, err = self.run_0install(['show', 'selections.xml'])
 		assert not err, err
@@ -117,6 +120,8 @@ class TestInstall(BaseTest):
 		out, err = self.run_0install(['download'])
 		assert out.lower().startswith("usage:")
 		assert '--show' in out
+
+		assert 'file\n' in self.complete(["download", ""], 2)
 
 		out, err = self.run_0install(['download', 'Local.xml', '--show'])
 		assert not err, err
@@ -165,6 +170,7 @@ class TestInstall(BaseTest):
 		assert '--message' in out, out
 
 		# Updating a local feed with no dependencies
+		assert 'file\n' in self.complete(["update", ""], 2)
 		out, err = self.run_0install(['update', 'Local.xml'])
 		assert not err, err
 		assert 'No updates found' in out, out
@@ -231,6 +237,13 @@ class TestInstall(BaseTest):
 		assert out.lower().startswith("usage:")
 		assert '--console' in out
 
+		assert 'network_use' in self.complete(['config'], 2)
+		assert 'full' in self.complete(['config', 'network_use'], 3)
+		assert 'true' in self.complete(['config', 'help_with_testing'], 3)
+		assert 'filter' in self.complete(['config', 'freshness'], 3)
+		self.assertEqual('', self.complete(['config', 'missing'], 3))
+		self.assertEqual('', self.complete(['config', 'network_use'], 4))
+
 		out, err = self.run_0install(['config'])
 		assert not err, err
 		assert 'full' in out, out
@@ -277,6 +290,8 @@ class TestInstall(BaseTest):
 	def testAddFeed(self):
 		binary_iface = self.config.iface_cache.get_interface('http://foo/Binary.xml')
 
+		self.assertEqual('', self.complete(['list-feeds'], 2))
+
 		out, err = self.run_0install(['list-feeds', binary_iface.uri])
 		assert "(no feeds)" in out, out
 		assert not err, err
@@ -288,6 +303,8 @@ class TestInstall(BaseTest):
 		sys.stdin = Reply('1')
 		assert binary_iface.extra_feeds == []
 
+		assert 'file\n' in self.complete(["add-feed", ""], 2)
+
 		out, err = self.run_0install(['add-feed', 'Source.xml'])
 		assert not err, err
 		assert "Add as feed for 'http://foo/Binary.xml'" in out, out
@@ -296,6 +313,9 @@ class TestInstall(BaseTest):
 		out, err = self.run_0install(['list-feeds', binary_iface.uri])
 		assert "Source.xml" in out
 		assert not err, err
+
+		assert 'file\n' in self.complete(["remove-feed", ""], 2)
+		assert "Source.xml" in self.complete(["remove-feed", binary_iface.uri], 3)
 
 		out, err = self.run_0install(['remove-feed', 'Source.xml'])
 		assert not err, err
@@ -313,6 +333,8 @@ class TestInstall(BaseTest):
 		out, err = self.run_0install(['import'])
 		assert out.lower().startswith("usage:")
 		assert 'FEED' in out
+
+		assert 'file\n' in self.complete(["import", ""], 2)
 
 		stream = open('6FCF121BE2390E0B.gpg')
 		gpg.import_key(stream)
@@ -350,12 +372,16 @@ class TestInstall(BaseTest):
 		assert out.lower().startswith("usage:")
 		assert 'URI' in out, out
 
+		assert 'file\n' in self.complete(["run", ""], 2)
+
 		out, err = self.run_0install(['run', '--dry-run', 'runnable/Runnable.xml', '--help'])
 		assert not err, err
 		assert 'arg-for-runner' in out, out
 		assert '--help' in out, out
 
 	def testDigest(self):
+		assert 'file\n' in self.complete(["digest"], 2)
+
 		hw = os.path.join(mydir, 'HelloWorld.tgz')
 		out, err = self.run_0install(['digest', '--algorithm=sha1', hw])
 		assert out == 'sha1=3ce644dc725f1d21cfcf02562c76f375944b266a\n', out
@@ -411,6 +437,7 @@ class TestInstall(BaseTest):
 
 		self.check_man(['local-app'], 'tests/test-echo.1')
 
+		assert 'local-app' in self.complete(['select'], 2)
 		out, err = self.run_0install(['select', 'local-app'])
 		assert "Version: 0.1" in out, out
 		assert not err, err
@@ -465,6 +492,7 @@ class TestInstall(BaseTest):
 
 
 		# whatchanged
+		assert 'local-app' in self.complete(['whatchanged'], 2)
 		out, err = self.run_0install(['whatchanged', 'local-app', 'uri'])
 		assert out.lower().startswith("usage:")
 
@@ -486,6 +514,10 @@ class TestInstall(BaseTest):
 		out, err = self.run_0install(['whatchanged', 'local-app', '--full'])
 		assert "--- 2012-01-01" in out, out
 		assert not err, err
+
+		assert 'local-app' in self.complete(['man'], 2)
+		assert 'local-app' in self.complete(['destroy'], 2)
+		self.assertEqual('', self.complete(['destroy'], 3))
 
 		out, err = self.run_0install(['destroy', 'local-app'])
 		assert not out, out
@@ -571,6 +603,9 @@ class TestInstall(BaseTest):
 		os.mkdir(self.data_home)
 		shutil.copyfile(local_feed, local_copy)
 
+		self.assertEqual("", self.complete(["add", ""], 2))
+		assert 'file\n' in self.complete(["add", "foo"], 3)
+
 		out, err = self.run_0install(['add', 'local-app', local_copy])
 		assert not out, out
 		assert not err, err
@@ -632,6 +667,35 @@ class TestInstall(BaseTest):
 
 		blocker = app.download_selections(app.get_selections(may_update = True))
 		self.assertEqual(None, blocker)
+	
+	def complete(self, args, cword):
+		os.environ['COMP_CWORD'] = str(cword)
+		out, err = self.run_0install(['_complete', 'bash', '0install'] + args)
+		self.assertEqual("", err)
+		return out
+
+	def testCompletion(self):
+		assert 'select\n' in self.complete(["s"], 1)
+		assert 'select\n' in self.complete([], 1)
+		assert 'select\n' in self.complete(["", "bar"], 1)
+
+		assert '' == self.complete(["", "bar"], 2)
+		assert '' == self.complete(["unknown", "bar"], 2)
+		assert '' == self.complete(["--", "s"], 2)
+
+		assert '--help\n' in self.complete(["-"], 1)
+		assert '--help\n' in self.complete(["--"], 1)
+		assert '--help\n' in self.complete(["--h"], 1)
+		assert '-h\n' in self.complete(["-h"], 1)
+		assert '-hv\n' in self.complete(["-hv"], 1)
+		assert '' == self.complete(["-hi"], 1)
+
+		assert '--message' not in self.complete(["--m"], 1)
+		assert '--message' in self.complete(["--m", "select"], 1)
+		assert '--message' in self.complete(["select", "--m"], 2)
+
+		assert '--help' in self.complete(["select", "foo", "--h"], 3)
+		assert '--help' not in self.complete(["run", "foo", "--h"], 3)
 
 if __name__ == '__main__':
 	unittest.main()

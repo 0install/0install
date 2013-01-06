@@ -1,0 +1,21 @@
+_0install_completion() {
+	COMPREPLY=()
+	local TO_FILTER=()
+	local WORD=${COMP_WORDS[$COMP_CWORD]}
+
+	local RESULTS=$(COMP_CWORD=$COMP_CWORD 0install _complete bash ${COMP_WORDS[*]})
+	while read item
+	do
+		case "$item" in
+			add\ *) COMPREPLY=(${COMPREPLY[@]} ${item/#add /}) ;;
+			filter\ *) TO_FILTER=(${TO_FILTER[@]} ${item/#filter /}) ;;
+			file) COMPREPLY=(${COMPREPLY[@]} $(compgen -A file $WORD)) ;;
+			"") ;;
+			*) echo 1>&2 Bad reply $item ;;
+		esac
+	done <<< "$RESULTS"
+	if (( ${#TO_FILTER[@]} > 0 )); then
+		COMPREPLY=( ${COMPREPLY[@]} $(compgen -W "${TO_FILTER[*]}" -- $WORD ) )
+	fi
+}
+complete -F _0install_completion 0install

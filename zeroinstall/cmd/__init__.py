@@ -50,6 +50,86 @@ class NoCommand:
 			sys.exit(0)
 		raise UsageError()
 
+class _Completion():
+	def __init__(self, config, command_args, shell):
+		assert shell in ('zsh', 'bash'), shell
+		self.config = config
+		self.command_args = command_args
+		self.cword = int(os.environ['COMP_CWORD']) - 1
+		if shell == 'zsh':
+			self.cword -= 1
+		if self.cword < len(command_args):
+			self.current = command_args[self.cword]
+		else:
+			self.current = ''
+
+	def got_command(self, command, pos):
+		#print("found %s at %s [cword = %d]" % (command, pos, self.cword), file = sys.stderr)
+		if pos == self.cword:
+			for command in valid_commands:
+				print("filter", command)
+			sys.exit(0)
+
+	def complete(self, parser, cmd):
+		if '--' in self.command_args and self.cword > self.command_args.index('--'):
+			sys.exit(0)		# Can't complete after "--"
+			# (but completing on "--" is OK, because that might be the start of an option)
+
+		# Complete options if the current word starts with '-'
+		if self.current.startswith('-'):
+			if not parser.allow_interspersed_args:
+				args = 0
+				for arg in self.command_args[:self.cword]:
+					if not arg.startswith('-'):
+						args += 1
+						if args == 2:
+							# We've seen the sub-command and the sub-command's argument
+							# before reaching the word we're completing; give up.
+							return
+
+			if len(self.current) < 2 or self.current.startswith('--'):
+				# Long option, or nothing yet
+				for opt in parser.option_list:
+					for o in opt._long_opts:
+						print("filter", o)
+			else:
+				# Short option: if it's valid, complete it.
+				# Otherwise, reject it.
+				valid = set()
+				for opt in parser.option_list:
+					for o in opt._short_opts:
+						valid.add(o[1:])
+				if all(char in valid for char in self.current[1:]):
+					print("add", self.current)
+			sys.exit(0)
+
+		arg_word = self.cword - 1	# Skip command name
+		args = []
+		for a in self.command_args:
+			if a.startswith('-'):
+				arg_word -= 1
+			else:
+				args.append(a)
+
+		if hasattr(cmd, 'complete'):
+			if arg_word == len(args) - 1: args.append('')
+			cmd.complete(self, args[1:], arg_word)
+
+	def expand_apps(self):
+		for app in self.config.app_mgr.iterate_apps():
+			print("filter", app)
+
+	def expand_files(self):
+		print("file")
+
+	def expand_interfaces(self):
+		for iface in self.config.iface_cache.list_all_interfaces():
+			print("filter", iface)
+
+	def add_filtered(self, value):
+		"""Add this value, but only if it matches the prefix."""
+		print("filter", value)
+
 def main(command_args, config = None):
 	"""Act as if 0install was run with the given arguments.
 	@arg command_args: array of arguments (e.g. C{sys.argv[1:]})
@@ -61,21 +141,35 @@ def main(command_args, config = None):
 		from zeroinstall.injector.config import load_config
 		config = load_config()
 
+	completion = None
+	if command_args and command_args[0] == '_complete':
+		shell = command_args[1]
+		command_args = command_args[3:]
+		# command_args[2] == "0install"
+		completion = _Completion(config, command_args, shell = shell)
+
 	# The first non-option argument is the command name (or "help" if none is found).
 	command = None
 	for i, arg in enumerate(command_args):
 		if not arg.startswith('-'):
 			command = arg
-			del command_args[i]
+			command_args = command_args[:i] + command_args[i + 1:]
+			if completion:
+				completion.got_command(command, i)
 			break
 		elif arg == '--':
 			break
+	else:
+		if completion:
+			completion.got_command(None, len(command_args))
 
 	verbose = False
 	try:
 		# Configure a parser for the given command
 		if command:
 			if command not in valid_commands:
+				if completion:
+					return
 				raise SafeException(_("Unknown sub-command '%s': try --help") % command)
 
 			module_name = command.replace('-', '_')
@@ -93,6 +187,11 @@ def main(command_args, config = None):
 		parser.add_option("", "--with-store", help=_("add an implementation cache"), action='append', metavar='DIR')
 
 		cmd.add_options(parser)
+
+		if completion:
+			completion.complete(parser, cmd)
+			return
+
 		(options, args) = parser.parse_args(command_args)
 		verbose = options.verbose
 

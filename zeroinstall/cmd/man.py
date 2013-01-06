@@ -46,3 +46,9 @@ def _0install_man(config, command):
 
 	helpers.exec_man(config.stores, sels, main, fallback_name = command)
 	assert 0
+
+# Lists only interfaces with feeds.
+# Note: this is also used by remove-feed.
+def complete(completion, args, cword):
+	if len(args) != 1: return
+	completion.expand_apps()

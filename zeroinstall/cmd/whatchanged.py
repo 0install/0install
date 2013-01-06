@@ -89,3 +89,7 @@ def show_changes(old_selections, new_selections):
 			changes = True
 	
 	return changes
+
+def complete(completion, args, cword):
+	if len(args) != 1: return
+	completion.expand_apps()

@@ -13,7 +13,7 @@ from zeroinstall import SafeException, _
 from zeroinstall.injector import model, requirements
 from zeroinstall.cmd import UsageError, select
 
-syntax = "URI"
+syntax = "APP | URI"
 
 add_options = select.add_generic_select_options
 
@@ -104,3 +104,5 @@ def handle(config, options, args):
 		if changes:
 			app.set_selections(sels)
 		app.set_requirements(r)
+
+complete = select.complete

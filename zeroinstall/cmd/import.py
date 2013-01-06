@@ -53,3 +53,7 @@ def handle(config, options, args):
 			task = tasks.Task(run(), "import feed")
 
 			tasks.wait_for_blocker(task.finished)
+
+def complete(completion, args, cword):
+	if len(args) != 1: return
+	completion.expand_files()
