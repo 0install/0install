@@ -31,25 +31,24 @@ def _ensure_standard_fds():
 				os.dup2(fd, std)
 				os.close(fd)
 
-def _no_command(command_args):
+class NoCommand:
 	"""Handle --help and --version"""
-	parser = OptionParser(usage=_("usage: %prog COMMAND\n\nTry --help with one of these:") +
-			"\n\n0install " + '\n0install '.join(valid_commands))
-	parser.add_option("-V", "--version", help=_("display version information"), action='store_true')
 
-	(options, args) = parser.parse_args(command_args)
-	if options.version:
-		import zeroinstall
-		print("0install (zero-install) " + zeroinstall.version)
-		print("Copyright (C) 2011 Thomas Leonard")
-		print(_("This program comes with ABSOLUTELY NO WARRANTY,"
-				"\nto the extent permitted by law."
-				"\nYou may redistribute copies of this program"
-				"\nunder the terms of the GNU Lesser General Public License."
-				"\nFor more information about these matters, see the file named COPYING."))
-		sys.exit(0)
-	parser.print_help()
-	sys.exit(2)
+	def add_options(self, parser):
+		parser.add_option("-V", "--version", help=_("display version information"), action='store_true')
+
+	def handle(self, config, options, args):
+		if options.version:
+			import zeroinstall
+			print("0install (zero-install) " + zeroinstall.version)
+			print("Copyright (C) 2013 Thomas Leonard")
+			print(_("This program comes with ABSOLUTELY NO WARRANTY,"
+					"\nto the extent permitted by law."
+					"\nYou may redistribute copies of this program"
+					"\nunder the terms of the GNU Lesser General Public License."
+					"\nFor more information about these matters, see the file named COPYING."))
+			sys.exit(0)
+		raise UsageError()
 
 def main(command_args, config = None):
 	"""Act as if 0install was run with the given arguments.
@@ -71,19 +70,21 @@ def main(command_args, config = None):
 			break
 		elif arg == '--':
 			break
-	
+
 	verbose = False
 	try:
-		if command is None:
-			return _no_command(command_args)
-
-		if command not in valid_commands:
-			raise SafeException(_("Unknown sub-command '%s': try --help") % command)
-
 		# Configure a parser for the given command
-		module_name = command.replace('-', '_')
-		cmd = __import__('zeroinstall.cmd.' + module_name, globals(), locals(), [module_name], 0)
-		parser = OptionParser(usage=_("usage: %%prog %s [OPTIONS] %s") % (command, cmd.syntax))
+		if command:
+			if command not in valid_commands:
+				raise SafeException(_("Unknown sub-command '%s': try --help") % command)
+
+			module_name = command.replace('-', '_')
+			cmd = __import__('zeroinstall.cmd.' + module_name, globals(), locals(), [module_name], 0)
+			parser = OptionParser(usage=_("usage: %%prog %s [OPTIONS] %s") % (command, cmd.syntax))
+		else:
+			cmd = NoCommand()
+			parser = OptionParser(usage=_("usage: %prog COMMAND\n\nTry --help with one of these:") +
+					"\n\n0install " + '\n0install '.join(valid_commands))
 
 		parser.add_option("-c", "--console", help=_("never use GUI"), action='store_false', dest='gui')
 		parser.add_option("", "--dry-run", help=_("just print what would be executed"), action='store_true')
