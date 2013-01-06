@@ -668,9 +668,11 @@ class TestInstall(BaseTest):
 		blocker = app.download_selections(app.get_selections(may_update = True))
 		self.assertEqual(None, blocker)
 	
-	def complete(self, args, cword):
+	def complete(self, args, cword, shell = 'zsh'):
+		if shell == 'zsh':
+			cword += 1
 		os.environ['COMP_CWORD'] = str(cword)
-		out, err = self.run_0install(['_complete', 'bash', '0install'] + args)
+		out, err = self.run_0install(['_complete', shell, '0install'] + args)
 		self.assertEqual("", err)
 		return out
 
@@ -696,6 +698,17 @@ class TestInstall(BaseTest):
 
 		assert '--help' in self.complete(["select", "foo", "--h"], 3)
 		assert '--help' not in self.complete(["run", "foo", "--h"], 3)
+
+		# Test bash work-around for splitting on :
+		class MyIfaceCache:
+			def list_all_interfaces(self):
+				return ["http://example.com/foo"]
+		self.config.iface_cache = MyIfaceCache()
+		assert 'filter select \n' in self.complete(["sel"], 1, shell = 'bash')
+		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "ht"], 2, shell = 'bash'))
+		self.assertEqual('prefix //example.com/\nfile\n', self.complete(["select", "http:"], 2, shell = 'bash'))
+		self.assertEqual('prefix //example.com/\nfile\n', self.complete(["select", "http:/"], 2, shell = 'bash'))
+		self.assertEqual('filter //example.com/foo \nfile\n', self.complete(["select", "http://example.com/"], 2, shell = 'bash'))
 
 if __name__ == '__main__':
 	unittest.main()

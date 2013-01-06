@@ -5,6 +5,7 @@ do
 	case "$item" in
 		add\ *) compadd -- "${item/#add /}" ;;
 		filter\ *) compadd -- "${item/#filter /}" ;;
+		prefix\ *) compadd -S '' -- "${item/#prefix /}" ;;
 		file) _files ;;
 		"") ;;
 		*) echo 1>&2 Bad reply $item ;;

@@ -53,21 +53,41 @@ class NoCommand:
 class _Completion():
 	def __init__(self, config, command_args, shell):
 		assert shell in ('zsh', 'bash'), shell
+		self.shell = shell
 		self.config = config
-		self.command_args = command_args
 		self.cword = int(os.environ['COMP_CWORD']) - 1
 		if shell == 'zsh':
 			self.cword -= 1
+
+		if shell == 'bash':
+			# Bash does crazy splitting (e.g. "http://foo" becomes "http" ":" "//foo")
+			# Do our best to reverse that splitting here (inspired by Git completion code)
+			command_args = command_args[:]
+			while ':' in command_args[1:]:
+				i = command_args.index(':', 1)
+				combined = command_args[i - 1] + command_args[i]
+				if i + 1 < len(command_args):
+					combined += command_args[i + 1]
+				command_args = command_args[:i - 1] + [combined] + command_args[i + 2:]
+				if self.cword > i:
+					self.cword -= 2
+				elif self.cword == i:
+					self.cword -= 1
+			#print(args, self.cword, file = sys.stderr)
+			self.command_args = command_args
+
 		if self.cword < len(command_args):
 			self.current = command_args[self.cword]
 		else:
 			self.current = ''
 
+		self.command_args = command_args
+
 	def got_command(self, command, pos):
 		#print("found %s at %s [cword = %d]" % (command, pos, self.cword), file = sys.stderr)
 		if pos == self.cword:
 			for command in valid_commands:
-				print("filter", command)
+				self.add("filter", command)
 			sys.exit(0)
 
 	def complete(self, parser, cmd):
@@ -91,7 +111,7 @@ class _Completion():
 				# Long option, or nothing yet
 				for opt in parser.option_list:
 					for o in opt._long_opts:
-						print("filter", o)
+						self.add("filter", o)
 			else:
 				# Short option: if it's valid, complete it.
 				# Otherwise, reject it.
@@ -100,7 +120,7 @@ class _Completion():
 					for o in opt._short_opts:
 						valid.add(o[1:])
 				if all(char in valid for char in self.current[1:]):
-					print("add", self.current)
+					self.add("add", self.current)
 			sys.exit(0)
 
 		arg_word = self.cword - 1	# Skip command name
@@ -117,18 +137,48 @@ class _Completion():
 
 	def expand_apps(self):
 		for app in self.config.app_mgr.iterate_apps():
-			print("filter", app)
+			self.add("filter", app)
 
 	def expand_files(self):
 		print("file")
 
 	def expand_interfaces(self):
-		for iface in self.config.iface_cache.list_all_interfaces():
-			print("filter", iface)
+		c = self.current
+		if not 'http://'.startswith(c[:7]) and not 'https://'.startswith(c[:8]):
+			return
+
+		if c.count('/') < 3:
+			# Start with just the domains
+			import re
+			start = re.compile('(https?://[^/]+/).*')
+			starts = set()
+			for iface in self.config.iface_cache.list_all_interfaces():
+				if not iface.startswith(c):continue
+				match = start.match(iface)
+				if match:
+					starts.add(match.group(1))
+			for s in sorted(starts):
+				self.add("prefix", s)
+		else:
+			for iface in self.config.iface_cache.list_all_interfaces():
+				if iface.startswith(c):
+					self.add("filter", iface)
 
 	def add_filtered(self, value):
 		"""Add this value, but only if it matches the prefix."""
-		print("filter", value)
+		self.add("filter", value)
+
+	def add(self, type, value):
+		"""A completion that doesn't insert a space after it."""
+		if self.shell == 'bash':
+			if ':' in self.current:
+				ignored = self.current.rsplit(':', 1)[0] + ':'
+				if not value.startswith(ignored): return
+				value = value[len(ignored):]
+				#print(">%s<" % value, file = sys.stderr)
+			if type != 'prefix':
+				value += ' '
+		print(type, value)
 
 def main(command_args, config = None):
 	"""Act as if 0install was run with the given arguments.
