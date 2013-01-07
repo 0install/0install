@@ -431,3 +431,10 @@ class AppManager:
 			return None
 		else:
 			raise SafeException("No such application '{name}'".format(name = name))
+
+	def iterate_apps(self):
+		seen = set()
+		for apps_dir in basedir.load_config_paths(namespaces.config_site, "apps"):
+			for name in os.listdir(apps_dir):
+				if valid_name.match(name):
+					yield name

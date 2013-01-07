@@ -50,3 +50,5 @@ def handle(config, options, args):
 		select.show_human(sels, config.stores)
 		if app is not None and do_select:
 			print(_("(use '0install update' to save the new parameters)"))
+
+complete = select.complete

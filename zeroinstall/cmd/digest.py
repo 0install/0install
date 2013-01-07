@@ -63,3 +63,7 @@ def handle(config, options, args):
 			support.ro_rmtree(tmpdir)
 			if data:
 				data.close()
+
+def complete(completion, args, cword):
+	if len(args) != 1: return
+	completion.expand_files()

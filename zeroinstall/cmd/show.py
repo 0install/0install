@@ -42,3 +42,8 @@ def handle(config, options, args):
 		select.show_xml(sels)
 	else:
 		select.show_human(sels, config.stores)
+
+def complete(completion, args, cword):
+	if len(args) != 1: return
+	completion.expand_apps()
+	completion.expand_files()

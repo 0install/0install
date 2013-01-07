@@ -109,3 +109,19 @@ def handle(config, options, args):
 		setattr(config, option, value)
 
 		config.save_globals()
+
+def complete(completion, args, cword):
+	if cword == 0:
+		for name in settings:
+			completion.add_filtered(name)
+	elif cword == 1:
+		option = args[0]
+		if settings.get(option, None) == Boolean:
+			completion.add_filtered("true")
+			completion.add_filtered("false")
+		elif option == 'network_use':
+			for level in model.network_levels:
+				completion.add_filtered(level)
+		elif option in settings:
+			value = getattr(completion.config, option)
+			completion.add_filtered(settings[option].format(value))

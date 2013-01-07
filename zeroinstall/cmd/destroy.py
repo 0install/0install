@@ -20,3 +20,7 @@ def handle(config, options, args):
 
 	app = config.app_mgr.lookup_app(pet_name)
 	app.destroy()
+
+def complete(completion, args, cword):
+	if len(args) != 1: return
+	completion.expand_apps()

@@ -1,0 +1,13 @@
+#compdef 0install
+COMP_CWORD=$CURRENT 0install _complete zsh "${words[@]}" |\
+while read item
+do
+	case "$item" in
+		add\ *) compadd -- "${item/#add /}" ;;
+		filter\ *) compadd -- "${item/#filter /}" ;;
+		prefix\ *) compadd -S '' -- "${item/#prefix /}" ;;
+		file) _files ;;
+		"") ;;
+		*) echo 1>&2 Bad reply $item ;;
+	esac
+done

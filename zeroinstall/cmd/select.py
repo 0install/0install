@@ -221,3 +221,8 @@ def show_human(sels, stores):
 		print_node(sels.interface, [sels.command], "")
 	else:
 		print_node(sels.interface, [], "")
+
+def complete(completion, args, cword):
+	if len(args) != 1: return
+	completion.expand_apps()
+	completion.expand_interfaces()
