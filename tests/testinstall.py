@@ -708,7 +708,7 @@ class TestInstall(BaseTest):
 		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "ht"], 2, shell = 'bash'))
 		self.assertEqual('prefix //example.com/\nfile\n', self.complete(["select", "http:"], 2, shell = 'bash'))
 		self.assertEqual('prefix //example.com/\nfile\n', self.complete(["select", "http:/"], 2, shell = 'bash'))
-		self.assertEqual('filter //example.com/foo \nfile\n', self.complete(["select", "http://example.com/"], 2, shell = 'bash'))
+		self.assertEqual('filter //example.com/foo \n', self.complete(["select", "http://example.com/"], 2, shell = 'bash'))
 
 if __name__ == '__main__':
 	unittest.main()

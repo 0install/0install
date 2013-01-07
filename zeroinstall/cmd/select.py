@@ -226,4 +226,3 @@ def complete(completion, args, cword):
 	if len(args) != 1: return
 	completion.expand_apps()
 	completion.expand_interfaces()
-	completion.expand_files()

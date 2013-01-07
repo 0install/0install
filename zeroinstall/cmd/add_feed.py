@@ -105,4 +105,5 @@ def complete(completion, args, cword):
 	if cword > 1: return
 	if cword == 0:
 		completion.expand_interfaces()
-	completion.expand_files()
+	else:
+		completion.expand_files()

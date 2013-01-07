@@ -144,25 +144,26 @@ class _Completion():
 
 	def expand_interfaces(self):
 		c = self.current
-		if not 'http://'.startswith(c[:7]) and not 'https://'.startswith(c[:8]):
-			return
+		if 'http://'.startswith(c[:7]) or 'https://'.startswith(c[:8]):
+			if c.count('/') < 3:
+				# Start with just the domains
+				import re
+				start = re.compile('(https?://[^/]+/).*')
+				starts = set()
+				for iface in self.config.iface_cache.list_all_interfaces():
+					if not iface.startswith(c):continue
+					match = start.match(iface)
+					if match:
+						starts.add(match.group(1))
+				for s in sorted(starts):
+					self.add("prefix", s)
+			else:
+				for iface in self.config.iface_cache.list_all_interfaces():
+					if iface.startswith(c):
+						self.add("filter", iface)
 
-		if c.count('/') < 3:
-			# Start with just the domains
-			import re
-			start = re.compile('(https?://[^/]+/).*')
-			starts = set()
-			for iface in self.config.iface_cache.list_all_interfaces():
-				if not iface.startswith(c):continue
-				match = start.match(iface)
-				if match:
-					starts.add(match.group(1))
-			for s in sorted(starts):
-				self.add("prefix", s)
-		else:
-			for iface in self.config.iface_cache.list_all_interfaces():
-				if iface.startswith(c):
-					self.add("filter", iface)
+		if '://' not in c:
+			self.expand_files()
 
 	def add_filtered(self, value):
 		"""Add this value, but only if it matches the prefix."""

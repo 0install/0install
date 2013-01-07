@@ -38,4 +38,3 @@ def handle(config, options, args):
 def complete(completion, args, cword):
 	if cword != 1: return
 	completion.expand_interfaces()
-	completion.expand_files()
