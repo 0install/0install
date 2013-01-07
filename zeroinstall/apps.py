@@ -437,4 +437,6 @@ class AppManager:
 		for apps_dir in basedir.load_config_paths(namespaces.config_site, "apps"):
 			for name in os.listdir(apps_dir):
 				if valid_name.match(name):
+					if name in seen: continue
+					seen.add(name)
 					yield name

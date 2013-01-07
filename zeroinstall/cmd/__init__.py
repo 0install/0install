@@ -170,7 +170,10 @@ class _Completion():
 		self.add("filter", value)
 
 	def add(self, type, value):
-		"""A completion that doesn't insert a space after it."""
+		"""Types are:
+		add - a raw string to add
+		filter - a string to add only if it matches
+		prefix - a completion that doesn't insert a space after it."""
 		if self.shell == 'bash':
 			if ':' in self.current:
 				ignored = self.current.rsplit(':', 1)[0] + ':'
