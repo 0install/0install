@@ -242,7 +242,7 @@ class TestInstall(BaseTest):
 		assert 'true' in self.complete(['config', 'help_with_testing'], 3)
 		assert 'filter' in self.complete(['config', 'freshness'], 3)
 		self.assertEqual('', self.complete(['config', 'missing'], 3))
-		self.assertEqual('', self.complete(['config', 'network_use'], 4))
+		self.assertEqual('', self.complete(['config', 'network_use', ''], 4))
 
 		out, err = self.run_0install(['config'])
 		assert not err, err
@@ -517,7 +517,7 @@ class TestInstall(BaseTest):
 
 		assert 'local-app' in self.complete(['man'], 2)
 		assert 'local-app' in self.complete(['destroy'], 2)
-		self.assertEqual('', self.complete(['destroy'], 3))
+		self.assertEqual('', self.complete(['destroy', ''], 3))
 
 		out, err = self.run_0install(['destroy', 'local-app'])
 		assert not out, out
@@ -699,16 +699,50 @@ class TestInstall(BaseTest):
 		assert '--help' in self.complete(["select", "foo", "--h"], 3)
 		assert '--help' not in self.complete(["run", "foo", "--h"], 3)
 
+		# Option value completion
+		assert 'file\n' in self.complete(["select", "--with-store"], 3)
+		assert 'Linux\n' in self.complete(["select", "--os"], 3)
+		assert 'x86_64\n' in self.complete(["select", "--cpu"], 3)
+
+		class MyImplementation:
+			def __init__(self, version):
+				self.version = version
+
+			def get_version(self):
+				return self.version
+
 		# Test bash work-around for splitting on :
 		class MyIfaceCache:
 			def list_all_interfaces(self):
 				return ["http://example.com/foo"]
+
+			def get_interface(self, uri):
+				return "IFACE"
+
+			def get_implementations(self, iface):
+				return [MyImplementation("1.5"), MyImplementation("1.2")]
+
 		self.config.iface_cache = MyIfaceCache()
 		assert 'filter select \n' in self.complete(["sel"], 1, shell = 'bash')
 		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "ht"], 2, shell = 'bash'))
 		self.assertEqual('prefix //example.com/\nfile\n', self.complete(["select", "http:"], 2, shell = 'bash'))
 		self.assertEqual('prefix //example.com/\nfile\n', self.complete(["select", "http:/"], 2, shell = 'bash'))
 		self.assertEqual('filter //example.com/foo \n', self.complete(["select", "http://example.com/"], 2, shell = 'bash'))
+
+		# Check options are ignored correctly
+		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "--with-store=.", "http:"], 3))
+		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "http:", "--with-store=."], 2))
+
+		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "--with-store", ".", "http:"], 4))
+		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "http:", "--with-store", "."], 2))
+
+		# Version completion
+		self.assertEqual('filter 1.2\nfilter 1.5\n', self.complete(["select", "--version", "", "http://example.com/foo"], 3))
+		self.assertEqual('filter 1.2..!1.2\nfilter 1.2..!1.5\n', self.complete(["select", "--version", "1.2..", "http://example.com/foo"], 3))
+
+		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "--version-for", "http:", "", ], 3))
+		self.assertEqual('filter 1.2\nfilter 1.5\n', self.complete(["select", "--version-for", "http://example.com/foo", "", ], 4))
+
 
 if __name__ == '__main__':
 	unittest.main()

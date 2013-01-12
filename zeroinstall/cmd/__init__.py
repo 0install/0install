@@ -95,6 +95,13 @@ class _Completion():
 			sys.exit(0)		# Can't complete after "--"
 			# (but completing on "--" is OK, because that might be the start of an option)
 
+		opts = {}
+		for opt in parser.option_list:
+			for name in opt._short_opts:
+				opts[name] = opt
+			for name in opt._long_opts:
+				opts[name] = opt
+
 		# Complete options if the current word starts with '-'
 		if self.current.startswith('-'):
 			if not parser.allow_interspersed_args:
@@ -123,17 +130,84 @@ class _Completion():
 					self.add("add", self.current)
 			sys.exit(0)
 
-		arg_word = self.cword - 1	# Skip command name
+		arg_word = -1
 		args = []
-		for a in self.command_args:
-			if a.startswith('-'):
-				arg_word -= 1
+		consume_args = 0
+		complete_option_arg = None	# (option, args, arg pos)
+		for i, a in enumerate(self.command_args):
+			if consume_args > 0:
+				#print("consume " + a, file=sys.stderr)
+				consume_args -= 1
+			elif a.startswith('-'):
+				# Does it take an argument?
+				option_with_args = None
+				if a.startswith('--'):
+					opt = opts.get(a, None)
+					if opt and opt.nargs:
+						option_with_args = opt
+				else:
+					for l in a[1:]:
+						opt = opts.get('-' + l, None)
+						if opt and opt.nargs:
+							option_with_args = opt
+							break
+
+				if option_with_args:
+					consume_args = option_with_args.nargs
+
+					option_arg_index = self.cword - i - 1
+					if option_arg_index >= 0 and option_arg_index < consume_args:
+						complete_option_arg = (option_with_args,
+								       self.command_args[i + 1 : i + 1 + consume_args],
+								       option_arg_index)
 			else:
 				args.append(a)
+				if i < self.cword:
+					arg_word += 1
 
-		if hasattr(cmd, 'complete'):
-			if arg_word == len(args) - 1: args.append('')
-			cmd.complete(self, args[1:], arg_word)
+		if complete_option_arg is None:
+			if hasattr(cmd, 'complete'):
+				if arg_word == len(args) - 1: args.append('')
+				cmd.complete(self, args[1:], arg_word)
+		else:
+			#logger.warn("complete option arg %s %s", args[1:], complete_option_arg)
+			metavar = complete_option_arg[0].metavar
+			if metavar == 'DIR':
+				self.expand_files()
+			elif metavar == 'OS':
+				for value in ["Cygwin", "Darwin", "FreeBSD", "Linux", "MacOSX", "Windows"]:
+					self.add("filter", value)
+			elif metavar == 'CPU':
+				for value in ["src", "i386", "i486", "i586", "i686", "ppc", "ppc64", "x86_64"]:
+					self.add("filter", value)
+			elif metavar == 'URI RANGE':
+				if complete_option_arg[2] == 0:
+					self.expand_interfaces()
+				else:
+					self.expand_range(complete_option_arg[1][0])
+			elif metavar == 'RANGE':
+				if len(args) > 1:
+					self.expand_range(args[1], maybe_app = True)
+			#else: logger.warn("%r", metavar)
+
+	def expand_range(self, uri, maybe_app = False):
+		if maybe_app:
+			app = self.config.app_mgr.lookup_app(uri, missing_ok = True)
+			if app:
+				uri = app.get_requirements().interface_uri
+
+		iface_cache = self.config.iface_cache
+		iface = iface_cache.get_interface(uri)
+		versions = [impl.get_version() for impl in iface_cache.get_implementations(iface)]
+
+		if '..' in self.current:
+			prefix = self.current.split('..', 1)[0] + '..!'
+		else:
+			prefix = ''
+
+		for v in sorted(versions):
+			#logger.warn(prefix + v)
+			self.add("filter", prefix + v)
 
 	def expand_apps(self):
 		for app in self.config.app_mgr.iterate_apps():
