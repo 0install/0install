@@ -1,5 +1,5 @@
 #compdef 0install
-COMP_CWORD=$CURRENT 0install _complete zsh "${words[@]}" |\
+COMP_CWORD=$CURRENT "${words[1]}" _complete zsh "${words[@]}" |\
 while read item
 do
 	case "$item" in
