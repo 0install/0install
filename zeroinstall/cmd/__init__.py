@@ -192,6 +192,10 @@ class _Completion():
 			elif metavar == 'RANGE':
 				if len(args) > 1:
 					self.expand_range(args[1], maybe_app = True)
+			elif metavar == 'HASH':
+				from zeroinstall.zerostore import manifest
+				for alg in sorted(manifest.algorithms):
+					self.add("filter", alg)
 			#else: logger.warn("%r", metavar)
 
 	def _complete_option(self, parser):

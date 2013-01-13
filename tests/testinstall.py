@@ -707,6 +707,7 @@ class TestInstall(BaseTest):
 		assert 'file\n' in self.complete(["select", "--with-store"], 3)
 		assert 'Linux\n' in self.complete(["select", "--os"], 3)
 		assert 'x86_64\n' in self.complete(["select", "--cpu"], 3)
+		assert 'sha256new\n' in self.complete(["digest", "--algorithm"], 3)
 
 		# Option=value complete
 		assert 'file\n' in self.complete(["select", "--with-store="], 2)
