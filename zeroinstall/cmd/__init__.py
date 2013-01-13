@@ -56,6 +56,7 @@ class _Completion():
 		self.shell = shell
 		self.config = config
 		self.cword = int(os.environ['COMP_CWORD']) - 1
+		self.response_prefix = ''
 		if shell == 'zsh':
 			self.cword -= 1
 
@@ -73,13 +74,30 @@ class _Completion():
 					self.cword -= 2
 				elif self.cword == i:
 					self.cword -= 1
-			#print(args, self.cword, file = sys.stderr)
+			# For --opt=value, we get ['--opt', '=', value]. Just get rid of the '='.
+			if self.cword > 0 and command_args[self.cword - 1] == '=':
+				del command_args[self.cword - 1]
+				self.cword -= 1
+			elif command_args[self.cword] == '=':
+				command_args[self.cword] = ''
+			#print(command_args, self.cword, file = sys.stderr)
 			self.command_args = command_args
 
 		if self.cword < len(command_args):
 			self.current = command_args[self.cword]
 		else:
 			self.current = ''
+
+		if shell == 'zsh':
+			if self.current.startswith('--') and '=' in self.current:
+				# Split "--foo=bar" into "--foo", "bar"
+				name, value = self.current.split('=', 1)
+				command_args[self.cword:self.cword + 1] = [name, value]
+				self.cword += 1
+				self.current = command_args[self.cword]
+				self.response_prefix = name + '='
+			else:
+				self.response_prefix = ''
 
 		self.command_args = command_args
 
@@ -91,10 +109,6 @@ class _Completion():
 			sys.exit(0)
 
 	def complete(self, parser, cmd):
-		if '--' in self.command_args and self.cword > self.command_args.index('--'):
-			sys.exit(0)		# Can't complete after "--"
-			# (but completing on "--" is OK, because that might be the start of an option)
-
 		opts = {}
 		for opt in parser.option_list:
 			for name in opt._short_opts:
@@ -102,43 +116,23 @@ class _Completion():
 			for name in opt._long_opts:
 				opts[name] = opt
 
-		# Complete options if the current word starts with '-'
-		if self.current.startswith('-'):
-			if not parser.allow_interspersed_args:
-				args = 0
-				for arg in self.command_args[:self.cword]:
-					if not arg.startswith('-'):
-						args += 1
-						if args == 2:
-							# We've seen the sub-command and the sub-command's argument
-							# before reaching the word we're completing; give up.
-							return
-
-			if len(self.current) < 2 or self.current.startswith('--'):
-				# Long option, or nothing yet
-				for opt in parser.option_list:
-					for o in opt._long_opts:
-						self.add("filter", o)
-			else:
-				# Short option: if it's valid, complete it.
-				# Otherwise, reject it.
-				valid = set()
-				for opt in parser.option_list:
-					for o in opt._short_opts:
-						valid.add(o[1:])
-				if all(char in valid for char in self.current[1:]):
-					self.add("add", self.current)
-			sys.exit(0)
-
+		options_possible = True
 		arg_word = -1
 		args = []
 		consume_args = 0
 		complete_option_arg = None	# (option, args, arg pos)
+		#logger.warn("%s at %d", self.command_args, self.cword)
 		for i, a in enumerate(self.command_args):
+			#logger.warn("%d %s (%d)", i, a, options_possible)
 			if consume_args > 0:
 				#print("consume " + a, file=sys.stderr)
 				consume_args -= 1
-			elif a.startswith('-'):
+			elif a == '--' and options_possible and i != self.cword:
+				options_possible = False
+			elif a.startswith('-') and options_possible:
+				if i == self.cword:
+					self._complete_option(parser)
+					return
 				# Does it take an argument?
 				option_with_args = None
 				if a.startswith('--'):
@@ -161,6 +155,8 @@ class _Completion():
 								       self.command_args[i + 1 : i + 1 + consume_args],
 								       option_arg_index)
 			else:
+				if len(args) > 0 and options_possible and not parser.allow_interspersed_args:
+					options_possible = False
 				args.append(a)
 				if i < self.cword:
 					arg_word += 1
@@ -170,8 +166,8 @@ class _Completion():
 				if arg_word == len(args) - 1: args.append('')
 				cmd.complete(self, args[1:], arg_word)
 		else:
-			#logger.warn("complete option arg %s %s", args[1:], complete_option_arg)
 			metavar = complete_option_arg[0].metavar
+			#logger.warn("complete option arg %s %s as %s", args[1:], complete_option_arg, metavar)
 			if metavar == 'DIR':
 				self.expand_files()
 			elif metavar == 'OS':
@@ -189,6 +185,22 @@ class _Completion():
 				if len(args) > 1:
 					self.expand_range(args[1], maybe_app = True)
 			#else: logger.warn("%r", metavar)
+
+	def _complete_option(self, parser):
+		if len(self.current) < 2 or self.current.startswith('--'):
+			# Long option, or nothing yet
+			for opt in parser.option_list:
+				for o in opt._long_opts:
+					self.add("filter", o)
+		else:
+			# Short option: if it's valid, complete it.
+			# Otherwise, reject it.
+			valid = set()
+			for opt in parser.option_list:
+				for o in opt._short_opts:
+					valid.add(o[1:])
+			if all(char in valid for char in self.current[1:]):
+				self.add("add", self.current)
 
 	def expand_range(self, uri, maybe_app = False):
 		if maybe_app:
@@ -256,7 +268,7 @@ class _Completion():
 				#print(">%s<" % value, file = sys.stderr)
 			if type != 'prefix':
 				value += ' '
-		print(type, value)
+		print(type, self.response_prefix + value)
 
 def main(command_args, config = None):
 	"""Act as if 0install was run with the given arguments.

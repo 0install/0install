@@ -683,7 +683,7 @@ class TestInstall(BaseTest):
 
 		assert '' == self.complete(["", "bar"], 2)
 		assert '' == self.complete(["unknown", "bar"], 2)
-		assert '' == self.complete(["--", "s"], 2)
+		self.assertEqual('', self.complete(["--", "s"], 2))
 
 		assert '--help\n' in self.complete(["-"], 1)
 		assert '--help\n' in self.complete(["--"], 1)
@@ -698,11 +698,23 @@ class TestInstall(BaseTest):
 
 		assert '--help' in self.complete(["select", "foo", "--h"], 3)
 		assert '--help' not in self.complete(["run", "foo", "--h"], 3)
+		assert '--help' not in self.complete(["select", "--version", "--h"], 3)
+
+		# Fall back to file completion for the program's arguments
+		self.assertEqual('file\n', self.complete(["run", "foo", ""], 3))
 
 		# Option value completion
 		assert 'file\n' in self.complete(["select", "--with-store"], 3)
 		assert 'Linux\n' in self.complete(["select", "--os"], 3)
 		assert 'x86_64\n' in self.complete(["select", "--cpu"], 3)
+
+		# Option=value complete
+		assert 'file\n' in self.complete(["select", "--with-store="], 2)
+		assert 'file\n' in self.complete(["select", "--with-store", "="], 3, shell='bash')
+		assert 'file\n' in self.complete(["select", "--with-store", "=", "foo"], 4, shell='bash')
+
+		assert 'filter x86_64 \n' in self.complete(["select", "--cpu", "="], 3, shell='bash')
+		assert 'filter --cpu=x86_64\n' in self.complete(["select", "--cpu="], 2)
 
 		class MyImplementation:
 			def __init__(self, version):
@@ -742,6 +754,9 @@ class TestInstall(BaseTest):
 
 		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "--version-for", "http:", "", ], 3))
 		self.assertEqual('filter 1.2\nfilter 1.5\n', self.complete(["select", "--version-for", "http://example.com/foo", "", ], 4))
+
+		# -- before argument
+		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "--", "http:"], 3))
 
 
 if __name__ == '__main__':
