@@ -178,6 +178,14 @@ class _Completion():
 					self.add("filter", value)
 			elif metavar == 'URI RANGE':
 				if complete_option_arg[2] == 0:
+					# When completing the URI, contextualise to the app's selections, if possible
+					if len(args) > 1:
+						app = self.config.app_mgr.lookup_app(args[1], missing_ok = True)
+						if app:
+							for uri in app.get_selections().selections:
+								self.add("filter", uri)
+							return
+					# Otherwise, complete on all cached URIs
 					self.expand_interfaces()
 				else:
 					self.expand_range(complete_option_arg[1][0])
