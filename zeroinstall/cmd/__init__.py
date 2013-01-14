@@ -189,9 +189,9 @@ class _Completion():
 					self.expand_interfaces()
 				else:
 					self.expand_range(complete_option_arg[1][0])
-			elif metavar == 'RANGE':
+			elif metavar in ('RANGE', 'VERSION'):
 				if len(args) > 1:
-					self.expand_range(args[1], maybe_app = True)
+					self.expand_range(args[1], maybe_app = True, range_ok = metavar == 'RANGE')
 			elif metavar == 'HASH':
 				from zeroinstall.zerostore import manifest
 				for alg in sorted(manifest.algorithms):
@@ -214,7 +214,7 @@ class _Completion():
 			if all(char in valid for char in self.current[1:]):
 				self.add("add", self.current)
 
-	def expand_range(self, uri, maybe_app = False):
+	def expand_range(self, uri, maybe_app = False, range_ok = True):
 		if maybe_app:
 			app = self.config.app_mgr.lookup_app(uri, missing_ok = True)
 			if app:
@@ -224,7 +224,7 @@ class _Completion():
 		iface = iface_cache.get_interface(uri)
 		versions = [impl.get_version() for impl in iface_cache.get_implementations(iface)]
 
-		if '..' in self.current:
+		if range_ok and '..' in self.current:
 			prefix = self.current.split('..', 1)[0] + '..!'
 		else:
 			prefix = ''

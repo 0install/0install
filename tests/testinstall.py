@@ -750,6 +750,7 @@ class TestInstall(BaseTest):
 		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "http:", "--with-store", "."], 2))
 
 		# Version completion
+		self.assertEqual('filter 1.2\nfilter 1.5\n', self.complete(["select", "--before", "", "http://example.com/foo"], 3))
 		self.assertEqual('filter 1.2\nfilter 1.5\n', self.complete(["select", "--version", "", "http://example.com/foo"], 3))
 		self.assertEqual('filter 1.2..!1.2\nfilter 1.2..!1.5\n', self.complete(["select", "--version", "1.2..", "http://example.com/foo"], 3))
 
