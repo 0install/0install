@@ -103,6 +103,9 @@ class my_install(install):
 		install.finalize_options(self)	# super.finalize_options()
 		if self.home:
 			self.__config_dir = os.path.join(self.home, '.config')
+		elif self.user:
+			from site import USER_BASE
+			self.__config_dir = os.path.join(USER_BASE, 'etc/xdg')
 		elif self.prefix == '/usr':
 			self.__config_dir = os.path.join(self.root or '/', 'etc/xdg')
 		else:
