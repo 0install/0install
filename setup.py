@@ -118,6 +118,13 @@ class my_install(install):
 		if self.home:
 			self.run_command('adjust_scripts_for_home')
 
+if '--home' in sys.argv:
+	zsh_functions_dir = '.zsh'
+elif '--install-layout=deb' in sys.argv:
+	zsh_functions_dir = 'share/zsh/vendor-completions'
+else:
+	zsh_functions_dir = 'share/zsh/site-functions'
+
 setup(name="zeroinstall-injector",
       version=zeroinstall.version,
       description="The Zero Install Injector (0launch)",
@@ -128,7 +135,7 @@ setup(name="zeroinstall-injector",
       data_files = [('man/man1', ['0launch.1', '0alias.1', '0store-secure-add.1', '0store.1', '0desktop.1', '0install.1']),
 		    ('share/applications', ['share/applications/zeroinstall-add.desktop', 'share/applications/zeroinstall-manage.desktop']),
 		    ('share/bash-completion/completions', ['share/bash-completion/completions/0install']),
-		    ('share/zsh/site-functions', ['share/zsh/site-functions/_0install']),
+		    (zsh_functions_dir, ['share/zsh/site-functions/_0install']),
 		    ('share/desktop-directories', ['share/desktop-directories/zeroinstall.directory']),
 		    ('share/icons/hicolor/24x24/apps', ['share/icons/24x24/zeroinstall.png']),
 		    ('share/icons/hicolor/48x48/apps', ['share/icons/48x48/zeroinstall.png']),
