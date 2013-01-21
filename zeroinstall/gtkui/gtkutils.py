@@ -85,7 +85,7 @@ class DialogResponse(tasks.Blocker):
 	def __init__(self, dialog):
 		tasks.Blocker.__init__(self, dialog.get_title())
 		a = None
-		def response(d, resp):
+		def response(d, resp, self = self):	# (PyGTK GC bug)
 			self.response = resp
 			d.disconnect(a)
 			self.trigger()
