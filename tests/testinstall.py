@@ -515,6 +515,18 @@ class TestInstall(BaseTest):
 		assert "--- 2012-01-01" in out, out
 		assert not err, err
 
+		# select detects changes
+		new_local = old_local.replace('0.1', '0.1-pre2')
+		with open(os.path.join(app.path, "selections.xml"), 'w') as stream:
+			stream.write(new_local)
+		out, err = self.run_0install(['show', 'local-app'])
+		assert "Version: 0.1-pre2" in out, out
+		assert not err, err
+		out, err = self.run_0install(['select', 'local-app'])
+		assert "Local.xml: 0.1-pre2 -> 0.1" in out, out
+		assert "(note: use '0install update' instead to save the changes)" in out, out
+		assert not err, err
+
 		assert 'local-app' in self.complete(['man'], 2)
 		assert 'local-app' in self.complete(['destroy'], 2)
 		self.assertEqual('', self.complete(['destroy', ''], 3))

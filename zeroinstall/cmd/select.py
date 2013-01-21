@@ -158,33 +158,35 @@ def handle(config, options, args):
 
 	app = config.app_mgr.lookup_app(args[0], missing_ok = True)
 	if app is not None:
-		sels = app.get_selections()
+		old_sels = sels = app.get_selections()
 
 		r = app.get_requirements()
-		do_select = r.parse_update_options(options)
+		changes = r.parse_update_options(options)
 		iface_uri = sels.interface
 
-		if not do_select and r.extra_restrictions and not options.xml:
+		if r.extra_restrictions and not options.xml:
 			print("User-provided restrictions in force:")
 			for uri, expr in r.extra_restrictions.items():
 				print("  {uri}: {expr}".format(uri = uri, expr = expr))
 			print()
 	else:
 		iface_uri = model.canonical_iface_uri(args[0])
-		do_select = True
+		changes = False
 
-	if do_select or options.gui:
-		sels = get_selections(config, options, iface_uri,
-					select_only = True, download_only = False, test_callback = None)
-		if not sels:
-			sys.exit(1)	# Aborted by user
+	sels = get_selections(config, options, iface_uri,
+				select_only = True, download_only = False, test_callback = None)
+	if not sels:
+		sys.exit(1)	# Aborted by user
 
 	if options.xml:
 		show_xml(sels)
 	else:
 		show_human(sels, config.stores)
-		if app is not None and do_select:
-			print(_("(use '0install update' to save the new parameters)"))
+		if app is not None:
+			from zeroinstall.cmd import whatchanged
+			changes = whatchanged.show_changes(old_sels.selections, sels.selections) or changes
+			if changes:
+				print(_("(note: use '0install update' instead to save the changes)"))
 
 def show_xml(sels):
 	doc = sels.toDOM()
