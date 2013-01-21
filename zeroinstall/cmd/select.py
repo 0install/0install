@@ -11,7 +11,8 @@ import sys
 
 from zeroinstall import _, logger
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, selections, requirements
+from zeroinstall.injector import model, selections
+from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver
 from zeroinstall.support import tasks
 
@@ -37,13 +38,15 @@ def add_options(parser):
 	add_generic_select_options(parser)
 	parser.add_option("", "--xml", help=_("write selected versions as XML"), action='store_true')
 
-def get_selections(config, options, iface_uri, select_only, download_only, test_callback):
+def get_selections(config, options, iface_uri, select_only, download_only, test_callback, requirements = None):
 	"""Get selections for iface_uri, according to the options passed.
 	Will switch to GUI mode if necessary.
 	@param options: options from OptionParser
 	@param iface_uri: canonical URI of the interface
 	@param select_only: return immediately even if the selected versions aren't cached
 	@param download_only: wait for stale feeds, and display GUI button as Download, not Run
+	@param requirements: requirements to use; if None, requirements come from options (since 1.15)
+	@type requirements: Requirements
 	@return: the selected versions, or None if the user cancels
 	@rtype: L{selections.Selections} | None
 	"""
@@ -63,10 +66,11 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 				tasks.wait_for_blocker(blocker)
 		return maybe_selections
 
-	r = requirements.Requirements(iface_uri)
-	r.parse_options(options)
+	if requirements is None:
+		requirements = Requirements(iface_uri)
+		requirements.parse_options(options)
 
-	return get_selections_for(r, config, options, select_only, download_only, test_callback)
+	return get_selections_for(requirements, config, options, select_only, download_only, test_callback)
 
 def get_selections_for(requirements, config, options, select_only, download_only, test_callback):
 	"""Get selections for given requirements.
@@ -158,23 +162,24 @@ def handle(config, options, args):
 
 	app = config.app_mgr.lookup_app(args[0], missing_ok = True)
 	if app is not None:
-		old_sels = sels = app.get_selections()
+		old_sels = app.get_selections()
 
-		r = app.get_requirements()
-		changes = r.parse_update_options(options)
-		iface_uri = sels.interface
+		requirements = app.get_requirements()
+		changes = requirements.parse_update_options(options)
+		iface_uri = old_sels.interface
 
-		if r.extra_restrictions and not options.xml:
+		if requirements.extra_restrictions and not options.xml:
 			print("User-provided restrictions in force:")
-			for uri, expr in r.extra_restrictions.items():
+			for uri, expr in requirements.extra_restrictions.items():
 				print("  {uri}: {expr}".format(uri = uri, expr = expr))
 			print()
 	else:
 		iface_uri = model.canonical_iface_uri(args[0])
+		requirements = None
 		changes = False
 
 	sels = get_selections(config, options, iface_uri,
-				select_only = True, download_only = False, test_callback = None)
+				select_only = True, download_only = False, test_callback = None, requirements = requirements)
 	if not sels:
 		sys.exit(1)	# Aborted by user
 
