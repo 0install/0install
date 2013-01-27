@@ -587,13 +587,14 @@ class RetrievalMethod(object):
 
 class DownloadSource(RetrievalMethod):
 	"""A DownloadSource provides a way to fetch an implementation."""
-	__slots__ = ['implementation', 'url', 'size', 'extract', 'start_offset', 'type']
+	__slots__ = ['implementation', 'url', 'size', 'extract', 'start_offset', 'type', 'dest']
 
-	def __init__(self, implementation, url, size, extract, start_offset = 0, type = None):
+	def __init__(self, implementation, url, size, extract, start_offset = 0, type = None, dest = None):
 		self.implementation = implementation
 		self.url = url
 		self.size = size
 		self.extract = extract
+		self.dest = dest
 		self.start_offset = start_offset
 		self.type = type		# MIME type - see unpack.py
 
@@ -604,6 +605,13 @@ class RenameStep(RetrievalMethod):
 	def __init__(self, source, dest):
 		self.source = source
 		self.dest = dest
+
+class RemoveStep(RetrievalMethod):
+	"""A RemoveStep provides a way to delete a path within an implementation."""
+	__slots__ = ['path']
+
+	def __init__(self, path):
+		self.path = path
 
 class Recipe(RetrievalMethod):
 	"""Get an implementation by following a series of steps.
@@ -874,9 +882,9 @@ class ZeroInstallImplementation(Implementation):
 	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires
 						   if isinstance(x, InterfaceRestriction)]))
 
-	def add_download_source(self, url, size, extract, start_offset = 0, type = None):
+	def add_download_source(self, url, size, extract, start_offset = 0, type = None, dest = None):
 		"""Add a download source."""
-		self.download_sources.append(DownloadSource(self, url, size, extract, start_offset, type))
+		self.download_sources.append(DownloadSource(self, url, size, extract, start_offset, type, dest))
 
 	def set_arch(self, arch):
 		self.os, self.machine = _split_arch(arch)
@@ -1224,7 +1232,8 @@ class ZeroInstallFeed(object):
 					impl.add_download_source(url = url, size = int(size),
 							extract = elem.getAttribute('extract'),
 							start_offset = _get_long(elem, 'start-offset'),
-							type = elem.getAttribute('type'))
+							type = elem.getAttribute('type'),
+							dest = elem.getAttribute('dest'))
 				elif elem.name == 'manifest-digest':
 					for aname, avalue in elem.attrs.items():
 						if ' ' not in aname:
@@ -1242,7 +1251,8 @@ class ZeroInstallFeed(object):
 							recipe.steps.append(DownloadSource(None, url = url, size = int(size),
 									extract = recipe_step.getAttribute('extract'),
 									start_offset = _get_long(recipe_step, 'start-offset'),
-									type = recipe_step.getAttribute('type')))
+									type = recipe_step.getAttribute('type'),
+									dest = recipe_step.getAttribute('dest')))
 						elif recipe_step.uri == XMLNS_IFACE and recipe_step.name == 'rename':
 							source = recipe_step.getAttribute('source')
 							if not source:
@@ -1251,6 +1261,11 @@ class ZeroInstallFeed(object):
 							if not dest:
 								raise InvalidInterface(_("Missing dest attribute on <rename>"))
 							recipe.steps.append(RenameStep(source=source, dest=dest))
+						elif recipe_step.uri == XMLNS_IFACE and recipe_step.name == 'remove':
+							path = recipe_step.getAttribute('path')
+							if not path:
+								raise InvalidInterface(_("Missing path attribute on <remove>"))
+							recipe.steps.append(RemoveStep(path=path))
 						else:
 							logger.info(_("Unknown step '%s' in recipe; skipping recipe"), recipe_step.name)
 							break

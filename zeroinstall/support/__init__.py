@@ -79,15 +79,19 @@ def ro_rmtree(root):
 		import warnings
 		warnings.warn("Removing tree ({tree}) containing the current directory ({cwd}) - this will not work on Windows".format(cwd = os.getcwd(), tree = root), stacklevel = 2)
 
-	if platform.system() == 'Windows':
-		for main, dirs, files in os.walk(root):
-			for i in files + dirs:
-				os.chmod(os.path.join(main, i), 0o700)
+	if os.path.isfile(root):
 		os.chmod(root, 0o700)
+		os.remove(root)
 	else:
-		for main, dirs, files in os.walk(root):
-			os.chmod(main, 0o700)
-	shutil.rmtree(root)
+		if platform.system() == 'Windows':
+			for main, dirs, files in os.walk(root):
+				for i in files + dirs:
+					os.chmod(os.path.join(main, i), 0o700)
+			os.chmod(root, 0o700)
+		else:
+			for main, dirs, files in os.walk(root):
+				os.chmod(main, 0o700)
+		shutil.rmtree(root)
 
 def raise_with_traceback(ex, tb):
 	"""Raise an exception in a way that works on Python 2 and Python 3"""

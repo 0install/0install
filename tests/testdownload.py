@@ -397,7 +397,7 @@ class TestDownload(BaseTest):
 		finally:
 			sys.stdout = old_out
 	
-	def testRename(self):
+	def testRecipeRename(self):
 		with output_suppressed():
 			run_server(('HelloWorld.tar.bz2',))
 			requirements = Requirements(os.path.abspath('RecipeRename.xml'))
@@ -409,6 +409,75 @@ class TestDownload(BaseTest):
 			assert os.path.exists(os.path.join(path, 'HelloUniverse', 'minor'))
 			assert not os.path.exists(os.path.join(path, 'HelloWorld'))
 			assert not os.path.exists(os.path.join(path, 'HelloUniverse', 'main'))
+
+	def testRecipeRenameToNewDest(self):
+		with output_suppressed():
+			run_server(('HelloWorld.tar.bz2',))
+			requirements = Requirements(os.path.abspath('RecipeRenameToNewDest.xml'))
+			requirements.command = None
+			driver = Driver(requirements = requirements, config = self.config)
+			driver_download(driver)
+			digests = driver.solver.selections[requirements.interface_uri].digests
+			path = self.config.stores.lookup_any(digests)
+			assert os.path.exists(os.path.join(path, 'HelloWorld', 'bin', 'main'))
+			assert not os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+
+	def testRecipeRemoveFile(self):
+		with output_suppressed():
+			run_server(('HelloWorld.tar.bz2',))
+			requirements = Requirements(os.path.abspath('RecipeRemove.xml'))
+			requirements.command = None
+			driver = Driver(requirements = requirements, config = self.config)
+			driver_download(driver)
+			digests = driver.solver.selections[requirements.interface_uri].digests
+			path = self.config.stores.lookup_any(digests)
+			assert os.path.exists(os.path.join(path, 'HelloWorld'))
+			assert not os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+
+	def testRecipeRemoveDir(self):
+		with output_suppressed():
+			run_server(('HelloWorld.tar.bz2',))
+			requirements = Requirements(os.path.abspath('RecipeRemoveDir.xml'))
+			requirements.command = None
+			driver = Driver(requirements = requirements, config = self.config)
+			driver_download(driver)
+			digests = driver.solver.selections[requirements.interface_uri].digests
+			path = self.config.stores.lookup_any(digests)
+			assert not os.path.exists(os.path.join(path, 'HelloWorld'))
+
+	def testRecipeExtractToNewSubdirectory(self):
+		with output_suppressed():
+			run_server(('HelloWorld.tar.bz2',))
+			requirements = Requirements(os.path.abspath('RecipeExtractToNewDest.xml'))
+			requirements.command = None
+			driver = Driver(requirements = requirements, config = self.config)
+			driver_download(driver)
+			digests = driver.solver.selections[requirements.interface_uri].digests
+			path = self.config.stores.lookup_any(digests)
+			assert os.path.exists(os.path.join(path, 'src', 'HelloWorld', 'main'))
+
+	def testRecipeExtractToExistingSubdirectory(self):
+		with output_suppressed():
+			run_server(('HelloWorld.tar.bz2','HelloWorld.tar.bz2'))
+			requirements = Requirements(os.path.abspath('RecipeExtractToExistingDest.xml'))
+			requirements.command = None
+			driver = Driver(requirements = requirements, config = self.config)
+			driver_download(driver)
+			digests = driver.solver.selections[requirements.interface_uri].digests
+			path = self.config.stores.lookup_any(digests)
+			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main')) # first archive's main
+			assert os.path.exists(os.path.join(path, 'HelloWorld', 'HelloWorld', 'main')) # second archive, extracted to HelloWorld/
+
+	def testExtractToNewSubdirectory(self):
+		with output_suppressed():
+			run_server(('HelloWorld.tar.bz2',))
+			requirements = Requirements(os.path.abspath('HelloExtractToNewDest.xml'))
+			requirements.command = None
+			driver = Driver(requirements = requirements, config = self.config)
+			driver_download(driver)
+			digests = driver.solver.selections[requirements.interface_uri].digests
+			path = self.config.stores.lookup_any(digests)
+			assert os.path.exists(os.path.join(path, 'src', 'HelloWorld', 'main'))
 
 	def testSymlink(self):
 		old_out = sys.stdout

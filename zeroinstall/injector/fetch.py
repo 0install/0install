@@ -110,7 +110,7 @@ class Fetcher(object):
 
 	# (force is deprecated and ignored)
 	@tasks.async
-	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None):
+	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None, dry_run = False):
 		"""Follow a Recipe.
 		@param impl_hint: the Implementation this is for (if any) as a hint for the GUI
 		@see: L{download_impl} uses this method when appropriate"""
@@ -145,7 +145,7 @@ class Fetcher(object):
 					for step in steps:
 						step.apply(tmpdir)
 					# Check that the result is correct and store it in the cache
-					store.check_manifest_and_rename(required_digest, tmpdir)
+					store.check_manifest_and_rename(required_digest, tmpdir, dry_run=dry_run)
 					tmpdir = None
 				finally:
 					# If unpacking fails, remove the temporary directory
@@ -401,27 +401,20 @@ class Fetcher(object):
 		def download_impl(method):
 			original_exception = None
 			while True:
-				try:
-					if isinstance(method, DownloadSource):
-						blocker, stream = self.download_archive(method, impl_hint = impl,
-									may_use_mirror = original_exception is None)
-						try:
-							yield blocker
-							tasks.check(blocker)
+				if isinstance(method, DownloadSource):
+					# turn a DownloadSource implementation into a single-step DownloadSource Recipe
+					step = method
+					method = Recipe()
+					method.steps.append(step)
+				elif not isinstance(method, Recipe):
+					raise Exception(_("Unknown download type for '%s'") % method)
 
-							stream.seek(0)
-							if self.external_store:
-								self._add_to_external_store(required_digest, [method], [stream])
-							else:
-								self._add_to_cache(required_digest, stores, method, stream)
-						finally:
-							stream.close()
-					elif isinstance(method, Recipe):
-						blocker = self.cook(required_digest, method, stores, impl_hint = impl)
-						yield blocker
-						tasks.check(blocker)
-					else:
-						raise Exception(_("Unknown download type for '%s'") % method)
+				try:
+					blocker = self.cook(required_digest, method, stores,
+							impl_hint = impl,
+							dry_run = self.handler.dry_run)
+					yield blocker
+					tasks.check(blocker)
 				except download.DownloadError as ex:
 					if original_exception:
 						logger.info("Error from mirror: %s", ex)
@@ -444,12 +437,6 @@ class Fetcher(object):
 
 			self.handler.impl_added_to_store(impl)
 		return download_impl(retrieval_method)
-
-	def _add_to_cache(self, required_digest, stores, retrieval_method, stream):
-		assert isinstance(retrieval_method, DownloadSource)
-		stores.add_archive_to_cache(required_digest, stream, retrieval_method.url, retrieval_method.extract,
-						 type = retrieval_method.type, start_offset = retrieval_method.start_offset or 0,
-						 dry_run = self.handler.dry_run)
 
 	def _add_to_external_store(self, required_digest, steps, streams):
 		from zeroinstall.zerostore.unpack import type_from_url
@@ -679,7 +666,17 @@ class RenameStepRunner(StepRunner):
 	def apply(self, basedir):
 		source = native_path_within_base(basedir, self.stepdata.source)
 		dest = native_path_within_base(basedir, self.stepdata.dest)
+		_ensure_dir_exists(os.path.dirname(dest))
 		os.rename(source, dest)
+
+class RemoveStepRunner(StepRunner):
+	"""A step runner for the <remove> step."""
+
+	model_type = model.RemoveStep
+
+	def apply(self, basedir):
+		path = native_path_within_base(basedir, self.stepdata.path)
+		support.ro_rmtree(path)
 
 class DownloadStepRunner(StepRunner):
 	"""A step runner for the <archive> step.
@@ -695,6 +692,9 @@ class DownloadStepRunner(StepRunner):
 	def apply(self, basedir):
 		from zeroinstall.zerostore import unpack
 		assert self.blocker.happened
+		if self.stepdata.dest is not None:
+			basedir = native_path_within_base(basedir, self.stepdata.dest)
+			_ensure_dir_exists(basedir)
 		unpack.unpack_archive_over(self.stepdata.url, self.stream, basedir,
 				extract = self.stepdata.extract,
 				type=self.stepdata.type,
@@ -718,3 +718,7 @@ def native_path_within_base(base, crossplatform_path):
 	if not fullpath.startswith(base + os.path.sep):
 		raise SafeException("path %r is not within the base directory" % (crossplatform_path,))
 	return fullpath
+
+def _ensure_dir_exists(dest):
+	if not os.path.isdir(dest):
+		os.makedirs(dest)
