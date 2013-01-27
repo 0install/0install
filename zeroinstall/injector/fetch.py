@@ -400,13 +400,11 @@ class Fetcher(object):
 		def download_impl(method):
 			original_exception = None
 			while True:
-				if isinstance(method, DownloadSource):
-					# turn a DownloadSource implementation into a single-step DownloadSource Recipe
+				if not isinstance(method, Recipe):
+					# turn an individual method into a single-step Recipe
 					step = method
 					method = Recipe()
 					method.steps.append(step)
-				elif not isinstance(method, Recipe):
-					raise Exception(_("Unknown download type for '%s'") % method)
 
 				try:
 					blocker = self.cook(required_digest, method, stores,
@@ -470,10 +468,6 @@ class Fetcher(object):
 		"""
 		from zeroinstall.zerostore import unpack
 
-		url = download_source.url
-		if not (url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:')):
-			raise SafeException(_("Unknown scheme in download URL '%s'") % url)
-
 		mime_type = download_source.type
 		if not mime_type:
 			mime_type = unpack.type_from_url(download_source.url)
@@ -493,6 +487,18 @@ class Fetcher(object):
 		if download_source.size is not None:
 			dl.expected_size = download_source.size + (download_source.start_offset or 0)
 		# (else don't know sizes for mirrored archives)
+		return (dl.downloaded, dl.tempfile)
+
+	def download_file(self, download_source, impl_hint=None):
+		"""Fetch a single file. You should normally call L{download_impl}
+		instead, since it handles other kinds of retrieval method too.
+		It is the caller's responsibility to ensure that the returned stream is closed.
+		"""
+		if self.config.handler.dry_run:
+			print(_("[dry-run] downloading file {url}").format(url = download_source.url))
+
+		dl = self.download_url(download_source.url, hint = impl_hint)
+		dl.expected_size = download_source.size
 		return (dl.downloaded, dl.tempfile)
 
 	# (force is deprecated and ignored)
@@ -629,6 +635,8 @@ class Fetcher(object):
 		@rtype: L{download.Download}
 		@since: 1.5
 		"""
+		if not (url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:')):
+			raise SafeException(_("Unknown scheme in download URL '%s'") % url)
 		dl = download.Download(url, hint = hint, modification_time = modification_time, expected_size = expected_size, auto_delete = not self.external_store)
 		dl.mirror = mirror_url
 		self.handler.monitor_download(dl)
@@ -652,7 +660,7 @@ class StepRunner(object):
 		for subcls in cls.__subclasses__():
 			if subcls.model_type == type(model):
 				return subcls
-		assert False, "Couldn't find step runner for %s" % (type(model),)
+		raise Exception(_("Unknown download type for '%s'") % model)
 	
 	def close(self):
 		"""Release any resources (called on success or failure)."""
@@ -701,6 +709,30 @@ class DownloadStepRunner(StepRunner):
 				type=self.stepdata.type,
 				start_offset = self.stepdata.start_offset or 0)
 	
+	def close(self):
+		self.stream.close()
+
+class FileStepRunner(StepRunner):
+	"""A step runner for the <file> step."""
+
+	model_type = model.FileSource
+
+	def prepare(self, fetcher, blockers):
+		self.blocker, self.stream = fetcher.download_file(self.stepdata,
+				impl_hint = self.impl_hint)
+		assert self.stream
+		blockers.append(self.blocker)
+
+	def apply(self, basedir):
+		import shutil
+		assert self.blocker.happened
+		dest = native_path_within_base(basedir, self.stepdata.dest)
+		_ensure_dir_exists(os.path.dirname(dest))
+
+		with open(dest, 'wb') as output:
+			shutil.copyfileobj(self.stream, output)
+		os.utime(dest, (0, 0))
+
 	def close(self):
 		self.stream.close()
 

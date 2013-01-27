@@ -493,6 +493,17 @@ class TestDownload(BaseTest):
 		except model.SafeException as ex:
 			assert "path '.' is not within the base directory" in str(ex), ex
 
+	def testRecipeSingleFile(self):
+		with output_suppressed():
+			run_server(('HelloWorldMain',))
+			requirements = Requirements(os.path.abspath('RecipeSingleFile.xml'))
+			requirements.command = None
+			driver = Driver(requirements = requirements, config = self.config)
+			driver_download(driver)
+			digests = driver.solver.selections[requirements.interface_uri].digests
+			path = self.config.stores.lookup_any(digests)
+			assert os.path.exists(os.path.join(path, 'bin','main'))
+
 	def testExtractToNewSubdirectory(self):
 		with output_suppressed():
 			run_server(('HelloWorld.tar.bz2',))
@@ -503,6 +514,17 @@ class TestDownload(BaseTest):
 			digests = driver.solver.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
 			assert os.path.exists(os.path.join(path, 'src', 'HelloWorld', 'main'))
+
+	def testDownloadFile(self):
+		with output_suppressed():
+			run_server(('HelloWorldMain',))
+			requirements = Requirements(os.path.abspath('HelloSingleFile.xml'))
+			requirements.command = None
+			driver = Driver(requirements = requirements, config = self.config)
+			driver_download(driver)
+			digests = driver.solver.selections[requirements.interface_uri].digests
+			path = self.config.stores.lookup_any(digests)
+			assert os.path.exists(os.path.join(path, 'main'))
 
 	def testSymlink(self):
 		old_out = sys.stdout

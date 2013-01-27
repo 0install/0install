@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Recipe</name>
+  <summary>Recipe</summary>
+  <description>Recipe</description>
+  <implementation id='v0.1' version='0.1'>
+    <recipe>
+      <file href='http://localhost:8000/HelloWorldMain' size='27' dest="bin/main"/>
+    </recipe>
+    <manifest-digest sha256new="DCKZ332KJH3J2IQJ25DTOFUZSJD4QVFLNGJWID45ILXJQFSKLDRA"/>
+  </implementation>
+</interface>

@@ -606,6 +606,15 @@ class RenameStep(RetrievalMethod):
 		self.source = source
 		self.dest = dest
 
+class FileSource(RetrievalMethod):
+	"""A FileSource provides a way to fetch a single file."""
+	__slots__ = ['url', 'dest', 'size']
+
+	def __init__(self, url, dest, size):
+		self.url = url
+		self.dest = dest
+		self.size = size
+
 class RemoveStep(RetrievalMethod):
 	"""A RemoveStep provides a way to delete a path within an implementation."""
 	__slots__ = ['path']
@@ -624,7 +633,7 @@ class Recipe(RetrievalMethod):
 	def __init__(self):
 		self.steps = []
 
-	size = property(lambda self: sum([x.size for x in self.steps if isinstance(x, DownloadSource)]))
+	size = property(lambda self: sum([x.size for x in self.steps if hasattr(x, 'size')]))
 
 class DistributionSource(RetrievalMethod):
 	"""A package that is installed using the distribution's tools (including PackageKit).
@@ -1220,6 +1229,18 @@ class ZeroInstallFeed(object):
 			impl.bindings = bindings
 			impl.requires = depends
 
+			def extract_file_source(elem):
+				url = elem.getAttribute('href')
+				if not url:
+					raise InvalidInterface(_("Missing href attribute on <file>"))
+				dest = elem.getAttribute('dest')
+				if not dest:
+					raise InvalidInterface(_("Missing dest attribute on <file>"))
+				size = elem.getAttribute('size')
+				if not size:
+					raise InvalidInterface(_("Missing size attribute on <file>"))
+				return FileSource(url, dest, int(size))
+
 			for elem in item.childNodes:
 				if elem.uri != XMLNS_IFACE: continue
 				if elem.name == 'archive':
@@ -1234,6 +1255,9 @@ class ZeroInstallFeed(object):
 							start_offset = _get_long(elem, 'start-offset'),
 							type = elem.getAttribute('type'),
 							dest = elem.getAttribute('dest'))
+				elif elem.name == 'file':
+					impl.download_sources.append(extract_file_source(elem))
+
 				elif elem.name == 'manifest-digest':
 					for aname, avalue in elem.attrs.items():
 						if ' ' not in aname:
@@ -1253,6 +1277,8 @@ class ZeroInstallFeed(object):
 									start_offset = _get_long(recipe_step, 'start-offset'),
 									type = recipe_step.getAttribute('type'),
 									dest = recipe_step.getAttribute('dest')))
+						elif recipe_step.name == 'file':
+							recipe.steps.append(extract_file_source(recipe_step))
 						elif recipe_step.uri == XMLNS_IFACE and recipe_step.name == 'rename':
 							source = recipe_step.getAttribute('source')
 							if not source:
