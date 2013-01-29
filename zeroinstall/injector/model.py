@@ -1449,11 +1449,11 @@ def canonical_iface_uri(uri):
 		return path
 
 	if '/' not in uri:
-		path = support.find_in_path(uri)
-		if path is not None:
+		alias_path = support.find_in_path(uri)
+		if alias_path is not None:
 			from zeroinstall import alias
 			try:
-				alias.parse_script(path)
+				alias.parse_script(alias_path)
 			except alias.NotAnAliasScript:
 				pass
 			else:

@@ -252,6 +252,7 @@ class TestModel(BaseTest):
 			assert False
 		except model.SafeException as ex:
 			assert "Bad interface name 'CommandMissing.xml'" in str(ex), ex
+			assert "/tests/CommandMissing.xml' either" in str(ex), ex
 
 		# file:absolute
 		model.canonical_iface_uri('file://{path}/Command.xml'.format(path = mydir))
