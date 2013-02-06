@@ -86,7 +86,9 @@ def optimise(impl_dir):
 			logger.warn(_("Failed to read manifest file '%(manifest_path)s': %(exception)s"), {'manifest': manifest_path, 'exception': str(ex)})
 			continue
 
-		if alg == 'sha1': continue
+		if alg == 'sha1':
+			ms.close()
+			continue
 
 		man_size += os.path.getsize(manifest_path)
 
