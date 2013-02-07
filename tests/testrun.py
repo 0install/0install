@@ -17,6 +17,7 @@ from zeroinstall.support import unicode
 
 mydir = os.path.abspath(os.path.dirname(__file__))
 local_0launch = os.path.join(os.path.dirname(mydir), '0launch')
+arglist = os.path.join(mydir, 'runnable', 'ArgList.xml')
 runnable = os.path.join(mydir, 'runnable', 'Runnable.xml')
 runexec = os.path.join(mydir, 'runnable', 'RunExec.xml')
 recursive_runner = os.path.join(mydir, 'runnable', 'RecursiveRunner.xml')
@@ -94,6 +95,19 @@ class TestRun(BaseTest):
 		finally:
 			sys.stdout = old_stdout
 		assert 'runner-arg' in out, out
+
+	def testArgList(self):
+		d = Driver(requirements = Requirements(arglist), config = self.config)
+		self.config.handler.wait_for_blocker(d.solve_with_downloads())
+		old_stdout = sys.stdout
+		try:
+			sys.stdout = StringIO()
+			run.execute_selections(d.solver.selections, [], dry_run = True, stores = self.config.stores)
+			out = sys.stdout.getvalue()
+		finally:
+			sys.stdout = old_stdout
+		assert 'arg-for-runner -X ra1 -X ra2' in out, out
+		assert 'command-arg ca1 ca2' in out, out
 
 	def testWrapper(self):
 		p = Driver(requirements = Requirements(runnable), config = self.config)

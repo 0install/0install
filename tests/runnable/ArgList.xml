@@ -1,0 +1,31 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Runnable</name>
+  <summary>test script that needs a runner</summary>
+
+  <implementation id="test" local-path="." version="1">
+    <command name="run" path="script">
+      <runner interface='./Runner.xml' command='runme'>
+	<arg>arg-for-runner</arg>
+	<for-each item-from="RUNNER_ARGS">
+	  <arg>-X</arg>
+	  <arg>${item}</arg>
+	</for-each>
+      </runner>
+      <arg>command-arg</arg>
+      <for-each item-from="COMMAND_ARGS" separator=",">
+	<arg>${item}</arg>
+      </for-each>
+      <for-each item-from="__NOT_SET__" separator=",">
+	<arg>${foo}</arg>
+      </for-each>
+      <arg>--</arg>
+    </command>
+
+    <environment name='COMMAND_ARGS' value='ca1' separator=',' mode='append'/>
+    <environment name='COMMAND_ARGS' value='ca2' separator=',' mode='append'/>
+
+    <environment name='RUNNER_ARGS' value='ra1' mode='append'/>
+    <environment name='RUNNER_ARGS' value='ra2' mode='append'/>
+  </implementation>
+</interface>

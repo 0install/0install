@@ -68,11 +68,22 @@ def test_selections(selections, prog_args, dry_run, main):
 
 	return results
 
-def _process_args(args, element):
-	"""Append each <arg> under <element> to args, performing $-expansion."""
+def _process_args(args, element, env = os.environ):
+	"""Append each <arg> under <element> to args, performing $-expansion. Also, process <for-each> loops."""
 	for child in element.childNodes:
-		if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
-			args.append(Template(child.content).substitute(os.environ))
+		if child.uri != namespaces.XMLNS_IFACE: continue
+
+		if child.name == 'arg':
+			args.append(Template(child.content).substitute(env))
+		elif child.name == 'for-each':
+			array_var = child.attrs['item-from']
+			separator = child.attrs.get('separator', os.pathsep)
+			env_copy = env.copy()
+			seq = env.get(array_var, None)
+			if seq:
+				for item in seq.split(separator):
+					env_copy['item'] = item
+					_process_args(args, child, env_copy)
 
 class Setup(object):
 	"""@since: 1.2"""
@@ -307,7 +318,7 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 		user_command_element = qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': main})
 		if commands:
 			for child in commands[0].qdom.childNodes:
-				if child.uri == namespaces.XMLNS_IFACE and child.name == 'arg':
+				if child.uri == namespaces.XMLNS_IFACE and child.name in ('arg', 'for-each'):
 					continue
 				user_command_element.childNodes.append(child)
 		user_command = Command(user_command_element, None)
