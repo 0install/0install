@@ -20,6 +20,8 @@ _zeroinstall_regexp = '(?:%s)(?:-(?:pre|rc|post|)(?:%s))*' % (_dotted_ints, _dot
 # (first matching group is for Java-style 6b17 or 7u9 syntax, or "major")
 _version_regexp = '(?:[a-z])?({ints}[bu])?({zero})(-r{ints})?'.format(zero = _zeroinstall_regexp, ints = _dotted_ints)
 
+_PYTHON_URI = 'http://repo.roscidus.com/python/python'
+
 # We try to do updates atomically without locking, but we don't worry too much about
 # duplicate entries or being a little out of sync with the on-disk copy.
 class Cache(object):
@@ -214,7 +216,7 @@ class Distribution(object):
 				if impl.installed:
 					self.installed_fixup(impl)
 
-		if master_feed.url == 'http://repo.roscidus.com/python/python' and os.name != "nt" and all(not impl.installed for impl in feed.implementations.values()):
+		if master_feed.url == _PYTHON_URI and os.name != "nt":
 			# Hack: we can support Python on platforms with unsupported package managers
 			# by adding the implementation of Python running us now to the list.
 			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
@@ -226,6 +228,23 @@ class Distribution(object):
 			impl.main = sys.executable
 			impl.upstream_stability = model.packaged
 			impl.machine = host_machine	# (hopefully)
+			feed.implementations[impl_id] = impl
+		elif master_feed.url == 'http://repo.roscidus.com/python/python-gobject' and os.name != "nt":
+			# Likewise, we know that there is a native python-gobject available for our Python
+			import gobject
+			impl_id = 'package:host:python-gobject:' + '.'.join(str(x) for x in gobject.pygobject_version)
+			assert impl_id not in feed.implementations
+			impl = model.DistributionImplementation(feed, impl_id, self)
+			impl.installed = True
+			impl.version = [list(gobject.pygobject_version)]
+			impl.upstream_stability = model.packaged
+			impl.machine = host_machine	# (hopefully)
+
+			# Requires our version of Python too
+			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
+			restriction_element = qdom.Element(namespaces.XMLNS_IFACE, 'restricts', {'interface': _PYTHON_URI, 'version': python_version})
+			impl.requires.append(model.process_depends(restriction_element, None))
+
 			feed.implementations[impl_id] = impl
 
 		return feed
