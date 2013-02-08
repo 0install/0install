@@ -184,9 +184,9 @@ class Handler(object):
 		@type exception: L{SafeException}
 		@param tb: optional traceback
 		@since: 0.25"""
-		logger.warn("%s", str(exception) or type(exception))
-		#import traceback
-		#traceback.print_exception(exception, None, tb)
+		import logging
+		logger.warn("%s", str(exception) or type(exception),
+				exc_info = (exception, None, tb) if logger.isEnabledFor(logging.INFO) else None)
 	
 class ConsoleHandler(Handler):
 	"""A Handler that displays progress on stdout (a tty).
