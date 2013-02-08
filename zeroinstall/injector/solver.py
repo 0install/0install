@@ -933,6 +933,20 @@ class SATSolver(Solver):
 										this_arch = i.machine,
 										other_name = example_machine_impl.feed.get_name(),
 										other_arch = example_machine_impl.machine)
+
+						if reason is None:
+							# Check if our requirements conflict with an existing selection
+							for dep in i.requires:
+								if not isinstance(dep, model.InterfaceRestriction): continue
+								dep_selection = sels.get(dep.interface)
+								if dep_selection is not None:
+									for r in dep.restrictions:
+										if not r.meets_restriction(dep_selection.impl):
+											reason = _("requires {iface} {reqs}").format(
+													iface = dep.interface,
+													reqs = ', '.join(str(r) for r in dep.restrictions))
+											break
+
 						if reason is None:
 							var = self._iface_to_vars[iface].get(i, None)
 							if var is None:

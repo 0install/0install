@@ -285,6 +285,9 @@ class TestSolver(BaseTest):
 			s.solve_for(r)
 			assert not s.ready, s.selections.selections
 
+			#if expected_error != str(s.get_failure_reason()):
+			#	print s.get_failure_reason()
+
 			self.assertEqual(expected_error, str(s.get_failure_reason()))
 
 			return s
@@ -325,6 +328,21 @@ class TestSolver(BaseTest):
 			 "- http://localhost/diagnostics.xml -> (problem)\n"
 			 "    http://localhost/top.xml 1 requires version 100..!200\n"
 			 "    No usable implementations satisfy the restrictions\n"
+			 "- http://localhost/top.xml -> 1 (1)")
+
+		s = test("""<implementation version='1' id='1' main='foo'>
+				<archive href='http://localhost:3000/foo.tgz' size='100'/>
+				<requires interface='{diag}'/>
+			     </implementation>""".format(diag = diag_uri),
+			 """<implementation version='5' id='diag-5'>
+				<archive href='http://localhost:3000/diag.tgz' size='100'/>
+				<restricts interface='{top_uri}' version='100..!200'/>
+			     </implementation>
+			 """.format(top_uri = top_uri),
+			 "Can't find all required implementations:\n"
+			 "- http://localhost/diagnostics.xml -> (problem)\n"
+			 "    Rejected candidates:\n"
+			 "      diag-5: requires http://localhost/top.xml version 100..!200\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 
 		logger.setLevel(logging.ERROR)
