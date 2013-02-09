@@ -191,6 +191,10 @@ def process_depends(item, local_feed_dir):
 			r = ImpossibleRestriction(msg)
 		dependency.restrictions.append(r)
 
+	distro = item.getAttribute('distribution')
+	if distro:
+		dependency.restrictions.append(DistributionRestriction(distro))
+
 	for e in item.childNodes:
 		if e.uri != XMLNS_IFACE: continue
 		if e.name in binding_names:
@@ -307,6 +311,23 @@ class ImpossibleRestriction(Restriction):
 
 	def __str__(self):
 		return "<impossible: %s>" % self.reason
+
+class DistributionRestriction(Restriction):
+	"""A restriction that can only be satisfied by an implementation
+	from the given distribution.
+	For example, a MacPorts Python library requires us to select the MacPorts
+	version of Python too.
+	@since: 1.15"""
+	distros = None
+
+	def __init__(self, distros):
+		self.distros = frozenset(distros.split(' '))
+
+	def meets_restriction(self, impl):
+		return impl.distro_name in self.distros
+
+	def __str__(self):
+		return "distro " + '|'.join(self.distros)
 
 class Binding(object):
 	"""Information about how the choice of a Dependency is made known
@@ -801,14 +822,15 @@ class DistributionImplementation(Implementation):
 	@ivar package_implementation: the <package-implementation> element that generated this impl (since 1.7)
 	@type package_implementation: L{qdom.Element}
 	@since: 0.28"""
-	__slots__ = ['distro', 'installed', 'package_implementation']
+	__slots__ = ['distro', 'installed', 'package_implementation', 'distro_name']
 
-	def __init__(self, feed, id, distro, package_implementation = None):
+	def __init__(self, feed, id, distro, package_implementation = None, distro_name = None):
 		assert id.startswith('package:')
 		Implementation.__init__(self, feed, id)
 		self.distro = distro
 		self.installed = False
 		self.package_implementation = package_implementation
+		self.distro_name = distro_name or distro.name
 
 		if package_implementation:
 			for child in package_implementation.childNodes:
@@ -832,6 +854,8 @@ class ZeroInstallImplementation(Implementation):
 	@type digests: [str]
 	@since: 0.28"""
 	__slots__ = ['os', 'size', 'digests', 'local_path']
+
+	distro_name = '0install'
 
 	def __init__(self, feed, id, local_path):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""

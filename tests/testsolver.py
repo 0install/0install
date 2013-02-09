@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from __future__ import print_function
+
 from basetest import BaseTest, BytesIO
 import sys, os, locale
 import unittest
@@ -285,18 +287,20 @@ class TestSolver(BaseTest):
 			s.solve_for(r)
 			assert not s.ready, s.selections.selections
 
-			#if expected_error != str(s.get_failure_reason()):
-			#	print s.get_failure_reason()
+			if expected_error != str(s.get_failure_reason()):
+				print(s.get_failure_reason())
 
 			self.assertEqual(expected_error, str(s.get_failure_reason()))
 
 			return s
 
+		# No implementations
 		s = test("", "",
 			"Can't find all required implementations:\n" +
 			"- http://localhost/top.xml -> (problem)\n" +
 			"    No known implementations at all")
 
+		# No retrieval method
 		s = test("<implementation version='1' id='1'><requires interface='{diag}'/></implementation>".format(diag = diag_uri),
 			 "",
 			 "Can't find all required implementations:\n" +
@@ -304,6 +308,7 @@ class TestSolver(BaseTest):
 			 "    No usable implementations:\n" +
 			 "      1: No retrieval methods")
 
+		# No run command
 		s = test("""<implementation version='1' id='1'>
 				<archive href='http://localhost:3000/foo.tgz' size='100'/>
 				<requires interface='{diag}'>
@@ -316,6 +321,22 @@ class TestSolver(BaseTest):
 			 "    Rejected candidates:\n" +
 			 "      1: No run command")
 
+		# Failing distribution requirement
+		s = test("""<implementation version='1' id='1' main='foo'>
+				<archive href='http://localhost:3000/foo.tgz' size='100'/>
+				<requires interface='{diag}' distribution='foo'/>
+			     </implementation>""".format(diag = diag_uri),
+			 """<implementation version='5' id='diag-5'>
+				<archive href='http://localhost:3000/diag.tgz' size='100'/>
+			     </implementation>
+			 """,
+			 "Can't find all required implementations:\n"
+			 "- http://localhost/diagnostics.xml -> (problem)\n"
+			 "    http://localhost/top.xml 1 requires distro foo\n"
+			 "    No usable implementations satisfy the restrictions\n"
+			 "- http://localhost/top.xml -> 1 (1)")
+
+		# Failing version requirement on library
 		s = test("""<implementation version='1' id='1' main='foo'>
 				<archive href='http://localhost:3000/foo.tgz' size='100'/>
 				<requires interface='{diag}' version='100..!200'/>
@@ -330,6 +351,7 @@ class TestSolver(BaseTest):
 			 "    No usable implementations satisfy the restrictions\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 
+		# Failing version requires on root
 		s = test("""<implementation version='1' id='1' main='foo'>
 				<archive href='http://localhost:3000/foo.tgz' size='100'/>
 				<requires interface='{diag}'/>
@@ -345,6 +367,7 @@ class TestSolver(BaseTest):
 			 "      diag-5: requires http://localhost/top.xml version 100..!200\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 
+		# Parse error in version restriction
 		logger.setLevel(logging.ERROR)
 		s = test("""<implementation version='1' id='1' main='foo'>
 				<archive href='http://localhost:3000/foo.tgz' size='100'/>
@@ -361,6 +384,7 @@ class TestSolver(BaseTest):
 			 "- http://localhost/top.xml -> 1 (1)")
 		logger.setLevel(logging.WARNING)
 
+		# Old-style version restriction
 		s = test("""<implementation version='1' id='1' main='foo'>
 				<archive href='http://localhost:3000/foo.tgz' size='100'/>
 				<requires interface='{diag}'>
@@ -377,6 +401,7 @@ class TestSolver(BaseTest):
 			 "    No usable implementations satisfy the restrictions\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 
+		# Mismatched machine types
 		s = test("""<group>
 			      <requires interface='{diag}'/>
 			      <implementation version='1' id='1' main='foo' arch='Windows-i486'>
@@ -395,6 +420,7 @@ class TestSolver(BaseTest):
 			 "      diag-5: Can't use x86_64 with selection of Top-level (i486)\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 
+		# Only show the first five unusable reasons
 		s = test("""<group>
 			      <requires interface='{diag}'/>
 			      <implementation version='1' id='1' main='foo'>
@@ -421,6 +447,7 @@ class TestSolver(BaseTest):
 			 "      ...\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 
+		# Only show the first five rejection reasons
 		s = test("""<group>
 			      <requires interface='{diag}'>
 			        <version before='6'/>
@@ -454,6 +481,7 @@ class TestSolver(BaseTest):
 			 "      ...\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 
+		# Justify why a particular version can't be used
 		iface = self.config.iface_cache.get_interface(diag_uri)
 		impl = self.config.iface_cache.get_feed(diag_uri).implementations['diag-5']
 		r = Requirements(top_uri)

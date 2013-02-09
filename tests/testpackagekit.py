@@ -139,6 +139,8 @@ def makeFakePackageKit(version):
 	return FakePackageKit()
 
 class TestPackageKit(BaseTest):
+	name = 'TestPackageKit'
+
 	def setUp(self):
 		BaseTest.setUp(self)
 

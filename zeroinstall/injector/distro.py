@@ -137,7 +137,10 @@ class Distribution(object):
 	Sub-classes should specialise this to integrate with the package managers of
 	particular distributions. This base class ignores the native package manager.
 	@since: 0.28
+	@ivar name: the default value for Implementation.distro_name for our implementations
+	@type name: str
 	"""
+
 	_packagekit = None
 
 	def get_package_info(self, package, factory):
@@ -222,7 +225,7 @@ class Distribution(object):
 			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
 			impl_id = 'package:host:python:' + python_version
 			assert impl_id not in feed.implementations
-			impl = model.DistributionImplementation(feed, impl_id, self)
+			impl = model.DistributionImplementation(feed, impl_id, self, distro_name = 'host')
 			impl.installed = True
 			impl.version = model.parse_version(python_version)
 			impl.main = sys.executable
@@ -234,15 +237,14 @@ class Distribution(object):
 			from zeroinstall import gobject
 			impl_id = 'package:host:python-gobject:' + '.'.join(str(x) for x in gobject.pygobject_version)
 			assert impl_id not in feed.implementations
-			impl = model.DistributionImplementation(feed, impl_id, self)
+			impl = model.DistributionImplementation(feed, impl_id, self, distro_name = 'host')
 			impl.installed = True
 			impl.version = [list(gobject.pygobject_version)]
 			impl.upstream_stability = model.packaged
 			impl.machine = host_machine	# (hopefully)
 
 			# Requires our version of Python too
-			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
-			restriction_element = qdom.Element(namespaces.XMLNS_IFACE, 'restricts', {'interface': _PYTHON_URI, 'version': python_version})
+			restriction_element = qdom.Element(namespaces.XMLNS_IFACE, 'restricts', {'interface': _PYTHON_URI, 'distribution': 'host'})
 			impl.requires.append(model.process_depends(restriction_element, None))
 
 			feed.implementations[impl_id] = impl
@@ -282,7 +284,12 @@ class Distribution(object):
 		@since: 1.11"""
 		pass
 
+	def get_score(self, distro_name):
+		return int(distro_name == self.name)
+
 class WindowsDistribution(Distribution):
+	name = 'Windows'
+
 	def get_package_info(self, package, factory):
 		def _is_64bit_windows():
 			p = sys.platform
@@ -375,11 +382,11 @@ class WindowsDistribution(Distribution):
 			find_netfx("v4\\Client", '4.0')
 			find_netfx_release("v4\\Client", 378389, '4.5')
 
-	def get_score(self, disto_name):
-		return int(disto_name == 'Windows')
-
 class DarwinDistribution(Distribution):
 	"""@since: 1.11"""
+
+	name = 'Darwin'
+
 	def get_package_info(self, package, factory):
 		def java_home(version, arch):
 			null = os.open(os.devnull, os.O_WRONLY)
@@ -432,9 +439,6 @@ class DarwinDistribution(Distribution):
 			find_program("/usr/local/bin/gpg")
 		elif package == 'gnupg2':
 			find_program("/usr/local/bin/gpg2")
-
-	def get_score(self, disto_name):
-		return int(disto_name == 'Darwin')
 
 class CachedDistribution(Distribution):
 	"""For distributions where querying the package database is slow (e.g. requires running
@@ -541,6 +545,8 @@ def canonical_machine(package_machine):
 class DebianDistribution(Distribution):
 	"""A dpkg-based distribution."""
 
+	name = 'Debian'
+
 	cache_leaf = 'dpkg-status.cache'
 
 	def __init__(self, dpkg_status):
@@ -638,9 +644,6 @@ class DebianDistribution(Distribution):
 		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command',
 			{'path': java_bin, 'name': 'run'}), None)
 
-	def get_score(self, disto_name):
-		return int(disto_name == 'Debian')
-
 	def _get_dpkg_info(self, package):
 		installed_cached_info = self.dpkg_cache.get(package)
 		if installed_cached_info == None:
@@ -687,6 +690,8 @@ class DebianDistribution(Distribution):
 
 class RPMDistribution(CachedDistribution):
 	"""An RPM-based distribution."""
+
+	name = 'RPM'
 
 	cache_leaf = 'rpm-status.cache'
 
@@ -762,11 +767,10 @@ class RPMDistribution(CachedDistribution):
 				# OpenSUSE uses 1.6 to mean 6
 				del impl.version[0][0]
 
-	def get_score(self, disto_name):
-		return int(disto_name == 'RPM')
-
 class SlackDistribution(Distribution):
 	"""A Slack-based distribution."""
+
+	name = 'Slack'
 
 	def __init__(self, packages_dir):
 		self._packages_dir = packages_dir
@@ -791,11 +795,10 @@ class SlackDistribution(Distribution):
 		# Add any uninstalled candidates found by PackageKit
 		self.packagekit.get_candidates(package, factory, 'package:slack')
 
-	def get_score(self, disto_name):
-		return int(disto_name == 'Slack')
-
 class ArchDistribution(Distribution):
 	"""An Arch Linux distribution."""
+
+	name = 'Arch'
 
 	def __init__(self, packages_dir):
 		self._packages_dir = os.path.join(packages_dir, "local")
@@ -829,10 +832,8 @@ class ArchDistribution(Distribution):
 		# Add any uninstalled candidates found by PackageKit
 		self.packagekit.get_candidates(package, factory, 'package:arch')
 
-	def get_score(self, disto_name):
-		return int(disto_name == 'Arch')
-
 class GentooDistribution(Distribution):
+	name = 'Gentoo'
 
 	def __init__(self, pkgdir):
 		self._pkgdir = pkgdir
@@ -876,10 +877,8 @@ class GentooDistribution(Distribution):
 		# Add any uninstalled candidates found by PackageKit
 		self.packagekit.get_candidates(package, factory, 'package:gentoo')
 
-	def get_score(self, disto_name):
-		return int(disto_name == 'Gentoo')
-
 class PortsDistribution(Distribution):
+	name = 'Ports'
 
 	def __init__(self, pkgdir):
 		self._pkgdir = pkgdir
@@ -911,10 +910,9 @@ class PortsDistribution(Distribution):
 			impl.version = model.parse_version(version)
 			impl.machine = machine
 
-	def get_score(self, disto_name):
-		return int(disto_name == 'Ports')
-
 class MacPortsDistribution(CachedDistribution):
+	name = 'MacPorts'
+
 	def __init__(self, db_status_file):
 		super(MacPortsDistribution, self).__init__(db_status_file)
 		self.darwin = DarwinDistribution()
@@ -967,15 +965,17 @@ class MacPortsDistribution(CachedDistribution):
 			if machine != '*':
 				impl.machine = machine
 
-	def get_score(self, disto_name):
+	def get_score(self, distro_name):
 		# We support both sources of packages.
 		# In theory, we should route 'Darwin' package names to DarwinDistribution, and
 		# Mac Ports names to MacPortsDistribution. But since we only use Darwin for Java,
 		# having one object handle both is OK.
-		return int(disto_name in ('Darwin', 'MacPorts'))
+		return int(distro_name in ('Darwin', 'MacPorts'))
 
 class CygwinDistribution(CachedDistribution):
 	"""A Cygwin-based distribution."""
+
+	name = 'Cygwin'
 
 	cache_leaf = 'cygcheck-status.cache'
 
@@ -1008,9 +1008,6 @@ class CygwinDistribution(CachedDistribution):
 			impl.version = model.parse_version(version)
 			if machine != '*':
 				impl.machine = machine
-
-	def get_score(self, disto_name):
-		return int(disto_name == 'Cygwin')
 
 
 _host_distribution = None
