@@ -491,9 +491,13 @@ class SATSolver(Solver):
 					logger.warn(_("Missing local feed; if it's no longer required, remove it with:") +
 							'\n0install remove-feed ' + iface.uri + ' ' + f,
 						{'feed': f, 'interface': iface, 'exception': ex})
-				except Exception as ex:
+				except model.SafeException as ex:
 					logger.warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
 					#raise
+				except Exception as ex:
+					import logging
+					logger.warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex},
+							exc_info = True if logger.isEnabledFor(logging.INFO) else None)
 
 			impls.sort(key = lambda impl: self.get_rating(iface, impl, arch), reverse = True)
 
