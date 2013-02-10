@@ -1,4 +1,4 @@
-.TH 0INSTALL 1 "2012" "Thomas Leonard" ""
+.TH 0INSTALL 1 "2013" "Thomas Leonard" ""
 .SH NAME
 0install \(em a decentralised software installation system
 
@@ -240,7 +240,7 @@ To avoid having to keep typing the full URI, use the `0install add' command
 to create shortcuts to run your programs.
 
 .PP
-All options for `select' and `download' can also be used for `run'. In
+All options for `select' can also be used for `run' except for \fB\-\-xml\fP. In
 addition, these options are available:
 
 .TP
@@ -374,7 +374,7 @@ directory) or the manifest's digest (or both). If neither option is given, the d
 is displayed.
 
 .SS 0install --version
-This can be used (without any command) the get version of 0install itself:
+This can be used (without any command) the get version of 0install itself.
 
 .SH APPLICATIONS
 
@@ -460,10 +460,9 @@ For example, to run \fBmyprog \-\-help\fP, displaying all calls to open(2):
 
 .B $ 0install run \-\-wrapper="strace \-e open" http://myprog \-\-help
 
-If your program is interpreted (e.g. a Python program), and you wish to debug
-the interpreter running it, you can do it like this:
+To run the application under the gdb debugger:
 
-.B $ 0install run \-\-wrapper="gdb \-\-args python" http://myprog \-\-help
+.B $ 0install run \-\-wrapper="gdb \-\-args" http://myprog \-\-help
 
 .SH FILES
 
@@ -510,7 +509,7 @@ When 0install wants to add an archive to the cache, it calls this program instea
 
 .SH LICENSE
 .PP
-Copyright (C) 2012 Thomas Leonard.
+Copyright (C) 2013 Thomas Leonard.
 
 .PP
 You may redistribute copies of this program under the terms of the GNU Lesser General Public License.
