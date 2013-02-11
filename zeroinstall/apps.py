@@ -6,7 +6,7 @@ Support for managing apps (as created with "0install add").
 # Copyright (C) 2012, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, SafeException, logger, DryRun
+from zeroinstall import _, SafeException, logger
 from zeroinstall.support import basedir, portable_rename
 from zeroinstall.injector import namespaces, selections, qdom, model
 import re, os, time, tempfile

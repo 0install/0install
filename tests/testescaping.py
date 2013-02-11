@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-import basetest
 from basetest import BaseTest
-import sys, os, re
+import sys, re
 import unittest
 
 sys.path.insert(0, '..')

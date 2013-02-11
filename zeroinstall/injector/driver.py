@@ -11,7 +11,7 @@ settings.
 from zeroinstall import _, logger
 import os
 
-from zeroinstall.injector import arch, model
+from zeroinstall.injector import arch
 from zeroinstall.injector.model import network_offline
 from zeroinstall.support import tasks
 

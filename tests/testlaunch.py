@@ -13,7 +13,6 @@ sys.path.insert(0, '..')
 from zeroinstall import SafeException
 from zeroinstall.support import tasks
 from zeroinstall.injector import run, cli, namespaces, qdom, selections
-from zeroinstall.zerostore import Store
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver
 

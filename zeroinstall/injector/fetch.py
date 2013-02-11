@@ -5,7 +5,7 @@ Downloads feeds, keys, packages and icons.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, NeedDownload, logger
+from zeroinstall import _, logger
 import os, sys
 
 from zeroinstall import support

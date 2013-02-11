@@ -15,7 +15,7 @@ from zeroinstall import helpers
 from zeroinstall.injector import model, gpg, download, trust, background, arch, selections, qdom, run
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver
-from zeroinstall.zerostore import Store, NotStored
+from zeroinstall.zerostore import NotStored
 from zeroinstall.support import basedir, tasks, ro_rmtree
 from zeroinstall.injector import fetch
 import data

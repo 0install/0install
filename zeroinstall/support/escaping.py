@@ -11,7 +11,7 @@ See also L{zeroinstall.injector.model.escape} for an older escaping scheme.
 @since: 1.13
 """
 
-import os, sys, re
+import re
 
 # Copyright (C) 2012, Thomas Leonard
 # See the README file for details, or visit http://0install.net.

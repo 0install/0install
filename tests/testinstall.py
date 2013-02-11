@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall import cmd, logger, apps, alias
-from zeroinstall.injector import model, selections, qdom, handler, gpg, config, background
+from zeroinstall.injector import model, selections, qdom, handler, gpg, config
 
 mydir = os.path.dirname(__file__)
 
