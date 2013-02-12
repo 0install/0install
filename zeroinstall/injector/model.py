@@ -230,6 +230,9 @@ class Restriction(object):
 		"""
 		raise NotImplementedError(_("Abstract"))
 
+	def __str__(self):
+		return "missing __str__ on %s" % type(self)
+
 	def __repr__(self):
 		return "<restriction: %s>" % self
 

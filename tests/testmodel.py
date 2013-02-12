@@ -13,6 +13,11 @@ from zeroinstall.injector import model, qdom, namespaces
 
 mydir = os.path.dirname(os.path.abspath(__file__))
 
+class DummyImpl:
+	def __init__(self, version, distro):
+		self.version = model.parse_version(version)
+		self.distro_name = distro
+
 class TestModel(BaseTest):
 	def testLevels(self):
 		assert model.network_offline in model.network_levels
@@ -356,6 +361,20 @@ class TestModel(BaseTest):
 		fail('1..2', "End of range must be exclusive (use '..!2', not '..2')")
 		fail('.2', "Invalid version format in '.2': invalid literal for int() with base 10: ''")
 		fail('0.2-hi', "Invalid version modifier in '0.2-hi': 'hi'")
+
+	def testRestrictions(self):
+		v6 = DummyImpl("6", "RPM")
+		v7 = DummyImpl("7", "Gentoo")
+
+		r = model.VersionExpressionRestriction('!7')
+		self.assertEqual('<restriction: version !7>', repr(r))
+		assert r.meets_restriction(v6)
+		assert not r.meets_restriction(v7)
+
+		r = model.DistributionRestriction('RPM Debian')
+		self.assertEqual('<restriction: distro RPM|Debian>', repr(r))
+		assert r.meets_restriction(v6)
+		assert not r.meets_restriction(v7)
 
 if __name__ == '__main__':
 	unittest.main()
