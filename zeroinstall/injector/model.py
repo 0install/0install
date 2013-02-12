@@ -244,6 +244,7 @@ class VersionRestriction(Restriction):
 		"""@param version: the required version number
 		@see: L{parse_version}; use this to pre-process the version number
 		"""
+		assert not isinstance(version, str), "Not parsed: " + version
 		self.version = version
 
 	def meets_restriction(self, impl):
