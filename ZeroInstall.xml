@@ -46,13 +46,13 @@ interfere with those provided by the distribution.
 
     <restricts interface="http://repo.roscidus.com/python/python" version="2.6..!3 | 3.2.2.."/>
 
-    <requires interface="http://repo.roscidus.com/python/python-gobject" os='POSIX'/>
+    <requires interface="http://repo.roscidus.com/python/python-gobject" os="POSIX"/>
 
     <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os="Windows">
       <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
       <version not-before="1.12.1"/>
     </requires>
 
-    <implementation id="." version="1.14-post"/>
+    <implementation id="." released="2013-02-12" version="1.15"/>
   </group>
 </interface>
