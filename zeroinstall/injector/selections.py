@@ -324,18 +324,14 @@ class Selections(object):
 	def __repr__(self):
 		return "Selections for " + self.interface
 
-	def download_missing(self, config, _old = None, include_packages = False):
-		"""Check all selected implementations are available.
-		Download any that are not present. Since native distribution packages are usually
-		only available in a single version, which is unlikely to be the one in the
-		selections document, we ignore them by default.
-		Note: package implementations (distribution packages) are ignored.
-		@param config: used to get iface_cache, stores and fetcher
-		@param include_packages: also try to install native packages (since 1.5)
-		@return: a L{tasks.Blocker} or None"""
-		if _old:
-			config = get_deprecated_singleton_config()
-
+	def get_unavailable_selections(self, config, include_packages):
+		"""Find those selections which are not present.
+		Local implementations are available if their directory exists.
+		Other 0install implementations are available if they are in the cache.
+		Package implementations are available if the Distribution says so.
+		@param include_packages: whether to include <package-implementation>s
+		@rtype: [Selection]
+		@since: 1.16"""
 		iface_cache = config.iface_cache
 		stores = config.stores
 
@@ -352,7 +348,24 @@ class Selections(object):
 			else:
 				return sel.get_path(stores, missing_ok = True) is None
 
-		needed_downloads = list(filter(needs_download, self.selections.values()))
+		return [sel for sel in self.selections.values() if needs_download(sel)]
+
+	def download_missing(self, config, _old = None, include_packages = False):
+		"""Check all selected implementations are available.
+		Download any that are not present. Since native distribution packages are usually
+		only available in a single version, which is unlikely to be the one in the
+		selections document, we ignore them by default.
+		Note: package implementations (distribution packages) are ignored.
+		@param config: used to get iface_cache, stores and fetcher
+		@param include_packages: also try to install native packages (since 1.5)
+		@return: a L{tasks.Blocker} or None"""
+		if _old:
+			config = get_deprecated_singleton_config()
+
+		iface_cache = config.iface_cache
+		stores = config.stores
+
+		needed_downloads = self.get_unavailable_selections(config, include_packages)
 		if not needed_downloads:
 			return
 
