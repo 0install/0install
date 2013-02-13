@@ -118,6 +118,7 @@ class AbstractTestUnpack():
 			unpack.unpack_archive('ftp://foo/file.tar', stream, self.tmpdir)
 		self.assert_manifest('sha1new=290eb133e146635fe37713fd58174324a16d595f')
 	
+	@skipIf(not find_in_path('rpm2cpio'), "not running; no rpm2cpio")
 	def testRPM(self):
 		with open('dummy-1-1.noarch.rpm', 'rb') as stream:
 			unpack.unpack_archive('ftp://foo/file.rpm', stream, self.tmpdir)
