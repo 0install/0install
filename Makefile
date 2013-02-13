@@ -1,6 +1,4 @@
-
-
-PYTHON=$(shell which python3 || echo python)
+PYTHON=$(shell which python3 || which python2 || echo python)
 
 MO = $(shell find share/locale -name '*.po' | sort | sed -e 's/\.po/\.mo/')
 PY = $(shell find zeroinstall -name '*.py' | sort)
