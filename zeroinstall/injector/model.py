@@ -331,7 +331,7 @@ class DistributionRestriction(Restriction):
 		return impl.distro_name in self.distros
 
 	def __str__(self):
-		return "distro " + '|'.join(self.distros)
+		return "distro " + '|'.join(sorted(self.distros))
 
 class Binding(object):
 	"""Information about how the choice of a Dependency is made known

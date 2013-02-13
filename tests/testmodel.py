@@ -372,7 +372,7 @@ class TestModel(BaseTest):
 		assert not r.meets_restriction(v7)
 
 		r = model.DistributionRestriction('RPM Debian')
-		self.assertEqual('<restriction: distro RPM|Debian>', repr(r))
+		self.assertEqual('<restriction: distro Debian|RPM>', repr(r))
 		assert r.meets_restriction(v6)
 		assert not r.meets_restriction(v7)
 
