@@ -138,6 +138,8 @@ def makeFakePackageKit(version):
 				later()
 	return FakePackageKit()
 
+old_meta_path = sys.meta_path
+
 class TestPackageKit(BaseTest):
 	name = 'TestPackageKit'
 
@@ -145,7 +147,7 @@ class TestPackageKit(BaseTest):
 		BaseTest.setUp(self)
 
 	def tearDown(self):
-		sys.meta_path = []
+		sys.meta_path = old_meta_path
 		BaseTest.tearDown(self)
 
 	def find_module(self, fullname, path=None):
@@ -158,7 +160,7 @@ class TestPackageKit(BaseTest):
 		import dbus
 		old_dbus = dbus
 		try:
-			sys.meta_path = [self]
+			sys.meta_path.insert(0, self)
 			del sys.modules['dbus']
 
 			imp.reload(packagekit)
@@ -169,7 +171,6 @@ class TestPackageKit(BaseTest):
 			factory = Exception("not called")
 			pk.get_candidates('gimp', factory, 'package:null')
 		finally:
-			self.meta_path = []
 			sys.modules['dbus'] = old_dbus
 
 	def testNoPackageKit(self):
