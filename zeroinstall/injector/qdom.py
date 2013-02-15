@@ -68,14 +68,14 @@ class Element(object):
 
 class QSAXhandler:
 	"""SAXHandler that builds a tree of L{Element}s"""
-	filter_range = lambda x: True
-
 	def __init__(self, filter_for_version = False):
 		"""@param filter_for_version: skip elements if their
 		if-0install-version attribute doesn't match L{zeroinstall.version} (since 1.13)."""
 		self.stack = []
 		if filter_for_version:
 			self.filter_range = lambda expr: versions.parse_version_expression(expr)(_parsed_version)
+		else:
+			self.filter_range = lambda x: True
 	
 	def startElementNS(self, fullname, attrs):
 		split = fullname.split(' ', 1)
