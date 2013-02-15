@@ -187,7 +187,7 @@ def process_depends(item, local_feed_dir):
 			r = VersionExpressionRestriction(version)
 		except SafeException as ex:
 			msg = "Can't parse version restriction '{version}': {error}".format(version = version, error = ex)
-			logger.warn(msg)
+			logger.warning(msg)
 			r = ImpossibleRestriction(msg)
 		dependency.restrictions.append(r)
 
@@ -1174,7 +1174,7 @@ class ZeroInstallFeed(object):
 					# In older feeds, the ID was the (single) digest
 					impl.digests.append(id)
 			if id in self.implementations:
-				logger.warn(_("Duplicate ID '%(id)s' in feed '%(feed)s'"), {'id': id, 'feed': self})
+				logger.warning(_("Duplicate ID '%(id)s' in feed '%(feed)s'"), {'id': id, 'feed': self})
 			self.implementations[id] = impl
 
 			impl.metadata = item_attrs

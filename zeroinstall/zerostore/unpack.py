@@ -59,7 +59,7 @@ def recent_gnu_tar():
 			version = list(map(int, version.group(1).split('.')))
 			recent_gnu_tar = version > [1, 13, 92]
 		else:
-			logger.warn(_("Failed to extract GNU tar version number"))
+			logger.warning(_("Failed to extract GNU tar version number"))
 	logger.debug(_("Recent GNU tar = %s"), recent_gnu_tar)
 	return recent_gnu_tar
 

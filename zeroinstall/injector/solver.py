@@ -488,15 +488,15 @@ class SATSolver(Solver):
 						if distro_feed.implementations:
 							impls.extend(distro_feed.implementations.values())
 				except MissingLocalFeed as ex:
-					logger.warn(_("Missing local feed; if it's no longer required, remove it with:") +
+					logger.warning(_("Missing local feed; if it's no longer required, remove it with:") +
 							'\n0install remove-feed ' + iface.uri + ' ' + f,
 						{'feed': f, 'interface': iface, 'exception': ex})
 				except model.SafeException as ex:
-					logger.warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
+					logger.warning(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex})
 					#raise
 				except Exception as ex:
 					import logging
-					logger.warn(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex},
+					logger.warning(_("Failed to load feed %(feed)s for %(interface)s: %(exception)s"), {'feed': f, 'interface': iface, 'exception': ex},
 							exc_info = True if logger.isEnabledFor(logging.INFO) else None)
 
 			impls.sort(key = lambda impl: self.get_rating(iface, impl, arch), reverse = True)
@@ -641,7 +641,7 @@ class SATSolver(Solver):
 		# Can't select an implementation of an interface and of its replacement
 		for original, replacement in replacement_for.items():
 			if original == replacement:
-				logger.warn("Interface %s replaced-by itself!", original)
+				logger.warning("Interface %s replaced-by itself!", original)
 				continue
 			rep_impls = iface_to_vars.get(replacement, None)
 			if rep_impls is None:

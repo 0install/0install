@@ -47,7 +47,7 @@ def find_bin_dir(paths = None):
 			break
 	else:
 		path = os.path.expanduser('~/bin/')
-		logger.warn('%s is not in $PATH. Add it with:\n%s' % (path, _export('PATH', path + ':$PATH')))
+		logger.warning('%s is not in $PATH. Add it with:\n%s' % (path, _export('PATH', path + ':$PATH')))
 
 		if not os.path.isdir(path):
 			os.makedirs(path)
@@ -324,7 +324,7 @@ class App:
 			return os.stat(timestamp_path).st_mtime
 		except Exception as ex:
 			if warn_if_missing:
-				logger.warn("Failed to get time-stamp of %s: %s", timestamp_path, ex)
+				logger.warning("Failed to get time-stamp of %s: %s", timestamp_path, ex)
 			return 0
 
 	def get_last_checked(self):

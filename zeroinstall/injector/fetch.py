@@ -252,7 +252,7 @@ class Fetcher(object):
 				# Primary failed
 				primary = None
 				primary_ex = ex
-				logger.warn(_("Feed download from %(url)s failed: %(exception)s"), {'url': feed_url, 'exception': ex})
+				logger.warning(_("Feed download from %(url)s failed: %(exception)s"), {'url': feed_url, 'exception': ex})
 
 			# Start downloading from mirror...
 			mirror = self._download_and_import_feed(feed_url, use_mirror = True)
@@ -526,7 +526,7 @@ class Fetcher(object):
 			source = icon.getAttribute('href')
 			if source:
 				break
-			logger.warn(_('Missing "href" attribute on <icon> in %s'), interface)
+			logger.warning(_('Missing "href" attribute on <icon> in %s'), interface)
 		else:
 			logger.info(_('No PNG icons found in %s'), interface)
 			return

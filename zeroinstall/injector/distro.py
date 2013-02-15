@@ -48,7 +48,7 @@ class Cache(object):
 			mtime = int(info.st_mtime)
 			size = info.st_size
 		except Exception as ex:
-			logger.warn("Failed to stat %s: %s", self.source, ex)
+			logger.warning("Failed to stat %s: %s", self.source, ex)
 			mtime = size = 0
 		self.cache = {}
 		import tempfile
@@ -105,7 +105,7 @@ class Cache(object):
 			with open(cache_path, 'a') as stream:
 				stream.write('%s=%s\n' % (key, value))
 		except Exception as ex:
-			logger.warn("Failed to write to cache %s: %s=%s: %s", cache_path, key, value, ex)
+			logger.warning("Failed to write to cache %s: %s=%s: %s", cache_path, key, value, ex)
 
 def try_cleanup_distro_version(version):
 	"""Try to turn a distribution version string into one readable by Zero Install.
@@ -191,7 +191,7 @@ class Distribution(object):
 				if id in feed.implementations:
 					if only_if_missing:
 						return None
-					logger.warn(_("Duplicate ID '%s' for DistributionImplementation"), id)
+					logger.warning(_("Duplicate ID '%s' for DistributionImplementation"), id)
 				impl = model.DistributionImplementation(feed, id, self, item)
 				feed.implementations[id] = impl
 				new_impls.append(impl)
@@ -463,7 +463,7 @@ class CachedDistribution(Distribution):
 				self.generate_cache()
 				self._load_cache()
 			except Exception as ex:
-				logger.warn(_("Failed to regenerate distribution database cache: %s"), ex)
+				logger.warning(_("Failed to regenerate distribution database cache: %s"), ex)
 
 	def _load_cache(self):
 		"""Load {cache_leaf} cache file into self.versions if it is available and up-to-date.
@@ -571,7 +571,7 @@ class DebianDistribution(Distribution):
 			if clean_version:
 				return '%s\t%s' % (clean_version, canonical_machine(debarch.strip()))
 			else:
-				logger.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
+				logger.warning(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
 
 		return '-'
 
@@ -683,7 +683,7 @@ class DebianDistribution(Distribution):
 				child.stdout.close()
 				child.wait()
 			except Exception as ex:
-				logger.warn("'apt-cache show %s' failed: %s", package, ex)
+				logger.warning("'apt-cache show %s' failed: %s", package, ex)
 				cached = None
 			# (multi-arch support? can there be multiple candidates?)
 			self.apt_cache[package] = cached
@@ -709,7 +709,7 @@ class RPMDistribution(CachedDistribution):
 			if clean_version:
 				cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
 			else:
-				logger.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
+				logger.warning(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
 
 		self._write_cache(cache)
 		child.stdout.close()
@@ -783,7 +783,7 @@ class SlackDistribution(Distribution):
 				zi_arch = canonical_machine(arch)
 				clean_version = try_cleanup_distro_version("%s-%s" % (version, build))
 				if not clean_version:
-					logger.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': name})
+					logger.warning(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': name})
 					continue
 	
 				impl = factory('package:slack:%s:%s:%s' % \
@@ -820,7 +820,7 @@ class ArchDistribution(Distribution):
 				zi_arch = canonical_machine(arch)
 				clean_version = try_cleanup_distro_version("%s-%s" % (version, build))
 				if not clean_version:
-					logger.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': name})
+					logger.warning(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': name})
 					continue
 	
 				impl = factory('package:arch:%s:%s:%s' % \
@@ -857,7 +857,7 @@ class GentooDistribution(Distribution):
 
 				match = re.search(_version_start_reqexp, name)
 				if match is None:
-					logger.warn(_('Cannot parse version from Gentoo package named "%(name)s"'), {'name': name})
+					logger.warning(_('Cannot parse version from Gentoo package named "%(name)s"'), {'name': name})
 					continue
 				else:
 					version = try_cleanup_distro_version(name[match.start() + 1:])
@@ -895,7 +895,7 @@ class PortsDistribution(Distribution):
 
 			match = nameversion.search(pkgname)
 			if match is None:
-				logger.warn(_('Cannot parse version from Ports package named "%(pkgname)s"'), {'pkgname': pkgname})
+				logger.warning(_('Cannot parse version from Ports package named "%(pkgname)s"'), {'pkgname': pkgname})
 				continue
 			else:
 				name = match.group(1)
@@ -948,7 +948,7 @@ class MacPortsDistribution(CachedDistribution):
 				else:
 					cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
 			else:
-				logger.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
+				logger.warning(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
 		self._write_cache(cache)
 		child.stdout.close()
 		child.wait()
@@ -995,7 +995,7 @@ class CygwinDistribution(CachedDistribution):
 			if clean_version:
 				cache.append('%s\t%s\t%s' % (package, clean_version, zi_arch))
 			else:
-				logger.warn(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
+				logger.warning(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': package})
 
 		self._write_cache(cache)
 

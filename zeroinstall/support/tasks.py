@@ -56,12 +56,12 @@ def check(blockers, reporter = None):
 				try:
 					reporter(*b.exception)
 				except:
-					logger.warn("Failure reporting error! Error was: %s", repr(b.exception[0]))
+					logger.warning("Failure reporting error! Error was: %s", repr(b.exception[0]))
 					raise
 			elif ex is None:
 				ex = b.exception
 			else:
-				logger.warn(_("Multiple exceptions waiting; skipping %s"), b.exception[0])
+				logger.warning(_("Multiple exceptions waiting; skipping %s"), b.exception[0])
 	if ex:
 		support.raise_with_traceback(ex[0], ex[1])
 

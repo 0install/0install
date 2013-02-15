@@ -124,7 +124,7 @@ class PendingFeed(object):
 						blockers.append(b)
 				except Exception:
 					_type, exception, tb = sys.exc_info()
-					logger.warn(_("Failed to import key for '%(url)s': %(exception)s"), {'url': self.url, 'exception': str(exception)})
+					logger.warning(_("Failed to import key for '%(url)s': %(exception)s"), {'url': self.url, 'exception': str(exception)})
 					stream.close()
 
 		if exception and not any_success:
@@ -493,7 +493,7 @@ class IfaceCache(object):
 			try:
 				results[imp.uri] = self.get_feed(imp.uri)
 			except SafeException as ex:
-				logger.warn("Failed to load feed '%s: %s", imp.uri, ex)
+				logger.warning("Failed to load feed '%s: %s", imp.uri, ex)
 		if main_feed:
 			for imp in main_feed.feeds:
 				results[imp.uri] = self.get_feed(imp.uri)

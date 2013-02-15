@@ -24,7 +24,7 @@ def _add_site_packages(interface, site_packages, known_site_feeds):
 		if impl.startswith('.'): continue
 		feed = os.path.join(site_packages, impl, '0install', 'feed.xml')
 		if not os.path.exists(feed):
-			logger.warn(_("Site-local feed {path} not found").format(path = feed))
+			logger.warning(_("Site-local feed {path} not found").format(path = feed))
 		logger.debug("Adding site-local feed '%s'", feed)
 
 		# (we treat these as user overrides in order to let old versions of 0install
@@ -62,7 +62,7 @@ def update_from_cache(interface, iface_cache = None):
 		try:
 			_add_site_packages(interface, path, known_site_feeds)
 		except Exception as ex:
-			logger.warn("Error loading site packages from {path}: {ex}".format(path = path, ex = ex))
+			logger.warning("Error loading site packages from {path}: {ex}".format(path = path, ex = ex))
 
 	update_user_overrides(interface, known_site_feeds)
 
@@ -109,7 +109,7 @@ def update_user_feed_overrides(feed):
 		with open(user, 'rb') as stream:
 			root = qdom.parse(stream)
 	except Exception as ex:
-		logger.warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
+		logger.warning(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
 
 	last_checked = root.getAttribute('last-checked')
@@ -150,7 +150,7 @@ def update_user_overrides(interface, known_site_feeds = frozenset()):
 		with open(user, 'rb') as stream:
 			root = qdom.parse(stream)
 	except Exception as ex:
-		logger.warn(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
+		logger.warning(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
 		raise
 
 	stability_policy = root.getAttribute('stability-policy')

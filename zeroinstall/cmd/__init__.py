@@ -121,9 +121,9 @@ class _Completion():
 		args = []
 		consume_args = 0
 		complete_option_arg = None	# (option, args, arg pos)
-		#logger.warn("%s at %d", self.command_args, self.cword)
+		#logger.warning("%s at %d", self.command_args, self.cword)
 		for i, a in enumerate(self.command_args):
-			#logger.warn("%d %s (%d)", i, a, options_possible)
+			#logger.warning("%d %s (%d)", i, a, options_possible)
 			if consume_args > 0:
 				#print("consume " + a, file=sys.stderr)
 				consume_args -= 1
@@ -167,7 +167,7 @@ class _Completion():
 				cmd.complete(self, args[1:], arg_word)
 		else:
 			metavar = complete_option_arg[0].metavar
-			#logger.warn("complete option arg %s %s as %s", args[1:], complete_option_arg, metavar)
+			#logger.warning("complete option arg %s %s as %s", args[1:], complete_option_arg, metavar)
 			if metavar == 'DIR':
 				self.expand_files()
 			elif metavar == 'OS':
@@ -196,7 +196,7 @@ class _Completion():
 				from zeroinstall.zerostore import manifest
 				for alg in sorted(manifest.algorithms):
 					self.add("filter", alg)
-			#else: logger.warn("%r", metavar)
+			#else: logger.warning("%r", metavar)
 
 	def _complete_option(self, parser):
 		if len(self.current) < 2 or self.current.startswith('--'):
@@ -230,7 +230,7 @@ class _Completion():
 			prefix = ''
 
 		for v in sorted(versions):
-			#logger.warn(prefix + v)
+			#logger.warning(prefix + v)
 			self.add("filter", prefix + v)
 
 	def expand_apps(self):

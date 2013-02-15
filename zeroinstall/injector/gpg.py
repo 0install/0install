@@ -163,7 +163,7 @@ def load_keys(fingerprints):
 					try:
 						keys[current_fpr].name = codecs.decode(current_uid, 'utf-8')
 					except:
-						logger.warn("Not UTF-8: %s", current_uid)
+						logger.warning("Not UTF-8: %s", current_uid)
 						keys[current_fpr].name = current_uid
 			if line.startswith('uid:'):
 				assert current_fpr is not None
@@ -177,7 +177,7 @@ def load_keys(fingerprints):
 		child.stdout.close()
 
 		if child.wait():
-			logger.warn(_("gpg --list-keys failed with exit code %d") % child.returncode)
+			logger.warning(_("gpg --list-keys failed with exit code %d") % child.returncode)
 
 	return keys
 
@@ -205,7 +205,7 @@ def import_key(stream):
 		else:
 			raise SafeException(_("Non-zero exit code %d from 'gpg --import'") % status)
 	elif error_messages:
-		logger.warn(_("Warnings from 'gpg --import':\n%s") % error_messages)
+		logger.warning(_("Warnings from 'gpg --import':\n%s") % error_messages)
 
 def _check_xml_stream(stream):
 	xml_comment_start = b'<!-- Base64 Signature'
@@ -308,7 +308,7 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 		if not line.startswith('[GNUPG:] '):
 			# The docs says every line starts with this, but if auto-key-retrieve
 			# is on then they might not. See bug #3420548
-			logger.warn("Invalid output from GnuPG: %r", line)
+			logger.warning("Invalid output from GnuPG: %r", line)
 			continue
 
 		line = line[9:-1]

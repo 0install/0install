@@ -378,7 +378,7 @@ def _copy_files(alg, wanted, source, target):
 		try:
 			required_details = wanted.pop(path)
 		except KeyError:
-			logger.warn(_("Skipping file not in manifest: '%s'"), path)
+			logger.warning(_("Skipping file not in manifest: '%s'"), path)
 			continue
 		if required_details[0] != type:
 			raise BadDigest(_("Item '%s' has wrong type!") % path)

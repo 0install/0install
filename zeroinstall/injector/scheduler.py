@@ -68,7 +68,7 @@ class DownloadScheduler:
 				if original_exception is None:
 					original_exception = ex
 				else:
-					logger.warn("%s (while trying mirror)", ex)
+					logger.warning("%s (while trying mirror)", ex)
 				mirror_url = step.dl.get_next_mirror_url()
 				if mirror_url is None:
 					raise original_exception
@@ -78,7 +78,7 @@ class DownloadScheduler:
 				# looks to see if we have an exact copy of same file somewhere else. If this
 				# fails, Fetcher will also look for a different archive that would generate
 				# the required implementation.
-				logger.warn("%s: trying archive mirror at %s", ex, mirror_url)
+				logger.warning("%s: trying archive mirror at %s", ex, mirror_url)
 				step.redirect = mirror_url
 				redirections_remaining = 10
 

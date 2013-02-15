@@ -27,7 +27,7 @@ def _byte_identical(a, b):
 def _link(a, b, tmpfile):
 	"""Keep 'a', delete 'b' and hard-link to 'a'"""
 	if not _byte_identical(a, b):
-		logger.warn(_("Files should be identical, but they're not!\n%(file_a)s\n%(file_b)s"), {'file_a': a, 'file_b': b})
+		logger.warning(_("Files should be identical, but they're not!\n%(file_a)s\n%(file_b)s"), {'file_a': a, 'file_b': b})
 
 	b_dir = os.path.dirname(b)
 	old_mode = os.lstat(b_dir).st_mode
@@ -77,13 +77,13 @@ def optimise(impl_dir):
 		try:
 			alg, manifest_digest = parse_algorithm_digest_pair(impl)
 		except BadDigest:
-			logger.warn(_("Skipping non-implementation '%s'"), impl)
+			logger.warning(_("Skipping non-implementation '%s'"), impl)
 			continue
 		manifest_path = os.path.join(impl_dir, impl, '.manifest')
 		try:
 			ms = open(manifest_path, 'rt')
 		except OSError as ex:
-			logger.warn(_("Failed to read manifest file '%(manifest_path)s': %(exception)s"), {'manifest': manifest_path, 'exception': str(ex)})
+			logger.warning(_("Failed to read manifest file '%(manifest_path)s': %(exception)s"), {'manifest': manifest_path, 'exception': str(ex)})
 			continue
 
 		if alg == 'sha1':

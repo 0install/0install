@@ -132,7 +132,7 @@ def load_config(handler = None):
 		try:
 			parser.read(path)
 		except Exception as ex:
-			logger.warn(_("Error loading config: %s"), str(ex) or repr(ex))
+			logger.warning(_("Error loading config: %s"), str(ex) or repr(ex))
 
 	config.help_with_testing = parser.getboolean('global', 'help_with_testing')
 	config.network_use = parser.get('global', 'network_use')

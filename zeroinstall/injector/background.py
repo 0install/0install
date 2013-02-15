@@ -99,7 +99,7 @@ class BackgroundHandler(handler.Handler):
 				return state
 
 			except Exception as ex:
-				logger.warn(_("Error getting network state: %s"), ex)
+				logger.warning(_("Error getting network state: %s"), ex)
 		return _NetworkState.NM_STATE_UNKNOWN
 
 	def confirm_import_feed(self, pending, valid_sigs):

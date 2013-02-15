@@ -139,7 +139,7 @@ class Handler(object):
 					try:
 						tasks.check(b)
 					except Exception as ex:
-						logger.warn(_("Failed to get key info: %s"), ex)
+						logger.warning(_("Failed to get key info: %s"), ex)
 				if stdin.happened:
 					print(_("Skipping remaining key lookups due to input from user"), file=sys.stderr)
 					break
@@ -185,7 +185,7 @@ class Handler(object):
 		@param tb: optional traceback
 		@since: 0.25"""
 		import logging
-		logger.warn("%s", str(exception) or type(exception),
+		logger.warning("%s", str(exception) or type(exception),
 				exc_info = (exception, None, tb) if logger.isEnabledFor(logging.INFO) else None)
 	
 class ConsoleHandler(Handler):

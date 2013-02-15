@@ -157,8 +157,8 @@ class Store:
 			_copytree2(path, tmp)
 			self.check_manifest_and_rename(required_digest, tmp, try_helper = try_helper, dry_run = dry_run)
 		except:
-			logger.warn(_("Error importing directory."))
-			logger.warn(_("Deleting %s"), tmp)
+			logger.warning(_("Error importing directory."))
+			logger.warning(_("Deleting %s"), tmp)
 			support.ro_rmtree(tmp)
 			raise
 
@@ -200,7 +200,7 @@ class Store:
 			os.close(dev_null)
 
 		if exit_code:
-			logger.warn(_("0store-secure-add-helper failed."))
+			logger.warning(_("0store-secure-add-helper failed."))
 			return False
 
 		logger.info(_("Added succcessfully."))
@@ -244,7 +244,7 @@ class Store:
 
 		final_name = os.path.join(self.dir, required_digest)
 		if os.path.isdir(final_name):
-			logger.warn(_("Item %s already stored.") % final_name) # not really an error
+			logger.warning(_("Item %s already stored.") % final_name) # not really an error
 			return
 
 		if dry_run:

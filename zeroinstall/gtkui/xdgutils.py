@@ -74,5 +74,5 @@ def discover_existing_apps():
 						else:
 							logger.info(_("Failed to find Exec line in %s"), full)
 				except Exception as ex:
-					logger.warn(_("Failed to load .desktop file %(filename)s: %(exceptions"), {'filename': full, 'exception': ex})
+					logger.warning(_("Failed to load .desktop file %(filename)s: %(exceptions"), {'filename': full, 'exception': ex})
 	return already_installed
