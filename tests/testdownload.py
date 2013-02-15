@@ -779,6 +779,26 @@ class TestDownload(BaseTest):
 
 		assert not ran_gui
 
+		# Now trigger a background update which discovers that no solution is possible
+		timestamp = os.path.join(app.path, 'last-checked')
+		last_check_attempt = os.path.join(app.path, 'last-check-attempt')
+		selections_path = os.path.join(app.path, 'selections.xml')
+		def reset_timestamps():
+			global ran_gui
+			ran_gui = False
+			os.utime(timestamp, (1, 1))		# 1970
+			os.utime(selections_path, (1, 1))
+			if os.path.exists(last_check_attempt):
+				os.unlink(last_check_attempt)
+		reset_timestamps()
+
+		r.source = True
+		app.set_requirements(r)
+		run_server('Hello.xml')
+		with trapped_exit(1):
+			sels = app.get_selections(may_update = True)
+		kill_server_process()
+
 	def testAbort(self):
 		dl = download.Download("http://localhost/test.tgz", auto_delete = True)
 		dl.abort()

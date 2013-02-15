@@ -219,7 +219,7 @@ def _check_for_updates(requirements, verbose, app):
 	refresh = driver.solve_with_downloads(force = True)	# (causes confusing log messages)
 	tasks.wait_for_blocker(refresh)
 
-	if background_handler.need_gui or driver.get_uncached_implementations():
+	if background_handler.need_gui or not driver.solver.ready or driver.get_uncached_implementations():
 		if verbose:
 			background_handler.notify("Zero Install",
 					      _("Updates ready to download for '%s'.") % root_iface,
@@ -232,6 +232,10 @@ def _check_for_updates(requirements, verbose, app):
 		if new_sels is None:
 			sys.exit(0)	# Cancelled by user
 		elif new_sels is helpers.DontUseGUI:
+			if not driver.solver.ready:
+				background_handler.notify("Zero Install", _("Can't update '%s'") % root_iface)
+				sys.exit(1)
+
 			tasks.wait_for_blocker(driver.download_uncached_implementations())
 			new_sels = driver.solver.selections
 
