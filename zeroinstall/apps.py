@@ -125,15 +125,19 @@ class App:
 		if set_last_checked:
 			self.set_last_checked()
 
-	def get_selections(self, snapshot_date = None, may_update = False):
+	def get_selections(self, snapshot_date = None, may_update = False, use_gui = None):
 		"""Load the selections.
+		If may_update is True then the returned selections will be cached and available.
 		@param may_update: whether to check for updates
 		@type may_update: bool
 		@param snapshot_date: get a historical snapshot
 		@type snapshot_date: (as returned by L{get_history}) | None
+		@param use_gui: whether to use the GUI for foreground updates
+		@type use_gui: bool | None (never/always/if possible)
 		@return: the selections
 		@rtype: L{selections.Selections}"""
 		if snapshot_date:
+			assert may_update is False, "Can't update a snapshot!"
 			sels_file = os.path.join(self.path, 'selections-' + snapshot_date + '.xml')
 		else:
 			sels_file = os.path.join(self.path, 'selections.xml')
@@ -141,7 +145,7 @@ class App:
 			sels = selections.Selections(qdom.parse(stream))
 
 		if may_update:
-			sels = self._check_for_updates(sels)
+			sels = self._check_for_updates(sels, use_gui)
 
 		return sels
 
@@ -163,13 +167,14 @@ class App:
 		@rtype: L{tasks.Blocker} | None"""
 		return sels.download_missing(self.config)	# TODO: package impls
 
-	def _check_for_updates(self, sels):
+	def _check_for_updates(self, sels, use_gui):
 		"""Check whether the selections need to be updated.
 		If any input feeds have changed, we re-run the solver. If the
 		new selections require a download, we schedule one in the
 		background and return the old selections. Otherwise, we return the
 		new selections. If we can select better versions without downloading,
 		we update the app's selections and return the new selections.
+		If we can't use the current selections, we update in the foreground.
 		We also schedule a background update from time-to-time anyway.
 		@return: the selections to use
 		@rtype: L{selections.Selections}"""
@@ -216,7 +221,13 @@ class App:
 					path, mtime = item
 				else:
 					path = item
-					mtime = os.stat(path).st_mtime
+					try:
+						mtime = os.stat(path).st_mtime
+					except OSError as ex:
+						logger.info("Triggering update to {app} due to error: {ex}".format(
+							app = self, path = path, ex = ex))
+						need_solve = True
+						break
 
 				if mtime and mtime > last_solve:
 					logger.info("Triggering update to %s because %s has changed", self, path)
@@ -235,12 +246,23 @@ class App:
 			if freshness_threshold > 0 and staleness >= freshness_threshold:
 				need_update = True
 
+		# If any of the saved selections aren't available then we need
+		# to download right now, not later in the background.
+		unavailable_selections = sels.get_unavailable_selections(config = self.config, include_packages = True)
+		if unavailable_selections:
+			logger.info("Saved selections are unusable (missing %s)",
+				    ', '.join(str(s) for s in unavailable_selections))
+			need_solve = True
+
 		if need_solve:
 			from zeroinstall.injector.driver import Driver
 			driver = Driver(config = self.config, requirements = self.get_requirements())
 			if driver.need_download():
-				# Continue with the current (hopefully cached) selections while we download
-				need_update = True
+				if unavailable_selections:
+					return self._foreground_update(driver, use_gui)
+				else:
+					# Continue with the current (cached) selections while we download
+					need_update = True
 			else:
 				old_sels = sels
 				sels = driver.solver.selections
@@ -261,6 +283,27 @@ class App:
 			from zeroinstall.injector import background
 			r = self.get_requirements()
 			background.spawn_background_update2(r, False, self)
+
+		return sels
+
+	def _foreground_update(self, driver, use_gui):
+		"""We can't run with saved selections or solved selections without downloading.
+		Try to open the GUI for a blocking download. If we can't do that, download without the GUI."""
+		from zeroinstall import helpers
+		from zeroinstall.support import tasks
+
+		gui_args = driver.requirements.get_as_options() + ['--download-only', '--refresh']
+		sels = helpers.get_selections_gui(driver.requirements.interface_uri, gui_args,
+						  test_callback = None, use_gui = use_gui)
+		if sels is None:
+			raise SafeException("Aborted by user")
+		if sels is helpers.DontUseGUI:
+			downloaded = driver.solve_and_download_impls(refresh = True)
+			if downloaded:
+				tasks.wait_for_blocker(downloaded)
+			sels = driver.solver.selections
+
+		self.set_selections(sels, set_last_checked = True)
 
 		return sels
 

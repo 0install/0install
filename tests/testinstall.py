@@ -450,6 +450,12 @@ class TestInstall(BaseTest):
 		assert "No updates found. Continuing with version 0.1." in out, out
 		assert not err, err
 
+		# Run
+		out, err = self.run_0install(['run', '--dry-run', 'local-app'])
+		assert '[dry-run] would execute:' in out, out
+		assert '/test-echo' in out, out
+		assert not err, err
+
 		# restrictions
 		path = os.path.dirname(model.canonical_iface_uri(local_feed))
 		out, err = self.run_0install(['update', 'local-app', '--version=10..'])

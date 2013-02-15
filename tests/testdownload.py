@@ -628,7 +628,7 @@ class TestDownload(BaseTest):
 					os.unlink(last_check_attempt)
 
 			# Download the implementation
-			sels = app.get_selections(may_update = True)
+			sels = app.get_selections(may_update = False)
 			run_server('HelloWorld.tgz')
 			tasks.wait_for_blocker(app.download_selections(sels))
 			kill_server_process()
@@ -725,6 +725,59 @@ class TestDownload(BaseTest):
 			dl = app.download_selections(app.get_selections(may_update = True))
 			assert dl == None
 			assert not ran_gui
+
+	def testBackgroundUnsolvable(self):
+		my_dbus.system_services = {"org.freedesktop.NetworkManager": {"/org/freedesktop/NetworkManager": NetworkManager()}}
+
+		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+
+		global ran_gui
+
+		# Select a version of Hello
+		run_server('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+		r = Requirements('http://example.com:8000/Hello.xml')
+		driver = Driver(requirements = r, config = self.config)
+		tasks.wait_for_blocker(driver.solve_with_downloads())
+		assert driver.solver.ready
+		kill_server_process()
+
+		# Save it as an app
+		app = self.config.app_mgr.create_app('test-app', r)
+
+		# Replace the selection with a bogus and unusable <package-implementation>
+		sels = driver.solver.selections
+		sel, = sels.selections.values()
+		sel.attrs['id'] = "package:dummy:badpackage"
+		sel.attrs['package'] = "badpackage"
+		sel.get_command('run').qdom.attrs['path'] = '/i/dont/exist'
+
+		app.set_selections(driver.solver.selections)
+
+		# Not time for a background update yet, but the missing binary should trigger
+		# an update anyway.
+		self.config.freshness = 0
+
+		# Check we try to launch the GUI...
+		os.environ['DISPLAY'] = 'dummy'
+		try:
+			app.get_selections(may_update = True)
+			assert 0
+		except model.SafeException as ex:
+			assert 'Aborted by user' in str(ex)
+		assert ran_gui
+		ran_gui = False
+
+		# Check we can also work without the GUI...
+		del os.environ['DISPLAY']
+
+		run_server('Hello.xml', 'HelloWorld.tgz')
+		sels = app.get_selections(may_update = True)
+		kill_server_process()
+
+		dl = app.download_selections(sels)
+		assert dl == None
+
+		assert not ran_gui
 
 	def testAbort(self):
 		dl = download.Download("http://localhost/test.tgz", auto_delete = True)
