@@ -430,6 +430,11 @@ class Fetcher(object):
 									None, None, type = 'application/x-bzip-compressed-tar')
 						continue		# Retry
 					raise
+				except SafeException as ex:
+					raise SafeException("Error fetching {url} {version}: {ex}".format(
+						url = impl.feed.url,
+						version = impl.get_version(),
+						ex = ex))
 				break
 
 			self.handler.impl_added_to_store(impl)
