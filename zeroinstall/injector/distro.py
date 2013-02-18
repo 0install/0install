@@ -18,7 +18,7 @@ _zeroinstall_regexp = '(?:%s)(?:-(?:pre|rc|post|)(?:%s))*' % (_dotted_ints, _dot
 
 # This matches the interesting bits of distribution version numbers
 # (first matching group is for Java-style 6b17 or 7u9 syntax, or "major")
-_version_regexp = '(?:[a-z])?({ints}[bu])?({zero})(-r{ints})?'.format(zero = _zeroinstall_regexp, ints = _dotted_ints)
+_version_regexp = '(?:[a-z])?({ints}\.?[bu])?({zero})(-r{ints})?'.format(zero = _zeroinstall_regexp, ints = _dotted_ints)
 
 _PYTHON_URI = 'http://repo.roscidus.com/python/python'
 
@@ -126,7 +126,7 @@ def try_cleanup_distro_version(version):
 	if match:
 		major, version, revision = match.groups()
 		if major is not None:
-			version = major[:-1] + '.' + version
+			version = major[:-1].rstrip('.') + '.' + version
 		if revision is not None:
 			version = '%s-%s' % (version, revision[2:])
 		return version + suffix
