@@ -228,7 +228,7 @@ class Distribution(object):
 			impl = model.DistributionImplementation(feed, impl_id, self, distro_name = 'host')
 			impl.installed = True
 			impl.version = model.parse_version(python_version)
-			impl.main = sys.executable
+			impl.main = sys.executable or '/usr/bin/python'
 			impl.upstream_stability = model.packaged
 			impl.machine = host_machine	# (hopefully)
 			feed.implementations[impl_id] = impl
