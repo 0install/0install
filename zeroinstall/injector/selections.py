@@ -169,7 +169,8 @@ class Selections(object):
 		@param root: a saved set of selections."""
 		self.interface = root.getAttribute('interface')
 		self.command = root.getAttribute('command')
-		assert self.interface
+		if self.interface is None:
+			raise model.SafeException(_("Not a selections document (no 'interface' attribute on root)"))
 		old_commands = []
 
 		for selection in root.childNodes:

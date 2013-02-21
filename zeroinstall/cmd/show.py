@@ -7,7 +7,9 @@ The B{0install show} command-line interface.
 
 from __future__ import print_function
 
-from zeroinstall import _
+import os
+
+from zeroinstall import _, SafeException
 from zeroinstall.cmd import select, UsageError
 from zeroinstall.injector import qdom, selections
 
@@ -32,9 +34,11 @@ def handle(config, options, args):
 			for uri, expr in r.extra_restrictions.items():
 				print("  {uri}: {expr}".format(uri = uri, expr = expr))
 			print()
-	else:
+	elif os.path.exists(args[0]):
 		with open(args[0], 'rb') as stream:
 			sels = selections.Selections(qdom.parse(stream))
+	else:
+		raise SafeException(_("Neither an app nor a file: '%s'") % args[0])
 
 	if options.root_uri:
 		print(sels.interface)
