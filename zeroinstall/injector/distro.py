@@ -141,6 +141,8 @@ class Distribution(object):
 	@type name: str
 	"""
 
+	name = "fallback"
+
 	_packagekit = None
 
 	def get_package_info(self, package, factory):
