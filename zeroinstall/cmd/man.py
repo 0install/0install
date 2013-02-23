@@ -28,21 +28,26 @@ def _0install_man(config, command):
 	if not path:
 		return None
 
-	with open(path, 'rt') as stream:
-		app_info = apps.parse_script_header(stream)
-		if app_info:
-			app = config.app_mgr.lookup_app(app_info.name)
-			sels = app.get_selections()
-			main = None
-		else:
-			alias_info = alias.parse_script_header(stream)
-			if alias_info is None:
-				return None
-			sels = helpers.ensure_cached(alias_info.uri, alias_info.command, config = config)
-			if not sels:
-				# Cancelled by user
-				sys.exit(1)
-			main = alias_info.main
+	try:
+		with open(path, 'rt') as stream:
+			app_info = apps.parse_script_header(stream)
+			if app_info:
+				app = config.app_mgr.lookup_app(app_info.name)
+				sels = app.get_selections()
+				main = None
+			else:
+				alias_info = alias.parse_script_header(stream)
+				if alias_info is None:
+					return None
+				sels = helpers.ensure_cached(alias_info.uri, alias_info.command, config = config)
+				if not sels:
+					# Cancelled by user
+					sys.exit(1)
+				main = alias_info.main
+	except IOError as e:
+		logger.info("Error reading %s, falling back to `man %s`", path, command)
+		os.execlp('man', 'man', command)
+		sys.exit(1)
 
 	helpers.exec_man(config.stores, sels, main, fallback_name = command)
 	assert 0
