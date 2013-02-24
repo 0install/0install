@@ -57,7 +57,7 @@ def parse_version(version_string):
 
 def format_version(version):
 	"""Format a parsed version for display. Undoes the effect of L{parse_version}.
-	@see: L{Implementation.get_version}
+	@see: L{model.Implementation.get_version}
 	@rtype: str
 	@since: 0.24"""
 	version = version[:]
@@ -75,7 +75,7 @@ def parse_version_range(r):
 	@param r: the range expression
 	@type r: str
 	@return: a function which returns whether a parsed version is in the range
-	@type: parsed_version -> bool
+	@rtype: parsed_version -> bool
 	@since: 1.13"""
 	parts = r.split('..', 1)
 	if len(parts) == 1:
@@ -110,7 +110,7 @@ def parse_version_expression(expr):
 	@param expr: the expression to parse
 	@type expr: str
 	@return: a function which tests whether a parsed version is in the range
-	@type: parsed_version -> bool
+	@rtype: parsed_version -> bool
 	@since: 1.13"""
 	tests = [parse_version_range(r.strip()) for r in expr.split('|')]
 	return lambda v: any(test(v) for test in tests)

@@ -286,7 +286,7 @@ class VersionRangeRestriction(Restriction):
 
 class VersionExpressionRestriction(Restriction):
 	"""Only versions for which the expression is true are acceptable.
-	@since 1.13"""
+	@since: 1.13"""
 	__slots__ = ['expr', '_test_fn']
 
 	def __init__(self, expr):
