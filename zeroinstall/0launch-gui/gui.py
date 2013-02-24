@@ -5,7 +5,7 @@ from zeroinstall import _, gobject
 from zeroinstall.support import tasks
 from zeroinstall.injector import handler, download
 
-version = '1.15'
+version = '1.16'
 
 class GUIHandler(handler.Handler):
 	dl_callbacks = None		# Download -> [ callback ]
