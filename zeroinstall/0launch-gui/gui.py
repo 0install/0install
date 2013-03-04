@@ -75,7 +75,10 @@ class GUIHandler(handler.Handler):
 		box.set_position(gtk.WIN_POS_CENTER)
 
 		install = dialog.MixedButton(_('Install'), gtk.STOCK_OK)
-		install.set_can_default(True)
+		if gtk.pygtk_version >= (2,22,0):
+			install.set_can_default(True)
+		else:
+			install.set_flags(gtk.CAN_DEFAULT)
 		box.add_action_widget(install, gtk.RESPONSE_OK)
 		install.show_all()
 		box.set_default_response(gtk.RESPONSE_OK)

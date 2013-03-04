@@ -65,7 +65,10 @@ class MainWindow:
 			run_button = dialog.MixedButton(_("_Run"), gtk.STOCK_EXECUTE, button = gtk.ToggleButton())
 		self.window.add_action_widget(run_button, gtk.RESPONSE_OK)
 		run_button.show_all()
-		run_button.set_can_default(True)
+		if gtk.pygtk_version >= (2,22,0):
+			run_button.set_can_default(True)
+		else:
+			run_button.set_flags(gtk.CAN_DEFAULT)
 		self.run_button = run_button
 
 		run_button.grab_focus()
