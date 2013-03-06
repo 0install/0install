@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: zero-install 1.13-post\n"
+"Project-Id-Version: zero-install 2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-01-01 18:00+0100\n"
-"PO-Revision-Date: 2013-01-01 18:05+0100\n"
+"POT-Creation-Date: 2013-03-05 10:47 +0000\n"
+"PO-Revision-Date: 2013-03-06 22:00+0100\n"
 "Last-Translator: Anders F Bjorklund <afb@users.sourceforge.net>\n"
 "Language-Team: Swedish <sv@li.org>\n"
 "Language: sv\n"
@@ -336,17 +336,17 @@ msgstr "Inga"
 msgid "usage: %prog [options] interface"
 msgstr "användning: %prog [flaggor] gränssnitt"
 
-#: zeroinstall/0launch-gui/main.py:29 zeroinstall/cmd/select.py:22
+#: zeroinstall/0launch-gui/main.py:29 zeroinstall/cmd/select.py:23
 #: zeroinstall/injector/cli.py:44
 msgid "choose a version before this"
 msgstr "välj en version före detta"
 
-#: zeroinstall/0launch-gui/main.py:30 zeroinstall/cmd/select.py:24
+#: zeroinstall/0launch-gui/main.py:30 zeroinstall/cmd/select.py:25
 #: zeroinstall/injector/cli.py:47
 msgid "target CPU type"
 msgstr "målets CPU-typ"
 
-#: zeroinstall/0launch-gui/main.py:31 zeroinstall/cmd/select.py:23
+#: zeroinstall/0launch-gui/main.py:31 zeroinstall/cmd/select.py:24
 #: zeroinstall/injector/cli.py:45
 msgid "command to select"
 msgstr "kommando att välja"
@@ -359,17 +359,17 @@ msgstr "hämta men kör inte"
 msgid "display an error if there's no GUI"
 msgstr "visa ett fel om det inte finns något GUI"
 
-#: zeroinstall/0launch-gui/main.py:34 zeroinstall/cmd/select.py:25
+#: zeroinstall/0launch-gui/main.py:34 zeroinstall/cmd/select.py:26
 #: zeroinstall/injector/cli.py:56
 msgid "message to display when interacting with user"
 msgstr "meddelande att visa vid interaktion med användare"
 
-#: zeroinstall/0launch-gui/main.py:35 zeroinstall/cmd/select.py:26
+#: zeroinstall/0launch-gui/main.py:35 zeroinstall/cmd/select.py:27
 #: zeroinstall/injector/cli.py:57
 msgid "minimum version to choose"
 msgstr "minsta version att välja"
 
-#: zeroinstall/0launch-gui/main.py:36 zeroinstall/cmd/select.py:28
+#: zeroinstall/0launch-gui/main.py:36 zeroinstall/cmd/select.py:29
 #: zeroinstall/injector/cli.py:58
 msgid "target operation system type"
 msgstr "målets operativsystem-typ"
@@ -382,7 +382,7 @@ msgstr "kontrollera uppdateringar av alla gränssnitt"
 msgid "only download the feeds"
 msgstr "hämta endast kanalerna"
 
-#: zeroinstall/0launch-gui/main.py:39 zeroinstall/cmd/select.py:30
+#: zeroinstall/0launch-gui/main.py:39 zeroinstall/cmd/select.py:31
 #: zeroinstall/injector/cli.py:64
 msgid "select source code"
 msgstr "välj källkod"
@@ -391,7 +391,7 @@ msgstr "välj källkod"
 msgid "download in the background"
 msgstr "ladda ner i bakgrunden"
 
-#: zeroinstall/0launch-gui/main.py:41 zeroinstall/cmd/__init__.py:91
+#: zeroinstall/0launch-gui/main.py:41 zeroinstall/cmd/__init__.py:338
 #: zeroinstall/gtkui/desktop.py:18 zeroinstall/injector/cli.py:65
 msgid "more verbose output"
 msgstr "mer detaljrik utdata"
@@ -401,12 +401,12 @@ msgstr "mer detaljrik utdata"
 msgid "display version information"
 msgstr "visa versionsinformation"
 
-#: zeroinstall/0launch-gui/main.py:43 zeroinstall/cmd/select.py:32
+#: zeroinstall/0launch-gui/main.py:43 zeroinstall/cmd/select.py:33
 #: zeroinstall/injector/cli.py:74
 msgid "set version constraints for a specific interface"
 msgstr "ange versionsbegränsningar för ett specifikt gränssnitt"
 
-#: zeroinstall/0launch-gui/main.py:45 zeroinstall/cmd/__init__.py:92
+#: zeroinstall/0launch-gui/main.py:45 zeroinstall/cmd/__init__.py:339
 #: zeroinstall/injector/cli.py:66
 msgid "add an implementation cache"
 msgstr "lägg till implementations-cache"
@@ -443,12 +443,12 @@ msgstr "Ladda ner"
 msgid "_Run"
 msgstr "Kör"
 
-#: zeroinstall/0launch-gui/mainwindow.py:120
+#: zeroinstall/0launch-gui/mainwindow.py:123
 #, python-format
 msgid "%(iface_name)s %(impl_version)s"
 msgstr "%(iface_name)s %(impl_version)s"
 
-#: zeroinstall/0launch-gui/mainwindow.py:121
+#: zeroinstall/0launch-gui/mainwindow.py:124
 msgid ""
 "Not all downloads succeeded; cannot run program.\n"
 "\n"
@@ -458,38 +458,38 @@ msgstr ""
 "\n"
 "Misslyckades att hämta:"
 
-#: zeroinstall/0launch-gui/mainwindow.py:173
+#: zeroinstall/0launch-gui/mainwindow.py:176
 #, python-format
 msgid "Downloading one file (%(progress)s)"
 msgid_plural "Downloading %(number)d files (%(progress)s)"
 msgstr[0] "Laddar ner en fil (%(progress)s)"
 msgstr[1] "Laddar ner %(number)d filer (%(progress)s)"
 
-#: zeroinstall/0launch-gui/mainwindow.py:197
+#: zeroinstall/0launch-gui/mainwindow.py:200
 #, python-format
 msgid "No system tray support: %s"
 msgstr "Inget stöd för systembricka: %s"
 
-#: zeroinstall/0launch-gui/mainwindow.py:200
+#: zeroinstall/0launch-gui/mainwindow.py:203
 #, python-format
 msgid "Checking for updates for %s"
 msgstr "Kontrollerar uppdateringar för %s"
 
-#: zeroinstall/0launch-gui/mainwindow.py:224
+#: zeroinstall/0launch-gui/mainwindow.py:227
 msgid "(click for details)"
 msgstr "(klicka för detaljer)"
 
-#: zeroinstall/0launch-gui/mainwindow.py:228
+#: zeroinstall/0launch-gui/mainwindow.py:231
 msgid "Injector Help"
 msgstr "Injektorhjälp"
 
-#: zeroinstall/0launch-gui/mainwindow.py:229
+#: zeroinstall/0launch-gui/mainwindow.py:232
 #: zeroinstall/0launch-gui/preferences.py:177 zeroinstall/gtkui/cache.py:709
 #: zeroinstall/gtkui/trust_box.py:272
 msgid "Overview"
 msgstr "Översikt"
 
-#: zeroinstall/0launch-gui/mainwindow.py:230
+#: zeroinstall/0launch-gui/mainwindow.py:233
 msgid ""
 "A program is made up of many different components, typically written by "
 "different groups of people. Each component is available in multiple "
@@ -514,11 +514,11 @@ msgstr ""
 "beroende (var och en av dessa kan kräva ytterligare komponenter, och så "
 "vidare)."
 
-#: zeroinstall/0launch-gui/mainwindow.py:241
+#: zeroinstall/0launch-gui/mainwindow.py:244
 msgid "List of components"
 msgstr "Lista över komponenter"
 
-#: zeroinstall/0launch-gui/mainwindow.py:242
+#: zeroinstall/0launch-gui/mainwindow.py:245
 msgid ""
 "The main window displays all these components, and the version of each "
 "chosen implementation. The top-most one represents the program you tried to "
@@ -538,11 +538,11 @@ msgstr ""
 "Om du är nöjd med de val som visas, klicka på knappen Ladda ner (eller Kör) "
 "för att ladda ner (och köra) programmet."
 
-#: zeroinstall/0launch-gui/mainwindow.py:250
+#: zeroinstall/0launch-gui/mainwindow.py:253
 msgid "Choosing different versions"
 msgstr "Välja olika versioner"
 
-#: zeroinstall/0launch-gui/mainwindow.py:251
+#: zeroinstall/0launch-gui/mainwindow.py:254
 msgid ""
 "To control which implementations (versions) are chosen you can click on "
 "Preferences and adjust the network policy and the overall stability policy. "
@@ -562,11 +562,11 @@ msgstr ""
 "versioner\n"
 " från menyn. Se den dialogens hjälptext för mer information."
 
-#: zeroinstall/0launch-gui/mainwindow.py:259
+#: zeroinstall/0launch-gui/mainwindow.py:262
 msgid "Reporting bugs"
 msgstr "Rapportera buggar"
 
-#: zeroinstall/0launch-gui/mainwindow.py:260
+#: zeroinstall/0launch-gui/mainwindow.py:263
 msgid ""
 "To report a bug, right-click over the component which you think contains the "
 "problem and choose 'Report a Bug...' from the menu. If you don't know which "
@@ -580,11 +580,11 @@ msgstr ""
 "kan förflytta buggen om så behövs, eller välja att använda en annan version "
 "av biblioteket."
 
-#: zeroinstall/0launch-gui/mainwindow.py:265
+#: zeroinstall/0launch-gui/mainwindow.py:268
 msgid "The cache"
 msgstr "Cache"
 
-#: zeroinstall/0launch-gui/mainwindow.py:266
+#: zeroinstall/0launch-gui/mainwindow.py:269
 msgid ""
 "Each version of a program that is downloaded is stored in the Zero Install "
 "cache. This means that it won't need to be downloaded again each time you "
@@ -1234,31 +1234,41 @@ msgstr "[torrsim] skulle skriva val till {file}"
 msgid "[dry-run] would update {link} to point to new selections file"
 msgstr "[torrsim] skulle uppdatera {link} till att peka till nya valfilen"
 
-#: zeroinstall/apps.py:270
+#: zeroinstall/apps.py:313
 msgid "[dry-run] would write {file}"
 msgstr "[torrsim] skulle skriva {file}"
 
-#: zeroinstall/apps.py:360
+#: zeroinstall/apps.py:403
 msgid "[dry-run] would delete launcher script {file}"
 msgstr "[torrsim] skulle ta bort startskriptet {file}"
 
-#: zeroinstall/apps.py:365
+#: zeroinstall/apps.py:408
 msgid "[dry-run] would delete directory {path}"
 msgstr "[torrsim] skulle ta bort katalogen {path}"
 
-#: zeroinstall/apps.py:381
+#: zeroinstall/apps.py:424
 msgid "[dry-run] would write launcher script {path}"
 msgstr "[torrsim] skulle skriva startskriptet {path}"
 
-#: zeroinstall/apps.py:404
+#: zeroinstall/apps.py:447
 msgid "Application '{name}' already exists: {path}"
 msgstr "Applikationen '{name}' finns redan: {path}"
 
-#: zeroinstall/apps.py:407
+#: zeroinstall/apps.py:450
 msgid "[dry-run] would create directory {path}"
 msgstr "[torrsim] skulle skapa katalogen {path}"
 
-#: zeroinstall/cmd/__init__.py:36
+#: zeroinstall/cmd/__init__.py:325
+#, python-format
+msgid "Unknown sub-command '%s': try --help"
+msgstr "Okänt sub-kommando '%s': try --help"
+
+#: zeroinstall/cmd/__init__.py:329
+#, python-format
+msgid "usage: %%prog %s [OPTIONS] %s"
+msgstr "användning: %%prog %s [flaggor] %s"
+
+#: zeroinstall/cmd/__init__.py:332
 msgid ""
 "usage: %prog COMMAND\n"
 "\n"
@@ -1268,47 +1278,37 @@ msgstr ""
 "\n"
 "Försök --help med en av dessa:"
 
-#: zeroinstall/cmd/__init__.py:81
-#, python-format
-msgid "Unknown sub-command '%s': try --help"
-msgstr "Okänt sub-kommando '%s': try --help"
-
-#: zeroinstall/cmd/__init__.py:86
-#, python-format
-msgid "usage: %%prog %s [OPTIONS] %s"
-msgstr "användning: %%prog %s [flaggor] %s"
-
-#: zeroinstall/cmd/__init__.py:88 zeroinstall/injector/cli.py:46
+#: zeroinstall/cmd/__init__.py:335 zeroinstall/injector/cli.py:46
 msgid "never use GUI"
 msgstr "använd aldrig GUI"
 
-#: zeroinstall/cmd/__init__.py:89
+#: zeroinstall/cmd/__init__.py:336
 msgid "just print what would be executed"
 msgstr "skriv endast ut vad som skulle utföras"
 
-#: zeroinstall/cmd/__init__.py:90 zeroinstall/injector/cli.py:52
+#: zeroinstall/cmd/__init__.py:337 zeroinstall/injector/cli.py:52
 msgid "show graphical policy editor"
 msgstr "visa grafisk policyeditor"
 
-#: zeroinstall/cmd/__init__.py:104
+#: zeroinstall/cmd/__init__.py:356
 #, python-format
 msgid "Running 0install %(version)s %(args)s; Python %(python_version)s"
 msgstr "Kör 0install %(version)s %(args)s; Python %(python_version)s"
 
-#: zeroinstall/cmd/__init__.py:110 zeroinstall/injector/cli.py:101
+#: zeroinstall/cmd/__init__.py:362 zeroinstall/injector/cli.py:101
 #, python-format
 msgid "Stores search path is now %s"
 msgstr "Lagrets sökväg är nu %s"
 
-#: zeroinstall/cmd/__init__.py:115
+#: zeroinstall/cmd/__init__.py:367
 msgid "Can't use --gui with --dry-run"
 msgstr "Kan inte använda --gui med --dry-run"
 
-#: zeroinstall/cmd/__init__.py:126
+#: zeroinstall/cmd/__init__.py:378
 msgid "[dry-run]"
 msgstr "[torrsim]"
 
-#: zeroinstall/cmd/add_feed.py:18 zeroinstall/cmd/select.py:27
+#: zeroinstall/cmd/add_feed.py:18 zeroinstall/cmd/select.py:28
 #: zeroinstall/injector/cli.py:59
 msgid "try to avoid using the network"
 msgstr "försök undvika att använda nätverket"
@@ -1414,7 +1414,7 @@ msgstr "Okänd algoritm \"%s\""
 msgid "show where components are installed"
 msgstr "visa var komponenter är installerade"
 
-#: zeroinstall/cmd/download.py:52 zeroinstall/cmd/select.py:187
+#: zeroinstall/cmd/download.py:52
 msgid "(use '0install update' to save the new parameters)"
 msgstr "(använd '0install update' för att spara de nya parametrarna)"
 
@@ -1455,41 +1455,50 @@ msgstr "namn på filen som skall exekveras"
 msgid "execute program using a debugger, etc"
 msgstr "exekvera program med en avlusare eller motsvarande"
 
-#: zeroinstall/cmd/select.py:29 zeroinstall/injector/cli.py:60
+#: zeroinstall/cmd/select.py:30 zeroinstall/injector/cli.py:60
 msgid "refresh all used interfaces"
 msgstr "uppdatera alla använda gränssnitt"
 
-#: zeroinstall/cmd/select.py:31 zeroinstall/injector/cli.py:73
+#: zeroinstall/cmd/select.py:32 zeroinstall/injector/cli.py:73
 msgid "specify version contraint (e.g. '3' or '3..')"
 msgstr "ange versionsbegränsningarna (t.ex '3' eller '3..')"
 
-#: zeroinstall/cmd/select.py:38 zeroinstall/injector/cli.py:51
+#: zeroinstall/cmd/select.py:39 zeroinstall/injector/cli.py:51
 msgid "write selected versions as XML"
 msgstr "skriv ut valda versioner som XML"
 
-#: zeroinstall/cmd/select.py:62
+#: zeroinstall/cmd/select.py:65
 msgid "Waiting for selected implementations to be downloaded..."
 msgstr "Väntar på att valda implementationer skall laddas ner..."
 
-#: zeroinstall/cmd/select.py:103
+#: zeroinstall/cmd/select.py:107
 msgid "No doing background update because we are in off-line mode."
 msgstr "Uppdaterar inte i bakgrunden eftersom vi är i offline-läge."
 
-#: zeroinstall/cmd/select.py:105
+#: zeroinstall/cmd/select.py:109
 msgid "[dry-run] would check for updates in the background"
 msgstr "[torrsim] skulle kontrollera uppdateringar i bakgrunden"
 
-#: zeroinstall/cmd/select.py:207
+#: zeroinstall/cmd/select.py:194
+msgid "(note: use '0install update' instead to save the changes)"
+msgstr "(använd '0install update' istället för att spara ändringarna)"
+
+#: zeroinstall/cmd/select.py:214
 msgid "(not cached)"
 msgstr "(inte cachad)"
 
-#: zeroinstall/cmd/show.py:17
+#: zeroinstall/cmd/show.py:19
 msgid "display just the root interface URI"
 msgstr "visa enbart rotgränssnittets URI"
 
-#: zeroinstall/cmd/show.py:18
+#: zeroinstall/cmd/show.py:20
 msgid "print selections as XML"
 msgstr "skriv ut valda versioner som XML"
+
+#: zeroinstall/cmd/show.py:41
+#, python-format
+msgid "Neither an app nor a file: '%s'"
+msgstr "Varken en app eller en fil: '%s'"
 
 #: zeroinstall/cmd/update.py:72
 msgid "Warning: interface {old} has been replaced by {new}"
@@ -1654,25 +1663,25 @@ msgstr "Uppgradera eller byt versioner"
 msgid "Remove launcher from the menu"
 msgstr "Ta bort startare från menyn"
 
-#: zeroinstall/gtkui/applistbox.py:148 zeroinstall/gtkui/applistbox.py:152
+#: zeroinstall/gtkui/applistbox.py:153 zeroinstall/gtkui/applistbox.py:157
 msgid "No information available"
 msgstr "Ingen information tillgänglig!"
 
-#: zeroinstall/gtkui/applistbox.py:188
+#: zeroinstall/gtkui/applistbox.py:193
 msgid "Can't find a suitable terminal emulator"
 msgstr "Kan inte hitta en lämplig terminalemulator"
 
-#: zeroinstall/gtkui/applistbox.py:226
+#: zeroinstall/gtkui/applistbox.py:231
 #, python-format
 msgid "Documentation directory '%s' is an AppDir; refusing to open"
 msgstr "Dokumentationskatalogen '%s' är ett AppDir; vägrar öppna"
 
-#: zeroinstall/gtkui/applistbox.py:240
+#: zeroinstall/gtkui/applistbox.py:245
 #, python-format
 msgid "Remove <b>%s</b> from the menu?"
 msgstr "Ta bort <b>%s</b> från menyn?"
 
-#: zeroinstall/gtkui/applistbox.py:249
+#: zeroinstall/gtkui/applistbox.py:254
 #, python-format
 msgid "Failed to remove %(interface_name)s: %(exception)s"
 msgstr "%(interface_name)s: %(exception)s"
@@ -1904,24 +1913,26 @@ msgid "manage added applications"
 msgstr "hantera tillagda program"
 
 #: zeroinstall/gtkui/desktop.ui.h:1
-msgid "<b>About this program</b>"
-msgstr "<b>Om detta program</b>"
+msgid "Zero Install applications"
+msgstr "Zero Install-program"
 
 #: zeroinstall/gtkui/desktop.ui.h:2
-msgid "<b>Application to install</b>"
-msgstr "<b>Program att installera</b>"
+msgid ""
+"Show all Zero Install software currently stored on this computer (i.e. those "
+"programs which can be run without a network connection). This can be useful "
+"if you're running out of disk space and need to delete something."
+msgstr ""
+"Visa all Zero Install programvara som för närvarande lagras på denna dator "
+"(dvs. de program som kan köras utan en nätverksförbindelse). Detta kan vara "
+"användbart om du får slut på disk och behöver radera någonting."
 
 #: zeroinstall/gtkui/desktop.ui.h:3
-msgid "<b>Applications menu</b>"
-msgstr "<b>Programmeny</b>"
+msgid "Show Cache"
+msgstr "Visa Cache"
 
 #: zeroinstall/gtkui/desktop.ui.h:4
-msgid ""
-"<i>Choose a category for the program to determine where it appears in the "
-"Applications menu.</i>"
-msgstr ""
-"<i>Välj en kategori för programmet för att avgöra var det hamnar i "
-"Programmenyn.</i>"
+msgid "Add Zero Install Application"
+msgstr "Lägg till Zero Install-program"
 
 #: zeroinstall/gtkui/desktop.ui.h:5
 msgid ""
@@ -1932,34 +1943,32 @@ msgstr ""
 "en webbläsare till detta fönster.</i>"
 
 #: zeroinstall/gtkui/desktop.ui.h:6
-msgid "Add Zero Install Application"
-msgstr "Lägg till Zero Install-program"
-
-#: zeroinstall/gtkui/desktop.ui.h:7
-msgid "Category: "
-msgstr "Kategori: "
-
-#: zeroinstall/gtkui/desktop.ui.h:8
-msgid "Show Cache"
-msgstr "Visa Cache"
-
-#: zeroinstall/gtkui/desktop.ui.h:9
-msgid ""
-"Show all Zero Install software currently stored on this computer (i.e. those "
-"programs which can be run without a network connection). This can be useful "
-"if you're running out of disk space and need to delete something."
-msgstr ""
-"Visa all Zero Install programvara som för närvarande lagras på denna dator "
-"(dvs. de program som kan köras utan en nätverksförbindelse). Detta kan vara "
-"användbart om du får slut på disk och behöver radera någonting."
-
-#: zeroinstall/gtkui/desktop.ui.h:10
 msgid "URI: "
 msgstr "URI: "
 
+#: zeroinstall/gtkui/desktop.ui.h:7
+msgid "<b>Application to install</b>"
+msgstr "<b>Program att installera</b>"
+
+#: zeroinstall/gtkui/desktop.ui.h:8
+msgid "<b>About this program</b>"
+msgstr "<b>Om detta program</b>"
+
+#: zeroinstall/gtkui/desktop.ui.h:9
+msgid ""
+"<i>Choose a category for the program to determine where it appears in the "
+"Applications menu.</i>"
+msgstr ""
+"<i>Välj en kategori för programmet för att avgöra var det hamnar i "
+"Programmenyn.</i>"
+
+#: zeroinstall/gtkui/desktop.ui.h:10
+msgid "Category: "
+msgstr "Kategori: "
+
 #: zeroinstall/gtkui/desktop.ui.h:11
-msgid "Zero Install applications"
-msgstr "Zero Install-program"
+msgid "<b>Applications menu</b>"
+msgstr "<b>Programmeny</b>"
 
 #: zeroinstall/gtkui/icon.py:47
 #, python-format
@@ -2234,15 +2243,20 @@ msgstr "NetworkManager säger att vi är on-line. Bra!"
 msgid "Updates ready to download for '%s'."
 msgstr "Uppdateringar är klara att laddas ner för '%s'"
 
-#: zeroinstall/injector/background.py:240
+#: zeroinstall/injector/background.py:236
+#, python-format
+msgid "Can't update '%s'"
+msgstr "Kan inte uppdatera '%s'"
+
+#: zeroinstall/injector/background.py:244
 msgid "{name} updated."
 msgstr "{name} uppdaterad."
 
-#: zeroinstall/injector/background.py:244
+#: zeroinstall/injector/background.py:248
 msgid "No updates to download."
 msgstr "Inga uppdateringar att ladda ner."
 
-#: zeroinstall/injector/background.py:253
+#: zeroinstall/injector/background.py:257
 msgid "{app} updated."
 msgstr "{app} uppdaterad."
 
@@ -2288,64 +2302,64 @@ msgstr "Kör 0launch %(version)s %(args)s; Python %(python_version)s"
 msgid "Error loading config: %s"
 msgstr "Fel vid inläsning av konfiguration: %s"
 
-#: zeroinstall/injector/distro.py:39
+#: zeroinstall/injector/distro.py:41
 #, python-format
 msgid "Failed to load cache (%s). Flushing..."
 msgstr "Misslyckades ladda cache (%s). Läser om..."
 
-#: zeroinstall/injector/distro.py:93
+#: zeroinstall/injector/distro.py:95
 #, python-format
 msgid "Cache needs to be refreshed: %s"
 msgstr "Cache behöver laddas om: %s"
 
-#: zeroinstall/injector/distro.py:180
+#: zeroinstall/injector/distro.py:187
 #, python-format
 msgid "Missing 'package' attribute on %s"
 msgstr "Saknat 'package'-attribut för %s"
 
-#: zeroinstall/injector/distro.py:189
+#: zeroinstall/injector/distro.py:196
 #, python-format
 msgid "Duplicate ID '%s' for DistributionImplementation"
 msgstr "Dublett ID '%s' för DistributionImplementation"
 
-#: zeroinstall/injector/distro.py:204
+#: zeroinstall/injector/distro.py:211
 #, python-format
 msgid "'main' attribute must be absolute, but '%s' doesn't start with '/'!"
 msgstr "'main'-attributet måste vara absolut, men '%s' börjar inte med '/'!"
 
-#: zeroinstall/injector/distro.py:273
+#: zeroinstall/injector/distro.py:301
 msgid "WindowsDistribution may only be used on the Windows platform"
 msgstr "WindowsDistribution kan endast användas på Windows-plattformen"
 
-#: zeroinstall/injector/distro.py:404
+#: zeroinstall/injector/distro.py:463
 #, python-format
 msgid "Failed to load distribution database cache (%s). Regenerating..."
 msgstr "Misslyckades läsa distributionsdatabascache (%s). Skapar om..."
 
-#: zeroinstall/injector/distro.py:409
+#: zeroinstall/injector/distro.py:468
 #, python-format
 msgid "Failed to regenerate distribution database cache: %s"
 msgstr "Misslyckades skapa om distributionsdatabascache: %s"
 
-#: zeroinstall/injector/distro.py:421
+#: zeroinstall/injector/distro.py:480
 msgid "Modification time of package database file has changed"
 msgstr "Ändringstiden på paketdatabasfilen har ändrats"
 
-#: zeroinstall/injector/distro.py:423
+#: zeroinstall/injector/distro.py:482
 msgid "Size of package database file has changed"
 msgstr "Storleken på paketdatabasfilen har ändrats"
 
-#: zeroinstall/injector/distro.py:427
+#: zeroinstall/injector/distro.py:486
 msgid "Invalid cache format (bad header)"
 msgstr "Ogiltigt cacheformat (fel huvud)"
 
-#: zeroinstall/injector/distro.py:430
+#: zeroinstall/injector/distro.py:489
 msgid "Old cache format"
 msgstr "Gammalt cacheformat"
 
-#: zeroinstall/injector/distro.py:515 zeroinstall/injector/distro.py:654
-#: zeroinstall/injector/distro.py:729 zeroinstall/injector/distro.py:767
-#: zeroinstall/injector/distro.py:900 zeroinstall/injector/distro.py:945
+#: zeroinstall/injector/distro.py:576 zeroinstall/injector/distro.py:714
+#: zeroinstall/injector/distro.py:788 zeroinstall/injector/distro.py:825
+#: zeroinstall/injector/distro.py:953 zeroinstall/injector/distro.py:1000
 #: zeroinstall/injector/packagekit.py:379
 #, python-format
 msgid ""
@@ -2353,7 +2367,7 @@ msgid ""
 msgstr ""
 "Kan inte läsa distributionsversion '%(version)s' för paket '%(package)s'"
 
-#: zeroinstall/injector/distro.py:548
+#: zeroinstall/injector/distro.py:609
 #, python-format
 msgid ""
 "This program depends on '%s', which is a package that is available through "
@@ -2366,12 +2380,12 @@ msgstr ""
 "distribution och försök igen. Eller installera 'packagekit' och det kan "
 "användas för att installera paketet."
 
-#: zeroinstall/injector/distro.py:806
+#: zeroinstall/injector/distro.py:862
 #, python-format
 msgid "Cannot parse version from Gentoo package named \"%(name)s\""
 msgstr "Kan inte läsa version från Gentoo-paketet vid namn \"%(name)s\""
 
-#: zeroinstall/injector/distro.py:846
+#: zeroinstall/injector/distro.py:900
 #, python-format
 msgid "Cannot parse version from Ports package named \"%(pkgname)s\""
 msgstr "Kan inte läsa version från Ports-paketet vid namn \"%(pkgname)s\""
@@ -2508,40 +2522,40 @@ msgstr ""
 msgid "Unknown download type for '%s'"
 msgstr "Okänd nerladdningstyp för '%s'"
 
-#: zeroinstall/injector/fetch.py:478
+#: zeroinstall/injector/fetch.py:483
 #, python-format
 msgid "Unknown scheme in download URL '%s'"
 msgstr "Okänt schema för nerladdnings-URL '%s'"
 
-#: zeroinstall/injector/fetch.py:484
+#: zeroinstall/injector/fetch.py:489
 #, python-format
 msgid "No 'type' attribute on archive, and I can't guess from the name (%s)"
 msgstr "Inget 'type'-attribut för arkiv, och kan inte gissa från namnet (%s)"
 
-#: zeroinstall/injector/fetch.py:494
+#: zeroinstall/injector/fetch.py:499
 msgid "[dry-run] downloading archive {url}"
 msgstr "[torrsim] laddar ner arkivet {url}"
 
-#: zeroinstall/injector/fetch.py:524
+#: zeroinstall/injector/fetch.py:529
 msgid "Skipping non-PNG icon"
 msgstr "Hoppar över icke-PNG ikon"
 
-#: zeroinstall/injector/fetch.py:529
+#: zeroinstall/injector/fetch.py:534
 #, python-format
 msgid "Missing \"href\" attribute on <icon> in %s"
 msgstr "Saknat \"href\"-attribut på <icon> i %s"
 
-#: zeroinstall/injector/fetch.py:531
+#: zeroinstall/injector/fetch.py:536
 #, python-format
 msgid "No PNG icons found in %s"
 msgstr "Inga PNG-ikoner hittades i %s"
 
-#: zeroinstall/injector/fetch.py:569
+#: zeroinstall/injector/fetch.py:574
 #, python-format
 msgid "start_downloading_impls: for %(feed)s get %(implementation)s"
 msgstr "start_downloading_impls: for %(feed)s get %(implementation)s"
 
-#: zeroinstall/injector/fetch.py:572
+#: zeroinstall/injector/fetch.py:577
 #, python-format
 msgid ""
 "Implementation %(implementation_id)s of interface %(interface)s cannot be "
@@ -2550,7 +2564,7 @@ msgstr ""
 "Implementationen %(implementation_id)s av gränssnittet %(interface)s kan "
 "inte laddas ner (inga nerladdningsplatser angivna i gränssnittet!)"
 
-#: zeroinstall/injector/fetch.py:583
+#: zeroinstall/injector/fetch.py:588
 msgid ""
 "The following components need to be installed using native packages. These "
 "come from your distribution, and should therefore be trustworthy, but they "
@@ -2862,119 +2876,119 @@ msgstr "Saknat 'interface' på <%s>"
 msgid "Relative interface URI \"%s\" in non-local feed"
 msgstr "Relativ gränssnitts-URI \"%s\" i icke-lokal kanal"
 
-#: zeroinstall/injector/model.py:206
+#: zeroinstall/injector/model.py:210
 msgid "This is a security risk"
 msgstr "Denna är en säkerhetsrisk"
 
-#: zeroinstall/injector/model.py:206
+#: zeroinstall/injector/model.py:210
 msgid "insecure"
 msgstr "osäker"
 
-#: zeroinstall/injector/model.py:207
+#: zeroinstall/injector/model.py:211
 msgid "Known to have serious bugs"
 msgstr "Har kända allvarliga fel"
 
-#: zeroinstall/injector/model.py:207
+#: zeroinstall/injector/model.py:211
 msgid "buggy"
 msgstr "felaktig"
 
-#: zeroinstall/injector/model.py:208
+#: zeroinstall/injector/model.py:212
 msgid "Work-in-progress - bugs likely"
 msgstr "Arbete pågår - buggar troliga"
 
-#: zeroinstall/injector/model.py:208
+#: zeroinstall/injector/model.py:212
 msgid "developer"
 msgstr "utveckling"
 
-#: zeroinstall/injector/model.py:209
+#: zeroinstall/injector/model.py:213
 msgid "Stability unknown - please test!"
 msgstr "Stabilitet okänd - var god testa!"
 
-#: zeroinstall/injector/model.py:209
+#: zeroinstall/injector/model.py:213
 msgid "testing"
 msgstr "uttestning"
 
-#: zeroinstall/injector/model.py:210
+#: zeroinstall/injector/model.py:214
 msgid "Tested - no serious problems found"
 msgstr "Testad - inga allvarliga problem funna"
 
-#: zeroinstall/injector/model.py:210
+#: zeroinstall/injector/model.py:214
 msgid "stable"
 msgstr "stabil"
 
-#: zeroinstall/injector/model.py:211
+#: zeroinstall/injector/model.py:215
 msgid "Supplied by the local package manager"
 msgstr "Tillhandahålls av den lokala pakethanteraren"
 
-#: zeroinstall/injector/model.py:211
+#: zeroinstall/injector/model.py:215
 msgid "packaged"
 msgstr "paketerad"
 
-#: zeroinstall/injector/model.py:212
+#: zeroinstall/injector/model.py:216
 msgid "Best of all - must be set manually"
 msgstr "Bäst av alla - måste sättas manuellt"
 
-#: zeroinstall/injector/model.py:212
+#: zeroinstall/injector/model.py:216
 msgid "preferred"
 msgstr "föredragen"
 
-#: zeroinstall/injector/model.py:220
+#: zeroinstall/injector/model.py:224
 msgid "Incompatible with user-specified requirements"
 msgstr "Inkompatibel med användarens angivna krav"
 
-#: zeroinstall/injector/model.py:227
+#: zeroinstall/injector/model.py:231
 msgid "Abstract"
 msgstr "Abstrakt"
 
-#: zeroinstall/injector/model.py:246
+#: zeroinstall/injector/model.py:254
 #, python-format
 msgid "version = %s"
 msgstr "version = %s"
 
-#: zeroinstall/injector/model.py:346
+#: zeroinstall/injector/model.py:371
 #, python-format
 msgid "<environ %(name)s %(mode)s %(insert)s %(value)s>"
 msgstr "<environ %(name)s %(mode)s %(insert)s %(value)s>"
 
-#: zeroinstall/injector/model.py:431
+#: zeroinstall/injector/model.py:456
 #, python-format
 msgid "<overlay %(src)s on %(mount_point)s>"
 msgstr "<overlay %(src)s on %(mount_point)s>"
 
-#: zeroinstall/injector/model.py:516
+#: zeroinstall/injector/model.py:541
 #, python-format
 msgid "<Restriction on %(interface)s; %(restrictions)s>"
 msgstr "<Restriktion på %(interface)s; %(restrictions)s>"
 
-#: zeroinstall/injector/model.py:535
+#: zeroinstall/injector/model.py:560
 #, python-format
 msgid "<Dependency on %(interface)s; bindings: %(bindings)s%(restrictions)s>"
 msgstr "<Beroende på %(interface)s; bindningar: %(bindings)s%(restrictions)s>"
 
-#: zeroinstall/injector/model.py:648
+#: zeroinstall/injector/model.py:673
 msgid "Multiple <runner>s in <command>!"
 msgstr "Multipla <runner> i <command>!"
 
-#: zeroinstall/injector/model.py:889
+#: zeroinstall/injector/model.py:917
 #, python-format
 msgid "Interface name '%s' doesn't start with 'http:' or 'https:'"
 msgstr "Gränssnittets namn '%s' börjar inte med 'http:' eller 'https:'"
 
-#: zeroinstall/injector/model.py:912
+#: zeroinstall/injector/model.py:940
 #, python-format
 msgid "<Interface %s>"
 msgstr "<Gränssnitt %s>"
 
-#: zeroinstall/injector/model.py:958
+#: zeroinstall/injector/model.py:986
 #, python-format
 msgid "Invalid value for integer attribute '%(attribute_name)s': %(value)s"
 msgstr "Ogiltigt värde för heltalsattribut '%(attribute_name)s': %(value)s"
 
-#: zeroinstall/injector/model.py:1024
+#: zeroinstall/injector/model.py:1052
 msgid "<interface> uri attribute missing"
 msgstr "<interface> uri-attribut saknas"
 
-#: zeroinstall/injector/model.py:1030
+#: zeroinstall/injector/model.py:1058
 #, python-format
 msgid ""
 "This feed requires version %(min_version)s or later of Zero Install, but I "
@@ -2985,96 +2999,96 @@ msgstr ""
 "detta är endast version %(version)s. Du kan hämta en nyare version från "
 "http://0install.net"
 
-#: zeroinstall/injector/model.py:1052
+#: zeroinstall/injector/model.py:1080
 msgid "Missing \"interface\" attribute in <feed-for>"
 msgstr "Saknat \"interface\"-attribut för <feed-for>"
 
-#: zeroinstall/injector/model.py:1057
+#: zeroinstall/injector/model.py:1085
 #, python-format
 msgid "Is feed-for %s"
 msgstr "Är kanal för %s"
 
-#: zeroinstall/injector/model.py:1061 zeroinstall/injector/reader.py:165
+#: zeroinstall/injector/model.py:1089 zeroinstall/injector/reader.py:165
 msgid "Missing \"src\" attribute in <feed>"
 msgstr "Saknat \"src\"-attribut i <feed>"
 
-#: zeroinstall/injector/model.py:1070
+#: zeroinstall/injector/model.py:1098
 #, python-format
 msgid "Invalid feed URL '%s'"
 msgstr "Ogiltig kanal-URL '%s'"
 
-#: zeroinstall/injector/model.py:1075
+#: zeroinstall/injector/model.py:1103
 msgid "Missing <name> in feed"
 msgstr "Saknat <name> i kanal"
 
-#: zeroinstall/injector/model.py:1077
+#: zeroinstall/injector/model.py:1105
 msgid "Missing <summary> in feed"
 msgstr "Saknat <summary> i kanal"
 
-#: zeroinstall/injector/model.py:1134
+#: zeroinstall/injector/model.py:1162
 #, python-format
 msgid "Missing 'id' attribute on %s"
 msgstr "Saknat 'id'-attribut för %s"
 
-#: zeroinstall/injector/model.py:1149
+#: zeroinstall/injector/model.py:1177
 #, python-format
 msgid "Duplicate ID '%(id)s' in feed '%(feed)s'"
 msgstr "Dublett-ID '%(id)s' i kanalen '%(feed)s'"
 
-#: zeroinstall/injector/model.py:1160
+#: zeroinstall/injector/model.py:1188
 msgid "Missing version attribute"
 msgstr "Saknat versionsattribut"
 
-#: zeroinstall/injector/model.py:1177
+#: zeroinstall/injector/model.py:1205
 #, python-format
 msgid "Stability \"%s\" invalid - use lower case!"
 msgstr "Stabiliteten \"%s\" ogiltig - använd små bokstäver!"
 
-#: zeroinstall/injector/model.py:1178
+#: zeroinstall/injector/model.py:1206
 #, python-format
 msgid "Stability \"%s\" invalid"
 msgstr "Stabiliteten \"%s\" ogiltig"
 
-#: zeroinstall/injector/model.py:1180
+#: zeroinstall/injector/model.py:1208
 msgid "Upstream can't set stability to preferred!"
 msgstr "Uppström kan inte sätta stabilitet till föredragen!"
 
-#: zeroinstall/injector/model.py:1191 zeroinstall/injector/model.py:1209
+#: zeroinstall/injector/model.py:1219 zeroinstall/injector/model.py:1237
 msgid "Missing href attribute on <archive>"
 msgstr "Saknat href-attribut på <archive>"
 
-#: zeroinstall/injector/model.py:1194 zeroinstall/injector/model.py:1212
+#: zeroinstall/injector/model.py:1222 zeroinstall/injector/model.py:1240
 msgid "Missing size attribute on <archive>"
 msgstr "Saknat size-attribut på <archive>"
 
-#: zeroinstall/injector/model.py:1220
+#: zeroinstall/injector/model.py:1248
 msgid "Missing source attribute on <rename>"
 msgstr "Saknat source-attribut för <rename>"
 
-#: zeroinstall/injector/model.py:1223
+#: zeroinstall/injector/model.py:1251
 msgid "Missing dest attribute on <rename>"
 msgstr "Saknat dest-attribut på <rename>"
 
-#: zeroinstall/injector/model.py:1226
+#: zeroinstall/injector/model.py:1254
 #, python-format
 msgid "Unknown step '%s' in recipe; skipping recipe"
 msgstr "Okänt steg '%s' i recept; skippar recept"
 
-#: zeroinstall/injector/model.py:1273
+#: zeroinstall/injector/model.py:1301
 #, python-format
 msgid "<Feed %s>"
 msgstr "<Kanal %s>"
 
-#: zeroinstall/injector/model.py:1427
+#: zeroinstall/injector/model.py:1455
 #, python-format
 msgid "Missing / after hostname in URI '%s'"
 msgstr "Saknat / efter värdnamn i URI '%s'"
 
-#: zeroinstall/injector/model.py:1433
+#: zeroinstall/injector/model.py:1461
 msgid "Use file:///path for absolute paths, not {uri}"
 msgstr "Använd file:///sökväg för absoluta sökvägar, inte {uri}"
 
-#: zeroinstall/injector/model.py:1460
+#: zeroinstall/injector/model.py:1488
 msgid ""
 "Bad interface name '{uri}'.\n"
 "(hint: try 'alias:{uri}' instead)"
@@ -3082,7 +3096,7 @@ msgstr ""
 "Dåligt gränssnittsnamn '{uri}'.\n"
 "(tips: försök med 'alias:{uri}' istället)"
 
-#: zeroinstall/injector/model.py:1463
+#: zeroinstall/injector/model.py:1491
 #, python-format
 msgid ""
 "Bad interface name '%(uri)s'.\n"
@@ -3245,16 +3259,16 @@ msgstr "Väntar på att testprocessen skall avslutas..."
 msgid "Error from child process: exit code = %d"
 msgstr "Fel från barnprocess: slutstatus = %d"
 
-#: zeroinstall/injector/run.py:102
+#: zeroinstall/injector/run.py:113
 msgid "Can't run: no command specified!"
 msgstr "Kan inte köra: inget kommando angivet!"
 
-#: zeroinstall/injector/run.py:135
+#: zeroinstall/injector/run.py:146
 #, python-format
 msgid "Command path must be relative, but '%s' starts with '/'!"
 msgstr "Kommandosökvägen måste vara relativ, men '%s' börjar med '/'!"
 
-#: zeroinstall/injector/run.py:142
+#: zeroinstall/injector/run.py:153
 #, python-format
 msgid ""
 "File '%(program_path)s' does not exist.\n"
@@ -3263,23 +3277,23 @@ msgstr ""
 "Filen '%(program_path)s' existerar ej.\n"
 "(implementation '%(implementation_id)s' + program '%(main)s')"
 
-#: zeroinstall/injector/run.py:304
+#: zeroinstall/injector/run.py:315
 msgid "Can't use a relative replacement main when there is no original one!"
 msgstr ""
 "Kan inte använda en relativ main-ersättning när det inte finns något "
 "original!"
 
-#: zeroinstall/injector/run.py:324
+#: zeroinstall/injector/run.py:335
 #, python-format
 msgid "[dry-run] would execute: %s"
 msgstr "[torrsim] skulle exekvera: %s"
 
-#: zeroinstall/injector/run.py:326
+#: zeroinstall/injector/run.py:337
 #, python-format
 msgid "Executing: %s"
 msgstr "Exekverar: %s"
 
-#: zeroinstall/injector/run.py:337
+#: zeroinstall/injector/run.py:348
 #, python-format
 msgid "Failed to run '%(program_path)s': %(exception)s"
 msgstr "Misslyckades köra '%(program_path)s': %(exception)s"
@@ -3287,6 +3301,10 @@ msgstr "Misslyckades köra '%(program_path)s': %(exception)s"
 #: zeroinstall/injector/selections.py:165
 msgid "Source not a qdom.Element!"
 msgstr "Källan är inte ett qdom.Element!"
+
+#: zeroinstall/injector/selections.py:173
+msgid "Not a selections document (no 'interface' attribute on root)"
+msgstr "Inte ett urvalsdokument (inget 'interface' attribut på roten)"
 
 #: zeroinstall/injector/solver.py:69
 msgid "implementation {version} ({impl})"
@@ -3325,61 +3343,65 @@ msgstr "Behandlar kanal %s"
 msgid "Missing local feed; if it's no longer required, remove it with:"
 msgstr "Saknad lokal kanal; om den inte längre behövs, ta bort den med:"
 
-#: zeroinstall/injector/solver.py:495
+#: zeroinstall/injector/solver.py:495 zeroinstall/injector/solver.py:499
 #, python-format
 msgid "Failed to load feed %(feed)s for %(interface)s: %(exception)s"
 msgstr "Misslyckades läsa kanal %(feed)s för %(interface)s: %(exception)s"
 
-#: zeroinstall/injector/solver.py:596
+#: zeroinstall/injector/solver.py:600
 #, python-format
 msgid "No %s command"
 msgstr "Inget %s kommando"
 
-#: zeroinstall/injector/solver.py:863
+#: zeroinstall/injector/solver.py:867
 msgid "Replaces (and therefore conflicts with) {old}"
 msgstr "Ersätter (och står därför i konflikt med) {old}"
 
-#: zeroinstall/injector/solver.py:868
+#: zeroinstall/injector/solver.py:872
 msgid "Replaced by (and therefore conflicts with) {old}"
 msgstr "Ersatt av (och står därför i konflikt med) {old}"
 
-#: zeroinstall/injector/solver.py:885
+#: zeroinstall/injector/solver.py:889
 msgid "{iface} {version} requires {reqs}"
 msgstr "{iface} {version} kräver {reqs}"
 
-#: zeroinstall/injector/solver.py:896
+#: zeroinstall/injector/solver.py:900
 msgid "User requested {reqs}"
 msgstr "Användaren begärde {reqs}"
 
-#: zeroinstall/injector/solver.py:905
+#: zeroinstall/injector/solver.py:909
 msgid "No known implementations at all"
 msgstr "Inga kända implementationer alls"
 
-#: zeroinstall/injector/solver.py:908
+#: zeroinstall/injector/solver.py:912
 msgid "No usable implementations:"
 msgstr "Inga användbara implementationer:"
 
-#: zeroinstall/injector/solver.py:914
+#: zeroinstall/injector/solver.py:918
 msgid "No usable implementations satisfy the restrictions"
 msgstr "Inga användbara implementationer uppfyller restriktionerna."
 
-#: zeroinstall/injector/solver.py:932
+#: zeroinstall/injector/solver.py:936
 msgid "Can't use {this_arch} with selection of {other_name} ({other_arch})"
 msgstr "Kan inte använda {this_arch} med val av {other_name} ({other_arch})"
 
-#: zeroinstall/injector/solver.py:951
+#: zeroinstall/injector/solver.py:949
+msgid "requires {iface} {reqs}"
+msgstr "kräver {iface} {reqs}"
+
+#: zeroinstall/injector/solver.py:969
 msgid "Rejected candidates:"
 msgstr "Avvisade kandidater:"
 
-#: zeroinstall/injector/solver.py:957
+#: zeroinstall/injector/solver.py:975
 msgid "Can't find all required implementations:"
 msgstr "Kan inte hitta alla implementationer som krävs:"
 
-#: zeroinstall/injector/solver.py:983
+#: zeroinstall/injector/solver.py:1001
 msgid "{wanted} cannot be used (regardless of other components): {reason}"
 msgstr "{wanted} kan inte användas (oberoende av andra komponenter): {reason}"
 
-#: zeroinstall/injector/solver.py:988
+#: zeroinstall/injector/solver.py:1006
 msgid ""
 "There is no possible selection using {wanted}.\n"
 "{reason}"
@@ -3387,76 +3409,76 @@ msgstr ""
 "Det finns inga möjliga val som använder {wanted}.\n"
 "{reason}"
 
-#: zeroinstall/injector/solver.py:996
+#: zeroinstall/injector/solver.py:1014
 msgid "{wanted} was selected as the preferred version."
 msgstr "{wanted} valdes som den föredragna versionen."
 
-#: zeroinstall/injector/solver.py:1007
+#: zeroinstall/injector/solver.py:1025
 msgid "natural languages we understand are preferred"
 msgstr "naturliga språk som vi förstår är föredragna"
 
-#: zeroinstall/injector/solver.py:1008
+#: zeroinstall/injector/solver.py:1026
 msgid "preferred versions come first"
 msgstr "föredragna versioner kommer först"
 
-#: zeroinstall/injector/solver.py:1009
+#: zeroinstall/injector/solver.py:1027
 msgid "locally-available versions are preferred when network use is limited"
 msgstr ""
 "lokalt tillgängliga versioner föredras när nätverksanvändningen är begränsad"
 
-#: zeroinstall/injector/solver.py:1010
+#: zeroinstall/injector/solver.py:1028
 msgid "packages that don't require admin access to install are preferred"
 msgstr "paket som inte kräver admin-tillgång för att installera är föredragna"
 
-#: zeroinstall/injector/solver.py:1011
+#: zeroinstall/injector/solver.py:1029
 msgid "more stable versions preferred"
 msgstr "mer stabila versioner föredras"
 
-#: zeroinstall/injector/solver.py:1012 zeroinstall/injector/solver.py:1014
+#: zeroinstall/injector/solver.py:1030 zeroinstall/injector/solver.py:1032
 msgid "newer versions are preferred"
 msgstr "nyare versioner föredras"
 
-#: zeroinstall/injector/solver.py:1013
+#: zeroinstall/injector/solver.py:1031
 msgid "native packages are preferred"
 msgstr "egna paket är föredragna"
 
-#: zeroinstall/injector/solver.py:1015
+#: zeroinstall/injector/solver.py:1033
 msgid "better OS match"
 msgstr "bättre OS-matchning"
 
-#: zeroinstall/injector/solver.py:1016
+#: zeroinstall/injector/solver.py:1034
 msgid "better CPU match"
 msgstr "bättre CPU-matchning"
 
-#: zeroinstall/injector/solver.py:1017
+#: zeroinstall/injector/solver.py:1035
 msgid "better locale match"
 msgstr "bättre locale-matchning"
 
-#: zeroinstall/injector/solver.py:1018
+#: zeroinstall/injector/solver.py:1036
 msgid "is locally available"
 msgstr "är lokalt tillgänglig"
 
-#: zeroinstall/injector/solver.py:1019
+#: zeroinstall/injector/solver.py:1037
 msgid "better ID (tie-breaker)"
 msgstr "bättre ID (vid lika)"
 
-#: zeroinstall/injector/solver.py:1035
+#: zeroinstall/injector/solver.py:1053
 msgid "{wanted} is ranked lower than {actual}: {why}"
 msgstr "{wanted} rankas lägre än {actual}: {why}"
 
-#: zeroinstall/injector/solver.py:1049
+#: zeroinstall/injector/solver.py:1067
 msgid "{interface}: no longer used"
 msgstr "{interface}: används inte längre"
 
-#: zeroinstall/injector/solver.py:1051 zeroinstall/injector/solver.py:1053
+#: zeroinstall/injector/solver.py:1069 zeroinstall/injector/solver.py:1071
 msgid "{interface}: {old} to {new}"
 msgstr "{interface}: {old} till {new}"
 
-#: zeroinstall/injector/solver.py:1056
+#: zeroinstall/injector/solver.py:1074
 msgid "The changes would be:"
 msgstr "Ändringarna skulle vara"
 
-#: zeroinstall/injector/solver.py:1061
+#: zeroinstall/injector/solver.py:1079
 msgid ""
 "{wanted} is selectable, but using it would produce a less optimal solution "
 "overall."
@@ -3464,7 +3486,7 @@ msgstr ""
 "{wanted} är valbar, men att använda den skulle ge en mindre optimal lösning "
 "totalt."
 
-#: zeroinstall/injector/solver.py:1063
+#: zeroinstall/injector/solver.py:1081
 msgid ""
 "If {wanted} were the only option, the best available solution wouldn't use "
 "it."
