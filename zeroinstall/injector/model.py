@@ -1036,7 +1036,8 @@ class ZeroInstallFeed(object):
 		if feed_element is None:
 			return			# XXX subclass?
 
-		assert feed_element.name in ('interface', 'feed'), "Root element should be <interface>, not %s" % feed_element
+		if feed_element.name not in ('interface', 'feed'):
+			raise SafeException("Root element should be <interface>, not <%s>" % feed_element.name)
 		assert feed_element.uri == XMLNS_IFACE, "Wrong namespace on root element: %s" % feed_element.uri
 
 		main = feed_element.getAttribute('main')
