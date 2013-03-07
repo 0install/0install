@@ -223,7 +223,8 @@ class MainWindow:
 				# blank).
 				ex = repr(ex)
 		if self.systray_icon:
-			self.systray_icon.set_blinking(True)
+			if hasattr(self.systray_icon, 'set_blinking'):
+				self.systray_icon.set_blinking(True)
 			self.systray_icon.set_tooltip(str(ex) + '\n' + _('(click for details)'))
 		else:
 			dialog.alert(self.window, str(ex) or repr(ex))
