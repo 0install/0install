@@ -70,7 +70,7 @@ def main(command_args, config = None):
 	# (hack to support double meaning of --version)
 	allow_version_expr = any(not arg.startswith('-') for arg in command_args)
 	if allow_version_expr:
-		parser.add_option("", "--version", help=_("specify version contraint (e.g. '3' or '3..')"), metavar='RANGE')
+		parser.add_option("", "--version", help=_("specify version constraint (e.g. '3' or '3..')"), metavar='RANGE')
 		parser.add_option("", "--version-for", help=_("set version constraints for a specific interface"),
 				nargs=2, metavar='URI RANGE', action='append')
 	else:
