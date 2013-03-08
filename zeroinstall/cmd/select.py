@@ -202,6 +202,7 @@ def show_human(sels, stores):
 	done = set()	# detect cycles
 	def print_node(uri, commands, indent):
 		if uri in done: return
+		if done: print()
 		done.add(uri)
 		impl = sels.selections.get(uri, None)
 		print(indent + "- URI:", uri)
