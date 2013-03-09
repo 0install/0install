@@ -20,10 +20,11 @@ if sys.version_info[0] > 2:
 	try:
 		from gi.repository import GObject as gobject
 	except ImportError:
-		import gobject
+		gobject = None
 else:
 	import gobject
-gobject.threads_init()
+if gobject:
+	gobject.threads_init()
 
 logger = logging.getLogger('0install')
 

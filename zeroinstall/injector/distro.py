@@ -6,7 +6,7 @@ Integration with native distribution package managers.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, logger
+from zeroinstall import _, logger, gobject
 import os, platform, re, subprocess, sys
 from zeroinstall.injector import namespaces, model, arch, qdom
 from zeroinstall.support import basedir, portable_rename, intern
@@ -234,9 +234,8 @@ class Distribution(object):
 			impl.upstream_stability = model.packaged
 			impl.machine = host_machine	# (hopefully)
 			feed.implementations[impl_id] = impl
-		elif master_feed.url == 'http://repo.roscidus.com/python/python-gobject' and os.name != "nt":
+		elif master_feed.url == 'http://repo.roscidus.com/python/python-gobject' and os.name != "nt" and gobject:
 			# Likewise, we know that there is a native python-gobject available for our Python
-			from zeroinstall import gobject
 			impl_id = 'package:host:python-gobject:' + '.'.join(str(x) for x in gobject.pygobject_version)
 			assert impl_id not in feed.implementations
 			impl = model.DistributionImplementation(feed, impl_id, self, distro_name = 'host')

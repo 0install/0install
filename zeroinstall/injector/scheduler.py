@@ -17,7 +17,7 @@ else:
 from collections import defaultdict
 import threading
 
-from zeroinstall import gobject, logger
+from zeroinstall import logger
 from zeroinstall.support import tasks
 from zeroinstall.injector import download
 
@@ -107,7 +107,7 @@ def _spawn_thread(step):
 			child.join()
 			thread_blocker.trigger(ex)
 			return False
-		gobject.idle_add(wake_up_main)
+		tasks.loop.call_soon_threadsafe(wake_up_main)
 	child = threading.Thread(target = lambda: download_in_thread(step.url, step.dl.tempfile, step.dl.modification_time, notify_done))
 	child.daemon = True
 	child.start()
