@@ -186,7 +186,7 @@ class Handler(object):
 		@since: 0.25"""
 		import logging
 		logger.warning("%s", str(exception) or type(exception),
-				exc_info = (exception, None, tb) if logger.isEnabledFor(logging.INFO) else None)
+				exc_info = (exception, exception, tb) if logger.isEnabledFor(logging.INFO) else None)
 	
 class ConsoleHandler(Handler):
 	"""A Handler that displays progress on stdout (a tty).
