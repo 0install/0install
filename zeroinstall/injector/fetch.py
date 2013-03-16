@@ -217,7 +217,12 @@ class Fetcher(object):
 		assert iface_cache is None or iface_cache is self.config.iface_cache
 
 		if not self.config.handler.dry_run:
-			self.config.iface_cache.mark_as_checking(feed_url)
+			try:
+				self.config.iface_cache.mark_as_checking(feed_url)
+			except OSError as ex:
+				retval = tasks.Blocker("mark_as_checking")
+				retval.trigger(exception = (ex, None))
+				return retval
 		
 		logger.debug(_("download_and_import_feed %(url)s"), {'url': feed_url})
 		assert not os.path.isabs(feed_url)
