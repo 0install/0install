@@ -269,7 +269,10 @@ class App:
 				from zeroinstall.support import xmltools
 				if not xmltools.nodes_equal(sels.toDOM(), old_sels.toDOM()):
 					self.set_selections(sels, set_last_checked = False)
-			self._touch('last-solve')
+			try:
+				self._touch('last-solve')
+			except OSError as ex:
+				logger.warning("Error checking for updates: %s", ex)
 
 		# If we tried to check within the last hour, don't try again.
 		if need_update:
@@ -279,10 +282,14 @@ class App:
 				need_update = False
 
 		if need_update:
-			self.set_last_check_attempt()
-			from zeroinstall.injector import background
-			r = self.get_requirements()
-			background.spawn_background_update2(r, False, self)
+			try:
+				self.set_last_check_attempt()
+			except OSError as ex:
+				logger.warning("Error checking for updates: %s", ex)
+			else:
+				from zeroinstall.injector import background
+				r = self.get_requirements()
+				background.spawn_background_update2(r, False, self)
 
 		return sels
 
