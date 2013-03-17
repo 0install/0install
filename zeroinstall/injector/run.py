@@ -253,8 +253,8 @@ class Setup(object):
 
 		args = self.build_command(iface, binding.command)
 		if os.name == "nt":
-			os.environ["0install-runenv-file-" + name] = args[0]
-			os.environ["0install-runenv-args-" + name] = support.windows_args_escape(args[1:])
+			os.environ["ZEROINSTALL_RUNENV_FILE_" + name] = args[0]
+			os.environ["ZEROINSTALL_RUNENV_ARGS_" + name] = support.windows_args_escape(args[1:])
 		else:
 			import json
 			os.environ["0install-runenv-" + name] = json.dumps(args)

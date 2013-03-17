@@ -120,7 +120,11 @@ class App:
 		else:
 			if os.path.exists(sels_latest):
 				os.unlink(sels_latest)
-			os.symlink(os.path.basename(sels_file), sels_latest)
+			if os.name == "nt":
+				import shutil
+				shutil.copyfile(sels_file, sels_latest)
+			else:
+				os.symlink(os.path.basename(sels_file), sels_latest)
 
 		if set_last_checked:
 			self.set_last_checked()
