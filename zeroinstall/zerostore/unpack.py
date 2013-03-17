@@ -257,6 +257,8 @@ def extract_deb(stream, destdir, extract = None, start_offset = 0):
 			data_compression = 'bzip2'
 		elif line == 'data.tar.lzma':
 			data_compression = 'lzma'
+		elif line == 'data.tar.xz':
+			data_compression = 'xz'
 		else:
 			continue
 		data_tar = line
