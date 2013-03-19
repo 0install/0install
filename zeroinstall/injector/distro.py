@@ -139,11 +139,15 @@ class Distribution(object):
 	@since: 0.28
 	@ivar name: the default value for Implementation.distro_name for our implementations
 	@type name: str
+	@ivar system_paths: list of paths to search for binaries (we MUST NOT find 0install launchers, so only include directories where system packages install binaries - e.g. /usr/bin but not /usr/local/bin)
+	@type system_paths: [str]
 	"""
 
 	name = "fallback"
 
 	_packagekit = None
+
+	system_paths = ['/usr/bin', '/bin', '/usr/sbin', '/sbin']
 
 	def get_package_info(self, package, factory):
 		"""Get information about the given package.
@@ -205,11 +209,7 @@ class Distribution(object):
 				if 'run' not in impl.commands:
 					item_main = item_attrs.get('main', None)
 					if item_main:
-						if item_main.startswith('/'):
-							impl.main = item_main
-						else:
-							raise model.InvalidInterface(_("'main' attribute must be absolute, but '%s' doesn't start with '/'!") %
-										item_main)
+						impl.main = item_main
 				impl.upstream_stability = model.packaged
 
 				return impl
@@ -281,15 +281,41 @@ class Distribution(object):
 	def installed_fixup(self, impl):
 		"""Called when an installed package is added (after L{fixup}), or when installation
 		completes. This is useful to fix up the main value.
+		The default implementation checks that main exists, and searches L{DistributionImplementation.system_paths} for
+		it if not.
 		@type impl: L{DistributionImplementation}
 		@since: 1.11"""
-		pass
+
+		run = impl.commands.get('run', None)
+		if not run: return
+
+		path = run.path
+
+		if not path: return
+
+		if os.path.isabs(path) and os.path.exists(path):
+			return
+
+		basename = os.path.basename(path)
+		if os.name == "nt" and not basename.endswith('.exe'):
+			basename += '.exe'
+
+		for d in self.system_paths:
+			path = os.path.join(d, basename)
+			if os.path.isfile(path):
+				logger.info("Found %s by searching system paths", path)
+				run.qdom.attrs["path"] = path
+				return
+		else:
+			logger.info("Binary '%s' not found in any system path (checked %s)", basename, self.system_paths)
 
 	def get_score(self, distro_name):
 		return int(distro_name == self.name)
 
 class WindowsDistribution(Distribution):
 	name = 'Windows'
+
+	system_paths = []
 
 	def get_package_info(self, package, factory):
 		def _is_64bit_windows():
@@ -609,7 +635,7 @@ class DebianDistribution(Distribution):
 							"Please install it manually using your distribution's tools and try again. Or, install 'packagekit' and I can "
 							"use that to install it.") % package)
 				impl.download_sources.append(model.DistributionSource(package, cached['size'], install, needs_confirmation = False))
-	
+
 	def fixup(self, package, impl):
 		if impl.id.startswith('package:deb:openjdk-6-jre:') or \
 		   impl.id.startswith('package:deb:openjdk-7-jre:'):
@@ -624,7 +650,7 @@ class DebianDistribution(Distribution):
 		elif impl.id.startswith('package:deb:openjdk-7-jre:'):
 			java_version = '7-openjdk'
 		else:
-			return
+			return Distribution.installed_fixup(self, impl)		# super
 
 		if impl.machine == 'x86_64':
 			java_arch = 'amd64'
@@ -740,7 +766,7 @@ class RPMDistribution(CachedDistribution):
 		elif impl_id.startswith('package:rpm:java-1.7.0-openjdk:'):
 			java_version = '1.7.0-openjdk'
 		else:
-			return
+			return Distribution.installed_fixup(self, impl)		# super
 
 		# On Fedora, unlike Debian, the arch is x86_64, not amd64
 
@@ -881,6 +907,8 @@ class GentooDistribution(Distribution):
 class PortsDistribution(Distribution):
 	name = 'Ports'
 
+	system_paths = ['/usr/local/bin']
+
 	def __init__(self, pkgdir):
 		self._pkgdir = pkgdir
 
@@ -912,6 +940,8 @@ class PortsDistribution(Distribution):
 			impl.machine = machine
 
 class MacPortsDistribution(CachedDistribution):
+	system_paths = ['/opt/local/bin']
+
 	name = 'MacPorts'
 
 	def __init__(self, db_status_file):
