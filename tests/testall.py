@@ -8,7 +8,8 @@ import unittest, os, sys
 os.environ['HOME'] = '/home/idontexist'
 
 try:
-	import coverage
+	from coverage import coverage
+	coverage = coverage()
 	coverage.use_cache(False)
 	coverage.erase()
 	coverage.start()
@@ -61,4 +62,8 @@ if coverage:
 	incl('../zeroinstall/cmd')
 	incl('../zeroinstall/injector')
 	incl('../zeroinstall/zerostore')
-	coverage.report(all_sources + ['../0launch'])
+	all_sources += ['../0launch']
+	if xml:
+		coverage.xml_report(all_sources)
+	else:
+		coverage.report(all_sources)
