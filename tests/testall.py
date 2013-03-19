@@ -19,6 +19,7 @@ my_dir = os.path.dirname(sys.argv[0])
 if not my_dir:
 	my_dir=os.getcwd()
 
+xml = sys.argv[-1] == '--xml'
 sys.argv.append('-v')
 
 suite_names = [f[:-3] for f in os.listdir(my_dir)
@@ -33,14 +34,19 @@ for name in suite_names:
 	test = unittest.defaultTestLoader.loadTestsFromModule(m)
 	alltests.addTest(test)
 
-a = unittest.TextTestRunner(verbosity=2).run(alltests)
+if xml:
+    import xmlrunner
+    a = xmlrunner.XMLTestRunner(verbose=True).run(alltests)
+else:
+    a = unittest.TextTestRunner(verbosity=2).run(alltests)
 
 if coverage:
 	coverage.stop()
 else:
 	print("Coverage module not found. Skipping coverage report.")
 
-print("\nResult", a)
+if not xml:
+    print("\nResult", a)
 if not a.wasSuccessful():
 	sys.exit(1)
 
