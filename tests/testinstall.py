@@ -17,39 +17,6 @@ class Reply:
 		return self.reply
 
 class TestInstall(BaseTest):
-	def run_0install(self, args):
-		old_stdout = sys.stdout
-		old_stderr = sys.stderr
-		try:
-			sys.stdout = StringIO()
-			sys.stderr = StringIO()
-			ex = None
-			try:
-				cmd.main(args, config = self.config)
-			except NameError:
-				raise
-			except SystemExit:
-				pass
-			except TypeError:
-				raise
-			except AttributeError:
-				raise
-			except AssertionError:
-				raise
-			except ValueError:
-				raise
-			except Exception as ex2:
-				ex = ex2		# Python 3
-				raise
-			out = sys.stdout.getvalue()
-			err = sys.stderr.getvalue()
-			if ex is not None:
-				err += str(ex.__class__)
-		finally:
-			sys.stdout = old_stdout
-			sys.stderr = old_stderr
-		return (out, err)
-
 	def testHelp(self):
 		out, err = self.run_0install([])
 		assert out.lower().startswith("usage:")

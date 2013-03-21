@@ -52,6 +52,10 @@ class MyHandler(server.BaseHTTPRequestHandler):
 		       acceptable.get(leaf, None) or \
 		       acceptable.get('*', None)
 
+		if parsed.path == '/0mirror/search/':
+			q = self.path.split('?q=', 1)[1]
+			leaf = 'search-' + q + '.xml'
+
 		# (don't use a symlink as they don't work on Windows)
 		if leaf == 'latest.xml':
 			leaf = 'Hello.xml'

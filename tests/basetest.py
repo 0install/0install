@@ -19,7 +19,7 @@ sys.path.insert(0, '..')
 from zeroinstall.injector import qdom, background
 from zeroinstall.injector import iface_cache, download, distro, model, handler, reader, trust
 from zeroinstall.zerostore import NotStored, Store, Stores; Store._add_with_helper = lambda *unused, **kwargs: False
-from zeroinstall import support, apps
+from zeroinstall import support, apps, cmd
 from zeroinstall.support import basedir, tasks
 
 class BackgroundException(Exception):
@@ -248,3 +248,36 @@ class BaseTest(unittest.TestCase):
 
 		iface_cache._feeds[url] = feed
 		return feed
+
+	def run_0install(self, args):
+		old_stdout = sys.stdout
+		old_stderr = sys.stderr
+		try:
+			sys.stdout = StringIO()
+			sys.stderr = StringIO()
+			ex = None
+			try:
+				cmd.main(args, config = self.config)
+			except NameError:
+				raise
+			except SystemExit:
+				pass
+			except TypeError:
+				raise
+			except AttributeError:
+				raise
+			except AssertionError:
+				raise
+			except ValueError:
+				raise
+			except Exception as ex2:
+				ex = ex2		# Python 3
+				raise
+			out = sys.stdout.getvalue()
+			err = sys.stderr.getvalue()
+			if ex is not None:
+				err += str(ex.__class__)
+		finally:
+			sys.stdout = old_stdout
+			sys.stderr = old_stderr
+		return (out, err)

@@ -822,6 +822,18 @@ class TestDownload(BaseTest):
 			assert False
 		except download.DownloadError as ex:
 			assert "Error downloading http://localhost/missing.png" in str(ex), ex
+	
+	def testSearch(self):
+		out, err = self.run_0install(['search'])
+		assert out.lower().startswith("usage:")
+		assert 'QUERY' in out, out
+
+		run_server('/0mirror/search/')
+		self.config.mirror = 'http://example.com:8000/0mirror'
+		out, err = self.run_0install(['search', 'firefox'])
+		kill_server_process()
+		self.assertEqual("", err)
+		assert 'Firefox - Webbrowser' in out, out
 
 if __name__ == '__main__':
 	try:

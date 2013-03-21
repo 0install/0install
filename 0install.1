@@ -34,6 +34,8 @@
 
 .B 0install list \fBPATTERN\fP
 
+.B 0install search \fBQUERY\fP
+
 .B 0install add-feed [\fBINTERFACE\fP] \fBFEED\fP
 
 .B 0install remove-feed [\fBINTERFACE\fP] \fBFEED\fP
@@ -322,11 +324,18 @@ given, you will be prompted to choose which INTERFACE to remove it from.
 .PP
 List all extra feeds added to URI using `add-feed'.
 
-.SS 0install list PATTERN
+.SS 0install list [PATTERN]
 
 .PP
-List all known interface (program) URIs. If a search term is given, only
+List all locally-cached interface (program) URIs. If a search term is given, only
 URIs containing that string are shown (case insensitive).
+
+.SS 0install search QUERY
+
+.PP
+Send the query string to the mirror server and display any interfaces it returns.
+Note that the default mirror server indexes all known feeds, regardless of quality; you
+must decide whether to trust the programs before running them.
 
 .SS 0install config [NAME [VALUE]]
 
