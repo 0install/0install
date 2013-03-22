@@ -468,6 +468,19 @@ class TestDownload(BaseTest):
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main')) # first archive's main
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'HelloWorld', 'main')) # second archive, extracted to HelloWorld/
 
+	def testRecipeLocal(self):
+		recipe = model.Recipe()
+		blocker = self.config.fetcher.cook("sha256new_4OYMIQUY7QOBJGX36TEJS35ZEQT24QPEMSNZGTFESWMRW6CSXBKQ", recipe, self.config.stores)
+		tasks.wait_for_blocker(blocker)
+
+		try:
+			recipe.steps.append(model.RemoveStep("."))
+			blocker = self.config.fetcher.cook("sha256new_XXX", recipe, self.config.stores)
+			tasks.wait_for_blocker(blocker)
+			assert 0
+		except model.SafeException as ex:
+			assert "path '.' is not within the base directory" in str(ex), ex
+
 	def testExtractToNewSubdirectory(self):
 		with output_suppressed():
 			run_server(('HelloWorld.tar.bz2',))
