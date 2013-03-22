@@ -14,6 +14,7 @@ os.environ["http_proxy"] = "localhost:8000"
 from zeroinstall import helpers
 from zeroinstall.injector import model, gpg, download, trust, background, arch, selections, qdom, run
 from zeroinstall.injector.requirements import Requirements
+from zeroinstall.injector.scheduler import Site
 from zeroinstall.injector.driver import Driver
 from zeroinstall.zerostore import NotStored
 from zeroinstall.support import basedir, tasks, ro_rmtree
@@ -139,6 +140,14 @@ def run_server(*args):
 
 real_get_selections_gui = helpers.get_selections_gui
 
+# Count how many downloads we request so we can check it
+traced_downloads = None
+orig_download = Site.download
+def wrap_download(self, step):
+	traced_downloads.append(step.url)
+	return orig_download(self, step)
+Site.download = wrap_download
+
 class TestDownload(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
@@ -162,6 +171,9 @@ class TestDownload(BaseTest):
 
 		global ran_gui
 		ran_gui = False
+
+		global traced_downloads
+		traced_downloads = []
 
 	def tearDown(self):
 		# Wait for all downloads to finish, otherwise they may interfere with other tests
@@ -582,6 +594,40 @@ class TestDownload(BaseTest):
 			tasks.wait_for_blocker(downloaded)
 			path = self.config.stores.lookup_any(driver.solver.selections.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+
+	def testImplMirrorFails(self):
+		with resourcewarnings_suppressed():
+			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+			run_server('/Hello.xml',
+					'/6FCF121BE2390E0B.gpg',
+					server.Give404('/HelloWorld.tgz'),
+					server.Give404('/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'),
+					server.Give404('/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a'))
+			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
+			self.config.mirror = 'http://example.com:8000/0mirror'
+
+			refreshed = driver.solve_with_downloads()
+			tasks.wait_for_blocker(refreshed)
+			assert driver.solver.ready
+
+			getLogger().setLevel(logging.ERROR)
+			try:
+				downloaded = driver.download_uncached_implementations()
+				tasks.wait_for_blocker(downloaded)
+				assert 0
+			except download.DownloadError as ex:
+				assert 'Missing: HelloWorld.tgz' in str(ex), ex
+
+			self.assertEqual([
+				'http://example.com:8000/Hello.xml',
+				'http://example.com:8000/6FCF121BE2390E0B.gpg',
+				# The original archive:
+				'http://example.com:8000/HelloWorld.tgz',
+				# Mirror of original archive:
+				'http://example.com:8000/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz',
+				# Mirror of implementation:
+				'http://example.com:8000/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a'
+				], traced_downloads)
 
 	def testLocalFeedMirror(self):
 		with resourcewarnings_suppressed():

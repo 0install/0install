@@ -110,7 +110,7 @@ class Fetcher(object):
 
 	# (force is deprecated and ignored)
 	@tasks.async
-	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None, dry_run = False):
+	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None, dry_run = False, may_use_mirror = True):
 		"""Follow a Recipe.
 		@param impl_hint: the Implementation this is for (if any) as a hint for the GUI
 		@see: L{download_impl} uses this method when appropriate"""
@@ -122,7 +122,7 @@ class Fetcher(object):
 		try:
 			for stepdata in recipe.steps:
 				cls = StepRunner.class_for(stepdata)
-				step = cls(stepdata, impl_hint=impl_hint)
+				step = cls(stepdata, impl_hint = impl_hint, may_use_mirror = may_use_mirror)
 				step.prepare(self, blockers)
 				steps.append(step)
 
@@ -130,7 +130,6 @@ class Fetcher(object):
 				yield blockers
 				tasks.check(blockers)
 				blockers = [b for b in blockers if not b.happened]
-
 
 			if self.external_store:
 				# Note: external_store will not yet work with non-<archive> steps.
@@ -412,7 +411,8 @@ class Fetcher(object):
 				try:
 					blocker = self.cook(required_digest, method, stores,
 							impl_hint = impl,
-							dry_run = self.handler.dry_run)
+							dry_run = self.handler.dry_run,
+							may_use_mirror = original_exception is None)
 					yield blocker
 					tasks.check(blocker)
 				except download.DownloadError as ex:
@@ -639,9 +639,10 @@ class StepRunner(object):
 	"""The base class of all step runners.
 	@since: 1.10"""
 
-	def __init__(self, stepdata, impl_hint):
+	def __init__(self, stepdata, impl_hint, may_use_mirror = True):
 		self.stepdata = stepdata
 		self.impl_hint = impl_hint
+		self.may_use_mirror = may_use_mirror
 
 	def prepare(self, fetcher, blockers):
 		pass
@@ -685,7 +686,7 @@ class DownloadStepRunner(StepRunner):
 	model_type = model.DownloadSource
 
 	def prepare(self, fetcher, blockers):
-		self.blocker, self.stream = fetcher.download_archive(self.stepdata, impl_hint = self.impl_hint, may_use_mirror = True)
+		self.blocker, self.stream = fetcher.download_archive(self.stepdata, impl_hint = self.impl_hint, may_use_mirror = self.may_use_mirror)
 		assert self.stream
 		blockers.append(self.blocker)
 	
