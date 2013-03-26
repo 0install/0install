@@ -26,8 +26,7 @@ def main(command_args, config = None):
 	"""Act as if 0launch was run with the given arguments.
 	@param command_args: array of arguments (e.g. C{sys.argv[1:]})
 	@type command_args: [str]
-	@type config: L{zeroinstall.injector.config.Config} | None
-	@rtype: bool"""
+	@type config: L{zeroinstall.injector.config.Config} | None"""
 	# Ensure stdin, stdout and stderr FDs exist, to avoid confusion
 	for std in (0, 1, 2):
 		try:
@@ -135,8 +134,9 @@ def main(command_args, config = None):
 		else:
 			if len(args) < 1:
 				if options.gui:
+					# Show preferences
 					from zeroinstall import helpers
-					return helpers.get_selections_gui(None, [])
+					helpers.get_selections_gui(None, [])
 				else:
 					raise UsageError()
 			else:
