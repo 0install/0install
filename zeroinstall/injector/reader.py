@@ -22,7 +22,7 @@ class MissingLocalFeed(InvalidInterface):
 def _add_site_packages(interface, site_packages, known_site_feeds):
 	"""@type interface: L{Interface}
 	@type site_packages: str
-	@type known_site_feeds: set"""
+	@type known_site_feeds: {str}"""
 	for impl in os.listdir(site_packages):
 		if impl.startswith('.'): continue
 		feed = os.path.join(site_packages, impl, '0install', 'feed.xml')
@@ -37,14 +37,14 @@ def _add_site_packages(interface, site_packages, known_site_feeds):
 
 def update_from_cache(interface, iface_cache = None):
 	"""Read a cached interface and any native feeds or user overrides.
-	False if upstream not cached. Local interfaces (starting with /) are
-	always considered to be cached, although they are not actually stored in the cache.
-	Internal: use L{iface_cache.IfaceCache.get_interface} instread.
 	@param interface: the interface object to update
 	@type interface: L{model.Interface}
 	@type iface_cache: L{zeroinstall.injector.iface_cache.IfaceCache} | None
 	@return: True if cached version and user overrides loaded OK.
-	@rtype: bool"""
+	False if upstream not cached. Local interfaces (starting with /) are
+	always considered to be cached, although they are not actually stored in the cache.
+	@rtype: bool
+	@note: internal; use L{iface_cache.IfaceCache.get_interface} instread."""
 	interface.reset()
 	if iface_cache is None:
 		import warnings
@@ -81,7 +81,7 @@ def load_feed_from_cache(url, selections_ok = False):
 	@type url: str
 	@type selections_ok: bool
 	@return: the feed, or None if it's remote and not cached.
-	@rtype: L{ZeroInstallFeed}"""
+	@rtype: L{ZeroInstallFeed} | None"""
 	try:
 		if os.path.isabs(url):
 			logger.debug(_("Loading local feed file '%s'"), url)
@@ -143,7 +143,7 @@ def update_user_overrides(interface, known_site_feeds = frozenset()):
 	@param interface: the interface object to update
 	@type interface: L{model.Interface}
 	@param known_site_feeds: feeds to ignore (for backwards compatibility)
-	@type known_site_feeds: set"""
+	@type known_site_feeds: {str}"""
 	user = basedir.load_first_config(config_site, config_prog,
 					   'interfaces', model._pretty_escape(interface.uri))
 	if user is None:
@@ -189,7 +189,7 @@ def check_readable(feed_url, source):
 	@type source: str
 	@return: the modification time in src (usually just the mtime of the file)
 	@rtype: int
-	@raise InvalidInterface: If the source's syntax is incorrect,"""
+	@raise InvalidInterface: If the source's syntax is incorrect"""
 	try:
 		feed = load_feed(source, local = False)
 

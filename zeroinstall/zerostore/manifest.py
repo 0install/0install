@@ -58,8 +58,7 @@ class OldSHA1(Algorithm):
 	rating = 10
 
 	def generate_manifest(self, root):
-		"""@type root: str
-		@rtype: str"""
+		"""@type root: str"""
 		def recurse(sub):
 			# To ensure that a line-by-line comparison of the manifests
 			# is possible, we require that filenames don't contain newlines.
@@ -117,7 +116,7 @@ class OldSHA1(Algorithm):
 def get_algorithm(name):
 	"""Look-up an L{Algorithm} by name.
 	@type name: str
-	@rtype: L{OldSHA1}
+	@rtype: L{Algorithm}
 	@raise BadDigest: if the name is unknown."""
 	try:
 		return algorithms[name]
@@ -134,11 +133,10 @@ def add_manifest_file(dir, digest_or_alg):
 	"""Writes a .manifest file into 'dir', and returns the digest.
 	You should call fixup_permissions before this to ensure that the permissions are correct.
 	On exit, dir itself has mode 555. Subdirectories are not changed.
-	here is deprecated.
 	@param dir: root of the implementation
 	@type dir: str
-	@param digest_or_alg: should be an instance of Algorithm. Passing a digest
-	@type digest_or_alg: L{HashLibAlgorithm}"""
+	@param digest_or_alg: should be an instance of Algorithm. Passing a digest here is deprecated.
+	@type digest_or_alg: L{Algorithm}"""
 	mfile = os.path.join(dir, '.manifest')
 	if os.path.islink(mfile) or os.path.exists(mfile):
 		raise SafeException(_("Directory '%s' already contains a .manifest file!") % dir)
@@ -162,10 +160,9 @@ def add_manifest_file(dir, digest_or_alg):
 	return digest
 
 def splitID(id):
-	"""Take an ID in the form 'alg=value' and return a tuple (alg, value),
-	where 'alg' is an instance of Algorithm and 'value' is a string.
+	"""Take an ID in the form 'alg=value' and return a tuple (alg, value).
 	@type id: str
-	@rtype: tuple
+	@rtype: (L{Algorithm}, str)
 	@raise BadDigest: if the algorithm isn't known or the ID has the wrong format."""
 	alg, digest = parse_algorithm_digest_pair(id)
 	return (get_algorithm(alg), digest)
@@ -378,8 +375,8 @@ def _copy_files(alg, wanted, source, target):
 	then copy it into 'target'.
 	If it's not in wanted, warn and skip it.
 	On exit, wanted contains only files that were not found.
-	@type alg: L{HashLibAlgorithm}
-	@type wanted: dict
+	@type alg: L{Algorithm}
+	@type wanted: {str: tuple}
 	@type source: str
 	@type target: str"""
 	dir = ''
@@ -452,8 +449,7 @@ class HashLibAlgorithm(Algorithm):
 		self.rating = rating
 
 	def generate_manifest(self, root):
-		"""@type root: str
-		@rtype: str"""
+		"""@type root: str"""
 		def recurse(sub):
 			# To ensure that a line-by-line comparison of the manifests
 			# is possible, we require that filenames don't contain newlines.

@@ -203,7 +203,6 @@ class _Completion(object):
 			#else: logger.warning("%r", metavar)
 
 	def _complete_option(self, parser):
-		"""@rtype: bool"""
 		if len(self.current) < 2 or self.current.startswith('--'):
 			# Long option, or nothing yet
 			for opt in parser.option_list:

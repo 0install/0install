@@ -30,7 +30,7 @@ class Element(object):
 	def __init__(self, uri, name, attrs):
 		"""@type uri: str
 		@type name: str
-		@type attrs: dict"""
+		@type attrs: {str: str}"""
 		self.uri = uri
 		self.name = name
 		self.attrs = attrs.copy()
@@ -75,8 +75,7 @@ class Element(object):
 class QSAXhandler(object):
 	"""SAXHandler that builds a tree of L{Element}s"""
 	def __init__(self, filter_for_version = False):
-		"""if-0install-version attribute doesn't match L{zeroinstall.version} (since 1.13).
-		@param filter_for_version: skip elements if their
+		"""@param filter_for_version: skip elements if their if-0install-version attribute doesn't match L{zeroinstall.version} (since 1.13).
 		@type filter_for_version: bool
 		@rtype: bool"""
 		self.stack = []
@@ -87,7 +86,7 @@ class QSAXhandler(object):
 	
 	def startElementNS(self, fullname, attrs):
 		"""@type fullname: str
-		@type attrs: dict"""
+		@type attrs: {str: str}"""
 		split = fullname.split(' ', 1)
 		if len(split) == 2:
 			self.stack.append(Element(split[0], split[1], attrs))
@@ -116,10 +115,9 @@ class QSAXhandler(object):
 
 def parse(source, filter_for_version = False):
 	"""Parse an XML stream into a tree of L{Element}s.
-	if-0install-version attribute doesn't match L{zeroinstall.version} (since 1.13).
 	@param source: data to parse
 	@type source: file
-	@param filter_for_version: skip elements if their
+	@param filter_for_version: skip elements if their if-0install-version attribute doesn't match L{zeroinstall.version} (since 1.13).
 	@type filter_for_version: bool
 	@return: the root
 	@rtype: L{Element}"""

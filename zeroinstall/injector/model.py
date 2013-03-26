@@ -91,7 +91,7 @@ def _join_arch(osys, machine):
 	return "%s-%s" % (osys or '*', machine or '*')
 
 def _best_language_match(options):
-	"""@type options: dict
+	"""@type options: {str: str}
 	@rtype: str"""
 	(language, encoding) = locale.getlocale()
 
@@ -150,7 +150,7 @@ class Stability(object):
 def process_binding(e):
 	"""Internal
 	@type e: L{zeroinstall.injector.qdom.Element}
-	@rtype: L{OverlayBinding}"""
+	@rtype: L{Binding}"""
 	if e.name == 'environment':
 		mode = {
 			None: EnvironmentBinding.PREPEND,
@@ -184,7 +184,7 @@ def process_depends(item, local_feed_dir):
 	"""Internal
 	@type item: L{zeroinstall.injector.qdom.Element}
 	@type local_feed_dir: str
-	@rtype: L{InterfaceDependency}"""
+	@rtype: L{Dependency}"""
 	# Note: also called from selections
 	# Note: used by 0compile
 	attrs = item.attrs
@@ -265,7 +265,6 @@ class VersionRestriction(Restriction):
 
 	def __init__(self, version):
 		"""@param version: the required version number
-		@type version: [[int]]
 		@see: L{parse_version}; use this to pre-process the version number"""
 		assert not isinstance(version, str), "Not parsed: " + version
 		self.version = version
@@ -284,14 +283,13 @@ class VersionRangeRestriction(Restriction):
 
 	def __init__(self, before, not_before):
 		"""@param before: chosen versions must be earlier than this
-		@type before: [[int]]
 		@param not_before: versions must be at least this high
 		@see: L{parse_version}; use this to pre-process the versions"""
 		self.before = before
 		self.not_before = not_before
 
 	def meets_restriction(self, impl):
-		"""@type impl: L{ZeroInstallImplementation}
+		"""@type impl: L{Implementation}
 		@rtype: bool"""
 		if self.not_before and impl.version < self.not_before:
 			return False
@@ -325,7 +323,7 @@ class VersionExpressionRestriction(Restriction):
 		self._test_fn = versions.parse_version_expression(expr)
 
 	def meets_restriction(self, impl):
-		"""@type impl: L{ZeroInstallImplementation}
+		"""@type impl: L{Implementation}
 		@rtype: bool"""
 		return self._test_fn(impl.version)
 
@@ -343,7 +341,7 @@ class ImpossibleRestriction(Restriction):
 		self.reason = reason
 
 	def meets_restriction(self, impl):
-		"""@type impl: L{ZeroInstallImplementation}
+		"""@type impl: L{Implementation}
 		@rtype: bool"""
 		return False
 
@@ -364,7 +362,7 @@ class DistributionRestriction(Restriction):
 		self.distros = frozenset(distros.split(' '))
 
 	def meets_restriction(self, impl):
-		"""@type impl: L{ZeroInstallImplementation}
+		"""@type impl: L{Implementation}
 		@rtype: bool"""
 		return impl.distro_name in self.distros
 
@@ -842,7 +840,7 @@ class Implementation(object):
 
 	def __cmp__(self, other):
 		"""Newer versions come first
-		@type other: L{ZeroInstallImplementation}
+		@type other: L{Implementation}
 		@rtype: int"""
 		d = cmp(other.version, self.version)
 		if d: return d
@@ -857,7 +855,7 @@ class Implementation(object):
 		return self.id.__hash__()
 
 	def __eq__(self, other):
-		"""@type other: L{ZeroInstallImplementation}
+		"""@type other: L{Implementation}
 		@rtype: bool"""
 		return self is other
 
@@ -920,7 +918,7 @@ class DistributionImplementation(Implementation):
 	def __init__(self, feed, id, distro, package_implementation = None, distro_name = None):
 		"""@type feed: L{ZeroInstallFeed}
 		@type id: str
-		@type distro: L{zeroinstall.injector.distro.MacPortsDistribution}
+		@type distro: L{zeroinstall.injector.distro.Distribution}
 		@type package_implementation: L{zeroinstall.injector.qdom.Element} | None
 		@type distro_name: str | None"""
 		assert id.startswith('package:')
@@ -1473,7 +1471,7 @@ class ZeroInstallFeed(object):
 		"""Return the URI of the interface that replaced the one with the URI of this feed's URL.
 		This is the value of the feed's <replaced-by interface'...'/> element.
 		@return: the new URI, or None if it hasn't been replaced
-		@rtype: str
+		@rtype: str | None
 		@since: 1.7"""
 		for child in self.metadata:
 			if child.uri == XMLNS_IFACE and child.name == 'replaced-by':

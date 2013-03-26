@@ -77,7 +77,7 @@ _pola_run = None
 def type_from_url(url):
 	"""Guess the MIME type for this resource based on its URL. Returns None if we don't know what it is.
 	@type url: str
-	@rtype: str"""
+	@rtype: str | None"""
 	url = url.lower()
 	if url.endswith('.rpm'): return 'application/x-rpm'
 	if url.endswith('.deb'): return 'application/x-deb'

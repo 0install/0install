@@ -25,8 +25,8 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True
 	@type gui_args: [str]
 	@param test_callback: function to use to try running the program
 	@type test_callback: L{zeroinstall.injector.selections.Selections} -> str
-	@param use_gui: bool | None
-	@type use_gui: bool
+	@param use_gui: if True, raise a SafeException if the GUI is not available. If None, returns DontUseGUI if the GUI cannot be started. If False, returns DontUseGUI always. (since 1.11)
+	@type use_gui: bool | None
 	@return: the selected implementations
 	@rtype: L{zeroinstall.injector.selections.Selections}
 	@since: 0.28"""

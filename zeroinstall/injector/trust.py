@@ -50,7 +50,7 @@ class TrustDB(object):
 		"""Return the set of domains in which this key is trusted.
 		If the list includes '*' then the key is trusted everywhere.
 		@type fingerprint: str
-		@rtype: set
+		@rtype: {str}
 		@since: 0.27"""
 		self.ensure_uptodate()
 		return self.keys.get(fingerprint, set())
@@ -58,7 +58,7 @@ class TrustDB(object):
 	def get_keys_for_domain(self, domain):
 		"""Return the set of keys trusted for this domain.
 		@type domain: str
-		@rtype: set
+		@rtype: {str}
 		@since: 0.27"""
 		self.ensure_uptodate()
 		return set([fp for fp in self.keys
@@ -200,11 +200,11 @@ class TrustMgr(object):
 		"""We don't trust any of the signatures yet. Collect information about them and add the keys to the
 		trusted list, possibly after confirming with the user (via config.handler).
 		Updates the L{trust} database, and then calls L{trust.TrustDB.notify}.
+		@param pending: an object holding details of the updated feed
 		@type pending: L{PendingFeed}
 		@return: A blocker that triggers when the user has chosen, or None if already done.
 		@rtype: None | L{Blocker}
-		@since: 0.53
-		@arg pending: an object holding details of the updated feed"""
+		@since: 0.53"""
 
 		assert pending.sigs
 

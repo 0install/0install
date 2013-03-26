@@ -109,7 +109,7 @@ class Requirements(object):
 	def get_extra_restrictions(self, iface_cache):
 		"""Create list of L{model.Restriction}s for each interface, based on these requirements.
 		@type iface_cache: L{zeroinstall.injector.iface_cache.IfaceCache}
-		@rtype: tuple"""
+		@rtype: {L{model.Interface}: [L{model.Restriction}]}"""
 		from zeroinstall.injector import model
 
 		return dict((iface_cache.get_interface(uri), [model.VersionExpressionRestriction(expr)])

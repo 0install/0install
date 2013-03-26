@@ -18,7 +18,6 @@ syntax = "APP | URI"
 add_options = select.add_generic_select_options
 
 def handle(config, options, args):
-	"""@rtype: tuple"""
 	if len(args) != 1:
 		raise UsageError()
 

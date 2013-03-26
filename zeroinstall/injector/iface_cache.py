@@ -84,7 +84,6 @@ class PendingFeed(object):
 		to the keyring, L{recheck}.
 		@param fetcher: fetcher to manage the download (was Handler before version 1.5)
 		@type fetcher: L{fetch.Fetcher}
-		@type feed_hint: str | None
 		@param key_mirror: URL of directory containing keys, or None to use feed's directory
 		@type key_mirror: str
 		@rtype: [L{zeroinstall.support.tasks.Blocker}]"""
@@ -195,7 +194,7 @@ class IfaceCache(object):
 	__slots__ = ['_interfaces', '_feeds', '_distro', '_config']
 
 	def __init__(self, distro = None):
-		"""@param distro: distribution used to resolve "distribution:" feeds
+		"""@param distro: distribution used to fetch "distribution:" feeds (since 0.49)
 		@type distro: L{distro.Distribution}, or None to use the host distribution"""
 		self._interfaces = {}
 		self._feeds = {}
@@ -249,12 +248,11 @@ class IfaceCache(object):
 		Called by L{update_feed_if_trusted} if we trust this data.
 		After a successful update, L{writer} is used to update the feed's
 		last_checked time.
-		(used as an approximation to the feed's modification time)
 		@param feed_url: the feed being updated
 		@type feed_url: L{model.Interface}
 		@param new_xml: the downloaded replacement feed document
 		@type new_xml: str
-		@param modified_time: the timestamp of the oldest trusted signature
+		@param modified_time: the timestamp of the oldest trusted signature (used as an approximation to the feed's modification time)
 		@type modified_time: long
 		@type dry_run: bool
 		@raises ReplayAttack: if modified_time is older than the currently cached time

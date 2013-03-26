@@ -61,15 +61,14 @@ class Download(object):
 
 	def __init__(self, url, hint = None, modification_time = None, expected_size = None, auto_delete = True):
 		"""Create a new download object.
-		  The resource will not be downloaded if it was not modified since that date.
 		@param url: the resource to download
 		@type url: str
 		@param hint: object with which this download is associated (an optional hint for the GUI)
-		@type hint: L{zeroinstall.injector.model.ZeroInstallImplementation} | None
-		@param modification_time: string with HTTP date that indicates last modification time.
+		@param modification_time: string with HTTP date that indicates last modification time. The resource will not be downloaded if it was not modified since that date.
 		@type modification_time: str | None
-		@type auto_delete: str
+		@type auto_delete: bool
 		@postcondition: L{status} == L{download_fetching}."""
+		assert auto_delete in (True, False)	# XXX
 		self.url = url
 		self.hint = hint
 		self.aborted_by_user = False		# replace with _aborted?

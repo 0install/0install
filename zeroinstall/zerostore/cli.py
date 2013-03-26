@@ -22,8 +22,7 @@ def init_stores():
 class UsageError(SafeException): pass
 
 def do_manifest(args):
-	"""manifest DIRECTORY [ALGORITHM]
-	@type args: [str]"""
+	"""manifest DIRECTORY [ALGORITHM]"""
 	if len(args) < 1 or len(args) > 2: raise UsageError(_("Wrong number of arguments"))
 	if len(args) == 2:
 		alg = get_algorithm(args[1])
@@ -42,8 +41,7 @@ def do_manifest(args):
 	sys.exit(0)
 
 def do_find(args):
-	"""find DIGEST
-	@type args: [str]"""
+	"""find DIGEST"""
 	if len(args) != 1: raise UsageError(_("Wrong number of arguments"))
 	try:
 		print(stores.lookup(args[0]))
@@ -55,8 +53,7 @@ def do_find(args):
 	sys.exit(1)
 
 def do_add(args):
-	"""add DIGEST (DIRECTORY | (ARCHIVE [EXTRACT]))
-	@type args: [str]"""
+	"""add DIGEST (DIRECTORY | (ARCHIVE [EXTRACT]))"""
 	from zeroinstall.zerostore import unpack
 	if len(args) < 2: raise UsageError(_("Missing arguments"))
 	digest = args[0]
@@ -86,8 +83,7 @@ def do_add(args):
 		raise UsageError(_("No such file or directory '%s'") % args[1])
 
 def do_optimise(args):
-	"""optimise [ CACHE ]
-	@type args: [str]"""
+	"""optimise [ CACHE ]"""
 	if len(args) == 1:
 		cache_dir = args[0]
 	else:
@@ -120,8 +116,7 @@ def do_optimise(args):
 	print(_("Optimisation complete."))
 
 def do_verify(args):
-	"""verify (DIGEST | (DIRECTORY [DIGEST])
-	@type args: [str]"""
+	"""verify (DIGEST | (DIRECTORY [DIGEST])"""
 	if len(args) == 2:
 		required_digest = args[1]
 		root = args[0]
@@ -143,8 +138,7 @@ def do_verify(args):
 			sys.exit(1)
 
 def do_audit(args):
-	"""audit [DIRECTORY]
-	@type args: [str]"""
+	"""audit [DIRECTORY]"""
 	if len(args) == 0:
 		audit_stores = stores.stores
 	else:
@@ -220,8 +214,7 @@ def get_stored(dir_or_digest):
 		sys.exit(1)
 
 def do_copy(args):
-	"""copy SOURCE [ TARGET ]
-	@type args: [str]"""
+	"""copy SOURCE [ TARGET ]"""
 	if len(args) == 2:
 		source, target = args
 	elif len(args) == 1:

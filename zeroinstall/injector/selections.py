@@ -82,8 +82,8 @@ class ImplSelection(Selection):
 
 	def __init__(self, iface_uri, impl, dependencies):
 		"""@type iface_uri: str
-		@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}
-		@type dependencies: [L{zeroinstall.injector.model.InterfaceDependency}]"""
+		@type impl: L{zeroinstall.injector.model.Implementation}
+		@type dependencies: [L{zeroinstall.injector.model.Dependency}]"""
 		assert impl
 		self.impl = impl
 		self.dependencies = dependencies
@@ -119,11 +119,11 @@ class XMLSelection(Selection):
 	__slots__ = ['bindings', 'dependencies', 'attrs', 'digests', 'commands']
 
 	def __init__(self, dependencies, bindings = None, attrs = None, digests = None, commands = None):
-		"""@type dependencies: [L{zeroinstall.injector.model.InterfaceDependency}]
-		@type bindings: [L{zeroinstall.injector.model.EnvironmentBinding}] | None
-		@type attrs: dict | None
+		"""@type dependencies: [L{zeroinstall.injector.model.Dependency}]
+		@type bindings: [L{zeroinstall.injector.model.Binding}] | None
+		@type attrs: {str: str} | None
 		@type digests: [str] | None
-		@type commands: dict | None"""
+		@type commands: {str: L{Command}} | None"""
 		if bindings is None: bindings = []
 		if digests is None: digests = []
 		self.dependencies = dependencies
@@ -145,7 +145,7 @@ class XMLSelection(Selection):
 		return self.commands[name]
 
 	def get_commands(self):
-		"""@rtype: dict"""
+		"""@rtype: {str: L{Command}}"""
 		return self.commands
 
 class Selections(object):
@@ -373,8 +373,7 @@ class Selections(object):
 		@param config: used to get iface_cache, stores and fetcher
 		@param include_packages: also try to install native packages (since 1.5)
 		@type include_packages: bool
-		@return: a L{tasks.Blocker} or None
-		@rtype: L{zeroinstall.support.tasks.Blocker}"""
+		@rtype: L{zeroinstall.support.tasks.Blocker} | None"""
 		if _old:
 			config = get_deprecated_singleton_config()
 
@@ -434,7 +433,7 @@ class Selections(object):
 
 	def values(self):
 		# Deprecated
-		"""@rtype: L{zeroinstall.injector.model.ZeroInstallImplementation}"""
+		"""@rtype: L{zeroinstall.injector.model.Implementation}"""
 		for (uri, sel) in self.selections.items():
 			yield sel and sel.impl
 
@@ -447,7 +446,7 @@ class Selections(object):
 	def get(self, iface, if_missing):
 		# Deprecated
 		"""@type iface: L{zeroinstall.injector.model.Interface}
-		@rtype: L{zeroinstall.injector.model.ZeroInstallImplementation}"""
+		@rtype: L{zeroinstall.injector.model.Implementation}"""
 		sel = self.selections.get(iface.uri, None)
 		if sel:
 			return sel.impl

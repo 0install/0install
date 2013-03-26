@@ -67,7 +67,7 @@ if gobject:
 
 		@staticmethod
 		def call_later(delay, cb):
-			"""@type delay: int"""
+			"""@type delay: float"""
 			def wrapper():
 				cb()
 				return False
@@ -241,7 +241,7 @@ class TimeoutBlocker(Blocker):
 		self.trigger()
 
 def _io_callback(blocker):
-	"""@type blocker: L{InputBlocker}"""
+	"""@type blocker: L{InputBlocker} | L{OutputBlocker}"""
 	blocker._tag.cancel()
 	blocker.trigger()
 

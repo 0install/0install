@@ -58,7 +58,6 @@ def parse_version(version_string):
 
 def format_version(version):
 	"""Format a parsed version for display. Undoes the effect of L{parse_version}.
-	@type version: [[int]]
 	@rtype: str
 	@see: L{model.Implementation.get_version}
 	@since: 0.24"""

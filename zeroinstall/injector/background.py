@@ -92,7 +92,6 @@ class BackgroundHandler(handler.Handler):
 			logger.info(_("No D-BUS network manager service available: %s"), ex)
 
 	def get_network_state(self):
-		"""@rtype: int"""
 		if self.network_manager:
 			try:
 				state = self.network_manager.state()
@@ -107,8 +106,7 @@ class BackgroundHandler(handler.Handler):
 
 	def confirm_import_feed(self, pending, valid_sigs):
 		"""Run the GUI if we need to confirm any keys.
-		@type pending: L{zeroinstall.injector.iface_cache.PendingFeed}
-		@type valid_sigs: dict"""
+		@type pending: L{zeroinstall.injector.iface_cache.PendingFeed}"""
 
 		if os.environ.get('DISPLAY', None):
 			logger.info(_("Can't update feed; signature not yet trusted. Running GUI..."))
@@ -125,7 +123,6 @@ class BackgroundHandler(handler.Handler):
 
 
 	def report_error(self, exception, tb = None):
-		"""@type exception: L{zeroinstall.injector.handler.NoTrustedKeys}"""
 		from zeroinstall.injector import download
 		if isinstance(exception, download.DownloadError):
 			tb = None

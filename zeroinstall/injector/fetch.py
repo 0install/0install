@@ -125,7 +125,6 @@ class Fetcher(object):
 		@type stores: L{zeroinstall.zerostore.Stores}
 		@type force: bool
 		@param impl_hint: the Implementation this is for (if any) as a hint for the GUI
-		@type impl_hint: L{zeroinstall.injector.model.ZeroInstallImplementation} | None
 		@type dry_run: bool
 		@type may_use_mirror: bool
 		@see: L{download_impl} uses this method when appropriate"""
@@ -500,9 +499,8 @@ class Fetcher(object):
 		It is the caller's responsibility to ensure that the returned stream is closed.
 		@type download_source: L{DownloadSource}
 		@type force: bool
-		@type impl_hint: L{zeroinstall.injector.model.ZeroInstallImplementation} | None
 		@type may_use_mirror: bool
-		@rtype: tuple"""
+		@rtype: (L{Blocker}, file)"""
 		from zeroinstall.zerostore import unpack
 
 		mime_type = download_source.type
@@ -674,7 +672,6 @@ class Fetcher(object):
 		@param url: the location to download from
 		@type url: str
 		@param hint: user-defined data to store on the Download (e.g. used by the GUI)
-		@type hint: L{zeroinstall.injector.model.ZeroInstallImplementation} | None
 		@param modification_time: don't download unless newer than this
 		@param mirror_url: an altertive URL to try if this one fails
 		@type mirror_url: str
@@ -693,8 +690,7 @@ class StepRunner(object):
 	@since: 1.10"""
 
 	def __init__(self, stepdata, impl_hint, may_use_mirror = True):
-		"""@type stepdata: L{zeroinstall.injector.model.RenameStep}
-		@type impl_hint: L{zeroinstall.injector.model.ZeroInstallImplementation}
+		"""@type stepdata: L{zeroinstall.injector.model.RetrievalMethod}
 		@type may_use_mirror: bool"""
 		self.stepdata = stepdata
 		self.impl_hint = impl_hint
@@ -707,7 +703,7 @@ class StepRunner(object):
 
 	@classmethod
 	def class_for(cls, model):
-		"""@type model: L{zeroinstall.injector.model.RenameStep}"""
+		"""@type model: L{zeroinstall.injector.model.RetrievalMethod}"""
 		for subcls in cls.__subclasses__():
 			if subcls.model_type == type(model):
 				return subcls

@@ -113,8 +113,7 @@ def canonicalize_machine(machine_):
 	return machine
 
 def _get_machine_ranks(target_machine):
-	"""@type target_machine: str
-	@rtype: dict"""
+	"""@type target_machine: str"""
 	target_machine = canonicalize_machine(target_machine)
 
 	# Binaries compiled for _this_machine are best...
@@ -156,8 +155,6 @@ class Architecture(object):
 	use = frozenset([None])
 
 	def __init__(self, os_ranks, machine_ranks):
-		"""@type os_ranks: dict
-		@type machine_ranks: dict"""
 		self.os_ranks = os_ranks
 		self.machine_ranks = machine_ranks
 		self.child_arch = self

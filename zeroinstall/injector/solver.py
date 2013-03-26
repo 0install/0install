@@ -16,7 +16,7 @@ class CommandInfo(object):
 	def __init__(self, name, command, impl, arch):
 		"""@type name: str
 		@type command: L{zeroinstall.injector.model.Command}
-		@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}
+		@type impl: L{zeroinstall.injector.model.Implementation}
 		@type arch: L{zeroinstall.injector.arch.Architecture}"""
 		self.name = name
 		self.command = command
@@ -33,7 +33,7 @@ class ImplInfo(object):
 
 	def __init__(self, iface, impl, arch, dummy = False):
 		"""@type iface: L{zeroinstall.injector.model.Interface}
-		@type impl: L{_DummyImpl}
+		@type impl: L{zeroinstall.injector.model.Implementation} | L{_DummyImpl}
 		@type arch: L{zeroinstall.injector.arch.Architecture}
 		@type dummy: bool"""
 		self.iface = iface
@@ -72,11 +72,11 @@ class _ForceImpl(model.Restriction):
 	reason = "Excluded by justify_decision"		# not shown to user
 
 	def __init__(self, impl):
-		"""@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}"""
+		"""@type impl: L{zeroinstall.injector.model.Implementation}"""
 		self.impl = impl
 
 	def meets_restriction(self, impl):
-		"""@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}
+		"""@type impl: L{zeroinstall.injector.model.Implementation}
 		@rtype: bool"""
 		return impl.id == self.impl.id
 
@@ -201,9 +201,9 @@ class SATSolver(Solver):
 
 	def get_rating(self, interface, impl, arch):
 		"""@type interface: L{zeroinstall.injector.model.Interface}
-		@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}
-		@type arch: L{zeroinstall.injector.arch.SourceArchitecture}
-		@rtype: [int]"""
+		@type impl: L{zeroinstall.injector.model.Implementation}
+		@type arch: L{zeroinstall.injector.arch.Architecture}
+		@rtype: [object]"""
 		impl_langs = (impl.langs or 'en').split()
 		my_langs = self._lang_ranks
 
@@ -269,6 +269,11 @@ class SATSolver(Solver):
 		]
 
 	def solve(self, root_interface, root_arch, command_name = 'run', closest_match = False):
+		"""@type root_interface: str
+		@type root_arch: L{zeroinstall.injector.arch.Architecture}
+		@type command_name: str | None
+		@type closest_match: bool"""
+
 		# closest_match is used internally. It adds a lowest-ranked
 		# by valid implementation to every interface, so we can always
 		# select something. Useful for diagnostics.
@@ -290,10 +295,6 @@ class SATSolver(Solver):
 		# this is probably too much. We could insert a dummy optimial
 		# implementation in stale/uncached feeds and see whether it
 		# selects that.
-		"""@type root_interface: str
-		@type root_arch: L{zeroinstall.injector.arch.SourceArchitecture}
-		@type command_name: str
-		@type closest_match: bool"""
 		iface_cache = self.config.iface_cache
 
 		problem = sat.SATProblem()
@@ -1007,7 +1008,7 @@ class SATSolver(Solver):
 		selected in the normal case.
 		@type requirements: L{zeroinstall.injector.requirements.Requirements}
 		@type iface: L{zeroinstall.injector.model.Interface}
-		@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}
+		@type impl: L{zeroinstall.injector.model.Implementation}
 		@rtype: str"""
 		assert isinstance(iface, model.Interface), iface
 

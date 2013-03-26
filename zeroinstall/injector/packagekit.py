@@ -201,7 +201,6 @@ class PackageKit(object):
 class PackageKitDownload(object):
 	def __init__(self, url, hint, pk, packagekit_id, expected_size):
 		"""@type url: str
-		@type hint: L{zeroinstall.injector.model.DistributionImplementation}
 		@type packagekit_id: str
 		@type expected_size: int"""
 		self.url = url
@@ -349,7 +348,6 @@ class _PackageKitTransaction(object):
 	# note: Ubuntu's aptdaemon implementation of PackageKit crashes if passed the wrong
 	# arguments (rather than returning InvalidArgs), so always try its API first.
 	def compat_call(self, calls):
-		"""@type calls: [tuple]"""
 		for call in calls:
 			method = call[0]
 			args = call[1:]

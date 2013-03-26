@@ -35,13 +35,13 @@ class DownloadScheduler(object):
 	"""Assigns (and re-assigns on redirect) Downloads to Sites, allowing per-site limits and connection pooling.
 	@since: 1.6"""
 	def __init__(self):
-		"""@rtype: L{Site}"""
 		self._sites = defaultdict(lambda: Site())	# (scheme://host:port) -> Site
 	
 	@tasks.async
 	def download(self, dl):
-		# (changed if we get redirected)
 		"""@type dl: L{zeroinstall.injector.download.Download}"""
+
+		# (changed if we get redirected)
 		current_url = dl.url
 
 		redirections_remaining = 10

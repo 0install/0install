@@ -339,7 +339,7 @@ class Stores(object):
 	def lookup_maybe(self, digests):
 		"""Like lookup_any, but return None if it isn't found.
 		@type digests: [str]
-		@rtype: str
+		@rtype: str | None
 		@since: 0.53"""
 		assert digests
 		for digest in digests:

@@ -22,7 +22,7 @@ from zeroinstall.injector.model import SafeException
 _gnupg_options = None
 def _run_gpg(args, **kwargs):
 	"""@type args: [str]
-	@rtype: L{.usr.lib.python2.7.subprocess.Popen}"""
+	@rtype: subprocess.Popen"""
 	global _gnupg_options
 	if _gnupg_options is None:
 		gpg_path = os.environ.get('ZEROINSTALL_GPG') or find_in_path('gpg') or find_in_path('gpg2') or 'gpg'
@@ -118,7 +118,7 @@ class ErrSig(Signature):
 		return msg
 
 	def need_key(self):
-		"""@rtype: str"""
+		"""@rtype: str | None"""
 		rc = int(self.status[self.RC])
 		if rc == 9:
 			return self.status[self.KEYID]
@@ -223,7 +223,7 @@ def import_key(stream):
 
 def _check_xml_stream(stream):
 	"""@type stream: file
-	@rtype: tuple"""
+	@rtype: (file, [L{Signature}])"""
 	xml_comment_start = b'<!-- Base64 Signature'
 
 	data_to_check = stream.read()
@@ -291,14 +291,11 @@ def _check_xml_stream(stream):
 			return (stream, sigs)
 
 def check_stream(stream):
-	"""Pass stream through gpg --decrypt to get the data, the error text,
-	and a list of signatures (good or bad). If stream starts with "<?xml "
-	then get the signature from a comment at the end instead (and the returned
-	data is the original stream). stream must be seekable.
+	"""Verify the GPG signature at the end of stream.
+	stream must be seekable.
 	@type stream: file
-	@return: (data_stream, [Signatures])
-	@rtype: tuple
-	@note: Stream returned may or may not be the one passed in. Be careful!"""
+	@return: (stream, [Signatures])
+	@rtype: (file, [L{Signature}])"""
 
 	stream.seek(0)
 
@@ -317,9 +314,9 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 	If there are no signatures, throw SafeException (using errors
 	for the error message if non-empty).
 	@type status_r: file
-	@type child: L{.usr.lib.python2.7.subprocess.Popen}
+	@type child: L{subprocess.Popen}
 	@type errors: file
-	@rtype: [L{ValidSig}]"""
+	@rtype: [L{Signature}]"""
 	sigs = []
 
 	# Should we error out on bad signatures, even if there's a good

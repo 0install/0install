@@ -74,8 +74,8 @@ class Boolean(object):
 	@staticmethod
 	def format(value):
 		"""@type value: bool
-		@rtype: bool"""
-		return value
+		@rtype: str"""
+		return str(value)
 
 	@staticmethod
 	def parse(value):

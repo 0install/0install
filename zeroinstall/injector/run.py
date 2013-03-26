@@ -71,7 +71,7 @@ def _process_args(args, element, env = os.environ):
 	"""Append each <arg> under <element> to args, performing $-expansion. Also, process <for-each> loops.
 	@type args: [str]
 	@type element: L{zeroinstall.injector.qdom.Element}
-	@type env: dict"""
+	@type env: {str: str}"""
 	for child in element.childNodes:
 		if child.uri != namespaces.XMLNS_IFACE: continue
 

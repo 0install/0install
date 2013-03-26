@@ -102,8 +102,7 @@ def save_config_path(*resource):
 def load_config_paths(*resource):
 	"""Returns an iterator which gives each directory named 'resource' in the
 	configuration search path. Information provided by earlier directories should
-	take precedence over later ones (ie, the user's config dir comes first).
-	@rtype: str"""
+	take precedence over later ones (ie, the user's config dir comes first)."""
 	resource = os.path.join(*resource)
 	for config_dir in xdg_config_dirs:
 		path = os.path.join(config_dir, resource)
@@ -112,7 +111,7 @@ def load_config_paths(*resource):
 def load_first_config(*resource):
 	"""Returns the first result from load_config_paths, or None if there is nothing
 	to load.
-	@rtype: str"""
+	@rtype: str | None"""
 	for x in load_config_paths(*resource):
 		return x
 	return None
@@ -131,8 +130,7 @@ def save_cache_path(*resource):
 def load_cache_paths(*resource):
 	"""Returns an iterator which gives each directory named 'resource' in the
 	cache search path. Information provided by earlier directories should
-	take precedence over later ones (ie, the user's cache dir comes first).
-	@rtype: str"""
+	take precedence over later ones (ie, the user's cache dir comes first)."""
 	resource = os.path.join(*resource)
 	for cache_dir in xdg_cache_dirs:
 		path = os.path.join(cache_dir, resource)
@@ -141,7 +139,7 @@ def load_cache_paths(*resource):
 def load_first_cache(*resource):
 	"""Returns the first result from load_cache_paths, or None if there is nothing
 	to load.
-	@rtype: str"""
+	@rtype: str | None"""
 	for x in load_cache_paths(*resource):
 		return x
 	return None
@@ -150,7 +148,6 @@ def load_data_paths(*resource):
 	"""Returns an iterator which gives each directory named 'resource' in the
 	shared data search path. Information provided by earlier directories should
 	take precedence over later ones.
-	@rtype: str
 	@since: 0.28"""
 	resource = os.path.join(*resource)
 	for data_dir in xdg_data_dirs:
@@ -160,7 +157,7 @@ def load_data_paths(*resource):
 def load_first_data(*resource):
 	"""Returns the first result from load_data_paths, or None if there is nothing
 	to load.
-	@rtype: str
+	@rtype: str | None
 	@since: 0.28"""
 	for x in load_data_paths(*resource):
 		return x

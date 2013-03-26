@@ -119,7 +119,7 @@ class Config(object):
 		support.portable_rename(path + '.new', path)
 
 def load_config(handler = None):
-	"""@type handler: L{zeroinstall.injector.background.BackgroundHandler} | None
+	"""@type handler: L{zeroinstall.injector.handler.Handler} | None
 	@rtype: L{Config}"""
 	config = Config(handler)
 	parser = ConfigParser.RawConfigParser()

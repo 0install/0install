@@ -39,7 +39,7 @@ def read_bytes(fd, nbytes, null_ok = False):
 	@param null_ok: if True, it's OK to receive EOF immediately (we then return None)
 	@type null_ok: bool
 	@return: the bytes read
-	@rtype: str
+	@rtype: bytes
 	@raise Exception: if we received less than nbytes of data"""
 	data = b''
 	while nbytes:
@@ -99,7 +99,7 @@ def ro_rmtree(root):
 
 def raise_with_traceback(ex, tb):
 	"""Raise an exception in a way that works on Python 2 and Python 3
-	@type ex: L{zeroinstall.SafeException}"""
+	@type ex: BaseException"""
 	if hasattr(ex, 'with_traceback'):
 		raise ex					# Python 3
 	exec("raise ex, None, tb", {'ex': ex, 'tb': tb})	# Python 2
@@ -157,7 +157,7 @@ if sys.version_info[0] > 2:
 
 	def urlparse(url):
 		"""@type url: str
-		@rtype: tuple"""
+		@rtype: ParseResult"""
 		from urllib import parse
 		return parse.urlparse(url)
 else:
@@ -169,6 +169,6 @@ else:
 
 	def urlparse(url):
 		"""@type url: str
-		@rtype: tuple"""
+		@rtype: ParseResult"""
 		import urlparse
 		return urlparse.urlparse(url)
