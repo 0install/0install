@@ -5,7 +5,7 @@
 import gtk
 import sys
 
-class HelpBox:
+class HelpBox(object):
 	"""A dialog for showing longish help texts.
 	The GTK widget is not created until L{display} is called.
 	"""

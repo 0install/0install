@@ -197,7 +197,7 @@ class PackageKit(object):
 			package_names = package_names[MAX_PACKAGE_KIT_TRANSACTION_SIZE:]
 			do_batch(next_batch)
 
-class PackageKitDownload:
+class PackageKitDownload(object):
 	def __init__(self, url, hint, pk, packagekit_id, expected_size):
 		self.url = url
 		self.status = download.download_fetching

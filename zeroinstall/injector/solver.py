@@ -12,7 +12,7 @@ import collections
 from zeroinstall.injector.reader import MissingLocalFeed
 from zeroinstall.injector import model, sat, selections, arch, qdom
 
-class CommandInfo:
+class CommandInfo(object):
 	def __init__(self, name, command, impl, arch):
 		self.name = name
 		self.command = command
@@ -23,7 +23,7 @@ class CommandInfo:
 		name = "%s_%s_%s_%s" % (self.impl.feed.get_name(), self.impl.get_version(), self.impl.arch, self.name)
 		return name.replace('-', '_').replace('.', '_')
 
-class ImplInfo:
+class ImplInfo(object):
 	is_dummy = False
 
 	def __init__(self, iface, impl, arch, dummy = False):

@@ -74,7 +74,7 @@ def get_tooltip_text(config, interface, impl):
 	else:
 		return _("No downloads available!")
 
-class ImplementationList:
+class ImplementationList(object):
 	tree_view = None
 	model = None
 	interface = None

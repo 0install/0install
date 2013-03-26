@@ -66,7 +66,7 @@ class Element(object):
 			elem.appendChild(doc.createTextNode(self.content))
 		return elem
 
-class QSAXhandler:
+class QSAXhandler(object):
 	"""SAXHandler that builds a tree of L{Element}s"""
 	def __init__(self, filter_for_version = False):
 		"""@param filter_for_version: skip elements if their
@@ -120,7 +120,7 @@ def parse(source, filter_for_version = False):
 	parser.ParseFile(source)
 	return handler.doc
 
-class Prefixes:
+class Prefixes(object):
 	"""Keep track of namespace prefixes. Used when serialising a document.
 	@since: 0.54
 	"""

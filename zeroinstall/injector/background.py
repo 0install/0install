@@ -17,7 +17,7 @@ from zeroinstall.injector import handler
 def _escape_xml(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')
 
-class _NetworkState:
+class _NetworkState(object):
 	NM_STATE_UNKNOWN = 0
 	NM_STATE_ASLEEP = 10
 	NM_STATE_DISCONNECTED = 20

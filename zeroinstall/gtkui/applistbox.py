@@ -16,7 +16,7 @@ gtk2 = sys.version_info[0] < 3
 def _pango_escape(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')
 
-class AppList:
+class AppList(object):
 	"""A list of applications which can be displayed in an L{AppListBox}.
 	For example, a program might implement this to display a list of plugins.
 	This default implementation lists applications in the freedesktop.org menus.
@@ -38,7 +38,7 @@ _tooltips = {
 	3: _("Remove launcher from the menu"),
 }
 
-class AppListBox:
+class AppListBox(object):
 	"""A dialog box which lists applications already added to the menus."""
 	ICON, URI, NAME, MARKUP = range(4)
 

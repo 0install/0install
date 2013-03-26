@@ -26,12 +26,12 @@ default_port = {
 	'https': 443,
 }
 
-class DownloadStep:
+class DownloadStep(object):
 	url = None
 	status = None
 	redirect = None
 
-class DownloadScheduler:
+class DownloadScheduler(object):
 	"""Assigns (and re-assigns on redirect) Downloads to Sites, allowing per-site limits and connection pooling.
 	@since: 1.6"""
 	def __init__(self):
@@ -114,7 +114,7 @@ def _spawn_thread(step):
 
 	return thread_blocker
 
-class Site:
+class Site(object):
 	"""Represents a service accepting download requests. All requests with the same scheme, host and port are
 	handled by the same Site object, allowing it to do connection pooling and queuing, although the current
 	implementation doesn't do either."""

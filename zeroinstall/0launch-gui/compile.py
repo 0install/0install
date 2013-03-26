@@ -11,7 +11,7 @@ from zeroinstall.injector import model, selections, qdom
 
 XMLNS_0COMPILE = 'http://zero-install.sourceforge.net/2006/namespaces/0compile'
 
-class Command:
+class Command(object):
 	def __init__(self):
 		self.child = None
 		self.error = b""

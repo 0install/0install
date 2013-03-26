@@ -39,13 +39,13 @@ from zeroinstall import _, support, logger, gobject
 import sys
 
 if gobject:
-	class _Handler:
+	class _Handler(object):
 		def cancel(self):
 			if self.tag is not None:
 				gobject.source_remove(self.tag)
 				self.tag = None
 
-	class loop:
+	class loop(object):
 		@staticmethod
 		def call_soon_threadsafe(cb):
 			def wrapper():
@@ -94,7 +94,7 @@ else:
 		import tulip
 	except ImportError:
 		# Delay the error until we actually need a mainloop
-		class Fail:
+		class Fail(object):
 			def __getattr__(self, x):
 				raise Exception("No mainloop available: install python3-gi or tulip")
 		tulip = loop = Fail()
@@ -128,7 +128,7 @@ def check(blockers, reporter = None):
 	if ex:
 		support.raise_with_traceback(ex[0], ex[1])
 
-class Blocker:
+class Blocker(object):
 	"""A Blocker object starts life with 'happened = False'. Tasks can
 	ask to be suspended until 'happened = True'. The value is changed
 	by a call to trigger().
@@ -275,7 +275,7 @@ class OutputBlocker(Blocker):
 
 _idle_blocker = IdleBlocker("(idle)")
 
-class Task:
+class Task(object):
 	"""Create a new Task when you have some long running function to
 	run in the background, but which needs to do work in 'chunks'.
 	Example:

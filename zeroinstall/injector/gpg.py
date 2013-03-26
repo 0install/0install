@@ -113,7 +113,7 @@ class ErrSig(Signature):
 			return self.status[self.KEYID]
 		return None
 
-class Key:
+class Key(object):
 	"""A GPG key.
 	@since: 0.27
 	@param fingerprint: the fingerprint of the key

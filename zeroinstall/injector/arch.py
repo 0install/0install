@@ -133,7 +133,7 @@ def _get_machine_ranks(target_machine):
 
 machine_ranks = _get_machine_ranks(_uname[-1])
 
-class Architecture:
+class Architecture(object):
 	"""A description of an architecture. Use by L{solver} to make sure it chooses
 	compatible versions.
 	@ivar os_ranks: supported operating systems and their desirability

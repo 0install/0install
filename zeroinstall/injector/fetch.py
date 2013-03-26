@@ -32,7 +32,7 @@ def _get_feed_dir(feed):
 			raise SafeException(_("Invalid URL '%s'") % feed)
 	return '/'.join(['feeds', scheme, domain, _escape_slashes(rest)])
 
-class KeyInfoFetcher:
+class KeyInfoFetcher(object):
 	"""Fetches information about a GPG key from a key-info server.
 	See L{Fetcher.fetch_key_info} for details.
 	@since: 0.42

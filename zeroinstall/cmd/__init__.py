@@ -31,7 +31,7 @@ def _ensure_standard_fds():
 				os.dup2(fd, std)
 				os.close(fd)
 
-class NoCommand:
+class NoCommand(object):
 	"""Handle --help and --version"""
 
 	def add_options(self, parser):

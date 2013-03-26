@@ -57,7 +57,7 @@ _command_template = """#!/bin/sh
 exec 0install run {app} "$@"
 """
 
-class AppScriptInfo:
+class AppScriptInfo(object):
 	"""@since: 1.12"""
 	name = None
 	command = None
@@ -88,7 +88,7 @@ def parse_script_header(stream):
 	info.name = line.split()[3]
 	return info
 
-class App:
+class App(object):
 	def __init__(self, config, path):
 		self.config = config
 		self.path = path
@@ -445,7 +445,7 @@ class App:
 	def __str__(self):
 		return '<app ' + self.get_name() + '>'
 
-class AppManager:
+class AppManager(object):
 	def __init__(self, config):
 		self.config = config
 

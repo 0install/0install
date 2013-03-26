@@ -302,7 +302,7 @@ class InvalidFeed(CachedFeed):
 			tooltip=self.ex,
 			object=self))
 	
-class LocalImplementation:
+class LocalImplementation(object):
 	may_delete = False
 
 	def __init__(self, impl):
@@ -315,7 +315,7 @@ class LocalImplementation:
 			object=self))
 
 
-class CachedImplementation:
+class CachedImplementation(object):
 	may_delete = True
 
 	def __init__(self, cache_dir, digest):
@@ -421,7 +421,7 @@ class KnownImplementation(CachedImplementation):
 		def __eq__(self, other):
 			return self.impl.__eq__(other.impl)
 
-class CacheExplorer:
+class CacheExplorer(object):
 	"""A graphical interface for viewing the cache and deleting old items."""
 
 	def __init__(self, iface_cache):

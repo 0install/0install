@@ -24,7 +24,7 @@ exec 0launch %s'%s' "$@"
 class NotAnAliasScript(SafeException):
 	pass
 
-class ScriptInfo:
+class ScriptInfo(object):
 	"""@since: 1.3"""
 	uri = None
 	main = None

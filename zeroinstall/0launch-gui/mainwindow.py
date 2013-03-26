@@ -18,7 +18,7 @@ ngettext = translation.ngettext
 
 SHOW_PREFERENCES = 0
 
-class MainWindow:
+class MainWindow(object):
 	progress = None
 	progress_area = None
 	browser = None

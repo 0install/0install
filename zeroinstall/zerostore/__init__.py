@@ -80,7 +80,7 @@ def format_algorithm_digest_pair(alg, digest):
 	_validate_pair(result)
 	return result
 
-class Store:
+class Store(object):
 	"""A directory for storing implementations."""
 
 	def __init__(self, dir, public = False):

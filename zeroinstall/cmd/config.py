@@ -16,7 +16,7 @@ syntax = "[NAME [VALUE]]"
 def add_options(parser):
 	pass
 
-class String:
+class String(object):
 	@staticmethod
 	def format(value):
 		return value
@@ -25,7 +25,7 @@ class String:
 	def parse(value):
 		return value
 
-class TimeInterval:
+class TimeInterval(object):
 	@staticmethod
 	def format(value):
 		def s(v):
@@ -62,7 +62,7 @@ class TimeInterval:
 			return int(v)
 		raise SafeException(_('Unknown unit "%s" - use e.g. 5d for 5 days') % unit)
 
-class Boolean:
+class Boolean(object):
 	@staticmethod
 	def format(value):
 		return value

@@ -32,7 +32,7 @@ from zeroinstall.zerostore import BadDigest, parse_algorithm_digest_pair, format
 import hashlib
 sha1_new = hashlib.sha1
 
-class Algorithm:
+class Algorithm(object):
 	"""Abstract base class for algorithms.
 	An algorithm knows how to generate a manifest from a directory tree.
 	@ivar rating: how much we like this algorithm (higher is better)

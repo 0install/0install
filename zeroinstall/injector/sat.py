@@ -40,7 +40,7 @@ def watch_index(lit):
 	return neg(lit) * 2 + 1
 
 def makeAtMostOneClause(solver):
-	class AtMostOneClause:
+	class AtMostOneClause(object):
 		def __init__(self, lits):
 			"""Preferred literals come first."""
 			self.lits = lits
@@ -127,7 +127,7 @@ def makeAtMostOneClause(solver):
 	return AtMostOneClause
 
 def makeUnionClause(solver):
-	class UnionClause:
+	class UnionClause(object):
 		def __init__(self, lits):
 			self.lits = lits
 		
