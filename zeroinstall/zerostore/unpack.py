@@ -436,7 +436,7 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 			if not unlzma:
 				unlzma = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unlzma'))
 			temp = tempfile.NamedTemporaryFile(suffix='.tar', mode='w+b')
-			subprocess.check_call((unlzma), stdin=stream, stdout=temp)
+			subprocess.check_call([unlzma], stdin=stream, stdout=temp)
 			rmode = 'r|'
 			stream = temp
 		elif decompress == 'xz':
@@ -444,7 +444,7 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 			if not unxz:
 				unxz = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unxz'))
 			temp = tempfile.NamedTemporaryFile(suffix='.tar', mode='w+b')
-			subprocess.check_call((unxz), stdin=stream, stdout=temp)
+			subprocess.check_call([unxz], stdin=stream, stdout=temp)
 			rmode = 'r|'
 			stream = temp
 		else:
