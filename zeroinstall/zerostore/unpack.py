@@ -34,6 +34,7 @@ def _gnu_cpio():
 
 _tar_version = None
 def _get_tar_version():
+	"""@rtype: str"""
 	global _tar_version
 	if _tar_version is None:
 		child = subprocess.Popen(['tar', '--version'], stdout = subprocess.PIPE,
@@ -46,12 +47,14 @@ def _get_tar_version():
 	return _tar_version
 
 def _gnu_tar():
+	"""@rtype: bool"""
 	gnu_tar = '(GNU tar)' in _get_tar_version()
 	logger.debug(_("Is GNU tar = %s"), gnu_tar)
 	return gnu_tar
 
 def recent_gnu_tar():
-	"""@deprecated: should be private"""
+	"""@rtype: bool
+	@deprecated: should be private"""
 	recent_gnu_tar = False
 	if _gnu_tar():
 		version = re.search(r'\)\s*(\d+(\.\d+)*)', _get_tar_version())
@@ -72,7 +75,9 @@ _pola_run = None
 #	info('pola-run not found; archive extraction will not be sandboxed')
 
 def type_from_url(url):
-	"""Guess the MIME type for this resource based on its URL. Returns None if we don't know what it is."""
+	"""Guess the MIME type for this resource based on its URL. Returns None if we don't know what it is.
+	@type url: str
+	@rtype: str"""
 	url = url.lower()
 	if url.endswith('.rpm'): return 'application/x-rpm'
 	if url.endswith('.deb'): return 'application/x-deb'
@@ -93,6 +98,7 @@ def type_from_url(url):
 
 def check_type_ok(mime_type):
 	"""Check we have the needed software to extract from an archive of the given type.
+	@type mime_type: str
 	@raise SafeException: if the needed software is not available"""
 	assert mime_type
 	if mime_type == 'application/x-rpm':
@@ -152,6 +158,12 @@ def unpack_archive_over(url, data, destdir, extract = None, type = None, start_o
 	then move things over, checking that we're not following symlinks at each stage.
 	Use this when you want to unpack an unarchive into a directory which already has
 	stuff in it.
+	@type url: str
+	@type data: file
+	@type destdir: str
+	@type extract: str | None
+	@type type: str | None
+	@type start_offset: int
 	@note: Since 0.49, the leading "extract" component is removed (unlike unpack_archive).
 	@since: 0.28"""
 	import stat
@@ -207,7 +219,13 @@ def unpack_archive_over(url, data, destdir, extract = None, type = None, start_o
 def unpack_archive(url, data, destdir, extract = None, type = None, start_offset = 0):
 	"""Unpack stream 'data' into directory 'destdir'. If extract is given, extract just
 	that sub-directory from the archive (i.e. destdir/extract will exist afterwards).
-	Works out the format from the name."""
+	Works out the format from the name.
+	@type url: str
+	@type data: file
+	@type destdir: str
+	@type extract: str | None
+	@type type: str | None
+	@type start_offset: int"""
 	if type is None: type = type_from_url(url)
 	if type is None: raise SafeException(_("Unknown extension (and no MIME type given) in '%s'") % url)
 	if type == 'application/x-bzip-compressed-tar':
@@ -236,6 +254,9 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 		raise SafeException(_('Unknown MIME type "%(type)s" for "%(url)s"') % {'type': type, 'url': url})
 
 def extract_deb(stream, destdir, extract = None, start_offset = 0):
+	"""@type stream: file
+	@type destdir: str
+	@type start_offset: int"""
 	if extract:
 		raise SafeException(_('Sorry, but the "extract" attribute is not yet supported for Debs'))
 
@@ -313,7 +334,10 @@ def extract_rpm(stream, destdir, extract = None, start_offset = 0):
 		os.unlink(cpiopath)
 
 def extract_gem(stream, destdir, extract = None, start_offset = 0):
-	"@since: 0.53"
+	"""@type stream: file
+	@type destdir: str
+	@type start_offset: int
+	@since: 0.53"""
 	stream.seek(start_offset)
 	payload = 'data.tar.gz'
 	payload_stream = None
@@ -328,7 +352,7 @@ def extract_gem(stream, destdir, extract = None, start_offset = 0):
 		ro_rmtree(tmpdir)
 
 def extract_cab(stream, destdir, extract, start_offset = 0):
-	"@since: 0.24"
+	"""@since: 0.24"""
 	if extract:
 		raise SafeException(_('Sorry, but the "extract" attribute is not yet supported for Cabinet files'))
 
@@ -343,7 +367,7 @@ def extract_cab(stream, destdir, extract, start_offset = 0):
 	os.unlink(cab_copy_name)
 
 def extract_dmg(stream, destdir, extract, start_offset = 0):
-	"@since: 0.46"
+	"""@since: 0.46"""
 	if extract:
 		raise SafeException(_('Sorry, but the "extract" attribute is not yet supported for DMGs'))
 
@@ -362,6 +386,10 @@ def extract_dmg(stream, destdir, extract, start_offset = 0):
 	os.unlink(dmg_copy_name)
 
 def extract_zip(stream, destdir, extract, start_offset = 0):
+	"""@type stream: file
+	@type destdir: str
+	@type extract: str
+	@type start_offset: int"""
 	if extract:
 		# Limit the characters we accept, to avoid sending dodgy
 		# strings to zip
@@ -383,6 +411,11 @@ def extract_zip(stream, destdir, extract, start_offset = 0):
 	os.unlink(zip_copy_name)
 
 def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
+	"""@type stream: file
+	@type destdir: str
+	@type extract: str
+	@type decompress: str
+	@type start_offset: int"""
 	if extract:
 		# Limit the characters we accept, to avoid sending dodgy
 		# strings to tar
@@ -509,7 +542,11 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 	
 def _extract(stream, destdir, command, start_offset = 0):
 	"""Run execvp('command') inside destdir in a child process, with
-	stream seeked to 'start_offset' as stdin."""
+	stream seeked to 'start_offset' as stdin.
+	@type stream: file
+	@type destdir: str
+	@type command: [str]
+	@type start_offset: int"""
 
 	# Some zip archives are missing timezone information; force consistent results
 	child_env = os.environ.copy()

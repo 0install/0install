@@ -17,6 +17,7 @@ import re
 # See the README file for details, or visit http://0install.net.
 
 def _under_escape(m):
+	"""@rtype: str"""
 	c = m.group(0)
 	if c == '/':
 		return '__'
@@ -24,6 +25,7 @@ def _under_escape(m):
 		return '_%x_' % ord(c)
 
 def _ununder_escape(m):
+	"""@rtype: str"""
 	c = m.group(1)
 	if c == "":
 		return "/"
@@ -53,4 +55,6 @@ def underscore_escape(src):
 _escaped_code_re = re.compile('_([0-9a-fA-F]*)_')
 
 def ununderscore_escape(escaped):
+	"""@type escaped: str
+	@rtype: str"""
 	return _escaped_code_re.sub(_ununder_escape, escaped)

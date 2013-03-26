@@ -16,6 +16,7 @@ import re, os, time, tempfile
 valid_name = re.compile(r'''^[^./\\:=;'"][^/\\:=;'"]*$''')
 
 def validate_name(name):
+	"""@type name: str"""
 	if name == '0install':
 		raise SafeException("Creating an app called '0install' would cause trouble; try e.g. '00install' instead")
 	if valid_name.match(name): return
@@ -30,7 +31,9 @@ def _export(name, value):
 
 def find_bin_dir(paths = None):
 	"""Find the first writable path in the list (default $PATH),
-	skipping /bin, /sbin and everything under /usr except /usr/local/bin"""
+	skipping /bin, /sbin and everything under /usr except /usr/local/bin
+	@type paths: [str] | None
+	@rtype: str"""
 	if paths is None:
 		paths = os.environ['PATH'].split(os.pathsep)
 	for path in paths:
@@ -90,13 +93,16 @@ def parse_script_header(stream):
 
 class App(object):
 	def __init__(self, config, path):
+		"""@type path: str"""
 		self.config = config
 		self.path = path
 
 	def set_selections(self, sels, set_last_checked = True):
 		"""Store a new set of selections. We include today's date in the filename
 		so that we keep a history of previous selections (max one per day), in case
-		we want to to roll back later."""
+		we want to to roll back later.
+		@type sels: L{zeroinstall.injector.selections.Selections}
+		@type set_last_checked: bool"""
 		date = time.strftime('%Y-%m-%d')
 		sels_file = os.path.join(self.path, 'selections-{date}.xml'.format(date = date))
 		dom = sels.toDOM()
@@ -132,10 +138,10 @@ class App(object):
 	def get_selections(self, snapshot_date = None, may_update = False, use_gui = None):
 		"""Load the selections.
 		If may_update is True then the returned selections will be cached and available.
-		@param may_update: whether to check for updates
-		@type may_update: bool
 		@param snapshot_date: get a historical snapshot
 		@type snapshot_date: (as returned by L{get_history}) | None
+		@param may_update: whether to check for updates
+		@type may_update: bool
 		@param use_gui: whether to use the GUI for foreground updates
 		@type use_gui: bool | None (never/always/if possible)
 		@return: the selections
@@ -167,6 +173,7 @@ class App(object):
 
 	def download_selections(self, sels):
 		"""Download any missing implementations.
+		@type sels: L{zeroinstall.injector.selections.Selections}
 		@return: a blocker which resolves when all needed implementations are available
 		@rtype: L{tasks.Blocker} | None"""
 		return sels.download_missing(self.config)	# TODO: package impls
@@ -180,6 +187,8 @@ class App(object):
 		we update the app's selections and return the new selections.
 		If we can't use the current selections, we update in the foreground.
 		We also schedule a background update from time-to-time anyway.
+		@type sels: L{zeroinstall.injector.selections.Selections}
+		@type use_gui: bool
 		@return: the selections to use
 		@rtype: L{selections.Selections}"""
 		need_solve = False		# Rerun solver (cached feeds have changed)
@@ -299,7 +308,9 @@ class App(object):
 
 	def _foreground_update(self, driver, use_gui):
 		"""We can't run with saved selections or solved selections without downloading.
-		Try to open the GUI for a blocking download. If we can't do that, download without the GUI."""
+		Try to open the GUI for a blocking download. If we can't do that, download without the GUI.
+		@type driver: L{zeroinstall.injector.driver.Driver}
+		@rtype: L{zeroinstall.injector.selections.Selections}"""
 		from zeroinstall import helpers
 		from zeroinstall.support import tasks
 
@@ -319,6 +330,7 @@ class App(object):
 		return sels
 
 	def set_requirements(self, requirements):
+		"""@type requirements: L{zeroinstall.injector.requirements.Requirements}"""
 		reqs_file = os.path.join(self.path, 'requirements.json')
 		if self.config.handler.dry_run:
 			print(_("[dry-run] would write {file}").format(file = reqs_file))
@@ -336,6 +348,7 @@ class App(object):
 			portable_rename(tmp.name, reqs_file)
 
 	def get_requirements(self):
+		"""@rtype: L{zeroinstall.injector.requirements.Requirements}"""
 		import json
 		from zeroinstall.injector import requirements
 		r = requirements.Requirements(None)
@@ -364,6 +377,7 @@ class App(object):
 		self._touch('last-checked')
 
 	def _touch(self, name):
+		"""@type name: str"""
 		timestamp_path = os.path.join(self.path, name)
 		if self.config.handler.dry_run:
 			pass #print(_("[dry-run] would update timestamp file {file}").format(file = timestamp_path))
@@ -373,6 +387,9 @@ class App(object):
 			os.utime(timestamp_path, None)	# In case file already exists
 
 	def _get_mtime(self, name, warn_if_missing = True):
+		"""@type name: str
+		@type warn_if_missing: bool
+		@rtype: int"""
 		timestamp_path = os.path.join(self.path, name)
 		try:
 			return os.stat(timestamp_path).st_mtime
@@ -424,6 +441,7 @@ class App(object):
 
 	def integrate_shell(self, name):
 		# TODO: remember which commands we create
+		"""@type name: str"""
 		if not valid_name.match(name):
 			raise SafeException("Invalid shell command name '{name}'".format(name = name))
 		bin_dir = find_bin_dir()
@@ -440,16 +458,22 @@ class App(object):
 				os.chmod(launcher, 0o111 | os.fstat(stream.fileno()).st_mode)
 
 	def get_name(self):
+		"""@rtype: str"""
 		return os.path.basename(self.path)
 
 	def __str__(self):
+		"""@rtype: str"""
 		return '<app ' + self.get_name() + '>'
 
 class AppManager(object):
 	def __init__(self, config):
+		"""@type config: L{zeroinstall.injector.config.Config}"""
 		self.config = config
 
 	def create_app(self, name, requirements):
+		"""@type name: str
+		@type requirements: L{zeroinstall.injector.requirements.Requirements}
+		@rtype: L{App}"""
 		validate_name(name)
 
 		apps_dir = basedir.save_config_path(namespaces.config_site, "apps")
@@ -472,7 +496,10 @@ class AppManager(object):
 		"""Get the App for name.
 		Returns None if name is not an application (doesn't exist or is not a valid name).
 		Since / and : are not valid name characters, it is generally safe to try this
-		before calling L{injector.model.canonical_iface_uri}."""
+		before calling L{injector.model.canonical_iface_uri}.
+		@type name: str
+		@type missing_ok: bool
+		@rtype: L{App}"""
 		if not valid_name.match(name):
 			if missing_ok:
 				return None
@@ -487,6 +514,7 @@ class AppManager(object):
 			raise SafeException("No such application '{name}'".format(name = name))
 
 	def iterate_apps(self):
+		"""@rtype: str"""
 		seen = set()
 		for apps_dir in basedir.load_config_paths(namespaces.config_site, "apps"):
 			for name in os.listdir(apps_dir):

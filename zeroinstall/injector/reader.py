@@ -20,6 +20,9 @@ class MissingLocalFeed(InvalidInterface):
 	pass
 
 def _add_site_packages(interface, site_packages, known_site_feeds):
+	"""@type interface: L{Interface}
+	@type site_packages: str
+	@type known_site_feeds: set"""
 	for impl in os.listdir(site_packages):
 		if impl.startswith('.'): continue
 		feed = os.path.join(site_packages, impl, '0install', 'feed.xml')
@@ -34,12 +37,13 @@ def _add_site_packages(interface, site_packages, known_site_feeds):
 
 def update_from_cache(interface, iface_cache = None):
 	"""Read a cached interface and any native feeds or user overrides.
-	@param interface: the interface object to update
-	@type interface: L{model.Interface}
-	@return: True if cached version and user overrides loaded OK.
 	False if upstream not cached. Local interfaces (starting with /) are
 	always considered to be cached, although they are not actually stored in the cache.
 	Internal: use L{iface_cache.IfaceCache.get_interface} instread.
+	@param interface: the interface object to update
+	@type interface: L{model.Interface}
+	@type iface_cache: L{zeroinstall.injector.iface_cache.IfaceCache} | None
+	@return: True if cached version and user overrides loaded OK.
 	@rtype: bool"""
 	interface.reset()
 	if iface_cache is None:
@@ -74,7 +78,10 @@ def update_from_cache(interface, iface_cache = None):
 
 def load_feed_from_cache(url, selections_ok = False):
 	"""Load a feed. If the feed is remote, load from the cache. If local, load it directly.
-	@return: the feed, or None if it's remote and not cached."""
+	@type url: str
+	@type selections_ok: bool
+	@return: the feed, or None if it's remote and not cached.
+	@rtype: L{ZeroInstallFeed}"""
 	try:
 		if os.path.isabs(url):
 			logger.debug(_("Loading local feed file '%s'"), url)
@@ -94,8 +101,8 @@ def update_user_feed_overrides(feed):
 	"""Update a feed with user-supplied information.
 	Sets last_checked and user_stability ratings.
 	@param feed: feed to update
-	@since 0.49
-	"""
+	@type feed: L{ZeroInstallFeed}
+	@since 0.49"""
 	user = basedir.load_first_config(config_site, config_prog,
 					   'feeds', model._pretty_escape(feed.url))
 	if user is None:
@@ -136,7 +143,7 @@ def update_user_overrides(interface, known_site_feeds = frozenset()):
 	@param interface: the interface object to update
 	@type interface: L{model.Interface}
 	@param known_site_feeds: feeds to ignore (for backwards compatibility)
-	"""
+	@type known_site_feeds: set"""
 	user = basedir.load_first_config(config_site, config_prog,
 					   'interfaces', model._pretty_escape(interface.uri))
 	if user is None:
@@ -182,8 +189,7 @@ def check_readable(feed_url, source):
 	@type source: str
 	@return: the modification time in src (usually just the mtime of the file)
 	@rtype: int
-	@raise InvalidInterface: If the source's syntax is incorrect,
-	"""
+	@raise InvalidInterface: If the source's syntax is incorrect,"""
 	try:
 		feed = load_feed(source, local = False)
 
@@ -209,8 +215,11 @@ def update(interface, source, local = False, iface_cache = None):
 	@param source: the name of the file to read
 	@type source: str
 	@param local: use file's mtime for last-modified, and uri attribute is ignored
-	@raise InvalidInterface: if the source's syntax is incorrect
+	@type local: bool
+	@type iface_cache: L{zeroinstall.injector.iface_cache.IfaceCache} | None
 	@return: the new feed (since 0.32)
+	@rtype: L{ZeroInstallFeed}
+	@raise InvalidInterface: if the source's syntax is incorrect
 	@see: L{update_from_cache}, which calls this"""
 	assert isinstance(interface, Interface)
 
@@ -240,8 +249,9 @@ def load_feed(source, local = False, selections_ok = False):
 	@type local: bool
 	@param selections_ok: if it turns out to be a local selections document, return that instead
 	@type selections_ok: bool
-	@raise InvalidInterface: if the source's syntax is incorrect
 	@return: the new feed
+	@rtype: L{ZeroInstallFeed}
+	@raise InvalidInterface: if the source's syntax is incorrect
 	@since: 0.48
 	@see: L{iface_cache.iface_cache}, which uses this to load the feeds"""
 	try:

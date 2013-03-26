@@ -17,9 +17,10 @@ def find_in_path(prog):
 	"""Search $PATH for prog.
 	If prog is an absolute path, return it unmodified.
 	@param prog: name of executable to find
+	@type prog: str
 	@return: the full path of prog, or None if not found
-	@since: 0.27
-	"""
+	@rtype: str
+	@since: 0.27"""
 	if os.path.isabs(prog): return prog
 	if os.name == "nt":
 		prog += '.exe'
@@ -32,11 +33,14 @@ def find_in_path(prog):
 def read_bytes(fd, nbytes, null_ok = False):
 	"""Read exactly nbytes from fd.
 	@param fd: file descriptor to read from
+	@type fd: int
 	@param nbytes: number of bytes to read
+	@type nbytes: int
 	@param null_ok: if True, it's OK to receive EOF immediately (we then return None)
+	@type null_ok: bool
 	@return: the bytes read
-	@raise Exception: if we received less than nbytes of data
-	"""
+	@rtype: str
+	@raise Exception: if we received less than nbytes of data"""
 	data = b''
 	while nbytes:
 		got = os.read(fd, nbytes)
@@ -94,7 +98,8 @@ def ro_rmtree(root):
 		shutil.rmtree(root)
 
 def raise_with_traceback(ex, tb):
-	"""Raise an exception in a way that works on Python 2 and Python 3"""
+	"""Raise an exception in a way that works on Python 2 and Python 3
+	@type ex: L{zeroinstall.SafeException}"""
 	if hasattr(ex, 'with_traceback'):
 		raise ex					# Python 3
 	exec("raise ex, None, tb", {'ex': ex, 'tb': tb})	# Python 2
@@ -104,6 +109,8 @@ def portable_rename(src, dst):
 	"""Rename 'src' to 'dst', which must be on the same filesystem.
 	On POSIX systems, this operation is atomic.
 	On Windows, do the best we can by deleting dst and then renaming.
+	@type src: str
+	@type dst: str
 	@since: 1.9"""
 	if os.name == "nt" and os.path.exists(dst):
 		os.unlink(dst)
@@ -112,6 +119,8 @@ def portable_rename(src, dst):
 def windows_args_escape(args):
 	"""Combines multiple strings into one for use as a Windows command-line argument.
 	This coressponds to Windows' handling of command-line arguments as specified in: http://msdn.microsoft.com/library/17w5ykft.
+	@type args: [str]
+	@rtype: str
 	@since: 1.11"""
 	def _escape(arg):
 		# Add leading quotation mark if there are whitespaces
@@ -147,6 +156,8 @@ if sys.version_info[0] > 2:
 	raw_input = input
 
 	def urlparse(url):
+		"""@type url: str
+		@rtype: tuple"""
 		from urllib import parse
 		return parse.urlparse(url)
 else:
@@ -157,5 +168,7 @@ else:
 	raw_input = raw_input
 
 	def urlparse(url):
+		"""@type url: str
+		@rtype: tuple"""
 		import urlparse
 		return urlparse.urlparse(url)

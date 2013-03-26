@@ -24,6 +24,8 @@ class NonwritableStore(SafeException):
 	"""Attempt to add to a non-writable store directory."""
 
 def _copytree2(src, dst):
+	"""@type src: str
+	@type dst: str"""
 	import shutil
 	names = os.listdir(src)
 	assert os.path.isdir(dst)
@@ -42,6 +44,7 @@ def _copytree2(src, dst):
 			shutil.copy2(srcname, dstname)
 
 def _validate_pair(value):
+	"""@type value: str"""
 	if '/' in value or \
 	   '\\' in value or \
 	   value.startswith('.'):
@@ -69,9 +72,10 @@ def parse_algorithm_digest_pair(src):
 def format_algorithm_digest_pair(alg, digest):
 	"""The opposite of L{parse_algorithm_digest_pair}.
 	The result is suitable for use as a directory name (does not contain '/' characters).
-	@raise BadDigest: if the result is invalid
 	@type alg: str
 	@type digest: str
+	@rtype: str
+	@raise BadDigest: if the result is invalid
 	@since: 1.10"""
 	if alg in ('sha1', 'sha1new', 'sha256'):
 		result = alg + '=' + digest
@@ -96,6 +100,8 @@ class Store(object):
 		return _("Store '%s'") % self.dir
 	
 	def lookup(self, digest):
+		"""@type digest: str
+		@rtype: str"""
 		alg, value = parse_algorithm_digest_pair(digest)
 		dir = os.path.join(self.dir, digest)
 		if os.path.isdir(dir) or digest in self.dry_run_names:
@@ -106,6 +112,8 @@ class Store(object):
 		"""Create a temporary directory in the directory where we would store an implementation
 		with the given digest. This is used to setup a new implementation before being renamed if
 		it turns out OK.
+		@type required_digest: str
+		@rtype: str
 		@raise NonwritableStore: if we can't create it"""
 		try:
 			if not os.path.isdir(self.dir):
@@ -118,6 +126,14 @@ class Store(object):
 			raise NonwritableStore(str(ex))
 	
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0, try_helper = False, dry_run = False):
+		"""@type required_digest: str
+		@type data: file
+		@type url: str
+		@type extract: str | None
+		@type type: str | None
+		@type start_offset: int
+		@type try_helper: bool
+		@type dry_run: bool"""
 		from . import unpack
 
 		if self.lookup(required_digest):
@@ -147,6 +163,7 @@ class Store(object):
 		@type path: str
 		@param try_helper: attempt to use privileged helper before user cache (since 0.26)
 		@type try_helper: bool
+		@type dry_run: bool
 		@raise BadDigest: if the contents don't match the given digest."""
 		if self.lookup(required_digest):
 			logger.info(_("Not adding %s as it already exists!"), required_digest)
@@ -168,8 +185,7 @@ class Store(object):
 		@type required_digest: str
 		@param path: root of implementation directory structure
 		@type path: str
-		@return: True iff the directory was copied into the system cache successfully
-		"""
+		@return: True iff the directory was copied into the system cache successfully"""
 		if required_digest.startswith('sha1='):
 			return False		# Old digest alg not supported
 		if os.environ.get('ZEROINSTALL_PORTABLE_BASE'):
@@ -210,6 +226,9 @@ class Store(object):
 		"""Check that tmp[/extract] has the required_digest.
 		On success, rename the checked directory to the digest, and
 		make the whole tree read-only.
+		@type required_digest: str
+		@type tmp: str
+		@type extract: str | None
 		@param try_helper: attempt to use privileged helper to import to system cache first (since 0.26)
 		@type try_helper: bool
 		@param dry_run: just print what we would do to stdout (and delete tmp)
@@ -301,11 +320,15 @@ class Stores(object):
 				self.stores.append(Store('/var/cache/0install.net/implementations'))
 
 	def lookup(self, digest):
-		"""@deprecated: use lookup_any instead"""
+		"""@type digest: str
+		@rtype: str
+		@deprecated: use lookup_any instead"""
 		return self.lookup_any([digest])
 
 	def lookup_any(self, digests):
 		"""Search for digest in all stores.
+		@type digests: [str]
+		@rtype: str
 		@raises NotStored: if not found"""
 		path = self.lookup_maybe(digests)
 		if path:
@@ -315,6 +338,8 @@ class Stores(object):
 
 	def lookup_maybe(self, digests):
 		"""Like lookup_any, but return None if it isn't found.
+		@type digests: [str]
+		@rtype: str
 		@since: 0.53"""
 		assert digests
 		for digest in digests:
@@ -328,11 +353,21 @@ class Stores(object):
 
 	def add_dir_to_cache(self, required_digest, dir, dry_run = False):
 		"""Add to the best writable cache.
+		@type required_digest: str
+		@type dir: str
+		@type dry_run: bool
 		@see: L{Store.add_dir_to_cache}"""
 		self._write_store(lambda store, **kwargs: store.add_dir_to_cache(required_digest, dir, dry_run = dry_run, **kwargs))
 
 	def add_archive_to_cache(self, required_digest, data, url, extract = None, type = None, start_offset = 0, dry_run = False):
 		"""Add to the best writable cache.
+		@type required_digest: str
+		@type data: file
+		@type url: str
+		@type extract: str | None
+		@type type: str | None
+		@type start_offset: int
+		@type dry_run: bool
 		@see: L{Store.add_archive_to_cache}"""
 		self._write_store(lambda store, **kwargs: store.add_archive_to_cache(required_digest,
 						data, url, extract, type = type, start_offset = start_offset, dry_run = dry_run, **kwargs))
@@ -350,6 +385,7 @@ class Stores(object):
 
 	def get_first_system_store(self):
 		"""The first system store is the one we try writing to first.
+		@rtype: L{Store}
 		@since: 0.30"""
 		try:
 			return self.stores[1]

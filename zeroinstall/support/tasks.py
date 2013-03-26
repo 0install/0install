@@ -67,6 +67,7 @@ if gobject:
 
 		@staticmethod
 		def call_later(delay, cb):
+			"""@type delay: int"""
 			def wrapper():
 				cb()
 				return False
@@ -74,6 +75,8 @@ if gobject:
 
 		@staticmethod
 		def add_reader(fd, cb, *args):
+			"""@type fd: int
+			@rtype: L{_Handler}"""
 			h = _Handler()
 			def wrapper(src, cond):
 				cb(*args)
@@ -107,8 +110,9 @@ _run_queue = []
 
 def check(blockers, reporter = None):
 	"""See if any of the blockers have pending exceptions.
-	@param reporter: invoke this function on each error
-	If reporter is None, raise the first and log the rest."""
+	If reporter is None, raise the first and log the rest.
+	@type blockers: [L{Blocker}]
+	@param reporter: invoke this function on each error"""
 	ex = None
 	if isinstance(blockers, Blocker):
 		blockers = (blockers,)
@@ -162,6 +166,7 @@ class Blocker(object):
 	exception = None
 
 	def __init__(self, name):
+		"""@type name: str"""
 		self.happened = False		# False until event triggered
 		self._zero_lib_tasks = set()	# Tasks waiting on this blocker
 		self.name = name
@@ -196,13 +201,15 @@ class Blocker(object):
 	def add_task(self, task):
 		"""Called by the schedular when a Task yields this
 		Blocker. If you override this method, be sure to still
-		call this method with Blocker.add_task(self)!"""
+		call this method with Blocker.add_task(self)!
+		@type task: L{Task}"""
 		assert task not in self._zero_lib_tasks, "Blocking on a single task twice: %s (%s)" % (task, self)
 		self._zero_lib_tasks.add(task)
 	
 	def remove_task(self, task):
 		"""Called by the schedular when a Task that was waiting for
-		this blocker is resumed."""
+		this blocker is resumed.
+		@type task: L{Task}"""
 		self._zero_lib_tasks.remove(task)
 	
 	def __repr__(self):
@@ -216,14 +223,17 @@ class IdleBlocker(Blocker):
 	immediately triggers. An instance of this class is used internally
 	when a Task yields None."""
 	def add_task(self, task):
-		"""Also calls trigger."""
+		"""Also calls trigger.
+		@type task: L{Task}"""
 		Blocker.add_task(self, task)
 		self.trigger()
 
 class TimeoutBlocker(Blocker):
 	"""Triggers after a set number of seconds."""
 	def __init__(self, timeout, name):
-		"""Trigger after 'timeout' seconds (may be a fraction)."""
+		"""Trigger after 'timeout' seconds (may be a fraction).
+		@type timeout: float
+		@type name: str"""
 		Blocker.__init__(self, name)
 		loop.call_later(timeout, self._timeout)
 	
@@ -231,6 +241,7 @@ class TimeoutBlocker(Blocker):
 		self.trigger()
 
 def _io_callback(blocker):
+	"""@type blocker: L{InputBlocker}"""
 	blocker._tag.cancel()
 	blocker.trigger()
 
@@ -239,15 +250,19 @@ class InputBlocker(Blocker):
 	_tag = None
 	_stream = None
 	def __init__(self, stream, name):
+		"""@type stream: int
+		@type name: str"""
 		Blocker.__init__(self, name)
 		self._stream = stream
 	
 	def add_task(self, task):
+		"""@type task: L{Task}"""
 		Blocker.add_task(self, task)
 		if self._tag is None:
 			self._tag = loop.add_reader(self._stream, _io_callback, self)
 	
 	def remove_task(self, task):
+		"""@type task: L{Task}"""
 		Blocker.remove_task(self, task)
 		if not self._zero_lib_tasks:
 			self._tag.cancel()
@@ -299,7 +314,8 @@ class Task(object):
 	def __init__(self, iterator, name):
 		"""Call next(iterator) from a glib idle function. This function
 		can yield Blocker() objects to suspend processing while waiting
-		for events. name is used only for debugging."""
+		for events. name is used only for debugging.
+		@type name: str"""
 		self.iterator = iterator
 		self.finished = Blocker(name)
 		# Block new task on the idle handler...
@@ -392,7 +408,8 @@ def _handle_run_queue():
 def named_async(name):
 	"""Decorator that turns a generator function into a function that runs the
 	generator as a Task and returns the Task's finished blocker.
-	@param name: the name for the Task"""
+	@param name: the name for the Task
+	@type name: str"""
 	def deco(fn):
 		def run(*args, **kwargs):
 			return Task(fn(*args, **kwargs), name).finished
@@ -412,8 +429,7 @@ def wait_for_blocker(blocker):
 	"""Run a recursive mainloop until blocker is triggered.
 	@param blocker: event to wait on
 	@type blocker: L{Blocker}
-	@since: 0.53
-	"""
+	@since: 0.53"""
 	assert wait_for_blocker.x is None	# Avoid recursion
 
 	if not blocker.happened:

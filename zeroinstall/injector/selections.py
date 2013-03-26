@@ -40,6 +40,7 @@ class Selection(object):
 		return None
 
 	def __repr__(self):
+		"""@rtype: str"""
 		return self.id
 
 	def is_available(self, stores):
@@ -80,6 +81,9 @@ class ImplSelection(Selection):
 	__slots__ = ['impl', 'dependencies', 'attrs', '_used_commands']
 
 	def __init__(self, iface_uri, impl, dependencies):
+		"""@type iface_uri: str
+		@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}
+		@type dependencies: [L{zeroinstall.injector.model.InterfaceDependency}]"""
 		assert impl
 		self.impl = impl
 		self.dependencies = dependencies
@@ -115,6 +119,11 @@ class XMLSelection(Selection):
 	__slots__ = ['bindings', 'dependencies', 'attrs', 'digests', 'commands']
 
 	def __init__(self, dependencies, bindings = None, attrs = None, digests = None, commands = None):
+		"""@type dependencies: [L{zeroinstall.injector.model.InterfaceDependency}]
+		@type bindings: [L{zeroinstall.injector.model.EnvironmentBinding}] | None
+		@type attrs: dict | None
+		@type digests: [str] | None
+		@type commands: dict | None"""
 		if bindings is None: bindings = []
 		if digests is None: digests = []
 		self.dependencies = dependencies
@@ -129,11 +138,14 @@ class XMLSelection(Selection):
 		assert self.feed
 
 	def get_command(self, name):
+		"""@type name: str
+		@rtype: L{Command}"""
 		if name not in self.commands:
 			raise model.SafeException("Command '{name}' not present in selections for {iface}".format(name = name, iface = self.interface))
 		return self.commands[name]
 
 	def get_commands(self):
+		"""@rtype: dict"""
 		return self.commands
 
 class Selections(object):
@@ -151,8 +163,7 @@ class Selections(object):
 	def __init__(self, source):
 		"""Constructor.
 		@param source: a map of implementations, policy or selections document
-		@type source: L{Element}
-		"""
+		@type source: L{Element}"""
 		self.selections = {}
 		self.command = None
 
@@ -166,7 +177,8 @@ class Selections(object):
 
 	def _init_from_qdom(self, root):
 		"""Parse and load a selections document.
-		@param root: a saved set of selections."""
+		@param root: a saved set of selections.
+		@type root: L{Element}"""
 		self.interface = root.getAttribute('interface')
 		self.command = root.getAttribute('command')
 		if self.interface is None:
@@ -331,6 +343,7 @@ class Selections(object):
 		Other 0install implementations are available if they are in the cache.
 		Package implementations are available if the Distribution says so.
 		@param include_packages: whether to include <package-implementation>s
+		@type include_packages: bool
 		@rtype: [Selection]
 		@since: 1.16"""
 		iface_cache = config.iface_cache
@@ -359,7 +372,9 @@ class Selections(object):
 		Note: package implementations (distribution packages) are ignored.
 		@param config: used to get iface_cache, stores and fetcher
 		@param include_packages: also try to install native packages (since 1.5)
-		@return: a L{tasks.Blocker} or None"""
+		@type include_packages: bool
+		@return: a L{tasks.Blocker} or None
+		@rtype: L{zeroinstall.support.tasks.Blocker}"""
 		if _old:
 			config = get_deprecated_singleton_config()
 
@@ -404,6 +419,8 @@ class Selections(object):
 
 	def __getitem__(self, key):
 		# Deprecated
+		"""@type key: str
+		@rtype: L{ImplSelection}"""
 		if isinstance(key, basestring):
 			return self.selections[key]
 		sel = self.selections[key.uri]
@@ -417,6 +434,7 @@ class Selections(object):
 
 	def values(self):
 		# Deprecated
+		"""@rtype: L{zeroinstall.injector.model.ZeroInstallImplementation}"""
 		for (uri, sel) in self.selections.items():
 			yield sel and sel.impl
 
@@ -428,6 +446,8 @@ class Selections(object):
 
 	def get(self, iface, if_missing):
 		# Deprecated
+		"""@type iface: L{zeroinstall.injector.model.Interface}
+		@rtype: L{zeroinstall.injector.model.ZeroInstallImplementation}"""
 		sel = self.selections.get(iface.uri, None)
 		if sel:
 			return sel.impl

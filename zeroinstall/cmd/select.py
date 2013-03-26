@@ -41,15 +41,18 @@ def add_options(parser):
 def get_selections(config, options, iface_uri, select_only, download_only, test_callback, requirements = None):
 	"""Get selections for iface_uri, according to the options passed.
 	Will switch to GUI mode if necessary.
+	@type config: L{zeroinstall.injector.config.Config}
 	@param options: options from OptionParser
 	@param iface_uri: canonical URI of the interface
+	@type iface_uri: str
 	@param select_only: return immediately even if the selected versions aren't cached
+	@type select_only: bool
 	@param download_only: wait for stale feeds, and display GUI button as Download, not Run
+	@type download_only: bool
 	@param requirements: requirements to use; if None, requirements come from options (since 1.15)
 	@type requirements: Requirements
 	@return: the selected versions, or None if the user cancels
-	@rtype: L{selections.Selections} | None
-	"""
+	@rtype: L{selections.Selections} | None"""
 	if options.offline:
 		config.network_use = model.network_offline
 
@@ -74,6 +77,11 @@ def get_selections(config, options, iface_uri, select_only, download_only, test_
 
 def get_selections_for(requirements, config, options, select_only, download_only, test_callback):
 	"""Get selections for given requirements.
+	@type requirements: L{Requirements}
+	@type config: L{zeroinstall.injector.config.Config}
+	@type select_only: bool
+	@type download_only: bool
+	@rtype: L{zeroinstall.injector.selections.Selections}
 	@since: 1.9"""
 	if options.offline:
 		config.network_use = model.network_offline
@@ -157,6 +165,8 @@ def get_selections_for(requirements, config, options, select_only, download_only
 	return sels
 
 def handle(config, options, args):
+	"""@type config: L{zeroinstall.injector.config.Config}
+	@type args: [str]"""
 	if len(args) != 1:
 		raise UsageError()
 
@@ -194,11 +204,14 @@ def handle(config, options, args):
 				print(_("(note: use '0install update' instead to save the changes)"))
 
 def show_xml(sels):
+	"""@type sels: L{zeroinstall.injector.selections.Selections}"""
 	doc = sels.toDOM()
 	doc.writexml(sys.stdout)
 	sys.stdout.write('\n')
 
 def show_human(sels, stores):
+	"""@type sels: L{zeroinstall.injector.selections.Selections}
+	@type stores: L{zeroinstall.zerostore.Stores}"""
 	done = set()	# detect cycles
 	def print_node(uri, commands, indent):
 		if uri in done: return
@@ -231,6 +244,9 @@ def show_human(sels, stores):
 		print_node(sels.interface, [], "")
 
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if len(args) != 1 or cword != 0: return
 	completion.expand_apps()
 	completion.expand_interfaces()

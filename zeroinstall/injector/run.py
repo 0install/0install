@@ -33,8 +33,7 @@ def do_env_binding(binding, path):
 def test_selections(selections, prog_args, dry_run, main):
 	"""Run the program in a child process, collecting stdout and stderr.
 	@return: the output produced by the process
-	@since: 0.27
-	"""
+	@since: 0.27"""
 	import tempfile
 	output = tempfile.TemporaryFile(prefix = '0launch-test')
 	try:
@@ -69,7 +68,10 @@ def test_selections(selections, prog_args, dry_run, main):
 	return results
 
 def _process_args(args, element, env = os.environ):
-	"""Append each <arg> under <element> to args, performing $-expansion. Also, process <for-each> loops."""
+	"""Append each <arg> under <element> to args, performing $-expansion. Also, process <for-each> loops.
+	@type args: [str]
+	@type element: L{zeroinstall.injector.qdom.Element}
+	@type env: dict"""
 	for child in element.childNodes:
 		if child.uri != namespaces.XMLNS_IFACE: continue
 
@@ -94,7 +96,8 @@ class Setup(object):
 
 	def __init__(self, stores, selections):
 		"""@param stores: where to find cached implementations
-		@type stores: L{zerostore.Stores}"""
+		@type stores: L{zerostore.Stores}
+		@type selections: L{zeroinstall.injector.selections.Selections}"""
 		self.stores = stores
 		self.selections = selections
 
@@ -106,6 +109,7 @@ class Setup(object):
 		@type command_name: str
 		@param user_command: a custom command to use instead
 		@type user_command: L{model.Command}
+		@type dry_run: bool
 		@return: the argument list
 		@rtype: [str]"""
 
@@ -208,8 +212,7 @@ class Setup(object):
 		@param binding: the binding to be processed
 		@type binding: L{model.Binding}
 		@param iface: the interface containing impl
-		@type iface: L{model.Interface}
-		"""
+		@type iface: L{model.Interface}"""
 		if isinstance(binding, EnvironmentBinding):
 			if impl.id.startswith('package:'):
 				path = None		# (but still do the binding, e.g. for values)
@@ -224,6 +227,8 @@ class Setup(object):
 			self._exec_bindings.append((binding, iface))
 
 	def do_exec_binding(self, binding, iface):
+		"""@type binding: L{ExecutableBinding}
+		@type iface: str"""
 		assert iface is not None
 		name = binding.name
 		if '/' in name or name.startswith('.') or "'" in name:
@@ -296,9 +301,9 @@ def execute_selections(selections, prog_args, dry_run = False, main = None, wrap
 	@type main: str
 	@param wrapper: a command to use to actually run the binary, or None to run the binary directly
 	@type wrapper: str
+	@type stores: L{zeroinstall.zerostore.Stores} | None
 	@since: 0.27
-	@precondition: All implementations are in the cache.
-	"""
+	@precondition: All implementations are in the cache."""
 	#assert stores is not None
 	if stores is None:
 		from zeroinstall import zerostore

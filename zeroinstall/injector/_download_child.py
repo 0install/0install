@@ -47,6 +47,7 @@ for ca_bundle in [
 				return self.do_open(self.getConnection, req)
 
 			def getConnection(self, host, timeout=300):
+				"""@type host: str"""
 				return ValidatingHTTPSConnection(host)
 		MyHTTPSHandler = ValidatingHTTPSHandler
 		break
@@ -62,6 +63,9 @@ class MyRedirectHandler(urllib2.HTTPRedirectHandler):
 	"""Throw an exception on redirects instead of continuing. The redirect will be handled in the main thread
 	so it can work with connection pooling."""
 	def redirect_request(self, req, fp, code, msg, headers, newurl):
+		"""@type code: int
+		@type msg: str
+		@type newurl: str"""
 		new_req = urllib2.HTTPRedirectHandler.redirect_request(self, req, fp, code, msg, headers, newurl)
 		if new_req:
 			raise Redirect(new_req)
@@ -76,6 +80,8 @@ for klass in [urllib2.ProxyHandler, urllib2.UnknownHandler, urllib2.HTTPHandler,
 	_my_urlopen.add_handler(klass())
 
 def download_in_thread(url, target_file, if_modified_since, notify_done):
+	"""@type url: str
+	@type target_file: file"""
 	src = None
 	try:
 		#print "Child downloading", url

@@ -18,6 +18,7 @@ def add_options(parser):
 	parser.add_option("", "--full", help=_("show diff of the XML"), action='store_true')
 
 def handle(config, options, args):
+	"""@type args: [str]"""
 	if len(args) != 1:
 		raise UsageError()
 
@@ -72,6 +73,9 @@ def handle(config, options, args):
 	print("0install run {path}".format(path = get_selections_path(history[1])))
 
 def show_changes(old_selections, new_selections):
+	"""@type old_selections: dict
+	@type new_selections: dict
+	@rtype: bool"""
 	changes = False
 
 	for iface, old_sel in old_selections.items():
@@ -91,5 +95,8 @@ def show_changes(old_selections, new_selections):
 	return changes
 
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if len(args) != 1: return
 	completion.expand_apps()

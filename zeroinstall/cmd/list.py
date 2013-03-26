@@ -15,6 +15,8 @@ def add_options(parser):
 	pass
 
 def handle(config, options, args):
+	"""@type config: L{zeroinstall.injector.config.Config}
+	@type args: [str]"""
 	if len(args) == 0:
 		matches = config.iface_cache.list_all_interfaces()
 	elif len(args) == 1:

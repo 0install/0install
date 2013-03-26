@@ -21,6 +21,8 @@ def add_options(parser):
 	parser.disable_interspersed_args()
 
 def handle(config, options, args):
+	"""@type config: L{zeroinstall.injector.config.Config}
+	@type args: [str]"""
 	if len(args) < 1:
 		raise UsageError()
 
@@ -53,6 +55,9 @@ def handle(config, options, args):
 	run.execute_selections(sels, prog_args, dry_run = options.dry_run, main = options.main, wrapper = options.wrapper, stores = config.stores)
 
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if cword == 0:
 		select.complete(completion, args, cword)
 	else:

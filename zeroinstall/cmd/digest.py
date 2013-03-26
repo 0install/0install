@@ -22,6 +22,7 @@ def add_options(parser):
 	parser.add_option("-d", "--digest", help=_("print the digest"), action='store_true')
 
 def handle(config, options, args):
+	"""@type args: [str]"""
 	if len(args) == 1:
 		extract = None
 	elif len(args) == 2:
@@ -65,5 +66,8 @@ def handle(config, options, args):
 				data.close()
 
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if len(args) != 1: return
 	completion.expand_files()

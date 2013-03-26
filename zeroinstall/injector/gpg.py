@@ -21,6 +21,8 @@ from zeroinstall.injector.model import SafeException
 
 _gnupg_options = None
 def _run_gpg(args, **kwargs):
+	"""@type args: [str]
+	@rtype: L{.usr.lib.python2.7.subprocess.Popen}"""
 	global _gnupg_options
 	if _gnupg_options is None:
 		gpg_path = os.environ.get('ZEROINSTALL_GPG') or find_in_path('gpg') or find_in_path('gpg2') or 'gpg'
@@ -41,10 +43,12 @@ class Signature(object):
 	messages = None
 
 	def __init__(self, status):
+		"""@type status: [str]"""
 		self.status = status
 
 	def is_trusted(self, domain = None):
-		"""Whether this signature is trusted by the user."""
+		"""Whether this signature is trusted by the user.
+		@rtype: bool"""
 		return False
 	
 	def need_key(self):
@@ -57,14 +61,18 @@ class ValidSig(Signature):
 	TIMESTAMP = 2
 
 	def __str__(self):
+		"""@rtype: str"""
 		return "Valid signature from " + self.status[self.FINGERPRINT]
 	
 	def is_trusted(self, domain = None):
-		"""Asks the L{trust.trust_db}."""
+		"""Asks the L{trust.trust_db}.
+		@type domain: str | None
+		@rtype: bool"""
 		return trust_db.is_trusted(self.status[self.FINGERPRINT], domain)
 	
 	def get_timestamp(self):
-		"""Get the time this signature was made."""
+		"""Get the time this signature was made.
+		@rtype: int"""
 		return int(self.status[self.TIMESTAMP])
 
 	fingerprint = property(lambda self: self.status[self.FINGERPRINT])
@@ -87,6 +95,7 @@ class BadSig(Signature):
 	KEYID = 0
 
 	def __str__(self):
+		"""@rtype: str"""
 		return _("BAD signature by %s (the message has been tampered with)") \
 			% self.status[self.KEYID]
 
@@ -97,6 +106,7 @@ class ErrSig(Signature):
 	RC = -1
 
 	def __str__(self):
+		"""@rtype: str"""
 		msg = _("ERROR signature by %s: ") % self.status[self.KEYID]
 		rc = int(self.status[self.RC])
 		if rc == 4:
@@ -108,6 +118,7 @@ class ErrSig(Signature):
 		return msg
 
 	def need_key(self):
+		"""@rtype: str"""
 		rc = int(self.status[self.RC])
 		if rc == 9:
 			return self.status[self.KEYID]
@@ -122,6 +133,7 @@ class Key(object):
 	@type name: str
 	"""
 	def __init__(self, fingerprint):
+		"""@type fingerprint: str"""
 		self.fingerprint = fingerprint
 		self.name = '(unknown)'
 	
@@ -131,6 +143,7 @@ class Key(object):
 def load_keys(fingerprints):
 	"""Load a set of keys at once.
 	This is much more efficient than making individual calls to L{load_key}.
+	@type fingerprints: [str]
 	@return: a list of loaded keys, indexed by fingerprint
 	@rtype: {str: L{Key}}
 	@since: 0.27"""
@@ -189,7 +202,8 @@ def load_key(fingerprint):
 	return load_keys([fingerprint])[fingerprint]
 
 def import_key(stream):
-	"""Run C{gpg --import} with this stream as stdin."""
+	"""Run C{gpg --import} with this stream as stdin.
+	@type stream: file"""
 	with tempfile.TemporaryFile(mode = 'w+t') as errors:
 		child = _run_gpg(['--quiet', '--import', '--batch'],
 					stdin = stream, stderr = errors)
@@ -208,6 +222,8 @@ def import_key(stream):
 		logger.warning(_("Warnings from 'gpg --import':\n%s") % error_messages)
 
 def _check_xml_stream(stream):
+	"""@type stream: file
+	@rtype: tuple"""
 	xml_comment_start = b'<!-- Base64 Signature'
 
 	data_to_check = stream.read()
@@ -279,8 +295,10 @@ def check_stream(stream):
 	and a list of signatures (good or bad). If stream starts with "<?xml "
 	then get the signature from a comment at the end instead (and the returned
 	data is the original stream). stream must be seekable.
-	@note: Stream returned may or may not be the one passed in. Be careful!
-	@return: (data_stream, [Signatures])"""
+	@type stream: file
+	@return: (data_stream, [Signatures])
+	@rtype: tuple
+	@note: Stream returned may or may not be the one passed in. Be careful!"""
 
 	stream.seek(0)
 
@@ -297,7 +315,11 @@ def _get_sigs_from_gpg_status_stream(status_r, child, errors):
 	"""Read messages from status_r and collect signatures from it.
 	When done, reap 'child'.
 	If there are no signatures, throw SafeException (using errors
-	for the error message if non-empty)."""
+	for the error message if non-empty).
+	@type status_r: file
+	@type child: L{.usr.lib.python2.7.subprocess.Popen}
+	@type errors: file
+	@rtype: [L{ValidSig}]"""
 	sigs = []
 
 	# Should we error out on bad signatures, even if there's a good

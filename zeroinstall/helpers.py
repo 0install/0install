@@ -25,12 +25,11 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True
 	@type gui_args: [str]
 	@param test_callback: function to use to try running the program
 	@type test_callback: L{zeroinstall.injector.selections.Selections} -> str
-	@param use_gui: if True, raise a SafeException if the GUI is not available. If None, returns DontUseGUI if the GUI cannot be started. If False, returns DontUseGUI always. (since 1.11)
 	@param use_gui: bool | None
+	@type use_gui: bool
 	@return: the selected implementations
 	@rtype: L{zeroinstall.injector.selections.Selections}
-	@since: 0.28
-	"""
+	@since: 0.28"""
 	if use_gui is False:
 		return DontUseGUI
 
@@ -128,9 +127,9 @@ def ensure_cached(uri, command = 'run', config = None):
 	available, or the console otherwise.
 	@param uri: the required interface
 	@type uri: str
+	@type command: str
 	@return: the selected implementations, or None if the user cancelled
-	@rtype: L{zeroinstall.injector.selections.Selections}
-	"""
+	@rtype: L{zeroinstall.injector.selections.Selections}"""
 	from zeroinstall.injector.driver import Driver
 
 	if config is None:
@@ -155,6 +154,10 @@ def ensure_cached(uri, command = 'run', config = None):
 def exec_man(stores, sels, main = None, fallback_name = None):
 	"""Exec the man command to show the man-page for this interface.
 	Never returns.
+	@type stores: L{zeroinstall.zerostore.Stores}
+	@type sels: L{zeroinstall.injector.selections.Selections}
+	@type main: str | None
+	@type fallback_name: str | None
 	@since: 1.12"""
 	interface_uri = sels.interface
 	selected_impl = sels.selections[interface_uri]

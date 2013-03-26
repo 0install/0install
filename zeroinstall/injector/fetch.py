@@ -18,10 +18,14 @@ from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector import download
 
 def _escape_slashes(path):
+	"""@type path: str
+	@rtype: str"""
 	return path.replace('/', '%23')
 
 def _get_feed_dir(feed):
-	"""The algorithm from 0mirror."""
+	"""The algorithm from 0mirror.
+	@type feed: str
+	@rtype: str"""
 	if '#' in feed:
 		raise SafeException(_("Invalid URL '%s'") % feed)
 	scheme, rest = feed.split('://', 1)
@@ -47,6 +51,9 @@ class KeyInfoFetcher(object):
 		yield kf.blocker
 	"""
 	def __init__(self, fetcher, server, fingerprint):
+		"""@type fetcher: L{Fetcher}
+		@type server: str
+		@type fingerprint: str"""
 		self.fingerprint = fingerprint
 		self.info = []
 		self.blocker = None
@@ -91,6 +98,7 @@ class Fetcher(object):
 	__slots__ = ['config', 'key_info', '_scheduler', 'external_store']
 
 	def __init__(self, config):
+		"""@type config: L{zeroinstall.injector.config.Config}"""
 		assert config.handler, "API change!"
 		self.config = config
 		self.key_info = {}
@@ -112,7 +120,14 @@ class Fetcher(object):
 	@tasks.async
 	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None, dry_run = False, may_use_mirror = True):
 		"""Follow a Recipe.
+		@type required_digest: str
+		@type recipe: L{Recipe}
+		@type stores: L{zeroinstall.zerostore.Stores}
+		@type force: bool
 		@param impl_hint: the Implementation this is for (if any) as a hint for the GUI
+		@type impl_hint: L{zeroinstall.injector.model.ZeroInstallImplementation} | None
+		@type dry_run: bool
+		@type may_use_mirror: bool
 		@see: L{download_impl} uses this method when appropriate"""
 		# Maybe we're taking this metaphor too far?
 
@@ -161,7 +176,10 @@ class Fetcher(object):
 					logger.info("Failed to close: %s", ex)
 
 	def _get_mirror_url(self, feed_url, resource):
-		"""Return the URL of a mirror for this feed."""
+		"""Return the URL of a mirror for this feed.
+		@type feed_url: str
+		@type resource: str
+		@rtype: str"""
 		if self.config.mirror is None:
 			return None
 		if feed_url.startswith('http://') or feed_url.startswith('https://'):
@@ -171,10 +189,14 @@ class Fetcher(object):
 		return None
 
 	def get_feed_mirror(self, url):
-		"""Return the URL of a mirror for this feed."""
+		"""Return the URL of a mirror for this feed.
+		@type url: str
+		@rtype: str"""
 		return self._get_mirror_url(url, 'latest.xml')
 
 	def _get_archive_mirror(self, source):
+		"""@type source: L{DownloadSource}
+		@rtype: str"""
 		if self.config.mirror is None:
 			return None
 		if support.urlparse(source.url).hostname == 'localhost':
@@ -188,13 +210,15 @@ class Fetcher(object):
 				archive = quote(source.url.replace('/', '#'), safe = ''))
 
 	def _get_impl_mirror(self, impl):
+		"""@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}
+		@rtype: str"""
 		return self._get_mirror_url(impl.feed.url, 'impl/' + _escape_slashes(impl.id))
 
 	@tasks.async
 	def get_packagekit_feed(self, feed_url):
 		"""Send a query to PackageKit (if available) for information about this package.
 		On success, the result is added to iface_cache.
-		"""
+		@type feed_url: str"""
 		assert feed_url.startswith('distribution:'), feed_url
 		master_feed = self.config.iface_cache.get_feed(feed_url.split(':', 1)[1])
 		if master_feed:
@@ -210,7 +234,9 @@ class Fetcher(object):
 		"""Download the feed, download any required keys, confirm trust if needed and import.
 		@param feed_url: the feed to be downloaded
 		@type feed_url: str
-		@param iface_cache: (deprecated)"""
+		@param iface_cache: (deprecated)
+		@type iface_cache: L{zeroinstall.injector.iface_cache.IfaceCache} | None
+		@rtype: L{zeroinstall.support.tasks.Blocker}"""
 		from .download import DownloadAborted
 
 		assert iface_cache is None or iface_cache is self.config.iface_cache
@@ -306,7 +332,10 @@ class Fetcher(object):
 
 	def _download_and_import_feed(self, feed_url, use_mirror):
 		"""Download and import a feed.
-		@param use_mirror: False to use primary location; True to use mirror."""
+		@type feed_url: str
+		@param use_mirror: False to use primary location; True to use mirror.
+		@type use_mirror: bool
+		@rtype: L{zeroinstall.support.tasks.Blocker}"""
 		if use_mirror:
 			url = self.get_feed_mirror(feed_url)
 			if url is None: return None
@@ -353,6 +382,8 @@ class Fetcher(object):
 		return task
 
 	def fetch_key_info(self, fingerprint):
+		"""@type fingerprint: str
+		@rtype: L{KeyInfoFetcher}"""
 		try:
 			return self.key_info[fingerprint]
 		except KeyError:
@@ -373,6 +404,7 @@ class Fetcher(object):
 		@type retrieval_method: L{model.RetrievalMethod}
 		@param stores: where to store the downloaded implementation
 		@type stores: L{zerostore.Stores}
+		@type force: bool
 		@rtype: L{tasks.Blocker}"""
 		assert impl
 		assert retrieval_method
@@ -437,6 +469,7 @@ class Fetcher(object):
 		return download_impl(retrieval_method)
 
 	def _add_to_external_store(self, required_digest, steps, streams):
+		"""@type required_digest: str"""
 		from zeroinstall.zerostore.unpack import type_from_url
 
 		# combine archive path, extract directory and MIME type arguments in an alternating fashion
@@ -465,7 +498,11 @@ class Fetcher(object):
 		"""Fetch an archive. You should normally call L{download_impl}
 		instead, since it handles other kinds of retrieval method too.
 		It is the caller's responsibility to ensure that the returned stream is closed.
-		"""
+		@type download_source: L{DownloadSource}
+		@type force: bool
+		@type impl_hint: L{zeroinstall.injector.model.ZeroInstallImplementation} | None
+		@type may_use_mirror: bool
+		@rtype: tuple"""
 		from zeroinstall.zerostore import unpack
 
 		mime_type = download_source.type
@@ -493,7 +530,9 @@ class Fetcher(object):
 		"""Fetch a single file. You should normally call L{download_impl}
 		instead, since it handles other kinds of retrieval method too.
 		It is the caller's responsibility to ensure that the returned stream is closed.
-		"""
+		@type download_source: L{zeroinstall.injector.model.FileSource}
+		@type impl_hint: L{zeroinstall.injector.model.ZeroInstallImplementation} | None
+		@rtype: tuple"""
 		if self.config.handler.dry_run:
 			print(_("[dry-run] downloading file {url}").format(url = download_source.url))
 
@@ -505,6 +544,8 @@ class Fetcher(object):
 	def download_icon(self, interface, force = False):
 		"""Download an icon for this interface and add it to the
 		icon cache. If the interface has no icon do nothing.
+		@type interface: L{zeroinstall.injector.model.Interface}
+		@type force: bool
 		@return: the task doing the import, or None
 		@rtype: L{tasks.Task}"""
 		logger.debug("download_icon %(interface)s", {'interface': interface})
@@ -564,7 +605,9 @@ class Fetcher(object):
 		If any of the retrieval methods are DistributionSources and
 		need confirmation, handler.confirm is called to check that the
 		installation should proceed.
-		"""
+		@type implementations: [L{zeroinstall.injector.model.ZeroInstallImplementation}]
+		@type stores: L{zeroinstall.zerostore.Stores}
+		@rtype: L{zeroinstall.support.tasks.Blocker}"""
 		unsafe_impls = []
 
 		to_download = []
@@ -619,6 +662,7 @@ class Fetcher(object):
 
 	def get_best_source(self, impl):
 		"""Return the best download source for this implementation.
+		@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}
 		@rtype: L{model.RetrievalMethod}"""
 		if impl.download_sources:
 			return impl.download_sources[0]
@@ -628,13 +672,14 @@ class Fetcher(object):
 		"""The most low-level method here; just download a raw URL.
 		It is the caller's responsibility to ensure that dl.stream is closed.
 		@param url: the location to download from
+		@type url: str
 		@param hint: user-defined data to store on the Download (e.g. used by the GUI)
+		@type hint: L{zeroinstall.injector.model.ZeroInstallImplementation} | None
 		@param modification_time: don't download unless newer than this
 		@param mirror_url: an altertive URL to try if this one fails
 		@type mirror_url: str
 		@rtype: L{download.Download}
-		@since: 1.5
-		"""
+		@since: 1.5"""
 		if not (url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:')):
 			raise SafeException(_("Unknown scheme in download URL '%s'") % url)
 		dl = download.Download(url, hint = hint, modification_time = modification_time, expected_size = expected_size, auto_delete = not self.external_store)
@@ -648,15 +693,21 @@ class StepRunner(object):
 	@since: 1.10"""
 
 	def __init__(self, stepdata, impl_hint, may_use_mirror = True):
+		"""@type stepdata: L{zeroinstall.injector.model.RenameStep}
+		@type impl_hint: L{zeroinstall.injector.model.ZeroInstallImplementation}
+		@type may_use_mirror: bool"""
 		self.stepdata = stepdata
 		self.impl_hint = impl_hint
 		self.may_use_mirror = may_use_mirror
 
 	def prepare(self, fetcher, blockers):
+		"""@type fetcher: L{Fetcher}
+		@type blockers: [L{zeroinstall.support.tasks.Blocker}]"""
 		pass
 
 	@classmethod
 	def class_for(cls, model):
+		"""@type model: L{zeroinstall.injector.model.RenameStep}"""
 		for subcls in cls.__subclasses__():
 			if subcls.model_type == type(model):
 				return subcls
@@ -673,6 +724,7 @@ class RenameStepRunner(StepRunner):
 	model_type = model.RenameStep
 
 	def apply(self, basedir):
+		"""@type basedir: str"""
 		source = native_path_within_base(basedir, self.stepdata.source)
 		dest = native_path_within_base(basedir, self.stepdata.dest)
 		_ensure_dir_exists(os.path.dirname(dest))
@@ -684,6 +736,7 @@ class RemoveStepRunner(StepRunner):
 	model_type = model.RemoveStep
 
 	def apply(self, basedir):
+		"""@type basedir: str"""
 		path = native_path_within_base(basedir, self.stepdata.path)
 		support.ro_rmtree(path)
 
@@ -694,11 +747,14 @@ class DownloadStepRunner(StepRunner):
 	model_type = model.DownloadSource
 
 	def prepare(self, fetcher, blockers):
+		"""@type fetcher: L{Fetcher}
+		@type blockers: [L{zeroinstall.support.tasks.Blocker}]"""
 		self.blocker, self.stream = fetcher.download_archive(self.stepdata, impl_hint = self.impl_hint, may_use_mirror = self.may_use_mirror)
 		assert self.stream
 		blockers.append(self.blocker)
 	
 	def apply(self, basedir):
+		"""@type basedir: str"""
 		from zeroinstall.zerostore import unpack
 		assert self.blocker.happened
 		if self.stepdata.dest is not None:
@@ -718,12 +774,15 @@ class FileStepRunner(StepRunner):
 	model_type = model.FileSource
 
 	def prepare(self, fetcher, blockers):
+		"""@type fetcher: L{Fetcher}
+		@type blockers: [L{zeroinstall.support.tasks.Blocker}]"""
 		self.blocker, self.stream = fetcher.download_file(self.stepdata,
 				impl_hint = self.impl_hint)
 		assert self.stream
 		blockers.append(self.blocker)
 
 	def apply(self, basedir):
+		"""@type basedir: str"""
 		import shutil
 		assert self.blocker.happened
 		dest = native_path_within_base(basedir, self.stepdata.dest)
@@ -740,8 +799,10 @@ def native_path_within_base(base, crossplatform_path):
 	"""Takes a cross-platform relative path (i.e using forward slashes, even on windows)
 	and returns the absolute, platform-native version of the path.
 	If the path does not resolve to a location within `base`, a SafeError is raised.
-	@since: 1.10
-	"""
+	@type base: str
+	@type crossplatform_path: str
+	@rtype: str
+	@since: 1.10"""
 	assert os.path.isabs(base)
 	if crossplatform_path.startswith("/"):
 		raise SafeException("path %r is not within the base directory" % (crossplatform_path,))
@@ -753,5 +814,6 @@ def native_path_within_base(base, crossplatform_path):
 	return fullpath
 
 def _ensure_dir_exists(dest):
+	"""@type dest: str"""
 	if not os.path.isdir(dest):
 		os.makedirs(dest)

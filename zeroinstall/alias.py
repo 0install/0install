@@ -38,6 +38,8 @@ def parse_script_header(stream):
 	"""Parse a 0alias script, if possible.
 	This does the same as L{parse_script}, except with an existing stream.
 	The stream position at exit is undefined.
+	@type stream: file
+	@rtype: L{ScriptInfo}
 	@since: 1.12"""
 	try:
 		stream.seek(0)
@@ -81,10 +83,10 @@ def parse_script_header(stream):
 def parse_script(pathname):
 	"""Extract the URI and main values from a 0alias script.
 	@param pathname: the script to be examined
+	@type pathname: str
 	@return: information about the alias script
 	@rtype: L{ScriptInfo}
-	@raise NotAnAliasScript: if we can't parse the script
-	"""
+	@raise NotAnAliasScript: if we can't parse the script"""
 	with open(pathname, 'rt') as stream:
 		info = parse_script_header(stream)
 		if info is None:
@@ -94,9 +96,13 @@ def parse_script(pathname):
 def write_script(stream, interface_uri, main = None, command = None):
 	"""Write a shell script to stream that will launch the given program.
 	@param stream: the stream to write to
+	@type stream: file
 	@param interface_uri: the program to launch
+	@type interface_uri: str
 	@param main: the --main argument to pass to 0launch, if any
-	@param command: the --command argument to pass to 0launch, if any"""
+	@type main: str | None
+	@param command: the --command argument to pass to 0launch, if any
+	@type command: str | None"""
 	assert "'" not in interface_uri
 	assert "\\" not in interface_uri
 	assert main is None or command is None, "Can't set --main and --command together"

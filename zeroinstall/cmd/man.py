@@ -22,6 +22,7 @@ def handle(config, options, args):
 		os.execlp('man', 'man', *args)
 
 def _0install_man(config, command):
+	"""@type command: str"""
 	from zeroinstall import apps, alias, helpers
 
 	path = support.find_in_path(command)
@@ -53,5 +54,8 @@ def _0install_man(config, command):
 	assert 0
 
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if len(args) != 1: return
 	completion.expand_apps()

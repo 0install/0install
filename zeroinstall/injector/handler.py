@@ -46,6 +46,7 @@ class Handler(object):
 	__slots__ = ['monitored_downloads', 'dry_run', 'total_bytes_downloaded', 'n_completed_downloads']
 
 	def __init__(self, mainloop = None, dry_run = False):
+		"""@type dry_run: bool"""
 		self.monitored_downloads = set()
 		self.dry_run = dry_run
 		self.n_completed_downloads = 0
@@ -53,7 +54,8 @@ class Handler(object):
 
 	def monitor_download(self, dl):
 		"""Called when a new L{download} is started.
-		This is mainly used by the GUI to display the progress bar."""
+		This is mainly used by the GUI to display the progress bar.
+		@type dl: L{zeroinstall.injector.download.Download}"""
 		self.monitored_downloads.add(dl)
 		self.downloads_changed()
 
@@ -74,8 +76,7 @@ class Handler(object):
 		"""Called by the L{fetch.Fetcher} when adding an implementation.
 		The GUI uses this to update its display.
 		@param impl: the implementation which has been added
-		@type impl: L{model.Implementation}
-		"""
+		@type impl: L{model.Implementation}"""
 		pass
 	
 	def downloads_changed(self):
@@ -83,7 +84,8 @@ class Handler(object):
 		pass
 	
 	def wait_for_blocker(self, blocker):
-		"""@deprecated: use tasks.wait_for_blocker instead"""
+		"""@type blocker: L{zeroinstall.support.tasks.Blocker}
+		@deprecated: use tasks.wait_for_blocker instead"""
 		tasks.wait_for_blocker(blocker)
 	
 	@tasks.async

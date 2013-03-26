@@ -61,9 +61,10 @@ class PackageKit(object):
 		"""Add any cached candidates.
 		The candidates are those discovered by a previous call to L{fetch_candidates}.
 		@param package_name: the distribution's name for the package
+		@type package_name: str
 		@param factory: a function to add a new implementation to the feed
 		@param prefix: the prefix for the implementation's ID
-		"""
+		@type prefix: str"""
 		candidates = self._candidates.get(package_name, None)
 		if candidates is None:
 			return
@@ -92,6 +93,7 @@ class PackageKit(object):
 
 	@tasks.async
 	def fetch_candidates(self, package_names):
+		"""@type package_names: [str]"""
 		assert self.pk
 
 		# Batch requests up
@@ -118,8 +120,7 @@ class PackageKit(object):
 	def _fetch_batch(self, package_names):
 		"""Ensure that each of these packages is in self._candidates.
 		Start a new fetch if necessary. Ignore packages that are already downloaded or
-		in the process of being downloaded.
-		"""
+		in the process of being downloaded."""
 		# (do we need a 'force' argument here?)
 
 		package_names = [n for n in package_names if n not in self._candidates]
@@ -199,6 +200,10 @@ class PackageKit(object):
 
 class PackageKitDownload(object):
 	def __init__(self, url, hint, pk, packagekit_id, expected_size):
+		"""@type url: str
+		@type hint: L{zeroinstall.injector.model.DistributionImplementation}
+		@type packagekit_id: str
+		@type expected_size: int"""
 		self.url = url
 		self.status = download.download_fetching
 		self.hint = hint
@@ -243,6 +248,7 @@ class PackageKitDownload(object):
 		self.downloaded.trigger()
 
 	def get_current_fraction(self):
+		"""@rtype: float"""
 		if self._transaction is None:
 			return None
 		percentage = self._transaction.getPercentage()
@@ -252,6 +258,7 @@ class PackageKitDownload(object):
 			return float(percentage) / 100.
 
 	def get_bytes_downloaded_so_far(self):
+		"""@rtype: int"""
 		fraction = self.get_current_fraction()
 		if fraction is None:
 			return 0
@@ -326,12 +333,14 @@ class _PackageKitTransaction(object):
 					])
 
 	def getPercentage(self):
+		"""@rtype: int"""
 		result = self.get_prop('Percentage')
 		if result is None:
 			result, __, __, __ = self.proxy.GetProgress()
 		return result
 
 	def get_prop(self, prop, default = None):
+		"""@type prop: str"""
 		try:
 			return self._props.Get('org.freedesktop.PackageKit.Transaction', prop)
 		except:
@@ -340,6 +349,7 @@ class _PackageKitTransaction(object):
 	# note: Ubuntu's aptdaemon implementation of PackageKit crashes if passed the wrong
 	# arguments (rather than returning InvalidArgs), so always try its API first.
 	def compat_call(self, calls):
+		"""@type calls: [tuple]"""
 		for call in calls:
 			method = call[0]
 			args = call[1:]
@@ -354,6 +364,8 @@ class _PackageKitTransaction(object):
 		raise Exception('Cannot call %r DBus method' % calls)
 
 	def __finished_cb(self, exit, runtime):
+		"""@type exit: str
+		@type runtime: int"""
 		_logger_pk.debug(_('Transaction finished: %s'), exit)
 
 		for i in self._signals:
@@ -370,6 +382,9 @@ class _PackageKitTransaction(object):
 		self.error_details = details
 
 	def __package_cb(self, status, id, summary):
+		"""@type status: str
+		@type id: str
+		@type summary: str"""
 		try:
 			from zeroinstall.injector import distro
 
@@ -389,6 +404,12 @@ class _PackageKitTransaction(object):
 			_logger_pk.warn("__package_cb(%s, %s, %s): %s", status, id, summary, ex)
 
 	def __details_cb(self, id, licence, group, detail, url, size):
+		"""@type id: str
+		@type licence: str
+		@type group: str
+		@type detail: str
+		@type url: str
+		@type size: int"""
 		details = {'licence': str(licence),
 				   'group': str(group),
 				   'detail': str(detail),
@@ -401,15 +422,18 @@ class _PackageKitTransaction(object):
 		self.files[id] = files.split(';')
 
 	def __status_changed_cb(self, status):
+		"""@type status: str"""
 		pass
 
 	def Resolve(self, package_names):
+		"""@type package_names: [str]"""
 		if self.have_0_8_1_api:
 			self.proxy.Resolve(dbus.UInt64(0), package_names)
 		else:
 			self.proxy.Resolve('none', package_names)
 
 	def InstallPackages(self, package_names):
+		"""@type package_names: [str]"""
 		if self.have_0_8_1_api:
 			self.proxy.InstallPackages(dbus.UInt64(0), package_names)
 		else:

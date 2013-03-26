@@ -28,7 +28,10 @@ class Cache(object):
 	def __init__(self, cache_leaf, source, format):
 		"""Maintain a cache file (e.g. ~/.cache/0install.net/injector/$name).
 		If the size or mtime of $source has changed, or the cache
-		format version if different, reset the cache first."""
+		format version if different, reset the cache first.
+		@type cache_leaf: str
+		@type source: str
+		@type format: int"""
 		self.cache_leaf = cache_leaf
 		self.source = source
 		self.format = format
@@ -89,6 +92,8 @@ class Cache(object):
 			raise Exception("Format of cache has changed")
 
 	def get(self, key):
+		"""@type key: str
+		@rtype: str"""
 		try:
 			self._check_valid()
 		except Exception as ex:
@@ -99,6 +104,8 @@ class Cache(object):
 			return self.cache.get(key, None)
 
 	def put(self, key, value):
+		"""@type key: str
+		@type value: str"""
 		cache_path = os.path.join(self.cache_dir, self.cache_leaf)
 		self.cache[key] = value
 		try:
@@ -110,6 +117,7 @@ class Cache(object):
 def try_cleanup_distro_version(version):
 	"""Try to turn a distribution version string into one readable by Zero Install.
 	We do this by stripping off anything we can't parse.
+	@type version: str
 	@return: the part we understood, or None if we couldn't parse anything
 	@rtype: str"""
 	if ':' in version:
@@ -156,8 +164,7 @@ class Distribution(object):
 		@param package: package name (e.g. "gimp")
 		@type package: str
 		@param factory: function for creating new DistributionImplementation objects from IDs
-		@type factory: str -> L{model.DistributionImplementation}
-		"""
+		@type factory: str -> L{model.DistributionImplementation}"""
 		return
 
 	def get_score(self, distribution):
@@ -168,8 +175,7 @@ class Distribution(object):
 		@param distribution: a distribution name
 		@type distribution: str
 		@return: an integer, or -1 if there is no match at all
-		@rtype: int
-		"""
+		@rtype: int"""
 		return 0
 
 	def get_feed(self, master_feed):
@@ -310,6 +316,8 @@ class Distribution(object):
 			logger.info("Binary '%s' not found in any system path (checked %s)", basename, self.system_paths)
 
 	def get_score(self, distro_name):
+		"""@type distro_name: str
+		@rtype: int"""
 		return int(distro_name == self.name)
 
 class WindowsDistribution(Distribution):
@@ -415,6 +423,7 @@ class DarwinDistribution(Distribution):
 	name = 'Darwin'
 
 	def get_package_info(self, package, factory):
+		"""@type package: str"""
 		def java_home(version, arch):
 			null = os.open(os.devnull, os.O_WRONLY)
 			child = subprocess.Popen(["/usr/libexec/java_home", "--failfast", "--version", version, "--arch", arch],
@@ -475,7 +484,8 @@ class CachedDistribution(Distribution):
 	"""
 
 	def __init__(self, db_status_file):
-		"""@param db_status_file: update the cache when the timestamp of this file changes"""
+		"""@param db_status_file: update the cache when the timestamp of this file changes
+		@type db_status_file: str"""
 		self._status_details = os.stat(db_status_file)
 
 		self.versions = {}
@@ -524,6 +534,7 @@ class CachedDistribution(Distribution):
 
 	def _write_cache(self, cache):
 		#cache.sort() 	# Might be useful later; currently we don't care
+		"""@type cache: [str]"""
 		import tempfile
 		fd, tmpname = tempfile.mkstemp(prefix = 'zeroinstall-cache-tmp',
 					       dir = self.cache_dir)
@@ -563,6 +574,8 @@ _canonical_machine = {
 
 host_machine = arch.canonicalize_machine(platform.uname()[4])
 def canonical_machine(package_machine):
+	"""@type package_machine: str
+	@rtype: str"""
 	machine = _canonical_machine.get(package_machine.lower(), None)
 	if machine is None:
 		# Safe default if we can't understand the arch
@@ -577,10 +590,13 @@ class DebianDistribution(Distribution):
 	cache_leaf = 'dpkg-status.cache'
 
 	def __init__(self, dpkg_status):
+		"""@type dpkg_status: str"""
 		self.dpkg_cache = Cache('dpkg-status.cache', dpkg_status, 2)
 		self.apt_cache = {}
 
 	def _query_installed_package(self, package):
+		"""@type package: str
+		@rtype: str"""
 		null = os.open(os.devnull, os.O_WRONLY)
 		child = subprocess.Popen(["dpkg-query", "-W", "--showformat=${Version}\t${Architecture}\t${Status}\n", "--", package],
 						stdout = subprocess.PIPE, stderr = null,
@@ -604,6 +620,7 @@ class DebianDistribution(Distribution):
 
 	def get_package_info(self, package, factory):
 		# Add any already-installed package...
+		"""@type package: str"""
 		installed_cached_info = self._get_dpkg_info(package)
 
 		if installed_cached_info != '-':
@@ -637,6 +654,8 @@ class DebianDistribution(Distribution):
 				impl.download_sources.append(model.DistributionSource(package, cached['size'], install, needs_confirmation = False))
 
 	def fixup(self, package, impl):
+		"""@type package: str
+		@type impl: L{zeroinstall.injector.model.DistributionImplementation}"""
 		if impl.id.startswith('package:deb:openjdk-6-jre:') or \
 		   impl.id.startswith('package:deb:openjdk-7-jre:'):
 			# Debian marks all Java versions as pre-releases
@@ -645,6 +664,7 @@ class DebianDistribution(Distribution):
 
 	def installed_fixup(self, impl):
 		# Hack: If we added any Java implementations, find the corresponding JAVA_HOME...
+		"""@type impl: L{zeroinstall.injector.model.DistributionImplementation}"""
 		if impl.id.startswith('package:deb:openjdk-6-jre:'):
 			java_version = '6-openjdk'
 		elif impl.id.startswith('package:deb:openjdk-7-jre:'):
@@ -672,6 +692,8 @@ class DebianDistribution(Distribution):
 			{'path': java_bin, 'name': 'run'}), None)
 
 	def _get_dpkg_info(self, package):
+		"""@type package: str
+		@rtype: str"""
 		installed_cached_info = self.dpkg_cache.get(package)
 		if installed_cached_info == None:
 			installed_cached_info = self._query_installed_package(package)
@@ -680,6 +702,8 @@ class DebianDistribution(Distribution):
 		return installed_cached_info
 
 	def fetch_candidates(self, master_feed):
+		"""@type master_feed: L{zeroinstall.injector.model.ZeroInstallFeed}
+		@rtype: [L{zeroinstall.support.tasks.Blocker}]"""
 		package_names = [item.getAttribute("package") for item, item_attrs, depends in master_feed.get_package_impls(self)]
 
 		if self.packagekit.available:
@@ -744,6 +768,7 @@ class RPMDistribution(CachedDistribution):
 
 	def get_package_info(self, package, factory):
 		# Add installed versions...
+		"""@type package: str"""
 		versions = self.versions.get(package, [])
 
 		for version, machine in versions:
@@ -757,6 +782,7 @@ class RPMDistribution(CachedDistribution):
 
 	def installed_fixup(self, impl):
 		# OpenSUSE uses _, Fedora uses .
+		"""@type impl: L{zeroinstall.injector.model.DistributionImplementation}"""
 		impl_id = impl.id.replace('_', '.')
 
 		# Hack: If we added any Java implementations, find the corresponding JAVA_HOME...
@@ -786,6 +812,8 @@ class RPMDistribution(CachedDistribution):
 
 	def fixup(self, package, impl):
 		# OpenSUSE uses _, Fedora uses .
+		"""@type package: str
+		@type impl: L{zeroinstall.injector.model.DistributionImplementation}"""
 		package = package.replace('_', '.')
 
 		if package in ('java-1.6.0-openjdk', 'java-1.7.0-openjdk',
@@ -800,10 +828,12 @@ class SlackDistribution(Distribution):
 	name = 'Slack'
 
 	def __init__(self, packages_dir):
+		"""@type packages_dir: str"""
 		self._packages_dir = packages_dir
 
 	def get_package_info(self, package, factory):
 		# Add installed versions...
+		"""@type package: str"""
 		for entry in os.listdir(self._packages_dir):
 			name, version, arch, build = entry.rsplit('-', 3)
 			if name == package:
@@ -828,10 +858,12 @@ class ArchDistribution(Distribution):
 	name = 'Arch'
 
 	def __init__(self, packages_dir):
+		"""@type packages_dir: str"""
 		self._packages_dir = os.path.join(packages_dir, "local")
 
 	def get_package_info(self, package, factory):
 		# Add installed versions...
+		"""@type package: str"""
 		for entry in os.listdir(self._packages_dir):
 			name, version, build = entry.rsplit('-', 2)
 			if name == package:
@@ -863,10 +895,12 @@ class GentooDistribution(Distribution):
 	name = 'Gentoo'
 
 	def __init__(self, pkgdir):
+		"""@type pkgdir: str"""
 		self._pkgdir = pkgdir
 
 	def get_package_info(self, package, factory):
 		# Add installed versions...
+		"""@type package: str"""
 		_version_start_reqexp = '-[0-9]'
 
 		if package.count('/') != 1: return
@@ -910,9 +944,11 @@ class PortsDistribution(Distribution):
 	system_paths = ['/usr/local/bin']
 
 	def __init__(self, pkgdir):
+		"""@type pkgdir: str"""
 		self._pkgdir = pkgdir
 
 	def get_package_info(self, package, factory):
+		"""@type package: str"""
 		_name_version_regexp = '^(.+)-([^-]+)$'
 
 		nameversion = re.compile(_name_version_regexp)
@@ -945,6 +981,7 @@ class MacPortsDistribution(CachedDistribution):
 	name = 'MacPorts'
 
 	def __init__(self, db_status_file):
+		"""@type db_status_file: str"""
 		super(MacPortsDistribution, self).__init__(db_status_file)
 		self.darwin = DarwinDistribution()
 
@@ -985,6 +1022,7 @@ class MacPortsDistribution(CachedDistribution):
 		child.wait()
 
 	def get_package_info(self, package, factory):
+		"""@type package: str"""
 		self.darwin.get_package_info(package, factory)
 
 		# Add installed versions...

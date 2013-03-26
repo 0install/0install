@@ -24,9 +24,10 @@ from zeroinstall import support
 
 def main(command_args, config = None):
 	"""Act as if 0launch was run with the given arguments.
-	@arg command_args: array of arguments (e.g. C{sys.argv[1:]})
 	@type command_args: [str]
-	"""
+	@type config: L{zeroinstall.injector.config.Config} | None
+	@rtype: bool
+	@arg command_args: array of arguments (e.g. C{sys.argv[1:]})"""
 	# Ensure stdin, stdout and stderr FDs exist, to avoid confusion
 	for std in (0, 1, 2):
 		try:

@@ -33,13 +33,11 @@ class Driver(object):
 	__slots__ = ['watchers', 'requirements', 'config', 'target_arch', 'solver']
 
 	def __init__(self, config, requirements):
-		"""
-		@param config: The configuration settings to use
+		"""@param config: The configuration settings to use
 		@type config: L{config.Config}
 		@param requirements: Details about the program we want to run
 		@type requirements: L{requirements.Requirements}
-		@since: 0.53
-		"""
+		@since: 0.53"""
 		self.watchers = []
 
 		assert config
@@ -77,7 +75,9 @@ class Driver(object):
 		that need to be updated. Each time a new feed is imported into
 		the cache, the solver is run again, possibly adding new downloads.
 		@param force: whether to download even if we're already ready to run.
-		@param update_local: fetch PackageKit feeds even if we're ready to run."""
+		@type force: bool
+		@param update_local: fetch PackageKit feeds even if we're ready to run.
+		@type update_local: bool"""
 
 		downloads_finished = set()		# Successful or otherwise
 		downloads_in_progress = {}		# URL -> Download
@@ -147,6 +147,8 @@ class Driver(object):
 	@tasks.async
 	def solve_and_download_impls(self, refresh = False, select_only = False):
 		"""Run L{solve_with_downloads} and then get the selected implementations too.
+		@type refresh: bool
+		@type select_only: bool
 		@raise SafeException: if we couldn't select a set of implementations
 		@since: 0.40"""
 		refreshed = self.solve_with_downloads(refresh)
@@ -179,7 +181,8 @@ class Driver(object):
 		return False
 
 	def download_uncached_implementations(self):
-		"""Download all implementations chosen by the solver that are missing from the cache."""
+		"""Download all implementations chosen by the solver that are missing from the cache.
+		@rtype: L{zeroinstall.support.tasks.Blocker}"""
 		assert self.solver.ready, "Solver is not ready!\n%s" % self.solver.selections
 		stores = self.config.stores
 		return self.config.fetcher.download_impls([impl for impl in self.solver.selections.values() if not impl.is_available(stores)],

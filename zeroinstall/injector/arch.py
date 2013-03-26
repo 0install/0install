@@ -48,6 +48,8 @@ except AttributeError:
 		_uname = (p, 'i486')
 
 def canonicalize_os(os_):
+	"""@type os_: str
+	@rtype: str"""
 	if os_.startswith('CYGWIN_NT'):
 		os_ = 'Cygwin'
 	elif os_ == 'SunOS':
@@ -55,6 +57,7 @@ def canonicalize_os(os_):
 	return os_
 
 def _get_os_ranks(target_os):
+	"""@type target_os: str"""
 	target_os = canonicalize_os(target_os)
 
 	if target_os == 'Darwin':
@@ -96,6 +99,8 @@ machine_groups = {
 }
 
 def canonicalize_machine(machine_):
+	"""@type machine_: str
+	@rtype: str"""
 	machine = machine_.lower()
 	if machine == 'x86':
 		machine = 'i386'
@@ -108,6 +113,8 @@ def canonicalize_machine(machine_):
 	return machine
 
 def _get_machine_ranks(target_machine):
+	"""@type target_machine: str
+	@rtype: dict"""
 	target_machine = canonicalize_machine(target_machine)
 
 	# Binaries compiled for _this_machine are best...
@@ -149,11 +156,14 @@ class Architecture(object):
 	use = frozenset([None])
 
 	def __init__(self, os_ranks, machine_ranks):
+		"""@type os_ranks: dict
+		@type machine_ranks: dict"""
 		self.os_ranks = os_ranks
 		self.machine_ranks = machine_ranks
 		self.child_arch = self
 
 	def __str__(self):
+		"""@rtype: str"""
 		return _("<Arch: %(os_ranks)s %(machine_ranks)s>") % {'os_ranks': self.os_ranks, 'machine_ranks': self.machine_ranks}
 
 class SourceArchitecture(Architecture):
@@ -162,6 +172,7 @@ class SourceArchitecture(Architecture):
 	not on other source packages.
 	"""
 	def __init__(self, binary_arch):
+		"""@type binary_arch: L{Architecture}"""
 		Architecture.__init__(self, binary_arch.os_ranks, {'src': 1})
 		self.child_arch = binary_arch
 
@@ -173,7 +184,9 @@ def get_host_architecture():
 def get_architecture(os, machine):
 	"""Get an Architecture that matches binaries that will work on the given system.
 	@param os: OS type, or None for host's type
+	@type os: str
 	@param machine: CPU type, or None for host's type
+	@type machine: str
 	@return: an Architecture object
 	@rtype: L{Architecture}"""
 

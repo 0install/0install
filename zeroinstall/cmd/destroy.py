@@ -13,6 +13,7 @@ def add_options(parser):
 	pass
 
 def handle(config, options, args):
+	"""@type args: [str]"""
 	if len(args) != 1:
 		raise UsageError()
 
@@ -22,5 +23,8 @@ def handle(config, options, args):
 	app.destroy()
 
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if len(args) != 1: return
 	completion.expand_apps()

@@ -21,6 +21,7 @@ from __future__ import print_function
 #   it's very useful for our purposes).
 
 def debug(msg, *args):
+	"""@type msg: str"""
 	return
 	print("SAT:", msg % args)
 
@@ -32,14 +33,19 @@ def debug(msg, *args):
 # 0	       0	   -1
 # 1	       1	   -2
 def neg(lit):
+	"""@type lit: int
+	@rtype: int"""
 	return -1 - lit
 
 def watch_index(lit):
+	"""@type lit: int
+	@rtype: int"""
 	if lit >= 0:
 		return lit * 2
 	return neg(lit) * 2 + 1
 
 def makeAtMostOneClause(solver):
+	"""@type solver: L{SATProblem}"""
 	class AtMostOneClause(object):
 		def __init__(self, lits):
 			"""Preferred literals come first."""
@@ -127,6 +133,7 @@ def makeAtMostOneClause(solver):
 	return AtMostOneClause
 
 def makeUnionClause(solver):
+	"""@type solver: L{SATProblem}"""
 	class UnionClause(object):
 		def __init__(self, lits):
 			self.lits = lits
@@ -197,6 +204,7 @@ def makeUnionClause(solver):
 class VarInfo(object):
 	__slots__ = ['value', 'reason', 'level', 'undo', 'obj']
 	def __init__(self, obj):
+		"""@type obj: L{zeroinstall.injector.solver.CommandInfo}"""
 		self.value = None		# True/False/None
 		self.reason = None		# The constraint that implied our value, if True or False
 		self.level = -1			# The decision level at which we got a value (when not None)
@@ -227,9 +235,12 @@ class SATProblem(object):
 		self.makeUnionClause = makeUnionClause(self)
 	
 	def get_decision_level(self):
+		"""@rtype: int"""
 		return len(self.trail_lim)
 
 	def add_variable(self, obj):
+		"""@type obj: L{zeroinstall.injector.solver.CommandInfo}
+		@rtype: int"""
 		debug("add_variable('%s')", obj)
 		index = len(self.assigns)
 
@@ -241,6 +252,9 @@ class SATProblem(object):
 	# reason is the clause that is asserting this
 	# Returns False if this immediately causes a conflict.
 	def enqueue(self, lit, reason):
+		"""@type lit: int
+		@type reason: str
+		@rtype: bool"""
 		debug("%s => %s" % (reason, self.name_lit(lit)))
 		old_value = self.lit_value(lit)
 		if old_value is not None:
@@ -288,6 +302,7 @@ class SATProblem(object):
 		self.trail_lim.pop()
 
 	def cancel_until(self, level):
+		"""@type level: int"""
 		while self.get_decision_level() > level:
 			self.cancel()
 	
@@ -295,6 +310,7 @@ class SATProblem(object):
 	# Returns None when done, or the clause that caused a conflict.
 	def propagate(self):
 		#debug("propagate: queue length = %d", len(self.propQ))
+		"""@rtype: L{zeroinstall.injector.sat.UnionClause}"""
 		while self.propQ:
 			lit = self.propQ[0]
 			del self.propQ[0]
@@ -324,12 +340,16 @@ class SATProblem(object):
 		self.toplevel_conflict = True
 
 	def get_varinfo_for_lit(self, lit):
+		"""@type lit: int
+		@rtype: L{VarInfo}"""
 		if lit >= 0:
 			return self.assigns[lit]
 		else:
 			return self.assigns[neg(lit)]
 	
 	def lit_value(self, lit):
+		"""@type lit: int
+		@rtype: bool"""
 		if lit >= 0:
 			value = self.assigns[lit].value
 			return value
@@ -344,12 +364,18 @@ class SATProblem(object):
 	# Call cb when lit becomes True
 	def watch_lit(self, lit, cb):
 		#debug("%s is watching for %s to become True" % (cb, self.name_lit(lit)))
+		"""@type lit: int
+		@type cb: L{zeroinstall.injector.sat.AtMostOneClause}"""
 		self.watches[watch_index(lit)].append(cb)
 
 	# Returns the new clause if one was added, True if none was added
 	# because this clause is trivially True, or False if the clause is
 	# False.
 	def _add_clause(self, lits, learnt, reason):
+		"""@type lits: [int]
+		@type learnt: bool
+		@type reason: str
+		@rtype: L{zeroinstall.injector.sat.UnionClause}"""
 		if not lits:
 			assert not learnt
 			self.toplevel_conflict = True
@@ -382,16 +408,22 @@ class SATProblem(object):
 		return clause
 
 	def name_lits(self, lst):
+		"""@type lst: [int]
+		@rtype: [str]"""
 		return [self.name_lit(l) for l in lst]
 
 	# For nicer debug messages
 	def name_lit(self, lit):
+		"""@type lit: int
+		@rtype: str"""
 		if lit >= 0:
 			return self.assigns[lit].name
 		return "not(%s)" % self.assigns[neg(lit)].name
 	
 	def add_clause(self, lits):
 		# Public interface. Only used before the solve starts.
+		"""@type lits: [int]
+		@rtype: bool"""
 		assert lits
 
 		debug("add_clause([%s])" % ', '.join(self.name_lits(lits)))
@@ -413,6 +445,8 @@ class SATProblem(object):
 		return retval
 
 	def at_most_one(self, lits):
+		"""@type lits: [int]
+		@rtype: L{zeroinstall.injector.sat.AtMostOneClause}"""
 		assert lits
 
 		debug("at_most_one(%s)" % ', '.join(self.name_lits(lits)))
@@ -484,6 +518,8 @@ class SATProblem(object):
 		# everything that depends on it from consideration.
 
 
+		"""@type cause: str
+		@rtype: tuple"""
 		learnt = [None]		# The general rule we're learning
 		btlevel = 0		# The deepest decision in learnt
 		p = None		# The literal we want to expand now
@@ -579,6 +615,7 @@ class SATProblem(object):
 	def run_solver(self, decide):
 		# Check whether we detected a trivial problem
 		# during setup.
+		"""@rtype: bool"""
 		if self.toplevel_conflict:
 			debug("FAIL: toplevel_conflict before starting solve!")
 			return False

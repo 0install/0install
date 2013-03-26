@@ -35,11 +35,13 @@ class DownloadScheduler(object):
 	"""Assigns (and re-assigns on redirect) Downloads to Sites, allowing per-site limits and connection pooling.
 	@since: 1.6"""
 	def __init__(self):
+		"""@rtype: L{Site}"""
 		self._sites = defaultdict(lambda: Site())	# (scheme://host:port) -> Site
 	
 	@tasks.async
 	def download(self, dl):
 		# (changed if we get redirected)
+		"""@type dl: L{zeroinstall.injector.download.Download}"""
 		current_url = dl.url
 
 		redirections_remaining = 10
@@ -97,6 +99,8 @@ class DownloadScheduler(object):
 MAX_DOWNLOADS_PER_SITE = 5
 
 def _spawn_thread(step):
+	"""@type step: L{DownloadStep}
+	@rtype: L{zeroinstall.support.tasks.Blocker}"""
 	from ._download_child import download_in_thread
 
 	thread_blocker = tasks.Blocker("wait for thread " + step.url)
@@ -124,6 +128,7 @@ class Site(object):
 
 	@tasks.async
 	def download(self, step):
+		"""@type step: L{DownloadStep}"""
 		if self.active == MAX_DOWNLOADS_PER_SITE:
 			# Too busy to start a new download now. Queue this one and wait.
 			ticket = tasks.Blocker('queued download for ' + step.url)
