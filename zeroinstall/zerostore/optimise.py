@@ -9,11 +9,17 @@ from zeroinstall import _, logger
 import os, sys
 
 def _already_linked(a, b):
+	"""@type a: str
+	@type b: str
+	@rtype: bool"""
 	ai = os.stat(a)
 	bi = os.stat(b)
 	return (ai.st_dev, ai.st_ino) == (bi.st_dev, bi.st_ino)
 
 def _byte_identical(a, b):
+	"""@type a: str
+	@type b: str
+	@rtype: bool"""
 	with open(a, 'rb') as af:
 		with open(b, 'rb') as bf:
 			while True:
@@ -25,7 +31,10 @@ def _byte_identical(a, b):
 					return True
 
 def _link(a, b, tmpfile):
-	"""Keep 'a', delete 'b' and hard-link to 'a'"""
+	"""Keep 'a', delete 'b' and hard-link to 'a'
+	@type a: str
+	@type b: str
+	@type tmpfile: str"""
 	if not _byte_identical(a, b):
 		logger.warning(_("Files should be identical, but they're not!\n%(file_a)s\n%(file_b)s"), {'file_a': a, 'file_b': b})
 

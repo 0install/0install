@@ -23,6 +23,7 @@ class Requirements(object):
 	]
 
 	def __init__(self, interface_uri):
+		"""@type interface_uri: str"""
 		self.interface_uri = interface_uri
 		self.command = 'run'
 		self.source = False
@@ -81,6 +82,7 @@ class Requirements(object):
 		return changed
 
 	def get_as_options(self):
+		"""@rtype: [str]"""
 		gui_args = []
 		if self.extra_restrictions:
 			# Currently, we only handle the case of restrictions on the root
@@ -105,7 +107,9 @@ class Requirements(object):
 		return gui_args
 
 	def get_extra_restrictions(self, iface_cache):
-		"""Create list of L{model.Restriction}s for each interface, based on these requirements."""
+		"""Create list of L{model.Restriction}s for each interface, based on these requirements.
+		@type iface_cache: L{zeroinstall.injector.iface_cache.IfaceCache}
+		@rtype: {L{model.Interface}: [L{model.Restriction}]}"""
 		from zeroinstall.injector import model
 
 		return dict((iface_cache.get_interface(uri), [model.VersionExpressionRestriction(expr)])

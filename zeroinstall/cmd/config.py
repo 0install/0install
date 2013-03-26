@@ -16,18 +16,24 @@ syntax = "[NAME [VALUE]]"
 def add_options(parser):
 	pass
 
-class String:
+class String(object):
 	@staticmethod
 	def format(value):
+		"""@type value: str
+		@rtype: str"""
 		return value
 
 	@staticmethod
 	def parse(value):
+		"""@type value: str
+		@rtype: str"""
 		return value
 
-class TimeInterval:
+class TimeInterval(object):
 	@staticmethod
 	def format(value):
+		"""@type value: float
+		@rtype: str"""
 		def s(v):
 			if int(v) == v:
 				return str(int(v))
@@ -47,6 +53,8 @@ class TimeInterval:
 
 	@staticmethod
 	def parse(value):
+		"""@type value: str
+		@rtype: int"""
 		v = float(value[:-1])
 		unit = value[-1]
 		if unit == 's':
@@ -62,13 +70,17 @@ class TimeInterval:
 			return int(v)
 		raise SafeException(_('Unknown unit "%s" - use e.g. 5d for 5 days') % unit)
 
-class Boolean:
+class Boolean(object):
 	@staticmethod
 	def format(value):
-		return value
+		"""@type value: bool
+		@rtype: str"""
+		return str(value)
 
 	@staticmethod
 	def parse(value):
+		"""@type value: str
+		@rtype: bool"""
 		if value.lower() == 'true':
 			return True
 		elif value.lower() == 'false':
@@ -84,6 +96,8 @@ settings = {
 }
 
 def handle(config, options, args):
+	"""@type config: L{zeroinstall.injector.config.Config}
+	@type args: [str]"""
 	if len(args) == 0:
 		from zeroinstall import helpers
 		if helpers.get_selections_gui(None, [], use_gui = options.gui) == helpers.DontUseGUI:
@@ -111,6 +125,9 @@ def handle(config, options, args):
 		config.save_globals()
 
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if cword == 0:
 		for name in settings:
 			completion.add_filtered(name)

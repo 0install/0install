@@ -202,6 +202,8 @@ def do_list(args):
 		print(_("No system stores."))
 
 def get_stored(dir_or_digest):
+	"""@type dir_or_digest: str
+	@rtype: str"""
 	if os.path.isdir(dir_or_digest):
 		return dir_or_digest
 	else:

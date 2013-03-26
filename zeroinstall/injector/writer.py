@@ -15,6 +15,8 @@ from zeroinstall.injector import model
 from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFACE
 
 def _atomic_save(doc, parent, uri):
+	"""@type parent: str
+	@type uri: str"""
 	import tempfile
 	tmp_fd, tmp_name = tempfile.mkstemp(dir = parent)
 	try:
@@ -29,6 +31,7 @@ def _atomic_save(doc, parent, uri):
 
 def save_feed(feed):
 	"""Save information about a feed. Currently, this is the last_checked time and any user-set stability ratings.
+	@type feed: L{zeroinstall.injector.model.ZeroInstallFeed}
 	@since: 0.49"""
 	feeds = basedir.save_config_path(config_site, config_prog, 'feeds')
 
@@ -52,6 +55,7 @@ def save_feed(feed):
 	_atomic_save(doc, feeds, feed.url)
 
 def save_interface(interface):
+	"""@type interface: L{zeroinstall.injector.model.Interface}"""
 	user_overrides = basedir.save_config_path(config_site, config_prog, 'interfaces')
 
 	impl = minidom.getDOMImplementation()

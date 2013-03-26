@@ -17,7 +17,7 @@ from zeroinstall.injector import handler
 def _escape_xml(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')
 
-class _NetworkState:
+class _NetworkState(object):
 	NM_STATE_UNKNOWN = 0
 	NM_STATE_ASLEEP = 10
 	NM_STATE_DISCONNECTED = 20
@@ -39,6 +39,8 @@ class _NetworkState:
 class BackgroundHandler(handler.Handler):
 	"""A Handler for non-interactive background updates. Runs the GUI if interaction is required."""
 	def __init__(self, title, root):
+		"""@type title: str
+		@type root: str"""
 		handler.Handler.__init__(self)
 		self.title = title
 		self.notification_service = None
@@ -103,7 +105,8 @@ class BackgroundHandler(handler.Handler):
 		return _NetworkState.NM_STATE_UNKNOWN
 
 	def confirm_import_feed(self, pending, valid_sigs):
-		"""Run the GUI if we need to confirm any keys."""
+		"""Run the GUI if we need to confirm any keys.
+		@type pending: L{zeroinstall.injector.iface_cache.PendingFeed}"""
 
 		if os.environ.get('DISPLAY', None):
 			logger.info(_("Can't update feed; signature not yet trusted. Running GUI..."))
@@ -136,7 +139,10 @@ class BackgroundHandler(handler.Handler):
 
 	def notify(self, title, message, timeout = 0, actions = []):
 		"""Send a D-BUS notification message if possible. If there is no notification
-		service available, log the message instead."""
+		service available, log the message instead.
+		@type title: str
+		@type message: str
+		@type timeout: int"""
 		if not self.notification_service:
 			logger.info('%s: %s', title, message)
 			return None
@@ -187,6 +193,9 @@ def _detach():
 	return False
 
 def _check_for_updates(requirements, verbose, app):
+	"""@type requirements: L{zeroinstall.injector.requirements.Requirements}
+	@type verbose: bool
+	@type app: L{zeroinstall.apps.App}"""
 	if app is not None:
 		old_sels = app.get_selections()
 

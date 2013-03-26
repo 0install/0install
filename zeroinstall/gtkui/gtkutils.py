@@ -6,7 +6,7 @@
 import gtk
 from zeroinstall.support import tasks
 
-class Template:
+class Template(object):
 	"""Wrapper for GtkBuilder widget tree that throws a sensible exception if the widget isn't found."""
 	def __init__(self, builderfile, root):
 		"""Constructor.

@@ -44,6 +44,8 @@ FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
 
 def _pretty_time(t):
 	#assert isinstance(t, (int, long)), t
+	"""@type t: int
+	@rtype: str"""
 	return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.localtime(t))
 
 class ReplayAttack(SafeException):
@@ -84,7 +86,7 @@ class PendingFeed(object):
 		@type fetcher: L{fetch.Fetcher}
 		@param key_mirror: URL of directory containing keys, or None to use feed's directory
 		@type key_mirror: str
-		"""
+		@rtype: [L{zeroinstall.support.tasks.Blocker}]"""
 		downloads = {}
 		blockers = []
 		for x in self.sigs:
@@ -133,6 +135,7 @@ class PendingFeed(object):
 		self.recheck()
 
 	def _downloaded_key(self, stream):
+		"""@type stream: file"""
 		import shutil, tempfile
 		from zeroinstall.injector import gpg
 
@@ -192,9 +195,7 @@ class IfaceCache(object):
 
 	def __init__(self, distro = None):
 		"""@param distro: distribution used to fetch "distribution:" feeds (since 0.49)
-		@param distro: distribution used to resolve "distribution:" feeds
-		@type distro: L{distro.Distribution}, or None to use the host distribution
-		"""
+		@type distro: L{distro.Distribution}, or None to use the host distribution"""
 		self._interfaces = {}
 		self._feeds = {}
 		self._distro = distro
@@ -226,10 +227,10 @@ class IfaceCache(object):
 		@type sigs: [L{gpg.Signature}]
 		@param xml: the downloaded replacement feed document
 		@type xml: str
+		@type dry_run: bool
 		@return: True if the feed was updated
 		@rtype: bool
-		@since: 0.48
-		"""
+		@since: 0.48"""
 		from . import trust
 		updated = self._oldest_trusted(sigs, trust.domain_from_url(feed_url))
 		if updated is None: return False	# None are trusted
@@ -251,12 +252,11 @@ class IfaceCache(object):
 		@type feed_url: L{model.Interface}
 		@param new_xml: the downloaded replacement feed document
 		@type new_xml: str
-		@param modified_time: the timestamp of the oldest trusted signature
-		(used as an approximation to the feed's modification time)
+		@param modified_time: the timestamp of the oldest trusted signature (used as an approximation to the feed's modification time)
 		@type modified_time: long
+		@type dry_run: bool
 		@raises ReplayAttack: if modified_time is older than the currently cached time
-		@since: 0.48
-		"""
+		@since: 0.48"""
 		logger.debug(_("Updating '%(interface)s' from network; modified at %(time)s") %
 			{'interface': feed_url, 'time': _pretty_time(modified_time)})
 
@@ -276,10 +276,13 @@ class IfaceCache(object):
 	def _import_new_feed(self, feed_url, new_xml, modified_time, dry_run):
 		"""Write new_xml into the cache.
 		@param feed_url: the URL for the feed being updated
+		@type feed_url: str
 		@param new_xml: the data to write
+		@type new_xml: str
 		@param modified_time: when new_xml was modified
-		@raises ReplayAttack: if the new mtime is older than the current one
-		"""
+		@type modified_time: int
+		@type dry_run: bool
+		@raises ReplayAttack: if the new mtime is older than the current one"""
 		assert modified_time
 		assert isinstance(new_xml, bytes), repr(new_xml)
 
@@ -345,8 +348,11 @@ class IfaceCache(object):
 	def get_feed(self, url, force = False, selections_ok = False):
 		"""Get a feed from the cache.
 		@param url: the URL of the feed
+		@type url: str
 		@param force: load the file from disk again
+		@type force: bool
 		@param selections_ok: if url is a local selections file, return that instead
+		@type selections_ok: bool
 		@return: the feed, or None if it isn't cached
 		@rtype: L{model.ZeroInstallFeed}"""
 		if not force:
@@ -374,8 +380,8 @@ class IfaceCache(object):
 		New interfaces are initialised from the disk cache, but not from
 		the network.
 		@param uri: the URI of the interface to find
-		@rtype: L{model.Interface}
-		"""
+		@type uri: str
+		@rtype: L{model.Interface}"""
 		if type(uri) == str:
 			uri = unicode(uri)
 		assert isinstance(uri, unicode)
@@ -390,8 +396,7 @@ class IfaceCache(object):
 
 	def list_all_interfaces(self):
 		"""List all interfaces in the cache.
-		@rtype: [str]
-		"""
+		@rtype: [str]"""
 		all = set()
 		for d in basedir.load_cache_paths(config_site, 'interfaces'):
 			for leaf in os.listdir(d):
@@ -402,6 +407,7 @@ class IfaceCache(object):
 	def get_icon_path(self, iface):
 		"""Get the path of a cached icon for an interface.
 		@param iface: interface whose icon we want
+		@type iface: L{Interface}
 		@return: the path of the cached icon, or None if not cached.
 		@rtype: str"""
 		return basedir.load_first_cache(config_site, 'interface_icons',
@@ -431,7 +437,9 @@ class IfaceCache(object):
 
 	def _get_signature_date(self, uri):
 		"""Read the date-stamp from the signature of the cached interface.
-		If the date-stamp is unavailable, returns None."""
+		If the date-stamp is unavailable, returns None.
+		@type uri: str
+		@rtype: int"""
 		from . import trust
 		sigs = self.get_cached_signatures(uri)
 		if sigs:
@@ -439,7 +447,10 @@ class IfaceCache(object):
 
 	def _oldest_trusted(self, sigs, domain):
 		"""Return the date of the oldest trusted signature in the list, or None if there
-		are no trusted sigs in the list."""
+		are no trusted sigs in the list.
+		@type sigs: [L{zeroinstall.injector.gpg.ValidSig}]
+		@type domain: str
+		@rtype: int"""
 		trusted = [s.get_timestamp() for s in sigs if s.is_trusted(domain)]
 		if trusted:
 			return min(trusted)
@@ -449,7 +460,8 @@ class IfaceCache(object):
 		"""Touch a 'last-check-attempt' timestamp file for this feed.
 		If url is a local path, nothing happens.
 		This prevents us from repeatedly trying to download a failing feed many
-		times in a short period."""
+		times in a short period.
+		@type url: str"""
 		if os.path.isabs(url):
 			return
 		feeds_dir = basedir.save_cache_path(config_site, config_prog, 'last-check-attempt')
@@ -460,9 +472,10 @@ class IfaceCache(object):
 
 	def get_last_check_attempt(self, url):
 		"""Return the time of the most recent update attempt for a feed.
-		@see: L{mark_as_checking}
+		@type url: str
 		@return: The time, or None if none is recorded
-		@rtype: float | None"""
+		@rtype: float | None
+		@see: L{mark_as_checking}"""
 		timestamp_path = basedir.load_first_cache(config_site, config_prog, 'last-check-attempt', model._pretty_escape(url))
 		if timestamp_path:
 			return os.stat(timestamp_path).st_mtime
@@ -472,6 +485,7 @@ class IfaceCache(object):
 		"""Get all feeds that add to this interface.
 		This is the feeds explicitly added by the user, feeds added by the distribution,
 		and feeds imported by a <feed> in the main feed (but not recursively, at present).
+		@type iface: L{Interface}
 		@rtype: L{Feed}
 		@since: 0.48"""
 		main_feed = self.get_feed(iface.uri)
@@ -485,6 +499,7 @@ class IfaceCache(object):
 		to ZeroInstallFeeds. It includes the interface's main feed, plus the
 		resolution of every feed returned by L{get_feed_imports}. Uncached
 		feeds are indicated by a value of None.
+		@type iface: L{Interface}
 		@rtype: {str: L{ZeroInstallFeed} | None}
 		@since: 0.48"""
 		main_feed = self.get_feed(iface.uri)
@@ -501,6 +516,7 @@ class IfaceCache(object):
 
 	def get_implementations(self, iface):
 		"""Return all implementations from all of iface's feeds.
+		@type iface: L{Interface}
 		@rtype: [L{Implementation}]
 		@since: 0.48"""
 		impls = []
@@ -535,7 +551,10 @@ class IfaceCache(object):
 		"""Check whether feed needs updating, based on the configured L{config.Config.freshness}.
 		None is considered to be stale.
 		If we already tried to update the feed within FAILED_CHECK_DELAY, returns false.
+		@type feed_url: str
+		@type freshness_threshold: int
 		@return: True if feed should be updated
+		@rtype: bool
 		@since: 0.53"""
 		if isinstance(feed_url, model.ZeroInstallFeed):
 			feed_url = feed_url.url		# old API

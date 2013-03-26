@@ -35,7 +35,7 @@ categories = [
 	N_('Utility'),
 	]
 
-class AddBox:
+class AddBox(object):
 	"""A dialog box which prompts the user to choose the program to be added."""
 	def __init__(self, interface_uri = None):
 		builderfile = os.path.join(os.path.dirname(__file__), 'desktop.ui')

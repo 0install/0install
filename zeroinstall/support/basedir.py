@@ -61,6 +61,10 @@ else:
 		}
 
 	def _get_path(home_var, dirs_var, default_paths):
+		"""@type home_var: str
+		@type dirs_var: str
+		@type default_paths: [str]
+		@rtype: [str]"""
 		paths = default_paths
 
 		x = os.environ.get(home_var, None)
@@ -86,7 +90,8 @@ def save_config_path(*resource):
 	"""Ensure $XDG_CONFIG_HOME/<resource>/ exists, and return its path.
 	'resource' should normally be the name of your application. Use this
 	when SAVING configuration settings. Use the xdg_config_dirs variable
-	for loading."""
+	for loading.
+	@rtype: str"""
 	resource = os.path.join(*resource)
 	assert not os.path.isabs(resource)
 	path = os.path.join(xdg_config_home, resource)
@@ -105,14 +110,16 @@ def load_config_paths(*resource):
 
 def load_first_config(*resource):
 	"""Returns the first result from load_config_paths, or None if there is nothing
-	to load."""
+	to load.
+	@rtype: str | None"""
 	for x in load_config_paths(*resource):
 		return x
 	return None
 
 def save_cache_path(*resource):
 	"""Ensure $XDG_CACHE_HOME/<resource>/ exists, and return its path.
-	'resource' should normally be the name of your application."""
+	'resource' should normally be the name of your application.
+	@rtype: str"""
 	resource = os.path.join(*resource)
 	assert not os.path.isabs(resource)
 	path = os.path.join(xdg_cache_home, resource)
@@ -131,7 +138,8 @@ def load_cache_paths(*resource):
 
 def load_first_cache(*resource):
 	"""Returns the first result from load_cache_paths, or None if there is nothing
-	to load."""
+	to load.
+	@rtype: str | None"""
 	for x in load_cache_paths(*resource):
 		return x
 	return None
@@ -149,6 +157,7 @@ def load_data_paths(*resource):
 def load_first_data(*resource):
 	"""Returns the first result from load_data_paths, or None if there is nothing
 	to load.
+	@rtype: str | None
 	@since: 0.28"""
 	for x in load_data_paths(*resource):
 		return x
@@ -156,7 +165,8 @@ def load_first_data(*resource):
 
 def save_data_path(*resource):
 	"""Ensure $XDG_DATA_HOME/<resource>/ exists, and return its path.
-	'resource' should normally be the name of your application."""
+	'resource' should normally be the name of your application.
+	@rtype: str"""
 	resource = os.path.join(*resource)
 	assert not os.path.isabs(resource)
 	path = os.path.join(xdg_data_home, resource)

@@ -17,6 +17,7 @@ def add_options(parser):
 	pass
 
 def handle(config, options, args):
+	"""@type args: [str]"""
 	if len(args) != 1: raise UsageError()
 	uri = model.canonical_iface_uri(args[0])
 	iface = config.iface_cache.get_interface(uri)
@@ -30,6 +31,9 @@ def handle(config, options, args):
 # Lists only interfaces with feeds.
 # Note: this is also used by remove-feed.
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if len(args) != 1: return
 	iface_cache = completion.config.iface_cache
 	for uri in iface_cache.list_all_interfaces():

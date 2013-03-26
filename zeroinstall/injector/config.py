@@ -40,6 +40,7 @@ class Config(object):
 		     '_fetcher', '_stores', '_iface_cache', '_handler', '_trust_mgr', '_trust_db', '_app_mgr']
 
 	def __init__(self, handler = None):
+		"""@type handler: L{zeroinstall.injector.handler.Handler} | None"""
 		self.help_with_testing = False
 		self.freshness = 60 * 60 * 24 * 30
 		self.network_use = network_full
@@ -118,6 +119,8 @@ class Config(object):
 		support.portable_rename(path + '.new', path)
 
 def load_config(handler = None):
+	"""@type handler: L{zeroinstall.injector.handler.Handler} | None
+	@rtype: L{Config}"""
 	config = Config(handler)
 	parser = ConfigParser.RawConfigParser()
 	parser.add_section('global')

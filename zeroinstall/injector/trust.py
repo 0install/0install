@@ -33,6 +33,9 @@ class TrustDB(object):
 		self._dry_run = False
 	
 	def is_trusted(self, fingerprint, domain = None):
+		"""@type fingerprint: str
+		@type domain: str | None
+		@rtype: bool"""
 		self.ensure_uptodate()
 
 		domains = self.keys.get(fingerprint, None)
@@ -46,13 +49,16 @@ class TrustDB(object):
 	def get_trust_domains(self, fingerprint):
 		"""Return the set of domains in which this key is trusted.
 		If the list includes '*' then the key is trusted everywhere.
-		@since: 0.27
-		"""
+		@type fingerprint: str
+		@rtype: {str}
+		@since: 0.27"""
 		self.ensure_uptodate()
 		return self.keys.get(fingerprint, set())
 	
 	def get_keys_for_domain(self, domain):
 		"""Return the set of keys trusted for this domain.
+		@type domain: str
+		@rtype: {str}
 		@since: 0.27"""
 		self.ensure_uptodate()
 		return set([fp for fp in self.keys
@@ -82,6 +88,8 @@ class TrustDB(object):
 		self.save()
 	
 	def untrust_key(self, key, domain = '*'):
+		"""@type key: str
+		@type domain: str"""
 		if self._dry_run:
 			print(_("[dry-run] would untrust key {key} for {domain}").format(key = key, domain = domain))
 		self.ensure_uptodate()
@@ -183,6 +191,7 @@ class TrustMgr(object):
 	__slots__ = ['config', '_current_confirm']
 
 	def __init__(self, config):
+		"""@type config: L{zeroinstall.injector.config.Config}"""
 		self.config = config
 		self._current_confirm = None	# (a lock to prevent asking the user multiple questions at once)
 
@@ -191,11 +200,11 @@ class TrustMgr(object):
 		"""We don't trust any of the signatures yet. Collect information about them and add the keys to the
 		trusted list, possibly after confirming with the user (via config.handler).
 		Updates the L{trust} database, and then calls L{trust.TrustDB.notify}.
-		@since: 0.53
-		@arg pending: an object holding details of the updated feed
+		@param pending: an object holding details of the updated feed
 		@type pending: L{PendingFeed}
 		@return: A blocker that triggers when the user has chosen, or None if already done.
-		@rtype: None | L{Blocker}"""
+		@rtype: None | L{Blocker}
+		@since: 0.53"""
 
 		assert pending.sigs
 

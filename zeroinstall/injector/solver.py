@@ -12,21 +12,30 @@ import collections
 from zeroinstall.injector.reader import MissingLocalFeed
 from zeroinstall.injector import model, sat, selections, arch, qdom
 
-class CommandInfo:
+class CommandInfo(object):
 	def __init__(self, name, command, impl, arch):
+		"""@type name: str
+		@type command: L{zeroinstall.injector.model.Command}
+		@type impl: L{zeroinstall.injector.model.Implementation}
+		@type arch: L{zeroinstall.injector.arch.Architecture}"""
 		self.name = name
 		self.command = command
 		self.impl = impl
 		self.arch = arch
 
 	def __repr__(self):
+		"""@rtype: str"""
 		name = "%s_%s_%s_%s" % (self.impl.feed.get_name(), self.impl.get_version(), self.impl.arch, self.name)
 		return name.replace('-', '_').replace('.', '_')
 
-class ImplInfo:
+class ImplInfo(object):
 	is_dummy = False
 
 	def __init__(self, iface, impl, arch, dummy = False):
+		"""@type iface: L{zeroinstall.injector.model.Interface}
+		@type impl: L{zeroinstall.injector.model.Implementation} | L{_DummyImpl}
+		@type arch: L{zeroinstall.injector.arch.Architecture}
+		@type dummy: bool"""
 		self.iface = iface
 		self.impl = impl
 		self.arch = arch
@@ -34,6 +43,7 @@ class ImplInfo:
 			self.is_dummy = True
 
 	def __repr__(self):
+		"""@rtype: str"""
 		name = "%s_%s_%s" % (self.impl.feed.get_name(), self.impl.get_version(), self.impl.arch)
 		return name.replace('-', '_').replace('.', '_')
 
@@ -49,9 +59,11 @@ class _DummyImpl(object):
 	feed = property(lambda self: self)
 
 	def get_version(self):
+		"""@rtype: str"""
 		return "dummy"
 
 	def get_name(self):
+		"""@rtype: str"""
 		return "dummy"
 
 class _ForceImpl(model.Restriction):
@@ -60,12 +72,16 @@ class _ForceImpl(model.Restriction):
 	reason = "Excluded by justify_decision"		# not shown to user
 
 	def __init__(self, impl):
+		"""@type impl: L{zeroinstall.injector.model.Implementation}"""
 		self.impl = impl
 
 	def meets_restriction(self, impl):
+		"""@type impl: L{zeroinstall.injector.model.Implementation}
+		@rtype: bool"""
 		return impl.id == self.impl.id
 
 	def __str__(self):
+		"""@rtype: str"""
 		return _("implementation {version} ({impl})").format(version = self.impl.get_version(), impl = self.impl.id)
 
 class Solver(object):
@@ -151,12 +167,10 @@ class SATSolver(Solver):
 		return self.config.iface_cache	# (deprecated; used by 0compile)
 
 	def __init__(self, config, extra_restrictions = None):
-		"""
-		@param config: policy preferences (e.g. stability), the iface_cache and the stores to use
+		"""@param config: policy preferences (e.g. stability), the iface_cache and the stores to use
 		@type config: L{policy.Config}
 		@param extra_restrictions: extra restrictions on the chosen implementations
-		@type extra_restrictions: {L{model.Interface}: [L{model.Restriction}]}
-		"""
+		@type extra_restrictions: {L{model.Interface}: [L{model.Restriction}]}"""
 		Solver.__init__(self)
 		assert not isinstance(config, str), "API change!"
 		self.config = config
@@ -168,8 +182,7 @@ class SATSolver(Solver):
 	def set_langs(self, langs):
 		"""Set the preferred languages.
 		@param langs: languages (and regions), first choice first
-		@type langs: [str]
-		"""
+		@type langs: [str]"""
 		# _lang_ranks is a map from locale string to score (higher is better)
 		_lang_ranks = {}
 		score = 0
@@ -187,6 +200,10 @@ class SATSolver(Solver):
 	langs = property(lambda self: self._langs, set_langs)
 
 	def get_rating(self, interface, impl, arch):
+		"""@type interface: L{zeroinstall.injector.model.Interface}
+		@type impl: L{zeroinstall.injector.model.Implementation}
+		@type arch: L{zeroinstall.injector.arch.Architecture}
+		@rtype: [object]"""
 		impl_langs = (impl.langs or 'en').split()
 		my_langs = self._lang_ranks
 
@@ -252,6 +269,11 @@ class SATSolver(Solver):
 		]
 
 	def solve(self, root_interface, root_arch, command_name = 'run', closest_match = False):
+		"""@type root_interface: str
+		@type root_arch: L{zeroinstall.injector.arch.Architecture}
+		@type command_name: str | None
+		@type closest_match: bool"""
+
 		# closest_match is used internally. It adds a lowest-ranked
 		# by valid implementation to every interface, so we can always
 		# select something. Useful for diagnostics.
@@ -815,7 +837,8 @@ class SATSolver(Solver):
 				sels[root_interface] = None		# Useful for get_failure_reason()
 
 	def get_failure_reason(self):
-		"""Return an exception explaining why the solve failed."""
+		"""Return an exception explaining why the solve failed.
+		@rtype: L{zeroinstall.SafeException}"""
 		assert not self.ready
 
 		sels = self.selections.selections
@@ -982,7 +1005,11 @@ class SATSolver(Solver):
 
 	def justify_decision(self, requirements, iface, impl):
 		"""Run a solve with impl_id forced to be selected, and explain why it wasn't (or was)
-		selected in the normal case."""
+		selected in the normal case.
+		@type requirements: L{zeroinstall.injector.requirements.Requirements}
+		@type iface: L{zeroinstall.injector.model.Interface}
+		@type impl: L{zeroinstall.injector.model.Implementation}
+		@rtype: str"""
 		assert isinstance(iface, model.Interface), iface
 
 		restrictions = self.extra_restrictions.copy()

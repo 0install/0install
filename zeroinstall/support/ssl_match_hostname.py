@@ -13,6 +13,7 @@ class CertificateError(ValueError):
     pass
 
 def _dnsname_to_pat(dn):
+    """@type dn: str"""
     pats = []
     for frag in dn.split(r'.'):
         if frag == '*':
@@ -29,10 +30,10 @@ def match_hostname(cert, hostname):
     """Verify that *cert* (in decoded format as returned by
     SSLSocket.getpeercert()) matches the *hostname*.  RFC 2818 rules
     are mostly followed, but IP addresses are not accepted for *hostname*.
-
+    
     CertificateError is raised on failure. On success, the function
     returns nothing.
-    """
+    @type hostname: str"""
     if not cert:
         raise ValueError("empty or no certificate")
     dnsnames = []

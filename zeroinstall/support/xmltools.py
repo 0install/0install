@@ -8,6 +8,7 @@
 from xml.dom import Node
 		
 def _compare_children(a, b):
+	"""@rtype: bool"""
 	ac = a.childNodes
 	bc = b.childNodes
 
@@ -23,7 +24,7 @@ def _compare_children(a, b):
 def nodes_equal(a, b):
 	"""Compare two DOM nodes.
 	Warning: only supports documents containing elements, text nodes and attributes (will crash on comments, etc).
-	"""
+	@rtype: bool"""
 	if a.nodeType != b.nodeType:
 		return False
 

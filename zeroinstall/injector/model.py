@@ -45,6 +45,7 @@ class InvalidInterface(SafeException):
 	feed_url = None
 
 	def __init__(self, message, ex = None):
+		"""@type message: str"""
 		if ex:
 			try:
 				message += "\n\n(exact error: %s)" % ex
@@ -60,6 +61,7 @@ class InvalidInterface(SafeException):
 		SafeException.__init__(self, message)
 
 	def __unicode__(self):
+		"""@rtype: str"""
 		if hasattr(SafeException, '__unicode__'):
 			# Python >= 2.6
 			if self.feed_url:
@@ -69,7 +71,8 @@ class InvalidInterface(SafeException):
 			return support.unicode(SafeException.__str__(self))
 
 def _split_arch(arch):
-	"""Split an arch into an (os, machine) tuple. Either or both parts may be None."""
+	"""Split an arch into an (os, machine) tuple. Either or both parts may be None.
+	@type arch: str"""
 	if not arch:
 		return None, None
 	elif '-' not in arch:
@@ -81,10 +84,15 @@ def _split_arch(arch):
 		return osys, machine
 
 def _join_arch(osys, machine):
+	"""@type osys: str
+	@type machine: str
+	@rtype: str"""
 	if osys == machine == None: return None
 	return "%s-%s" % (osys or '*', machine or '*')
 
 def _best_language_match(options):
+	"""@type options: {str: str}
+	@rtype: str"""
 	(language, encoding) = locale.getlocale()
 
 	if language:
@@ -102,6 +110,9 @@ class Stability(object):
 	optionally, a user-set rating."""
 	__slots__ = ['level', 'name', 'description']
 	def __init__(self, level, name, description):
+		"""@type level: int
+		@type name: str
+		@type description: str"""
 		self.level = level
 		self.name = name
 		self.description = description
@@ -109,28 +120,37 @@ class Stability(object):
 		stability_levels[name] = self
 
 	def __cmp__(self, other):
+		"""@type other: L{Stability}
+		@rtype: int"""
 		return cmp(self.level, other.level)
 
 	def __lt__(self, other):
+		"""@type other: L{Stability}
+		@rtype: bool"""
 		if isinstance(other, Stability):
 			return self.level < other.level
 		else:
 			return NotImplemented
 
 	def __eq__(self, other):
+		"""@type other: L{Stability}
+		@rtype: bool"""
 		if isinstance(other, Stability):
 			return self.level == other.level
 		else:
 			return NotImplemented
 
 	def __str__(self):
+		"""@rtype: str"""
 		return self.name
 
 	def __repr__(self):
 		return _("<Stability: %s>") % self.description
 
 def process_binding(e):
-	"""Internal"""
+	"""Internal
+	@type e: L{zeroinstall.injector.qdom.Element}
+	@rtype: L{Binding}"""
 	if e.name == 'environment':
 		mode = {
 			None: EnvironmentBinding.PREPEND,
@@ -161,7 +181,10 @@ def process_binding(e):
 		raise Exception(_("Unknown binding type '%s'") % e.name)
 
 def process_depends(item, local_feed_dir):
-	"""Internal"""
+	"""Internal
+	@type item: L{zeroinstall.injector.qdom.Element}
+	@type local_feed_dir: str
+	@rtype: L{Dependency}"""
 	# Note: also called from selections
 	# Note: used by 0compile
 	attrs = item.attrs
@@ -226,14 +249,14 @@ class Restriction(object):
 	def meets_restriction(self, impl):
 		"""Called by the L{solver.Solver} to check whether a particular implementation is acceptable.
 		@return: False if this implementation is not a possibility
-		@rtype: bool
-		"""
+		@rtype: bool"""
 		raise NotImplementedError(_("Abstract"))
 
 	def __str__(self):
 		return "missing __str__ on %s" % type(self)
 
 	def __repr__(self):
+		"""@rtype: str"""
 		return "<restriction: %s>" % self
 
 class VersionRestriction(Restriction):
@@ -242,12 +265,13 @@ class VersionRestriction(Restriction):
 
 	def __init__(self, version):
 		"""@param version: the required version number
-		@see: L{parse_version}; use this to pre-process the version number
-		"""
+		@see: L{parse_version}; use this to pre-process the version number"""
 		assert not isinstance(version, str), "Not parsed: " + version
 		self.version = version
 
 	def meets_restriction(self, impl):
+		"""@type impl: L{ZeroInstallImplementation}
+		@rtype: bool"""
 		return impl.version == self.version
 
 	def __str__(self):
@@ -260,12 +284,13 @@ class VersionRangeRestriction(Restriction):
 	def __init__(self, before, not_before):
 		"""@param before: chosen versions must be earlier than this
 		@param not_before: versions must be at least this high
-		@see: L{parse_version}; use this to pre-process the versions
-		"""
+		@see: L{parse_version}; use this to pre-process the versions"""
 		self.before = before
 		self.not_before = not_before
 
 	def meets_restriction(self, impl):
+		"""@type impl: L{Implementation}
+		@rtype: bool"""
 		if self.not_before and impl.version < self.not_before:
 			return False
 		if self.before and impl.version >= self.before:
@@ -273,6 +298,7 @@ class VersionRangeRestriction(Restriction):
 		return True
 
 	def __str__(self):
+		"""@rtype: str"""
 		if self.not_before is not None or self.before is not None:
 			range = ''
 			if self.not_before is not None:
@@ -297,9 +323,12 @@ class VersionExpressionRestriction(Restriction):
 		self._test_fn = versions.parse_version_expression(expr)
 
 	def meets_restriction(self, impl):
+		"""@type impl: L{Implementation}
+		@rtype: bool"""
 		return self._test_fn(impl.version)
 
 	def __str__(self):
+		"""@rtype: str"""
 		return "version " + self.expr
 
 class ImpossibleRestriction(Restriction):
@@ -308,12 +337,16 @@ class ImpossibleRestriction(Restriction):
 	@since: 1.13"""
 
 	def __init__(self, reason):
+		"""@type reason: str"""
 		self.reason = reason
 
 	def meets_restriction(self, impl):
+		"""@type impl: L{Implementation}
+		@rtype: bool"""
 		return False
 
 	def __str__(self):
+		"""@rtype: str"""
 		return "<impossible: %s>" % self.reason
 
 class DistributionRestriction(Restriction):
@@ -325,12 +358,16 @@ class DistributionRestriction(Restriction):
 	distros = None
 
 	def __init__(self, distros):
+		"""@type distros: str"""
 		self.distros = frozenset(distros.split(' '))
 
 	def meets_restriction(self, impl):
+		"""@type impl: L{Implementation}
+		@rtype: bool"""
 		return impl.distro_name in self.distros
 
 	def __str__(self):
+		"""@rtype: str"""
 		return "distro " + '|'.join(sorted(self.distros))
 
 class Binding(object):
@@ -503,6 +540,7 @@ class Dependency(object):
 	Restricts = "restricts"		# Just adds restrictions without expressing any opinion
 
 	def __init__(self, element):
+		"""@type element: L{zeroinstall.injector.qdom.Element}"""
 		assert isinstance(element, qdom.Element), type(element)	# Use InterfaceDependency instead!
 		self.qdom = element
 
@@ -525,6 +563,8 @@ class InterfaceRestriction(Dependency):
 	__slots__ = ['interface', 'restrictions']
 
 	def __init__(self, interface, restrictions = None, element = None):
+		"""@type interface: str
+		@type element: L{zeroinstall.injector.qdom.Element} | None"""
 		Dependency.__init__(self, element)
 		assert isinstance(interface, (str, support.unicode))
 		assert interface
@@ -553,10 +593,13 @@ class InterfaceDependency(InterfaceRestriction):
 	__slots__ = ['bindings']
 
 	def __init__(self, interface, restrictions = None, element = None):
+		"""@type interface: str
+		@type element: L{zeroinstall.injector.qdom.Element} | None"""
 		InterfaceRestriction.__init__(self, interface, restrictions, element)
 		self.bindings = []
 
 	def __str__(self):
+		"""@rtype: str"""
 		return _("<Dependency on %(interface)s; bindings: %(bindings)s%(restrictions)s>") % {'interface': self.interface, 'bindings': self.bindings, 'restrictions': self.restrictions}
 
 	@property
@@ -590,6 +633,13 @@ class DownloadSource(RetrievalMethod):
 	__slots__ = ['implementation', 'url', 'size', 'extract', 'start_offset', 'type', 'dest']
 
 	def __init__(self, implementation, url, size, extract, start_offset = 0, type = None, dest = None):
+		"""@type implementation: L{ZeroInstallImplementation}
+		@type url: str
+		@type size: int
+		@type extract: str
+		@type start_offset: int
+		@type type: str | None
+		@type dest: str | None"""
 		self.implementation = implementation
 		self.url = url
 		self.size = size
@@ -603,6 +653,8 @@ class RenameStep(RetrievalMethod):
 	__slots__ = ['source', 'dest']
 
 	def __init__(self, source, dest):
+		"""@type source: str
+		@type dest: str"""
 		self.source = source
 		self.dest = dest
 
@@ -611,6 +663,9 @@ class FileSource(RetrievalMethod):
 	__slots__ = ['url', 'dest', 'size']
 
 	def __init__(self, url, dest, size):
+		"""@type url: str
+		@type dest: str
+		@type size: int"""
 		self.url = url
 		self.dest = dest
 		self.size = size
@@ -620,6 +675,7 @@ class RemoveStep(RetrievalMethod):
 	__slots__ = ['path']
 
 	def __init__(self, path):
+		"""@type path: str"""
 		self.path = path
 
 class Recipe(RetrievalMethod):
@@ -649,6 +705,9 @@ class DistributionSource(RetrievalMethod):
 	__slots__ = ['package_id', 'size', 'install', 'needs_confirmation']
 
 	def __init__(self, package_id, size, install, needs_confirmation = True):
+		"""@type package_id: str
+		@type size: int
+		@type needs_confirmation: bool"""
 		RetrievalMethod.__init__(self)
 		self.package_id = package_id
 		self.size = size
@@ -662,8 +721,8 @@ class Command(object):
 
 	def __init__(self, qdom, local_dir):
 		"""@param qdom: the <command> element
-		@param local_dir: the directory containing the feed (for relative dependencies), or None if not local
-		"""
+		@type qdom: L{zeroinstall.injector.qdom.Element}
+		@param local_dir: the directory containing the feed (for relative dependencies), or None if not local"""
 		assert qdom.name == 'command', 'not <command>: %s' % qdom
 		self.qdom = qdom
 		self._local_dir = local_dir
@@ -673,6 +732,7 @@ class Command(object):
 	path = property(lambda self: self.qdom.attrs.get("path", None))
 
 	def _toxml(self, doc, prefixes):
+		"""@type prefixes: L{zeroinstall.injector.qdom.Prefixes}"""
 		return self.qdom.toDOM(doc, prefixes)
 
 	@property
@@ -695,6 +755,7 @@ class Command(object):
 		return self._depends
 
 	def get_runner(self):
+		"""@rtype: L{InterfaceDependency}"""
 		self.requires		# (sets _runner)
 		return self._runner
 
@@ -749,6 +810,8 @@ class Implementation(object):
 		     'id', 'feed', 'version', 'released', 'bindings', 'machine']
 
 	def __init__(self, feed, id):
+		"""@type feed: L{ZeroInstallFeed}
+		@type id: str"""
 		assert id
 		self.feed = feed
 		self.id = id
@@ -765,16 +828,20 @@ class Implementation(object):
 		self.commands = {}
 
 	def get_stability(self):
+		"""@rtype: L{Stability}"""
 		return self.user_stability or self.upstream_stability or testing
 
 	def __str__(self):
+		"""@rtype: str"""
 		return self.id
 
 	def __repr__(self):
 		return "v%s (%s)" % (self.get_version(), self.id)
 
 	def __cmp__(self, other):
-		"""Newer versions come first"""
+		"""Newer versions come first
+		@type other: L{Implementation}
+		@rtype: int"""
 		d = cmp(other.version, self.version)
 		if d: return d
 		# If the version number is the same, just give a stable sort order, and
@@ -784,9 +851,12 @@ class Implementation(object):
 		return cmp(other.id, self.id)
 
 	def __hash__(self):
+		"""@rtype: int"""
 		return self.id.__hash__()
 
 	def __eq__(self, other):
+		"""@type other: L{Implementation}
+		@rtype: bool"""
 		return self is other
 
 	def __le__(self, other):
@@ -803,8 +873,8 @@ class Implementation(object):
 
 	def get_version(self):
 		"""Return the version as a string.
-		@see: L{format_version}
-		"""
+		@rtype: str
+		@see: L{format_version}"""
 		return format_version(self.version)
 
 	arch = property(lambda self: _join_arch(self.os, self.machine))
@@ -815,7 +885,8 @@ class Implementation(object):
 	requires_root_install = False
 
 	def _get_main(self):
-		""""@deprecated: use commands["run"] instead"""
+		""""@deprecated: use commands["run"] instead
+		@rtype: str"""
 		main = self.commands.get("run", None)
 		if main is not None:
 			return main.path
@@ -833,8 +904,7 @@ class Implementation(object):
 		"""Is this Implementation available locally?
 		(a local implementation, an installed distribution package, or a cached ZeroInstallImplementation)
 		@rtype: bool
-		@since: 0.53
-		"""
+		@since: 0.53"""
 		raise NotImplementedError("abstract")
 
 class DistributionImplementation(Implementation):
@@ -846,6 +916,11 @@ class DistributionImplementation(Implementation):
 	__slots__ = ['distro', 'installed', 'package_implementation', 'distro_name']
 
 	def __init__(self, feed, id, distro, package_implementation = None, distro_name = None):
+		"""@type feed: L{ZeroInstallFeed}
+		@type id: str
+		@type distro: L{zeroinstall.injector.distro.Distribution}
+		@type package_implementation: L{zeroinstall.injector.qdom.Element} | None
+		@type distro_name: str | None"""
 		assert id.startswith('package:')
 		Implementation.__init__(self, feed, id)
 		self.distro = distro
@@ -867,6 +942,8 @@ class DistributionImplementation(Implementation):
 		return not self.installed
 
 	def is_available(self, stores):
+		"""@type stores: L{zeroinstall.zerostore.Stores}
+		@rtype: bool"""
 		return self.installed
 
 class ZeroInstallImplementation(Implementation):
@@ -879,7 +956,10 @@ class ZeroInstallImplementation(Implementation):
 	distro_name = '0install'
 
 	def __init__(self, feed, id, local_path):
-		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")"""
+		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")
+		@type feed: L{ZeroInstallFeed}
+		@type id: str
+		@type local_path: str"""
 		assert not id.startswith('package:'), id
 		Implementation.__init__(self, feed, id)
 		self.size = None
@@ -892,14 +972,23 @@ class ZeroInstallImplementation(Implementation):
 						   if isinstance(x, InterfaceRestriction)]))
 
 	def add_download_source(self, url, size, extract, start_offset = 0, type = None, dest = None):
-		"""Add a download source."""
+		"""Add a download source.
+		@type url: str
+		@type size: int
+		@type extract: str
+		@type start_offset: int
+		@type type: str | None
+		@type dest: str | None"""
 		self.download_sources.append(DownloadSource(self, url, size, extract, start_offset, type, dest))
 
 	def set_arch(self, arch):
+		"""@type arch: str"""
 		self.os, self.machine = _split_arch(arch)
 	arch = property(lambda self: _join_arch(self.os, self.machine), set_arch)
 
 	def is_available(self, stores):
+		"""@type stores: L{zeroinstall.zerostore.Stores}
+		@rtype: bool"""
 		if self.local_path is not None:
 			return os.path.exists(self.local_path)
 		if self.digests:
@@ -927,6 +1016,7 @@ class Interface(object):
 	last_checked = property(lambda self: self._main_feed.last_checked)
 
 	def __init__(self, uri):
+		"""@type uri: str"""
 		assert uri
 		if uri.startswith('http:') or uri.startswith('https:') or os.path.isabs(uri):
 			self.uri = uri
@@ -947,6 +1037,7 @@ class Interface(object):
 		self.stability_policy = None
 
 	def get_name(self):
+		"""@rtype: str"""
 		from zeroinstall.injector.iface_cache import iface_cache
 		feed = iface_cache.get_feed(self.uri)
 		if feed:
@@ -954,9 +1045,11 @@ class Interface(object):
 		return '(' + os.path.basename(self.uri) + ')'
 
 	def __repr__(self):
+		"""@rtype: str"""
 		return _("<Interface %s>") % self.uri
 
 	def set_stability_policy(self, new):
+		"""@type new: L{Stability}"""
 		assert new is None or isinstance(new, Stability)
 		self.stability_policy = new
 
@@ -987,14 +1080,16 @@ def _merge_attrs(attrs, item):
 	"""Add each attribute of item to a copy of attrs and return the copy.
 	@type attrs: {str: str}
 	@type item: L{qdom.Element}
-	@rtype: {str: str}
-	"""
+	@rtype: {str: str}"""
 	new = attrs.copy()
 	for a in item.attrs:
 		new[str(a)] = item.attrs[a]
 	return new
 
 def _get_long(elem, attr_name):
+	"""@type elem: L{zeroinstall.injector.qdom.Element}
+	@type attr_name: str
+	@rtype: int"""
 	val = elem.getAttribute(attr_name)
 	if val is not None:
 		try:
@@ -1031,7 +1126,8 @@ class ZeroInstallFeed(object):
 		"""Create a feed object from a DOM.
 		@param feed_element: the root element of a feed file
 		@type feed_element: L{qdom.Element}
-		@param local_path: the pathname of this local feed, or None for remote feeds"""
+		@param local_path: the pathname of this local feed, or None for remote feeds
+		@type local_path: str | None"""
 		self.local_path = local_path
 		self.implementations = {}
 		self.name = None
@@ -1309,6 +1405,7 @@ class ZeroInstallFeed(object):
 		"""Does this feed contain any <pacakge-implementation> elements?
 		i.e. is it worth asking the package manager for more information?
 		@return: the URL of the virtual feed, or None
+		@rtype: str
 		@since: 0.49"""
 		if self._package_implementations:
 			return "distribution:" + self.url
@@ -1337,6 +1434,7 @@ class ZeroInstallFeed(object):
 		return best_impls
 
 	def get_name(self):
+		"""@rtype: str"""
 		return self.name or '(' + os.path.basename(self.url) + ')'
 
 	def __repr__(self):
@@ -1356,7 +1454,9 @@ class ZeroInstallFeed(object):
 		self.metadata.append(elem)
 
 	def get_metadata(self, uri, name):
-		"""Return a list of interface metadata elements with this name and namespace URI."""
+		"""Return a list of interface metadata elements with this name and namespace URI.
+		@type uri: str
+		@type name: str"""
 		return [m for m in self.metadata if m.name == name and m.uri == uri]
 
 	@property
@@ -1371,6 +1471,7 @@ class ZeroInstallFeed(object):
 		"""Return the URI of the interface that replaced the one with the URI of this feed's URL.
 		This is the value of the feed's <replaced-by interface'...'/> element.
 		@return: the new URI, or None if it hasn't been replaced
+		@rtype: str | None
 		@since: 1.7"""
 		for child in self.metadata:
 			if child.uri == XMLNS_IFACE and child.name == 'replaced-by':
@@ -1405,6 +1506,7 @@ if sys.version_info[0] > 2:
 	# it uses upper-case escapes and we use lower-case ones...
 	def unescape(uri):
 		"""Convert each %20 to a space, etc.
+		@type uri: str
 		@rtype: str"""
 		uri = uri.replace('#', '/')
 		if '%' not in uri: return uri
@@ -1414,6 +1516,7 @@ if sys.version_info[0] > 2:
 
 	def escape(uri):
 		"""Convert each space to %20, etc
+		@type uri: str
 		@rtype: str"""
 		return re.sub(b'[^-_.a-zA-Z0-9]',
 			lambda match: ('%%%02x' % ord(match.group(0))).encode('ascii'),
@@ -1423,6 +1526,7 @@ if sys.version_info[0] > 2:
 		"""Convert each space to %20, etc
 		: is preserved and / becomes #. This makes for nicer strings,
 		and may replace L{escape} everywhere in future.
+		@type uri: str
 		@rtype: str"""
 		if os.name == "posix":
 			# Only preserve : on Posix systems
@@ -1438,6 +1542,7 @@ else:
 
 	def unescape(uri):
 		"""Convert each %20 to a space, etc.
+		@type uri: str
 		@rtype: str"""
 		uri = uri.replace('#', '/')
 		if '%' not in uri: return uri
@@ -1447,6 +1552,7 @@ else:
 
 	def escape(uri):
 		"""Convert each space to %20, etc
+		@type uri: str
 		@rtype: str"""
 		return re.sub('[^-_.a-zA-Z0-9]',
 			lambda match: '%%%02x' % ord(match.group(0)),
@@ -1456,6 +1562,7 @@ else:
 		"""Convert each space to %20, etc
 		: is preserved and / becomes #. This makes for nicer strings,
 		and may replace L{escape} everywhere in future.
+		@type uri: str
 		@rtype: str"""
 		if os.name == "posix":
 			# Only preserve : on Posix systems
@@ -1473,7 +1580,8 @@ def escape_interface_uri(uri):
 	"file:///root/feed.xml" becomes ["file", "root__feed.xml"]
 	The number of components is determined by the scheme (three for http, two for file).
 	Uses L{support.escaping.underscore_escape} to escape each component.
-	"""
+	@type uri: str
+	@rtype: [str]"""
 	if uri.startswith('http://') or uri.startswith('https://'):
 		scheme, rest = uri.split('://', 1)
 		parts = rest.split('/', 1)
@@ -1489,9 +1597,9 @@ def canonical_iface_uri(uri):
 	A "file:///foo" URI is converted to "/foo".
 	An "alias:prog" URI expands to the URI in the 0alias script
 	Otherwise, return it unmodified.
+	@type uri: str
 	@rtype: str
-	@raise SafeException: if uri isn't valid
-	"""
+	@raise SafeException: if uri isn't valid"""
 	if uri.startswith('http://') or uri.startswith('https://'):
 		if uri.count("/") < 3:
 			raise SafeException(_("Missing / after hostname in URI '%s'") % uri)

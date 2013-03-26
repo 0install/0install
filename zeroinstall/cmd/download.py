@@ -19,6 +19,8 @@ def add_options(parser):
 	parser.add_option("", "--show", help=_("show where components are installed"), action='store_true')
 
 def handle(config, options, args):
+	"""@type config: L{zeroinstall.injector.config.Config}
+	@type args: [str]"""
 	if len(args) != 1:
 		raise UsageError()
 

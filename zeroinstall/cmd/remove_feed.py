@@ -14,6 +14,7 @@ from zeroinstall.cmd import add_feed, UsageError, list_feeds
 add_options = add_feed.add_options
 
 def handle(config, options, args):
+	"""@type args: [str]"""
 	if len(args) == 2:
 		iface = config.iface_cache.get_interface(model.canonical_iface_uri(args[0]))
 		try:
@@ -33,6 +34,9 @@ def handle(config, options, args):
 		raise UsageError()
 
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if cword > 1: return
 	if cword == 0:
 		list_feeds.complete(completion, args[:1], 1)

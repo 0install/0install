@@ -19,6 +19,7 @@ def add_options(parser):
 	select.add_options(parser)
 
 def handle(config, options, args):
+	"""@type args: [str]"""
 	if len(args) != 2:
 		raise UsageError()
 
@@ -43,5 +44,8 @@ def handle(config, options, args):
 	app.integrate_shell(pet_name)
 
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if cword != 1: return
 	completion.expand_interfaces()

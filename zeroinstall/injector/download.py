@@ -62,10 +62,13 @@ class Download(object):
 	def __init__(self, url, hint = None, modification_time = None, expected_size = None, auto_delete = True):
 		"""Create a new download object.
 		@param url: the resource to download
+		@type url: str
 		@param hint: object with which this download is associated (an optional hint for the GUI)
-		@param modification_time: string with HTTP date that indicates last modification time.
-		  The resource will not be downloaded if it was not modified since that date.
+		@param modification_time: string with HTTP date that indicates last modification time. The resource will not be downloaded if it was not modified since that date.
+		@type modification_time: str | None
+		@type auto_delete: bool
 		@postcondition: L{status} == L{download_fetching}."""
+		assert auto_delete in (True, False)	# XXX
 		self.url = url
 		self.hint = hint
 		self.aborted_by_user = False		# replace with _aborted?
@@ -88,6 +91,7 @@ class Download(object):
 		self._aborted = tasks.Blocker("abort " + url)
 
 	def _finish(self, status):
+		"""@type status: int"""
 		assert self.status is download_fetching
 		assert self.tempfile is not None
 		assert not self.aborted_by_user
@@ -163,7 +167,8 @@ class Download(object):
 			return self._final_total_size or 0
 
 	def get_next_mirror_url(self):
-		"""Return an alternative download URL to try, or None if we're out of options."""
+		"""Return an alternative download URL to try, or None if we're out of options.
+		@rtype: str"""
 		mirror = self.mirror
 		self.mirror = None
 		return mirror

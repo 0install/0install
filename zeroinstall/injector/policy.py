@@ -9,6 +9,7 @@ from zeroinstall.injector.config import load_config
 
 _config = None
 def get_deprecated_singleton_config():
+	"""@rtype: L{zeroinstall.injector.config.Config}"""
 	global _config
 	if _config is None:
 		_config = load_config()

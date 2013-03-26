@@ -26,12 +26,12 @@ default_port = {
 	'https': 443,
 }
 
-class DownloadStep:
+class DownloadStep(object):
 	url = None
 	status = None
 	redirect = None
 
-class DownloadScheduler:
+class DownloadScheduler(object):
 	"""Assigns (and re-assigns on redirect) Downloads to Sites, allowing per-site limits and connection pooling.
 	@since: 1.6"""
 	def __init__(self):
@@ -39,6 +39,8 @@ class DownloadScheduler:
 	
 	@tasks.async
 	def download(self, dl):
+		"""@type dl: L{zeroinstall.injector.download.Download}"""
+
 		# (changed if we get redirected)
 		current_url = dl.url
 
@@ -97,6 +99,8 @@ class DownloadScheduler:
 MAX_DOWNLOADS_PER_SITE = 5
 
 def _spawn_thread(step):
+	"""@type step: L{DownloadStep}
+	@rtype: L{zeroinstall.support.tasks.Blocker}"""
 	from ._download_child import download_in_thread
 
 	thread_blocker = tasks.Blocker("wait for thread " + step.url)
@@ -114,7 +118,7 @@ def _spawn_thread(step):
 
 	return thread_blocker
 
-class Site:
+class Site(object):
 	"""Represents a service accepting download requests. All requests with the same scheme, host and port are
 	handled by the same Site object, allowing it to do connection pooling and queuing, although the current
 	implementation doesn't do either."""
@@ -124,6 +128,7 @@ class Site:
 
 	@tasks.async
 	def download(self, step):
+		"""@type step: L{DownloadStep}"""
 		if self.active == MAX_DOWNLOADS_PER_SITE:
 			# Too busy to start a new download now. Queue this one and wait.
 			ticket = tasks.Blocker('queued download for ' + step.url)

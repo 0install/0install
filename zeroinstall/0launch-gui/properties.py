@@ -45,7 +45,7 @@ def have_source_for(config, interface):
 			return True
 	return False
 
-class Description:
+class Description(object):
 	def __init__(self, widgets):
 		description = widgets.get_widget('description')
 		description.connect('button-press-event', self.button_press)
@@ -153,7 +153,7 @@ class Description:
 			else:
 				buffer.insert_with_tags(iter, _('No signature information (old style feed or out-of-date cache)') + '\n')
 
-class Feeds:
+class Feeds(object):
 	URI = 0
 	ARCH = 1
 	USED = 2
@@ -251,7 +251,7 @@ class Feeds:
 		else:
 			self.sel_changed(self.tv.get_selection())
 
-class Properties:
+class Properties(object):
 	interface = None
 	use_list = None
 	window = None

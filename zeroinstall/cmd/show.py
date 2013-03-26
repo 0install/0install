@@ -48,6 +48,9 @@ def handle(config, options, args):
 		select.show_human(sels, config.stores)
 
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if len(args) != 1: return
 	completion.expand_apps()
 	completion.expand_files()

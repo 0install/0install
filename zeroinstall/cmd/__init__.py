@@ -21,7 +21,7 @@ valid_commands = ['add', 'select', 'show', 'download', 'run', 'update', 'whatcha
 class UsageError(Exception): pass
 
 def _ensure_standard_fds():
-	"Ensure stdin, stdout and stderr FDs exist, to avoid confusion."
+	"""Ensure stdin, stdout and stderr FDs exist, to avoid confusion."""
 	for std in (0, 1, 2):
 		try:
 			os.fstat(std)
@@ -31,7 +31,7 @@ def _ensure_standard_fds():
 				os.dup2(fd, std)
 				os.close(fd)
 
-class NoCommand:
+class NoCommand(object):
 	"""Handle --help and --version"""
 
 	def add_options(self, parser):
@@ -50,8 +50,10 @@ class NoCommand:
 			sys.exit(0)
 		raise UsageError()
 
-class _Completion():
+class _Completion(object):
 	def __init__(self, config, command_args, shell):
+		"""@type command_args: [str]
+		@type shell: str"""
 		assert shell in ('zsh', 'bash'), shell
 		self.shell = shell
 		self.config = config
@@ -103,6 +105,8 @@ class _Completion():
 
 	def got_command(self, command, pos):
 		#print("found %s at %s [cword = %d]" % (command, pos, self.cword), file = sys.stderr)
+		"""@type command: str
+		@type pos: int"""
 		if pos == self.cword:
 			for command in valid_commands:
 				self.add("filter", command)
@@ -215,6 +219,9 @@ class _Completion():
 				self.add("add", self.current)
 
 	def expand_range(self, uri, maybe_app = False, range_ok = True):
+		"""@type uri: str
+		@type maybe_app: bool
+		@type range_ok: bool"""
 		if maybe_app:
 			app = self.config.app_mgr.lookup_app(uri, missing_ok = True)
 			if app:
@@ -264,14 +271,17 @@ class _Completion():
 			self.expand_files()
 
 	def add_filtered(self, value):
-		"""Add this value, but only if it matches the prefix."""
+		"""Add this value, but only if it matches the prefix.
+		@type value: str"""
 		self.add("filter", value)
 
 	def add(self, type, value):
 		"""Types are:
 		add - a raw string to add
 		filter - a string to add only if it matches
-		prefix - a completion that doesn't insert a space after it."""
+		prefix - a completion that doesn't insert a space after it.
+		@type type: str
+		@type value: str"""
 		if self.shell == 'bash':
 			if ':' in self.current:
 				ignored = self.current.rsplit(':', 1)[0] + ':'
@@ -284,9 +294,9 @@ class _Completion():
 
 def main(command_args, config = None):
 	"""Act as if 0install was run with the given arguments.
-	@arg command_args: array of arguments (e.g. C{sys.argv[1:]})
 	@type command_args: [str]
-	"""
+	@type config: L{zeroinstall.injector.config.Config} | None
+	@arg command_args: array of arguments (e.g. C{sys.argv[1:]})"""
 	_ensure_standard_fds()
 
 	if config is None:

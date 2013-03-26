@@ -28,6 +28,7 @@ def parse_version(version_string):
 	The parsed format can be compared quickly using the standard Python functions.
 	 - Version := DottedList ("-" Mod DottedList?)*
 	 - DottedList := (Integer ("." Integer)*)
+	@type version_string: str
 	@rtype: tuple (opaque)
 	@raise SafeException: if the string isn't a valid version
 	@since: 0.24 (moved from L{reader}, from where it is still available):"""
@@ -57,8 +58,8 @@ def parse_version(version_string):
 
 def format_version(version):
 	"""Format a parsed version for display. Undoes the effect of L{parse_version}.
-	@see: L{model.Implementation.get_version}
 	@rtype: str
+	@see: L{model.Implementation.get_version}
 	@since: 0.24"""
 	version = version[:]
 	l = len(version)

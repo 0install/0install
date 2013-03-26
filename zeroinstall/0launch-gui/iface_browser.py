@@ -177,7 +177,7 @@ def walk(model, it):
 		for x in walk(model, model.iter_children(it)): yield x
 		it = model.iter_next(it)
 
-class InterfaceBrowser:
+class InterfaceBrowser(object):
 	model = None
 	root = None
 	cached_icon = None

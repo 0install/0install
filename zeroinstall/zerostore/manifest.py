@@ -32,7 +32,7 @@ from zeroinstall.zerostore import BadDigest, parse_algorithm_digest_pair, format
 import hashlib
 sha1_new = hashlib.sha1
 
-class Algorithm:
+class Algorithm(object):
 	"""Abstract base class for algorithms.
 	An algorithm knows how to generate a manifest from a directory tree.
 	@ivar rating: how much we like this algorithm (higher is better)
@@ -58,6 +58,7 @@ class OldSHA1(Algorithm):
 	rating = 10
 
 	def generate_manifest(self, root):
+		"""@type root: str"""
 		def recurse(sub):
 			# To ensure that a line-by-line comparison of the manifests
 			# is possible, we require that filenames don't contain newlines.
@@ -109,10 +110,13 @@ class OldSHA1(Algorithm):
 		return sha1_new()
 
 	def getID(self, digest):
+		"""@rtype: str"""
 		return 'sha1=' + digest.hexdigest()
 
 def get_algorithm(name):
 	"""Look-up an L{Algorithm} by name.
+	@type name: str
+	@rtype: L{Algorithm}
 	@raise BadDigest: if the name is unknown."""
 	try:
 		return algorithms[name]
@@ -120,7 +124,9 @@ def get_algorithm(name):
 		raise BadDigest(_("Unknown algorithm '%s'") % name)
 
 def generate_manifest(root, alg = 'sha1'):
-	"""@deprecated: use L{get_algorithm} and L{Algorithm.generate_manifest} instead."""
+	"""@type root: str
+	@type alg: str
+	@deprecated: use L{get_algorithm} and L{Algorithm.generate_manifest} instead."""
 	return get_algorithm(alg).generate_manifest(root)
 	
 def add_manifest_file(dir, digest_or_alg):
@@ -128,8 +134,9 @@ def add_manifest_file(dir, digest_or_alg):
 	You should call fixup_permissions before this to ensure that the permissions are correct.
 	On exit, dir itself has mode 555. Subdirectories are not changed.
 	@param dir: root of the implementation
-	@param digest_or_alg: should be an instance of Algorithm. Passing a digest
-	here is deprecated."""
+	@type dir: str
+	@param digest_or_alg: should be an instance of Algorithm. Passing a digest here is deprecated.
+	@type digest_or_alg: L{Algorithm}"""
 	mfile = os.path.join(dir, '.manifest')
 	if os.path.islink(mfile) or os.path.exists(mfile):
 		raise SafeException(_("Directory '%s' already contains a .manifest file!") % dir)
@@ -153,8 +160,9 @@ def add_manifest_file(dir, digest_or_alg):
 	return digest
 
 def splitID(id):
-	"""Take an ID in the form 'alg=value' and return a tuple (alg, value),
-	where 'alg' is an instance of Algorithm and 'value' is a string.
+	"""Take an ID in the form 'alg=value' and return a tuple (alg, value).
+	@type id: str
+	@rtype: (L{Algorithm}, str)
 	@raise BadDigest: if the algorithm isn't known or the ID has the wrong format."""
 	alg, digest = parse_algorithm_digest_pair(id)
 	return (get_algorithm(alg), digest)
@@ -200,6 +208,8 @@ def verify(root, required_digest = None):
 	 - Dir's name must be a digest (in the form "alg=value")
 	 - The calculated digest of the contents must match this name.
 	 - If there is a .manifest file, then its digest must also match.
+	@type root: str
+	@type required_digest: str | None
 	@raise BadDigest: if verification fails."""
 	if required_digest is None:
 		required_digest = os.path.basename(root)
@@ -259,7 +269,11 @@ def copy_tree_with_verify(source, target, manifest_data, required_digest):
 	(will typically be under the control of another user).
 	The copy is first done to a temporary directory in target, then renamed to the final name
 	only if correct. Therefore, an invalid 'target/required_digest' will never exist.
-	A successful return means than target/required_digest now exists (whether we created it or not)."""
+	A successful return means than target/required_digest now exists (whether we created it or not).
+	@type source: str
+	@type target: str
+	@type manifest_data: str
+	@type required_digest: str"""
 	import tempfile
 
 	alg, digest_value = splitID(required_digest)
@@ -360,7 +374,11 @@ def _copy_files(alg, wanted, source, target):
 	If it is in wanted and has the right details (or they can be fixed; e.g. mtime),
 	then copy it into 'target'.
 	If it's not in wanted, warn and skip it.
-	On exit, wanted contains only files that were not found."""
+	On exit, wanted contains only files that were not found.
+	@type alg: L{Algorithm}
+	@type wanted: {str: tuple}
+	@type source: str
+	@type target: str"""
 	dir = ''
 	for line in alg.generate_manifest(source):
 		if line[0] == 'D':
@@ -423,11 +441,15 @@ class HashLibAlgorithm(Algorithm):
 	new_digest = None		# Constructor for digest objects
 
 	def __init__(self, name, rating, hash_name = None):
+		"""@type name: str
+		@type rating: int
+		@type hash_name: str | None"""
 		self.name = name
 		self.new_digest = getattr(hashlib, hash_name or name)
 		self.rating = rating
 
 	def generate_manifest(self, root):
+		"""@type root: str"""
 		def recurse(sub):
 			# To ensure that a line-by-line comparison of the manifests
 			# is possible, we require that filenames don't contain newlines.
@@ -483,6 +505,7 @@ class HashLibAlgorithm(Algorithm):
 		for x in recurse('/'): yield x
 
 	def getID(self, digest):
+		"""@rtype: str"""
 		if self.name in ('sha1new', 'sha256'):
 			digest_str = digest.hexdigest()
 		else:
@@ -504,6 +527,7 @@ def fixup_permissions(root):
 	"""Set permissions recursively for children of root:
 	 - If any X bit is set, they all must be.
 	 - World readable, non-writable.
+	@type root: str
 	@raise Exception: if there are unsafe special bits set (setuid, etc)."""
 
 	for main, dirs, files in os.walk(root):

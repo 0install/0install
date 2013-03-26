@@ -12,7 +12,7 @@ from freshness import freshness_levels, Freshness
 
 SHOW_CACHE = 0
 
-class Preferences:
+class Preferences(object):
 	def __init__(self, config, notify_cb = None):
 		if notify_cb is None:
 			notify_cb = lambda: None
@@ -83,7 +83,7 @@ class Preferences:
 		global preferences_box
 		preferences_box = None
 
-class KeyList:
+class KeyList(object):
 	def __init__(self, tv):
 		self.trusted_keys = gtk.TreeStore(str, object)
 		tv.set_model(self.trusted_keys)

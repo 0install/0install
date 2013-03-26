@@ -18,12 +18,17 @@ def add_options(parser):
 	parser.add_option("-o", "--offline", help=_("try to avoid using the network"), action='store_true')
 
 def find_feed_import(iface, feed_url):
+	"""@type iface: L{zeroinstall.injector.model.Interface}
+	@type feed_url: str
+	@rtype: L{zeroinstall.injector.model.Feed}"""
 	for f in iface.extra_feeds:
 		if f.uri == feed_url:
 			return f
 	return None
 
 def handle(config, options, args, add_ok = True, remove_ok = False):
+	"""@type add_ok: bool
+	@type remove_ok: bool"""
 	if len(args) == 2:
 		iface = config.iface_cache.get_interface(model.canonical_iface_uri(args[0]))
 		feed_url = model.canonical_iface_uri(args[1])
@@ -102,6 +107,9 @@ def handle(config, options, args, add_ok = True, remove_ok = False):
 		print(_("(no feeds)"))
 
 def complete(completion, args, cword):
+	"""@type completion: L{zeroinstall.cmd._Completion}
+	@type args: [str]
+	@type cword: int"""
 	if cword > 1: return
 	if cword == 0:
 		completion.expand_interfaces()
