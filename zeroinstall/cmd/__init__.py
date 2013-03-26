@@ -50,7 +50,7 @@ class NoCommand(object):
 			sys.exit(0)
 		raise UsageError()
 
-class _Completion():
+class _Completion(object):
 	def __init__(self, config, command_args, shell):
 		assert shell in ('zsh', 'bash'), shell
 		self.shell = shell
