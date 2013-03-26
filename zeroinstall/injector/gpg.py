@@ -127,7 +127,7 @@ class ErrSig(Signature):
 class Key(object):
 	"""A GPG key.
 	@since: 0.27
-	@param fingerprint: the fingerprint of the key
+	@ivar fingerprint: the fingerprint of the key
 	@type fingerprint: str
 	@ivar name: a short name for the key, extracted from the full name
 	@type name: str

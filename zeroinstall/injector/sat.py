@@ -44,160 +44,157 @@ def watch_index(lit):
 		return lit * 2
 	return neg(lit) * 2 + 1
 
-def makeAtMostOneClause(solver):
-	"""@type solver: L{SATProblem}"""
-	class AtMostOneClause(object):
-		def __init__(self, lits):
-			"""Preferred literals come first."""
-			self.lits = lits
+class AtMostOneClause(object):
+	def __init__(self, solver, lits):
+		"""Preferred literals come first.
+		@type solver: L{SATProblem}"""
+		self.solver = solver
+		self.lits = lits
 
-			# The single literal from our set that is True.
-			# We store this explicitly because the decider needs to know quickly.
-			self.current = None
+		# The single literal from our set that is True.
+		# We store this explicitly because the decider needs to know quickly.
+		self.current = None
 
-		def propagate(self, lit):
-			# Re-add ourselves to the watch list.
-			# (we we won't get any more notifications unless we backtrack,
-			# in which case we'd need to get back on the list anyway)
-			solver.watch_lit(lit, self)
+	def propagate(self, lit):
+		# Re-add ourselves to the watch list.
+		# (we we won't get any more notifications unless we backtrack,
+		# in which case we'd need to get back on the list anyway)
+		self.solver.watch_lit(lit, self)
 
-			# value[lit] has just become True
-			assert solver.lit_value(lit) == True
-			assert lit >= 0
+		# value[lit] has just become True
+		assert self.solver.lit_value(lit) == True
+		assert lit >= 0
 
-			#debug("%s: noticed %s has become True" % (self, solver.name_lit(lit)))
+		#debug("%s: noticed %s has become True" % (self, self.solver.name_lit(lit)))
 
-			# If we already propagated successfully when the first
-			# one was set then we set all the others to False and
-			# anyone trying to set one True will get rejected. And
-			# if we didn't propagate yet, current will still be
-			# None, even if we now have a conflict (which we'll
-			# detect below).
-			assert self.current is None
+		# If we already propagated successfully when the first
+		# one was set then we set all the others to False and
+		# anyone trying to set one True will get rejected. And
+		# if we didn't propagate yet, current will still be
+		# None, even if we now have a conflict (which we'll
+		# detect below).
+		assert self.current is None
 
-			self.current = lit
+		self.current = lit
 
-			# If we later backtrace, call our undo function to unset current
-			solver.get_varinfo_for_lit(lit).undo.append(self)
+		# If we later backtrace, call our undo function to unset current
+		self.solver.get_varinfo_for_lit(lit).undo.append(self)
 
+		for l in self.lits:
+			value = self.solver.lit_value(l)
+			#debug("Value of %s is %s" % (self.solver.name_lit(l), value))
+			if value is True and l is not lit:
+				# Due to queuing, we might get called with current = None
+				# and two versions already selected.
+				debug("CONFLICT: already selected %s" % self.solver.name_lit(l))
+				return False
+			if value is None:
+				# Since one of our lits is already true, all unknown ones
+				# can be set to False.
+				if not self.solver.enqueue(neg(l), self):
+					debug("CONFLICT: enqueue failed for %s", self.solver.name_lit(neg(l)))
+					return False	# Conflict; abort
+
+		return True
+
+	def undo(self, lit):
+		debug("(backtracking: no longer selected %s)" % self.solver.name_lit(lit))
+		assert lit == self.current
+		self.current = None
+
+	# Why is lit True?
+	# Or, why are we causing a conflict (if lit is None)?
+	def calc_reason(self, lit):
+		if lit is None:
+			# Find two True literals
+			trues = []
 			for l in self.lits:
-				value = solver.lit_value(l)
-				#debug("Value of %s is %s" % (solver.name_lit(l), value))
-				if value is True and l is not lit:
-					# Due to queuing, we might get called with current = None
-					# and two versions already selected.
-					debug("CONFLICT: already selected %s" % solver.name_lit(l))
-					return False
-				if value is None:
-					# Since one of our lits is already true, all unknown ones
-					# can be set to False.
-					if not solver.enqueue(neg(l), self):
-						debug("CONFLICT: enqueue failed for %s", solver.name_lit(neg(l)))
-						return False	# Conflict; abort
+				if self.solver.lit_value(l) is True:
+					trues.append(l)
+					if len(trues) == 2: return trues
+		else:
+			for l in self.lits:
+				if l is not lit and self.solver.lit_value(l) is True:
+					return [l]
+			# Find one True literal
+		assert 0	# don't know why!
 
+	def best_undecided(self):
+		debug("best_undecided: %s" % (self.solver.name_lits(self.lits)))
+		for lit in self.lits:
+			#debug("%s = %s" % (self.solver.name_lit(lit), self.solver.lit_value(lit)))
+			if self.solver.lit_value(lit) is None:
+				return lit
+		return None
+
+	def __repr__(self):
+		return "<at most one: %s>" % (', '.join(self.solver.name_lits(self.lits)))
+
+class UnionClause(object):
+	def __init__(self, solver, lits):
+		"""@type solver: L{SATProblem}"""
+		self.solver = solver
+		self.lits = lits
+	
+	# Try to infer new facts.
+	# We can do this only when all of our literals are False except one,
+	# which is undecided. That is,
+	#   False... or X or False... = True  =>  X = True
+	#
+	# To get notified when this happens, we tell the solver to
+	# watch two of our undecided literals. Watching two undecided
+	# literals is sufficient. When one changes we check the state
+	# again. If we still have two or more undecided then we switch
+	# to watching them, otherwise we propagate.
+	#
+	# Returns False on conflict.
+	def propagate(self, lit):
+		# value[get(lit)] has just become False
+
+		#debug("%s: noticed %s has become False" % (self, self.solver.name_lit(neg(lit))))
+
+		# For simplicity, only handle the case where self.lits[1]
+		# is the one that just got set to False, so that:
+		# - value[lits[0]] = None | True
+		# - value[lits[1]] = False
+		# If it's the other way around, just swap them before we start.
+		if self.lits[0] == neg(lit):
+			self.lits[0], self.lits[1] = self.lits[1], self.lits[0]
+
+		if self.solver.lit_value(self.lits[0]) == True:
+			# We're already satisfied. Do nothing.
+			self.solver.watch_lit(lit, self)
 			return True
 
-		def undo(self, lit):
-			debug("(backtracking: no longer selected %s)" % solver.name_lit(lit))
-			assert lit == self.current
-			self.current = None
+		assert self.solver.lit_value(self.lits[1]) == False
 
-		# Why is lit True?
-		# Or, why are we causing a conflict (if lit is None)?
-		def calc_reason(self, lit):
-			if lit is None:
-				# Find two True literals
-				trues = []
-				for l in self.lits:
-					if solver.lit_value(l) is True:
-						trues.append(l)
-						if len(trues) == 2: return trues
-			else:
-				for l in self.lits:
-					if l is not lit and solver.lit_value(l) is True:
-						return [l]
-				# Find one True literal
-			assert 0	# don't know why!
-
-		def best_undecided(self):
-			debug("best_undecided: %s" % (solver.name_lits(self.lits)))
-			for lit in self.lits:
-				#debug("%s = %s" % (solver.name_lit(lit), solver.lit_value(lit)))
-				if solver.lit_value(lit) is None:
-					return lit
-			return None
-
-		def __repr__(self):
-			return "<at most one: %s>" % (', '.join(solver.name_lits(self.lits)))
-
-	return AtMostOneClause
-
-def makeUnionClause(solver):
-	"""@type solver: L{SATProblem}"""
-	class UnionClause(object):
-		def __init__(self, lits):
-			self.lits = lits
-		
-		# Try to infer new facts.
-		# We can do this only when all of our literals are False except one,
-		# which is undecided. That is,
-		#   False... or X or False... = True  =>  X = True
-		#
-		# To get notified when this happens, we tell the solver to
-		# watch two of our undecided literals. Watching two undecided
-		# literals is sufficient. When one changes we check the state
-		# again. If we still have two or more undecided then we switch
-		# to watching them, otherwise we propagate.
-		#
-		# Returns False on conflict.
-		def propagate(self, lit):
-			# value[get(lit)] has just become False
-
-			#debug("%s: noticed %s has become False" % (self, solver.name_lit(neg(lit))))
-
-			# For simplicity, only handle the case where self.lits[1]
-			# is the one that just got set to False, so that:
-			# - value[lits[0]] = None | True
-			# - value[lits[1]] = False
-			# If it's the other way around, just swap them before we start.
-			if self.lits[0] == neg(lit):
-				self.lits[0], self.lits[1] = self.lits[1], self.lits[0]
-
-			if solver.lit_value(self.lits[0]) == True:
-				# We're already satisfied. Do nothing.
-				solver.watch_lit(lit, self)
+		# Find a new literal to watch now that lits[1] is resolved,
+		# swap it with lits[1], and start watching it.
+		for i in range(2, len(self.lits)):
+			value = self.solver.lit_value(self.lits[i])
+			if value != False:
+				# Could be None or True. If it's True then we've already done our job,
+				# so this means we don't get notified unless we backtrack, which is fine.
+				self.lits[1], self.lits[i] = self.lits[i], self.lits[1]
+				self.solver.watch_lit(neg(self.lits[1]), self)
 				return True
 
-			assert solver.lit_value(self.lits[1]) == False
+		# Only lits[0], is now undefined.
+		self.solver.watch_lit(lit, self)
+		return self.solver.enqueue(self.lits[0], self)
 
-			# Find a new literal to watch now that lits[1] is resolved,
-			# swap it with lits[1], and start watching it.
-			for i in range(2, len(self.lits)):
-				value = solver.lit_value(self.lits[i])
-				if value != False:
-					# Could be None or True. If it's True then we've already done our job,
-					# so this means we don't get notified unless we backtrack, which is fine.
-					self.lits[1], self.lits[i] = self.lits[i], self.lits[1]
-					solver.watch_lit(neg(self.lits[1]), self)
-					return True
+	def undo(self, lit): pass
 
-			# Only lits[0], is now undefined.
-			solver.watch_lit(lit, self)
-			return solver.enqueue(self.lits[0], self)
+	# Why is lit True?
+	# Or, why are we causing a conflict (if lit is None)?
+	def calc_reason(self, lit):
+		assert lit is None or lit is self.lits[0]
 
-		def undo(self, lit): pass
+		# The cause is everything except lit.
+		return [neg(l) for l in self.lits if l is not lit]
 
-		# Why is lit True?
-		# Or, why are we causing a conflict (if lit is None)?
-		def calc_reason(self, lit):
-			assert lit is None or lit is self.lits[0]
-
-			# The cause is everything except lit.
-			return [neg(l) for l in self.lits if l is not lit]
-
-		def __repr__(self):
-			return "<some: %s>" % (', '.join(solver.name_lits(self.lits)))
-	return UnionClause
+	def __repr__(self):
+		return "<some: %s>" % (', '.join(self.solver.name_lits(self.lits)))
 
 # Using an array of VarInfo objects is less efficient than using multiple arrays, but
 # easier for me to understand.
@@ -229,9 +226,6 @@ class SATProblem(object):
 		self.trail_lim = []		# decision levels (len(trail) at each decision)
 
 		self.toplevel_conflict = False
-
-		self.makeAtMostOneClause = makeAtMostOneClause(self)
-		self.makeUnionClause = makeUnionClause(self)
 	
 	def get_decision_level(self):
 		"""@rtype: int"""
@@ -380,7 +374,7 @@ class SATProblem(object):
 			# as an assignment rather than as a clause.
 			return self.enqueue(lits[0], reason)
 
-		clause = self.makeUnionClause(lits)
+		clause = UnionClause(self, lits)
 
 		if learnt:
 			# lits[0] is None because we just backtracked.
@@ -462,7 +456,7 @@ class SATProblem(object):
 		# soon.
 		lits = [l for l in lits if self.lit_value(l) != False]
 
-		clause = self.makeAtMostOneClause(lits)
+		clause = AtMostOneClause(self, lits)
 
 		for lit in lits:
 			self.watch_lit(lit, clause)

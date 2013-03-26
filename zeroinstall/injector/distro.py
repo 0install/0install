@@ -287,7 +287,7 @@ class Distribution(object):
 	def installed_fixup(self, impl):
 		"""Called when an installed package is added (after L{fixup}), or when installation
 		completes. This is useful to fix up the main value.
-		The default implementation checks that main exists, and searches L{DistributionImplementation.system_paths} for
+		The default implementation checks that main exists, and searches L{Distribution.system_paths} for
 		it if not.
 		@type impl: L{DistributionImplementation}
 		@since: 1.11"""
@@ -663,8 +663,8 @@ class DebianDistribution(Distribution):
 			impl.version = model.parse_version(impl.get_version().replace('-pre', '.'))
 
 	def installed_fixup(self, impl):
-		# Hack: If we added any Java implementations, find the corresponding JAVA_HOME...
 		"""@type impl: L{zeroinstall.injector.model.DistributionImplementation}"""
+		# Hack: If we added any Java implementations, find the corresponding JAVA_HOME...
 		if impl.id.startswith('package:deb:openjdk-6-jre:'):
 			java_version = '6-openjdk'
 		elif impl.id.startswith('package:deb:openjdk-7-jre:'):
