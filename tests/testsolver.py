@@ -99,6 +99,7 @@ class TestSolver(BaseTest):
 			e = s.justify_decision(r, iface, impl)
 			self.assertEqual(expected, e)
 
+		self.maxDiff = 1000
 		justify(foo_binary_uri, foo_bin_impls["sha1=123"],
 				'Binary 1.0 cannot be used (regardless of other components): Not source code')
 		justify(foo_binary_uri, foo_src_impls["sha1=234"],
@@ -112,7 +113,10 @@ class TestSolver(BaseTest):
 				"    User requested implementation 3 (impossible)\n"
 				"- http://foo/Compiler.xml -> (problem)\n"
 				"    http://foo/Binary.xml 3 requires version < 1.0, 1.0 <= version\n"
-				"    No usable implementations satisfy the restrictions")
+				"    No usable implementations satisfy the restrictions:\n"
+				"      sha1=999 (5): incompatible with restrictions\n"
+				"      sha1=345 (1.0): incompatible with restrictions\n"
+				"      sha1=678 (0.1): incompatible with restrictions")
 		justify(compiler.uri, compiler_impls["sha1=999"],
 				'''Compiler 5 is selectable, but using it would produce a less optimal solution overall.\n\nThe changes would be:\n\nhttp://foo/Binary.xml: 1.0 to 0.1''')
 
@@ -306,7 +310,7 @@ class TestSolver(BaseTest):
 			 "Can't find all required implementations:\n" +
 			 "- http://localhost/top.xml -> (problem)\n" +
 			 "    No usable implementations:\n" +
-			 "      1: No retrieval methods")
+			 "      1 (1): No retrieval methods")
 
 		# No run command
 		s = test("""<implementation version='1' id='1'>
@@ -321,6 +325,23 @@ class TestSolver(BaseTest):
 			 "    Rejected candidates:\n" +
 			 "      1: No run command")
 
+		# Missing command from dependency
+		s = test("""<implementation version='1' id='1' main='foo'>
+				<archive href='http://localhost:3000/foo.tgz' size='100'/>
+				<requires interface='{diag}'>
+				  <binding command='foo'/>
+				</requires>
+			     </implementation>""".format(diag = diag_uri),
+			 """<implementation version='5' id='diag-5'>
+				<archive href='http://localhost:3000/diag.tgz' size='100'/>
+			     </implementation>""",
+			 "Can't find all required implementations:\n" +
+			 "- http://localhost/diagnostics.xml -> (problem)\n" +
+			 "    http://localhost/top.xml 1 requires 'foo' command\n" +
+			 "    Rejected candidates:\n" +
+			 "      diag-5: No foo command\n" +
+			 "- http://localhost/top.xml -> 1 (1)")
+
 		# Failing distribution requirement
 		s = test("""<implementation version='1' id='1' main='foo'>
 				<archive href='http://localhost:3000/foo.tgz' size='100'/>
@@ -333,7 +354,8 @@ class TestSolver(BaseTest):
 			 "Can't find all required implementations:\n"
 			 "- http://localhost/diagnostics.xml -> (problem)\n"
 			 "    http://localhost/top.xml 1 requires distro foo\n"
-			 "    No usable implementations satisfy the restrictions\n"
+			 "    No usable implementations satisfy the restrictions:\n"
+			 "      diag-5 (5): incompatible with restrictions\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 
 		# Failing version requirement on library
@@ -348,7 +370,8 @@ class TestSolver(BaseTest):
 			 "Can't find all required implementations:\n"
 			 "- http://localhost/diagnostics.xml -> (problem)\n"
 			 "    http://localhost/top.xml 1 requires version 100..!200\n"
-			 "    No usable implementations satisfy the restrictions\n"
+			 "    No usable implementations satisfy the restrictions:\n"
+			 "      diag-5 (5): incompatible with restrictions\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 
 		# Failing version requires on root
@@ -380,7 +403,8 @@ class TestSolver(BaseTest):
 			 "Can't find all required implementations:\n"
 			 "- http://localhost/diagnostics.xml -> (problem)\n"
 			 "    http://localhost/top.xml 1 requires <impossible: Can't parse version restriction '100..200': End of range must be exclusive (use '..!200', not '..200')>\n"
-			 "    No usable implementations satisfy the restrictions\n"
+			 "    No usable implementations satisfy the restrictions:\n"
+			 "      diag-5 (5): incompatible with restrictions\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 		logger.setLevel(logging.WARNING)
 
@@ -398,7 +422,8 @@ class TestSolver(BaseTest):
 			 "Can't find all required implementations:\n"
 			 "- http://localhost/diagnostics.xml -> (problem)\n"
 			 "    http://localhost/top.xml 1 requires 100 <= version\n"
-			 "    No usable implementations satisfy the restrictions\n"
+			 "    No usable implementations satisfy the restrictions:\n"
+			 "      diag-5 (5): incompatible with restrictions\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 
 		# Mismatched machine types
@@ -439,11 +464,11 @@ class TestSolver(BaseTest):
 			 "Can't find all required implementations:\n"
 			 "- http://localhost/diagnostics.xml -> (problem)\n"
 			 "    No usable implementations:\n"
-			 "      diag-6: No retrieval methods\n"
-			 "      diag-5: No retrieval methods\n"
-			 "      diag-4: No retrieval methods\n"
-			 "      diag-3: No retrieval methods\n"
-			 "      diag-2: No retrieval methods\n"
+			 "      diag-6 (6): No retrieval methods\n"
+			 "      diag-5 (5): No retrieval methods\n"
+			 "      diag-4 (4): No retrieval methods\n"
+			 "      diag-3 (3): No retrieval methods\n"
+			 "      diag-2 (2): No retrieval methods\n"
 			 "      ...\n"
 			 "- http://localhost/top.xml -> 1 (1)")
 
@@ -514,7 +539,8 @@ class TestSolver(BaseTest):
 		    "Can't find all required implementations:\n"
 		    "- http://localhost/diagnostics-old.xml -> (problem)\n"
 		    "    Replaced by (and therefore conflicts with) http://localhost/diagnostics.xml\n"
-		    "    No usable implementations satisfy the restrictions\n"
+		    "    No usable implementations satisfy the restrictions:\n"
+		    "      diag-5 (5): incompatible with restrictions\n"
 		    "- http://localhost/diagnostics.xml -> 5 (diag-5)\n"
 		    "    Replaces (and therefore conflicts with) http://localhost/diagnostics-old.xml\n"
 		    "- http://localhost/top.xml -> 1 (1)")

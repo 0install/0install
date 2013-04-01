@@ -907,15 +907,21 @@ class SATSolver(Solver):
 				for dep in other_sel.impl.requires:
 					if not isinstance(dep, model.InterfaceRestriction): continue
 					# If it depends on us and has restrictions...
-					if dep.interface == iface_uri and dep.restrictions:
-						# Report the restriction
-						msg += "\n    " + _("{iface} {version} requires {reqs}").format(
-								iface = other_uri,
-								version = other_sel.version,
-								reqs = ', '.join(str(r) for r in dep.restrictions))
+					if dep.interface == iface_uri:
+						if dep.restrictions:
+							# Report the restriction
+							msg += "\n    " + _("{iface} {version} requires {reqs}").format(
+									iface = other_uri,
+									version = other_sel.version,
+									reqs = ', '.join(str(r) for r in dep.restrictions))
 
-						# Remove implementations incompatible with the other selections
-						impls = apply_restrictions(impls, dep.restrictions)
+							# Remove implementations incompatible with the other selections
+							impls = apply_restrictions(impls, dep.restrictions)
+						for command in dep.get_required_commands():
+							msg += "\n    " + _("{iface} {version} requires '{command}' command").format(
+									iface = other_uri,
+									version = other_sel.version,
+									command = command)
 
 			# Check for user-supplied restrictions
 			user = self.extra_restrictions.get(iface, [])
@@ -926,19 +932,25 @@ class SATSolver(Solver):
 
 			if sel is None:
 				# Report on available implementations
+				# all_impls = all known implementations
+				# orig_impls = impls valid on their own (e.g. incompatible archs removed)
+				# impls = impls compatible with other selections used in this example
 				all_impls = self.details.get(iface, {})
-				if not orig_impls:
+				if not impls:
 					if not all_impls:
 						msg += "\n    " + _("No known implementations at all")
 					else:
-						# No implementations were passed to the solver.
-						msg += "\n    " + _("No usable implementations:")
+						if orig_impls:
+							msg += "\n    " + _("No usable implementations satisfy the restrictions:")
+						else:
+							# No implementations were passed to the solver.
+							msg += "\n    " + _("No usable implementations:")
 						for i, reason in all_impls[:5]:
-							msg += "\n      {impl}: {reason}".format(impl = i, reason = reason)
+							msg += "\n      {impl} ({version}): {reason}".format(impl = i,
+									version = i.get_version(),
+									reason = reason or _('incompatible with restrictions'))
 						if len(all_impls) > 5:
 							msg += "\n      ..."
-				elif not impls:
-					msg += "\n    " + _("No usable implementations satisfy the restrictions")
 				else:
 					# Might still be unusable e.g. if missing a required command. Show reasons, if any.
 					shown = 0
