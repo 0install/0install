@@ -23,7 +23,7 @@ from zeroinstall import support, zerostore
 from zeroinstall.support import escaping
 
 # Element names for bindings in feed files
-binding_names = frozenset(['environment', 'overlay', 'executable-in-path', 'executable-in-var'])
+binding_names = frozenset(['environment', 'overlay', 'executable-in-path', 'executable-in-var', 'binding'])
 
 _dependency_names = frozenset(['requires', 'restricts'])
 
@@ -177,6 +177,8 @@ def process_binding(e):
 		return ExecutableBinding(e, in_path = False)
 	elif e.name == 'overlay':
 		return OverlayBinding(e.getAttribute('src'), e.getAttribute('mount-point'))
+	elif e.name == 'binding':
+		return GenericBinding(e)
 	else:
 		raise Exception(_("Unknown binding type '%s'") % e.name)
 
@@ -479,6 +481,24 @@ class ExecutableBinding(Binding):
 	@property
 	def command(self):
 		return self.qdom.getAttribute("command") or 'run'
+
+class GenericBinding(Binding):
+	__slots__ = ['qdom']
+
+	def __init__(self, qdom):
+		self.qdom = qdom
+
+	def __str__(self):
+		return str(self.qdom)
+
+	__repr__ = __str__
+
+	def _toxml(self, doc, prefixes):
+		return self.qdom.toDOM(doc, prefixes)
+
+	@property
+	def command(self):
+		return self.qdom.getAttribute("command") or None
 
 class OverlayBinding(Binding):
 	"""Make the chosen implementation available by overlaying it onto another part of the file-system.

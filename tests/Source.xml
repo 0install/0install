@@ -13,12 +13,16 @@
       <environment name='PATH' insert='bin'/>
       <environment name='NO_PATH' value='bin' separator=','/>
       <environment name='BINDIR' insert='bin' mode='replace'/>
+      <binding foo='compiler' command='run'>
+	<child/>
+      </binding>
     </requires>
     <implementation id='sha1=234' version='1' version-modifier='.0' arch='*-src' compile:command='make'>
       <archive href='foo' size='10'/>
     </implementation>
     <environment name='SRCDIR' insert='.' mode='replace'/>
     <overlay src='.' mount-point='/'/>
+    <binding foo='source'/>
   </group>
 
   <implementation id='old' version='0.1' arch='*-src' compile:command='make'>

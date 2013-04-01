@@ -52,14 +52,15 @@ class TestSelections(BaseTest):
 			self.assertEqual(0, len(sels[0].bindings))
 			self.assertEqual(0, len(sels[0].dependencies))
 
-			self.assertEqual(2, len(sels[1].bindings))
+			self.assertEqual(3, len(sels[1].bindings))
 			self.assertEqual('.', sels[1].bindings[0].insert)
 			self.assertEqual('/', sels[1].bindings[1].mount_point)
+			self.assertEqual('source', sels[1].bindings[2].qdom.attrs['foo'])
 
 			self.assertEqual(1, len(sels[1].dependencies))
 			dep = sels[1].dependencies[0]
 			self.assertEqual('http://foo/Compiler.xml', dep.interface)
-			self.assertEqual(3, len(dep.bindings))
+			self.assertEqual(4, len(dep.bindings))
 			self.assertEqual('bin', dep.bindings[0].insert)
 			self.assertEqual('PATH', dep.bindings[0].name)
 			self.assertEqual('prepend', dep.bindings[0].mode)
@@ -72,6 +73,11 @@ class TestSelections(BaseTest):
 			self.assertEqual('bin', dep.bindings[2].insert)
 			self.assertEqual('BINDIR', dep.bindings[2].name)
 			self.assertEqual('replace', dep.bindings[2].mode)
+
+			foo_binding = dep.bindings[3]
+			self.assertEqual('compiler', foo_binding.qdom.attrs['foo'])
+			self.assertEqual('child', foo_binding.qdom.childNodes[0].name)
+			self.assertEqual('run', foo_binding.command)
 
 			self.assertEqual(["sha1=345", 'sha256new_345'], sorted(sels[0].digests))
 
