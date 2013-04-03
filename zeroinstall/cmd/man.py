@@ -45,8 +45,8 @@ def _0install_man(config, command):
 					# Cancelled by user
 					sys.exit(1)
 				main = alias_info.main
-	except IOError as e:
-		logger.info("Error reading %s, falling back to `man %s`", path, command)
+	except IOError as ex:
+		logger.info("%s: falling back to `man %s`", ex, command)
 		os.execlp('man', 'man', command)
 		sys.exit(1)
 
