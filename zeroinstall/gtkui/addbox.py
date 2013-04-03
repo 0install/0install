@@ -4,16 +4,14 @@
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _, gobject
-import os, sys
+import os
 import gtk
+from zeroinstall.gtkui import gtkutils
 
 from zeroinstall import SafeException
 from zeroinstall.injector import model
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.iface_cache import iface_cache
-
-_URI_LIST = 0
-_UTF_16 = 1
 
 _RESPONSE_PREV = 0
 _RESPONSE_NEXT = 1
@@ -67,33 +65,14 @@ class AddBox(object):
 			category.append_text(_(c))
 		category.set_active(11)
 
-		def uri_dropped(eb, drag_context, x, y, selection_data, info, timestamp):
-			uris = selection_data.get_uris()
-			if uris:
-				assert len(uris) == 1, uris
-				data, = uris
-			else:
-				if info == _UTF_16:
-					import codecs
-					data = codecs.getdecoder('utf16')(selection_data.get_data())[0]
-					data = data.split('\n', 1)[0].strip()
-				else:
-					data = selection_data.get_text().split('\n', 1)[0].strip()
-			if self._sanity_check(data):
-				uri.set_text(data)
-				drag_context.finish(True, False, timestamp)
-				self.window.response(_RESPONSE_NEXT)
+		def uri_dropped(iface):
+			if not gtkutils.sanity_check_iface(self.window, iface):
+				return False
+			uri.set_text(iface)
+			self.window.response(_RESPONSE_NEXT)
+			print("ok")
 			return True
-		if sys.version_info[0] < 3:
-			def TargetEntry(*args): return args
-		else:
-			TargetEntry = gtk.TargetEntry.new
-		self.window.drag_dest_set(gtk.DEST_DEFAULT_MOTION | gtk.DEST_DEFAULT_DROP | gtk.DEST_DEFAULT_HIGHLIGHT,
-					[TargetEntry('text/uri-list', 0, _URI_LIST),
-					 TargetEntry('text/x-moz-url', 0, _UTF_16)],
-					gtk.gdk.ACTION_COPY)
-		self.window.drag_dest_add_uri_targets()	# Needed for GTK 3
-		self.window.connect('drag-data-received', uri_dropped)
+		gtkutils.make_iface_uri_drop_target(self.window, uri_dropped)
 
 		nb = builder.get_object('notebook1')
 
@@ -136,7 +115,7 @@ class AddBox(object):
 		def response(box, resp):
 			if resp == _RESPONSE_NEXT:
 				iface = uri.get_text()
-				if not self._sanity_check(iface):
+				if not gtkutils.sanity_check_iface(self.window, iface):
 					return
 				self.window.set_sensitive(False)
 				self.set_keep_above(False)
@@ -192,17 +171,3 @@ class AddBox(object):
 			# click-to-raise and in that mode drag-and-drop
 			# is useless without this...
 			self.window.set_keep_above(above)
-
-	def _sanity_check(self, uri):
-		if uri.endswith('.tar.bz2') or \
-		   uri.endswith('.tar.gz') or \
-		   uri.endswith('.exe') or \
-		   uri.endswith('.rpm') or \
-		   uri.endswith('.deb') or \
-		   uri.endswith('.tgz'):
-			box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
-				_("This URI (%s) looks like an archive, not a Zero Install feed. Make sure you're using the feed link!") % uri)
-			box.run()
-			box.destroy()
-			return False
-		return True
