@@ -12,7 +12,7 @@ from zeroinstall import support
 from zeroinstall.support import tasks, basedir, portable_rename
 from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
 from zeroinstall.injector import model
-from zeroinstall.injector.model import DownloadSource, Recipe, SafeException, escape, DistributionSource
+from zeroinstall.injector.model import Recipe, SafeException, escape, DistributionSource
 from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
 from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector import download
@@ -194,7 +194,7 @@ class Fetcher(object):
 		return self._get_mirror_url(url, 'latest.xml')
 
 	def _get_archive_mirror(self, source):
-		"""@type source: L{DownloadSource}
+		"""@type source: L{model.DownloadSource}
 		@rtype: str"""
 		if self.config.mirror is None:
 			return None
@@ -497,7 +497,7 @@ class Fetcher(object):
 		"""Fetch an archive. You should normally call L{download_impl}
 		instead, since it handles other kinds of retrieval method too.
 		It is the caller's responsibility to ensure that the returned stream is closed.
-		@type download_source: L{DownloadSource}
+		@type download_source: L{model.DownloadSource}
 		@type force: bool
 		@type may_use_mirror: bool
 		@rtype: (L{Blocker}, file)"""

@@ -8,7 +8,6 @@ The B{0install run} command-line interface.
 import sys
 
 from zeroinstall import _
-from zeroinstall.support import tasks
 from zeroinstall.cmd import UsageError, select
 from zeroinstall.injector import model
 
