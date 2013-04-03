@@ -8,7 +8,7 @@ import gtk, pango
 import subprocess
 
 from zeroinstall import support
-from zeroinstall.gtkui import icon, xdgutils
+from zeroinstall.gtkui import icon, xdgutils, gtkutils
 from zeroinstall.injector import reader, model, namespaces
 
 gtk2 = sys.version_info[0] < 3
@@ -136,6 +136,17 @@ class AppListBox(object):
 			else:
 				box.destroy()
 		self.window.connect('response', response)
+
+		# Drag-and-drop
+		def uri_dropped(iface):
+			if not gtkutils.sanity_check_iface(self.window, iface):
+				return False
+			from zeroinstall.gtkui.addbox import AddBox
+			box = AddBox(iface)
+			box.window.connect('destroy', lambda dialog: self.populate_model())
+			box.window.show()
+			return True
+		gtkutils.make_iface_uri_drop_target(self.window, uri_dropped)
 
 	def populate_model(self):
 		m = self.model
