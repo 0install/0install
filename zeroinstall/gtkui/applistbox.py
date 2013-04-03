@@ -160,7 +160,7 @@ class AppListBox(object):
 				pixbuf = icon.load_icon(self.iface_cache.get_icon_path(iface), icon_width, icon_height)
 			except model.InvalidInterface as ex:
 				name = uri
-				summary = unicode(ex)
+				summary = support.unicode(ex)
 				pixbuf = None
 
 			m[itr][AppListBox.NAME] = name
