@@ -77,8 +77,11 @@ class AddBox(object):
 		nb = builder.get_object('notebook1')
 
 		def update_details_page():
-			iface = iface_cache.get_interface(model.canonical_iface_uri(uri.get_text()))
-			about.set_text('%s - %s' % (iface.get_name(), iface.summary))
+			iface_uri = model.canonical_iface_uri(uri.get_text())
+			iface = iface_cache.get_interface(iface_uri)
+			feed = iface_cache.get_feed(iface_uri)
+			assert feed, iface_uri
+			about.set_text('%s - %s' % (feed.get_name(), feed.summary))
 			icon_path = iface_cache.get_icon_path(iface)
 			from zeroinstall.gtkui import icon
 			icon_pixbuf = icon.load_icon(icon_path)
@@ -86,7 +89,7 @@ class AddBox(object):
 				icon_widget.set_from_pixbuf(icon_pixbuf)
 
 			feed_category = None
-			for meta in iface.get_metadata(XMLNS_IFACE, 'category'):
+			for meta in feed.get_metadata(XMLNS_IFACE, 'category'):
 				feed_category = meta.content
 				break
 			if feed_category:
@@ -100,11 +103,13 @@ class AddBox(object):
 
 		def finish():
 			from . import xdgutils
-			iface = iface_cache.get_interface(model.canonical_iface_uri(uri.get_text()))
+			iface_uri = model.canonical_iface_uri(uri.get_text())
+			iface = iface_cache.get_interface(iface_uri)
+			feed = iface_cache.get_feed(iface_uri)
 
 			try:
 				icon_path = iface_cache.get_icon_path(iface)
-				xdgutils.add_to_menu(iface, icon_path, categories[category.get_active()])
+				xdgutils.add_to_menu(feed, icon_path, categories[category.get_active()])
 			except SafeException as ex:
 				box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, str(ex))
 				box.run()
