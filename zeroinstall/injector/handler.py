@@ -236,6 +236,8 @@ class ConsoleHandler(Handler):
 		msg = ""
 		for url, dl in sorted(urls):
 			so_far = dl.get_bytes_downloaded_so_far()
+			if url.endswith('/latest.xml'):
+				url = url[:-10]		# remove latest.xml from mirror URLs
 			leaf = url.rsplit('/', 1)[-1]
 			if len(leaf) >= url_width:
 				display = leaf[:url_width]
