@@ -143,7 +143,7 @@ real_get_selections_gui = helpers.get_selections_gui
 # Count how many downloads we request so we can check it
 traced_downloads = None
 orig_download = Site.download
-def wrap_download(self, step):
+def wrap_download(self, step, timeout = None):
 	traced_downloads.append(step.url)
 	return orig_download(self, step)
 Site.download = wrap_download

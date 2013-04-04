@@ -254,13 +254,12 @@ class Fetcher(object):
 		if feed_url.startswith('distribution:'):
 			return self.get_packagekit_feed(feed_url)
 
-		primary = self._download_and_import_feed(feed_url, use_mirror = False)
+		primary = self._download_and_import_feed(feed_url, use_mirror = False, timeout = 5)
 
 		@tasks.named_async("monitor feed downloads for " + feed_url)
 		def wait_for_downloads(primary):
 			# Download just the upstream feed, unless it takes too long...
-			timeout = tasks.TimeoutBlocker(5, 'Mirror timeout')		# 5 seconds
-
+			timeout = primary.dl.timeout
 			yield primary, timeout
 			tasks.check(timeout)
 
@@ -329,11 +328,13 @@ class Fetcher(object):
 
 		return wait_for_downloads(primary)
 
-	def _download_and_import_feed(self, feed_url, use_mirror):
+	def _download_and_import_feed(self, feed_url, use_mirror, timeout = None):
 		"""Download and import a feed.
 		@type feed_url: str
 		@param use_mirror: False to use primary location; True to use mirror.
 		@type use_mirror: bool
+		@param timeout: create a blocker which triggers if a download hangs for this long
+		@type timeout: float | None
 		@rtype: L{zeroinstall.support.tasks.Blocker}"""
 		if use_mirror:
 			url = self.get_feed_mirror(feed_url)
@@ -344,7 +345,7 @@ class Fetcher(object):
 
 		if self.config.handler.dry_run:
 			print(_("[dry-run] downloading feed {url}").format(url = url))
-		dl = self.download_url(url, hint = feed_url)
+		dl = self.download_url(url, hint = feed_url, timeout = timeout)
 		stream = dl.tempfile
 
 		@tasks.named_async("fetch_feed " + url)
@@ -378,6 +379,7 @@ class Fetcher(object):
 
 		task = fetch_feed()
 		task.dl = dl
+
 		return task
 
 	def fetch_key_info(self, fingerprint):
@@ -666,7 +668,7 @@ class Fetcher(object):
 			return impl.download_sources[0]
 		return None
 
-	def download_url(self, url, hint = None, modification_time = None, expected_size = None, mirror_url = None):
+	def download_url(self, url, hint = None, modification_time = None, expected_size = None, mirror_url = None, timeout = None):
 		"""The most low-level method here; just download a raw URL.
 		It is the caller's responsibility to ensure that dl.stream is closed.
 		@param url: the location to download from
@@ -675,6 +677,8 @@ class Fetcher(object):
 		@param modification_time: don't download unless newer than this
 		@param mirror_url: an altertive URL to try if this one fails
 		@type mirror_url: str
+		@param timeout: create a blocker which triggers if a download hangs for this long
+		@type timeout: float | None
 		@rtype: L{download.Download}
 		@since: 1.5"""
 		if not (url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:')):
@@ -682,7 +686,12 @@ class Fetcher(object):
 		dl = download.Download(url, hint = hint, modification_time = modification_time, expected_size = expected_size, auto_delete = not self.external_store)
 		dl.mirror = mirror_url
 		self.handler.monitor_download(dl)
-		dl.downloaded = self.scheduler.download(dl)
+
+		if timeout is not None:
+			dl.timeout = tasks.Blocker('Download timeout')
+
+		dl.downloaded = self.scheduler.download(dl, timeout = timeout)
+
 		return dl
 
 class StepRunner(object):

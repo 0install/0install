@@ -52,12 +52,14 @@ class Download(object):
 	@type aborted_by_user: bool
 	@ivar unmodified: whether the resource was not modified since the modification_time given at construction
 	@type unmodified: bool
+	@ivar timeout: a Blocker which will be triggered if the download is taking a long time
+	@type timeout: Blocker | None
 	@ivar mirror: an alternative URL to try if this download fails
 	@type mirror: str | None
 	"""
 	__slots__ = ['url', 'tempfile', 'status', 'expected_size', 'downloaded',
 		     'hint', '_final_total_size', 'aborted_by_user', 'mirror',
-		     'modification_time', 'unmodified', '_aborted']
+		     'modification_time', 'unmodified', '_aborted', 'timeout']
 
 	def __init__(self, url, hint = None, modification_time = None, expected_size = None, auto_delete = True):
 		"""Create a new download object.
@@ -89,6 +91,8 @@ class Download(object):
 			self.tempfile = tempfile.NamedTemporaryFile(prefix = 'injector-dl-data-', mode = 'w+b', delete = False)
 
 		self._aborted = tasks.Blocker("abort " + url)
+
+		self.timeout = None
 
 	def _finish(self, status):
 		"""@type status: int"""
@@ -145,7 +149,8 @@ class Download(object):
 
 	def get_current_fraction(self):
 		"""Returns the current fraction of this download that has been fetched (from 0 to 1),
-		or None if the total size isn't known.
+		or None if the total size isn't known. Note that the timeout does not stop the download;
+		we just use it as a signal to try a mirror in parallel.
 		@return: fraction downloaded
 		@rtype: int | None"""
 		if self.tempfile is None:

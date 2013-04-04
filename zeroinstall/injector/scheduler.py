@@ -38,7 +38,7 @@ class DownloadScheduler(object):
 		self._sites = defaultdict(lambda: Site())	# (scheme://host:port) -> Site
 	
 	@tasks.async
-	def download(self, dl):
+	def download(self, dl, timeout = None):
 		"""@type dl: L{zeroinstall.injector.download.Download}"""
 
 		# (changed if we get redirected)
@@ -61,7 +61,7 @@ class DownloadScheduler(object):
 			step = DownloadStep()
 			step.dl = dl
 			step.url = current_url
-			blocker = self._sites[site_key].download(step)
+			blocker = self._sites[site_key].download(step, timeout)
 			yield blocker
 
 			try:
@@ -127,8 +127,11 @@ class Site(object):
 		self.active = 0
 
 	@tasks.async
-	def download(self, step):
-		"""@type step: L{DownloadStep}"""
+	def download(self, step, timeout = None):
+		"""
+		Queue up this download. If it takes too long, trigger step.dl.timeout (if any), but
+		only count time spent actually downloading, not time spent queuing.
+		@type step: L{DownloadStep}"""
 		if self.active == MAX_DOWNLOADS_PER_SITE:
 			# Too busy to start a new download now. Queue this one and wait.
 			ticket = tasks.Blocker('queued download for ' + step.url)
@@ -137,6 +140,13 @@ class Site(object):
 			if step.dl._aborted.happened:
 				raise download.DownloadAborted()
 
+		in_progress = [True]
+		if timeout is not None:
+			def timeout_cb():
+				if in_progress:
+					step.dl.timeout.trigger()
+			tasks.loop.call_later(timeout, timeout_cb)
+
 		# Start a new thread for the download
 		thread_blocker = _spawn_thread(step)
 
@@ -144,6 +154,8 @@ class Site(object):
 
 		# Wait for thread to complete download.
 		yield thread_blocker, step.dl._aborted
+
+		del in_progress[0]
 
 		self.active -= 1
 		if self.active < MAX_DOWNLOADS_PER_SITE:
