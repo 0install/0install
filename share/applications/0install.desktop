@@ -1,16 +1,14 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Manage Programs
-Name[es]=Administrar programas
-Name[sv]=Hantera program
+Name=0install
 GenericName=Installer
 GenericName[es]=Instalador
 GenericName[sv]=Installerare
-Comment=Update or Remove Zero Install programs on your Applications menu
+Comment=Run or manage Zero Install programs
 Comment[es]=Actualiza o quita programas de tu menú Aplicaciones
 Comment[sv]=Uppdatera eller ta bort Zero Install-program i menyn Program
 Exec=0desktop --manage
 Icon=zeroinstall
 Terminal=false
-Categories=PackageManager;GTK;
+Categories=Utility;Settings;PackageManager;GTK;

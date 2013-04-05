@@ -1,5 +1,4 @@
 from distutils.core import setup
-from distutils.util import convert_path
 from distutils.core import Command
 from distutils.command.build_py import build_py
 from distutils.command.install import install
@@ -95,29 +94,9 @@ class install_data_locale(install_data):
 			i18nfiles.append((dest, [mo]))
 		return i18nfiles
 
-# distutils doesn't seem to have any support for adding configuration files.
-# Unfortunately, the freedesktop.org menu spec strangely defines part of the
-# menu definitions as configuration.
 class my_install(install):
-	def finalize_options(self):
-		install.finalize_options(self)	# super.finalize_options()
-		if self.home:
-			self.__config_dir = os.path.join(self.home, '.config')
-		elif self.user:
-			from site import USER_BASE
-			self.__config_dir = os.path.join(USER_BASE, 'etc/xdg')
-		elif self.prefix == '/usr':
-			self.__config_dir = os.path.join(self.root or '/', 'etc/xdg')
-		else:
-			self.__config_dir = os.path.join(self.root or '/', self.prefix[1:], 'etc/xdg')
-
 	def run(self):
-		install.run(self)	# super.run()
-		menus_dir = os.path.join(self.__config_dir, 'menus/applications-merged')
-		self.mkpath(menus_dir)
-		menu = convert_path('share/applications/zeroinstall.menu')
-		self.copy_file(menu, menus_dir)
-
+		install.run(self)       # super.run()
 		if self.home:
 			self.run_command('adjust_scripts_for_home')
 
@@ -136,10 +115,9 @@ setup(name="zeroinstall-injector",
       url="http://0install.net",
       scripts=['0launch', '0alias', '0store', '0store-secure-add', '0desktop', '0install'],
       data_files = [('man/man1', ['0launch.1', '0alias.1', '0store-secure-add.1', '0store.1', '0desktop.1', '0install.1']),
-		    ('share/applications', ['share/applications/zeroinstall-add.desktop', 'share/applications/zeroinstall-manage.desktop']),
+		    ('share/applications', ['share/applications/0install.desktop']),
 		    ('share/bash-completion/completions', ['share/bash-completion/completions/0install']),
 		    (zsh_functions_dir, ['share/zsh/site-functions/_0install']),
-		    ('share/desktop-directories', ['share/desktop-directories/zeroinstall.directory']),
 		    ('share/icons/hicolor/24x24/apps', ['share/icons/24x24/zeroinstall.png']),
 		    ('share/icons/hicolor/48x48/apps', ['share/icons/48x48/zeroinstall.png']),
 		    ('share/icons/hicolor/128x128/apps', ['share/icons/128x128/zeroinstall.png']),
