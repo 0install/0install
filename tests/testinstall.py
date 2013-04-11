@@ -652,6 +652,13 @@ class TestInstall(BaseTest):
 
 		blocker = app.download_selections(app.get_selections(may_update = True))
 		self.assertEqual(None, blocker)
+
+		# If the selections.xml gets deleted, regenerate it
+		os.unlink(os.path.join(app.path, 'selections.xml'))
+		self.config.stores = TestStores()
+		self.config.fetcher.allow_download('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+		sels = app.get_selections(may_update = True)
+		assert sels is not None
 	
 	def complete(self, args, cword, shell = 'zsh'):
 		if shell == 'zsh':

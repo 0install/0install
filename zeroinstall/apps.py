@@ -9,7 +9,7 @@ Support for managing apps (as created with "0install add").
 from zeroinstall import _, SafeException, logger
 from zeroinstall.support import basedir, portable_rename
 from zeroinstall.injector import namespaces, selections, qdom, model
-import re, os, time, tempfile
+import re, os, time, tempfile, errno
 
 # Avoid characters that are likely to cause problems (reject : and ; everywhere
 # so that apps can be portable between POSIX and Windows).
@@ -151,8 +151,16 @@ class App(object):
 			sels_file = os.path.join(self.path, 'selections-' + snapshot_date + '.xml')
 		else:
 			sels_file = os.path.join(self.path, 'selections.xml')
-		with open(sels_file, 'rb') as stream:
-			sels = selections.Selections(qdom.parse(stream))
+
+		try:
+			with open(sels_file, 'rb') as stream:
+				sels = selections.Selections(qdom.parse(stream))
+		except IOError as ex:
+			if may_update and ex.errno == errno.ENOENT:
+				logger.info("App selections missing: %s", ex)
+				sels = None
+			else:
+				raise
 
 		if may_update:
 			sels = self._check_for_updates(sels, use_gui)
@@ -194,78 +202,83 @@ class App(object):
 		need_solve = False		# Rerun solver (cached feeds have changed)
 		need_update = False		# Update over the network
 
-		utime = self._get_mtime('last-checked', warn_if_missing = True)
-		last_solve = max(self._get_mtime('last-solve', warn_if_missing = False), utime)
+		if sels:
+			utime = self._get_mtime('last-checked', warn_if_missing = True)
+			last_solve = max(self._get_mtime('last-solve', warn_if_missing = False), utime)
 
-		# Ideally, this would return all the files which were inputs into the solver's
-		# decision. Currently, we approximate with:
-		# - the previously selected feed files (local or cached)
-		# - configuration files for the selected interfaces
-		# - the global configuration
-		# We currently ignore feeds and interfaces which were
-		# considered but not selected.
-		# Can yield None (ignored), paths or (path, mtime) tuples.
-		# If this throws an exception, we will log it and resolve anyway.
-		def get_inputs():
-			for sel in sels.selections.values():
-				logger.info("Checking %s", sel.feed)
-				feed = iface_cache.get_feed(sel.feed)
-				if not feed:
-					raise IOError("Input %s missing; update" % sel.feed)
-				else:
-					if feed.local_path:
-						yield feed.local_path
+			# Ideally, this would return all the files which were inputs into the solver's
+			# decision. Currently, we approximate with:
+			# - the previously selected feed files (local or cached)
+			# - configuration files for the selected interfaces
+			# - the global configuration
+			# We currently ignore feeds and interfaces which were
+			# considered but not selected.
+			# Can yield None (ignored), paths or (path, mtime) tuples.
+			# If this throws an exception, we will log it and resolve anyway.
+			def get_inputs():
+				for sel in sels.selections.values():
+					logger.info("Checking %s", sel.feed)
+					feed = iface_cache.get_feed(sel.feed)
+					if not feed:
+						raise IOError("Input %s missing; update" % sel.feed)
 					else:
-						yield (feed.url, feed.last_modified)
+						if feed.local_path:
+							yield feed.local_path
+						else:
+							yield (feed.url, feed.last_modified)
 
-				# Per-feed configuration
-				yield basedir.load_first_config(namespaces.config_site, namespaces.config_prog,
-								   'interfaces', model._pretty_escape(sel.interface))
+					# Per-feed configuration
+					yield basedir.load_first_config(namespaces.config_site, namespaces.config_prog,
+									   'interfaces', model._pretty_escape(sel.interface))
 
-			# Global configuration
-			yield basedir.load_first_config(namespaces.config_site, namespaces.config_prog, 'global')
+				# Global configuration
+				yield basedir.load_first_config(namespaces.config_site, namespaces.config_prog, 'global')
 
-		# If any of the feeds we used have been updated since the last check, do a quick re-solve
-		iface_cache = self.config.iface_cache
-		try:
-			for item in get_inputs():
-				if not item: continue
-				if isinstance(item, tuple):
-					path, mtime = item
-				else:
-					path = item
-					try:
-						mtime = os.stat(path).st_mtime
-					except OSError as ex:
-						logger.info("Triggering update to {app} due to error: {ex}".format(
-							app = self, path = path, ex = ex))
+			# If any of the feeds we used have been updated since the last check, do a quick re-solve
+			iface_cache = self.config.iface_cache
+			try:
+				for item in get_inputs():
+					if not item: continue
+					if isinstance(item, tuple):
+						path, mtime = item
+					else:
+						path = item
+						try:
+							mtime = os.stat(path).st_mtime
+						except OSError as ex:
+							logger.info("Triggering update to {app} due to error: {ex}".format(
+								app = self, path = path, ex = ex))
+							need_solve = True
+							break
+
+					if mtime and mtime > last_solve:
+						logger.info("Triggering update to %s because %s has changed", self, path)
 						need_solve = True
 						break
-
-				if mtime and mtime > last_solve:
-					logger.info("Triggering update to %s because %s has changed", self, path)
-					need_solve = True
-					break
-		except Exception as ex:
-			logger.info("Error checking modification times: %s", ex)
-			need_solve = True
-			need_update = True
-
-		# Is it time for a background update anyway?
-		if not need_update:
-			staleness = time.time() - utime
-			logger.info("Staleness of app %s is %d hours", self, staleness / (60 * 60))
-			freshness_threshold = self.config.freshness
-			if freshness_threshold > 0 and staleness >= freshness_threshold:
+			except Exception as ex:
+				logger.info("Error checking modification times: %s", ex)
+				need_solve = True
 				need_update = True
 
-		# If any of the saved selections aren't available then we need
-		# to download right now, not later in the background.
-		unavailable_selections = sels.get_unavailable_selections(config = self.config, include_packages = True)
-		if unavailable_selections:
-			logger.info("Saved selections are unusable (missing %s)",
-				    ', '.join(str(s) for s in unavailable_selections))
+			# Is it time for a background update anyway?
+			if not need_update:
+				staleness = time.time() - utime
+				logger.info("Staleness of app %s is %d hours", self, staleness / (60 * 60))
+				freshness_threshold = self.config.freshness
+				if freshness_threshold > 0 and staleness >= freshness_threshold:
+					need_update = True
+
+			# If any of the saved selections aren't available then we need
+			# to download right now, not later in the background.
+			unavailable_selections = sels.get_unavailable_selections(config = self.config, include_packages = True)
+			if unavailable_selections:
+				logger.info("Saved selections are unusable (missing %s)",
+					    ', '.join(str(s) for s in unavailable_selections))
+				need_solve = True
+		else:
+			# No current selections
 			need_solve = True
+			unavailable_selections = True
 
 		if need_solve:
 			from zeroinstall.injector.driver import Driver
@@ -280,7 +293,7 @@ class App(object):
 				old_sels = sels
 				sels = driver.solver.selections
 				from zeroinstall.support import xmltools
-				if not xmltools.nodes_equal(sels.toDOM(), old_sels.toDOM()):
+				if old_sels is None or not xmltools.nodes_equal(sels.toDOM(), old_sels.toDOM()):
 					self.set_selections(sels, set_last_checked = False)
 			try:
 				self._touch('last-solve')
