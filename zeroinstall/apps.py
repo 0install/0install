@@ -218,14 +218,19 @@ class App(object):
 			def get_inputs():
 				for sel in sels.selections.values():
 					logger.info("Checking %s", sel.feed)
-					feed = iface_cache.get_feed(sel.feed)
-					if not feed:
-						raise IOError("Input %s missing; update" % sel.feed)
+
+					quick_test_file = sel.quick_test_file
+					if quick_test_file:
+						yield quick_test_file
 					else:
-						if feed.local_path:
-							yield feed.local_path
+						feed = iface_cache.get_feed(sel.feed)
+						if not feed:
+							raise IOError("Input %s missing; update" % sel.feed)
 						else:
-							yield (feed.url, feed.last_modified)
+							if feed.local_path:
+								yield feed.local_path
+							else:
+								yield (feed.url, feed.last_modified)
 
 					# Per-feed configuration
 					yield basedir.load_first_config(namespaces.config_site, namespaces.config_prog,

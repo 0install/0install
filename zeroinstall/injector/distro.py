@@ -888,6 +888,8 @@ class ArchDistribution(Distribution):
 				if zi_arch != '*':
 					impl.machine = zi_arch
 
+				impl.quick_test_file = os.path.join(self._packages_dir, entry, 'desc')
+
 		# Add any uninstalled candidates found by PackageKit
 		self.packagekit.get_candidates(package, factory, 'package:arch')
 

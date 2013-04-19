@@ -821,6 +821,8 @@ class Implementation(object):
 	@type local_path: str | None
 	@ivar requires_root_install: whether the user will need admin rights to use this
 	@type requires_root_install: bool
+	@ivar quick_test_file: a file whose existence can be used later to check whether we need to update (since 2.2)
+	@type quick_test_file: str | None
 	"""
 
 	# Note: user_stability shouldn't really be here
@@ -828,6 +830,8 @@ class Implementation(object):
 	__slots__ = ['upstream_stability', 'user_stability', 'langs',
 		     'requires', 'metadata', 'download_sources', 'commands',
 		     'id', 'feed', 'version', 'released', 'bindings', 'machine']
+
+	quick_test_file = None
 
 	def __init__(self, feed, id):
 		"""@type feed: L{ZeroInstallFeed}
@@ -933,7 +937,7 @@ class DistributionImplementation(Implementation):
 	@ivar package_implementation: the <package-implementation> element that generated this impl (since 1.7)
 	@type package_implementation: L{qdom.Element}
 	@since: 0.28"""
-	__slots__ = ['distro', 'installed', 'package_implementation', 'distro_name']
+	__slots__ = ['distro', 'installed', 'package_implementation', 'distro_name', 'quick_test_file']
 
 	def __init__(self, feed, id, distro, package_implementation = None, distro_name = None):
 		"""@type feed: L{ZeroInstallFeed}
@@ -947,6 +951,7 @@ class DistributionImplementation(Implementation):
 		self.installed = False
 		self.package_implementation = package_implementation
 		self.distro_name = distro_name or distro.name
+		self.quick_test_file = None
 
 		if package_implementation:
 			for child in package_implementation.childNodes:

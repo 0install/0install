@@ -104,6 +104,9 @@ class ImplSelection(Selection):
 	@property
 	def digests(self): return self.impl.digests
 
+	@property
+	def quick_test_file(self): return self.impl.quick_test_file
+
 	def get_command(self, name):
 		assert name in self._used_commands, "internal error: '{command}' not in my commands list".format(command = name)
 		return self._used_commands[name]
@@ -147,6 +150,8 @@ class XMLSelection(Selection):
 	def get_commands(self):
 		"""@rtype: {str: L{Command}}"""
 		return self.commands
+
+	quick_test_file = property(lambda self: self.attrs.get('quick-test-file', None))
 
 class Selections(object):
 	"""
@@ -282,6 +287,9 @@ class Selections(object):
 			selection_elem.setAttributeNS(None, 'interface', selection.interface)
 			root.appendChild(selection_elem)
 
+			if selection.quick_test_file:
+				selection_elem.setAttributeNS(None, 'quick-test-file', selection.quick_test_file)
+
 			for name, value in selection.attrs.items():
 				if ' ' in name:
 					ns, localName = name.split(' ', 1)
@@ -352,6 +360,7 @@ class Selections(object):
 		# Check that every required selection is cached
 		def needs_download(sel):
 			if sel.id.startswith('package:'):
+				if sel.quick_test_file and os.path.exists(sel.quick_test_file): return False
 				if not include_packages: return False
 				feed = iface_cache.get_feed(sel.feed)
 				if not feed: return False
