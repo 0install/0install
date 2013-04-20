@@ -219,18 +219,20 @@ class App(object):
 				for sel in sels.selections.values():
 					logger.info("Checking %s", sel.feed)
 
-					quick_test_file = sel.quick_test_file
-					if quick_test_file:
-						yield quick_test_file
+					if sel.feed.startswith('distribution:'):
+						# If the package has changed version, we'll detect that below
+						# with get_unavailable_selections.
+						pass
+					elif os.path.isabs(sel.feed):
+						# Local feed
+						yield sel.feed
 					else:
-						feed = iface_cache.get_feed(sel.feed)
-						if not feed:
-							raise IOError("Input %s missing; update" % sel.feed)
+						# Cached feed
+						cached = basedir.load_first_cache(namespaces.config_site, 'interfaces', model.escape(sel.feed))
+						if cached:
+							yield cached
 						else:
-							if feed.local_path:
-								yield feed.local_path
-							else:
-								yield (feed.url, feed.last_modified)
+							raise IOError("Input %s missing; update" % sel.feed)
 
 					# Per-feed configuration
 					yield basedir.load_first_config(namespaces.config_site, namespaces.config_prog,
