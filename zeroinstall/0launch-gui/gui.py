@@ -1,7 +1,7 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, gobject
+from zeroinstall import _
 from zeroinstall.support import tasks
 from zeroinstall.injector import handler, download
 
@@ -28,14 +28,14 @@ class GUIHandler(handler.Handler):
 				self.mainwindow.update_download_status(only_update_visible = True)
 				return True
 			pulse()
-			self.pulse = gobject.timeout_add(200, pulse)
+			self.pulse = tasks.gobject.timeout_add(200, pulse)
 		elif len(self.monitored_downloads) == 0:
 			# Delay before resetting, in case we start a new download quickly
-			gobject.timeout_add(500, self._reset_counters)
+			tasks.gobject.timeout_add(500, self._reset_counters)
 
 			# Stop animation
 			if self.pulse:
-				gobject.source_remove(self.pulse)
+				tasks.gobject.source_remove(self.pulse)
 				self.pulse = None
 				self.mainwindow.update_download_status()
 

@@ -237,7 +237,7 @@ class TestLaunch(BaseTest):
 				sys.stderr = sys.stdout = StringIO()
 
 				imp.load_source(script, path)
-			except SystemExit as ex:
+			except SystemExit:
 				out = sys.stdout.getvalue()
 				assert 'Usage: ' in out, (script, out)
 			else:

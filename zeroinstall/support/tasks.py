@@ -35,10 +35,20 @@ callbacks. See the Task class (below) for more information.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, support, logger, gobject
+from zeroinstall import _, support, logger
 import sys
 
+if sys.version_info[0] > 2:
+	try:
+		from gi.repository import GObject as gobject
+	except ImportError:
+		gobject = None
+else:
+	import gobject
+
 if gobject:
+	gobject.threads_init()
+
 	class _Handler(object):
 		def cancel(self):
 			if self.tag is not None:

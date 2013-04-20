@@ -6,10 +6,11 @@ Integration with native distribution package managers.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, logger, gobject
+from zeroinstall import _, logger
 import os, platform, re, subprocess, sys
 from zeroinstall.injector import namespaces, model, arch, qdom
 from zeroinstall.support import basedir, portable_rename, intern
+from zeroinstall.support.tasks import gobject
 
 _dotted_ints = '[0-9]+(?:\.[0-9]+)*'
 

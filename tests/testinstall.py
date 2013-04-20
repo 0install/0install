@@ -543,7 +543,6 @@ class TestInstall(BaseTest):
 		self.check_man(['git', 'config'], ('man', 'git', 'config'))
 		self.check_man([], ('man',))
 
-		alias_path = os.path.join(mydir, '..', '0alias')
 		local_feed = os.path.join(mydir, 'Local.xml')
 		launcher_script = os.path.join(apps.find_bin_dir(), 'my-test-alias')
 		with open(launcher_script, 'w') as stream:

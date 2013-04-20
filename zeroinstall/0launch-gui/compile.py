@@ -2,7 +2,7 @@
 # See the README file for details, or visit http://0install.net.
 
 import os, subprocess
-from zeroinstall import gobject
+from zeroinstall.support.tasks import gobject
 import dialog
 from io import BytesIO
 
