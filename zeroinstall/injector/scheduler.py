@@ -111,7 +111,7 @@ def _spawn_thread(step):
 			child.join()
 			thread_blocker.trigger(ex)
 			return False
-		tasks.loop.call_soon_threadsafe(wake_up_main)
+		tasks.get_loop().call_soon_threadsafe(wake_up_main)
 	child = threading.Thread(target = lambda: download_in_thread(step.url, step.dl.tempfile, step.dl.modification_time, notify_done))
 	child.daemon = True
 	child.start()
@@ -145,7 +145,7 @@ class Site(object):
 			def timeout_cb():
 				if in_progress:
 					step.dl.timeout.trigger()
-			tasks.loop.call_later(timeout, timeout_cb)
+			tasks.get_loop().call_later(timeout, timeout_cb)
 
 		# Start a new thread for the download
 		thread_blocker = _spawn_thread(step)

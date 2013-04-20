@@ -1,13 +1,13 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall.support.tasks import gobject
 import gtk, os, pango, sys
 from zeroinstall import _
 from zeroinstall.injector import model, writer
 from zeroinstall import support
 from zeroinstall.gtkui import gtkutils
 import utils
+from gui import gobject
 
 def _build_stability_menu(impl):
 	menu = gtk.Menu()

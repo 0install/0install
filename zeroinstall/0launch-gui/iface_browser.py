@@ -1,7 +1,6 @@
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall.support.tasks import gobject
 import gtk, pango
 
 from zeroinstall import _, translation
@@ -12,6 +11,7 @@ from zeroinstall.gtkui.icon import load_icon
 from zeroinstall import support
 from logging import warn, info
 import utils
+from gui import gobject
 
 ngettext = translation.ngettext
 

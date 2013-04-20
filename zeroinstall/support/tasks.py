@@ -38,81 +38,94 @@ callbacks. See the Task class (below) for more information.
 from zeroinstall import _, support, logger
 import sys
 
-if sys.version_info[0] > 2:
-	try:
-		from gi.repository import GObject as gobject
-	except ImportError:
-		gobject = None
-else:
-	import gobject
+tulip = None
+_loop = None
+def get_loop():
+	global _loop, tulip
+	if _loop:
+		return _loop
 
-if gobject:
-	gobject.threads_init()
-
-	class _Handler(object):
-		def cancel(self):
-			if self.tag is not None:
-				gobject.source_remove(self.tag)
-				self.tag = None
-
-	class loop(object):
-		@staticmethod
-		def call_soon_threadsafe(cb):
-			def wrapper():
-				cb()
-				return False
-			gobject.idle_add(wrapper)
-
-		call_soon = call_soon_threadsafe
-
-		@staticmethod
-		def call_repeatedly(interval, cb):
-			h = _Handler()
-			def wrapper():
-				assert h.tag is not None
-				cb()
-				return True
-			h.tag = gobject.timeout_add(int(interval * 1000), wrapper)
-			return h
-
-		@staticmethod
-		def call_later(delay, cb):
-			"""@type delay: float"""
-			def wrapper():
-				cb()
-				return False
-			gobject.timeout_add(int(delay * 1000), wrapper)
-
-		@staticmethod
-		def add_reader(fd, cb, *args):
-			"""@type fd: int
-			@rtype: L{_Handler}"""
-			h = _Handler()
-			def wrapper(src, cond):
-				cb(*args)
-				return True
-			h.tag = gobject.io_add_watch(fd, gobject.IO_IN | gobject.IO_HUP, wrapper)
-			return h
-
-		@staticmethod
-		def add_writer(fd, cb, *args):
-			h = _Handler()
-			def wrapper(src, cond):
-				cb(*args)
-				return True
-			h.tag = gobject.io_add_watch(fd, gobject.IO_OUT | gobject.IO_HUP, wrapper)
-			return h
-else:
-	try:
-		import tulip
-	except ImportError:
-		# Delay the error until we actually need a mainloop
-		class Fail(object):
-			def __getattr__(self, x):
-				raise Exception("No mainloop available: install python3-gi or tulip")
-		tulip = loop = Fail()
+	if sys.version_info[0] > 2:
+		try:
+			from gi.repository import GObject as gobject
+		except ImportError:
+			gobject = None
 	else:
-		loop = tulip.get_event_loop()
+		import gobject
+
+	if gobject:
+		gobject.threads_init()
+
+		class _Handler(object):
+			def cancel(self):
+				if self.tag is not None:
+					gobject.source_remove(self.tag)
+					self.tag = None
+
+		class loop(object):
+			@staticmethod
+			def call_soon_threadsafe(cb):
+				def wrapper():
+					cb()
+					return False
+				gobject.idle_add(wrapper)
+
+			call_soon = call_soon_threadsafe
+
+			@staticmethod
+			def call_repeatedly(interval, cb):
+				h = _Handler()
+				def wrapper():
+					assert h.tag is not None
+					cb()
+					return True
+				h.tag = gobject.timeout_add(int(interval * 1000), wrapper)
+				return h
+
+			@staticmethod
+			def call_later(delay, cb):
+				"""@type delay: float"""
+				def wrapper():
+					cb()
+					return False
+				gobject.timeout_add(int(delay * 1000), wrapper)
+
+			@staticmethod
+			def add_reader(fd, cb, *args):
+				"""@type fd: int
+				@rtype: L{_Handler}"""
+				h = _Handler()
+				def wrapper(src, cond):
+					cb(*args)
+					return True
+				h.tag = gobject.io_add_watch(fd, gobject.IO_IN | gobject.IO_HUP, wrapper)
+				return h
+
+			@staticmethod
+			def add_writer(fd, cb, *args):
+				h = _Handler()
+				def wrapper(src, cond):
+					cb(*args)
+					return True
+				h.tag = gobject.io_add_watch(fd, gobject.IO_OUT | gobject.IO_HUP, wrapper)
+				return h
+
+		loop.gobject = gobject
+	else:
+		try:
+			import tulip
+		except ImportError:
+			# Delay the error until we actually need a mainloop
+			class Fail(object):
+				def __getattr__(self, x):
+					raise Exception("No mainloop available: install python3-gi or tulip")
+			tulip = loop = Fail()
+		else:
+			loop = tulip.get_event_loop()
+			loop.gobject = None
+	
+	_loop = loop
+	return loop
 
 # The list of Blockers whose event has happened, in the order they were
 # triggered
@@ -245,7 +258,7 @@ class TimeoutBlocker(Blocker):
 		@type timeout: float
 		@type name: str"""
 		Blocker.__init__(self, name)
-		loop.call_later(timeout, self._timeout)
+		get_loop().call_later(timeout, self._timeout)
 	
 	def _timeout(self):
 		self.trigger()
@@ -269,7 +282,7 @@ class InputBlocker(Blocker):
 		"""@type task: L{Task}"""
 		Blocker.add_task(self, task)
 		if self._tag is None:
-			self._tag = loop.add_reader(self._stream, _io_callback, self)
+			self._tag = get_loop().add_reader(self._stream, _io_callback, self)
 	
 	def remove_task(self, task):
 		"""@type task: L{Task}"""
@@ -290,7 +303,7 @@ class OutputBlocker(Blocker):
 	def add_task(self, task):
 		Blocker.add_task(self, task)
 		if self._tag is None:
-			self._tag = loop.add_writer(self._stream, _io_callback, self)
+			self._tag = get_loop().add_writer(self._stream, _io_callback, self)
 	
 	def remove_task(self, task):
 		Blocker.remove_task(self, task)
@@ -384,7 +397,7 @@ class Task(object):
 # Must append to _run_queue right after calling this!
 def _schedule():
 	assert not _run_queue
-	loop.call_soon(_handle_run_queue)
+	get_loop().call_soon(_handle_run_queue)
 
 def _handle_run_queue():
 	global _idle_blocker
@@ -413,7 +426,7 @@ def _handle_run_queue():
 	del _run_queue[0]
 
 	if _run_queue:
-		loop.call_soon(_handle_run_queue)
+		get_loop().call_soon(_handle_run_queue)
 
 def named_async(name):
 	"""Decorator that turns a generator function into a function that runs the
@@ -442,6 +455,9 @@ def wait_for_blocker(blocker):
 	@since: 0.53"""
 	assert wait_for_blocker.x is None	# Avoid recursion
 
+	loop = get_loop()
+	gobject = loop.gobject
+
 	if not blocker.happened:
 		def quitter():
 			yield blocker
@@ -457,7 +473,7 @@ def wait_for_blocker(blocker):
 			if gobject:
 				wait_for_blocker.x.run()
 			else:
-				loop.run_until_complete(wait_for_blocker.x)
+				get_loop().run_until_complete(wait_for_blocker.x)
 		finally:
 			wait_for_blocker.x = None
 

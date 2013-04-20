@@ -4,15 +4,17 @@
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-from zeroinstall.support.tasks import gobject
 import os
 import gtk
 from zeroinstall.gtkui import gtkutils
+from zeroinstall.support.tasks import get_loop
 
 from zeroinstall import SafeException
 from zeroinstall.injector import model
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.iface_cache import iface_cache
+
+gobject = get_loop().gobject
 
 _RESPONSE_PREV = 0
 _RESPONSE_NEXT = 1

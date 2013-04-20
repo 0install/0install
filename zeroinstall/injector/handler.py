@@ -214,7 +214,7 @@ class ConsoleHandler(Handler):
 			self.show_progress()
 			self.original_print = print
 			builtins.print = self.print
-			self.update = tasks.loop.call_repeatedly(0.2, self.show_progress)
+			self.update = tasks.get_loop().call_repeatedly(0.2, self.show_progress)
 		elif len(self.monitored_downloads) == 0:
 			if self.update:
 				self.update.cancel()

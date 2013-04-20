@@ -3,7 +3,7 @@
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-from zeroinstall.support.tasks import gobject
+from zeroinstall.support.tasks import get_loop
 import os, sys
 import gtk, pango
 import subprocess
@@ -11,6 +11,8 @@ import subprocess
 from zeroinstall import support
 from zeroinstall.gtkui import icon, xdgutils, gtkutils
 from zeroinstall.injector import reader, model, namespaces
+
+gobject = get_loop().gobject
 
 gtk2 = sys.version_info[0] < 3
 
