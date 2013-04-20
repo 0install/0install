@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import locale
+locale.setlocale(locale.LC_ALL, 'C')
 import sys, tempfile, os, shutil, imp, time
 import unittest
 import logging
@@ -14,6 +16,7 @@ warnings.filterwarnings("ignore", message = 'The CObject type')
 # Catch silly mistakes...
 os.environ['HOME'] = '/home/idontexist'
 os.environ['LANGUAGE'] = 'C'
+os.environ['LANG'] = 'C'
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import qdom, background

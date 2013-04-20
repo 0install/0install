@@ -869,13 +869,14 @@ class ArchDistribution(Distribution):
 			name, version, build = entry.rsplit('-', 2)
 			if name == package:
 				gotarch = False
-				with open(os.path.join(self._packages_dir, entry, "desc"), 'rt') as stream:
+				# (read in binary mode to avoid unicode errors in C locale)
+				with open(os.path.join(self._packages_dir, entry, "desc"), 'rb') as stream:
 					for line in stream:
-						if line == "%ARCH%\n":
+						if line == b"%ARCH%\n":
 							gotarch = True
 							continue
 						if gotarch:
-							arch = line.strip()
+							arch = line.strip().decode('utf-8')
 							break
 				zi_arch = canonical_machine(arch)
 				clean_version = try_cleanup_distro_version("%s-%s" % (version, build))

@@ -213,6 +213,11 @@ class TestDistro(BaseTest):
 		zip = self.feed.implementations['package:arch:zeroinstall-injector:1.5-1:*']
 		self.assertEqual('1.5-1', zip.get_version())
 
+		self.feed = model.ZeroInstallFeed(empty_feed, local_path = '/empty.xml')
+		arch.get_package_info('python2', factory)
+		impl, = self.feed.implementations.values()
+		self.assertEqual('2.7.2-4', impl.get_version())
+
 	def testGentoo(self):
 		pkgdir = os.path.join(os.path.dirname(__file__), 'gentoo')
 		ebuilds = distro.GentooDistribution(pkgdir)
