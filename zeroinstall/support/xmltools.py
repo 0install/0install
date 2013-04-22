@@ -23,7 +23,7 @@ def _compare_children(a, b):
 
 def nodes_equal(a, b):
 	"""Compare two DOM nodes.
-	Warning: only supports documents containing elements, text nodes and attributes (will crash on comments, etc).
+	Warning: only supports documents containing elements, comments (since 2.2), text nodes and attributes (will crash on processing instructions, etc).
 	@rtype: bool"""
 	if a.nodeType != b.nodeType:
 		return False
@@ -47,5 +47,7 @@ def nodes_equal(a, b):
 		return a.wholeText == b.wholeText
 	elif a.nodeType == Node.DOCUMENT_NODE:
 		return _compare_children(a, b)
+	elif a.nodeType == Node.COMMENT_NODE:
+		return a.nodeValue == b.nodeValue
 	else:
 		assert 0, ("Unknown node type", a)
