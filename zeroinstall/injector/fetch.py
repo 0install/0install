@@ -793,6 +793,8 @@ class FileStepRunner(StepRunner):
 		dest = native_path_within_base(basedir, self.stepdata.dest)
 		_ensure_dir_exists(os.path.dirname(dest))
 
+		self.stream.seek(0)
+
 		with open(dest, 'wb') as output:
 			shutil.copyfileobj(self.stream, output)
 		os.utime(dest, (0, 0))

@@ -7,6 +7,6 @@
     <recipe>
       <file href='http://localhost:8000/HelloWorldMain' size='27' dest="bin/main"/>
     </recipe>
-    <manifest-digest sha256new="DCKZ332KJH3J2IQJ25DTOFUZSJD4QVFLNGJWID45ILXJQFSKLDRA"/>
+    <manifest-digest sha256new="TIPVKHUOIHAGLHGT25RYSRPJ5OPS6WWMY4Z5O3SQ6MGUYL225UHA"/>
   </implementation>
 </interface>

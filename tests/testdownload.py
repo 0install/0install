@@ -502,7 +502,8 @@ class TestDownload(BaseTest):
 			driver_download(driver)
 			digests = driver.solver.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
-			assert os.path.exists(os.path.join(path, 'bin','main'))
+			with open(os.path.join(path, 'bin','main'), 'rt') as stream:
+				assert 'Hello World' in stream.read()
 
 	def testExtractToNewSubdirectory(self):
 		with output_suppressed():
@@ -524,7 +525,8 @@ class TestDownload(BaseTest):
 			driver_download(driver)
 			digests = driver.solver.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
-			assert os.path.exists(os.path.join(path, 'main'))
+			with open(os.path.join(path, 'main'), 'rt') as stream:
+				assert 'Hello World' in stream.read()
 
 	def testSymlink(self):
 		old_out = sys.stdout

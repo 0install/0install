@@ -94,7 +94,7 @@ def download_in_thread(url, target_file, if_modified_since, notify_done):
 			raise Exception(_('Unsupported URL protocol in: %s') % url)
 
 		if sys.version_info[0] > 2:
-			sock_recv = src.fp.read1		# Python 3
+			# Python 3
 			while True:
 				try:
 					data = src.read(256)
