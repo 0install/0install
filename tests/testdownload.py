@@ -948,6 +948,18 @@ class TestDownload(BaseTest):
 		with trapped_exit(1):
 			sels = app.get_selections(may_update = True)
 		kill_server_process()
+	
+	def testChunked(self):
+		if sys.version_info[0] < 3:
+			return	# not a problem with Python 2
+		run_server('chunked')
+		dl = self.config.fetcher.download_url('http://localhost/chunked')
+		tmp = dl.tempfile
+		tasks.wait_for_blocker(dl.downloaded)
+		tasks.check(dl.downloaded)
+		tmp.seek(0)
+		self.assertEqual(b'hello world', tmp.read())
+		kill_server_process()
 
 	def testAbort(self):
 		dl = download.Download("http://localhost/test.tgz", auto_delete = True)

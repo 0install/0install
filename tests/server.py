@@ -77,6 +77,17 @@ class MyHandler(server.BaseHTTPRequestHandler):
 			with open(leaf, 'rb') as stream:
 				self.wfile.write(stream.read())
 			self.wfile.close()
+		elif leaf == 'chunked':
+			self.send_response(200)
+			self.send_header('Transfer-Encoding', 'chunked')
+			self.end_headers()
+			self.wfile.write(
+					b'a\r\n'
+					b'hello worl\r\n'
+					b'1\r\n'
+					b'd\r\n'
+                        )
+			self.wfile.close()
 		else:
 			self.send_error(404, "Missing: %s" % leaf)
 

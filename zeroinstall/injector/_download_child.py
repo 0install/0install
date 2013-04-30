@@ -9,7 +9,7 @@ from zeroinstall.support import ssl_match_hostname
 
 if sys.version_info[0] > 2:
 	from urllib import request as urllib2
-	from http.client import HTTPSConnection, HTTPException
+	from http.client import HTTPSConnection, HTTPException, IncompleteRead
 else:
 	import urllib2
 	from httplib import HTTPSConnection, HTTPException
@@ -95,16 +95,24 @@ def download_in_thread(url, target_file, if_modified_since, notify_done):
 
 		if sys.version_info[0] > 2:
 			sock_recv = src.fp.read1		# Python 3
+			while True:
+				try:
+					data = src.read(256)
+				except IncompleteRead as ex:
+					data = ex.partial
+				if not data: break
+				target_file.write(data)
+				target_file.flush()
 		else:
 			try:
 				sock_recv = src.fp._sock.recv	# Python 2
 			except AttributeError:
 				sock_recv = src.fp.fp._sock.recv	# Python 2.5 on FreeBSD
-		while True:
-			data = sock_recv(256)
-			if not data: break
-			target_file.write(data)
-			target_file.flush()
+			while True:
+				data = sock_recv(256)
+				if not data: break
+				target_file.write(data)
+				target_file.flush()
 
 		notify_done(download.RESULT_OK)
 	except (urllib2.HTTPError, urllib2.URLError, HTTPException, socket.error) as ex:
