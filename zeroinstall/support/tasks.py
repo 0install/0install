@@ -47,7 +47,10 @@ def get_loop():
 
 	if sys.version_info[0] > 2:
 		try:
-			from gi.repository import GObject as gobject
+			try:
+				from gi.repository import GLib as gobject
+			except ImportError:
+				from gi.repository import GObject as gobject
 		except ImportError:
 			gobject = None
 	else:
