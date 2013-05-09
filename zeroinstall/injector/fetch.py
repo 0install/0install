@@ -124,7 +124,7 @@ class Fetcher(object):
 		@type recipe: L{Recipe}
 		@type stores: L{zeroinstall.zerostore.Stores}
 		@type force: bool
-		@param impl_hint: the Implementation this is for (if any) as a hint for the GUI
+		@param impl_hint: the Implementation this is for (as a hint for the GUI, and to allow local files)
 		@type dry_run: bool
 		@type may_use_mirror: bool
 		@see: L{download_impl} uses this method when appropriate"""
@@ -499,10 +499,11 @@ class Fetcher(object):
 		"""Fetch an archive. You should normally call L{download_impl}
 		instead, since it handles other kinds of retrieval method too.
 		It is the caller's responsibility to ensure that the returned stream is closed.
+		If impl_hint is from a local feed and the url is relative, just opens the existing file for reading.
 		@type download_source: L{model.DownloadSource}
 		@type force: bool
 		@type may_use_mirror: bool
-		@rtype: (L{Blocker}, file)"""
+		@rtype: (L{Blocker} | None, file)"""
 		from zeroinstall.zerostore import unpack
 
 		mime_type = download_source.type
@@ -512,6 +513,25 @@ class Fetcher(object):
 			raise SafeException(_("No 'type' attribute on archive, and I can't guess from the name (%s)") % download_source.url)
 		if not self.external_store:
 			unpack.check_type_ok(mime_type)
+
+		if '://' not in download_source.url:
+			# Relative path
+			if impl_hint is None or not impl_hint.feed.local_path:
+				raise SafeException(_("Relative URL '{url}' in non-local feed '{feed}'").format(
+					url = download_source.url,
+					feed = impl_hint.feed))
+
+			archive_file = os.path.join(os.path.dirname(impl_hint.feed.local_path), download_source.url)
+			try:
+				size = os.path.getsize(archive_file)
+				if size != download_source.size:
+					raise SafeException(_("Wrong size for {path}: feed says {expected}, but actually {actual} bytes").format(
+						path = archive_file,
+						expected = download_source.size,
+						actual = size))
+				return (None, open(archive_file, 'rb'))
+			except OSError as ex:
+				raise SafeException(str(ex))	# (error already includes path)
 
 		if may_use_mirror:
 			mirror = self._get_archive_mirror(download_source)
@@ -756,12 +776,13 @@ class DownloadStepRunner(StepRunner):
 		@type blockers: [L{zeroinstall.support.tasks.Blocker}]"""
 		self.blocker, self.stream = fetcher.download_archive(self.stepdata, impl_hint = self.impl_hint, may_use_mirror = self.may_use_mirror)
 		assert self.stream
-		blockers.append(self.blocker)
+		if self.blocker:
+			blockers.append(self.blocker)
 	
 	def apply(self, basedir):
 		"""@type basedir: str"""
 		from zeroinstall.zerostore import unpack
-		assert self.blocker.happened
+		assert self.blocker is None or self.blocker.happened
 		if self.stepdata.dest is not None:
 			basedir = native_path_within_base(basedir, self.stepdata.dest)
 			_ensure_dir_exists(basedir)
@@ -784,12 +805,13 @@ class FileStepRunner(StepRunner):
 		self.blocker, self.stream = fetcher.download_file(self.stepdata,
 				impl_hint = self.impl_hint)
 		assert self.stream
-		blockers.append(self.blocker)
+		if self.blocker:
+			blockers.append(self.blocker)
 
 	def apply(self, basedir):
 		"""@type basedir: str"""
 		import shutil
-		assert self.blocker.happened
+		assert self.blocker is None or self.blocker.happened
 		dest = native_path_within_base(basedir, self.stepdata.dest)
 		_ensure_dir_exists(os.path.dirname(dest))
 

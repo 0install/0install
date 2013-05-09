@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from __future__ import with_statement
-from basetest import BaseTest, StringIO
+from basetest import BaseTest, StringIO, BytesIO
 import sys, tempfile, os
 import unittest
 import logging, warnings
@@ -23,6 +23,8 @@ import data
 import my_dbus
 
 import server
+
+mydir = os.path.dirname(os.path.abspath(__file__))
 
 ran_gui = False
 def raise_gui(*args, **kwargs):
@@ -977,7 +979,6 @@ class TestDownload(BaseTest):
 		assert dl.tempfile is None
 
 	def testDownloadIconFails(self):
-		mydir = os.path.dirname(os.path.abspath(__file__))
 		path = model.canonical_iface_uri(os.path.join(mydir, 'Binary.xml'))
 		iface = self.config.iface_cache.get_interface(path)
 		blocker = self.config.fetcher.download_icon(iface)
@@ -998,6 +999,66 @@ class TestDownload(BaseTest):
 		kill_server_process()
 		self.assertEqual("", err)
 		assert 'Firefox - Webbrowser' in out, out
+
+	def testLocalArchive(self):
+		root = qdom.parse(BytesIO(b"""<?xml version='1.0'?>
+			<interface uri='http://example.com/test.xml' xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+			  <name>Hello</name>
+			  <summary>Hello</summary>
+			  <implementation id='impl1' version='0.1'>
+			    <manifest-digest sha256new='RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA'/>
+			    <archive href='HelloWorld.tgz' size='176'/>
+			  </implementation>
+			  <implementation id='impl2' version='0.2'>
+			    <manifest-digest sha256new='RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA'/>
+			    <archive href='IDONTEXIST.tgz' size='176'/>
+			  </implementation>
+			  <implementation id='impl3' version='0.3'>
+			    <manifest-digest sha256new='RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA'/>
+			    <archive href='HelloWorld.tgz' size='177'/>
+			  </implementation>
+			</interface>"""))
+
+		# Not local => error
+		feed = model.ZeroInstallFeed(root)
+		impl = feed.implementations['impl1']
+		blocker = self.config.fetcher.download_impls([impl], self.config.stores)
+		try:
+			tasks.wait_for_blocker(blocker)
+			assert 0
+		except model.SafeException as ex:
+			assert "Relative URL 'HelloWorld.tgz' in non-local feed" in str(ex), ex
+
+		# Local => OK
+		feed = model.ZeroInstallFeed(root, local_path = os.path.join(mydir, 'test.xml'))
+		impl = feed.implementations['impl1']
+
+		path = self.config.stores.lookup_maybe(impl.digests)
+		assert not path
+
+		blocker = self.config.fetcher.download_impls([impl], self.config.stores)
+		tasks.wait_for_blocker(blocker)
+
+		path = self.config.stores.lookup_any(impl.digests)
+		assert os.path.exists(os.path.join(path, 'HelloWorld'))
+
+		# Missing file
+		impl2 = feed.implementations['impl2']
+		blocker = self.config.fetcher.download_impls([impl2], self.config.stores)
+		try:
+			tasks.wait_for_blocker(blocker)
+			assert 0
+		except model.SafeException as ex:
+			assert 'tests/IDONTEXIST.tgz' in str(ex), ex
+
+		# Wrong size
+		impl3 = feed.implementations['impl3']
+		blocker = self.config.fetcher.download_impls([impl3], self.config.stores)
+		try:
+			tasks.wait_for_blocker(blocker)
+			assert 0
+		except model.SafeException as ex:
+			assert 'feed says 177, but actually 176 bytes' in str(ex), ex
 
 if __name__ == '__main__':
 	try:
