@@ -8,7 +8,7 @@ from io import BytesIO
 from zeroinstall import _
 from zeroinstall.injector import model, selections, qdom
 
-from gui import gobject
+from gui import glib
 
 XMLNS_0COMPILE = 'http://zero-install.sourceforge.net/2006/namespaces/0compile'
 
@@ -26,14 +26,14 @@ class Command(object):
 			self.child = subprocess.Popen(command,
 							stdout = subprocess.PIPE,
 							stderr = subprocess.PIPE)
-			gobject.io_add_watch(self.child.stdout, gobject.IO_IN | gobject.IO_HUP, self.got_stdout)
-			gobject.io_add_watch(self.child.stderr, gobject.IO_IN | gobject.IO_HUP, self.got_errors)
+			glib.io_add_watch(self.child.stdout, glib.IO_IN | glib.IO_HUP, self.got_stdout)
+			glib.io_add_watch(self.child.stderr, glib.IO_IN | glib.IO_HUP, self.got_errors)
 			self.watched_streams = 2
 		else:
 			self.child = subprocess.Popen(command,
 							stdout = subprocess.PIPE,
 							stderr = subprocess.STDOUT)
-			gobject.io_add_watch(self.child.stdout, gobject.IO_IN | gobject.IO_HUP, self.got_errors)
+			glib.io_add_watch(self.child.stdout, glib.IO_IN | glib.IO_HUP, self.got_errors)
 			self.watched_streams = 1
 
 	def got_stdout(self, src, cond):

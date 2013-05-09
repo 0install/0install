@@ -14,7 +14,7 @@ from zeroinstall.injector import model
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.iface_cache import iface_cache
 
-gobject = get_loop().gobject
+glib = get_loop().glib
 
 _RESPONSE_PREV = 0
 _RESPONSE_NEXT = 1
@@ -155,8 +155,8 @@ class AddBox(object):
 							box.destroy()
 						return False
 					return True
-				gobject.io_add_watch(child.stdout,
-							   gobject.IO_IN | gobject.IO_HUP,
+				glib.io_add_watch(child.stdout,
+							   glib.IO_IN | glib.IO_HUP,
 							   output_ready)
 			elif resp == gtk.RESPONSE_OK:
 				finish()

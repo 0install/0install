@@ -25,7 +25,7 @@ sys.path.insert(0, _mydir)
 sys.path.insert(0, dirname(dirname(_mydir)))
 
 from zeroinstall.support.tasks import get_loop
-get_loop().gobject.threads_init()
+get_loop().glib.threads_init()
 
 from zeroinstall import localedir
 

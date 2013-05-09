@@ -6,6 +6,7 @@ from zeroinstall.support import tasks
 from zeroinstall.injector import handler, download
 
 gobject = tasks.get_loop().gobject
+glib = tasks.get_loop().glib
 
 version = '2.2'
 
@@ -30,14 +31,14 @@ class GUIHandler(handler.Handler):
 				self.mainwindow.update_download_status(only_update_visible = True)
 				return True
 			pulse()
-			self.pulse = gobject.timeout_add(200, pulse)
+			self.pulse = glib.timeout_add(200, pulse)
 		elif len(self.monitored_downloads) == 0:
 			# Delay before resetting, in case we start a new download quickly
-			gobject.timeout_add(500, self._reset_counters)
+			glib.timeout_add(500, self._reset_counters)
 
 			# Stop animation
 			if self.pulse:
-				gobject.source_remove(self.pulse)
+				glib.source_remove(self.pulse)
 				self.pulse = None
 				self.mainwindow.update_download_status()
 

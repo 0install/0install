@@ -47,22 +47,25 @@ def get_loop():
 
 	if sys.version_info[0] > 2:
 		try:
+			from gi.repository import GObject as gobject
 			try:
-				from gi.repository import GLib as gobject
+				from gi.repository import GLib as glib
 			except ImportError:
-				from gi.repository import GObject as gobject
+				glib = gobject		# Old gobject includes glib
 		except ImportError:
 			gobject = None
+			glib = None
 	else:
 		import gobject
+		glib = gobject
 
-	if gobject:
-		gobject.threads_init()
+	if glib:
+		glib.threads_init()
 
 		class _Handler(object):
 			def cancel(self):
 				if self.tag is not None:
-					gobject.source_remove(self.tag)
+					glib.source_remove(self.tag)
 					self.tag = None
 
 		class loop(object):
@@ -71,7 +74,7 @@ def get_loop():
 				def wrapper():
 					cb()
 					return False
-				gobject.idle_add(wrapper)
+				glib.idle_add(wrapper)
 
 			call_soon = call_soon_threadsafe
 
@@ -82,7 +85,7 @@ def get_loop():
 					assert h.tag is not None
 					cb()
 					return True
-				h.tag = gobject.timeout_add(int(interval * 1000), wrapper)
+				h.tag = glib.timeout_add(int(interval * 1000), wrapper)
 				return h
 
 			@staticmethod
@@ -91,7 +94,7 @@ def get_loop():
 				def wrapper():
 					cb()
 					return False
-				gobject.timeout_add(int(delay * 1000), wrapper)
+				glib.timeout_add(int(delay * 1000), wrapper)
 
 			@staticmethod
 			def add_reader(fd, cb, *args):
@@ -101,7 +104,7 @@ def get_loop():
 				def wrapper(src, cond):
 					cb(*args)
 					return True
-				h.tag = gobject.io_add_watch(fd, gobject.IO_IN | gobject.IO_HUP, wrapper)
+				h.tag = glib.io_add_watch(fd, glib.IO_IN | glib.IO_HUP, wrapper)
 				return h
 
 			@staticmethod
@@ -110,9 +113,10 @@ def get_loop():
 				def wrapper(src, cond):
 					cb(*args)
 					return True
-				h.tag = gobject.io_add_watch(fd, gobject.IO_OUT | gobject.IO_HUP, wrapper)
+				h.tag = glib.io_add_watch(fd, glib.IO_OUT | glib.IO_HUP, wrapper)
 				return h
 
+		loop.glib = glib
 		loop.gobject = gobject
 	else:
 		try:
@@ -125,7 +129,7 @@ def get_loop():
 			tulip = loop = Fail()
 		else:
 			loop = tulip.get_event_loop()
-			loop.gobject = None
+			loop.glib = None
 	
 	_loop = loop
 	return loop
@@ -459,21 +463,21 @@ def wait_for_blocker(blocker):
 	assert wait_for_blocker.x is None	# Avoid recursion
 
 	loop = get_loop()
-	gobject = loop.gobject
+	glib = loop.glib
 
 	if not blocker.happened:
 		def quitter():
 			yield blocker
-			if gobject:
+			if glib:
 				wait_for_blocker.x.quit()
 			else:
 				wait_for_blocker.x.set_result(None)
 		Task(quitter(), "quitter")
 
-		wait_for_blocker.x = gobject.MainLoop() if gobject else tulip.Future()
+		wait_for_blocker.x = glib.MainLoop() if glib else tulip.Future()
 		try:
 			logger.debug(_("Entering mainloop, waiting for %s"), blocker)
-			if gobject:
+			if glib:
 				wait_for_blocker.x.run()
 			else:
 				get_loop().run_until_complete(wait_for_blocker.x)
