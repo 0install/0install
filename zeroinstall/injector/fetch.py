@@ -158,7 +158,7 @@ class Fetcher(object):
 					for step in steps:
 						step.apply(tmpdir)
 					# Check that the result is correct and store it in the cache
-					store.check_manifest_and_rename(required_digest, tmpdir, dry_run=dry_run)
+					stores.check_manifest_and_rename(required_digest, tmpdir, dry_run=dry_run)
 					tmpdir = None
 				finally:
 					# If unpacking fails, remove the temporary directory
