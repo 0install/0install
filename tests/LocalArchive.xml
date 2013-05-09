@@ -1,0 +1,17 @@
+<?xml version='1.0'?>
+<interface uri='http://example.com/test.xml' xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Hello</name>
+  <summary>Hello</summary>
+  <implementation id='impl1' version='0.1'>
+    <manifest-digest sha256new='RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA'/>
+    <archive href='HelloWorld.tgz' size='176'/>
+  </implementation>
+  <implementation id='impl2' version='0.2'>
+    <manifest-digest sha256new='RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA'/>
+    <archive href='IDONTEXIST.tgz' size='176'/>
+  </implementation>
+  <implementation id='impl3' version='0.3'>
+    <manifest-digest sha256new='RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA'/>
+    <archive href='HelloWorld.tgz' size='177'/>
+  </implementation>
+</interface>

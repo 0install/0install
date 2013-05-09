@@ -648,9 +648,11 @@ class RetrievalMethod(object):
 	"""A RetrievalMethod provides a way to fetch an implementation."""
 	__slots__ = []
 
+	requires_network = True		# Used to decide if we can get this in off-line mode
+
 class DownloadSource(RetrievalMethod):
 	"""A DownloadSource provides a way to fetch an implementation."""
-	__slots__ = ['implementation', 'url', 'size', 'extract', 'start_offset', 'type', 'dest']
+	__slots__ = ['implementation', 'url', 'size', 'extract', 'start_offset', 'type', 'dest', 'requires_network']
 
 	def __init__(self, implementation, url, size, extract, start_offset = 0, type = None, dest = None):
 		"""@type implementation: L{ZeroInstallImplementation}
@@ -667,6 +669,7 @@ class DownloadSource(RetrievalMethod):
 		self.dest = dest
 		self.start_offset = start_offset
 		self.type = type		# MIME type - see unpack.py
+		self.requires_network = '://' in url
 
 class RenameStep(RetrievalMethod):
 	"""A Rename provides a way to rename / move a file within an implementation."""
@@ -680,7 +683,7 @@ class RenameStep(RetrievalMethod):
 
 class FileSource(RetrievalMethod):
 	"""A FileSource provides a way to fetch a single file."""
-	__slots__ = ['url', 'dest', 'size']
+	__slots__ = ['url', 'dest', 'size', 'requires_network']
 
 	def __init__(self, url, dest, size):
 		"""@type url: str
@@ -689,6 +692,7 @@ class FileSource(RetrievalMethod):
 		self.url = url
 		self.dest = dest
 		self.size = size
+		self.requires_network = '://' in url
 
 class RemoveStep(RetrievalMethod):
 	"""A RemoveStep provides a way to delete a path within an implementation."""
@@ -710,6 +714,10 @@ class Recipe(RetrievalMethod):
 		self.steps = []
 
 	size = property(lambda self: sum([x.size for x in self.steps if hasattr(x, 'size')]))
+
+	@property
+	def requires_network(self):
+		return any(step.requires_network for step in self.steps)
 
 class DistributionSource(RetrievalMethod):
 	"""A package that is installed using the distribution's tools (including PackageKit).

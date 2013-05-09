@@ -430,7 +430,11 @@ class SATSolver(Solver):
 			if (self.config.network_use == model.network_offline or not impl.download_sources) and not impl.is_available(self.config.stores):
 				if not impl.download_sources:
 					return _("No retrieval methods")
-				return _("Not cached and we are off-line")
+				for method in impl.download_sources:
+					if not method.requires_network:
+						break
+				else:
+					return _("Not cached and we are off-line")
 			if impl.os not in arch.os_ranks:
 				return _("Unsupported OS")
 			if impl.machine not in arch.machine_ranks:

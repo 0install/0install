@@ -1001,23 +1001,9 @@ class TestDownload(BaseTest):
 		assert 'Firefox - Webbrowser' in out, out
 
 	def testLocalArchive(self):
-		root = qdom.parse(BytesIO(b"""<?xml version='1.0'?>
-			<interface uri='http://example.com/test.xml' xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-			  <name>Hello</name>
-			  <summary>Hello</summary>
-			  <implementation id='impl1' version='0.1'>
-			    <manifest-digest sha256new='RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA'/>
-			    <archive href='HelloWorld.tgz' size='176'/>
-			  </implementation>
-			  <implementation id='impl2' version='0.2'>
-			    <manifest-digest sha256new='RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA'/>
-			    <archive href='IDONTEXIST.tgz' size='176'/>
-			  </implementation>
-			  <implementation id='impl3' version='0.3'>
-			    <manifest-digest sha256new='RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA'/>
-			    <archive href='HelloWorld.tgz' size='177'/>
-			  </implementation>
-			</interface>"""))
+		local_iface = os.path.join(mydir, 'LocalArchive.xml')
+		with open(local_iface, 'rb') as stream:
+			root = qdom.parse(stream)
 
 		# Not local => error
 		feed = model.ZeroInstallFeed(root)
@@ -1029,18 +1015,7 @@ class TestDownload(BaseTest):
 		except model.SafeException as ex:
 			assert "Relative URL 'HelloWorld.tgz' in non-local feed" in str(ex), ex
 
-		# Local => OK
-		feed = model.ZeroInstallFeed(root, local_path = os.path.join(mydir, 'test.xml'))
-		impl = feed.implementations['impl1']
-
-		path = self.config.stores.lookup_maybe(impl.digests)
-		assert not path
-
-		blocker = self.config.fetcher.download_impls([impl], self.config.stores)
-		tasks.wait_for_blocker(blocker)
-
-		path = self.config.stores.lookup_any(impl.digests)
-		assert os.path.exists(os.path.join(path, 'HelloWorld'))
+		feed = model.ZeroInstallFeed(root, local_path = local_iface)
 
 		# Missing file
 		impl2 = feed.implementations['impl2']
@@ -1059,6 +1034,25 @@ class TestDownload(BaseTest):
 			assert 0
 		except model.SafeException as ex:
 			assert 'feed says 177, but actually 176 bytes' in str(ex), ex
+
+		self.config.network_use = model.network_offline
+		r = Requirements(local_iface)
+		r.command = None
+		driver = Driver(requirements = r, config = self.config)
+		driver.need_download()
+		assert driver.solver.ready, driver.solver.get_failure_reason()
+
+		# Local => OK
+		impl = feed.implementations['impl1']
+
+		path = self.config.stores.lookup_maybe(impl.digests)
+		assert not path
+
+		blocker = self.config.fetcher.download_impls([impl], self.config.stores)
+		tasks.wait_for_blocker(blocker)
+
+		path = self.config.stores.lookup_any(impl.digests)
+		assert os.path.exists(os.path.join(path, 'HelloWorld'))
 
 if __name__ == '__main__':
 	try:
