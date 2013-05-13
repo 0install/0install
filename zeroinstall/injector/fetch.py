@@ -753,7 +753,14 @@ class RenameStepRunner(StepRunner):
 		source = native_path_within_base(basedir, self.stepdata.source)
 		dest = native_path_within_base(basedir, self.stepdata.dest)
 		_ensure_dir_exists(os.path.dirname(dest))
-		os.rename(source, dest)
+		try:
+			os.rename(source, dest)
+		except OSError as ex:
+			if not os.path.exists(source):
+				# Python by default reports the path of the destination in this case
+				raise SafeException("<rename> source '{source}' does not exist".format(
+					source = self.stepdata.source))
+			raise
 
 class RemoveStepRunner(StepRunner):
 	"""A step runner for the <remove> step."""

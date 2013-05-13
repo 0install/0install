@@ -495,6 +495,16 @@ class TestDownload(BaseTest):
 		except model.SafeException as ex:
 			assert "path '.' is not within the base directory" in str(ex), ex
 
+	def testRenameFailure(self):
+		recipe = model.Recipe()
+		try:
+			recipe.steps.append(model.RenameStep("missing-source", "dest"))
+			blocker = self.config.fetcher.cook("sha256new_XXX", recipe, self.config.stores)
+			tasks.wait_for_blocker(blocker)
+			assert 0
+		except model.SafeException as ex:
+			assert "<rename> source 'missing-source' does not exist" in str(ex), ex
+
 	def testRecipeSingleFile(self):
 		with output_suppressed():
 			run_server(('HelloWorldMain',))
