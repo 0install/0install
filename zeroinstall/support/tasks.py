@@ -45,7 +45,12 @@ def get_loop():
 	if _loop:
 		return _loop
 
+	gi_version = (0, 0, 0)
 	if sys.version_info[0] > 2:
+		try:
+			from gi import version_info as gi_version
+		except ImportError:
+			pass			 	# Not sure if this can happen
 		try:
 			from gi.repository import GObject as gobject
 			try:
@@ -104,7 +109,11 @@ def get_loop():
 				def wrapper(src, cond):
 					cb(*args)
 					return True
-				h.tag = glib.io_add_watch(fd, glib.IO_IN | glib.IO_HUP, wrapper)
+				if gi_version < (3, 7, 3):
+					h.tag = glib.io_add_watch(fd, glib.IO_IN | glib.IO_HUP, wrapper)
+				else:
+					h.tag = glib.io_add_watch(fd, glib.PRIORITY_DEFAULT, glib.IO_IN | glib.IO_HUP, wrapper)
+
 				return h
 
 			@staticmethod
@@ -113,7 +122,10 @@ def get_loop():
 				def wrapper(src, cond):
 					cb(*args)
 					return True
-				h.tag = glib.io_add_watch(fd, glib.IO_OUT | glib.IO_HUP, wrapper)
+				if gi_version < (3, 7, 3):
+					h.tag = glib.io_add_watch(fd, glib.IO_OUT | glib.IO_HUP, wrapper)
+				else:
+					h.tag = glib.io_add_watch(fd, glib.PRIORITY_DEFAULT, glib.IO_OUT | glib.IO_HUP, wrapper)
 				return h
 
 		loop.glib = glib
@@ -130,7 +142,7 @@ def get_loop():
 		else:
 			loop = tulip.get_event_loop()
 			loop.glib = None
-	
+
 	_loop = loop
 	return loop
 
@@ -227,7 +239,7 @@ class Blocker(object):
 	#def __del__(self):
 	#	if self.exception and not self.exception_read:
 	#		warn(_("Blocker %(blocker)s garbage collected without having it's exception read: %(exception)s"), {'blocker': self, 'exception': self.exception})
-	
+
 	def add_task(self, task):
 		"""Called by the schedular when a Task yields this
 		Blocker. If you override this method, be sure to still
@@ -235,13 +247,13 @@ class Blocker(object):
 		@type task: L{Task}"""
 		assert task not in self._zero_lib_tasks, "Blocking on a single task twice: %s (%s)" % (task, self)
 		self._zero_lib_tasks.add(task)
-	
+
 	def remove_task(self, task):
 		"""Called by the schedular when a Task that was waiting for
 		this blocker is resumed.
 		@type task: L{Task}"""
 		self._zero_lib_tasks.remove(task)
-	
+
 	def __repr__(self):
 		return "<Blocker:%s>" % self
 
@@ -266,7 +278,7 @@ class TimeoutBlocker(Blocker):
 		@type name: str"""
 		Blocker.__init__(self, name)
 		get_loop().call_later(timeout, self._timeout)
-	
+
 	def _timeout(self):
 		self.trigger()
 
@@ -284,13 +296,13 @@ class InputBlocker(Blocker):
 		@type name: str"""
 		Blocker.__init__(self, name)
 		self._stream = stream
-	
+
 	def add_task(self, task):
 		"""@type task: L{Task}"""
 		Blocker.add_task(self, task)
 		if self._tag is None:
 			self._tag = get_loop().add_reader(self._stream, _io_callback, self)
-	
+
 	def remove_task(self, task):
 		"""@type task: L{Task}"""
 		Blocker.remove_task(self, task)
@@ -306,12 +318,12 @@ class OutputBlocker(Blocker):
 	def __init__(self, stream, name):
 		Blocker.__init__(self, name)
 		self._stream = stream
-	
+
 	def add_task(self, task):
 		Blocker.add_task(self, task)
 		if self._tag is None:
 			self._tag = get_loop().add_writer(self._stream, _io_callback, self)
-	
+
 	def remove_task(self, task):
 		Blocker.remove_task(self, task)
 		if not self._zero_lib_tasks:
@@ -352,7 +364,7 @@ class Task(object):
 		_idle_blocker.add_task(self)
 		self._zero_blockers = (_idle_blocker,)
 		logger.info(_("Scheduling new task: %s"), self)
-	
+
 	def _resume(self):
 		# Remove from our blockers' queues
 		for blocker in self._zero_blockers:
@@ -394,10 +406,10 @@ class Task(object):
 		for blocker in new_blockers:
 			blocker.add_task(self)
 		self._zero_blockers = new_blockers
-	
+
 	def __repr__(self):
 		return "Task(%s)" % self.finished.name
-	
+
 	def __str__(self):
 		return self.finished.name
 
