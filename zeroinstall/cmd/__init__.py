@@ -54,7 +54,7 @@ class _Completion(object):
 	def __init__(self, config, command_args, shell):
 		"""@type command_args: [str]
 		@type shell: str"""
-		assert shell in ('zsh', 'bash'), shell
+		assert shell in ('zsh', 'bash', 'fish'), shell
 		self.shell = shell
 		self.config = config
 		self.cword = int(os.environ['COMP_CWORD']) - 1
@@ -83,14 +83,13 @@ class _Completion(object):
 			elif command_args[self.cword] == '=':
 				command_args[self.cword] = ''
 			#print(command_args, self.cword, file = sys.stderr)
-			self.command_args = command_args
 
 		if self.cword < len(command_args):
 			self.current = command_args[self.cword]
 		else:
 			self.current = ''
 
-		if shell == 'zsh':
+		if shell in ('zsh', 'fish'):
 			if self.current.startswith('--') and '=' in self.current:
 				# Split "--foo=bar" into "--foo", "bar"
 				name, value = self.current.split('=', 1)

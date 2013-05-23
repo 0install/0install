@@ -663,50 +663,57 @@ class TestInstall(BaseTest):
 		if shell == 'zsh':
 			cword += 1
 		os.environ['COMP_CWORD'] = str(cword)
+
 		out, err = self.run_0install(['_complete', shell, '0install'] + args)
+		# print('-- %r[%s] (%r)---' % (args,cword,shell))
+		# print(out)
 		self.assertEqual("", err)
 		return out
 
 	def testCompletion(self):
-		assert 'select\n' in self.complete(["s"], 1)
-		assert 'select\n' in self.complete([], 1)
-		assert 'select\n' in self.complete(["", "bar"], 1)
+		shell = None
+		complete = lambda *a: self.complete(*a, shell=shell)
+		for shell in ['zsh','fish']:
+			assert 'select\n' in complete(["s"], 1)
+			assert 'select\n' in complete([], 1)
+			assert 'select\n' in complete(["", "bar"], 1)
 
-		assert '' == self.complete(["", "bar"], 2)
-		assert '' == self.complete(["unknown", "bar"], 2)
-		self.assertEqual('', self.complete(["--", "s"], 2))
+			assert '' == complete(["", "bar"], 2)
+			assert '' == complete(["unknown", "bar"], 2)
+			self.assertEqual('', complete(["--", "s"], 2))
 
-		assert '--help\n' in self.complete(["-"], 1)
-		assert '--help\n' in self.complete(["--"], 1)
-		assert '--help\n' in self.complete(["--h"], 1)
-		assert '-h\n' in self.complete(["-h"], 1)
-		assert '-hv\n' in self.complete(["-hv"], 1)
-		assert '' == self.complete(["-hi"], 1)
+			assert '--help\n' in complete(["-"], 1)
+			assert '--help\n' in complete(["--"], 1)
+			assert '--help\n' in complete(["--h"], 1)
+			assert '-h\n' in complete(["-h"], 1)
+			assert '-hv\n' in complete(["-hv"], 1)
+			assert '' == complete(["-hi"], 1)
 
-		assert '--message' not in self.complete(["--m"], 1)
-		assert '--message' in self.complete(["--m", "select"], 1)
-		assert '--message' in self.complete(["select", "--m"], 2)
+			assert '--message' not in complete(["--m"], 1)
+			assert '--message' in complete(["--m", "select"], 1)
+			assert '--message' in complete(["select", "--m"], 2)
 
-		assert '--help' in self.complete(["select", "foo", "--h"], 3)
-		assert '--help' not in self.complete(["run", "foo", "--h"], 3)
-		assert '--help' not in self.complete(["select", "--version", "--h"], 3)
+			assert '--help' in complete(["select", "foo", "--h"], 3)
+			assert '--help' not in complete(["run", "foo", "--h"], 3)
+			assert '--help' not in complete(["select", "--version", "--h"], 3)
 
-		# Fall back to file completion for the program's arguments
-		self.assertEqual('file\n', self.complete(["run", "foo", ""], 3))
+			# Fall back to file completion for the program's arguments
+			self.assertEqual('file\n', complete(["run", "foo", ""], 3))
 
-		# Option value completion
-		assert 'file\n' in self.complete(["select", "--with-store"], 3)
-		assert 'Linux\n' in self.complete(["select", "--os"], 3)
-		assert 'x86_64\n' in self.complete(["select", "--cpu"], 3)
-		assert 'sha256new\n' in self.complete(["digest", "--algorithm"], 3)
+			# Option value completion
+			assert 'file\n' in complete(["select", "--with-store"], 3)
+			assert 'Linux\n' in complete(["select", "--os"], 3)
+			assert 'x86_64\n' in complete(["select", "--cpu"], 3)
+			assert 'sha256new\n' in complete(["digest", "--algorithm"], 3)
 
 		# Option=value complete
-		assert 'file\n' in self.complete(["select", "--with-store="], 2)
-		assert 'file\n' in self.complete(["select", "--with-store", "="], 3, shell='bash')
-		assert 'file\n' in self.complete(["select", "--with-store", "=", "foo"], 4, shell='bash')
-
-		assert 'filter x86_64 \n' in self.complete(["select", "--cpu", "="], 3, shell='bash')
-		assert 'filter --cpu=x86_64\n' in self.complete(["select", "--cpu="], 2)
+		for shell in ['zsh','fish']:
+			assert 'file\n' in complete(["select", "--with-store="], 2)
+			assert 'filter --cpu=x86_64\n' in complete(["select", "--cpu="], 2)
+		for shell in ['bash']:
+			assert 'file\n' in complete(["select", "--with-store", "="], 3)
+			assert 'file\n' in complete(["select", "--with-store", "=", "foo"], 4)
+			assert 'filter x86_64 \n' in complete(["select", "--cpu", "="], 3)
 
 		class MyImplementation:
 			def __init__(self, version):
@@ -727,29 +734,32 @@ class TestInstall(BaseTest):
 				return [MyImplementation("1.5"), MyImplementation("1.2")]
 
 		self.config.iface_cache = MyIfaceCache()
-		assert 'filter select \n' in self.complete(["sel"], 1, shell = 'bash')
-		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "ht"], 2, shell = 'bash'))
-		self.assertEqual('prefix //example.com/\nfile\n', self.complete(["select", "http:"], 2, shell = 'bash'))
-		self.assertEqual('prefix //example.com/\nfile\n', self.complete(["select", "http:/"], 2, shell = 'bash'))
-		self.assertEqual('filter //example.com/foo \n', self.complete(["select", "http://example.com/"], 2, shell = 'bash'))
 
-		# Check options are ignored correctly
-		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "--with-store=.", "http:"], 3))
-		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "http:", "--with-store=."], 2))
+		for shell in ['bash']:
+			assert 'filter select \n' in complete(["sel"], 1)
+			self.assertEqual('prefix http://example.com/\nfile\n', complete(["select", "ht"], 2))
+			self.assertEqual('prefix //example.com/\nfile\n', complete(["select", "http:"], 2))
+			self.assertEqual('prefix //example.com/\nfile\n', complete(["select", "http:/"], 2))
+			self.assertEqual('filter //example.com/foo \n', complete(["select", "http://example.com/"], 2))
 
-		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "--with-store", ".", "http:"], 4))
-		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "http:", "--with-store", "."], 2))
+		for shell in ['zsh','fish']:
+			# Check options are ignored correctly
+			self.assertEqual('prefix http://example.com/\nfile\n', complete(["select", "--with-store=.", "http:"], 3))
+			self.assertEqual('prefix http://example.com/\nfile\n', complete(["select", "http:", "--with-store=."], 2))
 
-		# Version completion
-		self.assertEqual('filter 1.2\nfilter 1.5\n', self.complete(["select", "--before", "", "http://example.com/foo"], 3))
-		self.assertEqual('filter 1.2\nfilter 1.5\n', self.complete(["select", "--version", "", "http://example.com/foo"], 3))
-		self.assertEqual('filter 1.2..!1.2\nfilter 1.2..!1.5\n', self.complete(["select", "--version", "1.2..", "http://example.com/foo"], 3))
+			self.assertEqual('prefix http://example.com/\nfile\n', complete(["select", "--with-store", ".", "http:"], 4))
+			self.assertEqual('prefix http://example.com/\nfile\n', complete(["select", "http:", "--with-store", "."], 2))
 
-		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "--version-for", "http:", "", ], 3))
-		self.assertEqual('filter 1.2\nfilter 1.5\n', self.complete(["select", "--version-for", "http://example.com/foo", "", ], 4))
+			# Version completion
+			self.assertEqual('filter 1.2\nfilter 1.5\n', complete(["select", "--before", "", "http://example.com/foo"], 3))
+			self.assertEqual('filter 1.2\nfilter 1.5\n', complete(["select", "--version", "", "http://example.com/foo"], 3))
+			self.assertEqual('filter 1.2..!1.2\nfilter 1.2..!1.5\n', complete(["select", "--version", "1.2..", "http://example.com/foo"], 3))
 
-		# -- before argument
-		self.assertEqual('prefix http://example.com/\nfile\n', self.complete(["select", "--", "http:"], 3))
+			self.assertEqual('prefix http://example.com/\nfile\n', complete(["select", "--version-for", "http:", "", ], 3))
+			self.assertEqual('filter 1.2\nfilter 1.5\n', complete(["select", "--version-for", "http://example.com/foo", "", ], 4))
+
+			# -- before argument
+			self.assertEqual('prefix http://example.com/\nfile\n', complete(["select", "--", "http:"], 3))
 
 
 if __name__ == '__main__':

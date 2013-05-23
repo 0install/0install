@@ -62,6 +62,9 @@ sourced from your .bashrc or added under /usr/share/bash-completion.
 For zsh users, copy the script in share/zsh/site-functions/ to a directory in
 your $fpath (e.g. /usr/local/share/zsh/site-functions).
 
+For fish-shell users, add the full path to share/fish/completions to
+$fish_complete_path.
+
 
 QUICK START
 -----------
