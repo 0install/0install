@@ -7,7 +7,12 @@ function __fish_0install_complete
 				case 'add *'    ; echo $item | cut -c 5-
 				case 'filter *' ; echo $item | cut -c 8-
 				case 'prefix *' ; echo $item | cut -c 8-
-				case 'file'     ; ; # noop
+				case 'file'     ;
+					begin
+						# echo needed to prevent empty list
+						set arg (echo (commandline --tokenize --current-token))
+						ls -1 (dirname {$arg}_) ^/dev/null
+					end;
 				case '*'        ; echo >&2 Bad reply $item
 			end
 		end
@@ -15,4 +20,4 @@ function __fish_0install_complete
 end
 
 complete -e -c 0install
-complete -c 0install -a '(__fish_0install_complete)'
+complete -c 0install --no-files --arguments '(__fish_0install_complete)'
