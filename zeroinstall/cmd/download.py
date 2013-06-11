@@ -29,15 +29,16 @@ def handle(config, options, args):
 		sels = app.get_selections()
 
 		r = app.get_requirements()
-		do_select = r.parse_update_options(options)
+		do_select = r.parse_update_options(options) or options.refresh
 		iface_uri = sels.interface
 	else:
 		iface_uri = model.canonical_iface_uri(args[0])
+		r = None
 		do_select = True
 
 	if do_select or options.gui:
 		sels = select.get_selections(config, options, iface_uri,
-					select_only = False, download_only = True, test_callback = None)
+					select_only = False, download_only = True, test_callback = None, requirements = r)
 		if not sels:
 			sys.exit(1)	# Aborted by user
 	else:
