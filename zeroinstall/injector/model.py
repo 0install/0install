@@ -428,7 +428,9 @@ class EnvironmentBinding(Binding):
 			return extra
 
 		if old_value is None:
-			old_value = self.default or defaults.get(self.name, None)
+			old_value = self.default
+			if old_value is None:
+				old_value = defaults.get(self.name, None)
 		if old_value is None:
 			return extra
 		if self.mode == EnvironmentBinding.PREPEND:
