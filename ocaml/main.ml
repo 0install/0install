@@ -7,12 +7,29 @@
 open Support;;
 
 let is_option x = String.length x > 0 && x.[0] = '-';;
+let is_iface_url x = String.length x > 0 && x.[0] = '-';;
+
+(* We can't handle any of these at the moment, so pass them to the Python. *)
+let is_url url =
+  let starts = starts_with url in
+  starts "http://" || starts "https://" || starts "file:" || starts "alias:"
+;;
+
+let fallback_to_python = function
+  | prog :: args ->
+      (* Use ../0install if it exists *)
+      let local_0install = Filename.dirname (Filename.dirname (abspath prog)) +/ "0install" in
+      let python_0install = if Sys.file_exists local_0install then local_0install else "0install" in
+      let python_argv = Array.of_list (python_0install :: args) in
+      Unix.execvp (python_argv.(0)) python_argv
+  | _ -> failwith "No argv[0]"
+;;
 
 let main () =
   let argv = (Array.to_list Sys.argv) in
   match argv with
   (* 0install run ... *)
-  | (_ :: "run" :: app_or_sels :: args) when not (is_option app_or_sels) -> (
+  | (_ :: "run" :: app_or_sels :: args) when not (is_option app_or_sels) && not (is_url app_or_sels) -> (
     let config = Config.get_default_config () in
     let sels_path = match Apps.lookup_app app_or_sels config with
     | None -> app_or_sels
@@ -22,13 +39,7 @@ let main () =
     with Safe_exception _ as ex -> reraise_with_context ex ("... running selections " ^ sels_path)
   )
   (* For all other cases, fall back to the Python version *)
-  | prog :: args ->
-      (* Use ../0install if it exists *)
-      let local_0install = Filename.dirname (Filename.dirname (abspath prog)) +/ "0install" in
-      let python_0install = if Sys.file_exists local_0install then local_0install else "0install" in
-      let python_argv = Array.of_list (python_0install :: args) in
-      Unix.execvp (python_argv.(0)) python_argv
-  | _ -> failwith "No argv[0]"
+  | _ -> fallback_to_python argv
 ;;
 
 let () = handle_exceptions main;;
