@@ -2,6 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+(** Managing cached implementations *)
+
 open Support;;
 
 type stores = string list;;

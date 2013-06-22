@@ -2,6 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+(** Configuration settings *)
+
 type config = {
   basedirs: Basedir.basedirs;
   stores: string list;

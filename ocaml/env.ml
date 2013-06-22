@@ -2,6 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+(** Environment variables (generic support code) *)
+
 type env = (string, string) Hashtbl.t;;
 
 let re_equals = Str.regexp_string "=";;

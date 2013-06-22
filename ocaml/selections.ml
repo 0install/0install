@@ -2,6 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+(** <selection> elements *)
+
 open Constants;;
 open Support;;
 

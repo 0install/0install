@@ -2,13 +2,16 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+(** <command> elements *)
+
 open Support;;
 open Constants;;
 
 let get_command name elem =
   let is_command node = ((ZI.tag node = Some "command") && (ZI.get_attribute "name" node = name)) in
-  try Qdom.find is_command elem
-  with Not_found -> Qdom.raise_elem ("No <command> with name '" ^ name ^ "' in ") elem
+  match Qdom.find is_command elem with
+  | Some command -> command
+  | None -> Qdom.raise_elem ("No <command> with name '" ^ name ^ "' in ") elem
 ;;
 
 let re_template = Str.regexp ("\\$\\(\\$\\|\\([a-zA-Z_][a-zA-Z0-9_]*\\)\\|{[^}]*}\\)")

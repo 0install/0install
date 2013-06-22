@@ -2,7 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** The main executable. *)
+(** The main executable *)
 
 open Support;;
 

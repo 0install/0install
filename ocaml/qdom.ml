@@ -4,6 +4,7 @@
 
 open Support;;
 
+(** An XML element node, including nearby text. *)
 type element = {
   tag: Xmlm.name;
   mutable attrs: Xmlm.attribute list;
@@ -54,7 +55,10 @@ let parse_file path =
 
 (** Helper functions. *)
 
-let find pred node = List.find pred node.child_nodes;;
+let find pred node =
+  try Some (List.find pred node.child_nodes)
+  with Not_found -> None
+;;
 
 let show_with_loc elem =
   let (_ns, name) = elem.tag in

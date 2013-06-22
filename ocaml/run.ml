@@ -2,6 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+(** Executing a selections document *)
+
 open Constants;;
 open Support;;
 

@@ -1,4 +1,4 @@
-(** XML processing. *)
+(** XML processing *)
 
 (** An XML element node (and nearby text). *)
 type element = {
@@ -21,7 +21,8 @@ val parse_file : string -> element
 
 (** {2 Helper functions} *)
 
-val find : (element -> bool) -> element -> element
+(** [find fn parent] returns the first child of for which [fn child] is True. *)
+val find : (element -> bool) -> element -> element option
 
 (** [raise_elem "Problem with " elem] raises a [Safe_exception] with the message "Problem with <element> at ..." *)
 val raise_elem : string -> element -> 'a

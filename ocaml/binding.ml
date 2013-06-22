@@ -2,6 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+(** Binding elements: <environment>, <executable-in-*>, <binding> *)
+
 open Support;;
 open Constants;;
 

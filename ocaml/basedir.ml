@@ -2,6 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+(** XDG Base Directory support, for locating caches, configuration, etc *)
+
 open Support;;
 
 (* TODO: check for root *)
