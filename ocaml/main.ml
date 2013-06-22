@@ -18,9 +18,11 @@ let is_url url =
 let fallback_to_python = function
   | prog :: args ->
       (* Use ../0install if it exists *)
-      let local_0install = Filename.dirname (Filename.dirname (abspath prog)) +/ "0install" in
-      let python_0install = if Sys.file_exists local_0install then local_0install else "0install" in
-      let python_argv = Array.of_list (python_0install :: args) in
+      let parent_dir = Filename.dirname (Filename.dirname (abspath prog)) in
+      let () = if Sys.file_exists (parent_dir +/ "zeroinstall") then
+          Unix.putenv "PYTHONPATH" parent_dir
+        else () in
+      let python_argv = Array.of_list ("python" :: "-m" :: "zeroinstall.cmd" :: args) in
       Unix.execvp (python_argv.(0)) python_argv
   | _ -> failwith "No argv[0]"
 ;;
