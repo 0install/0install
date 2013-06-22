@@ -21,7 +21,9 @@ let ensure_runenv config =
   if Sys.file_exists runenv then
     ()
   else
-    Unix.symlink (config.Config.resource_dir +/ "runenv.native") runenv
+    let runenv_binary = (config.Config.resource_dir +/ "runenv") in
+    if Sys.file_exists runenv_binary then Unix.symlink runenv_binary runenv
+    else failwith ("Can't locate my runenv helper: expected to find it at " ^ runenv_binary)
 ;;
 
 let do_exec_binding config env impls = function
