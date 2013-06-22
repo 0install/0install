@@ -30,6 +30,30 @@ let reraise_with_context ex context =
   in raise ex
 ;;
 
+(** [handle_exceptions main] runs [main ()]. If it throws an exception it reports it in a
+    user-friendly way. A [Safe_exception] is displayed with its context.
+    If stack-traces are enabled, one will be displayed. If not then, if the exception isn't
+    a [Safe_exception], the user is told how to enable them.
+    On error, it calls [exit 1]. On success, it returns.
+ *)
+let handle_exceptions main =
+  try main ()
+  with
+  | Safe_exception (msg, context) ->
+      Printf.eprintf "%s\n" msg;
+      List.iter (Printf.eprintf "%s\n") (List.rev !context);
+      Printexc.print_backtrace stderr;
+      exit 1
+  | ex ->
+      output_string stderr (Printexc.to_string ex);
+      output_string stderr "\n";
+      if not (Printexc.backtrace_status ()) then
+        output_string stderr "(hint: run with OCAMLRUNPARAM=b to get a stack-trace)\n"
+      else
+        Printexc.print_backtrace stderr;
+      exit 1
+;;
+
 (** [with_open file fn] opens [file], calls [fn handle], and then closes it again. *)
 let with_open file fn =
   let ch =
@@ -72,8 +96,22 @@ let rec makedirs path mode =
   )
 ;;
 
+let starts_with str prefix =
+  let ls = String.length str in
+  let lp = String.length prefix in
+  if lp > ls then false else
+    let rec loop i =
+      if i = lp then true
+      else if str.[i] <> prefix.[i] then false
+      else loop (i + 1)
+    in loop 0;;
+
+let path_is_absolute path = starts_with path Filename.dir_sep;;
+
 (** If the given path is relative, make it absolute by prepending the current directory to it. *)
 let abspath path =
-  if path.[0] = '/' then path
+  if path_is_absolute path then path
+  else if starts_with path (Filename.current_dir_name ^ Filename.dir_sep) then
+    Sys.getcwd () +/ String.sub path 2 ((String.length path) - 2)
   else (Sys.getcwd ()) +/ path
 ;;
