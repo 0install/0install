@@ -31,8 +31,8 @@ let main () =
   let argv = (Array.to_list Sys.argv) in
   match argv with
   (* 0install run ... *)
-  | (_ :: "run" :: app_or_sels :: args) when not (is_option app_or_sels) && not (is_url app_or_sels) -> (
-    let config = Config.get_default_config () in
+  | (self_path :: "run" :: app_or_sels :: args) when not (is_option app_or_sels) && not (is_url app_or_sels) -> (
+    let config = Config.get_default_config self_path in
     let sels_path = match Apps.lookup_app app_or_sels config with
     | None -> app_or_sels
     | Some app_path -> app_path +/ "selections.xml" in
@@ -40,6 +40,8 @@ let main () =
     try Run.execute_selections sels args config
     with Safe_exception _ as ex -> reraise_with_context ex ("... running selections " ^ sels_path)
   )
+  (* 0install runenv *)
+  | (_ :: "runenv" :: runenv_args) -> Run.runenv runenv_args
   (* For all other cases, fall back to the Python version *)
   | _ -> fallback_to_python argv
 ;;

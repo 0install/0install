@@ -17,13 +17,14 @@ let validate_exec_name name =
 
 let ensure_runenv config =
   let main_dir = Basedir.save_path ("0install.net" +/ "injector") config.Config.basedirs.Basedir.cache in
-  let runenv = main_dir +/ "runenv.native" in
+  let runenv = main_dir +/ "runenv" in
   if Sys.file_exists runenv then
     ()
   else
-    let runenv_binary = (config.Config.resource_dir +/ "runenv") in
-    if Sys.file_exists runenv_binary then Unix.symlink runenv_binary runenv
-    else failwith ("Can't locate my runenv helper: expected to find it at " ^ runenv_binary)
+    (** TODO: If abspath_0install is a native binary, we could avoid starting a shell here. *)
+    let write handle =
+      output_string handle (Printf.sprintf "#!/bin/sh\nexec '%s' runenv \"$0\" \"$@\"\n" config.Config.abspath_0install)
+    in atomic_write write runenv 0o755
 ;;
 
 let do_exec_binding config env impls = function
@@ -36,7 +37,7 @@ let do_exec_binding config env impls = function
 
     if not (Sys.file_exists exec_path) then (
       (* TODO: windows *)
-      Unix.symlink "../../runenv.native" exec_path;
+      Unix.symlink "../../runenv" exec_path;
       Unix.chmod exec_dir 0o500
     ) else ();
 
@@ -81,3 +82,15 @@ let execute_selections sels args config =
   flush stdout;
   flush stderr;
   Unix.execve (List.hd prog_args) (Array.of_list prog_args) (Env.to_array env);;
+
+(** This is called in a new process by the launcher created by [ensure_runenv]. *)
+let runenv args =
+  match args with
+  | [] -> assert false
+  | arg0::args ->
+    let var = "0install-runenv-" ^ Filename.basename arg0 in
+    let s = getenv_ex var in
+    let open Yojson.Basic in
+    let envargs = Util.convert_each Util.to_string (from_string s) in
+    Unix.execv (List.hd envargs) (Array.of_list (envargs @ args))
+;;

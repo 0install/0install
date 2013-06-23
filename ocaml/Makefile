@@ -6,10 +6,10 @@ OCAMLBUILD=ocamlbuild -use-ocamlfind -build-dir "${BUILDDIR}"
 all: ocaml
 
 ocaml: 
-	$(OCAMLBUILD) main.native runenv.native
+	$(OCAMLBUILD) main.native
 
 byte:
-	$(OCAMLBUILD) main.d.byte
+	$(OCAMLBUILD) main.byte
 
 doc:
 	$(OCAMLBUILD) 0install.docdir/index.html

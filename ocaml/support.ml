@@ -115,3 +115,41 @@ let abspath path =
     Sys.getcwd () +/ String.sub path 2 ((String.length path) - 2)
   else (Sys.getcwd ()) +/ path
 ;;
+
+(** Wrapper for [Sys.getenv] that gives a more user-friendly exception message. *)
+let getenv_ex name =
+  try Sys.getenv name
+  with Not_found -> raise_safe ("Environment variable '" ^ name ^ "' not set")
+;;
+
+let re_dir_sep = Str.regexp_string Filename.dir_sep;;
+
+let find_in_path name =
+  let check p = if Sys.file_exists p then Some p else None in
+  if Filename.is_implicit name then
+    let test dir = check (dir +/ name) in
+    first_match test (Str.split_delim re_dir_sep (getenv_ex "PATH"))
+  else
+    check (abspath name)
+;;
+
+let find_in_path_ex name =
+  match find_in_path name with
+  | Some path -> path
+  | None -> raise_safe ("Not found in $PATH: " ^ name)
+;;
+
+(** Create and open a new text file, call [fn chan] on it, and rename it over [path] on success. *)
+let atomic_write fn path mode =
+  let dir = Filename.dirname path in
+  let (tmpname, ch) =
+    try Filename.open_temp_file ~temp_dir:dir "tmp-" ".new"
+    with Sys_error msg -> raise_safe msg
+  in
+  let result = try fn ch with ex -> close_out ch; raise ex in
+  let () = close_out ch in
+  Unix.chmod tmpname mode;
+  Unix.rename tmpname path;
+  result
+;;
+
