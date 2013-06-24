@@ -3,8 +3,13 @@ basedir
 binding
 command
 config
-constants
+distro
 env
+escape
+feed_cache
+general
+logging
+main
 qdom
 run
 selections

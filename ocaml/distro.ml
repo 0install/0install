@@ -9,6 +9,6 @@ let is_installed elem =
   | Some file -> Sys.file_exists file
   | None ->
       (* TODO *)
-      log_info (Printf.sprintf "Assuming distribution package %s version %s is still installed"
-                               (ZI.get_attribute "id" elem) (ZI.get_attribute "version" elem));
+      log_info "Assuming distribution package %s version %s is still installed"
+               (ZI.get_attribute "id" elem) (ZI.get_attribute "version" elem);
       true

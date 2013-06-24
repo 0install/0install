@@ -19,7 +19,7 @@ let lookup_app config name =
 exception Need_solve;;
 
 let need_solve msg =
-  log_info ("Need to solve: " ^ msg);
+  log_info "Need to solve: %s" msg;
   raise Need_solve;;
 
 (*
@@ -68,7 +68,7 @@ let iter_inputs config cb sels =
 let get_mtime path ~warn_if_missing =
   try (Unix.stat path).Unix.st_mtime
   with Unix.Unix_error _ as ex ->
-    let () = if warn_if_missing then log_warning ~ex ("Failed to get time-stamp of " ^ path) else ()
+    let () = if warn_if_missing then log_warning ~ex "Failed to get time-stamp of %s" path else ()
     in 0.0
 ;;
 
@@ -108,12 +108,12 @@ let check_for_updates config app_path sels =
   (* Is it time for a background update anyway? *)
   let want_bg_update =
     let staleness = int_of_float (Unix.time () -. last_check_time) in
-    log_info (Printf.sprintf "Staleness of app %s is %d hours" app_path (staleness / (60 * 60)));
+    log_info "Staleness of app %s is %d hours" app_path (staleness / (60 * 60));
     match config.freshness with
     | Some freshness_threshold -> staleness >= freshness_threshold
     | None -> false in    (* Updates disabled *)
 
-  log_info (Printf.sprintf "check_for_updates: need_solve = %b, want_bg_update = %b; unavailable_sels = %b" need_solve want_bg_update unavailable_sels);
+  log_info "check_for_updates: need_solve = %b, want_bg_update = %b; unavailable_sels = %b" need_solve want_bg_update unavailable_sels;
 
   (* When we solve, we might also discover there are new things we could download and therefore
      do a background update anyway. *)

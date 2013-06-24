@@ -31,8 +31,8 @@ let default = Support.default
 
 let reraise_with_context = Support.reraise_with_context
 
-let log_info = Support.log_info
-let log_warning = Support.log_warning
+let log_info = Logging.log_info
+let log_warning = Logging.log_warning
 
 let starts_with = Support.starts_with
 

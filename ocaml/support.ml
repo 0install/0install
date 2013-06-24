@@ -62,27 +62,6 @@ let handle_exceptions main =
       exit 1
 ;;
 
-(** Write a message to stderr if verbose logging is on *)
-let log_info msg =
-  if Printexc.backtrace_status () then
-    output_string stderr ("info: " ^ msg ^ "\n")
-  else ()
-;;
-
-let log_warning ?ex msg =
-  output_string stderr ("warning: " ^ msg);
-  let () = match ex with
-  | None -> ()
-  | Some ex ->
-      output_string stderr ": ";
-      output_string stderr (Printexc.to_string ex);
-      if Printexc.backtrace_status () then (
-        output_string stderr "\n";
-        Printexc.print_backtrace stderr
-      ) else ()
-  in output_string stderr "\n";
-;;
-
 (** [with_open file fn] opens [file], calls [fn handle], and then closes it again. *)
 let with_open file fn =
   let ch =
