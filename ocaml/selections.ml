@@ -67,5 +67,21 @@ let get_feed elem =
   | Some feed -> feed
 ;;
 
-let get_unavailable_selections _config ~include_packages _sels =
-  let _i = include_packages in [];;   (* TODO *)
+let get_unavailable_selections config ~include_packages sels =
+  let missing = ref [] in
+
+  let needs_download elem =
+    match make_selection elem with
+    | LocalSelection _ -> false
+    | CacheSelection digests -> None = Stores.lookup_maybe digests config.stores
+    | PackageSelection when not include_packages -> false
+    | PackageSelection -> not (Distro.is_installed elem)
+  in
+  let check sel =
+    if needs_download sel then missing := sel :: !missing
+  in
+
+  ZI.iter_with_name check sels "selection";
+
+  !missing
+;;

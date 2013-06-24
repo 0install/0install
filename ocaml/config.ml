@@ -6,13 +6,6 @@
 
 open General;;
 
-type config = {
-  basedirs: Basedir.basedirs;
-  stores: string list;
-  abspath_0install: filepath;
-  freshness: int option;
-};;
-
 (** {2 Relative configuration paths (e.g. under ~/.config)} *)
 
 let config_site = "0install.net"

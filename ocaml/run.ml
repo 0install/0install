@@ -15,14 +15,14 @@ let validate_exec_name name =
     raise_safe ("Invalid name in executable binding: " ^ name)
 
 let ensure_runenv config =
-  let main_dir = Basedir.save_path ("0install.net" +/ "injector") config.Config.basedirs.Basedir.cache in
+  let main_dir = Basedir.save_path ("0install.net" +/ "injector") config.basedirs.Basedir.cache in
   let runenv = main_dir +/ "runenv" in
   if Sys.file_exists runenv then
     ()
   else
     (** TODO: If abspath_0install is a native binary, we could avoid starting a shell here. *)
     let write handle =
-      output_string handle (Printf.sprintf "#!/bin/sh\nexec '%s' runenv \"$0\" \"$@\"\n" config.Config.abspath_0install)
+      output_string handle (Printf.sprintf "#!/bin/sh\nexec '%s' runenv \"$0\" \"$@\"\n" config.abspath_0install)
     in Support.atomic_write write runenv 0o755
 ;;
 
@@ -31,7 +31,7 @@ let do_exec_binding config env impls = function
     validate_exec_name name;
 
     (* set up launcher symlink *)
-    let exec_dir = Basedir.save_path ("0install.net" +/ "injector" +/ "executables" +/ name) config.Config.basedirs.Basedir.cache in
+    let exec_dir = Basedir.save_path ("0install.net" +/ "injector" +/ "executables" +/ name) config.basedirs.Basedir.cache in
     let exec_path = exec_dir ^ Filename.dir_sep ^ name in   (* TODO: windows *)
 
     if not (Sys.file_exists exec_path) then (
@@ -65,7 +65,7 @@ let make_selection_map stores sels =
 
 let execute_selections sels args config =
   let env = Env.copy_current_env () in
-  let impls = make_selection_map config.Config.stores sels in
+  let impls = make_selection_map config.stores sels in
   let bindings = Binding.collect_bindings impls sels in
 
   ensure_runenv config;

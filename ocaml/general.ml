@@ -14,6 +14,13 @@ exception Safe_exception = Support.Safe_exception
 
 module StringMap = Support.StringMap
 
+type config = {
+  basedirs: Basedir.basedirs;
+  stores: string list;
+  abspath_0install: filepath;
+  freshness: int option;
+}
+
 (** {2 Utility functions} *)
 
 let (+/) = Filename.concat

@@ -16,3 +16,6 @@ doc:
 
 clean:
 	$(OCAMLBUILD) -clean
+
+tags:
+	ctags *.ml *.mli

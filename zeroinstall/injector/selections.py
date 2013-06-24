@@ -360,7 +360,8 @@ class Selections(object):
 		# Check that every required selection is cached
 		def needs_download(sel):
 			if sel.id.startswith('package:'):
-				if sel.quick_test_file and os.path.exists(sel.quick_test_file): return False
+				if sel.quick_test_file:
+					return not os.path.exists(sel.quick_test_file)
 				if not include_packages: return False
 				feed = iface_cache.get_feed(sel.feed)
 				if not feed: return False

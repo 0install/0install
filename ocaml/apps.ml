@@ -11,7 +11,7 @@ let re_app_name = Str.regexp "^[^./\\\\:=;'\"][^/\\\\:=;'\"]*$";;
 
 let lookup_app config name =
   if Str.string_match re_app_name name 0 then
-    Basedir.load_first ("0install.net" +/ "apps" +/ name) config.Config.basedirs.Basedir.config
+    Basedir.load_first ("0install.net" +/ "apps" +/ name) config.basedirs.Basedir.config
   else
     None
 ;;
@@ -51,7 +51,7 @@ let iter_inputs config cb sels =
       cb feed   (* Check the timestamp of this local feed hasn't changed *)
     else
       (* Remote feed *)
-      match Feed_cache.get_cached_feed_path feed config with
+      match Feed_cache.get_cached_feed_path config feed with
       | None -> need_solve "Source feed no longer cached!"
       | Some path -> cb path              (* Check feed hasn't changed *)
   in
@@ -109,7 +109,7 @@ let check_for_updates config app_path sels =
   let want_bg_update =
     let staleness = int_of_float (Unix.time () -. last_check_time) in
     log_info (Printf.sprintf "Staleness of app %s is %d hours" app_path (staleness / (60 * 60)));
-    match config.Config.freshness with
+    match config.freshness with
     | Some freshness_threshold -> staleness >= freshness_threshold
     | None -> false in    (* Updates disabled *)
 
