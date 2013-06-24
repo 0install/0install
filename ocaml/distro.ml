@@ -2,6 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+(** Interacting with distribution package managers. *)
+
 open General
 
 (** The ":host:" selections are where 0install chose the version of Python that was
@@ -21,6 +23,8 @@ class base_distribution : distribution =
   end
 ;;
 
+(** A simple cache for storing key-value pairs on disk. Distributions may wish to use this to record the
+    version of each distribution package currently installed. *)
 module Cache =
   struct
 
@@ -31,6 +35,8 @@ module Cache =
       mutable contents : string StringMap.t;
     }
 
+    (* Note: [format_version] doesn't make much sense. If the format changes, just use a different [cache_leaf],
+       otherwise you'll be fighting with other versions of 0install. *)
     class cache (config:General.config) (cache_leaf:string) (source:filepath) (format_version:int) =
       object (self)
         (* The status of the cache when we loaded it. *)
@@ -38,6 +44,7 @@ module Cache =
 
         val cache_path = Basedir.save_path (config_site +/ config_prog +/ cache_leaf) config.basedirs.Basedir.cache
 
+        (** Reload the values from disk (even if they're out-of-date). *)
         method load_cache () =
           data.mtime <- -1;
           data.size <- -1;
@@ -72,7 +79,18 @@ module Cache =
           )
 
         (** Check cache is still up-to-date. Clear it not. *)
-        method ensure_valid () = ()   (* TODO *)
+        method ensure_valid () =
+          let info = Unix.stat source in
+          if data.mtime <> int_of_float info.Unix.st_mtime then (
+            log_info "Modification time of %s has changed; invalidating cache" source;
+            raise Fallback_to_Python
+          ) else if data.size <> info.Unix.st_size then (
+            log_info "Size of %s has changed; invalidating cache" source;
+            raise Fallback_to_Python
+          ) else if data.rev <> format_version then (
+            log_info "Format of cache %s has changed; invalidating cache" cache_path;
+            raise Fallback_to_Python
+          )
 
         method get (key:string) : string option =
           self#ensure_valid ();
