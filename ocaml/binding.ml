@@ -4,8 +4,9 @@
 
 (** Binding elements: <environment>, <executable-in-*>, <binding> *)
 
-open Support;;
-open Constants;;
+open General;;
+
+type varname = Support.varname
 
 type which_end = Prepend | Append;;
 type add_mode = {pos :which_end; default :string option; separator :string};;

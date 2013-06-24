@@ -4,8 +4,7 @@
 
 (** <command> elements *)
 
-open Support;;
-open Constants;;
+open General;;
 
 let get_command name elem =
   let is_command node = ((ZI.tag node = Some "command") && (ZI.get_attribute "name" node = name)) in

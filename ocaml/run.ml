@@ -4,8 +4,7 @@
 
 (** Executing a selections document *)
 
-open Constants;;
-open Support;;
+open General;;
 
 let re_exec_name = Str.regexp "^[^./'][^/']*$";;
 
@@ -24,7 +23,7 @@ let ensure_runenv config =
     (** TODO: If abspath_0install is a native binary, we could avoid starting a shell here. *)
     let write handle =
       output_string handle (Printf.sprintf "#!/bin/sh\nexec '%s' runenv \"$0\" \"$@\"\n" config.Config.abspath_0install)
-    in atomic_write write runenv 0o755
+    in Support.atomic_write write runenv 0o755
 ;;
 
 let do_exec_binding config env impls = function
@@ -89,7 +88,7 @@ let runenv args =
   | [] -> assert false
   | arg0::args ->
     let var = "0install-runenv-" ^ Filename.basename arg0 in
-    let s = getenv_ex var in
+    let s = Support.getenv_ex var in
     let open Yojson.Basic in
     let envargs = Util.convert_each Util.to_string (from_string s) in
     flush stdout;

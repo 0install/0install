@@ -4,8 +4,7 @@
 
 (** The main executable *)
 
-open Support;;
-open Constants;;
+open General;;
 
 let is_option x = String.length x > 0 && x.[0] = '-';;
 let is_iface_url x = String.length x > 0 && x.[0] = '-';;
@@ -20,7 +19,7 @@ let is_url url =
     otherwise use the system version of 0install. *)
 let fallback_to_python = function
   | prog :: args ->
-      let parent_dir = Filename.dirname (Filename.dirname (abspath prog)) in
+      let parent_dir = Filename.dirname (Filename.dirname (Support.abspath prog)) in
       let () = if Sys.file_exists (parent_dir +/ "zeroinstall") then
           Unix.putenv "PYTHONPATH" parent_dir
         else () in
@@ -51,4 +50,4 @@ let main () =
   with Fallback_to_Python -> fallback_to_python argv
 ;;
 
-let () = handle_exceptions main;;
+let () = Support.handle_exceptions main;;

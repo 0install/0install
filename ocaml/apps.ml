@@ -4,8 +4,7 @@
 
 (** Support for 0install apps *)
 
-open Support;;
-open Constants;;
+open General;;
 open Config;;
 
 let re_app_name = Str.regexp "^[^./\\\\:=;'\"][^/\\\\:=;'\"]*$";;
@@ -48,7 +47,7 @@ let iter_inputs config cb sels =
     if starts_with feed "distribution:" then
       (* If the package has changed version, we'll detect that below with get_unavailable_selections. *)
       ()
-    else if path_is_absolute feed then
+    else if Support.path_is_absolute feed then
       cb feed   (* Check the timestamp of this local feed hasn't changed *)
     else
       (* Remote feed *)

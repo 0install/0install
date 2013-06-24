@@ -4,8 +4,7 @@
 
 (** Configuration settings *)
 
-open Support;;
-open Constants;;
+open General;;
 
 type config = {
   basedirs: Basedir.basedirs;
@@ -29,9 +28,9 @@ let config_injector_global = config_site +/ config_prog +/ "global"
   *)
 let get_default_config path_to_0install =
   let abspath_0install = if String.contains path_to_0install Filename.dir_sep.[0] then
-    abspath path_to_0install
+    Support.abspath path_to_0install
   else
-    find_in_path_ex path_to_0install
+    Support.find_in_path_ex path_to_0install
   in
 
   let basedirs_config = Basedir.get_default_config () in {

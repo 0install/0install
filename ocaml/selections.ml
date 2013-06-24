@@ -4,8 +4,7 @@
 
 (** <selection> elements *)
 
-open Constants;;
-open Support;;
+open General;;
 
 type impl_source =
   | CacheSelection of Stores.digest list

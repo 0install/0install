@@ -5,7 +5,7 @@
 (** Escaping and unescaping strings. *)
 
 let re_escaped = Str.regexp "#\\|%[0-9a-fA-F][0-9a-fA-F]"
-let re_need_escaping =        Str.regexp "[^-_.a-zA-Z0-9]"
+let re_need_escaping = Str.regexp "[^-_.a-zA-Z0-9]"
 
 (* Convert each %20 to a space, etc *)
 let unescape uri =
