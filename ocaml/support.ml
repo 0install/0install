@@ -45,7 +45,13 @@ let () = Printexc.register_printer safe_to_string;;
     On error, it calls [exit 1]. On success, it returns.
  *)
 let handle_exceptions main =
-  try main ()
+  let args = Array.to_list (Sys.argv) in
+  try
+    match args with
+    | prog :: "-v" :: args ->
+        Printexc.record_backtrace true;
+        main (prog :: args)
+    | _ -> main args
   with
   | Safe_exception (msg, context) ->
       Printf.eprintf "%s\n" msg;

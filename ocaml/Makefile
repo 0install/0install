@@ -1,7 +1,7 @@
 BUILDDIR=_build
 OCAMLBUILD=ocamlbuild -use-ocamlfind -build-dir "${BUILDDIR}"
 
-.PHONY: all ocaml byte doc clean
+.PHONY: all ocaml byte doc clean tags
 
 all: ocaml
 

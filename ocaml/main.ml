@@ -27,8 +27,8 @@ let fallback_to_python = function
   | _ -> failwith "No argv[0]"
 ;;
 
-let main () =
-  let argv = (Array.to_list Sys.argv) in
+let main argv =
+  log_info "OCaml front-end to 0install: entering main";
   try
     match argv with
     (* 0install run ... *)
@@ -44,7 +44,9 @@ let main () =
     | (_ :: "runenv" :: runenv_args) -> Run.runenv runenv_args
     (* For all other cases, fall back to the Python version *)
     | _ -> raise Fallback_to_Python
-  with Fallback_to_Python -> fallback_to_python argv
+  with Fallback_to_Python ->
+    log_info "Can't handle this case; switching to Python version...";
+    fallback_to_python argv
 ;;
 
 let () = Support.handle_exceptions main;;
