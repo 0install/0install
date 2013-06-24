@@ -5,7 +5,6 @@
 (** Support for 0install apps *)
 
 open General;;
-open Config;;
 
 let re_app_name = Str.regexp "^[^./\\\\:=;'\"][^/\\\\:=;'\"]*$";;
 
@@ -42,7 +41,7 @@ let iter_inputs config cb sels =
     let feed = Selections.get_feed sel_elem in
 
     (* Check per-feed config *)
-    check_maybe_config (Config.config_injector_interfaces +/ Escape.pretty feed);
+    check_maybe_config (config_injector_interfaces +/ Escape.pretty feed);
 
     if starts_with feed "distribution:" then
       (* If the package has changed version, we'll detect that below with get_unavailable_selections. *)

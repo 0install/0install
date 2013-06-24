@@ -6,13 +6,6 @@
 
 open General;;
 
-(** {2 Relative configuration paths (e.g. under ~/.config)} *)
-
-let config_site = "0install.net"
-let config_prog = "injector"
-let config_injector_interfaces = config_site +/ config_prog +/ "interfaces"
-let config_injector_global = config_site +/ config_prog +/ "global"
-
 (** {2 Functions} *)
 
 (** [get_default_config path_to_0install] creates a configuration from the current environment.
@@ -26,12 +19,15 @@ let get_default_config path_to_0install =
     Support.find_in_path_ex path_to_0install
   in
 
-  let basedirs_config = Basedir.get_default_config () in {
+  let basedirs_config = Basedir.get_default_config () in
+  let rec config = {
     basedirs = basedirs_config;
     stores = Stores.get_default_stores basedirs_config;
     abspath_0install;
     freshness = Some (30 * days);   (* TODO - read from config_injector_global *)
-  }
+    distro = lazy (Distro.get_host_distribution config);
+  } in
+  config
 ;;
 
 let load_first_config rel_path config =

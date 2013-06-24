@@ -181,3 +181,63 @@ let exec ?(search_path = false) ?env argv =
     let cmd = String.concat " " argv in
     raise (Safe_exception (Printexc.to_string ex, ref ["... trying to exec: " ^ cmd]))
 ;;
+
+let with_pipe fn =
+  let (r, w) = Unix.pipe () in
+  let result =
+    try fn r w
+    with ex ->
+      Unix.close r;
+      Unix.close w;
+      raise ex
+  in
+  Unix.close r;
+  Unix.close w;
+  result
+;;
+
+(** Spawn a subprocess with the given arguments and call [fn channel] on its output. *)
+let check_output fn argv =
+  Logging.log_info "Running %s" (String.concat " " (List.map String.escaped argv));
+  try
+    let (r, w) = Unix.pipe () in
+    let child_pid =
+      try Unix.create_process (List.hd argv) (Array.of_list argv) Unix.stdin w Unix.stdout
+      with ex ->
+        Unix.close r; Unix.close w; raise ex
+    in
+    Unix.close w;
+    let in_channel = Unix.in_channel_of_descr r in
+    let result =
+      try fn in_channel
+      with ex ->
+        close_in in_channel;
+        ignore (Unix.waitpid [] child_pid);
+        raise ex
+    in
+    close_in in_channel;
+    match snd (Unix.waitpid [] child_pid) with
+    | Unix.WEXITED 0 -> result
+    | Unix.WEXITED code -> raise_safe ("Child returned error exit status " ^ (string_of_int code))
+    | _ -> raise_safe "Child failed"
+  with Unix.Unix_error _ as ex -> 
+    let cmd = String.concat " " argv in
+    raise (Safe_exception (Printexc.to_string ex, ref ["... trying to read output of: " ^ cmd]))
+;;
+
+(** Call [fn line] on each line of output from running the given sub-process. *)
+let check_output_lines fn argv =
+  let process ch =
+    try
+      while true do
+        fn (input_line ch)
+      done
+  with End_of_file -> () in
+  check_output process argv
+;;
+
+let split_pair re str =
+  match Str.bounded_split_delim re str 2 with
+  | [key; value] -> (key, value)
+  | [_] -> failwith ("Not a pair '" ^ str ^ "'")
+  | _ -> assert false

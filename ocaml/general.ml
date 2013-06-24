@@ -12,6 +12,12 @@ type filepath = Support.filepath
 
 exception Safe_exception = Support.Safe_exception
 
+class type distribution =
+  object
+    (** Test whether this <selection> element is still valid *)
+    method is_installed : Qdom.element -> bool
+  end;;
+
 module StringMap = Support.StringMap
 
 type config = {
@@ -19,6 +25,7 @@ type config = {
   stores: string list;
   abspath_0install: filepath;
   freshness: int option;
+  distro: distribution Lazy.t;
 }
 
 (** {2 Utility functions} *)
@@ -36,13 +43,24 @@ let log_warning = Logging.log_warning
 
 let starts_with = Support.starts_with
 
-(** {2 Useful 0install constants} *)
+(** {2 Useful constants} *)
 
 let path_sep = Support.path_sep
 
 let hours = 60 * 60         (* Seconds per hour *)
 
 let days = 24 * hours       (* Seconds per day *)
+
+let re_colon = Str.regexp_string ":"
+let re_equals = Str.regexp_string "="
+let re_tab = Str.regexp_string "\t"
+
+(** {2 Relative configuration paths (e.g. under ~/.config)} *)
+
+let config_site = "0install.net"
+let config_prog = "injector"
+let config_injector_interfaces = config_site +/ config_prog +/ "interfaces"
+let config_injector_global = config_site +/ config_prog +/ "global"
 
 (** {2 The 0install XML namespace} *)
 

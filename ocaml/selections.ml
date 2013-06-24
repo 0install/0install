@@ -67,6 +67,13 @@ let get_feed elem =
   | Some feed -> feed
 ;;
 
+(** Check whether the distribution package for this <selection> is installed.
+    If unsure, we return [false] *)
+let is_package_installed config elem =
+  match ZI.get_attribute_opt "quick-test-file" elem with
+  | Some file -> Sys.file_exists file
+  | None -> (Lazy.force config.distro)#is_installed elem
+
 let get_unavailable_selections config ~include_packages sels =
   let missing = ref [] in
 
@@ -75,7 +82,7 @@ let get_unavailable_selections config ~include_packages sels =
     | LocalSelection _ -> false
     | CacheSelection digests -> None = Stores.lookup_maybe digests config.stores
     | PackageSelection when not include_packages -> false
-    | PackageSelection -> not (Distro.is_installed elem)
+    | PackageSelection -> not (is_package_installed config elem)
   in
   let check sel =
     if needs_download sel then missing := sel :: !missing

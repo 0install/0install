@@ -363,7 +363,7 @@ class IfaceCache(object):
 		if url.startswith('distribution:'):
 			master_feed = self.get_feed(url.split(':', 1)[1])
 			if not master_feed:
-				return None	# Can't happen?
+				return None	# e.g. when checking a selections document
 			feed = self.distro.get_feed(master_feed)
 		else:
 			feed = reader.load_feed_from_cache(url, selections_ok = selections_ok)
