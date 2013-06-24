@@ -78,20 +78,19 @@ let execute_selections sels args config =
 
   let command = ZI.get_attribute "command" sels in
   let prog_args = (Command.build_command impls (ZI.get_attribute "interface" sels) command env) @ args in
-  flush stdout;
-  flush stderr;
-  Unix.execve (List.hd prog_args) (Array.of_list prog_args) (Env.to_array env);;
+  Support.exec prog_args ~env:(Env.to_array env)
+;;
 
 (** This is called in a new process by the launcher created by [ensure_runenv]. *)
 let runenv args =
   match args with
   | [] -> assert false
   | arg0::args ->
-    let var = "0install-runenv-" ^ Filename.basename arg0 in
-    let s = Support.getenv_ex var in
-    let open Yojson.Basic in
-    let envargs = Util.convert_each Util.to_string (from_string s) in
-    flush stdout;
-    flush stderr;
-    Unix.execv (List.hd envargs) (Array.of_list (envargs @ args))
+    try
+      let var = "0install-runenv-" ^ Filename.basename arg0 in
+      let s = Support.getenv_ex var in
+      let open Yojson.Basic in
+      let envargs = Util.convert_each Util.to_string (from_string s) in
+      Support.exec (envargs @ args)
+    with Safe_exception _ as ex -> reraise_with_context ex ("... launching " ^ arg0)
 ;;

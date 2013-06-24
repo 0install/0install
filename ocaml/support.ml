@@ -181,3 +181,24 @@ let atomic_write fn path mode =
   Unix.rename tmpname path;
   result
 ;;
+
+(** A safer, more friendly version of the [Unix.exec*] calls.
+    Flushes [stdout] and [stderr]. Ensures [argv[0]] is set to the program called.
+    Reports errors as [Safe_exception]s.
+  *)
+let exec ?(search_path = false) ?env argv =
+  flush stdout;
+  flush stderr;
+  try
+    if search_path then
+      match env with
+      | None -> Unix.execvp (List.hd argv) (Array.of_list argv)
+      | Some env -> Unix.execvpe (List.hd argv) (Array.of_list argv) env
+    else
+      match env with
+      | None -> Unix.execv (List.hd argv) (Array.of_list argv)
+      | Some env -> Unix.execve (List.hd argv) (Array.of_list argv) env
+  with Unix.Unix_error _ as ex ->
+    let cmd = String.concat " " argv in
+    raise (Safe_exception (Printexc.to_string ex, ref ["... trying to exec: " ^ cmd]))
+;;

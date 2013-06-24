@@ -23,10 +23,7 @@ let fallback_to_python = function
       let () = if Sys.file_exists (parent_dir +/ "zeroinstall") then
           Unix.putenv "PYTHONPATH" parent_dir
         else () in
-      let python_argv = Array.of_list ("python" :: "-m" :: "zeroinstall.cmd" :: args) in
-      flush stdout;
-      flush stderr;
-      Unix.execvp (python_argv.(0)) python_argv
+      Support.exec ~search_path:true ("python" :: "-m" :: "zeroinstall.cmd" :: args)
   | _ -> failwith "No argv[0]"
 ;;
 
