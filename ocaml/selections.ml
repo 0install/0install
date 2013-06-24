@@ -60,3 +60,13 @@ let load_selections path =
   ZI.check_tag "selections" root;
   root
 ;;
+
+let get_feed elem =
+  ZI.check_tag "selection" elem;
+  match ZI.get_attribute_opt "from-feed" elem with
+  | None -> ZI.get_attribute "interface" elem
+  | Some feed -> feed
+;;
+
+let get_unavailable_selections _config ~include_packages _sels =
+  let _i = include_packages in [];;   (* TODO *)

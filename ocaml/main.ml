@@ -5,6 +5,7 @@
 (** The main executable *)
 
 open Support;;
+open Constants;;
 
 let is_option x = String.length x > 0 && x.[0] = '-';;
 let is_iface_url x = String.length x > 0 && x.[0] = '-';;
@@ -15,35 +16,39 @@ let is_url url =
   starts "http://" || starts "https://" || starts "file:" || starts "alias:"
 ;;
 
+(** Run "python -m zeroinstall.cmd". If ../zeroinstall exists, put it in PYTHONPATH,
+    otherwise use the system version of 0install. *)
 let fallback_to_python = function
   | prog :: args ->
-      (* Use ../0install if it exists *)
       let parent_dir = Filename.dirname (Filename.dirname (abspath prog)) in
       let () = if Sys.file_exists (parent_dir +/ "zeroinstall") then
           Unix.putenv "PYTHONPATH" parent_dir
         else () in
       let python_argv = Array.of_list ("python" :: "-m" :: "zeroinstall.cmd" :: args) in
+      flush stdout;
+      flush stderr;
       Unix.execvp (python_argv.(0)) python_argv
   | _ -> failwith "No argv[0]"
 ;;
 
 let main () =
   let argv = (Array.to_list Sys.argv) in
-  match argv with
-  (* 0install run ... *)
-  | (self_path :: "run" :: app_or_sels :: args) when not (is_option app_or_sels) && not (is_url app_or_sels) -> (
-    let config = Config.get_default_config self_path in
-    let sels_path = match Apps.lookup_app app_or_sels config with
-    | None -> app_or_sels
-    | Some app_path -> app_path +/ "selections.xml" in
-    let sels = Selections.load_selections sels_path in
-    try Run.execute_selections sels args config
-    with Safe_exception _ as ex -> reraise_with_context ex ("... running selections " ^ sels_path)
-  )
-  (* 0install runenv *)
-  | (_ :: "runenv" :: runenv_args) -> Run.runenv runenv_args
-  (* For all other cases, fall back to the Python version *)
-  | _ -> fallback_to_python argv
+  try
+    match argv with
+    (* 0install run ... *)
+    | (self_path :: "run" :: app_or_sels :: args) when not (is_option app_or_sels) && not (is_url app_or_sels) -> (
+      let config = Config.get_default_config self_path in
+      let sels = match Apps.lookup_app config app_or_sels with
+      | None -> Selections.load_selections app_or_sels
+      | Some app_path -> Apps.get_selections config app_path ~may_update:true in
+      try Run.execute_selections sels args config
+      with Safe_exception _ as ex -> reraise_with_context ex ("... running selections " ^ app_or_sels)
+    )
+    (* 0install runenv *)
+    | (_ :: "runenv" :: runenv_args) -> Run.runenv runenv_args
+    (* For all other cases, fall back to the Python version *)
+    | _ -> raise Fallback_to_Python
+  with Fallback_to_Python -> fallback_to_python argv
 ;;
 
 let () = handle_exceptions main;;

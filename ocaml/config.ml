@@ -5,12 +5,23 @@
 (** Configuration settings *)
 
 open Support;;
+open Constants;;
 
 type config = {
   basedirs: Basedir.basedirs;
   stores: string list;
   abspath_0install: filepath;
+  freshness: int option;
 };;
+
+(** {2 Relative configuration paths (e.g. under ~/.config)} *)
+
+let config_site = "0install.net"
+let config_prog = "injector"
+let config_injector_interfaces = config_site +/ config_prog +/ "interfaces"
+let config_injector_global = config_site +/ config_prog +/ "global"
+
+(** {2 Functions} *)
 
 (** [get_default_config path_to_0install] creates a configuration from the current environment.
     [path_to_0install] is used when creating launcher scripts. If it contains no slashes, then
@@ -27,5 +38,10 @@ let get_default_config path_to_0install =
     basedirs = basedirs_config;
     stores = Stores.get_default_stores basedirs_config;
     abspath_0install;
+    freshness = Some (30 * days);   (* TODO - read from config_injector_global *)
   }
+;;
+
+let load_first_config rel_path config =
+  Basedir.load_first rel_path config.basedirs.Basedir.config
 ;;

@@ -92,5 +92,7 @@ let runenv args =
     let s = getenv_ex var in
     let open Yojson.Basic in
     let envargs = Util.convert_each Util.to_string (from_string s) in
+    flush stdout;
+    flush stderr;
     Unix.execv (List.hd envargs) (Array.of_list (envargs @ args))
 ;;

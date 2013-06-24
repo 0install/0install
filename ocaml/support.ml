@@ -30,6 +30,14 @@ let reraise_with_context ex context =
   in raise ex
 ;;
 
+let safe_to_string = function
+  | Safe_exception (msg, contexts) ->
+      Some (msg ^ String.concat "\n" !contexts)
+  | _ -> None
+;;
+
+let () = Printexc.register_printer safe_to_string;;
+
 (** [handle_exceptions main] runs [main ()]. If it throws an exception it reports it in a
     user-friendly way. A [Safe_exception] is displayed with its context.
     If stack-traces are enabled, one will be displayed. If not then, if the exception isn't
@@ -52,6 +60,27 @@ let handle_exceptions main =
       else
         Printexc.print_backtrace stderr;
       exit 1
+;;
+
+(** Write a message to stderr if verbose logging is on *)
+let log_info msg =
+  if Printexc.backtrace_status () then
+    output_string stderr ("info: " ^ msg ^ "\n")
+  else ()
+;;
+
+let log_warning ?ex msg =
+  output_string stderr ("warning: " ^ msg);
+  let () = match ex with
+  | None -> ()
+  | Some ex ->
+      output_string stderr ": ";
+      output_string stderr (Printexc.to_string ex);
+      if Printexc.backtrace_status () then (
+        output_string stderr "\n";
+        Printexc.print_backtrace stderr
+      ) else ()
+  in output_string stderr "\n";
 ;;
 
 (** [with_open file fn] opens [file], calls [fn handle], and then closes it again. *)
@@ -152,4 +181,3 @@ let atomic_write fn path mode =
   Unix.rename tmpname path;
   result
 ;;
-
