@@ -66,6 +66,23 @@ For fish-shell users, add the full path to share/fish/completions to
 $fish_complete_path.
 
 
+OCAML
+-----
+
+You can make 0install run faster by building the OCaml source to generate a faster
+version of the "0install" executable. This binary can handle common tasks by itself,
+falling back to the Python version in other cases.
+
+This is experimental.
+
+You will need the OCaml build tools for this. On Debian:
+
+    $ sudo apt-get install ocaml ocaml-findlib libyojson-ocaml-dev libxmlm-ocaml-dev
+    $ cd 0install/ocaml
+    $ make
+
+You can then install ./0install over the existing Python /usr/bin/0install.
+
 QUICK START
 -----------
 
