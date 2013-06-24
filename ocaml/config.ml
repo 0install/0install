@@ -19,14 +19,29 @@ let get_default_config path_to_0install =
     Support.find_in_path_ex path_to_0install
   in
 
-  let basedirs_config = Basedir.get_default_config () in
+  let basedirs = Basedir.get_default_config () in
+
   let rec config = {
-    basedirs = basedirs_config;
-    stores = Stores.get_default_stores basedirs_config;
+    basedirs;
+    stores = Stores.get_default_stores basedirs;
     abspath_0install;
-    freshness = Some (30 * days);   (* TODO - read from config_injector_global *)
+    freshness = Some (30 * days);
     distro = lazy (Distro.get_host_distribution config);
   } in
+
+  let handle_ini_mapping = function
+    | ("global", "freshness", freshness) ->
+        let value = int_of_string freshness in
+        if value > 0 then
+          config.freshness <- Some value
+        else
+          config.freshness <- None
+    | _ -> () in
+
+  let () = match Basedir.load_first config_injector_global basedirs.Basedir.config with
+  | None -> ()
+  | Some path -> Support.parse_ini handle_ini_mapping path in
+
   config
 ;;
 

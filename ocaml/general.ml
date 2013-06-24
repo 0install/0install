@@ -24,8 +24,9 @@ type config = {
   basedirs: Basedir.basedirs;
   stores: string list;
   abspath_0install: filepath;
-  freshness: int option;
   distro: distribution Lazy.t;
+
+  mutable freshness: int option;
 }
 
 (** {2 Utility functions} *)

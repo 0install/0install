@@ -68,8 +68,8 @@ let handle_exceptions main =
       exit 1
 ;;
 
-(** [with_open file fn] opens [file], calls [fn handle], and then closes it again. *)
-let with_open file fn =
+(** [with_open fn file] opens [file], calls [fn handle], and then closes it again. *)
+let with_open fn file =
   let ch =
     try open_in file
     with Sys_error msg -> raise_safe msg
@@ -247,3 +247,24 @@ let split_pair re str =
   | [key; value] -> (key, value)
   | [_] -> failwith ("Not a pair '" ^ str ^ "'")
   | _ -> assert false
+
+let re_section = Str.regexp "^[ \t]*\\[[ \t]*\\([^]]*\\)[ \t]*\\][ \t]*$"
+let re_key_value = Str.regexp "^[ \t]*\\([^= ]+\\)[ \t]*=[ \t]*\\(.*\\)$"
+
+let parse_ini fn path =
+  let read ch =
+    let section = ref "" in
+    try
+      while true do
+        let line = input_line ch in
+        if Str.string_match re_section line 0 then
+          let name = Str.matched_group 1 line in
+          section := name;
+        else if Str.string_match re_key_value line 0 then
+          let key = Str.matched_group 1 line in
+          let value = String.trim (Str.matched_group 2 line) in
+          fn (!section, key, value)
+      done
+    with End_of_file -> () in
+  with_open read path
+;;

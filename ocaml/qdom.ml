@@ -48,7 +48,7 @@ let parse_input source_name i = try (
 ;;
 
 let parse_file path =
-  try with_open path (fun ch -> parse_input path (Xmlm.make_input (`Channel ch)))
+  try with_open (fun ch -> parse_input path (Xmlm.make_input (`Channel ch))) path
   with
   | Safe_exception _ as ex -> reraise_with_context ex ("... parsing XML document " ^ path)
   | Sys_error msg -> raise_safe ("Error parsing XML document '" ^ path ^ "': " ^ msg)

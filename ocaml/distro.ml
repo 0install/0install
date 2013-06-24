@@ -75,7 +75,7 @@ module Cache =
               with End_of_file -> ()
               
               in
-            Support.with_open cache_path load_cache
+            Support.with_open load_cache cache_path
           )
 
         (** Check cache is still up-to-date. Clear it not. *)
