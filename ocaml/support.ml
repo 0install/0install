@@ -126,6 +126,17 @@ let starts_with str prefix =
       else loop (i + 1)
     in loop 0;;
 
+let ends_with str prefix =
+  let ls = String.length str in
+  let lp = String.length prefix in
+  if lp > ls then false else
+    let offset = ls - lp in
+    let rec loop i =
+      if i = lp then true
+      else if str.[i + offset] <> prefix.[i] then false
+      else loop (i + 1)
+    in loop 0;;
+
 let path_is_absolute path = starts_with path Filename.dir_sep;;
 
 (** If the given path is relative, make it absolute by prepending the current directory to it. *)
@@ -145,13 +156,24 @@ let getenv_ex name =
 let re_dir_sep = Str.regexp_string Filename.dir_sep;;
 let re_path_sep = Str.regexp_string path_sep;;
 
+(** Try to guess the full path of the executable that the user means.
+    On Windows, we add a ".exe" extension if it's missing.
+    If the name contains a dir_sep, just check that [abspath name] exists.
+    Otherwise, search $PATH for it.
+    On Windows, we also search '.' first. This mimicks the behaviour the Windows shell. *)
 let find_in_path (system:system) name =
+  let name = if on_windows && not (ends_with name ".exe") then name ^ ".exe" else name in
   let check p = if system#file_exists p then Some p else None in
-  if Filename.is_implicit name then
-    let test dir = check (dir +/ name) in
-    first_match test (Str.split_delim re_path_sep (getenv_ex "PATH"))
-  else
+  if String.contains name Filename.dir_sep.[0] then (
+    (* e.g. "/bin/sh", "./prog" or "foo/bar" *)
     check (abspath system name)
+  ) else (
+    (* e.g. "python" *)
+    let path_var = Str.split_delim re_path_sep (getenv_ex "PATH") in
+    let effective_path = if on_windows then system#getcwd () :: path_var else path_var in
+    let test dir = check (dir +/ name) in
+    first_match test effective_path
+  )
 ;;
 
 let find_in_path_ex system name =
