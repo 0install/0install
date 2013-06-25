@@ -93,11 +93,11 @@ let runenv args =
   | [] -> failwith "No args passed to runenv!"
   | arg0::args ->
     try
+      let system = new System.real_system in
       let var = "0install-runenv-" ^ Filename.basename arg0 in
-      let s = Support.getenv_ex var in
+      let s = Support.getenv_ex system var in
       let open Yojson.Basic in
       let envargs = Util.convert_each Util.to_string (from_string s) in
-      let system = new System.real_system in
       system#exec (envargs @ args)
     with Safe_exception _ as ex -> reraise_with_context ex ("... launching " ^ arg0)
 ;;

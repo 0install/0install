@@ -21,6 +21,8 @@ class type system =
     method create_process : filepath -> string array -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
     method getcwd : unit -> filepath
     method atomic_write : (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
+
+    method getenv : varname -> string option
   end
 ;;
 
@@ -148,9 +150,10 @@ let abspath (system:system) path =
 ;;
 
 (** Wrapper for [Sys.getenv] that gives a more user-friendly exception message. *)
-let getenv_ex name =
-  try Sys.getenv name
-  with Not_found -> raise_safe ("Environment variable '" ^ name ^ "' not set")
+let getenv_ex system name =
+  match system#getenv name with
+  | Some value -> value
+  | None -> raise_safe ("Environment variable '" ^ name ^ "' not set")
 ;;
 
 let re_dir_sep = Str.regexp_string Filename.dir_sep;;
@@ -169,7 +172,7 @@ let find_in_path (system:system) name =
     check (abspath system name)
   ) else (
     (* e.g. "python" *)
-    let path_var = Str.split_delim re_path_sep (getenv_ex "PATH") in
+    let path_var = Str.split_delim re_path_sep (getenv_ex system "PATH") in
     let effective_path = if on_windows then system#getcwd () :: path_var else path_var in
     let test dir = check (dir +/ name) in
     first_match test effective_path

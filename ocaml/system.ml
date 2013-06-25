@@ -6,7 +6,7 @@
 
 open Support
 
-class real_system : system =
+class real_system =
   object (self : #system)
     method time = Unix.time
     method mkdir = Unix.mkdir
@@ -72,6 +72,10 @@ class real_system : system =
       Unix.chmod tmpname mode;
       Unix.rename tmpname path;
       result
+
+    method getenv name =
+      try Some (Sys.getenv name)
+      with Not_found -> None
 
   end
 ;;

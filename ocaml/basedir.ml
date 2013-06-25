@@ -6,8 +6,6 @@
 
 open Support;;
 
-(* TODO: ZEROINSTALL_PORTABLE_BASE *)
-
 (* TODO: Windows *)
 
 let re_path_sep = Str.regexp_string path_sep;;
@@ -18,21 +16,26 @@ type basedirs = {
   config: filepath list;
 };;
 
-let get_path home_var dirs_var = function
+let get_path (system:system) home_var dirs_var = function
   | [] -> failwith "No defaults!"
   | (default_home :: default_system) ->
+
     let user_dir =
-      try Sys.getenv home_var
-      with Not_found -> default_home in
+      match system#getenv home_var with
+      | None -> default_home
+      | Some dir -> dir in
+
     let system_dirs =
-      try List.filter (fun x -> x <> "") (Str.split re_path_sep (Sys.getenv dirs_var))
-      with Not_found -> default_system in
+      match system#getenv dirs_var with
+      | None -> default_system
+      | Some path -> List.filter ((<>) "") (Str.split re_path_sep path) in
+
     user_dir :: system_dirs
 ;;
 
-let get_unix_home () =
+let get_unix_home (system:system) =
+  let home = default "/root" (system#getenv "HOME") in
   let open Unix in
-  let home = try Sys.getenv "HOME" with Not_found -> "/" in
   if geteuid () <> 0 then (
     home    (* We're not root; no problem *)
   ) else if (stat home).st_uid = 0 then (
@@ -49,21 +52,30 @@ let get_unix_home () =
   )
 ;;
 
-let get_default_config () =
-  (*
-  if on_windows then
-    failwith "Windows"
-  else
-    *)
-    let home = get_unix_home () in
-    {
-      data = get_path "XDG_DATA_HOME" "XDG_DATA_DIRS" [home +/ ".local/share"; "/usr/local/share"; "/usr/share"];
-      cache = get_path "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [home +/ ".cache"; "/var/cache"];
-      config = get_path "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [home +/ ".config"; "/etc/xdg"];
-    }
+let get_default_config (system:system) =
+  match system#getenv "ZEROINSTALL_PORTABLE_BASE" with
+  | Some base ->
+      {
+        data = [base +/ "data"];
+        cache = [base +/ "cache"];
+        config = [base +/ "config"];
+      }
+  | None -> 
+      (*
+      if on_windows then
+        failwith "Windows"
+      else
+      *)
+      let get = get_path system in
+      let home = get_unix_home system in
+      {
+        data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [home +/ ".local/share"; "/usr/local/share"; "/usr/share"];
+        cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [home +/ ".cache"; "/var/cache"];
+        config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [home +/ ".config"; "/etc/xdg"];
+      }
 ;;
 
-let load_first (system:Support.system) rel_path search_path =
+let load_first (system:system) rel_path search_path =
   let rec loop = function
     | [] -> None
     | (x::xs) ->

@@ -20,7 +20,7 @@ let get_default_config path_to_0install =
     Support.find_in_path_ex system path_to_0install
   in
 
-  let basedirs = Basedir.get_default_config () in
+  let basedirs = Basedir.get_default_config system in
 
   let rec config = {
     basedirs;

@@ -1,3 +1,4 @@
 true: debug, annot, warn(A-4)
 not <runenv.*>: package(yojson,xmlm,unix,str)
 <runenv.*>: package(yojson,unix)
+<test.*>: package(oUnit)
