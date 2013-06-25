@@ -10,7 +10,7 @@ let re_app_name = Str.regexp "^[^./\\\\:=;'\"][^/\\\\:=;'\"]*$";;
 
 let lookup_app config name =
   if Str.string_match re_app_name name 0 then
-    Basedir.load_first ("0install.net" +/ "apps" +/ name) config.basedirs.Basedir.config
+    Basedir.load_first config.system ("0install.net" +/ "apps" +/ name) config.basedirs.Basedir.config
   else
     None
 ;;
@@ -106,7 +106,7 @@ let check_for_updates config app_path sels =
 
   (* Is it time for a background update anyway? *)
   let want_bg_update =
-    let staleness = int_of_float (Unix.time () -. last_check_time) in
+    let staleness = int_of_float (config.system#time () -. last_check_time) in
     log_info "Staleness of app %s is %d hours" app_path (staleness / (60 * 60));
     match config.freshness with
     | Some freshness_threshold -> staleness >= freshness_threshold
@@ -124,7 +124,7 @@ let check_for_updates config app_path sels =
 let get_selections config app_path ~may_update =
   let sels_path = app_path +/ "selections.xml" in
   if Sys.file_exists sels_path then
-    let sels = Selections.load_selections sels_path in
+    let sels = Selections.load_selections config.system sels_path in
     if may_update then check_for_updates config app_path sels else sels
   else
     if may_update then raise Fallback_to_Python

@@ -42,7 +42,7 @@ module Cache =
         (* The status of the cache when we loaded it. *)
         val data = { mtime = 0; size = -1; rev = -1; contents = StringMap.empty }
 
-        val cache_path = Basedir.save_path (config_site +/ config_prog +/ cache_leaf) config.basedirs.Basedir.cache
+        val cache_path = Basedir.save_path config.system (config_site +/ config_prog +/ cache_leaf) config.basedirs.Basedir.cache
 
         (** Reload the values from disk (even if they're out-of-date). *)
         method load_cache () =
@@ -75,7 +75,7 @@ module Cache =
               with End_of_file -> ()
               
               in
-            Support.with_open load_cache cache_path
+            config.system#with_open load_cache cache_path
           )
 
         (** Check cache is still up-to-date. Clear it not. *)

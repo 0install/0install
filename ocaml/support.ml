@@ -9,6 +9,21 @@ module StringMap = Map.Make(String);;
 type filepath = string;;
 type varname = string;;
 
+class type system =
+  object
+    method time : unit -> float
+
+    method with_open : (in_channel -> 'a) -> filepath -> 'a
+    method mkdir : filepath -> Unix.file_perm -> unit
+    method file_exists : filepath -> bool
+    method lstat : filepath -> Unix.stats
+    method exec : ?search_path:bool -> ?env:string array -> string list -> 'a
+    method create_process : filepath -> string array -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
+    method getcwd : unit -> filepath
+    method atomic_write : (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
+  end
+;;
+
 (** An error that should be reported to the user without a stack-trace (i.e. it
     does not indicate a bug).
     The list is an optional list of context strings, outermost first, saying what
@@ -68,17 +83,6 @@ let handle_exceptions main =
       exit 1
 ;;
 
-(** [with_open fn file] opens [file], calls [fn handle], and then closes it again. *)
-let with_open fn file =
-  let ch =
-    try open_in file
-    with Sys_error msg -> raise_safe msg
-  in
-  let result = try fn ch with ex -> close_in ch; raise ex in
-  let () = close_in ch in
-  result
-;;
-
 (** [default d opt] unwraps option [opt], returning [d] if it was [None]. *)
 let default d = function
   | None -> d
@@ -100,15 +104,15 @@ let path_sep = if on_windows then ";" else ":";;
 let (+/) : filepath -> filepath -> filepath = Filename.concat;;
 
 (** [makedirs path mode] ensures that [path] is a directory, creating it and any missing parents (using [mode]) if not. *)
-let rec makedirs path mode =
+let rec makedirs (system:system) path mode =
   try (
-    if (Unix.lstat path).Unix.st_kind = Unix.S_DIR then ()
+    if (system#lstat path).Unix.st_kind = Unix.S_DIR then ()
     else raise_safe ("Not a directory: " ^ path)
   ) with Unix.Unix_error _ -> (
     let parent = (Filename.dirname path) in
     assert (path <> parent);
-    makedirs parent mode;
-    Unix.mkdir path mode
+    makedirs system parent mode;
+    system#mkdir path mode
   )
 ;;
 
@@ -125,10 +129,10 @@ let starts_with str prefix =
 let path_is_absolute path = starts_with path Filename.dir_sep;;
 
 (** If the given path is relative, make it absolute by prepending the current directory to it. *)
-let abspath path =
+let abspath (system:system) path =
   if path_is_absolute path then path
   else if starts_with path (Filename.current_dir_name ^ Filename.dir_sep) then
-    Sys.getcwd () +/ String.sub path 2 ((String.length path) - 2)
+    system#getcwd () +/ String.sub path 2 ((String.length path) - 2)
   else (Sys.getcwd ()) +/ path
 ;;
 
@@ -141,70 +145,19 @@ let getenv_ex name =
 let re_dir_sep = Str.regexp_string Filename.dir_sep;;
 let re_path_sep = Str.regexp_string path_sep;;
 
-let find_in_path name =
-  let check p =
-    if Sys.file_exists p then Some p else None in
+let find_in_path (system:system) name =
+  let check p = if system#file_exists p then Some p else None in
   if Filename.is_implicit name then
     let test dir = check (dir +/ name) in
     first_match test (Str.split_delim re_path_sep (getenv_ex "PATH"))
   else
-    check (abspath name)
+    check (abspath system name)
 ;;
 
-let find_in_path_ex name =
-  match find_in_path name with
+let find_in_path_ex system name =
+  match find_in_path system name with
   | Some path -> path
   | None -> raise_safe ("Not found in $PATH: " ^ name)
-;;
-
-(** Create and open a new text file, call [fn chan] on it, and rename it over [path] on success. *)
-let atomic_write fn path mode =
-  let dir = Filename.dirname path in
-  let (tmpname, ch) =
-    try Filename.open_temp_file ~temp_dir:dir "tmp-" ".new"
-    with Sys_error msg -> raise_safe msg
-  in
-  let result = try fn ch with ex -> close_out ch; raise ex in
-  let () = close_out ch in
-  Unix.chmod tmpname mode;
-  Unix.rename tmpname path;
-  result
-;;
-
-(** A safer, more friendly version of the [Unix.exec*] calls.
-    Flushes [stdout] and [stderr]. Ensures [argv[0]] is set to the program called.
-    Reports errors as [Safe_exception]s.
-    On Windows, we can't exec, so we spawn a subprocess, wait for it to finish, then
-    exit with its exit status.
-  *)
-let exec ?(search_path = false) ?env argv =
-  flush stdout;
-  flush stderr;
-  try
-    let argv_array = Array.of_list argv in
-    let prog_path =
-      if search_path then find_in_path_ex (List.hd argv)
-      else (List.hd argv) in
-    if on_windows then (
-      let open Unix in
-      let run_child _args =
-        let child_pid =
-          match env with
-          | None -> Unix.create_process prog_path argv_array stdin stdout stderr
-          | Some env -> Unix.create_process_env prog_path argv_array env stdin stdout stderr in
-        match snd (waitpid [] child_pid) with
-        | Unix.WEXITED code -> exit code
-        | _ -> exit 127 in
-      handle_exceptions run_child
-      (* doesn't return *)
-    ) else (
-      match env with
-      | None -> Unix.execv prog_path argv_array
-      | Some env -> Unix.execve prog_path argv_array env
-    )
-  with Unix.Unix_error _ as ex ->
-    let cmd = String.concat " " argv in
-    raise (Safe_exception (Printexc.to_string ex, ref ["... trying to exec: " ^ cmd]))
 ;;
 
 let with_pipe fn =
@@ -222,12 +175,12 @@ let with_pipe fn =
 ;;
 
 (** Spawn a subprocess with the given arguments and call [fn channel] on its output. *)
-let check_output fn argv =
+let check_output (system:system) fn argv =
   Logging.log_info "Running %s" (String.concat " " (List.map String.escaped argv));
   try
     let (r, w) = Unix.pipe () in
     let child_pid =
-      try Unix.create_process (List.hd argv) (Array.of_list argv) Unix.stdin w Unix.stdout
+      try system#create_process (List.hd argv) (Array.of_list argv) Unix.stdin w Unix.stdout
       with ex ->
         Unix.close r; Unix.close w; raise ex
     in
@@ -251,14 +204,14 @@ let check_output fn argv =
 ;;
 
 (** Call [fn line] on each line of output from running the given sub-process. *)
-let check_output_lines fn argv =
+let check_output_lines system fn argv =
   let process ch =
     try
       while true do
         fn (input_line ch)
       done
   with End_of_file -> () in
-  check_output process argv
+  check_output system process argv
 ;;
 
 let split_pair re str =
@@ -270,7 +223,7 @@ let split_pair re str =
 let re_section = Str.regexp "^[ \t]*\\[[ \t]*\\([^]]*\\)[ \t]*\\][ \t]*$"
 let re_key_value = Str.regexp "^[ \t]*\\([^= ]+\\)[ \t]*=[ \t]*\\(.*\\)$"
 
-let parse_ini fn path =
+let parse_ini (system:system) fn path =
   let read ch =
     let section = ref "" in
     try
@@ -285,5 +238,5 @@ let parse_ini fn path =
           fn (!section, key, value)
       done
     with End_of_file -> () in
-  with_open read path
+  system#with_open read path
 ;;

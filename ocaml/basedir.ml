@@ -63,20 +63,20 @@ let get_default_config () =
     }
 ;;
 
-let load_first rel_path search_path =
+let load_first (system:Support.system) rel_path search_path =
   let rec loop = function
     | [] -> None
     | (x::xs) ->
         let path = x +/ rel_path in
-        if Sys.file_exists path then Some path else loop xs
+        if system#file_exists path then Some path else loop xs
   in loop search_path
 ;;
 
-let save_path rel_path dirs =
+let save_path (system:Support.system) rel_path dirs =
   let save_dir = List.hd dirs in
   let path = save_dir +/ rel_path in
-  if not (Sys.file_exists path) then
-    makedirs path 0o700
+  if not (system#file_exists path) then
+    makedirs system path 0o700
   else ();
   path
 ;;

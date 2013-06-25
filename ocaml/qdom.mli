@@ -17,7 +17,7 @@ type element = {
 val parse_input : string -> Xmlm.input -> element
 
 (** @raise Safe_exception if the XML is not well formed. *)
-val parse_file : string -> element
+val parse_file : Support.system -> string -> element
 
 (** {2 Helper functions} *)
 

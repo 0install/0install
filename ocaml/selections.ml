@@ -54,8 +54,8 @@ let get_path stores elem =
   | CacheSelection digests -> Some (Stores.lookup_any digests stores)
 ;;
 
-let load_selections path =
-  let root = Qdom.parse_file path in
+let load_selections system path =
+  let root = Qdom.parse_file system path in
   ZI.check_tag "selections" root;
   root
 ;;

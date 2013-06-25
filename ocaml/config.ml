@@ -13,10 +13,11 @@ open General;;
     we search for it in $PATH.
   *)
 let get_default_config path_to_0install =
+  let system = new System.real_system in
   let abspath_0install = if String.contains path_to_0install Filename.dir_sep.[0] then
-    Support.abspath path_to_0install
+    Support.abspath system path_to_0install
   else
-    Support.find_in_path_ex path_to_0install
+    Support.find_in_path_ex system path_to_0install
   in
 
   let basedirs = Basedir.get_default_config () in
@@ -27,6 +28,7 @@ let get_default_config path_to_0install =
     abspath_0install;
     freshness = Some (30 * days);
     distro = lazy (Distro.get_host_distribution config);
+    system;
   } in
 
   let handle_ini_mapping = function
@@ -38,13 +40,13 @@ let get_default_config path_to_0install =
           config.freshness <- None
     | _ -> () in
 
-  let () = match Basedir.load_first config_injector_global basedirs.Basedir.config with
+  let () = match Basedir.load_first config.system config_injector_global basedirs.Basedir.config with
   | None -> ()
-  | Some path -> Support.parse_ini handle_ini_mapping path in
+  | Some path -> Support.parse_ini config.system handle_ini_mapping path in
 
   config
 ;;
 
 let load_first_config rel_path config =
-  Basedir.load_first rel_path config.basedirs.Basedir.config
+  Basedir.load_first config.system rel_path config.basedirs.Basedir.config
 ;;

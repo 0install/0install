@@ -15,7 +15,7 @@ let validate_exec_name name =
     raise_safe ("Invalid name in executable binding: " ^ name)
 
 let ensure_runenv config =
-  let main_dir = Basedir.save_path ("0install.net" +/ "injector") config.basedirs.Basedir.cache in
+  let main_dir = Basedir.save_path config.system ("0install.net" +/ "injector") config.basedirs.Basedir.cache in
   let runenv = main_dir +/ "runenv" in
   if Sys.file_exists runenv then
     ()
@@ -23,7 +23,7 @@ let ensure_runenv config =
     (** TODO: If abspath_0install is a native binary, we could avoid starting a shell here. *)
     let write handle =
       output_string handle (Printf.sprintf "#!/bin/sh\nexec '%s' runenv \"$0\" \"$@\"\n" config.abspath_0install)
-    in Support.atomic_write write runenv 0o755
+    in config.system#atomic_write write runenv 0o755
 ;;
 
 let do_exec_binding config env impls = function
@@ -31,7 +31,7 @@ let do_exec_binding config env impls = function
     validate_exec_name name;
 
     (* set up launcher symlink *)
-    let exec_dir = Basedir.save_path ("0install.net" +/ "injector" +/ "executables" +/ name) config.basedirs.Basedir.cache in
+    let exec_dir = Basedir.save_path config.system ("0install.net" +/ "injector" +/ "executables" +/ name) config.basedirs.Basedir.cache in
     let exec_path = exec_dir ^ Filename.dir_sep ^ name in   (* TODO: windows *)
 
     if not (Sys.file_exists exec_path) then (
@@ -39,7 +39,7 @@ let do_exec_binding config env impls = function
         let write handle =
           (* TODO: escaping *)
           output_string handle (Printf.sprintf "\"%s\" runenv %0 %*\n" config.abspath_0install)
-        in Support.atomic_write write exec_path 0o755
+        in config.system#atomic_write write exec_path 0o755
       ) else (
         Unix.symlink "../../runenv" exec_path
       );
@@ -84,19 +84,20 @@ let execute_selections sels args config =
 
   let command = ZI.get_attribute "command" sels in
   let prog_args = (Command.build_command impls (ZI.get_attribute "interface" sels) command env) @ args in
-  Support.exec prog_args ~env:(Env.to_array env)
+  config.system#exec prog_args ~env:(Env.to_array env)
 ;;
 
 (** This is called in a new process by the launcher created by [ensure_runenv]. *)
 let runenv args =
   match args with
-  | [] -> assert false
+  | [] -> failwith "No args passed to runenv!"
   | arg0::args ->
     try
       let var = "0install-runenv-" ^ Filename.basename arg0 in
       let s = Support.getenv_ex var in
       let open Yojson.Basic in
       let envargs = Util.convert_each Util.to_string (from_string s) in
-      Support.exec (envargs @ args)
+      let system = new System.real_system in
+      system#exec (envargs @ args)
     with Safe_exception _ as ex -> reraise_with_context ex ("... launching " ^ arg0)
 ;;
