@@ -91,8 +91,10 @@ let rec first_match fn = function
       | Some _ as result -> result
       | None -> first_match fn xs;;
 
+let on_windows = Filename.dir_sep <> "/"
+
 (** The string used to separate paths (":" on Unix, ";" on Windows). *)
-let path_sep = if Filename.dir_sep = "/" then ":" else ";";;
+let path_sep = if on_windows then ";" else ":";;
 
 (** Handy infix version of [Filename.concat]. *)
 let (+/) : filepath -> filepath -> filepath = Filename.concat;;
@@ -226,7 +228,7 @@ let check_output fn argv =
     | Unix.WEXITED 0 -> result
     | Unix.WEXITED code -> raise_safe ("Child returned error exit status " ^ (string_of_int code))
     | _ -> raise_safe "Child failed"
-  with Unix.Unix_error _ as ex -> 
+  with Unix.Unix_error _ as ex ->
     let cmd = String.concat " " argv in
     raise (Safe_exception (Printexc.to_string ex, ref ["... trying to read output of: " ^ cmd]))
 ;;

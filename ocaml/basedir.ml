@@ -6,8 +6,6 @@
 
 open Support;;
 
-(* TODO: check for root *)
-
 (* TODO: ZEROINSTALL_PORTABLE_BASE *)
 
 (* TODO: Windows *)
@@ -32,12 +30,35 @@ let get_path home_var dirs_var = function
     user_dir :: system_dirs
 ;;
 
+let get_unix_home () =
+  let open Unix in
+  let home = try Sys.getenv "HOME" with Not_found -> "/" in
+  if geteuid () <> 0 then (
+    home    (* We're not root; no problem *)
+  ) else if (stat home).st_uid = 0 then (
+    home    (* We're root and $HOME is set correctly *)
+  ) else (
+    (* We're running as root and $HOME isn't root's home. Try to find
+       correct value for root's home, or we're likely to fill the user's
+       home directory with unreadable root-owned files. *)
+    let root_home =
+      try (getpwuid 0).pw_dir
+      with Not_found -> "/" in
+    Logging.log_info "Running as root, but $HOME (%s) is not owned by root. Using %s instead." home root_home;
+    root_home
+  )
+;;
+
 let get_default_config () =
-  let home = try Sys.getenv "HOME" with Not_found -> "/" in {
-    data = get_path "XDG_DATA_HOME" "XDG_DATA_DIRS" [home +/ ".local/share"; "/usr/local/share"; "/usr/share"];
-    cache = get_path "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [home +/ ".cache"; "/var/cache"];
-    config = get_path "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [home +/ ".config"; "/etc/xdg"];
-  }
+  if on_windows then
+    failwith "Windows"
+  else
+    let home = get_unix_home () in
+    {
+      data = get_path "XDG_DATA_HOME" "XDG_DATA_DIRS" [home +/ ".local/share"; "/usr/local/share"; "/usr/share"];
+      cache = get_path "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [home +/ ".cache"; "/var/cache"];
+      config = get_path "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [home +/ ".config"; "/etc/xdg"];
+    }
 ;;
 
 let load_first rel_path search_path =
