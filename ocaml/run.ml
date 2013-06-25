@@ -35,8 +35,14 @@ let do_exec_binding config env impls = function
     let exec_path = exec_dir ^ Filename.dir_sep ^ name in   (* TODO: windows *)
 
     if not (Sys.file_exists exec_path) then (
-      (* TODO: windows *)
-      Unix.symlink "../../runenv" exec_path;
+      if Support.on_windows then (
+        let write handle =
+          (* TODO: escaping *)
+          output_string handle (Printf.sprintf "\"%s\" runenv %0 %*\n" config.abspath_0install)
+        in Support.atomic_write write exec_path 0o755
+      ) else (
+        Unix.symlink "../../runenv" exec_path
+      );
       Unix.chmod exec_dir 0o500
     ) else ();
 

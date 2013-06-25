@@ -139,12 +139,14 @@ let getenv_ex name =
 ;;
 
 let re_dir_sep = Str.regexp_string Filename.dir_sep;;
+let re_path_sep = Str.regexp_string path_sep;;
 
 let find_in_path name =
-  let check p = if Sys.file_exists p then Some p else None in
+  let check p =
+    if Sys.file_exists p then Some p else None in
   if Filename.is_implicit name then
     let test dir = check (dir +/ name) in
-    first_match test (Str.split_delim re_dir_sep (getenv_ex "PATH"))
+    first_match test (Str.split_delim re_path_sep (getenv_ex "PATH"))
   else
     check (abspath name)
 ;;
@@ -172,19 +174,34 @@ let atomic_write fn path mode =
 (** A safer, more friendly version of the [Unix.exec*] calls.
     Flushes [stdout] and [stderr]. Ensures [argv[0]] is set to the program called.
     Reports errors as [Safe_exception]s.
+    On Windows, we can't exec, so we spawn a subprocess, wait for it to finish, then
+    exit with its exit status.
   *)
 let exec ?(search_path = false) ?env argv =
   flush stdout;
   flush stderr;
   try
-    if search_path then
+    let argv_array = Array.of_list argv in
+    let prog_path =
+      if search_path then find_in_path_ex (List.hd argv)
+      else (List.hd argv) in
+    if on_windows then (
+      let open Unix in
+      let run_child _args =
+        let child_pid =
+          match env with
+          | None -> Unix.create_process prog_path argv_array stdin stdout stderr
+          | Some env -> Unix.create_process_env prog_path argv_array env stdin stdout stderr in
+        match snd (waitpid [] child_pid) with
+        | Unix.WEXITED code -> exit code
+        | _ -> exit 127 in
+      handle_exceptions run_child
+      (* doesn't return *)
+    ) else (
       match env with
-      | None -> Unix.execvp (List.hd argv) (Array.of_list argv)
-      | Some env -> Unix.execvpe (List.hd argv) (Array.of_list argv) env
-    else
-      match env with
-      | None -> Unix.execv (List.hd argv) (Array.of_list argv)
-      | Some env -> Unix.execve (List.hd argv) (Array.of_list argv) env
+      | None -> Unix.execv prog_path argv_array
+      | Some env -> Unix.execve prog_path argv_array env
+    )
   with Unix.Unix_error _ as ex ->
     let cmd = String.concat " " argv in
     raise (Safe_exception (Printexc.to_string ex, ref ["... trying to exec: " ^ cmd]))

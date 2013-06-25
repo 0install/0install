@@ -50,9 +50,11 @@ let get_unix_home () =
 ;;
 
 let get_default_config () =
+  (*
   if on_windows then
     failwith "Windows"
   else
+    *)
     let home = get_unix_home () in
     {
       data = get_path "XDG_DATA_HOME" "XDG_DATA_DIRS" [home +/ ".local/share"; "/usr/local/share"; "/usr/share"];
