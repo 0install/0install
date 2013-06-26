@@ -50,4 +50,4 @@ let main argv =
     fallback_to_python config.system argv
 ;;
 
-let () = Support.Utils.handle_exceptions main;;
+let () = Support.Utils.handle_exceptions main (Array.to_list Sys.argv)

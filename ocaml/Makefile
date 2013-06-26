@@ -16,10 +16,10 @@ byte:
 	$(OCAMLBUILD) main.byte
 
 doc:
-	$(OCAMLBUILD) -I support 0install.docdir/index.html
+	$(OCAMLBUILD) 0install.docdir/index.html
 
 clean:
 	$(OCAMLBUILD) -clean
 
 tags:
-	ctags *.ml *.mli
+	ctags *.ml support/*.ml

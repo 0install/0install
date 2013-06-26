@@ -49,7 +49,7 @@ class real_system =
             match snd (waitpid [] child_pid) with
             | Unix.WEXITED code -> exit code
             | _ -> exit 127 in
-          Utils.handle_exceptions run_child
+          Utils.handle_exceptions run_child []
           (* doesn't return *)
         ) else (
           match env with

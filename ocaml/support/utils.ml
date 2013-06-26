@@ -15,14 +15,13 @@ let safe_to_string = function
 
 let () = Printexc.register_printer safe_to_string;;
 
-(** [handle_exceptions main] runs [main ()]. If it throws an exception it reports it in a
+(** [handle_exceptions main args] runs [main args]. If it throws an exception it reports it in a
     user-friendly way. A [Safe_exception] is displayed with its context.
     If stack-traces are enabled, one will be displayed. If not then, if the exception isn't
     a [Safe_exception], the user is told how to enable them.
     On error, it calls [exit 1]. On success, it returns.
  *)
-let handle_exceptions main =
-  let args = Array.to_list (Sys.argv) in
+let handle_exceptions main args =
   try
     match args with
     | prog :: "-v" :: args ->
