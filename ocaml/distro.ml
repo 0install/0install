@@ -106,13 +106,11 @@ module Cache =
 module Debian = struct
   let dpkg_db_status = "/var/lib/dpkg/status"
 
-  class debian_distribution config =
+  class debian_distribution config : distribution =
     object
-      inherit base_distribution
-
       val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2
 
-      method! is_installed elem =
+      method is_installed elem =
         is_host_installed elem || (
 
           match ZI.get_attribute_opt "package" elem with
@@ -130,11 +128,24 @@ module Debian = struct
     end
 end
 
+module Arch = struct
+  let arch_db = "/var/lib/pacman"
+
+  class arch_distribution _ : distribution =
+    object
+      method is_installed elem =
+        match ZI.get_attribute_opt "quick-test-file" elem with
+        | Some file -> Sys.file_exists file
+        | None ->
+            Support.Qdom.log_elem Support.Logging.Info "Old selections file; forcing an update of" elem;
+            false
+    end
+end
+
 let get_host_distribution config : distribution =
   (*
   let rpm_db_packages = "/var/lib/rpm/Packages" in
   let slack_db = "/var/log/packages" in
-  let arch_db = "/var/lib/pacman" in
   let pkg_db = "/var/db/pkg" in
   let macports_db = "/opt/local/var/macports/registry/registry.db" in
   let cygwin_log = "/var/log/setup.log" in
@@ -143,7 +154,9 @@ let get_host_distribution config : distribution =
   let x = Sys.file_exists in
 
   if x Debian.dpkg_db_status && (Unix.stat Debian.dpkg_db_status).Unix.st_size > 0 then
-    (new Debian.debian_distribution config :> distribution)
+    new Debian.debian_distribution config
+  else if x Arch.arch_db then
+    new Arch.arch_distribution config
   else
     new base_distribution
 ;;
