@@ -18,14 +18,11 @@ let is_url url =
 
 (** Run "python -m zeroinstall.cmd". If ../zeroinstall exists, put it in PYTHONPATH,
     otherwise use the system version of 0install. *)
-let fallback_to_python (system:system) = function
-  | prog :: args ->
-      let parent_dir = Filename.dirname (Filename.dirname (Support.Utils.abspath system prog)) in
-      let () = if Sys.file_exists (parent_dir +/ "zeroinstall") then
-          Unix.putenv "PYTHONPATH" parent_dir
-        else () in
-      system#exec ~search_path:true ("python" :: "-m" :: "zeroinstall.cmd" :: args)
-  | _ -> failwith "No argv[0]"
+let fallback_to_python config args =
+  let parent_dir = Filename.dirname (Filename.dirname config.abspath_0install) in
+  let () = if Sys.file_exists (parent_dir +/ "zeroinstall") then
+      Unix.putenv "PYTHONPATH" parent_dir in
+  config.system#exec ~search_path:true ("python" :: "-m" :: "zeroinstall.cmd" :: args)
 ;;
 
 let main argv =
@@ -47,7 +44,7 @@ let main argv =
     | _ -> raise Fallback_to_Python
   with Fallback_to_Python ->
     log_info "Can't handle this case; switching to Python version...";
-    fallback_to_python config.system argv
+    fallback_to_python config (List.tl argv)
 ;;
 
 let () = Support.Utils.handle_exceptions main (Array.to_list Sys.argv)
