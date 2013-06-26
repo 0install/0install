@@ -4,7 +4,7 @@
 
 (** Environment variables (generic support code) *)
 
-open General
+open Support.Common
 
 type env = (string, string) Hashtbl.t;;
 

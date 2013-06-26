@@ -8,47 +8,33 @@
 
 exception Fallback_to_Python
 
-type filepath = Support.filepath
+open Support.Common
 
-exception Safe_exception = Support.Safe_exception
+exception Safe_exception = Support.Common.Safe_exception
 
 class type distribution =
   object
     (** Test whether this <selection> element is still valid *)
-    method is_installed : Qdom.element -> bool
+    method is_installed : Support.Qdom.element -> bool
   end;;
 
-module StringMap = Support.StringMap
+module StringMap = Support.Common.StringMap
 
 type config = {
-  basedirs: Basedir.basedirs;
+  basedirs: Support.Basedir.basedirs;
   stores: string list;
   abspath_0install: filepath;
 
   distro: distribution Lazy.t;
-  system : Support.system;
+  system : Support.Common.system;
 
   mutable freshness: int option;
 }
 
 (** {2 Utility functions} *)
 
-let (+/) = Filename.concat
-
-let raise_safe = Support.raise_safe
-
-let default = Support.default
-
-let reraise_with_context = Support.reraise_with_context
-
-let log_info = Logging.log_info
-let log_warning = Logging.log_warning
-
-let starts_with = Support.starts_with
 
 (** {2 Useful constants} *)
-
-let path_sep = Support.path_sep
 
 let hours = 60 * 60         (* Seconds per hour *)
 
@@ -71,4 +57,4 @@ module ZI_NS = struct
   let ns = "http://zero-install.sourceforge.net/2004/injector/interface";;
 end
 
-module ZI = Qdom.NsQuery (ZI_NS)
+module ZI = Support.Qdom.NsQuery (ZI_NS)

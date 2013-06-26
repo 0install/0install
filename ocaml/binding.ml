@@ -4,9 +4,9 @@
 
 (** Binding elements: <environment>, <executable-in-*>, <binding> *)
 
-open General;;
-
-type varname = Support.varname
+open General
+open Support.Common
+module Qdom = Support.Qdom
 
 type which_end = Prepend | Append;;
 type add_mode = {pos :which_end; default :string option; separator :string};;

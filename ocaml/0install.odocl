@@ -1,5 +1,4 @@
 apps
-basedir
 binding
 command
 config
@@ -8,10 +7,13 @@ env
 escape
 feed_cache
 general
-logging
 main
-qdom
 run
 selections
 stores
-support
+support/basedir
+support/common
+support/logging
+support/qdom
+support/system
+support/utils

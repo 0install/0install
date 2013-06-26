@@ -4,22 +4,23 @@
 
 (** The main executable *)
 
-open General;;
+open General
+open Support.Common
 
 let is_option x = String.length x > 0 && x.[0] = '-';;
 let is_iface_url x = String.length x > 0 && x.[0] = '-';;
 
 (* We can't handle any of these at the moment, so pass them to the Python. *)
 let is_url url =
-  let starts = starts_with url in
+  let starts = Support.Utils.starts_with url in
   starts "http://" || starts "https://" || starts "file:" || starts "alias:"
 ;;
 
 (** Run "python -m zeroinstall.cmd". If ../zeroinstall exists, put it in PYTHONPATH,
     otherwise use the system version of 0install. *)
-let fallback_to_python (system:Support.system) = function
+let fallback_to_python (system:system) = function
   | prog :: args ->
-      let parent_dir = Filename.dirname (Filename.dirname (Support.abspath system prog)) in
+      let parent_dir = Filename.dirname (Filename.dirname (Support.Utils.abspath system prog)) in
       let () = if Sys.file_exists (parent_dir +/ "zeroinstall") then
           Unix.putenv "PYTHONPATH" parent_dir
         else () in
@@ -49,4 +50,4 @@ let main argv =
     fallback_to_python config.system argv
 ;;
 
-let () = Support.handle_exceptions main;;
+let () = Support.Utils.handle_exceptions main;;

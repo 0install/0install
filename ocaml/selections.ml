@@ -4,7 +4,10 @@
 
 (** <selection> elements *)
 
-open General;;
+open Support.Common
+open General
+
+module Qdom = Support.Qdom
 
 type impl_source =
   | CacheSelection of Stores.digest list

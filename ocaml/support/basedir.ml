@@ -4,9 +4,11 @@
 
 (** XDG Base Directory support, for locating caches, configuration, etc *)
 
-open Support;;
-
 (* TODO: Windows *)
+
+open Common
+
+let (+/) = Filename.concat
 
 let re_path_sep = Str.regexp_string path_sep;;
 
@@ -84,11 +86,11 @@ let load_first (system:system) rel_path search_path =
   in loop search_path
 ;;
 
-let save_path (system:Support.system) rel_path dirs =
+let save_path (system:Common.system) rel_path dirs =
   let save_dir = List.hd dirs in
   let path = save_dir +/ rel_path in
   if not (system#file_exists path) then
-    makedirs system path 0o700
+    Utils.makedirs system path 0o700
   else ();
   path
 ;;

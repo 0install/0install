@@ -4,7 +4,9 @@
 
 (** <command> elements *)
 
-open General;;
+open General
+open Support.Common
+module Qdom = Support.Qdom
 
 let get_command name elem =
   let is_command node = ((ZI.tag node = Some "command") && (ZI.get_attribute "name" node = name)) in

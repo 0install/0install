@@ -13,14 +13,14 @@ open General;;
     we search for it in $PATH.
   *)
 let get_default_config path_to_0install =
-  let system = new System.real_system in
+  let system = new Support.System.real_system in
   let abspath_0install = if String.contains path_to_0install Filename.dir_sep.[0] then
-    Support.abspath system path_to_0install
+    Support.Utils.abspath system path_to_0install
   else
-    Support.find_in_path_ex system path_to_0install
+    Support.Utils.find_in_path_ex system path_to_0install
   in
 
-  let basedirs = Basedir.get_default_config system in
+  let basedirs = Support.Basedir.get_default_config system in
 
   let rec config = {
     basedirs;
@@ -40,13 +40,14 @@ let get_default_config path_to_0install =
           config.freshness <- None
     | _ -> () in
 
-  let () = match Basedir.load_first config.system config_injector_global basedirs.Basedir.config with
+  let () = match Support.Basedir.load_first config.system config_injector_global basedirs.Support.Basedir.config with
   | None -> ()
-  | Some path -> Support.parse_ini config.system handle_ini_mapping path in
+  | Some path -> Support.Utils.parse_ini config.system handle_ini_mapping path in
 
   config
 ;;
 
 let load_first_config rel_path config =
+  let open Support in
   Basedir.load_first config.system rel_path config.basedirs.Basedir.config
 ;;

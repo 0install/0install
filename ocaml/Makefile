@@ -16,7 +16,7 @@ byte:
 	$(OCAMLBUILD) main.byte
 
 doc:
-	$(OCAMLBUILD) 0install.docdir/index.html
+	$(OCAMLBUILD) -I support 0install.docdir/index.html
 
 clean:
 	$(OCAMLBUILD) -clean

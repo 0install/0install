@@ -2,7 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Support;;
+open Common;;
 
 (** An XML element node, including nearby text. *)
 type element = {
@@ -47,7 +47,7 @@ let parse_input source_name i = try (
   raise_safe (Printf.sprintf "[%d:%d] %s" line col (Xmlm.error_message err))
 ;;
 
-let parse_file (system:Support.system) path =
+let parse_file (system:system) path =
   try system#with_open (fun ch -> parse_input path (Xmlm.make_input (`Channel ch))) path
   with
   | Safe_exception _ as ex -> reraise_with_context ex ("... parsing XML document " ^ path)

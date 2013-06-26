@@ -4,48 +4,8 @@
 
 (** Generic support code (not 0install-specific) *)
 
-module StringMap = Map.Make(String);;
+open Common
 
-type filepath = string;;
-type varname = string;;
-
-class type system =
-  object
-    method time : unit -> float
-
-    method with_open : (in_channel -> 'a) -> filepath -> 'a
-    method mkdir : filepath -> Unix.file_perm -> unit
-    method file_exists : filepath -> bool
-    method lstat : filepath -> Unix.stats
-    method exec : ?search_path:bool -> ?env:string array -> string list -> 'a
-    method create_process : filepath -> string array -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
-    method getcwd : unit -> filepath
-    method atomic_write : (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
-
-    method getenv : varname -> string option
-  end
-;;
-
-(** An error that should be reported to the user without a stack-trace (i.e. it
-    does not indicate a bug).
-    The list is an optional list of context strings, outermost first, saying what
-    we were doing when the exception occurred. This list gets extended as the exception
-    propagates.
- *)
-exception Safe_exception of (string * string list ref);;
-
-(** Convenient way to create a new [Safe_exception] with no initial context. *)
-let raise_safe msg = raise (Safe_exception (msg, ref []));;
-
-(** Add the additional explanation [context] to the exception and rethrow it.
-    [ex] should be a [Safe_exception] (if not, [context] is written as a warning to [stderr]).
-  *)
-let reraise_with_context ex context =
-  let () = match ex with
-  | Safe_exception (_, old_contexts) -> old_contexts := context :: !old_contexts
-  | _ -> Printf.eprintf "warning: Attempt to add note '%s' to non-Safe_exception!" context
-  in raise ex
-;;
 
 let safe_to_string = function
   | Safe_exception (msg, contexts) ->
@@ -85,25 +45,12 @@ let handle_exceptions main =
       exit 1
 ;;
 
-(** [default d opt] unwraps option [opt], returning [d] if it was [None]. *)
-let default d = function
-  | None -> d
-  | Some x -> x;;
-
 (** Return the first non-[None] result of [fn item] for items in the list. *)
 let rec first_match fn = function
   | [] -> None
   | (x::xs) -> match fn x with
       | Some _ as result -> result
       | None -> first_match fn xs;;
-
-let on_windows = Filename.dir_sep <> "/"
-
-(** The string used to separate paths (":" on Unix, ";" on Windows). *)
-let path_sep = if on_windows then ";" else ":";;
-
-(** Handy infix version of [Filename.concat]. *)
-let (+/) : filepath -> filepath -> filepath = Filename.concat;;
 
 (** [makedirs path mode] ensures that [path] is a directory, creating it and any missing parents (using [mode]) if not. *)
 let rec makedirs (system:system) path mode =
@@ -199,6 +146,7 @@ let with_pipe fn =
   result
 ;;
 
+(*
 (** Spawn a subprocess with the given arguments and call [fn channel] on its output. *)
 let check_output (system:system) fn argv =
   Logging.log_info "Running %s" (String.concat " " (List.map String.escaped argv));
@@ -238,6 +186,7 @@ let check_output_lines system fn argv =
   with End_of_file -> () in
   check_output system process argv
 ;;
+*)
 
 let split_pair re str =
   match Str.bounded_split_delim re str 2 with

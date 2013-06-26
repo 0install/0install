@@ -4,7 +4,9 @@
 
 (** Executing a selections document *)
 
-open General;;
+open General
+open Support.Common
+module Basedir = Support.Basedir
 
 let re_exec_name = Str.regexp "^[^./'][^/']*$";;
 
@@ -35,7 +37,7 @@ let do_exec_binding config env impls = function
     let exec_path = exec_dir ^ Filename.dir_sep ^ name in   (* TODO: windows *)
 
     if not (Sys.file_exists exec_path) then (
-      if Support.on_windows then (
+      if on_windows then (
         let write handle =
           (* TODO: escaping *)
           output_string handle (Printf.sprintf "\"%s\" runenv %0 %*\n" config.abspath_0install)
@@ -93,9 +95,9 @@ let runenv args =
   | [] -> failwith "No args passed to runenv!"
   | arg0::args ->
     try
-      let system = new System.real_system in
+      let system = new Support.System.real_system in
       let var = "0install-runenv-" ^ Filename.basename arg0 in
-      let s = Support.getenv_ex system var in
+      let s = Support.Utils.getenv_ex system var in
       let open Yojson.Basic in
       let envargs = Util.convert_each Util.to_string (from_string s) in
       system#exec (envargs @ args)

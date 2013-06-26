@@ -1,8 +1,8 @@
 open OUnit
-open General
+open Support.Common
 
 class fake_system =
-  object (_ : #Support.system)
+  object (_ : #system)
     val now = ref 0.0
     val mutable env = StringMap.empty
 
@@ -32,15 +32,15 @@ let equal_str_lists = assert_equal ~printer:format_list
 
 let test_basedir () =
   let system = new fake_system in
-  let open Basedir in
+  let open Support.Basedir in
 
-  let bd = get_default_config (system :> Support.system) in
+  let bd = get_default_config (system :> system) in
   equal_str_lists ~msg:"No $HOME1" ["/root/.config"; "/etc/xdg"] bd.config;
   equal_str_lists ~msg:"No $HOME2" ["/root/.cache"; "/var/cache"] bd.cache;
   equal_str_lists ~msg:"No $HOME3" ["/root/.local/share"; "/usr/local/share"; "/usr/share"] bd.data;
 
   system#putenv "HOME" "/home/bob";
-  let bd = get_default_config (system :> Support.system) in
+  let bd = get_default_config (system :> system) in
   equal_str_lists ~msg:"$HOME1" ["/home/bob/.config"; "/etc/xdg"] bd.config;
   equal_str_lists ~msg:"$HOME2" ["/home/bob/.cache"; "/var/cache"] bd.cache;
   equal_str_lists ~msg:"$HOME3" ["/home/bob/.local/share"; "/usr/local/share"; "/usr/share"] bd.data;
@@ -48,13 +48,13 @@ let test_basedir () =
   system#putenv "XDG_CONFIG_HOME" "/home/bob/prefs";
   system#putenv "XDG_CACHE_DIRS" "";
   system#putenv "XDG_DATA_DIRS" "/data1:/data2";
-  let bd = get_default_config (system :> Support.system) in
+  let bd = get_default_config (system :> system) in
   equal_str_lists ~msg:"XDG1" ["/home/bob/prefs"; "/etc/xdg"] bd.config;
   equal_str_lists ~msg:"XDG2" ["/home/bob/.cache"] bd.cache;
   equal_str_lists ~msg:"XDG3" ["/home/bob/.local/share"; "/data1"; "/data2"] bd.data;
 
   system#putenv "ZEROINSTALL_PORTABLE_BASE" "/mnt/0install";
-  let bd = get_default_config (system :> Support.system) in
+  let bd = get_default_config (system :> system) in
   equal_str_lists ~msg:"PORT-1" ["/mnt/0install/config"] bd.config;
   equal_str_lists ~msg:"PORT-2" ["/mnt/0install/cache"] bd.cache;
   equal_str_lists ~msg:"PORT-3" ["/mnt/0install/data"] bd.data;

@@ -4,12 +4,14 @@
 
 (** Support for 0install apps *)
 
-open General;;
+open General
+open Support.Common
 
 let re_app_name = Str.regexp "^[^./\\\\:=;'\"][^/\\\\:=;'\"]*$";;
 
 let lookup_app config name =
   if Str.string_match re_app_name name 0 then
+    let module Basedir = Support.Basedir in
     Basedir.load_first config.system ("0install.net" +/ "apps" +/ name) config.basedirs.Basedir.config
   else
     None
@@ -43,10 +45,10 @@ let iter_inputs config cb sels =
     (* Check per-feed config *)
     check_maybe_config (config_injector_interfaces +/ Escape.pretty feed);
 
-    if starts_with feed "distribution:" then
+    if Support.Utils.starts_with feed "distribution:" then
       (* If the package has changed version, we'll detect that below with get_unavailable_selections. *)
       ()
-    else if Support.path_is_absolute feed then
+    else if Support.Utils.path_is_absolute feed then
       cb feed   (* Check the timestamp of this local feed hasn't changed *)
     else
       (* Remote feed *)

@@ -4,7 +4,7 @@
 
 (** Access to the rest of the system. This capabilities are provided via an object, which can be replaced for unit-testing.  *)
 
-open Support
+open Common
 
 class real_system =
   object (self : #system)
@@ -37,7 +37,7 @@ class real_system =
       try
         let argv_array = Array.of_list argv in
         let prog_path =
-          if search_path then find_in_path_ex (self :> system) (List.hd argv)
+          if search_path then Utils.find_in_path_ex (self :> system) (List.hd argv)
           else (List.hd argv) in
         if on_windows then (
           let open Unix in
@@ -49,7 +49,7 @@ class real_system =
             match snd (waitpid [] child_pid) with
             | Unix.WEXITED code -> exit code
             | _ -> exit 127 in
-          handle_exceptions run_child
+          Utils.handle_exceptions run_child
           (* doesn't return *)
         ) else (
           match env with

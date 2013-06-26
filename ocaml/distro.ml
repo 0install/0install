@@ -5,11 +5,13 @@
 (** Interacting with distribution package managers. *)
 
 open General
+open Support.Common
+module Basedir = Support.Basedir
 
 (** The ":host:" selections are where 0install chose the version of Python that was
     running 0install, rather than querying the distribution's package manager. We can't
     check that, so just assume it's still installed for now. *)
-let is_host_installed elem = starts_with (ZI.get_attribute "id" elem) "package:host:"
+let is_host_installed elem = Support.Utils.starts_with (ZI.get_attribute "id" elem) "package:host:"
 
 class base_distribution : distribution =
   object
@@ -59,7 +61,7 @@ module Cache =
                 | "" -> headers := false
                 | line ->
                     (* log_info "Cache header: %s" line; *)
-                    match Support.split_pair re_equals line with
+                    match Support.Utils.split_pair re_equals line with
                     | ("mtime", mtime) -> data.mtime <- int_of_string mtime
                     | ("size", size) -> data.size <- int_of_string size
                     | ("format", rev) -> data.rev <- int_of_string rev
@@ -69,7 +71,7 @@ module Cache =
               try
                 while true do
                   let line = input_line ch in
-                  let (key, value) = Support.split_pair re_equals line in
+                  let (key, value) = Support.Utils.split_pair re_equals line in
                   data.contents <- StringMap.add key value data.contents;
                 done
               with End_of_file -> ()
@@ -119,7 +121,7 @@ module Debian = struct
               match cache#get package with
               | None -> raise Fallback_to_Python    (* Not installed, or need to repopulate the cache *)
               | Some data ->
-                  let installed_version, machine = Support.split_pair re_tab data in
+                  let installed_version, machine = Support.Utils.split_pair re_tab data in
                   let installed_id = Printf.sprintf "package:deb:%s:%s:%s" package installed_version machine in
                   let sel_id = ZI.get_attribute "id" elem in
                   (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)

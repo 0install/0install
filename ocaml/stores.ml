@@ -4,13 +4,13 @@
 
 (** Managing cached implementations *)
 
-open Support;;
-
 type stores = string list;;
 
 type digest = (string * string);;
 
 exception Not_stored of string;;
+
+let first_match = Support.Utils.first_match
 
 let format_digest (alg, value) =
   let s = match alg with
@@ -36,5 +36,6 @@ let lookup_any digests stores =
       raise (Not_stored ("Item with digests " ^ str_digests ^ " not found in stores. Searched " ^ str_stores));;
 
 let get_default_stores basedir_config =
-  List.map (fun prefix -> prefix +/ "0install.net" +/ "implementations") basedir_config.Basedir.cache
+  let open Support.Basedir in
+  List.map (fun prefix -> prefix +/ "0install.net" +/ "implementations") basedir_config.cache
 ;;
