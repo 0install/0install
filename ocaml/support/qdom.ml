@@ -73,6 +73,11 @@ end;;
 let raise_elem msg elem =
   raise_safe (msg ^ (show_with_loc elem))
 
+let log_elem level =
+  let do_log s elem =
+    Logging.log level "%s %s" s (show_with_loc elem)
+  in Printf.ksprintf do_log
+
 module NsQuery (Ns : NsType) = struct
   (** Return the localName part of this element's tag.
       Throws an exception if it's in the wrong namespace. *)

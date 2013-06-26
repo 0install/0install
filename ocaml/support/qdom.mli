@@ -27,6 +27,8 @@ val find : (element -> bool) -> element -> element option
 (** [raise_elem "Problem with " elem] raises a [Safe_exception] with the message "Problem with <element> at ..." *)
 val raise_elem : string -> element -> 'a
 
+val log_elem : Logging.level -> ('a, unit, string, element -> unit) format4 -> 'a
+
 module type NsType = sig val ns : string end
 
 module NsQuery :
