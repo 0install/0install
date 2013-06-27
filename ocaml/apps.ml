@@ -130,5 +130,5 @@ let get_selections config app_path ~may_update =
     if may_update then check_for_updates config app_path sels else sels
   else
     if may_update then raise Fallback_to_Python
-    else raise_safe ("App selections missing! Expected: " ^ sels_path)
+    else raise_safe "App selections missing! Expected: %s" sels_path
 ;;

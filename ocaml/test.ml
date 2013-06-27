@@ -16,6 +16,8 @@ class fake_system =
 
     method exec = failwith "exec"
     method create_process = failwith "exec"
+    method reap_child = failwith "reap_child"
+
     method getcwd = failwith "getcwd"
 
     method getenv name =

@@ -131,7 +131,7 @@ end
 module Arch = struct
   let arch_db = "/var/lib/pacman"
 
-  class arch_distribution _ : distribution =
+  class arch_distribution () : distribution =
     object
       method is_installed elem =
         match ZI.get_attribute_opt "quick-test-file" elem with
@@ -156,7 +156,7 @@ let get_host_distribution config : distribution =
   if x Debian.dpkg_db_status && (Unix.stat Debian.dpkg_db_status).Unix.st_size > 0 then
     new Debian.debian_distribution config
   else if x Arch.arch_db then
-    new Arch.arch_distribution config
+    new Arch.arch_distribution ()
   else
     new base_distribution
 ;;

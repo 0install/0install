@@ -44,14 +44,14 @@ let parse_input source_name i = try (
   | [root], "" -> root
   | _ -> failwith("Expected single root node in XML")
 ) with Xmlm.Error ((line, col), err) ->
-  raise_safe (Printf.sprintf "[%d:%d] %s" line col (Xmlm.error_message err))
+  raise_safe "[%d:%d] %s" line col (Xmlm.error_message err)
 ;;
 
 let parse_file (system:system) path =
   try system#with_open (fun ch -> parse_input path (Xmlm.make_input (`Channel ch))) path
   with
   | Safe_exception _ as ex -> reraise_with_context ex ("... parsing XML document " ^ path)
-  | Sys_error msg -> raise_safe ("Error parsing XML document '" ^ path ^ "': " ^ msg)
+  | Sys_error msg -> raise_safe "Error parsing XML document '%s': %s" path msg
 
 (** Helper functions. *)
 
@@ -71,7 +71,7 @@ module type NsType = sig
 end;;
 
 let raise_elem msg elem =
-  raise_safe (msg ^ (show_with_loc elem))
+  raise_safe "%s%s" msg @@ show_with_loc elem
 
 let log_elem level =
   let do_log s elem =

@@ -47,7 +47,7 @@ let make_selection elem =
 
 let find_ex iface impls =
   try StringMap.find iface impls
-  with Not_found -> raise_safe ("Missing a selection for interface '" ^ iface ^ "'")
+  with Not_found -> raise_safe "Missing a selection for interface '%s'" iface
 ;;
 
 let get_path stores elem =

@@ -14,7 +14,7 @@ let validate_exec_name name =
   if Str.string_match re_exec_name name 0 then
     ()
   else
-    raise_safe ("Invalid name in executable binding: " ^ name)
+    raise_safe "Invalid name in executable binding: %s" name
 
 let ensure_runenv config =
   let main_dir = Basedir.save_path config.system ("0install.net" +/ "injector") config.basedirs.Basedir.cache in

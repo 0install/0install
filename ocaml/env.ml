@@ -31,7 +31,7 @@ let putenv name value env =
 
 let find name env =
   try Hashtbl.find env name
-  with Not_found -> raise_safe (Printf.sprintf "Environment variable '%s' not set" name)
+  with Not_found -> raise_safe "Environment variable '%s' not set" name
 ;;
 
 let find_opt name env =

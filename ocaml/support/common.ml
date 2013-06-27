@@ -6,6 +6,9 @@
 
 module StringMap = Map.Make(String)
 
+(** [a @@ b @@ c] is an alternative way to write [a (b (c))]. It's like [$] in Haskell. **)
+let (@@) f x = f x
+
 type filepath = string;;
 type varname = string;;
 
@@ -17,10 +20,14 @@ class type system =
     method mkdir : filepath -> Unix.file_perm -> unit
     method file_exists : filepath -> bool
     method lstat : filepath -> Unix.stats
-    method exec : ?search_path:bool -> ?env:string array -> string list -> 'a
-    method create_process : filepath -> string array -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
     method getcwd : unit -> filepath
     method atomic_write : (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
+
+    method exec : ?search_path:bool -> ?env:string array -> string list -> 'a
+    method create_process : filepath -> string array -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
+    (** [reap_child ?kill_first:signal child_pid] calls [waitpid] to collect the child.
+        @raise Safe_exception if it didn't exit with a status of 0 (success). *)
+    method reap_child : ?kill_first:int -> int -> unit
 
     method getenv : varname -> string option
   end
@@ -37,7 +44,9 @@ let path_sep = if on_windows then ";" else ":";;
 let (+/) : filepath -> filepath -> filepath = Filename.concat;;
 
 (** Convenient way to create a new [Safe_exception] with no initial context. *)
-let raise_safe msg = raise (Safe_exception (msg, ref []));;
+let raise_safe fmt =
+  let do_raise msg = raise @@ Safe_exception (msg, ref []) in
+  Printf.ksprintf do_raise fmt
 
 (** Add the additional explanation [context] to the exception and rethrow it.
     [ex] should be a [Safe_exception] (if not, [context] is written as a warning to [stderr]).

@@ -17,13 +17,10 @@ class real_system =
 
     (** [with_open fn file] opens [file], calls [fn handle], and then closes it again. *)
     method with_open fn file =
-      let ch =
+      let (ch:in_channel) =
         try open_in file
-        with Sys_error msg -> raise_safe msg
-      in
-      let result = try fn ch with ex -> close_in ch; raise ex in
-      let () = close_in ch in
-      result
+        with Sys_error msg -> raise_safe "Open failed: %s" msg in
+      Utils.finally close_in ch fn
 
     (** A safer, more friendly version of the [Unix.exec*] calls.
         Flushes [stdout] and [stderr]. Ensures [argv[0]] is set to the program called.
@@ -65,10 +62,9 @@ class real_system =
       let dir = Filename.dirname path in
       let (tmpname, ch) =
         try Filename.open_temp_file ~temp_dir:dir "tmp-" ".new"
-        with Sys_error msg -> raise_safe msg
+        with Sys_error msg -> raise_safe "open_temp_file failed: %s" msg
       in
-      let result = try fn ch with ex -> close_out ch; raise ex in
-      let () = close_out ch in
+      let result = Utils.finally close_out ch fn in
       Unix.chmod tmpname mode;
       Unix.rename tmpname path;
       result
@@ -76,6 +72,19 @@ class real_system =
     method getenv name =
       try Some (Sys.getenv name)
       with Not_found -> None
+
+    (** Call [waitpid] to collect the child.
+        @raise Safe_exception if it didn't exit with a status of 0 (success). *)
+    method reap_child ?(kill_first) child_pid =
+      let () = match kill_first with
+        | None -> ()
+        | Some signal -> Unix.kill child_pid signal in
+      match snd (Unix.waitpid [] child_pid) with
+        | Unix.WEXITED 0 -> ()
+        | Unix.WEXITED code -> raise_safe "Child returned error exit status %d" code
+        | Unix.WSIGNALED signal -> raise_safe "Child aborted (signal %d)" signal
+        | Unix.WSTOPPED signal -> raise_safe "Child is currently stopped (signal %d)" signal
+
 
   end
 ;;

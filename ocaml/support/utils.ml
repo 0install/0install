@@ -6,6 +6,13 @@
 
 open Common
 
+(** [finally cleanup x f] calls [f x] and then [cleanup x] (even if [f x] raised an exception) **)
+let finally cleanup resource f =
+  let result =
+    try f resource
+    with ex -> cleanup resource; raise ex in 
+  let () = cleanup resource in
+  result
 
 let safe_to_string = function
   | Safe_exception (msg, contexts) ->
@@ -55,7 +62,7 @@ let rec first_match fn = function
 let rec makedirs (system:system) path mode =
   try (
     if (system#lstat path).Unix.st_kind = Unix.S_DIR then ()
-    else raise_safe ("Not a directory: " ^ path)
+    else raise_safe "Not a directory: %s" path
   ) with Unix.Unix_error _ -> (
     let parent = (Filename.dirname path) in
     assert (path <> parent);
@@ -99,7 +106,7 @@ let abspath (system:system) path =
 let getenv_ex system name =
   match system#getenv name with
   | Some value -> value
-  | None -> raise_safe ("Environment variable '" ^ name ^ "' not set")
+  | None -> raise_safe "Environment variable '%s' not set" name
 ;;
 
 let re_dir_sep = Str.regexp_string Filename.dir_sep;;
@@ -128,48 +135,42 @@ let find_in_path (system:system) name =
 let find_in_path_ex system name =
   match find_in_path system name with
   | Some path -> path
-  | None -> raise_safe ("Not found in $PATH: " ^ name)
-;;
-
-let with_pipe fn =
-  let (r, w) = Unix.pipe () in
-  let result =
-    try fn r w
-    with ex ->
-      Unix.close r;
-      Unix.close w;
-      raise ex
-  in
-  Unix.close r;
-  Unix.close w;
-  result
+  | None -> raise_safe "Not found in $PATH: %s" name
 ;;
 
 (*
+let with_pipe fn =
+  let (r, w) = Unix.pipe () in
+  finally (fun _ -> Unix.close r; Unix.close w) (r, w) fn
+*)
+
 (** Spawn a subprocess with the given arguments and call [fn channel] on its output. *)
-let check_output (system:system) fn argv =
+let check_output ?stderr (system:system) fn argv =
   Logging.log_info "Running %s" (String.concat " " (List.map String.escaped argv));
+  let child_stderr = default Unix.stderr stderr in
   try
     let (r, w) = Unix.pipe () in
     let child_pid =
-      try system#create_process (List.hd argv) (Array.of_list argv) Unix.stdin w Unix.stdout
-      with ex ->
-        Unix.close r; Unix.close w; raise ex
+      finally Unix.close w (fun w ->
+        try system#create_process (List.hd argv) (Array.of_list argv) Unix.stdin w child_stderr
+        with ex ->
+          Unix.close r; raise ex
+      )
     in
-    Unix.close w;
-    let in_channel = Unix.in_channel_of_descr r in
     let result =
-      try fn in_channel
-      with ex ->
-        close_in in_channel;
-        ignore (Unix.waitpid [] child_pid);
-        raise ex
+      finally close_in (Unix.in_channel_of_descr r) (fun in_channel ->
+        try fn in_channel
+        with ex ->
+          (** User function raised an exception. Kill and reap the child. *)
+          let () =
+            try
+              system#reap_child ~kill_first:Sys.sigterm child_pid
+            with ex2 -> log_warning ~ex:ex2 "reap_child failed" in
+          raise ex
+      )
     in
-    close_in in_channel;
-    match snd (Unix.waitpid [] child_pid) with
-    | Unix.WEXITED 0 -> result
-    | Unix.WEXITED code -> raise_safe ("Child returned error exit status " ^ (string_of_int code))
-    | _ -> raise_safe "Child failed"
+    system#reap_child child_pid;
+    result
   with Unix.Unix_error _ as ex ->
     let cmd = String.concat " " argv in
     raise (Safe_exception (Printexc.to_string ex, ref ["... trying to read output of: " ^ cmd]))
@@ -185,7 +186,6 @@ let check_output_lines system fn argv =
   with End_of_file -> () in
   check_output system process argv
 ;;
-*)
 
 let split_pair re str =
   match Str.bounded_split_delim re str 2 with
@@ -215,3 +215,7 @@ let parse_ini (system:system) fn path =
     with End_of_file -> () in
   system#with_open read path
 ;;
+
+let with_dev_null fn =
+  let null_fd = Unix.openfile "/dev/null" [Unix.O_WRONLY] 0 in
+  finally Unix.close null_fd fn
