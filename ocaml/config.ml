@@ -32,13 +32,16 @@ let get_default_config path_to_0install =
   } in
 
   let handle_ini_mapping = function
-    | ("global", "freshness", freshness) ->
-        let value = int_of_string freshness in
-        if value > 0 then
-          config.freshness <- Some value
-        else
-          config.freshness <- None
-    | _ -> () in
+    | "global" -> (function
+      | ("freshness", freshness) ->
+          let value = int_of_string freshness in
+          if value > 0 then
+            config.freshness <- Some value
+          else
+            config.freshness <- None
+      | _ -> ()
+    )
+    | _ -> ignore in    (* other [sections] *)
 
   let () = match Support.Basedir.load_first config.system config_injector_global basedirs.Support.Basedir.config with
   | None -> ()

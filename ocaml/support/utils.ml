@@ -196,19 +196,21 @@ let split_pair re str =
 let re_section = Str.regexp "^[ \t]*\\[[ \t]*\\([^]]*\\)[ \t]*\\][ \t]*$"
 let re_key_value = Str.regexp "^[ \t]*\\([^= ]+\\)[ \t]*=[ \t]*\\(.*\\)$"
 
+(** [parse_ini system fn path] calls [fn section (key, value)] on each [key=value]
+    line in [path]. *)
 let parse_ini (system:system) fn path =
   let read ch =
-    let section = ref "" in
+    let handler = ref (fun x -> fn "" x) in
     try
       while true do
         let line = input_line ch in
         if Str.string_match re_section line 0 then
           let name = Str.matched_group 1 line in
-          section := name;
+          handler := fn name
         else if Str.string_match re_key_value line 0 then
           let key = Str.matched_group 1 line in
           let value = String.trim (Str.matched_group 2 line) in
-          fn (!section, key, value)
+          !handler (key, value)
       done
     with End_of_file -> () in
   system#with_open read path
