@@ -159,6 +159,29 @@ module Arch = struct
     end
 end
 
+module Mac = struct
+  let macports_db = "/opt/local/var/macports/registry/registry.db"
+
+  (* Note: we currently don't have or need DarwinDistribution, because that uses quick-test-* attributes *)
+
+  class macports_distribution config : distribution =
+    object
+      val cache = new Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
+
+      method is_installed elem =
+        match ZI.get_attribute_opt "package" elem with
+        | None -> (log_warning "Missing 'package' attribute"; false)
+        | Some package ->
+            let sel_id = ZI.get_attribute "id" elem in
+            let matches data =
+                let installed_version, machine = Utils.split_pair re_tab data in
+                let installed_id = Printf.sprintf "package:macports:%s:%s:%s" package installed_version machine in
+                (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
+                sel_id = installed_id in
+            List.exists matches (cache#get package)
+    end
+end
+
 let get_host_distribution config : distribution =
   (*
   let rpm_db_packages = "/var/lib/rpm/Packages" in
@@ -178,6 +201,8 @@ let get_host_distribution config : distribution =
         new Arch.arch_distribution ()
       else if x RPM.rpm_db_packages then
         new RPM.rpm_distribution config
+      else if x Mac.macports_db then
+        new Mac.macports_distribution config
       else
         new base_distribution
 
