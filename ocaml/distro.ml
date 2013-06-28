@@ -105,24 +105,30 @@ module Cache =
       end
   end
 
+(** Lookup [elem]'s package in the cache. Generate the ID(s) for the cached implementations and check that one of them
+    matches the [id] attribute on [elem].
+    Returns [false] if the cache is out-of-date. *)
+let check_cache distro_name elem cache =
+  match ZI.get_attribute_opt "package" elem with
+  | None ->
+      log_warning "Missing 'package' attribute";
+      false
+  | Some package ->
+      let sel_id = ZI.get_attribute "id" elem in
+      let matches data =
+          let installed_version, machine = Utils.split_pair re_tab data in
+          let installed_id = Printf.sprintf "package:%s:%s:%s:%s" distro_name package installed_version machine in
+          (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
+          sel_id = installed_id in
+      List.exists matches (cache#get package)
+
 module Debian = struct
   let dpkg_db_status = "/var/lib/dpkg/status"
 
   class debian_distribution config : distribution =
     object
       val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2 ~old_format:false
-
-      method is_installed elem =
-        match ZI.get_attribute_opt "package" elem with
-        | None -> (log_warning "Missing 'package' attribute"; false)
-        | Some package ->
-            let sel_id = ZI.get_attribute "id" elem in
-            let matches data =
-                let installed_version, machine = Utils.split_pair re_tab data in
-                let installed_id = Printf.sprintf "package:deb:%s:%s:%s" package installed_version machine in
-                (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
-                sel_id = installed_id in
-            List.exists matches (cache#get package)
+      method is_installed elem = check_cache "deb" elem cache
     end
 end
 
@@ -132,18 +138,7 @@ module RPM = struct
   class rpm_distribution config : distribution =
     object
       val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
-
-      method is_installed elem =
-        match ZI.get_attribute_opt "package" elem with
-        | None -> (log_warning "Missing 'package' attribute"; false)
-        | Some package ->
-            let sel_id = ZI.get_attribute "id" elem in
-            let matches data =
-                let installed_version, machine = Utils.split_pair re_tab data in
-                let installed_id = Printf.sprintf "package:rpm:%s:%s:%s" package installed_version machine in
-                (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
-                sel_id = installed_id in
-            List.exists matches (cache#get package)
+      method is_installed elem = check_cache "rpm" elem cache
     end
 end
 
@@ -167,18 +162,17 @@ module Mac = struct
   class macports_distribution config : distribution =
     object
       val cache = new Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
+      method is_installed elem = check_cache "macports" elem cache
+    end
+end
 
-      method is_installed elem =
-        match ZI.get_attribute_opt "package" elem with
-        | None -> (log_warning "Missing 'package' attribute"; false)
-        | Some package ->
-            let sel_id = ZI.get_attribute "id" elem in
-            let matches data =
-                let installed_version, machine = Utils.split_pair re_tab data in
-                let installed_id = Printf.sprintf "package:macports:%s:%s:%s" package installed_version machine in
-                (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
-                sel_id = installed_id in
-            List.exists matches (cache#get package)
+module Win = struct
+  let cygwin_log = "/var/log/setup.log"
+
+  class cygwin_distribution config : distribution =
+    object
+      val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
+      method is_installed elem = check_cache "cygwin" elem cache
     end
 end
 
@@ -206,8 +200,8 @@ let get_host_distribution config : distribution =
       else
         new base_distribution
 
-  | "Win32" | "Cygwin" ->
-      new base_distribution
+  | "Win32" -> new base_distribution
+  | "Cygwin" -> new Win.cygwin_distribution config
 
   | _ ->
       new base_distribution
