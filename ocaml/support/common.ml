@@ -21,6 +21,7 @@ class type system =
     method file_exists : filepath -> bool
     method lstat : filepath -> Unix.stats option
     method stat : filepath -> Unix.stats option
+    method unlink : filepath -> unit
     method getcwd : unit -> filepath
     method atomic_write : (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
 

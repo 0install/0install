@@ -14,6 +14,7 @@ class fake_system =
     method lstat = failwith "file access"
     method stat = failwith "file access"
     method atomic_write = failwith "file access"
+    method unlink = failwith "file access"
 
     method exec = failwith "exec"
     method create_process = failwith "exec"

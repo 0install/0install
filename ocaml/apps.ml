@@ -86,8 +86,9 @@ let get_mtime path ~warn_if_missing =
     - with downloading => use current selections, update in the background
 *)
 let check_for_updates config app_path sels =
+  let last_solve_path = app_path +/ "last-solve" in
   let last_check_time = get_mtime (app_path +/ "last-checked") ~warn_if_missing:true in
-  let last_solve_time = max (get_mtime (app_path +/ "last-solve") ~warn_if_missing:false)
+  let last_solve_time = max (get_mtime last_solve_path ~warn_if_missing:false)
                             last_check_time in
 
   let verify_unchanged path =
@@ -119,8 +120,15 @@ let check_for_updates config app_path sels =
   (* When we solve, we might also discover there are new things we could download and therefore
      do a background update anyway. *)
 
-  if need_solve || want_bg_update then raise Fallback_to_Python
-  else sels
+  if need_solve then (
+    (* Delete last-solve timestamp to force a recalculation.
+       This is useful when upgrading from an old format that the Python can still handle but we can't. *)
+    if config.system#file_exists last_solve_path then
+      config.system#unlink last_solve_path;
+    raise Fallback_to_Python
+  ) else if want_bg_update then (
+    raise Fallback_to_Python
+  ) else sels
 ;;
 
 let get_selections config app_path ~may_update =

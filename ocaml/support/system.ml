@@ -12,6 +12,7 @@ class real_system =
     method mkdir = Unix.mkdir
     method file_exists = Sys.file_exists
     method create_process = Unix.create_process
+    method unlink = Unix.unlink
     method getcwd = Sys.getcwd
 
     method lstat path =
