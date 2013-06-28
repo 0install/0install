@@ -11,7 +11,6 @@ type level = Info | Warning
    - any custom print function passed by the caller has type unit -> string
    - the final result of the whole thing is unit
  *)
-type 'a log_format = ('a, unit, string, unit) format4
 
 let log level ?ex =
   let do_log s =
