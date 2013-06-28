@@ -11,9 +11,20 @@ class real_system =
     method time = Unix.time
     method mkdir = Unix.mkdir
     method file_exists = Sys.file_exists
-    method lstat = Unix.lstat
     method create_process = Unix.create_process
     method getcwd = Sys.getcwd
+
+    method lstat path =
+      try Some (Unix.lstat path)
+      with Unix.Unix_error (errno, _, _) as ex ->
+        if errno = Unix.ENOENT then None
+        else raise ex
+
+    method stat path =
+      try Some (Unix.stat path)
+      with Unix.Unix_error (errno, _, _) as ex ->
+        if errno = Unix.ENOENT then None
+        else raise ex
 
     (** [with_open fn file] opens [file], calls [fn handle], and then closes it again. *)
     method with_open fn file =

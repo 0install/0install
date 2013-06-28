@@ -19,7 +19,8 @@ class type system =
     method with_open : (in_channel -> 'a) -> filepath -> 'a
     method mkdir : filepath -> Unix.file_perm -> unit
     method file_exists : filepath -> bool
-    method lstat : filepath -> Unix.stats
+    method lstat : filepath -> Unix.stats option
+    method stat : filepath -> Unix.stats option
     method getcwd : unit -> filepath
     method atomic_write : (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
 

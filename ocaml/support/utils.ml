@@ -58,18 +58,25 @@ let rec first_match fn = function
       | Some _ as result -> result
       | None -> first_match fn xs;;
 
+(** List the non-None results of [fn item] *)
+let rec filter_map fn = function
+  | [] -> []
+  | (x::xs) ->
+      match fn x with
+      | None -> filter_map fn xs
+      | Some y -> y :: filter_map fn xs
+
 (** [makedirs path mode] ensures that [path] is a directory, creating it and any missing parents (using [mode]) if not. *)
 let rec makedirs (system:system) path mode =
-  try (
-    if (system#lstat path).Unix.st_kind = Unix.S_DIR then ()
-    else raise_safe "Not a directory: %s" path
-  ) with Unix.Unix_error _ -> (
-    let parent = (Filename.dirname path) in
-    assert (path <> parent);
-    makedirs system parent mode;
-    system#mkdir path mode
-  )
-;;
+  match system#lstat path with
+  | Some info ->
+      if info.Unix.st_kind = Unix.S_DIR then ()
+      else raise_safe "Not a directory: %s" path
+  | None ->
+      let parent = (Filename.dirname path) in
+      assert (path <> parent);
+      makedirs system parent mode;
+      system#mkdir path mode
 
 let starts_with str prefix =
   let ls = String.length str in
@@ -145,7 +152,7 @@ let with_pipe fn =
 *)
 
 (** Spawn a subprocess with the given arguments and call [fn channel] on its output. *)
-let check_output ?stderr (system:system) fn argv =
+let check_output ?stderr (system:system) fn (argv:string list) =
   Logging.log_info "Running %s" (String.concat " " (List.map String.escaped argv));
   let child_stderr = default Unix.stderr stderr in
   try

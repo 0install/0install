@@ -107,6 +107,9 @@ class ImplSelection(Selection):
 	@property
 	def quick_test_file(self): return self.impl.quick_test_file
 
+	@property
+	def quick_test_mtime(self): return self.impl.quick_test_mtime
+
 	def get_command(self, name):
 		assert name in self._used_commands, "internal error: '{command}' not in my commands list".format(command = name)
 		return self._used_commands[name]
@@ -152,6 +155,7 @@ class XMLSelection(Selection):
 		return self.commands
 
 	quick_test_file = property(lambda self: self.attrs.get('quick-test-file', None))
+	quick_test_mtime = property(lambda self: self.attrs.get('quick-test-mtime', None))
 
 class Selections(object):
 	"""
@@ -289,6 +293,8 @@ class Selections(object):
 
 			if selection.quick_test_file:
 				selection_elem.setAttributeNS(None, 'quick-test-file', selection.quick_test_file)
+				if selection.quick_test_mtime:
+					selection_elem.setAttributeNS(None, 'quick-test-mtime', str(selection.quick_test_mtime))
 
 			for name, value in selection.attrs.items():
 				if ' ' in name:
@@ -361,7 +367,14 @@ class Selections(object):
 		def needs_download(sel):
 			if sel.id.startswith('package:'):
 				if sel.quick_test_file:
-					return not os.path.exists(sel.quick_test_file)
+					if not os.path.exists(sel.quick_test_file):
+						return True
+					required_mtime = sel.quick_test_mtime
+					if required_mtime is None:
+						return False
+					else:
+						return int(os.stat(sel.quick_test_file).st_mtime) == required_mtime
+
 				if not include_packages: return False
 				feed = iface_cache.get_feed(sel.feed)
 				if not feed: return False

@@ -78,9 +78,7 @@ let get_unavailable_selections config ~include_packages sels =
     | LocalSelection _ -> false
     | CacheSelection digests -> None = Stores.lookup_maybe digests config.stores
     | PackageSelection when not include_packages -> false
-    | PackageSelection ->
-        let distro = Lazy.force config.distro in
-        not (distro#is_installed elem)
+    | PackageSelection -> not @@ Distro.is_installed config elem
   in
   let check sel =
     if needs_download sel then missing := sel :: !missing

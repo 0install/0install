@@ -5,23 +5,15 @@
 (** Interacting with distribution package managers. *)
 
 open General
+open Support
 open Support.Common
-module Basedir = Support.Basedir
-
-(** The ":host:" selections are where 0install chose the version of Python that was
-    running 0install, rather than querying the distribution's package manager. We can't
-    check that, so just assume it's still installed for now. *)
-let is_host_installed elem = Support.Utils.starts_with (ZI.get_attribute "id" elem) "package:host:"
 
 class base_distribution : distribution =
   object
     method is_installed elem =
-      is_host_installed elem || (
-
       log_warning "FIXME: Assuming distribution package %s version %s is still installed"
                   (ZI.get_attribute "id" elem) (ZI.get_attribute "version" elem);
       true
-      )
   end
 ;;
 
@@ -61,7 +53,7 @@ module Cache =
                 | "" -> headers := false
                 | line ->
                     (* log_info "Cache header: %s" line; *)
-                    match Support.Utils.split_pair re_equals line with
+                    match Utils.split_pair re_equals line with
                     | ("mtime", mtime) -> data.mtime <- int_of_string mtime
                     | ("size", size) -> data.size <- int_of_string size
                     | ("format", rev) -> data.rev <- int_of_string rev
@@ -71,7 +63,7 @@ module Cache =
               try
                 while true do
                   let line = input_line ch in
-                  let (key, value) = Support.Utils.split_pair re_equals line in
+                  let (key, value) = Utils.split_pair re_equals line in
                   data.contents <- StringMap.add key value data.contents;
                 done
               with End_of_file -> ()
@@ -111,20 +103,17 @@ module Debian = struct
       val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2
 
       method is_installed elem =
-        is_host_installed elem || (
-
-          match ZI.get_attribute_opt "package" elem with
-          | None -> (log_warning "Missing 'package' attribute"; false)
-          | Some package ->
-              match cache#get package with
-              | None -> raise Fallback_to_Python    (* Not installed, or need to repopulate the cache *)
-              | Some data ->
-                  let installed_version, machine = Support.Utils.split_pair re_tab data in
-                  let installed_id = Printf.sprintf "package:deb:%s:%s:%s" package installed_version machine in
-                  let sel_id = ZI.get_attribute "id" elem in
-                  (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
-                  sel_id = installed_id
-        )
+        match ZI.get_attribute_opt "package" elem with
+        | None -> (log_warning "Missing 'package' attribute"; false)
+        | Some package ->
+            match cache#get package with
+            | None -> raise Fallback_to_Python    (* Not installed, or need to repopulate the cache *)
+            | Some data ->
+                let installed_version, machine = Utils.split_pair re_tab data in
+                let installed_id = Printf.sprintf "package:deb:%s:%s:%s" package installed_version machine in
+                let sel_id = ZI.get_attribute "id" elem in
+                (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
+                sel_id = installed_id
     end
 end
 
@@ -134,11 +123,9 @@ module Arch = struct
   class arch_distribution () : distribution =
     object
       method is_installed elem =
-        match ZI.get_attribute_opt "quick-test-file" elem with
-        | Some file -> Sys.file_exists file
-        | None ->
-            Support.Qdom.log_elem Support.Logging.Info "Old selections file; forcing an update of" elem;
-            false
+        (* We should never get here, because we always set quick-test-* *)
+        Qdom.log_elem Logging.Info "Old selections file; forcing an update of" elem;
+        false
     end
 end
 
@@ -153,10 +140,31 @@ let get_host_distribution config : distribution =
 
   let x = Sys.file_exists in
 
-  if x Debian.dpkg_db_status && (Unix.stat Debian.dpkg_db_status).Unix.st_size > 0 then
-    new Debian.debian_distribution config
-  else if x Arch.arch_db then
-    new Arch.arch_distribution ()
-  else
-    new base_distribution
+  match Sys.os_type with
+  | "Unix" ->
+      if x Debian.dpkg_db_status && (Unix.stat Debian.dpkg_db_status).Unix.st_size > 0 then
+        new Debian.debian_distribution config
+      else if x Arch.arch_db then
+        new Arch.arch_distribution ()
+      else
+        new base_distribution
+
+  | "Win32" | "Cygwin" ->
+      new base_distribution
+
+  | _ ->
+      new base_distribution
 ;;
+
+(** Check whether this <selection> is still valid. If the quick-test-* attributes are present, use
+    them to check. Otherwise, call the appropriate method on [config.distro]. *)
+let is_installed config elem =
+  match ZI.get_attribute_opt "quick-test-file" elem with
+  | None -> (Lazy.force config.distro)#is_installed elem
+  | Some file ->
+      match config.system#stat file with
+      | None -> false
+      | Some info ->
+          match ZI.get_attribute_opt "quick-test-mtime" elem with
+          | None -> true      (* quick-test-file exists and we don't care about the time *)
+          | Some required_mtime -> (int_of_float info.Unix.st_mtime) = int_of_string required_mtime

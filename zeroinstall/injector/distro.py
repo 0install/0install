@@ -23,12 +23,17 @@ _version_regexp = '(?:[a-z])?({ints}\.?[bu])?({zero})(-r{ints})?'.format(zero = 
 
 _PYTHON_URI = 'http://repo.roscidus.com/python/python'
 
+def _set_quick_test(impl, path):
+	"""Set impl.quick_test_file and impl.quick_test_mtime from path."""
+	impl.quick_test_file = path
+	impl.quick_test_mtime = int(os.stat(path).st_mtime)
+
 # We try to do updates atomically without locking, but we don't worry too much about
 # duplicate entries or being a little out of sync with the on-disk copy.
 class Cache(object):
 	def __init__(self, cache_leaf, source, format):
 		"""Maintain a cache file (e.g. ~/.cache/0install.net/injector/$name).
-		If the size or mtime of $source has changed, or the cache
+		If the size or mtime of $source has changed
 		format version if different, reset the cache first.
 		@type cache_leaf: str
 		@type source: str
@@ -240,6 +245,9 @@ class Distribution(object):
 			impl.main = sys.executable or '/usr/bin/python'
 			impl.upstream_stability = model.packaged
 			impl.machine = host_machine	# (hopefully)
+
+			_set_quick_test(impl, sys.executable)
+
 			feed.implementations[impl_id] = impl
 		elif master_feed.url == 'http://repo.roscidus.com/python/python-gobject' and os.name != "nt":
 			gobject = get_loop().gobject
@@ -252,6 +260,11 @@ class Distribution(object):
 				impl.version = [list(gobject.pygobject_version)]
 				impl.upstream_stability = model.packaged
 				impl.machine = host_machine	# (hopefully)
+
+				if gobject.__file__.startswith('<'):
+					_set_quick_test(impl, gobject.__path__)		# Python 3
+				else:
+					_set_quick_test(impl, gobject.__file__)		# Python 2
 
 				# Requires our version of Python too
 				restriction_element = qdom.Element(namespaces.XMLNS_IFACE, 'restricts', {'interface': _PYTHON_URI, 'distribution': 'host'})
@@ -375,6 +388,7 @@ class WindowsDistribution(Distribution):
 					impl.version = model.parse_version(zero_version)
 					impl.upstream_stability = model.packaged
 					impl.main = home + r"\bin\java.exe"
+					_set_quick_test(impl, impl.main)
 
 		def find_netfx(win_version, zero_version):
 			reg_path = r"SOFTWARE\Microsoft\NET Framework Setup\NDP\{win_version}".format(win_version = win_version)
@@ -445,6 +459,7 @@ class DarwinDistribution(Distribution):
 					impl.version = model.parse_version(zero_version)
 					impl.upstream_stability = model.packaged
 					impl.main = home + "/bin/java"
+					_set_quick_test(impl, impl.main)
 
 		if package == 'openjdk-6-jre':
 			find_java("Java Runtime Environment", "1.6", '6')
@@ -473,6 +488,7 @@ class DarwinDistribution(Distribution):
 					impl.upstream_stability = model.packaged
 					impl.machine = host_machine	# (hopefully)
 					impl.main = file
+					_set_quick_test(impl, impl.main)
 
 		if package == 'gnupg':
 			find_program("/usr/local/bin/gpg")

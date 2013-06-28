@@ -12,6 +12,7 @@ class fake_system =
     method mkdir = failwith "file access"
     method file_exists = failwith "file access"
     method lstat = failwith "file access"
+    method stat = failwith "file access"
     method atomic_write = failwith "file access"
 
     method exec = failwith "exec"
