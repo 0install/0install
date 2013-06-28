@@ -18,7 +18,7 @@ class base_distribution : distribution =
 ;;
 
 (** A simple cache for storing key-value pairs on disk. Distributions may wish to use this to record the
-    version of each distribution package currently installed. *)
+    version(s) of each distribution package currently installed. *)
 module Cache =
   struct
 
@@ -26,15 +26,22 @@ module Cache =
       mutable mtime : int;
       mutable size : int;
       mutable rev : int;
-      mutable contents : string StringMap.t;
+      mutable contents : (string, string) Hashtbl.t;
     }
 
+    let re_colon_space = Str.regexp_string ": "
+
     (* Note: [format_version] doesn't make much sense. If the format changes, just use a different [cache_leaf],
-       otherwise you'll be fighting with other versions of 0install. *)
-    class cache (config:General.config) (cache_leaf:string) (source:filepath) (format_version:int) =
+       otherwise you'll be fighting with other versions of 0install.
+       The [old_format] used different separator characters.
+       *)
+    class cache (config:General.config) (cache_leaf:string) (source:filepath) (format_version:int) ~(old_format:bool) =
+      let re_metadata_sep = if old_format then re_colon_space else re_equals
+      and re_key_value_sep = if old_format then re_tab else re_equals
+      in
       object (self)
         (* The status of the cache when we loaded it. *)
-        val data = { mtime = 0; size = -1; rev = -1; contents = StringMap.empty }
+        val data = { mtime = 0; size = -1; rev = -1; contents = Hashtbl.create 10 }
 
         val cache_path = Basedir.save_path config.system (config_site +/ config_prog +/ cache_leaf) config.basedirs.Basedir.cache
 
@@ -43,7 +50,7 @@ module Cache =
           data.mtime <- -1;
           data.size <- -1;
           data.rev <- -1;
-          data.contents <- StringMap.empty;
+          Hashtbl.clear data.contents;
 
           if Sys.file_exists source then (
             let load_cache ch =
@@ -53,18 +60,19 @@ module Cache =
                 | "" -> headers := false
                 | line ->
                     (* log_info "Cache header: %s" line; *)
-                    match Utils.split_pair re_equals line with
+                    match Utils.split_pair re_metadata_sep line with
                     | ("mtime", mtime) -> data.mtime <- int_of_string mtime
                     | ("size", size) -> data.size <- int_of_string size
-                    | ("format", rev) -> data.rev <- int_of_string rev
+                    | ("version", rev) when old_format -> data.rev <- int_of_string rev
+                    | ("format", rev) when not old_format -> data.rev <- int_of_string rev
                     | _ -> ()
               done;
 
               try
                 while true do
                   let line = input_line ch in
-                  let (key, value) = Utils.split_pair re_equals line in
-                  data.contents <- StringMap.add key value data.contents;
+                  let (key, value) = Utils.split_pair re_key_value_sep line in
+                  Hashtbl.add data.contents key value   (* note: adds to existing list of packages for this key *)
                 done
               with End_of_file -> ()
               
@@ -74,22 +82,24 @@ module Cache =
 
         (** Check cache is still up-to-date. Clear it not. *)
         method ensure_valid () =
-          let info = Unix.stat source in
-          if data.mtime <> int_of_float info.Unix.st_mtime then (
-            log_info "Modification time of %s has changed; invalidating cache" source;
-            raise Fallback_to_Python
-          ) else if data.size <> info.Unix.st_size then (
-            log_info "Size of %s has changed; invalidating cache" source;
-            raise Fallback_to_Python
-          ) else if data.rev <> format_version then (
-            log_info "Format of cache %s has changed; invalidating cache" cache_path;
-            raise Fallback_to_Python
-          )
+          match config.system#stat source with
+          | None when data.size = -1 -> ()    (* Still doesn't exist - no problem *)
+          | None -> raise Fallback_to_Python  (* Disappeared (shouldn't happen) *)
+          | Some info ->
+              if data.mtime <> int_of_float info.Unix.st_mtime then (
+                log_info "Modification time of %s has changed; invalidating cache" source;
+                raise Fallback_to_Python
+              ) else if data.size <> info.Unix.st_size then (
+                log_info "Size of %s has changed; invalidating cache" source;
+                raise Fallback_to_Python
+              ) else if data.rev <> format_version then (
+                log_info "Format of cache %s has changed; invalidating cache" cache_path;
+                raise Fallback_to_Python
+              )
 
-        method get (key:string) : string option =
+        method get (key:string) : string list =
           self#ensure_valid ();
-          try Some (StringMap.find key data.contents)
-          with Not_found -> None
+          Hashtbl.find_all data.contents key
 
         initializer self#load_cache ()
       end
@@ -100,20 +110,40 @@ module Debian = struct
 
   class debian_distribution config : distribution =
     object
-      val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2
+      val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2 ~old_format:false
 
       method is_installed elem =
         match ZI.get_attribute_opt "package" elem with
         | None -> (log_warning "Missing 'package' attribute"; false)
         | Some package ->
-            match cache#get package with
-            | None -> raise Fallback_to_Python    (* Not installed, or need to repopulate the cache *)
-            | Some data ->
+            let sel_id = ZI.get_attribute "id" elem in
+            let matches data =
                 let installed_version, machine = Utils.split_pair re_tab data in
                 let installed_id = Printf.sprintf "package:deb:%s:%s:%s" package installed_version machine in
-                let sel_id = ZI.get_attribute "id" elem in
                 (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
-                sel_id = installed_id
+                sel_id = installed_id in
+            List.exists matches (cache#get package)
+    end
+end
+
+module RPM = struct
+  let rpm_db_packages = "/var/lib/rpm/Packages"
+
+  class rpm_distribution config : distribution =
+    object
+      val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
+
+      method is_installed elem =
+        match ZI.get_attribute_opt "package" elem with
+        | None -> (log_warning "Missing 'package' attribute"; false)
+        | Some package ->
+            let sel_id = ZI.get_attribute "id" elem in
+            let matches data =
+                let installed_version, machine = Utils.split_pair re_tab data in
+                let installed_id = Printf.sprintf "package:rpm:%s:%s:%s" package installed_version machine in
+                (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
+                sel_id = installed_id in
+            List.exists matches (cache#get package)
     end
 end
 
@@ -146,6 +176,8 @@ let get_host_distribution config : distribution =
         new Debian.debian_distribution config
       else if x Arch.arch_db then
         new Arch.arch_distribution ()
+      else if x RPM.rpm_db_packages then
+        new RPM.rpm_distribution config
       else
         new base_distribution
 
