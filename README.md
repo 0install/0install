@@ -78,10 +78,9 @@ This is experimental.
 You will need the OCaml build tools for this. On Debian:
 
     $ sudo apt-get install ocaml ocaml-findlib libyojson-ocaml-dev libxmlm-ocaml-dev
-    $ cd 0install/ocaml
-    $ make
+    $ make ocaml
+    $ sudo make install
 
-You can then install ./0install over the existing Python /usr/bin/0install.
 
 QUICK START
 -----------

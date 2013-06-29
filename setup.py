@@ -107,13 +107,15 @@ elif '--install-layout=deb' in sys.argv:
 else:
 	zsh_functions_dir = 'share/zsh/site-functions'
 
+pure_python = not os.path.exists(os.path.join('ocaml', '_build', '0install'))
+
 setup(name="zeroinstall-injector",
       version=zeroinstall.version,
       description="The Zero Install Injector (0launch)",
       author="Thomas Leonard",
       author_email="zero-install-devel@lists.sourceforge.net",
       url="http://0install.net",
-      scripts=['0launch', '0alias', '0store', '0store-secure-add', '0desktop', '0install'],
+      scripts=['0launch', '0alias', '0store', '0store-secure-add', '0desktop'] + (['0install'] if pure_python else []),
       data_files = [('man/man1', ['0launch.1', '0alias.1', '0store-secure-add.1', '0store.1', '0desktop.1', '0install.1']),
 		    ('share/applications', ['share/applications/0install.desktop']),
 		    ('share/bash-completion/completions', ['share/bash-completion/completions/0install']),
@@ -122,7 +124,8 @@ setup(name="zeroinstall-injector",
 		    ('share/icons/hicolor/24x24/apps', ['share/icons/24x24/zeroinstall.png']),
 		    ('share/icons/hicolor/48x48/apps', ['share/icons/48x48/zeroinstall.png']),
 		    ('share/icons/hicolor/128x128/apps', ['share/icons/128x128/zeroinstall.png']),
-		    ('share/icons/hicolor/scalable/apps', ['share/icons/scalable/zeroinstall.svg'])],
+		    ('share/icons/hicolor/scalable/apps', ['share/icons/scalable/zeroinstall.svg'])] +
+		    ([] if pure_python else [('bin', ['ocaml/_build/0install'])]),
       license='LGPL',
       cmdclass={
 	'build_py': build_with_data,

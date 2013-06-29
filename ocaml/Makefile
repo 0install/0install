@@ -1,7 +1,7 @@
 BUILDDIR=_build
 OCAMLBUILD=ocamlbuild -use-ocamlfind -build-dir "${BUILDDIR}"
 
-.PHONY: all ocaml byte doc clean tags
+.PHONY: all ocaml byte doc clean tags test
 
 all: test
 
@@ -11,6 +11,7 @@ test: ocaml
 
 ocaml: 
 	$(OCAMLBUILD) main.native
+	mv _build/main.native _build/0install
 
 byte:
 	$(OCAMLBUILD) main.byte
