@@ -6,6 +6,7 @@
 
 open General
 open Support.Common
+open Cli
 
 let is_option x = String.length x > 0 && x.[0] = '-';;
 let is_iface_url x = String.length x > 0 && x.[0] = '-';;
@@ -25,24 +26,35 @@ let fallback_to_python config args =
   config.system#exec ~search_path:true ("python" :: "-m" :: "zeroinstall.cmd" :: args)
 ;;
 
-let main argv =
-  let system = new Support.System.real_system in
-  let config = Config.get_default_config system (List.hd argv) in
-  try
-    let settings = Cli.parse_args config (List.tl argv) in
-    log_info "OCaml front-end to 0install: entering main";
-    match settings.Cli.args with
-    (* 0install run ... *)
-    | ("run" :: app_or_sels :: args) when not (is_option app_or_sels) && not (is_url app_or_sels) -> (
+let handle_run config options args : unit =
+  let wrapper = ref None in
+  let handle = function
+    | Support.Argparse.OneArgOption(Wrapper, w) -> wrapper := Some w
+    | _ -> raise Fallback_to_Python in
+  List.iter handle options.extra_options;
+  match args with
+  | app_or_sels :: run_args when not (is_option app_or_sels) && not (is_url app_or_sels) -> (
       let sels = match Apps.lookup_app config app_or_sels with
       | None -> Selections.load_selections config.system app_or_sels
       | Some app_path -> Apps.get_selections config app_path ~may_update:true in
-      try Run.execute_selections config sels args ?wrapper:settings.Cli.wrapper
+      try Run.execute_selections config sels run_args ?wrapper:!wrapper
       with Safe_exception _ as ex -> reraise_with_context ex ("... running selections " ^ app_or_sels)
     )
-    (* 0install runenv *)
-    | ("runenv" :: runenv_args) -> Run.runenv runenv_args
-    (* For all other cases, fall back to the Python version *)
+  | _ -> raise Fallback_to_Python
+;;
+
+let main argv : unit =
+  let system = new Support.System.real_system in
+  let config = Config.get_default_config system (List.hd argv) in
+  try
+    let options = parse_args config (List.tl argv) in
+    match options.args with
+    | ("run" :: run_args) -> handle_run config options run_args
+    | ("runenv" :: runenv_args) ->
+        if List.length options.extra_options > 0 then
+          raise_safe "The 'runenv' sub-command does not support any options."
+        else
+          Run.runenv runenv_args
     | _ -> raise Fallback_to_Python
   with Fallback_to_Python ->
     log_info "Can't handle this case; switching to Python version...";

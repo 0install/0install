@@ -94,7 +94,7 @@ let test_option_parsing () =
 
   config.stores <- [];
   let s = p ["--with-store=/data/s1"; "run"; "--with-store=/data/s2"; "foo"; "--with-store=/data/s3"] in
-  equal_str_lists ["/data/s2"; "/data/s1"] config.stores;
+  equal_str_lists ["/data/s1"; "/data/s2"] config.stores;
   equal_str_lists ["run"; "foo"; "--with-store=/data/s3"] s.args;
 
   assert_raises_safe "Option does not take an argument in '--console=true'" (lazy (p ["--console=true"]));
@@ -105,7 +105,7 @@ let test_option_parsing () =
 
   let s = p ["run"; "-wgdb"; "foo"] in
   equal_str_lists ["run"; "foo"] s.args;
-  assert_equal (Some "gdb") s.wrapper;
+  assert_equal [OneArgOption(Cli.Wrapper, "gdb")] s.extra_options;
 ;;
 
 (* Name the test cases and group them together *)

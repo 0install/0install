@@ -8,11 +8,8 @@ open Common
 
 let starts_with = Utils.starts_with
 
-type 'a opt_type =
-  | NoArg of ('a -> unit)
-  | OneArg of ('a -> filepath -> unit)
-
-type 'a opt = (string list * string * 'a opt_type);;
+(* [option names], help text, n_args, tag *)
+type 'a opt = (string list * string * int * 'a)
 
 type yes_no_maybe = Yes | No | Maybe;;
 
@@ -23,9 +20,15 @@ let string_of_maybe = function
 
 let is_empty stream = None = Stream.peek stream
 
+type 'a option_value =
+  | NoArgOption of 'a
+  | OneArgOption of 'a * string
+
 type 'a spec = {
-  options : 'a opt list;
-  arg_handler : bool ref -> string -> unit;
+  options_spec : 'a opt list;
+
+  (** We've just read an argument; should any futher options be treated as arguments? *)
+  no_more_options : string list -> bool
 }
 
 (* Might want to get rid of this later, but for now we need to throw Fallback_to_Python *)
@@ -33,13 +36,16 @@ exception Unknown_option of string
 
 let re_equals = Str.regexp_string "="
 
-let parse_args (spec : 'a spec) settings args =
+let parse_args (spec : 'a spec) input_args =
+  let options = ref [] in
+  let args = ref [] in
+
   let options_map =
     let map = ref StringMap.empty in
-    let add (names, _help, fn) =
-      List.iter (fun name -> map := StringMap.add name fn !map) names;
+    let add (names, _help, tag, n_args) =
+      List.iter (fun name -> map := StringMap.add name (tag, n_args) !map) names;
       () in
-    List.iter add spec.options;
+    List.iter add spec.options_spec;
     !map in
 
   let lookup_option x =
@@ -47,17 +53,20 @@ let parse_args (spec : 'a spec) settings args =
     with Not_found -> None in
 
   let allow_options = ref true in
-  let stream = Stream.of_list args in
+  let stream = Stream.of_list input_args in
 
   let handle_option stream opt =
     match lookup_option opt with
     | None -> raise (Unknown_option opt)
-    | Some (NoArg fn) -> fn settings
-    | Some (OneArg fn) ->
+    | Some (0, tag) -> options := NoArgOption(tag) :: !options
+    | Some (1, tag) ->
         if is_empty stream then
           raise_safe "Missing argument to option %s" opt
         else
-          fn settings (Stream.next stream) in
+          options := OneArgOption(tag, Stream.next stream) :: !options
+    | Some _ ->
+        failwith @@ "Invalid number of option arguments for " ^ opt
+  in
 
   let handle_long_option opt =
     match Str.bounded_split_delim re_equals opt 2 with
@@ -102,6 +111,10 @@ let parse_args (spec : 'a spec) settings args =
     | "--" when !allow_options -> allow_options := false
     | opt when !allow_options && starts_with opt "--" -> handle_long_option opt
     | opt when !allow_options && starts_with opt "-" -> handle_short_option opt
-    | arg -> spec.arg_handler allow_options arg
-  done
+    | arg ->
+        args := arg :: !args;
+        if !allow_options && spec.no_more_options !args then allow_options := false
+  done;
+
+  (!options, List.rev !args)
 ;;
