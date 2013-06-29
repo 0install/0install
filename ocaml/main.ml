@@ -37,7 +37,7 @@ let main argv =
       let sels = match Apps.lookup_app config app_or_sels with
       | None -> Selections.load_selections config.system app_or_sels
       | Some app_path -> Apps.get_selections config app_path ~may_update:true in
-      try Run.execute_selections sels args config
+      try Run.execute_selections config sels args ?wrapper:settings.Cli.wrapper
       with Safe_exception _ as ex -> reraise_with_context ex ("... running selections " ^ app_or_sels)
     )
     (* 0install runenv *)

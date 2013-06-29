@@ -71,7 +71,10 @@ let make_selection_map stores sels =
   in ZI.fold_left add_selection StringMap.empty sels "selection"
 ;;
 
-let execute_selections sels args config =
+(** Calculate the arguments and environment to pass to exec to run this
+    process. This also ensures any necessary launchers exist, creating them
+    if not. *)
+let get_exec_args config sels args =
   let env = Env.copy_current_env () in
   let impls = make_selection_map config.stores sels in
   let bindings = Binding.collect_bindings impls sels in
@@ -86,8 +89,19 @@ let execute_selections sels args config =
 
   let command = ZI.get_attribute "command" sels in
   let prog_args = (Command.build_command impls (ZI.get_attribute "interface" sels) command env) @ args in
-  config.system#exec prog_args ~env:(Env.to_array env)
+
+  (prog_args, (Env.to_array env))
 ;;
+
+let execute_selections config sels args ?wrapper =
+  let (prog_args, env) = get_exec_args config sels args in
+
+  let prog_args =
+    match wrapper with
+    | None -> prog_args
+    | Some command -> ["/bin/sh"; "-c"; command ^ " \"$@\""; "-"] @ prog_args
+
+  in config.system#exec prog_args ~env:env
 
 (** This is called in a new process by the launcher created by [ensure_runenv]. *)
 let runenv args =
