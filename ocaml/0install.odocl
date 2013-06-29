@@ -11,9 +11,4 @@ main
 run
 selections
 stores
-support/basedir
-support/common
-support/logging
-support/qdom
-support/system
-support/utils
+support

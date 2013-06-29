@@ -17,7 +17,12 @@ byte:
 	$(OCAMLBUILD) main.byte
 
 doc:
+	ocp-pack -o support.ml.tmp support/logging.ml support/common.ml support/utils.ml support/basedir.ml support/qdom.ml support/system.ml
+	echo '(** General support code; not 0install-specific *)' > support.ml
+	cat support.ml.tmp >> support.ml
+	rm support.ml.tmp
 	$(OCAMLBUILD) 0install.docdir/index.html
+	rm support.ml
 
 clean:
 	$(OCAMLBUILD) -clean
