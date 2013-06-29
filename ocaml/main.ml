@@ -26,12 +26,14 @@ let fallback_to_python config args =
 ;;
 
 let main argv =
-  log_info "OCaml front-end to 0install: entering main";
-  let config = Config.get_default_config (List.hd argv) in
+  let system = new Support.System.real_system in
+  let config = Config.get_default_config system (List.hd argv) in
   try
-    match argv with
+    let settings = Cli.parse_args config (List.tl argv) in
+    log_info "OCaml front-end to 0install: entering main";
+    match settings.Cli.args with
     (* 0install run ... *)
-    | (_ :: "run" :: app_or_sels :: args) when not (is_option app_or_sels) && not (is_url app_or_sels) -> (
+    | ("run" :: app_or_sels :: args) when not (is_option app_or_sels) && not (is_url app_or_sels) -> (
       let sels = match Apps.lookup_app config app_or_sels with
       | None -> Selections.load_selections config.system app_or_sels
       | Some app_path -> Apps.get_selections config app_path ~may_update:true in
@@ -39,7 +41,7 @@ let main argv =
       with Safe_exception _ as ex -> reraise_with_context ex ("... running selections " ^ app_or_sels)
     )
     (* 0install runenv *)
-    | (_ :: "runenv" :: runenv_args) -> Run.runenv runenv_args
+    | ("runenv" :: runenv_args) -> Run.runenv runenv_args
     (* For all other cases, fall back to the Python version *)
     | _ -> raise Fallback_to_Python
   with Fallback_to_Python ->

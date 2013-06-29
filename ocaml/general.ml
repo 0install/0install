@@ -22,7 +22,7 @@ module StringMap = Support.Common.StringMap
 
 type config = {
   basedirs: Support.Basedir.basedirs;
-  stores: string list;
+  mutable stores: string list;
   abspath_0install: filepath;
 
   distro: distribution Lazy.t;

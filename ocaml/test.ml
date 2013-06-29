@@ -1,16 +1,25 @@
 open OUnit
+open General
 open Support.Common
+
+(* let () = Support.Logging.threshold := Support.Logging.Info *)
 
 class fake_system =
   object (_ : #system)
     val now = ref 0.0
     val mutable env = StringMap.empty
 
+    val files = Hashtbl.create 10
+
     method time () = !now
 
     method with_open = failwith "file access"
     method mkdir = failwith "file access"
-    method file_exists = failwith "file access"
+
+    method file_exists path =
+      log_info "Check whether file %s exists" path;
+      Hashtbl.mem files path
+
     method lstat = failwith "file access"
     method stat = failwith "file access"
     method atomic_write = failwith "file access"
@@ -64,10 +73,46 @@ let test_basedir () =
   equal_str_lists ~msg:"PORT-3" ["/mnt/0install/data"] bd.data;
 ;; 
 
+let assert_raises_safe expected_msg fn =
+  try Lazy.force fn; assert_failure ("Expected SafeException " ^ expected_msg)
+  with Safe_exception (msg, _) ->
+    assert_equal expected_msg msg
+
+let test_option_parsing () =
+  let system = (new fake_system :> system) in
+  let config = Config.get_default_config system "/usr/bin/0install" in
+  let open Cli in
+  let open Support.Argparse in
+  let p args = Cli.parse_args config args in
+
+  assert_equal Maybe (p []).gui;
+  assert_equal No (p ["--console"]).gui;
+
+  let s = p ["--with-store"; "/data/store"; "run"; "foo"] in
+  assert_equal "/data/store" (List.hd config.stores);
+  equal_str_lists ["run"; "foo"] s.args;
+
+  config.stores <- [];
+  let s = p ["--with-store=/data/s1"; "run"; "--with-store=/data/s2"; "foo"; "--with-store=/data/s3"] in
+  equal_str_lists ["/data/s2"; "/data/s1"] config.stores;
+  equal_str_lists ["run"; "foo"; "--with-store=/data/s3"] s.args;
+
+  assert_raises_safe "Option does not take an argument in '--console=true'" (lazy (p ["--console=true"]));
+
+  let s = p ["-cvv"] in
+  assert_equal No s.gui;
+  assert_equal 2 s.verbosity;
+
+  let s = p ["run"; "-wgdb"; "foo"] in
+  equal_str_lists ["run"; "foo"] s.args;
+  assert_equal (Some "gdb") s.wrapper;
+;;
+
 (* Name the test cases and group them together *)
 let suite = 
-"suite">:::[
+"0install">:::[
  "test_basedir">:: test_basedir;
+ "test_option_parsing">:: test_option_parsing;
 ];;
 
 let () = Printexc.record_backtrace true;;

@@ -12,8 +12,7 @@ open General;;
     [path_to_0install] is used when creating launcher scripts. If it contains no slashes, then
     we search for it in $PATH.
   *)
-let get_default_config path_to_0install =
-  let system = new Support.System.real_system in
+let get_default_config system path_to_0install =
   let abspath_0install = if String.contains path_to_0install Filename.dir_sep.[0] then
     Support.Utils.abspath system path_to_0install
   else
