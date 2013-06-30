@@ -8,8 +8,12 @@ open Common
 
 let starts_with = Utils.starts_with
 
-(* [option names], help text, n_args, tag *)
-type 'a opt = (string list * string * int * 'a)
+(* [option names], help text, [arg types]
+   'a is the type of the tags, 'b is the type of arg types.
+   The callback gets the argument stream (use this for options which take a variable number of arguments)
+   and a list of values (one for each declared argument).
+   *)
+type ('a, 'b) opt = (string list * string * 'b list * (string Stream.t -> string list -> 'a))
 
 type yes_no_maybe = Yes | No | Maybe;;
 
@@ -20,12 +24,11 @@ let string_of_maybe = function
 
 let is_empty stream = None = Stream.peek stream
 
-type 'a option_value =
-  | NoArgOption of 'a
-  | OneArgOption of 'a * string
+(* actual option used, tag, list of arguments *)
+type 'a option_value = (string * 'a)
 
-type 'a spec = {
-  options_spec : 'a opt list;
+type ('a, 'b) argparse_spec = {
+  options_spec : ('a, 'b) opt list;
 
   (** We've just read an argument; should any futher options be treated as arguments? *)
   no_more_options : string list -> bool
@@ -36,14 +39,14 @@ exception Unknown_option of string
 
 let re_equals = Str.regexp_string "="
 
-let parse_args (spec : 'a spec) input_args =
+let parse_args (spec : ('a,'b) argparse_spec) input_args : ('a option_value list * string list) =
   let options = ref [] in
   let args = ref [] in
 
   let options_map =
     let map = ref StringMap.empty in
-    let add (names, _help, tag, n_args) =
-      List.iter (fun name -> map := StringMap.add name (tag, n_args) !map) names;
+    let add (names, _help, arg_types, fn) =
+      List.iter (fun name -> map := StringMap.add name (arg_types, fn) !map) names;
       () in
     List.iter add spec.options_spec;
     !map in
@@ -58,14 +61,15 @@ let parse_args (spec : 'a spec) input_args =
   let handle_option stream opt =
     match lookup_option opt with
     | None -> raise (Unknown_option opt)
-    | Some (0, tag) -> options := NoArgOption(tag) :: !options
-    | Some (1, tag) ->
-        if is_empty stream then
-          raise_safe "Missing argument to option %s" opt
-        else
-          options := OneArgOption(tag, Stream.next stream) :: !options
-    | Some _ ->
-        failwith @@ "Invalid number of option arguments for " ^ opt
+    | Some (arg_types, fn) ->
+        let rec get_values = function
+          | [] -> []
+          | (_::xs) ->
+              if is_empty stream then
+                raise_safe "Missing argument to option %s" opt
+              else
+                Stream.next stream :: get_values xs in
+        options := (opt, fn stream (get_values arg_types)) :: !options
   in
 
   let handle_long_option opt =
@@ -116,5 +120,31 @@ let parse_args (spec : 'a spec) input_args =
         if !allow_options && spec.no_more_options !args then allow_options := false
   done;
 
-  (!options, List.rev !args)
+  (List.rev !options, List.rev !args)
 ;;
+
+let iter_options (options : 'a option_value list) fn =
+  let process (actual_opt, value) =
+    try fn value
+    with Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" actual_opt
+  in List.iter process options
+;;
+
+(** Run [fn (tag, values)] on each option in turn. [fn] should return [true] if the option was handled.
+    Returns a list of unhandled options. If [Safe_exception] is thrown by [fn], we add a context saying which
+    option was being handled. *)
+let filter_options (options : 'a option_value list) fn =
+  let process (actual_opt, value) =
+    try not @@ fn value
+    with Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" actual_opt
+  in List.filter process options
+
+(** {2 Handy wrappers for option handlers} *)
+
+let no_arg a _stream = function
+  | [] -> a
+  | _ -> failwith "Expected no arguments!"
+
+let one_arg fn _stream = function
+  | [item] -> fn item
+  | _ -> failwith "Expected a single item!"

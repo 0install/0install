@@ -74,9 +74,13 @@ let test_basedir () =
 ;; 
 
 let assert_raises_safe expected_msg fn =
-  try Lazy.force fn; assert_failure ("Expected SafeException " ^ expected_msg)
+  try Lazy.force fn; assert_failure ("Expected Safe_exception " ^ expected_msg)
   with Safe_exception (msg, _) ->
     assert_equal expected_msg msg
+
+let assert_raises_fallback fn =
+  try Lazy.force fn; assert_failure "Expected Fallback_to_Python"
+  with Fallback_to_Python -> ()
 
 let test_option_parsing () =
   let system = (new fake_system :> system) in
@@ -94,7 +98,7 @@ let test_option_parsing () =
 
   config.stores <- [];
   let s = p ["--with-store=/data/s1"; "run"; "--with-store=/data/s2"; "foo"; "--with-store=/data/s3"] in
-  equal_str_lists ["/data/s1"; "/data/s2"] config.stores;
+  equal_str_lists ["/data/s2"; "/data/s1"] config.stores;
   equal_str_lists ["run"; "foo"; "--with-store=/data/s3"] s.args;
 
   assert_raises_safe "Option does not take an argument in '--console=true'" (lazy (p ["--console=true"]));
@@ -105,7 +109,13 @@ let test_option_parsing () =
 
   let s = p ["run"; "-wgdb"; "foo"] in
   equal_str_lists ["run"; "foo"] s.args;
-  assert_equal [OneArgOption(Cli.Wrapper, "gdb")] s.extra_options;
+  assert_equal [("-w", Cli.Wrapper "gdb")] s.extra_options;
+
+  assert_raises_fallback (lazy (p ["-c"; "--version"]));
+
+  let s = p ["--version"; "1.2"; "run"; "foo"] in
+  equal_str_lists ["run"; "foo"] s.args;
+  assert_equal [("--version", RequireVersion "1.2")] s.extra_options;
 ;;
 
 (* Name the test cases and group them together *)

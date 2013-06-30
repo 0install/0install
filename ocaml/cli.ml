@@ -12,26 +12,53 @@ let starts_with = Support.Utils.starts_with
 
 let i_ x = x;;
 
+type version = string
+
 type zi_option =
   | UseGUI of yes_no_maybe
   | Verbose
   | Help
   | DryRun
-  | WithStore
-  | Wrapper
+  | WithStore of string
+  | Wrapper of string
+  | ShowVersion
+  | RequireVersion of version
 
-let options_spec : zi_option opt list = [
-  (["-c"; "--console"],    i_ "never use GUI",                     0, UseGUI No);
-  ([      "--dry-run"],    i_ "just print what would be executed", 0, DryRun);
-  (["-g"; "--gui"],        i_ "show graphical policy editor",      0, UseGUI Yes);
-  (["-h"; "--help"],       i_ "show this help message and exit",   0, Help);
-  (["-v"; "--verbose"],    i_ "more verbose output",               0, Verbose);
-  ([      "--with-store"], i_ "add an implementation cache",       1, WithStore);
+type zi_arg_type =
+  | Dir
+  | Command
+  | VersionRange
 
-  (* Run options *)
-  (["-w"; "--wrapper"],    i_ "execute program using a debugger, etc", 1, Wrapper);
+(* This is tricky, because --version does two things:
+   [0install --version] shows the version of 0install.
+   [0install --version=1 run foo] runs version 1 of "foo". *)
+let parse_version_option stream _empty =
+  match Stream.peek stream with
+  | None -> ShowVersion
+  | Some next when starts_with next "-" -> ShowVersion
+  | Some next -> Stream.junk stream; RequireVersion next
 
-];;
+let spec : (zi_option, zi_arg_type) argparse_spec = {
+  options_spec = [
+    (* Run options *)
+    (["-w"; "--wrapper"],    i_ "execute program using a debugger, etc", [Command], (one_arg @@ fun cmd -> Wrapper cmd));
+
+    (* Select options *)
+    ([      "--version"],    i_ "specify version constraint (e.g. '3' or '3..')", [VersionRange], parse_version_option);
+
+    (* Common options (note: common --version must come after the section one) *)
+    (["-c"; "--console"],    i_ "never use GUI",                     [], no_arg @@ UseGUI No);
+    ([      "--dry-run"],    i_ "just print what would be executed", [], no_arg @@ DryRun);
+    (["-g"; "--gui"],        i_ "show graphical policy editor",      [], no_arg @@ UseGUI Yes);
+    (["-h"; "--help"],       i_ "show this help message and exit",   [], no_arg @@ Help);
+    (["-v"; "--verbose"],    i_ "more verbose output",               [], no_arg @@ Verbose);
+    (["-V"; "--version"],    i_ "display version information",       [], parse_version_option);
+    ([      "--with-store"], i_ "add an implementation cache",       [Dir], (one_arg @@ fun path -> WithStore path));
+  ];
+  no_more_options = function
+    | [_; "run"] | [_; "runenv"] -> true
+    | _ -> false;
+}
 
 type global_settings = {
   config : config;
@@ -59,13 +86,6 @@ let increase_verbosity options =
   )
 
 let parse_args config args =
-  let spec : zi_option spec = {
-    options_spec;
-    no_more_options = function
-      | [_; "run"] | [_; "runenv"] -> true
-      | _ -> false
-  } in
-
   let (raw_options, args) = try Support.Argparse.parse_args spec args;
   with Unknown_option opt ->
     log_info "Unknown option '%s'" opt;
@@ -81,19 +101,14 @@ let parse_args config args =
     args;
   } in
 
-  let unhandled = ref [] in
-
-  let handle_global opt = match opt with
-    | NoArgOption(UseGUI b) -> options.gui <- b
-    | NoArgOption(DryRun) -> raise Fallback_to_Python
-    | NoArgOption(Verbose) -> increase_verbosity options
-    | OneArgOption(WithStore, store) -> add_store options store
-    | _ -> unhandled := opt :: !unhandled
-  in
-
-  List.iter handle_global raw_options;
-
-  options.extra_options <- List.rev !unhandled;
+  options.extra_options <- filter_options raw_options (function
+    | UseGUI b -> options.gui <- b; true
+    | DryRun -> raise Fallback_to_Python
+    | Verbose -> increase_verbosity options; true
+    | WithStore store -> add_store options store; true
+    | ShowVersion -> raise Fallback_to_Python
+    | _ -> false
+  );
 
   options
 ;;

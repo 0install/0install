@@ -111,5 +111,5 @@ let rec build_command impls command_iface command_name env : string list =
         let runner_args = get_args runner env in
         let runner_command_name = default "run" (ZI.get_attribute_opt "command" runner) in
         (build_command impls (ZI.get_attribute "interface" runner) runner_command_name env) @ runner_args @ args
-  with Safe_exception _ as ex -> reraise_with_context ex ("... building command for " ^ command_iface)
+  with Safe_exception _ as ex -> reraise_with_context ex "... building command for %s" command_iface
 ;;

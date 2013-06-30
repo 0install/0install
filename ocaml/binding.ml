@@ -76,7 +76,7 @@ let collect_bindings impls root =
   let process_sel node =
     let iface = (ZI.get_attribute "interface" node) in
     try process ~deps:true ~commands:true iface node
-    with Safe_exception _ as ex -> reraise_with_context ex ("... getting bindings from selection " ^ iface)
+    with Safe_exception _ as ex -> reraise_with_context ex "... getting bindings from selection %s" iface
   in 
   ZI.iter_with_name process_sel root "selection";
   List.rev !bindings

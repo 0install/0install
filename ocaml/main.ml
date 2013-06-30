@@ -28,17 +28,17 @@ let fallback_to_python config args =
 
 let handle_run config options args : unit =
   let wrapper = ref None in
-  let handle = function
-    | Support.Argparse.OneArgOption(Wrapper, w) -> wrapper := Some w
-    | _ -> raise Fallback_to_Python in
-  List.iter handle options.extra_options;
+  Support.Argparse.iter_options options.extra_options (function
+    | Wrapper w -> wrapper := Some w
+    | _ -> raise Fallback_to_Python
+  );
   match args with
   | app_or_sels :: run_args when not (is_option app_or_sels) && not (is_url app_or_sels) -> (
       let sels = match Apps.lookup_app config app_or_sels with
       | None -> Selections.load_selections config.system app_or_sels
       | Some app_path -> Apps.get_selections config app_path ~may_update:true in
       try Run.execute_selections config sels run_args ?wrapper:!wrapper
-      with Safe_exception _ as ex -> reraise_with_context ex ("... running selections " ^ app_or_sels)
+      with Safe_exception _ as ex -> reraise_with_context ex "... running selections %s" app_or_sels
     )
   | _ -> raise Fallback_to_Python
 ;;
