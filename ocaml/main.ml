@@ -6,7 +6,7 @@
 
 open General
 open Support.Common
-open Cli
+open Options
 
 let is_option x = String.length x > 0 && x.[0] = '-';;
 let is_iface_url x = String.length x > 0 && x.[0] = '-';;
@@ -47,15 +47,18 @@ let main argv : unit =
   let system = new Support.System.real_system in
   let config = Config.get_default_config system (List.hd argv) in
   try
-    let options = parse_args config (List.tl argv) in
-    match options.args with
-    | ("run" :: run_args) -> handle_run config options run_args
-    | ("runenv" :: runenv_args) ->
-        if List.length options.extra_options > 0 then
-          raise_safe "The 'runenv' sub-command does not support any options."
-        else
-          Run.runenv runenv_args
-    | _ -> raise Fallback_to_Python
+    match List.tl argv with
+    | "_complete" :: args -> Completion.handle_complete config args
+    | "runenv" :: runenv_args -> Run.runenv runenv_args
+    | raw_args ->
+        let options =
+          try Cli.parse_args config raw_args
+          with Safe_exception _ as ex ->
+            reraise_with_context ex "... processing command line: %s" (String.concat " " argv)
+        in
+        match options.args with
+        | ("run" :: run_args) -> handle_run config options run_args
+        | _ -> raise Fallback_to_Python
   with Fallback_to_Python ->
     log_info "Can't handle this case; switching to Python version...";
     fallback_to_python config (List.tl argv)

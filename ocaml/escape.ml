@@ -14,8 +14,8 @@ let unescape uri =
     match m.[0] with
     | '#' -> "/"
     | '%' ->
-      let c = Char.chr (int_of_string ("0x" ^ (String.sub m 1 3))) in
-      String.make 1 c
+        let c = Char.chr (int_of_string ("0x" ^ (String.sub m 1 2))) in
+        String.make 1 c
     | _ -> assert false
   in Str.global_substitute re_escaped fn uri
 ;;

@@ -15,6 +15,10 @@ class real_system =
     method unlink = Unix.unlink
     method getcwd = Sys.getcwd
 
+    method readdir path =
+      try Success (Sys.readdir path)
+      with Sys_error _ as ex -> Failure ex
+
     method lstat path =
       try Some (Unix.lstat path)
       with Unix.Unix_error (errno, _, _) as ex ->

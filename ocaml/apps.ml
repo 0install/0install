@@ -140,3 +140,17 @@ let get_selections config app_path ~may_update =
     if may_update then raise Fallback_to_Python
     else raise_safe "App selections missing! Expected: %s" sels_path
 ;;
+
+let list_app_names config =
+  let apps = ref StringSet.empty in
+  let system = config.system in
+  let module Basedir = Support.Basedir in
+  let scan_dir path =
+    let check_app name =
+      if Str.string_match re_app_name name 0 then
+        apps := StringSet.add name !apps in
+    match system#readdir (path +/ config_site +/ "apps") with
+    | Failure _ -> ()
+    | Success files -> Array.iter check_app files in
+  List.iter scan_dir config.basedirs.Basedir.config;
+  StringSet.elements !apps

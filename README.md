@@ -57,7 +57,8 @@ Logging out and back in again will ensure $PATH and the Applications menu get
 updated correctly, on Ubuntu at least.
 
 A bash completion script is available in share/bash-completion. It can be
-sourced from your .bashrc or added under /usr/share/bash-completion.
+sourced from your .bashrc or added under /usr/share/bash-completion. Note that
+you may have to install a separate "bash-completion" package on some systems.
 
 For zsh users, copy the script in share/zsh/site-functions/ to a directory in
 your $fpath (e.g. /usr/local/share/zsh/site-functions).

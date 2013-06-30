@@ -5,6 +5,11 @@
 (** Common types and functions. This module is intended to be opened. *)
 
 module StringMap = Map.Make(String)
+module StringSet = Set.Make(String)
+
+type 'a result =
+  | Success of 'a
+  | Failure of exn
 
 (** [a @@ b @@ c] is an alternative way to write [a (b (c))]. It's like [$] in Haskell. **)
 let (@@) f x = f x
@@ -24,6 +29,7 @@ class type system =
     method unlink : filepath -> unit
     method getcwd : unit -> filepath
     method atomic_write : (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
+    method readdir : filepath -> string array result
 
     method exec : ?search_path:bool -> ?env:string array -> string list -> 'a
     method create_process : filepath -> string array -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int

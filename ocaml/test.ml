@@ -15,6 +15,7 @@ class fake_system =
 
     method with_open = failwith "file access"
     method mkdir = failwith "file access"
+    method readdir = failwith "file access"
 
     method file_exists path =
       log_info "Check whether file %s exists" path;
@@ -85,8 +86,7 @@ let assert_raises_fallback fn =
 let test_option_parsing () =
   let system = (new fake_system :> system) in
   let config = Config.get_default_config system "/usr/bin/0install" in
-  let open Cli in
-  let open Support.Argparse in
+  let open Options in
   let p args = Cli.parse_args config args in
 
   assert_equal Maybe (p []).gui;
@@ -109,7 +109,7 @@ let test_option_parsing () =
 
   let s = p ["run"; "-wgdb"; "foo"] in
   equal_str_lists ["run"; "foo"] s.args;
-  assert_equal [("-w", Cli.Wrapper "gdb")] s.extra_options;
+  assert_equal [("-w", Wrapper "gdb")] s.extra_options;
 
   assert_raises_fallback (lazy (p ["-c"; "--version"]));
 
