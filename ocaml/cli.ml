@@ -169,10 +169,7 @@ let check_options command_name options =
 ;;
 
 let parse_args config args =
-  let (raw_options, args) = try Support.Argparse.parse_args spec args;
-  with Unknown_option opt ->
-    log_info "Unknown option '%s'" opt;
-    raise Fallback_to_Python in
+  let (raw_options, args) = Support.Argparse.parse_args spec args in
 
   (* Default values *)
   let options = {

@@ -41,9 +41,6 @@ type ('a,'b) argparse_spec = {
   no_more_options : string list -> bool
 }
 
-(* Might want to get rid of this later, but for now we need to throw Fallback_to_Python *)
-exception Unknown_option of string
-
 let re_equals = Str.regexp_string "="
 
 type ('a,'b) complete =
@@ -93,7 +90,7 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
         | Some _ ->
           (* We are completing elsewhere; just skip unknown options *)
           ()
-        | None -> raise (Unknown_option opt)
+        | None -> raise_safe "Unknown option '%s'" opt
     )
     | Some handler ->
         let values = handler#read opt stream ~completion:carg in
