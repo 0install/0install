@@ -16,6 +16,7 @@ class fake_system =
     method with_open = failwith "file access"
     method mkdir = failwith "file access"
     method readdir = failwith "file access"
+    method chmod = failwith "file access"
 
     method file_exists path =
       log_info "Check whether file %s exists" path;
@@ -25,6 +26,7 @@ class fake_system =
     method stat = failwith "file access"
     method atomic_write = failwith "file access"
     method unlink = failwith "file access"
+    method rmdir = failwith "file access"
 
     method exec = failwith "exec"
     method create_process = failwith "exec"
@@ -43,6 +45,14 @@ class fake_system =
 
 let format_list l = "[" ^ (String.concat "; " l) ^ "]"
 let equal_str_lists = assert_equal ~printer:format_list
+
+let real_system = new Support.System.real_system
+
+let () = Random.self_init ()
+let with_tmpdir fn () =
+  let tmppath = Filename.get_temp_dir_name () +/ Printf.sprintf "0install-test-%x" (Random.int 0x3fffffff) in
+  Unix.mkdir tmppath 0o700;   (* will fail if already exists; OK for testing *)
+  Support.Utils.finally (Support.Utils.ro_rmtree real_system) tmppath fn
 
 let test_basedir () =
   let system = new fake_system in
@@ -118,11 +128,25 @@ let test_option_parsing () =
   assert_equal [("--version", RequireVersion "1.2")] s.extra_options;
 ;;
 
+let test_run_real tmpdir =
+  Unix.putenv "ZEROINSTALL_PORTABLE_BASE" tmpdir;
+  let checked_close_process_in ch =
+    if Unix.close_process_in ch <> Unix.WEXITED 0 then
+      assert_failure "Child process failed" in
+  let line =
+    Support.Utils.finally checked_close_process_in
+      (Unix.open_process_in "../_build/0install run ./test_selections.xml") (fun ch ->
+      input_line ch
+  ) in
+  assert_equal ~printer:(fun a -> a) "Hello World" line
+;;
+
 (* Name the test cases and group them together *)
 let suite = 
 "0install">:::[
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: test_option_parsing;
+ "test_run_real">:: with_tmpdir test_run_real;
 ];;
 
 let () = Printexc.record_backtrace true;;

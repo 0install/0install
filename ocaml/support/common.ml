@@ -12,7 +12,10 @@ type 'a result =
   | Failure of exn
 
 (** [a @@ b @@ c] is an alternative way to write [a (b (c))]. It's like [$] in Haskell. **)
-let (@@) f x = f x
+external ( @@ ) : ('a -> 'b) -> 'a -> 'b = "%apply"
+
+(** [a |> b] is an alternative way to write (b a) **)
+external (|>) : 'a -> ('a -> 'b) -> 'b = "%revapply";;
 
 type filepath = string;;
 type varname = string;;
@@ -27,9 +30,11 @@ class type system =
     method lstat : filepath -> Unix.stats option
     method stat : filepath -> Unix.stats option
     method unlink : filepath -> unit
+    method rmdir : filepath -> unit
     method getcwd : unit -> filepath
     method atomic_write : (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
     method readdir : filepath -> string array result
+    method chmod : filepath -> Unix.file_perm -> unit
 
     method exec : ?search_path:bool -> ?env:string array -> string list -> 'a
     method create_process : filepath -> string array -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int

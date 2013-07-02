@@ -221,3 +221,25 @@ let parse_ini (system:system) fn path =
 let with_dev_null fn =
   let null_fd = Unix.openfile "/dev/null" [Unix.O_WRONLY] 0 in
   finally Unix.close null_fd fn
+
+let ro_rmtree (sys:system) root =
+  if starts_with (sys#getcwd () ^ Filename.dir_sep) (root ^ Filename.dir_sep) then
+    log_warning "Removing tree (%s) containing the current directory (%s) - this will not work on Windows" root (sys#getcwd ());
+
+  let rec rmtree path =
+    match sys#lstat path with
+    | None -> failwith ("Path " ^ path ^ " does not exist!")
+    | Some info ->
+      match info.Unix.st_kind with
+      | Unix.S_REG | Unix.S_LNK | Unix.S_BLK | Unix.S_CHR | Unix.S_SOCK | Unix.S_FIFO ->
+          if on_windows then sys#chmod path 0o700;
+          sys#unlink path
+      | Unix.S_DIR -> (
+          match sys#readdir path with
+          | Success files ->
+              sys#chmod path 0o700;
+              Array.iter (fun leaf -> rmtree @@ path +/ leaf) files;
+              sys#rmdir path
+          | Failure ex -> raise ex
+    ) in
+  rmtree root

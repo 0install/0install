@@ -6,8 +6,8 @@ OCAMLBUILD=ocamlbuild -use-ocamlfind -build-dir "${BUILDDIR}"
 all: test
 
 test: ocaml
-	$(OCAMLBUILD) test.native
-	./_build/test.native
+	$(OCAMLBUILD) tests/test.native
+	(cd tests && ../_build/tests/test.native)
 
 ocaml: 
 	$(OCAMLBUILD) main.native

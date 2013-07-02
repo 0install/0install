@@ -16,37 +16,59 @@ let validate_exec_name name =
   else
     raise_safe "Invalid name in executable binding: %s" name
 
-let ensure_runenv config =
-  let main_dir = Basedir.save_path config.system ("0install.net" +/ "injector") config.basedirs.Basedir.cache in
-  let runenv = main_dir +/ "runenv" in
-  if Sys.file_exists runenv then
-    ()
-  else
-    (** TODO: If abspath_0install is a native binary, we could avoid starting a shell here. *)
-    let write handle =
-      output_string handle (Printf.sprintf "#!/bin/sh\nexec '%s' runenv \"$0\" \"$@\"\n" config.abspath_0install)
-    in config.system#atomic_write write runenv 0o755
-;;
+class virtual launcher_builder config script =
+  let hash = String.sub (Digest.to_hex @@ Digest.string script) 0 6 in
+  object
+    method make_dir name =
+      Basedir.save_path config.system ("0install.net" +/ "injector" +/ ("exec-" ^ hash) +/ name) config.basedirs.Basedir.cache
 
-let do_exec_binding config env impls = function
+    method add_launcher path =
+      if not @@ Sys.file_exists path then (
+        let write ch = output_string ch script in
+        config.system#atomic_write write path 0o755
+      )
+  end
+
+(** If abspath_0install is a native binary, we can avoid starting a shell here. *)
+class native_launcher_builder config =
+  let script = Printf.sprintf "#!%s runenv\n" config.abspath_0install in
+  object (_ : #launcher_builder)
+    inherit launcher_builder config script
+  end
+
+(** We can't use interpreted bytecode as a #! interpreter, so use a shell script instead. *)
+class bytecode_launcher_builder config =
+  let script = Printf.sprintf "#!/bin/sh\nexec '%s' runenv \"$0\" \"$@\"\n" config.abspath_0install in
+  object (_ : #launcher_builder)
+    inherit launcher_builder config script
+  end
+
+(* TODO: untested; escaping probably doesn't work.
+   Other options here are the C# launcher (rather slow) or a C launcher of some description. *)
+class windows_launcher_builder config =
+  let script = Printf.sprintf "\"%s\" runenv %0 %*\n" config.abspath_0install in
+  object (_ : #launcher_builder)
+    inherit launcher_builder config script
+  end
+
+let get_launcher_builder config =
+  if on_windows then new windows_launcher_builder config
+  else
+    let buf = String.create 2 in
+    let () = config.system#with_open (fun ch -> really_input ch buf 0 2) config.abspath_0install in
+    if buf = "!#" then
+      new bytecode_launcher_builder config
+    else
+      new native_launcher_builder config
+
+let do_exec_binding builder env impls = function
   | (iface_uri, Binding.ExecutableBinding {Binding.exec_type; Binding.name; Binding.command}) -> (
     validate_exec_name name;
 
-    (* set up launcher symlink *)
-    let exec_dir = Basedir.save_path config.system ("0install.net" +/ "injector" +/ "executables" +/ name) config.basedirs.Basedir.cache in
-    let exec_path = exec_dir ^ Filename.dir_sep ^ name in   (* TODO: windows *)
-
-    if not (Sys.file_exists exec_path) then (
-      if on_windows then (
-        let write handle =
-          (* TODO: escaping *)
-          output_string handle (Printf.sprintf "\"%s\" runenv %0 %*\n" config.abspath_0install)
-        in config.system#atomic_write write exec_path 0o755
-      ) else (
-        Unix.symlink "../../runenv" exec_path
-      );
-      Unix.chmod exec_dir 0o500
-    ) else ();
+    let exec_dir = builder#make_dir name in
+    let exec_path = exec_dir +/ name in
+    builder#add_launcher exec_path;
+    Unix.chmod exec_dir 0o500;
 
     let command_argv = Command.build_command impls iface_uri command env in
 
@@ -57,7 +79,7 @@ let do_exec_binding config env impls = function
     let open Yojson.Basic in
     let json :json = `List (List.map (fun a -> `String a) command_argv) in
 
-    Env.putenv ("0install-runenv-" ^ name) (to_string json) env
+    Env.putenv ("zeroinstall-runenv-" ^ name) (to_string json) env
   )
   | _ -> ()
 ;;
@@ -78,14 +100,13 @@ let get_exec_args config sels args =
   let env = Env.copy_current_env () in
   let impls = make_selection_map config.stores sels in
   let bindings = Binding.collect_bindings impls sels in
-
-  ensure_runenv config;
+  let launcher_builder = get_launcher_builder config in
 
   (* Do <environment> bindings *)
   List.iter (Binding.do_env_binding env impls) bindings;
 
   (* Do <executable-in-*> bindings *)
-  List.iter (do_exec_binding config env impls) bindings;
+  List.iter (do_exec_binding launcher_builder env impls) bindings;
 
   let command = ZI.get_attribute "command" sels in
   let prog_args = (Command.build_command impls (ZI.get_attribute "interface" sels) command env) @ args in
@@ -110,7 +131,7 @@ let runenv args =
   | arg0::args ->
     try
       let system = new Support.System.real_system in
-      let var = "0install-runenv-" ^ Filename.basename arg0 in
+      let var = "zeroinstall-runenv-" ^ Filename.basename arg0 in
       let s = Support.Utils.getenv_ex system var in
       let open Yojson.Basic in
       let envargs = Util.convert_each Util.to_string (from_string s) in

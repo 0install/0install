@@ -13,7 +13,9 @@ class real_system =
     method file_exists = Sys.file_exists
     method create_process = Unix.create_process
     method unlink = Unix.unlink
+    method rmdir = Unix.rmdir
     method getcwd = Sys.getcwd
+    method chmod = Unix.chmod
 
     method readdir path =
       try Success (Sys.readdir path)
