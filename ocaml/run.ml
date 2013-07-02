@@ -25,8 +25,13 @@ class virtual launcher_builder config script =
     method add_launcher path =
       if not @@ Sys.file_exists path then (
         let write ch = output_string ch script in
-        config.system#atomic_write write path 0o755
+        config.system#atomic_write [Open_rdonly; Open_binary] write path 0o755
       )
+
+    method setenv name command_argv env =
+      let open Yojson.Basic in
+      let json :json = `List (List.map (fun a -> `String a) command_argv) in
+      Env.putenv ("zeroinstall-runenv-" ^ name) (to_string json) env
   end
 
 (** If abspath_0install is a native binary, we can avoid starting a shell here. *)
@@ -43,19 +48,61 @@ class bytecode_launcher_builder config =
     inherit launcher_builder config script
   end
 
+let re_quote = Str.regexp_string "\""
+let re_contains_whitespace = Str.regexp ".*[ \t\n\r\x0b\x0c].*" (* from Python's string.whitespace *)
+let rec count_cons_slashes_before s i =
+  if i = 0 || s.[i - 1] <> '\\' then 0
+  else 1 + count_cons_slashes_before s (i - 1)
+
+let windows_args_escape args =
+  let escape arg =
+    (* Combines multiple strings into one for use as a Windows command-line argument.
+       This coressponds to Windows' handling of command-line arguments as specified in:
+        http://msdn.microsoft.com/library/17w5ykft. *)
+
+    (* Add leading quotation mark if there are whitespaces *)
+    let contains_whitespace = Str.string_match re_contains_whitespace arg 0 in
+
+    (* Split by quotation marks *)
+    let parts = Str.split_delim re_quote arg in
+    let escaped_part part =
+      (* Double number of slashes *)
+      let l = String.length part in
+      let slashes_count = count_cons_slashes_before part l in
+      part ^ String.sub part (l - slashes_count) slashes_count in
+    let escaped_contents = String.concat "\\\"" (List.map escaped_part parts) in
+    if contains_whitespace then
+      "\"" ^ escaped_contents ^ "\""
+    else
+      escaped_contents
+  in
+  String.concat " " (List.map escape args)
+
 (* TODO: untested; escaping probably doesn't work.
    Other options here are the C# launcher (rather slow) or a C launcher of some description. *)
 class windows_launcher_builder config =
-  let script = Printf.sprintf "\"%s\" runenv %0 %*\n" config.abspath_0install in
+  let read_launcher ch =
+    let n = in_channel_length ch in
+    let s = String.create n in
+    really_input ch s 0 n;
+    s in
+  let script =
+    match config.system#getenv "ZEROINSTALL_CLI_TEMPLATE" with
+    | None -> failwith "%ZEROINSTALL_CLI_TEMPLATE% not set!"
+    | Some template_path -> config.system#with_open [Open_rdonly; Open_binary] 0 read_launcher template_path in
   object (_ : #launcher_builder)
     inherit launcher_builder config script
+
+    method! setenv name command_argv env =
+      Env.putenv ("ZEROINSTALL_RUNENV_FILE_" ^ name) (List.hd command_argv) env;
+      Env.putenv ("ZEROINSTALL_RUNENV_ARGS_" ^ name) (windows_args_escape (List.tl command_argv)) env;
   end
 
 let get_launcher_builder config =
   if on_windows then new windows_launcher_builder config
   else
     let buf = String.create 2 in
-    let () = config.system#with_open (fun ch -> really_input ch buf 0 2) config.abspath_0install in
+    let () = config.system#with_open [Open_rdonly; Open_binary] 0 (fun ch -> really_input ch buf 0 2) config.abspath_0install in
     if buf = "!#" then
       new bytecode_launcher_builder config
     else
@@ -76,10 +123,7 @@ let do_exec_binding builder env impls = function
     | Binding.InPath -> Binding.prepend "PATH" exec_dir path_sep env
     | Binding.InVar -> Env.putenv name exec_path env in
 
-    let open Yojson.Basic in
-    let json :json = `List (List.map (fun a -> `String a) command_argv) in
-
-    Env.putenv ("zeroinstall-runenv-" ^ name) (to_string json) env
+    builder#setenv name command_argv env
   )
   | _ -> ()
 ;;

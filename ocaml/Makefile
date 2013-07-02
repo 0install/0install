@@ -11,8 +11,13 @@ test: ocaml
 
 ocaml: 
 	$(OCAMLBUILD) main.native
-	mv _build/main.native _build/0install
-	[ -f 0install ] || ln -s _build/0install 0install
+	if [ $(OS) = "Windows_NT" ];then \
+		cp _build/main.native _build/0install.exe; \
+		cp 0install.exe.manifest _build/; \
+	else \
+		cp _build/main.native _build/0install; \
+		[ -f 0install ] || ln -s _build/0install 0install; \
+	fi
 
 byte:
 	$(OCAMLBUILD) main.byte

@@ -77,7 +77,7 @@ module Cache =
               with End_of_file -> ()
               
               in
-            config.system#with_open load_cache cache_path
+            config.system#with_open [Open_rdonly; Open_text] 0 load_cache cache_path
           )
 
         (** Check cache is still up-to-date. Clear it not. *)

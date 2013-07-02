@@ -94,7 +94,7 @@ let ends_with str prefix =
       else loop (i + 1)
     in loop 0;;
 
-let path_is_absolute path = starts_with path Filename.dir_sep;;
+let path_is_absolute path = not (Filename.is_relative path)
 
 (** If the given path is relative, make it absolute by prepending the current directory to it. *)
 let abspath (system:system) path =
@@ -215,7 +215,7 @@ let parse_ini (system:system) fn path =
           !handler (key, value)
       done
     with End_of_file -> () in
-  system#with_open read path
+  system#with_open [Open_rdonly; Open_text] 0 read path
 ;;
 
 let with_dev_null fn =

@@ -95,8 +95,12 @@ let rec build_command impls command_iface command_name env : string list =
                 Qdom.raise_elem ("Absolute path '" ^ command_rel_path ^ "' in ") command
             )
           in
-            if Sys.file_exists command_path then command_path :: command_args
-            else Qdom.raise_elem ("Path '" ^ command_path ^ "' does not exist: see ") command
+            if Sys.file_exists command_path then
+              command_path :: command_args
+            else if on_windows && Sys.file_exists (command_path ^ ".exe") then
+              (command_path ^ ".exe") :: command_args
+            else
+              Qdom.raise_elem ("Path '" ^ command_path ^ "' does not exist: see ") command
     ) in
 
     (* recursively process our runner, if any *)

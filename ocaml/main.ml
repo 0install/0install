@@ -21,11 +21,15 @@ let is_url url =
     otherwise use the system version of 0install. *)
 let fallback_to_python config args =
   let try_with path =
-    if config.system#file_exists path then
-      config.system#exec (path :: "--python-fallback" :: args) in
+    if config.system#file_exists path then (
+      (* Note: on Windows, we need to specify "python" *)
+      config.system#exec ~search_path:true ("python" :: path :: "--python-fallback" :: args)
+    ) in
   let my_dir = Filename.dirname config.abspath_0install in
   try_with @@ my_dir +/ "0launch";                   (* When installed in /usr/bin *)
-  try_with @@ Filename.dirname my_dir +/ "0launch";  (* When running from build directory *)
+  let parent_dir = Filename.dirname my_dir in
+  try_with @@ parent_dir +/ "0launch";  (* When running from ocaml directory *)
+  try_with @@ Filename.dirname parent_dir +/ "0launch";  (* When running from _build directory *)
   failwith "Can't find 0launch command!"
 ;;
 

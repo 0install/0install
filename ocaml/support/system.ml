@@ -34,9 +34,9 @@ class real_system =
         else raise ex
 
     (** [with_open fn file] opens [file], calls [fn handle], and then closes it again. *)
-    method with_open fn file =
+    method with_open open_flags mode fn file =
       let (ch:in_channel) =
-        try open_in file
+        try open_in_gen open_flags mode file
         with Sys_error msg -> raise_safe "Open failed: %s" msg in
       Utils.finally close_in ch fn
 
@@ -76,10 +76,10 @@ class real_system =
         raise (Safe_exception (Printexc.to_string ex, ref ["... trying to exec: " ^ cmd]))
 
     (** Create and open a new text file, call [fn chan] on it, and rename it over [path] on success. *)
-    method atomic_write fn path mode =
+    method atomic_write open_flags fn path mode =
       let dir = Filename.dirname path in
       let (tmpname, ch) =
-        try Filename.open_temp_file ~temp_dir:dir "tmp-" ".new"
+        try Filename.open_temp_file ~mode:open_flags ~temp_dir:dir "tmp-" ".new"
         with Sys_error msg -> raise_safe "open_temp_file failed: %s" msg
       in
       let result = Utils.finally close_out ch fn in

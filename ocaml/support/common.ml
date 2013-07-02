@@ -17,14 +17,14 @@ external ( @@ ) : ('a -> 'b) -> 'a -> 'b = "%apply"
 (** [a |> b] is an alternative way to write (b a) **)
 external (|>) : 'a -> ('a -> 'b) -> 'b = "%revapply";;
 
-type filepath = string;;
-type varname = string;;
+type filepath = string
+type varname = string
 
 class type system =
   object
     method time : unit -> float
 
-    method with_open : (in_channel -> 'a) -> filepath -> 'a
+    method with_open : open_flag list -> Unix.file_perm -> (in_channel -> 'a) -> filepath -> 'a
     method mkdir : filepath -> Unix.file_perm -> unit
     method file_exists : filepath -> bool
     method lstat : filepath -> Unix.stats option
@@ -32,7 +32,7 @@ class type system =
     method unlink : filepath -> unit
     method rmdir : filepath -> unit
     method getcwd : unit -> filepath
-    method atomic_write : (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
+    method atomic_write : open_flag list -> (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
     method readdir : filepath -> string array result
     method chmod : filepath -> Unix.file_perm -> unit
 

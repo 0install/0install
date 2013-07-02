@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Without this, Windows refuses to run programs with certain strings in their
+     names, including "install". See:
+     http://social.msdn.microsoft.com/forums/en-US/windowssecurity/thread/73f86e9e-928f-40b7-8dd5-27e40db6997e/
+  -->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+       <security>
+          <requestedPrivileges>
+              <requestedExecutionLevel level="asInvoker"/>
+          </requestedPrivileges>
+       </security>
+   </trustInfo>
+</assembly>

@@ -61,6 +61,7 @@ let () = Support.Logging.handler := (fake_log :> Support.Logging.handler)
 
 let format_list l = "[" ^ (String.concat "; " l) ^ "]"
 let equal_str_lists = assert_equal ~printer:format_list
+let assert_str_equal = assert_equal ~printer:(fun x -> x)
 
 let real_system = new Support.System.real_system
 
@@ -71,6 +72,8 @@ let with_tmpdir fn () =
   Support.Utils.finally (Support.Utils.ro_rmtree real_system) tmppath fn
 
 let test_basedir () =
+  skip_if (Sys.os_type = "Win32") "Don't work on Windows";
+
   let system = new fake_system in
   let open Support.Basedir in
 
@@ -109,9 +112,15 @@ let assert_raises_fallback fn =
   try Lazy.force fn; assert_failure "Expected Fallback_to_Python"
   with Fallback_to_Python -> ()
 
-let test_option_parsing () =
+let get_fake_config () =
   let system = (new fake_system :> system) in
-  let config = Config.get_default_config system "/usr/bin/0install" in
+  let my_path =
+    if on_windows then "C:\\Windows\\system32"
+    else "/usr/bin/0install" in
+  Config.get_default_config system my_path
+
+let test_option_parsing () =
+  let config = get_fake_config () in
   let open Options in
   let p args = Cli.parse_args config args in
 
@@ -151,13 +160,23 @@ let test_run_real tmpdir =
   let checked_close_process_in ch =
     if Unix.close_process_in ch <> Unix.WEXITED 0 then
       assert_failure "Child process failed" in
+  let test_command =
+    if on_windows then "..\\_build\\0install run .\\test_selections_win.xml"
+    else"../_build/0install run ./test_selections.xml" in
   let line =
     Support.Utils.finally checked_close_process_in
-      (Unix.open_process_in "../_build/0install run ./test_selections.xml") (fun ch ->
+      (Unix.open_process_in test_command) (fun ch ->
       input_line ch
   ) in
-  assert_equal ~printer:(fun a -> a) "Hello World" line
+  assert_str_equal "Hello World" line
 ;;
+
+let test_windows_escaping () =
+  assert_str_equal "\\\\"                       @@ Run.windows_args_escape ["\\"];
+  assert_str_equal "foo bar"                  @@ Run.windows_args_escape ["foo"; "bar"];
+  assert_str_equal "\"foo bar\""              @@ Run.windows_args_escape ["foo bar"];
+  assert_str_equal "\"foo \\\"bar\\\"\""      @@ Run.windows_args_escape ["foo \"bar\""];
+  assert_str_equal "\"foo \\\\\\\"bar\\\"\""  @@ Run.windows_args_escape ["foo \\\"bar\""]
 
 (* Name the test cases and group them together *)
 let suite = 
@@ -165,6 +184,7 @@ let suite =
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: test_option_parsing;
  "test_run_real">:: with_tmpdir test_run_real;
+ "test_windows_escaping">:: test_windows_escaping;
 ];;
 
 let () = Printexc.record_backtrace true;;
