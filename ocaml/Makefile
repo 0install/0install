@@ -12,6 +12,7 @@ test: ocaml
 ocaml: 
 	$(OCAMLBUILD) main.native
 	mv _build/main.native _build/0install
+	[ -f 0install ] || ln -s _build/0install 0install
 
 byte:
 	$(OCAMLBUILD) main.byte
