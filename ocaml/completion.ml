@@ -77,11 +77,10 @@ class virtual completer config =
           let domains = StringSet.fold add_matching_domain (Feed_cache.list_all_interfaces config) StringSet.empty in
           List.iter (self#add Prefix) (StringSet.elements domains)
         )
-      ) else (
-        let re_scheme_sep = Str.regexp "://" in
-        if not (Str.string_match re_scheme_sep prefix 0) then
-          self#add_files prefix
-      )
+      );
+      let re_scheme_sep = Str.regexp "https?://" in
+      if not (Str.string_match re_scheme_sep prefix 0) then
+        self#add_files prefix
 
   end
 
@@ -100,6 +99,7 @@ let complete_command (completer:completer) raw_options prefix =
 
 let complete_arg (completer:completer) pre = function
   | ["run"] -> completer#add_apps pre; completer#add_interfaces pre; completer#add_files pre
+  | ["run"; _] -> completer#add_files pre
   | ["add"] -> completer#add_interfaces pre
   | ["add-feed"] -> completer#add_interfaces pre
   | ["add-feed"; _iface] -> completer#add_files pre
