@@ -8,22 +8,23 @@ type level = Debug | Info | Warning
 
 let threshold = ref Warning
 
-(* [fmt] has type ('a, unit, string, unit) format4, which means:
-   - we accept any a format with variables type (e.g. "got:%s" has type string -> unit)
-   - any custom print function passed by the caller has type unit -> string
-   - the final result of the whole thing is unit
- *)
+class type handler =
+  object
+    method handle : ?ex:exn -> level -> string -> unit
+  end
 
-let log level ?ex =
-  let do_log s =
-    if level >= !threshold then (
+let console_handler =
+  object (_ : handler)
+    method handle ?ex level msg =
       match level with
       | Debug ->
-          output_string stderr ("debug: " ^ s ^ "\n")
+          output_string stderr ("debug: " ^ msg ^ "\n");
+          flush stderr
       | Info ->
-          output_string stderr ("info: " ^ s ^ "\n")
+          output_string stderr ("info: " ^ msg ^ "\n");
+          flush stderr
       | Warning ->
-          output_string stderr ("warning: " ^ s);
+          output_string stderr ("warning: " ^ msg);
           let () = match ex with
           | None -> ()
           | Some ex ->
@@ -33,8 +34,23 @@ let log level ?ex =
                 output_string stderr "\n";
                 Printexc.print_backtrace stderr
               ) else ()
-          in output_string stderr "\n"
-    )
+          in
+          output_string stderr "\n";
+          flush stderr
+  end
+
+let handler = ref console_handler
+
+(* [fmt] has type ('a, unit, string, unit) format4, which means:
+   - we accept any a format with variables type (e.g. "got:%s" has type string -> unit)
+   - any custom print function passed by the caller has type unit -> string
+   - the final result of the whole thing is unit
+ *)
+
+let log level ?ex =
+  let do_log msg =
+    if level >= !threshold then
+      !handler#handle ?ex level msg
   in
   Printf.ksprintf do_log
 ;;

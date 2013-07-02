@@ -43,6 +43,22 @@ class fake_system =
   end
 ;;
 
+let fake_log =
+  object (_ : #Support.Logging.handler)
+    val mutable record = []
+
+    method reset () =
+      record <- []
+
+    method get () =
+      record
+
+    method handle ?ex level msg =
+      record <- (ex, level, msg) :: record
+  end
+
+let () = Support.Logging.handler := (fake_log :> Support.Logging.handler)
+
 let format_list l = "[" ^ (String.concat "; " l) ^ "]"
 let equal_str_lists = assert_equal ~printer:format_list
 
@@ -113,9 +129,11 @@ let test_option_parsing () =
 
   assert_raises_safe "Option does not take an argument in '--console=true'" (lazy (p ["--console=true"]));
 
+  assert (List.length (fake_log#get ()) = 0);
   let s = p ["-cvv"] in
   assert_equal No s.gui;
   assert_equal 2 s.verbosity;
+  assert (List.length (fake_log#get ()) > 0);
 
   let s = p ["run"; "-wgdb"; "foo"] in
   equal_str_lists ["run"; "foo"] s.args;
