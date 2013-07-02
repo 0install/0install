@@ -9,6 +9,14 @@ except locale.Error:
 
 ## PATH ##
 
-from zeroinstall.injector import cli
 import sys
-cli.main(sys.argv[1:])
+
+if sys.argv[1:2] == ['--python-fallback']:
+	# Hack to let the OCaml front-end chain the Python.
+	# Using "python -m" isn't safe, because it adds the current directory
+	# to PYTHONPATH.
+	from zeroinstall.cmd import main
+	main(sys.argv[2:])
+else:
+	from zeroinstall.injector.cli import main
+	main(sys.argv[1:])

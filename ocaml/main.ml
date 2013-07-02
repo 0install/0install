@@ -20,10 +20,13 @@ let is_url url =
 (** Run "python -m zeroinstall.cmd". If ../zeroinstall exists, put it in PYTHONPATH,
     otherwise use the system version of 0install. *)
 let fallback_to_python config args =
-  let parent_dir = Filename.dirname (Filename.dirname config.abspath_0install) in
-  let () = if Sys.file_exists (parent_dir +/ "zeroinstall") then
-      Unix.putenv "PYTHONPATH" parent_dir in
-  config.system#exec ~search_path:true ("python" :: "-m" :: "zeroinstall.cmd" :: args)
+  let try_with path =
+    if config.system#file_exists path then
+      config.system#exec (path :: "--python-fallback" :: args) in
+  let my_dir = Filename.dirname config.abspath_0install in
+  try_with @@ my_dir +/ "0launch";                   (* When installed in /usr/bin *)
+  try_with @@ Filename.dirname my_dir +/ "0launch";  (* When running from build directory *)
+  failwith "Can't find 0launch command!"
 ;;
 
 let handle_run config options args : unit =
