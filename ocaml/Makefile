@@ -11,7 +11,7 @@ test: ocaml
 
 ocaml: 
 	$(OCAMLBUILD) main.native
-	if [ $(OS) = "Windows_NT" ];then \
+	if [ "$(OS)" = "Windows_NT" ];then \
 		cp _build/main.native _build/0install.exe; \
 		cp 0install.exe.manifest _build/; \
 	else \

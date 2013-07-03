@@ -162,7 +162,7 @@ let test_run_real tmpdir =
       assert_failure "Child process failed" in
   let test_command =
     if on_windows then "..\\_build\\0install run .\\test_selections_win.xml"
-    else"../_build/0install run ./test_selections.xml" in
+    else "../_build/0install run ./test_selections.xml" in
   let line =
     Support.Utils.finally checked_close_process_in
       (Unix.open_process_in test_command) (fun ch ->
