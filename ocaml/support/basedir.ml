@@ -4,8 +4,12 @@
 
 (** XDG Base Directory support, for locating caches, configuration, etc *)
 
-(* TODO: Windows *)
-
+IFDEF WINDOWS THEN
+external win_get_appdata : unit -> string = "caml_win_get_appdata";;
+external win_get_local_appdata : unit -> string = "caml_win_get_local_appdata";;
+external win_get_common_appdata : unit -> string = "caml_win_get_common_appdata";;
+ENDIF
+ 
 open Common
 
 let (+/) = Filename.concat
@@ -63,18 +67,24 @@ let get_default_config (system:system) =
         config = [base +/ "config"];
       }
   | None -> 
-      (*
-      if on_windows then
-        failwith "Windows"
-      else
-      *)
       let get = get_path system in
-      let home = get_unix_home system in
-      {
-        data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [home +/ ".local/share"; "/usr/local/share"; "/usr/share"];
-        cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [home +/ ".cache"; "/var/cache"];
-        config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [home +/ ".config"; "/etc/xdg"];
-      }
+      IFDEF WINDOWS THEN
+        let app_data = win_get_appdata () in
+        let local_app_data = win_get_local_appdata () in
+        let common_app_data = win_get_common_appdata () in
+        {
+          data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [app_data; common_app_data];
+          cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [local_app_data; common_app_data];
+          config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [app_data; common_app_data];
+        }
+      ELSE
+        let home = get_unix_home system in
+        {
+          data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [home +/ ".local/share"; "/usr/local/share"; "/usr/share"];
+          cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [home +/ ".cache"; "/var/cache"];
+          config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [home +/ ".config"; "/etc/xdg"];
+        }
+      ENDIF
 ;;
 
 let load_first (system:system) rel_path search_path =

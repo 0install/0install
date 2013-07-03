@@ -1,25 +1,30 @@
 BUILDDIR=_build
 OCAMLBUILD=ocamlbuild -use-ocamlfind -build-dir "${BUILDDIR}"
+ifeq ($(OS), Windows_NT)
+  OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
+endif
 
 .PHONY: all ocaml byte doc clean tags test
 
 all: test
 
 test: ocaml
-	$(OCAMLBUILD) tests/test.native
+	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) tests/test.native
 	(cd tests && ../_build/tests/test.native)
 
 ocaml: 
-	$(OCAMLBUILD) main.native
-	if [ "$(OS)" = "Windows_NT" ];then \
-		cp _build/main.native _build/0install.exe; \
-		cp 0install.exe.manifest _build/; \
-		$(OCAMLBUILD) runenv.native; \
-		cp _build/runenv.native _build/0install-runenv.exe; \
-	else \
-		cp _build/main.native _build/0install; \
-		[ -f 0install ] || ln -s _build/0install 0install; \
-	fi
+	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) main.native
+	if [ "$(OS)" = "Windows_NT" ];then make ocaml_windows; else make ocaml_posix; fi
+
+ocaml_windows:
+	cp _build/main.native _build/0install.exe
+	cp 0install.exe.manifest _build/
+	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) runenv.native
+	cp _build/runenv.native _build/0install-runenv.exe
+
+ocaml_posix:
+	cp _build/main.native _build/0install
+	[ -f 0install ] || ln -s _build/0install 0install
 
 byte:
 	$(OCAMLBUILD) main.byte
