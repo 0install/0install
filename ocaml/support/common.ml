@@ -24,7 +24,8 @@ class type system =
   object
     method time : unit -> float
 
-    method with_open : open_flag list -> Unix.file_perm -> (in_channel -> 'a) -> filepath -> 'a
+    method with_open_in : open_flag list -> Unix.file_perm -> filepath -> (in_channel -> 'a) -> 'a
+    method with_open_out : open_flag list -> Unix.file_perm -> filepath -> (out_channel -> 'a) -> 'a
     method mkdir : filepath -> Unix.file_perm -> unit
     method file_exists : filepath -> bool
     method lstat : filepath -> Unix.stats option

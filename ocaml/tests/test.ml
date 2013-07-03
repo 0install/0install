@@ -13,7 +13,8 @@ class fake_system =
 
     method time () = !now
 
-    method with_open = failwith "file access"
+    method with_open_in = failwith "file access"
+    method with_open_out = failwith "file access"
     method mkdir = failwith "file access"
     method readdir = failwith "file access"
     method chmod = failwith "file access"
@@ -199,13 +200,6 @@ let test_escaping () =
     ("file://foo%bar", unescape "file:##foo%25bar");
   ]
 
-let test_windows_escaping () =
-  assert_str_equal "\\\\"                     @@ Run.windows_args_escape ["\\"];
-  assert_str_equal "foo bar"                  @@ Run.windows_args_escape ["foo"; "bar"];
-  assert_str_equal "\"foo bar\""              @@ Run.windows_args_escape ["foo bar"];
-  assert_str_equal "\"foo \\\"bar\\\"\""      @@ Run.windows_args_escape ["foo \"bar\""];
-  assert_str_equal "\"foo \\\\\\\"bar\\\"\""  @@ Run.windows_args_escape ["foo \\\"bar\""]
-
 (* Name the test cases and group them together *)
 let suite = 
 "0install">:::[
@@ -213,7 +207,6 @@ let suite =
  "test_option_parsing">:: test_option_parsing;
  "test_run_real">:: with_tmpdir test_run_real;
  "test_escaping">:: test_escaping;
- "test_windows_escaping">:: test_windows_escaping;
 ];;
 
 let () = Printexc.record_backtrace true;;

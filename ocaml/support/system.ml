@@ -33,12 +33,19 @@ class real_system =
         if errno = Unix.ENOENT then None
         else raise ex
 
-    (** [with_open fn file] opens [file], calls [fn handle], and then closes it again. *)
-    method with_open open_flags mode fn file =
+    (** [with_open_in fn file] opens [file] for reading, calls [fn handle], and then closes it again. *)
+    method with_open_in open_flags mode file fn =
       let (ch:in_channel) =
         try open_in_gen open_flags mode file
         with Sys_error msg -> raise_safe "Open failed: %s" msg in
       Utils.finally close_in ch fn
+
+    (** [with_open_out fn file] opens [file] for writing, calls [fn handle], and then closes it again. *)
+    method with_open_out open_flags mode file fn =
+      let (ch:out_channel) =
+        try open_out_gen open_flags mode file
+        with Sys_error msg -> raise_safe "Open failed: %s" msg in
+      Utils.finally close_out ch fn
 
     (** A safer, more friendly version of the [Unix.exec*] calls.
         Flushes [stdout] and [stderr]. Ensures [argv[0]] is set to the program called.

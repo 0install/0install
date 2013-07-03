@@ -14,6 +14,8 @@ ocaml:
 	if [ "$(OS)" = "Windows_NT" ];then \
 		cp _build/main.native _build/0install.exe; \
 		cp 0install.exe.manifest _build/; \
+		$(OCAMLBUILD) runenv.native; \
+		cp _build/runenv.native _build/0install-runenv.exe; \
 	else \
 		cp _build/main.native _build/0install; \
 		[ -f 0install ] || ln -s _build/0install 0install; \

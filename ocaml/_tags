@@ -1,5 +1,3 @@
-true: debug, annot, warn(A-4)
-not <runenv.*>: package(yojson,xmlm,unix,str)
-<runenv.*>: package(yojson,unix)
+true: debug, annot, warn(A-4), package(yojson,xmlm,unix,str)
 <tests/test.*>: package(oUnit)
 "support": for-pack(Support)
