@@ -61,6 +61,7 @@ class real_system =
         let prog_path =
           if search_path then Utils.find_in_path_ex (self :> system) (List.hd argv)
           else (List.hd argv) in
+        log_info "exec %s" @@ String.concat " " argv;
         if on_windows then (
           let open Unix in
           let run_child _args =
