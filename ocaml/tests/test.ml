@@ -171,8 +171,36 @@ let test_run_real tmpdir =
   assert_str_equal "Hello World" line
 ;;
 
+let test_escaping () =
+  let open Escape in
+  let wfile s = if on_windows then "file%3a" ^ s else "file:" ^ s in
+  List.iter (fun (a, b) -> assert_str_equal a b) [
+    (* Escaping *)
+    ("", escape "");
+    ("hello", escape "hello");
+    ("%20", escape " ");
+
+    ("file%3a%2f%2ffoo%7ebar", escape "file://foo~bar");
+    ("file%3a%2f%2ffoo%25bar", escape "file://foo%bar");
+
+    (wfile "##foo%7ebar", pretty "file://foo~bar");
+    (wfile "##foo%25bar", pretty "file://foo%bar");
+
+    (* Unescaping *)
+    ("", unescape "");
+    ("hello", unescape "hello");
+    (" ", unescape "%20");
+
+    ("file://foo~bar", unescape "file%3a%2f%2ffoo%7ebar");
+    ("file://foo%bar", unescape "file%3a%2f%2ffoo%25bar");
+
+    ("file://foo", unescape "file:##foo");
+    ("file://foo~bar", unescape "file:##foo%7ebar");
+    ("file://foo%bar", unescape "file:##foo%25bar");
+  ]
+
 let test_windows_escaping () =
-  assert_str_equal "\\\\"                       @@ Run.windows_args_escape ["\\"];
+  assert_str_equal "\\\\"                     @@ Run.windows_args_escape ["\\"];
   assert_str_equal "foo bar"                  @@ Run.windows_args_escape ["foo"; "bar"];
   assert_str_equal "\"foo bar\""              @@ Run.windows_args_escape ["foo bar"];
   assert_str_equal "\"foo \\\"bar\\\"\""      @@ Run.windows_args_escape ["foo \"bar\""];
@@ -184,6 +212,7 @@ let suite =
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: test_option_parsing;
  "test_run_real">:: with_tmpdir test_run_real;
+ "test_escaping">:: test_escaping;
  "test_windows_escaping">:: test_windows_escaping;
 ];;
 
