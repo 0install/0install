@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selections command="run" interface="http://example.com/env" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <selection id="package:echo1" interface="http://example.com/echo" version="1">
+    <command name='run' path='c:\cygwin\bin\echo'/>
+  </selection>
+
+  <selection id="package:env" interface="http://example.com/env" version="1.0">
+    <command name='run' path='c:\cygwin\bin\env'>
+      <arg>my-prog</arg>
+      <arg>Hello World</arg>
+
+      <requires interface='http://example.com/echo'>
+	<executable-in-path name='my-prog'/>
+      </requires>
+    </command>
+  </selection>
+</selections>

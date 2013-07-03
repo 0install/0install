@@ -327,6 +327,8 @@ def main(command_args, config = None):
 	verbose = False
 	try:
 		# Configure a parser for the given command
+		my_name = os.path.basename(sys.argv[0])
+		if my_name == '__main__.py': my_name = '0install'
 		if command:
 			if command not in valid_commands:
 				if completion:
@@ -335,11 +337,11 @@ def main(command_args, config = None):
 
 			module_name = command.replace('-', '_')
 			cmd = __import__('zeroinstall.cmd.' + module_name, globals(), locals(), [module_name], 0)
-			parser = OptionParser(usage=_("usage: %%prog %s [OPTIONS] %s") % (command, cmd.syntax))
+			parser = OptionParser(usage=_("usage: %s %s [OPTIONS] %s") % (my_name, command, cmd.syntax))
 		else:
 			cmd = NoCommand()
-			parser = OptionParser(usage=_("usage: %prog COMMAND\n\nTry --help with one of these:") +
-					"\n\n0install " + '\n0install '.join(valid_commands))
+			parser = OptionParser(usage=_("usage: %s COMMAND\n\nTry --help with one of these:%s") %
+					(my_name, "\n\n0install " + '\n0install '.join(valid_commands)))
 
 		parser.add_option("-c", "--console", help=_("never use GUI"), action='store_false', dest='gui')
 		parser.add_option("", "--dry-run", help=_("just print what would be executed"), action='store_true')

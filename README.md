@@ -57,13 +57,30 @@ Logging out and back in again will ensure $PATH and the Applications menu get
 updated correctly, on Ubuntu at least.
 
 A bash completion script is available in share/bash-completion. It can be
-sourced from your .bashrc or added under /usr/share/bash-completion.
+sourced from your .bashrc or added under /usr/share/bash-completion. Note that
+you may have to install a separate "bash-completion" package on some systems.
 
 For zsh users, copy the script in share/zsh/site-functions/ to a directory in
 your $fpath (e.g. /usr/local/share/zsh/site-functions).
 
 For fish-shell users, add the full path to share/fish/completions to
 $fish_complete_path.
+
+
+OCAML
+-----
+
+You can make 0install run faster by building the OCaml source to generate a faster
+version of the "0install" executable. This binary can handle common tasks by itself,
+falling back to the Python version in other cases.
+
+This is experimental.
+
+You will need the OCaml build tools for this. On Debian:
+
+    $ sudo apt-get install ocaml ocaml-findlib libyojson-ocaml-dev libxmlm-ocaml-dev
+    $ make ocaml
+    $ sudo make install
 
 
 QUICK START

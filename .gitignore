@@ -5,3 +5,4 @@ share/locale/zero-install.pot
 /build/
 /tests/TEST*.xml
 /tests/coverage.xml
+/ocaml/_build

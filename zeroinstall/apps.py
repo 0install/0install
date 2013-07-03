@@ -242,7 +242,6 @@ class App(object):
 				yield basedir.load_first_config(namespaces.config_site, namespaces.config_prog, 'global')
 
 			# If any of the feeds we used have been updated since the last check, do a quick re-solve
-			iface_cache = self.config.iface_cache
 			try:
 				for item in get_inputs():
 					if not item: continue
