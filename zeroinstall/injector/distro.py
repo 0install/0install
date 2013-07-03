@@ -1073,7 +1073,7 @@ class CygwinDistribution(CachedDistribution):
 	def generate_cache(self):
 		cache = []
 
-		zi_arch = canonical_machine(arch)
+		zi_arch = '*'
 		for line in os.popen("cygcheck -c -d"):
 			if line == "Cygwin Package Information\r\n":
 				continue
