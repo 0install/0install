@@ -94,6 +94,11 @@ let ends_with str prefix =
       else loop (i + 1)
     in loop 0;;
 
+let string_tail s i =
+  let len = String.length s in
+  if i > len then failwith ("String '" ^ s ^ "' too short to split at " ^ (string_of_int i))
+  else String.sub s i (len - i)
+
 let path_is_absolute path = not (Filename.is_relative path)
 
 (** If the given path is relative, make it absolute by prepending the current directory to it. *)
@@ -262,3 +267,22 @@ let copy_file (system:system) source dest mode =
       )
     )
   with Safe_exception _ as ex -> reraise_with_context ex "... copying %s to %s" source dest
+
+(** Extract a sub-list. *)
+let slice ~start ?stop lst =
+  let from_start =
+    let rec skip lst = function
+      | 0 -> lst
+      | i -> match lst with
+          | [] -> failwith "list too short"
+          | (_::xs) -> skip xs (i - 1)
+    in skip lst start in
+  match stop with
+  | None -> from_start
+  | Some stop ->
+      let rec take lst = function
+        | 0 -> []
+        | i -> match lst with
+            | [] -> failwith "list too short"
+            | (x::xs) -> x :: take xs (i - 1)
+      in take lst (stop - start)

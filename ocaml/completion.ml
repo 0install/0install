@@ -9,39 +9,31 @@ open Support.Common
 open Support.Argparse
 
 let starts_with = Support.Utils.starts_with
-
-let slice ~start ?stop lst =
-  let from_start =
-    let rec skip lst = function
-      | 0 -> lst
-      | i -> match lst with
-          | [] -> failwith "list too short"
-          | (_::xs) -> skip xs (i - 1)
-    in skip lst start in
-  match stop with
-  | None -> from_start
-  | Some stop ->
-      let rec take lst = function
-        | 0 -> []
-        | i -> match lst with
-            | [] -> failwith "list too short"
-            | (x::xs) -> x :: take xs (i - 1)
-      in take lst (stop - start)
-;;
+let slice = Support.Utils.slice
 
 type ctype = Add | Prefix
 
+(** There is one subclass of this for each supported shell. *)
 class virtual completer config =
   object (self)
     val config = config
 
+    (** Get the information about what to complete from the shell, and put it in a standard format: the index
+        of the word to complete and the list of words. Undo any "helpful" preprocessing the shell may have done. *)
     method virtual normalise : string list -> (int * string list)
 
+    (** Get the index of the word to complete, as reported by the shell. This is used internally by [normalise],
+        because some shells differ only in the way they count this. *)
+    method get_cword () =
+      int_of_string (Support.Utils.getenv_ex config.system "COMP_CWORD") - 1
+
+    (** Tell the shell about a possible match. *)
     method add ctype value =
       match ctype with
       | Add -> print_endline ("add " ^ value)
       | Prefix -> print_endline ("prefix " ^ value)
 
+    (** The word being completed could be an app name. *)
     method add_apps prefix =
       let apps = Apps.list_app_names config in
       let check name =
@@ -49,12 +41,11 @@ class virtual completer config =
           self#add Add name in
       List.iter check apps
 
+    (** The word being completed could be a file. *)
     method add_files _prefix =
       print_endline "file"
 
-    method get_cword () =
-      int_of_string (Support.Utils.getenv_ex config.system "COMP_CWORD") - 1
-
+    (** The word being completed could be an interface. *)
     method add_interfaces prefix =
       let could_be start =
         if String.length start > String.length prefix then starts_with start prefix
@@ -83,6 +74,7 @@ class virtual completer config =
         self#add_files prefix
   end
 
+(* 0install <Tab> *)
 let complete_command (completer:completer) raw_options prefix =
   let add s (name, _handler, _values) = StringSet.add name s in
   let options_used = List.fold_left add StringSet.empty raw_options in
@@ -96,13 +88,13 @@ let complete_command (completer:completer) raw_options prefix =
   List.iter (fun (name, _) -> completer#add Add name) complete_commands
 ;;
 
-let time_units = [
-  (60., "s");
-  (60., "m");
-  (24., "h");
-]
-
+(* e.g. 120 -> "2m" *)
 let format_interval interval =
+  let time_units = [
+    (60., "s");
+    (60., "m");
+    (24., "h");
+  ] in
   let rec f v = function
     | [] -> (v, "d")
     | ((n, uname) :: us) ->
@@ -111,12 +103,13 @@ let format_interval interval =
   let (value, uname) = f interval time_units in
   Printf.sprintf "%.0f%s" value uname
 
+(* 0install config <Tab> *)
 let complete_config_option completer pre =
   let add_if_matches name =
     if starts_with name pre then completer#add Add name in
   List.iter add_if_matches ["network_use"; "freshness"; "help_with_testing"; "auto_approve_keys"]
 
-
+(* 0install config name <Tab> *)
 let complete_config_value config completer name pre =
   let add_if_matches value =
     if starts_with value pre then completer#add Add value in
@@ -132,6 +125,7 @@ let complete_config_value config completer name pre =
   )
   | _ -> ()
 
+(** We are completing an argument, not an option. *)
 let complete_arg config (completer:completer) pre = function
   | ["run"] -> completer#add_apps pre; completer#add_interfaces pre; completer#add_files pre
   | ["run"; _] -> completer#add_files pre
@@ -150,11 +144,6 @@ let complete_arg config (completer:completer) pre = function
   | ["remove-feed"; _iface] -> raise Fallback_to_Python;
   | ["show"] -> completer#add_apps pre; completer#add_files pre
   | _ -> ()
-
-let string_tail s i =
-  let len = String.length s in
-  if i > len then failwith ("String '" ^ s ^ "' too short to split at " ^ (string_of_int i))
-  else String.sub s i (len - i)
 
 class bash_completer config =
   object (self : #completer)
@@ -199,7 +188,7 @@ class bash_completer config =
         let colon_index = String.rindex current ':' in
         let ignored = (String.sub current 0 colon_index) ^ ":" in
         if starts_with value ignored then
-          use @@ string_tail value (colon_index + 1)
+          use @@ Support.Utils.string_tail value (colon_index + 1)
         else
           ()
       with Not_found -> use value
@@ -234,11 +223,11 @@ class zsh_completer config =
     method !get_cword () = super#get_cword () - 1
   end
 
+(* 0install --option=<Tab> *)
 let complete_option_value (completer:completer) (_, handler, values, carg) =
   let pre = List.nth values carg in
   let arg_types = handler#get_arg_types values in
   let open Cli in
-
   match List.nth arg_types carg with
   | Dir -> completer#add_files pre
   | ImplRelPath -> raise Fallback_to_Python
