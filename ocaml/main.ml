@@ -37,6 +37,7 @@ let handle_run config options args : unit =
   let wrapper = ref None in
   Support.Argparse.iter_options options.extra_options (function
     | Wrapper w -> wrapper := Some w
+    | ShowManifest -> raise_safe "The -m argument is ambiguous before the 'run' argument. Put it after, or use --main"
     | _ -> raise Fallback_to_Python
   );
   match args with

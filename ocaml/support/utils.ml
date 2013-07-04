@@ -54,12 +54,12 @@ let rec first_match fn = function
       | None -> first_match fn xs;;
 
 (** List the non-None results of [fn item] *)
-let rec filter_map fn = function
+let rec filter_map ~f = function
   | [] -> []
   | (x::xs) ->
-      match fn x with
-      | None -> filter_map fn xs
-      | Some y -> y :: filter_map fn xs
+      match f x with
+      | None -> filter_map ~f xs
+      | Some y -> y :: filter_map ~f xs
 
 (** [makedirs path mode] ensures that [path] is a directory, creating it and any missing parents (using [mode]) if not. *)
 let rec makedirs (system:system) path mode =

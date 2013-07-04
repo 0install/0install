@@ -10,12 +10,13 @@ let starts_with = Utils.starts_with
 
 class type ['a,'b] option_parser =
   object
-    (** Extract as many elements from the stream as this option needs.
+    (** [read opt_name first_arg stream completion].
+        Extract as many elements from the stream as this option needs.
         [completion] indicates when we're doing completion (so don't
         raise an error if the arguments are malformed unless this is None).
         When [Some 0], the next item in the stream is being completed, etc.
         *)
-    method read : string -> string Stream.t -> completion:(int option) -> string list
+    method read : string -> string option -> string Stream.t -> completion:(int option) -> string list
 
     method parse : string list -> 'a
 
@@ -59,8 +60,14 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
   let options_map =
     let map = ref StringMap.empty in
     let add (names, _help, handler) =
-      List.iter (fun name -> map := StringMap.add name handler !map) names;
-      () in
+      ListLabels.iter names ~f:(fun name ->
+        if StringMap.mem name !map then (
+          if handler != StringMap.find name !map then
+            failwith ("Option '" ^ name ^ "' has two different handlers")
+        ) else (
+          map := StringMap.add name handler !map
+        )
+      ) in
     List.iter add spec.options_spec;
     !map in
 
@@ -93,7 +100,10 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
         | None -> raise_safe "Unknown option '%s'" opt
     )
     | Some handler ->
-        let values = handler#read opt stream ~completion:carg in
+        let command = match !args with
+        | command :: _ -> Some command
+        | _ -> None in
+        let values = handler#read opt command stream ~completion:carg in
         options := (opt, handler, values) :: !options;
         match carg with
         | None -> ()
@@ -198,20 +208,11 @@ let iter_options (options : 'a option_value list) fn =
   in List.iter process options
 ;;
 
-(** Run [fn (tag, values)] on each option in turn. [fn] should return [true] if the option was handled.
-    Returns a list of unhandled options. If [Safe_exception] is thrown by [fn], we add a context saying which
-    option was being handled. *)
-let filter_options (options : 'a option_value list) fn =
-  let process (actual_opt, value) =
-    try not @@ fn value
-    with Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" actual_opt
-  in List.filter process options
-
 (** {2 Handy wrappers for option handlers} *)
 
 class ['a,'b] no_arg (value : 'a) =
   object (_ : ('a,'b) #option_parser)
-    method read _name _stream ~completion:_ = []
+    method read _name _command _stream ~completion:_ = []
     method parse = function
       | [] -> value
       | _ -> failwith "Expected no arguments!"
@@ -220,7 +221,7 @@ class ['a,'b] no_arg (value : 'a) =
 
 class ['a,'b] one_arg arg_type (fn : string -> 'a) =
   object (_ : ('a,'b) #option_parser)
-    method read opt_name stream ~completion =
+    method read opt_name _command stream ~completion =
       match Stream.peek stream with
       | None when completion <> None -> [""]
       | None -> raise_safe "Missing value for option %s" opt_name
@@ -235,7 +236,7 @@ class ['a,'b] one_arg arg_type (fn : string -> 'a) =
 
 class ['a,'b] two_arg arg1_type arg2_type (fn : string -> string -> 'a) =
   object (_ : ('a,'b) #option_parser)
-    method read opt_name stream ~completion =
+    method read opt_name _command stream ~completion =
       match Stream.npeek 2 stream with
       | [_; _] as pair -> Stream.junk stream; Stream.junk stream; pair
       | _ when completion = None -> raise_safe "Missing value for option %s" opt_name

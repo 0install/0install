@@ -42,6 +42,8 @@ type zi_option =
 
   | MainExecutable of string
 
+  | AmbiguousOption of (string -> zi_option)
+
 type global_settings = {
   config : General.config;
   mutable gui : yes_no_maybe;

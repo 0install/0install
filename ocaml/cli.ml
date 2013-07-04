@@ -29,7 +29,7 @@ type zi_arg_type =
    [0install --version=1 run foo] runs version 1 of "foo". *)
 let parse_version_option =
   object
-    method read _opt_name stream ~completion:_ =
+    method read _opt_name _command stream ~completion:_ =
       match Stream.peek stream with
       | None -> []                                (* --version *)
       | Some next when starts_with next "-" -> [] (* --version --verbose *)
@@ -44,10 +44,48 @@ let parse_version_option =
       | [] -> []
       | [_] -> [VersionRange]
       | _ -> assert false
-
   end
 
 type zi_opt_list = (zi_option, zi_arg_type) opt list
+
+let parse_r =
+  let resolve = function
+    | "show" -> ShowRoot
+    | _ -> Refresh in
+
+  object
+    inherit [zi_option, zi_arg_type] no_arg (AmbiguousOption resolve)
+  end
+
+(* -m might or might not take an argument. Very tricky! *)
+let parse_m =
+  object
+    method read opt_name command stream ~completion:_ =
+      let is_main () =
+        match Stream.peek stream with
+        | Some next -> Stream.junk stream; [next]
+        | None -> [] in
+
+      match opt_name with
+      | "--main" -> is_main ()
+      | "--manifest" -> []
+      | "-m" -> (
+        match command with
+        | Some "run" -> is_main ()
+        | _ -> []   (* Not "run", or before the subcommand; assume --manifest *)
+      )
+      | _ -> assert false
+
+    method parse = function
+      | [] -> ShowManifest
+      | [main] -> MainExecutable main
+      | _ -> assert false
+
+    method get_arg_types = function
+      | [] -> []
+      | [_] -> [ImplRelPath]
+      | _ -> assert false
+  end
 
 let generic_select_options : zi_opt_list = [
   ([      "--before"],      i_ "choose a version before this",      new one_arg SimpleVersion @@ fun v -> Before v);
@@ -56,7 +94,7 @@ let generic_select_options : zi_opt_list = [
   ([      "--message"],     i_ "message to display when interacting with user", new one_arg Message @@ fun m -> WithMessage m);
   ([      "--not-before"],  i_ "minimum version to choose",         new one_arg SimpleVersion @@ fun v -> NotBefore v);
   ([      "--os"],          i_ "target operation system type",      new one_arg OsType @@ fun o -> Os o);
-  (["-r"; "--refresh"],     i_ "refresh all used interfaces",       new no_arg @@ Refresh);
+  (["-r"; "--refresh"],     i_ "refresh all used interfaces",       parse_r);
   (["-s"; "--source"],      i_ "select source code",                new no_arg @@ Source);
   ([      "--version"],     i_ "specify version constraint (e.g. '3' or '3..')", parse_version_option);
   ([      "--version-for"], i_ "set version constraints for a specific interface", new two_arg IfaceURI VersionRange @@ fun u v -> RequireVersionFor(u, v));
@@ -68,7 +106,7 @@ let offline_options = [
 
 let digest_options = [
   ([      "--algorithm"], i_ "the hash function to use", new one_arg HashType @@ fun h -> UseHash h);
-  (["-m"; "--manifest"],  i_ "print the manifest",       new no_arg ShowManifest);
+  (["-m"; "--manifest"],  i_ "print the manifest",       parse_m);
   (["-d"; "--digest"],    i_ "print the digest",         new no_arg ShowDigest);
 ]
 
@@ -85,11 +123,11 @@ let download_options : zi_opt_list = [
 ]
 
 let show_options : zi_opt_list = [
-  (["-r"; "--root-uri"], i_ "display just the root interface URI", new no_arg ShowRoot);
+  (["-r"; "--root-uri"], i_ "display just the root interface URI", parse_r);
 ]
 
 let run_options : zi_opt_list = [
-  (["-m"; "--main"],    i_ "name of the file to execute",           new one_arg ImplRelPath @@ fun m -> MainExecutable m);
+  (["-m"; "--main"],    i_ "name of the file to execute",           parse_m);
   (["-w"; "--wrapper"], i_ "execute program using a debugger, etc", new one_arg Command @@ fun cmd -> Wrapper cmd);
 ]
 
@@ -181,14 +219,18 @@ let parse_args config args =
     args;
   } in
 
-  options.extra_options <- filter_options raw_options (function
-    | UseGUI b -> options.gui <- b; true
+  options.extra_options <- Support.Utils.filter_map raw_options ~f:(fun (opt, value) -> match value with
+    | UseGUI b -> options.gui <- b; None
     | DryRun -> raise Fallback_to_Python
-    | Verbose -> increase_verbosity options; true
-    | WithStore store -> add_store options store; true
+    | Verbose -> increase_verbosity options; None
+    | WithStore store -> add_store options store; None
     | ShowVersion -> raise Fallback_to_Python
     | Help -> raise Fallback_to_Python
-    | _ -> false
+    | AmbiguousOption fn -> (match args with
+        | command :: _ -> Some (opt, fn command)
+        | _ -> raise_safe "Option '%s' requires a command" opt
+    )
+    | _ -> Some (opt, value)
   );
 
   (* This check is mainly to prevent command_options getting out-of-date *)
