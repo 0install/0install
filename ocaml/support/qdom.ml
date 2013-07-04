@@ -98,6 +98,18 @@ module NsQuery (Ns : NsType) = struct
     loop node.child_nodes
   ;;
 
+  let filter_map ~f node tag =
+    let rec loop = function
+      | [] -> []
+      | (node::xs) ->
+          if node.tag = (Ns.ns, tag) then (
+            match f node with
+            | None -> loop xs
+            | Some result -> result :: loop xs
+          ) else loop xs in
+    loop node.child_nodes
+  ;;
+
   let check_ns elem =
     let (ns, _) = elem.tag in
     if ns = Ns.ns then ()

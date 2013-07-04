@@ -125,6 +125,26 @@ let complete_config_value config completer name pre =
   )
   | _ -> ()
 
+(* 0install remove-feed <Tab> *)
+let complete_interfaces_with_feeds config completer pre =
+  let check_iface uri =
+    if starts_with uri pre then (
+      let iface_config = Feed_cache.load_iface_config config uri in
+      if iface_config.Feed_cache.extra_feeds <> [] then
+        completer#add Add uri
+    ) in
+  StringSet.iter check_iface (Feed_cache.list_all_interfaces config)
+
+(* 0install remove-feed iface <Tab> *)
+let complete_extra_feed config completer iface pre =
+  let {Feed_cache.extra_feeds; _} = Feed_cache.load_iface_config config iface in
+  let add_if_matches feed =
+    let url = ZI.get_attribute "src" feed in
+    if starts_with url pre then
+      completer#add Add url
+  in
+  List.iter add_if_matches extra_feeds
+
 (** We are completing an argument, not an option. *)
 let complete_arg config (completer:completer) pre = function
   | ["run"] -> completer#add_apps pre; completer#add_interfaces pre; completer#add_files pre
@@ -138,10 +158,10 @@ let complete_arg config (completer:completer) pre = function
   | ["digest"] -> completer#add_files pre
   | ["download"] | ["select"] | ["update"] -> completer#add_apps pre; completer#add_interfaces pre
   | ["import"] -> completer#add_files pre
-  | ["list-feeds"] -> raise Fallback_to_Python;
+  | ["list-feeds"] -> complete_interfaces_with_feeds config completer pre
   | ["man"] -> completer#add_apps pre
-  | ["remove-feed"] -> raise Fallback_to_Python;
-  | ["remove-feed"; _iface] -> raise Fallback_to_Python;
+  | ["remove-feed"] -> complete_interfaces_with_feeds config completer pre; completer#add_files pre
+  | ["remove-feed"; iface] -> complete_extra_feed config completer iface pre
   | ["show"] -> completer#add_apps pre; completer#add_files pre
   | _ -> ()
 

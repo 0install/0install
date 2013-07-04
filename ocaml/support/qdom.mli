@@ -45,6 +45,9 @@ module NsQuery :
       (** Apply [fn] to each child node in our namespace with local name [tag] *)
       val map : (element -> 'a) -> element -> string -> 'a list
 
+      (** Apply [fn] to each child node in our namespace with local name [tag] *)
+      val filter_map : f:(element -> 'a option) -> element -> string -> 'a list
+
       (** Call [fn] on each child node in our namespace *)
       val iter : (element -> unit) -> element -> unit
 
