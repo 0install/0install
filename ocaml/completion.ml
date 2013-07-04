@@ -81,7 +81,6 @@ class virtual completer config =
       let re_scheme_sep = Str.regexp "https?://" in
       if not (Str.string_match re_scheme_sep prefix 0) then
         self#add_files prefix
-
   end
 
 let complete_command (completer:completer) raw_options prefix =
@@ -97,13 +96,50 @@ let complete_command (completer:completer) raw_options prefix =
   List.iter (fun (name, _) -> completer#add Add name) complete_commands
 ;;
 
-let complete_arg (completer:completer) pre = function
+let time_units = [
+  (60., "s");
+  (60., "m");
+  (24., "h");
+]
+
+let format_interval interval =
+  let rec f v = function
+    | [] -> (v, "d")
+    | ((n, uname) :: us) ->
+        if v < n then (v, uname)
+        else f (v /. n) us in
+  let (value, uname) = f interval time_units in
+  Printf.sprintf "%.0f%s" value uname
+
+let complete_config_option completer pre =
+  let add_if_matches name =
+    if starts_with name pre then completer#add Add name in
+  List.iter add_if_matches ["network_use"; "freshness"; "help_with_testing"; "auto_approve_keys"]
+
+
+let complete_config_value config completer name pre =
+  let add_if_matches value =
+    if starts_with value pre then completer#add Add value in
+  match name with
+  | "network_use" ->
+      List.iter add_if_matches ["off-line"; "minimal"; "full"]
+  | "help_with_testing" | "auto_approve_keys" ->
+      List.iter add_if_matches ["true"; "false"]
+  | "freshness" -> (
+      match config.freshness with
+      | None -> add_if_matches "0"
+      | Some freshness -> add_if_matches @@ format_interval  @@ float_of_int freshness
+  )
+  | _ -> ()
+
+let complete_arg config (completer:completer) pre = function
   | ["run"] -> completer#add_apps pre; completer#add_interfaces pre; completer#add_files pre
   | ["run"; _] -> completer#add_files pre
   | ["add"] -> completer#add_interfaces pre
   | ["add-feed"] -> completer#add_interfaces pre
   | ["add-feed"; _iface] -> completer#add_files pre
-  | ["config"] -> raise Fallback_to_Python;
+  | ["config"] -> complete_config_option completer pre
+  | ["config"; name] -> complete_config_value config completer name pre
   | ["destroy"] | ["whatchanged"] -> completer#add_apps pre
   | ["digest"] -> completer#add_files pre
   | ["download"] | ["select"] | ["update"] -> completer#add_apps pre; completer#add_interfaces pre
@@ -244,7 +280,7 @@ let handle_complete config = function
           List.iter check_opt possible_options
       | CompleteOption opt -> complete_option_value completer opt
       | CompleteArg 0 -> complete_command completer raw_options (List.hd args)
-      | CompleteArg i -> complete_arg completer (List.nth args i) (slice args ~start:0 ~stop:i)
+      | CompleteArg i -> complete_arg config completer (List.nth args i) (slice args ~start:0 ~stop:i)
       | CompleteLiteral lit -> completer#add Add lit
   )
   | _ -> failwith "Missing arguments to '0install _complete'"
