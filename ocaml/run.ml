@@ -98,7 +98,7 @@ let make_selection_map stores sels =
     let path = Selections.get_path stores sel in
     let value = (sel, path) in
     StringMap.add (ZI.get_attribute "interface" sel) value m
-  in ZI.fold_left add_selection StringMap.empty sels "selection"
+  in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
 ;;
 
 (** Calculate the arguments and environment to pass to exec to run this

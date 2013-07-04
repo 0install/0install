@@ -56,7 +56,7 @@ let iter_inputs config cb sels =
       | None -> need_solve "Source feed no longer cached!"
       | Some path -> cb path              (* Check feed hasn't changed *)
   in
-  ZI.iter_with_name check_sel sels "selection";
+  ZI.iter_with_name ~f:check_sel sels "selection";
 
   (* Check global config *)
   check_maybe_config config_injector_global
@@ -154,3 +154,18 @@ let list_app_names config =
     | Success files -> Array.iter check_app files in
   List.iter scan_dir config.basedirs.Basedir.config;
   StringSet.elements !apps
+
+let get_interface config path =
+  let open Yojson.Basic in
+  let req_path = path +/ "requirements.json" in
+  match config.system#with_open_in [Open_rdonly; Open_binary] 0 req_path
+    (from_channel ~fname:req_path) with
+  | `Assoc alist -> (
+      let j_uri =
+        try List.assoc "interface_uri" alist
+        with Not_found -> raise_safe "Missing 'interface_uri' in %s" req_path in
+      match j_uri with
+      | `String s -> s
+      | _ -> raise_safe "Invalid requirements.json: %s" req_path
+  )
+  | _ -> raise_safe "Invalid requirements.json: %s" req_path

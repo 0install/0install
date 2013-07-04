@@ -27,6 +27,8 @@ class virtual completer config =
     method get_cword () =
       int_of_string (Support.Utils.getenv_ex config.system "COMP_CWORD") - 1
 
+    method get_config () = config
+
     (** Tell the shell about a possible match. *)
     method add ctype value =
       match ctype with
@@ -243,21 +245,72 @@ class zsh_completer config =
     method !get_cword () = super#get_cword () - 1
   end
 
+let complete_version completer ~range ~maybe_app target pre =
+  let re_dotdot = Str.regexp_string ".." in
+  let config = completer#get_config () in
+  let uri =
+    if maybe_app then (
+      match Apps.lookup_app config target with
+      | None -> target
+      | Some path -> Apps.get_interface config path
+    ) else target in
+
+  match Feed_cache.get_cached_feed config uri with
+  | None -> ()
+  | Some feed ->
+      let pre = Str.replace_first (Str.regexp_string "\\!") "!" pre in
+      let v_prefix =
+        if range then
+          match Str.bounded_split_delim re_dotdot pre 2 with
+          | [start; _] -> start ^ "..!"
+          | _ -> ""
+        else
+          "" in
+
+      let check impl =
+        let v = v_prefix ^ Feed.get_version_string impl in
+        if starts_with v pre then completer#add Add v in
+      List.iter check (Feed.get_implementations feed)
+
 (* 0install --option=<Tab> *)
-let complete_option_value (completer:completer) (_, handler, values, carg) =
+let complete_option_value (completer:completer) args (_, handler, values, carg) =
   let pre = List.nth values carg in
+  let complete_from_list lst =
+    ListLabels.iter lst ~f:(function item ->
+      if starts_with item pre then completer#add Add item
+    ) in
   let arg_types = handler#get_arg_types values in
   let open Cli in
   match List.nth arg_types carg with
   | Dir -> completer#add_files pre
-  | ImplRelPath -> raise Fallback_to_Python
-  | Command -> raise Fallback_to_Python
-  | VersionRange -> raise Fallback_to_Python
-  | SimpleVersion -> raise Fallback_to_Python
-  | CpuType | OsType -> raise Fallback_to_Python
+  | ImplRelPath -> ()
+  | Command -> ()
+  | VersionRange | SimpleVersion as t -> (
+      let use ~maybe_app target = complete_version completer ~range:(t = VersionRange) ~maybe_app target pre in
+      match carg, args with
+      | 1, _ -> use ~maybe_app:false (List.hd values)           (* --version-for iface <Tab> *)
+      | _, (_ :: target :: _) -> use ~maybe_app:true target     (* --version <Tab> run foo *)
+      | _ -> ()                               (* Don't yet know the iface, so can't complete *)
+  )
+  | CpuType -> complete_from_list ["src"; "i386"; "i486"; "i586"; "i686"; "ppc"; "ppc64"; "x86_64"]
+  | OsType -> complete_from_list ["Cygwin"; "Darwin"; "FreeBSD"; "Linux"; "MacOSX"; "Windows"]
   | Message -> ()
-  | HashType -> raise Fallback_to_Python
-  | IfaceURI -> raise Fallback_to_Python  (* The Python is smarter than just listing all interfaces *)
+  | HashType -> complete_from_list @@ Manifest.get_algorithm_names ()
+  | IfaceURI -> (
+      match args with
+      | _ :: app :: _ -> (
+        let config = completer#get_config () in
+        match Apps.lookup_app config app with
+        | None -> completer#add_interfaces pre
+        | Some path ->
+            let sels = Apps.get_selections config path ~may_update:false in
+            let add_sel sel =
+              let uri = ZI.get_attribute "interface" sel in
+              if starts_with uri pre then completer#add Add uri in
+            ZI.iter_with_name ~f:add_sel sels "selection"
+      )
+      | _ -> completer#add_interfaces pre
+  )
 
 let handle_complete config = function
   | (shell :: _0install :: raw_args) -> (
@@ -287,7 +340,7 @@ let handle_complete config = function
           let check_opt (names, _help, _handler) =
             List.iter check_name names in
           List.iter check_opt possible_options
-      | CompleteOption opt -> complete_option_value completer opt
+      | CompleteOption opt -> complete_option_value completer args opt
       | CompleteArg 0 -> complete_command completer raw_options (List.hd args)
       | CompleteArg i -> complete_arg config completer (List.nth args i) (slice args ~start:0 ~stop:i)
       | CompleteLiteral lit -> completer#add Add lit

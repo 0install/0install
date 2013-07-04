@@ -82,6 +82,12 @@ let log_elem level =
     Logging.log level "%s %s" s (show_with_loc elem)
   in Printf.ksprintf do_log
 
+let simple_content element =
+  if element.child_nodes = [] then
+    element.last_text_inside
+  else
+    raise_elem "Non-text child nodes not permitted inside" element
+
 module NsQuery (Ns : NsType) = struct
   (** Return the localName part of this element's tag.
       Throws an exception if it's in the wrong namespace. *)
@@ -90,12 +96,12 @@ module NsQuery (Ns : NsType) = struct
     if elem_ns = Ns.ns then Some name
     else None
 
-  let map fn node tag =
+  let map ~f node tag =
     let rec loop = function
       | [] -> []
       | (node::xs) ->
           if node.tag = (Ns.ns, tag)
-          then let result = fn node in result :: loop xs
+          then let result = f node in result :: loop xs
           else loop xs in
     loop node.child_nodes
   ;;
@@ -132,20 +138,20 @@ module NsQuery (Ns : NsType) = struct
       Not_found -> None
   ;;
 
-  let iter fn node =
+  let iter ~f node =
     let fn2 elem =
       let (ns, _) = elem.tag in
-      if ns = Ns.ns then fn elem else ()
+      if ns = Ns.ns then f elem else ()
     in List.iter fn2 node.child_nodes
   ;;
 
-  let iter_with_name fn node tag =
-    let fn2 elem = if elem.tag = (Ns.ns, tag) then fn elem else () in
+  let iter_with_name ~f node tag =
+    let fn2 elem = if elem.tag = (Ns.ns, tag) then f elem else () in
     List.iter fn2 node.child_nodes
   ;;
 
-  let fold_left fn init node tag =
-    let fn2 m elem = if elem.tag = (Ns.ns, tag) then fn m elem else m in
+  let fold_left ~f init node tag =
+    let fn2 m elem = if elem.tag = (Ns.ns, tag) then f m elem else m in
     List.fold_left fn2 init node.child_nodes
   ;;
 

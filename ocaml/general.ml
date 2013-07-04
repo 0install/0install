@@ -58,3 +58,5 @@ module ZI_NS = struct
 end
 
 module ZI = Support.Qdom.NsQuery (ZI_NS)
+
+type stability_level = Preferred | Packaged | Stable | Testing | Developer | Buggy | Insecure

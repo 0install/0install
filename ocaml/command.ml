@@ -62,7 +62,7 @@ let get_args elem env =
 ;;
 
 let get_runner elem =
-  match ZI.map (fun a -> a) elem "runner" with
+  match ZI.map ~f:(fun a -> a) elem "runner" with
     | [] -> None
     | [runner] -> Some runner
     | _ -> Qdom.raise_elem "Multiple <runner>s in " elem

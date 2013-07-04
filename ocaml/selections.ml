@@ -25,7 +25,7 @@ let get_digests elem =
     | _ -> init in
   let extract_digests init elem =
     List.fold_left check_attr init elem.Qdom.attrs in
-  ZI.fold_left extract_digests [] elem "manifest-digest";;
+  ZI.fold_left ~f:extract_digests [] elem "manifest-digest";;
 
 let make_selection elem =
   let source = (match ZI.get_attribute_opt "local-path" elem with
@@ -84,7 +84,7 @@ let get_unavailable_selections config ~include_packages sels =
     if needs_download sel then missing := sel :: !missing
   in
 
-  ZI.iter_with_name check sels "selection";
+  ZI.iter_with_name ~f:check sels "selection";
 
   !missing
 ;;

@@ -8,16 +8,19 @@ open General
 open Support.Common
 module Qdom = Support.Qdom
 
-type stability_level = Preferred | Packaged | Stable | Testing | Developer | Buggy | Insecure
-
 type interface_config = {
   stability_policy : stability_level option;
   extra_feeds : Qdom.element list;
 }
 
+(* For local feeds, returns the absolute path. *)
 let get_cached_feed_path config uri =
-  let cache = config.basedirs.Support.Basedir.cache in
-  Support.Basedir.load_first config.system (config_site +/ "interfaces" +/ Escape.escape uri) cache
+  if Support.Utils.path_is_absolute uri then (
+    Some uri
+  ) else (
+    let cache = config.basedirs.Support.Basedir.cache in
+    Support.Basedir.load_first config.system (config_site +/ "interfaces" +/ Escape.escape uri) cache
+  )
 ;;
 
 (** Actually, we list all the cached feeds. Close enough. *)
@@ -76,3 +79,11 @@ let load_iface_config config uri =
         ) in
         { stability_policy; extra_feeds }
   with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
+
+let get_cached_feed config uri =
+  (* TODO:  local feeds *)
+  match get_cached_feed_path config uri with
+  | None -> None
+  | Some path ->
+      let root = Qdom.parse_file config.system path in
+      Some (Feed.parse root)

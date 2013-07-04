@@ -27,7 +27,12 @@ val find : (element -> bool) -> element -> element option
 (** [raise_elem "Problem with" elem] raises a [Safe_exception] with the message "Problem with <element> at ..." *)
 val raise_elem : ('a, unit, string, element -> 'b) format4 -> 'a
 
+(** Like [raise_elem], but writing a log record rather than raising an exception. *)
 val log_elem : Logging.level -> ('a, unit, string, element -> unit) format4 -> 'a
+
+(** Returns the text content of this element.
+    @raise Safe_exception if it contains any child nodes. *)
+val simple_content : element -> string
 
 module type NsType = sig val ns : string end
 
@@ -40,19 +45,19 @@ module NsQuery :
 
       val get_attribute_opt : string -> element -> string option
 
-      val fold_left : ('a -> element -> 'a) -> 'a -> element -> string -> 'a
+      val fold_left : f:('a -> element -> 'a) -> 'a -> element -> string -> 'a
 
       (** Apply [fn] to each child node in our namespace with local name [tag] *)
-      val map : (element -> 'a) -> element -> string -> 'a list
+      val map : f:(element -> 'a) -> element -> string -> 'a list
 
       (** Apply [fn] to each child node in our namespace with local name [tag] *)
       val filter_map : f:(element -> 'a option) -> element -> string -> 'a list
 
       (** Call [fn] on each child node in our namespace *)
-      val iter : (element -> unit) -> element -> unit
+      val iter : f:(element -> unit) -> element -> unit
 
       (** Call [fn] on each child node in our namespace with local name [tag] *)
-      val iter_with_name : (element -> unit) -> element -> string -> unit
+      val iter_with_name : f:(element -> unit) -> element -> string -> unit
 
       (** Get the value of the non-namespaced attribute [attr].
           Throws an exception if [elem] isn't in our namespace. *)
