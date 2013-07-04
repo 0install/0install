@@ -12,10 +12,8 @@ type 'a result =
   | Failure of exn
 
 (** [a @@ b @@ c] is an alternative way to write [a (b (c))]. It's like [$] in Haskell. **)
-external ( @@ ) : ('a -> 'b) -> 'a -> 'b = "%apply"
-
-(** [a |> b] is an alternative way to write (b a) **)
-external (|>) : 'a -> ('a -> 'b) -> 'b = "%revapply";;
+(* external ( @@ ) : ('a -> 'b) -> 'a -> 'b = "%apply" *)
+let (@@) a b = a b
 
 type filepath = string
 type varname = string
@@ -82,3 +80,27 @@ let log_warning = Logging.log_warning
 let default d = function
   | None -> d
   | Some x -> x;;
+
+(** {2 Backported from OCaml 4} **)
+
+let trim s =
+  let is_space = function
+    | ' ' | '\012' | '\n' | '\r' | '\t' -> true
+    | _ -> false in
+  let open String in
+  let len = length s in
+  let i = ref 0 in
+  while !i < len && is_space (unsafe_get s !i) do
+    incr i
+  done;
+  let j = ref (len - 1) in
+  while !j >= !i && is_space (unsafe_get s !j) do
+    decr j
+  done;
+  if !i = 0 && !j = len - 1 then
+    s
+  else if !j >= !i then
+    sub s !i (!j - !i + 1)
+  else
+    ""
+
