@@ -328,7 +328,7 @@ def main(command_args, config = None):
 	try:
 		# Configure a parser for the given command
 		my_name = os.path.basename(sys.argv[0])
-		if my_name == '__main__.py': my_name = '0install'
+		if my_name == '0launch': my_name = '0install'	# Hack for --python-fallback
 		if command:
 			if command not in valid_commands:
 				if completion:
