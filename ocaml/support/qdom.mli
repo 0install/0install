@@ -24,8 +24,8 @@ val parse_file : Common.system -> string -> element
 (** [find fn parent] returns the first child of for which [fn child] is True. *)
 val find : (element -> bool) -> element -> element option
 
-(** [raise_elem "Problem with " elem] raises a [Safe_exception] with the message "Problem with <element> at ..." *)
-val raise_elem : string -> element -> 'a
+(** [raise_elem "Problem with" elem] raises a [Safe_exception] with the message "Problem with <element> at ..." *)
+val raise_elem : ('a, unit, string, element -> 'b) format4 -> 'a
 
 val log_elem : Logging.level -> ('a, unit, string, element -> unit) format4 -> 'a
 

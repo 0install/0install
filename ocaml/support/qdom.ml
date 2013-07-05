@@ -72,8 +72,10 @@ module type NsType = sig
   val ns : string;;
 end;;
 
-let raise_elem msg elem =
-  raise_safe "%s%s" msg @@ show_with_loc elem
+let raise_elem fmt =
+  let do_raise s elem : 'b =
+    raise_safe "%s %s" s @@ show_with_loc elem
+  in Printf.ksprintf do_raise fmt
 
 let log_elem level =
   let do_log s elem =
@@ -113,14 +115,14 @@ module NsQuery (Ns : NsType) = struct
   let check_ns elem =
     let (ns, _) = elem.tag in
     if ns = Ns.ns then ()
-    else raise_elem ("Element not in namespace " ^ Ns.ns ^ ":") elem
+    else raise_elem "Element not in namespace %s:" Ns.ns elem
   ;;
 
   let get_attribute attr elem = try
       check_ns elem;
       List.assoc ("", attr) elem.attrs
     with
-      Not_found -> raise_elem ("Missing attribute '" ^ attr ^ "' on ") elem
+      Not_found -> raise_elem "Missing attribute '%s' on" attr elem
   ;;
 
   let get_attribute_opt attr elem = try
@@ -149,7 +151,7 @@ module NsQuery (Ns : NsType) = struct
 
   let check_tag expected elem =
     let (ns, name) = elem.tag in
-    if ns <> Ns.ns then raise_elem ("Element not in namespace " ^ Ns.ns ^ ":") elem
-    else if name <> expected then raise_elem ("Expected <" ^ expected ^ "> but found ") elem
+    if ns <> Ns.ns then raise_elem "Element not in namespace %s:" Ns.ns elem
+    else if name <> expected then raise_elem "Expected <%s> but found " expected elem
     else ()
 end;;

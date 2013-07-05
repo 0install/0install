@@ -12,7 +12,7 @@ let get_command name elem =
   let is_command node = ((ZI.tag node = Some "command") && (ZI.get_attribute "name" node = name)) in
   match Qdom.find is_command elem with
   | Some command -> command
-  | None -> Qdom.raise_elem ("No <command> with name '" ^ name ^ "' in ") elem
+  | None -> Qdom.raise_elem "No <command> with name '%s' in" name elem
 ;;
 
 let re_template = Str.regexp ("\\$\\(\\$\\|\\([a-zA-Z_][a-zA-Z0-9_]*\\)\\|{[^}]*}\\)")
@@ -28,7 +28,7 @@ let expand_arg arg env =
     ) else s; in
   let expand s = match (Str.matched_group 1 s) with
   | "$" -> "$"
-  | "" | "{}" -> Qdom.raise_elem ("Empty variable name in template '" ^ template ^ "' in ") arg
+  | "" | "{}" -> Qdom.raise_elem "Empty variable name in template '%s' in" template arg
   | m -> Env.find (remove_braces m) env in
   Str.global_substitute re_template expand template
 ;;
@@ -92,7 +92,7 @@ let rec build_command impls command_iface command_name env : string list =
               if (Filename.is_relative command_rel_path) then
                 Filename.concat dir command_rel_path
               else
-                Qdom.raise_elem ("Absolute path '" ^ command_rel_path ^ "' in ") command
+                Qdom.raise_elem "Absolute path '%s' in" command_rel_path command
             )
           in
             if Sys.file_exists command_path then
@@ -100,7 +100,7 @@ let rec build_command impls command_iface command_name env : string list =
             else if on_windows && Sys.file_exists (command_path ^ ".exe") then
               (command_path ^ ".exe") :: command_args
             else
-              Qdom.raise_elem ("Path '" ^ command_path ^ "' does not exist: see ") command
+              Qdom.raise_elem "Path '%s' does not exist: see" command_path command
     ) in
 
     (* recursively process our runner, if any *)

@@ -42,7 +42,7 @@ let get_mode b =
   | "prepend" -> Add {pos = Prepend; default = get "default"; separator = default path_sep (get "separator")}
   | "append" -> Add {pos = Append; default = get "default"; separator = default path_sep (get "separator")}
   | "replace" -> Replace
-  | x -> Qdom.raise_elem ("Unknown mode '" ^ x ^ "' on ") b
+  | x -> Qdom.raise_elem "Unknown mode '%s' on" x b
 ;;
 
 let parse_binding elem =

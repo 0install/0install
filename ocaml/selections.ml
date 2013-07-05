@@ -39,7 +39,7 @@ let make_selection elem =
       CacheSelection (match get_digests elem with
       | [] ->
         let id = ZI.get_attribute "id" elem in
-        Qdom.raise_elem ("No digests found in selection '" ^ id ^ "': ") elem
+        Qdom.raise_elem "No digests found in selection '%s':" id elem
       | digests -> digests
       )
   ) in source
