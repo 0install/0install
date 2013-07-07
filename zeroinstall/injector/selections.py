@@ -154,8 +154,14 @@ class XMLSelection(Selection):
 		"""@rtype: {str: L{Command}}"""
 		return self.commands
 
+	def _get_quick_test_mtime(self):
+		attr = self.attrs.get('quick-test-mtime', None)
+		if attr is not None:
+			attr = int(attr)
+		return attr
+
 	quick_test_file = property(lambda self: self.attrs.get('quick-test-file', None))
-	quick_test_mtime = property(lambda self: self.attrs.get('quick-test-mtime', None))
+	quick_test_mtime = property(_get_quick_test_mtime)
 
 class Selections(object):
 	"""
@@ -366,6 +372,7 @@ class Selections(object):
 		# Check that every required selection is cached
 		def needs_download(sel):
 			if sel.id.startswith('package:'):
+				if not include_packages: return False
 				if sel.quick_test_file:
 					if not os.path.exists(sel.quick_test_file):
 						return True
@@ -373,9 +380,8 @@ class Selections(object):
 					if required_mtime is None:
 						return False
 					else:
-						return int(os.stat(sel.quick_test_file).st_mtime) == required_mtime
+						return int(os.stat(sel.quick_test_file).st_mtime) != required_mtime
 
-				if not include_packages: return False
 				feed = iface_cache.get_feed(sel.feed)
 				if not feed: return False
 				impl = feed.implementations.get(sel.id, None)
