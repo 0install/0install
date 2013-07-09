@@ -23,7 +23,7 @@ module Cache =
   struct
 
     type cache_data = {
-      mutable mtime : int;
+      mutable mtime : Int64.t;
       mutable size : int;
       mutable rev : int;
       mutable contents : (string, string) Hashtbl.t;
@@ -41,13 +41,13 @@ module Cache =
       in
       object (self)
         (* The status of the cache when we loaded it. *)
-        val data = { mtime = 0; size = -1; rev = -1; contents = Hashtbl.create 10 }
+        val data = { mtime = 0L; size = -1; rev = -1; contents = Hashtbl.create 10 }
 
         val cache_path = Basedir.save_path config.system (config_site +/ config_prog +/ cache_leaf) config.basedirs.Basedir.cache
 
         (** Reload the values from disk (even if they're out-of-date). *)
         method load_cache () =
-          data.mtime <- -1;
+          data.mtime <- -1L;
           data.size <- -1;
           data.rev <- -1;
           Hashtbl.clear data.contents;
@@ -61,7 +61,7 @@ module Cache =
                 | line ->
                     (* log_info "Cache header: %s" line; *)
                     match Utils.split_pair re_metadata_sep line with
-                    | ("mtime", mtime) -> data.mtime <- int_of_string mtime
+                    | ("mtime", mtime) -> data.mtime <- Int64.of_string mtime
                     | ("size", size) -> data.size <- int_of_string size
                     | ("version", rev) when old_format -> data.rev <- int_of_string rev
                     | ("format", rev) when not old_format -> data.rev <- int_of_string rev
@@ -86,7 +86,7 @@ module Cache =
           | None when data.size = -1 -> ()    (* Still doesn't exist - no problem *)
           | None -> raise Fallback_to_Python  (* Disappeared (shouldn't happen) *)
           | Some info ->
-              if data.mtime <> int_of_float info.Unix.st_mtime then (
+              if data.mtime <> Int64.of_float info.Unix.st_mtime then (
                 log_info "Modification time of %s has changed; invalidating cache" source;
                 raise Fallback_to_Python
               ) else if data.size <> info.Unix.st_size then (
@@ -218,4 +218,4 @@ let is_installed config elem =
       | Some info ->
           match ZI.get_attribute_opt "quick-test-mtime" elem with
           | None -> true      (* quick-test-file exists and we don't care about the time *)
-          | Some required_mtime -> (int_of_float info.Unix.st_mtime) = int_of_string required_mtime
+          | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = Int64.of_string required_mtime

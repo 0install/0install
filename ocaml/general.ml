@@ -28,7 +28,7 @@ type config = {
   distro: distribution Lazy.t;
   system : Support.Common.system;
 
-  mutable freshness: int option;
+  mutable freshness: Int64.t option;
 }
 
 (** {2 Utility functions} *)
