@@ -25,7 +25,7 @@ let get_default_config system path_to_0install =
     basedirs;
     stores = Stores.get_default_stores basedirs;
     abspath_0install;
-    freshness = Some (30 * days);
+    freshness = Some (Int64.of_int (30 * days));
     distro = lazy (Distro.get_host_distribution config);
     system;
   } in
@@ -33,8 +33,8 @@ let get_default_config system path_to_0install =
   let handle_ini_mapping = function
     | "global" -> (function
       | ("freshness", freshness) ->
-          let value = int_of_string freshness in
-          if value > 0 then
+          let value = Int64.of_string freshness in
+          if value > 0L then
             config.freshness <- Some value
           else
             config.freshness <- None

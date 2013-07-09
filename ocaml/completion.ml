@@ -123,7 +123,7 @@ let complete_config_value config completer name pre =
   | "freshness" -> (
       match config.freshness with
       | None -> add_if_matches "0"
-      | Some freshness -> add_if_matches @@ format_interval  @@ float_of_int freshness
+      | Some freshness -> add_if_matches @@ format_interval  @@ Int64.to_float freshness
   )
   | _ -> ()
 

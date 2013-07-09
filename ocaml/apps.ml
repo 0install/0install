@@ -109,10 +109,10 @@ let check_for_updates config app_path sels =
 
   (* Is it time for a background update anyway? *)
   let want_bg_update =
-    let staleness = int_of_float (config.system#time () -. last_check_time) in
-    log_info "Staleness of app %s is %d hours" app_path (staleness / (60 * 60));
+    let staleness = config.system#time () -. last_check_time in
+    log_info "Staleness of app %s is %.0f hours" app_path (staleness /. (60. *. 60.));
     match config.freshness with
-    | Some freshness_threshold -> staleness >= freshness_threshold
+    | Some freshness_threshold -> Int64.of_float staleness >= freshness_threshold
     | None -> false in    (* Updates disabled *)
 
   log_info "check_for_updates: need_solve = %b, want_bg_update = %b; unavailable_sels = %b" need_solve want_bg_update unavailable_sels;
