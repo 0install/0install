@@ -1,3 +1,4 @@
+from distutils import log
 from distutils.core import setup
 from distutils.core import Command
 from distutils.command.build_py import build_py
@@ -57,8 +58,11 @@ class build_with_data(build_py):
 	]
 
 	def run(self):
+		old = log.set_threshold(log.ERROR)	# Avoid "__init__.py not found" warning
 		# Copy .py files and build, as usual
 		build_py.run(self)
+		log.set_threshold(old)
+
 		# Copy data files
 		for data_file in self.package_data_files:
 			outfile = os.path.join(self.build_lib, data_file)
@@ -75,39 +79,11 @@ class install_lib_exec(install_lib):
 		launch = os.path.join(self.install_dir, 'zeroinstall/0launch-gui/0launch-gui')
 		os.chmod(launch, os.stat(launch).st_mode | 0o111)
 
-class install_data_locale(install_data):
-	def run(self):
-		self.data_files.extend(self._compile_po_files())
-		install_data.run(self)	# super.run()
-
-	def _compile_po_files(self):
-		i18nfiles = []
-		mo_pattern = "share/locale/*/LC_MESSAGES/zero-install.mo"
-		mo_files = glob.glob(mo_pattern)
-		if not mo_files:
-			print("No translations (Git checkout?)... trying to build them...")
-			subprocess.check_call(["make", "translations"])
-			mo_files = glob.glob(mo_pattern)
-			assert mo_files
-		for mo in mo_files:
-			dest = os.path.dirname(mo)
-			i18nfiles.append((dest, [mo]))
-		return i18nfiles
-
 class my_install(install):
 	def run(self):
 		install.run(self)       # super.run()
 		if self.home:
 			self.run_command('adjust_scripts_for_home')
-
-if '--home' in sys.argv:
-	zsh_functions_dir = '.zsh'
-elif '--install-layout=deb' in sys.argv:
-	zsh_functions_dir = 'share/zsh/vendor-completions'
-else:
-	zsh_functions_dir = 'share/zsh/site-functions'
-
-pure_python = not os.path.exists(os.path.join('ocaml', '_build', '0install'))
 
 setup(name="zeroinstall-injector",
       version=zeroinstall.version,
@@ -115,22 +91,11 @@ setup(name="zeroinstall-injector",
       author="Thomas Leonard",
       author_email="zero-install-devel@lists.sourceforge.net",
       url="http://0install.net",
-      scripts=['0launch', '0alias', '0store', '0store-secure-add', '0desktop'] + (['0install'] if pure_python else []),
-      data_files = [('man/man1', ['0launch.1', '0alias.1', '0store-secure-add.1', '0store.1', '0desktop.1', '0install.1']),
-		    ('share/applications', ['share/applications/0install.desktop']),
-		    ('share/bash-completion/completions', ['share/bash-completion/completions/0install']),
-		    ('share/fish/completions', ['share/fish/completions/0install.fish']),
-		    (zsh_functions_dir, ['share/zsh/site-functions/_0install']),
-		    ('share/icons/hicolor/24x24/apps', ['share/icons/24x24/zeroinstall.png']),
-		    ('share/icons/hicolor/48x48/apps', ['share/icons/48x48/zeroinstall.png']),
-		    ('share/icons/hicolor/128x128/apps', ['share/icons/128x128/zeroinstall.png']),
-		    ('share/icons/hicolor/scalable/apps', ['share/icons/scalable/zeroinstall.svg'])] +
-		    ([] if pure_python else [('bin', ['ocaml/_build/0install'])]),
+      scripts=['0launch', '0alias', '0store', '0store-secure-add', '0desktop'],
       license='LGPL',
       cmdclass={
 	'build_py': build_with_data,
 	'install_lib': install_lib_exec,
-	'install_data': install_data_locale,
 	'adjust_scripts_for_home': adjust_scripts_for_home,
 	'install': my_install,
       },

@@ -1,4 +1,4 @@
-true: annot, warn(A-4), package(yojson,xmlm,unix,str)
+true: annot, warn(A-4), package(yojson,xmlm,str)
 <tests/test.*>: package(oUnit)
 "support": for-pack(Support)
-<*.native> or <tests/*.native>: linkdep_win(support/windows.o)
+<*.native> or <tests/*.native> or <*.byte> or <tests/*.byte>: linkdep_win(support/windows.o), package(unix)

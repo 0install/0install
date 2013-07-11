@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
-<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
-<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
+           xmlns:compile="http://zero-install.sourceforge.net/2006/namespaces/0compile">
   <name>0install</name>
   <summary>decentralised installation system</summary>
   <description>
@@ -27,31 +27,42 @@ interfere with those provided by the distribution.
     <release:action phase="generate-archive">rm .gitignore; make translations</release:action>
   </release:management>
 
-  <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch">
-    <command name="run" path="0launch">
-      <runner interface="http://repo.roscidus.com/python/python"/>
+  <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" arch='*-src'>
+    <command name='compile'>
+      <runner interface='http://repo.roscidus.com/devel/make'>
+	<arg>-f</arg>
+	<arg>${SRCDIR}/Makefile</arg>
+	<arg>SRCDIR=${SRCDIR}</arg>
+	<arg>BUILDDIR=${BUILDDIR}</arg>
+	<arg>DISTDIR=${DISTDIR}</arg>
+      </runner>
+
+      <compile:implementation main="bin/0launch">
+	<command name="run" path="bin/0launch">
+	  <runner interface="http://repo.roscidus.com/python/python"/>
+	</command>
+	<command name="0install" path="bin/0install"/>
+
+	<requires interface="http://repo.roscidus.com/security/gnupg">
+	  <executable-in-var name="ZEROINSTALL_GPG"/>
+	</requires>
+
+	<requires interface="http://repo.roscidus.com/python/python" version="2.6..!3 | 3.2.2.."/>
+
+	<requires interface="http://repo.roscidus.com/python/python-gobject" os="POSIX"/>
+
+	<requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os="Windows">
+	  <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
+	  <version not-before="2.0.2"/>
+	</requires>
+      </compile:implementation>
     </command>
-    <command name="0install" path="0install">
-      <runner interface="http://repo.roscidus.com/python/python"/>
-    </command>
+
     <command name="test" path="tests/testall.py">
       <runner interface="http://repo.roscidus.com/python/python">
 	<arg>-tt</arg>
       </runner>
     </command>
-
-    <requires interface="http://repo.roscidus.com/security/gnupg">
-      <executable-in-var name="ZEROINSTALL_GPG"/>
-    </requires>
-
-    <restricts interface="http://repo.roscidus.com/python/python" version="2.6..!3 | 3.2.2.."/>
-
-    <requires interface="http://repo.roscidus.com/python/python-gobject" os="POSIX"/>
-
-    <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os="Windows">
-      <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
-      <version not-before="2.0.2"/>
-    </requires>
 
     <implementation id="." version="2.3-post"/>
   </group>

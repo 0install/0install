@@ -42,19 +42,32 @@ See [the 0install.net web-site](http://0install.net/) for full details.
 INSTALLATION
 ------------
 
-Zero Install uses the normal Python distutils method of installation. To
-install system-wide, run setup.py like this:
+0install is written in a mixture of Python and OCaml. You will need the OCaml
+build tools and a couple of OCaml libraries to compile 0install. On Debian use:
 
-    $ sudo python setup.py install
+    $ sudo apt-get install ocaml-nox ocaml-findlib libyojson-ocaml-dev libxmlm-ocaml-dev camlp4-extra make
+
+In the top-level directory, run:
+
+    $ make && sudo make install
 
 You can also install just to your home directory (this doesn't require root
 access):
 
-    $ python setup.py install --home ~ --install-data ~/.local
+    $ make && make install_home
     $ export PATH=$HOME/bin:$PATH
 
 Logging out and back in again will ensure $PATH and the Applications menu get
 updated correctly, on Ubuntu at least.
+
+To try 0install without installing:
+
+    $ make
+    $ ./dist/bin/0install --help
+
+
+TAB COMPLETION
+--------------
 
 A bash completion script is available in share/bash-completion. It can be
 sourced from your .bashrc or added under /usr/share/bash-completion. Note that
@@ -66,21 +79,7 @@ your $fpath (e.g. /usr/local/share/zsh/site-functions).
 For fish-shell users, add the full path to share/fish/completions to
 $fish_complete_path.
 
-
-OCAML
------
-
-You can make 0install run faster by building the OCaml source to generate a faster
-version of the "0install" executable. This binary can handle common tasks by itself,
-falling back to the Python version in other cases.
-
-This is experimental.
-
-You will need the OCaml build tools for this. On Debian:
-
-    $ sudo apt-get install ocaml ocaml-findlib libyojson-ocaml-dev libxmlm-ocaml-dev
-    $ make ocaml
-    $ sudo make install
+These completion scripts are installed automatically by "make install".
 
 
 QUICK START
