@@ -91,11 +91,17 @@ let get_default name = match name with
 
 let calc_new_value name mode value env =
   match mode with
-  | Replace -> value
+  | Replace ->
+      log_info "%s=%s" name value;
+      value
   | Add {pos; default; separator} ->
     let add_to old = match pos with
-      | Prepend -> value ^ separator ^ old
-      | Append -> old ^ separator ^ value in
+      | Prepend ->
+          log_info "%s=%s%s..." name value separator;
+          value ^ separator ^ old
+      | Append ->
+          log_info "%s=...%s%s" name separator value;
+          old ^ separator ^ value in
     match Env.find_opt name env with
       | Some v -> add_to v                  (* add to current value of variable *)
       | None -> match default with
