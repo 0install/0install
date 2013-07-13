@@ -170,16 +170,16 @@ let select_options = xml_output @ generic_select_options
 
 (** Which options are valid with which command *)
 let command_options = [
-  ("add", generic_select_options);
-  ("select", select_options);
+  ("add", offline_options @ generic_select_options);
+  ("select", offline_options @ select_options);
   ("show", xml_output @ show_options);
-  ("download", download_options @ select_options);
-  ("run", run_options @ generic_select_options);
-  ("update", generic_select_options);
+  ("download", offline_options @ download_options @ select_options);
+  ("run", offline_options @ run_options @ generic_select_options);
+  ("update", offline_options @ generic_select_options);
   ("whatchanged", diff_options);
   ("destroy", []);
   ("config", []);
-  ("import", []);
+  ("import", offline_options);
   ("list", []);
   ("search", []);
   ("add-feed", offline_options);
@@ -216,6 +216,7 @@ let parse_args config args =
     dry_run = false;
     verbosity = 0;
     extra_options = [];
+    network_use = Full_network;
     args;
   } in
 
@@ -225,6 +226,7 @@ let parse_args config args =
     | Verbose -> increase_verbosity options; None
     | WithStore store -> add_store options store; None
     | ShowVersion -> raise Fallback_to_Python
+    | NetworkUse u -> options.network_use <- u; None
     | Help -> raise Fallback_to_Python
     | AmbiguousOption fn -> (match args with
         | command :: _ -> Some (opt, fn command)
