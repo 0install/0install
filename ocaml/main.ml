@@ -41,12 +41,19 @@ let handle_run config options args : unit =
     | _ -> raise Fallback_to_Python
   );
   match args with
-  | app_or_sels :: run_args when not (is_option app_or_sels) && not (is_url app_or_sels) -> (
-      let sels = match Apps.lookup_app config app_or_sels with
-      | None -> Selections.load_selections config.system app_or_sels
+  | prog :: run_args when not (is_option prog) && not (is_url prog) -> (
+      let sels = match Apps.lookup_app config prog with
+      | None -> (
+          let root = Support.Qdom.parse_file config.system prog in
+          match ZI.tag root with
+          | None -> Support.Qdom.raise_elem "Not a 0install document (wrong namespace on root element): " root
+          | Some "selections" -> root
+          | Some "interface" | Some "feed" -> raise Fallback_to_Python
+          | Some x -> raise_safe "Unexpected root element <%s>" x
+      )
       | Some app_path -> Apps.get_selections config app_path ~may_update:true in
       try Run.execute_selections config sels run_args ?wrapper:!wrapper
-      with Safe_exception _ as ex -> reraise_with_context ex "... running selections %s" app_or_sels
+      with Safe_exception _ as ex -> reraise_with_context ex "... running %s" prog
     )
   | _ -> raise Fallback_to_Python
 ;;
