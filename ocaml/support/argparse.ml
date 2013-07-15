@@ -89,16 +89,16 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
      [carg] is the argument to complete, if in range. -1 to complete the option itself. *)
   let handle_option stream opt ~carg =
     match lookup_option opt with
-    | None -> (
-        match carg with
-        | Some -1 ->
+    | None ->
+        if carg = Some (-1) then (
           (* We are completing this option *)
           complete := CompleteOptionName opt
-        | Some _ ->
+        ) else if cword <> None then (
           (* We are completing elsewhere; just skip unknown options *)
           ()
-        | None -> raise_safe "Unknown option '%s'" opt
-    )
+        ) else (
+          raise_safe "Unknown option '%s'" opt
+        )
     | Some handler ->
         let command = match !args with
         | command :: _ -> Some command
