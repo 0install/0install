@@ -37,11 +37,16 @@ interfere with those provided by the distribution.
 	<arg>DISTDIR=${DISTDIR}</arg>
       </runner>
 
-      <compile:implementation main="bin/0launch">
-	<command name="run" path="bin/0launch">
+      <compile:implementation main="0launch" arch='*-*'>
+	<command name="run" path="0launch">
 	  <runner interface="http://repo.roscidus.com/python/python"/>
 	</command>
-	<command name="0install" path="bin/0install"/>
+
+	<command name="0install" path="0install.ml">
+	  <runner interface="http://repo.roscidus.com/ocaml/ocaml-runtime">
+	    <version not-before='4.0' before='4.1'/>
+	  </runner>
+	</command>
 
 	<requires interface="http://repo.roscidus.com/security/gnupg">
 	  <executable-in-var name="ZEROINSTALL_GPG"/>
@@ -51,9 +56,9 @@ interfere with those provided by the distribution.
 
 	<requires interface="http://repo.roscidus.com/python/python-gobject" os="POSIX"/>
 
-	<requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os="Windows">
-	  <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
-	  <version not-before="2.0.2"/>
+	<requires interface="http://0install.net/2013/interfaces/0install-windows-support.xml" os="Windows">
+	  <environment insert="runenv.exe" mode="replace" name="ZEROINSTALL_RUNENV"/>
+	  <environment insert="" name="CAML_LD_LIBRARY_PATH"/>
 	</requires>
       </compile:implementation>
     </command>

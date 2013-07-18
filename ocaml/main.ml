@@ -9,7 +9,6 @@ open Support.Common
 open Options
 
 let is_option x = String.length x > 0 && x.[0] = '-';;
-let is_iface_url x = String.length x > 0 && x.[0] = '-';;
 
 (* We can't handle any of these at the moment, so pass them to the Python. *)
 let is_url url =
@@ -51,13 +50,12 @@ let handle_run config options args : unit =
   | _ -> raise Fallback_to_Python
 ;;
 
-let main argv : unit =
-  let system = new Support.System.real_system in
+let main system argv : unit =
   let config = Config.get_default_config system (List.hd argv) in
   try
     match List.tl argv with
     | "_complete" :: args -> Completion.handle_complete config args
-    | "runenv" :: runenv_args -> Run.runenv runenv_args
+    | "runenv" :: runenv_args -> Run.runenv system runenv_args
     | raw_args ->
         let options =
           try Cli.parse_args config raw_args
@@ -70,6 +68,12 @@ let main argv : unit =
   with Fallback_to_Python ->
     log_info "Can't handle this case; switching to Python version...";
     fallback_to_python config (List.tl argv)
-;;
 
-let () = Support.Utils.handle_exceptions main (Array.to_list Sys.argv)
+let start system =
+  Support.Utils.handle_exceptions (main system) (Array.to_list Sys.argv)
+
+let start_if_not_windows system =
+  if Sys.os_type <> "Win32" then (
+    start system;
+    exit 0
+  )

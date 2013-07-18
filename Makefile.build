@@ -18,13 +18,22 @@ PYTHON=$(shell which python3 || which python2 || echo python)
 
 MO = $(shell cd ${SRCDIR}; find share/locale -name '*.po' | sort | sed -e 's/\.po/\.mo/')
 
+YOJSON = $(shell ocamlfind query yojson)
+BINIOU = $(shell ocamlfind query biniou)
+EASY_FORMAT = $(shell ocamlfind query easy-format)
+JSON_LIBS = "${EASY_FORMAT}/easy_format.cmo" "${BINIOU}/bi_util.cmo" "${BINIOU}/bi_share.cmo" "${BINIOU}/bi_outbuf.cmo" "${YOJSON}/yojson.cmo"
+XMLM = $(shell ocamlfind query xmlm)
+
 all: translations
 	(cd "${SRCDIR}" && $(PYTHON) setup.py build --build-base="${BUILDDIR}/build")
-	(cd "${SRCDIR}/ocaml" && make TYPE=native BUILDDIR="${BUILDDIR}/ocaml")
+	(cd "${SRCDIR}/ocaml" && make BUILDDIR="${BUILDDIR}/ocaml")
 	cp -r build/lib/zeroinstall "${DISTDIR}/zeroinstall"
-	install -d "${DISTDIR}/bin"
-	cp "${BUILDDIR}/ocaml/main.native" "${DISTDIR}/bin/0install"
-	(cd "${SRCDIR}" && cp ${SCRIPTS} "${DISTDIR}/bin/")
+	install "${BUILDDIR}/ocaml/0install.ml" "${DISTDIR}/"
+	cp "${BUILDDIR}/ocaml/main.cma" "${DISTDIR}/0install.cma"
+	cp "${BUILDDIR}/ocaml/main.cmi" "${BUILDDIR}/ocaml/support.cmi" "${BUILDDIR}/ocaml/windows.cma" "${BUILDDIR}/ocaml/windows.cmi" "${DISTDIR}/"
+	ocamlc -a -o "${DISTDIR}/yojson.cma" ${JSON_LIBS}
+	cp "${XMLM}"/xmlm.cmo "${DISTDIR}/"
+	(cd "${SRCDIR}" && cp ${SCRIPTS} "${DISTDIR}/")
 	(cd "${SRCDIR}" && cp ${DOCS} "${DISTDIR}")
 	cp -r share "${DISTDIR}"
 
