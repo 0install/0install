@@ -132,7 +132,8 @@ let find_in_path (system:system) name =
     check (abspath system name)
   ) else (
     (* e.g. "python" *)
-    let path_var = Str.split_delim re_path_sep (getenv_ex system "PATH") in
+    let path = default "/usr/bin:/bin" (system#getenv "PATH") in
+    let path_var = Str.split_delim re_path_sep path in
     let effective_path = if on_windows then system#getcwd () :: path_var else path_var in
     let test dir = check (dir +/ name) in
     first_match test effective_path
