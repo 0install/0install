@@ -5,6 +5,7 @@ OCAMLBUILD=ocamlbuild ${DEBUG} -use-ocamlfind -build-dir "${OCAML_BUILDDIR}"
 ifeq ($(OS), Windows_NT)
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
 endif
+MS_SDK:="/cygdrive/c/Program Files/Microsoft SDKs/Windows/v7.0/Bin"
 
 .PHONY: all ocaml doc clean tags test
 
@@ -24,9 +25,10 @@ ocaml:
 # Also, we need an XML manifest, or Windows 7 won't run it because it has "install" in its name.
 ocaml_windows:
 	cp ${OCAML_BUILDDIR}/static_0install.$(TYPE) ${OCAML_BUILDDIR}/0install.exe
-	cp 0install.exe.manifest ${OCAML_BUILDDIR}/
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) runenv.native
 	cp ${OCAML_BUILDDIR}/runenv.native ${OCAML_BUILDDIR}/0install-runenv.exe
+	${MS_SDK}/mt.exe -nologo -manifest 0install.exe.manifest -outputresource:"${OCAML_BUILDDIR}/0install.exe;#1"
+	${MS_SDK}/mt.exe -nologo -manifest 0install.exe.manifest -outputresource:"${OCAML_BUILDDIR}/0install-runenv.exe;#1"
 
 ocaml_posix:
 	cp ${OCAML_BUILDDIR}/static_0install.$(TYPE) ${OCAML_BUILDDIR}/0install
