@@ -240,7 +240,7 @@ class ['a,'b] two_arg arg1_type arg2_type (fn : string -> string -> 'a) =
       match Stream.npeek 2 stream with
       | [_; _] as pair -> Stream.junk stream; Stream.junk stream; pair
       | _ when completion = None -> raise_safe "Missing value for option %s" opt_name
-      | [x] -> [x; ""]
+      | [x] -> Stream.junk stream; [x; ""]
       | _ -> [""; ""]
 
     method parse = function

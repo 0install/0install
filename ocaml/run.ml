@@ -49,7 +49,10 @@ class bytecode_launcher_builder config =
   end
 
 class windows_launcher_builder config =
-  let runenv_path = Filename.dirname config.abspath_0install +/ "0install-runenv.exe" in
+  let runenv_path =
+    match config.system#getenv "ZEROINSTALL_RUNENV" with
+    | None -> Filename.dirname config.abspath_0install +/ "0install-runenv.exe"
+    | Some path -> path in
   let digest = Digest.file runenv_path in
   object (_ : #launcher_builder)
     inherit launcher_builder config digest
@@ -98,7 +101,7 @@ let make_selection_map stores sels =
     let path = Selections.get_path stores sel in
     let value = (sel, path) in
     StringMap.add (ZI.get_attribute "interface" sel) value m
-  in ZI.fold_left add_selection StringMap.empty sels "selection"
+  in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
 ;;
 
 (** Calculate the arguments and environment to pass to exec to run this
@@ -133,12 +136,11 @@ let execute_selections config sels args ?wrapper =
   in config.system#exec prog_args ~env:env
 
 (** This is called in a new process by the launcher created by [ensure_runenv]. *)
-let runenv args =
+let runenv (system:system) args =
   match args with
   | [] -> failwith "No args passed to runenv!"
   | arg0::args ->
     try
-      let system = new Support.System.real_system in
       let var = "zeroinstall-runenv-" ^ Filename.basename arg0 in
       let s = Support.Utils.getenv_ex system var in
       let open Yojson.Basic in

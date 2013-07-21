@@ -9,39 +9,33 @@ open Support.Common
 open Support.Argparse
 
 let starts_with = Support.Utils.starts_with
-
-let slice ~start ?stop lst =
-  let from_start =
-    let rec skip lst = function
-      | 0 -> lst
-      | i -> match lst with
-          | [] -> failwith "list too short"
-          | (_::xs) -> skip xs (i - 1)
-    in skip lst start in
-  match stop with
-  | None -> from_start
-  | Some stop ->
-      let rec take lst = function
-        | 0 -> []
-        | i -> match lst with
-            | [] -> failwith "list too short"
-            | (x::xs) -> x :: take xs (i - 1)
-      in take lst (stop - start)
-;;
+let slice = Support.Utils.slice
 
 type ctype = Add | Prefix
 
+(** There is one subclass of this for each supported shell. *)
 class virtual completer config =
   object (self)
     val config = config
 
+    (** Get the information about what to complete from the shell, and put it in a standard format: the index
+        of the word to complete and the list of words. Undo any "helpful" preprocessing the shell may have done. *)
     method virtual normalise : string list -> (int * string list)
 
+    (** Get the index of the word to complete, as reported by the shell. This is used internally by [normalise],
+        because some shells differ only in the way they count this. *)
+    method get_cword () =
+      int_of_string (Support.Utils.getenv_ex config.system "COMP_CWORD") - 1
+
+    method get_config () = config
+
+    (** Tell the shell about a possible match. *)
     method add ctype value =
       match ctype with
       | Add -> print_endline ("add " ^ value)
       | Prefix -> print_endline ("prefix " ^ value)
 
+    (** The word being completed could be an app name. *)
     method add_apps prefix =
       let apps = Apps.list_app_names config in
       let check name =
@@ -49,12 +43,11 @@ class virtual completer config =
           self#add Add name in
       List.iter check apps
 
+    (** The word being completed could be a file. *)
     method add_files _prefix =
       print_endline "file"
 
-    method get_cword () =
-      int_of_string (Support.Utils.getenv_ex config.system "COMP_CWORD") - 1
-
+    (** The word being completed could be an interface. *)
     method add_interfaces prefix =
       let could_be start =
         if String.length start > String.length prefix then starts_with start prefix
@@ -81,9 +74,9 @@ class virtual completer config =
       let re_scheme_sep = Str.regexp "https?://" in
       if not (Str.string_match re_scheme_sep prefix 0) then
         self#add_files prefix
-
   end
 
+(* 0install <Tab> *)
 let complete_command (completer:completer) raw_options prefix =
   let add s (name, _handler, _values) = StringSet.add name s in
   let options_used = List.fold_left add StringSet.empty raw_options in
@@ -97,28 +90,82 @@ let complete_command (completer:completer) raw_options prefix =
   List.iter (fun (name, _) -> completer#add Add name) complete_commands
 ;;
 
-let complete_arg (completer:completer) pre = function
+(* e.g. 120 -> "2m" *)
+let format_interval interval =
+  let time_units = [
+    (60., "s");
+    (60., "m");
+    (24., "h");
+  ] in
+  let rec f v = function
+    | [] -> (v, "d")
+    | ((n, uname) :: us) ->
+        if v < n then (v, uname)
+        else f (v /. n) us in
+  let (value, uname) = f interval time_units in
+  Printf.sprintf "%.0f%s" value uname
+
+(* 0install config <Tab> *)
+let complete_config_option completer pre =
+  let add_if_matches name =
+    if starts_with name pre then completer#add Add name in
+  List.iter add_if_matches ["network_use"; "freshness"; "help_with_testing"; "auto_approve_keys"]
+
+(* 0install config name <Tab> *)
+let complete_config_value config completer name pre =
+  let add_if_matches value =
+    if starts_with value pre then completer#add Add value in
+  match name with
+  | "network_use" ->
+      List.iter add_if_matches ["off-line"; "minimal"; "full"]
+  | "help_with_testing" | "auto_approve_keys" ->
+      List.iter add_if_matches ["true"; "false"]
+  | "freshness" -> (
+      match config.freshness with
+      | None -> add_if_matches "0"
+      | Some freshness -> add_if_matches @@ format_interval  @@ Int64.to_float freshness
+  )
+  | _ -> ()
+
+(* 0install remove-feed <Tab> *)
+let complete_interfaces_with_feeds config completer pre =
+  let check_iface uri =
+    if starts_with uri pre then (
+      let iface_config = Feed_cache.load_iface_config config uri in
+      if iface_config.Feed_cache.extra_feeds <> [] then
+        completer#add Add uri
+    ) in
+  StringSet.iter check_iface (Feed_cache.list_all_interfaces config)
+
+(* 0install remove-feed iface <Tab> *)
+let complete_extra_feed config completer iface pre =
+  let {Feed_cache.extra_feeds; _} = Feed_cache.load_iface_config config iface in
+  let add_if_matches feed =
+    let url = ZI.get_attribute "src" feed in
+    if starts_with url pre then
+      completer#add Add url
+  in
+  List.iter add_if_matches extra_feeds
+
+(** We are completing an argument, not an option. *)
+let complete_arg config (completer:completer) pre = function
   | ["run"] -> completer#add_apps pre; completer#add_interfaces pre; completer#add_files pre
   | ["run"; _] -> completer#add_files pre
   | ["add"] -> completer#add_interfaces pre
   | ["add-feed"] -> completer#add_interfaces pre
   | ["add-feed"; _iface] -> completer#add_files pre
-  | ["config"] -> raise Fallback_to_Python;
+  | ["config"] -> complete_config_option completer pre
+  | ["config"; name] -> complete_config_value config completer name pre
   | ["destroy"] | ["whatchanged"] -> completer#add_apps pre
   | ["digest"] -> completer#add_files pre
   | ["download"] | ["select"] | ["update"] -> completer#add_apps pre; completer#add_interfaces pre
   | ["import"] -> completer#add_files pre
-  | ["list-feeds"] -> raise Fallback_to_Python;
+  | ["list-feeds"] -> complete_interfaces_with_feeds config completer pre
   | ["man"] -> completer#add_apps pre
-  | ["remove-feed"] -> raise Fallback_to_Python;
-  | ["remove-feed"; _iface] -> raise Fallback_to_Python;
+  | ["remove-feed"] -> complete_interfaces_with_feeds config completer pre; completer#add_files pre
+  | ["remove-feed"; iface] -> complete_extra_feed config completer iface pre
   | ["show"] -> completer#add_apps pre; completer#add_files pre
   | _ -> ()
-
-let string_tail s i =
-  let len = String.length s in
-  if i > len then failwith ("String '" ^ s ^ "' too short to split at " ^ (string_of_int i))
-  else String.sub s i (len - i)
 
 class bash_completer config =
   object (self : #completer)
@@ -163,7 +210,7 @@ class bash_completer config =
         let colon_index = String.rindex current ':' in
         let ignored = (String.sub current 0 colon_index) ^ ":" in
         if starts_with value ignored then
-          use @@ string_tail value (colon_index + 1)
+          use @@ Support.Utils.string_tail value (colon_index + 1)
         else
           ()
       with Not_found -> use value
@@ -198,21 +245,72 @@ class zsh_completer config =
     method !get_cword () = super#get_cword () - 1
   end
 
-let complete_option_value (completer:completer) (_, handler, values, carg) =
+let complete_version completer ~range ~maybe_app target pre =
+  let re_dotdot = Str.regexp_string ".." in
+  let config = completer#get_config () in
+  let uri =
+    if maybe_app then (
+      match Apps.lookup_app config target with
+      | None -> target
+      | Some path -> Apps.get_interface config path
+    ) else target in
+
+  match Feed_cache.get_cached_feed config uri with
+  | None -> ()
+  | Some feed ->
+      let pre = Str.replace_first (Str.regexp_string "\\!") "!" pre in
+      let v_prefix =
+        if range then
+          match Str.bounded_split_delim re_dotdot pre 2 with
+          | [start; _] -> start ^ "..!"
+          | _ -> ""
+        else
+          "" in
+
+      let check impl =
+        let v = v_prefix ^ Feed.get_version_string impl in
+        if starts_with v pre then completer#add Add v in
+      List.iter check (Feed.get_implementations feed)
+
+(* 0install --option=<Tab> *)
+let complete_option_value (completer:completer) args (_, handler, values, carg) =
   let pre = List.nth values carg in
+  let complete_from_list lst =
+    ListLabels.iter lst ~f:(function item ->
+      if starts_with item pre then completer#add Add item
+    ) in
   let arg_types = handler#get_arg_types values in
   let open Cli in
-
   match List.nth arg_types carg with
   | Dir -> completer#add_files pre
-  | ImplRelPath -> raise Fallback_to_Python
-  | Command -> raise Fallback_to_Python
-  | VersionRange -> raise Fallback_to_Python
-  | SimpleVersion -> raise Fallback_to_Python
-  | CpuType | OsType -> raise Fallback_to_Python
+  | ImplRelPath -> ()
+  | Command -> ()
+  | VersionRange | SimpleVersion as t -> (
+      let use ~maybe_app target = complete_version completer ~range:(t = VersionRange) ~maybe_app target pre in
+      match carg, args with
+      | 1, _ -> use ~maybe_app:false (List.hd values)           (* --version-for iface <Tab> *)
+      | _, (_ :: target :: _) -> use ~maybe_app:true target     (* --version <Tab> run foo *)
+      | _ -> ()                               (* Don't yet know the iface, so can't complete *)
+  )
+  | CpuType -> complete_from_list ["src"; "i386"; "i486"; "i586"; "i686"; "ppc"; "ppc64"; "x86_64"]
+  | OsType -> complete_from_list ["Cygwin"; "Darwin"; "FreeBSD"; "Linux"; "MacOSX"; "Windows"]
   | Message -> ()
-  | HashType -> raise Fallback_to_Python
-  | IfaceURI -> raise Fallback_to_Python  (* The Python is smarter than just listing all interfaces *)
+  | HashType -> complete_from_list @@ Manifest.get_algorithm_names ()
+  | IfaceURI -> (
+      match args with
+      | _ :: app :: _ -> (
+        let config = completer#get_config () in
+        match Apps.lookup_app config app with
+        | None -> completer#add_interfaces pre
+        | Some path ->
+            let sels = Apps.get_selections config path ~may_update:false in
+            let add_sel sel =
+              let uri = ZI.get_attribute "interface" sel in
+              if starts_with uri pre then completer#add Add uri in
+            ZI.iter_with_name ~f:add_sel sels "selection"
+      )
+      | _ -> completer#add_interfaces pre
+  )
 
 let handle_complete config = function
   | (shell :: _0install :: raw_args) -> (
@@ -242,9 +340,9 @@ let handle_complete config = function
           let check_opt (names, _help, _handler) =
             List.iter check_name names in
           List.iter check_opt possible_options
-      | CompleteOption opt -> complete_option_value completer opt
+      | CompleteOption opt -> complete_option_value completer args opt
       | CompleteArg 0 -> complete_command completer raw_options (List.hd args)
-      | CompleteArg i -> complete_arg completer (List.nth args i) (slice args ~start:0 ~stop:i)
+      | CompleteArg i -> complete_arg config completer (List.nth args i) (slice args ~start:0 ~stop:i)
       | CompleteLiteral lit -> completer#add Add lit
   )
   | _ -> failwith "Missing arguments to '0install _complete'"

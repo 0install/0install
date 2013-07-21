@@ -87,6 +87,28 @@ let parse_m =
       | _ -> assert false
   end
 
+let parse_version_for =
+  object
+    inherit [zi_option, zi_arg_type] two_arg IfaceURI VersionRange (fun u v -> RequireVersionFor(u, v)) as super
+
+    method! read opt_name command stream ~completion =
+      let as_super () = super#read opt_name command stream ~completion in
+      if completion <> Some 0 then as_super ()
+      else (
+        (* When completing the first arg, the second arg might not have been added yet. But it's helpful to
+           parse the rest of the command correctly, so we can get the app name. So, only consume the second
+           argument if it looks like a version number. *)
+        match Stream.npeek 2 stream with
+        | [x; v] when String.length v > 0 ->
+            if v.[0] >= '0' && v.[0] <= '9' then as_super ()
+            else (
+              Stream.junk stream;
+              [x; ""]
+            )
+        | _ -> as_super ()
+      )
+  end
+
 let generic_select_options : zi_opt_list = [
   ([      "--before"],      i_ "choose a version before this",      new one_arg SimpleVersion @@ fun v -> Before v);
   ([      "--command"],     i_ "command to select",                 new one_arg Command @@ fun c -> SelectCommand c);
@@ -97,7 +119,7 @@ let generic_select_options : zi_opt_list = [
   (["-r"; "--refresh"],     i_ "refresh all used interfaces",       parse_r);
   (["-s"; "--source"],      i_ "select source code",                new no_arg @@ Source);
   ([      "--version"],     i_ "specify version constraint (e.g. '3' or '3..')", parse_version_option);
-  ([      "--version-for"], i_ "set version constraints for a specific interface", new two_arg IfaceURI VersionRange @@ fun u v -> RequireVersionFor(u, v));
+  ([      "--version-for"], i_ "set version constraints for a specific interface", parse_version_for);
 ]
 
 let offline_options = [

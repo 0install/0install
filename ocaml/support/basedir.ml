@@ -4,12 +4,6 @@
 
 (** XDG Base Directory support, for locating caches, configuration, etc *)
 
-IFDEF WINDOWS THEN
-external win_get_appdata : unit -> string = "caml_win_get_appdata";;
-external win_get_local_appdata : unit -> string = "caml_win_get_local_appdata";;
-external win_get_common_appdata : unit -> string = "caml_win_get_common_appdata";;
-ENDIF
- 
 open Common
 
 let (+/) = Filename.concat
@@ -68,23 +62,27 @@ let get_default_config (system:system) =
       }
   | None -> 
       let get = get_path system in
-      IFDEF WINDOWS THEN
-        let app_data = win_get_appdata () in
-        let local_app_data = win_get_local_appdata () in
-        let common_app_data = win_get_common_appdata () in
-        {
-          data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [app_data; common_app_data];
-          cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [local_app_data; common_app_data];
-          config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [app_data; common_app_data];
-        }
-      ELSE
+      if on_windows then (
+        match !Windows_api.windowsAPI with
+        | None -> failwith "Failed to load Windows support module!"
+        | Some api -> (
+            let app_data = api#get_appdata () in
+            let local_app_data = api#get_local_appdata () in
+            let common_app_data = api#get_common_appdata () in
+            {
+              data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [app_data; common_app_data];
+              cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [local_app_data; common_app_data];
+              config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [app_data; common_app_data];
+            }
+        )
+      ) else (
         let home = get_unix_home system in
         {
           data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [home +/ ".local/share"; "/usr/local/share"; "/usr/share"];
           cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [home +/ ".cache"; "/var/cache"];
           config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [home +/ ".config"; "/etc/xdg"];
         }
-      ENDIF
+      )
 ;;
 
 let load_first (system:system) rel_path search_path =

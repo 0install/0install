@@ -18,6 +18,15 @@ let (@@) a b = a b
 type filepath = string
 type varname = string
 
+exception Safe_exception of (string * string list ref);;
+
+(** Convenient way to create a new [Safe_exception] with no initial context. *)
+let raise_safe fmt =
+  let do_raise msg = raise @@ Safe_exception (msg, ref []) in
+  Printf.ksprintf do_raise fmt
+
+(** Define an interface for interacting with the system, so we can replace it
+    in unit-tests. *)
 class type system =
   object
     method time : unit -> float
@@ -45,8 +54,6 @@ class type system =
   end
 ;;
 
-exception Safe_exception of (string * string list ref);;
-
 let on_windows = Filename.dir_sep <> "/"
 
 (** The string used to separate paths (":" on Unix, ";" on Windows). *)
@@ -54,11 +61,6 @@ let path_sep = if on_windows then ";" else ":";;
 
 (** Handy infix version of [Filename.concat]. *)
 let (+/) : filepath -> filepath -> filepath = Filename.concat;;
-
-(** Convenient way to create a new [Safe_exception] with no initial context. *)
-let raise_safe fmt =
-  let do_raise msg = raise @@ Safe_exception (msg, ref []) in
-  Printf.ksprintf do_raise fmt
 
 (** Add the additional explanation [context] to the exception and rethrow it.
     [ex] should be a [Safe_exception] (if not, [context] is written as a warning to [stderr]).

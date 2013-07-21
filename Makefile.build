@@ -1,0 +1,78 @@
+SRCDIR ?= XXX
+DISTDIR ?= XXX
+BUILDDIR ?= XXX
+
+SCRIPTS = 0launch 0alias 0desktop 0store 0store-secure-add
+DOCS = README.md COPYING
+MANPAGES = 0launch.1 0alias.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
+
+# Use "share/zsh/vendor-completions" on Debian
+ZSHFUNCTIONS = share/zsh/site-functions
+
+PREFIX_SHARE = ${PREFIX}/share
+PREFIX_MAN = ${PREFIX_SHARE}/man
+
+vpath %.po ${SRCDIR}
+
+PYTHON=$(shell which python3 || which python2 || echo python)
+
+MO = $(shell cd ${SRCDIR}; find share/locale -name '*.po' | sort | sed -e 's/\.po/\.mo/')
+
+YOJSON = $(shell ocamlfind query yojson)
+BINIOU = $(shell ocamlfind query biniou)
+EASY_FORMAT = $(shell ocamlfind query easy-format)
+JSON_LIBS = "${EASY_FORMAT}/easy_format.cmo" "${BINIOU}/bi_util.cmo" "${BINIOU}/bi_share.cmo" "${BINIOU}/bi_outbuf.cmo" "${YOJSON}/yojson.cmo"
+XMLM = $(shell ocamlfind query xmlm)
+
+all: translations
+	(cd "${SRCDIR}" && $(PYTHON) setup.py build --build-base="${BUILDDIR}/build")
+	(cd "${SRCDIR}/ocaml" && make BUILDDIR="${BUILDDIR}/ocaml")
+	cp -r build/lib/zeroinstall "${DISTDIR}/zeroinstall"
+	install "${BUILDDIR}/ocaml/0install.ml" "${DISTDIR}/"
+	cp "${BUILDDIR}/ocaml/main.cma" "${DISTDIR}/0install.cma"
+	cp "${BUILDDIR}/ocaml/main.cmi" "${BUILDDIR}/ocaml/support.cmi" "${BUILDDIR}/ocaml/windows.cma" "${BUILDDIR}/ocaml/windows.cmi" "${DISTDIR}/"
+	ocamlc -a -o "${DISTDIR}/yojson.cma" ${JSON_LIBS}
+	cp "${XMLM}"/xmlm.cmo "${DISTDIR}/"
+	(cd "${SRCDIR}" && cp ${SCRIPTS} "${DISTDIR}/")
+	(cd "${SRCDIR}" && cp ${DOCS} "${DISTDIR}")
+	cp -r share "${DISTDIR}"
+
+translations: $(MO)
+
+install: install_system
+
+install_home:
+	@# Note sure about PREFIX_MAN, but this is what the Python did
+	$(PYTHON) "${SRCDIR}/setup.py" -q install --skip-build --force --home ~ --install-data ~/.local
+	make -f "${SRCDIR}/Makefile.build" install_common PREFIX="${HOME}" ZSHFUNCTIONS=".zsh" PREFIX_SHARE="${HOME}/.local/share" PREFIX_MAN="${HOME}/.local/man"
+
+install_system: install_common
+	$(PYTHON) "${SRCDIR}/setup.py" -q install --skip-build --force --prefix="${PREFIX}"
+
+install_common:
+	install -D ocaml/0install "${PREFIX}/bin/0install"
+	install -d "${PREFIX_MAN}/man1/"
+	install -d "${PREFIX_SHARE}/applications/"
+	install -d "${PREFIX_SHARE}/bash-completion/completions/"
+	install -d "${PREFIX_SHARE}/fish/completions"
+	install -d "${PREFIX}/${ZSHFUNCTIONS}"
+	(cd "${SRCDIR}" && \
+	  install -m 0644 ${MANPAGES} "${PREFIX_MAN}/man1/" && \
+	  install -m 0644 share/applications/0install.desktop "${PREFIX_SHARE}/applications/" && \
+	  install -m 0644 share/bash-completion/completions/0install "${PREFIX_SHARE}/bash-completion/completions/" && \
+	  install -m 0644 share/fish/completions/0install.fish "${PREFIX_SHARE}/fish/completions/" && \
+	  install -m 0644 share/zsh/site-functions/_0install "${PREFIX}/${ZSHFUNCTIONS}/" && \
+	  for size in 24x24 48x48 128x128 scalable; do \
+	    install -d "${PREFIX_SHARE}/icons/hicolor/$${size}/apps/" && \
+	    install -m 0644 share/icons/$${size}/* "${PREFIX_SHARE}/icons/hicolor/$${size}/apps/"; done \
+	)
+	(cd share && for locale in locale/*; do \
+	  install -d "${PREFIX_SHARE}/$${locale}/LC_MESSAGES/" && \
+	  install -m 0644 "$${locale}/LC_MESSAGES/zero-install.mo" "${PREFIX_SHARE}/$${locale}/LC_MESSAGES/"; \
+	done)
+
+%.mo: %.po
+	mkdir -p `dirname "$@"`
+	msgfmt -o "$@" "$<"
+
+.PHONY: all install translations

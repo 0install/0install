@@ -64,11 +64,21 @@ let format_list l = "[" ^ (String.concat "; " l) ^ "]"
 let equal_str_lists = assert_equal ~printer:format_list
 let assert_str_equal = assert_equal ~printer:(fun x -> x)
 
-let real_system = new Support.System.real_system
+module RealSystem = Support.System.RealSystem(Unix)
+let real_system = new RealSystem.real_system
 
 let () = Random.self_init ()
+
+let temp_dir_name =
+  (* Filename.get_temp_dir_name doesn't exist under 3.12 *)
+  try Sys.getenv "TEMP" with Not_found ->
+    match Sys.os_type with
+      | "Unix" | "Cygwin" -> "/tmp"
+      | "Win32" -> "."
+      | _ -> failwith "temp_dir_name: unknown filesystem"
+
 let with_tmpdir fn () =
-  let tmppath = Filename.get_temp_dir_name () +/ Printf.sprintf "0install-test-%x" (Random.int 0x3fffffff) in
+  let tmppath = temp_dir_name +/ Printf.sprintf "0install-test-%x" (Random.int 0x3fffffff) in
   Unix.mkdir tmppath 0o700;   (* will fail if already exists; OK for testing *)
   Support.Utils.finally (Support.Utils.ro_rmtree real_system) tmppath fn
 
@@ -170,8 +180,8 @@ let test_run_real tmpdir =
     if Unix.close_process_in ch <> Unix.WEXITED 0 then
       assert_failure "Child process failed" in
   let test_command =
-    if on_windows then "..\\_build\\0install run .\\test_selections_win.xml"
-    else "../_build/0install run ./test_selections.xml" in
+    if on_windows then "..\\..\\build\\ocaml\\0install run .\\test_selections_win.xml"
+    else "../../build/ocaml/0install run ./test_selections.xml" in
   let line =
     Support.Utils.finally checked_close_process_in
       (Unix.open_process_in test_command) (fun ch ->

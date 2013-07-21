@@ -1,2 +1,2 @@
 true: for-pack(Support)
-<basedir.ml>: mypp
+<windows_api.ml>: mypp
