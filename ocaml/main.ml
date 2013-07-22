@@ -60,11 +60,11 @@ let handle_run config options args : unit =
 let main (system:system) : unit =
   let argv = Array.to_list (system#argv ()) in
   let config = Config.get_default_config system (List.hd argv) in
-  try
-    match List.tl argv with
-    | "_complete" :: args -> Completion.handle_complete config args
-    | "runenv" :: runenv_args -> Run.runenv system runenv_args
-    | raw_args ->
+  match List.tl argv with
+  | "_complete" :: args -> Completion.handle_complete config args
+  | "runenv" :: runenv_args -> Run.runenv system runenv_args
+  | raw_args ->
+      try
         let options =
           try Cli.parse_args config raw_args
           with Safe_exception _ as ex ->
@@ -73,9 +73,9 @@ let main (system:system) : unit =
         match options.args with
         | ("run" :: run_args) -> handle_run config options run_args
         | _ -> raise Fallback_to_Python
-  with Fallback_to_Python ->
-    log_info "Can't handle this case; switching to Python version...";
-    fallback_to_python config (List.tl argv)
+      with Fallback_to_Python ->
+        log_info "Can't handle this case; switching to Python version...";
+        fallback_to_python config (List.tl argv)
 
 let start system =
   Support.Utils.handle_exceptions main system

@@ -153,7 +153,7 @@ let complete_extra_feed config completer iface pre =
 let complete_arg config (completer:completer) pre = function
   | ["run"] -> completer#add_apps pre; completer#add_interfaces pre; completer#add_files pre
   | ["run"; _] -> completer#add_files pre
-  | ["add"] -> completer#add_interfaces pre
+  | ["add"; _ ] -> completer#add_interfaces pre
   | ["add-feed"] -> completer#add_interfaces pre
   | ["add-feed"; _iface] -> completer#add_files pre
   | ["config"] -> complete_config_option completer pre
