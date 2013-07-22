@@ -82,7 +82,7 @@ let suite =
           "<interface uri='http://example.com/foo' xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>" ^
           "<name>-</name><summary>-</summary>" ^
           "<implementation version='1.2' id='12'/>" ^
-          "<implementation version='1.5' id='15'/>" ^
+          "<implementation version='1.5' id='15' main='foo'/>" ^
           "</interface>"
         ) in
       let interfaces_dir =

@@ -19,7 +19,7 @@ module AttrMap = Map.Make(AttrType)
 
 type binding
 type dependency
-type command
+type command = Qdom.element
 
 type properties = {
   attrs : string AttrMap.t;
@@ -50,7 +50,10 @@ let attr_version_modifier = "version-modifier"
 
 let value_testing = "testing"
 
-let make_command _name _path : command = failwith "TODO" (* TODO *)
+let make_command name path : command =
+  let elem = ZI.make "command" in
+  elem.Qdom.attrs <- [(("", "name"), name); (("", "path"), path)];
+  elem
 
 let get_attr_opt key map =
   try Some (AttrMap.find ("", key) map)

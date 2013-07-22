@@ -7,7 +7,7 @@ type element = {
   mutable child_nodes: element list;
   mutable text_before: string;        (** The text node immediately before us *)
   mutable last_text_inside: string;   (** The last text node inside us with no following element *)
-  source_name: Common.filepath;             (** For error messages *)
+  source_name: Common.filepath option;  (** For error messages *)
   pos: Xmlm.pos;                      (** Location of element in XML *)
 };;
 
@@ -65,5 +65,7 @@ module NsQuery :
 
       (** @raise Safe_exception if element does not have the expected name and namespace. *)
       val check_tag : string -> element -> unit
-      ;;
-    end;;
+
+      (** Create a new empty element with no source location. *)
+      val make : string -> element
+    end

@@ -11,7 +11,7 @@ type element = {
   mutable child_nodes: element list;
   mutable text_before: string;        (** The text node immediately before us *)
   mutable last_text_inside: string;   (** The last text node inside us with no following element *)
-  source_name: filepath;                     (** For error messages *)
+  source_name: filepath option;       (** For error messages *)
   pos: Xmlm.pos;                      (** Location of element in XML *)
 };;
 
@@ -34,7 +34,7 @@ let parse_input source_name i = try (
             child_nodes = List.rev child_nodes;
             text_before = prev_text;
             last_text_inside = trailing_text;
-            source_name;
+            source_name = Some source_name;
             pos;
           } in parse_nodes i (new_node :: prev_siblings) ""
         )
@@ -65,7 +65,9 @@ let find pred node =
 let show_with_loc elem =
   let (_ns, name) = elem.tag in
   let (line, col) = elem.pos in
-  Printf.sprintf "<%s> at %s:%d:%d" name elem.source_name line col
+  match elem.source_name with
+  | Some path -> Printf.sprintf "<%s> at %s:%d:%d" name path line col
+  | None -> Printf.sprintf "<%s> (generated)" name
 ;;
 
 module type NsType = sig
@@ -160,4 +162,14 @@ module NsQuery (Ns : NsType) = struct
     if ns <> Ns.ns then raise_elem "Element not in namespace %s:" Ns.ns elem
     else if name <> expected then raise_elem "Expected <%s> but found " expected elem
     else ()
+
+  let make tag = {
+    tag = (Ns.ns, tag);
+    attrs = [];
+    child_nodes = [];
+    text_before = "";
+    last_text_inside = "";
+    source_name = None;
+    pos = (0, 0);
+  }
 end;;
