@@ -15,13 +15,23 @@ from zeroinstall.cmd import UsageError, select
 
 syntax = "APP | URI"
 
-add_options = select.add_generic_select_options
+def add_options(parser):
+	select.add_generic_select_options(parser)
+	parser.add_option("", "--background", action='store_true')
 
 def handle(config, options, args):
 	if len(args) != 1:
 		raise UsageError()
 
 	assert not options.offline
+
+	if options.background:
+		from zeroinstall import apps
+		from zeroinstall.injector import background
+		app = apps.App(config, args[0])
+		r = app.get_requirements()
+		background.do_background_update(r, bool(options.verbose), app)
+		assert 0
 
 	old_gui = options.gui
 

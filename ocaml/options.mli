@@ -42,6 +42,8 @@ type zi_option =
 
   | MainExecutable of string
 
+  | Background
+
   | AmbiguousOption of (string -> zi_option)
 
 type global_settings = {

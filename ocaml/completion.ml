@@ -272,7 +272,7 @@ let complete_version completer ~range ~maybe_app target pre =
       let check impl =
         let v = v_prefix ^ Feed.get_version_string impl in
         if starts_with v pre then Some v else None in
-      let matching_versions = Support.Utils.filter_map check (Feed.get_implementations feed) in
+      let matching_versions = Support.Utils.filter_map ~f:check (Feed.get_implementations feed) in
       (* TODO: sort based on parsed version *)
       List.iter (completer#add Add) (List.sort compare matching_versions)
 

@@ -285,6 +285,19 @@ def spawn_background_update(driver, verbose):
 
 	spawn_background_update2(driver.requirements, verbose)
 
+def do_background_update(requirements, verbose, app):
+	try:
+		try:
+			_check_for_updates(requirements, verbose, app)
+		except SystemExit:
+			raise
+		except:
+			import traceback
+			traceback.print_exc()
+			sys.stdout.flush()
+	finally:
+		os._exit(1)
+
 def spawn_background_update2(requirements, verbose, app = None):
 	"""Spawn a detached child process to check for updates.
 	@param requirements: requirements for the new selections
@@ -297,14 +310,4 @@ def spawn_background_update2(requirements, verbose, app = None):
 	if _detach():
 		return
 
-	try:
-		try:
-			_check_for_updates(requirements, verbose, app)
-		except SystemExit:
-			raise
-		except:
-			import traceback
-			traceback.print_exc()
-			sys.stdout.flush()
-	finally:
-		os._exit(1)
+	do_background_update(requirements, verbose, app)

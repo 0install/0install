@@ -49,6 +49,8 @@ class fake_system tmpdir =
 
     method time () = !now
 
+    method set_mtime path mtime = real_system#set_mtime (check_write path) mtime
+
     method with_open_in flags mode path fn = real_system#with_open_in flags mode (check_read path) fn
     method with_open_out flags mode path fn = real_system#with_open_out flags mode (check_write path) fn
 
@@ -60,6 +62,7 @@ class fake_system tmpdir =
 
     method file_exists path =
       if path = "/usr/bin/0install" then true
+      else if path = "C:\\Windows\\system32\\0install.exe" then true
       else if tmpdir = None then false
       else real_system#file_exists (check_read path)
 
@@ -71,10 +74,14 @@ class fake_system tmpdir =
     method rmdir = failwith "rmdir"
 
     method exec = failwith "exec"
+    method spawn_detach = failwith "spawn_detach"
     method create_process = failwith "exec"
     method reap_child = failwith "reap_child"
 
-    method getcwd = failwith "getcwd"
+    method getcwd () =
+      match tmpdir with
+      | None -> "/root"
+      | Some d -> d
 
     method getenv name =
       try Some (StringMap.find name env)
@@ -136,6 +143,10 @@ let with_tmpdir fn () =
 let get_fake_config tmpdir =
   let system = new fake_system tmpdir in
   if tmpdir = None then system#putenv "HOME" "/home/testuser";
+  if on_windows then
+    system#putenv "PATH" "C:\\Windows\\system32;C:\\Windows"
+  else
+    system#putenv "PATH" "/usr/bin:/bin";
   let my_path =
     if on_windows then "C:\\Windows\\system32"
     else "/usr/bin/0install" in

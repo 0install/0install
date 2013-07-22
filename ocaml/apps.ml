@@ -71,7 +71,13 @@ let get_mtime path ~warn_if_missing =
   with Unix.Unix_error _ as ex ->
     let () = if warn_if_missing then log_warning ~ex "Failed to get time-stamp of %s" path else ()
     in 0.0
-;;
+
+let set_mtime (system:system) path =
+  (* TODO dry-run *)
+  system#with_open_out [Open_wronly; Open_creat] 0o644 path ignore;
+  (* In case file already exists *)
+  system#set_mtime path @@ system#time ()
+
 
 (* Do any updates. The possible outcomes are:
 
@@ -87,9 +93,11 @@ let get_mtime path ~warn_if_missing =
 *)
 let check_for_updates config app_path sels =
   let last_solve_path = app_path +/ "last-solve" in
+  let last_check_path = app_path +/ "last-check-attempt" in
   let last_check_time = get_mtime (app_path +/ "last-checked") ~warn_if_missing:true in
   let last_solve_time = max (get_mtime last_solve_path ~warn_if_missing:false)
                             last_check_time in
+  let system = config.system in
 
   let verify_unchanged path =
     let mtime = get_mtime path ~warn_if_missing:false in
@@ -109,7 +117,7 @@ let check_for_updates config app_path sels =
 
   (* Is it time for a background update anyway? *)
   let want_bg_update =
-    let staleness = config.system#time () -. last_check_time in
+    let staleness = system#time () -. last_check_time in
     log_info "Staleness of app %s is %.0f hours" app_path (staleness /. (60. *. 60.));
     match config.freshness with
     | Some freshness_threshold -> Int64.of_float staleness >= freshness_threshold
@@ -123,11 +131,21 @@ let check_for_updates config app_path sels =
   if need_solve then (
     (* Delete last-solve timestamp to force a recalculation.
        This is useful when upgrading from an old format that the Python can still handle but we can't. *)
-    if config.system#file_exists last_solve_path then
-      config.system#unlink last_solve_path;
+    if system#file_exists last_solve_path then
+      system#unlink last_solve_path;
     raise Fallback_to_Python
   ) else if want_bg_update then (
-    raise Fallback_to_Python
+    let last_check_attempt = get_mtime last_check_path ~warn_if_missing:false in
+    if last_check_attempt +. 60. *. 60. > system#time () then (
+      log_info "Tried to check within last hour; not trying again now";
+    ) else (
+      try
+        let extra_flags = if !Support.Logging.threshold = Support.Logging.Debug then ["-v"] else [] in
+        set_mtime system last_check_path;
+        system#spawn_detach @@ [config.abspath_0install; "update"; "--background"] @ extra_flags @ ["--"; app_path]
+      with ex -> log_warning ~ex "Error starting check for updates to %s" app_path
+    );
+    sels
   ) else sels
 ;;
 

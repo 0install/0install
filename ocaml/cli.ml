@@ -126,6 +126,10 @@ let offline_options = [
   (["-o"; "--offline"],     i_ "try to avoid using the network",    new no_arg @@ NetworkUse Offline);
 ]
 
+let update_options = [
+  ([      "--background"],  i_ "",                        new no_arg @@ Background);
+]
+
 let digest_options = [
   ([      "--algorithm"], i_ "the hash function to use", new one_arg HashType @@ fun h -> UseHash h);
   (["-m"; "--manifest"],  i_ "print the manifest",       parse_m);
@@ -166,7 +170,7 @@ let common_options : zi_opt_list = [
 let spec : (zi_option, zi_arg_type) argparse_spec = {
   options_spec = generic_select_options @ offline_options @ digest_options @
                  xml_output @ diff_options @ download_options @ show_options @
-                 run_options @ common_options;
+                 run_options @ update_options @ common_options;
   no_more_options = function
     | [_; "run"] | [_; "runenv"] -> true
     | _ -> false;
@@ -197,7 +201,7 @@ let command_options = [
   ("show", xml_output @ show_options);
   ("download", offline_options @ download_options @ select_options);
   ("run", offline_options @ run_options @ generic_select_options);
-  ("update", offline_options @ generic_select_options);
+  ("update", update_options @ offline_options @ generic_select_options);
   ("whatchanged", diff_options);
   ("destroy", []);
   ("config", []);

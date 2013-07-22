@@ -13,6 +13,42 @@ let wrap_unix_errors fn =
   with Unix.Unix_error (errno, s1, s2) ->
     raise_safe "%s(%s): %s" s1 s2 (Unix.error_message errno)
 
+let reap_child child_pid =
+  match snd (Unix.waitpid [] child_pid) with
+    | Unix.WEXITED 0 -> ()
+    | Unix.WEXITED code -> raise_safe "Child returned error exit status %d" code
+    | Unix.WSIGNALED signal -> raise_safe "Child aborted (signal %d)" signal
+    | Unix.WSTOPPED signal -> raise_safe "Child is currently stopped (signal %d)" signal
+
+(** Run [fn ()] in a grandchild process. The child exits immediately and we reap it. *)
+let double_fork_detach fn =
+  let child = Unix.fork() in
+  if child = 0 then (
+    try
+      (* We are the child *)
+
+      (* The calling process might be waiting for EOF from its child.
+         Close our stdout so we don't keep it waiting.
+         Note: this only fixes the most common case; it could be waiting
+         on any other FD as well. We should really close *all* FDs. *)
+      let null_fd = Unix.openfile "/dev/null" [Unix.O_WRONLY] 0 in
+      Unix.dup2 null_fd Unix.stdout;
+      Unix.close null_fd;
+
+      let grandchild = Unix.fork() in
+      if grandchild = 0 then (
+        (* We are the grandchild *)
+        fn (); exit 0
+      ) else (
+        (* Parent's waitpid returns and grandchild continues. *)
+        exit 0  (* Should be _exit, but that seems inaccessible *)
+      )
+    with _ -> exit 1
+  ) else (
+    (* We are the parent *)
+    reap_child child
+  )
+
 module RealSystem (U : UnixType) =
   struct
     class real_system =
@@ -27,6 +63,11 @@ module RealSystem (U : UnixType) =
         method rmdir = Unix.rmdir
         method getcwd = Sys.getcwd
         method chmod = Unix.chmod
+        method set_mtime path mtime =
+          if mtime = 0.0 then (* FIXME *)
+            failwith "OCaml cannot set mtime to 0, sorry" (* Would interpret it as the current time *)
+          else
+            Unix.utimes path mtime mtime
 
         method readdir path =
           try Success (Sys.readdir path)
@@ -96,6 +137,31 @@ module RealSystem (U : UnixType) =
             let cmd = String.concat " " argv in
             reraise_with_context ex "... trying to exec: %s" cmd
 
+        method spawn_detach ?(search_path = false) ?env argv =
+          flush stdout;
+          flush stderr;
+          try
+            wrap_unix_errors (fun () ->
+              let argv_array = Array.of_list argv in
+              let prog_path =
+                if search_path then Utils.find_in_path_ex (self :> system) (List.hd argv)
+                else (List.hd argv) in
+              log_info "spawn %s" @@ String.concat " " argv;
+              let do_exec () =
+                match env with
+                | None -> Unix.execv prog_path argv_array
+                | Some env -> Unix.execve prog_path argv_array env in
+              if on_windows then (
+                (* exec actually just spawns on Windows *)
+                do_exec ()
+              ) else (
+                double_fork_detach do_exec
+              )
+            )
+          with Safe_exception _ as ex ->
+            let cmd = String.concat " " argv in
+            reraise_with_context ex "... trying to spawn: %s" cmd
+
         (** Create and open a new text file, call [fn chan] on it, and rename it over [path] on success. *)
         method atomic_write open_flags fn path mode =
           let dir = Filename.dirname path in
@@ -122,12 +188,7 @@ module RealSystem (U : UnixType) =
           let () = match kill_first with
             | None -> ()
             | Some signal -> Unix.kill child_pid signal in
-          match snd (Unix.waitpid [] child_pid) with
-            | Unix.WEXITED 0 -> ()
-            | Unix.WEXITED code -> raise_safe "Child returned error exit status %d" code
-            | Unix.WSIGNALED signal -> raise_safe "Child aborted (signal %d)" signal
-            | Unix.WSTOPPED signal -> raise_safe "Child is currently stopped (signal %d)" signal
-
+          reap_child child_pid
 
       end
   end

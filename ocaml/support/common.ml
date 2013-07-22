@@ -45,8 +45,10 @@ class type system =
     method atomic_write : open_flag list -> (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
     method readdir : filepath -> string array result
     method chmod : filepath -> Unix.file_perm -> unit
+    method set_mtime : filepath -> float -> unit
 
     method exec : ?search_path:bool -> ?env:string array -> string list -> 'a
+    method spawn_detach : ?search_path:bool -> ?env:string array -> string list -> unit
     method create_process : filepath -> string array -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
     (** [reap_child ?kill_first:signal child_pid] calls [waitpid] to collect the child.
         @raise Safe_exception if it didn't exit with a status of 0 (success). *)
