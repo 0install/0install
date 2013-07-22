@@ -1,7 +1,7 @@
 0install
 ========
 
-Copyright Thomas Leonard and others, 2012
+Copyright Thomas Leonard and others, 2013
 
 INTRODUCTION
 ------------
@@ -64,6 +64,25 @@ To try 0install without installing:
 
     $ make
     $ ./dist/bin/0install --help
+
+### Windows installation
+
+A Windows binary of 0install is available at [0install.de](http://0install.de/?lang=en).
+If you want to compile from source on Windows you'll need:
+
+- [OCaml 4.0.1 Windows Installer](http://protz.github.io/ocaml-installer/)
+- Various Cygwin packages: mingw64-i686-gcc-core, mingw-i686-headers and make, at least.
+- Two OCaml libraries: Xmlm and Yojson (and its dependencies: Cppo, Easy-format, Biniou).
+
+To build under Cygwin:
+
+    mkdir build
+    cd ocaml
+    make
+
+This creates the executables build/ocaml/install.exe and build/ocaml/0install-runenv.exe.
+If you'd like to make the top-level Makefile work on Windows so you can "make install", please
+send a patch.
 
 
 TAB COMPLETION
