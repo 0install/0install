@@ -174,20 +174,28 @@ let test_option_parsing () =
   assert_equal [("-m", MainExecutable "main")] s.extra_options;
 ;;
 
+let input_all ch =
+  let b = Buffer.create 100 in
+  let buf = String.create 256 in
+  try
+    while true do
+      let got = input ch buf 0 256 in
+      if got = 0 then
+        raise End_of_file;
+      Buffer.add_substring b buf 0 got
+    done;
+    failwith "!"
+  with End_of_file -> Buffer.contents b
+
 let test_run_real tmpdir =
+  let build_dir = Unix.getenv "OCAML_BUILDDIR" in
   Unix.putenv "ZEROINSTALL_PORTABLE_BASE" tmpdir;
-  let checked_close_process_in ch =
-    if Unix.close_process_in ch <> Unix.WEXITED 0 then
-      assert_failure "Child process failed" in
-  let test_command =
-    if on_windows then "..\\..\\build\\ocaml\\0install run .\\test_selections_win.xml"
-    else "../../build/ocaml/0install run ./test_selections.xml" in
-  let line =
-    Support.Utils.finally checked_close_process_in
-      (Unix.open_process_in test_command) (fun ch ->
-      input_line ch
-  ) in
-  assert_str_equal "Hello World" line
+  let sels_path =
+    if on_windows then ".\\test_selections_win.xml"
+    else "./test_selections.xml" in
+  let argv = [build_dir +/ "0install"; "run"; sels_path] in
+  let line = Support.Utils.check_output real_system input_all argv in
+  assert_str_equal "Hello World\n" line
 ;;
 
 let test_escaping () =

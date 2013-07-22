@@ -13,7 +13,7 @@ all: ocaml test
 
 test: ocaml
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) tests/test.$(TYPE)
-	(cd tests && ../${OCAML_BUILDDIR}/tests/test.$(TYPE))
+	(cd tests && OCAML_BUILDDIR=../${OCAML_BUILDDIR} ../${OCAML_BUILDDIR}/tests/test.$(TYPE))
 
 # Build portable bytecode and static version (of $TYPE)
 ocaml: 

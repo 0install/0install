@@ -16,7 +16,7 @@ let finally cleanup resource f =
 
 let safe_to_string = function
   | Safe_exception (msg, contexts) ->
-      Some (msg ^ String.concat "\n" !contexts)
+      Some (msg ^ "\n" ^ String.concat "\n" !contexts)
   | _ -> None
 ;;
 
@@ -179,9 +179,13 @@ let check_output ?stderr (system:system) fn (argv:string list) =
     in
     system#reap_child child_pid;
     result
-  with Unix.Unix_error _ as ex ->
-    let cmd = String.concat " " argv in
-    raise (Safe_exception (Printexc.to_string ex, ref ["... trying to read output of: " ^ cmd]))
+  with
+  | Unix.Unix_error _ as ex ->
+      let cmd = String.concat " " argv in
+      raise (Safe_exception (Printexc.to_string ex, ref ["... trying to read output of: " ^ cmd]))
+  | Safe_exception _ as ex ->
+      let cmd = String.concat " " argv in
+      reraise_with_context ex "... trying to read output of: %s" cmd
 ;;
 
 (** Call [fn line] on each line of output from running the given sub-process. *)
