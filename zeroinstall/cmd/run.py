@@ -54,12 +54,3 @@ def handle(config, options, args):
 
 	from zeroinstall.injector import run
 	run.execute_selections(sels, prog_args, dry_run = options.dry_run, main = options.main, wrapper = options.wrapper, stores = config.stores)
-
-def complete(completion, args, cword):
-	"""@type completion: L{zeroinstall.cmd._Completion}
-	@type args: [str]
-	@type cword: int"""
-	if cword == 0:
-		select.complete(completion, args, cword)
-	else:
-		completion.expand_files()

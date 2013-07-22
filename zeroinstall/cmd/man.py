@@ -52,10 +52,3 @@ def _0install_man(config, command):
 
 	helpers.exec_man(config.stores, sels, main, fallback_name = command)
 	assert 0
-
-def complete(completion, args, cword):
-	"""@type completion: L{zeroinstall.cmd._Completion}
-	@type args: [str]
-	@type cword: int"""
-	if len(args) != 1: return
-	completion.expand_apps()

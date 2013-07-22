@@ -93,10 +93,3 @@ def show_changes(old_selections, new_selections):
 			changes = True
 	
 	return changes
-
-def complete(completion, args, cword):
-	"""@type completion: L{zeroinstall.cmd._Completion}
-	@type args: [str]
-	@type cword: int"""
-	if len(args) != 1: return
-	completion.expand_apps()

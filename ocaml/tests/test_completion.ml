@@ -114,6 +114,31 @@ let suite =
 
         (* -- before argument *)
         assert_str_equal "prefix http://example.com/\nfile\n" @@ complete ["select"; "--"; "http:"] 3;
-      )
+      );
+
+      if shell = "zsh" then (
+        assert_contains "--xml" @@ complete ["show"; "-"] 2;
+        assert_contains "file\n" @@ complete ["show"; ""] 2;
+
+        assert_contains "file\n" @@ complete ["download"; ""] 2;
+        assert_contains "file\n" @@ complete ["update"; ""] 2;
+
+        assert_contains "network_use" @@ complete ["config"] 2;
+        assert_contains "full" @@ complete ["config"; "network_use"] 3;
+        assert_contains "true" @@ complete ["config"; "help_with_testing"] 3;
+        assert_contains "add 30d" @@ complete ["config"; "freshness"] 3;
+
+        assert_str_equal "" @@ complete ["config"; "missing"] 3;
+        assert_str_equal "" @@ complete ["config"; "network_use"; ""] 4;
+        assert_str_equal "" @@ complete ["list-feeds"] 2;
+
+        assert_contains "file\n" @@ complete ["run"; ""] 2;
+        assert_contains "file\n" @@ complete ["digest"] 2;
+        assert_str_equal ""      @@ complete ["add"; ""] 2;
+        assert_contains "file\n" @@ complete ["add"; "foo"] 3;
+
+        assert_contains "file\n" @@ complete ["import"; ""] 2;
+        assert_contains "file\n" @@ complete ["add-feed"; ""] 2;
+      );
     )
   )

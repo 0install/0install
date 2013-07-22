@@ -64,10 +64,3 @@ def handle(config, options, args):
 			support.ro_rmtree(tmpdir)
 			if data:
 				data.close()
-
-def complete(completion, args, cword):
-	"""@type completion: L{zeroinstall.cmd._Completion}
-	@type args: [str]
-	@type cword: int"""
-	if len(args) != 1: return
-	completion.expand_files()

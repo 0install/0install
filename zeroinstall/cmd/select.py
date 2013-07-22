@@ -242,11 +242,3 @@ def show_human(sels, stores):
 		print_node(sels.interface, [sels.command], "")
 	else:
 		print_node(sels.interface, [], "")
-
-def complete(completion, args, cword):
-	"""@type completion: L{zeroinstall.cmd._Completion}
-	@type args: [str]
-	@type cword: int"""
-	if len(args) != 1 or cword != 0: return
-	completion.expand_apps()
-	completion.expand_interfaces()

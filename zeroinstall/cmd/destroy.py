@@ -21,10 +21,3 @@ def handle(config, options, args):
 
 	app = config.app_mgr.lookup_app(pet_name)
 	app.destroy()
-
-def complete(completion, args, cword):
-	"""@type completion: L{zeroinstall.cmd._Completion}
-	@type args: [str]
-	@type cword: int"""
-	if len(args) != 1: return
-	completion.expand_apps()

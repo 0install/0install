@@ -42,10 +42,3 @@ def handle(config, options, args):
 	app = config.app_mgr.create_app(pet_name, r)
 	app.set_selections(sels)
 	app.integrate_shell(pet_name)
-
-def complete(completion, args, cword):
-	"""@type completion: L{zeroinstall.cmd._Completion}
-	@type args: [str]
-	@type cword: int"""
-	if cword != 1: return
-	completion.expand_interfaces()

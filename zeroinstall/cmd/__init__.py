@@ -50,247 +50,6 @@ class NoCommand(object):
 			sys.exit(0)
 		raise UsageError()
 
-class _Completion(object):
-	def __init__(self, config, command_args, shell):
-		"""@type command_args: [str]
-		@type shell: str"""
-		assert shell in ('zsh', 'bash', 'fish'), shell
-		self.shell = shell
-		self.config = config
-		self.cword = int(os.environ['COMP_CWORD']) - 1
-		self.response_prefix = ''
-		if shell == 'zsh':
-			self.cword -= 1
-
-		if shell == 'bash':
-			# Bash does crazy splitting (e.g. "http://foo" becomes "http" ":" "//foo")
-			# Do our best to reverse that splitting here (inspired by Git completion code)
-			command_args = command_args[:]
-			while ':' in command_args[1:]:
-				i = command_args.index(':', 1)
-				combined = command_args[i - 1] + command_args[i]
-				if i + 1 < len(command_args):
-					combined += command_args[i + 1]
-				command_args = command_args[:i - 1] + [combined] + command_args[i + 2:]
-				if self.cword > i:
-					self.cword -= 2
-				elif self.cword == i:
-					self.cword -= 1
-			# For --opt=value, we get ['--opt', '=', value]. Just get rid of the '='.
-			if self.cword > 0 and command_args[self.cword - 1] == '=':
-				del command_args[self.cword - 1]
-				self.cword -= 1
-			elif command_args[self.cword] == '=':
-				command_args[self.cword] = ''
-			#print(command_args, self.cword, file = sys.stderr)
-
-		if self.cword < len(command_args):
-			self.current = command_args[self.cword]
-		else:
-			self.current = ''
-
-		if shell in ('zsh', 'fish'):
-			if self.current.startswith('--') and '=' in self.current:
-				# Split "--foo=bar" into "--foo", "bar"
-				name, value = self.current.split('=', 1)
-				command_args[self.cword:self.cword + 1] = [name, value]
-				self.cword += 1
-				self.current = command_args[self.cword]
-				self.response_prefix = name + '='
-			else:
-				self.response_prefix = ''
-
-		self.command_args = command_args
-
-	def got_command(self, command, pos):
-		#print("found %s at %s [cword = %d]" % (command, pos, self.cword), file = sys.stderr)
-		"""@type command: str
-		@type pos: int"""
-		if pos == self.cword:
-			for command in valid_commands:
-				self.add("filter", command)
-			sys.exit(0)
-
-	def complete(self, parser, cmd):
-		opts = {}
-		for opt in parser.option_list:
-			for name in opt._short_opts:
-				opts[name] = opt
-			for name in opt._long_opts:
-				opts[name] = opt
-
-		options_possible = True
-		arg_word = -1
-		args = []
-		consume_args = 0
-		complete_option_arg = None	# (option, args, arg pos)
-		#logger.warning("%s at %d", self.command_args, self.cword)
-		for i, a in enumerate(self.command_args):
-			#logger.warning("%d %s (%d)", i, a, options_possible)
-			if consume_args > 0:
-				#print("consume " + a, file=sys.stderr)
-				consume_args -= 1
-			elif a == '--' and options_possible and i != self.cword:
-				options_possible = False
-			elif a.startswith('-') and options_possible:
-				if i == self.cword:
-					self._complete_option(parser)
-					return
-				# Does it take an argument?
-				option_with_args = None
-				if a.startswith('--'):
-					opt = opts.get(a, None)
-					if opt and opt.nargs:
-						option_with_args = opt
-				else:
-					for l in a[1:]:
-						opt = opts.get('-' + l, None)
-						if opt and opt.nargs:
-							option_with_args = opt
-							break
-
-				if option_with_args:
-					consume_args = option_with_args.nargs
-
-					option_arg_index = self.cword - i - 1
-					if option_arg_index >= 0 and option_arg_index < consume_args:
-						complete_option_arg = (option_with_args,
-								       self.command_args[i + 1 : i + 1 + consume_args],
-								       option_arg_index)
-			else:
-				if len(args) > 0 and options_possible and not parser.allow_interspersed_args:
-					options_possible = False
-				args.append(a)
-				if i < self.cword:
-					arg_word += 1
-
-		if complete_option_arg is None:
-			if hasattr(cmd, 'complete'):
-				if arg_word == len(args) - 1: args.append('')
-				cmd.complete(self, args[1:], arg_word)
-		else:
-			metavar = complete_option_arg[0].metavar
-			#logger.warning("complete option arg %s %s as %s", args[1:], complete_option_arg, metavar)
-			if metavar == 'DIR':
-				self.expand_files()
-			elif metavar == 'OS':
-				for value in ["Cygwin", "Darwin", "FreeBSD", "Linux", "MacOSX", "Windows"]:
-					self.add("filter", value)
-			elif metavar == 'CPU':
-				for value in ["src", "i386", "i486", "i586", "i686", "ppc", "ppc64", "x86_64"]:
-					self.add("filter", value)
-			elif metavar == 'URI RANGE':
-				if complete_option_arg[2] == 0:
-					# When completing the URI, contextualise to the app's selections, if possible
-					if len(args) > 1:
-						app = self.config.app_mgr.lookup_app(args[1], missing_ok = True)
-						if app:
-							for uri in app.get_selections().selections:
-								self.add("filter", uri)
-							return
-					# Otherwise, complete on all cached URIs
-					self.expand_interfaces()
-				else:
-					self.expand_range(complete_option_arg[1][0])
-			elif metavar in ('RANGE', 'VERSION'):
-				if len(args) > 1:
-					self.expand_range(args[1], maybe_app = True, range_ok = metavar == 'RANGE')
-			elif metavar == 'HASH':
-				from zeroinstall.zerostore import manifest
-				for alg in sorted(manifest.algorithms):
-					self.add("filter", alg)
-			#else: logger.warning("%r", metavar)
-
-	def _complete_option(self, parser):
-		if len(self.current) < 2 or self.current.startswith('--'):
-			# Long option, or nothing yet
-			for opt in parser.option_list:
-				for o in opt._long_opts:
-					self.add("filter", o)
-		else:
-			# Short option: if it's valid, complete it.
-			# Otherwise, reject it.
-			valid = set()
-			for opt in parser.option_list:
-				for o in opt._short_opts:
-					valid.add(o[1:])
-			if all(char in valid for char in self.current[1:]):
-				self.add("add", self.current)
-
-	def expand_range(self, uri, maybe_app = False, range_ok = True):
-		"""@type uri: str
-		@type maybe_app: bool
-		@type range_ok: bool"""
-		if maybe_app:
-			app = self.config.app_mgr.lookup_app(uri, missing_ok = True)
-			if app:
-				uri = app.get_requirements().interface_uri
-
-		iface_cache = self.config.iface_cache
-		iface = iface_cache.get_interface(uri)
-		versions = [impl.get_version() for impl in iface_cache.get_implementations(iface)]
-
-		if range_ok and '..' in self.current:
-			prefix = self.current.split('..', 1)[0] + '..!'
-		else:
-			prefix = ''
-
-		for v in sorted(versions):
-			#logger.warning(prefix + v)
-			self.add("filter", prefix + v)
-
-	def expand_apps(self):
-		for app in self.config.app_mgr.iterate_apps():
-			self.add("filter", app)
-
-	def expand_files(self):
-		print("file")
-
-	def expand_interfaces(self):
-		c = self.current
-		if 'http://'.startswith(c[:7]) or 'https://'.startswith(c[:8]):
-			if c.count('/') < 3:
-				# Start with just the domains
-				import re
-				start = re.compile('(https?://[^/]+/).*')
-				starts = set()
-				for iface in self.config.iface_cache.list_all_interfaces():
-					if not iface.startswith(c):continue
-					match = start.match(iface)
-					if match:
-						starts.add(match.group(1))
-				for s in sorted(starts):
-					self.add("prefix", s)
-			else:
-				for iface in self.config.iface_cache.list_all_interfaces():
-					if iface.startswith(c):
-						self.add("filter", iface)
-
-		if '://' not in c:
-			self.expand_files()
-
-	def add_filtered(self, value):
-		"""Add this value, but only if it matches the prefix.
-		@type value: str"""
-		self.add("filter", value)
-
-	def add(self, type, value):
-		"""Types are:
-		add - a raw string to add
-		filter - a string to add only if it matches
-		prefix - a completion that doesn't insert a space after it.
-		@type type: str
-		@type value: str"""
-		if self.shell == 'bash':
-			if ':' in self.current:
-				ignored = self.current.rsplit(':', 1)[0] + ':'
-				if not value.startswith(ignored): return
-				value = value[len(ignored):]
-				#print(">%s<" % value, file = sys.stderr)
-			if type != 'prefix':
-				value += ' '
-		print(type, self.response_prefix + value)
-
 def main(command_args, config = None):
 	"""Act as if 0install was run with the given arguments.
 	@type command_args: [str]
@@ -302,27 +61,15 @@ def main(command_args, config = None):
 		from zeroinstall.injector.config import load_config
 		config = load_config()
 
-	completion = None
-	if command_args and command_args[0] == '_complete':
-		shell = command_args[1]
-		command_args = command_args[3:]
-		# command_args[2] == "0install"
-		completion = _Completion(config, command_args, shell = shell)
-
 	# The first non-option argument is the command name (or "help" if none is found).
 	command = None
 	for i, arg in enumerate(command_args):
 		if not arg.startswith('-'):
 			command = arg
 			command_args = command_args[:i] + command_args[i + 1:]
-			if completion:
-				completion.got_command(command, i)
 			break
 		elif arg == '--':
 			break
-	else:
-		if completion:
-			completion.got_command(None, len(command_args))
 
 	verbose = False
 	try:
@@ -331,8 +78,6 @@ def main(command_args, config = None):
 		if my_name == '0launch': my_name = '0install'	# Hack for --python-fallback
 		if command:
 			if command not in valid_commands:
-				if completion:
-					return
 				raise SafeException(_("Unknown sub-command '%s': try --help") % command)
 
 			module_name = command.replace('-', '_')
@@ -350,10 +95,6 @@ def main(command_args, config = None):
 		parser.add_option("", "--with-store", help=_("add an implementation cache"), action='append', metavar='DIR')
 
 		cmd.add_options(parser)
-
-		if completion:
-			completion.complete(parser, cmd)
-			return
 
 		(options, args) = parser.parse_args(command_args)
 		verbose = options.verbose

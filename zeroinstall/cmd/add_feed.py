@@ -105,13 +105,3 @@ def handle(config, options, args, add_ok = True, remove_ok = False):
 			print("- " + f.uri)
 	else:
 		print(_("(no feeds)"))
-
-def complete(completion, args, cword):
-	"""@type completion: L{zeroinstall.cmd._Completion}
-	@type args: [str]
-	@type cword: int"""
-	if cword > 1: return
-	if cword == 0:
-		completion.expand_interfaces()
-	else:
-		completion.expand_files()

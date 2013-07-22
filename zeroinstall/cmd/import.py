@@ -53,10 +53,3 @@ def handle(config, options, args):
 			task = tasks.Task(run(), "import feed")
 
 			tasks.wait_for_blocker(task.finished)
-
-def complete(completion, args, cword):
-	"""@type completion: L{zeroinstall.cmd._Completion}
-	@type args: [str]
-	@type cword: int"""
-	if len(args) != 1: return
-	completion.expand_files()

@@ -104,5 +104,3 @@ def handle(config, options, args):
 		if changes:
 			app.set_selections(sels)
 		app.set_requirements(r)
-
-complete = select.complete

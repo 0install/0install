@@ -27,17 +27,3 @@ def handle(config, options, args):
 			print(f.uri)
 	else:
 		print(_("(no feeds)"))
-
-# Lists only interfaces with feeds.
-# Note: this is also used by remove-feed.
-def complete(completion, args, cword):
-	"""@type completion: L{zeroinstall.cmd._Completion}
-	@type args: [str]
-	@type cword: int"""
-	if len(args) != 1: return
-	iface_cache = completion.config.iface_cache
-	for uri in iface_cache.list_all_interfaces():
-		dummy = model.Interface(uri)
-		reader.update_user_overrides(dummy)
-		if dummy.extra_feeds:
-			completion.add_filtered(uri)

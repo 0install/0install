@@ -32,20 +32,3 @@ def handle(config, options, args):
 		add_feed.handle(config, options, args, add_ok = False, remove_ok = True)
 	else:
 		raise UsageError()
-
-def complete(completion, args, cword):
-	"""@type completion: L{zeroinstall.cmd._Completion}
-	@type args: [str]
-	@type cword: int"""
-	if cword > 1: return
-	if cword == 0:
-		list_feeds.complete(completion, args[:1], 1)
-		# Or it could be a feed directly
-		completion.expand_files()
-
-	if cword == 1:
-		# With two arguments, we can only remove a feed that is registered
-		dummy = model.Interface(args[0])
-		reader.update_user_overrides(dummy)
-		for feed in dummy.extra_feeds:
-			completion.add_filtered(feed.uri)
