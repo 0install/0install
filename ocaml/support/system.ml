@@ -8,10 +8,17 @@ open Common
 
 module type UnixType = module type of Unix
 
+let wrap_unix_errors fn =
+  try fn ()
+  with Unix.Unix_error (errno, s1, s2) ->
+    raise_safe "%s(%s): %s" s1 s2 (Unix.error_message errno)
+
 module RealSystem (U : UnixType) =
   struct
     class real_system =
       object (self : #system)
+        method argv () = Sys.argv
+        method print_string = print_string
         method time = Unix.time
         method mkdir = Unix.mkdir
         method file_exists = Sys.file_exists
@@ -61,31 +68,33 @@ module RealSystem (U : UnixType) =
           flush stdout;
           flush stderr;
           try
-            let argv_array = Array.of_list argv in
-            let prog_path =
-              if search_path then Utils.find_in_path_ex (self :> system) (List.hd argv)
-              else (List.hd argv) in
-            log_info "exec %s" @@ String.concat " " argv;
-            if on_windows then (
-              let open Unix in
-              let run_child _args =
-                let child_pid =
-                  match env with
-                  | None -> Unix.create_process prog_path argv_array stdin stdout stderr
-                  | Some env -> Unix.create_process_env prog_path argv_array env stdin stdout stderr in
-                match snd (waitpid [] child_pid) with
-                | Unix.WEXITED code -> exit code
-                | _ -> exit 127 in
-              Utils.handle_exceptions run_child []
-              (* doesn't return *)
-            ) else (
-              match env with
-              | None -> Unix.execv prog_path argv_array
-              | Some env -> Unix.execve prog_path argv_array env
+            wrap_unix_errors (fun () ->
+              let argv_array = Array.of_list argv in
+              let prog_path =
+                if search_path then Utils.find_in_path_ex (self :> system) (List.hd argv)
+                else (List.hd argv) in
+              log_info "exec %s" @@ String.concat " " argv;
+              if on_windows then (
+                let open Unix in
+                let run_child _args =
+                  let child_pid =
+                    match env with
+                    | None -> Unix.create_process prog_path argv_array stdin stdout stderr
+                    | Some env -> Unix.create_process_env prog_path argv_array env stdin stdout stderr in
+                  match snd (waitpid [] child_pid) with
+                  | Unix.WEXITED code -> exit code
+                  | _ -> exit 127 in
+                Utils.handle_exceptions run_child []
+                (* doesn't return *)
+              ) else (
+                match env with
+                | None -> Unix.execv prog_path argv_array
+                | Some env -> Unix.execve prog_path argv_array env
+              )
             )
-          with Unix.Unix_error _ as ex ->
+          with Safe_exception _ as ex ->
             let cmd = String.concat " " argv in
-            raise (Safe_exception (Printexc.to_string ex, ref ["... trying to exec: " ^ cmd]))
+            reraise_with_context ex "... trying to exec: %s" cmd
 
         (** Create and open a new text file, call [fn chan] on it, and rename it over [path] on success. *)
         method atomic_write open_flags fn path mode =
@@ -95,9 +104,13 @@ module RealSystem (U : UnixType) =
             with Sys_error msg -> raise_safe "open_temp_file failed: %s" msg
           in
           let result = Utils.finally close_out ch fn in
-          Unix.chmod tmpname mode;
-          Unix.rename tmpname path;
-          result
+          try
+            wrap_unix_errors (fun () ->
+              Unix.chmod tmpname mode;
+              Unix.rename tmpname path
+            );
+            result
+          with Safe_exception _ as ex -> reraise_with_context ex "... trying to write '%s'" path
 
         method getenv name =
           try Some (Sys.getenv name)

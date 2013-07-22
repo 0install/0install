@@ -29,6 +29,8 @@ let raise_safe fmt =
     in unit-tests. *)
 class type system =
   object
+    method argv : unit -> string array
+    method print_string : string -> unit
     method time : unit -> float
 
     method with_open_in : open_flag list -> Unix.file_perm -> filepath -> (in_channel -> 'a) -> 'a

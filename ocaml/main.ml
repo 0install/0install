@@ -57,7 +57,8 @@ let handle_run config options args : unit =
   | _ -> raise Fallback_to_Python
 ;;
 
-let main system argv : unit =
+let main (system:system) : unit =
+  let argv = Array.to_list (system#argv ()) in
   let config = Config.get_default_config system (List.hd argv) in
   try
     match List.tl argv with
@@ -77,7 +78,7 @@ let main system argv : unit =
     fallback_to_python config (List.tl argv)
 
 let start system =
-  Support.Utils.handle_exceptions (main system) (Array.to_list Sys.argv)
+  Support.Utils.handle_exceptions main system
 
 let start_if_not_windows system =
   if Sys.os_type <> "Win32" then (

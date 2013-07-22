@@ -1,91 +1,18 @@
+(* Copyright (C) 2013, Thomas Leonard
+ * See the README file for details, or visit http://0install.net.
+ *)
+
 open OUnit
 open General
 open Support.Common
+open Fake_system
 
 (* let () = Support.Logging.threshold := Support.Logging.Info *)
-
-class fake_system =
-  object (_ : #system)
-    val now = ref 0.0
-    val mutable env = StringMap.empty
-
-    val files = Hashtbl.create 10
-
-    method time () = !now
-
-    method with_open_in = failwith "file access"
-    method with_open_out = failwith "file access"
-    method mkdir = failwith "file access"
-    method readdir = failwith "file access"
-    method chmod = failwith "file access"
-
-    method file_exists path =
-      log_info "Check whether file %s exists" path;
-      Hashtbl.mem files path
-
-    method lstat = failwith "file access"
-    method stat = failwith "file access"
-    method atomic_write = failwith "file access"
-    method unlink = failwith "file access"
-    method rmdir = failwith "file access"
-
-    method exec = failwith "exec"
-    method create_process = failwith "exec"
-    method reap_child = failwith "reap_child"
-
-    method getcwd = failwith "getcwd"
-
-    method getenv name =
-      try Some (StringMap.find name env)
-      with Not_found -> None
-
-    method putenv name value =
-      env <- StringMap.add name value env
-  end
-;;
-
-let fake_log =
-  object (_ : #Support.Logging.handler)
-    val mutable record = []
-
-    method reset () =
-      record <- []
-
-    method get () =
-      record
-
-    method handle ?ex level msg =
-      record <- (ex, level, msg) :: record
-  end
-
-let () = Support.Logging.handler := (fake_log :> Support.Logging.handler)
-
-let format_list l = "[" ^ (String.concat "; " l) ^ "]"
-let equal_str_lists = assert_equal ~printer:format_list
-let assert_str_equal = assert_equal ~printer:(fun x -> x)
-
-module RealSystem = Support.System.RealSystem(Unix)
-let real_system = new RealSystem.real_system
-
-let () = Random.self_init ()
-
-let temp_dir_name =
-  (* Filename.get_temp_dir_name doesn't exist under 3.12 *)
-  try Sys.getenv "TEMP" with Not_found ->
-    match Sys.os_type with
-      | "Unix" | "Cygwin" -> "/tmp"
-      | "Win32" -> "."
-      | _ -> failwith "temp_dir_name: unknown filesystem"
-
-let with_tmpdir fn () =
-  let tmppath = temp_dir_name +/ Printf.sprintf "0install-test-%x" (Random.int 0x3fffffff) in
-  Unix.mkdir tmppath 0o700;   (* will fail if already exists; OK for testing *)
-  Support.Utils.finally (Support.Utils.ro_rmtree real_system) tmppath fn
 
 let test_basedir () =
   skip_if (Sys.os_type = "Win32") "Don't work on Windows";
 
-  let system = new fake_system in
+  let system = new fake_system None in
   let open Support.Basedir in
 
   let bd = get_default_config (system :> system) in
@@ -114,24 +41,8 @@ let test_basedir () =
   equal_str_lists ~msg:"PORT-3" ["/mnt/0install/data"] bd.data;
 ;; 
 
-let assert_raises_safe expected_msg fn =
-  try Lazy.force fn; assert_failure ("Expected Safe_exception " ^ expected_msg)
-  with Safe_exception (msg, _) ->
-    assert_equal expected_msg msg
-
-let assert_raises_fallback fn =
-  try Lazy.force fn; assert_failure "Expected Fallback_to_Python"
-  with Fallback_to_Python -> ()
-
-let get_fake_config () =
-  let system = (new fake_system :> system) in
-  let my_path =
-    if on_windows then "C:\\Windows\\system32"
-    else "/usr/bin/0install" in
-  Config.get_default_config system my_path
-
 let test_option_parsing () =
-  let config = get_fake_config () in
+  let config, _system = get_fake_config None in
   let open Options in
   let p args = Cli.parse_args config args in
 
@@ -229,6 +140,7 @@ let test_escaping () =
 (* Name the test cases and group them together *)
 let suite = 
 "0install">:::[
+  Test_completion.suite;
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: test_option_parsing;
  "test_run_real">:: with_tmpdir test_run_real;

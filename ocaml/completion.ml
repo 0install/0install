@@ -15,6 +15,8 @@ type ctype = Add | Prefix
 
 (** There is one subclass of this for each supported shell. *)
 class virtual completer config =
+  let print_endline s = config.system#print_string (s ^ "\n") in
+
   object (self)
     val config = config
 
@@ -269,8 +271,10 @@ let complete_version completer ~range ~maybe_app target pre =
 
       let check impl =
         let v = v_prefix ^ Feed.get_version_string impl in
-        if starts_with v pre then completer#add Add v in
-      List.iter check (Feed.get_implementations feed)
+        if starts_with v pre then Some v else None in
+      let matching_versions = Support.Utils.filter_map check (Feed.get_implementations feed) in
+      (* TODO: sort based on parsed version *)
+      List.iter (completer#add Add) (List.sort compare matching_versions)
 
 (* 0install --option=<Tab> *)
 let complete_option_value (completer:completer) args (_, handler, values, carg) =

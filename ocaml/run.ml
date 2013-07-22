@@ -25,7 +25,7 @@ class virtual launcher_builder config script =
     method add_launcher path =
       if not @@ Sys.file_exists path then (
         let write ch = output_string ch script in
-        config.system#atomic_write [Open_rdonly; Open_binary] write path 0o755
+        config.system#atomic_write [Open_wronly; Open_binary] write path 0o755
       )
 
     method setenv name command_argv env =

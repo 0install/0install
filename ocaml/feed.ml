@@ -145,7 +145,7 @@ let parse root =
     commands = StringMap.empty;
     requires = [];
   } in
-  ZI.iter ~f:(process_group root_state) root;
+  process_group root_state root;
 
   {
     name = (

@@ -1,5 +1,5 @@
 true: debug, annot, warn(A-4), package(yojson,xmlm,str)
-<tests/test.*>: package(oUnit)
+<tests/*>: package(oUnit)
 "support": for-pack(Support)
 "windows.cma": dllib(-lwindows)
 <static_0install.*> or <**/*.native>: linkdep_win(support/windows.o), package(unix)
