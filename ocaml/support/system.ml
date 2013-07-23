@@ -20,34 +20,21 @@ let reap_child child_pid =
     | Unix.WSIGNALED signal -> raise_safe "Child aborted (signal %d)" signal
     | Unix.WSTOPPED signal -> raise_safe "Child is currently stopped (signal %d)" signal
 
-(** Run [fn ()] in a grandchild process. The child exits immediately and we reap it. *)
+(** Run [fn ()] in a child process. [fn] will spawn a grandchild process and return without waiting for it.
+    The child process then exits, allowing the original parent to reap it and continue, while the grandchild
+    continues running, detached. *)
 let double_fork_detach fn =
-  let child = Unix.fork() in
-  if child = 0 then (
-    try
+  match Unix.fork() with
+  | 0 -> (
       (* We are the child *)
-
-      (* The calling process might be waiting for EOF from its child.
-         Close our stdout so we don't keep it waiting.
-         Note: this only fixes the most common case; it could be waiting
-         on any other FD as well. We should really close *all* FDs. *)
-      let null_fd = Unix.openfile "/dev/null" [Unix.O_WRONLY] 0 in
-      Unix.dup2 null_fd Unix.stdout;
-      Unix.close null_fd;
-
-      let grandchild = Unix.fork() in
-      if grandchild = 0 then (
-        (* We are the grandchild *)
-        fn (); exit 0
-      ) else (
-        (* Parent's waitpid returns and grandchild continues. *)
-        exit 0  (* Should be _exit, but that seems inaccessible *)
-      )
-    with _ -> exit 1
-  ) else (
-    (* We are the parent *)
-    reap_child child
+      try fn (); exit 0
+      with _ -> exit 1
   )
+  | child_pid -> reap_child child_pid
+
+let dev_null =
+  if on_windows then "NUL"
+  else "/dev/null"
 
 module RealSystem (U : UnixType) =
   struct
@@ -146,16 +133,22 @@ module RealSystem (U : UnixType) =
               let prog_path =
                 if search_path then Utils.find_in_path_ex (self :> system) (List.hd argv)
                 else (List.hd argv) in
+
               log_info "spawn %s" @@ String.concat " " argv;
-              let do_exec () =
-                match env with
-                | None -> Unix.execv prog_path argv_array
-                | Some env -> Unix.execve prog_path argv_array env in
+
+              let do_spawn () =
+                (* We don't reap the child. On Unix, we're in a child process that is about to exit anyway (init will inherit the child).
+                   On Windows, hopefully it doesn't matter. *)
+                ignore @@ Utils.finally Unix.close (Unix.openfile dev_null [Unix.O_WRONLY] 0) (fun null_fd ->
+                  match env with
+                    | None -> Unix.create_process prog_path argv_array null_fd null_fd Unix.stderr
+                    | Some env -> Unix.create_process_env prog_path argv_array env null_fd null_fd Unix.stderr
+                ) in
+
               if on_windows then (
-                (* exec actually just spawns on Windows *)
-                do_exec ()
+                do_spawn ()
               ) else (
-                double_fork_detach do_exec
+                double_fork_detach do_spawn
               )
             )
           with Safe_exception _ as ex ->
