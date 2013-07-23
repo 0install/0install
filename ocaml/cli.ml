@@ -41,8 +41,8 @@ let parse_version_option =
       | _ -> assert false
 
     method get_arg_types = function
-      | [] -> []
-      | [_] -> [VersionRange]
+      | 0 -> []
+      | 1 -> [VersionRange]
       | _ -> assert false
   end
 
@@ -82,8 +82,8 @@ let parse_m =
       | _ -> assert false
 
     method get_arg_types = function
-      | [] -> []
-      | [_] -> [ImplRelPath]
+      | 0 -> []
+      | 1 -> [ImplRelPath]
       | _ -> assert false
   end
 
@@ -110,61 +110,61 @@ let parse_version_for =
   end
 
 let generic_select_options : zi_opt_list = [
-  ([      "--before"],      i_ "choose a version before this",      new one_arg SimpleVersion @@ fun v -> Before v);
-  ([      "--command"],     i_ "command to select",                 new one_arg Command @@ fun c -> SelectCommand c);
-  ([      "--cpu"],         i_ "target CPU type",                   new one_arg CpuType @@ fun c -> Cpu c);
-  ([      "--message"],     i_ "message to display when interacting with user", new one_arg Message @@ fun m -> WithMessage m);
-  ([      "--not-before"],  i_ "minimum version to choose",         new one_arg SimpleVersion @@ fun v -> NotBefore v);
-  ([      "--os"],          i_ "target operation system type",      new one_arg OsType @@ fun o -> Os o);
-  (["-r"; "--refresh"],     i_ "refresh all used interfaces",       parse_r);
-  (["-s"; "--source"],      i_ "select source code",                new no_arg @@ Source);
-  ([      "--version"],     i_ "specify version constraint (e.g. '3' or '3..')", parse_version_option);
-  ([      "--version-for"], i_ "set version constraints for a specific interface", parse_version_for);
+  ([      "--before"],      0, i_ "choose a version before this",      new one_arg SimpleVersion @@ fun v -> Before v);
+  ([      "--command"],     1, i_ "command to select",                 new one_arg Command @@ fun c -> SelectCommand c);
+  ([      "--cpu"],         1, i_ "target CPU type",                   new one_arg CpuType @@ fun c -> Cpu c);
+  ([      "--message"],     1, i_ "message to display when interacting with user", new one_arg Message @@ fun m -> WithMessage m);
+  ([      "--not-before"],  1, i_ "minimum version to choose",         new one_arg SimpleVersion @@ fun v -> NotBefore v);
+  ([      "--os"],          1, i_ "target operation system type",      new one_arg OsType @@ fun o -> Os o);
+  (["-r"; "--refresh"],     0, i_ "refresh all used interfaces",       parse_r);
+  (["-s"; "--source"],      0, i_ "select source code",                new no_arg @@ Source);
+  ([      "--version"],     1, i_ "specify version constraint (e.g. '3' or '3..')", parse_version_option);
+  ([      "--version-for"], 2, i_ "set version constraints for a specific interface", parse_version_for);
 ]
 
 let offline_options = [
-  (["-o"; "--offline"],     i_ "try to avoid using the network",    new no_arg @@ NetworkUse Offline);
+  (["-o"; "--offline"],     0, i_ "try to avoid using the network",    new no_arg @@ NetworkUse Offline);
 ]
 
 let update_options = [
-  ([      "--background"],  i_ "",                        new no_arg @@ Background);
+  ([      "--background"],  0, i_ "",                        new no_arg @@ Background);
 ]
 
 let digest_options = [
-  ([      "--algorithm"], i_ "the hash function to use", new one_arg HashType @@ fun h -> UseHash h);
-  (["-m"; "--manifest"],  i_ "print the manifest",       parse_m);
-  (["-d"; "--digest"],    i_ "print the digest",         new no_arg ShowDigest);
+  ([      "--algorithm"], 1, i_ "the hash function to use", new one_arg HashType @@ fun h -> UseHash h);
+  (["-m"; "--manifest"],  0, i_ "print the manifest",       parse_m);
+  (["-d"; "--digest"],    0, i_ "print the digest",         new no_arg ShowDigest);
 ]
 
 let xml_output : zi_opt_list = [
-  (["--xml"], i_ "print selections as XML", new no_arg ShowXML);
+  (["--xml"], 0, i_ "print selections as XML", new no_arg ShowXML);
 ]
 
 let diff_options : zi_opt_list = [
-  (["--full"], i_ "show diff of the XML", new no_arg ShowFullDiff);
+  (["--full"], 0, i_ "show diff of the XML", new no_arg ShowFullDiff);
 ]
 
 let download_options : zi_opt_list = [
-  (["--show"], i_ "show where components are installed", new no_arg ShowHuman);
+  (["--show"], 0, i_ "show where components are installed", new no_arg ShowHuman);
 ]
 
 let show_options : zi_opt_list = [
-  (["-r"; "--root-uri"], i_ "display just the root interface URI", parse_r);
+  (["-r"; "--root-uri"], 0, i_ "display just the root interface URI", parse_r);
 ]
 
 let run_options : zi_opt_list = [
-  (["-m"; "--main"],    i_ "name of the file to execute",           parse_m);
-  (["-w"; "--wrapper"], i_ "execute program using a debugger, etc", new one_arg Command @@ fun cmd -> Wrapper cmd);
+  (["-m"; "--main"],    1, i_ "name of the file to execute",           parse_m);
+  (["-w"; "--wrapper"], 1, i_ "execute program using a debugger, etc", new one_arg Command @@ fun cmd -> Wrapper cmd);
 ]
 
 let common_options : zi_opt_list = [
-  (["-c"; "--console"],    i_ "never use GUI",                     new no_arg @@ UseGUI No);
-  ([      "--dry-run"],    i_ "just print what would be executed", new no_arg @@ DryRun);
-  (["-g"; "--gui"],        i_ "show graphical policy editor",      new no_arg @@ UseGUI Yes);
-  (["-h"; "--help"],       i_ "show this help message and exit",   new no_arg @@ Help);
-  (["-v"; "--verbose"],    i_ "more verbose output",               new no_arg @@ Verbose);
-  (["-V"; "--version"],    i_ "display version information",       parse_version_option);
-  ([      "--with-store"], i_ "add an implementation cache",       new one_arg Dir @@ fun path -> WithStore path);
+  (["-c"; "--console"],    0, i_ "never use GUI",                     new no_arg @@ UseGUI No);
+  ([      "--dry-run"],    0, i_ "just print what would be executed", new no_arg @@ DryRun);
+  (["-g"; "--gui"],        0, i_ "show graphical policy editor",      new no_arg @@ UseGUI Yes);
+  (["-h"; "--help"],       0, i_ "show this help message and exit",   new no_arg @@ Help);
+  (["-v"; "--verbose"],    0, i_ "more verbose output",               new no_arg @@ Verbose);
+  (["-V"; "--version"],    0, i_ "display version information",       parse_version_option);
+  ([      "--with-store"], 1, i_ "add an implementation cache",       new one_arg Dir @@ fun path -> WithStore path);
 ]
 
 let spec : (zi_option, zi_arg_type) argparse_spec = {
@@ -216,7 +216,7 @@ let command_options = [
 ]
 
 let set_of_option_names opts =
-  let add s (names, _help, _handler) = List.fold_right StringSet.add names s in
+  let add s (names, _nargs, _help, _handler) = List.fold_right StringSet.add names s in
   List.fold_left add StringSet.empty opts
 
 (* Ensure these options are all valid for the given command. *)
@@ -230,7 +230,43 @@ let check_options command_name options =
     if not (StringSet.mem name valid_options) then
       raise_safe "Option %s is not valid with command '%s'" name command_name in
   List.iter check_opt options
+
+let format_type = function
+  | Dir -> "DIR"
+  | ImplRelPath -> "PATH"
+  | Command -> "COMMAND"
+  | VersionRange -> "VERSIONS"
+  | SimpleVersion -> "VERSION"
+  | CpuType -> "CPU"
+  | OsType -> "OS"
+  | Message -> "STRING"
+  | HashType -> "ALG"
+  | IfaceURI -> "URI"
+
+let show_main_help config =
+  let open Format in
+  let prog = (Filename.basename config.abspath_0install) in
+  open_vbox 0;
+
+  printf "Usage: %s COMMAND@\n@\n" prog;
+
+  printf "Try --help with one of these:@\n@\n";
+  open_vbox 0;
+  ListLabels.iter command_options ~f:(fun (command, _opts) ->
+    printf "%s %s@," prog command;
+  );
+  close_box();
+
+  format_options format_type common_options;
+
+  close_box();
+  print_newline()
 ;;
+
+let show_help options =
+  match options.args with
+  | [] -> show_main_help options.config
+  | _command :: _ -> raise Fallback_to_Python
 
 let parse_args config args =
   let (raw_options, args) = Support.Argparse.parse_args spec args in
@@ -253,7 +289,7 @@ let parse_args config args =
     | WithStore store -> add_store options store; None
     | ShowVersion -> raise Fallback_to_Python
     | NetworkUse u -> options.network_use <- u; None
-    | Help -> raise Fallback_to_Python
+    | Help -> show_help options; exit 0
     | AmbiguousOption fn -> (match args with
         | command :: _ -> Some (opt, fn command)
         | _ -> raise_safe "Option '%s' requires a command" opt

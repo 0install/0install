@@ -283,7 +283,7 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
     ListLabels.iter lst ~f:(function item ->
       if starts_with item pre then completer#add Add item
     ) in
-  let arg_types = handler#get_arg_types values in
+  let arg_types = handler#get_arg_types (List.length values) in
   let open Cli in
   match List.nth arg_types carg with
   | Dir -> completer#add_files pre
@@ -341,7 +341,7 @@ let handle_complete config = function
           | _ -> spec.options_spec in
           let check_name name =
             if starts_with name prefix then completer#add Add name in
-          let check_opt (names, _help, _handler) =
+          let check_opt (names, _nargs, _help, _handler) =
             List.iter check_name names in
           List.iter check_opt possible_options
       | CompleteOption opt -> complete_option_value completer args opt

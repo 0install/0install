@@ -20,15 +20,15 @@ class type ['a,'b] option_parser =
 
     method parse : string list -> 'a
 
-    method get_arg_types : string list -> 'b list
+    method get_arg_types : int -> 'b list
   end
 
-(* [option names], help text, [arg types]
+(* [option names], n_args, help text, [arg types]
    'a is the type of the tags, 'b is the type of arg types.
    The callback gets the argument stream (use this for options which take a variable number of arguments)
    and a list of values (one for each declared argument).
    *)
-type ('a,'b) opt = (string list * string * ('a,'b) option_parser)
+type ('a,'b) opt = (string list * int * string * ('a,'b) option_parser)
 
 let is_empty stream = None = Stream.peek stream
 
@@ -59,7 +59,7 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
 
   let options_map =
     let map = ref StringMap.empty in
-    let add (names, _help, handler) =
+    let add (names, _nargs, _help, handler) =
       ListLabels.iter names ~f:(fun name ->
         if StringMap.mem name !map then (
           if handler != StringMap.find name !map then
@@ -249,3 +249,44 @@ class ['a,'b] two_arg arg1_type arg2_type (fn : string -> string -> 'a) =
 
     method get_arg_types _ = [arg1_type; arg2_type]
   end
+
+(** Print out these options in a formatted list. *)
+let format_options format_type opts =
+  let open Format in
+  let help_indent = 16 in
+
+  printf "@\nOptions:@\n";
+  open_vbox 2;
+  print_cut ();
+  open_tbox();
+
+  ListLabels.iteri opts ~f:(fun opti (names, nargs, help, p) ->
+    if opti > 0 then print_cut ();
+
+    open_hbox();
+    let width = ref 0 in
+    let types = p#get_arg_types nargs in
+
+    ListLabels.iteri names ~f:(fun i name ->
+      if i > 0 then (
+        print_string ",";
+        print_space ();
+        width := !width + 2
+      );
+      print_string name;
+      width := !width + String.length name;
+    );
+    let arg_str = match types with
+      | [] -> ""
+      | [x] -> "=" ^ format_type x
+      | xs -> String.concat " " (List.map format_type xs) in
+    print_string arg_str;
+    width := !width + String.length arg_str;
+    print_space ();
+    print_tbreak (help_indent - !width) 10;
+    print_string help;
+    close_box();
+  );
+
+  close_tbox ();
+  close_box ()
