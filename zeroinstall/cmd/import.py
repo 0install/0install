@@ -9,7 +9,7 @@ import os
 
 from zeroinstall import SafeException, _, logger
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import gpg
+from zeroinstall.injector import gpg, model
 from zeroinstall.injector.iface_cache import PendingFeed
 from zeroinstall.support import tasks
 from xml.dom import minidom
@@ -17,9 +17,12 @@ from xml.dom import minidom
 syntax = "FEED"
 
 def add_options(parser):
-	pass
+	parser.add_option("-o", "--offline", help=_("try to avoid using the network"), action='store_true')
 
 def handle(config, options, args):
+	if options.offline:
+		config.network_use = model.network_offline
+
 	if not args:
 		raise UsageError()
 

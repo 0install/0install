@@ -253,39 +253,51 @@ class ['a,'b] two_arg arg1_type arg2_type (fn : string -> string -> 'a) =
 (** Print out these options in a formatted list. *)
 let format_options format_type opts =
   let open Format in
-  let help_indent = 16 in
 
-  printf "@\nOptions:@\n";
+  print_cut();
   open_vbox 2;
-  print_cut ();
+  printf "@[Options:@]@\n";
   open_tbox();
 
-  ListLabels.iteri opts ~f:(fun opti (names, nargs, help, p) ->
+  let display_options =
+    Utils.filter_map opts ~f:(fun (names, nargs, help, p) ->
+      match help with
+      | "" -> None
+      | help ->
+          let types = p#get_arg_types nargs in
+          let format_opt name =
+            let sep = if not (starts_with name "--") then " " else "=" in
+            name ^ match types with
+            | [] -> ""
+            | [x] -> sep ^ format_type x
+            | xs -> sep ^ String.concat " " (List.map format_type xs) in
+          let arg_strs = String.concat ", " (List.map format_opt names) in
+
+          Some (arg_strs, help)) in
+
+  let col1_width = 3 + (min 20 @@ List.fold_left (fun w (syn, _help) -> max (String.length syn) w) 0 display_options) in
+
+  (* I can't see a way to set the tab stops without actually printing something.
+     So, we set the second tab stop as soon as we have a line that doesn't need to
+     be split. *)
+  let set_tab_stop = ref false in
+  set_tab();
+
+  ListLabels.iteri display_options ~f:(fun opti (syn, help) ->
     if opti > 0 then print_cut ();
 
-    open_hbox();
-    let width = ref 0 in
-    let types = p#get_arg_types nargs in
+    print_string syn;
 
-    ListLabels.iteri names ~f:(fun i name ->
-      if i > 0 then (
-        print_string ",";
-        print_space ();
-        width := !width + 2
-      );
-      print_string name;
-      width := !width + String.length name;
+    if not !set_tab_stop && String.length syn < col1_width then (
+      (* This item is narrower than the first column. Space over to the next
+         column and set the tab-stop. *)
+      print_string (String.make (col1_width - (String.length syn) - 2) ' ');
+      set_tab();
+      set_tab_stop := true
     );
-    let arg_str = match types with
-      | [] -> ""
-      | [x] -> "=" ^ format_type x
-      | xs -> String.concat " " (List.map format_type xs) in
-    print_string arg_str;
-    width := !width + String.length arg_str;
-    print_space ();
-    print_tbreak (help_indent - !width) 10;
+    print_tbreak 1 (col1_width - 1);
+
     print_string help;
-    close_box();
   );
 
   close_tbox ();

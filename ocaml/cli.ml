@@ -196,23 +196,23 @@ let select_options = xml_output @ generic_select_options
 
 (** Which options are valid with which command *)
 let command_options = [
-  ("add", offline_options @ generic_select_options);
-  ("select", offline_options @ select_options);
-  ("show", xml_output @ show_options);
-  ("download", offline_options @ download_options @ select_options);
-  ("run", offline_options @ run_options @ generic_select_options);
-  ("update", update_options @ offline_options @ generic_select_options);
-  ("whatchanged", diff_options);
-  ("destroy", []);
-  ("config", []);
-  ("import", offline_options);
-  ("list", []);
-  ("search", []);
-  ("add-feed", offline_options);
-  ("remove-feed", offline_options);
-  ("list-feeds", []);
-  ("man", []);
-  ("digest", digest_options);
+  ("add", (offline_options @ generic_select_options, "PET-NAME INTERFACE"));
+  ("select", (offline_options @ select_options, "URI"));
+  ("show", (xml_output @ show_options, "APP | SELECTIONS"));
+  ("download", (offline_options @ download_options @ select_options, "URI"));
+  ("run", (offline_options @ run_options @ generic_select_options, "URI [ARGS]"));
+  ("update", (update_options @ offline_options @ generic_select_options, "APP | URI"));
+  ("whatchanged", (diff_options, "APP-NAME"));
+  ("destroy", ([], "PET-NAME"));
+  ("config", ([], "[NAME [VALUE]]"));
+  ("import", (offline_options, "FEED"));
+  ("list", ([], "PATTERN"));
+  ("search", ([], "QUERY"));
+  ("add-feed", (offline_options, "[INTERFACE] NEW-FEED"));
+  ("remove-feed", (offline_options, "[INTERFACE] FEED"));
+  ("list-feeds", ([], "URI"));
+  ("man", ([], "NAME"));
+  ("digest", (digest_options, "DIRECTORY | ARCHIVE [EXTRACT]"));
 ]
 
 let set_of_option_names opts =
@@ -222,7 +222,7 @@ let set_of_option_names opts =
 (* Ensure these options are all valid for the given command. *)
 let check_options command_name options =
   let valid_options = set_of_option_names (
-    try List.assoc command_name command_options
+    try fst @@ List.assoc command_name command_options
     with Not_found -> raise_safe "Unknown 0install sub-command '%s': try --help" command_name
   ) in
 
@@ -235,7 +235,7 @@ let format_type = function
   | Dir -> "DIR"
   | ImplRelPath -> "PATH"
   | Command -> "COMMAND"
-  | VersionRange -> "VERSIONS"
+  | VersionRange -> "RANGE"
   | SimpleVersion -> "VERSION"
   | CpuType -> "CPU"
   | OsType -> "OS"
@@ -243,30 +243,35 @@ let format_type = function
   | HashType -> "ALG"
   | IfaceURI -> "URI"
 
-let show_main_help config =
+let show_help settings =
+  let remove_version (names, _nargs, _help, _p) = (names <> ["-V"; "--version"]) in
+  let (options, help) =
+    match settings.args with
+      | [] -> (common_options, "COMMAND [OPTIONS]")
+      | command :: _ ->
+          let options, help = List.assoc command command_options in
+          (options @ (List.filter remove_version common_options), command ^ " [OPTIONS] " ^ help) in
+
   let open Format in
-  let prog = (Filename.basename config.abspath_0install) in
+  let prog = (Filename.basename settings.config.abspath_0install) in
   open_vbox 0;
 
-  printf "Usage: %s COMMAND@\n@\n" prog;
+  printf "Usage: %s %s@\n" prog help;
 
-  printf "Try --help with one of these:@\n@\n";
-  open_vbox 0;
-  ListLabels.iter command_options ~f:(fun (command, _opts) ->
-    printf "%s %s@," prog command;
+  if settings.args = [] then (
+    print_newline();
+    printf "Try --help with one of these:@\n@\n";
+    open_vbox 0;
+    ListLabels.iter command_options ~f:(fun (command, _opts) ->
+      printf "%s %s@," prog command;
+    );
+    close_box();
   );
-  close_box();
 
-  format_options format_type common_options;
+  format_options format_type options;
 
   close_box();
   print_newline()
-;;
-
-let show_help options =
-  match options.args with
-  | [] -> show_main_help options.config
-  | _command :: _ -> raise Fallback_to_Python
 
 let parse_args config args =
   let (raw_options, args) = Support.Argparse.parse_args spec args in

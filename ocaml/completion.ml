@@ -84,7 +84,7 @@ let complete_command (completer:completer) raw_options prefix =
   let options_used = List.fold_left add StringSet.empty raw_options in
 
   let commands = List.filter (fun (full, _) -> starts_with full prefix) Cli.command_options in
-  let compatible_with_command (_name, opts) = StringSet.subset options_used (Cli.set_of_option_names opts) in
+  let compatible_with_command (_name, (opts, _help)) = StringSet.subset options_used (Cli.set_of_option_names opts) in
   let valid_commands = List.filter compatible_with_command commands in
 
   let complete_commands = if List.length valid_commands = 0 then commands else valid_commands in
@@ -335,7 +335,7 @@ let handle_complete config = function
       | CompleteOptionName prefix ->
           let possible_options = match args with
           | cmd :: _ -> (
-              try (List.assoc cmd command_options) @ common_options
+              try fst (List.assoc cmd command_options) @ common_options
               with Not_found -> spec.options_spec
           )
           | _ -> spec.options_spec in
