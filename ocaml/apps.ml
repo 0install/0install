@@ -173,17 +173,8 @@ let list_app_names config =
   List.iter scan_dir config.basedirs.Basedir.config;
   StringSet.elements !apps
 
-let get_interface config path =
-  let open Yojson.Basic in
-  let req_path = path +/ "requirements.json" in
-  match config.system#with_open_in [Open_rdonly; Open_binary] 0 req_path
-    (from_channel ~fname:req_path) with
-  | `Assoc alist -> (
-      let j_uri =
-        try List.assoc "interface_uri" alist
-        with Not_found -> raise_safe "Missing 'interface_uri' in %s" req_path in
-      match j_uri with
-      | `String s -> s
-      | _ -> raise_safe "Invalid requirements.json: %s" req_path
-  )
-  | _ -> raise_safe "Invalid requirements.json: %s" req_path
+let get_requirements (system:system) path =
+  Requirements.load system (path +/ "requirements.json")
+
+let get_interface (system:system) path =
+  (get_requirements system path).Requirements.interface_uri

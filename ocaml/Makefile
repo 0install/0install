@@ -1,7 +1,7 @@
 OCAML_BUILDDIR=../build/ocaml
 TYPE=native
 DEBUG=-cflags -g
-OCAMLBUILD=ocamlbuild ${DEBUG} -use-ocamlfind -build-dir "${OCAML_BUILDDIR}"
+OCAMLBUILD=ocamlbuild ${DEBUG} -I cmd -use-ocamlfind -build-dir "${OCAML_BUILDDIR}"
 ifeq ($(OS), Windows_NT)
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
 endif

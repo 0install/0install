@@ -13,7 +13,6 @@ let get_command name elem =
   match Qdom.find is_command elem with
   | Some command -> command
   | None -> Qdom.raise_elem "No <command> with name '%s' in" name elem
-;;
 
 let re_template = Str.regexp ("\\$\\(\\$\\|\\([a-zA-Z_][a-zA-Z0-9_]*\\)\\|{[^}]*}\\)")
 

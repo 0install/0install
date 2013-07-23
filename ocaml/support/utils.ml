@@ -291,3 +291,7 @@ let slice ~start ?stop lst =
             | [] -> failwith "list too short"
             | (x::xs) -> x :: take xs (i - 1)
       in take lst (stop - start)
+
+let print (system:system) =
+  let do_print msg = system#print_string (msg ^ "\n") in
+  Printf.ksprintf do_print

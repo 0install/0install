@@ -14,7 +14,7 @@ import logging
 
 from zeroinstall import SafeException, DryRun
 
-valid_commands = ['add', 'select', 'show', 'download', 'run', 'update', 'whatchanged', 'destroy',
+valid_commands = ['add', 'select', 'download', 'run', 'update', 'whatchanged', 'destroy',
 		  'config', 'import', 'list', 'search', 'add-feed', 'remove-feed', 'list-feeds',
 		  'man', 'digest']
 

@@ -62,20 +62,23 @@ let load_iface_config config uri =
         let stability_policy = match ZI.get_attribute_opt "stability-policy" root with
         | None -> None
         | Some p -> Some (parse_stability p) in
-        let extra_feeds = ZI.filter_map root "feed" ~f:(function feed ->
-          (* note: 0install 1.9..1.12 used a different scheme and the "site-package" attribute;
-             we deliberately use a different attribute name to avoid confusion) *)
-          if ZI.get_attribute_opt "is-site-package" feed <> None then (
-              (* Site packages are detected earlier. This test isn't completely reliable,
-                since older versions will remove the attribute when saving the config
-                (hence the next test). *)
-              None
-          ) else if false then (
-            (* TODO: known_site_feeds *)
-            None
-          ) else (
-            Some feed
-          )
+        let extra_feeds = ZI.filter_map root ~f:(function feed ->
+          match ZI.tag feed with
+          | Some "feed" ->
+              (* note: 0install 1.9..1.12 used a different scheme and the "site-package" attribute;
+                 we deliberately use a different attribute name to avoid confusion) *)
+              if ZI.get_attribute_opt "is-site-package" feed <> None then (
+                  (* Site packages are detected earlier. This test isn't completely reliable,
+                    since older versions will remove the attribute when saving the config
+                    (hence the next test). *)
+                  None
+              ) else if false then (
+                (* TODO: known_site_feeds *)
+                None
+              ) else (
+                Some feed
+              )
+          | _ -> None
         ) in
         { stability_policy; extra_feeds }
   with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri

@@ -8,6 +8,7 @@ from zeroinstall import cmd, logger, apps, alias
 from zeroinstall.injector import model, selections, qdom, handler, gpg, config
 
 mydir = os.path.dirname(__file__)
+ocaml_0install = os.path.join(mydir, '..', 'build', 'ocaml', '0install')
 
 class Reply:
 	def __init__(self, reply):
@@ -17,6 +18,12 @@ class Reply:
 		return self.reply
 
 class TestInstall(BaseTest):
+	def run_ocaml(self, args):
+		child = subprocess.Popen([ocaml_0install] + args, stdout = subprocess.PIPE, stderr = subprocess.PIPE, universal_newlines = True)
+		out, err = child.communicate()
+		child.wait()
+		return out, err
+
 	def testHelp(self):
 		out, err = self.run_0install([])
 		assert out.lower().startswith("usage:")
@@ -36,16 +43,16 @@ class TestInstall(BaseTest):
 		assert 'Unknown sub-command' in err, err
 
 	def testShow(self):
-		out, err = self.run_0install(['show'])
+		out, err = self.run_ocaml(['show'])
 		assert out.lower().startswith("usage:")
 		assert '--xml' in out
 
-		out, err = self.run_0install(['show', 'selections.xml'])
+		out, err = self.run_ocaml(['show', 'selections.xml'])
 		assert not err, err
 		assert 'Version: 1\n' in out
 		assert '(not cached)' in out
 
-		out, err = self.run_0install(['show', 'selections.xml', '-r'])
+		out, err = self.run_ocaml(['show', 'selections.xml', '-r'])
 		assert not err, err
 		self.assertEqual("http://example.com:8000/Hello.xml\n", out)
 
@@ -387,7 +394,7 @@ class TestInstall(BaseTest):
 		assert "Version: 0.1" in out, out
 		assert not err, err
 
-		out, err = self.run_0install(['show', 'local-app'])
+		out, err = self.run_ocaml(['show', 'local-app'])
 		assert "Version: 0.1" in out, out
 		assert not err, err
 
@@ -470,7 +477,7 @@ class TestInstall(BaseTest):
 		new_local = old_local.replace('0.1', '0.1-pre2')
 		with open(os.path.join(app.path, "selections.xml"), 'w') as stream:
 			stream.write(new_local)
-		out, err = self.run_0install(['show', 'local-app'])
+		out, err = self.run_ocaml(['show', 'local-app'])
 		assert "Version: 0.1-pre2" in out, out
 		assert not err, err
 		out, err = self.run_0install(['select', 'local-app'])

@@ -273,6 +273,10 @@ let show_help settings =
   close_box();
   print_newline()
 
+let show_usage_error options =
+  show_help options;
+  exit 1
+
 let parse_args config args =
   let (raw_options, args) = Support.Argparse.parse_args spec args in
 

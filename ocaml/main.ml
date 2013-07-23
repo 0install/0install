@@ -70,9 +70,12 @@ let main (system:system) : unit =
           with Safe_exception _ as ex ->
             reraise_with_context ex "... processing command line: %s" (String.concat " " argv)
         in
-        match options.args with
-        | ("run" :: run_args) -> handle_run config options run_args
-        | _ -> raise Fallback_to_Python
+        try
+          match options.args with
+          | ("run" :: run_args) -> handle_run config options run_args
+          | ("show" :: args) -> Show.handle options args
+          | _ -> raise Fallback_to_Python
+        with Support.Argparse.Usage_error -> Cli.show_usage_error options
       with Fallback_to_Python ->
         log_info "Can't handle this case; switching to Python version...";
         fallback_to_python config (List.tl argv)

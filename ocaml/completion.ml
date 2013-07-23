@@ -254,7 +254,7 @@ let complete_version completer ~range ~maybe_app target pre =
     if maybe_app then (
       match Apps.lookup_app config target with
       | None -> target
-      | Some path -> Apps.get_interface config path
+      | Some path -> Apps.get_interface config.system path
     ) else target in
 
   match Feed_cache.get_cached_feed config uri with

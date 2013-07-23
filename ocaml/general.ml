@@ -12,6 +12,9 @@ open Support.Common
 
 exception Safe_exception = Support.Common.Safe_exception
 
+(** A URI used to identify an interface. Uses only plain URI characters, unicode chars, spaces, etc are %-escaped. *)
+type iface_uri = string
+
 class type distribution =
   object
     (** Test whether this <selection> element is still valid *)

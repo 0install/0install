@@ -1,5 +1,7 @@
 (** XML processing *)
 
+type document
+
 (** An XML element node (and nearby text). *)
 type element = {
   tag: Xmlm.name;
@@ -7,7 +9,7 @@ type element = {
   mutable child_nodes: element list;
   mutable text_before: string;        (** The text node immediately before us *)
   mutable last_text_inside: string;   (** The last text node inside us with no following element *)
-  source_name: Common.filepath option;  (** For error messages *)
+  doc: document;
   pos: Xmlm.pos;                      (** Location of element in XML *)
 };;
 
@@ -34,6 +36,10 @@ val log_elem : Logging.level -> ('a, unit, string, element -> unit) format4 -> '
     @raise Safe_exception if it contains any child nodes. *)
 val simple_content : element -> string
 
+(** Write out a (sub)tree.
+    e.g. [output (Xmlm.make_output @@ `Channel stdout) root] *)
+val output : Xmlm.output -> element -> unit
+
 module type NsType = sig val ns : string end
 
 module NsQuery :
@@ -50,8 +56,8 @@ module NsQuery :
       (** Apply [fn] to each child node in our namespace with local name [tag] *)
       val map : f:(element -> 'a) -> element -> string -> 'a list
 
-      (** Apply [fn] to each child node in our namespace with local name [tag] *)
-      val filter_map : f:(element -> 'a option) -> element -> string -> 'a list
+      (** Apply [fn] to each child node in our namespace *)
+      val filter_map : f:(element -> 'a option) -> element -> 'a list
 
       (** Call [fn] on each child node in our namespace *)
       val iter : f:(element -> unit) -> element -> unit
@@ -67,5 +73,5 @@ module NsQuery :
       val check_tag : string -> element -> unit
 
       (** Create a new empty element with no source location. *)
-      val make : string -> element
+      val make : document -> string -> element
     end

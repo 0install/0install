@@ -4,6 +4,11 @@
 
 open Common;;
 
+type document = {
+  source_name : filepath option;       (** For error messages *)
+  mutable prefixes : string StringMap.t;
+}
+
 (** An XML element node, including nearby text. *)
 type element = {
   tag: Xmlm.name;
@@ -11,11 +16,36 @@ type element = {
   mutable child_nodes: element list;
   mutable text_before: string;        (** The text node immediately before us *)
   mutable last_text_inside: string;   (** The last text node inside us with no following element *)
-  source_name: filepath option;       (** For error messages *)
+  doc: document;
   pos: Xmlm.pos;                      (** Location of element in XML *)
 };;
 
+(** When serialising the document, use [prefix] as the prefix for the namespace [uri].
+    If [prefix] is already registered, find a free name ([prefix1], [prefix2], etc). *)
+let register_prefix doc prefix uri =
+  let p = ref prefix in
+  let i = ref 0 in
+  while StringMap.mem !p doc.prefixes do
+    i := !i + 1;
+    p := prefix ^ (string_of_int !i)
+  done;
+  (* log_info "New prefix: %s -> %s" !p uri; *)
+  doc.prefixes <- StringMap.add !p uri doc.prefixes
+
 let parse_input source_name i = try (
+  let doc = {
+    source_name = Some source_name;
+    prefixes = StringMap.empty;
+  } in
+
+  let extract_namespaces attrs =
+    ListLabels.filter attrs ~f:(fun ((ns, name), value) ->
+      if ns = Xmlm.ns_xmlns then (
+        register_prefix doc name value;
+        false
+      ) else true
+    ) in
+
   (* Parse all elements from here to the next close tag and return those elements *)
   let rec parse_nodes i prev_siblings prev_text =
     if Xmlm.eoi i then
@@ -28,13 +58,14 @@ let parse_input source_name i = try (
         | `El_end -> (prev_siblings, prev_text)
         | `El_start (tag, attrs) -> (
           let child_nodes, trailing_text = parse_nodes i [] "" in
+          let attrs = extract_namespaces attrs in
           let new_node = {
             tag = tag;
             attrs = attrs;
             child_nodes = List.rev child_nodes;
             text_before = prev_text;
             last_text_inside = trailing_text;
-            source_name = Some source_name;
+            doc;
             pos;
           } in parse_nodes i (new_node :: prev_siblings) ""
         )
@@ -65,7 +96,7 @@ let find pred node =
 let show_with_loc elem =
   let (_ns, name) = elem.tag in
   let (line, col) = elem.pos in
-  match elem.source_name with
+  match elem.doc.source_name with
   | Some path -> Printf.sprintf "<%s> at %s:%d:%d" name path line col
   | None -> Printf.sprintf "<%s> (generated)" name
 ;;
@@ -90,6 +121,19 @@ let simple_content element =
   else
     raise_elem "Non-text child nodes not permitted inside" element
 
+let output o root =
+  let root_attrs = ref root.attrs in
+  StringMap.iter (fun k v -> root_attrs := ((Xmlm.ns_xmlns, k), v) :: !root_attrs) root.doc.prefixes;
+    
+  Xmlm.output o @@ `Dtd None;
+  let rec output_node node =
+    if node.text_before <> "" then Xmlm.output o @@ `Data node.text_before;
+    Xmlm.output o @@ `El_start (node.tag, node.attrs);
+    List.iter output_node node.child_nodes;
+    if node.last_text_inside <> "" then Xmlm.output o @@ `Data node.last_text_inside;
+    Xmlm.output o @@ `El_end in
+  output_node {root with attrs = !root_attrs}
+
 module NsQuery (Ns : NsType) = struct
   (** Return the localName part of this element's tag.
       Throws an exception if it's in the wrong namespace. *)
@@ -108,11 +152,11 @@ module NsQuery (Ns : NsType) = struct
     loop node.child_nodes
   ;;
 
-  let filter_map ~f node tag =
+  let filter_map ~f node =
     let rec loop = function
       | [] -> []
       | (node::xs) ->
-          if node.tag = (Ns.ns, tag) then (
+          if fst node.tag = Ns.ns then (
             match f node with
             | None -> loop xs
             | Some result -> result :: loop xs
@@ -163,13 +207,13 @@ module NsQuery (Ns : NsType) = struct
     else if name <> expected then raise_elem "Expected <%s> but found " expected elem
     else ()
 
-  let make tag = {
+  let make doc tag = {
     tag = (Ns.ns, tag);
     attrs = [];
     child_nodes = [];
     text_before = "";
     last_text_inside = "";
-    source_name = None;
+    doc;
     pos = (0, 0);
   }
 end;;

@@ -52,9 +52,13 @@ let parse_binding elem =
   | Some "environment" -> Some (EnvironmentBinding {var_name = get "name"; mode = get_mode elem; source = get_source elem})
   | Some "executable-in-path" -> Some (ExecutableBinding {exec_type = InPath; name = get "name"; command = default "run" (get_opt "command")})
   | Some "executable-in-var" -> Some (ExecutableBinding {exec_type = InVar; name = get "name"; command = default "run" (get_opt "command")})
-  | Some "overlay" | Some "binding" -> Qdom.raise_elem "Unsupporting binding type: " elem
+  | Some "overlay" | Some "binding" -> Qdom.raise_elem "Unsupporting binding type: " elem (* TODO *)
   | _ -> None
-;;
+
+(** Return the name of the command needed by this binding, if any. *)
+let get_command = function
+  | EnvironmentBinding _ -> None
+  | ExecutableBinding {command; _} -> Some command
 
 (* Return all bindings in document order *)
 let collect_bindings impls root =

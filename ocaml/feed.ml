@@ -50,8 +50,8 @@ let attr_version_modifier = "version-modifier"
 
 let value_testing = "testing"
 
-let make_command name path : command =
-  let elem = ZI.make "command" in
+let make_command doc name path : command =
+  let elem = ZI.make doc "command" in
   elem.Qdom.attrs <- [(("", "name"), name); (("", "path"), path)];
   elem
 
@@ -119,7 +119,7 @@ let parse root =
             match ZI.get_attribute_opt attr_name item with
             | None -> ()
             | Some path ->
-                let new_command = make_command command_name path in
+                let new_command = make_command root.Qdom.doc command_name path in
                 s := {!s with commands = StringMap.add command_name new_command !s.commands} in
           handle_old_command "main" "run";
           handle_old_command "self-test" "test";

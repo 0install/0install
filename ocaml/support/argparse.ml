@@ -6,6 +6,8 @@
 
 open Common
 
+exception Usage_error
+
 let starts_with = Utils.starts_with
 
 class type ['a,'b] option_parser =
