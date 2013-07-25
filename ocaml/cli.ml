@@ -284,20 +284,18 @@ let parse_args config args =
   let options = {
     config;
     gui = Maybe;
-    dry_run = false;
     verbosity = 0;
     extra_options = [];
-    network_use = Full_network;
     args;
   } in
 
   options.extra_options <- Support.Utils.filter_map raw_options ~f:(fun (opt, value) -> match value with
     | UseGUI b -> options.gui <- b; None
-    | DryRun -> raise Fallback_to_Python
+    | DryRun -> config.dry_run <- true; config.system <- new Dry_run.dryrun_system config.system; None
     | Verbose -> increase_verbosity options; None
     | WithStore store -> add_store options store; None
     | ShowVersion -> raise Fallback_to_Python
-    | NetworkUse u -> options.network_use <- u; None
+    | NetworkUse u -> config.network_use <- u; None
     | Help -> show_help options; exit 0
     | AmbiguousOption fn -> (match args with
         | command :: _ -> Some (opt, fn command)

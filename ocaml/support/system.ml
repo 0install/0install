@@ -182,6 +182,5 @@ module RealSystem (U : UnixType) =
             | None -> ()
             | Some signal -> Unix.kill child_pid signal in
           reap_child child_pid
-
       end
   end

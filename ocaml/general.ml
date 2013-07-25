@@ -23,19 +23,22 @@ class type distribution =
 
 module StringMap = Support.Common.StringMap
 
+type network_use = Full_network | Minimal_network | Offline
+
 type config = {
   basedirs: Support.Basedir.basedirs;
   mutable stores: string list;
   abspath_0install: filepath;
 
   distro: distribution Lazy.t;
-  system : Support.Common.system;
+  mutable system : Support.Common.system;
 
   mutable freshness: Int64.t option;
+  mutable dry_run : bool;
+  mutable network_use : network_use;
 }
 
 (** {2 Utility functions} *)
-
 
 (** {2 Useful constants} *)
 

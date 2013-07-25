@@ -2,9 +2,9 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-type version = string
+open General
 
-type network_use = Full_network | Minimal_network | Offline
+type version = string
 
 type yes_no_maybe = Yes | No | Maybe
 
@@ -49,9 +49,7 @@ type zi_option =
 type global_settings = {
   config : General.config;
   mutable gui : yes_no_maybe;
-  mutable dry_run : bool;
   mutable verbosity : int;
   mutable extra_options : zi_option Support.Argparse.option_value list;
-  mutable network_use : network_use;
   mutable args : string list;
 }

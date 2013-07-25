@@ -75,14 +75,18 @@ let get_launcher_builder config =
     else
       new native_launcher_builder config
 
-let do_exec_binding builder env impls = function
+let do_exec_binding dry_run builder env impls = function
   | (iface_uri, Binding.ExecutableBinding {Binding.exec_type; Binding.name; Binding.command}) -> (
     validate_exec_name name;
 
     let exec_dir = builder#make_dir name in
     let exec_path = exec_dir +/ name in
-    builder#add_launcher exec_path;
-    Unix.chmod exec_dir 0o500;
+    if not dry_run then (
+      builder#add_launcher exec_path;
+      Unix.chmod exec_dir 0o500;
+    ) else (
+      Dry_run.log "would create launcher %s" exec_path
+    );
 
     let command_argv = Command.build_command impls iface_uri command env in
 
@@ -117,7 +121,7 @@ let get_exec_args config sels args =
   List.iter (Binding.do_env_binding env impls) bindings;
 
   (* Do <executable-in-*> bindings *)
-  List.iter (do_exec_binding launcher_builder env impls) bindings;
+  List.iter (do_exec_binding config.dry_run launcher_builder env impls) bindings;
 
   let command = ZI.get_attribute "command" sels in
   let prog_args = (Command.build_command impls (ZI.get_attribute "interface" sels) command env) @ args in
@@ -125,15 +129,18 @@ let get_exec_args config sels args =
   (prog_args, (Env.to_array env))
 ;;
 
-let execute_selections config sels args ?wrapper =
+let execute_selections ?wrapper config sels args =
   let (prog_args, env) = get_exec_args config sels args in
 
   let prog_args =
     match wrapper with
     | None -> prog_args
-    | Some command -> ["/bin/sh"; "-c"; command ^ " \"$@\""; "-"] @ prog_args
+    | Some command -> ["/bin/sh"; "-c"; command ^ " \"$@\""; "-"] @ prog_args in
 
-  in config.system#exec prog_args ~env:env
+  if config.dry_run then
+    Dry_run.log "would execute: %s" (String.concat " " prog_args)
+  else
+    config.system#exec prog_args ~env:env
 
 (** This is called in a new process by the launcher created by [ensure_runenv]. *)
 let runenv (system:system) args =

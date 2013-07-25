@@ -4,9 +4,15 @@
 
 (** Configuration settings *)
 
-open General;;
+open General
 
-(** {2 Functions} *)
+let parse_network_use = function
+  | "full" -> Full_network
+  | "minimal" -> Minimal_network
+  | "off-line" -> Offline
+  | other ->
+      Support.Logging.log_warning "Unknown network use '%s'" other;
+      Full_network
 
 (** [get_default_config path_to_0install] creates a configuration from the current environment.
     [path_to_0install] is used when creating launcher scripts. If it contains no slashes, then
@@ -27,6 +33,8 @@ let get_default_config system path_to_0install =
     abspath_0install;
     freshness = Some (Int64.of_int (30 * days));
     distro = lazy (Distro.get_host_distribution config);
+    network_use = Full_network;
+    dry_run = false;
     system;
   } in
 
@@ -38,6 +46,7 @@ let get_default_config system path_to_0install =
             config.freshness <- Some value
           else
             config.freshness <- None
+      | ("network_use", use) -> config.network_use <- parse_network_use use
       | _ -> ()
     )
     | _ -> ignore in    (* other [sections] *)

@@ -81,7 +81,10 @@ let get_unavailable_selections config ~include_packages sels =
     | PackageSelection -> not @@ Distro.is_installed config elem
   in
   let check sel =
-    if needs_download sel then missing := sel :: !missing
+    if needs_download sel then (
+      Qdom.log_elem Support.Logging.Info "Missing selection of %s:" (ZI.get_attribute "interface" sel) sel;
+      missing := sel :: !missing
+    )
   in
 
   ZI.iter_with_name ~f:check sels "selection";

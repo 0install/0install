@@ -68,8 +68,9 @@ let get_runner elem =
     | _ -> Qdom.raise_elem "Multiple <runner>s in " elem
 ;;
 
-(* Build up the argv array to execute this command *)
-let rec build_command impls command_iface command_name env : string list =
+(* Build up the argv array to execute this command.
+   In --dry-run mode, don't complain if the target doesn't exist. *)
+let rec build_command ?(dry_run=false) impls command_iface command_name env : string list =
   try
     let (command_sel, command_impl_path) = Selections.find_ex command_iface impls in
     let command = get_command command_name command_sel in
@@ -95,7 +96,7 @@ let rec build_command impls command_iface command_name env : string list =
                 Qdom.raise_elem "Absolute path '%s' in" command_rel_path command
             )
           in
-            if Sys.file_exists command_path then
+            if Sys.file_exists command_path || dry_run then
               command_path :: command_args
             else if on_windows && Sys.file_exists (command_path ^ ".exe") then
               (command_path ^ ".exe") :: command_args
