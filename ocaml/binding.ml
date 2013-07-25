@@ -25,7 +25,8 @@ type exec_binding = {exec_type: exec_type; name: string; command: string};;
 
 type binding =
 | EnvironmentBinding of env_binding
-| ExecutableBinding of exec_binding;;
+| ExecutableBinding of exec_binding
+| GenericBinding of Qdom.element
 
 let get_source b =
   let get name = ZI.get_attribute_opt name b in
@@ -52,13 +53,15 @@ let parse_binding elem =
   | Some "environment" -> Some (EnvironmentBinding {var_name = get "name"; mode = get_mode elem; source = get_source elem})
   | Some "executable-in-path" -> Some (ExecutableBinding {exec_type = InPath; name = get "name"; command = default "run" (get_opt "command")})
   | Some "executable-in-var" -> Some (ExecutableBinding {exec_type = InVar; name = get "name"; command = default "run" (get_opt "command")})
-  | Some "overlay" | Some "binding" -> Qdom.raise_elem "Unsupporting binding type: " elem (* TODO *)
+  | Some "overlay" -> Some (GenericBinding elem)
+  | Some "binding" -> Some (GenericBinding elem)
   | _ -> None
 
 (** Return the name of the command needed by this binding, if any. *)
 let get_command = function
   | EnvironmentBinding _ -> None
   | ExecutableBinding {command; _} -> Some command
+  | GenericBinding elem -> ZI.get_attribute_opt "command" elem
 
 (* Return all bindings in document order *)
 let collect_bindings impls root =
@@ -115,17 +118,13 @@ let calc_new_value name mode value env =
           | None -> value                   (* no old value; use new value directly *)
 ;;
 
-let do_env_binding env impls = function
-| (iface, EnvironmentBinding {var_name; mode; source}) -> (
-    let add value = Env.putenv var_name (calc_new_value var_name mode value env) env in
-    match source with
-    | Value v -> add v
-    | InsertPath i -> match StringMap.find iface impls with
-      | (_, None) -> ()  (* a PackageSelection; skip binding *)
-      | (_, Some p) -> add (p +/ i)
-)
-| _ -> ()
-;;
+let do_env_binding env impls iface {var_name; mode; source} =
+  let add value = Env.putenv var_name (calc_new_value var_name mode value env) env in
+  match source with
+  | Value v -> add v
+  | InsertPath i -> match StringMap.find iface impls with
+    | (_, None) -> ()  (* a PackageSelection; skip binding *)
+    | (_, Some p) -> add (p +/ i)
 
 let prepend name value separator env =
   let mode = Add {pos = Prepend; default = None; separator} in

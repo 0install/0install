@@ -75,29 +75,25 @@ let get_launcher_builder config =
     else
       new native_launcher_builder config
 
-let do_exec_binding dry_run builder env impls = function
-  | (iface_uri, Binding.ExecutableBinding {Binding.exec_type; Binding.name; Binding.command}) -> (
-    validate_exec_name name;
+let do_exec_binding dry_run builder env impls (iface_uri, {Binding.exec_type; Binding.name; Binding.command}) =
+  validate_exec_name name;
 
-    let exec_dir = builder#make_dir name in
-    let exec_path = exec_dir +/ name in
-    if not dry_run then (
-      builder#add_launcher exec_path;
-      Unix.chmod exec_dir 0o500;
-    ) else (
-      Dry_run.log "would create launcher %s" exec_path
-    );
+  let exec_dir = builder#make_dir name in
+  let exec_path = exec_dir +/ name in
+  if not dry_run then (
+    builder#add_launcher exec_path;
+    Unix.chmod exec_dir 0o500;
+  ) else (
+    Dry_run.log "would create launcher %s" exec_path
+  );
 
-    let command_argv = Command.build_command impls iface_uri command env in
+  let command_argv = Command.build_command impls iface_uri command env in
 
-    let () = match exec_type with
-    | Binding.InPath -> Binding.prepend "PATH" exec_dir path_sep env
-    | Binding.InVar -> Env.putenv name exec_path env in
+  let () = match exec_type with
+  | Binding.InPath -> Binding.prepend "PATH" exec_dir path_sep env
+  | Binding.InVar -> Env.putenv name exec_path env in
 
-    builder#setenv name command_argv env
-  )
-  | _ -> ()
-;;
+  builder#setenv name command_argv env
 
 (* Make a map from InterfaceURIs to the selected <selection> and (for non-native packages) paths *)
 let make_selection_map stores sels =
@@ -117,11 +113,16 @@ let get_exec_args config sels args =
   let bindings = Binding.collect_bindings impls sels in
   let launcher_builder = get_launcher_builder config in
 
-  (* Do <environment> bindings *)
-  List.iter (Binding.do_env_binding env impls) bindings;
+  (* Do <environment> bindings; collect executable bindings *)
+  let exec_bindings =
+    Support.Utils.filter_map bindings ~f:(fun (iface, binding) -> match binding with
+      | Binding.EnvironmentBinding b -> Binding.do_env_binding env impls iface b; None
+      | Binding.ExecutableBinding b -> Some (iface, b)
+      | Binding.GenericBinding elem -> Support.Qdom.log_elem Support.Logging.Warning "Unsupported binding type:" elem; None
+    ) in
 
   (* Do <executable-in-*> bindings *)
-  List.iter (do_exec_binding config.dry_run launcher_builder env impls) bindings;
+  List.iter (do_exec_binding config.dry_run launcher_builder env impls) exec_bindings;
 
   let command = ZI.get_attribute "command" sels in
   let prog_args = (Command.build_command impls (ZI.get_attribute "interface" sels) command env) @ args in
