@@ -36,7 +36,7 @@ let list_all_interfaces config =
 
   let scan_dir path =
     match system#readdir (path +/ config_site +/ "interfaces") with
-    | Failure _ -> ()
+    | Problem _ -> ()
     | Success files -> Array.iter check_leaf files in
 
   List.iter scan_dir config.basedirs.Basedir.cache;

@@ -26,6 +26,9 @@ val parse_file : Common.system -> string -> element
 (** [find fn parent] returns the first child of for which [fn child] is True. *)
 val find : (element -> bool) -> element -> element option
 
+(** Generate a string identifying this element for use in error messages. Includes the source location, if known. *)
+val show_with_loc : element -> string
+
 (** [raise_elem "Problem with" elem] raises a [Safe_exception] with the message "Problem with <element> at ..." *)
 val raise_elem : ('a, unit, string, element -> 'b) format4 -> 'a
 

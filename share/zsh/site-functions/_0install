@@ -3,7 +3,7 @@ COMP_CWORD=$CURRENT "${words[1]}" _complete zsh "${words[@]}" |\
 while read item
 do
 	case "$item" in
-		add\ *) compadd -- "${item/#add /}" ;;
+		add\ *) compadd -V dontsort -- "${item/#add /}" ;;
 		filter\ *) compadd -- "${item/#filter /}" ;;
 		prefix\ *) compadd -S '' -- "${item/#prefix /}" ;;
 		file) _files ;;

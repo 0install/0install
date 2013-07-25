@@ -170,7 +170,7 @@ let list_app_names config =
       if Str.string_match re_app_name name 0 then
         apps := StringSet.add name !apps in
     match system#readdir (path +/ config_site +/ "apps") with
-    | Failure _ -> ()
+    | Problem _ -> ()
     | Success files -> Array.iter check_app files in
   List.iter scan_dir config.basedirs.Basedir.config;
   StringSet.elements !apps

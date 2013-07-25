@@ -250,7 +250,7 @@ let ro_rmtree (sys:system) root =
               sys#chmod path 0o700;
               Array.iter (fun leaf -> rmtree @@ path +/ leaf) files;
               sys#rmdir path
-          | Failure ex -> raise ex
+          | Problem ex -> raise ex
     ) in
   rmtree root
 

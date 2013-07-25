@@ -82,7 +82,7 @@ let suite =
           "<interface uri='http://example.com/foo' xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>" ^
           "<name>-</name><summary>-</summary>" ^
           "<implementation version='1.2' id='12'/>" ^
-          "<implementation version='1.5' id='15' main='foo'/>" ^
+          "<implementation version='1.11' id='15' main='foo'/>" ^
           "</interface>"
         ) in
       let interfaces_dir =
@@ -105,12 +105,12 @@ let suite =
         assert_str_equal "prefix http://example.com/\nfile\n" @@ complete ["select"; "http:"; "--with-store"; "."] 2;
 
         (* Version completion *)
-        assert_str_equal "add 1.2\nadd 1.5\n" @@ complete ["select"; "--before"; ""; "http://example.com/foo"] 3;
-        assert_str_equal "add 1.2\nadd 1.5\n" @@ complete ["select"; "--version"; ""; "http://example.com/foo"] 3;
-        assert_str_equal "add 1.2..!1.2\nadd 1.2..!1.5\n" @@ complete ["select"; "--version"; "1.2.."; "http://example.com/foo"] 3;
+        assert_str_equal "add 1.2\nadd 1.11\n" @@ complete ["select"; "--before"; ""; "http://example.com/foo"] 3;
+        assert_str_equal "add 1.2\nadd 1.11\n" @@ complete ["select"; "--version"; ""; "http://example.com/foo"] 3;
+        assert_str_equal "add 1.2..!1.2\nadd 1.2..!1.11\n" @@ complete ["select"; "--version"; "1.2.."; "http://example.com/foo"] 3;
 
         assert_str_equal "prefix http://example.com/\nfile\n" @@ complete ["select"; "--version-for"; "http:"; ""; ] 3;
-        assert_str_equal "add 1.2\nadd 1.5\n" @@ complete ["select"; "--version-for"; "http://example.com/foo"; ""; ] 4;
+        assert_str_equal "add 1.2\nadd 1.11\n" @@ complete ["select"; "--version-for"; "http://example.com/foo"; ""; ] 4;
 
         (* -- before argument *)
         assert_str_equal "prefix http://example.com/\nfile\n" @@ complete ["select"; "--"; "http:"] 3;

@@ -164,8 +164,9 @@ let get_attr_ex name (impl:implementation) =
   try AttrMap.find ("", name) impl.props.attrs
   with Not_found -> Qdom.raise_elem "Missing '%s' attribute for " name impl.qdom
 
-let get_version_string (impl:implementation) =
-  get_attr_ex "version" impl
+let get_version (impl:implementation) =
+  try Versions.parse_version @@ get_attr_ex "version" impl
+  with Safe_exception _ as ex -> reraise_with_context ex "... in %s" (Qdom.show_with_loc impl.qdom)
 
 (* TODO: sort by (parsed) version *)
 let get_implementations feed =

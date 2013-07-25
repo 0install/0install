@@ -9,7 +9,7 @@ module StringSet = Set.Make(String)
 
 type 'a result =
   | Success of 'a
-  | Failure of exn
+  | Problem of exn
 
 (** [a @@ b @@ c] is an alternative way to write [a (b (c))]. It's like [$] in Haskell. **)
 (* external ( @@ ) : ('a -> 'b) -> 'a -> 'b = "%apply" *)

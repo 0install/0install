@@ -269,12 +269,13 @@ let complete_version completer ~range ~maybe_app target pre =
         else
           "" in
 
-      let check impl =
-        let v = v_prefix ^ Feed.get_version_string impl in
-        if starts_with v pre then Some v else None in
-      let matching_versions = Support.Utils.filter_map ~f:check (Feed.get_implementations feed) in
-      (* TODO: sort based on parsed version *)
-      List.iter (completer#add Add) (List.sort compare matching_versions)
+      let check pv =
+        let v = Versions.format_version pv in
+        let vexpr = v_prefix ^ v in
+        if starts_with vexpr pre then Some vexpr else None in
+      let all_versions = List.map Feed.get_version @@ Feed.get_implementations feed in
+      let matching_versions = Support.Utils.filter_map ~f:check (List.sort compare all_versions) in
+      List.iter (completer#add Add) matching_versions
 
 (* 0install --option=<Tab> *)
 let complete_option_value (completer:completer) args (_, handler, values, carg) =
@@ -339,11 +340,11 @@ let handle_complete config = function
               with Not_found -> spec.options_spec
           )
           | _ -> spec.options_spec in
-          let check_name name =
-            if starts_with name prefix then completer#add Add name in
+          let check_name name = starts_with name prefix in
           let check_opt (names, _nargs, _help, _handler) =
-            List.iter check_name names in
-          List.iter check_opt possible_options
+            List.filter check_name names in
+          let completions = List.concat (List.map check_opt possible_options) in
+          List.iter (completer#add Add) (List.sort compare completions)
       | CompleteOption opt -> complete_option_value completer args opt
       | CompleteArg 0 -> complete_command completer raw_options (List.hd args)
       | CompleteArg i -> complete_arg config completer (List.nth args i) (slice args ~start:0 ~stop:i)

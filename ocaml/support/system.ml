@@ -58,7 +58,7 @@ module RealSystem (U : UnixType) =
 
         method readdir path =
           try Success (Sys.readdir path)
-          with Sys_error _ as ex -> Failure ex
+          with Sys_error _ as ex -> Problem ex
 
         method lstat path =
           try Some (Unix.lstat path)
