@@ -295,3 +295,17 @@ let slice ~start ?stop lst =
 let print (system:system) =
   let do_print msg = system#print_string (msg ^ "\n") in
   Printf.ksprintf do_print
+
+(** Read all input from a channel. *)
+let input_all ch =
+  let b = Buffer.create 100 in
+  let buf = String.create 256 in
+  try
+    while true do
+      let got = input ch buf 0 256 in
+      if got = 0 then
+        raise End_of_file;
+      Buffer.add_substring b buf 0 got
+    done;
+    failwith "!"
+  with End_of_file -> Buffer.contents b

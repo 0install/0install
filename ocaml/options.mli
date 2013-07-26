@@ -3,6 +3,7 @@
  *)
 
 open General
+open Support.Common
 
 type version = string
 
@@ -29,7 +30,7 @@ type zi_option =
   | Refresh
   | Source
   | RequireVersion of version
-  | RequireVersionFor of string * version
+  | RequireVersionFor of iface_uri * version
 
   | ShowXML
   | ShowFullDiff
@@ -51,5 +52,6 @@ type global_settings = {
   mutable gui : yes_no_maybe;
   mutable verbosity : int;
   mutable extra_options : zi_option Support.Argparse.option_value list;
+  mutable extra_stores : filepath list;
   mutable args : string list;
 }

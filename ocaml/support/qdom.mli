@@ -16,7 +16,7 @@ type element = {
 (** {2 Parsing} *)
 
 (** @raise Safe_exception if the XML is not well formed. *)
-val parse_input : string -> Xmlm.input -> element
+val parse_input : string option -> Xmlm.input -> element
 
 (** @raise Safe_exception if the XML is not well formed. *)
 val parse_file : Common.system -> string -> element

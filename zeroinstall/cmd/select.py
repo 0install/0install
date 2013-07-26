@@ -191,7 +191,12 @@ def handle(config, options, args):
 	sels = get_selections(config, options, iface_uri,
 				select_only = True, download_only = False, test_callback = None, requirements = requirements)
 	if not sels:
-		sys.exit(1)	# Aborted by user
+		# Aborted by user
+		if options.xml:
+			print("<?xml version='1.0'?>\n<cancelled/>")
+			sys.exit(0)
+		else:
+			sys.exit(1)
 
 	if options.xml:
 		show_xml(sels)

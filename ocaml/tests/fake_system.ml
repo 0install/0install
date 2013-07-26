@@ -16,9 +16,12 @@ let real_system = new RealSystem.real_system
 
 class fake_system tmpdir =
   let check_read path =
-    match tmpdir with
-    | Some dir when Support.Utils.starts_with path dir -> path
-    | _ -> failwith ("Attempt to read from " ^ path) in
+    if Filename.is_relative path then path
+    else (
+      match tmpdir with
+      | Some dir when Support.Utils.starts_with path dir -> path
+      | _ -> failwith ("Attempt to read from " ^ path)
+    ) in
 
   let check_write path =
     match tmpdir with

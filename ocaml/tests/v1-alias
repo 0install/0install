@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ "$*" = "--versions" ]; then
+  exec 0launch -gd 'http://example.com/alias1.xml' "$@"
+else
+  exec 0launch  'http://example.com/alias1.xml' "$@"
+fi

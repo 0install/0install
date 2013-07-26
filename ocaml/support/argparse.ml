@@ -208,7 +208,15 @@ let iter_options (options : 'a option_value list) fn =
     try fn value
     with Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" actual_opt
   in List.iter process options
-;;
+
+let filter_map_options (options : 'a option_value list) fn =
+  let process (actual_opt, value) =
+    try
+      match fn value with
+      | None -> None
+      | Some o -> Some (actual_opt, o)
+    with Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" actual_opt
+  in Utils.filter_map ~f:process options
 
 (** {2 Handy wrappers for option handlers} *)
 

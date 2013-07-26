@@ -57,33 +57,34 @@ class TestInstall(BaseTest):
 		self.assertEqual("http://example.com:8000/Hello.xml\n", out)
 
 	def testSelect(self):
-		out, err = self.run_0install(['select'])
+		out, err = self.run_ocaml(['select'])
 		assert out.lower().startswith("usage:")
 		assert '--xml' in out
 
-		out, err = self.run_0install(['select', 'Local.xml'])
+		out, err = self.run_ocaml(['select', 'Local.xml'])
 		assert not err, err
 		assert 'Version: 0.1' in out
 
-		out, err = self.run_0install(['select', 'Local.xml', '--command='])
+		out, err = self.run_ocaml(['select', 'Local.xml', '--command='])
 		assert not err, err
 		assert 'Version: 0.1' in out
 
 		local_uri = model.canonical_iface_uri('Local.xml')
-		out, err = self.run_0install(['select', 'Local.xml'])
+		out, err = self.run_ocaml(['select', 'Local.xml'])
 		assert not err, err
 		assert 'Version: 0.1' in out
 
-		out, err = self.run_0install(['select', 'Local.xml', '--xml'])
+		out, err = self.run_ocaml(['select', 'Local.xml', '--xml'])
 		sels = selections.Selections(qdom.parse(BytesIO(str(out).encode('utf-8'))))
 		assert sels.selections[local_uri].version == '0.1'
 
-		out, err = self.run_0install(['select', 'selections.xml'])
-		assert not err, err
-		assert 'Version: 1\n' in out
-		assert '(not cached)' in out
+		# This now triggers a download to fetch the feed.
+		#out, err = self.run_ocaml(['select', 'selections.xml'])
+		#assert not err, err
+		#assert 'Version: 1\n' in out
+		#assert '(not cached)' in out
 
-		out, err = self.run_0install(['select', 'runnable/RunExec.xml'])
+		out, err = self.run_ocaml(['select', 'runnable/RunExec.xml'])
 		assert not err, err
 		assert 'Runner' in out, out
 
@@ -390,7 +391,7 @@ class TestInstall(BaseTest):
 		self.check_man(['local-app'], 'tests/test-echo.1')
 
 		#assert 'local-app' in self.complete(['select'], 2)
-		out, err = self.run_0install(['select', 'local-app'])
+		out, err = self.run_ocaml(['select', 'local-app'])
 		assert "Version: 0.1" in out, out
 		assert not err, err
 
@@ -422,7 +423,7 @@ class TestInstall(BaseTest):
 		assert "No updates found. Continuing with version 0.1." in out, out
 		assert not err, err
 
-		out, err = self.run_0install(['select', 'local-app'])
+		out, err = self.run_ocaml(['select', 'local-app'])
 		assert not err, err
 		self.assertEqual("User-provided restrictions in force:\n"
 				 "  {path}/Local.xml: 0.1..\n"
@@ -442,7 +443,7 @@ class TestInstall(BaseTest):
 		assert "No updates found. Continuing with version 0.1." in out, out
 		assert not err, err
 
-		out, err = self.run_0install(['select', 'local-app'])
+		out, err = self.run_ocaml(['select', 'local-app'])
 		assert not err, err
 		self.assertEqual("- URI: {path}/Local.xml\n"
 				 "  Version: 0.1\n"
@@ -480,7 +481,7 @@ class TestInstall(BaseTest):
 		out, err = self.run_ocaml(['show', 'local-app'])
 		assert "Version: 0.1-pre2" in out, out
 		assert not err, err
-		out, err = self.run_0install(['select', 'local-app'])
+		out, err = self.run_ocaml(['select', 'local-app'])
 		assert "Local.xml: 0.1-pre2 -> 0.1" in out, out
 		assert "(note: use '0install update' instead to save the changes)" in out, out
 		assert not err, err

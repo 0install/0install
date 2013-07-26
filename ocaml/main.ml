@@ -73,6 +73,7 @@ let main (system:system) : unit =
         try
           match options.args with
           | ("run" :: run_args) -> handle_run config options run_args
+          | ("select" :: args) -> Select.handle options args
           | ("show" :: args) -> Show.handle options args
           | _ -> raise Fallback_to_Python
         with Support.Argparse.Usage_error -> Cli.show_usage_error options

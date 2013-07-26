@@ -34,7 +34,7 @@ let register_prefix doc prefix uri =
 
 let parse_input source_name i = try (
   let doc = {
-    source_name = Some source_name;
+    source_name;
     prefixes = StringMap.empty;
   } in
 
@@ -80,7 +80,7 @@ let parse_input source_name i = try (
 
 let parse_file (system:system) path =
   try system#with_open_in [Open_rdonly; Open_binary] 0 path (fun ch ->
-    parse_input path (Xmlm.make_input (`Channel ch))
+    parse_input (Some path) (Xmlm.make_input (`Channel ch))
   )
   with
   | Safe_exception _ as ex -> reraise_with_context ex "... parsing XML document %s" path

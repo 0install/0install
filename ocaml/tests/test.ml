@@ -85,19 +85,6 @@ let test_option_parsing () =
   assert_equal [("-m", MainExecutable "main")] s.extra_options;
 ;;
 
-let input_all ch =
-  let b = Buffer.create 100 in
-  let buf = String.create 256 in
-  try
-    while true do
-      let got = input ch buf 0 256 in
-      if got = 0 then
-        raise End_of_file;
-      Buffer.add_substring b buf 0 got
-    done;
-    failwith "!"
-  with End_of_file -> Buffer.contents b
-
 let test_run_real tmpdir =
   let build_dir = Unix.getenv "OCAML_BUILDDIR" in
   Unix.putenv "ZEROINSTALL_PORTABLE_BASE" tmpdir;
@@ -105,7 +92,7 @@ let test_run_real tmpdir =
     if on_windows then ".\\test_selections_win.xml"
     else "./test_selections.xml" in
   let argv = [build_dir +/ "0install"; "run"; sels_path] in
-  let line = Support.Utils.check_output real_system input_all argv in
+  let line = Support.Utils.check_output real_system Support.Utils.input_all argv in
   assert_str_equal "Hello World\n" line
 ;;
 
@@ -146,6 +133,18 @@ let suite =
  "test_option_parsing">:: test_option_parsing;
  "test_run_real">:: with_tmpdir test_run_real;
  "test_escaping">:: test_escaping;
+ "test_canonical">:: fun () -> (
+   let system = (new fake_system None :> system) in
+   let check arg uri =
+     assert_str_equal uri (Select.canonical_iface_uri system arg) in
+   let check_err arg =
+     try (ignore @@ Select.canonical_iface_uri system arg); assert false
+     with Safe_exception _ -> () in
+   check "http://example.com/foo.xml" "http://example.com/foo.xml";
+   check "alias:./v1-alias" "http://example.com/alias1.xml";
+   check "alias:./v2-alias" "http://example.com/alias2.xml";
+   check_err "http://example.com";
+ );
 ];;
 
 let () = Printexc.record_backtrace true;;
