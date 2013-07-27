@@ -293,8 +293,13 @@ let format_options format_type opts =
   let set_tab_stop = ref false in
   set_tab();
 
-  ListLabels.iteri display_options ~f:(fun opti (syn, help) ->
-    if opti > 0 then print_cut ();
+  let first = ref true in
+
+  ListLabels.iter display_options ~f:(fun (syn, help) ->
+    if !first then (
+      print_cut ();
+      first := false
+    );
 
     print_string syn;
 
