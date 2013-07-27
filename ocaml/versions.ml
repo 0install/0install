@@ -66,9 +66,10 @@ let parse_version version_string =
   parsed
 
 let format_version parsed =
-  let l = List.length parsed - 1 in
-  let format_seg i (d, m) =
-    let ms = if i = l && m = Dash then "" else string_of_mod m in
+  let n_remaining = ref (List.length parsed) in
+  let format_seg (d, m) =
+    n_remaining := !n_remaining - 1;
+    let ms = if !n_remaining = 0 && m = Dash then "" else string_of_mod m in
     String.concat "." (List.map Int64.to_string d) ^ ms in
 
-  String.concat "" (List.mapi format_seg parsed)
+  String.concat "" (List.map format_seg parsed)
