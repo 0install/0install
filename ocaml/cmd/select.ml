@@ -44,8 +44,7 @@ let canonical_iface_uri (system:system) arg =
     | None -> raise_safe "Not an alias script: '%s'" path
     | Some info -> info.Alias.uri
   ) else (
-    (* FIXME: realpath *)
-    let path = Support.Utils.abspath system @@ if starts "file:///" then (
+    let path = Support.Utils.realpath system @@ if starts "file:///" then (
       Support.Utils.string_tail arg 7
     ) else if starts "file:" then (
         if arg.[5] = '/' then

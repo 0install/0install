@@ -46,6 +46,7 @@ class type system =
     method readdir : filepath -> string array result
     method chmod : filepath -> Unix.file_perm -> unit
     method set_mtime : filepath -> float -> unit
+    method readlink : filepath -> filepath option
 
     method exec : ?search_path:bool -> ?env:string array -> string list -> 'a
     method spawn_detach : ?search_path:bool -> ?env:string array -> string list -> unit
@@ -63,8 +64,13 @@ let on_windows = Filename.dir_sep <> "/"
 (** The string used to separate paths (":" on Unix, ";" on Windows). *)
 let path_sep = if on_windows then ";" else ":";;
 
-(** Handy infix version of [Filename.concat]. *)
-let (+/) : filepath -> filepath -> filepath = Filename.concat;;
+(** Join a relative path onto a base.
+    @raise Safe_exception if the second path is not relative. *)
+let (+/) a b =
+  if Filename.is_relative b then
+    Filename.concat a b
+  else
+    raise_safe "Attempt to append absolute path: %s + %s" a b
 
 (** Add the additional explanation [context] to the exception and rethrow it.
     [ex] should be a [Safe_exception] (if not, [context] is written as a warning to [stderr]).

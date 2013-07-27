@@ -56,6 +56,10 @@ module RealSystem (U : UnixType) =
           else
             Unix.utimes path mtime mtime
 
+        method readlink path =
+          try Some (Unix.readlink path)
+          with Unix.Unix_error _ -> None
+
         method readdir path =
           try Success (Sys.readdir path)
           with Sys_error _ as ex -> Problem ex

@@ -60,6 +60,7 @@ class fake_system tmpdir =
     method mkdir path mode = real_system#mkdir (check_write path) mode
 
     method readdir path = real_system#readdir (check_read path)
+    method readlink path = real_system#readlink (check_read path)
 
     method chmod = failwith "chmod"
 

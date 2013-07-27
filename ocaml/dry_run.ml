@@ -7,7 +7,7 @@
 open Support.Common
 
 (** Log a message saying what we would have done. *)
-let log fmt = 
+let log fmt =
   let do_print msg =
     print_endline @@ "[dry-run] " ^ msg in
   Printf.ksprintf do_print fmt
@@ -23,11 +23,12 @@ class dryrun_system (underlying:system) =
     method with_open_in = underlying#with_open_in
     method readdir = underlying#readdir
     method lstat = underlying#lstat
-    method file_exists = underlying#file_exists 
-    method stat = underlying#stat 
-    method reap_child = underlying#reap_child 
-    method getcwd = underlying#getcwd 
-    method getenv = underlying#getenv 
+    method file_exists = underlying#file_exists
+    method stat = underlying#stat
+    method reap_child = underlying#reap_child
+    method getcwd = underlying#getcwd
+    method getenv = underlying#getenv
+    method readlink = underlying#readlink
 
     (* We allow this as we may be falling back to Python or running some helper.
        For places where it matters (e.g. actually running the target program), the caller should handle it. *)

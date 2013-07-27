@@ -129,6 +129,7 @@ let suite =
 "0install">:::[
   Test_completion.suite;
   Test_versions.suite;
+  Test_utils.suite;
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: test_option_parsing;
  "test_run_real">:: with_tmpdir test_run_real;
