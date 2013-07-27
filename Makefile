@@ -7,7 +7,7 @@ DISTDIR = $(abspath dist)
 BUILDDIR = $(abspath build)
 PREFIX = /usr/local
 
-GTKBUILDER = $(shell find ${SRCDIR}/zeroinstall -name '*.ui' | sort | sed -e 's/\.ui/&.h/')
+GTKBUILDER = $(shell find zeroinstall -name '*.ui' | sort | sed -e 's/\.ui/&.h/')
 SH = zeroinstall/zerostore/_unlzma
 
 # There are several things you might want to do:
