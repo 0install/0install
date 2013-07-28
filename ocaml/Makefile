@@ -14,8 +14,10 @@ all: build_dir ocaml test
 build_dir:
 	[ -d "${OCAML_BUILDDIR}" ] || mkdir -p "${OCAML_BUILDDIR}"
 
-test: ocaml
+build_tests: ocaml
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) tests/test.$(TYPE)
+
+test: build_tests
 	(cd tests && OCAML_BUILDDIR=../${OCAML_BUILDDIR} ../${OCAML_BUILDDIR}/tests/test.$(TYPE))
 
 # Build portable bytecode and static version (of $TYPE)

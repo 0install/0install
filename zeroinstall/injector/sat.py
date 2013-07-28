@@ -63,7 +63,6 @@ class AtMostOneClause(object):
 
 		# value[lit] has just become True
 		assert self.solver.lit_value(lit) == True
-		assert lit >= 0
 
 		#debug("%s: noticed %s has become True" % (self, self.solver.name_lit(lit)))
 
