@@ -34,6 +34,7 @@ PY = $(shell find zeroinstall -name '*.py' | sort)
 # To test without installing:     	make && ./dist/bin/0install
 # To use as a library with other tools: 0compile build && 0compile register
 # To publish a release on 0install.net: use 0release
+# To make a generic build/static_dist:  make static_dist
 #
 # Running plain "make" does most of the same things that "0compile build" would do,
 # except that it doesn't generate/update the binary feed (dist/0install/feed.xml).

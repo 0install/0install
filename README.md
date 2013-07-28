@@ -45,7 +45,7 @@ INSTALLATION
 0install is written in a mixture of Python and OCaml. You will need the OCaml
 build tools and a couple of OCaml libraries to compile 0install. On Debian use:
 
-    $ sudo apt-get install ocaml-nox ocaml-findlib libyojson-ocaml-dev libxmlm-ocaml-dev camlp4-extra make
+    $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev libxmlm-ocaml-dev camlp4-extra make
 
 In the top-level directory, run:
 

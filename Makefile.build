@@ -6,6 +6,8 @@ SCRIPTS = 0launch 0alias 0desktop 0store 0store-secure-add
 DOCS = README.md COPYING
 MANPAGES = 0launch.1 0alias.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
 
+STATIC_DIST = ${BUILDDIR}/static_dist
+
 # Use "share/zsh/vendor-completions" on Debian
 ZSHFUNCTIONS = share/zsh/site-functions
 
@@ -40,6 +42,11 @@ all: translations
 	(cd "${SRCDIR}" && cp ${SCRIPTS} "${DISTDIR}/")
 	(cd "${SRCDIR}" && cp ${DOCS} "${DISTDIR}")
 	cp -r share "${DISTDIR}"
+
+static_dist: all
+	install -D ocaml/0install "${STATIC_DIST}/0install"
+	(cd "${SRCDIR}" && cp README.md COPYING ${SCRIPTS} "${STATIC_DIST}/")
+	(cp -r build/lib/zeroinstall "${STATIC_DIST}/")
 
 translations: $(MO)
 
