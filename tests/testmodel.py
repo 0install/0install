@@ -114,7 +114,7 @@ class TestModel(BaseTest):
 	def testImpl(self):
 		f = model.ZeroInstallFeed(None)
 		f.url = 'http://foo'
-		a = model.ZeroInstallImplementation(f, 'foo', None)
+		a = model.ZeroInstallImplementation(f, 'foo', local_path = None, qdom = None)
 		assert a.id == 'foo'
 		assert a.size == a.version == a.user_stability == None
 		assert a.arch == a.upstream_stability == None
@@ -131,13 +131,13 @@ class TestModel(BaseTest):
 		self.assertEqual('1.2.3-rc2-post', a.get_version())
 		assert str(a) == 'foo'
 
-		b = model.ZeroInstallImplementation(f, 'foo', None)
+		b = model.ZeroInstallImplementation(f, 'foo', local_path = None, qdom = None)
 		b.version = model.parse_version("1.2.1")
 		assert b > a
 	
 	def testDownloadSource(self):
 		f = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
-		a = model.ZeroInstallImplementation(f, 'foo', None)
+		a = model.ZeroInstallImplementation(f, 'foo', None, None)
 		a.add_download_source('ftp://foo', 1024, None)
 		a.add_download_source('ftp://foo.tgz', 1025, 'foo')
 		assert a.download_sources[0].url == 'ftp://foo'
