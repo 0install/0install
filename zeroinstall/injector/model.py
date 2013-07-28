@@ -990,21 +990,27 @@ class ZeroInstallImplementation(Implementation):
 	@ivar digests: a list of "algorith=value" or "algorith_value" strings (since 0.45)
 	@type digests: [str]
 	@since: 0.28"""
-	__slots__ = ['os', 'size', 'digests', 'local_path']
+	__slots__ = ['os', 'size', 'digests', 'local_path', 'qdom']
 
 	distro_name = '0install'
 
-	def __init__(self, feed, id, local_path):
+	def __init__(self, feed, id, local_path, qdom = None):
 		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")
 		@type feed: L{ZeroInstallFeed}
 		@type id: str
-		@type local_path: str"""
+		@type local_path: str
+		@type qdom: L{qdom.Element} (since 2.4)"""
 		assert not id.startswith('package:'), id
 		Implementation.__init__(self, feed, id)
 		self.size = None
 		self.os = None
 		self.digests = []
 		self.local_path = local_path
+		self.qdom = qdom
+
+	def _toxml(self, doc, prefixes):
+		"""@type prefixes: L{zeroinstall.injector.qdom.Prefixes}"""
+		return self.qdom.toDOM(doc, prefixes)
 
 	# Deprecated
 	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires
@@ -1316,13 +1322,13 @@ class ZeroInstallFeed(object):
 			local_path = item_attrs.get('local-path')
 			if local_dir and local_path:
 				abs_local_path = os.path.abspath(os.path.join(local_dir, local_path))
-				impl = ZeroInstallImplementation(self, id, abs_local_path)
+				impl = ZeroInstallImplementation(self, id, abs_local_path, item)
 			elif local_dir and (id.startswith('/') or id.startswith('.')):
 				# For old feeds
 				id = os.path.abspath(os.path.join(local_dir, id))
-				impl = ZeroInstallImplementation(self, id, id)
+				impl = ZeroInstallImplementation(self, id, id, item)
 			else:
-				impl = ZeroInstallImplementation(self, id, None)
+				impl = ZeroInstallImplementation(self, id, None, item)
 				if '=' in id:
 					# In older feeds, the ID was the (single) digest
 					impl.digests.append(id)
