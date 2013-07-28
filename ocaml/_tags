@@ -1,4 +1,4 @@
-true: debug, annot, warn(A-4), package(yojson,xmlm,str)
+true: debug, annot, package(yojson,xmlm,str)
 <tests/*>: package(oUnit)
 "support": for-pack(Support)
 "windows.cma": dllib(-lwindows)

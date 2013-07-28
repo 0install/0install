@@ -32,6 +32,8 @@ let () =
 
     flag ["ocaml";"ocamldep";"mypp"] (S [A"-pp"; A "camlp4of"]);
 
+    flag ["compile"; "ocaml"] (S [A"-w"; A"A-4"]);
+
     pflag [] "dllib" (fun x -> (S [A"-dllib"; A x]));
   | _ -> ())
 

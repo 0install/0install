@@ -6,11 +6,17 @@
 
 open Common
 
+type path_component =
+  | Filename of string  (* foo/ *)
+  | ParentDir           (* ../ *)
+  | CurrentDir          (* ./ *)
+  | EmptyComponent      (* / *)
+
 (** [finally cleanup x f] calls [f x] and then [cleanup x] (even if [f x] raised an exception) **)
 let finally cleanup resource f =
   let result =
     try f resource
-    with ex -> cleanup resource; raise ex in 
+    with ex -> cleanup resource; raise ex in
   let () = cleanup resource in
   result
 
@@ -101,14 +107,83 @@ let string_tail s i =
 
 let path_is_absolute path = not (Filename.is_relative path)
 
-(** If the given path is relative, make it absolute by prepending the current directory to it.
-    TODO: remove '..', combine '//' into '/', etc. *)
+(** Find the next "/" in [path]. On Windows, also accept "\\".
+    Split the path at that point. Multiple slashes are treated as one.
+    If there is no separator, returns [(path, "")]. *)
+let split_path_str path =
+  let l = String.length path in
+  let is_sep c = (c = '/' || (on_windows && c = '\\')) in
+
+  (* Skip any leading slashes and return the rest *)
+  let rec find_rest i =
+    if i < l then (
+      if is_sep path.[i] then find_rest (i + 1)
+      else string_tail path i
+    ) else (
+      ""
+    ) in
+
+  let rec find_slash i =
+    if i < l then (
+      if is_sep path.[i] then (String.sub path 0 i, find_rest (i + 1))
+      else find_slash (i + 1)
+    ) else (
+      (path, "")
+    )
+  in
+  find_slash 0
+
+(** Split off the first component of a pathname.
+    "a/b/c" -> (Filename "a", "b/c")
+    "a"     -> (Filename "a", "")
+    "/a"    -> (EmptyComponent, "a")
+    "/"     -> (EmptyComponent, "")
+    ""      -> (CurrentDir, "")
+  *)
+let split_first path =
+  if path = "" then
+    (CurrentDir, "")
+  else (
+    let (first, rest) = split_path_str path in
+    let parsed =
+      if first = Filename.parent_dir_name then ParentDir
+      else if first = Filename.current_dir_name then CurrentDir
+      else if first = "" then EmptyComponent
+      else Filename first in
+    (parsed, rest)
+  )
+
+(** Normalize a path, e.g. A//B, A/./B and A/foo/../B all become A/B.
+    It should be understood that this may change the meaning of the path
+    if it contains symbolic links (use [realpath] instead if you care about that).
+    Based on the Python version. *)
+let normpath path : filepath =
+  let rec explode path =
+    match split_first path with
+    | CurrentDir, "" -> []
+    | CurrentDir, rest -> explode rest
+    | first, "" -> [first]
+    | first, rest -> first :: explode rest in
+
+  let rec remove_parents = function
+    | checked, [] -> checked
+    | (Filename _name :: checked), (ParentDir :: rest) -> remove_parents (checked, rest)
+    | checked, (first :: rest) -> remove_parents ((first :: checked), rest) in
+
+  let to_string = function
+    | Filename name -> name
+    | ParentDir -> Filename.parent_dir_name
+    | EmptyComponent -> ""
+    | CurrentDir -> assert false in
+
+  String.concat Filename.dir_sep @@ List.rev_map to_string @@ remove_parents ([], explode path)
+
+(** If the given path is relative, make it absolute by prepending the current directory to it. *)
 let abspath (system:system) path =
-  if path_is_absolute path then path
-  else if starts_with path (Filename.current_dir_name ^ Filename.dir_sep) then
-    system#getcwd () +/ String.sub path 2 ((String.length path) - 2)
-  else system#getcwd () +/ path
-;;
+  normpath (
+    if path_is_absolute path then path
+    else system#getcwd () +/ path
+  )
 
 (** Wrapper for [Sys.getenv] that gives a more user-friendly exception message. *)
 let getenv_ex system name =
@@ -316,71 +391,56 @@ let input_all ch =
 let realpath (system:system) path =
   let (+/) = Filename.concat in   (* Faster version, since we know the path is relative *)
 
-  (* "a/b/c" -> ("a", "b/c") *)
-  let split_first path =
-    try
-      let slash = String.index path '/' in
-      (String.sub path 0 slash, string_tail path (slash + 1))
-    with Not_found ->
-      (path, "") in
-
-  (* Join path and rest, without any further processing. Used when we hit a symlink loop. *)
-  let give_up path rest =
-    if String.length rest = 0 then
-      (path, false)
-    else
-      (path +/ rest, false) in
-
   (* Based on Python's version *)
   let rec join_realpath path rest seen =
     (* Printf.printf "join_realpath <%s> + <%s>\n" path rest; *)
     (* [path] is already a realpath (no symlinks). [rest] is the bit to join to it. *)
-    if starts_with rest "/" then (
-      (* [rest] is absolute; discard [path] and start again *)
-      join_realpath "/" (string_tail rest 1) seen
-    ) else if String.length rest = 0 then (
-      (* path + "" *)
-      (path, true)
-    ) else (
-      let (name, rest) = split_first rest in
-      if name = Filename.current_dir_name then (
-        (* path + ./rest *)
-        join_realpath path rest seen
-      ) else if name = Filename.parent_dir_name then (
-        (* path + ../rest *)
-        if String.length path > 0 then (
-          let name = Filename.basename path in
-          let path = Filename.dirname path in
-          if name = Filename.parent_dir_name then
-            join_realpath (path +/ name +/ name) rest seen    (* path/.. +  ../rest -> path/../.. + rest *)
-          else
-            join_realpath path rest seen                      (* path/name + ../rest -> path + rest *)
-        ) else (
-          join_realpath Filename.parent_dir_name rest seen    (* "" + ../rest -> .. + rest *)
-        )
+    match split_first rest with
+    | Filename name, rest -> (
+      (* path + name/rest *)
+      let newpath = path +/ name in
+      match system#readlink newpath with
+      | Some target ->
+          (* path + symlink/rest *)
+          if StringMap.mem newpath seen then (
+            match StringMap.find newpath seen with
+            | Some cached_path -> join_realpath cached_path rest seen
+            | None -> (normpath (newpath +/ rest), false)    (* Loop; give up *)
+          ) else (
+            (* path + symlink/rest -> realpath(path + target) + rest *)
+            match join_realpath path target (StringMap.add newpath None seen) with
+            | path, false ->
+                (normpath (path +/ rest), false)   (* Loop; give up *)
+            | path, true -> join_realpath path rest (StringMap.add newpath (Some path) seen)
+          )
+      | None ->
+          (* path + name/rest -> path/name + rest (name is not a symlink) *)
+          join_realpath newpath rest seen
+    )
+    | CurrentDir, "" ->
+        (path, true)
+    | CurrentDir, rest ->
+      (* path + ./rest *)
+      join_realpath path rest seen
+    | ParentDir, rest ->
+      (* path + ../rest *)
+      if String.length path > 0 then (
+        let name = Filename.basename path in
+        let path = Filename.dirname path in
+        if name = Filename.parent_dir_name then
+          join_realpath (path +/ name +/ name) rest seen    (* path/.. +  ../rest -> path/../.. + rest *)
+        else
+          join_realpath path rest seen                      (* path/name + ../rest -> path + rest *)
       ) else (
-        (* path + name/rest *)
-        let newpath = path +/ name in
-        match system#readlink newpath with
-        | Some target ->
-            (* path + symlink/rest *)
-            if StringMap.mem newpath seen then (
-              match StringMap.find newpath seen with
-              | Some cached_path -> join_realpath cached_path rest seen
-              | None -> give_up newpath rest
-            ) else (
-              (* path + symlink/rest -> realpath(path + target) + rest *)
-              match join_realpath path target (StringMap.add newpath None seen) with
-              | path, false -> give_up path rest
-              | path, true -> join_realpath path rest (StringMap.add newpath (Some path) seen)
-            )
-        | None ->
-            (* path + name/rest -> path/name + rest (name is not a symlink) *)
-            join_realpath newpath rest seen
+        join_realpath Filename.parent_dir_name rest seen    (* "" + ../rest -> .. + rest *)
       )
-    ) in
+    | EmptyComponent, rest ->
+        (* [rest] is absolute; discard [path] and start again *)
+        join_realpath Filename.dir_sep rest seen
+  in
 
   if on_windows then
     abspath system path
-  else
+  else (
     fst @@ join_realpath (system#getcwd ()) path StringMap.empty
+  )

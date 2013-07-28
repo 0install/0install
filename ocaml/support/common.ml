@@ -67,7 +67,9 @@ let path_sep = if on_windows then ";" else ":";;
 (** Join a relative path onto a base.
     @raise Safe_exception if the second path is not relative. *)
 let (+/) a b =
-  if Filename.is_relative b then
+  if b = "" then
+    a
+  else if Filename.is_relative b then
     Filename.concat a b
   else
     raise_safe "Attempt to append absolute path: %s + %s" a b
