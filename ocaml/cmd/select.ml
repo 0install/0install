@@ -96,7 +96,7 @@ type select_mode =
     @param download_only wait for stale feeds, and display GUI button as Download, not Run
     @return the selections, or None if the user cancels (in which case, there is no need to alert the user again)
     *)
-let get_selections options reqs mode =
+let get_selections options ~refresh reqs mode =
   let action = match mode with
   | Select_only -> "select"
   | Download_only -> "download"
@@ -104,6 +104,7 @@ let get_selections options reqs mode =
 
   let read_xml s = Qdom.parse_input None @@ Xmlm.make_input (`String (0, s)) in
   let args = Requirements.to_options reqs @ ["--xml"; "--"; reqs.Requirements.interface_uri] in
+  let args = if refresh then "--refresh" :: args else args in
   (* Note: parse the output only if it returns success *)
   let xml = read_xml @@ Python.check_output_python options Support.Utils.input_all action @@ args in
   if xml.Qdom.tag = ("", "cancelled") then
@@ -113,6 +114,7 @@ let get_selections options reqs mode =
 
 type select_options = {
   mutable xml : bool;
+  mutable refresh : bool;
 }
 
 let handle options args =
@@ -121,13 +123,15 @@ let handle options args =
   let do_selections extra_options ?app_old_sels reqs ~changes =
     let select_opts = {
       xml = false;
+      refresh = false;
     } in
     Support.Argparse.iter_options extra_options (function
       | ShowXML -> select_opts.xml <- true
+      | Refresh -> select_opts.refresh <- true
       | _ -> raise_safe "Unknown option"
     );
 
-    let sels = get_selections options reqs Select_only in
+    let sels = get_selections options ~refresh:select_opts.refresh reqs Select_only in
 
     match sels with
     | None -> exit 1    (* Aborted by user *)
