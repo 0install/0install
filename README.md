@@ -76,7 +76,6 @@ If you want to compile from source on Windows you'll need:
 
 To build under Cygwin:
 
-    mkdir build
     cd ocaml
     make
 

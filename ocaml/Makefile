@@ -9,14 +9,17 @@ MS_SDK:="/cygdrive/c/Program Files/Microsoft SDKs/Windows/v7.0/Bin"
 
 .PHONY: all ocaml doc clean tags test
 
-all: ocaml test
+all: build_dir ocaml test
+
+build_dir:
+	[ -d "${OCAML_BUILDDIR}" ] || mkdir -p "${OCAML_BUILDDIR}"
 
 test: ocaml
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) tests/test.$(TYPE)
 	(cd tests && OCAML_BUILDDIR=../${OCAML_BUILDDIR} ../${OCAML_BUILDDIR}/tests/test.$(TYPE))
 
 # Build portable bytecode and static version (of $TYPE)
-ocaml: 
+ocaml: build_dir
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) static_0install.$(TYPE) main.cma windows.cma
 	cp 0install.ml "$(OCAML_BUILDDIR)/"
 	if [ "$(OS)" = "Windows_NT" ];then make ocaml_windows; else make ocaml_posix; fi
