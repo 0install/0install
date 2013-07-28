@@ -8,7 +8,7 @@
     We load unix.cma from the host platform, rather than bundling our own copy. *)
 
 #load "yojson.cma";;
-#load "xmlm.cmo";;
+#load "xmlm.cma";;
 
 #load "dynlink.cma";;
 #load "unix.cma";;

@@ -32,7 +32,11 @@ all: translations
 	cp "${BUILDDIR}/ocaml/main.cma" "${DISTDIR}/0install.cma"
 	cp "${BUILDDIR}/ocaml/main.cmi" "${BUILDDIR}/ocaml/support.cmi" "${BUILDDIR}/ocaml/windows.cma" "${BUILDDIR}/ocaml/windows.cmi" "${DISTDIR}/"
 	ocamlc -a -o "${DISTDIR}/yojson.cma" ${JSON_LIBS}
-	cp "${XMLM}"/xmlm.cmo "${DISTDIR}/"
+	if [ -f "${XMLM}"/xmlm.cma ]; then \
+		cp "${XMLM}"/xmlm.cma "${DISTDIR}/"; \
+	else \
+		ocamlc -a -o "${DISTDIR}/xmlm.cma" "${XMLM}/xmlm.cmo"; \
+	fi
 	(cd "${SRCDIR}" && cp ${SCRIPTS} "${DISTDIR}/")
 	(cd "${SRCDIR}" && cp ${DOCS} "${DISTDIR}")
 	cp -r share "${DISTDIR}"
