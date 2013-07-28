@@ -41,6 +41,10 @@ PY = $(shell find zeroinstall -name '*.py' | sort)
 
 default: all
 
+# Ubuntu's make requires this to come before the %:: default rule.
+%.ui.h: %.ui
+	intltool-extract --type=gettext/glade --update "$<"
+
 # Make needs to run from the build directory, but people always want to run it from
 # the source directory. This rule matches all targets not defined here (i.e. those
 # which operate on the build directory) and runs make again from the build directory,
@@ -49,9 +53,6 @@ default: all
 	[ -d "${BUILDDIR}" ] || mkdir "${BUILDDIR}"
 	[ -d "${DISTDIR}" ] || mkdir "${DISTDIR}"
 	make -C "${BUILDDIR}" -f "${SRCDIR}/Makefile.build" "$@" SRCDIR="${SRCDIR}" BUILDDIR="${BUILDDIR}" DISTDIR="${DISTDIR}" PREFIX="${PREFIX}"
-
-%.ui.h: %.ui
-	intltool-extract --type=gettext/glade --update "$<"
 
 share/locale/zero-install.pot: $(PY) $(GTKBUILDER) $(SH)
 	xgettext --sort-by-file --language=Python --output=$@ --keyword=N_ $(PY) $(GTKBUILDER)
