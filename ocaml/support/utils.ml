@@ -230,13 +230,12 @@ let with_pipe fn =
 
 (** Spawn a subprocess with the given arguments and call [fn channel] on its output. *)
 let check_output ?stderr (system:system) fn (argv:string list) =
-  Logging.log_info "Running %s" (String.concat " " (List.map String.escaped argv));
   let child_stderr = default Unix.stderr stderr in
   try
     let (r, w) = Unix.pipe () in
     let child_pid =
       finally Unix.close w (fun w ->
-        try system#create_process (List.hd argv) (Array.of_list argv) Unix.stdin w child_stderr
+        try system#create_process argv Unix.stdin w child_stderr
         with ex ->
           Unix.close r; raise ex
       )
@@ -257,10 +256,10 @@ let check_output ?stderr (system:system) fn (argv:string list) =
     result
   with
   | Unix.Unix_error _ as ex ->
-      let cmd = String.concat " " argv in
+      let cmd = Logging.format_argv_for_logging argv in
       raise (Safe_exception (Printexc.to_string ex, ref ["... trying to read output of: " ^ cmd]))
   | Safe_exception _ as ex ->
-      let cmd = String.concat " " argv in
+      let cmd = Logging.format_argv_for_logging argv in
       reraise_with_context ex "... trying to read output of: %s" cmd
 ;;
 

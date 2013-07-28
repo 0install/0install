@@ -60,3 +60,13 @@ let log_info fmt = log Info fmt
 
 (** Write a message to stderr, prefixed with "warning: ". *)
 let log_warning ?ex fmt = log Warning ?ex fmt
+
+let format_argv_for_logging argv =
+  let re_safe_arg = Str.regexp "^[-./a-zA-Z0-9:;,@_]+$" in
+
+  let format_arg arg =
+    if Str.string_match re_safe_arg arg 0 then
+      arg
+    else
+      "\"" ^ (String.escaped arg) ^ "\"" in
+  String.concat " " (List.map format_arg argv)

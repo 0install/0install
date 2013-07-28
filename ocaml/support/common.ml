@@ -50,7 +50,7 @@ class type system =
 
     method exec : ?search_path:bool -> ?env:string array -> string list -> 'a
     method spawn_detach : ?search_path:bool -> ?env:string array -> string list -> unit
-    method create_process : filepath -> string array -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
+    method create_process : string list -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
     (** [reap_child ?kill_first:signal child_pid] calls [waitpid] to collect the child.
         @raise Safe_exception if it didn't exit with a status of 0 (success). *)
     method reap_child : ?kill_first:int -> int -> unit

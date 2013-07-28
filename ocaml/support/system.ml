@@ -45,7 +45,10 @@ module RealSystem (U : UnixType) =
         method time = Unix.time
         method mkdir = Unix.mkdir
         method file_exists = Sys.file_exists
-        method create_process = Unix.create_process
+        method create_process args new_stdin new_stdout new_stderr =
+          Logging.log_info "Running %s" @@ Logging.format_argv_for_logging args;
+          Unix.create_process (List.hd args) (Array.of_list args) new_stdin new_stdout new_stderr
+
         method unlink = Unix.unlink
         method rmdir = Unix.rmdir
         method getcwd = Sys.getcwd
@@ -105,7 +108,8 @@ module RealSystem (U : UnixType) =
               let prog_path =
                 if search_path then Utils.find_in_path_ex (self :> system) (List.hd argv)
                 else (List.hd argv) in
-              log_info "exec %s" @@ String.concat " " argv;
+              if !Logging.threshold >= Logging.Info then
+                log_info "exec %s" @@ Logging.format_argv_for_logging argv;
               if on_windows then (
                 let open Unix in
                 let run_child _args =
@@ -138,7 +142,8 @@ module RealSystem (U : UnixType) =
                 if search_path then Utils.find_in_path_ex (self :> system) (List.hd argv)
                 else (List.hd argv) in
 
-              log_info "spawn %s" @@ String.concat " " argv;
+              if !Logging.threshold >= Logging.Info then
+                log_info "spawn %s" @@ Logging.format_argv_for_logging argv;
 
               let do_spawn () =
                 (* We don't reap the child. On Unix, we're in a child process that is about to exit anyway (init will inherit the child).
