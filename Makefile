@@ -9,6 +9,7 @@ PREFIX = /usr/local
 
 GTKBUILDER = $(shell find zeroinstall -name '*.ui' | sort | sed -e 's/\.ui/&.h/')
 SH = zeroinstall/zerostore/_unlzma
+PY = $(shell find zeroinstall -name '*.py' | sort)
 
 # There are several things you might want to do:
 #
