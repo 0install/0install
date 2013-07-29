@@ -95,7 +95,7 @@ class Fetcher(object):
 	@ivar key_info: caches information about GPG keys
 	@type key_info: {str: L{KeyInfoFetcher}}
 	"""
-	__slots__ = ['config', 'key_info', '_scheduler', 'external_store']
+	__slots__ = ['config', 'key_info', '_scheduler', 'external_store', 'external_fetcher']
 
 	def __init__(self, config):
 		"""@type config: L{zeroinstall.injector.config.Config}"""
@@ -104,6 +104,7 @@ class Fetcher(object):
 		self.key_info = {}
 		self._scheduler = None
 		self.external_store = os.environ.get('ZEROINSTALL_EXTERNAL_STORE')
+		self.external_fetcher = os.environ.get('ZEROINSTALL_EXTERNAL_FETCHER')
 
 	@property
 	def handler(self):
@@ -146,7 +147,7 @@ class Fetcher(object):
 				blockers = [b for b in blockers if not b.happened]
 
 			if self.external_store:
-				# Note: external_store will not yet work with non-<archive> steps.
+				# Note: external_store will not work with non-<archive> steps.
 				streams = [step.stream for step in steps]
 				self._add_to_external_store(required_digest, recipe.steps, streams)
 			else:
@@ -488,11 +489,14 @@ class Fetcher(object):
 
 		# delegate extracting archives to external tool
 		import subprocess
-		subprocess.call([self.external_store, "add", required_digest] + args)
+		retval = subprocess.call([self.external_store, "add", required_digest] + args)
 
 		# delete temp files
 		for path in paths:
 			os.remove(path)
+
+		if retval != 0:
+			raise SafeException(_("Extracting with external store failed"))
 
 	# (force is deprecated and ignored)
 	def download_archive(self, download_source, force = False, impl_hint = None, may_use_mirror = False):
@@ -628,6 +632,10 @@ class Fetcher(object):
 		@type implementations: [L{zeroinstall.injector.model.ZeroInstallImplementation}]
 		@type stores: L{zeroinstall.zerostore.Stores}
 		@rtype: L{zeroinstall.support.tasks.Blocker}"""
+		if self.external_fetcher:
+			self._download_with_external_fetcher(implementations)
+			return None
+
 		unsafe_impls = []
 
 		to_download = []
@@ -679,6 +687,26 @@ class Fetcher(object):
 			return None
 
 		return download_impls()
+
+	def _download_with_external_fetcher(self, implementations):
+		"""@type implementations: [L{zeroinstall.injector.model.ZeroInstallImplementation}]"""
+		# Serialize implementation list to XML
+		from xml.dom import minidom, XMLNS_NAMESPACE
+		from zeroinstall.injector.namespaces import XMLNS_IFACE
+		from zeroinstall.injector.qdom import Prefixes
+		doc = minidom.getDOMImplementation().createDocument(XMLNS_IFACE, "interface", None)
+		root = doc.documentElement
+		root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns', XMLNS_IFACE)
+		for impl in implementations:
+			root.appendChild(impl._toxml(doc, Prefixes(XMLNS_IFACE)))
+
+		# Pipe XML into external process
+		import subprocess
+		process = subprocess.Popen(self.external_fetcher, stdin=subprocess.PIPE)
+		process.communicate(doc.toxml() + "\n")
+
+		if process.returncode != 0:
+			raise SafeException(_("Download with external fetcher failed"))
 
 	def get_best_source(self, impl):
 		"""Return the best download source for this implementation.
