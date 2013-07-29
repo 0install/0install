@@ -29,7 +29,7 @@ XMLM = $(shell ocamlfind query xmlm)
 all: translations
 	(cd "${SRCDIR}" && $(PYTHON) setup.py build --build-base="${BUILDDIR}/build")
 	(cd "${SRCDIR}/ocaml" && make BUILDDIR="${BUILDDIR}/ocaml")
-	cp -r build/lib/zeroinstall "${DISTDIR}/zeroinstall"
+	cp -r build/lib/zeroinstall "${DISTDIR}/"
 	install "${BUILDDIR}/ocaml/0install.ml" "${DISTDIR}/"
 	cp "${BUILDDIR}/ocaml/main.cma" "${DISTDIR}/0install.cma"
 	cp "${BUILDDIR}/ocaml/main.cmi" "${BUILDDIR}/ocaml/support.cmi" "${BUILDDIR}/ocaml/windows.cma" "${BUILDDIR}/ocaml/windows.cmi" "${DISTDIR}/"
