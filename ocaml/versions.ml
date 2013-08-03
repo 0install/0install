@@ -20,6 +20,8 @@ type dotted_int = Int64.t list
 type parsed_version =
   (dotted_int * modifier) list
 
+type version_expr = parsed_version -> bool
+
 let parse_mod = function
   | "-pre" -> Pre
   | "-rc" -> Rc
@@ -73,3 +75,39 @@ let format_version parsed =
     String.concat "." (List.map Int64.to_string d) ^ ms in
 
   String.concat "" (List.map format_seg parsed)
+
+let re_pipe = Str.regexp_string "|"
+let re_range = Str.regexp "^\\(.*\\)\\(\\.\\.!?\\)\\(.*\\)$"
+
+let parse_range s =
+  let s = trim s in
+  if Str.string_match re_range s 0 then (
+    let low = Str.matched_group 1 s in
+    let sep = Str.matched_group 2 s in
+    let high = Str.matched_group 3 s in
+    let parse_if_present = function
+      | "" -> None
+      | v -> Some (parse_version v) in
+
+    if high <> "" && sep <> "..!" then (
+      raise_safe "End of range must be exclusive (use '..!%s', not '..%s')" high high
+    ) else (
+      match parse_if_present low, parse_if_present high with
+      | None, None -> fun _ -> true
+      | Some low, None -> fun v -> low <= v
+      | None, Some high -> fun v -> v < high
+      | Some low, Some high -> fun v -> low <= v && v < high
+    )
+  ) else (
+    if s <> "" && s.[0] = '!' then (
+      (<>) (parse_version (Support.Utils.string_tail s 1))
+    ) else (
+      (=) (parse_version s)
+    )
+  )
+
+let parse_expr s =
+  try
+    let tests = List.map parse_range (Str.split_delim re_pipe s) in
+    fun v -> List.exists (fun t -> t v) tests
+  with Safe_exception _ as ex -> reraise_with_context ex "... parsing version expression '%s'" s

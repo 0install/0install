@@ -18,7 +18,7 @@ let invalid v =
 let assert_order a b =
   assert ((pv a) < (pv b))
 
-let suite =
+let suite = "versions">::: [
   "versions">:: (fun () ->
     assert_order "0.9" "1.0";
     assert_order "1" "1.0";
@@ -44,4 +44,51 @@ let suite =
     assert_order "2.1.9-pre" "2.1.9-pre-1";
 
     assert_order "2-post999" "3-pre1";
-  )
+  );
+
+  "ranges">:: (fun () ->
+    let v1 = Versions.parse_version "1" in
+    let v1_1 = Versions.parse_version "1.1" in
+    let v2 = Versions.parse_version "2" in
+
+    let t = Versions.parse_expr "..!" in
+    assert (t v1);
+    assert (t v1_1);
+    assert (t v2);
+
+    let t = Versions.parse_expr "1.1.." in
+    assert (not (t v1));
+    assert (t v1_1);
+    assert (t v2);
+
+    let t = Versions.parse_expr "1.1" in
+    assert (not (t v1));
+    assert (t v1_1);
+    assert (not (t v2));
+
+    let t = Versions.parse_expr "!1.1" in
+    assert (t v1);
+    assert (not (t v1_1));
+    assert (t v2);
+
+    let t = Versions.parse_expr "..!2" in
+    assert (t v1);
+    assert (t v1_1);
+    assert (not (t v2));
+
+    let t = Versions.parse_expr "1.1..!2" in
+    assert (not (t v1));
+    assert (t v1_1);
+    assert (not (t v2));
+
+    let t = Versions.parse_expr "1..!1.1 | 2" in
+    assert (t v1);
+    assert (not (t v1_1));
+    assert (t v2);
+
+    try
+      ignore @@ Versions.parse_expr "1.1..2";
+      assert false
+    with Safe_exception _ -> ()
+  );
+]
