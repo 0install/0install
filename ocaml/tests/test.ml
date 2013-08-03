@@ -94,7 +94,6 @@ let test_run_real tmpdir =
   let argv = [build_dir +/ "0install"; "run"; sels_path] in
   let line = Support.Utils.check_output real_system Support.Utils.input_all argv in
   assert_str_equal "Hello World\n" line
-;;
 
 let test_escaping () =
   let open Escape in
@@ -132,10 +131,10 @@ let suite =
   Test_utils.suite;
   Test_solver.suite;
  "test_basedir">:: test_basedir;
- "test_option_parsing">:: test_option_parsing;
- "test_run_real">:: with_tmpdir test_run_real;
+ "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);
+ "test_run_real">:: (fun () -> collect_logging (with_tmpdir test_run_real));
  "test_escaping">:: test_escaping;
- "test_canonical">:: fun () -> (
+ "test_canonical">:: (fun () ->
    let system = (new fake_system None :> system) in
    let check arg uri =
      assert_str_equal uri (Select.canonical_iface_uri system arg) in
@@ -146,6 +145,21 @@ let suite =
    check "alias:./v1-alias" "http://example.com/alias1.xml";
    check "alias:./v2-alias" "http://example.com/alias2.xml";
    check_err "http://example.com";
+ );
+ "test_locale">:: (fun () ->
+   let test expected vars =
+     let system = new fake_system None in
+     List.iter (fun (k, v) -> system#putenv k v) vars;
+     equal_str_lists expected @@ List.map Locale.format_lang @@ Locale.get_langs (system :> system) in
+
+   test ["en_GB"] [];
+   test ["fr_FR"; "en_GB"] [("LANG", "fr_FR")];
+   test ["en_GB"] [("LANG", "en_GB")];
+   test ["de_DE"; "en_GB"] [("LANG", "de_DE@euro")];
+   test ["en_GB"] [("LANGUAGE", "de_DE@euro:fr")];
+   test ["de_DE"; "fr"; "en_GB"] [("LANG", "de_DE@euro"); ("LANGUAGE", "de_DE@euro:fr")];
+   test ["de_DE"; "en_GB"] [("LANG", "fr_FR"); ("LC_ALL", "de_DE")];
+   test ["de_DE"; "en_GB"] [("LANG", "fr_FR"); ("LC_MESSAGES", "de_DE")];
  );
 ];;
 

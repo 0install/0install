@@ -112,11 +112,14 @@ let fake_log =
       record
 
     method handle ?ex level msg =
-      (* print_endline @@ "LOG: " ^ msg; *)
+      if false then print_endline @@ "LOG: " ^ msg;
       record <- (ex, level, msg) :: record
   end
 
-let () = Support.Logging.handler := (fake_log :> Support.Logging.handler)
+let collect_logging fn =
+  let old_handler = !Support.Logging.handler in
+  let () = Support.Logging.handler := (fake_log :> Support.Logging.handler) in
+  Support.Utils.finally (fun () -> Support.Logging.handler := old_handler) () fn
 
 let format_list l = "[" ^ (String.concat "; " l) ^ "]"
 let equal_str_lists = assert_equal ~printer:format_list
