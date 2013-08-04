@@ -5,7 +5,9 @@
 SRCDIR = $(abspath .)
 DISTDIR = $(abspath dist)
 BUILDDIR = $(abspath build)
-PREFIX = /usr/local
+
+# Default to /usr because Python doesn't look in /usr/local by default on all systems.
+PREFIX = /usr
 
 GTKBUILDER = $(shell find zeroinstall -name '*.ui' | sort | sed -e 's/\.ui/&.h/')
 SH = zeroinstall/zerostore/_unlzma
