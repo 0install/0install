@@ -3,3 +3,6 @@ true: debug, annot, package(yojson,xmlm,str)
 "support": for-pack(Support)
 "windows.cma": dllib(-lwindows)
 <static_0install.*> or <**/*.native>: linkdep_win(support/windows.o), package(unix)
+
+false and (<*.ml> or <support/*.ml> or <cmd/*.ml>): bisect, syntax(bisect_pp), syntax(camlp4o)
+false and true: package(bisect)

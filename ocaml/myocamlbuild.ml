@@ -32,8 +32,21 @@ let () =
 
     flag ["ocaml";"ocamldep";"mypp"] (S [A"-pp"; A "camlp4of"]);
 
+    (* Enable most warnings *)
     flag ["compile"; "ocaml"] (S [A"-w"; A"A-4"]);
 
     pflag [] "dllib" (fun x -> (S [A"-dllib"; A x]));
+
+    (* Code coverage with bisect *)
+    flag ["bisect"; "pp"]
+      (S [A"camlp4o"; A"str.cma"; A"/usr/lib/ocaml/bisect/bisect_pp.cmo"]);
+    flag ["bisect"; "compile"]
+      (S [A"-I"; A"/path/to/bisect"]);
+    flag ["bisect"; "link"; "byte"]
+      (S [A"-I"; A"/path/to/bisect"; A"bisect.cma"]);
+    flag ["bisect"; "link"; "native"]
+      (S [A"-I"; A"/path/to/bisect"; A"bisect.cmxa"]);
+    flag ["bisect"; "link"; "java"]
+      (S [A"-I"; A"/path/to/bisect"; A"bisect.cmja"])
   | _ -> ())
 

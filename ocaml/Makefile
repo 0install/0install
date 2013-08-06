@@ -49,6 +49,12 @@ doc:
 	$(OCAMLBUILD) 0install.docdir/index.html
 	rm support.ml
 
+# Note: you have to enable coverage in the _tags file too
+coverage:
+	rm -f tests/bisect*.out
+	make test
+	ocaml-bisect-report -I "${OCAML_BUILDDIR}" -html html "tests/bisect0001.out"
+
 clean:
 	$(OCAMLBUILD) -clean
 
