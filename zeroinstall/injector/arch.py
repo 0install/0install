@@ -112,7 +112,7 @@ def canonicalize_machine(machine_):
 		machine = 'i686'
 	return machine
 
-def _get_machine_ranks(target_machine):
+def _get_machine_ranks(target_machine, disable_multiarch = False):
 	"""@type target_machine: str"""
 	target_machine = canonicalize_machine(target_machine)
 
@@ -122,22 +122,25 @@ def _get_machine_ranks(target_machine):
 	# If target_machine appears in the first column of this table, all
 	# following machine types on the line will also run on this one
 	# (earlier ones preferred):
-	_machine_matrix = {
+	machine_matrix = {
 		'i486': ['i386'],
 		'i586': ['i486', 'i386'],
 		'i686': ['i586', 'i486', 'i386'],
-		'x86_64': ['i686', 'i586', 'i486', 'i386'],
 		'ppc': ['ppc32'],
-		'ppc64': ['ppc'],
 	}
-	for supported in _machine_matrix.get(target_machine, []):
+	if not disable_multiarch:
+		machine_matrix['x86_64'] = ['i686', 'i586', 'i486', 'i386']
+		machine_matrix['ppc64'] = ['ppc']
+
+	for supported in machine_matrix.get(target_machine, []):
 		machine_ranks[supported] = len(machine_ranks)
 
 	# At the lowest priority, try a machine-independant implementation
 	machine_ranks[None] = len(machine_ranks)
 	return machine_ranks
 
-machine_ranks = _get_machine_ranks(_uname[-1])
+machine_ranks = _get_machine_ranks(_uname[-1],
+			disable_multiarch = 'Linux' in os_ranks and not os.path.exists('/lib/ld-linux.so.2'))
 
 class Architecture(object):
 	"""A description of an architecture. Use by L{solver} to make sure it chooses
