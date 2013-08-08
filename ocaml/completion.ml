@@ -308,7 +308,7 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
         match Apps.lookup_app config app with
         | None -> completer#add_interfaces pre
         | Some path ->
-            let sels = Apps.get_selections config path ~may_update:false in
+            let sels = Apps.get_selections_no_updates config path in
             let add_sel sel =
               let uri = ZI.get_attribute "interface" sel in
               if starts_with uri pre then completer#add Add uri in

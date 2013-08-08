@@ -27,12 +27,11 @@ let get_default_config system path_to_0install =
 
   let basedirs = Support.Basedir.get_default_config system in
 
-  let rec config = {
+  let config = {
     basedirs;
     stores = Stores.get_default_stores basedirs;
     abspath_0install;
     freshness = Some (Int64.of_int (30 * days));
-    distro = lazy (Distro.get_host_distribution config);
     network_use = Full_network;
     dry_run = false;
     system;

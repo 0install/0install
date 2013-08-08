@@ -50,7 +50,7 @@ let handle_run config options args : unit =
           | Some "interface" | Some "feed" -> raise Fallback_to_Python
           | Some x -> raise_safe "Unexpected root element <%s>" x
       )
-      | Some app_path -> Apps.get_selections config app_path ~may_update:true in
+      | Some app_path -> Apps.get_selections_may_update config options.distro app_path in
       try Run.execute_selections config sels run_args ?wrapper:!wrapper
       with Safe_exception _ as ex -> reraise_with_context ex "... running %s" prog
     )

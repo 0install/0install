@@ -93,7 +93,7 @@ let set_mtime config path =
     - without downloading => switch to the new selections now
     - with downloading => use current selections, update in the background
 *)
-let check_for_updates config app_path sels =
+let check_for_updates config ~distro app_path sels =
   let last_solve_path = app_path +/ "last-solve" in
   let last_check_path = app_path +/ "last-check-attempt" in
   let last_check_time = get_mtime (app_path +/ "last-checked") ~warn_if_missing:true in
@@ -109,7 +109,7 @@ let check_for_updates config app_path sels =
 
   (* Do we have everything we need to run now? *)
   let unavailable_sels =
-    Selections.get_unavailable_selections config ~include_packages:true sels <> [] in
+    Selections.get_unavailable_selections config ~distro sels <> [] in
 
   (* Should we do a quick solve before running?
      Checks whether the inputs to the current solution have changed. *)
@@ -151,15 +151,17 @@ let check_for_updates config app_path sels =
   ) else sels
 ;;
 
-let get_selections config app_path ~may_update =
+(** If [distro] is [None] then we don't check for updates. *)
+let get_selections_internal config ?distro app_path =
   let sels_path = app_path +/ "selections.xml" in
   if Sys.file_exists sels_path then
     let sels = Selections.load_selections config.system sels_path in
-    if may_update then check_for_updates config app_path sels else sels
+    match distro with
+    | None -> sels
+    | Some distro -> check_for_updates config ~distro app_path sels
   else
-    if may_update then raise Fallback_to_Python
+    if distro <> None then raise Fallback_to_Python
     else raise_safe "App selections missing! Expected: %s" sels_path
-;;
 
 let list_app_names config =
   let apps = ref StringSet.empty in
@@ -180,3 +182,6 @@ let get_requirements (system:system) path =
 
 let get_interface (system:system) path =
   (get_requirements system path).Requirements.interface_uri
+
+let get_selections_may_update config distro app_path = get_selections_internal config ~distro app_path
+let get_selections_no_updates config app_path = get_selections_internal config app_path

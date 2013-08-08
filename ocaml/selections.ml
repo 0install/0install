@@ -70,15 +70,18 @@ let get_feed elem =
   | Some feed -> feed
 ;;
 
-let get_unavailable_selections config ~include_packages sels =
+(** If [distro] is set then <package-implementation>s are included. Otherwise, they are ignored. *)
+let get_unavailable_selections config ?distro sels =
   let missing = ref [] in
 
   let needs_download elem =
     match make_selection elem with
     | LocalSelection _ -> false
     | CacheSelection digests -> None = Stores.lookup_maybe digests config.stores
-    | PackageSelection when not include_packages -> false
-    | PackageSelection -> not @@ Distro.is_installed config elem
+    | PackageSelection ->
+        match distro with
+        | None -> false
+        | Some distro -> not @@ Distro.is_installed config distro elem
   in
   let check sel =
     if needs_download sel then (

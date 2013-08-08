@@ -154,7 +154,7 @@ let handle options args =
   | [arg] -> (
     match resolve_target config arg with
     | App path ->
-        let old_sels = Apps.get_selections ~may_update:false config path in
+        let old_sels = Apps.get_selections_no_updates config path in
         let old_reqs = Apps.get_requirements config.system path in
         let (options, reqs) = Requirements.parse_update_options options.extra_options old_reqs in
 

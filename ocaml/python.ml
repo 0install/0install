@@ -48,7 +48,7 @@ let rec store_opts = function
 (** Invoke "0install [args]" and return the output. *)
 let check_output_python options fn subcommand args =
   let open Options in
-  let {config;gui;verbosity;extra_stores;extra_options=_;args=_} = options in
+  let {config;gui;verbosity;extra_stores;extra_options=_;args=_;distro=_} = options in
   let extra_args = List.concat [
     bool_opt "--gui" (gui = Yes);
     bool_opt "--console" (gui = No);

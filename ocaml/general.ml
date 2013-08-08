@@ -15,12 +15,6 @@ exception Safe_exception = Support.Common.Safe_exception
 (** A URI used to identify an interface. Uses only plain URI characters, unicode chars, spaces, etc are %-escaped. *)
 type iface_uri = string
 
-class type distribution =
-  object
-    (** Test whether this <selection> element is still valid *)
-    method is_installed : Support.Qdom.element -> bool
-  end;;
-
 module StringMap = Support.Common.StringMap
 
 type network_use = Full_network | Minimal_network | Offline
@@ -30,7 +24,6 @@ type config = {
   mutable stores: string list;
   abspath_0install: filepath;
 
-  distro: distribution Lazy.t;
   mutable system : Support.Common.system;
 
   mutable freshness: Int64.t option;
