@@ -9,9 +9,9 @@ settings.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _, logger
-import os
+import os, logging
 
-from zeroinstall.injector import arch
+from zeroinstall.injector import arch, reader
 from zeroinstall.injector.model import network_offline
 from zeroinstall.support import tasks
 
@@ -109,7 +109,12 @@ class Driver(object):
 					continue
 				if os.path.isabs(f):
 					if force:
-						self.config.iface_cache.get_feed(f, force = True)
+						try:
+							self.config.iface_cache.get_feed(f, force = True)
+						except reader.MissingLocalFeed as ex:
+							logger.warning("Reloading %s: %s", f, ex,
+								exc_info = True if logger.isEnabledFor(logging.INFO) else None)
+
 						downloads_in_progress[f] = tasks.IdleBlocker('Refresh local feed')
 					continue
 				elif f.startswith('distribution:'):
