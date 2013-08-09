@@ -77,9 +77,6 @@
 	  <requires interface='http://example.com/missing.xml' importance='recommended'/>
 	</command>
       </selection>
-      <selection id='t1' interface='http://example.com/tester.xml' version='1'>
-	<command name='run' path='tester'/>
-      </selection>
       <selection id='m3' interface='http://example.com/prog.xml' version='3'>
         <requires interface='http://example.com/lib.xml'>
 	  <executable-in-path name='lib' command='run'/>
@@ -87,6 +84,9 @@
 	</requires>
 	<binding name='foo'/>
         <command name="run" path="main"/>
+      </selection>
+      <selection id='t1' interface='http://example.com/tester.xml' version='1'>
+	<command name='run' path='tester'/>
       </selection>
     </selections>
   </test>

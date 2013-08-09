@@ -29,13 +29,17 @@ type decision_state =
   | Selected of Feed.dependency list    (* The dependencies to check next *)
   | Unselected
 
+type ('a, 'b) partition_result =
+  | Left of 'a
+  | Right of 'b
+
 let partition fn lst =
   let pass = ref [] in
   let fail = ref [] in
   ListLabels.iter lst ~f:(fun item ->
     match fn item with
-    | (true, x) -> pass := x :: !pass
-    | (false, x) -> fail := x :: !fail
+    | Left x -> pass := x :: !pass
+    | Right x -> fail := x :: !fail
   );
   (List.rev !pass, List.rev !fail)
 
@@ -92,7 +96,7 @@ class impl_candidates (clause : S.at_most_one_clause option) (vars : (S.var * Fe
               | Some lit -> Undecided lit
               | None -> Unselected        (* No remaining candidates, and none was chosen. *)
 
-      method partition test = partition (fun (var, impl) -> (test impl, var)) vars
+      method partition test = partition (fun (var, impl) -> if test impl then Left var else Right var) vars
   end
 
 (** Holds all the commands with a given name within an interface. *)
@@ -149,8 +153,12 @@ class cache =
         process ();
         value
 
-    method iter (fn:cache_key -> candidates -> unit) =
-      Hashtbl.iter fn table
+    method get_items () =
+      let r = ref [] in
+      Hashtbl.iter (fun k v ->
+        r := (k, v) :: !r;
+      ) table;
+      !r
   end
 
 (* TODO *)
@@ -405,53 +413,62 @@ let solve_for impl_provider requirements ~closest_match =
             | Some command ->
                 root.Qdom.attrs <- (("", "command"), command) :: root.Qdom.attrs in
 
+          let examine_item = function
+            | (Some command, iface, _source), _ -> Left (command, iface)
+            | (None, iface, source), candidates -> Right (iface, source, candidates) in
+          let (commands, impls) = partition examine_item @@ cache#get_items () in
+
           (* For each implementation, remember which commands we need. *)
           let commands_needed = Hashtbl.create 10 in
-          let check_command (command_name, iface, _source) _command =
-            match command_name with
-            | None -> ()
-            | Some name -> Hashtbl.add commands_needed iface name in
-          cache#iter check_command;
+          let check_command (command_name, iface) =
+            Hashtbl.add commands_needed iface command_name in
+          List.iter check_command commands;
 
-          let add_impl (command, iface, _source) impls : unit =
-            if command = None then (
-              let impl_clause = impls#get_clause () in
-              match get_selected_impl impl_clause with
-              | None -> ()      (* This interface wasn't used *)
-              | Some impl ->
-                  let sel = ZI.insert_first "selection" root in
-                  if impl == dummy_impl then (
-                    sel.Qdom.attrs <- [
-                      (("", "interface"), iface);
-                    ];
-                  ) else (
-                    sel.Qdom.attrs <- [
-                      (("", "interface"), iface);
-                      (("", "id"), (Feed.get_attr_ex Feed.attr_id impl));
-                      (("", "version"), (Feed.get_attr_ex Feed.attr_version impl));
-                    ];
-                    let commands = Hashtbl.find_all commands_needed iface in
-                    let add_command name =
-                      let command = (Feed.get_command impl name).Feed.command_qdom in
-                      let not_restricts elem = ZI.tag elem <> Some "restricts" in
-                      let command = {command with Qdom.child_nodes = List.filter not_restricts command.Qdom.child_nodes} in
-                      Qdom.prepend_child (Qdom.import_node command sel.Qdom.doc) sel in
-                    List.iter add_command commands;
+          (* Sort the interfaces by URI so we have a stable output. *)
+          let cmp (ib, sb, _cands) (ia, sa, _cands) =
+            match compare ia ib with
+            | 0 -> compare sa sb
+            | x -> x in
+          let impls = List.sort cmp impls in
 
-                    let copy_elem elem = Qdom.prepend_child (Qdom.import_node elem sel.Qdom.doc) sel in
-                    List.iter copy_elem impl.Feed.props.Feed.bindings;
-                    ListLabels.iter impl.Feed.props.Feed.requires ~f:(fun dep ->
-                      if dep.Feed.dep_importance <> Feed.Dep_restricts then
-                        copy_elem (dep.Feed.dep_qdom)
-                    );
+          let add_impl (iface, _source, impls) : unit =
+            let impl_clause = impls#get_clause () in
+            match get_selected_impl impl_clause with
+            | None -> ()      (* This interface wasn't used *)
+            | Some impl ->
+                let sel = ZI.insert_first "selection" root in
+                if impl == dummy_impl then (
+                  sel.Qdom.attrs <- [
+                    (("", "interface"), iface);
+                  ];
+                ) else (
+                  sel.Qdom.attrs <- [
+                    (("", "interface"), iface);
+                    (("", "id"), (Feed.get_attr_ex Feed.attr_id impl));
+                    (("", "version"), (Feed.get_attr_ex Feed.attr_version impl));
+                  ];
+                  let commands = Hashtbl.find_all commands_needed iface in
+                  let commands = List.sort (fun a b -> compare b a) commands in
+                  let add_command name =
+                    let command = (Feed.get_command impl name).Feed.command_qdom in
+                    let not_restricts elem = ZI.tag elem <> Some "restricts" in
+                    let command = {command with Qdom.child_nodes = List.filter not_restricts command.Qdom.child_nodes} in
+                    Qdom.prepend_child (Qdom.import_node command sel.Qdom.doc) sel in
+                  List.iter add_command commands;
 
-                    (* TODO: copy attrs *)
+                  let copy_elem elem = Qdom.prepend_child (Qdom.import_node elem sel.Qdom.doc) sel in
+                  List.iter copy_elem impl.Feed.props.Feed.bindings;
+                  ListLabels.iter impl.Feed.props.Feed.requires ~f:(fun dep ->
+                    if dep.Feed.dep_importance <> Feed.Dep_restricts then
+                      copy_elem (dep.Feed.dep_qdom)
+                  );
 
-                    ZI.iter_with_name impl.Feed.qdom "manifest-digest" ~f:copy_elem
-                  )
-            )
+                  (* TODO: copy attrs *)
+
+                  ZI.iter_with_name impl.Feed.qdom "manifest-digest" ~f:copy_elem
+                )
             in
-          cache#iter add_impl;
+          List.iter add_impl impls;
           root
       end
   )
