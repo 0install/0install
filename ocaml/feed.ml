@@ -50,6 +50,8 @@ and properties = {
 and implementation = {
   qdom : Qdom.element;
   props : properties;
+  os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
+  machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Versions.parsed_version;
 }
 
@@ -80,6 +82,7 @@ type feed = {
   root : Qdom.element;
   name : string;
   implementations : implementation StringMap.t;
+  package_implementations : (Qdom.element * properties) list;
 }
 
 (* Some constant strings used in the XML (to avoid typos) *)
@@ -192,7 +195,9 @@ let parse root local_path =
   (* TODO: if-0install-version *)
   let () = match ZI.tag root with
   | Some "interface" | Some "feed" -> ()
-  | _ -> Qdom.raise_elem "Expected <interface>, not " root in
+  | _ ->
+      ZI.check_ns root;
+      Qdom.raise_elem "Expected <interface>, not" root in
   (* TODO: main on root? *)
   (* TODO: min-injector-version *)
 
@@ -234,13 +239,21 @@ let parse root local_path =
       | Some value -> value
       | None -> Qdom.raise_elem "Missing attribute '%s' on" key node in
 
+    let (os, machine) =
+      try Arch.parse_arch @@ default "*-*" @@ get_attr_opt "arch" !s.attrs
+      with Safe_exception _ as ex -> reraise_with_context ex "... processing %s" (Qdom.show_with_loc node) in
+
     let impl = {
       qdom = node;
       props = !s;
+      os;
+      machine;
       parsed_version = Versions.parse_version (get_prop attr_version);
     } in
     implementations := StringMap.add id impl !implementations
   in
+
+  let package_implementations = ref [] in
 
   let rec process_group state (group:Qdom.element) =
     ZI.iter group ~f:(fun item ->
@@ -288,7 +301,7 @@ let parse root local_path =
           match ZI.tag item with
           | Some "group" -> process_group !s item
           | Some "implementation" -> process_impl item !s
-          | Some "package-implementation" -> () (* TODO *)
+          | Some "package-implementation" -> package_implementations := (item, !s) :: !package_implementations
           | _ -> assert false
       )
       | _ -> ()
@@ -313,6 +326,7 @@ let parse root local_path =
     );
     root;
     implementations = !implementations;
+    package_implementations = !package_implementations;
   }
 
 let get_attr_ex name (impl:implementation) =
@@ -323,6 +337,6 @@ let get_version (impl:implementation) =
   try Versions.parse_version @@ get_attr_ex "version" impl
   with Safe_exception _ as ex -> reraise_with_context ex "... in %s" (Qdom.show_with_loc impl.qdom)
 
-(* TODO: sort by (parsed) version *)
+(* Get all the implementations (note: only sorted by ID) *)
 let get_implementations feed =
   StringMap.fold (fun _k impl xs -> impl :: xs) feed.implementations []

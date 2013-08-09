@@ -75,6 +75,9 @@ module NsQuery :
       (** @raise Safe_exception if element does not have the expected name and namespace. *)
       val check_tag : string -> element -> unit
 
+      (** @raise Safe_exception if element does not have the expected namespace. *)
+      val check_ns : element -> unit
+
       (** Create a new empty element with no source location. *)
       val make : document -> string -> element
     end

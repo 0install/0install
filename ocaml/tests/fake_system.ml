@@ -11,16 +11,30 @@ let () = Random.self_init ()
 
 (* let () = Support.Logging.threshold := Support.Logging.Info *)
 
+type mode = int
+
+type dentry =
+  | Dir of (mode * string list)
+  | File of (mode * filepath)
+
 module RealSystem = Support.System.RealSystem(Unix)
 let real_system = new RealSystem.real_system
 
 class fake_system tmpdir =
+  let extra_files : dentry StringMap.t ref = ref StringMap.empty in
+
   let check_read path =
     if Filename.is_relative path then path
     else (
-      match tmpdir with
-      | Some dir when Support.Utils.starts_with path dir -> path
-      | _ -> failwith ("Attempt to read from " ^ path)
+      try
+        match StringMap.find path !extra_files with
+        | Dir _ -> path
+        | File (_mode, redirect_path) ->
+            redirect_path
+      with Not_found ->
+        match tmpdir with
+        | Some dir when Support.Utils.starts_with path dir -> path
+        | _ -> failwith ("Attempt to read from " ^ path)
     ) in
 
   let check_write path =
@@ -59,7 +73,13 @@ class fake_system tmpdir =
 
     method mkdir path mode = real_system#mkdir (check_write path) mode
 
-    method readdir path = real_system#readdir (check_read path)
+    method readdir path =
+      try
+        match StringMap.find path !extra_files with
+        | Dir (_mode, items) -> Success (Array.of_list items)
+        | _ -> failwith "Not a directory"
+      with Not_found -> real_system#readdir (check_read path)
+
     method readlink path = real_system#readlink (check_read path)
 
     method chmod = failwith "chmod"
@@ -67,6 +87,7 @@ class fake_system tmpdir =
     method file_exists path =
       if path = "/usr/bin/0install" then true
       else if path = "C:\\Windows\\system32\\0install.exe" then true
+      else if StringMap.mem path !extra_files then true
       else if tmpdir = None then false
       else real_system#file_exists (check_read path)
 
@@ -100,6 +121,12 @@ class fake_system tmpdir =
         release = "3.10.3-1-ARCH";
         machine = "x86_64";
       }
+
+    method add_file path redirect_target =
+      extra_files := StringMap.add path (File (0o644, redirect_target)) !extra_files
+
+    method add_dir path items =
+      extra_files := StringMap.add path (Dir (0o755, items)) !extra_files
 
     initializer
       match tmpdir with

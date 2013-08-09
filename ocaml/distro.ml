@@ -7,22 +7,48 @@
 open General
 open Support
 open Support.Common
+module U = Support.Utils
 
 class type distribution =
   object
     (** The distribution name, as seen in <package-implementation>'s distribution attribute. *)
+    val distro_name : string
+
     (** Test whether this <selection> element is still valid *)
     method is_installed : Support.Qdom.element -> bool
+
+    (** Can we use packages for this distribution? For example, MacPortsDistribution can use "MacPorts" and "Darwin" packages. *)
+    method match_name : string -> bool
+
+    method get_package_impls : (Support.Qdom.element * Feed.properties) -> Feed.implementation list
   end
 
 class base_distribution : distribution =
   object
+    val distro_name = "fallback"
+
     method is_installed elem =
       log_warning "FIXME: Assuming distribution package %s version %s is still installed"
                   (ZI.get_attribute "id" elem) (ZI.get_attribute "version" elem);
       true
+
+    method match_name name = (name = distro_name)
+
+    method get_package_impls _elem = raise Fallback_to_Python
   end
-;;
+
+(** Return the canonical name for this CPU, or None if we don't know one. *)
+let canonical_machine system s =
+  match Arch.canonical_machine s with
+  | Some cpu -> cpu
+  | None -> 
+      (* Safe default if we can't understand the arch *)
+      Arch.host_machine system
+
+let try_cleanup_distro_version_ex version package_name =
+  match Versions.try_cleanup_distro_version version with
+  | None -> log_warning "Can't parse distribution version '%s' for package '%s'" version package_name; None
+  | version -> version
 
 (** A simple cache for storing key-value pairs on disk. Distributions may wish to use this to record the
     version(s) of each distribution package currently installed. *)
@@ -134,8 +160,11 @@ module Debian = struct
 
   class debian_distribution config : distribution =
     object
+      val distro_name = "Debian"
       val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2 ~old_format:false
       method is_installed elem = check_cache "deb" elem cache
+      method match_name name = (name = distro_name)
+      method get_package_impls _elem = raise Fallback_to_Python
     end
 end
 
@@ -144,20 +173,80 @@ module RPM = struct
 
   class rpm_distribution config : distribution =
     object
+      val distro_name = "RPM"
       val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
       method is_installed elem = check_cache "rpm" elem cache
+      method match_name name = (name = distro_name)
+      method get_package_impls _elem = raise Fallback_to_Python
     end
 end
 
 module Arch = struct
   let arch_db = "/var/lib/pacman"
+  let packages_dir = "/var/lib/pacman/local"
 
-  class arch_distribution () : distribution =
-    object
+  class arch_distribution config : distribution =
+    let parse_dirname entry =
+      try
+        let build_dash = String.rindex entry '-' in
+        let version_dash = String.rindex_from entry (build_dash - 1) '-' in
+        Some (String.sub entry 0 version_dash,
+              U.string_tail entry (version_dash + 1))
+      with Not_found -> None in
+
+    let get_arch desc_path =
+      let arch = ref None in
+      let read ch =
+        try
+          while !arch = None do
+            let line = input_line ch in
+            if line = "%ARCH%" then
+              arch := Some (trim (input_line ch))
+          done
+        with End_of_file -> () in
+      config.system#with_open_in [Open_rdonly; Open_text] 0 desc_path read;
+      !arch in
+
+    object (_ : #distribution)
+      val distro_name = "Arch"
       method is_installed elem =
         (* We should never get here, because we always set quick-test-* *)
         Qdom.log_elem Logging.Info "Old selections file; forcing an update of" elem;
         false
+      method match_name name = (name = distro_name)
+
+      method get_package_impls (elem, props) =
+        let package_name = ZI.get_attribute "package" elem in
+        let check_dir entry =
+          match parse_dirname entry with
+          | Some (name, version) when name = package_name -> (
+              let desc_path = packages_dir +/ entry +/ "desc" in
+              match get_arch desc_path with
+              | None ->
+                  log_warning "No ARCH in %s" desc_path; None
+              | Some arch ->
+                  let zi_machine = canonical_machine config.system arch in
+                  match try_cleanup_distro_version_ex version package_name with
+                  | None -> None
+                  | Some version ->
+                      let id = Printf.sprintf "package:arch:%s:%s:%s" package_name version zi_machine in
+                      let new_attrs = ref props.Feed.attrs in
+                      let set name value = new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
+                      set "version" version;
+                      set "id" id;
+                      set "quick-test-file" desc_path;
+                      Some {
+                        Feed.qdom = elem;
+                        Feed.os = None;
+                        Feed.machine = Arch.none_if_star zi_machine;
+                        Feed.props = {props with Feed.attrs = !new_attrs};
+                        Feed.parsed_version = Versions.parse_version version;
+                      }
+          )
+          | Some _ | None -> None in
+        match config.system#readdir packages_dir with
+        | Success items -> U.filter_map ~f:check_dir (Array.to_list items)
+        | Problem ex -> log_warning ~ex "Can't read packages dir '%s'!" packages_dir; []
     end
 end
 
@@ -168,8 +257,11 @@ module Mac = struct
 
   class macports_distribution config : distribution =
     object
+      val distro_name = "MacPorts"
       val cache = new Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
       method is_installed elem = check_cache "macports" elem cache
+      method match_name name = (name = distro_name || name = "Darwin")
+      method get_package_impls _elem = raise Fallback_to_Python
     end
 end
 
@@ -178,20 +270,15 @@ module Win = struct
 
   class cygwin_distribution config : distribution =
     object
+      val distro_name = "Windows"
       val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
       method is_installed elem = check_cache "cygwin" elem cache
+      method match_name name = (name = distro_name)
+      method get_package_impls _elem = raise Fallback_to_Python
     end
 end
 
 let get_host_distribution config : distribution =
-  (*
-  let rpm_db_packages = "/var/lib/rpm/Packages" in
-  let slack_db = "/var/log/packages" in
-  let pkg_db = "/var/db/pkg" in
-  let macports_db = "/opt/local/var/macports/registry/registry.db" in
-  let cygwin_log = "/var/log/setup.log" in
-  *)
-
   let x = Sys.file_exists in
 
   match Sys.os_type with
@@ -199,7 +286,7 @@ let get_host_distribution config : distribution =
       if x Debian.dpkg_db_status && (Unix.stat Debian.dpkg_db_status).Unix.st_size > 0 then
         new Debian.debian_distribution config
       else if x Arch.arch_db then
-        new Arch.arch_distribution ()
+        new Arch.arch_distribution config
       else if x RPM.rpm_db_packages then
         new RPM.rpm_distribution config
       else if x Mac.macports_db then
@@ -226,3 +313,27 @@ let is_installed config distro elem =
           match ZI.get_attribute_opt "quick-test-mtime" elem with
           | None -> true      (* quick-test-file exists and we don't care about the time *)
           | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = Int64.of_string required_mtime
+
+(** Return the <package-implementation> elements that best match this distribution. *)
+let get_matching_package_impls (distro : distribution) feed =
+  let best_score = ref 0 in
+  let best_impls = ref [] in
+  ListLabels.iter feed.Feed.package_implementations ~f:(function (elem, _) as package_impl ->
+    let distributions = default "" @@ ZI.get_attribute_opt "distributions" elem in
+    let distro_names = Str.split_delim U.re_space distributions in
+    let score_this_item =
+      if distro_names = [] then 1                                 (* Generic <package-implementation>; no distribution specified *)
+      else if List.exists distro#match_name distro_names then 2   (* Element specifies it matches this distribution *)
+      else 0 in                                                   (* Element's distributions do not match *)
+    if score_this_item > !best_score then (
+      best_score := score_this_item;
+      best_impls := []
+    );
+    if score_this_item = !best_score then (
+      best_impls := package_impl :: !best_impls
+    )
+  );
+  !best_impls
+
+let get_package_impls (distro : distribution) feed =
+  List.concat (List.map distro#get_package_impls (get_matching_package_impls distro feed))

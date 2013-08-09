@@ -191,6 +191,7 @@ let getenv_ex system name =
   | Some value -> value
   | None -> raise_safe "Environment variable '%s' not set" name
 
+let re_dash = Str.regexp_string "-"
 let re_space = Str.regexp_string " "
 let re_dir_sep = Str.regexp_string Filename.dir_sep;;
 let re_path_sep = Str.regexp_string path_sep;;
