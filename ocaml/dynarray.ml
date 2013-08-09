@@ -49,4 +49,15 @@ module Make(ElementType:ELEMENT_TYPE) =
         else
           false in
       loop 0
+
+    let find_index fn da =
+      let n = da.n in
+      let rec loop i =
+        if i = n then
+          None
+        else if fn (da.arr.(i)) then
+          Some i
+        else
+          loop (i + 1) in
+      loop 0
   end

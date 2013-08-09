@@ -164,8 +164,7 @@ let suite =
  );
 ];;
 
-let () = Printexc.record_backtrace true;;
-
-let _ = run_test_tt_main suite;;
-
-Format.print_newline ()
+let () =
+  Printexc.record_backtrace true;
+  ignore @@ run_test_tt_main suite;
+  Format.print_newline ()
