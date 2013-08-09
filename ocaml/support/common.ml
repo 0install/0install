@@ -87,6 +87,7 @@ let reraise_with_context ex fmt =
   in Printf.ksprintf do_raise fmt
 ;;
 
+let log_debug = Logging.log_debug
 let log_info = Logging.log_info
 let log_warning = Logging.log_warning
 

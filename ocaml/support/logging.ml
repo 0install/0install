@@ -55,6 +55,8 @@ let log level ?ex =
   Printf.ksprintf do_log
 ;;
 
+let log_debug fmt = log Debug fmt
+
 (** Write a message to stderr if verbose logging is on. *)
 let log_info fmt = log Info fmt
 

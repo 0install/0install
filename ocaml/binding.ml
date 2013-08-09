@@ -46,6 +46,10 @@ let get_mode b =
   | x -> Qdom.raise_elem "Unknown mode '%s' on" x b
 ;;
 
+let is_binding = function
+  | "environment" | "executable-in-path" | "executable-in-var" | "overlay" | "binding" -> true
+  | _ -> false
+
 let parse_binding elem =
   let get_opt name = ZI.get_attribute_opt name elem in
   let get name = ZI.get_attribute name elem in

@@ -17,23 +17,66 @@ module AttrType =
 
 module AttrMap = Map.Make(AttrType)
 
-type binding
-type dependency
-type command = Qdom.element
+type importance =
+  | Dep_essential       (* Must select a version of the dependency *)
+  | Dep_recommended     (* Prefer to select a version, if possible *)
+  | Dep_restricts       (* Just adds restrictions without expressing any opinion *)
 
-type properties = {
+type restriction = (string * (implementation -> bool))
+
+and binding = Qdom.element
+
+and dependency = {
+  dep_qdom : Qdom.element;
+  dep_importance : importance;
+  dep_iface: iface_uri;
+  dep_restrictions: restriction list;
+  dep_required_commands: string list;
+}
+
+and command = {
+  command_qdom : Qdom.element;
+  command_requires : dependency list;
+  (* command_bindings : binding list; - not needed by solver; just copies the element *)
+}
+
+and properties = {
   attrs : string AttrMap.t;
   requires : dependency list;
   bindings : binding list;
   commands : command StringMap.t;
 }
 
-type implementation = {
+and implementation = {
   qdom : Qdom.element;
   props : properties;
+  parsed_version : Versions.parsed_version;
 }
 
+type stability =
+  | Insecure
+  | Buggy
+  | Developer
+  | Testing
+  | Stable
+  | Packaged
+  | Preferred
+
+let parse_stability ~from_user s =
+  let if_from_user l =
+    if from_user then l else raise_safe "Stability '%s' not allowed here" s in
+  match s with
+  | "insecure" -> Insecure
+  | "buggy" -> Buggy
+  | "developer" -> Developer
+  | "testing" -> Testing
+  | "stable" -> Stable
+  | "packaged" -> if_from_user Packaged
+  | "preferred" -> if_from_user Preferred
+  | x -> raise_safe "Unknown stability level '%s'" x
+
 type feed = {
+  url : string;
   root : Qdom.element;
   name : string;
   implementations : implementation StringMap.t;
@@ -44,29 +87,119 @@ let elem_group = "group"
 let elem_implementation = "implementation"
 let elem_package_implementation = "package-implementation"
 
+let attr_id = "id"
 let attr_stability = "stability"
+let attr_importance = "importance"
 let attr_version = "version"
-let attr_version_modifier = "version-modifier"
+let attr_version_modifier = "version-modifier"      (* This is stripped out and moved into attr_version *)
 
 let value_testing = "testing"
 
 let make_command doc name path : command =
   let elem = ZI.make doc "command" in
   elem.Qdom.attrs <- [(("", "name"), name); (("", "path"), path)];
-  elem
+  {
+    command_qdom = elem;
+    command_requires = [];
+  }
 
 let get_attr_opt key map =
   try Some (AttrMap.find ("", key) map)
   with Not_found -> None
 
-let parse root =
+let parse_version_element elem =
+  let before = ZI.get_attribute_opt "before" elem in
+  let not_before = ZI.get_attribute_opt "not-before" elem in
+  let s = match before, not_before with
+  | None, None -> "no restriction!"
+  | Some low, None -> low ^ " <= version"
+  | None, Some high -> "version < " ^ high
+  | Some low, Some high -> low ^ " <= version < " ^ high in
+  let test = Versions.make_range_restriction not_before before in
+  (s, (fun impl -> test (impl.parsed_version)))
+
+let parse_dep dep =
+  let iface = ZI.get_attribute "interface" dep in
+  (* TODO: relative paths *)
+
+  (* TODO: distribution *)
+
+  let commands = ref StringSet.empty in
+  let restrictions = ZI.filter_map dep ~f:(fun child ->
+    match ZI.tag child with
+    | Some "version" -> Some (parse_version_element child)
+    | Some _ -> (
+        match Binding.parse_binding child with
+        | Some binding -> (
+            match Binding.get_command binding with
+            | None -> ()
+            | Some name -> commands := StringSet.add name !commands
+        )
+        | None -> ()
+    ); None
+    | _ -> None
+  ) in
+
+  let restrictions = match ZI.get_attribute_opt "version" dep with
+    | None -> restrictions
+    | Some expr -> (
+        try
+          let test = Versions.parse_expr expr in
+          (expr, fun impl -> test (impl.parsed_version))
+        with Safe_exception (ex_msg, _) as ex ->
+          let msg = Printf.sprintf "Can't parse version restriction '%s': %s" expr ex_msg in
+          log_warning ~ex:ex "%s" msg;
+          (expr, fun _ -> false)
+        ) :: restrictions
+  in
+
+  if ZI.tag dep = Some "runner" then (
+    commands := StringSet.add (default "run" @@ ZI.get_attribute_opt "command" dep) !commands
+  );
+
+  let importance =
+    if ZI.tag dep = Some "restricts" then Dep_restricts
+    else (
+      match ZI.get_attribute_opt attr_importance dep with
+      | None | Some "essential" -> Dep_essential
+      | _ -> Dep_recommended
+    ) in
+
+  {
+    dep_qdom = dep;
+    dep_iface = iface;
+    dep_restrictions = restrictions;
+    dep_required_commands = StringSet.elements !commands;
+    dep_importance = importance;
+  }
+
+let parse_command elem : command =
+  let deps = ref [] in
+
+  ZI.iter elem ~f:(fun child ->
+    match ZI.tag child with
+    | Some "requires" | Some "restricts" | Some "runner" ->
+        deps := parse_dep child :: !deps
+    | _ -> ()
+  );
+
+  {
+    command_qdom = elem;
+    command_requires = !deps;
+  }
+
+let parse root local_path =
   (* TODO: if-0install-version *)
   let () = match ZI.tag root with
   | Some "interface" | Some "feed" -> ()
   | _ -> Qdom.raise_elem "Expected <interface>, not " root in
   (* TODO: main on root? *)
   (* TODO: min-injector-version *)
-  (* TODO: URI, local-path *)
+
+  let url =
+    match local_path with
+    | None -> ZI.get_attribute "uri" root
+    | Some path -> path in                       (* TODO: local_dir *)
 
   let name = ref None in
   let implementations = ref StringMap.empty in
@@ -96,9 +229,15 @@ let parse root =
         s := {!s with attrs = new_attrs}
     | None -> () in
     (* TODO: retrieval methods *)
+    let get_prop key =
+      match get_attr_opt key !s.attrs with
+      | Some value -> value
+      | None -> Qdom.raise_elem "Missing attribute '%s' on" key node in
+
     let impl = {
       qdom = node;
       props = !s;
+      parsed_version = Versions.parse_version (get_prop attr_version);
     } in
     implementations := StringMap.add id impl !implementations
   in
@@ -124,12 +263,27 @@ let parse root =
           handle_old_command "main" "run";
           handle_old_command "self-test" "test";
 
-          (* TODO: commands, dependencies, bindings *)
+          ZI.iter item ~f:(fun child ->
+            match ZI.tag child with
+            | Some "requires" | Some "restricts" ->
+                let req = parse_dep child in
+                s := {!s with requires = req :: !s.requires}
+            | Some "command" ->
+                let command_name = ZI.get_attribute "name" child in
+                s := {!s with commands = StringMap.add command_name (parse_command child) !s.commands}
+            | Some tag when Binding.is_binding tag ->
+                s := {!s with bindings = child :: !s.bindings}
+            | _ -> ()
+          );
 
           (* TODO: compile:command *)
           let add_attr old (name_pair, value) =
             AttrMap.add name_pair value old in
-          s := {!s with attrs = List.fold_left add_attr !s.attrs item.Qdom.attrs};
+
+          s := {!s with
+            attrs = List.fold_left add_attr !s.attrs item.Qdom.attrs;
+            requires = List.rev !s.requires;
+          };
 
           match ZI.tag item with
           | Some "group" -> process_group !s item
@@ -151,6 +305,7 @@ let parse root =
   process_group root_state root;
 
   {
+    url;
     name = (
       match !name with
       | None -> Qdom.raise_elem "Missing <name> in" root

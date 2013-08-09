@@ -13,9 +13,11 @@ type interface_config = {
   extra_feeds : Qdom.element list;
 }
 
+let is_local_feed uri = Support.Utils.path_is_absolute uri
+
 (* For local feeds, returns the absolute path. *)
 let get_cached_feed_path config uri =
-  if Support.Utils.path_is_absolute uri then (
+  if is_local_feed uri then (
     Some uri
   ) else (
     let cache = config.basedirs.Support.Basedir.cache in
@@ -84,9 +86,15 @@ let load_iface_config config uri =
   with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
 
 let get_cached_feed config uri =
-  (* TODO:  local feeds *)
-  match get_cached_feed_path config uri with
-  | None -> None
-  | Some path ->
-      let root = Qdom.parse_file config.system path in
-      Some (Feed.parse root)
+  if Support.Utils.starts_with uri "distribution:" then (
+    failwith uri
+  ) else if is_local_feed uri then (
+    let root = Qdom.parse_file config.system uri in
+    Some (Feed.parse root (Some uri))
+  ) else (
+    match get_cached_feed_path config uri with
+    | None -> None
+    | Some path ->
+        let root = Qdom.parse_file config.system path in
+        Some (Feed.parse root None)
+  )
