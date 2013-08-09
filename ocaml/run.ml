@@ -98,9 +98,14 @@ let do_exec_binding dry_run builder env impls (iface_uri, {Binding.exec_type; Bi
 (* Make a map from InterfaceURIs to the selected <selection> and (for non-native packages) paths *)
 let make_selection_map stores sels =
   let add_selection m sel =
-    let path = Selections.get_path stores sel in
+    let iface = ZI.get_attribute "interface" sel in
+    let path =
+      try Selections.get_path stores sel
+      with Stores.Not_stored msg ->
+        raise_safe "Missing implementation for '%s' %s: %s" iface (ZI.get_attribute "version" sel) msg
+    in
     let value = (sel, path) in
-    StringMap.add (ZI.get_attribute "interface" sel) value m
+    StringMap.add iface value m
   in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
 ;;
 
