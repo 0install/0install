@@ -340,3 +340,9 @@ let get_version (impl:implementation) =
 (* Get all the implementations (note: only sorted by ID) *)
 let get_implementations feed =
   StringMap.fold (fun _k impl xs -> impl :: xs) feed.implementations []
+
+let is_source impl = impl.machine = Some "src"
+
+let get_command impl command_name : command =
+  try StringMap.find command_name impl.props.commands
+  with Not_found -> Qdom.raise_elem "Command '%s' not found in" command_name impl.qdom

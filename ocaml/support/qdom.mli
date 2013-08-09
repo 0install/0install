@@ -43,6 +43,12 @@ val simple_content : element -> string
     e.g. [output (Xmlm.make_output @@ `Channel stdout) root] *)
 val output : Xmlm.output -> element -> unit
 
+(** [prepend_child child parent] makes [child] the first child of [parent]. *)
+val prepend_child : element -> element -> unit
+
+(** [import_node node doc] makes a copy of [node] for use in [doc]. *)
+val import_node : element -> document -> element
+
 module type NsType = sig val ns : string end
 
 module NsQuery :
@@ -80,4 +86,10 @@ module NsQuery :
 
       (** Create a new empty element with no source location. *)
       val make : document -> string -> element
+
+      (** Create a new empty root element with its own document. *)
+      val make_root : string -> element
+
+      (** Create a new element as the first child of the given element. *)
+      val insert_first : string -> element -> element
     end

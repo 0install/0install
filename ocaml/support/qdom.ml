@@ -93,6 +93,27 @@ let find pred node =
   with Not_found -> None
 ;;
 
+(** [prepend_child child parent] makes [child] the first child of [parent]. *)
+let prepend_child child parent =
+  assert (child.doc == parent.doc);
+  parent.child_nodes <- child :: parent.child_nodes
+
+(** [import_node node doc] makes a copy of [node] for use in [doc]. *)
+let import_node elem doc =
+  let ensure_prefix prefix uri =
+    let current =
+      try Some (StringMap.find prefix doc.prefixes)
+      with Not_found -> None in
+    if current <> Some uri then
+      register_prefix doc prefix uri in
+  StringMap.iter ensure_prefix elem.doc.prefixes;
+  let rec imp node = {node with
+      doc = doc;
+      child_nodes = List.map imp node.child_nodes;
+      pos = (-1, -1);
+    } in
+  imp elem
+
 let show_with_loc elem =
   let (_ns, name) = elem.tag in
   let (line, col) = elem.pos in
@@ -216,4 +237,16 @@ module NsQuery (Ns : NsType) = struct
     doc;
     pos = (0, 0);
   }
-end;;
+
+  let make_root tag =
+    let doc = {
+      source_name = None;
+      prefixes = StringMap.singleton "xmlns" Ns.ns
+    } in
+    make doc tag
+
+  let insert_first tag parent =
+    let child = make parent.doc tag in
+    parent.child_nodes <- child :: parent.child_nodes;
+    child
+end

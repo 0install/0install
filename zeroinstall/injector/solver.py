@@ -401,6 +401,7 @@ class SATSolver(Solver):
 					if not essential:
 						c_var = impl_to_var.get(candidate, None)
 						if c_var is not None:
+							# XXX: do we really want all of dep_union here?
 							problem.add_clause(dep_union + [sat.neg(c_var)])
 						# else we filtered that version out, so ignore it
 

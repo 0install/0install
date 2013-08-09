@@ -1,0 +1,163 @@
+<?xml version='1.0' ?>
+<test-cases xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
+  <test name='trivial'>
+    <interface uri='http://example.com/prog.xml'>
+      <name>0install</name>
+      <implementation id='v1' version='1'><command name='run' path='main'/></implementation>
+    </interface>
+    <requirements interface='http://example.com/prog.xml'/>
+    <selections command="run" interface="http://example.com/prog.xml">
+      <selection id='v1' interface='http://example.com/prog.xml' version='1'>
+        <command name="run" path="main"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name='mutliple-impls'>
+    <interface uri='http://example.com/prog.xml'>
+      <name>0install</name>
+      <implementation id='z2' version='2'><command name='run' path='main'/></implementation>
+      <implementation id='a1' version='1'><command name='run' path='main'/></implementation>
+      <implementation id='m3' version='3'><command name='run' path='main'/></implementation>
+    </interface>
+    <requirements interface='http://example.com/prog.xml'/>
+    <selections command="run" interface="http://example.com/prog.xml">
+      <selection id='m3' interface='http://example.com/prog.xml' version='3'>
+        <command name="run" path="main"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name='deps'>
+    <interface uri='http://example.com/tester.xml'>
+      <name>tester</name>
+      <implementation id='t1' version='1'>
+	<command name='run' path='tester'/>
+      </implementation>
+    </interface>
+    <interface uri='http://example.com/lib.xml'>
+      <name>lib</name>
+      <implementation id='z2' version='2'>
+	<command name='run' path='prog'/>
+	<command name='test' path='test-prog'>
+	  <runner interface='http://example.com/tester.xml'/>
+	  <requires interface='http://example.com/missing.xml' importance='recommended'/>
+	</command>
+	<command name='gui' path='gui'/>
+      </implementation>
+      <implementation id='a1' version='1'/>
+      <implementation id='m3' version='3'/>
+    </interface>
+    <interface uri='http://example.com/unused.xml'>
+      <name>unused</name>
+      <implementation id='m3' version='3'/>
+    </interface>
+    <interface uri='http://example.com/prog.xml'>
+      <name>prog</name>
+      <group>
+	<binding name='foo'/>
+        <requires interface='http://example.com/lib.xml'>
+	  <executable-in-path name='lib' command='run'/>
+	  <executable-in-path name='test-lib' command='test'/>
+	</requires>
+        <implementation id='z2' version='2'><command name='run' path='main'/></implementation>
+	<implementation id='a1' version='1'><command name='run' path='main'/>
+	  <requires interface='http://example.com/missing.xml'/>
+	  <requires interface='http://example.com/unused.xml'/>
+	</implementation>
+        <implementation id='m3' version='3'><command name='run' path='main'/></implementation>
+      </group>
+    </interface>
+    <requirements interface='http://example.com/prog.xml'/>
+    <selections command="run" interface="http://example.com/prog.xml">
+      <selection id='z2' interface='http://example.com/lib.xml' version='2'>
+	<command name='run' path='prog'/>
+	<command name='test' path='test-prog'>
+	  <runner interface='http://example.com/tester.xml'/>
+	  <requires interface='http://example.com/missing.xml' importance='recommended'/>
+	</command>
+      </selection>
+      <selection id='t1' interface='http://example.com/tester.xml' version='1'>
+	<command name='run' path='tester'/>
+      </selection>
+      <selection id='m3' interface='http://example.com/prog.xml' version='3'>
+        <requires interface='http://example.com/lib.xml'>
+	  <executable-in-path name='lib' command='run'/>
+	  <executable-in-path name='test-lib' command='test'/>
+	</requires>
+	<binding name='foo'/>
+        <command name="run" path="main"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name='restrictions'>
+    <interface uri='http://example.com/lib.xml'>
+      <name>lib</name>
+      <implementation id='l1' version='1'/>
+      <implementation id='l2' version='2'>
+	<restricts interface='http://example.com/prog.xml'>
+	  <version before='3'/>
+	</restricts>
+      </implementation>
+      <implementation id='l3' version='3'/>
+    </interface>
+    <interface uri='http://example.com/prog.xml'>
+      <name>prog</name>
+      <group>
+	<requires interface='http://example.com/lib.xml' version='2..!3'/>
+        <command name="run" path="main">
+	  <restricts interface='http://example.com/unused.xml' version='1'/>
+	</command>
+        <implementation id='p2' version='2'></implementation>
+	<implementation id='p1' version='1'></implementation>
+        <implementation id='p3' version='3'></implementation>
+      </group>
+    </interface>
+    <requirements interface='http://example.com/prog.xml'/>
+    <selections command="run" interface="http://example.com/prog.xml">
+      <selection id='l2' interface='http://example.com/lib.xml' version='2'/>
+      <selection id='p2' interface='http://example.com/prog.xml' version='2'>
+	<requires interface='http://example.com/lib.xml' version='2..!3'/>
+        <command name="run" path="main"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name='impossible'>
+    <interface uri='http://example.com/lib.xml'>
+      <name>lib</name>
+      <implementation id='l1' version='1'>
+	<restricts interface='http://example.com/prog.xml'>
+	  <version before='2'/>
+	</restricts>
+      </implementation>
+      <implementation id='l2' version='2'>
+	<restricts interface='http://example.com/prog.xml'>
+	  <version not-before='2'/>
+	</restricts>
+      </implementation>
+    </interface>
+    <interface uri='http://example.com/prog.xml'>
+      <name>prog</name>
+      <group>
+	<command name='run' path='main'/>
+	<requires interface='http://example.com/lib.xml'/>
+	<implementation id='p1' version='1'>
+	  <restricts interface='http://example.com/lib.xml' version='2'/>
+	</implementation>
+	<implementation id='p2' version='2'>
+	  <restricts interface='http://example.com/lib.xml' version='1..!2'/>
+	</implementation>
+      </group>
+    </interface>
+    <requirements interface='http://example.com/prog.xml' fails='true'/>
+    <selections command="run" interface="http://example.com/prog.xml">
+      <selection interface="http://example.com/lib.xml"/>
+      <selection interface="http://example.com/prog.xml" id="p2" version="2">
+        <requires interface="http://example.com/lib.xml"/>
+	<command name="run" path="main"/>
+      </selection>
+    </selections>
+  </test>
+</test-cases>
