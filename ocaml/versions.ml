@@ -5,6 +5,7 @@
 (** Parsing version numbers *)
 
 open Support.Common
+module U = Support.Utils
 
 type modifier =
   | Pre
@@ -111,3 +112,91 @@ let parse_expr s =
     let tests = List.map parse_range (Str.split_delim re_pipe s) in
     fun v -> List.exists (fun t -> t v) tests
   with Safe_exception _ as ex -> reraise_with_context ex "... parsing version expression '%s'" s
+
+
+(* Try to turn a distribution version string into one readable by Zero Install.
+   We do this by stripping off anything we can't parse, with some additional heuristics. *)
+let rec try_cleanup_distro_version version =
+  (* Skip 'epoch' *)
+  let version =
+    try
+      let colon = String.index version ':' in
+      U.string_tail version (colon  + 1)
+    with Not_found -> String.copy version in
+
+  for i = 0 to String.length version - 1 do
+    if version.[i] = '_' then version.[i] <- '-'
+  done;
+
+  let (version, suffix) =
+    try
+      let tilda = String.index version '~' in
+      let suffix = U.string_tail version (tilda + 1) in
+      let suffix = if U.starts_with suffix "pre" then U.string_tail suffix 3 else suffix in
+      (String.sub version 0 tilda, "-pre" ^ (default "" @@ try_cleanup_distro_version suffix))
+    with Not_found -> (version, "") in
+
+  let stream = Stream.of_string version in
+
+  let b = Buffer.create (String.length version) in
+
+  let copy n = for _i = 1 to n do Buffer.add_char b (Stream.next stream) done in
+
+  let is_lower = function
+    | None -> false
+    | Some l -> 'a' <= l && l <= 'z' in
+
+  let is_digit = function
+    | None -> false
+    | Some d -> '0' <= d && d <= '9' in
+
+  (* Copy the next sequence of "\d+(\.\d+)*" to [b] *)
+  let rec accept_dotted_ints () =
+    let n = Stream.peek stream in
+    if is_digit n then (
+      copy 1;
+      while is_digit (Stream.peek stream) do copy 1 done;
+      match Stream.npeek 2 stream with
+      | ['.'; d] when is_digit (Some d) -> copy 1; accept_dotted_ints ()
+      | _ -> true
+    ) else false
+    in
+
+  let accept_mod () =
+    match Stream.npeek 5 stream with
+    | '-' :: 'p' :: 'r' :: 'e' :: _ -> copy 4; true
+    | '-' :: 'p' :: 'o' :: 's' :: 't' :: _ -> copy 5; true
+    | '-' :: 'r' :: 'c' :: _ -> copy 3; true
+    | '-' :: d :: _ when is_digit (Some d) -> copy 1; true
+    | _ -> false in
+
+  let rec accept_zero_install_version () =
+    if accept_dotted_ints () then (
+      if accept_mod () then (
+        accept_zero_install_version ()
+      )
+    ) in
+
+  (* Skip any leading letter *)
+  if is_lower (Stream.peek stream) then Stream.junk stream;
+  if accept_dotted_ints () then (
+    (* This is for Java-style 6b17 or 7u9 syntax *)
+    match Stream.npeek 2 stream with
+    | ['.'; 'b'] | ['.'; 'u'] -> copy 1; Stream.junk stream
+    | 'b' :: _ | 'u' :: _ -> Stream.junk stream; Buffer.add_char b '.'
+    | _  -> ignore @@ accept_mod ()
+  );
+
+  accept_zero_install_version ();
+
+  let () = match Stream.npeek 3 stream with
+    | ['-'; 'r'; d] when is_digit (Some d) ->
+        Stream.junk stream; Stream.junk stream;
+        Buffer.add_char b '-';
+        ignore @@ accept_dotted_ints ()
+    | _ -> () in
+
+  Buffer.add_string b suffix;
+  match Buffer.contents b with
+  | "" -> None
+  | x -> Some x
