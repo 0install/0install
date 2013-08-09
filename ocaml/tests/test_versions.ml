@@ -51,37 +51,42 @@ let suite = "versions">::: [
     let v1_1 = Versions.parse_version "1.1" in
     let v2 = Versions.parse_version "2" in
 
-    let t = Versions.parse_expr "..!" in
+    let parse expr =
+      let test = Versions.parse_expr expr in
+      assert (test Versions.dummy);
+      test in
+
+    let t = parse "..!" in
     assert (t v1);
     assert (t v1_1);
     assert (t v2);
 
-    let t = Versions.parse_expr "1.1.." in
+    let t = parse "1.1.." in
     assert (not (t v1));
     assert (t v1_1);
     assert (t v2);
 
-    let t = Versions.parse_expr "1.1" in
+    let t = parse "1.1" in
     assert (not (t v1));
     assert (t v1_1);
     assert (not (t v2));
 
-    let t = Versions.parse_expr "!1.1" in
+    let t = parse "!1.1" in
     assert (t v1);
     assert (not (t v1_1));
     assert (t v2);
 
-    let t = Versions.parse_expr "..!2" in
+    let t = parse "..!2" in
     assert (t v1);
     assert (t v1_1);
     assert (not (t v2));
 
-    let t = Versions.parse_expr "1.1..!2" in
+    let t = parse "1.1..!2" in
     assert (not (t v1));
     assert (t v1_1);
     assert (not (t v2));
 
-    let t = Versions.parse_expr "1..!1.1 | 2" in
+    let t = parse "1..!1.1 | 2" in
     assert (t v1);
     assert (not (t v1_1));
     assert (t v2);

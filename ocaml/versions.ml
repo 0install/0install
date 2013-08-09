@@ -36,6 +36,9 @@ let string_of_mod = function
   | Dash -> "-"
   | Post -> "-post"
 
+(* A special version that matches every expression. Used by the solver to provide diagnostics when a solve fails. *)
+let dummy : parsed_version = [([Int64.of_int (-1)], Dash)]
+
 (** Convert a version string to an internal representation.
     The parsed format can be compared using the regular comparison operators.
      - Version := DottedList ("-" Mod DottedList?)*
@@ -80,24 +83,30 @@ let format_version parsed =
 let re_pipe = Str.regexp_string "|"
 let re_range = Str.regexp "^\\(.*\\)\\(\\.\\.!?\\)\\(.*\\)$"
 
+let make_range_restriction low high : (parsed_version -> bool) =
+  let parse_if_present = function
+    | None -> None
+    | Some v -> Some (parse_version v) in
+  match parse_if_present low, parse_if_present high with
+  | None, None -> fun _ -> true
+  | Some low, None -> fun v -> v == dummy || low <= v
+  | None, Some high -> fun v -> v == dummy || v < high
+  | Some low, Some high -> fun v -> v == dummy || (low <= v && v < high)
+
 let parse_range s =
   let s = trim s in
   if Str.string_match re_range s 0 then (
     let low = Str.matched_group 1 s in
     let sep = Str.matched_group 2 s in
     let high = Str.matched_group 3 s in
-    let parse_if_present = function
+    let none_if_empty = function
       | "" -> None
-      | v -> Some (parse_version v) in
+      | v -> Some v in
 
     if high <> "" && sep <> "..!" then (
       raise_safe "End of range must be exclusive (use '..!%s', not '..%s')" high high
     ) else (
-      match parse_if_present low, parse_if_present high with
-      | None, None -> fun _ -> true
-      | Some low, None -> fun v -> low <= v
-      | None, Some high -> fun v -> v < high
-      | Some low, Some high -> fun v -> low <= v && v < high
+      make_range_restriction (none_if_empty low) (none_if_empty high)
     )
   ) else (
     if s <> "" && s.[0] = '!' then (
@@ -110,7 +119,7 @@ let parse_range s =
 let parse_expr s =
   try
     let tests = List.map parse_range (Str.split_delim re_pipe s) in
-    fun v -> List.exists (fun t -> t v) tests
+    fun v -> v == dummy || List.exists (fun t -> t v) tests
   with Safe_exception _ as ex -> reraise_with_context ex "... parsing version expression '%s'" s
 
 
