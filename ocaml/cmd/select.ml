@@ -9,6 +9,8 @@ open Support.Common
 open Options
 module Qdom = Support.Qdom
 
+let use_ocaml_solver = false      (* TODO: just for testing *)
+
 type target = App of filepath | Interface of iface_uri | Selections of Qdom.element
 
 let local_path_of_iface uri =
@@ -129,9 +131,14 @@ let get_selections options ~refresh reqs mode =
     let solver = new Solver.sat_solver (impl_provider :> Solver.impl_provider) in
     try
       match solver#solve reqs with
-      | (false, _results) ->
-          log_info "Quick solve failed; falling back to Python";
-          select_with_refresh ()               (* Solve failed; need to download some feeds *)
+      | (false, results) ->
+          if use_ocaml_solver then (
+            print_endline "Quick solve failed (stopped for debugging):";
+            Show.show_human config (results#get_selections ());
+            None
+          ) else (
+            select_with_refresh()
+          )
       | (true, results) ->
           let sels = results#get_selections () in
           if mode = Select_only || Selections.get_unavailable_selections config ~distro sels = [] then (
@@ -157,14 +164,16 @@ let get_selections options ~refresh reqs mode =
 
                 if want_background_update then (
                   log_info "FIXME: Background update needed!";        (* TODO: spawn a background update instead *)
-                  raise Fallback_to_Python
+                  if not use_ocaml_solver then raise Fallback_to_Python
                 )
               );
-              (* TODO: We fall back even on success, since the new solver
-                 doesn't yet always give the right results. *)
-              log_info "Success, but switching to Python anyway for now";
-              raise Fallback_to_Python;     
-              (* Some sels *)
+              if use_ocaml_solver then Some sels
+              else (
+                (* TODO: We fall back even on success, since the new solver
+                   doesn't yet always give the right results. *)
+                log_info "Success, but switching to Python anyway for now";
+                raise Fallback_to_Python;
+              )
             )
           ) else (
             select_with_refresh ()
