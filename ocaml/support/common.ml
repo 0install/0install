@@ -20,6 +20,15 @@ type varname = string
 
 exception Safe_exception of (string * string list ref);;
 
+module Platform =
+  struct
+    type t = {
+      system : string;      (** OS, e.g. "Linux" *)
+      release : string;     (** OS version, e.g. "3.10.3-1-ARCH" *)
+      machine : string;     (** CPU type, e.g. "x86_64" *)
+    }
+  end
+
 (** Convenient way to create a new [Safe_exception] with no initial context. *)
 let raise_safe fmt =
   let do_raise msg = raise @@ Safe_exception (msg, ref []) in
@@ -56,6 +65,8 @@ class type system =
     method reap_child : ?kill_first:int -> int -> unit
 
     method getenv : varname -> string option
+
+    method platform : unit -> Platform.t
   end
 ;;
 

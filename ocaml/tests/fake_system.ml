@@ -94,6 +94,13 @@ class fake_system tmpdir =
     method putenv name value =
       env <- StringMap.add name value env
 
+    method platform () =
+      let open Platform in {
+        system = "Linux";
+        release = "3.10.3-1-ARCH";
+        machine = "x86_64";
+      }
+
     initializer
       match tmpdir with
       | Some dir -> self#putenv "ZEROINSTALL_PORTABLE_BASE" dir

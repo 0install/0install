@@ -39,6 +39,8 @@ let dev_null =
 module RealSystem (U : UnixType) =
   struct
     class real_system =
+      let platform = ref None in
+
       object (self : #system)
         method argv () = Sys.argv
         method print_string = print_string
@@ -191,5 +193,23 @@ module RealSystem (U : UnixType) =
             | None -> ()
             | Some signal -> Unix.kill child_pid signal in
           reap_child child_pid
+
+        method platform () =
+          match !platform with
+          | Some p -> p
+          | None ->
+              let system = (self :> system) in
+              let uname = trim @@ Utils.check_output system input_line [Utils.find_in_path_ex system "uname"; "-srm"] in
+              let p =
+                let open Platform in
+                match Str.bounded_split_delim Utils.re_space uname 3 with
+                | [system; release; machine] -> {
+                      system; release; machine
+                    }
+                | _ ->
+                    log_warning "Failed to parse uname details from '%s'!" uname;
+                    { system = "unknown"; release = "1"; machine = "i686" } in
+              platform := Some p;
+              p
       end
   end

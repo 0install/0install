@@ -29,6 +29,7 @@ class dryrun_system (underlying:system) =
     method getcwd = underlying#getcwd
     method getenv = underlying#getenv
     method readlink = underlying#readlink
+    method platform = underlying#platform
 
     (* We allow this as we may be falling back to Python or running some helper.
        For places where it matters (e.g. actually running the target program), the caller should handle it. *)
