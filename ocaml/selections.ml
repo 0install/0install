@@ -19,13 +19,18 @@ let re_initial_slash = Str.regexp "^/";;
 let re_package = Str.regexp "^package:";;
 
 let get_digests elem =
+  let id = ZI.get_attribute "id" elem in
+  let init = match Str.bounded_split_delim re_equals id 2 with
+  | [key; value] when key = "sha1" || key = "sha1new" || key = "sha256" -> [(key, value)]
+  | _ -> [] in
+
   (* todo: ID *)
   let check_attr init ((ns, name), value) = match ns with
     | "" -> (name, value) :: init
     | _ -> init in
   let extract_digests init elem =
     List.fold_left check_attr init elem.Qdom.attrs in
-  ZI.fold_left ~f:extract_digests [] elem "manifest-digest";;
+  ZI.fold_left ~f:extract_digests init elem "manifest-digest";;
 
 let make_selection elem =
   let source = (match ZI.get_attribute_opt "local-path" elem with
