@@ -444,3 +444,13 @@ let realpath (system:system) path =
   else (
     fst @@ join_realpath (system#getcwd ()) path StringMap.empty
   )
+
+let format_time t =
+  let open Unix in
+  Printf.sprintf "%04d-%02d-%02dT%02d:%02d:%02dZ"
+    (1900 + t.tm_year)
+    (t.tm_mon + 1)
+    t.tm_mday
+    t.tm_hour
+    t.tm_min
+    t.tm_sec

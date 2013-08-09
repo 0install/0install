@@ -13,6 +13,9 @@ type interface_config = {
   extra_feeds : Qdom.element list;
 }
 
+(* If we started a check within this period, don't start another one *)
+let failed_check_delay = float_of_int (1 * hours)
+
 let is_local_feed uri = Support.Utils.path_is_absolute uri
 
 (* For local feeds, returns the absolute path. *)
@@ -98,3 +101,45 @@ let get_cached_feed config uri =
         let root = Qdom.parse_file config.system path in
         Some (Feed.parse root None)
   )
+
+let get_last_check_attempt config uri =
+  let open Support.Basedir in
+  let rel_path = config_site +/ config_prog +/ "last-check-attempt" +/ Escape.pretty uri in
+  match load_first config.system rel_path config.basedirs.cache with
+  | None -> None
+  | Some path ->
+      match config.system#stat path with
+      | None -> None
+      | Some info -> Some info.Unix.st_mtime
+
+let is_stale config uri =
+  if Support.Utils.starts_with uri "distribution:" then false	(* Ignore (memory-only) PackageKit feeds *)
+  else if is_local_feed uri then false                          (* Local feeds are never stale *)
+  else (
+    let now = config.system#time () in
+
+    let is_stale () =
+      match get_last_check_attempt config uri with
+      | Some last_check_attempt when last_check_attempt > now -. failed_check_delay ->
+          log_debug "Stale, but tried to check recently (%s) so not rechecking now." (Support.Utils.format_time (Unix.localtime last_check_attempt));
+          false
+      | _ -> true in
+
+    (* TODO: cache this? *)
+    match get_cached_feed config uri with
+    | None -> is_stale ()
+    | Some _feed ->
+        (* TODO: cache this? *)
+        match (Feed.load_feed_overrides config uri).Feed.last_checked with
+        | None ->
+            log_debug "Feed '%s' has no last checked time, so needs update" uri;
+            is_stale ()
+        | Some checked ->
+            let staleness = now -. checked in
+            log_debug "Staleness for %s is %.2f hours" uri (staleness /. 3600.0);
+
+            match config.freshness with
+            | None -> log_debug "Checking for updates is disabled"; false
+            | Some threshold when staleness >= (Int64.to_float threshold) -> is_stale ()
+            | _ -> false
+      )

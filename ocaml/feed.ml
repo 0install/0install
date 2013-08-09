@@ -77,6 +77,11 @@ let parse_stability ~from_user s =
   | "preferred" -> if_from_user Preferred
   | x -> raise_safe "Unknown stability level '%s'" x
 
+type feed_overrides = {
+  last_checked : float option;
+  user_stability : stability StringMap.t;
+}
+
 type feed = {
   url : string;
   root : Qdom.element;
@@ -346,3 +351,38 @@ let is_source impl = impl.machine = Some "src"
 let get_command impl command_name : command =
   try StringMap.find command_name impl.props.commands
   with Not_found -> Qdom.raise_elem "Command '%s' not found in" command_name impl.qdom
+
+(** Load per-feed extra data (last-checked time and preferred stability.
+    Probably we should use a simple timestamp file for the last-checked time and attach
+    the stability ratings to the interface, not the feed. *)
+let load_feed_overrides config url =
+  let open Support.Basedir in
+  match load_first config.system (config_site +/ config_prog +/ "feeds" +/ Escape.pretty url) config.basedirs.config with
+  | None -> { last_checked = None; user_stability = StringMap.empty }
+  | Some path ->
+      let root = Qdom.parse_file config.system path in
+
+      let last_checked =
+        match ZI.get_attribute_opt "last-checked" root with
+        | None -> None
+        | Some time -> Some (float_of_string time) in
+
+      let stability = ref StringMap.empty in
+
+      ZI.iter_with_name root "implementation" ~f:(fun impl ->
+        let id = ZI.get_attribute "id" impl in
+        match ZI.get_attribute_opt attr_stability impl with
+        | None -> ()
+        | Some s -> stability := StringMap.add id (parse_stability ~from_user:true s) !stability
+      );
+
+      { last_checked; user_stability = !stability; }
+
+(** Does this feed contain any <pacakge-implementation> elements?
+    i.e. is it worth asking the package manager for more information?
+    If so, return the virtual feed's URL. *)
+let get_distro_feed feed =
+  if feed.package_implementations <> [] then
+    Some ("distribution:" ^ feed.url)
+  else
+    None

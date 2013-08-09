@@ -36,7 +36,7 @@ class impl_provider config distro =
 
         let impls = List.concat (main_impls :: List.map get_impls extra_feeds) in
         (* TODO: better sorting *)
-        let impls = List.sort (fun a b -> compare b.parsed_version a.parsed_version) impls in
+        let impls = List.sort (fun a b -> compare b.Feed.parsed_version a.Feed.parsed_version) impls in
 
         Hashtbl.add cache iface impls;
         impls

@@ -97,20 +97,82 @@ type select_mode =
     @return the selections, or None if the user cancels (in which case, there is no need to alert the user again)
     *)
 let get_selections options ~refresh reqs mode =
+  let config = options.config in
   let action = match mode with
   | Select_only -> "select"
   | Download_only -> "download"
   | Select_for_run -> failwith "TODO: Select_for_run" in    (* TODO *)
 
-  let read_xml s = Qdom.parse_input None @@ Xmlm.make_input (`String (0, s)) in
-  let args = Requirements.to_options reqs @ ["--xml"; "--"; reqs.Requirements.interface_uri] in
-  let args = if refresh then "--refresh" :: args else args in
-  (* Note: parse the output only if it returns success *)
-  let xml = read_xml @@ Python.check_output_python options Support.Utils.input_all action @@ args in
-  if xml.Qdom.tag = ("", "cancelled") then
-    None
-  else
-    Some xml
+  let select_with_refresh () =
+    (* This is the slow path: we need to download things before selecting *)
+    let read_xml s = Qdom.parse_input None @@ Xmlm.make_input (`String (0, s)) in
+    let args = Requirements.to_options reqs @ ["--xml"; "--"; reqs.Requirements.interface_uri] in
+    let args = if refresh then "--refresh" :: args else args in
+    (* Note: parse the output only if it returns success *)
+    let xml = read_xml @@ Python.check_output_python options Support.Utils.input_all action @@ args in
+    if xml.Qdom.tag = ("", "cancelled") then
+      None
+    else
+      Some xml in
+
+  (* Check whether we can run immediately, without downloading anything. This requires
+     - the user didn't ask to refresh or show the GUI
+     - we can solve using the feeds we've already cached
+     - we don't need to download any implementations
+    If we can run immediately, we might still spawn a background process to check for updates. *)
+
+  if refresh || options.gui = Yes then (
+    select_with_refresh ()
+  ) else (
+    let distro = Lazy.force options.distro in
+    let impl_provider = new Impl_provider.impl_provider config distro in
+    let solver = new Solver.sat_solver (impl_provider :> Solver.impl_provider) in
+    try
+      match solver#solve reqs with
+      | (false, _results) ->
+          log_info "Quick solve failed; falling back to Python";
+          select_with_refresh ()               (* Solve failed; need to download some feeds *)
+      | (true, results) ->
+          let sels = results#get_selections () in
+          if mode = Select_only || Selections.get_unavailable_selections config ~distro sels = [] then (
+            (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
+
+            let have_stale_feeds = List.exists (Feed_cache.is_stale config) @@ StringSet.elements @@ impl_provider#get_feeds_used () in
+
+            if mode = Download_only && have_stale_feeds then (
+              (* Updating in the foreground for Download_only mode is a bit inconsistent. Maybe we
+                 should have a separate flag for this behaviour? *)
+              select_with_refresh ()
+            ) else (
+              if have_stale_feeds then (
+                (* There are feeds we should update, but we can run without them. *)
+                let want_background_update =
+                  if config.network_use = Offline then (
+                    log_info "No doing background update because we are in off-line mode."; false
+                  ) else if options.config.dry_run then (
+                    Dry_run.log "[dry-run] would check for updates in the background"; false
+                  ) else (
+                    true
+                  ) in
+
+                if want_background_update then (
+                  log_info "FIXME: Background update needed!";        (* TODO: spawn a background update instead *)
+                  raise Fallback_to_Python
+                )
+              );
+              (* TODO: We fall back even on success, since the new solver
+                 doesn't yet always give the right results. *)
+              log_info "Success, but switching to Python anyway for now";
+              raise Fallback_to_Python;     
+              (* Some sels *)
+            )
+          ) else (
+            select_with_refresh ()
+          )
+    with Fallback_to_Python ->
+      log_info "Can't solve; falling back to Python";
+      select_with_refresh ()
+  )
 
 type select_options = {
   mutable xml : bool;
