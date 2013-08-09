@@ -43,3 +43,11 @@ let parse_arch arch =
   match Str.bounded_split_delim Support.Utils.re_dash arch 0 with
   | [os; machine] -> (none_if_star os, none_if_star machine)
   | _ -> raise_safe "Invalid architecture '%s'" arch
+
+(* TODO *)
+let get_os_ranks os =
+  StringMap.singleton os 1
+
+(* TODO *)
+let get_machine_ranks machine =
+  StringMap.singleton machine 1

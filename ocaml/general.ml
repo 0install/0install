@@ -58,4 +58,11 @@ end
 
 module ZI = Support.Qdom.NsQuery (ZI_NS)
 
-type stability_level = Preferred | Packaged | Stable | Testing | Developer | Buggy | Insecure
+type stability_level =
+  | Insecure
+  | Buggy
+  | Developer
+  | Testing
+  | Stable
+  | Packaged
+  | Preferred

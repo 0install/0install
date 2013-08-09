@@ -239,6 +239,7 @@ module Arch = struct
                         Feed.qdom = elem;
                         Feed.os = None;
                         Feed.machine = Arch.none_if_star zi_machine;
+                        Feed.stability = Packaged;
                         Feed.props = {props with Feed.attrs = !new_attrs};
                         Feed.parsed_version = Versions.parse_version version;
                       }

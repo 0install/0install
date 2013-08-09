@@ -161,13 +161,9 @@ class cache =
       !r
   end
 
-(* TODO *)
 type scope = {
-  extra_restrictions : Versions.version_expr StringMap.t;   (* iface -> expr *)
-  (*
-  os : string;
-  cpu : string;
-  *)
+  scope_filter : Impl_provider.scope_filter;
+  (* TODO *)
   use : StringSet.t;        (* For the old <requires use='...'/> *)
 }
 
@@ -176,41 +172,6 @@ class type result =
     method get_selections : unit -> Qdom.element
   end
 
-class type solver =
-  object
-    (** Returns whether or not a full solution was found and the solution.
-        If a full solution is not found, [result] can still be used to provide
-        diagnostic information. *)
-    method solve : Requirements.requirements -> (bool * result)
-  end
-
-let get_root_req requirements =
-  let {
-    Requirements.interface_uri; Requirements.command; Requirements.source;
-    Requirements.extra_restrictions;
-    Requirements.os; Requirements.cpu;
-    Requirements.message = _message;
-  } = requirements in
-
-  ignore (os, cpu);
-
-  let root_req = (command, interface_uri, source) in
-
-  (* This is for old feeds that have use='testing' instead of the newer
-    'test' command for giving test-only dependencies. *)
-  let use = if command = Some "test" then StringSet.singleton "testing" else StringSet.empty in
-
-  let root_scope = {
-    extra_restrictions = StringMap.map (fun v -> Versions.parse_expr v) extra_restrictions;
-    (*
-    os = default Arch.host_os os;
-    cpu = default Arch.host_cpu cpu;
-    *)
-    use;
-  }
-
-  in (root_scope, root_req)
-
 (* A dummy implementation, used to get diagnostic information if the solve fails. It satisfies all requirements,
    even conflicting ones. *)
 let dummy_impl =
@@ -218,6 +179,7 @@ let dummy_impl =
     qdom = ZI.make_root "dummy";
     os = None;
     machine = None;
+    stability = Testing;
     props = {
       attrs = AttrMap.empty;
       requires = [];
@@ -230,7 +192,7 @@ let dummy_impl =
 (* [closest_match] is used internally. It adds a lowest-ranked
    (but valid) implementation to every interface, so we can always
    select something. Useful for diagnostics. *)
-let solve_for impl_provider requirements ~closest_match =
+let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~closest_match =
   (* The basic plan is this:
      1. Scan the root interface and all dependencies recursively, building up a SAT problem.
      2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
@@ -248,9 +210,6 @@ let solve_for impl_provider requirements ~closest_match =
 
   (* For each (iface, command, source) we have a list of implementations (or commands). *)
   let cache = new cache in
-
-  (* TODO: extra_restrictions, etc *)
-  let (_root_scope, root_req) = get_root_req requirements in
 
   (* Insert dummy_impl if we're trying to diagnose a problem. *)
   let maybe_add_dummy impls =
@@ -297,8 +256,7 @@ let solve_for impl_provider requirements ~closest_match =
 
   (* Add the implementations of an interface to the cache (called the first time we visit it). *)
   and make_impls (iface, source) =
-    let match_source impl = Feed.is_source impl = source in
-    let matching_impls = maybe_add_dummy @@ List.filter match_source @@ impl_provider#get_implementations iface in
+    let matching_impls = maybe_add_dummy @@ impl_provider#get_implementations root_scope.scope_filter iface ~source in
     let vars = List.map (fun impl -> (S.add_variable sat (SolverData.ImplElem impl), impl)) matching_impls in
     let impl_clause = if List.length vars > 0 then Some (S.at_most_one sat @@ List.map fst vars) else None in
     let data = new impl_candidates impl_clause vars in
@@ -403,12 +361,13 @@ let solve_for impl_provider requirements ~closest_match =
   | None -> None
   | Some _solution ->
       Some (
-      object
+      object (_ : result)
         (** Create a <selections> document from the result of a solve. *)
         method get_selections () =
+          let (root_command, root_iface, _source) = root_req in
           let root = ZI.make_root "selections" in
-          root.Qdom.attrs <- [(("", "interface"), requirements.Requirements.interface_uri)];
-          let () = match requirements.Requirements.command with
+          root.Qdom.attrs <- [(("", "interface"), root_iface)];
+          let () = match root_command with
             | None -> ()
             | Some command ->
                 root.Qdom.attrs <- (("", "command"), command) :: root.Qdom.attrs in
@@ -473,20 +432,42 @@ let solve_for impl_provider requirements ~closest_match =
       end
   )
 
-class type impl_provider =
-  object
-    (** Return all the implementations of this interface (including from feeds).
-        Most preferred implementations should come first. *)
-    method get_implementations : iface_uri -> Feed.implementation list
-  end
+let make_user_restriction expr =
+  let test_version = Versions.parse_expr expr in
+  let test impl = test_version impl.Feed.parsed_version in
+  (expr, test)
 
-class sat_solver (impl_provider : impl_provider) =
-  object (_ : #solver)
-    method solve requirements =
-      match solve_for impl_provider requirements ~closest_match:false with
-      | Some result -> (true, result)
-      | None ->
-          match solve_for impl_provider requirements ~closest_match:true with
-          | Some result -> (false, result)
-          | None -> failwith "No solution, even with closest_match!"
-  end
+let solve_for config distro feed_provider requirements =
+  let impl_provider = (new Impl_provider.default_impl_provider config distro feed_provider :> Impl_provider.impl_provider) in
+
+  let open Requirements in
+  let {
+    command; interface_uri; source;
+    extra_restrictions; os; cpu;
+    message = _;
+  } = requirements in
+
+  (* This is for old feeds that have use='testing' instead of the newer
+    'test' command for giving test-only dependencies. *)
+  let use = if command = Some "test" then StringSet.singleton "testing" else StringSet.empty in
+
+  let platform = config.system#platform () in
+  let os = default platform.Platform.system os in
+  let machine = default platform.Platform.machine cpu in
+
+  let open Impl_provider in
+  let scope_filter = {
+    extra_restrictions = StringMap.map make_user_restriction extra_restrictions;
+    os_ranks = Arch.get_os_ranks os;
+    machine_ranks = Arch.get_machine_ranks machine;
+  } in
+  let scope = { scope_filter; use } in
+
+  let root_req = (command, interface_uri, source) in
+
+  match solve_for impl_provider scope root_req ~closest_match:false with
+  | Some result -> (true, result)
+  | None ->
+      match solve_for impl_provider scope root_req ~closest_match:true with
+      | Some result -> (false, result)
+      | None -> failwith "No solution, even with closest_match!"

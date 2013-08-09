@@ -143,3 +143,14 @@ let is_stale config uri =
             | Some threshold when staleness >= (Int64.to_float threshold) -> is_stale ()
             | _ -> false
       )
+
+class feed_provider config =
+  let feeds_used = ref StringSet.empty in
+
+  object
+    method get_feed url =
+      feeds_used := StringSet.add url !feeds_used;
+      get_cached_feed config url
+
+    method get_feeds_used () = !feeds_used
+  end

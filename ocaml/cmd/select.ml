@@ -127,10 +127,9 @@ let get_selections options ~refresh reqs mode =
     select_with_refresh ()
   ) else (
     let distro = Lazy.force options.distro in
-    let impl_provider = new Impl_provider.impl_provider config distro in
-    let solver = new Solver.sat_solver (impl_provider :> Solver.impl_provider) in
     try
-      match solver#solve reqs with
+      let feed_provider = new Feed_cache.feed_provider config in
+      match Solver.solve_for config distro feed_provider reqs with
       | (false, results) ->
           if use_ocaml_solver then (
             print_endline "Quick solve failed (stopped for debugging):";
@@ -144,7 +143,7 @@ let get_selections options ~refresh reqs mode =
           if mode = Select_only || Selections.get_unavailable_selections config ~distro sels = [] then (
             (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
 
-            let have_stale_feeds = List.exists (Feed_cache.is_stale config) @@ StringSet.elements @@ impl_provider#get_feeds_used () in
+            let have_stale_feeds = List.exists (Feed_cache.is_stale config) @@ StringSet.elements @@ feed_provider#get_feeds_used () in
 
             if mode = Download_only && have_stale_feeds then (
               (* Updating in the foreground for Download_only mode is a bit inconsistent. Maybe we

@@ -73,6 +73,7 @@ let make_solver_test test_elem =
   ZI.check_tag "test" test_elem;
   let name = ZI.get_attribute "name" test_elem in
   name >:: (fun () ->
+    let (config, fake_system) = Fake_system.get_fake_config None in
     let reqs = ref (Requirements.default_requirements "") in
     let ifaces = Hashtbl.create 10 in
     let fails = ref false in
@@ -80,9 +81,7 @@ let make_solver_test test_elem =
       let open Feed in
       let uri = ZI.get_attribute "uri" elem in
       let feed = parse elem None in
-      let impls = get_implementations feed in
-      let impls = List.sort (fun a b -> compare b.parsed_version a.parsed_version) impls in
-      Hashtbl.add ifaces uri impls in
+      Hashtbl.add ifaces uri feed in
     let expected_selections = ref (ZI.make_root "missing") in
     let process child = match ZI.tag child with
     | Some "interface" -> add_iface child
@@ -93,19 +92,19 @@ let make_solver_test test_elem =
     | _ -> failwith "Unexpected element" in
     ZI.iter ~f:process test_elem;
 
-    let impl_provider =
+    let feed_provider =
       object
-        method get_implementations iface =
-          try Hashtbl.find ifaces iface
-          with Not_found -> []
+        method get_feed url =
+          try Some (Hashtbl.find ifaces url)
+          with Not_found -> None
       end in
-    let solver = new Solver.sat_solver impl_provider in
-    let (ready, result) = solver#solve !reqs in
+    let distro = new Distro.base_distribution in
+    let (ready, result) = Solver.solve_for config distro feed_provider !reqs in
     assert (ready = (not !fails));
     let actual_sels = result#get_selections () in
     assert (ZI.tag actual_sels = Some "selections");
     if ready then (
-      let changed = Whatchanged.show_changes Fake_system.real_system !expected_selections actual_sels in
+      let changed = Whatchanged.show_changes (fake_system :> system) !expected_selections actual_sels in
       assert (not changed);
     );
     xml_diff !expected_selections actual_sels

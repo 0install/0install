@@ -50,19 +50,11 @@ and properties = {
 and implementation = {
   qdom : Qdom.element;
   props : properties;
+  stability : stability_level;
   os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
   machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Versions.parsed_version;
 }
-
-type stability =
-  | Insecure
-  | Buggy
-  | Developer
-  | Testing
-  | Stable
-  | Packaged
-  | Preferred
 
 let parse_stability ~from_user s =
   let if_from_user l =
@@ -79,7 +71,7 @@ let parse_stability ~from_user s =
 
 type feed_overrides = {
   last_checked : float option;
-  user_stability : stability StringMap.t;
+  user_stability : stability_level StringMap.t;
 }
 
 type feed = {
@@ -249,11 +241,17 @@ let parse root local_path =
       try Arch.parse_arch @@ default "*-*" @@ get_attr_opt "arch" !s.attrs
       with Safe_exception _ as ex -> reraise_with_context ex "... processing %s" (Qdom.show_with_loc node) in
 
+    let stability =
+      match get_attr_opt attr_stability !s.attrs with
+      | None -> Testing
+      | Some s -> parse_stability ~from_user:false s in
+
     let impl = {
       qdom = node;
       props = !s;
       os;
       machine;
+      stability;
       parsed_version = Versions.parse_version (get_prop attr_version);
     } in
     implementations := StringMap.add id impl !implementations
@@ -395,3 +393,6 @@ let get_distro_feed feed =
     Some ("distribution:" ^ feed.url)
   else
     None
+
+let get_stability impl =
+  impl.stability
