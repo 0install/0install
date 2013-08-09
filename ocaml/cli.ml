@@ -284,7 +284,7 @@ let parse_args config args =
   (* Default values *)
   let options = {
     config;
-    distro = Distro.get_host_distribution config;
+    distro = lazy (Distro.get_host_distribution config);
     gui = Maybe;
     verbosity = 0;
     extra_options = [];

@@ -49,7 +49,7 @@ type zi_option =
 
 type global_settings = {
   config : General.config;
-  distro : Distro.distribution;
+  distro : Distro.distribution Lazy.t;
   mutable gui : yes_no_maybe;
   mutable verbosity : int;
   mutable extra_options : zi_option Support.Argparse.option_value list;
