@@ -46,7 +46,13 @@ let parse_arch arch =
 
 (* TODO *)
 let get_os_ranks os =
-  StringMap.singleton os 1
+  let ranks = ref @@ StringMap.singleton os 1 in  (* Binaries compiled for _this_ OS are best.. *)
+
+  (* Assume everything supports POSIX except Windows (but Cygwin is POSIX) *)
+  if os <> "Windows" then
+    ranks := StringMap.add "POSIX" 2 !ranks;
+
+  !ranks
 
 (* TODO *)
 let get_machine_ranks machine =
