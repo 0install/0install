@@ -96,6 +96,7 @@ let elem_implementation = "implementation"
 let elem_package_implementation = "package-implementation"
 
 let attr_id = "id"
+let attr_main = "main"
 let attr_stability = "stability"
 let attr_importance = "importance"
 let attr_version = "version"
@@ -203,7 +204,7 @@ let parse root local_path =
   | _ ->
       ZI.check_ns root;
       Qdom.raise_elem "Expected <interface>, not" root in
-  (* TODO: main on root? *)
+
   (* TODO: min-injector-version *)
 
   let url =
@@ -278,7 +279,7 @@ let parse root local_path =
             | Some path ->
                 let new_command = make_command root.Qdom.doc command_name path in
                 s := {!s with commands = StringMap.add command_name new_command !s.commands} in
-          handle_old_command "main" "run";
+          handle_old_command attr_main "run";
           handle_old_command "self-test" "test";
 
           ZI.iter item ~f:(fun child ->
@@ -314,10 +315,18 @@ let parse root local_path =
   in
 
   let root_attrs = AttrMap.singleton ("", attr_stability) value_testing in
+
+  (* 'main' on the <interface> (deprecated) *)
+  let root_commands = match ZI.get_attribute_opt attr_main root with
+    | None -> StringMap.empty
+    | Some path ->
+        let new_command = make_command root.Qdom.doc "run" path in
+        StringMap.singleton "run" new_command in
+
   let root_state = {
     attrs = root_attrs;
     bindings = [];
-    commands = StringMap.empty;
+    commands = root_commands;
     requires = [];
   } in
   process_group root_state root;
