@@ -10,7 +10,7 @@ module Qdom = Support.Qdom
 
 type interface_config = {
   stability_policy : stability_level option;
-  extra_feeds : Qdom.element list;
+  extra_feeds : Feed.feed_import list;
 }
 
 (* If we started a check within this period, don't start another one *)
@@ -48,44 +48,53 @@ let list_all_interfaces config =
 
   !interfaces
 
-let parse_stability = function
-  | "preferred" -> Preferred
-  | "packaged" -> Packaged
-  | "stable" -> Stable
-  | "testing" -> Testing
-  | "developer" -> Developer
-  | "buggy" -> Buggy
-  | "insecure" -> Insecure
-  | x -> raise_safe "Invalid stability level '%s'" x
-
-let load_iface_config config uri =
+(* Note: this was called "update_user_overrides" in the Python *)
+let load_iface_config config uri ~known_site_feeds : interface_config =
   try
-    match Config.load_first_config (config_injector_interfaces +/ Escape.pretty uri) config with
-    | None -> { stability_policy = None; extra_feeds = [] }
-    | Some config_file ->
-        let root = Qdom.parse_file config.system config_file in
-        let stability_policy = match ZI.get_attribute_opt "stability-policy" root with
+    let load config_file =
+      let root = Qdom.parse_file config.system config_file in
+      let stability_policy =
+        match ZI.get_attribute_opt "stability-policy" root with
         | None -> None
-        | Some p -> Some (parse_stability p) in
-        let extra_feeds = ZI.filter_map root ~f:(function feed ->
-          match ZI.tag feed with
-          | Some "feed" ->
-              (* note: 0install 1.9..1.12 used a different scheme and the "site-package" attribute;
+        | Some s -> Some (Feed.parse_stability s ~from_user:true) in
+
+      let extra_feeds =
+        ZI.filter_map root ~f:(fun item ->
+          match ZI.tag item with
+          | Some "feed" -> (
+              let feed_src = ZI.get_attribute "src" item in
+              (* (note: 0install 1.9..1.12 used a different scheme and the "site-package" attribute;
                  we deliberately use a different attribute name to avoid confusion) *)
-              if ZI.get_attribute_opt "is-site-package" feed <> None then (
-                  (* Site packages are detected earlier. This test isn't completely reliable,
-                    since older versions will remove the attribute when saving the config
-                    (hence the next test). *)
-                  None
-              ) else if false then (
-                (* TODO: known_site_feeds *)
+              if ZI.get_attribute_opt "is-site-package" item <> None then (
+                (* Site packages are detected earlier. This test isn't completely reliable,
+                   since older versions will remove the attribute when saving the config
+                   (hence the next test). *)
+                None
+              ) else if StringSet.mem feed_src known_site_feeds then (
                 None
               ) else (
-                Some feed
+                let (feed_os, feed_machine) = match ZI.get_attribute_opt "arch" item with
+                | None -> (None, None)
+                | Some arch -> Arch.parse_arch arch in
+                let feed_langs = match ZI.get_attribute_opt "langs" item with
+                | None -> None
+                | Some langs -> Some (Str.split Support.Utils.re_space langs) in
+                let open Feed in
+                Some { feed_src; feed_os; feed_machine; feed_langs }
               )
+          )
           | _ -> None
         ) in
-        { stability_policy; extra_feeds }
+
+      { stability_policy; extra_feeds; } in
+
+    match Config.load_first_config (config_injector_interfaces +/ Escape.pretty uri) config with
+    | Some path -> load path
+    | None ->
+        (* For files saved by 0launch < 0.49 *)
+        match Config.load_first_config (config_site +/ config_prog +/ "user_overrides" +/ Escape.escape uri) config with
+        | None -> { stability_policy = None; extra_feeds = [] }
+        | Some path -> load path
   with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
 
 let get_cached_feed config uri =
@@ -151,6 +160,13 @@ class feed_provider config =
     method get_feed url =
       feeds_used := StringSet.add url !feeds_used;
       get_cached_feed config url
+
+    method get_feed_overrides url =
+      Feed.load_feed_overrides config url
+
+    method get_iface_config uri =
+      (* TODO: site feeds : _add_site_packages *)
+      load_iface_config config uri ~known_site_feeds:StringSet.empty
 
     method get_feeds_used () = !feeds_used
   end

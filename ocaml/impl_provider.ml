@@ -33,7 +33,7 @@ class type impl_provider =
     method get_implementations : scope_filter -> iface_uri -> source:bool -> Feed.implementation list
   end
 
-class default_impl_provider _config distro feed_provider =
+class default_impl_provider _config distro (feed_provider : Feed_cache.feed_provider) =
   let get_impls feed = Feed.get_implementations feed in
 
   object (_ : #impl_provider)
@@ -41,6 +41,23 @@ class default_impl_provider _config distro feed_provider =
 
     method get_implementations (scope_filter : scope_filter) iface ~source:want_source =
       let {extra_restrictions; os_ranks; machine_ranks} = scope_filter in
+
+      let get_extra_feeds iface_config =
+        let get_feed_if_useful {Feed.feed_src; Feed.feed_os; Feed.feed_machine; Feed.feed_langs} =
+          ignore feed_langs; (* Maybe later... *)
+          (* Don't look at a feed if it only provides things we can't use. *)
+          let is_useful =
+            (match feed_os with
+            | None -> true
+            | Some os -> StringMap.mem os os_ranks) &&
+            (match feed_machine with
+            | None -> true
+            | Some machine when want_source -> machine = "src"
+            | Some machine -> StringMap.mem machine machine_ranks) in
+          if is_useful then feed_provider#get_feed feed_src
+          else None
+        in
+        Support.Utils.filter_map ~f:get_feed_if_useful iface_config.Feed_cache.extra_feeds in
 
       let passes_user_restrictions =
         try snd (StringMap.find iface extra_restrictions)
@@ -51,7 +68,8 @@ class default_impl_provider _config distro feed_provider =
         try Hashtbl.find cache iface
         with Not_found ->
           let master_feed = feed_provider#get_feed iface in
-          let extra_feeds = [] in       (* TODO: added by user *)
+          let iface_config = feed_provider#get_iface_config iface in
+          let extra_feeds = get_extra_feeds iface_config in
 
           (* From master feed, distribution feed, and sub-feeds of master *)
           let main_impls =

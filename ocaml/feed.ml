@@ -76,6 +76,14 @@ type feed_overrides = {
   user_stability : stability_level StringMap.t;
 }
 
+type feed_import = {
+  feed_src : string;
+
+  feed_os : string option;          (* All impls requires this OS *)
+  feed_machine : string option;     (* All impls requires this CPU *)
+  feed_langs : string list option;  (* No impls for languages not listed *)
+}
+
 type feed = {
   url : string;
   root : Qdom.element;

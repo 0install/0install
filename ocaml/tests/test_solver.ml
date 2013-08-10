@@ -93,10 +93,18 @@ let make_solver_test test_elem =
     ZI.iter ~f:process test_elem;
 
     let feed_provider =
-      object
+      object (_ : #Feed_cache.feed_provider)
         method get_feed url =
           try Some (Hashtbl.find ifaces url)
           with Not_found -> None
+
+        method get_feed_overrides _url =
+          {Feed.last_checked = None; Feed.user_stability = StringMap.empty}
+
+        method get_iface_config _uri =
+          {Feed_cache.stability_policy = None; Feed_cache.extra_feeds = [];}
+
+        method get_feeds_used () = StringSet.empty
       end in
     let distro = new Distro.base_distribution in
     let (ready, result) = Solver.solve_for config distro feed_provider !reqs in
