@@ -219,6 +219,16 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
       impls
     ) in
 
+  let dep_in_use dep =
+    match dep.Feed.dep_use with
+    | Some use when not (StringSet.mem use root_scope.use) -> false
+    | None | Some _ ->
+        (* Ignore dependency if 'os' attribute is present and doesn't match *)
+        match dep.Feed.dep_if_os with
+        | Some required_os -> StringMap.mem required_os root_scope.scope_filter.Impl_provider.os_ranks
+        | None -> true
+  in
+
   (* For each dependency of [user_var]:
      - find the candidate implementations to satisfy it
      - take just those that satisfy any restrictions in the dependency
@@ -228,28 +238,30 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
   *)
   let rec process_deps user_var deps =
     ListLabels.iter deps ~f:(fun dep ->
-      let essential = (dep.Feed.dep_importance = Feed.Dep_essential) in
+      if dep_in_use dep then (
+        let essential = (dep.Feed.dep_importance = Feed.Dep_essential) in
 
-      (* Dependencies on commands *)
-      let require_command name =
-        (* What about optional command dependencies? Looks like the Python doesn't handle that either... *)
-        let candidates = cache#lookup (Some name, dep.Feed.dep_iface, false) in
-        S.implies sat user_var (candidates#get_vars ()) in
-      List.iter require_command dep.Feed.dep_required_commands;
+        (* Dependencies on commands *)
+        let require_command name =
+          (* What about optional command dependencies? Looks like the Python doesn't handle that either... *)
+          let candidates = cache#lookup (Some name, dep.Feed.dep_iface, false) in
+          S.implies sat user_var (candidates#get_vars ()) in
+        List.iter require_command dep.Feed.dep_required_commands;
 
-      (* Restrictions on the candidates *)
-      let meets_restriction impl = List.for_all (fun (_name, test) -> test impl) dep.Feed.dep_restrictions in
-      let candidates = cache#lookup (None, dep.Feed.dep_iface, false) in
-      let (pass, fail) = candidates#partition meets_restriction in
+        (* Restrictions on the candidates *)
+        let meets_restriction impl = List.for_all (fun (_name, test) -> test impl) dep.Feed.dep_restrictions in
+        let candidates = cache#lookup (None, dep.Feed.dep_iface, false) in
+        let (pass, fail) = candidates#partition meets_restriction in
 
-      if essential then (
-        S.implies sat user_var pass     (* Must choose a suitable candidate *)
-      ) else (
-        ListLabels.iter fail ~f:(fun bad_impl ->
-          (* If [user_var] is selected, don't select an incompatible version of the optional dependency.
-             We don't need to do this explicitly in the [essential] case, because we must select a good
-             version and we can't select two. *)
-          S.implies sat user_var [S.neg bad_impl]
+        if essential then (
+          S.implies sat user_var pass     (* Must choose a suitable candidate *)
+        ) else (
+          ListLabels.iter fail ~f:(fun bad_impl ->
+            (* If [user_var] is selected, don't select an incompatible version of the optional dependency.
+               We don't need to do this explicitly in the [essential] case, because we must select a good
+               version and we can't select two. *)
+            S.implies sat user_var [S.neg bad_impl]
+          )
         )
       )
     )
@@ -318,7 +330,7 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
           (* We've already selected a candidate for this component. Now check its dependencies. *)
 
           let check_dep dep =
-            if dep.Feed.dep_importance = Feed.Dep_restricts then (
+            if dep.Feed.dep_importance = Feed.Dep_restricts || not (dep_in_use dep) then (
               (* Restrictions don't express that we do or don't want the
                  dependency, so skip them here. If someone else needs this,
                  we'll handle it when we get to them.
@@ -418,7 +430,7 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
                   let copy_elem elem = Qdom.prepend_child (Qdom.import_node elem sel.Qdom.doc) sel in
                   List.iter copy_elem impl.Feed.props.Feed.bindings;
                   ListLabels.iter impl.Feed.props.Feed.requires ~f:(fun dep ->
-                    if dep.Feed.dep_importance <> Feed.Dep_restricts then
+                    if dep_in_use dep && dep.Feed.dep_importance <> Feed.Dep_restricts then
                       copy_elem (dep.Feed.dep_qdom)
                   );
 

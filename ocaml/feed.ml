@@ -32,6 +32,8 @@ and dependency = {
   dep_iface: iface_uri;
   dep_restrictions: restriction list;
   dep_required_commands: string list;
+  dep_if_os : string option;                (* The badly-named 'os' attribute *)
+  dep_use : string option;                  (* Deprecated 'use' attribute *)
 }
 
 and command = {
@@ -93,6 +95,8 @@ let attr_stability = "stability"
 let attr_importance = "importance"
 let attr_version = "version"
 let attr_version_modifier = "version-modifier"      (* This is stripped out and moved into attr_version *)
+let attr_os= "os"
+let attr_use = "use"
 
 let value_testing = "testing"
 
@@ -172,6 +176,8 @@ let parse_dep dep =
     dep_restrictions = restrictions;
     dep_required_commands = StringSet.elements !commands;
     dep_importance = importance;
+    dep_use = ZI.get_attribute_opt attr_use dep;
+    dep_if_os = ZI.get_attribute_opt attr_os dep;
   }
 
 let parse_command elem : command =
