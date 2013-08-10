@@ -80,7 +80,7 @@ let make_solver_test test_elem =
     let add_iface elem =
       let open Feed in
       let uri = ZI.get_attribute "uri" elem in
-      let feed = parse elem None in
+      let feed = parse (fake_system :> system) elem None in
       Hashtbl.add ifaces uri feed in
     let expected_selections = ref (ZI.make_root "missing") in
     let process child = match ZI.tag child with

@@ -407,17 +407,17 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
             match get_selected_impl impl_clause with
             | None -> ()      (* This interface wasn't used *)
             | Some impl ->
+                let attrs = ref impl.Feed.props.Feed.attrs in
+                let set_attr name value =
+                  attrs := Feed.AttrMap.add ("", name) value !attrs in
+
+                (* TODO: from-feed, etc *)
+                attrs := Feed.AttrMap.remove ("", Feed.attr_stability) !attrs;
+
+                set_attr "interface" iface;
+
                 let sel = ZI.insert_first "selection" root in
-                if impl == dummy_impl then (
-                  sel.Qdom.attrs <- [
-                    (("", "interface"), iface);
-                  ];
-                ) else (
-                  sel.Qdom.attrs <- [
-                    (("", "interface"), iface);
-                    (("", "id"), (Feed.get_attr_ex Feed.attr_id impl));
-                    (("", "version"), (Feed.get_attr_ex Feed.attr_version impl));
-                  ];
+                if impl != dummy_impl then (
                   let commands = Hashtbl.find_all commands_needed iface in
                   let commands = List.sort (fun a b -> compare b a) commands in
                   let add_command name =
@@ -434,10 +434,10 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
                       copy_elem (dep.Feed.dep_qdom)
                   );
 
-                  (* TODO: copy attrs *)
-
-                  ZI.iter_with_name impl.Feed.qdom "manifest-digest" ~f:copy_elem
-                )
+                  ZI.iter_with_name impl.Feed.qdom "manifest-digest" ~f:copy_elem;
+                );
+                assert (sel.Qdom.attrs = []);
+                sel.Qdom.attrs <- Feed.AttrMap.bindings !attrs
             in
           List.iter add_impl impls;
           root

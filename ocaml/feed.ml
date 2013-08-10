@@ -105,6 +105,7 @@ let attr_version = "version"
 let attr_version_modifier = "version-modifier"      (* This is stripped out and moved into attr_version *)
 let attr_os= "os"
 let attr_use = "use"
+let attr_local_path = "local-path"
 
 let value_testing = "testing"
 
@@ -203,7 +204,7 @@ let parse_command elem : command =
     command_requires = !deps;
   }
 
-let parse root local_path =
+let parse system root feed_local_path =
   (* TODO: if-0install-version *)
   let () = match ZI.tag root with
   | Some "interface" | Some "feed" -> ()
@@ -214,9 +215,14 @@ let parse root local_path =
   (* TODO: min-injector-version *)
 
   let url =
-    match local_path with
+    match feed_local_path with
     | None -> ZI.get_attribute "uri" root
-    | Some path -> path in                       (* TODO: local_dir *)
+    | Some path -> path in
+
+  let local_dir =
+    match feed_local_path with
+    | None -> None
+    | Some path -> Some (Filename.dirname path) in
 
   let name = ref None in
   let implementations = ref StringMap.empty in
@@ -230,12 +236,28 @@ let parse root local_path =
   let process_impl node (state:properties) =
     let s = ref state in
 
+    let set_attr name value =
+      let new_attrs = AttrMap.add ("", name) value !s.attrs in
+      s := {!s with attrs = new_attrs} in
+
     let get_required_attr name =
       try AttrMap.find ("", name) !s.attrs
       with Not_found -> Qdom.raise_elem "Missing attribute '%s' on" name node in
 
     let id = ZI.get_attribute "id" node in
-    (* TODO local-path *)
+
+    let () =
+      match local_dir with
+      | None -> ()
+      | Some dir ->
+          let use rel_path =
+            set_attr attr_local_path @@ Support.Utils.abspath system @@ dir +/ rel_path in
+          match ZI.get_attribute_opt attr_local_path node with
+          | Some path -> use path
+          | None ->
+              if Support.Utils.starts_with id "/" || Support.Utils.starts_with id "." then
+                use id in
+
     if StringMap.mem id !implementations then
       Qdom.raise_elem "Duplicate ID '%s' in:" id node;
     (* version-modifier *)

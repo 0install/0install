@@ -102,13 +102,13 @@ let get_cached_feed config uri =
     failwith uri
   ) else if is_local_feed uri then (
     let root = Qdom.parse_file config.system uri in
-    Some (Feed.parse root (Some uri))
+    Some (Feed.parse config.system root (Some uri))
   ) else (
     match get_cached_feed_path config uri with
     | None -> None
     | Some path ->
         let root = Qdom.parse_file config.system path in
-        Some (Feed.parse root None)
+        Some (Feed.parse config.system root None)
   )
 
 let get_last_check_attempt config uri =
