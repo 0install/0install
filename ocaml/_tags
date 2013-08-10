@@ -1,3 +1,4 @@
+false: profile
 true: debug, annot, package(yojson,xmlm,str)
 <tests/*>: package(oUnit)
 "support": for-pack(Support)
