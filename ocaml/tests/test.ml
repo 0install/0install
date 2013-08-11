@@ -42,6 +42,8 @@ let test_basedir () =
 ;; 
 
 let test_option_parsing () =
+  Support.Logging.threshold := Support.Logging.Warning;
+
   let config, _system = get_fake_config None in
   let open Options in
   let p args = Cli.parse_args config args in
@@ -182,7 +184,15 @@ let suite =
  );
 ];;
 
+let show_log_on_failure fn () =
+  try
+    Fake_system.fake_log#reset ();
+    fn ()
+  with ex ->
+    Fake_system.fake_log#dump ();
+    raise ex
+
 let () =
   Printexc.record_backtrace true;
-  ignore @@ run_test_tt_main suite;
+  ignore @@ run_test_tt_main @@ test_decorate show_log_on_failure suite;
   Format.print_newline ()

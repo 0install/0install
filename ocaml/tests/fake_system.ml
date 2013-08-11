@@ -151,6 +151,10 @@ class fake_system tmpdir =
   end
 ;;
 
+let forward_to_real_log = ref true
+let real_log = !Support.Logging.handler
+let () = Support.Logging.threshold := Support.Logging.Debug
+
 let fake_log =
   object (_ : #Support.Logging.handler)
     val mutable record = []
@@ -161,15 +165,27 @@ let fake_log =
     method get () =
       record
 
+    method dump () =
+      if record = [] then
+        print_endline "(log empty)"
+      else (
+        print_endline "(showing full log)";
+        let dump (ex, level, msg) =
+          real_log#handle ?ex level msg in
+        List.iter dump @@ List.rev record;
+      )
+
     method handle ?ex level msg =
+      if !forward_to_real_log && level > Support.Logging.Info then real_log#handle ?ex level msg;
       if false then print_endline @@ "LOG: " ^ msg;
       record <- (ex, level, msg) :: record
   end
 
+let () = Support.Logging.handler := (fake_log :> Support.Logging.handler)
+
 let collect_logging fn =
-  let old_handler = !Support.Logging.handler in
-  let () = Support.Logging.handler := (fake_log :> Support.Logging.handler) in
-  Support.Utils.finally (fun () -> Support.Logging.handler := old_handler) () fn
+  forward_to_real_log := false;
+  Support.Utils.finally (fun () -> forward_to_real_log := true) () fn
 
 let format_list l = "[" ^ (String.concat "; " l) ^ "]"
 let equal_str_lists = assert_equal ~printer:format_list

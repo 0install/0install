@@ -42,6 +42,6 @@ let suite = "distro">::: [
     let open Feed in
     match impls with
     | [impl] -> assert_str_equal "2.7.2-4" (Versions.format_version impl.parsed_version)
-    | _ -> assert_failure "want 1 Python"
+    | _ -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)
   );
 ]
