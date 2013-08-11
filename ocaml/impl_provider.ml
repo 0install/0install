@@ -46,18 +46,22 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
 
       let get_extra_feeds iface_config =
         let get_feed_if_useful {Feed.feed_src; Feed.feed_os; Feed.feed_machine; Feed.feed_langs; Feed.feed_type = _} =
-          ignore feed_langs; (* Maybe later... *)
-          (* Don't look at a feed if it only provides things we can't use. *)
-          let is_useful =
-            (match feed_os with
-            | None -> true
-            | Some os -> StringMap.mem os os_ranks) &&
-            (match feed_machine with
-            | None -> true
-            | Some machine when want_source -> machine = "src"
-            | Some machine -> StringMap.mem machine machine_ranks) in
-          if is_useful then feed_provider#get_feed feed_src
-          else None
+          try
+            ignore feed_langs; (* Maybe later... *)
+            (* Don't look at a feed if it only provides things we can't use. *)
+            let is_useful =
+              (match feed_os with
+              | None -> true
+              | Some os -> StringMap.mem os os_ranks) &&
+              (match feed_machine with
+              | None -> true
+              | Some machine when want_source -> machine = "src"
+              | Some machine -> StringMap.mem machine machine_ranks) in
+            if is_useful then feed_provider#get_feed feed_src
+            else None
+          with Safe_exception _ as ex ->
+            log_warning ~ex "Failed to get implementations";
+            None
         in
         Support.Utils.filter_map ~f:get_feed_if_useful iface_config.Feed_cache.extra_feeds in
 
