@@ -145,7 +145,7 @@ let get_selections options ~refresh reqs mode =
           if mode = Select_only || Selections.get_unavailable_selections config ~distro sels = [] then (
             (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
 
-            let have_stale_feeds = List.exists (Feed_cache.is_stale config) @@ StringSet.elements @@ feed_provider#get_feeds_used () in
+            let have_stale_feeds = feed_provider#have_stale_feeds () in
 
             if mode = Download_only && have_stale_feeds then (
               (* Updating in the foreground for Download_only mode is a bit inconsistent. Maybe we

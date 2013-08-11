@@ -22,7 +22,9 @@ let is_local_feed uri = U.path_is_absolute uri
 
 (* For local feeds, returns the absolute path. *)
 let get_cached_feed_path config uri =
-  if is_local_feed uri then (
+  if U.starts_with uri "distribution:" then (
+    failwith uri
+  ) else if is_local_feed uri then (
     Some uri
   ) else (
     let cache = config.basedirs.Basedir.cache in
@@ -141,9 +143,7 @@ let load_iface_config config uri : interface_config =
   with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
 
 let get_cached_feed config uri =
-  if U.starts_with uri "distribution:" then (
-    failwith uri
-  ) else if is_local_feed uri then (
+  if is_local_feed uri then (
     let root = Qdom.parse_file config.system uri in
     Some (Feed.parse config.system root (Some uri))
   ) else (
@@ -164,7 +164,7 @@ let get_last_check_attempt config uri =
       | None -> None
       | Some info -> Some info.Unix.st_mtime
 
-let is_stale config uri =
+let internal_is_stale config uri overrides =
   if U.starts_with uri "distribution:" then false	(* Ignore (memory-only) PackageKit feeds *)
   else if is_local_feed uri then false                          (* Local feeds are never stale *)
   else (
@@ -177,12 +177,10 @@ let is_stale config uri =
           false
       | _ -> true in
 
-    (* TODO: cache this? *)
-    match get_cached_feed config uri with
+    match overrides with
     | None -> is_stale ()
-    | Some _feed ->
-        (* TODO: cache this? *)
-        match (Feed.load_feed_overrides config uri).Feed.last_checked with
+    | Some overrides ->
+        match overrides.Feed.last_checked with
         | None ->
             log_debug "Feed '%s' has no last checked time, so needs update" uri;
             is_stale ()
@@ -194,21 +192,42 @@ let is_stale config uri =
             | None -> log_debug "Checking for updates is disabled"; false
             | Some threshold when staleness >= (Int64.to_float threshold) -> is_stale ()
             | _ -> false
-      )
+  )
 
+let is_stale config uri =
+  let overrides =
+    if get_cached_feed_path config uri = None then None
+    else Some (Feed.load_feed_overrides config uri) in
+  internal_is_stale config uri overrides
+
+(** Provides feeds to the [Impl_provider.impl_provider] during a solve. Afterwards, it can be used to
+    find out which feeds were used (and therefore may need updating). *)
 class feed_provider config =
-  let feeds_used = ref StringSet.empty in
+  let cache = ref StringMap.empty in
 
   object
-    method get_feed url =
-      feeds_used := StringSet.add url !feeds_used;
-      get_cached_feed config url
-
-    method get_feed_overrides url =
-      Feed.load_feed_overrides config url
+    method get_feed url : (Feed.feed * Feed.feed_overrides) option =
+      try StringMap.find url !cache
+      with Not_found ->
+        let result =
+          match get_cached_feed config url with
+          | Some feed ->
+            let overrides = Feed.load_feed_overrides config url in
+            Some (feed, overrides)
+          | None -> None in
+        cache := StringMap.add url result !cache;
+        result
 
     method get_iface_config uri =
       load_iface_config config uri
 
-    method get_feeds_used () = !feeds_used
+    method get_feeds_used () =
+      StringMap.fold (fun uri _value lst -> uri :: lst) !cache []
+
+    method have_stale_feeds () =
+      let check uri pair =
+        match pair with
+        | None -> internal_is_stale config uri None
+        | Some (_feed, overrides) -> internal_is_stale config uri (Some overrides) in
+      StringMap.exists check !cache
   end

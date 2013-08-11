@@ -34,7 +34,9 @@ class type impl_provider =
   end
 
 class default_impl_provider _config distro (feed_provider : Feed_cache.feed_provider) =
-  let get_impls feed = Feed.get_implementations feed in
+  let get_impls (feed, _overrides) =
+    (* TODO: user overrides *)
+    Feed.get_implementations feed in
 
   object (_ : #impl_provider)
     val cache = Hashtbl.create 10
@@ -79,7 +81,7 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
                 let sub_feeds = [] in         (* TODO: added by master feed *)
                 (* TODO: remove feeds for incompatbile architectures *)
                 let distro_impls =
-                  Distro.get_package_impls distro feed in
+                  Distro.get_package_impls distro (fst feed) in
                 List.concat (distro_impls :: List.map get_impls (feed :: sub_feeds)) in
 
           let impls = List.concat (main_impls :: List.map get_impls extra_feeds) in
