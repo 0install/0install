@@ -20,6 +20,23 @@ type dentry =
 module RealSystem = Support.System.RealSystem(Unix)
 let real_system = new RealSystem.real_system
 
+let make_stat st_perm kind =
+  let open Unix in {
+    st_perm;
+    st_dev = 0;
+    st_ino = 0;
+    st_kind = kind;
+    st_nlink = 1;
+    st_uid = 0;
+    st_gid = 0;
+    st_rdev = 0;
+    st_size = 100;
+    st_atime = 0.0;
+    st_mtime = 0.0;
+    st_ctime = 0.0;
+  }
+
+
 class fake_system tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
 
@@ -93,8 +110,23 @@ class fake_system tmpdir =
       else if tmpdir = None then false
       else real_system#file_exists (check_read path)
 
-    method lstat path = real_system#lstat (check_read path)
-    method stat path = real_system#lstat (check_read path)
+    method lstat path =
+      try
+        let open Unix in
+        match StringMap.find path !extra_files with
+        | Dir (mode, _items) -> Some (make_stat mode S_DIR)
+        | File (_mode, target) -> real_system#lstat target
+      with Not_found ->
+        real_system#lstat (check_read path)
+
+    method stat path =
+      try
+        let open Unix in
+        match StringMap.find path !extra_files with
+        | Dir (mode, _items) -> Some (make_stat mode S_DIR)
+        | File (_mode, target) -> real_system#stat target
+      with Not_found ->
+        real_system#stat (check_read path)
 
     method atomic_write open_flags fn path mode = real_system#atomic_write open_flags fn (check_write path) mode
     method unlink = failwith "unlink"
@@ -169,7 +201,7 @@ let fake_log =
       if record = [] then
         print_endline "(log empty)"
       else (
-        print_endline "(showing full log)";
+        prerr_endline "(showing full log)";
         let dump (ex, level, msg) =
           real_log#handle ?ex level msg in
         List.iter dump @@ List.rev record;

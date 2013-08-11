@@ -10,7 +10,7 @@ open Options
 module Qdom = Support.Qdom
 
 let use_ocaml_solver =                (* TODO: just for testing *)
-  try Sys.getenv "USE_OCAML_SOLVER"; true
+  try ignore @@ Sys.getenv "USE_OCAML_SOLVER"; true
   with Not_found -> false
 
 type target = App of filepath | Interface of iface_uri | Selections of Qdom.element
