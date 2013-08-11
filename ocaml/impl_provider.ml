@@ -43,7 +43,7 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
       let {extra_restrictions; os_ranks; machine_ranks} = scope_filter in
 
       let get_extra_feeds iface_config =
-        let get_feed_if_useful {Feed.feed_src; Feed.feed_os; Feed.feed_machine; Feed.feed_langs} =
+        let get_feed_if_useful {Feed.feed_src; Feed.feed_os; Feed.feed_machine; Feed.feed_langs; Feed.feed_type = _} =
           ignore feed_langs; (* Maybe later... *)
           (* Don't look at a feed if it only provides things we can't use. *)
           let is_useful =

@@ -67,6 +67,16 @@ let rec filter_map ~f = function
       | None -> filter_map ~f xs
       | Some y -> y :: filter_map ~f xs
 
+(** List the non-None results of [fn item] *)
+let filter_map_array ~f arr =
+  let result = ref [] in
+  for i = 0 to Array.length arr - 1 do
+    match f arr.(i) with
+    | Some item -> result := item :: !result
+    | _ -> ()
+  done;
+  List.rev !result
+
 (** [makedirs path mode] ensures that [path] is a directory, creating it and any missing parents (using [mode]) if not. *)
 let rec makedirs (system:system) path mode =
   match system#lstat path with

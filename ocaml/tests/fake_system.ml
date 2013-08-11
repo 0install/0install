@@ -80,7 +80,9 @@ class fake_system tmpdir =
         | _ -> failwith "Not a directory"
       with Not_found -> real_system#readdir (check_read path)
 
-    method readlink path = real_system#readlink (check_read path)
+    method readlink path =
+      if StringMap.mem path !extra_files then None    (* Not a link *)
+      else real_system#readlink (check_read path)
 
     method chmod = failwith "chmod"
 
@@ -123,7 +125,21 @@ class fake_system tmpdir =
       }
 
     method add_file path redirect_target =
-      extra_files := StringMap.add path (File (0o644, redirect_target)) !extra_files
+      extra_files := StringMap.add path (File (0o644, redirect_target)) !extra_files;
+      let rec add_parent path =
+        let parent = Filename.dirname path in
+        if (parent <> path) then (
+          let leaf = Filename.basename path in
+          let () =
+            try
+              match StringMap.find parent !extra_files with
+              | Dir (mode, items) -> extra_files := StringMap.add parent (Dir (mode, leaf :: items)) !extra_files
+              | _ -> failwith parent
+            with Not_found ->
+              self#add_dir parent [leaf] in
+          add_parent parent
+        ) in
+      add_parent path
 
     method add_dir path items =
       extra_files := StringMap.add path (Dir (0o755, items)) !extra_files

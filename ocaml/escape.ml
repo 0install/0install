@@ -4,6 +4,7 @@
 
 (** Escaping and unescaping strings. *)
 
+open General
 open Support.Common
 module U = Support.Utils
 
@@ -76,3 +77,27 @@ let ununderscore_escape escaped =
     else String.make 1 (char_of_int @@ int_of_string @@ "0x" ^ c) in
 
   Str.global_substitute re_escaped_code ununder_escape escaped
+
+(** Convert an interface URI to a list of path components.
+    e.g. "http://example.com/foo.xml" becomes ["http", "example.com", "foo.xml"], while
+    "/root/feed.xml" becomes ["file", "root__feed.xml"]
+    The number of components is determined by the scheme (three for http, two for file).
+    Uses [underscore_escape] to escape each component. *)
+let escape_interface_uri (uri:iface_uri) : string list =
+  let handle_rest rest =
+    try
+      let i = String.index rest '/' in
+      let host = String.sub rest 0 i in
+      let path = U.string_tail rest (i + 1) in
+      [underscore_escape host; underscore_escape path]
+    with Not_found -> failwith uri in
+
+  if U.starts_with uri "http://" then
+    "http" :: (handle_rest @@ U.string_tail uri 7)
+  else if U.starts_with uri "https://" then
+    "http" :: (handle_rest @@ U.string_tail uri 8)
+  else (
+    if not (U.path_is_absolute uri) then
+      failwith uri;
+    "file" :: [underscore_escape @@U.string_tail uri 1]
+  )

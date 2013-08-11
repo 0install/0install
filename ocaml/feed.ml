@@ -76,12 +76,18 @@ type feed_overrides = {
   user_stability : stability_level StringMap.t;
 }
 
+type feed_type =
+  | User_registered         (* Added manually with "0install add-feed" : save to config *)
+  | Site_packages           (* Found in the site-packages directory : save to config for older versions, but flag it *)
+  | Distro_packages         (* Found in native_feeds : don't save *)
+
 type feed_import = {
   feed_src : string;
 
   feed_os : string option;          (* All impls requires this OS *)
   feed_machine : string option;     (* All impls requires this CPU *)
   feed_langs : string list option;  (* No impls for languages not listed *)
+  feed_type: feed_type;
 }
 
 type feed = {

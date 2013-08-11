@@ -7,6 +7,8 @@
 open General
 open Support.Common
 module Qdom = Support.Qdom
+module U = Support.Utils
+module Basedir = Support.Basedir
 
 type interface_config = {
   stability_policy : stability_level option;
@@ -16,15 +18,15 @@ type interface_config = {
 (* If we started a check within this period, don't start another one *)
 let failed_check_delay = float_of_int (1 * hours)
 
-let is_local_feed uri = Support.Utils.path_is_absolute uri
+let is_local_feed uri = U.path_is_absolute uri
 
 (* For local feeds, returns the absolute path. *)
 let get_cached_feed_path config uri =
   if is_local_feed uri then (
     Some uri
   ) else (
-    let cache = config.basedirs.Support.Basedir.cache in
-    Support.Basedir.load_first config.system (config_site +/ "interfaces" +/ Escape.escape uri) cache
+    let cache = config.basedirs.Basedir.cache in
+    Basedir.load_first config.system (config_site +/ "interfaces" +/ Escape.escape uri) cache
   )
 ;;
 
@@ -32,7 +34,6 @@ let get_cached_feed_path config uri =
 let list_all_interfaces config =
   let interfaces = ref StringSet.empty in
   let system = config.system in
-  let module Basedir = Support.Basedir in
 
   let check_leaf leaf =
     if leaf.[0] <> '.' then
@@ -49,7 +50,47 @@ let list_all_interfaces config =
   !interfaces
 
 (* Note: this was called "update_user_overrides" in the Python *)
-let load_iface_config config uri ~known_site_feeds : interface_config =
+let load_iface_config config uri : interface_config =
+  let get_site_feed dir =
+    if config.system#file_exists dir then (
+      match config.system#readdir dir with
+      | Success items ->
+          U.filter_map_array items ~f:(fun impl ->
+            if U.starts_with impl "." then None
+            else (
+              let feed = dir +/ impl +/ "0install" +/ "feed.xml" in
+              if not (config.system#file_exists feed) then (
+                log_warning "Site-local feed %s not found" feed;
+                None
+              ) else  (
+                log_debug "Adding site-local feed '%s'" feed;
+                let open Feed in
+                Some { feed_src = feed; feed_os = None; feed_machine = None; feed_langs = None; feed_type = Site_packages }
+              )
+            )
+          )
+      | Problem ex ->
+          log_warning ~ex "Failed to read '%s'" dir;
+          []
+    ) else []
+  in
+
+  (* Distribution-provided feeds *)
+  let distro_feeds =
+    match Basedir.load_first config.system (data_native_feeds +/ Escape.pretty uri) config.basedirs.Basedir.data with
+    | None -> []
+    | Some path ->
+        log_info "Adding native packager feed '%s'" path;
+        (* Resolve any symlinks *)
+        let open Feed in
+        [ {feed_src = U.realpath config.system path; feed_os = None; feed_machine = None; feed_langs = None; feed_type = Distro_packages } ]
+    in
+
+  (* Local feeds in the data directory (e.g. builds created with 0compile) *)
+  let site_feeds =
+    let rel_path = data_site_packages +/ (String.concat Filename.dir_sep @@ Escape.escape_interface_uri uri) in
+    List.concat @@ List.map (fun dir -> get_site_feed @@ dir +/ rel_path) config.basedirs.Basedir.data in
+
   try
     let load config_file =
       let root = Qdom.parse_file config.system config_file in
@@ -58,7 +99,9 @@ let load_iface_config config uri ~known_site_feeds : interface_config =
         | None -> None
         | Some s -> Some (Feed.parse_stability s ~from_user:true) in
 
-      let extra_feeds =
+      (* User-registered feeds (0install add-feed) *)
+      let known_site_feeds = List.fold_left (fun map feed -> StringSet.add feed.Feed.feed_src map) StringSet.empty site_feeds in
+      let user_feeds =
         ZI.filter_map root ~f:(fun item ->
           match ZI.tag item with
           | Some "feed" -> (
@@ -78,27 +121,27 @@ let load_iface_config config uri ~known_site_feeds : interface_config =
                 | Some arch -> Arch.parse_arch arch in
                 let feed_langs = match ZI.get_attribute_opt "langs" item with
                 | None -> None
-                | Some langs -> Some (Str.split Support.Utils.re_space langs) in
+                | Some langs -> Some (Str.split U.re_space langs) in
                 let open Feed in
-                Some { feed_src; feed_os; feed_machine; feed_langs }
+                Some { feed_src; feed_os; feed_machine; feed_langs; feed_type = User_registered }
               )
           )
           | _ -> None
         ) in
 
-      { stability_policy; extra_feeds; } in
+      { stability_policy; extra_feeds = distro_feeds @ site_feeds @ user_feeds; } in
 
     match Config.load_first_config (config_injector_interfaces +/ Escape.pretty uri) config with
     | Some path -> load path
     | None ->
         (* For files saved by 0launch < 0.49 *)
         match Config.load_first_config (config_site +/ config_prog +/ "user_overrides" +/ Escape.escape uri) config with
-        | None -> { stability_policy = None; extra_feeds = [] }
+        | None -> { stability_policy = None; extra_feeds = distro_feeds @ site_feeds }
         | Some path -> load path
   with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
 
 let get_cached_feed config uri =
-  if Support.Utils.starts_with uri "distribution:" then (
+  if U.starts_with uri "distribution:" then (
     failwith uri
   ) else if is_local_feed uri then (
     let root = Qdom.parse_file config.system uri in
@@ -112,7 +155,7 @@ let get_cached_feed config uri =
   )
 
 let get_last_check_attempt config uri =
-  let open Support.Basedir in
+  let open Basedir in
   let rel_path = config_site +/ config_prog +/ "last-check-attempt" +/ Escape.pretty uri in
   match load_first config.system rel_path config.basedirs.cache with
   | None -> None
@@ -122,7 +165,7 @@ let get_last_check_attempt config uri =
       | Some info -> Some info.Unix.st_mtime
 
 let is_stale config uri =
-  if Support.Utils.starts_with uri "distribution:" then false	(* Ignore (memory-only) PackageKit feeds *)
+  if U.starts_with uri "distribution:" then false	(* Ignore (memory-only) PackageKit feeds *)
   else if is_local_feed uri then false                          (* Local feeds are never stale *)
   else (
     let now = config.system#time () in
@@ -130,7 +173,7 @@ let is_stale config uri =
     let is_stale () =
       match get_last_check_attempt config uri with
       | Some last_check_attempt when last_check_attempt > now -. failed_check_delay ->
-          log_debug "Stale, but tried to check recently (%s) so not rechecking now." (Support.Utils.format_time (Unix.localtime last_check_attempt));
+          log_debug "Stale, but tried to check recently (%s) so not rechecking now." (U.format_time (Unix.localtime last_check_attempt));
           false
       | _ -> true in
 
@@ -165,8 +208,7 @@ class feed_provider config =
       Feed.load_feed_overrides config url
 
     method get_iface_config uri =
-      (* TODO: site feeds : _add_site_packages *)
-      load_iface_config config uri ~known_site_feeds:StringSet.empty
+      load_iface_config config uri
 
     method get_feeds_used () = !feeds_used
   end

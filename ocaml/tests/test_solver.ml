@@ -202,6 +202,24 @@ let suite = "solver">::: [
         assert (solution p2 = true);
   );
 
+  "feed_provider">:: (fun () ->
+    let open Feed_cache in
+    let (config, fake_system) = Fake_system.get_fake_config None in
+    let feed_provider = new feed_provider config in
+    let uri = "http://example.com/prog" in
+    let iface_config = feed_provider#get_iface_config uri in
+    assert (iface_config.stability_policy = None);
+    assert (iface_config.extra_feeds = []);
+
+    fake_system#add_file "/usr/share/0install.net/native_feeds/http:##example.com#prog" "Hello.xml";
+    let iface_config = feed_provider#get_iface_config uri in
+    assert (iface_config.stability_policy = None);
+    match iface_config.extra_feeds with
+    | [ { Feed.feed_src = "/usr/share/0install.net/native_feeds/http:##example.com#prog";
+          Feed.feed_type = Feed.Distro_packages; _ } ] -> ()
+    | _ -> assert_failure "Didn't find native feed"
+  );
+
   "solver">:::
     try
       let root = Support.Qdom.parse_file Fake_system.real_system "solves.xml" in
