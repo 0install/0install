@@ -121,7 +121,25 @@ let test_escaping () =
     ("file://foo", unescape "file:##foo");
     ("file://foo~bar", unescape "file:##foo%7ebar");
     ("file://foo%bar", unescape "file:##foo%25bar");
-  ]
+  ];
+
+  assert_str_equal "http_3a_____example.com" @@ underscore_escape "http://example.com";
+  assert_str_equal "_25_20_25_21_7e__26__21__22_£_20__3a__40__3b__2c_.___7b__7d__24__25__5e__26__28__29_" @@ underscore_escape "%20%21~&!\"£ :@;,./{}$%^&()";
+
+  let check str =
+    assert_str_equal str @@ unescape @@ escape str;
+    assert_str_equal str @@ unescape @@ pretty str;
+    assert_str_equal str @@ ununderscore_escape @@ underscore_escape str in
+
+  check "";
+  check "http://example.com";
+  check "http://example%46com";
+  check "http:##example#com";
+  check "http://example.com/foo/bar.xml";
+  check "%20%21~&!\"£ :@;,./{}$%^&()";
+  check "http://example.com/foo_bar-50%á.xml";
+  check "_one__two___three____four_____";
+  check "_1_and_2_"
 
 (* Name the test cases and group them together *)
 let suite = 

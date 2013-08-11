@@ -5,6 +5,7 @@
 (** Escaping and unescaping strings. *)
 
 open Support.Common
+module U = Support.Utils
 
 let re_escaped = Str.regexp "#\\|%[0-9a-fA-F][0-9a-fA-F]"
 let re_need_escaping = Str.regexp "[^-_.a-zA-Z0-9]"
@@ -46,3 +47,32 @@ let pretty uri =
       let c = Char.code m.[0] in         (* docs say ASCII, but should work for UTF-8 too *)
       Printf.sprintf "%%%02x" c
   in Str.global_substitute re_need_escaping_pretty fn uri
+
+(** Escape troublesome characters in [src].
+    The result is a valid file leaf name (i.e. does not contain / etc).
+    Letters, digits, '-', '.', and characters > 127 are copied unmodified.
+    '/' becomes '__'. Other characters become '_code_', where code is the
+    lowercase hex value of the character in Unicode. *)
+let underscore_escape src =
+  let b = Buffer.create (String.length src * 2) in
+  for i = 0 to String.length src - 1 do
+    match src.[i] with
+    | '/' -> Buffer.add_string b "__"
+    | '.' when i = 0 ->
+        (* Avoid creating hidden files, or specials (. and ..) *)
+        Buffer.add_string b "_2e_"
+    | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '-' | '.' -> Buffer.add_char b (src.[i])
+    | c when int_of_char c > 127 -> Buffer.add_char b c     (* Top-bit-set chars don't cause any trouble *)
+    | c -> Buffer.add_string b @@ Printf.sprintf "_%x_" (int_of_char c)
+  done;
+  Buffer.contents b
+
+let re_escaped_code = Str.regexp "_\\([0-9a-fA-F]*\\)_"
+
+let ununderscore_escape escaped =
+  let ununder_escape m =
+    let c = Str.matched_group 1 m in
+    if c = "" then "/"
+    else String.make 1 (char_of_int @@ int_of_string @@ "0x" ^ c) in
+
+  Str.global_substitute re_escaped_code ununder_escape escaped
