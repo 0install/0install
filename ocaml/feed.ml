@@ -7,6 +7,7 @@
 open General
 open Support.Common
 module Qdom = Support.Qdom
+module U = Support.Utils
 
 module AttrType =
   struct
@@ -138,9 +139,20 @@ let parse_version_element elem =
   let test = Versions.make_range_restriction not_before before in
   (s, (fun impl -> test (impl.parsed_version)))
 
-let parse_dep dep =
-  let iface = ZI.get_attribute "interface" dep in
-  (* TODO: relative paths *)
+let parse_dep local_dir dep =
+  let iface =
+    let raw_iface = ZI.get_attribute "interface" dep in
+    if U.starts_with raw_iface "." then (
+      match local_dir with
+      | Some dir ->
+          let iface = U.normpath @@ dir +/ raw_iface in
+          Qdom.set_attribute "interface" iface dep;
+          iface
+      | None ->
+          raise_safe "Relative interface URI '%s' in non-local feed" raw_iface
+    ) else (
+      raw_iface
+    ) in
 
   (* TODO: distribution *)
 
@@ -195,13 +207,13 @@ let parse_dep dep =
     dep_if_os = ZI.get_attribute_opt attr_os dep;
   }
 
-let parse_command elem : command =
+let parse_command local_dir elem : command =
   let deps = ref [] in
 
   ZI.iter elem ~f:(fun child ->
     match ZI.tag child with
     | Some "requires" | Some "restricts" | Some "runner" ->
-        deps := parse_dep child :: !deps
+        deps := parse_dep local_dir child :: !deps
     | _ -> ()
   );
 
@@ -325,11 +337,11 @@ let parse system root feed_local_path =
           ZI.iter item ~f:(fun child ->
             match ZI.tag child with
             | Some "requires" | Some "restricts" ->
-                let req = parse_dep child in
+                let req = parse_dep local_dir child in
                 s := {!s with requires = req :: !s.requires}
             | Some "command" ->
                 let command_name = ZI.get_attribute "name" child in
-                s := {!s with commands = StringMap.add command_name (parse_command child) !s.commands}
+                s := {!s with commands = StringMap.add command_name (parse_command local_dir child) !s.commands}
             | Some tag when Binding.is_binding tag ->
                 s := {!s with bindings = child :: !s.bindings}
             | _ -> ()

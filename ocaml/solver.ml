@@ -450,36 +450,38 @@ let make_user_restriction expr =
   (expr, test)
 
 let solve_for config distro feed_provider requirements =
-  let impl_provider = (new Impl_provider.default_impl_provider config distro feed_provider :> Impl_provider.impl_provider) in
+  try
+    let impl_provider = (new Impl_provider.default_impl_provider config distro feed_provider :> Impl_provider.impl_provider) in
 
-  let open Requirements in
-  let {
-    command; interface_uri; source;
-    extra_restrictions; os; cpu;
-    message = _;
-  } = requirements in
+    let open Requirements in
+    let {
+      command; interface_uri; source;
+      extra_restrictions; os; cpu;
+      message = _;
+    } = requirements in
 
-  (* This is for old feeds that have use='testing' instead of the newer
-    'test' command for giving test-only dependencies. *)
-  let use = if command = Some "test" then StringSet.singleton "testing" else StringSet.empty in
+    (* This is for old feeds that have use='testing' instead of the newer
+      'test' command for giving test-only dependencies. *)
+    let use = if command = Some "test" then StringSet.singleton "testing" else StringSet.empty in
 
-  let platform = config.system#platform () in
-  let os = default platform.Platform.system os in
-  let machine = default platform.Platform.machine cpu in
+    let platform = config.system#platform () in
+    let os = default platform.Platform.system os in
+    let machine = default platform.Platform.machine cpu in
 
-  let open Impl_provider in
-  let scope_filter = {
-    extra_restrictions = StringMap.map make_user_restriction extra_restrictions;
-    os_ranks = Arch.get_os_ranks os;
-    machine_ranks = Arch.get_machine_ranks machine;
-  } in
-  let scope = { scope_filter; use } in
+    let open Impl_provider in
+    let scope_filter = {
+      extra_restrictions = StringMap.map make_user_restriction extra_restrictions;
+      os_ranks = Arch.get_os_ranks os;
+      machine_ranks = Arch.get_machine_ranks machine;
+    } in
+    let scope = { scope_filter; use } in
 
-  let root_req = (command, interface_uri, source) in
+    let root_req = (command, interface_uri, source) in
 
-  match solve_for impl_provider scope root_req ~closest_match:false with
-  | Some result -> (true, result)
-  | None ->
-      match solve_for impl_provider scope root_req ~closest_match:true with
-      | Some result -> (false, result)
-      | None -> failwith "No solution, even with closest_match!"
+    match solve_for impl_provider scope root_req ~closest_match:false with
+    | Some result -> (true, result)
+    | None ->
+        match solve_for impl_provider scope root_req ~closest_match:true with
+        | Some result -> (false, result)
+        | None -> failwith "No solution, even with closest_match!"
+  with Safe_exception _ as ex -> reraise_with_context ex "... solving for interface %s" requirements.Requirements.interface_uri

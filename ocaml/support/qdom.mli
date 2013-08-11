@@ -49,6 +49,9 @@ val prepend_child : element -> element -> unit
 (** [import_node node doc] makes a copy of [node] for use in [doc]. *)
 val import_node : element -> document -> element
 
+(** Sets the given non-namespaced attribute. *)
+val set_attribute : string -> string -> element -> unit
+
 module type NsType = sig val ns : string end
 
 module NsQuery :

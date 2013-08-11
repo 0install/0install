@@ -75,23 +75,23 @@ let load_iface_config config uri : interface_config =
     ) else []
   in
 
-  (* Distribution-provided feeds *)
-  let distro_feeds =
-    match Basedir.load_first config.system (data_native_feeds +/ Escape.pretty uri) config.basedirs.Basedir.data with
-    | None -> []
-    | Some path ->
-        log_info "Adding native packager feed '%s'" path;
-        (* Resolve any symlinks *)
-        let open Feed in
-        [ {feed_src = U.realpath config.system path; feed_os = None; feed_machine = None; feed_langs = None; feed_type = Distro_packages } ]
-    in
-
-  (* Local feeds in the data directory (e.g. builds created with 0compile) *)
-  let site_feeds =
-    let rel_path = data_site_packages +/ (String.concat Filename.dir_sep @@ Escape.escape_interface_uri uri) in
-    List.concat @@ List.map (fun dir -> get_site_feed @@ dir +/ rel_path) config.basedirs.Basedir.data in
-
   try
+    (* Distribution-provided feeds *)
+    let distro_feeds =
+      match Basedir.load_first config.system (data_native_feeds +/ Escape.pretty uri) config.basedirs.Basedir.data with
+      | None -> []
+      | Some path ->
+          log_info "Adding native packager feed '%s'" path;
+          (* Resolve any symlinks *)
+          let open Feed in
+          [ {feed_src = U.realpath config.system path; feed_os = None; feed_machine = None; feed_langs = None; feed_type = Distro_packages } ]
+      in
+
+    (* Local feeds in the data directory (e.g. builds created with 0compile) *)
+    let site_feeds =
+      let rel_path = data_site_packages +/ (String.concat Filename.dir_sep @@ Escape.escape_interface_uri uri) in
+      List.concat @@ List.map (fun dir -> get_site_feed @@ dir +/ rel_path) config.basedirs.Basedir.data in
+
     let load config_file =
       let root = Qdom.parse_file config.system config_file in
       let stability_policy =

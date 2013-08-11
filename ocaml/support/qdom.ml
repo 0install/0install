@@ -155,6 +155,10 @@ let output o root =
     Xmlm.output o @@ `El_end in
   output_node {root with attrs = !root_attrs}
 
+let set_attribute name value element =
+  let pair = ("", name) in
+  element.attrs <- (pair, value) :: List.remove_assoc pair element.attrs
+
 module NsQuery (Ns : NsType) = struct
   (** Return the localName part of this element's tag.
       Throws an exception if it's in the wrong namespace. *)
