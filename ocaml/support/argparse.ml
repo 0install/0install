@@ -297,8 +297,9 @@ let format_options format_type opts =
 
   ListLabels.iter display_options ~f:(fun (syn, help) ->
     if !first then (
-      print_cut ();
       first := false
+    ) else (
+      print_cut ()
     );
 
     print_string syn;
