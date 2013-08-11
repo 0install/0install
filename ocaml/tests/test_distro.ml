@@ -35,7 +35,7 @@ let suite = "distro">::: [
     fake_system#add_dir "/var/lib/pacman/local" ["python2-2.7.2-4"];
     fake_system#add_file "/var/lib/pacman/local/python2-2.7.2-4/desc" "../../tests/arch/local/python2-2.7.2-4/desc";
     let system = (fake_system :> system) in
-    let distro = new Distro.Arch.arch_distribution config in
+    let distro = new Distro.ArchLinux.arch_distribution config in
     let root = Qdom.parse_input None @@ Xmlm.make_input (`String (0, test_feed)) in
     let feed = Feed.parse system root None in
     let impls = Distro.get_package_impls distro feed in

@@ -181,7 +181,7 @@ module RPM = struct
     end
 end
 
-module Arch = struct
+module ArchLinux = struct
   let arch_db = "/var/lib/pacman"
   let packages_dir = "/var/lib/pacman/local"
 
@@ -207,6 +207,26 @@ module Arch = struct
       config.system#with_open_in [Open_rdonly; Open_text] 0 desc_path read;
       !arch in
 
+    let entries = ref (-1.0, StringMap.empty) in
+    let get_entries () =
+      let (last_read, items) = !entries in
+      match config.system#stat packages_dir with
+      | Some info when info.Unix.st_mtime > last_read -> (
+          match config.system#readdir packages_dir with
+          | Success items ->
+              let add map entry =
+                match parse_dirname entry with
+                | Some (name, version) -> StringMap.add name version map
+                | None -> map in
+              let new_items = Array.fold_left add StringMap.empty items in
+              entries := (info.Unix.st_mtime, new_items);
+              new_items
+          | Problem ex ->
+              log_warning ~ex "Can't read packages dir '%s'!" packages_dir;
+              items
+      )
+      | _ -> items in
+
     object (_ : #distribution)
       val distro_name = "Arch"
       method is_installed elem =
@@ -217,37 +237,34 @@ module Arch = struct
 
       method get_package_impls (elem, props) =
         let package_name = ZI.get_attribute "package" elem in
-        let check_dir entry =
-          match parse_dirname entry with
-          | Some (name, version) when name = package_name -> (
-              let desc_path = packages_dir +/ entry +/ "desc" in
-              match get_arch desc_path with
-              | None ->
-                  log_warning "No ARCH in %s" desc_path; None
-              | Some arch ->
-                  let zi_machine = canonical_machine config.system arch in
-                  match try_cleanup_distro_version_ex version package_name with
-                  | None -> None
-                  | Some version ->
-                      let id = Printf.sprintf "package:arch:%s:%s:%s" package_name version zi_machine in
-                      let new_attrs = ref props.Feed.attrs in
-                      let set name value = new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
-                      set "version" version;
-                      set "id" id;
-                      set "quick-test-file" desc_path;
-                      Some {
-                        Feed.qdom = elem;
-                        Feed.os = None;
-                        Feed.machine = Arch.none_if_star zi_machine;
-                        Feed.stability = Packaged;
-                        Feed.props = {props with Feed.attrs = !new_attrs};
-                        Feed.parsed_version = Versions.parse_version version;
-                      }
-          )
-          | Some _ | None -> None in
-        match config.system#readdir packages_dir with
-        | Success items -> U.filter_map ~f:check_dir (Array.to_list items)
-        | Problem ex -> log_warning ~ex "Can't read packages dir '%s'!" packages_dir; []
+        let items = get_entries () in
+        try
+          let version = StringMap.find package_name items in
+          let entry = package_name ^ "-" ^ version in
+          let desc_path = packages_dir +/ entry +/ "desc" in
+          match get_arch desc_path with
+          | None ->
+              log_warning "No ARCH in %s" desc_path; []
+          | Some arch ->
+              let zi_machine = canonical_machine config.system arch in
+              match try_cleanup_distro_version_ex version package_name with
+              | None -> []
+              | Some version ->
+                  let id = Printf.sprintf "package:arch:%s:%s:%s" package_name version zi_machine in
+                  let new_attrs = ref props.Feed.attrs in
+                  let set name value = new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
+                  set "version" version;
+                  set "id" id;
+                  set "quick-test-file" desc_path;
+                  [ {
+                    Feed.qdom = elem;
+                    Feed.os = None;
+                    Feed.machine = Arch.none_if_star zi_machine;
+                    Feed.stability = Packaged;
+                    Feed.props = {props with Feed.attrs = !new_attrs};
+                    Feed.parsed_version = Versions.parse_version version;
+                  } ]
+        with Not_found -> []
     end
 end
 
@@ -286,8 +303,8 @@ let get_host_distribution config : distribution =
   | "Unix" ->
       if x Debian.dpkg_db_status && (Unix.stat Debian.dpkg_db_status).Unix.st_size > 0 then
         new Debian.debian_distribution config
-      else if x Arch.arch_db then
-        new Arch.arch_distribution config
+      else if x ArchLinux.arch_db then
+        new ArchLinux.arch_distribution config
       else if x RPM.rpm_db_packages then
         new RPM.rpm_distribution config
       else if x Mac.macports_db then

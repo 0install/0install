@@ -92,8 +92,8 @@ class fake_system tmpdir =
       else real_system#file_exists (check_read path)
 
     method lstat path = real_system#lstat (check_read path)
+    method stat path = real_system#lstat (check_read path)
 
-    method stat = failwith "stat"
     method atomic_write open_flags fn path mode = real_system#atomic_write open_flags fn (check_write path) mode
     method unlink = failwith "unlink"
     method rmdir = failwith "rmdir"
