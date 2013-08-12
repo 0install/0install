@@ -229,7 +229,7 @@ module ArchLinux = struct
 
       method get_package_impls (elem, props) =
         let package_name = ZI.get_attribute "package" elem in
-        log_info "Looking up distribution packages for %s" package_name;
+        log_debug "Looking up distribution packages for %s" package_name;
         let items = get_entries () in
         try
           let version = StringMap.find package_name items in

@@ -199,6 +199,86 @@ class type result =
     method get_selections : unit -> Qdom.element
   end
 
+(** Create a <selections> document from the result of a solve. *)
+let get_selections sat dep_in_use root_req cache =
+  let get_selected_impl impl_clause =
+    match impl_clause with
+    | None -> None
+    | Some impl_clause ->
+        match S.get_selected impl_clause with
+        | Some selected_lit -> (
+            match (S.get_varinfo_for_lit sat selected_lit).S.obj with
+            | SolverData.ImplElem impl -> Some impl
+            | _ -> assert false
+        )
+        | None -> None in
+
+  let (root_command, root_iface, _source) = root_req in
+  let root = ZI.make_root "selections" in
+  root.Qdom.attrs <- [(("", "interface"), root_iface)];
+  let () = match root_command with
+    | None -> ()
+    | Some command ->
+        root.Qdom.attrs <- (("", "command"), command) :: root.Qdom.attrs in
+
+  let examine_item = function
+    | (Some command, iface, _source), _ -> Left (command, iface)
+    | (None, iface, source), candidates -> Right (iface, source, candidates) in
+  let (commands, impls) = partition examine_item @@ cache#get_items () in
+
+  (* For each implementation, remember which commands we need. *)
+  let commands_needed = Hashtbl.create 10 in
+  let check_command (command_name, iface) =
+    Hashtbl.add commands_needed iface command_name in
+  List.iter check_command commands;
+
+  (* Sort the interfaces by URI so we have a stable output. *)
+  let cmp (ib, sb, _cands) (ia, sa, _cands) =
+    match compare ia ib with
+    | 0 -> compare sa sb
+    | x -> x in
+  let impls = List.sort cmp impls in
+
+  let add_impl (iface, _source, impls) : unit =
+    let impl_clause = impls#get_clause () in
+    match get_selected_impl impl_clause with
+    | None -> ()      (* This interface wasn't used *)
+    | Some impl ->
+        let attrs = ref impl.Feed.props.Feed.attrs in
+        let set_attr name value =
+          attrs := Feed.AttrMap.add ("", name) value !attrs in
+
+        (* TODO: from-feed, etc *)
+        attrs := Feed.AttrMap.remove ("", Feed.attr_stability) !attrs;
+
+        set_attr "interface" iface;
+
+        let sel = ZI.insert_first "selection" root in
+        if impl != dummy_impl then (
+          let commands = Hashtbl.find_all commands_needed iface in
+          let commands = List.sort (fun a b -> compare b a) commands in
+          let add_command name =
+            let command = (Feed.get_command impl name).Feed.command_qdom in
+            let not_restricts elem = ZI.tag elem <> Some "restricts" in
+            let command = {command with Qdom.child_nodes = List.filter not_restricts command.Qdom.child_nodes} in
+            Qdom.prepend_child (Qdom.import_node command sel.Qdom.doc) sel in
+          List.iter add_command commands;
+
+          let copy_elem elem = Qdom.prepend_child (Qdom.import_node elem sel.Qdom.doc) sel in
+          List.iter copy_elem impl.Feed.props.Feed.bindings;
+          ListLabels.iter impl.Feed.props.Feed.requires ~f:(fun dep ->
+            if dep_in_use dep && dep.Feed.dep_importance <> Feed.Dep_restricts then
+              copy_elem (dep.Feed.dep_qdom)
+          );
+
+          ZI.iter_with_name impl.Feed.qdom "manifest-digest" ~f:copy_elem;
+        );
+        assert (sel.Qdom.attrs = []);
+        sel.Qdom.attrs <- Feed.AttrMap.bindings !attrs
+    in
+  List.iter add_impl impls;
+  root
+
 (* [closest_match] is used internally. It adds a lowest-ranked
    (but valid) implementation to every interface, so we can always
    select something. Useful for diagnostics. *)
@@ -405,90 +485,12 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
 
   (* Build the results object *)
 
-  let get_selected_impl impl_clause =
-    match impl_clause with
-    | None -> None
-    | Some impl_clause ->
-        match S.get_selected impl_clause with
-        | Some selected_lit -> (
-            match (S.get_varinfo_for_lit sat selected_lit).S.obj with
-            | SolverData.ImplElem impl -> Some impl
-            | _ -> assert false
-        )
-        | None -> None in
-
   match S.run_solver sat decider with
   | None -> None
   | Some _solution ->
       Some (
       object (_ : result)
-        (** Create a <selections> document from the result of a solve. *)
-        method get_selections () =
-          let (root_command, root_iface, _source) = root_req in
-          let root = ZI.make_root "selections" in
-          root.Qdom.attrs <- [(("", "interface"), root_iface)];
-          let () = match root_command with
-            | None -> ()
-            | Some command ->
-                root.Qdom.attrs <- (("", "command"), command) :: root.Qdom.attrs in
-
-          let examine_item = function
-            | (Some command, iface, _source), _ -> Left (command, iface)
-            | (None, iface, source), candidates -> Right (iface, source, candidates) in
-          let (commands, impls) = partition examine_item @@ cache#get_items () in
-
-          (* For each implementation, remember which commands we need. *)
-          let commands_needed = Hashtbl.create 10 in
-          let check_command (command_name, iface) =
-            Hashtbl.add commands_needed iface command_name in
-          List.iter check_command commands;
-
-          (* Sort the interfaces by URI so we have a stable output. *)
-          let cmp (ib, sb, _cands) (ia, sa, _cands) =
-            match compare ia ib with
-            | 0 -> compare sa sb
-            | x -> x in
-          let impls = List.sort cmp impls in
-
-          let add_impl (iface, _source, impls) : unit =
-            let impl_clause = impls#get_clause () in
-            match get_selected_impl impl_clause with
-            | None -> ()      (* This interface wasn't used *)
-            | Some impl ->
-                let attrs = ref impl.Feed.props.Feed.attrs in
-                let set_attr name value =
-                  attrs := Feed.AttrMap.add ("", name) value !attrs in
-
-                (* TODO: from-feed, etc *)
-                attrs := Feed.AttrMap.remove ("", Feed.attr_stability) !attrs;
-
-                set_attr "interface" iface;
-
-                let sel = ZI.insert_first "selection" root in
-                if impl != dummy_impl then (
-                  let commands = Hashtbl.find_all commands_needed iface in
-                  let commands = List.sort (fun a b -> compare b a) commands in
-                  let add_command name =
-                    let command = (Feed.get_command impl name).Feed.command_qdom in
-                    let not_restricts elem = ZI.tag elem <> Some "restricts" in
-                    let command = {command with Qdom.child_nodes = List.filter not_restricts command.Qdom.child_nodes} in
-                    Qdom.prepend_child (Qdom.import_node command sel.Qdom.doc) sel in
-                  List.iter add_command commands;
-
-                  let copy_elem elem = Qdom.prepend_child (Qdom.import_node elem sel.Qdom.doc) sel in
-                  List.iter copy_elem impl.Feed.props.Feed.bindings;
-                  ListLabels.iter impl.Feed.props.Feed.requires ~f:(fun dep ->
-                    if dep_in_use dep && dep.Feed.dep_importance <> Feed.Dep_restricts then
-                      copy_elem (dep.Feed.dep_qdom)
-                  );
-
-                  ZI.iter_with_name impl.Feed.qdom "manifest-digest" ~f:copy_elem;
-                );
-                assert (sel.Qdom.attrs = []);
-                sel.Qdom.attrs <- Feed.AttrMap.bindings !attrs
-            in
-          List.iter add_impl impls;
-          root
+        method get_selections () = get_selections sat dep_in_use root_req cache
       end
   )
 

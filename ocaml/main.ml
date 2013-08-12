@@ -32,7 +32,8 @@ let fallback_to_python config args =
   failwith "Can't find 0launch command!"
 ;;
 
-let handle_run config options args : unit =
+let handle_run options args : unit =
+  let config = options.config in
   if options.gui = Yes then raise Fallback_to_Python;
   let wrapper = ref None in
   Support.Argparse.iter_options options.extra_options (function
@@ -73,7 +74,7 @@ let main (system:system) : unit =
         in
         try
           match options.args with
-          | ("run" :: run_args) -> handle_run config options run_args
+          | ("run" :: run_args) -> handle_run options run_args
           | ("select" :: args) -> Select.handle options args
           | ("show" :: args) -> Show.handle options args
           | _ -> raise Fallback_to_Python
