@@ -69,6 +69,6 @@ interfere with those provided by the distribution.
       </runner>
     </command>
 
-    <implementation id="." version="2.3.2-post"/>
+    <implementation id="." version="2.3.3-post"/>
   </group>
 </interface>
