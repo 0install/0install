@@ -6,34 +6,6 @@
 
 open Support.Common
 
-(* Maps machine type names used in packages to their Zero Install versions
-   (updates to this might require changing the reverse Java mapping) *)
-let canonical_machines = List.fold_left (fun map (k, v) -> StringMap.add k v map) StringMap.empty [
-  ("all", "*");
-  ("any", "*");
-  ("noarch", "*");
-  ("(none)", "*");
-  ("x86_64", "x86_64");
-  ("amd64", "x86_64");
-  ("i386", "i386");
-  ("i486", "i486");
-  ("i586", "i586");
-  ("i686", "i686");
-  ("ppc64", "ppc64");
-  ("ppc", "ppc");
-]
-
-(** Return the canonical name for this CPU, or None if we don't know one. *)
-let canonical_machine s =
-  try Some (StringMap.find (String.lowercase s) canonical_machines)
-  with Not_found -> None
-
-let host_machine (system : system) =
-  let m = (system#platform ()).Platform.machine in
-  match canonical_machine m with
-  | Some canonical -> canonical
-  | None -> log_warning "Unknown machine type '%s'" m; m
-
 let none_if_star = function
   | "*" -> None
   | v -> Some v
@@ -44,7 +16,6 @@ let parse_arch arch =
   | [os; machine] -> (none_if_star os, none_if_star machine)
   | _ -> raise_safe "Invalid architecture '%s'" arch
 
-(* TODO *)
 let get_os_ranks os =
   let ranks = ref @@ StringMap.singleton os 1 in  (* Binaries compiled for _this_ OS are best.. *)
 
@@ -52,8 +23,42 @@ let get_os_ranks os =
   if os <> "Windows" then
     ranks := StringMap.add "POSIX" 2 !ranks;
 
+  let () =
+    match os with
+    | "Cygwin" -> ranks := StringMap.add "Windows" 2 !ranks
+    | "MacOSX" -> ranks := StringMap.add "Darwin" 2 !ranks
+    | _ -> () in
+
   !ranks
 
-(* TODO *)
-let get_machine_ranks machine =
-  StringMap.singleton machine 1
+type machine_group =
+  | Machine_group_default     (* e.g. i686 *)
+  | Machine_group_64          (* e.g. x86_64 *)
+
+(* All chosen machine-specific implementations must come from the same group.
+   Unlisted archs are in Machine_group_default. *)
+let get_machine_group = function
+  | "x86_64" | "ppc64" -> Machine_group_64
+  | _ -> Machine_group_default
+
+let get_machine_ranks ~multiarch machine =
+  let ranks = ref @@ StringMap.singleton machine 1 in
+
+  let compatible_machines =
+    (* If target_machine appears in the first column of this table, all
+       following machine types on the line will also run on this one
+       (earlier ones preferred) *)
+    match machine with
+    | "i486"    -> [|"i386"|]
+    | "i586"    -> [|"i486"; "i386"|]
+    | "i686"    -> [|"i586"; "i486"; "i386"|]
+    | "ppc"     -> [|"ppc32"|]
+    | "x86_64" when multiarch -> [|"i686"; "i586"; "i486"; "i386"|]
+    | "ppc64"  when multiarch -> [|"ppc"|]
+    | _ -> [||] in
+
+  for i = 0 to Array.length compatible_machines - 1 do
+    ranks := StringMap.add compatible_machines.(i) (i + 2) !ranks
+  done;
+
+  !ranks

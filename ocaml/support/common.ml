@@ -23,7 +23,7 @@ exception Safe_exception of (string * string list ref);;
 module Platform =
   struct
     type t = {
-      system : string;      (** OS, e.g. "Linux" *)
+      os : string;          (** OS, e.g. "Linux" *)
       release : string;     (** OS version, e.g. "3.10.3-1-ARCH" *)
       machine : string;     (** CPU type, e.g. "x86_64" *)
     }

@@ -151,7 +151,7 @@ class fake_system tmpdir =
 
     method platform () =
       let open Platform in {
-        system = "Linux";
+        os = "Linux";
         release = "3.10.3-1-ARCH";
         machine = "x86_64";
       }

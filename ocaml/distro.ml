@@ -37,14 +37,6 @@ class base_distribution : distribution =
     method get_package_impls _elem = raise Fallback_to_Python
   end
 
-(** Return the canonical name for this CPU, or None if we don't know one. *)
-let canonical_machine system s =
-  match Arch.canonical_machine s with
-  | Some cpu -> cpu
-  | None -> 
-      (* Safe default if we can't understand the arch *)
-      Arch.host_machine system
-
 let try_cleanup_distro_version_ex version package_name =
   match Versions.try_cleanup_distro_version version with
   | None -> log_warning "Can't parse distribution version '%s' for package '%s'" version package_name; None
@@ -247,7 +239,7 @@ module ArchLinux = struct
           | None ->
               log_warning "No ARCH in %s" desc_path; []
           | Some arch ->
-              let zi_machine = canonical_machine config.system arch in
+              let zi_machine = Support.System.canonical_machine arch in
               match try_cleanup_distro_version_ex version package_name with
               | None -> []
               | Some version ->

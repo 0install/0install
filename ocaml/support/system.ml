@@ -36,6 +36,29 @@ let dev_null =
   if on_windows then "NUL"
   else "/dev/null"
 
+(* Maps machine type names used in packages to their Zero Install versions
+   (updates to this might require changing the reverse Java mapping) *)
+let canonical_machines = List.fold_left (fun map (k, v) -> StringMap.add k v map) StringMap.empty [
+  ("all", "*");
+  ("any", "*");
+  ("noarch", "*");
+  ("(none)", "*");
+  ("amd64", "x86_64");
+  ("x86", "i386");
+  ("i86pc", "i686");
+  ("Power Macintosh", "ppc");
+]
+
+(** Return the canonical name for this CPU, or None if we don't know one. *)
+let canonical_machine s =
+  try StringMap.find (String.lowercase s) canonical_machines
+  with Not_found -> s
+
+let canonical_os = function
+  | "SunOS" -> "Solaris"
+  | x when Utils.starts_with x "CYGWIN_NT" -> "Cygwin"
+  | x -> x
+
 module RealSystem (U : UnixType) =
   struct
     class real_system =
@@ -198,17 +221,36 @@ module RealSystem (U : UnixType) =
           match !platform with
           | Some p -> p
           | None ->
+              let open Platform in
               let system = (self :> system) in
-              let uname = trim @@ Utils.check_output system input_line [Utils.find_in_path_ex system "uname"; "-srm"] in
               let p =
-                let open Platform in
-                match Str.bounded_split_delim Utils.re_space uname 3 with
-                | [system; release; machine] -> {
-                      system; release; machine
-                    }
-                | _ ->
-                    log_warning "Failed to parse uname details from '%s'!" uname;
-                    { system = "unknown"; release = "1"; machine = "i686" } in
+                if Sys.os_type = "Win32" then (
+                  (* TODO: is this really the machine's word size, or just OCaml's word size? What about non-x86 Windows? *)
+                  let machine = if Sys.word_size = 64 then "x86_64" else "i686" in
+                  {os = "Windows"; release = "Unknown"; machine}
+                ) else (
+                  let uname = trim @@ Utils.check_output system input_line [Utils.find_in_path_ex system "uname"; "-srm"] in
+                  match Str.bounded_split_delim Utils.re_space uname 3 with
+                  | ["Darwin"; release; machine] ->
+                      let os =
+                        if Sys.file_exists "/System/Library/Frameworks/Carbon.framework" then "MacOSX" else "Darwin" in
+                      let machine =
+                        if machine = "i386" then (
+                          let cpu64 = trim @@ Utils.check_output system input_line
+                            [Utils.find_in_path_ex system "sysctl"; "-n"; "hw.cpu64bit_capable"] in
+                          if cpu64 = "1" then "x86_64" else "i386"
+                        ) else machine in
+                      {os; release; machine}
+                    | [os; release; machine] -> {
+                        os = canonical_os os;
+                        release;
+                        machine = canonical_machine machine;
+                      }
+                  | _ ->
+                      log_warning "Failed to parse uname details from '%s'!" uname;
+                      {os = "unknown"; release = "1"; machine = "i686"}
+                ) in
+
               platform := Some p;
               p
       end

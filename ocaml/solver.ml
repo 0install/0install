@@ -15,9 +15,11 @@ module SolverData =
       | Unused        (* This is just here to make the compiler happy. *)
       | ImplElem of Feed.implementation
       | CommandElem of Feed.command
+      | MachineGroup of string
     let to_string = function
       | ImplElem impl -> (Versions.format_version impl.Feed.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Feed.qdom
       | CommandElem command -> Qdom.show_with_loc command.Feed.command_qdom
+      | MachineGroup name -> name
       | Unused -> assert false
     let unused = Unused
   end
@@ -219,6 +221,14 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
   (* For each (iface, command, source) we have a list of implementations (or commands). *)
   let cache = new cache in
 
+  (* m64 is set if we select any 64-bit binary. mDef will be set if we select any binary that
+     needs any other CPU architecture. Don't allow both to be set together. *)
+  let machine_group_default = S.add_variable sat @@ SolverData.MachineGroup "mDef" in
+  let machine_group_64 = S.add_variable sat @@ SolverData.MachineGroup "m64" in
+  (* If we get to the end of the solve without deciding then nothing we selected cares about the
+     type of CPU. The solver will set them both to false at the end. *)
+  ignore @@ S.at_most_one sat [machine_group_default; machine_group_64];
+
   (* Insert dummy_impl if we're trying to diagnose a problem. *)
   let maybe_add_dummy impls =
     if closest_match then (
@@ -299,8 +309,20 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
             )
       in
 
-      (* Process dependencies *)
       ListLabels.iter pairs ~f:(fun (impl_var, impl) ->
+        let () =
+          let open Arch in
+          match impl.Feed.machine with
+          | Some machine when machine <> "src" -> (
+              let group_var =
+                match get_machine_group machine with
+                | Machine_group_default -> machine_group_default
+                | Machine_group_64 -> machine_group_64 in
+              S.implies sat impl_var [group_var];
+          )
+          | _ -> () in
+
+        (* Process dependencies *)
         process_deps impl_var impl.Feed.props.Feed.requires
       )
     )
@@ -491,14 +513,17 @@ let solve_for config distro feed_provider requirements =
     let use = if command = Some "test" then StringSet.singleton "testing" else StringSet.empty in
 
     let platform = config.system#platform () in
-    let os = default platform.Platform.system os in
+    let os = default platform.Platform.os os in
     let machine = default platform.Platform.machine cpu in
+
+    (* Disable multi-arch on Linux if the 32-bit linker is missing. *)
+    let multiarch = os <> "Linux" || config.system#file_exists "/lib/ld-linux.so.2" in
 
     let open Impl_provider in
     let scope_filter = {
       extra_restrictions = StringMap.map make_user_restriction extra_restrictions;
       os_ranks = Arch.get_os_ranks os;
-      machine_ranks = Arch.get_machine_ranks machine;
+      machine_ranks = Arch.get_machine_ranks ~multiarch machine;
     } in
     let scope = { scope_filter; use } in
 
