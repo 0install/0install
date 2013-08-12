@@ -453,37 +453,43 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
   let decider () =
     (* Walk the current solution, depth-first, looking for the first undecided interface.
        Then try the most preferred implementation of it that hasn't been ruled out. *)
+    let seen = Hashtbl.create 100 in
     let rec find_undecided req =
-      let candidates = cache#lookup req in
-      match candidates#get_state sat with
-      | Unselected -> None
-      | Undecided lit -> Some lit
-      | Selected deps ->
-          (* We've already selected a candidate for this component. Now check its dependencies. *)
+      if Hashtbl.mem seen req then (
+        None    (* Break cycles *)
+      ) else (
+        Hashtbl.add seen req true;
+        let candidates = cache#lookup req in
+        match candidates#get_state sat with
+        | Unselected -> None
+        | Undecided lit -> Some lit
+        | Selected deps ->
+            (* We've already selected a candidate for this component. Now check its dependencies. *)
 
-          let check_dep dep =
-            if dep.Feed.dep_importance = Feed.Dep_restricts || not (dep_in_use dep) then (
-              (* Restrictions don't express that we do or don't want the
-                 dependency, so skip them here. If someone else needs this,
-                 we'll handle it when we get to them.
-                 If noone wants it, it will be set to unselected at the end. *)
-              None
-            ) else (
-              let dep_iface = dep.Feed.dep_iface in
-              match find_undecided (None, dep_iface, false) with
-              | Some lit -> Some lit
-              | None ->
-                  (* Command dependencies next *)
-                  let check_command_dep name = find_undecided (Some name, dep_iface, false) in
-                  Support.Utils.first_match check_command_dep dep.Feed.dep_required_commands
-            )
-            in
-          match Support.Utils.first_match check_dep deps with
-          | Some lit -> Some lit
-          | None ->   (* All dependencies checked; now to the impl (if we're a <command>) *)
-              match req with
-              | (Some _command, iface, source) -> find_undecided (None, iface, source)
-              | _ -> None     (* We're not a <command> *)
+            let check_dep dep =
+              if dep.Feed.dep_importance = Feed.Dep_restricts || not (dep_in_use dep) then (
+                (* Restrictions don't express that we do or don't want the
+                   dependency, so skip them here. If someone else needs this,
+                   we'll handle it when we get to them.
+                   If noone wants it, it will be set to unselected at the end. *)
+                None
+              ) else (
+                let dep_iface = dep.Feed.dep_iface in
+                match find_undecided (None, dep_iface, false) with
+                | Some lit -> Some lit
+                | None ->
+                    (* Command dependencies next *)
+                    let check_command_dep name = find_undecided (Some name, dep_iface, false) in
+                    Support.Utils.first_match check_command_dep dep.Feed.dep_required_commands
+              )
+              in
+            match Support.Utils.first_match check_dep deps with
+            | Some lit -> Some lit
+            | None ->   (* All dependencies checked; now to the impl (if we're a <command>) *)
+                match req with
+                | (Some _command, iface, source) -> find_undecided (None, iface, source)
+                | _ -> None     (* We're not a <command> *)
+      )
       in
     find_undecided root_req in
 
