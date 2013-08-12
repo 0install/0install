@@ -96,6 +96,11 @@ type feed = {
   root : Qdom.element;
   name : string;
   implementations : implementation StringMap.t;
+
+  (* The URI of the interface that replaced the one with the URI of this feed's URL.
+     This is the value of the feed's <replaced-by interface'...'/> element. *)
+  replacement : string option;
+
   package_implementations : (Qdom.element * properties) list;
 }
 
@@ -113,6 +118,7 @@ let attr_version_modifier = "version-modifier"      (* This is stripped out and 
 let attr_os= "os"
 let attr_use = "use"
 let attr_local_path = "local-path"
+let attr_interface = "interface"
 
 let value_testing = "testing"
 
@@ -242,12 +248,28 @@ let parse system root feed_local_path =
     | None -> None
     | Some path -> Some (Filename.dirname path) in
 
+  (* For local feeds, make relative paths absolute. For cached feeds, reject paths. *)
+  let normalise_iface raw_iface elem =
+    if U.starts_with raw_iface "http://" || U.starts_with raw_iface "https://" then
+      raw_iface
+    else (
+      match local_dir with
+      | Some dir -> U.normpath @@ dir +/ raw_iface
+      | None -> Qdom.raise_elem "Relative interface URI '%s' in non-local feed" raw_iface elem
+    ) in
+
   let name = ref None in
+  let replacement = ref None in
   let implementations = ref StringMap.empty in
 
   ZI.iter root ~f:(fun node ->
     match ZI.tag node with
     | Some "name" -> name := Some (Qdom.simple_content node)
+    | Some "replaced-by" ->
+        if !replacement = None then
+          replacement := Some (normalise_iface (ZI.get_attribute attr_interface node) node)
+        else
+          Qdom.raise_elem "Multiple replacements!" node
     | _ -> ()   (* TODO: process <feed> too, at least *)
   );
 
@@ -391,6 +413,7 @@ let parse system root feed_local_path =
       | Some name -> name
     );
     root;
+    replacement = !replacement;
     implementations = !implementations;
     package_implementations = !package_implementations;
   }

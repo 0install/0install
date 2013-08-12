@@ -26,11 +26,16 @@ type scope_filter = {
   machine_ranks : int StringMap.t;
 }
 
+type candidates = {
+  replacement : iface_uri option;
+  impls : Feed.implementation list;
+}
+
 class type impl_provider =
   object
     (** Return all the implementations of this interface (including from feeds).
         Most preferred implementations should come first. *)
-    method get_implementations : scope_filter -> iface_uri -> source:bool -> Feed.implementation list
+    method get_implementations : scope_filter -> iface_uri -> source:bool -> candidates
   end
 
 class default_impl_provider _config distro (feed_provider : Feed_cache.feed_provider) =
@@ -70,7 +75,7 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
         with Not_found ->
           fun _ -> true in
 
-      let impls =
+      let candidates : candidates =
         try Hashtbl.find cache iface
         with Not_found ->
           let master_feed = feed_provider#get_feed iface in
@@ -92,8 +97,14 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
           (* TODO: better sorting *)
           let impls = List.sort (fun a b -> compare b.Feed.parsed_version a.Feed.parsed_version) impls in
 
-          Hashtbl.add cache iface impls;
-          impls in
+          let replacement =
+            match master_feed with
+            | None -> None
+            | Some (feed, _overrides) -> feed.Feed.replacement in
+
+          let candidates = {replacement; impls} in
+          Hashtbl.add cache iface candidates;
+          candidates in
 
       let os_ok impl =
         match impl.Feed.os with
@@ -121,10 +132,9 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
         else if want_source && not is_source then Not_source
         else if not (want_source) && is_source then Not_binary
         else if not want_source && not (machine_ok impl) then Incompatible_machine
-        else Acceptable
-        in
+        else Acceptable in
 
-        let do_filter impl = check_acceptability impl = Acceptable in
+      let do_filter impl = check_acceptability impl = Acceptable in
 
-        List.filter do_filter impls
+      {candidates with impls = List.filter do_filter (candidates.impls)}
   end

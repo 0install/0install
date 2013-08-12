@@ -639,8 +639,8 @@ class TestSolver(BaseTest):
 		self.assertEqual("sha1=3ce644dc725f1d21cfcf02562c76f375944b266a", s.selections.selections["http://localhost:8000/Hello"].id)
 		self.assertEqual(2, len(s.selections.selections))
 
-		s.extra_restrictions[self.config.iface_cache.get_interface(r.interface_uri)] = [
-				model.VersionRangeRestriction(model.parse_version('2'), None)]
+		r.extra_restrictions[r.interface_uri] = '..!2'
+		s.extra_restrictions = r.get_extra_restrictions(self.config.iface_cache)
 
 		s.solve_for(r)
 		assert s.ready, s.get_failure_reason()

@@ -47,6 +47,7 @@ class type candidates =
   object
     method get_clause : unit -> S.at_most_one_clause option
     method get_commands : string -> (S.var * Feed.command) list
+    method get_real_vars : unit -> S.var list
     method get_vars : unit -> S.var list
     method get_state : S.sat_problem -> decision_state
 
@@ -54,6 +55,23 @@ class type candidates =
         Only defined for [impl_candidates]. *)
     method partition : (Feed.implementation -> bool) -> (S.var list * S.var list)
   end
+
+(* A dummy implementation, used to get diagnostic information if the solve fails. It satisfies all requirements,
+   even conflicting ones. *)
+let dummy_impl =
+  let open Feed in {
+    qdom = ZI.make_root "dummy";
+    os = None;
+    machine = None;
+    stability = Testing;
+    props = {
+      attrs = AttrMap.empty;
+      requires = [];
+      commands = StringMap.empty;   (* (not used; we can provide any command) *)
+      bindings = [];
+    };
+    parsed_version = Versions.dummy;
+  }
 
 (** A fake <command> used to generate diagnostics if the solve fails. *)
 let dummy_command = {
@@ -76,6 +94,13 @@ class impl_candidates (clause : S.at_most_one_clause option) (vars : (S.var * Fe
             None
       in
       Support.Utils.filter_map vars ~f:match_command
+
+    (** Get all variables, except dummy_impl (if present) *)
+    method get_real_vars () =
+      Support.Utils.filter_map vars ~f:(fun (var, impl) ->
+        if impl == dummy_impl then None
+        else Some var
+      )
 
     method get_vars () =
       List.map (fun (var, _impl) -> var) vars
@@ -105,6 +130,7 @@ class command_candidates (clause : S.at_most_one_clause option) (vars : (S.var *
     method get_clause () = clause
 
     method get_commands _name = failwith "get_command on a <command>!"
+    method get_real_vars () = failwith "not needed"
 
     method get_vars () =
       List.map (fun (var, _command) -> var) vars
@@ -163,7 +189,6 @@ class cache =
 
 type scope = {
   scope_filter : Impl_provider.scope_filter;
-  (* TODO *)
   use : StringSet.t;        (* For the old <requires use='...'/> *)
 }
 
@@ -171,23 +196,6 @@ class type result =
   object
     method get_selections : unit -> Qdom.element
   end
-
-(* A dummy implementation, used to get diagnostic information if the solve fails. It satisfies all requirements,
-   even conflicting ones. *)
-let dummy_impl =
-  let open Feed in {
-    qdom = ZI.make_root "dummy";
-    os = None;
-    machine = None;
-    stability = Testing;
-    props = {
-      attrs = AttrMap.empty;
-      requires = [];
-      commands = StringMap.empty;   (* (not used; we can provide any command) *)
-      bindings = [];
-    };
-    parsed_version = Versions.dummy;
-  }
 
 (* [closest_match] is used internally. It adds a lowest-ranked
    (but valid) implementation to every interface, so we can always
@@ -267,14 +275,32 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
     )
 
   (* Add the implementations of an interface to the cache (called the first time we visit it). *)
-  and make_impls (iface, source) =
-    let matching_impls = maybe_add_dummy @@ impl_provider#get_implementations root_scope.scope_filter iface ~source in
-    let vars = List.map (fun impl -> (S.add_variable sat (SolverData.ImplElem impl), impl)) matching_impls in
-    let impl_clause = if List.length vars > 0 then Some (S.at_most_one sat @@ List.map fst vars) else None in
-    let data = new impl_candidates impl_clause vars in
+  and make_impls (iface_uri, source) =
+    let {Impl_provider.replacement; Impl_provider.impls} =
+      impl_provider#get_implementations root_scope.scope_filter iface_uri ~source in
+    let matching_impls = maybe_add_dummy @@ impls in
+    let pairs = List.map (fun impl -> (S.add_variable sat (SolverData.ImplElem impl), impl)) matching_impls in
+    let impl_clause = if List.length pairs > 0 then Some (S.at_most_one sat (List.map fst pairs)) else None in
+    let data = new impl_candidates impl_clause pairs in
     (data, fun () ->
+      (* Conflict with our replacements *)
+      let () =
+        match replacement with
+        | None -> ()
+        | Some replacement when replacement = iface_uri ->
+            log_warning "Interface %s replaced-by itself!" iface_uri
+        | Some replacement ->
+            let our_vars = data#get_real_vars () in
+            let replacements = (cache#lookup (None, replacement, source))#get_real_vars () in
+            if (our_vars <> [] && replacements <> []) then (
+              (* Must select one implementation out of all candidates from both interfaces.
+                 Dummy implementations don't conflict, though. *)
+              ignore @@ S.at_most_one sat (our_vars @ replacements)
+            )
+      in
+
       (* Process dependencies *)
-      ListLabels.iter vars ~f:(fun (impl_var, impl) ->
+      ListLabels.iter pairs ~f:(fun (impl_var, impl) ->
         process_deps impl_var impl.Feed.props.Feed.requires
       )
     )
