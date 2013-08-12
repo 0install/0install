@@ -53,6 +53,6 @@ interfere with those provided by the distribution.
       <version not-before="2.0.2"/>
     </requires>
 
-    <implementation id="." released="2013-08-12" version="2.3.3"/>
+    <implementation id="." version="2.3.3-post"/>
   </group>
 </interface>
