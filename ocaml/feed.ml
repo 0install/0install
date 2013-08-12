@@ -122,6 +122,7 @@ let attr_use = "use"
 let attr_local_path = "local-path"
 let attr_interface = "interface"
 let attr_src = "src"
+let attr_from_feed = "from-feed"
 
 let value_testing = "testing"
 
@@ -420,7 +421,7 @@ let parse system root feed_local_path =
     )
   in
 
-  let root_attrs = AttrMap.singleton ("", attr_stability) value_testing in
+  let root_attrs = AttrMap.add ("", attr_from_feed) url @@ AttrMap.singleton ("", attr_stability) value_testing in
 
   (* 'main' on the <interface> (deprecated) *)
   let root_commands = match ZI.get_attribute_opt attr_main root with

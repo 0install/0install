@@ -248,8 +248,12 @@ let get_selections sat dep_in_use root_req cache =
         let set_attr name value =
           attrs := Feed.AttrMap.add ("", name) value !attrs in
 
-        (* TODO: from-feed, etc *)
         attrs := Feed.AttrMap.remove ("", Feed.attr_stability) !attrs;
+
+        if Some iface = Feed.get_attr_opt Feed.attr_from_feed !attrs then (
+          (* Don't bother writing from-feed attr if it's the same as the interface *)
+          attrs := Feed.AttrMap.remove ("", Feed.attr_from_feed) !attrs
+        );
 
         set_attr "interface" iface;
 
