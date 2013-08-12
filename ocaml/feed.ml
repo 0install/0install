@@ -125,9 +125,9 @@ let attr_src = "src"
 
 let value_testing = "testing"
 
-let make_command doc name path : command =
+let make_command doc name ?(new_attr="path") path : command =
   let elem = ZI.make doc "command" in
-  elem.Qdom.attrs <- [(("", "name"), name); (("", "path"), path)];
+  elem.Qdom.attrs <- [(("", "name"), name); (("", new_attr), path)];
   {
     command_qdom = elem;
     command_requires = [];
@@ -378,6 +378,13 @@ let parse system root feed_local_path =
           handle_old_command attr_main "run";
           handle_old_command "self-test" "test";
 
+          let () =
+            match Qdom.get_attribute_opt (COMPILE_NS.ns, "command") item with
+            | None -> ()
+            | Some command ->
+                let new_command = make_command root.Qdom.doc "compile" ~new_attr:"shell-command" command in
+                s := {!s with commands = StringMap.add "compile" new_command !s.commands} in
+
           ZI.iter item ~f:(fun child ->
             match ZI.tag child with
             | Some "requires" | Some "restricts" ->
@@ -391,7 +398,6 @@ let parse system root feed_local_path =
             | _ -> ()
           );
 
-          (* TODO: compile:command *)
           let add_attr old (name_pair, value) =
             AttrMap.add name_pair value old in
 

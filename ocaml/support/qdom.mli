@@ -49,6 +49,9 @@ val prepend_child : element -> element -> unit
 (** [import_node node doc] makes a copy of [node] for use in [doc]. *)
 val import_node : element -> document -> element
 
+(** Get the value of an attribute. *)
+val get_attribute_opt : Xmlm.name -> element -> string option
+
 (** Sets the given non-namespaced attribute. *)
 val set_attribute : string -> string -> element -> unit
 

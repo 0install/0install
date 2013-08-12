@@ -61,6 +61,10 @@ end
 
 module ZI = Support.Qdom.NsQuery (ZI_NS)
 
+module COMPILE_NS = struct
+  let ns = "http://zero-install.sourceforge.net/2006/namespaces/0compile"
+end
+
 type stability_level =
   | Insecure
   | Buggy

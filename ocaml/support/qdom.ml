@@ -155,6 +155,12 @@ let output o root =
     Xmlm.output o @@ `El_end in
   output_node {root with attrs = !root_attrs}
 
+let get_attribute_opt attr elem =
+  try
+    Some (List.assoc attr elem.attrs)
+  with
+    Not_found -> None
+
 let set_attribute name value element =
   let pair = ("", name) in
   element.attrs <- (pair, value) :: List.remove_assoc pair element.attrs
