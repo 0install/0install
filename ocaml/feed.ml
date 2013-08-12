@@ -78,6 +78,7 @@ type feed_overrides = {
 }
 
 type feed_type =
+  | Feed_import             (* A <feed> import element inside a feed *)
   | User_registered         (* Added manually with "0install add-feed" : save to config *)
   | Site_packages           (* Found in the site-packages directory : save to config for older versions, but flag it *)
   | Distro_packages         (* Found in native_feeds : don't save *)
@@ -96,6 +97,7 @@ type feed = {
   root : Qdom.element;
   name : string;
   implementations : implementation StringMap.t;
+  imported_feeds : feed_import list;
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.
      This is the value of the feed's <replaced-by interface'...'/> element. *)
@@ -119,6 +121,7 @@ let attr_os= "os"
 let attr_use = "use"
 let attr_local_path = "local-path"
 let attr_interface = "interface"
+let attr_src = "src"
 
 let value_testing = "testing"
 
@@ -249,28 +252,47 @@ let parse system root feed_local_path =
     | Some path -> Some (Filename.dirname path) in
 
   (* For local feeds, make relative paths absolute. For cached feeds, reject paths. *)
-  let normalise_iface raw_iface elem =
-    if U.starts_with raw_iface "http://" || U.starts_with raw_iface "https://" then
-      raw_iface
+  let normalise_url raw_url elem =
+    if U.starts_with raw_url "http://" || U.starts_with raw_url "https://" then
+      raw_url
     else (
       match local_dir with
-      | Some dir -> U.normpath @@ dir +/ raw_iface
-      | None -> Qdom.raise_elem "Relative interface URI '%s' in non-local feed" raw_iface elem
+      | Some dir -> U.normpath @@ dir +/ raw_url
+      | None -> Qdom.raise_elem "Relative URI '%s' in non-local feed" raw_url elem
     ) in
+
+  let parse_feed_import node =
+    let (feed_os, feed_machine) = match ZI.get_attribute_opt "arch" node with
+    | None -> (None, None)
+    | Some arch -> Arch.parse_arch arch in
+
+    let feed_langs = match ZI.get_attribute_opt "langs" node with
+    | None -> None
+    | Some langs -> Some (Str.split U.re_space langs) in
+
+    {
+      feed_src = normalise_url (ZI.get_attribute attr_src node) node;
+      feed_os;
+      feed_machine;
+      feed_langs;
+      feed_type = Feed_import;
+    } in
 
   let name = ref None in
   let replacement = ref None in
   let implementations = ref StringMap.empty in
+  let imported_feeds = ref [] in
 
   ZI.iter root ~f:(fun node ->
     match ZI.tag node with
     | Some "name" -> name := Some (Qdom.simple_content node)
+    | Some "feed" -> imported_feeds := parse_feed_import node :: !imported_feeds
     | Some "replaced-by" ->
         if !replacement = None then
-          replacement := Some (normalise_iface (ZI.get_attribute attr_interface node) node)
+          replacement := Some (normalise_url (ZI.get_attribute attr_interface node) node)
         else
           Qdom.raise_elem "Multiple replacements!" node
-    | _ -> ()   (* TODO: process <feed> too, at least *)
+    | _ -> ()
   );
 
   let process_impl node (state:properties) =
@@ -416,6 +438,7 @@ let parse system root feed_local_path =
     replacement = !replacement;
     implementations = !implementations;
     package_implementations = !package_implementations;
+    imported_feeds = !imported_feeds;
   }
 
 let get_attr_ex name (impl:implementation) =
