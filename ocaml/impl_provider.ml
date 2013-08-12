@@ -25,6 +25,7 @@ type scope_filter = {
   extra_restrictions : Feed.restriction StringMap.t;  (* iface -> test *)
   os_ranks : int StringMap.t;
   machine_ranks : int StringMap.t;
+  languages : Locale.lang_spec list;    (* Must match one of these, earlier ones preferred *)
 }
 
 type candidates = {
@@ -48,7 +49,7 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
     val cache = Hashtbl.create 10
 
     method get_implementations (scope_filter : scope_filter) iface ~source:want_source =
-      let {extra_restrictions; os_ranks; machine_ranks} = scope_filter in
+      let {extra_restrictions; os_ranks; machine_ranks; languages = wanted_langs} = scope_filter in
 
       let get_feed_if_useful {Feed.feed_src; Feed.feed_os; Feed.feed_machine; Feed.feed_langs; Feed.feed_type = _} =
         try
@@ -77,6 +78,100 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
         with Not_found ->
           fun _ -> true in
 
+      (* Printf.eprintf "Looking for %s\n" (String.concat "," @@ List.map Locale.format_lang wanted_langs); *)
+      let compare_impls a b =
+        let retval = ref 0 in
+        let test = function
+          | 0 -> false
+          | x -> retval := x; true in
+
+        let langs_a = Feed.get_langs a in
+        let langs_b = Feed.get_langs b in
+
+        let score_true b = if b then 1 else 0 in
+
+        (* 1 if we understand this language, else 0 *)
+        let score_langs langs =
+          let is_acceptable (lang, _country) = List.exists (fun (l, _c) -> l = lang) wanted_langs in
+          score_true @@ List.exists is_acceptable langs in
+
+        let score_country langs =
+          (* Printf.eprintf "Scoring %s\n" (String.concat "," @@ List.map Locale.format_lang langs); *)
+          let is_acceptable got = List.mem got wanted_langs in
+          score_true @@ List.exists is_acceptable langs in
+
+        let open Feed in
+
+        let score_os i =
+          match i.os with
+          | None -> (-100)
+          | Some os ->
+            try -(StringMap.find os os_ranks)
+            with Not_found -> (-200) in
+
+        let score_machine i =
+          match i.machine with
+          | None -> (-100)
+          | Some machine ->
+            try -(StringMap.find machine machine_ranks)
+            with Not_found -> (-200) in
+
+        ignore (
+
+        (* Languages we understand come first *)
+        test @@ compare (score_langs langs_a) (score_langs langs_b) ||
+
+        (* Preferred versions come first *)
+        test @@ compare (score_true (a.stability = Preferred))
+                        (score_true (a.stability = Preferred)) ||
+
+        (* TODO
+        (* Prefer available implementations next if we have limited network access *)
+        self.config.network_use != model.network_full and is_available,
+
+        (* Packages that require admin access to install come last *)
+        not impl.requires_root_install,
+
+        (* Prefer more stable versions, but treat everything over stab_policy the same
+          (so we prefer stable over testing if the policy is to prefer "stable", otherwise
+          we don't care) *)
+        stability_limited,
+
+        (* Newer versions come before older ones (ignoring modifiers) *)
+        impl.version[0],
+
+        (* Prefer native packages if the main part of the versions are the same *)
+        impl.id.startswith('package:'),
+
+        (* Full version compare (after package check, since comparing modifiers between native and non-native
+          packages doesn't make sense). *)
+        *)
+        test @@ compare a.parsed_version b.parsed_version ||
+
+        (* Get best OS *)
+        test @@ compare (score_os a) (score_os b) ||
+
+        (* Get best machine *)
+        test @@ compare (score_machine a) (score_machine b) ||
+
+        (* Slightly prefer languages specialised to our country
+          (we know a and b have the same base language at this point) *)
+
+        test @@ compare (score_country langs_a) (score_country langs_b) ||
+
+        (*
+
+        (* Slightly prefer cached versions *)
+        is_available,
+        *)
+
+        (* Order by ID so the order isn't random *)
+        test @@ compare (Feed.get_attr "id" a) (Feed.get_attr "id" b)
+        );
+
+        -(!retval)
+        in
+
       let candidates : candidates =
         try Hashtbl.find cache iface
         with Not_found ->
@@ -95,9 +190,7 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
                   Distro.get_package_impls distro feed in
                 List.concat (distro_impls :: List.map get_impls (pair :: sub_feeds)) in
 
-          let impls = List.concat (main_impls :: List.map get_impls extra_feeds) in
-          (* TODO: better sorting *)
-          let impls = List.sort (fun a b -> compare b.Feed.parsed_version a.Feed.parsed_version) impls in
+          let impls = List.sort compare_impls @@ List.concat (main_impls :: List.map get_impls extra_feeds) in
 
           let replacement =
             match master_feed with

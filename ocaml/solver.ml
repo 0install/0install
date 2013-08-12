@@ -524,6 +524,7 @@ let solve_for config distro feed_provider requirements =
       extra_restrictions = StringMap.map make_user_restriction extra_restrictions;
       os_ranks = Arch.get_os_ranks os;
       machine_ranks = Arch.get_machine_ranks ~multiarch machine;
+      languages = Locale.get_langs config.system;
     } in
     let scope = { scope_filter; use } in
 

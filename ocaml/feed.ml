@@ -133,6 +133,10 @@ let make_command doc name ?(new_attr="path") path : command =
     command_requires = [];
   }
 
+let get_attr key impl =
+  try AttrMap.find ("", key) impl.props.attrs
+  with Not_found -> Qdom.raise_elem "Attribute '%s' not found on" key impl.qdom
+
 let get_attr_opt key map =
   try Some (AttrMap.find ("", key) map)
   with Not_found -> None
@@ -502,3 +506,10 @@ let get_distro_feed feed =
 
 let get_stability impl =
   impl.stability
+
+(** The list of languages provided by this implementation. *)
+let get_langs impl =
+  let langs =
+    try Str.split U.re_space @@ AttrMap.find ("", "langs") impl.props.attrs
+    with Not_found -> ["en"] in
+  Support.Utils.filter_map ~f:Locale.parse_lang langs

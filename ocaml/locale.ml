@@ -10,7 +10,7 @@
 open Support.Common
 
 (* Language, country, encoding, variant, e.g. "en_GB.utf-8@foo" *)
-let re_locale = Str.regexp "^\\([a-z]+\\)\\(_[a-z]+\\)?\\([.:].*\\)?\\(@.*\\)?$"
+let re_locale = Str.regexp "^\\([a-z]+\\)\\([-_][a-z]+\\)?\\([.:].*\\)?\\(@.*\\)?$"
 
 type lang_spec = (string * string option)    (* Langauge, country *)
 
