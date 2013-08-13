@@ -160,4 +160,20 @@
       </selection>
     </selections>
   </test>
+
+  <test name='if-version'>
+    <interface uri='http://example.com/prog.xml'>
+      <name>0install</name>
+      <implementation id='v1' version='1'>
+	<command name='run' path='new-path' if-0install-version='1..'/>
+	<command name='run' path='old-path' if-0install-version='..!1'/>
+      </implementation>
+    </interface>
+    <requirements interface='http://example.com/prog.xml'/>
+    <selections command="run" interface="http://example.com/prog.xml">
+      <selection id='v1' interface='http://example.com/prog.xml' version='1'>
+        <command name="run" path="new-path"/>
+      </selection>
+    </selections>
+  </test>
 </test-cases>

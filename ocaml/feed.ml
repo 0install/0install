@@ -129,6 +129,7 @@ let attr_local_path = "local-path"
 let attr_interface = "interface"
 let attr_src = "src"
 let attr_from_feed = "from-feed"
+let attr_if_0install_version = "if-0install-version"
 
 let value_testing = "testing"
 
@@ -242,8 +243,25 @@ let parse_command local_dir elem : command =
     command_requires = !deps;
   }
 
+let rec filter_if_0install_version node =
+  let open Qdom in
+  match Qdom.get_attribute_opt ("", attr_if_0install_version) node with
+  | Some expr when not (Versions.parse_expr expr About.parsed_version) -> None
+  | Some _expr -> Some {
+    node with child_nodes = U.filter_map ~f:filter_if_0install_version node.child_nodes;
+    attrs = List.remove_assoc ("", attr_if_0install_version) node.attrs
+  }
+  | None -> Some {
+    node with child_nodes = U.filter_map ~f:filter_if_0install_version node.child_nodes;
+  }
+
 let parse system root feed_local_path =
-  (* TODO: if-0install-version *)
+  let root =
+    match filter_if_0install_version root with
+    | Some root -> root
+    | None -> Qdom.raise_elem "Feed requires 0install version %s:" (ZI.get_attribute attr_if_0install_version root) root
+  in
+
   let () = match ZI.tag root with
   | Some "interface" | Some "feed" -> ()
   | _ ->
