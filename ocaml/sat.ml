@@ -34,8 +34,7 @@ module MakeSAT(User : USER) =
 
     let log_debug fmt =
       let do_print msg =
-        if debug then
-          print_endline ("sat: " ^ msg) in
+        print_endline ("sat: " ^ msg) in
       Printf.ksprintf do_print fmt
 
     type lit = int
