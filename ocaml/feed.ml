@@ -23,10 +23,15 @@ type importance =
   | Dep_recommended     (* Prefer to select a version, if possible *)
   | Dep_restricts       (* Just adds restrictions without expressing any opinion *)
 
+type package_impl = {
+  package_distro : string;
+  package_installed : bool;
+}
+
 type impl_type =
   | CacheImpl of Stores.digest list
   | LocalImpl of filepath
-  | PackageImpl
+  | PackageImpl of package_impl
 
 type restriction = (string * (implementation -> bool))
 
@@ -550,7 +555,7 @@ let get_langs impl =
 (** Is this implementation in the cache? *)
 let is_available_locally config _distro impl =
   match impl.impl_type with
-  | PackageImpl -> true    (* TODO *)
+  | PackageImpl {package_installed;_} -> package_installed
   | LocalImpl path -> config.system#file_exists path
   | CacheImpl digests ->
       match Stores.lookup_maybe config.system digests config.stores with

@@ -16,6 +16,7 @@ type acceptability =
   | Poor_stability            (* Buggy/Insecure *)
   | No_retrieval_methods      (* Not cached and no way to get it *)
   | Not_cached_and_offline    (* Can't download it becuase we're offline *)
+  | Missing_local_impl        (* Impl directory not found *)
   | Incompatible_OS           (* Required platform not in os_ranks *)
   | Not_binary                (* We want a binary and this is source *)
   | Not_source                (* We want source and this is a binary *)
@@ -137,8 +138,9 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
           U.starts_with id "package:" in
 
         let score_requires_root_install i =
-          if i.impl_type = PackageImpl then score_true @@ is_available i
-          else 1 in
+          match i.impl_type with
+          | PackageImpl {Feed.package_installed = false;_} -> 0   (* Bad - needs root install *)
+          | _ -> 1 in
 
         ignore (
           (* Preferred versions come first *)
@@ -246,19 +248,22 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
         else if want_source && not is_source then Not_source
         else if not (want_source) && is_source then Not_binary
         else if not want_source && not (machine_ok impl) then Incompatible_machine
+        (* Acceptable if we've got it already or we can get it *)
         else if is_available impl then Acceptable
         (* It's not cached, but might still be OK... *)
-        else if impl.Feed.impl_type = Feed.PackageImpl then (
-          if config.network_use <> Offline then Acceptable else Not_cached_and_offline
-        ) else (
-          (* Non-distro-package is not cached *)
-          let methods = Recipe.get_retrieval_methods impl in
-          if methods = [] then No_retrieval_methods
-          else if config.network_use <> Offline then Acceptable   (* Can downlad it *)
-          else if List.exists (fun r -> not (Recipe.recipe_requires_network r)) methods then
-            Acceptable        (* Offline and not cached, but we can get it without using the network *)
-          else
-            Not_cached_and_offline
+        else (
+          let open Feed in
+          match impl.Feed.impl_type with
+          | LocalImpl _ -> Missing_local_impl   (* We can never get a missing local impl *)
+          | PackageImpl _ -> if config.network_use = Offline then Not_cached_and_offline else Acceptable
+          | CacheImpl _ ->
+              let methods = Recipe.get_retrieval_methods impl in
+              if methods = [] then No_retrieval_methods
+              else if config.network_use <> Offline then Acceptable   (* Can downlad it *)
+              else if List.exists (fun r -> not (Recipe.recipe_requires_network r)) methods then
+                Acceptable        (* Offline and not cached, but we can get it without using the network *)
+              else
+                Not_cached_and_offline
         ) in
 
       let do_filter impl = check_acceptability impl = Acceptable in

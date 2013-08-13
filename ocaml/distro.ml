@@ -148,7 +148,7 @@ let check_cache distro_name elem cache =
       List.exists matches (cache#get package)
 
 (** Helper for [get_package_impls]. *)
-let make_package_implementation elem props ~id ~version ~machine ~extra_attrs =
+let make_package_implementation elem props ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name =
   let new_attrs = ref props.Feed.attrs in
   let set name value =
     new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
@@ -162,7 +162,7 @@ let make_package_implementation elem props ~id ~version ~machine ~extra_attrs =
     stability = Packaged;
     props = {props with attrs = !new_attrs};
     parsed_version = Versions.parse_version version;
-    impl_type = PackageImpl;
+    impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name };
   }
 
 module Debian = struct
@@ -262,7 +262,7 @@ module ArchLinux = struct
               | None -> []
               | Some version ->
                   let id = Printf.sprintf "package:arch:%s:%s:%s" package_name version machine in [
-                    make_package_implementation elem props ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)];
+                    make_package_implementation elem props ~distro_name ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)];
                   ]
         with Not_found -> []
     end

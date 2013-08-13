@@ -276,11 +276,28 @@ let suite = "solver">::: [
     let distro =
       object
         inherit Distro.base_distribution
-        method! get_package_impls (elem, props) = [ Distro.make_package_implementation elem props
+        method! get_package_impls (elem, props) = [
+          Distro.make_package_implementation elem props
+            ~distro_name:"distro"
+            ~is_installed:true
             ~id:"package:is_distro_v1-1"
             ~machine:"x86_64"
             ~version:"1-1"
-            ~extra_attrs:[]
+            ~extra_attrs:[];
+          Distro.make_package_implementation elem props
+            ~distro_name:"distro"
+            ~is_installed:false
+            ~id:"package:root_install_needed_2"
+            ~machine:"x86_64"
+            ~version:"1-1"
+            ~extra_attrs:[];
+          Distro.make_package_implementation elem props
+            ~distro_name:"distro"
+            ~is_installed:false
+            ~id:"package:root_install_needed_1"
+            ~machine:"x86_64"
+            ~version:"1-1"
+            ~extra_attrs:[];
           ]
       end in
     let scope_filter = {
@@ -315,10 +332,8 @@ let suite = "solver">::: [
       "is_dev";
       "not_available_offline";
 
-(* TODO: test uninstalled distribution packages
-      "root_install_needed_2";
-      "root_install_needed_1";
-*)
+      "package:root_install_needed_2";
+      "package:root_install_needed_1";
     ] (test_solve scope_filter);
 
     (* Now try in offline mode *)
