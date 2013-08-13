@@ -261,7 +261,7 @@ let get_selections sat dep_in_use root_req cache =
         let sel = ZI.insert_first "selection" root in
         if impl != dummy_impl then (
           let commands = Hashtbl.find_all commands_needed iface in
-          let commands = List.sort (fun a b -> compare b a) commands in
+          let commands = List.sort compare commands in
           let add_command name =
             let command = (Feed.get_command impl name).Feed.command_qdom in
             let not_restricts elem = ZI.tag elem <> Some "restricts" in
@@ -277,6 +277,8 @@ let get_selections sat dep_in_use root_req cache =
           );
 
           ZI.iter_with_name impl.Feed.qdom "manifest-digest" ~f:copy_elem;
+
+          sel.Qdom.child_nodes <- List.rev sel.Qdom.child_nodes
         );
         assert (sel.Qdom.attrs = []);
         sel.Qdom.attrs <- Feed.AttrMap.bindings !attrs

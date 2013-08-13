@@ -78,12 +78,12 @@
 	</command>
       </selection>
       <selection id='m3' interface='http://example.com/prog.xml' version='3'>
+        <command name="run" path="main"/>
+	<binding name='foo'/>
         <requires interface='http://example.com/lib.xml'>
 	  <executable-in-path name='lib' command='run'/>
 	  <executable-in-path name='test-lib' command='test'/>
 	</requires>
-	<binding name='foo'/>
-        <command name="run" path="main"/>
       </selection>
       <selection id='t1' interface='http://example.com/tester.xml' version='1'>
 	<command name='run' path='tester'/>
@@ -105,10 +105,10 @@
     <interface uri='http://example.com/prog.xml'>
       <name>prog</name>
       <group>
-	<requires interface='http://example.com/lib.xml' version='2..!3'/>
         <command name="run" path="main">
 	  <restricts interface='http://example.com/unused.xml' version='1'/>
 	</command>
+	<requires interface='http://example.com/lib.xml' version='2..!3'/>
         <implementation id='p2' version='2'></implementation>
 	<implementation id='p1' version='1'></implementation>
         <implementation id='p3' version='3'></implementation>
@@ -118,8 +118,8 @@
     <selections command="run" interface="http://example.com/prog.xml">
       <selection id='l2' interface='http://example.com/lib.xml' version='2'/>
       <selection id='p2' interface='http://example.com/prog.xml' version='2'>
-	<requires interface='http://example.com/lib.xml' version='2..!3'/>
         <command name="run" path="main"/>
+	<requires interface='http://example.com/lib.xml' version='2..!3'/>
       </selection>
     </selections>
   </test>
@@ -155,8 +155,8 @@
     <selections command="run" interface="http://example.com/prog.xml">
       <selection interface="http://example.com/lib.xml"/>
       <selection interface="http://example.com/prog.xml" id="p2" version="2">
-        <requires interface="http://example.com/lib.xml"/>
 	<command name="run" path="main"/>
+        <requires interface="http://example.com/lib.xml"/>
       </selection>
     </selections>
   </test>
@@ -173,6 +173,46 @@
     <selections command="run" interface="http://example.com/prog.xml">
       <selection id='v1' interface='http://example.com/prog.xml' version='1'>
         <command name="run" path="new-path"/>
+      </selection>
+    </selections>
+  </test>
+
+  <!-- We can have either the latest lib1 or the latest lib2 but not both.
+       We give priority to lib1, because it's listed first in prog's dependencies. -->
+  <test name='priority'>
+    <interface uri='http://example.com/lib1.xml'>
+      <name>lib1</name>
+      <implementation id='l11' version='1'/>
+      <implementation id='l12' version='2'>
+	<restricts interface='http://example.com/lib2.xml' version='1'/>
+      </implementation>
+    </interface>
+    <interface uri='http://example.com/lib2.xml'>
+      <name>lib2</name>
+      <implementation id='l21' version='1'/>
+      <implementation id='l22' version='2'>
+	<restricts interface='http://example.com/lib1.xml' version='1'/>
+      </implementation>
+    </interface>
+    <interface uri='http://example.com/prog.xml'>
+      <name>prog</name>
+      <group>
+	<command name="run" path="main"/>
+	<implementation id='p1' version='1'>
+	  <requires interface='http://example.com/lib1.xml'/>
+	  <requires interface='http://example.com/lib2.xml'/>
+	</implementation>
+      </group>
+    </interface>
+    <requirements interface='http://example.com/prog.xml'/>
+
+    <selections command="run" interface="http://example.com/prog.xml">
+      <selection id='l12' interface='http://example.com/lib1.xml' version='2'/>
+      <selection id='l21' interface='http://example.com/lib2.xml' version='1'/>
+      <selection id='p1' interface='http://example.com/prog.xml' version='1'>
+        <command name="run" path="main"/>
+	<requires interface='http://example.com/lib1.xml'/>
+	<requires interface='http://example.com/lib2.xml'/>
       </selection>
     </selections>
   </test>
