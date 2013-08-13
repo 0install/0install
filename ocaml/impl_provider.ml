@@ -40,10 +40,14 @@ class type impl_provider =
     method get_implementations : scope_filter -> iface_uri -> source:bool -> candidates
   end
 
-class default_impl_provider _config distro (feed_provider : Feed_cache.feed_provider) =
-  let get_impls (feed, _overrides) =
-    (* TODO: user overrides *)
-    Feed.get_implementations feed in
+class default_impl_provider config distro (feed_provider : Feed_cache.feed_provider) =
+  let get_impls (feed, overrides) =
+    let do_override impl =
+      let id = Feed.get_attr "id" impl in
+      try {impl with Feed.stability = StringMap.find id overrides.Feed.user_stability}
+      with Not_found -> impl in
+    List.map do_override @@ Feed.get_implementations feed
+  in
 
   object (_ : #impl_provider)
     val cache = Hashtbl.create 10
@@ -79,11 +83,13 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
           fun _ -> true in
 
       (* Printf.eprintf "Looking for %s\n" (String.concat "," @@ List.map Locale.format_lang wanted_langs); *)
-      let compare_impls a b =
+      let compare_impls stability_policy a b =
         let retval = ref 0 in
         let test = function
           | 0 -> false
           | x -> retval := x; true in
+        let test_fn fn =
+          test @@ compare (fn a) (fn b) in
 
         let langs_a = Feed.get_langs a in
         let langs_b = Feed.get_langs b in
@@ -96,9 +102,14 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
           score_true @@ List.exists is_acceptable langs in
 
         let score_country langs =
-          (* Printf.eprintf "Scoring %s\n" (String.concat "," @@ List.map Locale.format_lang langs); *)
           let is_acceptable got = List.mem got wanted_langs in
           score_true @@ List.exists is_acceptable langs in
+
+        let is_available impl =
+          try Feed.is_available_locally config distro impl
+          with Safe_exception _ as ex ->
+            log_warning ~ex "Can't test whether impl is available: %s" (Support.Qdom.show_with_loc impl.Feed.qdom);
+            false in
 
         let open Feed in
 
@@ -116,57 +127,62 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
             try -(StringMap.find machine machine_ranks)
             with Not_found -> (-200) in
 
+        let score_stability i =
+          let s = i.stability in
+          if s >= stability_policy then Preferred
+          else s in
+
+        let score_is_package i =
+          let id = Feed.get_attr "id" i in
+          U.starts_with id "package:" in
+
         ignore (
+          (* Preferred versions come first *)
+          test @@ compare (score_true (a.stability = Preferred))
+                          (score_true (b.stability = Preferred)) ||
 
-        (* Languages we understand come first *)
-        test @@ compare (score_langs langs_a) (score_langs langs_b) ||
+          (* Languages we understand come first *)
+          test @@ compare (score_langs langs_a) (score_langs langs_b) ||
 
-        (* Preferred versions come first *)
-        test @@ compare (score_true (a.stability = Preferred))
-                        (score_true (a.stability = Preferred)) ||
+          (* Prefer available implementations next if we have limited network access *)
+          (if config.network_use = Full_network then false else test_fn is_available) ||
 
-        (* TODO
-        (* Prefer available implementations next if we have limited network access *)
-        self.config.network_use != model.network_full and is_available,
+          (* Packages that require admin access to install come last *)
+          (* TODO
+          not impl.requires_root_install,
+          *)
 
-        (* Packages that require admin access to install come last *)
-        not impl.requires_root_install,
+          (* Prefer more stable versions, but treat everything over stab_policy the same
+            (so we prefer stable over testing if the policy is to prefer "stable", otherwise
+            we don't care) *)
+          test_fn score_stability ||
 
-        (* Prefer more stable versions, but treat everything over stab_policy the same
-          (so we prefer stable over testing if the policy is to prefer "stable", otherwise
-          we don't care) *)
-        stability_limited,
+          (* Newer versions come before older ones (ignoring modifiers) *)
+          test @@ compare (Versions.strip_modifier a.parsed_version)
+                          (Versions.strip_modifier b.parsed_version) ||
 
-        (* Newer versions come before older ones (ignoring modifiers) *)
-        impl.version[0],
+          (* Prefer native packages if the main part of the versions are the same *)
+          test_fn score_is_package ||
 
-        (* Prefer native packages if the main part of the versions are the same *)
-        impl.id.startswith('package:'),
+          (* Full version compare (after package check, since comparing modifiers between native and non-native
+            packages doesn't make sense). *)
+          test @@ compare a.parsed_version b.parsed_version ||
 
-        (* Full version compare (after package check, since comparing modifiers between native and non-native
-          packages doesn't make sense). *)
-        *)
-        test @@ compare a.parsed_version b.parsed_version ||
+          (* Get best OS *)
+          test @@ compare (score_os a) (score_os b) ||
 
-        (* Get best OS *)
-        test @@ compare (score_os a) (score_os b) ||
+          (* Get best machine *)
+          test @@ compare (score_machine a) (score_machine b) ||
 
-        (* Get best machine *)
-        test @@ compare (score_machine a) (score_machine b) ||
+          (* Slightly prefer languages specialised to our country
+            (we know a and b have the same base language at this point) *)
+          test @@ compare (score_country langs_a) (score_country langs_b) ||
 
-        (* Slightly prefer languages specialised to our country
-          (we know a and b have the same base language at this point) *)
+          (* Slightly prefer cached versions *)
+          (if config.network_use <> Full_network then false else test_fn is_available) ||
 
-        test @@ compare (score_country langs_a) (score_country langs_b) ||
-
-        (*
-
-        (* Slightly prefer cached versions *)
-        is_available,
-        *)
-
-        (* Order by ID so the order isn't random *)
-        test @@ compare (Feed.get_attr "id" a) (Feed.get_attr "id" b)
+          (* Order by ID so the order isn't random *)
+          test @@ compare (Feed.get_attr "id" a) (Feed.get_attr "id" b)
         );
 
         -(!retval)
@@ -180,17 +196,24 @@ class default_impl_provider _config distro (feed_provider : Feed_cache.feed_prov
           let extra_feeds = get_extra_feeds iface_config in
 
           (* From master feed, distribution feed, and sub-feeds of master *)
-          let main_impls =
+          let (main_impls, stability_policy) =
             match master_feed with
-            | None -> []
+            | None -> ([], None)
             | Some ((feed, _overrides) as pair) ->
                 let sub_feeds = U.filter_map ~f:get_feed_if_useful feed.Feed.imported_feeds in
                 (* TODO: remove feeds for incompatbile architectures *)
                 let distro_impls =
                   Distro.get_package_impls distro feed in
-                List.concat (distro_impls :: List.map get_impls (pair :: sub_feeds)) in
+                (* TODO: overrides for distro_impls *)
+                let impls = List.concat (distro_impls :: List.map get_impls (pair :: sub_feeds)) in
+                (impls, iface_config.Feed_cache.stability_policy) in
 
-          let impls = List.sort compare_impls @@ List.concat (main_impls :: List.map get_impls extra_feeds) in
+          let stability_policy =
+            match stability_policy with
+            | None -> if config.help_with_testing then Testing else Stable
+            | Some s -> s in
+
+          let impls = List.sort (compare_impls stability_policy) @@ List.concat (main_impls :: List.map get_impls extra_feeds) in
 
           let replacement =
             match master_feed with

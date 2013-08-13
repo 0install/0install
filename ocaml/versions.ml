@@ -21,6 +21,10 @@ type dotted_int = Int64.t list
 type parsed_version =
   (dotted_int * modifier) list
 
+let strip_modifier (version:parsed_version) : parsed_version =
+  let dotted = fst (List.hd version) in
+  [(dotted, Dash)]
+
 type version_expr = parsed_version -> bool
 
 let parse_mod = function

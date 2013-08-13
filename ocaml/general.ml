@@ -29,6 +29,7 @@ type config = {
   mutable freshness: Int64.t option;
   mutable dry_run : bool;
   mutable network_use : network_use;
+  mutable help_with_testing : bool;
 }
 
 (** {2 Utility functions} *)

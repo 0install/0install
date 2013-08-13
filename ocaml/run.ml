@@ -96,11 +96,11 @@ let do_exec_binding dry_run builder env impls (iface_uri, {Binding.exec_type; Bi
   builder#setenv name command_argv env
 
 (* Make a map from InterfaceURIs to the selected <selection> and (for non-native packages) paths *)
-let make_selection_map stores sels =
+let make_selection_map system stores sels =
   let add_selection m sel =
     let iface = ZI.get_attribute "interface" sel in
     let path =
-      try Selections.get_path stores sel
+      try Selections.get_path system stores sel
       with Stores.Not_stored msg ->
         raise_safe "Missing implementation for '%s' %s: %s" iface (ZI.get_attribute "version" sel) msg
     in
@@ -114,7 +114,7 @@ let make_selection_map stores sels =
     if not. *)
 let get_exec_args config sels args =
   let env = Env.copy_current_env () in
-  let impls = make_selection_map config.stores sels in
+  let impls = make_selection_map config.system config.stores sels in
   let bindings = Binding.collect_bindings impls sels in
   let launcher_builder = get_launcher_builder config in
 

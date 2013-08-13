@@ -4,6 +4,9 @@
 
 (** Managing cached implementations *)
 
+open General
+open Support.Common
+
 type stores = string list;;
 
 type digest = (string * string);;
@@ -19,16 +22,16 @@ let format_digest (alg, value) =
   (* validate *)
   s;;
 
-let lookup_digest stores digest =
+let lookup_digest (system:system) stores digest =
   let check_store store = (
     let path = Filename.concat store (format_digest digest) in
-    if Sys.file_exists path then Some path else None
-  ) in first_match check_store stores;;
+    if system#file_exists path then Some path else None
+  ) in first_match check_store stores
 
-let lookup_maybe digests stores = first_match (lookup_digest stores) digests
+let lookup_maybe system digests stores = first_match (lookup_digest system stores) digests
 
-let lookup_any digests stores =
-  match lookup_maybe digests stores with
+let lookup_any system digests stores =
+  match lookup_maybe system digests stores with
   | Some path -> path
   | None ->
       let str_digests = String.concat ", " (List.map format_digest digests) in
@@ -38,4 +41,17 @@ let lookup_any digests stores =
 let get_default_stores basedir_config =
   let open Support.Basedir in
   List.map (fun prefix -> prefix +/ "0install.net" +/ "implementations") basedir_config.cache
-;;
+
+(* (for parsing <implementation> and <selection> elements) *)
+let get_digests elem =
+  let id = ZI.get_attribute "id" elem in
+  let init = match Str.bounded_split_delim re_equals id 2 with
+  | [key; value] when key = "sha1" || key = "sha1new" || key = "sha256" -> [(key, value)]
+  | _ -> [] in
+
+  let check_attr init ((ns, name), value) = match ns with
+    | "" -> (name, value) :: init
+    | _ -> init in
+  let extract_digests init elem =
+    List.fold_left check_attr init elem.Support.Qdom.attrs in
+  ZI.fold_left ~f:extract_digests init elem "manifest-digest";;

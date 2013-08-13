@@ -18,20 +18,6 @@ type impl_source =
 let re_initial_slash = Str.regexp "^/";;
 let re_package = Str.regexp "^package:";;
 
-let get_digests elem =
-  let id = ZI.get_attribute "id" elem in
-  let init = match Str.bounded_split_delim re_equals id 2 with
-  | [key; value] when key = "sha1" || key = "sha1new" || key = "sha256" -> [(key, value)]
-  | _ -> [] in
-
-  (* todo: ID *)
-  let check_attr init ((ns, name), value) = match ns with
-    | "" -> (name, value) :: init
-    | _ -> init in
-  let extract_digests init elem =
-    List.fold_left check_attr init elem.Qdom.attrs in
-  ZI.fold_left ~f:extract_digests init elem "manifest-digest";;
-
 let make_selection elem =
   let source = (match ZI.get_attribute_opt "local-path" elem with
   | Some path -> LocalSelection path
@@ -41,10 +27,10 @@ let make_selection elem =
     else if Str.string_match re_package id 0 then
       PackageSelection
     else
-      CacheSelection (match get_digests elem with
+      CacheSelection (match Stores.get_digests elem with
       | [] ->
         let id = ZI.get_attribute "id" elem in
-        Qdom.raise_elem "No digests found in selection '%s':" id elem
+        Qdom.raise_elem "No digests found for '%s':" id elem
       | digests -> digests
       )
   ) in source
@@ -55,11 +41,11 @@ let find_ex iface impls =
   with Not_found -> raise_safe "Missing a selection for interface '%s'" iface
 ;;
 
-let get_path stores elem =
+let get_path system stores elem =
   match make_selection elem with
   | PackageSelection -> None
   | LocalSelection path -> Some path
-  | CacheSelection digests -> Some (Stores.lookup_any digests stores)
+  | CacheSelection digests -> Some (Stores.lookup_any system digests stores)
 ;;
 
 let load_selections system path =
@@ -82,7 +68,7 @@ let get_unavailable_selections config ?distro sels =
   let needs_download elem =
     match make_selection elem with
     | LocalSelection _ -> false
-    | CacheSelection digests -> None = Stores.lookup_maybe digests config.stores
+    | CacheSelection digests -> None = Stores.lookup_maybe config.system digests config.stores
     | PackageSelection ->
         match distro with
         | None -> false

@@ -147,6 +147,24 @@ let check_cache distro_name elem cache =
           sel_id = installed_id in
       List.exists matches (cache#get package)
 
+(** Helper for [get_package_impls]. *)
+let make_package_implementation elem props ~id ~version ~machine ~extra_attrs =
+  let new_attrs = ref props.Feed.attrs in
+  let set name value =
+    new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
+  set "id" id;
+  set "version" version;
+  List.iter (fun (n, v) -> set n v) extra_attrs;
+  let open Feed in {
+    qdom = elem;
+    os = None;
+    machine = Arch.none_if_star machine;
+    stability = Packaged;
+    props = {props with attrs = !new_attrs};
+    parsed_version = Versions.parse_version version;
+    impl_type = PackageImpl;
+  }
+
 module Debian = struct
   let dpkg_db_status = "/var/lib/dpkg/status"
 
@@ -239,24 +257,13 @@ module ArchLinux = struct
           | None ->
               log_warning "No ARCH in %s" desc_path; []
           | Some arch ->
-              let zi_machine = Support.System.canonical_machine arch in
+              let machine = Support.System.canonical_machine arch in
               match try_cleanup_distro_version_ex version package_name with
               | None -> []
               | Some version ->
-                  let id = Printf.sprintf "package:arch:%s:%s:%s" package_name version zi_machine in
-                  let new_attrs = ref props.Feed.attrs in
-                  let set name value = new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
-                  set "version" version;
-                  set "id" id;
-                  set "quick-test-file" desc_path;
-                  [ {
-                    Feed.qdom = elem;
-                    Feed.os = None;
-                    Feed.machine = Arch.none_if_star zi_machine;
-                    Feed.stability = Packaged;
-                    Feed.props = {props with Feed.attrs = !new_attrs};
-                    Feed.parsed_version = Versions.parse_version version;
-                  } ]
+                  let id = Printf.sprintf "package:arch:%s:%s:%s" package_name version machine in [
+                    make_package_implementation elem props ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)];
+                  ]
         with Not_found -> []
     end
 end

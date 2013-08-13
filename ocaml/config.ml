@@ -5,6 +5,7 @@
 (** Configuration settings *)
 
 open General
+open Support.Common
 
 let parse_network_use = function
   | "full" -> Full_network
@@ -13,6 +14,12 @@ let parse_network_use = function
   | other ->
       Support.Logging.log_warning "Unknown network use '%s'" other;
       Full_network
+
+let parse_bool s =
+  match String.lowercase s with
+  | "true" -> true
+  | "false" -> false
+  | x -> log_warning "Not a boolean '%s'" x; false
 
 (** [get_default_config path_to_0install] creates a configuration from the current environment.
     [path_to_0install] is used when creating launcher scripts. If it contains no slashes, then
@@ -34,6 +41,7 @@ let get_default_config system path_to_0install =
     freshness = Some (Int64.of_int (30 * days));
     network_use = Full_network;
     dry_run = false;
+    help_with_testing = false;
     system;
   } in
 
@@ -46,6 +54,7 @@ let get_default_config system path_to_0install =
           else
             config.freshness <- None
       | ("network_use", use) -> config.network_use <- parse_network_use use
+      | ("help_with_testing", help) -> config.help_with_testing <- parse_bool help
       | _ -> ()
     )
     | _ -> ignore in    (* other [sections] *)

@@ -73,6 +73,7 @@ let dummy_impl =
       bindings = [];
     };
     parsed_version = Versions.dummy;
+    impl_type = PackageImpl;
   }
 
 (** A fake <command> used to generate diagnostics if the solve fails. *)

@@ -224,11 +224,11 @@ class SATSolver(Solver):
 
 		# Note: this list must match _ranking_component_reason above
 		return [
-			# Languages we understand come first
-			max(my_langs.get(l.split('-')[0], -1) for l in impl_langs),
-
 			# Preferred versions come first
 			stability == model.preferred,
+
+			# Languages we understand come first
+			max(my_langs.get(l.split('-')[0], -1) for l in impl_langs),
 
 			# Prefer available implementations next if we have limited network access
 			self.config.network_use != model.network_full and is_available,

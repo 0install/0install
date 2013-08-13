@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open General
 open Support.Common
 open OUnit
 
@@ -219,6 +220,92 @@ let suite = "solver">::: [
     | [ { Feed.feed_src = "/usr/share/0install.net/native_feeds/http:##example.com#prog";
           Feed.feed_type = Feed.Distro_packages; _ } ] -> ()
     | _ -> assert_failure "Didn't find native feed"
+  );
+
+  "impl_provider">:: (fun () ->
+    let open Impl_provider in
+    let (config, fake_system) = Fake_system.get_fake_config None in
+    let system = (fake_system :> system) in
+    let iface = "http://example.com/prog.xml" in
+    let feed_provider =
+      let ifaces = Hashtbl.create 10 in
+      let add_iface elem =
+        let open Feed in
+        let uri = ZI.get_attribute "uri" elem in
+        let feed = parse system elem None in
+        Hashtbl.add ifaces uri feed in
+
+      add_iface (Support.Qdom.parse_file Fake_system.real_system "ranking.xml");
+
+      object (_ : #Feed_cache.feed_provider)
+        method get_feed url =
+          try
+            let overrides = {
+              Feed.last_checked = None;
+              Feed.user_stability = StringMap.singleton "preferred_by_user" Preferred;
+            } in
+            Some (Hashtbl.find ifaces url, overrides)
+          with Not_found -> None
+
+        method get_iface_config _uri =
+          {Feed_cache.stability_policy = None; Feed_cache.extra_feeds = [];}
+
+        method get_feeds_used () = []
+
+        method have_stale_feeds () = false
+      end in
+
+    fake_system#add_dir "/var/cache/0install.net/implementations/sha1=1" ["README.txt"];
+
+    config.network_use <- Minimal_network;
+
+    let distro =
+      object
+        inherit Distro.base_distribution
+        method! get_package_impls (elem, props) = [ Distro.make_package_implementation elem props
+            ~id:"package:is_distro_v1-1"
+            ~machine:"x86_64"
+            ~version:"1-1"
+            ~extra_attrs:[]
+          ]
+      end in
+    let impl_provider = new default_impl_provider config distro feed_provider in
+    let scope_filter = {
+      extra_restrictions = StringMap.empty;
+      os_ranks = Arch.get_os_ranks "Linux";
+      machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
+      languages = Support.Utils.filter_map ~f:Locale.parse_lang ["es_ES"; "fr_FR"];
+    } in
+
+    let {replacement; impls} = impl_provider#get_implementations scope_filter iface ~source:false in
+    assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;
+
+    let ids = List.map (fun i -> Feed.get_attr "id" i) impls in
+
+    Fake_system.equal_str_lists [
+      "preferred_by_user";
+      "language_and_country";
+      "language_understood";
+
+      "is_stable";
+      "package:is_distro_v1-1";
+
+      "is_v1-2";
+      "is_v1";
+
+      "poor_machine";
+      "poor_os";
+
+      "is_testing";
+      "is_dev";
+      "not_available_offline";
+      "unavailable";
+
+(* TODO: test uninstalled distribution packages
+      "root_install_needed_2";
+      "root_install_needed_1";
+*)
+    ] ids;
   );
 
   "solver">:::

@@ -47,7 +47,7 @@ let show_human config sels =
                 | Selections.PackageSelection -> sprintf "(%s)" @@ ZI.get_attribute "id" impl
                 | Selections.LocalSelection path -> path
                 | Selections.CacheSelection digests ->
-                    match Stores.lookup_maybe digests config.stores with
+                    match Stores.lookup_maybe config.system digests config.stores with
                     | None -> "(not cached)"
                     | Some path -> path in
 

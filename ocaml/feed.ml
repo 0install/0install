@@ -23,6 +23,11 @@ type importance =
   | Dep_recommended     (* Prefer to select a version, if possible *)
   | Dep_restricts       (* Just adds restrictions without expressing any opinion *)
 
+type impl_type =
+  | CacheImpl of Stores.digest list
+  | LocalImpl of filepath
+  | PackageImpl
+
 type restriction = (string * (implementation -> bool))
 
 and binding = Qdom.element
@@ -57,6 +62,7 @@ and implementation = {
   os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
   machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Versions.parsed_version;
+  impl_type : impl_type;
 }
 
 let parse_stability ~from_user s =
@@ -349,6 +355,10 @@ let parse system root feed_local_path =
       | None -> Testing
       | Some s -> parse_stability ~from_user:false s in
 
+    let impl_type =
+      try LocalImpl (AttrMap.find ("", attr_local_path) !s.attrs)
+      with Not_found -> CacheImpl (Stores.get_digests node) in
+
     let impl = {
       qdom = node;
       props = !s;
@@ -356,6 +366,7 @@ let parse system root feed_local_path =
       machine;
       stability;
       parsed_version = Versions.parse_version (get_prop attr_version);
+      impl_type;
     } in
     implementations := StringMap.add id impl !implementations
   in
@@ -514,3 +525,13 @@ let get_langs impl =
     try Str.split U.re_space @@ AttrMap.find ("", "langs") impl.props.attrs
     with Not_found -> ["en"] in
   Support.Utils.filter_map ~f:Locale.parse_lang langs
+
+(** Is this implementation in the cache? *)
+let is_available_locally config _distro impl =
+  match impl.impl_type with
+  | PackageImpl -> true    (* TODO *)
+  | LocalImpl path -> config.system#file_exists path
+  | CacheImpl digests ->
+      match Stores.lookup_maybe config.system digests config.stores with
+      | None -> false
+      | Some _path -> true
