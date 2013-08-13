@@ -19,7 +19,10 @@
     <implementation id='poor_os' version='1' arch='POSIX-i486'><manifest-digest sha1='1'/></implementation>
     <implementation id='unavailable' version='1' arch='POSIX-i486'><manifest-digest sha1='2'/></implementation>
 
-    <implementation id='not_available_offline' version='3'><manifest-digest sha1='2'/></implementation>
+    <implementation id='not_available_offline' version='3'>
+      <file href='http://example.com/download.tgz' size='100'/>
+      <manifest-digest sha1='2'/>
+    </implementation>
   </group>
 
   <package-implementation package='ranking'/>

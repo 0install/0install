@@ -68,6 +68,19 @@ let xml_diff exp actual =
       (string_of_element actual)
   )
 
+(** Give every implementation an <archive>, so we think it's installable. *)
+let rec make_all_downloable node =
+  let open Support.Qdom in
+  if ZI.tag node = Some "implementation" then (
+    let archive = ZI.make (node.doc) "archive" in
+    archive.attrs <- [
+      (("", "size"), "100");
+      (("", "href"), "http://example.com/download.tgz");
+    ];
+    node.child_nodes <- archive :: node.child_nodes
+  ) else (
+    List.iter make_all_downloable node.child_nodes
+  )
 
 (** Parse a test-case in solves.xml *)
 let make_solver_test test_elem =
@@ -80,6 +93,7 @@ let make_solver_test test_elem =
     let fails = ref false in
     let add_iface elem =
       let open Feed in
+      make_all_downloable elem;
       let uri = ZI.get_attribute "uri" elem in
       let feed = parse (fake_system :> system) elem None in
       Hashtbl.add ifaces uri feed in
@@ -269,7 +283,6 @@ let suite = "solver">::: [
             ~extra_attrs:[]
           ]
       end in
-    let impl_provider = new default_impl_provider config distro feed_provider in
     let scope_filter = {
       extra_restrictions = StringMap.empty;
       os_ranks = Arch.get_os_ranks "Linux";
@@ -277,10 +290,12 @@ let suite = "solver">::: [
       languages = Support.Utils.filter_map ~f:Locale.parse_lang ["es_ES"; "fr_FR"];
     } in
 
-    let {replacement; impls} = impl_provider#get_implementations scope_filter iface ~source:false in
-    assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;
-
-    let ids = List.map (fun i -> Feed.get_attr "id" i) impls in
+    let test_solve scope_filter =
+      let impl_provider = new default_impl_provider config distro feed_provider in
+      let {replacement; impls} = impl_provider#get_implementations scope_filter iface ~source:false in
+      assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;
+      let ids = List.map (fun i -> Feed.get_attr "id" i) impls in
+      ids in
 
     Fake_system.equal_str_lists [
       "preferred_by_user";
@@ -299,13 +314,33 @@ let suite = "solver">::: [
       "is_testing";
       "is_dev";
       "not_available_offline";
-      "unavailable";
 
 (* TODO: test uninstalled distribution packages
       "root_install_needed_2";
       "root_install_needed_1";
 *)
-    ] ids;
+    ] (test_solve scope_filter);
+
+    (* Now try in offline mode *)
+    config.network_use <- Offline;
+
+    Fake_system.equal_str_lists [
+      "preferred_by_user";
+      "language_and_country";
+      "language_understood";
+
+      "is_stable";
+      "package:is_distro_v1-1";
+
+      "is_v1-2";
+      "is_v1";
+
+      "poor_machine";
+      "poor_os";
+
+      "is_testing";
+      "is_dev";
+    ] (test_solve scope_filter);
   );
 
   "solver">:::

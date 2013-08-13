@@ -82,6 +82,12 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
         with Not_found ->
           fun _ -> true in
 
+      let is_available impl =
+        try Feed.is_available_locally config distro impl
+        with Safe_exception _ as ex ->
+          log_warning ~ex "Can't test whether impl is available: %s" (Support.Qdom.show_with_loc impl.Feed.qdom);
+          false in
+
       (* Printf.eprintf "Looking for %s\n" (String.concat "," @@ List.map Locale.format_lang wanted_langs); *)
       let compare_impls stability_policy a b =
         let retval = ref 0 in
@@ -104,12 +110,6 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
         let score_country langs =
           let is_acceptable got = List.mem got wanted_langs in
           score_true @@ List.exists is_acceptable langs in
-
-        let is_available impl =
-          try Feed.is_available_locally config distro impl
-          with Safe_exception _ as ex ->
-            log_warning ~ex "Can't test whether impl is available: %s" (Support.Qdom.show_with_loc impl.Feed.qdom);
-            false in
 
         let open Feed in
 
@@ -136,6 +136,10 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
           let id = Feed.get_attr "id" i in
           U.starts_with id "package:" in
 
+        let score_requires_root_install i =
+          if i.impl_type = PackageImpl then score_true @@ is_available i
+          else 1 in
+
         ignore (
           (* Preferred versions come first *)
           test @@ compare (score_true (a.stability = Preferred))
@@ -148,9 +152,7 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
           (if config.network_use = Full_network then false else test_fn is_available) ||
 
           (* Packages that require admin access to install come last *)
-          (* TODO
-          not impl.requires_root_install,
-          *)
+          test_fn score_requires_root_install ||
 
           (* Prefer more stable versions, but treat everything over stab_policy the same
             (so we prefer stable over testing if the policy is to prefer "stable", otherwise
@@ -235,22 +237,29 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
         | Some required_machine -> StringMap.mem required_machine machine_ranks in
 
       let check_acceptability impl =
-        let stability = Feed.get_stability impl in      (* TODO: user overrides *)
+        let stability = Feed.get_stability impl in
         let is_source = impl.Feed.machine = Some "src" in
 
         if not (passes_user_restrictions impl) then User_restriction_rejects
         else if stability <= Buggy then Poor_stability
-        (* TODO
-        else if (config.network_use = Offline || impl.download_sources = []) && not (Selections.is_available impl) then (
-          if impl.download_sources = [] then No_retrieval_methods
-          if not (List.exists (fun m -> not m.requires_network)) then Not_cached_and_offline
-        )
-        *)
         else if not (os_ok impl) then Incompatible_OS
         else if want_source && not is_source then Not_source
         else if not (want_source) && is_source then Not_binary
         else if not want_source && not (machine_ok impl) then Incompatible_machine
-        else Acceptable in
+        else if is_available impl then Acceptable
+        (* It's not cached, but might still be OK... *)
+        else if impl.Feed.impl_type = Feed.PackageImpl then (
+          if config.network_use <> Offline then Acceptable else Not_cached_and_offline
+        ) else (
+          (* Non-distro-package is not cached *)
+          let methods = Recipe.get_retrieval_methods impl in
+          if methods = [] then No_retrieval_methods
+          else if config.network_use <> Offline then Acceptable   (* Can downlad it *)
+          else if List.exists (fun r -> not (Recipe.recipe_requires_network r)) methods then
+            Acceptable        (* Offline and not cached, but we can get it without using the network *)
+          else
+            Not_cached_and_offline
+        ) in
 
       let do_filter impl = check_acceptability impl = Acceptable in
 
