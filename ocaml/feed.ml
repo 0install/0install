@@ -259,7 +259,7 @@ let parse system root feed_local_path =
   let root =
     match filter_if_0install_version root with
     | Some root -> root
-    | None -> Qdom.raise_elem "Feed requires 0install version %s:" (ZI.get_attribute attr_if_0install_version root) root
+    | None -> Qdom.raise_elem "Feed requires 0install version %s (we are %s):" (ZI.get_attribute attr_if_0install_version root) About.version root
   in
 
   let () = match ZI.tag root with
@@ -268,7 +268,10 @@ let parse system root feed_local_path =
       ZI.check_ns root;
       Qdom.raise_elem "Expected <interface>, not" root in
 
-  (* TODO: min-injector-version *)
+  let () = match ZI.get_attribute_opt "min-injector-version" root with
+  | Some min_version when Versions.parse_version min_version > About.parsed_version ->
+      Qdom.raise_elem "Feed requires 0install version %s or later (we are %s):" min_version About.version root
+  | _ -> () in
 
   let url =
     match feed_local_path with

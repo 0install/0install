@@ -1,7 +1,7 @@
 <?xml version='1.0' ?>
 <test-cases xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
   <test name='trivial'>
-    <interface uri='http://example.com/prog.xml'>
+    <interface uri='http://example.com/prog.xml' min-injector-version='1'>
       <name>0install</name>
       <implementation id='v1' version='1'><command name='run' path='main'/></implementation>
     </interface>
