@@ -140,6 +140,7 @@ let attr_interface = "interface"
 let attr_src = "src"
 let attr_from_feed = "from-feed"
 let attr_if_0install_version = "if-0install-version"
+let attr_distribution = "distribution"
 
 let value_testing = "testing"
 
@@ -150,6 +151,18 @@ let make_command doc name ?(new_attr="path") path : command =
     command_qdom = elem;
     command_requires = [];
   }
+
+let make_distribtion_restriction distros =
+  let check impl =
+    ListLabels.exists (Str.split U.re_space distros) ~f:(fun distro ->
+      match distro, impl.impl_type with
+      | "0install", PackageImpl _ -> false
+      | "0install", CacheImpl _ -> true
+      | "0install", LocalImpl _ -> true
+      | distro, PackageImpl {package_distro;_} -> package_distro = distro
+      | _ -> false
+    ) in
+  ("distribution:" ^ distros, check)
 
 let get_attr key impl =
   try AttrMap.find ("", key) impl.props.attrs
@@ -184,8 +197,6 @@ let parse_dep local_dir dep =
     ) else (
       raw_iface
     ) in
-
-  (* TODO: distribution *)
 
   let commands = ref StringSet.empty in
   let restrictions = ZI.filter_map dep ~f:(fun child ->
@@ -227,6 +238,11 @@ let parse_dep local_dir dep =
       | None | Some "essential" -> Dep_essential
       | _ -> Dep_recommended
     ) in
+
+  let restrictions =
+    match ZI.get_attribute_opt attr_distribution dep with
+    | Some distros -> make_distribtion_restriction distros :: restrictions
+    | None -> restrictions in
 
   {
     dep_qdom = dep;

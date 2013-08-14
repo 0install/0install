@@ -177,6 +177,35 @@
     </selections>
   </test>
 
+  <!-- Can't select lib1 because of the 'distribution' restriction. -->
+  <test name='requires-distro'>
+    <interface uri='http://example.com/lib1.xml'>
+      <name>lib1</name>
+      <implementation id='l1' version='1'/>
+    </interface>
+    <interface uri='http://example.com/lib2.xml'>
+      <name>lib2</name>
+      <implementation id='l2' version='1'/>
+    </interface>
+    <interface uri='http://example.com/prog.xml'>
+      <name>0install</name>
+      <implementation id='v1' version='1'>
+	<command name='run' path='main'/>
+	<requires interface='http://example.com/lib1.xml' distribution='foo' importance='recommended'/>
+	<requires interface='http://example.com/lib2.xml' distribution='foo 0install' importance='recommended'/>
+      </implementation>
+    </interface>
+    <requirements interface='http://example.com/prog.xml'/>
+    <selections command="run" interface="http://example.com/prog.xml">
+      <selection id='l2' interface='http://example.com/lib2.xml' version='1'/>
+      <selection id='v1' interface='http://example.com/prog.xml' version='1'>
+        <command name="run" path="main"/>
+	<requires interface='http://example.com/lib1.xml' distribution='foo' importance='recommended'/>
+	<requires interface='http://example.com/lib2.xml' distribution='foo 0install' importance='recommended'/>
+      </selection>
+    </selections>
+  </test>
+
   <!-- We can have either the latest lib1 or the latest lib2 but not both.
        We give priority to lib1, because it's listed first in prog's dependencies. -->
   <test name='priority'>
