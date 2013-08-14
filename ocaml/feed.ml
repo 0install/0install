@@ -372,7 +372,10 @@ let parse system root feed_local_path =
       | None -> ()
       | Some dir ->
           let use rel_path =
-            set_attr attr_local_path @@ Support.Utils.abspath system @@ dir +/ rel_path in
+            if Filename.is_relative rel_path then
+              set_attr attr_local_path @@ Support.Utils.abspath system @@ dir +/ rel_path
+            else
+              set_attr attr_local_path rel_path in
           match ZI.get_attribute_opt attr_local_path node with
           | Some path -> use path
           | None ->
