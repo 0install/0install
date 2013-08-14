@@ -353,5 +353,9 @@ let get_matching_package_impls (distro : distribution) feed =
   );
   !best_impls
 
+(** Get the native implementations (installed or candidates for installation), based on the <package-implementation> elements
+    in [feed]. Returns [None] if there were no matching elements (which means that we didn't even check the distribution). *)
 let get_package_impls (distro : distribution) feed =
-  List.concat (List.map distro#get_package_impls (get_matching_package_impls distro feed))
+  match get_matching_package_impls distro feed with
+  | [] -> None
+  | matches -> Some (List.concat (List.map distro#get_package_impls matches))

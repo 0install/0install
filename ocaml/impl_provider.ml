@@ -41,14 +41,16 @@ class type impl_provider =
     method get_implementations : scope_filter -> iface_uri -> source:bool -> candidates
   end
 
-class default_impl_provider config distro (feed_provider : Feed_cache.feed_provider) =
-  let get_impls (feed, overrides) =
+class default_impl_provider config (feed_provider : Feed_cache.feed_provider) =
+  let do_overrides overrides impls =
     let do_override impl =
       let id = Feed.get_attr "id" impl in
       try {impl with Feed.stability = StringMap.find id overrides.Feed.user_stability}
       with Not_found -> impl in
-    List.map do_override @@ Feed.get_implementations feed
-  in
+    List.map do_override impls in
+
+  let get_impls (feed, overrides) =
+    do_overrides overrides @@ Feed.get_implementations feed in
 
   object (_ : #impl_provider)
     val cache = Hashtbl.create 10
@@ -84,7 +86,7 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
           fun _ -> true in
 
       let is_available impl =
-        try Feed.is_available_locally config distro impl
+        try Feed.is_available_locally config impl
         with Safe_exception _ as ex ->
           log_warning ~ex "Can't test whether impl is available: %s" (Support.Qdom.show_with_loc impl.Feed.qdom);
           false in
@@ -192,6 +194,11 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
         -(!retval)
         in
 
+      let get_distro_impls feed =
+        match feed_provider#get_distro_impls feed with
+        | None -> []
+        | Some (impls, overrides) -> do_overrides overrides impls in
+
       let candidates : candidates =
         try Hashtbl.find cache iface
         with Not_found ->
@@ -205,10 +212,7 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
             | None -> ([], None)
             | Some ((feed, _overrides) as pair) ->
                 let sub_feeds = U.filter_map ~f:get_feed_if_useful feed.Feed.imported_feeds in
-                (* TODO: remove feeds for incompatbile architectures *)
-                let distro_impls =
-                  Distro.get_package_impls distro feed in
-                (* TODO: overrides for distro_impls *)
+                let distro_impls = get_distro_impls feed in
                 let impls = List.concat (distro_impls :: List.map get_impls (pair :: sub_feeds)) in
                 (impls, iface_config.Feed_cache.stability_policy) in
 

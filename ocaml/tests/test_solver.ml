@@ -115,6 +115,8 @@ let make_solver_test test_elem =
             Some (Hashtbl.find ifaces url, overrides)
           with Not_found -> None
 
+        method get_distro_impls _feed = None
+
         method get_iface_config _uri =
           {Feed_cache.stability_policy = None; Feed_cache.extra_feeds = [];}
 
@@ -122,8 +124,7 @@ let make_solver_test test_elem =
 
         method have_stale_feeds () = false
       end in
-    let distro = new Distro.base_distribution in
-    let (ready, result) = Solver.solve_for config distro feed_provider !reqs in
+    let (ready, result) = Solver.solve_for config feed_provider !reqs in
     assert (ready = (not !fails));
     let actual_sels = result#get_selections () in
     assert (ZI.tag actual_sels = Some "selections");
@@ -221,7 +222,8 @@ let suite = "solver">::: [
   "feed_provider">:: (fun () ->
     let open Feed_cache in
     let (config, fake_system) = Fake_system.get_fake_config None in
-    let feed_provider = new feed_provider config in
+    let distro = new Distro.base_distribution in
+    let feed_provider = new feed_provider config distro in
     let uri = "http://example.com/prog" in
     let iface_config = feed_provider#get_iface_config uri in
     assert (iface_config.stability_policy = None);
@@ -241,37 +243,6 @@ let suite = "solver">::: [
     let (config, fake_system) = Fake_system.get_fake_config None in
     let system = (fake_system :> system) in
     let iface = "http://example.com/prog.xml" in
-    let feed_provider =
-      let ifaces = Hashtbl.create 10 in
-      let add_iface elem =
-        let open Feed in
-        let uri = ZI.get_attribute "uri" elem in
-        let feed = parse system elem None in
-        Hashtbl.add ifaces uri feed in
-
-      add_iface (Support.Qdom.parse_file Fake_system.real_system "ranking.xml");
-
-      object (_ : #Feed_cache.feed_provider)
-        method get_feed url =
-          try
-            let overrides = {
-              Feed.last_checked = None;
-              Feed.user_stability = StringMap.singleton "preferred_by_user" Preferred;
-            } in
-            Some (Hashtbl.find ifaces url, overrides)
-          with Not_found -> None
-
-        method get_iface_config _uri =
-          {Feed_cache.stability_policy = None; Feed_cache.extra_feeds = [];}
-
-        method get_feeds_used () = []
-
-        method have_stale_feeds () = false
-      end in
-
-    fake_system#add_dir "/var/cache/0install.net/implementations/sha1=1" ["README.txt"];
-
-    config.network_use <- Minimal_network;
 
     let distro =
       object
@@ -298,8 +269,58 @@ let suite = "solver">::: [
             ~machine:"x86_64"
             ~version:"1-1"
             ~extra_attrs:[];
+          Distro.make_package_implementation elem props
+            ~distro_name:"distro"
+            ~is_installed:true
+            ~id:"package:buggy"
+            ~machine:"x86_64"
+            ~version:"1-1"
+            ~extra_attrs:[];
           ]
       end in
+
+    let feed_provider =
+      let ifaces = Hashtbl.create 10 in
+      let add_iface elem =
+        let open Feed in
+        let uri = ZI.get_attribute "uri" elem in
+        let feed = parse system elem None in
+        Hashtbl.add ifaces uri feed in
+
+      add_iface (Support.Qdom.parse_file Fake_system.real_system "ranking.xml");
+
+      object (_ : #Feed_cache.feed_provider)
+        method get_feed url =
+          try
+            let overrides = {
+              Feed.last_checked = None;
+              Feed.user_stability = StringMap.singleton "preferred_by_user" Preferred;
+            } in
+            Some (Hashtbl.find ifaces url, overrides)
+          with Not_found -> None
+
+        method get_distro_impls feed =
+          match Distro.get_package_impls distro feed with
+          | Some impls ->
+            let overrides = {
+              Feed.last_checked = None;
+              Feed.user_stability = StringMap.singleton "package:buggy" Buggy;
+            } in
+            Some (impls, overrides)
+          | None -> None
+
+        method get_iface_config _uri =
+          {Feed_cache.stability_policy = None; Feed_cache.extra_feeds = [];}
+
+        method get_feeds_used () = []
+
+        method have_stale_feeds () = false
+      end in
+
+    fake_system#add_dir "/var/cache/0install.net/implementations/sha1=1" ["README.txt"];
+
+    config.network_use <- Minimal_network;
+
     let scope_filter = {
       extra_restrictions = StringMap.empty;
       os_ranks = Arch.get_os_ranks "Linux";
@@ -308,7 +329,7 @@ let suite = "solver">::: [
     } in
 
     let test_solve scope_filter =
-      let impl_provider = new default_impl_provider config distro feed_provider in
+      let impl_provider = new default_impl_provider config feed_provider in
       let {replacement; impls} = impl_provider#get_implementations scope_filter iface ~source:false in
       assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;
       let ids = List.map (fun i -> Feed.get_attr "id" i) impls in

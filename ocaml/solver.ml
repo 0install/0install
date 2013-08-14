@@ -512,9 +512,9 @@ let make_user_restriction expr =
   let test impl = test_version impl.Feed.parsed_version in
   (expr, test)
 
-let solve_for config distro feed_provider requirements =
+let solve_for config feed_provider requirements =
   try
-    let impl_provider = (new Impl_provider.default_impl_provider config distro feed_provider :> Impl_provider.impl_provider) in
+    let impl_provider = (new Impl_provider.default_impl_provider config feed_provider :> Impl_provider.impl_provider) in
 
     let open Requirements in
     let {

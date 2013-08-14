@@ -131,10 +131,9 @@ let complete_config_value config completer name pre =
 
 (* 0install remove-feed <Tab> *)
 let complete_interfaces_with_feeds config completer pre =
-  let feed_provider = new Feed_cache.feed_provider config in
   let check_iface uri =
     if starts_with uri pre then (
-      let iface_config = feed_provider#get_iface_config uri in
+      let iface_config = Feed_cache.load_iface_config config uri in
       if iface_config.Feed_cache.extra_feeds <> [] then
         completer#add Add uri
     ) in
@@ -142,8 +141,7 @@ let complete_interfaces_with_feeds config completer pre =
 
 (* 0install remove-feed iface <Tab> *)
 let complete_extra_feed config completer iface pre =
-  let feed_provider = new Feed_cache.feed_provider config in
-  let {Feed_cache.extra_feeds; _} = feed_provider#get_iface_config iface in
+  let {Feed_cache.extra_feeds; _} = Feed_cache.load_iface_config config iface in
   let add_if_matches feed =
     let url = feed.Feed.feed_src in
     if starts_with url pre then

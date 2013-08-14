@@ -130,8 +130,8 @@ let get_selections options ~refresh reqs mode =
   ) else (
     let distro = Lazy.force options.distro in
     try
-      let feed_provider = new Feed_cache.feed_provider config in
-      match Solver.solve_for config distro feed_provider reqs with
+      let feed_provider = new Feed_cache.feed_provider config distro in
+      match Solver.solve_for config feed_provider reqs with
       | (false, results) ->
           if use_ocaml_solver then (
             print_endline "Quick solve failed (stopped for debugging):";

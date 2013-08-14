@@ -573,7 +573,7 @@ let get_langs impl =
   Support.Utils.filter_map ~f:Locale.parse_lang langs
 
 (** Is this implementation in the cache? *)
-let is_available_locally config _distro impl =
+let is_available_locally config impl =
   match impl.impl_type with
   | PackageImpl {package_installed;_} -> package_installed
   | LocalImpl path -> config.system#file_exists path
