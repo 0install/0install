@@ -239,7 +239,7 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
         | Some required_machine -> StringMap.mem required_machine machine_ranks in
 
       let check_acceptability impl =
-        let stability = Feed.get_stability impl in
+        let stability = impl.Feed.stability in
         let is_source = impl.Feed.machine = Some "src" in
 
         if not (passes_user_restrictions impl) then User_restriction_rejects
@@ -256,14 +256,11 @@ class default_impl_provider config distro (feed_provider : Feed_cache.feed_provi
           match impl.Feed.impl_type with
           | LocalImpl _ -> Missing_local_impl   (* We can never get a missing local impl *)
           | PackageImpl _ -> if config.network_use = Offline then Not_cached_and_offline else Acceptable
-          | CacheImpl _ ->
-              let methods = Recipe.get_retrieval_methods impl in
-              if methods = [] then No_retrieval_methods
-              else if config.network_use <> Offline then Acceptable   (* Can downlad it *)
-              else if List.exists (fun r -> not (Recipe.recipe_requires_network r)) methods then
-                Acceptable        (* Offline and not cached, but we can get it without using the network *)
-              else
-                Not_cached_and_offline
+          | CacheImpl {retrieval_methods = [];_} -> No_retrieval_methods
+          | CacheImpl cache_impl ->
+              if config.network_use <> Offline then Acceptable   (* Can download it *)
+              else if Feed.is_retrievable_without_network cache_impl then Acceptable
+              else Not_cached_and_offline
         ) in
 
       let do_filter impl = check_acceptability impl = Acceptable in

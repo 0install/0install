@@ -93,17 +93,20 @@ let parse_recipe elem =
     | None -> None in
   U.filter_map ~f:parse_step elem.Qdom.child_nodes
 
-let get_retrieval_methods impl =
-  ZI.filter_map impl.Feed.qdom ~f:(fun child ->
-    match ZI.tag child with
-    | Some "archive" -> Some [ parse_archive child ]
-    | Some "file" -> Some [ parse_file_elem child ]
-    | Some "recipe" -> (
-        try Some (parse_recipe child)
-        with Unknown_step -> None
-    )
-    | _ -> None
+let is_retrieval_method elem =
+  match ZI.tag elem with
+  | Some "archive" | Some "file" | Some "recipe" -> true
+  | _ -> false
+
+let parse_retrieval_method elem =
+  match ZI.tag elem with
+  | Some "archive" -> Some [ parse_archive elem ]
+  | Some "file" -> Some [ parse_file_elem elem ]
+  | Some "recipe" -> (
+      try Some (parse_recipe elem)
+      with Unknown_step -> None
   )
+  | _ -> None
 
 let re_scheme_sep = Str.regexp ".*://"
 

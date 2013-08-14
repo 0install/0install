@@ -28,8 +28,13 @@ type package_impl = {
   package_installed : bool;
 }
 
+type cache_impl = {
+  digests : Stores.digest list;
+  retrieval_methods : Qdom.element list;
+}
+
 type impl_type =
-  | CacheImpl of Stores.digest list
+  | CacheImpl of cache_impl
   | LocalImpl of filepath
   | PackageImpl of package_impl
 
@@ -366,7 +371,7 @@ let parse system root feed_local_path =
         let new_attrs = AttrMap.add ("", attr_version) real_version (AttrMap.remove ("", attr_version_modifier) !s.attrs) in
         s := {!s with attrs = new_attrs}
     | None -> () in
-    (* TODO: retrieval methods *)
+
     let get_prop key =
       match get_attr_opt key !s.attrs with
       | Some value -> value
@@ -383,7 +388,9 @@ let parse system root feed_local_path =
 
     let impl_type =
       try LocalImpl (AttrMap.find ("", attr_local_path) !s.attrs)
-      with Not_found -> CacheImpl (Stores.get_digests node) in
+      with Not_found ->
+        let retrieval_methods = List.filter Recipe.is_retrieval_method node.Qdom.child_nodes in
+        CacheImpl { digests = Stores.get_digests node; retrieval_methods; } in
 
     let impl = {
       qdom = node;
@@ -542,9 +549,6 @@ let get_distro_feed feed =
   else
     None
 
-let get_stability impl =
-  impl.stability
-
 (** The list of languages provided by this implementation. *)
 let get_langs impl =
   let langs =
@@ -557,7 +561,14 @@ let is_available_locally config _distro impl =
   match impl.impl_type with
   | PackageImpl {package_installed;_} -> package_installed
   | LocalImpl path -> config.system#file_exists path
-  | CacheImpl digests ->
+  | CacheImpl {digests;_} ->
       match Stores.lookup_maybe config.system digests config.stores with
       | None -> false
       | Some _path -> true
+
+let is_retrievable_without_network cache_impl =
+  let ok_without_network elem =
+    match Recipe.parse_retrieval_method elem with
+    | Some recipe -> not @@ Recipe.recipe_requires_network recipe
+    | None -> false in
+  List.exists ok_without_network cache_impl.retrieval_methods
