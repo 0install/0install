@@ -251,6 +251,10 @@ let get_selections sat dep_in_use root_req cache =
 
         attrs := Feed.AttrMap.remove ("", Feed.attr_stability) !attrs;
 
+        (* Replaced by <command> *)
+        attrs := Feed.AttrMap.remove ("", Feed.attr_main) !attrs;
+        attrs := Feed.AttrMap.remove ("", Feed.attr_self_test) !attrs;
+
         if Some iface = Feed.get_attr_opt Feed.attr_from_feed !attrs then (
           (* Don't bother writing from-feed attr if it's the same as the interface *)
           attrs := Feed.AttrMap.remove ("", Feed.attr_from_feed) !attrs

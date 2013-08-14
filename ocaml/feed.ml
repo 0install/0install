@@ -129,6 +129,7 @@ let elem_package_implementation = "package-implementation"
 
 let attr_id = "id"
 let attr_main = "main"
+let attr_self_test = "self-test"
 let attr_stability = "stability"
 let attr_importance = "importance"
 let attr_version = "version"
@@ -441,7 +442,7 @@ let parse system root feed_local_path =
                 let new_command = make_command root.Qdom.doc command_name path in
                 s := {!s with commands = StringMap.add command_name new_command !s.commands} in
           handle_old_command attr_main "run";
-          handle_old_command "self-test" "test";
+          handle_old_command attr_self_test "test";
 
           let () =
             match Qdom.get_attribute_opt (COMPILE_NS.ns, "command") item with
