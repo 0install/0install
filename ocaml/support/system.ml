@@ -225,8 +225,9 @@ module RealSystem (U : UnixType) =
               let system = (self :> system) in
               let p =
                 if Sys.os_type = "Win32" then (
-                  (* TODO: is this really the machine's word size, or just OCaml's word size? What about non-x86 Windows? *)
-                  let machine = if Sys.word_size = 64 then "x86_64" else "i686" in
+                  let machine =
+                    try ignore @@ Sys.getenv "ProgramFiles(x86)"; "x86_64"
+                    with Not_found -> "i686" in
                   {os = "Windows"; release = "Unknown"; machine}
                 ) else (
                   let uname = trim @@ Utils.check_output system input_line [Utils.find_in_path_ex system "uname"; "-srm"] in

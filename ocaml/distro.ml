@@ -284,11 +284,27 @@ module Mac = struct
 end
 
 module Win = struct
+  class windows_distribution _config : distribution =
+    object
+      val distro_name = "Windows"
+      method is_installed _elem = raise Fallback_to_Python
+      method match_name name = (name = distro_name)
+      method get_package_impls (elem, _props) =
+        let package_name = ZI.get_attribute "package" elem in
+        match package_name with
+        | "openjdk-6-jre" | "openjdk-6-jdk"
+        | "openjdk-7-jre" | "openjdk-7-jdk"
+        | "netfx" | "netfx-client" ->
+            Qdom.log_elem Support.Logging.Info "FIXME: Windows: can't check for package '%s':" package_name elem;
+            raise Fallback_to_Python
+        | _ -> []
+    end
+
   let cygwin_log = "/var/log/setup.log"
 
   class cygwin_distribution config : distribution =
     object
-      val distro_name = "Windows"
+      val distro_name = "Cygwin"
       val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
       method is_installed elem = check_cache "cygwin" elem cache
       method match_name name = (name = distro_name)
@@ -311,10 +327,8 @@ let get_host_distribution config : distribution =
         new Mac.macports_distribution config
       else
         new base_distribution
-
-  | "Win32" -> new base_distribution
+  | "Win32" -> new Win.windows_distribution config
   | "Cygwin" -> new Win.cygwin_distribution config
-
   | _ ->
       new base_distribution
 ;;
