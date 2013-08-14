@@ -450,6 +450,8 @@ let parse system root feed_local_path =
                 let new_command = make_command root.Qdom.doc "compile" ~new_attr:"shell-command" command in
                 s := {!s with commands = StringMap.add "compile" new_command !s.commands} in
 
+          let new_bindings = ref [] in
+
           ZI.iter item ~f:(fun child ->
             match ZI.tag child with
             | Some "requires" | Some "restricts" ->
@@ -459,9 +461,12 @@ let parse system root feed_local_path =
                 let command_name = ZI.get_attribute "name" child in
                 s := {!s with commands = StringMap.add command_name (parse_command local_dir child) !s.commands}
             | Some tag when Binding.is_binding tag ->
-                s := {!s with bindings = child :: !s.bindings}
+                new_bindings := child :: !new_bindings
             | _ -> ()
           );
+
+          if !new_bindings <> [] then
+            s := {!s with bindings = !s.bindings @ (List.rev !new_bindings)};
 
           let add_attr old (name_pair, value) =
             AttrMap.add name_pair value old in

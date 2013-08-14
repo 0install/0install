@@ -13,6 +13,25 @@
     </selections>
   </test>
 
+  <test name='binding-order'>
+    <interface uri='http://example.com/prog.xml' min-injector-version='1'>
+      <name>0install</name>
+      <implementation id='v1' version='1'>
+        <command name='run' path='main'/>
+        <environment name='VAR' insert='a'/>
+        <environment name='VAR' insert='b'/>
+      </implementation>
+    </interface>
+    <requirements interface='http://example.com/prog.xml'/>
+    <selections command="run" interface="http://example.com/prog.xml">
+      <selection id='v1' interface='http://example.com/prog.xml' version='1'>
+        <command name="run" path="main"/>
+        <environment name='VAR' insert='a'/>
+        <environment name='VAR' insert='b'/>
+      </selection>
+    </selections>
+  </test>
+
   <test name='mutliple-impls'>
     <interface uri='http://example.com/prog.xml'>
       <name>0install</name>
