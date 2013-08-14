@@ -146,6 +146,8 @@ class Prefixes(object):
 		prefix = self.prefixes.get(ns, None)
 		if prefix:
 			return prefix
+		if ns == "http://www.w3.org/XML/1998/namespace":
+			return "xml"
 		prefix = 'ns%d' % len(self.prefixes)
 		self.prefixes[ns] = prefix
 		return prefix
