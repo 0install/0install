@@ -168,13 +168,7 @@ let get_selections options ~refresh reqs mode =
                   if not use_ocaml_solver then raise Fallback_to_Python
                 )
               );
-              if use_ocaml_solver then Some sels
-              else (
-                (* TODO: We fall back even on success, since the new solver
-                   doesn't yet always give the right results. *)
-                log_info "Success, but switching to Python anyway for now";
-                raise Fallback_to_Python;
-              )
+              Some sels
             )
           ) else (
             select_with_refresh ()
