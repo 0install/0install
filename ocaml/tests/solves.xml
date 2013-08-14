@@ -14,18 +14,34 @@
   </test>
 
   <test name='binding-order'>
+    <interface uri='http://example.com/lib1.xml'>
+      <name>lib1</name>
+      <implementation id='l1' version='1'/>
+    </interface>
+    <interface uri='http://example.com/lib2.xml'>
+      <name>lib2</name>
+      <implementation id='l2' version='1'/>
+    </interface>
     <interface uri='http://example.com/prog.xml' min-injector-version='1'>
       <name>0install</name>
       <implementation id='v1' version='1'>
-        <command name='run' path='main'/>
+        <command name='run' path='main'>
+          <requires interface='http://example.com/lib1.xml'/>
+          <requires interface='http://example.com/lib2.xml'/>
+        </command>
         <environment name='VAR' insert='a'/>
         <environment name='VAR' insert='b'/>
       </implementation>
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections command="run" interface="http://example.com/prog.xml">
+      <selection id='l1' interface='http://example.com/lib1.xml' version='1'/>
+      <selection id='l2' interface='http://example.com/lib2.xml' version='1'/>
       <selection id='v1' interface='http://example.com/prog.xml' version='1'>
-        <command name="run" path="main"/>
+        <command name="run" path="main">
+          <requires interface='http://example.com/lib1.xml'/>
+          <requires interface='http://example.com/lib2.xml'/>
+        </command>
         <environment name='VAR' insert='a'/>
         <environment name='VAR' insert='b'/>
       </selection>
@@ -118,13 +134,17 @@
     <interface uri='http://example.com/prog.xml'>
       <name>prog</name>
       <implementation id='v1' version='1'>
-        <requires interface='http://example.com/Missing.xml' os='nosuchos'/>
+        <command name='run'>
+          <requires interface='http://example.com/Missing.xml' os='nosuchos'/>
+        </command>
         <requires interface='http://example.com/Missing2.xml' use='never'/>
       </implementation>
     </interface>
-    <requirements interface='http://example.com/prog.xml'/>
-    <selections interface="http://example.com/prog.xml">
-      <selection id='v1' interface='http://example.com/prog.xml' version='1'/>
+    <requirements command='run' interface='http://example.com/prog.xml'/>
+    <selections command='run' interface="http://example.com/prog.xml">
+      <selection id='v1' interface='http://example.com/prog.xml' version='1'>
+        <command name='run'/>
+      </selection>
     </selections>
   </test>
 

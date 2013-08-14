@@ -263,10 +263,23 @@ let get_selections sat dep_in_use root_req cache =
           let commands = Hashtbl.find_all commands_needed iface in
           let commands = List.sort compare commands in
           let add_command name =
-            let command = (Feed.get_command impl name).Feed.command_qdom in
-            let not_restricts elem = ZI.tag elem <> Some "restricts" in
-            let command = {command with Qdom.child_nodes = List.filter not_restricts command.Qdom.child_nodes} in
-            Qdom.prepend_child (Qdom.import_node command sel.Qdom.doc) sel in
+            let command = Feed.get_command impl name in
+            let command_elem = command.Feed.command_qdom in
+            let want_command_child elem =
+              (* We'll add in just the dependencies we need later *)
+              match ZI.tag elem with
+              | Some "requires" | Some "restricts" | Some "runner" -> false
+              | _ -> true
+            in
+            let child_nodes = List.filter want_command_child command_elem.Qdom.child_nodes in
+            let add_command_dep child_nodes dep =
+              if dep.Feed.dep_importance <> Feed.Dep_restricts && dep_in_use dep then
+                dep.Feed.dep_qdom :: child_nodes
+              else
+                child_nodes in
+            let child_nodes = List.fold_left add_command_dep child_nodes command.Feed.command_requires in
+            let command_elem = {command_elem with Qdom.child_nodes = child_nodes} in
+            Qdom.prepend_child (Qdom.import_node command_elem sel.Qdom.doc) sel in
           List.iter add_command commands;
 
           let copy_elem elem = Qdom.prepend_child (Qdom.import_node elem sel.Qdom.doc) sel in
