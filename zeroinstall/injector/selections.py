@@ -51,6 +51,8 @@ class Selection(object):
 		path = self.local_path
 		if path is not None:
 			return os.path.exists(path)
+		if not self.digests:
+			return False
 		path = stores.lookup_maybe(self.digests)
 		return path is not None
 
@@ -231,10 +233,11 @@ class Selections(object):
 			# For backwards compatibility, allow getting the digest from the ID
 			sel_id = selection.attrs['id']
 			local_path = selection.attrs.get("local-path", None)
-			if (not digests and not local_path) and '=' in sel_id:
+			if (not local_path) and '=' in sel_id:
 				alg = sel_id.split('=', 1)[0]
 				if alg in ('sha1', 'sha1new', 'sha256'):
-					digests.append(sel_id)
+					if sel_id not in digests:
+						digests.append(sel_id)
 
 			iface_uri = selection.attrs['interface']
 
