@@ -1330,8 +1330,10 @@ class ZeroInstallFeed(object):
 			else:
 				impl = ZeroInstallImplementation(self, id, None, item)
 				if '=' in id:
-					# In older feeds, the ID was the (single) digest
-					impl.digests.append(id)
+					alg = id.split('=', 1)[0]
+					if alg in ('sha1', 'sha1new', 'sha256'):
+						# In older feeds, the ID was the (single) digest
+						impl.digests.append(id)
 			if id in self.implementations:
 				logger.warning(_("Duplicate ID '%(id)s' in feed '%(feed)s'"), {'id': id, 'feed': self})
 			self.implementations[id] = impl
