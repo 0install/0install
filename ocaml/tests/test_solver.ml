@@ -101,7 +101,10 @@ let make_solver_test test_elem =
     let process child = match ZI.tag child with
     | Some "interface" -> add_iface child
     | Some "requirements" ->
-        reqs := {!reqs with Requirements.interface_uri = ZI.get_attribute "interface" child};
+        reqs := {!reqs with
+          Requirements.interface_uri = ZI.get_attribute "interface" child;
+          Requirements.command = ZI.get_attribute_opt "command" child;
+        };
         fails := ZI.get_attribute_opt "fails" child = Some "true"
     | Some "selections" -> expected_selections := child
     | _ -> failwith "Unexpected element" in
@@ -125,6 +128,8 @@ let make_solver_test test_elem =
         method have_stale_feeds () = false
       end in
     let (ready, result) = Solver.solve_for config feed_provider !reqs in
+    if ready && !fails then assert_failure "Expected solve to fail, but it didn't!";
+    if not ready && not (!fails) then assert_failure "Solve failed (not ready)";
     assert (ready = (not !fails));
     let actual_sels = result#get_selections () in
     assert (ZI.tag actual_sels = Some "selections");

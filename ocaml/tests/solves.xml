@@ -5,7 +5,7 @@
       <name>0install</name>
       <implementation id='v1' version='1'><command name='run' path='main'/></implementation>
     </interface>
-    <requirements interface='http://example.com/prog.xml'/>
+    <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections command="run" interface="http://example.com/prog.xml">
       <selection id='v1' interface='http://example.com/prog.xml' version='1'>
         <command name="run" path="main"/>
@@ -22,7 +22,7 @@
         <environment name='VAR' insert='b'/>
       </implementation>
     </interface>
-    <requirements interface='http://example.com/prog.xml'/>
+    <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections command="run" interface="http://example.com/prog.xml">
       <selection id='v1' interface='http://example.com/prog.xml' version='1'>
         <command name="run" path="main"/>
@@ -39,7 +39,7 @@
       <implementation id='a1' version='1'><command name='run' path='main'/></implementation>
       <implementation id='m3' version='3'><command name='run' path='main'/></implementation>
     </interface>
-    <requirements interface='http://example.com/prog.xml'/>
+    <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections command="run" interface="http://example.com/prog.xml">
       <selection id='m3' interface='http://example.com/prog.xml' version='3'>
         <command name="run" path="main"/>
@@ -87,7 +87,7 @@
         <implementation id='m3' version='3'><command name='run' path='main'/></implementation>
       </group>
     </interface>
-    <requirements interface='http://example.com/prog.xml'/>
+    <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections command="run" interface="http://example.com/prog.xml">
       <selection id='z2' interface='http://example.com/lib.xml' version='2'>
 	<command name='run' path='prog'/>
@@ -107,6 +107,24 @@
       <selection id='t1' interface='http://example.com/tester.xml' version='1'>
 	<command name='run' path='tester'/>
       </selection>
+    </selections>
+  </test>
+
+  <test name='ignored-deps'>
+    <interface uri='http://example.com/unused.xml'>
+      <name>unused</name>
+      <implementation id='m3' version='3'/>
+    </interface>
+    <interface uri='http://example.com/prog.xml'>
+      <name>prog</name>
+      <implementation id='v1' version='1'>
+        <requires interface='http://example.com/Missing.xml' os='nosuchos'/>
+        <requires interface='http://example.com/Missing2.xml' use='never'/>
+      </implementation>
+    </interface>
+    <requirements interface='http://example.com/prog.xml'/>
+    <selections interface="http://example.com/prog.xml">
+      <selection id='v1' interface='http://example.com/prog.xml' version='1'/>
     </selections>
   </test>
 
@@ -133,7 +151,7 @@
         <implementation id='p3' version='3'></implementation>
       </group>
     </interface>
-    <requirements interface='http://example.com/prog.xml'/>
+    <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections command="run" interface="http://example.com/prog.xml">
       <selection id='l2' interface='http://example.com/lib.xml' version='2'/>
       <selection id='p2' interface='http://example.com/prog.xml' version='2'>
@@ -170,7 +188,7 @@
 	</implementation>
       </group>
     </interface>
-    <requirements interface='http://example.com/prog.xml' fails='true'/>
+    <requirements command='run' interface='http://example.com/prog.xml' fails='true'/>
     <selections command="run" interface="http://example.com/prog.xml">
       <selection interface="http://example.com/lib.xml"/>
       <selection interface="http://example.com/prog.xml" id="p2" version="2">
@@ -188,7 +206,7 @@
 	<command name='run' path='old-path' if-0install-version='..!1'/>
       </implementation>
     </interface>
-    <requirements interface='http://example.com/prog.xml'/>
+    <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections command="run" interface="http://example.com/prog.xml">
       <selection id='v1' interface='http://example.com/prog.xml' version='1'>
         <command name="run" path="new-path"/>
@@ -214,7 +232,7 @@
 	<requires interface='http://example.com/lib2.xml' distribution='foo 0install' importance='recommended'/>
       </implementation>
     </interface>
-    <requirements interface='http://example.com/prog.xml'/>
+    <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections command="run" interface="http://example.com/prog.xml">
       <selection id='l2' interface='http://example.com/lib2.xml' version='1'/>
       <selection id='v1' interface='http://example.com/prog.xml' version='1'>
@@ -252,7 +270,7 @@
 	</implementation>
       </group>
     </interface>
-    <requirements interface='http://example.com/prog.xml'/>
+    <requirements command='run' interface='http://example.com/prog.xml'/>
 
     <selections command="run" interface="http://example.com/prog.xml">
       <selection id='l12' interface='http://example.com/lib1.xml' version='2'/>
