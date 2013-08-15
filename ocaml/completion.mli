@@ -2,4 +2,4 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-val handle_complete : General.config -> string list -> unit
+val handle_complete : Zeroinstall.General.config -> string list -> unit

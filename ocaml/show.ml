@@ -4,10 +4,12 @@
 
 (** The "0install show" command *)
 
-open General
+open Zeroinstall.General
 open Support.Common
 open Options
 module Qdom = Support.Qdom
+module Selections = Zeroinstall.Selections
+module Apps = Zeroinstall.Apps
 
 let make_selection_map sels =
   let add_selection m sel =
@@ -47,7 +49,7 @@ let show_human config sels =
                 | Selections.PackageSelection -> sprintf "(%s)" @@ ZI.get_attribute "id" impl
                 | Selections.LocalSelection path -> path
                 | Selections.CacheSelection digests ->
-                    match Stores.lookup_maybe config.system digests config.stores with
+                    match Zeroinstall.Stores.lookup_maybe config.system digests config.stores with
                     | None -> "(not cached)"
                     | Some path -> path in
 
@@ -57,7 +59,7 @@ let show_human config sels =
               let deps = ref @@ Selections.get_dependencies ~restricts:false impl in
 
               ListLabels.iter commands ~f:(fun c ->
-                let command = Command.get_command c impl in
+                let command = Zeroinstall.Command.get_command c impl in
                 deps := !deps @ Selections.get_dependencies ~restricts:false command
               );
 
@@ -87,7 +89,7 @@ let show_xml sels =
   output_string stdout "\n"
 
 let show_restrictions (system:system) r =
-  let open Requirements in
+  let open Zeroinstall.Requirements in
   let print = Support.Utils.print in
   if r.extra_restrictions <> StringMap.empty then (
     print system "User-provided restrictions in force:";

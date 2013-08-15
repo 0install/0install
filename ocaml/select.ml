@@ -4,10 +4,13 @@
 
 (** The "0install select" command *)
 
-open General
+open Zeroinstall.General
 open Support.Common
 open Options
 module Qdom = Support.Qdom
+module Alias = Zeroinstall.Alias
+module Apps = Zeroinstall.Apps
+module Requirements = Zeroinstall.Requirements
 
 let use_ocaml_solver =                (* TODO: just for testing *)
   try ignore @@ Sys.getenv "USE_OCAML_SOLVER"; true
@@ -110,7 +113,7 @@ let get_selections options ~refresh reqs mode =
   let select_with_refresh () =
     (* This is the slow path: we need to download things before selecting *)
     let read_xml s = Qdom.parse_input None @@ Xmlm.make_input (`String (0, s)) in
-    let args = Requirements.to_options reqs @ ["--xml"; "--"; reqs.Requirements.interface_uri] in
+    let args = Req_options.to_options reqs @ ["--xml"; "--"; reqs.Requirements.interface_uri] in
     let args = if refresh then "--refresh" :: args else args in
     (* Note: parse the output only if it returns success *)
     let xml = read_xml @@ Python.check_output_python options Support.Utils.input_all action @@ args in
@@ -130,8 +133,8 @@ let get_selections options ~refresh reqs mode =
   ) else (
     let distro = Lazy.force options.distro in
     try
-      let feed_provider = new Feed_cache.feed_provider config distro in
-      match Solver.solve_for config feed_provider reqs with
+      let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in
+      match Zeroinstall.Solver.solve_for config feed_provider reqs with
       | (false, results) ->
           if use_ocaml_solver then (
             print_endline "Quick solve failed (stopped for debugging):";
@@ -142,7 +145,7 @@ let get_selections options ~refresh reqs mode =
           )
       | (true, results) ->
           let sels = results#get_selections () in
-          if mode = Select_only || Selections.get_unavailable_selections config ~distro sels = [] then (
+          if mode = Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
             (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
 
             let have_stale_feeds = feed_provider#have_stale_feeds () in
@@ -158,7 +161,7 @@ let get_selections options ~refresh reqs mode =
                   if config.network_use = Offline then (
                     log_info "No doing background update because we are in off-line mode."; false
                   ) else if options.config.dry_run then (
-                    Dry_run.log "[dry-run] would check for updates in the background"; false
+                    Zeroinstall.Dry_run.log "[dry-run] would check for updates in the background"; false
                   ) else (
                     true
                   ) in
@@ -222,16 +225,16 @@ let handle options args =
     | App path ->
         let old_sels = Apps.get_selections_no_updates config path in
         let old_reqs = Apps.get_requirements config.system path in
-        let (options, reqs) = Requirements.parse_update_options options.extra_options old_reqs in
+        let (options, reqs) = Req_options.parse_update_options options.extra_options old_reqs in
 
         do_selections options reqs ~changes:(old_reqs <> reqs) ~app_old_sels:old_sels
     | Interface iface_uri ->
-        let (options, reqs) = Requirements.parse_options options.extra_options iface_uri ~command:(Some "run") in
+        let (options, reqs) = Req_options.parse_options options.extra_options iface_uri ~command:(Some "run") in
         do_selections options reqs ~changes:false
     | Selections root ->
         let iface_uri = ZI.get_attribute "interface" root in
         let command = ZI.get_attribute_opt "command" root in
-        let (options, reqs) = Requirements.parse_options options.extra_options iface_uri ~command in
+        let (options, reqs) = Req_options.parse_options options.extra_options iface_uri ~command in
         do_selections options reqs ~changes:false
   )
   | _ -> raise Support.Argparse.Usage_error

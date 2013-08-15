@@ -3,7 +3,7 @@
  *)
 
 open OUnit
-open General
+open Zeroinstall.General
 open Support.Common
 open Fake_system
 
@@ -98,7 +98,7 @@ let test_run_real tmpdir =
   assert_str_equal "Hello World\n" line
 
 let test_escaping () =
-  let open Escape in
+  let open Zeroinstall.Escape in
   let wfile s = if on_windows then "file%3a" ^ s else "file:" ^ s in
   List.iter (fun (a, b) -> assert_str_equal a b) [
     (* Escaping *)

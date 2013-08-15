@@ -4,7 +4,7 @@
 
 (** The main executable *)
 
-open General
+open Zeroinstall.General
 open Support.Common
 open Options
 
@@ -43,7 +43,7 @@ let handle_run options args : unit =
   );
   match args with
   | prog :: run_args when not (is_option prog) && not (is_url prog) -> (
-      let sels = match Apps.lookup_app config prog with
+      let sels = match Zeroinstall.Apps.lookup_app config prog with
       | None -> (
           let root = Support.Qdom.parse_file config.system prog in
           match ZI.tag root with
@@ -52,8 +52,8 @@ let handle_run options args : unit =
           | Some "interface" | Some "feed" -> raise Fallback_to_Python
           | Some x -> raise_safe "Unexpected root element <%s>" x
       )
-      | Some app_path -> Apps.get_selections_may_update config (Lazy.force options.distro) app_path in
-      try Run.execute_selections config sels run_args ?wrapper:!wrapper
+      | Some app_path -> Zeroinstall.Apps.get_selections_may_update config (Lazy.force options.distro) app_path in
+      try Zeroinstall.Run.execute_selections config sels run_args ?wrapper:!wrapper
       with Safe_exception _ as ex -> reraise_with_context ex "... running %s" prog
     )
   | _ -> raise Fallback_to_Python
@@ -61,10 +61,10 @@ let handle_run options args : unit =
 
 let main (system:system) : unit =
   let argv = Array.to_list (system#argv ()) in
-  let config = Config.get_default_config system (List.hd argv) in
+  let config = Zeroinstall.Config.get_default_config system (List.hd argv) in
   match List.tl argv with
   | "_complete" :: args -> Completion.handle_complete config args
-  | "runenv" :: runenv_args -> Run.runenv system runenv_args
+  | "runenv" :: runenv_args -> Zeroinstall.Run.runenv system runenv_args
   | raw_args ->
       try
         let options =

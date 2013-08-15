@@ -6,6 +6,8 @@ open Support.Common
 open OUnit
 module Qdom = Support.Qdom
 open Fake_system
+module Distro = Zeroinstall.Distro
+module Feed = Zeroinstall.Feed
 
 let test_feed = "<?xml version='1.0'?>\n\
 <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://example.com/python'>\n\
@@ -41,7 +43,7 @@ let suite = "distro">::: [
     let impls = Distro.get_package_impls distro feed in
     let open Feed in
     match impls with
-    | Some [impl] -> assert_str_equal "2.7.2-4" (Versions.format_version impl.parsed_version)
+    | Some [impl] -> assert_str_equal "2.7.2-4" (Zeroinstall.Versions.format_version impl.parsed_version)
     | Some impls -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)
     | None -> assert_failure "didn't check distro!"
   );

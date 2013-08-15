@@ -4,9 +4,12 @@
 
 (** Tab-completion for command-line arguments *)
 
-open General
+open Zeroinstall.General
 open Support.Common
 open Support.Argparse
+module Apps = Zeroinstall.Apps
+module Feed = Zeroinstall.Feed
+module Feed_cache = Zeroinstall.Feed_cache
 
 let starts_with = Support.Utils.starts_with
 let slice = Support.Utils.slice
@@ -270,7 +273,7 @@ let complete_version completer ~range ~maybe_app target pre =
           "" in
 
       let check pv =
-        let v = Versions.format_version pv in
+        let v = Zeroinstall.Versions.format_version pv in
         let vexpr = v_prefix ^ v in
         if starts_with vexpr pre then Some vexpr else None in
       let all_versions = List.map Feed.get_version @@ Feed.get_implementations feed in
@@ -300,7 +303,7 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
   | CpuType -> complete_from_list ["src"; "i386"; "i486"; "i586"; "i686"; "ppc"; "ppc64"; "x86_64"]
   | OsType -> complete_from_list ["Cygwin"; "Darwin"; "FreeBSD"; "Linux"; "MacOSX"; "Windows"]
   | Message -> ()
-  | HashType -> complete_from_list @@ Manifest.get_algorithm_names ()
+  | HashType -> complete_from_list @@ Zeroinstall.Manifest.get_algorithm_names ()
   | IfaceURI -> (
       match args with
       | _ :: app :: _ -> (

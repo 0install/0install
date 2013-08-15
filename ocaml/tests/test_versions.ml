@@ -5,6 +5,7 @@
 open OUnit
 open Support.Common
 open Fake_system
+module Versions = Zeroinstall.Versions
 
 let pv v =
   let parsed = Versions.parse_version v in

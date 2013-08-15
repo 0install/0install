@@ -3,8 +3,9 @@
  *)
 
 open OUnit
-open General
+open Zeroinstall.General
 open Support.Common
+module Config = Zeroinstall.Config
 
 (* For temporary directory names *)
 let () = Random.self_init ()

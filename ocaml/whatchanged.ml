@@ -4,7 +4,7 @@
 
 (** The "0install whatchanged" command *)
 
-open General
+open Zeroinstall.General
 open Support.Common
 module Qdom = Support.Qdom
 

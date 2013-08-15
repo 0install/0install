@@ -3,7 +3,7 @@
  *)
 
 open OUnit
-open General
+open Zeroinstall.General
 open Support.Common
 open Fake_system
 

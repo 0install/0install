@@ -4,7 +4,7 @@
 
 (** Interfacing with the old Python code *)
 
-open General
+open Zeroinstall.General
 open Support.Common
 
 let get_command config args : string list =

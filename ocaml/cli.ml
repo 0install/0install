@@ -5,7 +5,7 @@
 (** Parsing command-line arguments *)
 
 open Options
-open General
+open Zeroinstall.General
 open Support.Common
 open Support.Argparse
 
@@ -284,7 +284,7 @@ let parse_args config args =
   (* Default values *)
   let options = {
     config;
-    distro = lazy (Distro.get_host_distribution config);
+    distro = lazy (Zeroinstall.Distro.get_host_distribution config);
     gui = Maybe;
     verbosity = 0;
     extra_options = [];
@@ -294,7 +294,7 @@ let parse_args config args =
 
   options.extra_options <- Support.Utils.filter_map raw_options ~f:(fun (opt, value) -> match value with
     | UseGUI b -> options.gui <- b; None
-    | DryRun -> config.dry_run <- true; config.system <- new Dry_run.dryrun_system config.system; None
+    | DryRun -> config.dry_run <- true; config.system <- new Zeroinstall.Dry_run.dryrun_system config.system; None
     | Verbose -> increase_verbosity options; None
     | WithStore store -> add_store options store; None
     | ShowVersion -> raise Fallback_to_Python

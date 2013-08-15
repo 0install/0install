@@ -2,7 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open General
+open Zeroinstall.General
 open Support.Common
 
 type version = string
@@ -48,8 +48,8 @@ type zi_option =
   | AmbiguousOption of (string -> zi_option)
 
 type global_settings = {
-  config : General.config;
-  distro : Distro.distribution Lazy.t;
+  config : Zeroinstall.General.config;
+  distro : Zeroinstall.Distro.distribution Lazy.t;
   mutable gui : yes_no_maybe;
   mutable verbosity : int;
   mutable extra_options : zi_option Support.Argparse.option_value list;

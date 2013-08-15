@@ -2,11 +2,10 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open General
+open Zeroinstall.General
 open Support.Common
 open OUnit
-
-module ZI = General.ZI
+open Zeroinstall
 
 module StringData =
   struct
@@ -90,11 +89,11 @@ let make_solver_test test_elem =
     let (config, fake_system) = Fake_system.get_fake_config None in
     fake_system#add_dir "/home/testuser/.cache/0install.net/implementations" [];
     fake_system#add_dir "/var/cache/0install.net/implementations" [];
-    let reqs = ref (Requirements.default_requirements "") in
+    let reqs = ref (Zeroinstall.Requirements.default_requirements "") in
     let ifaces = Hashtbl.create 10 in
     let fails = ref false in
     let add_iface elem =
-      let open Feed in
+      let open Zeroinstall.Feed in
       make_all_downloable elem;
       let uri = ZI.get_attribute "uri" elem in
       let feed = parse (fake_system :> system) elem None in
@@ -129,7 +128,7 @@ let make_solver_test test_elem =
 
         method have_stale_feeds () = false
       end in
-    let (ready, result) = Solver.solve_for config feed_provider !reqs in
+    let (ready, result) = Zeroinstall.Solver.solve_for config feed_provider !reqs in
     if ready && !fails then assert_failure "Expected solve to fail, but it didn't!";
     if not ready && not (!fails) then assert_failure "Solve failed (not ready)";
     assert (ready = (not !fails));
@@ -246,7 +245,7 @@ let suite = "solver">::: [
   );
 
   "impl_provider">:: (fun () ->
-    let open Impl_provider in
+    let open Zeroinstall.Impl_provider in
     let (config, fake_system) = Fake_system.get_fake_config None in
     fake_system#add_dir "/home/testuser/.cache/0install.net/implementations" [];
     fake_system#add_dir "/var/cache/0install.net/implementations" ["sha1=1"];
