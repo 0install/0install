@@ -88,6 +88,8 @@ let make_solver_test test_elem =
   let name = ZI.get_attribute "name" test_elem in
   name >:: (fun () ->
     let (config, fake_system) = Fake_system.get_fake_config None in
+    fake_system#add_dir "/home/testuser/.cache/0install.net/implementations" [];
+    fake_system#add_dir "/var/cache/0install.net/implementations" [];
     let reqs = ref (Requirements.default_requirements "") in
     let ifaces = Hashtbl.create 10 in
     let fails = ref false in
@@ -246,6 +248,8 @@ let suite = "solver">::: [
   "impl_provider">:: (fun () ->
     let open Impl_provider in
     let (config, fake_system) = Fake_system.get_fake_config None in
+    fake_system#add_dir "/home/testuser/.cache/0install.net/implementations" [];
+    fake_system#add_dir "/var/cache/0install.net/implementations" ["sha1=1"];
     let system = (fake_system :> system) in
     let iface = "http://example.com/prog.xml" in
 
@@ -321,8 +325,6 @@ let suite = "solver">::: [
 
         method have_stale_feeds () = false
       end in
-
-    fake_system#add_dir "/var/cache/0install.net/implementations/sha1=1" ["README.txt"];
 
     config.network_use <- Minimal_network;
 

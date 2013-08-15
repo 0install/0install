@@ -52,6 +52,8 @@ class default_impl_provider config (feed_provider : Feed_cache.feed_provider) =
   let get_impls (feed, overrides) =
     do_overrides overrides @@ Feed.get_implementations feed in
 
+  let cached_digests = Stores.get_available config.system config.stores in
+
   object (_ : #impl_provider)
     val cache = Hashtbl.create 10
 
@@ -86,7 +88,12 @@ class default_impl_provider config (feed_provider : Feed_cache.feed_provider) =
           fun _ -> true in
 
       let is_available impl =
-        try Feed.is_available_locally config impl
+        try
+          let open Feed in
+          match impl.impl_type with
+          | PackageImpl {package_installed;_} -> package_installed
+          | LocalImpl path -> config.system#file_exists path
+          | CacheImpl {digests;_} -> List.exists (fun d -> Hashtbl.mem cached_digests (Stores.format_digest d)) digests
         with Safe_exception _ as ex ->
           log_warning ~ex "Can't test whether impl is available: %s" (Support.Qdom.show_with_loc impl.Feed.qdom);
           false in
