@@ -7,9 +7,11 @@
 open General
 open Support.Common
 
-type stores = string list;;
+type stores = string list
 
-type digest = (string * string);;
+type digest = (string * string)
+
+type available_digests = (string, bool) Hashtbl.t
 
 exception Not_stored of string;;
 
@@ -42,7 +44,7 @@ let get_default_stores basedir_config =
   let open Support.Basedir in
   List.map (fun prefix -> prefix +/ "0install.net" +/ "implementations") basedir_config.cache
 
-let get_available (system:system) stores =
+let get_available_digests (system:system) stores =
   let digests = Hashtbl.create 1000 in
   let scan_dir dir =
     match system#readdir dir with
@@ -55,7 +57,9 @@ let get_available (system:system) stores =
   List.iter scan_dir stores;
   digests
 
-(* (for parsing <implementation> and <selection> elements) *)
+let check_available available_digests digests =
+  List.exists (fun d -> Hashtbl.mem available_digests (format_digest d)) digests
+
 let get_digests elem =
   let id = ZI.get_attribute "id" elem in
   let init = match Str.bounded_split_delim re_equals id 2 with
