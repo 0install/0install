@@ -27,16 +27,28 @@ let suite = "utils">::: [
     let check expected input =
       assert_str_equal expected @@ normpath input in
 
-    check "/home/bob" "/home/bob";
-    check "/home/bob" "/home/bob/";
-    check "/home/bob" "//home//bob//";
-    check "/home" "//home//bob//..";
-    check "/home/fred" "//home//bob/./.././fred";
-    check "../fred" "..//fred";
-    check ".." "..//fred/..";
+    if on_windows then (
+      check "c:\\home\\bob" "c:\\home\\bob";
+      check "c:\\home\\bob" "c:\\home\\bob\\";
+      check "c:\\home\\bob" "c:\\\\home\\\\bob\\\\";
+      check "c:\\home" "c:\\\\home\\\\bob\\\\..";
+      check "c:\\home\\fred" "c:\\\\home\\\\bob\\.\\..\\.\\fred";
+      check "..\\fred" "..\\\\fred";
+      check ".." "..\\\\fred\\..";
+    ) else (
+      check "/home/bob" "/home/bob";
+      check "/home/bob" "/home/bob/";
+      check "/home/bob" "//home//bob//";
+      check "/home" "//home//bob//..";
+      check "/home/fred" "//home//bob/./.././fred";
+      check "../fred" "..//fred";
+      check ".." "..//fred/..";
+    )
   );
 
   "realpath">:: (fun () ->
+    skip_if (Sys.os_type = "Win32") "No symlinks on Windows";
+
     let system = new dummy_file_system in
     let check expected input =
       assert_str_equal expected @@ realpath (system :> system) input in

@@ -87,8 +87,13 @@ let make_solver_test test_elem =
   let name = ZI.get_attribute "name" test_elem in
   name >:: (fun () ->
     let (config, fake_system) = Fake_system.get_fake_config None in
-    fake_system#add_dir "/home/testuser/.cache/0install.net/implementations" [];
-    fake_system#add_dir "/var/cache/0install.net/implementations" [];
+    if on_windows then (
+      fake_system#add_dir "C:\\Users\\test\\AppData\\Local\\0install.net\\implementations" [];
+      fake_system#add_dir "C:\\ProgramData\\0install.net\\implementations" [];
+    ) else (
+      fake_system#add_dir "/home/testuser/.cache/0install.net/implementations" [];
+      fake_system#add_dir "/var/cache/0install.net/implementations" [];
+    );
     let reqs = ref (Zeroinstall.Requirements.default_requirements "") in
     let ifaces = Hashtbl.create 10 in
     let fails = ref false in
@@ -235,20 +240,28 @@ let suite = "solver">::: [
     assert (iface_config.stability_policy = None);
     assert (iface_config.extra_feeds = []);
 
+    skip_if (Sys.os_type = "Win32") "No native packages";
+
     fake_system#add_file "/usr/share/0install.net/native_feeds/http:##example.com#prog" "Hello.xml";
     let iface_config = feed_provider#get_iface_config uri in
     assert (iface_config.stability_policy = None);
     match iface_config.extra_feeds with
     | [ { Feed.feed_src = "/usr/share/0install.net/native_feeds/http:##example.com#prog";
           Feed.feed_type = Feed.Distro_packages; _ } ] -> ()
+    | [ { Feed.feed_src;_ } ] -> assert_failure feed_src;
     | _ -> assert_failure "Didn't find native feed"
   );
 
   "impl_provider">:: (fun () ->
     let open Zeroinstall.Impl_provider in
     let (config, fake_system) = Fake_system.get_fake_config None in
-    fake_system#add_dir "/home/testuser/.cache/0install.net/implementations" [];
-    fake_system#add_dir "/var/cache/0install.net/implementations" ["sha1=1"];
+    if on_windows then (
+      fake_system#add_dir "C:\\Users\\test\\AppData\\Local\\0install.net\\implementations" [];
+      fake_system#add_dir "C:\\ProgramData\\0install.net\\implementations" ["sha1=1"];
+    ) else (
+      fake_system#add_dir "/home/testuser/.cache/0install.net/implementations" [];
+      fake_system#add_dir "/var/cache/0install.net/implementations" ["sha1=1"];
+    );
     let system = (fake_system :> system) in
     let iface = "http://example.com/prog.xml" in
 

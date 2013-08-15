@@ -32,6 +32,8 @@ let test_feed = "<?xml version='1.0'?>\n\
 
 let suite = "distro">::: [
   "arch">:: Fake_system.with_tmpdir (fun tmpdir ->
+    skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
+
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     fake_system#add_dir "/var/lib/pacman" ["local"];
     fake_system#add_dir "/var/lib/pacman/local" ["python2-2.7.2-4"];
