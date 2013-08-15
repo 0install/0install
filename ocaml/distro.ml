@@ -62,7 +62,7 @@ module Cache =
        *)
     class cache (config:General.config) (cache_leaf:string) (source:filepath) (format_version:int) ~(old_format:bool) =
       let re_metadata_sep = if old_format then re_colon_space else re_equals
-      and re_key_value_sep = if old_format then re_tab else re_equals
+      and re_key_value_sep = if old_format then U.re_tab else re_equals
       in
       object (self)
         (* The status of the cache when we loaded it. *)
@@ -141,7 +141,7 @@ let check_cache distro_name elem cache =
   | Some package ->
       let sel_id = ZI.get_attribute "id" elem in
       let matches data =
-          let installed_version, machine = Utils.split_pair re_tab data in
+          let installed_version, machine = Utils.split_pair U.re_tab data in
           let installed_id = Printf.sprintf "package:%s:%s:%s:%s" distro_name package installed_version machine in
           (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
           sel_id = installed_id in
@@ -174,7 +174,23 @@ module Debian = struct
       val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2 ~old_format:false
       method is_installed elem = check_cache "deb" elem cache
       method match_name name = (name = distro_name)
-      method get_package_impls _elem = raise Fallback_to_Python
+      method get_package_impls (elem, props) =
+        let package_name = ZI.get_attribute "package" elem in
+        let process cached_info =
+          match Str.split_delim U.re_tab cached_info with
+          | [version; machine] ->
+              let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
+              make_package_implementation elem props ~distro_name ~is_installed:true
+                ~id ~version ~machine ~extra_attrs:[]
+          | _ ->
+              log_warning "Unknown cache line format for '%s': %s" package_name cached_info;
+              raise Fallback_to_Python
+        in
+
+        match cache#get package_name with
+        | [] -> raise Fallback_to_Python      (* We don't know anything about this package *)
+        | ["-"] -> []                         (* We know the package isn't installed *)
+        | infos -> List.map process infos
     end
 end
 

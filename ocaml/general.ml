@@ -42,7 +42,6 @@ let days = 24 * hours       (* Seconds per day *)
 
 let re_colon = Str.regexp_string ":"
 let re_equals = Str.regexp_string "="
-let re_tab = Str.regexp_string "\t"
 
 (** {2 Relative configuration paths (e.g. under ~/.config)} *)
 
