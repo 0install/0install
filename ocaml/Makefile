@@ -2,7 +2,9 @@ OCAML_BUILDDIR=../build/ocaml
 TYPE=native
 DEBUG=-cflags -g
 OCAMLBUILD=ocamlbuild ${DEBUG} -I cmd -use-ocamlfind -build-dir "${OCAML_BUILDDIR}"
+TARGETS=static_0install.$(TYPE) main.cma windows.cma tests/test.$(TYPE)
 ifeq ($(OS), Windows_NT)
+  TARGETS += runenv.native
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
 endif
 MS_SDK:="/cygdrive/c/Program Files/Microsoft SDKs/Windows/v7.0/Bin"
@@ -14,15 +16,12 @@ all: build_dir ocaml test
 build_dir:
 	[ -d "${OCAML_BUILDDIR}" ] || mkdir -p "${OCAML_BUILDDIR}"
 
-build_tests: ocaml
-	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) tests/test.$(TYPE)
-
-test: build_tests
+test: ocaml
 	(cd tests && OCAML_BUILDDIR=../${OCAML_BUILDDIR} ../${OCAML_BUILDDIR}/tests/test.$(TYPE))
 
 # Build portable bytecode and static version (of $TYPE)
 ocaml: build_dir
-	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) static_0install.$(TYPE) main.cma windows.cma
+	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) $(TARGETS)
 	cp 0install.ml "$(OCAML_BUILDDIR)/"
 	if [ "$(OS)" = "Windows_NT" ];then make ocaml_windows; else make ocaml_posix; fi
 
@@ -30,7 +29,6 @@ ocaml: build_dir
 # Also, we need an XML manifest, or Windows 7 won't run it because it has "install" in its name.
 ocaml_windows:
 	cp ${OCAML_BUILDDIR}/static_0install.$(TYPE) ${OCAML_BUILDDIR}/0install.exe
-	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) runenv.native
 	cp ${OCAML_BUILDDIR}/runenv.native ${OCAML_BUILDDIR}/0install-runenv.exe
 	${MS_SDK}/mt.exe -nologo -manifest 0install.exe.manifest -outputresource:"${OCAML_BUILDDIR}/0install.exe;#1"
 	${MS_SDK}/mt.exe -nologo -manifest 0install.exe.manifest -outputresource:"${OCAML_BUILDDIR}/0install-runenv.exe;#1"
