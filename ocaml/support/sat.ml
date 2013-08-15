@@ -28,7 +28,7 @@ module type USER =
 
 module MakeSAT(User : USER) =
   struct
-    let (@@) = Support.Common.(@@)
+    let (@@) = Common.(@@)
 
     type var_value = True | False | Undecided
 

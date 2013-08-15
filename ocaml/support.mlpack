@@ -1,8 +1,11 @@
 Argparse
 Basedir
 Common
+Dynarray
+Locale
 Logging
 Qdom
+Sat
 System
 Utils
 Windows_api

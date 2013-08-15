@@ -6,6 +6,7 @@
 
 open General
 open Support.Common
+module U = Support.Utils
 
 type stores = string list
 
@@ -62,7 +63,7 @@ let check_available available_digests digests =
 
 let get_digests elem =
   let id = ZI.get_attribute "id" elem in
-  let init = match Str.bounded_split_delim re_equals id 2 with
+  let init = match Str.bounded_split_delim U.re_equals id 2 with
   | [key; value] when key = "sha1" || key = "sha1new" || key = "sha256" -> [(key, value)]
   | _ -> [] in
 

@@ -579,7 +579,7 @@ let get_langs impl =
   let langs =
     try Str.split U.re_space @@ AttrMap.find ("", "langs") impl.props.attrs
     with Not_found -> ["en"] in
-  Support.Utils.filter_map ~f:Locale.parse_lang langs
+  Support.Utils.filter_map ~f:Support.Locale.parse_lang langs
 
 (** Is this implementation in the cache? *)
 let is_available_locally config impl =

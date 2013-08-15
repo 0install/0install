@@ -61,8 +61,8 @@ module Cache =
        The [old_format] used different separator characters.
        *)
     class cache (config:General.config) (cache_leaf:string) (source:filepath) (format_version:int) ~(old_format:bool) =
-      let re_metadata_sep = if old_format then re_colon_space else re_equals
-      and re_key_value_sep = if old_format then U.re_tab else re_equals
+      let re_metadata_sep = if old_format then re_colon_space else U.re_equals
+      and re_key_value_sep = if old_format then U.re_tab else U.re_equals
       in
       object (self)
         (* The status of the cache when we loaded it. *)

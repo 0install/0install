@@ -32,7 +32,7 @@ all: translations
 	cp -r build/lib/zeroinstall "${DISTDIR}/"
 	install "${BUILDDIR}/ocaml/0install.ml" "${DISTDIR}/"
 	cp "${BUILDDIR}/ocaml/main.cma" "${DISTDIR}/0install.cma"
-	cp "${BUILDDIR}/ocaml/main.cmi" "${BUILDDIR}/ocaml/support.cmi" "${BUILDDIR}/ocaml/windows.cma" "${BUILDDIR}/ocaml/windows.cmi" "${DISTDIR}/"
+	cp "${BUILDDIR}/ocaml/main.cmi" "${BUILDDIR}/ocaml/support.cmi" "${BUILDDIR}/ocaml/support/windows.cma" "${BUILDDIR}/ocaml/support/windows.cmi" "${DISTDIR}/"
 	ocamlc -a -o "${DISTDIR}/yojson.cma" ${JSON_LIBS}
 	if [ -f "${XMLM}"/xmlm.cma ]; then \
 		cp "${XMLM}"/xmlm.cma "${DISTDIR}/"; \

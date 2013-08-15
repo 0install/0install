@@ -24,7 +24,7 @@ module SolverData =
     let unused = Unused
   end
 
-module S = Sat.MakeSAT(SolverData)
+module S = Support.Sat.MakeSAT(SolverData)
 
 type decision_state =
   | Undecided of S.lit                  (* The next candidate to try *)
@@ -556,7 +556,7 @@ let solve_for config feed_provider requirements =
       extra_restrictions = StringMap.map make_user_restriction extra_restrictions;
       os_ranks = Arch.get_os_ranks os;
       machine_ranks = Arch.get_machine_ranks ~multiarch machine;
-      languages = Locale.get_langs config.system;
+      languages = Support.Locale.get_langs config.system;
     } in
     let scope = { scope_filter; use } in
 

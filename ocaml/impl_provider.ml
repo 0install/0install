@@ -26,7 +26,7 @@ type scope_filter = {
   extra_restrictions : Feed.restriction StringMap.t;  (* iface -> test *)
   os_ranks : int StringMap.t;
   machine_ranks : int StringMap.t;
-  languages : Locale.lang_spec list;    (* Must match one of these, earlier ones preferred *)
+  languages : Support.Locale.lang_spec list;    (* Must match one of these, earlier ones preferred *)
 }
 
 type candidates = {

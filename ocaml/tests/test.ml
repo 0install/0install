@@ -171,7 +171,7 @@ let suite =
    let test expected vars =
      let system = new fake_system None in
      List.iter (fun (k, v) -> system#putenv k v) vars;
-     equal_str_lists expected @@ List.map Locale.format_lang @@ Locale.get_langs (system :> system) in
+     equal_str_lists expected @@ List.map Support.Locale.format_lang @@ Support.Locale.get_langs (system :> system) in
 
    test ["en_GB"] [];
    test ["fr_FR"; "en_GB"] [("LANG", "fr_FR")];

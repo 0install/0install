@@ -206,6 +206,8 @@ let re_space = Str.regexp_string " "
 let re_tab = Str.regexp_string "\t"
 let re_dir_sep = Str.regexp_string Filename.dir_sep;;
 let re_path_sep = Str.regexp_string path_sep;;
+let re_colon = Str.regexp_string ":"
+let re_equals = Str.regexp_string "="
 
 (** Try to guess the full path of the executable that the user means.
     On Windows, we add a ".exe" extension if it's missing.

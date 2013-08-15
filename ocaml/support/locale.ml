@@ -7,7 +7,7 @@
 (* There is an ocaml-gettext package, but it's hard to install and seems unmaintained. As we don't need much,
    here's a simple implementation. Note: encodings are ignored; we only support UTF-8. *)
 
-open Support.Common
+open Common
 
 (* Language, country, encoding, variant, e.g. "en_GB.utf-8@foo" *)
 let re_locale = Str.regexp "^\\([a-z]+\\)\\([-_][a-z]+\\)?\\([.:].*\\)?\\(@.*\\)?$"
@@ -21,7 +21,7 @@ let parse_lang locale : lang_spec option =
     None
   ) else (
     (* If we cared about the encoding, we would normalise it by removing _ and -. But we don't. *)
-    let cc = try Some (Support.Utils.string_tail (Str.matched_group 2 s) 1) with Not_found -> None in
+    let cc = try Some (Utils.string_tail (Str.matched_group 2 s) 1) with Not_found -> None in
     Some (Str.matched_group 1 s, cc)
   )
 
@@ -47,8 +47,8 @@ let get_langs ?(default=("en", Some "gb")) (system:system) =
       []
     else (
       match system#getenv "LANGUAGE" with
-      | Some langs -> Str.split General.re_colon langs
+      | Some langs -> Str.split Utils.re_colon langs
       | None -> [lang]
     ) in
-  let specs = Support.Utils.filter_map ~f:parse_lang langs in
+  let specs = Utils.filter_map ~f:parse_lang langs in
   if List.mem default specs then specs else specs @ [default]

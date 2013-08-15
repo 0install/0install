@@ -15,7 +15,7 @@ module StringData =
     let unused = "unused"
   end
 
-module Sat = Sat.MakeSAT(StringData)
+module Sat = Support.Sat.MakeSAT(StringData)
 
 open Sat
 
@@ -332,7 +332,7 @@ let suite = "solver">::: [
       extra_restrictions = StringMap.empty;
       os_ranks = Arch.get_os_ranks "Linux";
       machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
-      languages = Support.Utils.filter_map ~f:Locale.parse_lang ["es_ES"; "fr_FR"];
+      languages = Support.Utils.filter_map ~f:Support.Locale.parse_lang ["es_ES"; "fr_FR"];
     } in
 
     let test_solve scope_filter =

@@ -40,9 +40,6 @@ let hours = 60 * 60         (* Seconds per hour *)
 
 let days = 24 * hours       (* Seconds per day *)
 
-let re_colon = Str.regexp_string ":"
-let re_equals = Str.regexp_string "="
-
 (** {2 Relative configuration paths (e.g. under ~/.config)} *)
 
 let config_site = "0install.net"
