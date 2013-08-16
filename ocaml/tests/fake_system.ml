@@ -54,18 +54,22 @@ class fake_system tmpdir =
       with Not_found ->
         match tmpdir with
         | Some dir when Support.Utils.starts_with path dir -> path
-        | _ -> assert_failure ("Attempt to read from " ^ path)
+        | _ -> raise_safe "Attempt to read from '%s'" path
     ) in
 
   let check_write path =
     match tmpdir with
     | Some dir when Support.Utils.starts_with path dir -> path
-    | _ -> assert_failure ("Attempt to write to " ^ path) in
+    | _ -> raise_safe "Attempt to write to '%s'" path in
 
   (* It's OK to check whether these paths exists. We just say they don't,
      unless they're in extra_files (check there first). *)
   let hidden_subtree path =
-    Support.Utils.starts_with path "/var" in
+    if Support.Utils.starts_with path "/var" then
+      match tmpdir with
+      | None -> true
+      | Some tmpdir -> not (Support.Utils.starts_with path tmpdir)
+    else false in
 
   object (self : #system)
     val now = ref 0.0

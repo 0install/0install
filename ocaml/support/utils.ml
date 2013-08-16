@@ -78,16 +78,19 @@ let filter_map_array ~f arr =
   List.rev !result
 
 (** [makedirs path mode] ensures that [path] is a directory, creating it and any missing parents (using [mode]) if not. *)
-let rec makedirs (system:system) path mode =
-  match system#lstat path with
-  | Some info ->
-      if info.Unix.st_kind = Unix.S_DIR then ()
-      else raise_safe "Not a directory: %s" path
-  | None ->
-      let parent = (Filename.dirname path) in
-      assert (path <> parent);
-      makedirs system parent mode;
-      system#mkdir path mode
+let makedirs (system:system) path mode =
+  let rec loop path =
+    match system#lstat path with
+    | Some info ->
+        if info.Unix.st_kind = Unix.S_DIR then ()
+        else raise_safe "Not a directory: %s" path
+    | None ->
+        let parent = (Filename.dirname path) in
+        assert (path <> parent);
+        loop parent;
+        system#mkdir path mode in
+  try loop path
+  with Safe_exception _ as ex -> reraise_with_context ex "... creating directory %s" path
 
 let starts_with str prefix =
   let ls = String.length str in
