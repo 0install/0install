@@ -53,7 +53,7 @@ let handle_run options args : unit =
           | Some x -> raise_safe "Unexpected root element <%s>" x
       )
       | Some app_path -> Zeroinstall.Apps.get_selections_may_update config (Lazy.force options.distro) app_path in
-      try Zeroinstall.Run.execute_selections config sels run_args ?wrapper:!wrapper
+      try Zeroinstall.Exec.execute_selections config sels run_args ?wrapper:!wrapper
       with Safe_exception _ as ex -> reraise_with_context ex "... running %s" prog
     )
   | _ -> raise Fallback_to_Python
@@ -64,7 +64,7 @@ let main (system:system) : unit =
   let config = Zeroinstall.Config.get_default_config system (List.hd argv) in
   match List.tl argv with
   | "_complete" :: args -> Completion.handle_complete config args
-  | "runenv" :: runenv_args -> Zeroinstall.Run.runenv system runenv_args
+  | "runenv" :: runenv_args -> Zeroinstall.Exec.runenv system runenv_args
   | raw_args ->
       try
         let options =

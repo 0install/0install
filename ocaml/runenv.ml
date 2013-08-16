@@ -7,4 +7,4 @@ module RealSystem = Support.System.RealSystem(Unix)
 
 let () =
   let system = new RealSystem.real_system in
-  Support.Utils.handle_exceptions (Zeroinstall.Run.runenv system) (Array.to_list Sys.argv)
+  Support.Utils.handle_exceptions (Zeroinstall.Exec.runenv system) (Array.to_list Sys.argv)
