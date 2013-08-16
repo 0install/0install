@@ -310,7 +310,7 @@ let parse_args config args =
   (* This check is mainly to prevent command_options getting out-of-date *)
   let () = match args with
   | command :: _ -> check_options command options.extra_options
-  | [] -> () in
+  | [] -> show_help options; exit 1 in
 
   options
 ;;

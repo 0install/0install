@@ -48,8 +48,8 @@ let test_option_parsing () =
   let open Options in
   let p args = Cli.parse_args config args in
 
-  assert_equal Maybe (p []).gui;
-  assert_equal No (p ["--console"]).gui;
+  assert_equal Maybe (p ["select"]).gui;
+  assert_equal No (p ["--console"; "select"]).gui;
 
   let s = p ["--with-store"; "/data/store"; "run"; "foo"] in
   assert_equal "/data/store" (List.hd config.stores);
@@ -63,7 +63,7 @@ let test_option_parsing () =
   assert_raises_safe "Option does not take an argument in '--console=true'" (lazy (p ["--console=true"]));
 
   assert (List.length (fake_log#get ()) = 0);
-  let s = p ["-cvv"] in
+  let s = p ["-cvv"; "run"] in
   assert_equal No s.gui;
   assert_equal 2 s.verbosity;
   assert (List.length (fake_log#get ()) > 0);
