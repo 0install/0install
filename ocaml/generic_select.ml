@@ -1,0 +1,312 @@
+(* Copyright (C) 2013, Thomas Leonard
+ * See the README file for details, or visit http://0install.net.
+ *)
+
+(** Selecting and downloading: common code for select/download/update/run *)
+
+open Zeroinstall.General
+open Support.Common
+open Options
+module Qdom = Support.Qdom
+module Alias = Zeroinstall.Alias
+module Apps = Zeroinstall.Apps
+module Requirements = Zeroinstall.Requirements
+
+let use_ocaml_solver =                (* TODO: just for testing *)
+  try ignore @@ Sys.getenv "USE_OCAML_SOLVER"; true
+  with Not_found -> false
+
+type target =
+  | App of (filepath * Requirements.requirements)
+  | Interface
+  | Selections of Qdom.element
+
+let local_path_of_iface uri =
+  let starts = Support.Utils.starts_with uri in
+  if starts "http://" || starts "https://'" then (
+    None
+  ) else (
+    if Filename.is_relative uri then
+      failwith ("Invalid interface URI: " ^ uri)
+    else
+      Some uri
+  )
+
+(* If uri is a relative path, convert to an absolute one.
+    A "file:///foo" URI is converted to "/foo".
+    An "alias:prog" URI expands to the URI in the 0alias script
+    Otherwise, return it unmodified. *)
+let canonical_iface_uri (system:system) arg =
+  let starts = Support.Utils.starts_with arg in
+  if starts "http://" || starts "https://'" then (
+    if not (String.contains_from arg (String.index arg '/' + 2) '/') then
+      raise_safe "Missing / after hostname in URI '%s'" arg;
+    arg
+  ) else if starts "alias:" then (
+    let alias = Support.Utils.string_tail arg 6 in
+    let path =
+      if Filename.is_implicit alias then
+        Support.Utils.find_in_path_ex system alias
+      else
+        alias in
+
+    match Alias.parse_script system path with
+    | None -> raise_safe "Not an alias script: '%s'" path
+    | Some info -> info.Alias.uri
+  ) else (
+    let path = Support.Utils.realpath system @@ if starts "file:///" then (
+      Support.Utils.string_tail arg 7
+    ) else if starts "file:" then (
+        if arg.[5] = '/' then
+          raise_safe "Use file:///path for absolute paths, not %s" arg;
+        Support.Utils.string_tail arg 5
+    ) else (
+      arg
+    ) in
+
+    let is_alias () =
+      if not (String.contains arg '/') then (
+        match Support.Utils.find_in_path system arg with
+        | None -> false
+        | Some path -> Alias.is_alias_script system path
+      ) else (
+        false
+      ) in
+
+    if system#file_exists path then
+      path
+    else if is_alias () then
+      raise_safe "Bad interface name '%s'.\n(hint: try 'alias:%s' instead)" arg arg
+    else
+      raise_safe "Bad interface name '%s'.\n(doesn't start with 'http:', and doesn't exist as a local file '%s' either)" arg path
+  )
+
+type output_style = Output_none | Output_XML | Output_human
+
+type select_options = {
+  mutable must_select : bool;
+  mutable refresh : bool;
+  mutable output : output_style;
+}
+
+(** Does this command-line argument refer to an app, URI or selections document?
+    Parses the options.extra_options and combines that with the target to get
+    the new requirements and options. *)
+let resolve_target options arg =
+  let config = options.config in
+  match Apps.lookup_app config arg with
+  | Some app ->
+      let old_reqs = Apps.get_requirements config.system app in
+      let (remaining_options, reqs) = Req_options.parse_update_options options.extra_options old_reqs in
+      (remaining_options, (App (app, old_reqs), reqs))
+  | None ->
+      let uri = canonical_iface_uri config.system arg in
+
+      let is_interface () =
+        let (remaining_options, reqs) = Req_options.parse_options options.extra_options uri ~command:(Some "run") in
+        (remaining_options, (Interface, reqs)) in
+
+      let is_selections sels =
+        let iface_uri = ZI.get_attribute "interface" sels in
+        let command = ZI.get_attribute_opt "command" sels in
+        let (remaining_options, reqs) = Req_options.parse_options options.extra_options iface_uri ~command in
+        (remaining_options, (Selections sels, reqs)) in
+
+      match local_path_of_iface uri with
+      | None -> is_interface ()
+      | Some path ->
+          let root = Support.Qdom.parse_file config.system path in
+          match ZI.tag root with
+          | None -> Support.Qdom.raise_elem "Not a 0install document (wrong namespace on root element): " root
+          | Some "selections" -> is_selections root
+          | Some "interface" | Some "feed" -> is_interface ()
+          | Some x -> raise_safe "Unexpected root element <%s>" x
+
+type select_mode =
+  | Select_only       (* only download feeds, not archives; display "Select" in GUI *)
+  | Download_only     (* download archives too; refresh if stale feeds; display "Download" in GUI *)
+  | Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
+  | Select_for_update (* like Download_only, but save changes to apps *)
+
+(** Get selections for the requirements. Will switch to GUI mode if necessary.
+    @param select_only 
+    @param download_only wait for stale feeds, and display GUI button as Download, not Run
+    @return the selections, or None if the user cancels (in which case, there is no need to alert the user again)
+    *)
+let get_selections options ~refresh reqs mode =
+  let config = options.config in
+  let action = match mode with
+  | Select_only -> "for-select"
+  | Download_only | Select_for_update -> "for-download"
+  | Select_for_run -> "for-run" in
+
+  let select_with_refresh () =
+    (* This is the slow path: we need to download things before selecting *)
+    let read_xml s = Qdom.parse_input None @@ Xmlm.make_input (`String (0, s)) in
+    let args = Req_options.to_options reqs @ ["--xml"; "--"; reqs.Requirements.interface_uri] in
+    let args = if refresh then "--refresh" :: args else args in
+    (* Note: parse the output only if it returns success *)
+    let xml = read_xml @@ Python.check_output_python options Support.Utils.input_all "select" @@ action :: args in
+    if xml.Qdom.tag = ("", "cancelled") then
+      None
+    else
+      Some xml in
+
+  (* Check whether we can run immediately, without downloading anything. This requires
+     - the user didn't ask to refresh or show the GUI
+     - we can solve using the feeds we've already cached
+     - we don't need to download any implementations
+    If we can run immediately, we might still spawn a background process to check for updates. *)
+
+  if refresh || options.gui = Yes then (
+    select_with_refresh ()
+  ) else (
+    let distro = Lazy.force options.distro in
+    try
+      let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in
+      match Zeroinstall.Solver.solve_for config feed_provider reqs with
+      | (false, results) ->
+          log_info "Quick solve failed; can't select without updating feeds";
+          if use_ocaml_solver then (
+            print_endline "Quick solve failed (stopped for debugging):";
+            let sels = results#get_selections () in
+            ZI.iter sels ~f:(fun sel ->
+              if Qdom.get_attribute_opt ("", "version") sel = None then
+                Qdom.set_attribute "version" "0" sel;
+                Qdom.set_attribute "id" "missing" sel
+            );
+            Show.show_human config sels;
+            None
+          ) else (
+            select_with_refresh()
+          )
+      | (true, results) ->
+          let sels = results#get_selections () in
+          if mode = Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
+            (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
+
+            let have_stale_feeds = feed_provider#have_stale_feeds () in
+
+            if mode = Download_only && (have_stale_feeds && config.network_use <> Offline) then (
+              (* Updating in the foreground for Download_only mode is a bit inconsistent. Maybe we
+                 should have a separate flag for this behaviour? *)
+              select_with_refresh ()
+            ) else (
+              if have_stale_feeds then (
+                (* There are feeds we should update, but we can run without them. *)
+                let want_background_update =
+                  if config.network_use = Offline then (
+                    log_info "No doing background update because we are in off-line mode."; false
+                  ) else if options.config.dry_run then (
+                    Zeroinstall.Dry_run.log "[dry-run] would check for updates in the background"; false
+                  ) else (
+                    true
+                  ) in
+
+                if want_background_update then (
+                  log_info "FIXME: Background update needed!";        (* TODO: spawn a background update instead *)
+                  if not use_ocaml_solver then raise Fallback_to_Python
+                )
+              );
+              Some sels
+            )
+          ) else (
+            select_with_refresh ()
+          )
+    with Fallback_to_Python ->
+      log_info "Can't solve; falling back to Python";
+      select_with_refresh ()
+  )
+
+(** Process the app/interface/selections argument [arg], either getting the current selections
+    or solving to find new ones. Also, download the selected versions (unless [for_op] is Select_only).
+
+    Removes ShowHuman, ShowXML, Refresh and all selection options (e.g. --version-for) from
+    [options.extra_options]. Displays results as XML or human readable output, if appropriate.
+    For human-readable output, we also display any changes compared to the previous selections.
+    For apps with human-readable output, we tell the user to use "update" to save the changes
+    if the requirements or selections changed (except for Select_for_update mode).
+    Calls [exit 1] if the user aborts using the GUI. *)
+let handle options arg for_op =
+  let config = options.config in
+
+  let select_opts = {
+    must_select = (for_op = Select_only) || options.gui = Yes;
+    output = (
+      match for_op with   (* Default output style *)
+      | Select_only -> Output_human
+      | Download_only -> Output_none
+      | Select_for_run -> Output_none
+      | Select_for_update -> Output_none
+    );
+    refresh = false;
+  } in
+  options.extra_options <-
+    Support.Argparse.filter_map_options options.extra_options (function
+      | ShowHuman -> select_opts.output <- Output_human; None
+      | ShowXML -> select_opts.output <- Output_XML; None
+      | Refresh -> select_opts.refresh <- true; select_opts.must_select <- true; None
+      | x -> Some x
+    );
+
+  let maybe_show_sels sels =
+    match select_opts.output with
+    | Output_none -> ()
+    | Output_XML -> Show.show_xml sels
+    | Output_human -> Show.show_human config sels in
+
+  let maybe_download sels =
+    if for_op <> Select_only && Zeroinstall.Selections.get_unavailable_selections config ~distro:(Lazy.force options.distro) sels <> [] then (
+      log_info "Need to download selections; switching to Python";
+      raise Fallback_to_Python
+    ) in
+
+  let do_select requirements =
+    log_info "Getting new selections for %s" arg;
+    let sels = get_selections options ~refresh:select_opts.refresh requirements for_op in
+    match sels with
+    | None -> exit 1    (* Aborted by user *)
+    | Some sels -> sels
+  in
+
+  let save_changes _app_path _new_sels =
+    failwith "TODO: save new app selections" in
+
+  let (remaining_options, result) = resolve_target options arg in
+
+  if remaining_options <> options.extra_options then (
+    select_opts.must_select <- true;
+    options.extra_options <- remaining_options
+  );
+
+  match result with
+  | (App (path, old_reqs), reqs) when select_opts.output = Output_human ->
+      (* note: pass use_gui here once we support foreground updates for apps in OCaml *)
+      let old_sels = Zeroinstall.Apps.get_selections_may_update options.config (Lazy.force options.distro) path in
+      let new_sels = if select_opts.must_select then do_select reqs else (maybe_download old_sels; old_sels) in
+      Show.show_restrictions config.system reqs;
+      Show.show_human config new_sels;
+      if for_op = Select_for_update then save_changes path new_sels
+      else if Whatchanged.show_changes config.system old_sels new_sels || reqs <> old_reqs then
+        Support.Utils.print config.system "(note: use '0install update' instead to save the changes)";
+      new_sels
+  | (App (path, _old_reqs), reqs) ->
+      let new_sels =
+        if select_opts.must_select then do_select reqs else (
+          (* note: pass use_gui here once we support foreground updates for apps in OCaml *)
+          let old_sels = Zeroinstall.Apps.get_selections_may_update options.config (Lazy.force options.distro) path in
+          maybe_download old_sels;
+          old_sels
+        ) in
+      maybe_show_sels new_sels;
+      if for_op = Select_for_update then save_changes path new_sels;
+      new_sels
+  | (Interface, reqs) ->
+      let new_sels = do_select reqs in
+      maybe_show_sels new_sels;
+      new_sels
+  | (Selections old_sels, reqs) ->
+      let new_sels = if select_opts.must_select then do_select reqs else (maybe_download old_sels; old_sels) in
+      maybe_show_sels new_sels;
+      ignore @@ Whatchanged.show_changes config.system old_sels new_sels;
+      new_sels

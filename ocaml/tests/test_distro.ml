@@ -35,8 +35,6 @@ let suite = "distro">::: [
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
 
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    fake_system#add_dir "/var/lib/pacman" ["local"];
-    fake_system#add_dir "/var/lib/pacman/local" ["python2-2.7.2-4"];
     fake_system#add_file "/var/lib/pacman/local/python2-2.7.2-4/desc" "../../tests/arch/local/python2-2.7.2-4/desc";
     let system = (fake_system :> system) in
     let distro = new Distro.ArchLinux.arch_distribution config in

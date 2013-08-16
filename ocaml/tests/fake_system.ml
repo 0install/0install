@@ -37,6 +37,8 @@ let make_stat st_perm kind =
     st_ctime = 0.0;
   }
 
+exception Would_exec of (bool * string array option * string list)
+exception Would_spawn of (bool * string array option * string list)
 
 class fake_system tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
@@ -52,13 +54,13 @@ class fake_system tmpdir =
       with Not_found ->
         match tmpdir with
         | Some dir when Support.Utils.starts_with path dir -> path
-        | _ -> failwith ("Attempt to read from " ^ path)
+        | _ -> assert_failure ("Attempt to read from " ^ path)
     ) in
 
   let check_write path =
     match tmpdir with
     | Some dir when Support.Utils.starts_with path dir -> path
-    | _ -> failwith ("Attempt to write to " ^ path) in
+    | _ -> assert_failure ("Attempt to write to " ^ path) in
 
   object (self : #system)
     val now = ref 0.0
@@ -133,9 +135,15 @@ class fake_system tmpdir =
     method unlink = failwith "unlink"
     method rmdir = failwith "rmdir"
 
-    method exec = failwith "exec"
-    method spawn_detach = failwith "spawn_detach"
-    method create_process = failwith "exec"
+    method exec ?(search_path = false) ?env argv =
+      raise (Would_exec (search_path, env, argv))
+
+    method spawn_detach ?(search_path = false) ?env argv =
+      raise (Would_spawn (search_path, env, argv))
+
+    method create_process args _new_stdin _new_stdout _new_stderr =
+      raise (Would_spawn (true, None, args))
+
     method reap_child = failwith "reap_child"
 
     method getcwd () =
@@ -175,7 +183,12 @@ class fake_system tmpdir =
       add_parent path
 
     method add_dir path items =
-      extra_files := StringMap.add path (Dir (0o755, items)) !extra_files
+      extra_files := StringMap.add path (Dir (0o755, items)) !extra_files;
+      let add_file leaf =
+        let full = path +/ leaf in
+        if not (StringMap.mem full !extra_files) then
+          self#add_file full "" in
+      List.iter add_file items
 
     initializer
       match tmpdir with

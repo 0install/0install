@@ -151,6 +151,7 @@ let suite =
   Test_utils.suite;
   Test_solver.suite;
   Test_distro.suite;
+  Test_0install.suite;
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);
  "test_run_real">:: (fun () -> collect_logging (with_tmpdir test_run_real));
@@ -158,9 +159,9 @@ let suite =
  "test_canonical">:: (fun () ->
    let system = (new fake_system None :> system) in
    let check arg uri =
-     assert_str_equal uri (Select.canonical_iface_uri system arg) in
+     assert_str_equal uri (Generic_select.canonical_iface_uri system arg) in
    let check_err arg =
-     try (ignore @@ Select.canonical_iface_uri system arg); assert false
+     try (ignore @@ Generic_select.canonical_iface_uri system arg); assert false
      with Safe_exception _ -> () in
    check "http://example.com/foo.xml" "http://example.com/foo.xml";
    check "alias:./v1-alias" "http://example.com/alias1.xml";

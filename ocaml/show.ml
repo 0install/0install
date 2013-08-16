@@ -16,44 +16,59 @@ let make_selection_map sels =
     StringMap.add (ZI.get_attribute "interface" sel) sel m
   in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
 
+class indenter (printer : string -> unit) =
+  object
+    val mutable indentation = ""
+
+    method print msg =
+      printer (indentation ^ msg ^ "\n")
+
+    method with_indent extra (fn:unit -> unit) =
+      let old = indentation in
+      indentation <- indentation ^ extra;
+      fn ();
+      indentation <- old
+  end
+
 let show_human config sels =
-  let open Format in
+  let first = ref true in
+  let indenter = new indenter config.system#print_string in
+  let printf fmt =
+    let do_print msg = indenter#print (msg:string) in
+    Printf.ksprintf do_print fmt in
   try
     let seen = Hashtbl.create 10 in (* detect cycles *)
     let index = make_selection_map sels in
 
-    open_box 0;
-
-    let rec print_node uri commands =
+    let rec print_node (uri:string) commands =
       if not (Hashtbl.mem seen uri) then (
         Hashtbl.add seen uri true;
 
-        print_cut();
-        print_cut();
-        open_vbox 2;
+        if !first then
+          first := false
+        else
+          printf "";
 
-        printf "- URI: %s@," uri;
+        printf "- URI: %s" uri;
+        indenter#with_indent "  " (fun () ->
+          let sel =
+            try Some (StringMap.find uri index)
+            with Not_found -> None in
 
-        let sel =
-          try Some (StringMap.find uri index)
-          with Not_found -> None in
-
-        let () =
           match sel with
           | None ->
               printf "No selected version";
           | Some impl ->
-              printf "Version: %s@," (ZI.get_attribute "version" impl);
+              printf "Version: %s" (ZI.get_attribute "version" impl);
               (* print indent + "  Command:", command *)
               let path = match Selections.make_selection impl with
-                | Selections.PackageSelection -> sprintf "(%s)" @@ ZI.get_attribute "id" impl
+                | Selections.PackageSelection -> Printf.sprintf "(%s)" @@ ZI.get_attribute "id" impl
                 | Selections.LocalSelection path -> path
                 | Selections.CacheSelection digests ->
                     match Zeroinstall.Stores.lookup_maybe config.system digests config.stores with
                     | None -> "(not cached)"
                     | Some path -> path in
 
-              open_vbox 0;
               printf "Path: %s" path;
 
               let deps = ref @@ Selections.get_dependencies ~restricts:false impl in
@@ -67,20 +82,15 @@ let show_human config sels =
                 let child_iface = ZI.get_attribute "interface" child in
                 print_node child_iface (Selections.get_required_commands child)
               );
-              close_box() in
-        close_box()
+        )
       )
     in
 
     let root_iface = ZI.get_attribute "interface" sels in
-    let () = match ZI.get_attribute_opt "command" sels with
+    match ZI.get_attribute_opt "command" sels with
       | None | Some "" -> print_node root_iface []
-      | Some command -> print_node root_iface [command] in
-
-    close_box();
-    print_newline()
+      | Some command -> print_node root_iface [command]
   with ex ->
-    print_newline();
     raise ex
 
 let show_xml sels =

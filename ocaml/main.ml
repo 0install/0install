@@ -41,6 +41,7 @@ let main (system:system) : unit =
           match options.args with
           | ("run" :: args) -> Run.handle options args
           | ("select" :: args) -> Select.handle options args
+          | ("download" :: args) -> Download.handle options args
           | ("show" :: args) -> Show.handle options args
           | _ -> raise Fallback_to_Python
         with Support.Argparse.Usage_error -> Cli.show_usage_error options

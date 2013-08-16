@@ -11,16 +11,31 @@ module U = Support.Utils
 (** We filter the implementations before handing them to the solver, excluding any
     we know are unsuitable even on their own. *)
 type acceptability =
-  | Acceptable                (* We can use this version *)
-  | User_restriction_rejects  (* Excluded by --version-for or similar *)
-  | Poor_stability            (* Buggy/Insecure *)
-  | No_retrieval_methods      (* Not cached and no way to get it *)
-  | Not_cached_and_offline    (* Can't download it becuase we're offline *)
-  | Missing_local_impl        (* Impl directory not found *)
-  | Incompatible_OS           (* Required platform not in os_ranks *)
-  | Not_binary                (* We want a binary and this is source *)
-  | Not_source                (* We want source and this is a binary *)
-  | Incompatible_machine      (* Required CPU not in machine_ranks *)
+  | Acceptable
+  | User_restriction_rejects
+  | Poor_stability
+  | No_retrieval_methods
+  | Not_cached_and_offline
+  | Missing_local_impl
+  | Incompatible_OS
+  | Not_binary
+  | Not_source
+  | Incompatible_machine
+
+let describe_problem impl =
+  let open Feed in
+  let spf = Printf.sprintf in
+  function
+  | Acceptable -> "No problem"
+  | User_restriction_rejects -> "Excluded by a user-provided restriction (e.g. --version-for)"
+  | Poor_stability           -> spf "Poor stability '%s'" (format_stability impl.stability)
+  | No_retrieval_methods     -> "Not cached and no way to get it"
+  | Not_cached_and_offline   -> "Can't download it because we're offline"
+  | Missing_local_impl       -> "Local impl's directory is missing"
+  | Incompatible_OS          -> "Not compatibile with the requested OS type"
+  | Not_binary               -> "We want a binary and this is source"
+  | Not_source               -> "We want source and this is a binary"
+  | Incompatible_machine     -> "Not compatibile with the requested CPU type"
 
 type scope_filter = {
   extra_restrictions : Feed.restriction StringMap.t;  (* iface -> test *)
@@ -274,7 +289,13 @@ class default_impl_provider config (feed_provider : Feed_cache.feed_provider) =
               else Not_cached_and_offline
         ) in
 
-      let do_filter impl = check_acceptability impl = Acceptable in
+      let do_filter impl =
+        (* check_acceptability impl = Acceptable in *)
+        match check_acceptability impl with
+        | Acceptable -> true
+        | _ -> false
+      (*| problem -> log_warning "rejecting %s %s: %s" iface (Versions.format_version impl.Feed.parsed_version) (describe_problem impl problem); false *)
+      in
 
       {candidates with impls = List.filter do_filter (candidates.impls)}
   end

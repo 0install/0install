@@ -88,6 +88,15 @@ let parse_stability ~from_user s =
   | "preferred" -> if_from_user Preferred
   | x -> raise_safe "Unknown stability level '%s'" x
 
+let format_stability = function
+  | Insecure -> "insecure"
+  | Buggy -> "buggy"
+  | Developer -> "developer"
+  | Testing -> "testing"
+  | Stable -> "stable"
+  | Packaged -> "packaged"
+  | Preferred -> "preferred"
+
 type feed_overrides = {
   last_checked : float option;
   user_stability : stability_level StringMap.t;
