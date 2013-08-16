@@ -127,7 +127,7 @@ def main(command_args, config = None):
 			from zeroinstall.cmd import select
 			if not options.show:
 				options.quiet = True
-			select.handle(config, options, args)
+			select.handle(config, options, ["for-select"] + args)
 		elif options.download_only or options.xml or options.show:
 			from zeroinstall.cmd import download
 			download.handle(config, options, args)

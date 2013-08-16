@@ -8,14 +8,6 @@ open Zeroinstall.General
 open Support.Common
 open Options
 
-let is_option x = String.length x > 0 && x.[0] = '-';;
-
-(* We can't handle any of these at the moment, so pass them to the Python. *)
-let is_url url =
-  let starts = Support.Utils.starts_with url in
-  starts "http://" || starts "https://" || starts "file:" || starts "alias:"
-;;
-
 (** Run "python -m zeroinstall.cmd". If ../zeroinstall exists, put it in PYTHONPATH,
     otherwise use the system version of 0install. *)
 let fallback_to_python config args =
@@ -30,33 +22,6 @@ let fallback_to_python config args =
   try_with @@ parent_dir +/ "0launch";  (* When running from ocaml directory *)
   try_with @@ Filename.dirname parent_dir +/ "0launch";  (* When running from _build directory *)
   failwith "Can't find 0launch command!"
-;;
-
-let handle_run options args : unit =
-  let config = options.config in
-  if options.gui = Yes then raise Fallback_to_Python;
-  let wrapper = ref None in
-  Support.Argparse.iter_options options.extra_options (function
-    | Wrapper w -> wrapper := Some w
-    | ShowManifest -> raise_safe "The -m argument is ambiguous before the 'run' argument. Put it after, or use --main"
-    | _ -> raise Fallback_to_Python
-  );
-  match args with
-  | prog :: run_args when not (is_option prog) && not (is_url prog) -> (
-      let sels = match Zeroinstall.Apps.lookup_app config prog with
-      | None -> (
-          let root = Support.Qdom.parse_file config.system prog in
-          match ZI.tag root with
-          | None -> Support.Qdom.raise_elem "Not a 0install document (wrong namespace on root element): " root
-          | Some "selections" -> root
-          | Some "interface" | Some "feed" -> raise Fallback_to_Python
-          | Some x -> raise_safe "Unexpected root element <%s>" x
-      )
-      | Some app_path -> Zeroinstall.Apps.get_selections_may_update config (Lazy.force options.distro) app_path in
-      try Zeroinstall.Exec.execute_selections config sels run_args ?wrapper:!wrapper
-      with Safe_exception _ as ex -> reraise_with_context ex "... running %s" prog
-    )
-  | _ -> raise Fallback_to_Python
 ;;
 
 let main (system:system) : unit =
@@ -74,7 +39,7 @@ let main (system:system) : unit =
         in
         try
           match options.args with
-          | ("run" :: run_args) -> handle_run options run_args
+          | ("run" :: args) -> Run.handle options args
           | ("select" :: args) -> Select.handle options args
           | ("show" :: args) -> Show.handle options args
           | _ -> raise Fallback_to_Python

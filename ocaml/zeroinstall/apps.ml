@@ -135,6 +135,7 @@ let check_for_updates config ~distro app_path sels =
        This is useful when upgrading from an old format that the Python can still handle but we can't. *)
     if system#file_exists last_solve_path && not config.dry_run then
       system#unlink last_solve_path;
+    (* When this is implemented, will need to add use_gui option like in the Python. *)
     raise Fallback_to_Python
   ) else if want_bg_update then (
     let last_check_attempt = get_mtime last_check_path ~warn_if_missing:false in

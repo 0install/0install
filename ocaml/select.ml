@@ -78,6 +78,7 @@ let canonical_iface_uri (system:system) arg =
       raise_safe "Bad interface name '%s'.\n(doesn't start with 'http:', and doesn't exist as a local file '%s' either)" arg path
   )
 
+(** Does this command-line argument refer to an app, URI or selections document? *)
 let resolve_target config arg =
   match Apps.lookup_app config arg with
   | Some app -> App app
@@ -106,9 +107,9 @@ type select_mode =
 let get_selections options ~refresh reqs mode =
   let config = options.config in
   let action = match mode with
-  | Select_only -> "select"
-  | Download_only -> "download"
-  | Select_for_run -> failwith "TODO: Select_for_run" in    (* TODO *)
+  | Select_only -> "for-select"
+  | Download_only -> "for-download"
+  | Select_for_run -> "for-run" in
 
   let select_with_refresh () =
     (* This is the slow path: we need to download things before selecting *)
@@ -116,7 +117,7 @@ let get_selections options ~refresh reqs mode =
     let args = Req_options.to_options reqs @ ["--xml"; "--"; reqs.Requirements.interface_uri] in
     let args = if refresh then "--refresh" :: args else args in
     (* Note: parse the output only if it returns success *)
-    let xml = read_xml @@ Python.check_output_python options Support.Utils.input_all action @@ args in
+    let xml = read_xml @@ Python.check_output_python options Support.Utils.input_all "select" @@ action :: args in
     if xml.Qdom.tag = ("", "cancelled") then
       None
     else

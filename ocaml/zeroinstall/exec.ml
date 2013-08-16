@@ -87,7 +87,7 @@ let do_exec_binding dry_run builder env impls (iface_uri, {Binding.exec_type; Bi
     Dry_run.log "would create launcher %s" exec_path
   );
 
-  let command_argv = Command.build_command impls iface_uri command env in
+  let command_argv = Command.build_command ~dry_run impls iface_uri command env in
 
   let () = match exec_type with
   | Binding.InPath -> Binding.prepend "PATH" exec_dir path_sep env
@@ -130,7 +130,7 @@ let get_exec_args config sels args =
   List.iter (do_exec_binding config.dry_run launcher_builder env impls) exec_bindings;
 
   let command = ZI.get_attribute "command" sels in
-  let prog_args = (Command.build_command impls (ZI.get_attribute "interface" sels) command env) @ args in
+  let prog_args = (Command.build_command ~dry_run:config.dry_run impls (ZI.get_attribute "interface" sels) command env) @ args in
 
   (prog_args, (Env.to_array env))
 ;;

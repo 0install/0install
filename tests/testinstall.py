@@ -324,12 +324,12 @@ class TestInstall(BaseTest):
 		assert 'http://example.com:8000/Hello.xml\n' == out, repr(out)
 
 	def testRun(self):
-		out, err = self.run_0install(['run'])
+		out, err = self.run_ocaml(['run'])
 		assert out.lower().startswith("usage:")
 		assert 'URI' in out, out
 
 
-		out, err = self.run_0install(['run', '--dry-run', 'runnable/Runnable.xml', '--help'])
+		out, err = self.run_ocaml(['run', '--dry-run', 'runnable/Runnable.xml', '--help'])
 		assert not err, err
 		assert 'arg-for-runner' in out, out
 		assert '--help' in out, out
@@ -404,7 +404,7 @@ class TestInstall(BaseTest):
 		assert not err, err
 
 		# Run
-		out, err = self.run_0install(['run', '--dry-run', 'local-app'])
+		out, err = self.run_ocaml(['run', '--dry-run', 'local-app'])
 		assert '[dry-run] would execute:' in out, out
 		assert '/test-echo' in out, out
 		assert not err, err
