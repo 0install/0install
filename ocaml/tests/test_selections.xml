@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selections command="run" interface="http://example.com/env" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <selection id="package:echo1" interface="http://example.com/echo" version="1">
-    <command name='run' path='/bin/echo'/>
+  <selection id="local2" local-path='/bin' interface="http://example.com/echo" version="1">
+    <command name='run' path='echo'/>
   </selection>
 
-  <selection id="package:env" interface="http://example.com/env" version="1.0">
-    <command name='run' path='/usr/bin/env'>
+  <selection id="local1" local-path='/usr/bin' interface="http://example.com/env" version="1.0">
+    <command name='run' path='env'>
       <arg>my-prog</arg>
       <arg>Hello World</arg>
 

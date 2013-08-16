@@ -88,7 +88,7 @@ let test_option_parsing () =
 ;;
 
 let test_run_real tmpdir =
-  let build_dir = Unix.getenv "OCAML_BUILDDIR" in
+  let build_dir = Support.Utils.getenv_ex Fake_system.real_system "OCAML_BUILDDIR" in
   Unix.putenv "ZEROINSTALL_PORTABLE_BASE" tmpdir;
   let sels_path =
     if on_windows then ".\\test_selections_win.xml"

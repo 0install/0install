@@ -68,7 +68,7 @@ module Cache =
         (* The status of the cache when we loaded it. *)
         val data = { mtime = 0L; size = -1; rev = -1; contents = Hashtbl.create 10 }
 
-        val cache_path = Basedir.save_path config.system (config_site +/ config_prog +/ cache_leaf) config.basedirs.Basedir.cache
+        val cache_path = (Basedir.save_path config.system (config_site +/ config_prog) config.basedirs.Basedir.cache) +/ cache_leaf
 
         (** Reload the values from disk (even if they're out-of-date). *)
         method load_cache () =
@@ -77,7 +77,7 @@ module Cache =
           data.rev <- -1;
           Hashtbl.clear data.contents;
 
-          if Sys.file_exists source then (
+          if Sys.file_exists cache_path then (
             let load_cache ch =
               let headers = ref true in
               while !headers do
@@ -136,7 +136,7 @@ module Cache =
 let check_cache distro_name elem cache =
   match ZI.get_attribute_opt "package" elem with
   | None ->
-      log_warning "Missing 'package' attribute";
+      Qdom.log_elem Support.Logging.Warning "Missing 'package' attribute" elem;
       false
   | Some package ->
       let sel_id = ZI.get_attribute "id" elem in
@@ -333,7 +333,12 @@ let get_host_distribution config : distribution =
 
   match Sys.os_type with
   | "Unix" ->
-      if x Debian.dpkg_db_status && (Unix.stat Debian.dpkg_db_status).Unix.st_size > 0 then
+      let is_debian =
+        match config.system#stat Debian.dpkg_db_status with
+        | Some info when info.Unix.st_size > 0 -> true
+        | _ -> false in
+
+      if is_debian then
         new Debian.debian_distribution config
       else if x ArchLinux.arch_db then
         new ArchLinux.arch_distribution config

@@ -62,6 +62,11 @@ class fake_system tmpdir =
     | Some dir when Support.Utils.starts_with path dir -> path
     | _ -> assert_failure ("Attempt to write to " ^ path) in
 
+  (* It's OK to check whether these paths exists. We just say they don't,
+     unless they're in extra_files (check there first). *)
+  let hidden_subtree path =
+    Support.Utils.starts_with path "/var" in
+
   object (self : #system)
     val now = ref 0.0
     val mutable env = StringMap.empty
@@ -120,7 +125,8 @@ class fake_system tmpdir =
         | Dir (mode, _items) -> Some (make_stat mode S_DIR)
         | File (_mode, target) -> real_system#lstat target
       with Not_found ->
-        real_system#lstat (check_read path)
+        if hidden_subtree path then None
+        else real_system#lstat (check_read path)
 
     method stat path =
       try
@@ -129,7 +135,8 @@ class fake_system tmpdir =
         | Dir (mode, _items) -> Some (make_stat mode S_DIR)
         | File (_mode, target) -> real_system#stat target
       with Not_found ->
-        real_system#stat (check_read path)
+        if hidden_subtree path then None
+        else real_system#stat (check_read path)
 
     method atomic_write open_flags fn path mode = real_system#atomic_write open_flags fn (check_write path) mode
     method unlink = failwith "unlink"
