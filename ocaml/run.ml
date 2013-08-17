@@ -4,12 +4,12 @@
 
 (** The "0install run" command *)
 
-open Zeroinstall.General
 open Support.Common
 open Options
 
 type run_options = {
   mutable wrapper : string option;
+  mutable main : string option;
 }
 
 let handle options args =
@@ -19,14 +19,16 @@ let handle options args =
 
     let run_opts = {
       wrapper = None;
+      main = None;
     } in
     Support.Argparse.iter_options options.extra_options (function
       | Wrapper w -> run_opts.wrapper <- Some w
       | ShowManifest -> raise_safe "The -m argument is ambiguous before the 'run' argument. Put it after, or use --main"
-      | _ -> raise Fallback_to_Python   (* TODO: -m etc *)
+      | MainExecutable m -> run_opts.main <- Some m
+      | _ -> raise_safe "Unknown option"
     );
 
-    try Zeroinstall.Exec.execute_selections options.config sels run_args ?wrapper:run_opts.wrapper
+    try Zeroinstall.Exec.execute_selections options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper
     with Safe_exception _ as ex -> reraise_with_context ex "... running %s" arg
   )
   | _ -> raise Support.Argparse.Usage_error

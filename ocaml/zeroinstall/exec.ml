@@ -112,7 +112,7 @@ let make_selection_map system stores sels =
 (** Calculate the arguments and environment to pass to exec to run this
     process. This also ensures any necessary launchers exist, creating them
     if not. *)
-let get_exec_args config sels args =
+let get_exec_args config ?main sels args =
   let env = Env.copy_current_env () in
   let impls = make_selection_map config.system config.stores sels in
   let bindings = Binding.collect_bindings impls sels in
@@ -130,13 +130,13 @@ let get_exec_args config sels args =
   List.iter (do_exec_binding config.dry_run launcher_builder env impls) exec_bindings;
 
   let command = ZI.get_attribute "command" sels in
-  let prog_args = (Command.build_command ~dry_run:config.dry_run impls (ZI.get_attribute "interface" sels) command env) @ args in
+  let prog_args = (Command.build_command ?main ~dry_run:config.dry_run impls (ZI.get_attribute "interface" sels) command env) @ args in
 
   (prog_args, (Env.to_array env))
 ;;
 
-let execute_selections ?wrapper config sels args =
-  let (prog_args, env) = get_exec_args config sels args in
+let execute_selections config ?wrapper ?main sels args =
+  let (prog_args, env) = get_exec_args config ?main sels args in
 
   let prog_args =
     match wrapper with
