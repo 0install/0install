@@ -470,3 +470,19 @@ let format_time t =
     t.tm_hour
     t.tm_min
     t.tm_sec
+
+(** Read up to [n] bytes from [ch] (less if we hit end-of-file. *)
+let read_upto n ch : string =
+  let buf = String.create n in
+  let saved = ref 0 in
+  try
+    while !saved < n do
+      let got = input ch buf !saved (n - !saved) in
+      if got = 0 then
+        raise End_of_file;
+      assert (got > 0);
+      saved := !saved + got
+    done;
+    buf
+  with End_of_file ->
+    String.sub buf 0 !saved

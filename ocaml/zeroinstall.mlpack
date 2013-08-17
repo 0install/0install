@@ -1,5 +1,4 @@
 About
-Alias
 Apps
 Arch
 Binding
@@ -14,6 +13,7 @@ Feed
 Feed_cache
 General
 Impl_provider
+Launcher
 Manifest
 Recipe
 Requirements

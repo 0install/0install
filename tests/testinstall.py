@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from basetest import BaseTest, TestStores, StringIO, BytesIO, ExecMan, BackgroundException
-import sys, os, tempfile, subprocess, shutil
+import sys, os, tempfile, subprocess, shutil, shlex
 import unittest
 
 sys.path.insert(0, '..')
@@ -499,17 +499,18 @@ class TestInstall(BaseTest):
 		assert "No such application 'local-app'" in err, err
 
 	def check_man(self, args, expected):
-		try:
-			out, err = self.run_0install(['man'] + args)
-			assert 0, (out, err)
-		except ExecMan as ex:
-			if len(ex.man_args) == 2:
-				arg = ex.man_args[1]
-				if '/tests/' in arg:
-					arg = 'tests/' + ex.man_args[1].rsplit('/tests/', 1)[1]
-				self.assertEqual(expected, arg)
-			else:
-				self.assertEqual(expected, ex.man_args)
+		out, err = self.run_ocaml(['--dry-run', 'man'] + args)
+		assert '[dry-run] man' in out, (out, err)
+		args = out[len('[dry-run] man '):]
+
+		man_args = tuple(['man'] + shlex.split(args))
+		if len(man_args) == 2:
+			arg = man_args[1]
+			if '/tests/' in arg:
+				arg = 'tests/' + man_args[1].rsplit('/tests/', 1)[1]
+			self.assertEqual(expected, arg)
+		else:
+			self.assertEqual(expected, man_args)
 
 	def testUpdateAlias(self):
 		local_feed = os.path.join(mydir, 'Local.xml')
@@ -522,7 +523,7 @@ class TestInstall(BaseTest):
 		self.assertEqual("", out)
 
 	def testMan(self):
-		out, err = self.run_0install(['man', '--help'])
+		out, err = self.run_ocaml(['man', '--help'])
 		assert out.lower().startswith("usage:")
 
 		# Wrong number of args: pass-through
@@ -544,7 +545,7 @@ class TestInstall(BaseTest):
 		with open(launcher_script, 'w') as stream:
 			alias.write_script(stream, model.canonical_iface_uri(binary_feed), None)
 
-		out, err = self.run_0install(['man', 'my-binary-alias'])
+		out, err = self.run_ocaml(['man', 'my-binary-alias'])
 		assert not err, err
 		assert "No matching manpage was found for 'my-binary-alias'" in out, out
 

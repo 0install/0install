@@ -10,6 +10,7 @@ type env = (string, string) Hashtbl.t;;
 
 let re_equals = Str.regexp_string "=";;
 
+(* TODO: use system *)
 let copy_current_env () : env =
   let env = Hashtbl.create 1000 in
 

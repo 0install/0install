@@ -8,7 +8,7 @@ open Zeroinstall.General
 open Support.Common
 open Options
 module Qdom = Support.Qdom
-module Alias = Zeroinstall.Alias
+module Launcher = Zeroinstall.Launcher
 module Apps = Zeroinstall.Apps
 module Requirements = Zeroinstall.Requirements
 
@@ -50,9 +50,9 @@ let canonical_iface_uri (system:system) arg =
       else
         alias in
 
-    match Alias.parse_script system path with
-    | None -> raise_safe "Not an alias script: '%s'" path
-    | Some info -> info.Alias.uri
+    match Launcher.parse_script system path with
+    | Some (Launcher.AliasScript info) -> info.Launcher.uri
+    | _ -> raise_safe "Not an alias script: '%s'" path
   ) else (
     let path = Support.Utils.realpath system @@ if starts "file:///" then (
       Support.Utils.string_tail arg 7
@@ -68,7 +68,7 @@ let canonical_iface_uri (system:system) arg =
       if not (String.contains arg '/') then (
         match Support.Utils.find_in_path system arg with
         | None -> false
-        | Some path -> Alias.is_alias_script system path
+        | Some path -> Launcher.is_alias_script system path
       ) else (
         false
       ) in
