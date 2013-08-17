@@ -67,6 +67,7 @@ class type system =
     method getenv : varname -> string option
 
     method platform : unit -> Platform.t
+    method exit : 'a. int -> 'a
   end
 ;;
 

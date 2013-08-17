@@ -44,7 +44,7 @@ let test_basedir () =
 let test_option_parsing () =
   Support.Logging.threshold := Support.Logging.Warning;
 
-  let config, _system = get_fake_config None in
+  let config, fake_system = get_fake_config None in
   let open Options in
   let p args = Cli.parse_args config args in
 
@@ -72,7 +72,11 @@ let test_option_parsing () =
   equal_str_lists ["run"; "foo"] s.args;
   assert_equal [("-w", Wrapper "gdb")] s.extra_options;
 
-  assert_raises_fallback (lazy (p ["-c"; "--version"]));
+  let v = fake_system#collect_output (fun () -> (
+    try ignore @@ p ["-c"; "--version"]; assert false;
+    with Fake_system.System_exit 0 -> ()
+  ))
+  in assert (Str.string_match (Str.regexp_string "0install (zero-install)") v 0);
 
   let s = p ["--version"; "1.2"; "run"; "foo"] in
   equal_str_lists ["run"; "foo"] s.args;

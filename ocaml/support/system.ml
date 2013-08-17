@@ -254,5 +254,7 @@ module RealSystem (U : UnixType) =
 
               platform := Some p;
               p
+
+        method exit = exit
       end
   end

@@ -278,6 +278,17 @@ let show_usage_error options =
   show_help options;
   exit 1
 
+let show_version system =
+  system#print_string @@ Printf.sprintf
+    "0install (zero-install) %s\n\
+     Copyright (C) 2013 Thomas Leonard\n\
+     This program comes with ABSOLUTELY NO WARRANTY,\n\
+     to the extent permitted by law.\n\
+     You may redistribute copies of this program\n\
+     under the terms of the GNU Lesser General Public License.\n\
+     For more information about these matters, see the file named COPYING.\n"
+     Zeroinstall.About.version
+
 let parse_args config args =
   let (raw_options, args) = Support.Argparse.parse_args spec args in
 
@@ -297,9 +308,9 @@ let parse_args config args =
     | DryRun -> config.dry_run <- true; config.system <- new Zeroinstall.Dry_run.dryrun_system config.system; None
     | Verbose -> increase_verbosity options; None
     | WithStore store -> add_store options store; None
-    | ShowVersion -> raise Fallback_to_Python
+    | ShowVersion -> show_version config.system; config.system#exit 0
     | NetworkUse u -> config.network_use <- u; None
-    | Help -> show_help options; exit 0
+    | Help -> show_help options; config.system#exit 0
     | AmbiguousOption fn -> (match args with
         | command :: _ -> Some (opt, fn command)
         | _ -> raise_safe "Option '%s' requires a command" opt

@@ -34,6 +34,7 @@ class dryrun_system (underlying:system) =
     (* We allow this as we may be falling back to Python or running some helper.
        For places where it matters (e.g. actually running the target program), the caller should handle it. *)
     method exec = underlying#exec
+    method exit = underlying#exit
 
     (* Trivial operations: ignore *)
     method set_mtime _path _mtime = ()
