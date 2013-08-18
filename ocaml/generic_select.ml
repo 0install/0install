@@ -190,8 +190,12 @@ let get_selections options ~refresh reqs mode =
                   ) in
 
                 if want_background_update then (
-                  log_info "FIXME: Background update needed!";        (* TODO: spawn a background update instead *)
-                  if not use_ocaml_solver then raise Fallback_to_Python
+                  let slave = new Zeroinstall.Python.slave config in
+                  let opts = `Assoc [
+                    ("stores", `List (List.map (fun s -> `String s) config.stores));
+                  ] in
+                  slave#invoke (`List [`String "background-update"; opts; Requirements.to_json reqs]) ignore;
+                  slave#close;
                 )
               );
               Some sels

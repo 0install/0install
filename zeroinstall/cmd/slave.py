@@ -35,12 +35,24 @@ def parse_ynm(s):
 	if s == 'maybe': return None
 	assert 0, b
 
-def do_select(config, options, args):
-	(for_op, select_opts, reqs_json) = args
-
+def reqs_from_json(reqs_json):
 	requirements = Requirements(None)
 	for k, v in reqs_json.items():
 		setattr(requirements, k, v)
+	return requirements
+
+def do_background_update(config, options, args):
+	(opts, reqs_json) = args
+	requirements = reqs_from_json(reqs_json)
+	config.stores.stores = [Store(d) for d in opts['stores']]
+	from zeroinstall.injector import background
+	background.spawn_background_update2(requirements, verbose = options.verbose > 1)
+	return "detached"
+
+def do_select(config, options, args):
+	(for_op, select_opts, reqs_json) = args
+
+	requirements = reqs_from_json(reqs_json)
 
 	refresh = select_opts['refresh']
 	use_gui = parse_ynm(select_opts['use_gui'])
@@ -114,6 +126,8 @@ def handle(config, options, args):
 			logger.info("Got request '%s'", command)
 			if command == 'select':
 				response = do_select(config, options, request[1:])
+			elif command == 'background-update':
+				response = do_background_update(config, options, request[1:])
 			else:
 				raise SafeException("Unknown command '%s'" % command)
 			response = ['ok', response]
