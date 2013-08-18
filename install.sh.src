@@ -36,7 +36,7 @@ home)
 	$PYTHON "setup.py" -q install --force --home ~ --install-data ~/.local
 	;;
 system)
-	PREFIX="/usr/bin"
+	PREFIX="/usr"
 	PREFIX_SHARE="${PREFIX}/share"
 	PREFIX_MAN="${PREFIX_SHARE}/man"
 
