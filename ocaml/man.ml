@@ -26,11 +26,6 @@ let find_and_exec_man config ?main ?fallback_name sels =
   let selected_impl = List.find is_main_impl sels.Qdom.child_nodes in
   let system = config.system in
 
-  let is_dir path =
-    match system#stat path with
-    | None -> false
-    | Some info -> info.Unix.st_kind = Unix.S_DIR in
-
   let main =
     match main with
     | Some main -> main
@@ -55,7 +50,7 @@ let find_and_exec_man config ?main ?fallback_name sels =
          a directory called man in some common locations... *)
       ListLabels.iter ["man"; "share/man"; "usr/man"; "usr/share/man"] ~f:(fun mandir ->
         let manpath = impl_path +/ mandir in
-        if is_dir manpath then (
+        if U.is_dir system manpath then (
           (* Note: unlike "man -M", this also copes with LANG settings... *)
           let env = Env.copy_current_env () in
           Zeroinstall.Env.putenv "MANPATH" manpath env;

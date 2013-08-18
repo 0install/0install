@@ -156,6 +156,7 @@ let suite =
   Test_solver.suite;
   Test_distro.suite;
   Test_0install.suite;
+  Test_apps.suite;
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);
  "test_run_real">:: (fun () -> collect_logging (with_tmpdir test_run_real));

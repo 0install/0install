@@ -6,12 +6,19 @@
 
 open General
 open Support.Common
+module Basedir = Support.Basedir
+module U = Support.Utils
 
 let re_app_name = Str.regexp "^[^./\\\\:=;'\"][^/\\\\:=;'\"]*$";;
 
+let validate_name name =
+  if name = "0install" then
+    raise_safe "Creating an app called '0install' would cause trouble; try e.g. '00install' instead";
+  if not @@ Str.string_match re_app_name name 0 then
+    raise_safe "Invalid application name '%s'" name
+
 let lookup_app config name =
   if Str.string_match re_app_name name 0 then
-    let module Basedir = Support.Basedir in
     Basedir.load_first config.system ("0install.net" +/ "apps" +/ name) config.basedirs.Basedir.config
   else
     None
@@ -167,7 +174,6 @@ let get_selections_internal config ?distro app_path =
 let list_app_names config =
   let apps = ref StringSet.empty in
   let system = config.system in
-  let module Basedir = Support.Basedir in
   let scan_dir path =
     let check_app name =
       if Str.string_match re_app_name name 0 then
@@ -186,3 +192,31 @@ let get_interface (system:system) path =
 
 let get_selections_may_update config distro app_path = get_selections_internal config ~distro app_path
 let get_selections_no_updates config app_path = get_selections_internal config app_path
+
+let set_requirements config path req =
+  let reqs_file = path +/ "requirements.json" in
+  if config.dry_run then
+    Dry_run.log "would write %s" reqs_file
+  else (
+    let json = Requirements.to_json req in
+    let write_json ch = Yojson.Basic.to_channel ch json in
+    config.system#atomic_write [Open_wronly;Open_text] write_json reqs_file 0o644
+  )
+
+let set_last_checked system app_dir =
+  U.touch system @@ app_dir +/ "last-checked"
+
+let create_app config name requirements =
+  validate_name name;
+
+  let apps_dir = Basedir.save_path config.system (config_site +/ "apps") config.basedirs.Basedir.config in
+  let app_dir = apps_dir +/ name in
+  if U.is_dir config.system app_dir then
+    raise_safe "Application '%s' already exists: %s" name app_dir;
+
+  config.system#mkdir app_dir 0o755;
+
+  set_requirements config app_dir requirements;
+  set_last_checked config.system app_dir;
+
+  app_dir

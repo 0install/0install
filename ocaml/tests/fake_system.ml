@@ -79,7 +79,7 @@ class fake_system tmpdir =
     else false in
 
   object (self : #system)
-    val now = ref 0.0
+    val now = ref 1.0
     val mutable env = StringMap.empty
     val mutable stdout = None
     val mutable allow_spawn = false
