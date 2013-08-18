@@ -24,7 +24,7 @@ all: translations portable static_dist
 
 portable:
 	(cd "${SRCDIR}" && $(PYTHON) setup.py build --build-base="${BUILDDIR}/build")
-	(cd "${SRCDIR}/ocaml" && make BUILDDIR="${BUILDDIR}/ocaml")
+	(cd "${SRCDIR}/ocaml" && make OCAML_BUILDDIR="${BUILDDIR}/ocaml" ocaml)
 	cp -r build/lib/zeroinstall "${DISTDIR}/"
 	install "${BUILDDIR}/ocaml/0install.ml" "${DISTDIR}/"
 	cp "${BUILDDIR}/ocaml/main.cma" "${DISTDIR}/0install.cma"
@@ -39,7 +39,7 @@ portable:
 	(cd "${SRCDIR}" && cp ${DOCS} "${DISTDIR}")
 	cp -r share "${DISTDIR}"
 
-static_dist: all
+static_dist: translations portable
 	install -D ocaml/0install "${STATIC_DIST}/0install/0install"
 	(cd "${SRCDIR}" && cp ${MANPAGES} ${SCRIPTS} setup.py "${STATIC_DIST}/0install")
 	(cd "${SRCDIR}" && cp README.md COPYING "${STATIC_DIST}/")
