@@ -44,8 +44,6 @@ exception System_exit of int
 let src_dir = Filename.dirname @@ Filename.dirname @@ Sys.getcwd ()
 let test_0install = src_dir +/ "0install"           (* Pretend we're running from here so we find 0launch *)
 
-let () = Printf.printf "src_dir = %s" src_dir
-
 class fake_system tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
 
@@ -79,10 +77,10 @@ class fake_system tmpdir =
     else false in
 
   object (self : #system)
-    val now = ref 1.0
+    val now = ref @@ float_of_int @@ 101 * days
     val mutable env = StringMap.empty
     val mutable stdout = None
-    val mutable allow_spawn = false
+    val mutable spawn_handler = None
 
     method collect_output (fn : unit -> unit) =
       let old_stdout = stdout in
@@ -151,6 +149,7 @@ class fake_system tmpdir =
         else real_system#stat (check_read path)
 
     method atomic_write open_flags fn path mode = real_system#atomic_write open_flags fn (check_write path) mode
+    method atomic_hardlink ~link_to ~replace = real_system#atomic_hardlink ~link_to:(check_read link_to) ~replace:(check_write replace)
     method unlink = failwith "unlink"
     method rmdir = failwith "rmdir"
 
@@ -161,13 +160,12 @@ class fake_system tmpdir =
       raise (Would_spawn (search_path, env, argv))
 
     method create_process args new_stdin new_stdout new_stderr =
-      if allow_spawn then (
-        allow_spawn <- false;
-        real_system#create_process args new_stdin new_stdout new_stderr
-      ) else raise (Would_spawn (true, None, args))
+      match spawn_handler with
+      | None -> raise (Would_spawn (true, None, args))
+      | Some handler -> handler args new_stdin new_stdout new_stderr
 
-    method allow_spawn =
-      allow_spawn <- true
+    method set_spawn_handler handler =
+      spawn_handler <- handler
 
     method reap_child = real_system#reap_child
 
@@ -287,13 +285,11 @@ let with_tmpdir fn () =
   Support.Utils.finally (Support.Utils.ro_rmtree real_system) tmppath fn
 
 let get_fake_config tmpdir =
+  Zeroinstall.Python.slave_debug_level := Some Support.Logging.Warning;
   let system = new fake_system tmpdir in
   if tmpdir = None then system#putenv "HOME" "/home/testuser";
   if on_windows then
     system#putenv "PATH" "C:\\Windows\\system32;C:\\Windows"
   else
     system#putenv "PATH" "/usr/bin:/bin";
-  let my_path =
-    if on_windows then "C:\\Windows\\system32"
-    else "/usr/bin/0install" in
-  (Config.get_default_config (system :> system) my_path, system)
+  (Config.get_default_config (system :> system) test_0install, system)

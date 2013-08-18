@@ -13,6 +13,7 @@ from zeroinstall.injector import model
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver
 from zeroinstall.support import tasks
+from zeroinstall.zerostore import Store
 
 import json, sys
 
@@ -26,30 +27,48 @@ else:
 	stdout = sys.stdout
 
 def add_options(parser):
-	parser.add_option("-o", "--offline", help=_("try to avoid using the network"), action='store_true')
+	pass
 
-def do_select_with_refresh(config, options, args):
-	(for_op, reqs_json) = args
+def parse_ynm(s):
+	if s == 'yes': return True
+	if s == 'no': return False
+	if s == 'maybe': return None
+	assert 0, b
+
+def do_select(config, options, args):
+	(for_op, select_opts, reqs_json) = args
 
 	requirements = Requirements(None)
 	for k, v in reqs_json.items():
 		setattr(requirements, k, v)
 
-	if options.offline:
-		config.network_use = model.network_offline
+	refresh = select_opts['refresh']
+	use_gui = parse_ynm(select_opts['use_gui'])
+	if select_opts['offline']: config.network_use = model.network_offline # TODO: reenable later?
+	config.stores.stores = [Store(d) for d in select_opts['stores']]
 
 	driver = Driver(config = config, requirements = requirements)
 
-	select_only = for_op == 'for-select'
-	download_only = for_op == 'for-download'
+	if for_op == 'for-select':
+		select_only = True
+		download_only = False
+	elif for_op == 'for-download':
+		select_only = False
+		download_only = True
+	elif for_op == 'for-run':
+		select_only = False
+		download_only = False
+	else:
+		assert 0, for_op
 
-	if options.gui != False:
+	if use_gui != False:
 		# If the user didn't say whether to use the GUI, choose for them.
 		gui_args = driver.requirements.get_as_options()
 		if download_only:
 			# Just changes the button's label
 			gui_args.append('--download-only')
-		gui_args.append('--refresh')
+		if refresh:
+			gui_args.append('--refresh')
 		if options.verbose:
 			gui_args.insert(0, '--verbose')
 			if options.verbose > 1:
@@ -61,7 +80,7 @@ def do_select_with_refresh(config, options, args):
 			gui_args.append('--select-only')
 
 		from zeroinstall import helpers
-		sels = helpers.get_selections_gui(requirements.interface_uri, gui_args, test_callback = None, use_gui = options.gui)
+		sels = helpers.get_selections_gui(requirements.interface_uri, gui_args, test_callback = None, use_gui = use_gui)
 
 		if not sels:
 			return "Aborted"
@@ -72,7 +91,7 @@ def do_select_with_refresh(config, options, args):
 
 	if sels is None:
 		# Note: --download-only also makes us stop and download stale feeds first.
-		downloaded = driver.solve_and_download_impls(refresh = True, select_only = select_only)
+		downloaded = driver.solve_and_download_impls(refresh = refresh, select_only = select_only)
 		if downloaded:
 			tasks.wait_for_blocker(downloaded)
 		sels = driver.solver.selections
@@ -93,8 +112,10 @@ def handle(config, options, args):
 		try:
 			command = request[0]
 			logger.info("Got request '%s'", command)
-			if command == 'select-with-refresh':
-				response = do_select_with_refresh(config, options, request[1:])
+			if command == 'select':
+				response = do_select(config, options, request[1:])
+			else:
+				raise SafeException("Unknown command '%s'" % command)
 			response = ['ok', response]
 		except SafeException as ex:
 			logger.info("Replying with error: %s", ex)

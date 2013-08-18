@@ -52,12 +52,12 @@ let test_option_parsing () =
   assert_equal No (p ["--console"; "select"]).gui;
 
   let s = p ["--with-store"; "/data/store"; "run"; "foo"] in
-  assert_equal "/data/store" (List.hd config.stores);
+  assert_equal "/data/store" (List.nth config.stores @@ List.length config.stores - 1);
   equal_str_lists ["run"; "foo"] s.args;
 
   config.stores <- [];
   let s = p ["--with-store=/data/s1"; "run"; "--with-store=/data/s2"; "foo"; "--with-store=/data/s3"] in
-  equal_str_lists ["/data/s2"; "/data/s1"] config.stores;
+  equal_str_lists ["/data/s1"; "/data/s2"] config.stores;
   equal_str_lists ["run"; "foo"; "--with-store=/data/s3"] s.args;
 
   assert_raises_safe "Option does not take an argument in '--console=true'" (lazy (p ["--console=true"]));

@@ -15,7 +15,7 @@ type run_options = {
 let handle options args =
   match args with
   | arg :: run_args -> (
-    let sels = Generic_select.handle options arg Generic_select.Select_for_run in
+    let sels = Generic_select.handle options arg Zeroinstall.Helpers.Select_for_run in
 
     let run_opts = {
       wrapper = None;

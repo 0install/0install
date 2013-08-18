@@ -12,6 +12,7 @@ module Launcher = Zeroinstall.Launcher
 module Apps = Zeroinstall.Apps
 module Requirements = Zeroinstall.Requirements
 module U = Support.Utils
+module H = Zeroinstall.Helpers
 
 let use_ocaml_solver =                (* TODO: just for testing *)
   try ignore @@ Sys.getenv "USE_OCAML_SOLVER"; true
@@ -123,12 +124,6 @@ let resolve_target options arg =
           | Some "interface" | Some "feed" -> is_interface ()
           | Some x -> raise_safe "Unexpected root element <%s>" x
 
-type select_mode =
-  | Select_only       (* only download feeds, not archives; display "Select" in GUI *)
-  | Download_only     (* download archives too; refresh if stale feeds; display "Download" in GUI *)
-  | Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
-  | Select_for_update (* like Download_only, but save changes to apps *)
-
 let to_json_list args = `List (List.map (fun i -> `String i) args)
 
 (** Get selections for the requirements. Will switch to GUI mode if necessary.
@@ -138,23 +133,11 @@ let to_json_list args = `List (List.map (fun i -> `String i) args)
     *)
 let get_selections options ~refresh reqs mode =
   let config = options.config in
-  let action = match mode with
-  | Select_only -> "for-select"
-  | Download_only | Select_for_update -> "for-download"
-  | Select_for_run -> "for-run" in
+  let distro = Lazy.force options.distro in
 
   let select_with_refresh () =
     (* This is the slow path: we need to download things before selecting *)
-    let read_xml = function
-      | `String "Aborted" -> None
-      | `String s -> Some (Qdom.parse_input None @@ Xmlm.make_input (`String (0, s)))
-      | _ -> raise_safe "Invalid response" in
-    let request : Yojson.Basic.json = `List [`String "select-with-refresh"; `String action; Requirements.to_json reqs] in
-
-    (* Note: parse the output only if it returns success *)
-    U.finally (fun slave -> slave#close) (new Python.slave options) (fun slave ->
-      slave#invoke request read_xml
-    ) in
+    H.solve_and_download_impls options.config distro reqs mode ~refresh:true ~use_gui:options.gui in
 
   (* Check whether we can run immediately, without downloading anything. This requires
      - the user didn't ask to refresh or show the GUI
@@ -165,7 +148,6 @@ let get_selections options ~refresh reqs mode =
   if refresh || options.gui = Yes then (
     select_with_refresh ()
   ) else (
-    let distro = Lazy.force options.distro in
     try
       let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in
       match Zeroinstall.Solver.solve_for config feed_provider reqs with
@@ -186,12 +168,12 @@ let get_selections options ~refresh reqs mode =
           )
       | (true, results) ->
           let sels = results#get_selections () in
-          if mode = Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
+          if mode = H.Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
             (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
 
             let have_stale_feeds = feed_provider#have_stale_feeds () in
 
-            if mode = Download_only && (have_stale_feeds && config.network_use <> Offline) then (
+            if mode = H.Download_only && (have_stale_feeds && config.network_use <> Offline) then (
               (* Updating in the foreground for Download_only mode is a bit inconsistent. Maybe we
                  should have a separate flag for this behaviour? *)
               select_with_refresh ()
@@ -235,13 +217,13 @@ let handle options arg for_op =
   let config = options.config in
 
   let select_opts = {
-    must_select = (for_op = Select_only) || options.gui = Yes;
+    must_select = (for_op = H.Select_only) || options.gui = Yes;
     output = (
       match for_op with   (* Default output style *)
-      | Select_only -> Output_human
-      | Download_only -> Output_none
-      | Select_for_run -> Output_none
-      | Select_for_update -> Output_none
+      | H.Select_only -> Output_human
+      | H.Download_only -> Output_none
+      | H.Select_for_run -> Output_none
+      | H.Select_for_update -> Output_none
     );
     refresh = false;
   } in
@@ -260,7 +242,7 @@ let handle options arg for_op =
     | Output_human -> Show.show_human config sels in
 
   let maybe_download sels =
-    if for_op <> Select_only && Zeroinstall.Selections.get_unavailable_selections config ~distro:(Lazy.force options.distro) sels <> [] then (
+    if for_op <> H.Select_only && Zeroinstall.Selections.get_unavailable_selections config ~distro:(Lazy.force options.distro) sels <> [] then (
       log_info "Need to download selections; switching to Python";
       raise Fallback_to_Python
     ) in
@@ -286,11 +268,11 @@ let handle options arg for_op =
   match result with
   | (App (path, old_reqs), reqs) when select_opts.output = Output_human ->
       (* note: pass use_gui here once we support foreground updates for apps in OCaml *)
-      let old_sels = Zeroinstall.Apps.get_selections_may_update options.config (Lazy.force options.distro) path in
+      let old_sels = Zeroinstall.Apps.get_selections_may_update options.config (Lazy.force options.distro) ~use_gui:options.gui path in
       let new_sels = if select_opts.must_select then do_select reqs else (maybe_download old_sels; old_sels) in
       Show.show_restrictions config.system reqs;
       Show.show_human config new_sels;
-      if for_op = Select_for_update then save_changes path new_sels
+      if for_op = H.Select_for_update then save_changes path new_sels
       else if Whatchanged.show_changes config.system old_sels new_sels || reqs <> old_reqs then
         U.print config.system "(note: use '0install update' instead to save the changes)";
       new_sels
@@ -298,12 +280,12 @@ let handle options arg for_op =
       let new_sels =
         if select_opts.must_select then do_select reqs else (
           (* note: pass use_gui here once we support foreground updates for apps in OCaml *)
-          let old_sels = Zeroinstall.Apps.get_selections_may_update options.config (Lazy.force options.distro) path in
+          let old_sels = Zeroinstall.Apps.get_selections_may_update options.config (Lazy.force options.distro) ~use_gui:options.gui path in
           maybe_download old_sels;
           old_sels
         ) in
       maybe_show_sels new_sels;
-      if for_op = Select_for_update then save_changes path new_sels;
+      if for_op = H.Select_for_update then save_changes path new_sels;
       new_sels
   | (Interface, reqs) ->
       let new_sels = do_select reqs in

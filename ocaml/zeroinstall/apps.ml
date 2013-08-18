@@ -87,6 +87,59 @@ let set_mtime config path =
     system#set_mtime path @@ system#time ()
   )
 
+let get_requirements (system:system) path =
+  Requirements.load system (path +/ "requirements.json")
+
+let get_interface (system:system) path =
+  (get_requirements system path).Requirements.interface_uri
+
+let set_last_checked system app_dir =
+  U.touch system @@ app_dir +/ "last-checked"
+
+let set_selections config app_path sels ~touch_last_checked =
+  let date = U.format_date (Unix.gmtime @@ config.system#time ()) in
+  let sels_file = app_path +/ (Printf.sprintf "selections-%s.xml" date) in
+
+  if config.dry_run then
+    Dry_run.log "would write selections to %s" sels_file
+  else (
+    let write_xml ch = Support.Qdom.output (Xmlm.make_output @@ `Channel ch) sels in
+    config.system#atomic_write [Open_wronly;Open_binary] write_xml sels_file 0o644
+  );
+
+  let sels_latest = app_path +/ "selections.xml" in
+  if config.dry_run then
+    Dry_run.log "would update %s to point to new selections file" sels_latest
+  else (
+    config.system#atomic_hardlink ~link_to:sels_file ~replace:sels_latest
+  );
+
+  if touch_last_checked then
+    set_last_checked config.system app_path
+
+(** Find the best selections for these requirements and return them if available without downloading.
+    If this returns None, we spawn a background download and continue with the previous selections. *)
+let quick_solve config distro reqs =
+  let feed_provider = new Feed_cache.feed_provider config distro in
+  match Solver.solve_for config feed_provider reqs with
+  | (true, results) ->
+      let sels = results#get_selections () in
+      if Selections.get_unavailable_selections config ~distro sels = [] then
+        Some sels   (* A set of valid selections, available locally *)
+      else
+        None        (* Need to download to get the new selections *)
+  | (false, _) ->
+      None          (* Need to refresh before we can solve *)
+
+(* We can't run with saved selections or solved selections without downloading.
+   Try to open the GUI for a blocking download. If we can't do that, download without the GUI. *)
+let foreground_update config distro ~use_gui app_path reqs =
+  log_info "App '%s' needs to get new selections; current ones are not usable" app_path;
+  match Helpers.solve_and_download_impls config distro reqs Helpers.Download_only ~use_gui ~refresh:true with
+  | None -> raise_safe "Aborted by user"
+  | Some sels ->
+      set_selections config app_path sels ~touch_last_checked:true;
+      sels
 
 (* Do any updates. The possible outcomes are:
 
@@ -100,7 +153,7 @@ let set_mtime config path =
     - without downloading => switch to the new selections now
     - with downloading => use current selections, update in the background
 *)
-let check_for_updates config ~distro app_path sels =
+let check_for_updates config ~distro ~use_gui app_path sels =
   let last_solve_path = app_path +/ "last-solve" in
   let last_check_path = app_path +/ "last-check-attempt" in
   let last_check_time = get_mtime (app_path +/ "last-checked") ~warn_if_missing:true in
@@ -125,26 +178,52 @@ let check_for_updates config ~distro app_path sels =
     with Need_solve -> true in
 
   (* Is it time for a background update anyway? *)
-  let want_bg_update =
+  let want_bg_update = ref (
     let staleness = system#time () -. last_check_time in
     log_info "Staleness of app %s is %.0f hours" app_path (staleness /. (60. *. 60.));
     match config.freshness with
     | Some freshness_threshold -> Int64.of_float staleness >= freshness_threshold
-    | None -> false in    (* Updates disabled *)
+    | None -> false     (* Updates disabled *)
+  ) in
 
-  log_info "check_for_updates: need_solve = %b, want_bg_update = %b; unavailable_sels = %b" need_solve want_bg_update unavailable_sels;
+  log_info "check_for_updates: need_solve = %b, want_bg_update = %b; unavailable_sels = %b" need_solve !want_bg_update unavailable_sels;
 
   (* When we solve, we might also discover there are new things we could download and therefore
      do a background update anyway. *)
 
-  if need_solve then (
-    (* Delete last-solve timestamp to force a recalculation.
-       This is useful when upgrading from an old format that the Python can still handle but we can't. *)
-    if system#file_exists last_solve_path && not config.dry_run then
-      system#unlink last_solve_path;
-    (* When this is implemented, will need to add use_gui option like in the Python. *)
-    raise Fallback_to_Python
-  ) else if want_bg_update then (
+  let sels =
+    if need_solve then (
+      let reqs = get_requirements system app_path in
+      match quick_solve config distro reqs with
+      | Some new_sels ->
+          if new_sels = sels then (
+            log_info "Quick solve succeeded; no change needed";
+            sels        (* No change *)
+          ) else (
+            log_info "Quick solve succeeded; saving new selections";
+            set_selections config app_path new_sels ~touch_last_checked:false;
+            let () =
+              try U.touch system (app_path +/ "last-solve");
+              with ex -> log_warning ~ex "Error checking for updates" in
+            new_sels
+          )
+      | None ->
+          log_info "Quick solve failed; we need to download something first";
+          if unavailable_sels then (
+            (* Delete last-solve timestamp to force a recalculation.
+               This is useful when upgrading from an old format that the Python can still handle but we can't. *)
+            if system#file_exists last_solve_path && not config.dry_run then
+              system#unlink last_solve_path;
+
+            foreground_update config distro ~use_gui app_path reqs
+          ) else (
+            (* Continue with the current (cached) selections while we download *)
+            want_bg_update := true;
+            sels
+          )
+    ) else sels in
+  
+  if !want_bg_update then (
     let last_check_attempt = get_mtime last_check_path ~warn_if_missing:false in
     if last_check_attempt +. 60. *. 60. > system#time () then (
       log_info "Tried to check within last hour; not trying again now";
@@ -160,16 +239,17 @@ let check_for_updates config ~distro app_path sels =
 ;;
 
 (** If [distro] is [None] then we don't check for updates. *)
-let get_selections_internal config ?distro app_path =
+let get_selections_internal config ?distro ~use_gui app_path =
   let sels_path = app_path +/ "selections.xml" in
   if Sys.file_exists sels_path then
     let sels = Selections.load_selections config.system sels_path in
     match distro with
     | None -> sels
-    | Some distro -> check_for_updates config ~distro app_path sels
+    | Some distro -> check_for_updates config ~distro ~use_gui app_path sels
   else
-    if distro <> None then raise Fallback_to_Python
-    else raise_safe "App selections missing! Expected: %s" sels_path
+    match distro with
+    | Some distro -> foreground_update config distro ~use_gui app_path (get_requirements config.system app_path)
+    | None -> raise_safe "App selections missing! Expected: %s" sels_path
 
 let list_app_names config =
   let apps = ref StringSet.empty in
@@ -184,14 +264,8 @@ let list_app_names config =
   List.iter scan_dir config.basedirs.Basedir.config;
   StringSet.elements !apps
 
-let get_requirements (system:system) path =
-  Requirements.load system (path +/ "requirements.json")
-
-let get_interface (system:system) path =
-  (get_requirements system path).Requirements.interface_uri
-
-let get_selections_may_update config distro app_path = get_selections_internal config ~distro app_path
-let get_selections_no_updates config app_path = get_selections_internal config app_path
+let get_selections_may_update config distro ~use_gui app_path = get_selections_internal config ~distro ~use_gui app_path
+let get_selections_no_updates config app_path = get_selections_internal config ~use_gui:No app_path
 
 let set_requirements config path req =
   let reqs_file = path +/ "requirements.json" in
@@ -202,9 +276,6 @@ let set_requirements config path req =
     let write_json ch = Yojson.Basic.to_channel ch json in
     config.system#atomic_write [Open_wronly;Open_text] write_json reqs_file 0o644
   )
-
-let set_last_checked system app_dir =
-  U.touch system @@ app_dir +/ "last-checked"
 
 let create_app config name requirements =
   validate_name name;

@@ -473,6 +473,13 @@ let format_time t =
     t.tm_min
     t.tm_sec
 
+let format_date t =
+  let open Unix in
+  Printf.sprintf "%04d-%02d-%02d"
+    (1900 + t.tm_year)
+    (t.tm_mon + 1)
+    t.tm_mday
+
 (** Read up to [n] bytes from [ch] (less if we hit end-of-file. *)
 let read_upto n ch : string =
   let buf = String.create n in

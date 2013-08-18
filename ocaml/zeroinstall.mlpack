@@ -12,9 +12,11 @@ Exec
 Feed
 Feed_cache
 General
+Helpers
 Impl_provider
 Launcher
 Manifest
+Python
 Recipe
 Requirements
 Selections

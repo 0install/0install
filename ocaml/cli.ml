@@ -178,7 +178,7 @@ let spec : (zi_option, zi_arg_type) argparse_spec = {
 
 let add_store settings store =
   settings.extra_stores <- store :: settings.extra_stores;
-  settings.config.stores <- store :: settings.config.stores;
+  settings.config.stores <- settings.config.stores @ [store];
   log_info "Stores search path is now %s" @@ String.concat path_sep settings.config.stores
 
 let increase_verbosity options =

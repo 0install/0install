@@ -7,8 +7,6 @@ open Support.Common
 
 type version = string
 
-type yes_no_maybe = Yes | No | Maybe
-
 type zi_option =
   (* common options *)
   | UseGUI of yes_no_maybe

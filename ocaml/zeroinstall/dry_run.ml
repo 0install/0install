@@ -35,6 +35,7 @@ class dryrun_system (underlying:system) =
        For places where it matters (e.g. actually running the target program), the caller should handle it. *)
     method exec = underlying#exec
     method exit = underlying#exit
+    method create_process = underlying#create_process
 
     (* Trivial operations: ignore *)
     method set_mtime _path _mtime = ()
@@ -43,11 +44,11 @@ class dryrun_system (underlying:system) =
 
     (* Interesting operations: log and skip *)
     method unlink path      = log "rm %s" path
+    method atomic_hardlink ~link_to ~replace = log "ln %s %s" link_to replace
     method rmdir path       = log "rmdir %s" path
     method spawn_detach ?(search_path=false) ?env:_ argv = ignore search_path; log "would spawn background process: %s" (String.concat " " argv)
 
     (* Complex operations: reject (caller should handle specially) *)
     method with_open_out = reject "with_open_out"
     method atomic_write = reject "atomic_write"
-    method create_process = reject "create_process"
   end

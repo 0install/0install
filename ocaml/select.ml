@@ -9,7 +9,7 @@ open Options
 let handle options args =
   match args with
   | [arg] -> (
-    ignore (Generic_select.handle options arg Generic_select.Select_only);
+    ignore (Generic_select.handle options arg Zeroinstall.Helpers.Select_only);
     assert (options.extra_options = [])
   )
   | _ -> raise Support.Argparse.Usage_error

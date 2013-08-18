@@ -4,11 +4,12 @@
 
 (** Interfacing with the old Python code *)
 
-open Zeroinstall.General
+open General
 open Support.Common
-open Options
 
 let finally = Support.Utils.finally
+
+let slave_debug_level = ref None      (* Inherit our logging level *)
 
 let get_command config args : string list =
   let result = ref [] in
@@ -36,10 +37,6 @@ let get_command config args : string list =
 let fallback_to_python config args =
   config.system#exec ~search_path:true (get_command config args)
 
-let rec count_opt flag = function
-  | 0 -> []
-  | n -> flag :: count_opt flag (n - 1)
-
 let bool_opt name = function
   | false -> []
   | true -> [name]
@@ -48,38 +45,27 @@ let rec store_opts = function
   | [] -> []
   | x::xs -> "--with-store" :: x :: store_opts xs
 
-(** Invoke "0install [args]" and return the output. *)
-let check_output_python options fn subcommand args =
-  let open Options in
-  let {config;gui;verbosity;extra_stores;extra_options=_;args=_;distro=_} = options in
-  let extra_args = List.concat [
-    bool_opt "--gui" (gui = Yes);
-    bool_opt "--console" (gui = No);
-    count_opt "-v" verbosity;
-    bool_opt "--offline" (config.network_use = Offline);
-    store_opts extra_stores;
-  ] in
-  Support.Utils.check_output config.system fn @@ get_command config @@ subcommand :: (extra_args @ args)
-
 (** Runs a Python slave process. Remembed to close the connection when done. *)
 open Yojson.Basic
-class slave options =
-  let system = options.config.system in
+class slave config =
+  let system = config.system in
   let (child_stdin_r, child_stdin_w) = Unix.pipe () in
   let (child_stdout_r, child_stdout_w) = Unix.pipe () in
 
   let extra_args =
-    let open Options in
-    let {config;gui;verbosity;extra_stores;extra_options=_;args=_;distro=_} = options in
-    List.concat [
-      bool_opt "--gui" (gui = Yes);
-      bool_opt "--console" (gui = No);
-      count_opt "-v" verbosity;
-      bool_opt "--offline" (config.network_use = Offline);
-      store_opts extra_stores;
-    ] in
+    let open Support.Logging in
+    let t =
+      match !slave_debug_level with
+      | None -> !threshold
+      | Some t -> t in
+    match t with
+    | Debug -> ["-vv"]
+    | Info -> ["-v"]
+    | Warning -> [] in
 
-  let argv = get_command options.config ("slave" :: extra_args) in
+  let extra_args = if config.dry_run then "--dry-run" :: extra_args else extra_args in
+
+  let argv = get_command config ("slave" :: extra_args) in
   let child_pid =
     try
       Unix.set_close_on_exec child_stdin_w;

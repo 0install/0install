@@ -112,7 +112,7 @@ let handle options args =
                 let command = Some (default "run" command) in
                 let reqs = {(Zeroinstall.Requirements.default_requirements uri) with Zeroinstall.Requirements.command} in
                 (* Ensure cached *)
-                match Generic_select.get_selections options ~refresh:false reqs Generic_select.Download_only with
+                match Generic_select.get_selections options ~refresh:false reqs Zeroinstall.Helpers.Download_only with
                 | Some sels -> (sels, main)
                 | None -> exit 1
             )
