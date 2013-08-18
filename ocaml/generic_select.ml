@@ -245,12 +245,6 @@ let handle options arg for_op =
     | Output_XML -> Show.show_xml sels
     | Output_human -> Show.show_human config sels in
 
-  let maybe_download sels =
-    if for_op <> H.Select_only && Zeroinstall.Selections.get_unavailable_selections config ~distro:(Lazy.force options.distro) sels <> [] then (
-      log_info "Need to download selections; switching to Python";
-      raise Fallback_to_Python
-    ) in
-
   let do_select requirements =
     log_info "Getting new selections for %s" arg;
     let sels = get_selections options ~refresh:select_opts.refresh requirements for_op in
@@ -273,7 +267,7 @@ let handle options arg for_op =
   | (App (path, old_reqs), reqs) when select_opts.output = Output_human ->
       (* note: pass use_gui here once we support foreground updates for apps in OCaml *)
       let old_sels = Zeroinstall.Apps.get_selections_may_update options.config (Lazy.force options.distro) ~use_gui:options.gui path in
-      let new_sels = if select_opts.must_select then do_select reqs else (maybe_download old_sels; old_sels) in
+      let new_sels = if select_opts.must_select then do_select reqs else old_sels in
       Show.show_restrictions config.system reqs;
       Show.show_human config new_sels;
       if for_op = H.Select_for_update then save_changes path new_sels
@@ -284,9 +278,7 @@ let handle options arg for_op =
       let new_sels =
         if select_opts.must_select then do_select reqs else (
           (* note: pass use_gui here once we support foreground updates for apps in OCaml *)
-          let old_sels = Zeroinstall.Apps.get_selections_may_update options.config (Lazy.force options.distro) ~use_gui:options.gui path in
-          maybe_download old_sels;
-          old_sels
+          Zeroinstall.Apps.get_selections_may_update options.config (Lazy.force options.distro) ~use_gui:options.gui path
         ) in
       maybe_show_sels new_sels;
       if for_op = H.Select_for_update then save_changes path new_sels;
@@ -296,7 +288,13 @@ let handle options arg for_op =
       maybe_show_sels new_sels;
       new_sels
   | (Selections old_sels, reqs) ->
-      let new_sels = if select_opts.must_select then do_select reqs else (maybe_download old_sels; old_sels) in
+      let new_sels = if select_opts.must_select then do_select reqs else (
+        if for_op = H.Select_only then old_sels else (
+          (* Download if missing. Ignore distribution packages, because the version probably won't match exactly. *)
+          Zeroinstall.Helpers.download_selections config None old_sels;
+          old_sels
+        )
+      ) in
       maybe_show_sels new_sels;
       ignore @@ Whatchanged.show_changes config.system old_sels new_sels;
       new_sels

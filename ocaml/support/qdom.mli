@@ -43,6 +43,9 @@ val simple_content : element -> string
     e.g. [output (Xmlm.make_output @@ `Channel stdout) root] *)
 val output : Xmlm.output -> element -> unit
 
+(** Write a (sub)tree to a string. *)
+val to_utf8 : element -> string
+
 (** [prepend_child child parent] makes [child] the first child of [parent]. *)
 val prepend_child : element -> element -> unit
 

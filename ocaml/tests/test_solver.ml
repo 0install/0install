@@ -37,12 +37,6 @@ let set_of_attrs elem : string list =
   ) in
   List.sort compare str_list
 
-let string_of_element elem =
-  let buf = Buffer.create 100 in
-  let out = Xmlm.make_output @@ `Buffer buf in
-  Support.Qdom.output out elem;
-  Buffer.contents buf
-
 let xml_diff exp actual =
   let open Support.Qdom in
   let p = Printf.printf in
@@ -63,8 +57,8 @@ let xml_diff exp actual =
     ) in
   if find_diff exp actual then (
     assert_equal ~printer:(fun s -> s)
-      (string_of_element exp)
-      (string_of_element actual)
+      (to_utf8 exp)
+      (to_utf8 actual)
   )
 
 (** Give every implementation an <archive>, so we think it's installable. *)

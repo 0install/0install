@@ -6,6 +6,7 @@
 
 open General
 open Support.Common
+module Q = Support.Qdom
 
 let finally = Support.Utils.finally
 
@@ -82,11 +83,21 @@ class slave config =
 
   object
     (** Send a JSON message to the Python slave and return whatever data it sends back. *)
-    method invoke : 'a. json -> (json -> 'a) -> 'a = fun request parse_fn ->
+    method invoke : 'a. json -> ?xml:Q.element -> (json -> 'a) -> 'a = fun request ?xml parse_fn ->
       let data = to_string request in
       log_info "Sending to Python: %s" data;
       Printf.fprintf to_child "%d\n" (String.length data);
       output_string to_child data;
+
+      let () =
+        match xml with
+        | Some xml ->
+            let data = Q.to_utf8 xml in
+            log_info "... with XML: %s" data;
+            Printf.fprintf to_child "%d\n" (String.length data);
+            output_string to_child data;
+        | None -> () in
+
       flush to_child;
 
       let l = int_of_string @@ input_line from_child in

@@ -45,3 +45,19 @@ let solve_and_download_impls config _distro reqs mode ~refresh ~use_gui =
     slave#invoke request read_xml
   )
 
+(** Ensure all selections are cached, downloading any that are missing.
+    If [distro] is given then distribution packages are also installed, otherwise
+    they are ignored. *)
+let download_selections config distro sels =
+  if Selections.get_unavailable_selections config ?distro sels <> [] then (
+    let opts = `Assoc [
+      ("stores", `List (List.map (fun s -> `String s) config.stores));
+      ("include-packages", `Bool (distro <> None));
+    ] in
+
+    let request : Yojson.Basic.json = `List [`String "download-selections"; opts] in
+
+    U.finally (fun slave -> slave#close) (new Python.slave config) (fun slave ->
+      slave#invoke ~xml:sels request ignore
+    )
+  )

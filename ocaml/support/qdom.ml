@@ -155,6 +155,12 @@ let output o root =
     Xmlm.output o @@ `El_end in
   output_node {root with attrs = !root_attrs}
 
+let to_utf8 elem =
+  let buf = Buffer.create 1000 in
+  let out = Xmlm.make_output @@ `Buffer buf in
+  output out elem;
+  Buffer.contents buf
+
 let get_attribute_opt attr elem =
   try
     Some (List.assoc attr elem.attrs)

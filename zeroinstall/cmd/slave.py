@@ -7,13 +7,20 @@ The B{0install slave} command-line interface.
 
 from __future__ import print_function
 
+import sys
+
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model
+from zeroinstall.injector import model, qdom, selections
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver
 from zeroinstall.support import tasks
 from zeroinstall.zerostore import Store
+
+if sys.version_info[0] > 2:
+	from io import BytesIO
+else:
+	from StringIO import StringIO as BytesIO
 
 import json, sys
 
@@ -48,6 +55,17 @@ def do_background_update(config, options, args):
 	from zeroinstall.injector import background
 	background.spawn_background_update2(requirements, verbose = options.verbose > 1)
 	return "detached"
+
+def do_download_selections(config, options, args, xml):
+	opts, = args
+	config.stores.stores = [Store(d) for d in opts['stores']]
+	include_packages = opts['include-packages']
+
+	sels = selections.Selections(xml)
+	blocker = sels.download_missing(config, include_packages = include_packages)
+	if blocker:
+		tasks.wait_for_blocker(blocker)
+	return "downloaded"
 
 def do_select(config, options, args):
 	(for_op, select_opts, reqs_json) = args
@@ -128,8 +146,12 @@ def handle(config, options, args):
 				response = do_select(config, options, request[1:])
 			elif command == 'background-update':
 				response = do_background_update(config, options, request[1:])
+			elif command == 'download-selections':
+				l = stdin.readline().strip()
+				xml = qdom.parse(BytesIO(stdin.read(int(l))))
+				response = do_download_selections(config, options, request[1:], xml)
 			else:
-				raise SafeException("Unknown command '%s'" % command)
+				raise SafeException("Internal error: unknown command '%s'" % command)
 			response = ['ok', response]
 		except SafeException as ex:
 			logger.info("Replying with error: %s", ex)
