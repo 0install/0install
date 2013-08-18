@@ -41,11 +41,17 @@ exception Would_exec of (bool * string array option * string list)
 exception Would_spawn of (bool * string array option * string list)
 exception System_exit of int
 
+let src_dir = Filename.dirname @@ Filename.dirname @@ Sys.getcwd ()
+let test_0install = src_dir +/ "0install"           (* Pretend we're running from here so we find 0launch *)
+
+let () = Printf.printf "src_dir = %s" src_dir
+
 class fake_system tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
 
   let check_read path =
     if Filename.is_relative path then path
+    else if Support.Utils.starts_with path src_dir then path
     else (
       try
         match StringMap.find path !extra_files with
@@ -76,6 +82,7 @@ class fake_system tmpdir =
     val now = ref 0.0
     val mutable env = StringMap.empty
     val mutable stdout = None
+    val mutable allow_spawn = false
 
     method collect_output (fn : unit -> unit) =
       let old_stdout = stdout in
@@ -89,7 +96,7 @@ class fake_system tmpdir =
       | None -> failwith s
       | Some b -> Buffer.add_string b s
 
-    val mutable argv = [| "0install" |]
+    val mutable argv = [| test_0install |]
 
     method argv () = argv
     method set_argv new_argv = argv <- new_argv
@@ -153,10 +160,16 @@ class fake_system tmpdir =
     method spawn_detach ?(search_path = false) ?env argv =
       raise (Would_spawn (search_path, env, argv))
 
-    method create_process args _new_stdin _new_stdout _new_stderr =
-      raise (Would_spawn (true, None, args))
+    method create_process args new_stdin new_stdout new_stderr =
+      if allow_spawn then (
+        allow_spawn <- false;
+        real_system#create_process args new_stdin new_stdout new_stderr
+      ) else raise (Would_spawn (true, None, args))
 
-    method reap_child = failwith "reap_child"
+    method allow_spawn =
+      allow_spawn <- true
+
+    method reap_child = real_system#reap_child
 
     method getcwd () =
       match tmpdir with

@@ -76,6 +76,26 @@ let parse_requirements json =
   with Type_error (msg, _) ->
     raise_safe "Bad requirements JSON: %s" msg
 
+let to_json reqs =
+  let maybe name = function
+    | None -> []
+    | Some x -> [(name, `String x)] in
+  let {
+    interface_uri; command; source;
+    extra_restrictions; os; cpu;
+    message;
+  } = reqs in
+  `Assoc ([
+    ("interface_uri", `String interface_uri);
+    ("source", `Bool source);
+    ("extra_restrictions", `Assoc (StringMap.fold (fun k v items -> (k, `String v) :: items) extra_restrictions []));
+  ] @ List.concat [
+    maybe "command" command;
+    maybe "os" os;
+    maybe "cpu" cpu;
+    maybe "message" message;
+  ])
+
 let load (system:system) path =
   let open Yojson.Basic in
   system#with_open_in [Open_rdonly; Open_binary] 0 path (fun ch ->

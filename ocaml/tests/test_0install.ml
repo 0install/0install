@@ -8,6 +8,8 @@ open Support.Common
 open OUnit
 module U = Support.Utils
 
+let test_0install = Fake_system.test_0install
+
 let suite = "0install">::: [
   "select">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (_config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
@@ -17,20 +19,33 @@ let suite = "0install">::: [
     fake_system#add_file "/lib/ld-linux.so.2" "/";    (* Enable multi-arch *)
 
     (* In --offline mode we select from the cached feed *)
-    fake_system#set_argv [| "0install"; "-o"; "select"; "http://example.com/prog.xml" |];
+    fake_system#set_argv [| test_0install; "-o"; "select"; "http://example.com/prog.xml" |];
     let output = fake_system#collect_output (fun () -> Main.main system) in
     assert (U.starts_with output "- URI: http://example.com/prog.xml");
 
     fake_system#add_file "/usr/bin/0launch" "";
     (* In online mode, we spawn a background process because we don't have a last-checked timestamp *)
-    fake_system#set_argv [| "0install"; "select"; "http://example.com/prog.xml" |];
+    fake_system#set_argv [| test_0install; "select"; "http://example.com/prog.xml" |];
     let () =
       try failwith @@ fake_system#collect_output (fun () -> Main.main system)
       with Fake_system.Would_spawn _ -> () in
 
     (* Download succeeds (does nothing, as it's already cached *)
-    fake_system#set_argv [| "0install"; "-o"; "download"; "http://example.com/prog.xml" |];
+    fake_system#set_argv [| test_0install; "-o"; "download"; "http://example.com/prog.xml" |];
     let output = fake_system#collect_output (fun () -> Main.main system) in
     Fake_system.assert_str_equal "" output;
+
+    (* Use --console --offline --refresh to force us to use the Python *)
+    fake_system#allow_spawn;
+    fake_system#set_argv [| test_0install; "-cor"; "download"; "http://example.com/prog.xml" |];
+    let () =
+      try Main.main system; assert false
+      with Safe_exception (msg, _) ->
+        Fake_system.assert_str_equal (
+          "Can't find all required implementations:\n" ^
+          "- http://example.com/prog.xml -> (problem)\n" ^
+          "    No known implementations at all\n" ^
+          "Note: 0install is in off-line mode") msg in
+    ()
   )
 ]

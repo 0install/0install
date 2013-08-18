@@ -11,6 +11,7 @@ module Qdom = Support.Qdom
 module Launcher = Zeroinstall.Launcher
 module Apps = Zeroinstall.Apps
 module Requirements = Zeroinstall.Requirements
+module U = Support.Utils
 
 let use_ocaml_solver =                (* TODO: just for testing *)
   try ignore @@ Sys.getenv "USE_OCAML_SOLVER"; true
@@ -22,7 +23,7 @@ type target =
   | Selections of Qdom.element
 
 let local_path_of_iface uri =
-  let starts = Support.Utils.starts_with uri in
+  let starts = U.starts_with uri in
   if starts "http://" || starts "https://'" then (
     None
   ) else (
@@ -37,16 +38,16 @@ let local_path_of_iface uri =
     An "alias:prog" URI expands to the URI in the 0alias script
     Otherwise, return it unmodified. *)
 let canonical_iface_uri (system:system) arg =
-  let starts = Support.Utils.starts_with arg in
+  let starts = U.starts_with arg in
   if starts "http://" || starts "https://'" then (
     if not (String.contains_from arg (String.index arg '/' + 2) '/') then
       raise_safe "Missing / after hostname in URI '%s'" arg;
     arg
   ) else if starts "alias:" then (
-    let alias = Support.Utils.string_tail arg 6 in
+    let alias = U.string_tail arg 6 in
     let path =
       if Filename.is_implicit alias then
-        Support.Utils.find_in_path_ex system alias
+        U.find_in_path_ex system alias
       else
         alias in
 
@@ -54,19 +55,19 @@ let canonical_iface_uri (system:system) arg =
     | Some (Launcher.AliasScript info) -> info.Launcher.uri
     | _ -> raise_safe "Not an alias script: '%s'" path
   ) else (
-    let path = Support.Utils.realpath system @@ if starts "file:///" then (
-      Support.Utils.string_tail arg 7
+    let path = U.realpath system @@ if starts "file:///" then (
+      U.string_tail arg 7
     ) else if starts "file:" then (
         if arg.[5] = '/' then
           raise_safe "Use file:///path for absolute paths, not %s" arg;
-        Support.Utils.string_tail arg 5
+        U.string_tail arg 5
     ) else (
       arg
     ) in
 
     let is_alias () =
       if not (String.contains arg '/') then (
-        match Support.Utils.find_in_path system arg with
+        match U.find_in_path system arg with
         | None -> false
         | Some path -> Launcher.is_alias_script system path
       ) else (
@@ -128,6 +129,8 @@ type select_mode =
   | Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
   | Select_for_update (* like Download_only, but save changes to apps *)
 
+let to_json_list args = `List (List.map (fun i -> `String i) args)
+
 (** Get selections for the requirements. Will switch to GUI mode if necessary.
     @param select_only 
     @param download_only wait for stale feeds, and display GUI button as Download, not Run
@@ -142,15 +145,16 @@ let get_selections options ~refresh reqs mode =
 
   let select_with_refresh () =
     (* This is the slow path: we need to download things before selecting *)
-    let read_xml s = Qdom.parse_input None @@ Xmlm.make_input (`String (0, s)) in
-    let args = Req_options.to_options reqs @ ["--xml"; "--"; reqs.Requirements.interface_uri] in
-    let args = if refresh then "--refresh" :: args else args in
+    let read_xml = function
+      | `String "Aborted" -> None
+      | `String s -> Some (Qdom.parse_input None @@ Xmlm.make_input (`String (0, s)))
+      | _ -> raise_safe "Invalid response" in
+    let request : Yojson.Basic.json = `List [`String "select-with-refresh"; `String action; Requirements.to_json reqs] in
+
     (* Note: parse the output only if it returns success *)
-    let xml = read_xml @@ Python.check_output_python options Support.Utils.input_all "select" @@ action :: args in
-    if xml.Qdom.tag = ("", "cancelled") then
-      None
-    else
-      Some xml in
+    U.finally (fun slave -> slave#close) (new Python.slave options) (fun slave ->
+      slave#invoke request read_xml
+    ) in
 
   (* Check whether we can run immediately, without downloading anything. This requires
      - the user didn't ask to refresh or show the GUI
@@ -288,7 +292,7 @@ let handle options arg for_op =
       Show.show_human config new_sels;
       if for_op = Select_for_update then save_changes path new_sels
       else if Whatchanged.show_changes config.system old_sels new_sels || reqs <> old_reqs then
-        Support.Utils.print config.system "(note: use '0install update' instead to save the changes)";
+        U.print config.system "(note: use '0install update' instead to save the changes)";
       new_sels
   | (App (path, _old_reqs), reqs) ->
       let new_sels =
