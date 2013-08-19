@@ -6,7 +6,6 @@
 
 open Zeroinstall.General
 open Support.Common
-open Options
 
 (** Run "python -m zeroinstall.cmd". If ../zeroinstall exists, put it in PYTHONPATH,
     otherwise use the system version of 0install. *)
@@ -31,24 +30,12 @@ let main (system:system) : unit =
   | "_complete" :: args -> Completion.handle_complete config args
   | "runenv" :: runenv_args -> Zeroinstall.Exec.runenv system runenv_args
   | raw_args ->
-      try
-        let options =
-          try Cli.parse_args config raw_args
-          with Safe_exception _ as ex ->
-            reraise_with_context ex "... processing command line: %s" (String.concat " " argv)
-        in
-        try
-          match options.args with
-          | ("run" :: args) -> Run.handle options args
-          | ("select" :: args) -> Select.handle options args
-          | ("download" :: args) -> Download.handle options args
-          | ("show" :: args) -> Show.handle options args
-          | ("man" :: args) -> Man.handle options args
-          | _ -> raise Fallback_to_Python
-        with Support.Argparse.Usage_error -> Cli.show_usage_error options
-      with Fallback_to_Python ->
-        log_info "Can't handle this case; switching to Python version...";
-        fallback_to_python config (List.tl argv)
+      try Cli.handle config raw_args
+      with
+      | Safe_exception _ as ex -> reraise_with_context ex "... processing command line: %s" (String.concat " " argv)
+      | Fallback_to_Python ->
+          log_info "Can't handle this case; switching to Python version...";
+          fallback_to_python config (List.tl argv)
 
 let start system =
   Support.Utils.handle_exceptions main system

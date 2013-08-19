@@ -195,42 +195,28 @@ let increase_verbosity options =
 
 let select_options = xml_output @ generic_select_options
 
+let fallback_handler _options _args = raise Fallback_to_Python
+
 (** Which options are valid with which command *)
-let command_options = [
-  ("add", (offline_options @ generic_select_options, "PET-NAME INTERFACE"));
-  ("select", (offline_options @ select_options, "URI"));
-  ("show", (xml_output @ show_options, "APP | SELECTIONS"));
-  ("download", (offline_options @ download_options @ select_options, "URI"));
-  ("run", (offline_options @ run_options @ generic_select_options, "URI [ARGS]"));
-  ("update", (update_options @ offline_options @ generic_select_options, "APP | URI"));
-  ("whatchanged", (diff_options, "APP-NAME"));
-  ("destroy", ([], "PET-NAME"));
-  ("config", ([], "[NAME [VALUE]]"));
-  ("import", (offline_options, "FEED"));
-  ("list", ([], "PATTERN"));
-  ("search", ([], "QUERY"));
-  ("add-feed", (offline_options, "[INTERFACE] NEW-FEED"));
-  ("remove-feed", (offline_options, "[INTERFACE] FEED"));
-  ("list-feeds", ([], "URI"));
-  ("man", ([], "NAME"));
-  ("digest", (digest_options, "DIRECTORY | ARCHIVE [EXTRACT]"));
+let subcommands = [
+  ("add",         (fallback_handler, offline_options @ generic_select_options, "PET-NAME INTERFACE"));
+  ("select",      (Select.handle,    offline_options @ select_options, "URI"));
+  ("show",        (Show.handle,      xml_output @ show_options, "APP | SELECTIONS"));
+  ("download",    (Download.handle,  offline_options @ download_options @ select_options, "URI"));
+  ("run",         (Run.handle,       offline_options @ run_options @ generic_select_options, "URI [ARGS]"));
+  ("update",      (fallback_handler, update_options @ offline_options @ generic_select_options, "APP | URI"));
+  ("whatchanged", (fallback_handler, diff_options, "APP-NAME"));
+  ("destroy",     (fallback_handler, [], "PET-NAME"));
+  ("config",      (fallback_handler, [], "[NAME [VALUE]]"));
+  ("import",      (fallback_handler, offline_options, "FEED"));
+  ("list",        (fallback_handler, [], "PATTERN"));
+  ("search",      (fallback_handler, [], "QUERY"));
+  ("add-feed",    (fallback_handler, offline_options, "[INTERFACE] NEW-FEED"));
+  ("remove-feed", (fallback_handler, offline_options, "[INTERFACE] FEED"));
+  ("list-feeds",  (fallback_handler, [], "URI"));
+  ("man",         (Man.handle,       [], "NAME"));
+  ("digest",      (fallback_handler, digest_options, "DIRECTORY | ARCHIVE [EXTRACT]"));
 ]
-
-let set_of_option_names opts =
-  let add s (names, _nargs, _help, _handler) = List.fold_right StringSet.add names s in
-  List.fold_left add StringSet.empty opts
-
-(* Ensure these options are all valid for the given command. *)
-let check_options command_name options =
-  let valid_options = set_of_option_names (
-    try fst @@ List.assoc command_name command_options
-    with Not_found -> raise_safe "Unknown 0install sub-command '%s': try --help" command_name
-  ) in
-
-  let check_opt (name, _value) =
-    if not (StringSet.mem name valid_options) then
-      raise_safe "Option %s is not valid with command '%s'" name command_name in
-  List.iter check_opt options
 
 let format_type = function
   | Dir -> "DIR"
@@ -250,7 +236,7 @@ let show_help settings =
     match settings.args with
       | [] -> (common_options, "COMMAND [OPTIONS]")
       | command :: _ ->
-          let options, help = List.assoc command command_options in
+          let _handler, options, help = List.assoc command subcommands in
           (options @ (List.filter remove_version common_options), command ^ " [OPTIONS] " ^ help) in
 
   let open Format in
@@ -263,7 +249,7 @@ let show_help settings =
     print_newline();
     printf "Try --help with one of these:@\n@\n";
     open_vbox 0;
-    ListLabels.iter command_options ~f:(fun (command, _opts) ->
+    ListLabels.iter subcommands ~f:(fun (command, _info) ->
       printf "%s %s@," prog command;
     );
     close_box();
@@ -288,6 +274,10 @@ let show_version system =
      under the terms of the GNU Lesser General Public License.\n\
      For more information about these matters, see the file named COPYING.\n"
      Zeroinstall.About.version
+
+let set_of_option_names opts =
+  let add s (names, _nargs, _help, _handler) = List.fold_right StringSet.add names s in
+  List.fold_left add StringSet.empty opts
 
 let parse_args config args =
   let (raw_options, args) = Support.Argparse.parse_args spec args in
@@ -316,11 +306,23 @@ let parse_args config args =
     )
     | _ -> Some (opt, value)
   );
-
-  (* This check is mainly to prevent command_options getting out-of-date *)
-  let () = match args with
-  | command :: _ -> check_options command options.extra_options
-  | [] -> show_help options; exit 1 in
-
   options
-;;
+
+let handle config raw_args =
+  let options = parse_args config raw_args in
+  try
+    match options.args with
+    | [] -> show_help options; exit 1
+    | command :: command_args ->
+        let (handler, valid_options, _help) =
+          try List.assoc command subcommands
+          with Not_found -> raise_safe "Unknown 0install sub-command '%s': try --help" command in
+        let valid_set = set_of_option_names valid_options in
+
+        let check_opt (name, _value) =
+          if not (StringSet.mem name valid_set) then
+            raise_safe "Option %s is not valid with command '%s'" name command in
+        List.iter check_opt options.extra_options;
+
+        handler options command_args
+  with Support.Argparse.Usage_error -> show_usage_error options
