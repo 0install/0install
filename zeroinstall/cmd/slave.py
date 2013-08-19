@@ -34,7 +34,7 @@ else:
 	stdout = sys.stdout
 
 def add_options(parser):
-	pass
+	parser.add_option("-o", "--offline", help=_("try to avoid using the network"), action='store_true')
 
 def parse_ynm(s):
 	if s == 'yes': return True
@@ -49,16 +49,14 @@ def reqs_from_json(reqs_json):
 	return requirements
 
 def do_background_update(config, options, args):
-	(opts, reqs_json) = args
+	reqs_json, = args
 	requirements = reqs_from_json(reqs_json)
-	config.stores.stores = [Store(d) for d in opts['stores']]
 	from zeroinstall.injector import background
 	background.spawn_background_update2(requirements, verbose = options.verbose > 1)
 	return "detached"
 
 def do_download_selections(config, options, args, xml):
 	opts, = args
-	config.stores.stores = [Store(d) for d in opts['stores']]
 	include_packages = opts['include-packages']
 
 	sels = selections.Selections(xml)
@@ -74,8 +72,6 @@ def do_select(config, options, args):
 
 	refresh = select_opts['refresh']
 	use_gui = parse_ynm(select_opts['use_gui'])
-	if select_opts['offline']: config.network_use = model.network_offline # TODO: reenable later?
-	config.stores.stores = [Store(d) for d in select_opts['stores']]
 
 	driver = Driver(config = config, requirements = requirements)
 
@@ -132,6 +128,9 @@ def do_select(config, options, args):
 def handle(config, options, args):
 	if args:
 		raise UsageError()
+
+	if options.offline:
+		config.network_use = model.network_offline
 
 	while True:
 		logger.info("Waiting for length...")

@@ -71,7 +71,7 @@ module RealSystem (U : UnixType) =
         method mkdir = Unix.mkdir
         method file_exists = Sys.file_exists
         method create_process args new_stdin new_stdout new_stderr =
-          Logging.log_info "Running %s" @@ Logging.format_argv_for_logging args;
+          log_info "Running %s" @@ Logging.format_argv_for_logging args;
           Unix.create_process (List.hd args) (Array.of_list args) new_stdin new_stdout new_stderr
 
         method unlink = Unix.unlink

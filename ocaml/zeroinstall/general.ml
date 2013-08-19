@@ -21,7 +21,8 @@ type network_use = Full_network | Minimal_network | Offline
 
 type config = {
   basedirs: Support.Basedir.basedirs;
-  mutable stores: string list;
+  mutable stores: filepath list;
+  mutable extra_stores: filepath list;      (* (subset of stores; passed to Python slave with --with-store) *)
   abspath_0install: filepath;
 
   mutable system : Support.Common.system;

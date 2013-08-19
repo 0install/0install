@@ -4,7 +4,6 @@
 
 (** High-level helper functions *)
 
-open General
 open Support.Common
 module Basedir = Support.Basedir
 module U = Support.Utils
@@ -31,8 +30,6 @@ let solve_and_download_impls config _distro reqs mode ~refresh ~use_gui =
   let opts = `Assoc [
     ("refresh", `Bool refresh);
     ("use_gui", `String (string_of_ynm use_gui));
-    ("offline", `Bool (config.network_use = Offline));
-    ("stores", `List (List.map (fun s -> `String s) config.stores));
   ] in
 
   let read_xml = function
@@ -51,7 +48,6 @@ let solve_and_download_impls config _distro reqs mode ~refresh ~use_gui =
 let download_selections config distro sels =
   if Selections.get_unavailable_selections config ?distro sels <> [] then (
     let opts = `Assoc [
-      ("stores", `List (List.map (fun s -> `String s) config.stores));
       ("include-packages", `Bool (distro <> None));
     ] in
 

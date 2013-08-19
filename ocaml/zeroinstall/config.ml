@@ -37,6 +37,7 @@ let get_default_config system path_to_0install =
   let config = {
     basedirs;
     stores = Stores.get_default_stores basedirs;
+    extra_stores = [];
     abspath_0install;
     freshness = Some (Int64.of_int (30 * days));
     network_use = Full_network;

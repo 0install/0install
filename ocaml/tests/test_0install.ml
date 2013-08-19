@@ -37,10 +37,7 @@ let suite = "0install">::: [
 
     (* Use --console --offline --refresh to force us to use the Python *)
     let my_spawn_handler args cin cout cerr =
-      U.finally (fun old -> Support.Logging.threshold := old)
-                !Support.Logging.threshold
-                (fun _old -> Support.Logging.threshold := Support.Logging.Warning;
-                 Fake_system.real_system#create_process args cin cout cerr) in
+      Fake_system.real_system#create_process args cin cout cerr in
     fake_system#set_spawn_handler (Some my_spawn_handler);
     fake_system#set_argv [| test_0install; "-cor"; "download"; "http://example.com/prog.xml" |];
     let () =

@@ -191,10 +191,7 @@ let get_selections options ~refresh reqs mode =
 
                 if want_background_update then (
                   let slave = new Zeroinstall.Python.slave config in
-                  let opts = `Assoc [
-                    ("stores", `List (List.map (fun s -> `String s) config.stores));
-                  ] in
-                  slave#invoke (`List [`String "background-update"; opts; Requirements.to_json reqs]) ignore;
+                  slave#invoke (`List [`String "background-update"; Requirements.to_json reqs]) ignore;
                   slave#close;
                 )
               );

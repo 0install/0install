@@ -53,7 +53,7 @@ class slave config =
   let (child_stdin_r, child_stdin_w) = Unix.pipe () in
   let (child_stdout_r, child_stdout_w) = Unix.pipe () in
 
-  let extra_args =
+  let debug_args =
     let open Support.Logging in
     let t =
       match !slave_debug_level with
@@ -64,7 +64,12 @@ class slave config =
     | Info -> ["-v"]
     | Warning -> [] in
 
-  let extra_args = if config.dry_run then "--dry-run" :: extra_args else extra_args in
+  let extra_args = List.concat [
+    debug_args;
+    bool_opt "--dry-run" config.dry_run;
+    store_opts config.extra_stores;
+    bool_opt "--offline" (config.network_use = Offline);
+  ] in
 
   let argv = get_command config ("slave" :: extra_args) in
   let child_pid =
