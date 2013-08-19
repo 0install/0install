@@ -44,8 +44,10 @@ let suite = "apps">::: [
       ("0install.net" +/ "implementations" +/ "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a")
       config.basedirs.Support.Basedir.cache;
 
+    let slave = new Zeroinstall.Python.slave config in
+
     (* Initialise the new app with selections for version 0.1-pre *)
-    let distro = new Zeroinstall.Distro.generic_distribution in
+    let distro = new Zeroinstall.Distro.generic_distribution slave in
     let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in
     let () =
       match Zeroinstall.Solver.solve_for config feed_provider r with

@@ -45,12 +45,14 @@ module MakeSAT :
       val impossible : sat_problem -> unit -> unit
 
       type added_result = AddedFact of bool | AddedClause of clause
-      (** Add a clause requiring at least one literal to be [True]. e.g. [A or B or not(C)] *)
-      val at_least_one : sat_problem -> lit list -> unit
+      (** Add a clause requiring at least one literal to be [True]. e.g. [A or B or not(C)].
+          [reason] is used in debug messages. *)
+      val at_least_one : sat_problem -> ?reason:string -> lit list -> unit
 
       (** If the first variable is true, at least one of the others must be.
-          [implies p a bs] is equivalent to [at_least_one p ((neg a) :: bs)] *)
-      val implies : sat_problem -> lit -> lit list -> unit
+          [implies p a bs] is equivalent to [at_least_one p ((neg a) :: bs)].
+          [reason] is used in debug messages. *)
+      val implies : sat_problem -> ?reason:string -> lit -> lit list -> unit
 
       type at_most_one_clause
       (** Add a clause preventing more than one literal in the list from being [True]. *)

@@ -157,9 +157,10 @@ let get_selections options ~refresh reqs mode =
             print_endline "Quick solve failed (stopped for debugging):";
             let sels = results#get_selections () in
             ZI.iter sels ~f:(fun sel ->
-              if Qdom.get_attribute_opt ("", "version") sel = None then
+              if Qdom.get_attribute_opt ("", "version") sel = None then (
                 Qdom.set_attribute "version" "0" sel;
-                Qdom.set_attribute "id" "missing" sel
+                Qdom.set_attribute "id" "package:missing" sel
+              )
             );
             Show.show_human config sels;
             None

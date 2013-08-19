@@ -59,6 +59,7 @@ let show_human config sels =
           | None ->
               printf "No selected version";
           | Some impl ->
+              (* printf "ID: %s" (ZI.get_attribute "id" impl); *)
               printf "Version: %s" (ZI.get_attribute "version" impl);
               (* print indent + "  Command:", command *)
               let path = match Selections.make_selection impl with

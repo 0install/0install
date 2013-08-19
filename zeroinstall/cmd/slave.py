@@ -126,6 +126,60 @@ def do_select(config, options, args):
 	doc = sels.toDOM()
 	return doc.toxml()
 
+def to_json(impl):
+	# TODO: for PackageKit candidates, we might need to say how to get them (the Python
+	# code adds a retrieval method).
+	attrs = {
+		'id': impl.id,
+		'version': impl.get_version(),
+		'machine': impl.machine,
+		'is_installed': impl.installed,
+		'distro': impl.distro_name,
+	}
+	if impl.main:
+		# We may add a missing 'main' (e.g. host Python) or modify an existing one
+		# (e.g. /usr/bin -> /bin).
+		attrs['main'] = impl.main
+	if impl.quick_test_file:
+		attrs['quick-test-file'] = impl.quick_test_file
+		if impl.quick_test_mtime:
+			attrs['quick-test-mtime'] = str(impl.quick_test_mtime)
+	return attrs
+
+class FakeMasterFeed:
+	url = None
+	package_impls = None
+	def get_package_impls(self, distro):
+		return self.package_impls
+
+def do_get_package_impls(config, options, args, xml):
+	master_feed_url, = args
+
+	master_feed = FakeMasterFeed()
+	master_feed.url = master_feed_url
+
+	seen = set()
+	results = []
+
+	hosts = []
+
+	# We need the results grouped by <package-implementation> so the OCaml can
+	# get the correct attributes and dependencies.
+	for elem in xml.childNodes:
+		master_feed.package_impls = [(elem, elem.attrs, [])]
+		feed = config.iface_cache.distro.get_feed(master_feed)
+
+		impls = [impl for impl in feed.implementations.values() if impl.id not in seen]
+		seen.update(feed.implementations.keys())
+
+		hosts += [to_json(impl) for impl in impls
+			  if impl.id.startswith('package:host:')]
+
+		results.append([to_json(impl) for impl in impls
+				if not impl.id.startswith('package:host:')])
+
+	return [hosts] + results
+
 def send_json(j):
 	data = json.dumps(j).encode('utf-8')
 	stdout.write(('%d\n' % len(data)).encode('utf-8'))
@@ -133,9 +187,9 @@ def send_json(j):
 	stdout.flush()
 
 def recv_json():
-	logger.info("Waiting for length...")
+	logger.debug("Waiting for length...")
 	l = stdin.readline().strip()
-	logger.info("Read '%s' from master", l)
+	logger.debug("Read '%s' from master", l)
 	if not l:
 		sys.stdout = sys.stderr
 		return None
@@ -159,7 +213,7 @@ def handle(config, options, args):
 		if request is None: break
 		try:
 			command = request[0]
-			logger.info("Got request '%s'", command)
+			logger.debug("Got request '%s'", command)
 			if command == 'select':
 				response = do_select(config, options, request[1:])
 			elif command == 'background-update':
@@ -168,6 +222,10 @@ def handle(config, options, args):
 				l = stdin.readline().strip()
 				xml = qdom.parse(BytesIO(stdin.read(int(l))))
 				response = do_download_selections(config, options, request[1:], xml)
+			elif command == 'get-package-impls':
+				l = stdin.readline().strip()
+				xml = qdom.parse(BytesIO(stdin.read(int(l))))
+				response = do_get_package_impls(config, options, request[1:], xml)
 			else:
 				raise SafeException("Internal error: unknown command '%s'" % command)
 			response = ['ok', response]

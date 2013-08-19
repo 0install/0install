@@ -8,6 +8,9 @@ open General
 open Support
 open Support.Common
 module U = Support.Utils
+module Q = Support.Qdom
+
+(* TODO: search system paths for alternative executable locations; copy logic from distro.py *)
 
 class type distribution =
   object
@@ -21,18 +24,155 @@ class type distribution =
     method match_name : string -> bool
 
     method get_package_impls : (Support.Qdom.element * Feed.properties) -> Feed.implementation list
+
+    method get_all_package_impls : Feed.feed -> Feed.implementation list option
   end
 
-class virtual base_distribution =
-  object (_ : #distribution)
+(** Helper for [get_package_impls]. *)
+let make_package_implementation elem props ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name =
+  let new_attrs = ref props.Feed.attrs in
+  let set name value =
+    new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
+  set "id" id;
+  set "version" version;
+  List.iter (fun (n, v) -> set n v) extra_attrs;
+  let open Feed in {
+    qdom = elem;
+    os = None;
+    machine = Arch.none_if_star machine;
+    stability = Packaged;
+    props = {props with attrs = !new_attrs};
+    parsed_version = Versions.parse_version version;
+    impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name };
+  }
+
+let package_impl_from_json elem props json =
+  let open Feed in
+  let pkg_type = ref @@ { package_installed = false; package_distro = "unknown" } in
+  let new_props = ref props in
+  let pkg = ref {
+    qdom = elem;
+    os = None;
+    machine = None;
+    stability = Packaged;
+    props;                                (* (gets overwritten later) *)
+    parsed_version = Versions.dummy;
+    impl_type = PackageImpl !pkg_type;    (* (gets overwritten later) *)
+  } in
+  let new_attrs = ref props.Feed.attrs in
+
+  let set name value =
+    new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
+
+  let fixup_main path =
+    (* The Python code might add or modify the main executable path. *)
+    let run_command =
+      try
+        let command = StringMap.find "run" !new_props.commands in
+        let new_elem = {command.command_qdom with Qdom.attrs = command.command_qdom.Qdom.attrs} in  (* Silly syntax for making a copy *)
+        Qdom.set_attribute "path" path new_elem;
+        {command with command_qdom = new_elem}
+      with Not_found ->
+        make_command elem.Qdom.doc "run" path in
+    new_props := {!new_props with commands = StringMap.add "run" run_command !new_props.commands} in
+
+  match json with
+  | `Assoc lst ->
+      ListLabels.iter lst ~f:(function
+        | ("id", `String v) -> set "id" v
+        | ("version", `String v) -> set "version" v; pkg := {!pkg with parsed_version = Versions.parse_version v}
+        | ("machine", `String v) -> pkg := {!pkg with machine = Arch.none_if_star v}
+        | ("is_installed", `Bool v) -> pkg_type := {!pkg_type with package_installed = v}
+        | ("distro", `String v) -> pkg_type := {!pkg_type with package_distro = v}
+        | ("quick-test-file", `String v) -> set "quick-test-file" v
+        | ("quick-test-mtime", `String v) -> set "quick-test-mtime" v
+        | ("main", `String v) -> fixup_main v
+        | (k, _) -> raise_safe "Bad JSON response '%s'" k
+      );
+      {!pkg with impl_type = PackageImpl !pkg_type; props = {!new_props with attrs = !new_attrs}}
+  | _ -> raise_safe "Bad JSON: %s" (Yojson.Basic.to_string json)
+
+(** Return the <package-implementation> elements that best match this distribution. *)
+let get_matching_package_impls (distro : #distribution) feed =
+  let best_score = ref 0 in
+  let best_impls = ref [] in
+  ListLabels.iter feed.Feed.package_implementations ~f:(function (elem, _) as package_impl ->
+    let distributions = default "" @@ ZI.get_attribute_opt "distributions" elem in
+    let distro_names = Str.split_delim U.re_space distributions in
+    let score_this_item =
+      if distro_names = [] then 1                                 (* Generic <package-implementation>; no distribution specified *)
+      else if List.exists distro#match_name distro_names then 2   (* Element specifies it matches this distribution *)
+      else 0 in                                                   (* Element's distributions do not match *)
+    if score_this_item > !best_score then (
+      best_score := score_this_item;
+      best_impls := []
+    );
+    if score_this_item = !best_score then (
+      best_impls := package_impl :: !best_impls
+    )
+  );
+  !best_impls
+
+let make_restricts_distro doc iface_uri distros =
+  let elem = ZI.make doc "restricts" in
+  let open Feed in {
+    dep_qdom = elem;
+    dep_importance = Dep_restricts;
+    dep_iface = iface_uri;
+    dep_restrictions = [make_distribtion_restriction distros];
+    dep_required_commands = [];
+    dep_if_os = None;
+    dep_use = None;
+  }
+
+class virtual base_distribution (slave:Python.slave) =
+  object (self : #distribution)
     val virtual distro_name : string
     method match_name name = (name = distro_name)
-    method get_package_impls _elem = raise Fallback_to_Python
+
+    method get_all_package_impls feed =
+      match get_matching_package_impls self feed with
+      | [] -> None
+      | matches ->
+          try Some (List.concat (List.map self#get_package_impls matches))
+          with Fallback_to_Python ->
+            let fake_feed = ZI.make feed.Feed.root.Q.doc "interface" in
+            fake_feed.Q.child_nodes <- List.map fst matches;
+            let request = `List [`String "get-package-impls"; `String feed.Feed.url] in
+
+            let to_impls (elem, props) = function
+              | `List pkgs -> List.map (package_impl_from_json elem props) pkgs
+              | _ -> raise_safe "Not a group list" in
+
+            (* Process "host" package implementations. These weren't added by any particular
+               <package-implementation>, so we'll have to fake up a source element. *)
+            let to_host_impl lst =
+              let elem = ZI.make fake_feed.Qdom.doc "host-package-implementation" in
+              let restrictions =
+                if feed.Feed.url = "http://repo.roscidus.com/python/python-gobject" then (
+                  [make_restricts_distro elem.Qdom.doc "http://repo.roscidus.com/python/python" "host"]
+                ) else [] in
+              let props = Feed.({
+                attrs = Feed.AttrMap.empty;
+                requires = restrictions;
+                bindings = [];
+                commands = StringMap.empty;
+              }) in
+              to_impls (elem, props) lst in
+
+            slave#invoke ~xml:fake_feed request (function
+              | `List (host::pkg_groups) ->
+                  let host_impls = to_host_impl host in
+                  Some (List.concat (host_impls :: List.map2 to_impls matches pkg_groups))
+              | _ -> raise_safe "Invalid response"
+            )
+
+    method get_package_impls _ = raise Fallback_to_Python
   end
 
-class generic_distribution =
+class generic_distribution slave =
   object
-    inherit base_distribution
+    inherit base_distribution slave
     val distro_name = "fallback"
     method is_installed elem =
       log_warning "FIXME: Assuming distribution package %s version %s is still installed"
@@ -150,34 +290,17 @@ let check_cache distro_name elem cache =
           sel_id = installed_id in
       List.exists matches (cache#get package)
 
-(** Helper for [get_package_impls]. *)
-let make_package_implementation elem props ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name =
-  let new_attrs = ref props.Feed.attrs in
-  let set name value =
-    new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
-  set "id" id;
-  set "version" version;
-  List.iter (fun (n, v) -> set n v) extra_attrs;
-  let open Feed in {
-    qdom = elem;
-    os = None;
-    machine = Arch.none_if_star machine;
-    stability = Packaged;
-    props = {props with attrs = !new_attrs};
-    parsed_version = Versions.parse_version version;
-    impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name };
-  }
-
 module Debian = struct
   let dpkg_db_status = "/var/lib/dpkg/status"
 
-  class debian_distribution config : distribution =
+  class debian_distribution config slave : distribution =
     object
+      inherit base_distribution slave
+
       val distro_name = "Debian"
       val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2 ~old_format:false
       method is_installed elem = check_cache "deb" elem cache
-      method match_name name = (name = distro_name)
-      method get_package_impls (elem, props) =
+      method! get_package_impls (elem, props) =
         let package_name = ZI.get_attribute "package" elem in
         let process cached_info =
           match Str.split_delim U.re_tab cached_info with
@@ -200,9 +323,9 @@ end
 module RPM = struct
   let rpm_db_packages = "/var/lib/rpm/Packages"
 
-  class rpm_distribution config : distribution =
+  class rpm_distribution config slave : distribution =
     object
-      inherit base_distribution
+      inherit base_distribution slave
 
       val distro_name = "RPM"
       val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
@@ -256,13 +379,18 @@ module ArchLinux = struct
       )
       | _ -> items in
 
-    object (_ : #distribution)
+    object (self : #distribution)
       val distro_name = "Arch"
       method is_installed elem =
         (* We should never get here, because we always set quick-test-* *)
         Qdom.log_elem Logging.Info "Old selections file; forcing an update of" elem;
         false
       method match_name name = (name = distro_name)
+
+      method get_all_package_impls feed =
+        match get_matching_package_impls self feed with
+        | [] -> None
+        | matches -> Some (List.concat (List.map self#get_package_impls matches))
 
       method get_package_impls (elem, props) =
         let package_name = ZI.get_attribute "package" elem in
@@ -292,9 +420,9 @@ module Mac = struct
 
   (* Note: we currently don't have or need DarwinDistribution, because that uses quick-test-* attributes *)
 
-  class macports_distribution config : distribution =
+  class macports_distribution config slave : distribution =
     object
-      inherit base_distribution
+      inherit base_distribution slave
 
       val distro_name = "MacPorts"
       val cache = new Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
@@ -304,9 +432,9 @@ module Mac = struct
 end
 
 module Win = struct
-  class windows_distribution _config : distribution =
+  class windows_distribution _config slave : distribution =
     object
-      inherit base_distribution
+      inherit base_distribution slave
 
       method is_installed _elem =
         raise Fallback_to_Python
@@ -325,9 +453,9 @@ module Win = struct
 
   let cygwin_log = "/var/log/setup.log"
 
-  class cygwin_distribution config : distribution =
+  class cygwin_distribution config slave : distribution =
     object
-      inherit base_distribution
+      inherit base_distribution slave
 
       val distro_name = "Cygwin"
       val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
@@ -335,7 +463,7 @@ module Win = struct
     end
 end
 
-let get_host_distribution config (_slave:Python.slave) : distribution =
+let get_host_distribution config (slave:Python.slave) : distribution =
   let x = Sys.file_exists in
 
   match Sys.os_type with
@@ -346,19 +474,19 @@ let get_host_distribution config (_slave:Python.slave) : distribution =
         | _ -> false in
 
       if is_debian then
-        new Debian.debian_distribution config
+        new Debian.debian_distribution config slave
       else if x ArchLinux.arch_db then
         new ArchLinux.arch_distribution config
       else if x RPM.rpm_db_packages then
-        new RPM.rpm_distribution config
+        new RPM.rpm_distribution config slave
       else if x Mac.macports_db then
-        new Mac.macports_distribution config
+        new Mac.macports_distribution config slave
       else
-        new generic_distribution
-  | "Win32" -> new Win.windows_distribution config
-  | "Cygwin" -> new Win.cygwin_distribution config
+        new generic_distribution slave
+  | "Win32" -> new Win.windows_distribution config slave
+  | "Cygwin" -> new Win.cygwin_distribution config slave
   | _ ->
-      new generic_distribution
+      new generic_distribution slave
 ;;
 
 (** Check whether this <selection> is still valid. If the quick-test-* attributes are present, use
@@ -374,30 +502,7 @@ let is_installed config distro elem =
           | None -> true      (* quick-test-file exists and we don't care about the time *)
           | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = Int64.of_string required_mtime
 
-(** Return the <package-implementation> elements that best match this distribution. *)
-let get_matching_package_impls (distro : distribution) feed =
-  let best_score = ref 0 in
-  let best_impls = ref [] in
-  ListLabels.iter feed.Feed.package_implementations ~f:(function (elem, _) as package_impl ->
-    let distributions = default "" @@ ZI.get_attribute_opt "distributions" elem in
-    let distro_names = Str.split_delim U.re_space distributions in
-    let score_this_item =
-      if distro_names = [] then 1                                 (* Generic <package-implementation>; no distribution specified *)
-      else if List.exists distro#match_name distro_names then 2   (* Element specifies it matches this distribution *)
-      else 0 in                                                   (* Element's distributions do not match *)
-    if score_this_item > !best_score then (
-      best_score := score_this_item;
-      best_impls := []
-    );
-    if score_this_item = !best_score then (
-      best_impls := package_impl :: !best_impls
-    )
-  );
-  !best_impls
-
 (** Get the native implementations (installed or candidates for installation), based on the <package-implementation> elements
     in [feed]. Returns [None] if there were no matching elements (which means that we didn't even check the distribution). *)
 let get_package_impls (distro : distribution) feed =
-  match get_matching_package_impls distro feed with
-  | [] -> None
-  | matches -> Some (List.concat (List.map distro#get_package_impls matches))
+  distro#get_all_package_impls feed

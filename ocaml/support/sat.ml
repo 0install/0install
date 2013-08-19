@@ -515,7 +515,7 @@ module MakeSAT(User : USER) =
           AddedClause clause
 
     (** Public interface. Only used before the solve starts. *)
-    let at_least_one problem lits =
+    let at_least_one problem ?(reason="input fact") lits =
       if List.length lits = 0 then (
         problem.toplevel_conflict <- true;
       ) else (
@@ -542,12 +542,12 @@ module MakeSAT(User : USER) =
           | None -> ()
           | Some [] -> problem.toplevel_conflict <- true      (* Everything in the list was False *)
           | Some unique ->
-              if internal_at_most_one problem unique ~learnt:false ~reason:(External "input fact") = AddedFact false then
+              if internal_at_most_one problem unique ~learnt:false ~reason:(External reason) = AddedFact false then
                 problem.toplevel_conflict <- true;
         )
       )
 
-    let implies problem first rest = at_least_one problem @@ (neg first) :: rest
+    let implies problem ?reason first rest = at_least_one problem ?reason @@ (neg first) :: rest
 
     let at_most_one problem lits =
       assert (List.length lits > 0);

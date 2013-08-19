@@ -366,7 +366,7 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
         let require_command name =
           (* What about optional command dependencies? Looks like the Python doesn't handle that either... *)
           let candidates = command_cache#lookup @@ (name, dep.Feed.dep_iface, false) in
-          S.implies sat user_var (candidates#get_vars ()) in
+          S.implies sat ~reason:"dep on command" user_var (candidates#get_vars ()) in
         List.iter require_command dep.Feed.dep_required_commands;
 
         (* Restrictions on the candidates *)
@@ -375,13 +375,21 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
         let (pass, fail) = candidates#partition meets_restriction in
 
         if essential then (
-          S.implies sat user_var pass     (* Must choose a suitable candidate *)
+          (*
+          if pass = [] then (
+            let impl_str = SolverData.to_string (S.get_varinfo_for_lit sat user_var).S.obj in
+            log_warning "Discarding candidate '%s' because dep %s cannot be satisfied. %d/%d candidates pass the restrictions."
+              impl_str (Qdom.show_with_loc dep.Feed.dep_qdom) (List.length pass) (List.length fail)
+          );
+          *)
+
+          S.implies sat ~reason:"essential dep" user_var pass     (* Must choose a suitable candidate *)
         ) else (
           ListLabels.iter fail ~f:(fun bad_impl ->
             (* If [user_var] is selected, don't select an incompatible version of the optional dependency.
                We don't need to do this explicitly in the [essential] case, because we must select a good
                version and we can't select two. *)
-            S.implies sat user_var [S.neg bad_impl]
+            S.implies sat ~reason:"conflicting dep" user_var [S.neg bad_impl]
           )
         )
       )
@@ -391,6 +399,7 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
   and add_impls_to_cache (iface_uri, source) =
     let {Impl_provider.replacement; Impl_provider.impls} =
       impl_provider#get_implementations root_scope.scope_filter iface_uri ~source in
+    (* log_warning "Adding %d impls for %s" (List.length impls) iface_uri; *)
     let matching_impls = maybe_add_dummy @@ impls in
     let pairs = List.map (fun impl -> (S.add_variable sat (SolverData.ImplElem impl), impl)) matching_impls in
     let impl_clause = if List.length pairs > 0 then Some (S.at_most_one sat (List.map fst pairs)) else None in
@@ -421,7 +430,7 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
                 match get_machine_group machine with
                 | Machine_group_default -> machine_group_default
                 | Machine_group_64 -> machine_group_64 in
-              S.implies sat impl_var [group_var];
+              S.implies sat ~reason:"machine group" impl_var [group_var];
           )
           | _ -> () in
 
@@ -445,7 +454,7 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
     let process_commands () =
       let depend_on_impl (command_var, command) (impl_var, _command) =
         (* For each command, require that we select the corresponding implementation. *)
-        S.implies sat command_var [impl_var];
+        S.implies sat ~reason:"impl for command" command_var [impl_var];
         (* Process command-specific dependencies *)
         process_deps command_var command.Feed.command_requires;
       in
@@ -463,7 +472,7 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
 
   (* This recursively builds the whole problem up. *)
   let candidates = lookup root_req in
-  S.at_least_one sat @@ candidates#get_vars ();          (* Must get what we came for! *)
+  S.at_least_one sat ~reason:"need root" @@ candidates#get_vars ();          (* Must get what we came for! *)
 
   (* Setup done; lock to prevent accidents *)
   let locked _ = failwith "building done" in
