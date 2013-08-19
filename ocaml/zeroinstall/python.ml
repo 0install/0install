@@ -139,7 +139,8 @@ class slave config =
         let response = from_string buf in
         match response with
         | `List [`String "input"; `String prompt] ->
-            print_string prompt; flush stdout;
+            (* Ask on stderr, because we may be writing XML to stdout *)
+            prerr_string prompt; flush stdout;
             let user_input = input_line stdin in
             send_json c (`String user_input);
             loop ()
