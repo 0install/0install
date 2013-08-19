@@ -92,27 +92,26 @@ type select_options = {
 }
 
 (** Does this command-line argument refer to an app, URI or selections document?
-    Parses the options.extra_options and combines that with the target to get
-    the new requirements and options. *)
-let resolve_target options arg =
-  let config = options.config in
+    Parses the flags and combines that with the target to get
+    the new requirements and flags. *)
+let resolve_target config flags arg =
   match Apps.lookup_app config arg with
   | Some app ->
       let old_reqs = Apps.get_requirements config.system app in
-      let (remaining_options, reqs) = Req_options.parse_update_options options.extra_options old_reqs in
-      (remaining_options, (App (app, old_reqs), reqs))
+      let reqs = Req_options.parse_update_options flags old_reqs in
+      (App (app, old_reqs), reqs)
   | None ->
       let uri = canonical_iface_uri config.system arg in
 
       let is_interface () =
-        let (remaining_options, reqs) = Req_options.parse_options options.extra_options uri ~command:(Some "run") in
-        (remaining_options, (Interface, reqs)) in
+        let reqs = Req_options.parse_options flags uri ~command:(Some "run") in
+        (Interface, reqs) in
 
       let is_selections sels =
         let iface_uri = ZI.get_attribute "interface" sels in
         let command = ZI.get_attribute_opt "command" sels in
-        let (remaining_options, reqs) = Req_options.parse_options options.extra_options iface_uri ~command in
-        (remaining_options, (Selections sels, reqs)) in
+        let reqs = Req_options.parse_options flags iface_uri ~command in
+        (Selections sels, reqs) in
 
       match local_path_of_iface uri with
       | None -> is_interface ()
@@ -209,7 +208,7 @@ let get_selections options ~refresh reqs mode =
     For apps with human-readable output, we tell the user to use "update" to save the changes
     if the requirements or selections changed (except for Select_for_update mode).
     Calls [exit 1] if the user aborts using the GUI. *)
-let handle options arg for_op =
+let handle options flags arg for_op =
   let config = options.config in
 
   let select_opts = {
@@ -223,13 +222,14 @@ let handle options arg for_op =
     );
     refresh = false;
   } in
-  options.extra_options <-
-    Support.Argparse.filter_map_options options.extra_options (function
+
+  let flags =
+    Support.Utils.filter_map flags ~f:(function
       | `ShowHuman -> select_opts.output <- Output_human; None
       | `ShowXML -> select_opts.output <- Output_XML; None
       | `Refresh -> select_opts.refresh <- true; select_opts.must_select <- true; None
-      | x -> Some x
-    );
+      | #select_option as o -> Some o
+    ) in
 
   let maybe_show_sels sels =
     match select_opts.output with
@@ -248,12 +248,10 @@ let handle options arg for_op =
   let save_changes _app_path _new_sels =
     failwith "TODO: save new app selections" in
 
-  let (remaining_options, result) = resolve_target options arg in
-
-  if remaining_options <> options.extra_options then (
+  if flags <> [] then (
     select_opts.must_select <- true;
-    options.extra_options <- remaining_options
   );
+  let result = resolve_target options.config flags arg in
 
   let get_app_sels path =
     Zeroinstall.Apps.get_selections_may_update

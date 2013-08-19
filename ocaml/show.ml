@@ -110,20 +110,20 @@ let show_restrictions (system:system) r =
     system#print_string "\n"
   )
 
-let handle options args =
+let handle options flags args =
+  let s_root = ref false in
+  let s_xml = ref false in
+
+  Support.Argparse.iter_options flags (function
+    | #common_option as o -> Common_options.process_common_option options o
+    | `ShowRoot -> s_root := true
+    | `ShowXML -> s_xml := true
+  );
+
   let config = options.config in
   let system = config.system in
   match args with
   | [arg] -> (
-      let s_root = ref false in
-      let s_xml = ref false in
-
-      Support.Argparse.iter_options options.extra_options (function
-        | `ShowRoot -> s_root := true
-        | `ShowXML -> s_xml := true
-        | _ -> raise_safe "Unknown option"
-      );
-
       let sels = match Apps.lookup_app config arg with
       | Some app_path ->
           let r = Apps.get_requirements system app_path in
@@ -139,4 +139,4 @@ let handle options args =
       | (false, false) -> show_human config sels
       | (true, true) -> raise_safe "Can't use --xml with --root"
   )
-  | _ -> raise Support.Argparse.Usage_error
+  | _ -> raise (Support.Argparse.Usage_error 1)

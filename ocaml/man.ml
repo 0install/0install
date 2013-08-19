@@ -94,10 +94,13 @@ let find_and_exec_man config ?main ?fallback_name sels =
       );
       exit 1
 
-let handle options args =
+let handle options flags args =
   let config = options.config in
   let system = config.system in
-  assert (options.extra_options = []);
+
+  Support.Argparse.iter_options flags (function
+    | #common_option as o -> Common_options.process_common_option options o
+  );
 
   match args with
   | [arg] -> (

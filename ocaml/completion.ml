@@ -7,6 +7,7 @@
 open Zeroinstall.General
 open Support.Common
 open Support.Argparse
+open Options
 module Apps = Zeroinstall.Apps
 module Feed = Zeroinstall.Feed
 module Feed_cache = Zeroinstall.Feed_cache
@@ -83,11 +84,11 @@ class virtual completer config =
 
 (* 0install <Tab> *)
 let complete_command (completer:completer) raw_options prefix =
-  let add s (name, _handler, _values) = StringSet.add name s in
+  let add s (name, _values) = StringSet.add name s in
   let options_used = List.fold_left add StringSet.empty raw_options in
 
   let commands = List.filter (fun (full, _) -> starts_with full prefix) Cli.subcommands in
-  let compatible_with_command (_name, (_handler, opts, _help)) = StringSet.subset options_used (Cli.set_of_option_names opts) in
+  let compatible_with_command (_name, subcommand) = StringSet.subset options_used (Cli.set_of_option_names subcommand#options) in
   let valid_commands = List.filter compatible_with_command commands in
 
   let complete_commands = if List.length valid_commands = 0 then commands else valid_commands in
@@ -339,7 +340,7 @@ let handle_complete config = function
       | CompleteOptionName prefix ->
           let possible_options = match args with
           | cmd :: _ -> (
-              try let (_handler, options, _help) = List.assoc cmd subcommands in options @ common_options
+              try let subcommand = List.assoc cmd subcommands in subcommand#options @ common_options
               with Not_found -> spec.options_spec
           )
           | _ -> spec.options_spec in

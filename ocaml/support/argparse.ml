@@ -6,11 +6,15 @@
 
 open Common
 
-exception Usage_error
+exception Usage_error of int    (* exit code: e.g. 0 for success, 1 for error *)
 
 let starts_with = Utils.starts_with
 
-class type ['a,'b] option_parser =
+(** Takes a stream of arguments and takes as many as are needed for the option.
+    e.g. [["--version"; "--help"]] takes [["--version"]] and leaves [["--help"]]
+    while [["--version"; "1.0"]] takes [["--version"; "1.0"]] and leaves [[]].
+  *)
+class type ['b] option_reader =
   object
     (** [read opt_name first_arg stream completion].
         Extract as many elements from the stream as this option needs.
@@ -19,10 +23,13 @@ class type ['a,'b] option_parser =
         When [Some 0], the next item in the stream is being completed, etc.
         *)
     method read : string -> string option -> string Stream.t -> completion:(int option) -> string list
-
-    method parse : string list -> 'a
-
     method get_arg_types : int -> 'b list
+  end
+
+class type ['a,'b] option_parser =
+  object
+    method get_reader : 'b option_reader
+    method parse : string list -> 'a
   end
 
 (* [option names], n_args, help text, [arg types]
@@ -49,9 +56,24 @@ let re_equals = Str.regexp_string "="
 type ('a,'b) complete =
   | CompleteNothing               (** There are no possible completions *)
   | CompleteOptionName of string  (** Complete this partial option name *)
-  | CompleteOption of (string * ('a,'b) option_parser * string list * int)  (* option, handler, values, completion arg *)
+  | CompleteOption of (string * 'b option_reader * string list * int)  (* option, reader, values, completion arg *)
   | CompleteArg of int
   | CompleteLiteral of string     (** This is the single possible completion *)
+
+let make_option_map options_spec =
+  let map = ref StringMap.empty in
+  let add (names, _nargs, _help, handler) =
+    ListLabels.iter names ~f:(fun name ->
+      if StringMap.mem name !map then (
+        let reader = handler#get_reader in
+        if reader != (StringMap.find name !map)#get_reader then
+          failwith ("Option '" ^ name ^ "' has two different readers")
+      ) else (
+        map := StringMap.add name handler !map
+      )
+    ) in
+  List.iter add options_spec;
+  !map
 
 (** [cword] is the index in [input_args] that we are trying to complete, or None if we're not completing. *)
 let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
@@ -59,22 +81,10 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
   let args = ref [] in
   let complete = ref CompleteNothing in
 
-  let options_map =
-    let map = ref StringMap.empty in
-    let add (names, _nargs, _help, handler) =
-      ListLabels.iter names ~f:(fun name ->
-        if StringMap.mem name !map then (
-          if handler != StringMap.find name !map then
-            failwith ("Option '" ^ name ^ "' has two different handlers")
-        ) else (
-          map := StringMap.add name handler !map
-        )
-      ) in
-    List.iter add spec.options_spec;
-    !map in
+  let options_map = make_option_map spec.options_spec in
 
   let lookup_option x =
-    try Some (StringMap.find x options_map)
+    try Some (StringMap.find x options_map)#get_reader
     with Not_found -> None in
 
   let allow_options = ref true in
@@ -106,7 +116,7 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
         | command :: _ -> Some command
         | _ -> None in
         let values = handler#read opt command stream ~completion:carg in
-        options := (opt, handler, values) :: !options;
+        options := (opt, values) :: !options;
         match carg with
         | None -> ()
         | Some -1 ->
@@ -193,15 +203,18 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
   done;
 
   (List.rev !options, List.rev !args, !complete)
-;;
 
-let parse_args (spec : ('a,'b) argparse_spec) input_args : ('a option_value list * string list) =
-  let (raw_options, args, complete) = read_args spec input_args in
-  assert (complete = CompleteNothing);
-  let parse_option (opt, h, vals) = (opt, h#parse vals) in
-  let parsed_options = List.map parse_option raw_options in
-  (parsed_options, args)
-;;
+let parse_options (valid_options:(_, _) opt list) raw_options =
+  let map = make_option_map valid_options in
+
+  let parse_option = function
+    | (name, values) ->
+        try (name, (StringMap.find name map)#parse values)
+        with
+        | Not_found -> raise_safe "Option '%s' is not valid here" name
+        | Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" name in
+
+  List.map parse_option raw_options
 
 let iter_options (options : 'a option_value list) fn =
   let process (actual_opt, value) =
@@ -220,44 +233,54 @@ let filter_map_options (options : 'a option_value list) fn =
 
 (** {2 Handy wrappers for option handlers} *)
 
+let no_arg_reader =
+  object
+    method read _name _command _stream ~completion:_ = []
+    method get_arg_types _ = []
+  end
+
 class ['a,'b] no_arg (value : 'a) =
   object (_ : ('a,'b) #option_parser)
-    method read _name _command _stream ~completion:_ = []
     method parse = function
       | [] -> value
       | _ -> failwith "Expected no arguments!"
-    method get_arg_types _ = []
+    method get_reader = no_arg_reader
   end
 
 class ['a,'b] one_arg arg_type (fn : string -> 'a) =
   object (_ : ('a,'b) #option_parser)
-    method read opt_name _command stream ~completion =
-      match Stream.peek stream with
-      | None when completion <> None -> [""]
-      | None -> raise_safe "Missing value for option %s" opt_name
-      | Some next -> Stream.junk stream; [next]
-
     method parse = function
       | [item] -> fn item
       | _ -> failwith "Expected a single item!"
 
-    method get_arg_types _ = [arg_type]
+    method get_reader =
+      object
+        method get_arg_types _ = [arg_type]
+        method read opt_name _command stream ~completion =
+          match Stream.peek stream with
+          | None when completion <> None -> [""]
+          | None -> raise_safe "Missing value for option %s" opt_name
+          | Some next -> Stream.junk stream; [next]
+      end
   end
 
 class ['a,'b] two_arg arg1_type arg2_type (fn : string -> string -> 'a) =
   object (_ : ('a,'b) #option_parser)
-    method read opt_name _command stream ~completion =
-      match Stream.npeek 2 stream with
-      | [_; _] as pair -> Stream.junk stream; Stream.junk stream; pair
-      | _ when completion = None -> raise_safe "Missing value for option %s" opt_name
-      | [x] -> Stream.junk stream; [x; ""]
-      | _ -> [""; ""]
-
     method parse = function
       | [a; b] -> fn a b
       | _ -> failwith "Expected a pair of items!"
 
-    method get_arg_types _ = [arg1_type; arg2_type]
+    method get_reader =
+      object
+        method read opt_name _command stream ~completion =
+          match Stream.npeek 2 stream with
+          | [_; _] as pair -> Stream.junk stream; Stream.junk stream; pair
+          | _ when completion = None -> raise_safe "Missing value for option %s" opt_name
+          | [x] -> Stream.junk stream; [x; ""]
+          | _ -> [""; ""]
+
+        method get_arg_types _ = [arg1_type; arg2_type]
+      end
   end
 
 (** Print out these options in a formatted list. *)
@@ -274,7 +297,7 @@ let format_options format_type opts =
       match help with
       | "" -> None
       | help ->
-          let types = p#get_arg_types nargs in
+          let types = p#get_reader#get_arg_types nargs in
           let format_opt name =
             let sep = if not (starts_with name "--") then " " else "=" in
             name ^ match types with

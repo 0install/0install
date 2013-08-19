@@ -7,43 +7,59 @@ open Support.Common
 
 type version = string
 
-type zi_option = [
+type common_option = [
   (* common options *)
   | `UseGUI of yes_no_maybe
   | `Verbose
   | `Help
   | `DryRun
   | `WithStore of string
-  | `Wrapper of string
   | `ShowVersion
+  | `NetworkUse of network_use
+]
 
-  (* select options *)
+type version_restriction_option = [
   | `Before of version
   | `NotBefore of version
+  | `RequireVersion of version
+  | `RequireVersionFor of iface_uri * version
+]
+
+type other_req_option = [
   | `WithMessage of string
-  | `NetworkUse of network_use
   | `SelectCommand of string
   | `Cpu of string
   | `Os of string
-  | `Refresh
   | `Source
-  | `RequireVersion of version
-  | `RequireVersionFor of iface_uri * version
+]
 
+type select_option = [
+  | version_restriction_option
+  | other_req_option
+]
+
+type generic_select_option = [
+  | `Refresh
+  | `ShowHuman
   | `ShowXML
+]
+
+type zi_option = [
+  | common_option
+  | select_option
+  | generic_select_option
+
   | `ShowFullDiff
   | `ShowRoot
-  | `ShowHuman
 
   | `UseHash of string
   | `ShowManifest
   | `ShowDigest
 
   | `MainExecutable of string
+  | `Wrapper of string
 
   | `Background
-
-  | `AmbiguousOption of (string -> zi_option)
 ]
 
 type global_settings = {
@@ -52,6 +68,15 @@ type global_settings = {
   distro : Zeroinstall.Distro.distribution Lazy.t;
   mutable gui : yes_no_maybe;
   mutable verbosity : int;
-  mutable extra_options : zi_option Support.Argparse.option_value list;
-  mutable args : string list;
 }
+
+type zi_arg_type =
+  | Dir
+  | ImplRelPath
+  | Command
+  | VersionRange
+  | SimpleVersion
+  | CpuType | OsType
+  | Message
+  | HashType
+  | IfaceURI

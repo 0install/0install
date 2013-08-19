@@ -46,19 +46,35 @@ let test_option_parsing () =
 
   let config, fake_system = get_fake_config None in
   let open Options in
-  let p args = Cli.parse_args config args in
+
+  let p_full raw_args =
+    let (raw_options, args, complete) = Support.Argparse.read_args Cli.spec raw_args in
+    assert (complete = Support.Argparse.CompleteNothing);
+    let subcommand =
+      match args with
+      | command :: _ -> List.assoc command Cli.subcommands
+      | [] -> Cli.no_command in
+    let flags = Support.Argparse.parse_options subcommand#options raw_options in
+    let options = Cli.get_default_options config in
+    let process = function
+      | #common_option as flag -> Common_options.process_common_option options flag
+      | _ -> () in
+    Support.Argparse.iter_options flags process;
+    (options, flags, args) in
+
+  let p args = let (options, _flags, _args) = p_full args in options in
 
   assert_equal Maybe (p ["select"]).gui;
   assert_equal No (p ["--console"; "select"]).gui;
 
-  let s = p ["--with-store"; "/data/store"; "run"; "foo"] in
+  let _, _, args = p_full ["--with-store"; "/data/store"; "run"; "foo"] in
   assert_equal "/data/store" (List.nth config.stores @@ List.length config.stores - 1);
-  equal_str_lists ["run"; "foo"] s.args;
+  equal_str_lists ["run"; "foo"] args;
 
   config.stores <- [];
-  let s = p ["--with-store=/data/s1"; "run"; "--with-store=/data/s2"; "foo"; "--with-store=/data/s3"] in
+  let _, _, args = p_full ["--with-store=/data/s1"; "run"; "--with-store=/data/s2"; "foo"; "--with-store=/data/s3"] in
   equal_str_lists ["/data/s1"; "/data/s2"] config.stores;
-  equal_str_lists ["run"; "foo"; "--with-store=/data/s3"] s.args;
+  equal_str_lists ["run"; "foo"; "--with-store=/data/s3"] args;
 
   assert_raises_safe "Option does not take an argument in '--console=true'" (lazy (p ["--console=true"]));
 
@@ -68,9 +84,9 @@ let test_option_parsing () =
   assert_equal 2 s.verbosity;
   assert (List.length (fake_log#get ()) > 0);
 
-  let s = p ["run"; "-wgdb"; "foo"] in
-  equal_str_lists ["run"; "foo"] s.args;
-  assert_equal [("-w", `Wrapper "gdb")] s.extra_options;
+  let _, flags, args = p_full ["run"; "-wgdb"; "foo"] in
+  equal_str_lists ["run"; "foo"] args;
+  assert_equal [("-w", `Wrapper "gdb")] flags;
 
   let v = fake_system#collect_output (fun () -> (
     try ignore @@ p ["-c"; "--version"]; assert false;
@@ -78,17 +94,17 @@ let test_option_parsing () =
   ))
   in assert (Str.string_match (Str.regexp_string "0install (zero-install)") v 0);
 
-  let s = p ["--version"; "1.2"; "run"; "foo"] in
-  equal_str_lists ["run"; "foo"] s.args;
-  assert_equal [("--version", `RequireVersion "1.2")] s.extra_options;
+  let _, flags, args = p_full ["--version"; "1.2"; "run"; "foo"] in
+  equal_str_lists ["run"; "foo"] args;
+  assert_equal [("--version", `RequireVersion "1.2")] flags;
 
-  let s = p ["digest"; "-m"; "archive.tgz"] in
-  equal_str_lists ["digest"; "archive.tgz"] s.args;
-  assert_equal [("-m", `ShowManifest)] s.extra_options;
+  let _, flags, args = p_full ["digest"; "-m"; "archive.tgz"] in
+  equal_str_lists ["digest"; "archive.tgz"] args;
+  assert_equal [("-m", `ShowManifest)] flags;
 
-  let s = p ["run"; "-m"; "main"; "app"] in
-  equal_str_lists ["run"; "app"] s.args;
-  assert_equal [("-m", `MainExecutable "main")] s.extra_options;
+  let _, flags, args = p_full ["run"; "-m"; "main"; "app"] in
+  equal_str_lists ["run"; "app"] args;
+  assert_equal [("-m", `MainExecutable "main")] flags;
 ;;
 
 let test_run_real tmpdir =
