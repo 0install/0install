@@ -191,7 +191,8 @@ class Handler(object):
 				exc_info = (exception, exception, tb) if logger.isEnabledFor(logging.INFO) else None)
 	
 class ConsoleHandler(Handler):
-	"""A Handler that displays progress on stdout (a tty).
+	"""A Handler that displays progress on stderr (a tty).
+	(we use stderr because we use stdout to talk to the OCaml process)
 	@since: 0.44"""
 	last_msg_len = None
 	update = None
@@ -250,21 +251,21 @@ class ConsoleHandler(Handler):
 		msg = msg[:screen_width]
 
 		if self.last_msg_len is None:
-			sys.stdout.write(msg)
+			sys.stderr.write(msg)
 		else:
-			sys.stdout.write(chr(13) + msg)
+			sys.stderr.write(chr(13) + msg)
 			if len(msg) < self.last_msg_len:
-				sys.stdout.write(" " * (self.last_msg_len - len(msg)))
+				sys.stderr.write(" " * (self.last_msg_len - len(msg)))
 
 		self.last_msg_len = len(msg)
-		sys.stdout.flush()
+		sys.stderr.flush()
 
 		return
 
 	def clear_display(self):
 		if self.last_msg_len != None:
-			sys.stdout.write(chr(13) + " " * self.last_msg_len + chr(13))
-			sys.stdout.flush()
+			sys.stderr.write(chr(13) + " " * self.last_msg_len + chr(13))
+			sys.stderr.flush()
 			self.last_msg_len = None
 
 	def report_error(self, exception, tb = None):

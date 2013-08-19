@@ -89,7 +89,7 @@ class Config(object):
 	def handler(self):
 		if not self._handler:
 			from zeroinstall.injector import handler
-			if os.isatty(1):
+			if os.isatty(2):
 				self._handler = handler.ConsoleHandler()
 			else:
 				self._handler = handler.Handler()
