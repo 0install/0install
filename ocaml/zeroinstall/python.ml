@@ -86,9 +86,7 @@ class slave config =
   let to_child = Unix.out_channel_of_descr child_stdin_w in
   let from_child = Unix.in_channel_of_descr child_stdout_r in
 
-  object
-    (** Send a JSON message to the Python slave and return whatever data it sends back. *)
-    method invoke : 'a. json -> ?xml:Q.element -> (json -> 'a) -> 'a = fun request ?xml parse_fn ->
+  let send_json ?xml request =
       let data = to_string request in
       log_info "Sending to Python: %s" data;
       Printf.fprintf to_child "%d\n" (String.length data);
@@ -103,20 +101,33 @@ class slave config =
             output_string to_child data;
         | None -> () in
 
-      flush to_child;
+      flush to_child in
 
-      let l = int_of_string @@ input_line from_child in
-      let buf = String.create l in
-      really_input from_child buf 0 l;
-      log_info "Response from Python: %s" buf;
-      let response = from_string buf in
-      match response with
-      | `List [`String "error"; `String err] -> raise_safe "%s" err
-      | `List [`String "ok"; r] -> (
-          try parse_fn r
-          with Safe_exception _ as ex -> reraise_with_context ex "... processing JSON response from Python slave:\n%s" buf
-      )
-      | _ -> raise_safe "Invalid JSON response from Python slave:%s" buf
+  object
+    (** Send a JSON message to the Python slave and return whatever data it sends back. *)
+    method invoke : 'a. json -> ?xml:Q.element -> (json -> 'a) -> 'a = fun request ?xml parse_fn ->
+      send_json ?xml request;
+
+      (* Normally we just get a single reply, but we might have to handle some input requests first. *)
+      let rec loop () =
+        let l = int_of_string @@ input_line from_child in
+        let buf = String.create l in
+        really_input from_child buf 0 l;
+        log_info "Response from Python: %s" buf;
+        let response = from_string buf in
+        match response with
+        | `List [`String "input"; `String prompt] ->
+            print_string prompt; flush stdout;
+            let user_input = input_line stdin in
+            send_json(`String user_input);
+            loop ()
+        | `List [`String "error"; `String err] -> raise_safe "%s" err
+        | `List [`String "ok"; r] -> (
+            try parse_fn r
+            with Safe_exception _ as ex -> reraise_with_context ex "... processing JSON response from Python slave:\n%s" buf
+        )
+        | _ -> raise_safe "Invalid JSON response from Python slave:%s" buf
+      in loop ()
 
     method close =
       match child_pid with

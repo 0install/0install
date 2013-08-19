@@ -16,6 +16,7 @@ from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver
 from zeroinstall.support import tasks
 from zeroinstall.zerostore import Store
+from zeroinstall import support
 
 if sys.version_info[0] > 2:
 	from io import BytesIO
@@ -125,6 +126,23 @@ def do_select(config, options, args):
 	doc = sels.toDOM()
 	return doc.toxml()
 
+def send_json(j):
+	data = json.dumps(j).encode('utf-8')
+	stdout.write(('%d\n' % len(data)).encode('utf-8'))
+	stdout.write(data)
+	stdout.flush()
+
+def recv_json():
+	logger.info("Waiting for length...")
+	l = stdin.readline().strip()
+	logger.info("Read '%s' from master", l)
+	if not l: return None
+	return json.loads(stdin.read(int(l)).decode('utf-8'))
+
+def slave_raw_input(prompt = None):
+	send_json(["input", prompt or ""])
+	return recv_json()
+
 def handle(config, options, args):
 	if args:
 		raise UsageError()
@@ -132,12 +150,11 @@ def handle(config, options, args):
 	if options.offline:
 		config.network_use = model.network_offline
 
+	support.raw_input = slave_raw_input
+
 	while True:
-		logger.info("Waiting for length...")
-		l = stdin.readline().strip()
-		logger.info("Read '%s' from master", l)
-		if not l: break
-		request = json.loads(stdin.read(int(l)).decode('utf-8'))
+		request = recv_json()
+		if request is None: break
 		try:
 			command = request[0]
 			logger.info("Got request '%s'", command)
@@ -160,7 +177,4 @@ def handle(config, options, args):
 			logger.info("Replying with error: %s", ex)
 			response = ['error', traceback.format_exc().strip()]
 
-		data = json.dumps(response).encode('utf-8')
-		stdout.write(('%d\n' % len(data)).encode('utf-8'))
-		stdout.write(data)
-		stdout.flush()
+		send_json(response)

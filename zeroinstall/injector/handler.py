@@ -154,6 +154,7 @@ class Handler(object):
 			print(_("Do you want to trust all of these keys to sign feeds from '%s'?") % domain, file=sys.stderr)
 		while True:
 			print(_("Trust [Y/N] "), end=' ', file=sys.stderr)
+			sys.stderr.flush()
 			i = support.raw_input()
 			if not i: continue
 			if i in 'Nn':
@@ -173,6 +174,7 @@ class Handler(object):
 		print(msg, file=sys.stderr)
 		while True:
 			sys.stderr.write(_("Install [Y/N] "))
+			sys.stderr.flush()
 			i = support.raw_input()
 			if not i: continue
 			if i in 'Nn':
