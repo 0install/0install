@@ -225,9 +225,9 @@ let handle options arg for_op =
   } in
   options.extra_options <-
     Support.Argparse.filter_map_options options.extra_options (function
-      | ShowHuman -> select_opts.output <- Output_human; None
-      | ShowXML -> select_opts.output <- Output_XML; None
-      | Refresh -> select_opts.refresh <- true; select_opts.must_select <- true; None
+      | `ShowHuman -> select_opts.output <- Output_human; None
+      | `ShowXML -> select_opts.output <- Output_XML; None
+      | `Refresh -> select_opts.refresh <- true; select_opts.must_select <- true; None
       | x -> Some x
     );
 

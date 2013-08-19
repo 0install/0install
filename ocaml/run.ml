@@ -22,9 +22,9 @@ let handle options args =
       main = None;
     } in
     Support.Argparse.iter_options options.extra_options (function
-      | Wrapper w -> run_opts.wrapper <- Some w
-      | ShowManifest -> raise_safe "The -m argument is ambiguous before the 'run' argument. Put it after, or use --main"
-      | MainExecutable m -> run_opts.main <- Some m
+      | `Wrapper w -> run_opts.wrapper <- Some w
+      | `ShowManifest -> raise_safe "The -m argument is ambiguous before the 'run' argument. Put it after, or use --main"
+      | `MainExecutable m -> run_opts.main <- Some m
       | _ -> raise_safe "Unknown option"
     );
 

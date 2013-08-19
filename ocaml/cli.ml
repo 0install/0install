@@ -36,8 +36,8 @@ let parse_version_option =
       | Some next -> Stream.junk stream; [next]   (* --version 1 *)
 
     method parse = function
-      | [] -> ShowVersion
-      | [expr] -> RequireVersion expr
+      | [] -> `ShowVersion
+      | [expr] -> `RequireVersion expr
       | _ -> assert false
 
     method get_arg_types = function
@@ -50,11 +50,11 @@ type zi_opt_list = (zi_option, zi_arg_type) opt list
 
 let parse_r =
   let resolve = function
-    | "show" -> ShowRoot
-    | _ -> Refresh in
+    | "show" -> `ShowRoot
+    | _ -> `Refresh in
 
   object
-    inherit [zi_option, zi_arg_type] no_arg (AmbiguousOption resolve)
+    inherit [zi_option, zi_arg_type] no_arg (`AmbiguousOption resolve)
   end
 
 (* -m might or might not take an argument. Very tricky! *)
@@ -77,8 +77,8 @@ let parse_m =
       | _ -> assert false
 
     method parse = function
-      | [] -> ShowManifest
-      | [main] -> MainExecutable main
+      | [] -> `ShowManifest
+      | [main] -> `MainExecutable main
       | _ -> assert false
 
     method get_arg_types = function
@@ -89,7 +89,7 @@ let parse_m =
 
 let parse_version_for =
   object
-    inherit [zi_option, zi_arg_type] two_arg IfaceURI VersionRange (fun u v -> RequireVersionFor(u, v)) as super
+    inherit [zi_option, zi_arg_type] two_arg IfaceURI VersionRange (fun u v -> `RequireVersionFor(u, v)) as super
 
     method! read opt_name command stream ~completion =
       let as_super () = super#read opt_name command stream ~completion in
@@ -110,42 +110,42 @@ let parse_version_for =
   end
 
 let generic_select_options : zi_opt_list = [
-  ([      "--before"],      0, i_ "choose a version before this",      new one_arg SimpleVersion @@ fun v -> Before v);
-  ([      "--command"],     1, i_ "command to select",                 new one_arg Command @@ fun c -> SelectCommand c);
-  ([      "--cpu"],         1, i_ "target CPU type",                   new one_arg CpuType @@ fun c -> Cpu c);
-  ([      "--message"],     1, i_ "message to display when interacting with user", new one_arg Message @@ fun m -> WithMessage m);
-  ([      "--not-before"],  1, i_ "minimum version to choose",         new one_arg SimpleVersion @@ fun v -> NotBefore v);
-  ([      "--os"],          1, i_ "target operation system type",      new one_arg OsType @@ fun o -> Os o);
+  ([      "--before"],      0, i_ "choose a version before this",      new one_arg SimpleVersion @@ fun v -> `Before v);
+  ([      "--command"],     1, i_ "command to select",                 new one_arg Command @@ fun c -> `SelectCommand c);
+  ([      "--cpu"],         1, i_ "target CPU type",                   new one_arg CpuType @@ fun c -> `Cpu c);
+  ([      "--message"],     1, i_ "message to display when interacting with user", new one_arg Message @@ fun m -> `WithMessage m);
+  ([      "--not-before"],  1, i_ "minimum version to choose",         new one_arg SimpleVersion @@ fun v -> `NotBefore v);
+  ([      "--os"],          1, i_ "target operation system type",      new one_arg OsType @@ fun o -> `Os o);
   (["-r"; "--refresh"],     0, i_ "refresh all used interfaces",       parse_r);
-  (["-s"; "--source"],      0, i_ "select source code",                new no_arg @@ Source);
+  (["-s"; "--source"],      0, i_ "select source code",                new no_arg @@ `Source);
   ([      "--version"],     1, i_ "specify version constraint (e.g. '3' or '3..')", parse_version_option);
   ([      "--version-for"], 2, i_ "set version constraints for a specific interface", parse_version_for);
 ]
 
 let offline_options = [
-  (["-o"; "--offline"],     0, i_ "try to avoid using the network",    new no_arg @@ NetworkUse Offline);
+  (["-o"; "--offline"],     0, i_ "try to avoid using the network",    new no_arg @@ `NetworkUse Offline);
 ]
 
 let update_options = [
-  ([      "--background"],  0, i_ "",                        new no_arg @@ Background);
+  ([      "--background"],  0, i_ "",                        new no_arg @@ `Background);
 ]
 
 let digest_options = [
-  ([      "--algorithm"], 1, i_ "the hash function to use", new one_arg HashType @@ fun h -> UseHash h);
+  ([      "--algorithm"], 1, i_ "the hash function to use", new one_arg HashType @@ fun h -> `UseHash h);
   (["-m"; "--manifest"],  0, i_ "print the manifest",       parse_m);
-  (["-d"; "--digest"],    0, i_ "print the digest",         new no_arg ShowDigest);
+  (["-d"; "--digest"],    0, i_ "print the digest",         new no_arg `ShowDigest);
 ]
 
 let xml_output : zi_opt_list = [
-  (["--xml"], 0, i_ "print selections as XML", new no_arg ShowXML);
+  (["--xml"], 0, i_ "print selections as XML", new no_arg `ShowXML);
 ]
 
 let diff_options : zi_opt_list = [
-  (["--full"], 0, i_ "show diff of the XML", new no_arg ShowFullDiff);
+  (["--full"], 0, i_ "show diff of the XML", new no_arg `ShowFullDiff);
 ]
 
 let download_options : zi_opt_list = [
-  (["--show"], 0, i_ "show where components are installed", new no_arg ShowHuman);
+  (["--show"], 0, i_ "show where components are installed", new no_arg `ShowHuman);
 ]
 
 let show_options : zi_opt_list = [
@@ -154,17 +154,17 @@ let show_options : zi_opt_list = [
 
 let run_options : zi_opt_list = [
   (["-m"; "--main"],    1, i_ "name of the file to execute",           parse_m);
-  (["-w"; "--wrapper"], 1, i_ "execute program using a debugger, etc", new one_arg Command @@ fun cmd -> Wrapper cmd);
+  (["-w"; "--wrapper"], 1, i_ "execute program using a debugger, etc", new one_arg Command @@ fun cmd -> `Wrapper cmd);
 ]
 
 let common_options : zi_opt_list = [
-  (["-c"; "--console"],    0, i_ "never use GUI",                     new no_arg @@ UseGUI No);
-  ([      "--dry-run"],    0, i_ "just print what would be executed", new no_arg @@ DryRun);
-  (["-g"; "--gui"],        0, i_ "show graphical policy editor",      new no_arg @@ UseGUI Yes);
-  (["-h"; "--help"],       0, i_ "show this help message and exit",   new no_arg @@ Help);
-  (["-v"; "--verbose"],    0, i_ "more verbose output",               new no_arg @@ Verbose);
+  (["-c"; "--console"],    0, i_ "never use GUI",                     new no_arg @@ `UseGUI No);
+  ([      "--dry-run"],    0, i_ "just print what would be executed", new no_arg @@ `DryRun);
+  (["-g"; "--gui"],        0, i_ "show graphical policy editor",      new no_arg @@ `UseGUI Yes);
+  (["-h"; "--help"],       0, i_ "show this help message and exit",   new no_arg @@ `Help);
+  (["-v"; "--verbose"],    0, i_ "more verbose output",               new no_arg @@ `Verbose);
   (["-V"; "--version"],    0, i_ "display version information",       parse_version_option);
-  ([      "--with-store"], 1, i_ "add an implementation cache",       new one_arg Dir @@ fun path -> WithStore path);
+  ([      "--with-store"], 1, i_ "add an implementation cache",       new one_arg Dir @@ fun path -> `WithStore path);
 ]
 
 let spec : (zi_option, zi_arg_type) argparse_spec = {
@@ -298,14 +298,14 @@ let parse_args config args =
   } in
 
   options.extra_options <- Support.Utils.filter_map raw_options ~f:(fun (opt, value) -> match value with
-    | UseGUI b -> options.gui <- b; None
-    | DryRun -> config.dry_run <- true; config.system <- new Zeroinstall.Dry_run.dryrun_system config.system; None
-    | Verbose -> increase_verbosity options; None
-    | WithStore store -> add_store options store; None
-    | ShowVersion -> show_version config.system; raise (System_exit 0)
-    | NetworkUse u -> config.network_use <- u; None
-    | Help -> show_help options; raise (System_exit 0)
-    | AmbiguousOption fn -> (match args with
+    | `UseGUI b -> options.gui <- b; None
+    | `DryRun -> config.dry_run <- true; config.system <- new Zeroinstall.Dry_run.dryrun_system config.system; None
+    | `Verbose -> increase_verbosity options; None
+    | `WithStore store -> add_store options store; None
+    | `ShowVersion -> show_version config.system; raise (System_exit 0)
+    | `NetworkUse u -> config.network_use <- u; None
+    | `Help -> show_help options; raise (System_exit 0)
+    | `AmbiguousOption fn -> (match args with
         | command :: _ -> Some (opt, fn command)
         | _ -> raise_safe "Option '%s' requires a command" opt
     )

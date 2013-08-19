@@ -7,43 +7,44 @@ open Support.Common
 
 type version = string
 
-type zi_option =
+type zi_option = [
   (* common options *)
-  | UseGUI of yes_no_maybe
-  | Verbose
-  | Help
-  | DryRun
-  | WithStore of string
-  | Wrapper of string
-  | ShowVersion
+  | `UseGUI of yes_no_maybe
+  | `Verbose
+  | `Help
+  | `DryRun
+  | `WithStore of string
+  | `Wrapper of string
+  | `ShowVersion
 
   (* select options *)
-  | Before of version
-  | NotBefore of version
-  | WithMessage of string
-  | NetworkUse of network_use
-  | SelectCommand of string
-  | Cpu of string
-  | Os of string
-  | Refresh
-  | Source
-  | RequireVersion of version
-  | RequireVersionFor of iface_uri * version
+  | `Before of version
+  | `NotBefore of version
+  | `WithMessage of string
+  | `NetworkUse of network_use
+  | `SelectCommand of string
+  | `Cpu of string
+  | `Os of string
+  | `Refresh
+  | `Source
+  | `RequireVersion of version
+  | `RequireVersionFor of iface_uri * version
 
-  | ShowXML
-  | ShowFullDiff
-  | ShowRoot
-  | ShowHuman
+  | `ShowXML
+  | `ShowFullDiff
+  | `ShowRoot
+  | `ShowHuman
 
-  | UseHash of string
-  | ShowManifest
-  | ShowDigest
+  | `UseHash of string
+  | `ShowManifest
+  | `ShowDigest
 
-  | MainExecutable of string
+  | `MainExecutable of string
 
-  | Background
+  | `Background
 
-  | AmbiguousOption of (string -> zi_option)
+  | `AmbiguousOption of (string -> zi_option)
+]
 
 type global_settings = {
   config : Zeroinstall.General.config;

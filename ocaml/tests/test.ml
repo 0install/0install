@@ -70,7 +70,7 @@ let test_option_parsing () =
 
   let s = p ["run"; "-wgdb"; "foo"] in
   equal_str_lists ["run"; "foo"] s.args;
-  assert_equal [("-w", Wrapper "gdb")] s.extra_options;
+  assert_equal [("-w", `Wrapper "gdb")] s.extra_options;
 
   let v = fake_system#collect_output (fun () -> (
     try ignore @@ p ["-c"; "--version"]; assert false;
@@ -80,15 +80,15 @@ let test_option_parsing () =
 
   let s = p ["--version"; "1.2"; "run"; "foo"] in
   equal_str_lists ["run"; "foo"] s.args;
-  assert_equal [("--version", RequireVersion "1.2")] s.extra_options;
+  assert_equal [("--version", `RequireVersion "1.2")] s.extra_options;
 
   let s = p ["digest"; "-m"; "archive.tgz"] in
   equal_str_lists ["digest"; "archive.tgz"] s.args;
-  assert_equal [("-m", ShowManifest)] s.extra_options;
+  assert_equal [("-m", `ShowManifest)] s.extra_options;
 
   let s = p ["run"; "-m"; "main"; "app"] in
   equal_str_lists ["run"; "app"] s.args;
-  assert_equal [("-m", MainExecutable "main")] s.extra_options;
+  assert_equal [("-m", `MainExecutable "main")] s.extra_options;
 ;;
 
 let test_run_real tmpdir =

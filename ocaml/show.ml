@@ -119,8 +119,8 @@ let handle options args =
       let s_xml = ref false in
 
       Support.Argparse.iter_options options.extra_options (function
-        | ShowRoot -> s_root := true
-        | ShowXML -> s_xml := true
+        | `ShowRoot -> s_root := true
+        | `ShowXML -> s_xml := true
         | _ -> raise_safe "Unknown option"
       );
 
