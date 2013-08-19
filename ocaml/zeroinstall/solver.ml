@@ -217,8 +217,13 @@ let get_selections sat dep_in_use root_req impl_cache command_cache =
     | ReqIface (iface, _source) -> iface in
   root.Qdom.attrs <- (("", "interface"), root_iface) :: root.Qdom.attrs;
 
-  let commands = command_cache#get_items () in
-  let impls = impl_cache#get_items () in
+  let was_selected (_, candidates) =
+    match candidates#get_clause () with
+    | None -> false
+    | Some clause -> S.get_selected clause <> None in
+
+  let commands = List.filter was_selected @@ command_cache#get_items () in
+  let impls = List.filter was_selected @@ impl_cache#get_items () in
 
   (* For each implementation, remember which commands we need. *)
   let commands_needed = Hashtbl.create 10 in
