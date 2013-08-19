@@ -227,7 +227,7 @@ let suite = "solver">::: [
   "feed_provider">:: (fun () ->
     let open Feed_cache in
     let (config, fake_system) = Fake_system.get_fake_config None in
-    let distro = new Distro.base_distribution in
+    let distro = new Distro.generic_distribution in
     let feed_provider = new feed_provider config distro in
     let uri = "http://example.com/prog" in
     let iface_config = feed_provider#get_iface_config uri in
@@ -261,7 +261,7 @@ let suite = "solver">::: [
 
     let distro =
       object
-        inherit Distro.base_distribution
+        inherit Distro.generic_distribution
         method! get_package_impls (elem, props) = [
           Distro.make_package_implementation elem props
             ~distro_name:"distro"

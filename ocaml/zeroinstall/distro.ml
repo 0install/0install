@@ -23,18 +23,21 @@ class type distribution =
     method get_package_impls : (Support.Qdom.element * Feed.properties) -> Feed.implementation list
   end
 
-class base_distribution : distribution =
-  object
-    val distro_name = "fallback"
+class virtual base_distribution =
+  object (_ : #distribution)
+    val virtual distro_name : string
+    method match_name name = (name = distro_name)
+    method get_package_impls _elem = raise Fallback_to_Python
+  end
 
+class generic_distribution =
+  object
+    inherit base_distribution
+    val distro_name = "fallback"
     method is_installed elem =
       log_warning "FIXME: Assuming distribution package %s version %s is still installed"
                   (ZI.get_attribute "id" elem) (ZI.get_attribute "version" elem);
       true
-
-    method match_name name = (name = distro_name)
-
-    method get_package_impls _elem = raise Fallback_to_Python
   end
 
 let try_cleanup_distro_version_ex version package_name =
@@ -199,11 +202,11 @@ module RPM = struct
 
   class rpm_distribution config : distribution =
     object
+      inherit base_distribution
+
       val distro_name = "RPM"
       val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
       method is_installed elem = check_cache "rpm" elem cache
-      method match_name name = (name = distro_name)
-      method get_package_impls _elem = raise Fallback_to_Python
     end
 end
 
@@ -291,21 +294,25 @@ module Mac = struct
 
   class macports_distribution config : distribution =
     object
+      inherit base_distribution
+
       val distro_name = "MacPorts"
       val cache = new Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
       method is_installed elem = check_cache "macports" elem cache
-      method match_name name = (name = distro_name || name = "Darwin")
-      method get_package_impls _elem = raise Fallback_to_Python
+      method! match_name name = (name = distro_name || name = "Darwin")
     end
 end
 
 module Win = struct
   class windows_distribution _config : distribution =
     object
+      inherit base_distribution
+
+      method is_installed _elem =
+        raise Fallback_to_Python
+
       val distro_name = "Windows"
-      method is_installed _elem = raise Fallback_to_Python
-      method match_name name = (name = distro_name)
-      method get_package_impls (elem, _props) =
+      method! get_package_impls (elem, _props) =
         let package_name = ZI.get_attribute "package" elem in
         match package_name with
         | "openjdk-6-jre" | "openjdk-6-jdk"
@@ -320,11 +327,11 @@ module Win = struct
 
   class cygwin_distribution config : distribution =
     object
+      inherit base_distribution
+
       val distro_name = "Cygwin"
       val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
       method is_installed elem = check_cache "cygwin" elem cache
-      method match_name name = (name = distro_name)
-      method get_package_impls _elem = raise Fallback_to_Python
     end
 end
 
@@ -347,11 +354,11 @@ let get_host_distribution config : distribution =
       else if x Mac.macports_db then
         new Mac.macports_distribution config
       else
-        new base_distribution
+        new generic_distribution
   | "Win32" -> new Win.windows_distribution config
   | "Cygwin" -> new Win.cygwin_distribution config
   | _ ->
-      new base_distribution
+      new generic_distribution
 ;;
 
 (** Check whether this <selection> is still valid. If the quick-test-* attributes are present, use
