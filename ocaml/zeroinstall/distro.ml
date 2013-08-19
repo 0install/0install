@@ -335,7 +335,7 @@ module Win = struct
     end
 end
 
-let get_host_distribution config : distribution =
+let get_host_distribution config (_slave:Python.slave) : distribution =
   let x = Sys.file_exists in
 
   match Sys.os_type with

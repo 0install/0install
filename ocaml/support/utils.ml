@@ -37,6 +37,7 @@ let () = Printexc.register_printer safe_to_string;;
 let handle_exceptions main args =
   try main args
   with
+  | System_exit x -> exit x
   | Safe_exception (msg, context) ->
       Printf.eprintf "%s\n" msg;
       List.iter (Printf.eprintf "%s\n") (List.rev !context);

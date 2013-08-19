@@ -21,7 +21,7 @@ let string_of_ynm = function
   | Maybe -> "maybe"
 
 (** Get some selectsions for these requirements. *)
-let solve_and_download_impls config _distro reqs mode ~refresh ~use_gui =
+let solve_and_download_impls (slave:Python.slave) reqs mode ~refresh ~use_gui =
   let action = match mode with
   | Select_only -> "for-select"
   | Download_only | Select_for_update -> "for-download"
@@ -38,9 +38,7 @@ let solve_and_download_impls config _distro reqs mode ~refresh ~use_gui =
     | _ -> raise_safe "Invalid response" in
   let request : Yojson.Basic.json = `List [`String "select"; `String action; opts; Requirements.to_json reqs] in
 
-  U.finally (fun slave -> slave#close) (new Python.slave config) (fun slave ->
-    slave#invoke request read_xml
-  )
+  slave#invoke request read_xml
 
 (** Ensure all selections are cached, downloading any that are missing.
     If [distro] is given then distribution packages are also installed, otherwise

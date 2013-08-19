@@ -22,6 +22,9 @@ type yes_no_maybe = Yes | No | Maybe
 
 exception Safe_exception of (string * string list ref);;
 
+(** Raise this to exit the program. Allows finally blocks to run. *)
+exception System_exit of int
+
 module Platform =
   struct
     type t = {
@@ -74,7 +77,6 @@ class type system =
     method getenv : varname -> string option
 
     method platform : unit -> Platform.t
-    method exit : 'a. int -> 'a
   end
 ;;
 

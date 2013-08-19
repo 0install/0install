@@ -47,6 +47,7 @@ type zi_option =
 
 type global_settings = {
   config : Zeroinstall.General.config;
+  slave : Zeroinstall.Python.slave;
   distro : Zeroinstall.Distro.distribution Lazy.t;
   mutable gui : yes_no_maybe;
   mutable verbosity : int;

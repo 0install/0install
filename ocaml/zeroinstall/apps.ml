@@ -133,9 +133,9 @@ let quick_solve config distro reqs =
 
 (* We can't run with saved selections or solved selections without downloading.
    Try to open the GUI for a blocking download. If we can't do that, download without the GUI. *)
-let foreground_update config distro ~use_gui app_path reqs =
+let foreground_update config ~slave ~use_gui app_path reqs =
   log_info "App '%s' needs to get new selections; current ones are not usable" app_path;
-  match Helpers.solve_and_download_impls config distro reqs Helpers.Download_only ~use_gui ~refresh:true with
+  match Helpers.solve_and_download_impls slave reqs Helpers.Download_only ~use_gui ~refresh:true with
   | None -> raise_safe "Aborted by user"
   | Some sels ->
       set_selections config app_path sels ~touch_last_checked:true;
@@ -153,7 +153,7 @@ let foreground_update config distro ~use_gui app_path reqs =
     - without downloading => switch to the new selections now
     - with downloading => use current selections, update in the background
 *)
-let check_for_updates config ~distro ~use_gui app_path sels =
+let check_for_updates config ~distro ~slave ~use_gui app_path sels =
   let last_solve_path = app_path +/ "last-solve" in
   let last_check_path = app_path +/ "last-check-attempt" in
   let last_check_time = get_mtime (app_path +/ "last-checked") ~warn_if_missing:true in
@@ -215,7 +215,7 @@ let check_for_updates config ~distro ~use_gui app_path sels =
             if system#file_exists last_solve_path && not config.dry_run then
               system#unlink last_solve_path;
 
-            foreground_update config distro ~use_gui app_path reqs
+            foreground_update config ~slave ~use_gui app_path reqs
           ) else (
             (* Continue with the current (cached) selections while we download *)
             want_bg_update := true;
@@ -239,16 +239,16 @@ let check_for_updates config ~distro ~use_gui app_path sels =
 ;;
 
 (** If [distro] is [None] then we don't check for updates. *)
-let get_selections_internal config ?distro ~use_gui app_path =
+let get_selections_internal config ?distro_slave ~use_gui app_path =
   let sels_path = app_path +/ "selections.xml" in
   if Sys.file_exists sels_path then
     let sels = Selections.load_selections config.system sels_path in
-    match distro with
+    match distro_slave with
     | None -> sels
-    | Some distro -> check_for_updates config ~distro ~use_gui app_path sels
+    | Some (distro, slave) -> check_for_updates config ~distro ~slave ~use_gui app_path sels
   else
-    match distro with
-    | Some distro -> foreground_update config distro ~use_gui app_path (get_requirements config.system app_path)
+    match distro_slave with
+    | Some (_distro, slave) -> foreground_update config ~slave ~use_gui app_path (get_requirements config.system app_path)
     | None -> raise_safe "App selections missing! Expected: %s" sels_path
 
 let list_app_names config =
@@ -264,7 +264,9 @@ let list_app_names config =
   List.iter scan_dir config.basedirs.Basedir.config;
   StringSet.elements !apps
 
-let get_selections_may_update config distro ~use_gui app_path = get_selections_internal config ~distro ~use_gui app_path
+let get_selections_may_update config distro slave ~use_gui app_path =
+  get_selections_internal config ~distro_slave:(distro, slave) ~use_gui app_path
+
 let get_selections_no_updates config app_path = get_selections_internal config ~use_gui:No app_path
 
 let set_requirements config path req =

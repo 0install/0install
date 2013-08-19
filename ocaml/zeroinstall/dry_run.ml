@@ -34,7 +34,6 @@ class dryrun_system (underlying:system) =
     (* We allow this as we may be falling back to Python or running some helper.
        For places where it matters (e.g. actually running the target program), the caller should handle it. *)
     method exec = underlying#exec
-    method exit = underlying#exit
     method create_process = underlying#create_process
 
     (* Trivial operations: ignore *)

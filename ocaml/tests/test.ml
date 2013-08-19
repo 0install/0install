@@ -74,7 +74,7 @@ let test_option_parsing () =
 
   let v = fake_system#collect_output (fun () -> (
     try ignore @@ p ["-c"; "--version"]; assert false;
-    with Fake_system.System_exit 0 -> ()
+    with System_exit 0 -> ()
   ))
   in assert (Str.string_match (Str.regexp_string "0install (zero-install)") v 0);
 

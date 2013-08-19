@@ -136,7 +136,9 @@ def recv_json():
 	logger.info("Waiting for length...")
 	l = stdin.readline().strip()
 	logger.info("Read '%s' from master", l)
-	if not l: return None
+	if not l:
+		sys.stdout = sys.stderr
+		return None
 	return json.loads(stdin.read(int(l)).decode('utf-8'))
 
 def slave_raw_input(prompt = None):

@@ -137,7 +137,7 @@ let get_selections options ~refresh reqs mode =
 
   let select_with_refresh () =
     (* This is the slow path: we need to download things before selecting *)
-    H.solve_and_download_impls options.config distro reqs mode ~refresh:true ~use_gui:options.gui in
+    H.solve_and_download_impls options.slave reqs mode ~refresh:true ~use_gui:options.gui in
 
   (* Check whether we can run immediately, without downloading anything. This requires
      - the user didn't ask to refresh or show the GUI
@@ -190,9 +190,7 @@ let get_selections options ~refresh reqs mode =
                   ) in
 
                 if want_background_update then (
-                  let slave = new Zeroinstall.Python.slave config in
-                  slave#invoke (`List [`String "background-update"; Requirements.to_json reqs]) ignore;
-                  slave#close;
+                  options.slave#invoke (`List [`String "background-update"; Requirements.to_json reqs]) ignore;
                 )
               );
               Some sels
@@ -260,10 +258,16 @@ let handle options arg for_op =
     options.extra_options <- remaining_options
   );
 
+  let get_app_sels path =
+    Zeroinstall.Apps.get_selections_may_update
+      options.config
+      (Lazy.force options.distro) options.slave
+      ~use_gui:options.gui path in
+
   match result with
   | (App (path, old_reqs), reqs) when select_opts.output = Output_human ->
       (* note: pass use_gui here once we support foreground updates for apps in OCaml *)
-      let old_sels = Zeroinstall.Apps.get_selections_may_update options.config (Lazy.force options.distro) ~use_gui:options.gui path in
+      let old_sels = get_app_sels path in
       let new_sels = if select_opts.must_select then do_select reqs else old_sels in
       Show.show_restrictions config.system reqs;
       Show.show_human config new_sels;
@@ -275,7 +279,7 @@ let handle options arg for_op =
       let new_sels =
         if select_opts.must_select then do_select reqs else (
           (* note: pass use_gui here once we support foreground updates for apps in OCaml *)
-          Zeroinstall.Apps.get_selections_may_update options.config (Lazy.force options.distro) ~use_gui:options.gui path
+          get_app_sels path
         ) in
       maybe_show_sels new_sels;
       if for_op = H.Select_for_update then save_changes path new_sels;

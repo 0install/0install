@@ -133,15 +133,21 @@ let get_exec_args config ?main sels args =
   let prog_args = (Command.build_command ?main ~dry_run:config.dry_run impls (ZI.get_attribute "interface" sels) command env) @ args in
 
   (prog_args, (Env.to_array env))
-;;
 
-let execute_selections config ?wrapper ?main sels args =
+(** Run the given selections. If [wrapper] is given, run that command with the command we would have run as the arguments.
+    If [finally] is given, run it just before execing. *)
+let execute_selections config ?finally ?wrapper ?main sels args =
   let (prog_args, env) = get_exec_args config ?main sels args in
 
   let prog_args =
     match wrapper with
     | None -> prog_args
     | Some command -> ["/bin/sh"; "-c"; command ^ " \"$@\""; "-"] @ prog_args in
+
+  let () =
+    match finally with
+    | None -> ()
+    | Some cleanup -> cleanup () in
 
   if config.dry_run then
     Dry_run.log "would execute: %s" (String.concat " " prog_args)

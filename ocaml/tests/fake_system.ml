@@ -39,7 +39,6 @@ let make_stat st_perm kind =
 
 exception Would_exec of (bool * string array option * string list)
 exception Would_spawn of (bool * string array option * string list)
-exception System_exit of int
 
 let src_dir = Filename.dirname @@ Filename.dirname @@ Sys.getcwd ()
 let test_0install = src_dir +/ "0install"           (* Pretend we're running from here so we find 0launch *)
@@ -212,8 +211,6 @@ class fake_system tmpdir =
         if not (StringMap.mem full !extra_files) then
           self#add_file full "" in
       List.iter add_file items
-
-    method exit code = raise (System_exit code)
 
     initializer
       match tmpdir with

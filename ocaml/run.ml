@@ -28,7 +28,9 @@ let handle options args =
       | _ -> raise_safe "Unknown option"
     );
 
-    try Zeroinstall.Exec.execute_selections options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper
+    let finally () = options.slave#close in
+
+    try Zeroinstall.Exec.execute_selections ~finally options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper
     with Safe_exception _ as ex -> reraise_with_context ex "... running %s" arg
   )
   | _ -> raise Support.Argparse.Usage_error

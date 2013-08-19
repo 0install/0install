@@ -282,10 +282,13 @@ let set_of_option_names opts =
 let parse_args config args =
   let (raw_options, args) = Support.Argparse.parse_args spec args in
 
+  let slave = new Zeroinstall.Python.slave config in
+
   (* Default values *)
   let options = {
     config;
-    distro = lazy (Zeroinstall.Distro.get_host_distribution config);
+    slave;
+    distro = lazy (Zeroinstall.Distro.get_host_distribution config slave);
     gui = Maybe;
     verbosity = 0;
     extra_options = [];
@@ -297,9 +300,9 @@ let parse_args config args =
     | DryRun -> config.dry_run <- true; config.system <- new Zeroinstall.Dry_run.dryrun_system config.system; None
     | Verbose -> increase_verbosity options; None
     | WithStore store -> add_store options store; None
-    | ShowVersion -> show_version config.system; config.system#exit 0
+    | ShowVersion -> show_version config.system; raise (System_exit 0)
     | NetworkUse u -> config.network_use <- u; None
-    | Help -> show_help options; config.system#exit 0
+    | Help -> show_help options; raise (System_exit 0)
     | AmbiguousOption fn -> (match args with
         | command :: _ -> Some (opt, fn command)
         | _ -> raise_safe "Option '%s' requires a command" opt
@@ -309,20 +312,24 @@ let parse_args config args =
   options
 
 let handle config raw_args =
-  let options = parse_args config raw_args in
-  try
-    match options.args with
-    | [] -> show_help options; exit 1
-    | command :: command_args ->
-        let (handler, valid_options, _help) =
-          try List.assoc command subcommands
-          with Not_found -> raise_safe "Unknown 0install sub-command '%s': try --help" command in
-        let valid_set = set_of_option_names valid_options in
+  Support.Utils.finally
+  (fun options -> options.slave#close)
+  (parse_args config raw_args)
+  (fun options ->
+    try
+      match options.args with
+      | [] -> show_help options; raise (System_exit 1)
+      | command :: command_args ->
+          let (handler, valid_options, _help) =
+            try List.assoc command subcommands
+            with Not_found -> raise_safe "Unknown 0install sub-command '%s': try --help" command in
+          let valid_set = set_of_option_names valid_options in
 
-        let check_opt (name, _value) =
-          if not (StringSet.mem name valid_set) then
-            raise_safe "Option %s is not valid with command '%s'" name command in
-        List.iter check_opt options.extra_options;
+          let check_opt (name, _value) =
+            if not (StringSet.mem name valid_set) then
+              raise_safe "Option %s is not valid with command '%s'" name command in
+          List.iter check_opt options.extra_options;
 
-        handler options command_args
-  with Support.Argparse.Usage_error -> show_usage_error options
+          handler options command_args
+    with Support.Argparse.Usage_error -> show_usage_error options
+  )
