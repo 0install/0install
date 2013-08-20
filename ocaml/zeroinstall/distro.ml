@@ -130,6 +130,10 @@ class virtual base_distribution (slave:Python.slave) =
     val virtual distro_name : string
     method match_name name = (name = distro_name)
 
+    method is_installed elem =
+      log_info "No is_installed implementation for '%s'; using slow Python fallback instead!" distro_name;
+      slave#invoke ~xml:elem (`List [`String "is-distro-package-installed"]) Yojson.Basic.Util.to_bool
+
     method get_all_package_impls feed =
       match get_matching_package_impls self feed with
       | [] -> None
@@ -174,10 +178,6 @@ class generic_distribution slave =
   object
     inherit base_distribution slave
     val distro_name = "fallback"
-    method is_installed elem =
-      log_warning "FIXME: Assuming distribution package %s version %s is still installed"
-                  (ZI.get_attribute "id" elem) (ZI.get_attribute "version" elem);
-      true
   end
 
 let try_cleanup_distro_version_ex version package_name =
@@ -295,11 +295,15 @@ module Debian = struct
 
   class debian_distribution config slave : distribution =
     object
-      inherit base_distribution slave
+      inherit base_distribution slave as super
 
       val distro_name = "Debian"
       val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2 ~old_format:false
-      method is_installed elem = check_cache "deb" elem cache
+
+      method! is_installed elem =
+        try check_cache "deb" elem cache
+        with Fallback_to_Python -> super#is_installed elem
+
       method! get_package_impls (elem, props) =
         let package_name = ZI.get_attribute "package" elem in
         let process cached_info =
@@ -325,11 +329,14 @@ module RPM = struct
 
   class rpm_distribution config slave : distribution =
     object
-      inherit base_distribution slave
+      inherit base_distribution slave as super
 
       val distro_name = "RPM"
       val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
-      method is_installed elem = check_cache "rpm" elem cache
+
+      method! is_installed elem =
+        try check_cache "rpm" elem cache
+        with Fallback_to_Python -> super#is_installed elem
     end
 end
 
@@ -422,11 +429,15 @@ module Mac = struct
 
   class macports_distribution config slave : distribution =
     object
-      inherit base_distribution slave
+      inherit base_distribution slave as super
 
       val distro_name = "MacPorts"
       val cache = new Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
-      method is_installed elem = check_cache "macports" elem cache
+
+      method! is_installed elem =
+        try check_cache "macports" elem cache
+        with Fallback_to_Python -> super#is_installed elem
+
       method! match_name name = (name = distro_name || name = "Darwin")
     end
 end
@@ -435,9 +446,6 @@ module Win = struct
   class windows_distribution _config slave : distribution =
     object
       inherit base_distribution slave
-
-      method is_installed _elem =
-        raise Fallback_to_Python
 
       val distro_name = "Windows"
       method! get_package_impls (elem, _props) =
@@ -455,11 +463,14 @@ module Win = struct
 
   class cygwin_distribution config slave : distribution =
     object
-      inherit base_distribution slave
+      inherit base_distribution slave as super
 
       val distro_name = "Cygwin"
       val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
-      method is_installed elem = check_cache "cygwin" elem cache
+
+      method! is_installed elem =
+        try check_cache "cygwin" elem cache
+        with Fallback_to_Python -> super#is_installed elem
     end
 end
 
