@@ -35,6 +35,7 @@ let make_package_implementation elem props ~id ~version ~machine ~extra_attrs ~i
     new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
   set "id" id;
   set "version" version;
+  set "from-feed" @@ "distribution:" ^ (Feed.AttrMap.find ("", "from-feed") !new_attrs);
   List.iter (fun (n, v) -> set n v) extra_attrs;
   let open Feed in {
     qdom = elem;

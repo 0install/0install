@@ -180,6 +180,15 @@ def do_get_package_impls(config, options, args, xml):
 
 	return [hosts] + results
 
+def do_is_distro_package_installed(config, options, xml):
+	id_to_check = xml.attrs['id']
+	feed = xml.attrs['from-feed']
+	assert feed.startswith('distribution'), feed
+	master_url = feed.split(':', 1)[1]
+	master_feed = config.iface_cache.get_feed(master_url)
+	feed = config.iface_cache.get_feed(master_feed.get_distro_feed())
+	return id_to_check in feed.implementations
+
 def send_json(j):
 	data = json.dumps(j).encode('utf-8')
 	stdout.write(('%d\n' % len(data)).encode('utf-8'))
@@ -226,6 +235,10 @@ def handle(config, options, args):
 				l = stdin.readline().strip()
 				xml = qdom.parse(BytesIO(stdin.read(int(l))))
 				response = do_get_package_impls(config, options, request[1:], xml)
+			elif command == 'is-distro-package-installed':
+				l = stdin.readline().strip()
+				xml = qdom.parse(BytesIO(stdin.read(int(l))))
+				response = do_is_distro_package_installed(config, options, xml)
 			else:
 				raise SafeException("Internal error: unknown command '%s'" % command)
 			response = ['ok', response]

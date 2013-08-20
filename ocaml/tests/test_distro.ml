@@ -94,10 +94,15 @@ let suite = "distro">::: [
       | Some impls ->
           let open Feed in
           let host_gobject = find_host impls in
-          match host_gobject.props.requires with
-          | [ {dep_importance = Dep_restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
-          | _ -> assert_failure "No host restriction for host python-gobject" in
-    ()
+          let () =
+            match host_gobject.props.requires with
+            | [ {dep_importance = Dep_restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
+            | _ -> assert_failure "No host restriction for host python-gobject" in
+          let sel = ZI.make host_gobject.qdom.Qdom.doc "selection" in
+          sel.Qdom.attrs <- AttrMap.bindings host_gobject.props.attrs;
+          Qdom.set_attribute "from-feed" ("distribution:" ^ feed.url) sel;
+          assert (distro#is_installed sel) in
+    slave#close;
   );
 
 ]
