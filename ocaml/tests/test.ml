@@ -101,6 +101,20 @@ let test_run_real tmpdir =
   let line = Support.Utils.check_output real_system Support.Utils.input_all argv in
   assert_str_equal "Hello World\n" line
 
+(* This is really just for the coverage testing, which test_run_real doesn't do. *)
+let test_run_fake tmpdir =
+  let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+  let sels_path = Support.Utils.abspath Fake_system.real_system (
+    if on_windows then ".\\test_selections_win.xml"
+    else "./test_selections.xml"
+  ) in
+  fake_system#add_file sels_path sels_path;
+  try Cli.handle config ["run"; sels_path; "--"; "--arg"]; assert false
+  with Fake_system.Would_exec (search, _env, args) ->
+    assert (not search);
+    if on_windows then equal_str_lists ["c:\\cygwin\\bin\\env"; "my-prog"; "Hello World"; "--"; "--arg"] args
+    else equal_str_lists ["/usr/bin/env"; "my-prog"; "Hello World"; "--"; "--arg"] args
+
 let test_escaping () =
   let open Zeroinstall.Escape in
   let wfile s = if on_windows then "file%3a" ^ s else "file:" ^ s in
@@ -160,6 +174,7 @@ let suite =
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);
  "test_run_real">:: (fun () -> collect_logging (with_tmpdir test_run_real));
+ "test_run_fake">:: (fun () -> collect_logging (with_tmpdir test_run_fake));
  "test_escaping">:: test_escaping;
  "test_canonical">:: (fun () ->
    let system = (new fake_system None :> system) in

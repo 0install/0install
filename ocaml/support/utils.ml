@@ -458,11 +458,13 @@ let realpath (system:system) path =
         join_realpath Filename.dir_sep rest seen
   in
 
-  if on_windows then
-    abspath system path
-  else (
-    fst @@ join_realpath (system#getcwd ()) path StringMap.empty
-  )
+  try
+    if on_windows then
+      abspath system path
+    else (
+      fst @@ join_realpath (system#getcwd ()) path StringMap.empty
+    )
+  with Safe_exception _ as ex -> reraise_with_context ex "... in realpath(%s)" path
 
 let format_time t =
   let open Unix in
