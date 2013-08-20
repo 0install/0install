@@ -10,6 +10,8 @@ open Support.Common
 module U = Support.Utils
 module Q = Support.Qdom
 
+exception Fallback_to_Python
+
 (* TODO: search system paths for alternative executable locations; copy logic from distro.py *)
 
 class type distribution =

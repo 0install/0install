@@ -195,7 +195,9 @@ let increase_verbosity options =
 
 let select_options = xml_output @ generic_select_options
 
-let fallback_handler _options _args = raise Fallback_to_Python
+let fallback_handler options _args =
+  log_info "No OCaml handler for this sub-command; switching to Python version...";
+  Zeroinstall.Python.fallback_to_python options.config (List.tl @@ Array.to_list @@ options.config.system#argv ())
 
 (** Which options are valid with which command *)
 let subcommands = [

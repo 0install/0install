@@ -148,60 +148,56 @@ let get_selections options ~refresh reqs mode =
   if refresh || options.gui = Yes then (
     select_with_refresh ()
   ) else (
-    try
-      let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in
-      match Zeroinstall.Solver.solve_for config feed_provider reqs with
-      | (false, results) ->
-          log_info "Quick solve failed; can't select without updating feeds";
-          if use_ocaml_solver then (
-            print_endline "Quick solve failed (stopped for debugging):";
-            let sels = results#get_selections () in
-            ZI.iter sels ~f:(fun sel ->
-              if Qdom.get_attribute_opt ("", "version") sel = None then (
-                Qdom.set_attribute "version" "0" sel;
-                Qdom.set_attribute "id" "package:missing" sel
+    let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in
+    match Zeroinstall.Solver.solve_for config feed_provider reqs with
+    | (false, results) ->
+        log_info "Quick solve failed; can't select without updating feeds";
+        if use_ocaml_solver then (
+          print_endline "Quick solve failed (stopped for debugging):";
+          let sels = results#get_selections () in
+          ZI.iter sels ~f:(fun sel ->
+            if Qdom.get_attribute_opt ("", "version") sel = None then (
+              Qdom.set_attribute "version" "0" sel;
+              Qdom.set_attribute "id" "package:missing" sel
+            )
+          );
+          Show.show_human config sels;
+          None
+        ) else (
+          select_with_refresh()
+        )
+    | (true, results) ->
+        let sels = results#get_selections () in
+        if mode = H.Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
+          (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
+
+          let have_stale_feeds = feed_provider#have_stale_feeds () in
+
+          if mode = H.Download_only && (have_stale_feeds && config.network_use <> Offline) then (
+            (* Updating in the foreground for Download_only mode is a bit inconsistent. Maybe we
+               should have a separate flag for this behaviour? *)
+            select_with_refresh ()
+          ) else (
+            if have_stale_feeds then (
+              (* There are feeds we should update, but we can run without them. *)
+              let want_background_update =
+                if config.network_use = Offline then (
+                  log_info "No doing background update because we are in off-line mode."; false
+                ) else if options.config.dry_run then (
+                  Zeroinstall.Dry_run.log "[dry-run] would check for updates in the background"; false
+                ) else (
+                  true
+                ) in
+
+              if want_background_update then (
+                options.slave#invoke (`List [`String "background-update"; Requirements.to_json reqs]) ignore;
               )
             );
-            Show.show_human config sels;
-            None
-          ) else (
-            select_with_refresh()
+            Some sels
           )
-      | (true, results) ->
-          let sels = results#get_selections () in
-          if mode = H.Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
-            (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
-
-            let have_stale_feeds = feed_provider#have_stale_feeds () in
-
-            if mode = H.Download_only && (have_stale_feeds && config.network_use <> Offline) then (
-              (* Updating in the foreground for Download_only mode is a bit inconsistent. Maybe we
-                 should have a separate flag for this behaviour? *)
-              select_with_refresh ()
-            ) else (
-              if have_stale_feeds then (
-                (* There are feeds we should update, but we can run without them. *)
-                let want_background_update =
-                  if config.network_use = Offline then (
-                    log_info "No doing background update because we are in off-line mode."; false
-                  ) else if options.config.dry_run then (
-                    Zeroinstall.Dry_run.log "[dry-run] would check for updates in the background"; false
-                  ) else (
-                    true
-                  ) in
-
-                if want_background_update then (
-                  options.slave#invoke (`List [`String "background-update"; Requirements.to_json reqs]) ignore;
-                )
-              );
-              Some sels
-            )
-          ) else (
-            select_with_refresh ()
-          )
-    with Fallback_to_Python ->
-      log_info "Can't solve; falling back to Python";
-      select_with_refresh ()
+        ) else (
+          select_with_refresh ()
+        )
   )
 
 (** Process the app/interface/selections argument [arg], either getting the current selections

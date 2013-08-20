@@ -6,8 +6,6 @@
 
 (** {2 Types} *)
 
-exception Fallback_to_Python
-
 open Support.Common
 
 exception Safe_exception = Support.Common.Safe_exception

@@ -264,10 +264,6 @@ let assert_raises_safe expected_msg fn =
   with Safe_exception (msg, _) ->
     assert_equal expected_msg msg
 
-let assert_raises_fallback fn =
-  try Lazy.force fn; assert_failure "Expected Fallback_to_Python"
-  with Fallback_to_Python -> ()
-
 let temp_dir_name =
   (* Filename.get_temp_dir_name doesn't exist under 3.12 *)
   try Sys.getenv "TEMP" with Not_found ->

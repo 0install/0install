@@ -4,24 +4,7 @@
 
 (** The main executable *)
 
-open Zeroinstall.General
 open Support.Common
-
-(** Run "python -m zeroinstall.cmd". If ../zeroinstall exists, put it in PYTHONPATH,
-    otherwise use the system version of 0install. *)
-let fallback_to_python config args =
-  let try_with path =
-    if config.system#file_exists path then (
-      (* Note: on Windows, we need to specify "python" *)
-      config.system#exec ~search_path:true ("python" :: path :: "--python-fallback" :: args)
-    ) in
-  let my_dir = Filename.dirname config.abspath_0install in
-  try_with @@ my_dir +/ "0launch";                   (* When installed in /usr/bin *)
-  let parent_dir = Filename.dirname my_dir in
-  try_with @@ parent_dir +/ "0launch";  (* When running from ocaml directory *)
-  try_with @@ Filename.dirname parent_dir +/ "0launch";  (* When running from _build directory *)
-  failwith "Can't find 0launch command!"
-;;
 
 let main (system:system) : unit =
   let argv = Array.to_list (system#argv ()) in
@@ -33,9 +16,6 @@ let main (system:system) : unit =
       try Cli.handle config raw_args
       with
       | Safe_exception _ as ex -> reraise_with_context ex "... processing command line: %s" (String.concat " " argv)
-      | Fallback_to_Python ->
-          log_info "Can't handle this case; switching to Python version...";
-          fallback_to_python config (List.tl argv)
 
 let start system =
   Support.Utils.handle_exceptions main system
