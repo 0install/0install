@@ -163,4 +163,6 @@ class slave config =
           system#reap_child c.child_pid;
           connection := None;
           log_info "Slave terminated"
+
+    method system = system
   end

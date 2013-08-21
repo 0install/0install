@@ -44,6 +44,8 @@ let suite = "distro">::: [
 
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     fake_system#add_file "/var/lib/pacman/local/python2-2.7.2-4/desc" "../../tests/arch/local/python2-2.7.2-4/desc";
+    fake_system#add_dir "/usr/bin" [];
+    fake_system#add_dir "/bin" ["python2"; "python3"];
     let system = (fake_system :> system) in
     let distro = new Distro.ArchLinux.arch_distribution config in
     let root = Qdom.parse_input None @@ Xmlm.make_input (`String (0, test_feed)) in
@@ -51,7 +53,10 @@ let suite = "distro">::: [
     let impls = Distro.get_package_impls distro feed in
     let open Feed in
     match impls with
-    | Some [impl] -> assert_str_equal "2.7.2-4" (Zeroinstall.Versions.format_version impl.parsed_version)
+    | Some [impl] ->
+        assert_str_equal "2.7.2-4" (Zeroinstall.Versions.format_version impl.parsed_version);
+        let run = StringMap.find "run" impl.props.commands in
+        assert_str_equal "/bin/python2" (ZI.get_attribute "path" run.command_qdom)
     | Some impls -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)
     | None -> assert_failure "didn't check distro!"
   );
@@ -104,5 +109,4 @@ let suite = "distro">::: [
           assert (distro#is_installed sel) in
     slave#close;
   );
-
 ]

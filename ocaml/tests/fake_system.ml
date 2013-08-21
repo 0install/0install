@@ -124,6 +124,7 @@ class fake_system tmpdir =
       if path = "/usr/bin/0install" then true
       else if path = "C:\\Windows\\system32\\0install.exe" then true
       else if StringMap.mem path !extra_files then true
+      else if StringMap.mem (Filename.dirname path) !extra_files then false
       else if tmpdir = None then false
       else real_system#file_exists (check_read path)
 

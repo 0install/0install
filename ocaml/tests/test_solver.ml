@@ -263,31 +263,27 @@ let suite = "solver">::: [
 
     let distro =
       object
-        inherit Distro.generic_distribution slave
+        inherit Distro.generic_distribution slave as super
         method! get_package_impls (elem, props) = [
-          Distro.make_package_implementation elem props
-            ~distro_name:"distro"
+          super#make_package_implementation elem props
             ~is_installed:true
             ~id:"package:is_distro_v1-1"
             ~machine:"x86_64"
             ~version:"1-1"
             ~extra_attrs:[];
-          Distro.make_package_implementation elem props
-            ~distro_name:"distro"
+          super#make_package_implementation elem props
             ~is_installed:false
             ~id:"package:root_install_needed_2"
             ~machine:"x86_64"
             ~version:"1-1"
             ~extra_attrs:[];
-          Distro.make_package_implementation elem props
-            ~distro_name:"distro"
+          super#make_package_implementation elem props
             ~is_installed:false
             ~id:"package:root_install_needed_1"
             ~machine:"x86_64"
             ~version:"1-1"
             ~extra_attrs:[];
-          Distro.make_package_implementation elem props
-            ~distro_name:"distro"
+          super#make_package_implementation elem props
             ~is_installed:true
             ~id:"package:buggy"
             ~machine:"x86_64"

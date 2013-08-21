@@ -12,42 +12,68 @@ module Q = Support.Qdom
 
 exception Fallback_to_Python
 
-(* TODO: search system paths for alternative executable locations; copy logic from distro.py *)
-
-class type distribution =
-  object
-    (** The distribution name, as seen in <package-implementation>'s distribution attribute. *)
-    val distro_name : string
-
-    (** Test whether this <selection> element is still valid *)
-    method is_installed : Support.Qdom.element -> bool
+class virtual distribution (system:system) =
+  object (self)
+    val virtual distro_name : string
+    val system_paths = ["/usr/bin"; "/bin"; "/usr/sbin"; "/sbin"]
 
     (** Can we use packages for this distribution? For example, MacPortsDistribution can use "MacPorts" and "Darwin" packages. *)
-    method match_name : string -> bool
+    method match_name name = (name = distro_name)
 
-    method get_package_impls : (Support.Qdom.element * Feed.properties) -> Feed.implementation list
+    (** Test whether this <selection> element is still valid *)
+    method virtual is_installed : Support.Qdom.element -> bool
 
-    method get_all_package_impls : Feed.feed -> Feed.implementation list option
+    method virtual get_package_impls : (Support.Qdom.element * Feed.properties) -> Feed.implementation list
+
+    method virtual get_all_package_impls : Feed.feed -> Feed.implementation list option
+
+    (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value.
+        The default implementation checks that main exists, and searches [system_paths] for
+        it if not. *)
+    method private fixup_main props =
+      let open Feed in
+      match get_command_opt "run" props.commands with
+      | None -> ()
+      | Some run ->
+          match ZI.get_attribute_opt "path" run.command_qdom with
+          | None -> ()
+          | Some path ->
+              if Filename.is_relative path || not (system#file_exists path) then (
+                (* Need to search for the binary *)
+                let basename = Filename.basename path in
+                let basename = if on_windows && not (Filename.check_suffix path ".exe") then basename ^ ".exe" else basename in
+                let check_path d =
+                  let path = d +/ basename in
+                  if system#file_exists path then (
+                    log_info "Found %s by searching system paths" path;
+                    Qdom.set_attribute "path" path run.command_qdom;
+                    true
+                  ) else false in
+                if not @@ List.exists check_path system_paths then
+                  log_info "Binary '%s' not found in any system path (checked %s)" basename (String.concat ", " system_paths)
+              )
+
+    (** Helper for [get_package_impls]. *)
+    method private make_package_implementation elem props ~id ~version ~machine ~extra_attrs ~is_installed =
+      self#fixup_main props;
+      let new_attrs = ref props.Feed.attrs in
+      let set name value =
+        new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
+      set "id" id;
+      set "version" version;
+      set "from-feed" @@ "distribution:" ^ (Feed.AttrMap.find ("", "from-feed") !new_attrs);
+      List.iter (fun (n, v) -> set n v) extra_attrs;
+      let open Feed in {
+        qdom = elem;
+        os = None;
+        machine = Arch.none_if_star machine;
+        stability = Packaged;
+        props = {props with attrs = !new_attrs};
+        parsed_version = Versions.parse_version version;
+        impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name };
+      }
   end
 
-(** Helper for [get_package_impls]. *)
-let make_package_implementation elem props ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name =
-  let new_attrs = ref props.Feed.attrs in
-  let set name value =
-    new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
-  set "id" id;
-  set "version" version;
-  set "from-feed" @@ "distribution:" ^ (Feed.AttrMap.find ("", "from-feed") !new_attrs);
-  List.iter (fun (n, v) -> set n v) extra_attrs;
-  let open Feed in {
-    qdom = elem;
-    os = None;
-    machine = Arch.none_if_star machine;
-    stability = Packaged;
-    props = {props with attrs = !new_attrs};
-    parsed_version = Versions.parse_version version;
-    impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name };
-  }
 
 let package_impl_from_json elem props json =
   let open Feed in
@@ -128,10 +154,9 @@ let make_restricts_distro doc iface_uri distros =
     dep_use = None;
   }
 
-class virtual base_distribution (slave:Python.slave) =
-  object (self : #distribution)
-    val virtual distro_name : string
-    method match_name name = (name = distro_name)
+class virtual python_fallback_distribution (slave:Python.slave) =
+  object (self)
+    inherit distribution slave#system
 
     method is_installed elem =
       log_info "No is_installed implementation for '%s'; using slow Python fallback instead!" distro_name;
@@ -179,7 +204,7 @@ class virtual base_distribution (slave:Python.slave) =
 
 class generic_distribution slave =
   object
-    inherit base_distribution slave
+    inherit python_fallback_distribution slave
     val distro_name = "fallback"
   end
 
@@ -296,9 +321,9 @@ let check_cache distro_name elem cache =
 module Debian = struct
   let dpkg_db_status = "/var/lib/dpkg/status"
 
-  class debian_distribution config slave : distribution =
-    object
-      inherit base_distribution slave as super
+  class debian_distribution config slave =
+    object (self)
+      inherit python_fallback_distribution slave as super
 
       val distro_name = "Debian"
       val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2 ~old_format:false
@@ -313,7 +338,7 @@ module Debian = struct
           match Str.split_delim U.re_tab cached_info with
           | [version; machine] ->
               let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
-              make_package_implementation elem props ~distro_name ~is_installed:true
+              self#make_package_implementation elem props ~is_installed:true
                 ~id ~version ~machine ~extra_attrs:[]
           | _ ->
               log_warning "Unknown cache line format for '%s': %s" package_name cached_info;
@@ -330,9 +355,9 @@ end
 module RPM = struct
   let rpm_db_packages = "/var/lib/rpm/Packages"
 
-  class rpm_distribution config slave : distribution =
+  class rpm_distribution config slave =
     object
-      inherit base_distribution slave as super
+      inherit python_fallback_distribution slave as super
 
       val distro_name = "RPM"
       val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
@@ -347,7 +372,7 @@ module ArchLinux = struct
   let arch_db = "/var/lib/pacman"
   let packages_dir = "/var/lib/pacman/local"
 
-  class arch_distribution config : distribution =
+  class arch_distribution config =
     let parse_dirname entry =
       try
         let build_dash = String.rindex entry '-' in
@@ -390,12 +415,14 @@ module ArchLinux = struct
       | _ -> items in
 
     object (self : #distribution)
+      inherit distribution config.system
+
       val distro_name = "Arch"
+
       method is_installed elem =
         (* We should never get here, because we always set quick-test-* *)
         Qdom.log_elem Logging.Info "Old selections file; forcing an update of" elem;
         false
-      method match_name name = (name = distro_name)
 
       method get_all_package_impls feed =
         match get_matching_package_impls self feed with
@@ -419,7 +446,7 @@ module ArchLinux = struct
               | None -> []
               | Some version ->
                   let id = Printf.sprintf "package:arch:%s:%s:%s" package_name version machine in [
-                    make_package_implementation elem props ~distro_name ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)];
+                    self#make_package_implementation elem props ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)];
                   ]
         with Not_found -> []
     end
@@ -430,9 +457,11 @@ module Mac = struct
 
   (* Note: we currently don't have or need DarwinDistribution, because that uses quick-test-* attributes *)
 
-  class macports_distribution config slave : distribution =
+  class macports_distribution config slave =
     object
-      inherit base_distribution slave as super
+      inherit python_fallback_distribution slave as super
+
+      val! system_paths = ["/opt/local/bin"]
 
       val distro_name = "MacPorts"
       val cache = new Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
@@ -446,9 +475,11 @@ module Mac = struct
 end
 
 module Win = struct
-  class windows_distribution _config slave : distribution =
+  class windows_distribution _config slave =
     object
-      inherit base_distribution slave
+      inherit python_fallback_distribution slave
+
+      val! system_paths = []
 
       val distro_name = "Windows"
       method! get_package_impls (elem, _props) =
@@ -464,9 +495,9 @@ module Win = struct
 
   let cygwin_log = "/var/log/setup.log"
 
-  class cygwin_distribution config slave : distribution =
+  class cygwin_distribution config slave =
     object
-      inherit base_distribution slave as super
+      inherit python_fallback_distribution slave as super
 
       val distro_name = "Cygwin"
       val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
