@@ -196,7 +196,7 @@ let check_for_updates config ~distro ~slave ~use_gui app_path sels =
       let reqs = get_requirements system app_path in
       match quick_solve config distro reqs with
       | Some new_sels ->
-          if new_sels = sels then (
+          if Support.Qdom.compare_nodes ~ignore_whitespace:true new_sels sels = 0 then (
             log_info "Quick solve succeeded; no change needed";
             sels        (* No change *)
           ) else (

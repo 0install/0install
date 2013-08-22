@@ -56,10 +56,11 @@ let xml_diff exp actual =
       )
     ) in
   if find_diff exp actual then (
+    assert (compare_nodes ~ignore_whitespace:true exp actual <> 0);
     assert_equal ~printer:(fun s -> s)
       (to_utf8 exp)
       (to_utf8 actual)
-  )
+  ) else assert (compare_nodes ~ignore_whitespace:true exp actual = 0)
 
 (** Give every implementation an <archive>, so we think it's installable. *)
 let rec make_all_downloable node =

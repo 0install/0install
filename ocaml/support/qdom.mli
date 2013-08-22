@@ -58,6 +58,10 @@ val get_attribute_opt : Xmlm.name -> element -> string option
 (** Sets the given non-namespaced attribute. *)
 val set_attribute : string -> string -> element -> unit
 
+(** Compare two elements and return -1, 0 or 1.
+    Owner document, namespace prefixes, row/column source position and attribute order are ignored. *)
+val compare_nodes : ignore_whitespace:bool -> element -> element -> int
+
 module type NsType = sig val ns : string end
 
 module NsQuery :

@@ -21,7 +21,7 @@ type dentry =
 module RealSystem = Support.System.RealSystem(Unix)
 let real_system = new RealSystem.real_system
 
-let build_dir = Support.Utils.getenv_ex real_system "OCAML_BUILDDIR"
+let build_dir = Support.Utils.handle_exceptions (fun () -> Support.Utils.getenv_ex real_system "OCAML_BUILDDIR") ()
 
 let make_stat st_perm kind =
   let open Unix in {
