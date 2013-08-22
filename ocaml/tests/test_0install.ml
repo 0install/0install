@@ -27,7 +27,10 @@ let suite = "0install">::: [
     fake_system#set_argv [| test_0install; "select"; "http://example.com/prog.xml" |];
     let () =
       try failwith @@ fake_system#collect_output (fun () -> Main.main system)
-      with Fake_system.Would_spawn _ -> () in
+      with Fake_system.Would_spawn (_, _, args) ->
+        Fake_system.equal_str_lists
+          ["update"; "--console"; "-v"; "--command"; "run"; "http://example.com/prog.xml"]
+          (List.tl args) in
 
     (* Download succeeds (does nothing, as it's already cached *)
     fake_system#set_argv [| test_0install; "-o"; "download"; "http://example.com/prog.xml" |];

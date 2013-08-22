@@ -164,8 +164,6 @@ module RealSystem (U : UnixType) =
             reraise_with_context ex "... trying to exec: %s" cmd
 
         method spawn_detach ?(search_path = false) ?env argv =
-          flush stdout;
-          flush stderr;
           try
             wrap_unix_errors (fun () ->
               let argv_array = Array.of_list argv in
@@ -173,16 +171,20 @@ module RealSystem (U : UnixType) =
                 if search_path then Utils.find_in_path_ex (self :> system) (List.hd argv)
                 else (List.hd argv) in
 
-              if !Logging.threshold >= Logging.Info then
+              if !Logging.threshold <= Logging.Info then
                 log_info "spawn %s" @@ Logging.format_argv_for_logging argv;
+
+              flush stdout;
+              flush stderr;
 
               let do_spawn () =
                 (* We don't reap the child. On Unix, we're in a child process that is about to exit anyway (init will inherit the child).
                    On Windows, hopefully it doesn't matter. *)
                 ignore @@ Utils.finally Unix.close (Unix.openfile dev_null [Unix.O_WRONLY] 0) (fun null_fd ->
+                  let stderr = if !Logging.threshold = Logging.Debug then Unix.stderr else null_fd in
                   match env with
-                    | None -> Unix.create_process prog_path argv_array null_fd null_fd Unix.stderr
-                    | Some env -> Unix.create_process_env prog_path argv_array env null_fd null_fd Unix.stderr
+                    | None -> Unix.create_process prog_path argv_array null_fd null_fd stderr
+                    | Some env -> Unix.create_process_env prog_path argv_array env null_fd null_fd stderr
                 ) in
 
               if on_windows then (
