@@ -48,7 +48,7 @@ let show_version system =
      For more information about these matters, see the file named COPYING.\n"
      Zeroinstall.About.version
 
-let show_help config valid_options help extra_fn =
+let show_help valid_options help extra_fn =
   let open Format in
   open_vbox 0;
 
