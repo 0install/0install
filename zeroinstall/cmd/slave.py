@@ -53,13 +53,6 @@ def reqs_from_json(reqs_json):
 		setattr(requirements, k, v)
 	return requirements
 
-def do_background_update(config, options, args):
-	reqs_json, = args
-	requirements = reqs_from_json(reqs_json)
-	from zeroinstall.injector import background
-	background.spawn_background_update2(requirements, verbose = options.verbose > 1)
-	return "detached"
-
 def do_download_selections(config, options, args, xml):
 	opts, = args
 	include_packages = opts['include-packages']
@@ -229,8 +222,6 @@ def handle(config, options, args):
 			logger.debug("Got request '%s'", command)
 			if command == 'select':
 				response = do_select(config, options, request[1:])
-			elif command == 'background-update':
-				response = do_background_update(config, options, request[1:])
 			elif command == 'download-selections':
 				l = stdin.readline().strip()
 				xml = qdom.parse(BytesIO(stdin.read(int(l))))
