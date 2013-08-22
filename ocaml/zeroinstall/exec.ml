@@ -59,7 +59,7 @@ class windows_launcher_builder config =
 
     method! add_launcher path =
       if not @@ Sys.file_exists path then
-        Support.Utils.copy_file config.system runenv_path path 0o755  (* TODO: hard-link *)
+        config.system#atomic_hardlink ~link_to:runenv_path ~replace:path
   end
 
 let get_launcher_builder config =
