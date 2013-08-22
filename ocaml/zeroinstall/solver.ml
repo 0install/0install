@@ -176,6 +176,10 @@ class ['a, 'b] cache =
         process ();
         value
 
+    method peek (key:'a) : 'b option =
+      try Some (Hashtbl.find table key)
+      with Not_found -> None
+
     method get_items () =
       let r = ref [] in
       Hashtbl.iter (fun k v ->
@@ -350,6 +354,9 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
         | None -> true
   in
 
+  (* Callbacks to run after building the problem. *)
+  let delayed = ref [] in
+
   (* For each dependency of [user_var]:
      - find the candidate implementations to satisfy it
      - take just those that satisfy any restrictions in the dependency
@@ -412,13 +419,20 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
         | Some replacement when replacement = iface_uri ->
             log_warning "Interface %s replaced-by itself!" iface_uri
         | Some replacement ->
-            let our_vars = data#get_real_vars () in
-            let replacements = (impl_cache#lookup @@ (replacement, source))#get_real_vars () in
-            if (our_vars <> [] && replacements <> []) then (
-              (* Must select one implementation out of all candidates from both interfaces.
-                 Dummy implementations don't conflict, though. *)
-              ignore @@ S.at_most_one sat (our_vars @ replacements)
-            )
+            let handle_replacement () =
+              let our_vars = data#get_real_vars () in
+              match impl_cache#peek (replacement, source) with
+              | None -> ()  (* We didn't use it, so we can't conflict *)
+              | Some replacement_candidates ->
+                  let replacements = replacement_candidates#get_real_vars () in
+                  if (our_vars <> [] && replacements <> []) then (
+                    (* Must select one implementation out of all candidates from both interfaces.
+                       Dummy implementations don't conflict, though. *)
+                    ignore @@ S.at_most_one sat (our_vars @ replacements)
+                  ) in
+            (* Delay until the end. If we never use the replacement feed, no need to conflict
+               (avoids getting it added to feeds_used). *)
+            delayed := handle_replacement :: !delayed
       in
 
       ListLabels.iter pairs ~f:(fun (impl_var, impl) ->
@@ -478,6 +492,9 @@ let solve_for (impl_provider:Impl_provider.impl_provider) root_scope root_req ~c
   let locked _ = failwith "building done" in
   impl_cache#set_maker locked;
   command_cache#set_maker locked;
+
+  (* Run all the callbacks *)
+  List.iter (fun fn -> fn ()) !delayed;
 
   (* Run the solve *)
 
