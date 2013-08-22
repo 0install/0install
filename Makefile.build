@@ -1,6 +1,6 @@
-SRCDIR ?= XXX
-DISTDIR ?= XXX
-BUILDDIR ?= XXX
+SRCDIR ?= NOTSET
+DISTDIR ?= NOTSET
+BUILDDIR ?= NOTSET
 
 SCRIPTS = 0launch 0alias 0desktop 0store 0store-secure-add
 DOCS = README.md COPYING

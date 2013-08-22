@@ -24,7 +24,7 @@ interfere with those provided by the distribution.
     <!-- Update the copy of the version number -->
     <release:action phase="commit-release">sed -i &quot;s/^version = '.*'$/version = '$RELEASE_VERSION'/&quot; zeroinstall/__init__.py</release:action>
     <release:action phase="commit-release">sed -i &quot;s/^version = '.*'$/version = '$RELEASE_VERSION'/&quot; zeroinstall/0launch-gui/gui.py</release:action>
-    <release:action phase="commit-release">sed -i &quot;s/^let version = ".*"$/version = "$RELEASE_VERSION"/&quot; ocaml/about.ml</release:action>
+    <release:action phase="commit-release">sed -i &quot;s/^let version = ".*"$/version = "$RELEASE_VERSION"/&quot; ocaml/zeroinstall/about.ml</release:action>
     <release:action phase="generate-archive">rm .gitignore; make translations</release:action>
   </release:management>
 
