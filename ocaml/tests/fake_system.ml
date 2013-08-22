@@ -21,6 +21,8 @@ type dentry =
 module RealSystem = Support.System.RealSystem(Unix)
 let real_system = new RealSystem.real_system
 
+let build_dir = Support.Utils.getenv_ex real_system "OCAML_BUILDDIR"
+
 let make_stat st_perm kind =
   let open Unix in {
     st_perm;
@@ -47,8 +49,8 @@ class fake_system tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
 
   let check_read path =
+    (* log_info "check_read(%s)" path; *)
     if Filename.is_relative path then path
-    else if Support.Utils.starts_with path src_dir then path
     else (
       try
         match StringMap.find path !extra_files with
@@ -56,9 +58,12 @@ class fake_system tmpdir =
         | File (_mode, redirect_path) ->
             redirect_path
       with Not_found ->
-        match tmpdir with
-        | Some dir when Support.Utils.starts_with path dir -> path
-        | _ -> raise_safe "Attempt to read from '%s'" path
+        if Support.Utils.starts_with path src_dir then path
+        else (
+          match tmpdir with
+          | Some dir when Support.Utils.starts_with path dir -> path
+          | _ -> raise_safe "Attempt to read from '%s'" path
+        )
     ) in
 
   let check_write path =
@@ -282,8 +287,11 @@ let get_fake_config tmpdir =
   Zeroinstall.Python.slave_debug_level := Some Support.Logging.Warning;
   let system = new fake_system tmpdir in
   if tmpdir = None then system#putenv "HOME" "/home/testuser";
-  if on_windows then
-    system#putenv "PATH" "C:\\Windows\\system32;C:\\Windows"
-  else
-    system#putenv "PATH" "/usr/bin:/bin";
+  if on_windows then (
+    system#putenv "PATH" "C:\\Windows\\system32;C:\\Windows";
+    system#add_file (src_dir +/ "0install-runenv.exe") (build_dir +/ "0install-runenv.exe");
+    system#add_file (src_dir +/ "0launch") (src_dir +/ "0launch")
+  ) else (
+    system#putenv "PATH" "/usr/bin:/bin"
+  );
   (Config.get_default_config (system :> system) test_0install, system)

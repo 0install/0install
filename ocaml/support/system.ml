@@ -72,7 +72,13 @@ module RealSystem (U : UnixType) =
         method file_exists = Sys.file_exists
         method create_process args new_stdin new_stdout new_stderr =
           log_info "Running %s" @@ Logging.format_argv_for_logging args;
-          Unix.create_process (List.hd args) (Array.of_list args) new_stdin new_stdout new_stderr
+          try
+            wrap_unix_errors (fun () ->
+              Unix.create_process (List.hd args) (Array.of_list args) new_stdin new_stdout new_stderr
+            )
+          with Safe_exception _ as ex ->
+            reraise_with_context ex "... trying to create sub-process '%s'"
+              (Logging.format_argv_for_logging args)
 
         method unlink = Unix.unlink
         method rmdir = Unix.rmdir

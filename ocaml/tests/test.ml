@@ -108,12 +108,11 @@ let test_option_parsing () =
 ;;
 
 let test_run_real tmpdir =
-  let build_dir = Support.Utils.getenv_ex Fake_system.real_system "OCAML_BUILDDIR" in
   Unix.putenv "ZEROINSTALL_PORTABLE_BASE" tmpdir;
   let sels_path =
     if on_windows then ".\\test_selections_win.xml"
     else "./test_selections.xml" in
-  let argv = [build_dir +/ "0install"; "run"; sels_path] in
+  let argv = [Fake_system.build_dir +/ "0install"; "run"; sels_path] in
   let line = Support.Utils.check_output real_system Support.Utils.input_all argv in
   assert_str_equal "Hello World\n" line
 
@@ -128,7 +127,7 @@ let test_run_fake tmpdir =
   try Cli.handle config ["run"; sels_path; "--"; "--arg"]; assert false
   with Fake_system.Would_exec (search, _env, args) ->
     assert (not search);
-    if on_windows then equal_str_lists ["c:\\cygwin\\bin\\env"; "my-prog"; "Hello World"; "--"; "--arg"] args
+    if on_windows then equal_str_lists ["c:\\cygwin\\bin\\env.exe"; "my-prog"; "Hello World"; "--"; "--arg"] args
     else equal_str_lists ["/usr/bin/env"; "my-prog"; "Hello World"; "--"; "--arg"] args
 
 let test_escaping () =

@@ -53,7 +53,7 @@ class windows_launcher_builder config =
     match config.system#getenv "ZEROINSTALL_RUNENV" with
     | None -> Filename.dirname config.abspath_0install +/ "0install-runenv.exe"
     | Some path -> path in
-  let digest = Digest.file runenv_path in
+  let digest = config.system#with_open_in [Open_rdonly; Open_binary] 0 runenv_path Digest.input in
   object (_ : #launcher_builder)
     inherit launcher_builder config digest
 

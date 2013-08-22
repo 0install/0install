@@ -33,6 +33,10 @@ if sys.version_info[0] > 2:
 else:
 	stdin = sys.stdin
 	stdout = sys.stdout
+	if sys.platform == "win32":
+		import os, msvcrt
+		msvcrt.setmode(stdin.fileno(), os.O_BINARY)
+		msvcrt.setmode(stdout.fileno(), os.O_BINARY)
 
 def add_options(parser):
 	parser.add_option("-o", "--offline", help=_("try to avoid using the network"), action='store_true')

@@ -14,8 +14,8 @@ let suite = "0install">::: [
   "select">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (_config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
-    fake_system#add_file (tmpdir +/ "cache/0install.net/interfaces/http%3a%2f%2fexample.com%2fprog.xml") "../../tests/Hello.xml";
-    fake_system#add_dir (tmpdir +/ "cache/0install.net/implementations") ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"];
+    fake_system#add_file (tmpdir +/ "cache" +/ "0install.net" +/ "interfaces" +/ "http%3a%2f%2fexample.com%2fprog.xml") (".." +/ ".." +/ "tests" +/ "Hello.xml");
+    fake_system#add_dir (tmpdir +/ "cache" +/ "0install.net" +/ "implementations") ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"];
     fake_system#add_file "/lib/ld-linux.so.2" "/";    (* Enable multi-arch *)
 
     (* In --offline mode we select from the cached feed *)
@@ -23,7 +23,6 @@ let suite = "0install">::: [
     let output = fake_system#collect_output (fun () -> Main.main system) in
     assert (U.starts_with output "- URI: http://example.com/prog.xml");
 
-    fake_system#add_file "/usr/bin/0launch" "";
     (* In online mode, we spawn a background process because we don't have a last-checked timestamp *)
     fake_system#set_argv [| test_0install; "select"; "http://example.com/prog.xml" |];
     let () =

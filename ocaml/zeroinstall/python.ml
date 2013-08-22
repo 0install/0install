@@ -132,7 +132,10 @@ class slave config =
 
       (* Normally we just get a single reply, but we might have to handle some input requests first. *)
       let rec loop () =
-        let l = int_of_string @@ input_line c.from_child in
+        let l =
+          let line = input_line c.from_child in
+          try int_of_string line
+          with Failure _ -> raise_safe "Invalid response from slave '%s' (expected integer). This is a bug." (String.escaped line) in
         let buf = String.create l in
         really_input c.from_child buf 0 l;
         log_info "Response from Python: %s" buf;
@@ -155,7 +158,7 @@ class slave config =
     method close =
       (* log_warning "CLOSE SLAVE"; *)
       match !connection with
-      | None -> log_info "No Python slave to close. OK."
+      | None -> ()
       | Some c ->
           log_info "Closing connection to slave";
           close_out c.to_child;
