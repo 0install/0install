@@ -50,10 +50,9 @@ let show_version system =
 
 let show_help config valid_options help extra_fn =
   let open Format in
-  let prog = (Filename.basename config.abspath_0install) in
   open_vbox 0;
 
-  printf "Usage: %s %s@\n" prog help;
+  printf "Usage: 0install %s@\n" help;
 
   extra_fn ();
 

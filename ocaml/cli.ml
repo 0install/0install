@@ -214,14 +214,13 @@ let subcommands = [
 
 let show_toplevel_help config =
   let top_options = show_version_options @ common_options in
-  let prog = (Filename.basename config.abspath_0install) in
   Common_options.show_help config top_options "COMMAND [OPTIONS]" (fun () ->
     let open Format in
     print_newline();
     printf "Try --help with one of these:@\n@\n";
     open_vbox 0;
     ListLabels.iter subcommands ~f:(fun (command, _info) ->
-      printf "%s %s@," prog command;
+      printf "0install %s@," command;
     );
     close_box();
   )
