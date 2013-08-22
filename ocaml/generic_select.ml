@@ -104,7 +104,8 @@ let resolve_target config flags arg =
       let uri = canonical_iface_uri config.system arg in
 
       let is_interface () =
-        let reqs = Req_options.parse_options flags uri ~command:(Some "run") in
+        let default_command = if List.mem `Source flags then "compile" else "run" in
+        let reqs = Req_options.parse_options flags uri ~command:(Some default_command) in
         (Interface, reqs) in
 
       let is_selections sels =
