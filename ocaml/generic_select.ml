@@ -159,20 +159,13 @@ let get_selections options ~refresh reqs mode =
         log_info "Quick solve failed; can't select without updating feeds";
         if use_ocaml_solver then (
           print_endline "Quick solve failed (stopped for debugging):";
-          let sels = results#get_selections () in
-          ZI.iter sels ~f:(fun sel ->
-            if Qdom.get_attribute_opt ("", "version") sel = None then (
-              Qdom.set_attribute "version" "0" sel;
-              Qdom.set_attribute "id" "package:missing" sel
-            )
-          );
-          Show.show_human config sels;
-          None
+          prerr_string @@ Zeroinstall.Diagnostics.get_failure_reason config results;
+          raise (System_exit 1);
         ) else (
           select_with_refresh()
         )
     | (true, results) ->
-        let sels = results#get_selections () in
+        let sels = results#get_selections in
         if mode = H.Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
           (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
 

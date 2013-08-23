@@ -106,3 +106,9 @@ let get_required_commands dep =
   | Some "runner" -> (default "run" @@ ZI.get_attribute_opt "command" dep) :: commands
   | Some "requires" | Some "restricts" -> commands
   | _ -> Qdom.raise_elem "Not a dependency: " dep
+
+(** Create a map from interface URI to <selection> elements. *)
+let make_selection_map sels =
+  let add_selection m sel =
+    StringMap.add (ZI.get_attribute "interface" sel) sel m
+  in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"

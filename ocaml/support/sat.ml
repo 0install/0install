@@ -202,6 +202,26 @@ module MakeSAT(User : USER) =
     let get_varinfo_for_lit problem lit =
       VarInfoArray.get (var_of_lit lit) problem.assigns
 
+    (* Why is [lit] assigned the way it is? For debugging. *)
+    let explain_reason problem lit =
+      let show_lit_assignment l =
+        let info = get_varinfo_for_lit problem l in
+        (User.to_string info.obj) ^ "=" ^ (string_of_value info.value) in
+      let value = lit_value problem lit in
+      if value = Undecided then "undecided!"
+      else (
+        let info = get_varinfo_for_lit problem lit in
+        let reason =
+          match info.reason with
+          | None -> "no reason (BUG)"
+          | Some (External reason) -> reason
+          | Some (Clause c) ->
+              let reason = c#calc_reason_for lit in
+              String.concat " && " @@ List.map show_lit_assignment reason
+        in
+        Printf.sprintf "%s => %s" reason (show_lit_assignment lit)
+      )
+
     let get_decision_level problem = List.length problem.trail_lim
 
     let add_variable problem obj : var =

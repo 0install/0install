@@ -99,6 +99,8 @@ let make_solver_test test_elem =
       let feed = parse (fake_system :> system) elem None in
       Hashtbl.add ifaces uri feed in
     let expected_selections = ref (ZI.make_root "missing") in
+    let expected_problem = ref "missing" in
+    let justifications = ref [] in
     let process child = match ZI.tag child with
     | Some "interface" -> add_iface child
     | Some "requirements" ->
@@ -108,6 +110,8 @@ let make_solver_test test_elem =
         };
         fails := ZI.get_attribute_opt "fails" child = Some "true"
     | Some "selections" -> expected_selections := child
+    | Some "problem" -> expected_problem := trim child.Support.Qdom.last_text_inside
+    | Some "justification" -> justifications := child :: !justifications
     | _ -> failwith "Unexpected element" in
     ZI.iter ~f:process test_elem;
 
@@ -132,13 +136,29 @@ let make_solver_test test_elem =
     if ready && !fails then assert_failure "Expected solve to fail, but it didn't!";
     if not ready && not (!fails) then assert_failure "Solve failed (not ready)";
     assert (ready = (not !fails));
-    let actual_sels = result#get_selections () in
-    assert (ZI.tag actual_sels = Some "selections");
-    if ready then (
-      let changed = Whatchanged.show_changes (fake_system :> system) !expected_selections actual_sels in
-      assert (not changed);
+
+    if (!fails) then
+      let reason = Zeroinstall.Diagnostics.get_failure_reason config result in
+      Fake_system.assert_str_equal !expected_problem reason
+    else (
+      let actual_sels = result#get_selections in
+      assert (ZI.tag actual_sels = Some "selections");
+      if ready then (
+        let changed = Whatchanged.show_changes (fake_system :> system) !expected_selections actual_sels in
+        assert (not changed);
+      );
+      xml_diff !expected_selections actual_sels
     );
-    xml_diff !expected_selections actual_sels
+
+    ListLabels.iter !justifications ~f:(fun elem ->
+      let iface = ZI.get_attribute "interface" elem in
+      let g_id = Feed.({
+        feed = iface;
+        id = ZI.get_attribute "id" elem;
+      }) in
+      let reason = Zeroinstall.Diagnostics.justify_decision config feed_provider !reqs iface g_id in
+      Fake_system.assert_str_equal (trim elem.Support.Qdom.last_text_inside) reason
+    );
   )
 
 let suite = "solver">::: [
@@ -342,7 +362,8 @@ let suite = "solver">::: [
 
     let test_solve scope_filter =
       let impl_provider = new default_impl_provider config feed_provider in
-      let {replacement; impls} = impl_provider#get_implementations scope_filter iface ~source:false in
+      let {replacement; impls; rejects = _} = impl_provider#get_implementations scope_filter iface ~source:false in
+      (* List.iter (fun (impl, r) -> failwith @@ describe_problem impl r) rejects; *)
       assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;
       let ids = List.map (fun i -> Feed.get_attr "id" i) impls in
       ids in

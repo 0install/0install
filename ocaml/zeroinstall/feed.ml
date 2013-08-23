@@ -18,6 +18,12 @@ module AttrType =
 
 module AttrMap = Map.Make(AttrType)
 
+(** A globally-unique identifier for an implementation. *)
+type global_id = {
+  feed : string;
+  id : string;
+}
+
 type importance =
   | Dep_essential       (* Must select a version of the dependency *)
   | Dep_recommended     (* Prefer to select a version, if possible *)
@@ -38,7 +44,7 @@ type impl_type =
   | LocalImpl of filepath
   | PackageImpl of package_impl
 
-type restriction = (string * (implementation -> bool))
+type restriction = < to_string : string; meets_restriction : implementation -> bool >
 
 and binding = Qdom.element
 
@@ -163,16 +169,19 @@ let make_command doc name ?(new_attr="path") path : command =
   }
 
 let make_distribtion_restriction distros =
-  let check impl =
-    ListLabels.exists (Str.split U.re_space distros) ~f:(fun distro ->
-      match distro, impl.impl_type with
-      | "0install", PackageImpl _ -> false
-      | "0install", CacheImpl _ -> true
-      | "0install", LocalImpl _ -> true
-      | distro, PackageImpl {package_distro;_} -> package_distro = distro
-      | _ -> false
-    ) in
-  ("distribution:" ^ distros, check)
+  object
+    method meets_restriction impl =
+      ListLabels.exists (Str.split U.re_space distros) ~f:(fun distro ->
+        match distro, impl.impl_type with
+        | "0install", PackageImpl _ -> false
+        | "0install", CacheImpl _ -> true
+        | "0install", LocalImpl _ -> true
+        | distro, PackageImpl {package_distro;_} -> package_distro = distro
+        | _ -> false
+      )
+
+    method to_string = "distribution:" ^ distros
+  end
 
 let get_attr key impl =
   try AttrMap.find ("", key) impl.props.attrs
@@ -185,13 +194,34 @@ let get_attr_opt key map =
 let parse_version_element elem =
   let before = ZI.get_attribute_opt "before" elem in
   let not_before = ZI.get_attribute_opt "not-before" elem in
-  let s = match before, not_before with
-  | None, None -> "no restriction!"
-  | Some low, None -> low ^ " <= version"
-  | None, Some high -> "version < " ^ high
-  | Some low, Some high -> low ^ " <= version < " ^ high in
   let test = Versions.make_range_restriction not_before before in
-  (s, (fun impl -> test (impl.parsed_version)))
+  object
+    method meets_restriction impl = test impl.parsed_version
+    method to_string =
+      match not_before, before with
+      | None, None -> "no restriction!"
+      | Some low, None -> "version " ^ low ^ ".."
+      | None, Some high -> "version ..!" ^ high
+      | Some low, Some high -> "version " ^ low ^ "..!" ^ high
+  end
+
+let make_impossible_restriction msg =
+  object
+    method meets_restriction _impl = false
+    method to_string = Printf.sprintf "<impossible: %s>" msg
+  end
+
+let make_version_restriction expr =
+  try 
+    let test = Versions.parse_expr expr in
+    object
+      method meets_restriction impl = test impl.parsed_version
+      method to_string = "version " ^ expr
+    end
+  with Safe_exception (ex_msg, _) as ex ->
+    let msg = Printf.sprintf "Can't parse version restriction '%s': %s" expr ex_msg in
+    log_warning ~ex:ex "%s" msg;
+    make_impossible_restriction msg
 
 let parse_dep local_dir dep =
   let iface =
@@ -226,15 +256,7 @@ let parse_dep local_dir dep =
 
   let restrictions = match ZI.get_attribute_opt "version" dep with
     | None -> restrictions
-    | Some expr -> (
-        try
-          let test = Versions.parse_expr expr in
-          (expr, fun impl -> test (impl.parsed_version))
-        with Safe_exception (ex_msg, _) as ex ->
-          let msg = Printf.sprintf "Can't parse version restriction '%s': %s" expr ex_msg in
-          log_warning ~ex:ex "%s" msg;
-          (expr, fun _ -> false)
-        ) :: restrictions
+    | Some expr -> make_version_restriction expr :: restrictions
   in
 
   if ZI.tag dep = Some "runner" then (
@@ -423,7 +445,7 @@ let parse system root feed_local_path =
 
     let impl = {
       qdom = node;
-      props = !s;
+      props = {!s with requires = List.rev !s.requires};
       os;
       machine;
       stability;
@@ -486,7 +508,7 @@ let parse system root feed_local_path =
 
           s := {!s with
             attrs = List.fold_left add_attr !s.attrs item.Qdom.attrs;
-            requires = List.rev !s.requires;
+            requires = !s.requires;
           };
 
           match ZI.tag item with
@@ -610,3 +632,5 @@ let is_retrievable_without_network cache_impl =
     | Some recipe -> not @@ Recipe.recipe_requires_network recipe
     | None -> false in
   List.exists ok_without_network cache_impl.retrieval_methods
+
+let get_id impl = {feed = get_attr attr_from_feed impl; id = get_attr attr_id impl}

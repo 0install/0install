@@ -11,11 +11,6 @@ module Qdom = Support.Qdom
 module Selections = Zeroinstall.Selections
 module Apps = Zeroinstall.Apps
 
-let make_selection_map sels =
-  let add_selection m sel =
-    StringMap.add (ZI.get_attribute "interface" sel) sel m
-  in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
-
 class indenter (printer : string -> unit) =
   object
     val mutable indentation = ""
@@ -38,7 +33,7 @@ let show_human config sels =
     Printf.ksprintf do_print fmt in
   try
     let seen = Hashtbl.create 10 in (* detect cycles *)
-    let index = make_selection_map sels in
+    let index = Selections.make_selection_map sels in
 
     let rec print_node (uri:string) commands =
       if not (Hashtbl.mem seen uri) then (

@@ -52,7 +52,7 @@ let suite = "apps">::: [
     let () =
       match Zeroinstall.Solver.solve_for config feed_provider r with
       | (true, results) ->
-          let sels = results#get_selections () in
+          let sels = results#get_selections in
           let sel = List.hd sels.Q.child_nodes in
           Q.set_attribute "version" "0.1-pre" sel;
           Apps.set_selections config app sels ~touch_last_checked:true

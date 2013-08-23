@@ -92,4 +92,5 @@ module MakeSAT :
       val string_of_lits : sat_problem -> lit list -> string
       val lit_value : sat_problem -> lit -> var_value
       val get_varinfo_for_lit : sat_problem -> lit -> var_info
+      val explain_reason : sat_problem -> lit -> string
     end

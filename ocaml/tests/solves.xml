@@ -151,6 +151,7 @@
   <test name='restrictions'>
     <interface uri='http://example.com/lib.xml'>
       <name>lib</name>
+      <implementation id='l0' version='0' arch='invalid-arch'/>
       <implementation id='l1' version='1'/>
       <implementation id='l2' version='2'>
 	<restricts interface='http://example.com/prog.xml'>
@@ -179,6 +180,33 @@
 	<requires interface='http://example.com/lib.xml' version='2..!3'/>
       </selection>
     </selections>
+    <justification interface='http://example.com/prog.xml' id='p1'>
+      1 is ranked lower than 2: newer versions are preferred
+    </justification>
+    <justification interface='http://example.com/prog.xml' id='p2'>
+      http://example.com/prog.xml 2 was selected as the preferred version.
+    </justification>
+    <justification interface='http://example.com/prog.xml' id='p3'>
+There is no possible selection using http://example.com/prog.xml 3.
+Can't find all required implementations:
+- http://example.com/lib.xml -> (problem)
+    http://example.com/prog.xml 3 requires version 2..!3
+    Rejected candidates:
+      l3 (3): Incompatible with restriction: version 2..!3
+      l2 (2): Requires http://example.com/prog.xml version ..!3
+      l1 (1): Incompatible with restriction: version 2..!3
+      l0 (0): Not compatibile with the requested OS type
+- http://example.com/prog.xml -> 3 (p3)
+    </justification>
+    <justification interface='http://example.com/prog.xml' id='p4'>
+      Implementation to consider (http://example.com/prog.xml p4) does not exist!
+    </justification>
+    <justification interface='http://example.com/other.xml' id='o1'>
+      If http://example.com/other.xml o1 were the only option, the best available solution wouldn't use it.
+    </justification>
+    <justification interface='http://example.com/lib.xml' id='l0'>
+      http://example.com/lib.xml 0 cannot be used (regardless of other components): Not compatibile with the requested OS type
+    </justification>
   </test>
 
   <test name='impossible'>
@@ -209,13 +237,14 @@
       </group>
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml' fails='true'/>
-    <selections command="run" interface="http://example.com/prog.xml">
-      <selection interface="http://example.com/lib.xml"/>
-      <selection interface="http://example.com/prog.xml" id="p2" version="2">
-	<command name="run" path="main"/>
-        <requires interface="http://example.com/lib.xml"/>
-      </selection>
-    </selections>
+    <problem>Can't find all required implementations:
+- http://example.com/lib.xml -> (problem)
+    http://example.com/prog.xml 2 requires version 1..!2
+    Rejected candidates:
+      l2 (2): Incompatible with restriction: version 1..!2
+      l1 (1): Requires http://example.com/prog.xml version ..!2
+- http://example.com/prog.xml -> 2 (p2)
+    </problem>
   </test>
 
   <test name='if-version'>
@@ -261,6 +290,9 @@
 	<requires interface='http://example.com/lib2.xml' distribution='foo 0install' importance='recommended'/>
       </selection>
     </selections>
+
+    <!-- Make optional deps required?
+    <justification interface='http://example.com/lib1.xml' id='l1'>foo</justification> -->
   </test>
 
   <!-- We can have either the latest lib1 or the latest lib2 but not both.
@@ -301,5 +333,13 @@
 	<requires interface='http://example.com/lib2.xml'/>
       </selection>
     </selections>
+
+    <justification interface='http://example.com/lib2.xml' id='l22'>
+http://example.com/lib2.xml 2 is selectable, but using it would produce a less optimal solution overall.
+
+The changes would be:
+
+http://example.com/lib1.xml: 2 to 1
+    </justification>
   </test>
 </test-cases>

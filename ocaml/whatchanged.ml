@@ -11,8 +11,8 @@ module Qdom = Support.Qdom
 let show_changes (system:system) old_selections new_selections =
   let changes = ref false in
 
-  let old_index = Show.make_selection_map old_selections in
-  let new_index = Show.make_selection_map new_selections in
+  let old_index = Zeroinstall.Selections.make_selection_map old_selections in
+  let new_index = Zeroinstall.Selections.make_selection_map new_selections in
 
   let lookup name index =
     try Some (StringMap.find name index)
