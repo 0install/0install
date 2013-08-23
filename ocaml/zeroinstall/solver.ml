@@ -268,6 +268,14 @@ let get_selections sat dep_in_use root_req impl_cache command_cache =
         if impl != dummy_impl then (
           let commands = Hashtbl.find_all commands_needed iface in
           let commands = List.sort compare commands in
+
+          let copy_elem parent elem =
+            (* Copy elem into parent (and strip out <version> elements). *)
+            let open Qdom in
+            let imported = import_node elem parent.doc in
+            imported.child_nodes <- List.filter (fun c -> ZI.tag c <> Some "version") imported.child_nodes;
+            prepend_child imported parent in
+
           let add_command name =
             let command = Feed.get_command impl name in
             let command_elem = command.Feed.command_qdom in
@@ -285,17 +293,16 @@ let get_selections sat dep_in_use root_req impl_cache command_cache =
                 child_nodes in
             let child_nodes = List.fold_left add_command_dep child_nodes command.Feed.command_requires in
             let command_elem = {command_elem with Qdom.child_nodes = child_nodes} in
-            Qdom.prepend_child (Qdom.import_node command_elem sel.Qdom.doc) sel in
+            copy_elem sel command_elem in
           List.iter add_command commands;
 
-          let copy_elem elem = Qdom.prepend_child (Qdom.import_node elem sel.Qdom.doc) sel in
-          List.iter copy_elem impl.Feed.props.Feed.bindings;
+          List.iter (copy_elem sel) impl.Feed.props.Feed.bindings;
           ListLabels.iter impl.Feed.props.Feed.requires ~f:(fun dep ->
             if dep_in_use dep && dep.Feed.dep_importance <> Feed.Dep_restricts then
-              copy_elem (dep.Feed.dep_qdom)
+              copy_elem sel (dep.Feed.dep_qdom)
           );
 
-          ZI.iter_with_name impl.Feed.qdom "manifest-digest" ~f:copy_elem;
+          ZI.iter_with_name impl.Feed.qdom "manifest-digest" ~f:(copy_elem sel);
 
           sel.Qdom.child_nodes <- List.rev sel.Qdom.child_nodes
         );
