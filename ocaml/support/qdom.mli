@@ -62,6 +62,10 @@ val set_attribute : string -> string -> element -> unit
     Owner document, namespace prefixes, row/column source position and attribute order are ignored. *)
 val compare_nodes : ignore_whitespace:bool -> element -> element -> int
 
+(** Add or remove whitespace to indent the document nicely. Nodes with simple content
+    (e.g. [<name>Bob</name>] do not have their content changed. *)
+val reindent : element -> unit
+
 module type NsType = sig val ns : string end
 
 module NsQuery :

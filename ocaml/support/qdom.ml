@@ -171,6 +171,17 @@ let set_attribute name value element =
   let pair = ("", name) in
   element.attrs <- (pair, value) :: List.remove_assoc pair element.attrs
 
+let reindent root =
+  let rec process indent node =
+    node.text_before <- indent ^ (trim node.text_before);
+    if node.child_nodes <> [] then (
+      List.iter (process @@ indent ^ "  ") node.child_nodes;
+      node.last_text_inside <- (trim node.last_text_inside) ^ indent;
+    )
+    in
+  process "\n" root;
+  root.text_before <- "";
+
 exception Compare_result of int
 
 module AttrSet = Set.Make(

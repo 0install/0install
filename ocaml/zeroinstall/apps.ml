@@ -100,6 +100,8 @@ let set_selections config app_path sels ~touch_last_checked =
   let date = U.format_date (Unix.gmtime @@ config.system#time ()) in
   let sels_file = app_path +/ (Printf.sprintf "selections-%s.xml" date) in
 
+  Support.Qdom.reindent sels;
+
   if config.dry_run then
     Dry_run.log "would write selections to %s" sels_file
   else (
