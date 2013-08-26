@@ -14,4 +14,10 @@
     <manifest-digest sha256new='RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA'/>
     <archive href='HelloWorld.tgz' size='177'/>
   </implementation>
+  <implementation id='impl4' version='0.1'>
+    <manifest-digest sha256new='VSAYUTXOYQXMLSR2QXBHQO3VK2NK55CYOEF5N73US6I2TUHFLCSA'/>
+    <recipe>
+      <file href='HelloWorld.tgz' dest="archive.tgz" size='176'/>
+    </recipe>
+  </implementation>
 </interface>

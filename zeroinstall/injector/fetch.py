@@ -498,6 +498,25 @@ class Fetcher(object):
 		if retval != 0:
 			raise SafeException(_("Extracting with external store failed"))
 
+	def _download_local_file(self, download_source, impl_hint):
+		# Relative path
+		if impl_hint is None or not impl_hint.feed.local_path:
+			raise SafeException(_("Relative URL '{url}' in non-local feed '{feed}'").format(
+				url = download_source.url,
+				feed = impl_hint.feed))
+
+		local_file = os.path.join(os.path.dirname(impl_hint.feed.local_path), download_source.url)
+		try:
+			size = os.path.getsize(local_file)
+			if size != download_source.size:
+				raise SafeException(_("Wrong size for {path}: feed says {expected}, but actually {actual} bytes").format(
+					path = local_file,
+					expected = download_source.size,
+					actual = size))
+			return (None, open(local_file, 'rb'))
+		except OSError as ex:
+			raise SafeException(str(ex))	# (error already includes path)
+
 	# (force is deprecated and ignored)
 	def download_archive(self, download_source, force = False, impl_hint = None, may_use_mirror = False):
 		"""Fetch an archive. You should normally call L{download_impl}
@@ -519,23 +538,7 @@ class Fetcher(object):
 			unpack.check_type_ok(mime_type)
 
 		if '://' not in download_source.url:
-			# Relative path
-			if impl_hint is None or not impl_hint.feed.local_path:
-				raise SafeException(_("Relative URL '{url}' in non-local feed '{feed}'").format(
-					url = download_source.url,
-					feed = impl_hint.feed))
-
-			archive_file = os.path.join(os.path.dirname(impl_hint.feed.local_path), download_source.url)
-			try:
-				size = os.path.getsize(archive_file)
-				if size != download_source.size:
-					raise SafeException(_("Wrong size for {path}: feed says {expected}, but actually {actual} bytes").format(
-						path = archive_file,
-						expected = download_source.size,
-						actual = size))
-				return (None, open(archive_file, 'rb'))
-			except OSError as ex:
-				raise SafeException(str(ex))	# (error already includes path)
+			return self._download_local_file(download_source, impl_hint)
 
 		if may_use_mirror:
 			mirror = self._get_archive_mirror(download_source)
@@ -559,6 +562,9 @@ class Fetcher(object):
 		@rtype: tuple"""
 		if self.config.handler.dry_run:
 			print(_("[dry-run] downloading file {url}").format(url = download_source.url))
+
+		if '://' not in download_source.url:
+			return self._download_local_file(download_source, impl_hint)
 
 		dl = self.download_url(download_source.url, hint = impl_hint)
 		dl.expected_size = download_source.size
