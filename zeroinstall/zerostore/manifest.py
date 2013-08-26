@@ -25,9 +25,15 @@ A top-level ".manifest" file is ignored.
 # See the README file for details, or visit http://0install.net.
 
 
-import os, stat, base64
+import os, sys, stat, base64
 from zeroinstall import SafeException, _, logger
 from zeroinstall.zerostore import BadDigest, parse_algorithm_digest_pair, format_algorithm_digest_pair
+
+# unicode compat
+if sys.version_info < (3,):
+	def _u(s): return s.decode('utf-8')
+else:
+	def _u(s): return s
 
 import hashlib
 sha1_new = hashlib.sha1
@@ -104,7 +110,7 @@ class OldSHA1(Algorithm):
 			else:
 				raise SafeException(_("Unknown object '%s' (not a file, directory or symlink)") %
 						full)
-		for x in recurse('/'): yield x
+		for x in recurse(_u('/')): yield x
 	
 	def new_digest(self):
 		return sha1_new()
@@ -502,7 +508,7 @@ class HashLibAlgorithm(Algorithm):
 				for y in recurse(sub + x): yield y
 			return
 
-		for x in recurse('/'): yield x
+		for x in recurse(_u('/')): yield x
 
 	def getID(self, digest):
 		"""@rtype: str"""

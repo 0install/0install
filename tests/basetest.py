@@ -25,6 +25,19 @@ from zeroinstall.zerostore import NotStored, Store, Stores; Store._add_with_help
 from zeroinstall import support, apps, cmd
 from zeroinstall.support import basedir, tasks
 
+def skipIf(condition, reason):
+	def wrapped(underlying):
+		if condition:
+			if hasattr(underlying, 'func_name'):
+				print("Skipped %s: %s" % (underlying.func_name, reason))	# Python 2
+			else:
+				print("Skipped %s: %s" % (underlying.__name__, reason))		# Python 3
+			def run(self): pass
+			return run
+		else:
+			return underlying
+	return wrapped
+
 class BackgroundException(Exception):
 	pass
 

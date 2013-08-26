@@ -1,10 +1,11 @@
 #!/usr/bin/env python
-from basetest import BaseTest
+from basetest import BaseTest, skipIf
 import sys, tempfile, os, shutil
 import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall.zerostore import manifest, BadDigest
+from zeroinstall.zerostore import unpack
 
 class TestManifest(BaseTest):
 	def setUp(self):
@@ -101,6 +102,24 @@ class TestManifest(BaseTest):
 			'F a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e 30 11 Hello',
 			'D /Dir'],
 			list(manifest.generate_manifest(self.tmpdir, alg='sha256')))
+
+	@skipIf(sys.getfilesystemencoding().lower() != "utf-8", "tar only unpacks to utf-8")
+	def testNonAscii(self):
+		mydir = os.path.join(self.tmpdir, 'unicode')
+		os.mkdir(mydir)
+		with open('unicode.tar.gz', 'rb') as stream:
+			unpack.unpack_archive('ftp://foo/file.tgz', stream, self.tmpdir)
+		self.assertEqual([s.decode('utf-8') for s in [
+			b'D /unicode',
+			b'D /unicode/test-unic\xcc\xa7\xc3\xb8\xc3\xb0e\xcc\x88',
+			b'F c1c727274876ed5915c75a907131b8462cfdd5ba278140067dc80a2bcba033d6 1377477018 14 file']],
+			list(manifest.generate_manifest(self.tmpdir, alg='sha256')))
+
+		self.assertEqual([s.decode('utf-8') for s in [
+			b'D /unicode',
+			b'D /unicode/test-unic\xcc\xa7\xc3\xb8\xc3\xb0e\xcc\x88',
+			b'F 5f1ff6172591102593950d1ae6c4a78709b1c44c 1377477018 14 file']],
+			list(manifest.generate_manifest(self.tmpdir, alg='sha1new')))
 
 	def testParseManifest(self):
 		self.assertEqual({}, manifest._parse_manifest(''))

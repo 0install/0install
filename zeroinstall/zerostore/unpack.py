@@ -4,7 +4,7 @@
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _, logger
-import os, subprocess
+import os, sys, subprocess
 import shutil
 import glob
 import traceback
@@ -51,6 +51,14 @@ def _gnu_tar():
 	gnu_tar = '(GNU tar)' in _get_tar_version()
 	logger.debug(_("Is GNU tar = %s"), gnu_tar)
 	return gnu_tar
+
+# unicode compat
+if sys.version_info < (3,):
+	def _u(s):
+		if isinstance(s, unicode): return s
+		return s.decode('utf-8')
+else:
+	def _u(s): return s
 
 def recent_gnu_tar():
 	"""@rtype: bool
@@ -519,9 +527,10 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 		ext_dirs = []
 
 		for tarinfo in tar:
+			name = _u(tarinfo.name)
 			if extract is None or \
-			   tarinfo.name.startswith(extract + '/') or \
-			   tarinfo.name == extract:
+			   name.startswith(extract + '/') or \
+			   name == extract:
 				if tarinfo.isdir():
 					ext_dirs.append(tarinfo)
 

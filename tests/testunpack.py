@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-from basetest import BaseTest
+from basetest import BaseTest, skipIf
 import sys, tempfile, os
 import unittest, logging
 
@@ -10,19 +10,6 @@ sys.path.insert(0, '..')
 from zeroinstall.zerostore import unpack, manifest, Store, BadDigest
 from zeroinstall import SafeException, support
 from zeroinstall.support import find_in_path
-
-def skipIf(condition, reason):
-	def wrapped(underlying):
-		if condition:
-			if hasattr(underlying, 'func_name'):
-				print("Skipped %s: %s" % (underlying.func_name, reason))	# Python 2
-			else:
-				print("Skipped %s: %s" % (underlying.__name__, reason))		# Python 3
-			def run(self): pass
-			return run
-		else:
-			return underlying
-	return wrapped
 
 class AbstractTestUnpack():
 	def setUp(self):
@@ -51,6 +38,12 @@ class AbstractTestUnpack():
 		with open('HelloWorld.tgz', 'rb') as stream:
 			unpack.unpack_archive('ftp://foo/file.tgz', stream, self.tmpdir)
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+
+	@skipIf(sys.getfilesystemencoding().lower() != "utf-8", "tar only unpacks to utf-8")
+	def testNonAsciiTgz(self):
+		with open('unicode.tar.gz', 'rb') as stream:
+			unpack.unpack_archive('ftp://foo/file.tgz', stream, self.tmpdir)
+		self.assert_manifest('sha1new=e42ffed02179169ef2fa14a46b0d9aea96a60c10')
 	
 	@skipIf(not find_in_path('hdiutil'), "not running on MacOS X; no hdiutil")
 	def testDmg(self):
@@ -67,6 +60,12 @@ class AbstractTestUnpack():
 		with open('HelloWorld.tgz', 'rb') as stream:
 			unpack.unpack_archive('ftp://foo/file.tgz', stream, self.tmpdir, extract = 'HelloWorld')
 		self.assert_manifest('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+
+	@skipIf(sys.getfilesystemencoding().lower() != "utf-8", "tar only unpacks to utf-8")
+	def testExtractNonAscii(self):
+		with open('unicode.tar.gz', 'rb') as stream:
+			unpack.unpack_archive('ftp://foo/file.tgz', stream, self.tmpdir, extract= b'unicode'.decode('ascii'))
+		self.assert_manifest('sha1=af2d132f5f15532bbf041b59414d08c8bc1a616e')
 	
 	def testExtractOver(self):
 		with open('HelloWorld.tgz', 'rb') as stream:
@@ -160,6 +159,7 @@ class AbstractTestUnpack():
 	def assert_manifest(self, required):
 		alg_name = required.split('=', 1)[0]
 		manifest.fixup_permissions(self.tmpdir)
+
 		sha1 = alg_name + '=' + manifest.add_manifest_file(self.tmpdir, manifest.get_algorithm(alg_name)).hexdigest()
 		self.assertEqual(sha1, required)
 
