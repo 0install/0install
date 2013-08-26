@@ -1436,7 +1436,7 @@ class ZeroInstallFeed(object):
 								raise InvalidInterface(_("Missing path attribute on <remove>"))
 							recipe.steps.append(RemoveStep(path=path))
 						else:
-							logger.info(_("Unknown step '%s' in recipe; skipping recipe"), recipe_step.name)
+							logger.warn(_("Unknown step '%s' in recipe; skipping recipe"), recipe_step.name)
 							break
 					else:
 						impl.download_sources.append(recipe)
