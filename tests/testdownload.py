@@ -1064,6 +1064,18 @@ class TestDownload(BaseTest):
 		path = self.config.stores.lookup_any(impl.digests)
 		assert os.path.exists(os.path.join(path, 'HelloWorld'))
 
+		# Local <file> => OK
+		impl = feed.implementations['impl4']
+
+		path = self.config.stores.lookup_maybe(impl.digests)
+		assert not path
+
+		blocker = self.config.fetcher.download_impls([impl], self.config.stores)
+		tasks.wait_for_blocker(blocker)
+
+		path = self.config.stores.lookup_any(impl.digests)
+		assert os.path.exists(os.path.join(path, 'archive.tgz'))
+
 if __name__ == '__main__':
 	try:
 		unittest.main()
