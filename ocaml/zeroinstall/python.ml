@@ -8,8 +8,6 @@ open General
 open Support.Common
 module Q = Support.Qdom
 
-let finally = Support.Utils.finally
-
 let slave_debug_level = ref None      (* Inherit our logging level *)
 
 let get_command config args : string list =
@@ -66,9 +64,6 @@ class slave config =
     match !connection with
     | Some c -> c
     | None ->
-        let (child_stdin_r, child_stdin_w) = Unix.pipe () in
-        let (child_stdout_r, child_stdout_w) = Unix.pipe () in
-
         let debug_args =
           let open Support.Logging in
           let t =
@@ -88,56 +83,40 @@ class slave config =
         ] in
 
         let argv = get_command config ("slave" :: extra_args) in
-        let child_pid =
-          try
-            Unix.set_close_on_exec child_stdin_w;
-            Unix.set_close_on_exec child_stdout_r;
-            finally (fun () -> Unix.close child_stdin_r; Unix.close child_stdout_w) ()
-                    (fun () -> system#create_process argv child_stdin_r child_stdout_w Unix.stderr)
-          with ex ->
-            Unix.close child_stdin_w;
-            Unix.close child_stdout_r;
-            raise ex in
+        let child = new Lwt_process.process ("", Array.of_list argv) in
         
-        let to_child = Unix.out_channel_of_descr child_stdin_w in
-        let from_child = Unix.in_channel_of_descr child_stdout_r in
+        connection := Some child;
+        child in
 
-        let c = {child_pid; to_child; from_child} in
-        connection := Some c;
-        c in
-
-  let send_json c ?xml request =
+  let send_json c ?xml request : unit Lwt.t =
       let data = to_string request in
       log_info "Sending to Python: %s" data;
-      Printf.fprintf c.to_child "%d\n" (String.length data);
-      output_string c.to_child data;
+      lwt () = Lwt_io.fprintf c#stdin "%d\n%s" (String.length data) data in
+      match xml with
+      | Some xml ->
+          let data = Q.to_utf8 xml in
+          log_info "... with XML: %s" data;
+          Lwt_io.fprintf c#stdin "%d\n%s" (String.length data) data
+      | None -> Lwt.return () in
 
-      let () =
-        match xml with
-        | Some xml ->
-            let data = Q.to_utf8 xml in
-            log_info "... with XML: %s" data;
-            Printf.fprintf c.to_child "%d\n" (String.length data);
-            output_string c.to_child data;
-        | None -> () in
-
-      flush c.to_child in
-
-  object
-    (** Send a JSON message to the Python slave and return whatever data it sends back. *)
+  object (self)
     method invoke : 'a. json -> ?xml:Q.element -> (json -> 'a) -> 'a = fun request ?xml parse_fn ->
+      Lwt_main.run (self#invoke_async request ?xml parse_fn)
+
+    (** Send a JSON message to the Python slave and return whatever data it sends back. *)
+    method invoke_async : 'a. json -> ?xml:Q.element -> (json -> 'a) -> 'a Lwt.t = fun request ?xml parse_fn ->
       let c = get_connection () in
 
-      send_json c ?xml request;
+      lwt () = send_json c ?xml request in
 
       (* Normally we just get a single reply, but we might have to handle some input requests first. *)
       let rec loop () =
-        let l =
-          let line = input_line c.from_child in
-          try int_of_string line
+        lwt l =
+          lwt line = Lwt_io.read_line c#stdout in
+          try Lwt.return @@ int_of_string line
           with Failure _ -> raise_safe "Invalid response from slave '%s' (expected integer). This is a bug." (String.escaped line) in
         let buf = String.create l in
-        really_input c.from_child buf 0 l;
+        lwt () = Lwt_io.read_into_exactly c#stdout buf 0 l in
         log_info "Response from Python: %s" buf;
         let response = from_string buf in
         match response with
@@ -145,27 +124,30 @@ class slave config =
             (* Ask on stderr, because we may be writing XML to stdout *)
             prerr_string prompt; flush stdout;
             let user_input = input_line stdin in
-            send_json c (`String user_input);
+            lwt () = send_json c (`String user_input) in
             loop ()
         | `List [`String "error"; `String err] -> raise_safe "%s" err
         | `List [`String "ok"; r] -> (
-            try parse_fn r
+            try Lwt.return (parse_fn r)
             with Safe_exception _ as ex -> reraise_with_context ex "... processing JSON response from Python slave:\n%s" buf
         )
         | _ -> raise_safe "Invalid JSON response from Python slave:%s" buf
       in loop ()
 
     method close =
+      Lwt_main.run (self#close_async)
+
+    method close_async =
       (* log_warning "CLOSE SLAVE"; *)
       match !connection with
-      | None -> ()
+      | None -> Lwt.return ()
       | Some c ->
           log_info "Closing connection to slave";
-          close_out c.to_child;
-          close_in c.from_child;
-          system#reap_child c.child_pid;
+          lwt status = c#close in
+          Support.System.check_exit_status status;
           connection := None;
-          log_info "Slave terminated"
+          log_info "Slave terminated";
+          Lwt.return ()
 
     method system = system
   end

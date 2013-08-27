@@ -254,7 +254,7 @@ let handle config raw_args =
   let (raw_options, args, complete) = read_args spec raw_args in
   assert (complete = CompleteNothing);
 
-  Support.Utils.finally (fun options -> options.slave#close)
+  Support.Utils.finally_do (fun options -> options.slave#close)
     (get_default_options config)
     (fun options ->
       let subcommand, command_args = 

@@ -28,11 +28,11 @@ let handle options flags args =
       | `MainExecutable m -> run_opts.main <- Some m
     );
 
-    let finally () = options.slave#close in
+    let pre_exec () = options.slave#close in
 
     let sels = Generic_select.handle options !select_opts arg Zeroinstall.Helpers.Select_for_run in
 
-    try Zeroinstall.Exec.execute_selections ~finally options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper
+    try Zeroinstall.Exec.execute_selections ~pre_exec options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper
     with Safe_exception _ as ex -> reraise_with_context ex "... running %s" arg
   )
   | _ -> raise (Support.Argparse.Usage_error 1)

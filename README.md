@@ -43,9 +43,10 @@ INSTALLATION
 ------------
 
 0install is written in a mixture of Python and OCaml. You will need the OCaml
-build tools and a couple of OCaml libraries to compile 0install. On Debian use:
+build tools and some OCaml libraries to compile 0install. On Debian use:
 
-    $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev libxmlm-ocaml-dev camlp4-extra make
+    $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev \
+                           libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev
 
 In the top-level directory, run:
 
@@ -72,7 +73,9 @@ If you want to compile from source on Windows you'll need:
 
 - [OCaml 4.0.1 Windows Installer](http://protz.github.io/ocaml-installer/)
 - Various Cygwin packages: mingw64-i686-gcc-core, mingw-i686-headers and make, at least.
-- Two OCaml libraries: Xmlm and Yojson (and its dependencies: Cppo, Easy-format, Biniou).
+- Xmlm
+- Yojson (and its dependencies: Cppo, Easy-format, Biniou)
+- Lwt (and its dependency React)
 
 To build under Cygwin:
 

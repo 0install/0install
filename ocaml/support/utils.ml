@@ -13,7 +13,7 @@ type path_component =
   | EmptyComponent      (* / *)
 
 (** [finally cleanup x f] calls [f x] and then [cleanup x] (even if [f x] raised an exception) **)
-let finally cleanup resource f =
+let finally_do cleanup resource f =
   let result =
     try f resource
     with ex -> cleanup resource; raise ex in
@@ -252,14 +252,14 @@ let check_output ?stderr (system:system) fn (argv:string list) =
   try
     let (r, w) = Unix.pipe () in
     let child_pid =
-      finally Unix.close w (fun w ->
+      finally_do Unix.close w (fun w ->
         try system#create_process argv Unix.stdin w child_stderr
         with ex ->
           Unix.close r; raise ex
       )
     in
     let result =
-      finally close_in (Unix.in_channel_of_descr r) (fun in_channel ->
+      finally_do close_in (Unix.in_channel_of_descr r) (fun in_channel ->
         try fn in_channel
         with ex ->
           (** User function raised an exception. Kill and reap the child. *)
@@ -323,7 +323,7 @@ let parse_ini (system:system) fn path =
 
 let with_dev_null fn =
   let null_fd = Unix.openfile "/dev/null" [Unix.O_WRONLY] 0 in
-  finally Unix.close null_fd fn
+  finally_do Unix.close null_fd fn
 
 let ro_rmtree (sys:system) root =
   if starts_with (sys#getcwd () ^ Filename.dir_sep) (root ^ Filename.dir_sep) then

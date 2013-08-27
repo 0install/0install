@@ -90,7 +90,7 @@ class fake_system tmpdir =
       let old_stdout = stdout in
       let b = Buffer.create 100 in
       stdout <- Some b;
-      Support.Utils.finally (fun () -> stdout <- old_stdout) () fn;
+      Support.Utils.finally_do (fun () -> stdout <- old_stdout) () fn;
       Buffer.contents b
 
     method print_string s =
@@ -259,7 +259,7 @@ let () = Support.Logging.handler := (fake_log :> Support.Logging.handler)
 
 let collect_logging fn =
   forward_to_real_log := false;
-  Support.Utils.finally (fun () -> forward_to_real_log := true) () fn
+  Support.Utils.finally_do (fun () -> forward_to_real_log := true) () fn
 
 let format_list l = "[" ^ (String.concat "; " l) ^ "]"
 let equal_str_lists = assert_equal ~printer:format_list
@@ -281,7 +281,7 @@ let temp_dir_name =
 let with_tmpdir fn () =
   let tmppath = temp_dir_name +/ Printf.sprintf "0install-test-%x" (Random.int 0x3fffffff) in
   Unix.mkdir tmppath 0o700;   (* will fail if already exists; OK for testing *)
-  Support.Utils.finally (Support.Utils.ro_rmtree real_system) tmppath fn
+  Support.Utils.finally_do (Support.Utils.ro_rmtree real_system) tmppath fn
 
 let get_fake_config tmpdir =
   Zeroinstall.Python.slave_debug_level := Some Support.Logging.Warning;

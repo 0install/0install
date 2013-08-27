@@ -13,12 +13,14 @@ let wrap_unix_errors fn =
   with Unix.Unix_error (errno, s1, s2) ->
     raise_safe "%s(%s): %s" s1 s2 (Unix.error_message errno)
 
+let check_exit_status = function
+  | Unix.WEXITED 0 -> ()
+  | Unix.WEXITED code -> raise_safe "Child returned error exit status %d" code
+  | Unix.WSIGNALED signal -> raise_safe "Child aborted (signal %d)" signal
+  | Unix.WSTOPPED signal -> raise_safe "Child is currently stopped (signal %d)" signal
+
 let reap_child child_pid =
-  match snd (Unix.waitpid [] child_pid) with
-    | Unix.WEXITED 0 -> ()
-    | Unix.WEXITED code -> raise_safe "Child returned error exit status %d" code
-    | Unix.WSIGNALED signal -> raise_safe "Child aborted (signal %d)" signal
-    | Unix.WSTOPPED signal -> raise_safe "Child is currently stopped (signal %d)" signal
+  check_exit_status @@ snd @@ Unix.waitpid [] child_pid
 
 (** Run [fn ()] in a child process. [fn] will spawn a grandchild process and return without waiting for it.
     The child process then exits, allowing the original parent to reap it and continue, while the grandchild
@@ -115,14 +117,14 @@ module RealSystem (U : UnixType) =
           let (ch:in_channel) =
             try open_in_gen open_flags mode file
             with Sys_error msg -> raise_safe "Open failed: %s" msg in
-          Utils.finally close_in ch fn
+          Utils.finally_do close_in ch fn
 
         (** [with_open_out fn file] opens [file] for writing, calls [fn handle], and then closes it again. *)
         method with_open_out open_flags mode file fn =
           let (ch:out_channel) =
             try open_out_gen open_flags mode file
             with Sys_error msg -> raise_safe "Open failed: %s" msg in
-          Utils.finally close_out ch fn
+          Utils.finally_do close_out ch fn
 
         (** A safer, more friendly version of the [Unix.exec*] calls.
             Flushes [stdout] and [stderr]. Ensures [argv[0]] is set to the program called.
@@ -180,7 +182,7 @@ module RealSystem (U : UnixType) =
               let do_spawn () =
                 (* We don't reap the child. On Unix, we're in a child process that is about to exit anyway (init will inherit the child).
                    On Windows, hopefully it doesn't matter. *)
-                ignore @@ Utils.finally Unix.close (Unix.openfile dev_null [Unix.O_WRONLY] 0) (fun null_fd ->
+                ignore @@ Utils.finally_do Unix.close (Unix.openfile dev_null [Unix.O_WRONLY] 0) (fun null_fd ->
                   let stderr = if !Logging.threshold = Logging.Debug then Unix.stderr else null_fd in
                   match env with
                     | None -> Unix.create_process prog_path argv_array null_fd null_fd stderr
@@ -204,7 +206,7 @@ module RealSystem (U : UnixType) =
             try Filename.open_temp_file ~mode:open_flags ~temp_dir:dir "tmp-" ".new"
             with Sys_error msg -> raise_safe "open_temp_file failed: %s" msg
           in
-          let result = Utils.finally close_out ch fn in
+          let result = Utils.finally_do close_out ch fn in
           try
             wrap_unix_errors (fun () ->
               Unix.chmod tmpname mode;

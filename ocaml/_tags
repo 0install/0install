@@ -1,9 +1,10 @@
 false: profile
-true: debug, annot, package(yojson,xmlm,str)
+true: debug, annot, package(yojson,xmlm,str,lwt,lwt.unix)
+not <support/windows_api.*>: syntax(camlp4o), package(lwt.syntax)
 <tests/*>: package(oUnit)
 "support": for-pack(Support)
 "zeroinstall": for-pack(Support)
 <static_0install.*> or <**/*.native>: linkdep_win(windows.o), package(unix)
 
-false and (<*.ml> or <support/*.ml> or <zeroinstall/*.ml> or <cmd/*.ml>): bisect, syntax(bisect_pp), syntax(camlp4o)
+false and (<*.ml> or <support/*.ml> or <zeroinstall/*.ml> or <cmd/*.ml>): bisect, syntax(bisect_pp)
 false and true: package(bisect)
