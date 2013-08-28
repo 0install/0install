@@ -235,13 +235,16 @@ class feed_provider config distro =
     method get_iface_config uri =
       load_iface_config config uri
 
-    method get_feeds_used () =
-      let urls = StringMap.fold (fun uri _value lst -> uri :: lst) !cache [] in
-      StringMap.fold (fun uri value lst -> if value = None then lst else uri :: lst) !distro_cache urls
+    (* Note: excludes distro feeds *)
+    method get_feeds_used =
+      StringMap.fold (fun uri _value lst -> uri :: lst) !cache []
 
     method have_stale_feeds () =
       let check uri = function
         | None -> internal_is_stale config uri None
         | Some (_feed, overrides) -> internal_is_stale config uri (Some overrides) in
       StringMap.exists check !cache
+
+    method forget url = cache := StringMap.remove url !cache
+    method forget_distro url = distro_cache := StringMap.remove url !distro_cache
   end

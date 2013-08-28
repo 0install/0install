@@ -142,7 +142,7 @@ let get_selections options ~refresh reqs mode =
 
   let select_with_refresh () =
     (* This is the slow path: we need to download things before selecting *)
-    H.solve_and_download_impls options.slave reqs mode ~refresh:true ~use_gui:options.gui in
+    H.solve_and_download_impls config distro options.slave reqs mode ~refresh:true ~use_gui:options.gui in
 
   (* Check whether we can run immediately, without downloading anything. This requires
      - the user didn't ask to refresh or show the GUI

@@ -47,7 +47,8 @@ let suite = "distro">::: [
     fake_system#add_dir "/usr/bin" [];
     fake_system#add_dir "/bin" ["python2"; "python3"];
     let system = (fake_system :> system) in
-    let distro = new Distro.ArchLinux.arch_distribution config in
+    let slave = new Zeroinstall.Python.slave config in
+    let distro = new Distro.ArchLinux.arch_distribution config slave in
     let root = Qdom.parse_input None @@ Xmlm.make_input (`String (0, test_feed)) in
     let feed = Feed.parse system root None in
     let impls = Distro.get_package_impls distro feed in

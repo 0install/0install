@@ -128,6 +128,7 @@ class slave config =
               let resolver =
                 try Hashtbl.find pending_replies ticket
                 with Not_found -> raise_safe "Unknown ticket ID in JSON: %s" buf in
+              Hashtbl.remove pending_replies ticket;
               Lwt.wakeup resolver r;
               loop ()
           | _ -> raise_safe "Invalid JSON from Python slave:%s" buf in

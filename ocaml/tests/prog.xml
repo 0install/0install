@@ -1,0 +1,8 @@
+<?xml version='1.0' ?>
+<interface uri='http://example.com/prog.xml' xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>prog</name>
+
+  <implementation id='cant_fetch' version='1'><manifest-digest sha1='1'/></implementation>
+
+  <package-implementation package='prog'/>
+</interface>

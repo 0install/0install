@@ -72,8 +72,11 @@ class virtual distribution (system:system) =
         parsed_version = Versions.parse_version version;
         impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name };
       }
-  end
 
+    (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
+        promise resolves, the candidates should be included in the response from get_package_impls. *)
+    method virtual check_for_candidates : Feed.feed -> unit Lwt.t
+  end
 
 let package_impl_from_json elem props json =
   let open Feed in
@@ -158,6 +161,8 @@ class virtual python_fallback_distribution (slave:Python.slave) =
   object (self)
     inherit distribution slave#system
 
+    val mutable did_packagekit_query = false
+
     method is_installed elem =
       log_info "No is_installed implementation for '%s'; using slow Python fallback instead!" distro_name;
       slave#invoke ~xml:elem (`List [`String "is-distro-package-installed"]) Yojson.Basic.Util.to_bool
@@ -166,7 +171,9 @@ class virtual python_fallback_distribution (slave:Python.slave) =
       match get_matching_package_impls self feed with
       | [] -> None
       | matches ->
-          try Some (List.concat (List.map self#get_package_impls matches))
+          try
+            if did_packagekit_query then raise Fallback_to_Python;
+            Some (List.concat (List.map self#get_package_impls matches))
           with Fallback_to_Python ->
             let fake_feed = ZI.make feed.Feed.root.Q.doc "interface" in
             fake_feed.Q.child_nodes <- List.map fst matches;
@@ -200,6 +207,16 @@ class virtual python_fallback_distribution (slave:Python.slave) =
             )
 
     method get_package_impls _ = raise Fallback_to_Python
+
+    method check_for_candidates feed =
+      match get_matching_package_impls self feed with
+      | [] -> Lwt.return ()
+      | matches ->
+          did_packagekit_query <- true;
+          let fake_feed = ZI.make feed.Feed.root.Q.doc "interface" in
+          fake_feed.Q.child_nodes <- List.map fst matches;
+          let request = `List [`String "get-distro-candidates"; `String feed.Feed.url] in
+          slave#invoke_async ~xml:fake_feed request ignore
   end
 
 class generic_distribution slave =
@@ -372,7 +389,7 @@ module ArchLinux = struct
   let arch_db = "/var/lib/pacman"
   let packages_dir = "/var/lib/pacman/local"
 
-  class arch_distribution config =
+  class arch_distribution config slave =
     let parse_dirname entry =
       try
         let build_dash = String.rindex entry '-' in
@@ -415,21 +432,24 @@ module ArchLinux = struct
       | _ -> items in
 
     object (self : #distribution)
-      inherit distribution config.system
+      inherit python_fallback_distribution slave
 
       val distro_name = "Arch"
 
-      method is_installed elem =
+      method! is_installed elem =
         (* We should never get here, because we always set quick-test-* *)
         Qdom.log_elem Logging.Info "Old selections file; forcing an update of" elem;
         false
 
+(* Still need to fall back in the case where we queried for package-kit candidates, so
+ * use base-class.
       method get_all_package_impls feed =
         match get_matching_package_impls self feed with
         | [] -> None
         | matches -> Some (List.concat (List.map self#get_package_impls matches))
+*)
 
-      method get_package_impls (elem, props) =
+      method! get_package_impls (elem, props) =
         let package_name = ZI.get_attribute "package" elem in
         log_debug "Looking up distribution packages for %s" package_name;
         let items = get_entries () in
@@ -521,7 +541,7 @@ let get_host_distribution config (slave:Python.slave) : distribution =
       if is_debian then
         new Debian.debian_distribution config slave
       else if x ArchLinux.arch_db then
-        new ArchLinux.arch_distribution config
+        new ArchLinux.arch_distribution config slave
       else if x RPM.rpm_db_packages then
         new RPM.rpm_distribution config slave
       else if x Mac.macports_db then

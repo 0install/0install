@@ -135,9 +135,9 @@ let quick_solve config distro reqs =
 
 (* We can't run with saved selections or solved selections without downloading.
    Try to open the GUI for a blocking download. If we can't do that, download without the GUI. *)
-let foreground_update config ~slave ~use_gui app_path reqs =
+let foreground_update config distro ~slave ~use_gui app_path reqs =
   log_info "App '%s' needs to get new selections; current ones are not usable" app_path;
-  match Helpers.solve_and_download_impls slave reqs Helpers.Download_only ~use_gui ~refresh:true with
+  match Helpers.solve_and_download_impls config distro slave reqs Helpers.Download_only ~use_gui ~refresh:true with
   | None -> raise_safe "Aborted by user"
   | Some sels ->
       set_selections config app_path sels ~touch_last_checked:true;
@@ -217,7 +217,7 @@ let check_for_updates config ~distro ~slave ~use_gui app_path sels =
             if system#file_exists last_solve_path && not config.dry_run then
               system#unlink last_solve_path;
 
-            foreground_update config ~slave ~use_gui app_path reqs
+            foreground_update config distro ~slave ~use_gui app_path reqs
           ) else (
             (* Continue with the current (cached) selections while we download *)
             want_bg_update := true;
@@ -250,7 +250,7 @@ let get_selections_internal config ?distro_slave ~use_gui app_path =
     | Some (distro, slave) -> check_for_updates config ~distro ~slave ~use_gui app_path sels
   else
     match distro_slave with
-    | Some (_distro, slave) -> foreground_update config ~slave ~use_gui app_path (get_requirements config.system app_path)
+    | Some (distro, slave) -> foreground_update config distro ~slave ~use_gui app_path (get_requirements config.system app_path)
     | None -> raise_safe "App selections missing! Expected: %s" sels_path
 
 let list_app_names config =

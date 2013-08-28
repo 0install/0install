@@ -214,6 +214,30 @@ def handle_message(config, options, message):
 	else:
 		assert 0, message
 
+def do_get_distro_candidates(config, args, xml):
+	master_feed_url, = args
+
+	master_feed = FakeMasterFeed()
+	master_feed.url = master_feed_url
+	master_feed.package_impls = [(elem, elem.attrs, []) for elem in xml.childNodes]
+
+	return config.iface_cache.distro.fetch_candidates(master_feed)
+
+def do_download_and_import_feed(config, args):
+	feed_url, = args
+	return config.fetcher.download_and_import_feed(feed_url)
+
+@tasks.async
+def reply_when_done(ticket, blocker):
+	try:
+		if blocker:
+			yield blocker
+			tasks.check(blocker)
+		send_json(["return", ticket, ["ok", []]])
+	except Exception as ex:
+		logger.info("async task failed", exc_info = True)
+		send_json(["return", ticket, ["error", str(ex)]])
+
 def handle_invoke(config, options, ticket, request):
 	try:
 		command = request[0]
@@ -232,6 +256,16 @@ def handle_invoke(config, options, ticket, request):
 			l = stdin.readline().strip()
 			xml = qdom.parse(BytesIO(stdin.read(int(l))))
 			response = do_is_distro_package_installed(config, options, xml)
+		elif command == 'get-distro-candidates':
+			l = stdin.readline().strip()
+			xml = qdom.parse(BytesIO(stdin.read(int(l))))
+			blocker = do_get_distro_candidates(config, request[1:], xml)
+			reply_when_done(ticket, blocker)
+			return	# async
+		elif command == 'download-and-import-feed':
+			blocker = do_download_and_import_feed(config, request[1:])
+			reply_when_done(ticket, blocker)
+			return	# async
 		else:
 			raise SafeException("Internal error: unknown command '%s'" % command)
 		response = ['ok', response]
@@ -266,7 +300,15 @@ def handle(config, options, args):
 
 	support.raw_input = slave_raw_input
 
-	while True:
-		message = recv_json()
-		if message is None: break
-		handle_message(config, options, message)
+	@tasks.async
+	def handle_events():
+		while True:
+			logger.debug("waiting for stdin")
+			yield tasks.InputBlocker(stdin, 'wait for commands from master')
+			logger.debug("reading JSON")
+			message = recv_json()
+			logger.debug("got %s", message)
+			if message is None: break
+			handle_message(config, options, message)
+
+	tasks.wait_for_blocker(handle_events())

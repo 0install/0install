@@ -6,12 +6,14 @@ Command
 Config
 Diagnostics
 Distro
+Driver
 Dry_run
 Env
 Escape
 Exec
 Feed
 Feed_cache
+Fetch
 General
 Helpers
 Impl_provider

@@ -76,6 +76,49 @@ let rec make_all_downloable node =
     List.iter make_all_downloable node.child_nodes
   )
 
+class fake_feed_provider system distro =
+  let ifaces = Hashtbl.create 10 in
+
+  object (_ : #Feed_cache.feed_provider)
+    method get_feed url =
+      try
+        let overrides = {
+          Feed.last_checked = None;
+          Feed.user_stability = StringMap.empty;
+        } in
+        Some (Hashtbl.find ifaces url, overrides)
+      with Not_found -> None
+
+    method get_distro_impls feed =
+      match distro with
+      | None -> None
+      | Some distro ->
+          match Distro.get_package_impls distro feed with
+          | Some impls ->
+            let overrides = {
+              Feed.last_checked = None;
+              Feed.user_stability = StringMap.empty;
+            } in
+            Some (impls, overrides)
+          | None -> None
+
+    method get_iface_config _uri =
+      {Feed_cache.stability_policy = None; Feed_cache.extra_feeds = [];}
+
+    method get_feeds_used = []
+
+    method have_stale_feeds () = false
+
+    method add_iface elem =
+      let open Feed in
+      let uri = ZI.get_attribute "uri" elem in
+      let feed = parse system elem None in
+      Hashtbl.add ifaces uri feed
+
+    method forget _ = failwith "forget"
+    method forget_distro _ = failwith "forget_distro"
+  end
+
 (** Parse a test-case in solves.xml *)
 let make_solver_test test_elem =
   ZI.check_tag "test" test_elem;
@@ -90,19 +133,15 @@ let make_solver_test test_elem =
       fake_system#add_dir "/var/cache/0install.net/implementations" [];
     );
     let reqs = ref (Zeroinstall.Requirements.default_requirements "") in
-    let ifaces = Hashtbl.create 10 in
     let fails = ref false in
-    let add_iface elem =
-      let open Zeroinstall.Feed in
-      make_all_downloable elem;
-      let uri = ZI.get_attribute "uri" elem in
-      let feed = parse (fake_system :> system) elem None in
-      Hashtbl.add ifaces uri feed in
     let expected_selections = ref (ZI.make_root "missing") in
     let expected_problem = ref "missing" in
     let justifications = ref [] in
+    let feed_provider = new fake_feed_provider (fake_system :> system) None in
     let process child = match ZI.tag child with
-    | Some "interface" -> add_iface child
+    | Some "interface" ->
+        make_all_downloable child;
+        feed_provider#add_iface child
     | Some "requirements" ->
         reqs := {!reqs with
           Requirements.interface_uri = ZI.get_attribute "interface" child;
@@ -115,24 +154,7 @@ let make_solver_test test_elem =
     | _ -> failwith "Unexpected element" in
     ZI.iter ~f:process test_elem;
 
-    let feed_provider =
-      object (_ : #Feed_cache.feed_provider)
-        method get_feed url =
-          try
-            let overrides = {Feed.last_checked = None; Feed.user_stability = StringMap.empty} in
-            Some (Hashtbl.find ifaces url, overrides)
-          with Not_found -> None
-
-        method get_distro_impls _feed = None
-
-        method get_iface_config _uri =
-          {Feed_cache.stability_policy = None; Feed_cache.extra_feeds = [];}
-
-        method get_feeds_used () = []
-
-        method have_stale_feeds () = false
-      end in
-    let (ready, result) = Zeroinstall.Solver.solve_for config feed_provider !reqs in
+    let (ready, result) = Zeroinstall.Solver.solve_for config (feed_provider :> Feed_cache.feed_provider) !reqs in
     if ready && !fails then assert_failure "Expected solve to fail, but it didn't!";
     if not ready && not (!fails) then assert_failure "Solve failed (not ready)";
     assert (ready = (not !fails));
@@ -156,7 +178,7 @@ let make_solver_test test_elem =
         feed = iface;
         id = ZI.get_attribute "id" elem;
       }) in
-      let reason = Zeroinstall.Diagnostics.justify_decision config feed_provider !reqs iface g_id in
+      let reason = Zeroinstall.Diagnostics.justify_decision config (feed_provider :> Feed_cache.feed_provider) !reqs iface g_id in
       Fake_system.assert_str_equal (trim elem.Support.Qdom.last_text_inside) reason
     );
   )
@@ -314,43 +336,24 @@ let suite = "solver">::: [
       end in
 
     let feed_provider =
-      let ifaces = Hashtbl.create 10 in
-      let add_iface elem =
-        let open Feed in
-        let uri = ZI.get_attribute "uri" elem in
-        let feed = parse system elem None in
-        Hashtbl.add ifaces uri feed in
+      object
+        inherit fake_feed_provider system (Some distro) as super
 
-      add_iface (Support.Qdom.parse_file Fake_system.real_system "ranking.xml");
-
-      object (_ : #Feed_cache.feed_provider)
-        method get_feed url =
-          try
-            let overrides = {
-              Feed.last_checked = None;
-              Feed.user_stability = StringMap.singleton "preferred_by_user" Preferred;
-            } in
-            Some (Hashtbl.find ifaces url, overrides)
-          with Not_found -> None
-
-        method get_distro_impls feed =
-          match Distro.get_package_impls distro feed with
-          | Some impls ->
-            let overrides = {
-              Feed.last_checked = None;
-              Feed.user_stability = StringMap.singleton "package:buggy" Buggy;
-            } in
-            Some (impls, overrides)
+        method! get_feed url =
+          match super#get_feed url with
           | None -> None
+          | Some (feed, overrides) ->
+              let overrides = {overrides with Feed.user_stability = StringMap.singleton "preferred_by_user" Preferred} in
+              Some (feed, overrides)
 
-        method get_iface_config _uri =
-          {Feed_cache.stability_policy = None; Feed_cache.extra_feeds = [];}
-
-        method get_feeds_used () = []
-
-        method have_stale_feeds () = false
+        method! get_distro_impls feed =
+          match super#get_distro_impls feed with
+          | None -> None
+          | Some (impls, overrides) ->
+              let overrides = {overrides with Feed.user_stability = StringMap.singleton "package:buggy" Buggy} in
+              Some (impls, overrides)
       end in
-
+    feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system "ranking.xml");
     config.network_use <- Minimal_network;
 
     let scope_filter = {
@@ -361,7 +364,7 @@ let suite = "solver">::: [
     } in
 
     let test_solve scope_filter =
-      let impl_provider = new default_impl_provider config feed_provider in
+      let impl_provider = new default_impl_provider config (feed_provider :> Feed_cache.feed_provider) in
       let {replacement; impls; rejects = _} = impl_provider#get_implementations scope_filter iface ~source:false in
       (* List.iter (fun (impl, r) -> failwith @@ describe_problem impl r) rejects; *)
       assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;

@@ -41,14 +41,16 @@ let suite = "0install">::: [
     let my_spawn_handler args cin cout cerr =
       Fake_system.real_system#create_process args cin cout cerr in
     fake_system#set_spawn_handler (Some my_spawn_handler);
-    fake_system#set_argv [| test_0install; "-cor"; "download"; "http://example.com/prog.xml" |];
+    fake_system#set_argv [| test_0install; "-cor"; "download"; "http://example.com/prog.xml"; "--version"; "2" |];
     let () =
       try Main.main system; assert false
       with Safe_exception (msg, _) ->
         Fake_system.assert_str_equal (
           "Can't find all required implementations:\n" ^
           "- http://example.com/prog.xml -> (problem)\n" ^
-          "    No known implementations at all\n" ^
+          "    User requested version 2\n" ^
+          "    No usable implementations:\n" ^
+          "      sha1=3ce644dc725f1d21cfcf02562c76f375944b266a (1): Excluded by user-provided restriction: version 2\n" ^
           "Note: 0install is in off-line mode") msg in
     ()
   )
