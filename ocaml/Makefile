@@ -2,7 +2,7 @@ OCAML_BUILDDIR=../build/ocaml
 TYPE=native
 DEBUG=-cflags -g
 OCAMLBUILD=ocamlbuild ${DEBUG} -use-ocamlfind -build-dir "${OCAML_BUILDDIR}"
-TARGETS=static_0install.$(TYPE) main.cma support/windows.cma tests/test.$(TYPE)
+TARGETS=static_0install.$(TYPE) tests/test.$(TYPE)
 ifeq ($(OS), Windows_NT)
   TARGETS += runenv.native
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
@@ -19,10 +19,10 @@ build_dir:
 test: ocaml
 	(cd tests && OCAML_BUILDDIR=../${OCAML_BUILDDIR} ../${OCAML_BUILDDIR}/tests/test.$(TYPE))
 
-# Build portable bytecode and static version (of $TYPE)
+# Build static version (of $TYPE)
 ocaml: build_dir
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) $(TARGETS)
-	cp 0install.ml "$(OCAML_BUILDDIR)/"
+	#cp 0install.ml "$(OCAML_BUILDDIR)/"
 	if [ "$(OS)" = "Windows_NT" ];then make ocaml_windows; else make ocaml_posix; fi
 
 # For static Windows version, we also need the runenv.native helper.

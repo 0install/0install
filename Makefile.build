@@ -6,8 +6,6 @@ SCRIPTS = 0launch 0alias 0desktop 0store 0store-secure-add
 DOCS = README.md COPYING
 MANPAGES = 0launch.1 0alias.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
 
-STATIC_DIST = ${BUILDDIR}/static_dist
-
 vpath %.po ${SRCDIR}
 
 PYTHON=$(shell which python3 || which python2 || echo python)
@@ -20,43 +18,26 @@ EASY_FORMAT = $(shell ocamlfind query easy-format)
 JSON_LIBS = "${EASY_FORMAT}/easy_format.cmo" "${BINIOU}/bi_util.cmo" "${BINIOU}/bi_share.cmo" "${BINIOU}/bi_outbuf.cmo" "${YOJSON}/yojson.cmo"
 XMLM = $(shell ocamlfind query xmlm)
 
-all: translations portable static_dist
-
-portable:
+all: translations
 	(cd "${SRCDIR}" && $(PYTHON) setup.py build --build-base="${BUILDDIR}/build")
 	(cd "${SRCDIR}/ocaml" && $(PYTHON) build-in.py "${BUILDDIR}/ocaml")
-	cp -r build/lib/zeroinstall "${DISTDIR}/"
-	install "${BUILDDIR}/ocaml/0install.ml" "${DISTDIR}/"
-	cp "${BUILDDIR}/ocaml/main.cma" "${DISTDIR}/0install.cma"
-	cp "${BUILDDIR}/ocaml/main.cmi" "${BUILDDIR}/ocaml/support.cmi" "${BUILDDIR}/ocaml/support/windows.cma" "${BUILDDIR}/ocaml/support/windows.cmi" "${DISTDIR}/"
-	ocamlc -a -o "${DISTDIR}/yojson.cma" ${JSON_LIBS}
-	if [ -f "${XMLM}"/xmlm.cma ]; then \
-		cp "${XMLM}"/xmlm.cma "${DISTDIR}/"; \
-	else \
-		ocamlc -a -o "${DISTDIR}/xmlm.cma" "${XMLM}/xmlm.cmo"; \
-	fi
-	(cd "${SRCDIR}" && cp ${SCRIPTS} "${DISTDIR}/")
-	(cd "${SRCDIR}" && cp ${DOCS} "${DISTDIR}")
-	cp -r share "${DISTDIR}"
-
-static_dist: translations portable
-	install -D ocaml/0install "${STATIC_DIST}/0install/0install"
-	(cd "${SRCDIR}" && cp ${MANPAGES} ${SCRIPTS} setup.py "${STATIC_DIST}/0install")
-	(cd "${SRCDIR}" && cp README.md COPYING "${STATIC_DIST}/")
-	install "${SRCDIR}/install.sh.src" "${STATIC_DIST}/install.sh"
-	(cp -r build/lib/zeroinstall "${STATIC_DIST}/0install/")
-	(cp -r share "${STATIC_DIST}/0install/")
-	(cd "${SRCDIR}" && cp -r share/applications share/bash-completion share/fish share/icons share/zsh "${STATIC_DIST}/0install/share/")
+	(cd "${SRCDIR}" && cp README.md COPYING "${DISTDIR}/")
+	install -s -D ocaml/0install "${DISTDIR}/files/0install"
+	(cd "${SRCDIR}" && cp ${MANPAGES} ${SCRIPTS} setup.py "${DISTDIR}/files")
+	install "${SRCDIR}/install.sh.src" "${DISTDIR}/install.sh"
+	(cp -r build/lib/zeroinstall "${DISTDIR}/files/")
+	(cp -r share "${DISTDIR}/files/")
+	(cd "${SRCDIR}" && cp -r share/applications share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
 
 translations: $(MO)
 
 install: install_system
 
 install_home:
-	(cd "${STATIC_DIST}" && ./install.sh home)
+	(cd "${DISTDIR}" && ./install.sh home)
 
 install_system:
-	(cd "${STATIC_DIST}" && ./install.sh system)
+	(cd "${DISTDIR}" && ./install.sh system)
 
 %.mo: %.po
 	mkdir -p `dirname "$@"`

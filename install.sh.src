@@ -11,12 +11,12 @@ if [ $# != 1 ]; then
 	echo "To install to your home directory:"
 	echo "./install.sh home"
 	echo
-	echo "You can also just run \"./0install/0install\" directly, but"
+	echo "You can also just run \"./files/0install\" directly, but"
 	echo "some features won't work unless \"0install\" is in \$PATH."
 	exit 1
 fi
 
-cd `dirname $0`/0install
+cd `dirname $0`/files
 DOCS="../README.md ../COPYING"
 MANPAGES="0launch.1 0alias.1 0store-secure-add.1 0store.1 0desktop.1 0install.1"
 
