@@ -50,6 +50,17 @@ type child_connection = {
   from_child : in_channel;
 }
 
+(* Read a line containing an integer.
+   Returns [None] if the channel was closed.
+   Reports an error if it didn't get an integer. *)
+let read_int_opt chan : int option Lwt.t =
+  try_lwt
+    lwt line = Lwt_io.read_line chan in
+    try Lwt.return @@ Some (int_of_string line)
+    with Failure _ ->
+      raise_safe "Invalid response from slave '%s' (expected integer). This is a bug." (String.escaped line)
+  with Lwt_io.Channel_closed _ -> Lwt.return None
+
 (** Runs a Python slave process. Remembed to close the connection when done. *)
 open Yojson.Basic
 class slave config =
@@ -59,6 +70,69 @@ class slave config =
 
   let connection = ref None in
   
+  let send_json c ?xml request : unit Lwt.t =
+      let data = to_string request in
+      let buf = Buffer.create (String.length data + 20) in
+      Buffer.add_string buf @@ Printf.sprintf "%d\n" (String.length data);
+      Buffer.add_string buf data;
+      let () =
+        match xml with
+        | Some xml ->
+            let xml_data = Q.to_utf8 xml in
+            Buffer.add_string buf @@ Printf.sprintf "%d\n" (String.length xml_data);
+            Buffer.add_string buf xml_data
+        | None -> () in
+
+      let data = Buffer.contents buf in
+      log_info "Sending to Python: %s" data;
+      Lwt_io.write c#stdin data in
+
+  let pending_replies = Hashtbl.create 10 in
+  let take_ticket =
+    let last_ticket = ref (Int64.zero) in
+    fun () -> (last_ticket := Int64.add !last_ticket Int64.one; Int64.to_string !last_ticket) in
+
+  let handle_invoke c ticket request () =
+    let response =
+      try `List [`String "ok";
+        match request with
+        | `List [`String "input"; `String prompt] ->
+            (* Ask on stderr, because we may be writing XML to stdout *)
+            prerr_string prompt; flush stdout;
+            let user_input =
+              try input_line stdin
+              with End_of_file -> raise_safe "Input aborted by user (end-of-file)" in
+            `String user_input
+        | request -> raise_safe "Invalid request to OCaml: %s" (to_string request)
+      ]
+      with Safe_exception (msg, _) as ex ->
+        log_warning ~ex "Returning error to Python";
+        `List [`String "error"; `String msg] in
+      send_json c @@ `List [`String "return"; `String ticket; response] in
+
+  (* Read and process messages from stream until it is closed. *)
+  let handle_messages c () =
+    let rec loop () =
+      match_lwt read_int_opt c#stdout with
+      | None -> log_debug "handle_messages: channel closed, so stopping handler"; Lwt.return ()
+      | Some l ->
+          let buf = String.create l in
+          lwt () = Lwt_io.read_into_exactly c#stdout buf 0 l in
+          log_info "Message from Python: %s" buf;
+          let response = from_string buf in
+          match response with
+          | `List [`String "invoke"; `String ticket; request] ->
+            Lwt.async @@ handle_invoke c ticket request;
+            loop ()
+          | `List [`String "return"; `String ticket; r] ->
+              let resolver =
+                try Hashtbl.find pending_replies ticket
+                with Not_found -> raise_safe "Unknown ticket ID in JSON: %s" buf in
+              Lwt.wakeup resolver r;
+              loop ()
+          | _ -> raise_safe "Invalid JSON from Python slave:%s" buf in
+    loop () in
+
   let get_connection () =
     (* log_warning "START SLAVE"; *)
     match !connection with
@@ -86,18 +160,10 @@ class slave config =
         let child = new Lwt_process.process ("", Array.of_list argv) in
         
         connection := Some child;
-        child in
 
-  let send_json c ?xml request : unit Lwt.t =
-      let data = to_string request in
-      log_info "Sending to Python: %s" data;
-      lwt () = Lwt_io.fprintf c#stdin "%d\n%s" (String.length data) data in
-      match xml with
-      | Some xml ->
-          let data = Q.to_utf8 xml in
-          log_info "... with XML: %s" data;
-          Lwt_io.fprintf c#stdin "%d\n%s" (String.length data) data
-      | None -> Lwt.return () in
+        Lwt.async (handle_messages child);
+
+        child in
 
   object (self)
     method invoke : 'a. json -> ?xml:Q.element -> (json -> 'a) -> 'a = fun request ?xml parse_fn ->
@@ -107,32 +173,21 @@ class slave config =
     method invoke_async : 'a. json -> ?xml:Q.element -> (json -> 'a) -> 'a Lwt.t = fun request ?xml parse_fn ->
       let c = get_connection () in
 
-      lwt () = send_json c ?xml request in
+      let (response, resolver) = Lwt.wait () in
+      let ticket = take_ticket () in
 
-      (* Normally we just get a single reply, but we might have to handle some input requests first. *)
-      let rec loop () =
-        lwt l =
-          lwt line = Lwt_io.read_line c#stdout in
-          try Lwt.return @@ int_of_string line
-          with Failure _ -> raise_safe "Invalid response from slave '%s' (expected integer). This is a bug." (String.escaped line) in
-        let buf = String.create l in
-        lwt () = Lwt_io.read_into_exactly c#stdout buf 0 l in
-        log_info "Response from Python: %s" buf;
-        let response = from_string buf in
-        match response with
-        | `List [`String "input"; `String prompt] ->
-            (* Ask on stderr, because we may be writing XML to stdout *)
-            prerr_string prompt; flush stdout;
-            let user_input = input_line stdin in
-            lwt () = send_json c (`String user_input) in
-            loop ()
+      Hashtbl.add pending_replies ticket resolver;
+
+      lwt () = send_json c ?xml (`List [`String "invoke"; `String ticket; request]) in
+
+      match_lwt response with
         | `List [`String "error"; `String err] -> raise_safe "%s" err
         | `List [`String "ok"; r] -> (
             try Lwt.return (parse_fn r)
-            with Safe_exception _ as ex -> reraise_with_context ex "... processing JSON response from Python slave:\n%s" buf
+            with Safe_exception _ as ex ->
+              reraise_with_context ex "... processing JSON response from Python slave:\n%s" (to_string r)
         )
-        | _ -> raise_safe "Invalid JSON response from Python slave:%s" buf
-      in loop ()
+        | response -> raise_safe "Invalid JSON response from Python slave:%s" (to_string response)
 
     method close =
       Lwt_main.run (self#close_async)

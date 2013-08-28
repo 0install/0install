@@ -186,6 +186,12 @@ def do_is_distro_package_installed(config, options, xml):
 	feed = config.iface_cache.get_feed(master_feed.get_distro_feed())
 	return id_to_check in feed.implementations
 
+last_ticket = 0
+def take_ticket():
+	global last_ticket
+	last_ticket += 1
+	return str(last_ticket)
+
 def send_json(j):
 	data = json.dumps(j).encode('utf-8')
 	stdout.write(('%d\n' % len(data)).encode('utf-8'))
@@ -201,9 +207,43 @@ def recv_json():
 		return None
 	return json.loads(stdin.read(int(l)).decode('utf-8'))
 
-def slave_raw_input(prompt = None):
-	send_json(["input", prompt or ""])
-	return recv_json()
+def handle_message(config, options, message):
+	if message[0] == 'invoke':
+		ticket, payload = message[1:]
+		handle_invoke(config, options, ticket, payload)
+	else:
+		assert 0, message
+
+def handle_invoke(config, options, ticket, request):
+	try:
+		command = request[0]
+		logger.debug("Got request '%s'", command)
+		if command == 'select':
+			response = do_select(config, options, request[1:])
+		elif command == 'download-selections':
+			l = stdin.readline().strip()
+			xml = qdom.parse(BytesIO(stdin.read(int(l))))
+			response = do_download_selections(config, options, request[1:], xml)
+		elif command == 'get-package-impls':
+			l = stdin.readline().strip()
+			xml = qdom.parse(BytesIO(stdin.read(int(l))))
+			response = do_get_package_impls(config, options, request[1:], xml)
+		elif command == 'is-distro-package-installed':
+			l = stdin.readline().strip()
+			xml = qdom.parse(BytesIO(stdin.read(int(l))))
+			response = do_is_distro_package_installed(config, options, xml)
+		else:
+			raise SafeException("Internal error: unknown command '%s'" % command)
+		response = ['ok', response]
+	except SafeException as ex:
+		logger.info("Replying with error: %s", ex)
+		response = ['error', str(ex)]
+	except Exception as ex:
+		import traceback
+		logger.info("Replying with error: %s", ex)
+		response = ['error', traceback.format_exc().strip()]
+
+	send_json(["return", ticket, response])
 
 def handle(config, options, args):
 	if args:
@@ -212,37 +252,21 @@ def handle(config, options, args):
 	if options.offline:
 		config.network_use = model.network_offline
 
+	def slave_raw_input(prompt = ""):
+		ticket = take_ticket()
+		send_json(["invoke", ticket, ["input", prompt]])
+		while True:
+			message = recv_json()
+			if message[0] == 'return' and message[1] == ticket:
+				reply = message[2]
+				assert reply[0] == 'ok', reply
+				return reply[1]
+			else:
+				handle_message(config, options, message)
+
 	support.raw_input = slave_raw_input
 
 	while True:
-		request = recv_json()
-		if request is None: break
-		try:
-			command = request[0]
-			logger.debug("Got request '%s'", command)
-			if command == 'select':
-				response = do_select(config, options, request[1:])
-			elif command == 'download-selections':
-				l = stdin.readline().strip()
-				xml = qdom.parse(BytesIO(stdin.read(int(l))))
-				response = do_download_selections(config, options, request[1:], xml)
-			elif command == 'get-package-impls':
-				l = stdin.readline().strip()
-				xml = qdom.parse(BytesIO(stdin.read(int(l))))
-				response = do_get_package_impls(config, options, request[1:], xml)
-			elif command == 'is-distro-package-installed':
-				l = stdin.readline().strip()
-				xml = qdom.parse(BytesIO(stdin.read(int(l))))
-				response = do_is_distro_package_installed(config, options, xml)
-			else:
-				raise SafeException("Internal error: unknown command '%s'" % command)
-			response = ['ok', response]
-		except SafeException as ex:
-			logger.info("Replying with error: %s", ex)
-			response = ['error', str(ex)]
-		except Exception as ex:
-			import traceback
-			logger.info("Replying with error: %s", ex)
-			response = ['error', traceback.format_exc().strip()]
-
-		send_json(response)
+		message = recv_json()
+		if message is None: break
+		handle_message(config, options, message)
