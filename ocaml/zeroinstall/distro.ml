@@ -114,12 +114,13 @@ let package_impl_from_json elem props json =
         | ("id", `String v) -> set "id" v
         | ("version", `String v) -> set "version" v; pkg := {!pkg with parsed_version = Versions.parse_version v}
         | ("machine", `String v) -> pkg := {!pkg with machine = Arch.none_if_star v}
+        | ("machine", `Null) -> ()
         | ("is_installed", `Bool v) -> pkg_type := {!pkg_type with package_installed = v}
         | ("distro", `String v) -> pkg_type := {!pkg_type with package_distro = v}
         | ("quick-test-file", `String v) -> set "quick-test-file" v
         | ("quick-test-mtime", `String v) -> set "quick-test-mtime" v
         | ("main", `String v) -> fixup_main v
-        | (k, _) -> raise_safe "Bad JSON response '%s'" k
+        | (k, v) -> raise_safe "Bad JSON response '%s=%s'" k (Yojson.Basic.to_string v)
       );
       {!pkg with impl_type = PackageImpl !pkg_type; props = {!new_props with attrs = !new_attrs}}
   | _ -> raise_safe "Bad JSON: %s" (Yojson.Basic.to_string json)
