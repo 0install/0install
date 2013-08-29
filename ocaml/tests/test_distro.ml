@@ -66,6 +66,9 @@ let suite = "distro">::: [
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
 
+    let python_path = Support.Utils.find_in_path_ex Fake_system.real_system "python" in
+    fake_system#add_file python_path python_path;
+
     let my_spawn_handler args cin cout cerr =
       Fake_system.real_system#create_process args cin cout cerr in
     fake_system#set_spawn_handler (Some my_spawn_handler);

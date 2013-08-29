@@ -31,6 +31,12 @@ let get_command config args : string list =
   assert (!result <> []);
   !result
 
+let async fn =
+  Lwt.ignore_result (
+    try_lwt fn ()
+    with ex -> log_warning ~ex "Unhandled error from Lwt thread"; Lwt.fail ex
+  )
+
 (** Run "python -m zeroinstall.cmd". If ../zeroinstall exists, put it in PYTHONPATH,
     otherwise use the system version of 0install. *)
 let fallback_to_python config args =
@@ -122,7 +128,7 @@ class slave config =
           let response = from_string buf in
           match response with
           | `List [`String "invoke"; `String ticket; request] ->
-            Lwt.async @@ handle_invoke c ticket request;
+            async @@ handle_invoke c ticket request;
             loop ()
           | `List [`String "return"; `String ticket; r] ->
               let resolver =
@@ -135,10 +141,10 @@ class slave config =
     loop () in
 
   let get_connection () =
-    (* log_warning "START SLAVE"; *)
     match !connection with
     | Some c -> c
     | None ->
+        (* log_warning "START SLAVE"; *)
         let debug_args =
           let open Support.Logging in
           let t =
@@ -158,11 +164,12 @@ class slave config =
         ] in
 
         let argv = get_command config ("slave" :: extra_args) in
-        let child = new Lwt_process.process ("", Array.of_list argv) in
+        let prog = Support.Utils.find_in_path_ex system (List.hd argv) in  (* "" requires Lwt 2.4 *)
+        let child = new Lwt_process.process (prog, Array.of_list argv) in
         
         connection := Some child;
 
-        Lwt.async (handle_messages child);
+        async (handle_messages child);
 
         child in
 

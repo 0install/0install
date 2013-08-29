@@ -46,7 +46,8 @@ INSTALLATION
 build tools and some OCaml libraries to compile 0install. On Debian use:
 
     $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev \
-                           libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev
+       libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev libounit-ocaml-dev \
+       python-gobject
 
 In the top-level directory, run:
 
