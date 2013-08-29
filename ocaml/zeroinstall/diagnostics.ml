@@ -173,6 +173,11 @@ let find_component key report =
   try Some (SelMap.find key report)
   with Not_found -> None
 
+let find_component_ex key report =
+  match find_component key report with
+  | Some c -> c
+  | None -> raise_safe "Can't find component %s!" (fst key)
+
 (* Did any dependency of [impl] prevent it being selected?
    This can only happen in the case of a cycle (otherwise, we'd select something
    in [impl]'s interface and complain about the dependency instead). *)
@@ -194,36 +199,39 @@ let get_dependency_problem report impl =
     of the required interface were rejected. *)
 let examine_dep requiring_iface requiring_impl report dep =
   let other_iface = dep.Feed.dep_iface in
-  let required_component = SelMap.find (other_iface, false) report in
+  match find_component (other_iface, false) report with
+  | None -> ()
+  | Some required_component ->
+      if dep.Feed.dep_restrictions <> [] then (
+        (* Report the restriction *)
+        required_component#note (Restricts (requiring_iface, requiring_impl, dep.Feed.dep_restrictions));
 
-  if dep.Feed.dep_restrictions <> [] then (
-    (* Report the restriction *)
-    required_component#note (Restricts (requiring_iface, requiring_impl, dep.Feed.dep_restrictions));
+        (* Remove implementations incompatible with the other selections *)
+        required_component#apply_restrictions dep.Feed.dep_restrictions
+      );
 
-    (* Remove implementations incompatible with the other selections *)
-    required_component#apply_restrictions dep.Feed.dep_restrictions
-  );
-
-  ListLabels.iter dep.Feed.dep_required_commands ~f:(fun command ->
-    required_component#note (RequiresCommand (requiring_iface, requiring_impl, command));
-    required_component#filter_impls (fun impl ->
-      if StringMap.mem command Feed.(impl.props.commands) then None
-      else Some (`MissingCommand command)
-    )
-  )
+      ListLabels.iter dep.Feed.dep_required_commands ~f:(fun command ->
+        required_component#note (RequiresCommand (requiring_iface, requiring_impl, command));
+        required_component#filter_impls (fun impl ->
+          if StringMap.mem command Feed.(impl.props.commands) then None
+          else Some (`MissingCommand command)
+        )
+      )
 
 (* Find all restrictions that are in play and affect this interface *)
 let examine_selection report (iface_uri, source) component =
   (* Note any conflicts caused by <replaced-by> elements *)
   let () =
     match component#replacement with
-    | Some replacement when SelMap.mem (replacement, source) report ->
-        let replacement_component = SelMap.find (replacement, source) report in
+    | Some replacement when SelMap.mem (replacement, source) report -> (
         component#note (ReplacedByConflict replacement);
         component#reject_all (`ConflictsInterface replacement);
-
-        replacement_component#note (ReplacesConflict iface_uri);
-        replacement_component#reject_all (`ConflictsInterface iface_uri)
+        match find_component (replacement, source) report with
+        | Some replacement_component ->
+            replacement_component#note (ReplacesConflict iface_uri);
+            replacement_component#reject_all (`ConflictsInterface iface_uri)
+        | None -> ()
+    )
     | _ -> () in
 
   match component#impl with
@@ -257,7 +265,7 @@ let examine_extra_restrictions report extra_restrictions =
 (** If we wanted a command on the root, add that as a restriction. *)
 let process_root_req report = function
   | Solver.ReqCommand (root_command, root_iface, source) ->
-      let component = SelMap.find (root_iface, source) report in
+      let component = find_component_ex (root_iface, source) report in
       component#filter_impls (fun impl ->
         if StringMap.mem root_command Feed.(impl.props.commands) then None
         else Some (`MissingCommand root_command)
