@@ -18,8 +18,10 @@ class Reply:
 		return self.reply
 
 class TestInstall(BaseTest):
-	def run_ocaml(self, args):
-		child = subprocess.Popen([ocaml_0install] + args, stdout = subprocess.PIPE, stderr = subprocess.PIPE, universal_newlines = True)
+	maxDiff = None
+
+	def run_ocaml(self, args, stderr = subprocess.PIPE):
+		child = subprocess.Popen([ocaml_0install] + args, stdout = subprocess.PIPE, stderr = stderr, universal_newlines = True)
 		out, err = child.communicate()
 		child.wait()
 		return out, err
@@ -133,73 +135,6 @@ class TestInstall(BaseTest):
 		assert not err, err
 		assert self.config.stores.lookup_any([digest]).startswith('/fake')
 		assert 'Version: 1\n' in out
-
-	def testUpdate(self):
-		out, err = self.run_0install(['update'])
-		assert out.lower().startswith("usage:")
-		assert '--message' in out, out
-
-		# Updating a local feed with no dependencies
-		out, err = self.run_0install(['update', 'Local.xml'])
-		assert not err, err
-		assert 'No updates found' in out, out
-
-		# Using a remote feed for the first time
-		self.config.stores = TestStores()
-		with open('Binary.xml') as stream: binary_feed = stream.read()
-		self.config.fetcher.allow_download('sha1=123')
-		self.config.fetcher.allow_feed_download('http://foo/Binary.xml', binary_feed)
-		out, err = self.run_0install(['update', 'http://foo/Binary.xml'])
-		assert not err, err
-		assert 'Binary.xml: new -> 1.0' in out, out
-
-		# No updates.
-		self.config.fetcher.allow_feed_download('http://foo/Binary.xml', binary_feed)
-		out, err = self.run_0install(['update', 'http://foo/Binary.xml'])
-		assert not err, err
-		assert 'No updates found' in out, out
-
-		# New binary release available.
-		new_binary_feed = binary_feed.replace("version='1.0'", "version='1.1'")
-		assert binary_feed != new_binary_feed
-		self.config.fetcher.allow_feed_download('http://foo/Binary.xml', new_binary_feed)
-		out, err = self.run_0install(['update', 'http://foo/Binary.xml'])
-		assert not err, err
-		assert 'Binary.xml: 1.0 -> 1.1' in out, out
-
-		# Compiling from source for the first time.
-		with open('Source.xml') as stream: source_feed = stream.read()
-		with open('Compiler.xml') as stream: compiler_feed = stream.read()
-		self.config.fetcher.allow_download('sha1=234')
-		self.config.fetcher.allow_download('sha1=345')
-		self.config.fetcher.allow_feed_download('http://foo/Compiler.xml', compiler_feed)
-		self.config.fetcher.allow_feed_download('http://foo/Binary.xml', binary_feed)
-		self.config.fetcher.allow_feed_download('http://foo/Source.xml', source_feed)
-		out, err = self.run_0install(['update', 'http://foo/Binary.xml', '--source'])
-		assert not err, err
-		assert 'Binary.xml: new -> 1.0' in out, out
-		assert 'Compiler.xml: new -> 1.0' in out, out
-
-		# New compiler released.
-		new_compiler_feed = compiler_feed.replace(
-				"id='sha1=345' version='1.0'",
-				"id='sha1=345' version='1.1'")
-		assert new_compiler_feed != compiler_feed
-		self.config.fetcher.allow_feed_download('http://foo/Compiler.xml', new_compiler_feed)
-		self.config.fetcher.allow_feed_download('http://foo/Binary.xml', binary_feed)
-		self.config.fetcher.allow_feed_download('http://foo/Source.xml', source_feed)
-		out, err = self.run_0install(['update', 'http://foo/Binary.xml', '--source'])
-		assert not err, err
-		assert 'Compiler.xml: 1.0 -> 1.1' in out, out
-
-		# A dependency disappears.
-		with open('Source-missing-req.xml') as stream: new_source_feed = stream.read()
-		self.config.fetcher.allow_feed_download('http://foo/Compiler.xml', new_compiler_feed)
-		self.config.fetcher.allow_feed_download('http://foo/Binary.xml', binary_feed)
-		self.config.fetcher.allow_feed_download('http://foo/Source.xml', new_source_feed)
-		out, err = self.run_0install(['update', 'http://foo/Binary.xml', '--source'])
-		assert not err, err
-		assert 'No longer used: http://foo/Compiler.xml' in out, out
 
 	def testConfig(self):
 		out, err = self.run_0install(['config', '--help'])
@@ -399,8 +334,8 @@ class TestInstall(BaseTest):
 		assert "Version: 0.1" in out, out
 		assert not err, err
 
-		out, err = self.run_0install(['update', 'local-app'])
-		assert "No updates found. Continuing with version 0.1." in out, out
+		out, err = self.run_ocaml(['update', 'local-app'])
+		assert "No updates found. Continuing with version 0.1." in out, (out, err)
 		assert not err, err
 
 		# Run
@@ -411,7 +346,7 @@ class TestInstall(BaseTest):
 
 		# restrictions
 		path = os.path.dirname(model.canonical_iface_uri(local_feed))
-		out, err = self.run_0install(['update', 'local-app', '--version=10..'])
+		out, err = self.run_ocaml(['update', 'local-app', '--version=10..'])
 		self.assertEqual("Can't find all required implementations:\n"
 				 "- {path}/Local.xml -> (problem)\n"
 				 "    User requested version 10..\n"
@@ -419,7 +354,7 @@ class TestInstall(BaseTest):
 				 "      sha1=256 (0.1): Incompatible with user-specified requirements\n".format(path = path), err)
 		assert not out, out
 
-		out, err = self.run_0install(['update', 'local-app', '--version=0.1..'])
+		out, err = self.run_ocaml(['update', 'local-app', '--version=0.1..'])
 		assert "No updates found. Continuing with version 0.1." in out, out
 		assert not err, err
 
@@ -433,13 +368,13 @@ class TestInstall(BaseTest):
 				 "  Path: {path}\n".format(path = path), out)
 
 		# remove restrictions [dry-run]
-		out, err = self.run_0install(['update', '--dry-run', 'local-app', '--version-for', path + '/Local.xml', ''])
+		out, err = self.run_ocaml(['update', '--dry-run', 'local-app', '--version-for', path + '/Local.xml', ''])
 		assert "No updates found. Continuing with version 0.1." in out, out
 		assert "[dry-run] would write " in out, out
 		assert not err, err
 
 		# remove restrictions
-		out, err = self.run_0install(['update', 'local-app', '--version-for', path + '/Local.xml', ''])
+		out, err = self.run_ocaml(['update', 'local-app', '--version-for', path + '/Local.xml', ''])
 		assert "No updates found. Continuing with version 0.1." in out, out
 		assert not err, err
 
@@ -518,8 +453,8 @@ class TestInstall(BaseTest):
 		with open(launcher_script, 'w') as stream:
 			alias.write_script(stream, local_feed, None)
 
-		out, err = self.run_0install(['update', 'my-test-alias'])
-		self.assertEqual("Bad interface name 'my-test-alias'.\n(hint: try 'alias:my-test-alias' instead)\n", err)
+		out, err = self.run_ocaml(['update', 'my-test-alias'])
+		assert err.startswith("Bad interface name 'my-test-alias'.\n(hint: try 'alias:my-test-alias' instead)\n"), err
 		self.assertEqual("", out)
 
 	def testMan(self):

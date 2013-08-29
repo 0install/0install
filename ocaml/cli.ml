@@ -114,10 +114,6 @@ let offline_options = [
   (["-o"; "--offline"],     0, i_ "try to avoid using the network",    new no_arg @@ `NetworkUse Offline);
 ]
 
-let update_options : (_, _) opt list = [
-  ([      "--background"],  0, i_ "",                        new no_arg @@ `Background);
-]
-
 let digest_options = [
   ([      "--algorithm"], 1, i_ "the hash function to use", new one_arg HashType @@ fun h -> `UseHash h);
   (["-m"; "--manifest"],  0, i_ "print the manifest",       new ambiguous_no_arg `ShowManifest read_m);
@@ -161,7 +157,7 @@ let show_version_options : (_, _) opt list = [
 let spec : (_, zi_arg_type) argparse_spec = {
   options_spec = generic_select_options @ offline_options @ digest_options @
                  xml_output @ diff_options @ download_options @ show_options @
-                 run_options @ update_options @ show_version_options @ common_options;
+                 run_options @ show_version_options @ common_options;
   no_more_options = function
     | [_; "run"] | [_; "runenv"] -> true
     | _ -> false;
@@ -188,6 +184,7 @@ let make_subcommand name help handler valid_options =
           raise (System_exit status)
 
       method options = (valid_options :> (zi_option, _) opt list)
+      method help = help
     end in
   (name, subcommand)
 
@@ -198,7 +195,8 @@ let subcommands = [
   make_subcommand "show"        "APP | SELECTIONS"              Show.handle      @@ common_options @ xml_output @ show_options;
   make_subcommand "download"    "URI"                           Download.handle  @@ common_options @ offline_options @ download_options @ select_options;
   make_subcommand "run"         "URI [ARGS]"                    Run.handle       @@ common_options @ offline_options @ run_options @ generic_select_options;
-  make_subcommand "update"      "APP | URI"                     fallback_handler @@ common_options @ update_options @ offline_options @ generic_select_options;
+  make_subcommand "update"      "APP | URI"                     Update.handle    @@ common_options @ offline_options @ generic_select_options;
+  make_subcommand "update-bg"   "-"                             Update.handle_bg @@ common_options;
   make_subcommand "whatchanged" "APP-NAME"                      fallback_handler @@ common_options @ diff_options;
   make_subcommand "destroy"     "PET-NAME"                      fallback_handler @@ common_options;
   make_subcommand "config"      "[NAME [VALUE]]"                fallback_handler @@ common_options;
@@ -217,8 +215,9 @@ let show_toplevel_help system =
   let top_options = show_version_options @ common_options in
   Common_options.show_help system top_options "COMMAND [OPTIONS]" (fun () ->
     print "\nTry --help with one of these:\n";
-    ListLabels.iter subcommands ~f:(fun (command, _info) ->
-      print "0install %s" command;
+    ListLabels.iter subcommands ~f:(fun (command, info) ->
+      if info#help <> "-" then
+        print "0install %s" command;
     );
   )
 

@@ -51,6 +51,7 @@ class fake_system tmpdir =
   let check_read path =
     (* log_info "check_read(%s)" path; *)
     if Filename.is_relative path then path
+    else if Support.Utils.starts_with path "/usr" then path
     else (
       try
         match StringMap.find path !extra_files with
@@ -61,7 +62,8 @@ class fake_system tmpdir =
         if Support.Utils.starts_with path src_dir then path
         else (
           match tmpdir with
-          | Some dir when Support.Utils.starts_with path dir -> path
+          | Some dir when Support.Utils.starts_with path dir
+                       || Support.Utils.starts_with dir path -> path
           | _ -> raise_safe "Attempt to read from '%s'" path
         )
     ) in
@@ -155,7 +157,7 @@ class fake_system tmpdir =
 
     method atomic_write open_flags fn path mode = real_system#atomic_write open_flags fn (check_write path) mode
     method atomic_hardlink ~link_to ~replace = real_system#atomic_hardlink ~link_to:(check_read link_to) ~replace:(check_write replace)
-    method unlink = failwith "unlink"
+    method unlink path = real_system#unlink (check_write path)
     method rmdir = failwith "rmdir"
 
     method exec ?(search_path = false) ?env argv =
@@ -185,6 +187,9 @@ class fake_system tmpdir =
 
     method putenv name value =
       env <- StringMap.add name value env
+
+    method unsetenv name =
+      env <- StringMap.remove name env
 
     method platform () =
       let open Platform in {
@@ -285,6 +290,7 @@ let with_tmpdir fn () =
 
 let get_fake_config tmpdir =
   Zeroinstall.Python.slave_debug_level := Some Support.Logging.Warning;
+  Zeroinstall.Python.slave_interceptor := Zeroinstall.Python.default_interceptor;
   let system = new fake_system tmpdir in
   if tmpdir = None then system#putenv "HOME" "/home/testuser";
   if on_windows then (

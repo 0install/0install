@@ -70,3 +70,19 @@ let solve_and_download_impls config distro (slave:Python.slave) reqs mode ~refre
 
     slave#invoke request read_xml
   )
+
+(** Run the GUI to choose and download a set of implementations. *)
+let get_selections_gui system (slave:Python.slave) iface gui_args ~use_gui =
+  if use_gui = No then `Dont_use_GUI
+  else if system#getenv "DISPLAY" = None then (
+    if use_gui = Maybe then `Dont_use_GUI
+    else raise_safe "Can't use GUI because $DISPLAY is not set"
+  ) else (
+    let parse_xml = function
+      | `List [`String "ok"; `String xml] -> `Success (Q.parse_input None @@ Xmlm.make_input @@ `String (0, xml))
+      | `List [`String "dont-use-gui"] -> `Dont_use_GUI
+      | `List [`String "aborted-by-user"] -> `Aborted_by_user
+      | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json) in
+    let gui_args = `List (List.map (fun x -> `String x) gui_args) in
+    slave#invoke (`List [`String "get-selections-gui"; `String iface; gui_args; `String (string_of_ynm use_gui)]) parse_xml
+  )

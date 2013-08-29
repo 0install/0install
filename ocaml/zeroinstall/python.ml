@@ -9,6 +9,16 @@ open Support.Common
 module Q = Support.Qdom
 
 let slave_debug_level = ref None      (* Inherit our logging level *)
+let default_interceptor ?xml:_ _request = None
+let slave_interceptor = ref default_interceptor      (* Override for testing *)
+
+let default_read_user_input prompt =
+  (* Ask on stderr, because we may be writing XML to stdout *)
+  prerr_string prompt; flush stdout;
+  try input_line stdin
+  with End_of_file -> raise_safe "Input aborted by user (end-of-file)"
+
+let read_user_input = ref default_read_user_input
 
 let get_command config args : string list =
   let result = ref [] in
@@ -103,13 +113,7 @@ class slave config =
     let response =
       try `List [`String "ok";
         match request with
-        | `List [`String "input"; `String prompt] ->
-            (* Ask on stderr, because we may be writing XML to stdout *)
-            prerr_string prompt; flush stdout;
-            let user_input =
-              try input_line stdin
-              with End_of_file -> raise_safe "Input aborted by user (end-of-file)" in
-            `String user_input
+        | `List [`String "input"; `String prompt] -> `String (!read_user_input prompt)
         | request -> raise_safe "Invalid request to OCaml: %s" (to_string request)
       ]
       with Safe_exception (msg, _) as ex ->
@@ -153,8 +157,8 @@ class slave config =
             | None -> !threshold
             | Some t -> t in
           match t with
-          | Debug -> ["-vv"]
-          | Info -> ["-v"]
+          | Debug -> ["-v"]
+          | Info -> []
           | Warning -> [] in
 
         let extra_args = List.concat [
@@ -180,14 +184,18 @@ class slave config =
 
     (** Send a JSON message to the Python slave and return whatever data it sends back. *)
     method invoke_async : 'a. json -> ?xml:Q.element -> (json -> 'a) -> 'a Lwt.t = fun request ?xml parse_fn ->
-      let c = get_connection () in
+      let response =
+        match !slave_interceptor ?xml request with
+        | Some reply -> reply
+        | None ->
+            let c = get_connection () in
 
-      let (response, resolver) = Lwt.wait () in
-      let ticket = take_ticket () in
+            let (response, resolver) = Lwt.wait () in
+            let ticket = take_ticket () in
 
-      Hashtbl.add pending_replies ticket resolver;
-
-      lwt () = send_json c ?xml (`List [`String "invoke"; `String ticket; request]) in
+            Hashtbl.add pending_replies ticket resolver;
+            lwt () = send_json c ?xml (`List [`String "invoke"; `String ticket; request]) in
+            response in
 
       match_lwt response with
         | `List [`String "error"; `String err] -> raise_safe "%s" err

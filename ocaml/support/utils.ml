@@ -507,3 +507,13 @@ let is_dir system path =
 let touch (system:system) path =
   system#with_open_out [Open_wronly; Open_creat] 0700 path (fun _ch -> ());
   system#set_mtime path @@ system#time ()   (* In case file already exists *)
+
+let read_file (system:system) path =
+  match system#stat path with
+  | None -> raise_safe "File '%s' doesn't exist" path
+  | Some info ->
+      let buf = String.create (info.Unix.st_size) in
+      system#with_open_in [Open_rdonly;Open_binary] 0 path (function ic ->
+        really_input ic buf 0 info.Unix.st_size
+      );
+      buf

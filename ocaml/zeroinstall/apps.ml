@@ -233,7 +233,7 @@ let check_for_updates config ~distro ~slave ~use_gui app_path sels =
       try
         let extra_flags = if !Support.Logging.threshold = Support.Logging.Debug then ["-v"] else [] in
         set_mtime config last_check_path;
-        system#spawn_detach @@ [config.abspath_0install; "update"; "--background"] @ extra_flags @ ["--"; app_path]
+        system#spawn_detach @@ [config.abspath_0install; "update-bg"] @ extra_flags @ ["--"; "app"; app_path]
       with ex -> log_warning ~ex "Error starting check for updates to %s" app_path
     );
     sels
