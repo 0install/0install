@@ -96,6 +96,8 @@ let package_impl_from_json elem props json =
   let set name value =
     new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
 
+  set "from-feed" @@ "distribution:" ^ (Feed.AttrMap.find ("", "from-feed") !new_attrs);
+
   let fixup_main path =
     (* The Python code might add or modify the main executable path. *)
     let run_command =
@@ -193,7 +195,7 @@ class virtual python_fallback_distribution (slave:Python.slave) =
                   [make_restricts_distro elem.Qdom.doc "http://repo.roscidus.com/python/python" "host"]
                 ) else [] in
               let props = Feed.({
-                attrs = Feed.AttrMap.empty;
+                attrs = Feed.AttrMap.singleton ("", "from-feed") feed.Feed.url;
                 requires = restrictions;
                 bindings = [];
                 commands = StringMap.empty;
