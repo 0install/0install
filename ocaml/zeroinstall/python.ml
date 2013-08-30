@@ -77,21 +77,22 @@ class slave config =
   let connection = ref None in
   
   let send_json c ?xml request : unit Lwt.t =
-      let data = to_string request in
-      let buf = Buffer.create (String.length data + 20) in
-      Buffer.add_string buf @@ Printf.sprintf "%d\n" (String.length data);
-      Buffer.add_string buf data;
-      let () =
-        match xml with
-        | Some xml ->
-            let xml_data = Q.to_utf8 xml in
-            Buffer.add_string buf @@ Printf.sprintf "%d\n" (String.length xml_data);
-            Buffer.add_string buf xml_data
-        | None -> () in
+    log_info "Sending to Python: %s%s" (to_string request)
+      (match xml with None -> "" | Some xml -> "\n" ^ (Q.to_utf8 xml));
+    let data = to_string request in
+    let buf = Buffer.create (String.length data + 20) in
+    Buffer.add_string buf @@ Printf.sprintf "%d\n" (String.length data);
+    Buffer.add_string buf data;
+    let () =
+      match xml with
+      | Some xml ->
+          let xml_data = Q.to_utf8 xml in
+          Buffer.add_string buf @@ Printf.sprintf "%d\n" (String.length xml_data);
+          Buffer.add_string buf xml_data
+      | None -> () in
 
-      let data = Buffer.contents buf in
-      log_info "Sending to Python: %s" data;
-      Lwt_io.write c#stdin data in
+    let data = Buffer.contents buf in
+    Lwt_io.write c#stdin data in
 
   let pending_replies = Hashtbl.create 10 in
   let take_ticket =

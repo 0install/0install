@@ -7,7 +7,7 @@
 open Support.Common
 module Basedir = Support.Basedir
 module U = Support.Utils
-module Qdom = Support.Qdom
+module Q = Support.Qdom
 
 type select_mode =
   | Select_only       (* only download feeds, not archives; display "Select" in GUI *)
@@ -34,7 +34,9 @@ let download_selections config (slave:Python.slave) distro sels =
     slave#invoke ~xml:sels request ignore
   )
 
-(** Get some selectsions for these requirements. *)
+(** Get some selectsions for these requirements.
+    Returns [None] if the user cancels.
+    @raise Safe_exception if the solve fails. *)
 let solve_and_download_impls config distro (slave:Python.slave) reqs mode ~refresh ~use_gui =
   if use_gui = No then (
     let fetcher = new Fetch.fetcher slave in
@@ -62,7 +64,7 @@ let solve_and_download_impls config distro (slave:Python.slave) reqs mode ~refre
 
     let read_xml = function
       | `String "Aborted" -> None
-      | `String s -> Some (Qdom.parse_input None @@ Xmlm.make_input (`String (0, s)))
+      | `String s -> Some (Q.parse_input None @@ Xmlm.make_input (`String (0, s)))
       | _ -> raise_safe "Invalid response" in
     let request : Yojson.Basic.json = `List [`String "select"; `String action; opts; Requirements.to_json reqs] in
 

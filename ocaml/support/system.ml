@@ -165,6 +165,7 @@ module RealSystem (U : UnixType) =
             let cmd = String.concat " " argv in
             reraise_with_context ex "... trying to exec: %s" cmd
 
+        (* The child's stderr is /dev/null, unless debug logging is on. *)
         method spawn_detach ?(search_path = false) ?env argv =
           try
             wrap_unix_errors (fun () ->

@@ -9,6 +9,8 @@ open Fake_system
 
 (* let () = Support.Logging.threshold := Support.Logging.Info *)
 
+let () = Unix.putenv "http_proxy" "localhost:1111"    (* Prevent accidents *)
+
 let test_basedir () =
   skip_if (Sys.os_type = "Win32") "Don't work on Windows";
 

@@ -54,11 +54,11 @@ let handle_exceptions main args =
 ;;
 
 (** Return the first non-[None] result of [fn item] for items in the list. *)
-let rec first_match fn = function
+let rec first_match ~f = function
   | [] -> None
-  | (x::xs) -> match fn x with
+  | (x::xs) -> match f x with
       | Some _ as result -> result
-      | None -> first_match fn xs;;
+      | None -> first_match ~f xs;;
 
 (** List the non-None results of [fn item] *)
 let rec filter_map ~f = function
@@ -230,7 +230,7 @@ let find_in_path (system:system) name =
     let path_var = Str.split_delim re_path_sep path in
     let effective_path = if on_windows then system#getcwd () :: path_var else path_var in
     let test dir = check (dir +/ name) in
-    first_match test effective_path
+    first_match ~f:test effective_path
   )
 ;;
 

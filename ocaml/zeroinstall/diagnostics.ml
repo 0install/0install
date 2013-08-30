@@ -192,8 +192,8 @@ let get_dependency_problem report impl =
             let check_restriction r =
               if r#meets_restriction dep_impl then None
               else Some (`DepFailsRestriction (dep, r)) in
-            U.first_match check_restriction dep.Feed.dep_restrictions in
-  U.first_match check_dep impl.Feed.props.Feed.requires
+            U.first_match ~f:check_restriction dep.Feed.dep_restrictions in
+  U.first_match ~f:check_dep impl.Feed.props.Feed.requires
 
 (** A selected component has [dep] as a dependency. Use this to explain why some implementations
     of the required interface were rejected. *)

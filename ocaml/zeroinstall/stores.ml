@@ -29,9 +29,9 @@ let lookup_digest (system:system) stores digest =
   let check_store store = (
     let path = Filename.concat store (format_digest digest) in
     if system#file_exists path then Some path else None
-  ) in first_match check_store stores
+  ) in first_match ~f:check_store stores
 
-let lookup_maybe system digests stores = first_match (lookup_digest system stores) digests
+let lookup_maybe system digests stores = first_match ~f:(lookup_digest system stores) digests
 
 let lookup_any system digests stores =
   match lookup_maybe system digests stores with

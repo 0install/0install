@@ -12,10 +12,7 @@ let main (system:system) : unit =
   match List.tl argv with
   | "_complete" :: args -> Completion.handle_complete config args
   | "runenv" :: runenv_args -> Zeroinstall.Exec.runenv system runenv_args
-  | raw_args ->
-      try Cli.handle config raw_args
-      with
-      | Safe_exception _ as ex -> reraise_with_context ex "... processing command line: %s" (String.concat " " argv)
+  | raw_args -> Cli.handle config raw_args
 
 let start system =
   Support.Utils.handle_exceptions main system
