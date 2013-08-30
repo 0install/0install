@@ -284,13 +284,10 @@ class ['a,'b] two_arg arg1_type arg2_type (fn : string -> string -> 'a) =
   end
 
 (** Print out these options in a formatted list. *)
-let format_options format_type opts =
-  let open Format in
+let format_options system format_type opts =
+  let print fmt = Utils.print system fmt in
 
-  print_cut();
-  open_vbox 2;
-  printf "@[Options:@]@\n";
-  open_tbox();
+  print "Options:";
 
   let display_options =
     Utils.filter_map opts ~f:(fun (names, nargs, help, p) ->
@@ -308,36 +305,14 @@ let format_options format_type opts =
 
           Some (arg_strs, help)) in
 
-  let col1_width = 3 + (min 20 @@ List.fold_left (fun w (syn, _help) -> max (String.length syn) w) 0 display_options) in
+  let col1_width = 2 + (min 20 @@ List.fold_left (fun w (syn, _help) -> max (String.length syn) w) 0 display_options) in
 
-  (* I can't see a way to set the tab stops without actually printing something.
-     So, we set the second tab stop as soon as we have a line that doesn't need to
-     be split. *)
-  let set_tab_stop = ref false in
-  set_tab();
-
-  let first = ref true in
+  let spaces n = String.make n ' ' in
 
   ListLabels.iter display_options ~f:(fun (syn, help) ->
-    if !first then (
-      first := false
-    ) else (
-      print_cut ()
-    );
-
-    print_string syn;
-
-    if not !set_tab_stop && String.length syn < col1_width then (
-      (* This item is narrower than the first column. Space over to the next
-         column and set the tab-stop. *)
-      print_string (String.make (col1_width - (String.length syn) - 2) ' ');
-      set_tab();
-      set_tab_stop := true
-    );
-    print_tbreak 1 (col1_width - 1);
-
-    print_string help;
+    let padding = col1_width - String.length syn in
+    if padding > 0 then
+      print "  %s%s%s" syn (spaces padding) help
+    else
+      print "  %s\n  %s%s" syn (spaces col1_width) help
   );
-
-  close_tbox ();
-  close_box ()

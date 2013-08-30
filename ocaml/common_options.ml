@@ -48,18 +48,13 @@ let show_version system =
      For more information about these matters, see the file named COPYING.\n"
      Zeroinstall.About.version
 
-let show_help valid_options help extra_fn =
-  let open Format in
-  open_vbox 0;
-
-  printf "Usage: 0install %s@\n" help;
+let show_help (system:system) valid_options help extra_fn =
+  Support.Utils.print system "Usage: 0install %s" help;
 
   extra_fn ();
 
-  Support.Argparse.format_options format_type valid_options;
-
-  close_box();
-  print_newline()
+  print_newline ();
+  Support.Argparse.format_options system format_type valid_options
 
 let process_common_option options =
   let config = options.config in
