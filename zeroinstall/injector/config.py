@@ -111,6 +111,8 @@ class Config(object):
 		parser.set('global', 'network_use', self.network_use)
 		parser.set('global', 'freshness', str(self.freshness))
 		parser.set('global', 'auto_approve_keys', str(self.auto_approve_keys))
+		if self.key_info_server != DEFAULT_KEY_LOOKUP_SERVER:
+			parser.set('global', 'key_info_server', str(self.key_info_server))
 
 		path = basedir.save_config_path(config_site, config_prog)
 		path = os.path.join(path, 'global')
@@ -128,6 +130,7 @@ def load_config(handler = None):
 	parser.set('global', 'freshness', str(60 * 60 * 24 * 30))	# One month
 	parser.set('global', 'network_use', 'full')
 	parser.set('global', 'auto_approve_keys', 'True')
+	parser.set('global', 'key_info_server', DEFAULT_KEY_LOOKUP_SERVER)
 
 	path = basedir.load_first_config(config_site, config_prog, 'global')
 	if path:
@@ -141,6 +144,7 @@ def load_config(handler = None):
 	config.network_use = parser.get('global', 'network_use')
 	config.freshness = int(parser.get('global', 'freshness'))
 	config.auto_approve_keys = parser.getboolean('global', 'auto_approve_keys')
+	config.key_info_server = parser.get('global', 'key_info_server')
 
 	assert config.network_use in network_levels, config.network_use
 
