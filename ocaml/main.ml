@@ -12,7 +12,11 @@ let main (system:system) : unit =
   | prog :: args ->
       let config = Zeroinstall.Config.get_default_config system prog in
       match String.lowercase @@ Filename.basename prog with
-      | "0launch" | "0launch.exe" -> Cli.handle config ("run" :: args)
+      | "0launch" | "0launch.exe" -> (
+          match args with
+          | "_complete" :: args -> Completion.handle_complete config args
+          | args -> Cli.handle config ("run" :: args)
+      )
       | "0install" | "0install.exe" -> (
           match args with
           | "_complete" :: args -> Completion.handle_complete config args

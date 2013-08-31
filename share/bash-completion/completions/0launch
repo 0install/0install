@@ -1,0 +1,28 @@
+_0launch_completion() {
+	local c IFS=$'\n'
+	COMPREPLY=()
+	local TO_FILTER=()
+	local WORD=${COMP_WORDS[$COMP_CWORD]}
+
+	if [ "$WORD" == "=" ]; then
+	  WORD=""
+	fi
+
+	local RESULTS=$(COMP_CWORD=$COMP_CWORD ${COMP_WORDS[0]} _complete bash "${COMP_WORDS[@]}")
+	while read item
+	do
+		#echo "item>$item<" >&2
+		case "$item" in
+			add\ *) COMPREPLY=(${COMPREPLY[@]} ${item/#add /}) ;;
+			filter\ *) TO_FILTER=(${TO_FILTER[@]} ${item/#filter /}) ;;
+			prefix\ *) COMPREPLY=(${COMPREPLY[@]} ${item/#prefix /}) ;;
+			file) COMPREPLY=(${COMPREPLY[@]} $(compgen -A file "$WORD")) ;;
+			"") ;;
+			*) echo 1>&2 Bad reply $item ;;
+		esac
+	done <<< "$RESULTS"
+	if (( ${#TO_FILTER[@]} > 0 )); then
+		COMPREPLY=( ${COMPREPLY[@]} $(compgen -W "${TO_FILTER[*]}" -- "$WORD" ) )
+	fi
+}
+complete -o nospace -F _0launch_completion 0launch

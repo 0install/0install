@@ -18,7 +18,7 @@ let slice = Support.Utils.slice
 type ctype = Add | Prefix
 
 (** There is one subclass of this for each supported shell. *)
-class virtual completer config =
+class virtual completer command config =
   let print_endline s = config.system#print_string (s ^ "\n") in
 
   object (self)
@@ -31,7 +31,10 @@ class virtual completer config =
     (** Get the index of the word to complete, as reported by the shell. This is used internally by [normalise],
         because some shells differ only in the way they count this. *)
     method get_cword () =
-      int_of_string (Support.Utils.getenv_ex config.system "COMP_CWORD") - 1
+      let cword = int_of_string (Support.Utils.getenv_ex config.system "COMP_CWORD") - 1 in
+      match command with
+      | `install -> cword
+      | `launch -> cword + 1    (* we added "run" at the start *)
 
     method get_config () = config
 
@@ -173,9 +176,9 @@ let complete_arg config (completer:completer) pre = function
   | ["show"] -> completer#add_apps pre; completer#add_files pre
   | _ -> ()
 
-class bash_completer config =
+class bash_completer command config =
   object (self : #completer)
-    inherit completer config as super
+    inherit completer command config as super
 
     val mutable current = ""
 
@@ -223,9 +226,9 @@ class bash_completer config =
       
   end
 
-class fish_completer config =
+class fish_completer command config =
   object (self)
-    inherit completer config as super
+    inherit completer command config as super
 
     val mutable response_prefix = ""
 
@@ -244,9 +247,9 @@ class fish_completer config =
     method! add ctype value = super#add ctype (response_prefix ^ value)
   end
 
-class zsh_completer config =
+class zsh_completer command config =
   object
-    inherit fish_completer config as super
+    inherit fish_completer command config as super
 
     method !get_cword () = super#get_cword () - 1
   end
@@ -322,12 +325,18 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
   )
 
 let handle_complete config = function
-  | (shell :: _0install :: raw_args) -> (
+  | (shell :: prog :: raw_args) -> (
+      let command = if Support.Utils.starts_with (Filename.basename prog) "0launch" then `launch else `install in
       let completer = match shell with
-      | "bash" -> new bash_completer config
-      | "fish" -> new fish_completer config
-      | "zsh" -> new zsh_completer config
+      | "bash" -> new bash_completer command config
+      | "fish" -> new fish_completer command config
+      | "zsh" -> new zsh_completer command config
       | x -> failwith @@ "Unsupported shell: " ^ x in
+
+      let raw_args =
+        match command with
+        | `install -> raw_args
+        | `launch -> "run" :: raw_args in
 
       let open Cli in
       let (cword, args) = completer#normalise raw_args in
