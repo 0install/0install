@@ -60,75 +60,6 @@ def do_download_selections(config, options, args, xml):
 	sels = selections.Selections(xml)
 	return sels.download_missing(config, include_packages = include_packages)
 
-@tasks.async
-def do_select(config, options, ticket, args):
-	try:
-		(for_op, select_opts, reqs_json) = args
-
-		requirements = reqs_from_json(reqs_json)
-
-		refresh = select_opts['refresh']
-		use_gui = parse_ynm(select_opts['use_gui'])
-
-		driver = Driver(config = config, requirements = requirements)
-
-		if for_op == 'for-select':
-			select_only = True
-			download_only = False
-		elif for_op == 'for-download':
-			select_only = False
-			download_only = True
-		elif for_op == 'for-run':
-			select_only = False
-			download_only = False
-		else:
-			assert 0, for_op
-
-		if use_gui != False:
-			# If the user didn't say whether to use the GUI, choose for them.
-			gui_args = driver.requirements.get_as_options()
-			if download_only:
-				# Just changes the button's label
-				gui_args.append('--download-only')
-			if refresh:
-				gui_args.append('--refresh')
-			if options.verbose:
-				gui_args.insert(0, '--verbose')
-				if options.verbose > 1:
-					gui_args.insert(0, '--verbose')
-			if options.with_store:
-				for x in options.with_store:
-					gui_args += ['--with-store', x]
-			if select_only:
-				gui_args.append('--select-only')
-
-			from zeroinstall import helpers
-			sels = helpers.get_selections_gui(requirements.interface_uri, gui_args, test_callback = None, use_gui = use_gui)
-
-			if not sels:
-				retval = "Aborted"
-				send_json(["return", ticket, ["ok", retval]])
-				return
-			elif sels is helpers.DontUseGUI:
-				sels = None
-		else:
-			sels = None
-
-		if sels is None:
-			# Note: --download-only also makes us stop and download stale feeds first.
-			downloaded = driver.solve_and_download_impls(refresh = refresh, select_only = select_only)
-			yield downloaded
-			if not driver.solver.ready:
-				raise driver.solver.get_failure_reason()
-			sels = driver.solver.selections
-
-		retval = sels.toDOM().toxml()
-		send_json(["return", ticket, ["ok", retval]])
-	except Exception as ex:
-		import traceback
-		logger.info("Replying with error: %s", ex, exc_info = True)
-		send_json(["return", ticket, ["error", str(ex)]])
-
 def to_json(impl):
 	# TODO: for PackageKit candidates, we might need to say how to get them (the Python
 	# code adds a retrieval method).
@@ -250,13 +181,28 @@ def do_notify_user(config, args):
 	handler.notify(args["title"], args["message"], timeout = args["timeout"])
 
 def do_get_selections_gui(config, args):
-	iface, gui_args, use_gui = args
-	from zeroinstall import helpers
+	reqs, opts = args
+
+	use_gui = opts['use_gui']
 	if use_gui == "yes": use_gui = True
 	elif use_gui == "no": use_gui = False
 	elif use_gui == "maybe": use_gui = None
 	else: assert 0, use_gui
-	sels = helpers.get_selections_gui(iface, gui_args, use_gui = use_gui)
+
+	gui_args = []
+
+	if opts['refresh']: gui_args += ['--refresh']
+	if opts['systray']: gui_args += ['--systray']
+
+	if opts['action'] == 'for-select': gui_args += ['--select-only']
+	elif opts['action'] == 'for-download': gui_args += ['--download-only']
+	elif opts['action'] != 'for-run': assert 0, opts
+
+	reqs = reqs_from_json(reqs)
+	gui_args += reqs.get_as_options()
+
+	from zeroinstall import helpers
+	sels = helpers.get_selections_gui(reqs.interface_uri, gui_args, use_gui = use_gui)
 	if sels == helpers.DontUseGUI:
 		return ["dont-use-gui"]
 	if not sels:

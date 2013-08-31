@@ -57,7 +57,7 @@ class fake_system tmpdir =
     log_info "check_read(%s)" path;
     if Filename.is_relative path then path
     else if (on_windows && U.starts_with path "C:\\Windows\\") ||
-        (not on_windows && U.starts_with path "/usr") then path
+        (not on_windows && (U.starts_with path "/usr" || U.starts_with path "/lib")) then path
     else (
       try
         match StringMap.find path !extra_files with

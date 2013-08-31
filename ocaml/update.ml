@@ -172,8 +172,7 @@ let handle_bg options flags args =
         let new_sels =
           if !need_confirm_keys || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
             log_info "Background update: trying to use GUI to update %s" name;
-            let gui_args = ["--refresh"; "--systray"; "--download"] @ Req_options.to_options reqs in
-            match Zeroinstall.Helpers.get_selections_gui config.system slave reqs.R.interface_uri gui_args ~use_gui:Maybe with
+            match Zeroinstall.Helpers.get_selections_gui config slave Zeroinstall.Helpers.Download_only reqs ~systray:true ~refresh:true ~use_gui:Maybe with
             | `Aborted_by_user -> raise (System_exit 0)
             | `Dont_use_GUI when not ready ->
                 let msg = Printf.sprintf "Can't update 0install app %s (run '0install update %s' to fix)" name name in

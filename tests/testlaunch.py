@@ -134,26 +134,6 @@ class TestLaunch(BaseTest):
 				 "Note: 0install is in off-line mode\n", err)
 		self.assertEqual("", out)
 
-	def testDisplay(self):
-		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run_0launch(['--dry-run', 'http://foo/d'])
-		# Uses local copy of GUI
-		assert out.startswith("[dry-run] would execute: "), repr((out, err))
-		assert 'basetest.py' in out
-		self.assertEqual("", err)
-
-		del os.environ['DISPLAY']
-		out, err = self.run_0launch(['--gui'])
-		self.assertEqual("Can't use GUI because $DISPLAY is not set\n", err)
-		self.assertEqual("", out)
-
-	def testRefreshDisplay(self):
-		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run_0launch(['--dry-run', '--refresh', 'http://foo/d'])
-		assert out.startswith("[dry-run] would execute: ")
-		assert 'basetest.py' in out
-		self.assertEqual("", err)
-	
 	def testNeedDownload(self):
 		os.environ['DISPLAY'] = ':foo'
 		out, err = self.run_0launch(['--download-only', '--dry-run', 'Foo.xml'])

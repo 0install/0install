@@ -4,8 +4,10 @@
 
 (** High-level helper functions *)
 
+open General
 open Support.Common
 module Basedir = Support.Basedir
+module R = Requirements
 module U = Support.Utils
 module Q = Support.Qdom
 
@@ -34,11 +36,50 @@ let download_selections config (slave:Python.slave) distro sels =
     slave#invoke ~xml:sels request ignore
   )
 
+(** Run the GUI to choose and download a set of implementations
+ * If [use_gui] is No; just returns `Dont_use_GUI. 
+ * If Maybe, uses the GUI if possible.
+ * If Yes, uses the GUI or throws an exception. *)
+let get_selections_gui config (slave:Python.slave) ?(systray=false) mode reqs ~refresh ~use_gui =
+  if use_gui = No then `Dont_use_GUI
+  else if config.dry_run then (
+    if use_gui = Maybe then `Dont_use_GUI
+    else raise_safe "Can't use GUI with --dry-run"
+  ) else if config.system#getenv "DISPLAY" = None then (
+    if use_gui = Maybe then `Dont_use_GUI
+    else raise_safe "Can't use GUI because $DISPLAY is not set"
+  ) else (
+    let action = match mode with
+    | Select_only -> "for-select"
+    | Download_only | Select_for_update -> "for-download"
+    | Select_for_run -> "for-run" in
+
+    let opts = `Assoc [
+      ("refresh", `Bool refresh);
+      ("action", `String action);
+      ("use_gui", `String (string_of_ynm use_gui));
+      ("systray", `Bool systray);
+    ] in
+
+    slave#invoke (`List [`String "get-selections-gui"; R.to_json reqs; opts]) (function
+      | `List [`String "ok"; `String xml] -> `Success (Q.parse_input None @@ Xmlm.make_input @@ `String (0, xml))
+      | `List [`String "dont-use-gui"] -> `Dont_use_GUI
+      | `List [`String "aborted-by-user"] -> `Aborted_by_user
+      | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json)
+    )
+  )
+
 (** Get some selectsions for these requirements.
     Returns [None] if the user cancels.
     @raise Safe_exception if the solve fails. *)
 let solve_and_download_impls config distro (slave:Python.slave) reqs mode ~refresh ~use_gui =
-  if use_gui = No then (
+  let use_gui =
+    match use_gui, config.dry_run with
+    | Yes, true -> raise_safe "Can't use GUI with --dry-run"
+    | (Maybe|No), true -> No
+    | use_gui, false -> use_gui in
+
+  let solve_without_gui () =
     let fetcher = new Fetch.fetcher slave in
     let result = Driver.solve_with_downloads config fetcher distro reqs ~force:refresh ~update_local:refresh in
     match result with
@@ -50,39 +91,9 @@ let solve_and_download_impls config distro (slave:Python.slave) reqs mode ~refre
           | Select_only -> ()
           | Download_only | Select_for_update | Select_for_run ->
               download_selections config slave (Some distro) sels in
-        Some sels
-  ) else (
-    let action = match mode with
-    | Select_only -> "for-select"
-    | Download_only | Select_for_update -> "for-download"
-    | Select_for_run -> "for-run" in
+        Some sels in
 
-    let opts = `Assoc [
-      ("refresh", `Bool refresh);
-      ("use_gui", `String (string_of_ynm use_gui));
-    ] in
-
-    let read_xml = function
-      | `String "Aborted" -> None
-      | `String s -> Some (Q.parse_input None @@ Xmlm.make_input (`String (0, s)))
-      | _ -> raise_safe "Invalid response" in
-    let request : Yojson.Basic.json = `List [`String "select"; `String action; opts; Requirements.to_json reqs] in
-
-    slave#invoke request read_xml
-  )
-
-(** Run the GUI to choose and download a set of implementations. *)
-let get_selections_gui system (slave:Python.slave) iface gui_args ~use_gui =
-  if use_gui = No then `Dont_use_GUI
-  else if system#getenv "DISPLAY" = None then (
-    if use_gui = Maybe then `Dont_use_GUI
-    else raise_safe "Can't use GUI because $DISPLAY is not set"
-  ) else (
-    let parse_xml = function
-      | `List [`String "ok"; `String xml] -> `Success (Q.parse_input None @@ Xmlm.make_input @@ `String (0, xml))
-      | `List [`String "dont-use-gui"] -> `Dont_use_GUI
-      | `List [`String "aborted-by-user"] -> `Aborted_by_user
-      | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json) in
-    let gui_args = `List (List.map (fun x -> `String x) gui_args) in
-    slave#invoke (`List [`String "get-selections-gui"; `String iface; gui_args; `String (string_of_ynm use_gui)]) parse_xml
-  )
+  match get_selections_gui config slave mode reqs ~refresh ~use_gui with
+  | `Success sels -> Some sels
+  | `Aborted_by_user -> None
+  | `Dont_use_GUI -> solve_without_gui ()

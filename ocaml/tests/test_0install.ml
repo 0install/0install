@@ -14,6 +14,8 @@ module Escape = Zeroinstall.Escape
 
 let test_0install = Fake_system.test_0install
 
+exception Ok
+
 let assert_contains expected whole =
   try ignore @@ Str.search_forward (Str.regexp_string expected) whole 0
   with Not_found -> assert_failure (Printf.sprintf "Expected string '%s' not found in '%s'" expected whole)
@@ -205,4 +207,29 @@ let suite = "0install">::: [
     let out = run ["update"; "http://foo/Binary.xml"; "--source"] in
     assert_contains "No longer used: http://foo/Compiler.xml" out;
   );
+
+  "display">:: Fake_system.with_tmpdir (fun tmpdir ->
+    let (_config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    let system = (fake_system :> system) in
+
+    let run ?(exit=0) args =
+      fake_system#set_argv @@ Array.of_list (test_0install :: args);
+      fake_system#collect_output (fun () ->
+        try Main.main system; assert (exit = 0)
+        with System_exit n -> assert_equal ~msg:"exit code" n exit
+      ) in
+
+    fake_system#unsetenv "DISPLAY";
+    try ignore @@ run ["run"; "--gui"; "http://foo/d"]; assert false
+    with Safe_exception ("Can't use GUI because $DISPLAY is not set", _) -> ();
+
+    (* --dry-run must prevent us from using the GUI *)
+    fake_system#putenv "DISPLAY" ":foo";
+    Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
+      | `List [`String "download-and-import-feed"; `String "http://foo/d"] -> raise Ok
+      | json -> failwith (Yojson.Basic.to_string json)
+    );
+    try ignore @@ run ["run"; "--dry-run"; "--refresh"; "http://foo/d"]; assert false
+    with Ok -> ();
+  )
 ]
