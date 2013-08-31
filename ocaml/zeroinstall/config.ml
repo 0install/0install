@@ -25,12 +25,20 @@ let parse_bool s =
     [path_to_0install] is used when creating launcher scripts. If it contains no slashes, then
     we search for it in $PATH.
   *)
-let get_default_config system path_to_0install =
-  let abspath_0install = if String.contains path_to_0install Filename.dir_sep.[0] then
-    Support.Utils.abspath system path_to_0install
+let get_default_config system path_to_prog =
+  let abspath_prog = if String.contains path_to_prog Filename.dir_sep.[0] then
+    Support.Utils.abspath system path_to_prog
   else
-    Support.Utils.find_in_path_ex system path_to_0install
+    Support.Utils.find_in_path_ex system path_to_prog
   in
+
+  let abspath_0install =
+    let name = Filename.basename abspath_prog in
+    if Support.Utils.starts_with name "0install" then abspath_prog
+    else (
+      (Filename.dirname abspath_prog +/ "0install") ^
+        if Filename.check_suffix name ".exe" then ".exe" else ""
+    ) in
 
   let basedirs = Support.Basedir.get_default_config system in
 
