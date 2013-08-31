@@ -6,6 +6,7 @@ open OUnit
 open Zeroinstall.General
 open Support.Common
 module Config = Zeroinstall.Config
+module U = Support.Utils
 
 (* For temporary directory names *)
 let () = Random.self_init ()
@@ -18,10 +19,14 @@ type dentry =
   | Dir of (mode * string list)
   | File of (mode * filepath)
 
+let expect = function
+  | Some x -> x
+  | None -> assert_failure "got None!"
+
 module RealSystem = Support.System.RealSystem(Unix)
 let real_system = new RealSystem.real_system
 
-let build_dir = Support.Utils.handle_exceptions (fun () -> Support.Utils.getenv_ex real_system "OCAML_BUILDDIR") ()
+let build_dir = U.handle_exceptions (fun () -> U.getenv_ex real_system "OCAML_BUILDDIR") ()
 
 let make_stat st_perm kind =
   let open Unix in {
@@ -49,9 +54,10 @@ class fake_system tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
 
   let check_read path =
-    (* log_info "check_read(%s)" path; *)
+    log_info "check_read(%s)" path;
     if Filename.is_relative path then path
-    else if Support.Utils.starts_with path "/usr" then path
+    else if (on_windows && U.starts_with path "C:\\Windows\\") ||
+        (not on_windows && U.starts_with path "/usr") then path
     else (
       try
         match StringMap.find path !extra_files with
@@ -59,27 +65,27 @@ class fake_system tmpdir =
         | File (_mode, redirect_path) ->
             redirect_path
       with Not_found ->
-        if Support.Utils.starts_with path src_dir then path
+        if U.starts_with path src_dir then path
         else (
           match tmpdir with
-          | Some dir when Support.Utils.starts_with path dir
-                       || Support.Utils.starts_with dir path -> path
+          | Some dir when U.starts_with path dir
+                       || U.starts_with dir path -> path
           | _ -> raise_safe "Attempt to read from '%s'" path
         )
     ) in
 
   let check_write path =
     match tmpdir with
-    | Some dir when Support.Utils.starts_with path dir -> path
+    | Some dir when U.starts_with path dir -> path
     | _ -> raise_safe "Attempt to write to '%s'" path in
 
   (* It's OK to check whether these paths exists. We just say they don't,
      unless they're in extra_files (check there first). *)
   let hidden_subtree path =
-    if Support.Utils.starts_with path "/var" then
+    if U.starts_with path "/var" then
       match tmpdir with
       | None -> true
-      | Some tmpdir -> not (Support.Utils.starts_with path tmpdir)
+      | Some tmpdir -> not (U.starts_with path tmpdir)
     else false in
 
   object (self : #system)
@@ -92,7 +98,7 @@ class fake_system tmpdir =
       let old_stdout = stdout in
       let b = Buffer.create 100 in
       stdout <- Some b;
-      Support.Utils.finally_do (fun () -> stdout <- old_stdout) () fn;
+      U.finally_do (fun () -> stdout <- old_stdout) () fn;
       Buffer.contents b
 
     method print_string s =
@@ -264,7 +270,7 @@ let () = Support.Logging.handler := (fake_log :> Support.Logging.handler)
 
 let collect_logging fn =
   forward_to_real_log := false;
-  Support.Utils.finally_do (fun () -> forward_to_real_log := true) () fn
+  U.finally_do (fun () -> forward_to_real_log := true) () fn
 
 let format_list l = "[" ^ (String.concat "; " l) ^ "]"
 let equal_str_lists = assert_equal ~printer:format_list
@@ -286,7 +292,7 @@ let temp_dir_name =
 let with_tmpdir fn () =
   let tmppath = temp_dir_name +/ Printf.sprintf "0install-test-%x" (Random.int 0x3fffffff) in
   Unix.mkdir tmppath 0o700;   (* will fail if already exists; OK for testing *)
-  Support.Utils.finally_do (Support.Utils.ro_rmtree real_system) tmppath fn
+  U.finally_do (U.ro_rmtree real_system) tmppath fn
 
 let get_fake_config tmpdir =
   Zeroinstall.Python.slave_debug_level := Some Support.Logging.Warning;
@@ -294,9 +300,11 @@ let get_fake_config tmpdir =
   let system = new fake_system tmpdir in
   if tmpdir = None then system#putenv "HOME" "/home/testuser";
   if on_windows then (
-    system#putenv "PATH" "C:\\Windows\\system32;C:\\Windows";
     system#add_file (src_dir +/ "0install-runenv.exe") (build_dir +/ "0install-runenv.exe");
-    system#add_file (src_dir +/ "0install-python-fallback") (src_dir +/ "0install-python-fallback")
+    system#add_file (src_dir +/ "0install-python-fallback") (src_dir +/ "0install-python-fallback");
+    let python = expect @@ U.find_in_path real_system "python" in
+    system#add_file python python;
+    system#putenv "PATH" @@ "C:\\Windows\\system32;C:\\Windows;" ^ Filename.dirname python;
   ) else (
     system#putenv "PATH" "/usr/bin:/bin"
   );

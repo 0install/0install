@@ -11,10 +11,6 @@ module Q = Support.Qdom
 
 module Apps = Zeroinstall.Apps
 
-let expect = function
-  | Some x -> x
-  | None -> assert_failure "got None!"
-
 let suite = "apps">::: [
   "simple">:: Fake_system.with_tmpdir (fun tmpdir ->
     let url = "http://example.com:8000/Hello.xml" in
@@ -37,7 +33,7 @@ let suite = "apps">::: [
 
     ignore @@ Apps.create_app config "hello" r;
 
-    let app = expect @@ Apps.lookup_app config "hello" in
+    let app = Fake_system.expect @@ Apps.lookup_app config "hello" in
     Fake_system.assert_str_equal url (Apps.get_requirements system app).R.interface_uri;
 
     ignore @@ Support.Basedir.save_path system
