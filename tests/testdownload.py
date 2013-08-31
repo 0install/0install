@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import with_statement
 from basetest import BaseTest, StringIO, BytesIO
-import sys, tempfile, os
+import sys, tempfile, os, subprocess
 import unittest
 import logging, warnings
 from logging import getLogger, WARN, ERROR
@@ -12,7 +12,7 @@ sys.path.insert(0, '..')
 os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall import helpers
-from zeroinstall.injector import model, gpg, download, trust, background, arch, selections, qdom, run
+from zeroinstall.injector import model, gpg, download, trust, background, arch, selections, qdom, run, config
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.scheduler import Site
 from zeroinstall.injector.driver import Driver
@@ -21,6 +21,7 @@ from zeroinstall.support import basedir, tasks, ro_rmtree
 from zeroinstall.injector import fetch
 import data
 import my_dbus
+import testinstall
 
 import server
 
@@ -158,8 +159,11 @@ class TestDownload(BaseTest):
 
 		self.config.handler.allow_downloads = True
 		self.config.key_info_server = 'http://localhost:3333/key-info'
-
 		self.config.fetcher = fetch.Fetcher(self.config)
+
+		child_config = config.Config()
+		child_config.key_info_server = 'http://localhost:3333/key-info'
+		child_config.save_globals()
 
 		stream = tempfile.TemporaryFile()
 		stream.write(data.thomas_key)
@@ -191,6 +195,14 @@ class TestDownload(BaseTest):
 
 		# Flush out ResourceWarnings
 		import gc; gc.collect()
+
+	def run_ocaml(self, args, stdin = None, stderr = subprocess.PIPE):
+		child = subprocess.Popen([testinstall.ocaml_0install] + args,
+				stdin = subprocess.PIPE if stdin is not None else None,
+				stdout = subprocess.PIPE, stderr = stderr, universal_newlines = True)
+		out, err = child.communicate(stdin)
+		child.wait()
+		return out, err
 
 	def testRejectKey(self):
 		with output_suppressed():
@@ -227,29 +239,20 @@ class TestDownload(BaseTest):
 				self.config.handler.ex = None
 	
 	def testImport(self):
-		from zeroinstall.injector import cli
-
-		rootLogger = getLogger()
-		rootLogger.disabled = True
-		try:
-			try:
-				cli.main(['--import', '-v', 'NO-SUCH-FILE'], config = self.config)
-				assert 0
-			except model.SafeException as ex:
-				assert 'NO-SUCH-FILE' in str(ex)
-		finally:
-			rootLogger.disabled = False
-			rootLogger.setLevel(WARN)
+		out, err = self.run_ocaml(['import', '-v', 'NO-SUCH-FILE'])
+		assert 'NO-SUCH-FILE' in err
+		assert not out, out
 
 		hello = self.config.iface_cache.get_feed('http://localhost:8000/Hello')
 		self.assertEqual(None, hello)
 
 		with output_suppressed():
 			run_server('6FCF121BE2390E0B.gpg')
-			sys.stdin = Reply("Y\n")
 
 			assert not trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
-			cli.main(['--import', 'Hello'], config = self.config)
+			out, err = self.run_ocaml(['import', 'Hello'], stdin = 'Y\n')
+			assert not out, out
+			assert "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000" in err, err
 			assert trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
 
 			# Check we imported the interface after trusting the key
@@ -260,10 +263,11 @@ class TestDownload(BaseTest):
 
 			# Shouldn't need to prompt the second time
 			sys.stdin = None
-			cli.main(['--import', 'Hello'], config = self.config)
+			out, err = self.run_ocaml(['import', 'Hello'])
+			assert not out, out
+			assert not err, err
 
 	def testSelections(self):
-		from zeroinstall.injector import cli
 		with open("selections.xml", 'rb') as stream:
 			root = qdom.parse(stream)
 		sels = selections.Selections(root)
@@ -271,13 +275,14 @@ class TestDownload(BaseTest):
 
 		with output_suppressed():
 			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-			sys.stdin = Reply("Y\n")
 			try:
 				self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 				assert False
 			except NotStored:
 				pass
-			cli.main(['--download-only', 'selections.xml'], config = self.config)
+			out, err = self.run_ocaml(['download', 'selections.xml'], stdin = "Y\n")
+			assert not out, out
+			assert not err, err
 			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
@@ -295,7 +300,6 @@ class TestDownload(BaseTest):
 			assert sels.download_missing(self.config) is None
 
 	def testSelectionsWithFeed(self):
-		from zeroinstall.injector import cli
 		with open("selections.xml", 'rb') as stream:
 			root = qdom.parse(stream)
 		sels = selections.Selections(root)
@@ -306,7 +310,9 @@ class TestDownload(BaseTest):
 
 			tasks.wait_for_blocker(self.config.fetcher.download_and_import_feed('http://example.com:8000/Hello.xml', self.config.iface_cache))
 
-			cli.main(['--download-only', 'selections.xml'], config = self.config)
+			out, err = self.run_ocaml(['download', 'selections.xml'])
+			assert not out, out
+			assert not err, err
 			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 

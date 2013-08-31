@@ -3,16 +3,17 @@
 from __future__ import print_function
 
 from basetest import BaseTest, StringIO, BytesIO
-import sys, tempfile, os, imp
+import sys, tempfile, os, imp, subprocess
 import unittest
 import logging
 
+os.environ["http_proxy"] = "localhost:8000"
 foo_iface_uri = 'http://foo'
 
 sys.path.insert(0, '..')
 from zeroinstall import SafeException
 from zeroinstall.support import tasks
-from zeroinstall.injector import run, cli, namespaces, qdom, selections
+from zeroinstall.injector import run, namespaces, qdom, selections
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver
 
@@ -23,37 +24,25 @@ class SilenceLogger(logging.Filter):
 		return 0
 silenceLogger = SilenceLogger()
 
+ocaml_0launch = os.path.join(mydir, '..', 'build', 'ocaml', '0launch')
+ocaml_0install = os.path.join(mydir, '..', 'build', 'ocaml', '0install')
+
 class TestLaunch(BaseTest):
-	def run_0launch(self, args):
-		old_stdout = sys.stdout
-		old_stderr = sys.stderr
-		try:
-			sys.stdout = StringIO()
-			sys.stderr = StringIO()
-			ex = None
-			try:
-				cli.main(args)
-				print("Finished")
-			except NameError:
-				raise
-			except SystemExit:
-				pass
-			except TypeError:
-				raise
-			except AttributeError:
-				raise
-			except AssertionError:
-				raise
-			except Exception as ex2:
-				ex = ex2		# Python 3
-			out = sys.stdout.getvalue()
-			err = sys.stderr.getvalue()
-			if ex is not None:
-				err += str(ex.__class__)
-		finally:
-			sys.stdout = old_stdout
-			sys.stderr = old_stderr
-		return (out, err)
+	def run_0launch(self, args, stdin = None, stderr = subprocess.PIPE):
+		child = subprocess.Popen([ocaml_0launch] + args,
+				stdin = subprocess.PIPE if stdin is not None else None,
+				stdout = subprocess.PIPE, stderr = stderr, universal_newlines = True)
+		out, err = child.communicate(stdin)
+		if child.wait() == 0: out += 'Finished\n'
+		return out, err
+
+	def run_0install(self, args, stdin = None, stderr = subprocess.PIPE):
+		child = subprocess.Popen([ocaml_0install] + args,
+				stdin = subprocess.PIPE if stdin is not None else None,
+				stdout = subprocess.PIPE, stderr = stderr, universal_newlines = True)
+		out, err = child.communicate(stdin)
+		if child.wait() == 0: out += 'Finished\n'
+		return out, err
 
 	def testHelp(self):
 		out, err = self.run_0launch([])
@@ -61,7 +50,7 @@ class TestLaunch(BaseTest):
 		assert not err
 	
 	def testList(self):
-		out, err = self.run_0launch(['--list'])
+		out, err = self.run_0install(['list'])
 		assert not err
 		self.assertEqual("Finished\n", out)
 		cached_ifaces = os.path.join(self.cache_home,
@@ -70,25 +59,25 @@ class TestLaunch(BaseTest):
 		os.makedirs(cached_ifaces)
 		open(os.path.join(cached_ifaces, 'file%3a%2f%2ffoo'), 'w').close()
 
-		out, err = self.run_0launch(['--list'])
+		out, err = self.run_0install(['list'])
 		assert not err
 		self.assertEqual("file://foo\nFinished\n", out)
 
-		out, err = self.run_0launch(['--list', 'foo'])
+		out, err = self.run_0install(['list', 'foo'])
 		assert not err
 		self.assertEqual("file://foo\nFinished\n", out)
 
-		out, err = self.run_0launch(['--list', 'bar'])
+		out, err = self.run_0install(['list', 'bar'])
 		assert not err
 		self.assertEqual("Finished\n", out)
 
-		out, err = self.run_0launch(['--list', 'one', 'two'])
+		out, err = self.run_0install(['list', 'one', 'two'])
 		assert not err
 		assert out.lower().startswith("usage:")
 	
 	def testVersion(self):
 		out, err = self.run_0launch(['--version'])
-		assert not err
+		assert not err, err
 		assert out.startswith("0launch (zero-install)")
 
 	def testInvalid(self):
@@ -136,16 +125,16 @@ class TestLaunch(BaseTest):
 
 	def testNeedDownload(self):
 		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run_0launch(['--download-only', '--dry-run', 'Foo.xml'])
+		out, err = self.run_0install(['download', '--dry-run', 'Foo.xml'])
 		self.assertEqual("", err)
 		self.assertEqual("Finished\n", out)
 
 	def testSelectOnly(self):
 		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run_0launch(['--get-selections', '--select-only', 'Hello.xml'])
+		out, err = self.run_0install(['select', '--xml', 'Hello.xml'])
 		self.assertEqual("", err)
 
-		assert out.endswith("Finished\n")
+		assert out.endswith("Finished\n"), out
 		out = out[:-len("Finished\n")]
 
 		root = qdom.parse(BytesIO(str(out).encode('utf-8')))
@@ -164,22 +153,13 @@ class TestLaunch(BaseTest):
 		assert "Permission denied" in err or "Is a directory" in err
 
 	def testRanges(self):
-		out, err = self.run_0launch(['--get-selections', '--before=1', '--not-before=0.2', 'Foo.xml'])
+		out, err = self.run_0install(['select', '--before=1', '--not-before=0.2', 'Foo.xml'])
 		assert 'tests/rpm' in out, out
 		self.assertEqual("", err)
 	
 	def testLogging(self):
-		log = logging.getLogger()
-		log.addFilter(silenceLogger)
-
-		out, err = self.run_0launch(['-v', '--list', 'UNKNOWN'])
-		self.assertEqual(logging.INFO, log.level)
-
-		out, err = self.run_0launch(['-vv', '--version'])
-		self.assertEqual(logging.DEBUG, log.level)
-
-		log.removeFilter(silenceLogger)
-		log.setLevel(logging.WARN)
+		out, err = self.run_0install(['-v', 'list', 'UNKNOWN'])
+		assert "OCaml front-end to 0install: verbose mode on" in err, err
 	
 	def testHelp2(self):
 		out, err = self.run_0launch(['--help'])
@@ -189,24 +169,26 @@ class TestLaunch(BaseTest):
 		out, err = self.run_0launch([])
 		self.assertEqual("", err)
 		assert 'options:' in out.lower()
-	
+
 	def testBadFD(self):
 		copy = os.dup(1)
 		try:
 			os.close(1)
-			cli.main(['--list', 'UNKNOWN'])
+			out, err = self.run_0install(['list', 'UNKNOWN'])
+			assert out == "Finished\n", out
+			assert not err, err
 		finally:
 			os.dup2(copy, 1)
 
 	def testShow(self):
 		command_feed = os.path.join(mydir, 'Command.xml')
-		out, err = self.run_0launch(['--show', command_feed])
+		out, err = self.run_0install(['select', command_feed])
 		self.assertEqual("", err)
 		assert 'Local.xml' in out, out
 
 	def testExecutables(self):
 		# Check top-level scripts are readable (detects white-space errors)
-		for script in ['0launch', '0alias', '0store', '0desktop', '0install']:
+		for script in ['0install-python-fallback', '0alias', '0store', '0desktop']:
 			path = os.path.join('..', script)
 
 			old_stdout = sys.stdout

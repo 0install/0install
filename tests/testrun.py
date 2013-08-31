@@ -16,7 +16,7 @@ from zeroinstall.injector.driver import Driver
 from zeroinstall.support import unicode
 
 mydir = os.path.abspath(os.path.dirname(__file__))
-local_0launch = os.path.join(os.path.dirname(mydir), '0launch')
+local_0launch = os.path.join(mydir, '..', 'build', 'ocaml', '0launch')
 arglist = os.path.join(mydir, 'runnable', 'ArgList.xml')
 runnable = os.path.join(mydir, 'runnable', 'Runnable.xml')
 runexec = os.path.join(mydir, 'runnable', 'RunExec.xml')
@@ -134,18 +134,6 @@ class TestRun(BaseTest):
 		assert 'Runner: script=A test script: args=foo-arg -- var user-arg-run' in stdout, stdout
 		assert 'Runner: script=A test script: args=command-arg -- path user-arg-run' in stdout, stdout
 
-		# Check runenv.py is updated correctly
-		from zeroinstall.support import basedir
-		runenv = basedir.load_first_cache(namespaces.config_site, namespaces.config_prog, 'runenv.py')
-		os.chmod(runenv, 0o700)
-		with open(runenv, 'wb') as s:
-			s.write(b'#!/\n')
-
-		child = subprocess.Popen([local_0launch, '--', runexec, 'user-arg-run'], stdout = subprocess.PIPE, universal_newlines = True)
-		stdout, _ = child.communicate()
-		assert 'Runner: script=A test script: args=foo-arg -- var user-arg-run' in stdout, stdout
-		assert 'Runner: script=A test script: args=command-arg -- path user-arg-run' in stdout, stdout
-	
 	def testRunPackage(self):
 		if 'TEST' in os.environ:
 			del os.environ['TEST']

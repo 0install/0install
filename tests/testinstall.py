@@ -351,7 +351,7 @@ class TestInstall(BaseTest):
 				 "- {path}/Local.xml -> (problem)\n"
 				 "    User requested version 10..\n"
 				 "    No usable implementations:\n"
-				 "      sha1=256 (0.1): Incompatible with user-specified requirements\n".format(path = path), err)
+				 "      sha1=256 (0.1): Excluded by user-provided restriction: version 10..\n".format(path = path), err)
 		assert not out, out
 
 		out, err = self.run_ocaml(['update', 'local-app', '--version=0.1..'])
