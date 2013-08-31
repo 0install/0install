@@ -29,6 +29,16 @@ class ['a, 'b] ambiguous_one_arg (actual:'a) (reader:'b option_reader) =
       | _ -> raise_safe "Option takes one argument in this context"
   end
 
+exception ShowVersion
+
+class ['a, 'b] ambiguous_version_arg (reader:'b option_reader) =
+  object (_ : ('a, _) #option_parser)
+    method get_reader = reader
+    method parse = function
+      | [x] -> `RequireVersion x
+      | _ -> raise ShowVersion
+  end
+
 (* This is tricky, because --version does two things:
    [0install --version] shows the version of 0install.
    [0install --version=1 run foo] runs version 1 of "foo". *)
@@ -106,7 +116,7 @@ let generic_select_options : (_, _) opt list = [
   ([      "--os"],          1, i_ "target operation system type",      new one_arg OsType @@ fun o -> `Os o);
   (["-r"; "--refresh"],     0, i_ "refresh all used interfaces",       new ambiguous_no_arg `Refresh no_arg_reader);
   (["-s"; "--source"],      0, i_ "select source code",                new no_arg @@ `Source);
-  ([      "--version"],     1, i_ "specify version constraint (e.g. '3' or '3..')", new ambiguous_one_arg (fun v -> `RequireVersion v) read_version_option);
+  ([      "--version"],     1, i_ "specify version constraint (e.g. '3' or '3..')", new ambiguous_version_arg read_version_option);
   ([      "--version-for"], 2, i_ "set version constraints for a specific interface", parse_version_for);
 ]
 
@@ -180,7 +190,7 @@ let make_subcommand name help handler valid_options =
         let flags = parse_options valid_options raw_options in
         try handler options flags args
         with Support.Argparse.Usage_error status ->
-          Common_options.show_help options.config valid_options (name ^ " [OPTIONS] " ^ help) ignore;
+          Common_options.show_help options.config.system valid_options (name ^ " [OPTIONS] " ^ help) ignore;
           raise (System_exit status)
 
       method options = (valid_options :> (zi_option, _) opt list)
@@ -213,7 +223,7 @@ let subcommands = [
 let show_toplevel_help config =
   let print fmt = Support.Utils.print config.system fmt in
   let top_options = show_version_options @ common_options in
-  Common_options.show_help config top_options "COMMAND [OPTIONS]" (fun () ->
+  Common_options.show_help config.system top_options "COMMAND [OPTIONS]" (fun () ->
     print "\nTry --help with one of these:\n";
     ListLabels.iter subcommands ~f:(fun (command, info) ->
       if info#help <> "-" then
@@ -256,10 +266,12 @@ let handle config raw_args =
       let subcommand, command_args = 
         match args with
         | [] -> (no_command, [])
+        | ["run"] when List.mem ("-V", []) raw_options -> (no_command, [])      (* Hack for 0launch -V *)
         | command :: command_args ->
             let subcommand =
               try List.assoc command subcommands
               with Not_found -> raise_safe "Unknown 0install sub-command '%s': try --help" command in
             (subcommand, command_args) in
-      subcommand#handle options raw_options command_args
+      try subcommand#handle options raw_options command_args
+      with ShowVersion -> Common_options.show_version config.system
     )

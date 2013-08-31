@@ -38,27 +38,30 @@ let increase_verbosity options =
   )
 
 let show_version system =
+  let prog = Filename.basename @@ (system#argv ()).(0) in
+  let prog = if Support.Utils.starts_with prog "0launch" then "0launch" else "0install" in
+
   system#print_string @@ Printf.sprintf
-    "0install (zero-install) %s\n\
+    "%s (zero-install) %s\n\
      Copyright (C) 2013 Thomas Leonard\n\
      This program comes with ABSOLUTELY NO WARRANTY,\n\
      to the extent permitted by law.\n\
      You may redistribute copies of this program\n\
      under the terms of the GNU Lesser General Public License.\n\
      For more information about these matters, see the file named COPYING.\n"
-     Zeroinstall.About.version
+     prog Zeroinstall.About.version
 
-let show_help config valid_options help extra_fn =
-  let prog = Filename.basename config.abspath_0install in
+let show_help (system:system) valid_options help extra_fn =
+  let prog = Filename.basename @@ (system#argv ()).(0) in
   if Support.Utils.starts_with prog "0launch" then
-    Support.Utils.print config.system "Usage: %s [OPTIONS] URI [ARGS]" prog
+    Support.Utils.print system "Usage: %s [OPTIONS] URI [ARGS]" prog
   else
-    Support.Utils.print config.system "Usage: %s %s" prog help;
+    Support.Utils.print system "Usage: %s %s" prog help;
 
   extra_fn ();
 
   print_newline ();
-  Support.Argparse.format_options config.system format_type valid_options
+  Support.Argparse.format_options system format_type valid_options
 
 let process_common_option options =
   let config = options.config in
