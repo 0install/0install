@@ -48,13 +48,17 @@ let show_version system =
      For more information about these matters, see the file named COPYING.\n"
      Zeroinstall.About.version
 
-let show_help (system:system) valid_options help extra_fn =
-  Support.Utils.print system "Usage: 0install %s" help;
+let show_help config valid_options help extra_fn =
+  let prog = Filename.basename config.abspath_0install in
+  if Support.Utils.starts_with prog "0launch" then
+    Support.Utils.print config.system "Usage: %s [OPTIONS] URI [ARGS]" prog
+  else
+    Support.Utils.print config.system "Usage: %s %s" prog help;
 
   extra_fn ();
 
   print_newline ();
-  Support.Argparse.format_options system format_type valid_options
+  Support.Argparse.format_options config.system format_type valid_options
 
 let process_common_option options =
   let config = options.config in

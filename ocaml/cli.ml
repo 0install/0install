@@ -180,7 +180,7 @@ let make_subcommand name help handler valid_options =
         let flags = parse_options valid_options raw_options in
         try handler options flags args
         with Support.Argparse.Usage_error status ->
-          Common_options.show_help options.config.system valid_options (name ^ " [OPTIONS] " ^ help) ignore;
+          Common_options.show_help options.config valid_options (name ^ " [OPTIONS] " ^ help) ignore;
           raise (System_exit status)
 
       method options = (valid_options :> (zi_option, _) opt list)
@@ -210,10 +210,10 @@ let subcommands = [
   make_subcommand "digest"      "DIRECTORY | ARCHIVE [EXTRACT]" fallback_handler @@ common_options @ digest_options;
 ]
 
-let show_toplevel_help system =
-  let print fmt = Support.Utils.print system fmt in
+let show_toplevel_help config =
+  let print fmt = Support.Utils.print config.system fmt in
   let top_options = show_version_options @ common_options in
-  Common_options.show_help system top_options "COMMAND [OPTIONS]" (fun () ->
+  Common_options.show_help config top_options "COMMAND [OPTIONS]" (fun () ->
     print "\nTry --help with one of these:\n";
     ListLabels.iter subcommands ~f:(fun (command, info) ->
       if info#help <> "-" then
@@ -227,7 +227,7 @@ let handle_no_command options flags args =
     | `Help -> ()
     | #common_option as o -> Common_options.process_common_option options o
   );
-  show_toplevel_help options.config.system;
+  show_toplevel_help options.config;
   raise (System_exit 1)
 
 let no_command = snd @@ make_subcommand "" "" handle_no_command @@ common_options @ show_version_options

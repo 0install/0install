@@ -25,7 +25,7 @@ let get_command config args : string list =
   let try_with path =
     if config.system#file_exists path then (
       (* Note: on Windows, we need to specify "python" *)
-      result := "python" :: path :: "--python-fallback" :: args;
+      result := "python" :: path :: args;
       true
     ) else (
       false
@@ -33,10 +33,10 @@ let get_command config args : string list =
   let my_dir = Filename.dirname config.abspath_0install in
   let parent_dir = Filename.dirname my_dir in
   ignore (
-    try_with (my_dir +/ "0launch") ||                        (* When installed in /usr/bin *)
-    try_with (parent_dir +/ "0launch") ||                    (* When running from ocaml directory *)
-    try_with (Filename.dirname parent_dir +/ "0launch") ||   (* When running from _build directory *)
-    failwith "Can't find 0launch command!"
+    try_with (my_dir +/ "0install-python-fallback") ||                        (* When installed in /usr/bin XXX *)
+    try_with (parent_dir +/ "0install-python-fallback") ||                    (* When running from ocaml directory *)
+    try_with (Filename.dirname parent_dir +/ "0install-python-fallback") ||   (* When running from _build directory *)
+    failwith "Can't find 0install-python-fallback command!"
   );
   assert (!result <> []);
   !result

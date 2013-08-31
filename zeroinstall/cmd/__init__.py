@@ -75,7 +75,7 @@ def main(command_args, config = None):
 	try:
 		# Configure a parser for the given command
 		my_name = os.path.basename(sys.argv[0])
-		if my_name == '0launch': my_name = '0install'	# Hack for --python-fallback
+		if my_name == '0install-python-fallback': my_name = '0install'	# Hack for python-fallback
 		if command:
 			if command not in valid_commands:
 				raise SafeException(_("Unknown sub-command '%s': try --help") % command)

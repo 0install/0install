@@ -43,7 +43,7 @@ exception Would_exec of (bool * string array option * string list)
 exception Would_spawn of (bool * string array option * string list)
 
 let src_dir = Filename.dirname @@ Filename.dirname @@ Sys.getcwd ()
-let test_0install = src_dir +/ "0install"           (* Pretend we're running from here so we find 0launch *)
+let test_0install = src_dir +/ "0install"           (* Pretend we're running from here so we find 0install-python-fallback *)
 
 class fake_system tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
@@ -296,7 +296,7 @@ let get_fake_config tmpdir =
   if on_windows then (
     system#putenv "PATH" "C:\\Windows\\system32;C:\\Windows";
     system#add_file (src_dir +/ "0install-runenv.exe") (build_dir +/ "0install-runenv.exe");
-    system#add_file (src_dir +/ "0launch") (src_dir +/ "0launch")
+    system#add_file (src_dir +/ "0install-python-fallback") (src_dir +/ "0install-python-fallback")
   ) else (
     system#putenv "PATH" "/usr/bin:/bin"
   );

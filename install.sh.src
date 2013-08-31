@@ -58,6 +58,7 @@ esac
 echo "Installing to $PREFIX/..."
 
 install -D 0install "${PREFIX}/bin/0install"
+ln -f "${PREFIX}/bin/0install" "${PREFIX}/bin/0launch"
 install -d "${PREFIX_MAN}/man1/"
 install -d "${PREFIX_SHARE}/applications/"
 install -d "${PREFIX_SHARE}/bash-completion/completions/"
