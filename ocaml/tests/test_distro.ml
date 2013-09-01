@@ -44,7 +44,9 @@ let suite = "distro">::: [
 
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     fake_system#add_file "/var/lib/pacman/local/python2-2.7.2-4/desc" "../../tests/arch/local/python2-2.7.2-4/desc";
-    fake_system#add_dir "/usr/bin" [];
+    fake_system#hide_path "/usr/bin/python2";
+    fake_system#hide_path "/usr/bin/python3";
+    assert (not @@ fake_system#file_exists "/usr/bin/python2");
     fake_system#add_dir "/bin" ["python2"; "python3"];
     let system = (fake_system :> system) in
     let slave = new Zeroinstall.Python.slave config in

@@ -13,6 +13,7 @@ module R = Zeroinstall.Requirements
 module Escape = Zeroinstall.Escape
 
 let test_0install = Fake_system.test_0install
+let feed_dir = U.abspath Fake_system.real_system (".." +/ ".." +/ "tests")
 
 exception Ok
 
@@ -83,6 +84,31 @@ class fake_slave config =
     method allow_download (hash:string) =
       pending_digests := StringSet.add hash !pending_digests
   end
+
+let run_0install fake_system ?(exit=0) args =
+  fake_system#set_argv @@ Array.of_list (test_0install :: args);
+  fake_system#collect_output (fun () ->
+    try Main.main (fake_system :> system); assert (exit = 0)
+    with System_exit n -> assert_equal ~msg:"exit code" n exit
+  )
+
+let capture_stdout fn =
+  U.finally_do
+    (fun old_stdout -> Unix.(dup2 old_stdout stdout; close old_stdout))
+    (Unix.dup Unix.stdout)
+    (fun _old_stdout ->
+      let tmp = Filename.temp_file "0install" "-test" in
+      U.finally_do
+        Unix.close Unix.(openfile tmp [O_RDWR] 0o600)
+        (fun tmpfd ->
+          Unix.dup2 tmpfd Unix.stdout;
+          fn ();
+          flush stdout;
+        );
+        let contents = U.read_file Fake_system.real_system tmp in
+        Unix.unlink tmp;
+        contents
+    )
 
 let suite = "0install">::: [
   "select">:: Fake_system.with_tmpdir (fun tmpdir ->
@@ -156,7 +182,6 @@ let suite = "0install">::: [
     let fake_slave = new fake_slave config in
     fake_slave#install;
 
-    let feed_dir = ".." +/ ".." +/ "tests" in
     let binary_feed = Support.Utils.read_file system (feed_dir +/ "Binary.xml") in
 
     (* Using a remote feed for the first time *)
@@ -208,16 +233,64 @@ let suite = "0install">::: [
     assert_contains "No longer used: http://foo/Compiler.xml" out;
   );
 
+  "download">:: Fake_system.with_tmpdir (fun tmpdir ->
+    let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    let system = (fake_system :> system) in
+    let run = run_0install fake_system in
+
+    let out = run ~exit:1 ["download"] in
+    assert (U.starts_with out "Usage:");
+    assert_contains "--show" out;
+
+    let out = run ["download"; (feed_dir +/ "Local.xml"); "--show"] in
+    assert_contains "Version: 0.1" out;
+
+    let local_uri = U.abspath system (feed_dir +/ "Local.xml") in
+    let out = capture_stdout (fun () ->
+      Fake_system.assert_str_equal "" @@ run ["download"; local_uri; "--xml"]
+    ) in
+    let sels = Zeroinstall.Selections.make_selection_map @@ Q.parse_input None (Xmlm.make_input (`String (0, out))) in
+    let sel = StringMap.find local_uri sels in
+    Fake_system.assert_str_equal "0.1" @@ ZI.get_attribute "version" sel;
+
+    let () =
+      try ignore @@ run ["download"; "--offline"; (feed_dir +/ "selections.xml")]; assert false
+      with Safe_exception (msg, _) ->
+        assert_contains "Would download" msg in
+
+    let fake_slave = new fake_slave config in
+    fake_slave#install;
+    let digest = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" in
+    fake_slave#allow_download digest;
+    let out = run ["download"; (feed_dir +/ "Hello.xml"); "--show"] in
+    assert_contains digest out;
+    assert_contains "Version: 1\n" out;
+
+    let out = run ["download"; "--offline"; (feed_dir +/ "selections.xml"); "--show"] in
+    assert_contains digest out;
+    assert_contains "Version: 1\n" out;
+  );
+
+  "download_selections">:: Fake_system.with_tmpdir (fun tmpdir ->
+    let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    let system = (fake_system :> system) in
+    let run = run_0install fake_system in
+
+    let digest = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" in
+    let fake_slave = new fake_slave config in
+    fake_slave#install;
+    fake_slave#allow_download digest;
+
+    let hello = Support.Utils.read_file system (feed_dir +/ "Hello.xml") in
+    fake_slave#allow_feed_download "http://example.com:8000/Hello.xml" hello;   (* XXX *)
+    let out = run ["download"; (feed_dir +/ "selections.xml"); "--show"] in
+    assert_contains digest out;
+    assert_contains "Version: 1\n" out;
+  );
+
   "display">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (_config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    let system = (fake_system :> system) in
-
-    let run ?(exit=0) args =
-      fake_system#set_argv @@ Array.of_list (test_0install :: args);
-      fake_system#collect_output (fun () ->
-        try Main.main system; assert (exit = 0)
-        with System_exit n -> assert_equal ~msg:"exit code" n exit
-      ) in
+    let run = run_0install fake_system in
 
     fake_system#unsetenv "DISPLAY";
     try ignore @@ run ["run"; "--gui"; "http://foo/d"]; assert false

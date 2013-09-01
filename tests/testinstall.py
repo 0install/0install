@@ -90,52 +90,6 @@ class TestInstall(BaseTest):
 		assert not err, err
 		assert 'Runner' in out, out
 
-	def testDownload(self):
-		out, err = self.run_ocaml(['download'])
-		assert out.lower().startswith("usage:")
-		assert '--show' in out
-
-		out, err = self.run_ocaml(['download', 'Local.xml', '--show'])
-		assert not err, err
-		assert 'Version: 0.1' in out
-
-		local_uri = model.canonical_iface_uri('Local.xml')
-		out, err = self.run_ocaml(['download', 'Local.xml', '--xml'])
-		assert not err, err
-		sels = selections.Selections(qdom.parse(BytesIO(str(out).encode('utf-8'))))
-		assert sels.selections[local_uri].version == '0.1'
-
-		out, err = self.run_ocaml(['download', 'Local.xml', '--show', '--with-store=/foo'])
-		assert not err, err
-		#assert self.config.stores.stores[-1].dir == '/foo'
-
-		out, err = self.run_ocaml(['download', '--offline', 'selections.xml'])
-		assert 'Would download' in err
-		self.config.network_use = model.network_full
-
-		self.config.stores = TestStores()
-		digest = 'sha1=3ce644dc725f1d21cfcf02562c76f375944b266a'
-		self.config.fetcher.allow_download(digest)
-		out, err = self.run_0install(['download', 'Hello.xml', '--show'])
-		assert not err, err
-		assert self.config.stores.lookup_any([digest]).startswith('/fake')
-		assert 'Version: 1\n' in out
-
-		out, err = self.run_0install(['download', '--offline', 'selections.xml', '--show'])
-		assert '/fake_store' in out, (out, err)
-		self.config.network_use = model.network_full
-
-	def testDownloadSelections(self):
-		self.config.stores = TestStores()
-		digest = 'sha1=3ce644dc725f1d21cfcf02562c76f375944b266a'
-		self.config.fetcher.allow_download(digest)
-		with open('Hello.xml') as stream: hello = stream.read()
-		self.config.fetcher.allow_feed_download('http://example.com:8000/Hello.xml', hello)
-		out, err = self.run_0install(['download', 'selections.xml', '--show'])
-		assert not err, err
-		assert self.config.stores.lookup_any([digest]).startswith('/fake')
-		assert 'Version: 1\n' in out
-
 	def testConfig(self):
 		out, err = self.run_0install(['config', '--help'])
 		assert out.lower().startswith("usage:")

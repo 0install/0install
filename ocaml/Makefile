@@ -23,8 +23,8 @@ test: ocaml
 ocaml: build_dir
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) $(TARGETS)
 	#cp 0install.ml "$(OCAML_BUILDDIR)/"
-	ln -f "${OCAML_BUILDDIR}/0install" "${OCAML_BUILDDIR}/0launch"
 	if [ "$(OS)" = "Windows_NT" ];then make ocaml_windows; else make ocaml_posix; fi
+	ln -f "${OCAML_BUILDDIR}/0install" "${OCAML_BUILDDIR}/0launch"
 
 # For static Windows version, we also need the runenv.native helper.
 # Also, we need an XML manifest, or Windows 7 won't run it because it has "install" in its name.

@@ -52,20 +52,21 @@ let test_0install = src_dir +/ "0install"           (* Pretend we're running fro
 
 class fake_system tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
+  let hidden_files = ref StringSet.empty in
 
+  (* Prevent reading from $HOME, except for the code we're testing (to avoid accidents, e.g. reading user's config files).
+   * Also, apply any redirections in extra_files. *)
   let check_read path =
     log_info "check_read(%s)" path;
     if Filename.is_relative path then path
-    else if (on_windows && U.starts_with path "C:\\Windows\\") ||
-        (not on_windows && (U.starts_with path "/usr" || U.starts_with path "/lib")) then path
     else (
       try
         match StringMap.find path !extra_files with
         | Dir _ -> path
-        | File (_mode, redirect_path) ->
-            redirect_path
+        | File (_mode, redirect_path) -> redirect_path
       with Not_found ->
-        if U.starts_with path src_dir then path
+        if not (U.starts_with path "/home") then path
+        else if U.starts_with path src_dir then path
         else (
           match tmpdir with
           | Some dir when U.starts_with path dir
@@ -137,29 +138,35 @@ class fake_system tmpdir =
       if path = "/usr/bin/0install" then true
       else if path = "C:\\Windows\\system32\\0install.exe" then true
       else if StringMap.mem path !extra_files then true
-      else if StringMap.mem (Filename.dirname path) !extra_files then false
+      else if StringSet.mem path !hidden_files then (log_info "hide %s" path; false)
       else if tmpdir = None then false
       else real_system#file_exists (check_read path)
 
     method lstat path =
-      try
-        let open Unix in
-        match StringMap.find path !extra_files with
-        | Dir (mode, _items) -> Some (make_stat mode S_DIR)
-        | File (_mode, target) -> real_system#lstat target
-      with Not_found ->
-        if hidden_subtree path then None
-        else real_system#lstat (check_read path)
+      if StringSet.mem path !hidden_files then None
+      else (
+        try
+          let open Unix in
+          match StringMap.find path !extra_files with
+          | Dir (mode, _items) -> Some (make_stat mode S_DIR)
+          | File (_mode, target) -> real_system#lstat target
+        with Not_found ->
+          if hidden_subtree path then None
+          else real_system#lstat (check_read path)
+      )
 
     method stat path =
-      try
-        let open Unix in
-        match StringMap.find path !extra_files with
-        | Dir (mode, _items) -> Some (make_stat mode S_DIR)
-        | File (_mode, target) -> real_system#stat target
-      with Not_found ->
-        if hidden_subtree path then None
-        else real_system#stat (check_read path)
+      if StringSet.mem path !hidden_files then None
+      else (
+        try
+          let open Unix in
+          match StringMap.find path !extra_files with
+          | Dir (mode, _items) -> Some (make_stat mode S_DIR)
+          | File (_mode, target) -> real_system#stat target
+        with Not_found ->
+          if hidden_subtree path then None
+          else real_system#stat (check_read path)
+      )
 
     method atomic_write open_flags fn path mode = real_system#atomic_write open_flags fn (check_write path) mode
     method atomic_hardlink ~link_to ~replace = real_system#atomic_hardlink ~link_to:(check_read link_to) ~replace:(check_write replace)
@@ -228,6 +235,9 @@ class fake_system tmpdir =
         if not (StringMap.mem full !extra_files) then
           self#add_file full "" in
       List.iter add_file items
+
+    method hide_path path =
+      hidden_files := StringSet.add path !hidden_files
 
     initializer
       match tmpdir with
@@ -306,6 +316,7 @@ let get_fake_config tmpdir =
     system#add_file python python;
     system#putenv "PATH" @@ "C:\\Windows\\system32;C:\\Windows;" ^ Filename.dirname python;
   ) else (
-    system#putenv "PATH" "/usr/bin:/bin"
+    system#putenv "PATH" "/usr/bin:/bin";
+    system#add_file test_0install (build_dir +/ "0install");
   );
   (Config.get_default_config (system :> system) test_0install, system)
