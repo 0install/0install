@@ -179,15 +179,20 @@ let find_component_ex key report =
   | None -> raise_safe "Can't find component %s!" (fst key)
 
 (* Did any dependency of [impl] prevent it being selected?
-   This can only happen in the case of a cycle (otherwise, we'd select something
-   in [impl]'s interface and complain about the dependency instead). *)
+   This can only happen if a component conflicts with something more important
+   than itself (otherwise, we'd select something in [impl]'s interface and
+   complain about the dependency instead).
+
+   e.g. A depends on B and C. B and C both depend on D.
+   C1 conflicts with D1. The depth-first priority order means we give priority
+   to {A1, B1, D1}. Then we can't choose C1 because we prefer to keep D1. *)
 let get_dependency_problem report impl =
   let check_dep dep =
     match find_component (dep.Feed.dep_iface, false) report with
-    | None -> None      (* Not in the selections => can't be part of a cycle *)
+    | None -> None      (* Not in the selections => can't be part of a conflict *)
     | Some required_component ->
         match required_component#impl with
-        | None -> None  (* Not part of a cycle *)
+        | None -> None  (* Dummy selection can't cause a conflict *)
         | Some dep_impl ->
             let check_restriction r =
               if r#meets_restriction dep_impl then None
@@ -239,7 +244,7 @@ let examine_selection report (iface_uri, source) component =
       (* For each dependency of our selected impl, explain why it rejected impls in the dependency's interface. *)
       List.iter (examine_dep iface_uri our_impl report) our_impl.Feed.props.Feed.requires
   | None ->
-      (* For each of our remaining unrejected impls, check whether a dependency cycle prevented its selection. *)
+      (* For each of our remaining unrejected impls, check whether a dependency prevented its selection. *)
       component#filter_impls (get_dependency_problem report)
 
 let reject_if_unselected sat _key component =
