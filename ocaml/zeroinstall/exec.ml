@@ -70,7 +70,7 @@ let get_launcher_builder config =
       really_input ch buf 0 2
     )
     in
-    if buf = "!#" then
+    if buf = "#!" then
       new bytecode_launcher_builder config
     else
       new native_launcher_builder config
