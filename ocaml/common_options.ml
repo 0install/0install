@@ -60,7 +60,7 @@ let show_help (system:system) valid_options help extra_fn =
 
   extra_fn ();
 
-  print_newline ();
+  system#print_string "\n";
   Support.Argparse.format_options system format_type valid_options
 
 let process_common_option options =
