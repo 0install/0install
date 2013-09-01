@@ -505,7 +505,7 @@ let is_dir system path =
   | Some info -> info.Unix.st_kind = Unix.S_DIR
 
 let touch (system:system) path =
-  system#with_open_out [Open_wronly; Open_creat] 0700 path (fun _ch -> ());
+  system#with_open_out [Open_wronly; Open_creat] 0o600 path (fun _ch -> ());
   system#set_mtime path @@ system#time ()   (* In case file already exists *)
 
 let read_file (system:system) path =
