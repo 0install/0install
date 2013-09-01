@@ -1,6 +1,13 @@
 #!/bin/sh
 set -eu
 
+cd `dirname $0`/files
+
+echo Testing binary...
+./0install --version | head -1
+echo OK
+echo
+
 # This file gets copied into the build/static_dist directory as "install.sh". It can be run
 # from there to install everything.
 
@@ -16,7 +23,6 @@ if [ $# != 1 ]; then
 	exit 1
 fi
 
-cd `dirname $0`/files
 DOCS="../README.md ../COPYING"
 MANPAGES="0launch.1 0alias.1 0store-secure-add.1 0store.1 0desktop.1 0install.1"
 
