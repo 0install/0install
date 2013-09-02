@@ -12,33 +12,15 @@ try:
 except locale.Error:
 	warn('Error setting locale (eg. Invalid locale)')
 
-import os, sys
+import sys
 
 ## PATH ##
 
 from optparse import OptionParser
 
-from zeroinstall.injector import reader, model
-from zeroinstall.injector.config import load_config
-from zeroinstall import support, alias, helpers, apps, _
-from zeroinstall.support import basedir
+from zeroinstall import _
 
-config = load_config()
-
-# Do this here so we can include it in the help message.
-# But, don't abort if there isn't one because we might
-# be doing something else (e.g. --manpage)
-first_path = apps.find_bin_dir()
-in_path = first_path is not None
-if not in_path:
-	first_path = os.path.expanduser('~/bin/')
-
-parser = OptionParser(usage="usage: %%prog [options] alias [interface [main]]\n\n"
-		"Creates a script to run 'interface' (will be created in\n"
-		"%s unless overridden by --dir).\n\n"
-		"If no interface is given, edits the policy for an existing alias.\n"
-		"For interfaces providing more than one executable, the desired\n"
-		"'main' binary or command may also be given." % first_path)
+parser = OptionParser(usage="usage: %prog [options] alias [interface [main]]")
 parser.add_option("-c", "--command", help="the command the alias will run (default 'run')", metavar='COMMNAD')
 parser.add_option("-m", "--manpage", help="show the manual page for an existing alias", action='store_true')
 parser.add_option("-r", "--resolve", help="show the URI for an alias", action='store_true')
