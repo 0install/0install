@@ -255,7 +255,7 @@ class TestInstall(BaseTest):
 		out, err = self.run_ocaml(['add', 'local-app'])
 		assert out.lower().startswith("usage:")
 
-		out, err = self.run_0install(['destroy', 'local-app', 'uri'])
+		out, err = self.run_ocaml(['destroy', 'local-app', 'uri'])
 		assert out.lower().startswith("usage:")
 
 		local_feed = os.path.join(mydir, 'Local.xml')
@@ -379,11 +379,11 @@ class TestInstall(BaseTest):
 		#assert 'local-app' in self.complete(['destroy'], 2)
 		#self.assertEqual('', self.complete(['destroy', ''], 3))
 
-		out, err = self.run_0install(['destroy', 'local-app'])
+		out, err = self.run_ocaml(['destroy', 'local-app'])
 		assert not out, out
 		assert not err, err
 
-		out, err = self.run_0install(['destroy', 'local-app'])
+		out, err = self.run_ocaml(['destroy', 'local-app'])
 		assert not out, out
 		assert "No such application 'local-app'" in err, err
 

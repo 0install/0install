@@ -325,7 +325,7 @@ let with_dev_null fn =
   let null_fd = Unix.openfile "/dev/null" [Unix.O_WRONLY] 0 in
   finally_do Unix.close null_fd fn
 
-let ro_rmtree (sys:system) root =
+let rmtree ~even_if_locked (sys:system) root =
   if starts_with (sys#getcwd () ^ Filename.dir_sep) (root ^ Filename.dir_sep) then
     log_warning "Removing tree (%s) containing the current directory (%s) - this will not work on Windows" root (sys#getcwd ());
 
@@ -336,10 +336,11 @@ let ro_rmtree (sys:system) root =
       | Some info ->
         match info.Unix.st_kind with
         | Unix.S_REG | Unix.S_LNK | Unix.S_BLK | Unix.S_CHR | Unix.S_SOCK | Unix.S_FIFO ->
-            if on_windows then sys#chmod path 0o700;
+            if on_windows && even_if_locked then sys#chmod path 0o700;
             sys#unlink path
         | Unix.S_DIR -> (
-            sys#chmod path 0o700;
+            if even_if_locked then
+              sys#chmod path 0o700;
             match sys#readdir path with
             | Success files ->
                 Array.iter (fun leaf -> rmtree @@ path +/ leaf) files;

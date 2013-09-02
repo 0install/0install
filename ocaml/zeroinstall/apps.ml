@@ -355,6 +355,32 @@ let integrate_shell config app executable_name =
     Dry_run.log "would write launcher script %s" launcher
   else (
     config.system#atomic_write [Open_wronly;Open_text] launcher ~mode:0o755 (fun ch ->
-      output_string ch @@ Printf.sprintf command_template (Filename.basename app)
+      Printf.fprintf ch command_template (Filename.basename app)
     )
   )
+
+let destroy config app =
+  let system = config.system in
+  assert (system#file_exists @@ app +/ "requirements.json");  (* Safety check that this really is an app *)
+
+  let () = (* delete launcher script, if any *)
+    (* todo: remember which commands we own instead of guessing *)
+    let name = Filename.basename app in
+    let bin_dir = find_bin_dir config in
+    let launcher = bin_dir +/ name in
+    let expanded_template = Printf.sprintf command_template name in
+    match config.system#stat launcher with
+    | None -> ()
+    | Some info when info.Unix.st_size = String.length expanded_template ->
+        if U.read_file system launcher = expanded_template then (
+          if config.dry_run then
+            Dry_run.log "would delete launcher script %s" launcher
+          else
+            system#unlink launcher
+        )
+    | Some _ -> log_warning "'%s' exists, but doesn't look like our launcher, so not deleting it" launcher in
+
+    if config.dry_run then
+      Dry_run.log "would delete directory %s" app
+    else
+      U.rmtree ~even_if_locked:false system app

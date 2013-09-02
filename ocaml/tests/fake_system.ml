@@ -302,7 +302,7 @@ let temp_dir_name =
 let with_tmpdir fn () =
   let tmppath = temp_dir_name +/ Printf.sprintf "0install-test-%x" (Random.int 0x3fffffff) in
   Unix.mkdir tmppath 0o700;   (* will fail if already exists; OK for testing *)
-  U.finally_do (U.ro_rmtree real_system) tmppath fn
+  U.finally_do (U.rmtree ~even_if_locked:true real_system) tmppath fn
 
 let get_fake_config tmpdir =
   Zeroinstall.Python.slave_debug_level := Some Support.Logging.Warning;
