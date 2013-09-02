@@ -341,10 +341,10 @@ class TestInstall(BaseTest):
 
 		# whatchanged
 		#assert 'local-app' in self.complete(['whatchanged'], 2)
-		out, err = self.run_0install(['whatchanged', 'local-app', 'uri'])
+		out, err = self.run_ocaml(['whatchanged', 'local-app', 'uri'])
 		assert out.lower().startswith("usage:")
 
-		out, err = self.run_0install(['whatchanged', 'local-app'])
+		out, err = self.run_ocaml(['whatchanged', 'local-app'])
 		assert "No previous history to compare against." in out, out
 		assert not err, err
 
@@ -355,12 +355,12 @@ class TestInstall(BaseTest):
 		with open(os.path.join(app.path, "selections-2012-01-01.xml"), 'w') as stream:
 			stream.write(new_local)
 
-		out, err = self.run_0install(['whatchanged', 'local-app'])
+		out, err = self.run_ocaml(['whatchanged', 'local-app'])
 		assert "Local.xml: 0.1-pre -> 0.1" in out, out
 		assert not err, err
 
-		out, err = self.run_0install(['whatchanged', 'local-app', '--full'])
-		assert "--- 2012-01-01" in out, out
+		out, err = self.run_ocaml(['whatchanged', 'local-app', '--full'])
+		assert "2012-01-01" in out, out
 		assert not err, err
 
 		# select detects changes

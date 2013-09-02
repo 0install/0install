@@ -233,6 +233,8 @@ module RealSystem (U : UnixType) =
           try Some (Sys.getenv name)
           with Not_found -> None
 
+        method waitpid = Unix.waitpid
+
         (** Call [waitpid] to collect the child.
             @raise Safe_exception if it didn't exit with a status of 0 (success). *)
         method reap_child ?(kill_first) child_pid =

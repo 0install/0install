@@ -207,7 +207,7 @@ let subcommands = [
   make_subcommand "run"         "URI [ARGS]"                    Run.handle       @@ common_options @ offline_options @ run_options @ generic_select_options;
   make_subcommand "update"      "APP | URI"                     Update.handle    @@ common_options @ offline_options @ generic_select_options;
   make_subcommand "update-bg"   "-"                             Update.handle_bg @@ common_options;
-  make_subcommand "whatchanged" "APP-NAME"                      fallback_handler @@ common_options @ diff_options;
+  make_subcommand "whatchanged" "APP-NAME"                      Whatchanged.handle @@ common_options @ diff_options;
   make_subcommand "destroy"     "PET-NAME"                      Destroy.handle   @@ common_options;
   make_subcommand "config"      "[NAME [VALUE]]"                fallback_handler @@ common_options;
   make_subcommand "import"      "FEED"                          fallback_handler @@ common_options @ offline_options;

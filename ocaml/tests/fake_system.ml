@@ -188,6 +188,7 @@ class fake_system tmpdir =
       spawn_handler <- handler
 
     method reap_child = real_system#reap_child
+    method waitpid = real_system#waitpid
 
     method getcwd () =
       match tmpdir with

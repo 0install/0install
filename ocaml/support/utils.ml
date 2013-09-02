@@ -477,6 +477,16 @@ let format_time t =
     t.tm_min
     t.tm_sec
 
+(* Separates date and time with a space and doesn't show seconds *)
+let format_time_pretty t =
+  let open Unix in
+  Printf.sprintf "%04d-%02d-%02d %02d:%02d"
+    (1900 + t.tm_year)
+    (t.tm_mon + 1)
+    t.tm_mday
+    t.tm_hour
+    t.tm_min
+
 let format_date t =
   let open Unix in
   Printf.sprintf "%04d-%02d-%02d"

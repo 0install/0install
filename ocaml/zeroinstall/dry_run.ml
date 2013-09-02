@@ -26,6 +26,7 @@ class dryrun_system (underlying:system) =
     method file_exists = underlying#file_exists
     method stat = underlying#stat
     method reap_child = underlying#reap_child
+    method waitpid = underlying#waitpid
     method getcwd = underlying#getcwd
     method getenv = underlying#getenv
     method readlink = underlying#readlink

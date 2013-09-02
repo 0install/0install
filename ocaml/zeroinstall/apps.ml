@@ -73,11 +73,12 @@ let iter_inputs config cb sels =
 (** Get the mtime of the given path. If the path doesn't exist, returns 0.0 and,
     if [warn_if_missing] is true, logs the problem.
   *)
-let get_mtime path ~warn_if_missing =
-  try (Unix.stat path).Unix.st_mtime
-  with Unix.Unix_error _ as ex ->
-    let () = if warn_if_missing then log_warning ~ex "Failed to get time-stamp of %s" path else ()
-    in 0.0
+let get_mtime system path ~warn_if_missing =
+  match system#stat path with
+  | Some info -> info.Unix.st_mtime
+  | None ->
+      if warn_if_missing then log_warning "Missing time-stamp file '%s'" path;
+      0.0
 
 let set_mtime config path =
   if not config.dry_run then (
@@ -144,6 +145,18 @@ let foreground_update config distro ~slave ~use_gui app_path reqs =
       set_selections config app_path sels ~touch_last_checked:true;
       sels
 
+type app_times = {
+  last_check_time : float;              (* 0.0 => timestamp missing *)
+  last_check_attempt : float option;    (* always > last_check_time, if present *)
+}
+
+let get_times system app =
+  let last_check_attempt = get_mtime system (app +/ "last-check-attempt") ~warn_if_missing:false in
+  let last_check_time = get_mtime system (app +/ "last-checked") ~warn_if_missing:true in {
+    last_check_time;
+    last_check_attempt = if last_check_attempt > last_check_time then Some last_check_attempt else None;
+  }
+
 (* Do any updates. The possible outcomes are:
 
   - The current selections seem fine:
@@ -157,15 +170,15 @@ let foreground_update config distro ~slave ~use_gui app_path reqs =
     - with downloading => use current selections, update in the background
 *)
 let check_for_updates config ~distro ~slave ~use_gui app_path sels =
+  let system = config.system in
   let last_solve_path = app_path +/ "last-solve" in
   let last_check_path = app_path +/ "last-check-attempt" in
-  let last_check_time = get_mtime (app_path +/ "last-checked") ~warn_if_missing:true in
-  let last_solve_time = max (get_mtime last_solve_path ~warn_if_missing:false)
+  let last_check_time = get_mtime system (app_path +/ "last-checked") ~warn_if_missing:true in
+  let last_solve_time = max (get_mtime system last_solve_path ~warn_if_missing:false)
                             last_check_time in
-  let system = config.system in
 
   let verify_unchanged path =
-    let mtime = get_mtime path ~warn_if_missing:false in
+    let mtime = get_mtime system path ~warn_if_missing:false in
     if mtime = 0.0 || mtime > last_solve_time then
       need_solve (Printf.sprintf "File '%s' has changed since we last did a solve" path)
     else () in
@@ -227,7 +240,7 @@ let check_for_updates config ~distro ~slave ~use_gui app_path sels =
     ) else sels in
 
   if !want_bg_update then (
-    let last_check_attempt = get_mtime last_check_path ~warn_if_missing:false in
+    let last_check_attempt = get_mtime system last_check_path ~warn_if_missing:false in
     if last_check_attempt +. 60. *. 60. > system#time () then (
       log_info "Tried to check within last hour; not trying again now";
     ) else (
@@ -384,3 +397,18 @@ let destroy config app =
       Dry_run.log "would delete directory %s" app
     else
       U.rmtree ~even_if_locked:false system app
+
+(** Get the dates of the available snapshots, starting with the most recent. *)
+let get_history config app =
+  let re_date = Str.regexp "selections-\\([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\\).xml" in
+  match config.system#readdir app with
+  | Problem ex -> raise ex
+  | Success items ->
+      let snapshots = ref [] in
+      for i = Array.length items - 1 downto 0 do
+        let item = items.(i) in
+        if Str.string_match re_date item 0 then (
+          snapshots := Str.matched_group 1 item :: !snapshots
+        )
+      done;
+      List.sort (fun a b -> compare b a) !snapshots
