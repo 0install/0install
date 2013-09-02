@@ -201,7 +201,7 @@ module RealSystem (U : UnixType) =
             reraise_with_context ex "... trying to spawn: %s" cmd
 
         (** Create and open a new text file, call [fn chan] on it, and rename it over [path] on success. *)
-        method atomic_write open_flags fn path mode =
+        method atomic_write open_flags path ~mode fn =
           let dir = Filename.dirname path in
           let (tmpname, ch) =
             try Filename.open_temp_file ~mode:open_flags ~temp_dir:dir "tmp-" ".new"

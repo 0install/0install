@@ -76,7 +76,10 @@ let suite =
         assert_contains "add x86_64 \n" @@ complete ["select"; "--cpu"; "="] 3;
       );
 
-      let write ch =
+      let interfaces_dir =
+        Support.Basedir.save_path (config.system) "0install.net/interfaces" config.basedirs.Support.Basedir.cache in
+      let example_cached_path = interfaces_dir +/ "http%3a%2f%2fexample.com%2ffoo" in
+      system#atomic_write [Open_wronly; Open_binary] example_cached_path ~mode:0o644 (fun ch ->
         output_string ch (
           "<?xml version='1.0'?>" ^
           "<interface uri='http://example.com/foo' xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>" ^
@@ -84,11 +87,8 @@ let suite =
           "<implementation version='1.2' id='12'/>" ^
           "<implementation version='1.11' id='15' main='foo'/>" ^
           "</interface>"
-        ) in
-      let interfaces_dir =
-        Support.Basedir.save_path (config.system) "0install.net/interfaces" config.basedirs.Support.Basedir.cache in
-      let example_cached_path = interfaces_dir +/ "http%3a%2f%2fexample.com%2ffoo" in
-      system#atomic_write [Open_wronly; Open_binary] write example_cached_path 0o644;
+        )
+      );
 
       if shell = "bash" then (
         assert_contains "add select \n" @@ complete ["sel"] 1;

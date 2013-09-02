@@ -208,8 +208,8 @@ let getenv_ex system name =
 let re_dash = Str.regexp_string "-"
 let re_space = Str.regexp_string " "
 let re_tab = Str.regexp_string "\t"
-let re_dir_sep = Str.regexp_string Filename.dir_sep;;
-let re_path_sep = Str.regexp_string path_sep;;
+let re_dir_sep = Str.regexp_string Filename.dir_sep   (** / on Unix *)
+let re_path_sep = Str.regexp_string path_sep          (** : on Unix *)
 let re_colon = Str.regexp_string ":"
 let re_equals = Str.regexp_string "="
 

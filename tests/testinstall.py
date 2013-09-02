@@ -252,7 +252,7 @@ class TestInstall(BaseTest):
 		os.rmdir(tmp)
 	
 	def testApps(self):
-		out, err = self.run_0install(['add', 'local-app'])
+		out, err = self.run_ocaml(['add', 'local-app'])
 		assert out.lower().startswith("usage:")
 
 		out, err = self.run_0install(['destroy', 'local-app', 'uri'])
@@ -260,20 +260,20 @@ class TestInstall(BaseTest):
 
 		local_feed = os.path.join(mydir, 'Local.xml')
 
-		out, err = self.run_0install(['add', 'local:app', local_feed])
+		out, err = self.run_ocaml(['add', 'local:app', local_feed])
 		assert not out, out
 		assert "Invalid application name 'local:app'" in err, err
 
-		out, err = self.run_0install(['add', '--dry-run', 'local-app', local_feed])
-		assert out.startswith("[dry-run] would create directory "), out
+		out, err = self.run_ocaml(['add', '--dry-run', 'local-app', local_feed])
+		assert "[dry-run] would write selections to " in out, out
 		assert "[dry-run] would write launcher script " in out, out
 		assert not err, err
 
-		out, err = self.run_0install(['add', 'local-app', local_feed])
+		out, err = self.run_ocaml(['add', 'local-app', local_feed])
 		assert not out, out
 		assert not err, err
 
-		out, err = self.run_0install(['add', 'local-app', local_feed])
+		out, err = self.run_ocaml(['add', 'local-app', local_feed])
 		assert not out, out
 		assert "Application 'local-app' already exists" in err, err
 
@@ -451,7 +451,7 @@ class TestInstall(BaseTest):
 		assert not out, out
 
 	def testAdd(self):
-		out, err = self.run_0install(['add', '--help'])
+		out, err = self.run_ocaml(['add', '--help'])
 		assert out.lower().startswith("usage:")
 
 		local_feed = os.path.join(mydir, 'Local.xml')
@@ -460,7 +460,7 @@ class TestInstall(BaseTest):
 		os.mkdir(self.data_home)
 		shutil.copyfile(local_feed, local_copy)
 
-		out, err = self.run_0install(['add', 'local-app', local_copy])
+		out, err = self.run_ocaml(['add', 'local-app', local_copy])
 		assert not out, out
 		assert not err, err
 

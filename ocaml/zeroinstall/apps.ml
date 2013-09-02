@@ -11,11 +11,11 @@ module U = Support.Utils
 
 let re_app_name = Str.regexp "^[^./\\\\:=;'\"][^/\\\\:=;'\"]*$";;
 
-let validate_name name =
+let validate_name purpose name =
   if name = "0install" then
-    raise_safe "Creating an app called '0install' would cause trouble; try e.g. '00install' instead";
+    raise_safe "Creating an %s called '0install' would cause trouble; try e.g. '00install' instead" purpose;
   if not @@ Str.string_match re_app_name name 0 then
-    raise_safe "Invalid application name '%s'" name
+    raise_safe "Invalid %s name '%s'" purpose name
 
 let lookup_app config name =
   if Str.string_match re_app_name name 0 then
@@ -105,8 +105,9 @@ let set_selections config app_path sels ~touch_last_checked =
   if config.dry_run then
     Dry_run.log "would write selections to %s" sels_file
   else (
-    let write_xml ch = Support.Qdom.output (Xmlm.make_output @@ `Channel ch) sels in
-    config.system#atomic_write [Open_wronly;Open_binary] write_xml sels_file 0o644
+    config.system#atomic_write [Open_wronly;Open_binary] sels_file ~mode:0o644 (fun ch ->
+      Support.Qdom.output (Xmlm.make_output @@ `Channel ch) sels
+    )
   );
 
   let sels_latest = app_path +/ "selections.xml" in
@@ -116,7 +117,7 @@ let set_selections config app_path sels ~touch_last_checked =
     config.system#atomic_hardlink ~link_to:sels_file ~replace:sels_latest
   );
 
-  if touch_last_checked then
+  if touch_last_checked && not config.dry_run then
     set_last_checked config.system app_path
 
 (** Find the best selections for these requirements and return them if available without downloading.
@@ -224,7 +225,7 @@ let check_for_updates config ~distro ~slave ~use_gui app_path sels =
             sels
           )
     ) else sels in
-  
+
   if !want_bg_update then (
     let last_check_attempt = get_mtime last_check_path ~warn_if_missing:false in
     if last_check_attempt +. 60. *. 60. > system#time () then (
@@ -277,12 +278,13 @@ let set_requirements config path req =
     Dry_run.log "would write %s" reqs_file
   else (
     let json = Requirements.to_json req in
-    let write_json ch = Yojson.Basic.to_channel ch json in
-    config.system#atomic_write [Open_wronly;Open_text] write_json reqs_file 0o644
+    config.system#atomic_write [Open_wronly;Open_text] reqs_file ~mode:0o644 (fun ch ->
+      Yojson.Basic.to_channel ch json
+    );
   )
 
 let create_app config name requirements =
-  validate_name name;
+  validate_name "application" name;
 
   let apps_dir = Basedir.save_path config.system (config_site +/ "apps") config.basedirs.Basedir.config in
   let app_dir = apps_dir +/ name in
@@ -292,6 +294,67 @@ let create_app config name requirements =
   config.system#mkdir app_dir 0o755;
 
   set_requirements config app_dir requirements;
-  set_last_checked config.system app_dir;
+  if not config.dry_run then
+    set_last_checked config.system app_dir;
 
   app_dir
+
+(* Try to guess the command to set an environment variable. *)
+let export (system:system) name value =
+  let shell = default "/bin/sh" @@ system#getenv "SHELL" in
+  try ignore @@ Str.search_forward (Str.regexp_string "csh") shell 0; Printf.sprintf "setenv %s %s" name value
+  with Not_found -> Printf.sprintf "export %s=%s" name value
+
+let find_bin_dir_in config paths =
+  let system = config.system in
+  let cache_home = List.hd config.basedirs.Support.Basedir.cache in
+  let best =
+    U.first_match paths ~f:(fun path ->
+      let path = U.realpath system path in
+      let starts x = U.starts_with path x in
+      if starts "/bin" || starts "/sbin" then None
+      else if starts cache_home then None (* print "Skipping cache: %s" path *)
+      else (
+        try
+          Unix.(access path [W_OK]);
+          (* /usr/local/bin is OK if we're running as root *)
+          if starts "/usr/" && not (starts "/usr/local/bin") then None
+          else Some path
+        with Unix.Unix_error _ -> None
+      )
+    ) in
+
+    match best with
+    | Some path -> path
+    | None ->
+        let path = U.getenv_ex system "HOME" +/ "bin" in
+        log_warning "%s is not in $PATH. Add it with:\n%s" path (export system "PATH" @@ path ^ ":$PATH");
+        U.makedirs system path 0o755;
+	path
+
+(** Find the first writable path in the list (default $PATH),
+    skipping /bin, /sbin and everything under /usr except /usr/local/bin *)
+let find_bin_dir config =
+  let path = default "/bin:/usr/bin" @@ config.system#getenv "PATH" in
+  find_bin_dir_in config @@ Str.split_delim U.re_path_sep path
+
+let command_template : (_,_,_) format = "#!/bin/sh\n\
+exec 0install run %s \"$@\"\n"
+
+(** Place an executable in $PATH that will launch this app. *)
+let integrate_shell config app executable_name =
+  (* todo: remember which commands we create *)
+  validate_name "executable" executable_name;
+
+  let bin_dir = find_bin_dir config in
+  let launcher = bin_dir +/ executable_name in
+  if config.system#file_exists launcher then
+    raise_safe "Command already exists: %s" launcher;
+
+  if config.dry_run then
+    Dry_run.log "would write launcher script %s" launcher
+  else (
+    config.system#atomic_write [Open_wronly;Open_text] launcher ~mode:0o755 (fun ch ->
+      output_string ch @@ Printf.sprintf command_template (Filename.basename app)
+    )
+  )

@@ -41,8 +41,9 @@ class fake_slave config =
       with Not_found -> assert_failure url in
     pending_feed_downloads := StringMap.remove url !pending_feed_downloads;
     let target = cache_path_for url in
-    let write ch = output_string ch contents in
-    system#atomic_write [Open_wronly; Open_binary] write target 0o644;
+    system#atomic_write [Open_wronly; Open_binary] target ~mode:0o644 (fun ch ->
+      output_string ch contents
+    );
     `List [`String "ok"; `List []] in
 
   let handle_download_selections xml =

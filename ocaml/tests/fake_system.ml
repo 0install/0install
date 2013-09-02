@@ -168,7 +168,7 @@ class fake_system tmpdir =
           else real_system#stat (check_read path)
       )
 
-    method atomic_write open_flags fn path mode = real_system#atomic_write open_flags fn (check_write path) mode
+    method atomic_write open_flags path ~mode fn = real_system#atomic_write open_flags (check_write path) ~mode fn
     method atomic_hardlink ~link_to ~replace = real_system#atomic_hardlink ~link_to:(check_read link_to) ~replace:(check_write replace)
     method unlink path = real_system#unlink (check_write path)
     method rmdir = failwith "rmdir"

@@ -56,7 +56,7 @@ class type system =
     method unlink : filepath -> unit
     method rmdir : filepath -> unit
     method getcwd : unit -> filepath
-    method atomic_write : open_flag list -> (out_channel -> 'a) -> filepath -> Unix.file_perm -> 'a
+    method atomic_write : open_flag list -> filepath -> mode:Unix.file_perm -> (out_channel -> 'a) -> 'a
 
     (** Remove [replace] and replace it with a hardlink to [source]. If possible, ensure
         that there is no point where [replace] does not exist. *)

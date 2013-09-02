@@ -200,7 +200,7 @@ let make_subcommand name help handler valid_options =
 
 (** Which options are valid with which command *)
 let subcommands = [
-  make_subcommand "add"         "PET-NAME INTERFACE"            fallback_handler @@ common_options @ offline_options @ generic_select_options;
+  make_subcommand "add"         "PET-NAME INTERFACE"            Add.handle       @@ common_options @ offline_options @ generic_select_options;
   make_subcommand "select"      "URI"                           Select.handle    @@ common_options @ offline_options @ select_options;
   make_subcommand "show"        "APP | SELECTIONS"              Show.handle      @@ common_options @ xml_output @ show_options;
   make_subcommand "download"    "URI"                           Download.handle  @@ common_options @ offline_options @ download_options @ select_options;
