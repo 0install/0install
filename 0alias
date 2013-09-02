@@ -25,13 +25,6 @@ from zeroinstall.support import basedir
 
 config = load_config()
 
-def export(name, value):
-	"""Try to guess the command to set an environment variable."""
-	shell = os.environ.get('SHELL', '?')
-	if 'csh' in shell:
-		return "setenv %s %s" % (name, value)
-	return "export %s=%s" % (name, value)
-
 # Do this here so we can include it in the help message.
 # But, don't abort if there isn't one because we might
 # be doing something else (e.g. --manpage)
@@ -78,87 +71,11 @@ if options.version:
 	sys.exit(0)
 
 if options.manpage:
-	print('"0alias --manpage" is deprecated; use "0install man" instead', file = sys.stderr)
-	if len(args) != 1:
-		os.execlp('man', 'man', *args)
-		sys.exit(1)
-
-if len(args) < 1 or len(args) > 3:
-	parser.print_help()
-	sys.exit(1)
-alias_prog, interface_uri, main = (list(args) + [None, None])[:3]
-command = options.command
-if command is None:
-	command = 'run'
-elif command is '':
-	command = None
-
-if options.resolve or options.manpage:
-	if interface_uri is not None:
-		parser.print_help()
-		sys.exit(1)
-
-#if options.user_path:
-#	first_path = options.user_path
-
-if interface_uri is None:
-	if options.command:
-		print("Can't use --command when editing an existing alias", file=sys.stderr)
-		sys.exit(1)
-	try:
-		if not os.path.isabs(alias_prog):
-			full_path = support.find_in_path(alias_prog)
-			if not full_path:
-				raise alias.NotAnAliasScript("Not found in $PATH: " + alias_prog)
-		else:
-			full_path = alias_prog
-
-		alias_info = alias.parse_script(full_path)
-		interface_uri = alias_info.uri
-		main = alias_info.main
-		command = alias_info.command
-	except (alias.NotAnAliasScript, IOError) as ex:
-		# (we get IOError if e.g. the script isn't readable)
-		if options.manpage:
-			logging.debug("not a 0alias script '%s': %s", alias_prog, ex)
-			os.execlp('man', 'man', *args)
-		print(str(ex), file=sys.stderr)
-		sys.exit(1)
-
-interface_uri = model.canonical_iface_uri(interface_uri)
-
-if options.resolve:
-	print(interface_uri)
-	sys.exit(0)
-
-if options.manpage:
-	sels = helpers.ensure_cached(interface_uri, command, config = config)
-	if not sels:
-		# Cancelled by user
-		sys.exit(1)
-	alias_name = os.path.basename(args[0])
-	helpers.exec_man(config.stores, sels, main = main, fallback_name = alias_name)
-	assert 0
-
-if len(args) == 1:
-	os.execlp('0launch', '0launch', '-gd', '--', interface_uri)
-	sys.exit(1)
-
-print(_('("0alias" is deprecated; using "0install add" instead)'))
-
-from zeroinstall import cmd
-args = ['add']
-if options.command:
-	args.append('--command=' + options.command)
-if main is not None:
-	print("Sorry, using a custom main is no longer supported.", file = sys.stderr)
-	sys.exit(1)
-
-print('0install {options} {alias} {uri}'.format(
-	options = ' '.join(args),
-	alias = alias_prog,
-	uri = interface_uri))
-
-args += ['--', alias_prog, interface_uri]
-
-cmd.main(args, config = config)
+	print(_('ERROR: "0alias --manpage" has been removed; use "0install man" instead'), file = sys.stderr)
+elif len(args) == 0:
+	print(_('ERROR: "0alias" has been removed; use "0install add" instead'), file = sys.stderr)
+elif len(args) == 1:
+	print(_('ERROR: "0alias" has been removed; use "0install update" instead:\n0install update alias:%s') % args[0], file = sys.stderr)
+else:
+	print(_('ERROR: "0alias" has been removed; use "0install add" instead:\n0install add %s %s') % (args[0], args[1]), file = sys.stderr)
+sys.exit(1)

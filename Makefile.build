@@ -4,7 +4,7 @@ BUILDDIR ?= NOTSET
 
 SCRIPTS = 0install-python-fallback 0alias 0desktop 0store 0store-secure-add
 DOCS = README.md COPYING
-MANPAGES = 0launch.1 0alias.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
+MANPAGES = 0launch.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
 
 vpath %.po ${SRCDIR}
 

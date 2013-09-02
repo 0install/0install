@@ -445,13 +445,10 @@ class TestInstall(BaseTest):
 	def testAlias(self):
 		local_feed = model.canonical_iface_uri(os.path.join(mydir, 'Local.xml'))
 		alias_path = os.path.join(mydir, '..', '0alias')
-		child = subprocess.Popen([alias_path, 'local-app', local_feed], stdout = subprocess.PIPE, stderr = subprocess.STDOUT, universal_newlines = True)
+		child = subprocess.Popen([alias_path, 'local-app', local_feed], stdout = subprocess.PIPE, stderr = subprocess.PIPE, universal_newlines = True)
 		out, err = child.communicate()
-		assert '("0alias" is deprecated; using "0install add" instead)' in out, out
-		assert not err, err
-
-		app = self.config.app_mgr.lookup_app('local-app')
-		assert app.get_requirements().interface_uri == local_feed
+		assert 'ERROR: "0alias" has been removed; use "0install add" instead' in err, err
+		assert not out, out
 
 	def testAdd(self):
 		out, err = self.run_0install(['add', '--help'])
