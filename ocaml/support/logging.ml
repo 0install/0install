@@ -6,7 +6,14 @@
 
 type level = Debug | Info | Warning
 
+let string_of_level = function
+  | Debug -> "debug"
+  | Info -> "info"
+  | Warning -> "warning"
+
 let threshold = ref Warning
+
+let will_log level = level >= !threshold
 
 class type handler =
   object
@@ -16,27 +23,19 @@ class type handler =
 let console_handler =
   object (_ : handler)
     method handle ?ex level msg =
-      match level with
-      | Debug ->
-          output_string stderr ("debug: " ^ msg ^ "\n");
-          flush stderr
-      | Info ->
-          output_string stderr ("info: " ^ msg ^ "\n");
-          flush stderr
-      | Warning ->
-          output_string stderr ("warning: " ^ msg);
-          let () = match ex with
-          | None -> ()
-          | Some ex ->
-              output_string stderr ": ";
-              output_string stderr (Printexc.to_string ex);
-              if Printexc.backtrace_status () then (
-                output_string stderr "\n";
-                Printexc.print_backtrace stderr
-              ) else ()
-          in
-          output_string stderr "\n";
-          flush stderr
+      let term = if ex = None then "\n" else ": " in
+      output_string stderr (string_of_level level ^ ": " ^ msg ^ term);
+      let () =
+        match ex with
+        | None -> ()
+        | Some ex ->
+            output_string stderr (Printexc.to_string ex);
+            if Printexc.backtrace_status () then (
+              output_string stderr "\n";
+              Printexc.print_backtrace stderr
+            );
+            output_string stderr "\n" in
+      flush stderr
   end
 
 let handler = ref console_handler

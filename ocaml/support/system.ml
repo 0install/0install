@@ -141,7 +141,7 @@ module RealSystem (U : UnixType) =
               let prog_path =
                 if search_path then Utils.find_in_path_ex (self :> system) (List.hd argv)
                 else (List.hd argv) in
-              if !Logging.threshold >= Logging.Info then
+              if Logging.will_log Logging.Info then
                 log_info "exec %s" @@ Logging.format_argv_for_logging argv;
               if on_windows then (
                 let open Unix in
@@ -174,7 +174,7 @@ module RealSystem (U : UnixType) =
                 if search_path then Utils.find_in_path_ex (self :> system) (List.hd argv)
                 else (List.hd argv) in
 
-              if !Logging.threshold <= Logging.Info then
+              if Logging.will_log Logging.Info then
                 log_info "spawn %s" @@ Logging.format_argv_for_logging argv;
 
               flush stdout;
@@ -184,7 +184,7 @@ module RealSystem (U : UnixType) =
                 (* We don't reap the child. On Unix, we're in a child process that is about to exit anyway (init will inherit the child).
                    On Windows, hopefully it doesn't matter. *)
                 ignore @@ Utils.finally_do Unix.close (Unix.openfile dev_null [Unix.O_WRONLY] 0) (fun null_fd ->
-                  let stderr = if !Logging.threshold = Logging.Debug then Unix.stderr else null_fd in
+                  let stderr = if Logging.will_log Logging.Debug then Unix.stderr else null_fd in
                   match env with
                     | None -> Unix.create_process prog_path argv_array null_fd null_fd stderr
                     | Some env -> Unix.create_process_env prog_path argv_array env null_fd null_fd stderr

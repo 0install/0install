@@ -144,8 +144,12 @@ let load_iface_config config uri : interface_config =
 
 let get_cached_feed config uri =
   if is_local_feed uri then (
-    let root = Qdom.parse_file config.system uri in
-    Some (Feed.parse config.system root (Some uri))
+    try
+      let root = Qdom.parse_file config.system uri in
+      Some (Feed.parse config.system root (Some uri))
+    with Safe_exception _ as ex ->
+      log_warning ~ex "Can't read local file '%s'" uri;
+      None
   ) else (
     match get_cached_feed_path config uri with
     | None -> None

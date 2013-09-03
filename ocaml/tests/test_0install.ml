@@ -316,7 +316,7 @@ let suite = "0install">::: [
 
     Fake_system.fake_log#reset;
     let out =
-      Fake_system.collect_logging (fun () -> 
+      Fake_system.collect_logging (fun () ->
         run ["add"; "--dry-run"; "local-app"; local_feed]
       ) in
     let () =
@@ -445,5 +445,94 @@ let suite = "0install">::: [
     assert_error_contains "No such application 'local-app'" (fun () ->
       run ["destroy"; "local-app"]
     );
+  );
+
+  "add">:: Fake_system.with_tmpdir (fun tmpdir ->
+    let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    let system = (fake_system :> system) in
+    let slave = new Zeroinstall.Python.slave config in
+    let distro = new Zeroinstall.Distro.generic_distribution slave in
+    let run = run_0install fake_system in
+    config.freshness <- None;
+
+    let out = run ["add"; "--help"] in
+    assert (U.starts_with out "Usage:");
+
+    Unix.mkdir (tmpdir +/ "bin") 0o700;
+    fake_system#putenv "PATH" ((tmpdir +/ "bin") ^ path_sep ^ U.getenv_ex fake_system "PATH");
+
+    let local_feed = feed_dir +/ "Local.xml" in
+    let data_home = tmpdir +/ "data" in
+    let local_copy = data_home +/ "Local.xml" in
+
+    U.makedirs system data_home 0o700;
+    U.copy_file system local_feed local_copy 0o600;
+
+    let out = run ["add"; "local-app"; local_copy] in
+    Fake_system.assert_str_equal "" out;
+
+    let app = expect @@ Zeroinstall.Apps.lookup_app config "local-app" in
+
+    (* Because the unit-tests run very quickly, we have to back-date things a bit... *)
+    system#set_mtime local_copy 100.0;				(* Feed edited at t=100 *)
+    system#set_mtime (app +/ "last-checked") 200.0; 	        (* Added at t=200 *)
+
+    (* Can run without using the solver... *)
+    let module A = Zeroinstall.Apps in
+    let sels = A.get_selections_no_updates config app in
+    assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
+    assert_equal 0.0 (A.get_times system app).A.last_solve;
+
+    (* But if the feed is modified, we resolve... *)
+    system#set_mtime local_copy 300.0;
+    let sels = A.get_selections_may_update config distro slave ~use_gui:No app in
+    assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels;
+    assert (0.0 <> (A.get_times system app).A.last_solve);
+
+    system#set_mtime (app +/ "last-solve") 400.0;
+    let sels = A.get_selections_may_update config distro slave ~use_gui:No app in
+    assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
+    assert_equal 400.0 (A.get_times system app).A.last_solve;
+
+    (* The feed is missing. We warn but continue with the old selections. *)
+    Fake_system.collect_logging (fun () ->
+      system#unlink local_copy;
+      U.touch system (app +/ "last-check-attempt");	(* Prevent background update *)
+      let sels = A.get_selections_may_update config distro slave ~use_gui:No app in
+      assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
+      assert (400.0 <> (A.get_times system app).A.last_solve);
+    );
+
+    (* Local feed is updated; now requires a download *)
+    system#unlink (app +/ "last-check-attempt");
+    let hello_feed = (feed_dir +/ "Hello.xml") in
+    system#set_mtime (app +/ "last-solve") 400.0;
+    U.copy_file system hello_feed local_copy 0o600;
+    Fake_system.collect_logging (fun () ->
+      Fake_system.fake_log#reset;
+      ignore @@ A.get_selections_may_update config distro slave ~use_gui:No app
+    );
+    let () =
+      match Fake_system.fake_log#pop_warnings with
+      | [ w ] -> assert_contains "Error starting background check for updates" w
+      | ws -> raise_safe "Got %d warnings" (List.length ws) in
+
+    (* Selections changed, but no download required *)
+    let data = U.read_file system local_copy in
+    let data = Str.replace_first (Str.regexp_string " version='1'>") " version='1.1' main='missing'>" data in
+    system#atomic_write [Open_wronly; Open_binary] local_copy ~mode:0o644 (fun ch ->
+      output_string ch data
+    );
+    system#set_mtime (app +/ "last-solve") 400.0;
+
+    let sels = A.get_selections_may_update config distro slave ~use_gui:No app in
+    assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels;
+
+    (* If the selections.xml gets deleted, regenerate it *)
+    system#unlink (app +/ "selections.xml");
+    let fake_slave = new fake_slave config in
+    fake_slave#install;
+    fake_slave#allow_download "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
+    ignore @@ A.get_selections_may_update config distro slave ~use_gui:No app
   );
 ]

@@ -148,6 +148,7 @@ let foreground_update config distro ~slave ~use_gui app_path reqs =
 type app_times = {
   last_check_time : float;              (* 0.0 => timestamp missing *)
   last_check_attempt : float option;    (* always > last_check_time, if present *)
+  last_solve : float;                   (* 0.0 => timestamp missing *)
 }
 
 let get_times system app =
@@ -155,6 +156,7 @@ let get_times system app =
   let last_check_time = get_mtime system (app +/ "last-checked") ~warn_if_missing:true in {
     last_check_time;
     last_check_attempt = if last_check_attempt > last_check_time then Some last_check_attempt else None;
+    last_solve = get_mtime system (app +/ "last-solve") ~warn_if_missing:false;
   }
 
 (* Do any updates. The possible outcomes are:
@@ -210,33 +212,35 @@ let check_for_updates config ~distro ~slave ~use_gui app_path sels =
   let sels =
     if need_solve then (
       let reqs = get_requirements system app_path in
-      match quick_solve config distro reqs with
-      | Some new_sels ->
-          if Support.Qdom.compare_nodes ~ignore_whitespace:true new_sels sels = 0 then (
-            log_info "Quick solve succeeded; no change needed";
-            sels        (* No change *)
-          ) else (
-            log_info "Quick solve succeeded; saving new selections";
-            set_selections config app_path new_sels ~touch_last_checked:false;
-            let () =
-              try U.touch system (app_path +/ "last-solve");
-              with ex -> log_warning ~ex "Error checking for updates" in
-            new_sels
-          )
-      | None ->
-          log_info "Quick solve failed; we need to download something first";
-          if unavailable_sels then (
-            (* Delete last-solve timestamp to force a recalculation.
-               This is useful when upgrading from an old format that the Python can still handle but we can't. *)
-            if system#file_exists last_solve_path && not config.dry_run then
-              system#unlink last_solve_path;
+      let new_sels =
+        match quick_solve config distro reqs with
+        | Some new_sels ->
+            if Support.Qdom.compare_nodes ~ignore_whitespace:true new_sels sels = 0 then (
+              log_info "Quick solve succeeded; no change needed";
+              sels
+            ) else (
+              log_info "Quick solve succeeded; saving new selections";
+              set_selections config app_path new_sels ~touch_last_checked:false;
+              new_sels
+            );
+        | None ->
+            log_info "Quick solve failed; we need to download something";
+            if unavailable_sels then (
+              (* Delete last-solve timestamp to force a recalculation.
+                 This is useful when upgrading from an old format that the Python can still handle but we can't. *)
+              if system#file_exists last_solve_path && not config.dry_run then
+                system#unlink last_solve_path;
 
-            foreground_update config distro ~slave ~use_gui app_path reqs
-          ) else (
-            (* Continue with the current (cached) selections while we download *)
-            want_bg_update := true;
-            sels
-          )
+              foreground_update config distro ~slave ~use_gui app_path reqs
+            ) else (
+              (* Continue with the current (cached) selections while we download *)
+              want_bg_update := true;
+              sels
+            ) in
+      let () =
+        try U.touch system (app_path +/ "last-solve");
+        with ex -> log_warning ~ex "Error while checking for updates" in
+      new_sels
     ) else sels in
 
   if !want_bg_update then (
@@ -245,10 +249,10 @@ let check_for_updates config ~distro ~slave ~use_gui app_path sels =
       log_info "Tried to check within last hour; not trying again now";
     ) else (
       try
-        let extra_flags = if !Support.Logging.threshold = Support.Logging.Debug then ["-v"] else [] in
+        let extra_flags = if Support.Logging.will_log Support.Logging.Debug then ["-v"] else [] in
         set_mtime config last_check_path;
         system#spawn_detach @@ [config.abspath_0install; "update-bg"] @ extra_flags @ ["--"; "app"; app_path]
-      with ex -> log_warning ~ex "Error starting check for updates to %s" app_path
+      with ex -> log_warning ~ex "Error starting background check for updates to %s" app_path
     );
     sels
   ) else sels
