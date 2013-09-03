@@ -36,17 +36,11 @@ class _NetworkState(object):
 		4: NM_STATE_DISCONNECTED,
 	}
 
-class BackgroundHandler(handler.Handler):
-	"""A Handler for non-interactive background updates. Runs the GUI if interaction is required."""
-	def __init__(self, title, root):
-		"""@type title: str
-		@type root: str"""
-		handler.Handler.__init__(self)
-		self.title = title
+class BackgroundHandler:
+	def __init__(self):
 		self.notification_service = None
 		self.network_manager = None
 		self.notification_service_caps = []
-		self.root = root	# If we need to confirm any keys, run the GUI on this
 		self.need_gui = False
 
 		try:
@@ -104,39 +98,6 @@ class BackgroundHandler(handler.Handler):
 				logger.warning(_("Error getting network state: %s"), ex)
 		return _NetworkState.NM_STATE_UNKNOWN
 
-	def confirm_import_feed(self, pending, valid_sigs):
-		"""Run the GUI if we need to confirm any keys.
-		@type pending: L{zeroinstall.injector.iface_cache.PendingFeed}"""
-
-		if os.environ.get('DISPLAY', None):
-			logger.info(_("Can't update feed; signature not yet trusted. Running GUI..."))
-
-			self.need_gui = True
-
-			for dl in self.monitored_downloads:
-				dl.abort()
-
-			raise handler.NoTrustedKeys("need to switch to GUI to confirm keys")
-		else:
-			raise handler.NoTrustedKeys(_("Background update for {iface} needed to confirm keys, but no GUI available!").format(
-					iface = self.root))
-
-
-	def report_error(self, exception, tb = None):
-		from zeroinstall.injector import download
-		if isinstance(exception, download.DownloadError):
-			tb = None
-
-		if tb:
-			import traceback
-			details = '\n' + '\n'.join(traceback.format_exception(type(exception), exception, tb))
-		else:
-			try:
-				details = unicode(exception)
-			except:
-				details = repr(exception)
-		self.notify("Zero Install", _("Error updating %(title)s: %(details)s") % {'title': self.title, 'details': details.replace('<', '&lt;')})
-
 	def notify(self, title, message, timeout = 0, actions = []):
 		"""Send a D-BUS notification message if possible. If there is no notification
 		service available, log the message instead.
@@ -167,147 +128,3 @@ class BackgroundHandler(handler.Handler):
 			actions,
 			hints,
 			timeout * 1000)
-
-def _detach():
-	"""Fork a detached grandchild.
-	@return: True if we are the original."""
-	child = os.fork()
-	if child:
-		pid, status = os.waitpid(child, 0)
-		assert pid == child
-		return True
-
-	# The calling process might be waiting for EOF from its child.
-	# Close our stdout so we don't keep it waiting.
-	# Note: this only fixes the most common case; it could be waiting
-	# on any other FD as well. We should really use gobject.spawn_async
-	# to close *all* FDs.
-	null = os.open(os.devnull, os.O_RDWR)
-	os.dup2(null, 1)
-	os.close(null)
-
-	grandchild = os.fork()
-	if grandchild:
-		os._exit(0)	# Parent's waitpid returns and grandchild continues
-
-	return False
-
-def _check_for_updates(requirements, verbose, app):
-	"""@type requirements: L{zeroinstall.injector.requirements.Requirements}
-	@type verbose: bool
-	@type app: L{zeroinstall.apps.App}"""
-	if app is not None:
-		old_sels = app.get_selections()
-
-	from zeroinstall.injector.driver import Driver
-	from zeroinstall.injector.config import load_config
-
-	background_handler = BackgroundHandler(requirements.interface_uri, requirements.interface_uri)
-	background_config = load_config(background_handler)
-	root_iface = background_config.iface_cache.get_interface(requirements.interface_uri).get_name()
-	background_handler.title = root_iface
-
-	driver = Driver(config = background_config, requirements = requirements)
-
-	logger.info(_("Checking for updates to '%s' in a background process"), root_iface)
-	if verbose:
-		background_handler.notify("Zero Install", _("Checking for updates to '%s'...") % root_iface, timeout = 1)
-
-	network_state = background_handler.get_network_state()
-	if network_state not in (_NetworkState.NM_STATE_CONNECTED_SITE, _NetworkState.NM_STATE_CONNECTED_GLOBAL):
-		logger.info(_("Not yet connected to network (status = %d). Sleeping for a bit..."), network_state)
-		import time
-		time.sleep(120)
-		if network_state in (_NetworkState.NM_STATE_DISCONNECTED, _NetworkState.NM_STATE_ASLEEP):
-			logger.info(_("Still not connected to network. Giving up."))
-			sys.exit(1)
-	else:
-		logger.info(_("NetworkManager says we're on-line. Good!"))
-
-	background_config.freshness = 0			# Don't bother trying to refresh when getting the interface
-	refresh = driver.solve_with_downloads(force = True)	# (causes confusing log messages)
-	tasks.wait_for_blocker(refresh)
-
-	if background_handler.need_gui or not driver.solver.ready or driver.get_uncached_implementations():
-		if verbose:
-			background_handler.notify("Zero Install",
-					      _("Updates ready to download for '%s'.") % root_iface,
-					      timeout = 1)
-
-		# Run the GUI if possible...
-		from zeroinstall import helpers
-		gui_args = ['--refresh', '--systray', '--download'] + requirements.get_as_options()
-		new_sels = helpers.get_selections_gui(requirements.interface_uri, gui_args, use_gui = None)
-		if new_sels is None:
-			sys.exit(0)	# Cancelled by user
-		elif new_sels is helpers.DontUseGUI:
-			if not driver.solver.ready:
-				background_handler.notify("Zero Install", _("Can't update '%s'") % root_iface)
-				sys.exit(1)
-
-			tasks.wait_for_blocker(driver.download_uncached_implementations())
-			new_sels = driver.solver.selections
-
-		if app is None:
-			background_handler.notify("Zero Install",
-					      _("{name} updated.").format(name = root_iface),
-					      timeout = 1)
-	else:
-		if verbose:
-			background_handler.notify("Zero Install", _("No updates to download."), timeout = 1)
-		new_sels = driver.solver.selections
-
-	if app is not None:
-		assert driver.solver.ready
-		from zeroinstall.support import xmltools
-		if not xmltools.nodes_equal(new_sels.toDOM(), old_sels.toDOM()):
-			app.set_selections(new_sels)
-			background_handler.notify("Zero Install",
-					      _("{app} updated.").format(app = app.get_name()),
-					      timeout = 1)
-		app.set_last_checked()
-	sys.exit(0)
-
-
-def spawn_background_update(driver, verbose):
-	"""Spawn a detached child process to check for updates.
-	@param driver: driver containing interfaces to update
-	@type driver: L{driver.Driver}
-	@param verbose: whether to notify the user about minor events
-	@type verbose: bool
-	@since: 1.5 (used to take a Policy)"""
-	iface_cache = driver.config.iface_cache
-	# Mark all feeds as being updated. Do this before forking, so that if someone is
-	# running lots of 0launch commands in series on the same program we don't start
-	# huge numbers of processes.
-	for uri in driver.solver.feeds_used:
-		iface_cache.mark_as_checking(uri)
-
-	spawn_background_update2(driver.requirements, verbose)
-
-def do_background_update(requirements, verbose, app):
-	try:
-		try:
-			_check_for_updates(requirements, verbose, app)
-		except SystemExit:
-			raise
-		except:
-			import traceback
-			traceback.print_exc()
-			sys.stdout.flush()
-	finally:
-		os._exit(1)
-
-def spawn_background_update2(requirements, verbose, app = None):
-	"""Spawn a detached child process to check for updates.
-	@param requirements: requirements for the new selections
-	@type requirements: L{requirements.Requirements}
-	@param verbose: whether to notify the user about minor events
-	@type verbose: bool
-	@param app: application to update (if any)
-	@type app: L{apps.App} | None
-	@since: 1.9"""
-	if _detach():
-		return
-
-	do_background_update(requirements, verbose, app)

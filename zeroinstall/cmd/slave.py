@@ -179,7 +179,7 @@ def reply_when_done(ticket, blocker):
 
 def do_notify_user(config, args):
 	from zeroinstall.injector import background
-	handler = background.BackgroundHandler("0install", root = None)
+	handler = background.BackgroundHandler()
 	handler.notify(args["title"], args["message"], timeout = args["timeout"])
 
 def do_get_selections_gui(config, args):
@@ -214,7 +214,7 @@ def do_get_selections_gui(config, args):
 def do_wait_for_network(config):
 	from zeroinstall.injector import background
 	_NetworkState = background._NetworkState
-	background_handler = background.BackgroundHandler("0install", root = None)
+	background_handler = background.BackgroundHandler()
 
 	network_state = background_handler.get_network_state()
 

@@ -12,7 +12,7 @@ sys.path.insert(0, '..')
 os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall import helpers, logger
-from zeroinstall.injector import model, gpg, download, trust, background, arch, selections, qdom, run, config, namespaces
+from zeroinstall.injector import model, gpg, download, trust, arch, selections, qdom, run, config, namespaces
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.scheduler import Site
 from zeroinstall.injector.driver import Driver
@@ -154,8 +154,6 @@ Site.download = wrap_download
 class TestDownload(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
-
-		background._detach = lambda: False
 
 		self.config.handler.allow_downloads = True
 		self.config.key_info_server = 'http://localhost:3333/key-info'
@@ -722,7 +720,8 @@ class TestDownload(BaseTest):
 			finally:
 				sys.stdout = old_out
 
-	def testBackground(self, verbose = False):
+	# We don't support notification actions any longer.
+	def disabled_testBackground(self, verbose = False):
 		r = Requirements('http://example.com:8000/Hello.xml')
 		d = Driver(requirements = r, config = self.config)
 		self.import_feed(r.interface_uri, 'Hello.xml')
@@ -762,9 +761,6 @@ class TestDownload(BaseTest):
 		finally:
 			sys.stdout = old_out
 		assert ran_gui
-
-	def testBackgroundVerbose(self):
-		self.testBackground(verbose = True)
 
 	def testBackgroundApp(self):
 		my_dbus.system_services = {"org.freedesktop.NetworkManager": {"/org/freedesktop/NetworkManager": NetworkManager()}}
