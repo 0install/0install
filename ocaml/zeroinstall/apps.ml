@@ -60,7 +60,7 @@ let iter_inputs config cb sels =
     else
       (* Remote feed *)
       match Feed_cache.get_cached_feed_path config feed with
-      | None -> need_solve "Source feed no longer cached!"
+      | None -> need_solve @@ "Source feed no longer cached: " ^ feed
       | Some path -> cb path              (* Check feed hasn't changed *)
   in
   ZI.iter_with_name ~f:check_sel sels "selection";

@@ -7,7 +7,7 @@ The B{0install slave} command-line interface.
 
 from __future__ import print_function
 
-import sys
+import sys, os
 
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
@@ -215,6 +215,9 @@ def do_wait_for_network(config):
 	background_handler = background.BackgroundHandler("0install", root = None)
 
 	network_state = background_handler.get_network_state()
+
+	if 'ZEROINSTALL_TEST_BACKGROUND' in os.environ: return
+
 	if network_state not in (_NetworkState.NM_STATE_CONNECTED_SITE, _NetworkState.NM_STATE_CONNECTED_GLOBAL):
 		logger.info(_("Not yet connected to network (status = %d). Sleeping for a bit..."), network_state)
 		import time
