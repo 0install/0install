@@ -848,7 +848,7 @@ class TestDownload(BaseTest):
 			run_server('Hello.xml')
 			out, err = self.run_ocaml(['download', '-vv', 'test-app'])
 			assert not out, out
-			assert 'Could not open X display' in err, err
+			assert 'get-selections-gui' in err, err
 			kill_server_process()
 
 			# Now again with no DISPLAY
@@ -877,7 +877,7 @@ class TestDownload(BaseTest):
 			out, err = self.run_ocaml(['download', '-vv', 'test-app'])
 			assert not out, out
 			assert 'need to switch to GUI to confirm keys' in err, err
-			assert 'Could not open X display' in err, err
+			assert 'get-selections-gui' in err, err
 			kill_server_process()
 
 			# Update not triggered because of last-check-attempt
@@ -913,6 +913,7 @@ class TestDownload(BaseTest):
 		# Replace the selection with a bogus and unusable <package-implementation>
 		sel, = sels.selections.values()
 		sel.attrs['id'] = "package:dummy:badpackage"
+		sel.attrs['from-feed'] = "distribution:http://example.com:8000/Hello.xml"
 		sel.attrs['package'] = "badpackage"
 		sel.get_command('run').qdom.attrs['path'] = '/i/dont/exist'
 
@@ -933,7 +934,7 @@ class TestDownload(BaseTest):
 		kill_server_process()
 		err = err.decode('utf-8')
 		assert 'get new selections; current ones are not usable' in err, err
-		assert 'Could not open X display' in err, err
+		assert 'get-selections-gui' in err, err
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 
 		# Check we can also work without the GUI...
@@ -951,7 +952,7 @@ class TestDownload(BaseTest):
 		kill_server_process()
 		err = err.decode('utf-8')
 		assert 'get new selections; current ones are not usable' in err, err
-		assert 'Could not open X display' not in err, err
+		assert 'get-selections-gui' not in err, err
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 
 		# Now trigger a background update which discovers that no solution is possible

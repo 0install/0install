@@ -118,8 +118,12 @@ def do_is_distro_package_installed(config, options, xml):
 	assert feed.startswith('distribution'), feed
 	master_url = feed.split(':', 1)[1]
 	master_feed = config.iface_cache.get_feed(master_url)
-	feed = config.iface_cache.get_feed(master_feed.get_distro_feed())
-	return id_to_check in feed.implementations
+	distro_feed = master_feed.get_distro_feed()
+	if distro_feed is not None:
+		feed = config.iface_cache.get_feed(distro_feed)
+		return id_to_check in feed.implementations
+	else:
+		return False
 
 last_ticket = 0
 def take_ticket():
