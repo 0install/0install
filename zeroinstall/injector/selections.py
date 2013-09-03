@@ -101,6 +101,13 @@ class ImplSelection(Selection):
 		self.attrs = attrs
 
 	@property
+	def main(self):
+		if 'run' in self._used_commands:
+			return self.get_command('run').path
+		else:
+			return None
+
+	@property
 	def bindings(self): return self.impl.bindings
 
 	@property

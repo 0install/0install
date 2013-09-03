@@ -134,12 +134,12 @@ class TestSelections(BaseTest):
 		driver.need_download()
 		assert driver.solver.ready
 
-		impl = driver.solver.selections[self.config.iface_cache.get_interface(iface)]
+		impl = driver.solver.selections.selections[iface]
 		assert impl.id == 'c'
-		assert impl.main == 'test-gui'
+		assert impl.main == 'test-gui', impl.main
 
-		dep_impl_uri = impl.commands['run'].requires[0].interface
-		dep_impl = driver.solver.selections[self.config.iface_cache.get_interface(dep_impl_uri)]
+		dep_impl_uri = impl.get_command('run').requires[0].interface
+		dep_impl = driver.solver.selections.selections[dep_impl_uri]
 		assert dep_impl.id == 'sha1=256'
 
 		s1 = driver.solver.selections

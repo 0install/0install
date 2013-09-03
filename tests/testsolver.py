@@ -34,7 +34,7 @@ class TestSolver(BaseTest):
 
 		assert s.ready
 		assert s.feeds_used == set([foo.uri]), s.feeds_used
-		assert s.selections[foo].id == 'sha1=123'
+		assert s.selections.selections[foo.uri].id == 'sha1=123'
 
 		# Now ask for source instead
 		s.solve('http://foo/Binary.xml',
@@ -42,8 +42,8 @@ class TestSolver(BaseTest):
 				command_name = 'compile')
 		assert s.ready, s.get_failure_reason()
 		assert s.feeds_used == set([foo.uri, foo_src.uri, compiler.uri]), s.feeds_used
-		assert s.selections[foo].id == 'sha1=234'		# The source
-		assert s.selections[compiler].id == 'sha1=345'	# A binary needed to compile it
+		assert s.selections.selections[foo.uri].id == 'sha1=234'		# The source
+		assert s.selections.selections[compiler.uri].id == 'sha1=345'	# A binary needed to compile it
 
 		assert not s.details
 
@@ -151,8 +151,8 @@ class TestSolver(BaseTest):
 		binary_arch = arch.get_architecture('Linux', 'i686')
 		s.solve('http://foo/MultiArch.xml', binary_arch)
 		assert s.ready
-		assert s.selections[foo].machine == 'i486'
-		assert s.selections[lib].machine == 'i486'
+		assert s.selections.selections[foo.uri].attrs['arch'] == 'Linux-i486'
+		assert s.selections.selections[lib.uri].attrs['arch'] == 'Linux-i486'
 
 		# On an 64 bit system we could use either, but we prefer the 64
 		# bit implementation. The i486 version of the library is newer,
@@ -161,8 +161,8 @@ class TestSolver(BaseTest):
 		binary_arch = arch.get_architecture('Linux', 'x86_64')
 		s.solve('http://foo/MultiArch.xml', binary_arch)
 		assert s.ready
-		assert s.selections[foo].machine == 'x86_64'
-		assert s.selections[lib].machine == 'x86_64'
+		assert s.selections.selections[foo.uri].attrs['arch'] == 'Linux-x86_64'
+		assert s.selections.selections[lib.uri].attrs['arch'] == 'Linux-x86_64'
 
 	def testArch(self):
 		host_arch = arch.get_host_architecture()
@@ -215,9 +215,9 @@ class TestSolver(BaseTest):
 			s.solve(ranking, binary_arch)
 			if not s.ready:
 				break
-			impl = s.selections[iface]
-			selected.append(impl.get_version() + ' ' + impl.arch)
-			impl.arch = 'Foo-odd'		# prevent reselection
+			impl = s.selections.selections[ranking]
+			selected.append(impl.version + ' ' + impl.attrs['arch'])
+			iface_cache.get_feed(ranking).implementations[impl.id].arch = 'Foo-odd'		# prevent reselection
 		self.assertEqual([
 			'0.2 Linux-i386',	# poor arch, but newest version
 			'0.1 Linux-x86_64',	# 64-bit is best match for host arch
@@ -558,39 +558,39 @@ class TestSolver(BaseTest):
 			binary_arch = arch.get_architecture(None, 'arch_1')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEqual('sha1=1', s.selections[iface].id)
+			self.assertEqual('sha1=1', s.selections.selections[iface.uri].id)
 
 			# 6 is the newest, and close enough, even though not
 			# quite the right locale
 			binary_arch = arch.get_architecture(None, 'arch_2')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEqual('sha1=6', s.selections[iface].id)
+			self.assertEqual('sha1=6', s.selections.selections[iface.uri].id)
 
 			# 9 is the newest, although 7 is a closer match
 			binary_arch = arch.get_architecture(None, 'arch_3')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEqual('sha1=9', s.selections[iface].id)
+			self.assertEqual('sha1=9', s.selections.selections[iface.uri].id)
 
 			# 11 is the newest we understand
 			binary_arch = arch.get_architecture(None, 'arch_4')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEqual('sha1=11', s.selections[iface].id)
+			self.assertEqual('sha1=11', s.selections.selections[iface.uri].id)
 
 			# 13 is the newest we understand
 			binary_arch = arch.get_architecture(None, 'arch_5')
 			s.solve('http://foo/Langs.xml', binary_arch)
 			assert s.ready
-			self.assertEqual('sha1=13', s.selections[iface].id)
+			self.assertEqual('sha1=13', s.selections.selections[iface.uri].id)
 
 			def check(target_arch, langs, expected):
 				s.langs = langs
 				binary_arch = arch.get_architecture(None, target_arch)
 				s.solve('http://foo/Langs.xml', binary_arch)
 				assert s.ready
-				self.assertEqual(expected, s.selections[iface].id)
+				self.assertEqual(expected, s.selections.selections[iface.uri].id)
 
 			# We don't understand any, so pick the newest
 			check('arch_2', ['es_ES'], 'sha1=6')

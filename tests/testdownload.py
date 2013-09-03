@@ -424,7 +424,7 @@ class TestDownload(BaseTest):
 			requirements.command = None
 			driver = Driver(requirements = requirements, config = self.config)
 			driver_download(driver)
-			digests = driver.solver.selections[requirements.interface_uri].digests
+			digests = driver.solver.selections.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
 			assert os.path.exists(os.path.join(path, 'HelloUniverse', 'minor'))
 			assert not os.path.exists(os.path.join(path, 'HelloWorld'))
@@ -437,7 +437,7 @@ class TestDownload(BaseTest):
 			requirements.command = None
 			driver = Driver(requirements = requirements, config = self.config)
 			driver_download(driver)
-			digests = driver.solver.selections[requirements.interface_uri].digests
+			digests = driver.solver.selections.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'bin', 'main'))
 			assert not os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
@@ -449,7 +449,7 @@ class TestDownload(BaseTest):
 			requirements.command = None
 			driver = Driver(requirements = requirements, config = self.config)
 			driver_download(driver)
-			digests = driver.solver.selections[requirements.interface_uri].digests
+			digests = driver.solver.selections.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld'))
 			assert not os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
@@ -461,7 +461,7 @@ class TestDownload(BaseTest):
 			requirements.command = None
 			driver = Driver(requirements = requirements, config = self.config)
 			driver_download(driver)
-			digests = driver.solver.selections[requirements.interface_uri].digests
+			digests = driver.solver.selections.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
 			assert not os.path.exists(os.path.join(path, 'HelloWorld'))
 
@@ -472,7 +472,7 @@ class TestDownload(BaseTest):
 			requirements.command = None
 			driver = Driver(requirements = requirements, config = self.config)
 			driver_download(driver)
-			digests = driver.solver.selections[requirements.interface_uri].digests
+			digests = driver.solver.selections.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
 			assert os.path.exists(os.path.join(path, 'src', 'HelloWorld', 'main'))
 
@@ -483,7 +483,7 @@ class TestDownload(BaseTest):
 			requirements.command = None
 			driver = Driver(requirements = requirements, config = self.config)
 			driver_download(driver)
-			digests = driver.solver.selections[requirements.interface_uri].digests
+			digests = driver.solver.selections.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main')) # first archive's main
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'HelloWorld', 'main')) # second archive, extracted to HelloWorld/
@@ -518,7 +518,7 @@ class TestDownload(BaseTest):
 			requirements.command = None
 			driver = Driver(requirements = requirements, config = self.config)
 			driver_download(driver)
-			digests = driver.solver.selections[requirements.interface_uri].digests
+			digests = driver.solver.selections.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
 			with open(os.path.join(path, 'bin','main'), 'rt') as stream:
 				assert 'Hello World' in stream.read()
@@ -530,7 +530,7 @@ class TestDownload(BaseTest):
 			requirements.command = None
 			driver = Driver(requirements = requirements, config = self.config)
 			driver_download(driver)
-			digests = driver.solver.selections[requirements.interface_uri].digests
+			digests = driver.solver.selections.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
 			assert os.path.exists(os.path.join(path, 'src', 'HelloWorld', 'main'))
 
@@ -541,7 +541,7 @@ class TestDownload(BaseTest):
 			requirements.command = None
 			driver = Driver(requirements = requirements, config = self.config)
 			driver_download(driver)
-			digests = driver.solver.selections[requirements.interface_uri].digests
+			digests = driver.solver.selections.selections[requirements.interface_uri].digests
 			path = self.config.stores.lookup_any(digests)
 			with open(os.path.join(path, 'main'), 'rt') as stream:
 				assert 'Hello World' in stream.read()

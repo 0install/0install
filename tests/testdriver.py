@@ -68,7 +68,7 @@ class TestDriver(BaseTest):
 			assert driver.need_download()
 			download_and_execute(driver, [])
 		except model.SafeException as ex:
-			assert "No <manifest-digest> given for 'Foo' version 1.0" in str(ex), ex
+			assert "No digests for http://foo 1.0" in str(ex), ex
 	
 	def testDownload(self):
 		tmp = tempfile.NamedTemporaryFile(mode = 'wt')
@@ -233,7 +233,7 @@ class TestDriver(BaseTest):
 		recalculate(driver)
 		assert driver.solver.ready
 		foo_iface = self.config.iface_cache.get_interface(foo_iface_uri)
-		self.assertEqual('sha1=123', driver.solver.selections[foo_iface].id)
+		self.assertEqual('sha1=123', driver.solver.selections.selections[foo_iface.uri].id)
 
 	def testBadConfig(self):
 		path = basedir.save_config_path(namespaces.config_site,
@@ -387,19 +387,20 @@ class TestDriver(BaseTest):
 		#logger.setLevel(logging.WARN)
 		foo_iface = self.config.iface_cache.get_interface(foo_iface_uri)
 		bar_iface = self.config.iface_cache.get_interface('http://bar')
-		assert driver.solver.selections[bar_iface].id == 'sha1=200'
+		assert driver.solver.selections.selections[bar_iface.uri].id == 'sha1=200'
 
-		dep = driver.solver.selections[foo_iface].dependencies['http://bar']
+		dep, = driver.solver.selections.selections[foo_iface.uri].dependencies
+		assert dep.interface == 'http://bar'
 		assert len(dep.restrictions) == 1
 		restriction = dep.restrictions[0]
 
 		restriction.before = model.parse_version('2.0')
 		recalculate(driver)
-		assert driver.solver.selections[bar_iface].id == 'sha1=100'
+		assert driver.solver.selections.selections[bar_iface.uri].id == 'sha1=100'
 
 		restriction.not_before = model.parse_version('1.5')
 		recalculate(driver)
-		assert driver.solver.selections[bar_iface].id == 'sha1=150'
+		assert driver.solver.selections.selections[bar_iface.uri].id == 'sha1=150'
 
 	def testSource(self):
 		iface_cache = self.config.iface_cache
@@ -415,15 +416,15 @@ class TestDriver(BaseTest):
 		self.config.network_use = model.network_full
 		driver = Driver(requirements = Requirements('http://foo/Binary.xml'), config = self.config)
 		tasks.wait_for_blocker(driver.solve_with_downloads())
-		assert driver.solver.selections[foo].id == 'sha1=123'
+		assert driver.solver.selections.selections[foo.uri].id == 'sha1=123'
 
 		# Now ask for source instead
 		driver.requirements.source = True
 		driver.requirements.command = 'compile'
 		tasks.wait_for_blocker(driver.solve_with_downloads())
 		assert driver.solver.ready, driver.solver.get_failure_reason()
-		assert driver.solver.selections[foo].id == 'sha1=234'		# The source
-		assert driver.solver.selections[compiler].id == 'sha1=345'	# A binary needed to compile it
+		assert driver.solver.selections.selections[foo.uri].id == 'sha1=234'		# The source
+		assert driver.solver.selections.selections[compiler.uri].id == 'sha1=345'	# A binary needed to compile it
 
 if __name__ == '__main__':
 	unittest.main()

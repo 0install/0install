@@ -1051,7 +1051,7 @@ class SATSolver(Solver):
 					wanted = wanted,
 					reason = s.get_failure_reason())
 
-		actual_selection = self.selections.get(iface, None)
+		actual_selection = self.selections.selections.get(iface.uri, None).impl
 		if actual_selection is not None:
 			# Was impl actually selected anyway?
 			if actual_selection.id == impl.id:

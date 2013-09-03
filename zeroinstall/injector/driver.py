@@ -189,6 +189,4 @@ class Driver(object):
 		"""Download all implementations chosen by the solver that are missing from the cache.
 		@rtype: L{zeroinstall.support.tasks.Blocker}"""
 		assert self.solver.ready, "Solver is not ready!\n%s" % self.solver.selections
-		stores = self.config.stores
-		return self.config.fetcher.download_impls([impl for impl in self.solver.selections.values() if not impl.is_available(stores)],
-						   stores)
+		return self.solver.selections.download_missing(self.config, include_packages = True)
