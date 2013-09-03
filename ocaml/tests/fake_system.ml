@@ -44,6 +44,24 @@ let make_stat st_perm kind =
     st_ctime = 0.0;
   }
 
+let capture_stdout fn =
+  U.finally_do
+    (fun old_stdout -> Unix.(dup2 old_stdout stdout; close old_stdout))
+    (Unix.dup Unix.stdout)
+    (fun _old_stdout ->
+      let tmp = Filename.temp_file "0install" "-test" in
+      U.finally_do
+        Unix.close Unix.(openfile tmp [O_RDWR] 0o600)
+        (fun tmpfd ->
+          Unix.dup2 tmpfd Unix.stdout;
+          fn ();
+          flush stdout;
+        );
+        let contents = U.read_file real_system tmp in
+        Unix.unlink tmp;
+        contents
+    )
+
 exception Would_exec of (bool * string array option * string list)
 exception Would_spawn of (bool * string array option * string list)
 
@@ -104,7 +122,7 @@ class fake_system tmpdir =
 
     method print_string s =
       match stdout with
-      | None -> failwith s
+      | None -> real_system#print_string s
       | Some b -> Buffer.add_string b s
 
     val mutable argv = [| test_0install |]
@@ -113,6 +131,7 @@ class fake_system tmpdir =
     method set_argv new_argv = argv <- new_argv
 
     method time () = !now
+    method set_time t = now := t
 
     method set_mtime path mtime = real_system#set_mtime (check_write path) mtime
 
@@ -171,7 +190,7 @@ class fake_system tmpdir =
     method atomic_write open_flags path ~mode fn = real_system#atomic_write open_flags (check_write path) ~mode fn
     method atomic_hardlink ~link_to ~replace = real_system#atomic_hardlink ~link_to:(check_read link_to) ~replace:(check_write replace)
     method unlink path = real_system#unlink (check_write path)
-    method rmdir = failwith "rmdir"
+    method rmdir path = real_system#rmdir (check_write path)
 
     method exec ?(search_path = false) ?env argv =
       raise (Would_exec (search_path, env, argv))
@@ -255,13 +274,20 @@ let fake_log =
   object (_ : #Support.Logging.handler)
     val mutable record = []
 
-    method reset () =
+    method reset =
       record <- []
 
-    method get () =
+    method get =
       record
 
-    method dump () =
+    method pop_warnings =
+      let warnings = U.filter_map record ~f:(function
+        | (_ex, Support.Logging.Warning, msg) -> Some msg
+        | _ -> None) in
+      record <- [];
+      warnings
+
+    method dump =
       if record = [] then
         print_endline "(log empty)"
       else (
@@ -309,7 +335,10 @@ let get_fake_config tmpdir =
   Zeroinstall.Python.slave_debug_level := Some Support.Logging.Warning;
   Zeroinstall.Python.slave_interceptor := Zeroinstall.Python.default_interceptor;
   let system = new fake_system tmpdir in
-  if tmpdir = None then system#putenv "HOME" "/home/testuser";
+  let () =
+    match tmpdir with
+    | None -> system#putenv "HOME" "/home/testuser";
+    | Some dir -> system#putenv "HOME" dir in
   if on_windows then (
     system#add_file (src_dir +/ "0install-runenv.exe") (build_dir +/ "0install-runenv.exe");
     system#add_file (src_dir +/ "0install-python-fallback") (src_dir +/ "0install-python-fallback");

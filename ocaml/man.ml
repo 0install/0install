@@ -16,7 +16,7 @@ let exec_man config ?env args =
   let args = "man" :: args in
   if config.dry_run then (
     Zeroinstall.Dry_run.log "%s" @@ Support.Logging.format_argv_for_logging args;
-    exit 0
+    raise (System_exit 0)
   ) else config.system#exec ?env ~search_path:true args
 
 (** Exec the man command to show the man-page for this interface. Never returns. *)
@@ -92,7 +92,7 @@ let find_and_exec_man config ?main ?fallback_name sels =
         system#print_string "These non-matching man-pages were found, however:\n";
         List.iter (fun n -> system#print_string @@ n ^ "\n") !manpages;
       );
-      exit 1
+      raise (System_exit 1)
 
 let handle options flags args =
   let config = options.config in
@@ -117,7 +117,7 @@ let handle options flags args =
                 (* Ensure cached *)
                 match Generic_select.get_selections options ~refresh:false reqs Zeroinstall.Helpers.Download_only with
                 | Some sels -> (sels, main)
-                | None -> exit 1
+                | None -> raise (System_exit 1)
             )
             | Some (AppLauncher app_name) ->
                 match Zeroinstall.Apps.lookup_app options.config app_name with

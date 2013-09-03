@@ -21,6 +21,13 @@ let assert_contains expected whole =
   try ignore @@ Str.search_forward (Str.regexp_string expected) whole 0
   with Not_found -> assert_failure (Printf.sprintf "Expected string '%s' not found in '%s'" expected whole)
 
+let assert_error_contains expected (fn:unit -> string) =
+  try
+    Fake_system.assert_str_equal "" @@ fn ();
+    assert_failure (Printf.sprintf "Expected error '%s' but got success!" expected)
+  with Safe_exception (msg, _) ->
+    assert_contains expected msg
+
 let expect = function
   | None -> assert_failure "Unexpected None!"
   | Some x -> x
@@ -87,29 +94,12 @@ class fake_slave config =
   end
 
 let run_0install fake_system ?(exit=0) args =
+  Fake_system.fake_log#reset;
   fake_system#set_argv @@ Array.of_list (test_0install :: args);
-  fake_system#collect_output (fun () ->
+  Fake_system.capture_stdout (fun () ->
     try Main.main (fake_system :> system); assert (exit = 0)
     with System_exit n -> assert_equal ~msg:"exit code" n exit
   )
-
-let capture_stdout fn =
-  U.finally_do
-    (fun old_stdout -> Unix.(dup2 old_stdout stdout; close old_stdout))
-    (Unix.dup Unix.stdout)
-    (fun _old_stdout ->
-      let tmp = Filename.temp_file "0install" "-test" in
-      U.finally_do
-        Unix.close Unix.(openfile tmp [O_RDWR] 0o600)
-        (fun tmpfd ->
-          Unix.dup2 tmpfd Unix.stdout;
-          fn ();
-          flush stdout;
-        );
-        let contents = U.read_file Fake_system.real_system tmp in
-        Unix.unlink tmp;
-        contents
-    )
 
 let suite = "0install">::: [
   "select">:: Fake_system.with_tmpdir (fun tmpdir ->
@@ -247,9 +237,7 @@ let suite = "0install">::: [
     assert_contains "Version: 0.1" out;
 
     let local_uri = U.abspath system (feed_dir +/ "Local.xml") in
-    let out = capture_stdout (fun () ->
-      Fake_system.assert_str_equal "" @@ run ["download"; local_uri; "--xml"]
-    ) in
+    let out = run ["download"; local_uri; "--xml"] in
     let sels = Zeroinstall.Selections.make_selection_map @@ Q.parse_input None (Xmlm.make_input (`String (0, out))) in
     let sel = StringMap.find local_uri sels in
     Fake_system.assert_str_equal "0.1" @@ ZI.get_attribute "version" sel;
@@ -283,7 +271,7 @@ let suite = "0install">::: [
     fake_slave#allow_download digest;
 
     let hello = Support.Utils.read_file system (feed_dir +/ "Hello.xml") in
-    fake_slave#allow_feed_download "http://example.com:8000/Hello.xml" hello;   (* XXX *)
+    fake_slave#allow_feed_download "http://example.com:8000/Hello.xml" hello;
     let out = run ["download"; (feed_dir +/ "selections.xml"); "--show"] in
     assert_contains digest out;
     assert_contains "Version: 1\n" out;
@@ -305,5 +293,157 @@ let suite = "0install">::: [
     );
     try ignore @@ run ["run"; "--dry-run"; "--refresh"; "http://foo/d"]; assert false
     with Ok -> ();
-  )
+  );
+
+  "apps">:: Fake_system.with_tmpdir (fun tmpdir ->
+    let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    let system = (fake_system :> system) in
+    let run = run_0install fake_system in
+
+    fake_system#set_time 1378201508.0;  (* Set time to 2013 *)
+
+    let out = run ~exit:1 ["add"; "local-app"] in
+    assert (U.starts_with out "Usage:");
+
+    let out = run ~exit:1 ["destroy"; "local-app"; "uri"] in
+    assert (U.starts_with out "Usage:");
+
+    let local_feed = feed_dir +/ "Local.xml" in
+
+    assert_error_contains "Invalid application name 'local:app'" (fun () ->
+      run ["add"; "local:app"; local_feed]
+    );
+
+    Fake_system.fake_log#reset;
+    let out =
+      Fake_system.collect_logging (fun () -> 
+        run ["add"; "--dry-run"; "local-app"; local_feed]
+      ) in
+    let () =
+      match Fake_system.fake_log#pop_warnings with
+      | [w] -> assert_contains "bin is not in $PATH. Add it with:" w
+      | _ -> assert false in
+    assert_contains "[dry-run] would write selections to " out;
+    assert_contains "[dry-run] would write launcher script " out;
+
+    Unix.mkdir (tmpdir +/ "bin") 0o700;
+    fake_system#putenv "PATH" ((tmpdir +/ "bin") ^ path_sep ^ U.getenv_ex fake_system "PATH");
+
+    let out = run ["add"; "local-app"; local_feed] in
+    Fake_system.assert_str_equal "" out;
+
+    assert_error_contains "Application 'local-app' already exists" (fun () ->
+      run ["add"; "local-app"; local_feed]
+    );
+
+    let out = run ["man"; "--dry-run"; "local-app"] in
+    assert_contains "tests/test-echo.1" out;
+
+    fake_system#putenv "COMP_CWORD" "2";
+    let out = run ["_complete"; "bash"; "0install"; "select"] in
+    assert_contains "local-app" out;
+    let out = run ["select"; "local-app"] in
+    assert_contains "Version: 0.1" out;
+
+    let out = run ["show"; "local-app"] in
+    assert_contains "Version: 0.1" out;
+
+    let out = run ["update"; "local-app"] in
+    assert_contains "No updates found. Continuing with version 0.1." out;
+
+    (* Run *)
+    let out = run ["run"; "--dry-run"; "local-app"] in
+    assert_contains "[dry-run] would execute:" out;
+    assert_contains "/test-echo" out;
+
+    (* restrictions *)
+    let path = Filename.dirname @@ Generic_select.canonical_iface_uri system local_feed in
+    assert_error_contains (
+      Printf.sprintf (
+        "Can't find all required implementations:\n" ^^
+        "- %s/Local.xml -> (problem)\n" ^^
+        "    User requested version 10..\n" ^^
+        "    No usable implementations:\n" ^^
+        "      sha1=256 (0.1): Excluded by user-provided restriction: version 10..") path)
+      (fun () -> run ["update"; "local-app"; "--version=10.."]);
+
+    let out = run ["update"; "local-app"; "--version=0.1.."] in
+    assert_contains "No updates found. Continuing with version 0.1." out;
+
+    let out = run ["select"; "local-app"] in
+    Fake_system.assert_str_equal (Printf.sprintf (
+      "User-provided restrictions in force:\n" ^^
+      "  %s/Local.xml: 0.1..\n" ^^
+      "\n" ^^
+      "- URI: %s/Local.xml\n" ^^
+      "  Version: 0.1\n" ^^
+      "  Path: %s\n") path path path) out;
+
+    (* remove restrictions [dry-run] *)
+    let out = run ["update"; "--dry-run"; "local-app"; "--version-for"; path +/ "Local.xml"; ""] in
+    assert_contains "No updates found. Continuing with version 0.1." out;
+    assert_contains "[dry-run] would write " out;
+
+    (* remove restrictions *)
+    let out = run ["update"; "local-app"; "--version-for"; path +/ "Local.xml"; ""] in
+    assert_contains "No updates found. Continuing with version 0.1." out;
+
+    let out = run ["select"; "local-app"] in
+    Fake_system.assert_str_equal (Printf.sprintf (
+      "- URI: %s/Local.xml\n" ^^
+      "  Version: 0.1\n" ^^
+      "  Path: %s\n") path path) out;
+
+    (* whatchanged *)
+    fake_system#putenv "COMP_CWORD" "2";
+    let out = run ["_complete"; "bash"; "0install"; "whatchanged"] in
+    assert_contains "local-app" out;
+    let out = run ~exit:1 ["whatchanged"; "local-app"; "uri"] in
+    assert (U.starts_with out "Usage:");
+
+    let out = run ["whatchanged"; "local-app"] in
+    assert_contains "No previous history to compare against." out;
+
+    let app = expect @@ Zeroinstall.Apps.lookup_app config "local-app" in
+    let old_local = U.read_file system (app +/ "selections.xml") in
+    let new_local = Str.replace_first (Str.regexp_string "0.1") "0.1-pre" old_local in
+    system#atomic_write [Open_wronly; Open_binary] (app +/ "selections-2012-01-01.xml") ~mode:0o644 (fun ch ->
+      output_string ch new_local
+    );
+
+    let out = run ["whatchanged"; "local-app"] in
+    assert_contains "Local.xml: 0.1-pre -> 0.1" out;
+
+    (* Allow running diff *)
+    let my_spawn_handler args cin cout cerr =
+      Fake_system.real_system#create_process args cin cout cerr in
+    fake_system#set_spawn_handler (Some my_spawn_handler);
+    let out = run ["whatchanged"; "local-app"; "--full"] in
+    assert_contains "2012-01-01" out;
+    fake_system#set_spawn_handler None;
+
+    (* select detects changes *)
+    let new_local = Str.replace_first (Str.regexp_string "0.1") "0.1-pre2" old_local in
+    system#atomic_write [Open_wronly; Open_binary] (app +/ "selections.xml") ~mode:0o644 (fun ch ->
+      output_string ch new_local
+    );
+    let out = run ["show"; "local-app"] in
+    assert_contains "Version: 0.1-pre2" out;
+
+    let out = run ["select"; "local-app"] in
+    assert_contains "Local.xml: 0.1-pre2 -> 0.1" out;
+    assert_contains "(note: use '0install update' instead to save the changes)" out;
+
+    fake_system#putenv "COMP_CWORD" "2";
+    assert_contains "local-app" @@ run ["_complete"; "bash"; "0install"; "man"];
+    assert_contains "local-app" @@ run ["_complete"; "bash"; "0install"; "destroy"];
+    fake_system#putenv "COMP_CWORD" "3";
+    Fake_system.assert_str_equal "" @@ run ["_complete"; "bash"; "0install"; "destroy"];
+
+    Fake_system.assert_str_equal "" @@ run ["destroy"; "local-app"];
+
+    assert_error_contains "No such application 'local-app'" (fun () ->
+      run ["destroy"; "local-app"]
+    );
+  );
 ]

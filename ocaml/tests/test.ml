@@ -80,11 +80,11 @@ let test_option_parsing () =
 
   assert_raises_safe "Option does not take an argument in '--console=true'" (lazy (p ["--console=true"]));
 
-  assert (List.length (fake_log#get ()) = 0);
+  assert (List.length (fake_log#get) = 0);
   let s = p ["-cvv"; "run"] in
   assert_equal No s.gui;
   assert_equal 2 s.verbosity;
-  assert (List.length (fake_log#get ()) > 0);
+  assert (List.length (fake_log#get) > 0);
 
   let _, flags, args = p_full ["run"; "-wgdb"; "foo"] in
   equal_str_lists ["run"; "foo"] args;
@@ -225,10 +225,10 @@ let suite =
 
 let show_log_on_failure fn () =
   try
-    Fake_system.fake_log#reset ();
+    Fake_system.fake_log#reset;
     fn ()
   with ex ->
-    Fake_system.fake_log#dump ();
+    Fake_system.fake_log#dump;
     raise ex
 
 let () =
