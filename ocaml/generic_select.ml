@@ -14,10 +14,6 @@ module Requirements = Zeroinstall.Requirements
 module U = Support.Utils
 module H = Zeroinstall.Helpers
 
-let use_ocaml_solver =                (* TODO: just for testing *)
-  try ignore @@ Sys.getenv "USE_OCAML_SOLVER"; true
-  with Not_found -> false
-
 type target =
   | App of (filepath * Requirements.requirements)
   | Interface
@@ -155,15 +151,9 @@ let get_selections options ~refresh reqs mode =
   ) else (
     let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in
     match Zeroinstall.Solver.solve_for config feed_provider reqs with
-    | (false, results) ->
+    | (false, _results) ->
         log_info "Quick solve failed; can't select without updating feeds";
-        if use_ocaml_solver then (
-          print_endline "Quick solve failed (stopped for debugging):";
-          prerr_string @@ Zeroinstall.Diagnostics.get_failure_reason config results;
-          raise (System_exit 1);
-        ) else (
-          select_with_refresh()
-        )
+        select_with_refresh()
     | (true, results) ->
         let sels = results#get_selections in
         if mode = H.Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
