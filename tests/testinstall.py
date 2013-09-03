@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-from basetest import BaseTest, TestStores, StringIO, BytesIO, ExecMan, BackgroundException
-import sys, os, tempfile, subprocess, shutil, shlex
+from basetest import BaseTest, StringIO, BytesIO
+import sys, os, tempfile, subprocess, shlex
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall import cmd, logger, apps, alias
+from zeroinstall import cmd, alias
 from zeroinstall.injector import model, selections, qdom, handler, gpg, config
 
 mydir = os.path.dirname(__file__)
@@ -267,7 +267,7 @@ class TestInstall(BaseTest):
 
 	def testUpdateAlias(self):
 		local_feed = os.path.join(mydir, 'Local.xml')
-		launcher_script = os.path.join(apps.find_bin_dir(), 'my-test-alias')
+		launcher_script = os.path.join(self.config_home, 'my-test-alias')
 		with open(launcher_script, 'w') as stream:
 			alias.write_script(stream, local_feed, None)
 
@@ -284,7 +284,7 @@ class TestInstall(BaseTest):
 		self.check_man([], ('man',))
 
 		local_feed = os.path.join(mydir, 'Local.xml')
-		launcher_script = os.path.join(apps.find_bin_dir(), 'my-test-alias')
+		launcher_script = os.path.join(self.config_home, 'my-test-alias')
 		with open(launcher_script, 'w') as stream:
 			alias.write_script(stream, model.canonical_iface_uri(local_feed), None)
 		self.check_man(['my-test-alias'], 'tests/test-echo.1')
@@ -294,7 +294,7 @@ class TestInstall(BaseTest):
 
 		# No man-page
 		binary_feed = os.path.join(mydir, 'Command.xml')
-		launcher_script = os.path.join(apps.find_bin_dir(), 'my-binary-alias')
+		launcher_script = os.path.join(self.config_home, 'my-binary-alias')
 		with open(launcher_script, 'w') as stream:
 			alias.write_script(stream, model.canonical_iface_uri(binary_feed), None)
 

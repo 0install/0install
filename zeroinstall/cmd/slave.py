@@ -13,9 +13,7 @@ from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, qdom, selections
 from zeroinstall.injector.requirements import Requirements
-from zeroinstall.injector.driver import Driver
 from zeroinstall.support import tasks
-from zeroinstall.zerostore import Store
 from zeroinstall import support
 
 if sys.version_info[0] > 2:
@@ -45,7 +43,7 @@ def parse_ynm(s):
 	if s == 'yes': return True
 	if s == 'no': return False
 	if s == 'maybe': return None
-	assert 0, b
+	assert 0, s
 
 def reqs_from_json(reqs_json):
 	requirements = Requirements(None)
@@ -234,10 +232,7 @@ def handle_invoke(config, options, ticket, request):
 	try:
 		command = request[0]
 		logger.debug("Got request '%s'", command)
-		if command == 'select':
-			do_select(config, options, ticket, request[1:])
-			return #async
-		elif command == 'get-selections-gui':
+		if command == 'get-selections-gui':
 			response = do_get_selections_gui(config, request[1:])
 		elif command == 'wait-for-network':
 			response = do_wait_for_network(config)

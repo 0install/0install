@@ -22,7 +22,7 @@ sys.path.insert(0, '..')
 from zeroinstall.injector import qdom, background
 from zeroinstall.injector import iface_cache, download, distro, model, handler, reader, trust
 from zeroinstall.zerostore import NotStored, Store, Stores; Store._add_with_helper = lambda *unused, **kwargs: False
-from zeroinstall import support, apps, cmd
+from zeroinstall import support, cmd
 from zeroinstall.support import basedir, tasks
 
 def skipIf(condition, reason):
@@ -193,7 +193,6 @@ class TestConfig:
 		self.fetcher = TestFetcher(self)
 		self.trust_db = trust.trust_db
 		self.trust_mgr = trust.TrustMgr(self)
-		self.app_mgr = apps.AppManager(self)
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):

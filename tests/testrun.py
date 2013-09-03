@@ -9,7 +9,7 @@ sys.path.insert(0, '..')
 os.environ['PYTHONPATH'] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 from zeroinstall.support import tasks
-from zeroinstall.injector import run, namespaces
+from zeroinstall.injector import run
 from zeroinstall import SafeException
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.driver import Driver

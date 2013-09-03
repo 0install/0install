@@ -207,7 +207,6 @@ class TestSolver(BaseTest):
 		iface_cache = self.config.iface_cache
 		s = solver.DefaultSolver(self.config)
 		ranking = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'Ranking.xml')
-		iface = iface_cache.get_interface(ranking)
 
 		binary_arch = arch.get_architecture('Linux', 'x86_64')
 		selected = []
