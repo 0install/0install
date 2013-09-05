@@ -186,7 +186,10 @@ class MainWindow(object):
 		import pango
 		self.comment.set_text(message)
 		attrs = pango.AttrList()
-		attrs.insert(pango.AttrWeight(pango.WEIGHT_BOLD, end_index = len(message)))
+		try:
+			attrs.insert(pango.AttrWeight(pango.WEIGHT_BOLD, end_index = len(message)))
+		except AttributeError:
+			pass 		# PyGtk 3
 		self.comment.set_attributes(attrs)
 		self.comment.show()
 
