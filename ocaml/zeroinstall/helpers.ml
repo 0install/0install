@@ -48,6 +48,8 @@ let get_selections_gui config (slave:Python.slave) ?(systray=false) mode reqs ~r
   ) else if config.system#getenv "DISPLAY" = None then (
     if use_gui = Maybe then `Dont_use_GUI
     else raise_safe "Can't use GUI because $DISPLAY is not set"
+  ) else if not (slave#invoke (`List [`String "check-gui"; `String (string_of_ynm use_gui)]) Yojson.Basic.Util.to_bool) then (
+    `Dont_use_GUI       (* [check-gui] will throw if use_gui is [Yes] *)
   ) else (
     let action = match mode with
     | Select_only -> "for-select"

@@ -27,14 +27,6 @@ sys.path.insert(0, dirname(dirname(_mydir)))
 from zeroinstall.support.tasks import get_loop
 get_loop().glib.threads_init()
 
-from zeroinstall import localedir
-
-if localedir:
-	# Tell GTK where to find the translations, if they're not in
-	# the default system location.
-	if hasattr(locale, 'bindtextdomain'):
-		locale.bindtextdomain('zero-install', localedir)
-
 import main
 
 try:

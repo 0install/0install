@@ -6,6 +6,15 @@ from __future__ import print_function
 import os, sys
 import logging
 import warnings
+import locale
+
+from zeroinstall import localedir
+
+if localedir:
+	# Tell GTK where to find the translations, if they're not in
+	# the default system location.
+	if hasattr(locale, 'bindtextdomain'):
+		locale.bindtextdomain('zero-install', localedir)
 
 from optparse import OptionParser
 
@@ -23,6 +32,47 @@ def recalculate():
 	global _recalculate
 	_recalculate.trigger()
 	_recalculate = tasks.Blocker('recalculate')
+
+def check_gui():
+	"""Returns True if the GUI works, or returns an exception if not."""
+	if sys.version_info[0] < 3:
+		try:
+			import pygtk; pygtk.require('2.0')
+		except ImportError as ex:
+			logging.info("No GUI available", exc_info = ex)
+			return ex
+
+	try:
+		if sys.version_info[0] > 2:
+			from zeroinstall.gtkui import pygtkcompat
+			pygtkcompat.enable()
+			pygtkcompat.enable_gtk(version = '3.0')
+		import gtk
+	except (ImportError, ValueError, RuntimeError) as ex:
+		logging.info("No GUI available", exc_info = ex)
+		return ex
+
+	if gtk.gdk.get_display() is None:
+		return SafeException("Failed to connect to display.")
+
+	return True
+
+_gui_available = None
+def gui_is_available(force_gui):
+	"""True if we have a usable GUI. False to fallback on console mode.
+	If force_gui is True, raise an exception if the GUI is missing."""
+	global _gui_available
+	if _gui_available is None:
+		with warnings.catch_warnings():
+			if not force_gui:
+				warnings.filterwarnings("ignore")
+			_gui_available = check_gui()
+
+	if _gui_available is True:
+		return True
+	if force_gui:
+		raise _gui_available
+	return False
 
 def run_gui(args):
 	parser = OptionParser(usage=_("usage: %prog [options] interface"))
@@ -66,39 +116,9 @@ def run_gui(args):
 				"\nFor more information about these matters, see the file named COPYING."))
 		sys.exit(0)
 
-	def nogui(ex):
-		if options.force_gui:
-			fn = logging.warn
-		else:
-			fn = logging.info
-			fn("No GUI available", exc_info = ex)
+	if not gui_is_available(options.force_gui):
 		sys.exit(100)
-
-	with warnings.catch_warnings():
-		if not options.force_gui:
-			warnings.filterwarnings("ignore")
-		if sys.version_info[0] < 3:
-			try:
-				import pygtk; pygtk.require('2.0')
-			except ImportError as ex:
-				nogui(ex)
-
-		import gui
-
-		try:
-			if sys.version_info[0] > 2:
-				from zeroinstall.gtkui import pygtkcompat
-				pygtkcompat.enable()
-				pygtkcompat.enable_gtk(version = '3.0')
-			import gtk
-		except (ImportError, ValueError, RuntimeError) as ex:
-			nogui(ex)
-
-		if gtk.gdk.get_display() is None:
-			try:
-				raise SafeException("Failed to connect to display.")
-			except SafeException as ex:
-				nogui(ex)	# logging needs this as a raised exception
+	import gui
 
 	handler = gui.GUIHandler()
 

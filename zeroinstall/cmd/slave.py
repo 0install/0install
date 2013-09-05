@@ -182,6 +182,16 @@ def do_notify_user(config, args):
 	handler = background.BackgroundHandler()
 	handler.notify(args["title"], args["message"], timeout = args["timeout"])
 
+def do_check_gui(use_gui):
+	from zeroinstall.gui import main
+
+	if use_gui == "yes": use_gui = True
+	elif use_gui == "no": return False
+	elif use_gui == "maybe": use_gui = None
+	else: assert 0, use_gui
+
+	return main.gui_is_available(use_gui)
+
 def do_get_selections_gui(config, args):
 	reqs, opts = args
 
@@ -240,6 +250,8 @@ def handle_invoke(config, options, ticket, request):
 			response = do_get_selections_gui(config, request[1:])
 		elif command == 'wait-for-network':
 			response = do_wait_for_network(config)
+		elif command == 'check-gui':
+			response = do_check_gui(request[1])
 		elif command == 'download-selections':
 			l = stdin.readline().strip()
 			xml = qdom.parse(BytesIO(stdin.read(int(l))))
