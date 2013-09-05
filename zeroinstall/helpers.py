@@ -14,6 +14,25 @@ from zeroinstall.support import tasks
 
 DontUseGUI = object()
 
+def should_use_gui(use_gui):
+	if use_gui is False:
+		return False
+
+	if not os.environ.get('DISPLAY', None):
+		if use_gui is None:
+			return False
+		else:
+			raise SafeException("Can't use GUI because $DISPLAY is not set")
+
+	from zeroinstall.gui import main
+	if main.gui_is_available(use_gui):
+		return True
+
+	if use_gui is None:
+		return False
+	else:
+		raise SafeException("No GUI available")
+
 def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True):
 	"""Run the GUI to choose and download a set of implementations.
 	The user may ask the GUI to submit a bug report about the program. In that case,
@@ -30,14 +49,8 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True
 	@return: the selected implementations
 	@rtype: L{zeroinstall.injector.selections.Selections}
 	@since: 0.28"""
-	if use_gui is False:
+	if not should_use_gui(use_gui):
 		return DontUseGUI
-
-	if not os.environ.get('DISPLAY', None):
-		if use_gui is None:
-			return DontUseGUI
-		else:
-			raise SafeException("Can't use GUI because $DISPLAY is not set")
 
 	from zeroinstall.injector import selections, qdom
 	from io import BytesIO

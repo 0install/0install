@@ -10,6 +10,7 @@ from __future__ import print_function
 from zeroinstall import SafeException, _
 from zeroinstall.injector import model
 from zeroinstall.cmd import UsageError
+from zeroinstall.support import tasks
 
 syntax = "[NAME [VALUE]]"
 
@@ -100,11 +101,19 @@ def handle(config, options, args):
 	@type args: [str]"""
 	if len(args) == 0:
 		from zeroinstall import helpers
-		if helpers.get_selections_gui(None, [], use_gui = options.gui) == helpers.DontUseGUI:
+		if helpers.should_use_gui(options.gui):
+			@tasks.async
+			def prefs_main():
+				from zeroinstall.gui import preferences
+				box = preferences.show_preferences(config)
+				done = tasks.Blocker('close preferences')
+				box.connect('destroy', lambda w: done.trigger())
+				yield done
+			tasks.wait_for_blocker(prefs_main())
+		else:
 			for key, setting_type in settings.items():
 				value = getattr(config, key)
 				print(key, "=", setting_type.format(value))
-		# (else we displayed the preferences dialog in the GUI)
 		return
 	elif len(args) > 2:
 		raise UsageError()

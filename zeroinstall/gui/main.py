@@ -129,16 +129,7 @@ def run_gui(args):
 		for x in options.with_store:
 			config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
 
-	if len(args) < 1:
-		@tasks.async
-		def prefs_main():
-			import preferences
-			box = preferences.show_preferences(config)
-			done = tasks.Blocker('close preferences')
-			box.connect('destroy', lambda w: done.trigger())
-			yield done
-		tasks.wait_for_blocker(prefs_main())
-		sys.exit(0)
+	assert len(args) > 0
 
 	interface_uri = args[0]
 
