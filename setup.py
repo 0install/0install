@@ -49,8 +49,8 @@ sys.path.insert(0, %s)''' % repr(self.lib_dir))
 class build_with_data(build_py):
 	"""Python < 2.4 doesn't support package_data_files, so add it manually."""
 	package_data_files = [
-		"zeroinstall/0launch-gui/0launch-gui",
-		"zeroinstall/0launch-gui/zero-install.ui",
+		"zeroinstall/gui/0launch-gui",
+		"zeroinstall/gui/zero-install.ui",
 		"zeroinstall/gtkui/desktop.ui",
 		"zeroinstall/gtkui/cache.ui",
 		"zeroinstall/injector/EquifaxSecureCA.crt",
@@ -76,7 +76,7 @@ class install_lib_exec(install_lib):
 		install_lib.run(self)	# super.run()
 		if os.name != 'posix': return
 
-		launch = os.path.join(self.install_dir, 'zeroinstall/0launch-gui/0launch-gui')
+		launch = os.path.join(self.install_dir, 'zeroinstall/gui/0launch-gui')
 		os.chmod(launch, os.stat(launch).st_mode | 0o111)
 
 class my_install(install):
@@ -108,4 +108,4 @@ use.
 The injector solves this problem by selecting components to meet a program's
 requirements, according to a policy you give it. The injector finds out which
 versions are available, and downloads and runs the ones you choose.""",
-      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.zerostore", "zeroinstall.injector", "zeroinstall.0launch-gui", "zeroinstall.gtkui", "zeroinstall.cmd"])
+      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.zerostore", "zeroinstall.injector", "zeroinstall.gui", "zeroinstall.gtkui", "zeroinstall.cmd"])

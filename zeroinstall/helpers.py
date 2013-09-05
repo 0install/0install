@@ -43,7 +43,7 @@ def get_selections_gui(iface_uri, gui_args, test_callback = None, use_gui = True
 	from io import BytesIO
 
 	from os.path import join, dirname
-	gui_exe = join(dirname(__file__), '0launch-gui', '0launch-gui')
+	gui_exe = join(dirname(__file__), 'gui', '0launch-gui')
 
 	import socket
 	cli, gui = socket.socketpair()

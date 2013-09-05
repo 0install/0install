@@ -170,6 +170,7 @@ class slave config =
 
         let argv = get_command config ("slave" :: extra_args) in
         let prog = Support.Utils.find_in_path_ex system (List.hd argv) in  (* "" requires Lwt 2.4 *)
+        log_info "Starting Python slave: %s" (Support.Logging.format_argv_for_logging argv);
         let child = new Lwt_process.process (prog, Array.of_list argv) in
         
         connection := Some child;

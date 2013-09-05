@@ -24,7 +24,7 @@ interfere with those provided by the distribution.
     <!-- Update the copy of the version number -->
     <release:update-version path='ocaml/zeroinstall/about.ml'>^let version = "(.*)"$</release:update-version>
     <release:update-version path='zeroinstall/__init__.py'>^version = '(.*)'$</release:update-version>
-    <release:update-version path='zeroinstall/0launch-gui/gui.py'>^version = '(.*)'$</release:update-version>
+    <release:update-version path='zeroinstall/gui/gui.py'>^version = '(.*)'$</release:update-version>
     <release:action phase="generate-archive">rm .gitignore; make translations</release:action>
   </release:management>
 
