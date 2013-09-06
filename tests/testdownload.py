@@ -844,7 +844,7 @@ class TestDownload(BaseTest):
 			run_server('Hello.xml')
 			out, err = self.run_ocaml(['download', '-vv', 'test-app'])
 			assert not out, out
-			assert 'get-selections-gui' in err, err
+			assert 'GUI unavailable; downloading with no UI' in err, err
 			kill_server_process()
 
 			# Now again with no DISPLAY
@@ -873,7 +873,7 @@ class TestDownload(BaseTest):
 			out, err = self.run_ocaml(['download', '-vv', 'test-app'])
 			assert not out, out
 			assert 'need to switch to GUI to confirm keys' in err, err
-			assert 'get-selections-gui' in err, err
+			assert "Can't update 0install app 'test-app' without user intervention (run '0install update test-app' to fix)" in err, err
 			kill_server_process()
 
 			# Update not triggered because of last-check-attempt
@@ -930,7 +930,7 @@ class TestDownload(BaseTest):
 		kill_server_process()
 		err = err.decode('utf-8')
 		assert 'get new selections; current ones are not usable' in err, err
-		assert 'get-selections-gui' in err, err
+		assert 'check-gui' in err, err
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 
 		# Check we can also work without the GUI...
@@ -948,7 +948,7 @@ class TestDownload(BaseTest):
 		kill_server_process()
 		err = err.decode('utf-8')
 		assert 'get new selections; current ones are not usable' in err, err
-		assert 'get-selections-gui' not in err, err
+		assert 'check-gui' not in err, err
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 
 		# Now trigger a background update which discovers that no solution is possible

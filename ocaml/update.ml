@@ -174,8 +174,13 @@ let handle_bg options flags args =
             log_info "Background update: trying to use GUI to update %s" name;
             match Zeroinstall.Helpers.get_selections_gui config slave Zeroinstall.Helpers.Download_only reqs ~systray:true ~refresh:true ~use_gui:Maybe with
             | `Aborted_by_user -> raise (System_exit 0)
+            | `Dont_use_GUI when !need_confirm_keys ->
+                let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in
+                notify ~timeout:10 ~msg;
+                log_warning "%s" msg;
+                raise (System_exit 1)
             | `Dont_use_GUI when not ready ->
-                let msg = Printf.sprintf "Can't update 0install app %s (run '0install update %s' to fix)" name name in
+                let msg = Printf.sprintf "Can't update 0install app '%s' (run '0install update %s' to fix)" name name in
                 notify ~timeout:10 ~msg;
                 log_warning "Update of 0install app %s failed: %s" name (Zeroinstall.Diagnostics.get_failure_reason config result);
                 raise (System_exit 1)
