@@ -106,7 +106,7 @@ def run_gui(args):
 			logger.setLevel(logging.DEBUG)
 
 	if options.version:
-		import gui
+		from zeroinstall.gui import gui
 		print("0launch-gui (zero-install) " + gui.version)
 		print("Copyright (C) 2010 Thomas Leonard")
 		print(_("This program comes with ABSOLUTELY NO WARRANTY,"
@@ -118,7 +118,7 @@ def run_gui(args):
 
 	if not gui_is_available(options.force_gui):
 		sys.exit(100)
-	import gui
+	from zeroinstall.gui import gui
 
 	handler = gui.GUIHandler()
 
@@ -146,7 +146,7 @@ def run_gui(args):
 		parser.print_help()
 		sys.exit(1)
 
-	import mainwindow, dialog
+	from zeroinstall.gui import mainwindow, dialog
 
 	r = requirements.Requirements(interface_uri)
 	r.parse_options(options)

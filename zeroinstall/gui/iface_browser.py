@@ -6,12 +6,12 @@ import gtk, pango
 from zeroinstall import _, translation
 from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector import model, reader, download
-import properties
+from zeroinstall.gui import properties
 from zeroinstall.gtkui.icon import load_icon
 from zeroinstall import support
 from logging import warn, info
-import utils
-from gui import gobject
+from zeroinstall.gui import utils
+from zeroinstall.gui.gui import gobject
 
 ngettext = translation.ngettext
 
@@ -435,7 +435,7 @@ class InterfaceBrowser(object):
 			raise
 
 	def show_popup_menu(self, iface, bev):
-		import bugs
+		from zeroinstall.gui import bugs
 
 		have_source =  properties.have_source_for(self.config, iface)
 
@@ -481,14 +481,14 @@ class InterfaceBrowser(object):
 			menu.popup(None, None, None, bev.button, bev.time)
 
 	def compile(self, interface, autocompile = True):
-		import compile
+		from zeroinstall.gui import compile
 		def on_success():
 			# A new local feed may have been registered, so reload it from the disk cache
 			info(_("0compile command completed successfully. Reloading interface details."))
 			reader.update_from_cache(interface)
 			for feed in interface.extra_feeds:
 				self.config.iface_cache.get_feed(feed.uri, force = True)
-			import main
+			from zeroinstall.gui import main
 			main.recalculate()
 		compile.compile(on_success, interface.uri, autocompile = autocompile)
 

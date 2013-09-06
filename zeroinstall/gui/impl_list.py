@@ -6,8 +6,8 @@ from zeroinstall import _
 from zeroinstall.injector import model, writer
 from zeroinstall import support
 from zeroinstall.gtkui import gtkutils
-import utils
-from gui import gobject
+from zeroinstall.gui import utils
+from zeroinstall.gui.gui import gobject
 
 def _build_stability_menu(impl):
 	menu = gtk.Menu()
@@ -23,7 +23,7 @@ def _build_stability_menu(impl):
 		else:
 			impl.user_stability = None
 		writer.save_feed(impl.feed)
-		import main
+		from zeroinstall.gui import main
 		main.recalculate()
 
 	item = gtk.MenuItem()

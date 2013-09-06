@@ -2,13 +2,13 @@
 # See the README file for details, or visit http://0install.net.
 
 import os, subprocess
-import dialog
+from zeroinstall.gui import dialog
 from io import BytesIO
 
 from zeroinstall import _
 from zeroinstall.injector import model, selections, qdom
 
-from gui import glib
+from zeroinstall.gui.gui import glib
 
 XMLNS_0COMPILE = 'http://zero-install.sourceforge.net/2006/namespaces/0compile'
 

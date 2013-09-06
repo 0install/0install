@@ -9,8 +9,8 @@ from zeroinstall import _, translation
 from zeroinstall import SafeException
 from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector import download, iface_cache
-from iface_browser import InterfaceBrowser
-import dialog
+from zeroinstall.gui.iface_browser import InterfaceBrowser
+from zeroinstall.gui import dialog
 from zeroinstall.gtkui import gtkutils
 from zeroinstall.gtkui import help_box
 
@@ -86,7 +86,7 @@ class MainWindow(object):
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 			elif resp == SHOW_PREFERENCES:
-				import preferences
+				from zeroinstall.gui import preferences
 				preferences.show_preferences(driver.config, notify_cb = lambda: driver.solve_with_downloads())
 		self.window.connect('response', response)
 		self.window.realize()	# Make busy pointer work, even with --systray

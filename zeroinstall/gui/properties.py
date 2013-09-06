@@ -12,10 +12,10 @@ from zeroinstall.gtkui import help_box
 import gtk
 from logging import warn
 
-from dialog import DialogResponse, Template
-from impl_list import ImplementationList
+from zeroinstall.gui.dialog import DialogResponse, Template
+from zeroinstall.gui.impl_list import ImplementationList
 import time
-import dialog
+from zeroinstall.gui import dialog
 
 _dialogs = {}	# Interface -> Properties
 
@@ -66,7 +66,7 @@ class Description(object):
 				end = itr.copy()
 				end.forward_to_tag_toggle(self.link_style)
 				target = itr.get_text(end).strip()
-				import browser
+				from zeroinstall.gui import browser
 				browser.open_in_browser(target)
 	
 	def strtime(self, secs):
@@ -186,7 +186,7 @@ class Feeds(object):
 					if x.user_override:
 						interface.extra_feeds.remove(x)
 						writer.save_interface(interface)
-						import main
+						from zeroinstall.gui import main
 						main.recalculate()
 						return
 					else:
@@ -306,7 +306,7 @@ class Properties(object):
 				new_stability = stability_levels[name]
 			interface.set_stability_policy(new_stability)
 			writer.save_interface(interface)
-			import main
+			from zeroinstall.gui import main
 			main.recalculate()
 		stability.connect('changed', set_stability_policy)
 
@@ -416,7 +416,7 @@ def add_remote_feed(config, parent, interface):
 							interface.extra_feeds.append(Feed(iface.uri, arch = None, user_override = True))
 							writer.save_interface(interface)
 							d.destroy()
-							import main
+							from zeroinstall.gui import main
 							main.recalculate()
 				except zeroinstall.SafeException as ex:
 					error(str(ex))
@@ -446,7 +446,7 @@ def add_local_feed(config, interface):
 			writer.save_interface(interface)
 			chooser.destroy()
 			reader.update_from_cache(interface)
-			import main
+			from zeroinstall.gui import main
 			main.recalculate()
 		except Exception as ex:
 			dialog.alert(None, _("Error in feed file '%(feed)s':\n\n%(exception)s") % {'feed': feed, 'exception': str(ex)})
