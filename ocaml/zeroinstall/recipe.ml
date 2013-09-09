@@ -21,7 +21,7 @@ type download_type =
 
 type download = {
   url : string;
-  size : int;
+  size : Int64.t;
   dest : string option;
   download_type : download_type;
 }
@@ -49,9 +49,13 @@ let attr_dest = "dest"
 let attr_source = "source"
 let attr_path = "path"
 
+let parse_size s =
+  try Int64.of_string s
+  with _ -> raise_safe "Invalid size '%s'" s
+
 let parse_archive elem = DownloadStep {
     url = ZI.get_attribute attr_href elem;
-    size = int_of_string @@ ZI.get_attribute attr_size elem;
+    size = parse_size @@ ZI.get_attribute attr_size elem;
     dest = ZI.get_attribute_opt attr_dest elem;
     download_type = ArchiveDownload {
       extract = ZI.get_attribute_opt attr_extract elem;
@@ -66,7 +70,7 @@ let parse_archive elem = DownloadStep {
 
 let parse_file_elem elem = DownloadStep {
   url = ZI.get_attribute attr_href elem;
-  size = int_of_string @@ ZI.get_attribute attr_size elem;
+  size = parse_size @@ ZI.get_attribute attr_size elem;
   dest = ZI.get_attribute_opt attr_dest elem;
   download_type = FileDownload;
 }
@@ -116,3 +120,11 @@ let recipe_requires_network recipe =
     | RenameStep _ -> false
     | RemoveStep _ -> false in
   List.exists requires_network recipe
+
+let get_step_size = function
+  | DownloadStep info -> info.size
+  | RenameStep _ -> Int64.zero
+  | RemoveStep _ -> Int64.zero
+
+let get_download_size steps =
+  List.fold_left (fun a step -> Int64.add a @@ get_step_size step) Int64.zero steps
