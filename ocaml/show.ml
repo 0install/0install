@@ -11,83 +11,8 @@ module Qdom = Support.Qdom
 module Selections = Zeroinstall.Selections
 module Apps = Zeroinstall.Apps
 
-class indenter (printer : string -> unit) =
-  object
-    val mutable indentation = ""
-
-    method print msg =
-      printer (indentation ^ msg ^ "\n")
-
-    method with_indent extra (fn:unit -> unit) =
-      let old = indentation in
-      indentation <- indentation ^ extra;
-      fn ();
-      indentation <- old
-  end
-
 let show_human config sels =
-  let first = ref true in
-  let indenter = new indenter config.system#print_string in
-  let printf fmt =
-    let do_print msg = indenter#print (msg:string) in
-    Printf.ksprintf do_print fmt in
-  try
-    let seen = Hashtbl.create 10 in (* detect cycles *)
-    let index = Selections.make_selection_map sels in
-
-    let rec print_node (uri:string) commands =
-      if not (Hashtbl.mem seen uri) then (
-        Hashtbl.add seen uri true;
-
-        if !first then
-          first := false
-        else
-          printf "";
-
-        printf "- URI: %s" uri;
-        indenter#with_indent "  " (fun () ->
-          let sel =
-            try Some (StringMap.find uri index)
-            with Not_found -> None in
-
-          match sel with
-          | None ->
-              printf "No selected version";
-          | Some impl ->
-              (* printf "ID: %s" (ZI.get_attribute "id" impl); *)
-              printf "Version: %s" (ZI.get_attribute "version" impl);
-              (* print indent + "  Command:", command *)
-              let path = match Selections.make_selection impl with
-                | Selections.PackageSelection -> Printf.sprintf "(%s)" @@ ZI.get_attribute "id" impl
-                | Selections.LocalSelection path -> path
-                | Selections.CacheSelection digests ->
-                    match Zeroinstall.Stores.lookup_maybe config.system digests config.stores with
-                    | None -> "(not cached)"
-                    | Some path -> path in
-
-              printf "Path: %s" path;
-
-              let deps = ref @@ Selections.get_dependencies ~restricts:false impl in
-
-              ListLabels.iter commands ~f:(fun c ->
-                let command = Zeroinstall.Command.get_command c impl in
-                deps := !deps @ Selections.get_dependencies ~restricts:false command
-              );
-
-              ListLabels.iter !deps ~f:(fun child ->
-                let child_iface = ZI.get_attribute "interface" child in
-                print_node child_iface (Selections.get_required_commands child)
-              );
-        )
-      )
-    in
-
-    let root_iface = ZI.get_attribute "interface" sels in
-    match ZI.get_attribute_opt "command" sels with
-      | None | Some "" -> print_node root_iface []
-      | Some command -> print_node root_iface [command]
-  with ex ->
-    raise ex
+  Zeroinstall.Tree.print config config.system#print_string sels
 
 let show_xml sels =
   let out = Xmlm.make_output @@ `Channel stdout in

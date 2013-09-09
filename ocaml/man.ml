@@ -31,7 +31,7 @@ let find_and_exec_man config ?main ?fallback_name sels =
     | Some main -> main
     | None ->
         let command_name = ZI.get_attribute "command" sels in
-        let selected_command = Zeroinstall.Command.get_command command_name selected_impl in
+        let selected_command = Zeroinstall.Command.get_command_ex command_name selected_impl in
         match ZI.get_attribute_opt "path" selected_command with
         | None -> Qdom.raise_elem "No main program for interface '%s'" interface_uri selected_command
         | Some path -> path in

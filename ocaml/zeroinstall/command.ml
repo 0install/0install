@@ -11,7 +11,10 @@ module U = Support.Utils
 
 let get_command name elem =
   let is_command node = ((ZI.tag node = Some "command") && (ZI.get_attribute "name" node = name)) in
-  match Qdom.find is_command elem with
+  Qdom.find is_command elem
+
+let get_command_ex name elem =
+  match get_command name elem with
   | Some command -> command
   | None -> Qdom.raise_elem "No <command> with name '%s' in" name elem
 
@@ -74,7 +77,7 @@ let get_runner elem =
 let rec build_command ?main ?(dry_run=false) impls command_iface command_name env : string list =
   try
     let (command_sel, command_impl_path) = Selections.find_ex command_iface impls in
-    let command = get_command command_name command_sel in
+    let command = get_command_ex command_name command_sel in
     let command_rel_path =
       let path = ZI.get_attribute_opt "path" command in
       match main, path with

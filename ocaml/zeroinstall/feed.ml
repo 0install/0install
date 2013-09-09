@@ -143,6 +143,7 @@ let elem_implementation = "implementation"
 let elem_package_implementation = "package-implementation"
 
 let attr_id = "id"
+let attr_command = "command"
 let attr_main = "main"
 let attr_self_test = "self-test"
 let attr_stability = "stability"
