@@ -14,5 +14,5 @@ let handle options flags args =
     | #select_option | `ShowHuman | `ShowXML | `Refresh as o -> select_opts := o :: !select_opts
   );
   match args with
-  | [arg] -> ignore @@ Generic_select.handle options !select_opts arg Zeroinstall.Helpers.Download_only
+  | [arg] -> ignore @@ Generic_select.handle options !select_opts arg `Download_only
   | _ -> raise (Support.Argparse.Usage_error 1)

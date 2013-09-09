@@ -36,7 +36,7 @@ let handle options flags args =
       let open Generic_select in
       match resolve_target options.config !select_opts arg with
       | (Interface, reqs) -> (
-          match get_selections options ~refresh:!refresh reqs Zeroinstall.Helpers.Download_only with
+          match get_selections options ~refresh:!refresh reqs `Download_only with
           | None -> raise (System_exit 1)  (* Aborted by user *)
           | Some sels ->
               check_for_replacement options.config reqs.R.interface_uri;

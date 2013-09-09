@@ -11,11 +11,12 @@ module R = Requirements
 module U = Support.Utils
 module Q = Support.Qdom
 
-type select_mode =
-  | Select_only       (* only download feeds, not archives; display "Select" in GUI *)
-  | Download_only     (* download archives too; refresh if stale feeds; display "Download" in GUI *)
-  | Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
-  | Select_for_update (* like Download_only, but save changes to apps *)
+type select_mode = [
+  | `Select_only       (* only download feeds, not archives; display "Select" in GUI *)
+  | `Download_only     (* download archives too; refresh if stale feeds; display "Download" in GUI *)
+  | `Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
+  | `Select_for_update (* like Download_only, but save changes to apps *)
+]
 
 let string_of_ynm = function
   | Yes -> "yes"
@@ -52,9 +53,9 @@ let get_selections_gui config (slave:Python.slave) ?(systray=false) mode reqs ~r
     `Dont_use_GUI       (* [check-gui] will throw if use_gui is [Yes] *)
   ) else (
     let action = match mode with
-    | Select_only -> "for-select"
-    | Download_only | Select_for_update -> "for-download"
-    | Select_for_run -> "for-run" in
+    | `Select_only -> "for-select"
+    | `Download_only | `Select_for_update -> "for-download"
+    | `Select_for_run -> "for-run" in
 
     let opts = `Assoc [
       ("refresh", `Bool refresh);
@@ -90,8 +91,8 @@ let solve_and_download_impls config distro (slave:Python.slave) reqs mode ~refre
         let sels = result#get_selections in
         let () =
           match mode with
-          | Select_only -> ()
-          | Download_only | Select_for_update | Select_for_run ->
+          | `Select_only -> ()
+          | `Download_only | `Select_for_update | `Select_for_run ->
               download_selections config slave (Some distro) sels in
         Some sels in
 

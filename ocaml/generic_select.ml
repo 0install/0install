@@ -156,12 +156,12 @@ let get_selections options ~refresh reqs mode =
         select_with_refresh()
     | (true, results) ->
         let sels = results#get_selections in
-        if mode = H.Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
+        if mode = `Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
           (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
 
           let have_stale_feeds = feed_provider#have_stale_feeds () in
 
-          if mode = H.Download_only && (have_stale_feeds && config.network_use <> Offline) then (
+          if mode = `Download_only && (have_stale_feeds && config.network_use <> Offline) then (
             (* Updating in the foreground for Download_only mode is a bit inconsistent. Maybe we
                should have a separate flag for this behaviour? *)
             select_with_refresh ()
@@ -201,13 +201,13 @@ let handle options flags arg for_op =
   let config = options.config in
 
   let select_opts = {
-    must_select = (for_op = H.Select_only) || options.gui = Yes;
+    must_select = (for_op = `Select_only) || options.gui = Yes;
     output = (
       match for_op with   (* Default output style *)
-      | H.Select_only -> Output_human
-      | H.Download_only -> Output_none
-      | H.Select_for_run -> Output_none
-      | H.Select_for_update -> Output_none
+      | `Select_only -> Output_human
+      | `Download_only -> Output_none
+      | `Select_for_run -> Output_none
+      | `Select_for_update -> Output_none
     );
     refresh = false;
   } in
@@ -255,7 +255,7 @@ let handle options flags arg for_op =
       let new_sels = if select_opts.must_select then do_select reqs else old_sels in
       Show.show_restrictions config.system reqs;
       Show.show_human config new_sels;
-      if for_op = H.Select_for_update then save_changes path new_sels
+      if for_op = `Select_for_update then save_changes path new_sels
       else if Whatchanged.show_changes config.system old_sels new_sels || reqs <> old_reqs then
         U.print config.system "(note: use '0install update' instead to save the changes)";
       new_sels
@@ -266,7 +266,7 @@ let handle options flags arg for_op =
           get_app_sels path
         ) in
       maybe_show_sels new_sels;
-      if for_op = H.Select_for_update then save_changes path new_sels;
+      if for_op = `Select_for_update then save_changes path new_sels;
       new_sels
   | (Interface, reqs) ->
       let new_sels = do_select reqs in
@@ -274,7 +274,7 @@ let handle options flags arg for_op =
       new_sels
   | (Selections old_sels, reqs) ->
       let new_sels = if select_opts.must_select then do_select reqs else (
-        if for_op = H.Select_only then old_sels else (
+        if for_op = `Select_only then old_sels else (
           (* Download if missing. Ignore distribution packages, because the version probably won't match exactly. *)
           Zeroinstall.Helpers.download_selections config options.slave None old_sels;
           old_sels

@@ -58,7 +58,7 @@ let check_for_updates options reqs old_sels =
   let config = options.config in
   let distro = Lazy.force options.distro in
   let new_sels = Zeroinstall.Helpers.solve_and_download_impls config distro options.slave
-                          reqs Zeroinstall.Helpers.Select_for_update ~refresh:true ~use_gui:options.gui in
+                          reqs `Select_for_update ~refresh:true ~use_gui:options.gui in
   match new_sels with
   | None -> raise (System_exit 1)   (* Aborted by user *)
   | Some new_sels ->
@@ -172,7 +172,7 @@ let handle_bg options flags args =
         let new_sels =
           if !need_confirm_keys || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
             log_info "Background update: trying to use GUI to update %s" name;
-            match Zeroinstall.Helpers.get_selections_gui config slave Zeroinstall.Helpers.Download_only reqs ~systray:true ~refresh:true ~use_gui:Maybe with
+            match Zeroinstall.Helpers.get_selections_gui config slave `Download_only reqs ~systray:true ~refresh:true ~use_gui:Maybe with
             | `Aborted_by_user -> raise (System_exit 0)
             | `Dont_use_GUI when !need_confirm_keys ->
                 let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in
