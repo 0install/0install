@@ -77,6 +77,16 @@ let read_int_opt chan : int option Lwt.t =
       raise_safe "Invalid response from slave '%s' (expected integer). This is a bug." (String.escaped line)
   with Lwt_io.Channel_closed _ -> Lwt.return None
 
+let do_input = function
+  | [`String prompt] -> Lwt.return (`String (!read_user_input prompt))
+  | _ -> raise_safe "Invalid request"
+
+(** The Python can send requests to us. Other modules can register handlers for them here. *)
+let handlers = ref (StringMap.singleton "input" do_input)
+
+let register_handler op handler =
+  handlers := StringMap.add op handler !handlers
+
 (** Runs a Python slave process. Remembed to close the connection when done. *)
 open Yojson.Basic
 class slave config =
@@ -110,15 +120,20 @@ class slave config =
     fun () -> (last_ticket := Int64.add !last_ticket Int64.one; Int64.to_string !last_ticket) in
 
   let handle_invoke c ticket request () =
-    let response =
-      try `List [`String "ok";
-        match request with
-        | `List [`String "input"; `String prompt] -> `String (!read_user_input prompt)
-        | request -> raise_safe "Invalid request to OCaml: %s" (to_string request)
-      ]
+    lwt response =
+      try
+        lwt return_value =
+          match request with
+          | `List (`String op :: args) ->
+              let cb =
+                try StringMap.find op !handlers
+                with Not_found -> raise_safe "No handler for JSON op '%s' (received from Python)" op in
+              cb args
+          | request -> raise_safe "Invalid request to OCaml: %s" (to_string request) in
+        Lwt.return (`List [`String "ok"; return_value])
       with Safe_exception (msg, _) as ex ->
         log_warning ~ex "Returning error to Python";
-        `List [`String "error"; `String msg] in
+        Lwt.return (`List [`String "error"; `String msg]) in
       send_json c @@ `List [`String "return"; `String ticket; response] in
 
   (* Read and process messages from stream until it is closed. *)
