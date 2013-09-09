@@ -57,7 +57,7 @@ let log level ?ex =
 let log_debug fmt = log Debug fmt
 
 (** Write a message to stderr if verbose logging is on. *)
-let log_info fmt = log Info fmt
+let log_info ?ex fmt = log Info ?ex fmt
 
 (** Write a message to stderr, prefixed with "warning: ". *)
 let log_warning ?ex fmt = log Warning ?ex fmt
