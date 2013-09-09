@@ -72,11 +72,13 @@ module RealSystem (U : UnixType) =
         method time = Unix.time
         method mkdir = Unix.mkdir
         method file_exists = Sys.file_exists
-        method create_process args new_stdin new_stdout new_stderr =
+        method create_process ?env args new_stdin new_stdout new_stderr =
           log_info "Running %s" @@ Logging.format_argv_for_logging args;
           try
             wrap_unix_errors (fun () ->
-              Unix.create_process (List.hd args) (Array.of_list args) new_stdin new_stdout new_stderr
+              match env with
+              | None -> Unix.create_process (List.hd args) (Array.of_list args) new_stdin new_stdout new_stderr
+              | Some env -> Unix.create_process_env (List.hd args) (Array.of_list args) env new_stdin new_stdout new_stderr
             )
           with Safe_exception _ as ex ->
             reraise_with_context ex "... trying to create sub-process '%s'"

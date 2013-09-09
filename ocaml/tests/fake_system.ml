@@ -198,7 +198,7 @@ class fake_system tmpdir =
     method spawn_detach ?(search_path = false) ?env argv =
       raise (Would_spawn (search_path, env, argv))
 
-    method create_process args new_stdin new_stdout new_stderr =
+    method create_process ?env:_ args new_stdin new_stdout new_stderr =
       match spawn_handler with
       | None -> raise (Would_spawn (true, None, args))
       | Some handler -> handler args new_stdin new_stdout new_stderr

@@ -247,13 +247,18 @@ let with_pipe fn =
 *)
 
 (** Spawn a subprocess with the given arguments and call [fn channel] on its output. *)
-let check_output ?stderr (system:system) fn (argv:string list) =
-  let child_stderr = default Unix.stderr stderr in
+let check_output ?env ?stderr (system:system) fn (argv:string list) =
   try
     let (r, w) = Unix.pipe () in
     let child_pid =
       finally_do Unix.close w (fun w ->
-        try system#create_process argv Unix.stdin w child_stderr
+        try
+          let child_stderr =
+            match stderr with
+            | None -> Unix.stderr
+            | Some (`FD fd) -> fd
+            | Some (`Stdout) -> w in
+          system#create_process ?env argv Unix.stdin w child_stderr
         with ex ->
           Unix.close r; raise ex
       )

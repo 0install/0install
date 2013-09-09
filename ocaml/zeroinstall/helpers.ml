@@ -41,7 +41,7 @@ let download_selections config (slave:Python.slave) distro sels =
  * If [use_gui] is No; just returns `Dont_use_GUI. 
  * If Maybe, uses the GUI if possible.
  * If Yes, uses the GUI or throws an exception. *)
-let get_selections_gui config (slave:Python.slave) ?(systray=false) mode reqs ~refresh ~use_gui =
+let get_selections_gui config (slave:Python.slave) ?test_callback:_ ?(systray=false) mode reqs ~refresh ~use_gui =
   if use_gui = No then `Dont_use_GUI
   else if config.dry_run then (
     if use_gui = Maybe then `Dont_use_GUI
@@ -75,7 +75,7 @@ let get_selections_gui config (slave:Python.slave) ?(systray=false) mode reqs ~r
 (** Get some selectsions for these requirements.
     Returns [None] if the user cancels.
     @raise Safe_exception if the solve fails. *)
-let solve_and_download_impls config distro (slave:Python.slave) reqs mode ~refresh ~use_gui =
+let solve_and_download_impls config distro (slave:Python.slave) ?test_callback reqs mode ~refresh ~use_gui =
   let use_gui =
     match use_gui, config.dry_run with
     | Yes, true -> raise_safe "Can't use GUI with --dry-run"
@@ -96,7 +96,7 @@ let solve_and_download_impls config distro (slave:Python.slave) reqs mode ~refre
               download_selections config slave (Some distro) sels in
         Some sels in
 
-  match get_selections_gui config slave mode reqs ~refresh ~use_gui with
+  match get_selections_gui config slave ?test_callback mode reqs ~refresh ~use_gui with
   | `Success sels -> Some sels
   | `Aborted_by_user -> None
   | `Dont_use_GUI -> solve_without_gui ()

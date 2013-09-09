@@ -136,8 +136,8 @@ let get_exec_args config ?main sels args =
   (prog_args, (Env.to_array env))
 
 (** Run the given selections. If [wrapper] is given, run that command with the command we would have run as the arguments.
-    If [pre_exec] is given, run it just before execing. *)
-let execute_selections config ?pre_exec ?wrapper ?main sels args =
+    If [exec] is given, use that instead of config.system#exec. *)
+let execute_selections config ?exec ?wrapper ?main sels args =
   let (prog_args, env) = get_exec_args config ?main sels args in
 
   let prog_args =
@@ -145,15 +145,13 @@ let execute_selections config ?pre_exec ?wrapper ?main sels args =
     | None -> prog_args
     | Some command -> ["/bin/sh"; "-c"; command ^ " \"$@\""; "-"] @ prog_args in
 
-  let () =
-    match pre_exec with
-    | None -> ()
-    | Some pre_exec -> pre_exec () in
-
   if config.dry_run then
     Dry_run.log "would execute: %s" (String.concat " " prog_args)
-  else
-    config.system#exec prog_args ~env:env
+  else (
+    match exec with
+    | None -> config.system#exec prog_args ~env:env
+    | Some exec -> exec prog_args ~env:env
+  )
 
 (** This is called in a new process by the launcher created by [ensure_runenv]. *)
 let runenv (system:system) args =
