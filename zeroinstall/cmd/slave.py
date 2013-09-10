@@ -36,6 +36,12 @@ else:
 		msvcrt.setmode(stdin.fileno(), os.O_BINARY)
 		msvcrt.setmode(stdout.fileno(), os.O_BINARY)
 
+def read_chunk():
+	l = support.read_bytes(0, 8, null_ok = True)
+	logger.debug("Read '%s' from master", l)
+	if not l: return None
+	return support.read_bytes(0, int(l, 16))
+
 def add_options(parser):
 	parser.add_option("-o", "--offline", help=_("try to avoid using the network"), action='store_true')
 
@@ -139,12 +145,13 @@ def send_json(j):
 
 def recv_json():
 	logger.debug("Waiting for length...")
-	l = stdin.readline().strip()
-	logger.debug("Read '%s' from master", l)
-	if not l:
+	data = read_chunk()
+	if not data:
 		sys.stdout = sys.stderr
 		return None
-	return json.loads(stdin.read(int(l)).decode('utf-8'))
+	data = data.decode('utf-8')
+	logger.debug("Read '%s' from master", data)
+	return json.loads(data)
 
 def handle_message(config, options, message):
 	if message[0] == 'invoke':
@@ -253,22 +260,18 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'check-gui':
 			response = do_check_gui(request[1])
 		elif command == 'download-selections':
-			l = stdin.readline().strip()
-			xml = qdom.parse(BytesIO(stdin.read(int(l))))
+			xml = qdom.parse(BytesIO(read_chunk()))
 			blocker = do_download_selections(config, options, request[1:], xml)
 			reply_when_done(ticket, blocker)
 			return #async
 		elif command == 'get-package-impls':
-			l = stdin.readline().strip()
-			xml = qdom.parse(BytesIO(stdin.read(int(l))))
+			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_get_package_impls(config, options, request[1:], xml)
 		elif command == 'is-distro-package-installed':
-			l = stdin.readline().strip()
-			xml = qdom.parse(BytesIO(stdin.read(int(l))))
+			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_is_distro_package_installed(config, options, xml)
 		elif command == 'get-distro-candidates':
-			l = stdin.readline().strip()
-			xml = qdom.parse(BytesIO(stdin.read(int(l))))
+			xml = qdom.parse(BytesIO(read_chunk()))
 			blocker = do_get_distro_candidates(config, request[1:], xml)
 			reply_when_done(ticket, blocker)
 			return	# async
