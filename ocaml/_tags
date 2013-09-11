@@ -1,6 +1,6 @@
 false: profile
 true: debug, annot, package(yojson,xmlm,str,lwt,lwt.unix)
-<zeroinstall/python.*> or <zeroinstall/driver.*>: syntax(camlp4o), package(lwt.syntax)
+<zeroinstall/python.*> or <zeroinstall/driver.*> or <zeroinstall/gui.*>: syntax(camlp4o), package(lwt.syntax)
 <tests/*>: package(oUnit)
 "support": for-pack(Support)
 "zeroinstall": for-pack(Support)

@@ -2,22 +2,23 @@
 # See the README file for details, or visit http://0install.net.
 
 import gtk, os, pango, sys
-from zeroinstall import _
+from zeroinstall import _, logger
+from zeroinstall.cmd import slave
+from zeroinstall.support import tasks
 from zeroinstall.injector import model, writer
-from zeroinstall import support
 from zeroinstall.gtkui import gtkutils
 from zeroinstall.gui import utils
 from zeroinstall.gui.gui import gobject
 
-def _build_stability_menu(impl):
+def _build_stability_menu(config, impl_details):
 	menu = gtk.Menu()
 
-	upstream = impl.upstream_stability or model.testing
 	choices = list(model.stability_levels.values())
 	choices.sort()
 	choices.reverse()
 
 	def set(new):
+		impl = utils.get_impl(config, impl_details)
 		if isinstance(new, model.Stability):
 			impl.user_stability = new
 		else:
@@ -27,7 +28,7 @@ def _build_stability_menu(impl):
 		main.recalculate()
 
 	item = gtk.MenuItem()
-	item.set_label(_('Unset (%s)') % _(str(upstream).capitalize()).lower())
+	item.set_label(_('Unset'))
 	item.connect('activate', lambda item: set(None))
 	item.show()
 	menu.append(item)
@@ -58,21 +59,6 @@ RELEASED = 6
 NOTES = 7
 WEIGHT = 8	# Selected item is bold
 LANGS = 9
-
-def get_tooltip_text(config, interface, impl):
-	if impl.local_path:
-		return _("Local: %s") % impl.local_path
-	if impl.id.startswith('package:'):
-		return _("Native package: %s") % impl.id.split(':', 1)[1]
-	if impl.is_available(config.stores):
-		return _("Cached: %s") % config.stores.lookup_any(impl.digests)
-
-	src = config.fetcher.get_best_source(impl)
-	if src:
-		size = support.pretty_size(src.size)
-		return _("Not yet downloaded (%s)") % size
-	else:
-		return _("No downloads available!")
 
 class ImplementationList(object):
 	tree_view = None
@@ -114,7 +100,7 @@ class ImplementationList(object):
 				path = pos[0]
 				row = self.model[path]
 				if row[ITEM]:
-					tooltip.set_text(get_tooltip_text(driver.config, interface, row[ITEM]))
+					tooltip.set_text(row[ITEM]['tooltip'])
 					return True
 			return False
 		self.tree_view.connect('query-tooltip', tooltip_callback)
@@ -133,15 +119,16 @@ class ImplementationList(object):
 
 			stability_menu = gtk.MenuItem()
 			stability_menu.set_label(_('Rating'))
-			stability_menu.set_submenu(_build_stability_menu(impl))
+			stability_menu.set_submenu(_build_stability_menu(self.driver.config, impl))
 			stability_menu.show()
 			menu.append(stability_menu)
 
-			if not impl.id.startswith('package:') and impl.is_available(self.driver.config.stores):
+			impl_dir = impl['impl-dir']
+			if impl_dir:
 				def open():
 					os.spawnlp(os.P_WAIT, '0launch',
 						'0launch', rox_filer, '-d',
-						impl.local_path or self.driver.config.stores.lookup_any(impl.digests))
+						impl_dir)
 				item = gtk.MenuItem()
 				item.set_label(_('Open cached copy'))
 				item.connect('activate', lambda item: open())
@@ -161,75 +148,68 @@ class ImplementationList(object):
 
 		self.tree_view.connect('button-press-event', button_press)
 	
+	@tasks.async
 	def show_explaination(self, impl):
-		reason = self.driver.solver.justify_decision(self.driver.requirements, self.interface, impl)
+		try:
+			blocker = slave.justify_decision(self.interface.uri, impl['from-feed'], impl['id'])
+			yield blocker
+			tasks.check(blocker)
+			reason = blocker.result
 
-		parent = self.tree_view.get_toplevel()
+			parent = self.tree_view.get_toplevel()
 
-		if '\n' not in reason:
-			gtkutils.show_message_box(parent, reason, gtk.MESSAGE_INFO)
-			return
+			if '\n' not in reason:
+				gtkutils.show_message_box(parent, reason, gtk.MESSAGE_INFO)
+				return
 
-		box = gtk.Dialog(_("{prog} version {version}").format(
-					prog = self.interface.get_name(),
-					version = impl.get_version()),
-				parent,
-				gtk.DIALOG_DESTROY_WITH_PARENT,
-				(gtk.STOCK_OK, gtk.RESPONSE_OK))
+			box = gtk.Dialog(_("{prog} version {version}").format(
+						prog = self.interface.get_name(),
+						version = impl['version']),
+					parent,
+					gtk.DIALOG_DESTROY_WITH_PARENT,
+					(gtk.STOCK_OK, gtk.RESPONSE_OK))
 
-		swin = gtk.ScrolledWindow()
-		swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-		text = gtk.Label(reason)
-		swin.add_with_viewport(text)
-		swin.show_all()
-		box.vbox.pack_start(swin)
+			swin = gtk.ScrolledWindow()
+			swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+			text = gtk.Label(reason)
+			swin.add_with_viewport(text)
+			swin.show_all()
+			box.vbox.pack_start(swin)
 
-		box.set_position(gtk.WIN_POS_CENTER)
-		def resp(b, r):
-			b.destroy()
-		box.connect('response', resp)
+			box.set_position(gtk.WIN_POS_CENTER)
+			def resp(b, r):
+				b.destroy()
+			box.connect('response', resp)
 
-		box.set_default_size(gtk.gdk.screen_width() * 3 / 4, gtk.gdk.screen_height() / 3)
+			box.set_default_size(gtk.gdk.screen_width() * 3 / 4, gtk.gdk.screen_height() / 3)
 
-		box.show()
+			box.show()
+		except Exception:
+			logger.warning("show_explaination", exc_info = True)
+			raise
 	
 	def get_selection(self):
 		return self.tree_view.get_selection()
 	
-	def set_items(self, items):
+	def update(self, details):
 		self.model.clear()
-		selected = self.driver.solver.selections.get(self.interface, None)
-		for item, unusable in items:
+		selected = details.get('selected-feed', None), details.get('selected-id', None)
+		for item in details['implementations']:
 			new = self.model.append()
 			self.model[new][ITEM] = item
-			self.model[new][VERSION] = item.get_version()
-			self.model[new][RELEASED] = item.released or "-"
-			self.model[new][FETCH] = utils.get_fetch_info(self.driver.config, item)
-			if item.user_stability:
-				if item.user_stability == model.insecure:
-					self.model[new][STABILITY] = _('INSECURE')
-				elif item.user_stability == model.buggy:
-					self.model[new][STABILITY] = _('BUGGY')
-				elif item.user_stability == model.developer:
-					self.model[new][STABILITY] = _('DEVELOPER')
-				elif item.user_stability == model.testing:
-					self.model[new][STABILITY] = _('TESTING')
-				elif item.user_stability == model.stable:
-					self.model[new][STABILITY] = _('STABLE')
-				elif item.user_stability == model.packaged:
-					self.model[new][STABILITY] = _('PACKAGED')
-				elif item.user_stability == model.preferred:
-					self.model[new][STABILITY] = _('PREFERRED')
-			else:
-				self.model[new][STABILITY] = _(str(item.upstream_stability) or str(model.testing))
-			self.model[new][ARCH] = item.arch or _('any')
-			if selected is item:
+			self.model[new][VERSION] = item['version']
+			self.model[new][RELEASED] = item['released']
+			self.model[new][FETCH] = item['fetch']
+			user_stability = item['user-stability']
+			self.model[new][STABILITY] = user_stability.upper() if user_stability else item['stability']
+			self.model[new][ARCH] = item['arch']
+			if (item['from-feed'], item['id']) == selected:
 				self.model[new][WEIGHT] = pango.WEIGHT_BOLD
 			else:
 				self.model[new][WEIGHT] = pango.WEIGHT_NORMAL
-			self.model[new][UNUSABLE] = bool(unusable)
-			self.model[new][LANGS] = item.langs or '-'
-			self.model[new][NOTES] = unusable and _(unusable) or _('None')
+			self.model[new][UNUSABLE] = not bool(item['usable'])
+			self.model[new][LANGS] = item['langs']
+			self.model[new][NOTES] = item['notes']
 	
 	def clear(self):
 		self.model.clear()

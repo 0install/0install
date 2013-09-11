@@ -10,7 +10,7 @@ from zeroinstall.injector import writer, namespaces, gpg
 from zeroinstall.gtkui import help_box
 
 import gtk
-from logging import warn
+from logging import warning
 
 from zeroinstall.gui.dialog import DialogResponse, Template
 from zeroinstall.gui.impl_list import ImplementationList
@@ -18,12 +18,6 @@ import time
 from zeroinstall.gui import dialog
 
 _dialogs = {}	# Interface -> Properties
-
-def enumerate(items):
-	x = 0
-	for i in items:
-		yield x, i
-		x += 1
 
 def format_para(para):
 	lines = [l.strip() for l in para.split('\n')]
@@ -156,20 +150,15 @@ class Description(object):
 class Feeds(object):
 	URI = 0
 	ARCH = 1
-	USED = 2
+	USER = 2
 
-	def __init__(self, config, arch, interface, widgets):
+	def __init__(self, config, interface, widgets):
 		self.config = config
-		self.arch = arch
 		self.interface = interface
 
 		self.model = gtk.ListStore(str, str, bool)
 
 		self.description = Description(widgets)
-
-		self.lines = self.build_model()
-		for line in self.lines:
-			self.model.append(line)
 
 		add_remote_feed_button = widgets.get_widget('add_remote_feed')
 		add_remote_feed_button.connect('clicked', lambda b: add_remote_feed(config, widgets.get_widget(), interface))
@@ -199,49 +188,36 @@ class Feeds(object):
 		self.tv = widgets.get_widget('feeds_list')
 		self.tv.set_model(self.model)
 		text = gtk.CellRendererText()
-		self.tv.append_column(gtk.TreeViewColumn(_('Source'), text, text = Feeds.URI, sensitive = Feeds.USED))
-		self.tv.append_column(gtk.TreeViewColumn(_('Arch'), text, text = Feeds.ARCH, sensitive = Feeds.USED))
+		self.tv.append_column(gtk.TreeViewColumn(_('Source'), text, text = Feeds.URI))
+		self.tv.append_column(gtk.TreeViewColumn(_('Arch'), text, text = Feeds.ARCH))
 
 		sel = self.tv.get_selection()
 		sel.set_mode(gtk.SELECTION_BROWSE)
 		sel.connect('changed', self.sel_changed)
 		sel.select_path((0,))
+
+		self.lines = []
 	
-	def build_model(self):
-		iface_cache = self.config.iface_cache
-
-		usable_feeds = frozenset(self.config.iface_cache.usable_feeds(self.interface, self.arch))
-		unusable_feeds = frozenset(iface_cache.get_feed_imports(self.interface)) - usable_feeds
-
-		out = [[self.interface.uri, None, True]]
-
-		for feed in usable_feeds:
-			out.append([feed.uri, feed.arch, True])
-		for feed in unusable_feeds:
-			out.append([feed.uri, feed.arch, False])
-		return out
+	def build_model(self, details):
+		feeds = details['feeds']
+		return [(feed['url'], feed['arch'], feed['type'] == 'user-registered') for feed in feeds]
 
 	def sel_changed(self, sel):
 		iface_cache = self.config.iface_cache
 
 		model, miter = sel.get_selected()
 		if not miter: return	# build in progress
-		feed_url = model[miter][Feeds.URI]
 		# Only enable removing user_override feeds
-		enable_remove = False
-		for x in self.interface.extra_feeds:
-			if x.uri == feed_url:
-				if x.user_override and not x.site_package:
-					enable_remove = True
-					break
+		enable_remove = model[miter][Feeds.USER]
 		self.remove_feed_button.set_sensitive(enable_remove)
+		feed_url = model[miter][Feeds.URI]
 		try:
 			self.description.set_details(iface_cache, iface_cache.get_feed(feed_url))
 		except zeroinstall.SafeException as ex:
 			self.description.set_details(iface_cache, ex)
 	
-	def updated(self):
-		new_lines = self.build_model()
+	def updated(self, details):
+		new_lines = self.build_model(details)
 		if new_lines != self.lines:
 			self.lines = new_lines
 			self.model.clear()
@@ -283,8 +259,8 @@ class Properties(object):
 		notebook = widgets.get_widget('interface_notebook')
 		assert notebook
 
-		target_arch = self.driver.solver.get_arch_for(driver.requirements, interface = interface)
-		feeds = Feeds(driver.config, target_arch, interface, widgets)
+		#target_arch = self.driver.solver.get_arch_for(driver.requirements, interface = interface)
+		self.feeds = Feeds(driver.config, interface, widgets)
 
 		stability = widgets.get_widget('preferred_stability')
 		stability.set_active(0)
@@ -292,7 +268,7 @@ class Properties(object):
 			i = [stable, testing, developer].index(interface.stability_policy)
 			i += 1
 			if i == 0:
-				warn(_("Unknown stability policy %s"), interface.stability_policy)
+				warning(_("Unknown stability policy %s"), interface.stability_policy)
 		else:
 			i = 0
 		stability.set_active(i)
@@ -312,17 +288,11 @@ class Properties(object):
 
 		self.use_list = ImplementationList(driver, interface, widgets)
 
-		self.update_list()
+		self.feeds.tv.grab_focus()
 
-		feeds.tv.grab_focus()
-
-		def updated():
-			self.update_list()
-			feeds.updated()
-			self.shade_compile()
-		window.connect('destroy', lambda s: driver.watchers.remove(updated))
-		driver.watchers.append(updated)
-		self.shade_compile()
+		window.connect('destroy', lambda s: driver.watchers.remove(self.update))
+		driver.watchers.append(self.update)
+		self.update()
 
 		if show_versions:
 			notebook.next_page()
@@ -335,17 +305,22 @@ class Properties(object):
 	
 	def shade_compile(self):
 		self.compile_button.set_sensitive(have_source_for(self.driver.config, self.interface))
-	
-	def update_list(self):
-		ranked_items = self.driver.solver.details.get(self.interface, None)
-		if ranked_items is None:
-			# The Solver didn't get this far, but we should still display them!
-			ranked_items = [(impl, _("(solve aborted before here)"))
-					for impl in self.interface.implementations.values()]
-		# Always sort by version
-		ranked_items.sort()
-		self.use_list.set_items(ranked_items)
 
+	@tasks.async
+	def update(self):
+		try:
+			from zeroinstall.cmd import slave
+			blocker = slave.get_component_details(self.interface.uri)
+			yield blocker
+			tasks.check(blocker)
+			self.details = blocker.result
+
+			self.use_list.update(self.details)
+			self.feeds.updated(self.details)
+			self.shade_compile()
+		except:
+			warning("update failed", exc_info = True)
+	
 @tasks.async
 def add_remote_feed(config, parent, interface):
 	try:
@@ -451,7 +426,7 @@ def add_local_feed(config, interface):
 		except Exception as ex:
 			dialog.alert(None, _("Error in feed file '%(feed)s':\n\n%(exception)s") % {'feed': feed, 'exception': str(ex)})
 
-	def check_response(widget, response):
+	def check_response(widget, response, ok = ok):
 		if response == gtk.RESPONSE_OK:
 			ok(widget.get_filename())
 		elif response == gtk.RESPONSE_CANCEL:
@@ -464,8 +439,9 @@ def edit(driver, interface, compile, show_versions = False):
 	assert isinstance(interface, Interface)
 	if interface in _dialogs:
 		_dialogs[interface].destroy()
-	_dialogs[interface] = Properties(driver, interface, compile, show_versions = show_versions)
-	_dialogs[interface].show()
+	dialog = Properties(driver, interface, compile, show_versions = show_versions)
+	_dialogs[interface] = dialog
+	dialog.show()
 
 properties_help = help_box.HelpBox(_("Injector Properties Help"),
 (_('Interface properties'), '\n' +

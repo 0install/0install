@@ -22,7 +22,7 @@ class fake_slave config : Python.slave =
   let download_and_import = function
     | "http://example.com/prog.xml" as url ->
         U.copy_file config.system ("prog.xml") (cache_path_for url) 0o644;
-        `List []
+        `String "success"
     | url -> failwith url in
 
   let get_distro_candidates = function

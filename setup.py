@@ -49,7 +49,6 @@ sys.path.insert(0, %s)''' % repr(self.lib_dir))
 class build_with_data(build_py):
 	"""Python < 2.4 doesn't support package_data_files, so add it manually."""
 	package_data_files = [
-		"zeroinstall/gui/0launch-gui",
 		"zeroinstall/gui/zero-install.ui",
 		"zeroinstall/gtkui/desktop.ui",
 		"zeroinstall/gtkui/cache.ui",
@@ -71,14 +70,6 @@ class build_with_data(build_py):
 			if executable:
 				os.chmod(outfile, os.stat(outfile).st_mode | 0o111)
 
-class install_lib_exec(install_lib):
-	def run(self):
-		install_lib.run(self)	# super.run()
-		if os.name != 'posix': return
-
-		launch = os.path.join(self.install_dir, 'zeroinstall/gui/0launch-gui')
-		os.chmod(launch, os.stat(launch).st_mode | 0o111)
-
 class my_install(install):
 	def run(self):
 		install.run(self)       # super.run()
@@ -95,7 +86,6 @@ setup(name="zeroinstall-injector",
       license='LGPL',
       cmdclass={
 	'build_py': build_with_data,
-	'install_lib': install_lib_exec,
 	'adjust_scripts_for_home': adjust_scripts_for_home,
 	'install': my_install,
       },

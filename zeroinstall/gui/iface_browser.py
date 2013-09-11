@@ -8,28 +8,19 @@ from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector import model, reader, download
 from zeroinstall.gui import properties
 from zeroinstall.gtkui.icon import load_icon
-from zeroinstall import support
-from logging import warn, info
+from logging import warning, info
 from zeroinstall.gui import utils
 from zeroinstall.gui.gui import gobject
 
 ngettext = translation.ngettext
 
-def _stability(impl):
-	assert impl
-	if impl.user_stability is None:
-		return _(str(impl.upstream_stability))
-	return _("%(implementation_user_stability)s (was %(implementation_upstream_stability)s)") \
-		% {'implementation_user_stability': _(str(impl.user_stability)),
-		   'implementation_upstream_stability': _(str(impl.upstream_stability))}
-
 ICON_SIZE = 20.0
 CELL_TEXT_INDENT = int(ICON_SIZE) + 4
 
-def get_tooltip_text(mainwindow, interface, main_feed, model_column):
-	assert interface
+def get_tooltip_text(mainwindow, details, main_feed, model_column):
+	interface = details['interface']
 	if model_column == InterfaceBrowser.INTERFACE_NAME:
-		return _("Full name: %s") % interface.uri
+		return _("Full name: %s") % interface
 	elif model_column == InterfaceBrowser.SUMMARY:
 		if main_feed is None or not main_feed.description:
 			return _("(no description available)")
@@ -38,30 +29,16 @@ def get_tooltip_text(mainwindow, interface, main_feed, model_column):
 	elif model_column is None:
 		return _("Click here for more options...")
 
-	impl = mainwindow.driver.solver.selections.get(interface, None)
-	if not impl:
+	version = details.get('version', None)
+	if version is None:
 		return _("No suitable version was found. Double-click "
 			 "here to find out why.")
 
 	if model_column == InterfaceBrowser.VERSION:
-		text = _("Currently preferred version: %(version)s (%(stability)s)") % \
-				{'version': impl.get_version(), 'stability': _stability(impl)}
-		old_impl = mainwindow.original_implementation.get(interface, None)
-		if old_impl is not None and old_impl is not impl:
-			text += '\n' + _('Previously preferred version: %(version)s (%(stability)s)') % \
-				{'version': old_impl.get_version(), 'stability': _stability(old_impl)}
-		return text
+		return details['version-tip']
 
 	assert model_column == InterfaceBrowser.DOWNLOAD_SIZE
-
-	if impl.is_available(mainwindow.driver.config.stores):
-		return _("This version is already stored on your computer.")
-	else:
-		src = mainwindow.driver.config.fetcher.get_best_source(impl)
-		if not src:
-			return _("No downloads available!")
-		return _("Need to download %(pretty_size)s (%(size)s bytes)") % \
-				{'pretty_size': support.pretty_size(src.size), 'size': src.size}
+	return details["fetch-tip"]
 
 import math
 angle_right = math.pi / 2
@@ -127,6 +104,7 @@ class IconAndTextRenderer(gtk.GenericCellRenderer):
 
 	if gtk.pygtk_version >= (2, 90):
 		def do_render(self, cr, widget, background_area, cell_area, flags):	# GTK 3
+			if self.image is None: return
 			layout = widget.create_pango_layout(self.text)
 			a, rect = layout.get_pixel_extents()
 			context = widget.get_style_context()
@@ -183,10 +161,10 @@ class InterfaceBrowser(object):
 	cached_icon = None
 	driver = None
 	config = None
-	original_implementation = None
 	update_icons = False
+	implementations = None			# Interface URI -> Implementation
 
-	INTERFACE = 0
+	DETAILS = 0
 	INTERFACE_NAME = 1
 	VERSION = 2
 	SUMMARY = 3
@@ -204,6 +182,7 @@ class InterfaceBrowser(object):
 	def __init__(self, driver, widgets):
 		self.driver = driver
 		self.config = driver.config
+		self.implementations = {}
 
 		tree_view = widgets.get_widget('components')
 		tree_view.set_property('has-tooltip', True)
@@ -220,9 +199,10 @@ class InterfaceBrowser(object):
 				else:
 					col = self.columns[col_index][1]
 					row = self.model[path]
-					iface = row[InterfaceBrowser.INTERFACE]
-					main_feed = self.config.iface_cache.get_feed(iface.uri)
-					tooltip.set_text(get_tooltip_text(self, iface, main_feed, col))
+					details = row[InterfaceBrowser.DETAILS]
+					iface = details['interface']
+					main_feed = self.config.iface_cache.get_feed(iface)
+					tooltip.set_text(get_tooltip_text(self, details, main_feed, col))
 				return True
 			else:
 				return False
@@ -278,12 +258,15 @@ class InterfaceBrowser(object):
 			if (bev.button == 3 or (bev.button < 4 and col is menu_column)) \
 			   and bev.type == gtk.gdk.BUTTON_PRESS:
 				selection.select_path(path)
-				iface = self.model[path][InterfaceBrowser.INTERFACE]
+				iface = self.model[path][InterfaceBrowser.DETAILS]['interface']
 				self.show_popup_menu(iface, bev)
 				return True
 			if bev.button != 1 or bev.type != gtk.gdk._2BUTTON_PRESS:
 				return False
-			properties.edit(driver, self.model[path][InterfaceBrowser.INTERFACE], self.compile, show_versions = True)
+			details = self.model[path][InterfaceBrowser.DETAILS]
+			iface_uri = details['interface']
+			iface = self.config.iface_cache.get_interface(iface_uri)
+			properties.edit(driver, iface, self.compile, show_versions = True)
 		tree_view.connect('button-press-event', button_press)
 
 		tree_view.connect('destroy', lambda s: driver.watchers.remove(self.build_tree))
@@ -299,15 +282,17 @@ class InterfaceBrowser(object):
 			self.cached_icon = {}
 		self.update_icons = update_icons
 
-	def get_icon(self, iface):
+	def get_icon(self, iface_uri):
 		"""Get an icon for this interface. If the icon is in the cache, use that.
 		If not, start a download. If we already started a download (successful or
 		not) do nothing. Returns None if no icon is currently available."""
 		try:
 			# Try the in-memory cache
-			return self.cached_icon[iface.uri]
+			return self.cached_icon[iface_uri]
 		except KeyError:
 			# Try the on-disk cache
+
+			iface = self.config.iface_cache.get_interface(iface_uri)
 			iconpath = self.config.iface_cache.get_icon_path(iface)
 
 			if iconpath:
@@ -341,12 +326,12 @@ class InterfaceBrowser(object):
 								self.cached_icon[iface.uri] = load_icon(iconpath, ICON_SIZE, ICON_SIZE)
 								self.build_tree()
 							else:
-								warn("Failed to download icon for '%s'", iface)
+								warning("Failed to download icon for '%s'", iface)
 						except download.DownloadAborted as ex:
 							info("Icon download aborted: %s", ex)
 							# Don't report further; the user knows they cancelled
 						except download.DownloadError as ex:
-							warn("Icon download failed: %s", ex)
+							warning("Icon download failed: %s", ex)
 							# Not worth showing a dialog box for this
 						except Exception as ex:
 							import traceback
@@ -365,78 +350,46 @@ class InterfaceBrowser(object):
 		return None
 
 	def build_tree(self):
-		iface_cache = self.config.iface_cache
-
-		if self.original_implementation is None:
-			self.set_original_implementations()
-
-		done = {}	# Detect cycles
-
-		sels = self.driver.solver.selections
+		self.implementations = {}
 
 		self.model.clear()
-		def add_node(parent, iface, commands, essential):
-			if iface in done:
-				return
-			done[iface] = True
-
-			main_feed = iface_cache.get_feed(iface.uri)
-			if main_feed:
-				name = main_feed.get_name()
-				summary = main_feed.summary
-			else:
-				name = iface.get_name()
-				summary = None
-
+		def add_node(parent, details):
 			iter = self.model.append(parent)
-			self.model[iter][InterfaceBrowser.INTERFACE] = iface
-			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = name
-			self.model[iter][InterfaceBrowser.SUMMARY] = summary or ''
+			iface = details['interface']
+			self.model[iter][InterfaceBrowser.DETAILS] = details
+			self.model[iter][InterfaceBrowser.INTERFACE_NAME] = details["name"]
+			self.model[iter][InterfaceBrowser.SUMMARY] = details["summary"]
 			self.model[iter][InterfaceBrowser.ICON] = self.get_icon(iface) or self.default_icon
-			self.model[iter][InterfaceBrowser.PROBLEM] = False
 
-			sel = sels.selections.get(iface.uri, None)
-			if sel:
-				impl = sel.impl
-				old_impl = self.original_implementation.get(iface, None)
-				version_str = impl.get_version()
-				if old_impl is not None and old_impl.id != impl.id:
-					version_str += _(' (was %s)') % old_impl.get_version()
-				self.model[iter][InterfaceBrowser.VERSION] = version_str
+			problem = details["type"] == "problem"
+			self.model[iter][InterfaceBrowser.PROBLEM] = problem
 
-				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.config, impl)
-
-				deps = sel.dependencies
-				for c in commands:
-					deps += sel.get_command(c).requires
-				for child in deps:
-					if isinstance(child, model.InterfaceDependency):
-						add_node(iter,
-							 iface_cache.get_interface(child.interface),
-							 child.get_required_commands(),
-							 child.importance == model.Dependency.Essential)
-					elif not isinstance(child, model.InterfaceRestriction):
-						child_iter = self.model.append(parent)
-						self.model[child_iter][InterfaceBrowser.INTERFACE_NAME] = '?'
-						self.model[child_iter][InterfaceBrowser.SUMMARY] = \
-							_('Unknown dependency type : %s') % child
-						self.model[child_iter][InterfaceBrowser.ICON] = self.default_icon
+			if problem:
+				self.model[iter][InterfaceBrowser.VERSION] = '(problem)'
+				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = ''
 			else:
-				self.model[iter][InterfaceBrowser.PROBLEM] = essential
-				self.model[iter][InterfaceBrowser.VERSION] = _('(problem)') if essential else _('(none)')
+				impl = utils.get_impl(self.config, details)
+				if impl:
+					self.implementations[iface] = impl
+
+				if details["type"] == "selected":
+					self.model[iter][InterfaceBrowser.VERSION] = details["version"]
+					self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = details["fetch"]
+					for child in details["children"]:
+						add_node(iter, child)
+				else:
+					self.model[iter][InterfaceBrowser.VERSION] = _('(problem)') if details["type"] == "problem" else _('(none)')
 		try:
-			if sels.command:
-				add_node(None, self.root, [sels.command], essential = True)
-			else:
-				add_node(None, self.root, [], essential = True)
+			add_node(None, self.driver.tree)
 			self.tree_view.expand_all()
 		except Exception as ex:
-			warn("Failed to build tree: %s", ex, exc_info = ex)
+			warning("Failed to build tree: %s", ex, exc_info = ex)
 			raise
 
-	def show_popup_menu(self, iface, bev):
+	def show_popup_menu(self, iface_uri, bev):
 		from zeroinstall.gui import bugs
 
+		iface = self.config.iface_cache.get_interface(iface_uri)
 		have_source =  properties.have_source_for(self.config, iface)
 
 		global menu		# Fix GC problem in PyGObject
@@ -492,10 +445,6 @@ class InterfaceBrowser(object):
 			main.recalculate()
 		compile.compile(on_success, interface.uri, autocompile = autocompile)
 
-	def set_original_implementations(self):
-		assert self.original_implementation is None
-		self.original_implementation = self.driver.solver.selections.copy()
-
 	def update_download_status(self, only_update_visible = False):
 		"""Called at regular intervals while there are downloads in progress,
 		and once at the end. Also called when things are added to the store.
@@ -510,8 +459,6 @@ class InterfaceBrowser(object):
 					hints[dl.hint] = []
 				hints[dl.hint].append(dl)
 
-		selections = self.driver.solver.selections
-
 		# Only update currently visible rows
 		if only_update_visible and self.tree_view.get_visible_range() != None:
 			firstVisiblePath, lastVisiblePath = self.tree_view.get_visible_range()
@@ -522,24 +469,22 @@ class InterfaceBrowser(object):
 			firstVisibleIter = self.model.get_iter_root()
 			lastVisiblePath = None
 
-		solver = self.driver.solver
-		requirements = self.driver.requirements
 		iface_cache = self.config.iface_cache
 
 		for it in walk(self.model, firstVisibleIter):
 			row = self.model[it]
-			iface = row[InterfaceBrowser.INTERFACE]
+			iface = iface_cache.get_interface(row[InterfaceBrowser.DETAILS]['interface'])
 
 			# Is this interface the download's hint?
 			downloads = hints.get(iface, [])	# The interface itself
 			downloads += hints.get(iface.uri, [])	# The main feed
 
-			arch = solver.get_arch_for(requirements, iface)
-			for feed in iface_cache.usable_feeds(iface, arch):
-				downloads += hints.get(feed.uri, []) # Other feeds
-			impl = selections.get(iface, None)
-			if impl:
-				downloads += hints.get(impl, []) # The chosen implementation
+			#arch = solver.get_arch_for(requirements, iface)		TODO
+			#for feed in iface_cache.usable_feeds(iface, arch):
+			#	downloads += hints.get(feed.uri, []) # Other feeds
+			sel = self.implementations.get(iface, None)
+			if sel:
+				downloads += hints.get(sel, []) # The chosen implementation
 
 			if downloads:
 				so_far = 0
@@ -561,6 +506,13 @@ class InterfaceBrowser(object):
 				row[InterfaceBrowser.SUMMARY] = summary % values_dict
 			else:
 				feed = iface_cache.get_feed(iface.uri)
+
+				details = row[InterfaceBrowser.DETAILS]
+				if 'id' in details:
+					impl = utils.get_impl(self.config, details)
+				else:
+					impl = None
+
 				row[InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.config, impl)
 				row[InterfaceBrowser.SUMMARY] = feed.summary if feed else "-"
 
@@ -571,8 +523,5 @@ class InterfaceBrowser(object):
 		"""Called when the solve finishes. Highlight any missing implementations."""
 		for it in walk(self.model, self.model.get_iter_root()):
 			row = self.model[it]
-			iface = row[InterfaceBrowser.INTERFACE]
-			sel = self.driver.solver.selections.selections.get(iface.uri, None)
-
-			if sel is None and row[InterfaceBrowser.PROBLEM]:
+			if row[InterfaceBrowser.PROBLEM]:
 				row[InterfaceBrowser.BACKGROUND] = '#f88'

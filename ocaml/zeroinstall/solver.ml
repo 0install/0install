@@ -67,7 +67,7 @@ let dummy_impl =
       bindings = [];
     };
     parsed_version = Versions.dummy;
-    impl_type = PackageImpl { package_installed = true; package_distro = "dummy" };
+    impl_type = PackageImpl { package_installed = true; package_distro = "dummy"; retrieval_method = None };
   }
 
 (** A fake <command> used to generate diagnostics if the solve fails. *)
@@ -207,6 +207,9 @@ type scope = {
 class type result =
   object
     method get_selections : Qdom.element
+    method scope_filter : Impl_provider.scope_filter
+    method impl_cache : ((General.iface_uri * bool), impl_candidates) cache
+    method impl_provider : Impl_provider.impl_provider
     method get_details : (scope * S.sat_problem * Impl_provider.impl_provider *
                           (General.iface_uri * bool, impl_candidates) cache * search_key)
   end
@@ -562,6 +565,10 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_scope root_req ~cl
       Some (
       object (_ : result)
         method get_selections = get_selections dep_in_use root_req impl_cache command_cache
+
+        method scope_filter = root_scope.scope_filter
+        method impl_cache = impl_cache
+        method impl_provider = impl_provider
 
         method get_details =
           if closest_match then

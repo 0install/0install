@@ -9,7 +9,7 @@ from __future__ import print_function
 
 from zeroinstall import _
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, reader
+from zeroinstall.injector import model
 
 syntax = "URI"
 

@@ -6,10 +6,11 @@ open Support.Common
 
 class fetcher (slave:Python.slave) =
   object
-    method download_and_import_feed url =
+    method download_and_import_feed url : [`aborted_by_user | `success ] Lwt.t =
       let request = `List [`String "download-and-import-feed"; `String url] in
       let parse_result = function
-        | `List [] -> ()
+        | `String "success" -> `success
+        | `String "aborted-by-user" -> `aborted_by_user
         | _ -> raise_safe "Invalid JSON response" in
       slave#invoke_async request parse_result
   end

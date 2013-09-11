@@ -32,6 +32,7 @@ type importance =
 type package_impl = {
   package_distro : string;
   package_installed : bool;
+  retrieval_method : (string * Yojson.Basic.json) list option;
 }
 
 type cache_impl = {
@@ -151,6 +152,7 @@ let attr_user_stability = "user-stability"
 let attr_importance = "importance"
 let attr_version = "version"
 let attr_version_modifier = "version-modifier"      (* This is stripped out and moved into attr_version *)
+let attr_released = "released"
 let attr_os= "os"
 let attr_use = "use"
 let attr_local_path = "local-path"
@@ -637,3 +639,11 @@ let is_retrievable_without_network cache_impl =
   List.exists ok_without_network cache_impl.retrieval_methods
 
 let get_id impl = {feed = get_attr attr_from_feed impl; id = get_attr attr_id impl}
+
+let get_summary feed =
+  let best = ref None in
+  ZI.iter_with_name feed.root "summary" ~f:(fun elem ->
+    if !best = None then
+      best := Some (elem.Qdom.last_text_inside)     (* TODO: select best language *)
+  );
+  !best

@@ -21,6 +21,25 @@ let parse_bool s =
   | "false" -> false
   | x -> log_warning "Not a boolean '%s'" x; false
 
+let load_config config =
+  let handle_ini_mapping = function
+    | "global" -> (function
+      | ("freshness", freshness) ->
+          let value = Int64.of_string freshness in
+          if value > 0L then
+            config.freshness <- Some value
+          else
+            config.freshness <- None
+      | ("network_use", use) -> config.network_use <- parse_network_use use
+      | ("help_with_testing", help) -> config.help_with_testing <- parse_bool help
+      | _ -> ()
+    )
+    | _ -> ignore in    (* other [sections] *)
+
+  match Support.Basedir.load_first config.system config_injector_global config.basedirs.Support.Basedir.config with
+  | None -> ()
+  | Some path -> Support.Utils.parse_ini config.system handle_ini_mapping path
+
 (** [get_default_config path_to_0install] creates a configuration from the current environment.
     [path_to_0install] is used when creating launcher scripts. If it contains no slashes, then
     we search for it in $PATH.
@@ -54,26 +73,9 @@ let get_default_config system path_to_prog =
     system;
   } in
 
-  let handle_ini_mapping = function
-    | "global" -> (function
-      | ("freshness", freshness) ->
-          let value = Int64.of_string freshness in
-          if value > 0L then
-            config.freshness <- Some value
-          else
-            config.freshness <- None
-      | ("network_use", use) -> config.network_use <- parse_network_use use
-      | ("help_with_testing", help) -> config.help_with_testing <- parse_bool help
-      | _ -> ()
-    )
-    | _ -> ignore in    (* other [sections] *)
-
-  let () = match Support.Basedir.load_first config.system config_injector_global basedirs.Support.Basedir.config with
-  | None -> ()
-  | Some path -> Support.Utils.parse_ini config.system handle_ini_mapping path in
+  load_config config;
 
   config
-;;
 
 let load_first_config rel_path config =
   let open Support in

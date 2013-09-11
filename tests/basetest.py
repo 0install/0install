@@ -244,7 +244,6 @@ class BaseTest(unittest.TestCase):
 		trust.trust_db.keys = None
 		trust.trust_db._dry_run = False
 
-
 	def tearDown(self):
 		if self.config.handler.ex:
 			support.raise_with_traceback(self.config.handler.ex, self.config.handler.tb)

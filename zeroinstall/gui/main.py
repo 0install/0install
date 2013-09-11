@@ -20,7 +20,6 @@ from optparse import OptionParser
 
 from zeroinstall import _, SafeException
 from zeroinstall.injector import requirements
-from zeroinstall.injector.driver import Driver
 from zeroinstall.injector.config import load_config
 from zeroinstall.support import tasks
 
@@ -74,7 +73,20 @@ def gui_is_available(force_gui):
 		raise _gui_available
 	return False
 
-def run_gui(args):
+class OCamlDriver:
+	def __init__(self, config, requirements):
+		self.config = config
+		self.requirements = requirements
+		self.watchers = []
+
+	def set_selections(self, ready, tree, sels):
+		self.ready = ready
+		self.tree = tree
+		self.sels = sels
+
+		for w in self.watchers: w()
+
+def open_gui(args):
 	parser = OptionParser(usage=_("usage: %prog [options] interface"))
 	parser.add_option("", "--before", help=_("choose a version before this"), metavar='VERSION')
 	parser.add_option("", "--cpu", help=_("target CPU type"), metavar='CPU')
@@ -124,7 +136,7 @@ def run_gui(args):
 
 	config = load_config(handler)
 
-	if options.with_store:
+	if options.with_store:			# TODO: inherit from the main config
 		from zeroinstall import zerostore
 		for x in options.with_store:
 			config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
@@ -144,11 +156,17 @@ def run_gui(args):
 
 	widgets = dialog.Template('main')
 
-	driver = Driver(config = config, requirements = r)
 	root_iface = config.iface_cache.get_interface(interface_uri)
-	driver.solver.record_details = True
 
-	window = mainwindow.MainWindow(driver, widgets, download_only = bool(options.download_only), select_only = bool(options.select_only))
+	finished = tasks.Blocker("GUI finished")
+
+	def resolve(result):
+		finished.gui_result = result
+		finished.trigger()
+
+	driver = OCamlDriver(config, r)
+
+	window = mainwindow.MainWindow(driver, widgets, download_only = bool(options.download_only), resolve = resolve, select_only = bool(options.select_only))
 	handler.mainwindow = window
 
 	if options.message:
@@ -162,39 +180,41 @@ def run_gui(args):
 	if options.systray:
 		window.use_systray_icon()
 
+	logger = logging.getLogger()
+
+	def prepare_for_recalc(force_refresh):
+		window.refresh_button.set_sensitive(False)
+		window.browser.set_update_icons(force_refresh)
+		if not window.systray_icon:
+			window.show()
+
+	force_refresh = bool(options.refresh)
+	prepare_for_recalc(force_refresh)
+
+	# Called each time a complete solve_with_downloads is done.
 	@tasks.async
-	def main():
-		force_refresh = bool(options.refresh)
-		while True:
-			window.refresh_button.set_sensitive(False)
-			window.browser.set_update_icons(force_refresh)
+	def run_gui(reply_holder):
+		window.refresh_button.set_sensitive(True)
+		window.browser.highlight_problems()
 
-			solved = driver.solve_with_downloads(force = force_refresh, update_local = True)
+		if window.systray_icon and window.systray_icon.get_visible() and \
+		   window.systray_icon.is_embedded():
+			if driver.ready:
+				window.systray_icon.set_tooltip(_('Downloading updates for %s') % root_iface.get_name())
+				window.run_button.set_active(True)
+			else:
+				# Should already be reporting an error, but
+				# blink it again just in case
+				window.systray_icon.set_blinking(True)
 
-			if not window.systray_icon:
-				window.show()
-			yield solved
-			try:
-				window.refresh_button.set_sensitive(True)
-				window.browser.highlight_problems()
-				tasks.check(solved)
-			except Exception as ex:
-				window.report_exception(ex)
+		refresh_clicked = dialog.ButtonClickedBlocker(window.refresh_button)
+		yield refresh_clicked, _recalculate, finished
 
-			if window.systray_icon and window.systray_icon.get_visible() and \
-			   window.systray_icon.is_embedded():
-				if driver.solver.ready:
-					window.systray_icon.set_tooltip(_('Downloading updates for %s') % root_iface.get_name())
-					window.run_button.set_active(True)
-				else:
-					# Should already be reporting an error, but
-					# blink it again just in case
-					window.systray_icon.set_blinking(True)
+		if finished.happened:
+			reply_holder.append([finished.gui_result])
+		else:
+			reply_holder.append(["recalculate", refresh_clicked.happened])
 
-			refresh_clicked = dialog.ButtonClickedBlocker(window.refresh_button)
-			yield refresh_clicked, _recalculate
+		prepare_for_recalc(refresh_clicked.happened)
 
-			if refresh_clicked.happened:
-				force_refresh = True
-
-	tasks.wait_for_blocker(main())
+	return (run_gui, driver)

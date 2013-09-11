@@ -11,7 +11,6 @@ glib = tasks.get_loop().glib
 version = '2.3.3'
 
 class GUIHandler(handler.Handler):
-	dl_callbacks = None		# Download -> [ callback ]
 	pulse = None
 	mainwindow = None
 

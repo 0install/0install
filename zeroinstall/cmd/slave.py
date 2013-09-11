@@ -11,7 +11,7 @@ import sys, os
 
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, qdom, selections
+from zeroinstall.injector import model, qdom, selections, download
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.support import tasks
 from zeroinstall import support
@@ -26,8 +26,8 @@ import json, sys
 syntax = ""
 
 if sys.version_info[0] > 2:
-	stdin = sys.stdin.buffer
-	stdout = sys.stdout.buffer
+	stdin = sys.stdin.buffer.raw
+	stdout = sys.stdout.buffer.raw
 else:
 	stdin = sys.stdin
 	stdout = sys.stdout
@@ -65,8 +65,6 @@ def do_download_selections(config, options, args, xml):
 	return sels.download_missing(config, include_packages = include_packages)
 
 def to_json(impl):
-	# TODO: for PackageKit candidates, we might need to say how to get them (the Python
-	# code adds a retrieval method).
 	attrs = {
 		'id': impl.id,
 		'version': impl.get_version(),
@@ -74,6 +72,15 @@ def to_json(impl):
 		'is_installed': impl.installed,
 		'distro': impl.distro_name,
 	}
+
+	if impl.download_sources:
+		m = impl.download_sources[0]
+		attrs['retrieval_method'] = {
+			'type': 'packagekit',
+			'id': m.package_id,
+			'size': m.size,
+		}
+
 	if impl.main:
 		# We may add a missing 'main' (e.g. host Python) or modify an existing one
 		# (e.g. /usr/bin -> /bin).
@@ -153,10 +160,18 @@ def recv_json():
 	logger.debug("Read '%s' from master", data)
 	return json.loads(data)
 
+pending_replies = {}		# Ticket -> callback function
+
 def handle_message(config, options, message):
 	if message[0] == 'invoke':
 		ticket, payload = message[1:]
 		handle_invoke(config, options, ticket, payload)
+	elif message[0] == 'return':
+		ticket = message[1]
+		value = message[2]
+		cb = pending_replies[ticket]
+		del pending_replies[ticket]
+		cb(value)
 	else:
 		assert 0, message
 
@@ -169,9 +184,20 @@ def do_get_distro_candidates(config, args, xml):
 
 	return config.iface_cache.distro.fetch_candidates(master_feed)
 
-def do_download_and_import_feed(config, args):
-	feed_url, = args
-	return config.fetcher.download_and_import_feed(feed_url)
+@tasks.async
+def do_download_and_import_feed(config, ticket, args):
+	try:
+		if gui_driver is not None: config = gui_driver.config
+		feed_url, = args
+		blocker = config.fetcher.download_and_import_feed(feed_url)
+		if blocker:
+			yield blocker
+			tasks.check(blocker)
+		send_json(["return", ticket, ["ok", "success"]])
+	except download.DownloadAborted as ex:
+		send_json(["return", ticket, ["ok", "aborted-by-user"]])
+	except Exception as ex:
+		send_json(["return", ticket, ["error", str(ex)]])
 
 @tasks.async
 def reply_when_done(ticket, blocker):
@@ -199,14 +225,18 @@ def do_check_gui(use_gui):
 
 	return main.gui_is_available(use_gui)
 
-def do_get_selections_gui(config, args):
-	reqs, opts = args
+def do_report_error(config, msg):
+	if gui_driver is not None: config = gui_driver.config
+	config.handler.report_error(SafeException(msg))
 
-	use_gui = opts['use_gui']
-	if use_gui == "yes": use_gui = True
-	elif use_gui == "no": use_gui = False
-	elif use_gui == "maybe": use_gui = None
-	else: assert 0, use_gui
+run_gui = None			# Callback to invoke when a full solve-with-downloads is done
+gui_driver = None		# Object to notify about each new set of selections
+
+def do_open_gui(args):
+	global run_gui, gui_driver
+	assert run_gui is None
+
+	reqs, opts = args
 
 	gui_args = []
 
@@ -220,13 +250,23 @@ def do_get_selections_gui(config, args):
 	reqs = reqs_from_json(reqs)
 	gui_args += reqs.get_as_options()
 
-	from zeroinstall import helpers
-	sels = helpers.get_selections_gui(reqs.interface_uri, gui_args, use_gui = use_gui)
-	if sels == helpers.DontUseGUI:
-		return ["dont-use-gui"]
-	if not sels:
-		return ["aborted-by-user"]
-	return ["ok", sels.toDOM().toxml()]
+	from zeroinstall.gui import main
+	run_gui, gui_driver = main.open_gui(gui_args + ['--', reqs.interface_uri])
+	return []
+
+@tasks.async
+def do_run_gui(ticket):
+	reply_holder = []
+	blocker = run_gui(reply_holder)
+	try:
+		if blocker:
+			yield blocker
+			tasks.check(blocker)
+		reply, = reply_holder
+		send_json(["return", ticket, ["ok", reply]])
+	except Exception as ex:
+		logger.warning("Returning error", exc_info = True)
+		send_json(["return", ticket, ["error", str(ex)]])
 
 def do_wait_for_network(config):
 	from zeroinstall.injector import background
@@ -249,16 +289,28 @@ def do_wait_for_network(config):
 		logger.info(_("NetworkManager says we're on-line. Good!"))
 		return "online"
 
+def do_gui_update_selections(args, xml):
+	ready, tree = args
+	gui_driver.set_selections(ready, tree, xml)
+
 def handle_invoke(config, options, ticket, request):
 	try:
 		command = request[0]
 		logger.debug("Got request '%s'", command)
-		if command == 'get-selections-gui':
-			response = do_get_selections_gui(config, request[1:])
+		if command == 'open-gui':
+			response = do_open_gui(request[1:])
+		elif command == 'run-gui':
+			do_run_gui(ticket)
+			return #async
 		elif command == 'wait-for-network':
 			response = do_wait_for_network(config)
 		elif command == 'check-gui':
 			response = do_check_gui(request[1])
+		elif command == 'report-error':
+			response = do_report_error(config, request[1])
+		elif command == 'gui-update-selections':
+			xml = qdom.parse(BytesIO(read_chunk()))
+			response = do_gui_update_selections(request[1:], xml)
 		elif command == 'download-selections':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			blocker = do_download_selections(config, options, request[1:], xml)
@@ -276,8 +328,7 @@ def handle_invoke(config, options, ticket, request):
 			reply_when_done(ticket, blocker)
 			return	# async
 		elif command == 'download-and-import-feed':
-			blocker = do_download_and_import_feed(config, request[1:])
-			reply_when_done(ticket, blocker)
+			do_download_and_import_feed(config, ticket, request[1:])
 			return	# async
 		elif command == 'notify-user':
 			response = do_notify_user(config, request[1])
@@ -293,6 +344,44 @@ def handle_invoke(config, options, ticket, request):
 		response = ['error', traceback.format_exc().strip()]
 
 	send_json(["return", ticket, response])
+
+def resolve_on_reply(ticket, blocker):
+	def done(details):
+		if details[0] == 'ok':
+			blocker.result = details[1]
+			blocker.trigger()
+		else:
+			blocker.trigger(exception = (SafeException(details[1]), None))
+	pending_replies[ticket] = done
+
+# Get the details needed for the GUI component dialog
+def get_component_details(interface_uri):
+	ticket = take_ticket()
+	blocker = tasks.Blocker('get_component_details')
+	resolve_on_reply(ticket, blocker)
+	send_json(["invoke", ticket, ["get-component-details", interface_uri]])
+	return blocker
+
+def justify_decision(iface, feed, impl_id):
+	ticket = take_ticket()
+	blocker = tasks.Blocker('justify_decision')
+	resolve_on_reply(ticket, blocker)
+	send_json(["invoke", ticket, ["justify-decision", iface, feed, impl_id]])
+	return blocker
+
+def get_bug_report_details():
+	ticket = take_ticket()
+	blocker = tasks.Blocker('get_bug_report_details')
+	resolve_on_reply(ticket, blocker)
+	send_json(["invoke", ticket, ["get-bug-report-details"]])
+	return blocker
+
+def run_test():
+	ticket = take_ticket()
+	blocker = tasks.Blocker('run_test')
+	resolve_on_reply(ticket, blocker)
+	send_json(["invoke", ticket, ["run-test"]])
+	return blocker
 
 def handle(config, options, args):
 	if args:

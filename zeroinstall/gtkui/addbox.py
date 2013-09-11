@@ -128,8 +128,8 @@ class AddBox(object):
 				self.window.set_sensitive(False)
 				self.set_keep_above(False)
 				import subprocess
-				child = subprocess.Popen(['0launch',
-						  '--gui', '--download-only',
+				child = subprocess.Popen(['0install',
+						  '--gui', 'download',
 						  '--', iface],
 						  stdout = subprocess.PIPE,
 						  stderr = subprocess.STDOUT)

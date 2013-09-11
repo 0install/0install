@@ -51,7 +51,7 @@ class fake_slave config =
     system#atomic_write [Open_wronly; Open_binary] target ~mode:0o644 (fun ch ->
       output_string ch contents
     );
-    `List [`String "ok"; `List []] in
+    `List [`String "ok"; `String "success"] in
 
   let handle_download_selections xml =
     ListLabels.iter xml.Q.child_nodes ~f:(fun sel ->

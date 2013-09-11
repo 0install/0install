@@ -7,10 +7,14 @@ from zeroinstall.support.tasks import get_loop
 import os, sys
 import gtk, pango
 import subprocess
+if sys.version_info[0] > 2:
+	from io import BytesIO
+else:
+	from StringIO import StringIO as BytesIO
 
 from zeroinstall import support
 from zeroinstall.gtkui import icon, xdgutils, gtkutils
-from zeroinstall.injector import reader, model, namespaces
+from zeroinstall.injector import reader, model, namespaces, selections, qdom
 
 gobject = get_loop().gobject
 
@@ -212,11 +216,10 @@ class AppListBox(object):
 
 	def action_help(self, uri):
 		from zeroinstall.injector.config import load_config
-		from zeroinstall import helpers
 		c = load_config()
-		sels = helpers.ensure_cached(uri, config = c)
-		if not sels:
-			return
+		xml = subprocess.check_output(['0install', 'download', '--xml', '--', uri], universal_newlines = False)
+
+		sels = selections.Selections(qdom.parse(BytesIO(xml)))
 
 		impl = sels.selections[uri]
 		assert impl, "Failed to choose an implementation of %s" % uri

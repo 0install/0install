@@ -33,7 +33,13 @@ let run_test options run_opts run_args sels =
   let exec args ~env =
     U.check_output ~env ~stderr:`Stdout options.config.system read args in
 
-  Zeroinstall.Exec.execute_selections ~exec options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper;
+  let () =
+    try
+      Zeroinstall.Exec.execute_selections ~exec options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper;
+    with Safe_exception (msg, _) as ex ->
+      log_info ~ex "Error from test command";
+      Buffer.add_string b msg in
+
   Lwt.return (Buffer.contents b)
 
 let handle options flags args =

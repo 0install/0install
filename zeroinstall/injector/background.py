@@ -10,9 +10,7 @@ This avoids the need to annoy people with a 'checking for updates' box when they
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _, logger
-import sys, os
-from zeroinstall.support import tasks
-from zeroinstall.injector import handler
+import sys
 
 def _escape_xml(s):
 	return s.replace('&', '&amp;').replace('<', '&lt;')

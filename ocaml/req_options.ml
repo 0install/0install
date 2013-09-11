@@ -27,7 +27,7 @@ let parse_restrictions options default_iface extra_restrictions =
 
   let version = match !not_before, !before with
   | None, None -> None
-  | Some low, None -> Some low
+  | Some low, None -> Some (low ^ "..")
   | None, Some high -> Some ("..!" ^ high)
   | Some "", Some "" -> Some "" (* Reset *)
   | Some low, Some high -> Some (low ^ "..!" ^ high) in

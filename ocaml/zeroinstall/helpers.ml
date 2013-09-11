@@ -56,7 +56,7 @@ let solve_and_download_impls config distro (slave:Python.slave) ?test_callback r
               download_selections config slave (Some distro) sels in
         Some sels in
 
-  match Gui.get_selections_gui config slave ?test_callback mode reqs ~refresh ~use_gui with
+  match Gui.get_selections_gui config slave ?test_callback distro mode reqs ~refresh ~use_gui with
   | `Success sels -> Some sels
   | `Aborted_by_user -> None
   | `Dont_use_GUI -> solve_without_gui ()

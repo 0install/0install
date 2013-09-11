@@ -16,6 +16,11 @@ let parse_arch arch =
   | [os; machine] -> (none_if_star os, none_if_star machine)
   | _ -> raise_safe "Invalid architecture '%s'" arch
 
+let format_arch os machine =
+  let os_str = default "*" os in
+  let machine_str = default "*" machine in
+  os_str ^ "-" ^ machine_str
+
 let get_os_ranks os =
   let ranks = ref @@ StringMap.singleton os 1 in  (* Binaries compiled for _this_ OS are best.. *)
 

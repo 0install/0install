@@ -3,70 +3,58 @@
 
 from __future__ import print_function
 
+import logging
 import sys, os
 import gtk, pango
-import dialog
+from zeroinstall.gui import dialog
 
 import zeroinstall
 from zeroinstall import _
-from zeroinstall import support
+from zeroinstall.support import tasks
+from zeroinstall.cmd import slave
+from zeroinstall.injector import selections
 
+@tasks.async
 def report_bug(driver, iface):
-	assert iface
+	try:
+		assert iface
 
-	# TODO: Check the interface to decide where to send bug reports
+		# TODO: Check the interface to decide where to send bug reports
 
-	issue_file = '/etc/issue'
-	if os.path.exists(issue_file):
-		with open(issue_file, 'rt') as stream:
-			issue = stream.read().strip()
-	else:
-		issue = "(file '%s' not found)" % issue_file
-
-	requirements = driver.requirements
-
-	text = 'Problem with %s\n' % iface.uri
-	if iface.uri != requirements.interface_uri:
-		text = '  (while attempting to run %s)\n' % requirements.interface_uri
-	text += '\n'
-
-	text += 'Zero Install: Version %s, with Python %s\n' % (zeroinstall.version, sys.version)
-
-	text += '\nChosen implementations:\n'
-
-	if not driver.solver.ready:
-		text += '  Failed to select all required implementations\n'
-
-	for chosen_iface_uri, impl in driver.solver.selections.selections.items():
-		text += '\n  Interface: %s\n' % chosen_iface_uri
-		if impl:
-			text += '    Version: %s\n' % impl.version
-			feed_url = impl.attrs['from-feed']
-			if feed_url != chosen_iface_uri:
-				text += '  From feed: %s\n' % feed_url
-			text += '         ID: %s\n' % impl.id
+		issue_file = '/etc/issue'
+		if os.path.exists(issue_file):
+			with open(issue_file, 'rt') as stream:
+				issue = stream.read().strip()
 		else:
-			chosen_iface = driver.config.iface_cache.get_interface(chosen_iface_uri)
-			impls = driver.solver.details.get(chosen_iface, None)
-			if impls:
-				best, reason = impls[0]
-				note = 'best was %s, but: %s' % (best, reason)
-			else:
-				note = 'not considered; %d available' % len(chosen_iface.implementations)
+			issue = "(file '%s' not found)" % issue_file
 
-			text += '    No implementation selected (%s)\n' % note
+		root_iface = driver.tree['interface']
 
-	if hasattr(os, 'uname'):
-		text += '\nSystem:\n  %s\n\nIssue:\n  %s\n' % ('\n  '.join(os.uname()), issue)
-	else:
-		text += '\nSystem without uname()\n'
+		text = 'Problem with %s\n' % iface.uri
+		if iface.uri != root_iface:
+			text = '  (while attempting to run %s)\n' % root_iface
+		text += '\n'
 
-	if driver.solver.ready:
-		sels = driver.solver.selections
-		text += "\n" + sels.toDOM().toprettyxml()
+		text += 'Zero Install: Version %s, with Python %s\n' % (zeroinstall.version, sys.version)
 
-	reporter = BugReporter(driver, iface, text)
-	reporter.show()
+		blocker = slave.get_bug_report_details()
+		yield blocker
+		tasks.check(blocker)
+
+		text += '\n' + blocker.result['details'] + '\n'
+
+		if hasattr(os, 'uname'):
+			text += '\nSystem:\n  %s\n\nIssue:\n  %s\n' % ('\n  '.join(os.uname()), issue)
+		else:
+			text += '\nSystem without uname()\n'
+
+		if driver.ready:
+			text += "\n" + blocker.result['xml']
+
+		reporter = BugReporter(driver, iface, text)
+		reporter.show()
+	except Exception:
+		logging.warning("Bug report failed", exc_info = True)
 
 class BugReporter(dialog.Dialog):
 	def __init__(self, driver, iface, env):
@@ -180,52 +168,40 @@ class BugReporter(dialog.Dialog):
 
 		self.show_all()
 
+	@tasks.async
 	def collect_output(self, buffer):
-		iter = buffer.get_end_iter()
-		buffer.place_cursor(iter)
-
-		if not self.driver.solver.ready:
-			sels = self.driver.solver.selections
-			buffer.insert_at_cursor("Can't run:\n{reason}".format(
-					reason = self.driver.solver.get_failure_reason()))
-			return
-		uncached = self.driver.get_uncached_implementations()
-		if uncached:
-			buffer.insert_at_cursor("Can't run: the chosen versions have not been downloaded yet. I need:\n\n- " +
-				"\n\n- " . join(['%s version %s\n  (%s)' %(x[0].uri, x[1].get_version(), x[1].id) for x in uncached]))
-			return
-
-		sels = self.driver.solver.selections
-		doc = sels.toDOM()
-
-		self.hide()
 		try:
-			gtk.gdk.flush()
 			iter = buffer.get_end_iter()
 			buffer.place_cursor(iter)
-			
-			# Tell 0launch to run the program
-			doc.documentElement.setAttribute('run-test', 'true')
-			payload = doc.toxml('utf-8')
-			if sys.version_info[0] > 2:
-				stdout = sys.stdout.buffer
-			else:
-				stdout = sys.stdout
-			stdout.write(('Length:%8x\n' % len(payload)).encode('utf-8') + payload)
-			stdout.flush()
 
-			reply = support.read_bytes(0, len('Length:') + 9)
-			assert reply.startswith(b'Length:')
-			test_output = support.read_bytes(0, int(reply.split(b':', 1)[1], 16))
+			if not self.driver.ready:
+				buffer.insert_at_cursor("Can't run, because we failed to select a set of versions.\n")
+				return
 
-			# Cope with invalid UTF-8
-			import codecs
-			decoder = codecs.getdecoder('utf-8')
-			data = decoder(test_output, 'replace')[0]
+			sels = selections.Selections(self.driver.sels)
+			uncached = sels.get_unavailable_selections(self.driver.config, include_packages = True)
+			if uncached:
+				buffer.insert_at_cursor("Can't run: the chosen versions have not been downloaded yet. I need:\n\n- " +
+					"\n\n- " . join(['%s version %s\n  (%s)' %(x.interface, x.version, x.id) for x in uncached]))
+				return
 
-			buffer.insert_at_cursor(data)
-		finally:
-			self.show()
+			self.hide()
+			try:
+				gtk.gdk.flush()
+				iter = buffer.get_end_iter()
+				buffer.place_cursor(iter)
+
+				# Tell 0launch to run the program
+				blocker = slave.run_test()
+				yield blocker
+				tasks.check(blocker)
+
+				buffer.insert_at_cursor(blocker.result)
+			finally:
+				self.show()
+		except Exception as ex:
+			buffer.insert_at_cursor(str(ex))
+			raise
 	
 	def report_bug(self, iface, text):
 		try:

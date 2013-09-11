@@ -141,8 +141,6 @@ def run_server(*args):
 	assert server_process is None
 	server_process = server.handle_requests(*args)
 
-real_get_selections_gui = helpers.get_selections_gui
-
 # Count how many downloads we request so we can check it
 traced_downloads = None
 orig_download = Site.download
@@ -169,8 +167,6 @@ class TestDownload(BaseTest):
 		gpg.import_key(stream)
 		stream.close()
 
-		helpers.get_selections_gui = raise_gui
-
 		global ran_gui
 		ran_gui = False
 
@@ -185,7 +181,6 @@ class TestDownload(BaseTest):
 			except:
 				pass
 
-		helpers.get_selections_gui = real_get_selections_gui
 		BaseTest.tearDown(self)
 		kill_server_process()
 
@@ -282,17 +277,6 @@ class TestDownload(BaseTest):
 			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
-			assert sels.download_missing(self.config) is None
-
-	def testHelpers(self):
-		from zeroinstall import helpers
-
-		with output_suppressed():
-			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-			sys.stdin = Reply("Y\n")
-			sels = helpers.ensure_cached('http://example.com:8000/Hello.xml', config = self.config)
-			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
-			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 			assert sels.download_missing(self.config) is None
 
 	def testSelectionsWithFeed(self):

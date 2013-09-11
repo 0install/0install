@@ -789,7 +789,7 @@ class RenameStepRunner(StepRunner):
 		_ensure_dir_exists(os.path.dirname(dest))
 		try:
 			os.rename(source, dest)
-		except OSError as ex:
+		except OSError:
 			if not os.path.exists(source):
 				# Python by default reports the path of the destination in this case
 				raise SafeException("<rename> source '{source}' does not exist".format(

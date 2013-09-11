@@ -70,7 +70,7 @@ class virtual distribution (system:system) =
         stability = Packaged;
         props = {props with attrs = !new_attrs};
         parsed_version = Versions.parse_version version;
-        impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name };
+        impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name; retrieval_method = None };
       }
 
     (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
@@ -80,7 +80,7 @@ class virtual distribution (system:system) =
 
 let package_impl_from_json elem props json =
   let open Feed in
-  let pkg_type = ref @@ { package_installed = false; package_distro = "unknown" } in
+  let pkg_type = ref @@ { package_installed = false; package_distro = "unknown"; retrieval_method = None } in
   let new_props = ref props in
   let pkg = ref {
     qdom = elem;
@@ -97,6 +97,7 @@ let package_impl_from_json elem props json =
     new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
 
   set "from-feed" @@ "distribution:" ^ (Feed.AttrMap.find ("", "from-feed") !new_attrs);
+  set "stability" "packaged";   (* The GUI likes to know the upstream stability too *)
 
   let fixup_main path =
     (* The Python code might add or modify the main executable path. *)
@@ -119,6 +120,7 @@ let package_impl_from_json elem props json =
         | ("machine", `Null) -> ()
         | ("is_installed", `Bool v) -> pkg_type := {!pkg_type with package_installed = v}
         | ("distro", `String v) -> pkg_type := {!pkg_type with package_distro = v}
+        | ("retrieval_method", json) -> pkg_type := {!pkg_type with retrieval_method = Some (Yojson.Basic.Util.to_assoc json)}
         | ("quick-test-file", `String v) -> set "quick-test-file" v
         | ("quick-test-mtime", `String v) -> set "quick-test-mtime" v
         | ("main", `String v) -> fixup_main v

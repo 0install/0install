@@ -8,8 +8,8 @@ The B{0install remove-feed} command-line interface.
 syntax = "[INTERFACE] FEED"
 
 from zeroinstall import SafeException, _
-from zeroinstall.injector import model, writer, reader
-from zeroinstall.cmd import add_feed, UsageError, list_feeds
+from zeroinstall.injector import model, writer
+from zeroinstall.cmd import add_feed, UsageError
 
 add_options = add_feed.add_options
 
