@@ -136,9 +136,9 @@ let get_selections options ~refresh ?test_callback reqs mode =
   let config = options.config in
   let distro = Lazy.force options.distro in
 
-  let select_with_refresh () =
+  let select_with_refresh refresh =
     (* This is the slow path: we need to download things before selecting *)
-    H.solve_and_download_impls config distro options.slave ?test_callback reqs mode ~refresh:true ~use_gui:options.gui in
+    H.solve_and_download_impls config distro options.slave ?test_callback reqs mode ~refresh ~use_gui:options.gui in
 
   (* Check whether we can run immediately, without downloading anything. This requires
      - the user didn't ask to refresh or show the GUI
@@ -147,13 +147,13 @@ let get_selections options ~refresh ?test_callback reqs mode =
     If we can run immediately, we might still spawn a background process to check for updates. *)
 
   if refresh || options.gui = Yes then (
-    select_with_refresh ()
+    select_with_refresh refresh
   ) else (
     let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in
     match Zeroinstall.Solver.solve_for config feed_provider reqs with
     | (false, _results) ->
         log_info "Quick solve failed; can't select without updating feeds";
-        select_with_refresh()
+        select_with_refresh true
     | (true, results) ->
         let sels = results#get_selections in
         if mode = `Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
@@ -164,7 +164,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
           if mode = `Download_only && (have_stale_feeds && config.network_use <> Offline) then (
             (* Updating in the foreground for Download_only mode is a bit inconsistent. Maybe we
                should have a separate flag for this behaviour? *)
-            select_with_refresh ()
+            select_with_refresh true
           ) else (
             if have_stale_feeds then (
               (* There are feeds we should update, but we can run without them. *)
@@ -184,7 +184,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
             Some sels
           )
         ) else (
-          select_with_refresh ()
+          select_with_refresh true
         )
   )
 
