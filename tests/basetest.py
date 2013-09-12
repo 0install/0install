@@ -240,6 +240,11 @@ class BaseTest(unittest.TestCase):
 
 		my_dbus.system_services = {}
 
+		trust.trust_db.watchers = []
+		trust.trust_db.keys = None
+		trust.trust_db._dry_run = False
+
+
 	def tearDown(self):
 		if self.config.handler.ex:
 			support.raise_with_traceback(self.config.handler.ex, self.config.handler.tb)

@@ -169,8 +169,6 @@ class TestDownload(BaseTest):
 		gpg.import_key(stream)
 		stream.close()
 
-		trust.trust_db.watchers = []
-
 		helpers.get_selections_gui = raise_gui
 
 		global ran_gui
