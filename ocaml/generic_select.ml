@@ -207,7 +207,6 @@ let handle options flags arg ?test_callback for_op =
       | `Select_only -> Output_human
       | `Download_only -> Output_none
       | `Select_for_run -> Output_none
-      | `Select_for_update -> Output_none
     );
     refresh = false;
   } in
@@ -234,9 +233,6 @@ let handle options flags arg ?test_callback for_op =
     | Some sels -> sels
   in
 
-  let save_changes _app_path _new_sels =
-    failwith "TODO: save new app selections" in
-
   if flags <> [] then (
     select_opts.must_select <- true;
   );
@@ -255,8 +251,7 @@ let handle options flags arg ?test_callback for_op =
       let new_sels = if select_opts.must_select then do_select reqs else old_sels in
       Show.show_restrictions config.system reqs;
       Show.show_human config new_sels;
-      if for_op = `Select_for_update then save_changes path new_sels
-      else if Whatchanged.show_changes config.system old_sels new_sels || reqs <> old_reqs then
+      if Whatchanged.show_changes config.system old_sels new_sels || reqs <> old_reqs then
         U.print config.system "(note: use '0install update' instead to save the changes)";
       new_sels
   | (App (path, _old_reqs), reqs) ->
@@ -266,7 +261,6 @@ let handle options flags arg ?test_callback for_op =
           get_app_sels path
         ) in
       maybe_show_sels new_sels;
-      if for_op = `Select_for_update then save_changes path new_sels;
       new_sels
   | (Interface, reqs) ->
       let new_sels = do_select reqs in
