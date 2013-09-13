@@ -105,26 +105,26 @@ let suite = "0install">::: [
   "select">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (_config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
-    fake_system#add_file (tmpdir +/ "cache" +/ "0install.net" +/ "interfaces" +/ "http%3a%2f%2fexample.com%2fprog.xml") (".." +/ ".." +/ "tests" +/ "Hello.xml");
+    fake_system#add_file (tmpdir +/ "cache" +/ "0install.net" +/ "interfaces" +/ "http%3a%2f%2fexample.com%3a8000%2fHello.xml") (".." +/ ".." +/ "tests" +/ "Hello.xml");
     fake_system#add_dir (tmpdir +/ "cache" +/ "0install.net" +/ "implementations") ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"];
     fake_system#add_file "/lib/ld-linux.so.2" "/";    (* Enable multi-arch *)
 
     (* In --offline mode we select from the cached feed *)
-    fake_system#set_argv [| test_0install; "-o"; "select"; "http://example.com/prog.xml" |];
+    fake_system#set_argv [| test_0install; "-o"; "select"; "http://example.com:8000/Hello.xml" |];
     let output = fake_system#collect_output (fun () -> Main.main system) in
-    assert (U.starts_with output "- URI: http://example.com/prog.xml");
+    assert (U.starts_with output "- URI: http://example.com:8000/Hello.xml");
 
     (* In online mode, we spawn a background process because we don't have a last-checked timestamp *)
-    fake_system#set_argv [| test_0install; "select"; "http://example.com/prog.xml" |];
+    fake_system#set_argv [| test_0install; "select"; "http://example.com:8000/Hello.xml" |];
     let () =
       try failwith @@ fake_system#collect_output (fun () -> Main.main system)
       with Fake_system.Would_spawn (_, _, args) ->
         Fake_system.equal_str_lists
-          ["update"; "--console"; "-v"; "--command"; "run"; "http://example.com/prog.xml"]
+          ["update"; "--console"; "-v"; "--command"; "run"; "http://example.com:8000/Hello.xml"]
           (List.tl args) in
 
     (* Download succeeds (does nothing, as it's already cached *)
-    fake_system#set_argv [| test_0install; "-o"; "download"; "http://example.com/prog.xml" |];
+    fake_system#set_argv [| test_0install; "-o"; "download"; "http://example.com:8000/Hello.xml" |];
     let output = fake_system#collect_output (fun () -> Main.main system) in
     Fake_system.assert_str_equal "" output;
 
@@ -132,13 +132,13 @@ let suite = "0install">::: [
     let my_spawn_handler args cin cout cerr =
       Fake_system.real_system#create_process args cin cout cerr in
     fake_system#set_spawn_handler (Some my_spawn_handler);
-    fake_system#set_argv [| test_0install; "-cor"; "download"; "http://example.com/prog.xml"; "--version"; "2" |];
+    fake_system#set_argv [| test_0install; "-cor"; "download"; "http://example.com:8000/Hello.xml"; "--version"; "2" |];
     let () =
       try Main.main system; assert false
       with Safe_exception (msg, _) ->
         Fake_system.assert_str_equal (
           "Can't find all required implementations:\n" ^
-          "- http://example.com/prog.xml -> (problem)\n" ^
+          "- http://example.com:8000/Hello.xml -> (problem)\n" ^
           "    User requested version 2\n" ^
           "    No usable implementations:\n" ^
           "      sha1=3ce644dc725f1d21cfcf02562c76f375944b266a (1): Excluded by user-provided restriction: version 2\n" ^

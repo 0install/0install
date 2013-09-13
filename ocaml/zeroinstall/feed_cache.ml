@@ -142,20 +142,22 @@ let load_iface_config config uri : interface_config =
         | Some path -> load path
   with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
 
-let get_cached_feed config uri =
-  if is_local_feed uri then (
+let get_cached_feed config url =
+  if is_local_feed url then (
     try
-      let root = Qdom.parse_file config.system uri in
-      Some (Feed.parse config.system root (Some uri))
+      let root = Qdom.parse_file config.system url in
+      Some (Feed.parse config.system root (Some url))
     with Safe_exception _ as ex ->
-      log_warning ~ex "Can't read local file '%s'" uri;
+      log_warning ~ex "Can't read local file '%s'" url;
       None
   ) else (
-    match get_cached_feed_path config uri with
+    match get_cached_feed_path config url with
     | None -> None
     | Some path ->
         let root = Qdom.parse_file config.system path in
-        Some (Feed.parse config.system root None)
+        let feed = Feed.parse config.system root None in
+        if feed.Feed.url = url then Some feed
+        else raise_safe "Incorrect URL in cached feed - expected '%s' but found '%s'" url feed.Feed.url
   )
 
 let get_last_check_attempt config uri =
