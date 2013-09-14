@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import with_statement
 from basetest import BaseTest, StringIO, BytesIO
-import sys, tempfile, os, subprocess
+import sys, tempfile, os
 import unittest
 import logging, warnings
 from logging import getLogger, WARN, ERROR
@@ -12,16 +12,14 @@ sys.path.insert(0, '..')
 os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall import helpers, logger
-from zeroinstall.injector import model, gpg, download, trust, arch, selections, qdom, run, config, namespaces
+from zeroinstall.injector import model, gpg, download, trust, arch, selections, qdom, config, namespaces
 from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.scheduler import Site
-from zeroinstall.injector.driver import Driver
 from zeroinstall.zerostore import NotStored
 from zeroinstall.support import basedir, tasks, ro_rmtree
 from zeroinstall.injector import fetch
 import data
 import my_dbus
-import testinstall
 
 import server
 
@@ -100,15 +98,6 @@ class Reply:
 	def readline(self):
 		return self.reply
 
-def download_and_execute(driver, prog_args, main = None, dry_run = False):
-	driver_download(driver)
-	run.execute_selections(driver.solver.selections, prog_args, stores = driver.config.stores, main = main, dry_run = dry_run)
-
-def driver_download(driver):
-	downloaded = driver.solve_and_download_impls()
-	if downloaded:
-		tasks.wait_for_blocker(downloaded)
-
 class NetworkManager:
 	def state(self):
 		return 3	# NM_STATUS_CONNECTED
@@ -158,6 +147,7 @@ class TestDownload(BaseTest):
 		self.config.fetcher = fetch.Fetcher(self.config)
 
 		child_config = config.Config()
+		child_config.auto_approve_keys = False
 		child_config.key_info_server = 'http://localhost:3333/key-info'
 		child_config.save_globals()
 
@@ -187,47 +177,32 @@ class TestDownload(BaseTest):
 		# Flush out ResourceWarnings
 		import gc; gc.collect()
 
-	def run_ocaml(self, args, stdin = None, stderr = subprocess.PIPE, binary = False):
-		child = subprocess.Popen([testinstall.ocaml_0install] + args,
-				stdin = subprocess.PIPE if stdin is not None else None,
-				stdout = subprocess.PIPE, stderr = stderr, universal_newlines = not binary)
-		out, err = child.communicate(stdin)
-		child.wait()
-		return out, err
-
 	def testRejectKey(self):
-		with output_suppressed():
-			run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
-			driver = Driver(requirements = Requirements('http://localhost:8000/Hello'), config = self.config)
-			assert driver.need_download()
-			sys.stdin = Reply("N\n")
-			try:
-				download_and_execute(driver, ['Hello'])
-				assert 0
-			except model.SafeException as ex:
-				if "No known implementations at all" not in str(ex):
-					raise ex
+		run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
 
-				ex = self.config.handler.ex
-				self.config.handler.ex = None
-				if "Not signed with a trusted key" not in str(ex):
-					raise ex
+		out, err = self.run_ocaml(['run', '-v', 'http://localhost:8000/Hello', 'Hello'], stdin = 'N\n')
+		assert not out, out
+		assert "Quick solve failed; can't select without updating feeds" in err, err
+		assert "Valid signature from DE937DD411906ACF7C263B396FCF121BE2390E0B" in err, err
+		assert "Approved for testing" in err, err
+
+		assert "No known implementations at all" in err, err
+
+		assert "Not signed with a trusted key" in err, err
+		assert "Exit status: 1" in err, err
 
 	def testRejectKeyXML(self):
-		with output_suppressed():
-			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
-			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
-			assert driver.need_download()
-			sys.stdin = Reply("N\n")
-			try:
-				download_and_execute(driver, ['Hello'])
-				assert 0
-			except model.SafeException as ex:
-				if "No known implementations at all" not in str(ex):
-					raise ex
-				if "Not signed with a trusted key" not in str(self.config.handler.ex):
-					raise
-				self.config.handler.ex = None
+		run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
+		out, err = self.run_ocaml(['run', '-v', 'http://example.com:8000/Hello.xml'], stdin = 'N\n')
+		assert not out, out
+		assert "Quick solve failed; can't select without updating feeds" in err, err
+		assert "Valid signature from DE937DD411906ACF7C263B396FCF121BE2390E0B" in err, err
+		assert "Approved for testing" in err, err
+
+		assert "No known implementations at all" in err, err
+
+		assert "Not signed with a trusted key" in err, err
+		assert "Exit status: 1" in err, err
 	
 	def testImport(self):
 		out, err = self.run_ocaml(['import', '-v', 'NO-SUCH-FILE'])
@@ -237,47 +212,44 @@ class TestDownload(BaseTest):
 		hello = self.config.iface_cache.get_feed('http://localhost:8000/Hello')
 		self.assertEqual(None, hello)
 
-		with output_suppressed():
-			run_server('6FCF121BE2390E0B.gpg')
+		run_server('6FCF121BE2390E0B.gpg')
 
-			assert not trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
-			out, err = self.run_ocaml(['import', 'Hello'], stdin = 'Y\n')
-			assert not out, out
-			assert "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000" in err, err
-			assert trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
+		assert not trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
+		out, err = self.run_ocaml(['import', 'Hello'], stdin = 'Y\n')
+		assert not out, out
+		assert "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000" in err, err
+		assert trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
 
-			# Check we imported the interface after trusting the key
-			hello = self.config.iface_cache.get_feed('http://localhost:8000/Hello', force = True)
-			self.assertEqual(1, len(hello.implementations))
+		# Check we imported the interface after trusting the key
+		hello = self.config.iface_cache.get_feed('http://localhost:8000/Hello', force = True)
+		self.assertEqual(1, len(hello.implementations))
 
-			self.assertEqual(None, hello.local_path)
+		self.assertEqual(None, hello.local_path)
 
-			# Shouldn't need to prompt the second time
-			sys.stdin = None
-			out, err = self.run_ocaml(['import', 'Hello'])
-			assert not out, out
-			assert not err, err
+		# Shouldn't need to prompt the second time
+		sys.stdin = None
+		out, err = self.run_ocaml(['import', 'Hello'])
+		assert not out, out
+		assert not err, err
 
 	def testSelections(self):
 		with open("selections.xml", 'rb') as stream:
 			root = qdom.parse(stream)
 		sels = selections.Selections(root)
-		class Options: dry_run = False
 
-		with output_suppressed():
-			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-			try:
-				self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
-				assert False
-			except NotStored:
-				pass
-			out, err = self.run_ocaml(['download', 'selections.xml'], stdin = "Y\n")
-			assert not out, out
-			assert not err, err
-			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
-			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+		run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+		try:
+			self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
+			assert False
+		except NotStored:
+			pass
+		out, err = self.run_ocaml(['download', 'selections.xml'], stdin = "Y\n")
+		assert not out, out
+		assert "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000" in err, err
+		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
+		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
-			assert sels.download_missing(self.config) is None
+		assert sels.download_missing(self.config) is None
 
 	def testSelectionsWithFeed(self):
 		with open("selections.xml", 'rb') as stream:
@@ -299,174 +271,131 @@ class TestDownload(BaseTest):
 			assert sels.download_missing(self.config) is None
 	
 	def testAcceptKey(self):
-		with output_suppressed():
-			run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-			driver = Driver(requirements = Requirements('http://localhost:8000/Hello'), config = self.config)
-			assert driver.need_download()
-			sys.stdin = Reply("Y\n")
-			try:
-				download_and_execute(driver, ['Hello'], main = 'Missing')
-				assert 0
-			except model.SafeException as ex:
-				if "HelloWorld/Missing" not in str(ex):
-					raise
+		run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+		out, err = self.run_ocaml(['run', '--main=Missing', '-v', 'http://localhost:8000/Hello'], stdin = 'Y\n')
+		assert not out, out
+		assert 'Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000' in err, err
+		assert "HelloWorld/Missing' does not exist" in err, err
 	
 	def testDryRun(self):
-		with output_suppressed():
-			run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-			self.config.handler.dry_run = True
-			driver = Driver(requirements = Requirements('http://localhost:8000/Hello'), config = self.config)
-			assert driver.need_download()
-			sys.stdin = Reply("Y\n")
-			sys.stdout = StringIO()
-			download_and_execute(driver, ['Hello'], main = 'Missing', dry_run = True)
-
-			out = sys.stdout.getvalue()
-			assert '[dry-run] would trust key DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000' in out, out
-			assert '[dry-run] would cache feed http://localhost:8000/Hello as ' in out, out
-			assert '[dry-run] would store implementation as ' in out, out
-			assert '[dry-run] would execute:' in out, out
+		run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+		out, err = self.run_ocaml(['run', '--dry-run', 'http://localhost:8000/Hello', 'Hello'], stdin = 'Y\n')
+		# note: the Python redirects dry-run messages to stderr, as it's using stdout for IPC
+		assert '[dry-run] would trust key DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000' in err, err
+		assert '[dry-run] would cache feed http://localhost:8000/Hello as ' in err, err
+		assert '[dry-run] would store implementation as ' in err, err
+		assert '[dry-run] would execute:' in out, out
 	
 	def testAutoAcceptKey(self):
-		self.config.auto_approve_keys = True
-		with output_suppressed():
-			run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-			driver = Driver(requirements = Requirements('http://localhost:8000/Hello'), config = self.config)
-			assert driver.need_download()
-			sys.stdin = Reply("")
-			try:
-				download_and_execute(driver, ['Hello'], main = 'Missing')
-				assert 0
-			except model.SafeException as ex:
-				if "HelloWorld/Missing" not in str(ex):
-					raise
+		child_config = config.Config()
+		child_config.auto_approve_keys = True
+		child_config.key_info_server = 'http://localhost:3333/key-info'
+		child_config.save_globals()
+
+		run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+		out, err = self.run_ocaml(['run', '--main=Missing', 'http://localhost:8000/Hello', 'Hello'], stdin = '')
+		assert "Exit status: 1" in err, err
+		assert "HelloWorld/Missing" in err, err
 
 	def testDistro(self):
-		with output_suppressed():
-			native_url = 'http://example.com:8000/Native.xml'
+		native_url = 'http://example.com:8000/Native.xml'
 
-			# Initially, we don't have the feed at all...
-			master_feed = self.config.iface_cache.get_feed(native_url)
-			assert master_feed is None, master_feed
+		# Initially, we don't have the feed at all...
+		master_feed = self.config.iface_cache.get_feed(native_url)
+		assert master_feed is None, master_feed
 
-			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-			run_server('Native.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
-			driver = Driver(requirements = Requirements(native_url), config = self.config)
-			assert driver.need_download()
+		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+		run_server('Native.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
+		out, err = self.run_ocaml(['download', native_url])
+		assert not out, out
+		assert "Can't find all required implementations" in err, err
 
-			solve = driver.solve_with_downloads()
-			tasks.wait_for_blocker(solve)
-			tasks.check(solve)
+		master_feed = self.config.iface_cache.get_feed(native_url, force = True)
+		assert master_feed is not None
+		assert master_feed.implementations == {}
 
-			master_feed = self.config.iface_cache.get_feed(native_url)
-			assert master_feed is not None
-			assert master_feed.implementations == {}
-
-			distro_feed_url = master_feed.get_distro_feed()
-			assert distro_feed_url is not None
-			distro_feed = self.config.iface_cache.get_feed(distro_feed_url)
-			assert distro_feed is not None
-			assert len(distro_feed.implementations) == 2, distro_feed.implementations
+		blocker = self.config.iface_cache.distro.fetch_candidates(master_feed)
+		if blocker:
+			tasks.wait_for_blocker(blocker)
+		distro_feed_url = master_feed.get_distro_feed()
+		assert distro_feed_url is not None
+		distro_feed = self.config.iface_cache.get_feed(distro_feed_url)
+		assert distro_feed is not None
+		assert len(distro_feed.implementations) == 2, distro_feed.implementations
 
 	def testWrongSize(self):
-		with output_suppressed():
-			run_server('Hello-wrong-size', '6FCF121BE2390E0B.gpg',
-							'/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-			driver = Driver(requirements = Requirements('http://localhost:8000/Hello-wrong-size'), config = self.config)
-			assert driver.need_download()
-			sys.stdin = Reply("Y\n")
-			try:
-				download_and_execute(driver, ['Hello'], main = 'Missing')
-				assert 0
-			except model.SafeException as ex:
-				if "Downloaded archive has incorrect size" not in str(ex):
-					raise ex
+		run_server('Hello-wrong-size', '6FCF121BE2390E0B.gpg',
+						'/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
+		out, err = self.run_ocaml(['run', '--main=Missing', 'http://localhost:8000/Hello-wrong-size', 'Hello'], stdin = 'Y\n')
+		assert not out, out
+		assert "Exit status: 1" in err, err
+		assert "Downloaded archive has incorrect size" in err, err
 
 	def testRecipe(self):
-		old_out = sys.stdout
-		try:
-			sys.stdout = StringIO()
-			run_server(('HelloWorld.tar.bz2', 'redirect/dummy_1-1_all.deb', 'dummy_1-1_all.deb'))
-			driver = Driver(requirements = Requirements(os.path.abspath('Recipe.xml')), config = self.config)
-			try:
-				download_and_execute(driver, [])
-				assert False
-			except model.SafeException as ex:
-				if "HelloWorld/Missing" not in str(ex):
-					raise ex
-		finally:
-			sys.stdout = old_out
+		run_server(('HelloWorld.tar.bz2', 'redirect/dummy_1-1_all.deb', 'dummy_1-1_all.deb'))
+		out, err = self.run_ocaml(['run', os.path.abspath('Recipe.xml')])
+		assert "Exit status: 1" in err, err
+		assert "HelloWorld/Missing' does not exist" in err, err
 	
 	def testRecipeRename(self):
-		with output_suppressed():
-			run_server(('HelloWorld.tar.bz2',))
-			requirements = Requirements(os.path.abspath('RecipeRename.xml'))
-			requirements.command = None
-			driver = Driver(requirements = requirements, config = self.config)
-			driver_download(driver)
-			digests = driver.solver.selections.selections[requirements.interface_uri].digests
-			path = self.config.stores.lookup_any(digests)
-			assert os.path.exists(os.path.join(path, 'HelloUniverse', 'minor'))
-			assert not os.path.exists(os.path.join(path, 'HelloWorld'))
-			assert not os.path.exists(os.path.join(path, 'HelloUniverse', 'main'))
+		run_server(('HelloWorld.tar.bz2',))
+		uri = os.path.abspath('RecipeRename.xml')
+		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		assert not err, err
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		digests = sels.selections[uri].digests
+		path = self.config.stores.lookup_any(digests)
+		assert os.path.exists(os.path.join(path, 'HelloUniverse', 'minor'))
+		assert not os.path.exists(os.path.join(path, 'HelloWorld'))
+		assert not os.path.exists(os.path.join(path, 'HelloUniverse', 'main'))
 
 	def testRecipeRenameToNewDest(self):
-		with output_suppressed():
-			run_server(('HelloWorld.tar.bz2',))
-			requirements = Requirements(os.path.abspath('RecipeRenameToNewDest.xml'))
-			requirements.command = None
-			driver = Driver(requirements = requirements, config = self.config)
-			driver_download(driver)
-			digests = driver.solver.selections.selections[requirements.interface_uri].digests
-			path = self.config.stores.lookup_any(digests)
-			assert os.path.exists(os.path.join(path, 'HelloWorld', 'bin', 'main'))
-			assert not os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+		run_server(('HelloWorld.tar.bz2',))
+		uri = os.path.abspath('RecipeRenameToNewDest.xml')
+		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		digests = sels.selections[uri].digests
+		path = self.config.stores.lookup_any(digests)
+		assert os.path.exists(os.path.join(path, 'HelloWorld', 'bin', 'main'))
+		assert not os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 	def testRecipeRemoveFile(self):
-		with output_suppressed():
-			run_server(('HelloWorld.tar.bz2',))
-			requirements = Requirements(os.path.abspath('RecipeRemove.xml'))
-			requirements.command = None
-			driver = Driver(requirements = requirements, config = self.config)
-			driver_download(driver)
-			digests = driver.solver.selections.selections[requirements.interface_uri].digests
-			path = self.config.stores.lookup_any(digests)
-			assert os.path.exists(os.path.join(path, 'HelloWorld'))
-			assert not os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+		run_server(('HelloWorld.tar.bz2',))
+		uri = os.path.abspath('RecipeRemove.xml')
+		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		digests = sels.selections[uri].digests
+		path = self.config.stores.lookup_any(digests)
+		assert os.path.exists(os.path.join(path, 'HelloWorld'))
+		assert not os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 	def testRecipeRemoveDir(self):
-		with output_suppressed():
-			run_server(('HelloWorld.tar.bz2',))
-			requirements = Requirements(os.path.abspath('RecipeRemoveDir.xml'))
-			requirements.command = None
-			driver = Driver(requirements = requirements, config = self.config)
-			driver_download(driver)
-			digests = driver.solver.selections.selections[requirements.interface_uri].digests
-			path = self.config.stores.lookup_any(digests)
-			assert not os.path.exists(os.path.join(path, 'HelloWorld'))
+		run_server(('HelloWorld.tar.bz2',))
+		uri = os.path.abspath('RecipeRemoveDir.xml')
+		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		digests = sels.selections[uri].digests
+		path = self.config.stores.lookup_any(digests)
+		assert not os.path.exists(os.path.join(path, 'HelloWorld'))
 
 	def testRecipeExtractToNewSubdirectory(self):
-		with output_suppressed():
-			run_server(('HelloWorld.tar.bz2',))
-			requirements = Requirements(os.path.abspath('RecipeExtractToNewDest.xml'))
-			requirements.command = None
-			driver = Driver(requirements = requirements, config = self.config)
-			driver_download(driver)
-			digests = driver.solver.selections.selections[requirements.interface_uri].digests
-			path = self.config.stores.lookup_any(digests)
-			assert os.path.exists(os.path.join(path, 'src', 'HelloWorld', 'main'))
+		run_server(('HelloWorld.tar.bz2',))
+		uri = os.path.abspath('RecipeExtractToNewDest.xml')
+		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		digests = sels.selections[uri].digests
+		path = self.config.stores.lookup_any(digests)
+		assert os.path.exists(os.path.join(path, 'src', 'HelloWorld', 'main'))
 
 	def testRecipeExtractToExistingSubdirectory(self):
-		with output_suppressed():
-			run_server(('HelloWorld.tar.bz2','HelloWorld.tar.bz2'))
-			requirements = Requirements(os.path.abspath('RecipeExtractToExistingDest.xml'))
-			requirements.command = None
-			driver = Driver(requirements = requirements, config = self.config)
-			driver_download(driver)
-			digests = driver.solver.selections.selections[requirements.interface_uri].digests
-			path = self.config.stores.lookup_any(digests)
-			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main')) # first archive's main
-			assert os.path.exists(os.path.join(path, 'HelloWorld', 'HelloWorld', 'main')) # second archive, extracted to HelloWorld/
+		run_server(('HelloWorld.tar.bz2','HelloWorld.tar.bz2'))
+		uri = os.path.abspath('RecipeExtractToExistingDest.xml')
+		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		digests = sels.selections[uri].digests
+		path = self.config.stores.lookup_any(digests)
+		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main')) # first archive's main
+		assert os.path.exists(os.path.join(path, 'HelloWorld', 'HelloWorld', 'main')) # second archive, extracted to HelloWorld/
 
 	def testRecipeLocal(self):
 		recipe = model.Recipe()
@@ -492,183 +421,144 @@ class TestDownload(BaseTest):
 			assert "<rename> source 'missing-source' does not exist" in str(ex), ex
 
 	def testRecipeSingleFile(self):
-		with output_suppressed():
-			run_server(('HelloWorldMain',))
-			requirements = Requirements(os.path.abspath('RecipeSingleFile.xml'))
-			requirements.command = None
-			driver = Driver(requirements = requirements, config = self.config)
-			driver_download(driver)
-			digests = driver.solver.selections.selections[requirements.interface_uri].digests
-			path = self.config.stores.lookup_any(digests)
-			with open(os.path.join(path, 'bin','main'), 'rt') as stream:
-				assert 'Hello World' in stream.read()
+		run_server(('HelloWorldMain',))
+		uri = os.path.abspath('RecipeSingleFile.xml')
+		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		digests = sels.selections[uri].digests
+		path = self.config.stores.lookup_any(digests)
+		with open(os.path.join(path, 'bin','main'), 'rt') as stream:
+			assert 'Hello World' in stream.read()
 
 	def testExtractToNewSubdirectory(self):
-		with output_suppressed():
-			run_server(('HelloWorld.tar.bz2',))
-			requirements = Requirements(os.path.abspath('HelloExtractToNewDest.xml'))
-			requirements.command = None
-			driver = Driver(requirements = requirements, config = self.config)
-			driver_download(driver)
-			digests = driver.solver.selections.selections[requirements.interface_uri].digests
-			path = self.config.stores.lookup_any(digests)
-			assert os.path.exists(os.path.join(path, 'src', 'HelloWorld', 'main'))
+		run_server(('HelloWorld.tar.bz2',))
+		uri = os.path.abspath('HelloExtractToNewDest.xml')
+		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		digests = sels.selections[uri].digests
+		path = self.config.stores.lookup_any(digests)
+		assert os.path.exists(os.path.join(path, 'src', 'HelloWorld', 'main'))
 
 	def testDownloadFile(self):
-		with output_suppressed():
-			run_server(('HelloWorldMain',))
-			requirements = Requirements(os.path.abspath('HelloSingleFile.xml'))
-			requirements.command = None
-			driver = Driver(requirements = requirements, config = self.config)
-			driver_download(driver)
-			digests = driver.solver.selections.selections[requirements.interface_uri].digests
-			path = self.config.stores.lookup_any(digests)
-			with open(os.path.join(path, 'main'), 'rt') as stream:
-				assert 'Hello World' in stream.read()
+		run_server(('HelloWorldMain',))
+		uri = os.path.abspath('HelloSingleFile.xml')
+		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		digests = sels.selections[uri].digests
+		path = self.config.stores.lookup_any(digests)
+		with open(os.path.join(path, 'main'), 'rt') as stream:
+			assert 'Hello World' in stream.read()
 
 	def testSymlink(self):
-		old_out = sys.stdout
-		try:
-			sys.stdout = StringIO()
-			run_server(('HelloWorld.tar.bz2', 'HelloSym.tgz'))
-			driver = Driver(requirements = Requirements(os.path.abspath('RecipeSymlink.xml')), config = self.config)
-			try:
-				download_and_execute(driver, [])
-				assert False
-			except model.SafeException as ex:
-				if 'Attempt to unpack dir over symlink "HelloWorld"' not in str(ex):
-					raise
-			self.assertEqual(None, basedir.load_first_cache('0install.net', 'implementations', 'main'))
-		finally:
-			sys.stdout = old_out
+		run_server(('HelloWorld.tar.bz2', 'HelloSym.tgz'))
+		out, err = self.run_ocaml(['download', os.path.abspath('RecipeSymlink.xml')])
+		assert "Exit status: 1" in err, err
+		assert 'Attempt to unpack dir over symlink "HelloWorld"' in err, err
+		self.assertEqual(None, basedir.load_first_cache('0install.net', 'implementations', 'main'))
 
 	def testAutopackage(self):
-		old_out = sys.stdout
-		try:
-			sys.stdout = StringIO()
-			run_server('HelloWorld.autopackage')
-			driver = Driver(requirements = Requirements(os.path.abspath('Autopackage.xml')), config = self.config)
-			try:
-				download_and_execute(driver, [])
-				assert False
-			except model.SafeException as ex:
-				if "HelloWorld/Missing" not in str(ex):
-					raise
-		finally:
-			sys.stdout = old_out
+		run_server('HelloWorld.autopackage')
+		out, err = self.run_ocaml(['run', os.path.abspath('Autopackage.xml')])
+		assert "Exit status: 1" in err, err
+		assert "HelloWorld/Missing" in err, err
 
 	def testRecipeFailure(self):
-		with resourcewarnings_suppressed():
-			old_out = sys.stdout
-			try:
-				run_server('*')
-				driver = Driver(requirements = Requirements(os.path.abspath('Recipe.xml')), config = self.config)
-				try:
-					download_and_execute(driver, [])
-					assert False
-				except download.DownloadError as ex:
-					if "Connection" not in str(ex):
-						raise
-			finally:
-				sys.stdout = old_out
+		run_server('*')
+		out, err = self.run_ocaml(['run', os.path.abspath('Recipe.xml')])
+		assert "Exit status: 1" in err, err
+		assert "Connection" in err, err
 
 	def testMirrors(self):
-		with resourcewarnings_suppressed():
-			getLogger().setLevel(logging.ERROR)
-			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-			run_server(server.Give404('/Hello.xml'),
-					'/0mirror/feeds/http/example.com:8000/Hello.xml/latest.xml',
-					'/0mirror/keys/6FCF121BE2390E0B.gpg',
-					server.Give404('/HelloWorld.tgz'),
-					'/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz')
-			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
-			self.config.mirror = 'http://example.com:8000/0mirror'
+		child_config = config.Config()
+		child_config.auto_approve_keys = False
+		child_config.key_info_server = 'http://localhost:3333/key-info'
+		child_config.mirror = 'http://example.com:8000/0mirror'
+		child_config.save_globals()
 
-			refreshed = driver.solve_with_downloads()
-			tasks.wait_for_blocker(refreshed)
-			assert driver.solver.ready
+		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+		run_server(server.Give404('/Hello.xml'),
+				'/0mirror/feeds/http/example.com:8000/Hello.xml/latest.xml',
+				'/0mirror/keys/6FCF121BE2390E0B.gpg',
+				server.Give404('/HelloWorld.tgz'),
+				'/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz')
+		out, err = self.run_ocaml(['download', 'http://example.com:8000/Hello.xml', '--xml'], binary = True)
+		assert b'Missing: HelloWorld.tgz: trying archive mirror at http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz' in err, err
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
 
-			#getLogger().setLevel(logging.WARN)
-			downloaded = driver.download_uncached_implementations()
-			tasks.wait_for_blocker(downloaded)
-			path = self.config.stores.lookup_any(driver.solver.selections.selections['http://example.com:8000/Hello.xml'].digests)
-			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
+		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 	def testImplMirror(self):
-		with resourcewarnings_suppressed():
-			# This is like testMirror, except we have a different archive (that generates the same content),
-			# rather than an exact copy of the unavailable archive.
-			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-			run_server('/Hello.xml',
-					'/6FCF121BE2390E0B.gpg',
-					server.Give404('/HelloWorld.tgz'),
-					server.Give404('/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'),
-					'/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
-			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
-			self.config.mirror = 'http://example.com:8000/0mirror'
+		# This is like testMirror, except we have a different archive (that generates the same content),
+		# rather than an exact copy of the unavailable archive.
 
-			refreshed = driver.solve_with_downloads()
-			tasks.wait_for_blocker(refreshed)
-			assert driver.solver.ready
+		child_config = config.Config()
+		child_config.auto_approve_keys = False
+		child_config.key_info_server = 'http://localhost:3333/key-info'
+		child_config.mirror = 'http://example.com:8000/0mirror'
+		child_config.save_globals()
 
-			getLogger().setLevel(logging.ERROR)
-			downloaded = driver.download_uncached_implementations()
-			tasks.wait_for_blocker(downloaded)
-			path = self.config.stores.lookup_any(driver.solver.selections.selections['http://example.com:8000/Hello.xml'].digests)
-			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+		run_server('/Hello.xml',
+				'/6FCF121BE2390E0B.gpg',
+				server.Give404('/HelloWorld.tgz'),
+				server.Give404('/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'),
+				'/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
+		out, err = self.run_ocaml(['download', '-vv', 'http://example.com:8000/Hello.xml', '--xml'], binary = True)
+
+		assert b'Missing: HelloWorld.tgz: trying implementation mirror at http://roscidus.com/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' in err, err
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
+		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 	def testImplMirrorFails(self):
-		with resourcewarnings_suppressed():
-			trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-			run_server('/Hello.xml',
-					'/6FCF121BE2390E0B.gpg',
-					server.Give404('/HelloWorld.tgz'),
-					server.Give404('/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'),
-					server.Give404('/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a'))
-			driver = Driver(requirements = Requirements('http://example.com:8000/Hello.xml'), config = self.config)
-			self.config.mirror = 'http://example.com:8000/0mirror'
+		child_config = config.Config()
+		child_config.auto_approve_keys = False
+		child_config.key_info_server = 'http://localhost:3333/key-info'
+		child_config.mirror = 'http://example.com:8000/0mirror'
+		child_config.save_globals()
 
-			refreshed = driver.solve_with_downloads()
-			tasks.wait_for_blocker(refreshed)
-			assert driver.solver.ready
+		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+		run_server('/Hello.xml',
+				'/6FCF121BE2390E0B.gpg',
+				server.Give404('/HelloWorld.tgz'),
+				server.Give404('/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'),
+				server.Give404('/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a'))
+		out, err = self.run_ocaml(['download', '-vv', 'http://example.com:8000/Hello.xml'])
+		assert not out, out
+		assert "Exit status: 1" in err, err
+		assert 'Missing: HelloWorld.tgz' in err, err
 
-			getLogger().setLevel(logging.ERROR)
-			try:
-				downloaded = driver.download_uncached_implementations()
-				tasks.wait_for_blocker(downloaded)
-				assert 0
-			except download.DownloadError as ex:
-				assert 'Missing: HelloWorld.tgz' in str(ex), ex
-
-			self.assertEqual([
-				'http://example.com:8000/Hello.xml',
-				'http://example.com:8000/6FCF121BE2390E0B.gpg',
-				# The original archive:
-				'http://example.com:8000/HelloWorld.tgz',
-				# Mirror of original archive:
-				'http://example.com:8000/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz',
-				# Mirror of implementation:
-				'http://example.com:8000/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a'
-				], traced_downloads)
+		for x in [
+			'http://example.com:8000/Hello.xml',
+			'http://example.com:8000/6FCF121BE2390E0B.gpg',
+			# The original archive:
+			'http://example.com:8000/HelloWorld.tgz',
+			# Mirror of original archive:
+			'http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz',
+			# Mirror of implementation:
+			'http://roscidus.com/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a'
+			]:
+			assert x in err, (x, err)
 
 	def testLocalFeedMirror(self):
-		with resourcewarnings_suppressed():
-			# This is like testImplMirror, except we have a local feed.
-			run_server(server.Give404('/HelloWorld.tgz'),
-					'/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz')
-			iface_uri = model.canonical_iface_uri('Hello.xml')
-			driver = Driver(requirements = Requirements(iface_uri), config = self.config)
-			self.config.mirror = 'http://example.com:8000/0mirror'
+		# This is like testImplMirror, except we have a local feed.
 
-			refreshed = driver.solve_with_downloads()
-			tasks.wait_for_blocker(refreshed)
-			assert driver.solver.ready
+		child_config = config.Config()
+		child_config.auto_approve_keys = False
+		child_config.key_info_server = 'http://localhost:3333/key-info'
+		child_config.mirror = 'http://example.com:8000/0mirror'
+		child_config.save_globals()
 
-			getLogger().setLevel(logging.ERROR)
-			downloaded = driver.download_uncached_implementations()
-			tasks.wait_for_blocker(downloaded)
-			path = self.config.stores.lookup_any(driver.solver.selections.selections[iface_uri].digests)
-			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
+		run_server(server.Give404('/HelloWorld.tgz'),
+				'/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz')
+		iface_uri = model.canonical_iface_uri('Hello.xml')
+		out, err = self.run_ocaml(['download', iface_uri, '--xml'], binary = True)
+		assert b'Missing: HelloWorld.tgz: trying archive mirror at http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz', err
+
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		path = self.config.stores.lookup_any(sels.selections[iface_uri].digests)
+		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
 	def testReplay(self):
 		with resourcewarnings_suppressed():
@@ -1037,12 +927,10 @@ class TestDownload(BaseTest):
 		except model.SafeException as ex:
 			assert 'feed says 177, but actually 176 bytes' in str(ex), ex
 
-		self.config.network_use = model.network_offline
-		r = Requirements(local_iface)
-		r.command = None
-		driver = Driver(requirements = r, config = self.config)
-		driver.need_download()
-		assert driver.solver.ready, driver.solver.get_failure_reason()
+		out, err = self.run_ocaml(['select', '--offline', '--command=', '--xml', local_iface], binary = True)
+		assert not err, err
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		assert sels.get_unavailable_selections(self.config, include_packages = True)
 
 		# Local => OK
 		impl = feed.implementations['impl1']

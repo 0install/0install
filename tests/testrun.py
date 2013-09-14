@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from basetest import BaseTest, StringIO
+from basetest import BaseTest
 import os, sys, subprocess
 import unittest
 
@@ -8,12 +8,7 @@ sys.path.insert(0, '..')
 # (testing command support imports zeroinstall.injector._runenv in a sub-process)
 os.environ['PYTHONPATH'] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-from zeroinstall.support import tasks
-from zeroinstall.injector import run
 from zeroinstall import SafeException
-from zeroinstall.injector.requirements import Requirements
-from zeroinstall.injector.driver import Driver
-from zeroinstall.support import unicode
 
 mydir = os.path.abspath(os.path.dirname(__file__))
 local_0launch = os.path.join(mydir, '..', 'build', 'ocaml', '0launch')
@@ -34,91 +29,43 @@ class TestRun(BaseTest):
 		if 'SELF_COMMAND' in os.environ:
 			del os.environ['SELF_COMMAND']
 
-		p = Driver(requirements = Requirements(command_feed), config = self.config)
-		tasks.wait_for_blocker(p.solve_with_downloads())
-		old_stdout = sys.stdout
-		try:
-			sys.stdout = StringIO()
-			run.execute_selections(p.solver.selections, [], main = 'runnable/go.sh', dry_run = True, stores = self.config.stores)
-		finally:
-			sys.stdout = old_stdout
-		assert 'local' in os.environ['LOCAL'], os.environ['LOCAL']
-		assert 'SELF_COMMAND' in os.environ
+		out, err = self.run_ocaml(['run', '--main=runnable/go.sh', '-wenv #', command_feed])
+		assert not err, err
+		assert 'LOCAL=' in out, out
+		assert 'SELF_COMMAND=' in out, out
 
 	def testAbsMain(self):
-		p = Driver(requirements = Requirements(command_feed), config = self.config)
-		self.config.handler.wait_for_blocker(p.solve_with_downloads())
+		out, err = self.run_ocaml(['run', '--dry-run', '--main=runnable/runner', command_feed])
+		assert '[dry-run] would execute: ././runnable/runner' in out, out
+		assert not err, err
 
-		old_stdout = sys.stdout
-		try:
-			sys.stdout = StringIO()
-			run.execute_selections(p.solver.selections, [], main = '/runnable/runner', dry_run = True, stores = self.config.stores)
-		finally:
-			sys.stdout = old_stdout
-
-		try:
-			old_stdout = sys.stdout
-			try:
-				sys.stdout = StringIO()
-				run.execute_selections(p.solver.selections, [], main = '/runnable/not-there', dry_run = True, stores = self.config.stores)
-			finally:
-				sys.stdout = old_stdout
-		except SafeException as ex:
-			assert 'not-there' in unicode(ex)
+		out, err = self.run_ocaml(['run', '--main=runnable/not-there', command_feed])
+		assert not out, out
+		assert 'not-there' in err, err
 
 	def testBadMain(self):
-		r = Requirements(command_feed)
-		r.command = None
-		d = Driver(requirements = r, config = self.config)
-		self.config.handler.wait_for_blocker(d.solve_with_downloads())
+		out, err = self.run_ocaml(['run', '--dry-run', '--command=', command_feed])
+		assert "Exit status: 1" in err, err
+		assert "Can't run: no command specified!" in err, err
 
-		try:
-			run.execute_selections(d.solver.selections, [], dry_run = True, stores = self.config.stores)
-			assert 0
-		except SafeException as ex:
-			self.assertEqual("Can't run: no command specified!", unicode(ex))
-
-		try:
-			run.execute_selections(d.solver.selections, [], main = 'relpath', dry_run = True, stores = self.config.stores)
-			assert 0
-		except SafeException as ex:
-			self.assertEqual("Can't use a relative replacement main when there is no original one!", unicode(ex))
+		out, err = self.run_ocaml(['run', '--dry-run', '--command=', '--main=relpath', command_feed])
+		assert "Exit status: 1" in err, err
+		assert "Can't use a relative replacement main (relpath) when there is no original one!" in err, err
 
 	def testArgs(self):
-		p = Driver(requirements = Requirements(runnable), config = self.config)
-		self.config.handler.wait_for_blocker(p.solve_with_downloads())
-		old_stdout = sys.stdout
-		try:
-			sys.stdout = StringIO()
-			run.execute_selections(p.solver.selections, [], dry_run = True, stores = self.config.stores)
-			out = sys.stdout.getvalue()
-		finally:
-			sys.stdout = old_stdout
+		out, err = self.run_ocaml(['run', '--dry-run', runnable])
+		assert not err, err
 		assert 'runner-arg' in out, out
 
 	def testArgList(self):
-		d = Driver(requirements = Requirements(arglist), config = self.config)
-		self.config.handler.wait_for_blocker(d.solve_with_downloads())
-		old_stdout = sys.stdout
-		try:
-			sys.stdout = StringIO()
-			run.execute_selections(d.solver.selections, [], dry_run = True, stores = self.config.stores)
-			out = sys.stdout.getvalue()
-		finally:
-			sys.stdout = old_stdout
+		out, err = self.run_ocaml(['run', '--dry-run', arglist])
+		assert not err, err
 		assert 'arg-for-runner -X ra1 -X ra2' in out, out
 		assert 'command-arg ca1 ca2' in out, out
 
 	def testWrapper(self):
-		p = Driver(requirements = Requirements(runnable), config = self.config)
-		self.config.handler.wait_for_blocker(p.solve_with_downloads())
-		old_stdout = sys.stdout
-		try:
-			sys.stdout = StringIO()
-			run.execute_selections(p.solver.selections, [], wrapper = 'echo', dry_run = True, stores = self.config.stores)
-			out = sys.stdout.getvalue()
-		finally:
-			sys.stdout = old_stdout
+		out, err = self.run_ocaml(['run', '-wecho', '--dry-run', runnable])
+		assert not err, err
 		assert '/bin/sh -c echo "$@"' in out, out
 		assert 'runner-arg' in out, out
 		assert 'script' in out, out

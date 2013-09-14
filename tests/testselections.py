@@ -5,9 +5,7 @@ import sys, os
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import selections, model, namespaces, qdom, requirements
-from zeroinstall.injector.requirements import Requirements
-from zeroinstall.injector.driver import Driver
+from zeroinstall.injector import selections, namespaces, qdom
 
 mydir = os.path.dirname(os.path.abspath(__file__))
 runexec = os.path.join(mydir, 'runnable', 'RunExec.xml')
@@ -15,19 +13,14 @@ runnable = os.path.join(mydir, 'runnable', 'Runnable.xml')
 
 class TestSelections(BaseTest):
 	def testSelections(self):
-		requirements = Requirements('http://foo/Source.xml')
-		requirements.source = True
-		requirements.command = 'compile'
-		driver = Driver(requirements = requirements, config = self.config)
 		source = self.config.iface_cache.get_interface('http://foo/Source.xml')
 		compiler = self.config.iface_cache.get_interface('http://foo/Compiler.xml')
 		self.import_feed(source.uri, 'Source.xml')
 		self.import_feed(compiler.uri, 'Compiler.xml')
 
-		self.config.network_use = model.network_full
-		#import logging
-		#logging.getLogger().setLevel(logging.DEBUG)
-		assert driver.need_download()
+		out, err = self.run_ocaml(['select', '--xml', '--offline', '--command=compile', '--source', 'http://foo/Source.xml'], binary = True)
+		assert not err, err
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
 
 		def assertSel(s):
 			self.assertEqual('http://foo/Source.xml', s.interface)
@@ -81,8 +74,7 @@ class TestSelections(BaseTest):
 
 			self.assertEqual(["sha1=345", 'sha256new_345'], sorted(sels[0].digests))
 
-		assert driver.solver.ready, driver.solver.get_failure_reason()
-		s1 = driver.solver.selections
+		s1 = sels
 		s1.selections['http://foo/Source.xml'].attrs['http://namespace foo'] = 'bar'
 		assertSel(s1)
 
@@ -94,12 +86,10 @@ class TestSelections(BaseTest):
 		assertSel(s2)
 	
 	def testLocalPath(self):
-		# 0launch --get-selections Local.xml
 		iface = os.path.join(mydir, "Local.xml")
-		driver = Driver(requirements = Requirements(iface), config = self.config)
-		driver.need_download()
-		assert driver.solver.ready
-		s1 = driver.solver.selections
+		out, err = self.run_ocaml(['select', '--xml', iface], binary = True)
+		assert not err, err
+		s1 = selections.Selections(qdom.parse(BytesIO(out)))
 		xml = s1.toDOM().toxml("utf-8")
 
 		# Reload selections and check they're the same
@@ -109,16 +99,13 @@ class TestSelections(BaseTest):
 		assert os.path.isdir(local_path), local_path
 		assert not s2.selections[iface].digests, s2.selections[iface].digests
 
+		iface = os.path.join(mydir, "Local2.xml")
 		# Add a newer implementation and try again
-		feed = self.config.iface_cache.get_feed(iface)
-		impl = model.ZeroInstallImplementation(feed, "foo bar=123", local_path = None)
-		impl.version = model.parse_version('1.0')
-		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command', {'path': 'dummy', 'name': 'run'}), None)
-		impl.add_download_source('http://localhost/bar.tgz', 1000, None)
-		feed.implementations = {impl.id: impl}
-		assert driver.need_download()
-		assert driver.solver.ready, driver.solver.get_failure_reason()
-		s1 = driver.solver.selections
+		out, err = self.run_ocaml(['select', '--xml', iface], binary = True)
+		assert not err, err
+		s1 = selections.Selections(qdom.parse(BytesIO(out)))
+		#assert s1.get_unavailable_selections(self.config, True)
+
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(BytesIO(xml))
 		s2 = selections.Selections(root)
@@ -130,19 +117,18 @@ class TestSelections(BaseTest):
 
 	def testCommands(self):
 		iface = os.path.join(mydir, "Command.xml")
-		driver = Driver(requirements = Requirements(iface), config = self.config)
-		driver.need_download()
-		assert driver.solver.ready
+		out, err = self.run_ocaml(['select', '--xml', iface], binary = True)
+		assert not err, err
+		s1 = selections.Selections(qdom.parse(BytesIO(out)))
 
-		impl = driver.solver.selections.selections[iface]
+		impl = s1.selections[iface]
 		assert impl.id == 'c'
-		assert impl.main == 'test-gui', impl.main
+		assert impl.get_command('run').path == 'test-gui', impl
 
 		dep_impl_uri = impl.get_command('run').requires[0].interface
-		dep_impl = driver.solver.selections.selections[dep_impl_uri]
+		dep_impl = s1.selections[dep_impl_uri]
 		assert dep_impl.id == 'sha1=256'
 
-		s1 = driver.solver.selections
 		assert s1.commands[0].path == 'test-gui'
 		xml = s1.toDOM().toxml("utf-8")
 		root = qdom.parse(BytesIO(xml))
@@ -153,17 +139,16 @@ class TestSelections(BaseTest):
 		assert impl.id == 'c'
 
 		assert s2.commands[0].qdom.attrs['http://custom attr'] == 'namespaced'
-		custom_element = s2.commands[0].qdom.childNodes[0]
-		assert custom_element.name == 'child'
+		assert len([node for node in s2.commands[0].qdom.childNodes if node.name == 'child']) == 1
 
 		dep_impl = s2.selections[dep_impl_uri]
 		assert dep_impl.id == 'sha1=256'
 
-		d = Driver(self.config, requirements.Requirements(runexec))
-		need_download = d.need_download()
-		assert need_download == False
+		out, err = self.run_ocaml(['download', '--offline', '--xml', runexec], binary = True)
+		assert not err, err
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
 
-		xml = d.solver.selections.toDOM().toxml("utf-8")
+		xml = sels.toDOM().toxml("utf-8")
 		root = qdom.parse(BytesIO(xml))
 		s3 = selections.Selections(root)
 		runnable_impl = s3.selections[runnable]

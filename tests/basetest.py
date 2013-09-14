@@ -2,7 +2,7 @@
 import locale
 locale.setlocale(locale.LC_ALL, 'C')
 import sys, tempfile, os, shutil, imp, time
-import unittest
+import unittest, subprocess
 import logging
 import warnings
 from xml.dom import minidom
@@ -19,7 +19,7 @@ os.environ['LANGUAGE'] = 'C'
 os.environ['LANG'] = 'C'
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import qdom, background
+from zeroinstall.injector import qdom, background, namespaces
 from zeroinstall.injector import iface_cache, download, distro, model, handler, reader, trust
 from zeroinstall.zerostore import NotStored, Store, Stores; Store._add_with_helper = lambda *unused, **kwargs: False
 from zeroinstall import support, cmd
@@ -60,6 +60,7 @@ sys.modules['dbus.mainloop'] = my_dbus
 sys.modules['dbus.mainloop.glib'] = my_dbus
 
 mydir = os.path.dirname(__file__)
+ocaml_0install = os.path.join(mydir, '..', 'build', 'ocaml', '0install')
 
 class ExecMan(Exception):
 	def __init__(self, args):
@@ -255,6 +256,19 @@ class BaseTest(unittest.TestCase):
 
 		os.environ['PATH'] = self.old_path
 
+	def run_ocaml(self, args, stdin = None, stderr = subprocess.PIPE, binary = False):
+		child = subprocess.Popen([ocaml_0install] + args,
+				stdin = subprocess.PIPE if stdin is not None else None,
+				stdout = subprocess.PIPE, stderr = stderr, universal_newlines = not binary)
+		out, err = child.communicate(stdin)
+		status = child.wait()
+		if status:
+			msg = "Exit status: %d\n" % status
+			if binary:
+				msg = msg.encode('utf-8')
+			err += msg
+		return out, err
+
 	def import_feed(self, url, contents):
 		"""contents can be a path or an Element."""
 		iface_cache = self.config.iface_cache
@@ -266,6 +280,13 @@ class BaseTest(unittest.TestCase):
 			feed = reader.load_feed(contents)
 
 		iface_cache._feeds[url] = feed
+
+		xml = qdom.to_UTF8(feed.feed_element)
+		upstream_dir = basedir.save_cache_path(namespaces.config_site, 'interfaces')
+		cached = os.path.join(upstream_dir, model.escape(url))
+		with open(cached, 'wb') as stream:
+			stream.write(xml)
+
 		return feed
 
 	def run_0install(self, args):

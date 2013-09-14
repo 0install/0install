@@ -3,10 +3,7 @@ from distutils.core import setup
 from distutils.core import Command
 from distutils.command.build_py import build_py
 from distutils.command.install import install
-from distutils.command.install_lib import install_lib
-from distutils.command.install_data import install_data
-import os, subprocess, sys
-import glob
+import os
 import zeroinstall
 
 class adjust_scripts_for_home(Command):

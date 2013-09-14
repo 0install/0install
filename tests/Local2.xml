@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Echo</name>
+  <summary>Local feed, remote archive</summary>
+
+  <implementation id="foo bar=123" version='1.0'>
+    <command name='run' path='dummy'/>
+    <archive href='http://localhost/bar.tgz' size='1000'/>
+    <requires interface="odd" use="never"/>
+  </implementation>
+</interface>

@@ -11,11 +11,7 @@ os.environ["http_proxy"] = "localhost:8000"
 foo_iface_uri = 'http://foo'
 
 sys.path.insert(0, '..')
-from zeroinstall import SafeException
-from zeroinstall.support import tasks
-from zeroinstall.injector import run, namespaces, qdom, selections
-from zeroinstall.injector.requirements import Requirements
-from zeroinstall.injector.driver import Driver
+from zeroinstall.injector import namespaces, qdom, selections
 
 mydir = os.path.abspath(os.path.dirname(__file__))
 
@@ -41,7 +37,11 @@ class TestLaunch(BaseTest):
 				stdin = subprocess.PIPE if stdin is not None else None,
 				stdout = subprocess.PIPE, stderr = stderr, universal_newlines = True)
 		out, err = child.communicate(stdin)
-		if child.wait() == 0: out += 'Finished\n'
+		status = child.wait()
+		if status:
+			err += "Exit status: %d\n" % status
+		else:
+			out += "Finished\n"
 		return out, err
 
 	def testHelp(self):
@@ -72,7 +72,7 @@ class TestLaunch(BaseTest):
 		self.assertEqual("Finished\n", out)
 
 		out, err = self.run_0install(['list', 'one', 'two'])
-		assert not err
+		assert "Exit status: 1" in err, err
 		assert out.lower().startswith("usage:")
 	
 	def testVersion(self):
@@ -105,15 +105,10 @@ class TestLaunch(BaseTest):
   </group>
 </interface>""" % foo_iface_uri).encode('utf-8'))
 
-		driver = Driver(requirements = Requirements(tmp.name), config = self.config)
-		try:
-			downloaded = driver.solve_and_download_impls()
-			if downloaded:
-				tasks.wait_for_blocker(downloaded)
-			run.execute_selections(driver.solver.selections, [], stores = self.config.stores)
-			assert False
-		except SafeException as ex:
-			assert 'Command path must be relative' in str(ex), ex
+		out, err = self.run_0install(['run', tmp.name])
+		assert not out, out
+		assert "Exit status: 1" in err, err
+		assert "Absolute path '/bin/sh' in <group>" in err, err
 
 	def testOffline(self):
 		out, err = self.run_0launch(['--offline', 'http://foo/d'])

@@ -8,7 +8,6 @@ from zeroinstall import cmd, alias
 from zeroinstall.injector import model, selections, qdom, handler, gpg, config
 
 mydir = os.path.dirname(__file__)
-ocaml_0install = os.path.join(mydir, '..', 'build', 'ocaml', '0install')
 
 class Reply:
 	def __init__(self, reply):
@@ -19,12 +18,6 @@ class Reply:
 
 class TestInstall(BaseTest):
 	maxDiff = None
-
-	def run_ocaml(self, args, stderr = subprocess.PIPE):
-		child = subprocess.Popen([ocaml_0install] + args, stdout = subprocess.PIPE, stderr = stderr, universal_newlines = True)
-		out, err = child.communicate()
-		child.wait()
-		return out, err
 
 	def testHelp(self):
 		out, err = self.run_0install([])
@@ -299,7 +292,7 @@ class TestInstall(BaseTest):
 			alias.write_script(stream, model.canonical_iface_uri(binary_feed), None)
 
 		out, err = self.run_ocaml(['man', 'my-binary-alias'])
-		assert not err, err
+		assert "Exit status: 1" in err, err
 		assert "No matching manpage was found for 'my-binary-alias'" in out, out
 
 		with open(os.path.join(self.config_home, 'bad-unicode'), 'wb') as stream:
