@@ -235,6 +235,8 @@ module RealSystem (U : UnixType) =
           try Some (Sys.getenv name)
           with Not_found -> None
 
+        method environment = Unix.environment ()
+
         method waitpid = Unix.waitpid
 
         (** Call [waitpid] to collect the child.

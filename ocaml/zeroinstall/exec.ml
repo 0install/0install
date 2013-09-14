@@ -114,7 +114,7 @@ let make_selection_map system stores sels =
     process. This also ensures any necessary launchers exist, creating them
     if not. *)
 let get_exec_args config ?main sels args =
-  let env = Env.copy_current_env () in
+  let env = Env.copy_current_env config.system in
   let impls = make_selection_map config.system config.stores sels in
   let bindings = Binding.collect_bindings impls sels in
   let launcher_builder = get_launcher_builder config in

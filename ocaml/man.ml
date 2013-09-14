@@ -52,7 +52,7 @@ let find_and_exec_man config ?main ?fallback_name sels =
         let manpath = impl_path +/ mandir in
         if U.is_dir system manpath then (
           (* Note: unlike "man -M", this also copes with LANG settings... *)
-          let env = Env.copy_current_env () in
+          let env = Env.copy_current_env system in
           Zeroinstall.Env.putenv "MANPATH" manpath env;
           exec_man config ~env:(Env.to_array env) [prog_name];
         )

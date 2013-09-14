@@ -214,6 +214,10 @@ class fake_system tmpdir =
       | None -> "/root"
       | Some d -> d
 
+    method environment =
+      let to_str (name, value) = name ^ "=" ^ value in
+      Array.of_list (List.map to_str @@ StringMap.bindings env)
+
     method getenv name =
       try Some (StringMap.find name env)
       with Not_found -> None

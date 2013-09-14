@@ -10,8 +10,7 @@ type env = (string, string) Hashtbl.t;;
 
 let re_equals = Str.regexp_string "=";;
 
-(* TODO: use system *)
-let copy_current_env () : env =
+let copy_current_env system : env =
   let env = Hashtbl.create 1000 in
 
   let parse_env line =
@@ -20,7 +19,7 @@ let copy_current_env () : env =
     | _ -> failwith (Printf.sprintf "Invalid environment mapping '%s'" line)
   in
   
-  Array.iter parse_env (Unix.environment ());
+  Array.iter parse_env system#environment;
 
   env
 ;;

@@ -77,6 +77,7 @@ class type system =
     method waitpid :Unix.wait_flag list -> int -> (int * Unix.process_status)
 
     method getenv : varname -> string option
+    method environment : string array
 
     method platform : unit -> Platform.t
   end
