@@ -23,8 +23,6 @@ class virtual distribution (system:system) =
     (** Test whether this <selection> element is still valid *)
     method virtual is_installed : Support.Qdom.element -> bool
 
-    method virtual get_package_impls : (Support.Qdom.element * Feed.properties) -> Feed.implementation list
-
     method virtual get_all_package_impls : Feed.feed -> Feed.implementation list option
 
     (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value.
@@ -211,7 +209,7 @@ class virtual python_fallback_distribution (slave:Python.slave) =
               | _ -> raise_safe "Invalid response"
             )
 
-    method get_package_impls _ = raise Fallback_to_Python
+    method private get_package_impls _ = raise Fallback_to_Python
 
     method check_for_candidates feed =
       match get_matching_package_impls self feed with
@@ -344,7 +342,7 @@ module Debian = struct
   let dpkg_db_status = "/var/lib/dpkg/status"
 
   class debian_distribution config slave =
-    object (self)
+    object (self : #distribution)
       inherit python_fallback_distribution slave as super
 
       val distro_name = "Debian"
@@ -354,7 +352,7 @@ module Debian = struct
         try check_cache "deb" elem cache
         with Fallback_to_Python -> super#is_installed elem
 
-      method! get_package_impls (elem, props) =
+      method! private get_package_impls (elem, props) =
         let package_name = ZI.get_attribute "package" elem in
         let process cached_info =
           match Str.split_delim U.re_tab cached_info with
@@ -454,7 +452,7 @@ module ArchLinux = struct
         | matches -> Some (List.concat (List.map self#get_package_impls matches))
 *)
 
-      method! get_package_impls (elem, props) =
+      method! private get_package_impls (elem, props) =
         let package_name = ZI.get_attribute "package" elem in
         log_debug "Looking up distribution packages for %s" package_name;
         let items = get_entries () in
@@ -507,7 +505,7 @@ module Win = struct
       val! system_paths = []
 
       val distro_name = "Windows"
-      method! get_package_impls (elem, _props) =
+      method! private get_package_impls (elem, _props) =
         let package_name = ZI.get_attribute "package" elem in
         match package_name with
         | "openjdk-6-jre" | "openjdk-6-jdk"

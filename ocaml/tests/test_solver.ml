@@ -307,7 +307,7 @@ let suite = "solver">::: [
     let distro =
       object
         inherit Distro.generic_distribution slave as super
-        method! get_package_impls (elem, props) = [
+        method! private get_package_impls (elem, props) = [
           super#make_package_implementation elem props
             ~is_installed:true
             ~id:"package:is_distro_v1-1"
