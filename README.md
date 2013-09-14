@@ -49,6 +49,12 @@ build tools and some OCaml libraries to compile 0install. On Debian use:
        libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev libounit-ocaml-dev \
        python-gobject
 
+You can also get the dependencies using [OPAM](http://opam.ocamlpro.com/):
+
+    $ opam sw 4.00.1
+    $ eval `opam config env`
+    $ opam install yojson xmlm ounit lwt
+
 In the top-level directory, run:
 
     $ make && sudo make install
@@ -65,7 +71,7 @@ updated correctly, on Ubuntu at least.
 To try 0install without installing:
 
     $ make
-    $ ./dist/bin/0install --help
+    $ ./dist/files/0install --help
 
 ### Windows installation
 
