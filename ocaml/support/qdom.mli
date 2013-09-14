@@ -1,6 +1,7 @@
 (** XML processing *)
 
 type document
+type source_hint
 
 (** An XML element node (and nearby text). *)
 type element = {
@@ -10,8 +11,8 @@ type element = {
   mutable text_before: string;        (** The text node immediately before us *)
   mutable last_text_inside: string;   (** The last text node inside us with no following element *)
   doc: document;
-  pos: Xmlm.pos;                      (** Location of element in XML *)
-};;
+  source_hint: source_hint;           (** Location to report in error messages *)
+}
 
 (** {2 Parsing} *)
 
@@ -102,11 +103,11 @@ module NsQuery :
       val check_ns : element -> unit
 
       (** Create a new empty element with no source location. *)
-      val make : document -> string -> element
+      val make : document -> ?source_hint:element -> string -> element
 
       (** Create a new empty root element with its own document. *)
       val make_root : string -> element
 
       (** Create a new element as the first child of the given element. *)
-      val insert_first : string -> element -> element
+      val insert_first : ?source_hint:element -> string -> element -> element
     end

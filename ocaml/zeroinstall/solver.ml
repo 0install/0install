@@ -267,7 +267,7 @@ let get_selections dep_in_use root_req impl_cache command_cache =
 
         set_attr "interface" iface;
 
-        let sel = ZI.insert_first "selection" root in
+        let sel = ZI.insert_first ~source_hint:impl.Feed.qdom "selection" root in
         if impl != dummy_impl then (
           let commands = Hashtbl.find_all commands_needed iface in
           let commands = List.sort compare commands in

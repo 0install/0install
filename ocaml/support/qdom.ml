@@ -9,16 +9,22 @@ type document = {
   mutable prefixes : string StringMap.t;
 }
 
+(* Used in diagnostic messages to show the source of an element. *)
+type source_hint =
+  | Pos of Xmlm.pos           (* A location in our document *)
+  | GeneratedFrom of element  (* Another element (which was used to generate this one) *)
+  | Generated                 (* No further information *)
+
 (** An XML element node, including nearby text. *)
-type element = {
+and element = {
   tag: Xmlm.name;
   mutable attrs: Xmlm.attribute list;
   mutable child_nodes: element list;
   mutable text_before: string;        (** The text node immediately before us *)
   mutable last_text_inside: string;   (** The last text node inside us with no following element *)
   doc: document;
-  pos: Xmlm.pos;                      (** Location of element in XML *)
-};;
+  source_hint: source_hint;
+}
 
 (** When serialising the document, use [prefix] as the prefix for the namespace [uri].
     If [prefix] is already registered, find a free name ([prefix1], [prefix2], etc). *)
@@ -66,7 +72,7 @@ let parse_input source_name i = try (
             text_before = prev_text;
             last_text_inside = trailing_text;
             doc;
-            pos;
+            source_hint = Pos pos;
           } in parse_nodes i (new_node :: prev_siblings) ""
         )
   in
@@ -110,16 +116,21 @@ let import_node elem doc =
   let rec imp node = {node with
       doc = doc;
       child_nodes = List.map imp node.child_nodes;
-      pos = (-1, -1);
+      source_hint = GeneratedFrom elem;
     } in
   imp elem
 
-let show_with_loc elem =
-  let (_ns, name) = elem.tag in
-  let (line, col) = elem.pos in
-  match elem.doc.source_name with
-  | Some path -> Printf.sprintf "<%s> at %s:%d:%d" name path line col
-  | None -> Printf.sprintf "<%s> (generated)" name
+let rec show_with_loc elem =
+  match elem.source_hint with
+  | GeneratedFrom source -> show_with_loc source
+  | Generated ->
+      let (_ns, name) = elem.tag in
+      Printf.sprintf "<%s> (generated)" name
+  | Pos (line, col) ->
+      let (_ns, name) = elem.tag in
+      match elem.doc.source_name with
+      | Some path -> Printf.sprintf "<%s> at %s:%d:%d" name path line col
+      | None -> Printf.sprintf "<%s> (generated)" name
 ;;
 
 module type NsType = sig
@@ -292,14 +303,16 @@ module NsQuery (Ns : NsType) = struct
     else if name <> expected then raise_elem "Expected <%s> but found " expected elem
     else ()
 
-  let make doc tag = {
+  let make doc ?source_hint tag = {
     tag = (Ns.ns, tag);
     attrs = [];
     child_nodes = [];
     text_before = "";
     last_text_inside = "";
     doc;
-    pos = (0, 0);
+    source_hint = match source_hint with
+    | None -> Generated
+    | Some elem -> GeneratedFrom elem
   }
 
   let make_root tag =
@@ -309,8 +322,8 @@ module NsQuery (Ns : NsType) = struct
     } in
     make doc tag
 
-  let insert_first tag parent =
-    let child = make parent.doc tag in
+  let insert_first ?source_hint tag parent =
+    let child = make ?source_hint parent.doc tag in
     parent.child_nodes <- child :: parent.child_nodes;
     child
 end
