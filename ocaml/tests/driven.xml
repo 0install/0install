@@ -1,0 +1,255 @@
+<?xml version='1.0' ?>
+<test-cases xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
+  <test name='unknown-alg'>
+    <interface uri="http://foo/">
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <description>Foo</description>
+      <implementation main='.' id='unknown=123' version='1.0'>
+        <archive href='http://foo/foo.tgz' size='100'/>
+      </implementation>
+    </interface>
+
+    <requirements command='run' interface='http://foo/' fails='true' dry-run='true'/>
+
+    <problem>No digests found for 'unknown=123': &lt;implementation> at .*/cache/0install.net/interfaces/http%3a%2f%2ffoo%2f:.*</problem>
+  </test>
+
+  <test name='download'>
+    <interface local-path="local.xml" main='ThisBetterNotExist'>
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <description>Foo</description>
+      <implementation version='1.0' id='/bin'/>
+    </interface>
+
+    <requirements command='run' interface='./local.xml' dry-run='true'>
+      <arg>Hello</arg>
+    </requirements>
+
+    <output>\[dry-run] would execute: /bin/ThisBetterNotExist Hello</output>
+  </test>
+
+  <test name='no-main'>
+    <interface local-path="local.xml">
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <description>Foo</description>
+      <implementation version='1.0' id='/bin'/>
+    </interface>
+
+    <requirements command='run' interface='./local.xml' fails='true'/>
+
+    <problem>Can't find all required implementations\(.\|\)*/bin (1.0): No run command</problem>
+  </test>
+
+  <test name='need-download'>
+    <interface last-modified="0"
+      uri="http://foo/"
+      main='ThisBetterNotExist'>
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <description>Foo</description>
+      <implementation version='1.0' id='sha1=123'>
+        <archive href='http://foo/foo.tgz' size='100'/>
+      </implementation>
+    </interface>
+
+    <requirements command='run' interface='http://foo/' dry-run='true'/>
+
+    <download digest='sha1=123'/>
+
+    <output>\[dry-run] would execute: .*/cache/0install.net/implementations/sha1=123/ThisBetterNotExist</output>
+  </test>
+
+  <test name='binding'>
+    <interface last-modified="0"
+      uri="http://foo/">
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <description>Foo</description>
+      <implementation version='1.0' id='sha1=123'/>
+    </interface>
+
+    <interface
+      local-path='bar.xml'
+      main='.'>
+      <name>Bar</name>
+      <summary>Bar</summary>
+      <description>Bar</description>
+      <group>
+        <requires interface='http://foo/'>
+          <environment name='FOO_PATH' insert='.'/>
+          <environment name='BAR_PATH' insert='.' default='/a:/b'/>
+          <environment name='BAZ_PATH' insert='.'/>
+          <environment name='NO_PATH' value='val'/>
+          <environment name='XDG_DATA_DIRS' insert='.'/>
+        </requires>
+        <environment name='SELF_GROUP' insert='group' mode='replace'/>
+        <implementation version='1.0' id='.'>
+          <environment name='SELF_IMPL' insert='impl' mode='replace'/>
+        </implementation>
+      </group>
+    </interface>
+
+    <requirements command='run' interface='./bar.xml'>
+      <arg>Hello</arg>
+    </requirements>
+
+    <set-env name='FOO_PATH' value='old'/>
+    <cache digest='sha1=123'/>
+    <output>Would execute: .*/\. Hello</output>
+    <check-env name='FOO_PATH'>@TMP@/cache/0install.net/implementations/sha1=123/.:old</check-env>
+    <check-env name='BAR_PATH'>@TMP@/cache/0install.net/implementations/sha1=123/.:/a:/b</check-env>
+    <check-env name='BAZ_PATH'>@TMP@/cache/0install.net/implementations/sha1=123/.</check-env>
+    <check-env name='NO_PATH'>val</check-env>
+    <check-env name='SELF_GROUP'>@TMP@/group</check-env>
+    <check-env name='SELF_IMPL'>@TMP@/impl</check-env>
+    <check-env name='XDG_DATA_DIRS'>@TMP@/cache/0install.net/implementations/sha1=123/.:/usr/local/share:/usr/share</check-env>
+
+  </test>
+
+  <test name='feeds'>
+    <interface last-modified="0"
+      uri="http://foo/">
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <description>Foo</description>
+      <feed src='http://bar'/>
+    </interface>
+
+    <interface last-modified="0"
+      uri="http://bar">
+      <feed-for interface='http://foo/'/>
+      <name>Bar</name>
+      <summary>Bar</summary>
+      <description>Bar</description>
+      <implementation version='1.0' id='sha1=123' main='dummy'>
+        <archive href='foo' size='10'/>
+      </implementation>
+    </interface>
+
+    <requirements command='run' interface='http://foo/' dry-run='true'/>
+
+    <download digest='sha1=123'/>
+    <output>\[dry-run] would execute: .*/cache/0install.net/implementations/sha1=123/dummy</output>
+  </test>
+
+  <test name='no-local'>
+    <interface last-modified="1110752708"
+      uri="http://foo/">
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <description>Foo</description>
+      <feed src='/etc/passwd'/>
+    </interface>
+
+    <requirements command='run' interface='http://foo/' dry-run='true'/>
+
+    <problem>Relative URI '/etc/passwd' in non-local feed &lt;feed> at .*</problem>
+  </test>
+
+  <test name='dl-feed'>
+    <interface last-modified="1110752708"
+      uri="http://foo/">
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <feed src='http://example.com'/>
+    </interface>
+
+    <requirements command='run' interface='http://foo/' dry-run='true'/>
+
+    <problem>Unexpected feed 'http://example.com' requested</problem>  <!-- (error from test driver) -->
+  </test>
+
+
+  <test name='dl-feed2'>
+    <interface last-modified="1110752708"
+      uri="http://foo/">
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <feed src='/BadFeed'/>
+    </interface>
+
+    <requirements command='run' interface='http://foo/' dry-run='true'/>
+
+    <problem>Relative URI '/BadFeed' in non-local feed &lt;feed> at .*</problem>
+  </test>
+
+  <test name='best-unusable'>
+    <interface last-modified="1110752708"
+      uri="http://foo/">
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <implementation id='sha1=123' version='1.0' arch='odd-weird' main='dummy'/>
+    </interface>
+
+    <requirements command='run' interface='http://foo/' dry-run='true'/>
+
+    <problem>\(.\|\)*No usable implementations:.*</problem>
+  </test>
+
+  <test name='no-archives'>
+    <interface last-modified="1110752708"
+      uri="http://foo/">
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <implementation id='sha1=123' version='1.0' main='dummy'/>
+    </interface>
+    <requirements command='run' interface='http://foo/' dry-run='true'/>
+    <problem>\(.\|\)*sha1=123 (1.0): No retrieval methods</problem>
+  </test>
+
+  <test name='cycle'>
+    <interface last-modified="1110752708"
+      uri="http://foo/">
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <group main='foo'>
+        <requires interface='http://foo/'/>
+        <implementation id='sha1=123' version='1.0'>
+          <archive href='foo' size='10'/>
+        </implementation>
+      </group>
+    </interface>
+
+    <requirements command='run' interface='http://foo/' dry-run='true'/>
+    <download digest='sha1=123'/>
+    <output>\[dry-run] would execute: .*/cache/0install.net/implementations/sha1=123/foo</output>
+  </test>
+
+  <test name='constraints'>
+    <interface uri="http://bar/">
+      <name>Bar</name>
+      <summary>Bar</summary>
+      <implementation id='sha1=100' version='1.0'>
+        <archive href='foo' size='10'/>
+      </implementation>
+      <implementation id='sha1=150' stability='developer' version='1.5'>
+        <archive href='foo' size='10'/>
+      </implementation>
+      <implementation id='sha1=200' version='2.0'>
+        <archive href='foo' size='10'/>
+      </implementation>
+    </interface>
+
+    <interface uri="http://foo/">
+      <name>Foo</name>
+      <summary>Foo</summary>
+      <group main='dummy'>
+        <requires interface='http://bar/'>
+          <version before='2.0' not-before='1.5'/>
+        </requires>
+        <implementation id='sha1=123' version='1.0'>
+          <archive href='foo' size='10'/>
+        </implementation>
+      </group>
+    </interface>
+
+    <requirements command='run' interface='http://foo/' dry-run='true'/>
+    <download digest='sha1=123'/>
+    <download digest='sha1=150'/>
+    <output>\[dry-run] would execute: .*/cache/0install.net/implementations/sha1=123/dummy</output>
+  </test>
+
+</test-cases>

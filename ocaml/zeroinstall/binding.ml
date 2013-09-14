@@ -119,7 +119,9 @@ let calc_new_value name mode value env =
         | Some d -> add_to d                (* or to the specified default *)
         | None -> match get_default name with    
           | Some d -> add_to d              (* or to the standard default *)
-          | None -> value                   (* no old value; use new value directly *)
+          | None ->
+              log_info "%s=%s" name value;  (* no old value; use new value directly *)
+              value
 ;;
 
 let do_env_binding env impls iface {var_name; mode; source} =

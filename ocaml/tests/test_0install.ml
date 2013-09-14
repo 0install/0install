@@ -17,6 +17,31 @@ let feed_dir = U.abspath Fake_system.real_system (".." +/ ".." +/ "tests")
 
 exception Ok
 
+(* For each <selection> in [xml], create an (empty) implementation directory in the cache and
+ * remove the digest. *)
+let handle_download_selections config pending_digests xml =
+  ListLabels.iter xml.Q.child_nodes ~f:(fun sel ->
+    let open Zeroinstall.Selections in
+    match make_selection sel with
+    | CacheSelection digests ->
+        if Zeroinstall.Stores.lookup_maybe config.system digests config.stores = None then (
+          let digest_str =
+            U.first_match digests ~f:(fun digest ->
+              let digest_str = Zeroinstall.Stores.format_digest digest in
+              if StringSet.mem digest_str !pending_digests then Some digest_str else None
+            ) in
+          match digest_str with
+          | None -> raise_safe "Digest not expected!"
+          | Some digest_str ->
+              pending_digests := StringSet.remove digest_str !pending_digests;
+              let user_store = List.hd config.stores in
+              U.makedirs config.system (user_store +/ digest_str) 0o755;
+              log_info "Added %s to stores" digest_str
+        )
+    | _ -> ()
+  );
+  `List [`String "ok"; `List []]
+
 let assert_contains expected whole =
   try ignore @@ Str.search_forward (Str.regexp_string expected) whole 0
   with Not_found -> assert_failure (Printf.sprintf "Expected string '%s' not found in '%s'" expected whole)
@@ -53,33 +78,10 @@ class fake_slave config =
     );
     `List [`String "ok"; `String "success"] in
 
-  let handle_download_selections xml =
-    ListLabels.iter xml.Q.child_nodes ~f:(fun sel ->
-      let open Zeroinstall.Selections in
-      match make_selection sel with
-      | CacheSelection digests ->
-          if Zeroinstall.Stores.lookup_maybe system digests config.stores = None then (
-            let digest_str =
-              U.first_match digests ~f:(fun digest ->
-                let digest_str = Zeroinstall.Stores.format_digest digest in
-                if StringSet.mem digest_str !pending_digests then Some digest_str else None
-              ) in
-            match digest_str with
-            | None -> raise_safe "Digest not expected!"
-            | Some digest_str ->
-                pending_digests := StringSet.remove digest_str !pending_digests;
-                let user_store = List.hd config.stores in
-                U.makedirs system (user_store +/ digest_str) 0o755;
-                log_info "Added %s to stores" digest_str
-          )
-      | _ -> ()
-    );
-    `List [`String "ok"; `List []] in
-
   let fake_slave ?xml request =
     match request with
     | `List [`String "download-and-import-feed"; `String url] -> Some (Lwt.return @@ handle_import_feed url)
-    | `List [`String "download-selections"; _opts] -> Some (Lwt.return @@ handle_download_selections (expect xml))
+    | `List [`String "download-selections"; _opts] -> Some (Lwt.return @@ handle_download_selections config pending_digests (expect xml))
     | _ -> None in
 
   object
