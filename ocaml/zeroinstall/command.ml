@@ -77,7 +77,10 @@ let get_runner elem =
 let rec build_command ?main ?(dry_run=false) impls command_iface command_name env : string list =
   try
     let (command_sel, command_impl_path) = Selections.find_ex command_iface impls in
-    let command = get_command_ex command_name command_sel in
+    let command =
+      match command_name with
+      | None -> ZI.make command_sel.Qdom.doc ~source_hint:command_sel "command"
+      | Some command_name -> get_command_ex command_name command_sel in
     let command_rel_path =
       let path = ZI.get_attribute_opt "path" command in
       match main, path with
@@ -125,6 +128,6 @@ let rec build_command ?main ?(dry_run=false) impls command_iface command_name en
     | Some runner ->
         let runner_args = get_args runner env in
         let runner_command_name = default "run" (ZI.get_attribute_opt "command" runner) in
-        (build_command ~dry_run impls (ZI.get_attribute "interface" runner) runner_command_name env) @ runner_args @ args
+        (build_command ~dry_run impls (ZI.get_attribute "interface" runner) (Some runner_command_name) env) @ runner_args @ args
   with Safe_exception _ as ex -> reraise_with_context ex "... building command for %s" command_iface
 ;;

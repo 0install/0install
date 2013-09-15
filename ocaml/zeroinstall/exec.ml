@@ -88,7 +88,7 @@ let do_exec_binding dry_run builder env impls (iface_uri, {Binding.exec_type; Bi
     Dry_run.log "would create launcher %s" exec_path
   );
 
-  let command_argv = Command.build_command ~dry_run impls iface_uri command env in
+  let command_argv = Command.build_command ~dry_run impls iface_uri (Some command) env in
 
   let () = match exec_type with
   | Binding.InPath -> Binding.prepend "PATH" exec_dir path_sep env
@@ -130,7 +130,7 @@ let get_exec_args config ?main sels args =
   (* Do <executable-in-*> bindings *)
   List.iter (do_exec_binding config.dry_run launcher_builder env impls) exec_bindings;
 
-  let command = ZI.get_attribute "command" sels in
+  let command = ZI.get_attribute_opt "command" sels in
   let prog_args = (Command.build_command ?main ~dry_run:config.dry_run impls (ZI.get_attribute "interface" sels) command env) @ args in
 
   (prog_args, (Env.to_array env))
@@ -138,6 +138,9 @@ let get_exec_args config ?main sels args =
 (** Run the given selections. If [wrapper] is given, run that command with the command we would have run as the arguments.
     If [exec] is given, use that instead of config.system#exec. *)
 let execute_selections config ?exec ?wrapper ?main sels args =
+  if main = None && ZI.get_attribute_opt Feed.attr_command sels = None then
+    raise_safe "Can't run: no command specified!";
+
   let (prog_args, env) = get_exec_args config ?main sels args in
 
   let prog_args =

@@ -165,8 +165,8 @@ let attr_distribution = "distribution"
 
 let value_testing = "testing"
 
-let make_command doc name ?(new_attr="path") path : command =
-  let elem = ZI.make doc "command" in
+let make_command doc ?source_hint name ?(new_attr="path") path : command =
+  let elem = ZI.make doc ?source_hint "command" in
   elem.Qdom.attrs <- [(("", "name"), name); (("", new_attr), path)];
   {
     command_qdom = elem;
@@ -478,7 +478,7 @@ let parse system root feed_local_path =
             match ZI.get_attribute_opt attr_name item with
             | None -> ()
             | Some path ->
-                let new_command = make_command root.Qdom.doc command_name path in
+                let new_command = make_command root.Qdom.doc ~source_hint:item command_name path in
                 s := {!s with commands = StringMap.add command_name new_command !s.commands} in
           handle_old_command attr_main "run";
           handle_old_command attr_self_test "test";
@@ -487,7 +487,7 @@ let parse system root feed_local_path =
             match Qdom.get_attribute_opt (COMPILE_NS.ns, "command") item with
             | None -> ()
             | Some command ->
-                let new_command = make_command root.Qdom.doc "compile" ~new_attr:"shell-command" command in
+                let new_command = make_command root.Qdom.doc ~source_hint:item "compile" ~new_attr:"shell-command" command in
                 s := {!s with commands = StringMap.add "compile" new_command !s.commands} in
 
           let new_bindings = ref [] in
@@ -532,7 +532,7 @@ let parse system root feed_local_path =
   let root_commands = match ZI.get_attribute_opt attr_main root with
     | None -> StringMap.empty
     | Some path ->
-        let new_command = make_command root.Qdom.doc "run" path in
+        let new_command = make_command root.Qdom.doc ~source_hint:root "run" path in
         StringMap.singleton "run" new_command in
 
   let root_state = {
