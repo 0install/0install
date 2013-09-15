@@ -214,8 +214,6 @@ let suite = "driver">::: [
     let import name =
       U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ "http://foo/" ^ name) 0o644 in
     import "Binary.xml";
-    import "Source.xml";
-    import "Compiler.xml";
     let distro =
       object
         inherit Distro.distribution config.system
@@ -237,6 +235,9 @@ let suite = "driver">::: [
 
     Fake_system.equal_str_lists ["sha1=123"] @@ get_ids result;
 
+    (* Now ask for source instead *)
+    import "Source.xml";
+    import "Compiler.xml";
     let reqs = {reqs with Requirements.source = true; command = None} in
     let (ready, result) = Driver.solve_with_downloads {config with network_use = Offline} fetcher distro reqs ~force:false ~update_local:false in
     assert (ready = true);

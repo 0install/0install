@@ -17,35 +17,6 @@ mydir = os.path.dirname(os.path.abspath(__file__))
 command_dep = os.path.join(mydir, 'command-dep.xml')
 
 class TestSolver(BaseTest):
-	def testSimple(self):
-		iface_cache = self.config.iface_cache
-		s = solver.DefaultSolver(self.config)
-
-		foo = iface_cache.get_interface('http://foo/Binary.xml')
-		self.import_feed(foo.uri, 'Binary.xml')
-		foo_src = iface_cache.get_interface('http://foo/Source.xml')
-		self.import_feed(foo_src.uri, 'Source.xml')
-		compiler = iface_cache.get_interface('http://foo/Compiler.xml')
-		self.import_feed(compiler.uri, 'Compiler.xml')
-
-		binary_arch = arch.Architecture({None: 1}, {None: 1})
-		assert str(binary_arch).startswith("<Arch")
-		s.solve('http://foo/Binary.xml', binary_arch)
-
-		assert s.ready
-		assert s.feeds_used == set([foo.uri]), s.feeds_used
-		assert s.selections.selections[foo.uri].id == 'sha1=123'
-
-		# Now ask for source instead
-		s.solve('http://foo/Binary.xml',
-				arch.SourceArchitecture(binary_arch),
-				command_name = 'compile')
-		assert s.ready, s.get_failure_reason()
-		assert s.feeds_used == set([foo.uri, foo_src.uri, compiler.uri]), s.feeds_used
-		assert s.selections.selections[foo.uri].id == 'sha1=234'		# The source
-		assert s.selections.selections[compiler.uri].id == 'sha1=345'	# A binary needed to compile it
-
-		assert not s.details
 
 	def testCommand(self):
 		s = solver.DefaultSolver(self.config)

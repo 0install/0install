@@ -454,7 +454,7 @@ module MakeSAT(User : USER) =
                    can be set to False. *)
                 if not @@ enqueue problem (neg l) (Clause (self :> clause)) then (
                   if debug then log_debug "CONFLICT: enqueue failed for %s" (name_lit problem (neg l));
-                  raise Conflict
+                  raise Conflict    (* Can't happen, since we already checked we're Undecided *)
                 )
               | _ -> ()
             );

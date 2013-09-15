@@ -184,6 +184,7 @@ let suite =
   Test_completion.suite;
   Test_versions.suite;
   Test_utils.suite;
+  Test_sat.suite;
   Test_solver.suite;
   Test_distro.suite;
   Test_0install.suite;
