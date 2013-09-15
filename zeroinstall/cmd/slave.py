@@ -35,6 +35,7 @@ else:
 		import os, msvcrt
 		msvcrt.setmode(stdin.fileno(), os.O_BINARY)
 		msvcrt.setmode(stdout.fileno(), os.O_BINARY)
+sys.stdout = sys.stderr
 
 def read_chunk():
 	l = support.read_bytes(0, 8, null_ok = True)
@@ -57,12 +58,32 @@ def reqs_from_json(reqs_json):
 		setattr(requirements, k, v)
 	return requirements
 
-def do_download_selections(config, options, args, xml):
-	opts, = args
-	include_packages = opts['include-packages']
+def get_dry_run_names(config):
+	paths = set()
+	if config.handler.dry_run:
+		for store in config.stores.stores:
+			for name in store.dry_run_names:
+				paths.add(os.path.join(store.dir, name))
+	return paths
 
-	sels = selections.Selections(xml)
-	return sels.download_missing(config, include_packages = include_packages)
+@tasks.async
+def do_download_selections(config, ticket, options, args, xml):
+	try:
+		opts, = args
+		include_packages = opts['include-packages']
+
+		old_dry_run_names = get_dry_run_names(config)
+
+		sels = selections.Selections(xml)
+		blocker = sels.download_missing(config, include_packages = include_packages)
+		yield blocker
+		tasks.check(blocker)
+
+		added_names = get_dry_run_names(config) - old_dry_run_names
+
+		send_json(["return", ticket, ["ok", list(added_names)]])
+	except Exception as ex:
+		send_json(["return", ticket, ["error", str(ex)]])
 
 def to_json(impl):
 	attrs = {
@@ -315,8 +336,7 @@ def handle_invoke(config, options, ticket, request):
 			response = do_gui_update_selections(request[1:], xml)
 		elif command == 'download-selections':
 			xml = qdom.parse(BytesIO(read_chunk()))
-			blocker = do_download_selections(config, options, request[1:], xml)
-			reply_when_done(ticket, blocker)
+			blocker = do_download_selections(config, ticket, options, request[1:], xml)
 			return #async
 		elif command == 'get-package-impls':
 			xml = qdom.parse(BytesIO(read_chunk()))
@@ -391,6 +411,9 @@ def handle(config, options, args):
 
 	if options.offline:
 		config.network_use = model.network_offline
+
+	if options.dry_run:
+		config.handler.dry_run = True
 
 	def slave_raw_input(prompt = ""):
 		ticket = take_ticket()

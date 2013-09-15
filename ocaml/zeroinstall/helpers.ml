@@ -29,7 +29,17 @@ let download_selections config (slave:Python.slave) distro sels =
 
     let request : Yojson.Basic.json = `List [`String "download-selections"; opts] in
 
-    slave#invoke ~xml:sels request ignore
+    let dry_run_paths =
+      slave#invoke ~xml:sels request (function
+        | `List dry_run_paths -> List.map Yojson.Basic.Util.to_string dry_run_paths
+        | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
+      ) in
+
+    (* In --dry-run mode, the directories haven't actually been added, so we need to tell the
+     * dryrun_system about them. *)
+    if config.dry_run then (
+      List.iter (fun name -> config.system#mkdir name 0o755) dry_run_paths
+    )
   )
 
 (** Get some selectsions for these requirements.
