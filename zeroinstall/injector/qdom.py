@@ -168,3 +168,17 @@ class Prefixes(object):
 			return doc.createElementNS(uri, localName)
 		else:
 			return doc.createElementNS(uri, self.get(uri) + ':' + localName)
+
+def to_DOM(root):
+	from xml.dom import minidom, XMLNS_NAMESPACE
+	default_ns = root.uri
+	doc = minidom.getDOMImplementation().createDocument(default_ns, "unused", None)
+	p = Prefixes(default_ns)
+	dom = root.toDOM(doc, p)
+	dom.setAttributeNS(XMLNS_NAMESPACE, 'xmlns', default_ns)
+	for uri, prefix in p.prefixes.items():
+		dom.setAttributeNS(XMLNS_NAMESPACE, 'xmlns:' + prefix, uri)
+	return dom
+
+def to_UTF8(root):
+	return to_DOM(root).toxml(encoding = 'utf-8')

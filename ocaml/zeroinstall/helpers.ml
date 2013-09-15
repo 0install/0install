@@ -43,7 +43,7 @@ let solve_and_download_impls config distro (slave:Python.slave) ?test_callback r
     | use_gui, false -> use_gui in
 
   let solve_without_gui () =
-    let fetcher = new Fetch.fetcher slave in
+    let fetcher = new Fetch.fetcher config slave in
     let result = Driver.solve_with_downloads config fetcher distro reqs ~force:refresh ~update_local:refresh in
     match result with
     | (false, result) -> raise_safe "%s" (Diagnostics.get_failure_reason config result)

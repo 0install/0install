@@ -88,11 +88,11 @@ let solve_with_downloads config fetcher distro ?feed_provider ?watcher requireme
               add_download f (fetcher#download_and_import_feed f >|= fun download () ->
                 match download with
                 | `aborted_by_user -> ()    (* No need to report this *)
-                | `success ->
-                    feed_provider#forget f;
+                | `success new_xml ->
+                    feed_provider#replace_feed f (Feed.parse config.system new_xml None);
                     (* On success, we also need to refetch any "distribution" feed that depends on this one *)
                     let distro_url = "distribution:" ^ f in
-                    feed_provider#forget distro_url;
+                    feed_provider#forget_distro distro_url;
                     forget_feed distro_url;
                     (* (we will now refresh, which will trigger distro#check_for_candidates *)
               )

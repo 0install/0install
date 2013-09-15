@@ -11,10 +11,7 @@ open Zeroinstall.General
 module U = Support.Utils
 module Q = Support.Qdom
 
-let cache_path_for config url =
-  let cache = config.basedirs.Support.Basedir.cache in
-  let dir = Support.Basedir.save_path config.system (config_site +/ "interfaces") cache in
-  dir +/ Escape.escape url
+let cache_path_for = Feed_cache.get_save_cache_path
 
 class fake_slave config handler : Python.slave =
   object (_ : #Python.slave)
@@ -110,10 +107,13 @@ let make_driver_test test_elem =
           let root =
             try StringMap.find url !downloadable_feeds
             with Not_found -> raise_safe "Unexpected feed '%s' requested" url in
+          let b = Buffer.create 1000 in
+          Support.Qdom.output (Xmlm.make_output @@ `Buffer b) root;
+          let xml = Buffer.contents b in
           fake_system#atomic_write [Open_wronly; Open_binary] (cache_path_for config url) ~mode:0o644 (fun ch ->
-            Support.Qdom.output (Xmlm.make_output @@ `Channel ch) root
+            output_string ch xml
           );
-          `String "success"
+          `List [`String "success"; `String xml]
 
         method get_distro_candidates _ = `List []
       end in
@@ -162,8 +162,9 @@ let suite = "driver">::: [
 
         method download_and_import = function
           | "http://example.com/prog.xml" as url ->
-              U.copy_file config.system ("prog.xml") (cache_path_for config url) 0o644;
-              `String "success"
+              U.copy_file config.system "prog.xml" (cache_path_for config url) 0o644;
+              let feed = U.read_file config.system "prog.xml" in
+              `List [`String "success"; `String feed]
           | url -> failwith url
 
         method get_distro_candidates = function
@@ -179,7 +180,7 @@ let suite = "driver">::: [
       end in
     let slave = new fake_slave config handler in
     let distro = new Distro.generic_distribution slave in
-    let fetcher = new Fetch.fetcher slave in
+    let fetcher = new Fetch.fetcher config slave in
 
     let (ready, result) = Driver.solve_with_downloads config fetcher distro reqs ~force:true ~update_local:true in
     if not ready then

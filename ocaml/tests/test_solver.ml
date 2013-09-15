@@ -89,6 +89,9 @@ class fake_feed_provider system distro =
         Some (Hashtbl.find ifaces url, overrides)
       with Not_found -> None
 
+    method replace_feed url feed =
+      Hashtbl.add ifaces url feed
+
     method get_distro_impls feed =
       match distro with
       | None -> None
@@ -115,7 +118,6 @@ class fake_feed_provider system distro =
       let feed = parse system elem None in
       Hashtbl.add ifaces uri feed
 
-    method forget _ = failwith "forget"
     method forget_distro _ = failwith "forget_distro"
   end
 

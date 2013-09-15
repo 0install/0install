@@ -1165,7 +1165,7 @@ class ZeroInstallFeed(object):
 	"""
 	# _main is deprecated
 	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'first_description', 'summaries', 'first_summary', '_package_implementations',
-		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata', 'local_path']
+		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata', 'local_path', 'feed_element']
 
 	def __init__(self, feed_element, local_path = None, distro = None):
 		"""Create a feed object from a DOM.
@@ -1186,6 +1186,7 @@ class ZeroInstallFeed(object):
 		self.metadata = []
 		self.last_checked = None
 		self._package_implementations = []
+		self.feed_element = feed_element
 
 		if distro is not None:
 			import warnings

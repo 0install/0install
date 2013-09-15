@@ -193,7 +193,9 @@ def do_download_and_import_feed(config, ticket, args):
 		if blocker:
 			yield blocker
 			tasks.check(blocker)
-		send_json(["return", ticket, ["ok", "success"]])
+		# (return it because in dry-run mode it won't be in the cache)
+		feed = config.iface_cache.get_feed(feed_url)
+		send_json(["return", ticket, ["ok", ["success", qdom.to_DOM(feed.feed_element).toxml()]]])
 	except download.DownloadAborted as ex:
 		send_json(["return", ticket, ["ok", "aborted-by-user"]])
 	except Exception as ex:

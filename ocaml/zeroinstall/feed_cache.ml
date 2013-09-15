@@ -21,16 +21,22 @@ let failed_check_delay = float_of_int (1 * hours)
 let is_local_feed uri = U.path_is_absolute uri
 
 (* For local feeds, returns the absolute path. *)
-let get_cached_feed_path config uri =
-  if U.starts_with uri "distribution:" then (
-    failwith uri
-  ) else if is_local_feed uri then (
-    Some uri
+let get_cached_feed_path config url =
+  if U.starts_with url "distribution:" then (
+    failwith url
+  ) else if is_local_feed url then (
+    Some url
   ) else (
     let cache = config.basedirs.Basedir.cache in
-    Basedir.load_first config.system (config_site +/ "interfaces" +/ Escape.escape uri) cache
+    Basedir.load_first config.system (config_site +/ "interfaces" +/ Escape.escape url) cache
   )
-;;
+
+let get_save_cache_path config url =
+  assert (not (U.starts_with url "distribution:"));
+  assert (not (is_local_feed url));
+  let cache = config.basedirs.Support.Basedir.cache in
+  let dir = Support.Basedir.save_path config.system (config_site +/ "interfaces") cache in
+  dir +/ Escape.escape url
 
 (** Actually, we list all the cached feeds. Close enough. *)
 let list_all_interfaces config =
@@ -251,6 +257,9 @@ class feed_provider config distro =
         | Some (_feed, overrides) -> internal_is_stale config uri (Some overrides) in
       StringMap.exists check !cache
 
-    method forget url = cache := StringMap.remove url !cache
+    method replace_feed url new_feed =
+      let overrides = Feed.load_feed_overrides config url in
+      cache := StringMap.add url (Some (new_feed, overrides)) !cache
+
     method forget_distro url = distro_cache := StringMap.remove url !distro_cache
   end

@@ -313,7 +313,7 @@ let get_selections_gui config (slave:Python.slave) ?test_callback distro ?(systr
   ) else if not (slave#invoke (`List [`String "check-gui"; `String (string_of_ynm use_gui)]) Yojson.Basic.Util.to_bool) then (
     `Dont_use_GUI       (* [check-gui] will throw if use_gui is [Yes] *)
   ) else (
-    let fetcher = new Fetch.fetcher slave in
+    let fetcher = new Fetch.fetcher config slave in
     let feed_provider = ref (new Feed_cache.feed_provider config distro) in
 
     let original_solve = Solver.solve_for config !feed_provider reqs in

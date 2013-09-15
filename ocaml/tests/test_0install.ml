@@ -76,7 +76,7 @@ class fake_slave config =
     system#atomic_write [Open_wronly; Open_binary] target ~mode:0o644 (fun ch ->
       output_string ch contents
     );
-    `List [`String "ok"; `String "success"] in
+    `List [`String "ok"; `List [`String "success"; `String contents]] in
 
   let fake_slave ?xml request =
     match request with

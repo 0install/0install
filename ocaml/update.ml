@@ -165,7 +165,7 @@ let handle_bg options flags args =
 
         (* Refresh the feeds and solve, silently. If we find updates to download, we try to run the GUI
          * so the user can see a systray icon for the download. If that's not possible, we download silently too. *)
-        let fetcher = new Zeroinstall.Fetch.fetcher slave in
+        let fetcher = new Zeroinstall.Fetch.fetcher config slave in
         let (ready, result) = Zeroinstall.Driver.solve_with_downloads config fetcher distro reqs ~force:true ~update_local:true in
         let new_sels = result#get_selections in
 
