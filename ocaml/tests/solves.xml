@@ -692,4 +692,129 @@ Can't find all required implementations:
     </problem>
   </test>
 
+  <test name='decide-bug'>
+    <interface uri="http://gfxmonk.net/dist/0install/watchdog.xml">
+      <name>watchdog</name>
+      <summary>Cross-platform filesystem monitoring for python</summary>
+      <homepage>https://github.com/gorakhargosh/watchdog</homepage>
+      <group main="watchdog/watchmedo.py">
+        <command name="test">
+          <runner interface="http://gfxmonk.net/dist/0install/nose.xml"/>
+        </command>
+        <implementation id="sha1new=32616e915c5ee25d835ed38421f15ebbe84b438f" released="2011-01-22" version="0.5.0">
+          <archive href="http://gfxmonk.net/dist/0install/watchdog/watchdog-0.5.0.tgz" size="83809"/>
+        </implementation>
+        <implementation id="sha1new=b6d40c5d38b58c1be359d879dadc90d212f9294c" released="2011-02-09" version="0.5.3">
+          <archive href="http://gfxmonk.net/dist/0install/watchdog/watchdog-0.5.3.tgz" size="83971"/>
+        </implementation>
+        <implementation id="." released="2011-02-09" version="0.5.3-pre"/>
+      </group>
+    </interface>
+    <interface uri="http://gfxmonk.net/dist/0install/nose.xml">
+      <name>nosetests</name>
+      <summary>is nicer testing for python</summary>
+
+      <group main="bin/nose">
+        <implementation id="sha1new=9e367bae00e50616d6b612e94713616a7fb5af4d" main="bin/nosetests" released="2010-07-19" version="0.11.2">
+          <archive extract="nose-0.11.2" href="http://somethingaboutorange.com/mrl/projects/nose/nose-0.11.2.tar.gz" size="256587" type="application/x-compressed-tar"/>
+        </implementation>
+      </group>
+    </interface>
+
+    <requirements interface='http://gfxmonk.net/dist/0install/watchdog.xml' command='test'/>
+
+    <selections interface="http://gfxmonk.net/dist/0install/watchdog.xml" command="test">
+      <selection id="sha1new=9e367bae00e50616d6b612e94713616a7fb5af4d"
+                 interface="http://gfxmonk.net/dist/0install/nose.xml" released="2010-07-19" version="0.11.2">
+        <command name="run" path="bin/nosetests"/>
+      </selection>
+      <selection id="sha1new=b6d40c5d38b58c1be359d879dadc90d212f9294c"
+                 interface="http://gfxmonk.net/dist/0install/watchdog.xml" released="2011-02-09" version="0.5.3">
+        <command name="test">
+          <runner interface="http://gfxmonk.net/dist/0install/nose.xml"/>
+        </command>
+      </selection>
+    </selections>
+  </test>
+
+  <test name='optional-missing'>
+    <interface local-path="OptionalMissing.xml">>
+      <name>OptionalMissing</name>
+      <summary>optional dependency on a missing interface</summary>
+
+      <group>
+        <requires interface="http://localhost/Missing.xml" importance='recommended'/>
+
+        <!-- a feed with multiple possibilities -->
+        <requires interface="http://foo/Binary.xml"/>
+
+        <implementation id="a" local-path='.' version="0.1" main='.'/>
+      </group>
+    </interface>
+
+    <import-interface from-python='Binary.xml'/>
+
+    <requirements interface='./OptionalMissing.xml'/>
+
+    <selections interface="/root/OptionalMissing.xml">
+      <selection id="a" interface="/root/OptionalMissing.xml" local-path="/root" version="0.1">
+        <requires interface="http://localhost/Missing.xml" importance="recommended"/>
+        <requires interface="http://foo/Binary.xml"/>
+      </selection>
+      <selection id="sha1=123" interface="http://foo/Binary.xml" version="1.0"/>
+    </selections>
+
+  </test>
+
+  <test name='feed-bug'>
+    <import-interface from-python="Build.xml"/>
+    <import-interface from-python="Compiler.xml"/>
+    <import-interface from-python="Compiler-new.xml"/>
+
+    <requirements interface='http://foo/Build.xml' command='run'/>
+
+    <selections interface='http://foo/Build.xml' command='run'>
+      <selection id="2" interface='http://foo/Build.xml' version='2'>
+        <command name="run" path="idontexist"/>
+        <requires interface="http://foo/Compiler-new.xml"/>
+        <manifest-digest sha256new="def"/>
+      </selection>
+      <selection from-feed="http://foo/Compiler.xml" id="sha1=999" interface="http://foo/Compiler-new.xml" version="5"/>
+    </selections>
+  </test>
+
+  <test name='replaced-conflicts'>
+    <import-interface from-python="Hello"/>
+    <import-interface from-python="Replaced.xml"/>
+    <import-interface from-python="ReplacedConflicts.xml"/>
+
+    <requirements interface='./ReplacedConflicts.xml' command='run'/>
+
+    <selections interface="/root/ReplacedConflicts.xml" command="run">
+      <selection id="b" interface="/root/ReplacedConflicts.xml" local-path="/root" version="2">
+        <command name="run" path="missing"/>
+        <requires interface="http://localhost:8000/Hello"/>
+      </selection>
+      <selection id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" interface="http://localhost:8000/Hello" version="1"/>
+    </selections>
+  </test>
+
+  <test name='extra-restrictions'>
+    <import-interface from-python="Hello"/>
+    <import-interface from-python="Replaced.xml"/>
+    <import-interface from-python="ReplacedConflicts.xml"/>
+
+    <requirements interface='./ReplacedConflicts.xml' command='run'>
+      <restricts interface='/root/ReplacedConflicts.xml' version='..!2'/>
+    </requirements>
+
+    <selections interface="/root/ReplacedConflicts.xml" command="run">
+      <selection id="." interface="/root/Replaced.xml" version="0" local-path='/root'/>
+      <selection id="a" interface="/root/ReplacedConflicts.xml" local-path="/root" version="1">
+        <command name="run" path="missing"/>
+        <requires interface="/root/Replaced.xml"/>
+      </selection>
+    </selections>
+  </test>
+
 </test-cases>

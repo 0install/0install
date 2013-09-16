@@ -7,6 +7,8 @@ open Support.Common
 open OUnit
 open Zeroinstall
 
+module U = Support.Utils
+
 module StringData =
   struct
     type t = string
@@ -62,6 +64,13 @@ let xml_diff exp actual =
       (to_utf8 actual)
   ) else assert (compare_nodes ~ignore_whitespace:true exp actual = 0)
 
+let make_impl_provider config scope_filter =
+  let slave = new Zeroinstall.Python.slave config in
+  let distro = new Distro.generic_distribution slave in
+  let feed_provider = new Feed_cache.feed_provider config distro in
+  let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_cache.feed_provider) scope_filter in
+  (impl_provider :> Impl_provider.impl_provider)
+
 (** Give every implementation an <archive>, so we think it's installable. *)
 let rec make_all_downloable node =
   let open Support.Qdom in
@@ -114,8 +123,13 @@ class fake_feed_provider system distro =
 
     method add_iface elem =
       let open Feed in
-      let uri = ZI.get_attribute "uri" elem in
-      let feed = parse system elem None in
+      let (feed, uri) =
+        match ZI.get_attribute_opt "uri" elem with
+        | Some url -> (parse system elem None, url)
+        | None ->
+            let name = ZI.get_attribute "local-path" elem in
+            let path = U.abspath system name in
+            (parse system elem (Some path), path) in
       Hashtbl.add ifaces uri feed
 
     method forget_distro _ = failwith "forget_distro"
@@ -135,24 +149,44 @@ let make_solver_test test_elem =
       fake_system#add_dir "/home/testuser/.cache/0install.net/implementations" [];
       fake_system#add_dir "/var/cache/0install.net/implementations" [];
     );
+    fake_system#add_dir (fake_system#getcwd ()) [];
+    let system = (fake_system :> system) in
     let reqs = ref (Zeroinstall.Requirements.default_requirements "") in
     let fails = ref false in
     let expected_selections = ref (ZI.make_root "missing") in
     let expected_problem = ref "missing" in
     let justifications = ref [] in
-    let feed_provider = new fake_feed_provider (fake_system :> system) None in
+    let feed_provider = new fake_feed_provider system None in
     let process child = match ZI.tag child with
     | Some "suppress-warnings" ->
         Fake_system.forward_to_real_log := false;
     | Some "interface" ->
         if add_downloads then make_all_downloable child;
         feed_provider#add_iface child
+    | Some "import-interface" ->
+        let leaf = ZI.get_attribute "from-python" child in
+        let root = Support.Qdom.parse_file system @@ Test_0install.feed_dir +/ leaf in
+        if ZI.get_attribute_opt "uri" root = None then (
+          Support.Qdom.set_attribute "local-path" ("./" ^ leaf) root
+        );
+        feed_provider#add_iface root
     | Some "requirements" ->
+        let iface = ZI.get_attribute "interface" child in
+        let iface =
+          if U.starts_with iface "./" then U.abspath (fake_system :> system) iface
+          else iface in
         reqs := {!reqs with
-          Requirements.interface_uri = ZI.get_attribute "interface" child;
+          Requirements.interface_uri = iface;
           Requirements.command = ZI.get_attribute_opt "command" child;
           Requirements.os = ZI.get_attribute_opt "os" child;
         };
+        ZI.iter_with_name child "restricts" ~f:(fun restricts ->
+          let iface = ZI.get_attribute "interface" restricts in
+          let expr = ZI.get_attribute "version" restricts in
+          reqs := {!reqs with
+            Requirements.extra_restrictions = StringMap.add iface expr !reqs.Requirements.extra_restrictions
+          }
+        );
         fails := ZI.get_attribute_opt "fails" child = Some "true"
     | Some "selections" -> expected_selections := child
     | Some "problem" -> expected_problem := trim child.Support.Qdom.last_text_inside
@@ -162,7 +196,10 @@ let make_solver_test test_elem =
 
     let (ready, result) = Zeroinstall.Solver.solve_for config (feed_provider :> Feed_cache.feed_provider) !reqs in
     if ready && !fails then assert_failure "Expected solve to fail, but it didn't!";
-    if not ready && not (!fails) then assert_failure "Solve failed (not ready)";
+    if not ready && not (!fails) then (
+      let reason = Zeroinstall.Diagnostics.get_failure_reason config result in
+      assert_failure ("Solve failed (not ready)\n" ^ reason)
+    );
     assert (ready = (not !fails));
 
     if (!fails) then
@@ -370,8 +407,8 @@ let suite = "solver">::: [
     } in
 
     let test_solve scope_filter =
-      let impl_provider = new default_impl_provider config (feed_provider :> Feed_cache.feed_provider) in
-      let {replacement; impls; rejects = _} = impl_provider#get_implementations scope_filter iface ~source:false in
+      let impl_provider = new default_impl_provider config (feed_provider :> Feed_cache.feed_provider) scope_filter in
+      let {replacement; impls; rejects = _} = impl_provider#get_implementations iface ~source:false in
       (* List.iter (fun (impl, r) -> failwith @@ describe_problem impl r) rejects; *)
       assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;
       let ids = List.map (fun i -> Feed.get_attr "id" i) impls in
@@ -419,6 +456,252 @@ let suite = "solver">::: [
       "is_testing";
       "is_dev";
     ] (test_solve scope_filter);
+  );
+
+  "ranking2">:: Fake_system.with_tmpdir (fun tmpdir ->
+    let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+
+    let scope_filter = Impl_provider.({
+      extra_restrictions = StringMap.empty;
+      os_ranks = Arch.get_os_ranks "Linux";
+      machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
+      languages = [];
+    }) in
+
+    let impl_provider = make_impl_provider config scope_filter in
+
+    let iface = Test_0install.feed_dir +/ "Ranking.xml" in
+
+    let test_solve =
+      let impls = (impl_provider#get_implementations iface ~source:false).Impl_provider.impls in
+      let ids = List.map (fun i -> (Feed.get_attr "version" i) ^ " " ^ (Feed.get_attr "arch" i)) impls in
+      ids in
+
+    Fake_system.equal_str_lists [
+      "0.2 Linux-i386";         (* poor arch, but newest version *)
+      "0.1 Linux-x86_64";       (* 64-bit is best match for host arch *)
+      "0.1 Linux-i686"; "0.1 Linux-i586"; "0.1 Linux-i486"]	(* ordering of x86 versions *)
+      test_solve;
+  );
+
+  "details">:: Fake_system.with_tmpdir (fun tmpdir ->
+    let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    let import name =
+      U.copy_file config.system (Test_0install.feed_dir +/ name) (Feed_cache.get_save_cache_path config @@ "http://foo/" ^ name) 0o644 in
+    let iface = "http://foo/Binary.xml" in
+    import "Binary.xml";
+    import "Compiler.xml";
+    import "Source.xml";
+
+    let slave = new Zeroinstall.Python.slave config in
+    let distro = new Distro.generic_distribution slave in
+    let feed_provider = new Feed_cache.feed_provider config distro in
+
+    let scope_filter = Impl_provider.({
+      extra_restrictions = StringMap.empty;
+      os_ranks = Arch.get_os_ranks "Linux";
+      machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
+      languages = [];
+    }) in
+    let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_cache.feed_provider) scope_filter in
+    let bin_impls = impl_provider#get_implementations iface ~source:true in
+    let () =
+      match bin_impls.Impl_provider.rejects with
+      | [(impl, reason)] ->
+          Fake_system.assert_str_equal "sha1=123" (Feed.get_attr "id" impl);
+          Fake_system.assert_str_equal "We want source and this is a binary" (Impl_provider.describe_problem impl reason);
+      | _ -> assert false in
+    let comp_impls = impl_provider#get_implementations "http://foo/Compiler.xml" ~source:false in
+
+    assert_equal 0 (List.length comp_impls.Impl_provider.rejects);
+    assert_equal 3 (List.length comp_impls.Impl_provider.impls);
+
+    let reqs = Requirements.({
+      (default_requirements iface) with
+      source = true;
+      command = Some "compile"}) in
+
+    let justify expected iface feed id =
+      let g_id = Feed.({feed; id}) in
+      let actual = Diagnostics.justify_decision config (feed_provider :> Feed_cache.feed_provider) reqs iface g_id in
+      Fake_system.assert_str_equal expected actual in
+
+    justify
+      "http://foo/Binary.xml 1.0 cannot be used (regardless of other components): We want source and this is a binary"
+      iface iface "sha1=123";
+    justify
+      "http://foo/Binary.xml 1.0 was selected as the preferred version."
+      iface "http://foo/Source.xml" "sha1=234";
+    justify
+      "0.1 is ranked lower than 1.0: newer versions are preferred"
+      iface "http://foo/Source.xml" "old";
+    justify
+      ("There is no possible selection using http://foo/Binary.xml 3.\n" ^
+      "Can't find all required implementations:\n" ^
+      "- http://foo/Binary.xml -> 3 (impossible)\n" ^
+      "- http://foo/Compiler.xml -> (problem)\n" ^
+      "    http://foo/Binary.xml 3 requires version ..!1.0, version 1.0..\n" ^
+      "    Rejected candidates:\n" ^
+      "      sha1=999 (5): Incompatible with restriction: version ..!1.0\n" ^
+      "      sha1=345 (1.0): Incompatible with restriction: version ..!1.0\n" ^
+      "      sha1=678 (0.1): Incompatible with restriction: version 1.0..")
+      iface "http://foo/Source.xml" "impossible";
+    justify
+      ("http://foo/Compiler.xml 5 is selectable, but using it would produce a less optimal solution overall.\n\n" ^
+      "The changes would be:\n\nhttp://foo/Binary.xml: 1.0 to 0.1")
+      "http://foo/Compiler.xml" "http://foo/Compiler.xml" "sha1=999";
+
+    import "Recursive.xml";
+    let rec_impls = impl_provider#get_implementations "http://foo/Recursive.xml" ~source:false in
+    match rec_impls.Impl_provider.impls with
+    | [impl] -> Fake_system.assert_str_equal "sha1=abc" (Feed.get_attr "id" impl)
+    | _ -> assert false
+  );
+
+  "command">:: Fake_system.with_tmpdir (fun tmpdir ->
+    let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    let r = Requirements.default_requirements (Test_0install.feed_dir +/ "command-dep.xml") in
+    let slave = new Zeroinstall.Python.slave config in
+    let distro = new Distro.generic_distribution slave in
+    let feed_provider = new Feed_cache.feed_provider config distro in
+    match Solver.solve_for config (feed_provider :> Feed_cache.feed_provider) r with
+    | (false, _) -> assert false
+    | (true, results) ->
+        let sels = results#get_selections in
+        let index = Selections.make_selection_map sels in
+        let sel = StringMap.find (ZI.get_attribute "interface" sels) index in
+        let command = Command.get_command_ex "run" sel in
+        match Selections.get_dependencies ~restricts:true command with
+        | [dep] ->
+            let dep_impl = StringMap.find (ZI.get_attribute "interface" dep) index in
+            let command = Command.get_command_ex "run" dep_impl in
+            Fake_system.assert_str_equal "test-gui" (ZI.get_attribute "path" command)
+        | _ -> assert false
+  );
+
+  "multiarch">::  Fake_system.with_tmpdir (fun tmpdir ->
+    let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+
+    let import name =
+      U.copy_file config.system (Test_0install.feed_dir +/ name) (Feed_cache.get_save_cache_path config @@ "http://foo/" ^ name) 0o644 in
+
+    import "MultiArch.xml";
+    import "MultiArchLib.xml";
+
+    let check_arch expected machine =
+      let scope_filter = Impl_provider.({
+        extra_restrictions = StringMap.empty;
+        os_ranks = Arch.get_os_ranks "Linux";
+        machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
+        languages = [];
+      }) in
+      let root_scope = Solver.({
+        scope_filter;
+        use = StringSet.empty;
+      }) in
+      let root_req = Solver.ReqIface ("http://foo/MultiArch.xml", false) in
+      let impl_provider = make_impl_provider config scope_filter in
+      match Solver.do_solve impl_provider root_scope root_req ~closest_match:false with
+      | None -> assert false
+      | Some results ->
+          let sels = results#get_selections in
+          let index = Selections.make_selection_map sels in
+          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find "http://foo/MultiArch.xml" index);
+          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find "http://foo/MultiArchLib.xml" index) in
+
+    (* On an i686 system we can only use the i486 implementation *)
+    check_arch "Linux-i486" "i686";
+
+    (* On an 64 bit system we could use either, but we prefer the 64
+     * bit implementation. The i486 version of the library is newer,
+     * but we must pick one that is compatible with the main binary. *)
+    check_arch "Linux-x86_64" "x86_64";
+  );
+
+  "restricts">:: Fake_system.with_tmpdir (fun tmpdir ->
+    let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    let uri = Test_0install.feed_dir +/ "Conflicts.xml" in
+    let versions = Test_0install.feed_dir +/ "Versions.xml" in
+    let r = Requirements.default_requirements uri in
+
+    (* Selects 0.2 as the highest version, applying the restriction to versions < 4. *)
+    let slave = new Zeroinstall.Python.slave config in
+    let distro = new Distro.generic_distribution slave in
+    let feed_provider = new Feed_cache.feed_provider config distro in
+
+    let do_solve r =
+      match Solver.solve_for config feed_provider r with
+      | (false, _) -> assert false
+      | (true, results) ->
+          let sels = results#get_selections in
+          Selections.make_selection_map sels in
+
+    let results = do_solve r in
+    Fake_system.assert_str_equal "0.2" @@ ZI.get_attribute "version" (StringMap.find uri results);
+    Fake_system.assert_str_equal "3" @@ ZI.get_attribute "version" (StringMap.find versions results);
+
+    let extras = StringMap.singleton uri "0.1" in
+    let results = do_solve {r with Requirements.extra_restrictions = extras} in
+    Fake_system.assert_str_equal "0.1" @@ ZI.get_attribute "version" (StringMap.find uri results);
+    assert (not (StringMap.mem versions results));
+
+    let extras = StringMap.singleton uri "0.3" in
+    let r = {r with Requirements.extra_restrictions = extras} in
+    assert_equal false (fst @@ Solver.solve_for config feed_provider r);
+  );
+
+  "langs">:: Fake_system.with_tmpdir (fun tmpdir ->
+    let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    let slave = new Zeroinstall.Python.slave config in
+    let distro = new Distro.generic_distribution slave in
+    let feed_provider = new Feed_cache.feed_provider config distro in
+    let solve expected ?(lang="en_US.UTF-8") machine =
+      let scope_filter = Impl_provider.({
+        extra_restrictions = StringMap.empty;
+        os_ranks = Arch.get_os_ranks "Linux";
+        machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
+        languages = [Fake_system.expect @@ Support.Locale.parse_lang lang];
+      }) in
+      let root_scope = Solver.({
+        scope_filter;
+        use = StringSet.empty;
+      }) in
+      let impl_provider = new Impl_provider.default_impl_provider config feed_provider scope_filter in
+      let root_req = Solver.ReqIface (Test_0install.feed_dir +/ "Langs.xml", false) in
+      match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_scope root_req ~closest_match:false with
+      | None -> assert_failure expected
+      | Some results ->
+          match results#get_selections.Support.Qdom.child_nodes with
+          | [sel] -> Fake_system.assert_str_equal expected @@ ZI.get_attribute "id" sel
+          | _ -> assert false in
+
+    (* 1 is the oldest, but the only one in our language *)
+    solve "sha1=1" "arch_1";
+
+    (* 6 is the newest, and close enough, even though not
+     * quite the right locale *)
+    solve "sha1=6" "arch_2";
+
+    (* 9 is the newest, although 7 is a closer match *)
+    solve "sha1=9" "arch_3";
+
+    (* 11 is the newest we understand *)
+    solve "sha1=11" "arch_4";
+
+    (* 13 is the newest we understand *)
+    solve "sha1=13" "arch_5";
+
+    (* We don't understand any, so pick the newest *)
+    solve "sha1=6" ~lang:"es_ES" "arch_2";
+
+    (* These two have the same version number. Choose the *)
+    (* one most appropriate to our country *)
+    solve "sha1=15" ~lang:"zh_CN" "arch_6" ;
+    solve "sha1=16" ~lang:"zh_TW" "arch_6" ;
+
+    (* Same, but one doesn't have a country code *)
+    solve "sha1=17" ~lang:"bn"    "arch_7";
+    solve "sha1=18" ~lang:"bn_IN" "arch_7";
   );
 
   "solver">:::

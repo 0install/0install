@@ -220,7 +220,7 @@ let list_feeds feed_provider iface =
 
 let list_impls config (results:Solver.result) iface =
   let make_list ~source selected_impl =
-    let candidates = results#impl_provider#get_implementations results#scope_filter iface ~source in
+    let candidates = results#impl_provider#get_implementations iface ~source in
 
     let by_version (a,_) (b,_) = compare b.F.parsed_version a.F.parsed_version in
 

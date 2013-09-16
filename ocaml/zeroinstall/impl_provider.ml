@@ -48,11 +48,15 @@ let describe_problem impl =
   | `Poor_stability           -> spf "Poor stability '%s'" (format_stability impl.stability)
   | `No_retrieval_methods     -> "No retrieval methods"
   | `Not_cached_and_offline   -> "Can't download it because we're offline"
-  | `Missing_local_impl       -> "Local impl's directory is missing"
   | `Incompatible_OS          -> "Not compatibile with the requested OS type"
   | `Not_binary               -> "We want a binary and this is source"
   | `Not_source               -> "We want source and this is a binary"
   | `Incompatible_machine     -> "Not compatibile with the requested CPU type"
+  | `Missing_local_impl       ->
+      match impl.impl_type with
+      | LocalImpl path ->
+          spf "Local impl's directory (%s) is missing" path
+      | _ -> "ERROR - not local!"
 
 type scope_filter = {
   extra_restrictions : Feed.restriction StringMap.t;  (* iface -> test *)
@@ -71,10 +75,12 @@ class type impl_provider =
   object
     (** Return all the implementations of this interface (including from feeds).
         Most preferred implementations should come first. *)
-    method get_implementations : scope_filter -> iface_uri -> source:bool -> candidates
+    method get_implementations : iface_uri -> source:bool -> candidates
   end
 
-class default_impl_provider config (feed_provider : Feed_cache.feed_provider) =
+class default_impl_provider config (feed_provider : Feed_cache.feed_provider) (scope_filter:scope_filter) =
+  let {extra_restrictions; os_ranks; machine_ranks; languages = wanted_langs} = scope_filter in
+
   (* This shouldn't really be mutable, but ocaml4po causes trouble if we pass it in the constructor. *)
   let watch_iface = ref None in
 
@@ -96,9 +102,7 @@ class default_impl_provider config (feed_provider : Feed_cache.feed_provider) =
   object (_ : #impl_provider)
     val cache = Hashtbl.create 10
 
-    method get_implementations (scope_filter : scope_filter) iface ~source:want_source =
-      let {extra_restrictions; os_ranks; machine_ranks; languages = wanted_langs} = scope_filter in
-
+    method get_implementations iface ~source:want_source =
       let get_feed_if_useful {Feed.feed_src; Feed.feed_os; Feed.feed_machine; Feed.feed_langs; Feed.feed_type = _} =
         try
           ignore feed_langs; (* Maybe later... *)
@@ -311,7 +315,7 @@ class default_impl_provider config (feed_provider : Feed_cache.feed_provider) =
             else (
               let open Feed in
               match impl.Feed.impl_type with
-              | LocalImpl _ -> `Missing_local_impl   (* We can never get a missing local impl *)
+              | LocalImpl _ -> `Missing_local_impl
               | PackageImpl _ -> if config.network_use = Offline then `Not_cached_and_offline else `Acceptable
               | CacheImpl {retrieval_methods = [];_} -> `No_retrieval_methods
               | CacheImpl cache_impl ->

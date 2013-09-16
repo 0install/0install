@@ -22,9 +22,9 @@ let get_root_sel sels =
 
 let get_newest options feed_provider reqs =
   let module I = Zeroinstall.Impl_provider in
-  let impl_provider = new I.default_impl_provider options.config feed_provider in
   let (scope, _root_key) = Zeroinstall.Solver.get_root_requirements options.config reqs in
-  let get_impls = impl_provider#get_implementations scope.Zeroinstall.Solver.scope_filter reqs.R.interface_uri in
+  let impl_provider = new I.default_impl_provider options.config feed_provider scope.Zeroinstall.Solver.scope_filter in
+  let get_impls = impl_provider#get_implementations reqs.R.interface_uri in
 
   let best = ref None in
   let check_best items =

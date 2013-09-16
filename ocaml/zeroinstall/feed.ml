@@ -405,14 +405,16 @@ let parse system root feed_local_path =
 
     let () =
       match local_dir with
-      | None -> ()
+      | None ->
+          if AttrMap.mem ("", attr_local_path) !s.attrs then
+            Qdom.raise_elem "local-path in non-local feed! " node;
       | Some dir ->
           let use rel_path =
             if Filename.is_relative rel_path then
               set_attr attr_local_path @@ Support.Utils.abspath system @@ dir +/ rel_path
             else
               set_attr attr_local_path rel_path in
-          match ZI.get_attribute_opt attr_local_path node with
+          match get_attr_opt attr_local_path !s.attrs with
           | Some path -> use path
           | None ->
               if Support.Utils.starts_with id "/" || Support.Utils.starts_with id "." then

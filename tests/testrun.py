@@ -36,7 +36,8 @@ class TestRun(BaseTest):
 
 	def testAbsMain(self):
 		out, err = self.run_ocaml(['run', '--dry-run', '--main=runnable/runner', command_feed])
-		assert '[dry-run] would execute: ././runnable/runner' in out, out
+		assert '[dry-run] would execute:' in out, out
+		assert './runnable/runner' in out, out
 		assert not err, err
 
 		out, err = self.run_ocaml(['run', '--main=runnable/not-there', command_feed])

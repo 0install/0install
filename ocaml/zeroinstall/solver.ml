@@ -416,7 +416,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_scope root_req ~cl
   (* Add the implementations of an interface to the cache (called the first time we visit it). *)
   and add_impls_to_cache (iface_uri, source) =
     let {Impl_provider.replacement; Impl_provider.impls; Impl_provider.rejects = _} =
-      impl_provider#get_implementations root_scope.scope_filter iface_uri ~source in
+      impl_provider#get_implementations iface_uri ~source in
     (* log_warning "Adding %d impls for %s" (List.length impls) iface_uri; *)
     let matching_impls = maybe_add_dummy @@ impls in
     let pairs = List.map (fun impl -> (S.add_variable sat (SolverData.ImplElem impl), impl)) matching_impls in
@@ -616,7 +616,7 @@ let solve_for config feed_provider requirements =
   try
     let (scope, root_req) = get_root_requirements config requirements in
 
-    let impl_provider = (new Impl_provider.default_impl_provider config feed_provider :> Impl_provider.impl_provider) in
+    let impl_provider = (new Impl_provider.default_impl_provider config feed_provider scope.scope_filter :> Impl_provider.impl_provider) in
     match do_solve impl_provider scope root_req ~closest_match:false with
     | Some result -> (true, result)
     | None ->

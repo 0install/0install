@@ -307,7 +307,7 @@ let get_failure_report (result:Solver.result) : component SelMap.t =
       | None -> map    (* Not part of the (dummy) solution *)
       | Some (lit, impl) ->
           let impl = if impl.Feed.parsed_version = Versions.dummy then None else Some impl in
-          let impl_candidates = impl_provider#get_implementations root_scope.Solver.scope_filter iface ~source in
+          let impl_candidates = impl_provider#get_implementations iface ~source in
           let component = new component impl_candidates lit impl in
           SelMap.add key component map in
     List.fold_left get_selected SelMap.empty impl_cache#get_items in
@@ -478,11 +478,11 @@ let justify_decision config feed_provider requirements q_iface q_impl =
   let impl_provider =
     let open Impl_provider in
     object
-      inherit default_impl_provider config feed_provider as super
+      inherit default_impl_provider config feed_provider scope.Solver.scope_filter as super
       initializer super#set_watch_iface q_iface
 
-      method! get_implementations scope_filter requested_iface ~source:want_source =
-        let c = super#get_implementations scope_filter requested_iface ~source:want_source in
+      method! get_implementations requested_iface ~source:want_source =
+        let c = super#get_implementations requested_iface ~source:want_source in
         if requested_iface <> q_iface then c
         else (
           candidates := c.impls;
