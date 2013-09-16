@@ -225,6 +225,7 @@ let suite =
 ];;
 
 let show_log_on_failure fn () =
+  Fake_system.forward_to_real_log := true;
   try
     Fake_system.fake_log#reset;
     fn ()

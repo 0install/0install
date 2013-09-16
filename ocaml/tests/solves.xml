@@ -1,6 +1,6 @@
 <?xml version='1.0' ?>
 <test-cases xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
-  <test name='trivial'>
+  <test name='trivial' add-downloads='true'>
     <interface uri='http://example.com/prog.xml' min-injector-version='1'>
       <name>0install</name>
       <implementation id='v1' version='1'><command name='run' path='main'/></implementation>
@@ -13,7 +13,7 @@
     </selections>
   </test>
 
-  <test name='binding-order'>
+  <test name='binding-order' add-downloads='true'>
     <interface uri='http://example.com/lib1.xml'>
       <name>lib1</name>
       <implementation id='l1' version='1'/>
@@ -48,7 +48,7 @@
     </selections>
   </test>
 
-  <test name='mutliple-impls'>
+  <test name='mutliple-impls' add-downloads='true'>
     <interface uri='http://example.com/prog.xml'>
       <name>0install</name>
       <implementation id='z2' version='2'><command name='run' path='main'/></implementation>
@@ -63,7 +63,7 @@
     </selections>
   </test>
 
-  <test name='deps'>
+  <test name='deps' add-downloads='true'>
     <interface uri='http://example.com/tester.xml'>
       <name>tester</name>
       <implementation id='t1' version='1'>
@@ -126,7 +126,7 @@
     </selections>
   </test>
 
-  <test name='ignored-deps'>
+  <test name='ignored-deps' add-downloads='true'>
     <interface uri='http://example.com/unused.xml'>
       <name>unused</name>
       <implementation id='m3' version='3'/>
@@ -148,7 +148,7 @@
     </selections>
   </test>
 
-  <test name='restrictions'>
+  <test name='restrictions' add-downloads='true'>
     <interface uri='http://example.com/lib.xml'>
       <name>lib</name>
       <implementation id='l0' version='0' arch='invalid-arch'/>
@@ -209,7 +209,7 @@ Can't find all required implementations:
     </justification>
   </test>
 
-  <test name='impossible'>
+  <test name='impossible' add-downloads='true'>
     <interface uri='http://example.com/lib.xml'>
       <name>lib</name>
       <implementation id='l1' version='1'>
@@ -247,7 +247,7 @@ Can't find all required implementations:
     </problem>
   </test>
 
-  <test name='if-version'>
+  <test name='if-version' add-downloads='true'>
     <interface uri='http://example.com/prog.xml'>
       <name>0install</name>
       <implementation id='v1' version='1'>
@@ -264,7 +264,7 @@ Can't find all required implementations:
   </test>
 
   <!-- Can't select lib1 because of the 'distribution' restriction. -->
-  <test name='requires-distro'>
+  <test name='requires-distro' add-downloads='true'>
     <interface uri='http://example.com/lib1.xml'>
       <name>lib1</name>
       <implementation id='l1' version='1'/>
@@ -297,7 +297,7 @@ Can't find all required implementations:
 
   <!-- We can have either the latest lib1 or the latest lib2 but not both.
        We give priority to lib1, because it's listed first in prog's dependencies. -->
-  <test name='priority'>
+  <test name='priority' add-downloads='true'>
     <interface uri='http://example.com/lib1.xml'>
       <name>lib1</name>
       <implementation id='l11' version='1'/>
@@ -342,4 +342,354 @@ The changes would be:
 http://example.com/lib1.xml: 2 to 1
     </justification>
   </test>
+
+  <!-- No implementations -->
+  <test name='no-impls'>
+    <requirements interface='http://localhost/top.xml' fails='true'/>
+    <problem>
+Can't find all required implementations:
+- http://localhost/top.xml -> (problem)
+    No known implementations at all
+    </problem>
+  </test>
+
+  <!-- No retrieval method -->
+  <test name='no-retrieval-method'>
+    <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group>
+      <implementation version='1' id='1'><requires interface='http://localhost/diagnostics.xml'/></implementation>
+    </group></interface>
+    <requirements interface='http://localhost/top.xml' fails='true'/>
+    <problem>
+Can't find all required implementations:
+- http://localhost/top.xml -> (problem)
+    No usable implementations:
+      1 (1): No retrieval methods
+   </problem>
+ </test>
+
+  <!-- No run command -->
+  <test name='no-run'>
+    <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group>
+      <implementation version='1' id='1'>
+	<archive href='http://localhost:3000/foo.tgz' size='100'/>
+	<requires interface='http://localhost/diagnostics.xml'>
+	  <version not-before='100'/>
+	</requires>
+      </implementation>
+    </group>
+  </interface>
+  <requirements interface='http://localhost/top.xml' fails='true' command='run'/>
+  <problem>
+Can't find all required implementations:
+- http://localhost/top.xml -> (problem)
+    Rejected candidates:
+      1 (1): No run command
+    </problem>
+  </test>
+
+  <!-- Missing command from dependency -->
+  <test name='missing-dep-command'>
+  <requirements interface='http://localhost/top.xml' fails='true' command='run'/>
+  <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group><implementation version='1' id='1' main='foo'>
+        <archive href='http://localhost:3000/foo.tgz' size='100'/>
+        <requires interface='http://localhost/diagnostics.xml'>
+          <binding command='foo'/>
+        </requires>
+     </implementation>
+    </group>
+  </interface>
+  <interface uri='http://localhost/diagnostics.xml'><name>Diagnostics</name><summary>Diagnostics</summary><group>
+    <implementation version='5' id='diag-5'>
+      <archive href='http://localhost:3000/diag.tgz' size='100'/>
+   </implementation>
+   </group></interface>
+   <problem>
+Can't find all required implementations:
+- http://localhost/diagnostics.xml -> (problem)
+    http://localhost/top.xml 1 requires 'foo' command
+    Rejected candidates:
+      diag-5 (5): No foo command
+- http://localhost/top.xml -> 1 (1)
+  </problem>
+  </test>
+
+  <!-- Failing distribution requirement -->
+  <test name='failing-distro-req'>
+  <requirements interface='http://localhost/top.xml' fails='true' command='run'/>
+  <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group><implementation version='1' id='1' main='foo'>
+	<archive href='http://localhost:3000/foo.tgz' size='100'/>
+	<requires interface='http://localhost/diagnostics.xml' distribution='foo'/>
+     </implementation>
+    </group>
+  </interface>
+  <interface uri='http://localhost/diagnostics.xml'><name>Diagnostics</name><summary>Diagnostics</summary><group>
+    <implementation version='5' id='diag-5'>
+      <archive href='http://localhost:3000/diag.tgz' size='100'/>
+   </implementation>
+   </group></interface>
+<problem>
+Can't find all required implementations:
+- http://localhost/diagnostics.xml -> (problem)
+    http://localhost/top.xml 1 requires distribution:foo
+    Rejected candidates:
+      diag-5 (5): Incompatible with restriction: distribution:foo
+- http://localhost/top.xml -> 1 (1)
+  </problem>
+  </test>
+
+  <!-- Failing version requirement on library -->
+  <test name='bad-dep-version'>
+  <requirements interface='http://localhost/top.xml' fails='true' command='run'/>
+  <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group><implementation version='1' id='1' main='foo'>
+	<archive href='http://localhost:3000/foo.tgz' size='100'/>
+	<requires interface='http://localhost/diagnostics.xml' version='100..!200'/>
+      </implementation>
+    </group>
+  </interface>
+  <interface uri='http://localhost/diagnostics.xml'><name>Diagnostics</name><summary>Diagnostics</summary><group>
+      <implementation version='5' id='diag-5'>
+	<archive href='http://localhost:3000/diag.tgz' size='100'/>
+      </implementation>
+   </group></interface>
+   <problem>
+Can't find all required implementations:
+- http://localhost/diagnostics.xml -> (problem)
+    http://localhost/top.xml 1 requires version 100..!200
+    Rejected candidates:
+      diag-5 (5): Incompatible with restriction: version 100..!200
+- http://localhost/top.xml -> 1 (1)
+    </problem>
+  </test>
+
+  <!-- Failing version requires on root -->
+  <test name='failing-requires-root'>
+  <requirements interface='http://localhost/top.xml' fails='true' command='run'/>
+  <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group><implementation version='1' id='1' main='foo'>
+	<archive href='http://localhost:3000/foo.tgz' size='100'/>
+	<requires interface='http://localhost/diagnostics.xml'/>
+      </implementation>
+    </group>
+  </interface>
+  <interface uri='http://localhost/diagnostics.xml'><name>Diagnostics</name><summary>Diagnostics</summary><group>
+      <implementation version='5' id='diag-5'>
+	<archive href='http://localhost:3000/diag.tgz' size='100'/>
+	<restricts interface='http://localhost/top.xml' version='100..!200'/>
+      </implementation>
+    </group>
+  </interface>
+<problem>
+Can't find all required implementations:
+- http://localhost/diagnostics.xml -> (problem)
+    Rejected candidates:
+      diag-5 (5): Requires http://localhost/top.xml version 100..!200
+- http://localhost/top.xml -> 1 (1)
+  </problem>
+  </test>
+
+  <!-- Parse error in version restriction -->
+  <test name='bad-version-expr'>
+    <suppress-warnings/>
+    <requirements interface='http://localhost/top.xml' fails='true' command='run'/>
+    <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group><implementation version='1' id='1' main='foo'>
+		    <archive href='http://localhost:3000/foo.tgz' size='100'/>
+		    <requires interface='http://localhost/diagnostics.xml' version='100..200'/>
+		 </implementation>
+      </group>
+    </interface>
+    <interface uri='http://localhost/diagnostics.xml'><name>Diagnostics</name><summary>Diagnostics</summary><group>
+    <implementation version='5' id='diag-5'>
+		    <archive href='http://localhost:3000/diag.tgz' size='100'/>
+		 </implementation>
+
+     </group></interface>
+  <problem>
+Can't find all required implementations:
+- http://localhost/diagnostics.xml -> (problem)
+    http://localhost/top.xml 1 requires &lt;impossible: Can't parse version restriction '100..200': End of range must be exclusive (use '..!200', not '..200')>
+    Rejected candidates:
+      diag-5 (5): Incompatible with restriction: &lt;impossible: Can't parse version restriction '100..200': End of range must be exclusive (use '..!200', not '..200')>
+- http://localhost/top.xml -> 1 (1)
+    </problem>
+  </test>
+
+  <!-- Old-style version restriction -->
+  <test name='old-version-restrictions'>
+    <requirements interface='http://localhost/top.xml' fails='true' command='run'/>
+    <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group><implementation version='1' id='1' main='foo'>
+	  <archive href='http://localhost:3000/foo.tgz' size='100'/>
+	  <requires interface='http://localhost/diagnostics.xml'>
+	    <version not-before='100'/>
+	  </requires>
+	</implementation>
+      </group>
+    </interface>
+    <interface uri='http://localhost/diagnostics.xml'><name>Diagnostics</name><summary>Diagnostics</summary><group>
+	<implementation version='5' id='diag-5'>
+	  <archive href='http://localhost:3000/diag.tgz' size='100'/>
+	</implementation>
+    </group></interface>
+    <problem>
+Can't find all required implementations:
+- http://localhost/diagnostics.xml -> (problem)
+    http://localhost/top.xml 1 requires version 100..
+    Rejected candidates:
+      diag-5 (5): Incompatible with restriction: version 100..
+- http://localhost/top.xml -> 1 (1)
+    </problem>
+  </test>
+
+  <!-- Mismatched machine types -->
+  <test name='mismatched-machine-types'>
+    <requirements interface='http://localhost/top.xml' fails='true' command='run' os='Windows'/>
+    <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group><group>
+	  <requires interface='http://localhost/diagnostics.xml'/>
+	  <implementation version='1' id='1' main='foo' arch='Windows-i486'>
+	    <archive href='http://localhost:3000/foo.tgz' size='100'/>
+	  </implementation>
+	</group>
+      </group>
+    </interface>
+    <interface uri='http://localhost/diagnostics.xml'><name>Diagnostics</name><summary>Diagnostics</summary>
+      <group>
+	<implementation version='5' id='diag-5' arch='Windows-x86_64'>
+	  <archive href='http://localhost:3000/diag.tgz' size='100'/>
+	</implementation>
+      </group>
+    </interface>
+  <problem>
+Can't find all required implementations:
+- http://localhost/diagnostics.xml -> (problem)
+    Rejected candidates:
+      diag-5 (5): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+- http://localhost/top.xml -> 1 (1)
+    </problem>
+  </test>
+
+  <!-- Only show the first five unusable reasons -->
+  <test name='limit-unusable'>
+    <requirements interface='http://localhost/top.xml' fails='true' command='run'/>
+    <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group><group>
+	  <requires interface='http://localhost/diagnostics.xml'/>
+	  <implementation version='1' id='1' main='foo'>
+	    <archive href='http://localhost:3000/foo.tgz' size='100'/>
+	  </implementation>
+	</group>
+      </group>
+    </interface>
+    <interface uri='http://localhost/diagnostics.xml'><name>Diagnostics</name><summary>Diagnostics</summary><group>
+	<group>
+	  <implementation version='1' id='diag-1'/>
+	  <implementation version='2' id='diag-2'/>
+	  <implementation version='3' id='diag-3'/>
+	  <implementation version='4' id='diag-4'/>
+	  <implementation version='5' id='diag-5'/>
+	  <implementation version='6' id='diag-6'/>
+	</group>
+    </group></interface>
+  <problem>
+Can't find all required implementations:
+- http://localhost/diagnostics.xml -> (problem)
+    No usable implementations:
+      diag-6 (6): No retrieval methods
+      diag-5 (5): No retrieval methods
+      diag-4 (4): No retrieval methods
+      diag-3 (3): No retrieval methods
+      diag-2 (2): No retrieval methods
+      ...
+- http://localhost/top.xml -> 1 (1)
+    </problem>
+  </test>
+
+  <!-- Only show the first five rejection reasons -->
+  <test name='limit-rejections'>
+    <requirements interface='http://localhost/top.xml' fails='true' command='run' os='Windows' machine='x86_64'/>
+    <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group><group>
+	  <requires interface='http://localhost/diagnostics.xml'>
+	    <version before='6'/>
+	  </requires>
+	  <implementation version='1' id='1' main='foo' arch='Windows-i486'>
+	    <archive href='http://localhost:3000/foo.tgz' size='100'/>
+	  </implementation>
+	</group>
+      </group>
+    </interface>
+    <interface uri='http://localhost/diagnostics.xml'><name>Diagnostics</name><summary>Diagnostics</summary><group>
+	<group>
+	  <implementation version='5' id='diag-5' arch='Windows-x86_64'>
+	    <archive href='http://localhost:3000/diag.tgz' size='100'/>
+	  </implementation>
+	  <implementation version='6' id='diag-6' arch='Windows-i486'>
+	    <archive href='http://localhost:3000/diag.tgz' size='100'/>
+	  </implementation>
+	  {others}
+	</group>
+      </group>
+    </interface>
+    <interface uri='http://localhost/diagnostics.xml'><name>Diagnostics</name><summary>Diagnostics</summary><group>
+	<implementation version='0' id='diag-0' arch='Windows-x86_64'><archive href='http://localhost:3000/diag.tgz' size='100'/></implementation>
+	<implementation version='1' id='diag-1' arch='Windows-x86_64'><archive href='http://localhost:3000/diag.tgz' size='100'/></implementation>
+	<implementation version='2' id='diag-2' arch='Windows-x86_64'><archive href='http://localhost:3000/diag.tgz' size='100'/></implementation>
+	<implementation version='3' id='diag-3' arch='Windows-x86_64'><archive href='http://localhost:3000/diag.tgz' size='100'/></implementation>
+	<implementation version='4' id='diag-4' arch='Windows-x86_64'><archive href='http://localhost:3000/diag.tgz' size='100'/></implementation>
+	<implementation version='5' id='diag-5' arch='Windows-x86_64'><archive href='http://localhost:3000/diag.tgz' size='100'/></implementation>
+    </group></interface>
+    <problem>
+Can't find all required implementations:
+- http://localhost/diagnostics.xml -> (problem)
+    http://localhost/top.xml 1 requires version ..!6
+    Rejected candidates:
+      diag-5 (5): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+      diag-4 (4): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+      diag-3 (3): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+      diag-2 (2): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+      diag-1 (1): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+      ...
+- http://localhost/top.xml -> 1 (1)
+    </problem>
+
+    <justification interface='http://localhost/diagnostics.xml' id='diag-5'>
+There is no possible selection using http://localhost/diagnostics.xml 5.
+Can't find all required implementations:
+- http://localhost/diagnostics.xml -> (problem)
+    http://localhost/top.xml 1 requires version ..!6
+    Rejected candidates:
+      diag-5 (5): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+- http://localhost/top.xml -> 1 (1)
+    </justification>
+  </test>
+
+  <!-- Can't select old and diag because they conflict -->
+  <test name='replacements-conflict'>
+    <requirements interface='http://localhost/top.xml' fails='true' command='run' os='Windows' machine='x86_64'/>
+    <interface uri='http://localhost/top.xml'><name>Top</name><summary>Top</summary><group>
+	<requires interface='http://localhost/diagnostics.xml'/>
+	<requires interface='http://localhost/diagnostics-old.xml'/>
+	<implementation version='1' id='1' main='foo'>
+	  <archive href='http://localhost:3000/foo.tgz' size='100'/>
+	</implementation>
+      </group>
+    </interface>
+    <interface uri="http://localhost/diagnostics-old.xml">
+      <name>Old</name><summary>Old</summary><feed src='http://localhost/diagnostics.xml'/>
+      <replaced-by interface='http://localhost/diagnostics.xml'/>
+    </interface>""".format(diag = diag_uri, old = old_uri).encode("utf-8")))
+    <interface uri='http://localhost/diagnostics.xml'><name>Diagnostics</name><summary>Diagnostics</summary><group>
+	<group>
+	  <implementation version='5' id='diag-5'>
+	    <archive href='http://localhost:3000/diag.tgz' size='100'/>
+	  </implementation>
+	</group>
+    </group></interface>
+    <problem>
+Can't find all required implementations:
+- http://localhost/diagnostics-old.xml -> (problem)
+    Replaced by (and therefore conflicts with) http://localhost/diagnostics.xml
+    Rejected candidates:
+      diag-5 (5): Conflicts with http://localhost/diagnostics.xml
+- http://localhost/diagnostics.xml -> 5 (diag-5)
+    Replaces (and therefore conflicts with) http://localhost/diagnostics-old.xml
+- http://localhost/top.xml -> 1 (1)
+    </problem>
+  </test>
+
 </test-cases>

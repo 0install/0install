@@ -125,6 +125,7 @@ class fake_feed_provider system distro =
 let make_solver_test test_elem =
   ZI.check_tag "test" test_elem;
   let name = ZI.get_attribute "name" test_elem in
+  let add_downloads = ZI.get_attribute_opt "add-downloads" test_elem = Some "true" in
   name >:: (fun () ->
     let (config, fake_system) = Fake_system.get_fake_config None in
     if on_windows then (
@@ -141,19 +142,22 @@ let make_solver_test test_elem =
     let justifications = ref [] in
     let feed_provider = new fake_feed_provider (fake_system :> system) None in
     let process child = match ZI.tag child with
+    | Some "suppress-warnings" ->
+        Fake_system.forward_to_real_log := false;
     | Some "interface" ->
-        make_all_downloable child;
+        if add_downloads then make_all_downloable child;
         feed_provider#add_iface child
     | Some "requirements" ->
         reqs := {!reqs with
           Requirements.interface_uri = ZI.get_attribute "interface" child;
           Requirements.command = ZI.get_attribute_opt "command" child;
+          Requirements.os = ZI.get_attribute_opt "os" child;
         };
         fails := ZI.get_attribute_opt "fails" child = Some "true"
     | Some "selections" -> expected_selections := child
     | Some "problem" -> expected_problem := trim child.Support.Qdom.last_text_inside
     | Some "justification" -> justifications := child :: !justifications
-    | _ -> failwith "Unexpected element" in
+    | _ -> Support.Qdom.raise_elem "Unexpected element" child in
     ZI.iter ~f:process test_elem;
 
     let (ready, result) = Zeroinstall.Solver.solve_for config (feed_provider :> Feed_cache.feed_provider) !reqs in
