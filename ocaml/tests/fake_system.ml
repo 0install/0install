@@ -45,20 +45,21 @@ let make_stat st_perm kind =
   }
 
 let capture_stdout fn =
+  let open Unix in
   U.finally_do
-    (fun old_stdout -> Unix.(dup2 old_stdout stdout; close old_stdout))
-    (Unix.dup Unix.stdout)
+    (fun old_stdout -> dup2 old_stdout stdout; close old_stdout)
+    (dup stdout)
     (fun _old_stdout ->
       let tmp = Filename.temp_file "0install" "-test" in
       U.finally_do
-        Unix.close Unix.(openfile tmp [O_RDWR] 0o600)
+        close (openfile tmp [O_RDWR] 0o600)
         (fun tmpfd ->
-          Unix.dup2 tmpfd Unix.stdout;
+          dup2 tmpfd stdout;
           fn ();
-          flush stdout;
+          Pervasives.flush Pervasives.stdout;
         );
         let contents = U.read_file real_system tmp in
-        Unix.unlink tmp;
+        unlink tmp;
         contents
     )
 

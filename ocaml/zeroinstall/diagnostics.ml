@@ -478,7 +478,8 @@ let justify_decision config feed_provider requirements q_iface q_impl =
   let impl_provider =
     let open Impl_provider in
     object
-      inherit default_impl_provider config ~watch_iface:q_iface feed_provider as super
+      inherit default_impl_provider config feed_provider as super
+      initializer super#set_watch_iface q_iface
 
       method! get_implementations scope_filter requested_iface ~source:want_source =
         let c = super#get_implementations scope_filter requested_iface ~source:want_source in
@@ -502,7 +503,7 @@ let justify_decision config feed_provider requirements q_iface q_impl =
 
   (* Could a selection involving impl even be valid? *)
   try
-    match Solver.do_solve impl_provider scope root_req ~closest_match:false with
+    match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) scope root_req ~closest_match:false with
     | Some result ->
         let test_sels = result#get_selections in
         let (ready, actual_selections) = Solver.solve_for config feed_provider requirements in
@@ -511,7 +512,7 @@ let justify_decision config feed_provider requirements q_iface q_impl =
           ~old_sels:actual_selections#get_selections
           ~compare:impl_provider#get_watched_compare !candidates
     | None ->
-        match Solver.do_solve impl_provider scope root_req ~closest_match:true with
+        match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) scope root_req ~closest_match:true with
         | None -> failwith "No solution, even with closest_match!"
         | Some result ->
             return "There is no possible selection using %s.\n%s" !wanted @@ get_failure_reason config result

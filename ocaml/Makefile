@@ -48,11 +48,10 @@ doc:
 	$(OCAMLBUILD) 0install.docdir/index.html
 	rm support.ml
 
-# Note: you have to enable coverage in the _tags file too and delete the windows block from windows_api.ml
 # Results turn up in the "html" directory after running the unit-tests.
 coverage:
 	rm -f tests/bisect*.out
-	make test
+	OCAML_COVERAGE=true make test
 	ocaml-bisect-report -I "${OCAML_BUILDDIR}" -html html "tests/bisect0001.out"
 
 clean:

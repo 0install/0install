@@ -65,8 +65,6 @@ class impl_provider =
         try Hashtbl.find interfaces iface
         with Not_found -> failwith iface;
     }
-
-    method get_watched_compare = failwith "get_watched_compare"
   end
 
 let re_dep = Str.regexp "\\([a-z]+\\)\\[\\([0-9]+\\)\\(,[0-9]+\\)?\\] => \\([a-z]+\\) \\([0-9]+\\) \\([0-9]+\\)"

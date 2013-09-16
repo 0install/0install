@@ -72,12 +72,12 @@ class type impl_provider =
     (** Return all the implementations of this interface (including from feeds).
         Most preferred implementations should come first. *)
     method get_implementations : scope_filter -> iface_uri -> source:bool -> candidates
-
-    (** Used by Diagnostics. *)
-    method get_watched_compare : (Feed.implementation -> Feed.implementation -> (int * preferred_reason)) option
   end
 
-class default_impl_provider config ?watch_iface (feed_provider : Feed_cache.feed_provider) =
+class default_impl_provider config (feed_provider : Feed_cache.feed_provider) =
+  (* This shouldn't really be mutable, but ocaml4po causes trouble if we pass it in the constructor. *)
+  let watch_iface = ref None in
+
   (* If [watch_iface] is set, we store the comparison function for use by Diagnostics. *)
   let compare_for_watched_iface = ref None in
 
@@ -271,7 +271,7 @@ class default_impl_provider config ?watch_iface (feed_provider : Feed_cache.feed
 
           let impls = List.sort (compare_impls stability_policy) @@ List.concat (main_impls :: List.map get_impls extra_feeds) in
 
-          if Some iface = watch_iface then
+          if Some iface = !watch_iface then
             compare_for_watched_iface := Some (compare_impls_full stability_policy);
 
           let replacement =
@@ -332,5 +332,6 @@ class default_impl_provider config ?watch_iface (feed_provider : Feed_cache.feed
 
       {candidates with impls = List.filter do_filter (candidates.impls); rejects = !rejects}
 
+    method set_watch_iface iface = watch_iface := Some iface
     method get_watched_compare = !compare_for_watched_iface
   end

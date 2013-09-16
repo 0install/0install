@@ -14,7 +14,6 @@ let print_info f =
 let () =
   dispatch (function
   | After_rules ->
-(*     print_info "support/common.ml"; *)
     pdep ["link"] "linkdep_win" (fun param -> if on_windows then [param] else []);
 
     (* We use mypp rather than camlp4of because if you pass -pp and -ppopt to ocamlfind
@@ -37,16 +36,17 @@ let () =
 
     pflag [] "dllib" (fun x -> (S [A"-dllib"; A x]));
 
+    (* (<*.ml> or <support/*.ml> or <zeroinstall/*.ml> or <cmd/*.ml>): bisect, syntax(bisect_pp) *)
+
     (* Code coverage with bisect *)
-    flag ["bisect"; "pp"]
-      (S [A"camlp4o"; A"str.cma"; A"/usr/lib/ocaml/bisect/bisect_pp.cmo"]);
-    flag ["bisect"; "compile"]
-      (S [A"-I"; A"/path/to/bisect"]);
-    flag ["bisect"; "link"; "byte"]
-      (S [A"-I"; A"/path/to/bisect"; A"bisect.cma"]);
-    flag ["bisect"; "link"; "native"]
-      (S [A"-I"; A"/path/to/bisect"; A"bisect.cmxa"]);
-    flag ["bisect"; "link"; "java"]
-      (S [A"-I"; A"/path/to/bisect"; A"bisect.cmja"])
-  | _ -> ())
+    let coverage =
+      try Sys.getenv "OCAML_COVERAGE" = "true"
+      with Not_found -> false in
+
+    if coverage then (
+      flag ["compile"; "ocaml"] (S [A"-package"; A"bisect"; A"-syntax"; A"camlp4o"]);
+      flag ["link"] (S [A"-package"; A"bisect"]);
+    );
+  | _ -> ()
+  )
 
