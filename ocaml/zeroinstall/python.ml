@@ -25,7 +25,8 @@ let get_command config args : string list =
   let try_with path =
     if config.system#file_exists path then (
       (* Note: on Windows, we need to specify "python" *)
-      result := "python" :: path :: args;
+      let python = default "python" (config.system#getenv "ZEROINSTALL_PYTHON") in
+      result := python :: path :: args;
       true
     ) else (
       false
