@@ -281,13 +281,10 @@ let list_impls config (results:Solver.result) iface =
       match get_selected ~source:false with
       | Some bin_impl -> make_list ~source:false bin_impl
       | None ->
-          (* TODO: risk of deadlock if we try to fetch distro candidates in the callback
-                          if items is None:
-                                  # The Solver didn't get this far, but we should still display them!
-                                  items = [(impl, _("(solve aborted before here)"))
-                                                  for impl in self.interface.implementations.values()]
-          *)
-          [ ("implementations", `List []) ]
+          (* We didn't look at this interface at all, so no information will be cached.
+           * There's a risk of deadlock if we try to fetch distro candidates in the callback, so
+           * we return nothing, which will cause the GUI to shade the dialog. *)
+          []
 
 (** Run the GUI to choose and download a set of implementations
  * If [use_gui] is No; just returns `Dont_use_GUI.

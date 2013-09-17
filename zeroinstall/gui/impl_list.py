@@ -194,7 +194,9 @@ class ImplementationList(object):
 	def update(self, details):
 		self.model.clear()
 		selected = details.get('selected-feed', None), details.get('selected-id', None)
-		for item in details['implementations']:
+		impls = details.get('implementations', None)
+		self.tree_view.set_sensitive(impls is not None)
+		for item in impls or []:
 			new = self.model.append()
 			self.model[new][ITEM] = item
 			self.model[new][VERSION] = item['version']
