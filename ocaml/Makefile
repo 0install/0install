@@ -36,9 +36,9 @@ ocaml_windows:
 
 ocaml_posix:
 	cp ${OCAML_BUILDDIR}/static_0install.$(TYPE) ${OCAML_BUILDDIR}/0install
-	[ -L 0install ] || ln -s ../build/ocaml/0install 0install
+	-[ -L 0install ] || ln -s ../build/ocaml/0install 0install
 	@# so Vim can find the type annotations:
-	[ -L _build -o -e _build ] || ln -s ${OCAML_BUILDDIR} _build
+	-[ -L _build -o -e _build ] || ln -s ${OCAML_BUILDDIR} _build
 
 doc:
 	ocp-pack -o support.ml.tmp support/logging.ml support/common.ml support/utils.ml support/basedir.ml support/qdom.ml support/system.ml
