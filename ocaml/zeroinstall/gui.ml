@@ -119,7 +119,7 @@ let build_tree config (feed_provider:Feed_cache.feed_provider) old_sels sels : Y
     let (name, summary) =
       match feed_provider#get_feed uri with
       | Some (main_feed, _overrides) ->
-          (main_feed.F.name, default "-" @@ F.get_summary main_feed);
+          (main_feed.F.name, default "-" @@ F.get_summary config.langs main_feed);
       | None ->
           (uri, "") in
 

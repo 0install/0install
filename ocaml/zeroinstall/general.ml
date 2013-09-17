@@ -29,6 +29,8 @@ type config = {
   mutable dry_run : bool;
   mutable network_use : network_use;
   mutable help_with_testing : bool;
+  
+  langs : int Support.Locale.LangMap.t;
 }
 
 (** {2 Utility functions} *)
@@ -60,6 +62,8 @@ module ZI = Support.Qdom.NsQuery (ZI_NS)
 module COMPILE_NS = struct
   let ns = "http://zero-install.sourceforge.net/2006/namespaces/0compile"
 end
+
+let xml_ns = "http://www.w3.org/XML/1998/namespace"
 
 type stability_level =
   | Insecure

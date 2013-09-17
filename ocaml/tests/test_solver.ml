@@ -403,7 +403,7 @@ let suite = "solver">::: [
       extra_restrictions = StringMap.empty;
       os_ranks = Arch.get_os_ranks "Linux";
       machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
-      languages = Support.Utils.filter_map ~f:Support.Locale.parse_lang ["es_ES"; "fr_FR"];
+      languages = Support.Locale.score_langs @@ U.filter_map ~f:Support.Locale.parse_lang ["es_ES"; "fr_FR"];
     } in
 
     let test_solve scope_filter =
@@ -465,7 +465,7 @@ let suite = "solver">::: [
       extra_restrictions = StringMap.empty;
       os_ranks = Arch.get_os_ranks "Linux";
       machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
-      languages = [];
+      languages = Support.Locale.LangMap.empty;
     }) in
 
     let impl_provider = make_impl_provider config scope_filter in
@@ -501,7 +501,7 @@ let suite = "solver">::: [
       extra_restrictions = StringMap.empty;
       os_ranks = Arch.get_os_ranks "Linux";
       machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
-      languages = [];
+      languages = Support.Locale.LangMap.empty;
     }) in
     let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_cache.feed_provider) scope_filter in
     let bin_impls = impl_provider#get_implementations iface ~source:true in
@@ -593,7 +593,7 @@ let suite = "solver">::: [
         extra_restrictions = StringMap.empty;
         os_ranks = Arch.get_os_ranks "Linux";
         machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
-        languages = [];
+        languages = Support.Locale.LangMap.empty;
       }) in
       let root_scope = Solver.({
         scope_filter;
@@ -660,7 +660,7 @@ let suite = "solver">::: [
         extra_restrictions = StringMap.empty;
         os_ranks = Arch.get_os_ranks "Linux";
         machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
-        languages = [Fake_system.expect @@ Support.Locale.parse_lang lang];
+        languages = Support.Locale.score_langs [Fake_system.expect @@ Support.Locale.parse_lang lang];
       }) in
       let root_scope = Solver.({
         scope_filter;

@@ -62,7 +62,7 @@ type scope_filter = {
   extra_restrictions : Feed.restriction StringMap.t;  (* iface -> test *)
   os_ranks : int StringMap.t;
   machine_ranks : int StringMap.t;
-  languages : Support.Locale.lang_spec list;    (* Must match one of these, earlier ones preferred *)
+  languages : int Support.Locale.LangMap.t;
 }
 
 type candidates = {
@@ -156,12 +156,16 @@ class default_impl_provider config (feed_provider : Feed_cache.feed_provider) (s
 
         (* 1 if we understand this language, else 0 *)
         let score_langs langs =
-          let is_acceptable (lang, _country) = List.exists (fun (l, _c) -> l = lang) wanted_langs in
+          let is_acceptable (lang, _country) = Support.Locale.LangMap.mem (lang, None) wanted_langs in
           score_true @@ List.exists is_acceptable langs in
 
         let score_country langs =
-          let is_acceptable got = List.mem got wanted_langs in
-          score_true @@ List.exists is_acceptable langs in
+          ListLabels.fold_left ~init:0 langs ~f:(fun best lang ->
+            let score =
+              try Support.Locale.LangMap.find lang wanted_langs
+              with Not_found -> 0 in
+            max best score
+          ) in
 
         let open Feed in
 

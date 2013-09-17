@@ -602,7 +602,7 @@ let get_root_requirements config requirements =
     extra_restrictions = StringMap.map Feed.make_version_restriction extra_restrictions;
     os_ranks = Arch.get_os_ranks os;
     machine_ranks = Arch.get_machine_ranks ~multiarch machine;
-    languages = Support.Locale.get_langs config.system;
+    languages = config.langs;
   } in
   let scope = { scope_filter; use } in
 

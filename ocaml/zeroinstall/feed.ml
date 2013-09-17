@@ -156,6 +156,7 @@ let attr_released = "released"
 let attr_os= "os"
 let attr_use = "use"
 let attr_local_path = "local-path"
+let attr_lang = "lang"
 let attr_langs = "langs"
 let attr_interface = "interface"
 let attr_src = "src"
@@ -642,10 +643,14 @@ let is_retrievable_without_network cache_impl =
 
 let get_id impl = {feed = get_attr attr_from_feed impl; id = get_attr attr_id impl}
 
-let get_summary feed =
+let get_summary langs feed =
   let best = ref None in
   ZI.iter_with_name feed.root "summary" ~f:(fun elem ->
-    if !best = None then
-      best := Some (elem.Qdom.last_text_inside)     (* TODO: select best language *)
+    let new_score = Support.Locale.score_lang langs (Qdom.get_attribute_opt (xml_ns, attr_lang) elem) in
+    match !best with
+    | Some (_old_summary, old_score) when new_score <= old_score -> ()
+    | _ -> best := Some (elem.Qdom.last_text_inside, new_score)
   );
-  !best
+  match !best with
+  | None -> None
+  | Some (summary, _score) -> Some summary

@@ -14,6 +14,15 @@ let re_locale = Str.regexp "^\\([a-z]+\\)\\([-_][a-z]+\\)?\\([.:].*\\)?\\(@.*\\)
 
 type lang_spec = (string * string option)    (* Langauge, country *)
 
+module LangType =
+  struct
+    type t = lang_spec
+
+    let compare a b = compare a b
+  end
+
+module LangMap = Map.Make(LangType)
+
 let parse_lang locale : lang_spec option =
   let s = (String.lowercase locale) in
   if not (Str.string_match re_locale s 0) then (
@@ -52,3 +61,36 @@ let get_langs ?(default=("en", Some "gb")) (system:system) =
     ) in
   let specs = Utils.filter_map ~f:parse_lang langs in
   if List.mem default specs then specs else specs @ [default]
+
+(* Converts a list of languages (most preferred first) to a map from languauges to scores.
+ * For example, the list ["en_US", "en_GB", "fr"] produces the scores:
+ * en_US -> 6
+ * en_GB -> 4
+ * en    -> 3
+ * fr    -> 1
+ *)
+let score_langs langs =
+  let i = ref ((List.length langs * 2) + 2) in
+  ListLabels.fold_left ~init:LangMap.empty langs ~f:(fun map lang ->
+    if not (LangMap.mem lang map) then (
+      i := !i - 2;
+      LangMap.add (fst lang, None) (!i - 1) @@
+        LangMap.add lang !i map
+    ) else map
+  )
+
+(* Look up a language string (e.g. from an xml:lang attribute) using a ranking from [rank_langs].
+ * If lang is None, we assume English. Returns 0 if there is no match, or a positive number  *)
+let score_lang langs lang =
+  let lang =
+    match lang with
+    | None -> "en"
+    | Some lang -> lang in
+  match parse_lang lang with
+  | None -> 0
+  | Some lang ->
+      try LangMap.find lang langs
+      with Not_found ->
+        try LangMap.find (fst lang, None) langs
+        with Not_found ->
+          0

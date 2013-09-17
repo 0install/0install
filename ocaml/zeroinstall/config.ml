@@ -71,6 +71,7 @@ let get_default_config system path_to_prog =
     dry_run = false;
     help_with_testing = false;
     system;
+    langs = Support.Locale.score_langs (Support.Locale.get_langs system);
   } in
 
   load_config config;

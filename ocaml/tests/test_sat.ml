@@ -134,7 +134,7 @@ let run_sat_test expected problem =
     extra_restrictions = StringMap.empty;
     os_ranks = StringMap.empty;
     machine_ranks = StringMap.empty;
-    languages = [];
+    languages = Support.Locale.LangMap.empty;
   }) in
   let root_scope = {
     scope_filter;
