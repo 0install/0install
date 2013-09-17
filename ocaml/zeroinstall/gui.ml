@@ -75,13 +75,6 @@ let get_download_size info impl =
       | Some size -> size
       | None -> Q.raise_elem "Implementation %s has no usable retrieval methods!" (F.get_attr F.attr_id impl) impl.F.qdom
 
-(* Yojson.Basic.Util.to_number isn't in the Debian package.
- * TODO: what about `Intlit? *)
-let to_number = function
-  | `Int i -> float i
-  | `Float f -> f
-  | json -> raise_safe "Not a number '%s'" (Yojson.Basic.Util.to_string json)
-
 (* Returns (local-dir, fetch-size, fetch-tooltip) *)
 let get_fetch_info config impl =
   try
@@ -102,7 +95,7 @@ let get_fetch_info config impl =
             match info.F.retrieval_method with
             | None -> None
             | Some attrs ->
-                try Some (to_number (List.assoc "size" attrs))
+                try Some (Yojson.Basic.Util.to_float (List.assoc "size" attrs))
                 with Not_found -> None in
           match size with
           | None -> (`Null, "(install)", "No size information available for this download")

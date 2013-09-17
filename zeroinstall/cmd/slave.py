@@ -99,7 +99,7 @@ def to_json(impl):
 		attrs['retrieval_method'] = {
 			'type': 'packagekit',
 			'id': m.package_id,
-			'size': m.size,
+			'size': float(m.size),		# Use floats to avoid 31-bit int problem
 		}
 
 	if impl.main:
