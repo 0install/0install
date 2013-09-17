@@ -479,9 +479,8 @@ class InterfaceBrowser(object):
 			downloads = hints.get(iface, [])	# The interface itself
 			downloads += hints.get(iface.uri, [])	# The main feed
 
-			#arch = solver.get_arch_for(requirements, iface)		TODO
-			#for feed in iface_cache.usable_feeds(iface, arch):
-			#	downloads += hints.get(feed.uri, []) # Other feeds
+			for feed in iface_cache.get_feed_imports(iface):
+				downloads += hints.get(feed.uri, []) # Other feeds
 			sel = self.implementations.get(iface, None)
 			if sel:
 				downloads += hints.get(sel, []) # The chosen implementation
