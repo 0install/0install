@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
-<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
-           xmlns:compile="http://zero-install.sourceforge.net/2006/namespaces/0compile">
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface" xmlns:compile="http://zero-install.sourceforge.net/2006/namespaces/0compile">
   <name>0install</name>
   <summary>decentralised installation system</summary>
   <description>
@@ -22,15 +22,15 @@ interfere with those provided by the distribution.
 
   <release:management xmlns:release="http://zero-install.sourceforge.net/2007/namespaces/0release">
     <!-- Update the copy of the version number -->
-    <release:update-version path='ocaml/zeroinstall/about.ml'>^let version = "(.*)"$</release:update-version>
-    <release:update-version path='zeroinstall/__init__.py'>^version = '(.*)'$</release:update-version>
-    <release:update-version path='zeroinstall/gui/gui.py'>^version = '(.*)'$</release:update-version>
+    <release:update-version path="ocaml/zeroinstall/about.ml">^let version = &quot;(.*)&quot;$</release:update-version>
+    <release:update-version path="zeroinstall/__init__.py">^version = '(.*)'$</release:update-version>
+    <release:update-version path="zeroinstall/gui/gui.py">^version = '(.*)'$</release:update-version>
     <release:action phase="generate-archive">rm .gitignore; make translations</release:action>
   </release:management>
 
-  <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" arch='*-src'>
-    <command name='compile'>
-      <runner interface='http://repo.roscidus.com/devel/make'>
+  <group arch="*-src" license="OSI Approved :: GNU Lesser General Public License (LGPL)">
+    <command name="compile">
+      <runner interface="http://repo.roscidus.com/devel/make">
 	<arg>-f</arg>
 	<arg>${SRCDIR}/Makefile</arg>
 	<arg>SRCDIR=${SRCDIR}</arg>
@@ -46,7 +46,7 @@ interfere with those provided by the distribution.
 	</requires>
 
 	<requires interface="http://repo.roscidus.com/python/python" version="2.6..!3 | 3.2.2..">
-	  <executable-in-var name='ZEROINSTALL_PYTHON'/>
+	  <executable-in-var name="ZEROINSTALL_PYTHON"/>
 	</requires>
 
 	<requires interface="http://repo.roscidus.com/python/python-gobject" os="POSIX"/>
@@ -61,6 +61,6 @@ interfere with those provided by the distribution.
     </command>
     -->
 
-    <implementation id="." version="2.3.3-post"/>
+    <implementation id="." released="2013-09-17" version="2.4-rc1"/>
   </group>
 </interface>
