@@ -63,6 +63,7 @@ type scope_filter = {
   os_ranks : int StringMap.t;
   machine_ranks : int StringMap.t;
   languages : int Support.Locale.LangMap.t;
+  allowed_uses : StringSet.t;                         (* deprecated *)
 }
 
 type candidates = {
@@ -76,10 +77,15 @@ class type impl_provider =
     (** Return all the implementations of this interface (including from feeds).
         Most preferred implementations should come first. *)
     method get_implementations : iface_uri -> source:bool -> candidates
+
+    (** Should the solver consider this dependency? *)
+    method is_dep_needed : Feed.dependency -> bool
+
+    method extra_restrictions : Feed.restriction StringMap.t
   end
 
 class default_impl_provider config (feed_provider : Feed_cache.feed_provider) (scope_filter:scope_filter) =
-  let {extra_restrictions; os_ranks; machine_ranks; languages = wanted_langs} = scope_filter in
+  let {extra_restrictions; os_ranks; machine_ranks; languages = wanted_langs; allowed_uses} = scope_filter in
 
   (* This shouldn't really be mutable, but ocaml4po causes trouble if we pass it in the constructor. *)
   let watch_iface = ref None in
@@ -101,6 +107,17 @@ class default_impl_provider config (feed_provider : Feed_cache.feed_provider) (s
 
   object (_ : #impl_provider)
     val cache = Hashtbl.create 10
+
+    method is_dep_needed dep =
+      match dep.Feed.dep_use with
+      | Some use when not (StringSet.mem use allowed_uses) -> false
+      | None | Some _ ->
+          (* Ignore dependency if 'os' attribute is present and doesn't match *)
+          match dep.Feed.dep_if_os with
+          | Some required_os -> StringMap.mem required_os os_ranks
+          | None -> true
+
+    method extra_restrictions = scope_filter.extra_restrictions
 
     method get_implementations iface ~source:want_source =
       let get_feed_if_useful {Feed.feed_src; Feed.feed_os; Feed.feed_machine; Feed.feed_langs; Feed.feed_type = _} =

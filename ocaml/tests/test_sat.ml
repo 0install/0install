@@ -65,6 +65,9 @@ class impl_provider =
         try Hashtbl.find interfaces iface
         with Not_found -> failwith iface;
     }
+
+    method is_dep_needed _dep = true
+    method extra_restrictions = StringMap.empty
   end
 
 let re_dep = Str.regexp "\\([a-z]+\\)\\[\\([0-9]+\\)\\(,[0-9]+\\)?\\] => \\([a-z]+\\) \\([0-9]+\\) \\([0-9]+\\)"
@@ -130,22 +133,12 @@ let run_sat_test expected problem =
     )
   );
 
-  let scope_filter = Impl_provider.({
-    extra_restrictions = StringMap.empty;
-    os_ranks = StringMap.empty;
-    machine_ranks = StringMap.empty;
-    languages = Support.Locale.LangMap.empty;
-  }) in
-  let root_scope = {
-    scope_filter;
-    use = StringSet.empty;
-  } in
   let root_req = ReqIface (fst @@ List.hd expected_items, false) in
-  let result = do_solve (impl_provider :> Impl_provider.impl_provider) root_scope root_req ~closest_match:false in
+  let result = do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false in
 
   match result, root_expected_version with
   | None, "FAIL" ->
-      let result = do_solve (impl_provider :> Impl_provider.impl_provider) root_scope root_req ~closest_match:true in
+      let result = do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true in
       Fake_system.expect result
   | None, _ -> assert_failure "Expected success, but failed"
   | Some _, "FAIL" -> assert_failure "Expected failure, but found solution!"

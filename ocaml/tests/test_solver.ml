@@ -404,6 +404,7 @@ let suite = "solver">::: [
       os_ranks = Arch.get_os_ranks "Linux";
       machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
       languages = Support.Locale.score_langs @@ U.filter_map ~f:Support.Locale.parse_lang ["es_ES"; "fr_FR"];
+      allowed_uses = StringSet.empty;
     } in
 
     let test_solve scope_filter =
@@ -466,6 +467,7 @@ let suite = "solver">::: [
       os_ranks = Arch.get_os_ranks "Linux";
       machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
       languages = Support.Locale.LangMap.empty;
+      allowed_uses = StringSet.empty;
     }) in
 
     let impl_provider = make_impl_provider config scope_filter in
@@ -502,6 +504,7 @@ let suite = "solver">::: [
       os_ranks = Arch.get_os_ranks "Linux";
       machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
       languages = Support.Locale.LangMap.empty;
+      allowed_uses = StringSet.empty;
     }) in
     let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_cache.feed_provider) scope_filter in
     let bin_impls = impl_provider#get_implementations iface ~source:true in
@@ -594,14 +597,11 @@ let suite = "solver">::: [
         os_ranks = Arch.get_os_ranks "Linux";
         machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
         languages = Support.Locale.LangMap.empty;
-      }) in
-      let root_scope = Solver.({
-        scope_filter;
-        use = StringSet.empty;
+        allowed_uses = StringSet.empty;
       }) in
       let root_req = Solver.ReqIface ("http://foo/MultiArch.xml", false) in
       let impl_provider = make_impl_provider config scope_filter in
-      match Solver.do_solve impl_provider root_scope root_req ~closest_match:false with
+      match Solver.do_solve impl_provider root_req ~closest_match:false with
       | None -> assert false
       | Some results ->
           let sels = results#get_selections in
@@ -661,14 +661,11 @@ let suite = "solver">::: [
         os_ranks = Arch.get_os_ranks "Linux";
         machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
         languages = Support.Locale.score_langs [Fake_system.expect @@ Support.Locale.parse_lang lang];
-      }) in
-      let root_scope = Solver.({
-        scope_filter;
-        use = StringSet.empty;
+        allowed_uses = StringSet.empty;
       }) in
       let impl_provider = new Impl_provider.default_impl_provider config feed_provider scope_filter in
       let root_req = Solver.ReqIface (Test_0install.feed_dir +/ "Langs.xml", false) in
-      match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_scope root_req ~closest_match:false with
+      match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false with
       | None -> assert_failure expected
       | Some results ->
           match results#get_selections.Support.Qdom.child_nodes with

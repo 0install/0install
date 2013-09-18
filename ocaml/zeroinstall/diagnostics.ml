@@ -299,7 +299,7 @@ let check_machine_groups report =
     SelMap.iter filter report
 
 let get_failure_report (result:Solver.result) : component SelMap.t =
-  let (root_scope, sat, impl_provider, impl_cache, root_req) = result#get_details in
+  let (sat, impl_provider, impl_cache, root_req) = result#get_details in
 
   let report =
     let get_selected map ((iface, source) as key, candidates) =
@@ -313,7 +313,7 @@ let get_failure_report (result:Solver.result) : component SelMap.t =
     List.fold_left get_selected SelMap.empty impl_cache#get_items in
 
   process_root_req report root_req;
-  examine_extra_restrictions report root_scope.Solver.scope_filter.Impl_provider.extra_restrictions;
+  examine_extra_restrictions report impl_provider#extra_restrictions;
   check_machine_groups report;
   SelMap.iter (examine_selection report) report;
   SelMap.iter (reject_if_unselected sat) report;
@@ -464,7 +464,7 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare can
 (** Run a solve with impl_id forced to be selected, and use that to explain why it wasn't (or was)
     selected in the normal case. *)
 let justify_decision config feed_provider requirements q_iface q_impl =
-  let (scope, root_req) = Solver.get_root_requirements config requirements in
+  let (scope_filter, root_req) = Solver.get_root_requirements config requirements in
 
   (* Note: there's a slight mismatch between the diagnostics system (which assumes each interface is used either for
      source or binaries, but not both, and the current implementation of the solver. *)
@@ -478,7 +478,7 @@ let justify_decision config feed_provider requirements q_iface q_impl =
   let impl_provider =
     let open Impl_provider in
     object
-      inherit default_impl_provider config feed_provider scope.Solver.scope_filter as super
+      inherit default_impl_provider config feed_provider scope_filter as super
       initializer super#set_watch_iface q_iface
 
       method! get_implementations requested_iface ~source:want_source =
@@ -503,7 +503,7 @@ let justify_decision config feed_provider requirements q_iface q_impl =
 
   (* Could a selection involving impl even be valid? *)
   try
-    match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) scope root_req ~closest_match:false with
+    match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false with
     | Some result ->
         let test_sels = result#get_selections in
         let (ready, actual_selections) = Solver.solve_for config feed_provider requirements in
@@ -512,7 +512,7 @@ let justify_decision config feed_provider requirements q_iface q_impl =
           ~old_sels:actual_selections#get_selections
           ~compare:impl_provider#get_watched_compare !candidates
     | None ->
-        match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) scope root_req ~closest_match:true with
+        match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true with
         | None -> failwith "No solution, even with closest_match!"
         | Some result ->
             return "There is no possible selection using %s.\n%s" !wanted @@ get_failure_reason config result

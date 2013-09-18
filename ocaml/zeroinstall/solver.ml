@@ -199,18 +199,12 @@ class ['a, 'b] cache =
       !r
   end
 
-type scope = {
-  scope_filter : Impl_provider.scope_filter;
-  use : StringSet.t;        (* For the old <requires use='...'/> *)
-}
-
 class type result =
   object
     method get_selections : Qdom.element
-    method scope_filter : Impl_provider.scope_filter
     method impl_cache : ((General.iface_uri * bool), impl_candidates) cache
     method impl_provider : Impl_provider.impl_provider
-    method get_details : (scope * S.sat_problem * Impl_provider.impl_provider *
+    method get_details : (S.sat_problem * Impl_provider.impl_provider *
                           (General.iface_uri * bool, impl_candidates) cache * search_key)
   end
 
@@ -318,7 +312,7 @@ let get_selections dep_in_use root_req impl_cache command_cache =
 (* [closest_match] is used internally. It adds a lowest-ranked
    (but valid) implementation to every interface, so we can always
    select something. Useful for diagnostics. *)
-let do_solve (impl_provider:Impl_provider.impl_provider) root_scope root_req ~closest_match =
+let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match =
   (* The basic plan is this:
      1. Scan the root interface and all dependencies recursively, building up a SAT problem.
      2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
@@ -354,15 +348,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_scope root_req ~cl
       impls
     ) in
 
-  let dep_in_use dep =
-    match dep.Feed.dep_use with
-    | Some use when not (StringSet.mem use root_scope.use) -> false
-    | None | Some _ ->
-        (* Ignore dependency if 'os' attribute is present and doesn't match *)
-        match dep.Feed.dep_if_os with
-        | Some required_os -> StringMap.mem required_os root_scope.scope_filter.Impl_provider.os_ranks
-        | None -> true
-  in
+  let dep_in_use dep = impl_provider#is_dep_needed dep in
 
   (* Callbacks to run after building the problem. *)
   let delayed = ref [] in
@@ -566,13 +552,12 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_scope root_req ~cl
       object (_ : result)
         method get_selections = get_selections dep_in_use root_req impl_cache command_cache
 
-        method scope_filter = root_scope.scope_filter
         method impl_cache = impl_cache
         method impl_provider = impl_provider
 
         method get_details =
           if closest_match then
-            (root_scope, sat, impl_provider, impl_cache, root_req)
+            (sat, impl_provider, impl_cache, root_req)
           else
             failwith "Can't diagnostic details: solve didn't fail!"
       end
@@ -603,24 +588,24 @@ let get_root_requirements config requirements =
     os_ranks = Arch.get_os_ranks os;
     machine_ranks = Arch.get_machine_ranks ~multiarch machine;
     languages = config.langs;
+    allowed_uses = use;
   } in
-  let scope = { scope_filter; use } in
 
   let root_req = match command with
   | Some command -> ReqCommand (command, interface_uri, source)
   | None -> ReqIface (interface_uri, source) in
 
-  (scope, root_req)
+  (scope_filter, root_req)
 
 let solve_for config feed_provider requirements =
   try
-    let (scope, root_req) = get_root_requirements config requirements in
+    let (scope_filter, root_req) = get_root_requirements config requirements in
 
-    let impl_provider = (new Impl_provider.default_impl_provider config feed_provider scope.scope_filter :> Impl_provider.impl_provider) in
-    match do_solve impl_provider scope root_req ~closest_match:false with
+    let impl_provider = (new Impl_provider.default_impl_provider config feed_provider scope_filter :> Impl_provider.impl_provider) in
+    match do_solve impl_provider root_req ~closest_match:false with
     | Some result -> (true, result)
     | None ->
-        match do_solve impl_provider scope root_req ~closest_match:true with
+        match do_solve impl_provider root_req ~closest_match:true with
         | Some result -> (false, result)
         | None -> failwith "No solution, even with closest_match!"
   with Safe_exception _ as ex -> reraise_with_context ex "... solving for interface %s" requirements.Requirements.interface_uri
