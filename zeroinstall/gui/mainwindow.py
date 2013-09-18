@@ -8,7 +8,7 @@ from logging import info, warning
 from zeroinstall import _, translation
 from zeroinstall import SafeException
 from zeroinstall.support import tasks, pretty_size
-from zeroinstall.injector import download, iface_cache, selections
+from zeroinstall.injector import download, selections
 from zeroinstall.gui.iface_browser import InterfaceBrowser
 from zeroinstall.gui import dialog
 from zeroinstall.gtkui import gtkutils
@@ -191,7 +191,7 @@ class MainWindow(object):
 		self.comment.set_attributes(attrs)
 		self.comment.show()
 
-	def use_systray_icon(self):
+	def use_systray_icon(self, root_iface):
 		try:
 			if sys.version_info[0] > 2:
 				self.systray_icon = gtk.StatusIcon.new_from_icon_name("zeroinstall")
@@ -200,7 +200,6 @@ class MainWindow(object):
 		except Exception as ex:
 			info(_("No system tray support: %s"), ex)
 		else:
-			root_iface = iface_cache.iface_cache.get_interface(self.driver.requirements.interface_uri)
 			self.systray_icon.set_tooltip(_('Checking for updates for %s') % root_iface.get_name())
 			self.systray_icon.connect('activate', self.remove_systray_icon)
 			self.systray_icon_blocker = tasks.Blocker('Tray icon clicked')

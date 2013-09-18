@@ -259,7 +259,6 @@ class Properties(object):
 		notebook = widgets.get_widget('interface_notebook')
 		assert notebook
 
-		#target_arch = self.driver.solver.get_arch_for(driver.requirements, interface = interface)
 		self.feeds = Feeds(driver.config, interface, widgets)
 
 		stability = widgets.get_widget('preferred_stability')

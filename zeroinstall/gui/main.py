@@ -19,7 +19,6 @@ if localedir:
 from optparse import OptionParser
 
 from zeroinstall import _, SafeException
-from zeroinstall.injector import requirements
 from zeroinstall.injector.config import load_config
 from zeroinstall.support import tasks
 
@@ -74,9 +73,8 @@ def gui_is_available(force_gui):
 	return False
 
 class OCamlDriver:
-	def __init__(self, config, requirements):
+	def __init__(self, config):
 		self.config = config
-		self.requirements = requirements
 		self.watchers = []
 
 	def set_selections(self, ready, tree, sels):
@@ -151,9 +149,6 @@ def open_gui(args):
 
 	from zeroinstall.gui import mainwindow, dialog
 
-	r = requirements.Requirements(interface_uri)
-	r.parse_options(options)
-
 	widgets = dialog.Template('main')
 
 	root_iface = config.iface_cache.get_interface(interface_uri)
@@ -164,7 +159,7 @@ def open_gui(args):
 		finished.gui_result = result
 		finished.trigger()
 
-	driver = OCamlDriver(config, r)
+	driver = OCamlDriver(config)
 
 	window = mainwindow.MainWindow(driver, widgets, download_only = bool(options.download_only), resolve = resolve, select_only = bool(options.select_only))
 	handler.mainwindow = window
@@ -172,13 +167,13 @@ def open_gui(args):
 	if options.message:
 		window.set_message(options.message)
 
-	root = config.iface_cache.get_interface(r.interface_uri)
+	root = config.iface_cache.get_interface(interface_uri)
 	window.browser.set_root(root)
 
 	window.window.connect('destroy', lambda w: handler.abort_all_downloads())
 
 	if options.systray:
-		window.use_systray_icon()
+		window.use_systray_icon(root_iface)
 
 	logger = logging.getLogger()
 

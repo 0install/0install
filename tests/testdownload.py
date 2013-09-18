@@ -13,7 +13,6 @@ os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall import helpers, logger
 from zeroinstall.injector import model, gpg, download, trust, arch, selections, qdom, config, namespaces
-from zeroinstall.injector.requirements import Requirements
 from zeroinstall.injector.scheduler import Site
 from zeroinstall.zerostore import NotStored
 from zeroinstall.support import basedir, tasks, ro_rmtree

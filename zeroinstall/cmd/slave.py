@@ -12,7 +12,6 @@ import sys, os
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, qdom, selections, download
-from zeroinstall.injector.requirements import Requirements
 from zeroinstall.support import tasks
 from zeroinstall import support
 
@@ -51,12 +50,6 @@ def parse_ynm(s):
 	if s == 'no': return False
 	if s == 'maybe': return None
 	assert 0, s
-
-def reqs_from_json(reqs_json):
-	requirements = Requirements(None)
-	for k, v in reqs_json.items():
-		setattr(requirements, k, v)
-	return requirements
 
 def get_dry_run_names(config):
 	paths = set()
@@ -259,7 +252,7 @@ def do_open_gui(args):
 	global run_gui, gui_driver
 	assert run_gui is None
 
-	reqs, opts = args
+	root_uri, opts = args
 
 	gui_args = []
 
@@ -270,11 +263,8 @@ def do_open_gui(args):
 	elif opts['action'] == 'for-download': gui_args += ['--download-only']
 	elif opts['action'] != 'for-run': assert 0, opts
 
-	reqs = reqs_from_json(reqs)
-	gui_args += reqs.get_as_options()
-
 	from zeroinstall.gui import main
-	run_gui, gui_driver = main.open_gui(gui_args + ['--', reqs.interface_uri])
+	run_gui, gui_driver = main.open_gui(gui_args + ['--', root_uri])
 	return []
 
 @tasks.async

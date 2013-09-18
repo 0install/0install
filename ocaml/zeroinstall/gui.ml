@@ -393,7 +393,7 @@ let get_selections_gui config (slave:Python.slave) ?test_callback distro ?(systr
       | json -> raise_safe "run_test: invalid request: %s" (Yojson.Basic.to_string (`List json))
     );
 
-    slave#invoke (`List [`String "open-gui"; R.to_json reqs; opts]) (function   (* TODO: remove reqs *)
+    slave#invoke (`List [`String "open-gui"; `String reqs.Requirements.interface_uri; opts]) (function
       | `List [] -> ()
       | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json)
     );
