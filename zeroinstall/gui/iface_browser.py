@@ -481,7 +481,7 @@ class InterfaceBrowser(object):
 
 			for feed in iface_cache.get_feed_imports(iface):
 				downloads += hints.get(feed.uri, []) # Other feeds
-			sel = self.implementations.get(iface, None)
+			sel = self.implementations.get(iface.uri, None)
 			if sel:
 				downloads += hints.get(sel, []) # The chosen implementation
 
