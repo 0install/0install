@@ -1,1 +1,2 @@
 true: for-pack(Zeroinstall)
+<python.*> or <driver.*> or <gui.*> or <fetch.*>: syntax(camlp4o), package(lwt.syntax)

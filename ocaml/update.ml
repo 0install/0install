@@ -58,7 +58,7 @@ let check_for_updates options reqs old_sels =
   let config = options.config in
   let distro = Lazy.force options.distro in
   let new_sels = Zeroinstall.Helpers.solve_and_download_impls config distro options.slave
-                          reqs `Select_for_update ~refresh:true ~use_gui:options.gui in
+                          reqs `Download_only ~refresh:true ~use_gui:options.gui in
   match new_sels with
   | None -> raise (System_exit 1)   (* Aborted by user *)
   | Some new_sels ->

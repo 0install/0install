@@ -16,18 +16,18 @@ let cache_path_for = Feed_cache.get_save_cache_path
 class fake_slave config handler : Python.slave =
   object (_ : #Python.slave)
     method invoke request ?xml parse_fn =
+      ignore xml;
       match request with
       | `List [`String "get-package-impls"; `String url] -> parse_fn @@ handler#get_package_impls url
-      | `List [`String "download-selections"; opts] ->
-          handler#download_selections (Fake_system.expect xml) (Yojson.Basic.Util.to_assoc opts);
-          parse_fn @@ `List []
       | _ -> raise_safe "invoke: %s" (Yojson.Basic.to_string request)
     method invoke_async request ?xml parse_fn =
-      ignore xml;
       log_info "invoke_async: %s" (Yojson.Basic.to_string request);
       match request with
       | `List [`String "download-and-import-feed"; `String url] -> Lwt.return @@ parse_fn @@ handler#download_and_import url
       | `List [`String "get-distro-candidates"; `String url] -> Lwt.return @@ parse_fn @@ handler#get_distro_candidates url
+      | `List [`String "download-selections"; opts] ->
+          handler#download_selections (Fake_system.expect xml) (Yojson.Basic.Util.to_assoc opts);
+          Lwt.return @@ parse_fn @@ `List []
       | _ -> raise_safe "Unexpected request %s" (Yojson.Basic.to_string request)
 
     method close = ()

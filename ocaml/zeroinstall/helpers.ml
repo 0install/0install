@@ -22,25 +22,9 @@ type select_mode = [
     If [distro] is given then distribution packages are also installed, otherwise
     they are ignored. *)
 let download_selections config (slave:Python.slave) distro sels =
-  if Selections.get_unavailable_selections config ?distro sels <> [] then (
-    let opts = `Assoc [
-      ("include-packages", `Bool (distro <> None));
-    ] in
-
-    let request : Yojson.Basic.json = `List [`String "download-selections"; opts] in
-
-    let dry_run_paths =
-      slave#invoke ~xml:sels request (function
-        | `List dry_run_paths -> List.map Yojson.Basic.Util.to_string dry_run_paths
-        | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
-      ) in
-
-    (* In --dry-run mode, the directories haven't actually been added, so we need to tell the
-     * dryrun_system about them. *)
-    if config.dry_run then (
-      List.iter (fun name -> config.system#mkdir name 0o755) dry_run_paths
-    )
-  )
+  match Lwt_main.run @@ Fetch.download_selections config slave distro sels with
+  | `success -> ()
+  | `aborted_by_user -> raise_safe "Aborted by user"
 
 (** Get some selectsions for these requirements.
     Returns [None] if the user cancels.
@@ -62,7 +46,7 @@ let solve_and_download_impls config distro (slave:Python.slave) ?test_callback r
         let () =
           match mode with
           | `Select_only -> ()
-          | `Download_only | `Select_for_update | `Select_for_run ->
+          | `Download_only | `Select_for_run ->
               download_selections config slave (Some distro) sels in
         Some sels in
 

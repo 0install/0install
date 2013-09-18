@@ -10,7 +10,7 @@ val get_selections_gui :
   ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
   Distro.distribution ->
   ?systray:bool ->
-  [< `Download_only | `Select_for_run | `Select_for_update | `Select_only ] ->
+  [< `Download_only | `Select_for_run | `Select_only ] ->
   Requirements.requirements ->
   refresh:bool ->
   use_gui:Support.Common.yes_no_maybe ->

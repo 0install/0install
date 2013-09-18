@@ -61,6 +61,7 @@ def get_dry_run_names(config):
 
 @tasks.async
 def do_download_selections(config, ticket, options, args, xml):
+	if gui_driver is not None: config = gui_driver.config
 	try:
 		opts, = args
 		include_packages = opts['include-packages']
@@ -75,6 +76,8 @@ def do_download_selections(config, ticket, options, args, xml):
 		added_names = get_dry_run_names(config) - old_dry_run_names
 
 		send_json(["return", ticket, ["ok", list(added_names)]])
+	except download.DownloadAborted as ex:
+		send_json(["return", ticket, ["ok", "aborted-by-user"]])
 	except Exception as ex:
 		send_json(["return", ticket, ["error", str(ex)]])
 
@@ -366,34 +369,28 @@ def resolve_on_reply(ticket, blocker):
 			blocker.trigger(exception = (SafeException(details[1]), None))
 	pending_replies[ticket] = done
 
+def invoke_master(request):
+	ticket = take_ticket()
+	blocker = tasks.Blocker(request[0])
+	resolve_on_reply(ticket, blocker)
+	send_json(["invoke", ticket, request])
+	return blocker
+
 # Get the details needed for the GUI component dialog
 def get_component_details(interface_uri):
-	ticket = take_ticket()
-	blocker = tasks.Blocker('get_component_details')
-	resolve_on_reply(ticket, blocker)
-	send_json(["invoke", ticket, ["get-component-details", interface_uri]])
-	return blocker
+	return invoke_master(["get-component-details", interface_uri])
 
 def justify_decision(iface, feed, impl_id):
-	ticket = take_ticket()
-	blocker = tasks.Blocker('justify_decision')
-	resolve_on_reply(ticket, blocker)
-	send_json(["invoke", ticket, ["justify-decision", iface, feed, impl_id]])
-	return blocker
+	return invoke_master(["justify-decision", iface, feed, impl_id])
 
 def get_bug_report_details():
-	ticket = take_ticket()
-	blocker = tasks.Blocker('get_bug_report_details')
-	resolve_on_reply(ticket, blocker)
-	send_json(["invoke", ticket, ["get-bug-report-details"]])
-	return blocker
+	return invoke_master(["get-bug-report-details"])
 
 def run_test():
-	ticket = take_ticket()
-	blocker = tasks.Blocker('run_test')
-	resolve_on_reply(ticket, blocker)
-	send_json(["invoke", ticket, ["run-test"]])
-	return blocker
+	return invoke_master(["run-test"])
+
+def download_archives():
+	return invoke_master(["download-archives"])
 
 def handle(config, options, args):
 	if args:

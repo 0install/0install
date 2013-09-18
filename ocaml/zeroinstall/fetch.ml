@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open General
 open Support.Common
 
 module Q = Support.Qdom
@@ -18,3 +19,34 @@ class fetcher config (slave:Python.slave) =
         | _ -> raise_safe "Invalid JSON response" in
       slave#invoke_async request parse_result
   end
+
+(** Ensure all selections are cached, downloading any that are missing.
+    If [distro] is given then distribution packages are also installed, otherwise
+    they are ignored. *)
+let download_selections config (slave:Python.slave) distro sels =
+  if Selections.get_unavailable_selections config ?distro sels <> [] then (
+    let opts = `Assoc [
+      ("include-packages", `Bool (distro <> None));
+    ] in
+
+    let request : Yojson.Basic.json = `List [`String "download-selections"; opts] in
+
+    lwt result =
+      slave#invoke_async ~xml:sels request (function
+        | `List dry_run_paths -> `success (List.map Yojson.Basic.Util.to_string dry_run_paths)
+        | `String "aborted-by-user" -> `aborted_by_user
+        | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
+      ) in
+
+    match result with
+    | `aborted_by_user -> Lwt.return `aborted_by_user
+    | `success dry_run_paths ->
+        (* In --dry-run mode, the directories haven't actually been added, so we need to tell the
+         * dryrun_system about them. *)
+        if config.dry_run then (
+          List.iter (fun name -> config.system#mkdir name 0o755) dry_run_paths
+        );
+        Lwt.return `success
+  ) else (
+    Lwt.return `success
+  )

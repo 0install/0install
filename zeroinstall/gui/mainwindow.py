@@ -13,6 +13,7 @@ from zeroinstall.gui.iface_browser import InterfaceBrowser
 from zeroinstall.gui import dialog
 from zeroinstall.gtkui import gtkutils
 from zeroinstall.gtkui import help_box
+from zeroinstall.cmd import slave
 
 ngettext = translation.ngettext
 
@@ -23,7 +24,6 @@ class MainWindow(object):
 	progress_area = None
 	browser = None
 	window = None
-	cancel_download_and_run = None
 	driver = None
 	comment = None
 	systray_icon = None
@@ -79,12 +79,9 @@ class MainWindow(object):
 				self.driver.config.handler.abort_all_downloads()
 				resolve("cancel")
 			elif resp == gtk.RESPONSE_OK:
-				if self.cancel_download_and_run:
-					self.cancel_download_and_run.trigger()
+				self.driver.config.handler.abort_all_downloads()
 				if run_button.get_active():
-					self.driver.config.handler.abort_all_downloads()
-					self.cancel_download_and_run = tasks.Blocker("cancel downloads")
-					self.download_and_run(run_button, self.cancel_download_and_run)
+					self.download_and_run(run_button)
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 			elif resp == SHOW_PREFERENCES:
@@ -103,37 +100,24 @@ class MainWindow(object):
 		self.window.set_response_sensitive(response, sensitive)
 
 	@tasks.async
-	def download_and_run(self, run_button, cancelled):
+	def download_and_run(self, run_button):
 		try:
-			if not self.select_only:
-				assert self.driver.ready, "Solver is not ready!"
-				sels = selections.Selections(self.driver.sels)
-				downloaded = sels.download_missing(self.driver.config, include_packages = True)
+			blocker = slave.download_archives()
+			yield blocker
+			tasks.check(blocker)
 
-				if downloaded:
-					# We need to wait until everything is downloaded...
-					blockers = [downloaded, cancelled]
-					yield blockers
-					tasks.check(blockers)
-
-					if cancelled.happened:
-						return
-
-				uncached = sels.get_unavailable_selections(self.driver.config, include_packages = True)
-			else:
-				uncached = None		# (we don't care)
-
-			if uncached:
-				missing = '\n- '.join([_('%(iface_name)s %(impl_version)s') % {'iface_name': iface.get_name(), 'impl_version': impl.get_version()} for iface, impl in uncached])
-				dialog.alert(self.window, _('Not all downloads succeeded; cannot run program.\n\nFailed to get:') + '\n- ' + missing)
-			else:
+			if blocker.result == "aborted-by-user":
+				run_button.set_active(False)
+				# Don't bother reporting this to the user
+			elif blocker.result == "ok":
+				if not run_button.get_active():
+					return
 				self.driver.config.handler.abort_all_downloads()
 				self.resolve("ok")
+			else:
+				assert 0, blocker.result
 		except SystemExit:
 			raise
-		except download.DownloadAborted as ex:
-			run_button.set_active(False)
-			# Don't bother reporting this to the user
 		except Exception as ex:
 			run_button.set_active(False)
 			self.report_exception(ex)
