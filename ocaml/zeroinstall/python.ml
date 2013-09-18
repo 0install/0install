@@ -122,7 +122,7 @@ class slave config =
 
   let handle_invoke c ticket request () =
     lwt response =
-      try
+      try_lwt
         lwt return_value =
           match request with
           | `List (`String op :: args) ->
