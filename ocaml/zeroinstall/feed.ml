@@ -20,7 +20,7 @@ module AttrMap = Map.Make(AttrType)
 
 (** A globally-unique identifier for an implementation. *)
 type global_id = {
-  feed : string;
+  feed : feed_url;
   id : string;
 }
 
@@ -189,9 +189,9 @@ let make_distribtion_restriction distros =
     method to_string = "distribution:" ^ distros
   end
 
-let get_attr key impl =
-  try AttrMap.find ("", key) impl.props.attrs
-  with Not_found -> Qdom.raise_elem "Attribute '%s' not found on" key impl.qdom
+let get_attr_ex name (impl:implementation) =
+  try AttrMap.find ("", name) impl.props.attrs
+  with Not_found -> Qdom.raise_elem "Missing '%s' attribute for " name impl.qdom
 
 let get_attr_opt key map =
   try Some (AttrMap.find ("", key) map)
@@ -308,15 +308,14 @@ let parse_command local_dir elem : command =
   }
 
 let rec filter_if_0install_version node =
-  let open Qdom in
   match Qdom.get_attribute_opt ("", attr_if_0install_version) node with
   | Some expr when not (Versions.parse_expr expr About.parsed_version) -> None
   | Some _expr -> Some {
-    node with child_nodes = U.filter_map ~f:filter_if_0install_version node.child_nodes;
-    attrs = List.remove_assoc ("", attr_if_0install_version) node.attrs
+    node with Qdom.child_nodes = U.filter_map ~f:filter_if_0install_version node.Qdom.child_nodes;
+    attrs = List.remove_assoc ("", attr_if_0install_version) node.Qdom.attrs
   }
   | None -> Some {
-    node with child_nodes = U.filter_map ~f:filter_if_0install_version node.child_nodes;
+    node with Qdom.child_nodes = U.filter_map ~f:filter_if_0install_version node.Qdom.child_nodes;
   }
 
 let parse system root feed_local_path =
@@ -560,14 +559,6 @@ let parse system root feed_local_path =
     imported_feeds = !imported_feeds;
   }
 
-let get_attr_ex name (impl:implementation) =
-  try AttrMap.find ("", name) impl.props.attrs
-  with Not_found -> Qdom.raise_elem "Missing '%s' attribute for " name impl.qdom
-
-let get_version (impl:implementation) =
-  try Versions.parse_version @@ get_attr_ex "version" impl
-  with Safe_exception _ as ex -> reraise_with_context ex "... in %s" (Qdom.show_with_loc impl.qdom)
-
 (* Get all the implementations (note: only sorted by ID) *)
 let get_implementations feed =
   StringMap.fold (fun _k impl xs -> impl :: xs) feed.implementations []
@@ -578,7 +569,7 @@ let get_command_opt command_name commands =
   try Some (StringMap.find command_name commands)
   with Not_found -> None
 
-let get_command impl command_name : command =
+let get_command_ex impl command_name : command =
   try StringMap.find command_name impl.props.commands
   with Not_found -> Qdom.raise_elem "Command '%s' not found in" command_name impl.qdom
 
@@ -641,7 +632,7 @@ let is_retrievable_without_network cache_impl =
     | None -> false in
   List.exists ok_without_network cache_impl.retrieval_methods
 
-let get_id impl = {feed = get_attr attr_from_feed impl; id = get_attr attr_id impl}
+let get_id impl = {feed = get_attr_ex attr_from_feed impl; id = get_attr_ex attr_id impl}
 
 let get_summary langs feed =
   let best = ref None in

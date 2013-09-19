@@ -33,10 +33,10 @@ let handle options flags args =
   );
   match args with
   | [pet_name; arg] -> (
-      let open Generic_select in
-      match resolve_target options.config !select_opts arg with
-      | (Interface, reqs) -> (
-          match get_selections options ~refresh:!refresh reqs `Download_only with
+      let module G = Generic_select in
+      match G.resolve_target options.config !select_opts arg with
+      | (G.Interface, reqs) -> (
+          match G.get_selections options ~refresh:!refresh reqs `Download_only with
           | None -> raise (System_exit 1)  (* Aborted by user *)
           | Some sels ->
               check_for_replacement options.config reqs.R.interface_uri;
@@ -44,7 +44,7 @@ let handle options flags args =
               Apps.set_selections options.config app sels ~touch_last_checked:true;
               Apps.integrate_shell options.config app pet_name
       )
-      | (Selections _, _) -> raise_safe "'%s' is a selections document, not an interface URI" arg
-      | (App _, _) -> raise_safe "'%s' is an app, not an interface URI" arg
+      | (G.Selections _, _) -> raise_safe "'%s' is a selections document, not an interface URI" arg
+      | (G.App _, _) -> raise_safe "'%s' is an app, not an interface URI" arg
   )
   | _ -> raise (Support.Argparse.Usage_error 1)

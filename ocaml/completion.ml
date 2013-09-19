@@ -11,6 +11,7 @@ open Options
 module Apps = Zeroinstall.Apps
 module Feed = Zeroinstall.Feed
 module Feed_cache = Zeroinstall.Feed_cache
+module U = Support.Utils
 
 let starts_with = Support.Utils.starts_with
 let slice = Support.Utils.slice
@@ -236,7 +237,7 @@ class fish_completer command config =
       let cword = self#get_cword () in
       let current = if cword < List.length args then List.nth args cword else "" in
       if starts_with current "--" then
-        match Str.bounded_split_delim re_equals current 2 with
+        match Str.bounded_split_delim U.re_equals current 2 with
         | [name; _value] as pair ->
             response_prefix <- (name ^ "=");
             (cword + 1, (slice args ~start:0 ~stop:cword) @ pair @ (slice args ~start:cword))
@@ -280,7 +281,7 @@ let complete_version completer ~range ~maybe_app target pre =
         let v = Zeroinstall.Versions.format_version pv in
         let vexpr = v_prefix ^ v in
         if starts_with vexpr pre then Some vexpr else None in
-      let all_versions = List.map Feed.get_version @@ Feed.get_implementations feed in
+      let all_versions = List.map (fun impl -> impl.Feed.parsed_version) @@ Feed.get_implementations feed in
       let matching_versions = Support.Utils.filter_map ~f:check (List.sort compare all_versions) in
       List.iter (completer#add Add) matching_versions
 
@@ -292,7 +293,6 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
       if starts_with item pre then completer#add Add item
     ) in
   let arg_types = handler#get_arg_types (List.length values) in
-  let open Cli in
   match List.nth arg_types carg with
   | Dir -> completer#add_files pre
   | ImplRelPath -> ()
@@ -341,7 +341,7 @@ let handle_complete config = function
       let open Cli in
       let (cword, args) = completer#normalise raw_args in
       let args = if cword = List.length args then args @ [""] else args in
-      let (raw_options, args, complete) = Support.Argparse.read_args ~cword spec args in
+      let (raw_options, args, complete) = Support.Argparse.read_args ~cword Cli.spec args in
 
       match complete with
       | CompleteNothing -> ()

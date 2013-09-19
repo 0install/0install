@@ -6,8 +6,6 @@
 
 open Common
 
-let (+/) = Filename.concat
-
 let re_path_sep = Str.regexp_string path_sep;;
 
 type basedirs = {

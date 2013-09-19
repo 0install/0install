@@ -27,14 +27,14 @@ let add_store settings store =
 
 let increase_verbosity options =
   options.verbosity <- options.verbosity + 1;
-  let open Support.Logging in
+  let module L = Support.Logging in
   Printexc.record_backtrace true;
   if options.verbosity = 1 then (
-    threshold := Info;
+    L.threshold := L.Info;
     (* Print this as soon as possible once logging is on *)
     log_info "OCaml front-end to 0install: verbose mode on"
   ) else (
-    threshold := Debug
+    L.threshold := L.Debug
   )
 
 let show_version system =

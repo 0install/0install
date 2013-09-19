@@ -79,7 +79,7 @@ let suite = "distro">::: [
     let distro = new Distro.generic_distribution slave in
 
     let open Feed in
-    let is_host impl = U.starts_with (get_attr "id" impl) "package:host:" in
+    let is_host impl = U.starts_with (get_attr_ex "id" impl) "package:host:" in
     let find_host impls =
       try List.find is_host impls
       with Not_found -> assert_failure "No host package found!" in
@@ -103,7 +103,6 @@ let suite = "distro">::: [
       match Distro.get_package_impls distro feed with
       | None -> assert_failure "Didn't check!"
       | Some impls ->
-          let open Feed in
           let host_gobject = find_host impls in
           let () =
             match host_gobject.props.requires with

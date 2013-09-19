@@ -146,13 +146,12 @@ module RealSystem (U : UnixType) =
               if Logging.will_log Logging.Info then
                 log_info "exec %s" @@ Logging.format_argv_for_logging argv;
               if on_windows then (
-                let open Unix in
                 let run_child _args =
                   let child_pid =
                     match env with
-                    | None -> Unix.create_process prog_path argv_array stdin stdout stderr
-                    | Some env -> Unix.create_process_env prog_path argv_array env stdin stdout stderr in
-                  match snd (waitpid [] child_pid) with
+                    | None -> Unix.create_process prog_path argv_array Unix.stdin Unix.stdout Unix.stderr
+                    | Some env -> Unix.create_process_env prog_path argv_array env Unix.stdin Unix.stdout Unix.stderr in
+                  match snd (Unix.waitpid [] child_pid) with
                   | Unix.WEXITED code -> exit code
                   | _ -> exit 127 in
                 Utils.handle_exceptions run_child []

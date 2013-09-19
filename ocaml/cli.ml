@@ -107,7 +107,7 @@ let parse_version_for =
       end
   end
 
-let generic_select_options : (_, _) opt list = [
+let generic_select_options : (_, _) opt_spec list = [
   ([      "--before"],      0, i_ "choose a version before this",      new one_arg SimpleVersion @@ fun v -> `Before v);
   ([      "--command"],     1, i_ "command to select",                 new one_arg Command @@ fun c -> `SelectCommand c);
   ([      "--cpu"],         1, i_ "target CPU type",                   new one_arg CpuType @@ fun c -> `Cpu c);
@@ -146,12 +146,12 @@ let show_options = [
   (["-r"; "--root-uri"], 0, i_ "display just the root interface URI", new ambiguous_no_arg `ShowRoot no_arg_reader);
 ]
 
-let run_options : (_, _) opt list = [
+let run_options : (_, _) opt_spec list = [
   (["-m"; "--main"],    1, i_ "name of the file to execute",           new ambiguous_one_arg (fun m -> `MainExecutable m) read_m);
   (["-w"; "--wrapper"], 1, i_ "execute program using a debugger, etc", new one_arg Command @@ fun cmd -> `Wrapper cmd);
 ]
 
-let common_options : (_, _) opt list = [
+let common_options : (_, _) opt_spec list = [
   (["-c"; "--console"],    0, i_ "never use GUI",                     new no_arg @@ `UseGUI No);
   ([      "--dry-run"],    0, i_ "just print what would be executed", new no_arg @@ `DryRun);
   (["-g"; "--gui"],        0, i_ "show graphical policy editor",      new no_arg @@ `UseGUI Yes);
@@ -160,7 +160,7 @@ let common_options : (_, _) opt list = [
   ([      "--with-store"], 1, i_ "add an implementation cache",       new one_arg Dir @@ fun path -> `WithStore path);
 ]
 
-let show_version_options : (_, _) opt list = [
+let show_version_options : (_, _) opt_spec list = [
   (["-V"; "--version"],    0, i_ "display version information",       new ambiguous_no_arg `ShowVersion read_version_option);
 ]
 
@@ -193,10 +193,15 @@ let make_subcommand name help handler valid_options =
           Common_options.show_help options.config.system valid_options (name ^ " [OPTIONS] " ^ help) ignore;
           raise (System_exit status)
 
-      method options = (valid_options :> (zi_option, _) opt list)
+      method options = (valid_options :> (zi_option, _) opt_spec list)
       method help = help
     end in
   (name, subcommand)
+
+type subcommand =
+   < handle : global_settings -> raw_option list -> iface_uri list -> unit;
+     help : string;
+     options : (Options.zi_option, Options.zi_arg_type) Support.Argparse.opt_spec list >
 
 (** Which options are valid with which command *)
 let subcommands = [
@@ -263,7 +268,7 @@ let handle config raw_args =
   Support.Utils.finally_do (fun options -> options.slave#close)
     (get_default_options config)
     (fun options ->
-      let subcommand, command_args = 
+      let subcommand, command_args =
         match args with
         | [] -> (no_command, [])
         | ["run"] when List.mem ("-V", []) raw_options -> (no_command, [])      (* Hack for 0launch -V *)

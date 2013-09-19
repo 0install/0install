@@ -412,7 +412,7 @@ let suite = "solver">::: [
       let {replacement; impls; rejects = _} = impl_provider#get_implementations iface ~source:false in
       (* List.iter (fun (impl, r) -> failwith @@ describe_problem impl r) rejects; *)
       assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;
-      let ids = List.map (fun i -> Feed.get_attr "id" i) impls in
+      let ids = List.map (fun i -> Feed.get_attr_ex "id" i) impls in
       ids in
 
     Fake_system.equal_str_lists [
@@ -476,7 +476,7 @@ let suite = "solver">::: [
 
     let test_solve =
       let impls = (impl_provider#get_implementations iface ~source:false).Impl_provider.impls in
-      let ids = List.map (fun i -> (Feed.get_attr "version" i) ^ " " ^ (Feed.get_attr "arch" i)) impls in
+      let ids = List.map (fun i -> (Feed.get_attr_ex "version" i) ^ " " ^ (Feed.get_attr_ex "arch" i)) impls in
       ids in
 
     Fake_system.equal_str_lists [
@@ -511,7 +511,7 @@ let suite = "solver">::: [
     let () =
       match bin_impls.Impl_provider.rejects with
       | [(impl, reason)] ->
-          Fake_system.assert_str_equal "sha1=123" (Feed.get_attr "id" impl);
+          Fake_system.assert_str_equal "sha1=123" (Feed.get_attr_ex "id" impl);
           Fake_system.assert_str_equal "We want source and this is a binary" (Impl_provider.describe_problem impl reason);
       | _ -> assert false in
     let comp_impls = impl_provider#get_implementations "http://foo/Compiler.xml" ~source:false in
@@ -557,7 +557,7 @@ let suite = "solver">::: [
     import "Recursive.xml";
     let rec_impls = impl_provider#get_implementations "http://foo/Recursive.xml" ~source:false in
     match rec_impls.Impl_provider.impls with
-    | [impl] -> Fake_system.assert_str_equal "sha1=abc" (Feed.get_attr "id" impl)
+    | [impl] -> Fake_system.assert_str_equal "sha1=abc" (Feed.get_attr_ex "id" impl)
     | _ -> assert false
   );
 

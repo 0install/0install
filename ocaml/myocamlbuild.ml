@@ -12,6 +12,12 @@ let print_info f =
     Tags.print (tags_of_pathname f)
 
 let () =
+  let v = Sys.ocaml_version in
+  let first_dot = String.index v '.' in
+  let second_dot = String.index_from v (first_dot + 1) '.' in
+  let major_version = int_of_string (String.sub v 0 first_dot) in
+  let minor_version = int_of_string (String.sub v (first_dot + 1) (second_dot - first_dot - 1)) in
+
   dispatch (function
   | After_rules ->
     pdep ["link"] "linkdep_win" (fun param -> if on_windows then [param] else []);
@@ -20,11 +26,18 @@ let () =
        then it just ignores the ppopt. So, we need to write the -pp option ourselves. *)
 
     let pp_portable = "camlp4of" in
+
+    let pp_portable =
+      if (major_version < 4 || (major_version == 4 && minor_version < 1)) then
+        pp_portable ^ " -DOCAML_LT_4_01"
+      else
+        pp_portable in
+
     let pp_native =
       if on_windows then
-        "camlp4of -DWINDOWS"
+        pp_portable ^ " -DWINDOWS"
       else
-        "camlp4of"
+        pp_portable
     in
     flag ["native";"ocaml";"compile";"mypp"] (S [A"-pp"; A pp_native]);
     flag ["byte";"ocaml";"compile";"mypp"] (S [A"-pp"; A pp_portable]);

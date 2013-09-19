@@ -274,7 +274,7 @@ let get_selections dep_in_use root_req impl_cache command_cache =
             prepend_child imported parent in
 
           let add_command name =
-            let command = Feed.get_command impl name in
+            let command = Feed.get_command_ex impl name in
             let command_elem = command.Feed.command_qdom in
             let want_command_child elem =
               (* We'll add in just the dependencies we need later *)
@@ -564,11 +564,11 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
   )
 
 let get_root_requirements config requirements =
-  let open Requirements in
+  let module R = Requirements in
   let {
-    command; interface_uri; source;
-    extra_restrictions; os; cpu;
-    message = _;
+    R.command; R.interface_uri; R.source;
+    R.extra_restrictions; R.os; R.cpu;
+    R.message = _;
   } = requirements in
 
   (* This is for old feeds that have use='testing' instead of the newer
@@ -582,14 +582,13 @@ let get_root_requirements config requirements =
   (* Disable multi-arch on Linux if the 32-bit linker is missing. *)
   let multiarch = os <> "Linux" || config.system#file_exists "/lib/ld-linux.so.2" in
 
-  let open Impl_provider in
-  let scope_filter = {
+  let scope_filter = Impl_provider.({
     extra_restrictions = StringMap.map Feed.make_version_restriction extra_restrictions;
     os_ranks = Arch.get_os_ranks os;
     machine_ranks = Arch.get_machine_ranks ~multiarch machine;
     languages = config.langs;
     allowed_uses = use;
-  } in
+  }) in
 
   let root_req = match command with
   | Some command -> ReqCommand (command, interface_uri, source)

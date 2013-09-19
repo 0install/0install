@@ -95,7 +95,7 @@ class default_impl_provider config (feed_provider : Feed_cache.feed_provider) (s
 
   let do_overrides overrides impls =
     let do_override impl =
-      let id = Feed.get_attr "id" impl in
+      let id = Feed.get_attr_ex "id" impl in
       try {impl with Feed.stability = StringMap.find id overrides.Feed.user_stability}
       with Not_found -> impl in
     List.map do_override impls in
@@ -206,7 +206,7 @@ class default_impl_provider config (feed_provider : Feed_cache.feed_provider) (s
           else s in
 
         let score_is_package i =
-          let id = Feed.get_attr "id" i in
+          let id = Feed.get_attr_ex "id" i in
           U.starts_with id "package:" in
 
         let score_requires_root_install i =
@@ -258,8 +258,8 @@ class default_impl_provider config (feed_provider : Feed_cache.feed_provider) (s
           (if config.network_use <> Full_network then false else test_fn PreferAvailable is_available) ||
 
           (* Order by ID so the order isn't random *)
-          test PreferID @@ compare (Feed.get_attr "id" a) (Feed.get_attr "id" b) ||
-          test PreferID @@ compare (Feed.get_attr "from-feed" a) (Feed.get_attr "from-feed" b)
+          test PreferID @@ compare (Feed.get_attr_ex "id" a) (Feed.get_attr_ex "id" b) ||
+          test PreferID @@ compare (Feed.get_attr_ex "from-feed" a) (Feed.get_attr_ex "from-feed" b)
         );
 
         !retval

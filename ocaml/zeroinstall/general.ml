@@ -8,12 +8,10 @@
 
 open Support.Common
 
-exception Safe_exception = Support.Common.Safe_exception
-
 (** A URI used to identify an interface. Uses only plain URI characters, unicode chars, spaces, etc are %-escaped. *)
 type iface_uri = string
 
-module StringMap = Support.Common.StringMap
+type feed_url = string
 
 type network_use = Full_network | Minimal_network | Offline
 

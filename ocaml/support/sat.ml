@@ -28,8 +28,6 @@ module type USER =
 
 module MakeSAT(User : USER) =
   struct
-    let (@@) = Common.(@@)
-
     type var_value = True | False | Undecided
 
     let log_debug fmt =
@@ -217,7 +215,7 @@ module MakeSAT(User : USER) =
           | Some (External reason) -> reason
           | Some (Clause c) ->
               let reason = c#calc_reason_for lit in
-              String.concat " && " @@ List.map show_lit_assignment reason
+              String.concat " && " (List.map show_lit_assignment reason)
         in
         Printf.sprintf "%s => %s" reason (show_lit_assignment lit)
       )
@@ -452,7 +450,7 @@ module MakeSAT(User : USER) =
               | Undecided ->
                 (* Since one of our lits is already true, all unknown ones
                    can be set to False. *)
-                if not @@ enqueue problem (neg l) (Clause (self :> clause)) then (
+                if not (enqueue problem (neg l) (Clause (self :> clause))) then (
                   if debug then log_debug "CONFLICT: enqueue failed for %s" (name_lit problem (neg l));
                   raise Conflict    (* Can't happen, since we already checked we're Undecided *)
                 )
@@ -567,7 +565,7 @@ module MakeSAT(User : USER) =
         )
       )
 
-    let implies problem ?reason first rest = at_least_one problem ?reason @@ (neg first) :: rest
+    let implies problem ?reason first rest = at_least_one problem ?reason ((neg first) :: rest)
 
     let at_most_one problem lits =
       assert (List.length lits > 0);

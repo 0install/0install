@@ -105,17 +105,17 @@ let handle options flags args =
   );
   match args with
   | [arg] -> (
-    let open Generic_select in
-    match resolve_target config !select_opts arg with
-    | (App (app, _old_reqs), reqs) ->
+    let module G = Generic_select in
+    match G.resolve_target config !select_opts arg with
+    | (G.App (app, _old_reqs), reqs) ->
         let old_sels = Apps.get_selections_no_updates config app in
         let () =
           match check_for_updates options reqs old_sels with
           | Some new_sels -> Apps.set_selections config app new_sels ~touch_last_checked:true;
           | None -> () in
         Apps.set_requirements config app reqs
-    | (Selections old_sels, reqs) -> ignore @@ check_for_updates options reqs old_sels
-    | (Interface, reqs) ->
+    | (G.Selections old_sels, reqs) -> ignore @@ check_for_updates options reqs old_sels
+    | (G.Interface, reqs) ->
         (* Select once without downloading to get the old values *)
         let distro = Lazy.force options.distro in
         let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in

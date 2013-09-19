@@ -8,20 +8,12 @@ open Common
 
 exception Usage_error of int    (* exit code: e.g. 0 for success, 1 for error *)
 
+type raw_option = (string * string list)
+
 let starts_with = Utils.starts_with
 
-(** Takes a stream of arguments and takes as many as are needed for the option.
-    e.g. [["--version"; "--help"]] takes [["--version"]] and leaves [["--help"]]
-    while [["--version"; "1.0"]] takes [["--version"; "1.0"]] and leaves [[]].
-  *)
 class type ['b] option_reader =
   object
-    (** [read opt_name first_arg stream completion].
-        Extract as many elements from the stream as this option needs.
-        [completion] indicates when we're doing completion (so don't
-        raise an error if the arguments are malformed unless this is None).
-        When [Some 0], the next item in the stream is being completed, etc.
-        *)
     method read : string -> string option -> string Stream.t -> completion:(int option) -> string list
     method get_arg_types : int -> 'b list
   end
@@ -32,20 +24,14 @@ class type ['a,'b] option_parser =
     method parse : string list -> 'a
   end
 
-(* [option names], n_args, help text, [arg types]
-   'a is the type of the tags, 'b is the type of arg types.
-   The callback gets the argument stream (use this for options which take a variable number of arguments)
-   and a list of values (one for each declared argument).
-   *)
-type ('a,'b) opt = (string list * int * string * ('a,'b) option_parser)
+type ('a,'b) opt_spec = (string list * int * string * ('a,'b) option_parser)
 
 let is_empty stream = None = Stream.peek stream
 
-(* actual option used, tag, list of arguments *)
 type 'a option_value = (string * 'a)
 
 type ('a,'b) argparse_spec = {
-  options_spec : ('a,'b) opt list;
+  options_spec : ('a,'b) opt_spec list;
 
   (** We've just read an argument; should any futher options be treated as arguments? *)
   no_more_options : string list -> bool
@@ -53,7 +39,7 @@ type ('a,'b) argparse_spec = {
 
 let re_equals = Str.regexp_string "="
 
-type ('a,'b) complete =
+type 'b complete =
   | CompleteNothing               (** There are no possible completions *)
   | CompleteOptionName of string  (** Complete this partial option name *)
   | CompleteOption of (string * 'b option_reader * string list * int)  (* option, reader, values, completion arg *)
@@ -75,7 +61,6 @@ let make_option_map options_spec =
   List.iter add options_spec;
   !map
 
-(** [cword] is the index in [input_args] that we are trying to complete, or None if we're not completing. *)
 let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
   let options = ref [] in
   let args = ref [] in
@@ -204,7 +189,7 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
 
   (List.rev !options, List.rev !args, !complete)
 
-let parse_options (valid_options:(_, _) opt list) raw_options =
+let parse_options valid_options raw_options =
   let map = make_option_map valid_options in
 
   let parse_option = function
@@ -221,15 +206,6 @@ let iter_options (options : 'a option_value list) fn =
     try fn value
     with Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" actual_opt
   in List.iter process options
-
-let filter_map_options (options : 'a option_value list) fn =
-  let process (actual_opt, value) =
-    try
-      match fn value with
-      | None -> None
-      | Some o -> Some (actual_opt, o)
-    with Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" actual_opt
-  in Utils.filter_map ~f:process options
 
 (** {2 Handy wrappers for option handlers} *)
 
@@ -283,14 +259,13 @@ class ['a,'b] two_arg arg1_type arg2_type (fn : string -> string -> 'a) =
       end
   end
 
-(** Print out these options in a formatted list. *)
 let format_options system format_type opts =
   let print fmt = Utils.print system fmt in
 
   print "Options:";
 
   let display_options =
-    Utils.filter_map opts ~f:(fun (names, nargs, help, p) ->
+    Utils.filter_map opts ~f:(fun (names, (nargs:int), help, p) ->
       match help with
       | "" -> None
       | help ->
