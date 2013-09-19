@@ -287,19 +287,13 @@ let list_impls config (results:Solver.result) iface =
           []
 
 (** Download the archives. Called when the user clicks the 'Run' button. *)
-let download_archives config distro slave = function
+let download_archives (fetcher:Fetch.fetcher) distro = function
   | (false, _) -> raise_safe "Can't download archives; solve failed!"
   | (true, results) ->
       let sels = results#get_selections in
-      match_lwt Fetch.download_selections config slave (Some distro) sels with
+      match_lwt fetcher#download_selections ~distro sels with
       | `success -> Lwt.return (`String "ok")
       | `aborted_by_user -> Lwt.return (`String "aborted-by-user")
-      (*
-      let uncached = Selections.get_unavailable_selections(self.driver.config, include_packages = True)
-      if uncached:
-              missing = '\n- '.join([_('%(iface_name)s %(impl_version)s') % {'iface_name': iface.get_name(), 'impl_version': impl.get_version()} for iface, impl in uncached])
-              dialog.alert(self.window, _('Not all downloads succeeded; cannot run program.\n\nFailed to get:') + '\n- ' + missing)
-              *)
 
 (** Run the GUI to choose and download a set of implementations
  * If [use_gui] is No; just returns `Dont_use_GUI.
@@ -362,7 +356,7 @@ let get_selections_gui config (slave:Python.slave) ?test_callback distro ?(systr
       | [] -> (
           match mode with
           | `Select_only -> Lwt.return (`String "ok")
-          | `Download_only | `Select_for_run -> download_archives config distro slave !results
+          | `Download_only | `Select_for_run -> download_archives fetcher distro !results
       )
       | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
     );

@@ -21,8 +21,8 @@ type select_mode = [
 (** Ensure all selections are cached, downloading any that are missing.
     If [distro] is given then distribution packages are also installed, otherwise
     they are ignored. *)
-let download_selections config (slave:Python.slave) distro sels =
-  match Lwt_main.run @@ Fetch.download_selections config slave distro sels with
+let download_selections fetcher ?distro sels =
+  match Lwt_main.run @@ fetcher#download_selections ?distro sels with
   | `success -> ()
   | `aborted_by_user -> raise_safe "Aborted by user"
 
@@ -47,7 +47,7 @@ let solve_and_download_impls config distro (slave:Python.slave) ?test_callback r
           match mode with
           | `Select_only -> ()
           | `Download_only | `Select_for_run ->
-              download_selections config slave (Some distro) sels in
+              download_selections fetcher ~distro sels in
         Some sels in
 
   match Gui.get_selections_gui config slave ?test_callback distro mode reqs ~refresh ~use_gui with

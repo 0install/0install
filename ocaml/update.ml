@@ -186,7 +186,7 @@ let handle_bg options flags args =
                 raise (System_exit 1)
             | `Dont_use_GUI ->
                 log_info "Background update: GUI unavailable; downloading with no UI";
-                Zeroinstall.Helpers.download_selections config slave (Some distro) new_sels; new_sels
+                Zeroinstall.Helpers.download_selections fetcher ~distro new_sels; new_sels
             | `Success gui_sels -> gui_sels
           ) else new_sels in
 

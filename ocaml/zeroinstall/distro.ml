@@ -559,7 +559,7 @@ let get_host_distribution config (slave:Python.slave) : distribution =
 
 (** Check whether this <selection> is still valid. If the quick-test-* attributes are present, use
     them to check. Otherwise, call the appropriate method on [config.distro]. *)
-let is_installed config distro elem =
+let is_installed config (distro:distribution) elem =
   match ZI.get_attribute_opt "quick-test-file" elem with
   | None -> distro#is_installed elem
   | Some file ->
