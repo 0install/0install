@@ -84,17 +84,21 @@ let solve_with_downloads config fetcher distro ?feed_provider ?watcher requireme
         (* For each remote feed used which we haven't seen yet, start downloading it. *)
         if !force && config.network_use <> Offline then (
           ListLabels.iter feed_provider#get_feeds_used ~f:(fun f ->
-            if not (already_seen f) && not (Feed_cache.is_local_feed f) then (
-              add_download f (fetcher#download_and_import_feed f >|= fun download () ->
-                match download with
-                | `aborted_by_user -> ()    (* No need to report this *)
-                | `success new_xml ->
-                    feed_provider#replace_feed f (Feed.parse config.system new_xml None);
-                    (* On success, we also need to refetch any "distribution" feed that depends on this one *)
-                    let distro_url = "distribution:" ^ f in
-                    feed_provider#forget_distro distro_url;
-                    forget_feed distro_url;
-                    (* (we will now refresh, which will trigger distro#check_for_candidates *)
+            if not (already_seen f) then (
+              match Feed_cache.parse_feed_url f with
+              | `local_feed _ -> ()
+              | `distribution_feed x -> failwith x
+              | `remote_feed _ as feed ->
+                  add_download f (fetcher#download_and_import_feed feed >|= fun download () ->
+                    match download with
+                    | `aborted_by_user -> ()    (* No need to report this *)
+                    | `success new_xml ->
+                        feed_provider#replace_feed f (Feed.parse config.system new_xml None);
+                        (* On success, we also need to refetch any "distribution" feed that depends on this one *)
+                        let distro_url = "distribution:" ^ f in
+                        feed_provider#forget_distro distro_url;
+                        forget_feed distro_url;
+                        (* (we will now refresh, which will trigger distro#check_for_candidates *)
               )
             )
           )

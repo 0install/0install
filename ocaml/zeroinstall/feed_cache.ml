@@ -20,20 +20,22 @@ let failed_check_delay = float_of_int (1 * hours)
 
 let is_local_feed uri = U.path_is_absolute uri
 
-(* For local feeds, returns the absolute path. *)
-let get_cached_feed_path config url =
-  if U.starts_with url "distribution:" then (
-    failwith url
-  ) else if is_local_feed url then (
-    Some url
-  ) else (
-    let cache = config.basedirs.Basedir.cache in
-    Basedir.load_first config.system (config_site +/ "interfaces" +/ Escape.escape url) cache
-  )
+let parse_feed_url url =
+  if U.starts_with url "distribution:" then
+    `distribution_feed (U.string_tail url 13)
+  else if U.path_is_absolute url then
+    `local_feed url
+  else
+    `remote_feed url
 
-let get_save_cache_path config url =
-  assert (not (U.starts_with url "distribution:"));
-  assert (not (is_local_feed url));
+(* For local feeds, returns the absolute path. *)
+let get_cached_feed_path config = function
+  | `local_feed path -> Some path
+  | `remote_feed url ->
+      let cache = config.basedirs.Basedir.cache in
+      Basedir.load_first config.system (config_site +/ "interfaces" +/ Escape.escape url) cache
+
+let get_save_cache_path config (`remote_feed url) =
   let cache = config.basedirs.Support.Basedir.cache in
   let dir = Support.Basedir.save_path config.system (config_site +/ "interfaces") cache in
   dir +/ Escape.escape url
@@ -149,22 +151,24 @@ let load_iface_config config uri : interface_config =
   with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
 
 let get_cached_feed config url =
-  if is_local_feed url then (
-    try
-      let root = Qdom.parse_file config.system url in
-      Some (Feed.parse config.system root (Some url))
-    with Safe_exception _ as ex ->
-      log_warning ~ex "Can't read local file '%s'" url;
-      None
-  ) else (
-    match get_cached_feed_path config url with
-    | None -> None
-    | Some path ->
+  match parse_feed_url url with
+  | `distribution_feed _ -> failwith url
+  | `local_feed path -> (
+      try
         let root = Qdom.parse_file config.system path in
-        let feed = Feed.parse config.system root None in
-        if feed.Feed.url = url then Some feed
-        else raise_safe "Incorrect URL in cached feed - expected '%s' but found '%s'" url feed.Feed.url
+        Some (Feed.parse config.system root (Some path))
+      with Safe_exception _ as ex ->
+        log_warning ~ex "Can't read local file '%s'" path;
+        None
   )
+  | `remote_feed url as remote_feed ->
+      match get_cached_feed_path config remote_feed with
+      | None -> None
+      | Some path ->
+          let root = Qdom.parse_file config.system path in
+          let feed = Feed.parse config.system root None in
+          if feed.Feed.url = url then Some feed
+          else raise_safe "Incorrect URL in cached feed - expected '%s' but found '%s'" url feed.Feed.url
 
 let get_last_check_attempt config uri =
   let open Basedir in
@@ -176,14 +180,15 @@ let get_last_check_attempt config uri =
       | None -> None
       | Some info -> Some info.Unix.st_mtime
 
-let internal_is_stale config uri overrides =
-  if U.starts_with uri "distribution:" then false	(* Ignore (memory-only) PackageKit feeds *)
-  else if is_local_feed uri then false                          (* Local feeds are never stale *)
-  else (
+let internal_is_stale config url overrides =
+  match parse_feed_url url with
+  | `distribution_feed _ -> false             (* Ignore (memory-only) PackageKit feeds *)
+  | `local_feed _ -> false                    (* Local feeds are never stale *)
+  | `remote_feed url ->
     let now = config.system#time () in
 
     let is_stale () =
-      match get_last_check_attempt config uri with
+      match get_last_check_attempt config url with
       | Some last_check_attempt when last_check_attempt > now -. failed_check_delay ->
           log_debug "Stale, but tried to check recently (%s) so not rechecking now." (U.format_time (Unix.localtime last_check_attempt));
           false
@@ -194,23 +199,16 @@ let internal_is_stale config uri overrides =
     | Some overrides ->
         match overrides.Feed.last_checked with
         | None ->
-            log_debug "Feed '%s' has no last checked time, so needs update" uri;
+            log_debug "Feed '%s' has no last checked time, so needs update" url;
             is_stale ()
         | Some checked ->
             let staleness = now -. checked in
-            log_debug "Staleness for %s is %.2f hours" uri (staleness /. 3600.0);
+            log_debug "Staleness for %s is %.2f hours" url (staleness /. 3600.0);
 
             match config.freshness with
             | None -> log_debug "Checking for updates is disabled"; false
             | Some threshold when staleness >= (Int64.to_float threshold) -> is_stale ()
             | _ -> false
-  )
-
-let is_stale config uri =
-  let overrides =
-    if get_cached_feed_path config uri = None then None
-    else Some (Feed.load_feed_overrides config uri) in
-  internal_is_stale config uri overrides
 
 (** Provides feeds to the [Impl_provider.impl_provider] during a solve. Afterwards, it can be used to
     find out which feeds were used (and therefore may need updating). *)

@@ -26,26 +26,26 @@ let get_impl (feed_provider:Feed_cache.feed_provider) sel =
     try Some (StringMap.find id overrides.F.user_stability)
     with Not_found -> None in
 
-  if U.starts_with from_feed "distribution:" then (
-    let master_feed_url = U.string_tail from_feed 13 in
-    match feed_provider#get_feed master_feed_url with
-    | None -> None
-    | Some (master_feed, _) ->
-        match feed_provider#get_distro_impls master_feed with
-        | None -> None
-        | Some (impls, overrides) ->
-            let impl =
-              try Some (List.find (fun impl -> F.get_attr_ex F.attr_id impl = id) impls)
-              with Not_found -> None in
-            match impl with
-            | None -> None
-            | Some impl -> Some (impl, get_override overrides)
-  ) else (
-    match feed_provider#get_feed from_feed with
-    | None -> None
-    | Some (feed, overrides) ->
-        Some (StringMap.find id feed.F.implementations, get_override overrides)
+  match Feed_cache.parse_feed_url from_feed with
+  | `distribution_feed master_feed_url -> (
+      match feed_provider#get_feed master_feed_url with
+      | None -> None
+      | Some (master_feed, _) ->
+          match feed_provider#get_distro_impls master_feed with
+          | None -> None
+          | Some (impls, overrides) ->
+              let impl =
+                try Some (List.find (fun impl -> F.get_attr_ex F.attr_id impl = id) impls)
+                with Not_found -> None in
+              match impl with
+              | None -> None
+              | Some impl -> Some (impl, get_override overrides)
   )
+  | `local_feed _ | `remote_feed _ ->
+      match feed_provider#get_feed from_feed with
+      | None -> None
+      | Some (feed, overrides) ->
+          Some (StringMap.find id feed.F.implementations, get_override overrides)
 
 let format_size size =
   let spf = Printf.sprintf in

@@ -11,7 +11,7 @@ open Zeroinstall.General
 module U = Support.Utils
 module Q = Support.Qdom
 
-let cache_path_for = Feed_cache.get_save_cache_path
+let cache_path_for config url = Feed_cache.get_save_cache_path config (`remote_feed url)
 
 class fake_slave config handler : Python.slave =
   object (_ : #Python.slave)
@@ -225,7 +225,7 @@ let suite = "driver">::: [
     let reqs = Requirements.default_requirements "http://foo/Binary.xml" in
     let fetcher =
       object
-        method download_and_import_feed url = raise_safe "download_and_import_feed: %s" url
+        method download_and_import_feed (`remote_feed url) = raise_safe "download_and_import_feed: %s" url
       end in
     let (ready, result) = Driver.solve_with_downloads config fetcher distro reqs ~force:false ~update_local:false in
     assert (ready = true);

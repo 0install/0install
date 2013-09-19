@@ -52,14 +52,12 @@ let iter_inputs config cb sels =
     (* Check per-feed config *)
     check_maybe_config (config_injector_interfaces +/ Escape.pretty feed);
 
-    if Support.Utils.starts_with feed "distribution:" then
+    match Feed_cache.parse_feed_url feed with
       (* If the package has changed version, we'll detect that below with get_unavailable_selections. *)
-      ()
-    else if Support.Utils.path_is_absolute feed then
-      cb feed   (* Check the timestamp of this local feed hasn't changed *)
-    else
-      (* Remote feed *)
-      match Feed_cache.get_cached_feed_path config feed with
+    | `distribution_feed _ -> ()
+    | `local_feed path -> cb path   (* Check the timestamp of this local feed hasn't changed *)
+    | `remote_feed _ as remote_feed ->
+      match Feed_cache.get_cached_feed_path config remote_feed with
       | None -> need_solve @@ "Source feed no longer cached: " ^ feed
       | Some path -> cb path              (* Check feed hasn't changed *)
   in

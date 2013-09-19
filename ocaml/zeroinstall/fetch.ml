@@ -9,11 +9,12 @@ module Q = Support.Qdom
 
 class fetcher config (slave:Python.slave) =
   object
-    method download_and_import_feed url : [`aborted_by_user | `success of Q.element ] Lwt.t =
+    method download_and_import_feed (feed : [`remote_feed of feed_url]) : [`aborted_by_user | `success of Q.element ] Lwt.t =
+      let `remote_feed url = feed in
       let request = `List [`String "download-and-import-feed"; `String url] in
       let parse_result = function
         | `List [`String "success"; `String xml] ->
-            let cache_path = Feed_cache.get_save_cache_path config url in
+            let cache_path = Feed_cache.get_save_cache_path config feed in
             `success (Q.parse_input (Some cache_path) (Xmlm.make_input (`String (0, xml))))
         | `String "aborted-by-user" -> `aborted_by_user
         | _ -> raise_safe "Invalid JSON response" in

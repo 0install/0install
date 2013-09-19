@@ -30,6 +30,8 @@ end
 
 module ListString = OUnitDiff.ListSimpleMake(EString);;
 
+let cache_path_for config url = Feed_cache.get_save_cache_path config (`remote_feed url)
+
 let set_of_attrs elem : string list =
   let str_list = ListLabels.map elem.Support.Qdom.attrs ~f:(fun ((ns, name), value) ->
     if ns <> "" then
@@ -489,7 +491,7 @@ let suite = "solver">::: [
   "details">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let import name =
-      U.copy_file config.system (Test_0install.feed_dir +/ name) (Feed_cache.get_save_cache_path config @@ "http://foo/" ^ name) 0o644 in
+      U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ "http://foo/" ^ name) 0o644 in
     let iface = "http://foo/Binary.xml" in
     import "Binary.xml";
     import "Compiler.xml";
@@ -586,7 +588,7 @@ let suite = "solver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
 
     let import name =
-      U.copy_file config.system (Test_0install.feed_dir +/ name) (Feed_cache.get_save_cache_path config @@ "http://foo/" ^ name) 0o644 in
+      U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ "http://foo/" ^ name) 0o644 in
 
     import "MultiArch.xml";
     import "MultiArchLib.xml";
