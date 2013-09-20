@@ -210,6 +210,14 @@ let internal_is_stale config url overrides =
             | Some threshold when staleness >= (Int64.to_float threshold) -> is_stale ()
             | _ -> false
 
+(** Touch a 'last-check-attempt' timestamp file for this feed.
+    This prevents us from repeatedly trying to download a failing feed many
+    times in a short period. *)
+let mark_as_checking config (`remote_feed url) =
+  let timestampts_dir = Basedir.save_path config.system cache_last_check_attempt config.basedirs.Basedir.cache in
+  let timestamp_path = timestampts_dir +/ Escape.pretty url in
+  U.touch config.system timestamp_path
+
 (** Provides feeds to the [Impl_provider.impl_provider] during a solve. Afterwards, it can be used to
     find out which feeds were used (and therefore may need updating). *)
 class feed_provider config distro =

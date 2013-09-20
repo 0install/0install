@@ -20,6 +20,7 @@ import threading
 from zeroinstall import logger
 from zeroinstall.support import tasks
 from zeroinstall.injector import download
+from zeroinstall.cmd import slave
 
 default_port = {
 	'http': 80,
@@ -141,7 +142,9 @@ class Site(object):
 				raise download.DownloadAborted()
 
 		in_progress = [True]
-		if timeout is not None:
+		if isinstance(timeout, str):
+			slave.start_timeout(timeout)
+		elif timeout is not None:
 			def timeout_cb():
 				if in_progress:
 					step.dl.timeout.trigger()

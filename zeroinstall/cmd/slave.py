@@ -12,6 +12,8 @@ import sys, os
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, qdom, selections, download
+from zeroinstall.injector.handler import NoTrustedKeys
+from zeroinstall.injector.iface_cache import ReplayAttack
 from zeroinstall.support import tasks
 from zeroinstall import support
 
@@ -205,8 +207,8 @@ def do_get_distro_candidates(config, args, xml):
 def do_download_and_import_feed(config, ticket, args):
 	try:
 		if gui_driver is not None: config = gui_driver.config
-		feed_url, = args
-		blocker = config.fetcher.download_and_import_feed(feed_url)
+		feed_url, use_mirror, timeout = args
+		blocker = config.fetcher._download_and_import_feed(feed_url, use_mirror = use_mirror, timeout = timeout)
 		if blocker:
 			yield blocker
 			tasks.check(blocker)
@@ -215,6 +217,10 @@ def do_download_and_import_feed(config, ticket, args):
 		send_json(["return", ticket, ["ok", ["success", qdom.to_DOM(feed.feed_element).toxml()]]])
 	except download.DownloadAborted as ex:
 		send_json(["return", ticket, ["ok", "aborted-by-user"]])
+	except NoTrustedKeys as ex:
+		send_json(["return", ticket, ["ok", "no-trusted-keys"]])
+	except ReplayAttack as ex:
+		send_json(["return", ticket, ["ok", ["replay-attack", str(ex)]]])
 	except Exception as ex:
 		send_json(["return", ticket, ["error", str(ex)]])
 
@@ -391,6 +397,9 @@ def run_test():
 
 def download_archives():
 	return invoke_master(["download-archives"])
+
+def start_timeout(timeout):
+	return invoke_master(["start-timeout", timeout])
 
 def handle(config, options, args):
 	if args:

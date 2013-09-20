@@ -32,6 +32,11 @@ let solve_with_downloads config fetcher distro ?feed_provider ?watcher requireme
   let already_seen url = StringSet.mem url !seen in
   let forget_feed url = seen := StringSet.remove url !seen in
 
+  let report_problem feed_url msg =
+    match watcher with
+    | Some watcher -> watcher#report feed_url msg
+    | None -> log_warning "Feed %s: %s" feed_url msg in
+
   (* There are three cases:
      1. We want to run immediately if possible. If not, download all the information we can.
         (force = False, update_local = False)
@@ -50,20 +55,42 @@ let solve_with_downloads config fetcher distro ?feed_provider ?watcher requireme
      call it in the main thread. *)
   let add_download url download =
     seen := StringSet.add url !seen;
-    log_info "Waiting for download of feed '%s'" url;
     let wrapped =
       try_lwt
         lwt fn = download in
-        log_info "Download of feed '%s' finished" url;
         Lwt.return (url, fn)
-      with ex ->
-        let () =
-          match watcher with
-          | Some watcher -> watcher#report ex
-          | None -> log_warning ~ex "Feed download %s failed" url in
+      with Safe_exception (msg, _) ->
+        report_problem url msg;
         Lwt.return (url, fun () -> ()) in
     downloads_in_progress := StringMap.add url wrapped !downloads_in_progress
     in
+
+  (** Register a new download. When it resolves, process it in the main thread. *)
+  let rec handle_download f dl =
+    add_download f (dl >|= fun result () ->
+      (* (we are now running in the main thread) *)
+      match result with
+      | `problem (msg, next_update) -> (
+          report_problem f msg;
+          match next_update with
+          | None -> ()
+          | Some next -> handle_download f next
+      )
+      | `aborted_by_user -> ()    (* No need to report this *)
+      | `no_update -> ()
+      | `update (new_xml, next_update) ->
+          feed_provider#replace_feed f (Feed.parse config.system new_xml None);
+          (* On success, we also need to refetch any "distribution" feed that depends on this one *)
+          let distro_url = "distribution:" ^ f in
+          feed_provider#forget_distro distro_url;
+          forget_feed distro_url;
+          (* (we will now refresh, which will trigger distro#check_for_candidates *)
+          match next_update with
+          | None -> ()    (* This is the final update *)
+          | Some next ->
+              log_info "Accepted update from mirror, but will continue waiting for primary for '%s'" f;
+              handle_download f next
+    ) in
 
   let rec loop ~try_quick_exit =
     (* Called once at the start, and once for every feed that downloads (or fails to download). *)
@@ -89,17 +116,8 @@ let solve_with_downloads config fetcher distro ?feed_provider ?watcher requireme
               | `local_feed _ -> ()
               | `distribution_feed x -> failwith x
               | `remote_feed _ as feed ->
-                  add_download f (fetcher#download_and_import_feed feed >|= fun download () ->
-                    match download with
-                    | `aborted_by_user -> ()    (* No need to report this *)
-                    | `success new_xml ->
-                        feed_provider#replace_feed f (Feed.parse config.system new_xml None);
-                        (* On success, we also need to refetch any "distribution" feed that depends on this one *)
-                        let distro_url = "distribution:" ^ f in
-                        feed_provider#forget_distro distro_url;
-                        forget_feed distro_url;
-                        (* (we will now refresh, which will trigger distro#check_for_candidates *)
-              )
+                  log_info "Starting download of feed '%s'" f;
+                  fetcher#download_and_import_feed feed |> handle_download f
             )
           )
         );

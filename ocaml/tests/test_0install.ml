@@ -80,7 +80,13 @@ class fake_slave config =
 
   let fake_slave ?xml request =
     match request with
-    | `List [`String "download-and-import-feed"; `String url] -> Some (Lwt.return @@ handle_import_feed url)
+    | `List [`String "download-and-import-feed"; `String url; `Bool use_mirror; timeout] ->
+        if use_mirror then Some (Lwt.return `Null)
+        else (
+          let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
+          ignore @@ start_timeout [timeout];
+          Some (Lwt.return @@ handle_import_feed url)
+        )
     | `List [`String "download-selections"; _opts] -> Some (Lwt.return @@ handle_download_selections config pending_digests (expect xml))
     | _ -> None in
 
@@ -290,7 +296,7 @@ let suite = "0install">::: [
     (* --dry-run must prevent us from using the GUI *)
     fake_system#putenv "DISPLAY" ":foo";
     Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
-      | `List [`String "download-and-import-feed"; `String "http://foo/d"] -> raise Ok
+      | `List [`String "download-and-import-feed"; `String "http://foo/d"; `Bool _; _] -> raise Ok
       | json -> failwith (Yojson.Basic.to_string json)
     );
     try ignore @@ run ["run"; "--dry-run"; "--refresh"; "http://foo/d"]; assert false

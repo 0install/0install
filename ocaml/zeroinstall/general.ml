@@ -49,6 +49,8 @@ let config_injector_global = config_site +/ config_prog +/ "global"
 let data_site_packages = config_site +/ "site-packages"     (* 0compile builds, etc *)
 let data_native_feeds = config_site +/ "native_feeds"       (* Feeds provided by distribution packages (rare) *)
 
+let cache_last_check_attempt = config_site +/ config_prog +/ "last-check-attempt"
+
 (** {2 The 0install XML namespace} *)
 
 module ZI_NS = struct

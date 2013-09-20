@@ -23,7 +23,13 @@ class fake_slave config handler : Python.slave =
     method invoke_async request ?xml parse_fn =
       log_info "invoke_async: %s" (Yojson.Basic.to_string request);
       match request with
-      | `List [`String "download-and-import-feed"; `String url] -> Lwt.return @@ parse_fn @@ handler#download_and_import url
+      | `List [`String "download-and-import-feed"; `String url; `Bool use_mirror; timeout] ->
+          if use_mirror then parse_fn `Null |> Lwt.return
+          else (
+            let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
+            ignore @@ start_timeout [timeout];
+            Lwt.return @@ parse_fn @@ handler#download_and_import url
+          )
       | `List [`String "get-distro-candidates"; `String url] -> Lwt.return @@ parse_fn @@ handler#get_distro_candidates url
       | `List [`String "download-selections"; opts] ->
           handler#download_selections (Fake_system.expect xml) (Yojson.Basic.Util.to_assoc opts);
@@ -47,6 +53,7 @@ let make_driver_test test_elem =
     let fails = ref false in
     let expected_problem = ref "missing-problem" in
     let expected_output = ref "missing-output" in
+    let expected_warnings = ref [] in
     let expected_downloads = ref StringSet.empty in
     let expected_digests = ref StringSet.empty in
     let expected_envs = ref [] in
@@ -92,7 +99,8 @@ let make_driver_test test_elem =
         let digest_str = ZI.get_attribute "digest" child in
         U.makedirs config.system (user_store +/ digest_str) 0o755;
     | Some "output" -> expected_output := child.Support.Qdom.last_text_inside
-    | _ -> failwith "Unexpected element" in
+    | Some "warning" -> expected_warnings := child.Support.Qdom.last_text_inside :: !expected_warnings
+    | _ -> Support.Qdom.raise_elem "Unexpected element" child in
     ZI.iter ~f:process test_elem;
 
     let handler =
@@ -106,7 +114,7 @@ let make_driver_test test_elem =
         method download_and_import url =
           let root =
             try StringMap.find url !downloadable_feeds
-            with Not_found -> raise_safe "Unexpected feed '%s' requested" url in
+            with Not_found -> raise_safe "Unexpected feed requested" in
           let b = Buffer.create 1000 in
           Support.Qdom.output (Xmlm.make_output @@ `Buffer b) root;
           let xml = Buffer.contents b in
@@ -119,32 +127,38 @@ let make_driver_test test_elem =
       end in
     let slave = new fake_slave config handler in
     let distro = new Distro.generic_distribution slave in
-    try
-      let sels = Fake_system.expect @@ Zeroinstall.Helpers.solve_and_download_impls config distro slave !reqs `Select_for_run ~refresh:false ~use_gui:No in
-      if !fails then assert_failure "Expected solve_and_download_impls to fail, but it didn't!";
-      let actual_env = ref StringMap.empty in
-      let output = trim @@ Fake_system.capture_stdout (fun () ->
-        let exec cmd ~env =
-          ArrayLabels.iter env ~f:(fun binding ->
-            let (name, value) = Support.Utils.split_pair Support.Utils.re_equals binding in
-            actual_env := StringMap.add name value !actual_env
-          );
-          print_endline ("Would execute: " ^ Support.Logging.format_argv_for_logging cmd) in
-        Zeroinstall.Exec.execute_selections ~exec {config with dry_run = !dry_run} sels (List.rev !args)
-      ) in
-      let re = Str.regexp !expected_output in
-      if not (Str.string_match re output 0) then
-        assert_failure (Printf.sprintf "Expected output '%s' but got '%s'" !expected_output output);
-      (* Check all expected downloads happened. *)
-      StringSet.iter assert_failure !expected_downloads;
-      (* Check environment *)
-      ListLabels.iter !expected_envs ~f:(fun (name, value) ->
-        Fake_system.assert_str_equal value (StringMap.find name !actual_env)
-      );
-    with Safe_exception (msg, _) ->
-      let re = Str.regexp !expected_problem in
-      if not (Str.string_match re msg 0) then
-        assert_failure (Printf.sprintf "Expected error '%s' but got '%s'" !expected_problem msg)
+    let () =
+      try
+        Fake_system.collect_logging (fun () ->
+          let sels = Fake_system.expect @@ Zeroinstall.Helpers.solve_and_download_impls config distro slave !reqs `Select_for_run ~refresh:false ~use_gui:No in
+          if !fails then assert_failure "Expected solve_and_download_impls to fail, but it didn't!";
+          let actual_env = ref StringMap.empty in
+          let output = trim @@ Fake_system.capture_stdout (fun () ->
+            let exec cmd ~env =
+              ArrayLabels.iter env ~f:(fun binding ->
+                let (name, value) = Support.Utils.split_pair Support.Utils.re_equals binding in
+                actual_env := StringMap.add name value !actual_env
+              );
+              print_endline ("Would execute: " ^ Support.Logging.format_argv_for_logging cmd) in
+            Zeroinstall.Exec.execute_selections ~exec {config with dry_run = !dry_run} sels (List.rev !args)
+          ) in
+          let re = Str.regexp !expected_output in
+          if not (Str.string_match re output 0) then
+            assert_failure (Printf.sprintf "Expected output '%s' but got '%s'" !expected_output output);
+          (* Check all expected downloads happened. *)
+          StringSet.iter assert_failure !expected_downloads;
+          (* Check environment *)
+          ListLabels.iter !expected_envs ~f:(fun (name, value) ->
+            Fake_system.assert_str_equal value (StringMap.find name !actual_env)
+          )
+        )
+      with Safe_exception (msg, _) ->
+        let re = Str.regexp !expected_problem in
+        if not (Str.string_match re msg 0) then
+          assert_failure (Printf.sprintf "Expected error '%s' but got '%s'" !expected_problem msg) in
+    (* Check warnings *)
+    let actual_warnings = Fake_system.fake_log#pop_warnings in
+    Fake_system.equal_str_lists (List.rev !expected_warnings) actual_warnings;
   )
 
 let suite = "driver">::: [

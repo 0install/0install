@@ -334,8 +334,7 @@ class Fetcher(object):
 		@type feed_url: str
 		@param use_mirror: False to use primary location; True to use mirror.
 		@type use_mirror: bool
-		@param timeout: create a blocker which triggers if a download hangs for this long
-		@type timeout: float | None
+		@param timeout: callback to invoke when the download actually starts
 		@rtype: L{zeroinstall.support.tasks.Blocker}"""
 		if use_mirror:
 			url = self.get_feed_mirror(feed_url)
@@ -732,7 +731,7 @@ class Fetcher(object):
 		@param mirror_url: an altertive URL to try if this one fails
 		@type mirror_url: str
 		@param timeout: create a blocker which triggers if a download hangs for this long
-		@type timeout: float | None
+		@type timeout: float | str | None
 		@rtype: L{download.Download}
 		@since: 1.5"""
 		if not (url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:')):
@@ -741,7 +740,7 @@ class Fetcher(object):
 		dl.mirror = mirror_url
 		self.handler.monitor_download(dl)
 
-		if timeout is not None:
+		if isinstance(timeout, int):
 			dl.timeout = tasks.Blocker('Download timeout')
 
 		dl.downloaded = self.scheduler.download(dl, timeout = timeout)

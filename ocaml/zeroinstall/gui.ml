@@ -333,10 +333,10 @@ let get_selections_gui config (slave:Python.slave) ?test_callback distro ?(systr
             slave#invoke_async ~xml:sels (`List [`String "gui-update-selections"; `Bool ready; tree]) ignore
           )
 
-        method report ex =
+        method report feed_url msg =
           Python.async (fun () ->
-            log_info ~ex "Sending error to GUI";
-            let msg = Printexc.to_string ex in
+            let msg = Printf.sprintf "Feed '%s': %s" feed_url msg in
+            log_info "Sending error to GUI: %s" msg;
             slave#invoke_async (`List [`String "report-error"; `String msg]) ignore
           )
       end in

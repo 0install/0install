@@ -159,7 +159,12 @@
 
     <requirements command='run' interface='http://foo/' dry-run='true'/>
 
-    <problem>Unexpected feed 'http://example.com' requested</problem>  <!-- (error from test driver) -->
+    <warning>Feed http://example.com: Unexpected feed requested</warning>  <!-- (error from test driver) -->
+    <problem>
+Can't find all required implementations:
+- http://foo/ -> (problem)
+    No known implementations at all
+    </problem>
   </test>
 
 
