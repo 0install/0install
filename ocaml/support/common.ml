@@ -82,6 +82,9 @@ class type system =
     method getenv : varname -> string option
     method environment : string array
 
+    (** True if we're on Unix and running as root; we must take care to avoid creating files in the wrong
+     * place when running under sudo. *)
+    method running_as_root : bool
     method platform : unit -> Platform.t
   end
 ;;

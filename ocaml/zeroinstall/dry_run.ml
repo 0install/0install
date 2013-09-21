@@ -33,6 +33,7 @@ class dryrun_system (underlying:system) =
     method environment = underlying#environment
     method readlink = underlying#readlink
     method platform = underlying#platform
+    method running_as_root = underlying#running_as_root
 
     method file_exists path =
       if underlying#file_exists path then true

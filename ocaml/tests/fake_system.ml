@@ -264,6 +264,8 @@ class fake_system tmpdir =
     method hide_path path =
       hidden_files := StringSet.add path !hidden_files
 
+    method running_as_root = false
+
     initializer
       match tmpdir with
       | Some dir -> self#putenv "ZEROINSTALL_PORTABLE_BASE" dir

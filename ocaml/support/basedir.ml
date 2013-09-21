@@ -33,22 +33,20 @@ let get_path (system:system) home_var dirs_var = function
 
 let get_unix_home (system:system) =
   let home = default "/root" (system#getenv "HOME") in
-  let open Unix in
-  if geteuid () <> 0 then (
+  if not system#running_as_root then (
     home    (* We're not root; no problem *)
-  ) else if (stat home).st_uid = 0 then (
+  ) else if (Unix.stat home).Unix.st_uid = 0 then (
     home    (* We're root and $HOME is set correctly *)
   ) else (
     (* We're running as root and $HOME isn't root's home. Try to find
        correct value for root's home, or we're likely to fill the user's
        home directory with unreadable root-owned files. *)
     let root_home =
-      try (getpwuid 0).pw_dir
+      try (Unix.getpwuid 0).Unix.pw_dir
       with Not_found -> "/" in
     Logging.log_info "Running as root, but $HOME (%s) is not owned by root. Using %s instead." home root_home;
     root_home
   )
-;;
 
 let get_default_config (system:system) =
   match system#getenv "ZEROINSTALL_PORTABLE_BASE" with

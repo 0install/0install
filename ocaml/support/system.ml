@@ -283,5 +283,7 @@ module RealSystem (U : UnixType) =
 
               platform := Some p;
               p
+
+        method running_as_root = Sys.os_type = "Unix" && Unix.geteuid () = 0
       end
   end
