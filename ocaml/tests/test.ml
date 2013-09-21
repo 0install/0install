@@ -78,7 +78,7 @@ let test_option_parsing () =
   equal_str_lists ["/data/s1"; "/data/s2"] config.stores;
   equal_str_lists ["run"; "foo"; "--with-store=/data/s3"] args;
 
-  assert_raises_safe "Option does not take an argument in '--console=true'" (lazy (p ["--console=true"]));
+  assert_raises_safe "Option does not take an argument in '--console=true'" (lazy (ignore @@ p ["--console=true"]));
 
   assert (List.length (fake_log#get) = 0);
   let s = p ["-cvv"; "run"] in
@@ -190,6 +190,7 @@ let suite =
   Test_0install.suite;
   Test_apps.suite;
   Test_driver.suite;
+  Test_gpg.suite;
   Test_feed.suite;
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);

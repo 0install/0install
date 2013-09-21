@@ -533,3 +533,7 @@ let read_file (system:system) path =
         really_input ic buf 0 info.Unix.st_size
       );
       buf
+
+let safe_int_of_string s =
+  try int_of_string s
+  with Failure msg -> raise_safe "Invalid integer '%s' (%s)" s msg

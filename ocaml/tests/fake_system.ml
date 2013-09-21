@@ -320,10 +320,10 @@ let format_list l = "[" ^ (String.concat "; " l) ^ "]"
 let equal_str_lists = assert_equal ~printer:format_list
 let assert_str_equal = assert_equal ~printer:(fun x -> x)
 
-let assert_raises_safe expected_msg fn =
+let assert_raises_safe expected_msg (fn:unit Lazy.t) =
   try Lazy.force fn; assert_failure ("Expected Safe_exception " ^ expected_msg)
   with Safe_exception (msg, _) ->
-    assert_equal expected_msg msg
+    assert_str_equal expected_msg msg
 
 let temp_dir_name =
   (* Filename.get_temp_dir_name doesn't exist under 3.12 *)
@@ -342,10 +342,12 @@ let get_fake_config tmpdir =
   Zeroinstall.Python.slave_debug_level := Some Support.Logging.Warning;
   Zeroinstall.Python.slave_interceptor := Zeroinstall.Python.default_interceptor;
   let system = new fake_system tmpdir in
-  let () =
+  let home =
     match tmpdir with
-    | None -> system#putenv "HOME" "/home/testuser";
-    | Some dir -> system#putenv "HOME" dir in
+    | None -> "/home/testuser";
+    | Some dir -> dir in
+  system#putenv "HOME" home;
+  Unix.putenv "GNUPGHOME" home;
   if on_windows then (
     system#add_file (src_dir +/ "0install-runenv.exe") (build_dir +/ "0install-runenv.exe");
     system#add_file (src_dir +/ "0install-python-fallback") (src_dir +/ "0install-python-fallback");
