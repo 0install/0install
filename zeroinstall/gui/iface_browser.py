@@ -361,7 +361,7 @@ class InterfaceBrowser(object):
 			self.model[iter][InterfaceBrowser.SUMMARY] = details["summary"]
 			self.model[iter][InterfaceBrowser.ICON] = self.get_icon(iface) or self.default_icon
 
-			problem = details["type"] == "problem"
+			problem = details["type"] != "selected"
 			self.model[iter][InterfaceBrowser.PROBLEM] = problem
 
 			if problem:

@@ -165,7 +165,7 @@ let handle_bg options flags args =
 
         (* Refresh the feeds and solve, silently. If we find updates to download, we try to run the GUI
          * so the user can see a systray icon for the download. If that's not possible, we download silently too. *)
-        let (ready, result) = driver#solve_with_downloads reqs ~force:true ~update_local:true in
+        let (ready, result, feed_provider) = driver#solve_with_downloads reqs ~force:true ~update_local:true in
         let new_sels = result#get_selections in
 
         let new_sels =
@@ -186,7 +186,7 @@ let handle_bg options flags args =
                 raise (System_exit 1)
             | `Dont_use_GUI ->
                 log_info "Background update: GUI unavailable; downloading with no UI";
-                Zeroinstall.Helpers.download_selections driver#fetcher ~distro new_sels; new_sels
+                Zeroinstall.Helpers.download_selections ~include_packages:true ~feed_provider driver new_sels; new_sels
             | `Success gui_sels -> gui_sels
           ) else new_sels in
 

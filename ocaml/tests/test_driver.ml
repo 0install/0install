@@ -47,8 +47,8 @@ let fake_fetcher config handler =
       | `xml root -> `update (root, None) |> Lwt.return
       | `problem msg -> `problem (msg, None) |> Lwt.return
 
-      method download_selections ?distro:_ sels : [ `success | `aborted_by_user ] Lwt.t =
-        handler#download_selections sels |> Lwt.return
+    method download_impls impls : [ `success | `aborted_by_user ] Lwt.t =
+      handler#download_impls impls |> Lwt.return
   end
 
 (** Parse a test-case in driven.xml *)
@@ -117,8 +117,8 @@ let make_driver_test test_elem =
       object
         method get_package_impls _uri = `List [`List []; `List []]
 
-        method download_selections sels =
-          ignore @@ Test_0install.handle_download_selections config expected_digests sels;
+        method download_impls impls =
+          ignore @@ Test_0install.handle_download_impls config expected_digests impls;
           `success
 
         method download_url url = failwith url
@@ -174,7 +174,7 @@ let suite = "driver">::: [
     let handler =
       let prog_candidates = ref [] in
       object
-        method download_selections = failwith "download_selections"
+        method download_impls = failwith "download_impls"
 
         method get_package_impls = function
           | "http://example.com/prog.xml" -> `List [`List []; `List !prog_candidates]
@@ -203,7 +203,7 @@ let suite = "driver">::: [
     let fetcher = fake_fetcher config handler in
 
     let driver = new Driver.driver config fetcher distro slave in
-    let (ready, result) = driver#solve_with_downloads reqs ~force:true ~update_local:true in
+    let (ready, result, _fp) = driver#solve_with_downloads reqs ~force:true ~update_local:true in
     if not ready then
       failwith @@ Diagnostics.get_failure_reason config result;
 
@@ -247,11 +247,11 @@ let suite = "driver">::: [
     let fetcher =
       object
         method download_and_import_feed (`remote_feed url) = raise_safe "download_and_import_feed: %s" url
-        method download_selections = failwith "download_selections"
+        method download_impls = failwith "download_impls"
       end in
     let slave = new Zeroinstall.Python.slave config in
     let driver = new Driver.driver config fetcher distro slave in
-    let (ready, result) = driver#solve_with_downloads reqs ~force:false ~update_local:false in
+    let (ready, result, _fp) = driver#solve_with_downloads reqs ~force:false ~update_local:false in
     assert (ready = true);
 
     let get_ids result =
@@ -264,7 +264,7 @@ let suite = "driver">::: [
     import "Compiler.xml";
     let reqs = {reqs with Requirements.source = true; command = None} in
     let driver = new Driver.driver {config with network_use = Offline} fetcher distro slave in
-    let (ready, result) = driver#solve_with_downloads reqs ~force:false ~update_local:false in
+    let (ready, result, _fp) = driver#solve_with_downloads reqs ~force:false ~update_local:false in
     assert (ready = true);
     Fake_system.equal_str_lists ["sha1=234"; "sha1=345"] @@ get_ids result;
   );

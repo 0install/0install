@@ -8,6 +8,7 @@ open Support.Common
 open General
 
 module Qdom = Support.Qdom
+module FeedAttr = Constants.FeedAttr
 
 type impl_source =
   | CacheSelection of Stores.digest list
@@ -112,3 +113,8 @@ let make_selection_map sels =
   let add_selection m sel =
     StringMap.add (ZI.get_attribute "interface" sel) sel m
   in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
+
+let get_id sel = Feed.({
+  id = ZI.get_attribute FeedAttr.id sel;
+  feed = ZI.get_attribute_opt FeedAttr.from_feed sel |? lazy (ZI.get_attribute FeedAttr.interface sel);
+})

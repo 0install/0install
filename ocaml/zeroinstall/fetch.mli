@@ -11,5 +11,5 @@ type fetch_feed_response =
 class fetcher : General.config -> Trust.trust_db -> Python.slave ->
   object
     method download_and_import_feed : [ `remote_feed of General.feed_url ] -> fetch_feed_response Lwt.t
-    method download_selections : ?distro:Distro.distribution -> Support.Qdom.element -> [ `aborted_by_user | `success ] Lwt.t
+    method download_impls : Feed.implementation list -> [ `success | `aborted_by_user ] Lwt.t
   end

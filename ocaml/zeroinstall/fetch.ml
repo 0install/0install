@@ -8,6 +8,7 @@ open Support.Common
 module U = Support.Utils
 module Q = Support.Qdom
 module G = Support.Gpg
+module FeedAttr = Constants.FeedAttr
 
 type non_mirror_case = [ `ok of Q.element | `no_trusted_keys | `replay_attack of (feed_url * float * float) | `aborted_by_user ]
 
@@ -407,34 +408,31 @@ class fetcher config trust_db (slave:Python.slave) =
                       `problem (msg, Some (wait_for_mirror mirror)) |> Lwt.return
               )
 
-    (** Ensure all selections are cached, downloading any that are missing.
-        If [distro] is given then distribution packages are also installed, otherwise
-        they are ignored. *)
-    method download_selections ?distro sels : [ `success | `aborted_by_user ] Lwt.t =
-      if Selections.get_unavailable_selections config ?distro sels <> [] then (
-        let opts = `Assoc [
-          ("include-packages", `Bool (distro <> None));
-        ] in
+    method download_impls (impls:Feed.implementation list) : [ `success | `aborted_by_user ] Lwt.t =
+      let impl_ids =
+        impls |> List.map (fun impl ->
+          let {Feed.feed; Feed.id} = Feed.get_id impl in
+          let version = Feed.get_attr_ex FeedAttr.version impl in
 
-        let request : Yojson.Basic.json = `List [`String "download-selections"; opts] in
+          log_debug "download_impls: for %s get %s" feed version;
 
-        lwt result =
-          slave#invoke_async ~xml:sels request (function
-            | `List dry_run_paths -> `success (List.map Yojson.Basic.Util.to_string dry_run_paths)
-            | `String "aborted-by-user" -> `aborted_by_user
-            | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
-          ) in
+          `Assoc [
+            ("id", `String id);
+            ("from-feed", `String feed);
+          ]
+        ) in
 
-        match result with
-        | `aborted_by_user -> Lwt.return `aborted_by_user
-        | `success dry_run_paths ->
+      let request : Yojson.Basic.json = `List [`String "download-impls"; `List impl_ids] in
+
+      slave#invoke_async request (function
+        | `List dry_run_paths ->
             (* In --dry-run mode, the directories haven't actually been added, so we need to tell the
              * dryrun_system about them. *)
             if config.dry_run then (
-              List.iter (fun name -> system#mkdir name 0o755) dry_run_paths
+              List.iter (fun name -> system#mkdir (Yojson.Basic.Util.to_string name) 0o755) dry_run_paths
             );
-            Lwt.return `success
-      ) else (
-        Lwt.return `success
+            `success
+        | `String "aborted-by-user" -> `aborted_by_user
+        | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
       )
   end

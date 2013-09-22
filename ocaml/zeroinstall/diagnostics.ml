@@ -338,14 +338,6 @@ let return fmt =
   let do_return msg = raise (Return msg) in
   Printf.ksprintf do_return fmt
 
-let get_id sel =
-  let feed =
-    match ZI.get_attribute_opt FeedAttr.from_feed sel with
-    | Some feed -> feed
-    | None -> ZI.get_attribute FeedAttr.interface sel in
-  let id = ZI.get_attribute FeedAttr.id sel in
-  Feed.({feed; id})
-
 (** Is the wanted implementation simply ranked lower than the one we selected?
     @raise Return if so. *)
 let maybe_justify_local_preference wanted_id actual_id candidates compare =
@@ -413,10 +405,10 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare can
   let () =
     match actual_selection, compare with
     | Some actual_selection, Some compare ->
-        let actual_id = get_id actual_selection in
+        let actual_id = Selections.get_id actual_selection in
 
         (* Was impl actually selected anyway? *)
-        if get_id actual_selection = wanted_id then
+        if actual_id = wanted_id then
           return "%s was selected as the preferred version." wanted;
 
         (* Check whether the preference can be explained by the local ranking. *)

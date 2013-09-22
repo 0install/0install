@@ -268,7 +268,8 @@ let handle options flags arg ?test_callback for_op =
         if for_op = `Select_only then old_sels else (
           (* Download if missing. Ignore distribution packages, because the version probably won't match exactly. *)
           let driver = Lazy.force options.driver in
-          Zeroinstall.Helpers.download_selections driver#fetcher old_sels;
+          let feed_provider = new Zeroinstall.Feed_cache.feed_provider config driver#distro in
+          Zeroinstall.Helpers.download_selections ~feed_provider ~include_packages:false driver old_sels;
           old_sels
         )
       ) in

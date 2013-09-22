@@ -22,12 +22,12 @@ let failed_check_delay = float_of_int (1 * hours)
 let is_local_feed uri = U.path_is_absolute uri
 
 let parse_feed_url url =
+  let zi url =
+    if U.path_is_absolute url then `local_feed url
+    else `remote_feed url in
   if U.starts_with url "distribution:" then
-    `distribution_feed (U.string_tail url 13)
-  else if U.path_is_absolute url then
-    `local_feed url
-  else
-    `remote_feed url
+    `distribution_feed (U.string_tail url 13 |> zi)
+  else zi url
 
 (* For local feeds, returns the absolute path. *)
 let get_cached_feed_path config = function

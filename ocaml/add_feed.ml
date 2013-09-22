@@ -107,15 +107,15 @@ let handle options flags args =
               print "Downloading feed; please wait...";
               flush stdout;
               let driver = Lazy.force options.driver in
-              match Zeroinstall.Helpers.download_and_import_feed driver#fetcher feed |> Lwt_main.run with
-              | `success _ -> print "Done"
-              | `aborted_by_user -> raise (System_exit 1)
-              | `no_update ->
-                  if missing then raise_safe "Failed to download missing feed"
-                  else print "No update"
-              | `problem msg ->
-                  if missing then raise_safe "Failed: %s" msg
-                  else log_warning "Update failed: %s" msg
+              try
+                match driver#download_and_import_feed feed |> Lwt_main.run with
+                | `success _ -> print "Done"
+                | `aborted_by_user -> raise (System_exit 1)
+                | `no_update ->
+                    if missing then raise_safe "Failed to download missing feed"  (* Shouldn't happen *)
+                    else print "No update"
+              with Safe_exception (msg, _) when not missing ->
+                log_warning "Update failed: %s" msg
             );
         | `local_feed _ -> ()
         | `distribution_feed _ -> raise_safe "Can't register a distribution feed!" in

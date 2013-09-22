@@ -9,6 +9,7 @@ open Support.Common
 open OUnit
 module Q = Support.Qdom
 module U = Support.Utils
+module F = Zeroinstall.Feed
 module R = Zeroinstall.Requirements
 module Escape = Zeroinstall.Escape
 
@@ -17,13 +18,10 @@ let feed_dir = U.abspath Fake_system.real_system (".." +/ ".." +/ "tests")
 
 exception Ok
 
-(* For each <selection> in [xml], create an (empty) implementation directory in the cache and
- * remove the digest. *)
-let handle_download_selections config pending_digests xml =
-  ListLabels.iter xml.Q.child_nodes ~f:(fun sel ->
-    let open Zeroinstall.Selections in
-    match make_selection sel with
-    | CacheSelection digests ->
+let handle_download_impls config pending_digests impls =
+  impls |> List.iter (fun impl ->
+    match impl.F.impl_type with
+    | F.CacheImpl {F.digests;_} ->
         if Zeroinstall.Stores.lookup_maybe config.system digests config.stores = None then (
           let digest_str =
             U.first_match digests ~f:(fun digest ->
@@ -38,9 +36,15 @@ let handle_download_selections config pending_digests xml =
               U.makedirs config.system (user_store +/ digest_str) 0o755;
               log_info "Added %s to stores" digest_str
         )
-    | _ -> ()
-  );
-  `List [`String "ok"; `List []]
+    | _ -> assert false
+  )
+
+let impl_from_json config = (function
+  | `Assoc [("id", `String id); ("from-feed", `String feed_url)] ->
+      let feed = Zeroinstall.Feed_cache.get_cached_feed config feed_url |? lazy (failwith feed_url) in
+      StringMap.find id feed.F.implementations
+  | _ -> assert false
+)
 
 let assert_contains expected whole =
   try ignore @@ Str.search_forward (Str.regexp_string expected) whole 0
@@ -75,6 +79,7 @@ class fake_slave config =
     `List [`String "ok"; `List [`String "success"; `String tmpname]] in
 
   let fake_slave ?xml request =
+    ignore xml;
     match request with
     | `List [`String "confirm-keys"; `String _url; `List fingerprints] ->
         assert (fingerprints <> []);
@@ -84,7 +89,9 @@ class fake_slave config =
         if timeout <> `Null then
           ignore @@ start_timeout [timeout];
         Some (Lwt.return @@ handle_download_url url)
-    | `List [`String "download-selections"; _opts] -> Some (Lwt.return @@ handle_download_selections config pending_digests (expect xml))
+    | `List [`String "download-impls"; `List impls] ->
+        impls |> List.map (impl_from_json config) |> handle_download_impls config pending_digests;
+        Some (`List [`String "ok"; `List []] |> Lwt.return)
     | _ -> None in
 
   object
@@ -250,7 +257,7 @@ let suite = "0install">::: [
     let () =
       try ignore @@ run ["download"; "--offline"; (feed_dir +/ "selections.xml")]; assert false
       with Safe_exception (msg, _) ->
-        assert_contains "Would download" msg in
+        assert_contains "Can't download as in offline mode:\nhttp://example.com:8000/Hello.xml 1" msg in
 
     let fake_slave = new fake_slave config in
     fake_slave#install;
@@ -276,7 +283,9 @@ let suite = "0install">::: [
     fake_slave#allow_download digest;
 
     let hello = Support.Utils.read_file system (feed_dir +/ "Hello.xml") in
+    let key = Support.Utils.read_file system (feed_dir +/ "6FCF121BE2390E0B.gpg") in
     fake_slave#allow_feed_download "http://example.com:8000/Hello.xml" hello;
+    fake_slave#allow_feed_download "http://example.com:8000/6FCF121BE2390E0B.gpg" key;
     let out = run ["download"; (feed_dir +/ "selections.xml"); "--show"] in
     assert_contains digest out;
     assert_contains "Version: 1\n" out;

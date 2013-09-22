@@ -71,18 +71,31 @@ def do_import_feed(config, xml):
 	config.iface_cache._feeds[feed_url] = feed
 
 @tasks.async
-def do_download_selections(config, ticket, options, args, xml):
+def do_download_impls(config, ticket, options, args):
 	if gui_driver is not None: config = gui_driver.config
 	try:
-		opts, = args
-		include_packages = opts['include-packages']
+		impls, = args
 
 		old_dry_run_names = get_dry_run_names(config)
 
-		sels = selections.Selections(xml)
-		blocker = sels.download_missing(config, include_packages = include_packages)
-		yield blocker
-		tasks.check(blocker)
+		needed_impls = []
+		for impl in impls:
+			feed_url = impl['from-feed']
+			impl_id = impl['id']
+			feed = config.iface_cache.get_feed(feed_url)
+			if feed is None or impl_id not in feed.implementations:
+				fetch_feed = config.fetcher.download_and_import_feed(feed_url, config.iface_cache)
+				yield fetch_feed
+				tasks.check(fetch_feed)
+
+				feed = iface_cache.get_feed(feed_url)
+				assert feed, "Failed to get feed for %s" % feed_url
+			impl = feed.implementations[impl_id]
+			needed_impls.append(impl)
+
+		fetch_impls = config.fetcher.download_impls(needed_impls, config.stores)
+		yield fetch_impls
+		tasks.check(fetch_impls)
 
 		added_names = get_dry_run_names(config) - old_dry_run_names
 
@@ -363,9 +376,8 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'gui-update-selections':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_gui_update_selections(request[1:], xml)
-		elif command == 'download-selections':
-			xml = qdom.parse(BytesIO(read_chunk()))
-			blocker = do_download_selections(config, ticket, options, request[1:], xml)
+		elif command == 'download-impls':
+			blocker = do_download_impls(config, ticket, options, request[1:])
 			return #async
 		elif command == 'import-feed':
 			xml = qdom.parse(BytesIO(read_chunk()))
