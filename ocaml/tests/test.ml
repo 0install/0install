@@ -191,6 +191,7 @@ let suite =
   Test_apps.suite;
   Test_driver.suite;
   Test_gpg.suite;
+  Test_trust.suite;
   Test_feed.suite;
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);

@@ -45,6 +45,7 @@ let config_site = "0install.net"
 let config_prog = "injector"
 let config_injector_interfaces = config_site +/ config_prog +/ "interfaces"
 let config_injector_global = config_site +/ config_prog +/ "global"
+let config_trust_db = config_site +/ config_prog +/ "trustdb.xml"
 
 let data_site_packages = config_site +/ "site-packages"     (* 0compile builds, etc *)
 let data_native_feeds = config_site +/ "native_feeds"       (* Feeds provided by distribution packages (rare) *)
