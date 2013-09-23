@@ -66,7 +66,7 @@ let show_app_changes options ~full app =
         | None -> () in
 
       print "Last update     : %s" current;
-      let current_sels = A.get_selections_no_updates config app in
+      let current_sels = A.get_selections_no_updates system app in
 
       match history with
       | [] ->

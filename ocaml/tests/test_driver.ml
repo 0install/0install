@@ -127,10 +127,12 @@ let make_driver_test test_elem =
       end in
     let slave = new fake_slave config handler in
     let distro = new Distro.generic_distribution slave in
+    let fetcher = new Fetch.fetcher config slave in
+    let driver = new Zeroinstall.Driver.driver config fetcher distro slave in
     let () =
       try
         Fake_system.collect_logging (fun () ->
-          let sels = Fake_system.expect @@ Zeroinstall.Helpers.solve_and_download_impls config distro slave !reqs `Select_for_run ~refresh:false ~use_gui:No in
+          let sels = Fake_system.expect @@ Zeroinstall.Helpers.solve_and_download_impls driver !reqs `Select_for_run ~refresh:false ~use_gui:No in
           if !fails then assert_failure "Expected solve_and_download_impls to fail, but it didn't!";
           let actual_env = ref StringMap.empty in
           let output = trim @@ Fake_system.capture_stdout (fun () ->
@@ -196,7 +198,8 @@ let suite = "driver">::: [
     let distro = new Distro.generic_distribution slave in
     let fetcher = new Fetch.fetcher config slave in
 
-    let (ready, result) = Driver.solve_with_downloads config fetcher distro reqs ~force:true ~update_local:true in
+    let driver = new Driver.driver config fetcher distro slave in
+    let (ready, result) = driver#solve_with_downloads reqs ~force:true ~update_local:true in
     if not ready then
       failwith @@ Diagnostics.get_failure_reason config result;
 
@@ -219,7 +222,9 @@ let suite = "driver">::: [
     let reqs = Requirements.({(default_requirements foo_path) with command = None}) in
     let slave = new fake_slave config handler in
     let distro = new Distro.generic_distribution slave in
-    let sels = Zeroinstall.Helpers.solve_and_download_impls config distro slave reqs `Select_for_run ~refresh:false ~use_gui:No in
+    let fetcher = new Fetch.fetcher config slave in
+    let driver = new Driver.driver config fetcher distro slave in
+    let sels = Zeroinstall.Helpers.solve_and_download_impls driver reqs `Select_for_run ~refresh:false ~use_gui:No in
     assert (sels <> None)
   );
 
@@ -240,8 +245,11 @@ let suite = "driver">::: [
     let fetcher =
       object
         method download_and_import_feed (`remote_feed url) = raise_safe "download_and_import_feed: %s" url
+        method download_selections = failwith "download_selections"
       end in
-    let (ready, result) = Driver.solve_with_downloads config fetcher distro reqs ~force:false ~update_local:false in
+    let slave = new Zeroinstall.Python.slave config in
+    let driver = new Driver.driver config fetcher distro slave in
+    let (ready, result) = driver#solve_with_downloads reqs ~force:false ~update_local:false in
     assert (ready = true);
 
     let get_ids result =
@@ -253,7 +261,8 @@ let suite = "driver">::: [
     import "Source.xml";
     import "Compiler.xml";
     let reqs = {reqs with Requirements.source = true; command = None} in
-    let (ready, result) = Driver.solve_with_downloads {config with network_use = Offline} fetcher distro reqs ~force:false ~update_local:false in
+    let driver = new Driver.driver {config with network_use = Offline} fetcher distro slave in
+    let (ready, result) = driver#solve_with_downloads reqs ~force:false ~update_local:false in
     assert (ready = true);
     Fake_system.equal_str_lists ["sha1=234"; "sha1=345"] @@ get_ids result;
   );

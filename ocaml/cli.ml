@@ -256,9 +256,13 @@ let get_default_options config =
   let slave = new Zeroinstall.Python.slave config in {
     config;
     slave;
-    distro = lazy (Zeroinstall.Distro.get_host_distribution config slave);
     gui = Maybe;
     verbosity = 0;
+    driver = lazy (
+      let distro = Zeroinstall.Distro.get_host_distribution config slave in
+      let fetcher = new Zeroinstall.Fetch.fetcher config slave in
+      new Zeroinstall.Driver.driver config fetcher distro slave
+    );
   }
 
 let handle config raw_args =

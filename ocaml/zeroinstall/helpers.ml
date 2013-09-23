@@ -29,7 +29,8 @@ let download_selections fetcher ?distro sels =
 (** Get some selectsions for these requirements.
     Returns [None] if the user cancels.
     @raise Safe_exception if the solve fails. *)
-let solve_and_download_impls config distro (slave:Python.slave) ?test_callback reqs mode ~refresh ~use_gui =
+let solve_and_download_impls (driver:Driver.driver) ?test_callback reqs mode ~refresh ~use_gui =
+  let config = driver#config in
   let use_gui =
     match use_gui, config.dry_run with
     | Yes, true -> raise_safe "Can't use GUI with --dry-run"
@@ -37,8 +38,7 @@ let solve_and_download_impls config distro (slave:Python.slave) ?test_callback r
     | use_gui, false -> use_gui in
 
   let solve_without_gui () =
-    let fetcher = new Fetch.fetcher config slave in
-    let result = Driver.solve_with_downloads config fetcher distro reqs ~force:refresh ~update_local:refresh in
+    let result = driver#solve_with_downloads reqs ~force:refresh ~update_local:refresh in
     match result with
     | (false, result) -> raise_safe "%s" (Diagnostics.get_failure_reason config result)
     | (true, result) ->
@@ -47,10 +47,10 @@ let solve_and_download_impls config distro (slave:Python.slave) ?test_callback r
           match mode with
           | `Select_only -> ()
           | `Download_only | `Select_for_run ->
-              download_selections fetcher ~distro sels in
+              download_selections driver#fetcher ~distro:driver#distro sels in
         Some sels in
 
-  match Gui.get_selections_gui config slave ?test_callback distro mode reqs ~refresh ~use_gui with
+  match Gui.get_selections_gui config driver#slave ?test_callback driver#distro mode reqs ~refresh ~use_gui with
   | `Success sels -> Some sels
   | `Aborted_by_user -> None
   | `Dont_use_GUI -> solve_without_gui ()

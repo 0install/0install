@@ -425,7 +425,8 @@ let get_selections_gui config (slave:Python.slave) ?test_callback distro ?(systr
      *)
     let rec loop force =
       feed_provider := new Feed_cache.feed_provider config distro;
-      let (ready, results) = Driver.solve_with_downloads config fetcher ~feed_provider:!feed_provider ~watcher distro reqs ~force ~update_local:true in
+      let driver = new Driver.driver config fetcher distro slave in
+      let (ready, results) = driver#solve_with_downloads ~feed_provider:!feed_provider ~watcher reqs ~force ~update_local:true in
       let response =
         slave#invoke (`List [`String "run-gui"]) (function
           | `List [`String "ok"] -> assert ready; `Success results#get_selections

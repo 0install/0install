@@ -15,138 +15,165 @@ let (>|=) = Lwt.(>|=)
 
 let get_values map = StringMap.fold (fun _key value xs -> value :: xs) map []
 
-(** Run the solver, then download any feeds that are missing or that need to be
-    updated. Each time a new feed is imported into the cache, the solver is run
-    again, possibly adding new downloads.
+type watcher = <
+  report : feed_url -> string -> unit;
+  update : bool * Solver.result -> unit;
+>
 
-    Note: if we find we need to download anything, we will refresh everything.
+class driver config (fetcher:Fetch.fetcher) distro (slave:Python.slave) =
+  object
+    (** Run the solver, then download any feeds that are missing or that need to be
+        updated. Each time a new feed is imported into the cache, the solver is run
+        again, possibly adding new downloads.
 
-    @param force re-download all feeds, even if we're ready to run (implies update_local)
-    @param watcher notify of each partial solve (used by the GUI to show the current state)
-    @param update_local fetch PackageKit feeds even if we're ready to run *)
-let solve_with_downloads config fetcher distro ?feed_provider ?watcher requirements ~force ~update_local : (bool * Solver.result) =
-  let force = ref force in
-  let seen = ref StringSet.empty in
-  let downloads_in_progress = ref StringMap.empty in
+        Note: if we find we need to download anything, we will refresh everything.
 
-  let already_seen url = StringSet.mem url !seen in
-  let forget_feed url = seen := StringSet.remove url !seen in
+        @param force re-download all feeds, even if we're ready to run (implies update_local)
+        @param watcher notify of each partial solve (used by the GUI to show the current state)
+        @param update_local fetch PackageKit feeds even if we're ready to run *)
+    method solve_with_downloads ?feed_provider ?(watcher:watcher option) requirements ~force ~update_local : (bool * Solver.result) =
+      let force = ref force in
+      let seen = ref StringSet.empty in
+      let downloads_in_progress = ref StringMap.empty in
 
-  let report_problem feed_url msg =
-    match watcher with
-    | Some watcher -> watcher#report feed_url msg
-    | None -> log_warning "Feed %s: %s" feed_url msg in
+      let already_seen url = StringSet.mem url !seen in
+      let forget_feed url = seen := StringSet.remove url !seen in
 
-  (* There are three cases:
-     1. We want to run immediately if possible. If not, download all the information we can.
-        (force = False, update_local = False)
-     2. We're in no hurry, but don't want to use the network unnecessarily.
-        We should still update local information (from PackageKit).
-        (force = False, update_local = True)
-     3. The user explicitly asked us to refresh everything.
-        (force = True) *)
+      let report_problem feed_url msg =
+        match watcher with
+        | Some watcher -> watcher#report feed_url msg
+        | None -> log_warning "Feed %s: %s" feed_url msg in
 
-  let feed_provider =
-    match feed_provider with
-    | Some feed_provider -> feed_provider
-    | None -> new Feed_cache.feed_provider config distro in
+      (* There are three cases:
+         1. We want to run immediately if possible. If not, download all the information we can.
+            (force = False, update_local = False)
+         2. We're in no hurry, but don't want to use the network unnecessarily.
+            We should still update local information (from PackageKit).
+            (force = False, update_local = True)
+         3. The user explicitly asked us to refresh everything.
+            (force = True) *)
 
-  (* Add [url] to [downloads_in_progress]. When [download] resolves (to a function),
-     call it in the main thread. *)
-  let add_download url download =
-    seen := StringSet.add url !seen;
-    let wrapped =
-      try_lwt
-        lwt fn = download in
-        Lwt.return (url, fn)
-      with Safe_exception (msg, _) ->
-        report_problem url msg;
-        Lwt.return (url, fun () -> ()) in
-    downloads_in_progress := StringMap.add url wrapped !downloads_in_progress
-    in
+      let feed_provider =
+        match feed_provider with
+        | Some feed_provider -> feed_provider
+        | None -> new Feed_cache.feed_provider config distro in
 
-  (** Register a new download. When it resolves, process it in the main thread. *)
-  let rec handle_download f dl =
-    add_download f (dl >|= fun result () ->
-      (* (we are now running in the main thread) *)
-      match result with
-      | `problem (msg, next_update) -> (
-          report_problem f msg;
-          match next_update with
-          | None -> ()
-          | Some next -> handle_download f next
-      )
-      | `aborted_by_user -> ()    (* No need to report this *)
-      | `no_update -> ()
-      | `update (new_xml, next_update) ->
-          feed_provider#replace_feed f (Feed.parse config.system new_xml None);
-          (* On success, we also need to refetch any "distribution" feed that depends on this one *)
-          let distro_url = "distribution:" ^ f in
-          feed_provider#forget_distro distro_url;
-          forget_feed distro_url;
-          (* (we will now refresh, which will trigger distro#check_for_candidates *)
-          match next_update with
-          | None -> ()    (* This is the final update *)
-          | Some next ->
-              log_info "Accepted update from mirror, but will continue waiting for primary for '%s'" f;
-              handle_download f next
-    ) in
+      (* Add [url] to [downloads_in_progress]. When [download] resolves (to a function),
+         call it in the main thread. *)
+      let add_download url download =
+        seen := StringSet.add url !seen;
+        let wrapped =
+          try_lwt
+            lwt fn = download in
+            Lwt.return (url, fn)
+          with Safe_exception (msg, _) ->
+            report_problem url msg;
+            Lwt.return (url, fun () -> ()) in
+        downloads_in_progress := StringMap.add url wrapped !downloads_in_progress
+        in
 
-  let rec loop ~try_quick_exit =
-    (* Called once at the start, and once for every feed that downloads (or fails to download). *)
-    let result = Solver.solve_for config feed_provider requirements in
-
-    let () =
-      match watcher with
-      | Some watcher -> watcher#update result
-      | None -> () in
-
-    match result with
-    | (true, _) when try_quick_exit ->
-        assert (StringMap.is_empty !downloads_in_progress);
-        result
-    | (ready, _) ->
-        if not ready then force := true;
-
-        (* For each remote feed used which we haven't seen yet, start downloading it. *)
-        if !force && config.network_use <> Offline then (
-          ListLabels.iter feed_provider#get_feeds_used ~f:(fun f ->
-            if not (already_seen f) then (
-              match Feed_cache.parse_feed_url f with
-              | `local_feed _ -> ()
-              | `distribution_feed x -> failwith x
-              | `remote_feed _ as feed ->
-                  log_info "Starting download of feed '%s'" f;
-                  fetcher#download_and_import_feed feed |> handle_download f
-            )
+      (** Register a new download. When it resolves, process it in the main thread. *)
+      let rec handle_download f dl =
+        add_download f (dl >|= fun result () ->
+          (* (we are now running in the main thread) *)
+          match result with
+          | `problem (msg, next_update) -> (
+              report_problem f msg;
+              match next_update with
+              | None -> ()
+              | Some next -> handle_download f next
           )
-        );
+          | `aborted_by_user -> ()    (* No need to report this *)
+          | `no_update -> ()
+          | `update (new_xml, next_update) ->
+              feed_provider#replace_feed f (Feed.parse config.system new_xml None);
+              (* On success, we also need to refetch any "distribution" feed that depends on this one *)
+              let distro_url = "distribution:" ^ f in
+              feed_provider#forget_distro distro_url;
+              forget_feed distro_url;
+              (* (we will now refresh, which will trigger distro#check_for_candidates *)
+              match next_update with
+              | None -> ()    (* This is the final update *)
+              | Some next ->
+                  log_info "Accepted update from mirror, but will continue waiting for primary for '%s'" f;
+                  handle_download f next
+        ) in
 
-        (* Check for extra (uninstalled) local distro candidates. *)
-        if !force || update_local then (
-          ListLabels.iter feed_provider#get_feeds_used ~f:(fun f ->
-            match feed_provider#get_feed f with
-            | None -> ()
-            | Some (master_feed, _) ->
-                let f = "distribution:" ^ f in
+      let rec loop ~try_quick_exit =
+        (* Called once at the start, and once for every feed that downloads (or fails to download). *)
+        let result = Solver.solve_for config feed_provider requirements in
+
+        let () =
+          match watcher with
+          | Some watcher -> watcher#update result
+          | None -> () in
+
+        match result with
+        | (true, _) when try_quick_exit ->
+            assert (StringMap.is_empty !downloads_in_progress);
+            result
+        | (ready, _) ->
+            if not ready then force := true;
+
+            (* For each remote feed used which we haven't seen yet, start downloading it. *)
+            if !force && config.network_use <> Offline then (
+              ListLabels.iter feed_provider#get_feeds_used ~f:(fun f ->
                 if not (already_seen f) then (
-                    add_download f (distro#check_for_candidates master_feed >|= fun () () ->
-                      feed_provider#forget_distro f
-                    )
+                  match Feed_cache.parse_feed_url f with
+                  | `local_feed _ -> ()
+                  | `distribution_feed x -> failwith x
+                  | `remote_feed _ as feed ->
+                      log_info "Starting download of feed '%s'" f;
+                      fetcher#download_and_import_feed feed |> handle_download f
                 )
-          )
-        );
+              )
+            );
 
-        match get_values !downloads_in_progress with
-        | [] -> 
-            if config.network_use = Offline && not ready then
-              log_info "Can't choose versions and in off-line mode, so aborting";
-            result;
-        | downloads ->
-            let (url, fn) = Lwt_main.run @@ Lwt.choose downloads in
-            downloads_in_progress := StringMap.remove url !downloads_in_progress;
-            fn ();    (* Clears the old feed(s) from Feed_cache *)
-            (* Run the solve again with the new information. *)
-            loop ~try_quick_exit:false
-  in
-  loop ~try_quick_exit:(not (!force || update_local))
+            (* Check for extra (uninstalled) local distro candidates. *)
+            if !force || update_local then (
+              ListLabels.iter feed_provider#get_feeds_used ~f:(fun f ->
+                match feed_provider#get_feed f with
+                | None -> ()
+                | Some (master_feed, _) ->
+                    let f = "distribution:" ^ f in
+                    if not (already_seen f) then (
+                        add_download f (distro#check_for_candidates master_feed >|= fun () () ->
+                          feed_provider#forget_distro f
+                        )
+                    )
+              )
+            );
+
+            match get_values !downloads_in_progress with
+            | [] -> 
+                if config.network_use = Offline && not ready then
+                  log_info "Can't choose versions and in off-line mode, so aborting";
+                result;
+            | downloads ->
+                let (url, fn) = Lwt_main.run @@ Lwt.choose downloads in
+                downloads_in_progress := StringMap.remove url !downloads_in_progress;
+                fn ();    (* Clears the old feed(s) from Feed_cache *)
+                (* Run the solve again with the new information. *)
+                loop ~try_quick_exit:false
+      in
+      loop ~try_quick_exit:(not (!force || update_local))
+
+    (** Find the best selections for these requirements and return them if available without downloading. 
+     * Returns None if we need to refresh feeds or download any implementations. *)
+    method quick_solve reqs =
+      let feed_provider = new Feed_cache.feed_provider config distro in
+      match Solver.solve_for config feed_provider reqs with
+      | (true, results) ->
+          let sels = results#get_selections in
+          if Selections.get_unavailable_selections config ~distro sels = [] then
+            Some sels   (* A set of valid selections, available locally *)
+          else
+            None        (* Need to download to get the new selections *)
+      | (false, _) ->
+          None          (* Need to refresh before we can solve *)
+
+    method fetcher = fetcher
+    method config = config
+    method distro = distro
+    method slave = slave
+  end

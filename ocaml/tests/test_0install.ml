@@ -460,6 +460,8 @@ let suite = "0install">::: [
     let system = (fake_system :> system) in
     let slave = new Zeroinstall.Python.slave config in
     let distro = new Zeroinstall.Distro.generic_distribution slave in
+    let fetcher = new Zeroinstall.Fetch.fetcher config slave in
+    let driver = new Zeroinstall.Driver.driver config fetcher distro slave in
     let run = run_0install fake_system in
     config.freshness <- None;
 
@@ -487,18 +489,18 @@ let suite = "0install">::: [
 
     (* Can run without using the solver... *)
     let module A = Zeroinstall.Apps in
-    let sels = A.get_selections_no_updates config app in
+    let sels = A.get_selections_no_updates system app in
     assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
     assert_equal 0.0 (A.get_times system app).A.last_solve;
 
     (* But if the feed is modified, we resolve... *)
     system#set_mtime local_copy 300.0;
-    let sels = A.get_selections_may_update config distro slave ~use_gui:No app in
+    let sels = A.get_selections_may_update driver ~use_gui:No app in
     assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels;
     assert (0.0 <> (A.get_times system app).A.last_solve);
 
     system#set_mtime (app +/ "last-solve") 400.0;
-    let sels = A.get_selections_may_update config distro slave ~use_gui:No app in
+    let sels = A.get_selections_may_update driver ~use_gui:No app in
     assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
     assert_equal 400.0 (A.get_times system app).A.last_solve;
 
@@ -506,7 +508,7 @@ let suite = "0install">::: [
     Fake_system.collect_logging (fun () ->
       system#unlink local_copy;
       U.touch system (app +/ "last-check-attempt");	(* Prevent background update *)
-      let sels = A.get_selections_may_update config distro slave ~use_gui:No app in
+      let sels = A.get_selections_may_update driver ~use_gui:No app in
       assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
       assert (400.0 <> (A.get_times system app).A.last_solve);
     );
@@ -518,7 +520,7 @@ let suite = "0install">::: [
     U.copy_file system hello_feed local_copy 0o600;
     Fake_system.collect_logging (fun () ->
       Fake_system.fake_log#reset;
-      ignore @@ A.get_selections_may_update config distro slave ~use_gui:No app
+      ignore @@ A.get_selections_may_update driver ~use_gui:No app
     );
     let () =
       match Fake_system.fake_log#pop_warnings with
@@ -533,7 +535,7 @@ let suite = "0install">::: [
     );
     system#set_mtime (app +/ "last-solve") 400.0;
 
-    let sels = A.get_selections_may_update config distro slave ~use_gui:No app in
+    let sels = A.get_selections_may_update driver ~use_gui:No app in
     assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels;
 
     (* If the selections.xml gets deleted, regenerate it *)
@@ -541,6 +543,6 @@ let suite = "0install">::: [
     let fake_slave = new fake_slave config in
     fake_slave#install;
     fake_slave#allow_download "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
-    ignore @@ A.get_selections_may_update config distro slave ~use_gui:No app
+    ignore @@ A.get_selections_may_update driver ~use_gui:No app
   );
 ]

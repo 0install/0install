@@ -50,7 +50,7 @@ let handle options flags args =
           let r = Apps.get_requirements system app_path in
           if not !s_xml && not !s_root then
             show_restrictions system r;
-          Apps.get_selections_no_updates config app_path
+          Apps.get_selections_no_updates system app_path
       | None ->
           Selections.load_selections config.system arg in
 

@@ -134,11 +134,11 @@ let spawn_background_update config reqs =
     *)
 let get_selections options ~refresh ?test_callback reqs mode =
   let config = options.config in
-  let distro = Lazy.force options.distro in
+  let driver = Lazy.force options.driver in
 
   let select_with_refresh refresh =
     (* This is the slow path: we need to download things before selecting *)
-    H.solve_and_download_impls config distro options.slave ?test_callback reqs mode ~refresh ~use_gui:options.gui in
+    H.solve_and_download_impls driver ?test_callback reqs mode ~refresh ~use_gui:options.gui in
 
   (* Check whether we can run immediately, without downloading anything. This requires
      - the user didn't ask to refresh or show the GUI
@@ -149,14 +149,14 @@ let get_selections options ~refresh ?test_callback reqs mode =
   if refresh || options.gui = Yes then (
     select_with_refresh refresh
   ) else (
-    let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in
+    let feed_provider = new Zeroinstall.Feed_cache.feed_provider config driver#distro in
     match Zeroinstall.Solver.solve_for config feed_provider reqs with
     | (false, _results) ->
         log_info "Quick solve failed; can't select without updating feeds";
         select_with_refresh true
     | (true, results) ->
         let sels = results#get_selections in
-        if mode = `Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro sels = [] then (
+        if mode = `Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro:driver#distro sels = [] then (
           (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
 
           let have_stale_feeds = feed_provider#have_stale_feeds () in
@@ -239,10 +239,7 @@ let handle options flags arg ?test_callback for_op =
   let result = resolve_target options.config flags arg in
 
   let get_app_sels path =
-    Zeroinstall.Apps.get_selections_may_update
-      options.config
-      (Lazy.force options.distro) options.slave
-      ~use_gui:options.gui path in
+    Zeroinstall.Apps.get_selections_may_update (Lazy.force options.driver) ~use_gui:options.gui path in
 
   match result with
   | (App (path, old_reqs), reqs) when select_opts.output = Output_human ->

@@ -123,7 +123,7 @@ let handle options flags args =
                 match Zeroinstall.Apps.lookup_app options.config app_name with
                 | None -> raise_safe "App '%s' not installed!" app_name
                 | Some app ->
-                    (Zeroinstall.Apps.get_selections_no_updates options.config app, None) in
+                    (Zeroinstall.Apps.get_selections_no_updates options.config.system app, None) in
           find_and_exec_man options.config ?main ~fallback_name:arg sels
   )
   | _ -> exec_man config args

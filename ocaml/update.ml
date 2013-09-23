@@ -55,9 +55,8 @@ let check_replacement system = function
           Support.Utils.print system "Warning: interface %s has been replaced by %s" feed.F.url replacement
 
 let check_for_updates options reqs old_sels =
-  let config = options.config in
-  let distro = Lazy.force options.distro in
-  let new_sels = Zeroinstall.Helpers.solve_and_download_impls config distro options.slave
+  let driver = Lazy.force options.driver in
+  let new_sels = Zeroinstall.Helpers.solve_and_download_impls driver
                           reqs `Download_only ~refresh:true ~use_gui:options.gui in
   match new_sels with
   | None -> raise (System_exit 1)   (* Aborted by user *)
@@ -65,7 +64,7 @@ let check_for_updates options reqs old_sels =
       let config = options.config in
       let system = config.system in
       let print fmt = Support.Utils.print system fmt in
-      let feed_provider = new Zeroinstall.Feed_cache.feed_provider options.config distro in
+      let feed_provider = new Zeroinstall.Feed_cache.feed_provider options.config driver#distro in
       check_replacement system @@ feed_provider#get_feed reqs.R.interface_uri;
       let root_sel = get_root_sel new_sels in
       let root_version = ZI.get_attribute F.attr_version root_sel in
@@ -108,7 +107,7 @@ let handle options flags args =
     let module G = Generic_select in
     match G.resolve_target config !select_opts arg with
     | (G.App (app, _old_reqs), reqs) ->
-        let old_sels = Apps.get_selections_no_updates config app in
+        let old_sels = Apps.get_selections_no_updates config.system app in
         let () =
           match check_for_updates options reqs old_sels with
           | Some new_sels -> Apps.set_selections config app new_sels ~touch_last_checked:true;
@@ -117,8 +116,8 @@ let handle options flags args =
     | (G.Selections old_sels, reqs) -> ignore @@ check_for_updates options reqs old_sels
     | (G.Interface, reqs) ->
         (* Select once without downloading to get the old values *)
-        let distro = Lazy.force options.distro in
-        let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in
+        let driver = Lazy.force options.driver in
+        let feed_provider = new Zeroinstall.Feed_cache.feed_provider config driver#distro in
         let (ready, result) = Zeroinstall.Solver.solve_for config feed_provider reqs in
         let old_sels = result#get_selections in
         if not ready then old_sels.Q.child_nodes <- [];
@@ -130,7 +129,7 @@ let handle options flags args =
     stdout will be /dev/null. stderr will be too, unless using -vv. *)
 let handle_bg options flags args =
   let config = options.config in
-  let distro = Lazy.force options.distro in
+  let driver = Lazy.force options.driver in
   let slave = options.slave in
 
   let notify ~msg ~timeout =
@@ -155,7 +154,7 @@ let handle_bg options flags args =
     | ["app"; app] ->
         let name = Filename.basename app in
         let reqs = Apps.get_requirements config.system app in
-        let old_sels = Apps.get_selections_no_updates config app in
+        let old_sels = Apps.get_selections_no_updates config.system app in
         let check_offline = function
           | `String "offline" ->
               log_info "Background update: offline, so aborting";
@@ -166,10 +165,11 @@ let handle_bg options flags args =
         (* Refresh the feeds and solve, silently. If we find updates to download, we try to run the GUI
          * so the user can see a systray icon for the download. If that's not possible, we download silently too. *)
         let fetcher = new Zeroinstall.Fetch.fetcher config slave in
-        let (ready, result) = Zeroinstall.Driver.solve_with_downloads config fetcher distro reqs ~force:true ~update_local:true in
+        let (ready, result) = driver#solve_with_downloads reqs ~force:true ~update_local:true in
         let new_sels = result#get_selections in
 
         let new_sels =
+          let distro = driver#distro in
           if !need_confirm_keys || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
             log_info "Background update: trying to use GUI to update %s" name;
             match Zeroinstall.Gui.get_selections_gui config slave distro `Download_only reqs ~systray:true ~refresh:true ~use_gui:Maybe with
