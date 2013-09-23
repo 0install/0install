@@ -23,6 +23,7 @@ type config = {
 
   mutable system : Support.Common.system;
 
+  mutable mirror : string option;
   mutable freshness: Int64.t option;
   mutable dry_run : bool;
   mutable network_use : network_use;

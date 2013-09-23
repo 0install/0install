@@ -68,6 +68,7 @@ let get_default_config system path_to_prog =
     abspath_0install;
     freshness = Some (Int64.of_int (30 * days));
     network_use = Full_network;
+    mirror = Some "http://roscidus.com/0mirror";
     dry_run = false;
     help_with_testing = false;
     system;
