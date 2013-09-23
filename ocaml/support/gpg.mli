@@ -26,6 +26,9 @@ type key_info = {
   name : string option
 }
 
+(** A human-readable description of a signature. *)
+val string_of_sig : signature -> string
+
 (** Run "gpg --import" with this data as stdin. *)
 val import_key : Common.system -> string -> unit Lwt.t
 

@@ -6,6 +6,8 @@ open Common
 
 module U = Utils
 
+let spf = Printf.sprintf
+
 type fingerprint = string
 type timestamp = float
 
@@ -23,6 +25,13 @@ type signature =
   | ValidSig of valid_details
   | BadSig of string      (* Message has been tampered with *)
   | ErrSig of sig_error
+
+let string_of_sig = function
+  | ValidSig details -> spf "Valid signature from %s" details.fingerprint
+  | BadSig key -> spf "BAD signature by %s (the message has been tampered with)" key
+  | ErrSig (UnsupportedAlgorithm alg) -> spf "Unknown or unsupported algorithm '%s'" alg
+  | ErrSig (UnknownKey key) -> spf "Unknown key. Try 'gpg --recv-key %s'" key
+  | ErrSig (UnknownSigError code) -> spf "Unknown reason code from GPG: %d" code
 
 let re_xml_comment_start = Str.regexp "^<!-- Base64 Signature$"
 
