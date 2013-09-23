@@ -69,7 +69,7 @@ module RealSystem (U : UnixType) =
       object (self : #system)
         method argv () = Sys.argv
         method print_string = print_string
-        method time = Unix.time
+        method time = Unix.time ()
         method mkdir = Unix.mkdir
         method file_exists = Sys.file_exists
         method create_process ?env args new_stdin new_stdout new_stderr =

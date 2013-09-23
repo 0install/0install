@@ -48,7 +48,7 @@ class type system =
   object
     method argv : unit -> string array
     method print_string : string -> unit
-    method time : unit -> float
+    method time : float
 
     method with_open_in : open_flag list -> Unix.file_perm -> filepath -> (in_channel -> 'a) -> 'a
     method with_open_out : open_flag list -> Unix.file_perm -> filepath -> (out_channel -> 'a) -> 'a

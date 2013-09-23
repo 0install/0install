@@ -308,7 +308,7 @@ let suite = "0install">::: [
     let system = (fake_system :> system) in
     let run = run_0install fake_system in
 
-    fake_system#set_time @@ Fake_system.real_system#time ();
+    fake_system#set_time @@ Fake_system.real_system#time;
 
     let out = run ~exit:1 ["add"; "local-app"] in
     assert (U.starts_with out "Usage:");

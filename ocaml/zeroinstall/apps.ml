@@ -83,7 +83,7 @@ let set_mtime config path =
     let system = config.system in
     system#with_open_out [Open_wronly; Open_creat] 0o644 path ignore;
     (* In case file already exists *)
-    system#set_mtime path @@ system#time ()
+    system#set_mtime path @@ system#time
   )
 
 let get_requirements (system:system) path =
@@ -96,7 +96,7 @@ let set_last_checked system app_dir =
   U.touch system @@ app_dir +/ "last-checked"
 
 let set_selections config app_path sels ~touch_last_checked =
-  let date = U.format_date (Unix.gmtime @@ config.system#time ()) in
+  let date = U.format_date (Unix.gmtime @@ config.system#time) in
   let sels_file = app_path +/ (Printf.sprintf "selections-%s.xml" date) in
 
   Support.Qdom.reindent sels;
@@ -182,7 +182,7 @@ let check_for_updates driver ~use_gui app_path sels =
 
   (* Is it time for a background update anyway? *)
   let want_bg_update = ref (
-    let staleness = system#time () -. last_check_time in
+    let staleness = system#time -. last_check_time in
     log_info "Staleness of app %s is %.0f hours" app_path (staleness /. (60. *. 60.));
     match config.freshness with
     | Some freshness_threshold -> Int64.of_float staleness >= freshness_threshold
@@ -230,7 +230,7 @@ let check_for_updates driver ~use_gui app_path sels =
 
   if !want_bg_update then (
     let last_check_attempt = get_mtime system last_check_path ~warn_if_missing:false in
-    if last_check_attempt +. 60. *. 60. > system#time () then (
+    if last_check_attempt +. 60. *. 60. > system#time then (
       log_info "Tried to check within last hour; not trying again now";
     ) else (
       try

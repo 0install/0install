@@ -185,7 +185,7 @@ let internal_is_stale config url overrides =
   | `distribution_feed _ -> false             (* Ignore (memory-only) PackageKit feeds *)
   | `local_feed _ -> false                    (* Local feeds are never stale *)
   | `remote_feed url ->
-    let now = config.system#time () in
+    let now = config.system#time in
 
     let is_stale () =
       match get_last_check_attempt config url with

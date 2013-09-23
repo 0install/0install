@@ -522,7 +522,7 @@ let is_dir system path =
 
 let touch (system:system) path =
   system#with_open_out [Open_wronly; Open_creat] 0o600 path (fun _ch -> ());
-  system#set_mtime path @@ system#time ()   (* In case file already exists *)
+  system#set_mtime path @@ system#time   (* In case file already exists *)
 
 let read_file (system:system) path =
   match system#stat path with
