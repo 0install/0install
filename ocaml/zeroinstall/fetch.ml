@@ -42,7 +42,7 @@ let take_ticket timeout =
   timeout_tickets := StringMap.add ticket timeout !timeout_tickets;
   ticket
 
-let re_remote_feed = Str.regexp "^\\(https?\\)://\\([^/]*@\\)?\\([^*/:]+\\)\\(:[^/]*\\)/"
+let re_remote_feed = Str.regexp "^\\(https?\\)://\\([^/]*@\\)?\\([^/:]+\\)\\(:[^/]*\\)?/"
 
 (** Wait for a set of tasks to complete. Return the exceptions produced by each, if any. *)
 let rec join_errors = function

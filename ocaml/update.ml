@@ -8,14 +8,15 @@ open Zeroinstall.General
 open Options
 open Support.Common
 
+module FeedAttr = Zeroinstall.Constants.FeedAttr
 module Apps = Zeroinstall.Apps
 module R = Zeroinstall.Requirements
 module Q = Support.Qdom
 module F = Zeroinstall.Feed
 
 let get_root_sel sels =
-  let iface = ZI.get_attribute F.attr_interface sels in
-  let is_root sel = ZI.get_attribute F.attr_interface sel = iface in
+  let iface = ZI.get_attribute FeedAttr.interface sels in
+  let is_root sel = ZI.get_attribute FeedAttr.interface sel = iface in
   match Q.find is_root sels with
   | Some sel -> sel
   | None -> raise_safe "Can't find a selection for the root (%s)!" iface
@@ -67,7 +68,7 @@ let check_for_updates options reqs old_sels =
       let feed_provider = new Zeroinstall.Feed_cache.feed_provider options.config driver#distro in
       check_replacement system @@ feed_provider#get_feed reqs.R.interface_uri;
       let root_sel = get_root_sel new_sels in
-      let root_version = ZI.get_attribute F.attr_version root_sel in
+      let root_version = ZI.get_attribute FeedAttr.version root_sel in
       let changes = ref (Whatchanged.show_changes system old_sels new_sels) in
       if not !changes && Q.compare_nodes old_sels new_sels ~ignore_whitespace:true <> 0 then (
         changes := true;

@@ -6,9 +6,10 @@
 
 open General
 open Support.Common
-module Qdom = Support.Qdom
+module Q = Support.Qdom
 module U = Support.Utils
 module Basedir = Support.Basedir
+open Constants
 
 type interface_config = {
   stability_policy : stability_level option;
@@ -103,9 +104,9 @@ let load_iface_config config uri : interface_config =
       List.concat @@ List.map (fun dir -> get_site_feed @@ dir +/ rel_path) config.basedirs.Basedir.data in
 
     let load config_file =
-      let root = Qdom.parse_file config.system config_file in
+      let root = Q.parse_file config.system config_file in
       let stability_policy =
-        match ZI.get_attribute_opt "stability-policy" root with
+        match ZI.get_attribute_opt IfaceConfigAttr.stability_policy root with
         | None -> None
         | Some s -> Some (Feed.parse_stability s ~from_user:true) in
 
@@ -118,7 +119,7 @@ let load_iface_config config uri : interface_config =
               let feed_src = ZI.get_attribute "src" item in
               (* (note: 0install 1.9..1.12 used a different scheme and the "site-package" attribute;
                  we deliberately use a different attribute name to avoid confusion) *)
-              if ZI.get_attribute_opt "is-site-package" item <> None then (
+              if ZI.get_attribute_opt IfaceConfigAttr.is_site_package item <> None then (
                 (* Site packages are detected earlier. This test isn't completely reliable,
                    since older versions will remove the attribute when saving the config
                    (hence the next test). *)
@@ -150,12 +151,43 @@ let load_iface_config config uri : interface_config =
         | Some path -> load path
   with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
 
+let add_import_elem parent feed_import =
+  match feed_import.Feed.feed_type with
+  | Feed.Distro_packages | Feed.Feed_import -> ()
+  | Feed.User_registered | Feed.Site_packages ->
+      let elem = ZI.insert_first "feed" parent in
+      Q.set_attribute IfaceConfigAttr.src feed_import.Feed.feed_src elem;
+      if feed_import.Feed.feed_type = Feed.Site_packages then
+        Q.set_attribute IfaceConfigAttr.is_site_package "True" elem;
+      match feed_import.Feed.feed_os, feed_import.Feed.feed_machine with
+      | None, None -> ()
+      | os, machine ->
+          let arch = Arch.format_arch os machine in
+          Q.set_attribute IfaceConfigAttr.arch arch elem
+
+let save_iface_config config uri iface_config =
+  let config_dir = Basedir.save_path config.system config_injector_interfaces config.basedirs.Basedir.config in
+
+  let root = ZI.make_root "interface-preferences" in
+  Q.set_attribute FeedAttr.uri uri root;
+
+  let () =
+    match iface_config.stability_policy with
+    | Some policy -> Q.set_attribute IfaceConfigAttr.stability_policy (Feed.format_stability policy) root
+    | None -> () in
+
+  iface_config.extra_feeds |> List.iter (add_import_elem root);
+
+  config.system#atomic_write [Open_wronly; Open_binary] (config_dir +/ Escape.pretty uri) ~mode:0o644 (fun ch ->
+    Q.output (`Channel ch |> Xmlm.make_output) root;
+  )
+
 let get_cached_feed config url =
   match parse_feed_url url with
   | `distribution_feed _ -> failwith url
   | `local_feed path -> (
       try
-        let root = Qdom.parse_file config.system path in
+        let root = Q.parse_file config.system path in
         Some (Feed.parse config.system root (Some path))
       with Safe_exception _ as ex ->
         log_warning ~ex "Can't read local file '%s'" path;
@@ -165,7 +197,7 @@ let get_cached_feed config url =
       match get_cached_feed_path config remote_feed with
       | None -> None
       | Some path ->
-          let root = Qdom.parse_file config.system path in
+          let root = Q.parse_file config.system path in
           let feed = Feed.parse config.system root None in
           if feed.Feed.url = url then Some feed
           else raise_safe "Incorrect URL in cached feed - expected '%s' but found '%s'" url feed.Feed.url
@@ -209,6 +241,12 @@ let internal_is_stale config url overrides =
             | None -> log_debug "Checking for updates is disabled"; false
             | Some threshold when staleness >= (Int64.to_float threshold) -> is_stale ()
             | _ -> false
+
+(** Check whether feed [url] is stale.
+ * Returns false if it's stale but last-check-attempt is recent *)
+let is_stale config url =
+  let overrides = Feed.load_feed_overrides config url in
+  internal_is_stale config url (Some overrides)
 
 (** Touch a 'last-check-attempt' timestamp file for this feed.
     This prevents us from repeatedly trying to download a failing feed many

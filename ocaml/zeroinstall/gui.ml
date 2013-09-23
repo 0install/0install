@@ -7,6 +7,7 @@
 open General
 open Support.Common
 
+module FeedAttr = Constants.FeedAttr
 module F = Feed
 module R = Requirements
 module U = Support.Utils
@@ -18,9 +19,9 @@ let string_of_ynm = function
   | Maybe -> "maybe"
 
 let get_impl (feed_provider:Feed_cache.feed_provider) sel =
-  let iface = ZI.get_attribute F.attr_interface sel in
-  let id = ZI.get_attribute F.attr_id sel in
-  let from_feed = default iface @@ ZI.get_attribute_opt F.attr_from_feed sel in
+  let iface = ZI.get_attribute FeedAttr.interface sel in
+  let id = ZI.get_attribute FeedAttr.id sel in
+  let from_feed = default iface @@ ZI.get_attribute_opt FeedAttr.from_feed sel in
 
   let get_override overrides =
     try Some (StringMap.find id overrides.F.user_stability)
@@ -35,7 +36,7 @@ let get_impl (feed_provider:Feed_cache.feed_provider) sel =
           | None -> None
           | Some (impls, overrides) ->
               let impl =
-                try Some (List.find (fun impl -> F.get_attr_ex F.attr_id impl = id) impls)
+                try Some (List.find (fun impl -> F.get_attr_ex FeedAttr.id impl = id) impls)
                 with Not_found -> None in
               match impl with
               | None -> None
@@ -64,7 +65,7 @@ let format_size size =
 
 let get_download_size info impl =
   match info.F.retrieval_methods with
-  | [] -> Q.raise_elem "Implementation %s has no retrieval methods!" (F.get_attr_ex F.attr_id impl) impl.F.qdom
+  | [] -> Q.raise_elem "Implementation %s has no retrieval methods!" (F.get_attr_ex FeedAttr.id impl) impl.F.qdom
   | methods ->
       let size = U.first_match methods ~f:(fun m ->
         match Recipe.parse_retrieval_method m with
@@ -73,7 +74,7 @@ let get_download_size info impl =
       ) in
       match size with
       | Some size -> size
-      | None -> Q.raise_elem "Implementation %s has no usable retrieval methods!" (F.get_attr_ex F.attr_id impl) impl.F.qdom
+      | None -> Q.raise_elem "Implementation %s has no usable retrieval methods!" (F.get_attr_ex FeedAttr.id impl) impl.F.qdom
 
 (* Returns (local-dir, fetch-size, fetch-tooltip) *)
 let get_fetch_info config impl =
@@ -131,16 +132,16 @@ let build_tree config (feed_provider:Feed_cache.feed_provider) old_sels sels : Y
               try Some (StringMap.find uri old_sels)
               with Not_found -> None in
 
-            let version = ZI.get_attribute F.attr_version sel in
+            let version = ZI.get_attribute FeedAttr.version sel in
             let stability =
               match user_stability with
               | Some s -> String.uppercase (F.format_stability s)
-              | None -> F.get_attr_ex F.attr_stability impl in
+              | None -> F.get_attr_ex FeedAttr.stability impl in
             let prev_version =
               match orig_sel with
               | None -> None
               | Some old_sel ->
-                  let old_version = ZI.get_attribute F.attr_version old_sel in
+                  let old_version = ZI.get_attribute FeedAttr.version old_sel in
                   if old_version = version then None
                   else Some old_version in
             let version_str =
@@ -153,8 +154,8 @@ let build_tree config (feed_provider:Feed_cache.feed_provider) old_sels sels : Y
               | Some prev_version -> Printf.sprintf "%s\nPreviously preferred version: %s" current prev_version
               | _ -> current in
 
-            let from_feed = default uri @@ ZI.get_attribute_opt F.attr_from_feed sel in
-            let id = ZI.get_attribute F.attr_id sel in
+            let from_feed = default uri @@ ZI.get_attribute_opt FeedAttr.from_feed sel in
+            let id = ZI.get_attribute FeedAttr.id sel in
 
             let (_dir, fetch_str, fetch_tip) = get_fetch_info config impl in
 
@@ -224,12 +225,12 @@ let list_impls config (results:Solver.result) iface =
 
     let impls =
       `List (ListLabels.map all_impls ~f:(fun (impl, problem) ->
-        let impl_id = F.get_attr_ex F.attr_id impl in
+        let impl_id = F.get_attr_ex FeedAttr.id impl in
         let notes =
           match problem with
           | None -> "None"
           | Some problem -> Impl_provider.describe_problem impl problem in
-        let from_feed = F.get_attr_ex F.attr_from_feed impl in
+        let from_feed = F.get_attr_ex FeedAttr.from_feed impl in
         let overrides = Feed.load_feed_overrides config from_feed in
         let user_stability =
           try `String (F.format_stability @@ StringMap.find impl_id overrides.F.user_stability)
@@ -238,19 +239,19 @@ let list_impls config (results:Solver.result) iface =
           match impl.F.os, impl.F.machine with
           | None, None -> "any"
           | os, machine -> Arch.format_arch os machine in
-        let upstream_stability = F.get_attr_ex F.attr_stability impl in    (* (note: impl.stability is overall stability) *)
+        let upstream_stability = F.get_attr_ex FeedAttr.stability impl in    (* (note: impl.stability is overall stability) *)
         let (impl_dir, fetch, tooltip) = get_fetch_info config impl in
 
         `Assoc [
           ("from-feed", `String from_feed);
           ("id", `String impl_id);
-          ("version", `String (F.get_attr_ex F.attr_version impl));
-          ("released", `String (default "-" @@ F.get_attr_opt F.attr_released impl.F.props.F.attrs));
+          ("version", `String (F.get_attr_ex FeedAttr.version impl));
+          ("released", `String (default "-" @@ F.get_attr_opt FeedAttr.released impl.F.props.F.attrs));
           ("fetch", `String fetch);
           ("stability", `String upstream_stability);
           ("user-stability", user_stability);
           ("arch", `String arch);
-          ("langs", `String (default "-" @@ F.get_attr_opt F.attr_langs impl.F.props.F.attrs));
+          ("langs", `String (default "-" @@ F.get_attr_opt FeedAttr.langs impl.F.props.F.attrs));
           ("notes", `String notes);
           ("tooltip", `String tooltip);
           ("usable", `Bool (problem = None));
@@ -262,8 +263,8 @@ let list_impls config (results:Solver.result) iface =
       [ ("implementations", impls) ]
     else
       [
-        ("selected-feed", `String (F.get_attr_ex F.attr_from_feed selected_impl));
-        ("selected-id", `String (F.get_attr_ex F.attr_id selected_impl));
+        ("selected-feed", `String (F.get_attr_ex FeedAttr.from_feed selected_impl));
+        ("selected-id", `String (F.get_attr_ex FeedAttr.id selected_impl));
         ("implementations", impls)
       ] in
 

@@ -7,6 +7,7 @@
 open General
 open Support.Common
 module Qdom = Support.Qdom
+module FeedAttr = Constants.FeedAttr
 
 (** We attach this data to each SAT variable. *)
 module SolverData =
@@ -248,15 +249,15 @@ let get_selections dep_in_use root_req impl_cache command_cache =
         let set_attr name value =
           attrs := Feed.AttrMap.add ("", name) value !attrs in
 
-        attrs := Feed.AttrMap.remove ("", Feed.attr_stability) !attrs;
+        attrs := Feed.AttrMap.remove ("", FeedAttr.stability) !attrs;
 
         (* Replaced by <command> *)
-        attrs := Feed.AttrMap.remove ("", Feed.attr_main) !attrs;
-        attrs := Feed.AttrMap.remove ("", Feed.attr_self_test) !attrs;
+        attrs := Feed.AttrMap.remove ("", FeedAttr.main) !attrs;
+        attrs := Feed.AttrMap.remove ("", FeedAttr.self_test) !attrs;
 
-        if Some iface = Feed.get_attr_opt Feed.attr_from_feed !attrs then (
+        if Some iface = Feed.get_attr_opt FeedAttr.from_feed !attrs then (
           (* Don't bother writing from-feed attr if it's the same as the interface *)
-          attrs := Feed.AttrMap.remove ("", Feed.attr_from_feed) !attrs
+          attrs := Feed.AttrMap.remove ("", FeedAttr.from_feed) !attrs
         );
 
         set_attr "interface" iface;

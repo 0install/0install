@@ -8,7 +8,7 @@ open Support.Common
 open General
 
 module U = Support.Utils
-module F = Feed
+module FeedAttr = Constants.FeedAttr
 
 (** Convert selections as a dependency tree (as displayed by "0install show",
  * etc). If multiple components share a dependency, only the first one is
@@ -33,7 +33,7 @@ let as_tree sels =
 
         let details =
           match sel with
-          | Some impl when ZI.get_attribute_opt F.attr_version impl = None -> `Problem
+          | Some impl when ZI.get_attribute_opt FeedAttr.version impl = None -> `Problem
           | Some impl ->
               let deps = ref @@ Selections.get_dependencies ~restricts:false impl in
 
@@ -45,9 +45,9 @@ let as_tree sels =
 
               let children =
                 U.filter_map !deps ~f:(fun dep ->
-                  let child_iface = ZI.get_attribute F.attr_interface dep in
+                  let child_iface = ZI.get_attribute FeedAttr.interface dep in
                   let essential =
-                    match ZI.get_attribute_opt F.attr_importance dep with
+                    match ZI.get_attribute_opt FeedAttr.importance dep with
                     | None | Some "essential" -> true
                     | _ -> false in
                   build_node child_iface (Selections.get_required_commands dep) ~essential
@@ -63,9 +63,9 @@ let as_tree sels =
     )
   in
 
-  let root_iface = ZI.get_attribute F.attr_interface sels in
+  let root_iface = ZI.get_attribute FeedAttr.interface sels in
   let commands =
-    match ZI.get_attribute_opt F.attr_command sels with
+    match ZI.get_attribute_opt FeedAttr.command sels with
     | None | Some "" -> []
     | Some command -> [command] in
 

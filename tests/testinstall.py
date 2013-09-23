@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall import cmd, alias
-from zeroinstall.injector import model, selections, qdom, handler, gpg, config
+from zeroinstall.injector import model, selections, qdom, handler, gpg, config, reader
 
 mydir = os.path.dirname(__file__)
 
@@ -20,22 +20,22 @@ class TestInstall(BaseTest):
 	maxDiff = None
 
 	def testHelp(self):
-		out, err = self.run_0install([])
+		out, err = self.run_ocaml([])
 		assert out.lower().startswith("usage:")
 		assert 'add-feed' in out
 		assert '--version' in out
-		assert not err, err
+		assert err == "Exit status: 1\n", err
 
-		out2, err = self.run_0install(['--help'])
-		assert not err, err
+		out2, err = self.run_ocaml(['--help'])
+		assert err == "Exit status: 1\n", err
 		assert out2 == out
 
-		out, err = self.run_0install(['--version'])
+		out, err = self.run_ocaml(['--version'])
 		assert 'Thomas Leonard' in out
 		assert not err, err
 
-		out, err = self.run_0install(['foobar'])
-		assert 'Unknown sub-command' in err, err
+		out, err = self.run_ocaml(['foobar'])
+		assert 'Unknown 0install sub-command' in err, err
 
 	def testShow(self):
 		out, err = self.run_ocaml(['show'])
@@ -138,16 +138,17 @@ class TestInstall(BaseTest):
 		assert "(no feeds)" in out, out
 		assert not err, err
 
-		out, err = self.run_0install(['add-feed'])
+		out, err = self.run_ocaml(['add-feed'])
 		assert out.lower().startswith("usage:")
 		assert 'NEW-FEED' in out
 
 		sys.stdin = Reply('1')
 		assert binary_iface.extra_feeds == []
 
-		out, err = self.run_0install(['add-feed', 'Source.xml'])
+		out, err = self.run_ocaml(['add-feed', 'Source.xml'], stdin = '\n')
 		assert not err, err
 		assert "Add as feed for 'http://foo/Binary.xml'" in out, out
+		reader.update_from_cache(binary_iface, iface_cache = self.config.iface_cache)
 		assert len(binary_iface.extra_feeds) == 1
 
 		out, err = self.run_0install(['list-feeds', binary_iface.uri])
@@ -157,17 +158,20 @@ class TestInstall(BaseTest):
 		#assert 'file\n' in self.complete(["remove-feed", ""], 2)
 		#assert "Source.xml" in self.complete(["remove-feed", binary_iface.uri], 3)
 
-		out, err = self.run_0install(['remove-feed', 'Source.xml'])
+		out, err = self.run_ocaml(['remove-feed', 'Source.xml'], stdin = '\n')
 		assert not err, err
 		assert "Remove as feed for 'http://foo/Binary.xml'" in out, out
+		reader.update_from_cache(binary_iface, iface_cache = self.config.iface_cache)
 		assert len(binary_iface.extra_feeds) == 0
 
-		with open('Source.xml') as stream: source_feed = stream.read()
-		self.config.fetcher.allow_feed_download('http://foo/Source.xml', source_feed)
-		out, err = self.run_0install(['add-feed', 'http://foo/Source.xml'])
-		assert not err, err
-		assert 'Downloading feed; please wait' in out, out
-		assert len(binary_iface.extra_feeds) == 1
+		# todo: move to download or OCaml tests
+		#with open('Source.xml') as stream: source_feed = stream.read()
+		#self.config.fetcher.allow_feed_download('http://foo/Source.xml', source_feed)
+		#out, err = self.run_ocaml(['add-feed', 'http://foo/Source.xml'])
+		#assert not err, err
+		#assert 'Downloading feed; please wait' in out, out
+		#reader.update_from_cache(binary_iface, iface_cache = self.config.iface_cache)
+		#assert len(binary_iface.extra_feeds) == 1
 
 	def testImport(self):
 		out, err = self.run_0install(['import'])

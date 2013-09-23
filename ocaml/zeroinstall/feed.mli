@@ -102,35 +102,6 @@ type feed = {
   package_implementations : (Support.Qdom.element * properties) list;
 }
 
-(** {2 Constants} *)
-
-(** Some constant strings used in the XML (to avoid typos) *)
-
-val elem_group : string
-val elem_implementation : string
-val elem_package_implementation : string
-
-val attr_id : string
-val attr_command : string
-val attr_main : string
-val attr_self_test : string
-val attr_stability : string
-val attr_user_stability : string
-val attr_importance : string
-val attr_version : string
-val attr_released : string
-val attr_os : string
-val attr_use : string
-val attr_local_path : string
-val attr_lang : string
-val attr_langs : string
-val attr_interface : string
-val attr_src : string
-val attr_from_feed : string
-val attr_if_0install_version : string
-val attr_distribution : string
-val value_testing : string
-
 (** {2 Parsing} *)
 val parse : Support.Common.system -> Support.Qdom.element -> Support.Common.filepath option -> feed
 
@@ -163,3 +134,6 @@ val is_available_locally : General.config -> implementation -> bool
 val is_retrievable_without_network : cache_impl -> bool
 val get_id : implementation -> global_id
 val get_summary : int Support.Locale.LangMap.t -> feed -> string option
+
+(** The <feed-for> elements' interfaces *)
+val get_feed_targets : feed -> General.iface_uri list

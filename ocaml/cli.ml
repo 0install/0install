@@ -218,8 +218,8 @@ let subcommands = [
   make_subcommand "import"      "FEED"                          fallback_handler @@ common_options @ offline_options;
   make_subcommand "list"        "PATTERN"                       fallback_handler @@ common_options;
   make_subcommand "search"      "QUERY"                         fallback_handler @@ common_options;
-  make_subcommand "add-feed"    "[INTERFACE] NEW-FEED"          fallback_handler @@ common_options @ offline_options;
-  make_subcommand "remove-feed" "[INTERFACE] FEED"              fallback_handler @@ common_options @ offline_options;
+  make_subcommand "add-feed"    "[INTERFACE] NEW-FEED"          Add_feed.handle  @@ common_options @ offline_options;
+  make_subcommand "remove-feed" "[INTERFACE] FEED"              Remove_feed.handle @@ common_options @ offline_options;
   make_subcommand "list-feeds"  "URI"                           fallback_handler @@ common_options;
   make_subcommand "man"         "NAME"                          Man.handle       @@ common_options;
   make_subcommand "digest"      "DIRECTORY | ARCHIVE [EXTRACT]" fallback_handler @@ common_options @ digest_options;

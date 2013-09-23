@@ -54,3 +54,34 @@ let solve_and_download_impls (driver:Driver.driver) ?test_callback reqs mode ~re
   | `Success sels -> Some sels
   | `Aborted_by_user -> None
   | `Dont_use_GUI -> solve_without_gui ()
+
+(** Convenience wrapper for Fetch.download_and_import_feed that just gives the final result.
+ * If the mirror replies first, but the primary succeeds, we return the primary.
+ *)
+let download_and_import_feed fetcher url =
+  let `remote_feed feed_url = url in
+  let update = ref None in
+  let rec wait_for (result:Fetch.fetch_feed_response Lwt.t) =
+    match_lwt result with
+    | `update (feed, None) -> `success feed |> Lwt.return
+    | `update (feed, Some next) ->
+        update := Some feed;
+        wait_for next
+    | `aborted_by_user -> Lwt.return `aborted_by_user
+    | `no_update -> (
+        match !update with
+        | None -> Lwt.return `no_update
+        | Some update -> Lwt.return (`success update)  (* Use the previous partial update *)
+    )
+    | `problem (msg, None) -> (
+        match !update with
+        | None -> raise_safe "%s" msg
+        | Some update ->
+            log_warning "Feed %s: %s" feed_url msg;
+            Lwt.return (`success update)  (* Use the previous partial update *)
+    )
+    | `problem (msg, Some next) ->
+        log_warning "Feed '%s': %s" feed_url msg;
+        wait_for next in
+
+  wait_for @@ fetcher#download_and_import_feed url

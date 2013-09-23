@@ -7,6 +7,7 @@
 open General
 open Support.Common
 module Basedir = Support.Basedir
+module FeedAttr = Constants.FeedAttr
 
 let re_exec_name = Str.regexp "^[^./'][^/']*$";;
 
@@ -138,7 +139,7 @@ let get_exec_args config ?main sels args =
 (** Run the given selections. If [wrapper] is given, run that command with the command we would have run as the arguments.
     If [exec] is given, use that instead of config.system#exec. *)
 let execute_selections config ?exec ?wrapper ?main sels args =
-  if main = None && ZI.get_attribute_opt Feed.attr_command sels = None then
+  if main = None && ZI.get_attribute_opt FeedAttr.command sels = None then
     raise_safe "Can't run: no command specified!";
 
   let (prog_args, env) = get_exec_args config ?main sels args in

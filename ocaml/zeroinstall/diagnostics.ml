@@ -7,8 +7,9 @@
 open General
 open Support.Common
 module Qdom = Support.Qdom
-module U = Support.Utils
+module FeedAttr = Constants.FeedAttr
 
+module U = Support.Utils
 module S = Solver.S
 
 module SelMap = Map.Make (
@@ -49,7 +50,7 @@ let describe_problem impl = function
   | `DepFailsRestriction (dep, restriction) -> spf "Requires %s %s" dep.Feed.dep_iface (format_restrictions [restriction])
   | `MachineGroupConflict other_impl ->
       let this_arch = default "BUG" impl.Feed.machine in
-      let other_name = Feed.get_attr_ex Feed.attr_from_feed other_impl in
+      let other_name = Feed.get_attr_ex FeedAttr.from_feed other_impl in
       let other_arch = default "BUG" other_impl.Feed.machine in
       spf "Can't use %s with selection of %s (%s)" this_arch other_name other_arch
   | `ConflictsInterface other_iface -> spf "Conflicts with %s" other_iface
@@ -64,7 +65,7 @@ let format_report buf (iface_uri, _source) component =
     let do_add msg = Buffer.add_string buf !prefix; Buffer.add_string buf msg in
     Printf.ksprintf do_add fmt in
 
-  let name_impl impl = Feed.(get_attr_ex attr_id impl) in
+  let name_impl impl = Feed.get_attr_ex FeedAttr.id impl in
 
   let () = match component#impl with
     | Some sel -> add "%s -> %s (%s)" iface_uri (format_version sel) (name_impl sel)
@@ -339,10 +340,10 @@ let return fmt =
 
 let get_id sel =
   let feed =
-    match ZI.get_attribute_opt Feed.attr_from_feed sel with
+    match ZI.get_attribute_opt FeedAttr.from_feed sel with
     | Some feed -> feed
-    | None -> ZI.get_attribute Feed.attr_interface sel in
-  let id = ZI.get_attribute Feed.attr_id sel in
+    | None -> ZI.get_attribute FeedAttr.interface sel in
+  let id = ZI.get_attribute FeedAttr.id sel in
   Feed.({feed; id})
 
 (** Is the wanted implementation simply ranked lower than the one we selected?
@@ -381,8 +382,8 @@ let maybe_justify_local_preference wanted_id actual_id candidates compare =
           | PreferVersion   -> "newer versions are preferred" in
 
         (* If they both have the same version number, include the ID in the message too. *)
-        let wanted_version = Feed.(get_attr_ex attr_version wanted_impl) in
-        let actual_version = Feed.(get_attr_ex attr_version actual_impl) in
+        let wanted_version = Feed.get_attr_ex FeedAttr.version wanted_impl in
+        let actual_version = Feed.get_attr_ex FeedAttr.version actual_impl in
 
         let truncate id =
           if String.length id < 18 then id
@@ -405,7 +406,7 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare can
   let index = Selections.make_selection_map test_sels in
 
   let actual_selection =
-    let is_our_iface sel = ZI.tag sel = Some "selection" && ZI.get_attribute Feed.attr_interface sel = q_iface in
+    let is_our_iface sel = ZI.tag sel = Some "selection" && ZI.get_attribute FeedAttr.interface sel = q_iface in
     try Some (List.find is_our_iface old_sels.Qdom.child_nodes)
     with Not_found -> None in
 
@@ -432,17 +433,17 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare can
     Printf.ksprintf do_add fmt in
 
   ZI.iter old_sels ~f:(fun old_sel ->
-    let old_iface = ZI.get_attribute Feed.attr_interface old_sel in
+    let old_iface = ZI.get_attribute FeedAttr.interface old_sel in
     if old_iface <> q_iface || not used_impl then (
       try
         let new_sel = StringMap.find old_iface index in
-        let old_version = ZI.get_attribute Feed.attr_version old_sel in
-        let new_version = ZI.get_attribute Feed.attr_version new_sel in
+        let old_version = ZI.get_attribute FeedAttr.version old_sel in
+        let new_version = ZI.get_attribute FeedAttr.version new_sel in
         if old_version <> new_version then
           add "%s: %s to %s" old_iface old_version new_version
         else (
-          let old_id = ZI.get_attribute Feed.attr_id old_sel in
-          let new_id = ZI.get_attribute Feed.attr_id new_sel in
+          let old_id = ZI.get_attribute FeedAttr.id old_sel in
+          let new_id = ZI.get_attribute FeedAttr.id new_sel in
           if old_id <> new_id then
             add "%s: %s to %s" old_iface old_id new_id
         )
@@ -489,12 +490,12 @@ let justify_decision config feed_provider requirements q_iface q_impl =
           let is_ours candidate = Feed.get_id candidate = q_impl in
           try
             let our_impl = List.find is_ours c.impls in
-            wanted := spf "%s %s" q_iface Feed.(get_attr_ex attr_version our_impl);
+            wanted := spf "%s %s" q_iface @@ Feed.get_attr_ex FeedAttr.version our_impl;
             {impls = [our_impl]; replacement = c.replacement; rejects = []}
           with Not_found ->
             try
               let (our_impl, problem) = List.find (fun (cand, _) -> is_ours cand) c.rejects in
-              wanted := spf "%s %s" q_iface Feed.(get_attr_ex attr_version our_impl);
+              wanted := spf "%s %s" q_iface Feed.(get_attr_ex FeedAttr.version our_impl);
               return "%s cannot be used (regardless of other components): %s" !wanted (Impl_provider.describe_problem our_impl problem)
             with Not_found -> return "Implementation to consider (%s) does not exist!" !wanted
 
