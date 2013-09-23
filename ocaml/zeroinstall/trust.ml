@@ -7,6 +7,7 @@
 open General
 open Support.Common
 module Basedir = Support.Basedir
+module G = Support.Gpg
 module U = Support.Utils
 module Q = Support.Qdom
 
@@ -123,6 +124,22 @@ class trust_db config =
           StringMap.add fingerprint domains db in
 
       save db
+
+    (** Return the timestampt of the oldest signature we trust on this feed, or None if we don't
+     * trust any of them. *)
+    method oldest_trusted_sig domain sigs =
+      let db = get_db () in
+      let oldest = ref None in
+      sigs |> List.iter (function
+        | G.ValidSig {G.fingerprint; G.timestamp} ->
+            if is_trusted db ~domain fingerprint then (
+              match !oldest with
+              | Some old_best when timestamp > old_best -> ()
+              | _ -> oldest := Some timestamp
+            )
+        | G.BadSig _ | G.ErrSig _ -> ()
+      );
+      !oldest
   end
 
 let re_domain = Str.regexp "^https?://\\([^/]*@\\)?\\([^*/]+\\)/"
