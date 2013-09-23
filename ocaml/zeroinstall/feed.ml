@@ -599,6 +599,30 @@ let load_feed_overrides config url =
 
       { last_checked; user_stability = !stability; }
 
+let save_feed_overrides config url overrides =
+  let module B = Support.Basedir in
+  let {last_checked; user_stability} = overrides in
+  let feeds = B.save_path config.system (config_site +/ config_prog +/ "feeds") config.basedirs.B.config in
+
+  let root = ZI.make_root "feed-preferences" in
+  let () =
+    match last_checked with
+    | None -> ()
+    | Some last_checked ->
+        Qdom.set_attribute "last-checked" (Printf.sprintf "%.0f" last_checked) root in
+  user_stability |> StringMap.iter (fun id stability ->
+    let impl = ZI.insert_first "implementation" root in
+    Qdom.set_attribute attr_id id impl;
+    Qdom.set_attribute attr_stability (format_stability stability) impl
+  );
+  config.system#atomic_write [Open_wronly; Open_binary] (feeds +/ Escape.pretty url) ~mode:0o644 (fun ch ->
+    Qdom.output (`Channel ch |> Xmlm.make_output) root;
+  )
+
+let update_last_checked_time config url =
+  let overrides = load_feed_overrides config url in
+  save_feed_overrides config url {overrides with last_checked = Some config.system#time}
+
 (** Does this feed contain any <pacakge-implementation> elements?
     i.e. is it worth asking the package manager for more information?
     If so, return the virtual feed's URL. *)
