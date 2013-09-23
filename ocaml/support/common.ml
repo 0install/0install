@@ -126,6 +126,12 @@ let default d = function
   | None -> d
   | Some x -> x;;
 
+(** A null coalescing operator. *)
+let (|?) maybe default =
+  match maybe with
+  | Some v -> v
+  | None -> Lazy.force default
+
 (** {2 Backported from OCaml 4} **)
 
 let trim s =
