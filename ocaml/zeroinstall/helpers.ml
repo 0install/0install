@@ -50,7 +50,7 @@ let solve_and_download_impls (driver:Driver.driver) ?test_callback reqs mode ~re
               download_selections driver#fetcher ~distro:driver#distro sels in
         Some sels in
 
-  match Gui.get_selections_gui config driver#slave ?test_callback driver#distro mode reqs ~refresh ~use_gui with
+  match Gui.get_selections_gui driver ?test_callback mode reqs ~refresh ~use_gui with
   | `Success sels -> Some sels
   | `Aborted_by_user -> None
   | `Dont_use_GUI -> solve_without_gui ()

@@ -301,7 +301,11 @@ let download_archives (fetcher:Fetch.fetcher) distro = function
  * If Yes, uses the GUI or throws an exception.
  * [test_callback] is used if the user clicks on the test button in the bug report dialog.
  *)
-let get_selections_gui config (slave:Python.slave) ?test_callback distro ?(systray=false) mode reqs ~refresh ~use_gui =
+let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mode reqs ~refresh ~use_gui =
+  let config = driver#config in
+  let slave = driver#slave in
+  let distro = driver#distro in
+  let fetcher = driver#fetcher in
   if use_gui = No then `Dont_use_GUI
   else if config.dry_run then (
     if use_gui = Maybe then `Dont_use_GUI
@@ -312,7 +316,6 @@ let get_selections_gui config (slave:Python.slave) ?test_callback distro ?(systr
   ) else if not (slave#invoke (`List [`String "check-gui"; `String (string_of_ynm use_gui)]) Yojson.Basic.Util.to_bool) then (
     `Dont_use_GUI       (* [check-gui] will throw if use_gui is [Yes] *)
   ) else (
-    let fetcher = new Fetch.fetcher config slave in
     let feed_provider = ref (new Feed_cache.feed_provider config distro) in
 
     let original_solve = Solver.solve_for config !feed_provider reqs in

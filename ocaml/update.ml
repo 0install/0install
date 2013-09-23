@@ -164,7 +164,6 @@ let handle_bg options flags args =
 
         (* Refresh the feeds and solve, silently. If we find updates to download, we try to run the GUI
          * so the user can see a systray icon for the download. If that's not possible, we download silently too. *)
-        let fetcher = new Zeroinstall.Fetch.fetcher config slave in
         let (ready, result) = driver#solve_with_downloads reqs ~force:true ~update_local:true in
         let new_sels = result#get_selections in
 
@@ -172,7 +171,7 @@ let handle_bg options flags args =
           let distro = driver#distro in
           if !need_confirm_keys || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
             log_info "Background update: trying to use GUI to update %s" name;
-            match Zeroinstall.Gui.get_selections_gui config slave distro `Download_only reqs ~systray:true ~refresh:true ~use_gui:Maybe with
+            match Zeroinstall.Gui.get_selections_gui driver `Download_only reqs ~systray:true ~refresh:true ~use_gui:Maybe with
             | `Aborted_by_user -> raise (System_exit 0)
             | `Dont_use_GUI when !need_confirm_keys ->
                 let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in
@@ -186,7 +185,7 @@ let handle_bg options flags args =
                 raise (System_exit 1)
             | `Dont_use_GUI ->
                 log_info "Background update: GUI unavailable; downloading with no UI";
-                Zeroinstall.Helpers.download_selections fetcher ~distro new_sels; new_sels
+                Zeroinstall.Helpers.download_selections driver#fetcher ~distro new_sels; new_sels
             | `Success gui_sels -> gui_sels
           ) else new_sels in
 
