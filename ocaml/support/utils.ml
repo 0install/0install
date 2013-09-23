@@ -206,6 +206,7 @@ let getenv_ex system name =
   | None -> raise_safe "Environment variable '%s' not set" name
 
 let re_dash = Str.regexp_string "-"
+let re_slash = Str.regexp_string "/"
 let re_space = Str.regexp_string " "
 let re_tab = Str.regexp_string "\t"
 let re_dir_sep = Str.regexp_string Filename.dir_sep   (** / on Unix *)

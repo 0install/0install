@@ -7,11 +7,11 @@ The B{0install slave} command-line interface.
 
 from __future__ import print_function
 
-import sys, os
+import sys, os, collections
 
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, qdom, selections, download
+from zeroinstall.injector import model, qdom, selections, download, gpg, reader
 from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector.iface_cache import ReplayAttack
 from zeroinstall.support import tasks
@@ -60,6 +60,15 @@ def get_dry_run_names(config):
 			for name in store.dry_run_names:
 				paths.add(os.path.join(store.dir, name))
 	return paths
+
+# Load a feed into the (memory) cache.
+def do_import_feed(config, xml):
+	if gui_driver is not None: config = gui_driver.config
+
+	feed = model.ZeroInstallFeed(xml)
+	reader.update_user_feed_overrides(feed)
+	feed_url = xml.attrs['uri']
+	config.iface_cache._feeds[feed_url] = feed
 
 @tasks.async
 def do_download_selections(config, ticket, options, args, xml):
@@ -203,18 +212,39 @@ def do_get_distro_candidates(config, args, xml):
 
 	return config.iface_cache.distro.fetch_candidates(master_feed)
 
+PendingFromOCaml = collections.namedtuple("PendingFromOCaml", ["url", "sigs"])
+
 @tasks.async
-def do_download_and_import_feed(config, ticket, args):
+def do_confirm_keys(config, ticket, args):
 	try:
 		if gui_driver is not None: config = gui_driver.config
-		feed_url, use_mirror, timeout = args
-		blocker = config.fetcher._download_and_import_feed(feed_url, use_mirror = use_mirror, timeout = timeout)
+		url, valid_sigs = args
+		assert valid_sigs, "No signatures!"
+		valid_sigs = [gpg.ValidSig([fingerprint, None, 0]) for fingerprint in valid_sigs]
+		pending = PendingFromOCaml(url = args[0], sigs = valid_sigs)
+
+		blocker = config.trust_mgr.confirm_keys(pending)
 		if blocker:
 			yield blocker
 			tasks.check(blocker)
+
+		now_trusted = [s.fingerprint for s in valid_sigs if s.is_trusted()]
+		send_json(["return", ticket, ["ok", now_trusted]])
+	except Exception as ex:
+		logger.warning("do_confirm_keys", exc_info = True)
+		send_json(["return", ticket, ["error", str(ex)]])
+
+@tasks.async
+def do_download_url(config, ticket, args):
+	try:
+		if gui_driver is not None: config = gui_driver.config
+		url, hint, timeout = args
+		dl = config.fetcher.download_url(url, hint = hint, timeout = timeout, auto_delete = False)
+		name = dl.tempfile.name
+		yield dl.downloaded
+		tasks.check(dl.downloaded)
 		# (return it because in dry-run mode it won't be in the cache)
-		feed = config.iface_cache.get_feed(feed_url)
-		send_json(["return", ticket, ["ok", ["success", qdom.to_DOM(feed.feed_element).toxml()]]])
+		send_json(["return", ticket, ["ok", ["success", name]]])
 	except download.DownloadAborted as ex:
 		send_json(["return", ticket, ["ok", "aborted-by-user"]])
 	except NoTrustedKeys as ex:
@@ -337,6 +367,9 @@ def handle_invoke(config, options, ticket, request):
 			xml = qdom.parse(BytesIO(read_chunk()))
 			blocker = do_download_selections(config, ticket, options, request[1:], xml)
 			return #async
+		elif command == 'import-feed':
+			xml = qdom.parse(BytesIO(read_chunk()))
+			response = do_import_feed(config, xml)
 		elif command == 'get-package-impls':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_get_package_impls(config, options, request[1:], xml)
@@ -348,9 +381,12 @@ def handle_invoke(config, options, ticket, request):
 			blocker = do_get_distro_candidates(config, request[1:], xml)
 			reply_when_done(ticket, blocker)
 			return	# async
-		elif command == 'download-and-import-feed':
-			do_download_and_import_feed(config, ticket, request[1:])
+		elif command == 'confirm-keys':
+			do_confirm_keys(config, ticket, request[1:])
 			return	# async
+		elif command == 'download-url':
+			do_download_url(config, ticket, request[1:])
+			return
 		elif command == 'notify-user':
 			response = do_notify_user(config, request[1])
 		else:

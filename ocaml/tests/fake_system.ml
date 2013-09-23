@@ -76,7 +76,7 @@ class fake_system tmpdir =
   (* Prevent reading from $HOME, except for the code we're testing (to avoid accidents, e.g. reading user's config files).
    * Also, apply any redirections in extra_files. *)
   let check_read path =
-    log_info "check_read(%s)" path;
+    (* log_info "check_read(%s)" path; *)
     if Filename.is_relative path then path
     else (
       try
@@ -97,7 +97,7 @@ class fake_system tmpdir =
   let check_write path =
     match tmpdir with
     | Some dir when U.starts_with path dir -> path
-    | _ -> raise_safe "Attempt to write to '%s'" path in
+    | _ -> failwith @@ Printf.sprintf "Attempt to write to '%s'" path in
 
   (* It's OK to check whether these paths exists. We just say they don't,
      unless they're in extra_files (check there first). *)
@@ -276,6 +276,13 @@ class fake_system tmpdir =
 let forward_to_real_log = ref true
 let real_log = !Support.Logging.handler
 let () = Support.Logging.threshold := Support.Logging.Debug
+
+let make_driver ?slave ?fetcher config =
+  let slave = slave |? lazy (new Zeroinstall.Python.slave config) in
+  let distro = new Zeroinstall.Distro.generic_distribution slave in
+  let trust_db = new Zeroinstall.Trust.trust_db config in
+  let fetcher = fetcher |? lazy (new Zeroinstall.Fetch.fetcher config trust_db slave) in
+  new Zeroinstall.Driver.driver config fetcher distro slave
 
 let fake_log =
   object (_ : #Support.Logging.handler)

@@ -21,24 +21,34 @@ class fake_slave config handler : Python.slave =
       | `List [`String "get-package-impls"; `String url] -> parse_fn @@ handler#get_package_impls url
       | _ -> raise_safe "invoke: %s" (Yojson.Basic.to_string request)
     method invoke_async request ?xml parse_fn =
+      ignore xml;
       log_info "invoke_async: %s" (Yojson.Basic.to_string request);
       match request with
-      | `List [`String "download-and-import-feed"; `String url; `Bool use_mirror; timeout] ->
-          if use_mirror then parse_fn `Null |> Lwt.return
-          else (
-            let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
-            ignore @@ start_timeout [timeout];
-            Lwt.return @@ parse_fn @@ handler#download_and_import url
-          )
+      | `List [`String "download-url"; `String url; `String _hint; timeout] ->
+          let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
+          ignore @@ start_timeout [timeout];
+          Lwt.return @@ parse_fn @@ handler#download_url url
       | `List [`String "get-distro-candidates"; `String url] -> Lwt.return @@ parse_fn @@ handler#get_distro_candidates url
-      | `List [`String "download-selections"; opts] ->
-          handler#download_selections (Fake_system.expect xml) (Yojson.Basic.Util.to_assoc opts);
-          Lwt.return @@ parse_fn @@ `List []
       | _ -> raise_safe "Unexpected request %s" (Yojson.Basic.to_string request)
 
     method close = ()
     method close_async = failwith "close_async"
     method system = config.system
+  end
+
+let fake_fetcher config handler =
+  object
+    method download_and_import_feed (`remote_feed url) =
+      match handler#get_feed url with
+      | `file path ->
+          let xml = U.read_file config.system path in
+          let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None in
+          `update (root, None) |> Lwt.return
+      | `xml root -> `update (root, None) |> Lwt.return
+      | `problem msg -> `problem (msg, None) |> Lwt.return
+
+      method download_selections ?distro:_ sels : [ `success | `aborted_by_user ] Lwt.t =
+        handler#download_selections sels |> Lwt.return
   end
 
 (** Parse a test-case in driven.xml *)
@@ -107,28 +117,22 @@ let make_driver_test test_elem =
       object
         method get_package_impls _uri = `List [`List []; `List []]
 
-        method download_selections sels opts =
-          assert_equal (`Bool true) (List.assoc "include-packages" opts);
-          Test_0install.handle_download_selections config expected_digests sels
+        method download_selections sels =
+          ignore @@ Test_0install.handle_download_selections config expected_digests sels;
+          `success
 
-        method download_and_import url =
-          let root =
-            try StringMap.find url !downloadable_feeds
-            with Not_found -> raise_safe "Unexpected feed requested" in
-          let b = Buffer.create 1000 in
-          Support.Qdom.output (Xmlm.make_output @@ `Buffer b) root;
-          let xml = Buffer.contents b in
-          fake_system#atomic_write [Open_wronly; Open_binary] (cache_path_for config url) ~mode:0o644 (fun ch ->
-            output_string ch xml
-          );
-          `List [`String "success"; `String xml]
+        method download_url url = failwith url
 
         method get_distro_candidates _ = `List []
+
+        method get_feed url =
+          try `xml (StringMap.find url !downloadable_feeds)
+          with Not_found -> `problem "Unexpected feed requested"
       end in
+
+    let fetcher = fake_fetcher config handler in
     let slave = new fake_slave config handler in
-    let distro = new Distro.generic_distribution slave in
-    let fetcher = new Fetch.fetcher config slave in
-    let driver = new Zeroinstall.Driver.driver config fetcher distro slave in
+    let driver = Fake_system.make_driver ~slave ~fetcher config in
     let () =
       try
         Fake_system.collect_logging (fun () ->
@@ -176,11 +180,7 @@ let suite = "driver">::: [
           | "http://example.com/prog.xml" -> `List [`List []; `List !prog_candidates]
           | url -> failwith url
 
-        method download_and_import = function
-          | "http://example.com/prog.xml" as url ->
-              U.copy_file config.system "prog.xml" (cache_path_for config url) 0o644;
-              let feed = U.read_file config.system "prog.xml" in
-              `List [`String "success"; `String feed]
+        method download_url = function
           | url -> failwith url
 
         method get_distro_candidates = function
@@ -193,10 +193,14 @@ let suite = "driver">::: [
                 ("distro", `String "my-distro");
               ]]; `List []
           | url -> failwith url
+
+        method get_feed = function
+          | "http://example.com/prog.xml" -> `file "prog.xml"
+          | url -> failwith url
       end in
     let slave = new fake_slave config handler in
     let distro = new Distro.generic_distribution slave in
-    let fetcher = new Fetch.fetcher config slave in
+    let fetcher = fake_fetcher config handler in
 
     let driver = new Driver.driver config fetcher distro slave in
     let (ready, result) = driver#solve_with_downloads reqs ~force:true ~update_local:true in
@@ -213,7 +217,7 @@ let suite = "driver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let handler =
       object
-        method download_and_import = failwith "download_and_import"
+        method download_url = failwith "download_url"
         method download_selections = failwith "download_selections"
         method get_distro_candidates = failwith "get_distro_candidates"
         method get_package_impls = failwith "get_package_impls"
@@ -221,9 +225,7 @@ let suite = "driver">::: [
     let foo_path = Test_0install.feed_dir +/ "Foo.xml" in
     let reqs = Requirements.({(default_requirements foo_path) with command = None}) in
     let slave = new fake_slave config handler in
-    let distro = new Distro.generic_distribution slave in
-    let fetcher = new Fetch.fetcher config slave in
-    let driver = new Driver.driver config fetcher distro slave in
+    let driver = Fake_system.make_driver ~slave config in
     let sels = Zeroinstall.Helpers.solve_and_download_impls driver reqs `Select_for_run ~refresh:false ~use_gui:No in
     assert (sels <> None)
   );

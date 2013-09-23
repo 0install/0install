@@ -12,7 +12,7 @@
 
     <requirements command='run' interface='http://foo/' fails='true' dry-run='true'/>
 
-    <problem>No digests found for 'unknown=123': &lt;implementation> at .*/cache/0install.net/interfaces/http%3a%2f%2ffoo%2f:.*</problem>
+    <problem>No digests found for 'unknown=123': &lt;implementation> at .*</problem>
   </test>
 
   <test name='download'>

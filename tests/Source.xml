@@ -1,42 +1,46 @@
 <?xml version="1.0" ?>
-<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface"
-	   xmlns:compile='http://zero-install.sourceforge.net/2006/namespaces/0compile'
-	   uri='http://foo/Source.xml'>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface uri="http://foo/Source.xml" xmlns="http://zero-install.sourceforge.net/2004/injector/interface" xmlns:compile="http://zero-install.sourceforge.net/2006/namespaces/0compile">
   <name>Source</name>
   <summary>Source</summary>
   <description>Source</description>
-  <feed-for interface='http://foo/Binary.xml'/>
+  <feed-for interface="http://foo/Binary.xml"/>
   <group>
-    <requires interface='notused' use='never'/>
-    <requires interface='http://foo/Compiler.xml'>
-      <version before='2'/>
-      <environment name='PATH' insert='bin'/>
-      <environment name='NO_PATH' value='bin' separator=','/>
-      <environment name='BINDIR' insert='bin' mode='replace'/>
-      <binding foo='compiler' command='run'>
+    <requires interface="notused" use="never"/>
+    <requires interface="http://foo/Compiler.xml">
+      <version before="2"/>
+      <environment insert="bin" name="PATH"/>
+      <environment name="NO_PATH" separator="," value="bin"/>
+      <environment insert="bin" mode="replace" name="BINDIR"/>
+      <binding command="run" foo="compiler">
 	<child/>
       </binding>
     </requires>
-    <implementation id='sha1=234' version='1' version-modifier='.0' arch='*-src' compile:command='make'>
-      <archive href='foo' size='10'/>
+    <implementation arch="*-src" compile:command="make" id="sha1=234" version="1" version-modifier=".0">
+      <archive href="foo" size="10"/>
     </implementation>
-    <environment name='SRCDIR' insert='.' mode='replace'/>
-    <overlay src='.' mount-point='/'/>
-    <binding foo='source'/>
+    <environment insert="." mode="replace" name="SRCDIR"/>
+    <overlay mount-point="/" src="."/>
+    <binding foo="source"/>
   </group>
 
-  <implementation id='old' version='0.1' arch='*-src' compile:command='make'>
-    <requires interface='http://foo/Compiler.xml'/>
-    <manifest-digest sha1='666'/>
-    <archive href='foo' size='10'/>
+  <implementation arch="*-src" compile:command="make" id="old" version="0.1">
+    <requires interface="http://foo/Compiler.xml"/>
+    <manifest-digest sha1="666"/>
+    <archive href="foo" size="10"/>
   </implementation>
 
-  <implementation id='impossible' version='3' arch='*-src' compile:command='make'>
-    <requires interface='http://foo/Compiler.xml'>
-      <version before='1.0'/>
-      <version not-before='1.0'/>
+  <implementation arch="*-src" compile:command="make" id="impossible" version="3">
+    <requires interface="http://foo/Compiler.xml">
+      <version before="1.0"/>
+      <version not-before="1.0"/>
     </requires>
-    <manifest-digest sha1='666'/>
-    <archive href='foo' size='10'/>
+    <manifest-digest sha1="666"/>
+    <archive href="foo" size="10"/>
   </implementation>
 </interface>
+<!-- Base64 Signature
+iEYEABECAAYFAlI9+UIACgkQb88SG+I5DgtOIgCcCcd4bgx4FoN81ztoY8hrah3SmRwAn1DMmeqN
+L20zZewTuB9zMytUpSx4
+
+-->

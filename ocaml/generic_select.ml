@@ -267,8 +267,8 @@ let handle options flags arg ?test_callback for_op =
       let new_sels = if select_opts.must_select then do_select reqs else (
         if for_op = `Select_only then old_sels else (
           (* Download if missing. Ignore distribution packages, because the version probably won't match exactly. *)
-          let fetcher = new Zeroinstall.Fetch.fetcher config options.slave in
-          Zeroinstall.Helpers.download_selections fetcher old_sels;
+          let driver = Lazy.force options.driver in
+          Zeroinstall.Helpers.download_selections driver#fetcher old_sels;
           old_sels
         )
       ) in

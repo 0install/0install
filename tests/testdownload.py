@@ -281,7 +281,7 @@ class TestDownload(BaseTest):
 		out, err = self.run_ocaml(['run', '--dry-run', 'http://localhost:8000/Hello', 'Hello'], stdin = 'Y\n')
 		# note: the Python redirects dry-run messages to stderr, as it's using stdout for IPC
 		assert '[dry-run] would trust key DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000' in err, err
-		assert '[dry-run] would cache feed http://localhost:8000/Hello as ' in err, err
+		assert '[dry-run] would cache feed http://localhost:8000/Hello as ' in out, out
 		assert '[dry-run] would store implementation as ' in err, err
 		assert '[dry-run] would execute:' in out, out
 	

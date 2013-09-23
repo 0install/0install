@@ -59,9 +59,7 @@ let suite = "apps">::: [
     Fake_system.assert_str_equal url @@ ZI.get_attribute "interface" sels;
     Fake_system.assert_str_equal "0.1-pre" @@ ZI.get_attribute "version" (List.hd sels.Q.child_nodes);
 
-    let slave = new Zeroinstall.Python.slave config in
-    let fetcher = new Zeroinstall.Fetch.fetcher config slave in
-    let driver = new Zeroinstall.Driver.driver config fetcher distro slave in
+    let driver = Fake_system.make_driver config in
 
     (* Get selections with updates allowed; should resolve and find version 1. *)
     let sels = Apps.get_selections_may_update driver ~use_gui:No app in

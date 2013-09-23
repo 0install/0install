@@ -8,7 +8,7 @@ from logging import info, warning
 from zeroinstall import _, translation
 from zeroinstall import SafeException
 from zeroinstall.support import tasks, pretty_size
-from zeroinstall.injector import download, selections
+from zeroinstall.injector import download
 from zeroinstall.gui.iface_browser import InterfaceBrowser
 from zeroinstall.gui import dialog
 from zeroinstall.gtkui import gtkutils

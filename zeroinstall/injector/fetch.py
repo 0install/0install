@@ -721,7 +721,7 @@ class Fetcher(object):
 			return impl.download_sources[0]
 		return None
 
-	def download_url(self, url, hint = None, modification_time = None, expected_size = None, mirror_url = None, timeout = None):
+	def download_url(self, url, hint = None, modification_time = None, expected_size = None, mirror_url = None, timeout = None, auto_delete = True):
 		"""The most low-level method here; just download a raw URL.
 		It is the caller's responsibility to ensure that dl.stream is closed.
 		@param url: the location to download from
@@ -736,7 +736,8 @@ class Fetcher(object):
 		@since: 1.5"""
 		if not (url.startswith('http:') or url.startswith('https:') or url.startswith('ftp:')):
 			raise SafeException(_("Unknown scheme in download URL '%s'") % url)
-		dl = download.Download(url, hint = hint, modification_time = modification_time, expected_size = expected_size, auto_delete = not self.external_store)
+		if self.external_store: auto_delete = False
+		dl = download.Download(url, hint = hint, modification_time = modification_time, expected_size = expected_size, auto_delete = auto_delete)
 		dl.mirror = mirror_url
 		self.handler.monitor_download(dl)
 

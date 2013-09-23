@@ -260,7 +260,8 @@ let get_default_options config =
     verbosity = 0;
     driver = lazy (
       let distro = Zeroinstall.Distro.get_host_distribution config slave in
-      let fetcher = new Zeroinstall.Fetch.fetcher config slave in
+      let trust_db = new Zeroinstall.Trust.trust_db config in
+      let fetcher = new Zeroinstall.Fetch.fetcher config trust_db slave in
       new Zeroinstall.Driver.driver config fetcher distro slave
     );
   }

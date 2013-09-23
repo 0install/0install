@@ -4,7 +4,7 @@
   <name>Compiler</name>
   <summary>Compiler</summary>
   <description>Compiler</description>
-  <implementation id="sha1=345" main="gcc" version="1.0">
+  <implementation id="sha1=345" main="gcc" version="1.1">
     <manifest-digest sha256new="345"/>
     <archive href="foo" size="10"/>
   </implementation>
@@ -16,7 +16,7 @@
   </implementation>
 </interface>
 <!-- Base64 Signature
-iEYEABECAAYFAlI9+U8ACgkQb88SG+I5DgthkwCcDFAiwXSlj6G4yokq+r5c7un2EfoAn0Cnxx1h
-X7vM1/ZGUSBFxZC8z/5P
+iEYEABECAAYFAlI9+bUACgkQb88SG+I5DgvcoQCeIo9ZmyyKAGiHlO4maz8NHw4jO5oAn0ipGWzB
+z0vWq7eJzpmJrTbs+kGb
 
 -->

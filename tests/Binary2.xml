@@ -6,12 +6,12 @@
   <description>Binary</description>
   <feed arch="*-src" src="http://foo/Source.xml"/>
   <icon href="http://localhost/missing.png" type="image/png"/>
-  <implementation id="sha1=123" main="dummy" version="1.0">
+  <implementation id="sha1=123" main="dummy" version="1.1">
     <archive href="foo" size="10"/>
   </implementation>
 </interface>
 <!-- Base64 Signature
-iEYEABECAAYFAlI9qMQACgkQb88SG+I5DguwvACfZcNb3ruSPyCGD+tB1PPMSNAc79cAn1jedzde
-uPmsWYJz0kb6L4lHhtq3
+iEYEABECAAYFAlI9+QQACgkQb88SG+I5DgskZgCcD1601lEkMZRXggAWq8MDBnWrRh0An3AdbvMr
+fM4tkykztCSh63rS0JaK
 
 -->
