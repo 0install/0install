@@ -17,19 +17,25 @@ module TRUST = Support.Qdom.NsQuery (TRUST_NS)
 
 (** A database of trusted keys. *)
 class trust_db config =
+  (** In dry_run mode, we don't save the database to disk, so we need to store any changes in memory. *)
+  let dry_run_db = ref None in
+
   let get_db () =
     (* This is a bit inefficient... (could cache things) *)
-    match Basedir.load_first config.system config_trust_db config.basedirs.Basedir.config with
-    | None -> StringMap.empty
-    | Some path ->
-        let root = Q.parse_file config.system path in
-        TRUST.fold_left StringMap.empty root "key" ~f:(fun keys key ->
-          let domains =
-            TRUST.fold_left StringSet.empty key "domain" ~f:(fun map domain ->
-              StringSet.add (TRUST.get_attribute "value" domain) map
+    match !dry_run_db with
+    | Some db -> db
+    | None ->
+        match Basedir.load_first config.system config_trust_db config.basedirs.Basedir.config with
+        | None -> StringMap.empty
+        | Some path ->
+            let root = Q.parse_file config.system path in
+            TRUST.fold_left StringMap.empty root "key" ~f:(fun keys key ->
+              let domains =
+                TRUST.fold_left StringSet.empty key "domain" ~f:(fun map domain ->
+                  StringSet.add (TRUST.get_attribute "value" domain) map
+                ) in
+              StringMap.add (TRUST.get_attribute "fingerprint" key) domains keys
             ) in
-          StringMap.add (TRUST.get_attribute "fingerprint" key) domains keys
-        ) in
 
   let get_domains fingerprint db =
     try StringMap.find fingerprint db
@@ -43,7 +49,8 @@ class trust_db config =
     let d = Basedir.save_path config.system (config_site +/ config_prog) config.basedirs.Basedir.config in
     let db_file = d +/ "trustdb.xml" in
     if config.dry_run then (
-      Dry_run.log "would update trust database %s" db_file
+      Dry_run.log "would update trust database %s" db_file;
+      dry_run_db := Some db
     ) else (
       let root = TRUST.make_root "trusted-keys" in
       db |> StringMap.iter (fun fingerprint domains ->
@@ -89,35 +96,33 @@ class trust_db config =
       let db = get_db () in
       if not (is_trusted db ~domain fingerprint) then (
         if config.dry_run then
-          Dry_run.log "would trust key %s for %s" fingerprint domain
-        else (
-          (* Ensure fingerprint is valid *)
-          let re_fingerprint = Str.regexp "[0-9A-Fa-f]+" in
-          assert (Str.string_match re_fingerprint fingerprint 0);
+          Dry_run.log "would trust key %s for %s" fingerprint domain; (* (and continue...) *)
 
-          let domains = get_domains fingerprint db in
+        (* Ensure fingerprint is valid *)
+        let re_fingerprint = Str.regexp "[0-9A-Fa-f]+" in
+        assert (Str.string_match re_fingerprint fingerprint 0);
 
-          let db = StringMap.add fingerprint (StringSet.add domain domains) db in
+        let domains = get_domains fingerprint db in
 
-          save db
-        )
+        let db = StringMap.add fingerprint (StringSet.add domain domains) db in
+
+        save db
       )
 
     method untrust_key ~domain fingerprint =
       let db = get_db () in
       if config.dry_run then
-        Dry_run.log "would untrust key %s for %s" fingerprint domain
-      else (
-        let domains = get_domains fingerprint db in
-        let domains = StringSet.remove domain domains in
-        let db =
-          if StringSet.is_empty domains then
-            StringMap.remove fingerprint db
-          else
-            StringMap.add fingerprint domains db in
+        Dry_run.log "would untrust key %s for %s" fingerprint domain; (* (and continue...) *)
 
-        save db
-      )
+      let domains = get_domains fingerprint db in
+      let domains = StringSet.remove domain domains in
+      let db =
+        if StringSet.is_empty domains then
+          StringMap.remove fingerprint db
+        else
+          StringMap.add fingerprint domains db in
+
+      save db
   end
 
 let re_domain = Str.regexp "^https?://\\([^/]*@\\)?\\([^*/]+\\)/"
