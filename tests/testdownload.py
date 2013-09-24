@@ -248,7 +248,7 @@ class TestDownload(BaseTest):
 		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
-		assert sels.download_missing(self.config) is None
+		assert sels.get_unavailable_selections(self.config, include_packages = True) == []
 
 	def testSelectionsWithFeed(self):
 		with open("selections.xml", 'rb') as stream:
@@ -267,7 +267,7 @@ class TestDownload(BaseTest):
 			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
-			assert sels.download_missing(self.config) is None
+			assert sels.get_unavailable_selections(self.config, include_packages = True) == []
 	
 	def testAcceptKey(self):
 		run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')

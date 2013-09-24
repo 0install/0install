@@ -403,56 +403,6 @@ class Selections(object):
 
 		return [sel for sel in self.selections.values() if needs_download(sel)]
 
-	def download_missing(self, config, _old = None, include_packages = False):
-		"""Check all selected implementations are available.
-		Download any that are not present. Since native distribution packages are usually
-		only available in a single version, which is unlikely to be the one in the
-		selections document, we ignore them by default.
-		Note: package implementations (distribution packages) are ignored.
-		@param config: used to get iface_cache, stores and fetcher
-		@param include_packages: also try to install native packages (since 1.5)
-		@type include_packages: bool
-		@rtype: L{zeroinstall.support.tasks.Blocker} | None"""
-		if _old:
-			config = get_deprecated_singleton_config()
-
-		iface_cache = config.iface_cache
-		stores = config.stores
-
-		needed_downloads = self.get_unavailable_selections(config, include_packages)
-		if not needed_downloads:
-			return
-
-		if config.network_use == model.network_offline:
-			from zeroinstall import NeedDownload
-			raise NeedDownload(', '.join([str(x) for x in needed_downloads]))
-
-		@tasks.async
-		def download():
-			# We're missing some. For each one, get the feed it came from
-			# and find the corresponding <implementation> in that. This will
-			# tell us where to get it from.
-			# Note: we look for an implementation with the same ID. Maybe we
-			# should check it has the same digest(s) too?
-			needed_impls = []
-			for sel in needed_downloads:
-				feed_url = sel.attrs.get('from-feed', None) or sel.attrs['interface']
-				feed = iface_cache.get_feed(feed_url)
-				if feed is None or sel.id not in feed.implementations:
-					fetch_feed = config.fetcher.download_and_import_feed(feed_url, iface_cache)
-					yield fetch_feed
-					tasks.check(fetch_feed)
-
-					feed = iface_cache.get_feed(feed_url)
-					assert feed, "Failed to get feed for %s" % feed_url
-				impl = feed.implementations[sel.id]
-				needed_impls.append(impl)
-
-			fetch_impls = config.fetcher.download_impls(needed_impls, stores)
-			yield fetch_impls
-			tasks.check(fetch_impls)
-		return download()
-
 	# These (deprecated) methods are to make a Selections object look like the old Policy.implementation map...
 
 	def __getitem__(self, key):
