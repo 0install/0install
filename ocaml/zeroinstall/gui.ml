@@ -400,6 +400,19 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
       | json -> raise_safe "justify_decision: invalid request: %s" (Yojson.Basic.to_string (`List json))
     );
 
+    (* Used by the add-feed dialog *)
+    Python.register_handler "download-and-import-feed" (function
+      | [`String feed] -> (
+          match Feed_cache.parse_feed_url feed with
+          | `distribution_feed _ | `local_feed _ -> raise_safe "Not a remote URL: '%s'" feed
+          | `remote_feed _ as url ->
+              match_lwt driver#download_and_import_feed url with
+              | `success _ | `no_update -> Lwt.return (`String "ok")
+              | `aborted_by_user -> raise_safe "Aborted by user"
+      )
+      | json -> raise_safe "justify_decision: invalid request: %s" (Yojson.Basic.to_string (`List json))
+    );
+
     Python.register_handler "run-test" (function
       | [] -> (
           match test_callback with

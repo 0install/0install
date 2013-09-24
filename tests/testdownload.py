@@ -257,13 +257,10 @@ class TestDownload(BaseTest):
 
 		with output_suppressed():
 			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-			sys.stdin = Reply("Y\n")
 
-			tasks.wait_for_blocker(self.config.fetcher.download_and_import_feed('http://example.com:8000/Hello.xml', self.config.iface_cache))
-
-			out, err = self.run_ocaml(['download', 'selections.xml'])
+			out, err = self.run_ocaml(['download', 'selections.xml'], stdin = 'Y\n')
 			assert not out, out
-			assert not err, err
+			assert 'Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000' in err, err
 			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
@@ -572,19 +569,21 @@ class TestDownload(BaseTest):
 
 				trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 				run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')
-				self.config.mirror = 'http://example.com:8000/0mirror'
+
+				child_config = config.Config()
+				child_config.auto_approve_keys = False
+				child_config.mirror = 'http://example.com:8000/0mirror'
+				child_config.save_globals()
 
 				# Update from mirror (should ignore out-of-date timestamp)
-				refreshed = self.config.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)
-				tasks.wait_for_blocker(refreshed)
+				out, err = self.run_ocaml(['select', '--refresh', '-v', iface.uri])
+				assert 'Version: 1' in out, out
+				assert 'Version from mirror is older than cached version; ignoring it' in err, err
 
 				# Update from upstream (should report an error)
-				refreshed = self.config.fetcher.download_and_import_feed(iface.uri, self.config.iface_cache)
-				try:
-					tasks.wait_for_blocker(refreshed)
-					raise Exception("Should have been rejected!")
-				except model.SafeException as ex:
-					assert "New feed's modification time is before old version" in str(ex)
+				out, err = self.run_ocaml(['select', '--refresh', '-v', iface.uri])
+				assert 'Version: 1' in out, out
+				assert "New feed's modification time is before old version" in err, err
 
 				# Must finish with the newest version
 				self.assertEqual(1342285569, self.config.iface_cache._get_signature_date(iface.uri))

@@ -366,7 +366,9 @@ def add_remote_feed(config, parent, interface):
 					url = entry.get_text()
 					if not url:
 						raise zeroinstall.SafeException(_('Enter a URL'))
-					fetch = config.fetcher.download_and_import_feed(url, iface_cache)
+
+					from zeroinstall.cmd import slave
+					fetch = slave.download_and_import_feed(url)
 					if fetch:
 						d.set_sensitive(False)
 						yield fetch

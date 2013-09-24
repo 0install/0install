@@ -83,13 +83,6 @@ def do_download_impls(config, ticket, options, args):
 			feed_url = impl['from-feed']
 			impl_id = impl['id']
 			feed = config.iface_cache.get_feed(feed_url)
-			if feed is None or impl_id not in feed.implementations:
-				fetch_feed = config.fetcher.download_and_import_feed(feed_url, config.iface_cache)
-				yield fetch_feed
-				tasks.check(fetch_feed)
-
-				feed = iface_cache.get_feed(feed_url)
-				assert feed, "Failed to get feed for %s" % feed_url
 			impl = feed.implementations[impl_id]
 			needed_impls.append(impl)
 
@@ -445,6 +438,9 @@ def run_test():
 
 def download_archives():
 	return invoke_master(["download-archives"])
+
+def download_and_import_feed(url):
+	return invoke_master(["download-and-import-feed", url])
 
 def start_timeout(timeout):
 	return invoke_master(["start-timeout", timeout])
