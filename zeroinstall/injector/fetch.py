@@ -13,8 +13,6 @@ from zeroinstall.support import tasks, basedir, portable_rename
 from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
 from zeroinstall.injector import model
 from zeroinstall.injector.model import Recipe, SafeException, escape, DistributionSource
-from zeroinstall.injector.iface_cache import PendingFeed, ReplayAttack
-from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector import download
 
 def _escape_slashes(path):
@@ -207,22 +205,6 @@ class Fetcher(object):
 		"""@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}
 		@rtype: str"""
 		return self._get_mirror_url(impl.feed.url, 'impl/' + _escape_slashes(impl.id))
-
-	@tasks.async
-	def get_packagekit_feed(self, feed_url):
-		"""Send a query to PackageKit (if available) for information about this package.
-		On success, the result is added to iface_cache.
-		@type feed_url: str"""
-		assert feed_url.startswith('distribution:'), feed_url
-		master_feed = self.config.iface_cache.get_feed(feed_url.split(':', 1)[1])
-		if master_feed:
-			fetch = self.config.iface_cache.distro.fetch_candidates(master_feed)
-			if fetch:
-				yield fetch
-				tasks.check(fetch)
-
-			# Force feed to be regenerated with the new information
-			self.config.iface_cache.get_feed(feed_url, force = True)
 
 	def fetch_key_info(self, fingerprint):
 		"""@type fingerprint: str

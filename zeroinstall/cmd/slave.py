@@ -11,7 +11,7 @@ import sys, os, collections
 
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, qdom, selections, download, gpg, reader
+from zeroinstall.injector import model, qdom, download, gpg, reader
 from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector.iface_cache import ReplayAttack
 from zeroinstall.support import tasks
