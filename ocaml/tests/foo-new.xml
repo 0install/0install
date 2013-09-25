@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface uri="http://foo/" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Foo</name>
+  <summary>Foo</summary>
+  <description>Foo (check non-ASCII chars úüû)</description>
+  <!-- Updated! -->
+</interface>
+<!-- Base64 Signature
+iEYEABECAAYFAlJCz6gACgkQrgeCgFmlPMEyogCeJ37Eh4CGWFFcxL17I8Z355EQSNgAoI1kTikx
+Q+BXGI5RwW/kp5xx2hKB
+
+-->

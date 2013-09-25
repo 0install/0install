@@ -174,6 +174,10 @@ class fetcher config trust_db (slave:Python.slave) =
     let new_root = `String (0, new_xml) |> Xmlm.make_input |> Q.parse_input (Some feed_url) in
     let filtered = (Feed.parse system new_root None).Feed.root in
 
+    let url_in_feed = ZI.get_attribute FeedAttr.uri new_root in
+    if url_in_feed <> feed_url then
+      Q.raise_elem "URL mismatch in feed:\n%s expected\n%s given in 'uri' attribute on" feed_url url_in_feed new_root;
+
     (* Load the old XML *)
     let cache_path = Feed_cache.get_save_cache_path config feed in
     let old_xml =
