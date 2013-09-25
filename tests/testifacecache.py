@@ -147,29 +147,5 @@ class TestIfaceCache(BaseTest):
 		signed = iface_cache._get_signature_date('http://foo')
 		assert signed == None
 
-	def testCheckAttempt(self):
-		iface_cache = self.config.iface_cache
-		self.assertEqual(None, iface_cache.get_last_check_attempt("http://foo/bar.xml"))
-
-		start_time = time.time() - 5	# Seems to be some odd rounding here
-		iface_cache.mark_as_checking("http://foo/bar.xml")
-		last_check = iface_cache.get_last_check_attempt("http://foo/bar.xml")
-
-		assert last_check is not None
-		assert last_check >= start_time, (last_check, start_time)
-
-		self.assertEqual(None, iface_cache.get_last_check_attempt("http://foo/bar2.xml"))
-
-	def testIsStale(self):
-		iface_cache = self.config.iface_cache
-		feed = self.import_feed('http://localhost:8000/Hello', 'Hello')
-		assert iface_cache.is_stale(feed.url, 1) == True
-		assert iface_cache.is_stale(feed.url, time.time() + 1) == False
-		iface_cache.mark_as_checking(feed.url)
-		assert iface_cache.is_stale(feed.url, 1) == False
-
-		# Old API
-		assert iface_cache.is_stale(feed, 1) == False
-
 if __name__ == '__main__':
 	unittest.main()

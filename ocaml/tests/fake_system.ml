@@ -366,3 +366,8 @@ let get_fake_config tmpdir =
     system#add_file test_0install (build_dir +/ "0install");
   );
   (Config.get_default_config (system :> system) test_0install, system)
+
+let with_fake_config fn =
+  with_tmpdir (fun tmpdir ->
+    get_fake_config (Some tmpdir) |> fn
+  )

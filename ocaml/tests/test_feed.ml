@@ -9,7 +9,7 @@ open Zeroinstall
 module Q = Support.Qdom
 module U = Support.Utils
 
-let suite = "test">::: [
+let suite = "feed">::: [
   "langs">:: (fun () ->
     let (_config, fake_system) = Fake_system.get_fake_config None in
     let system = (fake_system :> system) in

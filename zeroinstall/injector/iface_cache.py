@@ -212,11 +212,6 @@ class IfaceCache(object):
 			self._distro = get_host_distribution()
 		return self._distro
 
-	def update_interface_if_trusted(self, interface, sigs, xml):
-		import warnings
-		warnings.warn("Use update_feed_if_trusted instead", DeprecationWarning, stacklevel = 2)
-		return self.update_feed_if_trusted(interface.uri, sigs, xml)
-
 	def update_feed_if_trusted(self, feed_url, sigs, xml, dry_run = False):
 		"""Update a cached feed (using L{update_feed_from_network})
 		if we trust the signatures.
@@ -237,11 +232,6 @@ class IfaceCache(object):
 
 		self.update_feed_from_network(feed_url, xml, updated, dry_run = dry_run)
 		return True
-
-	def update_interface_from_network(self, interface, new_xml, modified_time):
-		import warnings
-		warnings.warn("Use update_feed_from_network instead", DeprecationWarning, stacklevel = 2)
-		self.update_feed_from_network(interface.uri, new_xml, modified_time)
 
 	def update_feed_from_network(self, feed_url, new_xml, modified_time, dry_run = False):
 		"""Update a cached feed.
@@ -456,20 +446,6 @@ class IfaceCache(object):
 			return min(trusted)
 		return None
 
-	def mark_as_checking(self, url):
-		"""Touch a 'last-check-attempt' timestamp file for this feed.
-		If url is a local path, nothing happens.
-		This prevents us from repeatedly trying to download a failing feed many
-		times in a short period.
-		@type url: str"""
-		if os.path.isabs(url):
-			return
-		feeds_dir = basedir.save_cache_path(config_site, config_prog, 'last-check-attempt')
-		timestamp_path = os.path.join(feeds_dir, model._pretty_escape(url))
-		fd = os.open(timestamp_path, os.O_WRONLY | os.O_CREAT, 0o644)
-		os.close(fd)
-		os.utime(timestamp_path, None)	# In case file already exists
-
 	def get_last_check_attempt(self, url):
 		"""Return the time of the most recent update attempt for a feed.
 		@type url: str
@@ -546,54 +522,5 @@ class IfaceCache(object):
 		feed_targets = feed.feed_for
 		logger.debug(_("Feed targets: %s"), feed_targets)
 		return [self.get_interface(uri) for uri in feed_targets]
-
-	def is_stale(self, feed_url, freshness_threshold):
-		"""Check whether feed needs updating, based on the configured L{config.Config.freshness}.
-		None is considered to be stale.
-		If we already tried to update the feed within FAILED_CHECK_DELAY, returns false.
-		@type feed_url: str
-		@type freshness_threshold: int
-		@return: True if feed should be updated
-		@rtype: bool
-		@since: 0.53"""
-		if isinstance(feed_url, model.ZeroInstallFeed):
-			feed_url = feed_url.url		# old API
-		elif feed_url is None:
-			return True			# old API
-
-		now = time.time()
-
-		feed = self.get_feed(feed_url)
-		if feed is not None:
-			if feed.local_path is not None:
-				return False		# Local feeds are never stale
-
-			if feed.last_modified is not None:
-				staleness = now - (feed.last_checked or 0)
-				logger.debug(_("Staleness for %(feed)s is %(staleness).2f hours"), {'feed': feed, 'staleness': staleness / 3600.0})
-
-				if freshness_threshold <= 0 or staleness < freshness_threshold:
-					return False		# Fresh enough for us
-		# else we've never had it
-
-		last_check_attempt = self.get_last_check_attempt(feed_url)
-		if last_check_attempt and last_check_attempt > now - FAILED_CHECK_DELAY:
-			logger.debug(_("Stale, but tried to check recently (%s) so not rechecking now."), time.ctime(last_check_attempt))
-			return False
-
-		return True
-
-	def usable_feeds(self, iface, arch):
-		"""Generator for C{iface.feeds} that are valid for this architecture.
-		@type iface: L{model.Interface}
-		@rtype: generator
-		@see: L{arch}
-		@since: 0.53"""
-		for f in self.get_feed_imports(iface):
-			if f.os in arch.os_ranks and f.machine in arch.machine_ranks:
-				yield f
-			else:
-				logger.debug(_("Skipping '%(feed)s'; unsupported architecture %(os)s-%(machine)s"),
-					{'feed': f, 'os': f.os, 'machine': f.machine})
 
 iface_cache = IfaceCache()
