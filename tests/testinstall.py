@@ -174,15 +174,14 @@ class TestInstall(BaseTest):
 		#assert len(binary_iface.extra_feeds) == 1
 
 	def testImport(self):
-		out, err = self.run_0install(['import'])
+		out, err = self.run_ocaml(['import'])
 		assert out.lower().startswith("usage:")
 		assert 'FEED' in out
 
 		stream = open('6FCF121BE2390E0B.gpg')
 		gpg.import_key(stream)
 		stream.close()
-		sys.stdin = Reply('Y\n')
-		out, err = self.run_0install(['import', 'Hello.xml'])
+		out, err = self.run_ocaml(['import', 'Hello.xml'], stdin = 'Y\n')
 		assert not out, out
 		assert 'Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000' in err, out
 

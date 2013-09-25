@@ -215,7 +215,7 @@ let subcommands = [
   make_subcommand "whatchanged" "APP-NAME"                      Whatchanged.handle @@ common_options @ diff_options;
   make_subcommand "destroy"     "PET-NAME"                      Destroy.handle   @@ common_options;
   make_subcommand "config"      "[NAME [VALUE]]"                fallback_handler @@ common_options;
-  make_subcommand "import"      "FEED"                          fallback_handler @@ common_options @ offline_options;
+  make_subcommand "import"      "FEED"                          Import.handle    @@ common_options @ offline_options;
   make_subcommand "list"        "PATTERN"                       fallback_handler @@ common_options;
   make_subcommand "search"      "QUERY"                         fallback_handler @@ common_options;
   make_subcommand "add-feed"    "[INTERFACE] NEW-FEED"          Add_feed.handle  @@ common_options @ offline_options;

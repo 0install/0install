@@ -49,6 +49,8 @@ let fake_fetcher config handler =
 
     method download_impls impls : [ `success | `aborted_by_user ] Lwt.t =
       handler#download_impls impls |> Lwt.return
+
+    method import_feed = failwith "import_feed"
   end
 
 (** Parse a test-case in driven.xml *)
@@ -248,6 +250,7 @@ let suite = "driver">::: [
       object
         method download_and_import_feed (`remote_feed url) = raise_safe "download_and_import_feed: %s" url
         method download_impls = failwith "download_impls"
+        method import_feed = failwith "import_feed"
       end in
     let slave = new Zeroinstall.Python.slave config in
     let driver = new Driver.driver config fetcher distro slave in

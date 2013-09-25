@@ -20,20 +20,25 @@ type fetch_feed_response =
 
 let re_scheme_sep = Str.regexp_string "://"
 
+let string_of_result = function
+  | `aborted_by_user -> "Aborted by user"
+  | `no_trusted_keys -> "Not signed with a trusted key"
+  | `replay_attack (url, old_time, new_time) ->
+      let old_time = old_time |> Unix.localtime |> U.format_time in
+      let new_time = new_time |> Unix.localtime |> U.format_time in
+      Printf.sprintf (
+        "New feed's modification time is before old version!\n" ^^
+        "Interface: %s\nOld time: %s\nNew time: %s\n" ^^
+        "Refusing update.") url old_time new_time
+
 (** Convert the status from the primary to our public return value. *)
 let get_final_response = function
   | `ok result -> `update (result, None)
   | `aborted_by_user -> `aborted_by_user
-  | `no_trusted_keys -> `problem ("Not signed with a trusted key", None)
-  | `replay_attack (url, old_time, new_time) ->
-      let old_time = old_time |> Unix.localtime |> U.format_time in
-      let new_time = new_time |> Unix.localtime |> U.format_time in
+  | `no_trusted_keys as r -> `problem (string_of_result r, None)
+  | `replay_attack _ as r ->
       (* Don't bother trying the mirror if we have a replay attack *)
-      let msg = Printf.sprintf (
-        "New feed's modification time is before old version!\n" ^^
-        "Interface: %s\nOld time: %s\nNew time: %s\n" ^^
-        "Refusing update.") url old_time new_time in
-      `problem (msg, None)
+      `problem (string_of_result r, None)
 
 let last_ticket = ref 0
 let timeout_tickets = ref StringMap.empty
@@ -435,4 +440,9 @@ class fetcher config trust_db (slave:Python.slave) =
         | `String "aborted-by-user" -> `aborted_by_user
         | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
       )
+
+    method import_feed (feed_url:[`remote_feed of feed_url]) xml =
+      match_lwt import_feed ~mirror_used:None feed_url xml with
+      | `ok _ -> Lwt.return ()
+      | (`aborted_by_user | `no_trusted_keys | `replay_attack _) as r -> raise_safe "%s" (string_of_result r)
   end
