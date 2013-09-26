@@ -439,10 +439,8 @@ module ArchLinux = struct
 
       val distro_name = "Arch"
 
-      method! is_installed elem =
-        (* We should never get here, because we always set quick-test-* *)
-        Qdom.log_elem Logging.Info "Old selections file; forcing an update of" elem;
-        false
+      (* We should never get here for an installed package, because we always set quick-test-* *)
+      method! is_installed _elem = false
 
 (* Still need to fall back in the case where we queried for package-kit candidates, so
  * use base-class.

@@ -89,8 +89,9 @@ class fake_slave config =
         if timeout <> `Null then
           ignore @@ start_timeout [timeout];
         Some (Lwt.return @@ handle_download_url url)
-    | `List [`String "download-impls"; `List impls] ->
-        impls |> List.map (impl_from_json config) |> handle_download_impls config pending_digests;
+    | `List [`String "download-impl"; info] ->
+        let impl = impl_from_json config info in
+        handle_download_impls config pending_digests [impl];
         Some (`List [`String "ok"; `List []] |> Lwt.return)
     | _ -> None in
 

@@ -89,7 +89,7 @@ class PackageKit(object):
 				dl = PackageKitDownload('packagekit:' + packagekit_id, hint = impl, pk = self.pk, packagekit_id = packagekit_id, expected_size = candidate['size'])
 				handler.monitor_download(dl)
 				return dl.downloaded
-			impl.download_sources.append(model.DistributionSource(package_name, candidate['size'], install))
+			impl.download_sources.append(model.DistributionSource(package_name, candidate['size'], install, packagekit_id = candidate['packagekit_id']))
 
 	@tasks.async
 	def fetch_candidates(self, package_names):
@@ -223,9 +223,10 @@ class PackageKitDownload(object):
 			self.downloaded.trigger(exception = (ex, None))
 
 		def installed_cb(sender):
-			assert not self._impl.installed, self._impl
-			self._impl.installed = True
-			self._impl.distro.installed_fixup(self._impl)
+			if hasattr(self._impl, 'installed'):
+				assert not self._impl.installed, self._impl
+				self._impl.installed = True
+				self._impl.distro.installed_fixup(self._impl)
 
 			self.status = download.download_complete
 			self.downloaded.trigger()

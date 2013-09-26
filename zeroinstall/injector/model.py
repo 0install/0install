@@ -732,14 +732,15 @@ class DistributionSource(RetrievalMethod):
 	@ivar needs_confirmation: whether the user should be asked to confirm before calling install()
 	@type needs_confirmation: bool"""
 
-	__slots__ = ['package_id', 'size', 'install', 'needs_confirmation']
+	__slots__ = ['package_id', 'size', 'install', 'needs_confirmation', 'packagekit_id']
 
-	def __init__(self, package_id, size, install, needs_confirmation = True):
+	def __init__(self, package_id, size, install, needs_confirmation = True, packagekit_id = None):
 		"""@type package_id: str
 		@type size: int
 		@type needs_confirmation: bool"""
 		RetrievalMethod.__init__(self)
 		self.package_id = package_id
+		self.packagekit_id = packagekit_id
 		self.size = size
 		self.install = install
 		self.needs_confirmation = needs_confirmation

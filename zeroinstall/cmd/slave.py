@@ -71,24 +71,72 @@ def do_import_feed(config, xml):
 	config.iface_cache._feeds[feed_url] = feed
 
 @tasks.async
-def do_download_impls(config, ticket, options, args):
+def do_confirm_distro_install(config, ticket, options, impls):
 	if gui_driver is not None: config = gui_driver.config
 	try:
-		impls, = args
+		manual_impls = [impl['id'] for impl in impls if not impl['needs-confirmation']]
+		unsafe_impls = [impl for impl in impls if impl['needs-confirmation']]
 
+		if unsafe_impls:
+			confirm = config.handler.confirm_install(_('The following components need to be installed using native packages. '
+				'These come from your distribution, and should therefore be trustworthy, but they also '
+				'run with extra privileges. In particular, installing them may run extra services on your '
+				'computer or affect other users. You may be asked to enter a password to confirm. The '
+				'packages are:\n\n') + ('\n'.join('- ' + x['id'] for x in unsafe_impls)))
+			yield confirm
+			tasks.check(confirm)
+
+		if manual_impls:
+			raise model.SafeException(_("This program depends on '%s', which is a package that is available through your distribution. "
+					"Please install it manually using your distribution's tools and try again. Or, install 'packagekit' and I can "
+					"use that to install it.") % manual_impls[0])
+
+		blockers = []
+		for impl in unsafe_impls:
+			from zeroinstall.injector import packagekit
+			packagekit_id = impl['packagekit-id']
+			pk = config.iface_cache.distro.packagekit.pk
+			dl = packagekit.PackageKitDownload('packagekit:' + packagekit_id, hint = impl['master-feed'],
+					pk = pk, packagekit_id = packagekit_id, expected_size = int(impl['size']))
+			config.handler.monitor_download(dl)
+			blockers.append(dl.downloaded)
+
+		# Record the first error log the rest
+		error = []
+		def dl_error(ex, tb = None):
+			if error:
+				config.handler.report_error(ex)
+			else:
+				error.append((ex, tb))
+		while blockers:
+			yield blockers
+			tasks.check(blockers, dl_error)
+			blockers = [b for b in blockers if not b.happened]
+		if error:
+			from zeroinstall import support
+			support.raise_with_traceback(*error[0])
+
+		send_json(["return", ticket, ["ok", "ok"]])
+	except download.DownloadAborted as ex:
+		send_json(["return", ticket, ["ok", "aborted-by-user"]])
+	except Exception as ex:
+		logger.warning("Returning error", exc_info = True)
+		send_json(["return", ticket, ["error", str(ex)]])
+
+@tasks.async
+def do_download_impl(config, ticket, options, impl):
+	if gui_driver is not None: config = gui_driver.config
+	try:
 		old_dry_run_names = get_dry_run_names(config)
 
-		needed_impls = []
-		for impl in impls:
-			feed_url = impl['from-feed']
-			impl_id = impl['id']
-			feed = config.iface_cache.get_feed(feed_url)
-			impl = feed.implementations[impl_id]
-			needed_impls.append(impl)
+		feed_url = impl['from-feed']
+		impl_id = impl['id']
+		feed = config.iface_cache.get_feed(feed_url)
+		impl = feed.implementations[impl_id]
 
-		fetch_impls = config.fetcher.download_impls(needed_impls, config.stores)
-		yield fetch_impls
-		tasks.check(fetch_impls)
+		fetch_impl = config.fetcher.download_impl(impl, config.fetcher.get_best_source(impl), config.stores)
+		yield fetch_impl
+		tasks.check(fetch_impl)
 
 		added_names = get_dry_run_names(config) - old_dry_run_names
 
@@ -108,11 +156,20 @@ def to_json(impl):
 	}
 
 	if impl.download_sources:
+		feed = impl.feed.url
+		assert feed.startswith("distribution:"), feed
+		master_feed = feed.split(':', 1)[1]
 		m = impl.download_sources[0]
 		attrs['retrieval_method'] = {
 			'type': 'packagekit',
 			'id': m.package_id,
+			'packagekit-id': m.packagekit_id,
 			'size': float(m.size),		# Use floats to avoid 31-bit int problem
+			'master-feed': master_feed,
+
+			# True => ask user to confirm, then install with PackageKit
+			# False => tell user to install package manually
+			'needs-confirmation': m.needs_confirmation,
 		}
 
 	if impl.main:
@@ -369,8 +426,11 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'gui-update-selections':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_gui_update_selections(request[1:], xml)
-		elif command == 'download-impls':
-			blocker = do_download_impls(config, ticket, options, request[1:])
+		elif command == 'confirm-distro-install':
+			blocker = do_confirm_distro_install(config, ticket, options, request[1])
+			return
+		elif command == 'download-impl':
+			blocker = do_download_impl(config, ticket, options, request[1])
 			return #async
 		elif command == 'import-feed':
 			xml = qdom.parse(BytesIO(read_chunk()))

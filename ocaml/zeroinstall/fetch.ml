@@ -342,6 +342,28 @@ class fetcher config trust_db (slave:Python.slave) =
       None
     ) in
 
+  (** Download a 0install implementation and add it to a store *)
+  let download_impl (impl, _retrieval_method) : unit Lwt.t =
+    let {Feed.feed; Feed.id} = Feed.get_id impl in
+
+    let info = `Assoc [
+      ("id", `String id);
+      ("from-feed", `String feed);
+    ] in
+
+    let request : Yojson.Basic.json = `List [`String "download-impl"; info] in
+
+    slave#invoke_async request (function
+      | `List dry_run_paths ->
+          (* In --dry-run mode, the directories haven't actually been added, so we need to tell the
+           * dryrun_system about them. *)
+          if config.dry_run then (
+            List.iter (fun name -> system#mkdir (Yojson.Basic.Util.to_string name) 0o755) dry_run_paths
+          )
+      | `String "aborted-by-user" -> raise Aborted
+      | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
+    ) in
+
   object
     method download_and_import_feed (feed : [`remote_feed of feed_url]) : fetch_feed_response Lwt.t =
       let `remote_feed feed_url = feed in
@@ -418,32 +440,56 @@ class fetcher config trust_db (slave:Python.slave) =
               )
 
     method download_impls (impls:Feed.implementation list) : [ `success | `aborted_by_user ] Lwt.t =
-      let impl_ids =
-        impls |> List.map (fun impl ->
-          let {Feed.feed; Feed.id} = Feed.get_id impl in
-          let version = Feed.get_attr_ex FeedAttr.version impl in
+      (* todo: external fetcher on Windows? *)
 
-          log_debug "download_impls: for %s get %s" feed version;
+      let zi_impls = ref [] in
+      let package_impls = ref [] in
 
-          `Assoc [
-            ("id", `String id);
-            ("from-feed", `String feed);
-          ]
-        ) in
+      impls |> List.iter (fun impl ->
+        let {Feed.feed; Feed.id} = Feed.get_id impl in
+        let version = Feed.get_attr_ex FeedAttr.version impl in
 
-      let request : Yojson.Basic.json = `List [`String "download-impls"; `List impl_ids] in
+        log_debug "download_impls: for %s get %s" feed version;
 
-      slave#invoke_async request (function
-        | `List dry_run_paths ->
-            (* In --dry-run mode, the directories haven't actually been added, so we need to tell the
-             * dryrun_system about them. *)
-            if config.dry_run then (
-              List.iter (fun name -> system#mkdir (Yojson.Basic.Util.to_string name) 0o755) dry_run_paths
-            );
-            `success
-        | `String "aborted-by-user" -> `aborted_by_user
-        | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
-      )
+        match impl.Feed.impl_type with
+        | Feed.PackageImpl info ->
+            (* Any package without a retrieval method should be already installed *)
+            let rm = info.Feed.retrieval_method |? lazy (raise_safe "Missing retrieval method for package '%s'" id) in
+            package_impls := `Assoc rm :: !package_impls
+        | Feed.LocalImpl path -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path feed
+        | Feed.CacheImpl info ->
+            (* Pick the first retrieval method we understand *)
+            match U.first_match info.Feed.retrieval_methods ~f:Recipe.parse_retrieval_method with
+            | None -> raise_safe ("Implementation %s of interface %s cannot be downloaded " ^^
+                                  "(no download locations given in feed!)") id feed
+            | Some rm -> zi_impls := (impl, rm) :: !zi_impls
+      );
+
+    let packages_task =
+      if !package_impls = [] then (
+        Lwt.return ()
+      ) else (
+        let request = `List [`String "confirm-distro-install"; `List !package_impls] in
+        slave#invoke_async request (function
+          | `String "ok" -> ()
+          | `String "aborted-by-user" -> raise Aborted
+          | _ -> raise_safe "Invalid response"
+        )
+      ) in
+
+    let zi_tasks = !zi_impls |> List.map download_impl in
+
+    (** Wait for all downloads *)
+    lwt errors = join_errors (packages_task :: zi_tasks) in
+
+    if List.mem Aborted errors then Lwt.return `aborted_by_user
+    else (
+      match errors with
+      | [] -> Lwt.return `success
+      | first :: rest ->
+          rest |> List.iter (fun ex -> log_warning ~ex "Download failed");
+          raise first
+    )
 
     method import_feed (feed_url:[`remote_feed of feed_url]) xml =
       match_lwt import_feed ~mirror_used:None feed_url xml with
