@@ -116,7 +116,7 @@ let resolve_target config flags arg =
           let root = Support.Qdom.parse_file config.system path in
           match ZI.tag root with
           | None -> Support.Qdom.raise_elem "Not a 0install document (wrong namespace on root element): " root
-          | Some "selections" -> is_selections root
+          | Some "selections" -> Zeroinstall.Selections.to_latest_format root |> is_selections
           | Some "interface" | Some "feed" -> is_interface ()
           | Some x -> raise_safe "Unexpected root element <%s>" x
 

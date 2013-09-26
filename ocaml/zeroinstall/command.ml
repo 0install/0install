@@ -72,11 +72,15 @@ let get_runner elem =
     | _ -> Qdom.raise_elem "Multiple <runner>s in " elem
 ;;
 
+let find_ex iface impls =
+  try StringMap.find iface impls
+  with Not_found -> raise_safe "Missing a selection for interface '%s'" iface
+
 (* Build up the argv array to execute this command.
    In --dry-run mode, don't complain if the target doesn't exist. *)
 let rec build_command ?main ?(dry_run=false) impls command_iface command_name env : string list =
   try
-    let (command_sel, command_impl_path) = Selections.find_ex command_iface impls in
+    let (command_sel, command_impl_path) = find_ex command_iface impls in
     let command =
       match command_name with
       | None -> ZI.make command_sel.Qdom.doc ~source_hint:command_sel "command"

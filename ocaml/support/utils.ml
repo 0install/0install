@@ -533,3 +533,7 @@ let read_file (system:system) path =
         really_input ic buf 0 info.Unix.st_size
       );
       buf
+
+let find_opt key map =
+  try Some (StringMap.find key map)
+  with Not_found -> None
