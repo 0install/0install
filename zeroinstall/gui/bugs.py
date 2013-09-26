@@ -12,7 +12,6 @@ import zeroinstall
 from zeroinstall import _
 from zeroinstall.support import tasks
 from zeroinstall.cmd import slave
-from zeroinstall.injector import selections
 
 @tasks.async
 def report_bug(driver, iface):
@@ -176,13 +175,6 @@ class BugReporter(dialog.Dialog):
 
 			if not self.driver.ready:
 				buffer.insert_at_cursor("Can't run, because we failed to select a set of versions.\n")
-				return
-
-			sels = selections.Selections(self.driver.sels)
-			uncached = sels.get_unavailable_selections(self.driver.config, include_packages = True)
-			if uncached:
-				buffer.insert_at_cursor("Can't run: the chosen versions have not been downloaded yet. I need:\n\n- " +
-					"\n\n- " . join(['%s version %s\n  (%s)' %(x.interface, x.version, x.id) for x in uncached]))
 				return
 
 			self.hide()

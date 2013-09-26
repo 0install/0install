@@ -420,8 +420,20 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
           | Some test_callback ->
               let (ready, results) = !results in
               if ready then (
-                lwt result = test_callback results#get_selections in
-                Lwt.return (`String result)
+                let sels = results#get_selections in
+                match Selections.get_unavailable_selections config ~distro sels with
+                | [] ->
+                  lwt result = test_callback sels in
+                  Lwt.return (`String result)
+                | missing ->
+                    let details =
+                      missing |> List.map (fun sel ->
+                        Printf.sprintf "%s version %s\n  (%s)"
+                          (ZI.get_attribute FeedAttr.interface sel)
+                          (ZI.get_attribute FeedAttr.version sel)
+                          (ZI.get_attribute FeedAttr.id sel)
+                      ) |> String.concat "\n\n- " in
+                    raise_safe "Can't run: the chosen versions have not been downloaded yet. I need:\n\n- %s" details
               ) else raise_safe "Can't do a test run - solve failed"
       )
       | json -> raise_safe "run_test: invalid request: %s" (Yojson.Basic.to_string (`List json))
