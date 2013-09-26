@@ -538,3 +538,7 @@ let read_file (system:system) path =
 let safe_int_of_string s =
   try int_of_string s
   with Failure msg -> raise_safe "Invalid integer '%s' (%s)" s msg
+
+let find_opt key map =
+  try Some (StringMap.find key map)
+  with Not_found -> None

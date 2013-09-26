@@ -7,7 +7,8 @@
 open Support.Common
 open General
 
-module Qdom = Support.Qdom
+module U = Support.Utils
+module Q = Support.Qdom
 module FeedAttr = Constants.FeedAttr
 
 type impl_source =
@@ -31,15 +32,10 @@ let make_selection elem =
       CacheSelection (match Stores.get_digests elem with
       | [] ->
         let id = ZI.get_attribute "id" elem in
-        Qdom.raise_elem "No digests found for '%s':" id elem
+        Q.raise_elem "No digests found for '%s':" id elem
       | digests -> digests
       )
   ) in source
-;;
-
-let find_ex iface impls =
-  try StringMap.find iface impls
-  with Not_found -> raise_safe "Missing a selection for interface '%s'" iface
 ;;
 
 let get_path system stores elem =
@@ -49,11 +45,40 @@ let get_path system stores elem =
   | CacheSelection digests -> Some (Stores.lookup_any system digests stores)
 ;;
 
-let load_selections system path =
-  let root = Qdom.parse_file system path in
+(** Create a map from interface URI to <selection> elements. *)
+let make_selection_map sels =
+  let add_selection m sel =
+    StringMap.add (ZI.get_attribute "interface" sel) sel m
+  in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
+
+let to_latest_format root =
   ZI.check_tag "selections" root;
+  let (good_children, old_commands) = root.Q.child_nodes |> List.partition (fun child ->
+    ZI.tag child <> Some "command"
+  ) in
+  if old_commands <> [] then (
+    try
+      (* 0launch 0.52 to 1.1 *)
+      let iface = ref (Some (ZI.get_attribute "interface" root)) in
+      let index = make_selection_map root in
+      root.Q.child_nodes <- good_children;
+      Q.set_attribute "command" "run" root;
+      old_commands |> List.iter (fun command ->
+        Q.set_attribute "name" "run" command;
+        let current_iface = !iface |? lazy (Q.raise_elem "No additional command expected here!" command) in
+        let sel = U.find_opt current_iface index |? lazy (Q.raise_elem "Missing selection for '%s' needed by" current_iface command) in
+        sel.Q.child_nodes <- command :: sel.Q.child_nodes;
+        match Command.get_runner command with
+        | None -> iface := None
+        | Some runner -> iface := Some (ZI.get_attribute "interface" runner)
+      )
+    with Safe_exception _ as ex -> reraise_with_context ex "... migrating from old selections format"
+  );
   root
-;;
+
+let load_selections system path =
+  let root = Q.parse_file system path in
+  to_latest_format root
 
 let get_feed elem =
   ZI.check_tag "selection" elem;
@@ -77,7 +102,7 @@ let get_unavailable_selections config ?distro sels =
   in
   let check sel =
     if needs_download sel then (
-      Qdom.log_elem Support.Logging.Info "Missing selection of %s:" (ZI.get_attribute "interface" sel) sel;
+      Q.log_elem Support.Logging.Info "Missing selection of %s:" (ZI.get_attribute "interface" sel) sel;
       missing := sel :: !missing
     )
   in
@@ -106,13 +131,7 @@ let get_required_commands dep =
   match ZI.tag dep with
   | Some "runner" -> (default "run" @@ ZI.get_attribute_opt "command" dep) :: commands
   | Some "requires" | Some "restricts" -> commands
-  | _ -> Qdom.raise_elem "Not a dependency: " dep
-
-(** Create a map from interface URI to <selection> elements. *)
-let make_selection_map sels =
-  let add_selection m sel =
-    StringMap.add (ZI.get_attribute "interface" sel) sel m
-  in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
+  | _ -> Q.raise_elem "Not a dependency: " dep
 
 let get_id sel = Feed.({
   id = ZI.get_attribute FeedAttr.id sel;
