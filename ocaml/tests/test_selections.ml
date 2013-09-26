@@ -1,0 +1,177 @@
+(* Copyright (C) 2013, Thomas Leonard
+ * See the README file for details, or visit http://0install.net.
+ *)
+
+open Support.Common
+open OUnit
+open Zeroinstall
+open Zeroinstall.General
+
+module Q = Support.Qdom
+module U = Support.Utils
+
+let get_sels config fake_system uri =
+  fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml"; uri|];
+  let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
+  `String (0, output) |> Xmlm.make_input |> Q.parse_input None
+
+let suite = "selections">::: [
+  "selections">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let import name =
+      U.copy_file config.system (Test_0install.feed_dir +/ name) (Test_driver.cache_path_for config @@ "http://foo/" ^ name) 0o644 in
+    import "Source.xml";
+    import "Compiler.xml";
+    fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml"; "--offline"; "--command=compile"; "--source"; "http://foo/Source.xml" |];
+    let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
+    let old_sels = `String (0, output) |> Xmlm.make_input |> Q.parse_input None in
+    let index = Selections.make_selection_map old_sels in
+    let source_sel = StringMap.find "http://foo/Source.xml" index in
+    Q.set_attribute_ns ~prefix:"foo" ("http://namespace", "foo") "bar" source_sel;
+
+    (* Convert to string and back to XML to check we don't lose anything. *)
+    let as_str = Q.to_utf8 old_sels in
+    let s = `String (0, as_str) |> Xmlm.make_input |> Q.parse_input None in
+
+    ZI.check_tag "selections" s;
+    assert_equal 0 @@ Q.compare_nodes ~ignore_whitespace:false old_sels s;
+
+    assert_equal "http://foo/Source.xml" @@ ZI.get_attribute "interface" s;
+
+    let index = Selections.make_selection_map s in
+    assert_equal 2 @@ StringMap.cardinal index;
+
+    let ifaces = StringMap.bindings index |> List.map fst in
+    Fake_system.equal_str_lists ["http://foo/Compiler.xml"; "http://foo/Source.xml"] @@ ifaces;
+
+    match StringMap.bindings index |> List.map snd with
+    | [comp; src] -> (
+        assert_equal "sha1=345" @@ ZI.get_attribute "id" comp;
+        assert_equal "1.0" @@ ZI.get_attribute "version" comp;
+
+        assert_equal "sha1=234" @@ ZI.get_attribute "id" src;
+        assert_equal "1.0" @@ ZI.get_attribute "version" src;
+        assert_equal "bar" @@ List.assoc ("http://namespace", "foo") src.Q.attrs;
+        assert_equal "1.0" @@ ZI.get_attribute "version" src;
+        assert (not (List.mem_assoc ("", "version-modifier") src.Q.attrs));
+
+        let comp_bindings = ZI.filter_map comp ~f:Binding.parse_binding in
+        let comp_deps = Selections.get_dependencies ~restricts:true comp in
+        assert_equal [] @@ comp_bindings;
+        assert_equal [] @@ comp_deps;
+
+        let open Binding in
+
+        let () =
+          match ZI.filter_map src ~f:Binding.parse_binding with
+          | [EnvironmentBinding {mode = Replace; source = InsertPath "."; _};
+             GenericBinding b;
+             GenericBinding c] ->
+               assert_equal "/" @@ ZI.get_attribute "mount-point" b;
+               assert_equal "source" @@ ZI.get_attribute "foo" c;
+          | _ -> assert false in
+
+        let () =
+          match Selections.make_selection comp with
+          | Selections.CacheSelection [("sha256new", "345"); ("sha1", "345")] -> ()
+          | _ -> assert false in
+
+        match Selections.get_dependencies ~restricts:true src with
+        | [dep] -> (
+            assert_equal "http://foo/Compiler.xml" @@ ZI.get_attribute "interface" dep;
+            match ZI.filter_map dep ~f:Binding.parse_binding with
+            | [EnvironmentBinding {var_name = "PATH"; mode = Add {separator; _}; source = InsertPath "bin"};
+               EnvironmentBinding {var_name = "NO_PATH"; mode = Add {separator = ","; _}; source = Value "bin"};
+               EnvironmentBinding {var_name = "BINDIR"; mode = Replace; source = InsertPath "bin"};
+               GenericBinding foo_binding] -> (
+                 assert (separator = ";" || separator = ":");
+
+                 assert_equal "compiler" @@ ZI.get_attribute "foo" foo_binding;
+                 assert_equal (Some "child") @@ ZI.tag @@ List.hd foo_binding.Q.child_nodes;
+                 assert_equal "run" @@ ZI.get_attribute "command" foo_binding;
+               )
+          | _ -> assert false
+        )
+        | _ -> assert false
+    )
+    | _ -> assert false
+  );
+
+  "local-path">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let iface = Test_0install.feed_dir +/ "Local.xml" in
+
+    let index = Selections.make_selection_map (get_sels config fake_system iface) in
+    let sel = StringMap.find iface index in
+    let () =
+      match Selections.make_selection sel with
+      | Selections.LocalSelection local_path ->
+          assert (fake_system#file_exists local_path);
+      | _ -> assert false in
+
+    let iface = Test_0install.feed_dir +/ "Local2.xml" in
+    (* Add a newer implementation and try again *)
+    let sels = get_sels config fake_system iface in
+    let index = Selections.make_selection_map sels in
+    let sel = StringMap.find iface index in
+    let driver = Fake_system.make_driver config in
+    assert (Selections.get_unavailable_selections ~distro:driver#distro config sels <> []);
+
+    let () =
+      match Selections.make_selection sel with
+      | Selections.CacheSelection [("sha1", "999")] -> ()
+      | _ -> assert false in
+
+    assert_equal Feed.({id = "foo bar=123"; feed = iface}) @@ Selections.get_id sel
+  );
+
+  "commands">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let iface = Test_0install.feed_dir +/ "Command.xml" in
+    let sels = get_sels config fake_system iface in
+    let index = Selections.make_selection_map sels in
+    let sel = StringMap.find iface index in
+
+    assert_equal "c" @@ ZI.get_attribute "id" sel;
+    let run = Command.get_command_ex "run" sel in
+    assert_equal "test-gui" @@ ZI.get_attribute "path" run;
+    assert_equal "namespaced" @@ List.assoc ("http://custom", "attr") run.Q.attrs;
+    assert_equal 1 @@ List.length (run.Q.child_nodes |> List.filter (fun node -> snd node.Q.tag = "child"));
+
+    let () =
+      match Selections.get_dependencies ~restricts:true run with
+      | dep :: _ ->
+          let dep_impl_uri = ZI.get_attribute "interface" dep in
+          let dep_impl = StringMap.find dep_impl_uri index in
+          assert_equal "sha1=256" @@ ZI.get_attribute "id" dep_impl;
+      | _ -> assert false in
+
+    let runexec = Test_0install.feed_dir +/ "runnable" +/ "RunExec.xml" in
+    let runnable = Test_0install.feed_dir +/ "runnable" +/ "Runnable.xml" in
+
+    fake_system#set_argv [| Test_0install.test_0install; "download"; "--offline"; "--xml"; runexec|];
+    let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
+    let s3 = `String (0, output) |> Xmlm.make_input |> Q.parse_input None in
+    let index = Selections.make_selection_map s3 in
+
+    let runnable_impl = StringMap.find runnable index in
+    Fake_system.equal_str_lists ["foo"; "run"] @@ ZI.filter_map runnable_impl ~f:(fun child ->
+      if ZI.tag child = Some "command" then Some (ZI.get_attribute "name" child) else None
+    )
+  );
+
+  "old-commands">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    let command_feed = Test_0install.feed_dir +/ "old-selections.xml" in
+    let sels = Q.parse_file config.system command_feed |> Selections.to_latest_format in
+
+    let user_store = List.hd config.stores in
+    let add_impl digest_str =
+      U.makedirs config.system (user_store +/ digest_str) 0o755 in
+
+    add_impl "sha1new=daf7bfada93ec758baeef1c714f3239ce0a5a462";
+    add_impl "sha1new=3ede8dc4b83dd3d7705ee3a427b637a2cb98d789";
+    add_impl "sha256=d5f30349df0fac73c4621cc3161ab125ba5f83ba9ec35e27fbb0f3a7392070eb";
+
+    let (args, _env) = Exec.get_exec_args {config with dry_run = true} sels [] in
+    match args with
+    | [_; "eu.serscis.Eval"] -> ()
+    | _ -> assert false
+  );
+]

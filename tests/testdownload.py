@@ -775,19 +775,18 @@ class TestDownload(BaseTest):
 
 		out, err = self.run_ocaml(['select', '--xml', 'test-app'], binary = True)
 		assert not err, err
-		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		sels = qdom.parse(BytesIO(out))
 		# Replace the selection with a bogus and unusable <package-implementation>
-		sel, = sels.selections.values()
+		sel, = sels.childNodes
 		sel.attrs['id'] = "package:dummy:badpackage"
 		sel.attrs['from-feed'] = "distribution:http://example.com:8000/Hello.xml"
 		sel.attrs['package'] = "badpackage"
-		sel.get_command('run').qdom.attrs['path'] = '/i/dont/exist'
+		sel.attrs['main'] = '/i/dont/exist'
 
 		app = basedir.load_first_config(namespaces.config_site, "apps", 'test-app')
 
-		with open(os.path.join(app, 'selections.xml'), 'wt') as stream:
-			doc = sels.toDOM()
-			doc.writexml(stream, addindent="  ", newl="\n", encoding = 'utf-8')
+		with open(os.path.join(app, 'selections.xml'), 'wb') as stream:
+			stream.write(qdom.to_UTF8(sels))
 
 		# Not time for a background update yet, but the missing binary should trigger
 		# an update anyway.

@@ -4,6 +4,7 @@
   <summary>Local feed, remote archive</summary>
 
   <implementation id="foo bar=123" version='1.0'>
+    <manifest-digest sha1='999'/>
     <command name='run' path='dummy'/>
     <archive href='http://localhost/bar.tgz' size='1000'/>
     <requires interface="odd" use="never"/>
