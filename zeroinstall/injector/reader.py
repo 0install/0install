@@ -76,16 +76,15 @@ def update_from_cache(interface, iface_cache = None):
 
 	return main_feed is not None
 
-def load_feed_from_cache(url, selections_ok = False):
+def load_feed_from_cache(url):
 	"""Load a feed. If the feed is remote, load from the cache. If local, load it directly.
 	@type url: str
-	@type selections_ok: bool
 	@return: the feed, or None if it's remote and not cached.
 	@rtype: L{ZeroInstallFeed} | None"""
 	try:
 		if os.path.isabs(url):
 			logger.debug(_("Loading local feed file '%s'"), url)
-			return load_feed(url, local = True, selections_ok = selections_ok)
+			return load_feed(url, local = True)
 		else:
 			cached = basedir.load_first_cache(config_site, 'interfaces', escape(url))
 			if cached:
@@ -241,14 +240,12 @@ def update(interface, source, local = False, iface_cache = None):
 
 	return feed
 
-def load_feed(source, local = False, selections_ok = False):
+def load_feed(source, local = False):
 	"""Load a feed from a local file.
 	@param source: the name of the file to read
 	@type source: str
 	@param local: this is a local feed
 	@type local: bool
-	@param selections_ok: if it turns out to be a local selections document, return that instead
-	@type selections_ok: bool
 	@return: the new feed
 	@rtype: L{ZeroInstallFeed}
 	@raise InvalidInterface: if the source's syntax is incorrect
@@ -265,9 +262,6 @@ def load_feed(source, local = False, selections_ok = False):
 		raise InvalidInterface(_("Invalid XML"), ex)
 
 	if local:
-		if selections_ok and root.uri == XMLNS_IFACE and root.name == 'selections':
-			from zeroinstall.injector import selections
-			return selections.Selections(root)
 		assert os.path.isabs(source), source
 		local_path = source
 	else:

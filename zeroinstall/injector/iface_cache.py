@@ -215,14 +215,12 @@ class IfaceCache(object):
 
 		self.get_feed(feed_url, force = True)
 
-	def get_feed(self, url, force = False, selections_ok = False):
+	def get_feed(self, url, force = False):
 		"""Get a feed from the cache.
 		@param url: the URL of the feed
 		@type url: str
 		@param force: load the file from disk again
 		@type force: bool
-		@param selections_ok: if url is a local selections file, return that instead
-		@type selections_ok: bool
 		@return: the feed, or None if it isn't cached
 		@rtype: L{model.ZeroInstallFeed}"""
 		if not force:
@@ -236,10 +234,7 @@ class IfaceCache(object):
 				return None	# e.g. when checking a selections document
 			feed = self.distro.get_feed(master_feed)
 		else:
-			feed = reader.load_feed_from_cache(url, selections_ok = selections_ok)
-			if selections_ok and feed and not isinstance(feed, model.ZeroInstallFeed):
-				assert feed.selections is not None
-				return feed	# (it's actually a selections document)
+			feed = reader.load_feed_from_cache(url)
 		if feed:
 			reader.update_user_feed_overrides(feed)
 		self._feeds[url] = feed
