@@ -891,6 +891,10 @@ class TestDownload(BaseTest):
 		assert 'Firefox - Webbrowser' in out, out
 
 	def testLocalArchive(self):
+		def download_impl(impl):
+			b = self.config.fetcher.download_impl(impl, self.config.fetcher.get_best_source(impl), self.config.stores)
+			tasks.wait_for_blocker(b)
+
 		local_iface = os.path.join(mydir, 'LocalArchive.xml')
 		with open(local_iface, 'rb') as stream:
 			root = qdom.parse(stream)
@@ -898,9 +902,8 @@ class TestDownload(BaseTest):
 		# Not local => error
 		feed = model.ZeroInstallFeed(root)
 		impl = feed.implementations['impl1']
-		blocker = self.config.fetcher.download_impls([impl], self.config.stores)
 		try:
-			tasks.wait_for_blocker(blocker)
+			download_impl(impl)
 			assert 0
 		except model.SafeException as ex:
 			assert "Relative URL 'HelloWorld.tgz' in non-local feed" in str(ex), ex
@@ -909,18 +912,16 @@ class TestDownload(BaseTest):
 
 		# Missing file
 		impl2 = feed.implementations['impl2']
-		blocker = self.config.fetcher.download_impls([impl2], self.config.stores)
 		try:
-			tasks.wait_for_blocker(blocker)
+			download_impl(impl2)
 			assert 0
 		except model.SafeException as ex:
 			assert 'tests/IDONTEXIST.tgz' in str(ex), ex
 
 		# Wrong size
 		impl3 = feed.implementations['impl3']
-		blocker = self.config.fetcher.download_impls([impl3], self.config.stores)
 		try:
-			tasks.wait_for_blocker(blocker)
+			download_impl(impl3)
 			assert 0
 		except model.SafeException as ex:
 			assert 'feed says 177, but actually 176 bytes' in str(ex), ex
@@ -936,8 +937,7 @@ class TestDownload(BaseTest):
 		path = self.config.stores.lookup_maybe(impl.digests)
 		assert not path
 
-		blocker = self.config.fetcher.download_impls([impl], self.config.stores)
-		tasks.wait_for_blocker(blocker)
+		download_impl(impl)
 
 		path = self.config.stores.lookup_any(impl.digests)
 		assert os.path.exists(os.path.join(path, 'HelloWorld'))
@@ -948,8 +948,7 @@ class TestDownload(BaseTest):
 		path = self.config.stores.lookup_maybe(impl.digests)
 		assert not path
 
-		blocker = self.config.fetcher.download_impls([impl], self.config.stores)
-		tasks.wait_for_blocker(blocker)
+		download_impl(impl)
 
 		path = self.config.stores.lookup_any(impl.digests)
 		assert os.path.exists(os.path.join(path, 'archive.tgz'))
