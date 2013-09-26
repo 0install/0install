@@ -182,6 +182,10 @@ let set_attribute name value element =
   let pair = ("", name) in
   element.attrs <- (pair, value) :: List.remove_assoc pair element.attrs
 
+let set_attribute_ns ~prefix name value elem =
+  register_prefix elem.doc prefix (fst name);
+  elem.attrs <- (name, value) :: List.remove_assoc name elem.attrs
+
 let reindent root =
   let rec process indent node =
     node.text_before <- indent ^ (trim node.text_before);

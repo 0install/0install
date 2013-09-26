@@ -59,6 +59,11 @@ val get_attribute_opt : Xmlm.name -> element -> string option
 (** Sets the given non-namespaced attribute. *)
 val set_attribute : string -> string -> element -> unit
 
+(** Sets the given namespaced attribute.
+ * A new namespace declaration will be added, by default named [prefix]. If [prefix] is already bound
+ * to a different namespace, a new unique prefix is chosen instead. *)
+val set_attribute_ns : prefix:string -> Xmlm.name -> string -> element -> unit
+
 (** Compare two elements and return -1, 0 or 1.
     Owner document, namespace prefixes, row/column source position and attribute order are ignored. *)
 val compare_nodes : ignore_whitespace:bool -> element -> element -> int
