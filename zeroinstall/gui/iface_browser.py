@@ -17,15 +17,12 @@ ngettext = translation.ngettext
 ICON_SIZE = 20.0
 CELL_TEXT_INDENT = int(ICON_SIZE) + 4
 
-def get_tooltip_text(mainwindow, details, main_feed, model_column):
+def get_tooltip_text(mainwindow, details, model_column):
 	interface = details['interface']
 	if model_column == InterfaceBrowser.INTERFACE_NAME:
 		return _("Full name: %s") % interface
 	elif model_column == InterfaceBrowser.SUMMARY:
-		if main_feed is None or not main_feed.description:
-			return _("(no description available)")
-		first_para = main_feed.description.split('\n\n', 1)[0]
-		return first_para.replace('\n', ' ')
+		return details['summary-tip']
 	elif model_column is None:
 		return _("Click here for more options...")
 
@@ -201,8 +198,7 @@ class InterfaceBrowser(object):
 					row = self.model[path]
 					details = row[InterfaceBrowser.DETAILS]
 					iface = details['interface']
-					main_feed = self.config.iface_cache.get_feed(iface)
-					tooltip.set_text(get_tooltip_text(self, details, main_feed, col))
+					tooltip.set_text(get_tooltip_text(self, details, col))
 				return True
 			else:
 				return False

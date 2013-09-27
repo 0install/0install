@@ -633,9 +633,9 @@ let is_retrievable_without_network cache_impl =
 
 let get_id impl = {feed = get_attr_ex FeedAttr.from_feed impl; id = get_attr_ex FeedAttr.id impl}
 
-let get_summary langs feed =
+let get_text tag langs feed =
   let best = ref None in
-  ZI.iter_with_name feed.root "summary" ~f:(fun elem ->
+  ZI.iter_with_name feed.root tag ~f:(fun elem ->
     let new_score = Support.Locale.score_lang langs (Qdom.get_attribute_opt (xml_ns, FeedAttr.lang) elem) in
     match !best with
     | Some (_old_summary, old_score) when new_score <= old_score -> ()
@@ -644,6 +644,9 @@ let get_summary langs feed =
   match !best with
   | None -> None
   | Some (summary, _score) -> Some summary
+
+let get_summary = get_text "summary"
+let get_description = get_text "description"
 
 let get_feed_targets feed =
   ZI.map feed.root "feed-for" ~f:(fun feed_for ->

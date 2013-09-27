@@ -107,19 +107,30 @@ let get_fetch_info config impl =
     log_warning ~ex "get_fetch_info";
     (`Null, "ERROR", msg)
 
+let first_para text =
+  let first =
+    try
+      let index = Str.search_forward (Str.regexp_string "\n\n") text 0 in
+      String.sub text 0 index
+    with Not_found -> text in
+  Str.global_replace (Str.regexp_string "\n") " " first |> trim
+
 let build_tree config (feed_provider:Feed_cache.feed_provider) old_sels sels : Yojson.Basic.json =
   let rec process_tree (uri, details) =
-    let (name, summary) =
+    let (name, summary, description) =
       match feed_provider#get_feed uri with
       | Some (main_feed, _overrides) ->
-          (main_feed.F.name, default "-" @@ F.get_summary config.langs main_feed);
+          (main_feed.F.name,
+           default "-" @@ F.get_summary config.langs main_feed,
+           F.get_description config.langs main_feed);
       | None ->
-          (uri, "") in
+          (uri, "", None) in
 
     let about_feed = [
       ("interface", `String uri);
       ("name", `String name);
       ("summary", `String summary);
+      ("summary-tip", `String (default "(no description available)" description |> first_para));
     ] in
 
     match details with

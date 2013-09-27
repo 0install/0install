@@ -134,6 +134,7 @@ val is_available_locally : General.config -> implementation -> bool
 val is_retrievable_without_network : cache_impl -> bool
 val get_id : implementation -> global_id
 val get_summary : int Support.Locale.LangMap.t -> feed -> string option
+val get_description : int Support.Locale.LangMap.t -> feed -> string option
 
 (** The <feed-for> elements' interfaces *)
 val get_feed_targets : feed -> General.iface_uri list
