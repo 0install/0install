@@ -12,7 +12,7 @@ from zeroinstall.injector import model
 from zeroinstall.injector.policy import get_deprecated_singleton_config
 from zeroinstall.injector.model import process_binding, process_depends, binding_names, Command
 from zeroinstall.injector.namespaces import XMLNS_IFACE
-from zeroinstall.injector.qdom import Element, Prefixes
+from zeroinstall.injector.qdom import Element
 from zeroinstall.support import basestring
 
 class Selection(object):

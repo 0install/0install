@@ -14,7 +14,7 @@ else:
 
 from zeroinstall import support
 from zeroinstall.gtkui import icon, xdgutils, gtkutils
-from zeroinstall.injector import reader, model, namespaces, selections, qdom
+from zeroinstall.injector import model, namespaces, selections, qdom
 
 gobject = get_loop().gobject
 

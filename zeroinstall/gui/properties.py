@@ -2,12 +2,11 @@
 # See the README file for details, or visit http://0install.net.
 
 import zeroinstall
-import os
 from zeroinstall import _
 from zeroinstall.cmd import slave
 from zeroinstall.support import tasks, unicode
-from zeroinstall.injector.model import Interface, Feed, stable, testing, developer, stability_levels
-from zeroinstall.injector import writer, namespaces, gpg
+from zeroinstall.injector.model import Interface, stable, testing, developer, stability_levels
+from zeroinstall.injector import writer
 from zeroinstall.gtkui import help_box
 
 import gtk
@@ -76,7 +75,7 @@ class Description(object):
 		iter = buffer.get_start_iter()
 
 		if isinstance(details, Exception):
-			buffer.insert(iter, unicode(feed))
+			buffer.insert(iter, unicode(details))
 			return
 
 		for (style, text) in details:
@@ -143,8 +142,6 @@ class Feeds(object):
 
 	@tasks.async
 	def sel_changed(self, sel):
-		iface_cache = self.config.iface_cache
-
 		model, miter = sel.get_selected()
 		if not miter: return	# build in progress
 		# Only enable removing user_override feeds
@@ -267,8 +264,6 @@ class Properties(object):
 @tasks.async
 def add_remote_feed(config, parent, interface):
 	try:
-		iface_cache = config.iface_cache
-
 		d = gtk.MessageDialog(parent, 0, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL,
 			_('Enter the URL of the new source of implementations of this interface:'))
 		d.add_button(gtk.STOCK_ADD, gtk.RESPONSE_OK)

@@ -30,12 +30,12 @@ creating new cache objects.
 
 from __future__ import print_function
 
-import os, sys, time
+import os, time
 
 from zeroinstall import _, logger
-from zeroinstall.support import basedir, portable_rename, raise_with_traceback, unicode
-from zeroinstall.injector import reader, model
-from zeroinstall.injector.namespaces import config_site, config_prog
+from zeroinstall.support import basedir, unicode
+from zeroinstall.injector import reader
+from zeroinstall.injector.namespaces import config_site
 from zeroinstall.injector.model import Interface, escape, unescape
 from zeroinstall import SafeException
 
@@ -155,39 +155,6 @@ class IfaceCache(object):
 		return basedir.load_first_cache(config_site, 'interface_icons',
 						 escape(iface.uri))
 
-	def get_cached_signatures(self, uri):
-		"""Verify the cached interface using GPG.
-		Only new-style XML-signed interfaces retain their signatures in the cache.
-		@param uri: the feed to check
-		@type uri: str
-		@return: a list of signatures, or None
-		@rtype: [L{gpg.Signature}] or None
-		@since: 0.25"""
-		from . import gpg
-		if os.path.isabs(uri):
-			old_iface = uri
-		else:
-			old_iface = basedir.load_first_cache(config_site, 'interfaces', escape(uri))
-			if old_iface is None:
-				return None
-		try:
-			with open(old_iface, 'rb') as stream:
-				return gpg.check_stream(stream)[1]
-		except SafeException as ex:
-			logger.info(_("No signatures (old-style interface): %s") % ex)
-			return None
-
-	def get_last_check_attempt(self, url):
-		"""Return the time of the most recent update attempt for a feed.
-		@type url: str
-		@return: The time, or None if none is recorded
-		@rtype: float | None
-		@see: L{mark_as_checking}"""
-		timestamp_path = basedir.load_first_cache(config_site, config_prog, 'last-check-attempt', model._pretty_escape(url))
-		if timestamp_path:
-			return os.stat(timestamp_path).st_mtime
-		return None
-
 	def get_feed_imports(self, iface):
 		"""Get all feeds that add to this interface.
 		This is the feeds explicitly added by the user, feeds added by the distribution,
@@ -231,27 +198,5 @@ class IfaceCache(object):
 			if feed:
 				impls += feed.implementations.values()
 		return impls
-
-	def get_feed_targets(self, feed):
-		"""Return a list of Interfaces for which feed can be a feed.
-		This is used by B{0install add-feed}.
-		@param feed: the feed
-		@type feed: L{model.ZeroInstallFeed} (or, deprecated, a URL)
-		@rtype: [model.Interface]
-		@raise SafeException: If there are no known feeds.
-		@since: 0.53"""
-
-		if not isinstance(feed, model.ZeroInstallFeed):
-			# (deprecated)
-			feed = self.get_feed(feed)
-			if feed is None:
-				raise SafeException("Feed is not cached and using deprecated API")
-
-		if not feed.feed_for:
-			raise SafeException(_("Missing <feed-for> element in '%s'; "
-					"it can't be used as a feed for any other interface.") % feed.url)
-		feed_targets = feed.feed_for
-		logger.debug(_("Feed targets: %s"), feed_targets)
-		return [self.get_interface(uri) for uri in feed_targets]
 
 iface_cache = IfaceCache()

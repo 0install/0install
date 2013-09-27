@@ -197,7 +197,6 @@ class InterfaceBrowser(object):
 					col = self.columns[col_index][1]
 					row = self.model[path]
 					details = row[InterfaceBrowser.DETAILS]
-					iface = details['interface']
 					tooltip.set_text(get_tooltip_text(self, details, col))
 				return True
 			else:
