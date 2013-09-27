@@ -218,7 +218,7 @@ class fetcher config trust_db (slave:Python.slave) =
       | None -> save_new_xml ()
       | Some old_xml ->
           lwt old_sigs, warnings = G.verify system old_xml in
-          match trust_db#oldest_trusted_sig (Trust.domain_from_url feed_url) old_sigs with
+          match trust_db#oldest_trusted_sig (Trust.domain_from_url feed) old_sigs with
           | None -> raise_safe "Can't check signatures of currently cached feed %s" warnings
           | Some old_modified when old_modified > timestamp ->
               `replay_attack (feed_url, old_modified, timestamp) |> Lwt.return
@@ -228,6 +228,7 @@ class fetcher config trust_db (slave:Python.slave) =
   (** We don't trust any of the signatures yet. Collect information about them and add the keys to the
       trust_db, possibly after confirming with the user. *)
   let confirm_keys feed sigs messages =
+    let `remote_feed feed_url = feed in
     let valid_sigs = U.filter_map sigs ~f:(function
       | G.ValidSig info -> Some info
       | G.BadSig _ | G.ErrSig _ -> None
@@ -239,11 +240,11 @@ class fetcher config trust_db (slave:Python.slave) =
         if messages = "" then ""
         else "\nMessages from GPG:\n" ^ messages in
       raise_safe "No valid signatures found on '%s'. Signatures:%s%s"
-        feed (List.map format_sig sigs |> String.concat "") extra
+        feed_url (List.map format_sig sigs |> String.concat "") extra
     );
 
     let json_sigs = valid_sigs |> List.map (fun info -> `String info.G.fingerprint) in
-    let request = `List [`String "confirm-keys"; `String feed; `List json_sigs] in
+    let request = `List [`String "confirm-keys"; `String feed_url; `List json_sigs] in
     slave#invoke_async request (function
       | `List confirmed_keys ->
           let domain = Trust.domain_from_url feed in
@@ -258,11 +259,11 @@ class fetcher config trust_db (slave:Python.slave) =
     | `problem msg -> raise_safe "Failed to check feed signature: %s" msg
     | `aborted_by_user -> Lwt.return `aborted_by_user
     | `success (sigs, messages) ->
-        match trust_db#oldest_trusted_sig (Trust.domain_from_url feed_url) sigs with
+        match trust_db#oldest_trusted_sig (Trust.domain_from_url feed) sigs with
         | Some timestamp -> update_feed_from_network feed xml timestamp   (* We already trust a signing key *)
         | None ->
-            lwt () = confirm_keys feed_url sigs messages in               (* Confirm keys with user *)
-            match trust_db#oldest_trusted_sig (Trust.domain_from_url feed_url) sigs with
+            lwt () = confirm_keys feed sigs messages in               (* Confirm keys with user *)
+            match trust_db#oldest_trusted_sig (Trust.domain_from_url feed) sigs with
             | Some timestamp -> update_feed_from_network feed xml timestamp
             | None -> Lwt.return `no_trusted_keys
     in

@@ -145,7 +145,7 @@ class trust_db config =
 let re_domain = Str.regexp "^https?://\\([^/]*@\\)?\\([^*/]+\\)/"
 
 (* Extract the trust domain for a URL. *)
-let domain_from_url url =
+let domain_from_url (`remote_feed url) =
   if Str.string_match re_domain url 0 then
     Str.matched_group 2 url
   else

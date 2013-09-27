@@ -79,10 +79,12 @@ let suite = "trust">::: [
   );
 
   "domain">:: (fun () ->
-    assert_equal "example.com:8080" @@ T.domain_from_url "http://fred:bob@example.com:8080/foo";
-    Fake_system.assert_raises_safe "Failed to parse HTTP URL '/tmp/feed.xml'" (lazy (ignore @@ T.domain_from_url "/tmp/feed.xml"));
-    Fake_system.assert_raises_safe "Failed to parse HTTP URL 'http:///foo'" (lazy (ignore @@ T.domain_from_url "http:///foo"));
-    Fake_system.assert_raises_safe "Failed to parse HTTP URL 'http://*/foo'" (lazy (ignore @@ T.domain_from_url "http://*/foo"));
-    Fake_system.assert_raises_safe "Failed to parse HTTP URL ''" (lazy (ignore @@ T.domain_from_url ""));
+    assert_equal "example.com:8080" @@ T.domain_from_url (`remote_feed "http://fred:bob@example.com:8080/foo");
+    let check_fails url =
+      Fake_system.assert_raises_safe ("Failed to parse HTTP URL '" ^ url ^ "'") (lazy (ignore @@ T.domain_from_url (`remote_feed url))) in
+    check_fails "/tmp/feed.xml";
+    check_fails "http:///foo";
+    check_fails "http://*/foo";
+    check_fails "";
   );
 ]

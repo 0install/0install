@@ -340,7 +340,7 @@ let get_feed_description config feed_provider feed_url =
               plain "\n";
               lwt sigs = get_sigs config parsed_url in
               if sigs <> [] then (
-                let domain = Trust.domain_from_url feed_url in
+                let domain = Trust.domain_from_url parsed_url in
                 match trust_db#oldest_trusted_sig domain sigs with
                 | Some last_modified ->
                     plain "Last upstream change: %s\n" (U.format_time @@ Unix.localtime last_modified)
@@ -383,8 +383,8 @@ let get_feed_description config feed_provider feed_url =
 
         match parsed_url with
         | `local_feed _ -> Lwt.return ()
-        | `remote_feed _ ->
-            let domain = Trust.domain_from_url feed_url in
+        | `remote_feed _ as parsed_url ->
+            let domain = Trust.domain_from_url parsed_url in
             heading "\nSignatures\n";
             if sigs = [] then (
               plain "No signature information (old style feed or out-of-date cache)\n";
