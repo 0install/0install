@@ -13,15 +13,6 @@ module F = Zeroinstall.Feed
 module G = Generic_select
 module FC = Zeroinstall.Feed_cache
 
-let make_user_import feed_src =
-  F.({
-    feed_src;
-    feed_os = None;
-    feed_machine = None;
-    feed_langs = None;
-    feed_type = User_registered;
-  })
-
 let edit_feeds config iface mode new_import =
   let print fmt = Support.Utils.print config.system fmt in
   let iface_config = FC.load_iface_config config iface in
@@ -41,7 +32,7 @@ let edit_feeds config iface mode new_import =
 let edit_feeds_interactive config (mode:[`add | `remove]) url =
   let print fmt = Support.Utils.print config.system fmt in
   let feed = FC.get_cached_feed config url |? lazy (failwith "Feed still not cached!") in
-  let new_import = make_user_import url in
+  let new_import = F.make_user_import url in
   match F.get_feed_targets feed with
   | [] -> Q.raise_elem "Missing <feed-for> element; feed can't be used as a feed for any other interface." feed.F.root
   | candidate_interfaces ->
@@ -125,7 +116,7 @@ let handle options flags args =
       let iface = G.canonical_iface_uri config.system iface in
       let feed_src = G.canonical_iface_uri config.system feed_src in
 
-      let new_import = make_user_import feed_src in
+      let new_import = F.make_user_import feed_src in
 
       let iface_config = FC.load_iface_config config iface in
       if List.mem new_import iface_config.FC.extra_feeds then (

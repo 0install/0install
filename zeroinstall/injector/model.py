@@ -1071,13 +1071,6 @@ class Interface(object):
 					    "with 'http:' or 'https:'") % uri)
 		self.reset()
 
-	def _get_feed_for(self):
-		retval = {}
-		for key in self._main_feed.feed_for:
-			retval[key] = True
-		return retval
-	feed_for = property(_get_feed_for)	# Deprecated (used by 0publish)
-
 	def reset(self):
 		self.extra_feeds = []
 		self.stability_policy = None

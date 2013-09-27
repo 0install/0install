@@ -4,6 +4,7 @@
 import zeroinstall
 import os
 from zeroinstall import _
+from zeroinstall.cmd import slave
 from zeroinstall.support import tasks, unicode
 from zeroinstall.injector.model import Interface, Feed, stable, testing, developer, stability_levels
 from zeroinstall.injector import writer, namespaces, gpg
@@ -167,22 +168,21 @@ class Feeds(object):
 		add_local_feed_button.connect('clicked', lambda b: add_local_feed(config, interface))
 
 		self.remove_feed_button = widgets.get_widget('remove_feed')
+		@tasks.async
 		def remove_feed(button):
-			model, iter = self.tv.get_selection().get_selected()
-			feed_uri = model[iter][Feeds.URI]
-			for x in interface.extra_feeds:
-				if x.uri == feed_uri:
-					if x.user_override:
-						interface.extra_feeds.remove(x)
-						writer.save_interface(interface)
-						from zeroinstall.gui import main
-						main.recalculate()
-						return
-					else:
-						dialog.alert(self.remove_feed_button.get_toplevel(),
-							_("Can't remove '%s' as you didn't add it.") % feed_uri)
-						return
-			raise Exception(_("Missing feed '%s'!") % feed_uri)
+			try:
+				model, iter = self.tv.get_selection().get_selected()
+				feed_uri = model[iter][Feeds.URI]
+				blocker = slave.remove_feed(interface.uri, feed_uri)
+				yield blocker
+				tasks.check(blocker)
+				from zeroinstall.gui import main
+				main.recalculate()
+			except Exception as ex:
+				import traceback
+				traceback.print_exc()
+				config.handler.report_error(ex)
+
 		self.remove_feed_button.connect('clicked', remove_feed)
 
 		self.tv = widgets.get_widget('feeds_list')
@@ -308,7 +308,6 @@ class Properties(object):
 	@tasks.async
 	def update(self):
 		try:
-			from zeroinstall.cmd import slave
 			blocker = slave.get_component_details(self.interface.uri)
 			yield blocker
 			tasks.check(blocker)
@@ -367,33 +366,16 @@ def add_remote_feed(config, parent, interface):
 					if not url:
 						raise zeroinstall.SafeException(_('Enter a URL'))
 
-					from zeroinstall.cmd import slave
-					fetch = slave.download_and_import_feed(url)
+					fetch = slave.add_remote_feed(interface.uri, url)
 					if fetch:
 						d.set_sensitive(False)
 						yield fetch
 						d.set_sensitive(True)
 						tasks.check(fetch)
 
-						iface = iface_cache.get_interface(url)
-
-						d.set_sensitive(True)
-						if not iface.name:
-							error(_('Failed to read interface'))
-							return
-						if not iface.feed_for:
-							error(_("Feed '%(feed)s' is not a feed for '%(feed_for)s'.") % {'feed': iface.get_name(), 'feed_for': interface.get_name()})
-						elif interface.uri not in iface.feed_for:
-							error(_("This is not a feed for '%(uri)s'.\nOnly for:\n%(feed_for)s") %
-								{'uri': interface.uri, 'feed_for': '\n'.join(iface.feed_for)})
-						elif iface.uri in [f.uri for f in interface.extra_feeds]:
-							error(_("Feed from '%s' has already been added!") % iface.uri)
-						else:
-							interface.extra_feeds.append(Feed(iface.uri, arch = None, user_override = True))
-							writer.save_interface(interface)
-							d.destroy()
-							from zeroinstall.gui import main
-							main.recalculate()
+						d.destroy()
+						from zeroinstall.gui import main
+						main.recalculate()
 				except zeroinstall.SafeException as ex:
 					error(str(ex))
 			else:
@@ -406,22 +388,14 @@ def add_remote_feed(config, parent, interface):
 
 def add_local_feed(config, interface):
 	chooser = gtk.FileChooserDialog(_('Select XML feed file'), action=gtk.FILE_CHOOSER_ACTION_OPEN, buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+	@tasks.async
 	def ok(feed, config = config, interface = interface, chooser = chooser):
-		from zeroinstall.injector import reader
 		try:
-			feed_targets = config.iface_cache.get_feed_targets(feed)
-			if interface not in feed_targets:
-				raise Exception(_("Not a valid feed for '%(uri)s'; this is a feed for:\n%(feed_for)s") %
-						{'uri': interface.uri,
-						'feed_for': '\n'.join([f.uri for f in feed_targets])})
-			if feed in [f.uri for f in interface.extra_feeds]:
-				dialog.alert(None, _('This feed is already registered.'))
-			else:
-				interface.extra_feeds.append(Feed(feed, user_override = True, arch = None))
+			blocker = slave.add_local_feed(interface.uri, feed)
+			yield blocker
+			tasks.check(blocker)
 
-			writer.save_interface(interface)
 			chooser.destroy()
-			reader.update_from_cache(interface)
 			from zeroinstall.gui import main
 			main.recalculate()
 		except Exception as ex:

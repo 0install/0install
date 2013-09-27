@@ -25,7 +25,7 @@ let handle options flags args =
   | [iface; feed_src] ->
       let iface = G.canonical_iface_uri config.system iface in
       let feed_src = G.canonical_iface_uri config.system feed_src in
-      let user_import = Add_feed.make_user_import feed_src in
+      let user_import = Zeroinstall.Feed.make_user_import feed_src in
 
       let iface_config = FC.load_iface_config config iface in
       if not (List.mem user_import iface_config.FC.extra_feeds) then (

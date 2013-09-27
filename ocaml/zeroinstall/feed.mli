@@ -137,3 +137,4 @@ val get_summary : int Support.Locale.LangMap.t -> feed -> string option
 
 (** The <feed-for> elements' interfaces *)
 val get_feed_targets : feed -> General.iface_uri list
+val make_user_import : General.feed_url -> feed_import

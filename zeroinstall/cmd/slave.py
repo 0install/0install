@@ -499,8 +499,14 @@ def run_test():
 def download_archives():
 	return invoke_master(["download-archives"])
 
-def download_and_import_feed(url):
-	return invoke_master(["download-and-import-feed", url])
+def add_remote_feed(iface, url):
+	return invoke_master(["add-remote-feed", iface, url])
+
+def add_local_feed(iface, url):
+	return invoke_master(["add-local-feed", iface, url])
+
+def remove_feed(iface, url):
+	return invoke_master(["remove-feed", iface, url])
 
 def start_timeout(timeout):
 	return invoke_master(["start-timeout", timeout])

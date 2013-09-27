@@ -649,3 +649,11 @@ let get_feed_targets feed =
   ZI.map feed.root "feed-for" ~f:(fun feed_for ->
     ZI.get_attribute FeedAttr.interface feed_for
   )
+
+let make_user_import feed_src = {
+  feed_src;
+  feed_os = None;
+  feed_machine = None;
+  feed_langs = None;
+  feed_type = User_registered;
+}
