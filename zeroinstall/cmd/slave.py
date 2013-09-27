@@ -301,13 +301,20 @@ def do_confirm_keys(config, ticket, args):
 def do_download_url(config, ticket, args):
 	try:
 		if gui_driver is not None: config = gui_driver.config
-		url, hint, timeout = args
-		dl = config.fetcher.download_url(url, hint = hint, timeout = timeout, auto_delete = False)
+		url, hint, timeout, modtime = args
+
+		if modtime:
+			from email.utils import formatdate
+			modtime = formatdate(timeval = int(modtime), localtime = False, usegmt = True)
+
+		dl = config.fetcher.download_url(url, hint = hint, timeout = timeout, auto_delete = False, modification_time = modtime)
 		name = dl.tempfile.name
 		yield dl.downloaded
 		tasks.check(dl.downloaded)
-		# (return it because in dry-run mode it won't be in the cache)
-		send_json(["return", ticket, ["ok", ["success", name]]])
+		if dl.unmodified:
+			send_json(["return", ticket, ["ok", "unmodified"]])
+		else:
+			send_json(["return", ticket, ["ok", ["success", name]]])
 	except download.DownloadAborted as ex:
 		send_json(["return", ticket, ["ok", "aborted-by-user"]])
 	except NoTrustedKeys as ex:

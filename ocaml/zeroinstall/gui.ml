@@ -7,6 +7,7 @@
 open General
 open Support.Common
 
+module Basedir = Support.Basedir
 module FeedAttr = Constants.FeedAttr
 module F = Feed
 module R = Requirements
@@ -310,6 +311,59 @@ let get_sigs config url =
         Lwt.return sigs
       ) else Lwt.return []
 
+(** Download an icon for this feed and add it to the
+    icon cache. If the feed has no icon do nothing. *)
+let download_icon config (fetcher:Fetch.fetcher) feed_provider feed_url =
+  log_debug "download_icon %s" feed_url;
+
+  let system = config.system in
+
+  let modification_time =
+    match Feed_cache.get_cached_icon_path config feed_url with
+    | None -> None
+    | Some existing_icon ->
+        match system#stat existing_icon with
+        | None -> None
+        | Some info -> Some info.Unix.st_mtime in
+(*
+        from email.utils import formatdate
+        modification_time = formatdate(timeval = file_mtime, localtime = False, usegmt = True)
+*)
+
+  let icon_url =
+    match feed_provider#get_feed feed_url with
+    | None -> None
+    | Some (feed, _) ->
+        (* Find a suitable icon to download *)
+        feed.F.root.Q.child_nodes |> U.first_match ~f:(fun child ->
+          match ZI.tag child with
+          | Some "icon" -> (
+              match ZI.get_attribute_opt "type" child with
+              | Some "image/png" -> ZI.get_attribute_opt "href" child
+              | _ -> log_debug "Skipping non-PNG icon"; None
+          )
+          | _ -> None
+        ) in
+
+  match icon_url with
+  | None -> log_info "No PNG icons found in %s" feed_url; Lwt.return `Null
+  | Some href ->
+      match_lwt fetcher#download_url_if_modified ?modification_time ~hint:feed_url href with
+      | `aborted_by_user -> Lwt.return `Null
+      | `unmodified -> Lwt.return `Null
+      | `tmpfile tmpfile ->
+          try
+            let icons_cache = Basedir.save_path system cache_icons config.basedirs.Basedir.cache in
+            let icon_file = icons_cache +/ Escape.escape feed_url in
+            system#with_open_in [Open_rdonly;Open_binary] 0 tmpfile (function ic ->
+              system#atomic_write [Open_wronly;Open_binary] icon_file ~mode:0o644 (U.copy_channel ic)
+            );
+            system#unlink tmpfile;
+            Lwt.return `Null
+          with ex ->
+            system#unlink tmpfile;
+            raise ex
+
 (** The formatted text for the details panel in the interface properties box. *)
 let get_feed_description config feed_provider feed_url =
   let trust_db = new Trust.trust_db config in
@@ -540,6 +594,11 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
     Python.register_handler "get-feed-description" (function
       | [`String feed_url] -> get_feed_description config !feed_provider feed_url
       | json -> raise_safe "get-feed-description: invalid request: %s" (Yojson.Basic.to_string (`List json))
+    );
+
+    Python.register_handler "download-icon" (function
+      | [`String feed_url] -> download_icon config fetcher !feed_provider feed_url
+      | json -> raise_safe "download-icon: invalid request: %s" (Yojson.Basic.to_string (`List json))
     );
 
     Python.register_handler "get-bug-report-details" (function

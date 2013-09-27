@@ -390,66 +390,6 @@ class Fetcher(object):
 		dl.expected_size = download_source.size
 		return (dl.downloaded, dl.tempfile)
 
-	# (force is deprecated and ignored)
-	def download_icon(self, interface, force = False):
-		"""Download an icon for this interface and add it to the
-		icon cache. If the interface has no icon do nothing.
-		@type interface: L{zeroinstall.injector.model.Interface}
-		@type force: bool
-		@return: the task doing the import, or None
-		@rtype: L{tasks.Task}"""
-		logger.debug("download_icon %(interface)s", {'interface': interface})
-
-		modification_time = None
-		existing_icon = self.config.iface_cache.get_icon_path(interface)
-		if existing_icon:
-			file_mtime = os.stat(existing_icon).st_mtime
-			from email.utils import formatdate
-			modification_time = formatdate(timeval = file_mtime, localtime = False, usegmt = True)
-
-		feed = self.config.iface_cache.get_feed(interface.uri)
-		if feed is None:
-			return None
-
-		# Find a suitable icon to download
-		for icon in feed.get_metadata(XMLNS_IFACE, 'icon'):
-			type = icon.getAttribute('type')
-			if type != 'image/png':
-				logger.debug(_('Skipping non-PNG icon'))
-				continue
-			source = icon.getAttribute('href')
-			if source:
-				break
-			logger.warning(_('Missing "href" attribute on <icon> in %s'), interface)
-		else:
-			logger.info(_('No PNG icons found in %s'), interface)
-			return
-
-		dl = self.download_url(source, hint = interface.uri, modification_time = modification_time)
-
-		@tasks.async
-		def download_and_add_icon():
-			stream = dl.tempfile
-			try:
-				yield dl.downloaded
-				tasks.check(dl.downloaded)
-				if dl.unmodified: return
-				stream.seek(0)
-
-				import shutil, tempfile
-				icons_cache = basedir.save_cache_path(config_site, 'interface_icons')
-
-				tmp_file = tempfile.NamedTemporaryFile(dir = icons_cache, delete = False)
-				shutil.copyfileobj(stream, tmp_file)
-				tmp_file.close()
-
-				icon_file = os.path.join(icons_cache, escape(interface.uri))
-				portable_rename(tmp_file.name, icon_file)
-			finally:
-				stream.close()
-
-		return download_and_add_icon()
-
 	def get_best_source(self, impl):
 		"""Return the best download source for this implementation.
 		@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}

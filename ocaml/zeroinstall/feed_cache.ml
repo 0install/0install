@@ -41,6 +41,9 @@ let get_save_cache_path config (`remote_feed url) =
   let dir = Support.Basedir.save_path config.system (config_site +/ "interfaces") cache in
   dir +/ Escape.escape url
 
+let get_cached_icon_path config feed_url =
+  Basedir.load_first config.system (cache_icons +/ Escape.escape feed_url) config.basedirs.Basedir.cache
+
 (** Actually, we list all the cached feeds. Close enough. *)
 let list_all_interfaces config =
   let interfaces = ref StringSet.empty in

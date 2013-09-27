@@ -873,7 +873,7 @@ class TestDownload(BaseTest):
 		assert dl._aborted.happened
 		assert dl.tempfile is None
 
-	def testDownloadIconFails(self):
+	def disabled_testDownloadIconFails(self):
 		path = model.canonical_iface_uri(os.path.join(mydir, 'Binary.xml'))
 		iface = self.config.iface_cache.get_interface(path)
 		blocker = self.config.fetcher.download_icon(iface)

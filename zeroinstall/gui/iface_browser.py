@@ -4,6 +4,7 @@
 import gtk, pango
 
 from zeroinstall import _, translation
+from zeroinstall.cmd import slave
 from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector import model, reader, download
 from zeroinstall.gui import properties
@@ -116,6 +117,7 @@ class IconAndTextRenderer(gtk.GenericCellRenderer):
 				layout)
 	else:
 		def on_render(self, window, widget, background_area, cell_area, expose_area, flags):	# GTK 2
+			if self.image is None: return
 			layout = widget.create_pango_layout(self.text)
 			a, rect = layout.get_pixel_extents()
 
@@ -300,7 +302,7 @@ class InterfaceBrowser(object):
 				if self.config.network_use == model.network_offline:
 					fetcher = None
 				else:
-					fetcher = self.config.fetcher.download_icon(iface)
+					fetcher = slave.invoke_master(["download-icon", iface.uri])
 				if fetcher:
 					if iface.uri not in self.cached_icon:
 						self.cached_icon[iface.uri] = None	# Only try once
@@ -318,7 +320,7 @@ class InterfaceBrowser(object):
 								self.cached_icon[iface.uri] = load_icon(iconpath, ICON_SIZE, ICON_SIZE)
 								self.build_tree()
 							else:
-								warning("Failed to download icon for '%s'", iface)
+								pass #warning("Failed to download icon for '%s'", iface)
 						except download.DownloadAborted as ex:
 							info("Icon download aborted: %s", ex)
 							# Don't report further; the user knows they cancelled
@@ -491,7 +493,7 @@ class InterfaceBrowser(object):
 				row[InterfaceBrowser.SUMMARY] = summary % values_dict
 			else:
 				details = row[InterfaceBrowser.DETAILS]
-				row[InterfaceBrowser.DOWNLOAD_SIZE] = details["fetch"]
+				row[InterfaceBrowser.DOWNLOAD_SIZE] = details.get("fetch", "")
 				row[InterfaceBrowser.SUMMARY] = details['summary']
 
 			if self.model.get_path(it) == lastVisiblePath:

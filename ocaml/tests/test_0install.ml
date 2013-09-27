@@ -84,7 +84,7 @@ class fake_slave config =
     | `List [`String "confirm-keys"; `String _url; `List fingerprints] ->
         assert (fingerprints <> []);
         Some (`List [`String "ok"; `List fingerprints] |> Lwt.return)
-    | `List [`String "download-url"; `String url; `String _hint; timeout] ->
+    | `List [`String "download-url"; `String url; `String _hint; timeout; `Null] ->
         let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
         if timeout <> `Null then
           ignore @@ start_timeout [timeout];
@@ -303,7 +303,7 @@ let suite = "0install">::: [
     (* --dry-run must prevent us from using the GUI *)
     fake_system#putenv "DISPLAY" ":foo";
     Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
-      | `List [`String "download-url"; `String "http://foo/d"; `String _hint; `String _timeout] -> raise Ok
+      | `List [`String "download-url"; `String "http://foo/d"; `String _hint; `String _timeout; `Null] -> raise Ok
       | json -> failwith (Yojson.Basic.to_string json)
     );
     try ignore @@ run ["run"; "--dry-run"; "--refresh"; "http://foo/d"]; assert false

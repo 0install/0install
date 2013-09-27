@@ -52,6 +52,7 @@ let data_site_packages = config_site +/ "site-packages"     (* 0compile builds, 
 let data_native_feeds = config_site +/ "native_feeds"       (* Feeds provided by distribution packages (rare) *)
 
 let cache_last_check_attempt = config_site +/ config_prog +/ "last-check-attempt"
+let cache_icons = config_site +/ "interface_icons"
 
 (** {2 The 0install XML namespace} *)
 

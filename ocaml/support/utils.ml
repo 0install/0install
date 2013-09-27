@@ -356,22 +356,24 @@ let rmtree ~even_if_locked (sys:system) root =
     rmtree root
   with Safe_exception _ as ex -> reraise_with_context ex "... trying to delete directory %s" root
 
+(** Copy from [ic] to [oc] until [End_of_file] *)
+let copy_channel ic oc =
+  let bufsize = 4096 in
+  let buf = String.create bufsize in
+  try
+    while true do
+      let got = input ic buf 0 bufsize in
+      if got = 0 then raise End_of_file;
+      assert (got > 0);
+      output oc buf 0 got
+    done
+  with End_of_file -> ()
+
 (** Copy [source] to [dest]. Error if [dest] already exists. *)
 let copy_file (system:system) source dest mode =
   try
     system#with_open_in [Open_rdonly;Open_binary] 0 source (function ic ->
-      system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] mode dest (function oc ->
-        let bufsize = 4096 in
-        let buf = String.create bufsize in
-        try
-          while true do
-            let got = input ic buf 0 bufsize in
-            if got = 0 then raise End_of_file;
-            assert (got > 0);
-            output oc buf 0 got
-          done
-        with End_of_file -> ()
-      )
+      system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] mode dest (copy_channel ic)
     )
   with Safe_exception _ as ex -> reraise_with_context ex "... copying %s to %s" source dest
 

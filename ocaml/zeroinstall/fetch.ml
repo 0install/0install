@@ -61,6 +61,11 @@ let rec join_errors = function
 
 exception Aborted
 
+type download_result =
+ [ `unmodified
+ | `aborted_by_user
+ | `tmpfile of Support.Common.filepath ]
+
 class fetcher config trust_db (slave:Python.slave) =
   let system = config.system in
 
@@ -78,24 +83,36 @@ class fetcher config trust_db (slave:Python.slave) =
    * @param timeout_ticket a timer to start when the download starts (it will be queued first)
    * @hint a tag to attach to the download (used by the GUI to associate downloads with feeds)
    *)
-  let download_url ?timeout_ticket ~hint url =
+  let download_url_if_modified ?modification_time ?timeout_ticket ~hint url =
     let timeout_ticket =
       match timeout_ticket with
       | None -> `Null
       | Some ticket -> `String ticket in
+
+    let modification_time =
+      match modification_time with
+      | None -> `Null
+      | Some time -> `Float time in
 
     let request = `List [
       `String "download-url";
       `String url;
       `String hint;
       timeout_ticket;
+      modification_time;
     ] in
 
     slave#invoke_async request (function
       | `List [`String "success"; `String tmpname] -> `tmpfile tmpname
       | `String "aborted-by-user" -> `aborted_by_user
+      | `String "unmodified" -> `unmodified
       | _ -> raise_safe "Invalid JSON response"
     ) in
+
+  let download_url ?timeout_ticket ~hint url =
+    match_lwt download_url_if_modified ?timeout_ticket ~hint url with
+    | `unmodified -> assert false
+    | (`aborted_by_user | `tmpfile _ ) as result -> Lwt.return result in
 
   (** Check the GPG signatures on [tmpfile]. If any keys are missing, download and import them.
    * Returns a non-empty list of valid (though maybe not trusted) signatures, or a suitable error.
@@ -496,4 +513,7 @@ class fetcher config trust_db (slave:Python.slave) =
       match_lwt import_feed ~mirror_used:None feed_url xml with
       | `ok _ -> Lwt.return ()
       | (`aborted_by_user | `no_trusted_keys | `replay_attack _) as r -> raise_safe "%s" (string_of_result r)
+
+    method download_url_if_modified ?modification_time ~hint url : download_result Lwt.t =
+      download_url_if_modified ?modification_time ~hint url
   end

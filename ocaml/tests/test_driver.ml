@@ -24,7 +24,7 @@ class fake_slave config handler : Python.slave =
       ignore xml;
       log_info "invoke_async: %s" (Yojson.Basic.to_string request);
       match request with
-      | `List [`String "download-url"; `String url; `String _hint; timeout] ->
+      | `List [`String "download-url"; `String url; `String _hint; timeout; `Null] ->
           let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
           ignore @@ start_timeout [timeout];
           Lwt.return @@ parse_fn @@ handler#download_url url
@@ -51,6 +51,8 @@ let fake_fetcher config handler =
       handler#download_impls impls |> Lwt.return
 
     method import_feed = failwith "import_feed"
+
+    method download_url_if_modified = failwith "download_url_if_modified"
   end
 
 (** Parse a test-case in driven.xml *)
@@ -251,6 +253,7 @@ let suite = "driver">::: [
         method download_and_import_feed (`remote_feed url) = raise_safe "download_and_import_feed: %s" url
         method download_impls = failwith "download_impls"
         method import_feed = failwith "import_feed"
+        method download_url_if_modified = failwith "download_url_if_modified"
       end in
     let slave = new Zeroinstall.Python.slave config in
     let driver = new Driver.driver config fetcher distro slave in
