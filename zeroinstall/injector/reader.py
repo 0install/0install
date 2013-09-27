@@ -70,12 +70,6 @@ def update_from_cache(interface, iface_cache = None):
 
 	update_user_overrides(interface, known_site_feeds)
 
-	main_feed = iface_cache.get_feed(interface.uri, force = True)
-	if main_feed:
-		update_user_feed_overrides(main_feed)
-
-	return main_feed is not None
-
 def load_feed_from_cache(url):
 	"""Load a feed. If the feed is remote, load from the cache. If local, load it directly.
 	@type url: str
