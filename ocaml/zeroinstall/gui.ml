@@ -296,6 +296,115 @@ let list_impls config (results:Solver.result) iface =
            * we return nothing, which will cause the GUI to shade the dialog. *)
           []
 
+let format_para para =
+  para |> Str.split (Str.regexp_string "\n") |> List.map trim |> String.concat " "
+
+let get_sigs config url =
+  match Feed_cache.get_cached_feed_path config url with
+  | None -> Lwt.return []
+  | Some cache_path ->
+      if config.system#file_exists cache_path then (
+        let xml = U.read_file config.system cache_path in
+        lwt sigs, warnings = Support.Gpg.verify config.system xml in
+        if warnings <> "" then log_info "get_last_modified: %s" warnings;
+        Lwt.return sigs
+      ) else Lwt.return []
+
+(** The formatted text for the details panel in the interface properties box. *)
+let get_feed_description config feed_provider feed_url =
+  let trust_db = new Trust.trust_db config in
+  let output = ref [] in
+  let style name fmt =
+    let do_print msg = output := `List [`String name; `String msg] :: !output in
+    Printf.ksprintf do_print fmt in
+  let heading fmt = style "heading" fmt in
+  let plain fmt = style "plain" fmt in
+
+  lwt () =
+    match feed_provider#get_feed feed_url with
+    | None -> plain "Not yet downloaded."; Lwt.return ()
+    | Some (feed, overrides) ->
+        heading "%s" feed.F.name;
+        plain " (%s)" (default "-" @@ F.get_summary config.langs feed);
+        plain "\n%s\n" feed_url;
+
+        let parsed_url =
+          match Feed_cache.parse_feed_url feed_url with
+          | `remote_feed _ | `local_feed _ as parsed -> parsed
+          | `distribution_feed _ -> raise_safe "Distribution feeds shouldn't appear in the GUI!" in
+
+        lwt sigs =
+          match parsed_url with
+          | `local_feed _ -> Lwt.return []
+          | `remote_feed _ as parsed_url ->
+              plain "\n";
+              lwt sigs = get_sigs config parsed_url in
+              if sigs <> [] then (
+                let domain = Trust.domain_from_url feed_url in
+                match trust_db#oldest_trusted_sig domain sigs with
+                | Some last_modified ->
+                    plain "Last upstream change: %s\n" (U.format_time @@ Unix.localtime last_modified)
+                | None -> ()
+              );
+
+              let () =
+                match overrides.F.last_checked with
+                | Some last_checked ->
+                    plain "Last checked: %s\n" (U.format_time @@ Unix.localtime last_checked)
+                | None -> () in
+
+              let () =
+                match Feed_cache.get_last_check_attempt config feed_url, overrides.F.last_checked with
+                (* Don't bother reporting successful attempts *)
+                | Some last_check_attempt, Some last_checked when last_check_attempt > last_checked ->
+                    plain "Last check attempt: %s (failed or in progress)\n" (U.format_time @@ Unix.localtime last_check_attempt)
+                | _ -> () in
+              Lwt.return sigs in
+
+        heading "\nDescription\n";
+
+        let description =
+          match F.get_description config.langs feed with
+          | Some description ->
+              Str.split (Str.regexp_string "\n\n") description |> List.map format_para |> String.concat "\n\n"
+          | None -> "-" in
+
+        plain "%s\n" description;
+
+        let need_gap = ref true in
+        ZI.iter_with_name feed.F.root "homepage" ~f:(fun homepage ->
+          if !need_gap then (
+            plain "\n";
+            need_gap := false
+          );
+          plain "Homepage: ";
+          style "link" "%s\n" homepage.Q.last_text_inside;
+        );
+
+        match parsed_url with
+        | `local_feed _ -> Lwt.return ()
+        | `remote_feed _ ->
+            let domain = Trust.domain_from_url feed_url in
+            heading "\nSignatures\n";
+            if sigs = [] then (
+              plain "No signature information (old style feed or out-of-date cache)\n";
+              Lwt.return ()
+            ) else (
+              let module G = Support.Gpg in
+              sigs |> Lwt_list.iter_s (function
+                | G.ValidSig {G.fingerprint; G.timestamp} ->
+                    lwt name = G.get_key_name config.system fingerprint in
+                    plain "Valid signature by '%s'\n- Dated: %s\n- Fingerprint: %s\n"
+                            (default "<unknown>" name) (U.format_time @@ Unix.localtime timestamp) fingerprint;
+                    if not (trust_db#is_trusted ~domain fingerprint) then (
+                      plain "WARNING: This key is not in the trusted list (either you removed it, or you trust one of the other signatures)\n"
+                    );
+                    Lwt.return ()
+                | other_sig -> plain "%s\n" (G.string_of_sig other_sig); Lwt.return ()
+              )
+            ) in
+  `List (List.rev !output) |> Lwt.return
+
 (** Download the archives. Called when the user clicks the 'Run' button. *)
 let download_archives ~feed_provider driver = function
   | (false, _) -> raise_safe "Can't download archives; solve failed!"
@@ -407,6 +516,11 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
           | `Download_only | `Select_for_run -> download_archives ~feed_provider:!feed_provider driver !results
       )
       | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
+    );
+
+    Python.register_handler "get-feed-description" (function
+      | [`String feed_url] -> get_feed_description config !feed_provider feed_url
+      | json -> raise_safe "get-feed-description: invalid request: %s" (Yojson.Basic.to_string (`List json))
     );
 
     Python.register_handler "get-bug-report-details" (function

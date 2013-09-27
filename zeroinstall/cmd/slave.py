@@ -487,6 +487,9 @@ def invoke_master(request):
 def get_component_details(interface_uri):
 	return invoke_master(["get-component-details", interface_uri])
 
+def get_feed_description(feed_url):
+	return invoke_master(["get-feed-description", feed_url])
+
 def justify_decision(iface, feed, impl_id):
 	return invoke_master(["justify-decision", iface, feed, impl_id])
 

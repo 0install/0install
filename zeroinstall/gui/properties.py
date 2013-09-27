@@ -20,10 +20,6 @@ from zeroinstall.gui import dialog
 
 _dialogs = {}	# Interface -> Properties
 
-def format_para(para):
-	lines = [l.strip() for l in para.split('\n')]
-	return ' '.join(lines)
-
 def have_source_for(config, interface):
 	iface_cache = config.iface_cache
 	# Note: we don't want to actually fetch the source interfaces at
@@ -71,7 +67,7 @@ class Description(object):
 		except (ImportError, ValueError):
 			return time.ctime(secs)
 
-	def set_details(self, iface_cache, feed):
+	def set_details(self, details):
 		buffer = self.buffer
 		heading_style = self.heading_style
 
@@ -79,74 +75,17 @@ class Description(object):
 
 		iter = buffer.get_start_iter()
 
-		if feed is None:
-			buffer.insert(iter, 'Not yet downloaded.')
-			return
-
-		if isinstance(feed, Exception):
+		if isinstance(details, Exception):
 			buffer.insert(iter, unicode(feed))
 			return
 
-		buffer.insert_with_tags(iter,
-			'%s ' % feed.get_name(), heading_style)
-		buffer.insert(iter, '(%s)' % feed.summary)
-
-		buffer.insert(iter, '\n%s\n' % feed.url)
-
-		# (converts to local time)
-		if feed.last_modified:
-			buffer.insert(iter, '\n' + _('Last upstream change: %s') % self.strtime(feed.last_modified))
-
-		if feed.last_checked:
-			buffer.insert(iter, '\n' + _('Last checked: %s') % self.strtime(feed.last_checked))
-
-		last_check_attempt = iface_cache.get_last_check_attempt(feed.url)
-		if last_check_attempt:
-			if feed.last_checked and feed.last_checked >= last_check_attempt:
-				pass	# Don't bother reporting successful attempts
+		for (style, text) in details:
+			if style == 'heading':
+				buffer.insert_with_tags(iter, text, heading_style)
+			elif style == 'link':
+				buffer.insert_with_tags(iter, text, self.link_style)
 			else:
-				buffer.insert(iter, '\n' + _('Last check attempt: %s (failed or in progress)') %
-						self.strtime(last_check_attempt))
-
-		buffer.insert_with_tags(iter, '\n\n' + _('Description') + '\n', heading_style)
-
-		paragraphs = [format_para(p) for p in (feed.description or "-").split('\n\n')]
-
-		buffer.insert(iter, '\n\n'.join(paragraphs))
-		buffer.insert(iter, '\n')
-
-		need_gap = True
-		for x in feed.get_metadata(namespaces.XMLNS_IFACE, 'homepage'):
-			if need_gap:
-				buffer.insert(iter, '\n')
-				need_gap = False
-			buffer.insert(iter, _('Homepage: '))
-			buffer.insert_with_tags(iter, '%s\n' % x.content, self.link_style)
-
-		if feed.local_path is None:
-			buffer.insert_with_tags(iter, '\n' + _('Signatures') + '\n', heading_style)
-			sigs = iface_cache.get_cached_signatures(feed.url)
-			if sigs:
-				for sig in sigs:
-					if isinstance(sig, gpg.ValidSig):
-						name = _('<unknown>')
-						details = sig.get_details()
-						for item in details:
-							if item[0] == 'uid' and len(item) > 9:
-								name = item[9]
-								break
-						buffer.insert_with_tags(iter, _('Valid signature by "%(name)s"\n- Dated: %(sig_date)s\n- Fingerprint: %(sig_fingerprint)s\n') %
-								{'name': name, 'sig_date': time.strftime('%c', time.localtime(sig.get_timestamp())), 'sig_fingerprint': sig.fingerprint})
-						if not sig.is_trusted():
-							if os.path.isabs(feed.url):
-								buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list') + '\n')
-							else:
-								buffer.insert_with_tags(iter, _('WARNING: This key is not in the trusted list (either you removed it, or '
-												'you trust one of the other signatures)') + '\n')
-					else:
-						buffer.insert_with_tags(iter, '%s\n' % sig)
-			else:
-				buffer.insert_with_tags(iter, _('No signature information (old style feed or out-of-date cache)') + '\n')
+				buffer.insert(iter, text)
 
 class Feeds(object):
 	URI = 0
@@ -202,6 +141,7 @@ class Feeds(object):
 		feeds = details['feeds']
 		return [(feed['url'], feed['arch'], feed['type'] == 'user-registered') for feed in feeds]
 
+	@tasks.async
 	def sel_changed(self, sel):
 		iface_cache = self.config.iface_cache
 
@@ -211,10 +151,15 @@ class Feeds(object):
 		enable_remove = model[miter][Feeds.USER]
 		self.remove_feed_button.set_sensitive(enable_remove)
 		feed_url = model[miter][Feeds.URI]
+
 		try:
-			self.description.set_details(iface_cache, iface_cache.get_feed(feed_url))
-		except zeroinstall.SafeException as ex:
-			self.description.set_details(iface_cache, ex)
+			blocker = slave.get_feed_description(feed_url)
+			yield blocker
+			tasks.check(blocker)
+			self.description.set_details(blocker.result)
+		except Exception as ex:
+			warning("sel_changed", exc_info = ex)
+			self.description.set_details(ex)
 	
 	def updated(self, details):
 		new_lines = self.build_model(details)
