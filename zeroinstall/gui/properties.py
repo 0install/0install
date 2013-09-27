@@ -406,7 +406,7 @@ def add_remote_feed(config, parent, interface):
 
 def add_local_feed(config, interface):
 	chooser = gtk.FileChooserDialog(_('Select XML feed file'), action=gtk.FILE_CHOOSER_ACTION_OPEN, buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
-	def ok(feed):
+	def ok(feed, config = config, interface = interface, chooser = chooser):
 		from zeroinstall.injector import reader
 		try:
 			feed_targets = config.iface_cache.get_feed_targets(feed)
