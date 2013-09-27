@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import with_statement
 from basetest import BaseTest, StringIO, BytesIO
-import sys, tempfile, os
+import sys, tempfile, os, shutil
 import unittest
 import logging, warnings
 from logging import getLogger, WARN, ERROR
@@ -562,10 +562,12 @@ class TestDownload(BaseTest):
 			try:
 				sys.stdout = StringIO()
 				getLogger().setLevel(ERROR)
+
 				iface = self.config.iface_cache.get_interface('http://example.com:8000/Hello.xml')
-				mtime = int(os.stat('Hello-new.xml').st_mtime)
-				with open('Hello-new.xml', 'rb') as stream:
-					self.config.iface_cache.update_feed_from_network(iface.uri, stream.read(), mtime + 10000)
+				upstream_dir = basedir.save_cache_path(namespaces.config_site, 'interfaces')
+				cached = os.path.join(upstream_dir, model.escape(iface.uri))
+
+				shutil.copyfile('Hello-new.xml', cached)
 
 				trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
 				run_server(server.Give404('/Hello.xml'), 'latest.xml', '/0mirror/keys/6FCF121BE2390E0B.gpg', 'Hello.xml')

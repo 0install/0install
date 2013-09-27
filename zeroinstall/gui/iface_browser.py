@@ -503,8 +503,6 @@ class InterfaceBrowser(object):
 					values_dict = {'downloaded': pretty_size(so_far), 'number': len(downloads)}
 				row[InterfaceBrowser.SUMMARY] = summary % values_dict
 			else:
-				feed = iface_cache.get_feed(iface.uri)
-
 				details = row[InterfaceBrowser.DETAILS]
 				if 'id' in details:
 					impl = utils.get_impl(self.config, details)
@@ -512,7 +510,7 @@ class InterfaceBrowser(object):
 					impl = None
 
 				row[InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.config, impl)
-				row[InterfaceBrowser.SUMMARY] = feed.summary if feed else "-"
+				row[InterfaceBrowser.SUMMARY] = details['summary']
 
 			if self.model.get_path(it) == lastVisiblePath:
 				break
