@@ -258,15 +258,15 @@ class InterfaceBrowser(object):
 			if (bev.button == 3 or (bev.button < 4 and col is menu_column)) \
 			   and bev.type == gtk.gdk.BUTTON_PRESS:
 				selection.select_path(path)
-				iface = self.model[path][InterfaceBrowser.DETAILS]['interface']
-				self.show_popup_menu(iface, bev)
+				details = self.model[path][InterfaceBrowser.DETAILS]
+				self.show_popup_menu(details, bev)
 				return True
 			if bev.button != 1 or bev.type != gtk.gdk._2BUTTON_PRESS:
 				return False
 			details = self.model[path][InterfaceBrowser.DETAILS]
 			iface_uri = details['interface']
 			iface = self.config.iface_cache.get_interface(iface_uri)
-			properties.edit(driver, iface, self.compile, show_versions = True)
+			properties.edit(driver, iface, details['name'], self.compile, show_versions = True)
 		tree_view.connect('button-press-event', button_press)
 
 		tree_view.connect('destroy', lambda s: driver.watchers.remove(self.build_tree))
@@ -386,7 +386,10 @@ class InterfaceBrowser(object):
 			warning("Failed to build tree: %s", ex, exc_info = ex)
 			raise
 
-	def show_popup_menu(self, iface_uri, bev):
+	def show_popup_menu(self, details, bev):
+		iface_uri = details['interface']
+		iface_name = details['name']
+
 		from zeroinstall.gui import bugs
 
 		iface = self.config.iface_cache.get_interface(iface_uri)
@@ -394,8 +397,8 @@ class InterfaceBrowser(object):
 
 		global menu		# Fix GC problem in PyGObject
 		menu = gtk.Menu()
-		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.driver, iface, self.compile)),
-				  (_('Show Versions'), lambda: properties.edit(self.driver, iface, self.compile, show_versions = True)),
+		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.driver, iface, iface_name, self.compile)),
+				  (_('Show Versions'), lambda: properties.edit(self.driver, iface, iface_name, self.compile, show_versions = True)),
 				  (_('Report a Bug...'), lambda: bugs.report_bug(self.driver, iface))]:
 			item = gtk.MenuItem()
 			item.set_label(label)

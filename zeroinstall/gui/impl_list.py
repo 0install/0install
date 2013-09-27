@@ -163,7 +163,7 @@ class ImplementationList(object):
 				return
 
 			box = gtk.Dialog(_("{prog} version {version}").format(
-						prog = self.interface.get_name(),
+						prog = self.interface.uri,
 						version = impl['version']),
 					parent,
 					gtk.DIALOG_DESTROY_WITH_PARENT,

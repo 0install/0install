@@ -1067,10 +1067,6 @@ class Interface(object):
 
 	def get_name(self):
 		"""@rtype: str"""
-		from zeroinstall.injector.iface_cache import iface_cache
-		feed = iface_cache.get_feed(self.uri)
-		if feed:
-			return feed.get_name()
 		return '(' + os.path.basename(self.uri) + ')'
 
 	def __repr__(self):

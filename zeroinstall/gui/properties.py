@@ -233,7 +233,7 @@ class Properties(object):
 	window = None
 	driver = None
 
-	def __init__(self, driver, interface, compile, show_versions = False):
+	def __init__(self, driver, interface, iface_name, compile, show_versions = False):
 		self.driver = driver
 
 		widgets = Template('interface_properties')
@@ -242,7 +242,7 @@ class Properties(object):
 
 		window = widgets.get_widget('interface_properties')
 		self.window = window
-		window.set_title(_('Properties for %s') % interface.get_name())
+		window.set_title(_('Properties for %s') % iface_name)
 		window.set_default_size(-1, gtk.gdk.screen_height() / 3)
 
 		self.compile_button = widgets.get_widget('compile')
@@ -410,11 +410,11 @@ def add_local_feed(config, interface):
 	chooser.connect('response', check_response)
 	chooser.show()
 
-def edit(driver, interface, compile, show_versions = False):
+def edit(driver, interface, iface_name, compile, show_versions = False):
 	assert isinstance(interface, Interface)
 	if interface in _dialogs:
 		_dialogs[interface].destroy()
-	dialog = Properties(driver, interface, compile, show_versions = show_versions)
+	dialog = Properties(driver, interface, iface_name, compile, show_versions = show_versions)
 	_dialogs[interface] = dialog
 	dialog.show()
 

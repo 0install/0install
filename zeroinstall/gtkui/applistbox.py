@@ -252,10 +252,8 @@ class AppListBox(object):
 		subprocess.Popen(['0launch', '--gui', '--', uri])
 
 	def action_remove(self, uri):
-		try:
-			name = self.iface_cache.get_interface(uri).get_name()
-		except model.InvalidInterface:
-			name = uri
+		feed = self.iface_cache.get_feed(uri)
+		name = feed.get_name() if feed else uri
 
 		box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL, "")
 		box.set_markup(_("Remove <b>%s</b> from the menu?") % _pango_escape(name))
