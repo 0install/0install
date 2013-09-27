@@ -588,7 +588,11 @@ class TestDownload(BaseTest):
 				assert "New feed's modification time is before old version" in err, err
 
 				# Must finish with the newest version
-				self.assertEqual(1342285569, self.config.iface_cache._get_signature_date(iface.uri))
+				with open(cached, 'rb') as stream:
+					actual = stream.read()
+				with open('Hello-new.xml', 'rb') as stream:
+					expected = stream.read()
+				self.assertEqual(expected, actual)
 			finally:
 				sys.stdout = old_out
 

@@ -177,27 +177,6 @@ class IfaceCache(object):
 			logger.info(_("No signatures (old-style interface): %s") % ex)
 			return None
 
-	def _get_signature_date(self, uri):
-		"""Read the date-stamp from the signature of the cached interface.
-		If the date-stamp is unavailable, returns None.
-		@type uri: str
-		@rtype: int"""
-		from . import trust
-		sigs = self.get_cached_signatures(uri)
-		if sigs:
-			return self._oldest_trusted(sigs, trust.domain_from_url(uri))
-
-	def _oldest_trusted(self, sigs, domain):
-		"""Return the date of the oldest trusted signature in the list, or None if there
-		are no trusted sigs in the list.
-		@type sigs: [L{zeroinstall.injector.gpg.ValidSig}]
-		@type domain: str
-		@rtype: int"""
-		trusted = [s.get_timestamp() for s in sigs if s.is_trusted(domain)]
-		if trusted:
-			return min(trusted)
-		return None
-
 	def get_last_check_attempt(self, url):
 		"""Return the time of the most recent update attempt for a feed.
 		@type url: str
