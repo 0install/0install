@@ -1051,16 +1051,6 @@ class Interface(object):
 	"""
 	__slots__ = ['uri', 'stability_policy', 'extra_feeds']
 
-	implementations = property(lambda self: self._main_feed.implementations)
-	name = property(lambda self: self._main_feed.name)
-	description = property(lambda self: self._main_feed.description)
-	summary = property(lambda self: self._main_feed.summary)
-	last_modified = property(lambda self: self._main_feed.last_modified)
-	feeds = property(lambda self: self.extra_feeds + self._main_feed.feeds)
-	metadata = property(lambda self: self._main_feed.metadata)
-
-	last_checked = property(lambda self: self._main_feed.last_checked)
-
 	def __init__(self, uri):
 		"""@type uri: str"""
 		assert uri
@@ -1091,17 +1081,6 @@ class Interface(object):
 		"""@type new: L{Stability}"""
 		assert new is None or isinstance(new, Stability)
 		self.stability_policy = new
-
-	@property
-	def _main_feed(self):
-		import warnings
-		warnings.warn("use the feed instead", DeprecationWarning, 3)
-		from zeroinstall.injector import policy
-		iface_cache = policy.get_deprecated_singleton_config().iface_cache
-		feed = iface_cache.get_feed(self.uri)
-		if feed is None:
-			return _dummy_feed
-		return feed
 
 def _merge_attrs(attrs, item):
 	"""Add each attribute of item to a copy of attrs and return the copy.
