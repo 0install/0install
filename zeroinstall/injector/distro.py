@@ -666,11 +666,7 @@ class DebianDistribution(Distribution):
 				impl.version = model.parse_version(candidate_version)
 				if candidate_arch != '*':
 					impl.machine = candidate_arch
-				def install(handler):
-					raise model.SafeException(_("This program depends on '%s', which is a package that is available through your distribution. "
-							"Please install it manually using your distribution's tools and try again. Or, install 'packagekit' and I can "
-							"use that to install it.") % package)
-				impl.download_sources.append(model.DistributionSource(package, cached['size'], install, needs_confirmation = False))
+				impl.download_sources.append(model.DistributionSource(package, cached['size'], needs_confirmation = False))
 
 	def fixup(self, package, impl):
 		"""@type package: str

@@ -240,10 +240,17 @@ class TestPackageKit(BaseTest):
 		impl, = impls.values()
 		fetcher = fetch.Fetcher(config = self.config)
 		self.config.handler.allow_downloads = True
-		b = fetcher.download_impl(impl, impl.download_sources[0], stores = None)
+
+		_pk = pk.pk
+		rm, = impl.download_sources
+		dl = packagekit.PackageKitDownload('packagekit:' + rm.packagekit_id, hint = None,
+				pk = _pk, packagekit_id = rm.packagekit_id, expected_size = rm.size)
+		self.config.handler.monitor_download(dl)
+		b = dl.downloaded
+
 		tasks.wait_for_blocker(b)
 		tasks.check(b)
-		self.assertEqual("/usr/bin/fixed", list(impls.values())[0].main)
+		#self.assertEqual("/usr/bin/fixed", list(impls.values())[0].main)	# Fixup not used in Python now
 
 		tasks.wait_for_blocker(blocker)
 		tasks.wait_for_blocker(blocker2)

@@ -448,6 +448,17 @@ let remove_feed config iface feed_url =
     Feed_cache.save_iface_config config iface {iface_config with Feed_cache.extra_feeds};
   )
 
+let set_impl_stability config feed_provider feed_url id rating =
+  let (_feed, overrides) = feed_provider#get_feed feed_url |? lazy (raise_safe "Feed '%s' not found!" feed_url) in
+  let overrides = {
+    overrides with F.user_stability =
+      match rating with
+      | None -> StringMap.remove id overrides.F.user_stability
+      | Some rating -> StringMap.add id rating overrides.F.user_stability
+  } in
+  F.save_feed_overrides config feed_url overrides;
+  Lwt.return `Null
+
 (** Run the GUI to choose and download a set of implementations
  * If [use_gui] is No; just returns `Dont_use_GUI.
  * If Maybe, uses the GUI if possible.
@@ -516,6 +527,14 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
           | `Download_only | `Select_for_run -> download_archives ~feed_provider:!feed_provider driver !results
       )
       | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
+    );
+
+    Python.register_handler "set-impl-stability" (function
+      | [`String from_feed; `String id; `Null] ->
+          set_impl_stability config !feed_provider from_feed id None
+      | [`String from_feed; `String id; `String level] ->
+          set_impl_stability config !feed_provider from_feed id (Some (F.parse_stability ~from_user:true level))
+      | json -> raise_safe "get-feed-description: invalid request: %s" (Yojson.Basic.to_string (`List json))
     );
 
     Python.register_handler "get-feed-description" (function

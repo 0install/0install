@@ -9,7 +9,6 @@ from zeroinstall.injector import model, reader, download
 from zeroinstall.gui import properties
 from zeroinstall.gtkui.icon import load_icon
 from logging import warning, info
-from zeroinstall.gui import utils
 from zeroinstall.gui.gui import gobject
 
 ngettext = translation.ngettext
@@ -159,7 +158,6 @@ class InterfaceBrowser(object):
 	driver = None
 	config = None
 	update_icons = False
-	implementations = None			# Interface URI -> Implementation
 
 	DETAILS = 0
 	INTERFACE_NAME = 1
@@ -179,7 +177,6 @@ class InterfaceBrowser(object):
 	def __init__(self, driver, widgets):
 		self.driver = driver
 		self.config = driver.config
-		self.implementations = {}
 
 		tree_view = widgets.get_widget('components')
 		tree_view.set_property('has-tooltip', True)
@@ -345,8 +342,6 @@ class InterfaceBrowser(object):
 		return None
 
 	def build_tree(self):
-		self.implementations = {}
-
 		self.model.clear()
 		def add_node(parent, details):
 			iter = self.model.append(parent)
@@ -363,10 +358,6 @@ class InterfaceBrowser(object):
 				self.model[iter][InterfaceBrowser.VERSION] = '(problem)'
 				self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = ''
 			else:
-				impl = utils.get_impl(self.config, details)
-				if impl:
-					self.implementations[iface] = impl
-
 				if details["type"] == "selected":
 					self.model[iter][InterfaceBrowser.VERSION] = details["version"]
 					self.model[iter][InterfaceBrowser.DOWNLOAD_SIZE] = details["fetch"]
@@ -479,9 +470,6 @@ class InterfaceBrowser(object):
 
 			for feed in iface_cache.get_feed_imports(iface):
 				downloads += hints.get(feed.uri, []) # Other feeds
-			sel = self.implementations.get(iface.uri, None)
-			if sel:
-				downloads += hints.get(sel, []) # The chosen implementation
 
 			if downloads:
 				so_far = 0
@@ -503,12 +491,7 @@ class InterfaceBrowser(object):
 				row[InterfaceBrowser.SUMMARY] = summary % values_dict
 			else:
 				details = row[InterfaceBrowser.DETAILS]
-				if 'id' in details:
-					impl = utils.get_impl(self.config, details)
-				else:
-					impl = None
-
-				row[InterfaceBrowser.DOWNLOAD_SIZE] = utils.get_fetch_info(self.config, impl)
+				row[InterfaceBrowser.DOWNLOAD_SIZE] = details["fetch"]
 				row[InterfaceBrowser.SUMMARY] = details['summary']
 
 			if self.model.get_path(it) == lastVisiblePath:

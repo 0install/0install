@@ -7,7 +7,6 @@ from zeroinstall.cmd import slave
 from zeroinstall.support import tasks
 from zeroinstall.injector import model, writer
 from zeroinstall.gtkui import gtkutils
-from zeroinstall.gui import utils
 from zeroinstall.gui.gui import gobject
 
 def _build_stability_menu(config, impl_details):
@@ -17,15 +16,17 @@ def _build_stability_menu(config, impl_details):
 	choices.sort()
 	choices.reverse()
 
+	@tasks.async
 	def set(new):
-		impl = utils.get_impl(config, impl_details)
-		if isinstance(new, model.Stability):
-			impl.user_stability = new
-		else:
-			impl.user_stability = None
-		writer.save_feed(impl.feed)
-		from zeroinstall.gui import main
-		main.recalculate()
+		try:
+			blocker = slave.invoke_master(["set-impl-stability", impl_details['from-feed'], impl_details['id'], new])
+			yield blocker
+			tasks.check(blocker)
+			from zeroinstall.gui import main
+			main.recalculate()
+		except Exception:
+			logger.warning("set", exc_info = True)
+			raise
 
 	item = gtk.MenuItem()
 	item.set_label(_('Unset'))
@@ -40,7 +41,7 @@ def _build_stability_menu(config, impl_details):
 	for value in choices:
 		item = gtk.MenuItem()
 		item.set_label(_(str(value)).capitalize())
-		item.connect('activate', lambda item, v = value: set(v))
+		item.connect('activate', lambda item, v = value: set(str(v)))
 		item.show()
 		menu.append(item)
 

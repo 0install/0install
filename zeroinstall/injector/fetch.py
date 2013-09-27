@@ -12,7 +12,7 @@ from zeroinstall import support
 from zeroinstall.support import tasks, basedir, portable_rename
 from zeroinstall.injector.namespaces import XMLNS_IFACE, config_site
 from zeroinstall.injector import model
-from zeroinstall.injector.model import Recipe, SafeException, escape, DistributionSource
+from zeroinstall.injector.model import Recipe, SafeException, escape
 from zeroinstall.injector import download
 
 def _escape_slashes(path):
@@ -234,9 +234,6 @@ class Fetcher(object):
 		assert impl
 		assert retrieval_method
 
-		if isinstance(retrieval_method, DistributionSource):
-			return retrieval_method.install(self.handler)
-
 		from zeroinstall.zerostore import manifest, parse_algorithm_digest_pair
 		best = None
 		for digest in impl.digests:
@@ -370,7 +367,7 @@ class Fetcher(object):
 
 		if self.config.handler.dry_run:
 			print(_("[dry-run] downloading archive {url}").format(url = download_source.url))
-		dl = self.download_url(download_source.url, hint = impl_hint, mirror_url = mirror)
+		dl = self.download_url(download_source.url, hint = impl_hint.feed.url, mirror_url = mirror)
 		if download_source.size is not None:
 			dl.expected_size = download_source.size + (download_source.start_offset or 0)
 		# (else don't know sizes for mirrored archives)
@@ -389,7 +386,7 @@ class Fetcher(object):
 		if '://' not in download_source.url:
 			return self._download_local_file(download_source, impl_hint)
 
-		dl = self.download_url(download_source.url, hint = impl_hint)
+		dl = self.download_url(download_source.url, hint = impl_hint.feed.url)
 		dl.expected_size = download_source.size
 		return (dl.downloaded, dl.tempfile)
 
@@ -428,7 +425,7 @@ class Fetcher(object):
 			logger.info(_('No PNG icons found in %s'), interface)
 			return
 
-		dl = self.download_url(source, hint = interface, modification_time = modification_time)
+		dl = self.download_url(source, hint = interface.uri, modification_time = modification_time)
 
 		@tasks.async
 		def download_and_add_icon():

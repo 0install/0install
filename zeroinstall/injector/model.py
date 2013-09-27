@@ -723,8 +723,6 @@ class Recipe(RetrievalMethod):
 
 class DistributionSource(RetrievalMethod):
 	"""A package that is installed using the distribution's tools (including PackageKit).
-	@ivar install: a function to call to install this package
-	@type install: (L{handler.Handler}) -> L{tasks.Blocker}
 	@ivar package_id: the package name, in a form recognised by the distribution's tools
 	@type package_id: str
 	@ivar size: the download size in bytes
@@ -732,9 +730,9 @@ class DistributionSource(RetrievalMethod):
 	@ivar needs_confirmation: whether the user should be asked to confirm before calling install()
 	@type needs_confirmation: bool"""
 
-	__slots__ = ['package_id', 'size', 'install', 'needs_confirmation', 'packagekit_id']
+	__slots__ = ['package_id', 'size', 'needs_confirmation', 'packagekit_id']
 
-	def __init__(self, package_id, size, install, needs_confirmation = True, packagekit_id = None):
+	def __init__(self, package_id, size, needs_confirmation = True, packagekit_id = None):
 		"""@type package_id: str
 		@type size: int
 		@type needs_confirmation: bool"""
@@ -742,7 +740,6 @@ class DistributionSource(RetrievalMethod):
 		self.package_id = package_id
 		self.packagekit_id = packagekit_id
 		self.size = size
-		self.install = install
 		self.needs_confirmation = needs_confirmation
 
 class Command(object):

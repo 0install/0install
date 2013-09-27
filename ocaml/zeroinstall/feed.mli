@@ -127,6 +127,7 @@ val get_command_opt : string -> command Support.Common.StringMap.t -> command op
 val get_command_ex : implementation -> string -> command
 
 val load_feed_overrides : General.config -> General.feed_url -> feed_overrides
+val save_feed_overrides : General.config -> General.feed_url -> feed_overrides -> unit
 val update_last_checked_time : General.config -> General.feed_url -> unit
 val get_distro_feed : feed -> General.feed_url option
 val get_langs : implementation -> Support.Locale.lang_spec list

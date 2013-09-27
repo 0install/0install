@@ -84,12 +84,7 @@ class PackageKit(object):
 			if candidate['arch'] != '*':
 				impl.machine = candidate['arch']
 
-			def install(handler, candidate = candidate, impl = impl):
-				packagekit_id = candidate['packagekit_id']
-				dl = PackageKitDownload('packagekit:' + packagekit_id, hint = impl, pk = self.pk, packagekit_id = packagekit_id, expected_size = candidate['size'])
-				handler.monitor_download(dl)
-				return dl.downloaded
-			impl.download_sources.append(model.DistributionSource(package_name, candidate['size'], install, packagekit_id = candidate['packagekit_id']))
+			impl.download_sources.append(model.DistributionSource(package_name, candidate['size'], packagekit_id = candidate['packagekit_id']))
 
 	@tasks.async
 	def fetch_candidates(self, package_names):
