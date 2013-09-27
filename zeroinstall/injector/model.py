@@ -1099,18 +1099,6 @@ class Interface(object):
 		assert new is None or isinstance(new, Stability)
 		self.stability_policy = new
 
-	def get_feed(self, url):
-		#import warnings
-		#warnings.warn("use iface_cache.get_feed instead", DeprecationWarning, 2)
-		for x in self.extra_feeds:
-			if x.uri == url:
-				return x
-		#return self._main_feed.get_feed(url)
-		return None
-
-	def get_metadata(self, uri, name):
-		return self._main_feed.get_metadata(uri, name)
-
 	@property
 	def _main_feed(self):
 		import warnings

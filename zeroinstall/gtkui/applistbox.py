@@ -189,9 +189,8 @@ class AppListBox(object):
 			m[itr][AppListBox.MARKUP] = '<b>%s</b>\n<i>%s</i>' % (_pango_escape(name), _pango_escape(summary))
 
 	def action_run(self, uri):
-		iface = self.iface_cache.get_interface(uri)
-		reader.update_from_cache(iface)
-		if len(iface.get_metadata(namespaces.XMLNS_IFACE, 'needs-terminal')):
+		feed = self.iface_cache.get_feed(uri)
+		if len(feed.get_metadata(namespaces.XMLNS_IFACE, 'needs-terminal')):
 			if gtk.pygtk_version >= (2,16,0) and gtk.gdk.WINDOWING == 'quartz':
 				script = ['0launch', '--', uri]
 				osascript = support.find_in_path('osascript')
