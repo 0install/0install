@@ -14,6 +14,7 @@ type 'a result =
 (** [a @@ b @@ c] is an alternative way to write [a (b (c))]. It's like [$] in Haskell. **)
 (* external ( @@ ) : ('a -> 'b) -> 'a -> 'b = "%apply" *)
 let (@@) a b = a b
+let (|>) a b = b a
 
 type filepath = string
 type varname = string
