@@ -32,6 +32,8 @@ let load_config config =
             config.freshness <- None
       | ("network_use", use) -> config.network_use <- parse_network_use use
       | ("help_with_testing", help) -> config.help_with_testing <- parse_bool help
+      | ("auto_approve_keys", value) -> config.auto_approve_keys <- parse_bool value
+      | ("key_info_server", value) -> config.key_info_server <- Some value
       | _ -> ()
     )
     | _ -> ignore in    (* other [sections] *)
@@ -69,8 +71,10 @@ let get_default_config system path_to_prog =
     freshness = Some (Int64.of_int (30 * days));
     network_use = Full_network;
     mirror = Some "http://roscidus.com/0mirror";
+    key_info_server = Some "https://keylookup.appspot.com";
     dry_run = false;
     help_with_testing = false;
+    auto_approve_keys = true;
     system;
     langs = Support.Locale.score_langs (Support.Locale.get_langs system);
   } in

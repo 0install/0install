@@ -645,120 +645,118 @@ class TestDownload(BaseTest):
 
 		global ran_gui
 
-		with output_suppressed():
+		# Create an app, downloading a version of Hello
+		run_server('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
+		out, err = self.run_ocaml(['add', 'test-app', 'http://example.com:8000/Hello.xml'])
+		assert not out, out
+		assert not err, err
+		kill_server_process()
+		app = basedir.load_first_config(namespaces.config_site, "apps", 'test-app')
+		timestamp = os.path.join(app, 'last-checked')
+		last_check_attempt = os.path.join(app, 'last-check-attempt')
+		selections_path = os.path.join(app, 'selections.xml')
 
-			# Create an app, downloading a version of Hello
-			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', 'HelloWorld.tgz')
-			out, err = self.run_ocaml(['add', 'test-app', 'http://example.com:8000/Hello.xml'])
-			assert not out, out
-			assert not err, err
-			kill_server_process()
-			app = basedir.load_first_config(namespaces.config_site, "apps", 'test-app')
-			timestamp = os.path.join(app, 'last-checked')
-			last_check_attempt = os.path.join(app, 'last-check-attempt')
-			selections_path = os.path.join(app, 'selections.xml')
-
-			def reset_timestamps():
-				global ran_gui
-				ran_gui = False
-				os.utime(timestamp, (1, 1))		# 1970
-				os.utime(selections_path, (1, 1))
-				if os.path.exists(last_check_attempt):
-					os.unlink(last_check_attempt)
-
-			# Not time for a background update yet
-			self.config.freshness = 100
-			self.run_ocaml(['download', 'test-app'])
-			assert not ran_gui
-
-			# Trigger a background update - no updates found
-			os.environ['ZEROINSTALL_TEST_BACKGROUND'] = 'true'
-			reset_timestamps()
-			run_server('Hello.xml')
-			# (-vv mode makes us wait for the background process to finish)
-			out, err = self.run_ocaml(['download', '-vv', 'test-app'])
-			assert not out, out
-			assert 'Background update: no updates found for test-app' in err, err
-			self.assertNotEqual(1, os.stat(timestamp).st_mtime)
-			self.assertEqual(1, os.stat(selections_path).st_mtime)
-			kill_server_process()
-
-			# Change the selections
-			sels_path = os.path.join(app, 'selections.xml')
-			with open(sels_path) as stream:
-				old = stream.read()
-			with open(sels_path, 'w') as stream:
-				stream.write(old.replace('Hello', 'Goodbye'))
-
-			# Trigger another background update - metadata changes found
-			reset_timestamps()
-			run_server('Hello.xml')
-
-			out, err = self.run_ocaml(['download', '-vv', 'test-app'])
-			assert not out, out
-			assert 'Quick solve succeeded; saving new selections' in err, err
-
-			self.assertNotEqual(1, os.stat(timestamp).st_mtime)
-			self.assertNotEqual(1, os.stat(selections_path).st_mtime)
-			kill_server_process()
-
-			# Trigger another background update - GUI needed now
-
-			# Delete cached implementation so we need to download it again
-			out, err = self.run_ocaml(['select', '--xml', 'test-app'], binary = True)
-			sels = selections.Selections(qdom.parse(BytesIO(out)))
-			stored = sels.selections['http://example.com:8000/Hello.xml'].get_path(self.config.stores)
-			assert os.path.basename(stored).startswith('sha1')
-			ro_rmtree(stored)
-
-			# Replace with a valid local feed so we don't have to download immediately
-			with open(sels_path, 'w') as stream:
-				stream.write(local_hello)
-
-			os.environ['DISPLAY'] = 'dummy'
-			reset_timestamps()
-			run_server('Hello.xml')
-			out, err = self.run_ocaml(['download', '-vv', 'test-app'])
-			assert not out, out
-			assert 'GUI unavailable; downloading with no UI' in err, err
-			kill_server_process()
-
-			# Now again with no DISPLAY
-			reset_timestamps()
-			del os.environ['DISPLAY']
-			run_server('Hello.xml', 'HelloWorld.tgz')
-			out, err = self.run_ocaml(['download', '-vv', 'test-app'])
-			assert not out, out
-			assert 'GUI unavailable; downloading with no UI' in err, err
-
-			self.assertNotEqual(1, os.stat(timestamp).st_mtime)
-			self.assertNotEqual(1, os.stat(selections_path).st_mtime)
-			kill_server_process()
-
-			out, err = self.run_ocaml(['select', '--xml', 'test-app'], binary = True)
-			sels = selections.Selections(qdom.parse(BytesIO(out)))
-			sel, = sels.selections.values()
-			self.assertEqual("sha1=3ce644dc725f1d21cfcf02562c76f375944b266a", sel.id)
-
-			# Untrust the key
-			trust.trust_db.untrust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-
-			os.environ['DISPLAY'] = 'dummy'
-			reset_timestamps()
-			run_server('Hello.xml')
-			out, err = self.run_ocaml(['download', '-vv', 'test-app'])
-			assert not out, out
-			assert 'need to switch to GUI to confirm keys' in err, err
-			assert "Can't update 0install app 'test-app' without user intervention (run '0install update test-app' to fix)" in err, err
-			kill_server_process()
-
-			# Update not triggered because of last-check-attempt
+		def reset_timestamps():
+			global ran_gui
 			ran_gui = False
 			os.utime(timestamp, (1, 1))		# 1970
 			os.utime(selections_path, (1, 1))
-			out, err = self.run_ocaml(['download', '-vv', 'test-app'])
-			assert not out, out
-			assert 'Tried to check within last hour; not trying again now' in err, err
+			if os.path.exists(last_check_attempt):
+				os.unlink(last_check_attempt)
+
+		# Not time for a background update yet
+		self.config.freshness = 100
+		self.run_ocaml(['download', 'test-app'])
+		assert not ran_gui
+
+		# Trigger a background update - no updates found
+		os.environ['ZEROINSTALL_TEST_BACKGROUND'] = 'true'
+		reset_timestamps()
+		run_server('Hello.xml')
+		# (-vv mode makes us wait for the background process to finish)
+		out, err = self.run_ocaml(['download', '-vv', 'test-app'])
+		assert not out, out
+		assert 'Background update: no updates found for test-app' in err, err
+		self.assertNotEqual(1, os.stat(timestamp).st_mtime)
+		self.assertEqual(1, os.stat(selections_path).st_mtime)
+		kill_server_process()
+
+		# Change the selections
+		sels_path = os.path.join(app, 'selections.xml')
+		with open(sels_path) as stream:
+			old = stream.read()
+		with open(sels_path, 'w') as stream:
+			stream.write(old.replace('Hello', 'Goodbye'))
+
+		# Trigger another background update - metadata changes found
+		reset_timestamps()
+		run_server('Hello.xml')
+
+		out, err = self.run_ocaml(['download', '-vv', 'test-app'])
+		assert not out, out
+		assert 'Quick solve succeeded; saving new selections' in err, err
+
+		self.assertNotEqual(1, os.stat(timestamp).st_mtime)
+		self.assertNotEqual(1, os.stat(selections_path).st_mtime)
+		kill_server_process()
+
+		# Trigger another background update - GUI needed now
+
+		# Delete cached implementation so we need to download it again
+		out, err = self.run_ocaml(['select', '--xml', 'test-app'], binary = True)
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		stored = sels.selections['http://example.com:8000/Hello.xml'].get_path(self.config.stores)
+		assert os.path.basename(stored).startswith('sha1')
+		ro_rmtree(stored)
+
+		# Replace with a valid local feed so we don't have to download immediately
+		with open(sels_path, 'w') as stream:
+			stream.write(local_hello)
+
+		os.environ['DISPLAY'] = 'dummy'
+		reset_timestamps()
+		run_server('Hello.xml')
+		out, err = self.run_ocaml(['download', '-vv', 'test-app'])
+		assert not out, out
+		assert 'GUI unavailable; downloading with no UI' in err, err
+		kill_server_process()
+
+		# Now again with no DISPLAY
+		reset_timestamps()
+		del os.environ['DISPLAY']
+		run_server('Hello.xml', 'HelloWorld.tgz')
+		out, err = self.run_ocaml(['download', '-vv', 'test-app'])
+		assert not out, out
+		assert 'GUI unavailable; downloading with no UI' in err, err
+
+		self.assertNotEqual(1, os.stat(timestamp).st_mtime)
+		self.assertNotEqual(1, os.stat(selections_path).st_mtime)
+		kill_server_process()
+
+		out, err = self.run_ocaml(['select', '--xml', 'test-app'], binary = True)
+		sels = selections.Selections(qdom.parse(BytesIO(out)))
+		sel, = sels.selections.values()
+		self.assertEqual("sha1=3ce644dc725f1d21cfcf02562c76f375944b266a", sel.id)
+
+		# Untrust the key
+		trust.trust_db.untrust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
+
+		os.environ['DISPLAY'] = 'dummy'
+		reset_timestamps()
+		run_server('Hello.xml')
+		out, err = self.run_ocaml(['download', '-vv', 'test-app'])
+		assert not out, out
+		assert 'need to switch to GUI to confirm keys' in err, err
+		assert "Can't update 0install app 'test-app' without user intervention (run '0install update test-app' to fix)" in err, err
+		kill_server_process()
+
+		# Update not triggered because of last-check-attempt
+		ran_gui = False
+		os.utime(timestamp, (1, 1))		# 1970
+		os.utime(selections_path, (1, 1))
+		out, err = self.run_ocaml(['download', '-vv', 'test-app'])
+		assert not out, out
+		assert 'Tried to check within last hour; not trying again now' in err, err
 
 	def testBackgroundUnsolvable(self):
 		my_dbus.system_services = {"org.freedesktop.NetworkManager": {"/org/freedesktop/NetworkManager": NetworkManager()}}

@@ -193,7 +193,6 @@ class TestConfig:
 		self.stores = Stores()
 		self.fetcher = TestFetcher(self)
 		self.trust_db = trust.trust_db
-		self.trust_mgr = trust.TrustMgr(self)
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):

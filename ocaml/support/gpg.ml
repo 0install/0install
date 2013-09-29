@@ -91,8 +91,8 @@ let run_gpg_full system ?stdin args =
     (* Join the collection threads *)
     lwt stdout = stdout in
     lwt stderr = stderr in
-    log_info "GPG: output:\n%s" stdout;
-    log_info "GPG: errors:\n%s" stderr;
+    if stdout <> "" then log_info "GPG: output:\n%s" (trim stdout);
+    if stderr <> "" then log_info "GPG: warnings:\n%s" (trim stderr);
     lwt status = child#close in
     Lwt.return (stdout, stderr, status)
   with ex ->

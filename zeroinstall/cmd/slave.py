@@ -11,7 +11,7 @@ import sys, os, collections
 
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, qdom, download, gpg, reader
+from zeroinstall.injector import model, qdom, download, gpg, reader, trust
 from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector.iface_cache import ReplayAttack
 from zeroinstall.support import tasks
@@ -277,21 +277,67 @@ def do_get_distro_candidates(config, args, xml):
 
 PendingFromOCaml = collections.namedtuple("PendingFromOCaml", ["url", "sigs"])
 
+class OCamlKeyInfo:
+	info = None
+	blocker = None
+	status = "Fetching key information ..."
+
+pending_key_info = {}		# Fingerprint -> OCamlKeyInfo
+
 @tasks.async
-def do_confirm_keys(config, ticket, args):
+def do_update_key_info(config, ticket, fingerprint, xml):
+	try:
+		ki = pending_key_info.get(fingerprint, None)
+		if ki:
+			from xml.dom import minidom
+			doc = minidom.parseString(qdom.to_UTF8(xml))
+			ki.info = doc.documentElement.childNodes
+			ki.blocker.trigger()
+			ki.blocker = None
+		else:
+			logger.info("Unexpected key info for %s (not in %s)", fingerprint, pending_key_info)
+	except Exception as ex:
+		logger.warning("do_update_key_info", exc_info = True)
+		send_json(["return", ticket, ["error", str(ex)]])
+
+@tasks.async
+def do_confirm_keys(config, ticket, url, xml):
 	try:
 		if gui_driver is not None: config = gui_driver.config
-		url, valid_sigs = args
-		assert valid_sigs, "No signatures!"
-		valid_sigs = [gpg.ValidSig([fingerprint, None, 0]) for fingerprint in valid_sigs]
-		pending = PendingFromOCaml(url = args[0], sigs = valid_sigs)
+		fingerprints = []
+		#valid_sigs = [ for (fingerprint, info) in infos]
+		pending = PendingFromOCaml(url = url, sigs = [])
 
-		blocker = config.trust_mgr.confirm_keys(pending)
+		global pending_key_info
+		pending_key_info = {}
+		key_infos = {}
+		for result in xml.childNodes:
+			fingerprint = result.attrs['fingerprint']
+			fingerprints.append(fingerprint)
+			sig = gpg.ValidSig([fingerprint, None, 0])
+			ki = OCamlKeyInfo()
+			if 'pending' in result.attrs:
+				ki.blocker = tasks.Blocker("Getting info for key '%s'" % fingerprint)
+			elif 'error' in result.attrs:
+				from xml.dom import minidom
+				doc = minidom.parseString('<item vote="bad"/>')
+				root = doc.documentElement
+				root.appendChild(doc.createTextNode(_('Error getting key information: %s') % result.attrs['error']))
+				ki.info = [root]
+			else:
+				from xml.dom import minidom
+				doc = minidom.parseString(qdom.to_UTF8(result))
+				ki.info = doc.documentElement.childNodes
+			key_infos[sig] = ki
+			pending_key_info[fingerprint] = ki
+
+		blocker = config.handler.confirm_import_feed(pending, key_infos)
 		if blocker:
 			yield blocker
 			tasks.check(blocker)
 
-		now_trusted = [s.fingerprint for s in valid_sigs if s.is_trusted()]
+		domain = trust.domain_from_url(url)
+		now_trusted = [f for f in fingerprints if trust.trust_db.is_trusted(f, domain = domain)]
 		send_json(["return", ticket, ["ok", now_trusted]])
 	except Exception as ex:
 		logger.warning("do_confirm_keys", exc_info = True)
@@ -454,7 +500,12 @@ def handle_invoke(config, options, ticket, request):
 			reply_when_done(ticket, blocker)
 			return	# async
 		elif command == 'confirm-keys':
-			do_confirm_keys(config, ticket, request[1:])
+			xml = qdom.parse(BytesIO(read_chunk()))
+			do_confirm_keys(config, ticket, request[1], xml)
+			return	# async
+		elif command == 'update-key-info':
+			xml = qdom.parse(BytesIO(read_chunk()))
+			do_update_key_info(config, ticket, request[1], xml)
 			return	# async
 		elif command == 'download-url':
 			do_download_url(config, ticket, request[1:])

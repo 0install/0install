@@ -24,10 +24,12 @@ type config = {
   mutable system : Support.Common.system;
 
   mutable mirror : string option;
+  mutable key_info_server : string option;
   mutable freshness: Int64.t option;
   mutable dry_run : bool;
   mutable network_use : network_use;
   mutable help_with_testing : bool;
+  mutable auto_approve_keys : bool;
   
   langs : int Support.Locale.LangMap.t;
 }

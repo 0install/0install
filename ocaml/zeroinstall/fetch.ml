@@ -10,6 +10,8 @@ module Q = Support.Qdom
 module G = Support.Gpg
 module FeedAttr = Constants.FeedAttr
 
+let key_info_timeout = 10	(* Maximum time to wait for response from key-info-server before showing the dialog anyway *)
+
 type non_mirror_case = [ `ok of Q.element | `no_trusted_keys | `replay_attack of (feed_url * float * float) | `aborted_by_user ]
 
 type fetch_feed_response =
@@ -67,6 +69,10 @@ type download_result =
  | `tmpfile of Support.Common.filepath ]
 
 class fetcher config trust_db (slave:Python.slave) =
+  let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
+
+  let key_info_cache = Hashtbl.create 10 in
+
   let system = config.system in
 
   let () =
@@ -242,6 +248,30 @@ class fetcher config trust_db (slave:Python.slave) =
           | Some _ -> save_new_xml ()
     ) in
 
+  let fetch_key_info ~hint fingerprint : Q.element list Lwt.t =
+    try Hashtbl.find key_info_cache fingerprint
+    with Not_found ->
+      let result =
+        match config.key_info_server with
+        | None -> Lwt.return []
+        | Some key_info_server ->
+            if config.dry_run then (
+              Dry_run.log "asking %s about key %s" key_info_server fingerprint;
+            );
+            let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
+            match_lwt download_url ~hint key_info_url with
+            | `aborted_by_user -> raise Aborted
+            | `tmpfile tmpfile ->
+                let contents = U.read_file system tmpfile in
+                system#unlink tmpfile;
+                let root = `String (0, contents) |> Xmlm.make_input |> Q.parse_input (Some key_info_url) in
+                if root.Q.tag <> ("", "key-lookup") then (
+                  Q.raise_elem "Expected <key-lookup>, not " root
+                );
+                Lwt.return root.Q.child_nodes in
+      Hashtbl.add key_info_cache fingerprint result;
+      result in
+
   (** We don't trust any of the signatures yet. Collect information about them and add the keys to the
       trust_db, possibly after confirming with the user. *)
   let confirm_keys feed sigs messages =
@@ -260,13 +290,76 @@ class fetcher config trust_db (slave:Python.slave) =
         feed_url (List.map format_sig sigs |> String.concat "") extra
     );
 
-    let json_sigs = valid_sigs |> List.map (fun info -> `String info.G.fingerprint) in
-    let request = `List [`String "confirm-keys"; `String feed_url; `List json_sigs] in
-    slave#invoke_async request (function
-      | `List confirmed_keys ->
-          let domain = Trust.domain_from_url feed in
-          confirmed_keys |> List.map Yojson.Basic.Util.to_string |> List.iter (trust_db#trust_key ~domain)
-      | _ -> raise_safe "Invalid response"
+    (* Start downloading information about the keys... *)
+    let key_infos = valid_sigs |> List.map (fun {G.fingerprint; _} ->
+      (fingerprint, fetch_key_info ~hint:feed_url fingerprint)
+    ) in
+
+    (* Wait up to key_info_timeout seconds for key information to arrive. Avoids having the dialog
+     * box update while the user is looking at it, and allows it to be skipped completely in many
+     * cases. *)
+    let timeout_task, timeout_waker = Lwt.wait () in
+    Lwt_timeout.create key_info_timeout (fun () -> Lwt.wakeup timeout_waker []) |> Lwt_timeout.start;
+
+    log_info "Waiting for response from key-info server...";
+    lwt () =
+      let key_tasks = key_infos |> List.map snd in
+      try_lwt
+        lwt _ = Lwt.choose (timeout_task :: key_tasks) in Lwt.return ()
+      with ex -> log_warning ~ex "Error looking up key information"; Lwt.return () in
+
+    (* If we're already confirming something else, wait for that to finish... *)
+    Lwt_mutex.with_lock trust_dialog_lock (fun () ->
+      let domain = Trust.domain_from_url feed in
+
+      (* When seeing a feed for the first time, we may be able to approve the keys automatically... *)
+      if config.auto_approve_keys && Feed_cache.get_cached_feed_path config feed = None then (
+        key_infos |> List.iter (fun (fingerprint, info) ->
+          match Lwt.state info with
+          | Lwt.Return votes -> (
+              votes |> List.iter (fun xml ->
+                if Q.get_attribute_opt ("", "vote") xml = Some "good" then (
+                  let msg = xml.Q.last_text_inside in
+                  log_info "Automatically approving key for new feed %s based on response from key info server: %s" feed_url msg;
+                  trust_db#trust_key ~domain fingerprint
+                ) else (
+                  log_info "Ignoring bad response for %s: %s" fingerprint xml.Q.last_text_inside   (* Abort here? *)
+                )
+              )
+          )
+          | _ -> ()
+        );
+      );
+
+      (* Check whether we still need to confirm. The user may have
+       * already approved one of the keys while dealing with another
+       * feed, or we may have just auto-approved it. *)
+      let is_trusted {G.fingerprint; _} = trust_db#is_trusted ~domain fingerprint in
+      if (List.exists is_trusted valid_sigs) then Lwt.return ()
+      else (
+        let xml = ZI.make_root "votes" in
+        key_infos |> List.iter (fun (fingerprint, info) ->
+          let elem = ZI.insert_first "result" xml in
+          Q.set_attribute "fingerprint" fingerprint elem;
+          match Lwt.state info with
+          | Lwt.Return votes -> elem.Q.child_nodes <- votes |> List.map (fun v -> Q.import_node v elem.Q.doc)
+          | Lwt.Fail ex -> Q.set_attribute "error" (Printexc.to_string ex) elem
+          | Lwt.Sleep ->
+              Q.set_attribute "pending" "true" elem;
+              Python.async (fun () ->
+                lwt info = info in
+                let root = ZI.make_root "votes" in
+                root.Q.child_nodes <- info |> List.map (fun v -> Q.import_node v root.Q.doc);
+                slave#invoke_async ~xml:root (`List [`String "update-key-info"; `String fingerprint]) ignore
+              )
+        );
+        let request = `List [`String "confirm-keys"; `String feed_url] in
+        slave#invoke_async ~xml request (function
+          | `List confirmed_keys ->
+              confirmed_keys |> List.map Yojson.Basic.Util.to_string |> List.iter (trust_db#trust_key ~domain)
+          | _ -> raise_safe "Invalid response"
+        );
+      )
     ) in
 
   (** We've just downloaded the new version of the feed to a temporary file. Check signature and import it into the cache. *)

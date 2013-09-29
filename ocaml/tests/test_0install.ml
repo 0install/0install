@@ -69,8 +69,12 @@ class fake_slave config =
 
   let handle_download_url url =
     let contents =
-      try StringMap.find url !pending_feed_downloads
-      with Not_found -> assert_failure url in
+      if U.starts_with url "https://keylookup.appspot.com/key/" then (
+        "<key-lookup><item vote='good'>Looks legit</item></key-lookup>"
+      ) else (
+        try StringMap.find url !pending_feed_downloads
+        with Not_found -> assert_failure url
+      ) in
     pending_feed_downloads := StringMap.remove url !pending_feed_downloads;
     let tmpname = Filename.temp_file ~temp_dir "0install-" "-test" in
     system#atomic_write [Open_wronly; Open_binary] tmpname ~mode:0o644 (fun ch ->
@@ -81,9 +85,7 @@ class fake_slave config =
   let fake_slave ?xml request =
     ignore xml;
     match request with
-    | `List [`String "confirm-keys"; `String _url; `List fingerprints] ->
-        assert (fingerprints <> []);
-        Some (`List [`String "ok"; `List fingerprints] |> Lwt.return)
+    | `List [`String "confirm-keys"; `String _url] -> assert false
     | `List [`String "download-url"; `String url; `String _hint; timeout; `Null] ->
         let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
         if timeout <> `Null then

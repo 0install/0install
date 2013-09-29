@@ -34,58 +34,6 @@ def _get_feed_dir(feed):
 			raise SafeException(_("Invalid URL '%s'") % feed)
 	return '/'.join(['feeds', scheme, domain, _escape_slashes(rest)])
 
-class KeyInfoFetcher(object):
-	"""Fetches information about a GPG key from a key-info server.
-	See L{Fetcher.fetch_key_info} for details.
-	@since: 0.42
-
-	Example:
-
-	>>> kf = KeyInfoFetcher(fetcher, 'https://server', fingerprint)
-	>>> while True:
-		print kf.info
-		if kf.blocker is None: break
-		print kf.status
-		yield kf.blocker
-	"""
-	def __init__(self, fetcher, server, fingerprint):
-		"""@type fetcher: L{Fetcher}
-		@type server: str
-		@type fingerprint: str"""
-		self.fingerprint = fingerprint
-		self.info = []
-		self.blocker = None
-
-		if server is None: return
-
-		self.status = _('Fetching key information from %s...') % server
-
-		dl = fetcher.download_url(server + '/key/' + fingerprint)
-
-		from xml.dom import minidom
-
-		@tasks.async
-		def fetch_key_info():
-			tempfile = dl.tempfile
-			try:
-				yield dl.downloaded
-				self.blocker = None
-				tasks.check(dl.downloaded)
-				tempfile.seek(0)
-				doc = minidom.parse(tempfile)
-				if doc.documentElement.localName != 'key-lookup':
-					raise SafeException(_('Expected <key-lookup>, not <%s>') % doc.documentElement.localName)
-				self.info += doc.documentElement.childNodes
-			except Exception as ex:
-				doc = minidom.parseString('<item vote="bad"/>')
-				root = doc.documentElement
-				root.appendChild(doc.createTextNode(_('Error getting key information: %s') % ex))
-				self.info.append(root)
-			finally:
-				tempfile.close()
-
-		self.blocker = fetch_key_info()
-
 class Fetcher(object):
 	"""Downloads and stores various things.
 	@ivar config: used to get handler, iface_cache and stores
@@ -205,20 +153,6 @@ class Fetcher(object):
 		"""@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}
 		@rtype: str"""
 		return self._get_mirror_url(impl.feed.url, 'impl/' + _escape_slashes(impl.id))
-
-	def fetch_key_info(self, fingerprint):
-		"""@type fingerprint: str
-		@rtype: L{KeyInfoFetcher}"""
-		try:
-			return self.key_info[fingerprint]
-		except KeyError:
-			if self.config.handler.dry_run:
-				print(_("[dry-run] asking {url} about key {key}").format(
-					url = self.config.key_info_server,
-					key = fingerprint))
-			self.key_info[fingerprint] = key_info = KeyInfoFetcher(self,
-									self.config.key_info_server, fingerprint)
-			return key_info
 
 	# (force is deprecated and ignored)
 	def download_impl(self, impl, retrieval_method, stores, force = False):
