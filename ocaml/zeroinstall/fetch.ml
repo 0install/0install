@@ -249,7 +249,11 @@ class fetcher config trust_db (slave:Python.slave) =
     ) in
 
   let fetch_key_info ~hint fingerprint : Q.element list Lwt.t =
-    try Hashtbl.find key_info_cache fingerprint
+    try
+      let result = Hashtbl.find key_info_cache fingerprint in
+      match Lwt.state result with
+      | Lwt.Return _ | Lwt.Sleep -> result
+      | Lwt.Fail _ -> raise Not_found (* Retry *)
     with Not_found ->
       let result =
         match config.key_info_server with
