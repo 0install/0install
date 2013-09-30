@@ -19,7 +19,7 @@ class dummy_file_system =
       | "/home/bob/loop2" -> Some "/home/bob/loop1"
       | _ -> None
 
-    method! getcwd () = "/home/bob"
+    method! getcwd = "/home/bob"
   end
 
 let suite = "utils">::: [

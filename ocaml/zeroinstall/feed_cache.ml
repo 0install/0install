@@ -298,7 +298,7 @@ class feed_provider config distro =
     method get_feeds_used =
       StringMap.fold (fun uri _value lst -> uri :: lst) !cache []
 
-    method have_stale_feeds () =
+    method have_stale_feeds =
       let check uri = function
         | None -> internal_is_stale config uri None
         | Some (_feed, overrides) -> internal_is_stale config uri (Some overrides) in

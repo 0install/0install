@@ -576,7 +576,7 @@ let get_root_requirements config requirements =
     'test' command for giving test-only dependencies. *)
   let use = if command = Some "test" then StringSet.singleton "testing" else StringSet.empty in
 
-  let platform = config.system#platform () in
+  let platform = config.system#platform in
   let os = default platform.Platform.os os in
   let machine = default platform.Platform.machine cpu in
 

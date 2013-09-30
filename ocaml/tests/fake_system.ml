@@ -128,7 +128,7 @@ class fake_system tmpdir =
 
     val mutable argv = [| test_0install |]
 
-    method argv () = argv
+    method argv = argv
     method set_argv new_argv = argv <- new_argv
 
     method time = !now
@@ -210,7 +210,7 @@ class fake_system tmpdir =
     method reap_child = real_system#reap_child
     method waitpid = real_system#waitpid
 
-    method getcwd () =
+    method getcwd =
       match tmpdir with
       | None -> "/root"
       | Some d -> d
@@ -229,7 +229,7 @@ class fake_system tmpdir =
     method unsetenv name =
       env <- StringMap.remove name env
 
-    method platform () =
+    method platform =
       let open Platform in {
         os = "Linux";
         release = "3.10.3-1-ARCH";

@@ -159,7 +159,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
         if mode = `Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro:driver#distro sels = [] then (
           (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
 
-          let have_stale_feeds = feed_provider#have_stale_feeds () in
+          let have_stale_feeds = feed_provider#have_stale_feeds in
 
           if mode = `Download_only && (have_stale_feeds && config.network_use <> Offline) then (
             (* Updating in the foreground for Download_only mode is a bit inconsistent. Maybe we

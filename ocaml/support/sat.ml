@@ -47,14 +47,14 @@ module MakeSAT(User : USER) =
 
         (** Why are we causing a conflict?
             @return a list of literals which caused the problem by all being True. *)
-        method calc_reason : unit -> lit list
+        method calc_reason : lit list
 
         (** Which literals caused [lit] to have its current value?
             @return a list of literals which caused the problem by all being True. *)
         method calc_reason_for : lit -> lit list
 
         (** For debugging *)
-        method to_string : unit -> string
+        method to_string : string
       end
 
     (** The reason why a literal is set. *)
@@ -111,7 +111,7 @@ module MakeSAT(User : USER) =
     }
 
     let string_of_reason = function
-      | Clause clause -> clause#to_string ()
+      | Clause clause -> clause#to_string
       | External msg -> msg
 
     (* Variables are numbered from 0
@@ -321,7 +321,7 @@ module MakeSAT(User : USER) =
 
     (* Call [clause#propagate lit] when lit becomes True *)
     let watch_lit problem lit clause =
-      (* if debug then log_debug "%s is watching for %s to become True" (clause#to_string ()) (name_lit problem lit); *)
+      (* if debug then log_debug "%s is watching for %s to become True" clause#to_string (name_lit problem lit); *)
       Queue.add clause (WatchArray.get (watch_index lit) problem.watches)
 
     class union_clause problem lits =
@@ -380,7 +380,7 @@ module MakeSAT(User : USER) =
         (* We can only cause a conflict if all our lits are False, so they're all the cause.
            e.g. if we are "A or B or not(C)" then "not(A) and not(B) and C" causes a conflict.
          *)
-        method calc_reason () = List.map neg (Array.to_list lits)
+        method calc_reason = List.map neg (Array.to_list lits)
 
         (** Which literals caused [lit] to have its current value? *)
         method calc_reason_for lit =
@@ -395,7 +395,7 @@ module MakeSAT(User : USER) =
             ) in
           get_cause 0
 
-        method to_string () =
+        method to_string =
           Printf.sprintf "<some: %s>" (String.concat ", " (Array.to_list (Array.map (name_lit problem) lits)))
       end
 
@@ -460,7 +460,7 @@ module MakeSAT(User : USER) =
           with Conflict -> false
 
         (** If we caused a conflict, it's because two of our literals became true. *)
-        method calc_reason () =
+        method calc_reason =
           (* Find two True literals *)
           let rec find_two found = function
             | [] -> assert false      (* Don't know why! *)
@@ -477,22 +477,22 @@ module MakeSAT(User : USER) =
           (* Find the True literal. Any true literal other than [lit] would do. *)
           [List.find (fun l -> l <> lit && lit_val l = True) lits]
 
-        method best_undecided () =
+        method best_undecided =
           (* if debug then log_debug "best_undecided: %s" (string_of_lits problem lits); *)
           try Some (List.find (fun l -> lit_val l = Undecided) lits)
           with Not_found -> None
 
-        method get_selected () =
+        method get_selected =
           !current
 
-        method to_string () =
+        method to_string =
           Printf.sprintf "<at most one: %s>" (string_of_lits problem lits)
       end
 
-    let get_best_undecided clause = clause#best_undecided ()
-    let get_selected clause = clause#get_selected ()
+    let get_best_undecided clause = clause#best_undecided
+    let get_selected clause = clause#get_selected
 
-    let string_of_clause clause = clause#to_string ()
+    let string_of_clause clause = clause#to_string
 
     (* Returns the new clause if one was added, [AddedFact true] if none was added
        because this clause is trivially True, or [AddedFact false] if the clause
@@ -723,7 +723,7 @@ module MakeSAT(User : USER) =
           ) in
           let p_reason = cause#calc_reason_for p in
           let outcome = name_lit problem p in
-          if debug then log_debug "why did %s lead to %s?" (cause#to_string ()) outcome;
+          if debug then log_debug "why did %s lead to %s?" cause#to_string outcome;
           follow_causes p_reason outcome
         ) else (
           (* If counter = 0 then we still have one more
@@ -735,8 +735,8 @@ module MakeSAT(User : USER) =
         ) in
 
       (* Start with all the literals involved in the conflict. *)
-      if debug then log_debug "why did %s lead to conflict?" (original_cause#to_string ());
-      let p = follow_causes (original_cause#calc_reason ()) "conflict" in
+      if debug then log_debug "why did %s lead to conflict?" original_cause#to_string;
+      let p = follow_causes original_cause#calc_reason "conflict" in
       assert (!counter = 0);
 
       (* p is the literal we decided to stop processing on. It's either

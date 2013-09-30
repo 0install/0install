@@ -121,7 +121,7 @@ class fake_feed_provider system distro =
 
     method get_feeds_used = []
 
-    method have_stale_feeds () = false
+    method have_stale_feeds = false
 
     method add_iface elem =
       let open Feed in
@@ -151,7 +151,7 @@ let make_solver_test test_elem =
       fake_system#add_dir "/home/testuser/.cache/0install.net/implementations" [];
       fake_system#add_dir "/var/cache/0install.net/implementations" [];
     );
-    fake_system#add_dir (fake_system#getcwd ()) [];
+    fake_system#add_dir fake_system#getcwd [];
     let system = (fake_system :> system) in
     let reqs = ref (Zeroinstall.Requirements.default_requirements "") in
     let fails = ref false in

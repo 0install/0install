@@ -196,7 +196,7 @@ let normpath path : filepath =
 let abspath (system:system) path =
   normpath (
     if path_is_absolute path then path
-    else system#getcwd () +/ path
+    else system#getcwd +/ path
   )
 
 (** Wrapper for [Sys.getenv] that gives a more user-friendly exception message. *)
@@ -229,7 +229,7 @@ let find_in_path (system:system) name =
     (* e.g. "python" *)
     let path = default "/usr/bin:/bin" (system#getenv "PATH") in
     let path_var = Str.split_delim re_path_sep path in
-    let effective_path = if on_windows then system#getcwd () :: path_var else path_var in
+    let effective_path = if on_windows then system#getcwd :: path_var else path_var in
     let test dir = check (dir +/ name) in
     first_match ~f:test effective_path
   )
@@ -332,8 +332,8 @@ let with_dev_null fn =
   finally_do Unix.close null_fd fn
 
 let rmtree ~even_if_locked (sys:system) root =
-  if starts_with (sys#getcwd () ^ Filename.dir_sep) (root ^ Filename.dir_sep) then
-    log_warning "Removing tree (%s) containing the current directory (%s) - this will not work on Windows" root (sys#getcwd ());
+  if starts_with (sys#getcwd ^ Filename.dir_sep) (root ^ Filename.dir_sep) then
+    log_warning "Removing tree (%s) containing the current directory (%s) - this will not work on Windows" root sys#getcwd;
 
   try
     let rec rmtree path =
@@ -471,7 +471,7 @@ let realpath (system:system) path =
     if on_windows then
       abspath system path
     else (
-      fst @@ join_realpath (system#getcwd ()) path StringMap.empty
+      fst @@ join_realpath system#getcwd path StringMap.empty
     )
   with Safe_exception _ as ex -> reraise_with_context ex "... in realpath(%s)" path
 

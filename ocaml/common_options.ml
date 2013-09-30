@@ -38,7 +38,7 @@ let increase_verbosity options =
   )
 
 let show_version system =
-  let prog = Filename.basename @@ (system#argv ()).(0) in
+  let prog = Filename.basename system#argv.(0) in
   let prog = if Support.Utils.starts_with prog "0launch" then "0launch" else "0install" in
 
   system#print_string @@ Printf.sprintf
@@ -52,7 +52,7 @@ let show_version system =
      prog Zeroinstall.About.version
 
 let show_help (system:system) valid_options help extra_fn =
-  let prog = Filename.basename @@ (system#argv ()).(0) in
+  let prog = Filename.basename system#argv.(0) in
   if Support.Utils.starts_with prog "0launch" then
     Support.Utils.print system "Usage: %s [OPTIONS] URI [ARGS]" prog
   else

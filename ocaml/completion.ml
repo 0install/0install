@@ -31,13 +31,13 @@ class virtual completer command config =
 
     (** Get the index of the word to complete, as reported by the shell. This is used internally by [normalise],
         because some shells differ only in the way they count this. *)
-    method get_cword () =
+    method get_cword =
       let cword = int_of_string (Support.Utils.getenv_ex config.system "COMP_CWORD") - 1 in
       match command with
       | `install -> cword
       | `launch -> cword + 1    (* we added "run" at the start *)
 
-    method get_config () = config
+    method get_config = config
 
     (** Tell the shell about a possible match. *)
     method add ctype value =
@@ -184,7 +184,7 @@ class bash_completer command config =
     val mutable current = ""
 
     method normalise args =
-      let cword = ref @@ self#get_cword () in
+      let cword = ref @@ self#get_cword in
 
       (* Bash does crazy splitting (e.g. "http://foo" becomes "http" ":" "//foo")
          Do our best to reverse that splitting here (inspired by Git completion code) *)
@@ -234,7 +234,7 @@ class fish_completer command config =
     val mutable response_prefix = ""
 
     method normalise args =
-      let cword = self#get_cword () in
+      let cword = self#get_cword in
       let current = if cword < List.length args then List.nth args cword else "" in
       if starts_with current "--" then
         match Str.bounded_split_delim U.re_equals current 2 with
@@ -252,12 +252,12 @@ class zsh_completer command config =
   object
     inherit fish_completer command config as super
 
-    method !get_cword () = super#get_cword () - 1
+    method !get_cword = super#get_cword - 1
   end
 
 let complete_version completer ~range ~maybe_app target pre =
   let re_dotdot = Str.regexp_string ".." in
-  let config = completer#get_config () in
+  let config = completer#get_config in
   let uri =
     if maybe_app then (
       match Apps.lookup_app config target with
@@ -311,7 +311,7 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
   | IfaceURI -> (
       match args with
       | _ :: app :: _ -> (
-        let config = completer#get_config () in
+        let config = completer#get_config in
         match Apps.lookup_app config app with
         | None -> completer#add_interfaces pre
         | Some path ->

@@ -262,7 +262,7 @@ module Cache =
         val cache_path = (Basedir.save_path config.system (config_site +/ config_prog) config.basedirs.Basedir.cache) +/ cache_leaf
 
         (** Reload the values from disk (even if they're out-of-date). *)
-        method load_cache () =
+        method load_cache =
           data.mtime <- -1L;
           data.size <- -1;
           data.rev <- -1;
@@ -297,7 +297,7 @@ module Cache =
           )
 
         (** Check cache is still up-to-date. Clear it not. *)
-        method ensure_valid () =
+        method ensure_valid =
           match config.system#stat source with
           | None when data.size = -1 -> ()    (* Still doesn't exist - no problem *)
           | None -> raise Fallback_to_Python  (* Disappeared (shouldn't happen) *)
@@ -314,10 +314,10 @@ module Cache =
               )
 
         method get (key:string) : string list =
-          self#ensure_valid ();
+          self#ensure_valid;
           Hashtbl.find_all data.contents key
 
-        initializer self#load_cache ()
+        initializer self#load_cache
       end
   end
 

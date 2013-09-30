@@ -181,7 +181,7 @@ let fallback_handler options flags _args =
     | _ -> ()
   );
   log_info "No OCaml handler for this sub-command; switching to Python version...";
-  Zeroinstall.Python.fallback_to_python options.config (List.tl @@ Array.to_list @@ options.config.system#argv ())
+  Zeroinstall.Python.fallback_to_python options.config (List.tl @@ Array.to_list options.config.system#argv)
 
 let make_subcommand name help handler valid_options =
   let subcommand =

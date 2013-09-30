@@ -7,7 +7,7 @@
 open Support.Common
 
 let main (system:system) : unit =
-  match Array.to_list (system#argv ()) with
+  match Array.to_list system#argv with
   | [] -> assert false
   | prog :: args ->
       let config = Zeroinstall.Config.get_default_config system prog in

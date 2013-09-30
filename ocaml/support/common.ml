@@ -46,7 +46,7 @@ let raise_safe fmt =
     in unit-tests. *)
 class type system =
   object
-    method argv : unit -> string array
+    method argv : string array
     method print_string : string -> unit
     method time : float
 
@@ -58,7 +58,7 @@ class type system =
     method stat : filepath -> Unix.stats option
     method unlink : filepath -> unit
     method rmdir : filepath -> unit
-    method getcwd : unit -> filepath
+    method getcwd : filepath
     method atomic_write : open_flag list -> filepath -> mode:Unix.file_perm -> (out_channel -> 'a) -> 'a
 
     (** Remove [replace] and replace it with a hardlink to [source]. If possible, ensure
@@ -85,7 +85,7 @@ class type system =
     (** True if we're on Unix and running as root; we must take care to avoid creating files in the wrong
      * place when running under sudo. *)
     method running_as_root : bool
-    method platform : unit -> Platform.t
+    method platform : Platform.t
   end
 ;;
 

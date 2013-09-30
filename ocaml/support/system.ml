@@ -67,7 +67,7 @@ module RealSystem (U : UnixType) =
       let platform = ref None in
 
       object (self : #system)
-        method argv () = Sys.argv
+        method argv = Sys.argv
         method print_string = print_string
         method time = Unix.time ()
         method mkdir = Unix.mkdir
@@ -86,7 +86,7 @@ module RealSystem (U : UnixType) =
 
         method unlink = Unix.unlink
         method rmdir = Unix.rmdir
-        method getcwd = Sys.getcwd
+        method getcwd = Sys.getcwd ()
         method chmod = Unix.chmod
         method set_mtime path mtime =
           if mtime = 0.0 then (* FIXME *)
@@ -246,7 +246,7 @@ module RealSystem (U : UnixType) =
             | Some signal -> Unix.kill child_pid signal in
           reap_child child_pid
 
-        method platform () =
+        method platform =
           match !platform with
           | Some p -> p
           | None ->
