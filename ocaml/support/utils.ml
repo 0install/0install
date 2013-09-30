@@ -6,6 +6,9 @@
 
 open Common
 
+(* For temporary directory names *)
+let () = Random.self_init ()
+
 type path_component =
   | Filename of string  (* foo/ *)
   | ParentDir           (* ../ *)
@@ -537,3 +540,15 @@ let safe_int_of_string s =
 let find_opt key map =
   try Some (StringMap.find key map)
   with Not_found -> None
+
+(** Create a randomly-named subdirectory inside [parent]. *)
+let make_tmp_dir system ?(prefix="tmp-") ?(mode=0o700) parent =
+  let rec mktmp = function
+    | 0 -> raise_safe "Failed to generate temporary directroy name!"
+    | n ->
+        try
+          let tmppath = parent +/ Printf.sprintf "%s%x" prefix (Random.int 0x3fffffff) in
+          system#mkdir tmppath mode;
+          tmppath
+        with Unix.Unix_error (Unix.EEXIST, _, _) -> mktmp (n - 1) in
+  mktmp 10

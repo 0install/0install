@@ -153,7 +153,7 @@ class fake_system tmpdir =
       if StringMap.mem path !extra_files then None    (* Not a link *)
       else real_system#readlink (check_read path)
 
-    method chmod = failwith "chmod"
+    method chmod path mode = real_system#chmod (check_write path) mode
 
     method file_exists path =
       if path = "/usr/bin/0install" then true
@@ -341,8 +341,7 @@ let temp_dir_name =
       | _ -> failwith "temp_dir_name: unknown filesystem"
 
 let with_tmpdir fn () =
-  let tmppath = temp_dir_name +/ Printf.sprintf "0install-test-%x" (Random.int 0x3fffffff) in
-  Unix.mkdir tmppath 0o700;   (* will fail if already exists; OK for testing *)
+  let tmppath = U.make_tmp_dir real_system temp_dir_name ~prefix:"0install-test-" in
   U.finally_do (U.rmtree ~even_if_locked:true real_system) tmppath fn
 
 let get_fake_config tmpdir =
