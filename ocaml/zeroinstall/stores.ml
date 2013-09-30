@@ -97,3 +97,10 @@ let best_digest digests =
   | None ->
       let algs = digests |> List.map fst |> String.concat ", " in
       raise_safe "None of the candidate digest algorithms (%s) is supported" algs
+
+let make_tmp_dir (system:system) = function
+  | store :: _ ->
+      U.makedirs system store 0o755;
+      let mode = 0o755 in     (* r-x for all; needed by 0store-helper *)
+      U.make_tmp_dir system ~mode store
+  | _ -> raise_safe "No stores configured!"
