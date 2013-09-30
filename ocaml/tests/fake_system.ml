@@ -140,6 +140,7 @@ class fake_system tmpdir =
     method with_open_out flags mode path fn = real_system#with_open_out flags mode (check_write path) fn
 
     method mkdir path mode = real_system#mkdir (check_write path) mode
+    method rename source target = real_system#rename (check_write source) (check_write target)
 
     method readdir path =
       try

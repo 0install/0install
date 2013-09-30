@@ -64,6 +64,7 @@ class type system =
     (** Remove [replace] and replace it with a hardlink to [source]. If possible, ensure
         that there is no point where [replace] does not exist. *)
     method atomic_hardlink : link_to:filepath -> replace:filepath -> unit
+    method rename : filepath -> filepath -> unit
 
     method readdir : filepath -> string array result
     method chmod : filepath -> Unix.file_perm -> unit

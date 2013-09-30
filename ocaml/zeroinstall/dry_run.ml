@@ -69,6 +69,7 @@ class dryrun_system (underlying:system) =
     method unlink path      = log "rm %s" path
     method atomic_hardlink ~link_to ~replace = log "ln %s %s" link_to replace
     method rmdir path       = log "rmdir %s" path
+    method rename source target = log "rename %s -> %s" source target
     method spawn_detach ?(search_path=false) ?env:_ argv = ignore search_path; log "would spawn background process: %s" (String.concat " " argv)
 
     (* Complex operations: reject (caller should handle specially) *)

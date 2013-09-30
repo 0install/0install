@@ -88,6 +88,7 @@ module RealSystem (U : UnixType) =
         method rmdir = Unix.rmdir
         method getcwd = Sys.getcwd ()
         method chmod = Unix.chmod
+        method rename = Unix.rename
         method set_mtime path mtime =
           if mtime = 0.0 then (* FIXME *)
             failwith "OCaml cannot set mtime to 0, sorry" (* Would interpret it as the current time *)
