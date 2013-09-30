@@ -11,7 +11,7 @@ open Support.Argparse
 
 let starts_with = Support.Utils.starts_with
 
-let i_ x = x;;
+let i_ x = x
 
 class ['a, 'b] ambiguous_no_arg (actual:'a) reader =
   object (_ : ('a, 'b) #option_parser)

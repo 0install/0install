@@ -9,7 +9,7 @@ open Support.Common
 module Basedir = Support.Basedir
 module FeedAttr = Constants.FeedAttr
 
-let re_exec_name = Str.regexp "^[^./'][^/']*$";;
+let re_exec_name = Str.regexp "^[^./'][^/']*$"
 
 let validate_exec_name name =
   if Str.string_match re_exec_name name 0 then
@@ -109,7 +109,6 @@ let make_selection_map system stores sels =
     let value = (sel, path) in
     StringMap.add iface value m
   in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
-;;
 
 (** Calculate the arguments and environment to pass to exec to run this
     process. This also ensures any necessary launchers exist, creating them
@@ -169,4 +168,3 @@ let runenv (system:system) args =
       let envargs = Util.convert_each Util.to_string (from_string s) in
       system#exec (envargs @ args)
     with Safe_exception _ as ex -> reraise_with_context ex "... launching %s" arg0
-;;

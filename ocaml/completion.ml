@@ -98,7 +98,6 @@ let complete_command (completer:completer) raw_options prefix =
   let complete_commands = if List.length valid_commands = 0 then commands else valid_commands in
 
   List.iter (fun (name, _) -> completer#add Add name) complete_commands
-;;
 
 (* e.g. 120 -> "2m" *)
 let format_interval interval =

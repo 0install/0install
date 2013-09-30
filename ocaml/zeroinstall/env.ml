@@ -6,9 +6,9 @@
 
 open Support.Common
 
-type env = (string, string) Hashtbl.t;;
+type env = (string, string) Hashtbl.t
 
-let re_equals = Str.regexp_string "=";;
+let re_equals = Str.regexp_string "="
 
 let copy_current_env system : env =
   let env = Hashtbl.create 1000 in
@@ -22,22 +22,18 @@ let copy_current_env system : env =
   Array.iter parse_env system#environment;
 
   env
-;;
 
 let putenv name value env =
   (* Printf.fprintf stderr "Adding: %s=%s\n" name value; *)
   Hashtbl.replace env name value
-;;
 
 let find name env =
   try Hashtbl.find env name
   with Not_found -> raise_safe "Environment variable '%s' not set" name
-;;
 
 let find_opt name env =
   try Some (Hashtbl.find env name)
   with Not_found -> None
-;;
 
 let to_array env =
   let len = Hashtbl.length env in
@@ -46,4 +42,3 @@ let to_array env =
   let check_len = Hashtbl.fold item_to_array env 0 in
   assert (len == check_len);
   arr
-;;

@@ -2,7 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Common;;
+open Common
 
 type document = {
   source_name : filepath option;       (** For error messages *)
@@ -82,7 +82,6 @@ let parse_input source_name i = try (
   | _ -> failwith("Expected single root node in XML")
 ) with Xmlm.Error ((line, col), err) ->
   raise_safe "[%d:%d] %s" line col (Xmlm.error_message err)
-;;
 
 let parse_file (system:system) path =
   try system#with_open_in [Open_rdonly; Open_binary] 0 path (fun ch ->
@@ -97,7 +96,6 @@ let parse_file (system:system) path =
 let find pred node =
   try Some (List.find pred node.child_nodes)
   with Not_found -> None
-;;
 
 (** [prepend_child child parent] makes [child] the first child of [parent]. *)
 let prepend_child child parent =
@@ -131,11 +129,10 @@ let rec show_with_loc elem =
       match elem.doc.source_name with
       | Some path -> Printf.sprintf "<%s> at %s:%d:%d" name path line col
       | None -> Printf.sprintf "<%s> (generated)" name
-;;
 
 module type NsType = sig
-  val ns : string;;
-end;;
+  val ns : string
+end
 
 let raise_elem fmt =
   let do_raise s elem : 'b =
@@ -250,7 +247,6 @@ module NsQuery (Ns : NsType) = struct
           then let result = f node in result :: loop xs
           else loop xs in
     loop node.child_nodes
-  ;;
 
   let filter_map ~f node =
     let rec loop = function
@@ -262,44 +258,37 @@ module NsQuery (Ns : NsType) = struct
             | Some result -> result :: loop xs
           ) else loop xs in
     loop node.child_nodes
-  ;;
 
   let check_ns elem =
     let (ns, _) = elem.tag in
     if ns = Ns.ns then ()
     else raise_elem "Element not in namespace %s:" Ns.ns elem
-  ;;
 
   let get_attribute attr elem = try
       check_ns elem;
       List.assoc ("", attr) elem.attrs
     with
       Not_found -> raise_elem "Missing attribute '%s' on" attr elem
-  ;;
 
   let get_attribute_opt attr elem = try
       check_ns elem;
       Some (List.assoc ("", attr) elem.attrs)
     with
       Not_found -> None
-  ;;
 
   let iter ~f node =
     let fn2 elem =
       let (ns, _) = elem.tag in
       if ns = Ns.ns then f elem else ()
     in List.iter fn2 node.child_nodes
-  ;;
 
   let iter_with_name ~f node tag =
     let fn2 elem = if elem.tag = (Ns.ns, tag) then f elem else () in
     List.iter fn2 node.child_nodes
-  ;;
 
   let fold_left ~f init node tag =
     let fn2 m elem = if elem.tag = (Ns.ns, tag) then f m elem else m in
     List.fold_left fn2 init node.child_nodes
-  ;;
 
   let check_tag expected elem =
     let (ns, name) = elem.tag in

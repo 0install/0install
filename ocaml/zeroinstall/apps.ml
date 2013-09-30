@@ -9,7 +9,7 @@ open Support.Common
 module Basedir = Support.Basedir
 module U = Support.Utils
 
-let re_app_name = Str.regexp "^[^./\\\\:=;'\"][^/\\\\:=;'\"]*$";;
+let re_app_name = Str.regexp "^[^./\\\\:=;'\"][^/\\\\:=;'\"]*$"
 
 let validate_name purpose name =
   if name = "0install" then
@@ -22,13 +22,12 @@ let lookup_app config name =
     Basedir.load_first config.system ("0install.net" +/ "apps" +/ name) config.basedirs.Basedir.config
   else
     None
-;;
 
-exception Need_solve;;
+exception Need_solve
 
 let need_solve msg =
   log_info "Need to solve: %s" msg;
-  raise Need_solve;;
+  raise Need_solve
 
 (*
 Ideally, this would return all the files which were inputs into the solver's
@@ -65,8 +64,6 @@ let iter_inputs config cb sels =
 
   (* Check global config *)
   check_maybe_config config_injector_global
-;;
-
 
 (** Get the mtime of the given path. If the path doesn't exist, returns 0.0 and,
     if [warn_if_missing] is true, logs the problem.
@@ -241,7 +238,6 @@ let check_for_updates driver ~use_gui app_path sels =
     );
     sels
   ) else sels
-;;
 
 (** If [driver] is [None] then we don't check for updates. *)
 let get_selections_internal system ?driver ~use_gui app_path =

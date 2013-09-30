@@ -23,7 +23,7 @@ type varname = string
 
 type yes_no_maybe = Yes | No | Maybe
 
-exception Safe_exception of (string * string list ref);;
+exception Safe_exception of (string * string list ref)
 
 (** Raise this to exit the program. Allows finally blocks to run. *)
 exception System_exit of int
@@ -87,12 +87,11 @@ class type system =
     method running_as_root : bool
     method platform : Platform.t
   end
-;;
 
 let on_windows = Filename.dir_sep <> "/"
 
 (** The string used to separate paths (":" on Unix, ";" on Windows). *)
-let path_sep = if on_windows then ";" else ":";;
+let path_sep = if on_windows then ";" else ":"
 
 (** Join a relative path onto a base.
     @raise Safe_exception if the second path is not relative. *)
@@ -115,7 +114,6 @@ let reraise_with_context ex fmt =
     in
     raise ex
   in Printf.ksprintf do_raise fmt
-;;
 
 let log_debug = Logging.log_debug
 let log_info = Logging.log_info
@@ -124,7 +122,7 @@ let log_warning = Logging.log_warning
 (** [default d opt] unwraps option [opt], returning [d] if it was [None]. *)
 let default d = function
   | None -> d
-  | Some x -> x;;
+  | Some x -> x
 
 (** A null coalescing operator. *)
 let (|?) maybe default =

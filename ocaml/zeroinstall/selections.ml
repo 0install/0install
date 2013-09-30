@@ -15,10 +15,9 @@ type impl_source =
   | CacheSelection of Stores.digest list
   | LocalSelection of string
   | PackageSelection
-;;
 
-let re_initial_slash = Str.regexp "^/";;
-let re_package = Str.regexp "^package:";;
+let re_initial_slash = Str.regexp "^/"
+let re_package = Str.regexp "^package:"
 
 let make_selection elem =
   let source = (match ZI.get_attribute_opt "local-path" elem with
@@ -36,14 +35,12 @@ let make_selection elem =
       | digests -> digests
       )
   ) in source
-;;
 
 let get_path system stores elem =
   match make_selection elem with
   | PackageSelection -> None
   | LocalSelection path -> Some path
   | CacheSelection digests -> Some (Stores.lookup_any system digests stores)
-;;
 
 (** Create a map from interface URI to <selection> elements. *)
 let make_selection_map sels =
@@ -85,7 +82,6 @@ let get_feed elem =
   match ZI.get_attribute_opt "from-feed" elem with
   | None -> ZI.get_attribute "interface" elem
   | Some feed -> feed
-;;
 
 (** If [distro] is set then <package-implementation>s are included. Otherwise, they are ignored. *)
 let get_unavailable_selections config ?distro sels =

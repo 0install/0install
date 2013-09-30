@@ -52,7 +52,6 @@ let log level ?ex =
       !handler#handle ?ex level msg
   in
   Printf.ksprintf do_log
-;;
 
 let log_debug fmt = log Debug fmt
 

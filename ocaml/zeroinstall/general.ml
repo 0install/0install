@@ -59,7 +59,7 @@ let cache_icons = config_site +/ "interface_icons"
 (** {2 The 0install XML namespace} *)
 
 module ZI_NS = struct
-  let ns = "http://zero-install.sourceforge.net/2004/injector/interface";;
+  let ns = "http://zero-install.sourceforge.net/2004/injector/interface"
 end
 
 module ZI = Support.Qdom.NsQuery (ZI_NS)

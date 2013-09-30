@@ -7,7 +7,7 @@
     should provide and allows windows.ml to register the real implementation at runtime, if we happen
     to be on Windows. *)
 
-Callback.register;;
+Callback.register
 
 class type windows_api =
   object

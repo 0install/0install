@@ -25,7 +25,6 @@ let unescape uri =
         String.make 1 c
     | _ -> assert false
   in Str.global_substitute re_escaped fn uri
-;;
 
 (** Legacy escape function. Convert each space to %20, etc *)
 let escape uri =
@@ -34,7 +33,6 @@ let escape uri =
     let c = Char.code m.[0] in         (* docs say ASCII, but should work for UTF-8 too *)
     Printf.sprintf "%%%02x" c
   in Str.global_substitute re_need_escaping fn uri
-;;
 
 (** Another legacy escaping function. Convert each space to %20, etc
     : is preserved and / becomes #. This makes for nicer strings than [escape], but has to work

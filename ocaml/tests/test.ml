@@ -41,8 +41,7 @@ let test_basedir () =
   let bd = get_default_config (system :> system) in
   equal_str_lists ~msg:"PORT-1" ["/mnt/0install/config"] bd.config;
   equal_str_lists ~msg:"PORT-2" ["/mnt/0install/cache"] bd.cache;
-  equal_str_lists ~msg:"PORT-3" ["/mnt/0install/data"] bd.data;
-;; 
+  equal_str_lists ~msg:"PORT-3" ["/mnt/0install/data"] bd.data
 
 let test_option_parsing () =
   Support.Logging.threshold := Support.Logging.Warning;
@@ -107,8 +106,7 @@ let test_option_parsing () =
 
   let _, flags, args = p_full ["run"; "-m"; "main"; "app"] in
   equal_str_lists ["run"; "app"] args;
-  assert_equal [("-m", `MainExecutable "main")] flags;
-;;
+  assert_equal [("-m", `MainExecutable "main")] flags
 
 let test_run_real tmpdir =
   Unix.putenv "ZEROINSTALL_PORTABLE_BASE" tmpdir;
@@ -228,7 +226,7 @@ let suite =
    test ["de_DE"; "en_GB"] [("LANG", "fr_FR"); ("LC_ALL", "de_DE")];
    test ["de_DE"; "en_GB"] [("LANG", "fr_FR"); ("LC_MESSAGES", "de_DE")];
  );
-];;
+]
 
 let show_log_on_failure fn () =
   Fake_system.forward_to_real_log := true;

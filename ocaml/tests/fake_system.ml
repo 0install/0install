@@ -271,7 +271,6 @@ class fake_system tmpdir =
       | Some dir -> self#putenv "ZEROINSTALL_PORTABLE_BASE" dir
       | None -> ()
   end
-;;
 
 let forward_to_real_log = ref true
 let real_log = !Support.Logging.handler

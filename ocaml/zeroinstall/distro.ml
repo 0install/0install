@@ -553,7 +553,6 @@ let get_host_distribution config (slave:Python.slave) : distribution =
   | "Cygwin" -> new Win.cygwin_distribution config slave
   | _ ->
       new generic_distribution slave
-;;
 
 (** Check whether this <selection> is still valid. If the quick-test-* attributes are present, use
     them to check. Otherwise, call the appropriate method on [config.distro]. *)

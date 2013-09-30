@@ -2,7 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Ocamlbuild_plugin;;
+open Ocamlbuild_plugin
 
 let on_windows = Sys.os_type = "Win32"
 

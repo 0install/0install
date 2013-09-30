@@ -35,7 +35,6 @@ let expand_arg arg env =
   | "" | "{}" -> Qdom.raise_elem "Empty variable name in template '%s' in" template arg
   | m -> Env.find (remove_braces m) env in
   Str.global_substitute re_template expand template
-;;
 
 (* Return a list of string arguments by expanding <arg> and <for-each> children of [elem] *)
 let get_args elem env =
@@ -63,14 +62,12 @@ let get_args elem env =
               new_args @ (loop xs) in
         loop (Str.split_delim (Str.regexp_string separator) source)
   in get_args_loop elem
-;;
 
 let get_runner elem =
   match ZI.map ~f:(fun a -> a) elem "runner" with
     | [] -> None
     | [runner] -> Some runner
     | _ -> Qdom.raise_elem "Multiple <runner>s in " elem
-;;
 
 let find_ex iface impls =
   try StringMap.find iface impls
@@ -134,4 +131,3 @@ let rec build_command ?main ?(dry_run=false) impls command_iface command_name en
         let runner_command_name = default "run" (ZI.get_attribute_opt "command" runner) in
         (build_command ~dry_run impls (ZI.get_attribute "interface" runner) (Some runner_command_name) env) @ runner_args @ args
   with Safe_exception _ as ex -> reraise_with_context ex "... building command for %s" command_iface
-;;

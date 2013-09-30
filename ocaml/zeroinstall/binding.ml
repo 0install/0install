@@ -8,20 +8,20 @@ open General
 open Support.Common
 module Qdom = Support.Qdom
 
-type which_end = Prepend | Append;;
-type add_mode = {pos :which_end; default :string option; separator :string};;
+type which_end = Prepend | Append
+type add_mode = {pos :which_end; default :string option; separator :string}
 
 type mode =
   | Add of add_mode
-  | Replace;;
+  | Replace
 
 type env_source =
   | InsertPath of filepath
-  | Value of string;;
+  | Value of string
 
-type exec_type = InPath | InVar;;
-type env_binding = {var_name: varname; mode: mode; source: env_source};;
-type exec_binding = {exec_type: exec_type; name: string; command: string};;
+type exec_type = InPath | InVar
+type env_binding = {var_name: varname; mode: mode; source: env_source}
+type exec_binding = {exec_type: exec_type; name: string; command: string}
 
 type binding =
 | EnvironmentBinding of env_binding
@@ -35,7 +35,6 @@ let get_source b =
   | (Some i, None) -> InsertPath i
   | (None, Some v) -> Value v
   | (Some _, Some _) -> Qdom.raise_elem "Can't use 'insert' and 'value' together on " b
-;;
 
 let get_mode b =
   let get name = ZI.get_attribute_opt name b in
@@ -44,7 +43,6 @@ let get_mode b =
   | "append" -> Add {pos = Append; default = get "default"; separator = default path_sep (get "separator")}
   | "replace" -> Replace
   | x -> Qdom.raise_elem "Unknown mode '%s' on" x b
-;;
 
 let is_binding = function
   | "environment" | "executable-in-path" | "executable-in-var" | "overlay" | "binding" -> true
@@ -91,14 +89,12 @@ let collect_bindings impls root =
   in 
   ZI.iter_with_name ~f:process_sel root "selection";
   List.rev !bindings
-;;
 
 let get_default name = match name with
   | "PATH" -> Some "/bin:/usr/bin"
   | "XDG_CONFIG_DIRS" -> Some "/etc/xdg"
   | "XDG_DATA_DIRS" -> Some "/usr/local/share:/usr/share"
   | _ -> None
-;;
 
 let calc_new_value name mode value env =
   match mode with
@@ -122,7 +118,6 @@ let calc_new_value name mode value env =
           | None ->
               log_info "%s=%s" name value;  (* no old value; use new value directly *)
               value
-;;
 
 let do_env_binding env impls iface {var_name; mode; source} =
   let add value = Env.putenv var_name (calc_new_value var_name mode value env) env in
@@ -135,4 +130,3 @@ let do_env_binding env impls iface {var_name; mode; source} =
 let prepend name value separator env =
   let mode = Add {pos = Prepend; default = None; separator} in
   Env.putenv name (calc_new_value name mode value env) env
-;;

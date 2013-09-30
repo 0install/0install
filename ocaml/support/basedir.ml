@@ -6,13 +6,13 @@
 
 open Common
 
-let re_path_sep = Str.regexp_string path_sep;;
+let re_path_sep = Str.regexp_string path_sep
 
 type basedirs = {
   data: filepath list;
   cache: filepath list;
   config: filepath list;
-};;
+}
 
 let get_path (system:system) home_var dirs_var = function
   | [] -> failwith "No defaults!"
@@ -29,7 +29,6 @@ let get_path (system:system) home_var dirs_var = function
       | Some path -> List.filter ((<>) "") (Str.split re_path_sep path) in
 
     user_dir :: system_dirs
-;;
 
 let get_unix_home (system:system) =
   let home = default "/root" (system#getenv "HOME") in
@@ -79,7 +78,6 @@ let get_default_config (system:system) =
           config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [home +/ ".config"; "/etc/xdg"];
         }
       )
-;;
 
 let load_first (system:system) rel_path search_path =
   let rec loop = function
@@ -88,7 +86,6 @@ let load_first (system:system) rel_path search_path =
         let path = x +/ rel_path in
         if system#file_exists path then Some path else loop xs
   in loop search_path
-;;
 
 let save_path (system:Common.system) rel_path dirs =
   let save_dir = List.hd dirs in
@@ -97,4 +94,3 @@ let save_path (system:Common.system) rel_path dirs =
     Utils.makedirs system path 0o700
   else ();
   path
-;;

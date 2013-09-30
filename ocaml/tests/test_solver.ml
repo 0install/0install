@@ -28,7 +28,7 @@ struct
   let pp_print_sep = OUnitDiff.pp_comma_separator
 end
 
-module ListString = OUnitDiff.ListSimpleMake(EString);;
+module ListString = OUnitDiff.ListSimpleMake(EString)
 
 let cache_path_for config url = Feed_cache.get_save_cache_path config (`remote_feed url)
 

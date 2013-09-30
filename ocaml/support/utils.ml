@@ -24,9 +24,8 @@ let safe_to_string = function
   | Safe_exception (msg, contexts) ->
       Some (msg ^ "\n" ^ String.concat "\n" !contexts)
   | _ -> None
-;;
 
-let () = Printexc.register_printer safe_to_string;;
+let () = Printexc.register_printer safe_to_string
 
 (** [handle_exceptions main args] runs [main args]. If it throws an exception it reports it in a
     user-friendly way. A [Safe_exception] is displayed with its context.
@@ -51,14 +50,13 @@ let handle_exceptions main args =
       else
         Printexc.print_backtrace stderr;
       exit 1
-;;
 
 (** Return the first non-[None] result of [fn item] for items in the list. *)
 let rec first_match ~f = function
   | [] -> None
   | (x::xs) -> match f x with
       | Some _ as result -> result
-      | None -> first_match ~f xs;;
+      | None -> first_match ~f xs
 
 (** List the non-None results of [fn item] *)
 let rec filter_map ~f = function
@@ -101,7 +99,7 @@ let starts_with str prefix =
       if i = lp then true
       else if str.[i] <> prefix.[i] then false
       else loop (i + 1)
-    in loop 0;;
+    in loop 0
 
 let ends_with str prefix =
   let ls = String.length str in
@@ -112,7 +110,7 @@ let ends_with str prefix =
       if i = lp then true
       else if str.[i + offset] <> prefix.[i] then false
       else loop (i + 1)
-    in loop 0;;
+    in loop 0
 
 let string_tail s i =
   let len = String.length s in
@@ -233,13 +231,11 @@ let find_in_path (system:system) name =
     let test dir = check (dir +/ name) in
     first_match ~f:test effective_path
   )
-;;
 
 let find_in_path_ex system name =
   match find_in_path system name with
   | Some path -> path
   | None -> raise_safe "Not found in $PATH: %s" name
-;;
 
 (*
 let with_pipe fn =
@@ -285,7 +281,6 @@ let check_output ?env ?stderr (system:system) fn (argv:string list) =
   | Safe_exception _ as ex ->
       let cmd = Logging.format_argv_for_logging argv in
       reraise_with_context ex "... trying to read output of: %s" cmd
-;;
 
 (** Call [fn line] on each line of output from running the given sub-process. *)
 let check_output_lines system fn argv =
@@ -296,7 +291,6 @@ let check_output_lines system fn argv =
       done
   with End_of_file -> () in
   check_output system process argv
-;;
 
 let split_pair re str =
   match Str.bounded_split_delim re str 2 with
@@ -325,7 +319,6 @@ let parse_ini (system:system) fn path =
       done
     with End_of_file -> () in
   system#with_open_in [Open_rdonly; Open_text] 0 path read
-;;
 
 let with_dev_null fn =
   let null_fd = Unix.openfile "/dev/null" [Unix.O_WRONLY] 0 in

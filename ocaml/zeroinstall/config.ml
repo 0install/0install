@@ -86,4 +86,3 @@ let get_default_config system path_to_prog =
 let load_first_config rel_path config =
   let open Support in
   Basedir.load_first config.system rel_path config.basedirs.Basedir.config
-;;
