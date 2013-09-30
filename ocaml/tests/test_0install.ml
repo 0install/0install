@@ -59,7 +59,6 @@ let expect = function
 class fake_slave config =
   let temp_dir = List.hd config.basedirs.Support.Basedir.cache in
   let pending_feed_downloads = ref StringMap.empty in
-  let pending_digests = ref StringSet.empty in
   let system = config.system in
 
   let handle_download_url url =
@@ -77,30 +76,36 @@ class fake_slave config =
     );
     `List [`String "ok"; `List [`String "success"; `String tmpname]] in
 
+  let handle_unpack_archive _ = `List [`String "ok"; `Null] in
+  let handle_check required_digest tmpdir =
+    let target = Filename.dirname tmpdir +/ required_digest in
+    config.system#rename tmpdir target;
+    `List [`String "ok"; `List [`String target]] in
+
   let fake_slave ?xml request =
+    log_info "fake_slave: invoke: %s" (Yojson.Basic.to_string request);
     ignore xml;
     match request with
     | `List [`String "confirm-keys"; `String _url] -> assert false
-    | `List [`String "download-url"; `String url; `String _hint; timeout; `Null] ->
+    | `List [`String "unpack-archive"; `Assoc details] -> Some (Lwt.return (handle_unpack_archive details))
+    | `List [`String "check-manifest-and-rename"; `String required_digest; `String tmpdir] ->
+        Some (Lwt.return (handle_check required_digest tmpdir))
+    | `List [`String "download-url"; `Assoc details] ->
         let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
-        if timeout <> `Null then
-          ignore @@ start_timeout [timeout];
-        Some (Lwt.return @@ handle_download_url url)
-    | `List [`String "download-impl"; info] ->
-        let impl = impl_from_json config info in
-        handle_download_impls config pending_digests [impl];
-        Some (`List [`String "ok"; `List []] |> Lwt.return)
+        let () =
+          match List.assoc "timeout" details with
+          | `String _ as timeout -> start_timeout [timeout] |> ignore
+          | `Null -> ()
+          | _ -> assert false in
+        Some (Lwt.return @@ handle_download_url (List.assoc "url" details |> Yojson.Basic.Util.to_string))
     | _ -> None in
 
   object
     method install =
       Zeroinstall.Python.slave_interceptor := fake_slave
 
-    method allow_feed_download url contents =
+    method allow_download url contents =
       pending_feed_downloads := StringMap.add url contents !pending_feed_downloads
-
-    method allow_download (hash:string) =
-      pending_digests := StringSet.add hash !pending_digests
   end
 
 let run_0install fake_system ?(exit=0) args =
@@ -187,49 +192,49 @@ let suite = "0install">::: [
     let test_key = Support.Utils.read_file system (feed_dir +/ "6FCF121BE2390E0B.gpg") in
 
     (* Using a remote feed for the first time *)
-    fake_slave#allow_download "sha1=123";
-    fake_slave#allow_feed_download "http://foo/Binary.xml" binary_feed;
-    fake_slave#allow_feed_download "http://foo/6FCF121BE2390E0B.gpg" test_key;
+    fake_slave#allow_download "http://example.com/Binary-1.0.tgz" "";
+    fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
+    fake_slave#allow_download "http://foo/6FCF121BE2390E0B.gpg" test_key;
     let out = run ["update"; "http://foo/Binary.xml"] in
     assert_contains "Binary.xml: new -> 1.0" out;
 
     (* No updates. *)
     (* todo: fails to notice that the binary is missing... *)
-    fake_slave#allow_feed_download "http://foo/Binary.xml" binary_feed;
+    fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
     let out = run ["update"; "http://foo/Binary.xml"] in
     assert_contains "No updates found" out;
 
     (* New binary release available. *)
     let binary_feed = Support.Utils.read_file system (feed_dir +/ "Binary2.xml") in
-    fake_slave#allow_feed_download "http://foo/Binary.xml" binary_feed;
+    fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
     let out = run ["update"; "http://foo/Binary.xml"] in
     assert_contains "Binary.xml: 1.0 -> 1.1" out;
 
     (* Compiling from source for the first time. *)
     let source_feed = U.read_file system (feed_dir +/ "Source.xml") in
     let compiler_feed = U.read_file system (feed_dir +/ "Compiler.xml") in
-    fake_slave#allow_download "sha1=234";
-    fake_slave#allow_download "sha1=345";
-    fake_slave#allow_feed_download "http://foo/Compiler.xml" compiler_feed;
-    fake_slave#allow_feed_download "http://foo/Binary.xml" binary_feed;
-    fake_slave#allow_feed_download "http://foo/Source.xml" source_feed;
+    fake_slave#allow_download "http://example.com/Source-1.0.tgz" "";
+    fake_slave#allow_download "http://example.com/Compiler-1.0.tgz" "";
+    fake_slave#allow_download "http://foo/Compiler.xml" compiler_feed;
+    fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
+    fake_slave#allow_download "http://foo/Source.xml" source_feed;
     let out = run ["update"; "http://foo/Binary.xml"; "--source"] in
     assert_contains "Binary.xml: new -> 1.0" out;
     assert_contains "Compiler.xml: new -> 1.0" out;
 
     (* New compiler released. *)
     let new_compiler_feed = U.read_file system (feed_dir +/ "Compiler2.xml") in
-    fake_slave#allow_feed_download "http://foo/Compiler.xml" new_compiler_feed;
-    fake_slave#allow_feed_download "http://foo/Binary.xml" binary_feed;
-    fake_slave#allow_feed_download "http://foo/Source.xml" source_feed;
+    fake_slave#allow_download "http://foo/Compiler.xml" new_compiler_feed;
+    fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
+    fake_slave#allow_download "http://foo/Source.xml" source_feed;
     let out = run ["update"; "http://foo/Binary.xml"; "--source"] in
     assert_contains "Compiler.xml: 1.0 -> 1.1" out;
 
     (* A dependency disappears. *)
     let new_source_feed = U.read_file system (feed_dir +/ "Source-missing-req.xml") in
-    fake_slave#allow_feed_download "http://foo/Compiler.xml" new_compiler_feed;
-    fake_slave#allow_feed_download "http://foo/Binary.xml" binary_feed;
-    fake_slave#allow_feed_download "http://foo/Source.xml" new_source_feed;
+    fake_slave#allow_download "http://foo/Compiler.xml" new_compiler_feed;
+    fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
+    fake_slave#allow_download "http://foo/Source.xml" new_source_feed;
     let out = run ["update"; "http://foo/Binary.xml"; "--source"] in
     assert_contains "No longer used: http://foo/Compiler.xml" out;
   );
@@ -260,7 +265,7 @@ let suite = "0install">::: [
     let fake_slave = new fake_slave config in
     fake_slave#install;
     let digest = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" in
-    fake_slave#allow_download digest;
+    fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" "";
     let out = run ["download"; (feed_dir +/ "Hello.xml"); "--show"] in
     assert_contains digest out;
     assert_contains "Version: 1\n" out;
@@ -278,12 +283,12 @@ let suite = "0install">::: [
     let digest = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" in
     let fake_slave = new fake_slave config in
     fake_slave#install;
-    fake_slave#allow_download digest;
+    fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" "";
 
     let hello = Support.Utils.read_file system (feed_dir +/ "Hello.xml") in
     let key = Support.Utils.read_file system (feed_dir +/ "6FCF121BE2390E0B.gpg") in
-    fake_slave#allow_feed_download "http://example.com:8000/Hello.xml" hello;
-    fake_slave#allow_feed_download "http://example.com:8000/6FCF121BE2390E0B.gpg" key;
+    fake_slave#allow_download "http://example.com:8000/Hello.xml" hello;
+    fake_slave#allow_download "http://example.com:8000/6FCF121BE2390E0B.gpg" key;
     let out = run ["download"; (feed_dir +/ "selections.xml"); "--show"] in
     assert_contains digest out;
     assert_contains "Version: 1\n" out;
@@ -300,8 +305,10 @@ let suite = "0install">::: [
     (* --dry-run must prevent us from using the GUI *)
     fake_system#putenv "DISPLAY" ":foo";
     Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
-      | `List [`String "download-url"; `String "http://foo/d"; `String _hint; `String _timeout; `Null] -> raise Ok
-      | json -> failwith (Yojson.Basic.to_string json)
+      | `List [`String "download-url"; `Assoc details] ->
+          assert_equal "http://foo/d" (List.assoc "url" details |> Yojson.Basic.Util.to_string);
+          raise Ok
+      | json -> raise_safe "Bad download request: %s" (Yojson.Basic.to_string json)
     );
     try ignore @@ run ["run"; "--dry-run"; "--refresh"; "http://foo/d"]; assert false
     with Ok -> ();
@@ -545,7 +552,7 @@ let suite = "0install">::: [
     system#unlink (app +/ "selections.xml");
     let fake_slave = new fake_slave config in
     fake_slave#install;
-    fake_slave#allow_download "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
+    fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" "";
     ignore @@ A.get_selections_may_update driver ~use_gui:No app
   );
 ]

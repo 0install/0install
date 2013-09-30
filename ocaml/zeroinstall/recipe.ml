@@ -128,3 +128,16 @@ let get_step_size = function
 
 let get_download_size steps =
   List.fold_left (fun a step -> Int64.add a @@ get_step_size step) Int64.zero steps
+
+let get_mirror_download mirror_archive_url = [
+  DownloadStep {
+    url = mirror_archive_url;
+    size = None;
+    download_type = ArchiveDownload {
+      dest = None;
+      extract = None;
+      start_offset = Int64.zero;
+      mime_type = Some "application/x-bzip-compressed-tar";
+    }
+  }
+]

@@ -504,9 +504,9 @@ class TestDownload(BaseTest):
 				server.Give404('/HelloWorld.tgz'),
 				server.Give404('/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'),
 				'/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
-		out, err = self.run_ocaml(['download', '-vv', 'http://example.com:8000/Hello.xml', '--xml'], binary = True)
+		out, err = self.run_ocaml(['download', '-v', 'http://example.com:8000/Hello.xml', '--xml'], binary = True)
 
-		assert b'Missing: HelloWorld.tgz: trying implementation mirror at http://roscidus.com/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' in err, err
+		assert b'Missing: HelloWorld.tgz: trying implementation mirror at http://roscidus.com/0mirror' in err, err #/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' in err, err.decode('utf-8')
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))

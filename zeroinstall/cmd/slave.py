@@ -11,7 +11,7 @@ import sys, os, collections
 
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, qdom, download, gpg, reader, trust
+from zeroinstall.injector import model, qdom, download, gpg, reader, trust, fetch
 from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector.iface_cache import ReplayAttack
 from zeroinstall.support import tasks
@@ -123,28 +123,28 @@ def do_confirm_distro_install(config, ticket, options, impls):
 		logger.warning("Returning error", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
 
-@tasks.async
-def do_download_impl(config, ticket, options, impl):
+def do_check_manifest_and_rename(config, options, args):
 	if gui_driver is not None: config = gui_driver.config
-	try:
-		old_dry_run_names = get_dry_run_names(config)
+	required_digest, tmpdir = args
+	old_dry_run_names = get_dry_run_names(config)
+	config.stores.check_manifest_and_rename(required_digest, tmpdir, dry_run = options.dry_run)
+	return list(get_dry_run_names(config) - old_dry_run_names)
 
-		feed_url = impl['from-feed']
-		impl_id = impl['id']
-		feed = config.iface_cache.get_feed(feed_url)
-		impl = feed.implementations[impl_id]
+def do_unpack_archive(config, options, details):
+	from zeroinstall.zerostore import unpack
 
-		fetch_impl = config.fetcher.download_impl(impl, config.fetcher.get_best_source(impl), config.stores)
-		yield fetch_impl
-		tasks.check(fetch_impl)
+	if gui_driver is not None: config = gui_driver.config
+	basedir = details['tmpdir']
+	dest = details['dest']
+	if dest is not None:
+		basedir = fetch.native_path_within_base(basedir, dest)
+		fetch._ensure_dir_exists(basedir)
 
-		added_names = get_dry_run_names(config) - old_dry_run_names
-
-		send_json(["return", ticket, ["ok", list(added_names)]])
-	except download.DownloadAborted as ex:
-		send_json(["return", ticket, ["ok", "aborted-by-user"]])
-	except Exception as ex:
-		send_json(["return", ticket, ["error", str(ex)]])
+	with open(details['tmpfile'], 'rb') as stream:
+		unpack.unpack_archive_over(details['url'], stream, basedir,
+				extract = details.get('extract', None),
+				type = details.get('mime_type', None),
+				start_offset = int(details['start_offset']))
 
 def to_json(impl):
 	attrs = {
@@ -347,13 +347,26 @@ def do_confirm_keys(config, ticket, url, xml):
 def do_download_url(config, ticket, args):
 	try:
 		if gui_driver is not None: config = gui_driver.config
-		url, hint, timeout, modtime = args
+		url = args["url"]
+		hint = args["hint"]
+		timeout = args["timeout"]
+		modtime = args["mtime"]
+		size = args["size"]
+		may_use_mirror = args["may-use-mirror"]
+
+		if size is not None: size = int(size)
 
 		if modtime:
 			from email.utils import formatdate
 			modtime = formatdate(timeval = int(modtime), localtime = False, usegmt = True)
 
-		dl = config.fetcher.download_url(url, hint = hint, timeout = timeout, auto_delete = False, modification_time = modtime)
+		if may_use_mirror:
+			mirror = config.fetcher._get_archive_mirror(url)
+		else:
+			mirror = None
+
+		dl = config.fetcher.download_url(url, hint = hint, expected_size = size, mirror_url = mirror,
+				timeout = timeout, auto_delete = False, modification_time = modtime)
 		name = dl.tempfile.name
 		yield dl.downloaded
 		tasks.check(dl.downloaded)
@@ -482,9 +495,14 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'confirm-distro-install':
 			blocker = do_confirm_distro_install(config, ticket, options, request[1])
 			return
-		elif command == 'download-impl':
-			blocker = do_download_impl(config, ticket, options, request[1])
-			return #async
+		elif command == 'check-manifest-and-rename':
+			response = do_check_manifest_and_rename(config, options, request[1:])
+		elif command == 'utime':
+			t = request[2]
+			os.utime(request[1], (t, t))
+			response = None
+		elif command == 'unpack-archive':
+			response = do_unpack_archive(config, options, request[1])
 		elif command == 'import-feed':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_import_feed(config, xml)
@@ -508,7 +526,7 @@ def handle_invoke(config, options, ticket, request):
 			do_update_key_info(config, ticket, request[1], xml)
 			return	# async
 		elif command == 'download-url':
-			do_download_url(config, ticket, request[1:])
+			do_download_url(config, ticket, request[1])
 			return
 		elif command == 'notify-user':
 			response = do_notify_user(config, request[1])

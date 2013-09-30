@@ -62,6 +62,7 @@ let rec join_errors = function
         ex :: exs |> Lwt.return
 
 exception Aborted
+exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
 type download_result =
  [ `unmodified
@@ -85,11 +86,33 @@ class fetcher config trust_db (slave:Python.slave) =
       | json -> raise_safe "start-timeout: invalid request: %s" (Yojson.Basic.to_string (`List json))
     ) in
 
+  let unpack_download tmpdir tmpfile url =
+    let maybe = function
+      | Some v -> `String v
+      | None -> `Null in
+    let open Recipe in (fun {extract; start_offset; mime_type; dest} ->
+      let request = `List [`String "unpack-archive"; `Assoc [
+        ("tmpdir", `String tmpdir);
+        ("tmpfile", `String tmpfile);
+        ("url", `String url);
+        ("extract", maybe extract);
+        ("dest", maybe dest);
+        ("start_offset", `Float (Int64.to_float start_offset));
+        ("mime_type", maybe mime_type);
+      ]] in
+      slave#invoke_async request (function
+        | `Null -> ()
+        | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
+      )
+    ) in
+
   (** Download url to a new temporary file and return its name.
    * @param timeout_ticket a timer to start when the download starts (it will be queued first)
    * @hint a tag to attach to the download (used by the GUI to associate downloads with feeds)
    *)
-  let download_url_if_modified ?modification_time ?timeout_ticket ~hint url =
+  let download_url_if_modified ?modification_time ?timeout_ticket ?(may_use_mirror=false) ?size ~hint url =
+    log_info "Downloading URL '%s'..." url;
+
     let timeout_ticket =
       match timeout_ticket with
       | None -> `Null
@@ -100,25 +123,33 @@ class fetcher config trust_db (slave:Python.slave) =
       | None -> `Null
       | Some time -> `Float time in
 
-    let request = `List [
-      `String "download-url";
-      `String url;
-      `String hint;
-      timeout_ticket;
-      modification_time;
-    ] in
+    let size =
+      match size with
+      | None -> `Null
+      | Some size -> `Float (Int64.to_float size) in
 
-    slave#invoke_async request (function
-      | `List [`String "success"; `String tmpname] -> `tmpfile tmpname
-      | `String "aborted-by-user" -> `aborted_by_user
-      | `String "unmodified" -> `unmodified
-      | _ -> raise_safe "Invalid JSON response"
-    ) in
+    let request = `List [`String "download-url"; `Assoc [
+      ("url", `String url);
+      ("hint", `String hint);
+      ("timeout", timeout_ticket);
+      ("mtime", modification_time);
+      ("size", size);
+      ("may-use-mirror", `Bool may_use_mirror);
+    ]] in
 
-  let download_url ?timeout_ticket ~hint url =
-    match_lwt download_url_if_modified ?timeout_ticket ~hint url with
+    try_lwt
+      slave#invoke_async request (function
+        | `List [`String "success"; `String tmpname] -> `tmpfile tmpname
+        | `String "aborted-by-user" -> `aborted_by_user
+        | `String "unmodified" -> `unmodified
+        | _ -> raise_safe "Invalid JSON response"
+      )
+    with Safe_exception (msg, _) -> `network_failure msg |> Lwt.return in
+
+  let download_url ?timeout_ticket ?may_use_mirror ?size ~hint url =
+    match_lwt download_url_if_modified ?timeout_ticket ?may_use_mirror ?size ~hint url with
     | `unmodified -> assert false
-    | (`aborted_by_user | `tmpfile _ ) as result -> Lwt.return result in
+    | (`aborted_by_user | `network_failure _ | `tmpfile _ ) as result -> Lwt.return result in
 
   (** Check the GPG signatures on [tmpfile]. If any keys are missing, download and import them.
    * Returns a non-empty list of valid (though maybe not trusted) signatures, or a suitable error.
@@ -147,6 +178,7 @@ class fetcher config trust_db (slave:Python.slave) =
       log_info "Fetching key from %s" key_url;
 
       match_lwt download_url ~hint:feed key_url with
+      | `network_failure msg -> raise_safe "%s" msg
       | `aborted_by_user -> raise Aborted
       | `tmpfile tmpfile ->
           let contents = U.read_file system tmpfile in
@@ -264,6 +296,7 @@ class fetcher config trust_db (slave:Python.slave) =
             );
             let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
             match_lwt download_url ~hint key_info_url with
+            | `network_failure msg -> raise_safe "%s" msg
             | `aborted_by_user -> raise Aborted
             | `tmpfile tmpfile ->
                 let contents = U.read_file system tmpfile in
@@ -398,6 +431,7 @@ class fetcher config trust_db (slave:Python.slave) =
 
     try_lwt
       match_lwt download_url ?timeout_ticket ~hint:feed_url url with
+      | `network_failure msg -> `problem msg |> Lwt.return
       | `aborted_by_user -> Lwt.return `aborted_by_user
       | `tmpfile tmpfile ->
           let xml = U.read_file system tmpfile in
@@ -445,39 +479,221 @@ class fetcher config trust_db (slave:Python.slave) =
       String.concat "/" ["feeds"; scheme; domain; escape_slashes rest]
     ) in
 
-  let get_mirror_url mirror feed_url resource =
-    if Str.string_match re_remote_feed feed_url 0 then (
-      let scheme = Str.matched_group 1 feed_url in
-      let domain = Str.matched_group 3 feed_url in
+  (* Don't bother trying the mirror for localhost URLs. *)
+  let can_try_mirror url =
+    if Str.string_match re_remote_feed url 0 then (
+      let scheme = Str.matched_group 1 url in
+      let domain = Str.matched_group 3 url in
       match scheme with
-      | "http" | "https" when domain <> "localhost" -> Some (mirror ^ "/" ^ (get_feed_dir feed_url) ^ "/" ^ resource)
-      | _ -> None
+      | "http" | "https" when domain <> "localhost" -> true
+      | _ -> false
     ) else (
-      log_warning "Failed to parse URL '%s'" feed_url;
-      None
+      log_warning "Failed to parse URL '%s'" url;
+      false
     ) in
+
+  let get_mirror_url mirror feed_url resource =
+    match Feed_cache.parse_feed_url feed_url with
+    | `local_feed _ | `distribution_feed _ -> None
+    | `remote_feed _ ->
+        if can_try_mirror feed_url then
+          Some (mirror ^ "/" ^ (get_feed_dir feed_url) ^ "/" ^ resource)
+        else None in
+
+  (** Get a recipe for the tar.bz2 of the implementation at the mirror.
+   * Note: This is just one way we try the mirror. Code elsewhere checks for mirrors of the individual archives.
+   * This is for a single archive containing the whole implementation. *)
+  let get_impl_mirror_recipe mirror impl =
+    let {Feed.feed; Feed.id} = Feed.get_id impl in
+    match get_mirror_url mirror feed ("impl/" ^ escape_slashes id) with
+    | None -> None
+    | Some url -> Some (Recipe.get_mirror_download url) in
+
+  let download_local_file feed size fn url =
+    let size = size |? lazy (raise_safe "Missing size (BUG)!") in   (* Only missing for mirror downloads, which are never local *)
+    match Feed_cache.parse_feed_url feed with
+    | `distribution_feed _ -> assert false
+    | `remote_feed feed_url ->
+        raise_safe "Relative URL '%s' in non-local feed '%s'" url feed_url
+    | `local_feed feed_path ->
+        let path = Filename.dirname feed_path +/ url in
+        match system#stat path with
+        | Some info ->
+            let actual_size = info.Unix.st_size in    (* Have to work with poor OCaml API here *)
+            let expected_size = Int64.to_int size in
+            if actual_size = expected_size then
+              lazy (fn path) |> Lwt.return
+            else
+              raise_safe "Wrong size for %s: feed says %d, but actually %d bytes" path expected_size actual_size;
+        | None -> raise_safe "Local file '%s' does not exist" path in
+
+  let download_file ~feed ~size ~may_use_mirror fn url =
+    if Str.string_match (Str.regexp "[a-z]+://") url 0 then (
+      (* Remote file *)
+      if config.dry_run then
+        Dry_run.log "downloading %s" url;
+      match_lwt download_url ?size ~may_use_mirror ~hint:feed url with
+      | `network_failure msg -> raise (Try_mirror msg)
+      | `aborted_by_user -> raise Aborted
+      | `tmpfile tmpfile ->
+          lazy (
+            try_lwt fn tmpfile
+            finally system#bypass_dryrun#unlink tmpfile; Lwt.return ()
+          ) |> Lwt.return
+    ) else (
+      download_local_file feed size fn url
+    ) in
+
+  let download_archive ~feed ~size ~may_use_mirror fn (url, archive_info) =
+    let open Recipe in
+    let {start_offset; mime_type; extract = _; dest = _} = archive_info in
+    let mime_type = mime_type |? lazy (Archive.type_from_url url) in
+
+    Archive.check_type_ok system mime_type;
+
+    let size =
+      match size with
+      | None -> None (* (don't know sizes for mirrored archives) *)
+      | Some size -> Some (Int64.add size start_offset) in
+
+    download_file ~feed ~size ~may_use_mirror fn url in
+
+  (* Download an implementation by following a recipe and add it to the store.
+   * (this was called "cook" in the Python version)
+   * @param may_use_mirror if failed archives should be retried with the mirror
+   *        ([true] normally, [false] if this is a mirror download itself)
+   * @return `network_failure for problems which can be tried with the mirror
+   *)
+  let download_impl_internal ~may_use_mirror impl required_digest retrieval_method =
+    let need_rm_tmpdir = ref true in
+    let tmpdir = Stores.make_tmp_dir config.system#bypass_dryrun config.stores in
+
+    (** Takes a cross-platform relative path (i.e using forward slashes, even on windows)
+        and returns the absolute, platform-native version of the path.
+        If the path does not resolve to a location within `base`, Safe_exception is raised.
+        Resolving to base itself is also an error. *)
+    let native_path_within_base crossplatform_path =
+      if U.starts_with crossplatform_path "/" then (
+        raise_safe "Path %s is absolute!" crossplatform_path
+      );
+      let rec loop base = function
+        | [] -> base
+        | (""::xs) -> loop base xs
+        | ("."::xs) -> loop base xs
+        | (".."::_) -> raise_safe "Found '..' in path '%s' - disallowed" crossplatform_path
+        | (x::xs) ->
+            if String.contains x '\\' then
+              raise_safe "Illegal character '\\' in path '%s' - disallowed" crossplatform_path;
+            let new_base = base +/ x in
+            match system#lstat new_base with
+            | Some {Unix.st_kind = (Unix.S_DIR | Unix.S_REG); _} -> loop new_base xs
+            | Some _ -> raise_safe "Refusing to follow non-file non-dir item '%s'" new_base
+            | None -> loop new_base xs in
+
+      let resolved = Str.split_delim U.re_slash crossplatform_path |> loop tmpdir in
+      if resolved = tmpdir then
+        raise_safe "Illegal path '%s'" crossplatform_path
+      else
+        resolved in
+
+    try_lwt
+      let {Feed.feed; Feed.id = _} = Feed.get_id impl in
+      let open Recipe in
+      (* Start all the downloads. The downloads happen in parallel, each returning
+       * a future that will perform the extraction step. These futures are evaluated in sequence. *)
+      let downloads = retrieval_method |> List.map (
+        let system = system#bypass_dryrun in    (* We really do extract to the temporary directory *)
+        function
+        | DownloadStep {url; size; download_type = ArchiveDownload archive_info} ->
+            (url, archive_info) |> download_archive ~may_use_mirror ?size ~feed (fun tmpfile ->
+              unpack_download tmpdir tmpfile url archive_info
+            )
+        | DownloadStep {url; size; download_type = FileDownload dest} ->
+            url |> download_file ~may_use_mirror ?size ~feed (fun tmpfile ->
+              let dest = native_path_within_base dest in
+              U.makedirs system (Filename.dirname dest) 0o755;
+              U.copy_file system tmpfile dest 0o644;
+              slave#invoke_async (`List [`String "utime"; `String dest; `Float 0.0]) ignore
+            )
+        | RenameStep {rename_source; rename_dest} -> lazy (
+            let source = native_path_within_base rename_source in
+            let dest = native_path_within_base rename_dest in
+            try
+              U.makedirs system (Filename.dirname dest) 0o755;
+              system#rename source dest;
+              Lwt.return ()
+            with Unix.Unix_error (Unix.ENOENT, _, _) as ex ->
+              log_info ~ex "Failed to rename %s -> %s" source dest;
+              raise_safe "<rename> source '%s' does not exist" source
+        ) |> Lwt.return
+        | RemoveStep {remove} -> lazy (
+            let path = native_path_within_base remove in
+            U.rmtree ~even_if_locked:true system path;
+            Lwt.return ()
+        ) |> Lwt.return
+      ) in
+      try_lwt
+        (* Now do all the steps in series. *)
+        lwt () = downloads |> Lwt_list.iter_s (fun fn ->
+          lwt fn = fn in
+          Lazy.force fn
+        ) in
+        let request = `List [
+          `String "check-manifest-and-rename";
+          `String (Stores.format_digest required_digest);
+          `String tmpdir] in
+        slave#invoke_async request (function
+          | `List dry_run_paths ->
+              need_rm_tmpdir := false;
+              (* In --dry-run mode, the directories haven't actually been added, so we need to tell the
+               * dryrun_system about them. *)
+              if config.dry_run then (
+                List.iter (fun name -> system#mkdir (Yojson.Basic.Util.to_string name) 0o755) dry_run_paths
+              );
+              `success
+          | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
+        )
+      with ex ->
+        downloads |> List.iter Lwt.cancel;
+        match ex with
+        | Aborted -> `aborted_by_user |> Lwt.return
+        | Try_mirror msg -> `network_failure msg |> Lwt.return
+        | _ -> raise ex
+    finally
+      try
+        if !need_rm_tmpdir then (
+          log_info "Removing temporary directory '%s'" tmpdir;
+          U.rmtree ~even_if_locked:true config.system#bypass_dryrun tmpdir
+        );
+        Lwt.return ()
+      with ex ->
+        (* Don't mask the underlying error *)
+        log_warning ~ex "Problem removing temporary directory";
+        Lwt.return () in
 
   (** Download a 0install implementation and add it to a store *)
-  let download_impl (impl, _retrieval_method) : unit Lwt.t =
-    let {Feed.feed; Feed.id} = Feed.get_id impl in
-
-    let info = `Assoc [
-      ("id", `String id);
-      ("from-feed", `String feed);
-    ] in
-
-    let request : Yojson.Basic.json = `List [`String "download-impl"; info] in
-
-    slave#invoke_async request (function
-      | `List dry_run_paths ->
-          (* In --dry-run mode, the directories haven't actually been added, so we need to tell the
-           * dryrun_system about them. *)
-          if config.dry_run then (
-            List.iter (fun name -> system#mkdir (Yojson.Basic.Util.to_string name) 0o755) dry_run_paths
-          )
-      | `String "aborted-by-user" -> raise Aborted
-      | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
-    ) in
+  let download_impl (impl, required_digest, retrieval_method) : unit Lwt.t =
+    let download ~may_use_mirror recipe = download_impl_internal ~may_use_mirror impl required_digest recipe in
+    try_lwt
+      match_lwt download ~may_use_mirror:true retrieval_method with
+      | `success -> Lwt.return ()
+      | `aborted_by_user -> raise Aborted
+      | `network_failure orig_msg ->
+          match config.mirror with
+          | None -> raise_safe "%s" orig_msg
+          | Some mirror ->
+              log_info "%s: trying implementation mirror at %s" orig_msg mirror;
+              let mirror_download = get_impl_mirror_recipe mirror impl |? lazy (raise_safe "%s" orig_msg) in
+              match_lwt download ~may_use_mirror:false mirror_download with
+              | `aborted_by_user -> raise Aborted
+              | `success -> Lwt.return ()
+              | `network_failure mirror_msg ->
+                  log_info "Error from mirror: %s" mirror_msg;
+                  raise_safe "%s" orig_msg
+    with Safe_exception _ as ex ->
+      let {Feed.feed; Feed.id} = Feed.get_id impl in
+      let version = Feed.get_attr_ex FeedAttr.version impl in
+      reraise_with_context ex "... downloading implementation %s %s (id=%s)" feed version id in
 
   object
     method download_and_import_feed (feed : [`remote_feed of feed_url]) : fetch_feed_response Lwt.t =
@@ -487,7 +703,7 @@ class fetcher config trust_db (slave:Python.slave) =
       if not config.dry_run then (
         Feed_cache.mark_as_checking config feed
       );
-      
+
       let timeout_task, timeout_waker = Lwt.wait () in
       let timeout = Lwt_timeout.create 5 (fun () -> Lwt.wakeup timeout_waker `timeout) in
 
@@ -573,11 +789,17 @@ class fetcher config trust_db (slave:Python.slave) =
             package_impls := `Assoc rm :: !package_impls
         | Feed.LocalImpl path -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path feed
         | Feed.CacheImpl info ->
+            (* Choose the best digest algorithm we support *)
+            if info.Feed.digests = [] then (
+              Q.raise_elem "No digests at all! (so can't choose best) on " impl.Feed.qdom
+            );
+            let digest = Stores.best_digest info.Feed.digests in
+
             (* Pick the first retrieval method we understand *)
             match U.first_match info.Feed.retrieval_methods ~f:Recipe.parse_retrieval_method with
             | None -> raise_safe ("Implementation %s of interface %s cannot be downloaded " ^^
                                   "(no download locations given in feed!)") id feed
-            | Some rm -> zi_impls := (impl, rm) :: !zi_impls
+            | Some rm -> zi_impls := (impl, digest, rm) :: !zi_impls
       );
 
     let packages_task =
@@ -612,5 +834,7 @@ class fetcher config trust_db (slave:Python.slave) =
       | (`aborted_by_user | `no_trusted_keys | `replay_attack _) as r -> raise_safe "%s" (string_of_result r)
 
     method download_url_if_modified ?modification_time ~hint url : download_result Lwt.t =
-      download_url_if_modified ?modification_time ~hint url
+      match_lwt download_url_if_modified ?modification_time ~hint url with
+      | #download_result as r -> r |> Lwt.return
+      | `network_failure msg -> raise_safe "%s" msg
   end
