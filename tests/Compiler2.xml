@@ -6,17 +6,17 @@
   <description>Compiler</description>
   <implementation id="sha1=345" main="gcc" version="1.1">
     <manifest-digest sha256new="345"/>
-    <archive href="foo" size="10"/>
+    <archive href="http://example.com/Compiler-1.1.tgz" size="10"/>
   </implementation>
   <implementation id="sha1=678" main="gcc" version="0.1">
-    <archive href="foo" size="10"/>
+    <archive href="http://example.com/Compiler-0.1.tgz" size="10"/>
   </implementation>
   <implementation id="sha1=999" main="gcc" version="5">
-    <archive href="foo" size="10"/>
+    <archive href="http://example.com/Compiler-5.tgz" size="10"/>
   </implementation>
 </interface>
 <!-- Base64 Signature
-iEYEABECAAYFAlI9+bUACgkQb88SG+I5DgvcoQCeIo9ZmyyKAGiHlO4maz8NHw4jO5oAn0ipGWzB
-z0vWq7eJzpmJrTbs+kGb
+iEYEABECAAYFAlJJedAACgkQb88SG+I5DgvKzQCdFXeCjdD4jxtmJHPdWjpf6oAG774AmgNtWny0
+FBrw2jAWEkyF61Ytc8bm
 
 -->

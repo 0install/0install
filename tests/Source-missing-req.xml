@@ -7,7 +7,7 @@
   <feed-for interface="http://foo/Binary.xml"/>
   <group>
     <implementation arch="*-src" compile:command="make" id="sha1=234" version="1" version-modifier=".0">
-      <archive href="foo" size="10"/>
+      <archive href="http://example.com/Source-1.0.tgz" size="10"/>
     </implementation>
     <environment insert="." mode="replace" name="SRCDIR"/>
     <overlay mount-point="/" src="."/>
@@ -16,7 +16,7 @@
   <implementation arch="*-src" compile:command="make" id="old" version="0.1">
     <requires interface="http://foo/Compiler.xml"/>
     <manifest-digest sha1="666"/>
-    <archive href="foo" size="10"/>
+    <archive href="http://example.com/Source-0.1.tgz" size="10"/>
   </implementation>
 
   <implementation arch="*-src" compile:command="make" id="impossible" version="3">
@@ -25,11 +25,11 @@
       <version not-before="1.0"/>
     </requires>
     <manifest-digest sha1="666"/>
-    <archive href="foo" size="10"/>
+    <archive href="http://example.com/Source-3.tgz" size="10"/>
   </implementation>
 </interface>
 <!-- Base64 Signature
-iEYEABECAAYFAlI9+zMACgkQb88SG+I5Dgsh3gCfVugqGcFZ7GT+AYYXTbNg7dcth8UAn3aL1k5u
-BBjqNPuki9emZ+aumASN
+iEYEABECAAYFAlJJeZIACgkQb88SG+I5Dgv51ACfRPTIaFAXaqqA+xfqookOvTYIjlAAn2L3YTzH
+J0x7Ee7yQYYprmatqATC
 
 -->

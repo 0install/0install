@@ -236,6 +236,7 @@ let suite = "driver">::: [
 
   "source">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    let config = {config with network_use = Full_network} in
     let import name =
       U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ "http://foo/" ^ name) 0o644 in
     import "Binary.xml";
@@ -269,7 +270,7 @@ let suite = "driver">::: [
     import "Source.xml";
     import "Compiler.xml";
     let reqs = {reqs with Requirements.source = true; command = None} in
-    let driver = new Driver.driver {config with network_use = Offline} fetcher distro slave in
+    let driver = new Driver.driver config fetcher distro slave in
     let (ready, result, _fp) = driver#solve_with_downloads reqs ~force:false ~update_local:false in
     assert (ready = true);
     Fake_system.equal_str_lists ["sha1=234"; "sha1=345"] @@ get_ids result;

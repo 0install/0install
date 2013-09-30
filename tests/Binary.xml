@@ -7,11 +7,11 @@
   <feed arch="*-src" src="http://foo/Source.xml"/>
   <icon href="http://localhost/missing.png" type="image/png"/>
   <implementation id="sha1=123" main="dummy" version="1.0">
-    <archive href="foo" size="10"/>
+    <archive href="http://example.com/Binary-1.0.tgz" size="10"/>
   </implementation>
 </interface>
 <!-- Base64 Signature
-iEYEABECAAYFAlI9qMQACgkQb88SG+I5DguwvACfZcNb3ruSPyCGD+tB1PPMSNAc79cAn1jedzde
-uPmsWYJz0kb6L4lHhtq3
+iEYEABECAAYFAlJJeJUACgkQb88SG+I5DgtExACeLCqBJnFI1sgBe6iuzpDlkjFCygUAnRvKcBL6
+5LQTKpOvY9bZerd/GExU
 
 -->

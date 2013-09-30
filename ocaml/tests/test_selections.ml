@@ -18,10 +18,12 @@ let get_sels config fake_system uri =
 let suite = "selections">::: [
   "selections">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let import name =
-      U.copy_file config.system (Test_0install.feed_dir +/ name) (Test_driver.cache_path_for config @@ "http://foo/" ^ name) 0o644 in
+      let url = "http://foo/" ^ name in
+      U.copy_file config.system (Test_0install.feed_dir +/ name) (Test_driver.cache_path_for config url) 0o644;
+      Zeroinstall.Feed.update_last_checked_time config url in
     import "Source.xml";
     import "Compiler.xml";
-    fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml"; "--offline"; "--command=compile"; "--source"; "http://foo/Source.xml" |];
+    fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml";  "--command=compile"; "--source"; "http://foo/Source.xml" |];
     let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
     let old_sels = `String (0, output) |> Xmlm.make_input |> Q.parse_input None in
     let index = Selections.make_selection_map old_sels in
