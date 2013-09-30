@@ -11,7 +11,7 @@ module U = Support.Utils
 
 type archive_options = {
   extract : string option;
-  start_offset : int option;
+  start_offset : Int64.t;
   mime_type : string option;
 }
 
@@ -21,7 +21,7 @@ type download_type =
 
 type download = {
   url : string;
-  size : Int64.t;
+  size : Int64.t option;          (* may be None when using the mirror *)
   dest : string option;
   download_type : download_type;
 }
@@ -55,14 +55,14 @@ let parse_size s =
 
 let parse_archive elem = DownloadStep {
     url = ZI.get_attribute attr_href elem;
-    size = parse_size @@ ZI.get_attribute attr_size elem;
+    size = Some (parse_size @@ ZI.get_attribute attr_size elem);
     dest = ZI.get_attribute_opt attr_dest elem;
     download_type = ArchiveDownload {
       extract = ZI.get_attribute_opt attr_extract elem;
       start_offset = (
         match ZI.get_attribute_opt attr_start_offset elem with
-        | None -> None
-        | Some s -> Some (int_of_string s)
+        | None -> Int64.zero
+        | Some s -> parse_size s
       );
       mime_type = ZI.get_attribute_opt attr_type elem;
     };
@@ -70,7 +70,7 @@ let parse_archive elem = DownloadStep {
 
 let parse_file_elem elem = DownloadStep {
   url = ZI.get_attribute attr_href elem;
-  size = parse_size @@ ZI.get_attribute attr_size elem;
+  size = Some (parse_size @@ ZI.get_attribute attr_size elem);
   dest = ZI.get_attribute_opt attr_dest elem;
   download_type = FileDownload;
 }
@@ -122,7 +122,8 @@ let recipe_requires_network recipe =
   List.exists requires_network recipe
 
 let get_step_size = function
-  | DownloadStep info -> info.size
+  | DownloadStep {size = Some size; _} -> size
+  | DownloadStep {size = None; _} -> Int64.zero
   | RenameStep _ -> Int64.zero
   | RemoveStep _ -> Int64.zero
 
