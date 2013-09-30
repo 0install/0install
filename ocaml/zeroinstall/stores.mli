@@ -24,3 +24,6 @@ val check_available : available_digests -> digest list -> bool
 
 (* (for parsing <implementation> and <selection> elements) *)
 val get_digests : Support.Qdom.element -> digest list
+
+(* Raises an exception if no digest is supported *)
+val best_digest : digest list -> digest

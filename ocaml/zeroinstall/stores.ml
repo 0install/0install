@@ -73,3 +73,27 @@ let get_digests elem =
   let extract_digests init elem =
     List.fold_left check_attr init elem.Support.Qdom.attrs in
   ZI.fold_left ~f:extract_digests init elem "manifest-digest"
+
+(* Preferred algorithms score higher. None if we don't support this algorithm at all. *)
+let score_alg = function
+  | "sha256new" -> Some 90
+  | "sha256"    -> Some 80
+  | "sha1new"   -> Some 50
+  | "sha1"      -> Some 10
+  | _ -> None
+
+let best_digest digests =
+  let best = ref None in
+  digests |> List.iter (fun digest ->
+    match score_alg (fst digest) with
+    | None -> ()
+    | Some score ->
+        match !best with
+        | Some (old_score, _) when old_score >= score -> ()
+        | _ -> best := Some (score, digest)
+  );
+  match !best with
+  | Some (_score, best) -> best
+  | None ->
+      let algs = digests |> List.map fst |> String.concat ", " in
+      raise_safe "None of the candidate digest algorithms (%s) is supported" algs

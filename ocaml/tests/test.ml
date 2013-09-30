@@ -194,6 +194,7 @@ let suite =
   Test_feed.suite;
   Test_feed_cache.suite;
   Test_selections.suite;
+  Test_stores.suite;
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);
  "test_run_real">:: (fun () -> collect_logging (with_tmpdir test_run_real));
