@@ -75,4 +75,6 @@ class dryrun_system (underlying:system) =
     (* Complex operations: reject (caller should handle specially) *)
     method with_open_out = reject "with_open_out"
     method atomic_write = reject "atomic_write"
+
+    method bypass_dryrun = underlying
   end

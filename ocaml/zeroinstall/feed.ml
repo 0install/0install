@@ -193,7 +193,7 @@ let make_impossible_restriction msg =
   end
 
 let make_version_restriction expr =
-  try 
+  try
     let test = Versions.parse_expr expr in
     object
       method meets_restriction impl = test impl.parsed_version

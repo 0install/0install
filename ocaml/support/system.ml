@@ -286,5 +286,7 @@ module RealSystem (U : UnixType) =
               p
 
         method running_as_root = Sys.os_type = "Unix" && Unix.geteuid () = 0
+
+        method bypass_dryrun = (self :> system)
       end
   end

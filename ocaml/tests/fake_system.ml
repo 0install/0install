@@ -273,6 +273,8 @@ class fake_system tmpdir =
           self#putenv "ZEROINSTALL_PORTABLE_BASE" dir;
           Unix.putenv "ZEROINSTALL_PORTABLE_BASE" dir   (* For sub-processes *)
       | None -> ()
+
+    method bypass_dryrun = (self :> system)
   end
 
 let forward_to_real_log = ref true

@@ -87,6 +87,9 @@ class type system =
      * place when running under sudo. *)
     method running_as_root : bool
     method platform : Platform.t
+
+    (** In dry-run mode, returns the underlying system. *)
+    method bypass_dryrun : system
   end
 
 let on_windows = Filename.dir_sep <> "/"
