@@ -111,7 +111,7 @@ let suite = "distro">::: [
           let sel = ZI.make host_gobject.qdom.Qdom.doc "selection" in
           sel.Qdom.attrs <- AttrMap.bindings host_gobject.props.attrs;
           Qdom.set_attribute "from-feed" ("distribution:" ^ feed.url) sel;
-          assert (distro#is_installed sel) in
+          assert (Distro.is_installed config distro sel) in
     slave#close;
   );
 ]

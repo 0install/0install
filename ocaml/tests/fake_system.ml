@@ -269,7 +269,9 @@ class fake_system tmpdir =
 
     initializer
       match tmpdir with
-      | Some dir -> self#putenv "ZEROINSTALL_PORTABLE_BASE" dir
+      | Some dir ->
+          self#putenv "ZEROINSTALL_PORTABLE_BASE" dir;
+          Unix.putenv "ZEROINSTALL_PORTABLE_BASE" dir   (* For sub-processes *)
       | None -> ()
   end
 
