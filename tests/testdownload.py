@@ -359,6 +359,7 @@ class TestDownload(BaseTest):
 		run_server(('HelloWorld.tar.bz2',))
 		uri = os.path.abspath('RecipeRemove.xml')
 		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		assert not err, err.decode('utf-8')
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 		digests = sels.selections[uri].digests
 		path = self.config.stores.lookup_any(digests)
@@ -420,6 +421,7 @@ class TestDownload(BaseTest):
 		run_server(('HelloWorldMain',))
 		uri = os.path.abspath('RecipeSingleFile.xml')
 		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		assert not err, err.decode('utf-8')
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 		digests = sels.selections[uri].digests
 		path = self.config.stores.lookup_any(digests)
@@ -430,6 +432,7 @@ class TestDownload(BaseTest):
 		run_server(('HelloWorld.tar.bz2',))
 		uri = os.path.abspath('HelloExtractToNewDest.xml')
 		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		assert not err, err
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 		digests = sels.selections[uri].digests
 		path = self.config.stores.lookup_any(digests)
@@ -439,6 +442,7 @@ class TestDownload(BaseTest):
 		run_server(('HelloWorldMain',))
 		uri = os.path.abspath('HelloSingleFile.xml')
 		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		assert not err, err
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 		digests = sels.selections[uri].digests
 		path = self.config.stores.lookup_any(digests)
