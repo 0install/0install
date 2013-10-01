@@ -394,29 +394,6 @@ class TestDownload(BaseTest):
 		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main')) # first archive's main
 		assert os.path.exists(os.path.join(path, 'HelloWorld', 'HelloWorld', 'main')) # second archive, extracted to HelloWorld/
 
-	def testRecipeLocal(self):
-		recipe = model.Recipe()
-		blocker = self.config.fetcher.cook("sha256new_4OYMIQUY7QOBJGX36TEJS35ZEQT24QPEMSNZGTFESWMRW6CSXBKQ", recipe, self.config.stores)
-		tasks.wait_for_blocker(blocker)
-
-		try:
-			recipe.steps.append(model.RemoveStep("."))
-			blocker = self.config.fetcher.cook("sha256new_XXX", recipe, self.config.stores)
-			tasks.wait_for_blocker(blocker)
-			assert 0
-		except model.SafeException as ex:
-			assert "path '.' is not within the base directory" in str(ex), ex
-
-	def testRenameFailure(self):
-		recipe = model.Recipe()
-		try:
-			recipe.steps.append(model.RenameStep("missing-source", "dest"))
-			blocker = self.config.fetcher.cook("sha256new_XXX", recipe, self.config.stores)
-			tasks.wait_for_blocker(blocker)
-			assert 0
-		except model.SafeException as ex:
-			assert "<rename> source 'missing-source' does not exist" in str(ex), ex
-
 	def testRecipeSingleFile(self):
 		run_server(('HelloWorldMain',))
 		uri = os.path.abspath('RecipeSingleFile.xml')
@@ -896,69 +873,6 @@ class TestDownload(BaseTest):
 		kill_server_process()
 		self.assertEqual("", err)
 		assert 'Firefox - Webbrowser' in out, out
-
-	def testLocalArchive(self):
-		def download_impl(impl):
-			b = self.config.fetcher.download_impl(impl, self.config.fetcher.get_best_source(impl), self.config.stores)
-			tasks.wait_for_blocker(b)
-
-		local_iface = os.path.join(mydir, 'LocalArchive.xml')
-		with open(local_iface, 'rb') as stream:
-			root = qdom.parse(stream)
-
-		# Not local => error
-		feed = model.ZeroInstallFeed(root)
-		impl = feed.implementations['impl1']
-		try:
-			download_impl(impl)
-			assert 0
-		except model.SafeException as ex:
-			assert "Relative URL 'HelloWorld.tgz' in non-local feed" in str(ex), ex
-
-		feed = model.ZeroInstallFeed(root, local_path = local_iface)
-
-		# Missing file
-		impl2 = feed.implementations['impl2']
-		try:
-			download_impl(impl2)
-			assert 0
-		except model.SafeException as ex:
-			assert 'tests/IDONTEXIST.tgz' in str(ex), ex
-
-		# Wrong size
-		impl3 = feed.implementations['impl3']
-		try:
-			download_impl(impl3)
-			assert 0
-		except model.SafeException as ex:
-			assert 'feed says 177, but actually 176 bytes' in str(ex), ex
-
-		out, err = self.run_ocaml(['select', '--offline', '--command=', '--xml', local_iface], binary = True)
-		assert not err, err
-		sels = selections.Selections(qdom.parse(BytesIO(out)))
-		assert sels.get_unavailable_selections(self.config, include_packages = True)
-
-		# Local => OK
-		impl = feed.implementations['impl1']
-
-		path = self.config.stores.lookup_maybe(impl.digests)
-		assert not path
-
-		download_impl(impl)
-
-		path = self.config.stores.lookup_any(impl.digests)
-		assert os.path.exists(os.path.join(path, 'HelloWorld'))
-
-		# Local <file> => OK
-		impl = feed.implementations['impl4']
-
-		path = self.config.stores.lookup_maybe(impl.digests)
-		assert not path
-
-		download_impl(impl)
-
-		path = self.config.stores.lookup_any(impl.digests)
-		assert os.path.exists(os.path.join(path, 'archive.tgz'))
 
 if __name__ == '__main__':
 	try:

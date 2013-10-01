@@ -5,9 +5,10 @@
 open Support.Common
 open Zeroinstall.General
 open OUnit
+module Stores = Zeroinstall.Stores
 module Fetch = Zeroinstall.Fetch
-module F = Zeroinstall.Feed
 module Recipe = Zeroinstall.Recipe
+module F = Zeroinstall.Feed
 module Q = Support.Qdom
 
 let download_impls fetcher impls =
@@ -66,6 +67,9 @@ let suite = "fetch">::: [
     Fake_system.assert_raises_safe "Relative URL 'mylib-1.0.jar' in non-local feed 'http://example.com/feed.xml'" @@
       lazy (try_with ~template:remote_impl "<file href='mylib-1.0.jar' dest='lib/mylib.jar' size='100'/>");
 
+    Fake_system.assert_raises_safe "Relative URL 'mylib-1.0.zip' in non-local feed 'http://example.com/feed.xml'" @@
+      lazy (try_with ~template:remote_impl "<archive href='mylib-1.0.zip' size='100'/>");
+
     Fake_system.assert_error_contains "tests/mylib-1.0.jar' does not exist"
       (fun () -> try_with "<file href='mylib-1.0.jar' dest='lib/mylib.jar' size='100'/>");
 
@@ -90,5 +94,83 @@ let suite = "fetch">::: [
 
     Fake_system.assert_error_contains "Found '..' in path 'foo/..' - disallowed"
       (fun () -> try_with "<file href='HelloWorld.zip' dest='foo/..' size='321'/>");
+
+    Fake_system.assert_error_contains "Found '..' in path 'foo/..' - disallowed"
+      (fun () -> try_with "<file href='HelloWorld.zip' dest='foo/..' size='321'/>");
+
+    let try_recipe ?digest ?error xml =
+      try
+        try_with ?digest @@ "<recipe><archive href='recipe-base.tgz' extract='recipe' size='305'/>" ^ xml ^ "</recipe>";
+        assert (error = None);
+      with Safe_exception (msg, _) ->
+        let error = error |? lazy (raise_safe "Unexpected error '%s'" msg) in
+        if not (Str.string_match (Str.regexp error) msg 0) then (
+          raise_safe "Expected error '%s' but got '%s'" error msg
+        ) in
+
+    try_recipe ~digest:("sha1new", "d025d1e5c68d349f8106002e821968a5832ff008") "<rename source='rootfile' dest='somefile'/>";
+    try_recipe ~error:".*disallowed" "<rename source='../somefile' dest='somefile'/>";
+    try_recipe ~error:".*disallowed" "<rename source='rootfile' dest='../somefile'/>";
+    try_recipe ~error:"Path /usr/bin/gpg is absolute!" "<rename source='/usr/bin/gpg' dest='gpg'/>";
+    try_recipe ~error:"Path /tmp/rootfile is absolute!" "<rename source='rootfile' dest='/tmp/rootfile'/>";
+
+    try_recipe ~digest:("sha1new", "a9415b8f35ceb4261fd1d3dc93c9514876cd817a") "<rename source='rootfile' dest='dir1/rootfile'/>";
+    try_recipe ~error:"Refusing to follow non-file non-dir item.*tmp'$" "<rename source='rootfile' dest='tmp/surprise'/>";
+    try_recipe ~error:"Refusing to follow non-file non-dir item.*bin'$" "<rename source='bin/gpg' dest='gpg'/>";
+    try_recipe ~error:"<rename> source '.*missing-source' does not exist" "<rename source='missing-source' dest='dest'/>";
+
+    try_recipe ~digest:("sha1new", "266fdd7055606c28b299ddc77902b81d500ce946") "<remove path='rootfile'/>";
+    try_recipe ~error:"Illegal path '\\.'" "<remove path='.'/>";
+  );
+
+  "local-archive">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let driver = Fake_system.make_driver config in
+    let fetcher = driver#fetcher in
+
+    let local_iface = Test_0install.feed_dir +/ "LocalArchive.xml" in
+    let root = Q.parse_file config.system local_iface in
+    let feed = F.parse config.system root (Some local_iface) in
+
+    let check ?error ?testfile id =
+      try
+        let impl = StringMap.find id feed.F.implementations in
+        let digests =
+          match impl.F.impl_type with
+          | F.CacheImpl {F.digests; _} -> digests
+          | _ -> assert false in
+
+        (* Not cached before download... *)
+        assert (Stores.lookup_maybe config.system digests config.stores = None);
+
+        download_impls fetcher [impl];
+        assert (error = None);
+
+        match testfile with
+        | None -> ()
+        | Some testfile ->
+            (* Is cached now *)
+            let path = Stores.lookup_maybe config.system digests config.stores |? lazy (failwith "missing!") in
+            assert (config.system#file_exists (path +/ testfile));
+      with Safe_exception (msg, _) ->
+        let error = error |? lazy (raise_safe "Unexpected error '%s'" msg) in
+        if not (Str.string_match (Str.regexp error) msg 0) then (
+          raise_safe "Expected error '%s' but got '%s'" error msg
+        ) in
+
+    fake_system#set_argv @@ Array.of_list [
+      Test_0install.test_0install; "select"; "--offline"; "--command="; "--xml"; local_iface
+    ];
+    let xml =
+      Fake_system.capture_stdout (fun () ->
+        Main.main config.system
+      ) in
+
+    let sels = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None in
+    assert (Zeroinstall.Selections.get_unavailable_selections config ~distro:driver#distro sels <> []);
+
+    check ~error:"Local file '.*tests/IDONTEXIST.tgz' does not exist" "impl2";
+    check ~error:"Wrong size for .*/tests/HelloWorld.tgz: feed says 177, but actually 176 bytes" "impl3";
+    check ~testfile:"HelloWorld" "impl1";
+    check ~testfile:"archive.tgz" "impl4";
   );
 ]
