@@ -374,3 +374,14 @@ let with_fake_config fn =
   with_tmpdir (fun tmpdir ->
     get_fake_config (Some tmpdir) |> fn
   )
+
+let assert_contains expected whole =
+  try ignore @@ Str.search_forward (Str.regexp_string expected) whole 0
+  with Not_found -> assert_failure (Printf.sprintf "Expected string '%s' not found in '%s'" expected whole)
+
+let assert_error_contains expected (fn:unit -> unit) =
+  try
+    fn ();
+    assert_failure (Printf.sprintf "Expected error '%s' but got success!" expected)
+  with Safe_exception (msg, _) ->
+    assert_contains expected msg

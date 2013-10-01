@@ -13,6 +13,12 @@ module F = Zeroinstall.Feed
 module R = Zeroinstall.Requirements
 module Escape = Zeroinstall.Escape
 
+let assert_contains = Fake_system.assert_contains
+let assert_error_contains expected fn =
+  Fake_system.assert_error_contains expected (fun () ->
+    Fake_system.assert_str_equal "" @@ fn ()
+  )
+
 let test_0install = Fake_system.test_0install
 let feed_dir = U.abspath Fake_system.real_system (".." +/ ".." +/ "tests")
 
@@ -45,17 +51,6 @@ let impl_from_json config = (function
       StringMap.find id feed.F.implementations
   | _ -> assert false
 )
-
-let assert_contains expected whole =
-  try ignore @@ Str.search_forward (Str.regexp_string expected) whole 0
-  with Not_found -> assert_failure (Printf.sprintf "Expected string '%s' not found in '%s'" expected whole)
-
-let assert_error_contains expected (fn:unit -> string) =
-  try
-    Fake_system.assert_str_equal "" @@ fn ();
-    assert_failure (Printf.sprintf "Expected error '%s' but got success!" expected)
-  with Safe_exception (msg, _) ->
-    assert_contains expected msg
 
 let expect = function
   | None -> assert_failure "Unexpected None!"
