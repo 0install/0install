@@ -10,19 +10,19 @@ module Qdom = Support.Qdom
 module U = Support.Utils
 
 type archive_options = {
+  dest : string option;
   extract : string option;
   start_offset : Int64.t;
   mime_type : string option;
 }
 
 type download_type =
-  | FileDownload
+  | FileDownload of string    (* dest *)
   | ArchiveDownload of archive_options
 
 type download = {
   url : string;
   size : Int64.t option;          (* may be None when using the mirror *)
-  dest : string option;
   download_type : download_type;
 }
 
@@ -56,8 +56,8 @@ let parse_size s =
 let parse_archive elem = DownloadStep {
     url = ZI.get_attribute attr_href elem;
     size = Some (parse_size @@ ZI.get_attribute attr_size elem);
-    dest = ZI.get_attribute_opt attr_dest elem;
     download_type = ArchiveDownload {
+      dest = ZI.get_attribute_opt attr_dest elem;
       extract = ZI.get_attribute_opt attr_extract elem;
       start_offset = (
         match ZI.get_attribute_opt attr_start_offset elem with
@@ -71,8 +71,7 @@ let parse_archive elem = DownloadStep {
 let parse_file_elem elem = DownloadStep {
   url = ZI.get_attribute attr_href elem;
   size = Some (parse_size @@ ZI.get_attribute attr_size elem);
-  dest = ZI.get_attribute_opt attr_dest elem;
-  download_type = FileDownload;
+  download_type = FileDownload (ZI.get_attribute attr_dest elem);
 }
 
 let parse_rename elem = RenameStep {
