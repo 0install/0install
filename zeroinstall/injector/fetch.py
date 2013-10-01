@@ -134,12 +134,12 @@ class Fetcher(object):
 			return '%s/%s/%s' % (self.config.mirror, _get_feed_dir(feed_url), resource)
 		return None
 
-	def _get_archive_mirror(self, source):
+	def _get_archive_mirror(self, url):
 		"""@type source: L{model.DownloadSource}
 		@rtype: str"""
 		if self.config.mirror is None:
 			return None
-		if support.urlparse(source.url).hostname == 'localhost':
+		if support.urlparse(url).hostname == 'localhost':
 			return None
 		if sys.version_info[0] > 2:
 			from urllib.parse import quote
@@ -147,7 +147,7 @@ class Fetcher(object):
 			from urllib import quote
 		return '{mirror}/archive/{archive}'.format(
 				mirror = self.config.mirror,
-				archive = quote(source.url.replace('/', '#'), safe = ''))
+				archive = quote(url.replace('/', '#'), safe = ''))
 
 	def _get_impl_mirror(self, impl):
 		"""@type impl: L{zeroinstall.injector.model.ZeroInstallImplementation}
@@ -295,7 +295,7 @@ class Fetcher(object):
 			return self._download_local_file(download_source, impl_hint)
 
 		if may_use_mirror:
-			mirror = self._get_archive_mirror(download_source)
+			mirror = self._get_archive_mirror(download_source.url)
 		else:
 			mirror = None
 
