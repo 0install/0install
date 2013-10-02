@@ -8,7 +8,7 @@ Integration with native distribution package managers.
 
 from zeroinstall import _, logger
 import os, platform, re, subprocess, sys
-from zeroinstall.injector import namespaces, model, arch, qdom
+from zeroinstall.injector import namespaces, model, qdom
 from zeroinstall.support import basedir, portable_rename, intern
 from zeroinstall.support.tasks import get_loop
 
@@ -591,7 +591,21 @@ _canonical_machine = {
 	'ppc': 'ppc',
 }
 
-host_machine = arch.canonicalize_machine(platform.uname()[4])
+def arch_canonicalize_machine(machine_):
+	"""@type machine_: str
+	@rtype: str"""
+	machine = machine_.lower()
+	if machine == 'x86':
+		machine = 'i386'
+	elif machine == 'amd64':
+		machine = 'x86_64'
+	elif machine == 'Power Macintosh':
+		machine = 'ppc'
+	elif machine == 'i86pc':
+		machine = 'i686'
+	return machine
+
+host_machine = arch_canonicalize_machine(platform.uname()[4])
 def canonical_machine(package_machine):
 	"""@type package_machine: str
 	@rtype: str"""
@@ -946,7 +960,7 @@ class GentooDistribution(Distribution):
 				else:
 					with open(os.path.join(category_dir, filename, 'CHOST'), 'rt') as stream:
 						machine, __ = stream.readline().split('-', 1)
-				machine = arch.canonicalize_machine(machine)
+				machine = arch_canonicalize_machine(machine)
 
 				impl = factory('package:gentoo:%s:%s:%s' % \
 						(package, version, machine))

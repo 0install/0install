@@ -703,6 +703,20 @@ let suite = "solver">::: [
     solve "sha1=18" ~lang:"bn_IN" "arch_7";
   );
 
+  "arch">:: (fun () ->
+    assert (StringMap.mem "Darwin" @@ Arch.get_os_ranks "MacOSX");
+    assert (StringMap.mem "i386" @@ Arch.get_machine_ranks ~multiarch:true "i686");
+    assert (StringMap.mem "i386" @@ Arch.get_machine_ranks ~multiarch:true "x86_64");
+    assert (not (StringMap.mem "i386" @@ Arch.get_machine_ranks ~multiarch:false "x86_64"));
+
+    assert (StringMap.mem "POSIX" @@ Arch.get_os_ranks "MacOSX");
+    assert (not (StringMap.mem "POSIX" @@ Arch.get_os_ranks "Windows"));
+
+    assert (StringMap.mem "FooBar" @@ Arch.get_os_ranks "FooBar");
+    assert (StringMap.mem "i486" @@ Arch.get_machine_ranks ~multiarch:false "i486");
+    assert (not (StringMap.mem "ppc" @@ Arch.get_machine_ranks ~multiarch:false "i486"));
+  );
+
   "solver">:::
     try
       let root = Support.Qdom.parse_file Fake_system.real_system "solves.xml" in

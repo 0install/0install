@@ -10,11 +10,11 @@ in some cases and not others.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, SafeException, logger
+from zeroinstall import _, SafeException
 import os
 
 from zeroinstall import support
-from zeroinstall.support import basedir, tasks
+from zeroinstall.support import basedir
 from .namespaces import config_site, config_prog, XMLNS_TRUST
 
 KEY_INFO_TIMEOUT = 10	# Maximum time to wait for response from key-info-server

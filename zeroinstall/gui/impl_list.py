@@ -5,7 +5,7 @@ import gtk, os, pango, sys
 from zeroinstall import _, logger
 from zeroinstall.cmd import slave
 from zeroinstall.support import tasks
-from zeroinstall.injector import model, writer
+from zeroinstall.injector import model
 from zeroinstall.gtkui import gtkutils
 from zeroinstall.gui.gui import gobject
 

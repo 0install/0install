@@ -4,7 +4,7 @@ import sys, imp
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import packagekit, model, fetch
+from zeroinstall.injector import packagekit, model
 from zeroinstall.support import tasks
 
 import dbus
@@ -238,7 +238,6 @@ class TestPackageKit(BaseTest):
 		self.assertEqual(False, list(impls.values())[0].installed)
 
 		impl, = impls.values()
-		fetcher = fetch.Fetcher(config = self.config)
 		self.config.handler.allow_downloads = True
 
 		_pk = pk.pk

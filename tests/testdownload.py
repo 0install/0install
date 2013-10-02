@@ -3,16 +3,16 @@ from __future__ import with_statement
 from basetest import BaseTest, StringIO, BytesIO
 import sys, tempfile, os, shutil
 import unittest
-import logging, warnings
-from logging import getLogger, WARN, ERROR
+import warnings
+from logging import getLogger, ERROR
 from contextlib import contextmanager
 
 sys.path.insert(0, '..')
 
 os.environ["http_proxy"] = "localhost:8000"
 
-from zeroinstall import helpers, logger
-from zeroinstall.injector import model, gpg, download, trust, arch, selections, qdom, config, namespaces
+from zeroinstall import helpers
+from zeroinstall.injector import model, gpg, download, trust, selections, qdom, config, namespaces
 from zeroinstall.injector.scheduler import Site
 from zeroinstall.zerostore import NotStored
 from zeroinstall.support import basedir, tasks, ro_rmtree
@@ -370,6 +370,7 @@ class TestDownload(BaseTest):
 		run_server(('HelloWorld.tar.bz2',))
 		uri = os.path.abspath('RecipeRemoveDir.xml')
 		out, err = self.run_ocaml(['download', uri, '--command=', '--xml'], binary = True)
+		assert not err, err.decode('utf-8')
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 		digests = sels.selections[uri].digests
 		path = self.config.stores.lookup_any(digests)

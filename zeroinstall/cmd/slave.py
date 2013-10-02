@@ -133,7 +133,6 @@ def do_check_manifest_and_rename(config, options, args):
 def do_unpack_archive(config, options, details):
 	from zeroinstall.zerostore import unpack
 
-	if gui_driver is not None: config = gui_driver.config
 	basedir = details['tmpdir']
 	dest = details['dest']
 	if dest is not None:

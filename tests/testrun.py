@@ -8,8 +8,6 @@ sys.path.insert(0, '..')
 # (testing command support imports zeroinstall.injector._runenv in a sub-process)
 os.environ['PYTHONPATH'] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-from zeroinstall import SafeException
-
 mydir = os.path.abspath(os.path.dirname(__file__))
 local_0launch = os.path.join(mydir, '..', 'build', 'ocaml', '0launch')
 arglist = os.path.join(mydir, 'runnable', 'ArgList.xml')
