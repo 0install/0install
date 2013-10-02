@@ -47,7 +47,8 @@ let handle_download_impls config pending_digests impls =
 
 let impl_from_json config = (function
   | `Assoc [("id", `String id); ("from-feed", `String feed_url)] ->
-      let feed = Zeroinstall.Feed_cache.get_cached_feed config feed_url |? lazy (raise_safe "Not cached: %s" feed_url) in
+      let parsed = Zeroinstall.Feed_cache.parse_non_distro_url feed_url in
+      let feed = Zeroinstall.Feed_cache.get_cached_feed config parsed |? lazy (raise_safe "Not cached: %s" feed_url) in
       StringMap.find id feed.F.implementations
   | _ -> assert false
 )

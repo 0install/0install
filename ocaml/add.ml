@@ -15,7 +15,8 @@ module F = Zeroinstall.Feed
 
 (** Warn the user if [uri] has been replaced. *)
 let check_for_replacement config uri =
-  match Zeroinstall.Feed_cache.get_cached_feed config uri with
+  let feed = Zeroinstall.Feed_cache.parse_non_distro_url uri in
+  match Zeroinstall.Feed_cache.get_cached_feed config feed with
   | None -> log_warning "Master feed for '%s' missing!" uri
   | Some feed ->
       match feed.F.replacement with

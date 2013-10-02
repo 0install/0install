@@ -468,12 +468,14 @@ let download_archives ~feed_provider driver = function
       | `success -> Lwt.return (`String "ok")
       | `aborted_by_user -> Lwt.return (`String "aborted-by-user")
 
-let add_feed config iface url =
-  let feed = Feed_cache.get_cached_feed config url |? lazy (raise_safe "Failed to read new feed!") in
+let add_feed config iface feed_url =
+  let (`remote_feed url | `local_feed url) = feed_url in
+
+  let feed = Feed_cache.get_cached_feed config feed_url |? lazy (raise_safe "Failed to read new feed!") in
   match Feed.get_feed_targets feed with
   | [] -> raise_safe "Feed '%s' is not a feed for '%s'" url iface
   | feed_for when List.mem iface feed_for ->
-      let user_import = Feed.make_user_import url in
+      let user_import = Feed.make_user_import feed_url in
       let iface_config = Feed_cache.load_iface_config config iface in
 
       let extra_feeds = iface_config.Feed_cache.extra_feeds in
@@ -485,19 +487,17 @@ let add_feed config iface url =
       );
   | feed_for -> raise_safe "This is not a feed for '%s'.\nOnly for:\n%s" iface (String.concat "\n" feed_for)
 
-let add_remote_feed driver iface feed_url =
-  let `remote_feed url = feed_url in
-
+let add_remote_feed driver iface (feed_url:[`remote_feed of feed_url])  =
   match_lwt driver#download_and_import_feed feed_url with
   | `aborted_by_user -> raise_safe "Aborted by user"
-  | `success _ | `no_update -> add_feed driver#config iface url; Lwt.return `Null
+  | `success _ | `no_update -> add_feed driver#config iface feed_url; Lwt.return `Null
 
 let remove_feed config iface feed_url =
   let iface_config = Feed_cache.load_iface_config config iface in
   let user_import = Feed.make_user_import feed_url in
   let extra_feeds = iface_config.Feed_cache.extra_feeds |> List.filter ((<>) user_import) in
   if iface_config.Feed_cache.extra_feeds = extra_feeds then (
-    raise_safe "Can't remove '%s'; it is not a user-added feed of %s" feed_url iface;
+    raise_safe "Can't remove '%s'; it is not a user-added feed of %s" (Feed_cache.format_feed_url feed_url) iface;
   ) else (
     Feed_cache.save_iface_config config iface {iface_config with Feed_cache.extra_feeds};
   )
@@ -648,12 +648,20 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
     );
 
     Python.register_handler "add-local-feed" (function
-      | [`String iface; `String path] -> add_feed config iface path; Lwt.return `Null
+      | [`String iface; `String path] -> (
+          match Feed_cache.parse_feed_url path with
+          | `local_feed _ as feed -> add_feed config iface feed; Lwt.return `Null
+          | `remote_feed _ | `distribution_feed _ -> raise_safe "Not a local feed '%s'!" path
+      )
       | json -> raise_safe "add-local-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
     );
 
     Python.register_handler "remove-feed" (function
-      | [`String iface; `String feed] -> remove_feed config iface feed; Lwt.return `Null
+      | [`String iface; `String url] -> (
+          match Feed_cache.parse_feed_url url with
+          | `remote_feed _ as feed -> remove_feed config iface feed; Lwt.return `Null
+          | `local_feed _ | `distribution_feed _ -> raise_safe "Not a remote feed '%s'!" url
+      )
       | json -> raise_safe "remove-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
     );
 

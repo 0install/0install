@@ -653,7 +653,8 @@ let get_feed_targets feed =
     ZI.get_attribute FeedAttr.interface feed_for
   )
 
-let make_user_import feed_src = {
+let make_user_import feed =
+  let (`remote_feed feed_src | `local_feed feed_src) = feed in {
   feed_src;
   feed_os = None;
   feed_machine = None;

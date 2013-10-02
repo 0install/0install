@@ -29,10 +29,11 @@ let edit_feeds config iface mode new_import =
   else
     print "(no feeds)"
 
-let edit_feeds_interactive config (mode:[`add | `remove]) url =
+let edit_feeds_interactive config (mode:[`add | `remove]) feed_url =
+  let (`remote_feed url | `local_feed url) = feed_url in
   let print fmt = Support.Utils.print config.system fmt in
-  let feed = FC.get_cached_feed config url |? lazy (failwith "Feed still not cached!") in
-  let new_import = F.make_user_import url in
+  let feed = FC.get_cached_feed config feed_url |? lazy (failwith "Feed still not cached!") in
+  let new_import = F.make_user_import feed_url in
   match F.get_feed_targets feed with
   | [] -> Q.raise_elem "Missing <feed-for> element; feed can't be used as a feed for any other interface." feed.F.root
   | candidate_interfaces ->
@@ -90,10 +91,10 @@ let handle options flags args =
       let new_feed = G.canonical_iface_uri config.system new_feed in
 
       (* If the feed is remote and missing, download it. *)
-      let () =
+      let feed =
         match FC.parse_feed_url new_feed with
         | `remote_feed _ as feed ->
-            let missing = FC.get_cached_feed config new_feed = None in
+            let missing = FC.get_cached_feed config feed = None in
             if missing || (config.network_use <> Offline && FC.is_stale config new_feed) then (
               print "Downloading feed; please wait...";
               flush stdout;
@@ -108,15 +109,15 @@ let handle options flags args =
               with Safe_exception (msg, _) when not missing ->
                 log_warning "Update failed: %s" msg
             );
-        | `local_feed _ -> ()
+            feed
+        | `local_feed _ as feed -> feed
         | `distribution_feed _ -> raise_safe "Can't register a distribution feed!" in
 
-      edit_feeds_interactive config `add new_feed
+      edit_feeds_interactive config `add feed
   | [iface; feed_src] ->
       let iface = G.canonical_iface_uri config.system iface in
       let feed_src = G.canonical_iface_uri config.system feed_src in
-
-      let new_import = F.make_user_import feed_src in
+      let new_import = FC.parse_non_distro_url feed_src |> F.make_user_import in
 
       let iface_config = FC.load_iface_config config iface in
       if List.mem new_import iface_config.FC.extra_feeds then (

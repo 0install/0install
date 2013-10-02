@@ -21,13 +21,20 @@ let failed_check_delay = float_of_int (1 * hours)
 
 let is_local_feed uri = U.path_is_absolute uri
 
+let parse_non_distro_url url =
+  if U.path_is_absolute url then `local_feed url
+  else if U.starts_with url "http://" || U.starts_with url "https://" then `remote_feed url
+  else if U.starts_with url "distribution:" then raise_safe "Can't use a distribution feed here! ('%s')" url
+  else raise_safe "Invalid feed URL '%s'" url
+
 let parse_feed_url url =
-  let zi url =
-    if U.path_is_absolute url then `local_feed url
-    else `remote_feed url in
-  if U.starts_with url "distribution:" then
-    `distribution_feed (U.string_tail url 13 |> zi)
-  else zi url
+  if U.starts_with url "distribution:" then `distribution_feed (U.string_tail url 13 |> parse_non_distro_url)
+  else parse_non_distro_url url
+
+let rec format_feed_url = function
+  | `distribution_feed master -> "distribution:" ^ (format_feed_url master)
+  | `local_feed path -> path
+  | `remote_feed url -> url
 
 (* For local feeds, returns the absolute path. *)
 let get_cached_feed_path config = function
@@ -185,9 +192,7 @@ let save_iface_config config uri iface_config =
     Q.output (`Channel ch |> Xmlm.make_output) root;
   )
 
-let get_cached_feed config url =
-  match parse_feed_url url with
-  | `distribution_feed _ -> failwith url
+let get_cached_feed config = function
   | `local_feed path -> (
       try
         let root = Q.parse_file config.system path in
