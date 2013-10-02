@@ -69,8 +69,8 @@ let xml_diff exp actual =
 let make_impl_provider config scope_filter =
   let slave = new Zeroinstall.Python.slave config in
   let distro = new Distro.generic_distribution slave in
-  let feed_provider = new Feed_cache.feed_provider config distro in
-  let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_cache.feed_provider) scope_filter in
+  let feed_provider = new Feed_provider.feed_provider config distro in
+  let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
   (impl_provider :> Impl_provider.impl_provider)
 
 (** Give every implementation an <archive>, so we think it's installable. *)
@@ -90,7 +90,7 @@ let rec make_all_downloable node =
 class fake_feed_provider system distro =
   let ifaces = Hashtbl.create 10 in
 
-  object (_ : #Feed_cache.feed_provider)
+  object (_ : #Feed_provider.feed_provider)
     method get_feed url =
       try
         let overrides = {
@@ -196,7 +196,7 @@ let make_solver_test test_elem =
     | _ -> Support.Qdom.raise_elem "Unexpected element" child in
     ZI.iter ~f:process test_elem;
 
-    let (ready, result) = Zeroinstall.Solver.solve_for config (feed_provider :> Feed_cache.feed_provider) !reqs in
+    let (ready, result) = Zeroinstall.Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) !reqs in
     if ready && !fails then assert_failure "Expected solve to fail, but it didn't!";
     if not ready && not (!fails) then (
       let reason = Zeroinstall.Diagnostics.get_failure_reason config result in
@@ -223,7 +223,7 @@ let make_solver_test test_elem =
         feed = iface;
         id = ZI.get_attribute "id" elem;
       }) in
-      let reason = Zeroinstall.Diagnostics.justify_decision config (feed_provider :> Feed_cache.feed_provider) !reqs iface g_id in
+      let reason = Zeroinstall.Diagnostics.justify_decision config (feed_provider :> Feed_provider.feed_provider) !reqs iface g_id in
       Fake_system.assert_str_equal (trim elem.Support.Qdom.last_text_inside) reason
     );
   )
@@ -317,7 +317,7 @@ let suite = "solver">::: [
     let (config, fake_system) = Fake_system.get_fake_config None in
     let slave = new Zeroinstall.Python.slave config in
     let distro = new Distro.generic_distribution slave in
-    let feed_provider = new feed_provider config distro in
+    let feed_provider = new Feed_provider.feed_provider config distro in
     let uri = "http://example.com/prog" in
     let iface_config = feed_provider#get_iface_config uri in
     assert (iface_config.stability_policy = None);
@@ -410,7 +410,7 @@ let suite = "solver">::: [
     } in
 
     let test_solve scope_filter =
-      let impl_provider = new default_impl_provider config (feed_provider :> Feed_cache.feed_provider) scope_filter in
+      let impl_provider = new default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
       let {replacement; impls; rejects = _} = impl_provider#get_implementations iface ~source:false in
       (* List.iter (fun (impl, r) -> failwith @@ describe_problem impl r) rejects; *)
       assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;
@@ -499,7 +499,7 @@ let suite = "solver">::: [
 
     let slave = new Zeroinstall.Python.slave config in
     let distro = new Distro.generic_distribution slave in
-    let feed_provider = new Feed_cache.feed_provider config distro in
+    let feed_provider = new Feed_provider.feed_provider config distro in
 
     let scope_filter = Impl_provider.({
       extra_restrictions = StringMap.empty;
@@ -508,7 +508,7 @@ let suite = "solver">::: [
       languages = Support.Locale.LangMap.empty;
       allowed_uses = StringSet.empty;
     }) in
-    let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_cache.feed_provider) scope_filter in
+    let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
     let bin_impls = impl_provider#get_implementations iface ~source:true in
     let () =
       match bin_impls.Impl_provider.rejects with
@@ -528,7 +528,7 @@ let suite = "solver">::: [
 
     let justify expected iface feed id =
       let g_id = Feed.({feed; id}) in
-      let actual = Diagnostics.justify_decision config (feed_provider :> Feed_cache.feed_provider) reqs iface g_id in
+      let actual = Diagnostics.justify_decision config (feed_provider :> Feed_provider.feed_provider) reqs iface g_id in
       Fake_system.assert_str_equal expected actual in
 
     justify
@@ -568,8 +568,8 @@ let suite = "solver">::: [
     let r = Requirements.default_requirements (Test_0install.feed_dir +/ "command-dep.xml") in
     let slave = new Zeroinstall.Python.slave config in
     let distro = new Distro.generic_distribution slave in
-    let feed_provider = new Feed_cache.feed_provider config distro in
-    match Solver.solve_for config (feed_provider :> Feed_cache.feed_provider) r with
+    let feed_provider = new Feed_provider.feed_provider config distro in
+    match Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) r with
     | (false, _) -> assert false
     | (true, results) ->
         let sels = results#get_selections in
@@ -629,7 +629,7 @@ let suite = "solver">::: [
     (* Selects 0.2 as the highest version, applying the restriction to versions < 4. *)
     let slave = new Zeroinstall.Python.slave config in
     let distro = new Distro.generic_distribution slave in
-    let feed_provider = new Feed_cache.feed_provider config distro in
+    let feed_provider = new Feed_provider.feed_provider config distro in
 
     let do_solve r =
       match Solver.solve_for config feed_provider r with
@@ -656,7 +656,7 @@ let suite = "solver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let slave = new Zeroinstall.Python.slave config in
     let distro = new Distro.generic_distribution slave in
-    let feed_provider = new Feed_cache.feed_provider config distro in
+    let feed_provider = new Feed_provider.feed_provider config distro in
     let solve expected ?(lang="en_US.UTF-8") machine =
       let scope_filter = Impl_provider.({
         extra_restrictions = StringMap.empty;

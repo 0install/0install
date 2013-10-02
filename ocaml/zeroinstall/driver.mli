@@ -11,7 +11,7 @@
 type watcher = <
   (* Updates the latest solution. If the first argument is [true] then the solve is
    * usable (although it may improve if you wait). *)
-  update : (bool * Solver.result) * Feed_cache.feed_provider -> unit;
+  update : (bool * Solver.result) * Feed_provider.feed_provider -> unit;
 
   (* An error ocurred (probably a failure to download something). *)
   report : General.feed_url -> string -> unit;
@@ -45,7 +45,7 @@ class driver : General.config -> Fetch.fetcher -> Distro.distribution -> Python.
       ?watcher:watcher ->
       Requirements.requirements ->
       force:bool ->
-      update_local:bool -> bool * Solver.result * Feed_cache.feed_provider
+      update_local:bool -> bool * Solver.result * Feed_provider.feed_provider
 
     (** Convenience wrapper for [fetcher#download_and_import_feed] that just gives the final result.
      * If the mirror replies first, but the primary succeeds, we return the primary. *)
@@ -60,6 +60,6 @@ class driver : General.config -> Fetch.fetcher -> Distro.distribution -> Python.
      *)
     method download_selections :
       include_packages:bool ->
-      feed_provider:Feed_cache.feed_provider ->
+      feed_provider:Feed_provider.feed_provider ->
       Support.Qdom.element -> [ `aborted_by_user | `success ] Lwt.t
   end

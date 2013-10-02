@@ -19,7 +19,7 @@ let string_of_ynm = function
   | No -> "no"
   | Maybe -> "maybe"
 
-let get_impl (feed_provider:Feed_cache.feed_provider) sel =
+let get_impl (feed_provider:Feed_provider.feed_provider) sel =
   let {Feed.id; Feed.feed = from_feed} = Selections.get_id sel in
 
   let get_override overrides =
@@ -116,7 +116,7 @@ let first_para text =
     with Not_found -> text in
   Str.global_replace (Str.regexp_string "\n") " " first |> trim
 
-let build_tree config (feed_provider:Feed_cache.feed_provider) old_sels sels : Yojson.Basic.json =
+let build_tree config (feed_provider:Feed_provider.feed_provider) old_sels sels : Yojson.Basic.json =
   let rec process_tree (uri, details) =
     let (name, summary, description) =
       match feed_provider#get_feed uri with
@@ -534,7 +534,7 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
   ) else if not (slave#invoke (`List [`String "check-gui"; `String (string_of_ynm use_gui)]) Yojson.Basic.Util.to_bool) then (
     `Dont_use_GUI       (* [check-gui] will throw if use_gui is [Yes] *)
   ) else (
-    let feed_provider = ref (new Feed_cache.feed_provider config distro) in
+    let feed_provider = ref (new Feed_provider.feed_provider config distro) in
 
     let original_solve = Solver.solve_for config !feed_provider reqs in
     let original_selections =

@@ -84,7 +84,7 @@ class type impl_provider =
     method extra_restrictions : Feed.restriction StringMap.t
   end
 
-class default_impl_provider config (feed_provider : Feed_cache.feed_provider) (scope_filter:scope_filter) =
+class default_impl_provider config (feed_provider : Feed_provider.feed_provider) (scope_filter:scope_filter) =
   let {extra_restrictions; os_ranks; machine_ranks; languages = wanted_langs; allowed_uses} = scope_filter in
 
   (* This shouldn't really be mutable, but ocaml4po causes trouble if we pass it in the constructor. *)

@@ -15,7 +15,7 @@ let get_values map = StringMap.fold (fun _key value xs -> value :: xs) map []
 
 type watcher = <
   report : feed_url -> string -> unit;
-  update : (bool * Solver.result) * Feed_cache.feed_provider -> unit;
+  update : (bool * Solver.result) * Feed_provider.feed_provider -> unit;
 >
 
 (* Turn a list of tasks into a list of their resolutions.
@@ -41,7 +41,7 @@ let find_zi_impl feed_provider id feed_url =
 class driver config (fetcher:Fetch.fetcher) distro (slave:Python.slave) =
   object (self)
     method solve_with_downloads ?(watcher:watcher option) requirements
-                                ~force ~update_local : (bool * Solver.result * Feed_cache.feed_provider) =
+                                ~force ~update_local : (bool * Solver.result * Feed_provider.feed_provider) =
       let force = ref force in
       let seen = ref StringSet.empty in
       let downloads_in_progress = ref StringMap.empty in
@@ -63,7 +63,7 @@ class driver config (fetcher:Fetch.fetcher) distro (slave:Python.slave) =
          3. The user explicitly asked us to refresh everything.
             (force = True) *)
 
-      let feed_provider = new Feed_cache.feed_provider config distro in
+      let feed_provider = new Feed_provider.feed_provider config distro in
 
       (* Add [url] to [downloads_in_progress]. When [download] resolves (to a function),
          call it in the main thread. *)
@@ -167,7 +167,7 @@ class driver config (fetcher:Fetch.fetcher) distro (slave:Python.slave) =
       (ready, result, feed_provider)
 
     method quick_solve reqs =
-      let feed_provider = new Feed_cache.feed_provider config distro in
+      let feed_provider = new Feed_provider.feed_provider config distro in
       match Solver.solve_for config feed_provider reqs with
       | (true, results) ->
           let sels = results#get_selections in
@@ -211,7 +211,7 @@ class driver config (fetcher:Fetch.fetcher) distro (slave:Python.slave) =
     (** Ensure all selections are cached, downloading any that are missing.
         If [include_packages] is given then distribution packages are also installed, otherwise
         they are ignored. *)
-    method download_selections ~include_packages ~(feed_provider:Feed_cache.feed_provider) sels : [ `success | `aborted_by_user ] Lwt.t =
+    method download_selections ~include_packages ~(feed_provider:Feed_provider.feed_provider) sels : [ `success | `aborted_by_user ] Lwt.t =
       let missing =
         let maybe_distro = if include_packages then Some distro else None in
         Selections.get_unavailable_selections config ?distro:maybe_distro sels in

@@ -61,7 +61,7 @@ class type impl_provider =
     method extra_restrictions : Feed.restriction Support.Common.StringMap.t
   end
 
-class default_impl_provider : General.config -> Feed_cache.feed_provider -> scope_filter ->
+class default_impl_provider : General.config -> Feed_provider.feed_provider -> scope_filter ->
   object
     method extra_restrictions : Feed.restriction Support.Common.StringMap.t
     method get_implementations : General.iface_uri -> source:bool -> candidates

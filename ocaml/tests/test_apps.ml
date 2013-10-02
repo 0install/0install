@@ -44,7 +44,7 @@ let suite = "apps">::: [
 
     (* Initialise the new app with selections for version 0.1-pre *)
     let distro = new Zeroinstall.Distro.generic_distribution slave in
-    let feed_provider = new Zeroinstall.Feed_cache.feed_provider config distro in
+    let feed_provider = new Zeroinstall.Feed_provider.feed_provider config distro in
     let () =
       match Zeroinstall.Solver.solve_for config feed_provider r with
       | (true, results) ->
