@@ -27,7 +27,12 @@ import json, sys
 
 syntax = ""
 
-distro = get_host_distribution()
+_distro = None
+def get_distro():
+	global _distro
+	if _distro is None:
+		_distro = get_host_distribution()
+	return _distro
 
 if sys.version_info[0] > 2:
 	stdin = sys.stdin.buffer.raw
@@ -98,7 +103,7 @@ def do_confirm_distro_install(config, ticket, options, impls):
 		for impl in unsafe_impls:
 			from zeroinstall.injector import packagekit
 			packagekit_id = impl['packagekit-id']
-			pk = distro.packagekit.pk
+			pk = get_distro().packagekit.pk
 			dl = packagekit.PackageKitDownload('packagekit:' + packagekit_id, hint = impl['master-feed'],
 					pk = pk, packagekit_id = packagekit_id, expected_size = int(impl['size']))
 			config.handler.monitor_download(dl)
@@ -196,7 +201,7 @@ def do_get_package_impls(config, options, args, xml):
 	# get the correct attributes and dependencies.
 	for elem in xml.childNodes:
 		package_impls = [(elem, elem.attrs, [])]
-		feed = distro.get_feed(master_feed_url, package_impls)
+		feed = get_distro().get_feed(master_feed_url, package_impls)
 
 		impls = [impl for impl in feed.implementations.values() if impl.id not in seen]
 		seen.update(feed.implementations.keys())
@@ -218,6 +223,7 @@ def do_is_distro_package_installed(config, options, xml):
 	if not master_feed: return False
 	distro_feed = master_feed.get_distro_feed()
 	if distro_feed is not None:
+		distro = get_distro()
 		feed = distro.get_feed(master_feed.url, master_feed.get_package_impls(distro))
 		return id_to_check in feed.implementations
 	else:
@@ -265,7 +271,7 @@ def do_get_distro_candidates(config, args, xml):
 
 	package_impls = [(elem, elem.attrs, []) for elem in xml.childNodes]
 
-	return distro.fetch_candidates(package_impls)
+	return get_distro().fetch_candidates(package_impls)
 
 PendingFromOCaml = collections.namedtuple("PendingFromOCaml", ["url", "sigs"])
 
