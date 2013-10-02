@@ -146,15 +146,12 @@ class TestDistro(BaseTest):
 		self.assertEqual('2.15.23-21', yast.get_version())
 		self.assertEqual('*-i586', yast.arch)
 
-		icache = iface_cache.IfaceCache(distro = rpm)
-
 		feed = parse_impls("""
 				<package-implementation distributions="Debian" package="yast2-mail"/>
 				<package-implementation distributions="RPM" package="yast2-update"/>
 				""")
-		icache._feeds[feed.url] = feed
 		distro_feed_url = feed.get_distro_feed()
-		impls = icache.get_feed(distro_feed_url).implementations
+		impls = rpm.get_feed(feed).implementations
 		self.assertEqual("distribution:myfeed.xml", distro_feed_url)
 		assert len(impls) == 1, impls
 		impl, = impls
@@ -164,26 +161,20 @@ class TestDistro(BaseTest):
 				<package-implementation distributions="RPM" package="yast2-mail"/>
 				<package-implementation distributions="RPM" package="yast2-update"/>
 				""")
-		icache._feeds[feed.url] = feed
-		del icache._feeds['distribution:' + feed.url]
-		impls = icache.get_feed(feed.get_distro_feed()).implementations
+		impls = rpm.get_feed(feed).implementations
 		assert len(impls) == 2, impls
 
 		feed = parse_impls("""
 				<package-implementation distributions="" package="yast2-mail"/>
 				<package-implementation package="yast2-update"/>
 				""")
-		icache._feeds[feed.url] = feed
-		del icache._feeds['distribution:' + feed.url]
-		impls = icache.get_feed(feed.get_distro_feed()).implementations
+		impls = rpm.get_feed(feed).implementations
 		assert len(impls) == 2, impls
 
 		feed = parse_impls("""
 				<package-implementation distributions="Foo Bar Baz" package="yast2-mail"/>
 				""")
-		icache._feeds[feed.url] = feed
-		del icache._feeds['distribution:' + feed.url]
-		impls = icache.get_feed(feed.get_distro_feed()).implementations
+		impls = rpm.get_feed(feed).implementations
 		assert len(impls) == 1, impls
 
 	def testSlack(self):
@@ -289,10 +280,7 @@ class TestDistro(BaseTest):
 		host._packagekit = DummyPackageKit()
 
 		master_feed = parse_impls("""<package-implementation main='/unused' package='python-bittorrent'><command path='/bin/sh' name='run'/></package-implementation>""")
-		icache = iface_cache.IfaceCache(distro = host)
-		icache._feeds[master_feed.url] = master_feed
-		#del icache._feeds['distribution:' + master_feed.url]
-		impl, = icache.get_feed(master_feed.get_distro_feed()).implementations.values()
+		impl, = host.get_feed(master_feed).implementations.values()
 		self.assertEqual('/bin/sh', impl.main)
 
 	def testPortable(self):

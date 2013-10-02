@@ -233,42 +233,6 @@ class Selections(object):
 	def __repr__(self):
 		return "Selections for " + self.interface
 
-	def get_unavailable_selections(self, config, include_packages):
-		"""Find those selections which are not present.
-		Local implementations are available if their directory exists.
-		Other 0install implementations are available if they are in the cache.
-		Package implementations are available if the Distribution says so.
-		@param include_packages: whether to include <package-implementation>s
-		@type include_packages: bool
-		@rtype: [Selection]
-		@since: 1.16"""
-		iface_cache = config.iface_cache
-		stores = config.stores
-
-		# Check that every required selection is cached
-		def needs_download(sel):
-			if sel.id.startswith('package:'):
-				if not include_packages: return False
-				if sel.quick_test_file:
-					if not os.path.exists(sel.quick_test_file):
-						return True
-					required_mtime = sel.quick_test_mtime
-					if required_mtime is None:
-						return False
-					else:
-						return int(os.stat(sel.quick_test_file).st_mtime) != required_mtime
-
-				feed = iface_cache.get_feed(sel.feed)
-				if not feed: return False
-				impl = feed.implementations.get(sel.id, None)
-				return impl is None or not impl.installed
-			elif sel.local_path:
-				return False
-			else:
-				return sel.get_path(stores, missing_ok = True) is None
-
-		return [sel for sel in self.selections.values() if needs_download(sel)]
-
 	# These (deprecated) methods are to make a Selections object look like the old Policy.implementation map...
 
 	def __getitem__(self, key):

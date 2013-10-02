@@ -14,6 +14,7 @@ from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, qdom, download, gpg, reader, trust, fetch
 from zeroinstall.injector.handler import NoTrustedKeys
 from zeroinstall.injector.iface_cache import ReplayAttack
+from zeroinstall.injector.distro import get_host_distribution
 from zeroinstall.support import tasks
 from zeroinstall import support
 
@@ -25,6 +26,8 @@ else:
 import json, sys
 
 syntax = ""
+
+distro = get_host_distribution()
 
 if sys.version_info[0] > 2:
 	stdin = sys.stdin.buffer.raw
@@ -95,7 +98,7 @@ def do_confirm_distro_install(config, ticket, options, impls):
 		for impl in unsafe_impls:
 			from zeroinstall.injector import packagekit
 			packagekit_id = impl['packagekit-id']
-			pk = config.iface_cache.distro.packagekit.pk
+			pk = distro.packagekit.pk
 			dl = packagekit.PackageKitDownload('packagekit:' + packagekit_id, hint = impl['master-feed'],
 					pk = pk, packagekit_id = packagekit_id, expected_size = int(impl['size']))
 			config.handler.monitor_download(dl)
@@ -202,7 +205,7 @@ def do_get_package_impls(config, options, args, xml):
 	# get the correct attributes and dependencies.
 	for elem in xml.childNodes:
 		master_feed.package_impls = [(elem, elem.attrs, [])]
-		feed = config.iface_cache.distro.get_feed(master_feed)
+		feed = distro.get_feed(master_feed)
 
 		impls = [impl for impl in feed.implementations.values() if impl.id not in seen]
 		seen.update(feed.implementations.keys())
@@ -224,7 +227,7 @@ def do_is_distro_package_installed(config, options, xml):
 	if not master_feed: return False
 	distro_feed = master_feed.get_distro_feed()
 	if distro_feed is not None:
-		feed = config.iface_cache.get_feed(distro_feed)
+		feed = distro.get_feed(master_feed)
 		return id_to_check in feed.implementations
 	else:
 		return False
@@ -273,7 +276,7 @@ def do_get_distro_candidates(config, args, xml):
 	master_feed.url = master_feed_url
 	master_feed.package_impls = [(elem, elem.attrs, []) for elem in xml.childNodes]
 
-	return config.iface_cache.distro.fetch_candidates(master_feed)
+	return distro.fetch_candidates(master_feed)
 
 PendingFromOCaml = collections.namedtuple("PendingFromOCaml", ["url", "sigs"])
 

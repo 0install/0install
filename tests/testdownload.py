@@ -12,7 +12,7 @@ sys.path.insert(0, '..')
 os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall import helpers
-from zeroinstall.injector import model, gpg, download, trust, selections, qdom, config, namespaces
+from zeroinstall.injector import model, gpg, download, trust, selections, qdom, config, namespaces, distro
 from zeroinstall.injector.scheduler import Site
 from zeroinstall.zerostore import NotStored
 from zeroinstall.support import basedir, tasks, ro_rmtree
@@ -137,6 +137,42 @@ def wrap_download(self, step, timeout = None):
 	return orig_download(self, step)
 Site.download = wrap_download
 
+def get_unavailable_selections(sels, config, include_packages):
+	"""Find those selections which are not present.
+	Local implementations are available if their directory exists.
+	Other 0install implementations are available if they are in the cache.
+	Package implementations are available if the Distribution says so.
+	@param include_packages: whether to include <package-implementation>s
+	@type include_packages: bool
+	@rtype: [Selection]
+	@since: 1.16"""
+	iface_cache = config.iface_cache
+	stores = config.stores
+
+	# Check that every required selection is cached
+	def needs_download(sel):
+		if sel.id.startswith('package:'):
+			if not include_packages: return False
+			if sel.quick_test_file:
+				if not os.path.exists(sel.quick_test_file):
+					return True
+				required_mtime = sel.quick_test_mtime
+				if required_mtime is None:
+					return False
+				else:
+					return int(os.stat(sel.quick_test_file).st_mtime) != required_mtime
+
+			feed = iface_cache.get_feed(sel.feed)
+			if not feed: return False
+			impl = feed.implementations.get(sel.id, None)
+			return impl is None or not impl.installed
+		elif sel.local_path:
+			return False
+		else:
+			return sel.get_path(stores, missing_ok = True) is None
+
+	return [sel for sel in sels.selections.values() if needs_download(sel)]
+
 class TestDownload(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
@@ -248,7 +284,7 @@ class TestDownload(BaseTest):
 		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
-		assert sels.get_unavailable_selections(self.config, include_packages = True) == []
+		assert get_unavailable_selections(sels, self.config, include_packages = True) == []
 
 	def testSelectionsWithFeed(self):
 		with open("selections.xml", 'rb') as stream:
@@ -264,7 +300,7 @@ class TestDownload(BaseTest):
 			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
 			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
 
-			assert sels.get_unavailable_selections(self.config, include_packages = True) == []
+			assert get_unavailable_selections(sels, self.config, include_packages = True) == []
 	
 	def testAcceptKey(self):
 		run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
@@ -310,12 +346,12 @@ class TestDownload(BaseTest):
 		assert master_feed is not None
 		assert master_feed.implementations == {}
 
-		blocker = self.config.iface_cache.distro.fetch_candidates(master_feed)
+		blocker = distro._host_distribution.fetch_candidates(master_feed)
 		if blocker:
 			tasks.wait_for_blocker(blocker)
 		distro_feed_url = master_feed.get_distro_feed()
 		assert distro_feed_url is not None
-		distro_feed = self.config.iface_cache.get_feed(distro_feed_url)
+		distro_feed = distro._host_distribution.get_feed(master_feed)
 		assert distro_feed is not None
 		assert len(distro_feed.implementations) == 2, distro_feed.implementations
 

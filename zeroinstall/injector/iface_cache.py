@@ -65,32 +65,19 @@ class IfaceCache(object):
 	cache of L{model.Interface} objects, and an on-disk cache of L{model.ZeroInstallFeed}s.
 	It will probably be split into two in future.
 
-	@ivar distro: the native distribution proxy
-	@type distro: L{distro.Distribution}
-
 	@see: L{iface_cache} - the singleton IfaceCache instance.
 	"""
 
-	__slots__ = ['_interfaces', '_feeds', '_distro', '_config']
+	__slots__ = ['_interfaces', '_feeds', '_config']
 
-	def __init__(self, distro = None):
-		"""@param distro: distribution used to fetch "distribution:" feeds (since 0.49)
-		@type distro: L{distro.Distribution}, or None to use the host distribution"""
+	def __init__(self):
 		self._interfaces = {}
 		self._feeds = {}
-		self._distro = distro
 
 	@property
 	def stores(self):
 		from zeroinstall.injector import policy
 		return policy.get_deprecated_singleton_config().stores
-
-	@property
-	def distro(self):
-		if self._distro is None:
-			from zeroinstall.injector.distro import get_host_distribution
-			self._distro = get_host_distribution()
-		return self._distro
 
 	def get_feed(self, url, force = False):
 		"""Get a feed from the cache.
@@ -105,13 +92,9 @@ class IfaceCache(object):
 			if feed != False:
 				return feed
 
-		if url.startswith('distribution:'):
-			master_feed = self.get_feed(url.split(':', 1)[1])
-			if not master_feed:
-				return None	# e.g. when checking a selections document
-			feed = self.distro.get_feed(master_feed)
-		else:
-			feed = reader.load_feed_from_cache(url)
+		assert not url.startswith('distribution:'), url
+
+		feed = reader.load_feed_from_cache(url)
 		if feed:
 			reader.update_user_feed_overrides(feed)
 		self._feeds[url] = feed

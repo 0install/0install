@@ -6,7 +6,7 @@ import os
 
 sys.path.insert(0, '..')
 
-from zeroinstall.injector import model, gpg, reader
+from zeroinstall.injector import model, gpg, reader, distro
 import data
 
 foo_iface_uri = 'http://foo'
@@ -249,9 +249,8 @@ class TestReader(BaseTest):
 
 		master_feed = iface_cache.get_feed(foo_iface_uri)
 		assert len(master_feed.implementations) == 0
-		distro_feed_url = master_feed.get_distro_feed()
 
-		feed = iface_cache.get_feed(distro_feed_url)
+		feed = distro._host_distribution.get_feed(master_feed)
 		assert len(feed.implementations) == 1
 
 		impl = feed.implementations['package:deb:python-bittorrent:3.4.2-10:*']
