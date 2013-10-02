@@ -2,6 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+Unix.putenv "TZ" "Europe/London"
+
 open OUnit
 open Zeroinstall.General
 open Support.Common
