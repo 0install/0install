@@ -33,7 +33,7 @@ class fake_slave config handler : Python.slave =
 
     method close = ()
     method close_async = failwith "close_async"
-    method system = config.system
+    method config = config
   end
 
 let fake_fetcher config handler =

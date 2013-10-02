@@ -214,21 +214,6 @@ def do_get_package_impls(config, options, args, xml):
 
 	return [hosts] + results
 
-def do_is_distro_package_installed(config, options, xml):
-	id_to_check = xml.attrs['id']
-	feed = xml.attrs['from-feed']
-	assert feed.startswith('distribution'), feed
-	master_url = feed.split(':', 1)[1]
-	master_feed = config.iface_cache.get_feed(master_url)
-	if not master_feed: return False
-	distro_feed = master_feed.get_distro_feed()
-	if distro_feed is not None:
-		distro = get_distro()
-		feed = distro.get_feed(master_feed.url, master_feed.get_package_impls(distro))
-		return id_to_check in feed.implementations
-	else:
-		return False
-
 last_ticket = 0
 def take_ticket():
 	global last_ticket
@@ -507,9 +492,6 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'get-package-impls':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_get_package_impls(config, options, request[1:], xml)
-		elif command == 'is-distro-package-installed':
-			xml = qdom.parse(BytesIO(read_chunk()))
-			response = do_is_distro_package_installed(config, options, xml)
 		elif command == 'get-distro-candidates':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			blocker = do_get_distro_candidates(config, request[1:], xml)

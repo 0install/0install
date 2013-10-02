@@ -238,5 +238,5 @@ class slave config =
           log_info "Slave terminated";
           Lwt.return ()
 
-    method system = system
+    method config = config
   end

@@ -7,6 +7,7 @@
 open General
 open Support
 open Support.Common
+module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
 module Q = Support.Qdom
 
@@ -162,13 +163,25 @@ let make_restricts_distro doc iface_uri distros =
 
 class virtual python_fallback_distribution (slave:Python.slave) =
   object (self)
-    inherit distribution slave#system
+    inherit distribution slave#config.system
 
     val mutable did_packagekit_query = false
 
     method is_installed elem =
       log_info "No is_installed implementation for '%s'; using slow Python fallback instead!" distro_name;
-      slave#invoke ~xml:elem (`List [`String "is-distro-package-installed"]) Yojson.Basic.Util.to_bool
+      match ZI.get_attribute FeedAttr.from_feed elem |> Feed_cache.parse_feed_url with
+      | `local_feed _ | `remote_feed _ -> assert false
+      | `distribution_feed master_feed ->
+          match Feed_cache.get_cached_feed slave#config master_feed with
+          | None -> false
+          | Some master_feed ->
+              let wanted_id = ZI.get_attribute FeedAttr.id elem in
+              let impls = self#get_all_package_impls master_feed |? lazy [] in
+              let is_installed impl =
+                match impl.Feed.impl_type with
+                | Feed.PackageImpl {Feed.package_installed; _} -> package_installed
+                | _ -> assert false in
+              impls |> List.exists (fun impl -> Feed.get_attr_ex FeedAttr.id impl = wanted_id && is_installed impl)
 
     method get_all_package_impls feed =
       match get_matching_package_impls self feed with
