@@ -80,30 +80,15 @@ module MakeSAT(User : USER) =
         obj;
       }
 
-    module WatchElement =
-      struct
-        type t = clause Queue.t
-        let undefined = Queue.create ()
-      end
-
-    module VarInfoElement =
-      struct
-        type t = var_info
-        let undefined = make_var User.unused
-      end
-
-    module WatchArray = Dynarray.Make(WatchElement)
-    module VarInfoArray = Dynarray.Make(VarInfoElement)
-
     type sat_problem = {
       (* Propagation *)
-      watches : WatchArray.t;       (* watches[2i,2i+1] = constraints to check when literal[i] becomes True/False *)
+      watches : clause Queue.t DynArray.t;  (* watches[2i,2i+1] = constraints to check when literal[i] becomes True/False *)
       propQ : lit Queue.t;	        (* propagation queue *)
 
       (* Assignments *)
-      assigns : VarInfoArray.t;	(* the current values of the variables *)
-      mutable trail : lit list;	(* order of assignments, most recent first *)
-      mutable trail_lim : int list; (* decision levels (len(trail) at each decision) *)
+      assigns : var_info DynArray.t;	(* the current values of the variables *)
+      mutable trail : lit list;         (* order of assignments, most recent first *)
+      mutable trail_lim : int list;     (* decision levels (len(trail) at each decision) *)
 
       mutable toplevel_conflict : bool;
 
@@ -165,10 +150,10 @@ module MakeSAT(User : USER) =
     let create () =
       if debug then log_debug "--- new SAT problem ---";
       {
-        watches = WatchArray.make ();
+        watches = DynArray.make 100;
         propQ = Queue.create ();
 
-        assigns = VarInfoArray.make ();
+        assigns = DynArray.make 100;
         trail = [];
         trail_lim = [];
 
@@ -179,9 +164,9 @@ module MakeSAT(User : USER) =
     (* For nicer if debug then log_debug messages *)
     let name_lit problem lit =
       if lit >= 0 then
-        User.to_string (VarInfoArray.get lit problem.assigns).obj
+        User.to_string (DynArray.get problem.assigns lit).obj
       else
-        let info = VarInfoArray.get (neg lit) problem.assigns in
+        let info = DynArray.get problem.assigns (neg lit) in
         Printf.sprintf "not(%s)" (User.to_string info.obj)
 
     let string_of_lits problem lits =
@@ -189,16 +174,16 @@ module MakeSAT(User : USER) =
 
     let lit_value (problem:sat_problem) lit =
       if lit >= 0 then (
-        (VarInfoArray.get lit problem.assigns).value
+        (DynArray.get problem.assigns lit).value
       ) else (
-        match (VarInfoArray.get (neg lit) problem.assigns).value with
+        match (DynArray.get problem.assigns (neg lit)).value with
         | Undecided -> Undecided
         | True -> False
         | False -> True
       )
 
     let get_varinfo_for_lit problem lit =
-      VarInfoArray.get (var_of_lit lit) problem.assigns
+      DynArray.get problem.assigns (var_of_lit lit)
 
     (* Why is [lit] assigned the way it is? For debugging. *)
     let explain_reason problem lit =
@@ -224,12 +209,12 @@ module MakeSAT(User : USER) =
 
     let add_variable problem obj : var =
       (* if debug then log_debug "add_variable('%s')" obj; *)
-      let index = problem.assigns.VarInfoArray.n in
+      let index = DynArray.length problem.assigns in
 
-      WatchArray.add (Queue.create ()) problem.watches;          (* Add watch lists for X and not(X) *)
-      WatchArray.add (Queue.create ()) problem.watches;
+      DynArray.add problem.watches (Queue.create ());          (* Add watch lists for X and not(X) *)
+      DynArray.add problem.watches (Queue.create ());
 
-      VarInfoArray.add (make_var obj) problem.assigns;
+      DynArray.add problem.assigns (make_var obj);
       index
 
     (* [lit] is now [True].
@@ -291,8 +276,8 @@ module MakeSAT(User : USER) =
         while not (Queue.is_empty problem.propQ) do
           let lit = Queue.take problem.propQ in
           let wi = watch_index lit in
-          let old_watches = WatchArray.get wi problem.watches in
-          WatchArray.set wi (Queue.create ()) problem.watches;
+          let old_watches = DynArray.get problem.watches wi in
+          DynArray.set problem.watches wi (Queue.create ());
 
           (* if debug then log_debug "%s -> True : watches: %d" (name_lit problem lit) (Queue.length old_watches); *)
 
@@ -303,7 +288,7 @@ module MakeSAT(User : USER) =
               (* Conflict *)
 
               (* Re-add remaining watches *)
-              Queue.transfer old_watches (WatchArray.get wi problem.watches);
+              Queue.transfer old_watches (DynArray.get problem.watches wi);
 
               (* No point processing the rest of the queue as
                  we'll have to backtrack now. *)
@@ -322,7 +307,7 @@ module MakeSAT(User : USER) =
     (* Call [clause#propagate lit] when lit becomes True *)
     let watch_lit problem lit clause =
       (* if debug then log_debug "%s is watching for %s to become True" clause#to_string (name_lit problem lit); *)
-      Queue.add clause (WatchArray.get (watch_index lit) problem.watches)
+      Queue.add clause (DynArray.get problem.watches (watch_index lit))
 
     class union_clause problem lits =
       object (self : #clause)
@@ -770,39 +755,39 @@ module MakeSAT(User : USER) =
             | None -> (
                 (* No conflicts *)
                 (* if debug then log_debug "new state: %s" problem.assigns *)
-                match VarInfoArray.find_index (fun info -> info.value = Undecided) problem.assigns with
-                | None ->
+                let undecided =
+                  try DynArray.index_of (fun info -> info.value = Undecided) problem.assigns
+                  with Not_found ->
                     (* Everything is assigned without conflicts *)
                     (* if debug then log_debug "SUCCESS!"; *)
-                    raise (SolveDone (Some (get_assignment problem)))
-                | Some undecided ->
-                  (* Pick a variable and try assigning it one way.
-                     If it leads to a conflict, we'll backtrack and
-                     try it the other way. *)
-                  let lit =
-                    if problem.set_to_false then (
-                      (* Printf.printf "%s -> false\n" (name_lit problem undecided); *)
-                      neg undecided
-                    ) else (
-                      match decide () with
-                      | Some lit -> lit
-                      | None ->
-                          (* Switch to set_to_false mode (until we backtrack). *)
-                          let lit = neg undecided in
-                          problem.set_to_false <- true;
-                          let var_info = get_varinfo_for_lit problem lit in
-                          let undo _ = problem.set_to_false <- false in
-                          var_info.undo <- undo :: var_info.undo;
-                          (* Printf.printf "%s -> false\n" (name_lit problem undecided); *)
-                          lit
-                    ) in
-                  if debug then log_debug "TRYING: %s" (name_lit problem lit);
-                  let old = lit_value problem lit in
-                  if (old <> Undecided) then
-                    failwith ("Decider chose already-decided variable: " ^ (name_lit problem lit) ^ " was " ^ (string_of_value old));
-                  problem.trail_lim <- (List.length problem.trail) :: problem.trail_lim;
-                  let r = enqueue problem lit (External "considering") in
-                  assert r
+                    raise (SolveDone (Some (get_assignment problem))) in
+                (* Pick a variable and try assigning it one way.
+                   If it leads to a conflict, we'll backtrack and
+                   try it the other way. *)
+                let lit =
+                  if problem.set_to_false then (
+                    (* Printf.printf "%s -> false\n" (name_lit problem undecided); *)
+                    neg undecided
+                  ) else (
+                    match decide () with
+                    | Some lit -> lit
+                    | None ->
+                        (* Switch to set_to_false mode (until we backtrack). *)
+                        let lit = neg undecided in
+                        problem.set_to_false <- true;
+                        let var_info = get_varinfo_for_lit problem lit in
+                        let undo _ = problem.set_to_false <- false in
+                        var_info.undo <- undo :: var_info.undo;
+                        (* Printf.printf "%s -> false\n" (name_lit problem undecided); *)
+                        lit
+                  ) in
+                if debug then log_debug "TRYING: %s" (name_lit problem lit);
+                let old = lit_value problem lit in
+                if (old <> Undecided) then
+                  failwith ("Decider chose already-decided variable: " ^ (name_lit problem lit) ^ " was " ^ (string_of_value old));
+                problem.trail_lim <- (List.length problem.trail) :: problem.trail_lim;
+                let r = enqueue problem lit (External "considering") in
+                assert r
             )
             | Some conflicting_clause ->
                 if get_decision_level problem = 0 then (
