@@ -250,7 +250,7 @@ class TestReader(BaseTest):
 		master_feed = iface_cache.get_feed(foo_iface_uri)
 		assert len(master_feed.implementations) == 0
 
-		feed = distro._host_distribution.get_feed(master_feed)
+		feed = distro._host_distribution.get_feed(master_feed.url, master_feed.get_package_impls(distro._host_distribution))
 		assert len(feed.implementations) == 1
 
 		impl = feed.implementations['package:deb:python-bittorrent:3.4.2-10:*']

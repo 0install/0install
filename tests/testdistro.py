@@ -72,9 +72,8 @@ class TestDistro(BaseTest):
 		self.assertEqual(self.feed.implementations, {})
 
 		# Special case: we can always find a version of Python
-		master_feed = model.ZeroInstallFeed(None)
-		master_feed.url = 'http://repo.roscidus.com/python/python'
-		feed = host.get_feed(master_feed)
+		master_feed_url = 'http://repo.roscidus.com/python/python'
+		feed = host.get_feed(master_feed_url, [])
 		self.assertEqual(1, len(feed.implementations))
 
 	def testDebian(self):
@@ -99,11 +98,11 @@ class TestDistro(BaseTest):
 					     </package-implementation>
 					  """)
 		h = handler.Handler()
-		candidates = host.fetch_candidates(master_feed)
+		candidates = host.fetch_candidates(master_feed.get_package_impls(host))
 		if candidates:
 			h.wait_for_blocker(candidates)
 		# Now we see the uninstalled package
-		self.feed = host.get_feed(master_feed)
+		self.feed = host.get_feed(master_feed.url, master_feed.get_package_impls(host))
 		self.assertEqual(2, len(self.feed.implementations))
 
 		# Check restriction appears for both candidates
@@ -128,7 +127,7 @@ class TestDistro(BaseTest):
 
 		# Java is special...
 		master_feed = parse_impls("""<package-implementation package='openjdk-7-jre'/>""")
-		feed = host.get_feed(master_feed)
+		feed = host.get_feed(master_feed.url, master_feed.get_package_impls(host))
 		self.assertEqual(1, len(feed.implementations))
 		self.assertEqual('7.3-2.1.1-3', list(feed.implementations.values())[0].get_version())
 	
@@ -151,7 +150,7 @@ class TestDistro(BaseTest):
 				<package-implementation distributions="RPM" package="yast2-update"/>
 				""")
 		distro_feed_url = feed.get_distro_feed()
-		impls = rpm.get_feed(feed).implementations
+		impls = rpm.get_feed(feed.url, feed.get_package_impls(rpm)).implementations
 		self.assertEqual("distribution:myfeed.xml", distro_feed_url)
 		assert len(impls) == 1, impls
 		impl, = impls
@@ -161,20 +160,20 @@ class TestDistro(BaseTest):
 				<package-implementation distributions="RPM" package="yast2-mail"/>
 				<package-implementation distributions="RPM" package="yast2-update"/>
 				""")
-		impls = rpm.get_feed(feed).implementations
+		impls = rpm.get_feed(feed.url, feed.get_package_impls(rpm)).implementations
 		assert len(impls) == 2, impls
 
 		feed = parse_impls("""
 				<package-implementation distributions="" package="yast2-mail"/>
 				<package-implementation package="yast2-update"/>
 				""")
-		impls = rpm.get_feed(feed).implementations
+		impls = rpm.get_feed(feed.url, feed.get_package_impls(rpm)).implementations
 		assert len(impls) == 2, impls
 
 		feed = parse_impls("""
 				<package-implementation distributions="Foo Bar Baz" package="yast2-mail"/>
 				""")
-		impls = rpm.get_feed(feed).implementations
+		impls = rpm.get_feed(feed.url, feed.get_package_impls(rpm)).implementations
 		assert len(impls) == 1, impls
 
 	def testSlack(self):
@@ -280,7 +279,7 @@ class TestDistro(BaseTest):
 		host._packagekit = DummyPackageKit()
 
 		master_feed = parse_impls("""<package-implementation main='/unused' package='python-bittorrent'><command path='/bin/sh' name='run'/></package-implementation>""")
-		impl, = host.get_feed(master_feed).implementations.values()
+		impl, = host.get_feed(master_feed.url, master_feed.get_package_impls(host)).implementations.values()
 		self.assertEqual('/bin/sh', impl.main)
 
 	def testPortable(self):

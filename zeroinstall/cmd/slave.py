@@ -184,17 +184,8 @@ def to_json(impl):
 			attrs['quick-test-mtime'] = str(impl.quick_test_mtime)
 	return attrs
 
-class FakeMasterFeed:
-	url = None
-	package_impls = None
-	def get_package_impls(self, distro):
-		return self.package_impls
-
 def do_get_package_impls(config, options, args, xml):
 	master_feed_url, = args
-
-	master_feed = FakeMasterFeed()
-	master_feed.url = master_feed_url
 
 	seen = set()
 	results = []
@@ -204,8 +195,8 @@ def do_get_package_impls(config, options, args, xml):
 	# We need the results grouped by <package-implementation> so the OCaml can
 	# get the correct attributes and dependencies.
 	for elem in xml.childNodes:
-		master_feed.package_impls = [(elem, elem.attrs, [])]
-		feed = distro.get_feed(master_feed)
+		package_impls = [(elem, elem.attrs, [])]
+		feed = distro.get_feed(master_feed_url, package_impls)
 
 		impls = [impl for impl in feed.implementations.values() if impl.id not in seen]
 		seen.update(feed.implementations.keys())
@@ -227,7 +218,7 @@ def do_is_distro_package_installed(config, options, xml):
 	if not master_feed: return False
 	distro_feed = master_feed.get_distro_feed()
 	if distro_feed is not None:
-		feed = distro.get_feed(master_feed)
+		feed = distro.get_feed(master_feed.url, master_feed.get_package_impls(distro))
 		return id_to_check in feed.implementations
 	else:
 		return False
@@ -272,11 +263,9 @@ def handle_message(config, options, message):
 def do_get_distro_candidates(config, args, xml):
 	master_feed_url, = args
 
-	master_feed = FakeMasterFeed()
-	master_feed.url = master_feed_url
-	master_feed.package_impls = [(elem, elem.attrs, []) for elem in xml.childNodes]
+	package_impls = [(elem, elem.attrs, []) for elem in xml.childNodes]
 
-	return distro.fetch_candidates(master_feed)
+	return distro.fetch_candidates(package_impls)
 
 PendingFromOCaml = collections.namedtuple("PendingFromOCaml", ["url", "sigs"])
 

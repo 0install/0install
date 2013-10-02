@@ -184,20 +184,18 @@ class Distribution(object):
 		@rtype: int"""
 		return 0
 
-	def get_feed(self, master_feed):
+	def get_feed(self, master_feed_url, package_impls):
 		"""Generate a feed containing information about distribution packages.
 		This should immediately return a feed containing an implementation for the
 		package if it's already installed. Information about versions that could be
 		installed using the distribution's package manager can be added asynchronously
 		later (see L{fetch_candidates}).
-		@param master_feed: feed containing the <package-implementation> elements
-		@type master_feed: L{model.ZeroInstallFeed}
 		@rtype: L{model.ZeroInstallFeed}"""
 
 		feed = model.ZeroInstallFeed(None)
-		feed.url = 'distribution:' + master_feed.url
+		feed.url = 'distribution:' + master_feed_url
 
-		for item, item_attrs, depends in master_feed.get_package_impls(self):
+		for item, item_attrs, depends in package_impls:
 			package = item_attrs.get('package', None)
 			if package is None:
 				raise model.InvalidInterface(_("Missing 'package' attribute on %s") % item)
@@ -233,7 +231,7 @@ class Distribution(object):
 				if impl.installed:
 					self.installed_fixup(impl)
 
-		if master_feed.url == _PYTHON_URI and os.name != "nt":
+		if master_feed_url == _PYTHON_URI and os.name != "nt":
 			# Hack: we can support Python on platforms with unsupported package managers
 			# by adding the implementation of Python running us now to the list.
 			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
@@ -249,7 +247,7 @@ class Distribution(object):
 			_set_quick_test(impl, sys.executable)
 
 			feed.implementations[impl_id] = impl
-		elif master_feed.url == 'http://repo.roscidus.com/python/python-gobject' and os.name != "nt":
+		elif master_feed_url == 'http://repo.roscidus.com/python/python-gobject' and os.name != "nt":
 			gobject = get_loop().gobject
 			if gobject:
 				# Likewise, we know that there is a native python-gobject available for our Python
@@ -274,13 +272,13 @@ class Distribution(object):
 
 		return feed
 
-	def fetch_candidates(self, master_feed):
+	def fetch_candidates(self, package_impls):
 		"""Collect information about versions we could install using
 		the distribution's package manager. On success, the distribution
 		feed in iface_cache is updated.
 		@return: a L{tasks.Blocker} if the task is in progress, or None if not"""
 		if self.packagekit.available:
-			package_names = [item.getAttribute("package") for item, item_attrs, depends in master_feed.get_package_impls(self)]
+			package_names = [item.getAttribute("package") for item, item_attrs, depends in package_impls]
 			return self.packagekit.fetch_candidates(package_names)
 
 	@property
@@ -730,10 +728,10 @@ class DebianDistribution(Distribution):
 
 		return installed_cached_info
 
-	def fetch_candidates(self, master_feed):
+	def fetch_candidates(self, package_impls):
 		"""@type master_feed: L{zeroinstall.injector.model.ZeroInstallFeed}
 		@rtype: [L{zeroinstall.support.tasks.Blocker}]"""
-		package_names = [item.getAttribute("package") for item, item_attrs, depends in master_feed.get_package_impls(self)]
+		package_names = [item.getAttribute("package") for item, item_attrs, depends in package_impls]
 
 		if self.packagekit.available:
 			return self.packagekit.fetch_candidates(package_names)
