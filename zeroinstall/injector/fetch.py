@@ -42,21 +42,6 @@ class Fetcher(object):
 			self._scheduler = scheduler.DownloadScheduler()
 		return self._scheduler
 
-	def _get_archive_mirror(self, url):
-		"""@type source: L{model.DownloadSource}
-		@rtype: str"""
-		if self.config.mirror is None:
-			return None
-		if support.urlparse(url).hostname == 'localhost':
-			return None
-		if sys.version_info[0] > 2:
-			from urllib.parse import quote
-		else:
-			from urllib import quote
-		return '{mirror}/archive/{archive}'.format(
-				mirror = self.config.mirror,
-				archive = quote(url.replace('/', '#'), safe = ''))
-
 	def download_url(self, url, hint = None, modification_time = None, expected_size = None, mirror_url = None, timeout = None, auto_delete = True):
 		"""The most low-level method here; just download a raw URL.
 		It is the caller's responsibility to ensure that dl.stream is closed.

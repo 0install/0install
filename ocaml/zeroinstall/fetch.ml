@@ -61,6 +61,10 @@ let rec join_errors = function
         lwt exs = join_errors xs in
         ex :: exs |> Lwt.return
 
+let maybe = function
+  | Some v -> `String v
+  | None -> `Null
+
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
@@ -88,15 +92,11 @@ class fetcher config trust_db (slave:Python.slave) =
 
   (** Download url to a new temporary file and return its name.
    * @param timeout_ticket a timer to start when the download starts (it will be queued first)
+   * @param mirror_url a URL to try if [url] fails
    * @hint a tag to attach to the download (used by the GUI to associate downloads with feeds)
    *)
-  let download_url_if_modified ?modification_time ?timeout_ticket ?(may_use_mirror=false) ?size ~hint url =
+  let download_url_if_modified ?modification_time ?timeout_ticket ?mirror_url ?size ~hint url =
     log_info "Downloading URL '%s'..." url;
-
-    let timeout_ticket =
-      match timeout_ticket with
-      | None -> `Null
-      | Some ticket -> `String ticket in
 
     let modification_time =
       match modification_time with
@@ -111,10 +111,10 @@ class fetcher config trust_db (slave:Python.slave) =
     let request = `List [`String "download-url"; `Assoc [
       ("url", `String url);
       ("hint", `String hint);
-      ("timeout", timeout_ticket);
+      ("timeout", maybe timeout_ticket);
       ("mtime", modification_time);
       ("size", size);
-      ("may-use-mirror", `Bool may_use_mirror);
+      ("mirror-url", maybe mirror_url);
     ]] in
 
     try_lwt
@@ -126,8 +126,8 @@ class fetcher config trust_db (slave:Python.slave) =
       )
     with Safe_exception (msg, _) -> `network_failure msg |> Lwt.return in
 
-  let download_url ?timeout_ticket ?may_use_mirror ?size ~hint url =
-    match_lwt download_url_if_modified ?timeout_ticket ?may_use_mirror ?size ~hint url with
+  let download_url ?timeout_ticket ?mirror_url ?size ~hint url =
+    match_lwt download_url_if_modified ?timeout_ticket ?mirror_url ?size ~hint url with
     | `unmodified -> assert false
     | (`aborted_by_user | `network_failure _ | `tmpfile _ ) as result -> Lwt.return result in
 
@@ -501,12 +501,18 @@ class fetcher config trust_db (slave:Python.slave) =
               raise_safe "Wrong size for %s: feed says %d, but actually %d bytes" path expected_size actual_size;
         | None -> raise_safe "Local file '%s' does not exist" path in
 
-  let download_file ~feed ~size ~may_use_mirror fn url =
+  let download_file ~feed ?size ~may_use_mirror fn url =
     if Str.string_match (Str.regexp "[a-z]+://") url 0 then (
       (* Remote file *)
       if config.dry_run then
         Dry_run.log "downloading %s" url;
-      match_lwt download_url ?size ~may_use_mirror ~hint:feed url with
+      let mirror_url =
+        match config.mirror with
+        | Some mirror when may_use_mirror && can_try_mirror url ->
+            let escaped = Str.global_replace (Str.regexp_string "/") "#" url |> Curl.escape in
+            Some (mirror ^ "/archive/" ^ escaped)
+        | _ -> None in
+      match_lwt download_url ?size ?mirror_url ~hint:feed url with
       | `network_failure msg -> raise (Try_mirror msg)
       | `aborted_by_user -> raise Aborted
       | `tmpfile tmpfile ->
@@ -518,7 +524,7 @@ class fetcher config trust_db (slave:Python.slave) =
       download_local_file feed size fn url
     ) in
 
-  let download_archive ~feed ~size ~may_use_mirror fn (url, archive_info) =
+  let download_archive ~feed ?size ~may_use_mirror fn (url, archive_info) =
     let open Recipe in
     let {start_offset; mime_type; extract = _; dest = _} = archive_info in
     let mime_type = mime_type |? lazy (Archive.type_from_url url) in
@@ -530,7 +536,7 @@ class fetcher config trust_db (slave:Python.slave) =
       | None -> None (* (don't know sizes for mirrored archives) *)
       | Some size -> Some (Int64.add size start_offset) in
 
-    download_file ~feed ~size ~may_use_mirror fn url in
+    download_file ~feed ?size ~may_use_mirror fn url in
 
   (* Download an implementation by following a recipe and add it to the store.
    * (this was called "cook" in the Python version)
@@ -580,10 +586,6 @@ class fetcher config trust_db (slave:Python.slave) =
         function
         | DownloadStep {url; size; download_type = ArchiveDownload archive_info} ->
             (url, archive_info) |> download_archive ~may_use_mirror ?size ~feed (fun tmpfile ->
-              let maybe = function
-                | Some v -> `String v
-                | None -> `Null in
-              let open Recipe in
               let {extract; start_offset; mime_type; dest} = archive_info in
               let basedir =
                 match dest with
@@ -607,7 +609,7 @@ class fetcher config trust_db (slave:Python.slave) =
               )
             )
         | DownloadStep {url; size; download_type = FileDownload dest} ->
-            url |> download_file ~may_use_mirror ?size ~feed (fun tmpfile ->
+            url |> download_file ?size ~feed ~may_use_mirror:false (fun tmpfile ->
               let dest = native_path_within_base dest in
               U.makedirs system (Filename.dirname dest) 0o755;
               U.copy_file system tmpfile dest 0o644;

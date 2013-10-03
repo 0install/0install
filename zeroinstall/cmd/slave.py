@@ -320,7 +320,7 @@ def do_download_url(config, ticket, args):
 		timeout = args["timeout"]
 		modtime = args["mtime"]
 		size = args["size"]
-		may_use_mirror = args["may-use-mirror"]
+		mirror_url = args["mirror-url"]
 
 		if size is not None: size = int(size)
 
@@ -328,12 +328,7 @@ def do_download_url(config, ticket, args):
 			from email.utils import formatdate
 			modtime = formatdate(timeval = int(modtime), localtime = False, usegmt = True)
 
-		if may_use_mirror:
-			mirror = config.fetcher._get_archive_mirror(url)
-		else:
-			mirror = None
-
-		dl = config.fetcher.download_url(url, hint = hint, expected_size = size, mirror_url = mirror,
+		dl = config.fetcher.download_url(url, hint = hint, expected_size = size, mirror_url = mirror_url,
 				timeout = timeout, auto_delete = False, modification_time = modtime)
 		name = dl.tempfile.name
 		yield dl.downloaded
