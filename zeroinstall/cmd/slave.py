@@ -132,14 +132,8 @@ def do_check_manifest_and_rename(config, options, args):
 def do_unpack_archive(config, options, details):
 	from zeroinstall.zerostore import unpack
 
-	basedir = details['tmpdir']
-	dest = details['dest']
-	if dest is not None:
-		basedir = fetch.native_path_within_base(basedir, dest)
-		fetch._ensure_dir_exists(basedir)
-
 	with open(details['tmpfile'], 'rb') as stream:
-		unpack.unpack_archive_over(details['url'], stream, basedir,
+		unpack.unpack_archive_over(details['url'], stream, details['basedir'],
 				extract = details.get('extract', None),
 				type = details.get('mime_type', None),
 				start_offset = int(details['start_offset']))

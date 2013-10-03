@@ -86,26 +86,6 @@ class fetcher config trust_db (slave:Python.slave) =
       | json -> raise_safe "start-timeout: invalid request: %s" (Yojson.Basic.to_string (`List json))
     ) in
 
-  let unpack_download tmpdir tmpfile url =
-    let maybe = function
-      | Some v -> `String v
-      | None -> `Null in
-    let open Recipe in (fun {extract; start_offset; mime_type; dest} ->
-      let request = `List [`String "unpack-archive"; `Assoc [
-        ("tmpdir", `String tmpdir);
-        ("tmpfile", `String tmpfile);
-        ("url", `String url);
-        ("extract", maybe extract);
-        ("dest", maybe dest);
-        ("start_offset", `Float (Int64.to_float start_offset));
-        ("mime_type", maybe mime_type);
-      ]] in
-      slave#invoke_async request (function
-        | `Null -> ()
-        | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
-      )
-    ) in
-
   (** Download url to a new temporary file and return its name.
    * @param timeout_ticket a timer to start when the download starts (it will be queued first)
    * @hint a tag to attach to the download (used by the GUI to associate downloads with feeds)
@@ -600,7 +580,31 @@ class fetcher config trust_db (slave:Python.slave) =
         function
         | DownloadStep {url; size; download_type = ArchiveDownload archive_info} ->
             (url, archive_info) |> download_archive ~may_use_mirror ?size ~feed (fun tmpfile ->
-              unpack_download tmpdir tmpfile url archive_info
+              let maybe = function
+                | Some v -> `String v
+                | None -> `Null in
+              let open Recipe in
+              let {extract; start_offset; mime_type; dest} = archive_info in
+              let basedir =
+                match dest with
+                | None -> tmpdir
+                | Some dest ->
+                    let basedir = native_path_within_base dest in
+                    U.makedirs system basedir 0o755;
+                    basedir in
+              let request = `List [`String "unpack-archive"; `Assoc [
+                ("basedir", `String basedir);
+                ("tmpfile", `String tmpfile);
+                ("url", `String url);
+                ("extract", maybe extract);
+                ("dest", maybe dest);
+                ("start_offset", `Float (Int64.to_float start_offset));
+                ("mime_type", maybe mime_type);
+              ]] in
+              slave#invoke_async request (function
+                | `Null -> ()
+                | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
+              )
             )
         | DownloadStep {url; size; download_type = FileDownload dest} ->
             url |> download_file ~may_use_mirror ?size ~feed (fun tmpfile ->

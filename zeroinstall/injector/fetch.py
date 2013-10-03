@@ -83,26 +83,3 @@ class Fetcher(object):
 		dl.downloaded = self.scheduler.download(dl, timeout = timeout)
 
 		return dl
-
-def native_path_within_base(base, crossplatform_path):
-	"""Takes a cross-platform relative path (i.e using forward slashes, even on windows)
-	and returns the absolute, platform-native version of the path.
-	If the path does not resolve to a location within `base`, a SafeError is raised.
-	@type base: str
-	@type crossplatform_path: str
-	@rtype: str
-	@since: 1.10"""
-	assert os.path.isabs(base)
-	if crossplatform_path.startswith("/"):
-		raise SafeException("path %r is not within the base directory" % (crossplatform_path,))
-	native_path = os.path.join(*crossplatform_path.split("/"))
-	fullpath = os.path.realpath(os.path.join(base, native_path))
-	base = os.path.realpath(base)
-	if not fullpath.startswith(base + os.path.sep):
-		raise SafeException("path %r is not within the base directory" % (crossplatform_path,))
-	return fullpath
-
-def _ensure_dir_exists(dest):
-	"""@type dest: str"""
-	if not os.path.isdir(dest):
-		os.makedirs(dest)
