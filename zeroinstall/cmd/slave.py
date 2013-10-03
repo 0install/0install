@@ -69,15 +69,6 @@ def get_dry_run_names(config):
 				paths.add(os.path.join(store.dir, name))
 	return paths
 
-# Load a feed into the (memory) cache.
-def do_import_feed(config, xml):
-	if gui_driver is not None: config = gui_driver.config
-
-	feed = model.ZeroInstallFeed(xml)
-	reader.update_user_feed_overrides(feed)
-	feed_url = xml.attrs['uri']
-	config.iface_cache._feeds[feed_url] = feed
-
 @tasks.async
 def do_confirm_distro_install(config, ticket, options, impls):
 	if gui_driver is not None: config = gui_driver.config
@@ -486,9 +477,6 @@ def handle_invoke(config, options, ticket, request):
 			response = None
 		elif command == 'unpack-archive':
 			response = do_unpack_archive(config, options, request[1])
-		elif command == 'import-feed':
-			xml = qdom.parse(BytesIO(read_chunk()))
-			response = do_import_feed(config, xml)
 		elif command == 'get-package-impls':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_get_package_impls(config, options, request[1:], xml)

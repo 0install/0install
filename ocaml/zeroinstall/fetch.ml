@@ -227,7 +227,7 @@ class fetcher config trust_db (slave:Python.slave) =
 
     (* Check the new XML is valid before adding it *)
     let new_root = `String (0, new_xml) |> Xmlm.make_input |> Q.parse_input (Some feed_url) in
-    let filtered = (Feed.parse system new_root None).Feed.root in
+    ignore (Feed.parse system new_root None).Feed.root;
 
     let url_in_feed = ZI.get_attribute FeedAttr.uri new_root in
     if url_in_feed <> feed_url then
@@ -245,12 +245,6 @@ class fetcher config trust_db (slave:Python.slave) =
         Feed.update_last_checked_time config feed_url;
         log_info "Updated feed cache checked time for %s (modified %s)" feed_url pretty_time
       );
-      (* In dry-run mode we don't actually write to the cache, so we have to send the new
-       * version to the Python. *)
-      lwt () = slave#invoke_async ~xml:filtered (`List [`String "import-feed"]) (function
-        | `Null -> ()
-        | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
-      ) in
       `ok new_root |> Lwt.return in
 
     if old_xml = Some new_xml then (
