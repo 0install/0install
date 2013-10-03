@@ -19,22 +19,6 @@ from zeroinstall.gui import dialog
 
 _dialogs = {}	# Interface -> Properties
 
-def have_source_for(config, interface):
-	iface_cache = config.iface_cache
-	# Note: we don't want to actually fetch the source interfaces at
-	# this point, so we check whether:
-	# - We have a feed of type 'src' (not fetched), or
-	# - We have a source implementation in a regular feed
-	for f in iface_cache.get_feed_imports(interface):
-		if f.machine == 'src':
-			return True
-	# Don't have any src feeds. Do we have a source implementation
-	# as part of a regular feed?
-	for x in iface_cache.get_implementations(interface):
-		if x.machine == 'src':
-			return True
-	return False
-
 class Description(object):
 	def __init__(self, widgets):
 		description = widgets.get_widget('description')
@@ -244,9 +228,6 @@ class Properties(object):
 	def destroy(self):
 		self.window.destroy()
 	
-	def shade_compile(self):
-		self.compile_button.set_sensitive(have_source_for(self.driver.config, self.interface))
-
 	@tasks.async
 	def update(self):
 		try:
@@ -257,7 +238,7 @@ class Properties(object):
 
 			self.use_list.update(self.details)
 			self.feeds.updated(self.details)
-			self.shade_compile()
+			self.compile_button.set_sensitive(self.details['may-compile'])
 		except:
 			warning("update failed", exc_info = True)
 	

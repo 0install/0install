@@ -116,6 +116,46 @@ let first_para text =
     with Not_found -> text in
   Str.global_replace (Str.regexp_string "\n") " " first |> trim
 
+(** Try to guess whether we have source for this interface.
+ * Returns true if we have any source-only feeds, or any source implementations
+ * in our regular feeds. However, we don't look inside the source feeds (so a
+ * source feed containing no implementations will still count as true).
+ * This is used in the GUI to decide whether to shade the Compile button.
+ *)
+let have_source_for feed_provider iface =
+  let user_feeds = (feed_provider#get_iface_config iface).Feed_cache.extra_feeds in
+  let imported =
+    match feed_provider#get_feed iface with
+    | None -> []
+    | Some (feed, _overrides) -> feed.Feed.imported_feeds in
+
+  let have_source = ref false in
+  let to_check = ref [iface] in
+
+  (user_feeds @ imported) |> List.iter (fun feed_import ->
+    match feed_import.Feed.feed_machine with
+    | Some "src" -> have_source := true   (* Source-only feed *)
+    | Some _ -> ()    (* Binary-only feed; can't contain source *)
+    | None -> to_check := feed_import.Feed.feed_src :: !to_check (* Mixed *)
+  );
+
+  if !have_source then true
+  else (
+    (* Don't have any src feeds. Do we have a source implementation
+     * as part of a regular feed? *)
+
+    (* Copy feed_provider so we don't mark any feeds as used.
+     * For example, a Windows-* feed might contain source, but if
+     * haven't cached it then there's no point checking it. *)
+    let feed_provider = Oo.copy feed_provider in
+    !to_check |> List.exists (fun url ->
+      match feed_provider#get_feed url with
+      | None -> false
+      | Some (feed, _overrides) ->
+          feed.Feed.implementations |> StringMap.exists (fun _id impl -> Feed.is_source impl)
+    )
+  )
+
 let build_tree config (feed_provider:Feed_provider.feed_provider) old_sels sels : Yojson.Basic.json =
   let rec process_tree (uri, details) =
     let (name, summary, description) =
@@ -132,6 +172,7 @@ let build_tree config (feed_provider:Feed_provider.feed_provider) old_sels sels 
       ("name", `String name);
       ("summary", `String summary);
       ("summary-tip", `String (default "(no description available)" description |> first_para));
+      ("may-compile", `Bool (have_source_for feed_provider uri));
     ] in
 
     match details with
@@ -623,6 +664,7 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
 
     Python.register_handler "get-component-details" (function
       | [`String uri] -> Lwt.return (`Assoc (
+          ("may-compile", `Bool (have_source_for !feed_provider uri)) ::
           ("feeds", `List (list_feeds !feed_provider uri)) ::
           list_impls config (snd !results) uri
         );

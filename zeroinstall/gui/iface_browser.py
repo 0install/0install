@@ -377,11 +377,11 @@ class InterfaceBrowser(object):
 	def show_popup_menu(self, details, bev):
 		iface_uri = details['interface']
 		iface_name = details['name']
+		have_source = details['may-compile']
 
 		from zeroinstall.gui import bugs
 
 		iface = self.config.iface_cache.get_interface(iface_uri)
-		have_source =  properties.have_source_for(self.config, iface)
 
 		global menu		# Fix GC problem in PyGObject
 		menu = gtk.Menu()

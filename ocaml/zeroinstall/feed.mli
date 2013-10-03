@@ -93,7 +93,7 @@ type feed = {
   root : Support.Qdom.element;
   name : string;
   implementations : implementation Support.Common.StringMap.t;
-  imported_feeds : feed_import list;
+  imported_feeds : feed_import list;    (* Always of type Feed_import here *)
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.
      This is the value of the feed's <replaced-by interface'...'/> element. *)
