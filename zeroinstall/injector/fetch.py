@@ -13,25 +13,6 @@ from zeroinstall.support import tasks
 from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import download
 
-def _escape_slashes(path):
-	"""@type path: str
-	@rtype: str"""
-	return path.replace('/', '%23')
-
-def _get_feed_dir(feed):
-	"""The algorithm from 0mirror.
-	@type feed: str
-	@rtype: str"""
-	if '#' in feed:
-		raise SafeException(_("Invalid URL '%s'") % feed)
-	scheme, rest = feed.split('://', 1)
-	assert '/' in rest, "Missing / in %s" % feed
-	domain, rest = rest.split('/', 1)
-	for x in [scheme, domain, rest]:
-		if not x or x.startswith('.'):
-			raise SafeException(_("Invalid URL '%s'") % feed)
-	return '/'.join(['feeds', scheme, domain, _escape_slashes(rest)])
-
 class Fetcher(object):
 	"""Downloads and stores various things.
 	@ivar config: used to get handler, iface_cache and stores
@@ -60,19 +41,6 @@ class Fetcher(object):
 			from . import scheduler
 			self._scheduler = scheduler.DownloadScheduler()
 		return self._scheduler
-
-	def _get_mirror_url(self, feed_url, resource):
-		"""Return the URL of a mirror for this feed.
-		@type feed_url: str
-		@type resource: str
-		@rtype: str"""
-		if self.config.mirror is None:
-			return None
-		if feed_url.startswith('http://') or feed_url.startswith('https://'):
-			if support.urlparse(feed_url).hostname == 'localhost':
-				return None
-			return '%s/%s/%s' % (self.config.mirror, _get_feed_dir(feed_url), resource)
-		return None
 
 	def _get_archive_mirror(self, url):
 		"""@type source: L{model.DownloadSource}

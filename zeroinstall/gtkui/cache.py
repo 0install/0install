@@ -426,11 +426,11 @@ class KnownImplementation(CachedImplementation):
 class CacheExplorer(object):
 	"""A graphical interface for viewing the cache and deleting old items."""
 
-	def __init__(self, iface_cache):
+	def __init__(self, config):
 		widgets = gtkutils.Template(os.path.join(os.path.dirname(__file__), 'cache.ui'), 'cache')
 		self.window = window = widgets.get_widget('cache')
 		window.set_default_size(gtk.gdk.screen_width() / 2, gtk.gdk.screen_height() / 2)
-		self.iface_cache = iface_cache
+		self.config = config
 
 		# Model
 		self.raw_model = gtk.TreeStore(*Column.column_types())
@@ -570,11 +570,12 @@ class CacheExplorer(object):
 	@tasks.async
 	def _populate_model(self):
 		# Find cached implementations
+		iface_cache = self.config.iface_cache
 
 		unowned = {}	# Impl ID -> Store
 		duplicates = [] # TODO
 
-		for s in self.iface_cache.stores.stores:
+		for s in self.config.stores.stores:
 			if os.path.isdir(s.dir):
 				for id in os.listdir(s.dir):
 					if id in unowned:
@@ -585,15 +586,15 @@ class CacheExplorer(object):
 		error_feeds = []
 
 		# Look through cached feeds for implementation owners
-		all_interfaces = self.iface_cache.list_all_interfaces()
+		all_interfaces = iface_cache.list_all_interfaces()
 		all_feeds = {}
 		for uri in all_interfaces:
 			try:
-				iface = self.iface_cache.get_interface(uri)
+				iface = iface_cache.get_interface(uri)
 			except Exception as ex:
 				error_feeds.append((uri, str(ex), 0))
 			else:
-				all_feeds.update(self.iface_cache.get_feeds(iface))
+				all_feeds.update(iface_cache.get_feeds(iface))
 
 		for url, feed in all_feeds.items():
 			if not feed: continue

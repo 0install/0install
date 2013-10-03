@@ -68,16 +68,11 @@ class IfaceCache(object):
 	@see: L{iface_cache} - the singleton IfaceCache instance.
 	"""
 
-	__slots__ = ['_interfaces', '_feeds', '_config']
+	__slots__ = ['_interfaces', '_feeds']
 
 	def __init__(self):
 		self._interfaces = {}
 		self._feeds = {}
-
-	@property
-	def stores(self):
-		from zeroinstall.injector import policy
-		return policy.get_deprecated_singleton_config().stores
 
 	def get_feed(self, url, force = False):
 		"""Get a feed from the cache.

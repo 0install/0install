@@ -35,7 +35,7 @@ def _add_site_packages(interface, site_packages, known_site_feeds):
 		interface.extra_feeds.append(Feed(feed, None, user_override = True, site_package = True))
 		known_site_feeds.add(feed)
 
-def update_from_cache(interface, iface_cache = None):
+def update_from_cache(interface, iface_cache):
 	"""Read a cached interface and any native feeds or user overrides.
 	@param interface: the interface object to update
 	@type interface: L{model.Interface}
@@ -46,11 +46,6 @@ def update_from_cache(interface, iface_cache = None):
 	@rtype: bool
 	@note: internal; use L{iface_cache.IfaceCache.get_interface} instread."""
 	interface.reset()
-	if iface_cache is None:
-		import warnings
-		warnings.warn("iface_cache should be specified", DeprecationWarning, 2)
-		from zeroinstall.injector import policy
-		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 
 	# Add the distribution package manager's version, if any
 	path = basedir.load_first_data(config_site, 'native_feeds', model._pretty_escape(interface.uri))
@@ -225,11 +220,6 @@ def update(interface, source, local = False, iface_cache = None):
 						"%(interface_uri)s was requested") %
 						{'feed_url': feed.url, 'interface_uri': interface.uri})
 
-	if iface_cache is None:
-		import warnings
-		warnings.warn("iface_cache should be specified", DeprecationWarning, 2)
-		from zeroinstall.injector import policy
-		iface_cache = policy.get_deprecated_singleton_config().iface_cache
 	iface_cache._feeds[support.unicode(interface.uri)] = feed
 
 	return feed

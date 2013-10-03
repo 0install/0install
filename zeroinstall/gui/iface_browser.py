@@ -429,7 +429,7 @@ class InterfaceBrowser(object):
 		def on_success():
 			# A new local feed may have been registered, so reload it from the disk cache
 			info(_("0compile command completed successfully. Reloading interface details."))
-			reader.update_from_cache(interface)
+			reader.update_from_cache(interface, iface_cache = self.config.iface_cache)
 			for feed in interface.extra_feeds:
 				self.config.iface_cache.get_feed(feed.uri, force = True)
 			from zeroinstall.gui import main

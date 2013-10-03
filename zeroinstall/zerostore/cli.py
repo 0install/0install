@@ -251,8 +251,9 @@ def do_manage(args):
 
 	import gtk
 	from zeroinstall.gtkui import cache
-	from zeroinstall.injector.iface_cache import iface_cache
-	cache_explorer = cache.CacheExplorer(iface_cache)
+	from zeroinstall.injector.config import load_config
+	config = load_config()
+	cache_explorer = cache.CacheExplorer(config)
 	cache_explorer.window.connect('destroy', gtk.main_quit)
 	cache_explorer.show()
 	gtk.main()

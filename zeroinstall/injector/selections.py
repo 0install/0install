@@ -9,11 +9,9 @@ Load and save a set of chosen implementations.
 import os
 from zeroinstall import _, zerostore
 from zeroinstall.injector import model
-from zeroinstall.injector.policy import get_deprecated_singleton_config
 from zeroinstall.injector.model import process_binding, process_depends, binding_names, Command
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.qdom import Element
-from zeroinstall.support import basestring
 
 class Selection(object):
 	"""A single selected implementation in a L{Selections} set.
@@ -141,14 +139,7 @@ class Selections(object):
 		@type source: L{Element}"""
 		self.selections = {}
 		self.command = None
-
-		if source is None:
-			# (Solver will fill everything in)
-			pass
-		elif isinstance(source, Element):
-			self._init_from_qdom(source)
-		else:
-			raise Exception(_("Source not a qdom.Element!"))
+		self._init_from_qdom(source)
 
 	def _init_from_qdom(self, root):
 		"""Parse and load a selections document.
@@ -232,72 +223,3 @@ class Selections(object):
 
 	def __repr__(self):
 		return "Selections for " + self.interface
-
-	# These (deprecated) methods are to make a Selections object look like the old Policy.implementation map...
-
-	def __getitem__(self, key):
-		# Deprecated
-		"""@type key: str
-		@rtype: L{ImplSelection}"""
-		if isinstance(key, basestring):
-			return self.selections[key]
-		sel = self.selections[key.uri]
-		return sel and sel.impl
-
-	def iteritems(self):
-		# Deprecated
-		iface_cache = get_deprecated_singleton_config().iface_cache
-		for (uri, sel) in self.selections.items():
-			yield (iface_cache.get_interface(uri), sel and sel.impl)
-
-	def values(self):
-		# Deprecated
-		"""@rtype: L{zeroinstall.injector.model.Implementation}"""
-		for (uri, sel) in self.selections.items():
-			yield sel and sel.impl
-
-	def __iter__(self):
-		# Deprecated
-		iface_cache = get_deprecated_singleton_config().iface_cache
-		for (uri, sel) in self.selections.items():
-			yield iface_cache.get_interface(uri)
-
-	def get(self, iface, if_missing):
-		# Deprecated
-		"""@type iface: L{zeroinstall.injector.model.Interface}
-		@rtype: L{zeroinstall.injector.model.Implementation}"""
-		sel = self.selections.get(iface.uri, None)
-		if sel:
-			return sel.impl
-		return if_missing
-
-	def copy(self):
-		# Deprecated
-		s = Selections(None)
-		s.interface = self.interface
-		s.selections = self.selections.copy()
-		return s
-
-	def items(self):
-		# Deprecated
-		return list(self.iteritems())
-
-	@property
-	def commands(self):
-		i = self.interface
-		c = self.command
-		commands = []
-		while c is not None:
-			sel = self.selections[i]
-			command = sel.get_command(c)
-
-			commands.append(command)
-
-			runner = command.get_runner()
-			if not runner:
-				break
-
-			i = runner.metadata['interface']
-			c = runner.qdom.attrs.get('command', 'run')
-
-		return commands
