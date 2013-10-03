@@ -135,6 +135,7 @@ class fake_feed_provider system distro =
       Hashtbl.add ifaces uri feed
 
     method forget_distro _ = failwith "forget_distro"
+    method forget_user_feeds _ = failwith "forget_user_feeds"
   end
 
 (** Parse a test-case in solves.xml *)

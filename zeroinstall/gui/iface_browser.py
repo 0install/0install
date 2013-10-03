@@ -424,17 +424,13 @@ class InterfaceBrowser(object):
 		else:
 			menu.popup(None, None, None, bev.button, bev.time)
 
+	@tasks.async
 	def compile(self, interface, autocompile = True):
-		from zeroinstall.gui import compile
-		def on_success():
-			# A new local feed may have been registered, so reload it from the disk cache
-			info(_("0compile command completed successfully. Reloading interface details."))
-			reader.update_from_cache(interface, iface_cache = self.config.iface_cache)
-			for feed in interface.extra_feeds:
-				self.config.iface_cache.get_feed(feed.uri, force = True)
-			from zeroinstall.gui import main
-			main.recalculate()
-		compile.compile(on_success, interface.uri, autocompile = autocompile)
+		blocker = slave.invoke_master(["gui-compile", interface.uri, autocompile])
+		yield blocker
+		tasks.check(blocker)
+		from zeroinstall.gui import main
+		main.recalculate()
 
 	def update_download_status(self, only_update_visible = False):
 		"""Called at regular intervals while there are downloads in progress,
@@ -464,14 +460,13 @@ class InterfaceBrowser(object):
 
 		for it in walk(self.model, firstVisibleIter):
 			row = self.model[it]
-			iface = iface_cache.get_interface(row[InterfaceBrowser.DETAILS]['interface'])
+			details = row[InterfaceBrowser.DETAILS]
+			iface = iface_cache.get_interface(details['interface'])
 
 			# Is this interface the download's hint?
-			downloads = hints.get(iface, [])	# The interface itself
-			downloads += hints.get(iface.uri, [])	# The main feed
-
-			for feed in iface_cache.get_feed_imports(iface):
-				downloads += hints.get(feed.uri, []) # Other feeds
+			downloads = []
+			for feed_url in details['all-feeds']:
+				downloads += hints.get(feed_url, [])
 
 			if downloads:
 				so_far = 0
@@ -492,7 +487,6 @@ class InterfaceBrowser(object):
 					values_dict = {'downloaded': pretty_size(so_far), 'number': len(downloads)}
 				row[InterfaceBrowser.SUMMARY] = summary % values_dict
 			else:
-				details = row[InterfaceBrowser.DETAILS]
 				row[InterfaceBrowser.DOWNLOAD_SIZE] = details.get("fetch", "")
 				row[InterfaceBrowser.SUMMARY] = details['summary']
 

@@ -133,19 +133,6 @@ class IfaceCache(object):
 		return basedir.load_first_cache(config_site, 'interface_icons',
 						 escape(iface.uri))
 
-	def get_feed_imports(self, iface):
-		"""Get all feeds that add to this interface.
-		This is the feeds explicitly added by the user, feeds added by the distribution,
-		and feeds imported by a <feed> in the main feed (but not recursively, at present).
-		@type iface: L{Interface}
-		@rtype: L{Feed}
-		@since: 0.48"""
-		main_feed = self.get_feed(iface.uri)
-		if main_feed:
-			return iface.extra_feeds + main_feed.feeds
-		else:
-			return iface.extra_feeds
-
 	def get_feeds(self, iface):
 		"""Get all feeds for this interface. This is a mapping from feed URLs
 		to ZeroInstallFeeds. It includes the interface's main feed, plus the
@@ -165,16 +152,5 @@ class IfaceCache(object):
 			for imp in main_feed.feeds:
 				results[imp.uri] = self.get_feed(imp.uri)
 		return results
-
-	def get_implementations(self, iface):
-		"""Return all implementations from all of iface's feeds.
-		@type iface: L{Interface}
-		@rtype: [L{Implementation}]
-		@since: 0.48"""
-		impls = []
-		for feed in self.get_feeds(iface).values():
-			if feed:
-				impls += feed.implementations.values()
-		return impls
 
 iface_cache = IfaceCache()

@@ -158,14 +158,21 @@ let have_source_for feed_provider iface =
 
 let build_tree config (feed_provider:Feed_provider.feed_provider) old_sels sels : Yojson.Basic.json =
   let rec process_tree (uri, details) =
-    let (name, summary, description) =
+    let (name, summary, description, feed_imports) =
       match feed_provider#get_feed uri with
       | Some (main_feed, _overrides) ->
           (main_feed.F.name,
            default "-" @@ F.get_summary config.langs main_feed,
-           F.get_description config.langs main_feed);
+           F.get_description config.langs main_feed,
+           main_feed.F.imported_feeds);
       | None ->
-          (uri, "", None) in
+          (uri, "", None, []) in
+
+    (* This is the set of feeds corresponding to this interface. It's used to correlate downloads with
+     * components in the GUI.
+     * Note: "distribution:" feeds give their master feed as their hint, so are not included here. *)
+    let user_feeds = (feed_provider#get_iface_config uri).Feed_cache.extra_feeds in
+    let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {F.feed_src; _} -> feed_src)) in
 
     let about_feed = [
       ("interface", `String uri);
@@ -173,6 +180,7 @@ let build_tree config (feed_provider:Feed_provider.feed_provider) old_sels sels 
       ("summary", `String summary);
       ("summary-tip", `String (default "(no description available)" description |> first_para));
       ("may-compile", `Bool (have_source_for feed_provider uri));
+      ("all-feeds", `List (all_feeds |> List.map (fun s -> `String s)));
     ] in
 
     match details with
@@ -554,6 +562,76 @@ let set_impl_stability config feed_provider feed_url id rating =
   F.save_feed_overrides config feed_url overrides;
   Lwt.return `Null
 
+(** Run [argv] and return its stdout on success.
+ * On error, report both stdout and stderr. *)
+let run_subprocess argv =
+  log_info "Running %s" (Support.Logging.format_argv_for_logging (Array.to_list argv));
+  let command = (argv.(0), argv) in
+  let child = Lwt_process.open_process_full command in
+  lwt () = Lwt_io.close child#stdin in
+  lwt stdout = Lwt_io.read child#stdout
+  and stderr = Lwt_io.read child#stderr in
+  match_lwt child#close with
+  | Unix.WEXITED 0 -> Lwt.return stdout
+  | status ->
+      let output = stdout ^ stderr in
+      if output = "" then Support.System.check_exit_status status;
+      raise_safe "Compile failed: %s" output
+
+let build_and_register config iface min_0compile_version =
+  lwt _ =
+    run_subprocess [|
+      config.abspath_0install; "run";
+      "--message"; "Download the 0compile tool, to compile the source code";
+      "--not-before=" ^ (Versions.format_version min_0compile_version);
+      "http://0install.net/2006/interfaces/0compile.xml";
+      "gui";
+      iface
+    |] in
+  Lwt.return ()
+
+(* Running subprocesses is a bit messy; this is just a direct translation of the (old) Python code. *)
+let compile config feed_provider iface ~autocompile =
+  let our_min_version = Versions.parse_version "1.0" in     (* The oldest version of 0compile we support *)
+
+  lwt () =
+    if autocompile then (
+      lwt _ =
+        run_subprocess [|
+          config.abspath_0install; "run";
+          "--message"; "Download the 0compile tool to compile the source code";
+          "--not-before=" ^ (Versions.format_version our_min_version);
+          "http://0install.net/2006/interfaces/0compile.xml";
+          "autocompile";
+          "--gui";
+          "--"; iface;
+        |] in Lwt.return ()
+    ) else (
+      (* Prompt user to choose source version *)
+      lwt stdout = run_subprocess [|
+        config.abspath_0install; "download"; "--xml";
+        "--message"; "Download the source code to be compiled";
+        "--gui"; "--source";
+        "--"; iface;
+      |] in
+      let root = `String (0, stdout) |> Xmlm.make_input |> Q.parse_input None in
+      let sels = Selections.to_latest_format root in
+      let sel = sels |> Q.find (fun child ->
+        ZI.tag child = Some "selection" && ZI.get_attribute FeedAttr.interface child = iface
+      ) in
+      let sel = sel |? lazy (raise_safe "No implementation of root (%s)!" iface) in
+      let min_version =
+        match Q.get_attribute_opt (COMPILE_NS.ns, "min-version") sel with
+        | None -> our_min_version
+        | Some min_version -> max our_min_version (Versions.parse_version min_version) in
+      build_and_register config iface min_version
+    ) in
+
+  (* A new local feed may have been registered, so reload it from the disk cache *)
+  log_info "0compile command completed successfully. Reloading interface details.";
+  feed_provider#forget_user_feeds iface;
+  Lwt.return `Null      (* The GUI will now recalculate *)
+
 (** Run the GUI to choose and download a set of implementations
  * If [use_gui] is No; just returns `Dont_use_GUI.
  * If Maybe, uses the GUI if possible.
@@ -642,6 +720,11 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
       | json -> raise_safe "download-icon: invalid request: %s" (Yojson.Basic.to_string (`List json))
     );
 
+    Python.register_handler "gui-compile" (function
+      | [`String iface; `Bool autocompile] -> compile config !feed_provider iface ~autocompile
+      | json -> raise_safe "gui-compile: invalid request: %s" (Yojson.Basic.to_string (`List json))
+    );
+
     Python.register_handler "get-bug-report-details" (function
       | [] -> Lwt.return (
           let (ready, results) = !results in
@@ -699,11 +782,9 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
     );
 
     Python.register_handler "remove-feed" (function
-      | [`String iface; `String url] -> (
-          match Feed_cache.parse_feed_url url with
-          | `remote_feed _ as feed -> remove_feed config iface feed; Lwt.return `Null
-          | `local_feed _ | `distribution_feed _ -> raise_safe "Not a remote feed '%s'!" url
-      )
+      | [`String iface; `String url] ->
+          Feed_cache.parse_non_distro_url url |> remove_feed config iface;
+          Lwt.return `Null
       | json -> raise_safe "remove-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
     );
 

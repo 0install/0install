@@ -12,7 +12,7 @@ module Basedir = Support.Basedir
 (** Provides feeds to the [Impl_provider.impl_provider] during a solve. Afterwards, it can be used to
     find out which feeds were used (and therefore may need updating). *)
 class feed_provider config distro =
-  object
+  object (self)
     val mutable cache = StringMap.empty
     val mutable distro_cache = StringMap.empty
 
@@ -59,4 +59,11 @@ class feed_provider config distro =
       cache <- StringMap.add url (Some (new_feed, overrides)) cache
 
     method forget_distro url = distro_cache <- StringMap.remove url distro_cache
+
+    (* Used after compiling a new version. *)
+    method forget_user_feeds iface =
+      let iface_config = self#get_iface_config iface in
+      iface_config.Feed_cache.extra_feeds |> List.iter (fun {Feed.feed_src; _} ->
+        cache <- StringMap.remove feed_src cache
+      )
   end
