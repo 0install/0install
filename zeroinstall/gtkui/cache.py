@@ -14,6 +14,8 @@ from zeroinstall import support
 from zeroinstall.support import basedir, tasks
 from zeroinstall.gtkui import help_box, gtkutils
 
+gobject = tasks.get_loop().gobject
+
 __all__ = ['CacheExplorer']
 
 ROX_IFACE = 'http://rox.sourceforge.net/2005/interfaces/ROX-Filer'
@@ -69,8 +71,8 @@ NAME = Column(_('Name'), str, hide=True)
 URI = Column(_('URI'), str, hide=True)
 TOOLTIP = Column(_('Description'), str, hide=True)
 ITEM_VIEW = Column(_('Item'), str, props={'ypad': 6, 'yalign': 0}, resizable=True, markup=True)
-SELF_SIZE = Column(_('Self Size'), int, hide=True)
-TOTAL_SIZE = Column(_('Total Size'), int, hide=True)
+SELF_SIZE = Column(_('Self Size'), gobject.TYPE_INT64, hide=True)
+TOTAL_SIZE = Column(_('Total Size'), gobject.TYPE_INT64, hide=True)
 PRETTY_SIZE = Column(_('Size'), str, props={'xalign':1.0})
 ITEM_OBJECT = Column(_('Object'), object, hide=True)
 
