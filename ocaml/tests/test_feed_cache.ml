@@ -54,7 +54,8 @@ let suite = "feed-cache">::: [
     let trust_db = new Zeroinstall.Trust.trust_db config in
     trust_db#trust_key "92429807C9853C0744A68B9AAE07828059A53CC1" ~domain:"foo";
     let slave = new Zeroinstall.Python.slave config in
-    let fetcher = new Zeroinstall.Fetch.fetcher config trust_db slave in
+    let downloader = new Zeroinstall.Downloader.downloader in
+    let fetcher = new Zeroinstall.Fetch.fetcher config trust_db slave downloader in
     let foo_signed_xml = U.read_file config.system "foo.xml" in
 
     (* Unsigned *)
@@ -85,7 +86,7 @@ let suite = "feed-cache">::: [
     (* Updated *)
     let foo_signed_xml_new = U.read_file config.system "foo-new.xml" in
 
-    let dryrun_fetcher = new Zeroinstall.Fetch.fetcher {config with dry_run = true} trust_db slave in
+    let dryrun_fetcher = new Zeroinstall.Fetch.fetcher {config with dry_run = true} trust_db slave downloader in
     let out = Fake_system.capture_stdout (fun () ->
       dryrun_fetcher#import_feed feed_url foo_signed_xml_new |> Lwt_main.run;
     ) in

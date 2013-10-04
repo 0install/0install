@@ -42,14 +42,6 @@ let get_final_response = function
       (* Don't bother trying the mirror if we have a replay attack *)
       `problem (string_of_result r, None)
 
-let last_ticket = ref 0
-let timeout_tickets = ref StringMap.empty
-let take_ticket timeout =
-  last_ticket := !last_ticket + 1;
-  let ticket = string_of_int !last_ticket in
-  timeout_tickets := StringMap.add ticket timeout !timeout_tickets;
-  ticket
-
 let re_remote_feed = Str.regexp "^\\(https?\\)://\\([^/]*@\\)?\\([^/:]+\\)\\(:[^/]*\\)?/"
 
 (** Wait for a set of tasks to complete. Return the exceptions produced by each, if any. *)
@@ -68,68 +60,12 @@ let maybe = function
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
-type download_result =
- [ `unmodified
- | `aborted_by_user
- | `tmpfile of Support.Common.filepath ]
-
-class fetcher config trust_db (slave:Python.slave) =
+class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downloader) =
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
 
   let key_info_cache = Hashtbl.create 10 in
 
   let system = config.system in
-
-  let () =
-    Python.register_handler "start-timeout" (function
-      | [`String ticket] ->
-          let timeout = StringMap.find ticket !timeout_tickets in
-          timeout_tickets := StringMap.remove ticket !timeout_tickets;
-          Lwt_timeout.start timeout;
-          Lwt.return `Null
-      | json -> raise_safe "start-timeout: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    ) in
-
-  (** Download url to a new temporary file and return its name.
-   * @param timeout_ticket a timer to start when the download starts (it will be queued first)
-   * @param mirror_url a URL to try if [url] fails
-   * @hint a tag to attach to the download (used by the GUI to associate downloads with feeds)
-   *)
-  let download_url_if_modified ?modification_time ?timeout_ticket ?mirror_url ?size ~hint url =
-    log_info "Downloading URL '%s'..." url;
-
-    let modification_time =
-      match modification_time with
-      | None -> `Null
-      | Some time -> `Float time in
-
-    let size =
-      match size with
-      | None -> `Null
-      | Some size -> `Float (Int64.to_float size) in
-
-    let request = `List [`String "download-url"; `Assoc [
-      ("url", `String url);
-      ("hint", `String hint);
-      ("timeout", maybe timeout_ticket);
-      ("mtime", modification_time);
-      ("size", size);
-      ("mirror-url", maybe mirror_url);
-    ]] in
-
-    try_lwt
-      slave#invoke_async request (function
-        | `List [`String "success"; `String tmpname] -> `tmpfile tmpname
-        | `String "aborted-by-user" -> `aborted_by_user
-        | `String "unmodified" -> `unmodified
-        | _ -> raise_safe "Invalid JSON response"
-      )
-    with Safe_exception (msg, _) -> `network_failure msg |> Lwt.return in
-
-  let download_url ?timeout_ticket ?mirror_url ?size ~hint url =
-    match_lwt download_url_if_modified ?timeout_ticket ?mirror_url ?size ~hint url with
-    | `unmodified -> assert false
-    | (`aborted_by_user | `network_failure _ | `tmpfile _ ) as result -> Lwt.return result in
 
   (** Check the GPG signatures on [tmpfile]. If any keys are missing, download and import them.
    * Returns a non-empty list of valid (though maybe not trusted) signatures, or a suitable error.
@@ -157,16 +93,19 @@ class fetcher config trust_db (slave:Python.slave) =
 
       log_info "Fetching key from %s" key_url;
 
-      match_lwt download_url ~hint:feed key_url with
-      | `network_failure msg -> raise_safe "%s" msg
-      | `aborted_by_user -> raise Aborted
-      | `tmpfile tmpfile ->
-          let contents = U.read_file system tmpfile in
-          system#unlink tmpfile;
-          log_info "Importing key for feed '%s" feed;
-          lwt () = G.import_key system contents in
-          any_imported := true;
-          Lwt.return () in
+      let switch = Lwt_switch.create () in
+      try_lwt
+        match_lwt downloader#download ~switch ~hint:feed key_url with
+        | `network_failure msg -> raise_safe "%s" msg
+        | `aborted_by_user -> raise Aborted
+        | `tmpfile tmpfile ->
+            let contents = U.read_file system tmpfile in
+            log_info "Importing key for feed '%s" feed;
+            lwt () = G.import_key system contents in
+            any_imported := true;
+            Lwt.return ()
+      finally
+        Lwt_switch.turn_off switch in
 
     (* Start a download for each missing key *)
     let missing_keys =
@@ -269,17 +208,21 @@ class fetcher config trust_db (slave:Python.slave) =
               Dry_run.log "asking %s about key %s" key_info_server fingerprint;
             );
             let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
-            match_lwt download_url ~hint key_info_url with
-            | `network_failure msg -> raise_safe "%s" msg
-            | `aborted_by_user -> raise Aborted
-            | `tmpfile tmpfile ->
-                let contents = U.read_file system tmpfile in
-                system#unlink tmpfile;
-                let root = `String (0, contents) |> Xmlm.make_input |> Q.parse_input (Some key_info_url) in
-                if root.Q.tag <> ("", "key-lookup") then (
-                  Q.raise_elem "Expected <key-lookup>, not " root
-                );
-                Lwt.return root.Q.child_nodes in
+            let switch = Lwt_switch.create () in
+            try_lwt
+              match_lwt downloader#download ~hint key_info_url with
+              | `network_failure msg -> raise_safe "%s" msg
+              | `aborted_by_user -> raise Aborted
+              | `tmpfile tmpfile ->
+                  let contents = U.read_file system tmpfile in
+                  system#unlink tmpfile;
+                  let root = `String (0, contents) |> Xmlm.make_input |> Q.parse_input (Some key_info_url) in
+                  if root.Q.tag <> ("", "key-lookup") then (
+                    Q.raise_elem "Expected <key-lookup>, not " root
+                  );
+                  Lwt.return root.Q.child_nodes
+            finally
+              Lwt_switch.turn_off switch in
       Hashtbl.add key_info_cache fingerprint result;
       result in
 
@@ -395,24 +338,20 @@ class fetcher config trust_db (slave:Python.slave) =
   let download_and_import_feed_internal ~mirror_used ?timeout feed ~url =
     let `remote_feed feed_url = feed in
 
-    let timeout_ticket =
-      match timeout with
-      | None -> None
-      | Some timeout -> Some (take_ticket timeout) in
-
     if config.dry_run then
       Dry_run.log "downloading feed from %s" url;
 
+    let switch = Lwt_switch.create () in
     try_lwt
-      match_lwt download_url ?timeout_ticket ~hint:feed_url url with
+      match_lwt downloader#download ~switch ?timeout ~hint:feed_url url with
       | `network_failure msg -> `problem msg |> Lwt.return
       | `aborted_by_user -> Lwt.return `aborted_by_user
       | `tmpfile tmpfile ->
           let xml = U.read_file system tmpfile in
-          system#unlink tmpfile;
+          lwt () = Lwt_switch.turn_off switch in
           import_feed ~mirror_used feed xml
-    with Safe_exception (msg, _) ->
-      `problem msg |> Lwt.return in
+    finally
+      Lwt_switch.turn_off switch in
 
   (* The primary failed (already reported). Wait for the mirror. *)
   let wait_for_mirror mirror =
@@ -501,7 +440,7 @@ class fetcher config trust_db (slave:Python.slave) =
               raise_safe "Wrong size for %s: feed says %d, but actually %d bytes" path expected_size actual_size;
         | None -> raise_safe "Local file '%s' does not exist" path in
 
-  let download_file ~feed ?size ~may_use_mirror fn url =
+  let download_file ~switch ~feed ?size ~may_use_mirror fn url =
     if Str.string_match (Str.regexp "[a-z]+://") url 0 then (
       (* Remote file *)
       if config.dry_run then
@@ -512,19 +451,25 @@ class fetcher config trust_db (slave:Python.slave) =
             let escaped = Str.global_replace (Str.regexp_string "/") "#" url |> Curl.escape in
             Some (mirror ^ "/archive/" ^ escaped)
         | _ -> None in
-      match_lwt download_url ?size ?mirror_url ~hint:feed url with
-      | `network_failure msg -> raise (Try_mirror msg)
+      match_lwt downloader#download ~switch ?size ~hint:feed url with
       | `aborted_by_user -> raise Aborted
-      | `tmpfile tmpfile ->
-          lazy (
-            try_lwt fn tmpfile
-            finally system#bypass_dryrun#unlink tmpfile; Lwt.return ()
-          ) |> Lwt.return
+      | `tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
+      | `network_failure primary_msg ->
+          (* There are two mirror systems in use here. First, we try our [mirror_url]. If that fails too,
+           * we raise [Try_mirror] to try the other strategy. *)
+          let mirror_url = mirror_url |? lazy (raise (Try_mirror primary_msg)) in
+          log_warning "Primary download failed; trying mirror URL '%s'..." mirror_url;
+          match_lwt downloader#download ~switch ?size ~hint:feed mirror_url with
+          | `aborted_by_user -> raise Aborted
+          | `tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
+          | `network_failure mirror_msg ->
+              log_debug "Mirror failed too: %s" mirror_msg;
+              raise (Try_mirror primary_msg)
     ) else (
       download_local_file feed size fn url
     ) in
 
-  let download_archive ~feed ?size ~may_use_mirror fn (url, archive_info) =
+  let download_archive ~switch ~feed ?size ~may_use_mirror fn (url, archive_info) =
     let open Recipe in
     let {start_offset; mime_type; extract = _; dest = _} = archive_info in
     let mime_type = mime_type |? lazy (Archive.type_from_url url) in
@@ -536,7 +481,7 @@ class fetcher config trust_db (slave:Python.slave) =
       | None -> None (* (don't know sizes for mirrored archives) *)
       | Some size -> Some (Int64.add size start_offset) in
 
-    download_file ~feed ?size ~may_use_mirror fn url in
+    download_file ~switch ~feed ?size ~may_use_mirror fn url in
 
   (* Download an implementation by following a recipe and add it to the store.
    * (this was called "cook" in the Python version)
@@ -581,58 +526,59 @@ class fetcher config trust_db (slave:Python.slave) =
       let open Recipe in
       (* Start all the downloads. The downloads happen in parallel, each returning
        * a future that will perform the extraction step. These futures are evaluated in sequence. *)
-      let downloads = retrieval_method |> List.map (
-        let system = system#bypass_dryrun in    (* We really do extract to the temporary directory *)
-        function
-        | DownloadStep {url; size; download_type = ArchiveDownload archive_info} ->
-            (url, archive_info) |> download_archive ~may_use_mirror ?size ~feed (fun tmpfile ->
-              let {extract; start_offset; mime_type; dest} = archive_info in
-              let basedir =
-                match dest with
-                | None -> tmpdir
-                | Some dest ->
-                    let basedir = native_path_within_base dest in
-                    U.makedirs system basedir 0o755;
-                    basedir in
-              let request = `List [`String "unpack-archive"; `Assoc [
-                ("basedir", `String basedir);
-                ("tmpfile", `String tmpfile);
-                ("url", `String url);
-                ("extract", maybe extract);
-                ("dest", maybe dest);
-                ("start_offset", `Float (Int64.to_float start_offset));
-                ("mime_type", maybe mime_type);
-              ]] in
-              slave#invoke_async request (function
-                | `Null -> ()
-                | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
-              )
-            )
-        | DownloadStep {url; size; download_type = FileDownload dest} ->
-            url |> download_file ?size ~feed ~may_use_mirror:false (fun tmpfile ->
-              let dest = native_path_within_base dest in
-              U.makedirs system (Filename.dirname dest) 0o755;
-              U.copy_file system tmpfile dest 0o644;
-              slave#invoke_async (`List [`String "utime"; `String dest; `Float 0.0]) ignore
-            )
-        | RenameStep {rename_source; rename_dest} -> lazy (
-            let source = native_path_within_base rename_source in
-            let dest = native_path_within_base rename_dest in
-            try
-              U.makedirs system (Filename.dirname dest) 0o755;
-              system#rename source dest;
-              Lwt.return ()
-            with Unix.Unix_error (Unix.ENOENT, _, _) as ex ->
-              log_info ~ex "Failed to rename %s -> %s" source dest;
-              raise_safe "<rename> source '%s' does not exist" source
-        ) |> Lwt.return
-        | RemoveStep {remove} -> lazy (
-            let path = native_path_within_base remove in
-            U.rmtree ~even_if_locked:true system path;
-            Lwt.return ()
-        ) |> Lwt.return
-      ) in
+      let switch = Lwt_switch.create () in
       try_lwt
+        let real_system = system#bypass_dryrun in    (* We really do extract to the temporary directory *)
+        let downloads = retrieval_method |> List.map (function
+          | DownloadStep {url; size; download_type = ArchiveDownload archive_info} ->
+              (url, archive_info) |> download_archive ~switch ~may_use_mirror ?size ~feed (fun tmpfile ->
+                let {extract; start_offset; mime_type; dest} = archive_info in
+                let basedir =
+                  match dest with
+                  | None -> tmpdir
+                  | Some dest ->
+                      let basedir = native_path_within_base dest in
+                      U.makedirs real_system basedir 0o755;
+                      basedir in
+                let request = `List [`String "unpack-archive"; `Assoc [
+                  ("basedir", `String basedir);
+                  ("tmpfile", `String tmpfile);
+                  ("url", `String url);
+                  ("extract", maybe extract);
+                  ("dest", maybe dest);
+                  ("start_offset", `Float (Int64.to_float start_offset));
+                  ("mime_type", maybe mime_type);
+                ]] in
+                slave#invoke_async request (function
+                  | `Null -> ()
+                  | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
+                )
+              )
+          | DownloadStep {url; size; download_type = FileDownload dest} ->
+              url |> download_file ~switch ?size ~feed ~may_use_mirror:false (fun tmpfile ->
+                let dest = native_path_within_base dest in
+                U.makedirs real_system (Filename.dirname dest) 0o755;
+                U.copy_file real_system tmpfile dest 0o644;
+                slave#invoke_async (`List [`String "utime"; `String dest; `Float 0.0]) ignore
+              )
+          | RenameStep {rename_source; rename_dest} -> lazy (
+              let source = native_path_within_base rename_source in
+              let dest = native_path_within_base rename_dest in
+              try
+                U.makedirs real_system (Filename.dirname dest) 0o755;
+                real_system#rename source dest;
+                Lwt.return ()
+              with Unix.Unix_error (Unix.ENOENT, _, _) as ex ->
+                log_info ~ex "Failed to rename %s -> %s" source dest;
+                raise_safe "<rename> source '%s' does not exist" source
+          ) |> Lwt.return
+          | RemoveStep {remove} -> lazy (
+              let path = native_path_within_base remove in
+              U.rmtree ~even_if_locked:true real_system path;
+              Lwt.return ()
+          ) |> Lwt.return
+        ) in
+
         (* Now do all the steps in series. *)
         lwt () = downloads |> Lwt_list.iter_s (fun fn ->
           lwt fn = fn in
@@ -654,7 +600,7 @@ class fetcher config trust_db (slave:Python.slave) =
           | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
         )
       with ex ->
-        downloads |> List.iter Lwt.cancel;
+        lwt () = Lwt_switch.turn_off switch in
         match ex with
         | Aborted -> `aborted_by_user |> Lwt.return
         | Try_mirror msg -> `network_failure msg |> Lwt.return
@@ -833,8 +779,5 @@ class fetcher config trust_db (slave:Python.slave) =
       | `ok _ -> Lwt.return ()
       | (`aborted_by_user | `no_trusted_keys | `replay_attack _) as r -> raise_safe "%s" (string_of_result r)
 
-    method download_url_if_modified ?modification_time ~hint url : download_result Lwt.t =
-      match_lwt download_url_if_modified ?modification_time ~hint url with
-      | #download_result as r -> r |> Lwt.return
-      | `network_failure msg -> raise_safe "%s" msg
+    method downloader = downloader
   end

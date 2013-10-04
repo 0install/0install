@@ -62,7 +62,8 @@ class fake_slave config =
   let pending_feed_downloads = ref StringMap.empty in
   let system = config.system in
 
-  let handle_download_url url =
+  let handle_download ?modification_time:_ ?timeout ?size:_ ~hint:_ url =
+    timeout |> if_some Lwt_timeout.start;
     let contents =
       if U.starts_with url "https://keylookup.appspot.com/key/" then (
         "<key-lookup><item vote='good'>Looks legit</item></key-lookup>"
@@ -75,7 +76,7 @@ class fake_slave config =
     system#atomic_write [Open_wronly; Open_binary] tmpname ~mode:0o644 (fun ch ->
       output_string ch contents
     );
-    `List [`String "ok"; `List [`String "success"; `String tmpname]] in
+    `tmpfile tmpname |> Lwt.return in
 
   let handle_unpack_archive _ = `List [`String "ok"; `Null] in
   let handle_check required_digest tmpdir =
@@ -91,19 +92,12 @@ class fake_slave config =
     | `List [`String "unpack-archive"; `Assoc details] -> Some (Lwt.return (handle_unpack_archive details))
     | `List [`String "check-manifest-and-rename"; `String required_digest; `String tmpdir] ->
         Some (Lwt.return (handle_check required_digest tmpdir))
-    | `List [`String "download-url"; `Assoc details] ->
-        let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
-        let () =
-          match List.assoc "timeout" details with
-          | `String _ as timeout -> start_timeout [timeout] |> ignore
-          | `Null -> ()
-          | _ -> assert false in
-        Some (Lwt.return @@ handle_download_url (List.assoc "url" details |> Yojson.Basic.Util.to_string))
     | _ -> None in
 
   object
     method install =
-      Zeroinstall.Python.slave_interceptor := fake_slave
+      Zeroinstall.Python.slave_interceptor := fake_slave;
+      Zeroinstall.Downloader.interceptor := Some handle_download
 
     method allow_download url contents =
       pending_feed_downloads := StringMap.add url contents !pending_feed_downloads
@@ -305,12 +299,10 @@ let suite = "0install">::: [
 
     (* --dry-run must prevent us from using the GUI *)
     fake_system#putenv "DISPLAY" ":foo";
-    Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
-      | `List [`String "download-url"; `Assoc details] ->
-          assert_equal "http://foo/d" (List.assoc "url" details |> Yojson.Basic.Util.to_string);
-          raise Ok
-      | json -> raise_safe "Bad download request: %s" (Yojson.Basic.to_string json)
-    );
+    let handle_download ?modification_time:_ ?timeout:_ ?size:_ ~hint:_ url =
+      assert_equal "http://foo/d" url;
+      raise Ok in
+    Zeroinstall.Downloader.interceptor := Some handle_download;
     try ignore @@ run ["run"; "--dry-run"; "--refresh"; "http://foo/d"]; assert false
     with Ok -> ();
   );

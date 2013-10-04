@@ -362,7 +362,7 @@ let get_sigs config url =
 
 (** Download an icon for this feed and add it to the
     icon cache. If the feed has no icon do nothing. *)
-let download_icon config (fetcher:Fetch.fetcher) feed_provider feed_url =
+let download_icon config (downloader:Downloader.downloader) feed_provider feed_url =
   log_debug "download_icon %s" feed_url;
 
   let system = config.system in
@@ -397,21 +397,24 @@ let download_icon config (fetcher:Fetch.fetcher) feed_provider feed_url =
   match icon_url with
   | None -> log_info "No PNG icons found in %s" feed_url; Lwt.return `Null
   | Some href ->
-      match_lwt fetcher#download_url_if_modified ?modification_time ~hint:feed_url href with
-      | `aborted_by_user -> Lwt.return `Null
-      | `unmodified -> Lwt.return `Null
-      | `tmpfile tmpfile ->
-          try
-            let icons_cache = Basedir.save_path system cache_icons config.basedirs.Basedir.cache in
-            let icon_file = icons_cache +/ Escape.escape feed_url in
-            system#with_open_in [Open_rdonly;Open_binary] 0 tmpfile (function ic ->
-              system#atomic_write [Open_wronly;Open_binary] icon_file ~mode:0o644 (U.copy_channel ic)
-            );
-            system#unlink tmpfile;
-            Lwt.return `Null
-          with ex ->
-            system#unlink tmpfile;
-            raise ex
+      try_lwt
+        match_lwt downloader#download ?modification_time ~hint:feed_url href with
+        | `network_failure msg -> raise_safe "%s" msg
+        | `aborted_by_user -> Lwt.return `Null
+        | `tmpfile tmpfile ->
+            try
+              let icons_cache = Basedir.save_path system cache_icons config.basedirs.Basedir.cache in
+              let icon_file = icons_cache +/ Escape.escape feed_url in
+              system#with_open_in [Open_rdonly;Open_binary] 0 tmpfile (function ic ->
+                system#atomic_write [Open_wronly;Open_binary] icon_file ~mode:0o644 (U.copy_channel ic)
+              );
+              system#unlink tmpfile;
+              Lwt.return `Null
+            with ex ->
+              system#unlink tmpfile;
+              raise ex
+      with Downloader.Unmodified ->
+        Lwt.return `Null
 
 (** The formatted text for the details panel in the interface properties box. *)
 let get_feed_description config feed_provider feed_url =
@@ -716,7 +719,7 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
     );
 
     Python.register_handler "download-icon" (function
-      | [`String feed_url] -> download_icon config fetcher !feed_provider feed_url
+      | [`String feed_url] -> download_icon config fetcher#downloader !feed_provider feed_url
       | json -> raise_safe "download-icon: invalid request: %s" (Yojson.Basic.to_string (`List json))
     );
 

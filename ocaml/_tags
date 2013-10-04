@@ -1,5 +1,5 @@
 false: profile
-true: debug, annot, package(yojson,xmlm,str,lwt,lwt.unix,extlib,curl)
+true: debug, annot, package(yojson,xmlm,str,lwt,lwt.unix,extlib,curl,ssl)
 <tests/*>: package(oUnit)
 "support": for-pack(Support)
 "zeroinstall": for-pack(Support)

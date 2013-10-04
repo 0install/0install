@@ -8,12 +8,7 @@ type fetch_feed_response =
   | `problem of (string * fetch_feed_response Lwt.t option)    (* Report a problem (but may still succeed later) *)
   | `no_update ]            (* Use the previous version *)
 
-type download_result =
- [ `unmodified
- | `aborted_by_user
- | `tmpfile of Support.Common.filepath ]
-
-class fetcher : General.config -> Trust.trust_db -> Python.slave ->
+class fetcher : General.config -> Trust.trust_db -> Python.slave -> Downloader.downloader ->
   object
     method download_and_import_feed : [ `remote_feed of General.feed_url ] -> fetch_feed_response Lwt.t
     method download_impls : Feed.implementation list -> [ `success | `aborted_by_user ] Lwt.t
@@ -21,5 +16,5 @@ class fetcher : General.config -> Trust.trust_db -> Python.slave ->
     (** [import_feed url xml] checks the signature on [xml] and imports it into the cache if trusted.
      * If not trusted, it confirms with the user first, downloading any missing keys first. *)
     method import_feed : [`remote_feed of General.feed_url] -> string -> unit Lwt.t
-    method download_url_if_modified : ?modification_time:float -> hint:string -> string -> download_result Lwt.t
+    method downloader : Downloader.downloader
   end

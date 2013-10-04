@@ -496,7 +496,7 @@ class TestDownload(BaseTest):
 				server.Give404('/HelloWorld.tgz'),
 				'/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz')
 		out, err = self.run_ocaml(['download', 'http://example.com:8000/Hello.xml', '--xml'], binary = True)
-		assert b'Missing: HelloWorld.tgz: trying archive mirror at http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz' in err, err.decode('utf-8')
+		assert b"Primary download failed; trying mirror URL 'http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'" in err, err.decode('utf-8')
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 
 		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)

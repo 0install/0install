@@ -8,6 +8,7 @@ Config
 Constants
 Diagnostics
 Distro
+Downloader
 Driver
 Dry_run
 Env
