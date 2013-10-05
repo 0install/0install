@@ -261,7 +261,7 @@ let get_default_options config =
     driver = lazy (
       let distro = Zeroinstall.Distro.get_host_distribution config slave in
       let trust_db = new Zeroinstall.Trust.trust_db config in
-      let downloader = new Zeroinstall.Downloader.downloader in
+      let downloader = new Zeroinstall.Downloader.downloader (Zeroinstall.Python.make_python_ui slave) in
       let fetcher = new Zeroinstall.Fetch.fetcher config trust_db slave downloader in
       new Zeroinstall.Driver.driver config fetcher distro slave
     );

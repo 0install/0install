@@ -240,3 +240,28 @@ class slave config =
 
     method config = config
   end
+
+let make_python_ui (slave:slave) =
+  object (_ : Ui.progress_reporter)
+    method start_monitoring ~url ~hint ~size ~tmpfile =
+      let size =
+        match size with
+        | None -> `Null
+        | Some size -> `Float (Int64.to_float size) in
+      let details = `Assoc [
+        ("url", `String url);
+        ("hint", `String hint);
+        ("size", size);
+        ("tempfile", `String tmpfile);
+      ] in
+      slave#invoke_async (`List [`String "start-monitoring"; details]) (function
+        | `Null -> ()
+        | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
+      )
+
+    method stop_monitoring tmpfile =
+      slave#invoke_async (`List [`String "stop-monitoring"; `String tmpfile]) (function
+        | `Null -> ()
+        | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
+      )
+  end

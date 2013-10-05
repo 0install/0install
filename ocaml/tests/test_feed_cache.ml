@@ -54,7 +54,7 @@ let suite = "feed-cache">::: [
     let trust_db = new Zeroinstall.Trust.trust_db config in
     trust_db#trust_key "92429807C9853C0744A68B9AAE07828059A53CC1" ~domain:"foo";
     let slave = new Zeroinstall.Python.slave config in
-    let downloader = new Zeroinstall.Downloader.downloader in
+    let downloader = new Zeroinstall.Downloader.downloader Fake_system.null_reporter in
     let fetcher = new Zeroinstall.Fetch.fetcher config trust_db slave downloader in
     let foo_signed_xml = U.read_file config.system "foo.xml" in
 

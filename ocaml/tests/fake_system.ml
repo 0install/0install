@@ -281,11 +281,17 @@ let forward_to_real_log = ref true
 let real_log = !Support.Logging.handler
 let () = Support.Logging.threshold := Support.Logging.Debug
 
+let null_reporter =
+  object (_ : Zeroinstall.Ui.progress_reporter)
+    method start_monitoring ~url:_ ~hint:_  ~size:_ ~tmpfile:_ = Lwt.return ()
+    method stop_monitoring _ = Lwt.return ()
+  end
+
 let make_driver ?slave ?fetcher config =
   let slave = slave |? lazy (new Zeroinstall.Python.slave config) in
   let distro = new Zeroinstall.Distro.generic_distribution slave in
   let trust_db = new Zeroinstall.Trust.trust_db config in
-  let downloader = new Zeroinstall.Downloader.downloader in
+  let downloader = new Zeroinstall.Downloader.downloader null_reporter in
   let fetcher = fetcher |? lazy (new Zeroinstall.Fetch.fetcher config trust_db slave downloader) in
   new Zeroinstall.Driver.driver config fetcher distro slave
 

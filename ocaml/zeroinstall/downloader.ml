@@ -101,7 +101,7 @@ let schedule_download ?if_slow ?size ?modification_time ch url =
         timeout |> if_some Lwt_timeout.stop;
         Lwt.return ()
 
-class downloader =
+class downloader (reporter:Ui.progress_reporter) =
   let () = Lazy.force init in
 
   object
@@ -134,5 +134,10 @@ class downloader =
             if target = url then raise_safe "Redirection loop getting '%s'" url
             else if redirs_left > 0 then loop (redirs_left - 1) target
             else raise_safe "Too many redirections (next: %s)" target in
-      loop 10 url
+
+      lwt () = reporter#start_monitoring ~url ~hint ~size ~tmpfile in
+      try_lwt
+        loop 10 url
+      finally
+        reporter#stop_monitoring tmpfile
   end
