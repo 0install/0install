@@ -10,8 +10,6 @@ module Q = Support.Qdom
 module G = Support.Gpg
 module FeedAttr = Constants.FeedAttr
 
-let key_info_timeout = 10	(* Maximum time to wait for response from key-info-server before showing the dialog anyway *)
-
 type non_mirror_case = [ `ok of Q.element | `no_trusted_keys | `replay_attack of (feed_url * float * float) | `aborted_by_user ]
 
 type fetch_feed_response =
@@ -193,7 +191,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
           | Some _ -> save_new_xml ()
     ) in
 
-  let fetch_key_info ~hint fingerprint : Q.element list Lwt.t =
+  let fetch_key_info ~if_slow ~hint fingerprint : Q.element list Lwt.t =
     try
       let result = Hashtbl.find key_info_cache fingerprint in
       match Lwt.state result with
@@ -210,12 +208,11 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
             let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
             let switch = Lwt_switch.create () in
             try_lwt
-              match_lwt downloader#download ~hint key_info_url with
+              match_lwt downloader#download ~if_slow ~hint key_info_url with
               | `network_failure msg -> raise_safe "%s" msg
               | `aborted_by_user -> raise Aborted
               | `tmpfile tmpfile ->
                   let contents = U.read_file system tmpfile in
-                  system#unlink tmpfile;
                   let root = `String (0, contents) |> Xmlm.make_input |> Q.parse_input (Some key_info_url) in
                   if root.Q.tag <> ("", "key-lookup") then (
                     Q.raise_elem "Expected <key-lookup>, not " root
@@ -244,16 +241,16 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
         feed_url (List.map format_sig sigs |> String.concat "") extra
     );
 
+    (* Wait a while for the key information to arrive. Avoids having the dialog
+     * box update while the user is looking at it, and allows it to be skipped
+     * completely in many cases. *)
+    let timeout_task, timeout_waker = Lwt.wait () in
+    let if_slow = lazy (Lwt.wakeup timeout_waker []) in
+
     (* Start downloading information about the keys... *)
     let key_infos = valid_sigs |> List.map (fun {G.fingerprint; _} ->
-      (fingerprint, fetch_key_info ~hint:feed_url fingerprint)
+      (fingerprint, fetch_key_info ~if_slow ~hint:feed_url fingerprint)
     ) in
-
-    (* Wait up to key_info_timeout seconds for key information to arrive. Avoids having the dialog
-     * box update while the user is looking at it, and allows it to be skipped completely in many
-     * cases. *)
-    let timeout_task, timeout_waker = Lwt.wait () in
-    Lwt_timeout.create key_info_timeout (fun () -> Lwt.wakeup timeout_waker []) |> Lwt_timeout.start;
 
     log_info "Waiting for response from key-info server...";
     lwt () =
@@ -335,7 +332,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
   (* Try to download the feed [feed] from URL [url] (which is typically the same, unless we're
    * using a mirror.
    * If present, start [timeout] when the download actually starts (time spent queuing doesn't count). *)
-  let download_and_import_feed_internal ~mirror_used ?timeout feed ~url =
+  let download_and_import_feed_internal ~mirror_used ?if_slow feed ~url =
     let `remote_feed feed_url = feed in
 
     if config.dry_run then
@@ -343,7 +340,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
 
     let switch = Lwt_switch.create () in
     try_lwt
-      match_lwt downloader#download ~switch ?timeout ~hint:feed_url url with
+      match_lwt downloader#download ~switch ?if_slow ~hint:feed_url url with
       | `network_failure msg -> `problem msg |> Lwt.return
       | `aborted_by_user -> Lwt.return `aborted_by_user
       | `tmpfile tmpfile ->
@@ -651,9 +648,9 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
       );
 
       let timeout_task, timeout_waker = Lwt.wait () in
-      let timeout = Lwt_timeout.create 5 (fun () -> Lwt.wakeup timeout_waker `timeout) in
+      let if_slow = lazy (Lwt.wakeup timeout_waker `timeout) in
 
-      let primary = download_and_import_feed_internal ~mirror_used:None feed ~timeout ~url:feed_url in
+      let primary = download_and_import_feed_internal ~mirror_used:None feed ~if_slow ~url:feed_url in
       let do_mirror_download () =
         try
           match config.mirror with

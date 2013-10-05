@@ -58,12 +58,9 @@ let expect = function
   | Some x -> x
 
 class fake_slave config =
-  let temp_dir = List.hd config.basedirs.Support.Basedir.cache in
   let pending_feed_downloads = ref StringMap.empty in
-  let system = config.system in
 
-  let handle_download ?modification_time:_ ?timeout ?size:_ ~hint:_ url =
-    timeout |> if_some Lwt_timeout.start;
+  let handle_download ?if_slow:_ ?size:_ ?modification_time:_ ch url =
     let contents =
       if U.starts_with url "https://keylookup.appspot.com/key/" then (
         "<key-lookup><item vote='good'>Looks legit</item></key-lookup>"
@@ -72,11 +69,8 @@ class fake_slave config =
         with Not_found -> assert_failure url
       ) in
     pending_feed_downloads := StringMap.remove url !pending_feed_downloads;
-    let tmpname = Filename.temp_file ~temp_dir "0install-" "-test" in
-    system#atomic_write [Open_wronly; Open_binary] tmpname ~mode:0o644 (fun ch ->
-      output_string ch contents
-    );
-    `tmpfile tmpname |> Lwt.return in
+    output_string ch contents;
+    `success |> Lwt.return in
 
   let handle_unpack_archive _ = `List [`String "ok"; `Null] in
   let handle_check required_digest tmpdir =
@@ -299,7 +293,7 @@ let suite = "0install">::: [
 
     (* --dry-run must prevent us from using the GUI *)
     fake_system#putenv "DISPLAY" ":foo";
-    let handle_download ?modification_time:_ ?timeout:_ ?size:_ ~hint:_ url =
+    let handle_download ?if_slow:_ ?size:_ ?modification_time:_ _ch url =
       assert_equal "http://foo/d" url;
       raise Ok in
     Zeroinstall.Downloader.interceptor := Some handle_download;

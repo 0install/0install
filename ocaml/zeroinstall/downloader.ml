@@ -82,44 +82,57 @@ let download_no_follow ?size ?modification_time ch url =
     let msg = Printf.sprintf "Error downloading '%s': %s" url !error_buffer in
     `network_failure msg
 
+let schedule_download ?if_slow ?size ?modification_time ch url =
+  match !interceptor with
+  | Some interceptor ->
+      interceptor ?if_slow ?size ?modification_time ch url
+  | None ->
+      let timeout = if_slow |> pipe_some (fun if_slow ->
+        let timeout = Lwt_timeout.create 5 (fun () -> Lazy.force if_slow) in
+        Lwt_timeout.start timeout;
+        Some timeout;
+      ) in
+
+      let download () = download_no_follow ?modification_time ?size ch url in
+
+      try_lwt
+        Lwt_preemptive.detach download ()
+      finally
+        timeout |> if_some Lwt_timeout.stop;
+        Lwt.return ()
+
 class downloader =
   let () = Lazy.force init in
 
   object
     (** Download url to a new temporary file and return its name.
      * @param switch delete the temporary file when this is turned off
-     * @param timeout a timer to start when the download starts (it will be queued first)
+     * @param if_slow is forced if the download is taking a long time (excluding queuing time)
      * @param modification_time raise [Unmodified] if file hasn't changed since this time
      * @hint a tag to attach to the download (used by the GUI to associate downloads with feeds)
      *)
-    method download ?switch ?modification_time ?timeout ?size ~hint url : download_result Lwt.t =
+    method download ?switch ?modification_time ?if_slow ?size ~hint url : download_result Lwt.t =
       log_info "Downloading URL '%s'... (for %s)" url hint;
 
       if not (List.exists (U.starts_with url) ["http://"; "https://"; "ftp://"]) then (
         raise_safe "Invalid scheme in URL '%s'" url
       );
 
-      match !interceptor with
-      | Some interceptor -> interceptor ?modification_time ?timeout ?size ~hint url 
-      | None ->
-          let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
-          Lwt_switch.add_hook switch (fun () -> Unix.unlink tmpfile |> Lwt.return);
+      let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
+      Lwt_switch.add_hook switch (fun () -> Unix.unlink tmpfile |> Lwt.return);
 
-          timeout |> if_some Lwt_timeout.start;
-
-          let rec loop redirs_left url =
-            let download () = download_no_follow ?modification_time ?size ch url in
-            match_lwt Lwt_preemptive.detach download () with
-            | `success ->
-                close_out ch;
-                `tmpfile tmpfile |> Lwt.return
-            | `network_failure _ as failure ->
-                close_out ch;
-                Lwt.return failure
-            | `redirect target ->
-                Unix.ftruncate (Unix.descr_of_out_channel ch) 0;
-                if target = url then raise_safe "Redirection loop getting '%s'" url
-                else if redirs_left > 0 then loop (redirs_left - 1) target
-                else raise_safe "Too many redirections (next: %s)" target in
-          loop 10 url
+      let rec loop redirs_left url =
+        match_lwt schedule_download ?if_slow ?size ?modification_time ch url with
+        | `success ->
+            close_out ch;
+            `tmpfile tmpfile |> Lwt.return
+        | `network_failure _ as failure ->
+            close_out ch;
+            Lwt.return failure
+        | `redirect target ->
+            Unix.ftruncate (Unix.descr_of_out_channel ch) 0;
+            if target = url then raise_safe "Redirection loop getting '%s'" url
+            else if redirs_left > 0 then loop (redirs_left - 1) target
+            else raise_safe "Too many redirections (next: %s)" target in
+      loop 10 url
   end
