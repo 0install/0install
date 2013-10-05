@@ -173,4 +173,18 @@ let suite = "fetch">::: [
     check ~testfile:"HelloWorld" "impl1";
     check ~testfile:"archive.tgz" "impl4";
   );
+
+  "url-join">:: fun () -> (
+    let test expected base rel =
+      Fake_system.assert_str_equal expected @@ Support.Urlparse.join_url base rel in
+    test "http://example.com/archive.tgz" "http://example.com/feeds/feed.xml" "/archive.tgz";
+    test "http://example.com/feeds/archive.tgz" "http://example.com/feeds/feed.xml" "archive.tgz";
+    test "http://example.com/archive.tgz" "http://example.com/feeds/feed.xml" "../archive.tgz";
+    test "http://example.com/../archive.tgz" "http://example.com/feeds/feed.xml" "../../archive.tgz";
+    test "https://example.com/archive.tgz" "https://example.com/feeds/feed.xml" "//example.com/archive.tgz";
+    test "http://foo.com/archive.tgz" "https://example.com/feeds/feed.xml" "http://foo.com/archive.tgz";
+    test "http://example.com/archive.tgz" "http://example.com" "archive.tgz";
+    test "http://example.com/archive.tgz" "http://example.com" "/archive.tgz";
+    test "http://example.com/archive.tgz?q=2" "http://example.com/?q=1/base/" "archive.tgz?q=2";
+  )
 ]

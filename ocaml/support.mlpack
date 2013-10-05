@@ -7,5 +7,6 @@ Logging
 Qdom
 Sat
 System
+Urlparse
 Utils
 Windows_api
