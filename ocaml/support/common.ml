@@ -134,6 +134,10 @@ let (|?) maybe default =
   | Some v -> v
   | None -> Lazy.force default
 
+let if_some fn = function
+  | None -> ()
+  | Some x -> fn x
+
 (** {2 Backported from OCaml 4} **)
 
 let trim s =
@@ -156,4 +160,3 @@ let trim s =
     sub s !i (!j - !i + 1)
   else
     ""
-
