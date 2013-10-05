@@ -11,9 +11,7 @@ import sys, os, collections
 
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, qdom, download, gpg, reader, trust, fetch
-from zeroinstall.injector.handler import NoTrustedKeys
-from zeroinstall.injector.iface_cache import ReplayAttack
+from zeroinstall.injector import model, qdom, download, gpg, trust
 from zeroinstall.injector.distro import get_host_distribution
 from zeroinstall.support import tasks
 from zeroinstall import support
@@ -312,41 +310,6 @@ def do_confirm_keys(config, ticket, url, xml):
 		send_json(["return", ticket, ["error", str(ex)]])
 
 @tasks.async
-def do_download_url(config, ticket, args):
-	try:
-		if gui_driver is not None: config = gui_driver.config
-		url = args["url"]
-		hint = args["hint"]
-		timeout = args["timeout"]
-		modtime = args["mtime"]
-		size = args["size"]
-		mirror_url = args["mirror-url"]
-
-		if size is not None: size = int(size)
-
-		if modtime:
-			from email.utils import formatdate
-			modtime = formatdate(timeval = int(modtime), localtime = False, usegmt = True)
-
-		dl = config.fetcher.download_url(url, hint = hint, expected_size = size, mirror_url = mirror_url,
-				timeout = timeout, auto_delete = False, modification_time = modtime)
-		name = dl.tempfile.name
-		yield dl.downloaded
-		tasks.check(dl.downloaded)
-		if dl.unmodified:
-			send_json(["return", ticket, ["ok", "unmodified"]])
-		else:
-			send_json(["return", ticket, ["ok", ["success", name]]])
-	except download.DownloadAborted as ex:
-		send_json(["return", ticket, ["ok", "aborted-by-user"]])
-	except NoTrustedKeys as ex:
-		send_json(["return", ticket, ["ok", "no-trusted-keys"]])
-	except ReplayAttack as ex:
-		send_json(["return", ticket, ["ok", ["replay-attack", str(ex)]]])
-	except Exception as ex:
-		send_json(["return", ticket, ["error", str(ex)]])
-
-@tasks.async
 def reply_when_done(ticket, blocker):
 	try:
 		if blocker:
@@ -537,9 +500,6 @@ def handle_invoke(config, options, ticket, request):
 			xml = qdom.parse(BytesIO(read_chunk()))
 			do_update_key_info(config, ticket, request[1], xml)
 			return	# async
-		elif command == 'download-url':
-			do_download_url(config, ticket, request[1])
-			return
 		elif command == 'notify-user':
 			response = do_notify_user(config, request[1])
 		elif command == 'start-monitoring':

@@ -16,7 +16,6 @@ from zeroinstall.injector import model, gpg, download, trust, selections, qdom, 
 from zeroinstall.injector.scheduler import Site
 from zeroinstall.zerostore import NotStored
 from zeroinstall.support import basedir, tasks, ro_rmtree
-from zeroinstall.injector import fetch
 import data
 import my_dbus
 
@@ -179,7 +178,6 @@ class TestDownload(BaseTest):
 
 		self.config.handler.allow_downloads = True
 		self.config.key_info_server = 'http://localhost:3333/key-info'
-		self.config.fetcher = fetch.Fetcher(self.config)
 
 		child_config = config.Config()
 		child_config.auto_approve_keys = False
@@ -864,18 +862,6 @@ class TestDownload(BaseTest):
 		assert not out, out
 		assert 'We want source and this is a binary' in err, err
 	
-	def testChunked(self):
-		if sys.version_info[0] < 3:
-			return	# not a problem with Python 2
-		run_server('chunked')
-		dl = self.config.fetcher.download_url('http://localhost/chunked')
-		tmp = dl.tempfile
-		tasks.wait_for_blocker(dl.downloaded)
-		tasks.check(dl.downloaded)
-		tmp.seek(0)
-		self.assertEqual(b'hello world', tmp.read())
-		kill_server_process()
-
 	def testAbort(self):
 		dl = download.Download("http://localhost/test.tgz", auto_delete = True)
 		dl.abort()
