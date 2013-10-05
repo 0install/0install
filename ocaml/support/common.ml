@@ -138,6 +138,10 @@ let if_some fn = function
   | None -> ()
   | Some x -> fn x
 
+let pipe_some fn = function
+  | None -> None
+  | Some x -> fn x
+
 (** {2 Backported from OCaml 4} **)
 
 let trim s =
