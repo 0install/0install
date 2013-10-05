@@ -21,7 +21,7 @@ type target =
 
 let local_path_of_iface uri =
   let starts = U.starts_with uri in
-  if starts "http://" || starts "https://'" then (
+  if starts "http://" || starts "https://" then (
     None
   ) else (
     if Filename.is_relative uri then
@@ -36,7 +36,7 @@ let local_path_of_iface uri =
     Otherwise, return it unmodified. *)
 let canonical_iface_uri (system:system) arg =
   let starts = U.starts_with arg in
-  if starts "http://" || starts "https://'" then (
+  if starts "http://" || starts "https://" then (
     if not (String.contains_from arg (String.index arg '/' + 2) '/') then
       raise_safe "Missing / after hostname in URI '%s'" arg;
     arg
