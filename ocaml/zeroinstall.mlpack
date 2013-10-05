@@ -8,6 +8,7 @@ Config
 Constants
 Diagnostics
 Distro
+Downloader
 Driver
 Dry_run
 Env
@@ -31,4 +32,5 @@ Solver
 Stores
 Tree
 Trust
+Ui
 Versions

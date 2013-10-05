@@ -13,10 +13,8 @@ os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall import helpers
 from zeroinstall.injector import model, gpg, download, trust, selections, qdom, config, namespaces, distro
-from zeroinstall.injector.scheduler import Site
 from zeroinstall.zerostore import NotStored
 from zeroinstall.support import basedir, tasks, ro_rmtree
-from zeroinstall.injector import fetch
 import data
 import my_dbus
 
@@ -129,14 +127,6 @@ def run_server(*args):
 	assert server_process is None
 	server_process = server.handle_requests(*args)
 
-# Count how many downloads we request so we can check it
-traced_downloads = None
-orig_download = Site.download
-def wrap_download(self, step, timeout = None):
-	traced_downloads.append(step.url)
-	return orig_download(self, step)
-Site.download = wrap_download
-
 def get_unavailable_selections(sels, config, include_packages):
 	"""Find those selections which are not present.
 	Local implementations are available if their directory exists.
@@ -179,7 +169,6 @@ class TestDownload(BaseTest):
 
 		self.config.handler.allow_downloads = True
 		self.config.key_info_server = 'http://localhost:3333/key-info'
-		self.config.fetcher = fetch.Fetcher(self.config)
 
 		child_config = config.Config()
 		child_config.auto_approve_keys = False
@@ -194,9 +183,6 @@ class TestDownload(BaseTest):
 
 		global ran_gui
 		ran_gui = False
-
-		global traced_downloads
-		traced_downloads = []
 
 	def tearDown(self):
 		# Wait for all downloads to finish, otherwise they may interfere with other tests
@@ -496,7 +482,7 @@ class TestDownload(BaseTest):
 				server.Give404('/HelloWorld.tgz'),
 				'/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz')
 		out, err = self.run_ocaml(['download', 'http://example.com:8000/Hello.xml', '--xml'], binary = True)
-		assert b'Missing: HelloWorld.tgz: trying archive mirror at http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz' in err, err.decode('utf-8')
+		assert b"Primary download failed; trying mirror URL 'http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'" in err, err.decode('utf-8')
 		sels = selections.Selections(qdom.parse(BytesIO(out)))
 
 		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
@@ -864,18 +850,6 @@ class TestDownload(BaseTest):
 		assert not out, out
 		assert 'We want source and this is a binary' in err, err
 	
-	def testChunked(self):
-		if sys.version_info[0] < 3:
-			return	# not a problem with Python 2
-		run_server('chunked')
-		dl = self.config.fetcher.download_url('http://localhost/chunked')
-		tmp = dl.tempfile
-		tasks.wait_for_blocker(dl.downloaded)
-		tasks.check(dl.downloaded)
-		tmp.seek(0)
-		self.assertEqual(b'hello world', tmp.read())
-		kill_server_process()
-
 	def testAbort(self):
 		dl = download.Download("http://localhost/test.tgz", auto_delete = True)
 		dl.abort()

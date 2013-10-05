@@ -6,7 +6,7 @@ import gtk, pango
 from zeroinstall import _, translation
 from zeroinstall.cmd import slave
 from zeroinstall.support import tasks, pretty_size
-from zeroinstall.injector import model, reader, download
+from zeroinstall.injector import model, download
 from zeroinstall.gui import properties
 from zeroinstall.gtkui.icon import load_icon
 from logging import warning, info
@@ -461,7 +461,6 @@ class InterfaceBrowser(object):
 		for it in walk(self.model, firstVisibleIter):
 			row = self.model[it]
 			details = row[InterfaceBrowser.DETAILS]
-			iface = iface_cache.get_interface(details['interface'])
 
 			# Is this interface the download's hint?
 			downloads = []

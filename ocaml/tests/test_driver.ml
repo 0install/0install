@@ -52,7 +52,7 @@ let fake_fetcher config handler =
 
     method import_feed = failwith "import_feed"
 
-    method download_url_if_modified = failwith "download_url_if_modified"
+    method downloader = failwith "downloader"
   end
 
 (** Parse a test-case in driven.xml *)
@@ -254,7 +254,7 @@ let suite = "driver">::: [
         method download_and_import_feed (`remote_feed url) = raise_safe "download_and_import_feed: %s" url
         method download_impls = failwith "download_impls"
         method import_feed = failwith "import_feed"
-        method download_url_if_modified = failwith "download_url_if_modified"
+        method downloader = failwith "downloader"
       end in
     let slave = new Zeroinstall.Python.slave config in
     let driver = new Driver.driver config fetcher distro slave in

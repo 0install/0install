@@ -11,9 +11,7 @@ import sys, os, collections
 
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, qdom, download, gpg, reader, trust, fetch
-from zeroinstall.injector.handler import NoTrustedKeys
-from zeroinstall.injector.iface_cache import ReplayAttack
+from zeroinstall.injector import model, qdom, download, gpg, trust
 from zeroinstall.injector.distro import get_host_distribution
 from zeroinstall.support import tasks
 from zeroinstall import support
@@ -312,41 +310,6 @@ def do_confirm_keys(config, ticket, url, xml):
 		send_json(["return", ticket, ["error", str(ex)]])
 
 @tasks.async
-def do_download_url(config, ticket, args):
-	try:
-		if gui_driver is not None: config = gui_driver.config
-		url = args["url"]
-		hint = args["hint"]
-		timeout = args["timeout"]
-		modtime = args["mtime"]
-		size = args["size"]
-		mirror_url = args["mirror-url"]
-
-		if size is not None: size = int(size)
-
-		if modtime:
-			from email.utils import formatdate
-			modtime = formatdate(timeval = int(modtime), localtime = False, usegmt = True)
-
-		dl = config.fetcher.download_url(url, hint = hint, expected_size = size, mirror_url = mirror_url,
-				timeout = timeout, auto_delete = False, modification_time = modtime)
-		name = dl.tempfile.name
-		yield dl.downloaded
-		tasks.check(dl.downloaded)
-		if dl.unmodified:
-			send_json(["return", ticket, ["ok", "unmodified"]])
-		else:
-			send_json(["return", ticket, ["ok", ["success", name]]])
-	except download.DownloadAborted as ex:
-		send_json(["return", ticket, ["ok", "aborted-by-user"]])
-	except NoTrustedKeys as ex:
-		send_json(["return", ticket, ["ok", "no-trusted-keys"]])
-	except ReplayAttack as ex:
-		send_json(["return", ticket, ["ok", ["replay-attack", str(ex)]]])
-	except Exception as ex:
-		send_json(["return", ticket, ["error", str(ex)]])
-
-@tasks.async
 def reply_when_done(ticket, blocker):
 	try:
 		if blocker:
@@ -361,6 +324,61 @@ def do_notify_user(config, args):
 	from zeroinstall.injector import background
 	handler = background.BackgroundHandler()
 	handler.notify(args["title"], args["message"], timeout = args["timeout"])
+
+class OCamlDownload:
+	url = None
+	hint = None
+	expected_size = None
+	tempfile = None
+	status = download.download_fetching
+	downloaded = None
+	_final_total_size = None
+
+	def get_current_fraction(self):
+		"""Returns the current fraction of this download that has been fetched (from 0 to 1),
+		or None if the total size isn't known. Note that the timeout does not stop the download;
+		we just use it as a signal to try a mirror in parallel.
+		@return: fraction downloaded
+		@rtype: int | None"""
+		if self.tempfile is None:
+			return 1
+		if self.expected_size is None:
+			return None		# Unknown
+		current_size = self.get_bytes_downloaded_so_far()
+		return float(current_size) / self.expected_size
+
+	def get_bytes_downloaded_so_far(self):
+		"""Get the download progress. Will be zero if the download has not yet started.
+		@rtype: int"""
+		if self.status is download.download_fetching:
+			return os.stat(self.tempfile).st_size
+		else:
+			return self._final_total_size or 0
+
+	def abort(self):
+		invoke_master(["abort-download", self.tempfile])
+
+downloads = {}
+def do_start_monitoring(config, details):
+	if gui_driver is not None: config = gui_driver.config
+	size = details["size"]
+	if size is not None:
+		size = int(size)
+	dl = OCamlDownload()
+	dl.url = details["url"]
+	dl.hint = details["hint"]
+	dl.expected_size = size
+	dl.tempfile = details["tempfile"]
+	dl.downloaded = tasks.Blocker("Download '%s'" % details["url"])
+	downloads[dl.tempfile] = dl
+	config.handler.monitor_download(dl)
+
+def do_stop_monitoring(config, tmpfile):
+	dl = downloads[tmpfile]
+	dl.status = download.download_complete
+	dl._final_total_size = dl.get_bytes_downloaded_so_far()
+	dl.downloaded.trigger()
+	del downloads[tmpfile]
 
 def do_check_gui(use_gui):
 	from zeroinstall.gui import main
@@ -482,11 +500,12 @@ def handle_invoke(config, options, ticket, request):
 			xml = qdom.parse(BytesIO(read_chunk()))
 			do_update_key_info(config, ticket, request[1], xml)
 			return	# async
-		elif command == 'download-url':
-			do_download_url(config, ticket, request[1])
-			return
 		elif command == 'notify-user':
 			response = do_notify_user(config, request[1])
+		elif command == 'start-monitoring':
+			response = do_start_monitoring(config, request[1])
+		elif command == 'stop-monitoring':
+			response = do_stop_monitoring(config, request[1])
 		else:
 			raise SafeException("Internal error: unknown command '%s'" % command)
 		response = ['ok', response]
