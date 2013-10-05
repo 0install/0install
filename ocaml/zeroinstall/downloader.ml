@@ -15,15 +15,17 @@ type download_result =
 
 exception Unmodified
 
-let init_curl = lazy (
+let init = lazy (
+  Lwt_preemptive.init 0 100 (log_warning "%s");
   (* from dx-ocaml *)
   Ssl.init ~thread_safe:true ();  (* Performs incantations to ensure thread-safety of OpenSSL *)
-  Curl.(global_init CURLINIT_GLOBALALL)
+  Curl.(global_init CURLINIT_GLOBALALL);
 )
 
 let interceptor = ref None        (* (for unit-tests) *)
 
-(** Download the contents of [url] into [ch]. *)
+(** Download the contents of [url] into [ch].
+ * This runs in a separate (real) thread. *)
 let download_no_follow ?size ?modification_time ch url =
   let error_buffer = ref "" in
   try
@@ -60,7 +62,7 @@ let download_no_follow ?size ?modification_time ch url =
         (* ocurl is missing CURLINFO_REDIRECT_URL, so we have to do this manually *)
         let target = Support.Urlparse.join_url url target in
         log_info "Redirect from '%s' to '%s'" url target;
-        `redirect target |> Lwt.return
+        `redirect target
     | None ->
         if modification_time <> None && actual_size = 0.0 then (
           raise Unmodified  (* ocurl is missing CURLINFO_CONDITION_UNMET *)
@@ -73,15 +75,15 @@ let download_no_follow ?size ?modification_time ch url =
                           Expected: %.0f bytes\n\
                           Received: %.0f bytes" url expected actual_size
           );
-          `success |> Lwt.return
+          `success
         )
   with Curl.CurlException _ as ex ->
     log_info ~ex "Curl error: %s" !error_buffer;
     let msg = Printf.sprintf "Error downloading '%s': %s" url !error_buffer in
-    `network_failure msg |> Lwt.return
+    `network_failure msg
 
 class downloader =
-  let () = Lazy.force init_curl in
+  let () = Lazy.force init in
 
   object
     (** Download url to a new temporary file and return its name.
@@ -106,7 +108,8 @@ class downloader =
           timeout |> if_some Lwt_timeout.start;
 
           let rec loop redirs_left url =
-            match_lwt download_no_follow ?modification_time ?size ch url with
+            let download () = download_no_follow ?modification_time ?size ch url in
+            match_lwt Lwt_preemptive.detach download () with
             | `success ->
                 close_out ch;
                 `tmpfile tmpfile |> Lwt.return
