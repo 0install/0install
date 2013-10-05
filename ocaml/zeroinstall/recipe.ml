@@ -40,6 +40,8 @@ type recipe_step =
   | RenameStep of rename
   | RemoveStep of remove
 
+type recipe = recipe_step list
+
 let attr_href = "href"
 let attr_size = "size"
 let attr_extract = "extract"
