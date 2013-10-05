@@ -257,5 +257,37 @@ let suite = "fetch">::: [
 
       Lwt.return ()
     )
-  )
+  );
+
+  "abort">:: (fun () ->
+    Lwt_main.run (
+      D.max_downloads_per_site := 2;
+      let fake_ui =
+        object
+          method start_monitoring ~cancel ~url:_ ~hint:_  ~size:_ ~tmpfile:_ = cancel (); Lwt.return ()
+          method stop_monitoring _ = Lwt.return ()
+        end in
+      let downloader = new D.downloader fake_ui in
+
+      (* Intercept the download and return a new blocker *)
+      let handle_download ?if_slow:_ ?size:_ ?modification_time:_ _ch url =
+        let blocker, _ = Lwt.wait () in
+        log_info "Starting download of '%s'" url;
+        blocker in
+      D.interceptor := Some handle_download;
+
+      let switch = Lwt_switch.create () in
+      lwt result =
+        try_lwt
+          match_lwt downloader#download ~switch ~hint:"testing" "http://localhost/test.tgz" with
+          | `tmpfile _ -> Lwt.return `success
+          | (`aborted_by_user | `network_failure _) as x -> Lwt.return x
+        finally
+          Lwt_switch.turn_off switch in
+
+      assert_equal `aborted_by_user result;
+
+      Lwt.return ()
+    )
+  );
 ]

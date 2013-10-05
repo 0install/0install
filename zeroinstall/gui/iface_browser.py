@@ -456,8 +456,6 @@ class InterfaceBrowser(object):
 			firstVisibleIter = self.model.get_iter_root()
 			lastVisiblePath = None
 
-		iface_cache = self.config.iface_cache
-
 		for it in walk(self.model, firstVisibleIter):
 			row = self.model[it]
 			details = row[InterfaceBrowser.DETAILS]

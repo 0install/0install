@@ -850,19 +850,6 @@ class TestDownload(BaseTest):
 		assert not out, out
 		assert 'We want source and this is a binary' in err, err
 	
-	def testAbort(self):
-		dl = download.Download("http://localhost/test.tgz", auto_delete = True)
-		dl.abort()
-		assert dl._aborted.happened
-		assert dl.tempfile is None
-
-		dl = download.Download("http://localhost/test.tgz", auto_delete = False)
-		path = dl.tempfile.name
-		dl.abort()
-		assert not os.path.exists(path)
-		assert dl._aborted.happened
-		assert dl.tempfile is None
-
 	def disabled_testDownloadIconFails(self):
 		path = model.canonical_iface_uri(os.path.join(mydir, 'Binary.xml'))
 		iface = self.config.iface_cache.get_interface(path)

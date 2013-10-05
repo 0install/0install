@@ -5,7 +5,7 @@ from io import BytesIO
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import distro, model, qdom, iface_cache, handler
+from zeroinstall.injector import distro, model, qdom, handler
 from zeroinstall.support import basedir, windows_args_escape
 
 def parse_impls(impls):
