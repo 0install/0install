@@ -82,27 +82,59 @@ let download_no_follow ?size ?modification_time ch url =
     let msg = Printf.sprintf "Error downloading '%s': %s" url !error_buffer in
     `network_failure msg
 
-let schedule_download ?if_slow ?size ?modification_time ch url =
-  match !interceptor with
-  | Some interceptor ->
-      interceptor ?if_slow ?size ?modification_time ch url
-  | None ->
-      let timeout = if_slow |> pipe_some (fun if_slow ->
-        let timeout = Lwt_timeout.create 5 (fun () -> Lazy.force if_slow) in
-        Lwt_timeout.start timeout;
-        Some timeout;
-      ) in
+let max_downloads_per_site = ref 5
 
-      let download () = download_no_follow ?modification_time ?size ch url in
+(** Rate-limits downloads within a site.
+ * [domain] is e.g. "http://site:port" - the URL before the path *)
+let make_site () =
+  let queued = Queue.create () in
+  let n_in_progress = ref 0 in
 
-      try_lwt
-        Lwt_preemptive.detach download ()
-      finally
-        timeout |> if_some Lwt_timeout.stop;
-        Lwt.return ()
+  let perform fn =
+    incr n_in_progress;
+    try_lwt
+      fn ()
+    finally
+      decr n_in_progress;
+      if not (Queue.is_empty queued) then
+        Lwt.wakeup (Queue.pop queued) ();
+      Lwt.return () in
+
+  let when_ready fn =
+    if !n_in_progress < !max_downloads_per_site then perform fn
+    else (
+      let task, waker = Lwt.task () in
+      Queue.add waker queued;
+      lwt () = task in
+      perform fn
+    ) in
+
+  object
+    method schedule_download ?if_slow ?size ?modification_time ch url =
+      when_ready (fun () ->
+        match !interceptor with
+        | Some interceptor ->
+            interceptor ?if_slow ?size ?modification_time ch url
+        | None ->
+            let timeout = if_slow |> pipe_some (fun if_slow ->
+              let timeout = Lwt_timeout.create 5 (fun () -> Lazy.force if_slow) in
+              Lwt_timeout.start timeout;
+              Some timeout;
+            ) in
+
+            let download () = download_no_follow ?modification_time ?size ch url in
+
+            try_lwt
+              Lwt_preemptive.detach download ()
+            finally
+              timeout |> if_some Lwt_timeout.stop;
+              Lwt.return ()
+      )
+  end
 
 class downloader (reporter:Ui.progress_reporter) =
   let () = Lazy.force init in
+  let sites = Hashtbl.create 10 in
 
   object
     (** Download url to a new temporary file and return its name.
@@ -122,7 +154,14 @@ class downloader (reporter:Ui.progress_reporter) =
       Lwt_switch.add_hook switch (fun () -> Unix.unlink tmpfile |> Lwt.return);
 
       let rec loop redirs_left url =
-        match_lwt schedule_download ?if_slow ?size ?modification_time ch url with
+        let site =
+          let domain, _ = Support.Urlparse.split_path url in
+          try Hashtbl.find sites domain
+          with Not_found ->
+            let site = make_site () in
+            Hashtbl.add sites domain site;
+            site in
+        match_lwt site#schedule_download ?if_slow ?size ?modification_time ch url with
         | `success ->
             close_out ch;
             `tmpfile tmpfile |> Lwt.return

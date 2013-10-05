@@ -13,7 +13,6 @@ os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall import helpers
 from zeroinstall.injector import model, gpg, download, trust, selections, qdom, config, namespaces, distro
-from zeroinstall.injector.scheduler import Site
 from zeroinstall.zerostore import NotStored
 from zeroinstall.support import basedir, tasks, ro_rmtree
 import data
@@ -128,14 +127,6 @@ def run_server(*args):
 	assert server_process is None
 	server_process = server.handle_requests(*args)
 
-# Count how many downloads we request so we can check it
-traced_downloads = None
-orig_download = Site.download
-def wrap_download(self, step, timeout = None):
-	traced_downloads.append(step.url)
-	return orig_download(self, step)
-Site.download = wrap_download
-
 def get_unavailable_selections(sels, config, include_packages):
 	"""Find those selections which are not present.
 	Local implementations are available if their directory exists.
@@ -192,9 +183,6 @@ class TestDownload(BaseTest):
 
 		global ran_gui
 		ran_gui = False
-
-		global traced_downloads
-		traced_downloads = []
 
 	def tearDown(self):
 		# Wait for all downloads to finish, otherwise they may interfere with other tests

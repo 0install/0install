@@ -10,6 +10,7 @@ module Fetch = Zeroinstall.Fetch
 module Recipe = Zeroinstall.Recipe
 module F = Zeroinstall.Feed
 module Q = Support.Qdom
+module D = Zeroinstall.Downloader
 
 let download_impls fetcher impls =
   match fetcher#download_impls impls |> Lwt_main.run with
@@ -174,7 +175,7 @@ let suite = "fetch">::: [
     check ~testfile:"archive.tgz" "impl4";
   );
 
-  "url-join">:: fun () -> (
+  "url-join">:: (fun () ->
     let test expected base rel =
       Fake_system.assert_str_equal expected @@ Support.Urlparse.join_url base rel in
     test "http://example.com/archive.tgz" "http://example.com/feeds/feed.xml" "/archive.tgz";
@@ -186,5 +187,75 @@ let suite = "fetch">::: [
     test "http://example.com/archive.tgz" "http://example.com" "archive.tgz";
     test "http://example.com/archive.tgz" "http://example.com" "/archive.tgz";
     test "http://example.com/archive.tgz?q=2" "http://example.com/?q=1/base/" "archive.tgz?q=2";
+  );
+
+  "queuing">:: (fun () ->
+    Lwt_main.run (
+      let log = ref [] in
+      D.max_downloads_per_site := 2;
+      let downloader = new D.downloader Fake_system.null_reporter in
+
+      let waiting = Hashtbl.create 10 in
+
+      (* Intercept the download and return a new blocker *)
+      let handle_download ?if_slow:_ ?size:_ ?modification_time:_ _ch url =
+        let blocker, waker = Lwt.wait () in
+        log_info "Starting download of '%s'" url;
+        log := url :: !log;
+        Hashtbl.add waiting url waker;
+        blocker in
+      D.interceptor := Some handle_download;
+
+      let download url =
+        (* Request the download *)
+        let switch = Lwt_switch.create () in
+        let result =
+          try_lwt
+            match_lwt downloader#download ~switch ~hint:"testing" url with
+            | `tmpfile _ -> Lwt.return `success
+            | (`aborted_by_user | `network_failure _) as x -> Lwt.return x
+          finally
+            Lwt_switch.turn_off switch in
+        result in
+
+      let r1 = download "http://example.com/example1" in
+      let r2 = download "http://example.com/example2" in
+      let r3 = download "http://example.com/example3" in
+      let r4 = download "http://example.com:8080/example4" in
+      let r5 = download "http://example.com/example5" in
+
+      let wake url result =
+        let waker = Hashtbl.find waiting url in
+        Lwt.wakeup waker result in
+
+      (* r3, r5 are queued as r1, r2 are downloading from the same site. r4 is fine. *)
+      wake "http://example.com:8080/example4" `success;
+      Fake_system.equal_str_lists
+        ["http://example.com/example1"; "http://example.com/example2"; "http://example.com:8080/example4"]
+        (List.rev !log);
+      log := [];
+      lwt r4 = r4 in assert_equal `success r4;
+
+      (* r1 succeeds, allowing r3 to start *)
+      wake "http://example.com/example1" `success;
+      lwt r1 = r1 in assert_equal `success r1;
+
+      Fake_system.equal_str_lists ["http://example.com/example3"] (List.rev !log);
+      log := [];
+      wake "http://example.com/example3" `success;
+      lwt r3 = r3 in assert_equal `success r3;
+
+      (* r2 gets redirected and goes back on the end of the queue, allowing r5 to run. *)
+      wake "http://example.com/example2" @@ `redirect "http://example.com/redirected";
+      Fake_system.equal_str_lists ["http://example.com/example5"; "http://example.com/redirected"] (List.rev !log);
+
+      (* r5 fails, allowing r2 to complete *)
+      wake "http://example.com/example5" @@ `network_failure "404";
+      wake "http://example.com/redirected" `success;
+      lwt r5 = r5 in assert_equal (`network_failure "404") r5;
+      lwt r2 = r2 in assert_equal `success r2;
+
+      Lwt.return ()
+    )
   )
 ]
