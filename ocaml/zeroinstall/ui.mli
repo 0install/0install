@@ -8,7 +8,7 @@ open Support.Common
 
 type progress_reporter = <
   (* A new download has been added (may still be queued) *)
-  start_monitoring : url:string -> hint:string -> size:(Int64.t option) -> tmpfile:filepath -> unit Lwt.t;
+  start_monitoring : cancel:(unit -> unit) -> url:string -> hint:string -> size:(Int64.t option) -> tmpfile:filepath -> unit Lwt.t;
 
   (* A download has finished (successful or not) *)
   stop_monitoring : filepath -> unit Lwt.t;

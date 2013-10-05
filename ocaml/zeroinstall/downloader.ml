@@ -135,9 +135,25 @@ class downloader (reporter:Ui.progress_reporter) =
             else if redirs_left > 0 then loop (redirs_left - 1) target
             else raise_safe "Too many redirections (next: %s)" target in
 
-      lwt () = reporter#start_monitoring ~url ~hint ~size ~tmpfile in
-      try_lwt
-        loop 10 url
-      finally
-        reporter#stop_monitoring tmpfile
+      (* Cancelling:
+       * ocurl is missing OPENSOCKETFUNCTION, but we can get close by closing tmpfile so that it
+       * aborts on the next write. In any case, we don't wait for the thread exit, as it may be
+       * blocked on a DNS lookup, etc. *)
+      let task, waker = Lwt.task () in
+      Lwt.on_cancel task (fun () -> close_out ch);
+      let cancel () = Lwt.cancel task in
+      lwt () = reporter#start_monitoring ~cancel ~url ~hint ~size ~tmpfile in
+
+      Python.async (fun () ->
+        try_lwt
+          lwt result = loop 10 url in
+          Lwt.wakeup waker result;
+          Lwt.return ()
+        with ex ->
+          Lwt.wakeup_exn waker ex; Lwt.return ()
+      );
+
+      try_lwt task
+      with Lwt.Canceled -> `aborted_by_user |> Lwt.return
+      finally reporter#stop_monitoring tmpfile
   end

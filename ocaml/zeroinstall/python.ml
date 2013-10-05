@@ -242,8 +242,20 @@ class slave config =
   end
 
 let make_python_ui (slave:slave) =
+  let downloads = Hashtbl.create 10 in
+
+  register_handler "abort-download" (function
+    | [`String tmpfile] ->
+        begin try
+          Hashtbl.find downloads tmpfile ()
+        with Not_found -> log_info "abort-download: %s not found" tmpfile end;
+        Lwt.return `Null
+    | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
   object (_ : Ui.progress_reporter)
-    method start_monitoring ~url ~hint ~size ~tmpfile =
+    method start_monitoring ~cancel ~url ~hint ~size ~tmpfile =
+      Hashtbl.add downloads tmpfile cancel;
       let size =
         match size with
         | None -> `Null
@@ -261,7 +273,7 @@ let make_python_ui (slave:slave) =
 
     method stop_monitoring tmpfile =
       slave#invoke_async (`List [`String "stop-monitoring"; `String tmpfile]) (function
-        | `Null -> ()
+        | `Null -> Hashtbl.remove downloads tmpfile
         | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
       )
   end

@@ -392,6 +392,9 @@ class OCamlDownload:
 		else:
 			return self._final_total_size or 0
 
+	def abort(self):
+		invoke_master(["abort-download", self.tempfile])
+
 downloads = {}
 def do_start_monitoring(config, details):
 	if gui_driver is not None: config = gui_driver.config
@@ -408,7 +411,7 @@ def do_start_monitoring(config, details):
 	config.handler.monitor_download(dl)
 
 def do_stop_monitoring(config, tmpfile):
-	dl = downloads.get(tmpfile, None)
+	dl = downloads[tmpfile]
 	dl.status = download.download_complete
 	dl._final_total_size = dl.get_bytes_downloaded_so_far()
 	dl.downloaded.trigger()

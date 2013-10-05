@@ -283,7 +283,7 @@ let () = Support.Logging.threshold := Support.Logging.Debug
 
 let null_reporter =
   object (_ : Zeroinstall.Ui.progress_reporter)
-    method start_monitoring ~url:_ ~hint:_  ~size:_ ~tmpfile:_ = Lwt.return ()
+    method start_monitoring ~cancel:_ ~url:_ ~hint:_  ~size:_ ~tmpfile:_ = Lwt.return ()
     method stop_monitoring _ = Lwt.return ()
   end
 
