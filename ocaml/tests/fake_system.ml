@@ -129,6 +129,7 @@ class fake_system tmpdir =
     val mutable argv = [| test_0install |]
 
     method argv = argv
+    method isatty _ = false
     method set_argv new_argv = argv <- new_argv
 
     method time = !now

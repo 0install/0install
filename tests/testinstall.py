@@ -183,7 +183,7 @@ class TestInstall(BaseTest):
 		stream.close()
 		out, err = self.run_ocaml(['import', 'Hello.xml'], stdin = 'Y\n')
 		assert not out, out
-		assert 'Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000' in err, out
+		assert 'Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000' in err, err
 
 	def testList(self):
 		out, err = self.run_0install(['list', 'foo', 'bar'])

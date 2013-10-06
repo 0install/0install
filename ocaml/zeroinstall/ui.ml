@@ -30,19 +30,20 @@ class type ui_handler =
     method confirm_distro_install : Yojson.Basic.json list -> [`ok | `aborted_by_user] Lwt.t
   end
 
-let make_python_ui (slave:Python.slave) =
+class python_ui (slave:Python.slave) =
   let downloads = Hashtbl.create 10 in
 
-  Python.register_handler "abort-download" (function
-    | [`String tmpfile] ->
-        begin try
-          Hashtbl.find downloads tmpfile ()
-        with Not_found -> log_info "abort-download: %s not found" tmpfile end;
-        Lwt.return `Null
-    | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
+  let () =
+    Python.register_handler "abort-download" (function
+      | [`String tmpfile] ->
+          begin try
+            Hashtbl.find downloads tmpfile ()
+          with Not_found -> log_info "abort-download: %s not found" tmpfile end;
+          Lwt.return `Null
+      | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
+    ) in
 
-  object (_ : ui_handler)
+  object (_ : #ui_handler)
     method start_monitoring ~cancel ~url ~hint ~size ~tmpfile =
       Hashtbl.add downloads tmpfile cancel;
       let size =
@@ -79,5 +80,35 @@ let make_python_ui (slave:Python.slave) =
       )
   end
 
-let make_ui (slave:Python.slave) _use_gui : ui_handler =
-  make_python_ui slave
+class console_ui slave =
+  object
+    inherit python_ui slave
+  end
+
+class batch_ui slave =
+  object (_ : #ui_handler)
+    inherit python_ui slave
+
+    method! start_monitoring ~cancel:_ ~url:_ ~hint:_ ~size:_ ~tmpfile:_ = Lwt.return_unit
+    method! stop_monitoring _tmpfile = Lwt.return_unit
+
+(* For now, for the unit-tests, fall back to Python.
+
+    method confirm_keys _feed_url _xml =
+      raise_safe "Can't confirm keys as in batch mode."
+
+    method update_key_info _fingerprint _xml = assert false
+
+    method confirm_distro_install _package_impls =
+      raise_safe "Can't confirm installation of distribution packages as in batch mode."
+*)
+  end
+
+let make_ui (system:system) (slave:Python.slave) use_gui : ui_handler =
+  match use_gui with
+  | No ->
+      if system#isatty Unix.stderr then
+        new console_ui slave
+      else
+        new batch_ui slave
+  | Yes | Maybe -> new python_ui slave

@@ -68,6 +68,7 @@ module RealSystem (U : UnixType) =
 
       object (self : #system)
         method argv = Sys.argv
+        method isatty = Unix.isatty
         method print_string = print_string
         method time = Unix.time ()
         method mkdir = Unix.mkdir
