@@ -291,7 +291,7 @@ let make_driver ?slave ?fetcher config =
   let slave = slave |? lazy (new Zeroinstall.Python.slave config) in
   let distro = new Zeroinstall.Distro.generic_distribution slave in
   let trust_db = new Zeroinstall.Trust.trust_db config in
-  let downloader = new Zeroinstall.Downloader.downloader null_reporter in
+  let downloader = new Zeroinstall.Downloader.downloader null_reporter ~max_downloads_per_site:2 in
   let fetcher = fetcher |? lazy (new Zeroinstall.Fetch.fetcher config trust_db slave downloader) in
   new Zeroinstall.Driver.driver config fetcher distro slave
 

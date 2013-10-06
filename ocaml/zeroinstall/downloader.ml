@@ -26,7 +26,7 @@ let interceptor = ref None        (* (for unit-tests) *)
 
 (** Download the contents of [url] into [ch].
  * This runs in a separate (real) thread. *)
-let download_no_follow ?size ?modification_time ch url =
+let download_no_follow ?size ?modification_time connection ch url =
   let error_buffer = ref "" in
   try
     let redirect = ref None in
@@ -36,10 +36,7 @@ let download_no_follow ?size ?modification_time ch url =
       );
       String.length header in
 
-    let connection = Curl.init () in
     if Support.Logging.will_log Support.Logging.Debug then Curl.set_verbose connection true;
-    Curl.set_nosignal connection true;    (* Can't use DNS timeouts when multi-threaded *)
-    Curl.set_failonerror connection true;
     Curl.set_errorbuffer connection error_buffer;
     Curl.set_writefunction connection (fun data -> output_string ch data; String.length data);
     size |> if_some (Curl.set_maxfilesizelarge connection);
@@ -49,13 +46,12 @@ let download_no_follow ?size ?modification_time ch url =
     );
     Curl.set_url connection url;
     Curl.set_headerfunction connection check_header;
-    Curl.set_followlocation connection false;
 
     Curl.perform connection;
 
     let actual_size = Curl.get_sizedownload connection in
 
-    Curl.cleanup connection;
+    (* Curl.cleanup connection; - leave it open for the next request *)
 
     match !redirect with
     | Some target ->
@@ -82,36 +78,21 @@ let download_no_follow ?size ?modification_time ch url =
     let msg = Printf.sprintf "Error downloading '%s': %s" url !error_buffer in
     `network_failure msg
 
-let max_downloads_per_site = ref 5
-
 (** Rate-limits downloads within a site.
  * [domain] is e.g. "http://site:port" - the URL before the path *)
-let make_site () =
-  let queued = Queue.create () in
-  let n_in_progress = ref 0 in
+let make_site max_downloads_per_site =
+  let create_connection () =
+    let connection = Curl.init () in
+    Curl.set_nosignal connection true;    (* Can't use DNS timeouts when multi-threaded *)
+    Curl.set_failonerror connection true;
+    Curl.set_followlocation connection false;
+    Lwt.return connection in
 
-  let perform fn =
-    incr n_in_progress;
-    try_lwt
-      fn ()
-    finally
-      decr n_in_progress;
-      if not (Queue.is_empty queued) then
-        Lwt.wakeup (Queue.pop queued) ();
-      Lwt.return () in
-
-  let when_ready fn =
-    if !n_in_progress < !max_downloads_per_site then perform fn
-    else (
-      let task, waker = Lwt.task () in
-      Queue.add waker queued;
-      lwt () = task in
-      perform fn
-    ) in
+  let pool = Lwt_pool.create max_downloads_per_site create_connection in
 
   object
     method schedule_download ?if_slow ?size ?modification_time ch url =
-      when_ready (fun () ->
+      Lwt_pool.use pool (fun connection ->
         match !interceptor with
         | Some interceptor ->
             interceptor ?if_slow ?size ?modification_time ch url
@@ -122,7 +103,7 @@ let make_site () =
               Some timeout;
             ) in
 
-            let download () = download_no_follow ?modification_time ?size ch url in
+            let download () = download_no_follow ?modification_time ?size connection ch url in
 
             try_lwt
               Lwt_preemptive.detach download ()
@@ -132,7 +113,7 @@ let make_site () =
       )
   end
 
-class downloader (reporter:Ui.progress_reporter) =
+class downloader (reporter:Ui.progress_reporter) ~max_downloads_per_site =
   let () = Lazy.force init in
   let sites = Hashtbl.create 10 in
 
@@ -158,7 +139,7 @@ class downloader (reporter:Ui.progress_reporter) =
           let domain, _ = Support.Urlparse.split_path url in
           try Hashtbl.find sites domain
           with Not_found ->
-            let site = make_site () in
+            let site = make_site max_downloads_per_site in
             Hashtbl.add sites domain site;
             site in
         match_lwt site#schedule_download ?if_slow ?size ?modification_time ch url with
