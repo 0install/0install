@@ -22,7 +22,8 @@ all: translations
 	(cd "${SRCDIR}" && $(PYTHON) setup.py build --build-lib="${BUILDDIR}/build/lib" --build-base="${BUILDDIR}/build")
 	(cd "${SRCDIR}/ocaml" && $(PYTHON) build-in.py "${BUILDDIR}/ocaml")
 	(cd "${SRCDIR}" && cp README.md COPYING "${DISTDIR}/")
-	install -s -D ocaml/0install "${DISTDIR}/files/0install"
+	install -d "${DISTDIR}/files"
+	install -s ocaml/0install "${DISTDIR}/files/0install"
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0launch"
 	(cd "${SRCDIR}" && cp ${MANPAGES} ${SCRIPTS} setup.py "${DISTDIR}/files")
 	install "${SRCDIR}/install.sh.src" "${DISTDIR}/install.sh"
