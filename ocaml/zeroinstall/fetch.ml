@@ -307,7 +307,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
         );
         lwt confirmed_keys = ui#confirm_keys feed_url xml in
         confirmed_keys |> List.iter (trust_db#trust_key ~domain);
-        Lwt.return_unit
+        Lwt.return ()
       )
     ) in
 
@@ -748,7 +748,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
         Lwt.return ()
       ) else (
         match_lwt (Lazy.force ui)#confirm_distro_install !package_impls with
-        | `ok -> Lwt.return_unit
+        | `ok -> Lwt.return ()
         | `aborted_by_user -> raise Aborted
       ) in
 

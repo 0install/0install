@@ -100,8 +100,8 @@ class batch_ui slave =
   object (_ : #ui_handler)
     inherit python_ui slave
 
-    method! start_monitoring ~cancel:_ ~url:_ ~hint:_ ~size:_ ~tmpfile:_ = Lwt.return_unit
-    method! stop_monitoring _tmpfile = Lwt.return_unit
+    method! start_monitoring ~cancel:_ ~url:_ ~hint:_ ~size:_ ~tmpfile:_ = Lwt.return ()
+    method! stop_monitoring _tmpfile = Lwt.return ()
 
 (* For now, for the unit-tests, fall back to Python.
 
