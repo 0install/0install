@@ -192,7 +192,7 @@ let suite = "fetch">::: [
   "queuing">:: (fun () ->
     Lwt_main.run (
       let log = ref [] in
-      let downloader = new D.downloader Fake_system.null_reporter ~max_downloads_per_site:2 in
+      let downloader = new D.downloader Fake_system.null_ui ~max_downloads_per_site:2 in
 
       let waiting = Hashtbl.create 10 in
 
@@ -260,12 +260,12 @@ let suite = "fetch">::: [
 
   "abort">:: (fun () ->
     Lwt_main.run (
-      let fake_ui =
+      let ui =
         object
-          method start_monitoring ~cancel ~url:_ ~hint:_  ~size:_ ~tmpfile:_ = cancel (); Lwt.return ()
-          method stop_monitoring _ = Lwt.return ()
+          inherit Fake_system.null_ui
+          method! start_monitoring ~cancel ~url:_ ~hint:_  ~size:_ ~tmpfile:_ = cancel (); Lwt.return ()
         end in
-      let downloader = new D.downloader fake_ui ~max_downloads_per_site:2 in
+      let downloader = new D.downloader ui ~max_downloads_per_site:2 in
 
       (* Intercept the download and return a new blocker *)
       let handle_download ?if_slow:_ ?size:_ ?modification_time:_ _ch url =

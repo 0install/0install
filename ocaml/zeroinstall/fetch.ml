@@ -58,7 +58,7 @@ let maybe = function
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
-class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downloader) =
+class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downloader) (ui:Ui.ui_handler) =
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
 
   let key_info_cache = Hashtbl.create 10 in
@@ -301,15 +301,12 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
                 lwt info = info in
                 let root = ZI.make_root "votes" in
                 root.Q.child_nodes <- info |> List.map (fun v -> Q.import_node v root.Q.doc);
-                slave#invoke_async ~xml:root (`List [`String "update-key-info"; `String fingerprint]) ignore
+                ui#update_key_info fingerprint root
               )
         );
-        let request = `List [`String "confirm-keys"; `String feed_url] in
-        slave#invoke_async ~xml request (function
-          | `List confirmed_keys ->
-              confirmed_keys |> List.map Yojson.Basic.Util.to_string |> List.iter (trust_db#trust_key ~domain)
-          | _ -> raise_safe "Invalid response"
-        );
+        lwt confirmed_keys = ui#confirm_keys feed_url xml in
+        confirmed_keys |> List.iter (trust_db#trust_key ~domain);
+        Lwt.return_unit
       )
     ) in
 
@@ -749,12 +746,9 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
       if !package_impls = [] then (
         Lwt.return ()
       ) else (
-        let request = `List [`String "confirm-distro-install"; `List !package_impls] in
-        slave#invoke_async request (function
-          | `String "ok" -> ()
-          | `String "aborted-by-user" -> raise Aborted
-          | _ -> raise_safe "Invalid response"
-        )
+        match_lwt ui#confirm_distro_install !package_impls with
+        | `ok -> Lwt.return_unit
+        | `aborted_by_user -> raise Aborted
       ) in
 
     let zi_tasks = !zi_impls |> List.map download_impl in

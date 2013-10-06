@@ -113,7 +113,7 @@ let make_site max_downloads_per_site =
       )
   end
 
-class downloader (reporter:Ui.progress_reporter) ~max_downloads_per_site =
+class downloader (reporter:Ui.ui_handler) ~max_downloads_per_site =
   let () = Lazy.force init in
   let sites = Hashtbl.create 10 in
 

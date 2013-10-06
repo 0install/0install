@@ -253,7 +253,8 @@ let set_of_option_names opts =
 
 (* Note: call options.slave#close when done. *)
 let get_default_options config =
-  let slave = new Zeroinstall.Python.slave config in {
+  let slave = new Zeroinstall.Python.slave config in
+  let rec options = {
     config;
     slave;
     gui = Maybe;
@@ -261,11 +262,13 @@ let get_default_options config =
     driver = lazy (
       let distro = Zeroinstall.Distro.get_host_distribution config slave in
       let trust_db = new Zeroinstall.Trust.trust_db config in
-      let downloader = new Zeroinstall.Downloader.downloader (Zeroinstall.Python.make_python_ui slave) ~max_downloads_per_site:2 in
-      let fetcher = new Zeroinstall.Fetch.fetcher config trust_db slave downloader in
+      let ui = Zeroinstall.Ui.make_ui slave options.gui in
+      let downloader = new Zeroinstall.Downloader.downloader ui  ~max_downloads_per_site:2 in
+      let fetcher = new Zeroinstall.Fetch.fetcher config trust_db slave downloader ui in
       new Zeroinstall.Driver.driver config fetcher distro slave
     );
-  }
+  } in
+  options
 
 let handle config raw_args =
   let (raw_options, args, complete) = read_args spec raw_args in

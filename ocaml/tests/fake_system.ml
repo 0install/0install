@@ -281,18 +281,23 @@ let forward_to_real_log = ref true
 let real_log = !Support.Logging.handler
 let () = Support.Logging.threshold := Support.Logging.Debug
 
-let null_reporter =
-  object (_ : Zeroinstall.Ui.progress_reporter)
+class null_ui =
+  object (_ : #Zeroinstall.Ui.ui_handler)
     method start_monitoring ~cancel:_ ~url:_ ~hint:_  ~size:_ ~tmpfile:_ = Lwt.return ()
     method stop_monitoring _ = Lwt.return ()
+    method update_key_info _fingerprint _xml = Lwt.return ()
+    method confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" feed_url
+    method confirm_distro_install _package_impls = raise_safe "confirm_distro_install"
   end
+
+let null_ui = new null_ui
 
 let make_driver ?slave ?fetcher config =
   let slave = slave |? lazy (new Zeroinstall.Python.slave config) in
   let distro = new Zeroinstall.Distro.generic_distribution slave in
   let trust_db = new Zeroinstall.Trust.trust_db config in
-  let downloader = new Zeroinstall.Downloader.downloader null_reporter ~max_downloads_per_site:2 in
-  let fetcher = fetcher |? lazy (new Zeroinstall.Fetch.fetcher config trust_db slave downloader) in
+  let downloader = new Zeroinstall.Downloader.downloader null_ui ~max_downloads_per_site:2 in
+  let fetcher = fetcher |? lazy (new Zeroinstall.Fetch.fetcher config trust_db slave downloader null_ui) in
   new Zeroinstall.Driver.driver config fetcher distro slave
 
 let fake_log =
