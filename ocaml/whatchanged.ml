@@ -83,7 +83,7 @@ let show_app_changes options ~full app =
             let argv = ["diff"; "-u"; "--"; get_selections_path previous; get_selections_path current] in
             let child = system#create_process argv Unix.stdin Unix.stdout Unix.stderr in
             flush stdout;
-            match snd @@ system#waitpid [] child with
+            match snd @@ system#waitpid_non_intr child with
             | Unix.WEXITED (0|1) -> ()    (* OK, 1 just means changes found *)
             | x -> Support.System.check_exit_status x
           ) else (
