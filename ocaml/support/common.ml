@@ -79,7 +79,7 @@ class type system =
         @raise Safe_exception if it didn't exit with a status of 0 (success). *)
     method reap_child : ?kill_first:int -> int -> unit
     (** Low-level interface, in case you need to process the exit status yourself. *)
-    method waitpid :Unix.wait_flag list -> int -> (int * Unix.process_status)
+    method waitpid_non_intr : int -> (int * Unix.process_status)
 
     method getenv : varname -> string option
     method environment : string array

@@ -19,8 +19,13 @@ let check_exit_status = function
   | Unix.WSIGNALED signal -> raise_safe "Child aborted (signal %d)" signal
   | Unix.WSTOPPED signal -> raise_safe "Child is currently stopped (signal %d)" signal
 
+(* From Unix.ml (not exported) *)
+let rec waitpid_non_intr pid =
+  try Unix.waitpid [] pid
+  with Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr pid
+
 let reap_child child_pid =
-  check_exit_status @@ snd @@ Unix.waitpid [] child_pid
+  check_exit_status @@ snd @@ waitpid_non_intr child_pid
 
 (** Run [fn ()] in a child process. [fn] will spawn a grandchild process and return without waiting for it.
     The child process then exits, allowing the original parent to reap it and continue, while the grandchild
@@ -153,7 +158,7 @@ module RealSystem (U : UnixType) =
                     match env with
                     | None -> Unix.create_process prog_path argv_array Unix.stdin Unix.stdout Unix.stderr
                     | Some env -> Unix.create_process_env prog_path argv_array env Unix.stdin Unix.stdout Unix.stderr in
-                  match snd (Unix.waitpid [] child_pid) with
+                  match snd (waitpid_non_intr child_pid) with
                   | Unix.WEXITED code -> exit code
                   | _ -> exit 127 in
                 Utils.handle_exceptions run_child []
@@ -238,7 +243,7 @@ module RealSystem (U : UnixType) =
 
         method environment = Unix.environment ()
 
-        method waitpid = Unix.waitpid
+        method waitpid_non_intr = waitpid_non_intr
 
         (** Call [waitpid] to collect the child.
             @raise Safe_exception if it didn't exit with a status of 0 (success). *)
