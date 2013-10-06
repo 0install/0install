@@ -57,8 +57,7 @@ let check_replacement system = function
 
 let check_for_updates options reqs old_sels =
   let driver = Lazy.force options.driver in
-  let new_sels = Zeroinstall.Helpers.solve_and_download_impls driver
-                          reqs `Download_only ~refresh:true ~use_gui:options.gui in
+  let new_sels = Zeroinstall.Helpers.solve_and_download_impls driver reqs `Download_only ~refresh:true in
   match new_sels with
   | None -> raise (System_exit 1)   (* Aborted by user *)
   | Some new_sels ->
@@ -171,23 +170,25 @@ let handle_bg options flags args =
         let new_sels =
           let distro = driver#distro in
           if !need_confirm_keys || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
-            log_info "Background update: trying to use GUI to update %s" name;
-            match Zeroinstall.Gui.get_selections_gui driver `Download_only reqs ~systray:true ~refresh:true ~use_gui:Maybe with
-            | `Aborted_by_user -> raise (System_exit 0)
-            | `Dont_use_GUI when !need_confirm_keys ->
-                let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in
-                notify ~timeout:10 ~msg;
-                log_warning "%s" msg;
-                raise (System_exit 1)
-            | `Dont_use_GUI when not ready ->
-                let msg = Printf.sprintf "Can't update 0install app '%s' (run '0install update %s' to fix)" name name in
-                notify ~timeout:10 ~msg;
-                log_warning "Update of 0install app %s failed: %s" name (Zeroinstall.Diagnostics.get_failure_reason config result);
-                raise (System_exit 1)
-            | `Dont_use_GUI ->
-                log_info "Background update: GUI unavailable; downloading with no UI";
-                Zeroinstall.Helpers.download_selections ~include_packages:true ~feed_provider driver new_sels; new_sels
-            | `Success gui_sels -> gui_sels
+            if driver#ui#use_gui then (
+              log_info "Background update: trying to use GUI to update %s" name;
+              match Zeroinstall.Gui.get_selections_gui driver `Download_only reqs ~systray:true ~refresh:true with
+              | `Aborted_by_user -> raise (System_exit 0)
+              | `Success gui_sels -> gui_sels
+            ) else if !need_confirm_keys then (
+              let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in
+              notify ~timeout:10 ~msg;
+              log_warning "%s" msg;
+              raise (System_exit 1)
+            ) else if not ready then (
+              let msg = Printf.sprintf "Can't update 0install app '%s' (run '0install update %s' to fix)" name name in
+              notify ~timeout:10 ~msg;
+              log_warning "Update of 0install app %s failed: %s" name (Zeroinstall.Diagnostics.get_failure_reason config result);
+              raise (System_exit 1)
+            ) else (
+              log_info "Background update: GUI unavailable; downloading with no UI";
+              Zeroinstall.Helpers.download_selections ~include_packages:true ~feed_provider driver new_sels; new_sels
+            )
           ) else new_sels in
 
         if Q.compare_nodes old_sels new_sels ~ignore_whitespace:true <> 0 then (

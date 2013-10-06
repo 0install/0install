@@ -289,6 +289,7 @@ class null_ui =
     method update_key_info _fingerprint _xml = Lwt.return ()
     method confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" feed_url
     method confirm_distro_install _package_impls = raise_safe "confirm_distro_install"
+    method use_gui = false
   end
 
 let null_ui = lazy (new null_ui)

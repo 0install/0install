@@ -492,12 +492,12 @@ let suite = "0install">::: [
 
     (* But if the feed is modified, we resolve... *)
     system#set_mtime local_copy 300.0;
-    let sels = A.get_selections_may_update driver ~use_gui:No app in
+    let sels = A.get_selections_may_update driver app in
     assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels;
     assert (0.0 <> (A.get_times system app).A.last_solve);
 
     system#set_mtime (app +/ "last-solve") 400.0;
-    let sels = A.get_selections_may_update driver ~use_gui:No app in
+    let sels = A.get_selections_may_update driver app in
     assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
     assert_equal 400.0 (A.get_times system app).A.last_solve;
 
@@ -505,7 +505,7 @@ let suite = "0install">::: [
     Fake_system.collect_logging (fun () ->
       system#unlink local_copy;
       U.touch system (app +/ "last-check-attempt");	(* Prevent background update *)
-      let sels = A.get_selections_may_update driver ~use_gui:No app in
+      let sels = A.get_selections_may_update driver app in
       assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
       assert (400.0 <> (A.get_times system app).A.last_solve);
     );
@@ -517,7 +517,7 @@ let suite = "0install">::: [
     U.copy_file system hello_feed local_copy 0o600;
     Fake_system.collect_logging (fun () ->
       Fake_system.fake_log#reset;
-      ignore @@ A.get_selections_may_update driver ~use_gui:No app
+      ignore @@ A.get_selections_may_update driver app
     );
     let () =
       match Fake_system.fake_log#pop_warnings with
@@ -532,7 +532,7 @@ let suite = "0install">::: [
     );
     system#set_mtime (app +/ "last-solve") 400.0;
 
-    let sels = A.get_selections_may_update driver ~use_gui:No app in
+    let sels = A.get_selections_may_update driver app in
     assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels;
 
     (* If the selections.xml gets deleted, regenerate it *)
@@ -540,6 +540,6 @@ let suite = "0install">::: [
     let fake_slave = new fake_slave config in
     fake_slave#install;
     fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" "";
-    ignore @@ A.get_selections_may_update driver ~use_gui:No app
+    ignore @@ A.get_selections_may_update driver app
   );
 ]

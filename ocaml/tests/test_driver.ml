@@ -140,7 +140,7 @@ let make_driver_test test_elem =
     let () =
       try
         Fake_system.collect_logging (fun () ->
-          let sels = Fake_system.expect @@ Zeroinstall.Helpers.solve_and_download_impls driver !reqs `Select_for_run ~refresh:false ~use_gui:No in
+          let sels = Fake_system.expect @@ Zeroinstall.Helpers.solve_and_download_impls driver !reqs `Select_for_run ~refresh:false in
           if !fails then assert_failure "Expected solve_and_download_impls to fail, but it didn't!";
           let actual_env = ref StringMap.empty in
           let output = trim @@ Fake_system.capture_stdout (fun () ->
@@ -230,7 +230,7 @@ let suite = "driver">::: [
     let reqs = Requirements.({(default_requirements foo_path) with command = None}) in
     let slave = new fake_slave config handler in
     let driver = Fake_system.make_driver ~slave config in
-    let sels = Zeroinstall.Helpers.solve_and_download_impls driver reqs `Select_for_run ~refresh:false ~use_gui:No in
+    let sels = Zeroinstall.Helpers.solve_and_download_impls driver reqs `Select_for_run ~refresh:false in
     assert (sels <> None)
   );
 

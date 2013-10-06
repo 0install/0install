@@ -7,6 +7,11 @@
 open General
 open Support.Common
 
+let string_of_ynm = function
+  | Yes -> "yes"
+  | No -> "no"
+  | Maybe -> "maybe"
+
 class type ui_handler =
   object
     (** A new download has been added (may still be queued).
@@ -29,6 +34,9 @@ class type ui_handler =
 
     (** Ask the user to confirm they are happy to install these distribution packages. *)
     method confirm_distro_install : Yojson.Basic.json list -> [`ok | `aborted_by_user] Lwt.t
+
+    (* A bit hacky: should we use Gui for solve_and_download_impls? *)
+    method use_gui : bool
   end
 
 class python_ui (slave:Python.slave) =
@@ -79,6 +87,8 @@ class python_ui (slave:Python.slave) =
         | `String "aborted-by-user" -> `aborted_by_user
         | _ -> raise_safe "Invalid response"
       )
+
+    method use_gui = false
   end
 
 class console_ui slave =
@@ -105,6 +115,12 @@ class batch_ui slave =
 *)
   end
 
+class gui_ui slave =
+  object
+    inherit python_ui slave
+    method! use_gui = true
+  end
+
 let make_ui config (slave:Python.slave) get_use_gui : ui_handler Lazy.t = lazy (
   let use_gui =
     match get_use_gui (), config.dry_run with
@@ -112,11 +128,21 @@ let make_ui config (slave:Python.slave) get_use_gui : ui_handler Lazy.t = lazy (
     | (Maybe|No), true -> No
     | use_gui, false -> use_gui in
 
+  let make_no_gui () =
+    if config.system#isatty Unix.stderr then
+      new console_ui slave
+    else
+      new batch_ui slave in
+
   match use_gui with
-  | No ->
-      if config.system#isatty Unix.stderr then
-        new console_ui slave
-      else
-        new batch_ui slave
-  | Yes | Maybe -> new python_ui slave
+  | No -> make_no_gui ()
+  | Yes | Maybe ->
+      if config.system#getenv "DISPLAY" = None then (
+        if use_gui = Maybe then make_no_gui ()
+        else raise_safe "Can't use GUI because $DISPLAY is not set"
+      ) else if not (slave#invoke (`List [`String "check-gui"; `String (string_of_ynm use_gui)]) Yojson.Basic.Util.to_bool) then (
+        make_no_gui ()       (* [check-gui] will throw if use_gui is [Yes] *)
+      ) else (
+        new gui_ui slave
+      )
 )

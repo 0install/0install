@@ -14,11 +14,6 @@ module R = Requirements
 module U = Support.Utils
 module Q = Support.Qdom
 
-let string_of_ynm = function
-  | Yes -> "yes"
-  | No -> "no"
-  | Maybe -> "maybe"
-
 let get_impl (feed_provider:Feed_provider.feed_provider) sel =
   let {Feed.id; Feed.feed = from_feed} = Selections.get_id sel in
 
@@ -641,207 +636,196 @@ let compile config feed_provider iface ~autocompile =
  * If Yes, uses the GUI or throws an exception.
  * [test_callback] is used if the user clicks on the test button in the bug report dialog.
  *)
-let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mode reqs ~refresh ~use_gui =
+let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mode reqs ~refresh =
   let config = driver#config in
   let slave = driver#slave in
   let distro = driver#distro in
   let fetcher = driver#fetcher in
-  if use_gui = No then `Dont_use_GUI
-  else if config.dry_run then (
-    if use_gui = Maybe then `Dont_use_GUI
-    else raise_safe "Can't use GUI with --dry-run"
-  ) else if config.system#getenv "DISPLAY" = None then (
-    if use_gui = Maybe then `Dont_use_GUI
-    else raise_safe "Can't use GUI because $DISPLAY is not set"
-  ) else if not (slave#invoke (`List [`String "check-gui"; `String (string_of_ynm use_gui)]) Yojson.Basic.Util.to_bool) then (
-    `Dont_use_GUI       (* [check-gui] will throw if use_gui is [Yes] *)
-  ) else (
-    let feed_provider = ref (new Feed_provider.feed_provider config distro) in
+  let feed_provider = ref (new Feed_provider.feed_provider config distro) in
 
-    let original_solve = Solver.solve_for config !feed_provider reqs in
-    let original_selections =
-      match original_solve with
-      | (false, _) -> StringMap.empty
-      | (true, results) -> Selections.make_selection_map results#get_selections in
+  let original_solve = Solver.solve_for config !feed_provider reqs in
+  let original_selections =
+    match original_solve with
+    | (false, _) -> StringMap.empty
+    | (true, results) -> Selections.make_selection_map results#get_selections in
 
-    let results = ref original_solve in
+  let results = ref original_solve in
 
-    let watcher =
-      object
-        method update ((ready, new_results), new_fp) =
-          feed_provider := new_fp;
-          results := (ready, new_results);
-          Python.async (fun () ->
-            let sels = new_results#get_selections in
-            let tree = build_tree config new_fp original_selections sels in
-            slave#invoke_async ~xml:sels (`List [`String "gui-update-selections"; `Bool ready; tree]) ignore
-          )
+  let watcher =
+    object
+      method update ((ready, new_results), new_fp) =
+        feed_provider := new_fp;
+        results := (ready, new_results);
+        Python.async (fun () ->
+          let sels = new_results#get_selections in
+          let tree = build_tree config new_fp original_selections sels in
+          slave#invoke_async ~xml:sels (`List [`String "gui-update-selections"; `Bool ready; tree]) ignore
+        )
 
-        method report feed_url msg =
-          Python.async (fun () ->
-            let msg = Printf.sprintf "Feed '%s': %s" feed_url msg in
-            log_info "Sending error to GUI: %s" msg;
-            slave#invoke_async (`List [`String "report-error"; `String msg]) ignore
-          )
-      end in
+      method report feed_url msg =
+        Python.async (fun () ->
+          let msg = Printf.sprintf "Feed '%s': %s" feed_url msg in
+          log_info "Sending error to GUI: %s" msg;
+          slave#invoke_async (`List [`String "report-error"; `String msg]) ignore
+        )
+    end in
 
-    let action = match mode with
-    | `Select_only -> "for-select"
-    | `Download_only -> "for-download"
-    | `Select_for_run -> "for-run" in
+  let action = match mode with
+  | `Select_only -> "for-select"
+  | `Download_only -> "for-download"
+  | `Select_for_run -> "for-run" in
 
-    let opts = `Assoc [
-      ("refresh", `Bool refresh);
-      ("action", `String action);
-      ("systray", `Bool systray);
-    ] in
+  let opts = `Assoc [
+    ("refresh", `Bool refresh);
+    ("action", `String action);
+    ("systray", `Bool systray);
+  ] in
 
-    Python.register_handler "download-archives" (function
-      | [] -> (
-          match mode with
-          | `Select_only -> Lwt.return (`String "ok")
-          | `Download_only | `Select_for_run -> download_archives ~feed_provider:!feed_provider driver !results
-      )
-      | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
+  Python.register_handler "download-archives" (function
+    | [] -> (
+        match mode with
+        | `Select_only -> Lwt.return (`String "ok")
+        | `Download_only | `Select_for_run -> download_archives ~feed_provider:!feed_provider driver !results
+    )
+    | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
 
-    Python.register_handler "set-impl-stability" (function
-      | [`String from_feed; `String id; `Null] ->
-          set_impl_stability config !feed_provider from_feed id None
-      | [`String from_feed; `String id; `String level] ->
-          set_impl_stability config !feed_provider from_feed id (Some (F.parse_stability ~from_user:true level))
-      | json -> raise_safe "get-feed-description: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
+  Python.register_handler "set-impl-stability" (function
+    | [`String from_feed; `String id; `Null] ->
+        set_impl_stability config !feed_provider from_feed id None
+    | [`String from_feed; `String id; `String level] ->
+        set_impl_stability config !feed_provider from_feed id (Some (F.parse_stability ~from_user:true level))
+    | json -> raise_safe "get-feed-description: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
 
-    Python.register_handler "get-feed-description" (function
-      | [`String feed_url] -> get_feed_description config !feed_provider feed_url
-      | json -> raise_safe "get-feed-description: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
+  Python.register_handler "get-feed-description" (function
+    | [`String feed_url] -> get_feed_description config !feed_provider feed_url
+    | json -> raise_safe "get-feed-description: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
 
-    Python.register_handler "download-icon" (function
-      | [`String feed_url] -> download_icon config fetcher#downloader !feed_provider feed_url
-      | json -> raise_safe "download-icon: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
+  Python.register_handler "download-icon" (function
+    | [`String feed_url] -> download_icon config fetcher#downloader !feed_provider feed_url
+    | json -> raise_safe "download-icon: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
 
-    Python.register_handler "gui-compile" (function
-      | [`String iface; `Bool autocompile] -> compile config !feed_provider iface ~autocompile
-      | json -> raise_safe "gui-compile: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
+  Python.register_handler "gui-compile" (function
+    | [`String iface; `Bool autocompile] -> compile config !feed_provider iface ~autocompile
+    | json -> raise_safe "gui-compile: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
 
-    Python.register_handler "get-bug-report-details" (function
-      | [] -> Lwt.return (
-          let (ready, results) = !results in
-          let sels = results#get_selections in
-          let details =
+  Python.register_handler "get-bug-report-details" (function
+    | [] -> Lwt.return (
+        let (ready, results) = !results in
+        let sels = results#get_selections in
+        let details =
+          if ready then (
+            let buf = Buffer.create 1000 in
+            Tree.print config (Buffer.add_string buf) sels;
+            Buffer.contents buf
+          ) else (
+            Diagnostics.get_failure_reason config results
+          ) in
+        `Assoc [
+          ("details", `String details);
+          ("xml", `String (Q.to_utf8 sels));
+        ]
+    )
+    | json -> raise_safe "get_bug_report_details: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
+  Python.register_handler "get-component-details" (function
+    | [`String uri] -> Lwt.return (`Assoc (
+        ("may-compile", `Bool (have_source_for !feed_provider uri)) ::
+        ("feeds", `List (list_feeds !feed_provider uri)) ::
+        list_impls config (snd !results) uri
+      );
+    )
+    | json -> raise_safe "get_component_details: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
+  Python.register_handler "justify-decision" (function
+    | [`String iface; `String feed; `String id] ->
+        let reason = Diagnostics.justify_decision config !feed_provider reqs iface F.({feed; id}) in
+        Lwt.return (`String reason)
+    | json -> raise_safe "justify_decision: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
+  (* Used by the add-feed dialog *)
+  Python.register_handler "add-remote-feed" (function
+    | [`String iface; `String feed] -> (
+        match Feed_cache.parse_feed_url feed with
+        | `distribution_feed _ | `local_feed _ -> raise_safe "Not a remote URL: '%s'" feed
+        | `remote_feed _ as url -> add_remote_feed driver iface url
+    )
+    | json -> raise_safe "add-remote-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
+  Python.register_handler "add-local-feed" (function
+    | [`String iface; `String path] -> (
+        match Feed_cache.parse_feed_url path with
+        | `local_feed _ as feed -> add_feed config iface feed; Lwt.return `Null
+        | `remote_feed _ | `distribution_feed _ -> raise_safe "Not a local feed '%s'!" path
+    )
+    | json -> raise_safe "add-local-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
+  Python.register_handler "remove-feed" (function
+    | [`String iface; `String url] ->
+        Feed_cache.parse_non_distro_url url |> remove_feed config iface;
+        Lwt.return `Null
+    | json -> raise_safe "remove-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
+  Python.register_handler "run-test" (function
+    | [] -> (
+        match test_callback with
+        | None -> raise_safe "Can't do a test run - no test callback registered (sorry)"
+        | Some test_callback ->
+            let (ready, results) = !results in
             if ready then (
-              let buf = Buffer.create 1000 in
-              Tree.print config (Buffer.add_string buf) sels;
-              Buffer.contents buf
-            ) else (
-              Diagnostics.get_failure_reason config results
-            ) in
-          `Assoc [
-            ("details", `String details);
-            ("xml", `String (Q.to_utf8 sels));
-          ]
-      )
-      | json -> raise_safe "get_bug_report_details: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
+              let sels = results#get_selections in
+              match Selections.get_unavailable_selections config ~distro sels with
+              | [] ->
+                lwt result = test_callback sels in
+                Lwt.return (`String result)
+              | missing ->
+                  let details =
+                    missing |> List.map (fun sel ->
+                      Printf.sprintf "%s version %s\n  (%s)"
+                        (ZI.get_attribute FeedAttr.interface sel)
+                        (ZI.get_attribute FeedAttr.version sel)
+                        (ZI.get_attribute FeedAttr.id sel)
+                    ) |> String.concat "\n\n- " in
+                  raise_safe "Can't run: the chosen versions have not been downloaded yet. I need:\n\n- %s" details
+            ) else raise_safe "Can't do a test run - solve failed"
+    )
+    | json -> raise_safe "run_test: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
 
-    Python.register_handler "get-component-details" (function
-      | [`String uri] -> Lwt.return (`Assoc (
-          ("may-compile", `Bool (have_source_for !feed_provider uri)) ::
-          ("feeds", `List (list_feeds !feed_provider uri)) ::
-          list_impls config (snd !results) uri
-        );
-      )
-      | json -> raise_safe "get_component_details: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
+  slave#invoke (`List [`String "open-gui"; `String reqs.Requirements.interface_uri; opts]) (function
+    | `List [] -> ()
+    | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json)
+  );
 
-    Python.register_handler "justify-decision" (function
-      | [`String iface; `String feed; `String id] ->
-          let reason = Diagnostics.justify_decision config !feed_provider reqs iface F.({feed; id}) in
-          Lwt.return (`String reason)
-      | json -> raise_safe "justify_decision: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
+  (* This is a bit awkward. Driver calls Solver, which calls Impl_provider, which calls Distro, which needs
+   * to make synchronous calls on the slave. However, Lwt doesn't support nested run loops. Therefore, each time
+   * we need to solve we exit the loop and run the driver, which creates its own loops as needed.
+   * Possible alternatives:
+   * - Make Solver async. But we'd want to put it back again once distro is ported.
+   * - Make Distro delay downloads when invoked via Driver but not when invoked directly. Also messy.
+   *)
+  let rec loop force =
+    let (ready, results, _feed_provider) = driver#solve_with_downloads ~watcher reqs ~force ~update_local:true in
+    let response =
+      slave#invoke (`List [`String "run-gui"]) (function
+        | `List [`String "ok"] -> assert ready; `Success results#get_selections
+        | `List [`String "cancel"] -> `Aborted_by_user
+        | `List [`String "recalculate"; `Bool force] -> `Recalculate force
+        | json -> raise_safe "get_selections_gui: invalid response: %s" (Yojson.Basic.to_string json)
+    ) in
+    match response with
+    | `Recalculate force -> Config.load_config config; loop force
+    | `Aborted_by_user -> `Aborted_by_user
+    | `Success sels -> `Success sels in
 
-    (* Used by the add-feed dialog *)
-    Python.register_handler "add-remote-feed" (function
-      | [`String iface; `String feed] -> (
-          match Feed_cache.parse_feed_url feed with
-          | `distribution_feed _ | `local_feed _ -> raise_safe "Not a remote URL: '%s'" feed
-          | `remote_feed _ as url -> add_remote_feed driver iface url
-      )
-      | json -> raise_safe "add-remote-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
-
-    Python.register_handler "add-local-feed" (function
-      | [`String iface; `String path] -> (
-          match Feed_cache.parse_feed_url path with
-          | `local_feed _ as feed -> add_feed config iface feed; Lwt.return `Null
-          | `remote_feed _ | `distribution_feed _ -> raise_safe "Not a local feed '%s'!" path
-      )
-      | json -> raise_safe "add-local-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
-
-    Python.register_handler "remove-feed" (function
-      | [`String iface; `String url] ->
-          Feed_cache.parse_non_distro_url url |> remove_feed config iface;
-          Lwt.return `Null
-      | json -> raise_safe "remove-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
-
-    Python.register_handler "run-test" (function
-      | [] -> (
-          match test_callback with
-          | None -> raise_safe "Can't do a test run - no test callback registered (sorry)"
-          | Some test_callback ->
-              let (ready, results) = !results in
-              if ready then (
-                let sels = results#get_selections in
-                match Selections.get_unavailable_selections config ~distro sels with
-                | [] ->
-                  lwt result = test_callback sels in
-                  Lwt.return (`String result)
-                | missing ->
-                    let details =
-                      missing |> List.map (fun sel ->
-                        Printf.sprintf "%s version %s\n  (%s)"
-                          (ZI.get_attribute FeedAttr.interface sel)
-                          (ZI.get_attribute FeedAttr.version sel)
-                          (ZI.get_attribute FeedAttr.id sel)
-                      ) |> String.concat "\n\n- " in
-                    raise_safe "Can't run: the chosen versions have not been downloaded yet. I need:\n\n- %s" details
-              ) else raise_safe "Can't do a test run - solve failed"
-      )
-      | json -> raise_safe "run_test: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    );
-
-    slave#invoke (`List [`String "open-gui"; `String reqs.Requirements.interface_uri; opts]) (function
-      | `List [] -> ()
-      | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json)
-    );
-
-    (* This is a bit awkward. Driver calls Solver, which calls Impl_provider, which calls Distro, which needs
-     * to make synchronous calls on the slave. However, Lwt doesn't support nested run loops. Therefore, each time
-     * we need to solve we exit the loop and run the driver, which creates its own loops as needed.
-     * Possible alternatives:
-     * - Make Solver async. But we'd want to put it back again once distro is ported.
-     * - Make Distro delay downloads when invoked via Driver but not when invoked directly. Also messy.
-     *)
-    let rec loop force =
-      let (ready, results, _feed_provider) = driver#solve_with_downloads ~watcher reqs ~force ~update_local:true in
-      let response =
-        slave#invoke (`List [`String "run-gui"]) (function
-          | `List [`String "ok"] -> assert ready; `Success results#get_selections
-          | `List [`String "cancel"] -> `Aborted_by_user
-          | `List [`String "recalculate"; `Bool force] -> `Recalculate force
-          | json -> raise_safe "get_selections_gui: invalid response: %s" (Yojson.Basic.to_string json)
-      ) in
-      match response with
-      | `Recalculate force -> Config.load_config config; loop force
-      | `Aborted_by_user -> `Aborted_by_user
-      | `Success sels -> `Success sels in
-
-    loop refresh
-  )
+  loop refresh

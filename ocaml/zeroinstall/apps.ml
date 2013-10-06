@@ -118,9 +118,9 @@ let set_selections config app_path sels ~touch_last_checked =
 
 (* We can't run with saved selections or solved selections without downloading.
    Try to open the GUI for a blocking download. If we can't do that, download without the GUI. *)
-let foreground_update driver ~use_gui app_path reqs =
+let foreground_update driver app_path reqs =
   log_info "App '%s' needs to get new selections; current ones are not usable" app_path;
-  match Helpers.solve_and_download_impls driver reqs `Download_only ~use_gui ~refresh:true with
+  match Helpers.solve_and_download_impls driver reqs `Download_only ~refresh:true with
   | None -> raise_safe "Aborted by user"
   | Some sels ->
       set_selections driver#config app_path sels ~touch_last_checked:true;
@@ -152,7 +152,7 @@ let get_times system app =
     - without downloading => switch to the new selections now
     - with downloading => use current selections, update in the background
 *)
-let check_for_updates driver ~use_gui app_path sels =
+let check_for_updates driver app_path sels =
   let config = driver#config in
   let system = config.system in
   let last_solve_path = app_path +/ "last-solve" in
@@ -213,7 +213,7 @@ let check_for_updates driver ~use_gui app_path sels =
               if system#file_exists last_solve_path && not config.dry_run then
                 system#unlink last_solve_path;
 
-              foreground_update driver ~use_gui app_path reqs
+              foreground_update driver app_path reqs
             ) else (
               (* Continue with the current (cached) selections while we download *)
               want_bg_update := true;
@@ -240,16 +240,16 @@ let check_for_updates driver ~use_gui app_path sels =
   ) else sels
 
 (** If [driver] is [None] then we don't check for updates. *)
-let get_selections_internal system ?driver ~use_gui app_path =
+let get_selections_internal system ?driver app_path =
   let sels_path = app_path +/ "selections.xml" in
   if Sys.file_exists sels_path then
     let sels = Selections.load_selections system sels_path in
     match driver with
     | None -> sels
-    | Some driver -> check_for_updates driver ~use_gui app_path sels
+    | Some driver -> check_for_updates driver app_path sels
   else
     match driver with
-    | Some driver -> foreground_update driver ~use_gui app_path (get_requirements system app_path)
+    | Some driver -> foreground_update driver app_path (get_requirements system app_path)
     | None -> raise_safe "App selections missing! Expected: %s" sels_path
 
 let list_app_names config =
@@ -265,10 +265,10 @@ let list_app_names config =
   List.iter scan_dir config.basedirs.Basedir.config;
   StringSet.elements !apps
 
-let get_selections_may_update driver ~use_gui app_path =
-  get_selections_internal driver#config.system ~driver ~use_gui app_path
+let get_selections_may_update driver app_path =
+  get_selections_internal driver#config.system ~driver app_path
 
-let get_selections_no_updates config app_path = get_selections_internal config ~use_gui:No app_path
+let get_selections_no_updates config app_path = get_selections_internal config app_path
 
 let set_requirements config path req =
   let reqs_file = path +/ "requirements.json" in
