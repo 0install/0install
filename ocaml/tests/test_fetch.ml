@@ -265,7 +265,7 @@ let suite = "fetch">::: [
           inherit Fake_system.null_ui
           method! start_monitoring ~cancel ~url:_ ~hint:_  ~size:_ ~tmpfile:_ = cancel (); Lwt.return ()
         end in
-      let downloader = new D.downloader ui ~max_downloads_per_site:2 in
+      let downloader = new D.downloader (lazy ui) ~max_downloads_per_site:2 in
 
       (* Intercept the download and return a new blocker *)
       let handle_download ?if_slow:_ ?size:_ ?modification_time:_ _ch url =

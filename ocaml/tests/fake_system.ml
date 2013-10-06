@@ -291,7 +291,7 @@ class null_ui =
     method confirm_distro_install _package_impls = raise_safe "confirm_distro_install"
   end
 
-let null_ui = new null_ui
+let null_ui = lazy (new null_ui)
 
 let make_driver ?slave ?fetcher config =
   let slave = slave |? lazy (new Zeroinstall.Python.slave config) in

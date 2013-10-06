@@ -4,6 +4,7 @@
 
 (** Common types for user interface callbacks *)
 
+open General
 open Support.Common
 
 class type ui_handler =
@@ -104,11 +105,18 @@ class batch_ui slave =
 *)
   end
 
-let make_ui (system:system) (slave:Python.slave) use_gui : ui_handler =
+let make_ui config (slave:Python.slave) get_use_gui : ui_handler Lazy.t = lazy (
+  let use_gui =
+    match get_use_gui (), config.dry_run with
+    | Yes, true -> raise_safe "Can't use GUI with --dry-run"
+    | (Maybe|No), true -> No
+    | use_gui, false -> use_gui in
+
   match use_gui with
   | No ->
-      if system#isatty Unix.stderr then
+      if config.system#isatty Unix.stderr then
         new console_ui slave
       else
         new batch_ui slave
   | Yes | Maybe -> new python_ui slave
+)

@@ -58,7 +58,7 @@ let maybe = function
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
-class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downloader) (ui:Ui.ui_handler) =
+class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downloader) (ui:Ui.ui_handler Lazy.t) =
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
 
   let key_info_cache = Hashtbl.create 10 in
@@ -289,6 +289,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
       if (List.exists is_trusted valid_sigs) then Lwt.return ()
       else (
         let xml = ZI.make_root "votes" in
+        let ui = Lazy.force ui in
         key_infos |> List.iter (fun (fingerprint, info) ->
           let elem = ZI.insert_first "result" xml in
           Q.set_attribute "fingerprint" fingerprint elem;
@@ -746,7 +747,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
       if !package_impls = [] then (
         Lwt.return ()
       ) else (
-        match_lwt ui#confirm_distro_install !package_impls with
+        match_lwt (Lazy.force ui)#confirm_distro_install !package_impls with
         | `ok -> Lwt.return_unit
         | `aborted_by_user -> raise Aborted
       ) in

@@ -8,7 +8,7 @@ type fetch_feed_response =
   | `problem of (string * fetch_feed_response Lwt.t option)    (* Report a problem (but may still succeed later) *)
   | `no_update ]            (* Use the previous version *)
 
-class fetcher : General.config -> Trust.trust_db -> Python.slave -> Downloader.downloader -> Ui.ui_handler ->
+class fetcher : General.config -> Trust.trust_db -> Python.slave -> Downloader.downloader -> Ui.ui_handler Lazy.t ->
   object
     method download_and_import_feed : [ `remote_feed of General.feed_url ] -> fetch_feed_response Lwt.t
     method download_impls : Feed.implementation list -> [ `success | `aborted_by_user ] Lwt.t

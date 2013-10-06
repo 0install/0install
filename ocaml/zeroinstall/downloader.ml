@@ -113,7 +113,7 @@ let make_site max_downloads_per_site =
       )
   end
 
-class downloader (reporter:Ui.ui_handler) ~max_downloads_per_site =
+class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
   let () = Lazy.force init in
   let sites = Hashtbl.create 10 in
 
@@ -154,6 +154,8 @@ class downloader (reporter:Ui.ui_handler) ~max_downloads_per_site =
             if target = url then raise_safe "Redirection loop getting '%s'" url
             else if redirs_left > 0 then loop (redirs_left - 1) target
             else raise_safe "Too many redirections (next: %s)" target in
+
+      let reporter = Lazy.force reporter in
 
       (* Cancelling:
        * ocurl is missing OPENSOCKETFUNCTION, but we can get close by closing tmpfile so that it
