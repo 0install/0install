@@ -830,7 +830,6 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
      * - Make Distro delay downloads when invoked via Driver but not when invoked directly. Also messy.
      *)
     let rec loop force =
-      let driver = new Driver.driver config fetcher distro slave in
       let (ready, results, _feed_provider) = driver#solve_with_downloads ~watcher reqs ~force ~update_local:true in
       let response =
         slave#invoke (`List [`String "run-gui"]) (function

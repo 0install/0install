@@ -17,12 +17,13 @@ type watcher = <
   report : General.feed_url -> string -> unit;
 >
 
-class driver : General.config -> Fetch.fetcher -> Distro.distribution -> Python.slave ->
+class driver : General.config -> Fetch.fetcher -> Distro.distribution -> Ui.ui_handler Lazy.t -> Python.slave ->
   object
     method config : General.config
     method distro : Distro.distribution
     method fetcher : Fetch.fetcher
     method slave : Python.slave
+    method ui : Ui.ui_handler
 
     (** Find the best selections for these requirements and return them if available without downloading. 
      * Returns None if we need to refresh feeds or download any implementations. *)

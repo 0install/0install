@@ -38,7 +38,7 @@ let find_zi_impl feed_provider id feed_url =
   let (feed, _) = feed_provider#get_feed url |? lazy (raise Not_found) in
   StringMap.find id feed.Feed.implementations
 
-class driver config (fetcher:Fetch.fetcher) distro (slave:Python.slave) =
+class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (slave:Python.slave) =
   object (self)
     method solve_with_downloads ?(watcher:watcher option) requirements
                                 ~force ~update_local : (bool * Solver.result * Feed_provider.feed_provider) =
@@ -291,4 +291,5 @@ class driver config (fetcher:Fetch.fetcher) distro (slave:Python.slave) =
     method config = config
     method distro = distro
     method slave = slave
+    method ui = Lazy.force ui
   end

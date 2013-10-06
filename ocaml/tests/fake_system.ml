@@ -299,7 +299,7 @@ let make_driver ?slave ?fetcher config =
   let trust_db = new Zeroinstall.Trust.trust_db config in
   let downloader = new Zeroinstall.Downloader.downloader null_ui ~max_downloads_per_site:2 in
   let fetcher = fetcher |? lazy (new Zeroinstall.Fetch.fetcher config trust_db slave downloader null_ui) in
-  new Zeroinstall.Driver.driver config fetcher distro slave
+  new Zeroinstall.Driver.driver config fetcher distro null_ui slave
 
 let fake_log =
   object (_ : #Support.Logging.handler)

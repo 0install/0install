@@ -265,7 +265,7 @@ let get_default_options config =
       let ui = Zeroinstall.Ui.make_ui config slave (fun () -> options.gui) in
       let downloader = new Zeroinstall.Downloader.downloader ui  ~max_downloads_per_site:2 in
       let fetcher = new Zeroinstall.Fetch.fetcher config trust_db slave downloader ui in
-      new Zeroinstall.Driver.driver config fetcher distro slave
+      new Zeroinstall.Driver.driver config fetcher distro ui slave
     );
   } in
   options
