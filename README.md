@@ -76,15 +76,41 @@ To try 0install without installing:
 ### Windows installation
 
 A Windows binary of 0install is available at [0install.de](http://0install.de/?lang=en).
-If you want to compile from source on Windows you'll need:
+
+Warning: I know very little about Windows. These instructions are the result of many hours of random trial-and-error and Google searches. Please help improve things here if you can.
+
+If you want to compile from source on Windows you'll need to install quite a few things manually:
 
 - [OCaml 4.0.1 Windows Installer](http://protz.github.io/ocaml-installer/)
-- Various Cygwin packages: mingw64-i686-gcc-core, mingw-i686-headers and make, at least.
-- Xmlm
-- Yojson (and its dependencies: Cppo, Easy-format, Biniou)
-- Lwt (and its dependency React)
+- [Cygwin](http://www.cygwin.com/) and various of its packages: mingw64-i686-gcc-core, mingw-i686-headers and make, at least (make sure /cygdrive/c/MinGW/bin is in $PATH)
+- [Xmlm](http://erratique.ch/software/xmlm)
+- [Yojson] (http://mjambon.com/yojson.html) (and its dependencies: Cppo, Easy-format, Biniou)
+- [Lwt](http://ocsigen.org/lwt/) (and its dependency React)
+- [extlib](http://code.google.com/p/ocaml-extlib/) - if you get "ocamlfind: extLib.lib: No such file or directory", modify install.ml to use the "Unix" extensions for "Win32" too.
+- [openssl](http://www.openssl.org/)
+  1. Use `cp -Lr openssl copy` to turn all symlinks into regular files.
+  2. `perl Configure mingw shared --prefix=C:/OCaml` in `copy`.
+  3. `cp -Lr copy copy2` to turn all symlinks into regular files again.
+  4. `make` and `make install` inside `copy2`.
+- [ocaml-ssl](http://sourceforge.net/projects/savonet/files/ocaml-ssl/) - use `./configure LDFLAGS=-LC:/OCaml/lib CFLAGS=-IC:/OCaml/include`.
+- [libcurl](http://curl.haxx.se/download.html):
+  1. Edit each Makefile.m32 to say `OPENSSL_PATH = c:/OCaml`.
+  2. Build with `mingw32-make.exe mingw32-ssl`.
+  3. Copy `lib/libcurl.a` to `c:/OCaml/lib`.
+- [ocurl](http://sourceforge.net/projects/ocurl/) - these steps worked for me:
+  1. There's no curl-config, so edit `configure` to use:
 
-To build under Cygwin:
+             CURLDIR=-Ic:/OCaml/lib
+             CURLFLAGS="-lcurl -ccopt -lssl -ccopt -lcrypto -ccopt -lwldap32"
+             CURLLIBS=
+
+             CFLAGS="$CURLDIR -DCURL_STATICLIB -Ic:/OCaml/include"
+  2. `./configure`
+  3. Edit Makefile to set `FINDLIB = ocamlfind`.
+  4. `curl.h` seems to redefine `interface`, so rename all ocurrances in `curl-helper.c` to `interface_`.
+  5. `make` and `make install`.
+
+Then, to build 0install under Cygwin:
 
     cd ocaml
     make
