@@ -42,6 +42,42 @@ let parse_xml s =
   let root = `String (0, s) |> Xmlm.make_input |> Q.parse_input None in
   List.hd root.Q.child_nodes
 
+let make_dl_tester () =
+  let log = ref [] in
+  let downloader = new D.downloader Fake_system.null_ui ~max_downloads_per_site:2 in
+  let waiting = Hashtbl.create 10 in
+
+  (* Intercept the download and return a new blocker *)
+  let handle_download ?if_slow:_ ?size:_ ?modification_time:_ _ch url =
+    let blocker, waker = Lwt.wait () in
+    log_info "Starting download of '%s'" url;
+    log := url :: !log;
+    Hashtbl.add waiting url waker;
+    blocker in
+
+  object
+    method download url =
+      D.interceptor := Some handle_download;
+      (* Request the download *)
+      let switch = Lwt_switch.create () in
+      let result =
+        try_lwt
+          match_lwt downloader#download ~switch ~hint:"testing" url with
+          | `tmpfile _ -> Lwt.return `success
+          | (`aborted_by_user | `network_failure _) as x -> Lwt.return x
+        finally
+          Lwt_switch.turn_off switch in
+      result
+
+    method wake url result =
+      let waker = Hashtbl.find waiting url in
+      Lwt.wakeup waker result
+
+    method expect urls =
+      Fake_system.equal_str_lists urls (List.rev !log);
+      log := []
+  end
+
 let suite = "fetch">::: [
   "download-local">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     let driver = Fake_system.make_driver config in
@@ -191,70 +227,53 @@ let suite = "fetch">::: [
 
   "queuing">:: (fun () ->
     Lwt_main.run (
-      let log = ref [] in
-      let downloader = new D.downloader Fake_system.null_ui ~max_downloads_per_site:2 in
+      let tester = make_dl_tester () in
 
-      let waiting = Hashtbl.create 10 in
-
-      (* Intercept the download and return a new blocker *)
-      let handle_download ?if_slow:_ ?size:_ ?modification_time:_ _ch url =
-        let blocker, waker = Lwt.wait () in
-        log_info "Starting download of '%s'" url;
-        log := url :: !log;
-        Hashtbl.add waiting url waker;
-        blocker in
-      D.interceptor := Some handle_download;
-
-      let download url =
-        (* Request the download *)
-        let switch = Lwt_switch.create () in
-        let result =
-          try_lwt
-            match_lwt downloader#download ~switch ~hint:"testing" url with
-            | `tmpfile _ -> Lwt.return `success
-            | (`aborted_by_user | `network_failure _) as x -> Lwt.return x
-          finally
-            Lwt_switch.turn_off switch in
-        result in
-
-      let r1 = download "http://example.com/example1" in
-      let r2 = download "http://example.com/example2" in
-      let r3 = download "http://example.com/example3" in
-      let r4 = download "http://example.com:8080/example4" in
-      let r5 = download "http://example.com/example5" in
-
-      let wake url result =
-        let waker = Hashtbl.find waiting url in
-        Lwt.wakeup waker result in
+      let r1 = tester#download "http://example.com/example1" in
+      let r2 = tester#download "http://example.com/example2" in
+      let r3 = tester#download "http://example.com/example3" in
+      let r4 = tester#download "http://example.com:8080/example4" in
+      let r5 = tester#download "http://example.com/example5" in
 
       (* r3, r5 are queued as r1, r2 are downloading from the same site. r4 is fine. *)
-      wake "http://example.com:8080/example4" `success;
-      Fake_system.equal_str_lists
-        ["http://example.com/example1"; "http://example.com/example2"; "http://example.com:8080/example4"]
-        (List.rev !log);
-      log := [];
+      tester#wake "http://example.com:8080/example4" `success;
+      tester#expect ["http://example.com/example1"; "http://example.com/example2"; "http://example.com:8080/example4"];
       lwt r4 = r4 in assert_equal `success r4;
 
       (* r1 succeeds, allowing r3 to start *)
-      wake "http://example.com/example1" `success;
+      tester#wake "http://example.com/example1" `success;
       lwt r1 = r1 in assert_equal `success r1;
 
-      Fake_system.equal_str_lists ["http://example.com/example3"] (List.rev !log);
-      log := [];
-      wake "http://example.com/example3" `success;
+      tester#expect ["http://example.com/example3"];
+      tester#wake "http://example.com/example3" `success;
       lwt r3 = r3 in assert_equal `success r3;
 
       (* r2 gets redirected and goes back on the end of the queue, allowing r5 to run. *)
-      wake "http://example.com/example2" @@ `redirect "http://example.com/redirected";
-      Fake_system.equal_str_lists ["http://example.com/example5"; "http://example.com/redirected"] (List.rev !log);
+      tester#wake "http://example.com/example2" @@ `redirect "http://example.com/redirected";
+      tester#expect ["http://example.com/example5"; "http://example.com/redirected"];
 
       (* r5 fails, allowing r2 to complete *)
-      wake "http://example.com/example5" @@ `network_failure "404";
-      wake "http://example.com/redirected" `success;
+      tester#wake "http://example.com/example5" @@ `network_failure "404";
+      tester#wake "http://example.com/redirected" `success;
       lwt r5 = r5 in assert_equal (`network_failure "404") r5;
       lwt r2 = r2 in assert_equal `success r2;
 
       Lwt.return ()
+    )
+  );
+
+  "redirect">:: (fun () ->
+    Lwt_main.run (
+      let tester = make_dl_tester () in
+
+      let r1 = tester#download "http://example.com/example1" in
+      tester#wake "http://example.com/example1" (`redirect "file://localhost/etc/passwd");
+      try_lwt
+        lwt _ = r1 in
+        assert false
+      with Safe_exception (msg, _) ->
+        Fake_system.assert_str_equal "Invalid scheme in URL 'file://localhost/etc/passwd'" msg;
+        Lwt.return ()
     )
   );
 

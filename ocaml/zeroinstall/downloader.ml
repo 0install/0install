@@ -92,6 +92,11 @@ let make_site max_downloads_per_site =
 
   object
     method schedule_download ?if_slow ?size ?modification_time ch url =
+      log_info "schedule_download %s" url;
+      if not (List.exists (U.starts_with url) ["http://"; "https://"; "ftp://"]) then (
+        raise_safe "Invalid scheme in URL '%s'" url
+      );
+
       Lwt_pool.use pool (fun connection ->
         match !interceptor with
         | Some interceptor ->
@@ -126,10 +131,6 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
      *)
     method download ?switch ?modification_time ?if_slow ?size ~hint url : download_result Lwt.t =
       log_info "Downloading URL '%s'... (for %s)" url hint;
-
-      if not (List.exists (U.starts_with url) ["http://"; "https://"; "ftp://"]) then (
-        raise_safe "Invalid scheme in URL '%s'" url
-      );
 
       let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
       Lwt_switch.add_hook switch (fun () -> Unix.unlink tmpfile |> Lwt.return);
