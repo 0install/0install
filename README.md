@@ -85,7 +85,7 @@ If you want to compile from source on Windows you'll need to install quite a few
 - [Cygwin](http://www.cygwin.com/) and various of its packages: mingw64-i686-gcc-core, mingw-i686-headers and make, at least (make sure /cygdrive/c/MinGW/bin is in $PATH)
 - [Xmlm](http://erratique.ch/software/xmlm)
 - [Yojson] (http://mjambon.com/yojson.html) (and its dependencies: Cppo, Easy-format, Biniou)
-- [Lwt](http://ocsigen.org/lwt/) (and its dependency React)
+- [Lwt](http://ocsigen.org/lwt/) (and its dependency React). You'll also need to apply [this EPIPE fix](https://github.com/ocsigen/lwt/issues/20)
 - [extlib](http://code.google.com/p/ocaml-extlib/) - if you get "ocamlfind: extLib.lib: No such file or directory", modify install.ml to use the "Unix" extensions for "Win32" too.
 - [openssl](http://www.openssl.org/)
   1. Use `cp -Lr openssl copy` to turn all symlinks into regular files.
