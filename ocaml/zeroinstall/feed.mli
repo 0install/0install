@@ -11,7 +11,7 @@ module AttrMap : (Map.S with type key = AttrType.t)
 
 (** A globally-unique identifier for an implementation. *)
 type global_id = {
-  feed : General.feed_url;
+  feed : Feed_url.parsed_feed_url;
   id : string;
 }
 
@@ -80,7 +80,7 @@ type feed_type =
   | Distro_packages         (* Found in native_feeds : don't save *)
 
 type feed_import = {
-  feed_src : General.feed_url;
+  feed_src : Feed_url.non_distro_feed;
 
   feed_os : string option;          (* All impls requires this OS *)
   feed_machine : string option;     (* All impls requires this CPU *)
@@ -89,7 +89,7 @@ type feed_import = {
 }
 
 type feed = {
-  url : General.feed_url;
+  url : Feed_url.non_distro_feed;
   root : Support.Qdom.element;
   name : string;
   implementations : implementation Support.Common.StringMap.t;
@@ -126,10 +126,9 @@ val is_source : implementation -> bool
 val get_command_opt : string -> command Support.Common.StringMap.t -> command option
 val get_command_ex : implementation -> string -> command
 
-val load_feed_overrides : General.config -> General.feed_url -> feed_overrides
-val save_feed_overrides : General.config -> General.feed_url -> feed_overrides -> unit
-val update_last_checked_time : General.config -> General.feed_url -> unit
-val get_distro_feed : feed -> General.feed_url option
+val load_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides
+val save_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides -> unit
+val update_last_checked_time : General.config -> [< `remote_feed of General.feed_url] -> unit
 val get_langs : implementation -> Support.Locale.lang_spec list
 val is_available_locally : General.config -> implementation -> bool
 val is_retrievable_without_network : cache_impl -> bool
@@ -139,4 +138,4 @@ val get_description : int Support.Locale.LangMap.t -> feed -> string option
 
 (** The <feed-for> elements' interfaces *)
 val get_feed_targets : feed -> General.iface_uri list
-val make_user_import : [< `local_feed of Support.Common.filepath | `remote_feed of General.feed_url ] -> feed_import
+val make_user_import : [<`local_feed of Support.Common.filepath | `remote_feed of General.feed_url] -> feed_import

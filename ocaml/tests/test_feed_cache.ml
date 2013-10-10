@@ -11,13 +11,13 @@ module U = Support.Utils
 module G = Support.Gpg
 module Basedir = Support.Basedir
 
-let cache_path_for config url = Feed_cache.get_save_cache_path config (`remote_feed url)
+let cache_path_for config url = Feed_cache.get_save_cache_path config url
 
 let suite = "feed-cache">::: [
   "is-stale">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
 
-    let url = "http://localhost:8000/Hello" in
+    let url = `remote_feed "http://localhost:8000/Hello" in
 
     fake_system#add_file (cache_path_for config url) (Test_0install.feed_dir +/ "Hello");
 
@@ -33,21 +33,22 @@ let suite = "feed-cache">::: [
     assert (Feed_cache.is_stale one_second url);
     assert (not (Feed_cache.is_stale long url));
     assert (not (Feed_cache.is_stale never url));
-    Feed_cache.mark_as_checking config (`remote_feed url);
+    Feed_cache.mark_as_checking config url;
     assert (not (Feed_cache.is_stale one_second url))
   );
 
   "check-attempt">:: Fake_system.with_fake_config (fun (config, fake_system) ->
-    assert_equal None @@ Feed_cache.get_last_check_attempt config "http://foo/bar.xml";
+    let bar = `remote_feed "http://foo/bar.xml" in
+    assert_equal None @@ Feed_cache.get_last_check_attempt config bar;
 
     fake_system#set_time 100.0;
-    Feed_cache.mark_as_checking config (`remote_feed "http://foo/bar.xml");
+    Feed_cache.mark_as_checking config bar;
     let () =
-      match Feed_cache.get_last_check_attempt config "http://foo/bar.xml" with
+      match Feed_cache.get_last_check_attempt config bar with
       | Some 100.0 -> ()
       | _ -> assert false in
 
-    assert_equal None @@ Feed_cache.get_last_check_attempt config "http://foo/bar2.xml"
+    assert_equal None @@ Feed_cache.get_last_check_attempt config (`remote_feed "http://foo/bar2.xml")
   );
 
   "check-signed">:: Fake_system.with_fake_config (fun (config, _fake_system) ->

@@ -21,7 +21,7 @@ module AttrMap = Map.Make(AttrType)
 
 (** A globally-unique identifier for an implementation. *)
 type global_id = {
-  feed : feed_url;
+  feed : Feed_url.parsed_feed_url;
   id : string;
 }
 
@@ -117,7 +117,7 @@ type feed_type =
   | Distro_packages         (* Found in native_feeds : don't save *)
 
 type feed_import = {
-  feed_src : string;
+  feed_src : Feed_url.non_distro_feed;
 
   feed_os : string option;          (* All impls requires this OS *)
   feed_machine : string option;     (* All impls requires this CPU *)
@@ -126,7 +126,7 @@ type feed_import = {
 }
 
 type feed = {
-  url : string;
+  url : Feed_url.non_distro_feed;
   root : Qdom.element;
   name : string;
   implementations : implementation StringMap.t;
@@ -341,7 +341,7 @@ let parse system root feed_local_path =
     | Some langs -> Some (Str.split U.re_space langs) in
 
     {
-      feed_src = normalise_url (ZI.get_attribute FeedAttr.src node) node;
+      feed_src = Feed_url.parse_non_distro @@ normalise_url (ZI.get_attribute FeedAttr.src node) node;
       feed_os;
       feed_machine;
       feed_langs;
@@ -521,7 +521,7 @@ let parse system root feed_local_path =
   process_group root_state root;
 
   {
-    url;
+    url = Feed_url.parse_non_distro url;
     name = (
       match !name with
       | None -> Qdom.raise_elem "Missing <name> in" root
@@ -551,8 +551,9 @@ let get_command_ex impl command_name : command =
 (** Load per-feed extra data (last-checked time and preferred stability.
     Probably we should use a simple timestamp file for the last-checked time and attach
     the stability ratings to the interface, not the feed. *)
-let load_feed_overrides config url =
+let load_feed_overrides config feed_url =
   let open Support.Basedir in
+  let url = Feed_url.format_url feed_url in
   match load_first config.system (config_site +/ config_prog +/ "feeds" +/ Escape.pretty url) config.basedirs.config with
   | None -> { last_checked = None; user_stability = StringMap.empty }
   | Some path ->
@@ -574,7 +575,7 @@ let load_feed_overrides config url =
 
       { last_checked; user_stability = !stability; }
 
-let save_feed_overrides config url overrides =
+let save_feed_overrides config feed_url overrides =
   let module B = Support.Basedir in
   let {last_checked; user_stability} = overrides in
   let feeds = B.save_path config.system (config_site +/ config_prog +/ "feeds") config.basedirs.B.config in
@@ -590,6 +591,7 @@ let save_feed_overrides config url overrides =
     Qdom.set_attribute FeedAttr.id id impl;
     Qdom.set_attribute FeedConfigAttr.user_stability (format_stability stability) impl
   );
+  let url = Feed_url.format_url feed_url in
   config.system#atomic_write [Open_wronly; Open_binary] (feeds +/ Escape.pretty url) ~mode:0o644 (fun ch ->
     Qdom.output (`Channel ch |> Xmlm.make_output) root;
   )
@@ -597,15 +599,6 @@ let save_feed_overrides config url overrides =
 let update_last_checked_time config url =
   let overrides = load_feed_overrides config url in
   save_feed_overrides config url {overrides with last_checked = Some config.system#time}
-
-(** Does this feed contain any <pacakge-implementation> elements?
-    i.e. is it worth asking the package manager for more information?
-    If so, return the virtual feed's URL. *)
-let get_distro_feed feed =
-  if feed.package_implementations <> [] then
-    Some ("distribution:" ^ feed.url)
-  else
-    None
 
 (** The list of languages provided by this implementation. *)
 let get_langs impl =
@@ -631,7 +624,9 @@ let is_retrievable_without_network cache_impl =
     | None -> false in
   List.exists ok_without_network cache_impl.retrieval_methods
 
-let get_id impl = {feed = get_attr_ex FeedAttr.from_feed impl; id = get_attr_ex FeedAttr.id impl}
+let get_id impl =
+  let feed_url = get_attr_ex FeedAttr.from_feed impl in
+  {feed = Feed_url.parse feed_url; id = get_attr_ex FeedAttr.id impl}
 
 let get_text tag langs feed =
   let best = ref None in
@@ -653,9 +648,8 @@ let get_feed_targets feed =
     ZI.get_attribute FeedAttr.interface feed_for
   )
 
-let make_user_import feed =
-  let (`remote_feed feed_src | `local_feed feed_src) = feed in {
-  feed_src;
+let make_user_import feed_src = {
+  feed_src = (feed_src :> Feed_url.non_distro_feed);
   feed_os = None;
   feed_machine = None;
   feed_langs = None;

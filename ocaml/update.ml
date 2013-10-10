@@ -53,7 +53,7 @@ let check_replacement system = function
       match feed.F.replacement with
       | None -> ()
       | Some replacement ->
-          Support.Utils.print system "Warning: interface %s has been replaced by %s" feed.F.url replacement
+          Support.Utils.print system "Warning: interface %s has been replaced by %s" (Zeroinstall.Feed_url.format_url feed.F.url) replacement
 
 let check_for_updates options reqs old_sels =
   let driver = Lazy.force options.driver in
@@ -65,7 +65,7 @@ let check_for_updates options reqs old_sels =
       let system = config.system in
       let print fmt = Support.Utils.print system fmt in
       let feed_provider = new Zeroinstall.Feed_provider.feed_provider options.config driver#distro in
-      check_replacement system @@ feed_provider#get_feed reqs.R.interface_uri;
+      check_replacement system @@ feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface reqs.R.interface_uri);
       let root_sel = get_root_sel new_sels in
       let root_version = ZI.get_attribute FeedAttr.version root_sel in
       let changes = ref (Whatchanged.show_changes system old_sels new_sels) in

@@ -15,7 +15,7 @@ module F = Zeroinstall.Feed
 
 (** Warn the user if [uri] has been replaced. *)
 let check_for_replacement config uri =
-  let feed = Zeroinstall.Feed_url.parse_non_distro uri in
+  let feed = Zeroinstall.Feed_url.master_feed_of_iface uri in
   match Zeroinstall.Feed_cache.get_cached_feed config feed with
   | None -> log_warning "Master feed for '%s' missing!" uri
   | Some feed ->

@@ -110,7 +110,7 @@ let suite = "distro">::: [
             | _ -> assert_failure "No host restriction for host python-gobject" in
           let sel = ZI.make host_gobject.qdom.Qdom.doc "selection" in
           sel.Qdom.attrs <- AttrMap.bindings host_gobject.props.attrs;
-          Qdom.set_attribute "from-feed" ("distribution:" ^ feed.url) sel;
+          Qdom.set_attribute "from-feed" (Zeroinstall.Feed_url.format_url (`distribution_feed feed.url)) sel;
           assert (Distro.is_installed config distro sel) in
     slave#close;
   );

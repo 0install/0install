@@ -150,7 +150,7 @@ let complete_interfaces_with_feeds config completer pre =
 let complete_extra_feed config completer iface pre =
   let {Feed_cache.extra_feeds; _} = Feed_cache.load_iface_config config iface in
   let add_if_matches feed =
-    let url = feed.Feed.feed_src in
+    let url = feed.Feed.feed_src |> Zeroinstall.Feed_url.format_url in
     if starts_with url pre then
       completer#add Add url
   in

@@ -193,7 +193,7 @@ class virtual python_fallback_distribution (slave:Python.slave) =
           with Fallback_to_Python ->
             let fake_feed = ZI.make feed.Feed.root.Q.doc "interface" in
             fake_feed.Q.child_nodes <- List.map fst matches;
-            let request = `List [`String "get-package-impls"; `String feed.Feed.url] in
+            let request = `List [`String "get-package-impls"; `String (Feed_url.format_url feed.Feed.url)] in
 
             let to_impls (elem, props) = function
               | `List pkgs -> List.map (package_impl_from_json elem props) pkgs
@@ -204,11 +204,11 @@ class virtual python_fallback_distribution (slave:Python.slave) =
             let to_host_impl lst =
               let elem = ZI.make fake_feed.Qdom.doc "host-package-implementation" in
               let restrictions =
-                if feed.Feed.url = "http://repo.roscidus.com/python/python-gobject" then (
+                if feed.Feed.url = `remote_feed "http://repo.roscidus.com/python/python-gobject" then (
                   [make_restricts_distro elem.Qdom.doc "http://repo.roscidus.com/python/python" "host"]
                 ) else [] in
               let props = Feed.({
-                attrs = Feed.AttrMap.singleton ("", "from-feed") feed.Feed.url;
+                attrs = Feed.AttrMap.singleton ("", "from-feed") (Feed_url.format_url feed.Feed.url);
                 requires = restrictions;
                 bindings = [];
                 commands = StringMap.empty;
@@ -231,7 +231,7 @@ class virtual python_fallback_distribution (slave:Python.slave) =
           did_packagekit_query <- true;
           let fake_feed = ZI.make feed.Feed.root.Q.doc "interface" in
           fake_feed.Q.child_nodes <- List.map fst matches;
-          let request = `List [`String "get-distro-candidates"; `String feed.Feed.url] in
+          let request = `List [`String "get-distro-candidates"; `String (Feed_url.format_url feed.Feed.url)] in
           slave#invoke_async ~xml:fake_feed request ignore
   end
 

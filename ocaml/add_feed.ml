@@ -25,7 +25,7 @@ let edit_feeds config iface mode new_import =
   print "";
   print "Feed list for interface '%s' is now:" iface;
   if extra_feeds <> [] then
-    extra_feeds |> List.iter (fun feed -> print "- %s" feed.F.feed_src)
+    extra_feeds |> List.iter (fun feed -> print "- %s" (Zeroinstall.Feed_url.format_url feed.F.feed_src))
   else
     print "(no feeds)"
 
@@ -88,14 +88,14 @@ let handle options flags args =
   | [new_feed] ->
       let print fmt = Support.Utils.print config.system fmt in
       print "Feed '%s':" new_feed;
-      let new_feed = G.canonical_iface_uri config.system new_feed in
+      let new_feed = G.canonical_iface_uri config.system new_feed |> Zeroinstall.Feed_url.master_feed_of_iface in
 
       (* If the feed is remote and missing, download it. *)
       let feed =
-        match Zeroinstall.Feed_url.parse new_feed with
+        match new_feed with
         | `remote_feed _ as feed ->
             let missing = FC.get_cached_feed config feed = None in
-            if missing || (config.network_use <> Offline && FC.is_stale config new_feed) then (
+            if missing || (config.network_use <> Offline && FC.is_stale config feed) then (
               print "Downloading feed; please wait...";
               flush stdout;
               let driver = Lazy.force options.driver in
@@ -110,8 +110,7 @@ let handle options flags args =
                 log_warning "Update failed: %s" msg
             );
             feed
-        | `local_feed _ as feed -> feed
-        | `distribution_feed _ -> raise_safe "Can't register a distribution feed!" in
+        | `local_feed _ as feed -> feed in
 
       edit_feeds_interactive config `add feed
   | [iface; feed_src] ->

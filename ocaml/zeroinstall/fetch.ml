@@ -71,7 +71,8 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
    * @param feed the feed we're trying to import.
    * @param xml the new XML we are trying to verify
    *)
-  let download_missing_keys ~use_mirror feed xml =
+  let download_missing_keys ~use_mirror feed_url xml =
+    let `remote_feed feed = feed_url in
     lwt sigs, messages = G.verify system xml in
 
     if sigs = [] then (
@@ -93,7 +94,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
 
       let switch = Lwt_switch.create () in
       try_lwt
-        match_lwt downloader#download ~switch ~hint:feed key_url with
+        match_lwt downloader#download ~switch ~hint:feed_url key_url with
         | `network_failure msg -> raise_safe "%s" msg
         | `aborted_by_user -> raise Aborted
         | `tmpfile tmpfile ->
@@ -159,7 +160,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
 
     let success () =
       if not config.dry_run then (
-        Feed.update_last_checked_time config feed_url;
+        Feed.update_last_checked_time config feed;
         log_info "Updated feed cache checked time for %s (modified %s)" feed_url pretty_time
       );
       `ok new_root |> Lwt.return in
@@ -249,7 +250,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
 
     (* Start downloading information about the keys... *)
     let key_infos = valid_sigs |> List.map (fun {G.fingerprint; _} ->
-      (fingerprint, fetch_key_info ~if_slow ~hint:feed_url fingerprint)
+      (fingerprint, fetch_key_info ~if_slow ~hint:feed fingerprint)
     ) in
 
     log_info "Waiting for response from key-info server...";
@@ -313,8 +314,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
 
   (** We've just downloaded the new version of the feed to a temporary file. Check signature and import it into the cache. *)
   let import_feed ~mirror_used feed xml =
-    let `remote_feed feed_url = feed in
-    match_lwt download_missing_keys ~use_mirror:mirror_used feed_url xml with
+    match_lwt download_missing_keys ~use_mirror:mirror_used feed xml with
     | `problem msg -> raise_safe "Failed to check feed signature: %s" msg
     | `aborted_by_user -> Lwt.return `aborted_by_user
     | `success (sigs, messages) ->
@@ -331,14 +331,12 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
    * using a mirror.
    * If present, start [timeout] when the download actually starts (time spent queuing doesn't count). *)
   let download_and_import_feed_internal ~mirror_used ?if_slow feed ~url =
-    let `remote_feed feed_url = feed in
-
     if config.dry_run then
       Dry_run.log "downloading feed from %s" url;
 
     let switch = Lwt_switch.create () in
     try_lwt
-      match_lwt downloader#download ~switch ?if_slow ~hint:feed_url url with
+      match_lwt downloader#download ~switch ?if_slow ~hint:feed url with
       | `network_failure msg -> `problem msg |> Lwt.return
       | `aborted_by_user -> Lwt.return `aborted_by_user
       | `tmpfile tmpfile ->
@@ -372,20 +370,21 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
   let escape_slashes s = Str.global_replace U.re_slash "%23" s in
 
   (* The algorithm from 0mirror. *)
-  let get_feed_dir feed =
-    if String.contains feed '#' then (
-      raise_safe "Invalid URL '%s'" feed
-    ) else (
-      let scheme, rest = U.split_pair re_scheme_sep feed in
-      if not (String.contains rest '/') then
-        raise_safe "Missing / in %s" feed;
-      let domain, rest = U.split_pair U.re_slash rest in
-      [scheme; domain; rest] |> List.iter (fun part ->
-        if part = "" || U.starts_with part "." then
+  let get_feed_dir = function
+    | `remote_feed feed ->
+        if String.contains feed '#' then (
           raise_safe "Invalid URL '%s'" feed
-      );
-      String.concat "/" ["feeds"; scheme; domain; escape_slashes rest]
-    ) in
+        ) else (
+          let scheme, rest = U.split_pair re_scheme_sep feed in
+          if not (String.contains rest '/') then
+            raise_safe "Missing / in %s" feed;
+          let domain, rest = U.split_pair U.re_slash rest in
+          [scheme; domain; rest] |> List.iter (fun part ->
+            if part = "" || U.starts_with part "." then
+              raise_safe "Invalid URL '%s'" feed
+          );
+          String.concat "/" ["feeds"; scheme; domain; escape_slashes rest]
+        ) in
 
   (* Don't bother trying the mirror for localhost URLs. *)
   let can_try_mirror url =
@@ -401,10 +400,10 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
     ) in
 
   let get_mirror_url mirror feed_url resource =
-    match Feed_url.parse feed_url with
+    match feed_url with
     | `local_feed _ | `distribution_feed _ -> None
-    | `remote_feed _ ->
-        if can_try_mirror feed_url then
+    | `remote_feed url as feed_url ->
+        if can_try_mirror url then
           Some (mirror ^ "/" ^ (get_feed_dir feed_url) ^ "/" ^ resource)
         else None in
 
@@ -419,7 +418,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
 
   let download_local_file feed size fn url =
     let size = size |? lazy (raise_safe "Missing size (BUG)!") in   (* Only missing for mirror downloads, which are never local *)
-    match Feed_url.parse feed with
+    match feed with
     | `distribution_feed _ -> assert false
     | `remote_feed feed_url ->
         raise_safe "Relative URL '%s' in non-local feed '%s'" url feed_url
@@ -634,7 +633,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
     with Safe_exception _ as ex ->
       let {Feed.feed; Feed.id} = Feed.get_id impl in
       let version = Feed.get_attr_ex FeedAttr.version impl in
-      reraise_with_context ex "... downloading implementation %s %s (id=%s)" feed version id in
+      reraise_with_context ex "... downloading implementation %s %s (id=%s)" (Feed_url.format_url feed) version id in
 
   object
     method download_and_import_feed (feed : [`remote_feed of feed_url]) : fetch_feed_response Lwt.t =
@@ -654,7 +653,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
           match config.mirror with
           | None -> None
           | Some mirror ->
-              match get_mirror_url mirror feed_url "latest.xml" with
+              match get_mirror_url mirror feed "latest.xml" with
               | None -> None
               | Some mirror_url ->
                   Some (download_and_import_feed_internal ~mirror_used:(Some mirror) feed ~url:mirror_url)
@@ -721,14 +720,14 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
         let {Feed.feed; Feed.id} = Feed.get_id impl in
         let version = Feed.get_attr_ex FeedAttr.version impl in
 
-        log_debug "download_impls: for %s get %s" feed version;
+        log_debug "download_impls: for %s get %s" (Feed_url.format_url feed) version;
 
         match impl.Feed.impl_type with
         | Feed.PackageImpl info ->
             (* Any package without a retrieval method should be already installed *)
             let rm = info.Feed.retrieval_method |? lazy (raise_safe "Missing retrieval method for package '%s'" id) in
             package_impls := `Assoc rm :: !package_impls
-        | Feed.LocalImpl path -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path feed
+        | Feed.LocalImpl path -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path (Feed_url.format_url feed)
         | Feed.CacheImpl info ->
             (* Choose the best digest algorithm we support *)
             if info.Feed.digests = [] then (
@@ -739,7 +738,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
             (* Pick the first retrieval method we understand *)
             match U.first_match info.Feed.retrieval_methods ~f:Recipe.parse_retrieval_method with
             | None -> raise_safe ("Implementation %s of interface %s cannot be downloaded " ^^
-                                  "(no download locations given in feed!)") id feed
+                                  "(no download locations given in feed!)") id (Feed_url.format_url feed)
             | Some rm -> zi_impls := (impl, digest, rm) :: !zi_impls
       );
 

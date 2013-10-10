@@ -21,9 +21,8 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
     try Some (StringMap.find id overrides.F.user_stability)
     with Not_found -> None in
 
-  match Feed_url.parse from_feed with
+  match from_feed with
   | `distribution_feed master_feed_url -> (
-      let (`remote_feed master_feed_url | `local_feed master_feed_url) = master_feed_url in
       match feed_provider#get_feed master_feed_url with
       | None -> None
       | Some (master_feed, _) ->
@@ -37,8 +36,8 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
               | None -> None
               | Some impl -> Some (impl, get_override overrides)
   )
-  | `local_feed _ | `remote_feed _ ->
-      match feed_provider#get_feed from_feed with
+  | (`local_feed _ | `remote_feed _) as feed_url ->
+      match feed_provider#get_feed feed_url with
       | None -> None
       | Some (feed, overrides) ->
           Some (StringMap.find id feed.F.implementations, get_override overrides)
@@ -118,14 +117,15 @@ let first_para text =
  * This is used in the GUI to decide whether to shade the Compile button.
  *)
 let have_source_for feed_provider iface =
+  let master_feed = Feed_url.master_feed_of_iface iface in
   let user_feeds = (feed_provider#get_iface_config iface).Feed_cache.extra_feeds in
   let imported =
-    match feed_provider#get_feed iface with
+    match feed_provider#get_feed master_feed with
     | None -> []
     | Some (feed, _overrides) -> feed.Feed.imported_feeds in
 
   let have_source = ref false in
-  let to_check = ref [iface] in
+  let to_check = ref [master_feed] in
 
   (user_feeds @ imported) |> List.iter (fun feed_import ->
     match feed_import.Feed.feed_machine with
@@ -154,7 +154,7 @@ let have_source_for feed_provider iface =
 let build_tree config (feed_provider:Feed_provider.feed_provider) old_sels sels : Yojson.Basic.json =
   let rec process_tree (uri, details) =
     let (name, summary, description, feed_imports) =
-      match feed_provider#get_feed uri with
+      match feed_provider#get_feed (Feed_url.master_feed_of_iface uri) with
       | Some (main_feed, _overrides) ->
           (main_feed.F.name,
            default "-" @@ F.get_summary config.langs main_feed,
@@ -167,7 +167,7 @@ let build_tree config (feed_provider:Feed_provider.feed_provider) old_sels sels 
      * components in the GUI.
      * Note: "distribution:" feeds give their master feed as their hint, so are not included here. *)
     let user_feeds = (feed_provider#get_iface_config uri).Feed_cache.extra_feeds in
-    let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {F.feed_src; _} -> feed_src)) in
+    let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {F.feed_src; _} -> Feed_url.format_url feed_src)) in
 
     let about_feed = [
       ("interface", `String uri);
@@ -219,7 +219,7 @@ let build_tree config (feed_provider:Feed_provider.feed_provider) old_sels sels 
               ("version-tip", `String version_tip) ::
               ("fetch", `String fetch_str) ::
               ("fetch-tip", `String fetch_tip) ::
-              ("from-feed", `String from_feed) ::
+              ("from-feed", `String (Feed_url.format_url from_feed)) ::
               ("id", `String id) ::
               ("children", `List (List.map process_tree children)) ::
                 about_feed)
@@ -241,13 +241,14 @@ let list_feeds feed_provider iface =
   let iface_config = feed_provider#get_iface_config iface in
   let extra_feeds = iface_config.Feed_cache.extra_feeds in
 
+  let master_feed = Feed_url.master_feed_of_iface iface in
   let imported_feeds =
-    match feed_provider#get_feed iface with
+    match feed_provider#get_feed master_feed with
     | None -> []
     | Some (feed, _overrides) -> feed.Feed.imported_feeds in
 
   let main = Feed.({
-    feed_src = iface;
+    feed_src = master_feed;
     feed_os = None;
     feed_machine = None;
     feed_langs = None;
@@ -260,7 +261,7 @@ let list_feeds feed_provider iface =
       | None, None -> ""
       | os, machine -> Arch.format_arch os machine in
     `Assoc [
-      ("url", `String feed.F.feed_src);
+      ("url", `String (Feed_url.format_url feed.F.feed_src));
       ("arch", `String arch);
       ("type", `String (string_of_feed_type feed.F.feed_type));
     ]
@@ -285,7 +286,7 @@ let list_impls config (results:Solver.result) iface =
           | None -> "None"
           | Some problem -> Impl_provider.describe_problem impl problem in
         let from_feed = F.get_attr_ex FeedAttr.from_feed impl in
-        let overrides = Feed.load_feed_overrides config from_feed in
+        let overrides = Feed.load_feed_overrides config (Feed_url.parse from_feed) in
         let user_stability =
           try `String (F.format_stability @@ StringMap.find impl_id overrides.F.user_stability)
           with Not_found -> `Null in
@@ -360,6 +361,7 @@ let get_sigs config url =
 let download_icon config (downloader:Downloader.downloader) feed_provider feed_url =
   log_debug "download_icon %s" feed_url;
 
+  let parsed_url = Feed_url.parse_non_distro feed_url in
   let system = config.system in
 
   let modification_time =
@@ -375,7 +377,7 @@ let download_icon config (downloader:Downloader.downloader) feed_provider feed_u
 *)
 
   let icon_url =
-    match feed_provider#get_feed feed_url with
+    match feed_provider#get_feed parsed_url with
     | None -> None
     | Some (feed, _) ->
         (* Find a suitable icon to download *)
@@ -393,7 +395,7 @@ let download_icon config (downloader:Downloader.downloader) feed_provider feed_u
   | None -> log_info "No PNG icons found in %s" feed_url; Lwt.return `Null
   | Some href ->
       try_lwt
-        match_lwt downloader#download ?modification_time ~hint:feed_url href with
+        match_lwt downloader#download ?modification_time ~hint:parsed_url href with
         | `network_failure msg -> raise_safe "%s" msg
         | `aborted_by_user -> Lwt.return `Null
         | `tmpfile tmpfile ->
@@ -427,21 +429,16 @@ let get_feed_description config feed_provider feed_url =
     | Some (feed, overrides) ->
         heading "%s" feed.F.name;
         plain " (%s)" (default "-" @@ F.get_summary config.langs feed);
-        plain "\n%s\n" feed_url;
-
-        let parsed_url =
-          match Feed_url.parse feed_url with
-          | `remote_feed _ | `local_feed _ as parsed -> parsed
-          | `distribution_feed _ -> raise_safe "Distribution feeds shouldn't appear in the GUI!" in
+        plain "\n%s\n" (Feed_url.format_url feed_url);
 
         lwt sigs =
-          match parsed_url with
+          match feed_url with
           | `local_feed _ -> Lwt.return []
-          | `remote_feed _ as parsed_url ->
+          | `remote_feed _ as feed_url ->
               plain "\n";
-              lwt sigs = get_sigs config parsed_url in
+              lwt sigs = get_sigs config feed_url in
               if sigs <> [] then (
-                let domain = Trust.domain_from_url parsed_url in
+                let domain = Trust.domain_from_url feed_url in
                 match trust_db#oldest_trusted_sig domain sigs with
                 | Some last_modified ->
                     plain "Last upstream change: %s\n" (U.format_time @@ Unix.localtime last_modified)
@@ -482,10 +479,10 @@ let get_feed_description config feed_provider feed_url =
           style "link" "%s\n" homepage.Q.last_text_inside;
         );
 
-        match parsed_url with
+        match feed_url with
         | `local_feed _ -> Lwt.return ()
-        | `remote_feed _ as parsed_url ->
-            let domain = Trust.domain_from_url parsed_url in
+        | `remote_feed _ as feed_url ->
+            let domain = Trust.domain_from_url feed_url in
             heading "\nSignatures\n";
             if sigs = [] then (
               plain "No signature information (old style feed or out-of-date cache)\n";
@@ -549,8 +546,8 @@ let remove_feed config iface feed_url =
     Feed_cache.save_iface_config config iface {iface_config with Feed_cache.extra_feeds};
   )
 
-let set_impl_stability config feed_provider feed_url id rating =
-  let (_feed, overrides) = feed_provider#get_feed feed_url |? lazy (raise_safe "Feed '%s' not found!" feed_url) in
+let set_impl_stability config feed_url id rating =
+  let overrides = Feed.load_feed_overrides config feed_url in
   let overrides = {
     overrides with F.user_stability =
       match rating with
@@ -652,7 +649,7 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
   let results = ref original_solve in
 
   let watcher =
-    object
+    object (_ : Driver.watcher)
       method update ((ready, new_results), new_fp) =
         feed_provider := new_fp;
         results := (ready, new_results);
@@ -664,7 +661,7 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
 
       method report feed_url msg =
         Python.async (fun () ->
-          let msg = Printf.sprintf "Feed '%s': %s" feed_url msg in
+          let msg = Printf.sprintf "Feed '%s': %s" (Feed_url.format_url feed_url) msg in
           log_info "Sending error to GUI: %s" msg;
           slave#invoke_async (`List [`String "report-error"; `String msg]) ignore
         )
@@ -692,14 +689,14 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
 
   Python.register_handler "set-impl-stability" (function
     | [`String from_feed; `String id; `Null] ->
-        set_impl_stability config !feed_provider from_feed id None
+        set_impl_stability config (Feed_url.parse from_feed) id None
     | [`String from_feed; `String id; `String level] ->
-        set_impl_stability config !feed_provider from_feed id (Some (F.parse_stability ~from_user:true level))
+        set_impl_stability config (Feed_url.parse from_feed) id (Some (F.parse_stability ~from_user:true level))
     | json -> raise_safe "get-feed-description: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
   Python.register_handler "get-feed-description" (function
-    | [`String feed_url] -> get_feed_description config !feed_provider feed_url
+    | [`String feed_url] -> get_feed_description config !feed_provider (Feed_url.parse_non_distro feed_url)
     | json -> raise_safe "get-feed-description: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
@@ -745,6 +742,7 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
 
   Python.register_handler "justify-decision" (function
     | [`String iface; `String feed; `String id] ->
+        let feed = Feed_url.parse feed in
         let reason = Diagnostics.justify_decision config !feed_provider reqs iface F.({feed; id}) in
         Lwt.return (`String reason)
     | json -> raise_safe "justify_decision: invalid request: %s" (Yojson.Basic.to_string (`List json))

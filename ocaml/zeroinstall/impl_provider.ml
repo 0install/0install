@@ -275,7 +275,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       let candidates : candidates =
         try Hashtbl.find cache iface
         with Not_found ->
-          let master_feed = feed_provider#get_feed iface in
+          let master_feed = feed_provider#get_feed (Feed_url.master_feed_of_iface iface) in
           let iface_config = feed_provider#get_iface_config iface in
           let extra_feeds = get_extra_feeds iface_config in
 

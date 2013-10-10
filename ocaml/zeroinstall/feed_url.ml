@@ -6,6 +6,7 @@ open Support.Common
 module U = Support.Utils
 
 type non_distro_feed = [`local_feed of Support.Common.filepath | `remote_feed of string]
+type parsed_feed_url = [`distribution_feed of non_distro_feed | non_distro_feed ]
 
 let parse_non_distro url =
   if U.path_is_absolute url then `local_feed url
@@ -24,3 +25,14 @@ let format_non_distro : non_distro_feed -> string = function
 let format_url = function
   | `distribution_feed master -> "distribution:" ^ (format_non_distro master)
   | #non_distro_feed as x -> format_non_distro x
+
+let master_feed_of_iface uri = parse_non_distro uri
+
+module FeedElt =
+  struct
+    type t = non_distro_feed
+    let compare = compare
+  end
+
+module FeedSet = Set.Make(FeedElt)
+module FeedMap = Map.Make(FeedElt)

@@ -11,7 +11,7 @@ open Zeroinstall.General
 module U = Support.Utils
 module Q = Support.Qdom
 
-let cache_path_for config url = Feed_cache.get_save_cache_path config (`remote_feed url)
+let cache_path_for config url = Feed_cache.get_save_cache_path config url
 
 class fake_slave config handler : Python.slave =
   object (_ : #Python.slave)
@@ -238,7 +238,7 @@ let suite = "driver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let config = {config with network_use = Full_network} in
     let import name =
-      U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ "http://foo/" ^ name) 0o644 in
+      U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ `remote_feed ("http://foo/" ^ name)) 0o644 in
     import "Binary.xml";
     let distro =
       object

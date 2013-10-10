@@ -9,6 +9,7 @@ open Support.Common
 module Q = Support.Qdom
 module U = Support.Utils
 module Basedir = Support.Basedir
+module FeedSet = Feed_url.FeedSet
 open Constants
 
 type interface_config = {
@@ -71,7 +72,7 @@ let load_iface_config config uri : interface_config =
               ) else  (
                 log_debug "Adding site-local feed '%s'" feed;
                 let open Feed in
-                Some { feed_src = feed; feed_os = None; feed_machine = None; feed_langs = None; feed_type = Site_packages }
+                Some { feed_src = `local_feed feed; feed_os = None; feed_machine = None; feed_langs = None; feed_type = Site_packages }
               )
             )
           )
@@ -89,8 +90,10 @@ let load_iface_config config uri : interface_config =
       | Some path ->
           log_info "Adding native packager feed '%s'" path;
           (* Resolve any symlinks *)
-          let open Feed in
-          [ {feed_src = U.realpath config.system path; feed_os = None; feed_machine = None; feed_langs = None; feed_type = Distro_packages } ]
+          let open Feed in [{
+            feed_src = `local_feed (U.realpath config.system path);
+            feed_os = None; feed_machine = None; feed_langs = None; feed_type = Distro_packages
+          }]
       in
 
     (* Local feeds in the data directory (e.g. builds created with 0compile) *)
@@ -106,12 +109,12 @@ let load_iface_config config uri : interface_config =
         | Some s -> Some (Feed.parse_stability s ~from_user:true) in
 
       (* User-registered feeds (0install add-feed) *)
-      let known_site_feeds = List.fold_left (fun map feed -> StringSet.add feed.Feed.feed_src map) StringSet.empty site_feeds in
+      let known_site_feeds = List.fold_left (fun map feed -> FeedSet.add feed.Feed.feed_src map) FeedSet.empty site_feeds in
       let user_feeds =
         ZI.filter_map root ~f:(fun item ->
           match ZI.tag item with
           | Some "feed" -> (
-              let feed_src = ZI.get_attribute "src" item in
+              let feed_src = ZI.get_attribute "src" item |> Feed_url.parse_non_distro in
               (* (note: 0install 1.9..1.12 used a different scheme and the "site-package" attribute;
                  we deliberately use a different attribute name to avoid confusion) *)
               if ZI.get_attribute_opt IfaceConfigAttr.is_site_package item <> None then (
@@ -119,7 +122,7 @@ let load_iface_config config uri : interface_config =
                    since older versions will remove the attribute when saving the config
                    (hence the next test). *)
                 None
-              ) else if StringSet.mem feed_src known_site_feeds then (
+              ) else if FeedSet.mem feed_src known_site_feeds then (
                 None
               ) else (
                 let (feed_os, feed_machine) = match ZI.get_attribute_opt "arch" item with
@@ -151,7 +154,7 @@ let add_import_elem parent feed_import =
   | Feed.Distro_packages | Feed.Feed_import -> ()
   | Feed.User_registered | Feed.Site_packages ->
       let elem = ZI.insert_first "feed" parent in
-      Q.set_attribute IfaceConfigAttr.src feed_import.Feed.feed_src elem;
+      Q.set_attribute IfaceConfigAttr.src (Feed_url.format_url feed_import.Feed.feed_src) elem;
       if feed_import.Feed.feed_type = Feed.Site_packages then
         Q.set_attribute IfaceConfigAttr.is_site_package "True" elem;
       match feed_import.Feed.feed_os, feed_import.Feed.feed_machine with
@@ -192,12 +195,12 @@ let get_cached_feed config = function
       | Some path ->
           let root = Q.parse_file config.system path in
           let feed = Feed.parse config.system root None in
-          if feed.Feed.url = url then Some feed
-          else raise_safe "Incorrect URL in cached feed - expected '%s' but found '%s'" url feed.Feed.url
+          if feed.Feed.url = remote_feed then Some feed
+          else raise_safe "Incorrect URL in cached feed - expected '%s' but found '%s'" url (Feed_url.format_url feed.Feed.url)
 
-let get_last_check_attempt config uri =
+let get_last_check_attempt config (`remote_feed url) =
   let open Basedir in
-  let rel_path = config_site +/ config_prog +/ "last-check-attempt" +/ Escape.pretty uri in
+  let rel_path = config_site +/ config_prog +/ "last-check-attempt" +/ Escape.pretty url in
   match load_first config.system rel_path config.basedirs.cache with
   | None -> None
   | Some path ->
@@ -205,15 +208,14 @@ let get_last_check_attempt config uri =
       | None -> None
       | Some info -> Some info.Unix.st_mtime
 
-let internal_is_stale config url overrides =
-  match Feed_url.parse url with
-  | `distribution_feed _ -> false             (* Ignore (memory-only) PackageKit feeds *)
+let internal_is_stale config feed_url overrides =
+  match feed_url with
   | `local_feed _ -> false                    (* Local feeds are never stale *)
-  | `remote_feed url ->
+  | `remote_feed url as feed_url ->
     let now = config.system#time in
 
     let is_stale () =
-      match get_last_check_attempt config url with
+      match get_last_check_attempt config feed_url with
       | Some last_check_attempt when last_check_attempt > now -. failed_check_delay ->
           log_debug "Stale, but tried to check recently (%s) so not rechecking now." (U.format_time (Unix.localtime last_check_attempt));
           false

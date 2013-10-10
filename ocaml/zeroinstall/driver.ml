@@ -11,10 +11,8 @@ let (>|=) = Lwt.(>|=)
 
 exception Aborted_by_user
 
-let get_values map = StringMap.fold (fun _key value xs -> value :: xs) map []
-
 type watcher = <
-  report : feed_url -> string -> unit;
+  report : 'a. ([<Feed_url.parsed_feed_url] as 'a) -> string -> unit;
   update : (bool * Solver.result) * Feed_provider.feed_provider -> unit;
 >
 
@@ -33,26 +31,36 @@ let find_distro_impl feed_provider id master_feed =
   impls |> List.find (fun impl -> Feed.get_attr_ex FeedAttr.id impl = id)
 
 (** Find a cached implementation. Not_found if the feed isn't cached or doesn't contain [id]. *)
-let find_zi_impl feed_provider id feed_url =
-  let (`remote_feed url | `local_feed url) = feed_url in
+let find_zi_impl feed_provider id url =
   let (feed, _) = feed_provider#get_feed url |? lazy (raise Not_found) in
   StringMap.find id feed.Feed.implementations
+
+module DownloadElt =
+  struct
+    type t = Feed_url.parsed_feed_url
+    let compare = compare
+  end
+
+module DownloadSet = Set.Make(DownloadElt)
+module DownloadMap = Map.Make(DownloadElt)
+
+let get_values map = DownloadMap.fold (fun _key value xs -> value :: xs) map []
 
 class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (slave:Python.slave) =
   object (self)
     method solve_with_downloads ?(watcher:watcher option) requirements
                                 ~force ~update_local : (bool * Solver.result * Feed_provider.feed_provider) =
       let force = ref force in
-      let seen = ref StringSet.empty in
-      let downloads_in_progress = ref StringMap.empty in
+      let seen = ref DownloadSet.empty in
+      let downloads_in_progress = ref DownloadMap.empty in
 
-      let already_seen url = StringSet.mem url !seen in
-      let forget_feed url = seen := StringSet.remove url !seen in
+      let already_seen url = DownloadSet.mem (url :> Feed_url.parsed_feed_url) !seen in
+      let forget_feed url = seen := DownloadSet.remove url !seen in
 
       let report_problem feed_url msg =
         match watcher with
         | Some watcher -> watcher#report feed_url msg
-        | None -> log_warning "Feed %s: %s" feed_url msg in
+        | None -> log_warning "Feed %s: %s" (Feed_url.format_url feed_url) msg in
 
       (* There are three cases:
          1. We want to run immediately if possible. If not, download all the information we can.
@@ -68,7 +76,8 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
       (* Add [url] to [downloads_in_progress]. When [download] resolves (to a function),
          call it in the main thread. *)
       let add_download url download =
-        seen := StringSet.add url !seen;
+        let url = (url :> Feed_url.parsed_feed_url) in
+        seen := DownloadSet.add url !seen;
         let wrapped =
           try_lwt
             lwt fn = download in
@@ -76,7 +85,7 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
           with Safe_exception (msg, _) ->
             report_problem url msg;
             Lwt.return (url, fun () -> ()) in
-        downloads_in_progress := StringMap.add url wrapped !downloads_in_progress
+        downloads_in_progress := DownloadMap.add url wrapped !downloads_in_progress
         in
 
       (** Register a new download. When it resolves, process it in the main thread. *)
@@ -95,14 +104,13 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
           | `update (new_xml, next_update) ->
               feed_provider#replace_feed f (Feed.parse config.system new_xml None);
               (* On success, we also need to refetch any "distribution" feed that depends on this one *)
-              let distro_url = "distribution:" ^ f in
-              feed_provider#forget_distro distro_url;
-              forget_feed distro_url;
+              feed_provider#forget_distro f;
+              forget_feed (`distribution_feed f);
               (* (we will now refresh, which will trigger distro#check_for_candidates *)
               match next_update with
               | None -> ()    (* This is the final update *)
               | Some next ->
-                  log_info "Accepted update from mirror, but will continue waiting for primary for '%s'" f;
+                  log_info "Accepted update from mirror, but will continue waiting for primary for '%s'" (Feed_url.format_url f);
                   handle_download f next
         ) in
 
@@ -117,7 +125,7 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
 
         match result with
         | (true, _) when try_quick_exit ->
-            assert (StringMap.is_empty !downloads_in_progress);
+            assert (DownloadMap.is_empty !downloads_in_progress);
             result
         | (ready, _) ->
             if not ready then force := true;
@@ -126,11 +134,10 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
             if !force && config.network_use <> Offline then (
               ListLabels.iter feed_provider#get_feeds_used ~f:(fun f ->
                 if not (already_seen f) then (
-                  match Feed_url.parse f with
+                  match f with
                   | `local_feed _ -> ()
-                  | `distribution_feed _ -> failwith f
                   | `remote_feed _ as feed ->
-                      log_info "Starting download of feed '%s'" f;
+                      log_info "Starting download of feed '%s'" (Feed_url.format_url f);
                       fetcher#download_and_import_feed feed |> handle_download f
                 )
               )
@@ -142,9 +149,9 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
                 match feed_provider#get_feed f with
                 | None -> ()
                 | Some (master_feed, _) ->
-                    let f = "distribution:" ^ f in
-                    if not (already_seen f) then (
-                        add_download f (distro#check_for_candidates master_feed >|= fun () () ->
+                    let distro_f = `distribution_feed f in
+                    if not (already_seen distro_f) then (
+                        add_download distro_f (distro#check_for_candidates master_feed >|= fun () () ->
                           feed_provider#forget_distro f
                         )
                     )
@@ -158,7 +165,7 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
                 result;
             | downloads ->
                 let (url, fn) = Lwt_main.run @@ Lwt.choose downloads in
-                downloads_in_progress := StringMap.remove url !downloads_in_progress;
+                downloads_in_progress := DownloadMap.remove url !downloads_in_progress;
                 fn ();    (* Clears the old feed(s) from Feed_cache *)
                 (* Run the solve again with the new information. *)
                 loop ~try_quick_exit:false
@@ -232,43 +239,41 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
 
         (* Return the latest version of this feed, refreshing if possible. *)
         let get_latest_feed = function
-          | `local_feed path ->
-            let (feed, _) = feed_provider#get_feed path |? lazy (raise_safe "Missing local feed '%s'" path) in
+          | `local_feed path as parsed_feed_url ->
+            let (feed, _) = feed_provider#get_feed parsed_feed_url |? lazy (raise_safe "Missing local feed '%s'" path) in
             Lwt.return feed
           | `remote_feed feed_url as parsed_feed_url ->
               match_lwt self#download_and_import_feed parsed_feed_url with
               | `aborted_by_user -> raise Aborted_by_user
               | `no_update ->
-                  let (feed, _) = feed_provider#get_feed feed_url |? lazy (raise_safe "Missing feed '%s'" feed_url) in
+                  let (feed, _) = feed_provider#get_feed parsed_feed_url |? lazy (raise_safe "Missing feed '%s'" feed_url) in
                   Lwt.return feed
               | `success new_root ->
                   let feed = Feed.parse config.system new_root None in
-                  feed_provider#replace_feed feed_url feed;
+                  feed_provider#replace_feed parsed_feed_url feed;
                   Lwt.return feed in
 
         (* Find the <implementation> corresponding to sel in the feed cache. If missing, download the feed and retry. *)
         let impl_of_sel sel =
           let {Feed.id; Feed.feed = feed_url} = Selections.get_id sel in
-          let parsed_feed_url = Feed_url.parse feed_url in
 
           let get_impl () =
-            match parsed_feed_url with
+            match feed_url with
             | `remote_feed _ | `local_feed _ as feed_url ->
                 find_zi_impl feed_provider id feed_url
             | `distribution_feed master_url ->
-                let (`remote_feed url | `local_feed url) = master_url in
-                match feed_provider#get_feed url with
+                match feed_provider#get_feed master_url with
                 | None -> raise Not_found
                 | Some (master_feed, _) -> find_distro_impl feed_provider id master_feed in
 
           let refresh_feeds () =
-            match parsed_feed_url with
+            match feed_url with
             | `local_feed _ -> Lwt.return ()
             | `distribution_feed master_feed_url ->
                 lwt master_feed = get_latest_feed master_feed_url in
                 distro#check_for_candidates master_feed
-            | `remote_feed _ as parsed_feed_url ->
-                lwt _ = get_latest_feed parsed_feed_url in
+            | `remote_feed _ as feed_url ->
+                lwt _ = get_latest_feed feed_url in
                 Lwt.return () in
 
           try
@@ -279,7 +284,7 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
             try
               get_impl () |> Lwt.return
             with Not_found ->
-              raise_safe "Implementation '%s' not found in feed '%s'" id feed_url in
+              raise_safe "Implementation '%s' not found in feed '%s'" id (Feed_url.format_url feed_url) in
 
         try_lwt
           lwt impls = missing |> List.map impl_of_sel |> collect_ex in

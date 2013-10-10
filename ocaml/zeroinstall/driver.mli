@@ -14,7 +14,7 @@ type watcher = <
   update : (bool * Solver.result) * Feed_provider.feed_provider -> unit;
 
   (* An error ocurred (probably a failure to download something). *)
-  report : General.feed_url -> string -> unit;
+  report : 'a. ([<Feed_url.parsed_feed_url] as 'a) -> string -> unit;
 >
 
 class driver : General.config -> Fetch.fetcher -> Distro.distribution -> Ui.ui_handler Lazy.t -> Python.slave ->

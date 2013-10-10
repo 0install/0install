@@ -129,7 +129,9 @@ let get_required_commands dep =
   | Some "requires" | Some "restricts" -> commands
   | _ -> Q.raise_elem "Not a dependency: " dep
 
-let get_id sel = Feed.({
+let get_id sel =
+  let feed_url = ZI.get_attribute_opt FeedAttr.from_feed sel |? lazy (ZI.get_attribute FeedAttr.interface sel) in
+  Feed.({
   id = ZI.get_attribute FeedAttr.id sel;
-  feed = ZI.get_attribute_opt FeedAttr.from_feed sel |? lazy (ZI.get_attribute FeedAttr.interface sel);
+  feed = Feed_url.parse feed_url;
 })

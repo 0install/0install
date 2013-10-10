@@ -20,16 +20,16 @@ let handle options flags args =
   | [feed_url] ->
       let print fmt = Support.Utils.print config.system fmt in
       print "Feed '%s':" feed_url;
-      let user_import = G.canonical_iface_uri config.system feed_url |> Zeroinstall.Feed_url.parse_non_distro in
+      let user_import = G.canonical_iface_uri config.system feed_url |> Zeroinstall.Feed_url.master_feed_of_iface in
       Add_feed.edit_feeds_interactive config `remove user_import
   | [iface; feed_src] ->
       let iface = G.canonical_iface_uri config.system iface in
-      let feed_src = G.canonical_iface_uri config.system feed_src in
-      let user_import = Zeroinstall.Feed_url.parse_non_distro feed_src |> Zeroinstall.Feed.make_user_import in
+      let feed_src = G.canonical_iface_uri config.system feed_src |> Zeroinstall.Feed_url.master_feed_of_iface in
+      let user_import = Zeroinstall.Feed.make_user_import feed_src in
 
       let iface_config = FC.load_iface_config config iface in
       if not (List.mem user_import iface_config.FC.extra_feeds) then (
-        raise_safe "Interface %s has no feed %s" iface feed_src
+        raise_safe "Interface %s has no feed %s" iface (Zeroinstall.Feed_url.format_url feed_src)
       );
 
       let extra_feeds = List.filter ((<>) user_import) iface_config.FC.extra_feeds in

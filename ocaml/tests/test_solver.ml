@@ -132,7 +132,7 @@ class fake_feed_provider system distro =
             let name = ZI.get_attribute "local-path" elem in
             let path = U.abspath system name in
             (parse system elem (Some path), path) in
-      Hashtbl.add ifaces uri feed
+      Hashtbl.add ifaces (Zeroinstall.Feed_url.master_feed_of_iface uri) feed
 
     method forget_distro _ = failwith "forget_distro"
     method forget_user_feeds _ = failwith "forget_user_feeds"
@@ -221,7 +221,7 @@ let make_solver_test test_elem =
     ListLabels.iter !justifications ~f:(fun elem ->
       let iface = ZI.get_attribute "interface" elem in
       let g_id = Feed.({
-        feed = iface;
+        feed = Feed_url.parse iface;
         id = ZI.get_attribute "id" elem;
       }) in
       let reason = Zeroinstall.Diagnostics.justify_decision config (feed_provider :> Feed_provider.feed_provider) !reqs iface g_id in
@@ -330,9 +330,8 @@ let suite = "solver">::: [
     let iface_config = feed_provider#get_iface_config uri in
     assert (iface_config.stability_policy = None);
     match iface_config.extra_feeds with
-    | [ { Feed.feed_src = "/usr/share/0install.net/native_feeds/http:##example.com#prog";
+    | [ { Feed.feed_src = `local_feed "/usr/share/0install.net/native_feeds/http:##example.com#prog";
           Feed.feed_type = Feed.Distro_packages; _ } ] -> ()
-    | [ { Feed.feed_src;_ } ] -> assert_failure feed_src;
     | _ -> assert_failure "Didn't find native feed"
   );
 
@@ -534,13 +533,13 @@ let suite = "solver">::: [
 
     justify
       "http://foo/Binary.xml 1.0 cannot be used (regardless of other components): We want source and this is a binary"
-      iface iface "sha1=123";
+      iface (Feed_url.master_feed_of_iface iface) "sha1=123";
     justify
       "http://foo/Binary.xml 1.0 was selected as the preferred version."
-      iface "http://foo/Source.xml" "sha1=234";
+      iface (`remote_feed "http://foo/Source.xml") "sha1=234";
     justify
       "0.1 is ranked lower than 1.0: newer versions are preferred"
-      iface "http://foo/Source.xml" "old";
+      iface (`remote_feed "http://foo/Source.xml") "old";
     justify
       ("There is no possible selection using http://foo/Binary.xml 3.\n" ^
       "Can't find all required implementations:\n" ^
@@ -551,11 +550,11 @@ let suite = "solver">::: [
       "      sha1=999 (5): Incompatible with restriction: version ..!1.0\n" ^
       "      sha1=345 (1.0): Incompatible with restriction: version ..!1.0\n" ^
       "      sha1=678 (0.1): Incompatible with restriction: version 1.0..")
-      iface "http://foo/Source.xml" "impossible";
+      iface (`remote_feed "http://foo/Source.xml") "impossible";
     justify
       ("http://foo/Compiler.xml 5 is selectable, but using it would produce a less optimal solution overall.\n\n" ^
       "The changes would be:\n\nhttp://foo/Binary.xml: 1.0 to 0.1")
-      "http://foo/Compiler.xml" "http://foo/Compiler.xml" "sha1=999";
+      "http://foo/Compiler.xml" (`remote_feed "http://foo/Compiler.xml") "sha1=999";
 
     import "Recursive.xml";
     let rec_impls = impl_provider#get_implementations "http://foo/Recursive.xml" ~source:false in

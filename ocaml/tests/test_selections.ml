@@ -18,7 +18,7 @@ let get_sels config fake_system uri =
 let suite = "selections">::: [
   "selections">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let import name =
-      let url = "http://foo/" ^ name in
+      let url = `remote_feed ("http://foo/" ^ name) in
       U.copy_file config.system (Test_0install.feed_dir +/ name) (Test_driver.cache_path_for config url) 0o644;
       Zeroinstall.Feed.update_last_checked_time config url in
     import "Source.xml";
@@ -122,7 +122,7 @@ let suite = "selections">::: [
       | Selections.CacheSelection [("sha1", "999")] -> ()
       | _ -> assert false in
 
-    assert_equal Feed.({id = "foo bar=123"; feed = iface}) @@ Selections.get_id sel
+    assert_equal Feed.({id = "foo bar=123"; feed = `local_feed iface}) @@ Selections.get_id sel
   );
 
   "commands">:: Fake_system.with_fake_config (fun (config, fake_system) ->
