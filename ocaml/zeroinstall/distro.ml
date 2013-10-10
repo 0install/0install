@@ -525,6 +525,9 @@ module Win = struct
             Qdom.log_elem Support.Logging.Info "FIXME: Windows: can't check for package '%s':" package_name elem;
             raise Fallback_to_Python
         | _ -> []
+
+        (* No PackageKit support on Windows *)
+      method! check_for_candidates _feed = Lwt.return ()
     end
 
   let cygwin_log = "/var/log/setup.log"
