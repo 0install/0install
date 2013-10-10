@@ -4,19 +4,10 @@
 
 (** Feed URLs *)
 
-val parse_non_distro :
-  General.feed_url -> [> `local_feed of Support.Common.filepath | `remote_feed of string ]
+type non_distro_feed = [`local_feed of Support.Common.filepath | `remote_feed of string]
 
-val parse :
-  General.feed_url ->
-  [> `distribution_feed of
-       [> `local_feed of Support.Common.filepath | `remote_feed of string ]
-   | `local_feed of Support.Common.filepath
-   | `remote_feed of string ]
+val parse_non_distro : General.feed_url -> non_distro_feed
 
-val format_url :
-  ([< `distribution_feed of 'a
-    | `local_feed of Support.Common.filepath
-    | `remote_feed of string ]
-   as 'a) ->
-  General.feed_url
+val parse : General.feed_url -> [`distribution_feed of non_distro_feed | non_distro_feed ]
+
+val format_url : [< `distribution_feed of non_distro_feed | non_distro_feed] -> General.feed_url
