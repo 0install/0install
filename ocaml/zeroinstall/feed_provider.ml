@@ -20,7 +20,7 @@ class feed_provider config distro =
       try StringMap.find url cache
       with Not_found ->
         let result =
-          match Feed_cache.parse_non_distro_url url |> Feed_cache.get_cached_feed config with
+          match Feed_url.parse_non_distro url |> Feed_cache.get_cached_feed config with
           | Some feed ->
             let overrides = Feed.load_feed_overrides config url in
             Some (feed, overrides)

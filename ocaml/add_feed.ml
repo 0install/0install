@@ -92,7 +92,7 @@ let handle options flags args =
 
       (* If the feed is remote and missing, download it. *)
       let feed =
-        match FC.parse_feed_url new_feed with
+        match Zeroinstall.Feed_url.parse new_feed with
         | `remote_feed _ as feed ->
             let missing = FC.get_cached_feed config feed = None in
             if missing || (config.network_use <> Offline && FC.is_stale config new_feed) then (
@@ -117,7 +117,7 @@ let handle options flags args =
   | [iface; feed_src] ->
       let iface = G.canonical_iface_uri config.system iface in
       let feed_src = G.canonical_iface_uri config.system feed_src in
-      let new_import = FC.parse_non_distro_url feed_src |> F.make_user_import in
+      let new_import = Zeroinstall.Feed_url.parse_non_distro feed_src |> F.make_user_import in
 
       let iface_config = FC.load_iface_config config iface in
       if List.mem new_import iface_config.FC.extra_feeds then (

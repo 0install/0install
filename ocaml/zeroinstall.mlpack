@@ -17,6 +17,7 @@ Exec
 Feed
 Feed_cache
 Feed_provider
+Feed_url
 Fetch
 General
 Gui

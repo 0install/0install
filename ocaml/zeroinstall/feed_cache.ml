@@ -21,21 +21,6 @@ let failed_check_delay = float_of_int (1 * hours)
 
 let is_local_feed uri = U.path_is_absolute uri
 
-let parse_non_distro_url url =
-  if U.path_is_absolute url then `local_feed url
-  else if U.starts_with url "http://" || U.starts_with url "https://" then `remote_feed url
-  else if U.starts_with url "distribution:" then raise_safe "Can't use a distribution feed here! ('%s')" url
-  else raise_safe "Invalid feed URL '%s'" url
-
-let parse_feed_url url =
-  if U.starts_with url "distribution:" then `distribution_feed (U.string_tail url 13 |> parse_non_distro_url)
-  else parse_non_distro_url url
-
-let rec format_feed_url = function
-  | `distribution_feed master -> "distribution:" ^ (format_feed_url master)
-  | `local_feed path -> path
-  | `remote_feed url -> url
-
 (* For local feeds, returns the absolute path. *)
 let get_cached_feed_path config = function
   | `local_feed path -> Some path
@@ -221,7 +206,7 @@ let get_last_check_attempt config uri =
       | Some info -> Some info.Unix.st_mtime
 
 let internal_is_stale config url overrides =
-  match parse_feed_url url with
+  match Feed_url.parse url with
   | `distribution_feed _ -> false             (* Ignore (memory-only) PackageKit feeds *)
   | `local_feed _ -> false                    (* Local feeds are never stale *)
   | `remote_feed url ->

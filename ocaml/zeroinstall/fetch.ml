@@ -401,7 +401,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
     ) in
 
   let get_mirror_url mirror feed_url resource =
-    match Feed_cache.parse_feed_url feed_url with
+    match Feed_url.parse feed_url with
     | `local_feed _ | `distribution_feed _ -> None
     | `remote_feed _ ->
         if can_try_mirror feed_url then
@@ -419,7 +419,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
 
   let download_local_file feed size fn url =
     let size = size |? lazy (raise_safe "Missing size (BUG)!") in   (* Only missing for mirror downloads, which are never local *)
-    match Feed_cache.parse_feed_url feed with
+    match Feed_url.parse feed with
     | `distribution_feed _ -> assert false
     | `remote_feed feed_url ->
         raise_safe "Relative URL '%s' in non-local feed '%s'" url feed_url

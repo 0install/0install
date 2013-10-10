@@ -169,7 +169,7 @@ class virtual python_fallback_distribution (slave:Python.slave) =
 
     method is_installed elem =
       log_info "No is_installed implementation for '%s'; using slow Python fallback instead!" distro_name;
-      match ZI.get_attribute FeedAttr.from_feed elem |> Feed_cache.parse_feed_url with
+      match ZI.get_attribute FeedAttr.from_feed elem |> Feed_url.parse with
       | `local_feed _ | `remote_feed _ -> assert false
       | `distribution_feed master_feed ->
           match Feed_cache.get_cached_feed slave#config master_feed with

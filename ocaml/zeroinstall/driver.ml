@@ -126,7 +126,7 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
             if !force && config.network_use <> Offline then (
               ListLabels.iter feed_provider#get_feeds_used ~f:(fun f ->
                 if not (already_seen f) then (
-                  match Feed_cache.parse_feed_url f with
+                  match Feed_url.parse f with
                   | `local_feed _ -> ()
                   | `distribution_feed _ -> failwith f
                   | `remote_feed _ as feed ->
@@ -249,7 +249,7 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
         (* Find the <implementation> corresponding to sel in the feed cache. If missing, download the feed and retry. *)
         let impl_of_sel sel =
           let {Feed.id; Feed.feed = feed_url} = Selections.get_id sel in
-          let parsed_feed_url = Feed_cache.parse_feed_url feed_url in
+          let parsed_feed_url = Feed_url.parse feed_url in
 
           let get_impl () =
             match parsed_feed_url with

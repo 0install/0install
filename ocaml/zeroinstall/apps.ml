@@ -51,7 +51,7 @@ let iter_inputs config cb sels =
     (* Check per-feed config *)
     check_maybe_config (config_injector_interfaces +/ Escape.pretty feed);
 
-    match Feed_cache.parse_feed_url feed with
+    match Feed_url.parse feed with
       (* If the package has changed version, we'll detect that below with get_unavailable_selections. *)
     | `distribution_feed _ -> ()
     | `local_feed path -> cb path   (* Check the timestamp of this local feed hasn't changed *)

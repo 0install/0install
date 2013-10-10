@@ -264,7 +264,7 @@ let complete_version completer ~range ~maybe_app target pre =
       | Some path -> Apps.get_interface config.system path
     ) else target in
 
-  match Feed_cache.parse_feed_url uri with
+  match Zeroinstall.Feed_url.parse uri with
   | `distribution_feed _ -> ()
   | (`local_feed _ | `remote_feed _) as feed ->
       match Feed_cache.get_cached_feed config feed with

@@ -21,7 +21,7 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
     try Some (StringMap.find id overrides.F.user_stability)
     with Not_found -> None in
 
-  match Feed_cache.parse_feed_url from_feed with
+  match Feed_url.parse from_feed with
   | `distribution_feed master_feed_url -> (
       let (`remote_feed master_feed_url | `local_feed master_feed_url) = master_feed_url in
       match feed_provider#get_feed master_feed_url with
@@ -430,7 +430,7 @@ let get_feed_description config feed_provider feed_url =
         plain "\n%s\n" feed_url;
 
         let parsed_url =
-          match Feed_cache.parse_feed_url feed_url with
+          match Feed_url.parse feed_url with
           | `remote_feed _ | `local_feed _ as parsed -> parsed
           | `distribution_feed _ -> raise_safe "Distribution feeds shouldn't appear in the GUI!" in
 
@@ -544,7 +544,7 @@ let remove_feed config iface feed_url =
   let user_import = Feed.make_user_import feed_url in
   let extra_feeds = iface_config.Feed_cache.extra_feeds |> List.filter ((<>) user_import) in
   if iface_config.Feed_cache.extra_feeds = extra_feeds then (
-    raise_safe "Can't remove '%s'; it is not a user-added feed of %s" (Feed_cache.format_feed_url feed_url) iface;
+    raise_safe "Can't remove '%s'; it is not a user-added feed of %s" (Feed_url.format_url feed_url) iface;
   ) else (
     Feed_cache.save_iface_config config iface {iface_config with Feed_cache.extra_feeds};
   )
@@ -753,7 +753,7 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
   (* Used by the add-feed dialog *)
   Python.register_handler "add-remote-feed" (function
     | [`String iface; `String feed] -> (
-        match Feed_cache.parse_feed_url feed with
+        match Feed_url.parse feed with
         | `distribution_feed _ | `local_feed _ -> raise_safe "Not a remote URL: '%s'" feed
         | `remote_feed _ as url -> add_remote_feed driver iface url
     )
@@ -762,7 +762,7 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
 
   Python.register_handler "add-local-feed" (function
     | [`String iface; `String path] -> (
-        match Feed_cache.parse_feed_url path with
+        match Feed_url.parse path with
         | `local_feed _ as feed -> add_feed config iface feed; Lwt.return `Null
         | `remote_feed _ | `distribution_feed _ -> raise_safe "Not a local feed '%s'!" path
     )
@@ -771,7 +771,7 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
 
   Python.register_handler "remove-feed" (function
     | [`String iface; `String url] ->
-        Feed_cache.parse_non_distro_url url |> remove_feed config iface;
+        Feed_url.parse_non_distro url |> remove_feed config iface;
         Lwt.return `Null
     | json -> raise_safe "remove-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
