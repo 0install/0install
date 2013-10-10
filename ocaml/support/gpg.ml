@@ -91,8 +91,6 @@ let run_gpg_full system ?stdin args =
     (* Join the collection threads *)
     lwt stdout = stdout in
     lwt stderr = stderr in
-    if stdout <> "" then log_info "GPG: output:\n%s" (trim stdout);
-    if stderr <> "" then log_info "GPG: warnings:\n%s" (trim stderr);
     lwt status = child#close in
     Lwt.return (stdout, stderr, status)
   with ex ->
@@ -105,6 +103,8 @@ let run_gpg_full system ?stdin args =
  *)
 let run_gpg system ?stdin args =
   lwt stdout, stderr, status = run_gpg_full system ?stdin args in
+  if stdout <> "" then log_info "GPG: output:\n%s" (trim stdout);
+  if stderr <> "" then log_info "GPG: warnings:\n%s" (trim stderr);
   match status with
   | Unix.WEXITED 0 -> Lwt.return stdout
   | status ->
