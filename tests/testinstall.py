@@ -186,25 +186,25 @@ class TestInstall(BaseTest):
 		assert 'Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000' in err, err
 
 	def testList(self):
-		out, err = self.run_0install(['list', 'foo', 'bar'])
+		out, err = self.run_ocaml(['list', 'foo', 'bar'])
 		assert out.lower().startswith("usage:")
 		assert 'PATTERN' in out
 
-		out, err = self.run_0install(['list'])
+		out, err = self.run_ocaml(['list'])
 		assert not err, err
 		assert '' == out, repr(out)
 
 		self.testImport()
 
-		out, err = self.run_0install(['list'])
+		out, err = self.run_ocaml(['list'])
 		assert not err, err
 		assert 'http://example.com:8000/Hello.xml\n' == out, repr(out)
 
-		out, err = self.run_0install(['list', 'foo'])
+		out, err = self.run_ocaml(['list', 'foo'])
 		assert not err, err
 		assert '' == out, repr(out)
 
-		out, err = self.run_0install(['list', 'hello'])
+		out, err = self.run_ocaml(['list', 'hello'])
 		assert not err, err
 		assert 'http://example.com:8000/Hello.xml\n' == out, repr(out)
 
