@@ -134,7 +134,7 @@ class TestInstall(BaseTest):
 	def testAddFeed(self):
 		binary_iface = self.config.iface_cache.get_interface('http://foo/Binary.xml')
 
-		out, err = self.run_0install(['list-feeds', binary_iface.uri])
+		out, err = self.run_ocaml(['list-feeds', binary_iface.uri])
 		assert "(no feeds)" in out, out
 		assert not err, err
 
@@ -151,7 +151,7 @@ class TestInstall(BaseTest):
 		reader.update_from_cache(binary_iface, iface_cache = self.config.iface_cache)
 		assert len(binary_iface.extra_feeds) == 1
 
-		out, err = self.run_0install(['list-feeds', binary_iface.uri])
+		out, err = self.run_ocaml(['list-feeds', binary_iface.uri])
 		assert "Source.xml" in out
 		assert not err, err
 

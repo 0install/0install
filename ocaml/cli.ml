@@ -205,24 +205,24 @@ type subcommand =
 
 (** Which options are valid with which command *)
 let subcommands = [
-  make_subcommand "add"         "PET-NAME INTERFACE"            Add.handle       @@ common_options @ offline_options @ generic_select_options;
-  make_subcommand "select"      "URI"                           Select.handle    @@ common_options @ offline_options @ select_options;
-  make_subcommand "show"        "APP | SELECTIONS"              Show.handle      @@ common_options @ xml_output @ show_options;
-  make_subcommand "download"    "URI"                           Download.handle  @@ common_options @ offline_options @ download_options @ select_options;
-  make_subcommand "run"         "URI [ARGS]"                    Run.handle       @@ common_options @ offline_options @ run_options @ generic_select_options;
-  make_subcommand "update"      "APP | URI"                     Update.handle    @@ common_options @ offline_options @ generic_select_options;
-  make_subcommand "update-bg"   "-"                             Update.handle_bg @@ common_options;
+  make_subcommand "add"         "PET-NAME INTERFACE"            Add.handle        @@ common_options @ offline_options @ generic_select_options;
+  make_subcommand "select"      "URI"                           Select.handle     @@ common_options @ offline_options @ select_options;
+  make_subcommand "show"        "APP | SELECTIONS"              Show.handle       @@ common_options @ xml_output @ show_options;
+  make_subcommand "download"    "URI"                           Download.handle   @@ common_options @ offline_options @ download_options @ select_options;
+  make_subcommand "run"         "URI [ARGS]"                    Run.handle        @@ common_options @ offline_options @ run_options @ generic_select_options;
+  make_subcommand "update"      "APP | URI"                     Update.handle     @@ common_options @ offline_options @ generic_select_options;
+  make_subcommand "update-bg"   "-"                             Update.handle_bg  @@ common_options;
   make_subcommand "whatchanged" "APP-NAME"                      Whatchanged.handle @@ common_options @ diff_options;
-  make_subcommand "destroy"     "PET-NAME"                      Destroy.handle   @@ common_options;
-  make_subcommand "config"      "[NAME [VALUE]]"                fallback_handler @@ common_options;
-  make_subcommand "import"      "FEED"                          Import.handle    @@ common_options @ offline_options;
+  make_subcommand "destroy"     "PET-NAME"                      Destroy.handle    @@ common_options;
+  make_subcommand "config"      "[NAME [VALUE]]"                fallback_handler  @@ common_options;
+  make_subcommand "import"      "FEED"                          Import.handle     @@ common_options @ offline_options;
   make_subcommand "list"        "PATTERN"                       List_ifaces.handle @@ common_options;
-  make_subcommand "search"      "QUERY"                         Search.handle    @@ common_options;
-  make_subcommand "add-feed"    "[INTERFACE] NEW-FEED"          Add_feed.handle  @@ common_options @ offline_options;
+  make_subcommand "search"      "QUERY"                         Search.handle     @@ common_options;
+  make_subcommand "add-feed"    "[INTERFACE] NEW-FEED"          Add_feed.handle   @@ common_options @ offline_options;
   make_subcommand "remove-feed" "[INTERFACE] FEED"              Remove_feed.handle @@ common_options @ offline_options;
-  make_subcommand "list-feeds"  "URI"                           fallback_handler @@ common_options;
-  make_subcommand "man"         "NAME"                          Man.handle       @@ common_options;
-  make_subcommand "digest"      "DIRECTORY | ARCHIVE [EXTRACT]" fallback_handler @@ common_options @ digest_options;
+  make_subcommand "list-feeds"  "URI"                           List_feeds.handle @@ common_options;
+  make_subcommand "man"         "NAME"                          Man.handle        @@ common_options;
+  make_subcommand "digest"      "DIRECTORY | ARCHIVE [EXTRACT]" fallback_handler  @@ common_options @ digest_options;
 ]
 
 let show_toplevel_help config =

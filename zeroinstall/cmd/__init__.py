@@ -14,7 +14,7 @@ import logging
 
 from zeroinstall import SafeException, DryRun
 
-valid_commands = ['config', 'list-feeds', 'digest', 'slave']
+valid_commands = ['config', 'digest', 'slave']
 
 class UsageError(Exception): pass
 
