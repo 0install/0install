@@ -284,7 +284,7 @@ let () = Support.Logging.threshold := Support.Logging.Debug
 
 class null_ui =
   object (_ : #Zeroinstall.Ui.ui_handler)
-    method start_monitoring ~cancel:_ ~url:_ ~hint:_  ~size:_ ~tmpfile:_ = Lwt.return ()
+    method start_monitoring ~cancel:_ ~url:_ ?hint:_  ~size:_ ~tmpfile:_ = Lwt.return ()
     method stop_monitoring _ = Lwt.return ()
     method update_key_info _fingerprint _xml = Lwt.return ()
     method confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" feed_url

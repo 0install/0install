@@ -20,7 +20,7 @@ class type ui_handler =
      * @param hint the feed associated with this download
      * @param size the expected size in bytes, if known
      * @param tmpfile the temporary file where we are storing the contents (for progress reporting) *)
-    method start_monitoring : cancel:(unit -> unit) -> url:string -> hint:string -> size:(Int64.t option) -> tmpfile:filepath -> unit Lwt.t
+    method start_monitoring : cancel:(unit -> unit) -> url:string -> ?hint:string -> size:(Int64.t option) -> tmpfile:filepath -> unit Lwt.t
 
     (** A download has finished (successful or not) *)
     method stop_monitoring : filepath -> unit Lwt.t
@@ -53,15 +53,19 @@ class python_ui (slave:Python.slave) =
     ) in
 
   object (_ : #ui_handler)
-    method start_monitoring ~cancel ~url ~hint ~size ~tmpfile =
+    method start_monitoring ~cancel ~url ?hint ~size ~tmpfile =
       Hashtbl.add downloads tmpfile cancel;
       let size =
         match size with
         | None -> `Null
         | Some size -> `Float (Int64.to_float size) in
+      let hint =
+        match hint with
+        | None -> `Null
+        | Some hint -> `String hint in
       let details = `Assoc [
         ("url", `String url);
-        ("hint", `String hint);
+        ("hint", hint);
         ("size", size);
         ("tempfile", `String tmpfile);
       ] in
@@ -100,7 +104,7 @@ class batch_ui slave =
   object (_ : #ui_handler)
     inherit python_ui slave
 
-    method! start_monitoring ~cancel:_ ~url:_ ~hint:_ ~size:_ ~tmpfile:_ = Lwt.return ()
+    method! start_monitoring ~cancel:_ ~url:_ ?hint:_ ~size:_ ~tmpfile:_ = Lwt.return ()
     method! stop_monitoring _tmpfile = Lwt.return ()
 
 (* For now, for the unit-tests, fall back to Python.
