@@ -1482,20 +1482,6 @@ class ZeroInstallFeed(object):
 					return new_uri
 		return None
 
-class DummyFeed(object):
-	"""Temporary class used during API transition."""
-	last_modified = None
-	name = '-'
-	last_checked = property(lambda self: None)
-	implementations = property(lambda self: {})
-	feeds = property(lambda self: [])
-	summary = property(lambda self: '-')
-	description = property(lambda self: '')
-	def get_name(self): return self.name
-	def get_feed(self, url): return None
-	def get_metadata(self, uri, name): return []
-_dummy_feed = DummyFeed()
-
 if sys.version_info[0] > 2:
 	# Python 3
 
