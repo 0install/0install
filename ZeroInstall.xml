@@ -61,6 +61,6 @@ interfere with those provided by the distribution.
     </command>
     -->
 
-    <implementation id="." version="2.4-rc1-post"/>
+    <implementation id="." released="2013-10-14" version="2.5-rc1"/>
   </group>
 </interface>
