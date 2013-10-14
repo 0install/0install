@@ -8,6 +8,12 @@ open Support.Common
 module Config = Zeroinstall.Config
 module U = Support.Utils
 
+let () =
+  (* Make oUnit 2 happy: we need to be able to reset these to their initial values after each test. *)
+  Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/XXX";
+  Unix.putenv "DISPLAY" "";
+  Unix.putenv "GNUPGHOME" "/XXX"
+
 (* For temporary directory names *)
 let () = Random.self_init ()
 
@@ -359,8 +365,12 @@ let temp_dir_name =
       | _ -> failwith "temp_dir_name: unknown filesystem"
 
 let with_tmpdir fn () =
-  let tmppath = U.make_tmp_dir real_system temp_dir_name ~prefix:"0install-test-" in
-  U.finally_do (U.rmtree ~even_if_locked:true real_system) tmppath fn
+  U.finally_do
+    (fun () -> Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/XXX"; Unix.putenv "GNUPGHOME" "/XXX") ()
+    (fun () ->
+      let tmppath = U.make_tmp_dir real_system temp_dir_name ~prefix:"0install-test-" in
+      U.finally_do (U.rmtree ~even_if_locked:true real_system) tmppath fn
+    )
 
 let get_fake_config tmpdir =
   Zeroinstall.Python.slave_debug_level := Some Support.Logging.Warning;
@@ -369,9 +379,10 @@ let get_fake_config tmpdir =
   let home =
     match tmpdir with
     | None -> "/home/testuser";
-    | Some dir -> dir in
+    | Some dir ->
+        Unix.putenv "GNUPGHOME" dir;
+        dir in
   system#putenv "HOME" home;
-  Unix.putenv "GNUPGHOME" home;
   if on_windows then (
     system#add_file (src_dir +/ "0install-runenv.exe") (build_dir +/ "0install-runenv.exe");
     system#add_file (src_dir +/ "0install-python-fallback") (src_dir +/ "0install-python-fallback");
