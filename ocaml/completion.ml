@@ -88,11 +88,11 @@ class virtual completer command config =
   end
 
 (* 0install <Tab> *)
-let complete_command (completer:completer) raw_options prefix =
+let complete_command (completer:completer) raw_options prefix group =
   let add s (name, _values) = StringSet.add name s in
   let options_used = List.fold_left add StringSet.empty raw_options in
 
-  let commands = List.filter (fun (full, _) -> starts_with full prefix) Cli.subcommands in
+  let commands = List.filter (fun (full, _) -> starts_with full prefix) group in
   let compatible_with_command (_name, subcommand) = StringSet.subset options_used (Cli.set_of_option_names subcommand) in
   let valid_commands = List.filter compatible_with_command commands in
 
@@ -157,6 +157,12 @@ let complete_extra_feed config completer iface pre =
   in
   List.iter add_if_matches extra_feeds
 
+let complete_digest completer pre ~value =
+  let add_if_matches name =
+    let name = if value then name else String.sub name 0 (String.length name - 1) in
+    if starts_with name pre then completer#add (if value then Prefix else Add) name in
+  ["sha1="; "sha1new="; "sha256="; "sha256new_"] |> List.iter add_if_matches
+
 (** We are completing an argument, not an option. *)
 let complete_arg config (completer:completer) pre = function
   | ["run"] -> completer#add_apps pre; completer#add_interfaces pre; completer#add_files pre
@@ -175,6 +181,16 @@ let complete_arg config (completer:completer) pre = function
   | ["remove-feed"] -> complete_interfaces_with_feeds config completer pre; completer#add_files pre
   | ["remove-feed"; iface] -> complete_extra_feed config completer iface pre
   | ["show"] -> completer#add_apps pre; completer#add_files pre
+  | ["store"; "add"] -> complete_digest completer pre ~value:true
+  | ["store"; "add"; _] -> completer#add_files pre
+  | ["store"; "copy"] -> completer#add_files pre
+  | ["store"; "copy"; _] -> completer#add_files pre
+  | ["store"; "optimise"] -> completer#add_files pre
+  | ["store"; "audit"] -> completer#add_files pre
+  | ["store"; "find"] -> complete_digest completer pre ~value:true
+  | ["store"; "manifest"] -> completer#add_files pre
+  | ["store"; "manifest"; _] -> complete_digest completer pre ~value:false
+  | ["store"; "verify"] -> complete_digest completer pre ~value:true; completer#add_files pre
   | _ -> ()
 
 class bash_completer command config =
@@ -371,7 +387,8 @@ let handle_complete config = function
           let completions = List.filter check_name possible_options in
           List.iter (completer#add Add) (List.sort compare completions)
       | CompleteOption opt -> complete_option_value completer args opt
-      | CompleteArg 0 -> complete_command completer raw_options (List.hd args)
+      | CompleteArg 0 -> complete_command completer raw_options (List.hd args) Cli.subcommands
+      | CompleteArg 1 when List.hd args = "store" -> complete_command completer raw_options (List.nth args 1) Cli.store_subcommands
       | CompleteArg i -> complete_arg config completer (List.nth args i) (slice args ~start:0 ~stop:i)
       | CompleteLiteral lit -> completer#add Add lit
   )

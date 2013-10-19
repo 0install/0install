@@ -28,6 +28,7 @@ and subnode =
   | Subgroup of subgroup
 
 val subcommands : subgroup
+val store_subcommands : subgroup
 
 val no_command : subcommand
 val set_of_option_names : subnode -> Support.Common.StringSet.t
