@@ -12,7 +12,7 @@ type stores = string list
 
 type digest = (string * string)
 
-type available_digests = (string, bool) Hashtbl.t
+type available_digests = (string, filepath) Hashtbl.t
 
 exception Not_stored of string
 
@@ -51,7 +51,7 @@ let get_available_digests (system:system) stores =
     match system#readdir dir with
     | Success items ->
         for i = 0 to Array.length items - 1 do
-          Hashtbl.add digests items.(i) true
+          Hashtbl.add digests items.(i) dir
         done
     | Problem _ -> log_debug "Can't scan %s" dir
     in

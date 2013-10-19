@@ -4,7 +4,7 @@
 
 from __future__ import print_function
 
-from zeroinstall import _
+from zeroinstall import _, logger
 import os, sys
 import gtk
 
@@ -187,11 +187,6 @@ def get_size(path):
 				size += os.path.getsize(os.path.join(root, name))
 	return size
 
-def summary(feed):
-	if feed.summary:
-		return feed.get_name() + ' - ' + feed.summary
-	return feed.get_name()
-
 def get_selected_paths(tree_view):
 	model, paths = tree_view.get_selection().get_selected_rows()
 	return paths
@@ -209,9 +204,9 @@ SAFE_MODE = False # really delete things
 #SAFE_MODE = True # print deletes, instead of performing them
 
 class CachedFeed(object):
-	def __init__(self, uri, size):
+	def __init__(self, uri):
 		self.uri = uri
-		self.size = size
+		self.size = 0			# Excludes size of children. Assume 0 for now (feeds are small).
 
 	def delete(self):
 		if not os.path.isabs(self.uri):
@@ -235,8 +230,8 @@ class CachedFeed(object):
 		return self.uri.__cmp__(other.uri)
 
 class ValidFeed(CachedFeed):
-	def __init__(self, feed, size):
-		CachedFeed.__init__(self, feed.url, size)
+	def __init__(self, feed):
+		CachedFeed.__init__(self, feed['url'])
 		self.feed = feed
 		self.in_cache = []
 
@@ -254,12 +249,12 @@ class ValidFeed(CachedFeed):
 
 	def append_to(self, model, iter):
 		iter2 = model.append(iter, extract_columns(
-			name=self.feed.get_name(),
+			name=self.feed['name'],
 			uri=self.uri,
-			tooltip=escape(self.feed.summary),
+			tooltip=escape(self.feed['summary']),
 			object=self))
-		for cached_impl in self.in_cache:
-			cached_impl.append_to(model, iter2)
+		for cached_impl in self.feed['in-cache']:
+			KnownImplementation(self, cached_impl).append_to(model, iter2)
 
 	def launch(self, explorer):
 		os.spawnlp(os.P_NOWAIT, '0launch', '0launch', '--gui', self.uri)
@@ -280,7 +275,7 @@ class ValidFeed(CachedFeed):
 		return list(filter(lambda child: child.may_delete, self.in_cache))
 	
 	def prompt_delete(self, cache_explorer):
-		description = "\"%s\"" % (self.feed.get_name(),)
+		description = "\"%s\"" % (self.feed['name'],)
 		num_children = len(self.deletable_children())
 		if self.in_cache:
 			description += _(" (and %s %s)") % (num_children, _("implementation") if num_children == 1 else _("implementations"))
@@ -295,14 +290,11 @@ class ValidFeed(CachedFeed):
 class RemoteFeed(ValidFeed):
 	may_delete = True
 
-class LocalFeed(ValidFeed):
-	may_delete = False
-
 class InvalidFeed(CachedFeed):
 	may_delete = True
 
-	def __init__(self, uri, ex, size):
-		CachedFeed.__init__(self, uri, size)
+	def __init__(self, uri, ex):
+		CachedFeed.__init__(self, uri)
 		self.ex = ex
 
 	def append_to(self, model, iter):
@@ -329,9 +321,9 @@ class LocalImplementation(object):
 class CachedImplementation(object):
 	may_delete = True
 
-	def __init__(self, cache_dir, digest):
+	def __init__(self, cache_dir, digest, size):
 		self.impl_path = os.path.join(cache_dir, digest)
-		self.size = get_size(self.impl_path)
+		self.size = size
 		self.digest = digest
 
 	def delete(self):
@@ -395,11 +387,11 @@ class UnusedImplementation(CachedImplementation):
 			object=self))
 
 class KnownImplementation(CachedImplementation):
-	def __init__(self, cached_iface, cache_dir, impl, impl_size, digest):
-		CachedImplementation.__init__(self, cache_dir, digest)
+	def __init__(self, cached_iface, impl):
+		CachedImplementation.__init__(self, impl['cache-dir'], impl['digest'], impl['size'])
 		self.cached_iface = cached_iface
 		self.impl = impl
-		self.size = impl_size
+		self.size = impl['size']
 	
 	def delete(self):
 		if SAFE_MODE:
@@ -411,26 +403,14 @@ class KnownImplementation(CachedImplementation):
 	def append_to(self, model, iter):
 		impl = self.impl
 		label = _('Version %(implementation_version)s (%(arch)s)') % {
-				'implementation_version': impl.get_version(),
-				'arch': impl.arch or 'any platform'}
+				'implementation_version': impl['version'],
+				'arch': impl['arch'] or 'any platform'}
 
 		model.append(iter, extract_columns(
 			name=label,
 			size=self.size,
 			tooltip=self.impl_path,
 			object=self))
-
-	def __cmp__(self, other):
-		if hasattr(other, 'impl'):
-			return self.impl.__cmp__(other.impl)
-		return -1
-
-	if sys.version_info[0] > 2:
-		def __lt__(self, other):
-			return self.impl.__lt__(other.impl)
-
-		def __eq__(self, other):
-			return self.impl.__eq__(other.impl)
 
 class CacheExplorer(object):
 	"""A graphical interface for viewing the cache and deleting old items."""
@@ -548,21 +528,6 @@ class CacheExplorer(object):
 		self.window.show()
 		self.window.get_window().set_cursor(gtkutils.get_busy_pointer())
 		gtk.gdk.flush()
-		# (async so that the busy pointer works on GTK 3)
-		@tasks.async
-		def populate():
-			populate = self._populate_model()
-			yield populate
-			try:
-				tasks.check(populate)
-			except:
-				import logging
-				logging.warn("fail", exc_info = True)
-				raise
-			# (we delay until here because inserting with the view set is very slow)
-			self.tree_view.set_model(self.view_model)
-			self.set_initial_expansion()
-		return populate()
 	
 	def set_initial_expansion(self):
 		model = self.model
@@ -576,85 +541,22 @@ class CacheExplorer(object):
 		finally:
 			self.window.get_window().set_cursor(None)
 
-	@tasks.async
-	def _populate_model(self):
+	def populate_model(self, ok_feeds, error_feeds, unowned):
 		# Find cached implementations
 		iface_cache = self.config.iface_cache
 
-		unowned = {}	# Impl ID -> Store
-		duplicates = [] # TODO
-
-		for s in self.config.stores.stores:
-			if os.path.isdir(s.dir):
-				for id in os.listdir(s.dir):
-					if id in unowned:
-						duplicates.append(id)
-					unowned[id] = s
-
-		ok_feeds = []
-		error_feeds = []
-
-		# Look through cached feeds for implementation owners
-		all_interfaces = iface_cache.list_all_interfaces()
-		all_feeds = {}
-		for uri in all_interfaces:
-			try:
-				iface = iface_cache.get_interface(uri)
-			except Exception as ex:
-				error_feeds.append((uri, str(ex), 0))
-			else:
-				all_feeds.update(iface_cache.get_feeds(iface))
-
-		for url, feed in all_feeds.items():
-			if not feed: continue
-			yield
-			feed_size = 0
-			try:
-				if url != feed.url:
-					# (e.g. for .new feeds)
-					raise Exception('Incorrect URL for feed (%s vs %s)' % (url, feed.url))
-
-				if os.path.isabs(url):
-					cached_feed = url
-					feed_type = LocalFeed
-				else:
-					feed_type = RemoteFeed
-					cached_feed = basedir.load_first_cache(namespaces.config_site,
-							'interfaces', model.escape(url))
-				user_overrides = basedir.load_first_config(namespaces.config_site,
-							namespaces.config_prog,
-							'interfaces', model._pretty_escape(url))
-
-				feed_size = size_if_exists(cached_feed) + size_if_exists(user_overrides)
-			except Exception as ex:
-				error_feeds.append((url, str(ex), feed_size))
-			else:
-				cached_feed = feed_type(feed, feed_size)
-				for impl in feed.implementations.values():
-					if impl.local_path:
-						cached_feed.in_cache.append(LocalImplementation(impl))
-					for digest in impl.digests:
-						if digest in unowned:
-							cached_dir = unowned[digest].dir
-							impl_path = os.path.join(cached_dir, digest)
-							impl_size = get_size(impl_path)
-							cached_feed.in_cache.append(KnownImplementation(cached_feed, cached_dir, impl, impl_size, digest))
-							del unowned[digest]
-				cached_feed.in_cache.sort()
-				ok_feeds.append(cached_feed)
-
 		if error_feeds:
 			iter = SECTION_INVALID_INTERFACES.append_to(self.raw_model)
-			for uri, ex, size in error_feeds:
-				item = InvalidFeed(uri, ex, size)
+			for uri, ex in error_feeds:
+				item = InvalidFeed(uri, ex)
 				item.append_to(self.raw_model, iter)
 
 		unowned_sizes = []
-		local_dir = os.path.join(basedir.xdg_cache_home, '0install.net', 'implementations')
-		for id in unowned:
-			if unowned[id].dir == local_dir:
-				impl = UnusedImplementation(local_dir, id)
-				unowned_sizes.append((impl.size, impl))
+		for info in unowned:
+			head, tail = os.path.split(info['path'])
+			size = int(info['size'])
+			impl = UnusedImplementation(head, tail, size)
+			unowned_sizes.append((size, impl))
 		if unowned_sizes:
 			iter = SECTION_UNOWNED_IMPLEMENTATIONS.append_to(self.raw_model)
 			for size, item in unowned_sizes:
@@ -663,9 +565,13 @@ class CacheExplorer(object):
 		if ok_feeds:
 			iter = SECTION_INTERFACES.append_to(self.raw_model)
 			for item in ok_feeds:
-				yield
+				item = RemoteFeed(item)
 				item.append_to(self.raw_model, iter)
 		self._update_sizes()
+
+		# (we delay until here because inserting with the view set is very slow)
+		self.tree_view.set_model(self.view_model)
+		self.set_initial_expansion()
 	
 	def _update_sizes(self):
 		"""Set TOTAL_SIZE and PRETTY_SIZE to the total size, including all children."""
@@ -711,8 +617,8 @@ def init_filters():
 		('All', lambda *a: True),
 		('Feeds with implementations', filter_only([ValidFeed], has_implementations)),
 		('Feeds without implementations', filter_only([ValidFeed], not_(has_implementations))),
-		('Local Feeds', filter_only([ValidFeed], is_local_feed)),
-		('Remote Feeds', filter_only([ValidFeed], not_(is_local_feed))),
+		#('Local Feeds', filter_only([ValidFeed], is_local_feed)),
+		#('Remote Feeds', filter_only([ValidFeed], not_(is_local_feed))),
 	]
 FILTER_OPTIONS = init_filters()
 
@@ -736,8 +642,8 @@ free up some disk space.""")),
 (_('Invalid feeds'), '\n' +
 _("""The cache viewer gets a list of all feeds in your cache. However, some may not \
 be valid; they are shown in the 'Invalid feeds' section. It should be fine to \
-delete these. An invalid feed may be caused by a local feed that no longer \
-exists or by a failed attempt to download a feed (the name ends in '.new').""")),
+delete these. An invalid feed may be caused by a failed attempt to download a feed \
+(the name ends in '.new').""")),
 
 (_('Unowned implementations and temporary files'), '\n' +
 _("""The cache viewer searches through all the feeds to find out which implementations \

@@ -8,6 +8,8 @@ open Options
 open Zeroinstall.General
 open Support.Common
 
+let () = ignore on_windows;
+
 module F = Zeroinstall.Feed
 module FC = Zeroinstall.Feed_cache
 

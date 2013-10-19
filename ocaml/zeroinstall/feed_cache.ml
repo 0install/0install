@@ -37,15 +37,14 @@ let get_save_cache_path config (`remote_feed url) =
 let get_cached_icon_path config feed_url =
   Basedir.load_first config.system (cache_icons +/ Escape.escape feed_url) config.basedirs.Basedir.cache
 
-(** Actually, we list all the cached feeds. Close enough. *)
-let list_all_interfaces config =
-  let interfaces = ref StringSet.empty in
+let list_all_feeds config =
+  let feeds = ref StringSet.empty in
   let system = config.system in
 
   let check_leaf leaf =
     if leaf.[0] <> '.' then
       let uri = Escape.unescape leaf in
-      interfaces := StringSet.add uri !interfaces in
+      feeds := StringSet.add uri !feeds in
 
   let scan_dir path =
     match system#readdir (path +/ config_site +/ "interfaces") with
@@ -54,7 +53,10 @@ let list_all_interfaces config =
 
   List.iter scan_dir config.basedirs.Basedir.cache;
 
-  !interfaces
+  !feeds
+
+(** Actually, we list all the cached feeds. Close enough. *)
+let list_all_interfaces = list_all_feeds
 
 (* Note: this was called "update_user_overrides" in the Python *)
 let load_iface_config config uri : interface_config =

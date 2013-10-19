@@ -8,7 +8,7 @@ open Support.Common
 
 type stores = filepath list
 type digest = string * string
-type available_digests
+type available_digests = (string, filepath) Hashtbl.t   (* Digest -> Parent directory of implementation *)
 
 exception Not_stored of string
 
