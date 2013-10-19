@@ -2,7 +2,7 @@ SRCDIR ?= NOTSET
 DISTDIR ?= NOTSET
 BUILDDIR ?= NOTSET
 
-SCRIPTS = 0install-python-fallback 0alias 0desktop 0store 0store-secure-add
+SCRIPTS = 0install-python-fallback 0alias 0desktop 0store-secure-add
 DOCS = README.md COPYING
 MANPAGES = 0launch.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
 
@@ -25,6 +25,7 @@ all: translations
 	install -d "${DISTDIR}/files"
 	install -s ocaml/0install "${DISTDIR}/files/0install"
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0launch"
+	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0store"
 	(cd "${SRCDIR}" && cp ${MANPAGES} ${SCRIPTS} setup.py "${DISTDIR}/files")
 	install "${SRCDIR}/install.sh.src" "${DISTDIR}/install.sh"
 	(cp -r build/lib/zeroinstall "${DISTDIR}/files/")

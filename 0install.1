@@ -46,6 +46,8 @@
 
 .B 0install digest \fBDIRECTORY\fP | \fBARCHIVE\fP [\fBEXTRACT\fP]
 
+.B 0install store ...
+
 .SH DESCRIPTION
 .PP
 Zero Install is a decentralised cross-distribution software installation
@@ -454,6 +456,12 @@ selections is saved per day.
 
 .SS 0install destroy NAME
 The application \fBNAME\fP is deleted, along with any launchers added for it.
+
+.SS 0install store ...
+
+.PP
+Provides low-level access to the store of cached implementations. See the 0store(1)
+man-page for details.
 
 .SH DEBUGGING TIPS
 

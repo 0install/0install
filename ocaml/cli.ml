@@ -183,13 +183,28 @@ let fallback_handler options flags _args =
   log_info "No OCaml handler for this sub-command; switching to Python version...";
   Zeroinstall.Python.fallback_to_python options.config (List.tl @@ Array.to_list options.config.system#argv)
 
-let make_command_obj name help handler valid_options =
+let handle_store options flags _args =
+  Support.Argparse.iter_options flags (function
+    | #common_option as o -> Common_options.process_common_option options o
+    | _ -> ()
+  );
+  log_info "No OCaml handler for this sub-command; switching to Python version...";
+  match Array.to_list options.config.system#argv with
+  | [] -> assert false
+  | prog :: args ->
+      let argv =
+        if Support.Utils.starts_with (Filename.basename prog) "0store" then "store" :: args
+        else args in
+      Zeroinstall.Python.fallback_to_python options.config argv
+
+let make_command_obj help handler valid_options =
   object
-    method handle options raw_options args =
+    method handle options raw_options command_path args =
       let flags = parse_options valid_options raw_options in
       try handler options flags args
       with Support.Argparse.Usage_error status ->
-        Common_options.show_help options.config.system valid_options (name ^ " [OPTIONS] " ^ help) ignore;
+        let command = String.concat " " command_path in
+        Common_options.show_help options.config.system valid_options (command ^ " [OPTIONS] " ^ help) ignore;
         raise (System_exit status)
 
     method options = (valid_options :> (zi_option, _) opt_spec list)
@@ -197,7 +212,7 @@ let make_command_obj name help handler valid_options =
   end
 
 type subcommand =
-   < handle : global_settings -> raw_option list -> iface_uri list -> unit;
+   < handle : global_settings -> raw_option list -> string list -> string list -> unit;
      help : string;
      options : (Options.zi_option, Options.zi_arg_type) Support.Argparse.opt_spec list >
 and subgroup = (string * subnode) list
@@ -206,7 +221,22 @@ and subnode =
   | Subgroup of subgroup
 
 let make_subcommand name help handler valid_options =
-  (name, Subcommand (make_command_obj name help handler valid_options))
+  (name, Subcommand (make_command_obj help handler valid_options))
+
+let make_subgroup name subcommands =
+  (name, Subgroup subcommands)
+
+let store_subcommands : subgroup = [
+  make_subcommand "add"       "DIGEST (DIRECTORY | (ARCHIVE [EXTRACT]))"   handle_store @@ common_options;
+  make_subcommand "audit"     "[DIRECTORY]"                                handle_store @@ common_options;
+  make_subcommand "copy"      "SOURCE [ TARGET ]"                          handle_store @@ common_options;
+  make_subcommand "find"      "DIGEST"                                     handle_store @@ common_options;
+  make_subcommand "list"      ""                                           handle_store @@ common_options;
+  make_subcommand "manifest"  "DIRECTORY [ALGORITHM]"                      handle_store @@ common_options;
+  make_subcommand "optimise"  "[ CACHE ]"                                  handle_store @@ common_options;
+  make_subcommand "verify"    "(DIGEST | (DIRECTORY [DIGEST])"             handle_store @@ common_options;
+  make_subcommand "manage"    ""                                           handle_store @@ common_options;
+]
 
 (** Which options are valid with which command *)
 let subcommands: subgroup = [
@@ -228,17 +258,19 @@ let subcommands: subgroup = [
   make_subcommand "list-feeds"  "URI"                           List_feeds.handle @@ common_options;
   make_subcommand "man"         "NAME"                          Man.handle        @@ common_options;
   make_subcommand "digest"      "DIRECTORY | ARCHIVE [EXTRACT]" fallback_handler  @@ common_options @ digest_options;
+  make_subgroup   "store"       store_subcommands;
 ]
 
-let show_toplevel_help config =
+let show_group_help config parents group =
   let print fmt = Support.Utils.print config.system fmt in
   let top_options = show_version_options @ common_options in
   Common_options.show_help config.system top_options "COMMAND [OPTIONS]" (fun () ->
+    let parents = String.concat "" (List.map ((^) " ") parents) in
     print "\nTry --help with one of these:\n";
-    ListLabels.iter subcommands ~f:(fun (command, info) ->
+    ListLabels.iter group ~f:(fun (command, info) ->
       match info with
       | Subcommand info when info#help = "-" -> ()
-      | _ -> print "0install %s" command;
+      | _ -> print "0install%s %s" parents command;
     );
   )
 
@@ -248,10 +280,10 @@ let handle_no_command options flags args =
     | `Help -> ()
     | #common_option as o -> Common_options.process_common_option options o
   );
-  show_toplevel_help options.config;
+  show_group_help options.config [] subcommands;
   raise (System_exit 1)
 
-let no_command = make_command_obj "" "" handle_no_command @@ common_options @ show_version_options
+let no_command = make_command_obj "" handle_no_command @@ common_options @ show_version_options
 
 let rec set_of_option_names = function
   | Subcommand command ->
@@ -279,18 +311,20 @@ let get_default_options config =
   } in
   options
 
-let rec lookup_subcommand name args (group:subgroup) : (subcommand * string list) =
+let rec lookup_subcommand config name args (group:subgroup) : (string list * subcommand * string list) =
   let subcommand =
     try List.assoc name group
     with Not_found -> raise_safe "Unknown 0install sub-command '%s': try --help" name in
   match subcommand with
-  | Subcommand subcommand -> (subcommand, args)
+  | Subcommand subcommand -> ([name], subcommand, args)
   | Subgroup subgroup ->
       match args with
-      | subname :: subargs -> lookup_subcommand subname subargs subgroup
+      | subname :: subargs ->
+          let (path, command, args) = lookup_subcommand config subname subargs subgroup in
+          (name :: path, command, args)
       | [] ->
-          let names = List.map fst subgroup in
-          raise_safe "Missing sub-command (expecting %s)" (String.concat "|" names)
+          show_group_help config [name] subgroup;
+          raise (System_exit 1)
 
 let handle config raw_args =
   let (raw_options, args, complete) = read_args spec raw_args in
@@ -299,11 +333,11 @@ let handle config raw_args =
   Support.Utils.finally_do (fun options -> options.slave#close)
     (get_default_options config)
     (fun options ->
-      let subcommand, command_args =
+      let command_path, subcommand, command_args =
         match args with
-        | [] -> (no_command, [])
-        | ["run"] when List.mem ("-V", []) raw_options -> (no_command, [])      (* Hack for 0launch -V *)
-        | command :: command_args -> lookup_subcommand command command_args subcommands in
-      try subcommand#handle options raw_options command_args
+        | [] -> ([], no_command, [])
+        | ["run"] when List.mem ("-V", []) raw_options -> (["run"], no_command, [])      (* Hack for 0launch -V *)
+        | command :: command_args -> lookup_subcommand config command command_args subcommands in
+      try subcommand#handle options raw_options command_path command_args
       with ShowVersion -> Common_options.show_version config.system
     )

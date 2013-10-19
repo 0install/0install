@@ -17,6 +17,11 @@ let main (system:system) : unit =
           | "_complete" :: args -> Completion.handle_complete config args
           | args -> Cli.handle config ("run" :: args)
       )
+      | "0store" | "0store.exe" -> (
+          match args with
+          | "_complete" :: args -> Completion.handle_complete config args
+          | args -> Cli.handle config ("store" :: args)
+      )
       | "0install" | "0install.exe" -> (
           match args with
           | "_complete" :: args -> Completion.handle_complete config args

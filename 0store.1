@@ -108,24 +108,7 @@ you to download the missing files again). For that, try:
 
 .SH MANIFEST
 .PP
-To generate the manifest for a directory structure:
-
-.B 0store manifest DIRECTORY [ALGORITHM]
-
-.PP
-The manifest lists every file and directory in the tree, along with the
-digest of each file, thus uniquely identifying that particular set of files.
-After the manifest, the last line gives the digest of the manifest itself.
-
-.PP
-This value is needed when creating feed files. However, the 0publish
-command will automatically calculate the required digest for you and add it
-to a feed file. See the packager's guide on the Zero Install web site for
-details.
-.PP
-Supported algorithms are 'sha1' (supported by all versions), 'sha1new'
-(requires injector 0.20 or later) and 'sha256' (requires injector 0.20 or later
-AND the Python hashlib module).
+Deprecated. Use "0install digest" instead.
 
 .SH OPTIMISE
 .PP

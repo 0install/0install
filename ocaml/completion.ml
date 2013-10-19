@@ -36,6 +36,7 @@ class virtual completer command config =
       match command with
       | `install -> cword
       | `launch -> cword + 1    (* we added "run" at the start *)
+      | `store -> cword + 1    (* we added "store" at the start *)
 
     method get_config = config
 
@@ -339,7 +340,11 @@ let rec get_possible_options args = function
 
 let handle_complete config = function
   | (shell :: prog :: raw_args) -> (
-      let command = if Support.Utils.starts_with (Filename.basename prog) "0launch" then `launch else `install in
+      let command =
+        let prog = Filename.basename prog in
+        if Support.Utils.starts_with prog "0launch" then `launch
+        else if Support.Utils.starts_with prog "0store" then `store
+        else `install in
       let completer = match shell with
       | "bash" -> new bash_completer command config
       | "fish" -> new fish_completer command config
@@ -349,6 +354,7 @@ let handle_complete config = function
       let raw_args =
         match command with
         | `install -> raw_args
+        | `store -> "store" :: raw_args
         | `launch -> "run" :: raw_args in
 
       let open Cli in

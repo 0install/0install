@@ -16,7 +16,9 @@ val common_options :
 type subcommand =
    < handle : Options.global_settings ->
               Support.Argparse.raw_option list ->
-              Zeroinstall.General.iface_uri list -> unit;
+              string list ->      (* Command path e.g. ["store"; "add"] for "0install store add" *)
+              string list ->      (* Arguments (after command path) *)
+              unit;
      help : string;
      options : (Options.zi_option, Options.zi_arg_type) Support.Argparse.opt_spec
                list >
