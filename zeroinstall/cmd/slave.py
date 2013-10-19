@@ -430,6 +430,25 @@ def do_run_gui(ticket):
 		logger.warning("Returning error", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
 
+@tasks.async
+def do_cache_explorer(config, ticket):
+	try:
+		from zeroinstall.gui import main
+		main.gui_is_available(True)		# Will throw if not
+
+		blocker = tasks.Blocker("Cache explorer window")
+		import gtk
+		from zeroinstall.gtkui import cache
+		cache_explorer = cache.CacheExplorer(config)
+		cache_explorer.window.connect('destroy', lambda widget: blocker.trigger())
+		cache_explorer.show()
+		yield blocker
+		tasks.check(blocker)
+		send_json(["return", ticket, ["ok", None]])
+	except Exception as ex:
+		logger.warning("Returning error", exc_info = True)
+		send_json(["return", ticket, ["error", str(ex)]])
+
 def do_wait_for_network(config):
 	from zeroinstall.injector import background
 	_NetworkState = background._NetworkState
@@ -461,6 +480,9 @@ def handle_invoke(config, options, ticket, request):
 		logger.debug("Got request '%s'", command)
 		if command == 'open-gui':
 			response = do_open_gui(request[1:])
+		elif command == 'open-cache-explorer':
+			do_cache_explorer(config, ticket)
+			return #async
 		elif command == 'run-gui':
 			do_run_gui(ticket)
 			return #async

@@ -236,26 +236,4 @@ def do_copy(args):
 
 	copy_tree_with_verify(source, target, manifest_data, required_digest)
 
-def do_manage(args):
-	"""manage"""
-	if args:
-		raise UsageError(_("manage command takes no arguments"))
-
-	if sys.version_info[0] < 3:
-		import pygtk
-		pygtk.require('2.0')
-	else:
-		from zeroinstall.gtkui import pygtkcompat
-		pygtkcompat.enable()
-		pygtkcompat.enable_gtk(version = '3.0')
-
-	import gtk
-	from zeroinstall.gtkui import cache
-	from zeroinstall.injector.config import load_config
-	config = load_config()
-	cache_explorer = cache.CacheExplorer(config)
-	cache_explorer.window.connect('destroy', gtk.main_quit)
-	cache_explorer.show()
-	gtk.main()
-
-commands = [do_add, do_audit, do_copy, do_find, do_list, do_manifest, do_optimise, do_verify, do_manage]
+commands = [do_add, do_audit, do_copy, do_find, do_list, do_manifest, do_optimise, do_verify]

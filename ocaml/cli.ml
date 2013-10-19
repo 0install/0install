@@ -235,7 +235,7 @@ let store_subcommands : subgroup = [
   make_subcommand "manifest"  "DIRECTORY [ALGORITHM]"                      handle_store @@ common_options;
   make_subcommand "optimise"  "[ CACHE ]"                                  handle_store @@ common_options;
   make_subcommand "verify"    "(DIGEST | (DIRECTORY [DIGEST])"             handle_store @@ common_options;
-  make_subcommand "manage"    ""                                           handle_store @@ common_options;
+  make_subcommand "manage"    ""                                           Manage_cache.handle @@ common_options;
 ]
 
 (** Which options are valid with which command *)
