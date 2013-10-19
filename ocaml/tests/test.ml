@@ -56,7 +56,10 @@ let test_option_parsing () =
     assert (complete = Support.Argparse.CompleteNothing);
     let subcommand =
       match args with
-      | command :: _ -> List.assoc command Cli.subcommands
+      | command :: _ ->
+          begin match List.assoc command Cli.subcommands with
+          | Cli.Subcommand c -> c
+          | _ -> assert false end
       | [] -> Cli.no_command in
     let flags = Support.Argparse.parse_options subcommand#options raw_options in
     let options = Cli.get_default_options config in

@@ -10,6 +10,8 @@ module U = Support.Utils
 module Basedir = Support.Basedir
 module FeedMap = Feed_url.FeedMap
 
+let () = ignore on_windows  (* Quiet compiler warning *)
+
 (** Provides feeds to the [Impl_provider.impl_provider] during a solve. Afterwards, it can be used to
     find out which feeds were used (and therefore may need updating). *)
 class feed_provider config distro =

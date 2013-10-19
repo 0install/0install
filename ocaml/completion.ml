@@ -92,7 +92,7 @@ let complete_command (completer:completer) raw_options prefix =
   let options_used = List.fold_left add StringSet.empty raw_options in
 
   let commands = List.filter (fun (full, _) -> starts_with full prefix) Cli.subcommands in
-  let compatible_with_command (_name, subcommand) = StringSet.subset options_used (Cli.set_of_option_names subcommand#options) in
+  let compatible_with_command (_name, subcommand) = StringSet.subset options_used (Cli.set_of_option_names subcommand) in
   let valid_commands = List.filter compatible_with_command commands in
 
   let complete_commands = if List.length valid_commands = 0 then commands else valid_commands in
@@ -326,6 +326,17 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
       | _ -> completer#add_interfaces pre
   )
 
+(** Filter the options to include only those compatible with the subcommand. *)
+let rec get_possible_options args = function
+  | Cli.Subcommand subcommand ->
+      subcommand#options |> List.map (fun (names, _nargs, _help, _handler) -> names) |> List.concat
+  | Cli.Subgroup group as node ->
+      match args with
+      | [] -> Cli.set_of_option_names node |> StringSet.elements
+      | cmd :: args ->
+          try let subcommand = List.assoc cmd group in get_possible_options args subcommand
+          with Not_found -> []
+
 let handle_complete config = function
   | (shell :: prog :: raw_args) -> (
       let command = if Support.Utils.starts_with (Filename.basename prog) "0launch" then `launch else `install in
@@ -349,16 +360,9 @@ let handle_complete config = function
       | CompleteNothing -> ()
       | CompleteOptionName "-" -> completer#add Prefix "--"   (* Suggest using a long option *)
       | CompleteOptionName prefix ->
-          let possible_options = match args with
-          | cmd :: _ -> (
-              try let subcommand = List.assoc cmd subcommands in subcommand#options @ common_options
-              with Not_found -> spec.options_spec
-          )
-          | _ -> spec.options_spec in
+          let possible_options = get_possible_options args (Subgroup subcommands) in
           let check_name name = starts_with name prefix in
-          let check_opt (names, _nargs, _help, _handler) =
-            List.filter check_name names in
-          let completions = List.concat (List.map check_opt possible_options) in
+          let completions = List.filter check_name possible_options in
           List.iter (completer#add Add) (List.sort compare completions)
       | CompleteOption opt -> complete_option_value completer args opt
       | CompleteArg 0 -> complete_command completer raw_options (List.hd args)

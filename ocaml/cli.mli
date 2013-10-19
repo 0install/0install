@@ -20,10 +20,15 @@ type subcommand =
      help : string;
      options : (Options.zi_option, Options.zi_arg_type) Support.Argparse.opt_spec
                list >
-val subcommands : (string * subcommand) list
+and subgroup = (string * subnode) list
+and subnode =
+  | Subcommand of subcommand
+  | Subgroup of subgroup
+
+val subcommands : subgroup
 
 val no_command : subcommand
-val set_of_option_names : ('a, 'b) Support.Argparse.opt_spec list -> Support.Common.StringSet.t
+val set_of_option_names : subnode -> Support.Common.StringSet.t
 val handle : Zeroinstall.General.config -> string list -> unit
 
 val spec : (Options.zi_option, Options.zi_arg_type) Support.Argparse.argparse_spec
