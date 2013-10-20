@@ -468,7 +468,7 @@ class CacheExplorer(object):
 			if not pos:
 				return False
 			path, col, x, y = pos
-			obj = self.model[path][ITEM_OBJECT.idx]
+			obj = self.view_model[path][ITEM_OBJECT.idx]
 			if obj and hasattr(obj, 'menu_items'):
 				popup_menu(bev, obj, model=self.model, path=path, cache_explorer=self)
 		self.tree_view.connect('button-press-event', button_press)
@@ -480,7 +480,7 @@ class CacheExplorer(object):
 		def selection_changed(selection):
 			any_selected = False
 			for x in get_selected_paths(self.tree_view):
-				obj = self.model[x][ITEM_OBJECT.idx]
+				obj = self.view_model[x][ITEM_OBJECT.idx]
 				if obj is None or not obj.may_delete:
 					window.set_response_sensitive(DELETE, False)
 					return
