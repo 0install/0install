@@ -336,7 +336,13 @@ def enable_gtk(version='2.0'):
     Gtk.image_new_from_file = Gtk.Image.new_from_file
     Gtk.settings_get_default = Gtk.Settings.get_default
     Gtk.window_set_default_icon = Gtk.Window.set_default_icon
-    Gtk.clipboard_get = Gtk.Clipboard.get
+
+    def clipboard_get(selection = "CLIPBOARD"):
+        if selection == "CLIPBOARD":
+            return Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        else:
+            return Gtk.Clipboard.get(Gdk.SELECTION_PRIMARY)
+    Gtk.clipboard_get = clipboard_get
 
     #AccelGroup
     Gtk.AccelGroup.connect_group = Gtk.AccelGroup.connect

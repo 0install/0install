@@ -263,9 +263,15 @@ class ValidFeed(CachedFeed):
 	
 	def copy_uri(self, explorer):
 		clipboard = gtk.clipboard_get()
-		clipboard.set_text(self.uri)
+		try:
+			clipboard.set_text(self.uri)
+		except TypeError:
+			clipboard.set_text(self.uri, len(self.uri))		# GTK 3
 		primary = gtk.clipboard_get('PRIMARY')
-		primary.set_text(self.uri)
+		try:
+			primary.set_text(self.uri)
+		except TypeError:
+			primary.set_text(self.uri, len(self.uri))		# GTK 3
 	
 	def deletable_children(self):
 		return list(filter(lambda child: child.may_delete, self.in_cache))
