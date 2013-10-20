@@ -111,20 +111,6 @@ def update_user_feed_overrides(feed):
 	if last_checked:
 		feed.last_checked = int(last_checked)
 
-	for item in root.childNodes:
-		if item.uri != XMLNS_IFACE: continue
-		if item.name == 'implementation':
-			id = item.getAttribute('id')
-			assert id is not None
-			impl = feed.implementations.get(id, None)
-			if not impl:
-				logger.debug(_("Ignoring user-override for unknown implementation %(id)s in %(interface)s"), {'id': id, 'interface': feed})
-				continue
-
-			user_stability = item.getAttribute('user-stability')
-			if user_stability:
-				impl.user_stability = stability_levels[str(user_stability)]
-
 def update_user_overrides(interface, known_site_feeds = frozenset()):
 	"""Update an interface with user-supplied information.
 	Sets preferred stability and updates extra_feeds.

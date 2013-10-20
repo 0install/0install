@@ -482,6 +482,12 @@ def do_gui_update_selections(args, xml):
 	ready, tree = args
 	gui_driver.set_selections(ready, tree, xml)
 
+def do_test_distro(config, args):
+	global _distro
+	rpmdir = args
+	from zeroinstall.injector import distro
+	_distro = distro.RPMDistribution(os.path.join(rpmdir, 'status'))
+
 def handle_invoke(config, options, ticket, request):
 	try:
 		command = request[0]
@@ -540,6 +546,8 @@ def handle_invoke(config, options, ticket, request):
 			response = do_start_monitoring(config, request[1])
 		elif command == 'stop-monitoring':
 			response = do_stop_monitoring(config, request[1])
+		elif command == 'test-distro':
+			response = do_test_distro(config, request[1])
 		else:
 			raise SafeException("Internal error: unknown command '%s'" % command)
 		response = ['ok', response]

@@ -335,7 +335,7 @@ class TestDownload(BaseTest):
 		blocker = distro._host_distribution.fetch_candidates(master_feed.get_package_impls(distro._host_distribution))
 		if blocker:
 			tasks.wait_for_blocker(blocker)
-		distro_feed_url = master_feed.get_distro_feed()
+		distro_feed_url = 'distribution:' + master_feed.url
 		assert distro_feed_url is not None
 		distro_feed = distro._host_distribution.get_feed(master_feed.url, master_feed.get_package_impls(distro._host_distribution))
 		assert distro_feed is not None

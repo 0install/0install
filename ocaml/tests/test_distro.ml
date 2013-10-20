@@ -8,7 +8,7 @@ open OUnit
 module Qdom = Support.Qdom
 open Fake_system
 module Distro = Zeroinstall.Distro
-module Feed = Zeroinstall.Feed
+module F = Zeroinstall.Feed
 module U = Support.Utils
 
 let test_feed = "<?xml version='1.0'?>\n\
@@ -38,6 +38,10 @@ let test_gobject_feed = "<?xml version='1.0'?>\n\
   <package-implementation package='python-idontexist'/>\n\
 </interface>"
 
+let load_feed system xml =
+    let root = Qdom.parse_input None @@ Xmlm.make_input (`String (0, xml)) in
+    F.parse system root None
+
 let suite = "distro">::: [
   "arch">:: Fake_system.with_tmpdir (fun tmpdir ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
@@ -51,10 +55,9 @@ let suite = "distro">::: [
     let system = (fake_system :> system) in
     let slave = new Zeroinstall.Python.slave config in
     let distro = new Distro.ArchLinux.arch_distribution config slave in
-    let root = Qdom.parse_input None @@ Xmlm.make_input (`String (0, test_feed)) in
-    let feed = Feed.parse system root None in
+    let feed = load_feed system test_feed in
     let impls = Distro.get_package_impls distro feed in
-    let open Feed in
+    let open F in
     match impls with
     | Some [impl] ->
         assert_str_equal "2.7.2-4" (Zeroinstall.Versions.format_version impl.parsed_version);
@@ -78,7 +81,7 @@ let suite = "distro">::: [
     let slave = new Zeroinstall.Python.slave config in
     let distro = new Distro.generic_distribution slave in
 
-    let open Feed in
+    let open F in
     let is_host impl = U.starts_with (get_attr_ex "id" impl) "package:host:" in
     let find_host impls =
       try List.find is_host impls
@@ -98,7 +101,7 @@ let suite = "distro">::: [
 
     (* python-gobject *)
     let root = Qdom.parse_input None @@ Xmlm.make_input (`String (0, test_gobject_feed)) in
-    let feed = Feed.parse system root None in
+    let feed = F.parse system root None in
     let () =
       match Distro.get_package_impls distro feed with
       | None -> assert_failure "Didn't check!"
@@ -113,5 +116,48 @@ let suite = "distro">::: [
           Qdom.set_attribute "from-feed" (Zeroinstall.Feed_url.format_url (`distribution_feed feed.url)) sel;
           assert (Distro.is_installed config distro sel) in
     slave#close;
+  );
+
+  "rpm">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    let rpmdir = Test_0install.feed_dir +/ "rpm" in
+    let old_path = Unix.getenv "PATH" in
+    Unix.putenv "PATH" (rpmdir ^ ":" ^ old_path);
+
+    let slave = new Zeroinstall.Python.slave config in
+    slave#invoke (`List [`String "test-distro"; `String rpmdir]) Zeroinstall.Python.expect_null;
+    let rpm = new Distro.RPM.rpm_distribution config slave in
+
+    let get_feed xml = load_feed config.system (Printf.sprintf
+      "<?xml version='1.0'?>\n\
+      <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://example.com/yast2-update'>\n\
+        <name>yast2</name>\n%s\n\
+      </interface>" xml) in
+
+    let feed = get_feed
+      "<package-implementation distributions='Debian' package='yast2-mail'/>\n\
+       <package-implementation distributions='RPM' package='yast2-update'/>" in
+    let impls = Fake_system.expect @@ Distro.get_package_impls rpm feed in
+    begin match impls with
+    | [yast] ->
+        assert_equal "package:rpm:yast2-update:2.15.23-21:i586" (F.get_attr_ex "id" yast);
+        assert_equal "2.15.23-21" (F.get_attr_ex "version" yast);
+        assert_equal "*-i586" (Zeroinstall.Arch.format_arch yast.F.os yast.F.machine);
+    | _ -> assert false end;
+
+    let feed = get_feed "<package-implementation distributions='RPM' package='yast2-mail'/>\n\
+                         <package-implementation distributions='RPM' package='yast2-update'/>" in
+    let impls = Fake_system.expect @@ Distro.get_package_impls rpm feed in
+    assert_equal 2 (List.length impls);
+
+    let feed = get_feed "<package-implementation distributions='' package='yast2-mail'/>\n\
+                         <package-implementation package='yast2-update'/>" in
+    let impls = Fake_system.expect @@ Distro.get_package_impls rpm feed in
+    assert_equal 2 (List.length impls);
+
+    let feed = get_feed "<package-implementation distributions='Foo Bar Baz' package='yast2-mail'/>" in
+    let impls = Fake_system.expect @@ Distro.get_package_impls rpm feed in
+    assert_equal 1 (List.length impls);
+
+    Unix.putenv "PATH" old_path;
   );
 ]

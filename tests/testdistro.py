@@ -131,51 +131,6 @@ class TestDistro(BaseTest):
 		self.assertEqual(1, len(feed.implementations))
 		self.assertEqual('7.3-2.1.1-3', list(feed.implementations.values())[0].get_version())
 	
-	def testRPM(self):
-		rpmdir = os.path.join(os.path.dirname(__file__), 'rpm')
-		os.environ['PATH'] = rpmdir + ':' + self.old_path
-		rpm = distro.RPMDistribution(os.path.join(rpmdir, 'status'))
-
-		self.assertEqual(2, len(rpm.versions))
-
-		factory = self.make_factory(rpm)
-		rpm.get_package_info('yast2-update', factory)
-		self.assertEqual(1, len(self.feed.implementations))
-		yast = self.feed.implementations['package:rpm:yast2-update:2.15.23-21:i586']
-		self.assertEqual('2.15.23-21', yast.get_version())
-		self.assertEqual('*-i586', yast.arch)
-
-		feed = parse_impls("""
-				<package-implementation distributions="Debian" package="yast2-mail"/>
-				<package-implementation distributions="RPM" package="yast2-update"/>
-				""")
-		distro_feed_url = feed.get_distro_feed()
-		impls = rpm.get_feed(feed.url, feed.get_package_impls(rpm)).implementations
-		self.assertEqual("distribution:myfeed.xml", distro_feed_url)
-		assert len(impls) == 1, impls
-		impl, = impls
-		assert impl == 'package:rpm:yast2-update:2.15.23-21:i586'
-
-		feed = parse_impls("""
-				<package-implementation distributions="RPM" package="yast2-mail"/>
-				<package-implementation distributions="RPM" package="yast2-update"/>
-				""")
-		impls = rpm.get_feed(feed.url, feed.get_package_impls(rpm)).implementations
-		assert len(impls) == 2, impls
-
-		feed = parse_impls("""
-				<package-implementation distributions="" package="yast2-mail"/>
-				<package-implementation package="yast2-update"/>
-				""")
-		impls = rpm.get_feed(feed.url, feed.get_package_impls(rpm)).implementations
-		assert len(impls) == 2, impls
-
-		feed = parse_impls("""
-				<package-implementation distributions="Foo Bar Baz" package="yast2-mail"/>
-				""")
-		impls = rpm.get_feed(feed.url, feed.get_package_impls(rpm)).implementations
-		assert len(impls) == 1, impls
-
 	def testSlack(self):
 		slackdir = os.path.join(os.path.dirname(__file__), 'slack')
 		slack = distro.SlackDistribution(os.path.join(slackdir, 'packages'))
