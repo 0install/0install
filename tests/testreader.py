@@ -230,38 +230,6 @@ class TestReader(BaseTest):
 		assert feed.implementations['sha1=124'].metadata['http://bob bob'] == 'bobvalue'
 		assert feed.implementations['sha1=124'].metadata['main'] == 'next'
 	
-	def testNative(self):
-		iface_cache = self.config.iface_cache
-		tmp = tempfile.NamedTemporaryFile(mode = 'wt', prefix = 'test-')
-		tmp.write(
-"""<?xml version="1.0" ?>
-<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <name>Foo</name>
-  <summary>Foo</summary>
-  <description>Foo</description>
-  <package-implementation package='gimp'/>
-  <package-implementation package='python-bittorrent' foo='bar' main='/usr/bin/pbt'/>
-</interface>""")
-		tmp.flush()
-
-		iface = model.Interface(foo_iface_uri)
-		reader.update(iface, tmp.name, True, iface_cache = self.config.iface_cache)
-
-		master_feed = iface_cache.get_feed(foo_iface_uri)
-		assert len(master_feed.implementations) == 0
-
-		feed = distro._host_distribution.get_feed(master_feed.url, master_feed.get_package_impls(distro._host_distribution))
-		assert len(feed.implementations) == 1
-
-		impl = feed.implementations['package:deb:python-bittorrent:3.4.2-10:*']
-		assert impl.id == 'package:deb:python-bittorrent:3.4.2-10:*'
-		assert impl.upstream_stability == model.packaged
-		assert impl.user_stability == None
-		assert impl.requires == []
-		assert impl.main == '/usr/bin/pbt'
-		assert impl.metadata['foo'] == 'bar'
-		assert impl.feed == feed
-	
 	def testLang(self):
 		tmp = tempfile.NamedTemporaryFile(mode = 'wt', prefix = 'test-')
 		tmp.write(

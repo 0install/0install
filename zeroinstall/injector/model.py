@@ -1118,7 +1118,7 @@ class ZeroInstallFeed(object):
 	@ivar metadata: extra elements we didn't understand
 	"""
 	# _main is deprecated
-	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'first_description', 'summaries', 'first_summary', '_package_implementations',
+	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'first_description', 'summaries', 'first_summary',
 		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata', 'local_path', 'feed_element']
 
 	def __init__(self, feed_element, local_path = None, distro = None):
@@ -1139,7 +1139,6 @@ class ZeroInstallFeed(object):
 		self.feed_for = set()
 		self.metadata = []
 		self.last_checked = None
-		self._package_implementations = []
 		self.feed_element = feed_element
 
 		if distro is not None:
@@ -1222,7 +1221,7 @@ class ZeroInstallFeed(object):
 			for item in group.childNodes:
 				if item.uri != XMLNS_IFACE: continue
 
-				if item.name not in ('group', 'implementation', 'package-implementation'):
+				if item.name not in ('group', 'implementation'):
 					continue
 
 				# We've found a group or implementation. Scan for dependencies,
@@ -1265,8 +1264,6 @@ class ZeroInstallFeed(object):
 					process_group(item, item_attrs, depends, bindings, commands)
 				elif item.name == 'implementation':
 					process_impl(item, item_attrs, depends, bindings, commands)
-				elif item.name == 'package-implementation':
-					self._package_implementations.append((item, item_attrs, depends))
 				else:
 					assert 0
 
@@ -1402,28 +1399,6 @@ class ZeroInstallFeed(object):
 			logger.info("Note: @main on document element is deprecated in %s", self)
 			root_commands['run'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': main, 'name': 'run'}), None)
 		process_group(feed_element, root_attrs, [], [], root_commands)
-
-	def get_package_impls(self, distro):
-		"""Find the best <pacakge-implementation> element(s) for the given distribution.
-		@param distro: the distribution to use to rate them
-		@type distro: L{distro.Distribution}
-		@return: a list of tuples for the best ranked elements
-		@rtype: [str]
-		@since: 0.49"""
-		best_score = 0
-		best_impls = []
-
-		for item, item_attrs, depends in self._package_implementations:
-			distro_names = item_attrs.get('distributions', '')
-			score_this_item = max(
-				distro.get_score(distro_name) if distro_name else 0.5
-				for distro_name in distro_names.split(' '))
-			if score_this_item > best_score:
-				best_score = score_this_item
-				best_impls = []
-			if score_this_item == best_score:
-				best_impls.append((item, item_attrs, depends))
-		return best_impls
 
 	def get_name(self):
 		"""@rtype: str"""

@@ -332,12 +332,14 @@ class TestDownload(BaseTest):
 		assert master_feed is not None
 		assert master_feed.implementations == {}
 
-		blocker = distro._host_distribution.fetch_candidates(master_feed.get_package_impls(distro._host_distribution))
+		elem = qdom.Element(namespaces.XMLNS_IFACE, "package-implementation", {'package': 'python-bittorrent'})
+		package_impls = [(elem, {'stability': 'testing', 'package': 'python-bittorrent'}, [])]
+		blocker = distro._host_distribution.fetch_candidates(package_impls)
 		if blocker:
 			tasks.wait_for_blocker(blocker)
 		distro_feed_url = 'distribution:' + master_feed.url
 		assert distro_feed_url is not None
-		distro_feed = distro._host_distribution.get_feed(master_feed.url, master_feed.get_package_impls(distro._host_distribution))
+		distro_feed = distro._host_distribution.get_feed(master_feed.url, package_impls)
 		assert distro_feed is not None
 		assert len(distro_feed.implementations) == 2, distro_feed.implementations
 

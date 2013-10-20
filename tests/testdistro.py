@@ -75,61 +75,6 @@ class TestDistro(BaseTest):
 		master_feed_url = 'http://repo.roscidus.com/python/python'
 		feed = host.get_feed(master_feed_url, [])
 		self.assertEqual(1, len(feed.implementations))
-
-	def testDebian(self):
-		dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
-		host = distro.DebianDistribution(
-				os.path.join(dpkgdir, 'status'))
-		host._packagekit = DummyPackageKit()
-
-		factory = self.make_factory(host)
-		host.get_package_info('gimp', factory)
-		self.assertEqual({}, self.feed.implementations)
-
-		# Initially, we only get information about the installed version...
-		host.get_package_info('python-bittorrent', factory)
-		self.assertEqual(1, len(self.feed.implementations))
-
-		# Tell distro to fetch information about candidates...
-		master_feed = parse_impls("""<package-implementation package='python-bittorrent'>
-					       <restricts interface='http://python.org/python'>
-					         <version not-before='3'/>
-					       </restricts>
-					     </package-implementation>
-					  """)
-		h = handler.Handler()
-		candidates = host.fetch_candidates(master_feed.get_package_impls(host))
-		if candidates:
-			h.wait_for_blocker(candidates)
-		# Now we see the uninstalled package
-		self.feed = host.get_feed(master_feed.url, master_feed.get_package_impls(host))
-		self.assertEqual(2, len(self.feed.implementations))
-
-		# Check restriction appears for both candidates
-		for impl in self.feed.implementations.values():
-			self.assertEqual(1, len(impl.requires))
-			self.assertEqual("http://python.org/python", impl.requires[0].interface)
-
-		self.assertEqual(2, len(self.feed.implementations))
-		bittorrent_installed = self.feed.implementations['package:deb:python-bittorrent:3.4.2-10:*']
-		bittorrent_uninstalled = self.feed.implementations['package:deb:python-bittorrent:3.4.2-11.1:*']
-		self.assertEqual('3.4.2-10', bittorrent_installed.get_version())
-		self.assertTrue(bittorrent_installed.installed)
-		self.assertFalse(bittorrent_uninstalled.installed)
-		self.assertEqual(None, bittorrent_installed.machine)
-
-		self.feed = model.ZeroInstallFeed(empty_feed, local_path = '/empty.xml')
-		host.get_package_info('libxcomposite-dev', factory)
-		self.assertEqual(1, len(self.feed.implementations))
-		libxcomposite = self.feed.implementations['package:deb:libxcomposite-dev:0.3.1-1:i386']
-		self.assertEqual('0.3.1-1', libxcomposite.get_version())
-		self.assertEqual('i386', libxcomposite.machine)
-
-		# Java is special...
-		master_feed = parse_impls("""<package-implementation package='openjdk-7-jre'/>""")
-		feed = host.get_feed(master_feed.url, master_feed.get_package_impls(host))
-		self.assertEqual(1, len(feed.implementations))
-		self.assertEqual('7.3-2.1.1-3', list(feed.implementations.values())[0].get_version())
 	
 	def testSlack(self):
 		slackdir = os.path.join(os.path.dirname(__file__), 'slack')
@@ -226,16 +171,6 @@ class TestDistro(BaseTest):
 		self.assertEqual('7-pre3-2.1.1-3', distro.try_cleanup_distro_version('7~u3-2.1.1-3'))	# Debian snapshot
 		self.assertEqual('7-pre3-2.1.1-pre1-1', distro.try_cleanup_distro_version('7~u3-2.1.1~pre1-1ubuntu2'))
 		self.assertEqual(None, distro.try_cleanup_distro_version('cvs'))
-
-	def testCommand(self):
-		dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
-		host = distro.DebianDistribution(
-				os.path.join(dpkgdir, 'status'))
-		host._packagekit = DummyPackageKit()
-
-		master_feed = parse_impls("""<package-implementation main='/unused' package='python-bittorrent'><command path='/bin/sh' name='run'/></package-implementation>""")
-		impl, = host.get_feed(master_feed.url, master_feed.get_package_impls(host)).implementations.values()
-		self.assertEqual('/bin/sh', impl.main)
 
 	def testPortable(self):
 		# Overrides all XDG_* variables
