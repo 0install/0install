@@ -20,6 +20,9 @@ __all__ = ['CacheExplorer']
 
 ROX_IFACE = 'http://rox.sourceforge.net/2005/interfaces/ROX-Filer'
 
+def escape(tooltip):
+	return tooltip.replace('<', '&lt;').strip()
+
 # Tree view columns
 class Column(object):
 	columns = []
@@ -253,7 +256,7 @@ class ValidFeed(CachedFeed):
 		iter2 = model.append(iter, extract_columns(
 			name=self.feed.get_name(),
 			uri=self.uri,
-			tooltip=self.feed.summary,
+			tooltip=escape(self.feed.summary),
 			object=self))
 		for cached_impl in self.in_cache:
 			cached_impl.append_to(model, iter2)
@@ -307,7 +310,7 @@ class InvalidFeed(CachedFeed):
 			name=self.uri.rsplit('/', 1)[-1],
 			uri=self.uri,
 			size=self.size,
-			tooltip=self.ex,
+			tooltip=escape(self.ex),
 			object=self))
 	
 class LocalImplementation(object):
