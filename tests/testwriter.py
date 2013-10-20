@@ -22,20 +22,16 @@ class TestWriter(BaseTest):
 		main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello')
 		self.config.iface_cache._feeds[iface.uri] = main_feed
 		iface.stability_policy = model.developer
-		main_feed.last_checked = 100
 		iface.extra_feeds.append(model.Feed('http://sys-feed', None, False))
 		iface.extra_feeds.append(model.Feed('http://user-feed', 'Linux-*', True))
 		writer.save_interface(iface)
-		writer.save_feed(main_feed)
 
 		iface = model.Interface('http://test/test')
 		self.assertEqual(None, iface.stability_policy)
 		main_feed = model.ZeroInstallFeed(test_feed, local_path = '/Hello')
 		self.config.iface_cache._feeds[iface.uri] = main_feed
 		reader.update_user_overrides(iface)
-		reader.update_user_feed_overrides(main_feed)
 		self.assertEqual(model.developer, iface.stability_policy)
-		self.assertEqual(100, main_feed.last_checked)
 		self.assertEqual("[<Feed from http://user-feed>]", str(iface.extra_feeds))
 
 		feed = iface.extra_feeds[0]
@@ -53,21 +49,6 @@ class TestWriter(BaseTest):
 
 		feed = self.config.iface_cache.get_feed(iface.uri)
 		self.assertEqual(None, feed)
-
-	def testStoreStability(self):
-		iface_uri = model.canonical_iface_uri('Hello.xml')
-		main_feed = reader.load_feed(iface_uri, local = True)
-		impl = main_feed.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
-		impl.user_stability = model.developer
-		writer.save_feed(main_feed)
-
-		# Rating now visible
-		main_feed = reader.load_feed(iface_uri, local = True)
-		reader.update_user_feed_overrides(main_feed)
-		self.assertEqual(1, len(main_feed.implementations))
-
-		impl = main_feed.implementations['sha1=3ce644dc725f1d21cfcf02562c76f375944b266a']
-		self.assertEqual(model.developer, impl.user_stability)
 	
 	def testSitePackages(self):
 		# The old system (0install < 1.9):
