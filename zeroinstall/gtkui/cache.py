@@ -690,7 +690,7 @@ SORT_OPTIONS = [
 
 def init_filters():
 	def filter_only(filterable_types, filter_func):
-		def _filter(model, iter):
+		def _filter(model, iter, unused = None):
 			obj = model.get_value(iter, ITEM_OBJECT.idx)
 			if any((isinstance(obj, t) for t in filterable_types)):
 				result = filter_func(model, iter)
