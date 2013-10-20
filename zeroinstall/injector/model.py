@@ -19,7 +19,7 @@ from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.versions import parse_version, format_version
 from zeroinstall.injector import qdom, versions
-from zeroinstall import support, zerostore
+from zeroinstall import support
 from zeroinstall.support import escaping
 
 # Element names for bindings in feed files

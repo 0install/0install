@@ -7,7 +7,7 @@ try:
 except locale.Error:
 	warn('Error setting locale (eg. Invalid locale)')
 
-import os, sys
+import sys
 
 ## PATH ##
 
@@ -15,7 +15,7 @@ from optparse import OptionParser
 import logging
 from zeroinstall import SafeException
 
-from zeroinstall.zerostore import cli, BadDigest
+from zeroinstall.zerostore import cli
 
 parser = OptionParser(usage="usage: 0install store " + 
 			  '\n       0install store '.join([c.__doc__ for c in cli.commands]))

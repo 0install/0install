@@ -243,7 +243,7 @@ class TestDownload(BaseTest):
 
 		# Check we imported the interface after trusting the key
 		hello = self.config.iface_cache.get_feed('http://localhost:8000/Hello', force = True)
-		self.assertEqual(1, len(hello.implementations))
+		self.assertEqual(1, len([x for x in hello.feed_element.childNodes if x.name == 'implementation']))
 
 		self.assertEqual(None, hello.local_path)
 

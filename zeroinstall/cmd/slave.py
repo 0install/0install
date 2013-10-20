@@ -488,7 +488,6 @@ class DummyPackageKit:
 
 def do_test_distro(config, name, args):
 	global _distro
-	rpmdir = args
 	from zeroinstall.injector import distro
 	cons = getattr(distro, name)
 	_distro = cons(*args)

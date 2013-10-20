@@ -4,7 +4,7 @@
 
 from __future__ import print_function
 
-from zeroinstall import _, logger
+from zeroinstall import _
 import os, sys
 import gtk
 
@@ -542,9 +542,6 @@ class CacheExplorer(object):
 			self.window.get_window().set_cursor(None)
 
 	def populate_model(self, ok_feeds, error_feeds, unowned):
-		# Find cached implementations
-		iface_cache = self.config.iface_cache
-
 		if error_feeds:
 			iter = SECTION_INVALID_INTERFACES.append_to(self.raw_model)
 			for uri, ex in error_feeds:
@@ -607,9 +604,6 @@ def init_filters():
 	def not_(func):
 		return lambda *a: not func(*a)
 
-	def is_local_feed(model, iter):
-		return isinstance(model[iter][ITEM_OBJECT.idx], LocalFeed)
-
 	def has_implementations(model, iter):
 		return model.iter_has_child(iter)
 
@@ -617,8 +611,6 @@ def init_filters():
 		('All', lambda *a: True),
 		('Feeds with implementations', filter_only([ValidFeed], has_implementations)),
 		('Feeds without implementations', filter_only([ValidFeed], not_(has_implementations))),
-		#('Local Feeds', filter_only([ValidFeed], is_local_feed)),
-		#('Remote Feeds', filter_only([ValidFeed], not_(is_local_feed))),
 	]
 FILTER_OPTIONS = init_filters()
 

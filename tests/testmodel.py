@@ -87,24 +87,6 @@ class TestModel(BaseTest):
 		finally:
 			basetest.test_locale = (None, None)
 
-	def testCommand(self):
-		local_path = os.path.join(mydir, 'Command.xml')
-		with open(local_path, 'rb') as stream:
-			dom = qdom.parse(stream)
-		feed = model.ZeroInstallFeed(dom, local_path = local_path)
-
-		assert feed.implementations['a'].main == 'foo'
-		assert feed.implementations['a'].commands['run'].path == 'foo'
-		assert feed.implementations['a'].commands['test'].path == 'test-foo'
-
-		assert feed.implementations['b'].main == 'bar'
-		assert feed.implementations['b'].commands['run'].path == 'bar'
-		assert feed.implementations['b'].commands['test'].path == 'test-foo'
-
-		assert feed.implementations['c'].main == 'test-gui'
-		assert feed.implementations['c'].commands['run'].path == 'test-gui'
-		assert feed.implementations['c'].commands['test'].path == 'test-baz'
-
 	def testStabPolicy(self):
 		i = model.Interface('http://foo')
 		self.assertEqual(None, i.stability_policy)
