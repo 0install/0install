@@ -14,7 +14,7 @@ else:
 
 from zeroinstall import support
 from zeroinstall.gtkui import icon, xdgutils, gtkutils
-from zeroinstall.injector import model, namespaces, selections, qdom
+from zeroinstall.injector import model, namespaces, qdom
 
 gobject = get_loop().gobject
 
@@ -214,39 +214,7 @@ class AppListBox(object):
 			subprocess.Popen(['0launch', '--', uri])
 
 	def action_help(self, uri):
-		from zeroinstall.injector.config import load_config
-		c = load_config()
-		xml = subprocess.check_output(['0install', 'download', '--xml', '--', uri], universal_newlines = False)
-
-		sels = selections.Selections(qdom.parse(BytesIO(xml)))
-
-		impl = sels.selections[uri]
-		assert impl, "Failed to choose an implementation of %s" % uri
-		help_dir = impl.attrs.get('doc-dir')
-
-		if impl.id.startswith('package:'):
-			assert os.path.isabs(help_dir), "Package doc-dir must be absolute!"
-			path = help_dir
-		else:
-			path = impl.local_path or c.stores.lookup_any(impl.digests)
-
-			assert path, "Chosen implementation is not cached!"
-			if help_dir:
-				path = os.path.join(path, help_dir)
-			else:
-				main = impl.main
-				if main:
-					# Hack for ROX applications. They should be updated to
-					# set doc-dir.
-					help_dir = os.path.join(path, os.path.dirname(main), 'Help')
-					if os.path.isdir(help_dir):
-						path = help_dir
-
-		# xdg-open has no "safe" mode, so check we're not "opening" an application.
-		if os.path.exists(os.path.join(path, 'AppRun')):
-			raise Exception(_("Documentation directory '%s' is an AppDir; refusing to open") % path)
-
-		subprocess.Popen(['xdg-open', path])
+		subprocess.Popen(['0install', '_show_help', '--', uri])
 
 	def action_properties(self, uri):
 		subprocess.Popen(['0launch', '--gui', '--', uri])

@@ -26,6 +26,7 @@ module FeedAttr =
     let distribution = "distribution"
     let uri = "uri"
     let from_feed = "from-feed"
+    let doc_dir = "doc-dir"
   end
 
 module FeedConfigAttr =

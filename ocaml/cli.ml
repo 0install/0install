@@ -258,6 +258,7 @@ let subcommands: subgroup = [
   make_subcommand "list-feeds"  "URI"                           List_feeds.handle @@ common_options;
   make_subcommand "man"         "NAME"                          Man.handle        @@ common_options;
   make_subcommand "digest"      "DIRECTORY | ARCHIVE [EXTRACT]" fallback_handler  @@ common_options @ digest_options;
+  make_subcommand "_show_help"  "-"                             Desktop.handle_help @@ common_options @ generic_select_options;
   make_subgroup   "store"       store_subcommands;
 ]
 
