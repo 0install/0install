@@ -100,7 +100,6 @@ class TestModel(BaseTest):
 		assert a.id == 'foo'
 		assert a.size == a.version == a.user_stability == None
 		assert a.arch == a.upstream_stability == None
-		assert a.dependencies == {}
 		assert a.download_sources == []
 		assert a.get_stability() is model.testing
 		a.upstream_stability = model.stable

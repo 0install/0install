@@ -961,10 +961,6 @@ class ZeroInstallImplementation(Implementation):
 		"""@type prefixes: L{zeroinstall.injector.qdom.Prefixes}"""
 		return self.qdom.toDOM(doc, prefixes)
 
-	# Deprecated
-	dependencies = property(lambda self: dict([(x.interface, x) for x in self.requires
-						   if isinstance(x, InterfaceRestriction)]))
-
 	def add_download_source(self, url, size, extract, start_offset = 0, type = None, dest = None):
 		"""Add a download source.
 		@type url: str
