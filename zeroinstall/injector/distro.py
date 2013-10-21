@@ -195,7 +195,7 @@ class Distribution(object):
 		feed = model.ZeroInstallFeed(None)
 		feed.url = 'distribution:' + master_feed_url
 
-		for item, item_attrs, depends in package_impls:
+		for item, item_attrs, _depends in package_impls:
 			package = item_attrs.get('package', None)
 			if package is None:
 				raise model.InvalidInterface(_("Missing 'package' attribute on %s") % item)
@@ -214,7 +214,6 @@ class Distribution(object):
 
 				impl.installed = installed
 				impl.metadata = item_attrs
-				impl.requires = depends
 
 				if 'run' not in impl.commands:
 					item_main = item_attrs.get('main', None)
@@ -263,10 +262,6 @@ class Distribution(object):
 					_set_quick_test(impl, gobject.__path__)		# Python 3
 				else:
 					_set_quick_test(impl, gobject.__file__)		# Python 2
-
-				# Requires our version of Python too
-				restriction_element = qdom.Element(namespaces.XMLNS_IFACE, 'restricts', {'interface': _PYTHON_URI, 'distribution': 'host'})
-				impl.requires.append(model.process_depends(restriction_element, None))
 
 				feed.implementations[impl_id] = impl
 

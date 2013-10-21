@@ -92,39 +92,6 @@ class TestModel(BaseTest):
 		self.assertEqual(None, i.stability_policy)
 		i.set_stability_policy(model.buggy)
 		self.assertEqual(model.buggy, i.stability_policy)
-
-	def testImpl(self):
-		f = model.ZeroInstallFeed(None)
-		f.url = 'http://foo'
-		a = model.ZeroInstallImplementation(f, 'foo', None)
-		assert a.id == 'foo'
-		assert a.size == a.version == a.user_stability == None
-		assert a.arch == a.upstream_stability == None
-		assert a.download_sources == []
-		assert a.get_stability() is model.testing
-		a.upstream_stability = model.stable
-		assert a.get_stability() is model.stable
-		a.user_stability = model.buggy
-		assert a.get_stability() is model.buggy
-		a.version = model.parse_version('1.2.3')
-		self.assertEqual('1.2.3', a.get_version())
-		a.version = model.parse_version('1.2.3-rc2-post')
-		self.assertEqual('1.2.3-rc2-post', a.get_version())
-		assert str(a) == 'foo'
-
-		b = model.ZeroInstallImplementation(f, 'foo', None)
-		b.version = model.parse_version("1.2.1")
-		assert b > a
-	
-	def testDownloadSource(self):
-		f = model.ZeroInstallFeed(empty_feed, local_path = '/foo')
-		a = model.ZeroInstallImplementation(f, 'foo', None)
-		a.add_download_source('ftp://foo', 1024, None)
-		a.add_download_source('ftp://foo.tgz', 1025, 'foo')
-		assert a.download_sources[0].url == 'ftp://foo'
-		assert a.download_sources[0].size == 1024
-		assert a.download_sources[0].extract == None
-		assert a.feed is f
 	
 	def testEnvBind(self):
 		a = model.EnvironmentBinding('PYTHONPATH', 'path')
@@ -158,20 +125,6 @@ class TestModel(BaseTest):
 		self.assertEqual('/impl/lib', append.get_value('/impl', None))
 
 		assert model.EnvironmentBinding('PYTHONPATH', 'lib').mode == model.EnvironmentBinding.PREPEND
-
-	def testOverlay(self):
-		for xml, expected in [(b'<overlay/>', '<overlay . on />'),
-				      (b'<overlay src="usr"/>', '<overlay usr on />'),
-				      (b'<overlay src="package" mount-point="/usr/games"/>', '<overlay package on /usr/games>')]:
-			e = qdom.parse(BytesIO(xml))
-			ol = model.process_binding(e)
-			self.assertEqual(expected, str(ol))
-
-			doc = minidom.parseString('<doc/>')
-			new_xml = ol._toxml(doc, None).toxml(encoding = 'utf-8')
-			new_e = qdom.parse(BytesIO(new_xml))
-			new_ol = model.process_binding(new_e)
-			self.assertEqual(expected, str(new_ol))
 
 	def testReplaced(self):
 		local_path = os.path.join(mydir, 'Replaced.xml')

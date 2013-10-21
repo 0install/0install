@@ -182,54 +182,6 @@ def process_binding(e):
 	else:
 		raise Exception(_("Unknown binding type '%s'") % e.name)
 
-def process_depends(item, local_feed_dir):
-	"""Internal
-	@type item: L{zeroinstall.injector.qdom.Element}
-	@type local_feed_dir: str
-	@rtype: L{Dependency}"""
-	# Note: also called from selections
-	# Note: used by 0compile
-	attrs = item.attrs
-	dep_iface = item.getAttribute('interface')
-	if not dep_iface:
-		raise InvalidInterface(_("Missing 'interface' on <%s>") % item.name)
-	if dep_iface.startswith('.'):
-		if local_feed_dir:
-			dep_iface = os.path.abspath(os.path.join(local_feed_dir, dep_iface))
-			# (updates the element too, in case we write it out again)
-			attrs['interface'] = dep_iface
-		else:
-			raise InvalidInterface(_('Relative interface URI "%s" in non-local feed') % dep_iface)
-
-	if item.name == 'restricts':
-		dependency = InterfaceRestriction(dep_iface, element = item)
-	else:
-		dependency = InterfaceDependency(dep_iface, element = item)
-
-	version = item.getAttribute('version')
-	if version:
-		try:
-			r = VersionExpressionRestriction(version)
-		except SafeException as ex:
-			msg = "Can't parse version restriction '{version}': {error}".format(version = version, error = ex)
-			logger.warning(msg)
-			r = ImpossibleRestriction(msg)
-		dependency.restrictions.append(r)
-
-	distro = item.getAttribute('distribution')
-	if distro:
-		dependency.restrictions.append(DistributionRestriction(distro))
-
-	for e in item.childNodes:
-		if e.uri != XMLNS_IFACE: continue
-		if e.name in binding_names:
-			dependency.bindings.append(process_binding(e))
-		elif e.name == 'version':
-			dependency.restrictions.append(
-				VersionRangeRestriction(not_before = parse_version(e.getAttribute('not-before')),
-						        before = parse_version(e.getAttribute('before'))))
-	return dependency
-
 def N_(message): return message
 
 insecure = Stability(0, N_('insecure'), _('This is a security risk'))
@@ -261,39 +213,6 @@ class Restriction(object):
 		"""@rtype: str"""
 		return "<restriction: %s>" % self
 
-class VersionRangeRestriction(Restriction):
-	"""Only versions within the given range are acceptable"""
-	__slots__ = ['before', 'not_before']
-
-	def __init__(self, before, not_before):
-		"""@param before: chosen versions must be earlier than this
-		@param not_before: versions must be at least this high
-		@see: L{parse_version}; use this to pre-process the versions"""
-		self.before = before
-		self.not_before = not_before
-
-	def meets_restriction(self, impl):
-		"""@type impl: L{Implementation}
-		@rtype: bool"""
-		if self.not_before and impl.version < self.not_before:
-			return False
-		if self.before and impl.version >= self.before:
-			return False
-		return True
-
-	def __str__(self):
-		"""@rtype: str"""
-		if self.not_before is not None or self.before is not None:
-			range = ''
-			if self.not_before is not None:
-				range += format_version(self.not_before) + ' <= '
-			range += 'version'
-			if self.before is not None:
-				range += ' < ' + format_version(self.before)
-		else:
-			range = 'none'
-		return range
-
 class VersionExpressionRestriction(Restriction):
 	"""Only versions for which the expression is true are acceptable.
 	@since: 1.13"""
@@ -314,24 +233,6 @@ class VersionExpressionRestriction(Restriction):
 	def __str__(self):
 		"""@rtype: str"""
 		return "version " + self.expr
-
-class ImpossibleRestriction(Restriction):
-	"""A restriction that can never be met.
-	This is used when we can't understand some other restriction.
-	@since: 1.13"""
-
-	def __init__(self, reason):
-		"""@type reason: str"""
-		self.reason = reason
-
-	def meets_restriction(self, impl):
-		"""@type impl: L{Implementation}
-		@rtype: bool"""
-		return False
-
-	def __str__(self):
-		"""@rtype: str"""
-		return "<impossible: %s>" % self.reason
 
 class DistributionRestriction(Restriction):
 	"""A restriction that can only be satisfied by an implementation
@@ -420,25 +321,6 @@ class EnvironmentBinding(Binding):
 		else:
 			return old_value + self.separator + extra
 
-	def _toxml(self, doc, prefixes):
-		"""Create a DOM element for this binding.
-		@param doc: document to use to create the element
-		@return: the new element
-		"""
-		env_elem = doc.createElementNS(XMLNS_IFACE, 'environment')
-		env_elem.setAttributeNS(None, 'name', self.name)
-		if self.mode is not None:
-			env_elem.setAttributeNS(None, 'mode', self.mode)
-		if self.insert is not None:
-			env_elem.setAttributeNS(None, 'insert', self.insert)
-		else:
-			env_elem.setAttributeNS(None, 'value', self.value)
-		if self.default:
-			env_elem.setAttributeNS(None, 'default', self.default)
-		if self.separator:
-			env_elem.setAttributeNS(None, 'separator', self.separator)
-		return env_elem
-
 class ExecutableBinding(Binding):
 	"""Make the chosen command available in $PATH.
 	@ivar in_path: True to add the named command to $PATH, False to store in named variable
@@ -454,9 +336,6 @@ class ExecutableBinding(Binding):
 		return str(self.qdom)
 
 	__repr__ = __str__
-
-	def _toxml(self, doc, prefixes):
-		return self.qdom.toDOM(doc, prefixes)
 
 	@property
 	def name(self):
@@ -477,9 +356,6 @@ class GenericBinding(Binding):
 
 	__repr__ = __str__
 
-	def _toxml(self, doc, prefixes):
-		return self.qdom.toDOM(doc, prefixes)
-
 	@property
 	def command(self):
 		return self.qdom.getAttribute("command") or None
@@ -497,18 +373,6 @@ class OverlayBinding(Binding):
 		return _("<overlay %(src)s on %(mount_point)s>") % {'src': self.src or '.', 'mount_point': self.mount_point or '/'}
 
 	__repr__ = __str__
-
-	def _toxml(self, doc, prefixes):
-		"""Create a DOM element for this binding.
-		@param doc: document to use to create the element
-		@return: the new element
-		"""
-		env_elem = doc.createElementNS(XMLNS_IFACE, 'overlay')
-		if self.src is not None:
-			env_elem.setAttributeNS(None, 'src', self.src)
-		if self.mount_point is not None:
-			env_elem.setAttributeNS(None, 'mount-point', self.mount_point)
-		return env_elem
 
 class Feed(object):
 	"""An interface's feeds are other interfaces whose implementations can also be
@@ -710,34 +574,6 @@ class Command(object):
 
 	path = property(lambda self: self.qdom.attrs.get("path", None))
 
-	def _toxml(self, doc, prefixes):
-		"""@type prefixes: L{zeroinstall.injector.qdom.Prefixes}"""
-		return self.qdom.toDOM(doc, prefixes)
-
-	@property
-	def requires(self):
-		if self._depends is None:
-			self._runner = None
-			depends = []
-			for child in self.qdom.childNodes:
-				if child.uri != XMLNS_IFACE: continue
-				if child.name in _dependency_names:
-					dep = process_depends(child, self._local_dir)
-					depends.append(dep)
-				elif child.name == 'runner':
-					if self._runner:
-						raise InvalidInterface(_("Multiple <runner>s in <command>!"))
-					dep = process_depends(child, self._local_dir)
-					depends.append(dep)
-					self._runner = dep
-			self._depends = depends
-		return self._depends
-
-	def get_runner(self):
-		"""@rtype: L{InterfaceDependency}"""
-		self.requires		# (sets _runner)
-		return self._runner
-
 	def __str__(self):
 		return str(self.qdom)
 
@@ -812,10 +648,6 @@ class Implementation(object):
 		self.machine = None
 		self.bindings = []
 		self.commands = {}
-
-	def get_stability(self):
-		"""@rtype: L{Stability}"""
-		return self.user_stability or self.upstream_stability or testing
 
 	def __str__(self):
 		"""@rtype: str"""
@@ -933,58 +765,6 @@ class DistributionImplementation(Implementation):
 		"""@type stores: L{zeroinstall.zerostore.Stores}
 		@rtype: bool"""
 		return self.installed
-
-class ZeroInstallImplementation(Implementation):
-	"""An implementation where all the information comes from Zero Install.
-	@ivar digests: a list of "algorith=value" or "algorith_value" strings (since 0.45)
-	@type digests: [str]
-	@since: 0.28"""
-	__slots__ = ['os', 'size', 'digests', 'local_path', 'qdom']
-
-	distro_name = '0install'
-
-	def __init__(self, feed, id, local_path, qdom = None):
-		"""id can be a local path (string starting with /) or a manifest hash (eg "sha1=XXX")
-		@type feed: L{ZeroInstallFeed}
-		@type id: str
-		@type local_path: str
-		@type qdom: L{qdom.Element} (since 2.4)"""
-		assert not id.startswith('package:'), id
-		Implementation.__init__(self, feed, id)
-		self.size = None
-		self.os = None
-		self.digests = []
-		self.local_path = local_path
-		self.qdom = qdom
-
-	def _toxml(self, doc, prefixes):
-		"""@type prefixes: L{zeroinstall.injector.qdom.Prefixes}"""
-		return self.qdom.toDOM(doc, prefixes)
-
-	def add_download_source(self, url, size, extract, start_offset = 0, type = None, dest = None):
-		"""Add a download source.
-		@type url: str
-		@type size: int
-		@type extract: str
-		@type start_offset: int
-		@type type: str | None
-		@type dest: str | None"""
-		self.download_sources.append(DownloadSource(self, url, size, extract, start_offset, type, dest))
-
-	def set_arch(self, arch):
-		"""@type arch: str"""
-		self.os, self.machine = _split_arch(arch)
-	arch = property(lambda self: _join_arch(self.os, self.machine), set_arch)
-
-	def is_available(self, stores):
-		"""@type stores: L{zeroinstall.zerostore.Stores}
-		@rtype: bool"""
-		if self.local_path is not None:
-			return os.path.exists(self.local_path)
-		if self.digests:
-			path = stores.lookup_maybe(self.digests)
-			return path is not None
-		return False	# (0compile creates fake entries with no digests)
 
 class Interface(object):
 	"""An Interface represents some contract of behaviour.

@@ -7,14 +7,10 @@ from zeroinstall.support.tasks import get_loop
 import os, sys
 import gtk, pango
 import subprocess
-if sys.version_info[0] > 2:
-	from io import BytesIO
-else:
-	from StringIO import StringIO as BytesIO
 
 from zeroinstall import support
 from zeroinstall.gtkui import icon, xdgutils, gtkutils
-from zeroinstall.injector import model, namespaces, qdom
+from zeroinstall.injector import model, namespaces
 
 gobject = get_loop().gobject
 
