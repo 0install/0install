@@ -261,24 +261,6 @@ class Restriction(object):
 		"""@rtype: str"""
 		return "<restriction: %s>" % self
 
-class VersionRestriction(Restriction):
-	"""Only select implementations with a particular version number.
-	@since: 0.40"""
-
-	def __init__(self, version):
-		"""@param version: the required version number
-		@see: L{parse_version}; use this to pre-process the version number"""
-		assert not isinstance(version, str), "Not parsed: " + version
-		self.version = version
-
-	def meets_restriction(self, impl):
-		"""@type impl: L{ZeroInstallImplementation}
-		@rtype: bool"""
-		return impl.version == self.version
-
-	def __str__(self):
-		return _("version = %s") % format_version(self.version)
-
 class VersionRangeRestriction(Restriction):
 	"""Only versions within the given range are acceptable"""
 	__slots__ = ['before', 'not_before']
@@ -673,37 +655,6 @@ class DownloadSource(RetrievalMethod):
 		self.type = type		# MIME type - see unpack.py
 		self.requires_network = '://' in url
 
-class RenameStep(RetrievalMethod):
-	"""A Rename provides a way to rename / move a file within an implementation."""
-	__slots__ = ['source', 'dest']
-
-	def __init__(self, source, dest):
-		"""@type source: str
-		@type dest: str"""
-		self.source = source
-		self.dest = dest
-
-class FileSource(RetrievalMethod):
-	"""A FileSource provides a way to fetch a single file."""
-	__slots__ = ['url', 'dest', 'size', 'requires_network']
-
-	def __init__(self, url, dest, size):
-		"""@type url: str
-		@type dest: str
-		@type size: int"""
-		self.url = url
-		self.dest = dest
-		self.size = size
-		self.requires_network = '://' in url
-
-class RemoveStep(RetrievalMethod):
-	"""A RemoveStep provides a way to delete a path within an implementation."""
-	__slots__ = ['path']
-
-	def __init__(self, path):
-		"""@type path: str"""
-		self.path = path
-
 class Recipe(RetrievalMethod):
 	"""Get an implementation by following a series of steps.
 	@ivar size: the combined download sizes from all the steps
@@ -1075,28 +1026,6 @@ class Interface(object):
 		assert new is None or isinstance(new, Stability)
 		self.stability_policy = new
 
-def _merge_attrs(attrs, item):
-	"""Add each attribute of item to a copy of attrs and return the copy.
-	@type attrs: {str: str}
-	@type item: L{qdom.Element}
-	@rtype: {str: str}"""
-	new = attrs.copy()
-	for a in item.attrs:
-		new[str(a)] = item.attrs[a]
-	return new
-
-def _get_long(elem, attr_name):
-	"""@type elem: L{zeroinstall.injector.qdom.Element}
-	@type attr_name: str
-	@rtype: int"""
-	val = elem.getAttribute(attr_name)
-	if val is not None:
-		try:
-			val = int(val)
-		except ValueError:
-			raise SafeException(_("Invalid value for integer attribute '%(attribute_name)s': %(value)s") % {'attribute_name': attr_name, 'value': val})
-	return val
-
 class ZeroInstallFeed(object):
 	"""A feed lists available implementations of an interface.
 	@ivar url: the URL for this feed
@@ -1151,9 +1080,6 @@ class ZeroInstallFeed(object):
 		if feed_element.name not in ('interface', 'feed'):
 			raise SafeException("Root element should be <interface>, not <%s>" % feed_element.name)
 		assert feed_element.uri == XMLNS_IFACE, "Wrong namespace on root element: %s" % feed_element.uri
-
-		main = feed_element.getAttribute('main')
-		#if main: warn("Setting 'main' on the root element is deprecated. Put it on a <group> instead")
 
 		if local_path:
 			self.url = local_path
@@ -1216,189 +1142,6 @@ class ZeroInstallFeed(object):
 			raise InvalidInterface(_("Missing <name> in feed"))
 		if not self.summary:
 			raise InvalidInterface(_("Missing <summary> in feed"))
-
-		def process_group(group, group_attrs, base_depends, base_bindings, base_commands):
-			for item in group.childNodes:
-				if item.uri != XMLNS_IFACE: continue
-
-				if item.name not in ('group', 'implementation'):
-					continue
-
-				# We've found a group or implementation. Scan for dependencies,
-				# bindings and commands. Doing this here means that:
-				# - We can share the code for groups and implementations here.
-				# - The order doesn't matter, because these get processed first.
-				# A side-effect is that the document root cannot contain
-				# these.
-
-				depends = base_depends[:]
-				bindings = base_bindings[:]
-				commands = base_commands.copy()
-
-				for attr, command in [('main', 'run'),
-						      ('self-test', 'test')]:
-					value = item.attrs.get(attr, None)
-					if value is not None:
-						commands[command] = Command(qdom.Element(XMLNS_IFACE, 'command', {'name': command, 'path': value}), None)
-
-				for child in item.childNodes:
-					if child.uri != XMLNS_IFACE: continue
-					if child.name in _dependency_names:
-						dep = process_depends(child, local_dir)
-						depends.append(dep)
-					elif child.name == 'command':
-						command_name = child.attrs.get('name', None)
-						if not command_name:
-							raise InvalidInterface('Missing name for <command>')
-						commands[command_name] = Command(child, local_dir)
-					elif child.name in binding_names:
-						bindings.append(process_binding(child))
-
-				compile_command = item.attrs.get('http://zero-install.sourceforge.net/2006/namespaces/0compile command')
-				if compile_command is not None:
-					commands['compile'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'name': 'compile', 'shell-command': compile_command}), None)
-
-				item_attrs = _merge_attrs(group_attrs, item)
-
-				if item.name == 'group':
-					process_group(item, item_attrs, depends, bindings, commands)
-				elif item.name == 'implementation':
-					process_impl(item, item_attrs, depends, bindings, commands)
-				else:
-					assert 0
-
-		def process_impl(item, item_attrs, depends, bindings, commands):
-			id = item.getAttribute('id')
-			if id is None:
-				raise InvalidInterface(_("Missing 'id' attribute on %s") % item)
-			local_path = item_attrs.get('local-path')
-			if local_dir and local_path:
-				abs_local_path = os.path.abspath(os.path.join(local_dir, local_path))
-				impl = ZeroInstallImplementation(self, id, abs_local_path, item)
-			elif local_dir and (id.startswith('/') or id.startswith('.')):
-				# For old feeds
-				id = os.path.abspath(os.path.join(local_dir, id))
-				impl = ZeroInstallImplementation(self, id, id, item)
-			else:
-				impl = ZeroInstallImplementation(self, id, None, item)
-				if '=' in id:
-					alg = id.split('=', 1)[0]
-					if alg in ('sha1', 'sha1new', 'sha256'):
-						# In older feeds, the ID was the (single) digest
-						impl.digests.append(id)
-			if id in self.implementations:
-				logger.warning(_("Duplicate ID '%(id)s' in feed '%(feed)s'"), {'id': id, 'feed': self})
-			self.implementations[id] = impl
-
-			impl.metadata = item_attrs
-			try:
-				version_mod = item_attrs.get('version-modifier', None)
-				if version_mod:
-					item_attrs['version'] += version_mod
-					del item_attrs['version-modifier']
-				version = item_attrs['version']
-			except KeyError:
-				raise InvalidInterface(_("Missing version attribute"))
-			impl.version = parse_version(version)
-
-			impl.commands = commands
-
-			impl.released = item_attrs.get('released', None)
-			impl.langs = item_attrs.get('langs', '').replace('_', '-')
-
-			size = item.getAttribute('size')
-			if size:
-				impl.size = int(size)
-			impl.arch = item_attrs.get('arch', None)
-			try:
-				stability = stability_levels[str(item_attrs['stability'])]
-			except KeyError:
-				stab = str(item_attrs['stability'])
-				if stab != stab.lower():
-					raise InvalidInterface(_('Stability "%s" invalid - use lower case!') % item_attrs.stability)
-				raise InvalidInterface(_('Stability "%s" invalid') % item_attrs['stability'])
-			if stability >= preferred:
-				raise InvalidInterface(_("Upstream can't set stability to preferred!"))
-			impl.upstream_stability = stability
-
-			impl.bindings = bindings
-			impl.requires = depends
-
-			def extract_file_source(elem):
-				url = elem.getAttribute('href')
-				if not url:
-					raise InvalidInterface(_("Missing href attribute on <file>"))
-				dest = elem.getAttribute('dest')
-				if not dest:
-					raise InvalidInterface(_("Missing dest attribute on <file>"))
-				size = elem.getAttribute('size')
-				if not size:
-					raise InvalidInterface(_("Missing size attribute on <file>"))
-				return FileSource(url, dest, int(size))
-
-			for elem in item.childNodes:
-				if elem.uri != XMLNS_IFACE: continue
-				if elem.name == 'archive':
-					url = elem.getAttribute('href')
-					if not url:
-						raise InvalidInterface(_("Missing href attribute on <archive>"))
-					size = elem.getAttribute('size')
-					if not size:
-						raise InvalidInterface(_("Missing size attribute on <archive>"))
-					impl.add_download_source(url = url, size = int(size),
-							extract = elem.getAttribute('extract'),
-							start_offset = _get_long(elem, 'start-offset'),
-							type = elem.getAttribute('type'),
-							dest = elem.getAttribute('dest'))
-				elif elem.name == 'file':
-					impl.download_sources.append(extract_file_source(elem))
-
-				elif elem.name == 'manifest-digest':
-					for aname, avalue in elem.attrs.items():
-						if ' ' not in aname:
-							impl.digests.append(zerostore.format_algorithm_digest_pair(aname, avalue))
-				elif elem.name == 'recipe':
-					recipe = Recipe()
-					for recipe_step in elem.childNodes:
-						if recipe_step.uri == XMLNS_IFACE and recipe_step.name == 'archive':
-							url = recipe_step.getAttribute('href')
-							if not url:
-								raise InvalidInterface(_("Missing href attribute on <archive>"))
-							size = recipe_step.getAttribute('size')
-							if not size:
-								raise InvalidInterface(_("Missing size attribute on <archive>"))
-							recipe.steps.append(DownloadSource(None, url = url, size = int(size),
-									extract = recipe_step.getAttribute('extract'),
-									start_offset = _get_long(recipe_step, 'start-offset'),
-									type = recipe_step.getAttribute('type'),
-									dest = recipe_step.getAttribute('dest')))
-						elif recipe_step.name == 'file':
-							recipe.steps.append(extract_file_source(recipe_step))
-						elif recipe_step.uri == XMLNS_IFACE and recipe_step.name == 'rename':
-							source = recipe_step.getAttribute('source')
-							if not source:
-								raise InvalidInterface(_("Missing source attribute on <rename>"))
-							dest = recipe_step.getAttribute('dest')
-							if not dest:
-								raise InvalidInterface(_("Missing dest attribute on <rename>"))
-							recipe.steps.append(RenameStep(source=source, dest=dest))
-						elif recipe_step.uri == XMLNS_IFACE and recipe_step.name == 'remove':
-							path = recipe_step.getAttribute('path')
-							if not path:
-								raise InvalidInterface(_("Missing path attribute on <remove>"))
-							recipe.steps.append(RemoveStep(path=path))
-						else:
-							logger.warn(_("Unknown step '%s' in recipe; skipping recipe"), recipe_step.name)
-							break
-					else:
-						impl.download_sources.append(recipe)
-
-		root_attrs = {'stability': 'testing'}
-		root_commands = {}
-		if main:
-			logger.info("Note: @main on document element is deprecated in %s", self)
-			root_commands['run'] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': main, 'name': 'run'}), None)
-		process_group(feed_element, root_attrs, [], [], root_commands)
 
 	def get_name(self):
 		"""@rtype: str"""
