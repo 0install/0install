@@ -12,11 +12,12 @@ sys.path.insert(0, '..')
 os.environ["http_proxy"] = "localhost:8000"
 
 from zeroinstall import helpers
-from zeroinstall.injector import model, gpg, download, trust, selections, qdom, config, namespaces, distro
+from zeroinstall.injector import model, gpg, download, trust, qdom, config, namespaces, distro
 from zeroinstall.zerostore import NotStored
 from zeroinstall.support import basedir, tasks, ro_rmtree
 import data
 import my_dbus
+import selections
 
 import server
 

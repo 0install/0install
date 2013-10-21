@@ -6,12 +6,13 @@ from basetest import BaseTest, StringIO, BytesIO
 import sys, tempfile, os, imp, subprocess
 import unittest
 import logging
+import selections
 
 os.environ["http_proxy"] = "localhost:8000"
 foo_iface_uri = 'http://foo'
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import namespaces, qdom, selections
+from zeroinstall.injector import namespaces, qdom
 
 mydir = os.path.abspath(os.path.dirname(__file__))
 
