@@ -147,41 +147,6 @@ class Stability(object):
 	def __repr__(self):
 		return _("<Stability: %s>") % self.description
 
-def process_binding(e):
-	"""Internal
-	@type e: L{zeroinstall.injector.qdom.Element}
-	@rtype: L{Binding}"""
-	if e.name == 'environment':
-		mode = {
-			None: EnvironmentBinding.PREPEND,
-			'prepend': EnvironmentBinding.PREPEND,
-			'append': EnvironmentBinding.APPEND,
-			'replace': EnvironmentBinding.REPLACE,
-		}[e.getAttribute('mode')]
-
-		binding = EnvironmentBinding(e.getAttribute('name'),
-					     insert = e.getAttribute('insert'),
-					     default = e.getAttribute('default'),
-					     value = e.getAttribute('value'),
-					     mode = mode,
-					     separator = e.getAttribute('separator'))
-		if not binding.name: raise InvalidInterface(_("Missing 'name' in binding"))
-		if binding.insert is None and binding.value is None:
-			raise InvalidInterface(_("Missing 'insert' or 'value' in binding"))
-		if binding.insert is not None and binding.value is not None:
-			raise InvalidInterface(_("Binding contains both 'insert' and 'value'"))
-		return binding
-	elif e.name == 'executable-in-path':
-		return ExecutableBinding(e, in_path = True)
-	elif e.name == 'executable-in-var':
-		return ExecutableBinding(e, in_path = False)
-	elif e.name == 'overlay':
-		return OverlayBinding(e.getAttribute('src'), e.getAttribute('mount-point'))
-	elif e.name == 'binding':
-		return GenericBinding(e)
-	else:
-		raise Exception(_("Unknown binding type '%s'") % e.name)
-
 def N_(message): return message
 
 insecure = Stability(0, N_('insecure'), _('This is a security risk'))
@@ -321,59 +286,6 @@ class EnvironmentBinding(Binding):
 		else:
 			return old_value + self.separator + extra
 
-class ExecutableBinding(Binding):
-	"""Make the chosen command available in $PATH.
-	@ivar in_path: True to add the named command to $PATH, False to store in named variable
-	@type in_path: bool
-	"""
-	__slots__ = ['qdom']
-
-	def __init__(self, qdom, in_path):
-		self.qdom = qdom
-		self.in_path = in_path
-
-	def __str__(self):
-		return str(self.qdom)
-
-	__repr__ = __str__
-
-	@property
-	def name(self):
-		return self.qdom.getAttribute('name')
-
-	@property
-	def command(self):
-		return self.qdom.getAttribute("command") or 'run'
-
-class GenericBinding(Binding):
-	__slots__ = ['qdom']
-
-	def __init__(self, qdom):
-		self.qdom = qdom
-
-	def __str__(self):
-		return str(self.qdom)
-
-	__repr__ = __str__
-
-	@property
-	def command(self):
-		return self.qdom.getAttribute("command") or None
-
-class OverlayBinding(Binding):
-	"""Make the chosen implementation available by overlaying it onto another part of the file-system.
-	This is to support legacy programs which use hard-coded paths."""
-	__slots__ = ['src', 'mount_point']
-
-	def __init__(self, src, mount_point):
-		self.src = src
-		self.mount_point = mount_point
-
-	def __str__(self):
-		return _("<overlay %(src)s on %(mount_point)s>") % {'src': self.src or '.', 'mount_point': self.mount_point or '/'}
-
-	__repr__ = __str__
-
 class Feed(object):
 	"""An interface's feeds are other interfaces whose implementations can also be
 	used as implementations of this interface."""
@@ -498,44 +410,6 @@ class RetrievalMethod(object):
 
 	requires_network = True		# Used to decide if we can get this in off-line mode
 
-class DownloadSource(RetrievalMethod):
-	"""A DownloadSource provides a way to fetch an implementation."""
-	__slots__ = ['implementation', 'url', 'size', 'extract', 'start_offset', 'type', 'dest', 'requires_network']
-
-	def __init__(self, implementation, url, size, extract, start_offset = 0, type = None, dest = None):
-		"""@type implementation: L{ZeroInstallImplementation}
-		@type url: str
-		@type size: int
-		@type extract: str
-		@type start_offset: int
-		@type type: str | None
-		@type dest: str | None"""
-		self.implementation = implementation
-		self.url = url
-		self.size = size
-		self.extract = extract
-		self.dest = dest
-		self.start_offset = start_offset
-		self.type = type		# MIME type - see unpack.py
-		self.requires_network = '://' in url
-
-class Recipe(RetrievalMethod):
-	"""Get an implementation by following a series of steps.
-	@ivar size: the combined download sizes from all the steps
-	@type size: int
-	@ivar steps: the sequence of steps which must be performed
-	@type steps: [L{RetrievalMethod}]"""
-	__slots__ = ['steps']
-
-	def __init__(self):
-		self.steps = []
-
-	size = property(lambda self: sum([x.size for x in self.steps if hasattr(x, 'size')]))
-
-	@property
-	def requires_network(self):
-		return any(step.requires_network for step in self.steps)
-
 class DistributionSource(RetrievalMethod):
 	"""A package that is installed using the distribution's tools (including PackageKit).
 	@ivar package_id: the package name, in a form recognised by the distribution's tools
@@ -557,38 +431,6 @@ class DistributionSource(RetrievalMethod):
 		self.size = size
 		self.needs_confirmation = needs_confirmation
 
-class Command(object):
-	"""A Command is a way of running an Implementation as a program."""
-
-	__slots__ = ['qdom', '_depends', '_local_dir', '_runner', '_bindings']
-
-	def __init__(self, qdom, local_dir):
-		"""@param qdom: the <command> element
-		@type qdom: L{zeroinstall.injector.qdom.Element}
-		@param local_dir: the directory containing the feed (for relative dependencies), or None if not local"""
-		assert qdom.name == 'command', 'not <command>: %s' % qdom
-		self.qdom = qdom
-		self._local_dir = local_dir
-		self._depends = None
-		self._bindings = None
-
-	path = property(lambda self: self.qdom.attrs.get("path", None))
-
-	def __str__(self):
-		return str(self.qdom)
-
-	@property
-	def bindings(self):
-		"""@since: 1.3"""
-		if self._bindings is None:
-			bindings = []
-			for e in self.qdom.childNodes:
-				if e.uri != XMLNS_IFACE: continue
-				if e.name in binding_names:
-					bindings.append(process_binding(e))
-			self._bindings = bindings
-		return self._bindings
-
 class Implementation(object):
 	"""An Implementation is a package which implements an Interface.
 	@ivar download_sources: list of methods of getting this implementation
@@ -605,8 +447,6 @@ class Implementation(object):
 	@type langs: str
 	@ivar requires: interfaces this package depends on
 	@type requires: [L{Dependency}]
-	@ivar commands: ways to execute as a program
-	@type commands: {str: Command}
 	@ivar metadata: extra metadata from the feed
 	@type metadata: {"[URI ]localName": str}
 	@ivar id: a unique identifier for this Implementation
@@ -614,8 +454,6 @@ class Implementation(object):
 	@ivar released: release date
 	@ivar local_path: the directory containing this local implementation, or None if it isn't local (id isn't a path)
 	@type local_path: str | None
-	@ivar requires_root_install: whether the user will need admin rights to use this
-	@type requires_root_install: bool
 	@ivar quick_test_file: a file whose existence can be used later to check whether we need to update (since 2.2)
 	@type quick_test_file: str | None
 	@ivar quick_test_mtime: if present, requires that quick_test_file also has the given mtime
@@ -625,7 +463,7 @@ class Implementation(object):
 	# Note: user_stability shouldn't really be here
 
 	__slots__ = ['upstream_stability', 'user_stability', 'langs',
-		     'requires', 'metadata', 'download_sources', 'commands',
+		     'requires', 'metadata', 'download_sources', 'main',
 		     'id', 'feed', 'version', 'released', 'bindings', 'machine']
 
 	quick_test_file = None
@@ -647,7 +485,7 @@ class Implementation(object):
 		self.langs = ""
 		self.machine = None
 		self.bindings = []
-		self.commands = {}
+		self.main = None
 
 	def __str__(self):
 		"""@rtype: str"""
@@ -700,30 +538,6 @@ class Implementation(object):
 	os = None
 	local_path = None
 	digests = None
-	requires_root_install = False
-
-	def _get_main(self):
-		""""@deprecated: use commands["run"] instead
-		@rtype: str"""
-		main = self.commands.get("run", None)
-		if main is not None:
-			return main.path
-		return None
-	def _set_main(self, path):
-		""""@deprecated: use commands["run"] instead"""
-		if path is None:
-			if "run" in self.commands:
-				del self.commands["run"]
-		else:
-			self.commands["run"] = Command(qdom.Element(XMLNS_IFACE, 'command', {'path': path, 'name': 'run'}), None)
-	main = property(_get_main, _set_main)
-
-	def is_available(self, stores):
-		"""Is this Implementation available locally?
-		(a local implementation, an installed distribution package, or a cached ZeroInstallImplementation)
-		@rtype: bool
-		@since: 0.53"""
-		raise NotImplementedError("abstract")
 
 class DistributionImplementation(Implementation):
 	"""An implementation provided by the distribution. Information such as the version
@@ -753,18 +567,8 @@ class DistributionImplementation(Implementation):
 				if child.uri != XMLNS_IFACE: continue
 				if child.name == 'command':
 					command_name = child.attrs.get('name', None)
-					if not command_name:
-						raise InvalidInterface('Missing name for <command>')
-					self.commands[command_name] = Command(child, local_dir = None)
-
-	@property
-	def requires_root_install(self):
-		return not self.installed
-
-	def is_available(self, stores):
-		"""@type stores: L{zeroinstall.zerostore.Stores}
-		@rtype: bool"""
-		return self.installed
+					if command_name == 'run':
+						self.main = child.attrs.get('path')
 
 class Interface(object):
 	"""An Interface represents some contract of behaviour.

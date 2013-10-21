@@ -215,7 +215,7 @@ class Distribution(object):
 				impl.installed = installed
 				impl.metadata = item_attrs
 
-				if 'run' not in impl.commands:
+				if impl.main is None:
 					item_main = item_attrs.get('main', None)
 					if item_main:
 						impl.main = item_main
@@ -301,10 +301,7 @@ class Distribution(object):
 		@type impl: L{DistributionImplementation}
 		@since: 1.11"""
 
-		run = impl.commands.get('run', None)
-		if not run: return
-
-		path = run.path
+		path = impl.main
 
 		if not path: return
 
@@ -319,7 +316,7 @@ class Distribution(object):
 			path = os.path.join(d, basename)
 			if os.path.isfile(path):
 				logger.info("Found %s by searching system paths", path)
-				run.qdom.attrs["path"] = path
+				impl.main = path
 				return
 		else:
 			logger.info("Binary '%s' not found in any system path (checked %s)", basename, self.system_paths)
@@ -709,9 +706,7 @@ class DebianDistribution(Distribution):
 					java_bin = '/usr/bin/java'
 				else:
 					return
-
-		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command',
-			{'path': java_bin, 'name': 'run'}), None)
+		impl.main = java_bin
 
 	def _get_dpkg_info(self, package):
 		"""@type package: str
@@ -829,8 +824,7 @@ class RPMDistribution(CachedDistribution):
 				else:
 					return
 
-		impl.commands["run"] = model.Command(qdom.Element(namespaces.XMLNS_IFACE, 'command',
-			{'path': java_bin, 'name': 'run'}), None)
+		impl.main = java_bin
 
 	def fixup(self, package, impl):
 		# OpenSUSE uses _, Fedora uses .
