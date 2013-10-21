@@ -6,6 +6,7 @@ open OUnit
 open Support.Common
 open Fake_system
 module Versions = Zeroinstall.Versions
+module F = Zeroinstall.Feed
 
 let pv v =
   let parsed = Versions.parse_version v in
@@ -98,6 +99,42 @@ let suite = "versions">::: [
     with Safe_exception _ -> ()
   );
 
+  "ranges2">:: (fun () ->
+    let r = ref (F.make_version_restriction "2.6..!3 | 3.2.2.. | 1 | ..!0.2") in
+
+    let test v result =
+      let impl = {Zeroinstall.Solver.dummy_impl with F.parsed_version = Versions.parse_version v} in
+      assert_equal result @@ (!r)#meets_restriction impl in
+
+    test "0.1"  true;
+    test "0.2"  false;
+    test "0.3"  false;
+    test "1"    true;
+    test "2.5"  false;
+    test "2.6"  true;
+    test "2.7"  true;
+    test "3-pre" true;
+    test "3"    false;
+    test "3.1"  false;
+    test "3.2.1" false;
+    test "3.2.2" true;
+    test "3.3"  true;
+
+    r := F.make_version_restriction "!7";
+    test "1" true;
+    test "7" false;
+    test "8" true;
+
+    let fail expr msg =
+      Fake_system.assert_raises_safe msg (lazy (
+        ignore @@ Versions.parse_expr expr
+      )) in
+
+    fail "1..2" "End of range must be exclusive (use '..!2', not '..2')";
+    fail ".2" "Cannot parse '' as a 64-bit integer (in '.2')";
+    fail "0.2-hi" "Invalid version modifier '-hi'";
+  );
+
   "cleanup_distro_version">:: (fun () ->
     let check expected messy =
       match Versions.try_cleanup_distro_version messy with
@@ -115,5 +152,26 @@ let suite = "versions">::: [
     check "7-pre3-2.1.1-pre1-1" "7~u3-2.1.1~pre1-1ubuntu2";
 
     assert_equal None (Versions.try_cleanup_distro_version "cvs");
-  )
+  );
+
+  "restrictions">:: (fun () ->
+    let v6 = {Zeroinstall.Solver.dummy_impl with
+      F.parsed_version = (Versions.parse_version "6");
+      F.impl_type = F.PackageImpl {F.package_distro = "RPM"; F.package_installed = true; F.retrieval_method = None};
+    } in
+    let v7 = {Zeroinstall.Solver.dummy_impl with
+      F.parsed_version = (Versions.parse_version "7");
+      F.impl_type = F.PackageImpl {F.package_distro = "Gentoo"; F.package_installed = true; F.retrieval_method = None};
+    } in
+
+    let r = F.make_version_restriction "!7" in
+    Fake_system.assert_str_equal "version !7" r#to_string;
+    assert (r#meets_restriction v6);
+    assert (not (r#meets_restriction v7));
+
+    let r = F.make_distribtion_restriction "RPM Debian" in
+    Fake_system.assert_str_equal "distribution:RPM Debian" r#to_string;
+    assert (r#meets_restriction v6);
+    assert (not (r#meets_restriction v7));
+  );
 ]

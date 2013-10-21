@@ -161,16 +161,54 @@ let suite = "feed">::: [
               let env = Hashtbl.create 10 in
               let impls = StringMap.singleton "http://example.com/" ((), Some "/impl") in
 
-              let check binding =
-                Hashtbl.replace env "PATH" "current";
+              let check ?old binding =
+                begin match old with
+                | None -> Hashtbl.remove env "PATH"
+                | Some old -> Hashtbl.replace env "PATH" old end;
                 B.do_env_binding env impls "http://example.com/" binding;
                 Hashtbl.find env "PATH" in
 
-              Fake_system.assert_str_equal "/impl/bin:current" @@ check b0;
-              Fake_system.assert_str_equal "/impl/bin,current" @@ check b4;
+              Fake_system.assert_str_equal "/impl/bin:/bin:/usr/bin" @@ check b0;
+              Fake_system.assert_str_equal "/impl/bin:current" @@ check b0 ~old:"current";
+              Fake_system.assert_str_equal "/impl/bin,current" @@ check b4 ~old:"current";
             | _ -> assert false end
         | _ -> assert false end
     | _ -> assert false end
+  );
+
+  "env-modes">:: (fun () ->
+    let prepend = {
+      B.var_name = "PYTHONPATH";
+      B.source = B.InsertPath "lib";
+      B.mode = B.Add { B.pos = B.Prepend; B.default = None; B.separator = ":" };
+    } in
+
+    let check ?impl ?old binding =
+      let env = Hashtbl.create 1 in
+      let impls = StringMap.singleton "http://example.com/" ((), impl) in
+      old |> if_some (Hashtbl.replace env binding.B.var_name);
+      B.do_env_binding env impls "http://example.com/" binding;
+      Hashtbl.find env binding.B.var_name in
+
+    Fake_system.assert_str_equal "/impl/lib:/usr/lib" @@ check prepend ~impl:"/impl" ~old:"/usr/lib";
+    Fake_system.assert_str_equal "/impl/lib" @@ check prepend ~impl:"/impl";
+
+    let append = {
+      B.var_name = "PYTHONPATH";
+      B.source = B.InsertPath "lib";
+      B.mode = B.Add { B.pos = B.Append; B.default = Some "/opt/lib"; B.separator = ":" };
+    } in
+
+    Fake_system.assert_str_equal "/usr/lib:/impl/lib" @@ check append ~impl:"/impl" ~old:"/usr/lib";
+    Fake_system.assert_str_equal "/opt/lib:/impl/lib" @@ check append ~impl:"/impl";
+
+    let append = {
+      B.var_name = "PYTHONPATH";
+      B.source = B.InsertPath "lib";
+      B.mode = B.Replace;
+    } in
+    Fake_system.assert_str_equal "/impl/lib" @@ check append ~impl:"/impl" ~old:"/usr/lib";
+    Fake_system.assert_str_equal "/impl/lib" @@ check append ~impl:"/impl";
   );
 
   "requires-version">:: (fun () ->

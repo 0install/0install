@@ -13,11 +13,6 @@ from zeroinstall.injector import model, qdom, namespaces
 
 mydir = os.path.dirname(os.path.abspath(__file__))
 
-class DummyImpl:
-	def __init__(self, version, distro):
-		self.version = model.parse_version(version)
-		self.distro_name = distro
-
 class TestModel(BaseTest):
 	def testLevels(self):
 		assert model.network_offline in model.network_levels
@@ -93,51 +88,12 @@ class TestModel(BaseTest):
 		i.set_stability_policy(model.buggy)
 		self.assertEqual(model.buggy, i.stability_policy)
 	
-	def testEnvBind(self):
-		a = model.EnvironmentBinding('PYTHONPATH', 'path')
-		assert a.name == 'PYTHONPATH'
-		assert a.insert == 'path'
-		str(a)
-	
-	def testEnvModes(self):
-		prepend = model.EnvironmentBinding('PYTHONPATH', 'lib', None, model.EnvironmentBinding.PREPEND)
-		assert prepend.name == 'PYTHONPATH'
-		assert prepend.insert == 'lib'
-		assert prepend.mode is model.EnvironmentBinding.PREPEND
-
-		self.assertEqual('/impl/lib:/usr/lib', prepend.get_value('/impl', '/usr/lib'))
-		self.assertEqual('/impl/lib', prepend.get_value('/impl', None))
-
-		append = model.EnvironmentBinding('PYTHONPATH', 'lib', '/opt/lib', model.EnvironmentBinding.APPEND)
-		assert append.name == 'PYTHONPATH'
-		assert append.insert == 'lib'
-		assert append.mode is model.EnvironmentBinding.APPEND
-
-		self.assertEqual('/usr/lib:/impl/lib', append.get_value('/impl', '/usr/lib'))
-		self.assertEqual('/opt/lib:/impl/lib', append.get_value('/impl', None))
-		
-		append = model.EnvironmentBinding('PYTHONPATH', 'lib', None, model.EnvironmentBinding.REPLACE)
-		assert append.name == 'PYTHONPATH'
-		assert append.insert == 'lib'
-		assert append.mode is model.EnvironmentBinding.REPLACE
-
-		self.assertEqual('/impl/lib', append.get_value('/impl', '/usr/lib'))
-		self.assertEqual('/impl/lib', append.get_value('/impl', None))
-
-		assert model.EnvironmentBinding('PYTHONPATH', 'lib').mode == model.EnvironmentBinding.PREPEND
-
 	def testReplaced(self):
 		local_path = os.path.join(mydir, 'Replaced.xml')
 		with open(local_path, 'rb') as stream:
 			dom = qdom.parse(stream)
 		feed = model.ZeroInstallFeed(dom, local_path = local_path)
 		self.assertEqual("http://localhost:8000/Hello", feed.get_replaced_by())
-
-	def testDep(self):
-		b = model.InterfaceDependency('http://foo', element = qdom.Element(namespaces.XMLNS_IFACE, 'requires', {}))
-		assert not b.restrictions
-		assert not b.bindings
-		str(b)
 
 	def testFeed(self):
 		f = model.Feed('http://feed', arch = None, user_override = False)
@@ -257,58 +213,6 @@ class TestModel(BaseTest):
 		assert pv('2.1.9-pre-1') > pv('2.1.9-pre')
 
 		assert pv('2-post999') < pv('3-pre1')
-
-	def testRanges(self):
-		r = model.VersionExpressionRestriction('2.6..!3 | 3.2.2.. | 1 | ..!0.2')
-
-		def test(v, result):
-			class DummyImpl:
-				version = model.parse_version(v)
-			self.assertEqual(result, r.meets_restriction(DummyImpl()))
-
-		test('0.1', True)
-		test('0.2', False)
-		test('0.3', False)
-		test('1', True)
-		test('2.5', False)
-		test('2.6', True)
-		test('2.7', True)
-		test('3-pre', True)
-		test('3', False)
-		test('3.1', False)
-		test('3.2.1', False)
-		test('3.2.2', True)
-		test('3.3', True)
-
-		r = model.VersionExpressionRestriction('!7')
-		test('1', True)
-		test('7', False)
-		test('8', True)
-
-		def fail(expr, msg):
-			try:
-				model.VersionExpressionRestriction(expr)
-				assert 0
-			except model.SafeException as ex:
-				self.assertEqual(msg, str(ex))
-
-		fail('1..2', "End of range must be exclusive (use '..!2', not '..2')")
-		fail('.2', "Invalid version format in '.2': invalid literal for int() with base 10: ''")
-		fail('0.2-hi', "Invalid version modifier in '0.2-hi': 'hi'")
-
-	def testRestrictions(self):
-		v6 = DummyImpl("6", "RPM")
-		v7 = DummyImpl("7", "Gentoo")
-
-		r = model.VersionExpressionRestriction('!7')
-		self.assertEqual('<restriction: version !7>', repr(r))
-		assert r.meets_restriction(v6)
-		assert not r.meets_restriction(v7)
-
-		r = model.DistributionRestriction('RPM Debian')
-		self.assertEqual('<restriction: distro Debian|RPM>', repr(r))
-		assert r.meets_restriction(v6)
-		assert not r.meets_restriction(v7)
 
 if __name__ == '__main__':
 	unittest.main()
