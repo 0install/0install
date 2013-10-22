@@ -403,7 +403,6 @@ class ZeroInstallFeed(object):
 	@ivar descriptions: long textual description (in various languages, since 0.49)
 	@type descriptions: {str: str}
 	@ivar last_modified: timestamp on signature
-	@ivar last_checked: time feed was last successfully downloaded and updated
 	@ivar local_path: the path of this local feed, or None if remote (since 1.7)
 	@type local_path: str | None
 	@ivar feeds: list of <feed> elements in this feed
@@ -414,7 +413,7 @@ class ZeroInstallFeed(object):
 	"""
 	# _main is deprecated
 	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'first_description', 'summaries', 'first_summary',
-		     'last_checked', 'last_modified', 'feeds', 'feed_for', 'metadata', 'local_path', 'feed_element']
+		     'last_modified', 'feeds', 'feed_for', 'metadata', 'local_path', 'feed_element']
 
 	def __init__(self, feed_element, local_path = None, distro = None):
 		"""Create a feed object from a DOM.
@@ -433,7 +432,6 @@ class ZeroInstallFeed(object):
 		self.feeds = []
 		self.feed_for = set()
 		self.metadata = []
-		self.last_checked = None
 		self.feed_element = feed_element
 
 		if distro is not None:

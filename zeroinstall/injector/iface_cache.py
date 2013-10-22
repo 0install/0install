@@ -77,8 +77,6 @@ class IfaceCache(object):
 		assert not url.startswith('distribution:'), url
 
 		feed = reader.load_feed_from_cache(url)
-		if feed:
-			reader.update_user_feed_overrides(feed)
 		self._feeds[url] = feed
 		return feed
 

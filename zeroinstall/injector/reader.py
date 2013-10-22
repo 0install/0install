@@ -52,32 +52,6 @@ def load_feed_from_cache(url):
 		ex.feed_url = url
 		raise
 
-def update_user_feed_overrides(feed):
-	"""Update a feed with user-supplied information.
-	Sets last_checked and user_stability ratings.
-	@param feed: feed to update
-	@type feed: L{ZeroInstallFeed}
-	@since 0.49"""
-	user = basedir.load_first_config(config_site, config_prog,
-					   'feeds', model._pretty_escape(feed.url))
-	if user is None:
-		# For files saved by 0launch < 0.49
-		user = basedir.load_first_config(config_site, config_prog,
-						   'user_overrides', escape(feed.url))
-	if not user:
-		return
-
-	try:
-		with open(user, 'rb') as stream:
-			root = qdom.parse(stream)
-	except Exception as ex:
-		logger.warning(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
-		raise
-
-	last_checked = root.getAttribute('last-checked')
-	if last_checked:
-		feed.last_checked = int(last_checked)
-
 def update_user_overrides(interface):
 	"""Update an interface with user-supplied information.
 	Sets preferred stability and updates extra_feeds.
