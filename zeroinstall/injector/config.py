@@ -91,7 +91,7 @@ class Config(object):
 		parser.set('global', 'freshness', str(self.freshness))
 		parser.set('global', 'auto_approve_keys', str(self.auto_approve_keys))
 		if self.key_info_server != DEFAULT_KEY_LOOKUP_SERVER:
-			parser.set('global', 'key_info_server', str(self.key_info_server))
+			parser.set('global', 'key_info_server', str(self.key_info_server) if self.key_info_server is not None else "")
 
 		path = basedir.save_config_path(config_site, config_prog)
 		path = os.path.join(path, 'global')

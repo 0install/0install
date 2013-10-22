@@ -244,7 +244,7 @@ def do_get_distro_candidates(config, args, xml):
 PendingFromOCaml = collections.namedtuple("PendingFromOCaml", ["url", "sigs"])
 
 class OCamlKeyInfo:
-	info = None
+	info = []
 	blocker = None
 	status = "Fetching key information ..."
 
