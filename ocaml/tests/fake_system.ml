@@ -274,6 +274,22 @@ class fake_system tmpdir =
 
     method running_as_root = false
 
+    method with_stdin : 'a. string -> ('a Lazy.t) -> 'a = fun msg fn ->
+      let tmpfile = Filename.temp_file "0install-" "-test" in
+      let tmp_fd = Unix.openfile tmpfile [Unix.O_RDWR] 0o644 in
+      Unix.unlink tmpfile;
+
+      ignore @@ Unix.write tmp_fd msg 0 (String.length msg);
+      ignore @@ Unix.lseek tmp_fd 0 Unix.SEEK_SET;
+      U.finally_do
+        (fun old_stdin -> Unix.dup2 old_stdin Unix.stdin; Unix.close old_stdin)
+        (Unix.dup Unix.stdin)
+        (fun _old_stdin ->
+          Unix.dup2 tmp_fd Unix.stdin;
+          Unix.close tmp_fd;
+          Lazy.force fn
+        )
+
     initializer
       match tmpdir with
       | Some dir ->
@@ -354,7 +370,8 @@ let assert_str_equal = assert_equal ~printer:(fun x -> x)
 let assert_raises_safe expected_msg (fn:unit Lazy.t) =
   try Lazy.force fn; assert_failure ("Expected Safe_exception " ^ expected_msg)
   with Safe_exception (msg, _) ->
-    assert_str_equal expected_msg msg
+    if not (Str.string_match (Str.regexp expected_msg) msg 0) then
+      raise_safe "Error '%s' does not match regexp '%s'" msg expected_msg
 
 let temp_dir_name =
   (* Filename.get_temp_dir_name doesn't exist under 3.12 *)

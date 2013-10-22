@@ -364,7 +364,7 @@ class Interface(object):
 	Implementations at this level or higher are preferred.
 	Lower levels are used only if there is no other choice.
 	"""
-	__slots__ = ['uri', 'stability_policy', 'extra_feeds']
+	__slots__ = ['uri', 'stability_policy']
 
 	def __init__(self, uri):
 		"""@type uri: str"""
@@ -377,7 +377,6 @@ class Interface(object):
 		self.reset()
 
 	def reset(self):
-		self.extra_feeds = []
 		self.stability_policy = None
 
 	def get_name(self):

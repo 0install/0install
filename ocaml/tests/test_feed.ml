@@ -318,4 +318,23 @@ let suite = "feed">::: [
         </interface>"
     ))
   );
+
+  "min-injector-version">:: (fun () ->
+    let system = (new Fake_system.fake_system None :> system) in
+    let test attr =
+      ignore @@ feed_of_xml system (Printf.sprintf "<?xml version='1.0' ?>\n\
+        <interface last-modified='1110752708'\n\
+        uri='http://foo' %s\n\
+         xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>\n\
+          <name>Foo</name>\n\
+          <summary>Foo</summary>\n\
+          <description>Foo</description>\n\
+        </interface>" attr) in
+
+    test "";
+    test "min-injector-version='0.19'";
+    Fake_system.assert_raises_safe "Feed requires 0install version 1000 or later (we are .*" (lazy (
+      test "min-injector-version='1000'"
+    ))
+  );
 ]

@@ -132,48 +132,6 @@ class TestInstall(BaseTest):
 			secs = cmd.config.TimeInterval.parse(period)
 			assert cmd.config.TimeInterval.format(secs) == period
 
-	def testAddFeed(self):
-		binary_iface = self.config.iface_cache.get_interface('http://foo/Binary.xml')
-
-		out, err = self.run_ocaml(['list-feeds', binary_iface.uri])
-		assert "(no feeds)" in out, out
-		assert not err, err
-
-		out, err = self.run_ocaml(['add-feed'])
-		assert out.lower().startswith("usage:")
-		assert 'NEW-FEED' in out
-
-		sys.stdin = Reply('1')
-		assert binary_iface.extra_feeds == []
-
-		out, err = self.run_ocaml(['add-feed', 'Source.xml'], stdin = '\n')
-		assert not err, err
-		assert "Add as feed for 'http://foo/Binary.xml'" in out, out
-		reader.update_from_cache(binary_iface, iface_cache = self.config.iface_cache)
-		assert len(binary_iface.extra_feeds) == 1
-
-		out, err = self.run_ocaml(['list-feeds', binary_iface.uri])
-		assert "Source.xml" in out
-		assert not err, err
-
-		#assert 'file\n' in self.complete(["remove-feed", ""], 2)
-		#assert "Source.xml" in self.complete(["remove-feed", binary_iface.uri], 3)
-
-		out, err = self.run_ocaml(['remove-feed', 'Source.xml'], stdin = '\n')
-		assert not err, err
-		assert "Remove as feed for 'http://foo/Binary.xml'" in out, out
-		reader.update_from_cache(binary_iface, iface_cache = self.config.iface_cache)
-		assert len(binary_iface.extra_feeds) == 0
-
-		# todo: move to download or OCaml tests
-		#with open('Source.xml') as stream: source_feed = stream.read()
-		#self.config.fetcher.allow_feed_download('http://foo/Source.xml', source_feed)
-		#out, err = self.run_ocaml(['add-feed', 'http://foo/Source.xml'])
-		#assert not err, err
-		#assert 'Downloading feed; please wait' in out, out
-		#reader.update_from_cache(binary_iface, iface_cache = self.config.iface_cache)
-		#assert len(binary_iface.extra_feeds) == 1
-
 	def testImport(self):
 		out, err = self.run_ocaml(['import'])
 		assert out.lower().startswith("usage:")

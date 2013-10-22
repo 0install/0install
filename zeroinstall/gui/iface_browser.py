@@ -155,7 +155,6 @@ def walk(model, it):
 
 class InterfaceBrowser(object):
 	model = None
-	root = None
 	cached_icon = None
 	driver = None
 	config = None
@@ -265,10 +264,6 @@ class InterfaceBrowser(object):
 
 		tree_view.connect('destroy', lambda s: driver.watchers.remove(self.build_tree))
 		driver.watchers.append(self.build_tree)
-
-	def set_root(self, root):
-		assert isinstance(root, model.Interface)
-		self.root = root
 
 	def set_update_icons(self, update_icons):
 		if update_icons:

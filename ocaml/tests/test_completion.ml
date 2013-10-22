@@ -19,17 +19,17 @@ let assert_not_contains not_expected actual =
     assert_failure (Printf.sprintf "Unexpected substring '%s' found in '%s'" not_expected actual)
   with Not_found -> ()
 
+let do_complete (system:fake_system) shell args cword =
+  let cword = if shell = "zsh" then cword + 1 else cword in
+  system#putenv "COMP_CWORD" @@ string_of_int cword;
+  system#set_argv @@ Array.of_list ("0install" :: "_complete" :: shell :: "0install" :: args);
+  system#collect_output @@ fun () -> Main.start (system :> system)
+
 let suite =
   "completion">:: with_tmpdir (fun tmpdir ->
     let config, system = get_fake_config (Some tmpdir) in
-    let complete_with shell args cword =
-      let cword = if shell = "zsh" then cword + 1 else cword in
-      system#putenv "COMP_CWORD" @@ string_of_int cword;
-      system#set_argv @@ Array.of_list ("0install" :: "_complete" :: shell :: "0install" :: args);
-      system#collect_output @@ fun () -> Main.start (system :> system)
-    in
     ListLabels.iter ["bash"; "zsh"; "fish"] ~f:(fun shell ->
-      let complete = complete_with shell in
+      let complete = do_complete system shell in
       if shell <> "bash" then (
         assert_contains "select\n" @@ complete ["s"] 1;
 

@@ -10,6 +10,7 @@ open OUnit
 module Q = Support.Qdom
 module U = Support.Utils
 module F = Zeroinstall.Feed
+module FC = Zeroinstall.Feed_cache
 module R = Zeroinstall.Requirements
 module Escape = Zeroinstall.Escape
 
@@ -541,5 +542,48 @@ let suite = "0install">::: [
     fake_slave#install;
     fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" "";
     ignore @@ A.get_selections_may_update driver app
+  );
+
+  "add-feed">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let binary_iface = "http://foo/Binary.xml" in
+    let run ?(exit=0) args =
+      fake_system#set_argv @@ Array.of_list (test_0install :: "--console" :: args);
+      fake_system#collect_output (fun () ->
+        try Main.main config.system; assert (exit = 0)
+        with System_exit n -> assert_equal ~msg:"exit code" n exit
+      ) in
+
+    Fake_system.assert_str_equal "(no feeds)\n" @@ run ["list-feeds"; binary_iface];
+
+    let out = run ~exit:1 ["add-feed"] in
+    assert_contains "usage:" @@ String.lowercase out;
+    assert_contains "NEW-FEED" out;
+
+    let out = fake_system#with_stdin "\n" (lazy (run ["add-feed"; (feed_dir +/ "Source.xml")])) in
+    assert_contains "Add as feed for 'http://foo/Binary.xml'" out;
+    let iface_config = FC.load_iface_config config binary_iface in
+    assert_equal 1 @@ List.length iface_config.FC.extra_feeds;
+
+    let out = run ["list-feeds"; binary_iface] in
+    assert_contains "Source.xml" out;
+
+    assert_contains "file\n" @@ Test_completion.do_complete fake_system "zsh" ["remove-feed"; ""] 2;
+    assert_contains "Source.xml" @@ Test_completion.do_complete fake_system "zsh" ["remove-feed"; binary_iface] 3;
+
+    let out = fake_system#with_stdin "\n" (lazy (run ["remove-feed"; (feed_dir +/ "Source.xml")])) in
+    assert_contains "Remove as feed for 'http://foo/Binary.xml'" out;
+    let iface_config = FC.load_iface_config config binary_iface in
+    assert_equal 0 @@ List.length iface_config.FC.extra_feeds;
+
+    (* todo: move to download tests *)
+    (*
+    with open('Source.xml') as stream: source_feed = stream.read()
+    self.config.fetcher.allow_feed_download('http://foo/Source.xml', source_feed)
+    out, err = self.run_ocaml(['add-feed', 'http://foo/Source.xml'])
+    assert not err, err
+    assert 'Downloading feed; please wait' in out, out
+    reader.update_from_cache(binary_iface, iface_cache = self.config.iface_cache)
+    assert len(binary_iface.extra_feeds) == 1
+    *)
   );
 ]

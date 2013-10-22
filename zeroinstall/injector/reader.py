@@ -19,22 +19,6 @@ from zeroinstall.injector import model
 class MissingLocalFeed(InvalidInterface):
 	pass
 
-def _add_site_packages(interface, site_packages, known_site_feeds):
-	"""@type interface: L{Interface}
-	@type site_packages: str
-	@type known_site_feeds: {str}"""
-	for impl in os.listdir(site_packages):
-		if impl.startswith('.'): continue
-		feed = os.path.join(site_packages, impl, '0install', 'feed.xml')
-		if not os.path.exists(feed):
-			logger.warning(_("Site-local feed {path} not found").format(path = feed))
-		logger.debug("Adding site-local feed '%s'", feed)
-
-		# (we treat these as user overrides in order to let old versions of 0install
-		# find them)
-		interface.extra_feeds.append(Feed(feed, None, user_override = True, site_package = True))
-		known_site_feeds.add(feed)
-
 def update_from_cache(interface, iface_cache):
 	"""Read a cached interface and any native feeds or user overrides.
 	@param interface: the interface object to update
@@ -46,24 +30,7 @@ def update_from_cache(interface, iface_cache):
 	@rtype: bool
 	@note: internal; use L{iface_cache.IfaceCache.get_interface} instread."""
 	interface.reset()
-
-	# Add the distribution package manager's version, if any
-	path = basedir.load_first_data(config_site, 'native_feeds', model._pretty_escape(interface.uri))
-	if path:
-		# Resolve any symlinks
-		logger.info(_("Adding native packager feed '%s'"), path)
-		interface.extra_feeds.append(Feed(os.path.realpath(path), None, False))
-
-	# Add locally-compiled binaries, if any
-	escaped_uri = model.escape_interface_uri(interface.uri)
-	known_site_feeds = set()
-	for path in basedir.load_data_paths(config_site, 'site-packages', *escaped_uri):
-		try:
-			_add_site_packages(interface, path, known_site_feeds)
-		except Exception as ex:
-			logger.warning("Error loading site packages from {path}: {ex}".format(path = path, ex = ex))
-
-	update_user_overrides(interface, known_site_feeds)
+	update_user_overrides(interface)
 
 def load_feed_from_cache(url):
 	"""Load a feed. If the feed is remote, load from the cache. If local, load it directly.
@@ -111,7 +78,7 @@ def update_user_feed_overrides(feed):
 	if last_checked:
 		feed.last_checked = int(last_checked)
 
-def update_user_overrides(interface, known_site_feeds = frozenset()):
+def update_user_overrides(interface):
 	"""Update an interface with user-supplied information.
 	Sets preferred stability and updates extra_feeds.
 	@param interface: the interface object to update
@@ -137,78 +104,6 @@ def update_user_overrides(interface, known_site_feeds = frozenset()):
 	stability_policy = root.getAttribute('stability-policy')
 	if stability_policy:
 		interface.set_stability_policy(stability_levels[str(stability_policy)])
-
-	for item in root.childNodes:
-		if item.uri != XMLNS_IFACE: continue
-		if item.name == 'feed':
-			feed_src = item.getAttribute('src')
-			if not feed_src:
-				raise InvalidInterface(_('Missing "src" attribute in <feed>'))
-			# (note: 0install 1.9..1.12 used a different scheme and the "site-package" attribute;
-			# we deliberately use a different attribute name to avoid confusion)
-			if item.getAttribute('is-site-package'):
-				# Site packages are detected earlier. This test isn't completely reliable,
-				# since older versions will remove the attribute when saving the config
-				# (hence the next test).
-				continue
-			if feed_src in known_site_feeds:
-				continue
-			interface.extra_feeds.append(Feed(feed_src, item.getAttribute('arch'), True, langs = item.getAttribute('langs')))
-
-def check_readable(feed_url, source):
-	"""Test whether a feed file is valid.
-	@param feed_url: the feed's expected URL
-	@type feed_url: str
-	@param source: the name of the file to test
-	@type source: str
-	@return: the modification time in src (usually just the mtime of the file)
-	@rtype: int
-	@raise InvalidInterface: If the source's syntax is incorrect"""
-	try:
-		feed = load_feed(source, local = False)
-
-		if feed.url != feed_url:
-			raise InvalidInterface(_("Incorrect URL used for feed.\n\n"
-						"%(feed_url)s is given in the feed, but\n"
-						"%(interface_uri)s was requested") %
-						{'feed_url': feed.url, 'interface_uri': feed_url})
-		return feed.last_modified
-	except InvalidInterface as ex:
-		logger.info(_("Error loading feed:\n"
-			"Interface URI: %(uri)s\n"
-			"Local file: %(source)s\n"
-			"%(exception)s") %
-			{'uri': feed_url, 'source': source, 'exception': ex})
-		raise InvalidInterface(_("Error loading feed '%(uri)s':\n\n%(exception)s") % {'uri': feed_url, 'exception': ex})
-
-def update(interface, source, local = False, iface_cache = None):
-	"""Read in information about an interface.
-	Deprecated.
-	@param interface: the interface object to update
-	@type interface: L{model.Interface}
-	@param source: the name of the file to read
-	@type source: str
-	@param local: use file's mtime for last-modified, and uri attribute is ignored
-	@type local: bool
-	@type iface_cache: L{zeroinstall.injector.iface_cache.IfaceCache} | None
-	@return: the new feed (since 0.32)
-	@rtype: L{ZeroInstallFeed}
-	@raise InvalidInterface: if the source's syntax is incorrect
-	@see: L{update_from_cache}, which calls this"""
-	assert isinstance(interface, Interface)
-
-	feed = load_feed(source, local)
-
-	if not local:
-		if feed.url != interface.uri:
-			raise InvalidInterface(_("Incorrect URL used for feed.\n\n"
-						"%(feed_url)s is given in the feed, but\n"
-						"%(interface_uri)s was requested") %
-						{'feed_url': feed.url, 'interface_uri': interface.uri})
-
-	iface_cache._feeds[support.unicode(interface.uri)] = feed
-
-	return feed
 
 def load_feed(source, local = False):
 	"""Load a feed from a local file.

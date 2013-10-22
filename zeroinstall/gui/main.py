@@ -167,9 +167,6 @@ def open_gui(args):
 	if options.message:
 		window.set_message(options.message)
 
-	root = config.iface_cache.get_interface(interface_uri)
-	window.browser.set_root(root)
-
 	window.window.connect('destroy', lambda w: handler.abort_all_downloads())
 
 	if options.systray:

@@ -39,19 +39,6 @@ from zeroinstall.injector.namespaces import config_site
 from zeroinstall.injector.model import Interface, escape, unescape
 from zeroinstall import SafeException
 
-# If we started a check within this period, don't start another one:
-FAILED_CHECK_DELAY = 60 * 60	# 1 Hour
-
-def _pretty_time(t):
-	#assert isinstance(t, (int, long)), t
-	"""@type t: int
-	@rtype: str"""
-	return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.localtime(t))
-
-class ReplayAttack(SafeException):
-	"""Attempt to import a feed that's older than the one in the cache."""
-	pass
-
 class IfaceCache(object):
 	"""
 	The interface cache stores downloaded and verified interfaces in
@@ -114,16 +101,6 @@ class IfaceCache(object):
 		reader.update_from_cache(self._interfaces[uri], iface_cache = self)
 		return self._interfaces[uri]
 
-	def list_all_interfaces(self):
-		"""List all interfaces in the cache.
-		@rtype: [str]"""
-		all = set()
-		for d in basedir.load_cache_paths(config_site, 'interfaces'):
-			for leaf in os.listdir(d):
-				if not leaf.startswith('.'):
-					all.add(unescape(leaf))
-		return list(all)	# Why not just return the set?
-
 	def get_icon_path(self, iface):
 		"""Get the path of a cached icon for an interface.
 		@param iface: interface whose icon we want
@@ -132,25 +109,5 @@ class IfaceCache(object):
 		@rtype: str"""
 		return basedir.load_first_cache(config_site, 'interface_icons',
 						 escape(iface.uri))
-
-	def get_feeds(self, iface):
-		"""Get all feeds for this interface. This is a mapping from feed URLs
-		to ZeroInstallFeeds. It includes the interface's main feed, plus the
-		resolution of every feed returned by L{get_feed_imports}. Uncached
-		feeds are indicated by a value of None.
-		@type iface: L{Interface}
-		@rtype: {str: L{ZeroInstallFeed} | None}
-		@since: 0.48"""
-		main_feed = self.get_feed(iface.uri)
-		results = {iface.uri: main_feed}
-		for imp in iface.extra_feeds:
-			try:
-				results[imp.uri] = self.get_feed(imp.uri)
-			except SafeException as ex:
-				logger.warning("Failed to load feed '%s: %s", imp.uri, ex)
-		if main_feed:
-			for imp in main_feed.feeds:
-				results[imp.uri] = self.get_feed(imp.uri)
-		return results
 
 iface_cache = IfaceCache()
