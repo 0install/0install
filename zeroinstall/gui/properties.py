@@ -6,7 +6,6 @@ from zeroinstall import _
 from zeroinstall.cmd import slave
 from zeroinstall.support import tasks, unicode
 from zeroinstall.injector.model import Interface, stable, testing, developer, stability_levels
-from zeroinstall.injector import writer
 from zeroinstall.gtkui import help_box
 
 import gtk
@@ -198,18 +197,8 @@ class Properties(object):
 			i = 0
 		stability.set_active(i)
 
-		def set_stability_policy(combo, stability = stability):	# (pygtk bug?)
-			i = stability.get_active()
-			if i == 0:
-				new_stability = None
-			else:
-				name = ['stable', 'testing', 'developer'][i-1]
-				new_stability = stability_levels[name]
-			interface.set_stability_policy(new_stability)
-			writer.save_interface(interface)
-			from zeroinstall.gui import main
-			main.recalculate()
-		stability.connect('changed', set_stability_policy)
+		self.stability = stability
+		stability.connect('changed', lambda *args: self.set_stability_policy())
 
 		self.use_list = ImplementationList(driver, interface, widgets)
 
@@ -221,6 +210,22 @@ class Properties(object):
 
 		if show_versions:
 			notebook.next_page()
+
+	@tasks.async
+	def set_stability_policy(self):
+		try:
+			i = self.stability.get_active()
+			if i == 0:
+				new_stability = None
+			else:
+				new_stability = ['stable', 'testing', 'developer'][i-1]
+			blocker = slave.invoke_master(["set-stability-policy", self.interface.uri, new_stability])
+			yield blocker
+			tasks.check(blocker)
+			from zeroinstall.gui import main
+			main.recalculate()
+		except Exception as ex:
+			warning("set_stability_policy", exc_info = ex)
 
 	def show(self):
 		self.window.show()

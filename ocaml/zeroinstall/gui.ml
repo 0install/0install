@@ -692,7 +692,18 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
         set_impl_stability config (Feed_url.parse from_feed) id None
     | [`String from_feed; `String id; `String level] ->
         set_impl_stability config (Feed_url.parse from_feed) id (Some (F.parse_stability ~from_user:true level))
-    | json -> raise_safe "get-feed-description: invalid request: %s" (Yojson.Basic.to_string (`List json))
+    | json -> raise_safe "set-impl-stability: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
+  let set_stability_policy iface_uri policy =
+    let iface_config = {Feed_cache.load_iface_config config iface_uri with Feed_cache.stability_policy = policy} in
+    Feed_cache.save_iface_config config iface_uri iface_config;
+    Lwt.return `Null in
+
+  Python.register_handler "set-stability-policy" (function
+    | [`String iface_uri; `Null] -> set_stability_policy iface_uri None
+    | [`String iface_uri; `String level] -> set_stability_policy iface_uri (Some (F.parse_stability ~from_user:true level))
+    | json -> raise_safe "set-stability-policy: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
   Python.register_handler "get-feed-description" (function
