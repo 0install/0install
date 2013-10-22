@@ -174,6 +174,11 @@ class TestInstall(BaseTest):
 		#assert len(binary_iface.extra_feeds) == 1
 
 	def testImport(self):
+		child_config = config.Config()
+		child_config.auto_approve_keys = False
+		child_config.key_info_server = None
+		child_config.save_globals()
+
 		out, err = self.run_ocaml(['import'])
 		assert out.lower().startswith("usage:")
 		assert 'FEED' in out

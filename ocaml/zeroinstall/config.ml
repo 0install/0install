@@ -21,6 +21,10 @@ let parse_bool s =
   | "false" -> false
   | x -> log_warning "Not a boolean '%s'" x; false
 
+let parse_optional_string = function
+  | "" -> None
+  | x -> Some x
+
 let load_config config =
   let handle_ini_mapping = function
     | "global" -> (function
@@ -33,7 +37,7 @@ let load_config config =
       | ("network_use", use) -> config.network_use <- parse_network_use use
       | ("help_with_testing", help) -> config.help_with_testing <- parse_bool help
       | ("auto_approve_keys", value) -> config.auto_approve_keys <- parse_bool value
-      | ("key_info_server", value) -> config.key_info_server <- Some value
+      | ("key_info_server", value) -> config.key_info_server <- parse_optional_string value
       | _ -> ()
     )
     | _ -> ignore in    (* other [sections] *)
