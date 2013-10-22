@@ -96,7 +96,6 @@ class IfaceCache(object):
 
 		logger.debug(_("Initialising new interface object for %s"), uri)
 		self._interfaces[uri] = Interface(uri)
-		reader.update_from_cache(self._interfaces[uri], iface_cache = self)
 		return self._interfaces[uri]
 
 	def get_icon_path(self, iface):

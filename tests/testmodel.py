@@ -82,12 +82,6 @@ class TestModel(BaseTest):
 		finally:
 			basetest.test_locale = (None, None)
 
-	def testStabPolicy(self):
-		i = model.Interface('http://foo')
-		self.assertEqual(None, i.stability_policy)
-		i.set_stability_policy(model.buggy)
-		self.assertEqual(model.buggy, i.stability_policy)
-	
 	def testReplaced(self):
 		local_path = os.path.join(mydir, 'Replaced.xml')
 		with open(local_path, 'rb') as stream:

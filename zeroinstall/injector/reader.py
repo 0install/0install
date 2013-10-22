@@ -19,19 +19,6 @@ from zeroinstall.injector import model
 class MissingLocalFeed(InvalidInterface):
 	pass
 
-def update_from_cache(interface, iface_cache):
-	"""Read a cached interface and any native feeds or user overrides.
-	@param interface: the interface object to update
-	@type interface: L{model.Interface}
-	@type iface_cache: L{zeroinstall.injector.iface_cache.IfaceCache} | None
-	@return: True if cached version and user overrides loaded OK.
-	False if upstream not cached. Local interfaces (starting with /) are
-	always considered to be cached, although they are not actually stored in the cache.
-	@rtype: bool
-	@note: internal; use L{iface_cache.IfaceCache.get_interface} instread."""
-	interface.reset()
-	update_user_overrides(interface)
-
 def load_feed_from_cache(url):
 	"""Load a feed. If the feed is remote, load from the cache. If local, load it directly.
 	@type url: str
@@ -51,33 +38,6 @@ def load_feed_from_cache(url):
 	except InvalidInterface as ex:
 		ex.feed_url = url
 		raise
-
-def update_user_overrides(interface):
-	"""Update an interface with user-supplied information.
-	Sets preferred stability and updates extra_feeds.
-	@param interface: the interface object to update
-	@type interface: L{model.Interface}
-	@param known_site_feeds: feeds to ignore (for backwards compatibility)
-	@type known_site_feeds: {str}"""
-	user = basedir.load_first_config(config_site, config_prog,
-					   'interfaces', model._pretty_escape(interface.uri))
-	if user is None:
-		# For files saved by 0launch < 0.49
-		user = basedir.load_first_config(config_site, config_prog,
-						   'user_overrides', escape(interface.uri))
-	if not user:
-		return
-
-	try:
-		with open(user, 'rb') as stream:
-			root = qdom.parse(stream)
-	except Exception as ex:
-		logger.warning(_("Error reading '%(user)s': %(exception)s"), {'user': user, 'exception': ex})
-		raise
-
-	stability_policy = root.getAttribute('stability-policy')
-	if stability_policy:
-		interface.set_stability_policy(stability_levels[str(stability_policy)])
 
 def load_feed(source, local = False):
 	"""Load a feed from a local file.

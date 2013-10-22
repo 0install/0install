@@ -364,7 +364,7 @@ class Interface(object):
 	Implementations at this level or higher are preferred.
 	Lower levels are used only if there is no other choice.
 	"""
-	__slots__ = ['uri', 'stability_policy']
+	__slots__ = ['uri']
 
 	def __init__(self, uri):
 		"""@type uri: str"""
@@ -377,7 +377,7 @@ class Interface(object):
 		self.reset()
 
 	def reset(self):
-		self.stability_policy = None
+		pass
 
 	def get_name(self):
 		"""@rtype: str"""
@@ -386,11 +386,6 @@ class Interface(object):
 	def __repr__(self):
 		"""@rtype: str"""
 		return _("<Interface %s>") % self.uri
-
-	def set_stability_policy(self, new):
-		"""@type new: L{Stability}"""
-		assert new is None or isinstance(new, Stability)
-		self.stability_policy = new
 
 class ZeroInstallFeed(object):
 	"""A feed lists available implementations of an interface.

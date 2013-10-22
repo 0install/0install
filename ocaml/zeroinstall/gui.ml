@@ -627,6 +627,12 @@ let compile config feed_provider iface ~autocompile =
   feed_provider#forget_user_feeds iface;
   Lwt.return `Null      (* The GUI will now recalculate *)
 
+let stability_policy config uri =
+  let iface_config = Feed_cache.load_iface_config config uri in
+  match iface_config.Feed_cache.stability_policy with
+  | None -> `Null
+  | Some p -> `String (Feed.format_stability p)
+
 (** Run the GUI to choose and download a set of implementations
  * If [use_gui] is No; just returns `Dont_use_GUI.
  * If Maybe, uses the GUI if possible.
@@ -744,6 +750,7 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
   Python.register_handler "get-component-details" (function
     | [`String uri] -> Lwt.return (`Assoc (
         ("may-compile", `Bool (have_source_for !feed_provider uri)) ::
+        ("stability-policy", stability_policy config uri) ::
         ("feeds", `List (list_feeds !feed_provider uri)) ::
         list_impls config (snd !results) uri
       );

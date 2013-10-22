@@ -152,11 +152,14 @@ class Feeds(object):
 		else:
 			self.sel_changed(self.tv.get_selection())
 
+stability_to_combo_index = { None: 0, "stable": 1, "testing": 2, "developer": 3 }
+
 class Properties(object):
 	interface = None
 	use_list = None
 	window = None
 	driver = None
+	ignore_stability_change = True
 
 	def __init__(self, driver, interface, iface_name, compile, show_versions = False):
 		self.driver = driver
@@ -187,18 +190,9 @@ class Properties(object):
 		self.feeds = Feeds(driver.config, interface, widgets)
 
 		stability = widgets.get_widget('preferred_stability')
-		stability.set_active(0)
-		if interface.stability_policy:
-			i = [stable, testing, developer].index(interface.stability_policy)
-			i += 1
-			if i == 0:
-				warning(_("Unknown stability policy %s"), interface.stability_policy)
-		else:
-			i = 0
-		stability.set_active(i)
 
 		self.stability = stability
-		stability.connect('changed', lambda *args: self.set_stability_policy())
+		stability.connect('changed', lambda *args: self.ignore_stability_change or self.set_stability_policy())
 
 		self.use_list = ImplementationList(driver, interface, widgets)
 
@@ -240,6 +234,11 @@ class Properties(object):
 			yield blocker
 			tasks.check(blocker)
 			self.details = blocker.result
+
+			i = stability_to_combo_index[self.details['stability-policy']]
+			self.ignore_stability_change = True
+			self.stability.set_active(i)
+			self.ignore_stability_change = False
 
 			self.use_list.update(self.details)
 			self.feeds.updated(self.details)
