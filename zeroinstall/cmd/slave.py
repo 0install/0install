@@ -297,14 +297,15 @@ def do_confirm_keys(config, ticket, url, xml):
 			key_infos[sig] = ki
 			pending_key_info[fingerprint] = ki
 
-		blocker = config.handler.confirm_import_feed(pending, key_infos)
+		confirmed_keys = []
+		blocker = config.handler.confirm_import_feed(pending, key_infos, confirmed_keys)
 		if blocker:
 			yield blocker
 			tasks.check(blocker)
 
 		domain = trust.domain_from_url(url)
-		now_trusted = [f for f in fingerprints if trust.trust_db.is_trusted(f, domain = domain)]
-		send_json(["return", ticket, ["ok", now_trusted]])
+
+		send_json(["return", ticket, ["ok", confirmed_keys]])
 	except Exception as ex:
 		logger.warning("do_confirm_keys", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])

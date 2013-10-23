@@ -237,7 +237,7 @@ class TestDownload(BaseTest):
 		run_server('6FCF121BE2390E0B.gpg')
 
 		assert not trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
-		out, err = self.run_ocaml(['import', 'Hello'], stdin = 'Y\n')
+		out, err = self.run_ocaml(['import', '-v', 'Hello'], stdin = 'Y\n')
 		assert not out, out
 		assert "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000" in err, err
 		assert trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
@@ -265,7 +265,7 @@ class TestDownload(BaseTest):
 			assert False
 		except NotStored:
 			pass
-		out, err = self.run_ocaml(['download', 'selections.xml'], stdin = "Y\n")
+		out, err = self.run_ocaml(['download', '-v', 'selections.xml'], stdin = "Y\n")
 		assert not out, out
 		assert "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000" in err, err
 		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
@@ -281,7 +281,7 @@ class TestDownload(BaseTest):
 		with output_suppressed():
 			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 
-			out, err = self.run_ocaml(['download', 'selections.xml'], stdin = 'Y\n')
+			out, err = self.run_ocaml(['download', '-v', 'selections.xml'], stdin = 'Y\n')
 			assert not out, out
 			assert 'Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000' in err, err
 			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
@@ -300,7 +300,7 @@ class TestDownload(BaseTest):
 		run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 		out, err = self.run_ocaml(['run', '--dry-run', 'http://localhost:8000/Hello', 'Hello'], stdin = 'Y\n')
 		# note: the Python redirects dry-run messages to stderr, as it's using stdout for IPC
-		assert '[dry-run] would trust key DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000' in err, err
+		assert '[dry-run] would trust key DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000' in out, out
 		assert '[dry-run] would cache feed http://localhost:8000/Hello as ' in out, out
 		assert '[dry-run] would store implementation as ' in err, err
 		assert '[dry-run] would execute:' in out, out

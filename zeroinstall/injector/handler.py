@@ -89,7 +89,7 @@ class Handler(object):
 		tasks.wait_for_blocker(blocker)
 	
 	@tasks.async
-	def confirm_import_feed(self, pending, valid_sigs):
+	def confirm_import_feed(self, pending, valid_sigs, retval):
 		"""Sub-classes should override this method to interact with the user about new feeds.
 		If multiple feeds need confirmation, L{trust.TrustMgr.confirm_keys} will only invoke one instance of this
 		method at a time.
@@ -162,9 +162,7 @@ class Handler(object):
 			if i in 'Yy':
 				break
 		trust.trust_db._dry_run = self.dry_run
-		for key in valid_sigs:
-			print(_("Trusting %(key_fingerprint)s for %(domain)s") % {'key_fingerprint': key.fingerprint, 'domain': domain}, file=sys.stderr)
-			trust.trust_db.trust_key(key.fingerprint, domain)
+		retval.extend([key.fingerprint for key in valid_sigs])
 
 	@tasks.async
 	def confirm_install(self, msg):
@@ -274,10 +272,10 @@ class ConsoleHandler(Handler):
 		self.clear_display()
 		Handler.report_error(self, exception, tb)
 
-	def confirm_import_feed(self, pending, valid_sigs):
+	def confirm_import_feed(self, pending, valid_sigs, retval):
 		self.clear_display()
 		self.disable_progress += 1
-		blocker = Handler.confirm_import_feed(self, pending, valid_sigs)
+		blocker = Handler.confirm_import_feed(self, pending, valid_sigs, retval)
 		@tasks.async
 		def enable():
 			yield blocker

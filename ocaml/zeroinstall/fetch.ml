@@ -307,7 +307,10 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
               )
         );
         lwt confirmed_keys = ui#confirm_keys feed_url xml in
-        confirmed_keys |> List.iter (trust_db#trust_key ~domain);
+        confirmed_keys |> List.iter (fun fingerprint ->
+          log_info "Trusting %s for %s" fingerprint domain;
+          trust_db#trust_key ~domain fingerprint
+        );
         Lwt.return ()
       )
     ) in

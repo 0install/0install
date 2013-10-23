@@ -104,7 +104,7 @@ class TrustBox(gtk.Dialog):
 	parent = None
 	closed = None
 
-	def __init__(self, pending, valid_sigs, parent):
+	def __init__(self, pending, valid_sigs, retval, parent):
 		"""@since: 0.42"""
 		assert valid_sigs
 
@@ -222,21 +222,9 @@ class TrustBox(gtk.Dialog):
 				if not self._confirm_unknown_keys(to_trust, valid_sigs):
 					return
 
-				self.trust_keys(to_trust, domain)
+				retval.extend([sig.fingerprint for sig in to_trust])
 			self.destroy()
 		self.connect('response', response)
-
-	def trust_keys(self, agreed_sigs, domain):
-		assert domain
-		try:
-			for sig in agreed_sigs:
-				trust.trust_db.trust_key(sig.fingerprint, domain)
-
-			trust.trust_db.notify()
-		except Exception as ex:
-			gtkutils.show_message_box(self, str(ex), gtk.MESSAGE_ERROR)
-			if not isinstance(ex, SafeException):
-				raise
 
 	def _confirm_unknown_keys(self, to_trust, valid_sigs):
 		"""Check the key-info server's results for these keys. If we don't know any of them,

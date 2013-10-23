@@ -145,7 +145,7 @@ class TestInstall(BaseTest):
 		stream = open('6FCF121BE2390E0B.gpg')
 		gpg.import_key(stream)
 		stream.close()
-		out, err = self.run_ocaml(['import', 'Hello.xml'], stdin = 'Y\n')
+		out, err = self.run_ocaml(['import', '-v', 'Hello.xml'], stdin = 'Y\n')
 		assert not out, out
 		assert 'Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000' in err, err
 
