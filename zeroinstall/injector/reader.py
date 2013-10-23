@@ -9,12 +9,10 @@ from zeroinstall import _, logger
 import os
 import errno
 
-from zeroinstall import support
 from zeroinstall.support import basedir
 from zeroinstall.injector import qdom
-from zeroinstall.injector.namespaces import config_site, config_prog, XMLNS_IFACE
-from zeroinstall.injector.model import Interface, InvalidInterface, ZeroInstallFeed, escape, Feed, stability_levels
-from zeroinstall.injector import model
+from zeroinstall.injector.namespaces import config_site
+from zeroinstall.injector.model import InvalidInterface, ZeroInstallFeed, escape
 
 class MissingLocalFeed(InvalidInterface):
 	pass

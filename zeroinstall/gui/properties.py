@@ -5,7 +5,7 @@ import zeroinstall
 from zeroinstall import _
 from zeroinstall.cmd import slave
 from zeroinstall.support import tasks, unicode
-from zeroinstall.injector.model import Interface, stable, testing, developer, stability_levels
+from zeroinstall.injector.model import Interface
 from zeroinstall.gtkui import help_box
 
 import gtk

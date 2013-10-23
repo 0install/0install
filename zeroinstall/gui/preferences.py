@@ -9,6 +9,8 @@ from zeroinstall.gtkui import help_box
 from zeroinstall.injector.model import network_levels
 from zeroinstall.injector import trust, gpg
 from zeroinstall.gui.freshness import freshness_levels, Freshness
+from zeroinstall.support import tasks
+from zeroinstall.cmd import slave
 
 SHOW_CACHE = 0
 
@@ -126,9 +128,13 @@ class KeyList(object):
 
 		update_keys()
 
+		@tasks.async
 		def remove_key(fingerprint, domain):
-			trust.trust_db.untrust_key(fingerprint, domain)
-			trust.trust_db.notify()
+			fetcher = slave.invoke_master(["untrust-key", fingerprint, domain])
+			yield fetcher
+			tasks.check(fetcher)
+			trust.trust_db.ensure_uptodate()
+			update_keys()
 
 		def trusted_keys_button_press(tv, bev):
 			if bev.type == gtk.gdk.BUTTON_PRESS and bev.button == 3:

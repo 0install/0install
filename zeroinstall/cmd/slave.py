@@ -11,7 +11,7 @@ import sys, os, collections
 
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, qdom, download, gpg, trust
+from zeroinstall.injector import model, qdom, download, gpg
 from zeroinstall.injector.distro import get_host_distribution
 from zeroinstall.support import tasks
 from zeroinstall import support
@@ -302,8 +302,6 @@ def do_confirm_keys(config, ticket, url, xml):
 		if blocker:
 			yield blocker
 			tasks.check(blocker)
-
-		domain = trust.domain_from_url(url)
 
 		send_json(["return", ticket, ["ok", confirmed_keys]])
 	except Exception as ex:

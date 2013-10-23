@@ -30,14 +30,11 @@ creating new cache objects.
 
 from __future__ import print_function
 
-import os, time
-
 from zeroinstall import _, logger
 from zeroinstall.support import basedir, unicode
 from zeroinstall.injector import reader
 from zeroinstall.injector.namespaces import config_site
-from zeroinstall.injector.model import Interface, escape, unescape
-from zeroinstall import SafeException
+from zeroinstall.injector.model import Interface, escape
 
 class IfaceCache(object):
 	"""

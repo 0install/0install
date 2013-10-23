@@ -8,10 +8,9 @@ A dialog box for confirming GPG keys.
 from zeroinstall import _, translation
 
 import gtk
-from zeroinstall.injector.model import SafeException
 from zeroinstall.injector import gpg, trust
 from zeroinstall.support import tasks, unicode
-from zeroinstall.gtkui import help_box, gtkutils
+from zeroinstall.gtkui import help_box
 
 def frame(page, title, content, expand = False):
 	frame = gtk.Frame()
