@@ -1,7 +1,7 @@
 OCAML_BUILDDIR=../build/ocaml
 TYPE=native
 DEBUG=-cflags -g
-OCAMLBUILD=ocamlbuild ${DEBUG} -use-ocamlfind -build-dir "${OCAML_BUILDDIR}"
+OCAMLBUILD=ocamlbuild -j 0 ${DEBUG} -use-ocamlfind -build-dir "${OCAML_BUILDDIR}"
 TARGETS=static_0install.$(TYPE) tests/test.$(TYPE)
 ifeq ($(OS), Windows_NT)
   TARGETS += runenv.native
