@@ -2,8 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** Access to the rest of the system. This capabilities are provided via an object, which can be replaced for unit-testing.  *)
-
 open Common
 
 module type UnixType = module type of Unix

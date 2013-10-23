@@ -2,8 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** Simple logging support *)
-
 type level = Debug | Info | Warning
 
 let string_of_level = function

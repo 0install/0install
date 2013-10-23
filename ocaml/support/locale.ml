@@ -2,11 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** Support for internationalisation. *)
-
-(* There is an ocaml-gettext package, but it's hard to install and seems unmaintained. As we don't need much,
-   here's a simple implementation. Note: encodings are ignored; we only support UTF-8. *)
-
 open Common
 
 (* Language, country, encoding, variant, e.g. "en_GB.utf-8@foo" *)

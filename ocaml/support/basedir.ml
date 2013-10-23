@@ -2,11 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** XDG Base Directory support, for locating caches, configuration, etc *)
-
 open Common
-
-let re_path_sep = Str.regexp_string path_sep
 
 type basedirs = {
   data: filepath list;
@@ -26,7 +22,7 @@ let get_path (system:system) home_var dirs_var = function
     let system_dirs =
       match system#getenv dirs_var with
       | None -> default_system
-      | Some path -> List.filter ((<>) "") (Str.split re_path_sep path) in
+      | Some path -> List.filter ((<>) "") (Str.split Utils.re_path_sep path) in
 
     user_dir :: system_dirs
 

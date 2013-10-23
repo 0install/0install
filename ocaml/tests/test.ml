@@ -14,6 +14,20 @@ open Fake_system
 let () = Unix.putenv "http_proxy" "localhost:1111"    (* Prevent accidents *)
 let () = Unix.putenv "https_proxy" "localhost:1112"
 
+(** Read all input from a channel. *)
+let input_all ch =
+  let b = Buffer.create 100 in
+  let buf = String.create 256 in
+  try
+    while true do
+      let got = input ch buf 0 256 in
+      if got = 0 then
+        raise End_of_file;
+      Buffer.add_substring b buf 0 got
+    done;
+    failwith "!"
+  with End_of_file -> Buffer.contents b
+
 let test_basedir () =
   skip_if (Sys.os_type = "Win32") "Don't work on Windows";
 
@@ -119,7 +133,7 @@ let test_run_real tmpdir =
     if on_windows then ".\\test_selections_win.xml"
     else "./test_selections.xml" in
   let argv = [Fake_system.build_dir +/ "0install"; "run"; sels_path] in
-  let line = Support.Utils.check_output real_system Support.Utils.input_all argv in
+  let line = Support.Utils.check_output real_system input_all argv in
   assert_str_equal "Hello World\n" line
 
 (* This is really just for the coverage testing, which test_run_real doesn't do. *)

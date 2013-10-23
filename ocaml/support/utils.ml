@@ -2,8 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** Generic support code (not 0install-specific) *)
-
 open Common
 
 (* For temporary directory names *)
@@ -15,7 +13,6 @@ type path_component =
   | CurrentDir          (* ./ *)
   | EmptyComponent      (* / *)
 
-(** [finally cleanup x f] calls [f x] and then [cleanup x] (even if [f x] raised an exception) **)
 let finally_do cleanup resource f =
   let result =
     try f resource
@@ -30,12 +27,6 @@ let safe_to_string = function
 
 let () = Printexc.register_printer safe_to_string
 
-(** [handle_exceptions main args] runs [main args]. If it throws an exception it reports it in a
-    user-friendly way. A [Safe_exception] is displayed with its context.
-    If stack-traces are enabled, one will be displayed. If not then, if the exception isn't
-    a [Safe_exception], the user is told how to enable them.
-    On error, it calls [exit 1]. On success, it returns.
- *)
 let handle_exceptions main args =
   try main args
   with
@@ -54,14 +45,12 @@ let handle_exceptions main args =
         Printexc.print_backtrace stderr;
       exit 1
 
-(** Return the first non-[None] result of [fn item] for items in the list. *)
 let rec first_match ~f = function
   | [] -> None
   | (x::xs) -> match f x with
       | Some _ as result -> result
       | None -> first_match ~f xs
 
-(** List the non-None results of [fn item] *)
 let rec filter_map ~f = function
   | [] -> []
   | (x::xs) ->
@@ -69,7 +58,6 @@ let rec filter_map ~f = function
       | None -> filter_map ~f xs
       | Some y -> y :: filter_map ~f xs
 
-(** List the non-None results of [fn item] *)
 let filter_map_array ~f arr =
   let result = ref [] in
   for i = 0 to Array.length arr - 1 do
@@ -79,7 +67,6 @@ let filter_map_array ~f arr =
   done;
   List.rev !result
 
-(** [makedirs path mode] ensures that [path] is a directory, creating it and any missing parents (using [mode]) if not. *)
 let makedirs (system:system) path mode =
   let rec loop path =
     match system#lstat path with
@@ -168,10 +155,6 @@ let split_first path =
     (parsed, rest)
   )
 
-(** Normalize a path, e.g. A//B, A/./B and A/foo/../B all become A/B.
-    It should be understood that this may change the meaning of the path
-    if it contains symbolic links (use [realpath] instead if you care about that).
-    Based on the Python version. *)
 let normpath path : filepath =
   let rec explode path =
     match split_first path with
@@ -193,14 +176,12 @@ let normpath path : filepath =
 
   String.concat Filename.dir_sep @@ List.rev_map to_string @@ remove_parents ([], explode path)
 
-(** If the given path is relative, make it absolute by prepending the current directory to it. *)
 let abspath (system:system) path =
   normpath (
     if path_is_absolute path then path
     else system#getcwd +/ path
   )
 
-(** Wrapper for [Sys.getenv] that gives a more user-friendly exception message. *)
 let getenv_ex system name =
   match system#getenv name with
   | Some value -> value
@@ -210,16 +191,11 @@ let re_dash = Str.regexp_string "-"
 let re_slash = Str.regexp_string "/"
 let re_space = Str.regexp_string " "
 let re_tab = Str.regexp_string "\t"
-let re_dir_sep = Str.regexp_string Filename.dir_sep   (** / on Unix *)
-let re_path_sep = Str.regexp_string path_sep          (** : on Unix *)
+let re_dir_sep = Str.regexp_string Filename.dir_sep
+let re_path_sep = Str.regexp_string path_sep
 let re_colon = Str.regexp_string ":"
 let re_equals = Str.regexp_string "="
 
-(** Try to guess the full path of the executable that the user means.
-    On Windows, we add a ".exe" extension if it's missing.
-    If the name contains a dir_sep, just check that [abspath name] exists.
-    Otherwise, search $PATH for it.
-    On Windows, we also search '.' first. This mimicks the behaviour the Windows shell. *)
 let find_in_path (system:system) name =
   let name = if on_windows && not (ends_with name ".exe") then name ^ ".exe" else name in
   let check p = if system#file_exists p then Some p else None in
@@ -240,13 +216,6 @@ let find_in_path_ex system name =
   | Some path -> path
   | None -> raise_safe "Not found in $PATH: %s" name
 
-(*
-let with_pipe fn =
-  let (r, w) = Unix.pipe () in
-  finally (fun _ -> Unix.close r; Unix.close w) (r, w) fn
-*)
-
-(** Spawn a subprocess with the given arguments and call [fn channel] on its output. *)
 let check_output ?env ?stderr (system:system) fn (argv:string list) =
   try
     let (r, w) = Unix.pipe () in
@@ -267,7 +236,7 @@ let check_output ?env ?stderr (system:system) fn (argv:string list) =
       finally_do close_in (Unix.in_channel_of_descr r) (fun in_channel ->
         try fn in_channel
         with ex ->
-          (** User function raised an exception. Kill and reap the child. *)
+          (* User function raised an exception. Kill and reap the child. *)
           let () =
             try
               system#reap_child ~kill_first:Sys.sigterm child_pid
@@ -285,16 +254,6 @@ let check_output ?env ?stderr (system:system) fn (argv:string list) =
       let cmd = Logging.format_argv_for_logging argv in
       reraise_with_context ex "... trying to read output of: %s" cmd
 
-(** Call [fn line] on each line of output from running the given sub-process. *)
-let check_output_lines system fn argv =
-  let process ch =
-    try
-      while true do
-        fn (input_line ch)
-      done
-  with End_of_file -> () in
-  check_output system process argv
-
 let split_pair re str =
   match Str.bounded_split_delim re str 2 with
   | [key; value] -> (key, value)
@@ -304,8 +263,6 @@ let split_pair re str =
 let re_section = Str.regexp "^[ \t]*\\[[ \t]*\\([^]]*\\)[ \t]*\\][ \t]*$"
 let re_key_value = Str.regexp "^[ \t]*\\([^= ]+\\)[ \t]*=[ \t]*\\(.*\\)$"
 
-(** [parse_ini system fn path] calls [fn section (key, value)] on each [key=value]
-    line in [path]. *)
 let parse_ini (system:system) fn path =
   let read ch =
     let handler = ref (fun x -> fn "" x) in
@@ -322,10 +279,6 @@ let parse_ini (system:system) fn path =
       done
     with End_of_file -> () in
   system#with_open_in [Open_rdonly; Open_text] 0 path read
-
-let with_dev_null fn =
-  let null_fd = Unix.openfile "/dev/null" [Unix.O_WRONLY] 0 in
-  finally_do Unix.close null_fd fn
 
 let rmtree ~even_if_locked (sys:system) root =
   if starts_with (sys#getcwd ^ Filename.dir_sep) (root ^ Filename.dir_sep) then
@@ -352,7 +305,6 @@ let rmtree ~even_if_locked (sys:system) root =
     rmtree root
   with Safe_exception _ as ex -> reraise_with_context ex "... trying to delete directory %s" root
 
-(** Copy from [ic] to [oc] until [End_of_file] *)
 let copy_channel ic oc =
   let bufsize = 4096 in
   let buf = String.create bufsize in
@@ -365,7 +317,6 @@ let copy_channel ic oc =
     done
   with End_of_file -> ()
 
-(** Copy [source] to [dest]. Error if [dest] already exists. *)
 let copy_file (system:system) source dest mode =
   try
     system#with_open_in [Open_rdonly;Open_binary] 0 source (function ic ->
@@ -373,7 +324,6 @@ let copy_file (system:system) source dest mode =
     )
   with Safe_exception _ as ex -> reraise_with_context ex "... copying %s to %s" source dest
 
-(** Extract a sub-list. *)
 let slice ~start ?stop lst =
   let from_start =
     let rec skip lst = function
@@ -396,22 +346,6 @@ let print (system:system) =
   let do_print msg = system#print_string (msg ^ "\n") in
   Printf.ksprintf do_print
 
-(** Read all input from a channel. *)
-let input_all ch =
-  let b = Buffer.create 100 in
-  let buf = String.create 256 in
-  try
-    while true do
-      let got = input ch buf 0 256 in
-      if got = 0 then
-        raise End_of_file;
-      Buffer.add_substring b buf 0 got
-    done;
-    failwith "!"
-  with End_of_file -> Buffer.contents b
-
-(** Get the canonical name of this path, resolving all symlinks. If a symlink cannot be resolved, treat it as
-    a regular file. If there is a symlink loop, no resolution is done for the remaining components. *)
 let realpath (system:system) path =
   let (+/) = Filename.concat in   (* Faster version, since we know the path is relative *)
 
@@ -498,7 +432,6 @@ let format_date t =
     (t.tm_mon + 1)
     t.tm_mday
 
-(** Read up to [n] bytes from [ch] (less if we hit end-of-file. *)
 let read_upto n ch : string =
   let buf = String.create n in
   let saved = ref 0 in
@@ -541,7 +474,6 @@ let find_opt key map =
   try Some (StringMap.find key map)
   with Not_found -> None
 
-(** Create a randomly-named subdirectory inside [parent]. *)
 let make_tmp_dir system ?(prefix="tmp-") ?(mode=0o700) parent =
   let rec mktmp = function
     | 0 -> raise_safe "Failed to generate temporary directroy name!"

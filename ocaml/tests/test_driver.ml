@@ -277,11 +277,6 @@ let suite = "driver">::: [
   );
 
   "driven">:::
-    try
-      let root = Support.Qdom.parse_file Fake_system.real_system "driven.xml" in
-      List.map make_driver_test root.Support.Qdom.child_nodes
-    with Safe_exception _ as ex ->
-      match Support.Utils.safe_to_string ex with
-      | Some msg -> failwith msg
-      | None -> assert false
+    let root = Support.Qdom.parse_file Fake_system.real_system "driven.xml" in
+    List.map make_driver_test root.Support.Qdom.child_nodes
 ]
