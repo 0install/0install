@@ -289,13 +289,6 @@ class TestDownload(BaseTest):
 
 			assert get_unavailable_selections(sels, self.config, include_packages = True) == []
 	
-	def testAcceptKey(self):
-		run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-		out, err = self.run_ocaml(['run', '--main=Missing', '-v', 'http://localhost:8000/Hello'], stdin = 'Y\n')
-		assert not out, out
-		assert 'Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000' in err, err
-		assert "HelloWorld/Missing' does not exist" in err, err
-	
 	def testDryRun(self):
 		run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
 		out, err = self.run_ocaml(['run', '--dry-run', 'http://localhost:8000/Hello', 'Hello'], stdin = 'Y\n')

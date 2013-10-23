@@ -351,6 +351,11 @@ let fake_log =
         List.iter dump @@ List.rev record;
       )
 
+    method assert_contains expected =
+      let re = Str.regexp expected in
+      if not (List.exists (fun (_ex, _lvl, msg) -> Str.string_match re msg 0) record) then
+        raise_safe "Expected log message matching '%s'" expected
+
     method handle ?ex level msg =
       if !forward_to_real_log && level > Support.Logging.Info then real_log#handle ?ex level msg;
       if false then print_endline @@ "LOG: " ^ msg;

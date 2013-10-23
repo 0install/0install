@@ -11,7 +11,7 @@ open Fake_system
 
 (* let () = Support.Logging.threshold := Support.Logging.Info *)
 
-let () = Unix.putenv "http_proxy" "localhost:1111"    (* Prevent accidents *)
+let () = Unix.putenv "http_proxy" "localhost:8000"    (* Prevent accidents *)
 let () = Unix.putenv "https_proxy" "localhost:1112"
 
 (** Read all input from a channel. *)
@@ -215,6 +215,7 @@ let suite =
   Test_selections.suite;
   Test_stores.suite;
   Test_fetch.suite;
+  Test_download.suite;
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);
  "test_run_real">:: (fun () -> collect_logging (with_tmpdir test_run_real));
@@ -250,6 +251,7 @@ let suite =
 ]
 
 let show_log_on_failure fn () =
+  Zeroinstall.Downloader.interceptor := None;
   Fake_system.forward_to_real_log := true;
   try
     Fake_system.fake_log#reset;

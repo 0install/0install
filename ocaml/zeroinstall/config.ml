@@ -15,15 +15,28 @@ let parse_network_use = function
       Support.Logging.log_warning "Unknown network use '%s'" other;
       Full_network
 
+let format_network_use = function
+  | Full_network -> "full"
+  | Minimal_network -> "minimal"
+  | Offline -> "off-line"
+
 let parse_bool s =
   match String.lowercase s with
   | "true" -> true
   | "false" -> false
   | x -> log_warning "Not a boolean '%s'" x; false
 
+let format_bool = function
+  | false -> "False"
+  | true -> "True"
+
 let parse_optional_string = function
   | "" -> None
   | x -> Some x
+
+let format_freshness = function
+  | None -> "0"
+  | Some s -> Int64.to_string s
 
 let load_config config =
   let handle_ini_mapping = function
@@ -45,6 +58,8 @@ let load_config config =
   match Support.Basedir.load_first config.system config_injector_global config.basedirs.Support.Basedir.config with
   | None -> ()
   | Some path -> Support.Utils.parse_ini config.system handle_ini_mapping path
+
+let default_key_info_server = Some "https://keylookup.appspot.com"
 
 (** [get_default_config path_to_0install] creates a configuration from the current environment.
     [path_to_0install] is used when creating launcher scripts. If it contains no slashes, then
@@ -75,7 +90,7 @@ let get_default_config system path_to_prog =
     freshness = Some (Int64.of_int (30 * days));
     network_use = Full_network;
     mirror = Some "http://roscidus.com/0mirror";
-    key_info_server = Some "https://keylookup.appspot.com";
+    key_info_server = default_key_info_server;
     dry_run = false;
     help_with_testing = false;
     auto_approve_keys = true;
@@ -90,3 +105,21 @@ let get_default_config system path_to_prog =
 let load_first_config rel_path config =
   let open Support in
   Basedir.load_first config.system rel_path config.basedirs.Basedir.config
+
+(** Write global settings. *)
+let save_config config =
+  let dir = Support.Basedir.save_path config.system (Filename.dirname config_injector_global) config.basedirs.Support.Basedir.config in
+  config.system#atomic_write [Open_wronly] (dir +/ "global") ~mode:0o644 (fun ch ->
+    output_string ch "[global]\n";
+
+    Printf.fprintf ch "help_with_testing = %s\n" (format_bool config.help_with_testing);
+    Printf.fprintf ch "network_use = %s\n" (format_network_use config.network_use);
+    Printf.fprintf ch "freshness = %s\n" (format_freshness config.freshness);
+    Printf.fprintf ch "auto_approve_keys = %s\n" (format_bool config.auto_approve_keys);
+    let key_info_server_str =
+      match config.key_info_server with
+      | None -> Some ""
+      | server when server = default_key_info_server -> None
+      | server -> server in
+    key_info_server_str |> if_some (Printf.fprintf ch "key_info_server = %s\n")
+  )
