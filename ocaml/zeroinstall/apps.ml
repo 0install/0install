@@ -60,7 +60,7 @@ let iter_inputs config cb sels =
       | None -> need_solve @@ "Source feed no longer cached: " ^ feed
       | Some path -> cb path              (* Check feed hasn't changed *)
   in
-  ZI.iter_with_name ~f:check_sel sels "selection";
+  ZI.iter check_sel sels ~name:"selection";
 
   (* Check global config *)
   check_maybe_config config_injector_global

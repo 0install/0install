@@ -338,7 +338,7 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
             let add_sel sel =
               let uri = ZI.get_attribute "interface" sel in
               if starts_with uri pre then completer#add Add uri in
-            ZI.iter_with_name ~f:add_sel sels "selection"
+            ZI.iter add_sel sels ~name:"selection"
       )
       | _ -> completer#add_interfaces pre
   )

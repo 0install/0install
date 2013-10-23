@@ -145,7 +145,7 @@ let run_sat_test expected problem =
   | Some result, _ ->
       let sels = result#get_selections in
       let actual = ref [] in
-      ZI.iter_with_name sels "selection" ~f:(fun sel ->
+      sels |> ZI.iter ~name:"selection" (fun sel ->
         let iface = ZI.get_attribute "interface" sel in
         let version = ZI.get_attribute "version" sel in
         actual := (iface, version) :: !actual
@@ -285,7 +285,7 @@ let suite = "sat">::: [
       "libb[1,2] => libc 0 0";
     ] in
     let selected = ref StringMap.empty in
-    ZI.iter_with_name s#get_selections "selection" ~f:(fun sel ->
+    s#get_selections |> ZI.iter ~name:"selection" (fun sel ->
       let iface = ZI.get_attribute "interface" sel in
       selected := StringMap.add iface (ZI.get_attribute_opt "version" sel) !selected
     );

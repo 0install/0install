@@ -89,13 +89,10 @@ module NsQuery :
       val map : f:(element -> 'a) -> element -> string -> 'a list
 
       (** Apply [fn] to each child node in our namespace *)
-      val filter_map : f:(element -> 'a option) -> element -> 'a list
+      val filter_map : (element -> 'a option) -> element -> 'a list
 
-      (** Call [fn] on each child node in our namespace *)
-      val iter : f:(element -> unit) -> element -> unit
-
-      (** Call [fn] on each child node in our namespace with local name [tag] *)
-      val iter_with_name : f:(element -> unit) -> element -> string -> unit
+      (** Call [fn] on each child node in our namespace (with name [name]) *)
+      val iter : ?name:string -> (element -> unit) -> element -> unit
 
       (** Get the value of the non-namespaced attribute [attr].
           Throws an exception if [elem] isn't in our namespace. *)

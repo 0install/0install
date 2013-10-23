@@ -95,7 +95,7 @@ let make_driver_test test_elem =
         };
         fails := ZI.get_attribute_opt "fails" child = Some "true";
         dry_run := ZI.get_attribute_opt "dry-run" child = Some "true";
-        ZI.iter_with_name child "arg" ~f:(fun arg ->
+        child |> ZI.iter ~name:"arg" (fun arg ->
           args := arg.Support.Qdom.last_text_inside :: !args
         )
     | Some "problem" -> expected_problem := trim child.Support.Qdom.last_text_inside
@@ -115,7 +115,7 @@ let make_driver_test test_elem =
     | Some "output" -> expected_output := child.Support.Qdom.last_text_inside
     | Some "warning" -> expected_warnings := child.Support.Qdom.last_text_inside :: !expected_warnings
     | _ -> Support.Qdom.raise_elem "Unexpected element" child in
-    ZI.iter ~f:process test_elem;
+    ZI.iter process test_elem;
 
     let handler =
       object

@@ -113,7 +113,7 @@ let load_iface_config config uri : interface_config =
       (* User-registered feeds (0install add-feed) *)
       let known_site_feeds = List.fold_left (fun map feed -> FeedSet.add feed.Feed.feed_src map) FeedSet.empty site_feeds in
       let user_feeds =
-        ZI.filter_map root ~f:(fun item ->
+        root |> ZI.filter_map (fun item ->
           match ZI.tag item with
           | Some "feed" -> (
               let feed_src = ZI.get_attribute "src" item |> Feed_url.parse_non_distro in

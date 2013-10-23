@@ -470,7 +470,7 @@ let get_feed_description config feed_provider feed_url =
         plain "%s\n" description;
 
         let need_gap = ref true in
-        ZI.iter_with_name feed.F.root "homepage" ~f:(fun homepage ->
+        feed.F.root |> ZI.iter ~name:"homepage" (fun homepage ->
           if !need_gap then (
             plain "\n";
             need_gap := false

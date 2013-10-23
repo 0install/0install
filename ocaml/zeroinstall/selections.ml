@@ -103,13 +103,13 @@ let get_unavailable_selections config ?distro sels =
     )
   in
 
-  ZI.iter_with_name ~f:check sels "selection";
+  ZI.iter check sels ~name:"selection";
 
   !missing
 
 (** Get the direct dependencies (excluding any inside commands) of this <selection> or <command>. *)
 let get_dependencies ~restricts elem =
-  ZI.filter_map elem ~f:(fun node ->
+  elem |> ZI.filter_map (fun node ->
     match ZI.tag node with
     | Some "requires" | Some "runner" -> Some node
     | Some "restricts" when restricts -> Some node
@@ -119,7 +119,7 @@ let get_dependencies ~restricts elem =
 (** Collect all the commands needed by this dependency. *)
 let get_required_commands dep =
   let commands =
-    ZI.filter_map dep ~f:(fun node ->
+    dep |> ZI.filter_map (fun node ->
       match Binding.parse_binding node with
       | Some binding -> Binding.get_command binding
       | None -> None

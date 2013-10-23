@@ -300,7 +300,7 @@ let get_selections dep_in_use root_req impl_cache command_cache =
               copy_elem sel (dep.Feed.dep_qdom)
           );
 
-          ZI.iter_with_name impl.Feed.qdom "manifest-digest" ~f:(copy_elem sel);
+          impl.Feed.qdom |> ZI.iter ~name:"manifest-digest" (copy_elem sel);
 
           sel.Qdom.child_nodes <- List.rev sel.Qdom.child_nodes
         );

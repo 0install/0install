@@ -24,7 +24,7 @@ let show_changes (system:system) old_selections new_selections =
 
   let print fmt = Support.Utils.print system fmt in
 
-  ZI.iter_with_name old_selections "selection" ~f:(fun old_sel ->
+  old_selections |> ZI.iter ~name:"selection" (fun old_sel ->
     let iface = ZI.get_attribute "interface" old_sel in
     match lookup iface new_index with
     | None ->
@@ -37,7 +37,7 @@ let show_changes (system:system) old_selections new_selections =
         )
   );
 
-  ZI.iter_with_name new_selections "selection" ~f:(fun new_sel ->
+  new_selections |> ZI.iter ~name:"selection" (fun new_sel ->
     let iface = ZI.get_attribute "interface" new_sel in
     if not (StringMap.mem iface old_index) then (
       print "%s: new -> %s" iface (v new_sel);

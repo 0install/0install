@@ -183,7 +183,7 @@ let make_solver_test test_elem =
           Requirements.command = ZI.get_attribute_opt "command" child;
           Requirements.os = ZI.get_attribute_opt "os" child;
         };
-        ZI.iter_with_name child "restricts" ~f:(fun restricts ->
+        child |> ZI.iter ~name:"restricts" (fun restricts ->
           let iface = ZI.get_attribute "interface" restricts in
           let expr = ZI.get_attribute "version" restricts in
           reqs := {!reqs with
@@ -195,7 +195,7 @@ let make_solver_test test_elem =
     | Some "problem" -> expected_problem := trim child.Support.Qdom.last_text_inside
     | Some "justification" -> justifications := child :: !justifications
     | _ -> Support.Qdom.raise_elem "Unexpected element" child in
-    ZI.iter ~f:process test_elem;
+    ZI.iter process test_elem;
 
     let (ready, result) = Zeroinstall.Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) !reqs in
     if ready && !fails then assert_failure "Expected solve to fail, but it didn't!";

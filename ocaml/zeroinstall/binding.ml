@@ -80,14 +80,14 @@ let collect_bindings impls root =
       | _ -> match parse_binding node with
              | None -> ()
              | Some binding -> bindings := (iface, binding) :: !bindings in
-    ZI.iter ~f:process_child parent in
+    ZI.iter process_child parent in
 
   let process_sel node =
     let iface = (ZI.get_attribute "interface" node) in
     try process ~deps:true ~commands:true iface node
     with Safe_exception _ as ex -> reraise_with_context ex "... getting bindings from selection %s" iface
   in 
-  ZI.iter_with_name ~f:process_sel root "selection";
+  ZI.iter process_sel root ~name:"selection";
   List.rev !bindings
 
 let get_default name = match name with

@@ -145,7 +145,7 @@ let suite = "feed">::: [
 
         begin match impl.F.props.F.requires with
         | [dep] ->
-            begin match ZI.filter_map dep.F.dep_qdom ~f:B.parse_binding with
+            begin match dep.F.dep_qdom |> ZI.filter_map B.parse_binding with
             [
               B.EnvironmentBinding ({ B.mode = B.Add {B.pos = B.Prepend; _ }; _ } as b0);
               B.EnvironmentBinding ({ B.mode = B.Add {B.pos = B.Prepend; B.default = None; _ }; _ });

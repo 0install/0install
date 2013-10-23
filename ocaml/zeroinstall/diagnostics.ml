@@ -424,7 +424,7 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare can
     let do_add msg = changes := msg :: !changes in
     Printf.ksprintf do_add fmt in
 
-  ZI.iter old_sels ~f:(fun old_sel ->
+  old_sels |> ZI.iter (fun old_sel ->
     let old_iface = ZI.get_attribute FeedAttr.interface old_sel in
     if old_iface <> q_iface || not used_impl then (
       try

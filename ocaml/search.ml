@@ -48,7 +48,7 @@ let handle options flags args =
             let print fmt = Support.Utils.print config.system fmt in
 
             let first = ref true in
-            Empty.iter_with_name root "result" ~f:(fun child ->
+            root |> Empty.iter ~name:"result" (fun child ->
                     if !first then first := false
                     else print "";
 
@@ -56,7 +56,7 @@ let handle options flags args =
                     let score = Empty.get_attribute "score" child in
 
                     let summary = ref "" in
-                    Empty.iter_with_name child "summary" ~f:(fun elem ->
+                    child |> Empty.iter ~name:"summary" (fun elem ->
                       summary := elem.Q.last_text_inside
                     );
                     print "  %s - %s [%s%%]" (Empty.get_attribute "name" child) !summary score

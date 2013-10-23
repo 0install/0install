@@ -56,7 +56,7 @@ let suite = "selections">::: [
         assert_equal "1.0" @@ ZI.get_attribute "version" src;
         assert (not (List.mem_assoc ("", "version-modifier") src.Q.attrs));
 
-        let comp_bindings = ZI.filter_map comp ~f:Binding.parse_binding in
+        let comp_bindings = comp |> ZI.filter_map Binding.parse_binding in
         let comp_deps = Selections.get_dependencies ~restricts:true comp in
         assert_equal [] @@ comp_bindings;
         assert_equal [] @@ comp_deps;
@@ -64,7 +64,7 @@ let suite = "selections">::: [
         let open Binding in
 
         let () =
-          match ZI.filter_map src ~f:Binding.parse_binding with
+          match src |> ZI.filter_map Binding.parse_binding with
           | [EnvironmentBinding {mode = Replace; source = InsertPath "."; _};
              GenericBinding b;
              GenericBinding c] ->
@@ -80,7 +80,7 @@ let suite = "selections">::: [
         match Selections.get_dependencies ~restricts:true src with
         | [dep] -> (
             assert_equal "http://foo/Compiler.xml" @@ ZI.get_attribute "interface" dep;
-            match ZI.filter_map dep ~f:Binding.parse_binding with
+            match dep |> ZI.filter_map Binding.parse_binding with
             | [EnvironmentBinding {var_name = "PATH"; mode = Add {separator; _}; source = InsertPath "bin"};
                EnvironmentBinding {var_name = "NO_PATH"; mode = Add {separator = ","; _}; source = Value "bin"};
                EnvironmentBinding {var_name = "BINDIR"; mode = Replace; source = InsertPath "bin"};
@@ -154,9 +154,9 @@ let suite = "selections">::: [
     let index = Selections.make_selection_map s3 in
 
     let runnable_impl = StringMap.find runnable index in
-    Fake_system.equal_str_lists ["foo"; "run"] @@ ZI.filter_map runnable_impl ~f:(fun child ->
+    runnable_impl |> ZI.filter_map (fun child ->
       if ZI.tag child = Some "command" then Some (ZI.get_attribute "name" child) else None
-    )
+    ) |> Fake_system.equal_str_lists ["foo"; "run"]
   );
 
   "old-commands">:: Fake_system.with_fake_config (fun (config, _fake_system) ->

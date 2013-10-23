@@ -220,7 +220,7 @@ let parse_dep local_dir dep =
     ) in
 
   let commands = ref StringSet.empty in
-  let restrictions = ZI.filter_map dep ~f:(fun child ->
+  let restrictions = dep |> ZI.filter_map (fun child ->
     match ZI.tag child with
     | Some "version" -> Some (parse_version_element child)
     | Some _ -> (
@@ -270,7 +270,7 @@ let parse_dep local_dir dep =
 let parse_command local_dir elem : command =
   let deps = ref [] in
 
-  ZI.iter elem ~f:(fun child ->
+  elem |> ZI.iter (fun child ->
     match ZI.tag child with
     | Some "requires" | Some "restricts" | Some "runner" ->
         deps := parse_dep local_dir child :: !deps
@@ -353,7 +353,7 @@ let parse system root feed_local_path =
   let implementations = ref StringMap.empty in
   let imported_feeds = ref [] in
 
-  ZI.iter root ~f:(fun node ->
+  root |> ZI.iter (fun node ->
     match ZI.tag node with
     | Some "name" -> name := Some (Qdom.simple_content node)
     | Some "feed" -> imported_feeds := parse_feed_import node :: !imported_feeds
@@ -440,7 +440,7 @@ let parse system root feed_local_path =
   let package_implementations = ref [] in
 
   let rec process_group state (group:Qdom.element) =
-    ZI.iter group ~f:(fun item ->
+    group |> ZI.iter (fun item ->
       match ZI.tag item with
       | Some "group" | Some "implementation" | Some "package-implementation" -> (
           let s = ref state in
@@ -469,7 +469,7 @@ let parse system root feed_local_path =
 
           let new_bindings = ref [] in
 
-          ZI.iter item ~f:(fun child ->
+          item |> ZI.iter (fun child ->
             match ZI.tag child with
             | Some "requires" | Some "restricts" ->
                 let req = parse_dep local_dir child in
@@ -566,7 +566,7 @@ let load_feed_overrides config feed_url =
 
       let stability = ref StringMap.empty in
 
-      ZI.iter_with_name root "implementation" ~f:(fun impl ->
+      root |> ZI.iter ~name:"implementation" (fun impl ->
         let id = ZI.get_attribute "id" impl in
         match ZI.get_attribute_opt FeedConfigAttr.user_stability impl with
         | None -> ()
@@ -630,7 +630,7 @@ let get_id impl =
 
 let get_text tag langs feed =
   let best = ref None in
-  ZI.iter_with_name feed.root tag ~f:(fun elem ->
+  feed.root |> ZI.iter ~name:tag (fun elem ->
     let new_score = Support.Locale.score_lang langs (Qdom.get_attribute_opt (xml_ns, FeedAttr.lang) elem) in
     match !best with
     | Some (_old_summary, old_score) when new_score <= old_score -> ()

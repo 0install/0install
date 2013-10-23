@@ -248,12 +248,12 @@ module NsQuery (Ns : NsType) = struct
           else loop xs in
     loop node.child_nodes
 
-  let filter_map ~f node =
+  let filter_map fn node =
     let rec loop = function
       | [] -> []
       | (node::xs) ->
           if fst node.tag = Ns.ns then (
-            match f node with
+            match fn node with
             | None -> loop xs
             | Some result -> result :: loop xs
           ) else loop xs in
@@ -276,15 +276,11 @@ module NsQuery (Ns : NsType) = struct
     with
       Not_found -> None
 
-  let iter ~f node =
+  let iter ?name fn node =
     let fn2 elem =
-      let (ns, _) = elem.tag in
-      if ns = Ns.ns then f elem else ()
+      let (ns, elem_name) = elem.tag in
+      if ns = Ns.ns && (name = None || name = Some elem_name) then fn elem else ()
     in List.iter fn2 node.child_nodes
-
-  let iter_with_name ~f node tag =
-    let fn2 elem = if elem.tag = (Ns.ns, tag) then f elem else () in
-    List.iter fn2 node.child_nodes
 
   let fold_left ~f init node tag =
     let fn2 m elem = if elem.tag = (Ns.ns, tag) then f m elem else m in
