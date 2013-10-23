@@ -114,7 +114,7 @@ let start_server system =
       while_lwt true do
         lwt (connection, _client_addr) = Lwt_unix.accept server_socket in
         log_info "Got a connection!";
-        let from_client = Lwt_io.of_fd ~mode:Lwt_io.Input connection in
+        let from_client = Lwt_io.of_fd ~mode:Lwt_io.input connection in
         lwt request = Lwt_io.read_line from_client in
         log_info "Got: %s" request;
 
@@ -129,7 +129,7 @@ let start_server system =
           if Str.string_match re_http_get request 0 then (
             let resource = Str.matched_group 1 request in
             let _host, path = Support.Urlparse.split_path resource in
-            let to_client = Lwt_io.of_fd ~mode:Lwt_io.Output connection in
+            let to_client = Lwt_io.of_fd ~mode:Lwt_io.output connection in
             lwt () = handle_request path to_client in
             Lwt_io.flush to_client
           ) else (
