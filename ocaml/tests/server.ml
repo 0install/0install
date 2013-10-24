@@ -158,6 +158,8 @@ let start_server system =
 
 let with_server fn =
   Fake_system.with_fake_config (fun (config, f) ->
+    Support.Logging.threshold := Support.Logging.Info;  (* Otherwise, curl prints everything *)
+
     let config = {config with Zeroinstall.General.key_info_server = Some "http://localhost:3333/key-info"} in
     Zeroinstall.Config.save_config config;
 

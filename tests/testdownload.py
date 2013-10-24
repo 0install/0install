@@ -40,24 +40,6 @@ local_hello = """<?xml version="1.0" ?>
 </selections>"""
 
 @contextmanager
-def output_suppressed():
-	old_stdout = sys.stdout
-	old_stderr = sys.stderr
-	try:
-		sys.stdout = StringIO()
-		sys.stderr = StringIO()
-		try:
-			yield
-		except Exception:
-			raise
-		except BaseException as ex:
-			# Don't abort unit-tests if someone raises SystemExit
-			raise Exception(str(type(ex)) + " " + str(ex))
-	finally:
-		sys.stdout = old_stdout
-		sys.stderr = old_stderr
-
-@contextmanager
 def trapped_exit(expected_exit_status):
 	pid = os.getpid()
 	old_exit = os._exit
@@ -128,42 +110,6 @@ def run_server(*args):
 	assert server_process is None
 	server_process = server.handle_requests(*args)
 
-def get_unavailable_selections(sels, config, include_packages):
-	"""Find those selections which are not present.
-	Local implementations are available if their directory exists.
-	Other 0install implementations are available if they are in the cache.
-	Package implementations are available if the Distribution says so.
-	@param include_packages: whether to include <package-implementation>s
-	@type include_packages: bool
-	@rtype: [Selection]
-	@since: 1.16"""
-	iface_cache = config.iface_cache
-	stores = config.stores
-
-	# Check that every required selection is cached
-	def needs_download(sel):
-		if sel.id.startswith('package:'):
-			if not include_packages: return False
-			if sel.quick_test_file:
-				if not os.path.exists(sel.quick_test_file):
-					return True
-				required_mtime = sel.quick_test_mtime
-				if required_mtime is None:
-					return False
-				else:
-					return int(os.stat(sel.quick_test_file).st_mtime) != required_mtime
-
-			feed = iface_cache.get_feed(sel.feed)
-			if not feed: return False
-			impl = feed.implementations.get(sel.id, None)
-			return impl is None or not impl.installed
-		elif sel.local_path:
-			return False
-		else:
-			return sel.get_path(stores, missing_ok = True) is None
-
-	return [sel for sel in sels.selections.values() if needs_download(sel)]
-
 class TestDownload(BaseTest):
 	def setUp(self):
 		BaseTest.setUp(self)
@@ -225,41 +171,6 @@ class TestDownload(BaseTest):
 
 		assert "Not signed with a trusted key" in err, err
 		assert "Exit status: 1" in err, err
-	
-	def testSelections(self):
-		with open("selections.xml", 'rb') as stream:
-			root = qdom.parse(stream)
-		sels = selections.Selections(root)
-
-		run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-		try:
-			self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
-			assert False
-		except NotStored:
-			pass
-		out, err = self.run_ocaml(['download', '-v', 'selections.xml'], stdin = "Y\n")
-		assert not out, out
-		assert "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000" in err, err
-		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
-		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
-
-		assert get_unavailable_selections(sels, self.config, include_packages = True) == []
-
-	def testSelectionsWithFeed(self):
-		with open("selections.xml", 'rb') as stream:
-			root = qdom.parse(stream)
-		sels = selections.Selections(root)
-
-		with output_suppressed():
-			run_server('Hello.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
-
-			out, err = self.run_ocaml(['download', '-v', 'selections.xml'], stdin = 'Y\n')
-			assert not out, out
-			assert 'Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000' in err, err
-			path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
-			assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
-
-			assert get_unavailable_selections(sels, self.config, include_packages = True) == []
 	
 	def testDryRun(self):
 		run_server('Hello', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')

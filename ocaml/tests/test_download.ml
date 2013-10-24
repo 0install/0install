@@ -13,6 +13,7 @@ module F = Zeroinstall.Feed
 module FC = Zeroinstall.Feed_cache
 
 let assert_contains = Fake_system.assert_contains
+let expect = Fake_system.expect
 
 let run_0install ?stdin ?(include_stderr=false) fake_system ?(exit=0) args =
   let run = lazy (
@@ -33,6 +34,12 @@ let parse_sels xml =
     Zeroinstall.Selections.make_selection_map sels
   with Safe_exception _ as ex ->
     reraise_with_context ex "... parsing %s" xml
+
+let get_sel_path config sel =
+  match Zeroinstall.Selections.make_selection sel with
+  | Zeroinstall.Selections.CacheSelection digests ->
+      Zeroinstall.Stores.lookup_maybe config.system digests config.stores
+  | _ -> assert_failure "Wrong type!"
 
 let suite = "download">::: [
   "accept-key">:: Server.with_server (fun (_config, fake_system) server ->
@@ -111,8 +118,6 @@ let suite = "download">::: [
   );
 
   "mirrors">:: Server.with_server (fun (config, fake_system) server ->
-    Support.Logging.threshold := Support.Logging.Info;
-
     let config = {config with
       auto_approve_keys = false;
       mirror = Some "http://example.com:8000/0mirror";
@@ -136,16 +141,10 @@ let suite = "download">::: [
     Fake_system.fake_log#assert_contains "Primary download failed; trying mirror URL 'http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'";
     let sels = parse_sels out in
     let sel = StringMap.find "http://example.com:8000/Hello.xml" sels in
-    begin match Zeroinstall.Selections.make_selection sel with
-    | Zeroinstall.Selections.CacheSelection digests ->
-        let path = Zeroinstall.Stores.lookup_any config.system digests config.stores in
-        assert (fake_system#file_exists (path +/ "HelloWorld" +/ "main"))
-    | _ -> assert false end;
+    assert (fake_system#file_exists (expect (get_sel_path config sel) +/ "HelloWorld" +/ "main"))
   );
 
   "impl-mirror">:: Server.with_server (fun (config, fake_system) server ->
-    Support.Logging.threshold := Support.Logging.Info;
-
     let config = {config with
       auto_approve_keys = false;
       mirror = Some "http://example.com:8000/0mirror";
@@ -178,8 +177,6 @@ let suite = "download">::: [
   );
 
   "impl-mirror-fails">:: Server.with_server (fun (config, fake_system) server ->
-    Support.Logging.threshold := Support.Logging.Info;
-
     let config = {config with
       auto_approve_keys = false;
       mirror = Some "http://example.com:8000/0mirror";
@@ -215,5 +212,27 @@ let suite = "download">::: [
       (* Mirror of implementation: *)
       ".*http://roscidus.com/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"
     ] |> List.iter Fake_system.fake_log#assert_contains
+  );
+
+  "selections">:: Server.with_server (fun (config, fake_system) server ->
+    let sels = Zeroinstall.Selections.load_selections config.system (Test_0install.feed_dir +/ "selections.xml") in
+
+    server#expect [
+      [("Hello.xml", `Serve)];
+      [("6FCF121BE2390E0B.gpg", `Serve)];
+      [("/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B", `AcceptKey)];
+      [("HelloWorld.tgz", `Serve)];
+    ];
+
+    let index = Zeroinstall.Selections.make_selection_map sels in
+    let sel = StringMap.find "http://example.com:8000/Hello.xml" index in
+    assert_equal None @@ get_sel_path config sel;
+
+    let out = run_0install fake_system ["download"; Test_0install.feed_dir +/ "selections.xml"] in
+    Fake_system.assert_str_equal "" out;
+    Fake_system.fake_log#assert_contains "Automatically approving key for new feed";
+
+    assert (fake_system#file_exists @@ expect (get_sel_path config sel) +/ "HelloWorld" +/ "main");
+    assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels
   );
 ]
