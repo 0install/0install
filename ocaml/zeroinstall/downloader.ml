@@ -129,14 +129,14 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
      * @param modification_time raise [Unmodified] if file hasn't changed since this time
      * @hint a tag to attach to the download (used by the GUI to associate downloads with feeds)
      *)
-    method download : 'a. ?switch:Lwt_switch.t -> ?modification_time:float -> ?if_slow:(unit Lazy.t) ->
+    method download : 'a. switch:Lwt_switch.t -> ?modification_time:float -> ?if_slow:(unit Lazy.t) ->
                       ?size:Int64.t -> ?hint:([< Feed_url.parsed_feed_url] as 'a) -> string -> download_result Lwt.t =
-                      fun ?switch ?modification_time ?if_slow ?size ?hint url ->
+                      fun ~switch ?modification_time ?if_slow ?size ?hint url ->
       let hint = hint |> pipe_some (fun feed -> Some (Feed_url.format_url feed)) in
       log_debug "Download URL '%s'... (for %s)" url (default "no feed" hint);
 
       let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
-      Lwt_switch.add_hook switch (fun () -> Unix.unlink tmpfile |> Lwt.return);
+      Lwt_switch.add_hook (Some switch) (fun () -> Unix.unlink tmpfile |> Lwt.return);
 
       let rec loop redirs_left url =
         let site =

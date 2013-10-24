@@ -209,7 +209,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
             let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
             let switch = Lwt_switch.create () in
             try_lwt
-              match_lwt downloader#download ~if_slow ~hint key_info_url with
+              match_lwt downloader#download ~switch ~if_slow ~hint key_info_url with
               | `network_failure msg -> raise_safe "%s" msg
               | `aborted_by_user -> raise Aborted
               | `tmpfile tmpfile ->
@@ -594,12 +594,12 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
           | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
         )
       with ex ->
-        lwt () = Lwt_switch.turn_off switch in
         match ex with
         | Aborted -> `aborted_by_user |> Lwt.return
         | Try_mirror msg -> `network_failure msg |> Lwt.return
         | _ -> raise ex
     finally
+      Lwt_switch.turn_off switch >>
       try
         if !need_rm_tmpdir then (
           log_info "Removing temporary directory '%s'" tmpdir;

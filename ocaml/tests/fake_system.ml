@@ -58,15 +58,14 @@ let capture_stdout fn =
     (fun _old_stdout ->
       let tmp = Filename.temp_file "0install" "-test" in
       U.finally_do
-        close (openfile tmp [O_RDWR] 0o600)
+        (fun fd -> close fd; unlink tmp)
+        (openfile tmp [O_RDWR] 0o600)
         (fun tmpfd ->
           dup2 tmpfd Unix.stdout;
           fn ();
           Pervasives.flush Pervasives.stdout;
-        );
-        let contents = U.read_file real_system tmp in
-        unlink tmp;
-        contents
+          U.read_file real_system tmp
+        )
     )
 
 exception Would_exec of (bool * string array option * string list)

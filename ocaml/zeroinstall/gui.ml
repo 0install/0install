@@ -394,8 +394,9 @@ let download_icon config (downloader:Downloader.downloader) feed_provider feed_u
   match icon_url with
   | None -> log_info "No PNG icons found in %s" feed_url; Lwt.return `Null
   | Some href ->
+      let switch = Lwt_switch.create () in
       try_lwt
-        match_lwt downloader#download ?modification_time ~hint:parsed_url href with
+        match_lwt downloader#download ~switch ?modification_time ~hint:parsed_url href with
         | `network_failure msg -> raise_safe "%s" msg
         | `aborted_by_user -> Lwt.return `Null
         | `tmpfile tmpfile ->
@@ -405,13 +406,11 @@ let download_icon config (downloader:Downloader.downloader) feed_provider feed_u
               system#with_open_in [Open_rdonly;Open_binary] 0 tmpfile (function ic ->
                 system#atomic_write [Open_wronly;Open_binary] icon_file ~mode:0o644 (U.copy_channel ic)
               );
-              system#unlink tmpfile;
               Lwt.return `Null
             with ex ->
-              system#unlink tmpfile;
               raise ex
       with Downloader.Unmodified ->
-        Lwt.return `Null
+        Lwt_switch.turn_off switch >> Lwt.return `Null
 
 (** The formatted text for the details panel in the interface properties box. *)
 let get_feed_description config feed_provider feed_url =
