@@ -110,11 +110,11 @@ let start_server system =
               send_error to_client 404 (Printf.sprintf "Expected %s; got %s" options (String.concat "," !request_log))
     ) in
 
-  let () =
+  let handler_thread =
     Lwt_unix.(setsockopt server_socket SO_REUSEADDR) true;
     Lwt_unix.(bind server_socket (ADDR_INET (Unix.inet_addr_loopback, 8000)));
     Lwt_unix.listen server_socket 5;
-    Zeroinstall.Python.async (fun () ->
+    try_lwt
       while_lwt true do
         lwt (connection, _client_addr) = Lwt_unix.accept server_socket in
         log_info "Got a connection!";
@@ -134,8 +134,9 @@ let start_server system =
             let resource = Str.matched_group 1 request in
             let _host, path = Support.Urlparse.split_path resource in
             let to_client = Lwt_io.of_fd ~mode:Lwt_io.output connection in
-            lwt () = handle_request path to_client in
-            Lwt_io.flush to_client
+            begin try_lwt handle_request path to_client
+            with ex -> send_error to_client 501 (Printexc.to_string ex)
+            end >> Lwt_io.flush to_client
           ) else (
             log_warning "Bad HTTP request '%s'" request;
             Lwt.return ();
@@ -145,19 +146,24 @@ let start_server system =
 
         Lwt_unix.close connection
       done
-    )
+    with Lwt.Canceled -> Lwt.return ()
   in
   object
     method expect requests = expected := requests
     method terminate =
-      log_info "Server shutdown";
-      Lwt_unix.(shutdown server_socket SHUTDOWN_ALL)
+      log_info "Shutting down server...";
+      Lwt.cancel handler_thread;
+      handler_thread >> Lwt_unix.close server_socket
   end
 
 let with_server fn =
   Fake_system.with_fake_config (fun (config, f) ->
+    Zeroinstall.Config.save_config {config with
+      Zeroinstall.General.key_info_server = Some "http://localhost:3333/key-info"
+    };
+
     U.finally_do
-      (fun s -> s#terminate)
+      (fun s -> Lwt_main.run s#terminate)
       (start_server config.Zeroinstall.General.system)
       (fun server -> fn (config, f) server)
   )

@@ -226,34 +226,6 @@ class TestDownload(BaseTest):
 		assert "Not signed with a trusted key" in err, err
 		assert "Exit status: 1" in err, err
 	
-	def testImport(self):
-		out, err = self.run_ocaml(['import', '-v', 'NO-SUCH-FILE'])
-		assert 'NO-SUCH-FILE' in err
-		assert not out, out
-
-		hello = self.config.iface_cache.get_feed('http://localhost:8000/Hello')
-		self.assertEqual(None, hello)
-
-		run_server('6FCF121BE2390E0B.gpg')
-
-		assert not trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
-		out, err = self.run_ocaml(['import', '-v', 'Hello'], stdin = 'Y\n')
-		assert not out, out
-		assert "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000" in err, err
-		assert trust.trust_db.is_trusted('DE937DD411906ACF7C263B396FCF121BE2390E0B')
-
-		# Check we imported the interface after trusting the key
-		hello = self.config.iface_cache.get_feed('http://localhost:8000/Hello', force = True)
-		self.assertEqual(1, len([x for x in hello.feed_element.childNodes if x.name == 'implementation']))
-
-		self.assertEqual(None, hello.local_path)
-
-		# Shouldn't need to prompt the second time
-		sys.stdin = None
-		out, err = self.run_ocaml(['import', 'Hello'])
-		assert not out, out
-		assert not err, err
-
 	def testSelections(self):
 		with open("selections.xml", 'rb') as stream:
 			root = qdom.parse(stream)

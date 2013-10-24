@@ -250,17 +250,27 @@ let suite =
  );
 ]
 
+let orig_stderr = Unix.out_channel_of_descr @@ Unix.dup Unix.stderr
+let async_exception = ref None
+
 let show_log_on_failure fn () =
+  async_exception := None;
   Zeroinstall.Downloader.interceptor := None;
   Fake_system.forward_to_real_log := true;
   try
     Fake_system.fake_log#reset;
-    fn ()
+    fn ();
+    !async_exception |> if_some (fun ex -> raise ex)
   with ex ->
     Fake_system.fake_log#dump;
     raise ex
 
 let () =
+  Lwt.async_exception_hook := (fun ex ->
+    async_exception := Some ex;
+    Printf.fprintf orig_stderr "Async exception: %s" (Printexc.to_string ex);
+    flush orig_stderr
+  );
   Printexc.record_backtrace true;
   ignore @@ run_test_tt_main @@ test_decorate show_log_on_failure suite;
   Format.print_newline ()
