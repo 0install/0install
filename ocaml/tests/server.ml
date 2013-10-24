@@ -27,6 +27,7 @@ let send_body ch data =
 
 type response =
   [ `Serve
+  | `ServeFile of filepath
   | `Chunked
   | `AcceptKey
   | `UnknownKey
@@ -37,6 +38,15 @@ let start_server system =
   let server_socket = Lwt_unix.(socket PF_INET SOCK_STREAM 0) in
   let request_log = ref [] in
   let expected = ref [] in
+
+  let () =
+    Lwt_unix.(setsockopt server_socket SO_REUSEADDR) true;
+    Lwt_unix.set_close_on_exec server_socket;
+    begin try Lwt_unix.(bind server_socket (ADDR_INET (Unix.inet_addr_loopback, 8000)))
+    with Unix.Unix_error _ as ex ->
+      log_warning ~ex "Bind failed";
+      raise_safe "Failed to start test server listening on localhost:8000; is something using it?" end;
+    Lwt_unix.listen server_socket 5 in
 
   let handle_request path to_client =
     log_info "Handling request for '%s'" path;
@@ -56,11 +66,6 @@ let start_server system =
       match !expected with
       | [] -> raise_safe "Unexpected request for '%s' (nothing expected)" path
       | next_step :: rest ->
-(*
-          resp = acceptable.get(parsed.path, None) or \
-                 acceptable.get(leaf, None) or \
-                 acceptable.get('*', None)
-*)
           let response, next_step =
             try (List.assoc path next_step, List.remove_assoc path next_step)
             with Not_found ->
@@ -70,18 +75,13 @@ let start_server system =
             if next_step = [] then rest
             else next_step :: rest;
 
+(*
           let leaf =
             if U.starts_with path "/0mirror/search/?q=" then (
               let q = U.string_tail path 19 in
               "search-" ^ q ^ ".xml"
-            ) else if leaf = "latest.xml" then (
-              (* (don't use a symlink as they don't work on Windows) *)
-              "Hello.xml"
-            ) else if path = "/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz" then (
-              "HelloWorld.tgz"
-            ) else if path = "/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" then (
-              "HelloWorld.tar.bz2"
             ) else leaf in
+*)
 
           match response with
           | `AcceptKey -> 
@@ -93,6 +93,10 @@ let start_server system =
               end_headers to_client >>
               send_body to_client "<key-lookup/>"
           | `Give404 -> send_error to_client 404 ("Missing: " ^ leaf)
+          | `ServeFile relpath ->
+              lwt () = send_response to_client 200 >> end_headers to_client in
+              let data = U.read_file system (Test_0install.feed_dir +/ relpath) in
+              send_body to_client data;
           | `Serve ->
               lwt () = send_response to_client 200 >> end_headers to_client in
               let data = U.read_file system (Test_0install.feed_dir +/ leaf) in
@@ -111,25 +115,22 @@ let start_server system =
     ) in
 
   let handler_thread =
-    Lwt_unix.(setsockopt server_socket SO_REUSEADDR) true;
-    Lwt_unix.(bind server_socket (ADDR_INET (Unix.inet_addr_loopback, 8000)));
-    Lwt_unix.listen server_socket 5;
     try_lwt
       while_lwt true do
         lwt (connection, _client_addr) = Lwt_unix.accept server_socket in
-        log_info "Got a connection!";
-        let from_client = Lwt_io.of_fd ~mode:Lwt_io.input connection in
-        lwt request = Lwt_io.read_line from_client in
-        log_info "Got: %s" request;
+        try_lwt
+          log_info "Got a connection!";
+          let from_client = Lwt_io.of_fd ~mode:Lwt_io.input connection in
+          lwt request = Lwt_io.read_line from_client in
+          log_info "Got: %s" request;
 
-        let done_headers = ref false in
-        lwt () = while_lwt not !done_headers do
-          lwt line = Lwt_io.read_line from_client in
-          if trim line = "" then done_headers := true;
-          Lwt.return ()
-        done in
+          let done_headers = ref false in
+          lwt () = while_lwt not !done_headers do
+            lwt line = Lwt_io.read_line from_client in
+            if trim line = "" then done_headers := true;
+            Lwt.return ()
+          done in
 
-        lwt () =
           if Str.string_match re_http_get request 0 then (
             let resource = Str.matched_group 1 request in
             let _host, path = Support.Urlparse.split_path resource in
@@ -140,11 +141,10 @@ let start_server system =
           ) else (
             log_warning "Bad HTTP request '%s'" request;
             Lwt.return ();
-          ) in
-
-        log_info "Closing connection";
-
-        Lwt_unix.close connection
+          )
+        finally
+          log_info "Closing connection";
+          Lwt_unix.close connection
       done
     with Lwt.Canceled -> Lwt.return ()
   in
@@ -158,9 +158,8 @@ let start_server system =
 
 let with_server fn =
   Fake_system.with_fake_config (fun (config, f) ->
-    Zeroinstall.Config.save_config {config with
-      Zeroinstall.General.key_info_server = Some "http://localhost:3333/key-info"
-    };
+    let config = {config with Zeroinstall.General.key_info_server = Some "http://localhost:3333/key-info"} in
+    Zeroinstall.Config.save_config config;
 
     U.finally_do
       (fun s -> Lwt_main.run s#terminate)

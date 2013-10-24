@@ -281,34 +281,6 @@ class TestDownload(BaseTest):
 		assert "Exit status: 1" in err, err
 		assert "HelloWorld/Missing" in err, err
 
-	def testDistro(self):
-		native_url = 'http://example.com:8000/Native.xml'
-
-		# Initially, we don't have the feed at all...
-		master_feed = self.config.iface_cache.get_feed(native_url)
-		assert master_feed is None, master_feed
-
-		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-		run_server('Native.xml', '6FCF121BE2390E0B.gpg', '/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B')
-		out, err = self.run_ocaml(['download', native_url])
-		assert not out, out
-		assert "Can't find all required implementations" in err, err
-
-		master_feed = self.config.iface_cache.get_feed(native_url, force = True)
-		assert master_feed is not None
-		assert master_feed.implementations == {}
-
-		elem = qdom.Element(namespaces.XMLNS_IFACE, "package-implementation", {'package': 'python-bittorrent'})
-		package_impls = [(elem, {'stability': 'testing', 'package': 'python-bittorrent'}, [])]
-		blocker = distro._host_distribution.fetch_candidates(package_impls)
-		if blocker:
-			tasks.wait_for_blocker(blocker)
-		distro_feed_url = 'distribution:' + master_feed.url
-		assert distro_feed_url is not None
-		distro_feed = distro._host_distribution.get_feed(master_feed.url, package_impls)
-		assert distro_feed is not None
-		assert len(distro_feed.implementations) == 2, distro_feed.implementations
-
 	def testWrongSize(self):
 		run_server('Hello-wrong-size', '6FCF121BE2390E0B.gpg',
 						'/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B', 'HelloWorld.tgz')
@@ -435,79 +407,6 @@ class TestDownload(BaseTest):
 		out, err = self.run_ocaml(['run', os.path.abspath('Recipe.xml')])
 		assert "Exit status: 1" in err, err
 		assert "Connection" in err, err
-
-	def testMirrors(self):
-		child_config = config.Config()
-		child_config.auto_approve_keys = False
-		child_config.key_info_server = 'http://localhost:3333/key-info'
-		child_config.mirror = 'http://example.com:8000/0mirror'
-		child_config.save_globals()
-
-		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-		run_server(server.Give404('/Hello.xml'),
-				'/0mirror/feeds/http/example.com:8000/Hello.xml/latest.xml',
-				'/0mirror/keys/6FCF121BE2390E0B.gpg',
-				server.Give404('/HelloWorld.tgz'),
-				'/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz')
-		out, err = self.run_ocaml(['download', 'http://example.com:8000/Hello.xml', '--xml'], binary = True)
-		assert b"Primary download failed; trying mirror URL 'http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'" in err, err.decode('utf-8')
-		sels = selections.Selections(qdom.parse(BytesIO(out)))
-
-		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
-		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
-
-	def testImplMirror(self):
-		# This is like testMirror, except we have a different archive (that generates the same content),
-		# rather than an exact copy of the unavailable archive.
-
-		child_config = config.Config()
-		child_config.auto_approve_keys = False
-		child_config.key_info_server = 'http://localhost:3333/key-info'
-		child_config.mirror = 'http://example.com:8000/0mirror'
-		child_config.save_globals()
-
-		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-		run_server('/Hello.xml',
-				'/6FCF121BE2390E0B.gpg',
-				server.Give404('/HelloWorld.tgz'),
-				server.Give404('/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'),
-				'/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a')
-		out, err = self.run_ocaml(['download', '-v', 'http://example.com:8000/Hello.xml', '--xml'], binary = True)
-
-		assert b'Missing: HelloWorld.tgz: trying implementation mirror at http://roscidus.com/0mirror' in err, err #/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a' in err, err.decode('utf-8')
-		sels = selections.Selections(qdom.parse(BytesIO(out)))
-		path = self.config.stores.lookup_any(sels.selections['http://example.com:8000/Hello.xml'].digests)
-		assert os.path.exists(os.path.join(path, 'HelloWorld', 'main'))
-
-	def testImplMirrorFails(self):
-		child_config = config.Config()
-		child_config.auto_approve_keys = False
-		child_config.key_info_server = 'http://localhost:3333/key-info'
-		child_config.mirror = 'http://example.com:8000/0mirror'
-		child_config.save_globals()
-
-		trust.trust_db.trust_key('DE937DD411906ACF7C263B396FCF121BE2390E0B', 'example.com:8000')
-		run_server('/Hello.xml',
-				'/6FCF121BE2390E0B.gpg',
-				server.Give404('/HelloWorld.tgz'),
-				server.Give404('/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'),
-				server.Give404('/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a'))
-		out, err = self.run_ocaml(['download', '-vv', 'http://example.com:8000/Hello.xml'])
-		assert not out, out
-		assert "Exit status: 1" in err, err
-		assert 'Missing: HelloWorld.tgz' in err, err
-
-		for x in [
-			'http://example.com:8000/Hello.xml',
-			'http://example.com:8000/6FCF121BE2390E0B.gpg',
-			# The original archive:
-			'http://example.com:8000/HelloWorld.tgz',
-			# Mirror of original archive:
-			'http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz',
-			# Mirror of implementation:
-			'http://roscidus.com/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a'
-			]:
-			assert x in err, (x, err)
 
 	def testLocalFeedMirror(self):
 		# This is like testImplMirror, except we have a local feed.
