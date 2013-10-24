@@ -26,8 +26,10 @@ let send_body ch data =
   Lwt_io.write ch data
 
 type response =
-  [ `File
+  [ `Serve
   | `Chunked
+  | `AcceptKey
+  | `UnknownKey
   | `Give404 ]
 
 let start_server system =
@@ -81,29 +83,31 @@ let start_server system =
               "HelloWorld.tar.bz2"
             ) else leaf in
 
-          if U.starts_with path "/key-info/" then (
-            send_response to_client 200 >>
-            end_headers to_client >>
-            send_body to_client "<key-lookup><item vote='good'>Approved for testing</item></key-lookup>"
-          ) else (
-            match response with
-            | `Give404 -> send_error to_client 404 ("Missing: " ^ leaf)
-            | `File ->
-                lwt () = send_response to_client 200 >> end_headers to_client in
-                let data = U.read_file system (Test_0install.feed_dir +/ leaf) in
-                send_body to_client data;
-            | `Chunked ->
-                send_response to_client 200 >>
-                send_header to_client "Transfer-Encoding" "chunked" >>
-                end_headers to_client >>
-                send_body to_client "a\r\n\
-                                     hello worl\r\n\
-                                     1\r\n\
-                                     d\r\n"
-            | `Unexpected ->
-                let options = String.concat "|" (List.map fst next_step) in
-                send_error to_client 404 (Printf.sprintf "Expected %s; got %s" options (String.concat "," !request_log))
-          )
+          match response with
+          | `AcceptKey -> 
+              send_response to_client 200 >>
+              end_headers to_client >>
+              send_body to_client "<key-lookup><item vote='good'>Approved for testing</item></key-lookup>"
+          | `UnknownKey -> 
+              send_response to_client 200 >>
+              end_headers to_client >>
+              send_body to_client "<key-lookup/>"
+          | `Give404 -> send_error to_client 404 ("Missing: " ^ leaf)
+          | `Serve ->
+              lwt () = send_response to_client 200 >> end_headers to_client in
+              let data = U.read_file system (Test_0install.feed_dir +/ leaf) in
+              send_body to_client data;
+          | `Chunked ->
+              send_response to_client 200 >>
+              send_header to_client "Transfer-Encoding" "chunked" >>
+              end_headers to_client >>
+              send_body to_client "a\r\n\
+                                   hello worl\r\n\
+                                   1\r\n\
+                                   d\r\n"
+          | `Unexpected ->
+              let options = String.concat "|" (List.map fst next_step) in
+              send_error to_client 404 (Printf.sprintf "Expected %s; got %s" options (String.concat "," !request_log))
     ) in
 
   let () =
@@ -144,13 +148,7 @@ let start_server system =
     )
   in
   object
-    method expect requests =
-      let to_step = function
-        | `File r -> (r, `File) in
-      expected := requests |> List.map ( function
-        | `File _ as r -> [to_step r]
-        | `Parallel rs -> List.map to_step rs
-      )
+    method expect requests = expected := requests
     method terminate =
       log_info "Server shutdown";
       Lwt_unix.(shutdown server_socket SHUTDOWN_ALL)

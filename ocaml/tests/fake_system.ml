@@ -50,20 +50,24 @@ let make_stat st_perm kind =
     st_ctime = 0.0;
   }
 
-let capture_stdout fn =
+let capture_stdout ?(include_stderr=false) fn =
   let open Unix in
   U.finally_do
-    (fun old_stdout -> dup2 old_stdout Unix.stdout; close old_stdout)
-    (dup Unix.stdout)
-    (fun _old_stdout ->
-      let tmp = Filename.temp_file "0install" "-test" in
+    (fun (old_stdout, old_stderr) ->
+      dup2 old_stdout Unix.stdout; close old_stdout;
+      dup2 old_stderr Unix.stderr; close old_stderr)
+    (dup Unix.stdout, dup Unix.stderr)
+    (fun _old ->
+      let tmp = Filename.temp_file "0install-" "-test-output" in
       U.finally_do
         (fun fd -> close fd; unlink tmp)
         (openfile tmp [O_RDWR] 0o600)
         (fun tmpfd ->
           dup2 tmpfd Unix.stdout;
+          if include_stderr then dup2 tmpfd Unix.stderr;
           fn ();
           Pervasives.flush Pervasives.stdout;
+          Pervasives.flush Pervasives.stderr;
           U.read_file real_system tmp
         )
     )
