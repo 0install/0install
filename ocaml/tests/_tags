@@ -1,1 +1,2 @@
 <test_fetch.ml> or <server.ml>: syntax(camlp4o), package(lwt.syntax)
+<test.ml>: mypp

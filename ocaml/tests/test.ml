@@ -265,12 +265,17 @@ let show_log_on_failure fn () =
     Fake_system.fake_log#dump;
     raise ex
 
+(* Actually, we just want a recent Lwt, but this will do. *)
+IFNDEF OCAML_LT_4_01 THEN
 let () =
   Lwt.async_exception_hook := (fun ex ->
     async_exception := Some ex;
     Printf.fprintf orig_stderr "Async exception: %s" (Printexc.to_string ex);
     flush orig_stderr
-  );
+  )
+ENDIF
+
+let () =
   Printexc.record_backtrace true;
   ignore @@ run_test_tt_main @@ test_decorate show_log_on_failure suite;
   Format.print_newline ()
