@@ -8,12 +8,17 @@ open Zeroinstall.General
 open Support.Common
 open OUnit
 
+module B = Support.Basedir
 module Q = Support.Qdom
+module U = Support.Utils
 module F = Zeroinstall.Feed
 module FC = Zeroinstall.Feed_cache
 
+let assert_str_equal = Fake_system.assert_str_equal
 let assert_contains = Fake_system.assert_contains
 let expect = Fake_system.expect
+
+exception Open_gui
 
 let run_0install ?stdin ?(include_stderr=false) fake_system ?(exit=0) args =
   let run = lazy (
@@ -40,6 +45,33 @@ let get_sel_path config sel =
   | Zeroinstall.Selections.CacheSelection digests ->
       Zeroinstall.Stores.lookup_maybe config.system digests config.stores
   | _ -> assert_failure "Wrong type!"
+
+let remove_cached config selections_path =
+  let sels = Zeroinstall.Selections.load_selections config.system selections_path in
+  let index = Zeroinstall.Selections.make_selection_map sels in
+  let sel = StringMap.find "http://example.com:8000/Hello.xml" index in
+  let stored = expect @@ get_sel_path config sel in
+  assert (U.starts_with (Filename.basename stored) "sha1");
+  U.rmtree ~even_if_locked:true config.system stored
+
+let install_interceptor system checked_for_gui =
+  (* Trigger a background update - no updates found *)
+  Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
+    | `List [`String "wait-for-network"] -> Some (Lwt.return (`List [`String "ok"; `String "online"]))
+    | `List [`String "check-gui"; `String "maybe"] ->
+        checked_for_gui := true;
+        let have_gui = system#getenv "DISPLAY" <> Some "" in
+        Some (Lwt.return (`List [`String "ok"; `Bool have_gui]))
+    | `List ((`String "open-gui") :: _) -> raise Open_gui
+    | `List ((`String "unpack-archive") :: _) -> None
+    | `List ((`String "check-manifest-and-rename") :: _) -> None
+    | `List [`String "notify-user"; `Assoc details] ->
+        log_info "NOTIFY: %s: %s"
+          (List.assoc "title" details |> Yojson.Basic.to_string)
+          (List.assoc "message" details |> Yojson.Basic.to_string);
+        Some (Lwt.return (`List [`String "ok"; `Null]))
+    | json -> raise_safe "Unexpected slave request: %s" (Yojson.Basic.to_string json)
+  )
 
 let suite = "download">::: [
   "accept-key">:: Server.with_server (fun (_config, fake_system) server ->
@@ -234,5 +266,282 @@ let suite = "download">::: [
 
     assert (fake_system#file_exists @@ expect (get_sel_path config sel) +/ "HelloWorld" +/ "main");
     assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels
+  );
+
+  "background-app">:: Server.with_server (fun (config, fake_system) server ->
+    let system = config.system in
+    fake_system#allow_spawn_detach true;
+
+    let trust_db = new Zeroinstall.Trust.trust_db config in
+    let domain = "example.com:8000" in
+    trust_db#trust_key ~domain "DE937DD411906ACF7C263B396FCF121BE2390E0B";
+
+    (* Create an app, downloading a version of Hello *)
+    server#expect [
+      [("Hello.xml", `Serve)];
+      [("6FCF121BE2390E0B.gpg", `Serve)];
+      [("HelloWorld.tgz", `Serve)];
+    ];
+    Fake_system.collect_logging (fun () ->
+      let out = run_0install fake_system ["add"; "test-app"; "http://example.com:8000/Hello.xml"] in
+      assert_str_equal "" out;
+    );
+    begin match Fake_system.fake_log#pop_warnings with
+    | [msg] -> assert_contains "bin is not in $PATH. Add it with" msg
+    | _ -> assert false end;
+
+    let app = expect @@ Zeroinstall.Apps.lookup_app config "test-app" in
+    let timestamp = app +/ "last-checked" in
+    let last_check_attempt = app +/ "last-check-attempt" in
+    let selections_path = app +/ "selections.xml" in
+
+    let reset_timestamps () =
+      system#set_mtime timestamp 1.0;		(* 1970 *)
+      system#set_mtime selections_path 1.0;
+      if system#file_exists last_check_attempt then
+        system#unlink last_check_attempt in
+
+    let get_mtime path =
+      match system#lstat path with
+      | Some info -> info.Unix.st_mtime
+      | None -> raise_safe "Missing '%s'" path in
+
+    (* Not time for a background update yet *)
+    config.freshness <- Some (Int64.of_int 1000);
+    assert_str_equal "" @@ run_0install fake_system ["download"; "test-app"];
+
+    let checked_for_gui = ref false in
+    install_interceptor config.system checked_for_gui;
+    reset_timestamps ();
+    server#expect [
+      [("Hello.xml", `Serve)];
+    ];
+
+    assert_str_equal "" @@ run_0install fake_system ["download"; "test-app"];
+    Fake_system.fake_log#assert_contains "Background update: no updates found for test-app";
+    assert (get_mtime timestamp <> 1.0);
+    assert_equal 1.0 (get_mtime selections_path);
+
+    (* Change the selections *)
+    let () =
+      let old_selections = U.read_file system selections_path in
+      let new_selections = Str.global_replace (Str.regexp_string "Hello") "Goodbye" old_selections in
+      system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 selections_path (fun ch ->
+        output_string ch new_selections
+      ) in
+
+    (* Trigger another background update - metadata changes found *)
+    reset_timestamps ();
+    server#expect [
+      [("Hello.xml", `Serve)];
+    ];
+
+    ignore @@ run_0install fake_system ["download"; "test-app"];
+    Fake_system.fake_log#assert_contains "Quick solve succeeded; saving new selections";
+
+    assert (1.0 <> get_mtime timestamp);
+    assert (1.0 <> get_mtime selections_path);
+
+    (* Trigger another background update - GUI needed now *)
+
+    (* Delete cached implementation so we need to download it again *)
+    remove_cached config selections_path;
+
+    (* Replace with a valid local feed so we don't have to download immediately *)
+    let replace_with_local () =
+      system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 selections_path (fun ch ->
+        output_string ch "<?xml version='1.0' ?>\n\
+          <selections command='run' interface='http://example.com:8000/Hello.xml'\n\
+                      xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>\n\
+            <selection id='.' local-path='.' interface='http://example.com:8000/Hello.xml' version='0.1'>\n\
+              <command name='run' path='foo'/>\n\
+            </selection>\n\
+          </selections>"
+      ) in
+
+    (* Background update using the GUI *)
+    replace_with_local ();
+    fake_system#putenv "DISPLAY" "dummy";
+    reset_timestamps ();
+    server#expect [
+      [("Hello.xml", `Serve)];
+    ];
+    checked_for_gui := false;
+    Fake_system.collect_logging (fun () ->
+      assert_str_equal "" @@ run_0install fake_system ["download"; "test-app"];
+    );
+    Fake_system.fake_log#assert_contains "Background update: trying to use GUI to update test-app";
+    assert !checked_for_gui;
+
+    (* Background update without GUI *)
+    checked_for_gui := false;
+    replace_with_local ();
+    fake_system#putenv "DISPLAY" "";
+    reset_timestamps ();
+    server#expect [
+      [("Hello.xml", `Serve)];
+      [("HelloWorld.tgz", `Serve)];
+    ];
+    assert_str_equal "" @@ run_0install fake_system ["download"; "test-app"];
+    Fake_system.fake_log#assert_contains "Background update: GUI unavailable; downloading with no UI";
+    assert (not !checked_for_gui);
+
+    assert (1.0 <> get_mtime timestamp);
+    assert (1.0 <> get_mtime selections_path);
+
+    let sels = Zeroinstall.Selections.load_selections system selections_path in
+    let index = Zeroinstall.Selections.make_selection_map sels in
+    let sel = StringMap.find "http://example.com:8000/Hello.xml" index in
+    assert_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" (ZI.get_attribute "id" sel);
+
+    (* Untrust the key - we'll need to use the GUI to confirm it again *)
+    trust_db#untrust_key ~domain "DE937DD411906ACF7C263B396FCF121BE2390E0B";
+    fake_system#putenv "DISPLAY" "";
+    replace_with_local ();
+    reset_timestamps ();
+    server#expect [
+      [("Hello.xml", `Serve)];
+      [("DE937DD411906ACF7C263B396FCF121BE2390E0B", `UnknownKey)];
+    ];
+    Fake_system.collect_logging (fun () ->
+      assert_str_equal "" @@ run_0install fake_system ["download"; "test-app"];
+    );
+    Fake_system.fake_log#assert_contains ".*need to switch to GUI to confirm keys";
+    Fake_system.fake_log#assert_contains "Can't update 0install app 'test-app' without user intervention (run '0install update test-app' to fix)";
+
+    (* Update not triggered because of last-check-attempt *)
+    system#set_mtime timestamp 1.0;		(* 1970 *)
+    system#set_mtime selections_path 1.0;
+    assert_str_equal "" @@ run_0install fake_system ["download"; "test-app"];
+    Fake_system.fake_log#assert_contains "Tried to check within last hour; not trying again now"
+  );
+
+  "background-unsolvable">:: Server.with_server (fun (config, fake_system) server ->
+    fake_system#allow_spawn_detach true;
+    let trust_db = new Zeroinstall.Trust.trust_db config in
+    let system = config.system in
+    let domain = "example.com:8000" in
+    trust_db#trust_key ~domain "DE937DD411906ACF7C263B396FCF121BE2390E0B";
+
+    let checked_for_gui = ref false in
+    install_interceptor config.system checked_for_gui;
+
+    (* Create an app, downloading a version of Hello *)
+    server#expect [
+      [("Hello.xml", `Serve)];
+      [("6FCF121BE2390E0B.gpg", `Serve)];
+      [("HelloWorld.tgz", `Serve)];
+    ];
+    Fake_system.collect_logging (fun () ->
+      assert_str_equal "" @@ run_0install fake_system ["add"; "test-app"; "http://example.com:8000/Hello.xml"]
+    );
+
+    let app = expect @@ Zeroinstall.Apps.lookup_app config "test-app" in
+    let selections_path = app +/ "selections.xml" in
+
+    (* Delete cached implementation so we need to download it again *)
+    remove_cached config selections_path;
+
+    (* Replace the selection with a bogus and unusable <package-implementation> *)
+    let sels = Q.parse_file system selections_path in
+    begin match sels.Q.child_nodes with
+    | [sel] ->
+        sel |> Q.set_attribute "id" "package:dummy:badpackage";
+        sel |> Q.set_attribute "from-feed" "distribution:http://example.com:8000/Hello.xml";
+        sel |> Q.set_attribute "package" "badpackage";
+        sel |> Q.set_attribute "main" "/i/dont/exist"
+    | _ -> assert false end;
+    system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 selections_path (fun ch ->
+      Q.to_utf8 sels |> output_string ch
+    );
+
+    (* Not time for a background update yet, but the missing binary should trigger
+     * an update anyway. *)
+    config.freshness <- None;
+
+    fake_system#putenv "DISPLAY" "dummy";
+    begin try assert_str_equal "" @@ run_0install fake_system ["download"; "test-app"];
+    with Open_gui -> () end;
+    Fake_system.fake_log#assert_contains ".*get new selections; current ones are not usable";
+
+    (* Check we can also work without the GUI... *)
+    fake_system#putenv "DISPLAY" "";
+    server#expect [
+      [("Hello.xml", `Serve)];
+      [("HelloWorld.tgz", `Serve)];
+    ];
+    assert_str_equal "" @@ run_0install fake_system ["download"; "test-app"];
+    Fake_system.fake_log#assert_contains ".*get new selections; current ones are not usable";
+
+    let timestamp = app +/ "last-checked" in
+    let last_check_attempt = app +/ "last-check-attempt" in
+
+    system#set_mtime timestamp 1.0;		(* 1970 *)
+    system#set_mtime selections_path 1.0;
+    if system#file_exists last_check_attempt then
+      system#unlink last_check_attempt;
+
+    (* Now trigger a background update which discovers that no solution is possible *)
+    server#expect [
+      [("Hello.xml", `ServeFile "Hello-impossible.xml")];
+    ];
+    Fake_system.collect_logging (fun () ->
+      assert_str_equal "" @@ run_0install fake_system ["download"; "test-app"]
+    );
+    Fake_system.fake_log#assert_contains
+      "NOTIFY: \"0install\": \"Can't update 0install app 'test-app' (run '0install update test-app' to fix)\"";
+
+    assert_str_equal "" @@ run_0install fake_system ["destroy"; "test-app"];
+  );
+
+  "add-impossible">:: Server.with_server (fun (_config, fake_system) server ->
+    server#expect [
+      [("Hello.xml", `Serve)];
+      [("6FCF121BE2390E0B.gpg", `Serve)];
+      [("DE937DD411906ACF7C263B396FCF121BE2390E0B", `AcceptKey)];
+    ];
+    Fake_system.assert_raises_safe "\\(.\\|\n\\)*We want source and this is a binary" (lazy (
+      ignore @@ run_0install fake_system ["add"; "--source"; "test-app"; "http://example.com:8000/Hello.xml"]
+    ));
+  );
+
+  "replay">:: Server.with_server (fun (config, fake_system) server ->
+    let iface = "http://example.com:8000/Hello.xml" in
+    let system = config.system in
+    let cached = FC.get_save_cache_path config (`remote_feed iface) in
+    U.copy_file system (Test_0install.feed_dir +/ "Hello-new.xml") cached 0o644;
+
+    let trust_db = new Zeroinstall.Trust.trust_db config in
+    let domain = "example.com:8000" in
+    trust_db#trust_key ~domain "DE937DD411906ACF7C263B396FCF121BE2390E0B";
+
+    server#expect [
+      [("/Hello.xml", `Give404)];
+      [("latest.xml", `ServeFile "Hello.xml")];
+      [("/0mirror/keys/6FCF121BE2390E0B.gpg", `Serve)];
+    ];
+
+    (* Update from mirror (should ignore out-of-date timestamp) *)
+    Fake_system.collect_logging (fun () ->
+      let out = run_0install fake_system ["select"; "--refresh"; iface] in
+      assert_contains "Version: 1" out
+    );
+    Fake_system.fake_log#assert_contains "Version from mirror is older than cached version; ignoring it";
+
+    server#expect [
+      [("Hello.xml", `Serve)];
+    ];
+
+    (* Update from upstream (should report an error) *)
+    Fake_system.collect_logging (fun () ->
+      let out = run_0install fake_system ["select"; "--refresh"; iface] in
+      assert_contains "Version: 1" out;
+    );
+    Fake_system.fake_log#assert_contains ".* New feed's modification time is before old version";
+
+    (* Must finish with the newest version *)
+    let actual = U.read_file system cached in
+    let expected = U.read_file system (Test_0install.feed_dir +/ "Hello-new.xml") in
+    assert_equal expected actual
   );
 ]

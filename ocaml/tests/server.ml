@@ -149,7 +149,12 @@ let start_server system =
     with Lwt.Canceled -> Lwt.return ()
   in
   object
-    method expect requests = expected := requests
+    method expect requests =
+      if !expected = [] then
+        expected := requests
+      else
+        raise_safe "Previous expected requests not used!"
+
     method terminate =
       log_info "Shutting down server...";
       Lwt.cancel handler_thread;
@@ -166,5 +171,5 @@ let with_server fn =
     U.finally_do
       (fun s -> Lwt_main.run s#terminate)
       (start_server config.Zeroinstall.General.system)
-      (fun server -> fn (config, f) server)
+      (fun server -> fn (config, f) server; server#expect [])
   )

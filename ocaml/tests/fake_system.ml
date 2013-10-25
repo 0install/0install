@@ -122,6 +122,7 @@ class fake_system tmpdir =
     val mutable env = StringMap.empty
     val mutable stdout = None
     val mutable spawn_handler = None
+    val mutable allow_spawn_detach = false
 
     method collect_output (fn : unit -> unit) =
       let old_stdout = stdout in
@@ -207,8 +208,16 @@ class fake_system tmpdir =
     method exec ?(search_path = false) ?env argv =
       raise (Would_exec (search_path, env, argv))
 
+    method allow_spawn_detach v = allow_spawn_detach <- v
+
     method spawn_detach ?(search_path = false) ?env argv =
-      raise (Would_spawn (search_path, env, argv))
+      if allow_spawn_detach then (
+        ignore search_path;
+        (* For testing, we run in-process to allow tests interceptors to work, etc. *)
+        if List.hd argv <> test_0install then failwith "spawn_detach";
+        let config = Zeroinstall.Config.get_default_config (self :> system) test_0install in
+        Cli.handle config (List.tl argv)
+      ) else raise (Would_spawn (search_path, env, argv))
 
     method create_process ?env:_ args new_stdin new_stdout new_stderr =
       match spawn_handler with
@@ -361,7 +370,7 @@ let fake_log =
 
     method handle ?ex level msg =
       if !forward_to_real_log && level > Support.Logging.Info then real_log#handle ?ex level msg;
-      if false then print_endline @@ "LOG: " ^ msg;
+      if false then prerr_endline @@ "LOG: " ^ msg;
       record <- (ex, level, msg) :: record
   end
 

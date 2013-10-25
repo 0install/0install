@@ -85,6 +85,7 @@ class fake_slave config =
     match request with
     | `List [`String "confirm-keys"; `String _url] -> assert false
     | `List [`String "unpack-archive"; `Assoc details] -> Some (Lwt.return (handle_unpack_archive details))
+    | `List [`String "wait-for-network"] -> Some (Lwt.return (`List [`String "ok"; `String "online"]))
     | `List [`String "check-manifest-and-rename"; `String required_digest; `String tmpdir] ->
         Some (Lwt.return (handle_check required_digest tmpdir))
     | _ -> None in
@@ -511,6 +512,11 @@ let suite = "0install">::: [
       assert (400.0 <> (A.get_times system app).A.last_solve);
     );
 
+    fake_system#allow_spawn_detach true;
+    Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
+      | `List [`String "wait-for-network"] -> Some (Lwt.return (`List [`String "ok"; `String "offline"]))
+      | _ -> None
+    );
     (* Local feed is updated; now requires a download *)
     system#unlink (app +/ "last-check-attempt");
     let hello_feed = (feed_dir +/ "Hello.xml") in
@@ -521,6 +527,7 @@ let suite = "0install">::: [
       ignore @@ A.get_selections_may_update driver app
     );
     let () =
+      Fake_system.fake_log#assert_contains "Background update: offline, so aborting";
       match Fake_system.fake_log#pop_warnings with
       | [ w ] -> assert_contains "Error starting background check for updates" w
       | ws -> raise_safe "Got %d warnings" (List.length ws) in
