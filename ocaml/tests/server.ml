@@ -31,6 +31,8 @@ type response =
   | `Chunked
   | `AcceptKey
   | `UnknownKey
+  | `Redirect of string
+  | `Unexpected
   | `Give404 ]
 
 let start_server system =
@@ -53,66 +55,63 @@ let start_server system =
 
     request_log := path :: !request_log;
 
-    if U.starts_with path "/redirect/" then (
-      let i = String.index_from path 1 '/' in
-      let redirect_target = U.string_tail path i in
-      send_response to_client 302 >>
-      send_header to_client "Location" redirect_target >>
-      end_headers to_client
-    ) else (
-      let i = String.rindex path '/' in
-      let leaf = U.string_tail path (i + 1) in
+    let i = String.rindex path '/' in
+    let leaf = U.string_tail path (i + 1) in
 
-      match !expected with
-      | [] -> raise_safe "Unexpected request for '%s' (nothing expected)" path
-      | next_step :: rest ->
-          let response, next_step =
-            try (List.assoc path next_step, List.remove_assoc path next_step)
-            with Not_found ->
-              try (List.assoc leaf next_step, List.remove_assoc leaf next_step)
-              with Not_found -> (`Unexpected, next_step) in
-          expected :=
-            if next_step = [] then rest
-            else next_step :: rest;
+    match !expected with
+    | [] -> raise_safe "Unexpected request for '%s' (nothing expected)" path
+    | next_step :: rest ->
+        let response, next_step =
+          try (List.assoc path next_step, List.remove_assoc path next_step)
+          with Not_found ->
+            try (List.assoc leaf next_step, List.remove_assoc leaf next_step)
+            with Not_found -> (`Unexpected, next_step) in
+        expected :=
+          if next_step = [] then rest
+          else next_step :: rest;
 
 (*
-          let leaf =
-            if U.starts_with path "/0mirror/search/?q=" then (
-              let q = U.string_tail path 19 in
-              "search-" ^ q ^ ".xml"
-            ) else leaf in
+        let leaf =
+          if U.starts_with path "/0mirror/search/?q=" then (
+            let q = U.string_tail path 19 in
+            "search-" ^ q ^ ".xml"
+          ) else leaf in
 *)
 
-          match response with
-          | `AcceptKey -> 
-              send_response to_client 200 >>
-              end_headers to_client >>
-              send_body to_client "<key-lookup><item vote='good'>Approved for testing</item></key-lookup>"
-          | `UnknownKey -> 
-              send_response to_client 200 >>
-              end_headers to_client >>
-              send_body to_client "<key-lookup/>"
-          | `Give404 -> send_error to_client 404 ("Missing: " ^ leaf)
-          | `ServeFile relpath ->
-              lwt () = send_response to_client 200 >> end_headers to_client in
-              let data = U.read_file system (Test_0install.feed_dir +/ relpath) in
-              send_body to_client data;
-          | `Serve ->
-              lwt () = send_response to_client 200 >> end_headers to_client in
-              let data = U.read_file system (Test_0install.feed_dir +/ leaf) in
-              send_body to_client data;
-          | `Chunked ->
-              send_response to_client 200 >>
-              send_header to_client "Transfer-Encoding" "chunked" >>
-              end_headers to_client >>
-              send_body to_client "a\r\n\
-                                   hello worl\r\n\
-                                   1\r\n\
-                                   d\r\n"
-          | `Unexpected ->
-              let options = String.concat "|" (List.map fst next_step) in
-              send_error to_client 404 (Printf.sprintf "Expected %s; got %s" options (String.concat "," !request_log))
-    ) in
+        match response with
+        | `AcceptKey ->
+            send_response to_client 200 >>
+            end_headers to_client >>
+            send_body to_client "<key-lookup><item vote='good'>Approved for testing</item></key-lookup>"
+        | `UnknownKey ->
+            send_response to_client 200 >>
+            end_headers to_client >>
+            send_body to_client "<key-lookup/>"
+        | `Give404 -> send_error to_client 404 ("Missing: " ^ leaf)
+        | `Redirect redirect_target ->
+            send_response to_client 302 >>
+            send_header to_client "Location" redirect_target >>
+            end_headers to_client
+        | `ServeFile relpath ->
+            lwt () = send_response to_client 200 >> end_headers to_client in
+            let data = U.read_file system (Test_0install.feed_dir +/ relpath) in
+            send_body to_client data;
+        | `Serve ->
+            lwt () = send_response to_client 200 >> end_headers to_client in
+            let data = U.read_file system (Test_0install.feed_dir +/ leaf) in
+            send_body to_client data;
+        | `Chunked ->
+            send_response to_client 200 >>
+            send_header to_client "Transfer-Encoding" "chunked" >>
+            end_headers to_client >>
+            send_body to_client "a\r\n\
+                                 hello worl\r\n\
+                                 1\r\n\
+                                 d\r\n"
+        | `Unexpected ->
+            let options = String.concat "|" (List.map fst next_step) in
+            send_error to_client 404 (Printf.sprintf "Expected %s; got %s" options (String.concat "," !request_log))
+    in
 
   let handler_thread =
     try_lwt
@@ -149,7 +148,7 @@ let start_server system =
     with Lwt.Canceled -> Lwt.return ()
   in
   object
-    method expect requests =
+    method expect (requests:(string * response) list list) =
       if !expected = [] then
         expected := requests
       else

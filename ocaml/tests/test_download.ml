@@ -73,6 +73,15 @@ let install_interceptor system checked_for_gui =
     | json -> raise_safe "Unexpected slave request: %s" (Yojson.Basic.to_string json)
   )
 
+let do_recipe config fake_system server ?(expected=[[("HelloWorld.tar.bz2", `Serve)]]) name =
+  let feed = Test_0install.feed_dir +/ name in
+  server#expect expected;
+  let out = run_0install fake_system ["download"; feed; "--command="; "--xml"] in
+  let sels = `String (0, out) |> Xmlm.make_input |> Q.parse_input None in
+  let index = Zeroinstall.Selections.make_selection_map sels in
+  let sel = StringMap.find feed index in
+  get_sel_path config sel |> expect
+
 let suite = "download">::: [
   "accept-key">:: Server.with_server (fun (_config, fake_system) server ->
     server#expect [[("Hello", `Serve)];
@@ -85,6 +94,130 @@ let suite = "download">::: [
       run_0install fake_system ~include_stderr:true ~stdin:"Y\n" ["run"; "--main=Missing"; "-v"; "http://localhost:8000/Hello"] |> ignore
     ));
     Fake_system.fake_log#assert_contains "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000";
+  );
+
+  "auto-accept-key">:: Server.with_server (fun (_config, fake_system) server ->
+    server#expect [[("Hello", `Serve)];
+      [("6FCF121BE2390E0B.gpg", `Serve)];
+      [("/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B", `AcceptKey)];
+      [("HelloWorld.tgz", `Serve)]
+    ];
+
+    Fake_system.assert_raises_safe "Path '.*/HelloWorld/Missing' does not exist" (lazy (
+      run_0install fake_system ~stdin:"" ["run"; "--main=Missing"; "-v"; "http://localhost:8000/Hello"] |> ignore
+    ));
+    Fake_system.fake_log#assert_contains "Automatically approving key for new feed \
+      http://localhost:8000/Hello based on response from key info server: Approved for testing";
+  );
+
+  "reject-key">:: Server.with_server (fun (_config, fake_system) server ->
+    server#expect [[("Hello", `Serve)];
+      [("6FCF121BE2390E0B.gpg", `Serve)];
+      [("/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B", `UnknownKey)];
+    ];
+
+    Fake_system.assert_raises_safe ".*Can't find all required implementations" (lazy (
+      run_0install fake_system ~include_stderr:true ~stdin:"N\n" ["run"; "--main=Missing"; "-v"; "http://localhost:8000/Hello"] |> ignore
+    ));
+    Fake_system.fake_log#assert_contains "Quick solve failed; can't select without updating feeds";
+    Fake_system.fake_log#assert_contains "Feed http://localhost:8000/Hello: Not signed with a trusted key";
+  );
+
+  "wrong-size">:: Server.with_server (fun (_config, fake_system) server ->
+    server#expect [[("Hello-wrong-size", `Serve)];
+      [("6FCF121BE2390E0B.gpg", `Serve)];
+      [("/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B", `AcceptKey)];
+      [("HelloWorld.tgz", `Serve)];
+    ];
+
+    Fake_system.assert_raises_safe "Downloaded archive has incorrect size" (lazy (
+      run_0install fake_system ["run"; "--main=Missing"; "http://localhost:8000/Hello-wrong-size"; "Hello"] |> ignore
+    ));
+  );
+
+  "recipe">:: Server.with_server (fun (_config, fake_system) server ->
+    server#expect [
+      [("HelloWorld.tar.bz2", `Serve); ("/redirect/dummy_1-1_all.deb", `Redirect "/dummy_1-1_all.deb")];
+      [("dummy_1-1_all.deb", `Serve)];
+    ];
+    Fake_system.assert_raises_safe ".*HelloWorld/Missing' does not exist" (lazy (
+      ignore @@ run_0install fake_system ["run"; Test_0install.feed_dir +/ "Recipe.xml"]
+    ))
+  );
+
+  "recipe-rename">:: Server.with_server (fun (config, fake_system) server ->
+    let path = do_recipe config fake_system server "RecipeRename.xml" in
+    assert (fake_system#file_exists (path +/ "HelloUniverse" +/ "minor"));
+    assert (not (fake_system#file_exists (path +/ "HelloWorld")));
+    assert (not (fake_system#file_exists (path +/ "HelloUniverse" +/ "main")))
+  );
+
+  "recipe-rename-to-new-dest">:: Server.with_server (fun (config, fake_system) server ->
+    let path = do_recipe config fake_system server "RecipeRenameToNewDest.xml" in
+    assert (fake_system#file_exists (path +/ "HelloWorld" +/ "bin" +/ "main"));
+    assert (not (fake_system#file_exists (path +/ "HelloWorld" +/ "main")))
+  );
+
+  "recipe-remove-file" >:: Server.with_server (fun (config, fake_system) server ->
+    let path = do_recipe config fake_system server "RecipeRemove.xml" in
+    assert (fake_system#file_exists (path +/ "HelloWorld"));
+    assert (not (fake_system#file_exists (path +/ "HelloWorld" +/ "main")))
+  );
+
+  "recipe-remove-dir" >:: Server.with_server (fun (config, fake_system) server ->
+    let path = do_recipe config fake_system server "RecipeRemoveDir.xml" in
+    assert (not (fake_system#file_exists (path +/ "HelloWorld")))
+  );
+
+  "recipe-extract-to-new-subdirectory" >:: Server.with_server (fun (config, fake_system) server ->
+    let path = do_recipe config fake_system server "RecipeExtractToNewDest.xml" in
+    assert (fake_system#file_exists (path +/ "src" +/ "HelloWorld" +/ "main"))
+  );
+
+  "recipe-single-file" >:: Server.with_server (fun (config, fake_system) server ->
+    let path = do_recipe config fake_system server ~expected:[
+      [("HelloWorldMain", `Serve)];
+    ] "RecipeSingleFile.xml" in
+    assert_str_equal "#!/bin/sh\necho Hello World\n" (U.read_file config.system (path +/ "bin" +/ "main"))
+  );
+
+  "recipe-extract-to-existing-subdirectory" >:: Server.with_server (fun (config, fake_system) server ->
+    let path = do_recipe config fake_system server ~expected:[
+      [("HelloWorld.tar.bz2", `Serve); ("HelloWorld.tar.bz2", `Serve)];
+    ] "RecipeExtractToExistingDest.xml" in
+    assert (fake_system#file_exists (path +/ "HelloWorld" +/ "main")); (* first archive's main *)
+    assert (fake_system#file_exists (path +/ "HelloWorld" +/ "HelloWorld" +/ "main")) (* second archive, extracted to HelloWorld/ *)
+  );
+
+  "extract-to-new-subdirectory" >:: Server.with_server (fun (config, fake_system) server ->
+    let path = do_recipe config fake_system server "HelloExtractToNewDest.xml" in
+    assert (fake_system#file_exists (path +/ "src" +/ "HelloWorld" +/ "main"))
+  );
+
+  "download-file" >:: Server.with_server (fun (config, fake_system) server ->
+    let path = do_recipe config fake_system server ~expected:[
+      [("HelloWorldMain", `Serve)];
+    ] "HelloSingleFile.xml" in
+    assert_str_equal "#!/bin/sh\necho Hello World\n" (U.read_file config.system (path +/ "main"))
+  );
+
+  "dry-run">:: Server.with_server (fun (_config, fake_system) server ->
+    server#expect [[("Hello", `Serve)];
+      [("6FCF121BE2390E0B.gpg", `Serve)];
+      [("/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B", `AcceptKey)];
+      [("HelloWorld.tgz", `Serve)]
+    ];
+    let out = run_0install fake_system ["run"; "--dry-run"; "http://localhost:8000/Hello"; "Hello"] in
+    let expected =
+      "\\[dry-run] downloading feed from http://localhost:8000/Hello\n\
+       \\[dry-run] asking http://localhost:3333/key-info about key DE937DD411906ACF7C263B396FCF121BE2390E0B\n\
+       \\[dry-run] would trust key DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000\n\
+       \\[dry-run] would update trust database /tmp/.*/config/0install.net/injector/trustdb.xml\n\
+       \\[dry-run] would cache feed http://localhost:8000/Hello as .*/cache/0install.net/interfaces/http%3a%2f%2flocalhost%3a8000%2fHello\n\
+       \\[dry-run] downloading http://localhost:8000/HelloWorld.tgz\n\
+       \\[dry-run] would store implementation as .*/cache/0install.net/implementations/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a\n\
+       \\[dry-run] would execute: .*HelloWorld/main Hello\n" in
+    assert (Str.string_match (Str.regexp expected) out 0);
   );
 
   "import">:: Server.with_server (fun (config, fake_system) server ->

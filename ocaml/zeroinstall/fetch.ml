@@ -591,7 +591,11 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
               (* In --dry-run mode, the directories haven't actually been added, so we need to tell the
                * dryrun_system about them. *)
               if config.dry_run then (
-                List.iter (fun name -> system#mkdir (Yojson.Basic.Util.to_string name) 0o755) dry_run_paths
+                dry_run_paths |> List.iter (fun path ->
+                  let path = Yojson.Basic.Util.to_string path in
+                  Dry_run.log "would store implementation as %s" path;
+                  system#mkdir path 0o755
+                )
               );
               `success
           | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)

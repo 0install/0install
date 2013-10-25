@@ -267,7 +267,6 @@ class Store(object):
 			return
 
 		if dry_run:
-			print(_("[dry-run] would store implementation as {path}").format(path = final_name))
 			self.dry_run_names.add(required_digest)
 			support.ro_rmtree(tmp)
 			return
