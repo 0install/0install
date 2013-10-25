@@ -125,6 +125,17 @@ class gui_ui slave =
     method! use_gui = true
   end
 
+let check_gui (system:system) (slave:Python.slave) use_gui =
+  if use_gui = No then false
+  else (
+    match system#getenv "DISPLAY" with
+    | None | Some "" ->
+        if use_gui = Maybe then false
+        else raise_safe "Can't use GUI because $DISPLAY is not set"
+    | Some _ ->
+        slave#invoke (`List [`String "check-gui"; `String (string_of_ynm use_gui)]) Yojson.Basic.Util.to_bool
+  )
+
 let make_ui config (slave:Python.slave) get_use_gui : ui_handler Lazy.t = lazy (
   let use_gui =
     match get_use_gui (), config.dry_run with
@@ -141,12 +152,6 @@ let make_ui config (slave:Python.slave) get_use_gui : ui_handler Lazy.t = lazy (
   match use_gui with
   | No -> make_no_gui ()
   | Yes | Maybe ->
-      if config.system#getenv "DISPLAY" = None then (
-        if use_gui = Maybe then make_no_gui ()
-        else raise_safe "Can't use GUI because $DISPLAY is not set"
-      ) else if not (slave#invoke (`List [`String "check-gui"; `String (string_of_ynm use_gui)]) Yojson.Basic.Util.to_bool) then (
-        make_no_gui ()       (* [check-gui] will throw if use_gui is [Yes] *)
-      ) else (
-        new gui_ui slave
-      )
+      if check_gui config.system slave use_gui then new gui_ui slave
+      else make_no_gui ()   (* [check-gui] will throw if use_gui is [Yes] *)
 )

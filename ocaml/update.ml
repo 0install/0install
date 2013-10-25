@@ -129,7 +129,6 @@ let handle options flags args =
     stdout will be /dev/null. stderr will be too, unless using -vv. *)
 let handle_bg options flags args =
   let config = options.config in
-  let driver = Lazy.force options.driver in
   let slave = options.slave in
 
   let notify ~msg ~timeout =
@@ -140,11 +139,31 @@ let handle_bg options flags args =
     ] in
     slave#invoke (`List [`String "notify-user"; fields]) ignore in
 
-  let need_confirm_keys = ref false in
-  Zeroinstall.Python.read_user_input := (fun _prompt ->
-    need_confirm_keys := true;
-    raise_safe "need to switch to GUI to confirm keys"
-  );
+  let need_gui = ref false in
+  let ui =
+    object (_ : Zeroinstall.Ui.ui_handler)
+      method start_monitoring ~cancel:_ ~url:_ ?hint:_ ~size:_ ~tmpfile:_ = Lwt.return ()
+      method stop_monitoring _tmpfile = Lwt.return ()
+
+      method confirm_keys _feed_url _xml =
+        need_gui := true;
+        raise_safe "need to switch to GUI to confirm keys"
+
+      method update_key_info _fingerprint _xml = assert false
+
+      method confirm_distro_install _package_impls =
+        need_gui := true;
+        raise_safe "need to switch to GUI to confirm distro package install"
+
+      method use_gui = false
+    end in
+
+  let driver =
+    let distro = Zeroinstall.Distro.get_host_distribution config slave in
+    let trust_db = new Zeroinstall.Trust.trust_db config in
+    let downloader = new Zeroinstall.Downloader.downloader (lazy ui)  ~max_downloads_per_site:2 in
+    let fetcher = new Zeroinstall.Fetch.fetcher config trust_db slave downloader (lazy ui) in
+    new Zeroinstall.Driver.driver config fetcher distro (lazy ui) slave in
 
   Support.Argparse.iter_options flags (function
     | #common_option as o -> Common_options.process_common_option options o
@@ -169,13 +188,13 @@ let handle_bg options flags args =
 
         let new_sels =
           let distro = driver#distro in
-          if !need_confirm_keys || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
-            if driver#ui#use_gui then (
+          if !need_gui || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
+            if Zeroinstall.Ui.check_gui config.system slave Maybe then (
               log_info "Background update: trying to use GUI to update %s" name;
               match Zeroinstall.Gui.get_selections_gui driver `Download_only reqs ~systray:true ~refresh:true with
               | `Aborted_by_user -> raise (System_exit 0)
               | `Success gui_sels -> gui_sels
-            ) else if !need_confirm_keys then (
+            ) else if !need_gui then (
               let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in
               notify ~timeout:10 ~msg;
               log_warning "%s" msg;
