@@ -303,7 +303,7 @@ let export (system:system) name value =
   try ignore @@ Str.search_forward (Str.regexp_string "csh") shell 0; Printf.sprintf "setenv %s %s" name value
   with Not_found -> Printf.sprintf "export %s=%s" name value
 
-let find_bin_dir_in config paths =
+let find_bin_dir_in ~warn_about_path config paths =
   let system = config.system in
   let cache_home = List.hd config.basedirs.Support.Basedir.cache in
   let best =
@@ -326,15 +326,16 @@ let find_bin_dir_in config paths =
     | Some path -> path
     | None ->
         let path = U.getenv_ex system "HOME" +/ "bin" in
-        log_warning "%s is not in $PATH. Add it with:\n%s" path (export system "PATH" @@ path ^ ":$PATH");
+        if warn_about_path then
+          log_warning "%s is not in $PATH. Add it with:\n%s" path (export system "PATH" @@ path ^ ":$PATH");
         U.makedirs system path 0o755;
 	path
 
 (** Find the first writable path in the list (default $PATH),
     skipping /bin, /sbin and everything under /usr except /usr/local/bin *)
-let find_bin_dir config =
+let find_bin_dir ?(warn_about_path=true) config =
   let path = default "/bin:/usr/bin" @@ config.system#getenv "PATH" in
-  find_bin_dir_in config @@ Str.split_delim U.re_path_sep path
+  find_bin_dir_in ~warn_about_path config @@ Str.split_delim U.re_path_sep path
 
 let command_template : (_,_,_) format = "#!/bin/sh\n\
 exec 0install run %s \"$@\"\n"
@@ -364,7 +365,7 @@ let destroy config app =
   let () = (* delete launcher script, if any *)
     (* todo: remember which commands we own instead of guessing *)
     let name = Filename.basename app in
-    let bin_dir = find_bin_dir config in
+    let bin_dir = find_bin_dir ~warn_about_path:false config in
     let launcher = bin_dir +/ name in
     let expanded_template = Printf.sprintf command_template name in
     match config.system#stat launcher with
