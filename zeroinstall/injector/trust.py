@@ -13,11 +13,8 @@ in some cases and not others.
 from zeroinstall import _, SafeException
 import os
 
-from zeroinstall import support
 from zeroinstall.support import basedir
 from .namespaces import config_site, config_prog, XMLNS_TRUST
-
-KEY_INFO_TIMEOUT = 10	# Maximum time to wait for response from key-info-server
 
 class TrustDB(object):
 	"""A database of trusted keys.
@@ -64,76 +61,6 @@ class TrustDB(object):
 		return set([fp for fp in self.keys
 				 if domain in self.keys[fp]])
 
-	def trust_key(self, fingerprint, domain = '*'):
-		"""Add key to the list of trusted fingerprints.
-		@param fingerprint: base 16 fingerprint without any spaces
-		@type fingerprint: str
-		@param domain: domain in which key is to be trusted
-		@type domain: str
-		@note: call L{notify} after trusting one or more new keys"""
-		if self.is_trusted(fingerprint, domain): return
-
-		if self._dry_run:
-			print(_("[dry-run] would trust key {key} for {domain}").format(key = fingerprint, domain = domain))
-
-		int(fingerprint, 16)		# Ensure fingerprint is valid
-
-		if fingerprint not in self.keys:
-			self.keys[fingerprint] = set()
-
-		#if domain == '*':
-		#	warn("Calling trust_key() without a domain is deprecated")
-
-		self.keys[fingerprint].add(domain)
-		self.save()
-	
-	def untrust_key(self, key, domain = '*'):
-		"""@type key: str
-		@type domain: str"""
-		if self._dry_run:
-			print(_("[dry-run] would untrust key {key} for {domain}").format(key = key, domain = domain))
-		self.ensure_uptodate()
-		self.keys[key].remove(domain)
-
-		if not self.keys[key]:
-			# No more domains for this key
-			del self.keys[key]
-
-		self.save()
-	
-	def save(self):
-		d = basedir.save_config_path(config_site, config_prog)
-		db_file = os.path.join(d, 'trustdb.xml')
-		if self._dry_run:
-			print(_("[dry-run] would update trust database {file}").format(file = db_file))
-			return
-		from xml.dom import minidom
-		import tempfile
-
-		doc = minidom.Document()
-		root = doc.createElementNS(XMLNS_TRUST, 'trusted-keys')
-		root.setAttribute('xmlns', XMLNS_TRUST)
-		doc.appendChild(root)
-
-		for fingerprint in self.keys:
-			keyelem = doc.createElementNS(XMLNS_TRUST, 'key')
-			root.appendChild(keyelem)
-			keyelem.setAttribute('fingerprint', fingerprint)
-			for domain in self.keys[fingerprint]:
-				domainelem = doc.createElementNS(XMLNS_TRUST, 'domain')
-				domainelem.setAttribute('value', domain)
-				keyelem.appendChild(domainelem)
-
-		with tempfile.NamedTemporaryFile(dir = d, prefix = 'trust-', delete = False, mode = 'wt') as tmp:
-			doc.writexml(tmp, indent = "", addindent = "  ", newl = "\n", encoding = 'utf-8')
-		support.portable_rename(tmp.name, db_file)
-	
-	def notify(self):
-		"""Call all watcher callbacks.
-		This should be called after trusting or untrusting one or more new keys.
-		@since: 0.25"""
-		for w in self.watchers: w()
-	
 	def ensure_uptodate(self):
 		if self._dry_run:
 			if self.keys is None: self.keys = {}

@@ -86,7 +86,6 @@ class TestGPG(BaseTest):
 			stream.write(thomas_key)
 			stream.seek(0)
 			gpg.import_key(stream)
-			trust.trust_db.trust_key(THOMAS_FINGERPRINT)
 			warnings.filterwarnings("ignore", category = DeprecationWarning)
 	
 	def testImportBad(self):

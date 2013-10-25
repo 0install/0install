@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-from basetest import BaseTest, empty_feed, DummyPackageKit
+from basetest import BaseTest, empty_feed
 import sys, os, tempfile, imp
 from io import BytesIO
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import distro, model, qdom, handler
+from zeroinstall.injector import distro, model, qdom
 from zeroinstall.support import basedir, windows_args_escape
 
 def parse_impls(impls):

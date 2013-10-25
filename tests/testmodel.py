@@ -4,12 +4,11 @@ from __future__ import unicode_literals
 import basetest
 from basetest import BaseTest, empty_feed
 import sys, os
-from xml.dom import minidom
 import unittest
 from io import BytesIO
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import model, qdom, namespaces
+from zeroinstall.injector import model, qdom
 
 mydir = os.path.dirname(os.path.abspath(__file__))
 

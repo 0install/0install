@@ -1,20 +1,16 @@
 #!/usr/bin/env python
 from __future__ import with_statement
 from basetest import BaseTest, StringIO, BytesIO
-import sys, tempfile, os, shutil
+import sys, tempfile, os
 import unittest
-import warnings
-from logging import getLogger, ERROR
 from contextlib import contextmanager
 
 sys.path.insert(0, '..')
 
 os.environ["http_proxy"] = "localhost:8000"
 
-from zeroinstall import helpers
-from zeroinstall.injector import model, gpg, download, trust, qdom, config, namespaces, distro
-from zeroinstall.zerostore import NotStored
-from zeroinstall.support import basedir, tasks, ro_rmtree
+from zeroinstall.injector import model, gpg, download, qdom, config
+from zeroinstall.support import basedir, tasks
 import data
 import my_dbus
 import selections
@@ -24,11 +20,6 @@ import server
 mydir = os.path.dirname(os.path.abspath(__file__))
 
 ran_gui = False
-
-local_hello = """<?xml version="1.0" ?>
-<selections command="run" interface="http://example.com:8000/Hello.xml" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
-  <selection id="." local-path='.' interface="http://example.com:8000/Hello.xml" version="0.1"><command name="run" path="foo"/></selection>
-</selections>"""
 
 @contextmanager
 def trapped_exit(expected_exit_status):
@@ -50,28 +41,6 @@ def trapped_exit(expected_exit_status):
 			assert ex.code == expected_exit_status
 	finally:
 		os._exit = old_exit
-
-@contextmanager
-def resourcewarnings_suppressed():
-	import gc
-	if sys.version_info[0] < 3:
-		yield
-	else:
-		with warnings.catch_warnings():
-			warnings.filterwarnings("ignore", category = ResourceWarning)
-			yield
-			gc.collect()
-
-class Reply:
-	def __init__(self, reply):
-		self.reply = reply
-
-	def readline(self):
-		return self.reply
-
-class NetworkManager:
-	def state(self):
-		return 3	# NM_STATUS_CONNECTED
 
 server_process = None
 def kill_server_process():
