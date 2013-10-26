@@ -415,6 +415,33 @@ def do_open_gui(args):
 	run_gui, gui_driver = main.open_gui(gui_args + ['--', root_uri])
 	return []
 
+def do_open_app_list_box(ticket):
+	from zeroinstall.gui import main
+	main.gui_is_available(True)
+	from zeroinstall.gtkui.applistbox import AppListBox, AppList
+	from zeroinstall.injector.iface_cache import iface_cache
+	wait_for_destroy(ticket, AppListBox(iface_cache, AppList()).window)
+
+def do_open_add_box(ticket, uri):
+	from zeroinstall.gui import main
+	main.gui_is_available(True)
+	from zeroinstall.gtkui.addbox import AddBox
+	wait_for_destroy(ticket, AddBox(uri).window)
+
+@tasks.async
+def wait_for_destroy(ticket, window):
+	window.show()
+	blocker = tasks.Blocker("window closed")
+	window.connect('destroy', lambda *args: blocker.trigger())
+	try:
+		if blocker:
+			yield blocker
+			tasks.check(blocker)
+		send_json(["return", ticket, ["ok", None]])
+	except Exception as ex:
+		logger.warning("Returning error", exc_info = True)
+		send_json(["return", ticket, ["error", str(ex)]])
+
 @tasks.async
 def do_run_gui(ticket):
 	reply_holder = []
@@ -507,6 +534,12 @@ def handle_invoke(config, options, ticket, request):
 			response = do_populate_cache_explorer(*request[1:])
 		elif command == 'run-gui':
 			do_run_gui(ticket)
+			return #async
+		elif command == 'open-app-list-box':
+			do_open_app_list_box(ticket)
+			return #async
+		elif command == 'open-add-box':
+			do_open_add_box(ticket, request[1])
 			return #async
 		elif command == 'wait-for-network':
 			response = do_wait_for_network(config)

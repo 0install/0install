@@ -61,3 +61,39 @@ let handle_help options flags args =
       let sel = StringMap.find root index in
       show_help options.config sel
   | _ -> raise (Support.Argparse.Usage_error 1)
+
+let handle options flags args =
+  Support.Argparse.iter_options flags (function
+    | #common_option as o -> Common_options.process_common_option options o
+  );
+  let slave = options.slave in
+
+  Zeroinstall.Python.register_handler "show-help" (function
+    | [`String uri] ->
+        options.config.system#spawn_detach ~search_path:false [options.config.abspath_0install; "_show_help"; uri];
+        Lwt.return `Null
+        (* (select uses a recursive Lwt_main, so deadlocks at the moment; need to port distro.py first)
+        let requirements = Zeroinstall.Requirements.default_requirements uri in
+        let sels = Generic_select.get_selections options ~refresh:false requirements `Download_only in
+        begin match sels with
+        | None -> Lwt.return `Null    (* Aborted by user *)
+        | Some sels ->
+            let index = Zeroinstall.Selections.make_selection_map sels in
+            let root = ZI.get_attribute "interface" sels in
+            let sel = StringMap.find root index in
+            show_help options.config sel;
+            Lwt.return `Null end
+*)
+    | json -> raise_safe "show-help: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
+  let gui =
+    match args with
+    | [] ->
+        slave#invoke_async (`List [`String "open-app-list-box"]) Zeroinstall.Python.expect_null
+    | [arg] ->
+        let url = Generic_select.canonical_iface_uri options.config.system arg in
+        slave#invoke_async (`List [`String "open-add-box"; `String url]) Zeroinstall.Python.expect_null
+    | _ -> raise (Support.Argparse.Usage_error 1) in
+
+  Lwt_main.run gui

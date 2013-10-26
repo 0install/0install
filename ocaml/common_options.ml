@@ -55,6 +55,8 @@ let show_help (system:system) valid_options help extra_fn =
   let prog = Filename.basename system#argv.(0) in
   if Support.Utils.starts_with prog "0launch" then
     Support.Utils.print system "Usage: %s [OPTIONS] URI [ARGS]" prog
+  else if Support.Utils.starts_with prog "0desktop" then
+    Support.Utils.print system "Usage: %s [OPTIONS] [URI]" prog
   else
     Support.Utils.print system "Usage: %s %s" prog help;
 

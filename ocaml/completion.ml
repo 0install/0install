@@ -37,6 +37,7 @@ class virtual completer command config =
       | `install -> cword
       | `launch -> cword + 1    (* we added "run" at the start *)
       | `store -> cword + 1    (* we added "store" at the start *)
+      | `desktop -> cword + 1    (* we added "_desktop" at the start *)
 
     method get_config = config
 
@@ -360,6 +361,7 @@ let handle_complete config = function
         let prog = Filename.basename prog in
         if Support.Utils.starts_with prog "0launch" then `launch
         else if Support.Utils.starts_with prog "0store" then `store
+        else if Support.Utils.starts_with prog "0desktop" then `desktop
         else `install in
       let completer = match shell with
       | "bash" -> new bash_completer command config
@@ -371,6 +373,7 @@ let handle_complete config = function
         match command with
         | `install -> raw_args
         | `store -> "store" :: raw_args
+        | `desktop -> "_desktop" :: raw_args
         | `launch -> "run" :: raw_args in
 
       let open Cli in

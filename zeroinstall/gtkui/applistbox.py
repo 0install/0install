@@ -210,7 +210,8 @@ class AppListBox(object):
 			subprocess.Popen(['0launch', '--', uri])
 
 	def action_help(self, uri):
-		subprocess.Popen(['0install', '_show_help', '--', uri])
+		from zeroinstall.cmd import slave
+		slave.invoke_master(['show-help', uri])
 
 	def action_properties(self, uri):
 		subprocess.Popen(['0launch', '--gui', '--', uri])
