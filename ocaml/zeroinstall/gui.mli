@@ -12,3 +12,5 @@ val get_selections_gui :
   Requirements.requirements ->
   refresh:bool ->
   [> `Aborted_by_user | `Success of Support.Qdom.element ]
+
+val download_icon : General.config -> Downloader.downloader -> Feed_provider.feed_provider -> Feed_url.non_distro_feed -> unit Lwt.t

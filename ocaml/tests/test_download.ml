@@ -201,6 +201,29 @@ let suite = "download">::: [
     assert_str_equal "#!/bin/sh\necho Hello World\n" (U.read_file config.system (path +/ "main"))
   );
 
+  "symlink-attack" >:: Server.with_server (fun (config, fake_system) server ->
+    Fake_system.assert_raises_safe "Attempt to unpack dir over symlink \"HelloWorld\"" (lazy (
+      ignore @@ do_recipe config fake_system server ~expected:[
+        [("HelloWorld.tar.bz2", `Serve); ("HelloSym.tgz", `Serve)];
+      ] "RecipeSymlink.xml"
+    ));
+  );
+
+  "recipe-failure" >:: Server.with_server (fun (config, fake_system) server ->
+    Fake_system.assert_raises_safe "Error downloading 'http://localhost:8000/redirect/dummy_1-1_all.deb': The requested URL returned error: 404" (lazy (
+      ignore @@ do_recipe config fake_system server ~expected:[
+        [("HelloWorld.tar.bz2", `Serve); ("/redirect/dummy_1-1_all.deb", `Give404)];
+      ] "Recipe.xml"
+    ));
+  );
+
+  "autopackage" >:: Server.with_server (fun (config, fake_system) server ->
+    let path = do_recipe config fake_system server ~expected:[
+        [("HelloWorld.autopackage", `Serve)];
+      ] "Autopackage.xml" in
+    assert_str_equal "#!/bin/sh\necho Hello World\n" (U.read_file config.system (path +/ "HelloWorld" +/ "main"))
+  );
+
   "dry-run">:: Server.with_server (fun (_config, fake_system) server ->
     server#expect [[("Hello", `Serve)];
       [("6FCF121BE2390E0B.gpg", `Serve)];
@@ -377,6 +400,23 @@ let suite = "download">::: [
       (* Mirror of implementation: *)
       ".*http://roscidus.com/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"
     ] |> List.iter Fake_system.fake_log#assert_contains
+  );
+
+  "local-feed-mirror">:: Server.with_server (fun (config, fake_system) server ->
+    (* This is like testImplMirror, except we have a local feed. *)
+
+    let path =
+      Fake_system.collect_logging (fun () ->
+        do_recipe config fake_system server ~expected:[
+          [("/HelloWorld.tgz", `Give404)];
+          [("/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz", `ServeFile "HelloWorld.tgz")];
+        ] "Hello.xml"
+      ) in
+
+    Fake_system.fake_log#assert_contains "Primary download failed; trying mirror URL \
+    'http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'...";
+
+    assert (fake_system#file_exists (path +/ "HelloWorld" +/ "main"))
   );
 
   "selections">:: Server.with_server (fun (config, fake_system) server ->
@@ -676,5 +716,33 @@ let suite = "download">::: [
     let actual = U.read_file system cached in
     let expected = U.read_file system (Test_0install.feed_dir +/ "Hello-new.xml") in
     assert_equal expected actual
+  );
+
+  "download-icon-fails">:: Server.with_server (fun (config, _fake_system) server ->
+    server#expect [
+      [("/missing.png", `Give404)];
+    ];
+    let slave = new Zeroinstall.Python.slave config in
+    let distro = new Zeroinstall.Distro.generic_distribution slave in
+    let downloader = new Zeroinstall.Downloader.downloader Fake_system.null_ui  ~max_downloads_per_site:2 in
+    let feed_provider = new Zeroinstall.Feed_provider.feed_provider config distro in
+    let iface = Test_0install.feed_dir +/ "Binary.xml" in
+    Fake_system.assert_raises_safe "Error downloading 'http://localhost/missing.png': \
+                                    The requested URL returned error: 404 Missing: missing.png" (lazy (
+      Lwt_main.run @@ Zeroinstall.Gui.download_icon config downloader feed_provider (`local_feed iface);
+    ));
+  );
+
+  "search">:: Server.with_server (fun (_config, fake_system) server ->
+    server#expect [
+      [("/0mirror/search/?q=firefox", `ServeFile "search-firefox.xml")];
+    ];
+
+    let out = run_0install ~exit:1 fake_system ["search"] in
+    assert_contains "Usage:" out;
+    assert_contains "QUERY" out;
+
+    let out = run_0install fake_system ["search"; "firefox"] in
+    assert_contains "Firefox - Webbrowser" out
   );
 ]

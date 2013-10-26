@@ -48,6 +48,7 @@ let get_values map = DownloadMap.fold (fun _key value xs -> value :: xs) map []
 
 class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (slave:Python.slave) =
   object (self)
+    (* note: this should return a Lwt type, but we need to migrate distro.py first *)
     method solve_with_downloads ?(watcher:watcher option) requirements
                                 ~force ~update_local : (bool * Solver.result * Feed_provider.feed_provider) =
       let force = ref force in

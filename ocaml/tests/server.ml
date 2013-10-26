@@ -70,14 +70,6 @@ let start_server system =
           if next_step = [] then rest
           else next_step :: rest;
 
-(*
-        let leaf =
-          if U.starts_with path "/0mirror/search/?q=" then (
-            let q = U.string_tail path 19 in
-            "search-" ^ q ^ ".xml"
-          ) else leaf in
-*)
-
         match response with
         | `AcceptKey ->
             send_response to_client 200 >>

@@ -358,7 +358,8 @@ let get_sigs config url =
 
 (** Download an icon for this feed and add it to the
     icon cache. If the feed has no icon do nothing. *)
-let download_icon config (downloader:Downloader.downloader) feed_provider feed_url =
+let download_icon config (downloader:Downloader.downloader) (feed_provider:Feed_provider.feed_provider) parsed_url =
+  let feed_url = Feed_url.format_url parsed_url in
   log_debug "download_icon %s" feed_url;
 
   let parsed_url = Feed_url.parse_non_distro feed_url in
@@ -371,10 +372,6 @@ let download_icon config (downloader:Downloader.downloader) feed_provider feed_u
         match system#stat existing_icon with
         | None -> None
         | Some info -> Some info.Unix.st_mtime in
-(*
-        from email.utils import formatdate
-        modification_time = formatdate(timeval = file_mtime, localtime = False, usegmt = True)
-*)
 
   let icon_url =
     match feed_provider#get_feed parsed_url with
@@ -392,13 +389,13 @@ let download_icon config (downloader:Downloader.downloader) feed_provider feed_u
         ) in
 
   match icon_url with
-  | None -> log_info "No PNG icons found in %s" feed_url; Lwt.return `Null
+  | None -> log_info "No PNG icons found in %s" feed_url; Lwt.return ()
   | Some href ->
       let switch = Lwt_switch.create () in
       try_lwt
         match_lwt downloader#download ~switch ?modification_time ~hint:parsed_url href with
         | `network_failure msg -> raise_safe "%s" msg
-        | `aborted_by_user -> Lwt.return `Null
+        | `aborted_by_user -> Lwt.return ()
         | `tmpfile tmpfile ->
             try
               let icons_cache = Basedir.save_path system cache_icons config.basedirs.Basedir.cache in
@@ -406,11 +403,11 @@ let download_icon config (downloader:Downloader.downloader) feed_provider feed_u
               system#with_open_in [Open_rdonly;Open_binary] 0 tmpfile (function ic ->
                 system#atomic_write [Open_wronly;Open_binary] icon_file ~mode:0o644 (U.copy_channel ic)
               );
-              Lwt.return `Null
+              Lwt.return ()
             with ex ->
               raise ex
       with Downloader.Unmodified ->
-        Lwt_switch.turn_off switch >> Lwt.return `Null
+        Lwt_switch.turn_off switch >> Lwt.return ()
 
 (** The formatted text for the details panel in the interface properties box. *)
 let get_feed_description config feed_provider feed_url =
@@ -717,7 +714,9 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
   );
 
   Python.register_handler "download-icon" (function
-    | [`String feed_url] -> download_icon config fetcher#downloader !feed_provider feed_url
+    | [`String feed_url] ->
+        let feed = Feed_url.parse_non_distro feed_url in
+        download_icon config fetcher#downloader !feed_provider feed >> Lwt.return `Null
     | json -> raise_safe "download-icon: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
