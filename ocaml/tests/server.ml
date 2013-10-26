@@ -105,9 +105,10 @@ let start_server system =
             send_error to_client 404 (Printf.sprintf "Expected %s; got %s" options (String.concat "," !request_log))
     in
 
+  let cancelled = ref false in (* If we're unlucky (race), Lwt.cancel might not work; this is a backup system *)
   let handler_thread =
     try_lwt
-      while_lwt true do
+      while_lwt not !cancelled do
         lwt (connection, _client_addr) = Lwt_unix.accept server_socket in
         try_lwt
           log_info "Got a connection!";
@@ -148,6 +149,7 @@ let start_server system =
 
     method terminate =
       log_info "Shutting down server...";
+      cancelled := true;
       Lwt.cancel handler_thread;
       handler_thread >> Lwt_unix.close server_socket
   end
