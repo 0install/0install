@@ -10,6 +10,8 @@ from zeroinstall.gtkui import gtkutils
 from zeroinstall.support.tasks import get_loop
 
 from zeroinstall import SafeException
+from zeroinstall.cmd import slave
+from zeroinstall.support import tasks
 from zeroinstall.injector import model
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.iface_cache import iface_cache
@@ -79,22 +81,21 @@ class AddBox(object):
 
 		nb = builder.get_object('notebook1')
 
+		@tasks.async
 		def update_details_page():
-			iface_uri = model.canonical_iface_uri(uri.get_text())
-			iface = iface_cache.get_interface(iface_uri)
-			feed = iface_cache.get_feed(iface_uri)
-			assert feed, iface_uri
-			about.set_text('%s - %s' % (feed.get_name(), feed.summary))
-			icon_path = iface_cache.get_icon_path(iface)
+			blocker = slave.invoke_master(['get-feed-metadata', uri.get_text()])
+			yield blocker
+			tasks.check(blocker)
+			feed = blocker.result
+
+			about.set_text('%s - %s' % (feed['name'], feed['summary']))
+			icon_path = feed['icon-path']
 			from zeroinstall.gtkui import icon
 			icon_pixbuf = icon.load_icon(icon_path)
 			if icon_pixbuf:
 				icon_widget.set_from_pixbuf(icon_pixbuf)
 
-			feed_category = None
-			for meta in feed.get_metadata(XMLNS_IFACE, 'category'):
-				feed_category = meta.content
-				break
+			feed_category = feed['category']
 			if feed_category:
 				i = 0
 				for row in categories:
@@ -104,14 +105,21 @@ class AddBox(object):
 					i += 1
 			self.window.set_response_sensitive(_RESPONSE_PREV, True)
 
+			nb.next_page()
+			dialog_next.set_property('visible', False)
+			dialog_ok.set_property('visible', True)
+			dialog_ok.grab_focus()
+
+		@tasks.async
 		def finish():
 			from . import xdgutils
-			iface_uri = model.canonical_iface_uri(uri.get_text())
-			iface = iface_cache.get_interface(iface_uri)
-			feed = iface_cache.get_feed(iface_uri)
+			blocker = slave.invoke_master(['get-feed-metadata', uri.get_text()])
+			yield blocker
+			tasks.check(blocker)
+			feed = blocker.result
 
 			try:
-				icon_path = iface_cache.get_icon_path(iface)
+				icon_path = feed['icon-path']
 				xdgutils.add_to_menu(feed, icon_path, categories[category.get_active()])
 			except SafeException as ex:
 				box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, str(ex))
@@ -144,10 +152,6 @@ class AddBox(object):
 						self.set_keep_above(True)
 						if status == 0:
 							update_details_page()
-							nb.next_page()
-							dialog_next.set_property('visible', False)
-							dialog_ok.set_property('visible', True)
-							dialog_ok.grab_focus()
 						else:
 							box = gtk.MessageDialog(self.window, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK,
 								_('Failed to run 0launch.\n') + errors[0].decode('utf-8'))

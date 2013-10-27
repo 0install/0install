@@ -8,6 +8,8 @@ open Zeroinstall.General
 
 module FeedAttr = Zeroinstall.Constants.FeedAttr
 module U = Support.Utils
+module F = Zeroinstall.Feed
+module Q = Support.Qdom
 
 (** Use [xdg-open] to show the help files for this implementation. *)
 let show_help config sel =
@@ -67,10 +69,11 @@ let handle options flags args =
     | #common_option as o -> Common_options.process_common_option options o
   );
   let slave = options.slave in
+  let config = options.config in
 
   Zeroinstall.Python.register_handler "show-help" (function
     | [`String uri] ->
-        options.config.system#spawn_detach ~search_path:false [options.config.abspath_0install; "_show_help"; uri];
+        config.system#spawn_detach ~search_path:false [config.abspath_0install; "_show_help"; uri];
         Lwt.return `Null
         (* (select uses a recursive Lwt_main, so deadlocks at the moment; need to port distro.py first)
         let requirements = Zeroinstall.Requirements.default_requirements uri in
@@ -81,10 +84,38 @@ let handle options flags args =
             let index = Zeroinstall.Selections.make_selection_map sels in
             let root = ZI.get_attribute "interface" sels in
             let sel = StringMap.find root index in
-            show_help options.config sel;
+            show_help config sel;
             Lwt.return `Null end
 *)
     | json -> raise_safe "show-help: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
+  Zeroinstall.Python.register_handler "get-feed-metadata" (function
+    | [`String user_uri] -> begin
+        let iface_uri = Generic_select.canonical_iface_uri config.system user_uri in
+        let feed_url = Zeroinstall.Feed_url.master_feed_of_iface iface_uri in
+        match Zeroinstall.Feed_cache.get_cached_feed config feed_url with
+        | None -> raise_safe "Feed '%s' not cached!" iface_uri
+        | Some feed ->
+            let category =
+              try
+                let elem = feed.F.root.Q.child_nodes |> List.find (fun node -> ZI.tag node = Some "category") in
+                `String elem.Q.last_text_inside
+              with Not_found -> `Null in
+            let needs_terminal = feed.F.root.Q.child_nodes |> List.exists (fun node -> ZI.tag node = Some "needs-terminal") in
+            let icon_path =
+              match Zeroinstall.Feed_cache.get_cached_icon_path config feed_url with
+              | None -> `Null
+              | Some path -> `String path in
+            Lwt.return (`Assoc [
+              ("url", `String iface_uri);
+              ("name", `String feed.F.name);
+              ("summary", `String (F.get_summary config.langs feed |? lazy "-"));
+              ("needs-terminal", `Bool needs_terminal);
+              ("icon-path", icon_path);
+              ("category", category);
+            ]) end
+    | json -> raise_safe "get-feed-metadata: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
   let gui =
@@ -92,7 +123,7 @@ let handle options flags args =
     | [] ->
         slave#invoke_async (`List [`String "open-app-list-box"]) Zeroinstall.Python.expect_null
     | [arg] ->
-        let url = Generic_select.canonical_iface_uri options.config.system arg in
+        let url = Generic_select.canonical_iface_uri config.system arg in
         slave#invoke_async (`List [`String "open-add-box"; `String url]) Zeroinstall.Python.expect_null
     | _ -> raise (Support.Argparse.Usage_error 1) in
 

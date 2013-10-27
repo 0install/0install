@@ -366,7 +366,7 @@ let download_icon config (downloader:Downloader.downloader) (feed_provider:Feed_
   let system = config.system in
 
   let modification_time =
-    match Feed_cache.get_cached_icon_path config feed_url with
+    match Feed_cache.get_cached_icon_path config parsed_url with
     | None -> None
     | Some existing_icon ->
         match system#stat existing_icon with

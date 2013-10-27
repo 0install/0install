@@ -35,7 +35,8 @@ let get_save_cache_path config (`remote_feed url) =
   dir +/ Escape.escape url
 
 let get_cached_icon_path config feed_url =
-  Basedir.load_first config.system (cache_icons +/ Escape.escape feed_url) config.basedirs.Basedir.cache
+  let (`remote_feed url | `local_feed url) = feed_url in
+  Basedir.load_first config.system (cache_icons +/ Escape.escape url) config.basedirs.Basedir.cache
 
 let list_all_feeds config =
   let feeds = ref StringSet.empty in

@@ -30,25 +30,20 @@ def add_to_menu(feed, icon_path, category, zlaunch=None):
 	@param feed: the master feed of the program being added
 	@param icon_path: the path of the icon, or None
 	@param category: the freedesktop.org menu category"""
-	if isinstance(feed, model.Interface):
-		import warnings
-		warnings.warn("API change: pass a ZeroInstallFeed, not an Interface", DeprecationWarning, 2)
-		iface_uri = feed.uri
-	else:
-		iface_uri = feed.url
+	iface_uri = feed['url']
 
 	tmpdir = tempfile.mkdtemp(prefix = 'zero2desktop-')
 	try:
-		desktop_name = os.path.join(tmpdir, 'zeroinstall-%s.desktop' % feed.get_name().lower().replace(os.sep, '-').replace(' ', ''))
+		desktop_name = os.path.join(tmpdir, 'zeroinstall-%s.desktop' % feed['name'].lower().replace(os.sep, '-').replace(' ', ''))
 		desktop = open(desktop_name, 'w')
-		desktop.write(_template % {'name': feed.get_name(),
-                                   'comment': feed.summary,
+		desktop.write(_template % {'name': feed['name'],
+                                   'comment': feed['summary'],
                                    '0launch': zlaunch or '0launch',
                                    'iface': iface_uri,
                                    'category': category})
 		if icon_path:
 			desktop.write(_icon_template % icon_path)
-		if len(feed.get_metadata(namespaces.XMLNS_IFACE, 'needs-terminal')):
+		if feed['needs-terminal']:
 			desktop.write('Terminal=true\n')
 		desktop.close()
 		status = os.spawnlp(os.P_WAIT, 'xdg-desktop-menu', 'xdg-desktop-menu', 'install', desktop_name)
