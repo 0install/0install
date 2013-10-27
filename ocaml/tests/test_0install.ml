@@ -73,7 +73,6 @@ class fake_slave config =
     output_string ch contents;
     `success |> Lwt.return in
 
-  let handle_unpack_archive _ = `List [`String "ok"; `Null] in
   let handle_check required_digest tmpdir =
     let target = Filename.dirname tmpdir +/ required_digest in
     config.system#rename tmpdir target;
@@ -84,7 +83,7 @@ class fake_slave config =
     ignore xml;
     match request with
     | `List [`String "confirm-keys"; `String _url] -> assert false
-    | `List [`String "unpack-archive"; `Assoc details] -> Some (Lwt.return (handle_unpack_archive details))
+    | `List [`String "unpack-archive"; `Assoc _] -> assert false
     | `List [`String "wait-for-network"] -> Some (Lwt.return (`List [`String "ok"; `String "online"]))
     | `List [`String "check-manifest-and-rename"; `String required_digest; `String tmpdir] ->
         Some (Lwt.return (handle_check required_digest tmpdir))
@@ -106,6 +105,8 @@ let run_0install fake_system ?(exit=0) args =
     try Main.main (fake_system :> system); assert (exit = 0)
     with System_exit n -> assert_equal ~msg:"exit code" n exit
   )
+
+let generic_archive = U.read_file Fake_system.real_system @@ feed_dir +/ "HelloWorld.tgz"
 
 let suite = "0install">::: [
   "select">:: Fake_system.with_tmpdir (fun tmpdir ->
@@ -183,7 +184,7 @@ let suite = "0install">::: [
     let test_key = Support.Utils.read_file system (feed_dir +/ "6FCF121BE2390E0B.gpg") in
 
     (* Using a remote feed for the first time *)
-    fake_slave#allow_download "http://example.com/Binary-1.0.tgz" "";
+    fake_slave#allow_download "http://example.com/Binary-1.0.tgz" generic_archive;
     fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
     fake_slave#allow_download "http://foo/6FCF121BE2390E0B.gpg" test_key;
     let out = run ["update"; "http://foo/Binary.xml"] in
@@ -204,8 +205,8 @@ let suite = "0install">::: [
     (* Compiling from source for the first time. *)
     let source_feed = U.read_file system (feed_dir +/ "Source.xml") in
     let compiler_feed = U.read_file system (feed_dir +/ "Compiler.xml") in
-    fake_slave#allow_download "http://example.com/Source-1.0.tgz" "";
-    fake_slave#allow_download "http://example.com/Compiler-1.0.tgz" "";
+    fake_slave#allow_download "http://example.com/Source-1.0.tgz" generic_archive;
+    fake_slave#allow_download "http://example.com/Compiler-1.0.tgz" generic_archive;
     fake_slave#allow_download "http://foo/Compiler.xml" compiler_feed;
     fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
     fake_slave#allow_download "http://foo/Source.xml" source_feed;
@@ -256,7 +257,7 @@ let suite = "0install">::: [
     let fake_slave = new fake_slave config in
     fake_slave#install;
     let digest = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" in
-    fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" "";
+    fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" generic_archive;
     let out = run ["download"; (feed_dir +/ "Hello.xml"); "--show"] in
     assert_contains digest out;
     assert_contains "Version: 1\n" out;
@@ -274,7 +275,7 @@ let suite = "0install">::: [
     let digest = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" in
     let fake_slave = new fake_slave config in
     fake_slave#install;
-    fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" "";
+    fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" generic_archive;
 
     let hello = Support.Utils.read_file system (feed_dir +/ "Hello.xml") in
     let key = Support.Utils.read_file system (feed_dir +/ "6FCF121BE2390E0B.gpg") in
@@ -547,7 +548,7 @@ let suite = "0install">::: [
     system#unlink (app +/ "selections.xml");
     let fake_slave = new fake_slave config in
     fake_slave#install;
-    fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" "";
+    fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" generic_archive;
     ignore @@ A.get_selections_may_update driver app
   );
 

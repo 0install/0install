@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open General
 open Support.Common
 module U = Support.Utils
 
@@ -63,19 +64,81 @@ let maybe = function
   | Some v -> `String v
   | None -> `Null
 
+type compression = Bzip2 | Gzip | Lzma | Xz | Uncompressed
+
+let () = ignore (Lzma, Xz)
+
+(** Run a command in a subprocess. If it returns an error code, generate an exception containing its stdout and stderr. *)
+let run_command system args =
+  (* Some zip archives are missing timezone information; force consistent results *)
+  let child_env = Array.append system#environment [| "TZ=GMT" |] in
+
+  (* todo: use pola-run if available, once it supports fchmod *)
+  let command = (U.find_in_path_ex system (List.hd args), Array.of_list args) in
+  let child = Lwt_process.open_process_full ~env:child_env command in
+  try_lwt
+    lwt stdout = Lwt_io.read child#stdout
+    and stderr = Lwt_io.read child#stderr
+    and () = Lwt_io.close child#stdin in
+
+    lwt status = child#close in
+
+    try
+      match status with
+      | Unix.WEXITED 0 -> Lwt.return ()
+      | status ->
+          let messages = trim @@ stdout ^ stderr in
+          if messages = "" then Support.System.check_exit_status status;
+          raise_safe "Command failed: %s" messages
+    with Safe_exception _ as ex ->
+      reraise_with_context ex "... extracting archive with: %s" (Support.Logging.format_argv_for_logging args)
+  finally
+    lwt _ = child#close in
+    Lwt.return ()
+
+let extract_tar config ~dstdir ?extract ~compression archive =
+  let system = config.system in
+
+  extract |> if_some (fun extract ->
+    (* Limit the characters we accept, to avoid sending dodgy strings to tar *)
+    if not (Str.string_match (Str.regexp "^[a-zA-Z0-9][- _a-zA-Z0-9.]*$") extract 0) then
+      raise_safe "Illegal character in extract attribute"
+  );
+
+  let ext_cmd = ["tar"; "-xf"; archive; "--no-same-owner"; "--no-same-permissions"; "-C"; dstdir] @
+
+    begin match compression with
+    | Bzip2 -> ["--bzip2"]
+    | Gzip -> ["-z"]
+    | Lzma ->
+        let unlzma = U.find_in_path system "unlzma" |? lazy (
+          config.abspath_0install +/ "../lib/0install/_unlzma"      (* TODO - testme *)
+        ) in ["--use-compress-program=" ^ unlzma]
+    | Xz ->
+        let unxz = U.find_in_path system "unxz" |? lazy (
+          config.abspath_0install +/ "../lib/0install/_unxz"        (* TODO - testme *)
+        ) in ["--use-compress-program=" ^ unxz]
+    | Uncompressed -> [] end @
+
+    begin match extract with
+    | Some extract -> [extract]
+    | None -> [] end in
+
+  run_command system ext_cmd
+
 (** Unpack [tmpfile] into directory [dstdir]. If [extract] is given, extract just
     that sub-directory from the archive (i.e. destdir/extract will exist afterwards). *)
-let unpack _system (slave:Python.slave) tmpfile dstdir ?extract ?(start_offset=Int64.zero) ~mime_type : unit Lwt.t =
+let unpack config (slave:Python.slave) tmpfile dstdir ?extract ~mime_type : unit Lwt.t =
   match mime_type with
+  | "application/x-tar" ->                  extract_tar config ~dstdir ?extract ~compression:Uncompressed tmpfile
+  | "application/x-compressed-tar" ->       extract_tar config ~dstdir ?extract ~compression:Gzip tmpfile
+  | "application/x-bzip-compressed-tar" ->  extract_tar config ~dstdir ?extract ~compression:Bzip2 tmpfile
 (*
-  | "application/x-bzip-compressed-tar" ->  extract_tar tmpfile dstdir ~start_offset ~extract (Some "bzip2")
   | "application/x-deb" ->                  extract_deb tmpfile dstdir ~start_offset ~extract 
   | "application/x-rpm" ->                  extract_rpm tmpfile dstdir ~start_offset ~extract 
   | "application/zip" ->                    extract_zip tmpfile dstdir ~start_offset ~extract 
-  | "application/x-tar" ->                  extract_tar tmpfile dstdir ~start_offset ~extract None
   | "application/x-lzma-compressed-tar" ->  extract_tar tmpfile dstdir ~start_offset ~extract (Some "lzma")
   | "application/x-xz-compressed-tar" ->    extract_tar tmpfile dstdir ~start_offset ~extract (Some "xz")
-  | "application/x-compressed-tar" ->       extract_tar tmpfile dstdir ~start_offset ~extract (Some "gzip")
   | "application/vnd.ms-cab-compressed" ->  extract_cab tmpfile dstdir ~start_offset ~extract 
   | "application/x-apple-diskimage" ->      extract_dmg tmpfile dstdir ~start_offset ~extract 
   | "application/x-ruby-gem" ->             extract_gem tmpfile dstdir ~start_offset ~extract 
@@ -86,7 +149,7 @@ let unpack _system (slave:Python.slave) tmpfile dstdir ?extract ?(start_offset=I
         ("tmpfile", `String tmpfile);
         ("destdir", `String dstdir);
         ("extract", maybe extract);
-        ("start_offset", `Float (Int64.to_float start_offset));
+        ("start_offset", `Float 0.0);
         ("mime_type", `String mime_type);
       ]] in
       slave#invoke_async request (function
@@ -125,14 +188,15 @@ let rec move_no_follow system srcdir dstdir =
         | _ -> raise_safe "Not a regular file/directory/symlink '%s'" src_path
       )
 
-let unpack_over ?(start_offset=Int64.zero) system slave ~archive ~tmpdir ~destdir ?extract ~mime_type =
+let unpack_over config slave ~archive ~tmpdir ~destdir ?extract ~mime_type =
+  let system = config.system in
   extract |> if_some (fun extract ->
     if Str.string_match (Str.regexp ".*[/\\]") extract 0 then
       raise_safe "Extract attribute may not contain / or \\ (got '%s')" extract
   );
   let tmp = U.make_tmp_dir system ~prefix:"0install-unpack-" tmpdir in
   try_lwt
-    lwt () = unpack system slave ?extract ~mime_type ~start_offset archive tmp in
+    lwt () = unpack config slave ?extract ~mime_type archive tmp in
 
     let srcdir =
       match extract with

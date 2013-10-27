@@ -18,8 +18,7 @@ val check_type_ok : Support.Common.system -> mime_type -> unit
     stage. Use this when you want to unpack an archive into a directory which already has stuff in it.
     @param extract treat this subdirectory of [archive] as the root to unpack.
     @param tmpdir a directory on the same filesystem as [destdir] in which to create temporary directories.
-    @param start_offset ignore this many bytes at the start of [archive] (for autopackage archives).
   *)
-val unpack_over : ?start_offset:Int64.t -> Support.Common.system -> Python.slave ->
+val unpack_over : General.config -> Python.slave ->
                   archive:Support.Common.filepath -> tmpdir:Support.Common.filepath -> destdir:Support.Common.filepath ->
                   ?extract:Support.Common.filepath -> mime_type:string -> unit Lwt.t

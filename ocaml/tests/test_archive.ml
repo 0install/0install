@@ -16,7 +16,7 @@ let test_archive config expected ?extract archive =
   let mime_type = A.type_from_url archive in
   let home = config.system#getenv "HOME" |> Fake_system.expect in
   let slave = new Zeroinstall.Python.slave config in
-  A.unpack_over config.system slave ~archive:(Test_0install.feed_dir +/ archive) ~tmpdir:home ~destdir:home ?extract ~mime_type |> Lwt_main.run;
+  A.unpack_over config slave ~archive:(Test_0install.feed_dir +/ archive) ~tmpdir:home ~destdir:home ?extract ~mime_type |> Lwt_main.run;
   assert_manifest slave expected home
 
 let suite = "archive">::: [

@@ -433,7 +433,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
               raise_safe "Wrong size for %s: feed says %d, but actually %d bytes" path expected_size actual_size;
         | None -> raise_safe "Local file '%s' does not exist" path in
 
-  let download_file ~switch ~feed ?size ~may_use_mirror fn url =
+  let download_file ~switch ~start_offset ~feed ?size ~may_use_mirror fn url =
     if Str.string_match (Str.regexp "[a-z]+://") url 0 then (
       (* Remote file *)
       if config.dry_run then
@@ -444,7 +444,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
             let escaped = Str.global_replace (Str.regexp_string "/") "#" url |> Curl.escape in
             Some (mirror ^ "/archive/" ^ escaped)
         | _ -> None in
-      match_lwt downloader#download ~switch ?size ~hint:feed url with
+      match_lwt downloader#download ~switch ?size ~start_offset ~hint:feed url with
       | `aborted_by_user -> raise Aborted
       | `tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
       | `network_failure primary_msg ->
@@ -474,7 +474,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
       | None -> None (* (don't know sizes for mirrored archives) *)
       | Some size -> Some (Int64.add size start_offset) in
 
-    download_file ~switch ~feed ?size ~may_use_mirror fn url in
+    download_file ~switch ~feed ?size ~start_offset ~may_use_mirror fn url in
 
   (* Download an implementation by following a recipe and add it to the store.
    * (this was called "cook" in the Python version)
@@ -525,7 +525,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
         let downloads = retrieval_method |> List.map (function
           | DownloadStep {url; size; download_type = ArchiveDownload archive_info} ->
               (url, archive_info) |> download_archive ~switch ~may_use_mirror ?size ~feed (fun tmpfile ->
-                let {extract; start_offset; mime_type; dest} = archive_info in
+                let {extract; start_offset = _; mime_type; dest} = archive_info in
                 let basedir =
                   match dest with
                   | None -> tmpdir
@@ -535,14 +535,14 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
                       basedir in
                 let mime_type = mime_type |? lazy (Archive.type_from_url url) in
                 try_lwt
-                  Archive.unpack_over system#bypass_dryrun slave
+                  Archive.unpack_over {config with system = system#bypass_dryrun} slave
                     ~archive:tmpfile ~tmpdir:(Filename.dirname tmpdir)
-                    ~destdir:basedir ?extract ~start_offset ~mime_type
+                    ~destdir:basedir ?extract ~mime_type
                 with Safe_exception _ as ex ->
                   reraise_with_context ex "... unpacking archive '%s'" url
               )
           | DownloadStep {url; size; download_type = FileDownload dest} ->
-              url |> download_file ~switch ?size ~feed ~may_use_mirror:false (fun tmpfile ->
+              url |> download_file ~switch ?size ~start_offset:Int64.zero ~feed ~may_use_mirror:false (fun tmpfile ->
                 let dest = native_path_within_base dest in
                 U.makedirs real_system (Filename.dirname dest) 0o755;
                 U.copy_file real_system tmpfile dest 0o644;

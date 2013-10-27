@@ -26,7 +26,8 @@ let interceptor = ref None        (* (for unit-tests) *)
 
 (** Download the contents of [url] into [ch].
  * This runs in a separate (real) thread. *)
-let download_no_follow ?size ?modification_time connection ch url =
+let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) connection ch url =
+  let skip_bytes = ref (Int64.to_int start_offset) in
   let error_buffer = ref "" in
   try
     let redirect = ref None in
@@ -38,7 +39,16 @@ let download_no_follow ?size ?modification_time connection ch url =
 
     if Support.Logging.will_log Support.Logging.Debug then Curl.set_verbose connection true;
     Curl.set_errorbuffer connection error_buffer;
-    Curl.set_writefunction connection (fun data -> output_string ch data; String.length data);
+    Curl.set_writefunction connection (fun data ->
+      let l = String.length data in
+      if !skip_bytes >= l then (
+        skip_bytes := !skip_bytes - l
+      ) else (
+        output ch data !skip_bytes (l - !skip_bytes);
+        skip_bytes := 0
+      );
+      l
+    );
     size |> if_some (Curl.set_maxfilesizelarge connection);
     modification_time |> if_some (fun modification_time ->
       Curl.set_timecondition connection Curl.TIMECOND_IFMODSINCE;
@@ -91,7 +101,7 @@ let make_site max_downloads_per_site =
   let pool = Lwt_pool.create max_downloads_per_site create_connection in
 
   object
-    method schedule_download ?if_slow ?size ?modification_time ch url =
+    method schedule_download ?if_slow ?size ?modification_time ?start_offset ch url =
       log_debug "Scheduling download of %s" url;
       if not (List.exists (U.starts_with url) ["http://"; "https://"; "ftp://"]) then (
         raise_safe "Invalid scheme in URL '%s'" url
@@ -108,7 +118,7 @@ let make_site max_downloads_per_site =
               Some timeout;
             ) in
 
-            let download () = download_no_follow ?modification_time ?size connection ch url in
+            let download () = download_no_follow ?modification_time ?size ?start_offset connection ch url in
 
             try_lwt
               Lwt_preemptive.detach download ()
@@ -130,8 +140,9 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
      * @hint a tag to attach to the download (used by the GUI to associate downloads with feeds)
      *)
     method download : 'a. switch:Lwt_switch.t -> ?modification_time:float -> ?if_slow:(unit Lazy.t) ->
-                      ?size:Int64.t -> ?hint:([< Feed_url.parsed_feed_url] as 'a) -> string -> download_result Lwt.t =
-                      fun ~switch ?modification_time ?if_slow ?size ?hint url ->
+                      ?size:Int64.t -> ?start_offset:Int64.t -> ?hint:([< Feed_url.parsed_feed_url] as 'a) ->
+                      string -> download_result Lwt.t =
+                      fun ~switch ?modification_time ?if_slow ?size ?start_offset ?hint url ->
       let hint = hint |> pipe_some (fun feed -> Some (Feed_url.format_url feed)) in
       log_debug "Download URL '%s'... (for %s)" url (default "no feed" hint);
 
@@ -146,7 +157,7 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
             let site = make_site max_downloads_per_site in
             Hashtbl.add sites domain site;
             site in
-        match_lwt site#schedule_download ?if_slow ?size ?modification_time ch url with
+        match_lwt site#schedule_download ?if_slow ?size ?modification_time ?start_offset ch url with
         | `success ->
             close_out ch;
             `tmpfile tmpfile |> Lwt.return
