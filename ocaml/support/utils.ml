@@ -22,7 +22,7 @@ let finally_do cleanup resource f =
 
 let safe_to_string = function
   | Safe_exception (msg, contexts) ->
-      Some (msg ^ "\n" ^ String.concat "\n" !contexts)
+      Some (msg ^ "\n" ^ String.concat "\n" (List.rev !contexts))
   | _ -> None
 
 let () = Printexc.register_printer safe_to_string
