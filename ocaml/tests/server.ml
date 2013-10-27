@@ -110,6 +110,7 @@ let start_server system =
     try_lwt
       while_lwt not !cancelled do
         lwt (connection, _client_addr) = Lwt_unix.accept server_socket in
+        Lwt_unix.set_close_on_exec connection;
         try_lwt
           log_info "Got a connection!";
           let from_client = Lwt_io.of_fd ~mode:Lwt_io.input connection in
@@ -154,7 +155,7 @@ let start_server system =
       handler_thread >> Lwt_unix.close server_socket
   end
 
-let with_server fn =
+let with_server (fn:_ -> _ -> unit) =
   Fake_system.with_fake_config (fun (config, f) ->
     Support.Logging.threshold := Support.Logging.Info;  (* Otherwise, curl prints everything *)
 
