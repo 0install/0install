@@ -13,13 +13,12 @@ well-known variables.
 # Copyright (C) 2009, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import _, logger
+from zeroinstall import _
 import os, re, locale, sys
 from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
 from zeroinstall.injector.versions import parse_version, format_version
 from zeroinstall import support
-from zeroinstall.support import escaping
 
 network_offline = 'off-line'
 network_minimal = 'minimal'
@@ -27,12 +26,6 @@ network_full = 'full'
 network_levels = (network_offline, network_minimal, network_full)
 
 stability_levels = {}	# Name -> Stability
-
-defaults = {
-	'PATH': '/bin:/usr/bin',
-	'XDG_CONFIG_DIRS': '/etc/xdg',
-	'XDG_DATA_DIRS': '/usr/local/share:/usr/share',
-}
 
 class InvalidInterface(SafeException):
 	"""Raised when parsing an invalid feed."""
@@ -63,19 +56,6 @@ class InvalidInterface(SafeException):
 			return SafeException.__unicode__(self)
 		else:
 			return support.unicode(SafeException.__str__(self))
-
-def _split_arch(arch):
-	"""Split an arch into an (os, machine) tuple. Either or both parts may be None.
-	@type arch: str"""
-	if not arch:
-		return None, None
-	elif '-' not in arch:
-		raise SafeException(_("Malformed arch '%s'") % arch)
-	else:
-		osys, machine = arch.split('-', 1)
-		if osys == '*': osys = None
-		if machine == '*': machine = None
-		return osys, machine
 
 def _join_arch(osys, machine):
 	"""@type osys: str
@@ -153,51 +133,7 @@ preferred = Stability(40, N_('preferred'), _('Best of all - must be set manually
 
 del N_
 
-class Restriction(object):
-	"""A Restriction limits the allowed implementations of an Interface."""
-	__slots__ = []
-
-	reason = _("Incompatible with user-specified requirements")
-
-	def meets_restriction(self, impl):
-		"""Called by the L{solver.Solver} to check whether a particular implementation is acceptable.
-		@return: False if this implementation is not a possibility
-		@rtype: bool"""
-		raise NotImplementedError(_("Abstract"))
-
-	def __str__(self):
-		return "missing __str__ on %s" % type(self)
-
-	def __repr__(self):
-		"""@rtype: str"""
-		return "<restriction: %s>" % self
-
-class Feed(object):
-	"""An interface's feeds are other interfaces whose implementations can also be
-	used as implementations of this interface."""
-	__slots__ = ['uri', 'os', 'machine', 'user_override', 'langs', 'site_package']
-	def __init__(self, uri, arch, user_override, langs = None, site_package = False):
-		self.uri = uri
-		# This indicates whether the feed comes from the user's overrides
-		# file. If true, writer.py will write it when saving.
-		self.user_override = user_override
-		self.os, self.machine = _split_arch(arch)
-		self.langs = langs
-		self.site_package = site_package
-
-	def __str__(self):
-		return "<Feed from %s>" % self.uri
-	__repr__ = __str__
-
-	arch = property(lambda self: _join_arch(self.os, self.machine))
-
-class RetrievalMethod(object):
-	"""A RetrievalMethod provides a way to fetch an implementation."""
-	__slots__ = []
-
-	requires_network = True		# Used to decide if we can get this in off-line mode
-
-class DistributionSource(RetrievalMethod):
+class DistributionSource(object):
 	"""A package that is installed using the distribution's tools (including PackageKit).
 	@ivar package_id: the package name, in a form recognised by the distribution's tools
 	@type package_id: str
@@ -212,7 +148,6 @@ class DistributionSource(RetrievalMethod):
 		"""@type package_id: str
 		@type size: int
 		@type needs_confirmation: bool"""
-		RetrievalMethod.__init__(self)
 		self.package_id = package_id
 		self.packagekit_id = packagekit_id
 		self.size = size
@@ -410,7 +345,7 @@ class ZeroInstallFeed(object):
 	__slots__ = ['url', 'implementations', 'name', 'descriptions', 'first_description', 'summaries', 'first_summary',
 		     'last_modified', 'feeds', 'feed_for', 'metadata', 'local_path', 'feed_element']
 
-	def __init__(self, feed_element, local_path = None, distro = None):
+	def __init__(self, feed_element, local_path = None):
 		"""Create a feed object from a DOM.
 		@param feed_element: the root element of a feed file
 		@type feed_element: L{qdom.Element}
@@ -421,20 +356,13 @@ class ZeroInstallFeed(object):
 		self.name = None
 		self.summaries = {}	# { lang: str }
 		self.first_summary = None
-		self.descriptions = {}	# { lang: str }
-		self.first_description = None
 		self.last_modified = None
 		self.feeds = []
-		self.feed_for = set()
 		self.metadata = []
 		self.feed_element = feed_element
 
-		if distro is not None:
-			import warnings
-			warnings.warn("distro argument is now ignored", DeprecationWarning, 2)
-
 		if feed_element is None:
-			return			# XXX subclass?
+			return                  # XXX subclass?
 
 		if feed_element.name not in ('interface', 'feed'):
 			raise SafeException("Root element should be <interface>, not <%s>" % feed_element.name)
@@ -442,13 +370,11 @@ class ZeroInstallFeed(object):
 
 		if local_path:
 			self.url = local_path
-			local_dir = os.path.dirname(local_path)
 		else:
 			assert local_path is None
 			self.url = feed_element.getAttribute('uri')
 			if not self.url:
 				raise InvalidInterface(_("<interface> uri attribute missing"))
-			local_dir = None	# Can't have relative paths
 
 		min_injector_version = feed_element.getAttribute('min-injector-version')
 		if min_injector_version:
@@ -465,35 +391,15 @@ class ZeroInstallFeed(object):
 			if x.name == 'name':
 				self.name = x.content
 			elif x.name == 'description':
-				if self.first_description == None:
-					self.first_description = x.content
-				self.descriptions[x.attrs.get("http://www.w3.org/XML/1998/namespace lang", 'en')] = x.content
+				pass
 			elif x.name == 'summary':
 				if self.first_summary == None:
 					self.first_summary = x.content
 				self.summaries[x.attrs.get("http://www.w3.org/XML/1998/namespace lang", 'en')] = x.content
 			elif x.name == 'feed-for':
-				feed_iface = x.getAttribute('interface')
-				if not feed_iface:
-					raise InvalidInterface(_('Missing "interface" attribute in <feed-for>'))
-				self.feed_for.add(feed_iface)
-				# Bug report from a Debian/stable user that --feed gets the wrong value.
-				# Can't reproduce (even in a Debian/stable chroot), but add some logging here
-				# in case it happens again.
-				logger.debug(_("Is feed-for %s"), feed_iface)
+				pass
 			elif x.name == 'feed':
-				feed_src = x.getAttribute('src')
-				if not feed_src:
-					raise InvalidInterface(_('Missing "src" attribute in <feed>'))
-				if feed_src.startswith('http:') or feed_src.startswith('https:') or local_path:
-					if feed_src.startswith('.'):
-						feed_src = os.path.abspath(os.path.join(local_dir, feed_src))
-
-					langs = x.getAttribute('langs')
-					if langs: langs = langs.replace('_', '-')
-					self.feeds.append(Feed(feed_src, x.getAttribute('arch'), False, langs = langs))
-				else:
-					raise InvalidInterface(_("Invalid feed URL '%s'") % feed_src)
+				pass
 			else:
 				self.metadata.append(x)
 
@@ -509,16 +415,6 @@ class ZeroInstallFeed(object):
 	def __repr__(self):
 		return _("<Feed %s>") % self.url
 
-	def set_stability_policy(self, new):
-		assert new is None or isinstance(new, Stability)
-		self.stability_policy = new
-
-	def get_feed(self, url):
-		for x in self.feeds:
-			if x.uri == url:
-				return x
-		return None
-
 	def add_metadata(self, elem):
 		self.metadata.append(elem)
 
@@ -531,23 +427,6 @@ class ZeroInstallFeed(object):
 	@property
 	def summary(self):
 		return _best_language_match(self.summaries) or self.first_summary
-
-	@property
-	def description(self):
-		return _best_language_match(self.descriptions) or self.first_description
-
-	def get_replaced_by(self):
-		"""Return the URI of the interface that replaced the one with the URI of this feed's URL.
-		This is the value of the feed's <replaced-by interface'...'/> element.
-		@return: the new URI, or None if it hasn't been replaced
-		@rtype: str | None
-		@since: 1.7"""
-		for child in self.metadata:
-			if child.uri == XMLNS_IFACE and child.name == 'replaced-by':
-				new_uri = child.getAttribute('interface')
-				if new_uri and (new_uri.startswith('http:') or new_uri.startswith('https:') or self.local_path):
-					return new_uri
-		return None
 
 if sys.version_info[0] > 2:
 	# Python 3
@@ -628,72 +507,3 @@ else:
 		return re.sub(preserveRegex,
 			lambda match: '%%%02x' % ord(match.group(0)),
 			uri.encode('utf-8')).replace('/', '#')
-
-def escape_interface_uri(uri):
-	"""Convert an interface URI to a list of path components.
-	e.g. "http://example.com/foo.xml" becomes ["http", "example.com", "foo.xml"], while
-	"file:///root/feed.xml" becomes ["file", "root__feed.xml"]
-	The number of components is determined by the scheme (three for http, two for file).
-	Uses L{support.escaping.underscore_escape} to escape each component.
-	@type uri: str
-	@rtype: [str]"""
-	if uri.startswith('http://') or uri.startswith('https://'):
-		scheme, rest = uri.split('://', 1)
-		parts = rest.split('/', 1)
-	else:
-		assert os.path.isabs(uri), uri
-		scheme = 'file'
-		parts = [uri[1:]]
-	
-	return [scheme] + [escaping.underscore_escape(part) for part in parts]
-
-def canonical_iface_uri(uri):
-	"""If uri is a relative path, convert to an absolute one.
-	A "file:///foo" URI is converted to "/foo".
-	An "alias:prog" URI expands to the URI in the 0alias script
-	Otherwise, return it unmodified.
-	@type uri: str
-	@rtype: str
-	@raise SafeException: if uri isn't valid"""
-	if uri.startswith('http://') or uri.startswith('https://'):
-		if uri.count("/") < 3:
-			raise SafeException(_("Missing / after hostname in URI '%s'") % uri)
-		return uri
-	elif uri.startswith('file:///'):
-		path = uri[7:]
-	elif uri.startswith('file:'):
-		if uri[5] == '/':
-			raise SafeException(_('Use file:///path for absolute paths, not {uri}').format(uri = uri))
-		path = os.path.abspath(uri[5:])
-	elif uri.startswith('alias:'):
-		from zeroinstall import alias
-		alias_prog = uri[6:]
-		if not os.path.isabs(alias_prog):
-			full_path = support.find_in_path(alias_prog)
-			if not full_path:
-				raise alias.NotAnAliasScript("Not found in $PATH: " + alias_prog)
-		else:
-			full_path = alias_prog
-		return alias.parse_script(full_path).uri
-	else:
-		path = os.path.realpath(uri)
-
-	if os.path.isfile(path):
-		return path
-
-	if '/' not in uri:
-		alias_path = support.find_in_path(uri)
-		if alias_path is not None:
-			from zeroinstall import alias
-			try:
-				alias.parse_script(alias_path)
-			except alias.NotAnAliasScript:
-				pass
-			else:
-				raise SafeException(_("Bad interface name '{uri}'.\n"
-					"(hint: try 'alias:{uri}' instead)".format(uri = uri)))
-
-	raise SafeException(_("Bad interface name '%(uri)s'.\n"
-			"(doesn't start with 'http:', and "
-			"doesn't exist as a local file '%(interface_uri)s' either)") %
-			{'uri': uri, 'interface_uri': path})

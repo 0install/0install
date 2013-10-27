@@ -12,9 +12,6 @@ from zeroinstall.support.tasks import get_loop
 from zeroinstall import SafeException
 from zeroinstall.cmd import slave
 from zeroinstall.support import tasks
-from zeroinstall.injector import model
-from zeroinstall.injector.namespaces import XMLNS_IFACE
-from zeroinstall.injector.iface_cache import iface_cache
 
 glib = get_loop().glib
 

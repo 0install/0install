@@ -32,16 +32,19 @@ let suite = "feed">::: [
       assert_equal 0 (Support.Locale.score_lang langs @@ Some "gr");
       assert_equal 3 (Support.Locale.score_lang langs @@ None) in
 
-    let test expected langs =
+    let test ?description expected langs =
       let langs = Support.Locale.score_langs @@ U.filter_map ~f:Support.Locale.parse_lang langs in
-      Fake_system.assert_str_equal expected @@ Fake_system.expect @@ F.get_summary langs feed in
+      Fake_system.assert_str_equal expected @@ Fake_system.expect @@ F.get_summary langs feed;
+      description |> if_some (fun d ->
+        Fake_system.assert_str_equal d @@ Fake_system.expect @@ F.get_description langs feed
+      ) in
 
     test "Local feed (English GB)" ["en_GB.UTF-8"];
     test "Local feed (English)" ["en_US"];
     test "Local feed (Greek)" ["gr"];
-    test "Fuente local" ["es_PT"];
+    test ~description:"Español" "Fuente local" ["es_PT"];
     test "Local feed (English GB)" ["en_US"; "en_GB"; "es"];
-    test "Local feed (English)" ["en_US"; "es"];
+    test ~description:"English" "Local feed (English)" ["en_US"; "es"];
   );
 
   "feed-overrides">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
@@ -336,5 +339,13 @@ let suite = "feed">::: [
     Fake_system.assert_raises_safe "Feed requires 0install version 1000 or later (we are .*" (lazy (
       test "min-injector-version='1000'"
     ))
+  );
+
+  "replaced">:: (fun () ->
+    let system = (new Fake_system.fake_system None :> system) in
+    let iface = Test_0install.feed_dir +/ "Replaced.xml" in
+    let root = Q.parse_file system iface in
+    let feed = F.parse system root (Some iface) in
+    Fake_system.assert_str_equal "http://localhost:8000/Hello" (Fake_system.expect feed.F.replacement)
   );
 ]

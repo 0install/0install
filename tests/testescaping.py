@@ -71,15 +71,5 @@ class TestEscaping(BaseTest):
 		self.assertEqual("_2e_", escaping.underscore_escape("."))
 		self.assertEqual("_2e_.", escaping.underscore_escape(".."))
 
-	def testEscapeInterface(self):
-		self.assertEqual(["http", "example.com", "foo.xml"], model.escape_interface_uri("http://example.com/foo.xml"))
-		self.assertEqual(["http", "example.com", "foo__.bar.xml"], model.escape_interface_uri("http://example.com/foo/.bar.xml"))
-		self.assertEqual(["file", "root__foo.xml"], model.escape_interface_uri("/root/foo.xml"))
-		try:
-			model.escape_interface_uri("ftp://example.com/foo.xml")
-			assert 0
-		except AssertionError:
-			pass
-
 if __name__ == '__main__':
 	unittest.main()

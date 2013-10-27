@@ -194,7 +194,14 @@ let test_escaping () =
   check "%20%21~&!\"£ :@;,./{}$%^&()";
   check "http://example.com/foo_bar-50%á.xml";
   check "_one__two___three____four_____";
-  check "_1_and_2_"
+  check "_1_and_2_";
+
+  equal_str_lists ["http"; "example.com"; "foo.xml"] @@ escape_interface_uri "http://example.com/foo.xml";
+  equal_str_lists ["http"; "example.com"; "foo__.bar.xml"] @@ escape_interface_uri "http://example.com/foo/.bar.xml";
+  equal_str_lists ["file"; "root__foo.xml"] @@ escape_interface_uri "/root/foo.xml";
+  assert_raises_safe "Invalid interface path 'ftp://example.com/foo.xml'" (lazy (
+    ignore @@ escape_interface_uri "ftp://example.com/foo.xml"
+  ))
 
 (* Name the test cases and group them together *)
 let suite = 

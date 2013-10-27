@@ -4,7 +4,7 @@ import sys, os, tempfile, subprocess, shlex
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall import cmd, alias
+from zeroinstall import cmd, support
 from zeroinstall.injector import model, qdom, handler, gpg, config
 import selections
 
@@ -16,6 +16,33 @@ class Reply:
 
 	def readline(self):
 		return self.reply
+
+_template = '''#!/bin/sh
+exec 0launch %s'%s' "$@"
+'''
+
+def write_script(stream, interface_uri, main = None, command = None):
+	"""Write a shell script to stream that will launch the given program.
+	@param stream: the stream to write to
+	@type stream: file
+	@param interface_uri: the program to launch
+	@type interface_uri: str
+	@param main: the --main argument to pass to 0launch, if any
+	@type main: str | None
+	@param command: the --command argument to pass to 0launch, if any
+	@type command: str | None"""
+	assert "'" not in interface_uri
+	assert "\\" not in interface_uri
+	assert main is None or command is None, "Can't set --main and --command together"
+
+	if main is not None:
+		option = "--main '%s' " % main.replace("'", "'\\''")
+	elif command is not None:
+		option = "--command '%s' " % command.replace("'", "'\\''")
+	else:
+		option = ""
+
+	stream.write(support.unicode(_template) % (option, interface_uri))
 
 class TestInstall(BaseTest):
 	maxDiff = None
@@ -65,7 +92,7 @@ class TestInstall(BaseTest):
 		assert not err, err
 		assert 'Version: 0.1' in out
 
-		local_uri = model.canonical_iface_uri('Local.xml')
+		local_uri = os.path.realpath('Local.xml')
 		out, err = self.run_ocaml(['select', 'Local.xml'])
 		assert not err, err
 		assert 'Version: 0.1' in out
@@ -229,7 +256,7 @@ class TestInstall(BaseTest):
 		local_feed = os.path.join(mydir, 'Local.xml')
 		launcher_script = os.path.join(self.config_home, 'my-test-alias')
 		with open(launcher_script, 'w') as stream:
-			alias.write_script(stream, local_feed, None)
+			write_script(stream, local_feed, None)
 
 		out, err = self.run_ocaml(['update', 'my-test-alias'])
 		assert err.startswith("Bad interface name 'my-test-alias'.\n(hint: try 'alias:my-test-alias' instead)\n"), err
@@ -243,20 +270,20 @@ class TestInstall(BaseTest):
 		self.check_man(['git', 'config'], ('man', 'git', 'config'))
 		self.check_man([], ('man',))
 
-		local_feed = os.path.join(mydir, 'Local.xml')
+		local_feed = os.path.realpath(os.path.join(mydir, 'Local.xml'))
 		launcher_script = os.path.join(self.config_home, 'my-test-alias')
 		with open(launcher_script, 'w') as stream:
-			alias.write_script(stream, model.canonical_iface_uri(local_feed), None)
+			write_script(stream, local_feed, None)
 		self.check_man(['my-test-alias'], 'tests/test-echo.1')
 
 		self.check_man(['__i_dont_exist'], '__i_dont_exist')
 		self.check_man(['ls'], 'ls')
 
 		# No man-page
-		binary_feed = os.path.join(mydir, 'Command.xml')
+		binary_feed = os.path.realpath(os.path.join(mydir, 'Command.xml'))
 		launcher_script = os.path.join(self.config_home, 'my-binary-alias')
 		with open(launcher_script, 'w') as stream:
-			alias.write_script(stream, model.canonical_iface_uri(binary_feed), None)
+			write_script(stream, binary_feed, None)
 
 		out, err = self.run_ocaml(['man', 'my-binary-alias'])
 		assert "Exit status: 1" in err, err
@@ -267,7 +294,7 @@ class TestInstall(BaseTest):
 		self.check_man(['bad-unicode'], 'bad-unicode')
 
 	def testAlias(self):
-		local_feed = model.canonical_iface_uri(os.path.join(mydir, 'Local.xml'))
+		local_feed = 'Local.xml'
 		alias_path = os.path.join(mydir, '..', '0alias')
 		child = subprocess.Popen([alias_path, 'local-app', local_feed], stdout = subprocess.PIPE, stderr = subprocess.PIPE, universal_newlines = True)
 		out, err = child.communicate()
