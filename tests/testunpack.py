@@ -67,11 +67,6 @@ class AbstractTestUnpack():
 			unpack.unpack_archive('ftp://foo/file.tgz', stream, self.tmpdir, extract= b'unicode'.decode('ascii'))
 		self.assert_manifest('sha1=af2d132f5f15532bbf041b59414d08c8bc1a616e')
 	
-	def testExtractOver(self):
-		with open('HelloWorld.tgz', 'rb') as stream:
-			unpack.unpack_archive_over('ftp://foo/file.tgz', stream, self.tmpdir, extract = 'HelloWorld')
-		self.assert_manifest('sha1=491678c37f77fadafbaae66b13d48d237773a68f')
-
 	def testExtractZip(self):
 		with open('HelloWorld.zip', 'rb') as stream:
 			unpack.unpack_archive('ftp://foo/file.zip', stream, self.tmpdir, extract = 'HelloWorld')

@@ -131,9 +131,9 @@ def do_unpack_archive(config, options, details):
 	from zeroinstall.zerostore import unpack
 
 	with open(details['tmpfile'], 'rb') as stream:
-		unpack.unpack_archive_over(details['url'], stream, details['basedir'],
-				extract = details.get('extract', None),
-				type = details.get('mime_type', None),
+		unpack.unpack_archive('unused', stream, details['destdir'],
+				extract = details['extract'],
+				type = details['mime_type'],
 				start_offset = int(details['start_offset']))
 
 def to_json(impl):
@@ -307,6 +307,22 @@ def do_confirm_keys(config, ticket, url, xml):
 	except Exception as ex:
 		logger.warning("do_confirm_keys", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
+
+def assert_manifest(required, tmpdir):
+	from zeroinstall.zerostore import manifest
+	alg_name = required.split('=', 1)[0]
+	manifest.fixup_permissions(tmpdir)
+
+	sha1 = alg_name + '=' + manifest.add_manifest_file(tmpdir, manifest.get_algorithm(alg_name)).hexdigest()
+	assert sha1 == required
+
+	# Check permissions are sensible
+	for root, dirs, files in os.walk(tmpdir):
+		for f in files + dirs:
+			full = os.path.join(root, f)
+			if os.path.islink(full): continue
+			full_mode = os.stat(full).st_mode
+			assert 0o444 == full_mode & 0o666	# Must be r-?r-?r-?
 
 @tasks.async
 def reply_when_done(ticket, blocker):
@@ -577,6 +593,8 @@ def handle_invoke(config, options, ticket, request):
 			xml = qdom.parse(BytesIO(read_chunk()))
 			do_update_key_info(config, ticket, request[1], xml)
 			return	# async
+		elif command == 'assert-manifest':
+			response = assert_manifest(*request[1:])
 		elif command == 'notify-user':
 			response = do_notify_user(config, request[1])
 		elif command == 'start-monitoring':

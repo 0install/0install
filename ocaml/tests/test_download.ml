@@ -202,7 +202,7 @@ let suite = "download">::: [
   );
 
   "symlink-attack" >:: Server.with_server (fun (config, fake_system) server ->
-    Fake_system.assert_raises_safe "Attempt to unpack dir over symlink \"HelloWorld\"" (lazy (
+    Fake_system.assert_raises_safe "Attempt to unpack dir over non-directory 'HelloWorld'" (lazy (
       ignore @@ do_recipe config fake_system server ~expected:[
         [("HelloWorld.tar.bz2", `Serve); ("HelloSym.tgz", `Serve)];
       ] "RecipeSymlink.xml"

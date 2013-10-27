@@ -51,10 +51,6 @@ let rec join_errors = function
         lwt exs = join_errors xs in
         ex :: exs |> Lwt.return
 
-let maybe = function
-  | Some v -> `String v
-  | None -> `Null
-
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
@@ -537,19 +533,13 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
                       let basedir = native_path_within_base dest in
                       U.makedirs real_system basedir 0o755;
                       basedir in
-                let request = `List [`String "unpack-archive"; `Assoc [
-                  ("basedir", `String basedir);
-                  ("tmpfile", `String tmpfile);
-                  ("url", `String url);
-                  ("extract", maybe extract);
-                  ("dest", maybe dest);
-                  ("start_offset", `Float (Int64.to_float start_offset));
-                  ("mime_type", maybe mime_type);
-                ]] in
-                slave#invoke_async request (function
-                  | `Null -> ()
-                  | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
-                )
+                let mime_type = mime_type |? lazy (Archive.type_from_url url) in
+                try_lwt
+                  Archive.unpack_over system#bypass_dryrun slave
+                    ~archive:tmpfile ~tmpdir:(Filename.dirname tmpdir)
+                    ~destdir:basedir ?extract ~start_offset ~mime_type
+                with Safe_exception _ as ex ->
+                  reraise_with_context ex "... unpacking archive '%s'" url
               )
           | DownloadStep {url; size; download_type = FileDownload dest} ->
               url |> download_file ~switch ?size ~feed ~may_use_mirror:false (fun tmpfile ->

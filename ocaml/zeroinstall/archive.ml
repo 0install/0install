@@ -58,3 +58,92 @@ let check_type_ok system =
     | "application/x-compressed-tar" | "application/x-tar" | "application/x-ruby-gem" -> ()
     | mime_type ->
         raise_safe "Unsupported archive type \"%s\" (for 0install version %s)" mime_type About.version
+
+let maybe = function
+  | Some v -> `String v
+  | None -> `Null
+
+(** Unpack [tmpfile] into directory [dstdir]. If [extract] is given, extract just
+    that sub-directory from the archive (i.e. destdir/extract will exist afterwards). *)
+let unpack _system (slave:Python.slave) tmpfile dstdir ?extract ?(start_offset=Int64.zero) ~mime_type : unit Lwt.t =
+  match mime_type with
+(*
+  | "application/x-bzip-compressed-tar" ->  extract_tar tmpfile dstdir ~start_offset ~extract (Some "bzip2")
+  | "application/x-deb" ->                  extract_deb tmpfile dstdir ~start_offset ~extract 
+  | "application/x-rpm" ->                  extract_rpm tmpfile dstdir ~start_offset ~extract 
+  | "application/zip" ->                    extract_zip tmpfile dstdir ~start_offset ~extract 
+  | "application/x-tar" ->                  extract_tar tmpfile dstdir ~start_offset ~extract None
+  | "application/x-lzma-compressed-tar" ->  extract_tar tmpfile dstdir ~start_offset ~extract (Some "lzma")
+  | "application/x-xz-compressed-tar" ->    extract_tar tmpfile dstdir ~start_offset ~extract (Some "xz")
+  | "application/x-compressed-tar" ->       extract_tar tmpfile dstdir ~start_offset ~extract (Some "gzip")
+  | "application/vnd.ms-cab-compressed" ->  extract_cab tmpfile dstdir ~start_offset ~extract 
+  | "application/x-apple-diskimage" ->      extract_dmg tmpfile dstdir ~start_offset ~extract 
+  | "application/x-ruby-gem" ->             extract_gem tmpfile dstdir ~start_offset ~extract 
+  | _ -> raise_safe "Unknown MIME type '%s'" mime_type
+*)
+  | _ ->
+      let request = `List [`String "unpack-archive"; `Assoc [
+        ("tmpfile", `String tmpfile);
+        ("destdir", `String dstdir);
+        ("extract", maybe extract);
+        ("start_offset", `Float (Int64.to_float start_offset));
+        ("mime_type", `String mime_type);
+      ]] in
+      slave#invoke_async request (function
+        | `Null -> ()
+        | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
+      )
+
+(** Move each item in [srcdir] into [dstdir]. Symlinks are copied as is. Does not follow any symlinks in [destdir]. *)
+let rec move_no_follow system srcdir dstdir =
+  match system#readdir srcdir with
+  | Problem ex -> raise ex
+  | Success items ->
+      items |> Array.iter (fun item ->
+        assert (item <> "." && item <> "..");
+
+        let src_path = srcdir +/ item in
+        let dst_path = dstdir +/ item in
+        let src_info = system#lstat src_path |? lazy (raise_safe "Path '%s' has disappeared!" src_path) in
+        let dst_info = system#lstat dst_path in
+
+        match src_info.Unix.st_kind with
+        | Unix.S_DIR ->
+            begin match dst_info with
+            | None -> system#mkdir dst_path 0o755
+            | Some info when info.Unix.st_kind = Unix.S_DIR -> ()
+            | Some _ -> raise_safe "Attempt to unpack dir over non-directory '%s'" item end;
+            move_no_follow system src_path dst_path;
+            system#rmdir src_path;
+            system#set_mtime dst_path src_info.Unix.st_mtime     (* FIXME: doesn't handle 0.0 *)
+        | Unix.S_REG | Unix.S_LNK ->
+            begin match dst_info with
+            | None -> ()
+            | Some info when info.Unix.st_kind = Unix.S_DIR -> raise_safe "Can't replace directory '%s' with file '%s'" item src_path
+            | Some _ -> system#unlink dst_path end;
+            system#rename src_path dst_path
+        | _ -> raise_safe "Not a regular file/directory/symlink '%s'" src_path
+      )
+
+let unpack_over ?(start_offset=Int64.zero) system slave ~archive ~tmpdir ~destdir ?extract ~mime_type =
+  extract |> if_some (fun extract ->
+    if Str.string_match (Str.regexp ".*[/\\]") extract 0 then
+      raise_safe "Extract attribute may not contain / or \\ (got '%s')" extract
+  );
+  let tmp = U.make_tmp_dir system ~prefix:"0install-unpack-" tmpdir in
+  try_lwt
+    lwt () = unpack system slave ?extract ~mime_type ~start_offset archive tmp in
+
+    let srcdir =
+      match extract with
+      | None -> tmp
+      | Some extract ->
+          let srcdir = tmp +/ extract in
+          if U.is_dir system srcdir then srcdir
+          else raise_safe "Top-level directory '%s' not found in archive" extract in
+
+    move_no_follow system srcdir destdir;
+    Lwt.return ()
+  finally
+    U.rmtree ~even_if_locked:true system tmp;
+    Lwt.return ()
