@@ -64,7 +64,7 @@ let install_interceptor system checked_for_gui =
         Some (Lwt.return (`List [`String "ok"; `Bool have_gui]))
     | `List ((`String "open-gui") :: _) -> raise Open_gui
     | `List ((`String "unpack-archive") :: _) -> None
-    | `List ((`String "check-manifest-and-rename") :: _) -> None
+    | `List ((`String "add-manifest-and-verify") :: _) -> None
     | `List [`String "notify-user"; `Assoc details] ->
         log_info "NOTIFY: %s: %s"
           (List.assoc "title" details |> Yojson.Basic.to_string)
@@ -132,6 +132,18 @@ let suite = "download">::: [
 
     Fake_system.assert_raises_safe "Downloaded archive has incorrect size" (lazy (
       run_0install fake_system ["run"; "--main=Missing"; "http://localhost:8000/Hello-wrong-size"; "Hello"] |> ignore
+    ));
+  );
+
+  "wrong-digest">:: Server.with_server (fun (_config, fake_system) server ->
+    server#expect [[("Hello.xml", `ServeFile "Hello-bad-digest.xml")];
+      [("6FCF121BE2390E0B.gpg", `Serve)];
+      [("/key-info/key/DE937DD411906ACF7C263B396FCF121BE2390E0B", `AcceptKey)];
+      [("HelloWorld.tgz", `Serve)];
+    ];
+
+    Fake_system.assert_raises_safe "Incorrect manifest -- archive is corrupted" (lazy (
+      run_0install fake_system ["run"; "--main=Missing"; "http://example.com:8000/Hello.xml"; "Hello"] |> ignore
     ));
   );
 

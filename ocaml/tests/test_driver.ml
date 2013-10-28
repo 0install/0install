@@ -61,6 +61,7 @@ let make_driver_test test_elem =
   let name = ZI.get_attribute "name" test_elem in
   name >:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    let home = U.getenv_ex config.system "HOME" in
     let expand_tmp s =
       Str.global_replace (Str.regexp_string "@TMP@") tmpdir s in
     let reqs = ref (Zeroinstall.Requirements.default_requirements "") in
@@ -87,7 +88,7 @@ let make_driver_test test_elem =
     | Some "requirements" ->
         let iface = ZI.get_attribute "interface" child in
         let iface =
-          if U.starts_with iface "./" then U.abspath (fake_system :> system) iface
+          if U.starts_with iface "./" then home +/ iface
           else iface in
         reqs := {!reqs with
           Requirements.interface_uri = iface;

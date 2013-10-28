@@ -30,6 +30,7 @@ class dryrun_system (underlying:system) =
     method reap_child = underlying#reap_child
     method waitpid_non_intr = underlying#waitpid_non_intr
     method getcwd = underlying#getcwd
+    method chdir = underlying#chdir
     method getenv = underlying#getenv
     method environment = underlying#environment
     method readlink = underlying#readlink
@@ -67,6 +68,7 @@ class dryrun_system (underlying:system) =
       fake_dirs <- StringMap.add dir (StringSet.add base dir_entries) fake_dirs
 
     (* Interesting operations: log and skip *)
+    method symlink ~target ~newlink = log "ln -s %s %s" target newlink
     method unlink path      = log "rm %s" path
     method atomic_hardlink ~link_to ~replace = log "ln %s %s" link_to replace
     method rmdir path       = log "rmdir %s" path

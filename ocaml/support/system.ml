@@ -91,6 +91,7 @@ module RealSystem (U : UnixType) =
         method unlink = Unix.unlink
         method rmdir = Unix.rmdir
         method getcwd = Sys.getcwd ()
+        method chdir = Unix.chdir
         method chmod = Unix.chmod
         method rename = Unix.rename
         method set_mtime path mtime =
@@ -102,6 +103,9 @@ module RealSystem (U : UnixType) =
         method readlink path =
           try Some (Unix.readlink path)
           with Unix.Unix_error _ -> None
+
+        method symlink ~target ~newlink =
+          Unix.symlink target newlink
 
         method readdir path =
           try Success (Sys.readdir path)

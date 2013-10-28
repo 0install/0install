@@ -45,7 +45,7 @@ let () =
     flag ["ocaml";"ocamldep";"mypp"] (S [A"-pp"; A "camlp4of"]);
 
     (* Enable most warnings *)
-    flag ["compile"; "ocaml"] (S [A"-w"; A"A-4"; A"-warn-error"; A"+5+6+26"]);
+    flag ["compile"; "ocaml"] (S [A"-w"; A"A-4"; A"-warn-error"; A"+5+6+10+26"]);
 
     pflag [] "dllib" (fun x -> (S [A"-dllib"; A x]));
 

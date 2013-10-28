@@ -123,6 +123,7 @@ class fake_system tmpdir =
     val mutable stdout = None
     val mutable spawn_handler = None
     val mutable allow_spawn_detach = false
+    val mutable device_boundary = None    (* Reject renames across here to simulate a mount *)
 
     method collect_output (fn : unit -> unit) =
       let old_stdout = stdout in
@@ -151,7 +152,17 @@ class fake_system tmpdir =
     method with_open_out flags mode path fn = real_system#with_open_out flags mode (check_write path) fn
 
     method mkdir path mode = real_system#mkdir (check_write path) mode
-    method rename source target = real_system#rename (check_write source) (check_write target)
+
+    method rename source target =
+      device_boundary |> if_some (fun device_boundary ->
+        let a_dev = U.starts_with source device_boundary in
+        let b_dev = U.starts_with target device_boundary in
+        if a_dev <> b_dev then
+          raise (Unix.Unix_error (Unix.EXDEV, "rename", target))
+      );
+      real_system#rename (check_write source) (check_write target)
+
+    method set_device_boundary b = device_boundary <- b
 
     method readdir path =
       try
@@ -159,6 +170,8 @@ class fake_system tmpdir =
         | Dir (_mode, items) -> Success (Array.of_list items)
         | _ -> failwith "Not a directory"
       with Not_found -> real_system#readdir (check_read path)
+
+    method symlink ~target ~newlink = real_system#symlink ~target ~newlink:(check_write newlink)
 
     method readlink path =
       if StringMap.mem path !extra_files then None    (* Not a link *)
@@ -233,7 +246,10 @@ class fake_system tmpdir =
     method getcwd =
       match tmpdir with
       | None -> "/root"
-      | Some d -> d
+      | Some _ -> real_system#getcwd
+
+    method chdir path =
+      real_system#chdir path
 
     method environment =
       let to_str (name, value) = name ^ "=" ^ value in

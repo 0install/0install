@@ -571,25 +571,10 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
           lwt fn = fn in
           Lazy.force fn
         ) in
-        let request = `List [
-          `String "check-manifest-and-rename";
-          `String (Stores.format_digest required_digest);
-          `String tmpdir] in
-        slave#invoke_async request (function
-          | `List dry_run_paths ->
-              need_rm_tmpdir := false;
-              (* In --dry-run mode, the directories haven't actually been added, so we need to tell the
-               * dryrun_system about them. *)
-              if config.dry_run then (
-                dry_run_paths |> List.iter (fun path ->
-                  let path = Yojson.Basic.Util.to_string path in
-                  Dry_run.log "would store implementation as %s" path;
-                  system#mkdir path 0o755
-                )
-              );
-              `success
-          | json -> raise_safe "Invalid JSON response '%s'" (Yojson.Basic.to_string json)
-        )
+
+        lwt () = Stores.check_manifest_and_rename config slave required_digest tmpdir in
+        need_rm_tmpdir := false;
+        Lwt.return `success
       with ex ->
         match ex with
         | Aborted -> `aborted_by_user |> Lwt.return

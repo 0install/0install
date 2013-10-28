@@ -31,3 +31,5 @@ val best_digest : digest list -> digest
 (** Create a temporary directory in the directory where we would store a new implementation.
     This is used to set up a new implementation before being renamed if it turns out OK. *)
 val make_tmp_dir : system -> stores -> filepath
+
+val check_manifest_and_rename : General.config -> Python.slave -> digest -> filepath -> unit Lwt.t

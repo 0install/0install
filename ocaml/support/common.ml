@@ -60,6 +60,7 @@ class type system =
     method unlink : filepath -> unit
     method rmdir : filepath -> unit
     method getcwd : filepath
+    method chdir : filepath -> unit
     method atomic_write : open_flag list -> filepath -> mode:Unix.file_perm -> (out_channel -> 'a) -> 'a
 
     (** Remove [replace] and replace it with a hardlink to [source]. If possible, ensure
@@ -70,6 +71,7 @@ class type system =
     method readdir : filepath -> string array result
     method chmod : filepath -> Unix.file_perm -> unit
     method set_mtime : filepath -> float -> unit
+    method symlink : target:filepath -> newlink:filepath -> unit
     method readlink : filepath -> filepath option
 
     method exec : ?search_path:bool -> ?env:string array -> string list -> 'a

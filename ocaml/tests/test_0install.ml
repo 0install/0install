@@ -58,7 +58,7 @@ let expect = function
   | None -> assert_failure "Unexpected None!"
   | Some x -> x
 
-class fake_slave config =
+class fake_slave _config =
   let pending_feed_downloads = ref StringMap.empty in
 
   let handle_download ?if_slow:_ ?size:_ ?modification_time:_ ch url =
@@ -73,11 +73,6 @@ class fake_slave config =
     output_string ch contents;
     `success |> Lwt.return in
 
-  let handle_check required_digest tmpdir =
-    let target = Filename.dirname tmpdir +/ required_digest in
-    config.system#rename tmpdir target;
-    `List [`String "ok"; `List [`String target]] in
-
   let fake_slave ?xml request =
     log_info "fake_slave: invoke: %s" (Yojson.Basic.to_string request);
     ignore xml;
@@ -85,8 +80,8 @@ class fake_slave config =
     | `List [`String "confirm-keys"; `String _url] -> assert false
     | `List [`String "unpack-archive"; `Assoc _] -> assert false
     | `List [`String "wait-for-network"] -> Some (Lwt.return (`List [`String "ok"; `String "online"]))
-    | `List [`String "check-manifest-and-rename"; `String required_digest; `String tmpdir] ->
-        Some (Lwt.return (handle_check required_digest tmpdir))
+    | `List [`String "add-manifest-and-verify"; `String _required_digest; `String _tmpdir] ->
+        Some (Lwt.return (`List [`String "ok"; `Null]))
     | _ -> None in
 
   object
