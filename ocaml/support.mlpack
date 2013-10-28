@@ -2,6 +2,7 @@ Argparse
 Basedir
 Common
 Gpg
+Hash
 Locale
 Logging
 Qdom

@@ -108,4 +108,11 @@ let suite = "stores">::: [
     Stores.check_manifest_and_rename config slave required_digest tmpdir |> Lwt_main.run;
     Fake_system.fake_log#assert_contains "Added succcessfully using helper"
   );
+
+  "hash">:: (fun () ->
+    let ctx = Support.Hash.create "sha1" in
+    Support.Hash.update ctx "foo";
+    Support.Hash.update ctx "bar";
+    Fake_system.assert_str_equal "8843d7f92416211de9ebb963ff4ce28125932878" (Support.Hash.digest ctx)
+  );
 ]
