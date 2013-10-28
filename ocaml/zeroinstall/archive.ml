@@ -178,7 +178,7 @@ let rec move_no_follow system srcdir dstdir =
             | Some _ -> raise_safe "Attempt to unpack dir over non-directory '%s'" item end;
             move_no_follow system src_path dst_path;
             system#rmdir src_path;
-            system#set_mtime dst_path src_info.Unix.st_mtime     (* FIXME: doesn't handle 0.0 *)
+            system#set_mtime dst_path src_info.Unix.st_mtime
         | Unix.S_REG | Unix.S_LNK ->
             begin match dst_info with
             | None -> ()

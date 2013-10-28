@@ -21,6 +21,7 @@ let () =
   dispatch (function
   | After_rules ->
     pdep ["link"] "linkdep_win" (fun param -> if on_windows then [param] else []);
+    pdep ["link"] "link" (fun param -> [param]);
 
     (* We use mypp rather than camlp4of because if you pass -pp and -ppopt to ocamlfind
        then it just ignores the ppopt. So, we need to write the -pp option ourselves. *)

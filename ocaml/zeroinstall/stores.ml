@@ -123,11 +123,11 @@ let rec copy_tree system srcdir dstdir =
             system#mkdir dst_path 0o700;
             copy_tree system src_path dst_path;
             system#chmod dst_path 0o555;
-            system#set_mtime dst_path src_info.Unix.st_mtime     (* FIXME: doesn't handle 0.0 *)
+            system#set_mtime dst_path src_info.Unix.st_mtime
         | Unix.S_REG ->
             let mode = if (src_info.Unix.st_perm land 0o111) <> 0 then 0o555 else 0o444 in
             U.copy_file system src_path dst_path mode;
-            system#set_mtime dst_path src_info.Unix.st_mtime     (* FIXME: doesn't handle 0.0 *)
+            system#set_mtime dst_path src_info.Unix.st_mtime
         | Unix.S_LNK ->
             let linkto = system#readlink src_path |? lazy (raise_safe "Failed to read symlink target '%s'" src_path) in
             system#symlink ~target:linkto ~newlink:dst_path

@@ -546,7 +546,8 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
                 let dest = native_path_within_base dest in
                 U.makedirs real_system (Filename.dirname dest) 0o755;
                 U.copy_file real_system tmpfile dest 0o644;
-                slave#invoke_async (`List [`String "utime"; `String dest; `Float 0.0]) ignore
+                system#bypass_dryrun#set_mtime dest 0.0;
+                Lwt.return ()
               )
           | RenameStep {rename_source; rename_dest} -> lazy (
               let source = native_path_within_base rename_source in

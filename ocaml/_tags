@@ -3,4 +3,4 @@ true: debug, annot, package(yojson,xmlm,str,lwt,lwt.unix,lwt.preemptive,extlib,c
 <tests/*>: package(oUnit)
 "support": for-pack(Support)
 "zeroinstall": for-pack(Support)
-<static_0install.*> or <**/*.native>: linkdep_win(windows.o), package(unix)
+<static_0install.*> or <**/*.native>: linkdep_win(windows.o), package(unix), link(utils.o)

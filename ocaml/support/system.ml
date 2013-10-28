@@ -6,6 +6,9 @@ open Common
 
 module type UnixType = module type of Unix
 
+(** OCaml's Unix.utimes is broken (doesn't work for times in the interval [0,1), so use our own C function. *)
+external set_mtime : string -> float -> unit = "ocaml_set_mtime"
+
 let wrap_unix_errors fn =
   try fn ()
   with Unix.Unix_error (errno, s1, s2) ->
@@ -94,11 +97,7 @@ module RealSystem (U : UnixType) =
         method chdir = Unix.chdir
         method chmod = Unix.chmod
         method rename = Unix.rename
-        method set_mtime path mtime =
-          if mtime = 0.0 then (* FIXME *)
-            failwith "OCaml cannot set mtime to 0, sorry" (* Would interpret it as the current time *)
-          else
-            Unix.utimes path mtime mtime
+        method set_mtime = set_mtime
 
         method readlink path =
           try Some (Unix.readlink path)

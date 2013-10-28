@@ -577,10 +577,6 @@ def handle_invoke(config, options, ticket, request):
 			return
 		elif command == 'add-manifest-and-verify':
 			response = do_add_manifest_and_verify(config, options, request[1:])
-		elif command == 'utime':
-			t = request[2]
-			os.utime(request[1], (t, t))
-			response = None
 		elif command == 'unpack-archive':
 			response = do_unpack_archive(config, options, request[1])
 		elif command == 'get-package-impls':
