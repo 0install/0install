@@ -265,7 +265,7 @@ let suite = "driver">::: [
     let get_ids result =
       ZI.map result#get_selections "selection" ~f:(fun sel -> ZI.get_attribute "id" sel) in
 
-    Fake_system.equal_str_lists ["sha1=123"] @@ get_ids result;
+    Fake_system.equal_str_lists ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"] @@ get_ids result;
 
     (* Now ask for source instead *)
     import "Source.xml";
@@ -274,7 +274,7 @@ let suite = "driver">::: [
     let driver = new Driver.driver config fetcher distro Fake_system.null_ui slave in
     let (ready, result, _fp) = driver#solve_with_downloads reqs ~force:false ~update_local:false in
     assert (ready = true);
-    Fake_system.equal_str_lists ["sha1=234"; "sha1=345"] @@ get_ids result;
+    Fake_system.equal_str_lists ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"; "sha1=345"] @@ get_ids result;
   );
 
   "driven">:::

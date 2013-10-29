@@ -10,6 +10,8 @@ open Zeroinstall.General
 module Q = Support.Qdom
 module U = Support.Utils
 
+let assert_str_equal = Fake_system.assert_str_equal
+
 let get_sels config fake_system uri =
   fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml"; uri|];
   let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
@@ -47,13 +49,13 @@ let suite = "selections">::: [
 
     match StringMap.bindings index |> List.map snd with
     | [comp; src] -> (
-        assert_equal "sha1=345" @@ ZI.get_attribute "id" comp;
-        assert_equal "1.0" @@ ZI.get_attribute "version" comp;
+        assert_str_equal "sha1=345" @@ ZI.get_attribute "id" comp;
+        assert_str_equal "1.0" @@ ZI.get_attribute "version" comp;
 
-        assert_equal "sha1=234" @@ ZI.get_attribute "id" src;
-        assert_equal "1.0" @@ ZI.get_attribute "version" src;
-        assert_equal "bar" @@ List.assoc ("http://namespace", "foo") src.Q.attrs;
-        assert_equal "1.0" @@ ZI.get_attribute "version" src;
+        assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ ZI.get_attribute "id" src;
+        assert_str_equal "1.0" @@ ZI.get_attribute "version" src;
+        assert_str_equal "bar" @@ List.assoc ("http://namespace", "foo") src.Q.attrs;
+        assert_str_equal "1.0" @@ ZI.get_attribute "version" src;
         assert (not (List.mem_assoc ("", "version-modifier") src.Q.attrs));
 
         let comp_bindings = comp |> ZI.filter_map Binding.parse_binding in
@@ -68,18 +70,18 @@ let suite = "selections">::: [
           | [EnvironmentBinding {mode = Replace; source = InsertPath "."; _};
              GenericBinding b;
              GenericBinding c] ->
-               assert_equal "/" @@ ZI.get_attribute "mount-point" b;
-               assert_equal "source" @@ ZI.get_attribute "foo" c;
+               assert_str_equal "/" @@ ZI.get_attribute "mount-point" b;
+               assert_str_equal "source" @@ ZI.get_attribute "foo" c;
           | _ -> assert false in
 
         let () =
           match Selections.make_selection comp with
-          | Selections.CacheSelection [("sha256new", "345"); ("sha1", "345")] -> ()
+          | Selections.CacheSelection [("sha256new", "RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA"); ("sha1", "345")] -> ()
           | _ -> assert false in
 
         match Selections.get_dependencies ~restricts:true src with
         | [dep] -> (
-            assert_equal "http://foo/Compiler.xml" @@ ZI.get_attribute "interface" dep;
+            assert_str_equal "http://foo/Compiler.xml" @@ ZI.get_attribute "interface" dep;
             match dep |> ZI.filter_map Binding.parse_binding with
             | [EnvironmentBinding {var_name = "PATH"; mode = Add {separator; _}; source = InsertPath "bin"};
                EnvironmentBinding {var_name = "NO_PATH"; mode = Add {separator = ","; _}; source = Value "bin"};
@@ -87,9 +89,9 @@ let suite = "selections">::: [
                GenericBinding foo_binding] -> (
                  assert (separator = ";" || separator = ":");
 
-                 assert_equal "compiler" @@ ZI.get_attribute "foo" foo_binding;
+                 assert_str_equal "compiler" @@ ZI.get_attribute "foo" foo_binding;
                  assert_equal (Some "child") @@ ZI.tag @@ List.hd foo_binding.Q.child_nodes;
-                 assert_equal "run" @@ ZI.get_attribute "command" foo_binding;
+                 assert_str_equal "run" @@ ZI.get_attribute "command" foo_binding;
                )
           | _ -> assert false
         )

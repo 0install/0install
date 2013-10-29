@@ -513,7 +513,7 @@ let suite = "solver">::: [
     let () =
       match bin_impls.Impl_provider.rejects with
       | [(impl, reason)] ->
-          Fake_system.assert_str_equal "sha1=123" (Feed.get_attr_ex "id" impl);
+          Fake_system.assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" (Feed.get_attr_ex "id" impl);
           Fake_system.assert_str_equal "We want source and this is a binary" (Impl_provider.describe_problem impl reason);
       | _ -> assert false in
     let comp_impls = impl_provider#get_implementations "http://foo/Compiler.xml" ~source:false in
@@ -533,10 +533,10 @@ let suite = "solver">::: [
 
     justify
       "http://foo/Binary.xml 1.0 cannot be used (regardless of other components): We want source and this is a binary"
-      iface (Feed_url.master_feed_of_iface iface) "sha1=123";
+      iface (Feed_url.master_feed_of_iface iface) "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
     justify
       "http://foo/Binary.xml 1.0 was selected as the preferred version."
-      iface (`remote_feed "http://foo/Source.xml") "sha1=234";
+      iface (`remote_feed "http://foo/Source.xml") "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
     justify
       "0.1 is ranked lower than 1.0: newer versions are preferred"
       iface (`remote_feed "http://foo/Source.xml") "old";

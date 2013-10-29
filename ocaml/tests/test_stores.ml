@@ -68,31 +68,30 @@ let suite = "stores">::: [
         check2 (List.hd config.stores) system_store in
 
     let required_digest = ("sha1new", "ba8222c744bf6ac2807db1beb07ff0ba5c519627") in
-    let slave = new Zeroinstall.Python.slave config in
 
     (* Rename into system store *)
     let tmpdir = create_tmp () in
-    Stores.check_manifest_and_rename config slave required_digest tmpdir |> Lwt_main.run;
+    Stores.check_manifest_and_rename config required_digest tmpdir |> Lwt_main.run;
     check ~system:true;
 
     (* Copy into system store *)
     fake_system#set_device_boundary (Some system_store);
     let tmpdir = create_tmp () in
-    Stores.check_manifest_and_rename config slave required_digest tmpdir |> Lwt_main.run;
+    Stores.check_manifest_and_rename config required_digest tmpdir |> Lwt_main.run;
     Fake_system.fake_log#assert_contains "Target is on a different filesystem";
     check ~system:true;
 
     (* Non-writeable system store *)
     fake_system#chmod system_store 0o555;
     let tmpdir = create_tmp () in
-    Stores.check_manifest_and_rename config slave required_digest tmpdir |> Lwt_main.run;
+    Stores.check_manifest_and_rename config required_digest tmpdir |> Lwt_main.run;
     check ~system:false;
     Fake_system.fake_log#assert_contains "Target is on a different filesystem";
 
     (* Non-writeable system store on same device *)
     fake_system#set_device_boundary None;
     let tmpdir = create_tmp () in
-    Stores.check_manifest_and_rename config slave required_digest tmpdir |> Lwt_main.run;
+    Stores.check_manifest_and_rename config required_digest tmpdir |> Lwt_main.run;
     check ~system:false;
 
     (* With helper *)
@@ -105,17 +104,16 @@ let suite = "stores">::: [
     );
     fake_system#putenv "PATH" (bindir ^ ":" ^ U.getenv_ex config.system "PATH");
     let tmpdir = create_tmp () in
-    Stores.check_manifest_and_rename config slave required_digest tmpdir |> Lwt_main.run;
+    Stores.check_manifest_and_rename config required_digest tmpdir |> Lwt_main.run;
     Fake_system.fake_log#assert_contains "Added succcessfully using helper"
   );
 
   "check-permissions">:: Fake_system.with_fake_config (fun (config, fake_system) ->
-    let slave = new Zeroinstall.Python.slave config in
     let tmpdir = Stores.make_tmp_dir config.system config.stores in
     let subdir = tmpdir +/ "subdir" in
     fake_system#mkdir subdir 0o1755;
     Fake_system.assert_raises_safe "Unsafe mode: extracted file .* had special bits set in mode '1755'" (lazy (
-      Stores.check_manifest_and_rename config slave ("sha1", "123") tmpdir |> Lwt_main.run
+      Stores.check_manifest_and_rename config ("sha1", "123") tmpdir |> Lwt_main.run
     ))
   );
 
@@ -123,6 +121,12 @@ let suite = "stores">::: [
     let ctx = Support.Hash.create "sha1" in
     Support.Hash.update ctx "foo";
     Support.Hash.update ctx "bar";
-    Fake_system.assert_str_equal "8843d7f92416211de9ebb963ff4ce28125932878" (Support.Hash.digest ctx)
+    Fake_system.assert_str_equal "8843d7f92416211de9ebb963ff4ce28125932878" (Support.Hash.hex_digest ctx);
+
+    let ctx = Support.Hash.create "sha1" in
+    Support.Hash.update ctx "hello";
+    Fake_system.assert_str_equal
+      "VL2MMHO4YXUKFWV63YHTWSBM3GXKSQ2N"
+      (Support.Hash.b32_digest ctx)
   );
 ]

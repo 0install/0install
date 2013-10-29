@@ -761,7 +761,7 @@ Can't find all required implementations:
         <requires interface="http://localhost/Missing.xml" importance="recommended"/>
         <requires interface="http://foo/Binary.xml"/>
       </selection>
-      <selection id="sha1=123" interface="http://foo/Binary.xml" version="1.0"/>
+      <selection id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" interface="http://foo/Binary.xml" version="1.0"/>
     </selections>
 
   </test>

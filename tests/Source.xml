@@ -16,7 +16,7 @@
 	<child/>
       </binding>
     </requires>
-    <implementation arch="*-src" compile:command="make" id="sha1=234" version="1" version-modifier=".0">
+    <implementation arch="*-src" compile:command="make" id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" version="1" version-modifier=".0">
       <archive href="http://example.com/Source-1.0.tgz" size="10"/>
     </implementation>
     <environment insert="." mode="replace" name="SRCDIR"/>
@@ -40,7 +40,7 @@
   </implementation>
 </interface>
 <!-- Base64 Signature
-iEYEABECAAYFAlJJeWYACgkQb88SG+I5DguXKgCfQDgiN5TunKZ9fCcW0r4iSrGbXQYAn0ocN3UR
-XYAgDhweRPeiH1v1dItg
+iEYEABECAAYFAlJvm00ACgkQb88SG+I5DgtwuQCeKYBlxqfl1Xbb3uDRB5kmUn9dakIAnjrpr7Dk
+pl3tMYIm+9oY9T1jQI2d
 
 -->

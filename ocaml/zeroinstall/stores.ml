@@ -219,33 +219,32 @@ let rec fixup_permissions (system:system) path =
       )
   | _ -> raise_safe "Not a regular file/directory/symlink '%s'" path
 
-let add_manifest_and_verify (slave:Python.slave) required_digest tmpdir =
-  let request = `List [
-    `String "add-manifest-and-verify";
-    `String (format_digest required_digest);
-    `String tmpdir] in
-  slave#invoke_async request Python.expect_null
+let add_manifest_and_verify system required_digest tmpdir =
+  let (alg, required_value) = required_digest in
+  let actual_value = Manifest.add_manifest_file system alg tmpdir in
+  if (actual_value <> required_value) then (
+    raise_safe "Incorrect manifest -- archive is corrupted.\n\
+                Required digest: %s\n\
+                Actual digest: %s" (format_digest required_digest) (format_digest (alg, actual_value))
+  )
 
 (** Check that [tmpdir] has the required_digest and move it into the stores. On success, [tmpdir] no longer exists. *)
-let check_manifest_and_rename config (slave:Python.slave) required_digest tmpdir =
+let check_manifest_and_rename config required_digest tmpdir =
   (* We try to add the implementation in three ways:
    * 1. Writing directly to the system store (will succeed if we're root)
    * 2. Using the helper to write to the system store
    * 3. Writing directly to the user store *)
   fixup_permissions config.system tmpdir;
-  let rq = add_manifest_and_verify slave required_digest tmpdir in
-  Lwt.bind rq (fun () ->
-    begin match config.stores with
-    | [] -> raise_safe "No stores configured!"
-    | [user_store] -> add_to_store config user_store required_digest tmpdir; Lwt.return ()
-    | user_store :: system_store :: _ ->
-        try
-          add_to_store config system_store required_digest tmpdir;
-          Lwt.return ()
-        with Unix.Unix_error (Unix.EACCES, _, _) ->
-          Lwt.bind (add_with_helper config required_digest tmpdir) (function
-            | `success -> U.rmtree config.system ~even_if_locked:true tmpdir; Lwt.return ()
-            | `no_helper -> add_to_store config user_store required_digest tmpdir; Lwt.return ()
-          )
-    end
-  )
+  add_manifest_and_verify config.system required_digest tmpdir;
+  match config.stores with
+  | [] -> raise_safe "No stores configured!"
+  | [user_store] -> add_to_store config user_store required_digest tmpdir; Lwt.return ()
+  | user_store :: system_store :: _ ->
+      try
+        add_to_store config system_store required_digest tmpdir;
+        Lwt.return ()
+      with Unix.Unix_error (Unix.EACCES, _, _) ->
+        Lwt.bind (add_with_helper config required_digest tmpdir) (function
+          | `success -> U.rmtree config.system ~even_if_locked:true tmpdir; Lwt.return ()
+          | `no_helper -> add_to_store config user_store required_digest tmpdir; Lwt.return ()
+        )

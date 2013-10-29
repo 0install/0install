@@ -6,7 +6,7 @@
   <description>Source</description>
   <feed-for interface="http://foo/Binary.xml"/>
   <group>
-    <implementation arch="*-src" compile:command="make" id="sha1=234" version="1" version-modifier=".0">
+    <implementation arch="*-src" compile:command="make" id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" version="1" version-modifier=".0">
       <archive href="http://example.com/Source-1.0.tgz" size="10"/>
     </implementation>
     <environment insert="." mode="replace" name="SRCDIR"/>
@@ -29,7 +29,7 @@
   </implementation>
 </interface>
 <!-- Base64 Signature
-iEYEABECAAYFAlJJeZIACgkQb88SG+I5Dgv51ACfRPTIaFAXaqqA+xfqookOvTYIjlAAn2L3YTzH
-J0x7Ee7yQYYprmatqATC
+iEYEABECAAYFAlJvm7EACgkQb88SG+I5DgsjeQCgg4V5n+zL/KglBxMa8CzDPEmwT2UAmwZMCsqH
+3DbRQtAJ5pkBmNrc4nby
 
 -->

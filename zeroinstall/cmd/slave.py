@@ -120,18 +120,6 @@ def do_confirm_distro_install(config, ticket, options, impls):
 		logger.warning("Returning error", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
 
-def do_add_manifest_and_verify(config, options, args):
-	from zeroinstall.zerostore import manifest
-	required_digest, tmpdir = args
-	alg, required_value = manifest.splitID(required_digest)
-	actual_digest = alg.getID(manifest.add_manifest_file(tmpdir, alg))
-	if actual_digest != required_digest:
-		raise manifest.BadDigest(_('Incorrect manifest -- archive is corrupted.\n'
-				'Required digest: %(required_digest)s\n'
-				'Actual digest: %(actual_digest)s\n') %
-				{'required_digest': required_digest, 'actual_digest': actual_digest})
-
-
 def do_unpack_archive(config, options, details):
 	from zeroinstall.zerostore import unpack
 
@@ -574,8 +562,6 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'confirm-distro-install':
 			blocker = do_confirm_distro_install(config, ticket, options, request[1])
 			return
-		elif command == 'add-manifest-and-verify':
-			response = do_add_manifest_and_verify(config, options, request[1:])
 		elif command == 'unpack-archive':
 			response = do_unpack_archive(config, options, request[1])
 		elif command == 'get-package-impls':

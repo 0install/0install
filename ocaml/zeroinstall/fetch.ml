@@ -573,7 +573,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
           Lazy.force fn
         ) in
 
-        lwt () = Stores.check_manifest_and_rename config slave required_digest tmpdir in
+        lwt () = Stores.check_manifest_and_rename {config with system = system#bypass_dryrun} required_digest tmpdir in
         need_rm_tmpdir := false;
         Lwt.return `success
       with ex ->

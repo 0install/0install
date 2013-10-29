@@ -54,6 +54,7 @@ class type system =
     method with_open_in : open_flag list -> Unix.file_perm -> filepath -> (in_channel -> 'a) -> 'a
     method with_open_out : open_flag list -> Unix.file_perm -> filepath -> (out_channel -> 'a) -> 'a
     method mkdir : filepath -> Unix.file_perm -> unit
+    (** Returns [false] for a broken symlink. *)
     method file_exists : filepath -> bool
     method lstat : filepath -> Unix.stats option
     method stat : filepath -> Unix.stats option
