@@ -12,7 +12,7 @@ module Q = Support.Qdom
 module FeedAttr = Constants.FeedAttr
 
 type impl_source =
-  | CacheSelection of Stores.digest list
+  | CacheSelection of Manifest.digest list
   | LocalSelection of string
   | PackageSelection
 

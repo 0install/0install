@@ -50,6 +50,10 @@ let make_stat st_perm kind =
     st_ctime = 0.0;
   }
 
+let flush_all () =
+  Pervasives.flush Pervasives.stdout;
+  Pervasives.flush Pervasives.stderr
+
 let capture_stdout ?(include_stderr=false) fn =
   let open Unix in
   U.finally_do
@@ -60,14 +64,13 @@ let capture_stdout ?(include_stderr=false) fn =
     (fun _old ->
       let tmp = Filename.temp_file "0install-" "-test-output" in
       U.finally_do
-        (fun fd -> close fd; unlink tmp)
+        (fun fd -> flush_all (); close fd; unlink tmp)
         (openfile tmp [O_RDWR] 0o600)
         (fun tmpfd ->
           dup2 tmpfd Unix.stdout;
           if include_stderr then dup2 tmpfd Unix.stderr;
           fn ();
-          Pervasives.flush Pervasives.stdout;
-          Pervasives.flush Pervasives.stderr;
+          flush_all ();
           U.read_file real_system tmp
         )
     )

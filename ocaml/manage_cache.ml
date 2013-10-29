@@ -83,7 +83,7 @@ let handle options flags args =
         | F.CacheImpl info ->
             (* For each digest... *)
             info.F.digests |> List.iter (fun parsed_digest ->
-              let digest = Zeroinstall.Stores.format_digest parsed_digest in
+              let digest = Zeroinstall.Manifest.format_digest parsed_digest in
               if Hashtbl.mem all_digests digest then (
                 (* Record each cached implementation. *)
                 let dir = Hashtbl.find all_digests digest in

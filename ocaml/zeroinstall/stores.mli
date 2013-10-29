@@ -7,31 +7,28 @@
 open Support.Common
 
 type stores = filepath list
-type digest = string * string
 type available_digests = (string, filepath) Hashtbl.t   (* Digest -> Parent directory of implementation *)
 
 exception Not_stored of string
 
-val format_digest : digest -> string
-val parse_digest : string -> digest
-val lookup_maybe : system -> digest list -> stores -> filepath option
-val lookup_any : system -> digest list -> stores -> string
+val lookup_maybe : system -> Manifest.digest list -> stores -> filepath option
+val lookup_any : system -> Manifest.digest list -> stores -> string
 val get_default_stores : Support.Basedir.basedirs -> stores
 
 (** Scan all the stores and build a set of the available digests. This can be used
     later to quickly test whether a digest is in the cache. *)
 val get_available_digests : system -> stores -> available_digests
-val check_available : available_digests -> digest list -> bool
+val check_available : available_digests -> Manifest.digest list -> bool
 
 (* (for parsing <implementation> and <selection> elements) *)
-val get_digests : Support.Qdom.element -> digest list
+val get_digests : Support.Qdom.element -> Manifest.digest list
 
 (* Raises an exception if no digest is supported *)
-val best_digest : digest list -> digest
+val best_digest : Manifest.digest list -> Manifest.digest
 
 (** Create a temporary directory in the directory where we would store a new implementation.
     This is used to set up a new implementation before being renamed if it turns out OK. *)
 val make_tmp_dir : system -> stores -> filepath
 
-val check_manifest_and_rename : General.config -> digest -> filepath -> unit Lwt.t
-val add_dir_to_cache : General.config -> digest -> filepath -> unit Lwt.t
+val check_manifest_and_rename : General.config -> Manifest.digest -> filepath -> unit Lwt.t
+val add_dir_to_cache : General.config -> Manifest.digest -> filepath -> unit Lwt.t

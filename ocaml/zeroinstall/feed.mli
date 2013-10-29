@@ -27,7 +27,7 @@ type package_impl = {
 }
 
 type cache_impl = {
-  digests : Stores.digest list;
+  digests : Manifest.digest list;
   retrieval_methods : Support.Qdom.element list;
 }
 

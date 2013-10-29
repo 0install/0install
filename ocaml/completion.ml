@@ -327,7 +327,7 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
   | CpuType -> complete_from_list ["src"; "i386"; "i486"; "i586"; "i686"; "ppc"; "ppc64"; "x86_64"]
   | OsType -> complete_from_list ["Cygwin"; "Darwin"; "FreeBSD"; "Linux"; "MacOSX"; "Windows"]
   | Message -> ()
-  | HashType -> complete_from_list @@ Zeroinstall.Manifest.get_algorithm_names ()
+  | HashType -> complete_from_list Zeroinstall.Manifest.algorithm_names
   | IfaceURI -> (
       match args with
       | _ :: app :: _ -> (

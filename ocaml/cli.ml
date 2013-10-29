@@ -230,11 +230,11 @@ let store_subcommands : subgroup = [
   make_subcommand "add"       "DIGEST (DIRECTORY | (ARCHIVE [EXTRACT]))"   Store.handle_add @@ common_options;
   make_subcommand "audit"     "[DIRECTORY]"                                handle_store @@ common_options;
   make_subcommand "copy"      "SOURCE [ TARGET ]"                          handle_store @@ common_options;
-  make_subcommand "find"      "DIGEST"                                     handle_store @@ common_options;
+  make_subcommand "find"      "DIGEST"                                     Store.handle_find @@ common_options;
   make_subcommand "list"      ""                                           handle_store @@ common_options;
   make_subcommand "manifest"  "DIRECTORY [ALGORITHM]"                      handle_store @@ common_options;
   make_subcommand "optimise"  "[ CACHE ]"                                  handle_store @@ common_options;
-  make_subcommand "verify"    "(DIGEST | (DIRECTORY [DIGEST])"             handle_store @@ common_options;
+  make_subcommand "verify"    "(DIGEST | (DIRECTORY [DIGEST])"             Store.handle_verify @@ common_options;
   make_subcommand "manage"    ""                                           Manage_cache.handle @@ common_options;
 ]
 

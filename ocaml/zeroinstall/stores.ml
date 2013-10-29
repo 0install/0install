@@ -10,33 +10,15 @@ module U = Support.Utils
 
 type stores = string list
 
-type digest = (string * string)
-
 type available_digests = (string, filepath) Hashtbl.t
 
 exception Not_stored of string
 
 let first_match = Support.Utils.first_match
 
-let format_digest (alg, value) =
-  let s = match alg with
-  | "sha1" | "sha1new" | "sha256" -> alg ^ "=" ^ value
-  | _ -> alg ^ "_" ^ value in
-  (* validate *)
-  s
-
-let parse_digest digest =
-  [ "sha1="; "sha1new="; "sha256="; "sha256new_"] |> U.first_match ~f:(fun prefix ->
-    if U.starts_with digest prefix then (
-      let alg = String.sub prefix 0 (String.length prefix - 1) in
-      let value = U.string_tail digest (String.length prefix) in
-      Some (alg, value)
-    ) else None
-  ) |? lazy (raise_safe "Unknown digest type '%s'" digest)
-
 let lookup_digest (system:system) stores digest =
   let check_store store = (
-    let path = Filename.concat store (format_digest digest) in
+    let path = Filename.concat store (Manifest.format_digest digest) in
     if system#file_exists path then Some path else None
   ) in first_match ~f:check_store stores
 
@@ -46,9 +28,9 @@ let lookup_any system digests stores =
   match lookup_maybe system digests stores with
   | Some path -> path
   | None ->
-      let str_digests = String.concat ", " (List.map format_digest digests) in
-      let str_stores = String.concat ", " stores in
-      raise (Not_stored ("Item with digests " ^ str_digests ^ " not found in stores. Searched " ^ str_stores))
+      let str_digests = String.concat "|" (List.map Manifest.format_digest digests) in
+      let str_stores = String.concat "\n- " stores in
+      raise (Not_stored ("Item with digest " ^ str_digests ^ " not found in stores. Searched:\n- " ^ str_stores))
 
 let get_default_stores basedir_config =
   let open Support.Basedir in
@@ -68,7 +50,7 @@ let get_available_digests (system:system) stores =
   digests
 
 let check_available available_digests digests =
-  List.exists (fun d -> Hashtbl.mem available_digests (format_digest d)) digests
+  List.exists (fun d -> Hashtbl.mem available_digests (Manifest.format_digest d)) digests
 
 let get_digests elem =
   let id = ZI.get_attribute "id" elem in
@@ -147,7 +129,7 @@ let rec copy_tree system srcdir dstdir =
  * If the target already exists, we just delete [tmpdir]. *)
 let add_to_store config store digest tmpdir =
   U.makedirs config.system store 0o755;
-  let path = store +/ (format_digest digest) in
+  let path = store +/ (Manifest.format_digest digest) in
   if config.dry_run then (
     Dry_run.log "would store implementation as %s" path;
     config.system#mkdir path 0o755;
@@ -178,7 +160,7 @@ let add_with_helper config required_digest tmpdir =
     match U.find_in_path system "0store-secure-add-helper" with
     | None -> log_info "'0store-secure-add-helper' command not found. Not adding to system cache."; Lwt.return `no_helper
     | Some helper ->
-        let digest_str = format_digest required_digest in
+        let digest_str = Manifest.format_digest required_digest in
         if config.dry_run then (
           Dry_run.log "would use %s to store %s in system store" helper digest_str; Lwt.return `success
         ) else (
@@ -238,7 +220,7 @@ let add_manifest_and_verify system required_digest tmpdir =
   if (actual_value <> required_value) then (
     raise_safe "Incorrect manifest -- archive is corrupted.\n\
                 Required digest: %s\n\
-                Actual digest: %s" (format_digest required_digest) (format_digest (alg, actual_value))
+                Actual digest: %s" (Manifest.format_digest required_digest) (Manifest.format_digest (alg, actual_value))
   )
 
 (** Check that [tmpdir] has the required_digest and move it into the stores. On success, [tmpdir] no longer exists. *)

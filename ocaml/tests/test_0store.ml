@@ -5,11 +5,13 @@
 open Zeroinstall.General
 open Support.Common
 open OUnit
+module Manifest = Zeroinstall.Manifest
 module Stores = Zeroinstall.Stores
 module Archive = Zeroinstall.Archive
 module U = Support.Utils
 
 let assert_str_equal = Fake_system.assert_str_equal
+let assert_contains = Fake_system.assert_contains
 
 let write_file (system:system) ~mtime ?(mode=0o644) path contents =
   system#with_open_out [Open_wronly; Open_creat] mode path (fun ch ->
@@ -34,7 +36,7 @@ let populate_sample system target =
   system#symlink ~target:"/the/symlink/target" ~newlink:(target +/ "a symlink")
 
 let check_adds config digest fn =
-  let digest = Stores.parse_digest digest in
+  let digest = Manifest.parse_digest digest in
   assert_equal None @@ Stores.lookup_maybe config.system [digest] config.stores;
   fn ();
   assert (Stores.lookup_maybe config.system [digest] config.stores <> None)
@@ -51,7 +53,7 @@ let suite = "0store">::: [
       Test_0install.run_0install ?exit fake_system ("store" :: args) in
 
     let digest = ("sha1new", "7e3eb25a072988f164bae24d33af69c1814eb99a") in
-    let digest_str = Stores.format_digest digest in
+    let digest_str = Manifest.format_digest digest in
     assert_equal None @@ Stores.lookup_maybe system [digest] config.stores;
 
     Fake_system.assert_raises_safe "Incorrect manifest -- archive is corrupted." (lazy (
@@ -60,8 +62,16 @@ let suite = "0store">::: [
 
     assert_str_equal "" @@ run ["add"; digest_str; sample];
 
-    (* todo: test "0store find" when ported *)
-    assert (Stores.lookup_maybe system [digest] config.stores <> None);
+    let cached = trim @@ Test_0install.run_0install fake_system ["store"; "find"; (Manifest.format_digest digest)] in
+    assert_str_equal cached @@ Stores.lookup_any system [digest] config.stores;
+
+    (* Verify... *)
+    assert_contains "\nOK" @@ run ["verify"; cached; digest_str];
+    assert_contains "\nOK" @@ run ["verify"; cached];
+    assert_contains "\nOK" @@ run ["verify"; digest_str];
+    Fake_system.assert_raises_safe "Cached item does NOT verify" (lazy (
+      ignore @@ run ["verify"; cached; digest_str ^ "a"];
+    ));
   );
 
   "add-archive">:: Fake_system.with_fake_config (fun (config, fake_system) ->

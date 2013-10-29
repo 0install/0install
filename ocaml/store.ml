@@ -12,13 +12,15 @@ let () = ignore on_windows
 
 module U = Support.Utils
 module A = Zeroinstall.Archive
+module Stores = Zeroinstall.Stores
+module Manifest = Zeroinstall.Manifest
 
 let add_dir config ~digest dir =
-  let digest = Zeroinstall.Stores.parse_digest digest in
+  let digest = Manifest.parse_digest digest in
   Lwt_main.run @@ Zeroinstall.Stores.add_dir_to_cache config digest dir
 
 let add_archive options ~digest ?extract archive =
-  let digest = Zeroinstall.Stores.parse_digest digest in
+  let digest = Manifest.parse_digest digest in
   let config = options.config in
   let mime_type = A.type_from_url archive in
   A.check_type_ok config.system mime_type;
@@ -31,10 +33,44 @@ let add_archive options ~digest ?extract archive =
       Lwt_main.run @@ Zeroinstall.Stores.check_manifest_and_rename config digest destdir
     )
 
+let handle_find options flags args =
+  Support.Argparse.iter_options flags (Common_options.process_common_option options);
+  match args with
+  | [digest] ->
+      let digest = Manifest.parse_digest digest in
+      let config = options.config in
+      begin try
+        let path = Stores.lookup_any config.system [digest] config.stores in
+        config.system#print_string (path ^ "\n")
+      with Zeroinstall.Stores.Not_stored msg ->
+        raise_safe "%s" msg end
+  | _ -> raise (Support.Argparse.Usage_error 1)
+
+let handle_verify options flags args =
+  Support.Argparse.iter_options flags (Common_options.process_common_option options);
+  let config = options.config in
+  let system = config.system in
+  let verify dir digest =
+    let print fmt = Support.Utils.print config.system fmt in
+    print "Verifying %s" dir;
+    Manifest.verify system ~digest dir;
+    print "OK" in
+  match args with
+  | [dir; digest] ->
+     let digest = Manifest.parse_digest digest in
+      verify dir digest
+  | [dir] when U.is_dir system dir ->
+     let digest = Manifest.parse_digest (Filename.basename dir) in
+      verify dir digest
+  | [digest] ->
+      let digest = Manifest.parse_digest digest in
+      let dir = Stores.lookup_any system [digest] config.stores in
+      verify dir digest
+  | _ -> raise (Support.Argparse.Usage_error 1)
+
 let handle_add options flags args =
-  Support.Argparse.iter_options flags (function
-    | #common_option as o -> Common_options.process_common_option options o
-  );
+  Support.Argparse.iter_options flags (Common_options.process_common_option options);
+
   match args with
   | [digest; source] ->
       if U.is_dir options.config.system source then (
