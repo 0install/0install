@@ -25,6 +25,15 @@ let format_digest (alg, value) =
   (* validate *)
   s
 
+let parse_digest digest =
+  [ "sha1="; "sha1new="; "sha256="; "sha256new_"] |> U.first_match ~f:(fun prefix ->
+    if U.starts_with digest prefix then (
+      let alg = String.sub prefix 0 (String.length prefix - 1) in
+      let value = U.string_tail digest (String.length prefix) in
+      Some (alg, value)
+    ) else None
+  ) |? lazy (raise_safe "Unknown digest type '%s'" digest)
+
 let lookup_digest (system:system) stores digest =
   let check_store store = (
     let path = Filename.concat store (format_digest digest) in
@@ -134,14 +143,18 @@ let rec copy_tree system srcdir dstdir =
         | _ -> raise_safe "Not a regular file/directory/symlink '%s'" src_path end;
       )
 
-(** Rename or move [tmpdir] as [store]/[digest]. The digest is not checked here. *)
+(** Rename or move [tmpdir] as [store]/[digest]. The digest is not checked here.
+ * If the target already exists, we just delete [tmpdir]. *)
 let add_to_store config store digest tmpdir =
   U.makedirs config.system store 0o755;
   let path = store +/ (format_digest digest) in
   if config.dry_run then (
     Dry_run.log "would store implementation as %s" path;
     config.system#mkdir path 0o755;
-    U.rmtree ~even_if_locked:true config.system#bypass_dryrun tmpdir;
+    U.rmtree ~even_if_locked:true config.system tmpdir;
+  ) else if U.is_dir config.system path then (
+    log_info "Target directory already exists in cache: '%s'" path;
+    U.rmtree ~even_if_locked:true config.system tmpdir;
   ) else (
     config.system#chmod tmpdir 0o755;
     try
@@ -248,3 +261,13 @@ let check_manifest_and_rename config required_digest tmpdir =
           | `success -> U.rmtree config.system ~even_if_locked:true tmpdir; Lwt.return ()
           | `no_helper -> add_to_store config user_store required_digest tmpdir; Lwt.return ()
         )
+
+(** Like [check_manifest_and_rename], but copies [dir] rather than renaming it. *)
+let add_dir_to_cache config required_digest dir =
+  let tmpdir = make_tmp_dir config.system config.stores in
+  try
+    copy_tree config.system dir tmpdir;
+    check_manifest_and_rename config required_digest tmpdir
+  with ex ->
+    U.rmtree ~even_if_locked:true config.system tmpdir;
+    raise ex

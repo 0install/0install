@@ -13,6 +13,7 @@ type available_digests = (string, filepath) Hashtbl.t   (* Digest -> Parent dire
 exception Not_stored of string
 
 val format_digest : digest -> string
+val parse_digest : string -> digest
 val lookup_maybe : system -> digest list -> stores -> filepath option
 val lookup_any : system -> digest list -> stores -> string
 val get_default_stores : Support.Basedir.basedirs -> stores
@@ -33,3 +34,4 @@ val best_digest : digest list -> digest
 val make_tmp_dir : system -> stores -> filepath
 
 val check_manifest_and_rename : General.config -> digest -> filepath -> unit Lwt.t
+val add_dir_to_cache : General.config -> digest -> filepath -> unit Lwt.t

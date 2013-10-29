@@ -29,7 +29,7 @@ let type_from_url url =
   | ".cab" -> "application/vnd.ms-cab-compressed"
   | ".dmg" -> "application/x-apple-diskimage"
   | ".gem" -> "application/x-ruby-gem"
-  | _ -> raise_safe "No 'type' attribute on archive, and I can't guess from the name (%s)" url
+  | _ -> raise_safe "Can't guess MIME type from name (%s)" url
 
 let check_type_ok system =
   let missing name = U.find_in_path system name = None in

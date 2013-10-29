@@ -227,7 +227,7 @@ let make_subgroup name subcommands =
   (name, Subgroup subcommands)
 
 let store_subcommands : subgroup = [
-  make_subcommand "add"       "DIGEST (DIRECTORY | (ARCHIVE [EXTRACT]))"   handle_store @@ common_options;
+  make_subcommand "add"       "DIGEST (DIRECTORY | (ARCHIVE [EXTRACT]))"   Store.handle_add @@ common_options;
   make_subcommand "audit"     "[DIRECTORY]"                                handle_store @@ common_options;
   make_subcommand "copy"      "SOURCE [ TARGET ]"                          handle_store @@ common_options;
   make_subcommand "find"      "DIGEST"                                     handle_store @@ common_options;

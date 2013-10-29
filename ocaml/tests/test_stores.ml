@@ -26,7 +26,7 @@ let suite = "stores">::: [
     Fake_system.assert_str_equal "application/x-bzip-compressed-tar" @@ Archive.type_from_url "http://example.com/archive.tar.bz2";
     Fake_system.assert_str_equal "application/zip" @@ Archive.type_from_url "http://example.com/archive.foo.zip";
     Fake_system.assert_raises_safe
-      "No 'type' attribute on archive, and I can't guess from the name (http://example.com/archive.tar.bz2/readme)"
+      "Can't guess MIME type from name (http://example.com/archive.tar.bz2/readme)"
       (lazy (ignore @@ Archive.type_from_url "http://example.com/archive.tar.bz2/readme"));
   );
 

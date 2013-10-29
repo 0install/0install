@@ -192,33 +192,6 @@ class TestStore(BaseTest):
 
 		sys.stdout = old_stdout
 
-	def testAddArchive(self):
-		cli.init_stores()
-		digest = 'sha1new=290eb133e146635fe37713fd58174324a16d595f'
-
-		try:
-			cli.stores.lookup(digest)
-			assert False
-		except NotStored:
-			pass
-
-		cli.do_add([digest, os.path.join(mydir, 'HelloWorld.tgz')])
-		cli.do_add([digest, os.path.join(mydir, 'HelloWorld.tgz')])
-		cli.stores.lookup(digest)
-
-	def testAddArchiveExtract(self):
-		cli.init_stores()
-		digest = 'sha1new=491678c37f77fadafbaae66b13d48d237773a68f'
-
-		try:
-			cli.stores.lookup(digest)
-			assert False
-		except NotStored:
-			pass
-
-		cli.do_add([digest, os.path.join(mydir, 'HelloWorld.tgz'), 'HelloWorld'])
-		cli.stores.lookup(digest)
-
 	def testOptimise(self):
 		sample = os.path.join(self.tmp, 'sample')
 		os.mkdir(sample)

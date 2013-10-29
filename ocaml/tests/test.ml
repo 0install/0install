@@ -221,6 +221,7 @@ let suite =
   Test_feed_cache.suite;
   Test_selections.suite;
   Test_stores.suite;
+  Test_0store.suite;
   Test_fetch.suite;
   Test_download.suite;
   Test_archive.suite;
