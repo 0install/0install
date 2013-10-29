@@ -196,6 +196,29 @@ let add_with_helper config required_digest tmpdir =
         )
   )
 
+let rec fixup_permissions (system:system) path =
+  let info = system#lstat path |? lazy (raise_safe "Path '%s' has disappeared!" path) in
+  match info.Unix.st_kind with
+  | Unix.S_LNK -> ()
+  | Unix.S_DIR | Unix.S_REG ->
+      let mode = info.Unix.st_perm in
+      if mode land 0o777 <> mode then (
+        raise_safe "Unsafe mode: extracted file '%s' had special bits set in mode '%o'" path mode
+      );
+      let desired_mode = if (mode land 0o111) <> 0 || info.Unix.st_kind = Unix.S_DIR then 0o555 else 0o444 in
+      if mode <> desired_mode then
+        system#chmod path desired_mode;
+
+      if info.Unix.st_kind = Unix.S_DIR then (
+        match system#readdir path with
+        | Problem ex -> raise ex
+        | Success items ->
+            items |> Array.iter (fun item ->
+              fixup_permissions system (path +/ item)
+            )
+      )
+  | _ -> raise_safe "Not a regular file/directory/symlink '%s'" path
+
 let add_manifest_and_verify (slave:Python.slave) required_digest tmpdir =
   let request = `List [
     `String "add-manifest-and-verify";
@@ -209,6 +232,7 @@ let check_manifest_and_rename config (slave:Python.slave) required_digest tmpdir
    * 1. Writing directly to the system store (will succeed if we're root)
    * 2. Using the helper to write to the system store
    * 3. Writing directly to the user store *)
+  fixup_permissions config.system tmpdir;
   let rq = add_manifest_and_verify slave required_digest tmpdir in
   Lwt.bind rq (fun () ->
     begin match config.stores with

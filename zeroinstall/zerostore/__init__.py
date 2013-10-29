@@ -371,20 +371,6 @@ class Stores(object):
 		self._write_store(lambda store, **kwargs: store.add_archive_to_cache(required_digest,
 						data, url, extract, type = type, start_offset = start_offset, dry_run = dry_run, **kwargs))
 	
-	def check_manifest_and_rename(self, required_digest, tmp, dry_run = False):
-		"""Check that tmp has the required_digest and move it into the stores. On success, tmp no longer exists.
-		@since: 2.3"""
-		if len(self.stores) > 1:
-			store = self.get_first_system_store()
-			try:
-				store.add_dir_to_cache(required_digest, tmp, dry_run = dry_run)
-				support.ro_rmtree(tmp)
-				return
-			except NonwritableStore:
-				logger.debug(_("%s not-writable. Trying helper instead."), store)
-				pass
-		self.stores[0].check_manifest_and_rename(required_digest, tmp, dry_run = dry_run, try_helper = True)
-
 	def _write_store(self, fn):
 		"""Call fn(first_system_store). If it's read-only, try again with the user store."""
 		if len(self.stores) > 1:

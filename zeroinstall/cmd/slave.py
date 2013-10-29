@@ -123,7 +123,6 @@ def do_confirm_distro_install(config, ticket, options, impls):
 def do_add_manifest_and_verify(config, options, args):
 	from zeroinstall.zerostore import manifest
 	required_digest, tmpdir = args
-	manifest.fixup_permissions(tmpdir)
 	alg, required_value = manifest.splitID(required_digest)
 	actual_digest = alg.getID(manifest.add_manifest_file(tmpdir, alg))
 	if actual_digest != required_digest:

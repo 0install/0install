@@ -109,6 +109,16 @@ let suite = "stores">::: [
     Fake_system.fake_log#assert_contains "Added succcessfully using helper"
   );
 
+  "check-permissions">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let slave = new Zeroinstall.Python.slave config in
+    let tmpdir = Stores.make_tmp_dir config.system config.stores in
+    let subdir = tmpdir +/ "subdir" in
+    fake_system#mkdir subdir 0o1755;
+    Fake_system.assert_raises_safe "Unsafe mode: extracted file .* had special bits set in mode '1755'" (lazy (
+      Stores.check_manifest_and_rename config slave ("sha1", "123") tmpdir |> Lwt_main.run
+    ))
+  );
+
   "hash">:: (fun () ->
     let ctx = Support.Hash.create "sha1" in
     Support.Hash.update ctx "foo";
