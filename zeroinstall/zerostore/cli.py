@@ -53,27 +53,4 @@ def do_optimise(args):
 		print(_("Space freed up : %(size)s (%(percentage).2f%%)") % {'size': support.pretty_size(dup_size), 'percentage': perc})
 	print(_("Optimisation complete."))
 
-def do_copy(args):
-	"""copy SOURCE [ TARGET ]"""
-	if len(args) == 2:
-		source, target = args
-	elif len(args) == 1:
-		source = args[0]
-		target = stores.stores[0].dir
-	else:
-		raise UsageError(_("Wrong number of arguments."))
-
-	if not os.path.isdir(source):
-		raise UsageError(_("Source directory '%s' not found") % source)
-	if not os.path.isdir(target):
-		raise UsageError(_("Target directory '%s' not found") % target)
-	manifest_path = os.path.join(source, '.manifest')
-	if not os.path.isfile(manifest_path):
-		raise UsageError(_("Source manifest '%s' not found") % manifest_path)
-	required_digest = os.path.basename(source)
-	with open(manifest_path, 'rb') as stream:
-		manifest_data = stream.read()
-
-	copy_tree_with_verify(source, target, manifest_data, required_digest)
-
-commands = [do_copy, do_optimise]
+commands = [do_optimise]

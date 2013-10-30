@@ -170,6 +170,30 @@ let handle_list options flags args =
           print "System store          : %s" dir
         )
 
+let handle_copy options flags args =
+  Support.Argparse.iter_options flags (Common_options.process_common_option options);
+  let system = options.config.system in
+  let source, target =
+    match args with
+    | [source] -> (source, List.hd options.config.stores)
+    | [source; target] -> (source, target)
+    | _ -> raise (Support.Argparse.Usage_error 1) in
+
+  if not (U.is_dir system source) then
+    raise_safe "Source directory '%s' not found" source;
+
+  if not (U.is_dir system target) then
+    raise_safe "Target directory '%s' not found" target;
+
+  let manifest_path = source +/ ".manifest" in
+  if not (system#file_exists manifest_path) then
+    raise_safe "Source manifest '%s' not found" manifest_path;
+
+  let required_digest = Filename.basename source |> Manifest.parse_digest in
+  let manifest_data = U.read_file system manifest_path in
+
+  Manifest.copy_tree_with_verify system source target manifest_data required_digest
+
 let handle_add options flags args =
   Support.Argparse.iter_options flags (Common_options.process_common_option options);
 

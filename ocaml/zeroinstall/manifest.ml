@@ -178,11 +178,11 @@ type mtime = float
 type size = Int64.t
 
 type inode =
-  | Dir of mtime option
-  | Symlink of (hash * size)
-  | File of (bool * hash * mtime * size)
+  [ `dir of mtime option
+  | `symlink of (hash * size)
+  | `file of (bool * hash * mtime * size) ]
 
-let parse_manifest_line ~old line =
+let parse_manifest_line ~old line : (string * inode) =
   let n_parts =
     match line.[0] with
     | 'D' when old -> 3
@@ -192,11 +192,11 @@ let parse_manifest_line ~old line =
     | _ -> raise_safe "Malformed manifest line: '%s'" line in
   let parts = Str.bounded_split_delim U.re_space line n_parts in
   match parts with
-  | ["D"; mtime; name] when old -> (name, Dir (Some (float_of_string mtime)))
-  | ["D"; name] -> (name, Dir None)
-  | ["S"; hash; size; name] -> (name, Symlink (hash, Int64.of_string size))
+  | ["D"; mtime; name] when old -> (name, `dir (Some (float_of_string mtime)))
+  | ["D"; name] -> (name, `dir None)
+  | ["S"; hash; size; name] -> (name, `symlink (hash, Int64.of_string size))
   | ["X" | "F" as ty; hash; mtime; size; name] ->
-      (name, File (ty = "X", hash, float_of_string mtime, Int64.of_string size))
+      (name, `file (ty = "X", hash, float_of_string mtime, Int64.of_string size))
   | _ -> raise_safe "Malformed manifest line: '%s'" line
 
 (* This is really only useful for [diff].
@@ -210,10 +210,10 @@ let index_manifest ~old manifest_data =
     while true do
       let line = Stream.next stream in
       match parse_manifest_line ~old line with
-      | (name, Dir _) ->
+      | (name, `dir _) ->
           dir := name;
           items := (name, line) :: !items
-      | (name, (Symlink _ | File _)) ->
+      | (name, (`symlink _ | `file _)) ->
           items := (!dir ^ "/" ^ name, line) :: !items
     done;
     assert false
@@ -305,4 +305,137 @@ let verify system ~digest dir =
     end;
 
     raise (Safe_exception (trim @@ Buffer.contents b, ref []))
+  )
+
+(* Parse a manifest into a tree structure.
+   Note: must be a new-style manifest (not "sha1") *)
+let parse_manifest manifest_data =
+  let stream = stream_of_lines manifest_data in
+  let rec parse_dir path =
+    let items = ref [] in
+    let rec collect_items () =
+      Stream.peek stream |> if_some (fun line ->
+        match parse_manifest_line ~old:false line with
+        | (name, `dir _) ->
+            if U.starts_with name (path ^ "/") then (
+              Stream.junk stream;
+              items := (Filename.basename name, `dir (parse_dir name)) :: !items;
+              collect_items ()
+            ) else ()
+        | (_name, (`symlink _ | `file _)) as item ->
+            items := item :: !items;
+            Stream.junk stream;
+            collect_items ()
+      ) in
+    collect_items ();
+    !items in
+  let items = parse_dir "" in
+  begin try Stream.empty stream;
+  with Stream.Failure -> failwith "BUG: more manifest items!" end;
+  items
+
+(** Copy the file [src] to [dst]. Error if it doesn't end up with the right hash. *)
+let copy_with_verify (system:system) src dst ~digest ~required_hash ~mode =
+  system#with_open_in [Open_rdonly;Open_binary] 0 src (function ic ->
+    system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] mode dst (fun oc ->
+      let bufsize = 4096 in
+      let buf = String.create bufsize in
+      try
+        while true do
+          let got = input ic buf 0 bufsize in
+          if got = 0 then raise End_of_file;
+          assert (got > 0);
+          let data = String.sub buf 0 got in
+          H.update digest data;
+          output_string oc data
+        done
+      with End_of_file -> ()
+    )
+  );
+  let actual = H.hex_digest digest in
+  if actual <> required_hash then (
+    system#unlink dst;
+    raise_safe "Copy failed: file '%s' has wrong digest (may have been tampered with)\n\
+                Expected: %s\n\
+                Actual:   %s"
+                src required_hash actual
+  )
+
+(** Copy each item in [req_tree] from [src_dir] to [dst_dir], checking that it matches. *)
+let rec copy_subtree system hash_name req_tree src_dir dst_dir =
+  req_tree |> List.iter (fun (name, inode) ->
+    let src_path = src_dir +/ name in
+    let dst_path = dst_dir +/ name in
+    match inode with
+    | `symlink (required_hash, size) ->
+        let required_size = Int64.to_int size in
+        let target = system#readlink src_path |? lazy (raise_safe "Not a symlink '%s'" src_path) in
+        let actual_size = String.length target in
+        if actual_size <> required_size then (
+          raise_safe "Symlink '%s' has wrong size (%d bytes, but should be %d according to manifest)"
+            src_path actual_size required_size
+        );
+        let symlink_digest = H.create hash_name in
+        H.update symlink_digest target;
+        if H.hex_digest symlink_digest <> required_hash then (
+          raise_safe "Symlink '%s' has wrong target (digest should be %s according to manifest)"
+            src_path required_hash
+        );
+        system#symlink ~target ~newlink:dst_path
+    | `dir items ->
+        system#mkdir dst_path 0o700;
+        copy_subtree system hash_name items src_path dst_path;
+        system#chmod dst_path 0o555;
+    | `file (x, required_hash, mtime, size) ->
+        match system#lstat src_path with
+        | None -> raise_safe "Required source file '%s' does not exist!" src_path
+        | Some info ->
+            let required_size = Int64.to_int size in
+            let actual_size = info.Unix.st_size in
+            if actual_size <> required_size then (
+              raise_safe "File '%s' has wrong size (%d bytes, but should be %d according to manifest)"
+                src_path actual_size required_size
+            );
+            let digest = H.create hash_name in
+            let mode = if x then 0o555 else 0o444 in
+            copy_with_verify system src_path dst_path ~digest ~required_hash ~mode;
+            system#set_mtime dst_path mtime
+  )
+
+let copy_tree_with_verify system source target manifest_data required_digest =
+  let required_digest_str = format_digest required_digest in
+  let alg, _ = required_digest in
+  if alg = "sha1" then
+    raise_safe "Sorry, the 'sha1' algorithm does not support copying.";
+
+  let manifest_digest = (alg, hash_manifest alg manifest_data) in
+  if manifest_digest <> required_digest then (
+    raise_safe "Manifest has been tampered with!\n\
+                Manifest digest: %s\n\
+                Directory name : %s" (format_digest manifest_digest) required_digest_str
+  );
+
+  let target_impl = target +/ required_digest_str in
+  if U.is_dir system target_impl then (
+    log_info "Target directory '%s' already exists" target_impl
+  ) else (
+    (* We've checked that the source's manifest matches required_digest, so it
+       is what we want. Make a list of all the files we need to copy... *)
+    let req_tree = parse_manifest manifest_data in
+    let tmp_dir = U.make_tmp_dir system ~mode:0o755 target in
+    let hash_name =
+      match alg with
+      | "sha1" | "sha1new" -> "sha1"
+      | "sha256" | "sha256new" -> "sha256"
+      | _ -> raise_safe "Unknown manifest digest algorithm '%s'" alg in
+    try
+      copy_subtree system hash_name req_tree source tmp_dir;
+      let mfile = tmp_dir +/ ".manifest" in
+      system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] 0o644 mfile (fun oc ->
+        output_string oc manifest_data
+      );
+      system#rename tmp_dir target_impl;
+    with ex ->
+      U.rmtree system ~even_if_locked:true tmp_dir;
+      raise ex
   )

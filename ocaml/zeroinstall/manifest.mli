@@ -31,3 +31,12 @@ val add_manifest_file : Support.Common.system -> alg -> Support.Common.filepath 
     - The calculated digest of the contents must match [digest].
     - If there is a .manifest file, then its digest must also match. *)
 val verify : Support.Common.system -> digest:digest -> Support.Common.filepath -> unit
+
+(** Copy directory source to be a subdirectory of target if it matches the required_digest.
+    manifest_data is normally source/.manifest. source and manifest_data are not trusted
+    (will typically be under the control of another user).
+    The copy is first done to a temporary directory in target, then renamed to the final name
+    only if correct. Therefore, an invalid 'target/required_digest' will never exist.
+    A successful return means than target/required_digest now exists (whether we created it or not). *)
+val copy_tree_with_verify : Support.Common.system ->
+  Support.Common.filepath -> Support.Common.filepath -> string -> digest -> unit

@@ -173,41 +173,6 @@ def splitID(id):
 	alg, digest = parse_algorithm_digest_pair(id)
 	return (get_algorithm(alg), digest)
 
-def copy_with_verify(src, dest, mode, alg, required_digest):
-	"""Copy path src to dest, checking that the contents give the right digest.
-	dest must not exist. New file is created with a mode of 'mode & umask'.
-	@param src: source filename
-	@type src: str
-	@param dest: target filename
-	@type dest: str
-	@param mode: target mode
-	@type mode: int
-	@param alg: algorithm to generate digest
-	@type alg: L{Algorithm}
-	@param required_digest: expected digest value
-	@type required_digest: str
-	@raise BadDigest: the contents of the file don't match required_digest"""
-	with open(src, 'rb') as src_obj:
-		dest_fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
-		try:
-			digest = alg.new_digest()
-			while True:
-				data = src_obj.read(256)
-				if not data: break
-				digest.update(data)
-				while data:
-					written = os.write(dest_fd, data)
-					assert written >= 0
-					data = data[written:]
-		finally:
-			os.close(dest_fd)
-	actual = digest.hexdigest()
-	if actual == required_digest: return
-	os.unlink(dest)
-	raise BadDigest(_("Copy failed: file '%(src)s' has wrong digest (may have been tampered with)\n"
-			 "Expected: %(required_digest)s\n"
-			 "Actual:   %(actual_digest)s") % {'src': src, 'required_digest': required_digest, 'actual_digest': actual})
-
 def verify(root, required_digest = None):
 	"""Ensure that directory 'dir' generates the given digest.
 	For a non-error return:
