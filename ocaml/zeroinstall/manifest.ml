@@ -63,7 +63,7 @@ let generate_manifest (system:system) alg root =
       | Success items -> items in
     Array.sort String.compare items;
 
-    let dirs = U.filter_map_array items ~f:(fun leaf ->
+    let dirs = items |> U.filter_map_array (fun leaf ->
       let path = root +/ rel_path +/ leaf in
       let info = system#lstat path |? lazy (raise_safe "File '%s' no longer exists!" path) in
       match info.Unix.st_kind with

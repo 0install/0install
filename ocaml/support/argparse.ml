@@ -265,7 +265,7 @@ let format_options system format_type opts =
   print "Options:";
 
   let display_options =
-    Utils.filter_map opts ~f:(fun (names, (nargs:int), help, p) ->
+    opts |> Utils.filter_map (fun (names, (nargs:int), help, p) ->
       match help with
       | "" -> None
       | help ->

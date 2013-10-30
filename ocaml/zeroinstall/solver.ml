@@ -91,11 +91,11 @@ class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.var 
           else
             None
       in
-      Support.Utils.filter_map vars ~f:match_command
+      vars |> Support.Utils.filter_map match_command
 
     (** Get all variables, except dummy_impl (if present) *)
     method get_real_vars =
-      Support.Utils.filter_map vars ~f:(fun (var, impl) ->
+      vars |> Support.Utils.filter_map (fun (var, impl) ->
         if impl == dummy_impl then None
         else Some var
       )

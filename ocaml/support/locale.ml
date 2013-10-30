@@ -54,7 +54,7 @@ let get_langs ?(default=("en", Some "gb")) (system:system) =
       | Some langs -> Str.split Utils.re_colon langs
       | None -> [lang]
     ) in
-  let specs = Utils.filter_map ~f:parse_lang langs in
+  let specs = Utils.filter_map parse_lang langs in
   if List.mem default specs then specs else specs @ [default]
 
 (* Converts a list of languages (most preferred first) to a map from languauges to scores.

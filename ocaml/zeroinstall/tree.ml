@@ -44,7 +44,7 @@ let as_tree sels =
               );
 
               let children =
-                U.filter_map !deps ~f:(fun dep ->
+                !deps |> U.filter_map (fun dep ->
                   let child_iface = ZI.get_attribute FeedAttr.interface dep in
                   let essential =
                     match ZI.get_attribute_opt FeedAttr.importance dep with

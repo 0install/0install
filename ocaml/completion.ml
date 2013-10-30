@@ -302,7 +302,7 @@ let complete_version completer ~range ~maybe_app target pre =
             let vexpr = v_prefix ^ v in
             if starts_with vexpr pre then Some vexpr else None in
           let all_versions = List.map (fun impl -> impl.Feed.parsed_version) @@ Feed.get_implementations feed in
-          let matching_versions = Support.Utils.filter_map ~f:check (List.sort compare all_versions) in
+          let matching_versions = Support.Utils.filter_map check (List.sort compare all_versions) in
           List.iter (completer#add Add) matching_versions
 
 (* 0install --option=<Tab> *)

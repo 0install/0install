@@ -405,7 +405,7 @@ let suite = "solver">::: [
       extra_restrictions = StringMap.empty;
       os_ranks = Arch.get_os_ranks "Linux";
       machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
-      languages = Support.Locale.score_langs @@ U.filter_map ~f:Support.Locale.parse_lang ["es_ES"; "fr_FR"];
+      languages = Support.Locale.score_langs @@ U.filter_map Support.Locale.parse_lang ["es_ES"; "fr_FR"];
       allowed_uses = StringSet.empty;
     } in
 

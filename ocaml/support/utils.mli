@@ -19,10 +19,10 @@ val handle_exceptions : ('a -> 'b) -> 'a -> 'b
 val first_match : f:('a -> 'b option) -> 'a list -> 'b option
 
 (** List the non-None results of [fn item] *)
-val filter_map : f:('a -> 'b option) -> 'a list -> 'b list
+val filter_map : ('a -> 'b option) -> 'a list -> 'b list
 
 (** List the non-None results of [fn item] *)
-val filter_map_array : f:('a -> 'b option) -> 'a array -> 'b list
+val filter_map_array : ('a -> 'b option) -> 'a array -> 'b list
 
 (** Extract a sub-list. *)
 val slice : start:int -> ?stop:int -> 'a list -> 'a list

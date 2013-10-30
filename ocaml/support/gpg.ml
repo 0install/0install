@@ -177,7 +177,7 @@ let make_err args = ErrSig (
 
 (** Parse the status output from gpg as a list of signatures. *)
 let sigs_from_gpg_status_output status =
-  status |> Str.split re_newline |> U.filter_map ~f:(fun line ->
+  status |> Str.split re_newline |> U.filter_map (fun line ->
     if U.starts_with line "[GNUPG:] " then (
       match U.string_tail line 9 |> Str.split_delim U.re_space with
       | [] -> None

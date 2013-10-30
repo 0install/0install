@@ -65,7 +65,7 @@ let load_iface_config config uri : interface_config =
     if config.system#file_exists dir then (
       match config.system#readdir dir with
       | Success items ->
-          U.filter_map_array items ~f:(fun impl ->
+          items |> U.filter_map_array (fun impl ->
             if U.starts_with impl "." then None
             else (
               let feed = dir +/ impl +/ "0install" +/ "feed.xml" in

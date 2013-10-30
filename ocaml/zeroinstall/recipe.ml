@@ -96,7 +96,7 @@ let parse_recipe elem =
     | Some "remove" -> Some (parse_remove child)
     | Some _ -> raise Unknown_step
     | None -> None in
-  U.filter_map ~f:parse_step elem.Qdom.child_nodes
+  U.filter_map parse_step elem.Qdom.child_nodes
 
 let is_retrieval_method elem =
   match ZI.tag elem with

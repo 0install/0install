@@ -51,17 +51,17 @@ let rec first_match ~f = function
       | Some _ as result -> result
       | None -> first_match ~f xs
 
-let rec filter_map ~f = function
+let rec filter_map fn = function
   | [] -> []
   | (x::xs) ->
-      match f x with
-      | None -> filter_map ~f xs
-      | Some y -> y :: filter_map ~f xs
+      match fn x with
+      | None -> filter_map fn xs
+      | Some y -> y :: filter_map fn xs
 
-let filter_map_array ~f arr =
+let filter_map_array fn arr =
   let result = ref [] in
   for i = 0 to Array.length arr - 1 do
-    match f arr.(i) with
+    match fn arr.(i) with
     | Some item -> result := item :: !result
     | _ -> ()
   done;

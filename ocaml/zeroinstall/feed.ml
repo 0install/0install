@@ -286,11 +286,11 @@ let rec filter_if_0install_version node =
   match Qdom.get_attribute_opt ("", FeedAttr.if_0install_version) node with
   | Some expr when not (Versions.parse_expr expr About.parsed_version) -> None
   | Some _expr -> Some {
-    node with Qdom.child_nodes = U.filter_map ~f:filter_if_0install_version node.Qdom.child_nodes;
+    node with Qdom.child_nodes = U.filter_map filter_if_0install_version node.Qdom.child_nodes;
     attrs = List.remove_assoc ("", FeedAttr.if_0install_version) node.Qdom.attrs
   }
   | None -> Some {
-    node with Qdom.child_nodes = U.filter_map ~f:filter_if_0install_version node.Qdom.child_nodes;
+    node with Qdom.child_nodes = U.filter_map filter_if_0install_version node.Qdom.child_nodes;
   }
 
 let parse system root feed_local_path =
@@ -605,7 +605,7 @@ let get_langs impl =
   let langs =
     try Str.split U.re_space @@ AttrMap.find ("", "langs") impl.props.attrs
     with Not_found -> ["en"] in
-  Support.Utils.filter_map ~f:Support.Locale.parse_lang langs
+  Support.Utils.filter_map Support.Locale.parse_lang langs
 
 (** Is this implementation in the cache? *)
 let is_available_locally config impl =
