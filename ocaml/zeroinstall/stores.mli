@@ -26,6 +26,12 @@ val get_digests : Support.Qdom.element -> Manifest.digest list
 (* Raises an exception if no digest is supported *)
 val best_digest : Manifest.digest list -> Manifest.digest
 
+(** Recursively set permissions:
+  * Directories and executable files become 0o555.
+  * Other files become 0o444.
+  * @raise Safe_exception if there are special files or files with special mode bits set *)
+val fixup_permissions : system -> filepath -> unit
+
 (** Create a temporary directory in the directory where we would store a new implementation.
     This is used to set up a new implementation before being renamed if it turns out OK. *)
 val make_tmp_dir : system -> stores -> filepath
