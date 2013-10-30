@@ -68,6 +68,19 @@ let handle_verify options flags args =
       verify dir digest
   | _ -> raise (Support.Argparse.Usage_error 1)
 
+let handle_audit options flags args =
+  Support.Argparse.iter_options flags (Common_options.process_common_option options);
+  let dirs =
+    match args with
+    | [] -> options.config.stores
+    | dirs -> dirs in
+  let dirs = dirs |> List.map (fun d -> `String d) in
+  options.slave#invoke (`List [`String "audit"; `List dirs]) (function
+    | `Bool true -> ()
+    | `Bool false -> raise (System_exit 1)
+    | _ -> assert false
+  )
+
 let handle_manifest options flags args =
   Support.Argparse.iter_options flags (Common_options.process_common_option options);
   let dir, alg =
@@ -85,6 +98,21 @@ let handle_manifest options flags args =
   system#print_string manifest_contents;
   let digest = (alg, Manifest.hash_manifest alg manifest_contents) |> Manifest.format_digest in
   system#print_string (digest ^ "\n")
+
+let handle_list options flags args =
+  Support.Argparse.iter_options flags (Common_options.process_common_option options);
+  if args <> [] then raise (Support.Argparse.Usage_error 1);
+  let print fmt = Support.Utils.print options.config.system fmt in
+  match options.config.stores with
+  | [] -> print "No stores configured!"
+  | user :: system_stores ->
+      print "User store (writable) : %s" user;
+      if system_stores = [] then
+        print "No system stores."
+      else
+        system_stores |> List.iter (fun dir ->
+          print "System store          : %s" dir
+        )
 
 let handle_add options flags args =
   Support.Argparse.iter_options flags (Common_options.process_common_option options);

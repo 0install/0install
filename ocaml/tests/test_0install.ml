@@ -93,13 +93,18 @@ class fake_slave _config =
       pending_feed_downloads := StringMap.add url contents !pending_feed_downloads
   end
 
-let run_0install fake_system ?(exit=0) args =
-  Fake_system.fake_log#reset;
-  fake_system#set_argv @@ Array.of_list (test_0install :: args);
-  Fake_system.capture_stdout (fun () ->
-    try Main.main (fake_system :> system); assert (exit = 0)
-    with System_exit n -> assert_equal ~msg:"exit code" n exit
-  )
+let run_0install ?stdin ?(include_stderr=false) fake_system ?(exit=0) args =
+  let run = lazy (
+    Fake_system.fake_log#reset;
+    fake_system#set_argv @@ Array.of_list (test_0install :: args);
+    Fake_system.capture_stdout ~include_stderr (fun () ->
+      try Main.main (fake_system : Fake_system.fake_system :> system); assert (exit = 0)
+      with System_exit n -> assert_equal ~msg:"exit code" n exit
+    )
+  ) in
+  match stdin with
+  | None -> Lazy.force run
+  | Some stdin -> fake_system#with_stdin stdin run
 
 let generic_archive = U.read_file Fake_system.real_system @@ feed_dir +/ "HelloWorld.tgz"
 

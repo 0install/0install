@@ -17,21 +17,9 @@ module FC = Zeroinstall.Feed_cache
 let assert_str_equal = Fake_system.assert_str_equal
 let assert_contains = Fake_system.assert_contains
 let expect = Fake_system.expect
+let run_0install = Test_0install.run_0install
 
 exception Open_gui
-
-let run_0install ?stdin ?(include_stderr=false) fake_system ?(exit=0) args =
-  let run = lazy (
-    Fake_system.fake_log#reset;
-    fake_system#set_argv @@ Array.of_list (Test_0install.test_0install :: args);
-    Fake_system.capture_stdout ~include_stderr (fun () ->
-      try Main.main (fake_system : Fake_system.fake_system :> system); assert (exit = 0)
-      with System_exit n -> assert_equal ~msg:"exit code" n exit
-    )
-  ) in
-  match stdin with
-  | None -> Lazy.force run
-  | Some stdin -> fake_system#with_stdin stdin run
 
 let parse_sels xml =
   try

@@ -49,8 +49,8 @@ let suite = "0store">::: [
     system#mkdir sample 0o755;
     populate_sample system sample;
 
-    let run ?exit args =
-      Test_0install.run_0install ?exit fake_system ("store" :: args) in
+    let run ?exit ?include_stderr args =
+      Test_0install.run_0install ?exit ?include_stderr fake_system ("store" :: args) in
 
     let digest = ("sha1new", "7e3eb25a072988f164bae24d33af69c1814eb99a") in
     let digest_str = Manifest.format_digest digest in
@@ -75,6 +75,25 @@ let suite = "0store">::: [
     Fake_system.assert_raises_safe "Cached item does NOT verify" (lazy (
       ignore @@ run ["verify"; cached; digest_str ^ "a"];
     ));
+
+    (* Full audit *)
+    let report = run ~include_stderr:true ["audit"; Filename.dirname cached] in
+    assert_contains "Corrupted or modified implementations: 0" report;
+
+    (* Corrupt it... *)
+    fake_system#chmod cached 0o700;
+    U.touch system (cached +/ "hacked");
+
+    (* Verify again... *)
+    Fake_system.assert_raises_safe "Cached item does NOT verify" (lazy (
+      ignore @@ run ["verify"; cached];
+    ));
+
+    (* Full audit *)
+    let report = run ~exit:1 ~include_stderr:true ["audit"; Filename.dirname cached] in
+    assert_contains "Cached item does NOT verify" report;
+    assert_contains "hacked" report;
+    assert_contains "Corrupted or modified implementations: 1" report;
   );
 
   "add-archive">:: Fake_system.with_fake_config (fun (config, fake_system) ->
@@ -91,5 +110,28 @@ let suite = "0store">::: [
     check_adds config digest (fun () ->
       assert_str_equal "" @@ Test_0install.run_0install fake_system ["store"; "add"; digest; Test_0install.feed_dir +/ "HelloWorld.tgz"; "HelloWorld"];
     )
+  );
+
+  "manifest">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let system = config.system in
+    let home = U.getenv_ex fake_system "HOME" in
+    assert_str_equal "" @@ Manifest.generate_manifest system "sha1new" home;
+
+    let path = home +/ "MyFile" in
+    write_file system path ~mode:0o600 ~mtime:2.0 "Hello";
+    assert_str_equal "F f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0 2 5 MyFile\n" @@
+                     Manifest.generate_manifest system "sha1new" home;
+
+    system#unlink path;
+    let path = home +/ "MyLink" in
+    system#symlink ~target:"Hello" ~newlink:path;
+    assert_str_equal "S f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0 5 MyLink\n" @@
+                     Manifest.generate_manifest system "sha1new" home;
+  );
+
+  "list">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let out = Test_0install.run_0install fake_system ["store"; "list"] in
+    assert_contains "User store" out;
+    assert_contains "No system stores." out;
   );
 ]
