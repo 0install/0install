@@ -158,39 +158,66 @@ let algorithm_names = [
   "sha256new";
 ]
 
+let stream_of_lines data =
+  let i = ref 0 in
+  Stream.from (fun _count ->
+      if !i = String.length data then None
+      else (
+        let nl =
+          try String.index_from data !i '\n'
+          with Not_found ->
+            raise_safe "Extra data at end (no endline): %s" (String.escaped @@ U.string_tail data !i) in
+        let line = String.sub data !i (nl - !i) in
+        i := nl + 1;
+        Some line
+      )
+  )
+
+type hash = string
+type mtime = float
+type size = Int64.t
+
+type inode =
+  | Dir of mtime option
+  | Symlink of (hash * size)
+  | File of (bool * hash * mtime * size)
+
+let parse_manifest_line ~old line =
+  let n_parts =
+    match line.[0] with
+    | 'D' when old -> 3
+    | 'D' -> 2
+    | 'S' -> 4
+    | 'X' | 'F' -> 5
+    | _ -> raise_safe "Malformed manifest line: '%s'" line in
+  let parts = Str.bounded_split_delim U.re_space line n_parts in
+  match parts with
+  | ["D"; mtime; name] when old -> (name, Dir (Some (float_of_string mtime)))
+  | ["D"; name] -> (name, Dir None)
+  | ["S"; hash; size; name] -> (name, Symlink (hash, Int64.of_string size))
+  | ["X" | "F" as ty; hash; mtime; size; name] ->
+      (name, File (ty = "X", hash, float_of_string mtime, Int64.of_string size))
+  | _ -> raise_safe "Malformed manifest line: '%s'" line
+
 (* This is really only useful for [diff].
  * We return a list of tuples (path, line), making it easy for the diff code to compare the
  * order of entries from different manifests. *)
-let parse_manifest ~old manifest_data =
+let index_manifest ~old manifest_data =
   let dir = ref "/" in
   let items = ref [] in
-  let i = ref 0 in
+  let stream = stream_of_lines manifest_data in
   try
     while true do
-      let nl =
-        try String.index_from manifest_data !i '\n' 
-        with Not_found -> raise End_of_file in
-      let line = String.sub manifest_data !i (nl - !i) in
-      i := nl + 1;
-      let n_parts =
-        match line.[0] with
-        | 'D' when old -> 3
-        | 'D' -> 2
-        | 'S' -> 4
-        | 'X' | 'F' -> 5
-        | _ -> raise_safe "Malformed manifest line: '%s'" line in
-      let parts = Str.bounded_split_delim U.re_space line n_parts in
-      if List.length parts < n_parts then raise_safe "Malformed manifest line: '%s'" line;
-      let name = List.nth parts (n_parts - 1) in
-      if line.[0] = 'D' then (
-        dir := name;
-        items := (name, line) :: !items
-      ) else (
-        items := (!dir ^ "/" ^ name, line) :: !items
-      )
+      let line = Stream.next stream in
+      match parse_manifest_line ~old line with
+      | (name, Dir _) ->
+          dir := name;
+          items := (name, line) :: !items
+      | (name, (Symlink _ | File _)) ->
+          items := (!dir ^ "/" ^ name, line) :: !items
     done;
     assert false
-  with End_of_file -> List.sort compare !items
+  with Stream.Failure -> List.sort compare !items
 
 let diff buffer alg aname adata bname bdata =
   Buffer.add_string buffer "- ";
@@ -229,8 +256,8 @@ let diff buffer alg aname adata bname bdata =
         ) in
   let old = (alg = "sha1") in
   loop
-    (parse_manifest ~old adata)
-    (parse_manifest ~old bdata)
+    (index_manifest ~old adata)
+    (index_manifest ~old bdata)
 
 let verify system ~digest dir =
   let (alg, required_value) = digest in
