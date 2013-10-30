@@ -8,7 +8,7 @@ from zeroinstall.injector import handler, download
 gobject = tasks.get_loop().gobject
 glib = tasks.get_loop().glib
 
-version = '2.5'
+version = '2.5-post'
 
 class GUIHandler(handler.Handler):
 	pulse = None
