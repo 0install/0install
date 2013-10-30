@@ -68,6 +68,24 @@ let handle_verify options flags args =
       verify dir digest
   | _ -> raise (Support.Argparse.Usage_error 1)
 
+let handle_manifest options flags args =
+  Support.Argparse.iter_options flags (Common_options.process_common_option options);
+  let dir, alg =
+    match args with
+    | [dir] ->
+        let alg =
+          try fst (Manifest.parse_digest (Filename.basename dir))
+          with Safe_exception _ -> "sha1new" in
+        (dir, alg)
+    | [dir; alg] ->
+        (dir, alg)
+    | _ -> raise (Support.Argparse.Usage_error 1) in
+  let system = options.config.system in
+  let manifest_contents = Manifest.generate_manifest system alg dir in
+  system#print_string manifest_contents;
+  let digest = (alg, Manifest.hash_manifest alg manifest_contents) |> Manifest.format_digest in
+  system#print_string (digest ^ "\n")
+
 let handle_add options flags args =
   Support.Argparse.iter_options flags (Common_options.process_common_option options);
 

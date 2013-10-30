@@ -65,6 +65,9 @@ let suite = "0store">::: [
     let cached = trim @@ Test_0install.run_0install fake_system ["store"; "find"; (Manifest.format_digest digest)] in
     assert_str_equal cached @@ Stores.lookup_any system [digest] config.stores;
 
+    assert_contains "MyFile" @@ run ["manifest"; cached];
+    assert_contains "MyFile" @@ run ["manifest"; cached; "sha1new"];
+
     (* Verify... *)
     assert_contains "\nOK" @@ run ["verify"; cached; digest_str];
     assert_contains "\nOK" @@ run ["verify"; cached];

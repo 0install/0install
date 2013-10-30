@@ -7,6 +7,7 @@ open Support.Common
 module H = Support.Hash
 module U = Support.Utils
 
+type alg = string
 type digest = string * string
 
 let format_digest (alg, value) =
