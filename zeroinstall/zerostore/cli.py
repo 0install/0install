@@ -6,9 +6,8 @@
 from __future__ import print_function
 
 from zeroinstall import _
-import sys, os, errno
-from zeroinstall.zerostore import manifest
-from zeroinstall.zerostore.manifest import verify, get_algorithm, copy_tree_with_verify
+import os
+from zeroinstall.zerostore.manifest import copy_tree_with_verify
 from zeroinstall import zerostore, SafeException, support
 
 stores = None
@@ -20,67 +19,6 @@ def init_stores():
 		stores = zerostore.Stores()
 
 class UsageError(SafeException): pass
-
-def do_manifest(args):
-	"""manifest DIRECTORY [ALGORITHM]"""
-	if len(args) < 1 or len(args) > 2: raise UsageError(_("Wrong number of arguments"))
-	if len(args) == 2:
-		alg = get_algorithm(args[1])
-	else:
-		# If no algorithm was given, guess from the directory name
-		name = os.path.basename(args[0])
-		try:
-			alg, unused = manifest.splitID(name)
-		except zerostore.BadDigest:
-			alg = get_algorithm('sha1new')
-	digest = alg.new_digest()
-	for line in alg.generate_manifest(args[0]):
-		print(line)
-		digest.update((line + '\n').encode('utf-8'))
-	print(alg.getID(digest))
-	sys.exit(0)
-
-def do_find(args):
-	"""find DIGEST"""
-	if len(args) != 1: raise UsageError(_("Wrong number of arguments"))
-	try:
-		print(stores.lookup(args[0]))
-		sys.exit(0)
-	except zerostore.BadDigest as ex:
-		print(ex, file=sys.stderr)
-	except zerostore.NotStored as ex:
-		print(ex, file=sys.stderr)
-	sys.exit(1)
-
-def do_add(args):
-	"""add DIGEST (DIRECTORY | (ARCHIVE [EXTRACT]))"""
-	from zeroinstall.zerostore import unpack
-	if len(args) < 2: raise UsageError(_("Missing arguments"))
-	digest = args[0]
-	if os.path.isdir(args[1]):
-		if len(args) > 2: raise UsageError(_("Too many arguments"))
-		stores.add_dir_to_cache(digest, args[1])
-	elif os.path.isfile(args[1]):
-		if len(args) > 3: raise UsageError(_("Too many arguments"))
-		if len(args) > 2:
-			extract = args[2]
-		else:
-			extract = None
-
-		type = unpack.type_from_url(args[1])
-		if not type:
-			raise SafeException(_("Unknown extension in '%s' - can't guess MIME type") % args[1])
-		unpack.check_type_ok(type)
-
-		with open(args[1], 'rb') as stream:
-			stores.add_archive_to_cache(digest, stream, args[1], extract, type = type)
-	else:
-		try:
-			os.stat(args[1])
-		except OSError as ex:
-			if ex.errno != errno.ENOENT:		# No such file or directory
-				raise UsageError(str(ex))	# E.g. permission denied
-		raise UsageError(_("No such file or directory '%s'") % args[1])
 
 def do_optimise(args):
 	"""optimise [ CACHE ]"""
@@ -115,104 +53,6 @@ def do_optimise(args):
 		print(_("Space freed up : %(size)s (%(percentage).2f%%)") % {'size': support.pretty_size(dup_size), 'percentage': perc})
 	print(_("Optimisation complete."))
 
-def do_verify(args):
-	"""verify (DIGEST | (DIRECTORY [DIGEST])"""
-	if len(args) == 2:
-		required_digest = args[1]
-		root = args[0]
-	elif len(args) == 1:
-		root = get_stored(args[0])
-		required_digest = None		# Get from name
-	else:
-		raise UsageError(_("Missing DIGEST or DIRECTORY"))
-
-	print(_("Verifying"), root)
-	try:
-		verify(root, required_digest)
-		print(_("OK"))
-	except zerostore.BadDigest as ex:
-		print(str(ex))
-		if ex.detail:
-			print()
-			print(ex.detail)
-			sys.exit(1)
-
-def do_audit(args):
-	"""audit [DIRECTORY]"""
-	if len(args) == 0:
-		audit_stores = stores.stores
-	else:
-		audit_stores = [zerostore.Store(x) for x in args]
-
-	audit_ls = []
-	total = 0
-	for a in audit_stores:
-		if os.path.isdir(a.dir):
-			items = sorted(os.listdir(a.dir))
-			audit_ls.append((a.dir, items))
-			total += len(items)
-		elif len(args):
-			raise SafeException(_("No such directory '%s'") % a.dir)
-
-	verified = 0
-	failures = []
-	i = 0
-	for root, impls in audit_ls:
-		print(_("Scanning %s") % root)
-		for required_digest in impls:
-			path = os.path.join(root, required_digest)
-			try:
-				(alg, digest) = zerostore.parse_algorithm_digest_pair(required_digest)
-			except zerostore.BadDigest:
-				print(_("Skipping non-implementation directory %s") % path)
-				continue
-			i += 1
-			try:
-				msg = _("[%(done)d / %(total)d] Verifying %(digest)s") % {'done': i, 'total': total, 'digest': required_digest}
-				print(msg, end='')
-				sys.stdout.flush()
-				verify(path, required_digest)
-				print("\r" + (" " * len(msg)) + "\r", end='')
-				verified += 1
-			except zerostore.BadDigest as ex:
-				print()
-				failures.append(path)
-				print(str(ex))
-				if ex.detail:
-					print()
-					print(ex.detail)
-	if failures:
-		print('\n' + _("List of corrupted or modified implementations:"))
-		for x in failures:
-			print(x)
-		print()
-	print(_("Checked %d items") % i)
-	print(_("Successfully verified implementations: %d") % verified)
-	print(_("Corrupted or modified implementations: %d") % len(failures))
-	if failures:
-		sys.exit(1)
-
-def do_list(args):
-	"""list"""
-	if args: raise UsageError(_("List takes no arguments"))
-	print(_("User store (writable) : %s") % stores.stores[0].dir)
-	for s in stores.stores[1:]:
-		print(_("System store          : %s") % s.dir)
-	if len(stores.stores) < 2:
-		print(_("No system stores."))
-
-def get_stored(dir_or_digest):
-	"""@type dir_or_digest: str
-	@rtype: str"""
-	if os.path.isdir(dir_or_digest):
-		return dir_or_digest
-	else:
-		try:
-			return stores.lookup(dir_or_digest)
-		except zerostore.NotStored as ex:
-			print(ex, file=sys.stderr)
-		sys.exit(1)
-
 def do_copy(args):
 	"""copy SOURCE [ TARGET ]"""
 	if len(args) == 2:
@@ -236,4 +76,4 @@ def do_copy(args):
 
 	copy_tree_with_verify(source, target, manifest_data, required_digest)
 
-commands = [do_add, do_audit, do_copy, do_find, do_list, do_manifest, do_optimise, do_verify]
+commands = [do_copy, do_optimise]

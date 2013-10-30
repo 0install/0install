@@ -70,16 +70,72 @@ let handle_verify options flags args =
 
 let handle_audit options flags args =
   Support.Argparse.iter_options flags (Common_options.process_common_option options);
+  let config = options.config in
+  let system = config.system in
   let dirs =
     match args with
-    | [] -> options.config.stores
+    | [] -> config.stores
     | dirs -> dirs in
-  let dirs = dirs |> List.map (fun d -> `String d) in
-  options.slave#invoke (`List [`String "audit"; `List dirs]) (function
-    | `Bool true -> ()
-    | `Bool false -> raise (System_exit 1)
-    | _ -> assert false
-  )
+
+  let audit_ls = dirs |> U.filter_map (fun dir ->
+    if U.is_dir system dir then Some (
+      let items =
+        match system#readdir dir with
+        | Problem ex -> raise ex
+        | Success items -> items in
+      Array.sort String.compare items;
+      (dir, items)
+    ) else if args <> [] then (
+      raise_safe "No such directory '%s'" dir
+    ) else
+      None
+  ) in
+
+  let total = audit_ls |> List.fold_left (fun acc (_, items) -> acc + Array.length items) 0 in
+
+  let print fmt = Support.Utils.print config.system fmt in
+
+  let verified = ref 0 in
+  let failures = ref [] in
+  let i = ref 0 in
+  audit_ls |> List.iter (fun (root, impls) ->
+    print "Scanning %s" root;
+    impls |> Array.iter (fun required_digest_str ->
+      incr i;
+      let path = root +/ required_digest_str in
+      let digest =
+        try Some (Manifest.parse_digest required_digest_str)
+        with Safe_exception _ ->
+          print "Skipping non-implementation directory %s" path;
+          None in
+
+      match digest with
+      | None -> ()
+      | Some digest ->
+          try
+            let msg = Printf.sprintf "[%d / %d] Verifying %s" !i total required_digest_str in
+            system#print_string msg;
+            flush stdout;
+            Manifest.verify system path ~digest;
+            for i = 0 to String.length msg - 1 do msg.[i] <- ' ' done;
+            system#print_string @@ "\r" ^ msg ^ "\r";
+            incr verified;
+          with Safe_exception (msg, _) ->
+            print "";
+            failures := path :: !failures;
+            print "%s" msg
+    )
+  );
+  if !failures <> [] then  (
+    print "\nList of corrupted or modified implementations:";
+    !failures |> List.iter (print "%s");
+    print ""
+  );
+  print "Checked %d items" !i;
+  print "Successfully verified implementations: %d" !verified;
+  print "Corrupted or modified implementations: %d" (List.length !failures);
+  if !failures <> [] then
+    raise (System_exit 1)
 
 let handle_manifest options flags args =
   Support.Argparse.iter_options flags (Common_options.process_common_option options);

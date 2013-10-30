@@ -588,13 +588,6 @@ def handle_invoke(config, options, ticket, request):
 			response = do_start_monitoring(config, request[1])
 		elif command == 'stop-monitoring':
 			response = do_stop_monitoring(config, request[1])
-		elif command == 'audit':
-			from zeroinstall.zerostore import cli
-			try:
-				cli.do_audit(request[1])
-				response = True
-			except SystemExit:
-				response = False
 		elif command == 'test-distro':
 			response = do_test_distro(config, request[1], request[2])
 		else:
