@@ -197,4 +197,43 @@ let suite = "0store">::: [
 
     Manifest.verify system ~digest (copy +/ digest_str);
   );
+
+  "optimise">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let system = config.system in
+    let tmp = U.getenv_ex fake_system "HOME" in
+    let sample = tmp +/ "sample" in
+    system#mkdir sample 0o755;
+    populate_sample system sample;
+
+    Lwt_main.run @@ Stores.add_dir_to_cache config ("sha1new", "7e3eb25a072988f164bae24d33af69c1814eb99a") sample;
+
+    let subfile = sample +/ "My Dir" +/ "!a file!.exe" in
+    fake_system#chmod subfile 0o755;
+    system#with_open_out [Open_wronly;Open_trunc] 0 subfile (fun ch ->
+      output_string ch "Extra!\n"
+    );
+    system#set_mtime subfile 2.0;
+
+    Lwt_main.run @@ Stores.add_dir_to_cache config ("sha1new", "40861a33dba4e7c26d37505bd9693511808c0c35") sample;
+
+    let impl_a = Stores.lookup_any system [("sha1new", "7e3eb25a072988f164bae24d33af69c1814eb99a")] config.stores in
+    let impl_b = Stores.lookup_any system [("sha1new", "40861a33dba4e7c26d37505bd9693511808c0c35")] config.stores in
+
+    let same_inode name =
+      match system#lstat (impl_a +/ name), system#lstat (impl_b +/ name) with
+      | Some a, Some b -> a.Unix.st_ino = b.Unix.st_ino
+      | _ -> assert false in
+
+    assert (not (same_inode "My Dir/!a file!"));
+    assert (not (same_inode "My Dir/!a file!.exe"));
+
+    let out = Test_0install.run_0install ~include_stderr:true fake_system ["store"; "optimise"; List.hd config.stores] in
+    assert_contains "Space freed up : 15 bytes"out;
+
+    let out = Test_0install.run_0install ~include_stderr:true fake_system ["store"; "optimise"; List.hd config.stores] in
+    assert_contains "No duplicates found; no changes made." out;
+
+    assert (same_inode "My Dir/!a file!");
+    assert (not (same_inode "My Dir/!a file!.exe"));
+  );
 ]

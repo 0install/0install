@@ -170,6 +170,11 @@ let handle_list options flags args =
           print "System store          : %s" dir
         )
 
+let handle_optimise options flags args =
+  Support.Argparse.iter_options flags (Common_options.process_common_option options);
+  let args = args |> List.map (fun a -> `String a) in
+  options.slave#invoke (`List [`String "optimise"; `List args]) Zeroinstall.Python.expect_null
+
 let handle_copy options flags args =
   Support.Argparse.iter_options flags (Common_options.process_common_option options);
   let system = options.config.system in

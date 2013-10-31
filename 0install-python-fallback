@@ -15,9 +15,5 @@ import sys
 # Using "python -m" isn't safe, because it adds the current directory
 # to PYTHONPATH.
 
-if sys.argv[1] == 'store':
-	from zeroinstall.cmd.store import main
-	main(sys.argv[2:])
-else:
-	from zeroinstall.cmd import main
-	main(sys.argv[1:])
+from zeroinstall.cmd import main
+main(sys.argv[1:])

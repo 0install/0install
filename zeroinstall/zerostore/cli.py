@@ -7,7 +7,6 @@ from __future__ import print_function
 
 from zeroinstall import _
 import os
-from zeroinstall.zerostore.manifest import copy_tree_with_verify
 from zeroinstall import zerostore, SafeException, support
 
 stores = None
@@ -25,6 +24,8 @@ def do_optimise(args):
 	if len(args) == 1:
 		cache_dir = args[0]
 	else:
+		global stores
+		stores = zerostore.Stores()
 		cache_dir = stores.stores[0].dir
 	
 	cache_dir = os.path.realpath(cache_dir)
@@ -52,5 +53,3 @@ def do_optimise(args):
 		perc = (100 * float(dup_size)) / (uniq_size + dup_size)
 		print(_("Space freed up : %(size)s (%(percentage).2f%%)") % {'size': support.pretty_size(dup_size), 'percentage': perc})
 	print(_("Optimisation complete."))
-
-commands = [do_optimise]

@@ -159,4 +159,21 @@ let suite = "stores">::: [
       "VL2MMHO4YXUKFWV63YHTWSBM3GXKSQ2N"
       (Support.Hash.b32_digest ctx)
   );
+
+  "verify">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let home = U.getenv_ex fake_system "HOME" in
+    let tmp = home +/ "source" in
+    let path = tmp +/ "MyLink" in
+    fake_system#mkdir tmp 0o700;
+    fake_system#symlink ~target:"Hello" ~newlink:path;
+    let mfile = tmp +/ ".manifest" in
+
+    let test alg =
+      let added_digest = (alg, Manifest.add_manifest_file config.system alg tmp) in
+      Manifest.verify config.system tmp ~digest:added_digest;
+      fake_system#chmod tmp 0o700;
+      fake_system#unlink mfile in
+
+    List.iter test ["sha1"; "sha256"; "sha1new"; "sha256new"]
+  );
 ]

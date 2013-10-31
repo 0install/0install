@@ -183,20 +183,6 @@ let fallback_handler options flags _args =
   log_info "No OCaml handler for this sub-command; switching to Python version...";
   Zeroinstall.Python.fallback_to_python options.config (List.tl @@ Array.to_list options.config.system#argv)
 
-let handle_store options flags _args =
-  Support.Argparse.iter_options flags (function
-    | #common_option as o -> Common_options.process_common_option options o
-    | _ -> ()
-  );
-  log_info "No OCaml handler for this sub-command; switching to Python version...";
-  match Array.to_list options.config.system#argv with
-  | [] -> assert false
-  | prog :: args ->
-      let argv =
-        if Support.Utils.starts_with (Filename.basename prog) "0store" then "store" :: args
-        else args in
-      Zeroinstall.Python.fallback_to_python options.config argv
-
 let make_command_obj help handler valid_options =
   object
     method handle options raw_options command_path args =
@@ -233,7 +219,7 @@ let store_subcommands : subgroup = [
   make_subcommand "find"      "DIGEST"                                     Store.handle_find @@ common_options;
   make_subcommand "list"      ""                                           Store.handle_list @@ common_options;
   make_subcommand "manifest"  "DIRECTORY [ALGORITHM]"                      Store.handle_manifest @@ common_options;
-  make_subcommand "optimise"  "[ CACHE ]"                                  handle_store @@ common_options;
+  make_subcommand "optimise"  "[ CACHE ]"                                  Store.handle_optimise @@ common_options;
   make_subcommand "verify"    "(DIGEST | (DIRECTORY [DIGEST])"             Store.handle_verify @@ common_options;
   make_subcommand "manage"    ""                                           Manage_cache.handle @@ common_options;
 ]
