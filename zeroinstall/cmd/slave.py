@@ -564,9 +564,6 @@ def handle_invoke(config, options, ticket, request):
 			xml = qdom.parse(BytesIO(read_chunk()))
 			do_update_key_info(config, ticket, request[1], xml)
 			return	# async
-		elif command == 'optimise':
-			from zeroinstall.zerostore import cli
-			response = cli.do_optimise(request[1])
 		elif command == 'notify-user':
 			response = do_notify_user(config, request[1])
 		elif command == 'start-monitoring':

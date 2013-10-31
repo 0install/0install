@@ -182,6 +182,12 @@ type inode =
   | `symlink of (hash * size)
   | `file of (bool * hash * mtime * size) ]
 
+type manifest_dir = (filepath * tree_node) list
+and tree_node =
+  [ `dir of manifest_dir
+  | `symlink of (hash * size)
+  | `file of (bool * hash * mtime * size) ]
+
 let parse_manifest_line ~old line : (string * inode) =
   let n_parts =
     match line.[0] with
@@ -307,8 +313,6 @@ let verify system ~digest dir =
     raise (Safe_exception (trim @@ Buffer.contents b, ref []))
   )
 
-(* Parse a manifest into a tree structure.
-   Note: must be a new-style manifest (not "sha1") *)
 let parse_manifest manifest_data =
   let stream = stream_of_lines manifest_data in
   let rec parse_dir path =

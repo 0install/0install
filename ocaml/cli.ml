@@ -219,7 +219,7 @@ let store_subcommands : subgroup = [
   make_subcommand "find"      "DIGEST"                                     Store.handle_find @@ common_options;
   make_subcommand "list"      ""                                           Store.handle_list @@ common_options;
   make_subcommand "manifest"  "DIRECTORY [ALGORITHM]"                      Store.handle_manifest @@ common_options;
-  make_subcommand "optimise"  "[ CACHE ]"                                  Store.handle_optimise @@ common_options;
+  make_subcommand "optimise"  "[ CACHE ]"                                  Optimise.handle     @@ common_options;
   make_subcommand "verify"    "(DIGEST | (DIRECTORY [DIGEST])"             Store.handle_verify @@ common_options;
   make_subcommand "manage"    ""                                           Manage_cache.handle @@ common_options;
 ]

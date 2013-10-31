@@ -40,3 +40,17 @@ val verify : Support.Common.system -> digest:digest -> Support.Common.filepath -
     A successful return means than target/required_digest now exists (whether we created it or not). *)
 val copy_tree_with_verify : Support.Common.system ->
   Support.Common.filepath -> Support.Common.filepath -> string -> digest -> unit
+
+type hash = string
+type mtime = float
+type size = Int64.t
+
+type manifest_dir = (Support.Common.filepath * tree_node) list
+and tree_node =
+  [ `dir of manifest_dir
+  | `symlink of (hash * size)
+  | `file of (bool * hash * mtime * size) ]
+
+(* Parse a manifest into a tree structure.
+   Note: must be a new-style manifest (not "sha1") *)
+val parse_manifest : string -> manifest_dir
