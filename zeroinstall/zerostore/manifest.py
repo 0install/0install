@@ -26,7 +26,7 @@ A top-level ".manifest" file is ignored.
 
 
 import os, sys, stat, base64
-from zeroinstall import SafeException, _, logger
+from zeroinstall import SafeException, _
 from zeroinstall.zerostore import BadDigest, parse_algorithm_digest_pair, format_algorithm_digest_pair
 
 # unicode compat

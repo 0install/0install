@@ -188,7 +188,7 @@ let rec move_no_follow system srcdir dstdir =
         | _ -> raise_safe "Not a regular file/directory/symlink '%s'" src_path
       )
 
-let unpack_over config slave ~archive ~tmpdir ~destdir ?extract ~mime_type =
+let unpack_over ?extract config slave ~archive ~tmpdir ~destdir ~mime_type =
   let system = config.system in
   extract |> if_some (fun extract ->
     if Str.string_match (Str.regexp ".*[/\\]") extract 0 then

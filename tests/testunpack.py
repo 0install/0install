@@ -128,29 +128,6 @@ class AbstractTestUnpack():
 			unpack.unpack_archive('ftp://foo/file.gem', stream, self.tmpdir)
 		self.assert_manifest('sha1new=fbd4827be7a18f9821790bdfd83132ee60d54647')
 
-	def testSpecial(self):
-		os.chmod(self.tmpdir, 0o2755)
-		store = Store(self.tmpdir)
-		with open('HelloWorld.tgz', 'rb') as stream:
-			store.add_archive_to_cache('sha1=3ce644dc725f1d21cfcf02562c76f375944b266a',
-						   stream,
-						   'http://foo/foo.tgz')
-	
-	def testBad(self):
-		logging.getLogger('').setLevel(logging.ERROR)
-
-		store = Store(self.tmpdir)
-		try:
-			with open('HelloWorld.tgz', 'rb') as stream:
-				store.add_archive_to_cache('sha1=3ce644dc725f1d21cfcf02562c76f375944b266b',
-							   stream,
-							   'http://foo/foo.tgz')
-			assert 0
-		except BadDigest:
-			pass
-
-		logging.getLogger('').setLevel(logging.INFO)
-
 	def assert_manifest(self, required):
 		alg_name = required.split('=', 1)[0]
 		manifest.fixup_permissions(self.tmpdir)

@@ -21,7 +21,7 @@ os.environ['LANG'] = 'C'
 sys.path.insert(0, '..')
 from zeroinstall.injector import qdom, background, namespaces
 from zeroinstall.injector import iface_cache, download, distro, model, handler, reader, trust
-from zeroinstall.zerostore import NotStored, Store, Stores; Store._add_with_helper = lambda *unused, **kwargs: False
+from zeroinstall.zerostore import NotStored, Stores
 from zeroinstall import support, cmd
 from zeroinstall.support import basedir, tasks
 

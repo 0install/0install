@@ -9,6 +9,7 @@ open Zeroinstall.General
 module U = Support.Utils
 module A = Zeroinstall.Archive
 module Manifest = Zeroinstall.Manifest
+module Stores = Zeroinstall.Stores
 
 let assert_manifest system required tmpdir =
   let alg = fst @@ Manifest.parse_digest required in
@@ -47,5 +48,37 @@ let test_archive config expected ?extract archive =
 let suite = "archive">::: [
   "extract-over">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     test_archive config "sha1=491678c37f77fadafbaae66b13d48d237773a68f" ~extract:"HelloWorld" "HelloWorld.tgz"
+  );
+
+  "special">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    (* When creating a temporary directory for extracting an archive, always clear
+       any special bits. Otherwise, if the parent is set-guid then the tmp directory
+       will be too, and the post-extraction check will fail because the permissions
+       are wrong (reported by Markus Kiefer). *)
+    let system = config.system in
+    let home = U.getenv_ex system "HOME" in
+    system#chmod home 0o2755;
+
+    let tmpdir = Zeroinstall.Stores.make_tmp_dir config.system config.stores in
+    let destdir = U.make_tmp_dir config.system ~prefix:"0store-add-" tmpdir in
+    let slave = new Zeroinstall.Python.slave config in
+    Lwt_main.run @@ A.unpack_over config slave ~archive:(Test_0install.feed_dir +/ "HelloWorld.tgz")
+      ~tmpdir ~destdir ~mime_type:"application/x-compressed-tar";
+    let digest = ("sha1", "3ce644dc725f1d21cfcf02562c76f375944b266a") in
+    Lwt_main.run @@ Stores.check_manifest_and_rename config digest destdir
+  );
+
+  "bad">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    let system = config.system in
+
+    let tmpdir = Zeroinstall.Stores.make_tmp_dir system config.stores in
+    let destdir = U.make_tmp_dir system ~prefix:"0store-add-" tmpdir in
+    let slave = new Zeroinstall.Python.slave config in
+    Lwt_main.run @@ A.unpack_over config slave ~archive:(Test_0install.feed_dir +/ "HelloWorld.tgz")
+      ~tmpdir ~destdir ~mime_type:"application/x-compressed-tar";
+    let digest = ("sha1", "3ce644dc725f1d21cfcf02562c76f375944b266b") in
+    Fake_system.assert_raises_safe "Incorrect manifest -- archive is corrupted" (lazy (
+      Lwt_main.run @@ Stores.check_manifest_and_rename config digest destdir
+    ))
   );
 ]
