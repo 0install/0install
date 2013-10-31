@@ -7,6 +7,7 @@ open Support.Common
 open OUnit
 module Stores = Zeroinstall.Stores
 module Archive = Zeroinstall.Archive
+module Manifest = Zeroinstall.Manifest
 module U = Support.Utils
 
 let suite = "stores">::: [
@@ -106,6 +107,35 @@ let suite = "stores">::: [
     let tmpdir = create_tmp () in
     Stores.check_manifest_and_rename config required_digest tmpdir |> Lwt_main.run;
     Fake_system.fake_log#assert_contains "Added succcessfully using helper"
+  );
+
+  "test-helper">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let home = U.getenv_ex fake_system "HOME" in
+    let test = home +/ "test" in
+    fake_system#mkdir test 0o755;
+
+    let add digest =
+      U.finally_do
+        (fun old -> fake_system#chdir old)
+        fake_system#getcwd
+        (fun _ ->
+          fake_system#chdir test;
+          Secureadd.handle config [digest]) in
+
+    Fake_system.assert_raises_safe "File '.manifest' doesn't exist" (lazy (add "sha1=123"));
+
+    ignore @@ Zeroinstall.Manifest.add_manifest_file config.system "sha1new" test;
+
+    Fake_system.assert_raises_safe "Sorry, the 'sha1' algorithm does not support copying." (lazy (add "sha1=123"));
+    Fake_system.assert_raises_safe "Manifest has been tampered with!" (lazy (add "sha1new=123"));
+
+    let system_cache = home +/ "implementations" in
+    fake_system#mkdir system_cache 0o755;
+    fake_system#redirect_writes "/var/cache/0install.net/implementations" system_cache;
+    let digest = ("sha1new", "da39a3ee5e6b4b0d3255bfef95601890afd80709") in
+    add (Manifest.format_digest digest);
+
+    Manifest.verify config.system ~digest (system_cache +/ Manifest.format_digest digest);
   );
 
   "check-permissions">:: Fake_system.with_fake_config (fun (config, fake_system) ->

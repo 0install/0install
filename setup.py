@@ -79,7 +79,7 @@ setup(name="zeroinstall-injector",
       author="Thomas Leonard",
       author_email="zero-install-devel@lists.sourceforge.net",
       url="http://0install.net",
-      scripts=['0install-python-fallback', '0alias', '0store-secure-add'],
+      scripts=['0install-python-fallback', '0alias'],
       license='LGPL',
       cmdclass={
 	'build_py': build_with_data,

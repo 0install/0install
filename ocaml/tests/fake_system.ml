@@ -84,6 +84,7 @@ let test_0install = src_dir +/ "0install"           (* Pretend we're running fro
 class fake_system tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
   let hidden_files = ref StringSet.empty in
+  let redirect_writes = ref None in
 
   (* Prevent reading from $HOME, except for the code we're testing (to avoid accidents, e.g. reading user's config files).
    * Also, apply any redirections in extra_files. *)
@@ -107,9 +108,13 @@ class fake_system tmpdir =
     ) in
 
   let check_write path =
-    match tmpdir with
-    | Some dir when U.starts_with path dir -> path
-    | _ -> failwith @@ Printf.sprintf "Attempt to write to '%s'" path in
+    match !redirect_writes with
+    | Some (from, target) when U.starts_with path from ->
+        target +/ (U.string_tail path (String.length from))
+    | _ ->
+        match tmpdir with
+        | Some dir when U.starts_with path dir -> path
+        | _ -> failwith @@ Printf.sprintf "Attempt to write to '%s'" path in
 
   (* It's OK to check whether these paths exists. We just say they don't,
      unless they're in extra_files (check there first). *)
@@ -291,6 +296,10 @@ class fake_system tmpdir =
           add_parent parent
         ) in
       add_parent path
+
+    (** Writes to src/foo become writes to target/foo *)
+    method redirect_writes src target =
+      redirect_writes := Some (src ^ Filename.dir_sep, target ^ Filename.dir_sep)
 
     method add_dir path items =
       extra_files := StringMap.add path (Dir (0o755, items)) !extra_files;
