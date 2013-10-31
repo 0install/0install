@@ -91,8 +91,9 @@ let best_digest digests =
 
 let make_tmp_dir (system:system) = function
   | store :: _ ->
-      U.makedirs system store 0o755;
       let mode = 0o755 in     (* r-x for all; needed by 0store-helper *)
+      U.makedirs system store mode;
+      system#chmod store mode;  (* arg to makedirs not sufficient; must clear setgid too *)
       U.make_tmp_dir system ~mode store
   | _ -> raise_safe "No stores configured!"
 
