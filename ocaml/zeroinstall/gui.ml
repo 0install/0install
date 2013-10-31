@@ -42,21 +42,6 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
       | Some (feed, overrides) ->
           Some (StringMap.find id feed.F.implementations, get_override overrides)
 
-let format_size size =
-  let spf = Printf.sprintf in
-  if size < 2048. then spf "%.0f bytes" size
-  else (
-    let rec check size units =
-      let size = size /. 1024. in
-      match units with
-      | u::rest ->
-          if size < 2048. || rest = [] then
-            spf "%.1f %s" size u
-          else check size rest
-      | [] -> assert false in
-    check size ["KB"; "MB"; "GB"; "TB"]
-  )
-
 let get_download_size info impl =
   match info.F.retrieval_methods with
   | [] -> Q.raise_elem "Implementation %s has no retrieval methods!" (F.get_attr_ex FeedAttr.id impl) impl.F.qdom
@@ -79,7 +64,7 @@ let get_fetch_info config impl =
         match Stores.lookup_maybe config.system info.F.digests config.stores with
         | None ->
           let size = get_download_size info impl in
-          let pretty = format_size (Int64.to_float size) in
+          let pretty = U.format_size size in
           (`Null, pretty, Printf.sprintf "Need to download %s (%s bytes)" pretty (Int64.to_string size))
         | Some path -> (`String path, "(cached)", "This version is already stored on your computer.")
     )
@@ -95,7 +80,7 @@ let get_fetch_info config impl =
           match size with
           | None -> (`Null, "(install)", "No size information available for this download")
           | Some size ->
-              let pretty = format_size size in
+              let pretty = U.format_size (Int64.of_float size) in
               (`Null, pretty, Printf.sprintf "Distribution package: need to download %s (%s bytes)" pretty (string_of_float size))
         )
   with Safe_exception (msg, _) as ex ->

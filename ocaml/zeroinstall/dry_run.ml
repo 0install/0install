@@ -68,9 +68,9 @@ class dryrun_system (underlying:system) =
       fake_dirs <- StringMap.add dir (StringSet.add base dir_entries) fake_dirs
 
     (* Interesting operations: log and skip *)
+    method hardlink orig copy = log "ln %s %s" orig copy
     method symlink ~target ~newlink = log "ln -s %s %s" target newlink
     method unlink path      = log "rm %s" path
-    method atomic_hardlink ~link_to ~replace = log "ln %s %s" link_to replace
     method rmdir path       = log "rmdir %s" path
     method rename source target = log "rename %s -> %s" source target
     method spawn_detach ?(search_path=false) ?env:_ argv = ignore search_path; log "would spawn background process: %s" (String.concat " " argv)

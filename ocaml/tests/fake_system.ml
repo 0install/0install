@@ -222,7 +222,7 @@ class fake_system tmpdir =
       )
 
     method atomic_write open_flags path ~mode fn = real_system#atomic_write open_flags (check_write path) ~mode fn
-    method atomic_hardlink ~link_to ~replace = real_system#atomic_hardlink ~link_to:(check_read link_to) ~replace:(check_write replace)
+    method hardlink orig copy = real_system#hardlink (check_write orig) (check_write copy)
     method unlink path = real_system#unlink (check_write path)
     method rmdir path = real_system#rmdir (check_write path)
 

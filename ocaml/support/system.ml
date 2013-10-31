@@ -225,18 +225,7 @@ module RealSystem (U : UnixType) =
             result
           with Safe_exception _ as ex -> reraise_with_context ex "... trying to write '%s'" path
 
-        method atomic_hardlink ~link_to ~replace =
-          if on_windows then (
-            if Sys.file_exists replace then
-              Unix.unlink replace;
-            Unix.link link_to replace
-          ) else (
-            let tmp = (replace ^ ".new") in
-            if Sys.file_exists tmp then
-              Unix.unlink tmp;
-            Unix.link link_to tmp;
-            Unix.rename tmp replace
-          )
+        method hardlink = Unix.link
 
         method getenv name =
           try Some (Sys.getenv name)

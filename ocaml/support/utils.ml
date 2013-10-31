@@ -484,3 +484,35 @@ let make_tmp_dir system ?(prefix="tmp-") ?(mode=0o700) parent =
           tmppath
         with Unix.Unix_error (Unix.EEXIST, _, _) -> mktmp (n - 1) in
   mktmp 10
+
+let format_size size =
+  let size = Int64.to_float size in
+  let spf = Printf.sprintf in
+  if size < 2048. then spf "%.0f bytes" size
+  else (
+    let rec check size units =
+      let size = size /. 1024. in
+      match units with
+      | u::rest ->
+          if size < 2048. || rest = [] then
+            spf "%.1f %s" size u
+          else check size rest
+      | [] -> assert false in
+    check size ["KB"; "MB"; "GB"; "TB"]
+  )
+
+(** Remove [replace] and replace it with a hardlink to [source]. If possible, ensure
+    that there is no point where [replace] does not exist.
+    May use (overwrite) [replace.new] as a temporary file. *)
+let atomic_hardlink system ~link_to ~replace =
+  if on_windows then (
+    if system#file_exists replace then
+      system#unlink replace;
+    system#hardlink link_to replace
+  ) else (
+    let tmp = (replace ^ ".new") in
+    if system#file_exists tmp then
+      system#unlink tmp;
+    system#hardlink link_to tmp;
+    system#rename tmp replace
+  )

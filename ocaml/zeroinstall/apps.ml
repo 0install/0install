@@ -110,7 +110,7 @@ let set_selections config app_path sels ~touch_last_checked =
   if config.dry_run then
     Dry_run.log "would update %s to point to new selections file" sels_latest
   else (
-    config.system#atomic_hardlink ~link_to:sels_file ~replace:sels_latest
+    U.atomic_hardlink config.system ~link_to:sels_file ~replace:sels_latest
   );
 
   if touch_last_checked && not config.dry_run then
