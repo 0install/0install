@@ -336,7 +336,7 @@ let parse_manifest manifest_data =
   let items = parse_dir "" in
   begin try Stream.empty stream;
   with Stream.Failure -> failwith "BUG: more manifest items!" end;
-  items
+  List.rev items
 
 (** Copy the file [src] to [dst]. Error if it doesn't end up with the right hash. *)
 let copy_with_verify (system:system) src dst ~digest ~required_hash ~mode =

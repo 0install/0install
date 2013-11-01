@@ -15,9 +15,10 @@ module R = Zeroinstall.Requirements
 module Escape = Zeroinstall.Escape
 
 let assert_contains = Fake_system.assert_contains
+let assert_str_equal = Fake_system.assert_str_equal
 let assert_error_contains expected fn =
   Fake_system.assert_error_contains expected (fun () ->
-    Fake_system.assert_str_equal "" @@ fn ()
+    assert_str_equal "" @@ fn ()
   )
 
 let test_0install = Fake_system.test_0install
@@ -133,7 +134,7 @@ let suite = "0install">::: [
     (* Download succeeds (does nothing, as it's already cached *)
     fake_system#set_argv [| test_0install; "-o"; "download"; "http://example.com:8000/Hello.xml" |];
     let output = fake_system#collect_output (fun () -> Main.main system) in
-    Fake_system.assert_str_equal "" output;
+    assert_str_equal "" output;
 
     (* Use --console --offline --refresh to force us to use the Python *)
     let my_spawn_handler args cin cout cerr =
@@ -143,7 +144,7 @@ let suite = "0install">::: [
     let () =
       try Main.main system; assert false
       with Safe_exception (msg, _) ->
-        Fake_system.assert_str_equal (
+        assert_str_equal (
           "Can't find all required implementations:\n" ^
           "- http://example.com:8000/Hello.xml -> (problem)\n" ^
           "    User requested version 2\n" ^
@@ -247,7 +248,7 @@ let suite = "0install">::: [
     let out = run ["download"; local_uri; "--xml"] in
     let sels = Zeroinstall.Selections.make_selection_map @@ Q.parse_input None (Xmlm.make_input (`String (0, out))) in
     let sel = StringMap.find local_uri sels in
-    Fake_system.assert_str_equal "0.1" @@ ZI.get_attribute "version" sel;
+    assert_str_equal "0.1" @@ ZI.get_attribute "version" sel;
 
     let () =
       try ignore @@ run ["download"; "--offline"; (feed_dir +/ "selections.xml")]; assert false
@@ -339,7 +340,7 @@ let suite = "0install">::: [
     fake_system#putenv "PATH" ((tmpdir +/ "bin") ^ path_sep ^ U.getenv_ex fake_system "PATH");
 
     let out = run ["add"; "local-app"; local_feed] in
-    Fake_system.assert_str_equal "" out;
+    assert_str_equal "" out;
 
     assert_error_contains "Application 'local-app' already exists" (fun () ->
       run ["add"; "local-app"; local_feed]
@@ -380,7 +381,7 @@ let suite = "0install">::: [
     assert_contains "No updates found. Continuing with version 0.1." out;
 
     let out = run ["select"; "local-app"] in
-    Fake_system.assert_str_equal (Printf.sprintf (
+    assert_str_equal (Printf.sprintf (
       "User-provided restrictions in force:\n" ^^
       "  %s/Local.xml: 0.1..\n" ^^
       "\n" ^^
@@ -398,7 +399,7 @@ let suite = "0install">::: [
     assert_contains "No updates found. Continuing with version 0.1." out;
 
     let out = run ["select"; "local-app"] in
-    Fake_system.assert_str_equal (Printf.sprintf (
+    assert_str_equal (Printf.sprintf (
       "- URI: %s/Local.xml\n" ^^
       "  Version: 0.1\n" ^^
       "  Path: %s\n") path path) out;
@@ -447,9 +448,9 @@ let suite = "0install">::: [
     assert_contains "local-app" @@ run ["_complete"; "bash"; "0install"; "man"];
     assert_contains "local-app" @@ run ["_complete"; "bash"; "0install"; "destroy"];
     fake_system#putenv "COMP_CWORD" "3";
-    Fake_system.assert_str_equal "" @@ run ["_complete"; "bash"; "0install"; "destroy"];
+    assert_str_equal "" @@ run ["_complete"; "bash"; "0install"; "destroy"];
 
-    Fake_system.assert_str_equal "" @@ run ["destroy"; "local-app"];
+    assert_str_equal "" @@ run ["destroy"; "local-app"];
 
     assert_error_contains "No such application 'local-app'" (fun () ->
       run ["destroy"; "local-app"]
@@ -477,7 +478,7 @@ let suite = "0install">::: [
     U.copy_file system local_feed local_copy 0o600;
 
     let out = run ["add"; "local-app"; local_copy] in
-    Fake_system.assert_str_equal "" out;
+    assert_str_equal "" out;
 
     let app = expect @@ Zeroinstall.Apps.lookup_app config "local-app" in
 
@@ -561,7 +562,7 @@ let suite = "0install">::: [
         with System_exit n -> assert_equal ~msg:"exit code" n exit
       ) in
 
-    Fake_system.assert_str_equal "(no feeds)\n" @@ run ["list-feeds"; binary_iface];
+    assert_str_equal "(no feeds)\n" @@ run ["list-feeds"; binary_iface];
 
     let out = run ~exit:1 ["add-feed"] in
     assert_contains "usage:" @@ String.lowercase out;
@@ -593,5 +594,30 @@ let suite = "0install">::: [
     reader.update_from_cache(binary_iface, iface_cache = self.config.iface_cache)
     assert len(binary_iface.extra_feeds) == 1
     *)
+  );
+
+  "digest">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let run args = run_0install fake_system args in
+    let hw = feed_dir +/ "HelloWorld.tgz" in
+
+    let out = run ["digest"; "--algorithm=sha1"; hw] in
+    assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a\n" out;
+
+    let out = run ["digest"; "-m"; "--algorithm=sha256new"; hw] in
+    assert_str_equal "D /HelloWorld\nX 4a6dfb4375ee2a63a656c8cbd6873474da67e21558f2219844f6578db8f89fca 1126963163 27 main\n" out;
+
+    let out = run ["digest"; "-d"; "--algorithm=sha256new"; hw] in
+    assert_str_equal "sha256new_RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA\n" out;
+
+    let out = run ["digest"; hw] in
+    assert_str_equal "sha1new=290eb133e146635fe37713fd58174324a16d595f\n" out;
+
+    let out = run ["digest"; hw; "HelloWorld"] in
+    assert_str_equal "sha1new=491678c37f77fadafbaae66b13d48d237773a68f\n" out;
+
+    let home = U.getenv_ex config.system "HOME" in
+    let tmp = U.make_tmp_dir config.system ~prefix:"0install" home in
+    let out = run ["digest"; tmp] in
+    assert_str_equal "sha1new=da39a3ee5e6b4b0d3255bfef95601890afd80709\n" out;
   );
 ]
