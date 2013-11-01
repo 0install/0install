@@ -206,3 +206,43 @@ let handle_add options flags args =
       )
   | [digest; archive; extract] -> add_archive options ~digest ~extract archive
   | _ -> raise (Support.Argparse.Usage_error 1)
+
+let handle_digest options flags args =
+  let alg = ref "sha1new" in
+  let show_manifest = ref false in
+  let show_digest = ref false in
+  Support.Argparse.iter_options flags (function
+    | #common_option as o -> Common_options.process_common_option options o
+    | `UseHash a -> alg := a
+    | `ShowManifest -> show_manifest := true
+    | `ShowDigest -> show_digest := true
+  );
+  if not !show_manifest then show_digest := true;
+  let config = options.config in
+  let system = config.system in
+
+  let do_manifest dir =
+    let manifest_contents = Manifest.generate_manifest system !alg dir in
+    if !show_manifest then system#print_string manifest_contents;
+    if !show_digest then (
+      let digest = (!alg, Manifest.hash_manifest !alg manifest_contents) |> Manifest.format_digest in
+      system#print_string (digest ^ "\n")
+    ) in
+
+  let do_archive ?extract archive =
+    let mime_type = A.type_from_url archive in
+    A.check_type_ok config.system mime_type;
+    U.finally_do
+      (fun tmpdir -> U.rmtree ~even_if_locked:true system tmpdir)
+      (Zeroinstall.Stores.make_tmp_dir system config.stores)
+      (fun tmpdir ->
+        let destdir = U.make_tmp_dir system ~prefix:"0install-digest-" tmpdir in
+        Lwt_main.run @@ A.unpack_over config options.slave ~archive ~tmpdir ~destdir ?extract ~mime_type;
+        do_manifest destdir
+      ) in
+
+  match args with
+  | [dir] when U.is_dir system dir -> do_manifest dir
+  | [archive] -> do_archive archive
+  | [archive; extract] -> do_archive ~extract archive
+  | _ -> raise (Support.Argparse.Usage_error 1)

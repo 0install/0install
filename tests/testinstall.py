@@ -212,28 +212,28 @@ class TestInstall(BaseTest):
 
 	def testDigest(self):
 		hw = os.path.join(mydir, 'HelloWorld.tgz')
-		out, err = self.run_0install(['digest', '--algorithm=sha1', hw])
-		assert out == 'sha1=3ce644dc725f1d21cfcf02562c76f375944b266a\n', out
+		out, err = self.run_ocaml(['digest', '--algorithm=sha1', hw])
 		assert not err, err
+		assert out == 'sha1=3ce644dc725f1d21cfcf02562c76f375944b266a\n', out
 
-		out, err = self.run_0install(['digest', '-m', '--algorithm=sha256new', hw])
+		out, err = self.run_ocaml(['digest', '-m', '--algorithm=sha256new', hw])
 		assert out == 'D /HelloWorld\nX 4a6dfb4375ee2a63a656c8cbd6873474da67e21558f2219844f6578db8f89fca 1126963163 27 main\n', out
 		assert not err, err
 
-		out, err = self.run_0install(['digest', '-d', '--algorithm=sha256new', hw])
+		out, err = self.run_ocaml(['digest', '-d', '--algorithm=sha256new', hw])
 		assert out == 'sha256new_RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA\n', out
 		assert not err, err
 
-		out, err = self.run_0install(['digest', hw])
+		out, err = self.run_ocaml(['digest', hw])
 		assert out == 'sha1new=290eb133e146635fe37713fd58174324a16d595f\n', out
 		assert not err, err
 
-		out, err = self.run_0install(['digest', hw, 'HelloWorld'])
+		out, err = self.run_ocaml(['digest', hw, 'HelloWorld'])
 		assert out == 'sha1new=491678c37f77fadafbaae66b13d48d237773a68f\n', out
 		assert not err, err
 
 		tmp = tempfile.mkdtemp(prefix = '0install')
-		out, err = self.run_0install(['digest', tmp])
+		out, err = self.run_ocaml(['digest', tmp])
 		assert out == 'sha1new=da39a3ee5e6b4b0d3255bfef95601890afd80709\n', out
 		assert not err, err
 		os.rmdir(tmp)
