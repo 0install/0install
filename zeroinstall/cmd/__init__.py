@@ -105,12 +105,6 @@ def main(command_args, config = None):
 			import zeroinstall
 			logger.info(_("Running 0install %(version)s %(args)s; Python %(python_version)s"), {'version': zeroinstall.version, 'args': repr(command_args), 'python_version': sys.version})
 
-		if options.with_store:
-			from zeroinstall import zerostore
-			for x in options.with_store:
-				config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
-			logger.info(_("Stores search path is now %s"), config.stores.stores)
-
 		config.handler.dry_run = bool(options.dry_run)
 		if config.handler.dry_run:
 			if options.gui is True:

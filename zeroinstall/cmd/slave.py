@@ -59,14 +59,6 @@ def parse_ynm(s):
 	if s == 'maybe': return None
 	assert 0, s
 
-def get_dry_run_names(config):
-	paths = set()
-	if config.handler.dry_run:
-		for store in config.stores.stores:
-			for name in store.dry_run_names:
-				paths.add(os.path.join(store.dir, name))
-	return paths
-
 @tasks.async
 def do_confirm_distro_install(config, ticket, options, impls):
 	if gui_driver is not None: config = gui_driver.config

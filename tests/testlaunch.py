@@ -6,7 +6,6 @@ from basetest import BaseTest, StringIO, BytesIO
 import sys, tempfile, os, imp, subprocess
 import unittest
 import logging
-import selections
 
 os.environ["http_proxy"] = "localhost:8000"
 foo_iface_uri = 'http://foo'
@@ -124,20 +123,6 @@ class TestLaunch(BaseTest):
 		out, err = self.run_0install(['download', '--dry-run', 'Foo.xml'])
 		self.assertEqual("", err)
 		self.assertEqual("Finished\n", out)
-
-	def testSelectOnly(self):
-		os.environ['DISPLAY'] = ':foo'
-		out, err = self.run_0install(['select', '--xml', 'Hello.xml'])
-		self.assertEqual("", err)
-
-		assert out.endswith("Finished\n"), out
-		out = out[:-len("Finished\n")]
-
-		root = qdom.parse(BytesIO(str(out).encode('utf-8')))
-		self.assertEqual(namespaces.XMLNS_IFACE, root.uri)
-		sels = selections.Selections(root)
-		sel,= sels.selections.values()
-		self.assertEqual("sha1=3ce644dc725f1d21cfcf02562c76f375944b266a", sel.id)
 
 	def testHello(self):
 		out, err = self.run_0launch(['--dry-run', 'Foo.xml'])

@@ -134,11 +134,6 @@ def open_gui(args):
 
 	config = load_config(handler)
 
-	if options.with_store:			# TODO: inherit from the main config
-		from zeroinstall import zerostore
-		for x in options.with_store:
-			config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
-
 	assert len(args) > 0
 
 	interface_uri = args[0]

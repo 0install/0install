@@ -21,7 +21,6 @@ os.environ['LANG'] = 'C'
 sys.path.insert(0, '..')
 from zeroinstall.injector import qdom, background, namespaces
 from zeroinstall.injector import iface_cache, download, distro, model, handler, reader, trust
-from zeroinstall.zerostore import NotStored, Stores
 from zeroinstall import support, cmd
 from zeroinstall.support import basedir, tasks
 
@@ -115,70 +114,6 @@ class DummyHandler(handler.Handler):
 		#import traceback
 		#traceback.print_exc()
 
-class DummyKeyInfo:
-	def __init__(self, fpr):
-		self.fpr = fpr
-		self.info = [minidom.parseString('<item vote="bad"/>')]
-		self.blocker = None
-
-class TestFetcher:
-	def __init__(self, config):
-		self.allowed_downloads = set()
-		self.allowed_feed_downloads = {}
-		self.config = config
-
-	def allow_download(self, digest):
-		assert isinstance(self.config.stores, TestStores)
-		self.allowed_downloads.add(digest)
-
-	def allow_feed_download(self, url, feed_xml):
-		assert isinstance(feed_xml, support.basestring), feed_xml
-		self.allowed_feed_downloads[url] = feed_xml
-
-	def download_impls(self, impls, stores):
-		@tasks.async
-		def fake_download():
-			yield
-			for impl in impls:
-				assert impl.id in self.allowed_downloads, impl
-				self.allowed_downloads.remove(impl.id)
-				self.config.stores.add_fake(impl.id)
-		return fake_download()
-
-	def download_and_import_feed(self, feed_url, iface_cache, force = False):
-		@tasks.async
-		def fake_download():
-			yield
-			feed_xml = self.allowed_feed_downloads.get(feed_url, None)
-			assert feed_xml, feed_url
-			if not isinstance(feed_xml, bytes):
-				feed_xml = feed_xml.encode('utf-8')
-			self.config.iface_cache.update_feed_from_network(feed_url, feed_xml, int(time.time()))
-			del self.allowed_feed_downloads[feed_url]
-		return fake_download()
-
-	def fetch_key_info(self, fingerprint):
-		return DummyKeyInfo(fingerprint)
-
-class TestStores:
-	def __init__(self):
-		self.fake_impls = set()
-
-	def add_fake(self, digest):
-		self.fake_impls.add(digest)
-
-	def lookup_maybe(self, digests):
-		for d in digests:
-			if d in self.fake_impls:
-				return '/fake_store/' + d
-		return None
-
-	def lookup_any(self, digests):
-		path = self.lookup_maybe(digests)
-		if path:
-			return path
-		raise NotStored()
-
 class TestConfig:
 	freshness = 0
 	help_with_testing = False
@@ -190,8 +125,6 @@ class TestConfig:
 	def __init__(self):
 		self.iface_cache = iface_cache.IfaceCache()
 		self.handler = DummyHandler()
-		self.stores = Stores()
-		self.fetcher = TestFetcher(self)
 		self.trust_db = trust.trust_db
 
 class BaseTest(unittest.TestCase):

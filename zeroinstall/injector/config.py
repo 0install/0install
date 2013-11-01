@@ -14,7 +14,6 @@ try:
 except ImportError:
 	import configparser as ConfigParser
 
-from zeroinstall import zerostore
 from zeroinstall.injector.model import network_levels, network_full
 from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.support import basedir
@@ -37,7 +36,7 @@ class Config(object):
 	"""
 
 	__slots__ = ['help_with_testing', 'freshness', 'network_use', 'mirror', 'key_info_server', 'auto_approve_keys',
-		     '_stores', '_iface_cache', '_handler', '_trust_db']
+		     '_iface_cache', '_handler', '_trust_db']
 
 	def __init__(self, handler = None):
 		"""@type handler: L{zeroinstall.injector.handler.Handler} | None"""
@@ -45,18 +44,12 @@ class Config(object):
 		self.freshness = 60 * 60 * 24 * 30
 		self.network_use = network_full
 		self._handler = handler
-		self._stores = self._iface_cache = self._trust_db = None
+		self._iface_cache = self._trust_db = None
 		self.mirror = DEFAULT_MIRROR
 		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
 		self.auto_approve_keys = True
 
 	feed_mirror = property(lambda self: self.mirror, lambda self, value: setattr(self, 'mirror', value))
-
-	@property
-	def stores(self):
-		if not self._stores:
-			self._stores = zerostore.Stores()
-		return self._stores
 
 	@property
 	def iface_cache(self):

@@ -745,4 +745,15 @@ let suite = "download">::: [
     let out = run_0install fake_system ["search"; "firefox"] in
     assert_contains "Firefox - Webbrowser" out
   );
+
+  "select">:: Server.with_server (fun (_config, fake_system) server ->
+    server#expect [
+      [("Hello.xml", `Serve)];
+      [("6FCF121BE2390E0B.gpg", `Serve)];
+      [("DE937DD411906ACF7C263B396FCF121BE2390E0B", `AcceptKey)];
+    ];
+    let out = run_0install fake_system ["select"; Test_0install.feed_dir +/ "selections.xml"] in
+    assert_contains "Version: 1\n" out;
+    assert_contains "(not cached)" out;
+  );
 ]

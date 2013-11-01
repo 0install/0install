@@ -6,7 +6,6 @@ import unittest
 sys.path.insert(0, '..')
 from zeroinstall import cmd, support
 from zeroinstall.injector import model, qdom, handler, gpg, config
-import selections
 
 mydir = os.path.dirname(__file__)
 
@@ -64,52 +63,6 @@ class TestInstall(BaseTest):
 
 		out, err = self.run_ocaml(['foobar'])
 		assert 'Unknown 0install sub-command' in err, err
-
-	def testShow(self):
-		out, err = self.run_ocaml(['show'])
-		assert out.lower().startswith("usage:")
-		assert '--xml' in out
-
-		out, err = self.run_ocaml(['show', 'selections.xml'])
-		assert not err, err
-		assert 'Version: 1\n' in out
-		assert '(not cached)' in out
-
-		out, err = self.run_ocaml(['show', 'selections.xml', '-r'])
-		assert not err, err
-		self.assertEqual("http://example.com:8000/Hello.xml\n", out)
-
-	def testSelect(self):
-		out, err = self.run_ocaml(['select'])
-		assert out.lower().startswith("usage:")
-		assert '--xml' in out
-
-		out, err = self.run_ocaml(['select', 'Local.xml'])
-		assert not err, err
-		assert 'Version: 0.1' in out
-
-		out, err = self.run_ocaml(['select', 'Local.xml', '--command='])
-		assert not err, err
-		assert 'Version: 0.1' in out
-
-		local_uri = os.path.realpath('Local.xml')
-		out, err = self.run_ocaml(['select', 'Local.xml'])
-		assert not err, err
-		assert 'Version: 0.1' in out
-
-		out, err = self.run_ocaml(['select', 'Local.xml', '--xml'])
-		sels = selections.Selections(qdom.parse(BytesIO(str(out).encode('utf-8'))))
-		assert sels.selections[local_uri].version == '0.1'
-
-		# This now triggers a download to fetch the feed.
-		#out, err = self.run_ocaml(['select', 'selections.xml'])
-		#assert not err, err
-		#assert 'Version: 1\n' in out
-		#assert '(not cached)' in out
-
-		out, err = self.run_ocaml(['select', 'runnable/RunExec.xml'])
-		assert not err, err
-		assert 'Runner' in out, out
 
 	def testConfig(self):
 		out, err = self.run_0install(['config', '--help'])

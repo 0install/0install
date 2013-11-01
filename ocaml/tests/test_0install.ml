@@ -620,4 +620,51 @@ let suite = "0install">::: [
     let out = run ["digest"; tmp] in
     assert_str_equal "sha1new=da39a3ee5e6b4b0d3255bfef95601890afd80709\n" out;
   );
+
+  "show">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let out = run_0install ~exit:1 fake_system ["show"] in
+    assert_contains "Usage:" out;
+    assert_contains "--xml" out;
+
+    let out = run_0install fake_system ["show"; feed_dir +/ "selections.xml"] in
+    assert_contains "Version: 1\n" out;
+    assert_contains "(not cached)" out;
+
+    let out = run_0install fake_system ["show"; feed_dir +/ "selections.xml"; "-r"] in
+    assert_str_equal "http://example.com:8000/Hello.xml\n" out
+  );
+
+  "select2">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let out = run_0install ~exit:1 fake_system ["select"] in
+    assert_contains "Usage:" out;
+    assert_contains "--xml" out;
+
+    let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"] in
+    assert_contains "Version: 0.1" out;
+
+    let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"; "--command="] in
+    assert_contains "Version: 0.1" out;
+
+    let local_uri = U.realpath config.system (feed_dir +/ "Local.xml") in
+    let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"] in
+    assert_contains "Version: 0.1" out;
+
+    let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"; "--xml"] in
+    let sels = `String (0, out) |> Xmlm.make_input |> Q.parse_input (Some local_uri) in
+    let index = Zeroinstall.Selections.make_selection_map sels in
+    let sel = StringMap.find local_uri index in
+    assert_str_equal "0.1" (ZI.get_attribute "version" sel);
+
+    let out = run_0install fake_system ["select"; feed_dir +/ "runnable/RunExec.xml"] in
+    assert_contains "Runner" out;
+
+    let local_uri = U.realpath config.system (feed_dir +/ "Hello.xml") in
+    fake_system#putenv "DISPLAY" ":foo";
+    let out = run_0install fake_system ["select"; "--xml"; local_uri] in
+    let sels = `String (0, out) |> Xmlm.make_input |> Q.parse_input (Some local_uri) in
+    let index = Zeroinstall.Selections.make_selection_map sels in
+    let sel = StringMap.find local_uri index in
+
+    assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ ZI.get_attribute "id" sel;
+  );
 ]
