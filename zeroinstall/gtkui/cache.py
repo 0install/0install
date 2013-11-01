@@ -335,26 +335,36 @@ class CachedImplementation(object):
 	def open_rox(self, explorer):
 		os.spawnlp(os.P_WAIT, '0launch', '0launch', ROX_IFACE, '-d', self.impl_path)
 	
+	@tasks.async
 	def verify(self, explorer):
 		try:
-			manifest.verify(self.impl_path)
-		except BadDigest as ex:
+			from zeroinstall.cmd import slave
+			blocker = slave.invoke_master(['verify', self.impl_path])
+			explorer.window.get_window().set_cursor(gtkutils.get_busy_pointer())
+			gtk.gdk.flush()
+			yield blocker
+			explorer.window.get_window().set_cursor(None)
+			tasks.check(blocker)
+		except model.SafeException as ex:
 			box = gtk.MessageDialog(None, 0,
-						gtk.MESSAGE_WARNING, gtk.BUTTONS_OK, str(ex))
-			if ex.detail:
-				swin = gtk.ScrolledWindow()
-				buffer = gtk.TextBuffer()
-				mono = buffer.create_tag('mono', family = 'Monospace')
-				buffer.insert_with_tags(buffer.get_start_iter(), ex.detail, mono)
+						gtk.MESSAGE_WARNING, gtk.BUTTONS_OK, "Verification failed")
+
+			swin = gtk.ScrolledWindow()
+			buffer = gtk.TextBuffer()
+			mono = buffer.create_tag('mono', family = 'Monospace')
+			buffer.insert_with_tags(buffer.get_start_iter(), str(ex), mono)
+			try:
 				text = gtk.TextView(buffer)
-				text.set_editable(False)
-				text.set_cursor_visible(False)
-				swin.add(text)
-				swin.set_shadow_type(gtk.SHADOW_IN)
-				swin.set_border_width(4)
-				box.vbox.pack_start(swin)
-				swin.show_all()
-				box.set_resizable(True)
+			except:
+				text = gtk.TextView.new_with_buffer(buffer)
+			text.set_editable(False)
+			text.set_cursor_visible(False)
+			swin.add(text)
+			swin.set_shadow_type(gtk.SHADOW_IN)
+			swin.set_border_width(4)
+			box.vbox.pack_start(swin)
+			swin.show_all()
+			box.set_resizable(True)
 		else:
 			box = gtk.MessageDialog(None, 0,
 						gtk.MESSAGE_INFO, gtk.BUTTONS_OK,

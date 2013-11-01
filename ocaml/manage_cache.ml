@@ -8,6 +8,8 @@ open Options
 open Zeroinstall.General
 open Support.Common
 
+module Manifest = Zeroinstall.Manifest
+
 module F = Zeroinstall.Feed
 module FC = Zeroinstall.Feed_cache
 module P = Zeroinstall.Python
@@ -53,6 +55,15 @@ let handle options flags args =
     | #common_option as o -> Common_options.process_common_option options o
   );
   if args <> [] then raise (Support.Argparse.Usage_error 1);
+
+  Zeroinstall.Python.register_handler "verify" (function
+    | [`String path] ->
+        let digest = Manifest.parse_digest (Filename.basename path) in
+        Manifest.verify config.system ~digest path;
+        Lwt.return `Null
+    | json -> raise_safe "verify: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
   let gui = options.slave#invoke_async (`List [`String "open-cache-explorer"]) P.expect_null in
 
   options.slave#invoke (`List [`String "ping"]) P.expect_null;
@@ -83,7 +94,7 @@ let handle options flags args =
         | F.CacheImpl info ->
             (* For each digest... *)
             info.F.digests |> List.iter (fun parsed_digest ->
-              let digest = Zeroinstall.Manifest.format_digest parsed_digest in
+              let digest = Manifest.format_digest parsed_digest in
               if Hashtbl.mem all_digests digest then (
                 (* Record each cached implementation. *)
                 let dir = Hashtbl.find all_digests digest in
