@@ -27,7 +27,7 @@ A top-level ".manifest" file is ignored.
 
 import os, sys, stat, base64
 from zeroinstall import SafeException, _
-from zeroinstall.zerostore import BadDigest, parse_algorithm_digest_pair, format_algorithm_digest_pair
+from zeroinstall.zerostore import BadDigest, format_algorithm_digest_pair
 
 # unicode compat
 if sys.version_info < (3,):
@@ -135,36 +135,6 @@ def generate_manifest(root, alg = 'sha1'):
 	@deprecated: use L{get_algorithm} and L{Algorithm.generate_manifest} instead."""
 	return get_algorithm(alg).generate_manifest(root)
 	
-def add_manifest_file(dir, digest_or_alg):
-	"""Writes a .manifest file into 'dir', and returns the digest.
-	You should call fixup_permissions before this to ensure that the permissions are correct.
-	On exit, dir itself has mode 555. Subdirectories are not changed.
-	@param dir: root of the implementation
-	@type dir: str
-	@param digest_or_alg: should be an instance of Algorithm. Passing a digest here is deprecated.
-	@type digest_or_alg: L{Algorithm}"""
-	mfile = os.path.join(dir, '.manifest')
-	if os.path.islink(mfile) or os.path.exists(mfile):
-		raise SafeException(_("Directory '%s' already contains a .manifest file!") % dir)
-	manifest = ''
-	if isinstance(digest_or_alg, Algorithm):
-		alg = digest_or_alg
-		digest = alg.new_digest()
-	else:
-		digest = digest_or_alg
-		alg = get_algorithm('sha1')
-	for line in alg.generate_manifest(dir):
-		manifest += line + '\n'
-	manifest = manifest.encode('utf-8')
-	digest.update(manifest)
-
-	os.chmod(dir, 0o755)
-	with open(mfile, 'wb') as stream:
-		os.chmod(dir, 0o555)
-		stream.write(manifest)
-	os.chmod(mfile, 0o444)
-	return digest
-
 def _parse_manifest(manifest_data):
 	"""Parse a manifest file.
 	@param manifest_data: the contents of the manifest file
@@ -279,26 +249,3 @@ algorithms = {
 	'sha256': HashLibAlgorithm('sha256', 80),
 	'sha256new': HashLibAlgorithm('sha256new', 90, 'sha256'),
 }
-
-
-def fixup_permissions(root):
-	"""Set permissions recursively for children of root:
-	 - If any X bit is set, they all must be.
-	 - World readable, non-writable.
-	@type root: str
-	@raise Exception: if there are unsafe special bits set (setuid, etc)."""
-
-	for main, dirs, files in os.walk(root):
-		for x in ['.'] + files:
-			full = os.path.join(main, x)
-
-			raw_mode = os.lstat(full).st_mode
-			if stat.S_ISLNK(raw_mode): continue
-
-			mode = stat.S_IMODE(raw_mode)
-			if mode & ~0o777:
-				raise Exception(_("Unsafe mode: extracted file '%(filename)s' had special bits set in mode '%(mode)s'") % {'filename': full, 'mode': oct(mode)})
-			if mode & 0o111:
-				os.chmod(full, 0o555)
-			else:
-				os.chmod(full, 0o444)

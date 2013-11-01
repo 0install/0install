@@ -15,7 +15,8 @@ let assert_manifest system required tmpdir =
   let alg = fst @@ Manifest.parse_digest required in
   let manifest_contents = Manifest.generate_manifest system alg tmpdir in
   let actual = Manifest.hash_manifest alg manifest_contents in
-  Fake_system.assert_str_equal required (Manifest.format_digest (alg, actual));
+  begin try Fake_system.assert_str_equal required (Manifest.format_digest (alg, actual));
+  with ex -> print_endline @@ "\n" ^ manifest_contents; raise ex end;
 
   Zeroinstall.Stores.fixup_permissions system tmpdir;
 
@@ -79,6 +80,84 @@ let suite = "archive">::: [
     let digest = ("sha1", "3ce644dc725f1d21cfcf02562c76f375944b266b") in
     Fake_system.assert_raises_safe "Incorrect manifest -- archive is corrupted" (lazy (
       Lwt_main.run @@ Stores.check_manifest_and_rename config digest destdir
+    ))
+  );
+
+  "tgz">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" "HelloWorld.tgz"
+  );
+
+(*   @skipIf(sys.getfilesystemencoding().lower() != "utf-8", "tar only unpacks to utf-8") *)
+  "non-ascii-tgz">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1new=e42ffed02179169ef2fa14a46b0d9aea96a60c10" "unicode.tar.gz"
+  );
+
+  "dmg">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if (U.find_in_path config.system "hdiutil" = None) "Not running on MacOS X; no hdiutil";
+    test_archive config "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" "HelloWorld.dmg"
+  );
+
+  "zip">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" "HelloWorld.zip"
+  );
+
+  "extract">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1=491678c37f77fadafbaae66b13d48d237773a68f" ~extract:"HelloWorld" "HelloWorld.tgz"
+  );
+
+(*   @skipIf(sys.getfilesystemencoding().lower() != "utf-8", "tar only unpacks to utf-8") *)
+  "extract-non-ascii">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1=add40d8fe047bb1636791e3ae9dc9949cc657845" ~extract:"unicode" "unicode.tar.gz"
+  );
+
+  "extract-zip">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1=491678c37f77fadafbaae66b13d48d237773a68f" ~extract:"HelloWorld" "HelloWorld.zip"
+  );
+
+  "targz">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" "HelloWorld.tgz"
+  );
+
+  "tbz">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" "HelloWorld.tar.bz2"
+  );
+
+  "tar">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1new=290eb133e146635fe37713fd58174324a16d595f" "HelloWorld.tar"
+  );
+
+  "rpm">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if (U.find_in_path config.system "rpm2cpio" = None) "Not running; no rpm2cpio";
+    test_archive config "sha1=7be9228c8fe2a1434d4d448c4cf130e3c8a4f53d" "dummy-1-1.noarch.rpm"
+  );
+
+  "deb">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1new=2c725156ec3832b7980a3de2270b3d8d85d4e3ea" "dummy_1-1_all.deb"
+  );
+
+  "gem">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1new=fbd4827be7a18f9821790bdfd83132ee60d54647" "hello-0.1.gem"
+  );
+
+  "lzma">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    test_archive config "sha1new=290eb133e146635fe37713fd58174324a16d595f" "HelloWorld.tar.lzma"
+  );
+
+  "bad-ext">:: (fun () ->
+    Fake_system.assert_raises_safe "Can't guess MIME type from name" (lazy (
+      ignore @@ A.type_from_url "ftp://foo/file.foo"
+    ))
+  );
+
+  "extract-illegal">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    Fake_system.assert_raises_safe "Illegal character in extract attribute" (lazy (
+      test_archive config "sha1new=123" "HelloWorld.tgz" ~extract:"Hello`World"
+    ))
+  );
+
+  "extract-fails">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    Fake_system.assert_raises_safe "Command failed: tar: HelloWorld2: Not found in archive" (lazy (
+      test_archive config "sha1new=123" "HelloWorld.tgz" ~extract:"HelloWorld2"
     ))
   );
 ]

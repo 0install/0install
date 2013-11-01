@@ -271,8 +271,11 @@ let show_log_on_failure fn () =
     fn ();
     !async_exception |> if_some (fun ex -> raise ex)
   with ex ->
-    Fake_system.fake_log#dump;
-    (* log_warning ~ex "Test failed";  (* Useful if you want a stack-trace *) *)
+    if U.starts_with (Printexc.to_string ex) "OUnitTest.Skip" then ()
+    else (
+      Fake_system.fake_log#dump;
+      (* log_warning ~ex "Test failed";  (* Useful if you want a stack-trace *) *)
+    );
     raise ex
 
 (* Actually, we just want a recent Lwt, but this will do. *)
