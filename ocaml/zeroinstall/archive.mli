@@ -19,6 +19,6 @@ val check_type_ok : Support.Common.system -> mime_type -> unit
     @param extract treat this subdirectory of [archive] as the root to unpack.
     @param tmpdir a directory on the same filesystem as [destdir] in which to create temporary directories.
   *)
-val unpack_over : ?extract:Support.Common.filepath -> General.config -> Python.slave ->
+val unpack_over : ?extract:Support.Common.filepath -> General.config ->
                   archive:Support.Common.filepath -> tmpdir:Support.Common.filepath -> destdir:Support.Common.filepath ->
                   mime_type:string -> unit Lwt.t

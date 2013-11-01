@@ -112,15 +112,6 @@ def do_confirm_distro_install(config, ticket, options, impls):
 		logger.warning("Returning error", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
 
-def do_unpack_archive(config, options, details):
-	from zeroinstall.zerostore import unpack
-
-	with open(details['tmpfile'], 'rb') as stream:
-		unpack.unpack_archive('unused', stream, details['destdir'],
-				extract = details['extract'],
-				type = details['mime_type'],
-				start_offset = int(details['start_offset']))
-
 def to_json(impl):
 	attrs = {
 		'id': impl.id,
@@ -538,8 +529,6 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'confirm-distro-install':
 			blocker = do_confirm_distro_install(config, ticket, options, request[1])
 			return
-		elif command == 'unpack-archive':
-			response = do_unpack_archive(config, options, request[1])
 		elif command == 'get-package-impls':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_get_package_impls(config, options, request[1:], xml)

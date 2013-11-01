@@ -32,7 +32,7 @@ all: translations
 	install "${SRCDIR}/install.sh.src" "${DISTDIR}/install.sh"
 	(cp -r build/lib/zeroinstall "${DISTDIR}/files/")
 	(cp -r share "${DISTDIR}/files/")
-	(cd "${SRCDIR}" && cp -r share/applications share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
+	(cd "${SRCDIR}" && cp -r share/0install.net share/applications share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
 
 translations: $(MO)
 

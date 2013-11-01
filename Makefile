@@ -10,7 +10,7 @@ BUILDDIR = $(abspath build)
 PREFIX = /usr
 
 GTKBUILDER = $(shell cd ${SRCDIR} && find zeroinstall -name '*.ui' | sort | sed -e 's/\.ui/&.h/')
-SH = zeroinstall/zerostore/_unlzma
+SH = ${SRCDIR}/share/0install.net/unlzma
 PY = $(shell cd ${SRCDIR} && find zeroinstall -name '*.py' | sort)
 
 # There are several things you might want to do:

@@ -42,9 +42,10 @@ let assert_manifest system required tmpdir =
 let test_archive config expected ?extract archive =
   let mime_type = A.type_from_url archive in
   let home = config.system#getenv "HOME" |> Fake_system.expect in
-  let slave = new Zeroinstall.Python.slave config in
-  A.unpack_over config slave ~archive:(Test_0install.feed_dir +/ archive) ~tmpdir:home ~destdir:home ?extract ~mime_type |> Lwt_main.run;
-  assert_manifest config.system expected home
+  let destdir = home +/ "dest" in
+  config.system#mkdir destdir 0o700;
+  A.unpack_over config ~archive:(Test_0install.feed_dir +/ archive) ~tmpdir:home ~destdir:destdir ?extract ~mime_type |> Lwt_main.run;
+  assert_manifest config.system expected destdir
 
 let suite = "archive">::: [
   "extract-over">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
@@ -62,8 +63,7 @@ let suite = "archive">::: [
 
     let tmpdir = Zeroinstall.Stores.make_tmp_dir config.system config.stores in
     let destdir = U.make_tmp_dir config.system ~prefix:"0store-add-" tmpdir in
-    let slave = new Zeroinstall.Python.slave config in
-    Lwt_main.run @@ A.unpack_over config slave ~archive:(Test_0install.feed_dir +/ "HelloWorld.tgz")
+    Lwt_main.run @@ A.unpack_over config ~archive:(Test_0install.feed_dir +/ "HelloWorld.tgz")
       ~tmpdir ~destdir ~mime_type:"application/x-compressed-tar";
     let digest = ("sha1", "3ce644dc725f1d21cfcf02562c76f375944b266a") in
     Lwt_main.run @@ Stores.check_manifest_and_rename config digest destdir
@@ -74,8 +74,7 @@ let suite = "archive">::: [
 
     let tmpdir = Zeroinstall.Stores.make_tmp_dir system config.stores in
     let destdir = U.make_tmp_dir system ~prefix:"0store-add-" tmpdir in
-    let slave = new Zeroinstall.Python.slave config in
-    Lwt_main.run @@ A.unpack_over config slave ~archive:(Test_0install.feed_dir +/ "HelloWorld.tgz")
+    Lwt_main.run @@ A.unpack_over config ~archive:(Test_0install.feed_dir +/ "HelloWorld.tgz")
       ~tmpdir ~destdir ~mime_type:"application/x-compressed-tar";
     let digest = ("sha1", "3ce644dc725f1d21cfcf02562c76f375944b266b") in
     Fake_system.assert_raises_safe "Incorrect manifest -- archive is corrupted" (lazy (
@@ -139,7 +138,9 @@ let suite = "archive">::: [
     test_archive config "sha1new=fbd4827be7a18f9821790bdfd83132ee60d54647" "hello-0.1.gem"
   );
 
-  "lzma">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+  "lzma">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if (U.find_in_path config.system "unlzma" = None) "Not running; no unlzma";
+    fake_system#putenv "http_proxy" "localhost:8000";
     test_archive config "sha1new=290eb133e146635fe37713fd58174324a16d595f" "HelloWorld.tar.lzma"
   );
 

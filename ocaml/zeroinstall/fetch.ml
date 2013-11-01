@@ -54,7 +54,7 @@ let rec join_errors = function
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
-class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downloader) (ui:Ui.ui_handler Lazy.t) =
+class fetcher config trust_db (downloader:Downloader.downloader) (ui:Ui.ui_handler Lazy.t) =
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
 
   let key_info_cache = Hashtbl.create 10 in
@@ -535,7 +535,7 @@ class fetcher config trust_db (slave:Python.slave) (downloader:Downloader.downlo
                       basedir in
                 let mime_type = mime_type |? lazy (Archive.type_from_url url) in
                 try_lwt
-                  Archive.unpack_over {config with system = system#bypass_dryrun} slave
+                  Archive.unpack_over {config with system = system#bypass_dryrun}
                     ~archive:tmpfile ~tmpdir:(Filename.dirname tmpdir)
                     ~destdir:basedir ?extract ~mime_type
                 with Safe_exception _ as ex ->

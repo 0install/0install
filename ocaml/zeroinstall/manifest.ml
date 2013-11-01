@@ -158,21 +158,6 @@ let algorithm_names = [
   "sha256new";
 ]
 
-let stream_of_lines data =
-  let i = ref 0 in
-  Stream.from (fun _count ->
-      if !i = String.length data then None
-      else (
-        let nl =
-          try String.index_from data !i '\n'
-          with Not_found ->
-            raise_safe "Extra data at end (no endline): %s" (String.escaped @@ U.string_tail data !i) in
-        let line = String.sub data !i (nl - !i) in
-        i := nl + 1;
-        Some line
-      )
-  )
-
 type hash = string
 type mtime = float
 type size = Int64.t
@@ -211,7 +196,7 @@ let parse_manifest_line ~old line : (string * inode) =
 let index_manifest ~old manifest_data =
   let dir = ref "/" in
   let items = ref [] in
-  let stream = stream_of_lines manifest_data in
+  let stream = U.stream_of_lines manifest_data in
   try
     while true do
       let line = Stream.next stream in
@@ -314,7 +299,7 @@ let verify system ~digest dir =
   )
 
 let parse_manifest manifest_data =
-  let stream = stream_of_lines manifest_data in
+  let stream = U.stream_of_lines manifest_data in
   let rec parse_dir path =
     let items = ref [] in
     let rec collect_items () =

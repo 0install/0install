@@ -29,7 +29,7 @@ let add_archive options ~digest ?extract archive =
     (Zeroinstall.Stores.make_tmp_dir config.system config.stores)
     (fun tmpdir ->
       let destdir = U.make_tmp_dir config.system ~prefix:"0store-add-" tmpdir in
-      Lwt_main.run @@ A.unpack_over config options.slave ~archive ~tmpdir ~destdir ?extract ~mime_type;
+      Lwt_main.run @@ A.unpack_over config ~archive ~tmpdir ~destdir ?extract ~mime_type;
       Lwt_main.run @@ Zeroinstall.Stores.check_manifest_and_rename config digest destdir
     )
 
@@ -237,7 +237,7 @@ let handle_digest options flags args =
       (Zeroinstall.Stores.make_tmp_dir system config.stores)
       (fun tmpdir ->
         let destdir = U.make_tmp_dir system ~prefix:"0install-digest-" tmpdir in
-        Lwt_main.run @@ A.unpack_over config options.slave ~archive ~tmpdir ~destdir ?extract ~mime_type;
+        Lwt_main.run @@ A.unpack_over config ~archive ~tmpdir ~destdir ?extract ~mime_type;
         do_manifest destdir
       ) in
 

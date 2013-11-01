@@ -50,7 +50,6 @@ class build_with_data(build_py):
 		"zeroinstall/gtkui/desktop.ui",
 		"zeroinstall/gtkui/cache.ui",
 		"zeroinstall/injector/EquifaxSecureCA.crt",
-		"zeroinstall/zerostore/_unlzma",
 	]
 
 	def run(self):
@@ -95,4 +94,4 @@ use.
 The injector solves this problem by selecting components to meet a program's
 requirements, according to a policy you give it. The injector finds out which
 versions are available, and downloads and runs the ones you choose.""",
-      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.zerostore", "zeroinstall.injector", "zeroinstall.gui", "zeroinstall.gtkui", "zeroinstall.cmd"])
+      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.injector", "zeroinstall.gui", "zeroinstall.gtkui", "zeroinstall.cmd"])

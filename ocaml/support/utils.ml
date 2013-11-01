@@ -516,3 +516,18 @@ let atomic_hardlink system ~link_to ~replace =
     system#hardlink link_to tmp;
     system#rename tmp replace
   )
+
+let stream_of_lines data =
+  let i = ref 0 in
+  Stream.from (fun _count ->
+      if !i = String.length data then None
+      else (
+        let nl =
+          try String.index_from data !i '\n'
+          with Not_found ->
+            raise_safe "Extra data at end (no endline): %s" (String.escaped @@ string_tail data !i) in
+        let line = String.sub data !i (nl - !i) in
+        i := nl + 1;
+        Some line
+      )
+  )
