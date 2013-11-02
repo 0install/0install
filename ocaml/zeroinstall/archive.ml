@@ -260,6 +260,7 @@ let extract_zip config ~dstdir ?extract archive =
 (** Unpack [tmpfile] into directory [dstdir]. If [extract] is given, extract just
     that sub-directory from the archive (i.e. destdir/extract will exist afterwards). *)
 let unpack config tmpfile dstdir ?extract ~mime_type : unit Lwt.t =
+  let tmpfile = U.abspath config.system tmpfile in
   match mime_type with
   | "application/x-tar" ->                  tmpfile |> extract_tar config ~dstdir ?extract ~compression:Uncompressed
   | "application/x-compressed-tar" ->       tmpfile |> extract_tar config ~dstdir ?extract ~compression:Gzip
