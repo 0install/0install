@@ -165,7 +165,9 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
             close_out ch;
             Lwt.return failure
         | `redirect target ->
+            flush ch;
             Unix.ftruncate (Unix.descr_of_out_channel ch) 0;
+            seek_out ch 0;
             if target = url then raise_safe "Redirection loop getting '%s'" url
             else if redirs_left > 0 then loop (redirs_left - 1) target
             else raise_safe "Too many redirections (next: %s)" target in

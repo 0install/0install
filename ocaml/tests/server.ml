@@ -83,7 +83,16 @@ let start_server system =
         | `Redirect redirect_target ->
             send_response to_client 302 >>
             send_header to_client "Location" redirect_target >>
-            end_headers to_client
+            end_headers to_client >>
+            send_body to_client "\
+              <html>\n\
+               <head>\n\
+                <title>302 Found</title>\n\
+               </head>\n\
+               <body>\n\
+                <h1>302 Found</h1>\n\
+              </body>\n\
+            </html>"
         | `ServeFile relpath ->
             lwt () = send_response to_client 200 >> end_headers to_client in
             let data = U.read_file system (Test_0install.feed_dir +/ relpath) in
