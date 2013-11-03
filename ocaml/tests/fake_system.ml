@@ -115,7 +115,8 @@ class fake_system tmpdir =
     | _ ->
         match tmpdir with
         | Some dir when U.starts_with path dir -> path
-        | _ -> failwith @@ Printf.sprintf "Attempt to write to '%s'" path in
+        | Some dir -> raise_safe "Attempt to write to %s (not in %s)" path dir
+        | None -> raise_safe "Attempt to write to '%s' (no tmpdir)" path in
 
   (* It's OK to check whether these paths exists. We just say they don't,
      unless they're in extra_files (check there first). *)
