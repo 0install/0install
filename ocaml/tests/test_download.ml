@@ -443,6 +443,8 @@ let suite = "download">::: [
 
   "background-app">:: Server.with_server (fun (config, fake_system) server ->
     let system = config.system in
+    let home = U.getenv_ex system "HOME" in
+    system#mkdir (home +/ "bin") 0o700;
     fake_system#allow_spawn_detach true;
 
     let trust_db = new Zeroinstall.Trust.trust_db config in
@@ -455,13 +457,8 @@ let suite = "download">::: [
       [("6FCF121BE2390E0B.gpg", `Serve)];
       [("HelloWorld.tgz", `Serve)];
     ];
-    Fake_system.collect_logging (fun () ->
-      let out = run_0install fake_system ["add"; "test-app"; "http://example.com:8000/Hello.xml"] in
-      assert_str_equal "" out;
-    );
-    begin match Fake_system.fake_log#pop_warnings with
-    | [msg] -> assert_contains "bin is not in $PATH. Add it with" msg
-    | _ -> assert false end;
+    let out = run_0install fake_system ["add"; "test-app"; "http://example.com:8000/Hello.xml"] in
+    assert_str_equal "" out;
 
     let app = expect @@ Zeroinstall.Apps.lookup_app config "test-app" in
     let timestamp = app +/ "last-checked" in
@@ -593,6 +590,8 @@ let suite = "download">::: [
     fake_system#allow_spawn_detach true;
     let trust_db = new Zeroinstall.Trust.trust_db config in
     let system = config.system in
+    let home = U.getenv_ex system "HOME" in
+    system#mkdir (home +/ "bin") 0o700;
     let domain = "example.com:8000" in
     trust_db#trust_key ~domain "DE937DD411906ACF7C263B396FCF121BE2390E0B";
 

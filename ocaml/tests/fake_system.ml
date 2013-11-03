@@ -86,6 +86,8 @@ class fake_system tmpdir =
   let hidden_files = ref StringSet.empty in
   let redirect_writes = ref None in
 
+  let read_ok = ref [] in   (* Always allow reading from these directories *)
+
   (* Prevent reading from $HOME, except for the code we're testing (to avoid accidents, e.g. reading user's config files).
    * Also, apply any redirections in extra_files. *)
   let check_read path =
@@ -100,10 +102,9 @@ class fake_system tmpdir =
         if not (U.starts_with path "/home") then path
         else if U.starts_with path src_dir then path
         else (
-          match tmpdir with
-          | Some dir when U.starts_with path dir
-                       || U.starts_with dir path -> path
-          | _ -> raise_safe "Attempt to read from '%s'" path
+          if !read_ok |> List.exists (fun dir ->
+            U.starts_with path dir || U.starts_with dir path) then path
+          else raise_safe "Attempt to read from '%s'" path
         )
     ) in
 
@@ -330,6 +331,9 @@ class fake_system tmpdir =
           Lazy.force fn
         )
 
+    method allow_read dir =
+      read_ok := dir :: !read_ok
+
     initializer
       match tmpdir with
       | Some dir ->
@@ -443,6 +447,7 @@ let get_fake_config tmpdir =
     | None -> "/home/testuser";
     | Some dir ->
         Unix.putenv "GNUPGHOME" dir;
+        system#allow_read dir;
         dir in
   system#putenv "HOME" home;
   if on_windows then (
@@ -450,10 +455,14 @@ let get_fake_config tmpdir =
     system#add_file (src_dir +/ "0install-python-fallback") (src_dir +/ "0install-python-fallback");
     let python = expect @@ U.find_in_path real_system "python" in
     system#add_file python python;
-    system#putenv "PATH" @@ "C:\\Windows\\system32;C:\\Windows;" ^ Filename.dirname python;
+    system#putenv "PATH" @@ Sys.getenv "PATH" ^ ";" ^ Filename.dirname python;
   ) else (
-    system#putenv "PATH" "/usr/bin:/bin";
+    system#putenv "PATH" @@ (home +/ "bin") ^ ":" ^ (Sys.getenv "PATH");
     system#add_file test_0install (build_dir +/ "0install");
+  );
+  (* Allow reading from all PATH directories *)
+  Str.split_delim U.re_path_sep (system#getenv "PATH" |? lazy (failwith "PATH")) |> List.iter (fun dir ->
+    system#allow_read dir
   );
   (Config.get_default_config (system :> system) test_0install, system)
 
