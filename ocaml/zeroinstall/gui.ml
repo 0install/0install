@@ -391,8 +391,8 @@ let download_icon config (downloader:Downloader.downloader) (feed_provider:Feed_
               Lwt.return ()
             with ex ->
               raise ex
-      with Downloader.Unmodified ->
-        Lwt_switch.turn_off switch >> Lwt.return ()
+      with Downloader.Unmodified -> Lwt.return ()
+      finally Lwt_switch.turn_off switch
 
 (** The formatted text for the details panel in the interface properties box. *)
 let get_feed_description config feed_provider feed_url =
