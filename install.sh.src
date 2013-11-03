@@ -29,6 +29,7 @@ MANPAGES="0launch.1 0store-secure-add.1 0store.1 0desktop.1 0install.1"
 # Use "share/zsh/vendor-completions" on Debian
 ZSHFUNCTIONS="share/zsh/site-functions"
 
+test -z "$PYTHON" && \
 PYTHON=`which python3 2>/dev/null || which python2 2>/dev/null || echo python`
 
 case "$1" in
