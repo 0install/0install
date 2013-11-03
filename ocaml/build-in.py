@@ -4,6 +4,21 @@ import sys
 import os
 import subprocess
 
+if not hasattr(subprocess, 'check_output'):
+    def check_output(*popenargs, **kwargs):
+        if 'stdout' in kwargs:
+            raise ValueError('stdout argument not allowed, it will be overridden.')
+        process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
+        output, unused_err = process.communicate()
+        retcode = process.poll()
+        if retcode:
+            cmd = kwargs.get("args")
+            if cmd is None:
+                cmd = popenargs[0]
+            raise subprocess.CalledProcessError(retcode, cmd, output=output)
+        return output
+    subprocess.check_output = check_output
+
 ocaml_version = subprocess.check_output(["ocamlbuild", "-version"], universal_newlines = True).split(' ', 1)[1]
 if ocaml_version.startswith('3'):
 	from os.path import relpath
