@@ -83,11 +83,6 @@ class Handler(object):
 		"""This is just for the GUI to override to update its display."""
 		pass
 	
-	def wait_for_blocker(self, blocker):
-		"""@type blocker: L{zeroinstall.support.tasks.Blocker}
-		@deprecated: use tasks.wait_for_blocker instead"""
-		tasks.wait_for_blocker(blocker)
-	
 	@tasks.async
 	def confirm_import_feed(self, pending, valid_sigs, retval):
 		"""Sub-classes should override this method to interact with the user about new feeds.

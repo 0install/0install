@@ -116,59 +116,14 @@ def portable_rename(src, dst):
 		os.unlink(dst)
 	os.rename(src, dst)
 
-def windows_args_escape(args):
-	"""Combines multiple strings into one for use as a Windows command-line argument.
-	This coressponds to Windows' handling of command-line arguments as specified in: http://msdn.microsoft.com/library/17w5ykft.
-	@type args: [str]
-	@rtype: str
-	@since: 1.11"""
-	def _escape(arg):
-		# Add leading quotation mark if there are whitespaces
-		import string
-		contains_whitespace = any(whitespace in arg for whitespace in string.whitespace)
-		result = '"' if contains_whitespace else ''
-
-		# Split by quotation marks
-		parts = arg.split('"')
-		for i, part in enumerate(parts):
-			# Count slashes preceeding the quotation mark
-			slashes_count = len(part) - len(part.rstrip('\\'))
-
-			result = result + part
-			if i < len(parts) - 1:
-				# Not last part
-				result = result + ("\\" * slashes_count) # Double number of slashes
-				result = result + "\\" + '"' # Escaped quotation mark
-			elif contains_whitespace:
-				# Last part if there are whitespaces
-				result = result + ("\\" * slashes_count) # Double number of slashes
-				result = result + '"' # Non-escaped quotation mark
-
-		return result
-
-	return ' '.join(map(_escape, args))
-
 if sys.version_info[0] > 2:
 	# Python 3
 	unicode = str
-	basestring = str
 	intern = sys.intern
 	raw_input = input
 
-	def urlparse(url):
-		"""@type url: str
-		@rtype: ParseResult"""
-		from urllib import parse
-		return parse.urlparse(url)
 else:
 	# Python 2
 	unicode = unicode		# (otherwise it can't be imported)
-	basestring = basestring
 	intern = intern
 	raw_input = raw_input
-
-	def urlparse(url):
-		"""@type url: str
-		@rtype: ParseResult"""
-		import urlparse
-		return urlparse.urlparse(url)

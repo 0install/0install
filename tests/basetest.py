@@ -100,12 +100,6 @@ class DummyHandler(handler.Handler):
 		self.ex = None
 		self.allow_downloads = False
 
-	def wait_for_blocker(self, blocker):
-		self.ex = None
-		handler.Handler.wait_for_blocker(self, blocker)
-		if self.ex:
-			support.raise_with_traceback(self.ex, self.tb)
-
 	def report_error(self, ex, tb = None):
 		assert self.ex is None, self.ex
 		self.ex = ex

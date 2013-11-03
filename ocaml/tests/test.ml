@@ -196,6 +196,10 @@ let test_escaping () =
   check "_one__two___three____four_____";
   check "_1_and_2_";
 
+  assert_str_equal "_2e_" @@ underscore_escape ".";
+  assert_str_equal "_2e_." @@ underscore_escape "..";
+
+
   equal_str_lists ["http"; "example.com"; "foo.xml"] @@ escape_interface_uri "http://example.com/foo.xml";
   equal_str_lists ["http"; "example.com"; "foo__.bar.xml"] @@ escape_interface_uri "http://example.com/foo/.bar.xml";
   equal_str_lists ["file"; "root__foo.xml"] @@ escape_interface_uri "/root/foo.xml";
