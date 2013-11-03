@@ -49,6 +49,13 @@ system)
 
 	$PYTHON "setup.py" -q install --force
 	;;
+local)
+	PREFIX="/usr/local"
+	PREFIX_SHARE="${PREFIX}/share"
+	PREFIX_MAN="${PREFIX}/man"
+
+	$PYTHON "setup.py" -q install --force --prefix=/usr/local
+	;;
 /*)
 	PREFIX="$1"
 	PREFIX_SHARE="${PREFIX}/share"
