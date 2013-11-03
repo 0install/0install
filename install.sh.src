@@ -32,6 +32,9 @@ ZSHFUNCTIONS="share/zsh/site-functions"
 test -z "$PYTHON" && \
 PYTHON=`which python3 2>/dev/null || which python2 2>/dev/null || echo python`
 
+test -n "$DESTDIR" && \
+ROOT="--root $DESTDIR"
+
 case "$1" in
 home)
 	# Note sure about PREFIX_MAN, but this is what the old Python version did
@@ -40,28 +43,28 @@ home)
 	PREFIX_SHARE="${HOME}/.local/share"
 	PREFIX_MAN="${HOME}/.local/man"
 
-	$PYTHON "setup.py" -q install --force --home ~ --install-data ~/.local
+	$PYTHON "setup.py" -q install --force --home ~ --install-data ~/.local $ROOT
 	;;
 system)
 	PREFIX="/usr"
 	PREFIX_SHARE="${PREFIX}/share"
 	PREFIX_MAN="${PREFIX_SHARE}/man"
 
-	$PYTHON "setup.py" -q install --force
+	$PYTHON "setup.py" -q install --force $ROOT
 	;;
 local)
 	PREFIX="/usr/local"
 	PREFIX_SHARE="${PREFIX}/share"
 	PREFIX_MAN="${PREFIX}/man"
 
-	$PYTHON "setup.py" -q install --force --prefix=/usr/local
+	$PYTHON "setup.py" -q install --force --prefix=/usr/local $ROOT
 	;;
 /*)
 	PREFIX="$1"
 	PREFIX_SHARE="${PREFIX}/share"
 	PREFIX_MAN="${PREFIX_SHARE}/man"
 
-	$PYTHON "setup.py" -q install --force --prefix="${PREFIX}"
+	$PYTHON "setup.py" -q install --force --prefix="${PREFIX}" $ROOT
 	;;
 *)
 	echo "Use: \"./install.sh system\" to install"
@@ -69,41 +72,41 @@ local)
 	;;
 esac
 
-echo "Installing to $PREFIX/..."
+echo "Installing to $DESTDIR$PREFIX/..."
 
-install -d "${PREFIX}/bin"
-install 0install "${PREFIX}/bin/0install"
-ln -f "${PREFIX}/bin/0install" "${PREFIX}/bin/0launch"
-ln -f "${PREFIX}/bin/0install" "${PREFIX}/bin/0store"
-ln -f "${PREFIX}/bin/0install" "${PREFIX}/bin/0store-secure-add"
-ln -f "${PREFIX}/bin/0install" "${PREFIX}/bin/0desktop"
-install -d "${PREFIX_MAN}/man1/"
-install -d "${PREFIX_SHARE}/0install.net/"
-install -d "${PREFIX_SHARE}/applications/"
-install -d "${PREFIX_SHARE}/bash-completion/completions/"
-install -d "${PREFIX_SHARE}/fish/completions"
-install -d "${PREFIX_SHARE}/doc/0install"
-install -d "${PREFIX}/${ZSHFUNCTIONS}"
+install -d "$DESTDIR${PREFIX}/bin"
+install 0install "$DESTDIR${PREFIX}/bin/0install"
+ln -f "$DESTDIR${PREFIX}/bin/0install" "$DESTDIR${PREFIX}/bin/0launch"
+ln -f "$DESTDIR${PREFIX}/bin/0install" "$DESTDIR${PREFIX}/bin/0store"
+ln -f "$DESTDIR${PREFIX}/bin/0install" "$DESTDIR${PREFIX}/bin/0store-secure-add"
+ln -f "$DESTDIR${PREFIX}/bin/0install" "$DESTDIR${PREFIX}/bin/0desktop"
+install -d "$DESTDIR${PREFIX_MAN}/man1/"
+install -d "$DESTDIR${PREFIX_SHARE}/0install.net/"
+install -d "$DESTDIR${PREFIX_SHARE}/applications/"
+install -d "$DESTDIR${PREFIX_SHARE}/bash-completion/completions/"
+install -d "$DESTDIR${PREFIX_SHARE}/fish/completions"
+install -d "$DESTDIR${PREFIX_SHARE}/doc/0install"
+install -d "$DESTDIR${PREFIX}/${ZSHFUNCTIONS}"
 
-install -m 0644 ${DOCS} "${PREFIX_SHARE}/doc/0install/"
-install -m 0644 ${MANPAGES} "${PREFIX_MAN}/man1/"
-install -m 0644 share/applications/0install.desktop "${PREFIX_SHARE}/applications/"
+install -m 0644 ${DOCS} "$DESTDIR${PREFIX_SHARE}/doc/0install/"
+install -m 0644 ${MANPAGES} "$DESTDIR${PREFIX_MAN}/man1/"
+install -m 0644 share/applications/0install.desktop "$DESTDIR${PREFIX_SHARE}/applications/"
 
-install -m 0644 share/bash-completion/completions/0install "${PREFIX_SHARE}/bash-completion/completions/"
-install -m 0644 share/bash-completion/completions/0launch "${PREFIX_SHARE}/bash-completion/completions/"
-install -m 0644 share/fish/completions/0install.fish "${PREFIX_SHARE}/fish/completions/"
-install -m 0644 share/fish/completions/0launch.fish "${PREFIX_SHARE}/fish/completions/"
-install -m 0644 share/zsh/site-functions/_0install "${PREFIX}/${ZSHFUNCTIONS}/"
-install -m 0644 share/zsh/site-functions/_0launch "${PREFIX}/${ZSHFUNCTIONS}/"
-install -m 0755 share/0install.net/unlzma "${PREFIX_SHARE}/0install.net/"
-install -m 0755 share/0install.net/unxz "${PREFIX_SHARE}/0install.net/"
+install -m 0644 share/bash-completion/completions/0install "$DESTDIR${PREFIX_SHARE}/bash-completion/completions/"
+install -m 0644 share/bash-completion/completions/0launch "$DESTDIR${PREFIX_SHARE}/bash-completion/completions/"
+install -m 0644 share/fish/completions/0install.fish "$DESTDIR${PREFIX_SHARE}/fish/completions/"
+install -m 0644 share/fish/completions/0launch.fish "$DESTDIR${PREFIX_SHARE}/fish/completions/"
+install -m 0644 share/zsh/site-functions/_0install "$DESTDIR${PREFIX}/${ZSHFUNCTIONS}/"
+install -m 0644 share/zsh/site-functions/_0launch "$DESTDIR${PREFIX}/${ZSHFUNCTIONS}/"
+install -m 0755 share/0install.net/unlzma "$DESTDIR${PREFIX_SHARE}/0install.net/"
+install -m 0755 share/0install.net/unxz "$DESTDIR${PREFIX_SHARE}/0install.net/"
 
 for size in 24x24 48x48 128x128 scalable; do \
-  install -d "${PREFIX_SHARE}/icons/hicolor/${size}/apps/" && \
-  install -m 0644 share/icons/${size}/* "${PREFIX_SHARE}/icons/hicolor/${size}/apps/"; done
+  install -d "$DESTDIR${PREFIX_SHARE}/icons/hicolor/${size}/apps/" && \
+  install -m 0644 share/icons/${size}/* "$DESTDIR${PREFIX_SHARE}/icons/hicolor/${size}/apps/"; done
 (cd share && for locale in locale/*; do \
-  install -d "${PREFIX_SHARE}/${locale}/LC_MESSAGES/" && \
-  install -m 0644 "${locale}/LC_MESSAGES/zero-install.mo" "${PREFIX_SHARE}/${locale}/LC_MESSAGES/"; \
+  install -d "$DESTDIR${PREFIX_SHARE}/${locale}/LC_MESSAGES/" && \
+  install -m 0644 "${locale}/LC_MESSAGES/zero-install.mo" "$DESTDIR${PREFIX_SHARE}/${locale}/LC_MESSAGES/"; \
 done)
 
-echo "OK. Now run \"${PREFIX}/bin/0install --help\" for help."
+echo "OK. Now run \"$DESTDIR${PREFIX}/bin/0install --help\" for help."

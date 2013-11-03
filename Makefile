@@ -56,7 +56,7 @@ default: all
 %::
 	[ -d "${BUILDDIR}" ] || mkdir "${BUILDDIR}"
 	[ -d "${DISTDIR}" ] || mkdir "${DISTDIR}"
-	make -C "${BUILDDIR}" -f "${SRCDIR}/Makefile.build" "$@" SRCDIR="${SRCDIR}" BUILDDIR="${BUILDDIR}" DISTDIR="${DISTDIR}" PREFIX="${PREFIX}" PYTHON="${PYTHON}"
+	make -C "${BUILDDIR}" -f "${SRCDIR}/Makefile.build" "$@" SRCDIR="${SRCDIR}" BUILDDIR="${BUILDDIR}" DISTDIR="${DISTDIR}" PREFIX="${PREFIX}" PYTHON="${PYTHON}" DESTDIR="${DESTDIR}"
 
 share/locale/zero-install.pot: $(PY) $(GTKBUILDER) $(SH)
 	xgettext --sort-by-file --language=Python --output=$@ --keyword=N_ $(PY) $(GTKBUILDER)
