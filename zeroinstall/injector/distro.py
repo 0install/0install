@@ -21,8 +21,6 @@ _zeroinstall_regexp = '(?:%s)(?:-(?:pre|rc|post|)(?:%s))*' % (_dotted_ints, _dot
 # (first matching group is for Java-style 6b17 or 7u9 syntax, or "major")
 _version_regexp = '(?:[a-z])?({ints}\.?[bu])?({zero})(-r{ints})?'.format(zero = _zeroinstall_regexp, ints = _dotted_ints)
 
-_PYTHON_URI = 'http://repo.roscidus.com/python/python'
-
 def _set_quick_test(impl, path):
 	"""Set impl.quick_test_file and impl.quick_test_mtime from path."""
 	impl.quick_test_file = path
@@ -229,41 +227,6 @@ class Distribution(object):
 				self.fixup(package, impl)
 				if impl.installed:
 					self.installed_fixup(impl)
-
-		if master_feed_url == _PYTHON_URI and os.name != "nt":
-			# Hack: we can support Python on platforms with unsupported package managers
-			# by adding the implementation of Python running us now to the list.
-			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
-			impl_id = 'package:host:python:' + python_version
-			assert impl_id not in feed.implementations
-			impl = model.DistributionImplementation(feed, impl_id, self, distro_name = 'host')
-			impl.installed = True
-			impl.version = model.parse_version(python_version)
-			impl.main = sys.executable or '/usr/bin/python'
-			impl.upstream_stability = model.packaged
-			impl.machine = host_machine	# (hopefully)
-
-			_set_quick_test(impl, sys.executable)
-
-			feed.implementations[impl_id] = impl
-		elif master_feed_url == 'http://repo.roscidus.com/python/python-gobject' and os.name != "nt":
-			gobject = get_loop().gobject
-			if gobject:
-				# Likewise, we know that there is a native python-gobject available for our Python
-				impl_id = 'package:host:python-gobject:' + '.'.join(str(x) for x in gobject.pygobject_version)
-				assert impl_id not in feed.implementations
-				impl = model.DistributionImplementation(feed, impl_id, self, distro_name = 'host')
-				impl.installed = True
-				impl.version = [list(gobject.pygobject_version)]
-				impl.upstream_stability = model.packaged
-				impl.machine = host_machine	# (hopefully)
-
-				if gobject.__file__.startswith('<'):
-					_set_quick_test(impl, gobject.__path__)		# Python 3
-				else:
-					_set_quick_test(impl, gobject.__file__)		# Python 2
-
-				feed.implementations[impl_id] = impl
 
 		return feed
 

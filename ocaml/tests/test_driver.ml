@@ -120,7 +120,7 @@ let make_driver_test test_elem =
 
     let handler =
       object
-        method get_package_impls _uri = `List [`List []; `List []]
+        method get_package_impls _uri = `List [`List []]
 
         method download_impls impls =
           ignore @@ Test_0install.handle_download_impls config expected_digests impls;
@@ -182,7 +182,7 @@ let suite = "driver">::: [
         method download_impls = failwith "download_impls"
 
         method get_package_impls = function
-          | "http://example.com/prog.xml" -> `List [`List []; `List !prog_candidates]
+          | "http://example.com/prog.xml" -> `List [`List !prog_candidates]
           | url -> failwith url
 
         method download_url = function

@@ -163,7 +163,67 @@ let make_restricts_distro doc iface_uri distros =
     dep_use = None;
   }
 
+(** Set quick-test-file and quick-test-mtime from path. *)
+let get_quick_test_attrs path =
+  let mtime = (Unix.stat path).Unix.st_mtime in
+  Feed.AttrMap.singleton ("", "quick-test-file") path |>
+  Feed.AttrMap.add ("", "quick-test-mtime") (Printf.sprintf "%.0f" mtime)
+
 class virtual python_fallback_distribution (slave:Python.slave) =
+  let make_host_impl path version ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
+    let host_machine = slave#config.system#platform in
+    let open Feed in
+    let props = {
+      attrs = get_quick_test_attrs path
+        |> AttrMap.add ("", FeedAttr.from_feed) (Feed_url.format_url (`distribution_feed from_feed))
+        |> AttrMap.add ("", FeedAttr.id) id
+        |> AttrMap.add ("", FeedAttr.stability) "packaged"
+        |> AttrMap.add ("", FeedAttr.version) version;
+      requires;
+      bindings = [];
+      commands;
+    } in {
+      qdom = ZI.make_root "host-package-implementation";
+      props;
+      stability = Packaged;
+      os = None;
+      machine = Some host_machine.Platform.machine;       (* (hopefully) *)
+      parsed_version = Versions.parse_version version;
+      impl_type = PackageImpl {
+        package_distro = "host";
+        package_installed = true;
+        retrieval_method = None;
+      }
+    } in
+
+  let fake_host_doc = (ZI.make_root "<fake-host-root>").Qdom.doc in
+
+  let get_host_impls map = function
+    | `remote_feed "http://repo.roscidus.com/python/python" as url ->
+        (* Hack: we can support Python on platforms with unsupported package managers
+           by adding the implementation of Python running the slave now to the list. *)
+        let path, version =
+          slave#invoke (`List [`String "get-python-details"]) (function
+            | `List [`String path; `String version] -> (path, version)
+            | json -> raise_safe "Bad JSON: %s" (Yojson.Basic.to_string json)
+          ) in
+        let id = "package:host:python:" ^ version in
+        let run = ZI.make_root "command" in
+        run |> Q.set_attribute "name" "run";
+        run |> Q.set_attribute "path" path;
+        let commands = StringMap.singleton "run" Feed.({command_qdom = run; command_requires = []}) in
+        map |> StringMap.add id @@ make_host_impl path version ~commands url id
+    | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
+        let path, version =
+          slave#invoke (`List [`String "get-gobject-details"]) (function
+            | `List [`String path; `String version] -> (path, version)
+            | json -> raise_safe "Bad JSON: %s" (Yojson.Basic.to_string json)
+          ) in
+        let id = "package:host:python-gobject:" ^ version in
+        let requires = [make_restricts_distro fake_host_doc "http://repo.roscidus.com/python/python" "host"] in
+        map |> StringMap.add id @@ make_host_impl path version ~requires url id
+    | _ -> map in
+
   object (self)
     inherit distribution slave#config.system
 
@@ -194,9 +254,12 @@ class virtual python_fallback_distribution (slave:Python.slave) =
       match get_matching_package_impls self feed with
       | [] -> None
       | matches ->
+          let host_impls =
+            if on_windows then StringMap.empty
+            else get_host_impls StringMap.empty (feed.Feed.url) in
           try
             if did_packagekit_query then raise Fallback_to_Python;
-            Some (List.fold_left self#get_package_impls StringMap.empty matches)
+            Some (List.fold_left self#get_package_impls host_impls matches)
           with Fallback_to_Python ->
             let fake_feed = ZI.make feed.Feed.root.Q.doc "interface" in
             fake_feed.Q.child_nodes <- List.map fst matches;
@@ -211,25 +274,8 @@ class virtual python_fallback_distribution (slave:Python.slave) =
                   List.fold_left add_impl map pkgs
               | _ -> raise_safe "Not a group list" in
 
-            (* Process "host" package implementations. These weren't added by any particular
-               <package-implementation>, so we'll have to fake up a source element. *)
-            let to_host_impl lst =
-              let elem = ZI.make fake_feed.Qdom.doc "host-package-implementation" in
-              let restrictions =
-                if feed.Feed.url = `remote_feed "http://repo.roscidus.com/python/python-gobject" then (
-                  [make_restricts_distro elem.Qdom.doc "http://repo.roscidus.com/python/python" "host"]
-                ) else [] in
-              let props = Feed.({
-                attrs = Feed.AttrMap.singleton ("", "from-feed") (Feed_url.format_url feed.Feed.url);
-                requires = restrictions;
-                bindings = [];
-                commands = StringMap.empty;
-              }) in
-              to_impls StringMap.empty (elem, props) lst in
-
             slave#invoke ~xml:fake_feed request (function
-              | `List (host::pkg_groups) ->
-                  let host_impls = to_host_impl host in
+              | `List pkg_groups ->
                   let all_impls = List.fold_left2 to_impls host_impls matches pkg_groups in
                   Some all_impls
               | _ -> raise_safe "Invalid response"
@@ -461,20 +507,19 @@ module ArchLinux = struct
       | _ -> items in
 
     object (self : #distribution)
-      inherit python_fallback_distribution slave
+      inherit python_fallback_distribution slave as super
 
       val distro_name = "Arch"
 
       (* We should never get here for an installed package, because we always set quick-test-* *)
       method! is_installed _elem = false
 
-(* Still need to fall back in the case where we queried for package-kit candidates, so
- * use base-class.
-      method get_all_package_impls feed =
-        match get_matching_package_impls self feed with
-        | [] -> None
-        | matches -> Some (List.concat (List.map self#get_package_impls matches))
-*)
+      method! get_all_package_impls feed =
+        if did_packagekit_query then super#get_all_package_impls feed
+        else
+          match get_matching_package_impls self feed with
+          | [] -> None
+          | matches -> Some (List.fold_left self#get_package_impls StringMap.empty matches)
 
       method! private get_package_impls map (elem, props) =
         let package_name = ZI.get_attribute "package" elem in

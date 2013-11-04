@@ -154,8 +154,6 @@ def do_get_package_impls(config, options, args, xml):
 	seen = set()
 	results = []
 
-	hosts = []
-
 	# We need the results grouped by <package-implementation> so the OCaml can
 	# get the correct attributes and dependencies.
 	for elem in xml.childNodes:
@@ -165,13 +163,9 @@ def do_get_package_impls(config, options, args, xml):
 		impls = [impl for impl in feed.implementations.values() if impl.id not in seen]
 		seen.update(feed.implementations.keys())
 
-		hosts += [to_json(impl) for impl in impls
-			  if impl.id.startswith('package:host:')]
+		results.append([to_json(impl) for impl in impls])
 
-		results.append([to_json(impl) for impl in impls
-				if not impl.id.startswith('package:host:')])
-
-	return [hosts] + results
+	return results
 
 last_ticket = 0
 def take_ticket():
@@ -532,6 +526,17 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'get-package-impls':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_get_package_impls(config, options, request[1:], xml)
+		elif command == 'get-python-details':
+			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
+			response = (sys.executable or '/usr/bin/python', python_version)
+		elif command == 'get-gobject-details':
+			gobject = tasks.get_loop().gobject
+			version = '.'.join(str(x) for x in gobject.pygobject_version)
+			if gobject.__file__.startswith('<'):
+				path = gobject.__path__		# Python 3
+			else:
+				path = gobject.__file__		# Python 2
+			response = (path, version)
 		elif command == 'get-distro-candidates':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			blocker = do_get_distro_candidates(config, request[1:], xml)

@@ -40,7 +40,8 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
       match feed_provider#get_feed feed_url with
       | None -> None
       | Some (feed, overrides) ->
-          Some (StringMap.find id feed.F.implementations, get_override overrides)
+          try Some (StringMap.find id feed.F.implementations, get_override overrides)
+          with Not_found -> raise_safe "Impl '%s' not found! (BUG)" id
 
 let get_download_size info impl =
   match info.F.retrieval_methods with
