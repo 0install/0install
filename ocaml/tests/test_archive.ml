@@ -87,7 +87,8 @@ let suite = "archive">::: [
   );
 
 (*   @skipIf(sys.getfilesystemencoding().lower() != "utf-8", "tar only unpacks to utf-8") *)
-  "non-ascii-tgz">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+  "non-ascii-tgz">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    fake_system#putenv "LANG" @@ (Fake_system.real_system#getenv "LANG" |? lazy "en_GB.UTF-8");
     test_archive config "sha1new=e42ffed02179169ef2fa14a46b0d9aea96a60c10" "unicode.tar.gz"
   );
 
@@ -105,7 +106,8 @@ let suite = "archive">::: [
   );
 
 (*   @skipIf(sys.getfilesystemencoding().lower() != "utf-8", "tar only unpacks to utf-8") *)
-  "extract-non-ascii">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+  "extract-non-ascii">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    fake_system#putenv "LANG" @@ (Fake_system.real_system#getenv "LANG" |? lazy "en_GB.UTF-8");
     test_archive config "sha1=add40d8fe047bb1636791e3ae9dc9949cc657845" ~extract:"unicode" "unicode.tar.gz"
   );
 
