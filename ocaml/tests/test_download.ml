@@ -727,7 +727,7 @@ let suite = "download">::: [
     let feed_provider = new Zeroinstall.Feed_provider.feed_provider config distro in
     let iface = Test_0install.feed_dir +/ "Binary.xml" in
     Fake_system.assert_raises_safe "Error downloading 'http://localhost/missing.png': \
-                                    The requested URL returned error: 404 Missing: missing.png" (lazy (
+                                    The requested URL returned error: 404" (lazy (
       Lwt_main.run @@ Zeroinstall.Gui.download_icon config downloader feed_provider (`local_feed iface);
     ));
   );

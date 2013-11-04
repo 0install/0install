@@ -200,7 +200,7 @@ let suite = "driver">::: [
           | url -> failwith url
 
         method get_feed = function
-          | "http://example.com/prog.xml" -> `file "prog.xml"
+          | "http://example.com/prog.xml" -> `file (Fake_system.tests_dir +/ "prog.xml")
           | url -> failwith url
       end in
     let slave = new fake_slave config handler in
@@ -278,6 +278,6 @@ let suite = "driver">::: [
   );
 
   "driven">:::
-    let root = Support.Qdom.parse_file Fake_system.real_system "driven.xml" in
+    let root = Support.Qdom.parse_file Fake_system.real_system "tests/driven.xml" in
     List.map make_driver_test root.Support.Qdom.child_nodes
 ]

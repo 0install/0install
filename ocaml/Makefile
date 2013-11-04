@@ -17,7 +17,7 @@ build_dir:
 	[ -d "${OCAML_BUILDDIR}" ] || mkdir -p "${OCAML_BUILDDIR}"
 
 test: ocaml
-	(cd tests && OCAML_BUILDDIR=../${OCAML_BUILDDIR} ../${OCAML_BUILDDIR}/tests/test.$(TYPE))
+	./${OCAML_BUILDDIR}/tests/test.$(TYPE)
 
 # Build static version (of $TYPE)
 ocaml: build_dir

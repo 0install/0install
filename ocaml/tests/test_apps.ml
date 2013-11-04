@@ -22,7 +22,7 @@ let suite = "apps">::: [
     let interface_cache = tmpdir +/ "cache/0install.net/interfaces" in
     U.makedirs system interface_cache 0o755;
     U.copy_file system
-      "../../tests/Hello.xml"
+      "../tests/Hello.xml"
       (interface_cache +/ "http%3a%2f%2fexample.com%3a8000%2fHello.xml")
       0o644;
 

@@ -32,7 +32,7 @@ let expect = function
 module RealSystem = Support.System.RealSystem(Unix)
 let real_system = new RealSystem.real_system
 
-let build_dir = U.handle_exceptions (fun () -> U.getenv_ex real_system "OCAML_BUILDDIR") ()
+let build_dir = Filename.dirname @@ Filename.dirname Sys.argv.(0)
 
 let make_stat st_perm kind =
   let open Unix in {
@@ -78,7 +78,9 @@ let capture_stdout ?(include_stderr=false) fn =
 exception Would_exec of (bool * string array option * string list)
 exception Would_spawn of (bool * string array option * string list)
 
-let src_dir = Filename.dirname @@ Filename.dirname @@ Sys.getcwd ()
+let ocaml_dir = Sys.getcwd ()
+let src_dir = Filename.dirname ocaml_dir
+let tests_dir = ocaml_dir +/ "tests"
 let test_0install = src_dir +/ "0install"           (* Pretend we're running from here so we find 0install-python-fallback *)
 
 class fake_system tmpdir =

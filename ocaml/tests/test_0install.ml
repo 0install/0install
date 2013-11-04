@@ -22,7 +22,7 @@ let assert_error_contains expected fn =
   )
 
 let test_0install = Fake_system.test_0install
-let feed_dir = U.abspath Fake_system.real_system (".." +/ ".." +/ "tests")
+let feed_dir = U.abspath Fake_system.real_system (".." +/ "tests")
 
 exception Ok
 
@@ -107,13 +107,13 @@ let run_0install ?stdin ?(include_stderr=false) fake_system ?(exit=0) args =
   | None -> Lazy.force run
   | Some stdin -> fake_system#with_stdin stdin run
 
-let generic_archive = U.read_file Fake_system.real_system @@ feed_dir +/ "HelloWorld.tgz"
+let generic_archive = U.handle_exceptions (U.read_file Fake_system.real_system) @@ feed_dir +/ "HelloWorld.tgz"
 
 let suite = "0install">::: [
   "select">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (_config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
-    fake_system#add_file (tmpdir +/ "cache" +/ "0install.net" +/ "interfaces" +/ "http%3a%2f%2fexample.com%3a8000%2fHello.xml") (".." +/ ".." +/ "tests" +/ "Hello.xml");
+    fake_system#add_file (tmpdir +/ "cache" +/ "0install.net" +/ "interfaces" +/ "http%3a%2f%2fexample.com%3a8000%2fHello.xml") (feed_dir +/ "Hello.xml");
     fake_system#add_dir (tmpdir +/ "cache" +/ "0install.net" +/ "implementations") ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"];
     fake_system#add_file "/lib/ld-linux.so.2" "/";    (* Enable multi-arch *)
 
@@ -174,7 +174,7 @@ let suite = "0install">::: [
 
     (* Updating a local feed with no dependencies *)
     let local_file = tmpdir +/ "Local.xml" in
-    U.copy_file system (".." +/ ".." +/ "tests" +/ "Local.xml") local_file 0o644;
+    U.copy_file system (feed_dir +/ "Local.xml") local_file 0o644;
     let out = run ["update"; local_file] in
     assert_contains "No updates found" out;
 

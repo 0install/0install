@@ -398,7 +398,7 @@ let suite = "solver">::: [
               let overrides = {overrides with Feed.user_stability = StringMap.singleton "package:buggy" Buggy} in
               Some (impls, overrides)
       end in
-    feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system "ranking.xml");
+    feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system (Fake_system.tests_dir +/ "ranking.xml"));
     config.network_use <- Minimal_network;
 
     let scope_filter = {
@@ -718,6 +718,6 @@ let suite = "solver">::: [
   );
 
   "solver">:::
-    let root = Support.Qdom.parse_file Fake_system.real_system "solves.xml" in
+    let root = Support.Qdom.parse_file Fake_system.real_system "tests/solves.xml" in
     List.map make_solver_test root.Support.Qdom.child_nodes
 ]
