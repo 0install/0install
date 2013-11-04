@@ -352,32 +352,32 @@ let suite = "solver">::: [
     let distro =
       object
         inherit Distro.generic_distribution slave as super
-        method! private get_package_impls (elem, props) = [
-          super#make_package_implementation elem props
-            ~is_installed:true
-            ~id:"package:is_distro_v1-1"
-            ~machine:"x86_64"
-            ~version:"1-1"
-            ~extra_attrs:[];
-          super#make_package_implementation elem props
-            ~is_installed:false
-            ~id:"package:root_install_needed_2"
-            ~machine:"x86_64"
-            ~version:"1-1"
-            ~extra_attrs:[];
-          super#make_package_implementation elem props
-            ~is_installed:false
-            ~id:"package:root_install_needed_1"
-            ~machine:"x86_64"
-            ~version:"1-1"
-            ~extra_attrs:[];
-          super#make_package_implementation elem props
-            ~is_installed:true
-            ~id:"package:buggy"
-            ~machine:"x86_64"
-            ~version:"1-1"
-            ~extra_attrs:[];
-          ]
+        method! private get_package_impls map (elem, props) =
+          map
+            |> super#add_package_implementation elem props
+              ~is_installed:true
+              ~id:"package:is_distro_v1-1"
+              ~machine:"x86_64"
+              ~version:"1-1"
+              ~extra_attrs:[]
+            |> super#add_package_implementation elem props
+              ~is_installed:false
+              ~id:"package:root_install_needed_2"
+              ~machine:"x86_64"
+              ~version:"1-1"
+              ~extra_attrs:[]
+            |> super#add_package_implementation elem props
+              ~is_installed:false
+              ~id:"package:root_install_needed_1"
+              ~machine:"x86_64"
+              ~version:"1-1"
+              ~extra_attrs:[]
+            |> super#add_package_implementation elem props
+              ~is_installed:true
+              ~id:"package:buggy"
+              ~machine:"x86_64"
+              ~version:"1-1"
+              ~extra_attrs:[]
       end in
 
     let feed_provider =

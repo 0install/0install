@@ -47,6 +47,9 @@ let get_test_slave config name args =
   slave#invoke (`List [`String "test-distro"; `String name; `List args]) Zeroinstall.Python.expect_null;
   slave
 
+let to_impl_list map : F.implementation list =
+  StringMap.fold (fun _ impl lst -> impl :: lst) (Fake_system.expect map) []
+
 let suite = "distro">::: [
   "arch">:: Fake_system.with_tmpdir (fun tmpdir ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
@@ -61,15 +64,14 @@ let suite = "distro">::: [
     let slave = new Zeroinstall.Python.slave config in
     let distro = new Distro.ArchLinux.arch_distribution config slave in
     let feed = load_feed system test_feed in
-    let impls = Distro.get_package_impls distro feed in
+    let impls = Distro.get_package_impls distro feed |> to_impl_list in
     let open F in
     match impls with
-    | Some [impl] ->
+    | [impl] ->
         assert_str_equal "2.7.2-4" (Zeroinstall.Versions.format_version impl.parsed_version);
         let run = StringMap.find "run" impl.props.commands in
         assert_str_equal "/bin/python2" (ZI.get_attribute "path" run.command_qdom)
-    | Some impls -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)
-    | None -> assert_failure "didn't check distro!"
+    | impls -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)
   );
 
   "test_host_python">:: Fake_system.with_tmpdir (fun tmpdir ->
@@ -87,9 +89,9 @@ let suite = "distro">::: [
     let distro = new Distro.generic_distribution slave in
 
     let open F in
-    let is_host impl = U.starts_with (get_attr_ex "id" impl) "package:host:" in
+    let is_host (id, _impl) = U.starts_with id "package:host:" in
     let find_host impls =
-      try List.find is_host impls
+      try impls |> StringMap.bindings |> List.find is_host |> snd
       with Not_found -> assert_failure "No host package found!" in
 
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_feed)) in
@@ -140,7 +142,7 @@ let suite = "distro">::: [
     let feed = get_feed
       "<package-implementation distributions='Debian' package='yast2-mail'/>\n\
        <package-implementation distributions='RPM' package='yast2-update'/>" in
-    let impls = Fake_system.expect @@ Distro.get_package_impls rpm feed in
+    let impls = to_impl_list @@ Distro.get_package_impls rpm feed in
     begin match impls with
     | [yast] ->
         assert_equal "package:rpm:yast2-update:2.15.23-21:i586" (F.get_attr_ex "id" yast);
@@ -150,16 +152,16 @@ let suite = "distro">::: [
 
     let feed = get_feed "<package-implementation distributions='RPM' package='yast2-mail'/>\n\
                          <package-implementation distributions='RPM' package='yast2-update'/>" in
-    let impls = Fake_system.expect @@ Distro.get_package_impls rpm feed in
+    let impls = to_impl_list @@ Distro.get_package_impls rpm feed in
     assert_equal 2 (List.length impls);
 
     let feed = get_feed "<package-implementation distributions='' package='yast2-mail'/>\n\
                          <package-implementation package='yast2-update'/>" in
-    let impls = Fake_system.expect @@ Distro.get_package_impls rpm feed in
+    let impls = to_impl_list @@ Distro.get_package_impls rpm feed in
     assert_equal 2 (List.length impls);
 
     let feed = get_feed "<package-implementation distributions='Foo Bar Baz' package='yast2-mail'/>" in
-    let impls = Fake_system.expect @@ Distro.get_package_impls rpm feed in
+    let impls = to_impl_list @@ Distro.get_package_impls rpm feed in
     assert_equal 1 (List.length impls);
 
     Unix.putenv "PATH" old_path;
@@ -187,7 +189,7 @@ let suite = "distro">::: [
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     let slave = get_test_slave config "DebianDistribution" [`String (dpkgdir +/ "status")] in
     let deb = new Distro.Debian.debian_distribution config slave in
-    begin match Fake_system.expect @@ Distro.get_package_impls deb feed with
+    begin match to_impl_list @@ Distro.get_package_impls deb feed with
     | [impl] ->
         Fake_system.assert_str_equal "package:deb:python-bittorrent:3.4.2-10:*" (F.get_attr_ex "id" impl);
         assert_equal ~msg:"Stability" Packaged impl.F.stability;
@@ -227,7 +229,7 @@ let suite = "distro">::: [
 
     (* Part II *)
     let gimp_feed = get_feed "<package-implementation package='gimp'/>" in
-    Distro.get_package_impls deb gimp_feed |> assert_equal (Some []);
+    Distro.get_package_impls deb gimp_feed |> assert_equal (Some StringMap.empty);
 
     (* Initially, we only get information about the installed version... *)
     let bt_feed = get_feed "<package-implementation package='python-bittorrent'>\n\
@@ -235,7 +237,7 @@ let suite = "distro">::: [
                                   <version not-before='3'/>\n\
                                 </restricts>\n\
                                 </package-implementation>" in
-    Distro.get_package_impls deb bt_feed |> Fake_system.expect |> List.length |> assert_equal 1;
+    Distro.get_package_impls deb bt_feed |> to_impl_list |> List.length |> assert_equal 1;
 
 
     Fake_system.fake_log#reset;
@@ -245,7 +247,7 @@ let suite = "distro">::: [
 
     (* Now we see the uninstalled package *)
     let compare_version a b = compare a.F.parsed_version b.F.parsed_version in
-    begin match Fake_system.expect @@ Distro.get_package_impls deb bt_feed |> List.sort compare_version with
+    begin match to_impl_list @@ Distro.get_package_impls deb bt_feed |> List.sort compare_version with
     | [installed; uninstalled] as impls ->
         (* Check restriction appears for both candidates *)
         impls |> List.iter (fun impl ->
@@ -261,8 +263,8 @@ let suite = "distro">::: [
     end;
 
     let feed = get_feed "<package-implementation package='libxcomposite-dev'/>" in
-    begin match Distro.get_package_impls deb feed with
-    | Some [libxcomposite] ->
+    begin match to_impl_list @@ Distro.get_package_impls deb feed with
+    | [libxcomposite] ->
         Fake_system.assert_str_equal "0.3.1-1" @@ F.get_attr_ex "version" libxcomposite;
         Fake_system.assert_str_equal "i386" @@ Fake_system.expect libxcomposite.F.machine
     | _ -> assert false
@@ -270,8 +272,8 @@ let suite = "distro">::: [
 
     (* Java is special... *)
     let feed = get_feed "<package-implementation package='openjdk-7-jre'/>" in
-    begin match Distro.get_package_impls deb feed with
-    | Some [impl] -> Fake_system.assert_str_equal "7.3-2.1.1-3" @@ F.get_attr_ex "version" impl
+    begin match to_impl_list @@ Distro.get_package_impls deb feed with
+    | [impl] -> Fake_system.assert_str_equal "7.3-2.1.1-3" @@ F.get_attr_ex "version" impl
     | _ -> assert false end;
 
     Unix.putenv "PATH" old_path;

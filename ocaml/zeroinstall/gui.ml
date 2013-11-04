@@ -30,7 +30,7 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
           | None -> None
           | Some (impls, overrides) ->
               let impl =
-                try Some (List.find (fun impl -> F.get_attr_ex FeedAttr.id impl = id) impls)
+                try Some (StringMap.find id impls)
                 with Not_found -> None in
               match impl with
               | None -> None

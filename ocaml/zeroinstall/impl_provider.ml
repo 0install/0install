@@ -94,14 +94,15 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
   let compare_for_watched_iface = ref None in
 
   let do_overrides overrides impls =
-    let do_override impl =
-      let id = Feed.get_attr_ex "id" impl in
-      try {impl with Feed.stability = StringMap.find id overrides.Feed.user_stability}
-      with Not_found -> impl in
-    List.map do_override impls in
+    let do_override id impl lst =
+      let impl =
+        try {impl with Feed.stability = StringMap.find id overrides.Feed.user_stability}
+        with Not_found -> impl in
+      impl :: lst in
+    StringMap.fold do_override impls [] in
 
   let get_impls (feed, overrides) =
-    do_overrides overrides @@ Feed.get_implementations feed in
+    do_overrides overrides @@ feed.Feed.implementations in
 
   let cached_digests = Stores.get_available_digests config.system config.stores in
 

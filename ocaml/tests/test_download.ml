@@ -298,8 +298,8 @@ let suite = "download">::: [
     let deb = new Zeroinstall.Distro.Debian.debian_distribution config slave in
 
     Lwt_main.run @@ deb#check_for_candidates feed;
-    begin match Zeroinstall.Distro.get_package_impls deb feed with
-    | Some [_impl1; _impl2] -> ()
+    begin match Test_distro.to_impl_list @@ Zeroinstall.Distro.get_package_impls deb feed with
+    | [_impl1; _impl2] -> ()
     | _ -> assert false end;
 
     Unix.putenv "PATH" old_path;
