@@ -9,6 +9,8 @@ BUILDDIR = $(abspath build)
 # Default to /usr because Python doesn't look in /usr/local by default on all systems.
 PREFIX = /usr
 
+PYTHON=`which python3 2>/dev/null || which python2 2>/dev/null || echo python`
+
 GTKBUILDER = $(shell cd ${SRCDIR} && find zeroinstall -name '*.ui' | sort | sed -e 's/\.ui/&.h/')
 SH = ${SRCDIR}/share/0install.net/unlzma
 PY = $(shell cd ${SRCDIR} && find zeroinstall -name '*.py' | sort)
@@ -54,7 +56,7 @@ default: all
 %::
 	[ -d "${BUILDDIR}" ] || mkdir "${BUILDDIR}"
 	[ -d "${DISTDIR}" ] || mkdir "${DISTDIR}"
-	make -C "${BUILDDIR}" -f "${SRCDIR}/Makefile.build" "$@" SRCDIR="${SRCDIR}" BUILDDIR="${BUILDDIR}" DISTDIR="${DISTDIR}" PREFIX="${PREFIX}"
+	make -C "${BUILDDIR}" -f "${SRCDIR}/Makefile.build" "$@" SRCDIR="${SRCDIR}" BUILDDIR="${BUILDDIR}" DISTDIR="${DISTDIR}" PREFIX="${PREFIX}" PYTHON="${PYTHON}" DESTDIR="${DESTDIR}"
 
 share/locale/zero-install.pot: $(PY) $(GTKBUILDER) $(SH)
 	xgettext --sort-by-file --language=Python --output=$@ --keyword=N_ $(PY) $(GTKBUILDER)
