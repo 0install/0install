@@ -125,19 +125,35 @@ let handle options flags args =
   )
   | _ -> raise (Support.Argparse.Usage_error 1)
 
+(* Send a D-BUS notification. Can be overridden for unit-tests. *)
+let notify = ref (fun ~msg ~timeout ->
+  Lwt_main.run (
+    try_lwt
+      (* Prevent OBus from killing us. *)
+      lwt session_bus = OBus_bus.session () in
+      OBus_connection.set_on_disconnect session_bus (fun ex -> log_info ~ex "D-BUS disconnect"; Lwt.return ());
+
+      ignore (Notification.notify ~timeout ~summary:"0install" ~body:msg ~icon:"info" ());
+      (* Force a round-trip to make sure the notice has been sent before we exit
+       * ([notify] itself only resolves when the notification is closed) *)
+      lwt _ = Notification.get_server_information () in
+      Lwt.return ()
+    with ex ->
+      log_debug ~ex "Failed to send notification via D-BUS";
+      log_info "0install: %s" msg;
+      Lwt.return ()
+  )
+)
+
 (** update-bg is a hidden command used internally to spawn background updates.
     stdout will be /dev/null. stderr will be too, unless using -vv. *)
 let handle_bg options flags args =
+  Support.Argparse.iter_options flags (function
+    | #common_option as o -> Common_options.process_common_option options o
+  );
+
   let config = options.config in
   let slave = options.slave in
-
-  let notify ~msg ~timeout =
-    let fields = `Assoc [
-      ("title", `String "0install");
-      ("message", `String msg);
-      ("timeout", `Int timeout);
-    ] in
-    slave#invoke_async (`List [`String "notify-user"; fields]) ignore |> Lwt_main.run in
 
   let need_gui = ref false in
   let ui =
@@ -164,10 +180,6 @@ let handle_bg options flags args =
     let downloader = new Zeroinstall.Downloader.downloader (lazy ui)  ~max_downloads_per_site:2 in
     let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader (lazy ui) in
     new Zeroinstall.Driver.driver config fetcher distro (lazy ui) slave in
-
-  Support.Argparse.iter_options flags (function
-    | #common_option as o -> Common_options.process_common_option options o
-  );
 
   match args with
     | ["app"; app] ->
@@ -196,12 +208,12 @@ let handle_bg options flags args =
               | `Success gui_sels -> gui_sels
             ) else if !need_gui then (
               let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in
-              notify ~timeout:10 ~msg;
+              !notify ~timeout:10 ~msg;
               log_warning "%s" msg;
               raise (System_exit 1)
             ) else if not ready then (
               let msg = Printf.sprintf "Can't update 0install app '%s' (run '0install update %s' to fix)" name name in
-              notify ~timeout:10 ~msg;
+              !notify ~timeout:10 ~msg;
               log_warning "Update of 0install app %s failed: %s" name (Zeroinstall.Diagnostics.get_failure_reason config result);
               raise (System_exit 1)
             ) else (
@@ -214,7 +226,7 @@ let handle_bg options flags args =
           Apps.set_selections config app new_sels ~touch_last_checked:true;
           let msg = Printf.sprintf "%s updated" name in
           log_info "Background update: %s" msg;
-          notify ~msg ~timeout:1;
+          !notify ~msg ~timeout:1;
         ) else (
           log_info "Background update: no updates found for %s" name;
           Apps.set_last_checked config.system app

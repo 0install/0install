@@ -47,13 +47,14 @@ build tools and some OCaml libraries to compile 0install. On Debian use:
 
     $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev \
        libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev libounit-ocaml-dev \
-       python-gobject libextlib-ocaml-dev libcurl-ocaml-dev libssl-ocaml-dev
+       python-gobject libextlib-ocaml-dev libcurl-ocaml-dev libssl-ocaml-dev \
+       libobus-ocaml-dev
 
 You can also get the dependencies using [OPAM](http://opam.ocamlpro.com/):
 
     $ opam sw 4.00.1
     $ eval `opam config env`
-    $ opam install yojson xmlm ounit lwt extlib ssl ocurl
+    $ opam install yojson xmlm ounit lwt extlib ssl ocurl obus
 
 In the top-level directory, run:
 

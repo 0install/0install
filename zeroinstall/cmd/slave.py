@@ -280,11 +280,6 @@ def do_confirm_keys(config, ticket, url, xml):
 		logger.warning("do_confirm_keys", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
 
-def do_notify_user(config, args):
-	from zeroinstall.injector import background
-	handler = background.BackgroundHandler()
-	handler.notify(args["title"], args["message"], timeout = args["timeout"])
-
 class OCamlDownload:
 	url = None
 	hint = None
@@ -540,8 +535,6 @@ def handle_invoke(config, options, ticket, request):
 			xml = qdom.parse(BytesIO(read_chunk()))
 			do_update_key_info(config, ticket, request[1], xml)
 			return	# async
-		elif command == 'notify-user':
-			response = do_notify_user(config, request[1])
 		elif command == 'start-monitoring':
 			response = do_start_monitoring(config, request[1])
 		elif command == 'stop-monitoring':

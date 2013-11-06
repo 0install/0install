@@ -26,7 +26,7 @@ val handler : handler ref
  *)
 val log : level -> ?ex:exn -> ('a, unit, string, unit) format4 -> 'a
 
-val log_debug : ('a, unit, string, unit) format4 -> 'a
+val log_debug : ?ex:exn -> ('a, unit, string, unit) format4 -> 'a
 
 (** Write a message to stderr if verbose logging is on. *)
 val log_info : ?ex:exn -> ('a, unit, string, unit) format4 -> 'a

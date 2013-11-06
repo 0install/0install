@@ -43,6 +43,7 @@ let remove_cached config selections_path =
   U.rmtree ~even_if_locked:true config.system stored
 
 let install_interceptor system checked_for_gui =
+  Update.notify := (fun ~msg ~timeout:_ -> log_info "NOTIFY: 0install: %s" msg);
   (* Trigger a background update - no updates found *)
   Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
     | `List [`String "wait-for-network"] -> Some (Lwt.return (`List [`String "ok"; `String "online"]))
@@ -53,11 +54,6 @@ let install_interceptor system checked_for_gui =
     | `List ((`String "open-gui") :: _) -> raise Open_gui
     | `List ((`String "unpack-archive") :: _) -> None
     | `List ((`String "add-manifest-and-verify") :: _) -> None
-    | `List [`String "notify-user"; `Assoc details] ->
-        log_info "NOTIFY: %s: %s"
-          (List.assoc "title" details |> Yojson.Basic.to_string)
-          (List.assoc "message" details |> Yojson.Basic.to_string);
-        Some (Lwt.return (`List [`String "ok"; `Null]))
     | json -> raise_safe "Unexpected slave request: %s" (Yojson.Basic.to_string json)
   )
 
@@ -663,7 +659,7 @@ let suite = "download">::: [
       assert_str_equal "" @@ run_0install fake_system ["download"; "test-app"]
     );
     Fake_system.fake_log#assert_contains
-      "NOTIFY: \"0install\": \"Can't update 0install app 'test-app' (run '0install update test-app' to fix)\"";
+      "NOTIFY: 0install: Can't update 0install app 'test-app' (run '0install update test-app' to fix)";
 
     assert_str_equal "" @@ run_0install fake_system ["destroy"; "test-app"];
   );

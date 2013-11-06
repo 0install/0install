@@ -36,9 +36,7 @@ class _NetworkState(object):
 
 class BackgroundHandler:
 	def __init__(self):
-		self.notification_service = None
 		self.network_manager = None
-		self.notification_service_caps = []
 		self.need_gui = False
 
 		try:
@@ -51,27 +49,6 @@ class BackgroundHandler:
 		except Exception as ex:
 			logger.info(_("Failed to import D-BUS bindings: %s"), ex)
 			return
-
-		try:
-			session_bus = dbus.SessionBus()
-			remote_object = session_bus.get_object('org.freedesktop.Notifications',
-								'/org/freedesktop/Notifications')
-
-			self.notification_service = dbus.Interface(remote_object,
-							'org.freedesktop.Notifications')
-
-			# The Python bindings insist on printing a pointless introspection
-			# warning to stderr if the service is missing. Force it to be done
-			# now so we can skip it
-			old_stderr = sys.stderr
-			sys.stderr = None
-			try:
-				self.notification_service_caps = [str(s) for s in
-						self.notification_service.GetCapabilities()]
-			finally:
-				sys.stderr = old_stderr
-		except Exception as ex:
-			logger.info(_("No D-BUS notification service available: %s"), ex)
 
 		try:
 			system_bus = dbus.SystemBus()
@@ -95,34 +72,3 @@ class BackgroundHandler:
 			except Exception as ex:
 				logger.warning(_("Error getting network state: %s"), ex)
 		return _NetworkState.NM_STATE_UNKNOWN
-
-	def notify(self, title, message, timeout = 0, actions = []):
-		"""Send a D-BUS notification message if possible. If there is no notification
-		service available, log the message instead.
-		@type title: str
-		@type message: str
-		@type timeout: int"""
-		if not self.notification_service:
-			logger.info('%s: %s', title, message)
-			return None
-
-		LOW = 0
-		NORMAL = 1
-		#CRITICAL = 2
-
-		import dbus.types
-
-		hints = {}
-		if actions:
-			hints['urgency'] = dbus.types.Byte(NORMAL)
-		else:
-			hints['urgency'] = dbus.types.Byte(LOW)
-
-		return self.notification_service.Notify('Zero Install',
-			0,		# replaces_id,
-			'',		# icon
-			_escape_xml(title),
-			_escape_xml(message),
-			actions,
-			hints,
-			timeout * 1000)
