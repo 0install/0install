@@ -15,23 +15,22 @@ let cache_path_for config url = Feed_cache.get_save_cache_path config url
 
 class fake_slave config handler : Python.slave =
   object (_ : #Python.slave)
-    method invoke request ?xml parse_fn =
-      ignore xml;
-      match request with
-      | `List [`String "get-package-impls"; `String url] -> parse_fn @@ handler#get_package_impls url
-      | _ -> raise_safe "invoke: %s" (Yojson.Basic.to_string request)
     method invoke_async request ?xml parse_fn =
       ignore xml;
       log_info "invoke_async: %s" (Yojson.Basic.to_string request);
-      match request with
-      | `List [`String "download-url"; `String url; `String _hint; timeout; `Null] ->
-          let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
-          ignore @@ start_timeout [timeout];
-          Lwt.return @@ parse_fn @@ handler#download_url url
-      | `List [`String "get-distro-candidates"; `List packages] ->
-          let () = packages |> List.map Yojson.Basic.Util.to_string |> handler#get_distro_candidates in
-          Lwt.return @@ parse_fn `Null
-      | _ -> raise_safe "Unexpected request %s" (Yojson.Basic.to_string request)
+      Lwt.return (
+        match request with
+        | `List [`String "init-distro"; `String _; `List _] -> parse_fn `Null
+        | `List [`String "get-package-impls"; `String url] -> parse_fn @@ handler#get_package_impls url
+        | `List [`String "download-url"; `String url; `String _hint; timeout; `Null] ->
+            let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
+            ignore @@ start_timeout [timeout];
+            parse_fn @@ handler#download_url url
+        | `List [`String "get-distro-candidates"; `List packages] ->
+            let () = packages |> List.map Yojson.Basic.Util.to_string |> handler#get_distro_candidates in
+            parse_fn `Null
+        | _ -> raise_safe "Unexpected request %s" (Yojson.Basic.to_string request)
+      )
 
     method close = ()
     method close_async = failwith "close_async"

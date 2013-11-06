@@ -66,7 +66,7 @@ let handle options flags args =
 
   let gui = options.slave#invoke_async (`List [`String "open-cache-explorer"]) P.expect_null in
 
-  options.slave#invoke (`List [`String "ping"]) P.expect_null;
+  options.slave#invoke_async (`List [`String "ping"]) P.expect_null |> Lwt_main.run;
 
   let all_digests = Zeroinstall.Stores.get_available_digests config.system config.stores in
   let ok_feeds = ref [] in

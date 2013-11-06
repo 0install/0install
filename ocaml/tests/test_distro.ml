@@ -42,13 +42,20 @@ let load_feed system xml =
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, xml)) in
     F.parse system root None
 
-let get_test_slave config name args =
-  let slave = new Zeroinstall.Python.slave config in
-  slave#invoke (`List [`String "test-distro"; `String name; `List args]) Zeroinstall.Python.expect_null;
-  slave
-
 let to_impl_list map : F.implementation list =
   StringMap.fold (fun _ impl lst -> impl :: lst) (Fake_system.expect map) []
+
+let gimp_feed = Test_feed.feed_of_xml Fake_system.real_system "\
+  <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://gimp.org/gimp'>\
+    <name>Gimp</name>\
+    <package-implementation package='gimp'/>\
+    <package-implementation package='media-gfx/gimp' distribution='Gentoo'/>\
+  </interface>"
+
+let make_test_feed package_name = Test_feed.feed_of_xml Fake_system.real_system (Printf.sprintf "\
+  <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://example.com/x.xml'>\
+    <name>%s</name><package-implementation package='%s'/>\
+  </interface>" package_name package_name)
 
 let suite = "distro">::: [
   "arch">:: Fake_system.with_tmpdir (fun tmpdir ->
@@ -72,6 +79,99 @@ let suite = "distro">::: [
         let run = StringMap.find "run" impl.props.commands in
         assert_str_equal "/bin/python2" (ZI.get_attribute "path" run.command_qdom)
     | impls -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)
+  );
+
+  "arch2">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    let arch_db = Test_0install.feed_dir +/ "arch" in
+    let slave = new Zeroinstall.Python.slave config in
+    let distro = new Distro.ArchLinux.arch_distribution ~arch_db config slave in
+
+    Distro.get_package_impls distro gimp_feed |> to_impl_list |> assert_equal [];
+
+    begin match Distro.get_package_impls distro (make_test_feed "zeroinstall-injector") |> to_impl_list with
+    | [impl] ->
+        assert_str_equal "package:arch:zeroinstall-injector:1.5-1:*" @@ F.get_attr_ex "id" impl;
+        assert_str_equal "1.5-1" @@ F.get_attr_ex "version" impl
+    | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
+  );
+
+  "slack">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    let slackdir = Test_0install.feed_dir +/ "slack" in
+    let packages_dir = slackdir +/ "packages" in
+    let slave = new Zeroinstall.Python.slave config in
+    let distro = new Distro.Slackware.slack_distribution ~packages_dir config slave in
+
+    Distro.get_package_impls distro gimp_feed |> to_impl_list |> assert_equal [];
+
+    begin match Distro.get_package_impls distro (make_test_feed "infozip") |> to_impl_list with
+    | [impl] ->
+        assert_str_equal "package:slack:infozip:5.52-2:i486" @@ F.get_attr_ex "id" impl;
+        assert_str_equal "5.52-2" @@ F.get_attr_ex "version" impl;
+        assert_str_equal "i486" @@ (expect impl.F.machine);
+    | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
+  );
+
+  "gentoo">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    let pkgdir = Test_0install.feed_dir +/ "gentoo" in
+    let slave = new Zeroinstall.Python.slave config in
+    let distro = new Distro.Gentoo.gentoo_distribution ~pkgdir config slave in
+
+    Distro.get_package_impls distro gimp_feed |> to_impl_list |> assert_equal [];
+
+    begin match Distro.get_package_impls distro (make_test_feed "sys-apps/portage") |> to_impl_list with
+    | [impl] ->
+        assert_str_equal "package:gentoo:sys-apps/portage:2.1.7.16:x86_64" @@ F.get_attr_ex "id" impl;
+        assert_str_equal "2.1.7.16" @@ F.get_attr_ex "version" impl;
+        assert_str_equal "x86_64" @@ (expect impl.F.machine);
+    | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
+
+    begin match Distro.get_package_impls distro (make_test_feed "sys-kernel/gentoo-sources") |> to_impl_list with
+    | [b; a] ->
+        assert_str_equal "package:gentoo:sys-kernel/gentoo-sources:2.6.30-4:i686" @@ F.get_attr_ex "id" a;
+        assert_str_equal "2.6.30-4" @@ F.get_attr_ex "version" a;
+        assert_str_equal "i686" @@ (expect a.F.machine);
+
+        assert_str_equal "package:gentoo:sys-kernel/gentoo-sources:2.6.32:x86_64" @@ F.get_attr_ex "id" b;
+        assert_str_equal "2.6.32" @@ F.get_attr_ex "version" b;
+        assert_str_equal "x86_64" @@ (expect b.F.machine);
+    | impls -> assert_failure @@ Printf.sprintf "want 2, got %d" (List.length impls) end;
+
+    begin match Distro.get_package_impls distro (make_test_feed "app-emulation/emul-linux-x86-baselibs") |> to_impl_list with
+    | [impl] ->
+        assert_str_equal "package:gentoo:app-emulation/emul-linux-x86-baselibs:20100220:i386" @@ F.get_attr_ex "id" impl;
+        assert_str_equal "20100220" @@ F.get_attr_ex "version" impl;
+        assert_str_equal "i386" @@ (expect impl.F.machine);
+    | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
+  );
+
+  "ports">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    let pkgdir = Test_0install.feed_dir +/ "ports" in
+    let slave = new Zeroinstall.Python.slave config in
+    let distro = new Distro.Ports.ports_distribution ~pkgdir config slave in
+
+    begin match Distro.get_package_impls distro (make_test_feed "zeroinstall-injector") |> to_impl_list with
+    | [impl] ->
+        assert (U.starts_with (F.get_attr_ex "id" impl) "package:ports:zeroinstall-injector:0.41-2:");
+        assert_str_equal "0.41-2" @@ F.get_attr_ex "version" impl
+    | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
+  );
+
+  "mac-ports">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    let pkgdir = Test_0install.feed_dir +/ "macports" in
+    let old_path = Unix.getenv "PATH" in
+    Unix.putenv "PATH" (pkgdir ^ ":" ^ old_path);
+    let slave = new Zeroinstall.Python.slave config in
+    let macports_db = pkgdir +/ "registry.db" in
+    let distro = new Distro.Mac.macports_distribution ~macports_db config slave in
+
+    begin match Distro.get_package_impls distro (make_test_feed "zeroinstall-injector") |> to_impl_list with
+    | [impl] ->
+        assert_str_equal "package:macports:zeroinstall-injector:1.0-0:*" @@ F.get_attr_ex "id" impl;
+        assert_str_equal "1.0-0" @@ F.get_attr_ex "version" impl;
+        assert_equal None @@ impl.F.machine
+    | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
+
+    Unix.putenv "PATH" old_path;
   );
 
   "test_host_python">:: Fake_system.with_tmpdir (fun tmpdir ->
@@ -130,8 +230,8 @@ let suite = "distro">::: [
     let old_path = Unix.getenv "PATH" in
     Unix.putenv "PATH" (rpmdir ^ ":" ^ old_path);
 
-    let slave = get_test_slave config "RPMDistribution" [`String (rpmdir +/ "status")] in
-    let rpm = new Distro.RPM.rpm_distribution config slave in
+    let slave = new Zeroinstall.Python.slave config in
+    let rpm = new Distro.RPM.rpm_distribution ~status_file:(rpmdir +/ "Packages") config slave in
 
     let get_feed xml = load_feed config.system (Printf.sprintf
       "<?xml version='1.0'?>\n\
@@ -188,8 +288,8 @@ let suite = "distro">::: [
     let old_path = Unix.getenv "PATH" in
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);
-    let slave = get_test_slave config "DebianDistribution" [`String (dpkgdir +/ "status")] in
-    let deb = new Distro.Debian.debian_distribution config slave in
+    let slave = new Zeroinstall.Python.slave config in
+    let deb = new Distro.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config slave in
     begin match to_impl_list @@ Distro.get_package_impls deb feed with
     | [impl] ->
         Fake_system.assert_str_equal "package:deb:python-bittorrent:3.4.2-10:*" (F.get_attr_ex "id" impl);

@@ -137,7 +137,7 @@ let handle_bg options flags args =
       ("message", `String msg);
       ("timeout", `Int timeout);
     ] in
-    slave#invoke (`List [`String "notify-user"; fields]) ignore in
+    slave#invoke_async (`List [`String "notify-user"; fields]) ignore |> Lwt_main.run in
 
   let need_gui = ref false in
   let ui =
@@ -179,7 +179,7 @@ let handle_bg options flags args =
               log_info "Background update: offline, so aborting";
               raise (System_exit 1)
           | _ -> () in
-        options.slave#invoke (`List [`String "wait-for-network"]) check_offline;
+        options.slave#invoke_async (`List [`String "wait-for-network"]) check_offline |> Lwt_main.run;
 
         (* Refresh the feeds and solve, silently. If we find updates to download, we try to run the GUI
          * so the user can see a systray icon for the download. If that's not possible, we download silently too. *)

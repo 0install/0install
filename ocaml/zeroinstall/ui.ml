@@ -133,7 +133,7 @@ let check_gui (system:system) (slave:Python.slave) use_gui =
         if use_gui = Maybe then false
         else raise_safe "Can't use GUI because $DISPLAY is not set"
     | Some _ ->
-        slave#invoke (`List [`String "check-gui"; `String (string_of_ynm use_gui)]) Yojson.Basic.Util.to_bool
+        slave#invoke_async (`List [`String "check-gui"; `String (string_of_ynm use_gui)]) Yojson.Basic.Util.to_bool |> Lwt_main.run
   )
 
 let make_ui config (slave:Python.slave) get_use_gui : ui_handler Lazy.t = lazy (

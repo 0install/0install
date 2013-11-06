@@ -810,10 +810,10 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
     | json -> raise_safe "run_test: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
-  slave#invoke (`List [`String "open-gui"; `String reqs.Requirements.interface_uri; opts]) (function
+  slave#invoke_async (`List [`String "open-gui"; `String reqs.Requirements.interface_uri; opts]) (function
     | `List [] -> ()
     | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json)
-  );
+  ) |> Lwt_main.run;
 
   (* This is a bit awkward. Driver calls Solver, which calls Impl_provider, which calls Distro, which needs
    * to make synchronous calls on the slave. However, Lwt doesn't support nested run loops. Therefore, each time
@@ -825,12 +825,12 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
   let rec loop force =
     let (ready, results, _feed_provider) = driver#solve_with_downloads ~watcher reqs ~force ~update_local:true in
     let response =
-      slave#invoke (`List [`String "run-gui"]) (function
+      slave#invoke_async (`List [`String "run-gui"]) (function
         | `List [`String "ok"] -> assert ready; `Success results#get_selections
         | `List [`String "cancel"] -> `Aborted_by_user
         | `List [`String "recalculate"; `Bool force] -> `Recalculate force
         | json -> raise_safe "get_selections_gui: invalid response: %s" (Yojson.Basic.to_string json)
-    ) in
+      ) |> Lwt_main.run in
     match response with
     | `Recalculate force -> Config.load_config config; loop force
     | `Aborted_by_user -> `Aborted_by_user

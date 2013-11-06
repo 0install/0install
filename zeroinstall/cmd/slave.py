@@ -12,7 +12,6 @@ import sys, os, collections
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
 from zeroinstall.injector import model, qdom, download, gpg
-from zeroinstall.injector.distro import get_host_distribution
 from zeroinstall.support import tasks
 from zeroinstall import support
 
@@ -26,11 +25,6 @@ import json, sys
 syntax = ""
 
 _distro = None
-def get_distro():
-	global _distro
-	if _distro is None:
-		_distro = get_host_distribution()
-	return _distro
 
 if sys.version_info[0] > 2:
 	stdin = sys.stdin.buffer.raw
@@ -84,7 +78,7 @@ def do_confirm_distro_install(config, ticket, options, impls):
 		for impl in unsafe_impls:
 			from zeroinstall.injector import packagekit
 			packagekit_id = impl['packagekit-id']
-			pk = get_distro().packagekit.pk
+			pk = _distro.packagekit.pk
 			dl = packagekit.PackageKitDownload('packagekit:' + packagekit_id, hint = impl['master-feed'],
 					pk = pk, packagekit_id = packagekit_id, expected_size = int(impl['size']))
 			config.handler.monitor_download(dl)
@@ -158,7 +152,7 @@ def do_get_package_impls(config, options, args, xml):
 	# get the correct attributes and dependencies.
 	for elem in xml.childNodes:
 		package_impls = [(elem, elem.attrs, [])]
-		feed = get_distro().get_feed(master_feed_url, package_impls)
+		feed = _distro.get_feed(master_feed_url, package_impls)
 
 		impls = [impl for impl in feed.implementations.values() if impl.id not in seen]
 		seen.update(feed.implementations.keys())
@@ -207,7 +201,7 @@ def handle_message(config, options, message):
 @tasks.async
 def do_get_distro_candidates(config, ticket, package_names):
 	try:
-		pk = get_distro().packagekit
+		pk = _distro.packagekit
 		if pk.available:
 			blocker = pk.fetch_candidates(package_names)
 			if blocker:
@@ -479,8 +473,9 @@ class DummyPackageKit:
 	available = False
 	def get_candidates(self, package, factory, prefix): pass
 
-def do_test_distro(config, name, args):
+def do_init_distro(config, name, args):
 	global _distro
+	assert _distro is None, _distro
 	from zeroinstall.injector import distro
 	cons = getattr(distro, name)
 	_distro = cons(*args)
@@ -551,8 +546,8 @@ def handle_invoke(config, options, ticket, request):
 			response = do_start_monitoring(config, request[1])
 		elif command == 'stop-monitoring':
 			response = do_stop_monitoring(config, request[1])
-		elif command == 'test-distro':
-			response = do_test_distro(config, request[1], request[2])
+		elif command == 'init-distro':
+			response = do_init_distro(config, request[1], request[2])
 		else:
 			raise SafeException("Internal error: unknown command '%s'" % command)
 		response = ['ok', response]

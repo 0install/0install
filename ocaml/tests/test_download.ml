@@ -295,8 +295,8 @@ let suite = "download">::: [
     let old_path = Unix.getenv "PATH" in
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);
-    let slave = Test_distro.get_test_slave config "DebianDistribution" [`String (dpkgdir +/ "status")] in
-    let deb = new Zeroinstall.Distro.Debian.debian_distribution config slave in
+    let slave = new Zeroinstall.Python.slave config in
+    let deb = new Zeroinstall.Distro.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config slave in
 
     Fake_system.fake_log#reset;
     Lwt_main.run @@ deb#check_for_candidates feed;

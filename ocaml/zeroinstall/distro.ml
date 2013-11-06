@@ -169,7 +169,7 @@ let get_quick_test_attrs path =
   Feed.AttrMap.singleton ("", "quick-test-file") path |>
   Feed.AttrMap.add ("", "quick-test-mtime") (Printf.sprintf "%.0f" mtime)
 
-class virtual python_fallback_distribution (slave:Python.slave) =
+class virtual python_fallback_distribution (slave:Python.slave) python_name ctor_args =
   let make_host_impl path version ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
     let host_machine = slave#config.system#platform in
     let open Feed in
@@ -196,6 +196,18 @@ class virtual python_fallback_distribution (slave:Python.slave) =
       }
     } in
 
+  let did_init = ref false in
+
+  let invoke ?xml op args process =
+    lwt () =
+      if not !did_init then (
+        let ctor_args = ctor_args |> List.map (fun a -> `String a) in
+        let r = slave#invoke_async (`List [`String "init-distro"; `String python_name; `List ctor_args]) Python.expect_null in
+        did_init := true;
+        r
+      ) else Lwt.return () in
+    slave#invoke_async ?xml (`List (`String op :: args)) process in
+
   let fake_host_doc = (ZI.make_root "<fake-host-root>").Qdom.doc in
 
   let get_host_impls map = function
@@ -203,10 +215,10 @@ class virtual python_fallback_distribution (slave:Python.slave) =
         (* Hack: we can support Python on platforms with unsupported package managers
            by adding the implementation of Python running the slave now to the list. *)
         let path, version =
-          slave#invoke (`List [`String "get-python-details"]) (function
+          invoke "get-python-details" [] (function
             | `List [`String path; `String version] -> (path, version)
             | json -> raise_safe "Bad JSON: %s" (Yojson.Basic.to_string json)
-          ) in
+          ) |> Lwt_main.run in
         let id = "package:host:python:" ^ version in
         let run = ZI.make_root "command" in
         run |> Q.set_attribute "name" "run";
@@ -215,10 +227,10 @@ class virtual python_fallback_distribution (slave:Python.slave) =
         map |> StringMap.add id @@ make_host_impl path version ~commands url id
     | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
         let path, version =
-          slave#invoke (`List [`String "get-gobject-details"]) (function
+          invoke "get-gobject-details" [] (function
             | `List [`String path; `String version] -> (path, version)
             | json -> raise_safe "Bad JSON: %s" (Yojson.Basic.to_string json)
-          ) in
+          ) |> Lwt_main.run in
         let id = "package:host:python-gobject:" ^ version in
         let requires = [make_restricts_distro fake_host_doc "http://repo.roscidus.com/python/python" "host"] in
         map |> StringMap.add id @@ make_host_impl path version ~requires url id
@@ -264,7 +276,6 @@ class virtual python_fallback_distribution (slave:Python.slave) =
           with Fallback_to_Python ->
             let fake_feed = ZI.make feed.Feed.root.Q.doc "interface" in
             fake_feed.Q.child_nodes <- List.map fst matches;
-            let request = `List [`String "get-package-impls"; `String (Feed_url.format_url feed.Feed.url)] in
 
             let to_impls map (elem, props) = function
               | `List pkgs ->
@@ -275,12 +286,12 @@ class virtual python_fallback_distribution (slave:Python.slave) =
                   List.fold_left add_impl map pkgs
               | _ -> raise_safe "Not a group list" in
 
-            slave#invoke ~xml:fake_feed request (function
+            invoke ~xml:fake_feed "get-package-impls" [`String (Feed_url.format_url feed.Feed.url)] (function
               | `List pkg_groups ->
                   let all_impls = List.fold_left2 to_impls impls matches pkg_groups in
                   Some all_impls
               | _ -> raise_safe "Invalid response"
-            )
+            ) |> Lwt_main.run
 
     method private get_package_impls _ _ : (Feed.implementation StringMap.t) = raise Fallback_to_Python
 
@@ -293,13 +304,14 @@ class virtual python_fallback_distribution (slave:Python.slave) =
       | matches ->
           let package_names = matches |> List.map (fun (elem, _props) -> `String (ZI.get_attribute "package" elem)) in
           did_packagekit_query <- true;
-          let request = `List [`String "get-distro-candidates"; `List package_names] in
-          slave#invoke_async request ignore
+          invoke "get-distro-candidates" [`List package_names] ignore
+
+    method private invoke = invoke
   end
 
 class generic_distribution slave =
   object
-    inherit python_fallback_distribution slave
+    inherit python_fallback_distribution slave "Distribution" []
     val distro_name = "fallback"
   end
 
@@ -366,7 +378,7 @@ module Cache =
                   Hashtbl.add data.contents key value   (* note: adds to existing list of packages for this key *)
                 done
               with End_of_file -> ()
-              
+
               in
             config.system#with_open_in [Open_rdonly; Open_text] 0 cache_path load_cache
           )
@@ -422,7 +434,7 @@ module Debian = struct
     size : Int64.t option;
   }
 
-  class debian_distribution config slave =
+  class debian_distribution ?(status_file=dpkg_db_status) config slave =
     let apt_cache = Hashtbl.create 10 in
     let system = config.system in
 
@@ -461,7 +473,7 @@ module Debian = struct
       ) in
 
     object (self : #distribution)
-      inherit python_fallback_distribution slave as super
+      inherit python_fallback_distribution slave "DebianDistribution" [status_file] as super
 
       val distro_name = "Debian"
       val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2 ~old_format:false
@@ -493,8 +505,7 @@ module Debian = struct
       | [] -> Lwt.return ()
       | matches ->
           let package_names = matches |> List.map (fun (elem, _props) -> `String (ZI.get_attribute "package" elem)) in
-          let request = `List [`String "get-distro-candidates"; `List package_names] in
-          lwt have_packagekit = slave#invoke_async request Yojson.Basic.Util.to_bool in
+          lwt have_packagekit = self#invoke "get-distro-candidates" [`List package_names] Yojson.Basic.Util.to_bool in
           if have_packagekit then (
             did_packagekit_query <- true;
             Lwt.return ()
@@ -519,9 +530,9 @@ end
 module RPM = struct
   let rpm_db_packages = "/var/lib/rpm/Packages"
 
-  class rpm_distribution config slave =
+  class rpm_distribution ?(status_file = rpm_db_packages) config slave =
     object
-      inherit python_fallback_distribution slave as super
+      inherit python_fallback_distribution slave "RPMDistribution" [status_file] as super
 
       val distro_name = "RPM"
       val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
@@ -534,9 +545,9 @@ end
 
 module ArchLinux = struct
   let arch_db = "/var/lib/pacman"
-  let packages_dir = "/var/lib/pacman/local"
 
-  class arch_distribution config slave =
+  class arch_distribution ?(arch_db=arch_db) config slave =
+    let packages_dir = arch_db ^ "/local" in
     let parse_dirname entry =
       try
         let build_dash = String.rindex entry '-' in
@@ -579,7 +590,7 @@ module ArchLinux = struct
       | _ -> items in
 
     object (self : #distribution)
-      inherit python_fallback_distribution slave as super
+      inherit python_fallback_distribution slave "ArchDistribution" [arch_db] as super
 
       val distro_name = "Arch"
 
@@ -620,9 +631,9 @@ module Mac = struct
 
   (* Note: we currently don't have or need DarwinDistribution, because that uses quick-test-* attributes *)
 
-  class macports_distribution config slave =
+  class macports_distribution ?(macports_db=macports_db) config slave =
     object
-      inherit python_fallback_distribution slave as super
+      inherit python_fallback_distribution slave "MacPortsDistribution" [macports_db] as super
 
       val! system_paths = ["/opt/local/bin"]
 
@@ -635,12 +646,18 @@ module Mac = struct
 
       method! match_name name = (name = distro_name || name = "Darwin")
     end
+
+  class darwin_distribution _config slave =
+    object
+      inherit python_fallback_distribution slave "DarwinDistribution" []
+      val distro_name = "Darwin"
+    end
 end
 
 module Win = struct
   class windows_distribution _config slave =
     object
-      inherit python_fallback_distribution slave
+      inherit python_fallback_distribution slave "WindowsDistribution" []
 
       val! system_paths = []
 
@@ -663,7 +680,7 @@ module Win = struct
 
   class cygwin_distribution config slave =
     object
-      inherit python_fallback_distribution slave as super
+      inherit python_fallback_distribution slave "CygwinDistribution" ["/var/log/setup.log"] as super
 
       val distro_name = "Cygwin"
       val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
@@ -671,6 +688,34 @@ module Win = struct
       method! is_installed elem =
         try check_cache "cygwin" elem cache
         with Fallback_to_Python -> super#is_installed elem
+    end
+end
+
+module Ports = struct
+  let pkg_db = "/var/db/pkg"
+
+  class ports_distribution ?(pkgdir=pkg_db) _config slave =
+    object
+      inherit python_fallback_distribution slave "PortsDistribution" [pkgdir]
+      val distro_name = "Ports"
+    end
+end
+
+module Gentoo = struct
+  class gentoo_distribution ?(pkgdir=Ports.pkg_db) _config slave =
+    object
+      inherit python_fallback_distribution slave "GentooDistribution" [pkgdir]
+      val distro_name = "Gentoo"
+    end
+end
+
+module Slackware = struct
+  let slack_db = "/var/log/packages"
+
+  class slack_distribution ?(packages_dir=slack_db) _config slave =
+    object
+      inherit python_fallback_distribution slave "SlackDistribution" [packages_dir]
+      val distro_name = "Slack"
     end
 end
 
@@ -692,6 +737,15 @@ let get_host_distribution config (slave:Python.slave) : distribution =
         new RPM.rpm_distribution config slave
       else if x Mac.macports_db then
         new Mac.macports_distribution config slave
+      else if x Ports.pkg_db then (
+        if config.system#platform.Platform.os = "Linux" then
+          new Gentoo.gentoo_distribution config slave
+        else
+          new Ports.ports_distribution config slave
+      ) else if x Slackware.slack_db then
+        new Slackware.slack_distribution config slave
+      else if config.system#platform.Platform.os = "Darwin" then
+        new Mac.darwin_distribution config slave
       else
         new generic_distribution slave
   | "Win32" -> new Win.windows_distribution config slave

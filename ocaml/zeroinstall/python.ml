@@ -196,9 +196,6 @@ class slave config =
         child in
 
   object (self)
-    method invoke : 'a. json -> ?xml:Q.element -> (json -> 'a) -> 'a = fun request ?xml parse_fn ->
-      Lwt_main.run (self#invoke_async request ?xml parse_fn)
-
     (** Send a JSON message to the Python slave and return whatever data it sends back. *)
     method invoke_async : 'a. json -> ?xml:Q.element -> (json -> 'a) -> 'a Lwt.t = fun request ?xml parse_fn ->
       let response =
