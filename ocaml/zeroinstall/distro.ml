@@ -54,7 +54,7 @@ class virtual distribution (system:system) =
 
     (** Helper for [get_package_impls]. *)
     method private add_package_implementation elem props ~id ~version ~machine ~extra_attrs ~is_installed map =
-      self#fixup_main props;
+      if is_installed then self#fixup_main props;
       let new_attrs = ref props.Feed.attrs in
       let set name value =
         new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
@@ -257,9 +257,10 @@ class virtual python_fallback_distribution (slave:Python.slave) =
           let host_impls =
             if on_windows then StringMap.empty
             else get_host_impls StringMap.empty (feed.Feed.url) in
+          let impls = List.fold_left self#add_candidates host_impls matches in
           try
             if did_packagekit_query then raise Fallback_to_Python;
-            Some (List.fold_left self#get_package_impls host_impls matches)
+            Some (List.fold_left self#get_package_impls impls matches)
           with Fallback_to_Python ->
             let fake_feed = ZI.make feed.Feed.root.Q.doc "interface" in
             fake_feed.Q.child_nodes <- List.map fst matches;
@@ -276,22 +277,24 @@ class virtual python_fallback_distribution (slave:Python.slave) =
 
             slave#invoke ~xml:fake_feed request (function
               | `List pkg_groups ->
-                  let all_impls = List.fold_left2 to_impls host_impls matches pkg_groups in
+                  let all_impls = List.fold_left2 to_impls impls matches pkg_groups in
                   Some all_impls
               | _ -> raise_safe "Invalid response"
             )
 
     method private get_package_impls _ _ : (Feed.implementation StringMap.t) = raise Fallback_to_Python
 
+    (* Add candidates even in the Python-fallback case (this might go away later) *)
+    method private add_candidates map _ = map
+
     method check_for_candidates feed =
       match get_matching_package_impls self feed with
       | [] -> Lwt.return ()
       | matches ->
+          let package_names = matches |> List.map (fun (elem, _props) -> `String (ZI.get_attribute "package" elem)) in
           did_packagekit_query <- true;
-          let fake_feed = ZI.make feed.Feed.root.Q.doc "interface" in
-          fake_feed.Q.child_nodes <- List.map fst matches;
-          let request = `List [`String "get-distro-candidates"; `String (Feed_url.format_url feed.Feed.url)] in
-          slave#invoke_async ~xml:fake_feed request ignore
+          let request = `List [`String "get-distro-candidates"; `List package_names] in
+          slave#invoke_async request ignore
   end
 
 class generic_distribution slave =
@@ -300,7 +303,7 @@ class generic_distribution slave =
     val distro_name = "fallback"
   end
 
-let try_cleanup_distro_version_ex version package_name =
+let try_cleanup_distro_version_warn version package_name =
   match Versions.try_cleanup_distro_version version with
   | None -> log_warning "Can't parse distribution version '%s' for package '%s'" version package_name; None
   | version -> version
@@ -413,7 +416,50 @@ let check_cache distro_name elem cache =
 module Debian = struct
   let dpkg_db_status = "/var/lib/dpkg/status"
 
+  type apt_cache_entry = {
+    version : string;
+    machine : string;
+    size : Int64.t option;
+  }
+
   class debian_distribution config slave =
+    let apt_cache = Hashtbl.create 10 in
+    let system = config.system in
+
+    (* Populate [apt_cache] with the results. *)
+    let query_apt_cache package_names =
+      package_names |> Lwt_list.iter_s (fun package ->
+        (* Check to see whether we could get a newer version using apt-get *)
+        lwt result =
+          try_lwt
+            lwt out = Lwt_process.pread ~stderr:`Dev_null (U.make_command system ["apt-cache"; "show"; "--no-all-versions"; "--"; package]) in
+            let machine = ref None in
+            let version = ref None in
+            let size = ref None in
+            let stream = U.stream_of_lines out in
+            begin try
+              while true do
+                let line = Stream.next stream |> trim in
+                if U.starts_with line "Version: " then (
+                  version := try_cleanup_distro_version_warn (U.string_tail line 9 |> trim) package
+                ) else if U.starts_with line "Architecture: " then (
+                  machine := Some (Support.System.canonical_machine (U.string_tail line 14 |> trim))
+                ) else if U.starts_with line "Size: " then (
+                  size := Some (Int64.of_string (U.string_tail line 6 |> trim))
+                )
+              done
+            with Stream.Failure -> () end;
+            match !version, !machine with
+            | Some version, Some machine -> Lwt.return (Some {version; machine; size = !size})
+            | _ -> Lwt.return None
+          with ex ->
+            log_warning ~ex "'apt-cache show %s' failed" package;
+            Lwt.return None in
+        (* (multi-arch support? can there be multiple candidates?) *)
+        Hashtbl.replace apt_cache package result;
+        Lwt.return ()
+      ) in
+
     object (self : #distribution)
       inherit python_fallback_distribution slave as super
 
@@ -441,6 +487,32 @@ module Debian = struct
         | [] -> raise Fallback_to_Python      (* We don't know anything about this package *)
         | ["-"] -> map                        (* We know the package isn't installed *)
         | infos -> List.fold_left process map infos
+
+    method! check_for_candidates feed =
+      match get_matching_package_impls self feed with
+      | [] -> Lwt.return ()
+      | matches ->
+          let package_names = matches |> List.map (fun (elem, _props) -> `String (ZI.get_attribute "package" elem)) in
+          let request = `List [`String "get-distro-candidates"; `List package_names] in
+          lwt have_packagekit = slave#invoke_async request Yojson.Basic.Util.to_bool in
+          if have_packagekit then (
+            did_packagekit_query <- true;
+            Lwt.return ()
+          ) else (
+            (* No PackageKit. Use apt-cache directly. *)
+            query_apt_cache (matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)))
+          )
+
+    (* Check for cache entries previously added by [query_apt_cache].
+     * (will only add anything if fetch_candidates was used and PackageKit was missing) *)
+    method! private add_candidates map (elem, props) =
+      let package = ZI.get_attribute "package" elem in
+      let entry = try Hashtbl.find apt_cache package with Not_found -> None in
+      match entry with
+      | Some {version; machine; size = _} ->
+          let id = Printf.sprintf "package:deb:%s:%s:%s" package version machine in
+          map |> self#add_package_implementation elem props ~is_installed:false ~id ~version ~machine ~extra_attrs:[]
+      | None -> map
     end
 end
 
@@ -534,7 +606,7 @@ module ArchLinux = struct
               log_warning "No ARCH in %s" desc_path; map
           | Some arch ->
               let machine = Support.System.canonical_machine arch in
-              match try_cleanup_distro_version_ex version package_name with
+              match try_cleanup_distro_version_warn version package_name with
               | None -> map
               | Some version ->
                   let id = Printf.sprintf "package:arch:%s:%s:%s" package_name version machine in

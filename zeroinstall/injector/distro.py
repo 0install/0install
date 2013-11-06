@@ -230,15 +230,6 @@ class Distribution(object):
 
 		return feed
 
-	def fetch_candidates(self, package_impls):
-		"""Collect information about versions we could install using
-		the distribution's package manager. On success, the distribution
-		feed in iface_cache is updated.
-		@return: a L{tasks.Blocker} if the task is in progress, or None if not"""
-		if self.packagekit.available:
-			package_names = [item.getAttribute("package") for item, item_attrs, depends in package_impls]
-			return self.packagekit.fetch_candidates(package_names)
-
 	@property
 	def packagekit(self):
 		"""For use by subclasses.
@@ -578,7 +569,6 @@ class DebianDistribution(Distribution):
 	def __init__(self, dpkg_status):
 		"""@type dpkg_status: str"""
 		self.dpkg_cache = Cache('dpkg-status.cache', dpkg_status, 2)
-		self.apt_cache = {}
 
 	def _query_installed_package(self, package):
 		"""@type package: str
@@ -622,18 +612,6 @@ class DebianDistribution(Distribution):
 
 		# From PackageKit...
 		self.packagekit.get_candidates(package, factory, 'package:deb')
-
-		# From apt-cache...
-		cached = self.apt_cache.get(package, None)
-		if cached:
-			candidate_version = cached['version']
-			candidate_arch = cached['arch']
-			if candidate_version and candidate_version != installed_version:
-				impl = factory('package:deb:%s:%s:%s' % (package, candidate_version, candidate_arch), installed = False)
-				impl.version = model.parse_version(candidate_version)
-				if candidate_arch != '*':
-					impl.machine = candidate_arch
-				impl.download_sources.append(model.DistributionSource(package, cached['size'], needs_confirmation = False))
 
 	def fixup(self, package, impl):
 		"""@type package: str
@@ -680,44 +658,6 @@ class DebianDistribution(Distribution):
 			self.dpkg_cache.put(package, installed_cached_info)
 
 		return installed_cached_info
-
-	def fetch_candidates(self, package_impls):
-		"""@type master_feed: L{zeroinstall.injector.model.ZeroInstallFeed}
-		@rtype: [L{zeroinstall.support.tasks.Blocker}]"""
-		package_names = [item.getAttribute("package") for item, item_attrs, depends in package_impls]
-
-		if self.packagekit.available:
-			return self.packagekit.fetch_candidates(package_names)
-
-		# No PackageKit. Use apt-cache directly.
-		for package in package_names:
-			# Check to see whether we could get a newer version using apt-get
-			try:
-				null = os.open(os.devnull, os.O_WRONLY)
-				child = subprocess.Popen(['apt-cache', 'show', '--no-all-versions', '--', package], stdout = subprocess.PIPE, stderr = null, universal_newlines = True)
-				os.close(null)
-
-				arch = version = size = None
-				for line in child.stdout:
-					line = line.strip()
-					if line.startswith('Version: '):
-						version = line[9:]
-						version = try_cleanup_distro_version(version)
-					elif line.startswith('Architecture: '):
-						arch = canonical_machine(line[14:].strip())
-					elif line.startswith('Size: '):
-						size = int(line[6:].strip())
-				if version and arch:
-					cached = {'version': version, 'arch': arch, 'size': size}
-				else:
-					cached = None
-				child.stdout.close()
-				child.wait()
-			except Exception as ex:
-				logger.warning("'apt-cache show %s' failed: %s", package, ex)
-				cached = None
-			# (multi-arch support? can there be multiple candidates?)
-			self.apt_cache[package] = cached
 
 class RPMDistribution(CachedDistribution):
 	"""An RPM-based distribution."""

@@ -204,12 +204,20 @@ def handle_message(config, options, message):
 	else:
 		assert 0, message
 
-def do_get_distro_candidates(config, args, xml):
-	master_feed_url, = args
+@tasks.async
+def do_get_distro_candidates(config, ticket, package_names):
+	try:
+		pk = get_distro().packagekit
+		if pk.available:
+			blocker = pk.fetch_candidates(package_names)
+			if blocker:
+				yield blocker
+				tasks.check(blocker)
 
-	package_impls = [(elem, elem.attrs, []) for elem in xml.childNodes]
-
-	return get_distro().fetch_candidates(package_impls)
+		send_json(["return", ticket, ["ok", pk.available]])
+	except Exception as ex:
+		logger.warning("do_get_distro_candidates", exc_info = True)
+		send_json(["return", ticket, ["error", str(ex)]])
 
 PendingFromOCaml = collections.namedtuple("PendingFromOCaml", ["url", "sigs"])
 
@@ -276,17 +284,6 @@ def do_confirm_keys(config, ticket, url, xml):
 		send_json(["return", ticket, ["ok", confirmed_keys]])
 	except Exception as ex:
 		logger.warning("do_confirm_keys", exc_info = True)
-		send_json(["return", ticket, ["error", str(ex)]])
-
-@tasks.async
-def reply_when_done(ticket, blocker):
-	try:
-		if blocker:
-			yield blocker
-			tasks.check(blocker)
-		send_json(["return", ticket, ["ok", []]])
-	except Exception as ex:
-		logger.info("async task failed", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
 
 def do_notify_user(config, args):
@@ -538,9 +535,7 @@ def handle_invoke(config, options, ticket, request):
 				path = gobject.__file__		# Python 2
 			response = (path, version)
 		elif command == 'get-distro-candidates':
-			xml = qdom.parse(BytesIO(read_chunk()))
-			blocker = do_get_distro_candidates(config, request[1:], xml)
-			reply_when_done(ticket, blocker)
+			do_get_distro_candidates(config, ticket, request[1])
 			return	# async
 		elif command == 'confirm-keys':
 			xml = qdom.parse(BytesIO(read_chunk()))

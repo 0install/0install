@@ -57,7 +57,7 @@ let canonical_machines = List.fold_left (fun map (k, v) -> StringMap.add k v map
   ("Power Macintosh", "ppc");
 ]
 
-(** Return the canonical name for this CPU, or None if we don't know one. *)
+(** Return the canonical name for this CPU, or [s] if we don't know one. *)
 let canonical_machine s =
   try StringMap.find (String.lowercase s) canonical_machines
   with Not_found -> s

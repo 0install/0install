@@ -28,7 +28,9 @@ class fake_slave config handler : Python.slave =
           let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
           ignore @@ start_timeout [timeout];
           Lwt.return @@ parse_fn @@ handler#download_url url
-      | `List [`String "get-distro-candidates"; `String url] -> Lwt.return @@ parse_fn @@ handler#get_distro_candidates url
+      | `List [`String "get-distro-candidates"; `List packages] ->
+          let () = packages |> List.map Yojson.Basic.Util.to_string |> handler#get_distro_candidates in
+          Lwt.return @@ parse_fn `Null
       | _ -> raise_safe "Unexpected request %s" (Yojson.Basic.to_string request)
 
     method close = ()
@@ -128,7 +130,7 @@ let make_driver_test test_elem =
 
         method download_url url = failwith url
 
-        method get_distro_candidates _ = `List []
+        method get_distro_candidates _ = ()
 
         method get_feed url =
           try `xml (StringMap.find url !downloadable_feeds)
@@ -189,15 +191,15 @@ let suite = "driver">::: [
           | url -> failwith url
 
         method get_distro_candidates = function
-          | "http://example.com/prog.xml" ->
+          | ["prog"] ->
               prog_candidates := [`Assoc [
                 ("id", `String "package:my-distro:prog:1.0");
                 ("version", `String "1.0");
                 ("machine", `String "*");
                 ("is_installed", `Bool false);
                 ("distro", `String "my-distro");
-              ]]; `List []
-          | url -> failwith url
+              ]]
+          | names -> failwith (String.concat "," names)
 
         method get_feed = function
           | "http://example.com/prog.xml" -> `file (Fake_system.tests_dir +/ "prog.xml")

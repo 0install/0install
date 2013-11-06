@@ -531,3 +531,7 @@ let stream_of_lines data =
         Some line
       )
   )
+
+let make_command system args =
+  log_info "Will run: %s" (Logging.format_argv_for_logging args);
+  (find_in_path_ex system (List.hd args), Array.of_list args)

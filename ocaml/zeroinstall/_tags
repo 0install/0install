@@ -1,2 +1,2 @@
 true: for-pack(Zeroinstall)
-<python.ml> or <driver.ml> or <gui.ml> or <fetch.ml> or <downloader.ml> or <archive.ml>: syntax(camlp4o), package(lwt.syntax)
+<distro.ml> or <python.ml> or <driver.ml> or <gui.ml> or <fetch.ml> or <downloader.ml> or <archive.ml>: syntax(camlp4o), package(lwt.syntax)

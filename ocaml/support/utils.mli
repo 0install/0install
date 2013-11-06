@@ -117,3 +117,4 @@ val format_date : Unix.tm -> string
 val format_size : Int64.t -> string
 val atomic_hardlink : Common.system -> link_to:Common.filepath -> replace:Common.filepath -> unit
 val stream_of_lines : string -> string Stream.t
+val make_command : Common.system -> string list -> Lwt_process.command

@@ -62,9 +62,7 @@ let check_type_ok system =
 
 type compression = Bzip2 | Gzip | Lzma | Xz | Uncompressed
 
-let make_command system args =
-  log_info "Will run: %s" (Support.Logging.format_argv_for_logging args);
-  (U.find_in_path_ex system (List.hd args), Array.of_list args)
+let make_command = U.make_command
 
 (** Run a command in a subprocess. If it returns an error code, generate an exception containing its stdout and stderr. *)
 let run_command ?cwd system args =

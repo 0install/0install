@@ -167,7 +167,7 @@ let suite = "distro">::: [
     Unix.putenv "PATH" old_path;
   );
 
-  "debian">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+  "debian">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let xml =
       "<?xml version='1.0' ?>\n\
       <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>\n\
@@ -187,6 +187,7 @@ let suite = "distro">::: [
     let dpkgdir = Test_0install.feed_dir +/ "dpkg" in
     let old_path = Unix.getenv "PATH" in
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
+    fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     let slave = get_test_slave config "DebianDistribution" [`String (dpkgdir +/ "status")] in
     let deb = new Distro.Debian.debian_distribution config slave in
     begin match to_impl_list @@ Distro.get_package_impls deb feed with
