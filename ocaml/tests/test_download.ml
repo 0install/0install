@@ -356,7 +356,7 @@ let suite = "download">::: [
     let out = Fake_system.collect_logging (fun () ->
       run_0install fake_system ["download"; "http://example.com:8000/Hello.xml"; "--xml"]
     ) in
-    Fake_system.fake_log#assert_contains ".*Missing: HelloWorld.tgz: trying implementation mirror at http://roscidus.com/0mirror";
+    Fake_system.fake_log#assert_contains ".* 404.*: trying implementation mirror at http://roscidus.com/0mirror";
     let sels = parse_sels out in
     let sel = StringMap.find "http://example.com:8000/Hello.xml" sels in
     begin match Zeroinstall.Selections.make_selection sel with
@@ -386,7 +386,7 @@ let suite = "download">::: [
     ];
 
     Fake_system.assert_raises_safe "Error downloading 'http://example.com:8000/HelloWorld.tgz': \
-                                    The requested URL returned error: 404 Missing: HelloWorld.tgz" (lazy (
+                                    The requested URL returned error: 404" (lazy (
       Fake_system.collect_logging (fun () ->
         run_0install fake_system ["download"; "http://example.com:8000/Hello.xml"; "--xml"] |> ignore
       )
