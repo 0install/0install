@@ -1,7 +1,8 @@
 false: profile
-true: debug, annot, package(yojson,xmlm,str,lwt,lwt.unix,lwt.preemptive,extlib,curl,ssl,obus,obus.notification), thread
+true: debug, annot, package(yojson,xmlm,str,lwt,lwt.unix,lwt.preemptive,extlib,curl,ssl), thread
 <tests/*>: package(oUnit)
+<update.ml>: mypp
+
 "support": for-pack(Support)
 "zeroinstall": for-pack(Support)
 <static_0install.*> or <**/*.native>: linkdep_win(windows.o), package(unix), link(utils.o)
-<update.ml>: syntax(camlp4o), package(lwt.syntax)

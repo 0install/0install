@@ -11,6 +11,11 @@ let print_info f =
     "@[<hv 2>Tags for file %s:@ %a@]@." f
     Tags.print (tags_of_pathname f)
 
+(* From Unix.ml (not exported) *)
+let rec waitpid_non_intr pid =
+  try Unix.waitpid [] pid
+  with Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr pid
+
 let () =
   let v = Sys.ocaml_version in
   let first_dot = String.index v '.' in
@@ -21,6 +26,17 @@ let () =
   let native_targets = ref ["static_0install.native"; "tests/test.native"] in
 
   if Sys.os_type = "Win32" then native_targets := "runenv.native" :: !native_targets;
+
+  let use_dbus =
+    if on_windows then false
+    else (
+      let child = Unix.(create_process "ocamlfind" [| "ocamlfind"; "query"; "obus"; "-format"; "" |] stdin stdout stderr) in
+      match snd (waitpid_non_intr child) with
+      | Unix.WEXITED 0 -> true
+      | _ ->
+          print_endline "obus not found; compiling without D-BUS support";
+          false
+    ) in
 
   let to_byte name =
     if Pathname.check_extension name "native" then Pathname.update_extension "byte" name
@@ -39,28 +55,25 @@ let () =
       ~deps:byte_targets
       (fun _ _ -> Command.Nop);
 
+    if use_dbus then tag_any ["package(obus,obus.notification)"];
+
     pdep ["link"] "linkdep_win" (fun param -> if on_windows then [param] else []);
     pdep ["link"] "link" (fun param -> [param]);
 
     (* We use mypp rather than camlp4of because if you pass -pp and -ppopt to ocamlfind
        then it just ignores the ppopt. So, we need to write the -pp option ourselves. *)
 
-    let pp_portable = "camlp4of" in
+    let defines_portable = List.concat [
+      if (major_version < 4 || (major_version == 4 && minor_version < 1)) then [A"-DOCAML_LT_4_01"] else [];
+      if use_dbus then [A"-DHAVE_DBUS"] else [];
+    ] in
 
-    let pp_portable =
-      if (major_version < 4 || (major_version == 4 && minor_version < 1)) then
-        pp_portable ^ " -DOCAML_LT_4_01"
-      else
-        pp_portable in
+    let defines_native =
+      if on_windows then A"-DWINDOWS" :: defines_portable
+      else defines_portable in
 
-    let pp_native =
-      if on_windows then
-        pp_portable ^ " -DWINDOWS"
-      else
-        pp_portable
-    in
-    flag ["native";"ocaml";"compile";"mypp"] (S [A"-pp"; A pp_native]);
-    flag ["byte";"ocaml";"compile";"mypp"] (S [A"-pp"; A pp_portable]);
+    flag ["native";"ocaml";"pp";"mypp"] (S (A "camlp4of" :: defines_native));
+    flag ["byte";"ocaml";"pp";"mypp"] (S (A "camlp4of" :: defines_portable));
 
     flag ["ocaml";"ocamldep";"mypp"] (S [A"-pp"; A "camlp4of"]);
 

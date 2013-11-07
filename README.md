@@ -56,6 +56,10 @@ You can also get the dependencies using [OPAM](http://opam.ocamlpro.com/):
     $ eval `opam config env`
     $ opam install yojson xmlm ounit lwt extlib ssl ocurl obus
 
+(obus is optional; it is used on Linux to add support for D-BUS notifications,
+installing native packages using PackageKit, and using NetworkManager to check
+the network status before doing background updates)
+
 In the top-level directory, run:
 
     $ make && sudo make install
