@@ -8,6 +8,7 @@ module type UnixType = module type of Unix
 
 (** OCaml's Unix.utimes is broken (doesn't work for times in the interval [0,1), so use our own C function. *)
 external set_mtime : string -> float -> unit = "ocaml_set_mtime"
+external uname : unit -> Platform.t = "ocaml_0install_uname"
 
 let wrap_unix_errors fn =
   try fn ()
@@ -256,26 +257,20 @@ module RealSystem (U : UnixType) =
                     with Not_found -> "i686" in
                   {os = "Windows"; release = "Unknown"; machine}
                 ) else (
-                  let uname = trim @@ Utils.check_output system input_line [Utils.find_in_path_ex system "uname"; "-srm"] in
-                  match Str.bounded_split_delim Utils.re_space uname 3 with
-                  | ["Darwin"; release; machine] ->
-                      let os =
-                        if Sys.file_exists "/System/Library/Frameworks/Carbon.framework" then "MacOSX" else "Darwin" in
-                      let machine =
-                        if machine = "i386" then (
-                          let cpu64 = trim @@ Utils.check_output system input_line
-                            [Utils.find_in_path_ex system "sysctl"; "-n"; "hw.cpu64bit_capable"] in
-                          if cpu64 = "1" then "x86_64" else "i386"
-                        ) else machine in
-                      {os; release; machine}
-                    | [os; release; machine] -> {
-                        os = canonical_os os;
-                        release;
-                        machine = canonical_machine machine;
-                      }
-                  | _ ->
-                      log_warning "Failed to parse uname details from '%s'!" uname;
-                      {os = "unknown"; release = "1"; machine = "i686"}
+                  let {os; release; machine} = uname () in
+                  if os = "Darwin" then (
+                    let os =
+                      if Sys.file_exists "/System/Library/Frameworks/Carbon.framework" then "MacOSX" else "Darwin" in
+                    let machine =
+                      if machine = "i386" then (
+                        let cpu64 = trim @@ Utils.check_output system input_line
+                          [Utils.find_in_path_ex system "sysctl"; "-n"; "hw.cpu64bit_capable"] in
+                        if cpu64 = "1" then "x86_64" else "i386"
+                      ) else canonical_machine machine in
+                    {os; release; machine}
+                  ) else (
+                    {os; release; machine = canonical_machine machine}
+                  )
                 ) in
 
               platform := Some p;

@@ -22,6 +22,9 @@
 #include <sys/utime.h>
 #endif
 
+#include <sys/utsname.h>
+#include <errno.h>
+
 #define Ctx_val(v) (*((EVP_MD_CTX**)Data_custom_val(v)))
 
 static void finalize_ctx(value block)
@@ -101,6 +104,27 @@ CAMLprim value ocaml_DigestFinal_ex(value v_ctx) {
   CAMLlocal1(result);
   result = caml_alloc_string(md_len);
   memmove(String_val(result), md_value, md_len);
+
+  CAMLreturn(result);
+}
+
+/* Based on code in extunix (LGPL-2.1) */
+CAMLprim value ocaml_0install_uname(value v_unit) {
+  CAMLparam1(v_unit);
+  struct utsname uname_data;
+
+  CAMLlocal2(result, domainname);
+
+  memset(&uname_data, 0, sizeof(uname_data));
+
+  if (uname(&uname_data) == 0) {
+    result = caml_alloc(3, 0);
+    Store_field(result, 0, caml_copy_string(&(uname_data.sysname[0])));
+    Store_field(result, 1, caml_copy_string(&(uname_data.release[0])));
+    Store_field(result, 2, caml_copy_string(&(uname_data.machine[0])));
+  } else {
+    caml_failwith(strerror(errno));
+  }
 
   CAMLreturn(result);
 }
