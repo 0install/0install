@@ -19,7 +19,7 @@ os.environ['LANGUAGE'] = 'C'
 os.environ['LANG'] = 'C'
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import qdom, background, namespaces
+from zeroinstall.injector import qdom, namespaces
 from zeroinstall.injector import iface_cache, download, distro, model, handler, reader, trust
 from zeroinstall import support, cmd
 from zeroinstall.support import basedir, tasks
@@ -36,12 +36,6 @@ def skipIf(condition, reason):
 		else:
 			return underlying
 	return wrapped
-
-class BackgroundException(Exception):
-	pass
-
-def throw_background():
-	raise BackgroundException("Tried to spawn background process")
 
 dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
 
@@ -123,8 +117,6 @@ class TestConfig:
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):
-		background._detach = throw_background
-
 		warnings.resetwarnings()
 
 		self.config_home = tempfile.mktemp()

@@ -154,6 +154,52 @@ let notify = ref (fun ~msg ~timeout ->
   ENDIF
 )
 
+let get_network_state () =
+  IFDEF HAVE_DBUS THEN
+    Lwt_main.run (
+      Lwt.catch (fun () ->
+        (* Prevent OBus from killing us. *)
+        Lwt.bind (OBus_bus.session ()) (fun session_bus ->
+          OBus_connection.set_on_disconnect session_bus (fun ex -> log_info ~ex "D-BUS disconnect"; Lwt.return ());
+          Lwt.return ()
+        ) |> ignore;
+
+        Lwt.bind (Nm_manager.daemon ()) (fun daemon ->
+          OBus_property.get (Nm_manager.state daemon)
+        )
+      )
+      (fun ex ->
+        log_info ~ex "Failed to get NetworkManager state";
+        Lwt.return `Unknown
+      )
+    )
+  ELSE
+    (`Unknown : [`Connected | `Disconnected | `Asleep | `Unknown])
+  ENDIF
+
+(** Unix.sleep aborts early if we get a signal. *)
+let sleep_for seconds =
+  let end_time = Unix.time () +. float_of_int seconds in
+  let rec loop () =
+    let now = Unix.time () in
+    if now < end_time then (
+      Unix.sleep @@ int_of_float @@ ceil @@ end_time -. now;
+      loop ()
+    ) in
+  loop ()
+
+(* We may get called early during the boot or login process. If we're not yet online, wait for a bit first. *)
+let wait_for_network = ref (fun () ->
+  if get_network_state () = `Connected then (
+    log_info "NetworkManager says we're on-line. Good!";
+    `Connected
+  ) else (
+    log_info "Not yet connected to network. Sleeping for 2 min...";
+    begin try ignore @@ Sys.getenv "ZEROINSTALL_TEST_BACKGROUND" with Not_found -> sleep_for 120 end;
+    get_network_state ()
+  );
+)
+
 (** update-bg is a hidden command used internally to spawn background updates.
     stdout will be /dev/null. stderr will be too, unless using -vv. *)
 let handle_bg options flags args =
@@ -195,12 +241,12 @@ let handle_bg options flags args =
         let name = Filename.basename app in
         let reqs = Apps.get_requirements config.system app in
         let old_sels = Apps.get_selections_no_updates config.system app in
-        let check_offline = function
-          | `String "offline" ->
-              log_info "Background update: offline, so aborting";
-              raise (System_exit 1)
-          | _ -> () in
-        options.slave#invoke_async (`List [`String "wait-for-network"]) check_offline |> Lwt_main.run;
+
+        begin match !wait_for_network () with
+        | `Disconnected | `Asleep ->
+            log_info "Still not connected to network. Giving up on background update.";
+            raise (System_exit 1)
+        | _ -> () end;
 
         (* Refresh the feeds and solve, silently. If we find updates to download, we try to run the GUI
          * so the user can see a systray icon for the download. If that's not possible, we download silently too. *)

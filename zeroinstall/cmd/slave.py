@@ -439,27 +439,6 @@ def do_open_cache_explorer(config, ticket):
 def do_populate_cache_explorer(ok_feeds, error_feeds, unowned):
 	return cache_explorer.populate_model(ok_feeds, error_feeds, unowned)
 
-def do_wait_for_network(config):
-	from zeroinstall.injector import background
-	_NetworkState = background._NetworkState
-	background_handler = background.BackgroundHandler()
-
-	network_state = background_handler.get_network_state()
-
-	if 'ZEROINSTALL_TEST_BACKGROUND' in os.environ: return
-
-	if network_state not in (_NetworkState.NM_STATE_CONNECTED_SITE, _NetworkState.NM_STATE_CONNECTED_GLOBAL):
-		logger.info(_("Not yet connected to network (status = %d). Sleeping for a bit..."), network_state)
-		import time
-		time.sleep(120)
-		if network_state in (_NetworkState.NM_STATE_DISCONNECTED, _NetworkState.NM_STATE_ASLEEP):
-			logger.info(_("Still not connected to network. Giving up."))
-			return "offline"
-		return "online"
-	else:
-		logger.info(_("NetworkManager says we're on-line. Good!"))
-		return "online"
-
 def do_gui_update_selections(args, xml):
 	ready, tree = args
 	gui_driver.set_selections(ready, tree, xml)
@@ -498,8 +477,6 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'open-add-box':
 			do_open_add_box(ticket, request[1])
 			return #async
-		elif command == 'wait-for-network':
-			response = do_wait_for_network(config)
 		elif command == 'check-gui':
 			response = do_check_gui(request[1])
 		elif command == 'report-error':
@@ -508,7 +485,7 @@ def handle_invoke(config, options, ticket, request):
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_gui_update_selections(request[1:], xml)
 		elif command == 'confirm-distro-install':
-			blocker = do_confirm_distro_install(config, ticket, options, request[1])
+			do_confirm_distro_install(config, ticket, options, request[1])
 			return
 		elif command == 'get-package-impls':
 			xml = qdom.parse(BytesIO(read_chunk()))

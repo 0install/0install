@@ -55,7 +55,7 @@ let () =
       ~deps:byte_targets
       (fun _ _ -> Command.Nop);
 
-    if use_dbus then tag_any ["package(obus,obus.notification)"];
+    if use_dbus then tag_any ["package(obus,obus.notification,obus.network-manager)"];
 
     pdep ["link"] "linkdep_win" (fun param -> if on_windows then [param] else []);
     pdep ["link"] "link" (fun param -> [param]);

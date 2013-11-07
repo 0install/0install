@@ -10,7 +10,6 @@ from zeroinstall import _, logger
 import os, platform, re, subprocess, sys
 from zeroinstall.injector import namespaces, model
 from zeroinstall.support import basedir, portable_rename, intern
-from zeroinstall.support.tasks import get_loop
 
 _dotted_ints = '[0-9]+(?:\.[0-9]+)*'
 

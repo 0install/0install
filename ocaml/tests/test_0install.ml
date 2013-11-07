@@ -458,6 +458,8 @@ let suite = "0install">::: [
   );
 
   "add">:: Fake_system.with_tmpdir (fun tmpdir ->
+    Update.wait_for_network := (fun () -> `Disconnected);
+
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
     let driver = Fake_system.make_driver config in
@@ -529,7 +531,7 @@ let suite = "0install">::: [
       ignore @@ A.get_selections_may_update driver app
     );
     let () =
-      Fake_system.fake_log#assert_contains "Background update: offline, so aborting";
+      Fake_system.fake_log#assert_contains "Still not connected to network. Giving up on background update.";
       match Fake_system.fake_log#pop_warnings with
       | [ w ] -> assert_contains "Error starting background check for updates" w
       | ws -> raise_safe "Got %d warnings" (List.length ws) in

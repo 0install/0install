@@ -271,6 +271,7 @@ let show_log_on_failure fn () =
   async_exception := None;
   Zeroinstall.Downloader.interceptor := None;
   Fake_system.forward_to_real_log := true;
+  Update.wait_for_network := (fun () -> `Connected);
   try
     Fake_system.fake_log#reset;
     fn ();
