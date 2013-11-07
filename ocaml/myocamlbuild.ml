@@ -18,8 +18,27 @@ let () =
   let major_version = int_of_string (String.sub v 0 first_dot) in
   let minor_version = int_of_string (String.sub v (first_dot + 1) (second_dot - first_dot - 1)) in
 
+  let native_targets = ref ["static_0install.native"; "tests/test.native"] in
+
+  if Sys.os_type = "Win32" then native_targets := "runenv.native" :: !native_targets;
+
+  let to_byte name =
+    if Pathname.check_extension name "native" then Pathname.update_extension "byte" name
+    else name in
+  let byte_targets = List.map to_byte !native_targets in
+
   dispatch (function
   | After_rules ->
+    rule "Build everything (native)"
+      ~prod:"all-native.otarget"
+      ~deps:!native_targets
+      (fun _ _ -> Command.Nop);
+
+    rule "Build everything (byte-code)"
+      ~prod:"all-byte.otarget"
+      ~deps:byte_targets
+      (fun _ _ -> Command.Nop);
+
     pdep ["link"] "linkdep_win" (fun param -> if on_windows then [param] else []);
     pdep ["link"] "link" (fun param -> [param]);
 

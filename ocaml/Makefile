@@ -2,9 +2,7 @@ OCAML_BUILDDIR=../build/ocaml
 TYPE=native
 DEBUG=-cflags -g
 OCAMLBUILD=ocamlbuild -j 0 ${DEBUG} -use-ocamlfind -build-dir "${OCAML_BUILDDIR}"
-TARGETS=static_0install.$(TYPE) tests/test.$(TYPE)
 ifeq ($(OS), Windows_NT)
-  TARGETS += runenv.native
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
 endif
 MS_SDK:="/cygdrive/c/Program Files/Microsoft SDKs/Windows/v7.0/Bin"
@@ -21,7 +19,7 @@ test: ocaml
 
 # Build static version (of $TYPE)
 ocaml: build_dir
-	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) $(TARGETS)
+	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) "all-${TYPE}.otarget"
 	#cp 0install.ml "$(OCAML_BUILDDIR)/"
 	if [ "$(OS)" = "Windows_NT" ];then make ocaml_windows; else make ocaml_posix; fi
 
