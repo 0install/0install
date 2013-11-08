@@ -241,6 +241,10 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
 
     val mutable did_packagekit_query = false
 
+    (* Should we check for Python and GObject manually? Use [false] if the package manager
+     * can be relied upon to find them. *)
+    val virtual check_host_python : bool
+
     method is_installed elem =
       log_info "No is_installed implementation for '%s'; using slow Python fallback instead!" distro_name;
       let master_feed =
@@ -267,8 +271,8 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
       | [] -> None
       | matches ->
           let host_impls =
-            if on_windows then StringMap.empty
-            else get_host_impls StringMap.empty (feed.Feed.url) in
+            if check_host_python then get_host_impls StringMap.empty (feed.Feed.url)
+            else StringMap.empty in
           let impls = List.fold_left self#add_candidates host_impls matches in
           try
             if did_packagekit_query then raise Fallback_to_Python;
@@ -312,6 +316,7 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
 class generic_distribution slave =
   object
     inherit python_fallback_distribution slave "Distribution" []
+    val check_host_python = true
     val distro_name = "fallback"
   end
 
@@ -474,6 +479,7 @@ module Debian = struct
 
     object (self : #distribution)
       inherit python_fallback_distribution slave "DebianDistribution" [status_file] as super
+      val check_host_python = false
 
       val distro_name = "Debian"
       val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2 ~old_format:false
@@ -533,6 +539,7 @@ module RPM = struct
   class rpm_distribution ?(status_file = rpm_db_packages) config slave =
     object
       inherit python_fallback_distribution slave "RPMDistribution" [status_file] as super
+      val check_host_python = false
 
       val distro_name = "RPM"
       val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
@@ -591,6 +598,7 @@ module ArchLinux = struct
 
     object (self : #distribution)
       inherit python_fallback_distribution slave "ArchDistribution" [arch_db] as super
+      val check_host_python = false
 
       val distro_name = "Arch"
 
@@ -634,6 +642,7 @@ module Mac = struct
   class macports_distribution ?(macports_db=macports_db) config slave =
     object
       inherit python_fallback_distribution slave "MacPortsDistribution" [macports_db] as super
+      val check_host_python = true
 
       val! system_paths = ["/opt/local/bin"]
 
@@ -650,6 +659,7 @@ module Mac = struct
   class darwin_distribution _config slave =
     object
       inherit python_fallback_distribution slave "DarwinDistribution" []
+      val check_host_python = true
       val distro_name = "Darwin"
     end
 end
@@ -658,6 +668,7 @@ module Win = struct
   class windows_distribution _config slave =
     object
       inherit python_fallback_distribution slave "WindowsDistribution" []
+      val check_host_python = false (* (0install's bundled Python may not be generally usable) *)
 
       val! system_paths = []
 
@@ -681,6 +692,7 @@ module Win = struct
   class cygwin_distribution config slave =
     object
       inherit python_fallback_distribution slave "CygwinDistribution" ["/var/log/setup.log"] as super
+      val check_host_python = false (* (0install's bundled Python may not be generally usable) *)
 
       val distro_name = "Cygwin"
       val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
@@ -697,6 +709,7 @@ module Ports = struct
   class ports_distribution ?(pkgdir=pkg_db) _config slave =
     object
       inherit python_fallback_distribution slave "PortsDistribution" [pkgdir]
+      val check_host_python = true
       val distro_name = "Ports"
     end
 end
@@ -705,6 +718,7 @@ module Gentoo = struct
   class gentoo_distribution ?(pkgdir=Ports.pkg_db) _config slave =
     object
       inherit python_fallback_distribution slave "GentooDistribution" [pkgdir]
+      val check_host_python = false
       val distro_name = "Gentoo"
     end
 end
@@ -715,6 +729,7 @@ module Slackware = struct
   class slack_distribution ?(packages_dir=slack_db) _config slave =
     object
       inherit python_fallback_distribution slave "SlackDistribution" [packages_dir]
+      val check_host_python = false
       val distro_name = "Slack"
     end
 end
