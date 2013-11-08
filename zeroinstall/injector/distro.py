@@ -156,8 +156,6 @@ class Distribution(object):
 
 	name = "fallback"
 
-	_packagekit = None
-
 	system_paths = ['/usr/bin', '/bin', '/usr/sbin', '/sbin']
 
 	def get_package_info(self, package, factory):
@@ -228,15 +226,6 @@ class Distribution(object):
 					self.installed_fixup(impl)
 
 		return feed
-
-	@property
-	def packagekit(self):
-		"""For use by subclasses.
-		@rtype: L{packagekit.PackageKit}"""
-		if not self._packagekit:
-			from zeroinstall.injector import packagekit
-			self._packagekit = packagekit.PackageKit()
-		return self._packagekit
 
 	def fixup(self, package, impl):
 		"""Some packages require special handling (e.g. Java). This is called for each
@@ -607,11 +596,6 @@ class DebianDistribution(Distribution):
 		else:
 			installed_version = None
 
-		# Add any uninstalled candidates (note: only one of these two methods will add anything)
-
-		# From PackageKit...
-		self.packagekit.get_candidates(package, factory, 'package:deb')
-
 	def fixup(self, package, impl):
 		"""@type package: str
 		@type impl: L{zeroinstall.injector.model.DistributionImplementation}"""
@@ -696,9 +680,6 @@ class RPMDistribution(CachedDistribution):
 			if machine != '*':
 				impl.machine = machine
 
-		# Add any uninstalled candidates found by PackageKit
-		self.packagekit.get_candidates(package, factory, 'package:rpm')
-
 	def installed_fixup(self, impl):
 		# OpenSUSE uses _, Fedora uses .
 		"""@type impl: L{zeroinstall.injector.model.DistributionImplementation}"""
@@ -767,9 +748,6 @@ class SlackDistribution(Distribution):
 				if zi_arch != '*':
 					impl.machine = zi_arch
 
-		# Add any uninstalled candidates found by PackageKit
-		self.packagekit.get_candidates(package, factory, 'package:slack')
-
 class ArchDistribution(Distribution):
 	"""An Arch Linux distribution."""
 
@@ -808,9 +786,6 @@ class ArchDistribution(Distribution):
 					impl.machine = zi_arch
 
 				impl.quick_test_file = os.path.join(self._packages_dir, entry, 'desc')
-
-		# Add any uninstalled candidates found by PackageKit
-		self.packagekit.get_candidates(package, factory, 'package:arch')
 
 class GentooDistribution(Distribution):
 	name = 'Gentoo'
@@ -855,9 +830,6 @@ class GentooDistribution(Distribution):
 						(package, version, machine))
 				impl.version = model.parse_version(version)
 				impl.machine = machine
-
-		# Add any uninstalled candidates found by PackageKit
-		self.packagekit.get_candidates(package, factory, 'package:gentoo')
 
 class PortsDistribution(Distribution):
 	name = 'Ports'

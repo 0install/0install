@@ -28,7 +28,7 @@ class fake_slave config handler : Python.slave =
             parse_fn @@ handler#download_url url
         | `List [`String "get-distro-candidates"; `List packages] ->
             let () = packages |> List.map Yojson.Basic.Util.to_string |> handler#get_distro_candidates in
-            parse_fn `Null
+            parse_fn (`Bool false)
         | _ -> raise_safe "Unexpected request %s" (Yojson.Basic.to_string request)
       )
 

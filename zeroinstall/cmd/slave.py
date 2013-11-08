@@ -25,6 +25,7 @@ import json, sys
 syntax = ""
 
 _distro = None
+_packagekit = None
 
 if sys.version_info[0] > 2:
 	stdin = sys.stdin.buffer.raw
@@ -78,7 +79,7 @@ def do_confirm_distro_install(config, ticket, options, impls):
 		for impl in unsafe_impls:
 			from zeroinstall.injector import packagekit
 			packagekit_id = impl['packagekit-id']
-			pk = _distro.packagekit.pk
+			pk = _packagekit.pk
 			dl = packagekit.PackageKitDownload('packagekit:' + packagekit_id, hint = impl['master-feed'],
 					pk = pk, packagekit_id = packagekit_id, expected_size = int(impl['size']))
 			config.handler.monitor_download(dl)
@@ -116,16 +117,12 @@ def to_json(impl):
 	}
 
 	if impl.download_sources:
-		feed = impl.feed.url
-		assert feed.startswith("distribution:"), feed
-		master_feed = feed.split(':', 1)[1]
 		m = impl.download_sources[0]
 		attrs['retrieval_method'] = {
 			'type': 'packagekit',
 			'id': m.package_id,
 			'packagekit-id': m.packagekit_id,
 			'size': float(m.size),		# Use floats to avoid 31-bit int problem
-			'master-feed': master_feed,
 
 			# True => ask user to confirm, then install with PackageKit
 			# False => tell user to install package manually
@@ -160,6 +157,30 @@ def do_get_package_impls(config, options, args, xml):
 		results.append([to_json(impl) for impl in impls])
 
 	return results
+
+class PackageKitImpl:
+	def get_version(self):
+		return model.format_version(self.version)
+
+def do_get_packagekit_impls(package):
+	impls = []
+	def factory(impl_name, only_if_missing, installed):
+		impl = PackageKitImpl()
+		impl.distro_name = _distro.name		# (OK for all distros which use PackageKit)
+		impl.id = impl_name
+		impl.installed = installed
+		impl.machine = None
+		impl.version = None
+		impl.download_sources = []
+		impl.main = None
+		impl.quick_test_file = None
+		impl.quick_test_mtime = None
+		impls.append(impl)
+		return impl
+
+	if _packagekit is not None:
+		_packagekit.get_candidates(package, factory, '')
+	return [to_json(i) for i in impls]
 
 last_ticket = 0
 def take_ticket():
@@ -201,14 +222,21 @@ def handle_message(config, options, message):
 @tasks.async
 def do_get_distro_candidates(config, ticket, package_names):
 	try:
-		pk = _distro.packagekit
-		if pk.available:
-			blocker = pk.fetch_candidates(package_names)
+		global _packagekit
+		if _packagekit is None:
+			if 'ZEROINSTALL_UNITTESTS' in os.environ:
+				_packagekit = DummyPackageKit()
+			else:
+				from zeroinstall.injector import packagekit
+				_packagekit = packagekit.PackageKit()
+
+		if _packagekit.available:
+			blocker = _packagekit.fetch_candidates(package_names)
 			if blocker:
 				yield blocker
 				tasks.check(blocker)
 
-		send_json(["return", ticket, ["ok", pk.available]])
+		send_json(["return", ticket, ["ok", _packagekit.available]])
 	except Exception as ex:
 		logger.warning("do_get_distro_candidates", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
@@ -453,8 +481,6 @@ def do_init_distro(config, name, args):
 	from zeroinstall.injector import distro
 	cons = getattr(distro, name)
 	_distro = cons(*args)
-	if 'ZEROINSTALL_UNITTESTS' in os.environ:
-		_distro._packagekit = DummyPackageKit()
 
 def handle_invoke(config, options, ticket, request):
 	try:
@@ -491,6 +517,8 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'get-package-impls':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_get_package_impls(config, options, request[1:], xml)
+		elif command == 'get-packagekit-impls':
+			response = do_get_packagekit_impls(request[1])
 		elif command == 'get-python-details':
 			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
 			response = (sys.executable or '/usr/bin/python', python_version)

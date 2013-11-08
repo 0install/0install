@@ -79,7 +79,7 @@ class virtual distribution (system:system) =
     method virtual check_for_candidates : Feed.feed -> unit Lwt.t
   end
 
-let package_impl_from_json elem props json =
+let package_impl_from_json ~prefix elem props json =
   let open Feed in
   let pkg_type = ref @@ { package_installed = false; package_distro = "unknown"; retrieval_method = None } in
   let new_props = ref props in
@@ -97,7 +97,8 @@ let package_impl_from_json elem props json =
   let set name value =
     new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
 
-  set "from-feed" @@ "distribution:" ^ (Feed.AttrMap.find ("", "from-feed") !new_attrs);
+  let master_feed = Feed.AttrMap.find ("", "from-feed") !new_attrs in
+  set "from-feed" @@ "distribution:" ^ master_feed;
   set "stability" "packaged";   (* The GUI likes to know the upstream stability too *)
 
   let fixup_main path =
@@ -115,13 +116,15 @@ let package_impl_from_json elem props json =
   match json with
   | `Assoc lst ->
       ListLabels.iter lst ~f:(function
-        | ("id", `String v) -> set "id" v
+        | ("id", `String v) -> set "id" (prefix ^ v)
         | ("version", `String v) -> set "version" v; pkg := {!pkg with parsed_version = Versions.parse_version v}
         | ("machine", `String v) -> pkg := {!pkg with machine = Arch.none_if_star v}
         | ("machine", `Null) -> ()
         | ("is_installed", `Bool v) -> pkg_type := {!pkg_type with package_installed = v}
         | ("distro", `String v) -> pkg_type := {!pkg_type with package_distro = v}
-        | ("retrieval_method", json) -> pkg_type := {!pkg_type with retrieval_method = Some (Yojson.Basic.Util.to_assoc json)}
+        | ("retrieval_method", json) -> pkg_type := {!pkg_type with retrieval_method = Some (
+              ("master-feed", `String master_feed) :: Yojson.Basic.Util.to_assoc json
+            )}
         | ("quick-test-file", `String v) -> set "quick-test-file" v
         | ("quick-test-mtime", `String v) -> set "quick-test-mtime" v
         | ("main", `String v) -> fixup_main v
@@ -236,6 +239,15 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
         map |> StringMap.add id @@ make_host_impl path version ~requires url id
     | _ -> map in
 
+  let to_impls ?(prefix="") map (elem, props) = function
+    | `List pkgs ->
+        let add_impl map pkg =
+          let impl = package_impl_from_json ~prefix elem props pkg in
+          let id = Feed.get_attr_ex FeedAttr.id impl in
+          map |> StringMap.add id impl in
+        List.fold_left add_impl map pkgs
+    | _ -> raise_safe "Not a group list" in
+
   object (self)
     inherit distribution slave#config.system
 
@@ -244,6 +256,9 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
     (* Should we check for Python and GObject manually? Use [false] if the package manager
      * can be relied upon to find them. *)
     val virtual check_host_python : bool
+
+    (** All IDs will start with this string (e.g. "package:deb") *)
+    val virtual id_prefix : string
 
     method is_installed elem =
       log_info "No is_installed implementation for '%s'; using slow Python fallback instead!" distro_name;
@@ -275,20 +290,10 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
             else StringMap.empty in
           let impls = List.fold_left self#add_candidates host_impls matches in
           try
-            if did_packagekit_query then raise Fallback_to_Python;
             Some (List.fold_left self#get_package_impls impls matches)
           with Fallback_to_Python ->
             let fake_feed = ZI.make feed.Feed.root.Q.doc "interface" in
             fake_feed.Q.child_nodes <- List.map fst matches;
-
-            let to_impls map (elem, props) = function
-              | `List pkgs ->
-                  let add_impl map pkg =
-                    let impl = package_impl_from_json elem props pkg in
-                    let id = Feed.get_attr_ex FeedAttr.id impl in
-                    map |> StringMap.add id impl in
-                  List.fold_left add_impl map pkgs
-              | _ -> raise_safe "Not a group list" in
 
             invoke ~xml:fake_feed "get-package-impls" [`String (Feed_url.format_url feed.Feed.url)] (function
               | `List pkg_groups ->
@@ -297,18 +302,26 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
               | _ -> raise_safe "Invalid response"
             ) |> Lwt_main.run
 
+    (** Get all installed implementations, plus any candidates previously found by [check_for_candidates].
+     * Do not add PackageImpl implementations here. They get added automatically. *)
     method private get_package_impls _ _ : (Feed.implementation StringMap.t) = raise Fallback_to_Python
 
-    (* Add candidates even in the Python-fallback case (this might go away later) *)
-    method private add_candidates map _ = map
+    (* Add candidates even in the Python-fallback case (this might go away later).
+     * By default, we add any PackageKit candidates found by [check_for_candidates]. *)
+    method private add_candidates map (elem, props) =
+      if did_packagekit_query then (
+        let package_name = ZI.get_attribute "package" elem in
+        invoke "get-packagekit-impls" [`String package_name] (to_impls ~prefix:id_prefix map (elem, props)) |> Lwt_main.run;
+      ) else map
 
     method check_for_candidates feed =
       match get_matching_package_impls self feed with
       | [] -> Lwt.return ()
       | matches ->
           let package_names = matches |> List.map (fun (elem, _props) -> `String (ZI.get_attribute "package" elem)) in
-          did_packagekit_query <- true;
-          invoke "get-distro-candidates" [`List package_names] ignore
+          lwt have_packagekit = invoke "get-distro-candidates" [`List package_names] Yojson.Basic.Util.to_bool in
+          if have_packagekit then did_packagekit_query <- true;
+          Lwt.return ()
 
     method private invoke = invoke
   end
@@ -318,6 +331,7 @@ class generic_distribution slave =
     inherit python_fallback_distribution slave "Distribution" []
     val check_host_python = true
     val distro_name = "fallback"
+    val id_prefix = "package:fallback"
   end
 
 let try_cleanup_distro_version_warn version package_name =
@@ -416,7 +430,7 @@ module Cache =
 (** Lookup [elem]'s package in the cache. Generate the ID(s) for the cached implementations and check that one of them
     matches the [id] attribute on [elem].
     Returns [false] if the cache is out-of-date. *)
-let check_cache distro_name elem cache =
+let check_cache id_prefix elem cache =
   match ZI.get_attribute_opt "package" elem with
   | None ->
       Qdom.log_elem Support.Logging.Warning "Missing 'package' attribute" elem;
@@ -425,7 +439,7 @@ let check_cache distro_name elem cache =
       let sel_id = ZI.get_attribute "id" elem in
       let matches data =
           let installed_version, machine = Utils.split_pair U.re_tab data in
-          let installed_id = Printf.sprintf "package:%s:%s:%s:%s" distro_name package installed_version machine in
+          let installed_id = Printf.sprintf "%s:%s:%s:%s" id_prefix package installed_version machine in
           (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
           sel_id = installed_id in
       List.exists matches (cache#get package)
@@ -482,10 +496,11 @@ module Debian = struct
       val check_host_python = false
 
       val distro_name = "Debian"
+      val id_prefix = "package:deb"
       val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2 ~old_format:false
 
       method! is_installed elem =
-        try check_cache "deb" elem cache
+        try check_cache id_prefix elem cache
         with Fallback_to_Python -> super#is_installed elem
 
       method! private get_package_impls map (elem, props) =
@@ -520,16 +535,19 @@ module Debian = struct
             query_apt_cache (matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)))
           )
 
-    (* Check for cache entries previously added by [query_apt_cache].
-     * (will only add anything if fetch_candidates was used and PackageKit was missing) *)
     method! private add_candidates map (elem, props) =
-      let package = ZI.get_attribute "package" elem in
-      let entry = try Hashtbl.find apt_cache package with Not_found -> None in
-      match entry with
-      | Some {version; machine; size = _} ->
-          let id = Printf.sprintf "package:deb:%s:%s:%s" package version machine in
-          map |> self#add_package_implementation elem props ~is_installed:false ~id ~version ~machine ~extra_attrs:[]
-      | None -> map
+      if did_packagekit_query then (
+        super#add_candidates map (elem, props)
+      ) else (
+        (* Add apt-cache candidates *)
+        let package = ZI.get_attribute "package" elem in
+        let entry = try Hashtbl.find apt_cache package with Not_found -> None in
+        match entry with
+        | Some {version; machine; size = _} ->
+            let id = Printf.sprintf "package:deb:%s:%s:%s" package version machine in
+            map |> self#add_package_implementation elem props ~is_installed:false ~id ~version ~machine ~extra_attrs:[]
+        | None -> map
+      )
     end
 end
 
@@ -542,10 +560,11 @@ module RPM = struct
       val check_host_python = false
 
       val distro_name = "RPM"
+      val id_prefix = "package:rpm"
       val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
 
       method! is_installed elem =
-        try check_cache "rpm" elem cache
+        try check_cache id_prefix elem cache
         with Fallback_to_Python -> super#is_installed elem
     end
 end
@@ -601,6 +620,7 @@ module ArchLinux = struct
       val check_host_python = false
 
       val distro_name = "Arch"
+      val id_prefix = "package:arch"
 
       (* We should never get here for an installed package, because we always set quick-test-* *)
       method! is_installed _elem = false
@@ -628,7 +648,7 @@ module ArchLinux = struct
               match try_cleanup_distro_version_warn version package_name with
               | None -> map
               | Some version ->
-                  let id = Printf.sprintf "package:arch:%s:%s:%s" package_name version machine in
+                  let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
                   map |> self#add_package_implementation elem props ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)];
         with Not_found -> map
     end
@@ -647,10 +667,11 @@ module Mac = struct
       val! system_paths = ["/opt/local/bin"]
 
       val distro_name = "MacPorts"
+      val id_prefix = "package:macports"
       val cache = new Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
 
       method! is_installed elem =
-        try check_cache "macports" elem cache
+        try check_cache id_prefix elem cache
         with Fallback_to_Python -> super#is_installed elem
 
       method! match_name name = (name = distro_name || name = "Darwin")
@@ -661,6 +682,7 @@ module Mac = struct
       inherit python_fallback_distribution slave "DarwinDistribution" []
       val check_host_python = true
       val distro_name = "Darwin"
+      val id_prefix = "package:darwin"
     end
 end
 
@@ -673,6 +695,8 @@ module Win = struct
       val! system_paths = []
 
       val distro_name = "Windows"
+      val id_prefix = "package:windows"
+
       method! private get_package_impls map (elem, _props) =
         let package_name = ZI.get_attribute "package" elem in
         match package_name with
@@ -695,10 +719,11 @@ module Win = struct
       val check_host_python = false (* (0install's bundled Python may not be generally usable) *)
 
       val distro_name = "Cygwin"
+      val id_prefix = "package:cygwin"
       val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
 
       method! is_installed elem =
-        try check_cache "cygwin" elem cache
+        try check_cache id_prefix elem cache
         with Fallback_to_Python -> super#is_installed elem
     end
 end
@@ -710,6 +735,7 @@ module Ports = struct
     object
       inherit python_fallback_distribution slave "PortsDistribution" [pkgdir]
       val check_host_python = true
+      val id_prefix = "package:ports"
       val distro_name = "Ports"
     end
 end
@@ -720,6 +746,7 @@ module Gentoo = struct
       inherit python_fallback_distribution slave "GentooDistribution" [pkgdir]
       val check_host_python = false
       val distro_name = "Gentoo"
+      val id_prefix = "package:gentoo"
     end
 end
 
@@ -731,6 +758,7 @@ module Slackware = struct
       inherit python_fallback_distribution slave "SlackDistribution" [packages_dir]
       val check_host_python = false
       val distro_name = "Slack"
+      val id_prefix = "package:slack"
     end
 end
 
