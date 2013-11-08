@@ -11,8 +11,10 @@ open Fake_system
 
 (* let () = Support.Logging.threshold := Support.Logging.Info *)
 
-let () = Unix.putenv "http_proxy" "localhost:8000"    (* Prevent accidents *)
-let () = Unix.putenv "https_proxy" "localhost:1112"
+let () =
+  Unix.putenv "http_proxy" "localhost:8000";    (* Prevent accidents *)
+  Unix.putenv "https_proxy" "localhost:1112";
+  Unix.putenv "ZEROINSTALL_UNITTESTS" "true"
 
 (** Read all input from a channel. *)
 let input_all ch =

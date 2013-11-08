@@ -453,7 +453,8 @@ def do_init_distro(config, name, args):
 	from zeroinstall.injector import distro
 	cons = getattr(distro, name)
 	_distro = cons(*args)
-	_distro._packagekit = DummyPackageKit()
+	if 'ZEROINSTALL_UNITTESTS' in os.environ:
+		_distro._packagekit = DummyPackageKit()
 
 def handle_invoke(config, options, ticket, request):
 	try:
