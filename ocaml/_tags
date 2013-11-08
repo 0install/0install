@@ -1,7 +1,7 @@
 false: profile
 true: debug, annot, package(yojson,xmlm,str,lwt,lwt.unix,lwt.preemptive,extlib,curl,ssl), thread
 <tests/*>: package(oUnit)
-<update.ml>: mypp
+<update.ml>: syntax(camlp4o), package(lwt.syntax)
 
 "support": for-pack(Support)
 "zeroinstall": for-pack(Support)

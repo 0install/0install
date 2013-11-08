@@ -13,6 +13,7 @@ module Apps = Zeroinstall.Apps
 module R = Zeroinstall.Requirements
 module Q = Support.Qdom
 module F = Zeroinstall.Feed
+module D = Zeroinstall.Dbus
 
 let get_root_sel sels =
   let iface = ZI.get_attribute FeedAttr.interface sels in
@@ -127,55 +128,35 @@ let handle options flags args =
 
 (* Send a D-BUS notification. Can be overridden for unit-tests. *)
 let notify = ref (fun ~msg ~timeout ->
-  IFDEF HAVE_DBUS THEN
-    Lwt_main.run (
-      Lwt.catch (fun () ->
-        (* Prevent OBus from killing us. *)
-        Lwt.bind (OBus_bus.session ()) (fun session_bus ->
-          OBus_connection.set_on_disconnect session_bus (fun ex -> log_info ~ex "D-BUS disconnect"; Lwt.return ());
-          Lwt.return ()
-        ) |> ignore;
+  Lwt_main.run (
+    try_lwt
+      match_lwt D.session () with
+      | None -> log_info "0install: %s" msg; Lwt.return ()
+      | Some _bus ->
+          ignore (D.Notification.notify ~timeout ~summary:"0install" ~body:msg ~icon:"info" ());
 
-        ignore (Notification.notify ~timeout ~summary:"0install" ~body:msg ~icon:"info" ());
-
-        (* Force a round-trip to make sure the notice has been sent before we exit
-         * ([notify] itself only resolves when the notification is closed) *)
-        Lwt.bind (Notification.get_server_information ()) (fun _ -> Lwt.return ())
-      )
-      (fun ex ->
-        log_debug ~ex "Failed to send notification via D-BUS";
-        log_info "0install: %s" msg;
-        Lwt.return ()
-      )
-    )
-  ELSE
-    ignore timeout;
-    log_info "0install: %s" msg;
-  ENDIF
+          (* Force a round-trip to make sure the notice has been sent before we exit
+           * ([notify] itself only resolves when the notification is closed) *)
+          Lwt.bind (D.Notification.get_server_information ()) (fun _ -> Lwt.return ())
+    with ex ->
+      log_debug ~ex "Failed to send notification via D-BUS";
+      log_info "0install: %s" msg;
+      Lwt.return ()
+  )
 )
 
-let get_network_state () =
-  IFDEF HAVE_DBUS THEN
-    Lwt_main.run (
-      Lwt.catch (fun () ->
-        (* Prevent OBus from killing us. *)
-        Lwt.bind (OBus_bus.session ()) (fun session_bus ->
-          OBus_connection.set_on_disconnect session_bus (fun ex -> log_info ~ex "D-BUS disconnect"; Lwt.return ());
-          Lwt.return ()
-        ) |> ignore;
-
-        Lwt.bind (Nm_manager.daemon ()) (fun daemon ->
-          OBus_property.get (Nm_manager.state daemon)
-        )
-      )
-      (fun ex ->
-        log_info ~ex "Failed to get NetworkManager state";
-        Lwt.return `Unknown
-      )
-    )
-  ELSE
-    (`Unknown : [`Connected | `Disconnected | `Asleep | `Unknown])
-  ENDIF
+let get_network_state () : D.Nm_manager.state =
+  Lwt_main.run (
+    try_lwt
+      match_lwt D.system () with
+      | None -> Lwt.return `Unknown
+      | Some _bus ->
+          lwt daemon = D.Nm_manager.daemon () in
+          D.OBus_property.get (D.Nm_manager.state daemon)
+    with ex ->
+      log_info ~ex "Failed to get NetworkManager state";
+      Lwt.return `Unknown
+  )
 
 (** Unix.sleep aborts early if we get a signal. *)
 let sleep_for seconds =

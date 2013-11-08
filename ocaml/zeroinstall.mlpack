@@ -6,6 +6,7 @@ Binding
 Command
 Config
 Constants
+Dbus
 Diagnostics
 Distro
 Downloader
