@@ -232,6 +232,7 @@ let suite =
   Test_download.suite;
   Test_archive.suite;
   Test_manifest.suite;
+  Test_packagekit.suite;
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);
  "test_run_real">:: (fun () -> collect_logging (with_tmpdir test_run_real));
@@ -274,6 +275,7 @@ let show_log_on_failure fn () =
   Zeroinstall.Downloader.interceptor := None;
   Fake_system.forward_to_real_log := true;
   Update.wait_for_network := (fun () -> `Connected);
+  Zeroinstall.Packagekit.packagekit := Fake_system.fake_packagekit;
   try
     Fake_system.fake_log#reset;
     fn ();
@@ -282,7 +284,7 @@ let show_log_on_failure fn () =
     if U.starts_with (Printexc.to_string ex) "OUnitTest.Skip" then ()
     else (
       Fake_system.fake_log#dump;
-      (* log_warning ~ex "Test failed";  (* Useful if you want a stack-trace *) *)
+      log_warning ~ex "Test failed";  (* Useful if you want a stack-trace *)
     );
     raise ex
 

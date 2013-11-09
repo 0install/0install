@@ -13,10 +13,13 @@ module Q = Support.Qdom
 
 exception Fallback_to_Python
 
-class virtual distribution (system:system) =
+class virtual distribution config =
+  let system = config.system in
   object (self)
     val virtual distro_name : string
     val system_paths = ["/usr/bin"; "/bin"; "/usr/sbin"; "/sbin"]
+
+    val packagekit = !Packagekit.packagekit config
 
     (** Can we use packages for this distribution? For example, MacPortsDistribution can use "MacPorts" and "Darwin" packages. *)
     method match_name name = (name = distro_name)
@@ -77,6 +80,23 @@ class virtual distribution (system:system) =
     (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
         promise resolves, the candidates should be included in the response from get_package_impls. *)
     method virtual check_for_candidates : Feed.feed -> unit Lwt.t
+
+    method install_distro_packages (ui:Ui.ui_handler) typ items : [ `ok | `cancel ] Lwt.t =
+      match typ with
+      | "packagekit" ->
+          begin match_lwt packagekit#install_packages ui items with
+          | `cancel -> Lwt.return `cancel
+          | `ok ->
+              items |> List.iter (fun (impl, _rm) ->
+                self#fixup_main impl.Feed.props;
+              );
+              Lwt.return `ok end
+      | _ ->
+          let names = items |> List.map (fun (_impl, rm) -> snd rm.Feed.distro_install_info) in
+          ui#confirm (Printf.sprintf
+            "This program depends on some packages that are available through your distribution. \
+             Please install them manually using %s and try again. Or, install 'packagekit' and I can \
+             use that to install things. The packages are:\n\n- %s" typ (String.concat "\n- " names))
   end
 
 let package_impl_from_json ~prefix elem props json =
@@ -106,7 +126,7 @@ let package_impl_from_json ~prefix elem props json =
     let run_command =
       try
         let command = StringMap.find "run" !new_props.commands in
-        let new_elem = {command.command_qdom with Qdom.attrs = command.command_qdom.Qdom.attrs} in  (* Silly syntax for making a copy *)
+        let new_elem = {command.command_qdom with Qdom.attrs = command.command_qdom.Qdom.attrs} in
         Qdom.set_attribute "path" path new_elem;
         {command with command_qdom = new_elem}
       with Not_found ->
@@ -122,9 +142,6 @@ let package_impl_from_json ~prefix elem props json =
         | ("machine", `Null) -> ()
         | ("is_installed", `Bool v) -> pkg_type := {!pkg_type with package_installed = v}
         | ("distro", `String v) -> pkg_type := {!pkg_type with package_distro = v}
-        | ("retrieval_method", json) -> pkg_type := {!pkg_type with retrieval_method = Some (
-              ("master-feed", `String master_feed) :: Yojson.Basic.Util.to_assoc json
-            )}
         | ("quick-test-file", `String v) -> set "quick-test-file" v
         | ("quick-test-mtime", `String v) -> set "quick-test-mtime" v
         | ("main", `String v) -> fixup_main v
@@ -132,6 +149,38 @@ let package_impl_from_json ~prefix elem props json =
       );
       {!pkg with impl_type = PackageImpl !pkg_type; props = {!new_props with attrs = !new_attrs}}
   | _ -> raise_safe "Bad JSON: %s" (Yojson.Basic.to_string json)
+
+let package_impl_from_packagekit id elem props distro_name info =
+  let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
+  let open Feed in
+
+  let master_feed = Feed.AttrMap.find ("", "from-feed") props.attrs in
+  let set name value attrs = attrs |> Feed.AttrMap.add ("", name) value in
+
+  let attrs = props.attrs
+  |> set FeedAttr.id id
+  |> set FeedAttr.from_feed @@ "distribution:" ^ master_feed
+  |> set FeedAttr.stability "packaged"   (* The GUI likes to know the upstream stability too *)
+  |> set FeedAttr.version (Versions.format_version version);
+  in
+
+  let props = {props with attrs} in
+
+  let pkg_type = {
+    package_installed = installed;
+    package_distro = distro_name;
+    retrieval_method = Some retrieval_method
+  } in
+  let pkg = {
+    qdom = elem;
+    os = None;
+    machine;
+    stability = Packaged;
+    props;
+    parsed_version = version;
+    impl_type = PackageImpl pkg_type;
+  } in
+  pkg
 
 (** Return the <package-implementation> elements that best match this distribution. *)
 let get_matching_package_impls (distro : #distribution) feed =
@@ -249,9 +298,7 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
     | _ -> raise_safe "Not a group list" in
 
   object (self)
-    inherit distribution slave#config.system
-
-    val mutable did_packagekit_query = false
+    inherit distribution slave#config
 
     (* Should we check for Python and GObject manually? Use [false] if the package manager
      * can be relied upon to find them. *)
@@ -309,19 +356,24 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
     (* Add candidates even in the Python-fallback case (this might go away later).
      * By default, we add any PackageKit candidates found by [check_for_candidates]. *)
     method private add_candidates map (elem, props) =
-      if did_packagekit_query then (
-        let package_name = ZI.get_attribute "package" elem in
-        invoke "get-packagekit-impls" [`String package_name] (to_impls ~prefix:id_prefix map (elem, props)) |> Lwt_main.run;
-      ) else map
+      let package_name = ZI.get_attribute "package" elem in
+
+      let add map info =
+        let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name
+          (Versions.format_version info.Packagekit.version) (default "*" info.Packagekit.machine) in
+        let impl = package_impl_from_packagekit id elem props distro_name info in
+        StringMap.add id impl map in
+      packagekit#get_impls package_name |> List.fold_left add map
 
     method check_for_candidates feed =
       match get_matching_package_impls self feed with
       | [] -> Lwt.return ()
       | matches ->
-          let package_names = matches |> List.map (fun (elem, _props) -> `String (ZI.get_attribute "package" elem)) in
-          lwt have_packagekit = invoke "get-distro-candidates" [`List package_names] Yojson.Basic.Util.to_bool in
-          if have_packagekit then did_packagekit_query <- true;
-          Lwt.return ()
+          lwt available = packagekit#is_available in
+          if available then (
+            let package_names = matches |> List.map (fun (elem, _props) -> ZI.get_attribute "package" elem) in
+            packagekit#check_for_candidates package_names
+          ) else Lwt.return ()
 
     method private invoke = invoke
   end
@@ -525,29 +577,26 @@ module Debian = struct
       match get_matching_package_impls self feed with
       | [] -> Lwt.return ()
       | matches ->
-          let package_names = matches |> List.map (fun (elem, _props) -> `String (ZI.get_attribute "package" elem)) in
-          lwt have_packagekit = self#invoke "get-distro-candidates" [`List package_names] Yojson.Basic.Util.to_bool in
-          if have_packagekit then (
-            did_packagekit_query <- true;
-            Lwt.return ()
+          lwt available = packagekit#is_available in
+          if available then (
+            let package_names = matches |> List.map (fun (elem, _props) -> ZI.get_attribute "package" elem) in
+            packagekit#check_for_candidates package_names
           ) else (
             (* No PackageKit. Use apt-cache directly. *)
             query_apt_cache (matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)))
           )
 
     method! private add_candidates map (elem, props) =
-      if did_packagekit_query then (
-        super#add_candidates map (elem, props)
-      ) else (
-        (* Add apt-cache candidates *)
-        let package = ZI.get_attribute "package" elem in
-        let entry = try Hashtbl.find apt_cache package with Not_found -> None in
-        match entry with
-        | Some {version; machine; size = _} ->
-            let id = Printf.sprintf "package:deb:%s:%s:%s" package version machine in
-            map |> self#add_package_implementation elem props ~is_installed:false ~id ~version ~machine ~extra_attrs:[]
-        | None -> map
-      )
+      let map = super#add_candidates map (elem, props) in
+
+      (* Add apt-cache candidates (there won't be any if we used PackageKit) *)
+      let package = ZI.get_attribute "package" elem in
+      let entry = try Hashtbl.find apt_cache package with Not_found -> None in
+      match entry with
+      | Some {version; machine; size = _} ->
+          let id = Printf.sprintf "package:deb:%s:%s:%s" package version machine in
+          map |> self#add_package_implementation elem props ~is_installed:false ~id ~version ~machine ~extra_attrs:[]
+      | None -> map
     end
 end
 
@@ -616,7 +665,7 @@ module ArchLinux = struct
       | _ -> items in
 
     object (self : #distribution)
-      inherit python_fallback_distribution slave "ArchDistribution" [arch_db] as super
+      inherit python_fallback_distribution slave "ArchDistribution" [arch_db]
       val check_host_python = false
 
       val distro_name = "Arch"
@@ -624,13 +673,6 @@ module ArchLinux = struct
 
       (* We should never get here for an installed package, because we always set quick-test-* *)
       method! is_installed _elem = false
-
-      method! get_all_package_impls feed =
-        if did_packagekit_query then super#get_all_package_impls feed
-        else
-          match get_matching_package_impls self feed with
-          | [] -> None
-          | matches -> Some (List.fold_left self#get_package_impls StringMap.empty matches)
 
       method! private get_package_impls map (elem, props) =
         let package_name = ZI.get_attribute "package" elem in
@@ -813,3 +855,23 @@ let is_installed config (distro:distribution) elem =
     in [feed]. Returns [None] if there were no matching elements (which means that we didn't even check the distribution). *)
 let get_package_impls (distro : distribution) feed =
   distro#get_all_package_impls feed
+
+let install_distro_packages (distro:distribution) (ui:Ui.ui_handler) impls : [ `ok | `cancel ] Lwt.t =
+  let groups = ref StringMap.empty in
+  impls |> List.iter (fun impl ->
+    match impl.Feed.impl_type with
+    | Feed.PackageImpl {Feed.retrieval_method = rm; _} ->
+        let rm = rm |? lazy (raise_safe "Missing retrieval method for package '%s'" (Feed.get_attr_ex FeedAttr.id impl)) in
+        let (typ, _info) = rm.Feed.distro_install_info in
+        let items = try StringMap.find typ !groups with Not_found -> [] in
+        groups := StringMap.add typ ((impl, rm) :: items) !groups
+    | _ -> raise_safe "BUG: not a PackageImpl! %s" (Feed.get_attr_ex FeedAttr.id impl)
+  );
+
+  let rec loop = function
+    | [] -> Lwt.return `ok
+    | (typ, items) :: groups ->
+        match_lwt distro#install_distro_packages ui typ items with
+        | `ok -> loop groups
+        | `cancel -> Lwt.return `cancel in
+  !groups |> StringMap.bindings |> loop

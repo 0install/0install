@@ -203,9 +203,9 @@ let handle_bg options flags args =
 
       method update_key_info _fingerprint _xml = assert false
 
-      method confirm_distro_install _package_impls =
+      method confirm msg =
         need_gui := true;
-        raise_safe "need to switch to GUI to confirm distro package install"
+        raise_safe "need to switch to GUI to confirm distro package install: %s" msg
 
       method use_gui = false
     end in
@@ -214,7 +214,7 @@ let handle_bg options flags args =
     let distro = Zeroinstall.Distro.get_host_distribution config slave in
     let trust_db = new Zeroinstall.Trust.trust_db config in
     let downloader = new Zeroinstall.Downloader.downloader (lazy ui)  ~max_downloads_per_site:2 in
-    let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader (lazy ui) in
+    let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro (lazy ui) in
     new Zeroinstall.Driver.driver config fetcher distro (lazy ui) slave in
 
   match args with

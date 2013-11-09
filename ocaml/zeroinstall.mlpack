@@ -26,6 +26,8 @@ Helpers
 Impl_provider
 Launcher
 Manifest
+Packagekit
+Packagekit_interfaces
 Python
 Recipe
 Requirements

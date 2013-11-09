@@ -8,11 +8,15 @@ open Support.Common
 module Config = Zeroinstall.Config
 module U = Support.Utils
 
+let orig_packagekit = !Zeroinstall.Packagekit.packagekit
+
 let () =
   (* Make oUnit 2 happy: we need to be able to reset these to their initial values after each test. *)
-  Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/XXX";
+  Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/UNUSED";
   Unix.putenv "DISPLAY" "";
-  Unix.putenv "GNUPGHOME" "/XXX"
+  Unix.putenv "DBUS_SESSION_BUS_ADDRESS" "UNUSED";
+  Unix.putenv "DBUS_SYSTEM_BUS_ADDRESS" "UNUSED";
+  Unix.putenv "GNUPGHOME" "/UNUSED"
 
 (* For temporary directory names *)
 let () = Random.self_init ()
@@ -357,7 +361,7 @@ class null_ui =
     method stop_monitoring _ = Lwt.return ()
     method update_key_info _fingerprint _xml = Lwt.return ()
     method confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" feed_url
-    method confirm_distro_install _package_impls = raise_safe "confirm_distro_install"
+    method confirm msg = raise_safe "confirm: %s" msg
     method use_gui = false
   end
 
@@ -368,7 +372,7 @@ let make_driver ?slave ?fetcher config =
   let distro = new Zeroinstall.Distro.generic_distribution slave in
   let trust_db = new Zeroinstall.Trust.trust_db config in
   let downloader = new Zeroinstall.Downloader.downloader null_ui ~max_downloads_per_site:2 in
-  let fetcher = fetcher |? lazy (new Zeroinstall.Fetch.fetcher config trust_db downloader null_ui) in
+  let fetcher = fetcher |? lazy (new Zeroinstall.Fetch.fetcher config trust_db downloader distro null_ui) in
   new Zeroinstall.Driver.driver config fetcher distro null_ui slave
 
 let fake_log =
@@ -436,7 +440,7 @@ let temp_dir_name =
 
 let with_tmpdir fn () =
   U.finally_do
-    (fun () -> Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/XXX"; Unix.putenv "GNUPGHOME" "/XXX") ()
+    (fun () -> Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/UNUSED"; Unix.putenv "GNUPGHOME" "/UNUSED") ()
     (fun () ->
       let tmppath = U.make_tmp_dir real_system temp_dir_name ~prefix:"0install-test-" in
       U.finally_do (U.rmtree ~even_if_locked:true real_system) tmppath fn
@@ -485,3 +489,15 @@ let assert_error_contains expected (fn:unit -> unit) =
     assert_failure (Printf.sprintf "Expected error '%s' but got success!" expected)
   with Safe_exception (msg, _) ->
     assert_contains expected msg
+
+let fake_packagekit _config =
+  object
+    method is_available = Lwt.return false
+    method get_impls (package_name:string) : Zeroinstall.Packagekit.package_info list =
+      log_info "packagekit: get_impls(%s)" package_name;
+      []
+    method check_for_candidates (package_names:string list) : unit Lwt.t =
+      log_info "packagekit: check_for_candidates(%s)" (String.concat ", " package_names);
+      Lwt.return ()
+    method install_packages _ui _names = failwith "install_packages"
+  end

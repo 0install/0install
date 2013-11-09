@@ -160,13 +160,13 @@ class Handler(object):
 		retval.extend([key.fingerprint for key in valid_sigs])
 
 	@tasks.async
-	def confirm_install(self, msg):
+	def confirm(self, msg):
 		"""We need to check something with the user before continuing with the install.
 		@raise download.DownloadAborted: if the user cancels"""
 		yield
 		print(msg, file=sys.stderr)
 		while True:
-			sys.stderr.write(_("Install [Y/N] "))
+			sys.stderr.write(_("[Y/N] "))
 			sys.stderr.flush()
 			i = support.raw_input()
 			if not i: continue

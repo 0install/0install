@@ -75,9 +75,7 @@ let get_fetch_info config impl =
           let size =
             match info.F.retrieval_method with
             | None -> None
-            | Some attrs ->
-                try Some (Yojson.Basic.Util.to_float (List.assoc "size" attrs))
-                with Not_found -> None in
+            | Some retrieval_method -> retrieval_method.F.distro_size |> pipe_some (fun s -> Some (Int64.to_float s)) in
           match size with
           | None -> (`Null, "(install)", "No size information available for this download")
           | Some size ->

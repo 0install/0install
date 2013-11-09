@@ -8,12 +8,32 @@ open Support.Common
 open Zeroinstall
 open Zeroinstall.General
 
+module F = Zeroinstall.Feed
 module U = Support.Utils
 module Q = Support.Qdom
 
 let cache_path_for config url = Feed_cache.get_save_cache_path config url
 
+let make_packagekit handler _config =
+  object
+    val candidates = Hashtbl.create 10
+
+    method is_available = Lwt.return true
+    method get_impls (package_name:string) : Zeroinstall.Packagekit.package_info list =
+      log_info "packagekit: get_impls(%s)" package_name;
+      try Hashtbl.find candidates package_name with Not_found -> []
+    method check_for_candidates (package_names:string list) : unit Lwt.t =
+      log_info "packagekit: check_for_candidates(%s)" (String.concat ", " package_names);
+      package_names |> List.iter (fun package_name ->
+        Hashtbl.replace candidates package_name (handler#get_distro_candidates package_name)
+      );
+      Lwt.return ()
+
+    method install_packages _ui _names = failwith "install_packages"
+  end
+
 class fake_slave config handler : Python.slave =
+  let () = Zeroinstall.Packagekit.packagekit := make_packagekit handler in
   object (_ : #Python.slave)
     method invoke_async request ?xml parse_fn =
       ignore xml;
@@ -26,9 +46,6 @@ class fake_slave config handler : Python.slave =
             let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
             ignore @@ start_timeout [timeout];
             parse_fn @@ handler#download_url url
-        | `List [`String "get-distro-candidates"; `List packages] ->
-            let () = packages |> List.map Yojson.Basic.Util.to_string |> handler#get_distro_candidates in
-            parse_fn (`Bool false)
         | _ -> raise_safe "Unexpected request %s" (Yojson.Basic.to_string request)
       )
 
@@ -129,7 +146,7 @@ let make_driver_test test_elem =
 
         method download_url url = failwith url
 
-        method get_distro_candidates _ = ()
+        method get_distro_candidates _ = []
 
         method get_feed url =
           try `xml (StringMap.find url !downloadable_feeds)
@@ -178,27 +195,28 @@ let suite = "driver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let reqs = Requirements.({(default_requirements "http://example.com/prog.xml") with command = None}) in
     let handler =
-      let prog_candidates = ref [] in
       object
         method download_impls = failwith "download_impls"
 
         method get_package_impls = function
-          | "http://example.com/prog.xml" -> `List [`List !prog_candidates]
+          | "http://example.com/prog.xml" -> `List [`List []]
           | url -> failwith url
 
         method download_url = function
           | url -> failwith url
 
         method get_distro_candidates = function
-          | ["prog"] ->
-              prog_candidates := [`Assoc [
-                ("id", `String "package:my-distro:prog:1.0");
-                ("version", `String "1.0");
-                ("machine", `String "*");
-                ("is_installed", `Bool false);
-                ("distro", `String "my-distro");
-              ]]
-          | names -> failwith (String.concat "," names)
+          | "prog" ->
+              Zeroinstall.Packagekit.([{
+                version = Versions.parse_version "1.0";
+                machine = None;
+                installed = false;
+                retrieval_method = {
+                  F.distro_size = None;
+                  F.distro_install_info = ("test", "prog");
+                }
+              }])
+          | name -> failwith name
 
         method get_feed = function
           | "http://example.com/prog.xml" -> `file (Fake_system.tests_dir +/ "prog.xml")
@@ -214,7 +232,7 @@ let suite = "driver">::: [
       failwith @@ Diagnostics.get_failure_reason config result;
 
     match result#get_selections.Q.child_nodes with
-    | [ sel ] -> Fake_system.assert_str_equal "package:my-distro:prog:1.0" (ZI.get_attribute "id" sel)
+    | [ sel ] -> Fake_system.assert_str_equal "package:fallback:prog:1.0:*" (ZI.get_attribute "id" sel)
     | _ -> assert_failure "Bad selections"
       
   );
@@ -244,7 +262,7 @@ let suite = "driver">::: [
     import "Binary.xml";
     let distro =
       object
-        inherit Distro.distribution config.system
+        inherit Distro.distribution config
         method is_installed = failwith "is_installed"
         method get_all_package_impls _ = None
         method check_for_candidates = raise_safe "Unexpected check_for_candidates"

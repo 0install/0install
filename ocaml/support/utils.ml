@@ -195,6 +195,7 @@ let re_dir_sep = Str.regexp_string Filename.dir_sep
 let re_path_sep = Str.regexp_string path_sep
 let re_colon = Str.regexp_string ":"
 let re_equals = Str.regexp_string "="
+let re_semicolon = Str.regexp_string ";"
 
 let find_in_path (system:system) name =
   let name = if on_windows && not (ends_with name ".exe") then name ^ ".exe" else name in

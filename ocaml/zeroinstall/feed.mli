@@ -20,10 +20,15 @@ type importance =
   | Dep_recommended     (* Prefer to select a version, if possible *)
   | Dep_restricts       (* Just adds restrictions without expressing any opinion *)
 
+type distro_retrieval_method = {
+  distro_size : Int64.t option;
+  distro_install_info : (string * string);        (* In some format meaningful to the distribution *)
+}
+
 type package_impl = {
   package_distro : string;
-  package_installed : bool;
-  retrieval_method : (string * Yojson.Basic.json) list option;
+  mutable package_installed : bool;
+  retrieval_method : distro_retrieval_method option;
 }
 
 type cache_impl = {

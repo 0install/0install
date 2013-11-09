@@ -55,54 +55,16 @@ def parse_ynm(s):
 	assert 0, s
 
 @tasks.async
-def do_confirm_distro_install(config, ticket, options, impls):
+def do_confirm(config, ticket, options, message):
 	if gui_driver is not None: config = gui_driver.config
 	try:
-		manual_impls = [impl['id'] for impl in impls if not impl['needs-confirmation']]
-		unsafe_impls = [impl for impl in impls if impl['needs-confirmation']]
-
-		if unsafe_impls:
-			confirm = config.handler.confirm_install(_('The following components need to be installed using native packages. '
-				'These come from your distribution, and should therefore be trustworthy, but they also '
-				'run with extra privileges. In particular, installing them may run extra services on your '
-				'computer or affect other users. You may be asked to enter a password to confirm. The '
-				'packages are:\n\n') + ('\n'.join('- ' + x['id'] for x in unsafe_impls)))
-			yield confirm
-			tasks.check(confirm)
-
-		if manual_impls:
-			raise model.SafeException(_("This program depends on '%s', which is a package that is available through your distribution. "
-					"Please install it manually using your distribution's tools and try again. Or, install 'packagekit' and I can "
-					"use that to install it.") % manual_impls[0])
-
-		blockers = []
-		for impl in unsafe_impls:
-			from zeroinstall.injector import packagekit
-			packagekit_id = impl['packagekit-id']
-			pk = _packagekit.pk
-			dl = packagekit.PackageKitDownload('packagekit:' + packagekit_id, hint = impl['master-feed'],
-					pk = pk, packagekit_id = packagekit_id, expected_size = int(impl['size']))
-			config.handler.monitor_download(dl)
-			blockers.append(dl.downloaded)
-
-		# Record the first error log the rest
-		error = []
-		def dl_error(ex, tb = None):
-			if error:
-				config.handler.report_error(ex)
-			else:
-				error.append((ex, tb))
-		while blockers:
-			yield blockers
-			tasks.check(blockers, dl_error)
-			blockers = [b for b in blockers if not b.happened]
-		if error:
-			from zeroinstall import support
-			support.raise_with_traceback(*error[0])
+		confirm = config.handler.confirm(message)
+		yield confirm
+		tasks.check(confirm)
 
 		send_json(["return", ticket, ["ok", "ok"]])
 	except download.DownloadAborted as ex:
-		send_json(["return", ticket, ["ok", "aborted-by-user"]])
+		send_json(["return", ticket, ["ok", "cancel"]])
 	except Exception as ex:
 		logger.warning("Returning error", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
@@ -115,19 +77,6 @@ def to_json(impl):
 		'is_installed': impl.installed,
 		'distro': impl.distro_name,
 	}
-
-	if impl.download_sources:
-		m = impl.download_sources[0]
-		attrs['retrieval_method'] = {
-			'type': 'packagekit',
-			'id': m.package_id,
-			'packagekit-id': m.packagekit_id,
-			'size': float(m.size),		# Use floats to avoid 31-bit int problem
-
-			# True => ask user to confirm, then install with PackageKit
-			# False => tell user to install package manually
-			'needs-confirmation': m.needs_confirmation,
-		}
 
 	if impl.main:
 		# We may add a missing 'main' (e.g. host Python) or modify an existing one
@@ -157,30 +106,6 @@ def do_get_package_impls(config, options, args, xml):
 		results.append([to_json(impl) for impl in impls])
 
 	return results
-
-class PackageKitImpl:
-	def get_version(self):
-		return model.format_version(self.version)
-
-def do_get_packagekit_impls(package):
-	impls = []
-	def factory(impl_name, only_if_missing, installed):
-		impl = PackageKitImpl()
-		impl.distro_name = _distro.name		# (OK for all distros which use PackageKit)
-		impl.id = impl_name
-		impl.installed = installed
-		impl.machine = None
-		impl.version = None
-		impl.download_sources = []
-		impl.main = None
-		impl.quick_test_file = None
-		impl.quick_test_mtime = None
-		impls.append(impl)
-		return impl
-
-	if _packagekit is not None:
-		_packagekit.get_candidates(package, factory, '')
-	return [to_json(i) for i in impls]
 
 last_ticket = 0
 def take_ticket():
@@ -515,14 +440,12 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'gui-update-selections':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_gui_update_selections(request[1:], xml)
-		elif command == 'confirm-distro-install':
-			do_confirm_distro_install(config, ticket, options, request[1])
+		elif command == 'confirm':
+			do_confirm(config, ticket, options, request[1])
 			return
 		elif command == 'get-package-impls':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_get_package_impls(config, options, request[1:], xml)
-		elif command == 'get-packagekit-impls':
-			response = do_get_packagekit_impls(request[1])
 		elif command == 'get-python-details':
 			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
 			response = (sys.executable or '/usr/bin/python', python_version)

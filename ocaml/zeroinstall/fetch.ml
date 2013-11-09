@@ -54,7 +54,7 @@ let rec join_errors = function
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
-class fetcher config trust_db (downloader:Downloader.downloader) (ui:Ui.ui_handler Lazy.t) =
+class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.distribution) (ui:Ui.ui_handler Lazy.t) =
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
 
   let key_info_cache = Hashtbl.create 10 in
@@ -706,10 +706,9 @@ class fetcher config trust_db (downloader:Downloader.downloader) (ui:Ui.ui_handl
         log_debug "download_impls: for %s get %s" (Feed_url.format_url feed) version;
 
         match impl.Feed.impl_type with
-        | Feed.PackageImpl info ->
+        | Feed.PackageImpl _ ->
             (* Any package without a retrieval method should be already installed *)
-            let rm = info.Feed.retrieval_method |? lazy (raise_safe "Missing retrieval method for package '%s'" id) in
-            package_impls := `Assoc rm :: !package_impls
+            package_impls := impl :: !package_impls
         | Feed.LocalImpl path -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path (Feed_url.format_url feed)
         | Feed.CacheImpl info ->
             (* Choose the best digest algorithm we support *)
@@ -726,13 +725,11 @@ class fetcher config trust_db (downloader:Downloader.downloader) (ui:Ui.ui_handl
       );
 
     let packages_task =
-      if !package_impls = [] then (
-        Lwt.return ()
-      ) else (
-        match_lwt (Lazy.force ui)#confirm_distro_install !package_impls with
+      if !package_impls <> [] then (
+        match_lwt Distro.install_distro_packages distro (Lazy.force ui) !package_impls with
+        | `cancel -> raise Aborted
         | `ok -> Lwt.return ()
-        | `aborted_by_user -> raise Aborted
-      ) in
+      ) else Lwt.return () in
 
     let zi_tasks = !zi_impls |> List.map download_impl in
 

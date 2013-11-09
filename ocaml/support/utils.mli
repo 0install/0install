@@ -108,6 +108,7 @@ val re_dir_sep : Str.regexp    (** / on Unix *)
 val re_path_sep : Str.regexp   (** : on Unix *)
 val re_colon : Str.regexp
 val re_equals : Str.regexp
+val re_semicolon : Str.regexp
 
 (** {2 Dates and times} *)
 val format_time : Unix.tm -> string

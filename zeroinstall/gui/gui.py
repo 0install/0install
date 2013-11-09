@@ -64,7 +64,7 @@ class GUIHandler(handler.Handler):
 		yield box.closed
 
 	@tasks.async
-	def confirm_install(self, message):
+	def confirm(self, message):
 		yield self._switch_to_main_window(_('Need to confirm installation of distribution packages'))
 
 		from zeroinstall.injector.download import DownloadAborted

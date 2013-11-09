@@ -34,8 +34,8 @@ class type ui_handler =
      * Return the list of fingerprints the user wants to trust. *)
     method confirm_keys : General.feed_url -> Support.Qdom.element -> Support.Gpg.fingerprint list Lwt.t
 
-    (** Ask the user to confirm they are happy to install these distribution packages. *)
-    method confirm_distro_install : Yojson.Basic.json list -> [`ok | `aborted_by_user] Lwt.t
+    (** Display a confirmation request *)
+    method confirm : string -> [`ok | `cancel] Lwt.t
 
     (* A bit hacky: should we use Gui for solve_and_download_impls? *)
     method use_gui : bool
@@ -99,11 +99,11 @@ class python_ui (slave:Python.slave) =
         | _ -> raise_safe "Invalid response"
       )
 
-    method confirm_distro_install package_impls =
-      let request = `List [`String "confirm-distro-install"; `List package_impls] in
+    method confirm message =
+      let request = `List [`String "confirm"; `String message] in
       slave#invoke_async request (function
         | `String "ok" -> `ok
-        | `String "aborted-by-user" -> `aborted_by_user
+        | `String "cancel" -> `cancel
         | _ -> raise_safe "Invalid response"
       )
 
