@@ -57,7 +57,7 @@ let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) ~prog
     Curl.set_url connection url;
     Curl.set_headerfunction connection check_header;
     Curl.set_progressfunction connection (fun dltotal dlnow _ultotal _ulnow ->
-      Lwt_preemptive.run_in_main (fun () ->
+      Support.Lwt_preemptive_copy.run_in_main (fun () ->
         let dlnow = Int64.of_float dlnow in
         begin match size with
         | None -> progress (dlnow, if dltotal = 0.0 then None else Some (Int64.of_float dltotal));

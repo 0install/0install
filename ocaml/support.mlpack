@@ -5,6 +5,7 @@ Gpg
 Hash
 Locale
 Logging
+Lwt_preemptive_copy
 Qdom
 Sat
 System
