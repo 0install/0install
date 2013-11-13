@@ -126,7 +126,7 @@ class fake_system tmpdir =
     if U.starts_with path "/var" then
       match tmpdir with
       | None -> true
-      | Some tmpdir -> not (U.starts_with path tmpdir)
+      | Some tmpdir -> not (U.starts_with (U.realpath real_system path) tmpdir)
     else false in
 
   object (self : #system)
