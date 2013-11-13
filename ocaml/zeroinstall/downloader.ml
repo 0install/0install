@@ -26,7 +26,7 @@ let interceptor = ref None        (* (for unit-tests) *)
 
 (** Download the contents of [url] into [ch].
  * This runs in a separate (real) thread. *)
-let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) connection ch url =
+let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) ~progress connection ch url =
   let skip_bytes = ref (Int64.to_int start_offset) in
   let error_buffer = ref "" in
   try
@@ -56,6 +56,16 @@ let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) conne
     );
     Curl.set_url connection url;
     Curl.set_headerfunction connection check_header;
+    Curl.set_progressfunction connection (fun dltotal dlnow _ultotal _ulnow ->
+      Lwt_preemptive.run_in_main (fun () ->
+        let dlnow = Int64.of_float dlnow in
+        begin match size with
+        | None -> progress (dlnow, if dltotal = 0.0 then None else Some (Int64.of_float dltotal));
+        | Some _ -> progress (dlnow, size) end;
+        Lwt.return false  (* (continue download) *)
+      )
+    );
+    Curl.set_noprogress connection false; (* progress = true *)
 
     Curl.perform connection;
 
@@ -101,7 +111,7 @@ let make_site max_downloads_per_site =
   let pool = Lwt_pool.create max_downloads_per_site create_connection in
 
   object
-    method schedule_download ?if_slow ?size ?modification_time ?start_offset ch url =
+    method schedule_download ?if_slow ?size ?modification_time ?start_offset ~progress ch url =
       log_debug "Scheduling download of %s" url;
       if not (List.exists (U.starts_with url) ["http://"; "https://"; "ftp://"]) then (
         raise_safe "Invalid scheme in URL '%s'" url
@@ -118,7 +128,7 @@ let make_site max_downloads_per_site =
               Some timeout;
             ) in
 
-            let download () = download_no_follow ?modification_time ?size ?start_offset connection ch url in
+            let download () = download_no_follow ?modification_time ?size ?start_offset ~progress connection ch url in
 
             try_lwt
               Lwt_preemptive.detach download ()
@@ -146,6 +156,8 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
       let hint = hint |> pipe_some (fun feed -> Some (Feed_url.format_url feed)) in
       log_debug "Download URL '%s'... (for %s)" url (default "no feed" hint);
 
+      let progress, set_progress = Lwt_react.S.create (Int64.zero, size) in     (* So far / total *)
+
       let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
       Lwt_switch.add_hook (Some switch) (fun () -> Unix.unlink tmpfile |> Lwt.return);
 
@@ -157,7 +169,7 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
             let site = make_site max_downloads_per_site in
             Hashtbl.add sites domain site;
             site in
-        match_lwt site#schedule_download ?if_slow ?size ?modification_time ?start_offset ch url with
+        match_lwt site#schedule_download ?if_slow ?size ?modification_time ?start_offset ~progress:set_progress ch url with
         | `success ->
             close_out ch;
             `tmpfile tmpfile |> Lwt.return
@@ -180,8 +192,8 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
        * blocked on a DNS lookup, etc. *)
       let task, waker = Lwt.task () in
       Lwt.on_cancel task (fun () -> close_out ch);
-      let cancel () = Lwt.cancel task in
-      lwt () = reporter#start_monitoring ~cancel ~url ?hint ~size ~tmpfile in
+      let cancel () = Lwt.cancel task; Lwt.return () in
+      lwt () = reporter#start_monitoring ~cancel ~url ~progress ?hint ~size ~id:tmpfile in
 
       Python.async (fun () ->
         try_lwt

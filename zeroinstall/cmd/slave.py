@@ -311,6 +311,7 @@ def do_confirm_keys(config, ticket, url, xml):
 class OCamlDownload:
 	url = None
 	hint = None
+	sofar = 0
 	expected_size = None
 	tempfile = None
 	status = download.download_fetching
@@ -333,10 +334,7 @@ class OCamlDownload:
 	def get_bytes_downloaded_so_far(self):
 		"""Get the download progress. Will be zero if the download has not yet started.
 		@rtype: int"""
-		if self.status is download.download_fetching:
-			return os.stat(self.tempfile).st_size
-		else:
-			return self._final_total_size or 0
+		return self.sofar
 
 	def abort(self):
 		invoke_master(["abort-download", self.tempfile])
@@ -355,6 +353,12 @@ def do_start_monitoring(config, details):
 	dl.downloaded = tasks.Blocker("Download '%s'" % details["url"])
 	downloads[dl.tempfile] = dl
 	config.handler.monitor_download(dl)
+
+def do_set_progress(config, tmpfile, sofar, expected_size):
+	dl = downloads[tmpfile]
+	dl.sofar = int(sofar)
+	if expected_size:
+		dl.expected_size = int(expected_size)
 
 def do_stop_monitoring(config, tmpfile):
 	dl = downloads[tmpfile]
@@ -543,6 +547,8 @@ def handle_invoke(config, options, ticket, request):
 			return	# async
 		elif command == 'start-monitoring':
 			response = do_start_monitoring(config, request[1])
+		elif command == 'set-progress':
+			response = do_set_progress(config, *request[1:])
 		elif command == 'stop-monitoring':
 			response = do_stop_monitoring(config, request[1])
 		elif command == 'init-distro':

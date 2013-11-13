@@ -16,11 +16,13 @@ class type ui_handler =
   object
     (** A new download has been added (may still be queued).
      * @param cancel function to call to cancel the download
-     * @param url the URL being downloaded
+     * @param url the URL being downloaded (used in the console display)
+     * @param progress a signal of (bytes-so-far, total-expected)
      * @param hint the feed associated with this download
      * @param size the expected size in bytes, if known
-     * @param tmpfile the temporary file where we are storing the contents (for progress reporting) *)
-    method start_monitoring : cancel:(unit -> unit) -> url:string -> ?hint:string -> size:(Int64.t option) -> tmpfile:filepath -> unit Lwt.t
+     * @param id a unique ID for this download *)
+    method start_monitoring : cancel:(unit -> unit Lwt.t) -> url:string -> progress:(Int64.t * Int64.t option) Lwt_react.S.t ->
+                              ?hint:string -> size:(Int64.t option) -> id:string -> unit Lwt.t
 
     (** A download has finished (successful or not) *)
     method stop_monitoring : filepath -> unit Lwt.t
@@ -44,17 +46,18 @@ class python_ui (slave:Python.slave) =
 
   let () =
     Python.register_handler "abort-download" (function
-      | [`String tmpfile] ->
+      | [`String id] ->
           begin try
-            Hashtbl.find downloads tmpfile ()
-          with Not_found -> log_info "abort-download: %s not found" tmpfile end;
-          Lwt.return `Null
+            let cancel, _progress = Hashtbl.find downloads id in
+            Lwt.bind (cancel ()) (fun () -> Lwt.return `Null)
+          with Not_found ->
+            log_info "abort-download: %s not found" id;
+            Lwt.return `Null end
       | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
     ) in
 
   object (_ : #ui_handler)
-    method start_monitoring ~cancel ~url ?hint ~size ~tmpfile =
-      Hashtbl.add downloads tmpfile cancel;
+    method start_monitoring ~cancel ~url ~progress ?hint ~size ~id =
       let size =
         match size with
         | None -> `Null
@@ -67,12 +70,24 @@ class python_ui (slave:Python.slave) =
         ("url", `String url);
         ("hint", hint);
         ("size", size);
-        ("tempfile", `String tmpfile);
+        ("tempfile", `String id);
       ] in
+      let updates = progress |> Lwt_react.S.map_s (fun (sofar, total) ->
+        if Hashtbl.mem downloads id then (
+          let sofar = Int64.to_float sofar in
+          let total =
+            match total with
+            | None -> `Null
+            | Some total -> `Float (Int64.to_float total) in
+          slave#invoke_async (`List [`String "set-progress"; `String id; `Float sofar; total]) Python.expect_null
+        ) else Lwt.return ()
+      ) in
+      Hashtbl.add downloads id (cancel, updates);     (* (store updates to prevent GC) *)
       slave#invoke_async (`List [`String "start-monitoring"; details]) Python.expect_null
 
-    method stop_monitoring tmpfile =
-      slave#invoke_async (`List [`String "stop-monitoring"; `String tmpfile]) Python.expect_null
+    method stop_monitoring id =
+      Hashtbl.remove downloads id;
+      slave#invoke_async (`List [`String "stop-monitoring"; `String id]) Python.expect_null
 
     method update_key_info fingerprint xml =
       slave#invoke_async ~xml (`List [`String "update-key-info"; `String fingerprint]) Python.expect_null
@@ -104,8 +119,8 @@ class batch_ui slave =
   object (_ : #ui_handler)
     inherit python_ui slave
 
-    method! start_monitoring ~cancel:_ ~url:_ ?hint:_ ~size:_ ~tmpfile:_ = Lwt.return ()
-    method! stop_monitoring _tmpfile = Lwt.return ()
+    method! start_monitoring ~cancel:_ ~url:_ ~progress:_ ?hint:_ ~size:_ ~id:_ = Lwt.return ()
+    method! stop_monitoring _id = Lwt.return ()
 
 (* For now, for the unit-tests, fall back to Python.
 
