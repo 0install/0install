@@ -5,7 +5,7 @@ import unittest
 import warnings
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import gpg, model, trust
+from zeroinstall.injector import gpg, model
 
 err_sig = b"""<?xml version="1.0" ?>
 <?xml-stylesheet type='text/xsl' href='interface.xsl'?>

@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 import locale
 locale.setlocale(locale.LC_ALL, 'C')
-import sys, tempfile, os, shutil, imp, time
+import sys, tempfile, os, shutil, imp
 import unittest, subprocess
 import logging
 import warnings
-from xml.dom import minidom
 if sys.version_info[0] > 2:
 	from io import StringIO, BytesIO
 else:
@@ -22,7 +21,7 @@ sys.path.insert(0, '..')
 from zeroinstall.injector import qdom, namespaces
 from zeroinstall.injector import iface_cache, download, distro, model, handler, reader, trust
 from zeroinstall import support, cmd
-from zeroinstall.support import basedir, tasks
+from zeroinstall.support import basedir
 
 def skipIf(condition, reason):
 	def wrapped(underlying):

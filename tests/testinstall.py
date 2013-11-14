@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-from basetest import BaseTest, StringIO, BytesIO
-import sys, os, tempfile, subprocess, shlex
+from basetest import BaseTest, StringIO
+import sys, os, subprocess, shlex
 import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall import cmd, support
-from zeroinstall.injector import model, qdom, handler, gpg, config
+from zeroinstall.injector import model, handler, gpg, config
 
 mydir = os.path.dirname(__file__)
 

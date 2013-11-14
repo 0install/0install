@@ -144,28 +144,6 @@ def handle_message(config, options, message):
 	else:
 		assert 0, message
 
-@tasks.async
-def do_get_distro_candidates(config, ticket, package_names):
-	try:
-		global _packagekit
-		if _packagekit is None:
-			if 'ZEROINSTALL_UNITTESTS' in os.environ:
-				_packagekit = DummyPackageKit()
-			else:
-				from zeroinstall.injector import packagekit
-				_packagekit = packagekit.PackageKit()
-
-		if _packagekit.available:
-			blocker = _packagekit.fetch_candidates(package_names)
-			if blocker:
-				yield blocker
-				tasks.check(blocker)
-
-		send_json(["return", ticket, ["ok", _packagekit.available]])
-	except Exception as ex:
-		logger.warning("do_get_distro_candidates", exc_info = True)
-		send_json(["return", ticket, ["error", str(ex)]])
-
 PendingFromOCaml = collections.namedtuple("PendingFromOCaml", ["url", "sigs"])
 
 class OCamlKeyInfo:
@@ -457,9 +435,6 @@ def handle_invoke(config, options, ticket, request):
 			else:
 				path = gobject.__file__		# Python 2
 			response = (path, version)
-		elif command == 'get-distro-candidates':
-			do_get_distro_candidates(config, ticket, request[1])
-			return	# async
 		elif command == 'confirm-keys':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			do_confirm_keys(config, ticket, request[1], xml)
