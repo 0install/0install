@@ -24,8 +24,7 @@ let approve_ui =
 
 let test ?(package="gnupg") config fake_system =
   let system = (fake_system :> system) in
-  let slave = new Zeroinstall.Python.slave config in
-  let distro = new Distro.ArchLinux.arch_distribution config slave in
+  let distro = new Distro.ArchLinux.arch_distribution config in
   let feed = Test_feed.feed_of_xml system (Printf.sprintf "\
 <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://example.com/gpg'>\n\
   <name>Gpg</name>\n\

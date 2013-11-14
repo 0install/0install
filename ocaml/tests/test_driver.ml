@@ -264,9 +264,10 @@ let suite = "driver">::: [
       object
         inherit Distro.distribution config
         method is_installed = failwith "is_installed"
-        method get_all_package_impls _ = None
-        method check_for_candidates = raise_safe "Unexpected check_for_candidates"
+        method! get_package_impls _ _ = StringMap.empty
+        method! check_for_candidates = raise_safe "Unexpected check_for_candidates"
         val distro_name = "dummy"
+        val id_prefix = "package:dummy"
       end in
     let reqs = Requirements.default_requirements "http://foo/Binary.xml" in
     let fetcher =

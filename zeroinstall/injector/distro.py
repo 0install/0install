@@ -748,45 +748,6 @@ class SlackDistribution(Distribution):
 				if zi_arch != '*':
 					impl.machine = zi_arch
 
-class ArchDistribution(Distribution):
-	"""An Arch Linux distribution."""
-
-	name = 'Arch'
-
-	def __init__(self, packages_dir):
-		"""@type packages_dir: str"""
-		self._packages_dir = os.path.join(packages_dir, "local")
-
-	def get_package_info(self, package, factory):
-		# Add installed versions...
-		"""@type package: str"""
-		for entry in os.listdir(self._packages_dir):
-			name, version, build = entry.rsplit('-', 2)
-			if name == package:
-				gotarch = False
-				# (read in binary mode to avoid unicode errors in C locale)
-				with open(os.path.join(self._packages_dir, entry, "desc"), 'rb') as stream:
-					for line in stream:
-						if line == b"%ARCH%\n":
-							gotarch = True
-							continue
-						if gotarch:
-							arch = line.strip().decode('utf-8')
-							break
-				zi_arch = canonical_machine(arch)
-				clean_version = try_cleanup_distro_version("%s-%s" % (version, build))
-				if not clean_version:
-					logger.warning(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': name})
-					continue
-	
-				impl = factory('package:arch:%s:%s:%s' % \
-						(package, clean_version, zi_arch))
-				impl.version = model.parse_version(clean_version)
-				if zi_arch != '*':
-					impl.machine = zi_arch
-
-				impl.quick_test_file = os.path.join(self._packages_dir, entry, 'desc')
-
 class GentooDistribution(Distribution):
 	name = 'Gentoo'
 

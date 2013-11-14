@@ -68,8 +68,7 @@ let suite = "distro">::: [
     assert (not @@ fake_system#file_exists "/usr/bin/python2");
     fake_system#add_dir "/bin" ["python2"; "python3"];
     let system = (fake_system :> system) in
-    let slave = new Zeroinstall.Python.slave config in
-    let distro = new Distro.ArchLinux.arch_distribution config slave in
+    let distro = new Distro.ArchLinux.arch_distribution config in
     let feed = load_feed system test_feed in
     let impls = Distro.get_package_impls distro feed |> to_impl_list in
     let open F in
@@ -83,8 +82,7 @@ let suite = "distro">::: [
 
   "arch2">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     let arch_db = Test_0install.feed_dir +/ "arch" in
-    let slave = new Zeroinstall.Python.slave config in
-    let distro = new Distro.ArchLinux.arch_distribution ~arch_db config slave in
+    let distro = new Distro.ArchLinux.arch_distribution ~arch_db config in
 
     Distro.get_package_impls distro gimp_feed |> to_impl_list |> assert_equal [];
 
