@@ -13,7 +13,7 @@ The Python implementation of the Zero Install injector is divided into five sub-
 @var _: a function for translating strings using the zero-install domain (for use internally by Zero Install)
 """
 
-version = '2.5-post'
+version = '2.5.1-post'
 
 import logging
 

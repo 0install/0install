@@ -49,11 +49,16 @@ let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) ~prog
       );
       l
     );
-    size |> if_some (Curl.set_maxfilesizelarge connection);
-    modification_time |> if_some (fun modification_time ->
-      Curl.set_timecondition connection Curl.TIMECOND_IFMODSINCE;
-      Curl.set_timevalue connection (Int32.of_float modification_time);  (* Warning: 32-bit time *)
-    );
+    Curl.set_maxfilesizelarge connection (default Int64.zero size);
+
+    begin match modification_time with
+    | Some modification_time ->
+        Curl.set_timecondition connection Curl.TIMECOND_IFMODSINCE;
+        Curl.set_timevalue connection (Int32.of_float modification_time);  (* Warning: 32-bit time *)
+    | None ->
+        (* ocurl won't let us unset timecondition, but at least we can make sure it never happens *)
+        Curl.set_timevalue connection (Int32.zero) end;
+
     Curl.set_url connection url;
     Curl.set_headerfunction connection check_header;
     Curl.set_progressfunction connection (fun dltotal dlnow _ultotal _ulnow ->
