@@ -247,16 +247,22 @@ let packagekit = ref (fun config ->
           ~peer:(Dbus.OBus_peer.make ~connection:bus ~name:"org.freedesktop.PackageKit")
           ~path:["org"; "freedesktop"; "PackageKit"] in
         try_lwt
-          lwt version = IPackageKit.([p_VersionMajor; p_VersionMinor; p_VersionMicro]) |>  Lwt_list.map_p (fun prop ->
+          let version = IPackageKit.([p_VersionMajor; p_VersionMinor; p_VersionMicro]) |>  Lwt_list.map_p (fun prop ->
             Dbus.OBus_property.get (Dbus.OBus_property.make prop proxy)
           ) in
+          Lwt_timeout.create 5 (fun () -> Lwt.cancel version) |> Lwt_timeout.start;
+          lwt version = version in
           let version = version |> List.map Int32.to_int in
           log_info "Found PackageKit D-BUS service, version %s" (String.concat "." (List.map string_of_int version));
           let p = packagekit_service config proxy version in
           Lwt.return (Some p)
-        with Dbus.OBus_bus.Service_unknown msg | Dbus.OBus_error.Unknown_object msg ->
-          log_info "PackageKit not available: %s" msg;
-          Lwt.return None
+        with
+        | Lwt.Canceled ->
+            log_warning "Timed-out waiting for PackageKit to report its version number!";
+            Lwt.return None
+        | Dbus.OBus_bus.Service_unknown msg | Dbus.OBus_error.Unknown_object msg ->
+            log_info "PackageKit not available: %s" msg;
+            Lwt.return None
   ) in
 
   (* Send a single PackageKit transaction for these packages. *)
