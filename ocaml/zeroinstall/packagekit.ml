@@ -90,7 +90,7 @@ let resolve pk package_names =
     with Safe_exception _ as ex ->
       (* This is a bit broken. PackageKit seems to abort on the first unknown package, so we
        * lose the remaining results. Still, something is better than nothing... *)
-      log_info ~ex "Error resolving names with PackageKit";
+      log_debug ~ex "Error resolving names with PackageKit";
       Lwt.return () in
 
   let add map name = map |> StringMap.add name (Hashtbl.find_all details name) in
@@ -98,17 +98,19 @@ let resolve pk package_names =
   Lwt.return results
 
 (** Get the sizes of the candidate packages. *)
-let get_sizes pk package_ids =
-  let details = ref StringMap.empty in
+let get_sizes pk = function
+  | [] -> Lwt.return StringMap.empty      (* PackageKit can't handle empty queries *)
+  | package_ids ->
+      let details = ref StringMap.empty in
 
-  let update (package_id, _license, _group, _detail, _url, size) =
-    log_info "packagekit: got size %s: %s" package_id (Int64.to_string size);
-    details := !details |> StringMap.add package_id size in
+      let update (package_id, _license, _group, _detail, _url, size) =
+        log_info "packagekit: got size %s: %s" package_id (Int64.to_string size);
+        details := !details |> StringMap.add package_id size in
 
-  lwt () = pk#run_transaction [make_signal_request ITrans.s_Details update] (fun _switch proxy ->
-    Dbus.OBus_method.call ITrans.m_GetDetails proxy package_ids
-  ) in
-  Lwt.return !details
+      lwt () = pk#run_transaction [make_signal_request ITrans.s_Details update] (fun _switch proxy ->
+        Dbus.OBus_method.call ITrans.m_GetDetails proxy package_ids
+      ) in
+      Lwt.return !details
 
 let get_packagekit_id = function
   | {Feed.distro_install_info = ("packagekit", id); _} -> id
@@ -279,6 +281,11 @@ let packagekit = ref (fun config ->
         ) acc
       ) resolutions [] in
 
+      if List.length package_ids > 0 then
+        log_debug "packagekit: requesting package sizes for %s" (String.concat ", " (List.map String.escaped package_ids))
+      else
+        log_debug "packagekit: no packages found";
+
       (* Collect package sizes *)
       lwt sizes =
         try_lwt
@@ -298,6 +305,7 @@ let packagekit = ref (fun config ->
           log_info "No size returned for '%s'" packagekit_id;
           impl in
 
+      log_info "packagekit: fetch_batch done";
       (* Notify that each query is done *)
       queries |> List.iter (fun (name, resolver) ->
         let impls =
