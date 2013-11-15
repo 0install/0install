@@ -201,8 +201,6 @@ let handle_bg options flags args =
         need_gui := true;
         raise_safe "need to switch to GUI to confirm keys"
 
-      method update_key_info _fingerprint _xml = assert false
-
       method confirm msg =
         need_gui := true;
         raise_safe "need to switch to GUI to confirm distro package install: %s" msg

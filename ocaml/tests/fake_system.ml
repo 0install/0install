@@ -359,8 +359,7 @@ class null_ui =
   object (_ : #Zeroinstall.Ui.ui_handler)
     method start_monitoring ~cancel:_ ~url:_ ~progress:_ ?hint:_  ~size:_ ~id:_ = Lwt.return ()
     method stop_monitoring _ = Lwt.return ()
-    method update_key_info _fingerprint _xml = Lwt.return ()
-    method confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" feed_url
+    method confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" (Zeroinstall.Feed_url.format_url feed_url)
     method confirm msg = raise_safe "confirm: %s" msg
     method use_gui = false
   end

@@ -12,6 +12,9 @@ let string_of_ynm = function
   | No -> "no"
   | Maybe -> "maybe"
 
+type key_vote_type = Good | Bad
+type key_vote = (key_vote_type * string)
+
 class type ui_handler =
   object
     (** A new download has been added (may still be queued).
@@ -27,12 +30,10 @@ class type ui_handler =
     (** A download has finished (successful or not) *)
     method stop_monitoring : filepath -> unit Lwt.t
 
-    (** More information about a key has arrived *)
-    method update_key_info : Support.Gpg.fingerprint -> Support.Qdom.element -> unit Lwt.t
-
     (** Ask the user to confirm they trust at least one of the signatures on this feed.
+     * @param key_info a list of fingerprints and their (eventual) votes
      * Return the list of fingerprints the user wants to trust. *)
-    method confirm_keys : General.feed_url -> Support.Qdom.element -> Support.Gpg.fingerprint list Lwt.t
+    method confirm_keys : [`remote_feed of General.feed_url] -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
 
     (** Display a confirmation request *)
     method confirm : string -> [`ok | `cancel] Lwt.t
@@ -43,6 +44,12 @@ class type ui_handler =
 
 class python_ui (slave:Python.slave) =
   let downloads = Hashtbl.create 10 in
+
+  let json_of_votes =
+    List.map (function
+      | Good, msg -> `List [`String "good"; `String msg]
+      | Bad, msg -> `List [`String "bad"; `String msg]
+    ) in
 
   let () =
     Python.register_handler "abort-download" (function
@@ -89,15 +96,33 @@ class python_ui (slave:Python.slave) =
       Hashtbl.remove downloads id;
       slave#invoke_async (`List [`String "stop-monitoring"; `String id]) Python.expect_null
 
-    method update_key_info fingerprint xml =
-      slave#invoke_async ~xml (`List [`String "update-key-info"; `String fingerprint]) Python.expect_null
+    method confirm_keys feed_url infos =
+      let pending_tasks = ref [] in
 
-    method confirm_keys feed_url xml =
-      let request = `List [`String "confirm-keys"; `String feed_url] in
-      slave#invoke_async ~xml request (function
-        | `List confirmed_keys -> confirmed_keys |> List.map Yojson.Basic.Util.to_string
-        | _ -> raise_safe "Invalid response"
-      )
+      let handle_pending fingerprint votes =
+        let task =
+          lwt votes = votes in
+          let request = `List [`String "update-key-info"; `String fingerprint; `List (json_of_votes votes)] in
+          slave#invoke_async request Python.expect_null in
+        pending_tasks := task :: !pending_tasks in
+
+      try_lwt
+        let json_infos = infos |> List.map (fun (fingerprint, votes) ->
+          let json_votes =
+            match Lwt.state votes with
+            | Lwt.Sleep -> handle_pending fingerprint votes; [`String "pending"]
+            | Lwt.Fail ex -> [`List [`String "bad"; `String (Printexc.to_string ex)]]
+            | Lwt.Return votes -> json_of_votes votes in
+          (fingerprint, `List json_votes)
+        ) in
+        let request = `List [`String "confirm-keys"; `String (Feed_url.format_url feed_url); `Assoc json_infos] in
+        slave#invoke_async request (function
+          | `List confirmed_keys -> confirmed_keys |> List.map Yojson.Basic.Util.to_string
+          | _ -> raise_safe "Invalid response"
+        )
+      finally
+        !pending_tasks |> List.iter Lwt.cancel;
+        Lwt.return ()
 
     method confirm message =
       let request = `List [`String "confirm"; `String message] in
@@ -111,13 +136,78 @@ class python_ui (slave:Python.slave) =
   end
 
 class console_ui slave =
-  object
+  (* Interact with the user on stderr because we may be writing XML to stdout *)
+  let print fmt =
+    let do_print msg = prerr_string (msg ^ "\n"); flush stderr in
+    Printf.ksprintf do_print fmt in
+
+  object (self)
     inherit python_ui slave
+
+    method! confirm message =
+      prerr_endline message;
+      let rec loop () =
+        prerr_string "[Y/N] ";
+        flush stderr;
+        match trim (input_line stdin) with
+        | "N" | "n" -> `cancel
+        | "Y" | "y" -> `ok
+        | _ -> loop () in
+      loop () |> Lwt.return
+
+    method! confirm_keys feed_url key_infos =
+      print "Feed: %s" (Feed_url.format_url feed_url);
+
+      print "The feed is correctly signed with the following keys:";
+      key_infos |> List.iter (fun (fingerprint, _) ->
+        print "- %s" fingerprint
+      );
+
+      (* Print the key info as it arrives, until we have all of it or the user presses a key *)
+      let have_multiple_keys = List.length key_infos > 1 in
+      let shown = ref false in
+      let printers = key_infos |> Lwt_list.iter_p (fun (fingerprint, votes) ->
+        try_lwt
+          lwt votes = votes in
+          if have_multiple_keys then print "%s:" fingerprint;
+          votes |> List.iter (function
+            | Good, msg -> print "- %s" msg
+            | Bad, msg -> print "- BAD: %s" msg
+          );
+          if List.length votes > 0 then shown := true;
+          Lwt.return ()
+        with ex ->
+          log_warning ~ex "Failed to get key info";
+          Lwt.return ()
+      ) in
+
+      lwt () =
+        (* Only wait for a key if something is pending. This is useful for the unit-tests. *)
+        if Lwt.state printers = Lwt.Sleep then (
+          let user_interrupt =
+            lwt _ = Lwt_io.read_char Lwt_io.stdin in
+            print "Skipping remaining key lookups due to input from user";
+            Lwt.return () in
+          Lwt.pick [user_interrupt; printers]
+        ) else Lwt.return () in
+
+      if not !shown then print "Warning: Nothing known about this key!";
+
+      let domain = Trust.domain_from_url feed_url in
+      let prompt =
+        if have_multiple_keys then
+          Printf.sprintf "Do you want to trust all of these keys to sign feeds from '%s'?" domain
+        else
+          Printf.sprintf "Do you want to trust this key to sign feeds from '%s'?" domain in
+
+      match_lwt self#confirm prompt with
+      | `ok -> key_infos |> List.map fst |> Lwt.return
+      | `cancel -> Lwt.return []
   end
 
 class batch_ui slave =
   object (_ : #ui_handler)
-    inherit python_ui slave
+    inherit console_ui slave
 
     method! start_monitoring ~cancel:_ ~url:_ ~progress:_ ?hint:_ ~size:_ ~id:_ = Lwt.return ()
     method! stop_monitoring _id = Lwt.return ()

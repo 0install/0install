@@ -53,9 +53,10 @@ def make_hints_area(closed, key_info_fetcher):
 
 	shown = set()
 	def add_hints():
-		infos = set(key_info_fetcher.info) - shown
-		for info in infos:
-			hints.add(make_hint(info.getAttribute("vote"), text(info)))
+		info = tuple([tuple(x) for x in key_info_fetcher.info])
+		infos = set(info) - shown
+		for vote, msg in infos:
+			hints.add(make_hint(vote, msg))
 			shown.add(info)
 
 		if not(key_info_fetcher.blocker or shown):
@@ -233,7 +234,7 @@ class TrustBox(gtk.Dialog):
 
 		def is_unknown(sig):
 			for note in valid_sigs[sig].info:
-				if note.getAttribute("vote") == "good":
+				if note[0] == "good":
 					return False
 			return True
 		unknown = [sig for sig in to_trust if is_unknown(sig)]

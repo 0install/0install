@@ -51,6 +51,21 @@ let rec join_errors = function
         lwt exs = join_errors xs in
         ex :: exs |> Lwt.return
 
+let parse_key_info xml =
+  if xml.Q.tag <> ("", "key-lookup") then (
+    Q.raise_elem "Expected <key-lookup>, not " xml
+  );
+  xml.Q.child_nodes |> U.filter_map (fun child ->
+    match child.Q.tag with
+    | ("", "item") ->
+        let msg = child.Q.last_text_inside in
+        if Q.get_attribute_opt ("", "vote") child = Some "good" then
+          Some (Ui.Good, msg)
+        else
+          Some (Ui.Bad, msg)
+    | _ -> None
+  )
+
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
@@ -188,7 +203,7 @@ class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.
           | Some _ -> save_new_xml ()
     ) in
 
-  let fetch_key_info ~if_slow ~hint fingerprint : Q.element list Lwt.t =
+  let fetch_key_info ~if_slow ~hint fingerprint : Ui.key_vote list Lwt.t =
     try
       let result = Hashtbl.find key_info_cache fingerprint in
       match Lwt.state result with
@@ -196,27 +211,28 @@ class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.
       | Lwt.Fail _ -> raise Not_found (* Retry *)
     with Not_found ->
       let result =
-        match config.key_info_server with
-        | None -> Lwt.return []
-        | Some key_info_server ->
-            if config.dry_run then (
-              Dry_run.log "asking %s about key %s" key_info_server fingerprint;
-            );
-            let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
-            let switch = Lwt_switch.create () in
-            try_lwt
-              match_lwt downloader#download ~switch ~if_slow ~hint key_info_url with
-              | `network_failure msg -> raise_safe "%s" msg
-              | `aborted_by_user -> raise Aborted
-              | `tmpfile tmpfile ->
-                  let contents = U.read_file system tmpfile in
-                  let root = `String (0, contents) |> Xmlm.make_input |> Q.parse_input (Some key_info_url) in
-                  if root.Q.tag <> ("", "key-lookup") then (
-                    Q.raise_elem "Expected <key-lookup>, not " root
-                  );
-                  Lwt.return root.Q.child_nodes
-            finally
-              Lwt_switch.turn_off switch in
+        try_lwt
+          match config.key_info_server with
+          | None -> Lwt.return []
+          | Some key_info_server ->
+              if config.dry_run then (
+                Dry_run.log "asking %s about key %s" key_info_server fingerprint;
+              );
+              let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
+              let switch = Lwt_switch.create () in
+              try_lwt
+                match_lwt downloader#download ~switch ~if_slow ~hint key_info_url with
+                | `network_failure msg -> raise_safe "%s" msg
+                | `aborted_by_user -> raise Aborted
+                | `tmpfile tmpfile ->
+                    let contents = U.read_file system tmpfile in
+                    let root = `String (0, contents) |> Xmlm.make_input |> Q.parse_input (Some key_info_url) in
+                    Lwt.return (parse_key_info root)
+              finally
+                Lwt_switch.turn_off switch
+        with Safe_exception (msg, _) as ex ->
+          log_info ~ex "Error fetching key info";
+          Lwt.return [(Ui.Bad, "Error fetching key info: " ^ msg)] in
       Hashtbl.add key_info_cache fingerprint result;
       result in
 
@@ -265,13 +281,12 @@ class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.
         key_infos |> List.iter (fun (fingerprint, info) ->
           match Lwt.state info with
           | Lwt.Return votes -> (
-              votes |> List.iter (fun xml ->
-                if Q.get_attribute_opt ("", "vote") xml = Some "good" then (
-                  let msg = xml.Q.last_text_inside in
+              votes |> List.iter (fun (vote_type, msg) ->
+                if vote_type = Ui.Good then (
                   log_info "Automatically approving key for new feed %s based on response from key info server: %s" feed_url msg;
                   trust_db#trust_key ~domain fingerprint
                 ) else (
-                  log_info "Ignoring bad response for %s: %s" fingerprint xml.Q.last_text_inside   (* Abort here? *)
+                  log_info "Ignoring bad response for %s: %s" fingerprint msg   (* Abort here? *)
                 )
               )
           )
@@ -285,24 +300,8 @@ class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.
       let is_trusted {G.fingerprint; _} = trust_db#is_trusted ~domain fingerprint in
       if (List.exists is_trusted valid_sigs) then Lwt.return ()
       else (
-        let xml = ZI.make_root "votes" in
         let ui = Lazy.force ui in
-        key_infos |> List.iter (fun (fingerprint, info) ->
-          let elem = ZI.insert_first "result" xml in
-          Q.set_attribute "fingerprint" fingerprint elem;
-          match Lwt.state info with
-          | Lwt.Return votes -> elem.Q.child_nodes <- votes |> List.map (fun v -> Q.import_node v elem.Q.doc)
-          | Lwt.Fail ex -> Q.set_attribute "error" (Printexc.to_string ex) elem
-          | Lwt.Sleep ->
-              Q.set_attribute "pending" "true" elem;
-              Python.async (fun () ->
-                lwt info = info in
-                let root = ZI.make_root "votes" in
-                root.Q.child_nodes <- info |> List.map (fun v -> Q.import_node v root.Q.doc);
-                ui#update_key_info fingerprint root
-              )
-        );
-        lwt confirmed_keys = ui#confirm_keys feed_url xml in
+        lwt confirmed_keys = ui#confirm_keys feed key_infos in
         confirmed_keys |> List.iter (fun fingerprint ->
           log_info "Trusting %s for %s" fingerprint domain;
           trust_db#trust_key ~domain fingerprint
@@ -727,7 +726,7 @@ class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.
     let packages_task =
       if !package_impls <> [] then (
         match_lwt Distro.install_distro_packages distro (Lazy.force ui) !package_impls with
-        | `cancel -> raise Aborted
+        | `cancel -> Lwt.fail Aborted
         | `ok -> Lwt.return ()
       ) else Lwt.return () in
 

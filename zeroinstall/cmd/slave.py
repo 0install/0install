@@ -154,13 +154,11 @@ class OCamlKeyInfo:
 pending_key_info = {}		# Fingerprint -> OCamlKeyInfo
 
 @tasks.async
-def do_update_key_info(config, ticket, fingerprint, xml):
+def do_update_key_info(config, ticket, fingerprint, votes):
 	try:
 		ki = pending_key_info.get(fingerprint, None)
 		if ki:
-			from xml.dom import minidom
-			doc = minidom.parseString(qdom.to_UTF8(xml))
-			ki.info = doc.documentElement.childNodes
+			ki.info = votes
 			ki.blocker.trigger()
 			ki.blocker = None
 		else:
@@ -170,33 +168,23 @@ def do_update_key_info(config, ticket, fingerprint, xml):
 		send_json(["return", ticket, ["error", str(ex)]])
 
 @tasks.async
-def do_confirm_keys(config, ticket, url, xml):
+def do_confirm_keys(config, ticket, url, infos):
 	try:
-		if gui_driver is not None: config = gui_driver.config
+		config = gui_driver.config
 		fingerprints = []
-		#valid_sigs = [ for (fingerprint, info) in infos]
 		pending = PendingFromOCaml(url = url, sigs = [])
 
 		global pending_key_info
 		pending_key_info = {}
 		key_infos = {}
-		for result in xml.childNodes:
-			fingerprint = result.attrs['fingerprint']
+		for fingerprint, result in infos.items():
 			fingerprints.append(fingerprint)
 			sig = gpg.ValidSig([fingerprint, None, 0])
 			ki = OCamlKeyInfo()
-			if 'pending' in result.attrs:
+			if result == ['pending']:
 				ki.blocker = tasks.Blocker("Getting info for key '%s'" % fingerprint)
-			elif 'error' in result.attrs:
-				from xml.dom import minidom
-				doc = minidom.parseString('<item vote="bad"/>')
-				root = doc.documentElement
-				root.appendChild(doc.createTextNode(_('Error getting key information: %s') % result.attrs['error']))
-				ki.info = [root]
 			else:
-				from xml.dom import minidom
-				doc = minidom.parseString(qdom.to_UTF8(result))
-				ki.info = doc.documentElement.childNodes
+				ki.info = result
 			key_infos[sig] = ki
 			pending_key_info[fingerprint] = ki
 
@@ -436,12 +424,10 @@ def handle_invoke(config, options, ticket, request):
 				path = gobject.__file__		# Python 2
 			response = (path, version)
 		elif command == 'confirm-keys':
-			xml = qdom.parse(BytesIO(read_chunk()))
-			do_confirm_keys(config, ticket, request[1], xml)
+			do_confirm_keys(config, ticket, request[1], request[2])
 			return	# async
 		elif command == 'update-key-info':
-			xml = qdom.parse(BytesIO(read_chunk()))
-			do_update_key_info(config, ticket, request[1], xml)
+			do_update_key_info(config, ticket, request[1], request[2])
 			return	# async
 		elif command == 'start-monitoring':
 			response = do_start_monitoring(config, request[1])
