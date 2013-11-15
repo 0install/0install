@@ -11,6 +11,8 @@ let string_of_level = function
 
 let threshold = ref Warning
 
+let clear_fn = ref None
+
 let will_log level = level >= !threshold
 
 class type handler =
@@ -21,6 +23,13 @@ class type handler =
 let console_handler =
   object (_ : handler)
     method handle ?ex level msg =
+
+      begin match !clear_fn with
+      | None -> ()
+      | Some fn ->
+          fn ();
+          clear_fn := None end;
+
       let term = if ex = None then "\n" else ": " in
       output_string stderr (string_of_level level ^ ": " ^ msg ^ term);
       let () =

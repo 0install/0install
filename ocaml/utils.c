@@ -25,6 +25,12 @@
 #include <sys/utsname.h>
 #include <errno.h>
 
+#ifndef _WIN32
+#include <sys/ioctl.h>
+#include <stdio.h>
+#include <unistd.h>
+#endif
+
 #define Ctx_val(v) (*((EVP_MD_CTX**)Data_custom_val(v)))
 
 static void finalize_ctx(value block)
@@ -127,4 +133,17 @@ CAMLprim value ocaml_0install_uname(value v_unit) {
   }
 
   CAMLreturn(result);
+}
+
+CAMLprim value ocaml_0install_get_terminal_width(value v_unit) {
+  CAMLparam1(v_unit);
+  int width;
+#ifndef _WIN32
+  struct winsize w;
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+  width = w.ws_col;
+#else
+  width = 80;
+#endif
+  CAMLreturn(Val_int(width));
 }

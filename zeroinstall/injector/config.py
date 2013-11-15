@@ -68,10 +68,7 @@ class Config(object):
 	def handler(self):
 		if not self._handler:
 			from zeroinstall.injector import handler
-			if os.isatty(2):
-				self._handler = handler.ConsoleHandler()
-			else:
-				self._handler = handler.Handler()
+			self._handler = handler.Handler()
 		return self._handler
 
 	def save_globals(self):
