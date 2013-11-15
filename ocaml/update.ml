@@ -194,7 +194,7 @@ let handle_bg options flags args =
   let need_gui = ref false in
   let ui =
     object (_ : Zeroinstall.Ui.ui_handler)
-      method start_monitoring ~cancel:_ ~url:_ ~progress:_ ?hint:_ ~size:_ ~id:_ = Lwt.return ()
+      method start_monitoring ~cancel:_ ~url:_ ~progress:_ ?hint:_ ~id:_ = Lwt.return ()
       method stop_monitoring _id = Lwt.return ()
 
       method confirm_keys _feed_url _xml =

@@ -17,28 +17,11 @@ type key_vote = (key_vote_type * string)
 
 class type ui_handler =
   object
-    (** A new download has been added (may still be queued).
-     * @param cancel function to call to cancel the download
-     * @param url the URL being downloaded (used in the console display)
-     * @param progress a signal of (bytes-so-far, total-expected)
-     * @param hint the feed associated with this download
-     * @param size the expected size in bytes, if known
-     * @param id a unique ID for this download *)
     method start_monitoring : cancel:(unit -> unit Lwt.t) -> url:string -> progress:(Int64.t * Int64.t option) Lwt_react.S.t ->
-                              ?hint:string -> size:(Int64.t option) -> id:string -> unit Lwt.t
-
-    (** A download has finished (successful or not) *)
+                              ?hint:string -> id:string -> unit Lwt.t
     method stop_monitoring : filepath -> unit Lwt.t
-
-    (** Ask the user to confirm they trust at least one of the signatures on this feed.
-     * @param key_info a list of fingerprints and their (eventual) votes
-     * Return the list of fingerprints the user wants to trust. *)
     method confirm_keys : [`remote_feed of General.feed_url] -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
-
-    (** Display a confirmation request *)
     method confirm : string -> [`ok | `cancel] Lwt.t
-
-    (* A bit hacky: should we use Gui for solve_and_download_impls? *)
     method use_gui : bool
   end
 
@@ -64,9 +47,9 @@ class python_ui (slave:Python.slave) =
     ) in
 
   object (_ : #ui_handler)
-    method start_monitoring ~cancel ~url ~progress ?hint ~size ~id =
+    method start_monitoring ~cancel ~url ~progress ?hint ~id =
       let size =
-        match size with
+        match snd @@ Lwt_react.S.value progress with
         | None -> `Null
         | Some size -> `Float (Int64.to_float size) in
       let hint =
@@ -209,18 +192,15 @@ class batch_ui slave =
   object (_ : #ui_handler)
     inherit console_ui slave
 
-    method! start_monitoring ~cancel:_ ~url:_ ~progress:_ ?hint:_ ~size:_ ~id:_ = Lwt.return ()
+    method! start_monitoring ~cancel:_ ~url:_ ~progress:_ ?hint:_ ~id:_ = Lwt.return ()
     method! stop_monitoring _id = Lwt.return ()
 
 (* For now, for the unit-tests, fall back to Python.
-
-    method confirm_keys _feed_url _xml =
+    method! confirm_keys _feed _infos =
       raise_safe "Can't confirm keys as in batch mode."
 
-    method update_key_info _fingerprint _xml = assert false
-
-    method confirm_distro_install _package_impls =
-      raise_safe "Can't confirm installation of distribution packages as in batch mode."
+    method! confirm message =
+      raise_safe "Can't confirm in batch mode (%s)" message
 *)
   end
 

@@ -150,9 +150,9 @@ let install (ui:Ui.ui_handler) pk items =
       (* Notify the start of all downloads (we share the overall progress between them currently). *)
       lwt () =
         items |> Lwt_list.iter_p (fun (impl, rm) ->
-          let {Feed.distro_install_info = (_typ, id); Feed.distro_size = size} = rm in
+          let id = get_packagekit_id rm in
           let hint = Feed.get_attr_ex Constants.FeedAttr.from_feed impl in
-          ui#start_monitoring ~cancel ~url:"(packagekit)" ~progress ~hint ~size ~id:("packagekit:" ^ id)
+          ui#start_monitoring ~cancel ~url:"(packagekit)" ~progress ~hint ~id:("packagekit:" ^ id)
         ) in
 
       if pk#version >= [0;8;1] then

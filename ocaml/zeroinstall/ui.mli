@@ -1,0 +1,49 @@
+(* Copyright (C) 2013, Thomas Leonard
+ * See the README file for details, or visit http://0install.net.
+ *)
+
+(** Common types for user interface callbacks *)
+
+type key_vote_type = Good | Bad
+type key_vote = (key_vote_type * string)
+
+class type ui_handler =
+  object
+    (** A new download has been added (may still be queued).
+     * @param cancel function to call to cancel the download
+     * @param url the URL being downloaded (used in the console display)
+     * @param progress a signal of (bytes-so-far, total-expected)
+     * @param hint the feed associated with this download
+     * @param id a unique ID for this download *)
+    method start_monitoring : cancel:(unit -> unit Lwt.t) -> url:string -> progress:(Int64.t * Int64.t option) Lwt_react.S.t ->
+                              ?hint:string -> id:string -> unit Lwt.t
+
+    (** A download has finished (successful or not) *)
+    method stop_monitoring : string -> unit Lwt.t
+
+    (** Ask the user to confirm they trust at least one of the signatures on this feed.
+     * @param key_info a list of fingerprints and their (eventual) votes
+     * Return the list of fingerprints the user wants to trust. *)
+    method confirm_keys : [`remote_feed of General.feed_url] -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
+
+    (** Display a confirmation request *)
+    method confirm : string -> [`ok | `cancel] Lwt.t
+
+    (* A bit hacky: should we use Gui for solve_and_download_impls? *)
+    method use_gui : bool
+  end
+
+(** Should we use the GUI?
+ * The input says what the user requested:
+ * No -> we never want to use the GUI
+ * Yes -> we always want to use the GUI, and throw an exception if it's not available
+ * Maybe -> we want to use the GUI iff it's available
+ *)
+val check_gui : Support.Common.system -> Python.slave -> Support.Common.yes_no_maybe -> bool
+
+(** Create a UI appropriate for the current environment and user options.
+ * This will be a graphical UI if [check_gui] returns [true] and we're not in dry-run mode.
+ * Otherwise, it will be an interactive console UI if stderr is a tty.
+ * Otherwise, it will be a batch UI (no progress display).
+ *)
+val make_ui :  General.config -> Python.slave -> (unit -> Support.Common.yes_no_maybe) -> ui_handler Lazy.t 
