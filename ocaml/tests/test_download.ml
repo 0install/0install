@@ -292,7 +292,7 @@ let suite = "download">::: [
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     let slave = new Zeroinstall.Python.slave config in
-    let deb = new Zeroinstall.Distro.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config slave in
+    let deb = Zeroinstall.Distro.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config slave in
 
     Fake_system.fake_log#reset;
     Lwt_main.run @@ deb#check_for_candidates feed;
@@ -720,7 +720,7 @@ let suite = "download">::: [
       [("/missing.png", `Give404)];
     ];
     let slave = new Zeroinstall.Python.slave config in
-    let distro = new Zeroinstall.Distro.generic_distribution slave in
+    let distro = Zeroinstall.Distro.generic_distribution slave in
     let downloader = new Zeroinstall.Downloader.downloader Fake_system.null_ui  ~max_downloads_per_site:2 in
     let feed_provider = new Zeroinstall.Feed_provider.feed_provider config distro in
     let iface = Test_0install.feed_dir +/ "Binary.xml" in

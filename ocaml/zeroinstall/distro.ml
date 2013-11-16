@@ -69,19 +69,53 @@ let package_impl_from_packagekit id elem props distro_name info =
 class type query =
   object
     method package_name : string
-    method add_result : string -> Feed.implementation -> unit
     method elem : Qdom.element
     method props : Feed.properties
     method feed : Feed.feed
+
+    method add_result : string -> Feed.implementation -> unit
+    method add_package_implementation :
+      id:string ->
+      version:string ->
+      machine:string ->   (* Use "*" for "any" *)
+      extra_attrs:((string * string) list) ->
+      is_installed:bool ->
+      distro_name:string ->
+      unit
   end
 
-let make_query feed elem props results =
-  object (_ : query)
+let make_query distro feed elem props results =
+  object (self : query)
     method package_name = ZI.get_attribute Constants.FeedAttr.package elem
-    method add_result id impl = results := StringMap.add id impl !results
     method elem = elem
     method props = props
     method feed = feed
+    method add_result id impl = results := StringMap.add id impl !results
+
+    (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes.
+     * If [is_installed] is [true], we also call [distribution#fixup_main] on it.
+     *)
+    method add_package_implementation ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name =
+      if is_installed then distro#fixup_main props;
+      let new_attrs = ref props.Feed.attrs in
+      let set name value =
+        new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
+      set "id" id;
+      set "version" version;
+      set "from-feed" @@ "distribution:" ^ (Feed.AttrMap.find ("", "from-feed") !new_attrs);
+      List.iter (fun (n, v) -> set n v) extra_attrs;
+      let open Feed in
+      let impl = {
+        qdom = elem;
+        os = None;
+        machine = Arch.none_if_star machine;
+        stability = Packaged;
+        props = {props with attrs = !new_attrs};
+        parsed_version = Versions.parse_version version;
+        impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name; retrieval_method = None };
+      } in
+      self#add_result id impl
+
   end
 
 (** Get the native implementations (installed or candidates for installation), based on the <package-implementation> elements
@@ -92,7 +126,7 @@ let get_package_impls distro feed =
   | matches ->
       let results = ref StringMap.empty in
       matches |> List.iter (fun (elem, props) ->
-        distro#get_package_impls (make_query feed elem props results);
+        distro#get_package_impls (make_query distro feed elem props results);
       );
       Some !results
 
@@ -126,7 +160,7 @@ class virtual distribution config =
     (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value.
         The default implementation checks that main exists, and searches [system_paths] for
         it if not. *)
-    method private fixup_main props =
+    method fixup_main props =
       let open Feed in
       match get_command_opt "run" props.commands with
       | None -> ()
@@ -149,32 +183,7 @@ class virtual distribution config =
                   log_info "Binary '%s' not found in any system path (checked %s)" basename (String.concat ", " system_paths)
               )
 
-    (** Helper for [get_package_impls]. *)
-    method private add_package_implementation query ~id ~version ~machine ~extra_attrs ~is_installed =
-      let props = query#props in
-      if is_installed then self#fixup_main props;
-      let new_attrs = ref props.Feed.attrs in
-      let set name value =
-        new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
-      set "id" id;
-      set "version" version;
-      set "from-feed" @@ "distribution:" ^ (Feed.AttrMap.find ("", "from-feed") !new_attrs);
-      List.iter (fun (n, v) -> set n v) extra_attrs;
-      let open Feed in
-      let impl = {
-        qdom = query#elem;
-        os = None;
-        machine = Arch.none_if_star machine;
-        stability = Packaged;
-        props = {props with attrs = !new_attrs};
-        parsed_version = Versions.parse_version version;
-        impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name; retrieval_method = None };
-      } in
-      query#add_result id impl
-
-    (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
-        promise resolves, the candidates should be included in the response from get_package_impls.
-        The default implementation queries PackageKit, if available. *)
+    (* This default implementation queries PackageKit, if available. *)
     method check_for_candidates feed =
       match get_matching_package_impls self feed with
       | [] -> Lwt.return ()
@@ -397,7 +406,7 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
     method private invoke = invoke
   end
 
-class generic_distribution slave =
+let generic_distribution slave =
   object
     inherit python_fallback_distribution slave "Distribution" []
     val check_host_python = true
@@ -524,7 +533,7 @@ module Debian = struct
     size : Int64.t option;
   }
 
-  class debian_distribution ?(status_file=dpkg_db_status) config slave =
+  let debian_distribution ?(status_file=dpkg_db_status) config slave =
     let apt_cache = Hashtbl.create 10 in
     let system = config.system in
 
@@ -580,7 +589,7 @@ module Debian = struct
         let entry = try Hashtbl.find apt_cache package_name with Not_found -> None in
         entry |> if_some (fun {version; machine; size = _} ->
           let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
-          self#add_package_implementation query ~is_installed:false ~id ~version ~machine ~extra_attrs:[]
+          query#add_package_implementation ~is_installed:false ~id ~version ~machine ~extra_attrs:[] ~distro_name
         );
 
         (* If our dpkg cache is up-to-date, add from there. Otherwise, add from Python. *)
@@ -593,7 +602,7 @@ module Debian = struct
                 match Str.split_delim U.re_tab cached_info with
                 | [version; machine] ->
                     let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
-                    self#add_package_implementation query ~is_installed:true ~id ~version ~machine ~extra_attrs:[]
+                    query#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[] ~distro_name
                 | _ ->
                     log_warning "Unknown cache line format for '%s': %s" package_name cached_info
               )
@@ -618,7 +627,7 @@ end
 module RPM = struct
   let rpm_db_packages = "/var/lib/rpm/Packages"
 
-  class rpm_distribution ?(status_file = rpm_db_packages) config slave =
+  let rpm_distribution ?(status_file = rpm_db_packages) config slave =
     object
       inherit python_fallback_distribution slave "RPMDistribution" [status_file] as super
       val check_host_python = false
@@ -636,7 +645,7 @@ end
 module ArchLinux = struct
   let arch_db = "/var/lib/pacman"
 
-  class arch_distribution ?(arch_db=arch_db) config =
+  let arch_distribution ?(arch_db=arch_db) config =
     let packages_dir = arch_db ^ "/local" in
     let parse_dirname entry =
       try
@@ -679,7 +688,7 @@ module ArchLinux = struct
       )
       | _ -> items in
 
-    object (self : #distribution)
+    object (_ : #distribution)
       inherit distribution config as super
       val check_host_python = false
 
@@ -710,7 +719,7 @@ module ArchLinux = struct
               | None -> ()
               | Some version ->
                   let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
-                  self#add_package_implementation query ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)];
+                  query#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)] ~distro_name
         with Not_found -> ()
     end
 end
@@ -720,7 +729,7 @@ module Mac = struct
 
   (* Note: we currently don't have or need DarwinDistribution, because that uses quick-test-* attributes *)
 
-  class macports_distribution ?(macports_db=macports_db) config slave =
+  let macports_distribution ?(macports_db=macports_db) config slave =
     object
       inherit python_fallback_distribution slave "MacPortsDistribution" [macports_db] as super
       val check_host_python = true
@@ -738,7 +747,7 @@ module Mac = struct
       method! match_name name = (name = distro_name || name = "Darwin")
     end
 
-  class darwin_distribution _config slave =
+  let darwin_distribution _config slave =
     object
       inherit python_fallback_distribution slave "DarwinDistribution" []
       val check_host_python = true
@@ -748,7 +757,7 @@ module Mac = struct
 end
 
 module Win = struct
-  class windows_distribution _config slave =
+  let windows_distribution _config slave =
     object
       inherit python_fallback_distribution slave "WindowsDistribution" [] as super
       val check_host_python = false (* (0install's bundled Python may not be generally usable) *)
@@ -777,7 +786,7 @@ module Win = struct
 
   let cygwin_log = "/var/log/setup.log"
 
-  class cygwin_distribution config slave =
+  let cygwin_distribution config slave =
     object
       inherit python_fallback_distribution slave "CygwinDistribution" ["/var/log/setup.log"] as super
       val check_host_python = false (* (0install's bundled Python may not be generally usable) *)
@@ -795,7 +804,7 @@ end
 module Ports = struct
   let pkg_db = "/var/db/pkg"
 
-  class ports_distribution ?(pkgdir=pkg_db) _config slave =
+  let ports_distribution ?(pkgdir=pkg_db) _config slave =
     object
       inherit python_fallback_distribution slave "PortsDistribution" [pkgdir]
       val check_host_python = true
@@ -805,7 +814,7 @@ module Ports = struct
 end
 
 module Gentoo = struct
-  class gentoo_distribution ?(pkgdir=Ports.pkg_db) _config slave =
+  let gentoo_distribution ?(pkgdir=Ports.pkg_db) _config slave =
     object
       inherit python_fallback_distribution slave "GentooDistribution" [pkgdir]
       val check_host_python = false
@@ -817,7 +826,7 @@ end
 module Slackware = struct
   let slack_db = "/var/log/packages"
 
-  class slack_distribution ?(packages_dir=slack_db) _config slave =
+  let slack_distribution ?(packages_dir=slack_db) _config slave =
     object
       inherit python_fallback_distribution slave "SlackDistribution" [packages_dir]
       val check_host_python = false
@@ -837,31 +846,29 @@ let get_host_distribution config (slave:Python.slave) : distribution =
         | _ -> false in
 
       if is_debian then
-        new Debian.debian_distribution config slave
+        Debian.debian_distribution config slave
       else if x ArchLinux.arch_db then
-        new ArchLinux.arch_distribution config
+        ArchLinux.arch_distribution config
       else if x RPM.rpm_db_packages then
-        new RPM.rpm_distribution config slave
+        RPM.rpm_distribution config slave
       else if x Mac.macports_db then
-        new Mac.macports_distribution config slave
+        Mac.macports_distribution config slave
       else if x Ports.pkg_db then (
         if config.system#platform.Platform.os = "Linux" then
-          new Gentoo.gentoo_distribution config slave
+          Gentoo.gentoo_distribution config slave
         else
-          new Ports.ports_distribution config slave
+          Ports.ports_distribution config slave
       ) else if x Slackware.slack_db then
-        new Slackware.slack_distribution config slave
+        Slackware.slack_distribution config slave
       else if config.system#platform.Platform.os = "Darwin" then
-        new Mac.darwin_distribution config slave
+        Mac.darwin_distribution config slave
       else
-        new generic_distribution slave
-  | "Win32" -> new Win.windows_distribution config slave
-  | "Cygwin" -> new Win.cygwin_distribution config slave
+        generic_distribution slave
+  | "Win32" -> Win.windows_distribution config slave
+  | "Cygwin" -> Win.cygwin_distribution config slave
   | _ ->
-      new generic_distribution slave
+      generic_distribution slave
 
-(** Check whether this <selection> is still valid. If the quick-test-* attributes are present, use
-    them to check. Otherwise, call the appropriate method on [config.distro]. *)
 let is_installed config (distro:distribution) elem =
   match ZI.get_attribute_opt "quick-test-file" elem with
   | None -> distro#is_installed elem

@@ -68,7 +68,7 @@ let suite = "distro">::: [
     assert (not @@ fake_system#file_exists "/usr/bin/python2");
     fake_system#add_dir "/bin" ["python2"; "python3"];
     let system = (fake_system :> system) in
-    let distro = new Distro.ArchLinux.arch_distribution config in
+    let distro = Distro.ArchLinux.arch_distribution config in
     let feed = load_feed system test_feed in
     let impls = Distro.get_package_impls distro feed |> to_impl_list in
     let open F in
@@ -82,7 +82,7 @@ let suite = "distro">::: [
 
   "arch2">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     let arch_db = Test_0install.feed_dir +/ "arch" in
-    let distro = new Distro.ArchLinux.arch_distribution ~arch_db config in
+    let distro = Distro.ArchLinux.arch_distribution ~arch_db config in
 
     Distro.get_package_impls distro gimp_feed |> to_impl_list |> assert_equal [];
 
@@ -97,7 +97,7 @@ let suite = "distro">::: [
     let slackdir = Test_0install.feed_dir +/ "slack" in
     let packages_dir = slackdir +/ "packages" in
     let slave = new Zeroinstall.Python.slave config in
-    let distro = new Distro.Slackware.slack_distribution ~packages_dir config slave in
+    let distro = Distro.Slackware.slack_distribution ~packages_dir config slave in
 
     Distro.get_package_impls distro gimp_feed |> to_impl_list |> assert_equal [];
 
@@ -112,7 +112,7 @@ let suite = "distro">::: [
   "gentoo">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     let pkgdir = Test_0install.feed_dir +/ "gentoo" in
     let slave = new Zeroinstall.Python.slave config in
-    let distro = new Distro.Gentoo.gentoo_distribution ~pkgdir config slave in
+    let distro = Distro.Gentoo.gentoo_distribution ~pkgdir config slave in
 
     Distro.get_package_impls distro gimp_feed |> to_impl_list |> assert_equal [];
 
@@ -145,7 +145,7 @@ let suite = "distro">::: [
   "ports">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     let pkgdir = Test_0install.feed_dir +/ "ports" in
     let slave = new Zeroinstall.Python.slave config in
-    let distro = new Distro.Ports.ports_distribution ~pkgdir config slave in
+    let distro = Distro.Ports.ports_distribution ~pkgdir config slave in
 
     begin match Distro.get_package_impls distro (make_test_feed "zeroinstall-injector") |> to_impl_list with
     | [impl] ->
@@ -160,7 +160,7 @@ let suite = "distro">::: [
     Unix.putenv "PATH" (pkgdir ^ ":" ^ old_path);
     let slave = new Zeroinstall.Python.slave config in
     let macports_db = pkgdir +/ "registry.db" in
-    let distro = new Distro.Mac.macports_distribution ~macports_db config slave in
+    let distro = Distro.Mac.macports_distribution ~macports_db config slave in
 
     begin match Distro.get_package_impls distro (make_test_feed "zeroinstall-injector") |> to_impl_list with
     | [impl] ->
@@ -184,7 +184,7 @@ let suite = "distro">::: [
     fake_system#set_spawn_handler (Some my_spawn_handler);
 
     let slave = new Zeroinstall.Python.slave config in
-    let distro = new Distro.generic_distribution slave in
+    let distro = Distro.generic_distribution slave in
 
     let open F in
     let is_host (id, _impl) = U.starts_with id "package:host:" in
@@ -229,7 +229,7 @@ let suite = "distro">::: [
     Unix.putenv "PATH" (rpmdir ^ ":" ^ old_path);
 
     let slave = new Zeroinstall.Python.slave config in
-    let rpm = new Distro.RPM.rpm_distribution ~status_file:(rpmdir +/ "Packages") config slave in
+    let rpm = Distro.RPM.rpm_distribution ~status_file:(rpmdir +/ "Packages") config slave in
 
     let get_feed xml = load_feed config.system (Printf.sprintf
       "<?xml version='1.0'?>\n\
@@ -287,7 +287,7 @@ let suite = "distro">::: [
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     let slave = new Zeroinstall.Python.slave config in
-    let deb = new Distro.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config slave in
+    let deb = Distro.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config slave in
     begin match to_impl_list @@ Distro.get_package_impls deb feed with
     | [impl] ->
         Fake_system.assert_str_equal "package:deb:python-bittorrent:3.4.2-10:*" (F.get_attr_ex "id" impl);
