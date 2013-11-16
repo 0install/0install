@@ -27,6 +27,7 @@ module FeedAttr =
     let uri = "uri"
     let from_feed = "from-feed"
     let doc_dir = "doc-dir"
+    let package = "package"
   end
 
 module FeedConfigAttr =

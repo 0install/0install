@@ -34,13 +34,6 @@ let get_matching_package_impls distro feed =
   );
   !best_impls
 
-(** Get the native implementations (installed or candidates for installation), based on the <package-implementation> elements
-    in [feed]. Returns [None] if there were no matching elements (which means that we didn't even check the distribution). *)
-let get_package_impls distro feed =
-  match get_matching_package_impls distro feed with
-  | [] -> None
-  | matches -> Some (distro#get_package_impls feed matches)
-
 let package_impl_from_packagekit id elem props distro_name info =
   let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
   let open Feed in
@@ -73,6 +66,36 @@ let package_impl_from_packagekit id elem props distro_name info =
   } in
   pkg
 
+class type query =
+  object
+    method package_name : string
+    method add_result : string -> Feed.implementation -> unit
+    method elem : Qdom.element
+    method props : Feed.properties
+    method feed : Feed.feed
+  end
+
+let make_query feed elem props results =
+  object (_ : query)
+    method package_name = ZI.get_attribute Constants.FeedAttr.package elem
+    method add_result id impl = results := StringMap.add id impl !results
+    method elem = elem
+    method props = props
+    method feed = feed
+  end
+
+(** Get the native implementations (installed or candidates for installation), based on the <package-implementation> elements
+    in [feed]. Returns [None] if there were no matching elements (which means that we didn't even check the distribution). *)
+let get_package_impls distro feed =
+  match get_matching_package_impls distro feed with
+  | [] -> None
+  | matches ->
+      let results = ref StringMap.empty in
+      matches |> List.iter (fun (elem, props) ->
+        distro#get_package_impls (make_query feed elem props results);
+      );
+      Some !results
+
 class virtual distribution config =
   let system = config.system in
   object (self)
@@ -90,17 +113,15 @@ class virtual distribution config =
     (** All IDs will start with this string (e.g. "package:deb") *)
     val virtual id_prefix : string
 
-    (** List the implementations for this feed. This default implementation adds anything found previously by PackageKit. *)
-    method get_package_impls (_feed:Feed.feed) matches : Feed.implementation StringMap.t =
-      let add_candidates map (elem, props) =
-        let package_name = ZI.get_attribute "package" elem in
-        let add map info =
-          let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name
-            (Versions.format_version info.Packagekit.version) (default "*" info.Packagekit.machine) in
-          let impl = package_impl_from_packagekit id elem props distro_name info in
-          StringMap.add id impl map in
-        packagekit#get_impls package_name |> List.fold_left add map in
-      List.fold_left add_candidates StringMap.empty matches
+    (** Populate [query] with the implementations for this feed. This default implementation adds anything found previously by PackageKit. *)
+    method get_package_impls (query:query) : unit =
+      let package_name = query#package_name in
+      packagekit#get_impls package_name |> List.iter (fun info ->
+        let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name
+          (Versions.format_version info.Packagekit.version) (default "*" info.Packagekit.machine) in
+        let impl = package_impl_from_packagekit id query#elem query#props distro_name info in
+        query#add_result id impl
+      )
 
     (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value.
         The default implementation checks that main exists, and searches [system_paths] for
@@ -129,7 +150,8 @@ class virtual distribution config =
               )
 
     (** Helper for [get_package_impls]. *)
-    method private add_package_implementation elem props ~id ~version ~machine ~extra_attrs ~is_installed map =
+    method private add_package_implementation query ~id ~version ~machine ~extra_attrs ~is_installed =
+      let props = query#props in
       if is_installed then self#fixup_main props;
       let new_attrs = ref props.Feed.attrs in
       let set name value =
@@ -140,7 +162,7 @@ class virtual distribution config =
       List.iter (fun (n, v) -> set n v) extra_attrs;
       let open Feed in
       let impl = {
-        qdom = elem;
+        qdom = query#elem;
         os = None;
         machine = Arch.none_if_star machine;
         stability = Packaged;
@@ -148,7 +170,7 @@ class virtual distribution config =
         parsed_version = Versions.parse_version version;
         impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name; retrieval_method = None };
       } in
-      StringMap.add id impl map
+      query#add_result id impl
 
     (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
         promise resolves, the candidates should be included in the response from get_package_impls.
@@ -181,7 +203,7 @@ class virtual distribution config =
              use that to install things. The packages are:\n\n- %s" typ (String.concat "\n- " names))
   end
 
-let package_impl_from_json ~prefix elem props json =
+let package_impl_from_json elem props json =
   let open Feed in
   let pkg_type = ref @@ { package_installed = false; package_distro = "unknown"; retrieval_method = None } in
   let new_props = ref props in
@@ -218,7 +240,7 @@ let package_impl_from_json ~prefix elem props json =
   match json with
   | `Assoc lst ->
       ListLabels.iter lst ~f:(function
-        | ("id", `String v) -> set "id" (prefix ^ v)
+        | ("id", `String v) -> set "id" v
         | ("version", `String v) -> set "version" v; pkg := {!pkg with parsed_version = Versions.parse_version v}
         | ("machine", `String v) -> pkg := {!pkg with machine = Arch.none_if_star v}
         | ("machine", `Null) -> ()
@@ -291,7 +313,8 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
 
   let fake_host_doc = (ZI.make_root "<fake-host-root>").Qdom.doc in
 
-  let get_host_impls map = function
+  let get_host_impls query =
+    match query#feed.Feed.url with
     | `remote_feed "http://repo.roscidus.com/python/python" as url ->
         (* Hack: we can support Python on platforms with unsupported package managers
            by adding the implementation of Python running the slave now to the list. *)
@@ -305,7 +328,7 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
         run |> Q.set_attribute "name" "run";
         run |> Q.set_attribute "path" path;
         let commands = StringMap.singleton "run" Feed.({command_qdom = run; command_requires = []}) in
-        map |> StringMap.add id @@ make_host_impl path version ~commands url id
+        query#add_result id @@ make_host_impl path version ~commands url id
     | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
         let path, version =
           invoke "get-gobject-details" [] (function
@@ -314,16 +337,16 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
           ) |> Lwt_main.run in
         let id = "package:host:python-gobject:" ^ version in
         let requires = [make_restricts_distro fake_host_doc "http://repo.roscidus.com/python/python" "host"] in
-        map |> StringMap.add id @@ make_host_impl path version ~requires url id
-    | _ -> map in
+        query#add_result id @@ make_host_impl path version ~requires url id
+    | _ -> () in
 
-  let to_impls ?(prefix="") map (elem, props) = function
+  let to_impls query = function
     | `List pkgs ->
-        let add_impl map pkg =
-          let impl = package_impl_from_json ~prefix elem props pkg in
+        pkgs |> List.iter (fun pkg ->
+          let impl = package_impl_from_json query#elem query#props pkg in
           let id = Feed.get_attr_ex FeedAttr.id impl in
-          map |> StringMap.add id impl in
-        List.fold_left add_impl map pkgs
+          query#add_result id impl
+        )
     | _ -> raise_safe "Not a group list" in
 
   object (self)
@@ -355,21 +378,19 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
           with Not_found -> false
 
     (** Gets PackageKit impls (from super), plus host Python impls, plus anything from [add_package_impls_from_python] *)
-    method! get_package_impls feed matches =
-      let impls = super#get_package_impls feed matches in
-      let impls =
-        if check_host_python then get_host_impls impls feed.Feed.url
-        else impls in
-      self#add_package_impls_from_python impls feed matches
+    method! get_package_impls query =
+      super#get_package_impls query;
+      if check_host_python then get_host_impls query;
+      self#add_package_impls_from_python query
 
     (** Query the Python slave and add any implementations returned. Override this if you can sometimes skip this step. *)
-    method private add_package_impls_from_python impls feed matches =
-      let fake_feed = ZI.make feed.Feed.root.Q.doc "interface" in
-      fake_feed.Q.child_nodes <- List.map fst matches;
+    method private add_package_impls_from_python query =
+      let fake_feed = ZI.make query#feed.Feed.root.Q.doc "interface" in
+      fake_feed.Q.child_nodes <- [query#elem];
 
-      invoke ~xml:fake_feed "get-package-impls" [`String (Feed_url.format_url feed.Feed.url)] (function
-        | `List pkg_groups ->
-            List.fold_left2 to_impls impls matches pkg_groups
+      invoke ~xml:fake_feed "get-package-impls" [`String (Feed_url.format_url query#feed.Feed.url)] (function
+        | `List [pkg_group] ->
+            to_impls query pkg_group
         | _ -> raise_safe "Invalid response"
       ) |> Lwt_main.run
 
@@ -553,40 +574,31 @@ module Debian = struct
         try check_cache id_prefix elem cache
         with Fallback_to_Python -> super#is_installed elem
 
-      method! private add_package_impls_from_python impls feed matches =
+      method! private add_package_impls_from_python query =
         (* Add apt-cache candidates (there won't be any if we used PackageKit) *)
-        let impls = matches |> List.fold_left (fun impls (elem, props) ->
-          let package = ZI.get_attribute "package" elem in
-          let entry = try Hashtbl.find apt_cache package with Not_found -> None in
-          match entry with
-          | Some {version; machine; size = _} ->
-              let id = Printf.sprintf "package:deb:%s:%s:%s" package version machine in
-              impls |> self#add_package_implementation elem props ~is_installed:false ~id ~version ~machine ~extra_attrs:[]
-          | None -> impls
-        ) impls in
+        let package_name = query#package_name in
+        let entry = try Hashtbl.find apt_cache package_name with Not_found -> None in
+        entry |> if_some (fun {version; machine; size = _} ->
+          let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
+          self#add_package_implementation query ~is_installed:false ~id ~version ~machine ~extra_attrs:[]
+        );
 
         (* If our dpkg cache is up-to-date, add from there. Otherwise, add from Python. *)
         try
-          matches |> List.fold_left (fun impls (elem, props) ->
-            let package_name = ZI.get_attribute "package" elem in
-            let process map cached_info =
-              match Str.split_delim U.re_tab cached_info with
-              | [version; machine] ->
-                  let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
-                  map |> self#add_package_implementation elem props ~is_installed:true
-                    ~id ~version ~machine ~extra_attrs:[]
-              | _ ->
-                  log_warning "Unknown cache line format for '%s': %s" package_name cached_info;
-                  raise Fallback_to_Python
-            in
-
-            match cache#get package_name with
-            | [] -> raise Fallback_to_Python      (* We don't know anything about this package *)
-            | ["-"] -> impls                      (* We know the package isn't installed *)
-            | infos -> List.fold_left process impls infos
-          ) impls
+          match cache#get package_name with
+          | [] -> raise Fallback_to_Python      (* We don't know anything about this package *)
+          | ["-"] -> ()                         (* We know the package isn't installed *)
+          | infos ->
+              infos |> List.iter (fun cached_info ->
+                match Str.split_delim U.re_tab cached_info with
+                | [version; machine] ->
+                    let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
+                    self#add_package_implementation query ~is_installed:true ~id ~version ~machine ~extra_attrs:[]
+                | _ ->
+                    log_warning "Unknown cache line format for '%s': %s" package_name cached_info
+              )
         with Fallback_to_Python ->
-          super#add_package_impls_from_python impls feed matches
+          super#add_package_impls_from_python query
 
     method! check_for_candidates feed =
       match get_matching_package_impls self feed with
@@ -677,31 +689,29 @@ module ArchLinux = struct
       (* We should never get here for an installed package, because we always set quick-test-* *)
       method is_installed _elem = false
 
-      method! get_package_impls feed matches =
+      method! get_package_impls query =
         (* Start with impls from PackageKit *)
-        let impls = super#get_package_impls feed matches in
+        super#get_package_impls query;
 
         (* Check the local package database *)
-        matches |> List.fold_left (fun map (elem, props) ->
-          let package_name = ZI.get_attribute "package" elem in
-          log_debug "Looking up distribution packages for %s" package_name;
-          let items = get_entries () in
-          try
-            let version = StringMap.find package_name items in
-            let entry = package_name ^ "-" ^ version in
-            let desc_path = packages_dir +/ entry +/ "desc" in
-            match get_arch desc_path with
-            | None ->
-                log_warning "No ARCH in %s" desc_path; map
-            | Some arch ->
-                let machine = Support.System.canonical_machine arch in
-                match try_cleanup_distro_version_warn version package_name with
-                | None -> map
-                | Some version ->
-                    let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
-                    map |> self#add_package_implementation elem props ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)];
-          with Not_found -> map
-        ) impls
+        let package_name = query#package_name in
+        log_debug "Looking up distribution packages for %s" package_name;
+        let items = get_entries () in
+        try
+          let version = StringMap.find package_name items in
+          let entry = package_name ^ "-" ^ version in
+          let desc_path = packages_dir +/ entry +/ "desc" in
+          match get_arch desc_path with
+          | None ->
+              log_warning "No ARCH in %s" desc_path
+          | Some arch ->
+              let machine = Support.System.canonical_machine arch in
+              match try_cleanup_distro_version_warn version package_name with
+              | None -> ()
+              | Some version ->
+                  let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
+                  self#add_package_implementation query ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)];
+        with Not_found -> ()
     end
 end
 
@@ -748,20 +758,18 @@ module Win = struct
       val distro_name = "Windows"
       val id_prefix = "package:windows"
 
-      method! private add_package_impls_from_python impls feed matches =
+      method! private add_package_impls_from_python query =
         try
-          matches |> List.fold_left (fun map (elem, _props) ->
-            let package_name = ZI.get_attribute "package" elem in
-            match package_name with
-            | "openjdk-6-jre" | "openjdk-6-jdk"
-            | "openjdk-7-jre" | "openjdk-7-jdk"
-            | "netfx" | "netfx-client" ->
-                Qdom.log_elem Support.Logging.Info "FIXME: Windows: can't check for package '%s':" package_name elem;
-                raise Fallback_to_Python
-            | _ -> map
-          ) impls
+          let package_name = query#package_name in
+          match package_name with
+          | "openjdk-6-jre" | "openjdk-6-jdk"
+          | "openjdk-7-jre" | "openjdk-7-jdk"
+          | "netfx" | "netfx-client" ->
+              Qdom.log_elem Support.Logging.Info "FIXME: Windows: can't check for package '%s':" package_name query#elem;
+              raise Fallback_to_Python
+          | _ -> ()
         with Fallback_to_Python ->
-          super#add_package_impls_from_python impls feed matches
+          super#add_package_impls_from_python query
 
         (* No PackageKit support on Windows *)
       method! check_for_candidates _feed = Lwt.return ()

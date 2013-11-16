@@ -352,34 +352,31 @@ let suite = "solver">::: [
     let distro =
       object
         inherit Distro.generic_distribution slave as super
-        method! get_package_impls _feed = function
-          | [(elem, props)] ->
-              StringMap.empty
-                |> super#add_package_implementation elem props
-                  ~is_installed:true
-                  ~id:"package:is_distro_v1-1"
-                  ~machine:"x86_64"
-                  ~version:"1-1"
-                  ~extra_attrs:[]
-                |> super#add_package_implementation elem props
-                  ~is_installed:false
-                  ~id:"package:root_install_needed_2"
-                  ~machine:"x86_64"
-                  ~version:"1-1"
-                  ~extra_attrs:[]
-                |> super#add_package_implementation elem props
-                  ~is_installed:false
-                  ~id:"package:root_install_needed_1"
-                  ~machine:"x86_64"
-                  ~version:"1-1"
-                  ~extra_attrs:[]
-                |> super#add_package_implementation elem props
-                  ~is_installed:true
-                  ~id:"package:buggy"
-                  ~machine:"x86_64"
-                  ~version:"1-1"
-                  ~extra_attrs:[]
-          | _ -> assert false
+        method! get_package_impls query =
+          super#add_package_implementation query
+            ~is_installed:true
+            ~id:"package:is_distro_v1-1"
+            ~machine:"x86_64"
+            ~version:"1-1"
+            ~extra_attrs:[];
+          super#add_package_implementation query
+            ~is_installed:false
+            ~id:"package:root_install_needed_2"
+            ~machine:"x86_64"
+            ~version:"1-1"
+            ~extra_attrs:[];
+          super#add_package_implementation query
+            ~is_installed:false
+            ~id:"package:root_install_needed_1"
+            ~machine:"x86_64"
+            ~version:"1-1"
+            ~extra_attrs:[];
+          super#add_package_implementation query
+            ~is_installed:true
+            ~id:"package:buggy"
+            ~machine:"x86_64"
+            ~version:"1-1"
+            ~extra_attrs:[]
       end in
 
     let feed_provider =
