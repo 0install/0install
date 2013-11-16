@@ -133,8 +133,9 @@ let suite = "download">::: [
 
   "recipe">:: Server.with_server (fun (_config, fake_system) server ->
     server#expect [
-      [("HelloWorld.tar.bz2", `Serve); ("/redirect/dummy_1-1_all.deb", `Redirect "/dummy_1-1_all.deb")];
-      [("dummy_1-1_all.deb", `Serve)];
+      [("HelloWorld.tar.bz2", `Serve);
+       ("/redirect/dummy_1-1_all.deb", `Redirect "/dummy_1-1_all.deb");
+       ("dummy_1-1_all.deb", `Serve)];
     ];
     Fake_system.assert_raises_safe ".*HelloWorld/Missing' does not exist" (lazy (
       ignore @@ run_0install fake_system ["run"; Test_0install.feed_dir +/ "Recipe.xml"]
