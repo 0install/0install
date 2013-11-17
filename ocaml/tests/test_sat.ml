@@ -289,10 +289,10 @@ let suite = "sat">::: [
       let iface = ZI.get_attribute "interface" sel in
       selected := StringMap.add iface (ZI.get_attribute_opt "version" sel) !selected
     );
-    assert_equal (Some "2") (StringMap.find "prog" !selected);
-    assert_equal (Some "2") (StringMap.find "liba" !selected);
-    assert_equal (Some "2") (StringMap.find "libb" !selected);
-    assert_equal None       (StringMap.find "libc" !selected);
+    assert_equal (Some "2") (StringMap.find_safe "prog" !selected);
+    assert_equal (Some "2") (StringMap.find_safe "liba" !selected);
+    assert_equal (Some "2") (StringMap.find_safe "libb" !selected);
+    assert_equal None       (StringMap.find_safe "libc" !selected);
   );
 
   "coverage">:: (fun () ->

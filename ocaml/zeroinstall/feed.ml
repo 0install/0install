@@ -545,13 +545,10 @@ let get_implementations feed =
 
 let is_source impl = impl.machine = Some "src"
 
-let get_command_opt command_name commands =
-  try Some (StringMap.find command_name commands)
-  with Not_found -> None
+let get_command_opt command_name commands = StringMap.find command_name commands
 
 let get_command_ex impl command_name : command =
-  try StringMap.find command_name impl.props.commands
-  with Not_found -> Qdom.raise_elem "Command '%s' not found in" command_name impl.qdom
+  StringMap.find command_name impl.props.commands |? lazy (Qdom.raise_elem "Command '%s' not found in" command_name impl.qdom)
 
 (** Load per-feed extra data (last-checked time and preferred stability.
     Probably we should use a simple timestamp file for the last-checked time and attach

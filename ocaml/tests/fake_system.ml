@@ -101,7 +101,7 @@ class fake_system tmpdir =
     if Filename.is_relative path then path
     else (
       try
-        match StringMap.find path !extra_files with
+        match StringMap.find_nf path !extra_files with
         | Dir _ -> path
         | File (_mode, redirect_path) -> redirect_path
       with Not_found ->
@@ -182,7 +182,7 @@ class fake_system tmpdir =
 
     method readdir path =
       try
-        match StringMap.find path !extra_files with
+        match StringMap.find_nf path !extra_files with
         | Dir (_mode, items) -> Success (Array.of_list items)
         | _ -> failwith "Not a directory"
       with Not_found -> real_system#readdir (check_read path)
@@ -208,7 +208,7 @@ class fake_system tmpdir =
       else (
         try
           let open Unix in
-          match StringMap.find path !extra_files with
+          match StringMap.find_nf path !extra_files with
           | Dir (mode, _items) -> Some (make_stat mode S_DIR)
           | File (_mode, target) -> real_system#lstat target
         with Not_found ->
@@ -221,7 +221,7 @@ class fake_system tmpdir =
       else (
         try
           let open Unix in
-          match StringMap.find path !extra_files with
+          match StringMap.find_nf path !extra_files with
           | Dir (mode, _items) -> Some (make_stat mode S_DIR)
           | File (_mode, target) -> real_system#stat target
         with Not_found ->
@@ -271,9 +271,7 @@ class fake_system tmpdir =
       let to_str (name, value) = name ^ "=" ^ value in
       Array.of_list (List.map to_str @@ StringMap.bindings env)
 
-    method getenv name =
-      try Some (StringMap.find name env)
-      with Not_found -> None
+    method getenv name = StringMap.find name env
 
     method putenv name value =
       env <- StringMap.add name value env
@@ -296,7 +294,7 @@ class fake_system tmpdir =
           let leaf = Filename.basename path in
           let () =
             try
-              match StringMap.find parent !extra_files with
+              match StringMap.find_nf parent !extra_files with
               | Dir (mode, items) -> extra_files := StringMap.add parent (Dir (mode, leaf :: items)) !extra_files
               | _ -> failwith parent
             with Not_found ->

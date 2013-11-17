@@ -70,8 +70,7 @@ let get_runner elem =
     | _ -> Qdom.raise_elem "Multiple <runner>s in " elem
 
 let find_ex iface impls =
-  try StringMap.find iface impls
-  with Not_found -> raise_safe "Missing a selection for interface '%s'" iface
+  StringMap.find iface impls |? lazy (raise_safe "Missing a selection for interface '%s'" iface)
 
 (* Build up the argv array to execute this command.
    In --dry-run mode, don't complain if the target doesn't exist. *)

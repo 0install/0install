@@ -123,7 +123,7 @@ let do_env_binding env impls iface {var_name; mode; source} =
   let add value = Env.putenv var_name (calc_new_value var_name mode value env) env in
   match source with
   | Value v -> add v
-  | InsertPath i -> match StringMap.find iface impls with
+  | InsertPath i -> match StringMap.find_safe iface impls with
     | (_, None) -> ()  (* a PackageSelection; skip binding *)
     | (_, Some p) -> add (p +/ i)
 

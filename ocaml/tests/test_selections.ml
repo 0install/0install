@@ -29,7 +29,7 @@ let suite = "selections">::: [
     let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
     let old_sels = `String (0, output) |> Xmlm.make_input |> Q.parse_input None in
     let index = Selections.make_selection_map old_sels in
-    let source_sel = StringMap.find "http://foo/Source.xml" index in
+    let source_sel = StringMap.find_safe "http://foo/Source.xml" index in
     Q.set_attribute_ns ~prefix:"foo" ("http://namespace", "foo") "bar" source_sel;
 
     (* Convert to string and back to XML to check we don't lose anything. *)
@@ -104,7 +104,7 @@ let suite = "selections">::: [
     let iface = Test_0install.feed_dir +/ "Local.xml" in
 
     let index = Selections.make_selection_map (get_sels config fake_system iface) in
-    let sel = StringMap.find iface index in
+    let sel = StringMap.find_safe iface index in
     let () =
       match Selections.make_selection sel with
       | Selections.LocalSelection local_path ->
@@ -115,7 +115,7 @@ let suite = "selections">::: [
     (* Add a newer implementation and try again *)
     let sels = get_sels config fake_system iface in
     let index = Selections.make_selection_map sels in
-    let sel = StringMap.find iface index in
+    let sel = StringMap.find_safe iface index in
     let driver = Fake_system.make_driver config in
     assert (Selections.get_unavailable_selections ~distro:driver#distro config sels <> []);
 
@@ -131,7 +131,7 @@ let suite = "selections">::: [
     let iface = Test_0install.feed_dir +/ "Command.xml" in
     let sels = get_sels config fake_system iface in
     let index = Selections.make_selection_map sels in
-    let sel = StringMap.find iface index in
+    let sel = StringMap.find_safe iface index in
 
     assert_equal "c" @@ ZI.get_attribute "id" sel;
     let run = Command.get_command_ex "run" sel in
@@ -143,7 +143,7 @@ let suite = "selections">::: [
       match Selections.get_dependencies ~restricts:true run with
       | dep :: _ ->
           let dep_impl_uri = ZI.get_attribute "interface" dep in
-          let dep_impl = StringMap.find dep_impl_uri index in
+          let dep_impl = StringMap.find_safe dep_impl_uri index in
           assert_equal "sha1=256" @@ ZI.get_attribute "id" dep_impl;
       | _ -> assert false in
 
@@ -155,7 +155,7 @@ let suite = "selections">::: [
     let s3 = `String (0, output) |> Xmlm.make_input |> Q.parse_input None in
     let index = Selections.make_selection_map s3 in
 
-    let runnable_impl = StringMap.find runnable index in
+    let runnable_impl = StringMap.find_safe runnable index in
     runnable_impl |> ZI.filter_map (fun child ->
       if ZI.tag child = Some "command" then Some (ZI.get_attribute "name" child) else None
     ) |> Fake_system.equal_str_lists ["foo"; "run"]

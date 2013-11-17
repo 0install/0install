@@ -427,20 +427,20 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare can
   old_sels |> ZI.iter (fun old_sel ->
     let old_iface = ZI.get_attribute FeedAttr.interface old_sel in
     if old_iface <> q_iface || not used_impl then (
-      try
-        let new_sel = StringMap.find old_iface index in
-        let old_version = ZI.get_attribute FeedAttr.version old_sel in
-        let new_version = ZI.get_attribute FeedAttr.version new_sel in
-        if old_version <> new_version then
-          add "%s: %s to %s" old_iface old_version new_version
-        else (
-          let old_id = ZI.get_attribute FeedAttr.id old_sel in
-          let new_id = ZI.get_attribute FeedAttr.id new_sel in
-          if old_id <> new_id then
-            add "%s: %s to %s" old_iface old_id new_id
-        )
-      with Not_found ->
-        add "%s: no longer used" old_iface
+      match StringMap.find old_iface index with
+      | Some new_sel ->
+          let old_version = ZI.get_attribute FeedAttr.version old_sel in
+          let new_version = ZI.get_attribute FeedAttr.version new_sel in
+          if old_version <> new_version then
+            add "%s: %s to %s" old_iface old_version new_version
+          else (
+            let old_id = ZI.get_attribute FeedAttr.id old_sel in
+            let new_id = ZI.get_attribute FeedAttr.id new_sel in
+            if old_id <> new_id then
+              add "%s: %s to %s" old_iface old_id new_id
+          )
+      | None ->
+          add "%s: no longer used" old_iface
     )
   );
 

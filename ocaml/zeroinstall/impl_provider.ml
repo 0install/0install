@@ -96,8 +96,9 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
   let do_overrides overrides impls =
     let do_override id impl lst =
       let impl =
-        try {impl with Feed.stability = StringMap.find id overrides.Feed.user_stability}
-        with Not_found -> impl in
+        match StringMap.find id overrides.Feed.user_stability with
+        | Some stability -> {impl with Feed.stability = stability}
+        | None -> impl in
       impl :: lst in
     StringMap.fold do_override impls [] in
 
@@ -143,9 +144,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       let get_extra_feeds iface_config =
         Support.Utils.filter_map get_feed_if_useful iface_config.Feed_cache.extra_feeds in
 
-      let user_restrictions =
-        try Some (StringMap.find iface extra_restrictions)
-        with Not_found -> None in
+      let user_restrictions = StringMap.find iface extra_restrictions in
 
       let is_available impl =
         try
@@ -190,16 +189,12 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         let score_os i =
           match i.os with
           | None -> (-100)
-          | Some os ->
-            try -(StringMap.find os os_ranks)
-            with Not_found -> (-200) in
+          | Some os -> -(default 200 @@ StringMap.find os os_ranks) in
 
         let score_machine i =
           match i.machine with
           | None -> (-100)
-          | Some machine ->
-            try -(StringMap.find machine machine_ranks)
-            with Not_found -> (-200) in
+          | Some machine -> -(default 200 @@ StringMap.find machine machine_ranks) in
 
         let score_stability i =
           let s = i.stability in

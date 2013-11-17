@@ -127,8 +127,7 @@ class slave config =
           match request with
           | `List (`String op :: args) ->
               let cb =
-                try StringMap.find op !handlers
-                with Not_found -> raise_safe "No handler for JSON op '%s' (received from Python)" op in
+                StringMap.find op !handlers |? lazy (raise_safe "No handler for JSON op '%s' (received from Python)" op) in
               cb args
           | request -> raise_safe "Invalid request to OCaml: %s" (to_string request) in
         Lwt.return (`List [`String "ok"; return_value])

@@ -16,9 +16,7 @@ let show_changes (system:system) old_selections new_selections =
   let old_index = Zeroinstall.Selections.make_selection_map old_selections in
   let new_index = Zeroinstall.Selections.make_selection_map new_selections in
 
-  let lookup name index =
-    try Some (StringMap.find name index)
-    with Not_found -> None in
+  let lookup name index = StringMap.find name index in
 
   let v sel = ZI.get_attribute "version" sel in
 

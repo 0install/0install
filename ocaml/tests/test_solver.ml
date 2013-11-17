@@ -581,11 +581,11 @@ let suite = "solver">::: [
     | (true, results) ->
         let sels = results#get_selections in
         let index = Selections.make_selection_map sels in
-        let sel = StringMap.find (ZI.get_attribute "interface" sels) index in
+        let sel = StringMap.find_safe (ZI.get_attribute "interface" sels) index in
         let command = Command.get_command_ex "run" sel in
         match Selections.get_dependencies ~restricts:true command with
         | [dep] ->
-            let dep_impl = StringMap.find (ZI.get_attribute "interface" dep) index in
+            let dep_impl = StringMap.find_safe (ZI.get_attribute "interface" dep) index in
             let command = Command.get_command_ex "run" dep_impl in
             Fake_system.assert_str_equal "test-gui" (ZI.get_attribute "path" command)
         | _ -> assert false
@@ -615,8 +615,8 @@ let suite = "solver">::: [
       | Some results ->
           let sels = results#get_selections in
           let index = Selections.make_selection_map sels in
-          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find "http://foo/MultiArch.xml" index);
-          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find "http://foo/MultiArchLib.xml" index) in
+          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find_safe "http://foo/MultiArch.xml" index);
+          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find_safe "http://foo/MultiArchLib.xml" index) in
 
     (* On an i686 system we can only use the i486 implementation *)
     check_arch "Linux-i486" "i686";
@@ -646,12 +646,12 @@ let suite = "solver">::: [
           Selections.make_selection_map sels in
 
     let results = do_solve r in
-    Fake_system.assert_str_equal "0.2" @@ ZI.get_attribute "version" (StringMap.find uri results);
-    Fake_system.assert_str_equal "3" @@ ZI.get_attribute "version" (StringMap.find versions results);
+    Fake_system.assert_str_equal "0.2" @@ ZI.get_attribute "version" (StringMap.find_safe uri results);
+    Fake_system.assert_str_equal "3" @@ ZI.get_attribute "version" (StringMap.find_safe versions results);
 
     let extras = StringMap.singleton uri "0.1" in
     let results = do_solve {r with Requirements.extra_restrictions = extras} in
-    Fake_system.assert_str_equal "0.1" @@ ZI.get_attribute "version" (StringMap.find uri results);
+    Fake_system.assert_str_equal "0.1" @@ ZI.get_attribute "version" (StringMap.find_safe uri results);
     assert (not (StringMap.mem versions results));
 
     let extras = StringMap.singleton uri "0.3" in

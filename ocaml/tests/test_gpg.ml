@@ -170,7 +170,7 @@ let suite = "gpg">::: [
   "load-keys">:: with_tal_key (fun system ->
     assert_equal StringMap.empty @@ Lwt_main.run @@ G.load_keys system [];
     let keys = Lwt_main.run @@ G.load_keys system [thomas_fingerprint] in
-    let info = StringMap.find thomas_fingerprint keys in
+    let info = StringMap.find_safe thomas_fingerprint keys in
     Fake_system.assert_str_equal "Thomas Leonard <tal197@users.sourceforge.net>" (Fake_system.expect info.G.name)
   );
 ]

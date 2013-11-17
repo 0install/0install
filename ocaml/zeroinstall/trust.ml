@@ -39,8 +39,7 @@ class trust_db config =
             ) in
 
   let get_domains fingerprint db =
-    try StringMap.find fingerprint db
-    with Not_found -> StringSet.empty in
+    default StringSet.empty @@ StringMap.find fingerprint db in
 
   let is_trusted db ~domain fingerprint =
     let domains = get_domains fingerprint db in

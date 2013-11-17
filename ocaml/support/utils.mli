@@ -26,7 +26,6 @@ val filter_map_array : ('a -> 'b option) -> 'a array -> 'b list
 
 (** Extract a sub-list. *)
 val slice : start:int -> ?stop:int -> 'a list -> 'a list
-val find_opt : string -> 'a Common.StringMap.t -> 'a option
 
 (** {2 System utilities} *)
 

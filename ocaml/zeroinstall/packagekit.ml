@@ -298,19 +298,16 @@ let packagekit = ref (fun config ->
       let add_size impl =
         let rm = impl.retrieval_method in
         let packagekit_id = get_packagekit_id rm in
-        try
-          let size = StringMap.find packagekit_id sizes in
-          {impl with retrieval_method = {rm with Feed.distro_size = Some size}}
-        with Not_found ->
-          log_info "No size returned for '%s'" packagekit_id;
-          impl in
+        match StringMap.find packagekit_id sizes with
+        | Some _ as size -> {impl with retrieval_method = {rm with Feed.distro_size = size}}
+        | None ->
+            log_info "No size returned for '%s'" packagekit_id;
+            impl in
 
       log_info "packagekit: fetch_batch done";
       (* Notify that each query is done *)
       queries |> List.iter (fun (name, resolver) ->
-        let impls =
-          try StringMap.find name resolutions
-          with Not_found -> [] in
+        let impls = default [] @@ StringMap.find name resolutions in
         Lwt.wakeup resolver (impls |> List.map add_size)
       );
 

@@ -361,17 +361,16 @@ let realpath (system:system) path =
       match system#readlink newpath with
       | Some target ->
           (* path + symlink/rest *)
-          if StringMap.mem newpath seen then (
-            match StringMap.find newpath seen with
-            | Some cached_path -> join_realpath cached_path rest seen
-            | None -> (normpath (newpath +/ rest), false)    (* Loop; give up *)
-          ) else (
-            (* path + symlink/rest -> realpath(path + target) + rest *)
-            match join_realpath path target (StringMap.add newpath None seen) with
-            | path, false ->
-                (normpath (path +/ rest), false)   (* Loop; give up *)
-            | path, true -> join_realpath path rest (StringMap.add newpath (Some path) seen)
-          )
+          begin match StringMap.find newpath seen with
+          | Some (Some cached_path) -> join_realpath cached_path rest seen
+          | Some None -> (normpath (newpath +/ rest), false)    (* Loop; give up *)
+          | None ->
+              (* path + symlink/rest -> realpath(path + target) + rest *)
+              match join_realpath path target (StringMap.add newpath None seen) with
+              | path, false ->
+                  (normpath (path +/ rest), false)   (* Loop; give up *)
+              | path, true -> join_realpath path rest (StringMap.add newpath (Some path) seen)
+          end
       | None ->
           (* path + name/rest -> path/name + rest (name is not a symlink) *)
           join_realpath newpath rest seen
@@ -470,10 +469,6 @@ let read_file (system:system) path =
 let safe_int_of_string s =
   try int_of_string s
   with Failure msg -> raise_safe "Invalid integer '%s' (%s)" s msg
-
-let find_opt key map =
-  try Some (StringMap.find key map)
-  with Not_found -> None
 
 let make_tmp_dir system ?(prefix="tmp-") ?(mode=0o700) parent =
   let rec mktmp = function

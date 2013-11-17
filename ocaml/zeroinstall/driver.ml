@@ -28,12 +28,12 @@ let rec collect_ex = function
 (** Find a package implementation. Note: does not call [distro#check_for_candidates]. *)
 let find_distro_impl feed_provider id master_feed =
   let (impls, _) = feed_provider#get_distro_impls master_feed |? lazy (raise Not_found) in
-  StringMap.find id impls
+  StringMap.find_nf id impls
 
 (** Find a cached implementation. Not_found if the feed isn't cached or doesn't contain [id]. *)
 let find_zi_impl feed_provider id url =
   let (feed, _) = feed_provider#get_feed url |? lazy (raise Not_found) in
-  StringMap.find id feed.Feed.implementations
+  StringMap.find_nf id feed.Feed.implementations
 
 module DownloadElt =
   struct

@@ -60,7 +60,7 @@ let handle_help options flags args =
       let sels = Generic_select.handle options !select_opts arg `Download_only in
       let index = Zeroinstall.Selections.make_selection_map sels in
       let root = ZI.get_attribute "interface" sels in
-      let sel = StringMap.find root index in
+      let sel = StringMap.find_safe root index in
       show_help options.config sel
   | _ -> raise (Support.Argparse.Usage_error 1)
 

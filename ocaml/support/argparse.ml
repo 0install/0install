@@ -52,7 +52,7 @@ let make_option_map options_spec =
     ListLabels.iter names ~f:(fun name ->
       if StringMap.mem name !map then (
         let reader = handler#get_reader in
-        if reader != (StringMap.find name !map)#get_reader then
+        if reader != (StringMap.find_safe name !map)#get_reader then
           failwith ("Option '" ^ name ^ "' has two different readers")
       ) else (
         map := StringMap.add name handler !map
@@ -69,8 +69,7 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
   let options_map = make_option_map spec.options_spec in
 
   let lookup_option x =
-    try Some (StringMap.find x options_map)#get_reader
-    with Not_found -> None in
+    StringMap.find x options_map |> pipe_some (fun r -> Some r#get_reader) in
 
   let allow_options = ref true in
   let stream = Stream.of_list input_args in
@@ -194,10 +193,11 @@ let parse_options valid_options raw_options =
 
   let parse_option = function
     | (name, values) ->
-        try (name, (StringMap.find name map)#parse values)
-        with
-        | Not_found -> raise_safe "Option '%s' is not valid here" name
-        | Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" name in
+        match StringMap.find name map with
+        | None -> raise_safe "Option '%s' is not valid here" name
+        | Some reader ->
+            try (name, reader#parse values)
+            with Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" name in
 
   List.map parse_option raw_options
 

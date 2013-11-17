@@ -43,8 +43,9 @@ class dryrun_system (underlying:system) =
         let dir = Filename.dirname path in
         let base = Filename.basename path in
 
-        try StringSet.mem base (StringMap.find dir fake_dirs)
-        with Not_found -> false
+        match StringMap.find dir fake_dirs with
+        | Some items -> StringSet.mem base items
+        | None -> false
       )
 
     (* We allow this as we may be falling back to Python or running some helper.
@@ -61,9 +62,7 @@ class dryrun_system (underlying:system) =
       let dir = Filename.dirname path in
       let base = Filename.basename path in
 
-      let dir_entries =
-        try StringMap.find dir fake_dirs
-        with Not_found -> StringSet.empty in
+      let dir_entries = default StringSet.empty @@ StringMap.find dir fake_dirs in
 
       fake_dirs <- StringMap.add dir (StringSet.add base dir_entries) fake_dirs
 

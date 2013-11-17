@@ -63,7 +63,7 @@ let to_latest_format root =
       old_commands |> List.iter (fun command ->
         Q.set_attribute "name" "run" command;
         let current_iface = !iface |? lazy (Q.raise_elem "No additional command expected here!" command) in
-        let sel = U.find_opt current_iface index |? lazy (Q.raise_elem "Missing selection for '%s' needed by" current_iface command) in
+        let sel = StringMap.find current_iface index |? lazy (Q.raise_elem "Missing selection for '%s' needed by" current_iface command) in
         sel.Q.child_nodes <- command :: sel.Q.child_nodes;
         match Command.get_runner command with
         | None -> iface := None

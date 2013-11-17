@@ -170,7 +170,7 @@ let suite = "fetch">::: [
 
     let check ?error ?testfile id =
       try
-        let impl = StringMap.find id feed.F.implementations in
+        let impl = StringMap.find_safe id feed.F.implementations in
         let digests =
           match impl.F.impl_type with
           | F.CacheImpl {F.digests; _} -> digests

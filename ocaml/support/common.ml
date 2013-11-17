@@ -4,9 +4,6 @@
 
 (** Common types and functions. This module is intended to be opened. *)
 
-module StringMap = Map.Make(String)
-module StringSet = Set.Make(String)
-
 type 'a result =
   | Success of 'a
   | Problem of exn
@@ -41,6 +38,14 @@ module Platform =
 let raise_safe fmt =
   let do_raise msg = raise @@ Safe_exception (msg, ref []) in
   Printf.ksprintf do_raise fmt
+
+module StringMap = struct
+  include Map.Make(String)
+  let find_nf = find
+  let find_safe key map = try find key map with Not_found -> raise_safe "BUG: Key '%s' not found in StringMap!" key
+  let find key map = try Some (find key map) with Not_found -> None
+end
+module StringSet = Set.Make(String)
 
 (** Define an interface for interacting with the system, so we can replace it
     in unit-tests. *)

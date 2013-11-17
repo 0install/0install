@@ -37,7 +37,7 @@ let get_sel_path config sel =
 let remove_cached config selections_path =
   let sels = Zeroinstall.Selections.load_selections config.system selections_path in
   let index = Zeroinstall.Selections.make_selection_map sels in
-  let sel = StringMap.find "http://example.com:8000/Hello.xml" index in
+  let sel = StringMap.find_safe "http://example.com:8000/Hello.xml" index in
   let stored = expect @@ get_sel_path config sel in
   assert (U.starts_with (Filename.basename stored) "sha1");
   U.rmtree ~even_if_locked:true config.system stored
@@ -63,7 +63,7 @@ let do_recipe config fake_system server ?(expected=[[("HelloWorld.tar.bz2", `Ser
   let out = run_0install fake_system ["download"; feed; "--command="; "--xml"] in
   let sels = `String (0, out) |> Xmlm.make_input |> Q.parse_input None in
   let index = Zeroinstall.Selections.make_selection_map sels in
-  let sel = StringMap.find feed index in
+  let sel = StringMap.find_safe feed index in
   get_sel_path config sel |> expect
 
 let suite = "download">::: [
@@ -327,7 +327,7 @@ let suite = "download">::: [
     ) in
     Fake_system.fake_log#assert_contains "Primary download failed; trying mirror URL 'http://roscidus.com/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz'";
     let sels = parse_sels out in
-    let sel = StringMap.find "http://example.com:8000/Hello.xml" sels in
+    let sel = StringMap.find_safe "http://example.com:8000/Hello.xml" sels in
     assert (fake_system#file_exists (expect (get_sel_path config sel) +/ "HelloWorld" +/ "main"))
   );
 
@@ -355,7 +355,7 @@ let suite = "download">::: [
     ) in
     Fake_system.fake_log#assert_contains ".* 404.*: trying implementation mirror at http://roscidus.com/0mirror";
     let sels = parse_sels out in
-    let sel = StringMap.find "http://example.com:8000/Hello.xml" sels in
+    let sel = StringMap.find_safe "http://example.com:8000/Hello.xml" sels in
     begin match Zeroinstall.Selections.make_selection sel with
     | Zeroinstall.Selections.CacheSelection digests ->
         let path = Zeroinstall.Stores.lookup_any config.system digests config.stores in
@@ -429,7 +429,7 @@ let suite = "download">::: [
     ];
 
     let index = Zeroinstall.Selections.make_selection_map sels in
-    let sel = StringMap.find "http://example.com:8000/Hello.xml" index in
+    let sel = StringMap.find_safe "http://example.com:8000/Hello.xml" index in
     assert_equal None @@ get_sel_path config sel;
 
     let out = run_0install fake_system ["download"; Test_0install.feed_dir +/ "selections.xml"] in
@@ -560,7 +560,7 @@ let suite = "download">::: [
 
     let sels = Zeroinstall.Selections.load_selections system selections_path in
     let index = Zeroinstall.Selections.make_selection_map sels in
-    let sel = StringMap.find "http://example.com:8000/Hello.xml" index in
+    let sel = StringMap.find_safe "http://example.com:8000/Hello.xml" index in
     assert_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" (ZI.get_attribute "id" sel);
 
     (* Untrust the key - we'll need to use the GUI to confirm it again *)

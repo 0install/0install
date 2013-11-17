@@ -105,9 +105,7 @@ let prepend_child child parent =
 (** [import_node node doc] makes a copy of [node] for use in [doc]. *)
 let import_node elem doc =
   let ensure_prefix prefix uri =
-    let current =
-      try Some (StringMap.find prefix doc.prefixes)
-      with Not_found -> None in
+    let current = StringMap.find prefix doc.prefixes in
     if current <> Some uri then
       register_prefix doc prefix uri in
   StringMap.iter ensure_prefix elem.doc.prefixes;

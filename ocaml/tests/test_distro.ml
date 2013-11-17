@@ -75,7 +75,7 @@ let suite = "distro">::: [
     match impls with
     | [impl] ->
         assert_str_equal "2.7.2-4" (Zeroinstall.Versions.format_version impl.parsed_version);
-        let run = StringMap.find "run" impl.props.commands in
+        let run = StringMap.find_safe "run" impl.props.commands in
         assert_str_equal "/bin/python2" (ZI.get_attribute "path" run.command_qdom)
     | impls -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)
   );
@@ -200,7 +200,7 @@ let suite = "distro">::: [
       | Some impls ->
           let host_python = find_host impls in
           let python_run =
-            try StringMap.find "run" host_python.props.commands
+            try StringMap.find_nf "run" host_python.props.commands
             with Not_found -> assert_failure "No run command for host Python" in
           assert (Fake_system.real_system#file_exists (ZI.get_attribute "path" python_run.command_qdom)) in
 
@@ -320,7 +320,7 @@ let suite = "distro">::: [
     begin match Zeroinstall.Solver.solve_for config feed_provider requirements with
     | (true, results) ->
         let sels = results#get_selections |> Zeroinstall.Selections.make_selection_map in
-        let sel = StringMap.find "http://example.com/bittorrent" sels in
+        let sel = StringMap.find_safe "http://example.com/bittorrent" sels in
         let run = Zeroinstall.Command.get_command_ex "run" sel in
         Fake_system.assert_str_equal "/bin/sh" (ZI.get_attribute "path" run)
     | _ -> assert false end;

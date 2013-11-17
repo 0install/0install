@@ -84,13 +84,10 @@ class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.var 
     (** Get just those implementations that have a command with this name. *)
     method get_commands name =
       let match_command (impl_var, impl) =
-        try Some (impl_var, StringMap.find name impl.Feed.props.Feed.commands)
-        with Not_found ->
-          if impl.Feed.parsed_version == Versions.dummy then
-            Some (impl_var, dummy_command)
-          else
-            None
-      in
+        match StringMap.find name impl.Feed.props.Feed.commands with
+        | Some command -> Some (impl_var, command)
+        | None when impl.Feed.parsed_version == Versions.dummy -> Some (impl_var, dummy_command)
+        | None -> None in
       vars |> Support.Utils.filter_map match_command
 
     (** Get all variables, except dummy_impl (if present) *)

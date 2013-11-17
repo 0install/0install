@@ -43,7 +43,7 @@ class fake_slave config handler : Python.slave =
         | `List [`String "init-distro"; `String _; `List _] -> parse_fn `Null
         | `List [`String "get-package-impls"; `String url] -> parse_fn @@ handler#get_package_impls url
         | `List [`String "download-url"; `String url; `String _hint; timeout; `Null] ->
-            let start_timeout = StringMap.find "start-timeout" !Zeroinstall.Python.handlers in
+            let start_timeout = StringMap.find_safe "start-timeout" !Zeroinstall.Python.handlers in
             ignore @@ start_timeout [timeout];
             parse_fn @@ handler#download_url url
         | _ -> raise_safe "Unexpected request %s" (Yojson.Basic.to_string request)
@@ -149,7 +149,7 @@ let make_driver_test test_elem =
         method get_distro_candidates _ = []
 
         method get_feed url =
-          try `xml (StringMap.find url !downloadable_feeds)
+          try `xml (StringMap.find_nf url !downloadable_feeds)
           with Not_found -> `problem "Unexpected feed requested"
       end in
 
@@ -178,7 +178,7 @@ let make_driver_test test_elem =
           StringSet.iter assert_failure !expected_downloads;
           (* Check environment *)
           ListLabels.iter !expected_envs ~f:(fun (name, value) ->
-            Fake_system.assert_str_equal value (StringMap.find name !actual_env)
+            Fake_system.assert_str_equal value (StringMap.find_safe name !actual_env)
           )
         )
       with Safe_exception (msg, _) ->

@@ -237,12 +237,12 @@ let package_impl_from_json elem props json =
   let fixup_main path =
     (* The Python code might add or modify the main executable path. *)
     let run_command =
-      try
-        let command = StringMap.find "run" !new_props.commands in
-        let new_elem = {command.command_qdom with Qdom.attrs = command.command_qdom.Qdom.attrs} in
-        Qdom.set_attribute "path" path new_elem;
-        {command with command_qdom = new_elem}
-      with Not_found ->
+      match StringMap.find "run" !new_props.commands with
+      | Some command ->
+          let new_elem = {command.command_qdom with Qdom.attrs = command.command_qdom.Qdom.attrs} in
+          Qdom.set_attribute "path" path new_elem;
+          {command with command_qdom = new_elem}
+      | None ->
         make_command elem.Qdom.doc "run" path in
     new_props := {!new_props with commands = StringMap.add "run" run_command !new_props.commands} in
 
@@ -379,12 +379,12 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
       | Some master_feed ->
           let wanted_id = ZI.get_attribute FeedAttr.id elem in
           let impls = get_package_impls self master_feed |? lazy StringMap.empty in
-          let is_installed impl =
-            match impl.Feed.impl_type with
-            | Feed.PackageImpl {Feed.package_installed; _} -> package_installed
-            | _ -> assert false in
-          try is_installed (StringMap.find wanted_id impls)
-          with Not_found -> false
+          match StringMap.find wanted_id impls with
+          | None -> false
+          | Some impl ->
+              match impl.Feed.impl_type with
+              | Feed.PackageImpl {Feed.package_installed; _} -> package_installed
+              | _ -> assert false
 
     (** Gets PackageKit impls (from super), plus host Python impls, plus anything from [add_package_impls_from_python] *)
     method! get_package_impls query =
@@ -706,21 +706,21 @@ module ArchLinux = struct
         let package_name = query#package_name in
         log_debug "Looking up distribution packages for %s" package_name;
         let items = get_entries () in
-        try
-          let version = StringMap.find package_name items in
-          let entry = package_name ^ "-" ^ version in
-          let desc_path = packages_dir +/ entry +/ "desc" in
-          match get_arch desc_path with
-          | None ->
-              log_warning "No ARCH in %s" desc_path
-          | Some arch ->
-              let machine = Support.System.canonical_machine arch in
-              match try_cleanup_distro_version_warn version package_name with
-              | None -> ()
-              | Some version ->
-                  let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
-                  query#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)] ~distro_name
-        with Not_found -> ()
+        match StringMap.find package_name items with
+        | None -> ()
+        | Some version ->
+            let entry = package_name ^ "-" ^ version in
+            let desc_path = packages_dir +/ entry +/ "desc" in
+            match get_arch desc_path with
+            | None ->
+                log_warning "No ARCH in %s" desc_path
+            | Some arch ->
+                let machine = Support.System.canonical_machine arch in
+                match try_cleanup_distro_version_warn version package_name with
+                | None -> ()
+                | Some version ->
+                    let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
+                    query#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)] ~distro_name
     end
 end
 
@@ -887,7 +887,7 @@ let install_distro_packages (distro:distribution) (ui:Ui.ui_handler) impls : [ `
     | Feed.PackageImpl {Feed.retrieval_method = rm; _} ->
         let rm = rm |? lazy (raise_safe "Missing retrieval method for package '%s'" (Feed.get_attr_ex FeedAttr.id impl)) in
         let (typ, _info) = rm.Feed.distro_install_info in
-        let items = try StringMap.find typ !groups with Not_found -> [] in
+        let items = default [] @@ StringMap.find typ !groups in
         groups := StringMap.add typ ((impl, rm) :: items) !groups
     | _ -> raise_safe "BUG: not a PackageImpl! %s" (Feed.get_attr_ex FeedAttr.id impl)
   );

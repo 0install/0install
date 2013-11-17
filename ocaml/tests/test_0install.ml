@@ -51,7 +51,7 @@ let impl_from_json config = (function
   | `Assoc [("id", `String id); ("from-feed", `String feed_url)] ->
       let parsed = Zeroinstall.Feed_url.parse_non_distro feed_url in
       let feed = Zeroinstall.Feed_cache.get_cached_feed config parsed |? lazy (raise_safe "Not cached: %s" feed_url) in
-      StringMap.find id feed.F.implementations
+      StringMap.find_safe id feed.F.implementations
   | _ -> assert false
 )
 
@@ -67,8 +67,7 @@ class fake_slave _config =
       if U.starts_with url "https://keylookup.appspot.com/key/" then (
         "<key-lookup><item vote='good'>Looks legit</item></key-lookup>"
       ) else (
-        try StringMap.find url !pending_feed_downloads
-        with Not_found -> assert_failure url
+        StringMap.find_safe url !pending_feed_downloads
       ) in
     pending_feed_downloads := StringMap.remove url !pending_feed_downloads;
     output_string ch contents;
@@ -247,7 +246,7 @@ let suite = "0install">::: [
     let local_uri = U.abspath system (feed_dir +/ "Local.xml") in
     let out = run ["download"; local_uri; "--xml"] in
     let sels = Zeroinstall.Selections.make_selection_map @@ Q.parse_input None (Xmlm.make_input (`String (0, out))) in
-    let sel = StringMap.find local_uri sels in
+    let sel = StringMap.find_safe local_uri sels in
     assert_str_equal "0.1" @@ ZI.get_attribute "version" sel;
 
     let () =
@@ -654,7 +653,7 @@ let suite = "0install">::: [
     let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"; "--xml"] in
     let sels = `String (0, out) |> Xmlm.make_input |> Q.parse_input (Some local_uri) in
     let index = Zeroinstall.Selections.make_selection_map sels in
-    let sel = StringMap.find local_uri index in
+    let sel = StringMap.find_safe local_uri index in
     assert_str_equal "0.1" (ZI.get_attribute "version" sel);
 
     let out = run_0install fake_system ["select"; feed_dir +/ "runnable/RunExec.xml"] in
@@ -665,7 +664,7 @@ let suite = "0install">::: [
     let out = run_0install fake_system ["select"; "--xml"; local_uri] in
     let sels = `String (0, out) |> Xmlm.make_input |> Q.parse_input (Some local_uri) in
     let index = Zeroinstall.Selections.make_selection_map sels in
-    let sel = StringMap.find local_uri index in
+    let sel = StringMap.find_safe local_uri index in
 
     assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ ZI.get_attribute "id" sel;
   );

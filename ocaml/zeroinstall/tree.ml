@@ -20,9 +20,7 @@ let as_tree sels =
   let rec build_node (uri:string) commands ~essential =
     if Hashtbl.mem seen uri then None
     else (
-      let sel =
-        try Some (StringMap.find uri index)
-        with Not_found -> None in
+      let sel = StringMap.find uri index in
 
       (* We ignore optional non-selected dependencies; if another component has an
        * essential dependency on it, we'll include it then. *)

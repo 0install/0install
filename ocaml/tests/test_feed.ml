@@ -63,7 +63,7 @@ let suite = "feed">::: [
     (* Rating now visible *)
     let overrides = F.load_feed_overrides config (`local_feed feed_url) in
     assert_equal 1 (StringMap.cardinal overrides.F.user_stability);
-    assert_equal Developer (StringMap.find digest overrides.F.user_stability);
+    assert_equal Developer (StringMap.find_safe digest overrides.F.user_stability);
     assert_equal (Some 100.0) overrides.F.last_checked;
   );
 
@@ -73,18 +73,18 @@ let suite = "feed">::: [
     let feed = F.parse config.system root (Some path) in
 
     let path name impl =
-      let command = StringMap.find name impl.F.props.F.commands in
+      let command = StringMap.find_safe name impl.F.props.F.commands in
       ZI.get_attribute "path" command.F.command_qdom in
 
-    let a = StringMap.find "a" feed.F.implementations in
+    let a = StringMap.find_safe "a" feed.F.implementations in
     Fake_system.assert_str_equal "foo" @@ path "run" a;
     Fake_system.assert_str_equal "test-foo" @@ path "test" a;
 
-    let b = StringMap.find "b" feed.F.implementations in
+    let b = StringMap.find_safe "b" feed.F.implementations in
     Fake_system.assert_str_equal "bar" @@ path "run" b;
     Fake_system.assert_str_equal "test-foo" @@ path "test" b;
 
-    let c = StringMap.find "c" feed.F.implementations in
+    let c = StringMap.find_safe "c" feed.F.implementations in
     Fake_system.assert_str_equal "test-gui" @@ path "run" c;
     Fake_system.assert_str_equal "test-baz" @@ path "test" c;
   );

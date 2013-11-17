@@ -18,8 +18,7 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
   let {Feed.id; Feed.feed = from_feed} = Selections.get_id sel in
 
   let get_override overrides =
-    try Some (StringMap.find id overrides.F.user_stability)
-    with Not_found -> None in
+    StringMap.find id overrides.F.user_stability in
 
   match from_feed with
   | `distribution_feed master_feed_url -> (
@@ -29,10 +28,7 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
           match feed_provider#get_distro_impls master_feed with
           | None -> None
           | Some (impls, overrides) ->
-              let impl =
-                try Some (StringMap.find id impls)
-                with Not_found -> None in
-              match impl with
+              match StringMap.find id impls with
               | None -> None
               | Some impl -> Some (impl, get_override overrides)
   )
@@ -40,8 +36,7 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
       match feed_provider#get_feed feed_url with
       | None -> None
       | Some (feed, overrides) ->
-          try Some (StringMap.find id feed.F.implementations, get_override overrides)
-          with Not_found -> raise_safe "Impl '%s' not found! (BUG)" id
+          Some (StringMap.find_safe id feed.F.implementations, get_override overrides)
 
 let get_download_size info impl =
   match info.F.retrieval_methods with
@@ -167,9 +162,7 @@ let build_tree config (feed_provider:Feed_provider.feed_provider) old_sels sels 
         match get_impl feed_provider sel with
         | None -> `Assoc (("type", `String "error") :: about_feed)
         | Some (impl, user_stability) ->
-            let orig_sel =
-              try Some (StringMap.find uri old_sels)
-              with Not_found -> None in
+            let orig_sel = StringMap.find uri old_sels in
 
             let version = ZI.get_attribute FeedAttr.version sel in
             let stability =
@@ -272,7 +265,7 @@ let list_impls config (results:Solver.result) iface =
         let from_feed = F.get_attr_ex FeedAttr.from_feed impl in
         let overrides = Feed.load_feed_overrides config (Feed_url.parse from_feed) in
         let user_stability =
-          try `String (F.format_stability @@ StringMap.find impl_id overrides.F.user_stability)
+          try `String (F.format_stability @@ StringMap.find_nf impl_id overrides.F.user_stability)
           with Not_found -> `Null in
         let arch =
           match impl.F.os, impl.F.machine with
