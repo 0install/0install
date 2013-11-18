@@ -40,11 +40,13 @@ module Cache =
 
     let re_colon_space = Str.regexp_string ": "
 
-    (* Note: [format_version] doesn't make much sense. If the format changes, just use a different [cache_leaf],
+    (* Manage the cache named [cache_leaf]. Whenever [source] changes, everything in the cache is assumed to be invalid.
+       Note: [format_version] doesn't make much sense. If the format changes, just use a different [cache_leaf],
        otherwise you'll be fighting with other versions of 0install.
        The [old_format] used different separator characters.
        *)
     class cache (config:General.config) (cache_leaf:string) (source:filepath) (format_version:int) ~(old_format:bool) =
+      let warned_missing = ref false in
       let re_metadata_sep = if old_format then re_colon_space else U.re_equals
       and re_key_value_sep = if old_format then U.re_tab else U.re_equals
       in
@@ -52,10 +54,10 @@ module Cache =
         (* The status of the cache when we loaded it. *)
         val data = { mtime = 0L; size = -1; rev = -1; contents = Hashtbl.create 10 }
 
-        val cache_path = (Basedir.save_path config.system (config_site +/ config_prog) config.basedirs.Basedir.cache) +/ cache_leaf
+        val cache_path = Basedir.save_path config.system (config_site +/ config_prog) config.basedirs.Basedir.cache +/ cache_leaf
 
         (** Reload the values from disk (even if they're out-of-date). *)
-        method load_cache =
+        method private load_cache =
           data.mtime <- -1L;
           data.size <- -1;
           data.rev <- -1;
@@ -89,21 +91,30 @@ module Cache =
             config.system#with_open_in [Open_rdonly; Open_text] 0 cache_path load_cache
           )
 
-        (** Check cache is still up-to-date. Clear it not. *)
-        method ensure_valid =
+        (** Check cache is still up-to-date (i.e. that [source] hasn't changed). Clear it if not. *)
+        method private ensure_valid =
           match config.system#stat source with
-          | None when data.size = -1 -> ()    (* Still doesn't exist - no problem *)
-          | None -> raise Fallback_to_Python  (* Disappeared (shouldn't happen) *)
+          | None ->
+              if not !warned_missing then (
+                log_warning "Package database '%s' missing!" source;
+                warned_missing := true
+              )
           | Some info ->
+              let flush () =
+                config.system#atomic_write [Open_wronly; Open_binary] cache_path ~mode:0o644 (fun ch ->
+                  let mtime = Int64.of_float info.Unix.st_mtime |> Int64.to_string in
+                  Printf.fprintf ch "mtime=%s\nsize=%d\nformat=%d\n\n" mtime info.Unix.st_size format_version
+                );
+                self#load_cache in
               if data.mtime <> Int64.of_float info.Unix.st_mtime then (
                 log_info "Modification time of %s has changed; invalidating cache" source;
-                raise Fallback_to_Python
+                flush ()
               ) else if data.size <> info.Unix.st_size then (
                 log_info "Size of %s has changed; invalidating cache" source;
-                raise Fallback_to_Python
+                flush ()
               ) else if data.rev <> format_version then (
                 log_info "Format of cache %s has changed; invalidating cache" cache_path;
-                raise Fallback_to_Python
+                flush ()
               )
 
         method get (key:string) : string list =
@@ -184,7 +195,7 @@ module Debian = struct
 
       val distro_name = "Debian"
       val id_prefix = "package:deb"
-      val cache = new Cache.cache config "dpkg-status.cache" dpkg_db_status 2 ~old_format:false
+      val cache = new Cache.cache config "dpkg-status.cache" status_file 2 ~old_format:false
 
       method! is_installed elem =
         try check_cache id_prefix elem cache
