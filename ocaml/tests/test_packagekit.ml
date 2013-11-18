@@ -11,6 +11,7 @@ open OUnit
 module U = Support.Utils
 module F = Zeroinstall.Feed
 module Distro = Zeroinstall.Distro
+module Distro_impls = Zeroinstall.Distro_impls
 
 let assert_str_equal = Fake_system.assert_str_equal
 let assert_contains = Fake_system.assert_contains
@@ -24,7 +25,7 @@ let approve_ui =
 
 let test ?(package="gnupg") config fake_system =
   let system = (fake_system :> system) in
-  let distro = Distro.ArchLinux.arch_distribution config in
+  let distro = Distro_impls.ArchLinux.arch_distribution config in
   let feed = Test_feed.feed_of_xml system (Printf.sprintf "\
 <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://example.com/gpg'>\n\
   <name>Gpg</name>\n\

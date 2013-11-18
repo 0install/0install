@@ -366,7 +366,7 @@ let null_ui = lazy (new null_ui)
 
 let make_driver ?slave ?fetcher config =
   let slave = slave |? lazy (new Zeroinstall.Python.slave config) in
-  let distro = Zeroinstall.Distro.generic_distribution slave in
+  let distro = Zeroinstall.Distro_impls.generic_distribution slave in
   let trust_db = new Zeroinstall.Trust.trust_db config in
   let downloader = new Zeroinstall.Downloader.downloader null_ui ~max_downloads_per_site:2 in
   let fetcher = fetcher |? lazy (new Zeroinstall.Fetch.fetcher config trust_db downloader distro null_ui) in

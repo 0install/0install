@@ -43,7 +43,7 @@ let suite = "apps">::: [
     let slave = new Zeroinstall.Python.slave config in
 
     (* Initialise the new app with selections for version 0.1-pre *)
-    let distro = Zeroinstall.Distro.generic_distribution slave in
+    let distro = Zeroinstall.Distro_impls.generic_distribution slave in
     let feed_provider = new Zeroinstall.Feed_provider.feed_provider config distro in
     let () =
       match Zeroinstall.Solver.solve_for config feed_provider r with

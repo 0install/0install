@@ -209,7 +209,7 @@ let handle_bg options flags args =
     end in
 
   let driver =
-    let distro = Zeroinstall.Distro.get_host_distribution config slave in
+    let distro = Zeroinstall.Distro_impls.get_host_distribution config slave in
     let trust_db = new Zeroinstall.Trust.trust_db config in
     let downloader = new Zeroinstall.Downloader.downloader (lazy ui)  ~max_downloads_per_site:2 in
     let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro (lazy ui) in

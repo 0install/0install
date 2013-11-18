@@ -68,7 +68,7 @@ let xml_diff exp actual =
 
 let make_impl_provider config scope_filter =
   let slave = new Zeroinstall.Python.slave config in
-  let distro = Distro.generic_distribution slave in
+  let distro = Distro_impls.generic_distribution slave in
   let feed_provider = new Feed_provider.feed_provider config distro in
   let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
   (impl_provider :> Impl_provider.impl_provider)
@@ -315,7 +315,7 @@ let suite = "solver">::: [
     let open Feed_cache in
     let (config, fake_system) = Fake_system.get_fake_config None in
     let slave = new Zeroinstall.Python.slave config in
-    let distro = Distro.generic_distribution slave in
+    let distro = Distro_impls.generic_distribution slave in
     let feed_provider = new Feed_provider.feed_provider config distro in
     let uri = "http://example.com/prog" in
     let iface_config = feed_provider#get_iface_config uri in
@@ -351,7 +351,7 @@ let suite = "solver">::: [
         inherit Distro.distribution config
         val id_prefix = "package:dummy"
         val distro_name = "dummy"
-        method is_installed = failwith "is_installed"
+        method! is_installed = failwith "is_installed"
         method! check_for_candidates = raise_safe "Unexpected check_for_candidates"
         method! install_distro_packages = raise_safe "install_distro_packages"
         method! private get_package_impls query =
@@ -501,7 +501,7 @@ let suite = "solver">::: [
     import "Source.xml";
 
     let slave = new Zeroinstall.Python.slave config in
-    let distro = Distro.generic_distribution slave in
+    let distro = Distro_impls.generic_distribution slave in
     let feed_provider = new Feed_provider.feed_provider config distro in
 
     let scope_filter = Impl_provider.({
@@ -570,7 +570,7 @@ let suite = "solver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let r = Requirements.default_requirements (Test_0install.feed_dir +/ "command-dep.xml") in
     let slave = new Zeroinstall.Python.slave config in
-    let distro = Distro.generic_distribution slave in
+    let distro = Distro_impls.generic_distribution slave in
     let feed_provider = new Feed_provider.feed_provider config distro in
     match Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) r with
     | (false, _) -> assert false
@@ -631,7 +631,7 @@ let suite = "solver">::: [
 
     (* Selects 0.2 as the highest version, applying the restriction to versions < 4. *)
     let slave = new Zeroinstall.Python.slave config in
-    let distro = Distro.generic_distribution slave in
+    let distro = Distro_impls.generic_distribution slave in
     let feed_provider = new Feed_provider.feed_provider config distro in
 
     let do_solve r =
@@ -658,7 +658,7 @@ let suite = "solver">::: [
   "langs">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let slave = new Zeroinstall.Python.slave config in
-    let distro = Distro.generic_distribution slave in
+    let distro = Distro_impls.generic_distribution slave in
     let feed_provider = new Feed_provider.feed_provider config distro in
     let solve expected ?(lang="en_US.UTF-8") machine =
       let scope_filter = Impl_provider.({

@@ -223,7 +223,7 @@ let suite = "driver">::: [
           | url -> failwith url
       end in
     let slave = new fake_slave config handler in
-    let distro = Distro.generic_distribution slave in
+    let distro = Distro_impls.generic_distribution slave in
     let fetcher = fake_fetcher config handler in
 
     let driver = new Driver.driver config fetcher distro Fake_system.null_ui slave in
