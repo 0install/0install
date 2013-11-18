@@ -11,8 +11,6 @@ module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
 module Q = Support.Qdom
 
-exception Fallback_to_Python
-
 let generic_distribution slave =
   object
     inherit Distro.python_fallback_distribution slave "Distribution" []
@@ -198,8 +196,7 @@ module Debian = struct
       val cache = new Cache.cache config "dpkg-status.cache" status_file 2 ~old_format:false
 
       method! is_installed elem =
-        try check_cache id_prefix elem cache
-        with Fallback_to_Python -> super#is_installed elem
+        check_cache id_prefix elem cache || super#is_installed elem
 
       method! private add_package_impls_from_python query =
         (* Add apt-cache candidates (there won't be any if we used PackageKit) *)
@@ -211,21 +208,20 @@ module Debian = struct
         );
 
         (* If our dpkg cache is up-to-date, add from there. Otherwise, add from Python. *)
-        try
-          match cache#get package_name with
-          | [] -> raise Fallback_to_Python      (* We don't know anything about this package *)
-          | ["-"] -> ()                         (* We know the package isn't installed *)
-          | infos ->
-              infos |> List.iter (fun cached_info ->
-                match Str.split_delim U.re_tab cached_info with
-                | [version; machine] ->
-                    let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
-                    query#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[] ~distro_name
-                | _ ->
-                    log_warning "Unknown cache line format for '%s': %s" package_name cached_info
-              )
-        with Fallback_to_Python ->
-          super#add_package_impls_from_python query
+        match cache#get package_name with
+        | [] ->
+            (* We don't know anything about this package *)
+            super#add_package_impls_from_python query
+        | ["-"] -> ()                         (* We know the package isn't installed *)
+        | infos ->
+            infos |> List.iter (fun cached_info ->
+              match Str.split_delim U.re_tab cached_info with
+              | [version; machine] ->
+                  let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
+                  query#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[] ~distro_name
+              | _ ->
+                  log_warning "Unknown cache line format for '%s': %s" package_name cached_info
+            )
 
     method! check_for_candidates feed =
       match Distro.get_matching_package_impls self feed with
@@ -255,8 +251,7 @@ module RPM = struct
       val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
 
       method! is_installed elem =
-        try check_cache id_prefix elem cache
-        with Fallback_to_Python -> super#is_installed elem
+        check_cache id_prefix elem cache || super#is_installed elem
     end
 end
 
@@ -359,8 +354,7 @@ module Mac = struct
       val cache = new Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
 
       method! is_installed elem =
-        try check_cache id_prefix elem cache
-        with Fallback_to_Python -> super#is_installed elem
+        check_cache id_prefix elem cache || super#is_installed elem
 
       method! match_name name = (name = distro_name || name = "Darwin")
     end
@@ -386,17 +380,14 @@ module Win = struct
       val id_prefix = "package:windows"
 
       method! private add_package_impls_from_python query =
-        try
-          let package_name = query#package_name in
-          match package_name with
-          | "openjdk-6-jre" | "openjdk-6-jdk"
-          | "openjdk-7-jre" | "openjdk-7-jdk"
-          | "netfx" | "netfx-client" ->
-              Qdom.log_elem Support.Logging.Info "FIXME: Windows: can't check for package '%s':" package_name query#elem;
-              raise Fallback_to_Python
-          | _ -> ()
-        with Fallback_to_Python ->
-          super#add_package_impls_from_python query
+        let package_name = query#package_name in
+        match package_name with
+        | "openjdk-6-jre" | "openjdk-6-jdk"
+        | "openjdk-7-jre" | "openjdk-7-jdk"
+        | "netfx" | "netfx-client" ->
+            Qdom.log_elem Support.Logging.Info "FIXME: Windows: can't check for package '%s':" package_name query#elem;
+            super#add_package_impls_from_python query
+        | _ -> ()
 
         (* No PackageKit support on Windows *)
       method! check_for_candidates _feed = Lwt.return ()
@@ -414,8 +405,7 @@ module Win = struct
       val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
 
       method! is_installed elem =
-        try check_cache id_prefix elem cache
-        with Fallback_to_Python -> super#is_installed elem
+        check_cache id_prefix elem cache || super#is_installed elem
     end
 end
 
