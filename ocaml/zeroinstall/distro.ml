@@ -84,7 +84,7 @@ class type query =
       unit
   end
 
-let make_query distro feed elem props results =
+let make_query fixup_main feed elem props results =
   object (self : query)
     method package_name = ZI.get_attribute Constants.FeedAttr.package elem
     method elem = elem
@@ -93,10 +93,10 @@ let make_query distro feed elem props results =
     method add_result id impl = results := StringMap.add id impl !results
 
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes.
-     * If [is_installed] is [true], we also call [distribution#fixup_main] on it.
+     * If [is_installed] is [true], we also call [fixup_main] on it.
      *)
     method add_package_implementation ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name =
-      if is_installed then distro#fixup_main props;
+      if is_installed then fixup_main props;
       let new_attrs = ref props.Feed.attrs in
       let set name value =
         new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
@@ -118,18 +118,6 @@ let make_query distro feed elem props results =
 
   end
 
-(** Get the native implementations (installed or candidates for installation), based on the <package-implementation> elements
-    in [feed]. Returns [None] if there were no matching elements (which means that we didn't even check the distribution). *)
-let get_package_impls distro feed =
-  match get_matching_package_impls distro feed with
-  | [] -> None
-  | matches ->
-      let results = ref StringMap.empty in
-      matches |> List.iter (fun (elem, props) ->
-        distro#get_package_impls (make_query distro feed elem props results);
-      );
-      Some !results
-
 class virtual distribution config =
   let system = config.system in
   object (self)
@@ -147,8 +135,19 @@ class virtual distribution config =
     (** All IDs will start with this string (e.g. "package:deb") *)
     val virtual id_prefix : string
 
-    (** Populate [query] with the implementations for this feed. This default implementation adds anything found previously by PackageKit. *)
-    method get_package_impls (query:query) : unit =
+    (** Get the native implementations (installed or candidates for installation) for this feed.
+     * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
+    method get_impls_for_feed (feed:Feed.feed) : Feed.implementation StringMap.t =
+      let results = ref StringMap.empty in
+      match get_matching_package_impls self feed with
+      | [] -> !results
+      | matches ->
+          matches |> List.iter (fun (elem, props) ->
+            self#get_package_impls (make_query self#fixup_main feed elem props results);
+          );
+          !results
+
+    method private get_package_impls (query:query) : unit =
       let package_name = query#package_name in
       packagekit#get_impls package_name |> List.iter (fun info ->
         let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name
@@ -160,7 +159,7 @@ class virtual distribution config =
     (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value.
         The default implementation checks that main exists, and searches [system_paths] for
         it if not. *)
-    method fixup_main props =
+    method private fixup_main props =
       let open Feed in
       match get_command_opt "run" props.commands with
       | None -> ()
@@ -322,8 +321,7 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
 
   let fake_host_doc = (ZI.make_root "<fake-host-root>").Qdom.doc in
 
-  let get_host_impls query =
-    match query#feed.Feed.url with
+  let get_host_impls = function
     | `remote_feed "http://repo.roscidus.com/python/python" as url ->
         (* Hack: we can support Python on platforms with unsupported package managers
            by adding the implementation of Python running the slave now to the list. *)
@@ -337,7 +335,7 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
         run |> Q.set_attribute "name" "run";
         run |> Q.set_attribute "path" path;
         let commands = StringMap.singleton "run" Feed.({command_qdom = run; command_requires = []}) in
-        query#add_result id @@ make_host_impl path version ~commands url id
+        [(id, make_host_impl path version ~commands url id)]
     | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
         let path, version =
           invoke "get-gobject-details" [] (function
@@ -346,8 +344,8 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
           ) |> Lwt_main.run in
         let id = "package:host:python-gobject:" ^ version in
         let requires = [make_restricts_distro fake_host_doc "http://repo.roscidus.com/python/python" "host"] in
-        query#add_result id @@ make_host_impl path version ~requires url id
-    | _ -> () in
+        [(id, make_host_impl path version ~requires url id)]
+    | _ -> [] in
 
   let to_impls query = function
     | `List pkgs ->
@@ -378,7 +376,7 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
       | None -> false
       | Some master_feed ->
           let wanted_id = ZI.get_attribute FeedAttr.id elem in
-          let impls = get_package_impls self master_feed |? lazy StringMap.empty in
+          let impls = self#get_impls_for_feed master_feed in
           match StringMap.find wanted_id impls with
           | None -> false
           | Some impl ->
@@ -386,10 +384,15 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
               | Feed.PackageImpl {Feed.package_installed; _} -> package_installed
               | _ -> assert false
 
+    method! get_impls_for_feed feed =
+      let impls = super#get_impls_for_feed feed in
+      if check_host_python then (
+        get_host_impls feed.Feed.url |> List.fold_left (fun map (id, impl) -> StringMap.add id impl map) impls
+      ) else impls
+
     (** Gets PackageKit impls (from super), plus host Python impls, plus anything from [add_package_impls_from_python] *)
-    method! get_package_impls query =
+    method! private get_package_impls query =
       super#get_package_impls query;
-      if check_host_python then get_host_impls query;
       self#add_package_impls_from_python query
 
     (** Query the Python slave and add any implementations returned. Override this if you can sometimes skip this step. *)
@@ -698,7 +701,7 @@ module ArchLinux = struct
       (* We should never get here for an installed package, because we always set quick-test-* *)
       method is_installed _elem = false
 
-      method! get_package_impls query =
+      method! private get_package_impls query =
         (* Start with impls from PackageKit *)
         super#get_package_impls query;
 

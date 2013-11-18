@@ -297,7 +297,7 @@ let suite = "download">::: [
 
     Fake_system.fake_log#reset;
     Lwt_main.run @@ deb#check_for_candidates feed;
-    begin match Test_distro.to_impl_list @@ Zeroinstall.Distro.get_package_impls deb feed with
+    begin match Test_distro.to_impl_list @@ deb#get_impls_for_feed feed with
     | [_impl1; _impl2] -> ()
     | items -> raise_safe "Got %d!" (List.length items) end;
 

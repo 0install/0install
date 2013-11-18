@@ -263,11 +263,10 @@ let suite = "driver">::: [
     let distro =
       object (_ : Distro.distribution)
         method is_installed = failwith "is_installed"
-        method get_package_impls _query = ()
+        method get_impls_for_feed _feed = StringMap.empty
         method check_for_candidates = raise_safe "Unexpected check_for_candidates"
         method install_distro_packages = raise_safe "install_distro_packages"
         method match_name = (=) "dummy"
-        method fixup_main _ = ()
       end in
     let reqs = Requirements.default_requirements "http://foo/Binary.xml" in
     let fetcher =

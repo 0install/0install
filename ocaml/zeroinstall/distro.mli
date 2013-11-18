@@ -23,32 +23,39 @@ class type query =
       unit
   end
 
-type distribution = <
-  (** Can we use packages for this distribution? For example, MacPortsDistribution can use "MacPorts" and "Darwin" packages. *)
-  match_name : string -> bool;
+class virtual distribution : General.config ->
+  object
+    val virtual distro_name : string
 
-  (** Test whether this <selection> element is still valid. This should only be called by the [Distro.is_installed] function. *)
-  is_installed : Support.Qdom.element -> bool;
+    (** All IDs will start with this string (e.g. "package:deb") *)
+    val virtual id_prefix : string
 
-  (** Add the implementations for this feed to [query].
-   * Called by the [Distro.get_package_impls] function once for each <package-implementation> element. *)
-  get_package_impls : query -> unit;
+    (** Can we use packages for this distribution? For example, MacPortsDistribution can use "MacPorts" and "Darwin" packages. *)
+    method match_name : string -> bool
 
-  (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
-      promise resolves, the candidates should be included in future responses from [get_package_impls]. *)
-  check_for_candidates : Feed.feed -> unit Lwt.t;
+    (** Test whether this <selection> element is still valid. This should only be called by the [Distro.is_installed] function. *)
+    method virtual is_installed : Support.Qdom.element -> bool
 
-  (** Install a set of packages of a given type (as set previously by [check_for_candidates]).
-   * Normally called only by the [Distro.install_distro_packages] function. *)
-  install_distro_packages : Ui.ui_handler -> string -> (Feed.implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t;
+    (** Add the implementations for this feed to [query].
+     * Called by [get_impls_for_feed] once for each <package-implementation> element.
+     * This default implementation adds anything found previously by PackageKit. *)
+    method private get_package_impls : query -> unit
 
-  (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value. *)
-  fixup_main : Feed.properties -> unit;
->
+    (** Get the native implementations (installed or candidates for installation) for this feed.
+     * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
+    method get_impls_for_feed : Feed.feed -> Feed.implementation Support.Common.StringMap.t
 
-(** Get the native implementations (installed or candidates for installation), based on the <package-implementation> elements
-    in [feed]. Returns [None] if there were no matching elements (which means that we didn't even check the distribution). *)
-val get_package_impls : distribution -> Feed.feed -> Feed.implementation Support.Common.StringMap.t option
+    (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
+        promise resolves, the candidates should be included in future responses from [get_package_impls]. *)
+    method check_for_candidates : Feed.feed -> unit Lwt.t
+
+    (** Install a set of packages of a given type (as set previously by [check_for_candidates]).
+     * Normally called only by the [Distro.install_distro_packages] function. *)
+    method install_distro_packages : Ui.ui_handler -> string -> (Feed.implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
+
+    (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value. *)
+    method private fixup_main : Feed.properties -> unit
+  end
 
 (** Create a suitable distribution object for this system. *)
 val get_host_distribution : General.config -> Python.slave -> distribution

@@ -264,9 +264,8 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       let compare_impls stability_policy a b = fst (compare_impls_full stability_policy a b) in
 
       let get_distro_impls feed =
-        match feed_provider#get_distro_impls feed with
-        | None -> []
-        | Some (impls, overrides) -> do_overrides overrides impls in
+        let impls, overrides = feed_provider#get_distro_impls feed in
+        do_overrides overrides impls in
 
       let candidates : candidates =
         try Hashtbl.find cache iface

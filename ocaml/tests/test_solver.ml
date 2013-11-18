@@ -104,17 +104,15 @@ class fake_feed_provider system distro =
       Hashtbl.add ifaces url feed
 
     method get_distro_impls feed =
+      let overrides = {
+        Feed.last_checked = None;
+        Feed.user_stability = StringMap.empty;
+      } in
       match distro with
-      | None -> None
+      | None -> (StringMap.empty, overrides)
       | Some distro ->
-          match Distro.get_package_impls distro feed with
-          | Some impls ->
-            let overrides = {
-              Feed.last_checked = None;
-              Feed.user_stability = StringMap.empty;
-            } in
-            Some (impls, overrides)
-          | None -> None
+          let impls = distro#get_impls_for_feed feed in
+          (impls, overrides)
 
     method get_iface_config _uri =
       {Feed_cache.stability_policy = None; Feed_cache.extra_feeds = [];}
@@ -350,13 +348,13 @@ let suite = "solver">::: [
 
     let distro =
       object (_ : Distro.distribution)
+        inherit Distro.distribution config
+        val id_prefix = "package:dummy"
         val distro_name = "dummy"
         method is_installed = failwith "is_installed"
-        method check_for_candidates = raise_safe "Unexpected check_for_candidates"
-        method install_distro_packages = raise_safe "install_distro_packages"
-        method match_name x = (x = distro_name)
-        method fixup_main _ = ()
-        method get_package_impls query =
+        method! check_for_candidates = raise_safe "Unexpected check_for_candidates"
+        method! install_distro_packages = raise_safe "install_distro_packages"
+        method! private get_package_impls query =
           query#add_package_implementation
             ~is_installed:true
             ~id:"package:is_distro_v1-1"
@@ -399,11 +397,9 @@ let suite = "solver">::: [
               Some (feed, overrides)
 
         method! get_distro_impls feed =
-          match super#get_distro_impls feed with
-          | None -> None
-          | Some (impls, overrides) ->
-              let overrides = {overrides with Feed.user_stability = StringMap.singleton "package:buggy" Buggy} in
-              Some (impls, overrides)
+          let (impls, overrides) = super#get_distro_impls feed in
+          let overrides = {overrides with Feed.user_stability = StringMap.singleton "package:buggy" Buggy} in
+          (impls, overrides)
       end in
     feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system (Fake_system.tests_dir +/ "ranking.xml"));
     config.network_use <- Minimal_network;

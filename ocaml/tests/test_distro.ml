@@ -43,7 +43,7 @@ let load_feed system xml =
     F.parse system root None
 
 let to_impl_list map : F.implementation list =
-  StringMap.fold (fun _ impl lst -> impl :: lst) (Fake_system.expect map) []
+  StringMap.fold (fun _ impl lst -> impl :: lst) map []
 
 let gimp_feed = Test_feed.feed_of_xml Fake_system.real_system "\
   <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://gimp.org/gimp'>\
@@ -70,7 +70,7 @@ let suite = "distro">::: [
     let system = (fake_system :> system) in
     let distro = Distro.ArchLinux.arch_distribution config in
     let feed = load_feed system test_feed in
-    let impls = Distro.get_package_impls distro feed |> to_impl_list in
+    let impls = distro#get_impls_for_feed feed |> to_impl_list in
     let open F in
     match impls with
     | [impl] ->
@@ -84,9 +84,9 @@ let suite = "distro">::: [
     let arch_db = Test_0install.feed_dir +/ "arch" in
     let distro = Distro.ArchLinux.arch_distribution ~arch_db config in
 
-    Distro.get_package_impls distro gimp_feed |> to_impl_list |> assert_equal [];
+    distro#get_impls_for_feed gimp_feed |> to_impl_list |> assert_equal [];
 
-    begin match Distro.get_package_impls distro (make_test_feed "zeroinstall-injector") |> to_impl_list with
+    begin match distro#get_impls_for_feed (make_test_feed "zeroinstall-injector") |> to_impl_list with
     | [impl] ->
         assert_str_equal "package:arch:zeroinstall-injector:1.5-1:*" @@ F.get_attr_ex "id" impl;
         assert_str_equal "1.5-1" @@ F.get_attr_ex "version" impl
@@ -99,9 +99,9 @@ let suite = "distro">::: [
     let slave = new Zeroinstall.Python.slave config in
     let distro = Distro.Slackware.slack_distribution ~packages_dir config slave in
 
-    Distro.get_package_impls distro gimp_feed |> to_impl_list |> assert_equal [];
+    distro#get_impls_for_feed gimp_feed |> to_impl_list |> assert_equal [];
 
-    begin match Distro.get_package_impls distro (make_test_feed "infozip") |> to_impl_list with
+    begin match distro#get_impls_for_feed (make_test_feed "infozip") |> to_impl_list with
     | [impl] ->
         assert_str_equal "package:slack:infozip:5.52-2:i486" @@ F.get_attr_ex "id" impl;
         assert_str_equal "5.52-2" @@ F.get_attr_ex "version" impl;
@@ -114,16 +114,16 @@ let suite = "distro">::: [
     let slave = new Zeroinstall.Python.slave config in
     let distro = Distro.Gentoo.gentoo_distribution ~pkgdir config slave in
 
-    Distro.get_package_impls distro gimp_feed |> to_impl_list |> assert_equal [];
+    distro#get_impls_for_feed gimp_feed |> to_impl_list |> assert_equal [];
 
-    begin match Distro.get_package_impls distro (make_test_feed "sys-apps/portage") |> to_impl_list with
+    begin match distro#get_impls_for_feed (make_test_feed "sys-apps/portage") |> to_impl_list with
     | [impl] ->
         assert_str_equal "package:gentoo:sys-apps/portage:2.1.7.16:x86_64" @@ F.get_attr_ex "id" impl;
         assert_str_equal "2.1.7.16" @@ F.get_attr_ex "version" impl;
         assert_str_equal "x86_64" @@ (expect impl.F.machine);
     | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
 
-    begin match Distro.get_package_impls distro (make_test_feed "sys-kernel/gentoo-sources") |> to_impl_list with
+    begin match distro#get_impls_for_feed (make_test_feed "sys-kernel/gentoo-sources") |> to_impl_list with
     | [b; a] ->
         assert_str_equal "package:gentoo:sys-kernel/gentoo-sources:2.6.30-4:i686" @@ F.get_attr_ex "id" a;
         assert_str_equal "2.6.30-4" @@ F.get_attr_ex "version" a;
@@ -134,7 +134,7 @@ let suite = "distro">::: [
         assert_str_equal "x86_64" @@ (expect b.F.machine);
     | impls -> assert_failure @@ Printf.sprintf "want 2, got %d" (List.length impls) end;
 
-    begin match Distro.get_package_impls distro (make_test_feed "app-emulation/emul-linux-x86-baselibs") |> to_impl_list with
+    begin match distro#get_impls_for_feed (make_test_feed "app-emulation/emul-linux-x86-baselibs") |> to_impl_list with
     | [impl] ->
         assert_str_equal "package:gentoo:app-emulation/emul-linux-x86-baselibs:20100220:i386" @@ F.get_attr_ex "id" impl;
         assert_str_equal "20100220" @@ F.get_attr_ex "version" impl;
@@ -147,7 +147,7 @@ let suite = "distro">::: [
     let slave = new Zeroinstall.Python.slave config in
     let distro = Distro.Ports.ports_distribution ~pkgdir config slave in
 
-    begin match Distro.get_package_impls distro (make_test_feed "zeroinstall-injector") |> to_impl_list with
+    begin match distro#get_impls_for_feed (make_test_feed "zeroinstall-injector") |> to_impl_list with
     | [impl] ->
         assert (U.starts_with (F.get_attr_ex "id" impl) "package:ports:zeroinstall-injector:0.41-2:");
         assert_str_equal "0.41-2" @@ F.get_attr_ex "version" impl
@@ -162,7 +162,7 @@ let suite = "distro">::: [
     let macports_db = pkgdir +/ "registry.db" in
     let distro = Distro.Mac.macports_distribution ~macports_db config slave in
 
-    begin match Distro.get_package_impls distro (make_test_feed "zeroinstall-injector") |> to_impl_list with
+    begin match distro#get_impls_for_feed (make_test_feed "zeroinstall-injector") |> to_impl_list with
     | [impl] ->
         assert_str_equal "package:macports:zeroinstall-injector:1.0-0:*" @@ F.get_attr_ex "id" impl;
         assert_str_equal "1.0-0" @@ F.get_attr_ex "version" impl;
@@ -195,31 +195,27 @@ let suite = "distro">::: [
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_feed)) in
     let feed = parse system root None in
     let () =
-      match Distro.get_package_impls distro feed with
-      | None -> assert_failure "Didn't check!"
-      | Some impls ->
-          let host_python = find_host impls in
-          let python_run =
-            try StringMap.find_nf "run" host_python.props.commands
-            with Not_found -> assert_failure "No run command for host Python" in
-          assert (Fake_system.real_system#file_exists (ZI.get_attribute "path" python_run.command_qdom)) in
+      let impls = distro#get_impls_for_feed feed in
+      let host_python = find_host impls in
+      let python_run =
+        try StringMap.find_nf "run" host_python.props.commands
+        with Not_found -> assert_failure "No run command for host Python" in
+      assert (Fake_system.real_system#file_exists (ZI.get_attribute "path" python_run.command_qdom)) in
 
     (* python-gobject *)
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_gobject_feed)) in
     let feed = F.parse system root None in
     let () =
-      match Distro.get_package_impls distro feed with
-      | None -> assert_failure "Didn't check!"
-      | Some impls ->
-          let host_gobject = find_host impls in
-          let () =
-            match host_gobject.props.requires with
-            | [ {dep_importance = Dep_restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
-            | _ -> assert_failure "No host restriction for host python-gobject" in
-          let sel = ZI.make host_gobject.qdom.Q.doc "selection" in
-          sel.Q.attrs <- AttrMap.bindings host_gobject.props.attrs;
-          Q.set_attribute "from-feed" (Zeroinstall.Feed_url.format_url (`distribution_feed feed.url)) sel;
-          assert (Distro.is_installed config distro sel) in
+      let impls = distro#get_impls_for_feed feed in
+      let host_gobject = find_host impls in
+      let () =
+        match host_gobject.props.requires with
+        | [ {dep_importance = Dep_restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
+        | _ -> assert_failure "No host restriction for host python-gobject" in
+      let sel = ZI.make host_gobject.qdom.Q.doc "selection" in
+      sel.Q.attrs <- AttrMap.bindings host_gobject.props.attrs;
+      Q.set_attribute "from-feed" (Zeroinstall.Feed_url.format_url (`distribution_feed feed.url)) sel;
+      assert (Distro.is_installed config distro sel) in
     slave#close;
   );
 
@@ -240,7 +236,7 @@ let suite = "distro">::: [
     let feed = get_feed
       "<package-implementation distributions='Debian' package='yast2-mail'/>\n\
        <package-implementation distributions='RPM' package='yast2-update'/>" in
-    let impls = to_impl_list @@ Distro.get_package_impls rpm feed in
+    let impls = to_impl_list @@ rpm#get_impls_for_feed feed in
     begin match impls with
     | [yast] ->
         assert_equal "package:rpm:yast2-update:2.15.23-21:i586" (F.get_attr_ex "id" yast);
@@ -250,16 +246,16 @@ let suite = "distro">::: [
 
     let feed = get_feed "<package-implementation distributions='RPM' package='yast2-mail'/>\n\
                          <package-implementation distributions='RPM' package='yast2-update'/>" in
-    let impls = to_impl_list @@ Distro.get_package_impls rpm feed in
+    let impls = to_impl_list @@ rpm#get_impls_for_feed feed in
     assert_equal 2 (List.length impls);
 
     let feed = get_feed "<package-implementation distributions='' package='yast2-mail'/>\n\
                          <package-implementation package='yast2-update'/>" in
-    let impls = to_impl_list @@ Distro.get_package_impls rpm feed in
+    let impls = to_impl_list @@ rpm#get_impls_for_feed feed in
     assert_equal 2 (List.length impls);
 
     let feed = get_feed "<package-implementation distributions='Foo Bar Baz' package='yast2-mail'/>" in
-    let impls = to_impl_list @@ Distro.get_package_impls rpm feed in
+    let impls = to_impl_list @@ rpm#get_impls_for_feed feed in
     assert_equal 1 (List.length impls);
 
     Unix.putenv "PATH" old_path;
@@ -288,7 +284,7 @@ let suite = "distro">::: [
     fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     let slave = new Zeroinstall.Python.slave config in
     let deb = Distro.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config slave in
-    begin match to_impl_list @@ Distro.get_package_impls deb feed with
+    begin match to_impl_list @@ deb#get_impls_for_feed feed with
     | [impl] ->
         Fake_system.assert_str_equal "package:deb:python-bittorrent:3.4.2-10:*" (F.get_attr_ex "id" impl);
         assert_equal ~msg:"Stability" Packaged impl.F.stability;
@@ -328,7 +324,7 @@ let suite = "distro">::: [
 
     (* Part II *)
     let gimp_feed = get_feed "<package-implementation package='gimp'/>" in
-    Distro.get_package_impls deb gimp_feed |> assert_equal (Some StringMap.empty);
+    deb#get_impls_for_feed gimp_feed |> assert_equal StringMap.empty;
 
     (* Initially, we only get information about the installed version... *)
     let bt_feed = get_feed "<package-implementation package='python-bittorrent'>\n\
@@ -336,7 +332,7 @@ let suite = "distro">::: [
                                   <version not-before='3'/>\n\
                                 </restricts>\n\
                                 </package-implementation>" in
-    Distro.get_package_impls deb bt_feed |> to_impl_list |> List.length |> assert_equal 1;
+    deb#get_impls_for_feed bt_feed |> to_impl_list |> List.length |> assert_equal 1;
 
 
     Fake_system.fake_log#reset;
@@ -346,7 +342,7 @@ let suite = "distro">::: [
 
     (* Now we see the uninstalled package *)
     let compare_version a b = compare a.F.parsed_version b.F.parsed_version in
-    begin match to_impl_list @@ Distro.get_package_impls deb bt_feed |> List.sort compare_version with
+    begin match to_impl_list @@ deb#get_impls_for_feed bt_feed |> List.sort compare_version with
     | [installed; uninstalled] as impls ->
         (* Check restriction appears for both candidates *)
         impls |> List.iter (fun impl ->
@@ -362,7 +358,7 @@ let suite = "distro">::: [
     end;
 
     let feed = get_feed "<package-implementation package='libxcomposite-dev'/>" in
-    begin match to_impl_list @@ Distro.get_package_impls deb feed with
+    begin match to_impl_list @@ deb#get_impls_for_feed feed with
     | [libxcomposite] ->
         Fake_system.assert_str_equal "0.3.1-1" @@ F.get_attr_ex "version" libxcomposite;
         Fake_system.assert_str_equal "i386" @@ Fake_system.expect libxcomposite.F.machine
@@ -371,7 +367,7 @@ let suite = "distro">::: [
 
     (* Java is special... *)
     let feed = get_feed "<package-implementation package='openjdk-7-jre'/>" in
-    begin match to_impl_list @@ Distro.get_package_impls deb feed with
+    begin match to_impl_list @@ deb#get_impls_for_feed feed with
     | [impl] -> Fake_system.assert_str_equal "7.3-2.1.1-3" @@ F.get_attr_ex "version" impl
     | _ -> assert false end;
 

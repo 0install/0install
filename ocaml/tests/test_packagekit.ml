@@ -32,7 +32,7 @@ let test ?(package="gnupg") config fake_system =
 </interface>" package) in
   distro#check_for_candidates feed |> Lwt_main.run;
   log_info "done check_for_candidates";
-  let impls = Distro.get_package_impls distro feed |> Test_distro.to_impl_list in
+  let impls = distro#get_impls_for_feed feed |> Test_distro.to_impl_list in
   impls |> List.iter (function
     | {F.impl_type = F.PackageImpl info; _} ->
         assert_equal false info.F.package_installed;

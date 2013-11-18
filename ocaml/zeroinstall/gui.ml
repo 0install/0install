@@ -25,12 +25,10 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
       match feed_provider#get_feed master_feed_url with
       | None -> None
       | Some (master_feed, _) ->
-          match feed_provider#get_distro_impls master_feed with
+          let (impls, overrides) = feed_provider#get_distro_impls master_feed in
+          match StringMap.find id impls with
           | None -> None
-          | Some (impls, overrides) ->
-              match StringMap.find id impls with
-              | None -> None
-              | Some impl -> Some (impl, get_override overrides)
+          | Some impl -> Some (impl, get_override overrides)
   )
   | (`local_feed _ | `remote_feed _) as feed_url ->
       match feed_provider#get_feed feed_url with
