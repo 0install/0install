@@ -13,14 +13,6 @@ class type query =
     method feed : Feed.feed
 
     method add_result : string -> Feed.implementation -> unit
-    method add_package_implementation :
-      id:string ->
-      version:string ->
-      machine:string ->
-      extra_attrs:((string * string) list) ->
-      is_installed:bool ->
-      distro_name:string ->
-      unit
   end
 
 class virtual distribution : General.config ->
@@ -60,8 +52,24 @@ class virtual distribution : General.config ->
      * Normally called only by the [Distro.install_distro_packages] function. *)
     method install_distro_packages : Ui.ui_handler -> string -> (Feed.implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
 
-    (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value. *)
-    method private fixup_main : Feed.properties -> unit
+    (** Called when an installed package is added, or when installation completes, to find the correct main value,
+     * since we might not be able to work it out before-hand. The default checks that the path exists and, if not,
+     * searches [system_paths] for it.
+     * Note: Only called if the implementation already has a "run" command. *)
+    method private get_correct_main : Feed.implementation -> Feed.command -> Support.Common.filepath option
+
+    (** Add a new Feed.implementation result to [query]. *)
+    method private add_package_implementation :
+      ?main:string ->
+      ?retrieval_method:(Feed.distro_retrieval_method) ->
+      query ->
+      id:string ->
+      version:string ->
+      machine:(string option) ->
+      extra_attrs:((string * string) list) ->
+      is_installed:bool ->
+      distro_name:string ->
+      unit
   end
 
 (** Call the old Python code where we're currently missing support in OCaml.

@@ -14,6 +14,8 @@ val reap_child : int -> unit
 val canonical_machine : string -> string
 val canonical_os : string -> string
 
+val dev_null : Common.filepath
+
 module RealSystem :
   functor (U : UnixType) ->
     sig

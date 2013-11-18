@@ -347,7 +347,7 @@ let suite = "solver">::: [
     let iface = "http://example.com/prog.xml" in
 
     let distro =
-      object (_ : Distro.distribution)
+      object (self : Distro.distribution)
         inherit Distro.distribution config
         val id_prefix = "package:dummy"
         val distro_name = "dummy"
@@ -355,34 +355,39 @@ let suite = "solver">::: [
         method! check_for_candidates = raise_safe "Unexpected check_for_candidates"
         method! install_distro_packages = raise_safe "install_distro_packages"
         method! private get_package_impls query =
-          query#add_package_implementation
+          let machine = Some "x86_64" in
+          self#add_package_implementation
             ~is_installed:true
             ~id:"package:is_distro_v1-1"
-            ~machine:"x86_64"
-            ~version:"1-1"
-            ~extra_attrs:[]
-            ~distro_name;
-          query#add_package_implementation
-            ~is_installed:false
-            ~id:"package:root_install_needed_2"
-            ~machine:"x86_64"
-            ~version:"1-1"
-            ~extra_attrs:[]
-            ~distro_name;
-          query#add_package_implementation
-            ~is_installed:false
-            ~id:"package:root_install_needed_1"
-            ~machine:"x86_64"
-            ~version:"1-1"
-            ~extra_attrs:[]
-            ~distro_name;
-          query#add_package_implementation
-            ~is_installed:true
-            ~id:"package:buggy"
-            ~machine:"x86_64"
+            ~machine
             ~version:"1-1"
             ~extra_attrs:[]
             ~distro_name
+            query;
+          self#add_package_implementation
+            ~is_installed:false
+            ~id:"package:root_install_needed_2"
+            ~machine
+            ~version:"1-1"
+            ~extra_attrs:[]
+            ~distro_name
+            query;
+          self#add_package_implementation
+            ~is_installed:false
+            ~id:"package:root_install_needed_1"
+            ~machine
+            ~version:"1-1"
+            ~extra_attrs:[]
+            ~distro_name
+            query;
+          self#add_package_implementation
+            ~is_installed:true
+            ~id:"package:buggy"
+            ~machine
+            ~version:"1-1"
+            ~extra_attrs:[]
+            ~distro_name
+            query;
       end in
 
     let feed_provider =

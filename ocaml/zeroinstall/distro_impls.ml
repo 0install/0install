@@ -89,6 +89,19 @@ module Cache =
             config.system#with_open_in [Open_rdonly; Open_text] 0 cache_path load_cache
           )
 
+        (** Add some entries to the cache.
+         * Warning: adding the empty list has no effect. In particular, future calls to [get] will still call [if_missing].
+         * So if you want to record the fact that a package is not installed, you see need to add an entry for it (e.g. [["-"]]). *)
+        method private put key values =
+          try
+            config.system#with_open_out [Open_append; Open_creat] 0o644 cache_path (fun ch ->
+              values |> List.iter (fun value ->
+                output_string ch @@ Printf.sprintf "%s=%s" key value;
+                Hashtbl.add data.contents key value
+              )
+            )
+          with Safe_exception _ as ex -> reraise_with_context ex "... writing cache %s: %s=%s" cache_path key (String.concat ";" values)
+
         (** Check cache is still up-to-date (i.e. that [source] hasn't changed). Clear it if not. *)
         method private ensure_valid =
           match config.system#stat source with
@@ -105,7 +118,8 @@ module Cache =
                 );
                 self#load_cache in
               if data.mtime <> Int64.of_float info.Unix.st_mtime then (
-                log_info "Modification time of %s has changed; invalidating cache" source;
+                if data.mtime <> -1L then
+                  log_info "Modification time of %s has changed; invalidating cache" source;
                 flush ()
               ) else if data.size <> info.Unix.st_size then (
                 log_info "Size of %s has changed; invalidating cache" source;
@@ -115,9 +129,17 @@ module Cache =
                 flush ()
               )
 
-        method get (key:string) : string list =
+        (** Look up an item in the cache.
+         * @param if_missing called if given and no entries are found
+         *)
+        method get ?if_missing (key:string) : string list =
           self#ensure_valid;
-          Hashtbl.find_all data.contents key
+          match Hashtbl.find_all data.contents key, if_missing with
+          | [], Some if_missing ->
+              let result = if_missing key in
+              self#put key result;
+              result
+          | result, _ -> result
 
         initializer self#load_cache
       end
@@ -126,7 +148,7 @@ module Cache =
 (** Lookup [elem]'s package in the cache. Generate the ID(s) for the cached implementations and check that one of them
     matches the [id] attribute on [elem].
     Returns [false] if the cache is out-of-date. *)
-let check_cache id_prefix elem cache =
+let check_cache id_prefix elem (cache:Cache.cache) =
   match ZI.get_attribute_opt "package" elem with
   | None ->
       Qdom.log_elem Support.Logging.Warning "Missing 'package' attribute" elem;
@@ -149,7 +171,7 @@ module Debian = struct
     size : Int64.t option;
   }
 
-  let debian_distribution ?(status_file=dpkg_db_status) config slave =
+  let debian_distribution ?(status_file=dpkg_db_status) config =
     let apt_cache = Hashtbl.create 10 in
     let system = config.system in
 
@@ -187,8 +209,56 @@ module Debian = struct
         Lwt.return ()
       ) in
 
+    (* Returns information about this package, or ["-"] if it's not installed. *)
+    let query_dpkg package_name =
+      let results = ref [] in
+      U.finally_do Unix.close (Unix.openfile Support.System.dev_null [Unix.O_WRONLY] 0)
+        (fun dev_null ->
+          ["dpkg-query"; "-W"; "--showformat=${Version}\t${Architecture}\t${Status}\n"; "--"; package_name]
+            |> U.check_output ~stderr:(`FD dev_null) system (fun ch  ->
+              try
+                while true do
+                  let line = input_line ch in
+                  match Str.bounded_split_delim U.re_tab line 3 with
+                  | [] -> ()
+                  | [version; debarch; status] ->
+                      if U.ends_with status " installed" then (
+                        let debarch =
+                          try U.string_tail debarch (String.rindex debarch '-' + 1)
+                          with Not_found -> debarch in
+                        match try_cleanup_distro_version_warn version package_name with
+                        | None -> ()
+                        | Some clean_version ->
+                            let r = Printf.sprintf "%s\t%s" clean_version (Support.System.canonical_machine (trim debarch)) in
+                            results := r :: !results
+                      )
+                  | _ -> log_warning "Can't parse dpkg output: '%s'" line
+                done
+              with End_of_file -> ()
+            )
+        );
+      if !results = [] then ["-"] else !results in
+
+    let fixup_java_main impl java_version =
+      let java_arch = if impl.Feed.machine = Some "x86_64" then Some "amd64" else impl.Feed.machine in
+
+      match java_arch with
+      | None -> log_warning "BUG: Missing machine type on Java!"; None
+      | Some java_arch ->
+          let java_bin = Printf.sprintf "/usr/lib/jvm/java-%s-%s/jre/bin/java" java_version java_arch in
+          if system#file_exists java_bin then Some java_bin
+          else (
+            (* Try without the arch... *)
+            let java_bin = Printf.sprintf "/usr/lib/jvm/java-%s/jre/bin/java" java_version in
+            if system#file_exists java_bin then Some java_bin
+            else (
+              log_info "Java binary not found (%s)" java_bin;
+              Some "/usr/bin/java"
+            )
+          ) in
+
     object (self : #Distro.distribution)
-      inherit Distro.python_fallback_distribution slave "DebianDistribution" [status_file] as super
+      inherit Distro.distribution config as super
       val check_host_python = false
 
       val distro_name = "Debian"
@@ -198,43 +268,64 @@ module Debian = struct
       method! is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
 
-      method! private add_package_impls_from_python query =
+      method! private get_package_impls query =
+        (* Add any PackageKit candidates *)
+        super#get_package_impls query;
+
         (* Add apt-cache candidates (there won't be any if we used PackageKit) *)
         let package_name = query#package_name in
         let entry = try Hashtbl.find apt_cache package_name with Not_found -> None in
         entry |> if_some (fun {version; machine; size = _} ->
           let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
-          query#add_package_implementation ~is_installed:false ~id ~version ~machine ~extra_attrs:[] ~distro_name
+          let machine = Arch.none_if_star machine in
+          self#add_package_implementation ~is_installed:false ~id ~version ~machine ~extra_attrs:[] ~distro_name query
         );
 
         (* If our dpkg cache is up-to-date, add from there. Otherwise, add from Python. *)
-        match cache#get package_name with
-        | [] ->
-            (* We don't know anything about this package *)
-            super#add_package_impls_from_python query
+        match cache#get ~if_missing:query_dpkg package_name with
         | ["-"] -> ()                         (* We know the package isn't installed *)
         | infos ->
             infos |> List.iter (fun cached_info ->
               match Str.split_delim U.re_tab cached_info with
               | [version; machine] ->
-                  let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
-                  query#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[] ~distro_name
+                  let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
+                  let machine = Arch.none_if_star machine in
+                  self#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[] ~distro_name query
               | _ ->
                   log_warning "Unknown cache line format for '%s': %s" package_name cached_info
             )
 
-    method! check_for_candidates feed =
-      match Distro.get_matching_package_impls self feed with
-      | [] -> Lwt.return ()
-      | matches ->
-          lwt available = packagekit#is_available in
-          if available then (
-            let package_names = matches |> List.map (fun (elem, _props) -> ZI.get_attribute "package" elem) in
-            packagekit#check_for_candidates package_names
-          ) else (
-            (* No PackageKit. Use apt-cache directly. *)
-            query_apt_cache (matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)))
-          )
+      method! check_for_candidates feed =
+        match Distro.get_matching_package_impls self feed with
+        | [] -> Lwt.return ()
+        | matches ->
+            lwt available = packagekit#is_available in
+            if available then (
+              let package_names = matches |> List.map (fun (elem, _props) -> ZI.get_attribute "package" elem) in
+              packagekit#check_for_candidates package_names
+            ) else (
+              (* No PackageKit. Use apt-cache directly. *)
+              query_apt_cache (matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)))
+            )
+
+      method! private add_package_implementation ?main ?retrieval_method query ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name =
+        let version =
+          if U.starts_with id "package:deb:openjdk-6-jre:" ||
+             U.starts_with id "package:deb:openjdk-7-jre:" then (
+            (* Debian marks all Java versions as pre-releases
+               See: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=685276 *)
+            Str.replace_first (Str.regexp_string "-pre") "." version
+          ) else version in
+        super#add_package_implementation ?main ?retrieval_method query ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name
+
+      method! private get_correct_main impl run_command =
+        let id = Feed.get_attr_ex Constants.FeedAttr.id impl in
+        if U.starts_with id "package:deb:openjdk-6-jre:" then
+          fixup_java_main impl "6-openjdk"
+        else if U.starts_with id "package:deb:openjdk-7-jre:" then
+          fixup_java_main impl "7-openjdk"
+        else
+          super#get_correct_main impl run_command
     end
 end
 
@@ -301,7 +392,7 @@ module ArchLinux = struct
       )
       | _ -> items in
 
-    object (_ : #Distro.distribution)
+    object (self : #Distro.distribution)
       inherit Distro.distribution config as super
       val check_host_python = false
 
@@ -333,7 +424,8 @@ module ArchLinux = struct
                 | None -> ()
                 | Some version ->
                     let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
-                    query#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)] ~distro_name
+                    let machine = Arch.none_if_star machine in
+                    self#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)] ~distro_name query
     end
 end
 
@@ -454,7 +546,7 @@ let get_host_distribution config (slave:Python.slave) : Distro.distribution =
         | _ -> false in
 
       if is_debian then
-        Debian.debian_distribution config slave
+        Debian.debian_distribution config
       else if x ArchLinux.arch_db then
         ArchLinux.arch_distribution config
       else if x RPM.rpm_db_packages then

@@ -16,7 +16,7 @@ module ArchLinux : sig
 end
 
 module Debian : sig
-  val debian_distribution : ?status_file:Support.Common.filepath -> General.config -> Python.slave -> Distro.distribution
+  val debian_distribution : ?status_file:Support.Common.filepath -> General.config -> Distro.distribution
 end
 
 module RPM : sig

@@ -180,9 +180,7 @@ let suite = "distro">::: [
     let python_path = Support.Utils.find_in_path_ex Fake_system.real_system "python" in
     fake_system#add_file python_path python_path;
 
-    let my_spawn_handler args cin cout cerr =
-      Fake_system.real_system#create_process args cin cout cerr in
-    fake_system#set_spawn_handler (Some my_spawn_handler);
+    fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
 
     let slave = new Zeroinstall.Python.slave config in
     let distro = Distro_impls.generic_distribution slave in
@@ -283,8 +281,8 @@ let suite = "distro">::: [
     let old_path = Unix.getenv "PATH" in
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);
-    let slave = new Zeroinstall.Python.slave config in
-    let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config slave in
+    fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
+    let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config in
     begin match to_impl_list @@ deb#get_impls_for_feed feed with
     | [impl] ->
         Fake_system.assert_str_equal "package:deb:python-bittorrent:3.4.2-10:*" (F.get_attr_ex "id" impl);
@@ -320,7 +318,7 @@ let suite = "distro">::: [
         let sel = StringMap.find_safe "http://example.com/bittorrent" sels in
         let run = Zeroinstall.Command.get_command_ex "run" sel in
         Fake_system.assert_str_equal "/bin/sh" (ZI.get_attribute "path" run)
-    | _ -> assert false end;
+    | (false, results) -> failwith @@ Zeroinstall.Diagnostics.get_failure_reason config results end;
     Fake_system.fake_log#reset;
 
     (* Part II *)

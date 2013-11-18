@@ -19,7 +19,7 @@ os.environ['LANG'] = 'C'
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import qdom, namespaces
-from zeroinstall.injector import iface_cache, download, distro, model, handler, reader, trust
+from zeroinstall.injector import iface_cache, download, model, handler, reader, trust
 from zeroinstall import support, cmd
 from zeroinstall.support import basedir
 
@@ -152,9 +152,6 @@ class BaseTest(unittest.TestCase):
 
 		self.old_path = os.environ['PATH']
 		os.environ['PATH'] = self.config_home + ':' + dpkgdir + ':' + self.old_path
-
-		distro._host_distribution = distro.DebianDistribution(dpkgdir + '/status')
-		distro._host_distribution._packagekit = DummyPackageKit()
 
 		my_dbus.system_services = {}
 

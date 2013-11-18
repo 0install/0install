@@ -272,6 +272,7 @@ let suite = "download">::: [
 
   "distro">:: Server.with_server (fun (config, fake_system) server ->
     let native_url = "http://example.com:8000/Native.xml" in
+    fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
 
     (* Initially, we don't have the feed at all... *)
     assert_equal None @@ FC.get_cached_feed config (`remote_feed native_url);
@@ -292,8 +293,7 @@ let suite = "download">::: [
     let old_path = Unix.getenv "PATH" in
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);
-    let slave = new Zeroinstall.Python.slave config in
-    let deb = Zeroinstall.Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config slave in
+    let deb = Zeroinstall.Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config in
 
     Fake_system.fake_log#reset;
     Lwt_main.run @@ deb#check_for_candidates feed;

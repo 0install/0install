@@ -36,6 +36,9 @@ let expect = function
 module RealSystem = Support.System.RealSystem(Unix)
 let real_system = new RealSystem.real_system
 
+let real_spawn_handler args cin cout cerr =
+  real_system#create_process args cin cout cerr
+
 let build_dir = Filename.dirname @@ Filename.dirname Sys.argv.(0)
 
 let make_stat st_perm kind =
