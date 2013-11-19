@@ -11,6 +11,8 @@ module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
 module Q = Support.Qdom
 
+open Distro
+
 let generic_distribution slave =
   object
     inherit Distro.python_fallback_distribution slave "Distribution" []
@@ -273,7 +275,7 @@ module Debian = struct
         super#get_package_impls query;
 
         (* Add apt-cache candidates (there won't be any if we used PackageKit) *)
-        let package_name = query#package_name in
+        let package_name = query.package_name in
         let entry = try Hashtbl.find apt_cache package_name with Not_found -> None in
         entry |> if_some (fun {version; machine; size = _} ->
           let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
@@ -407,7 +409,7 @@ module ArchLinux = struct
         super#get_package_impls query;
 
         (* Check the local package database *)
-        let package_name = query#package_name in
+        let package_name = query.package_name in
         log_debug "Looking up distribution packages for %s" package_name;
         let items = get_entries () in
         match StringMap.find package_name items with
@@ -472,12 +474,12 @@ module Win = struct
       val id_prefix = "package:windows"
 
       method! private add_package_impls_from_python query =
-        let package_name = query#package_name in
+        let package_name = query.package_name in
         match package_name with
         | "openjdk-6-jre" | "openjdk-6-jdk"
         | "openjdk-7-jre" | "openjdk-7-jdk"
         | "netfx" | "netfx-client" ->
-            Qdom.log_elem Support.Logging.Info "FIXME: Windows: can't check for package '%s':" package_name query#elem;
+            Qdom.log_elem Support.Logging.Info "FIXME: Windows: can't check for package '%s':" package_name query.elem;
             super#add_package_impls_from_python query
         | _ -> ()
 

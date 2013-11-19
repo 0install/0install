@@ -5,15 +5,13 @@
 (** Generic code for interacting with distribution package managers. *)
 
 (** Passed to [distribution#get_package_impls]. It provides details of the query and a place to collect the results. *)
-class type query =
-  object
-    method package_name : string
-    method elem : Support.Qdom.element
-    method props : Feed.properties
-    method feed : Feed.feed
-
-    method add_result : string -> Feed.implementation -> unit
-  end
+type query = {
+  elem : Support.Qdom.element;      (* The <package-element> which generated this query *)
+  package_name : string;            (* The 'package' attribute on the <package-element> *)
+  elem_props : Feed.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
+  feed : Feed.feed;                 (* The feed containing the <package-element> *)
+  results : Feed.implementation Support.Common.StringMap.t ref;
+}
 
 class virtual distribution : General.config ->
   object

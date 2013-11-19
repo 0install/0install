@@ -32,24 +32,21 @@ let get_matching_package_impls distro feed =
   );
   !best_impls
 
-class type query =
-  object
-    method package_name : string
-    method elem : Qdom.element
-    method props : Feed.properties
-    method feed : Feed.feed
+type query = {
+  elem : Support.Qdom.element;      (* The <package-element> which generated this query *)
+  package_name : string;            (* The 'package' attribute on the <package-element> *)
+  elem_props : Feed.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
+  feed : Feed.feed;                 (* The feed containing the <package-element> *)
+  results : Feed.implementation Support.Common.StringMap.t ref;
+}
 
-    method add_result : string -> Feed.implementation -> unit
-  end
-
-let make_query feed elem props results =
-  object (_ : query)
-    method package_name = ZI.get_attribute Constants.FeedAttr.package elem
-    method elem = elem
-    method props = props
-    method feed = feed
-    method add_result id impl = results := StringMap.add id impl !results
-  end
+let make_query feed elem elem_props results = {
+  elem;
+  package_name = ZI.get_attribute Constants.FeedAttr.package elem;
+  elem_props;
+  feed;
+  results;
+}
 
 class virtual distribution config =
   let system = config.system in
@@ -74,8 +71,8 @@ class virtual distribution config =
 
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes. *)
     method private add_package_implementation ?main ?retrieval_method (query:query) ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name =
-      let props = query#props in
-      let elem = query#elem in
+      let props = query.elem_props in
+      let elem = query.elem in
 
       let props =
         match main with
@@ -114,7 +111,7 @@ class virtual distribution config =
 
       if is_installed then fixup_main self#get_correct_main impl;
 
-      query#add_result id impl
+      query.results := StringMap.add id impl !(query.results)
 
     (** Test whether this <selection> element is still valid. The default implementation tries to load the feed from the
      * feed cache, calls [distribution#get_impls_for_feed] on it and checks whether the required implementation ID is in the
@@ -155,8 +152,8 @@ class virtual distribution config =
           );
           !results
 
-    method private get_package_impls (query:query) : unit =
-      let package_name = query#package_name in
+    method private get_package_impls query : unit =
+      let package_name = query.package_name in
       packagekit#get_impls package_name |> List.iter (fun info ->
         let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name
           (Versions.format_version info.Packagekit.version) (default "*" info.Packagekit.machine) in
@@ -362,10 +359,10 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
         query
 
     method private add_package_impls_from_python query =
-      let fake_feed = ZI.make query#feed.Feed.root.Q.doc "interface" in
-      fake_feed.Q.child_nodes <- [query#elem];
+      let fake_feed = ZI.make query.feed.Feed.root.Q.doc "interface" in
+      fake_feed.Q.child_nodes <- [query.elem];
 
-      invoke ~xml:fake_feed "get-package-impls" [`String (Feed_url.format_url query#feed.Feed.url)] (function
+      invoke ~xml:fake_feed "get-package-impls" [`String (Feed_url.format_url query.feed.Feed.url)] (function
         | `List [pkg_group] ->
             pkg_group |> Yojson.Basic.Util.to_list |> List.iter (self#add_package_impl_from_json query)
         | _ -> raise_safe "Invalid response"
