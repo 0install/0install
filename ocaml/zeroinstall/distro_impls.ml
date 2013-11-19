@@ -24,7 +24,7 @@ let generic_distribution slave =
 let try_cleanup_distro_version_warn version package_name =
   match Versions.try_cleanup_distro_version version with
   | None -> log_warning "Can't parse distribution version '%s' for package '%s'" version package_name; None
-  | version -> version
+  | Some version -> Some (Versions.parse_version version)
 
 (** A simple cache for storing key-value pairs on disk. Distributions may wish to use this to record the
     version(s) of each distribution package currently installed. *)
@@ -202,7 +202,7 @@ module Debian = struct
               done
             with Stream.Failure -> () end;
             match !version, !machine with
-            | Some version, Some machine -> Lwt.return (Some {version; machine; size = !size})
+            | Some version, Some machine -> Lwt.return (Some {version = Versions.format_version version; machine; size = !size})
             | _ -> Lwt.return None
           with ex ->
             log_warning ~ex "'apt-cache show %s' failed" package;
@@ -232,7 +232,7 @@ module Debian = struct
                         match try_cleanup_distro_version_warn version package_name with
                         | None -> ()
                         | Some clean_version ->
-                            let r = Printf.sprintf "%s\t%s" clean_version (Support.System.canonical_machine (trim debarch)) in
+                            let r = Printf.sprintf "%s\t%s" (Versions.format_version clean_version) (Support.System.canonical_machine (trim debarch)) in
                             results := r :: !results
                       )
                   | _ -> log_warning "Can't parse dpkg output: '%s'" line
@@ -279,9 +279,9 @@ module Debian = struct
         let package_name = query.package_name in
         let entry = try Hashtbl.find apt_cache package_name with Not_found -> None in
         entry |> if_some (fun {version; machine; size = _} ->
-          let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
+          let version = Versions.parse_version version in
           let machine = Arch.none_if_star machine in
-          self#add_package_implementation ~is_installed:false ~id ~version ~machine ~quick_test:None ~distro_name query
+          self#add_package_implementation ~is_installed:false ~version ~machine ~quick_test:None ~distro_name query
         );
 
         (* If our dpkg cache is up-to-date, add from there. Otherwise, add from Python. *)
@@ -290,9 +290,9 @@ module Debian = struct
           infos |> List.iter (fun cached_info ->
             match Str.split_delim U.re_tab cached_info with
             | [version; machine] ->
-                let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
+                let version = Versions.parse_version version in
                 let machine = Arch.none_if_star machine in
-                self#add_package_implementation ~is_installed:true ~id ~version ~machine ~quick_test ~distro_name query
+                self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
             | _ ->
                 log_warning "Unknown cache line format for '%s': %s" package_name cached_info
           )
@@ -311,15 +311,16 @@ module Debian = struct
               query_apt_cache (matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)))
             )
 
-      method! private add_package_implementation ?main ?retrieval_method query ~id ~version ~machine ~quick_test ~is_installed ~distro_name =
+      method! private add_package_implementation ?id ?main ?retrieval_method query ~version ~machine ~quick_test ~is_installed ~distro_name =
         let version =
-          if U.starts_with id "package:deb:openjdk-6-jre:" ||
-             U.starts_with id "package:deb:openjdk-7-jre:" then (
+          match query.package_name, version with
+          | ("openjdk-6-jre" | "openjdk-7-jre"), (([major], Versions.Pre) :: (minor, mmod) :: rest) ->
             (* Debian marks all Java versions as pre-releases
                See: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=685276 *)
-            Str.replace_first (Str.regexp_string "-pre") "." version
-          ) else version in
-        super#add_package_implementation ?main ?retrieval_method query ~id ~version ~machine ~quick_test ~is_installed ~distro_name
+            (major :: minor, mmod) :: rest
+          | _ -> version in
+
+        super#add_package_implementation ?id ?main ?retrieval_method query ~version ~machine ~quick_test ~is_installed ~distro_name
 
       method! private get_correct_main impl run_command =
         let id = Feed.get_attr_ex Constants.FeedAttr.id impl in
@@ -426,10 +427,9 @@ module ArchLinux = struct
                 match try_cleanup_distro_version_warn version package_name with
                 | None -> ()
                 | Some version ->
-                    let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
                     let machine = Arch.none_if_star machine in
                     let quick_test = Some (desc_path, Exists) in
-                    self#add_package_implementation ~is_installed:true ~id ~version ~machine ~quick_test ~distro_name query
+                    self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
     end
 end
 

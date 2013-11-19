@@ -61,11 +61,11 @@ class virtual distribution : General.config ->
 
     (** Add a new Feed.implementation result to [query]. *)
     method private add_package_implementation :
+      ?id:string ->
       ?main:string ->
       ?retrieval_method:(Feed.distro_retrieval_method) ->
       query ->
-      id:string ->
-      version:string ->
+      version:Versions.parsed_version ->
       machine:(string option) ->
       quick_test:(quick_test option) ->  (* The result is valid while this condition holds *)
       is_installed:bool ->

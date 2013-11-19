@@ -360,7 +360,7 @@ let suite = "solver">::: [
             ~is_installed:true
             ~id:"package:is_distro_v1-1"
             ~machine
-            ~version:"1-1"
+            ~version:(Versions.parse_version "1-1")
             ~quick_test:None
             ~distro_name
             query;
@@ -368,7 +368,7 @@ let suite = "solver">::: [
             ~is_installed:false
             ~id:"package:root_install_needed_2"
             ~machine
-            ~version:"1-1"
+            ~version:(Versions.parse_version "1-1")
             ~quick_test:None
             ~distro_name
             query;
@@ -376,7 +376,7 @@ let suite = "solver">::: [
             ~is_installed:false
             ~id:"package:root_install_needed_1"
             ~machine
-            ~version:"1-1"
+            ~version:(Versions.parse_version "1-1")
             ~quick_test:None
             ~distro_name
             query;
@@ -384,7 +384,7 @@ let suite = "solver">::: [
             ~is_installed:true
             ~id:"package:buggy"
             ~machine
-            ~version:"1-1"
+            ~version:(Versions.parse_version "1-1")
             ~quick_test:None
             ~distro_name
             query;

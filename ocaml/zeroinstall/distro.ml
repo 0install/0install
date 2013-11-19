@@ -69,11 +69,16 @@ class virtual distribution config =
 
     val packagekit = !Packagekit.packagekit config
 
+    (** All IDs will start with this string (e.g. "package:deb") *)
+    val virtual id_prefix : string
+
     (** Can we use packages for this distribution? For example, MacPortsDistribution can use "MacPorts" and "Darwin" packages. *)
     method match_name name = (name = distro_name)
 
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes. *)
-    method private add_package_implementation ?main ?retrieval_method (query:query) ~id ~version ~machine ~quick_test ~is_installed ~distro_name =
+    method private add_package_implementation ?id ?main ?retrieval_method (query:query) ~version ~machine ~quick_test ~is_installed ~distro_name =
+      let version_str = Versions.format_version version in
+      let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix query.package_name version_str (default "*" machine)) in
       let props = query.elem_props in
       let elem = query.elem in
 
@@ -97,7 +102,7 @@ class virtual distribution config =
       let set name value =
         new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
       set "id" id;
-      set "version" version;
+      set "version" version_str;
       set "from-feed" @@ "distribution:" ^ (Feed.AttrMap.find ("", "from-feed") !new_attrs);
 
       begin match quick_test with
@@ -116,7 +121,7 @@ class virtual distribution config =
         machine;
         stability = Packaged;
         props = {props with attrs = !new_attrs};
-        parsed_version = Versions.parse_version version;
+        parsed_version = version;
         impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name; retrieval_method };
       } in
 
@@ -148,9 +153,6 @@ class virtual distribution config =
               | Feed.PackageImpl {Feed.package_installed; _} -> package_installed
               | _ -> assert false
 
-    (** All IDs will start with this string (e.g. "package:deb") *)
-    val virtual id_prefix : string
-
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
     method get_impls_for_feed (feed:Feed.feed) : Feed.implementation StringMap.t =
@@ -166,12 +168,9 @@ class virtual distribution config =
     method private get_package_impls query : unit =
       let package_name = query.package_name in
       packagekit#get_impls package_name |> List.iter (fun info ->
-        let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name
-          (Versions.format_version info.Packagekit.version) (default "*" info.Packagekit.machine) in
         let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
         self#add_package_implementation
-          ~id
-          ~version:(Versions.format_version version)
+          ~version
           ~machine
           ~retrieval_method
           ~quick_test:None
@@ -349,7 +348,7 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
       json |> Yojson.Basic.Util.to_assoc |> (fun lst ->
         ListLabels.iter lst ~f:(function
           | ("id", `String v) -> id := Some v
-          | ("version", `String v) -> version := Some v
+          | ("version", `String v) -> version := Some (Versions.parse_version v)
           | ("machine", `String v) -> machine := Arch.none_if_star v
           | ("machine", `Null) -> ()
           | ("is_installed", `Bool v) -> is_installed := v
