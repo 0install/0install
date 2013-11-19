@@ -540,7 +540,7 @@ module Slackware = struct
 end
 
 let get_host_distribution config (slave:Python.slave) : Distro.distribution =
-  let x = Sys.file_exists in
+  let exists = Sys.file_exists in
 
   match Sys.os_type with
   | "Unix" ->
@@ -551,18 +551,18 @@ let get_host_distribution config (slave:Python.slave) : Distro.distribution =
 
       if is_debian then
         Debian.debian_distribution config
-      else if x ArchLinux.arch_db then
+      else if exists ArchLinux.arch_db then
         ArchLinux.arch_distribution config
-      else if x RPM.rpm_db_packages then
+      else if exists RPM.rpm_db_packages then
         RPM.rpm_distribution config slave
-      else if x Mac.macports_db then
+      else if exists Mac.macports_db then
         Mac.macports_distribution config slave
-      else if x Ports.pkg_db then (
+      else if exists Ports.pkg_db then (
         if config.system#platform.Platform.os = "Linux" then
           Gentoo.gentoo_distribution config slave
         else
           Ports.ports_distribution config slave
-      ) else if x Slackware.slack_db then
+      ) else if exists Slackware.slack_db then
         Slackware.slack_distribution config slave
       else if config.system#platform.Platform.os = "Darwin" then
         Mac.darwin_distribution config slave
