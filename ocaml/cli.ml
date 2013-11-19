@@ -175,14 +175,6 @@ let spec : (_, zi_arg_type) argparse_spec = {
 
 let select_options = xml_output @ generic_select_options
 
-let fallback_handler options flags _args =
-  Support.Argparse.iter_options flags (function
-    | #common_option as o -> Common_options.process_common_option options o
-    | _ -> ()
-  );
-  log_info "No OCaml handler for this sub-command; switching to Python version...";
-  Zeroinstall.Python.fallback_to_python options.config (List.tl @@ Array.to_list options.config.system#argv)
-
 let make_command_obj help handler valid_options =
   object
     method handle options raw_options command_path args =
@@ -235,7 +227,7 @@ let subcommands: subgroup = [
   make_subcommand "update-bg"   "-"                             Update.handle_bg  @@ common_options;
   make_subcommand "whatchanged" "APP-NAME"                      Whatchanged.handle @@ common_options @ diff_options;
   make_subcommand "destroy"     "PET-NAME"                      Destroy.handle    @@ common_options;
-  make_subcommand "config"      "[NAME [VALUE]]"                fallback_handler  @@ common_options;
+  make_subcommand "config"      "[NAME [VALUE]]"                Conf.handle       @@ common_options;
   make_subcommand "import"      "FEED"                          Import.handle     @@ common_options @ offline_options;
   make_subcommand "list"        "PATTERN"                       List_ifaces.handle @@ common_options;
   make_subcommand "search"      "QUERY"                         Search.handle     @@ common_options;

@@ -18,7 +18,7 @@ type interface_config = {
 }
 
 (* If we started a check within this period, don't start another one *)
-let failed_check_delay = float_of_int (1 * hours)
+let failed_check_delay = 1. *. hours
 
 let is_local_feed uri = U.path_is_absolute uri
 
@@ -237,7 +237,7 @@ let internal_is_stale config feed_url overrides =
 
             match config.freshness with
             | None -> log_debug "Checking for updates is disabled"; false
-            | Some threshold when staleness >= (Int64.to_float threshold) -> is_stale ()
+            | Some threshold when staleness >= threshold -> is_stale ()
             | _ -> false
 
 (** Check whether feed [url] is stale.

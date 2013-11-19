@@ -64,54 +64,6 @@ class TestInstall(BaseTest):
 		out, err = self.run_ocaml(['foobar'])
 		assert 'Unknown 0install sub-command' in err, err
 
-	def testConfig(self):
-		out, err = self.run_0install(['config', '--help'])
-		assert out.lower().startswith("usage:")
-		assert '--console' in out
-
-		out, err = self.run_0install(['config'])
-		assert not err, err
-		assert 'full' in out, out
-		assert 'freshness = 0' in out, out
-		assert 'help_with_testing = False' in out, out
-
-		out, err = self.run_0install(['config', 'help_with_testing'])
-		assert out == 'False\n', out
-
-		file_config = config.load_config(handler.Handler())
-		def get_value(name):
-			old_stdout = sys.stdout
-			sys.stdout = StringIO()
-			try:
-				cmd.config.handle(file_config, None, [name])
-				cmd_output = sys.stdout.getvalue()
-			finally:
-				sys.stdout = old_stdout
-			return cmd_output
-
-		assert get_value('freshness') == '30d\n'
-		assert get_value('network_use') == 'full\n'
-		assert get_value('help_with_testing') == 'False\n'
-
-		cmd.config.handle(file_config, None, ['freshness', '5m'])
-		cmd.config.handle(file_config, None, ['help_with_testing', 'True'])
-		cmd.config.handle(file_config, None, ['network_use', 'minimal'])
-		assert file_config.freshness == 5 * 60
-		assert file_config.network_use == model.network_minimal
-		assert file_config.help_with_testing == True
-
-		file_config2 = config.load_config(handler.Handler())
-		assert file_config2.freshness == 5 * 60
-		assert file_config2.network_use == model.network_minimal
-		assert file_config2.help_with_testing == True
-
-		cmd.config.handle(file_config, None, ['help_with_testing', 'falsE'])
-		assert file_config.help_with_testing == False
-
-		for period in ['1s', '2d', '3.5m', '4h', '5d']:
-			secs = cmd.config.TimeInterval.parse(period)
-			assert cmd.config.TimeInterval.format(secs) == period
-
 	def testImport(self):
 		child_config = config.Config()
 		child_config.auto_approve_keys = False

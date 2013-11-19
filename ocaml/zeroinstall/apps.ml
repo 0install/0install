@@ -182,7 +182,7 @@ let check_for_updates driver app_path sels =
     let staleness = system#time -. last_check_time in
     log_info "Staleness of app %s is %.0f hours" app_path (staleness /. (60. *. 60.));
     match config.freshness with
-    | Some freshness_threshold -> Int64.of_float staleness >= freshness_threshold
+    | Some freshness_threshold -> staleness >= freshness_threshold
     | None -> false     (* Updates disabled *)
   ) in
 

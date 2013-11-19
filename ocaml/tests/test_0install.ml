@@ -668,4 +668,42 @@ let suite = "0install">::: [
 
     assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ ZI.get_attribute "id" sel;
   );
+
+  "config">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let out  = run_0install fake_system ["config"; "--help"] in
+    assert_contains "Usage:" out;
+    assert_contains "--console" out;
+
+    let out = run_0install fake_system ["config"] in
+    assert_contains "full" out;
+    assert_contains "freshness = 30d" out;
+    assert_contains "help_with_testing = False" out;
+
+    let out = run_0install fake_system ["config"; "help_with_testing"] in
+    assert_str_equal "False\n" out;
+
+    let get_value name = run_0install fake_system ["config"; name] in
+
+    assert_str_equal "30d\n" @@ get_value "freshness";
+    assert_str_equal "full\n" @@ get_value "network_use";
+    assert_str_equal "False\n" @@ get_value "help_with_testing";
+
+    assert_str_equal "" @@ run_0install fake_system ["config"; "freshness"; "5m"];
+    assert_str_equal "" @@ run_0install fake_system ["config"; "help_with_testing"; "True"];
+    assert_str_equal "" @@ run_0install fake_system ["config"; "network_use"; "minimal"];
+
+    Zeroinstall.Config.load_config config;
+    assert_equal (Some (5. *. 60.)) @@ config.freshness;
+    assert_equal Minimal_network config.network_use;
+    assert_equal true config.help_with_testing;
+
+    assert_str_equal "" @@ run_0install fake_system ["config"; "help_with_testing"; "falsE"];
+    Zeroinstall.Config.load_config config;
+    assert_equal false config.help_with_testing;
+
+    ["1s"; "2d"; "3.5m"; "4h"; "5d"] |> List.iter (fun period ->
+      let secs = Conf.parse_interval period in
+      assert_str_equal period @@ Conf.format_interval secs;
+    )
+  );
 ]

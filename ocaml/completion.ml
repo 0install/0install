@@ -101,21 +101,6 @@ let complete_command (completer:completer) raw_options prefix group =
 
   List.iter (fun (name, _) -> completer#add Add name) complete_commands
 
-(* e.g. 120 -> "2m" *)
-let format_interval interval =
-  let time_units = [
-    (60., "s");
-    (60., "m");
-    (24., "h");
-  ] in
-  let rec f v = function
-    | [] -> (v, "d")
-    | ((n, uname) :: us) ->
-        if v < n then (v, uname)
-        else f (v /. n) us in
-  let (value, uname) = f interval time_units in
-  Printf.sprintf "%.0f%s" value uname
-
 (* 0install config <Tab> *)
 let complete_config_option completer pre =
   let add_if_matches name =
@@ -134,7 +119,7 @@ let complete_config_value config completer name pre =
   | "freshness" -> (
       match config.freshness with
       | None -> add_if_matches "0"
-      | Some freshness -> add_if_matches @@ format_interval  @@ Int64.to_float freshness
+      | Some freshness -> add_if_matches @@ Conf.format_interval  @@ freshness
   )
   | _ -> ()
 

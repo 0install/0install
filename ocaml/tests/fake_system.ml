@@ -137,7 +137,7 @@ class fake_system tmpdir =
     else false in
 
   object (self : #system)
-    val now = ref @@ float_of_int @@ 101 * days
+    val now = ref @@ 101. *. days
     val mutable env = StringMap.empty
     val mutable stdout = None
     val mutable spawn_handler = None

@@ -23,8 +23,8 @@ let suite = "feed-cache">::: [
 
     fake_system#add_file (cache_path_for config url) (Test_0install.feed_dir +/ "Hello");
 
-    let one_second = {config with freshness = Some Int64.one} in
-    let long = {config with freshness = Some (fake_system#time +. 10.0 |> Int64.of_float)} in
+    let one_second = {config with freshness = Some 1.0} in
+    let long = {config with freshness = Some (fake_system#time +. 10.0)} in
     let never = {config with freshness = None} in
 
     assert (Feed_cache.is_stale never url);         (* Stale because no last checked time *)

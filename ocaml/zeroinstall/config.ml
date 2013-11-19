@@ -36,14 +36,14 @@ let parse_optional_string = function
 
 let format_freshness = function
   | None -> "0"
-  | Some s -> Int64.to_string s
+  | Some s -> Int64.to_string (Int64.of_float s)
 
 let load_config config =
   let handle_ini_mapping = function
     | "global" -> (function
       | ("freshness", freshness) ->
-          let value = Int64.of_string freshness in
-          if value > 0L then
+          let value = float_of_string freshness in
+          if value > 0.0 then
             config.freshness <- Some value
           else
             config.freshness <- None
@@ -87,7 +87,7 @@ let get_default_config system path_to_prog =
     stores = Stores.get_default_stores basedirs;
     extra_stores = [];
     abspath_0install;
-    freshness = Some (Int64.of_int (30 * days));
+    freshness = Some (30. *. days);
     network_use = Full_network;
     mirror = Some "http://roscidus.com/0mirror";
     key_info_server = default_key_info_server;

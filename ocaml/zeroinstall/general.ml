@@ -25,7 +25,7 @@ type config = {
 
   mutable mirror : string option;
   mutable key_info_server : string option;
-  mutable freshness: Int64.t option;
+  mutable freshness: float option;
   mutable dry_run : bool;
   mutable network_use : network_use;
   mutable help_with_testing : bool;
@@ -38,9 +38,9 @@ type config = {
 
 (** {2 Useful constants} *)
 
-let hours = 60 * 60         (* Seconds per hour *)
+let hours = 60. *. 60.         (* Seconds per hour *)
 
-let days = 24 * hours       (* Seconds per day *)
+let days = 24. *. hours       (* Seconds per day *)
 
 (** {2 Relative configuration paths (e.g. under ~/.config)} *)
 

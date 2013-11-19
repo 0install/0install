@@ -14,6 +14,15 @@ module R = Requirements
 module U = Support.Utils
 module Q = Support.Qdom
 
+let register_preferences_handlers config =
+  Python.register_handler "untrust-key" (function
+    | [`String fingerprint; `String domain] ->
+        let trust_db = new Trust.trust_db config in
+        trust_db#untrust_key fingerprint ~domain;
+        Lwt.return `Null
+    | json -> raise_safe "untrust-key: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  )
+
 let get_impl (feed_provider:Feed_provider.feed_provider) sel =
   let {Feed.id; Feed.feed = from_feed} = Selections.get_id sel in
 
@@ -695,13 +704,7 @@ let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mo
     | json -> raise_safe "download-icon: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
-  Python.register_handler "untrust-key" (function
-    | [`String fingerprint; `String domain] ->
-        let trust_db = new Trust.trust_db config in
-        trust_db#untrust_key fingerprint ~domain;
-        Lwt.return `Null
-    | json -> raise_safe "untrust-key: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
+  register_preferences_handlers config;
 
   Python.register_handler "gui-compile" (function
     | [`String iface; `Bool autocompile] -> compile config !feed_provider iface ~autocompile

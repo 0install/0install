@@ -476,7 +476,7 @@ let suite = "download">::: [
       | None -> raise_safe "Missing '%s'" path in
 
     (* Not time for a background update yet *)
-    config.freshness <- Some (Int64.of_int 1000);
+    config.freshness <- Some 1000.0;
     assert_str_equal "" @@ run_0install fake_system ["download"; "test-app"];
 
     let checked_for_gui = ref false in
