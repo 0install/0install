@@ -32,7 +32,7 @@ module Cache =
   struct
 
     type cache_data = {
-      mutable mtime : Int64.t;
+      mutable mtime : float;
       mutable size : int;
       mutable rev : int;
       mutable contents : (string, string) Hashtbl.t;
@@ -52,13 +52,13 @@ module Cache =
       in
       object (self)
         (* The status of the cache when we loaded it. *)
-        val data = { mtime = 0L; size = -1; rev = -1; contents = Hashtbl.create 10 }
+        val data = { mtime = 0.0; size = -1; rev = -1; contents = Hashtbl.create 10 }
 
         val cache_path = Basedir.save_path config.system (config_site +/ config_prog) config.basedirs.Basedir.cache +/ cache_leaf
 
         (** Reload the values from disk (even if they're out-of-date). *)
         method private load_cache =
-          data.mtime <- -1L;
+          data.mtime <- -1.0;
           data.size <- -1;
           data.rev <- -1;
           Hashtbl.clear data.contents;
@@ -72,7 +72,7 @@ module Cache =
                 | line ->
                     (* log_info "Cache header: %s" line; *)
                     match Utils.split_pair re_metadata_sep line with
-                    | ("mtime", mtime) -> data.mtime <- Int64.of_string mtime
+                    | ("mtime", mtime) -> data.mtime <- float_of_string mtime
                     | ("size", size) -> data.size <- int_of_string size
                     | ("version", rev) when old_format -> data.rev <- int_of_string rev
                     | ("format", rev) when not old_format -> data.rev <- int_of_string rev
@@ -119,8 +119,8 @@ module Cache =
                   Printf.fprintf ch "mtime=%s\nsize=%d\nformat=%d\n\n" mtime info.Unix.st_size format_version
                 );
                 self#load_cache in
-              if data.mtime <> Int64.of_float info.Unix.st_mtime then (
-                if data.mtime <> -1L then
+              if data.mtime <> info.Unix.st_mtime then (
+                if data.mtime <> -1.0 then
                   log_info "Modification time of %s has changed; invalidating cache" source;
                 flush ()
               ) else if data.size <> info.Unix.st_size then (
@@ -134,14 +134,15 @@ module Cache =
         (** Look up an item in the cache.
          * @param if_missing called if given and no entries are found
          *)
-        method get ?if_missing (key:string) : string list =
+        method get ?if_missing (key:string) : (string list * quick_test option) =
           self#ensure_valid;
+          let quick_test_file = Some (source, UnchangedSince data.mtime) in
           match Hashtbl.find_all data.contents key, if_missing with
           | [], Some if_missing ->
               let result = if_missing key in
               self#put key result;
-              result
-          | result, _ -> result
+              (result, quick_test_file)
+          | result, _ -> (result, quick_test_file)
 
         initializer self#load_cache
       end
@@ -162,7 +163,7 @@ let check_cache id_prefix elem (cache:Cache.cache) =
           let installed_id = Printf.sprintf "%s:%s:%s:%s" id_prefix package installed_version machine in
           (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
           sel_id = installed_id in
-      List.exists matches (cache#get package)
+      List.exists matches (fst (cache#get package))
 
 module Debian = struct
   let dpkg_db_status = "/var/lib/dpkg/status"
@@ -280,22 +281,22 @@ module Debian = struct
         entry |> if_some (fun {version; machine; size = _} ->
           let id = Printf.sprintf "package:deb:%s:%s:%s" package_name version machine in
           let machine = Arch.none_if_star machine in
-          self#add_package_implementation ~is_installed:false ~id ~version ~machine ~extra_attrs:[] ~distro_name query
+          self#add_package_implementation ~is_installed:false ~id ~version ~machine ~quick_test:None ~distro_name query
         );
 
         (* If our dpkg cache is up-to-date, add from there. Otherwise, add from Python. *)
-        match cache#get ~if_missing:query_dpkg package_name with
-        | ["-"] -> ()                         (* We know the package isn't installed *)
-        | infos ->
-            infos |> List.iter (fun cached_info ->
-              match Str.split_delim U.re_tab cached_info with
-              | [version; machine] ->
-                  let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
-                  let machine = Arch.none_if_star machine in
-                  self#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[] ~distro_name query
-              | _ ->
-                  log_warning "Unknown cache line format for '%s': %s" package_name cached_info
-            )
+        let infos, quick_test = cache#get ~if_missing:query_dpkg package_name in
+        if infos <> ["-"] then (
+          infos |> List.iter (fun cached_info ->
+            match Str.split_delim U.re_tab cached_info with
+            | [version; machine] ->
+                let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
+                let machine = Arch.none_if_star machine in
+                self#add_package_implementation ~is_installed:true ~id ~version ~machine ~quick_test ~distro_name query
+            | _ ->
+                log_warning "Unknown cache line format for '%s': %s" package_name cached_info
+          )
+        )
 
       method! check_for_candidates feed =
         match Distro.get_matching_package_impls self feed with
@@ -310,7 +311,7 @@ module Debian = struct
               query_apt_cache (matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)))
             )
 
-      method! private add_package_implementation ?main ?retrieval_method query ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name =
+      method! private add_package_implementation ?main ?retrieval_method query ~id ~version ~machine ~quick_test ~is_installed ~distro_name =
         let version =
           if U.starts_with id "package:deb:openjdk-6-jre:" ||
              U.starts_with id "package:deb:openjdk-7-jre:" then (
@@ -318,7 +319,7 @@ module Debian = struct
                See: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=685276 *)
             Str.replace_first (Str.regexp_string "-pre") "." version
           ) else version in
-        super#add_package_implementation ?main ?retrieval_method query ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name
+        super#add_package_implementation ?main ?retrieval_method query ~id ~version ~machine ~quick_test ~is_installed ~distro_name
 
       method! private get_correct_main impl run_command =
         let id = Feed.get_attr_ex Constants.FeedAttr.id impl in
@@ -427,7 +428,8 @@ module ArchLinux = struct
                 | Some version ->
                     let id = Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version machine in
                     let machine = Arch.none_if_star machine in
-                    self#add_package_implementation ~is_installed:true ~id ~version ~machine ~extra_attrs:[("quick-test-file", desc_path)] ~distro_name query
+                    let quick_test = Some (desc_path, Exists) in
+                    self#add_package_implementation ~is_installed:true ~id ~version ~machine ~quick_test ~distro_name query
     end
 end
 

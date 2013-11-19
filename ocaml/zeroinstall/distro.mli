@@ -13,6 +13,9 @@ type query = {
   results : Feed.implementation Support.Common.StringMap.t ref;
 }
 
+type quick_test_condition = Exists | UnchangedSince of float
+type quick_test = (Support.Common.filepath * quick_test_condition)
+
 class virtual distribution : General.config ->
   object
     val virtual distro_name : string
@@ -64,7 +67,7 @@ class virtual distribution : General.config ->
       id:string ->
       version:string ->
       machine:(string option) ->
-      extra_attrs:((string * string) list) ->
+      quick_test:(quick_test option) ->  (* The result is valid while this condition holds *)
       is_installed:bool ->
       distro_name:string ->
       unit

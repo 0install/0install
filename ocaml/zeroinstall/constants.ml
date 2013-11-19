@@ -28,6 +28,8 @@ module FeedAttr =
     let from_feed = "from-feed"
     let doc_dir = "doc-dir"
     let package = "package"
+    let quick_test_file = "quick-test-file"
+    let quick_test_mtime = "quick-test-mtime"
   end
 
 module FeedConfigAttr =

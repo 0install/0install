@@ -48,6 +48,9 @@ let make_query feed elem elem_props results = {
   results;
 }
 
+type quick_test_condition = Exists | UnchangedSince of float
+type quick_test = (Support.Common.filepath * quick_test_condition)
+
 class virtual distribution config =
   let system = config.system in
 
@@ -70,7 +73,7 @@ class virtual distribution config =
     method match_name name = (name = distro_name)
 
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes. *)
-    method private add_package_implementation ?main ?retrieval_method (query:query) ~id ~version ~machine ~extra_attrs ~is_installed ~distro_name =
+    method private add_package_implementation ?main ?retrieval_method (query:query) ~id ~version ~machine ~quick_test ~is_installed ~distro_name =
       let props = query.elem_props in
       let elem = query.elem in
 
@@ -96,7 +99,15 @@ class virtual distribution config =
       set "id" id;
       set "version" version;
       set "from-feed" @@ "distribution:" ^ (Feed.AttrMap.find ("", "from-feed") !new_attrs);
-      List.iter (fun (n, v) -> set n v) extra_attrs;
+
+      begin match quick_test with
+      | None -> ()
+      | Some (path, cond) ->
+          set FeedAttr.quick_test_file path;
+          match cond with
+          | Exists -> ()
+          | UnchangedSince mtime ->
+              set FeedAttr.quick_test_mtime (string_of_float mtime) end;
 
       let open Feed in
       let impl = {
@@ -163,7 +174,7 @@ class virtual distribution config =
           ~version:(Versions.format_version version)
           ~machine
           ~retrieval_method
-          ~extra_attrs:[]
+          ~quick_test:None
           ~is_installed:installed
           ~distro_name:distro_name
           query
@@ -237,8 +248,8 @@ let make_restricts_distro doc iface_uri distros =
 (** Set quick-test-file and quick-test-mtime from path. *)
 let get_quick_test_attrs path =
   let mtime = (Unix.stat path).Unix.st_mtime in
-  Feed.AttrMap.singleton ("", "quick-test-file") path |>
-  Feed.AttrMap.add ("", "quick-test-mtime") (Printf.sprintf "%.0f" mtime)
+  Feed.AttrMap.singleton ("", FeedAttr.quick_test_file) path |>
+  Feed.AttrMap.add ("", FeedAttr.quick_test_mtime) (Printf.sprintf "%.0f" mtime)
 
 class virtual python_fallback_distribution (slave:Python.slave) python_name ctor_args =
   let make_host_impl path version ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
@@ -329,7 +340,8 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
       let id = ref None in
       let version = ref None in
       let machine = ref None in
-      let extra_attrs = ref [] in
+      let quick_test_file = ref None in
+      let quick_test_mtime = ref None in
       let is_installed = ref false in
       let distro_name = ref "unknown" in
       let main = ref None in
@@ -342,18 +354,25 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
           | ("machine", `Null) -> ()
           | ("is_installed", `Bool v) -> is_installed := v
           | ("distro", `String v) -> distro_name := v
-          | ("quick-test-file", `String v) -> extra_attrs := ("quick-test-file", v) :: !extra_attrs
-          | ("quick-test-mtime", `String v) -> extra_attrs := ("quick-test-mtime", v) :: !extra_attrs
+          | ("quick-test-file", `String v) -> quick_test_file := Some v
+          | ("quick-test-mtime", `String v) -> quick_test_mtime := Some (float_of_string v)
           | ("main", `String v) -> main := Some v
           | (k, v) -> raise_safe "Bad JSON response '%s=%s'" k (Yojson.Basic.to_string v)
         )
       );
+      let quick_test =
+        match !quick_test_file, !quick_test_mtime with
+        | None, None -> None
+        | Some path, None -> Some (path, Exists)
+        | Some path, Some mtime -> Some (path, UnchangedSince mtime)
+        | None, Some _ -> assert false in
+
       self#add_package_implementation
         ?main:!main
         ~id:(!id |? lazy (raise_safe "Missing ID!"))
         ~version:(!version |? lazy (raise_safe "Missing version!"))
         ~machine:!machine
-        ~extra_attrs:!extra_attrs
+        ~quick_test
         ~is_installed:!is_installed
         ~distro_name:!distro_name
         query
@@ -372,13 +391,13 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
   end
 
 let is_installed config (distro:distribution) elem =
-  match ZI.get_attribute_opt "quick-test-file" elem with
+  match ZI.get_attribute_opt FeedAttr.quick_test_file elem with
   | None -> distro#is_installed elem
   | Some file ->
       match config.system#stat file with
       | None -> false
       | Some info ->
-          match ZI.get_attribute_opt "quick-test-mtime" elem with
+          match ZI.get_attribute_opt FeedAttr.quick_test_mtime elem with
           | None -> true      (* quick-test-file exists and we don't care about the time *)
           | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = Int64.of_string required_mtime
 
