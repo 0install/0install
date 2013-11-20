@@ -258,7 +258,7 @@ let check_output ?env ?stderr (system:system) fn (argv:string list) =
 let split_pair re str =
   match Str.bounded_split_delim re str 2 with
   | [key; value] -> (key, value)
-  | [_] -> failwith ("Not a pair '" ^ str ^ "'")
+  | [_] -> raise_safe "Not a pair '%s'" str
   | _ -> assert false
 
 let re_section = Str.regexp "^[ \t]*\\[[ \t]*\\([^]]*\\)[ \t]*\\][ \t]*$"

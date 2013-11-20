@@ -20,7 +20,7 @@ module Debian : sig
 end
 
 module RPM : sig
-  val rpm_distribution : ?status_file:Support.Common.filepath -> General.config -> Python.slave -> Distro.distribution
+  val rpm_distribution : ?rpm_db_packages:Support.Common.filepath -> General.config -> Distro.distribution
 end
 
 module Ports : sig

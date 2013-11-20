@@ -218,13 +218,13 @@ let suite = "distro">::: [
     slave#close;
   );
 
-  "rpm">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+  "rpm">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let rpmdir = Test_0install.feed_dir +/ "rpm" in
     let old_path = Unix.getenv "PATH" in
     Unix.putenv "PATH" (rpmdir ^ ":" ^ old_path);
 
-    let slave = new Zeroinstall.Python.slave config in
-    let rpm = Distro_impls.RPM.rpm_distribution ~status_file:(rpmdir +/ "Packages") config slave in
+    fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
+    let rpm = Distro_impls.RPM.rpm_distribution ~rpm_db_packages:(rpmdir +/ "Packages") config in
 
     let get_feed xml = load_feed config.system (Printf.sprintf
       "<?xml version='1.0'?>\n\

@@ -73,9 +73,9 @@ module Cache =
                     (* log_info "Cache header: %s" line; *)
                     match Utils.split_pair re_metadata_sep line with
                     | ("mtime", mtime) -> data.mtime <- float_of_string mtime
-                    | ("size", size) -> data.size <- int_of_string size
-                    | ("version", rev) when old_format -> data.rev <- int_of_string rev
-                    | ("format", rev) when not old_format -> data.rev <- int_of_string rev
+                    | ("size", size) -> data.size <- U.safe_int_of_string size
+                    | ("version", rev) when old_format -> data.rev <- U.safe_int_of_string rev
+                    | ("format", rev) when not old_format -> data.rev <- U.safe_int_of_string rev
                     | _ -> ()
               done;
 
@@ -116,7 +116,11 @@ module Cache =
               let flush () =
                 config.system#atomic_write [Open_wronly; Open_binary] cache_path ~mode:0o644 (fun ch ->
                   let mtime = Int64.of_float info.Unix.st_mtime |> Int64.to_string in
-                  Printf.fprintf ch "mtime=%s\nsize=%d\nformat=%d\n\n" mtime info.Unix.st_size format_version
+                  if old_format then
+                    Printf.fprintf ch "mtime: %s\nsize: %d\nformat: %d\n\n" mtime info.Unix.st_size format_version
+                  else
+                    Printf.fprintf ch "mtime=%s\nsize=%d\nformat=%d\n\n" mtime info.Unix.st_size format_version;
+                  self#regenerate_cache ch
                 );
                 self#load_cache in
               if data.mtime <> info.Unix.st_mtime then (
@@ -130,6 +134,10 @@ module Cache =
                 log_info "Format of cache %s has changed; invalidating cache" cache_path;
                 flush ()
               )
+
+        (** The cache is being regenerated. The header has been written (to a temporary file). If you want to
+         * pre-populate the cache, do it here. Otherwise, you can populate it lazily using [get ~if_missing]. *)
+        method private regenerate_cache _ch = ()
 
         (** Look up an item in the cache.
          * @param if_missing called if given and no entries are found
@@ -159,10 +167,10 @@ let check_cache id_prefix elem (cache:Cache.cache) =
   | Some package ->
       let sel_id = ZI.get_attribute "id" elem in
       let matches data =
-          let installed_version, machine = Utils.split_pair U.re_tab data in
-          let installed_id = Printf.sprintf "%s:%s:%s:%s" id_prefix package installed_version machine in
-          (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
-          sel_id = installed_id in
+        let installed_version, machine = Utils.split_pair U.re_tab data in
+        let installed_id = Printf.sprintf "%s:%s:%s:%s" id_prefix package installed_version machine in
+        (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
+        sel_id = installed_id in
       List.exists matches (fst (cache#get package))
 
 module Debian = struct
@@ -284,7 +292,7 @@ module Debian = struct
           self#add_package_implementation ~is_installed:false ~version ~machine ~quick_test:None ~distro_name query
         );
 
-        (* If our dpkg cache is up-to-date, add from there. Otherwise, add from Python. *)
+        (* Add installed packages by querying dpkg. *)
         let infos, quick_test = cache#get ~if_missing:query_dpkg package_name in
         if infos <> ["-"] then (
           infos |> List.iter (fun cached_info ->
@@ -336,17 +344,100 @@ end
 module RPM = struct
   let rpm_db_packages = "/var/lib/rpm/Packages"
 
-  let rpm_distribution ?(status_file = rpm_db_packages) config slave =
-    object
-      inherit Distro.python_fallback_distribution slave "RPMDistribution" [status_file] as super
+  let rpm_distribution ?(rpm_db_packages = rpm_db_packages) config =
+    let fixup_java_main impl java_version =
+      (* (note: on Fedora, unlike Debian, the arch is x86_64, not amd64) *)
+
+      match impl.Feed.machine with
+      | None -> log_warning "BUG: Missing machine type on Java!"; None
+      | Some java_arch ->
+          let java_bin = Printf.sprintf "/usr/lib/jvm/jre-%s.%s/bin/java" java_version java_arch in
+          if config.system#file_exists java_bin then Some java_bin
+          else (
+            (* Try without the arch... *)
+            let java_bin = Printf.sprintf "/usr/lib/jvm/jre-%s/bin/java" java_version in
+            if config.system#file_exists java_bin then Some java_bin
+            else (
+              log_info "Java binary not found (%s)" java_bin;
+              Some "/usr/bin/java"
+            )
+          ) in
+
+    object (self)
+      inherit Distro.distribution config as super
       val check_host_python = false
 
       val distro_name = "RPM"
       val id_prefix = "package:rpm"
-      val cache = new Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
+      val cache =
+        object
+          inherit Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
+          method! private regenerate_cache ch =
+            ["rpm"; "-qa"; "--qf=%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n"]
+              |> U.check_output config.system (fun from_rpm  ->
+                try
+                  while true do
+                    let line = input_line from_rpm in
+                    match Str.bounded_split_delim U.re_tab line 3 with
+                    | ["gpg-pubkey"; _; _] -> ()
+                    | [package; version; rpmarch] ->
+                        let zi_arch = Support.System.canonical_machine (trim rpmarch) in
+                        try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
+                          Printf.fprintf ch "%s\t%s\t%s\n" package (Versions.format_version clean_version) zi_arch
+                        )
+                    | _ -> log_warning "Invalid output from 'rpm': %s" line
+                  done
+                with End_of_file -> ()
+              )
+        end
+
+      method! private get_package_impls query =
+        (* Add any PackageKit candidates *)
+        super#get_package_impls query;
+
+        (* Add installed packages by querying rpm *)
+        let infos, quick_test = cache#get query.package_name in
+        infos |> List.iter (fun cached_info ->
+          match Str.split_delim U.re_tab cached_info with
+          | [version; machine] ->
+              let version = Versions.parse_version version in
+              let machine = Arch.none_if_star machine in
+              self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
+          | _ ->
+              log_warning "Unknown cache line format for '%s': %s" query.package_name cached_info
+        )
 
       method! is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
+
+      method! private get_correct_main impl run_command =
+        (* OpenSUSE uses _, Fedora uses . *)
+        let id = Feed.get_attr_ex Constants.FeedAttr.id impl in
+        let starts x = U.starts_with id x in
+        if starts "package:rpm:java-1.6.0-openjdk:" || starts "package:rpm:java-1_6_0-openjdk:" then
+          fixup_java_main impl "1.6.0-openjdk"
+        else if starts "package:rpm:java-1.7.0-openjdk:" || starts "package:rpm:java-1_7_0-openjdk:" then
+          fixup_java_main impl "1.7.0-openjdk"
+        else
+          super#get_correct_main impl run_command
+
+      method! private add_package_implementation ?id ?main ?retrieval_method query ~version ~machine ~quick_test ~is_installed ~distro_name =
+        let version =
+          (* OpenSUSE uses _, Fedora uses . *)
+          let package_name = String.copy query.package_name in
+          for i = 0 to String.length package_name - 1 do
+            if package_name.[i] = '_' then package_name.[i] <- '.'
+          done;
+          match package_name with
+          | "java-1.6.0-openjdk" | "java-1.7.0-openjdk"
+          | "java-1.6.0-openjdk-devel" | "java-1.7.0-openjdk-devel" ->
+              (* OpenSUSE uses 1.6 to mean 6 *)
+              begin match version with
+              | (1L :: major, mmod) :: rest -> (major, mmod) :: rest
+              | _ -> version end;
+          | _ -> version in
+
+        super#add_package_implementation ?id ?main ?retrieval_method query ~version ~machine ~quick_test ~is_installed ~distro_name
     end
 end
 
@@ -555,7 +646,7 @@ let get_host_distribution config (slave:Python.slave) : Distro.distribution =
       else if exists ArchLinux.arch_db then
         ArchLinux.arch_distribution config
       else if exists RPM.rpm_db_packages then
-        RPM.rpm_distribution config slave
+        RPM.rpm_distribution config
       else if exists Mac.macports_db then
         Mac.macports_distribution config slave
       else if exists Ports.pkg_db then (

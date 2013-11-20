@@ -125,7 +125,7 @@ class virtual distribution config =
           match cond with
           | Exists -> ()
           | UnchangedSince mtime ->
-              set FeedAttr.quick_test_mtime (string_of_float mtime) end;
+              set FeedAttr.quick_test_mtime (Int64.of_float mtime |> Int64.to_string) end;
 
       let open Feed in
       let impl = {
