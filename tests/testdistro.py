@@ -27,33 +27,6 @@ class TestDistro(BaseTest):
 	def tearDown(self):	
 		BaseTest.tearDown(self)
 
-	def testCache(self):
-		src = tempfile.NamedTemporaryFile(mode = 'wt')
-		try:
-			cache = distro.Cache('test-cache', src.name, 1)
-			self.assertEqual(None, cache.get("foo"))
-			cache.put("foo", "1")
-			self.assertEqual("1", cache.get("foo"))
-			cache.put("foo", "2")
-			self.assertEqual("2", cache.get("foo"))
-
-			# new cache...
-			cache = distro.Cache('test-cache', src.name, 1)
-			self.assertEqual("2", cache.get("foo"))
-
-			src.write("hi")
-			src.flush()
-
-			self.assertEqual(None, cache.get("foo"))
-			cache.put("foo", "3")
-
-			# new cache... (format change)
-			cache = distro.Cache('test-cache', src.name, 2)
-			self.assertEqual(None, cache.get("foo"))
-
-		finally:
-			src.close()
-
 	def make_factory(self, distro):
 		def factory(id, only_if_missing = False, installed = True):
 			assert not only_if_missing

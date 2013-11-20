@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, '..')
 from zeroinstall import cmd, support
-from zeroinstall.injector import model, handler, gpg, config
+from zeroinstall.injector import model, handler, config
 
 mydir = os.path.dirname(__file__)
 
@@ -63,46 +63,6 @@ class TestInstall(BaseTest):
 
 		out, err = self.run_ocaml(['foobar'])
 		assert 'Unknown 0install sub-command' in err, err
-
-	def testImport(self):
-		child_config = config.Config()
-		child_config.auto_approve_keys = False
-		child_config.key_info_server = None
-		child_config.save_globals()
-
-		out, err = self.run_ocaml(['import'])
-		assert out.lower().startswith("usage:")
-		assert 'FEED' in out
-
-		stream = open('6FCF121BE2390E0B.gpg')
-		gpg.import_key(stream)
-		stream.close()
-		out, err = self.run_ocaml(['import', '-v', 'Hello.xml'], stdin = 'Y\n')
-		assert not out, out
-		assert 'Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000' in err, err
-
-	def testList(self):
-		out, err = self.run_ocaml(['list', 'foo', 'bar'])
-		assert out.lower().startswith("usage:")
-		assert 'PATTERN' in out
-
-		out, err = self.run_ocaml(['list'])
-		assert not err, err
-		assert '' == out, repr(out)
-
-		self.testImport()
-
-		out, err = self.run_ocaml(['list'])
-		assert not err, err
-		assert 'http://example.com:8000/Hello.xml\n' == out, repr(out)
-
-		out, err = self.run_ocaml(['list', 'foo'])
-		assert not err, err
-		assert '' == out, repr(out)
-
-		out, err = self.run_ocaml(['list', 'hello'])
-		assert not err, err
-		assert 'http://example.com:8000/Hello.xml\n' == out, repr(out)
 
 	def testRun(self):
 		out, err = self.run_ocaml(['run'])

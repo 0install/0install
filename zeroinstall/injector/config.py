@@ -36,7 +36,7 @@ class Config(object):
 	"""
 
 	__slots__ = ['help_with_testing', 'freshness', 'network_use', 'mirror', 'key_info_server', 'auto_approve_keys',
-		     '_iface_cache', '_handler', '_trust_db']
+		     '_iface_cache', '_handler']
 
 	def __init__(self, handler = None):
 		"""@type handler: L{zeroinstall.injector.handler.Handler} | None"""
@@ -44,7 +44,7 @@ class Config(object):
 		self.freshness = 60 * 60 * 24 * 30
 		self.network_use = network_full
 		self._handler = handler
-		self._iface_cache = self._trust_db = None
+		self._iface_cache = None
 		self.mirror = DEFAULT_MIRROR
 		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
 		self.auto_approve_keys = True
@@ -58,11 +58,6 @@ class Config(object):
 			self._iface_cache = iface_cache.iface_cache
 			#self._iface_cache = iface_cache.IfaceCache()
 		return self._iface_cache
-
-	@property
-	def trust_db(self):
-		from zeroinstall.injector import trust
-		self._trust_db = trust.trust_db
 
 	@property
 	def handler(self):

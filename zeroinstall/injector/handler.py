@@ -15,11 +15,6 @@ from __future__ import print_function
 from zeroinstall import _, logger
 import sys
 
-if sys.version_info[0] < 3:
-	import __builtin__ as builtins
-else:
-	import builtins
-
 from zeroinstall import SafeException
 from zeroinstall import support
 from zeroinstall.support import tasks

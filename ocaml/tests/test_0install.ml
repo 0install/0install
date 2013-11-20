@@ -706,4 +706,44 @@ let suite = "0install">::: [
       assert_str_equal period @@ Conf.format_interval secs;
     )
   );
+
+  "import">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    config.auto_approve_keys <- false;
+    config.key_info_server <- None;
+    Zeroinstall.Config.save_config config;
+
+    let out = run_0install ~exit:1 fake_system ["import"] in
+    assert_contains "Usage:" out;
+    assert_contains "FEED" out;
+
+    Lwt_main.run @@ Support.Gpg.import_key config.system (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg"));
+    let out = run_0install fake_system ~include_stderr:true ["import"; feed_dir +/ "Hello.xml"] ~stdin:"Y\n" in
+    assert_contains "Do you want to trust this key to sign feeds from 'example.com:8000'?" out;
+    Fake_system.fake_log#assert_contains "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000"
+  );
+
+  "list">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    config.auto_approve_keys <- false;
+    config.key_info_server <- None;
+    Zeroinstall.Config.save_config config;
+
+    let out = run_0install ~exit:1 fake_system ["list"; "foo"; "bar"] in
+    assert_contains "Usage:" out;
+    assert_contains "PATTERN" out;
+
+    let out = run_0install fake_system ["list"] in
+    assert_str_equal "" out;
+
+    Lwt_main.run @@ Support.Gpg.import_key config.system (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg"));
+    ignore @@ run_0install fake_system ~include_stderr:true ["import"; feed_dir +/ "Hello.xml"] ~stdin:"Y\n";
+
+    let out = run_0install fake_system ["list"] in
+    assert_str_equal "http://example.com:8000/Hello.xml\n" out;
+
+    let out = run_0install fake_system ["list"; "foo"] in
+    assert_str_equal "" out;
+
+    let out = run_0install fake_system ["list"; "hello"] in
+    assert_str_equal "http://example.com:8000/Hello.xml\n" out
+  );
 ]

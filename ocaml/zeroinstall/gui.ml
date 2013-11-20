@@ -19,7 +19,6 @@ let register_preferences_handlers config =
   Python.register_handler "list-keys" (function
     | [] ->
         let trust_db = new Trust.trust_db config in
-        (* Convert (key -> domain) map to (domain -> key) *)
         let domains_of_key = trust_db#get_db in
 
         let fingerprints = domains_of_key |> StringMap.map_bindings (fun key _domains -> key) in
