@@ -18,6 +18,11 @@ type quick_test = (Support.Common.filepath * quick_test_condition)
 
 class virtual distribution : General.config ->
   object
+    (** Only <package-implementation>s whose names match this regexp will be considered.
+     * The default disallows names starting with '.' or '-' or containing '/', to avoid potential problems with
+     * shell commands and path lookups. *)
+    val valid_package_name : Str.regexp
+
     val virtual distro_name : string
 
     (** All IDs will start with this string (e.g. "package:deb") *)
@@ -52,6 +57,9 @@ class virtual distribution : General.config ->
     (** Install a set of packages of a given type (as set previously by [check_for_candidates]).
      * Normally called only by the [Distro.install_distro_packages] function. *)
     method install_distro_packages : Ui.ui_handler -> string -> (Feed.implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
+
+    (** Check whether this name is possible for this distribution. The default implementation filters using [valid_package_name]. *)
+    method is_valid_package_name : string -> bool
 
     (** Called when an installed package is added, or when installation completes, to find the correct main value,
      * since we might not be able to work it out before-hand. The default checks that the path exists and, if not,

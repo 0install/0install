@@ -521,6 +521,7 @@ module Gentoo = struct
   let gentoo_distribution ?(pkgdir=Ports.pkg_db) _config slave =
     object
       inherit Distro.python_fallback_distribution slave "GentooDistribution" [pkgdir]
+      val! valid_package_name = Str.regexp "^[^.-][^/]*/[^./][^/]*$"
       val check_host_python = false
       val distro_name = "Gentoo"
       val id_prefix = "package:gentoo"

@@ -11,24 +11,28 @@ module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
 module Q = Support.Qdom
 
-(** Return the <package-implementation> elements that best match this distribution. *)
+(** Return the <package-implementation> elements that best match this distribution.
+ * Filters out those which fail [distribution#is_valid_package_name]. *)
 let get_matching_package_impls distro feed =
   let best_score = ref 0 in
   let best_impls = ref [] in
   ListLabels.iter feed.Feed.package_implementations ~f:(function (elem, _) as package_impl ->
-    let distributions = default "" @@ ZI.get_attribute_opt "distributions" elem in
-    let distro_names = Str.split_delim U.re_space distributions in
-    let score_this_item =
-      if distro_names = [] then 1                                 (* Generic <package-implementation>; no distribution specified *)
-      else if List.exists distro#match_name distro_names then 2   (* Element specifies it matches this distribution *)
-      else 0 in                                                   (* Element's distributions do not match *)
-    if score_this_item > !best_score then (
-      best_score := score_this_item;
-      best_impls := []
-    );
-    if score_this_item = !best_score then (
-      best_impls := package_impl :: !best_impls
-    )
+    match ZI.get_attribute_opt FeedAttr.package elem with
+    | Some package_name when distro#is_valid_package_name package_name ->
+        let distributions = default "" @@ ZI.get_attribute_opt "distributions" elem in
+        let distro_names = Str.split_delim U.re_space distributions in
+        let score_this_item =
+          if distro_names = [] then 1                                 (* Generic <package-implementation>; no distribution specified *)
+          else if List.exists distro#match_name distro_names then 2   (* Element specifies it matches this distribution *)
+          else 0 in                                                   (* Element's distributions do not match *)
+        if score_this_item > !best_score then (
+          best_score := score_this_item;
+          best_impls := []
+        );
+        if score_this_item = !best_score then (
+          best_impls := package_impl :: !best_impls
+        )
+    | _ -> ()
   );
   !best_impls
 
@@ -67,10 +71,19 @@ class virtual distribution config =
     val virtual distro_name : string
     val system_paths = ["/usr/bin"; "/bin"; "/usr/sbin"; "/sbin"]
 
+    val valid_package_name = Str.regexp "^[^.-][^/]*$"
+
     val packagekit = !Packagekit.packagekit config
 
     (** All IDs will start with this string (e.g. "package:deb") *)
     val virtual id_prefix : string
+
+    method is_valid_package_name name =
+      if Str.string_match valid_package_name name 0 then true
+      else (
+        log_info "Ignoring invalid distribution package name '%s'" name;
+        false
+      )
 
     (** Can we use packages for this distribution? For example, MacPortsDistribution can use "MacPorts" and "Darwin" packages. *)
     method match_name name = (name = distro_name)
@@ -391,7 +404,9 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
 
 let is_installed config (distro:distribution) elem =
   match ZI.get_attribute_opt FeedAttr.quick_test_file elem with
-  | None -> distro#is_installed elem
+  | None ->
+      let package_name = ZI.get_attribute FeedAttr.package elem in
+      distro#is_valid_package_name package_name && distro#is_installed elem
   | Some file ->
       match config.system#stat file with
       | None -> false
