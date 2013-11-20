@@ -18,6 +18,7 @@ let string_of_ynm = function
 
 type key_vote_type = Good | Bad
 type key_vote = (key_vote_type * string)
+type gui = Python.slave
 
 class type ui_handler =
   object
@@ -26,10 +27,10 @@ class type ui_handler =
     method stop_monitoring : filepath -> unit Lwt.t
     method confirm_keys : [`remote_feed of General.feed_url] -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
     method confirm : string -> [`ok | `cancel] Lwt.t
-    method use_gui : bool
+    method use_gui : gui option
   end
 
-class python_ui (slave:Python.slave) =
+class gui_ui (slave:Python.slave) =
   let downloads = Hashtbl.create 10 in
 
   let json_of_votes =
@@ -119,7 +120,7 @@ class python_ui (slave:Python.slave) =
         | _ -> raise_safe "Invalid response"
       )
 
-    method use_gui = false
+    method use_gui = Some slave
   end
 
 class console_ui =
@@ -285,7 +286,7 @@ class console_ui =
         | `cancel -> Lwt.return []
       )
 
-    method use_gui = false
+    method use_gui = None
   end
 
 class batch_ui =
@@ -303,13 +304,6 @@ class batch_ui =
       raise_safe "Can't confirm in batch mode (%s)" message
 *)
   end
-
-class gui_ui slave =
-  object
-    inherit python_ui slave
-    method! use_gui = true
-  end
-
 let check_gui (system:system) (slave:Python.slave) use_gui =
   if use_gui = No then false
   else (

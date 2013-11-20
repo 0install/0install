@@ -189,7 +189,7 @@ let handle_bg options flags args =
   );
 
   let config = options.config in
-  let slave = options.slave in
+  let slave = new Zeroinstall.Python.slave config in
 
   let need_gui = ref false in
   let ui =
@@ -205,7 +205,7 @@ let handle_bg options flags args =
         need_gui := true;
         raise_safe "need to switch to GUI to confirm distro package install: %s" msg
 
-      method use_gui = false
+      method use_gui = None
     end in
 
   let driver =
@@ -213,7 +213,7 @@ let handle_bg options flags args =
     let trust_db = new Zeroinstall.Trust.trust_db config in
     let downloader = new Zeroinstall.Downloader.downloader (lazy ui)  ~max_downloads_per_site:2 in
     let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro (lazy ui) in
-    new Zeroinstall.Driver.driver config fetcher distro (lazy ui) slave in
+    new Zeroinstall.Driver.driver config fetcher distro (lazy ui) in
 
   match args with
     | ["app"; app] ->
@@ -237,7 +237,7 @@ let handle_bg options flags args =
           if !need_gui || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
             if Zeroinstall.Ui.check_gui config.system slave Maybe then (
               log_info "Background update: trying to use GUI to update %s" name;
-              match Zeroinstall.Gui.get_selections_gui driver `Download_only reqs ~systray:true ~refresh:true with
+              match Zeroinstall.Gui.get_selections_gui slave driver `Download_only reqs ~systray:true ~refresh:true with
               | `Aborted_by_user -> raise (System_exit 0)
               | `Success gui_sels -> gui_sels
             ) else if !need_gui then (

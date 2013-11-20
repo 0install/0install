@@ -46,7 +46,7 @@ module DownloadMap = Map.Make(DownloadElt)
 
 let get_values map = DownloadMap.fold (fun _key value xs -> value :: xs) map []
 
-class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (slave:Python.slave) =
+class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) =
   object (self)
     (* note: this should return a Lwt type, but we need to migrate distro.py first *)
     method solve_with_downloads ?(watcher:watcher option) requirements
@@ -296,6 +296,5 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) (sl
     method fetcher = fetcher
     method config = config
     method distro = distro
-    method slave = slave
     method ui = Lazy.force ui
   end

@@ -619,9 +619,8 @@ let stability_policy config uri =
  * If Yes, uses the GUI or throws an exception.
  * [test_callback] is used if the user clicks on the test button in the bug report dialog.
  *)
-let get_selections_gui (driver:Driver.driver) ?test_callback ?(systray=false) mode reqs ~refresh =
+let get_selections_gui (slave:Python.slave) (driver:Driver.driver) ?test_callback ?(systray=false) mode reqs ~refresh =
   let config = driver#config in
-  let slave = driver#slave in
   let distro = driver#distro in
   let fetcher = driver#fetcher in
   let feed_provider = ref (new Feed_provider.feed_provider config distro) in

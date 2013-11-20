@@ -277,7 +277,7 @@ let get_default_options config =
   let slave = new Zeroinstall.Python.slave config in
   let rec options = {
     config;
-    slave;
+    close_slave = (fun () -> slave#close);
     gui = Maybe;
     verbosity = 0;
     driver = lazy (
@@ -286,7 +286,7 @@ let get_default_options config =
       let ui = Zeroinstall.Ui.make_ui config slave (fun () -> options.gui) in
       let downloader = new Zeroinstall.Downloader.downloader ui  ~max_downloads_per_site:2 in
       let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro ui in
-      new Zeroinstall.Driver.driver config fetcher distro ui slave
+      new Zeroinstall.Driver.driver config fetcher distro ui
     );
   } in
   options
@@ -310,7 +310,7 @@ let handle config raw_args =
   let (raw_options, args, complete) = read_args spec raw_args in
   assert (complete = CompleteNothing);
 
-  Support.Utils.finally_do (fun options -> options.slave#close)
+  Support.Utils.finally_do (fun options -> options.close_slave ())
     (get_default_options config)
     (fun options ->
       let command_path, subcommand, command_args =

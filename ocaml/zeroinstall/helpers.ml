@@ -30,11 +30,12 @@ let download_selections ~include_packages ~feed_provider (driver:Driver.driver) 
 let solve_and_download_impls (driver:Driver.driver) ?test_callback reqs mode ~refresh =
   let config = driver#config in
 
-  if driver#ui#use_gui then (
-    match Gui.get_selections_gui driver ?test_callback mode reqs ~refresh with
-    | `Success sels -> Some sels
-    | `Aborted_by_user -> None
-  ) else (
+  match driver#ui#use_gui with
+  | Some gui ->
+      begin match Gui.get_selections_gui gui driver ?test_callback mode reqs ~refresh with
+      | `Success sels -> Some sels
+      | `Aborted_by_user -> None end;
+  | None ->
     let result = driver#solve_with_downloads reqs ~force:refresh ~update_local:refresh in
     match result with
     | (false, result, _) -> raise_safe "%s" (Diagnostics.get_failure_reason config result)
@@ -46,4 +47,3 @@ let solve_and_download_impls (driver:Driver.driver) ?test_callback reqs mode ~re
           | `Download_only | `Select_for_run ->
               download_selections driver ~feed_provider ~include_packages:true sels in
         Some sels
-  )

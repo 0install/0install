@@ -226,7 +226,7 @@ let suite = "driver">::: [
     let distro = Distro_impls.generic_distribution slave in
     let fetcher = fake_fetcher config handler in
 
-    let driver = new Driver.driver config fetcher distro Fake_system.null_ui slave in
+    let driver = new Driver.driver config fetcher distro Fake_system.null_ui in
     let (ready, result, _fp) = driver#solve_with_downloads reqs ~force:true ~update_local:true in
     if not ready then
       failwith @@ Diagnostics.get_failure_reason config result;
@@ -276,8 +276,7 @@ let suite = "driver">::: [
         method import_feed = failwith "import_feed"
         method downloader = failwith "downloader"
       end in
-    let slave = new Zeroinstall.Python.slave config in
-    let driver = new Driver.driver config fetcher distro Fake_system.null_ui slave in
+    let driver = new Driver.driver config fetcher distro Fake_system.null_ui in
     let (ready, result, _fp) = driver#solve_with_downloads reqs ~force:false ~update_local:false in
     assert (ready = true);
 
@@ -290,7 +289,7 @@ let suite = "driver">::: [
     import "Source.xml";
     import "Compiler.xml";
     let reqs = {reqs with Requirements.source = true; command = None} in
-    let driver = new Driver.driver config fetcher distro Fake_system.null_ui slave in
+    let driver = new Driver.driver config fetcher distro Fake_system.null_ui in
     let (ready, result, _fp) = driver#solve_with_downloads reqs ~force:false ~update_local:false in
     assert (ready = true);
     Fake_system.equal_str_lists ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"; "sha1=345"] @@ get_ids result;

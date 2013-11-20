@@ -7,6 +7,8 @@
 type key_vote_type = Good | Bad
 type key_vote = (key_vote_type * string)
 
+type gui = Python.slave
+
 class type ui_handler =
   object
     (** A new download has been added (may still be queued).
@@ -30,7 +32,7 @@ class type ui_handler =
     method confirm : string -> [`ok | `cancel] Lwt.t
 
     (* A bit hacky: should we use Gui for solve_and_download_impls? *)
-    method use_gui : bool
+    method use_gui : gui option
   end
 
 (** Should we use the GUI?

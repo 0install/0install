@@ -17,12 +17,11 @@ type watcher = <
   report : 'a. ([<Feed_url.parsed_feed_url] as 'a) -> string -> unit;
 >
 
-class driver : General.config -> Fetch.fetcher -> Distro.distribution -> Ui.ui_handler Lazy.t -> Python.slave ->
+class driver : General.config -> Fetch.fetcher -> Distro.distribution -> Ui.ui_handler Lazy.t ->
   object
     method config : General.config
     method distro : Distro.distribution
     method fetcher : Fetch.fetcher
-    method slave : Python.slave
     method ui : Ui.ui_handler
 
     (** Find the best selections for these requirements and return them if available without downloading. 

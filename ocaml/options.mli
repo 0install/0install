@@ -64,8 +64,8 @@ type zi_option = [
 
 type global_settings = {
   config : Zeroinstall.General.config;
-  slave : Zeroinstall.Python.slave;
   driver : Zeroinstall.Driver.driver Lazy.t;
+  close_slave : unit -> unit;       (* Closes the Python slave, if used *)
   mutable gui : yes_no_maybe;
   mutable verbosity : int;
 }
