@@ -18,7 +18,7 @@ let format_digest (alg, value) =
   s
 
 let parse_digest digest =
-  [ "sha1="; "sha1new="; "sha256="; "sha256new_"] |> U.first_match ~f:(fun prefix ->
+  [ "sha1="; "sha1new="; "sha256="; "sha256new_"] |> U.first_match (fun prefix ->
     if U.starts_with digest prefix then (
       let alg = String.sub prefix 0 (String.length prefix - 1) in
       let value = U.string_tail digest (String.length prefix) in

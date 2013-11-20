@@ -32,7 +32,7 @@ let handle_download_impls config pending_digests impls =
     | F.CacheImpl {F.digests;_} ->
         if Zeroinstall.Stores.lookup_maybe config.system digests config.stores = None then (
           let digest_str =
-            U.first_match digests ~f:(fun digest ->
+            digests |> U.first_match (fun digest ->
               let digest_str = Zeroinstall.Manifest.format_digest digest in
               if StringSet.mem digest_str !pending_digests then Some digest_str else None
             ) in

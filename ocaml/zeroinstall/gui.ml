@@ -49,7 +49,7 @@ let get_download_size info impl =
   match info.F.retrieval_methods with
   | [] -> Q.raise_elem "Implementation %s has no retrieval methods!" (F.get_attr_ex FeedAttr.id impl) impl.F.qdom
   | methods ->
-      let size = U.first_match methods ~f:(fun m ->
+      let size = methods |> U.first_match (fun m ->
         match Recipe.parse_retrieval_method m with
         | Some recipe -> Some (Recipe.get_download_size recipe)
         | None -> None
@@ -362,7 +362,7 @@ let download_icon config (downloader:Downloader.downloader) (feed_provider:Feed_
     | None -> None
     | Some (feed, _) ->
         (* Find a suitable icon to download *)
-        feed.F.root.Q.child_nodes |> U.first_match ~f:(fun child ->
+        feed.F.root.Q.child_nodes |> U.first_match (fun child ->
           match ZI.tag child with
           | Some "icon" -> (
               match ZI.get_attribute_opt "type" child with

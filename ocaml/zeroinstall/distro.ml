@@ -190,7 +190,7 @@ class virtual distribution config =
           let basename = Filename.basename path in
           let basename = if on_windows && not (Filename.check_suffix path ".exe") then basename ^ ".exe" else basename in
           let fixed_path =
-            system_paths |> U.first_match ~f:(fun d ->
+            system_paths |> U.first_match (fun d ->
               let path = d +/ basename in
               if system#file_exists path then (
                 log_info "Found %s by searching system paths" path;

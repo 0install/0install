@@ -129,7 +129,7 @@ let get_key_details system key_id : string array list Lwt.t =
 (** Get the first human-readable name from the details. *)
 let get_key_name system key_id =
   lwt details = get_key_details system key_id in
-  details |> U.first_match ~f:(fun details ->
+  details |> U.first_match (fun details ->
     if Array.length details > 9 && details.(0) = "uid" then Some details.(9)
     else None
   ) |> Lwt.return

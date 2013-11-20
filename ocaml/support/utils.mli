@@ -16,7 +16,7 @@ val handle_exceptions : ('a -> 'b) -> 'a -> 'b
 (** Collections *)
 
 (** Return the first non-[None] result of [fn item] for items in the list. *)
-val first_match : f:('a -> 'b option) -> 'a list -> 'b option
+val first_match : ('a -> 'b option) -> 'a list -> 'b option
 
 (** List the non-None results of [fn item] *)
 val filter_map : ('a -> 'b option) -> 'a list -> 'b list

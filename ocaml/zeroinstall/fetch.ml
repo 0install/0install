@@ -717,7 +717,7 @@ class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.
             let digest = Stores.best_digest info.Feed.digests in
 
             (* Pick the first retrieval method we understand *)
-            match U.first_match info.Feed.retrieval_methods ~f:Recipe.parse_retrieval_method with
+            match info.Feed.retrieval_methods |> U.first_match Recipe.parse_retrieval_method with
             | None -> raise_safe ("Implementation %s of interface %s cannot be downloaded " ^^
                                   "(no download locations given in feed!)") id (Feed_url.format_url feed)
             | Some rm -> zi_impls := (impl, digest, rm) :: !zi_impls

@@ -528,10 +528,10 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
                 | None ->
                     (* Command dependencies next *)
                     let check_command_dep name = find_undecided @@ ReqCommand (name, dep_iface, false) in
-                    Support.Utils.first_match ~f:check_command_dep dep.Feed.dep_required_commands
+                    Support.Utils.first_match check_command_dep dep.Feed.dep_required_commands
               )
               in
-            match Support.Utils.first_match ~f:check_dep deps with
+            match Support.Utils.first_match check_dep deps with
             | Some lit -> Some lit
             | None ->   (* All dependencies checked; now to the impl (if we're a <command>) *)
                 match req with

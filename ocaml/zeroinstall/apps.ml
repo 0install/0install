@@ -307,7 +307,7 @@ let find_bin_dir_in ~warn_about_path config paths =
   let system = config.system in
   let cache_home = List.hd config.basedirs.Support.Basedir.cache in
   let best =
-    U.first_match paths ~f:(fun path ->
+    paths |> U.first_match (fun path ->
       let path = U.realpath system path in
       let starts x = U.starts_with path x in
       if starts "/bin" || starts "/sbin" then None

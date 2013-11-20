@@ -45,11 +45,11 @@ let handle_exceptions main args =
         Printexc.print_backtrace stderr;
       exit 1
 
-let rec first_match ~f = function
+let rec first_match f = function
   | [] -> None
   | (x::xs) -> match f x with
       | Some _ as result -> result
-      | None -> first_match ~f xs
+      | None -> first_match f xs
 
 let rec filter_map fn = function
   | [] -> []
@@ -209,7 +209,7 @@ let find_in_path (system:system) name =
     let path_var = Str.split_delim re_path_sep path in
     let effective_path = if on_windows then system#getcwd :: path_var else path_var in
     let test dir = check (dir +/ name) in
-    first_match ~f:test effective_path
+    first_match test effective_path
   )
 
 let find_in_path_ex system name =
