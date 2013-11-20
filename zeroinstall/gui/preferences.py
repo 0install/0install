@@ -7,7 +7,7 @@ from zeroinstall.gui.dialog import Template
 from zeroinstall import _
 from zeroinstall.gtkui import help_box
 from zeroinstall.injector.model import network_levels
-from zeroinstall.injector import trust, gpg
+from zeroinstall.injector import trust
 from zeroinstall.gui.freshness import freshness_levels, Freshness
 from zeroinstall.support import tasks
 from zeroinstall.cmd import slave
@@ -93,6 +93,7 @@ class KeyList(object):
 		tv.append_column(tc)
 		trust.trust_db.ensure_uptodate()
 
+		@tasks.async
 		def update_keys():
 			# Remember which ones are open
 			expanded_elements = set()
@@ -105,17 +106,15 @@ class KeyList(object):
 			self.trusted_keys.clear()
 			domains = {}
 
-			keys = gpg.load_keys(list(trust.trust_db.keys.keys()))
+			fetcher = slave.invoke_master(["list-keys"])
+			yield fetcher
+			tasks.check(fetcher)
+			domains, key_info = fetcher.result
 
-			for fingerprint in keys:
-				for domain in trust.trust_db.keys[fingerprint]:
-					if domain not in domains:
-						domains[domain] = set()
-					domains[domain].add(keys[fingerprint])
 			for domain in sorted(domains):
 				iter = self.trusted_keys.append(None, [domain, None])
 				for key in domains[domain]:
-					self.trusted_keys.append(iter, [key.name, key])
+					self.trusted_keys.append(iter, [key_info[key], key])
 
 			def may_expand(model, path, iter, unused):
 				if len(path) == 1:
@@ -145,7 +144,7 @@ class KeyList(object):
 				if len(path) != 2:
 					return False
 
-				key = self.trusted_keys[path][1]
+				name, key = self.trusted_keys[path]
 				if isinstance(path, tuple):
 					path = path[:-1]		# PyGTK
 				else:
@@ -156,9 +155,9 @@ class KeyList(object):
 				menu = gtk.Menu()
 
 				item = gtk.MenuItem()
-				item.set_label(_('Remove key for "%s"') % key.get_short_name())
+				item.set_label(_('Remove key for "%s"') % name)
 				item.connect('activate',
-					lambda item, fp = key.fingerprint, d = domain: remove_key(fp, d))
+					lambda item, fp = key, d = domain: remove_key(fp, d))
 				item.show()
 				menu.append(item)
 

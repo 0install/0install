@@ -13,8 +13,34 @@ module F = Feed
 module R = Requirements
 module U = Support.Utils
 module Q = Support.Qdom
+module G = Support.Gpg
 
 let register_preferences_handlers config =
+  Python.register_handler "list-keys" (function
+    | [] ->
+        let trust_db = new Trust.trust_db config in
+        (* Convert (key -> domain) map to (domain -> key) *)
+        let domains_of_key = trust_db#get_db in
+
+        let fingerprints = domains_of_key |> StringMap.map_bindings (fun key _domains -> key) in
+        lwt key_info = G.load_keys config.system fingerprints in
+        let key_info = key_info |> StringMap.map_bindings (fun key info ->
+          match info.G.name with
+          | None -> (key, `Null)
+          | Some name -> (key, `String name)
+        ) in
+
+        let keys_of_domain = ref StringMap.empty in
+        domains_of_key |> StringMap.iter (fun key domains ->
+          domains |> StringSet.iter (fun domain ->
+            let keys = default [] @@ StringMap.find domain !keys_of_domain in
+            keys_of_domain := !keys_of_domain |> StringMap.add domain (`String key :: keys)
+          )
+        );
+        let results = !keys_of_domain |> StringMap.map_bindings (fun domain keys -> (domain, `List keys)) in
+        Lwt.return (`List [`Assoc (List.rev results); `Assoc key_info])
+    | json -> raise_safe "untrust-key: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
   Python.register_handler "untrust-key" (function
     | [`String fingerprint; `String domain] ->
         let trust_db = new Trust.trust_db config in

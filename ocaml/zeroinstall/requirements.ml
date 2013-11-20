@@ -88,7 +88,7 @@ let to_json reqs =
   `Assoc ([
     ("interface_uri", `String interface_uri);
     ("source", `Bool source);
-    ("extra_restrictions", `Assoc (StringMap.fold (fun k v items -> (k, `String v) :: items) extra_restrictions []));
+    ("extra_restrictions", `Assoc (StringMap.map_bindings (fun k v -> (k, `String v)) extra_restrictions));
   ] @ List.concat [
     maybe "command" command;
     maybe "os" os;

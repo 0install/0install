@@ -44,6 +44,7 @@ module StringMap = struct
   let find_nf = find
   let find_safe key map = try find key map with Not_found -> raise_safe "BUG: Key '%s' not found in StringMap!" key
   let find key map = try Some (find key map) with Not_found -> None
+  let map_bindings fn map = fold (fun key value acc -> fn key value :: acc) map []
 end
 module StringSet = Set.Make(String)
 

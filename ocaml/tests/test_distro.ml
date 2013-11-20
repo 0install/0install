@@ -44,7 +44,7 @@ let load_feed system xml =
     F.parse system root None
 
 let to_impl_list map : F.implementation list =
-  StringMap.fold (fun _ impl lst -> impl :: lst) map []
+  StringMap.map_bindings (fun _ impl -> impl) map
 
 let gimp_feed = Test_feed.feed_of_xml Fake_system.real_system "\
   <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://gimp.org/gimp'>\

@@ -541,7 +541,7 @@ let parse system root feed_local_path =
 
 (* Get all the implementations (note: only sorted by ID) *)
 let get_implementations feed =
-  StringMap.fold (fun _k impl xs -> impl :: xs) feed.implementations []
+  StringMap.map_bindings (fun _k impl -> impl) feed.implementations
 
 let is_source impl = impl.machine = Some "src"
 

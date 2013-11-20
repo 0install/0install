@@ -78,6 +78,9 @@ class trust_db config =
       let db = get_db () in
       get_domains fingerprint db
 
+    (** Returns a map from keys to the domains in which they are trusted. *)
+    method get_db = get_db ()
+
     (** Return the set of keys trusted for this domain. *)
     method get_keys_for_domain domain =
       let db = get_db () in
