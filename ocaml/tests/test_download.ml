@@ -744,11 +744,27 @@ let suite = "download">::: [
     assert_contains "Firefox - Webbrowser" out
   );
 
-  "select">:: Server.with_server (fun (_config, fake_system) server ->
+  "select">:: Server.with_server (fun (config, fake_system) server ->
     server#expect [
       [("Hello.xml", `Serve)];
       [("6FCF121BE2390E0B.gpg", `Serve)];
       [("DE937DD411906ACF7C263B396FCF121BE2390E0B", `AcceptKey)];
+    ];
+    let out = run_0install fake_system ["select"; Test_0install.feed_dir +/ "selections.xml"] in
+    assert_contains "Version: 1\n" out;
+    assert_contains "(not cached)" out;
+
+    (* Check background select - update metadata only *)
+    let url = "http://example.com:8000/Hello.xml" in
+    F.save_feed_overrides config (`remote_feed url) F.({last_checked = None; user_stability = StringMap.empty});
+    let rel_path = config_site +/ config_prog +/ "last-check-attempt" +/ Zeroinstall.Escape.pretty url in
+    let last_check_attempt = B.load_first config.system rel_path config.basedirs.B.cache |> expect in
+    fake_system#unlink last_check_attempt;
+
+    fake_system#allow_spawn_detach true;
+
+    server#expect [
+      [("Hello.xml", `Serve)];
     ];
     let out = run_0install fake_system ["select"; Test_0install.feed_dir +/ "selections.xml"] in
     assert_contains "Version: 1\n" out;

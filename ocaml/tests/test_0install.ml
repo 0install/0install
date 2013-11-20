@@ -127,7 +127,7 @@ let suite = "0install">::: [
       try failwith @@ fake_system#collect_output (fun () -> Main.main system)
       with Fake_system.Would_spawn (_, _, args) ->
         Fake_system.equal_str_lists
-          ["update"; "--console"; "-v"; "--command"; "run"; "http://example.com:8000/Hello.xml"]
+          ["select"; "--refresh"; "--console"; "-v"; "--command"; "run"; "http://example.com:8000/Hello.xml"]
           (List.tl args) in
 
     (* Download succeeds (does nothing, as it's already cached *)

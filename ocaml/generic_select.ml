@@ -121,11 +121,14 @@ let resolve_target config flags arg =
           | Some x -> raise_safe "Unexpected root element <%s>" x
 
 (** Update all the feeds needed to solve for these requirements in a background process. *)
-let spawn_background_update config reqs =
+let spawn_background_update config reqs mode =
   let extra_flags = if !Support.Logging.threshold = Support.Logging.Debug then ["-v"] else [] in
   let args = Req_options.to_options reqs in
   (* Note: [spawn_detach] sends stdout to /dev/null *)
-  config.system#spawn_detach @@ [config.abspath_0install; "update"; "--console"] @ extra_flags @ args @ [reqs.Requirements.interface_uri]
+  let command = match mode with
+  | `Select_only -> "select"
+  | `Download_only | `Select_for_run -> "download" in
+  config.system#spawn_detach @@ [config.abspath_0install; command; "--refresh"; "--console"] @ extra_flags @ args @ [reqs.Requirements.interface_uri]
 
 (** Get selections for the requirements. Will switch to GUI mode if necessary.
     @param select_only 
@@ -178,7 +181,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
                 ) in
 
               if want_background_update then (
-                spawn_background_update options.config reqs
+                spawn_background_update options.config reqs mode
               )
             );
             Some sels
