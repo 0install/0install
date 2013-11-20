@@ -121,10 +121,10 @@ let handle options flags args =
   let gui =
     match args with
     | [] ->
-        slave#invoke_async (`List [`String "open-app-list-box"]) Zeroinstall.Python.expect_null
+        slave#invoke "open-app-list-box" [] Zeroinstall.Python.expect_null
     | [arg] ->
         let url = Generic_select.canonical_iface_uri config.system arg in
-        slave#invoke_async (`List [`String "open-add-box"; `String url]) Zeroinstall.Python.expect_null
+        slave#invoke "open-add-box" [`String url] Zeroinstall.Python.expect_null
     | _ -> raise (Support.Argparse.Usage_error 1) in
 
   Lwt_main.run gui

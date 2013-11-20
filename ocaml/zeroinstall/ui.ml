@@ -74,15 +74,15 @@ class gui_ui (slave:Python.slave) =
             match total with
             | None -> `Null
             | Some total -> `Float (Int64.to_float total) in
-          slave#invoke_async (`List [`String "set-progress"; `String id; `Float sofar; total]) Python.expect_null
+          slave#invoke "set-progress" [`String id; `Float sofar; total] Python.expect_null
         ) else Lwt.return ()
       ) in
       Hashtbl.add downloads id (cancel, updates);     (* (store updates to prevent GC) *)
-      slave#invoke_async (`List [`String "start-monitoring"; details]) Python.expect_null
+      slave#invoke "start-monitoring" [details] Python.expect_null
 
     method stop_monitoring id =
       Hashtbl.remove downloads id;
-      slave#invoke_async (`List [`String "stop-monitoring"; `String id]) Python.expect_null
+      slave#invoke "stop-monitoring" [`String id] Python.expect_null
 
     method confirm_keys feed_url infos =
       let pending_tasks = ref [] in
@@ -90,8 +90,7 @@ class gui_ui (slave:Python.slave) =
       let handle_pending fingerprint votes =
         let task =
           lwt votes = votes in
-          let request = `List [`String "update-key-info"; `String fingerprint; `List (json_of_votes votes)] in
-          slave#invoke_async request Python.expect_null in
+          slave#invoke "update-key-info" [`String fingerprint; `List (json_of_votes votes)] Python.expect_null in
         pending_tasks := task :: !pending_tasks in
 
       try_lwt
@@ -103,8 +102,7 @@ class gui_ui (slave:Python.slave) =
             | Lwt.Return votes -> json_of_votes votes in
           (fingerprint, `List json_votes)
         ) in
-        let request = `List [`String "confirm-keys"; `String (Feed_url.format_url feed_url); `Assoc json_infos] in
-        slave#invoke_async request (function
+        slave#invoke "confirm-keys" [`String (Feed_url.format_url feed_url); `Assoc json_infos] (function
           | `List confirmed_keys -> confirmed_keys |> List.map Yojson.Basic.Util.to_string
           | _ -> raise_safe "Invalid response"
         )
@@ -113,8 +111,7 @@ class gui_ui (slave:Python.slave) =
         Lwt.return ()
 
     method confirm message =
-      let request = `List [`String "confirm"; `String message] in
-      slave#invoke_async request (function
+      slave#invoke "confirm" [`String message] (function
         | `String "ok" -> `ok
         | `String "cancel" -> `cancel
         | _ -> raise_safe "Invalid response"
@@ -312,7 +309,7 @@ let check_gui (system:system) (slave:Python.slave) use_gui =
         if use_gui = Maybe then false
         else raise_safe "Can't use GUI because $DISPLAY is not set"
     | Some _ ->
-        slave#invoke_async (`List [`String "check-gui"; `String (string_of_ynm use_gui)]) Yojson.Basic.Util.to_bool |> Lwt_main.run
+        slave#invoke "check-gui" [`String (string_of_ynm use_gui)] Yojson.Basic.Util.to_bool |> Lwt_main.run
   )
 
 let make_ui config (slave:Python.slave) get_use_gui : ui_handler Lazy.t = lazy (

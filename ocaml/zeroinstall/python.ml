@@ -9,7 +9,7 @@ open Support.Common
 module Q = Support.Qdom
 
 let slave_debug_level = ref None      (* Inherit our logging level *)
-let default_interceptor ?xml:_ _request = None
+let default_interceptor ?xml:_ (_request : Yojson.Basic.json) = None
 let slave_interceptor = ref default_interceptor      (* Override for testing *)
 
 let default_read_user_input prompt =
@@ -196,7 +196,8 @@ class slave config =
 
   object (self)
     (** Send a JSON message to the Python slave and return whatever data it sends back. *)
-    method invoke_async : 'a. json -> ?xml:Q.element -> (json -> 'a) -> 'a Lwt.t = fun request ?xml parse_fn ->
+    method invoke : 'a. string -> json list -> ?xml:Q.element -> (json -> 'a) -> 'a Lwt.t = fun op args ?xml parse_fn ->
+      let request = `List (`String op :: args) in
       let response =
         match !slave_interceptor ?xml request with
         | Some reply -> reply

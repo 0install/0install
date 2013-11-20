@@ -283,11 +283,11 @@ class virtual python_fallback_distribution (slave:Python.slave) python_name ctor
     lwt () =
       if not !did_init then (
         let ctor_args = ctor_args |> List.map (fun a -> `String a) in
-        let r = slave#invoke_async (`List [`String "init-distro"; `String python_name; `List ctor_args]) Python.expect_null in
+        let r = slave#invoke "init-distro" [`String python_name; `List ctor_args] Python.expect_null in
         did_init := true;
         r
       ) else Lwt.return () in
-    slave#invoke_async ?xml (`List (`String op :: args)) process in
+    slave#invoke ?xml op args process in
 
   let fake_host_doc = (ZI.make_root "<fake-host-root>").Qdom.doc in
 

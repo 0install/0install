@@ -35,18 +35,18 @@ let make_packagekit handler _config =
 class fake_slave config handler : Python.slave =
   let () = Zeroinstall.Packagekit.packagekit := make_packagekit handler in
   object (_ : #Python.slave)
-    method invoke_async request ?xml parse_fn =
+    method invoke op args ?xml parse_fn =
       ignore xml;
-      log_info "invoke_async: %s" (Yojson.Basic.to_string request);
+      log_info "invoke_async: %s(%s)" op (args |> List.map Yojson.Basic.to_string |> String.concat ",");
       Lwt.return (
-        match request with
-        | `List [`String "init-distro"; `String _; `List _] -> parse_fn `Null
-        | `List [`String "get-package-impls"; `String url] -> parse_fn @@ handler#get_package_impls url
-        | `List [`String "download-url"; `String url; `String _hint; timeout; `Null] ->
+        match op, args with
+        | "init-distro", [`String _; `List _] -> parse_fn `Null
+        | "get-package-impls", [`String url] -> parse_fn @@ handler#get_package_impls url
+        | "download-url", [`String url; `String _hint; timeout; `Null] ->
             let start_timeout = StringMap.find_safe "start-timeout" !Zeroinstall.Python.handlers in
             ignore @@ start_timeout [timeout];
             parse_fn @@ handler#download_url url
-        | _ -> raise_safe "Unexpected request %s" (Yojson.Basic.to_string request)
+        | _ -> raise_safe "Unexpected request %s" op
       )
 
     method close = ()

@@ -106,7 +106,7 @@ let handle options flags args =
       | None -> show_settings config
       | Some gui ->
           Zeroinstall.Gui.register_preferences_handlers config;
-          gui#invoke_async (`List [`String "run-preferences"]) P.expect_null |> Lwt_main.run; end
+          gui#invoke "run-preferences" [] P.expect_null |> Lwt_main.run; end
   | [key] -> format_setting config (parse_key key) |> print_endline
   | [key; value] -> set_setting config value (parse_key key); Zeroinstall.Config.save_config config
   | _ -> raise (Support.Argparse.Usage_error 1)

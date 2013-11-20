@@ -641,14 +641,14 @@ let get_selections_gui (slave:Python.slave) (driver:Driver.driver) ?test_callbac
         Python.async (fun () ->
           let sels = new_results#get_selections in
           let tree = build_tree config new_fp original_selections sels in
-          slave#invoke_async ~xml:sels (`List [`String "gui-update-selections"; `Bool ready; tree]) ignore
+          slave#invoke ~xml:sels "gui-update-selections" [`Bool ready; tree] ignore
         )
 
       method report feed_url msg =
         Python.async (fun () ->
           let msg = Printf.sprintf "Feed '%s': %s" (Feed_url.format_url feed_url) msg in
           log_info "Sending error to GUI: %s" msg;
-          slave#invoke_async (`List [`String "report-error"; `String msg]) ignore
+          slave#invoke "report-error" [`String msg] ignore
         )
     end in
 
@@ -801,7 +801,7 @@ let get_selections_gui (slave:Python.slave) (driver:Driver.driver) ?test_callbac
     | json -> raise_safe "run_test: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
-  slave#invoke_async (`List [`String "open-gui"; `String reqs.Requirements.interface_uri; opts]) (function
+  slave#invoke "open-gui" [`String reqs.Requirements.interface_uri; opts] (function
     | `List [] -> ()
     | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json)
   ) |> Lwt_main.run;
@@ -816,7 +816,7 @@ let get_selections_gui (slave:Python.slave) (driver:Driver.driver) ?test_callbac
   let rec loop force =
     let (ready, results, _feed_provider) = driver#solve_with_downloads ~watcher reqs ~force ~update_local:true in
     let response =
-      slave#invoke_async (`List [`String "run-gui"]) (function
+      slave#invoke "run-gui" [] (function
         | `List [`String "ok"] -> assert ready; `Success results#get_selections
         | `List [`String "cancel"] -> `Aborted_by_user
         | `List [`String "recalculate"; `Bool force] -> `Recalculate force

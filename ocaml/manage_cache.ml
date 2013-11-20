@@ -65,9 +65,9 @@ let handle options flags args =
   );
 
   let slave = (Lazy.force options.driver)#ui#use_gui |? lazy (raise_safe "GUI not available") in
-  let gui = slave#invoke_async (`List [`String "open-cache-explorer"]) P.expect_null in
+  let gui = slave#invoke "open-cache-explorer" [] P.expect_null in
 
-  slave#invoke_async (`List [`String "ping"]) P.expect_null |> Lwt_main.run;
+  slave#invoke "ping" [] P.expect_null |> Lwt_main.run;
 
   let all_digests = Zeroinstall.Stores.get_available_digests config.system config.stores in
   let ok_feeds = ref [] in
@@ -136,7 +136,7 @@ let handle options flags args =
     )
   );
 
-  let request = `List [`String "populate-cache-explorer"; `List ok_feeds; `List !error_feeds; `List !unowned] in
-  P.async (fun () -> slave#invoke_async request P.expect_null);
+  let args = [`List ok_feeds; `List !error_feeds; `List !unowned] in
+  P.async (fun () -> slave#invoke "populate-cache-explorer" args P.expect_null);
 
   Lwt_main.run gui
