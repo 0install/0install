@@ -43,7 +43,7 @@ CAMLprim value caml_win_get_common_appdata(value v_unit)
     CAMLreturn(get_shared_folder(CSIDL_COMMON_APPDATA | CSIDL_FLAG_CREATE));
 }
 
-CAMLprim value caml_win_read_registry_key(value v_subkey, value v_value, value v_wow)
+CAMLprim value caml_win_read_registry_string(value v_subkey, value v_value, value v_wow)
 {
     CAMLparam3(v_subkey, v_value, v_wow);
 
@@ -76,5 +76,34 @@ CAMLprim value caml_win_read_registry_key(value v_subkey, value v_value, value v
 	resultHKey = NULL;
 
 	CAMLreturn(result);
+    }
+}
+
+CAMLprim value caml_win_read_registry_int(value v_subkey, value v_value, value v_wow)
+{
+    CAMLparam3(v_subkey, v_value, v_wow);
+
+    HKEY resultHKey = NULL;
+    DWORD resultDWord = 0;
+    DWORD resultSize = sizeof(resultDWord);
+    REGSAM flags = KEY_READ;
+    int wow = Int_val(v_wow);
+    DWORD typ = REG_DWORD;
+
+    if (wow == 1) {
+	flags |= KEY_WOW64_32KEY;
+    } else if (wow == 2) {
+	flags |= KEY_WOW64_64KEY;
+    }
+
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, String_val(v_subkey), 0, flags, &resultHKey) != ERROR_SUCCESS) {
+	caml_failwith("RegOpenKeyEx");
+    } else if (RegQueryValueEx(resultHKey, String_val(v_value), 0, &typ, (LPBYTE) &resultDWord, &resultSize) != ERROR_SUCCESS) {
+	caml_failwith("RegQueryValue(int)");
+    } else {
+	RegCloseKey(resultHKey);
+	resultHKey = NULL;
+
+	CAMLreturn(Val_int(resultDWord));
     }
 }

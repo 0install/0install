@@ -19,7 +19,8 @@ class type windows_api =
     method get_appdata : unit -> string
     method get_local_appdata : unit -> string
     method get_common_appdata : unit -> string
-    method read_registry_key : string -> string -> wow -> string option  (* Reads from HKEY_LOCAL_MACHINE *)
+    method read_registry_string : string -> string -> wow -> string option  (* Reads from HKEY_LOCAL_MACHINE *)
+    method read_registry_int : string -> string -> wow -> int option        (* Reads from HKEY_LOCAL_MACHINE *)
   end
 
 let windowsAPI : windows_api option ref = ref None
@@ -29,15 +30,21 @@ IFDEF WINDOWS THEN
   external win_get_appdata : unit -> string = "caml_win_get_appdata"
   external win_get_local_appdata : unit -> string = "caml_win_get_local_appdata"
   external win_get_common_appdata : unit -> string = "caml_win_get_common_appdata"
-  external win_read_registry_key : string -> string -> wow -> string = "caml_win_read_registry_key"
+  external win_read_registry_string : string -> string -> wow -> string = "caml_win_read_registry_string"
+  external win_read_registry_int : string -> string -> wow -> int = "caml_win_read_registry_int"
 
   windowsAPI := Some (
     object
       method get_appdata = win_get_appdata
       method get_local_appdata = win_get_local_appdata
       method get_common_appdata = win_get_common_appdata
-      method read_registry_key key value wow =
-        try Some (win_read_registry_key key value wow)
+      method read_registry_string key value wow =
+        try Some (win_read_registry_string key value wow)
+        with Failure msg ->
+          Common.log_debug "Error getting registry value %s:%s: %s" key value msg;
+          None
+      method read_registry_int key value wow =
+        try Some (win_read_registry_int key value wow)
         with Failure msg ->
           Common.log_debug "Error getting registry value %s:%s: %s" key value msg;
           None

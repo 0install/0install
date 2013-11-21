@@ -556,21 +556,22 @@ module Mac = struct
 end
 
 module Win = struct
-  let windows_distribution config slave =
-    let read_hklm_reg key_name value_name =
+  let windows_distribution config =
+    let api = !Support.Windows_api.windowsAPI |? lazy (raise_safe "Failed to load Windows support module!") in
+
+    let read_hklm_reg reader =
       let open Support.Windows_api in
-      let api = !windowsAPI |? lazy (raise_safe "Failed to load Windows support module!") in
       match config.system#platform.Platform.machine with
       | "x86_64" ->
-          let value32 = api#read_registry_key key_name value_name KEY_WOW64_32KEY in
-          let value64 = api#read_registry_key key_name value_name KEY_WOW64_64KEY in
+          let value32 = reader KEY_WOW64_32KEY in
+          let value64 = reader KEY_WOW64_64KEY in
           (value32, value64)
       | _ ->
-          let value32 = api#read_registry_key key_name value_name KEY_WOW64_NONE in
+          let value32 = reader KEY_WOW64_NONE in
           (value32, None) in
 
     object (self)
-      inherit Distro.python_fallback_distribution slave "WindowsDistribution" [] as super
+      inherit Distro.distribution config as super
       val check_host_python = false (* (0install's bundled Python may not be generally usable) *)
 
       val! system_paths = []
@@ -578,24 +579,70 @@ module Win = struct
       val distro_name = "Windows"
       val id_prefix = "package:windows"
 
-      method! private add_package_impls_from_python query =
+      method! private get_package_impls query =
+        super#get_package_impls query;
+
         let package_name = query.package_name in
         match package_name with
         | "openjdk-6-jre" -> self#find_java "Java Runtime Environment" "1.6" "6" query
         | "openjdk-6-jdk" -> self#find_java "Java Development Kit"     "1.6" "6" query
         | "openjdk-7-jre" -> self#find_java "Java Runtime Environment" "1.7" "7" query
         | "openjdk-7-jdk" -> self#find_java "Java Development Kit"     "1.7" "7" query
-        | "netfx" | "netfx-client" ->
-            Qdom.log_elem Support.Logging.Info "FIXME: Windows: can't check for package '%s':" package_name query.elem;
-            super#add_package_impls_from_python query
+        | "netfx" ->
+            self#find_netfx "v2.0.50727" "2.0" query;
+            self#find_netfx "v3.0"       "3.0" query;
+            self#find_netfx "v3.5"       "3.5" query;
+            self#find_netfx "v4\\Full"   "4.0" query;
+            self#find_netfx_release "v4\\Full" 378389 "4.5" query;
+            self#find_netfx "v5" "5.0" query;
+        | "netfx-client" ->
+            self#find_netfx "v4\\Client" "4.0" query;
+            self#find_netfx_release "v4\\Client" 378389 "4.5" query;
         | _ -> ()
 
         (* No PackageKit support on Windows *)
       method! check_for_candidates _feed = Lwt.return ()
 
+      method private find_netfx win_version zero_version query =
+        let reg_path = "SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\" ^ win_version in
+        let netfx32_install, netfx64_install = read_hklm_reg (api#read_registry_int reg_path "Install") in
+
+        [(netfx32_install, "i486"); (netfx64_install, "x86_64")] |> List.iter (function
+          | None, _ -> ()
+          | Some install, machine ->
+              let version = Versions.parse_version zero_version in
+              self#add_package_implementation
+                ~main:""      (* .NET executables do not need a runner on Windows but they need one elsewhere *)
+                ~is_installed:(install = 1)
+                ~version
+                ~machine:(Some machine)
+                ~quick_test:None
+                ~distro_name
+                query
+        )
+
+      method private find_netfx_release win_version release_version zero_version query =
+        let reg_path = "SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\" ^ win_version in
+        let netfx32_install, netfx64_install = read_hklm_reg (api#read_registry_int reg_path "Install") in
+        let netfx32_release, netfx64_release = read_hklm_reg (api#read_registry_int reg_path "Release") in
+
+        [(netfx32_install, netfx32_release, "i486"); (netfx64_install, netfx64_release, "x86_64")] |> List.iter (function
+          | Some install, Some release, machine ->
+              let version = Versions.parse_version zero_version in
+              self#add_package_implementation
+                ~main:""      (* .NET executables do not need a runner on Windows but they need one elsewhere *)
+                ~is_installed:(install = 1 && release >= release_version)
+                ~version
+                ~machine:(Some machine)
+                ~quick_test:None
+                ~distro_name
+                query
+          | _ -> ()
+        )
+
       method private find_java part win_version zero_version query =
         let reg_path = Printf.sprintf "SOFTWARE\\JavaSoft\\%s\\%s" part win_version in
-        let java32_home, java64_home = read_hklm_reg reg_path "JavaHome" in
+        let java32_home, java64_home = read_hklm_reg (api#read_registry_string reg_path "JavaHome") in
 
         [(java32_home, "i486"); (java64_home, "x86_64")] |> List.iter (function
           | None, _ -> ()
@@ -697,7 +744,7 @@ let get_host_distribution config (slave:Python.slave) : Distro.distribution =
         Mac.darwin_distribution config slave
       else
         generic_distribution slave
-  | "Win32" -> Win.windows_distribution config slave
+  | "Win32" -> Win.windows_distribution config
   | "Cygwin" -> Win.cygwin_distribution config slave
   | _ ->
       generic_distribution slave
