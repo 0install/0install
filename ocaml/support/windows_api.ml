@@ -9,11 +9,17 @@
 
 Callback.register
 
+type wow =
+  | KEY_WOW64_NONE  (* 0 *)
+  | KEY_WOW64_32KEY (* 1 *)
+  | KEY_WOW64_64KEY (* 2 *)
+
 class type windows_api =
   object
     method get_appdata : unit -> string
     method get_local_appdata : unit -> string
     method get_common_appdata : unit -> string
+    method read_registry_key : string -> string -> wow -> string option  (* Reads from HKEY_LOCAL_MACHINE *)
   end
 
 let windowsAPI : windows_api option ref = ref None
@@ -23,12 +29,18 @@ IFDEF WINDOWS THEN
   external win_get_appdata : unit -> string = "caml_win_get_appdata"
   external win_get_local_appdata : unit -> string = "caml_win_get_local_appdata"
   external win_get_common_appdata : unit -> string = "caml_win_get_common_appdata"
+  external win_read_registry_key : string -> string -> wow -> string = "caml_win_read_registry_key"
 
   windowsAPI := Some (
     object
       method get_appdata = win_get_appdata
       method get_local_appdata = win_get_local_appdata
       method get_common_appdata = win_get_common_appdata
+      method read_registry_key key value wow =
+        try Some (win_read_registry_key key value wow)
+        with Failure msg ->
+          Common.log_debug "Error getting registry value %s:%s: %s" key value msg;
+          None
     end
   )
 ENDIF

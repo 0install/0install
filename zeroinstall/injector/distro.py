@@ -217,19 +217,6 @@ class WindowsDistribution(Distribution):
 				value64 = ''
 			return (value32, value64)
 
-		def find_java(part, win_version, zero_version):
-			reg_path = r"SOFTWARE\JavaSoft\{part}\{win_version}".format(part = part, win_version = win_version)
-			(java32_home, java64_home) = _read_hklm_reg(reg_path, "JavaHome")
-
-			for (home, arch) in [(java32_home, 'i486'), (java64_home, 'x86_64')]:
-				if os.path.isfile(home + r"\bin\java.exe"):
-					impl = factory('package:windows:%s:%s:%s' % (package, zero_version, arch))
-					impl.machine = arch
-					impl.version = model.parse_version(zero_version)
-					impl.upstream_stability = model.packaged
-					impl.main = home + r"\bin\java.exe"
-					_set_quick_test(impl, impl.main)
-
 		def find_netfx(win_version, zero_version):
 			reg_path = r"SOFTWARE\Microsoft\NET Framework Setup\NDP\{win_version}".format(win_version = win_version)
 			(netfx32_install, netfx64_install) = _read_hklm_reg(reg_path, "Install")
@@ -255,15 +242,7 @@ class WindowsDistribution(Distribution):
 				impl.upstream_stability = model.packaged
 				impl.main = "" # .NET executables do not need a runner on Windows but they need one elsewhere
 
-		if package == 'openjdk-6-jre':
-			find_java("Java Runtime Environment", "1.6", '6')
-		elif package == 'openjdk-6-jdk':
-			find_java("Java Development Kit", "1.6", '6')
-		elif package == 'openjdk-7-jre':
-			find_java("Java Runtime Environment", "1.7", '7')
-		elif package == 'openjdk-7-jdk':
-			find_java("Java Development Kit", "1.7", '7')
-		elif package == 'netfx':
+		if package == 'netfx':
 			find_netfx("v2.0.50727", '2.0')
 			find_netfx("v3.0", '3.0')
 			find_netfx("v3.5", '3.5')

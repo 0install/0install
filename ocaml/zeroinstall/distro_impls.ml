@@ -556,8 +556,20 @@ module Mac = struct
 end
 
 module Win = struct
-  let windows_distribution _config slave =
-    object
+  let windows_distribution config slave =
+    let read_hklm_reg key_name value_name =
+      let open Support.Windows_api in
+      let api = !windowsAPI |? lazy (raise_safe "Failed to load Windows support module!") in
+      match config.system#platform.Platform.machine with
+      | "x86_64" ->
+          let value32 = api#read_registry_key key_name value_name KEY_WOW64_32KEY in
+          let value64 = api#read_registry_key key_name value_name KEY_WOW64_64KEY in
+          (value32, value64)
+      | _ ->
+          let value32 = api#read_registry_key key_name value_name KEY_WOW64_NONE in
+          (value32, None) in
+
+    object (self)
       inherit Distro.python_fallback_distribution slave "WindowsDistribution" [] as super
       val check_host_python = false (* (0install's bundled Python may not be generally usable) *)
 
@@ -569,8 +581,10 @@ module Win = struct
       method! private add_package_impls_from_python query =
         let package_name = query.package_name in
         match package_name with
-        | "openjdk-6-jre" | "openjdk-6-jdk"
-        | "openjdk-7-jre" | "openjdk-7-jdk"
+        | "openjdk-6-jre" -> self#find_java "Java Runtime Environment" "1.6" "6" query
+        | "openjdk-6-jdk" -> self#find_java "Java Development Kit"     "1.6" "6" query
+        | "openjdk-7-jre" -> self#find_java "Java Runtime Environment" "1.7" "7" query
+        | "openjdk-7-jdk" -> self#find_java "Java Development Kit"     "1.7" "7" query
         | "netfx" | "netfx-client" ->
             Qdom.log_elem Support.Logging.Info "FIXME: Windows: can't check for package '%s':" package_name query.elem;
             super#add_package_impls_from_python query
@@ -578,6 +592,29 @@ module Win = struct
 
         (* No PackageKit support on Windows *)
       method! check_for_candidates _feed = Lwt.return ()
+
+      method private find_java part win_version zero_version query =
+        let reg_path = Printf.sprintf "SOFTWARE\\JavaSoft\\%s\\%s" part win_version in
+        let java32_home, java64_home = read_hklm_reg reg_path "JavaHome" in
+
+        [(java32_home, "i486"); (java64_home, "x86_64")] |> List.iter (function
+          | None, _ -> ()
+          | Some home, machine ->
+              let java_bin = home +/ "bin\\java.exe" in
+              match config.system#stat java_bin with
+              | None -> ()
+              | Some info ->
+                  let version = Versions.parse_version zero_version in
+                  let quick_test = Some (java_bin, UnchangedSince info.Unix.st_mtime) in
+                  self#add_package_implementation
+                    ~main:java_bin
+                    ~is_installed:true
+                    ~version
+                    ~machine:(Some machine)
+                    ~quick_test
+                    ~distro_name
+                    query
+        )
     end
 
   let cygwin_log = "/var/log/setup.log"

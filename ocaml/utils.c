@@ -22,10 +22,10 @@
 #include <sys/utime.h>
 #endif
 
-#include <sys/utsname.h>
 #include <errno.h>
 
 #ifndef _WIN32
+#include <sys/utsname.h>
 #include <sys/ioctl.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -117,6 +117,10 @@ CAMLprim value ocaml_DigestFinal_ex(value v_ctx) {
 /* Based on code in extunix (LGPL-2.1) */
 CAMLprim value ocaml_0install_uname(value v_unit) {
   CAMLparam1(v_unit);
+#ifdef _WIN32
+  caml_failwith("No uname on Windows!");
+  CAMLreturn(v_unit);
+#else
   struct utsname uname_data;
 
   CAMLlocal2(result, domainname);
@@ -133,6 +137,7 @@ CAMLprim value ocaml_0install_uname(value v_unit) {
   }
 
   CAMLreturn(result);
+#endif
 }
 
 CAMLprim value ocaml_0install_get_terminal_width(value v_unit) {
