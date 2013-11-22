@@ -357,43 +357,6 @@ def canonical_machine(package_machine):
 		return host_machine.lower()
 	return machine
 
-class PortsDistribution(Distribution):
-	name = 'Ports'
-
-	system_paths = ['/usr/local/bin']
-
-	def __init__(self, pkgdir):
-		"""@type pkgdir: str"""
-		self._pkgdir = pkgdir
-
-	def get_package_info(self, package, factory):
-		"""@type package: str"""
-		_name_version_regexp = '^(.+)-([^-]+)$'
-
-		nameversion = re.compile(_name_version_regexp)
-		for pkgname in os.listdir(self._pkgdir):
-			pkgdir = os.path.join(self._pkgdir, pkgname)
-			if not os.path.isdir(pkgdir): continue
-
-			#contents = open(os.path.join(pkgdir, '+CONTENTS')).readline().strip()
-
-			match = nameversion.search(pkgname)
-			if match is None:
-				logger.warning(_('Cannot parse version from Ports package named "%(pkgname)s"'), {'pkgname': pkgname})
-				continue
-			else:
-				name = match.group(1)
-				if name != package:
-					continue
-				version = try_cleanup_distro_version(match.group(2))
-
-			machine = host_machine
-
-			impl = factory('package:ports:%s:%s:%s' % \
-						(package, version, machine))
-			impl.version = model.parse_version(version)
-			impl.machine = machine
-
 class MacPortsDistribution(CachedDistribution):
 	system_paths = ['/opt/local/bin']
 

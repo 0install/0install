@@ -24,7 +24,7 @@ module RPM : sig
 end
 
 module Ports : sig
-  val ports_distribution : ?pkgdir:Support.Common.filepath -> General.config -> Python.slave -> Distro.distribution
+  val ports_distribution : ?pkg_db:Support.Common.filepath -> General.config -> Distro.distribution
 end
 
 module Gentoo : sig

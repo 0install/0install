@@ -687,12 +687,38 @@ end
 module Ports = struct
   let pkg_db = "/var/db/pkg"
 
-  let ports_distribution ?(pkgdir=pkg_db) _config slave =
-    object
-      inherit Distro.python_fallback_distribution slave "PortsDistribution" [pkgdir]
-      val check_host_python = true
+  let ports_distribution ?(pkg_db=pkg_db) config =
+    let re_name_version = Str.regexp "^\\(.+\\)-\\([^-]+\\)$" in
+
+    object (self)
+      inherit Distro.distribution config
       val id_prefix = "package:ports"
       val distro_name = "Ports"
+
+      method! private get_package_impls query =
+        pkg_db |> iter_dir config.system (fun pkgname ->
+          let pkgdir = pkg_db +/ pkgname in
+          if U.is_dir config.system pkgdir then (
+            if Str.string_match re_name_version pkgname 0 then (
+              let name = Str.matched_group 1 pkgname in
+              let version = Str.matched_group 2 pkgname in
+              if name = query.package_name then (
+                try_cleanup_distro_version_warn version query.package_name |> if_some (fun version ->
+                  let machine = Some config.system#platform.Platform.machine in
+                  self#add_package_implementation
+                    ~is_installed:true
+                    ~version
+                    ~machine
+                    ~quick_test:None
+                    ~distro_name
+                    query
+                )
+              )
+            ) else (
+              log_warning "Cannot parse version from Ports package named '%s'" pkgname
+            )
+          )
+        )
     end
 end
 
@@ -801,7 +827,7 @@ let get_host_distribution config (slave:Python.slave) : Distro.distribution =
         if config.system#platform.Platform.os = "Linux" then
           Gentoo.gentoo_distribution config
         else
-          Ports.ports_distribution config slave
+          Ports.ports_distribution config
       ) else if exists Slackware.slack_db then
         Slackware.slack_distribution config
       else if config.system#platform.Platform.os = "Darwin" then

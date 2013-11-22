@@ -142,9 +142,8 @@ let suite = "distro">::: [
   );
 
   "ports">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
-    let pkgdir = Test_0install.feed_dir +/ "ports" in
-    let slave = new Zeroinstall.Python.slave config in
-    let distro = Distro_impls.Ports.ports_distribution ~pkgdir config slave in
+    let pkg_db = Test_0install.feed_dir +/ "ports" in
+    let distro = Distro_impls.Ports.ports_distribution ~pkg_db config in
 
     begin match distro#get_impls_for_feed (make_test_feed "zeroinstall-injector") |> to_impl_list with
     | [impl] ->
