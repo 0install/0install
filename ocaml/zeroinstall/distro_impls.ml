@@ -26,6 +26,12 @@ let try_cleanup_distro_version_warn version package_name =
   | None -> log_warning "Can't parse distribution version '%s' for package '%s'" version package_name; None
   | Some version -> Some (Versions.parse_version version)
 
+let iter_dir system fn path =
+  match system#readdir path with
+  | Problem ex when U.is_dir system path -> raise ex
+  | Problem ex -> log_debug ~ex "Failed to read directory '%s'" path
+  | Success items -> items |> Array.iter fn
+
 (** A simple cache for storing key-value pairs on disk. Distributions may wish to use this to record the
     version(s) of each distribution package currently installed. *)
 module Cache =
@@ -691,13 +697,57 @@ module Ports = struct
 end
 
 module Gentoo = struct
-  let gentoo_distribution ?(pkgdir=Ports.pkg_db) _config slave =
-    object
-      inherit Distro.python_fallback_distribution slave "GentooDistribution" [pkgdir]
+  let is_digit = function
+    | '0' .. '9' -> true
+    | _ -> false
+
+  let gentoo_distribution ?(pkgdir=Ports.pkg_db) config =
+    object (self)
+      inherit Distro.distribution config
       val! valid_package_name = Str.regexp "^[^.-][^/]*/[^./][^/]*$"
-      val check_host_python = false
       val distro_name = "Gentoo"
       val id_prefix = "package:gentoo"
+
+      method! private get_package_impls query =
+        let re_version_start = Str.regexp "-[0-9]" in
+
+        match Str.bounded_split_delim U.re_slash query.package_name 2 with
+        | [category; leafname] ->
+            let category_dir = pkgdir +/ category in
+            let match_prefix = leafname ^ "-" in
+
+            category_dir |> iter_dir config.system (fun filename ->
+              if U.starts_with filename match_prefix && is_digit (filename.[String.length match_prefix]) then (
+                let pf_path = category_dir +/ filename +/ "PF"in
+                let pf_mtime = (config.system#lstat pf_path |? lazy (raise_safe "Missing '%s' file!" pf_path)).Unix.st_mtime in
+                let name = pf_path|> config.system#with_open_in [Open_rdonly] input_line |> trim in
+
+                match (try Some (Str.search_forward re_version_start name 0) with Not_found -> None) with
+                | None -> log_warning "Cannot parse version from Gentoo package named '%s'" name
+                | Some i ->
+                  try_cleanup_distro_version_warn (U.string_tail name (i + 1)) query.package_name |> if_some (fun version ->
+                    let machine =
+                      if category = "app-emulation" && U.starts_with name "emul-" then (
+                        match Str.bounded_split_delim U.re_dash name 4 with
+                        | [_; _; machine; _] -> machine
+                        | _ -> "*"
+                      ) else (
+                        category_dir +/ filename +/ "CHOST" |> config.system#with_open_in [Open_rdonly] (fun ch ->
+                          input_line ch |> U.split_pair U.re_dash |> fst
+                        )
+                      ) in
+                    let machine = Arch.none_if_star (Support.System.canonical_machine machine) in
+                    self#add_package_implementation
+                      ~is_installed:true
+                      ~version
+                      ~machine
+                      ~quick_test:(Some (pf_path, UnchangedSince pf_mtime))
+                      ~distro_name
+                      query
+                  )
+              )
+            )
+        | _ -> ()
     end
 end
 
@@ -711,24 +761,21 @@ module Slackware = struct
       val id_prefix = "package:slack"
 
       method! private get_package_impls query =
-        match config.system#readdir packages_dir with
-        | Problem ex -> log_debug ~ex "get_package_impls"
-        | Success items ->
-            items |> Array.iter (fun entry ->
-              match Str.bounded_split_delim U.re_dash entry 4 with
-              | [name; version; arch; build] when name = query.package_name ->
-                  let machine = Arch.none_if_star (Support.System.canonical_machine arch) in
-                  try_cleanup_distro_version_warn (version ^ "-" ^ build) query.package_name |> if_some (fun version ->
-                  self#add_package_implementation
-                    ~is_installed:true
-                    ~version
-                    ~machine
-                    ~quick_test:(Some (packages_dir +/ entry, Exists))
-                    ~distro_name
-                    query
-                  )
-              | _ -> ()
-            )
+        packages_dir |> iter_dir config.system (fun entry ->
+          match Str.bounded_split_delim U.re_dash entry 4 with
+          | [name; version; arch; build] when name = query.package_name ->
+              let machine = Arch.none_if_star (Support.System.canonical_machine arch) in
+              try_cleanup_distro_version_warn (version ^ "-" ^ build) query.package_name |> if_some (fun version ->
+              self#add_package_implementation
+                ~is_installed:true
+                ~version
+                ~machine
+                ~quick_test:(Some (packages_dir +/ entry, Exists))
+                ~distro_name
+                query
+              )
+          | _ -> ()
+        )
     end
 end
 
@@ -752,7 +799,7 @@ let get_host_distribution config (slave:Python.slave) : Distro.distribution =
         Mac.macports_distribution config slave
       else if exists Ports.pkg_db then (
         if config.system#platform.Platform.os = "Linux" then
-          Gentoo.gentoo_distribution config slave
+          Gentoo.gentoo_distribution config
         else
           Ports.ports_distribution config slave
       ) else if exists Slackware.slack_db then

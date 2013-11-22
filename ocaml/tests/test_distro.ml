@@ -111,8 +111,7 @@ let suite = "distro">::: [
 
   "gentoo">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     let pkgdir = Test_0install.feed_dir +/ "gentoo" in
-    let slave = new Zeroinstall.Python.slave config in
-    let distro = Distro_impls.Gentoo.gentoo_distribution ~pkgdir config slave in
+    let distro = Distro_impls.Gentoo.gentoo_distribution ~pkgdir config in
 
     distro#get_impls_for_feed gimp_feed |> to_impl_list |> assert_equal [];
 

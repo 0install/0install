@@ -357,50 +357,6 @@ def canonical_machine(package_machine):
 		return host_machine.lower()
 	return machine
 
-class GentooDistribution(Distribution):
-	name = 'Gentoo'
-
-	def __init__(self, pkgdir):
-		"""@type pkgdir: str"""
-		self._pkgdir = pkgdir
-
-	def get_package_info(self, package, factory):
-		# Add installed versions...
-		"""@type package: str"""
-		_version_start_reqexp = '-[0-9]'
-
-		if package.count('/') != 1: return
-
-		category, leafname = package.split('/')
-		category_dir = os.path.join(self._pkgdir, category)
-		match_prefix = leafname + '-'
-
-		if not os.path.isdir(category_dir): return
-
-		for filename in os.listdir(category_dir):
-			if filename.startswith(match_prefix) and filename[len(match_prefix)].isdigit():
-				with open(os.path.join(category_dir, filename, 'PF'), 'rt') as stream:
-					name = stream.readline().strip()
-
-				match = re.search(_version_start_reqexp, name)
-				if match is None:
-					logger.warning(_('Cannot parse version from Gentoo package named "%(name)s"'), {'name': name})
-					continue
-				else:
-					version = try_cleanup_distro_version(name[match.start() + 1:])
-
-				if category == 'app-emulation' and name.startswith('emul-'):
-					__, __, machine, __ = name.split('-', 3)
-				else:
-					with open(os.path.join(category_dir, filename, 'CHOST'), 'rt') as stream:
-						machine, __ = stream.readline().split('-', 1)
-				machine = arch_canonicalize_machine(machine)
-
-				impl = factory('package:gentoo:%s:%s:%s' % \
-						(package, version, machine))
-				impl.version = model.parse_version(version)
-				impl.machine = machine
-
 class PortsDistribution(Distribution):
 	name = 'Ports'
 

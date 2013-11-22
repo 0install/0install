@@ -28,7 +28,7 @@ module Ports : sig
 end
 
 module Gentoo : sig
-  val gentoo_distribution : ?pkgdir:Support.Common.filepath -> General.config -> Python.slave -> Distro.distribution
+  val gentoo_distribution : ?pkgdir:Support.Common.filepath -> General.config -> Distro.distribution
 end
 
 module Slackware : sig
