@@ -109,7 +109,7 @@ let load_first_config rel_path config =
 (** Write global settings. *)
 let save_config config =
   let dir = Support.Basedir.save_path config.system (Filename.dirname config_injector_global) config.basedirs.Support.Basedir.config in
-  config.system#atomic_write [Open_wronly] (dir +/ "global") ~mode:0o644 (fun ch ->
+  dir +/ "global" |> config.system#atomic_write [Open_wronly] ~mode:0o644 (fun ch ->
     output_string ch "[global]\n";
 
     Printf.fprintf ch "help_with_testing = %s\n" (format_bool config.help_with_testing);

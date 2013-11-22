@@ -14,7 +14,7 @@ module Stores = Zeroinstall.Stores
 let assert_str_equal = Fake_system.assert_str_equal
 
 let write_file (system:system) ~mtime ?(mode=0o644) path contents =
-  system#with_open_out [Open_wronly; Open_creat] mode path (fun ch ->
+  path |> system#with_open_out [Open_wronly; Open_creat] ~mode (fun ch ->
     output_string ch contents;
   );
   system#set_mtime path mtime

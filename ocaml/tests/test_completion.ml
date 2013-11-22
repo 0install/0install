@@ -79,7 +79,7 @@ let suite =
       let interfaces_dir =
         Support.Basedir.save_path (config.system) "0install.net/interfaces" config.basedirs.Support.Basedir.cache in
       let example_cached_path = interfaces_dir +/ "http%3a%2f%2fexample.com%2ffoo" in
-      system#atomic_write [Open_wronly; Open_binary] example_cached_path ~mode:0o644 (fun ch ->
+      example_cached_path |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
         output_string ch (
           "<?xml version='1.0'?>" ^
           "<interface uri='http://example.com/foo' xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>" ^

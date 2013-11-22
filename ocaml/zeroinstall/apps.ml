@@ -78,7 +78,7 @@ let get_mtime system path ~warn_if_missing =
 let set_mtime config path =
   if not config.dry_run then (
     let system = config.system in
-    system#with_open_out [Open_wronly; Open_creat] 0o644 path ignore;
+    system#with_open_out [Open_wronly; Open_creat] ~mode:0o644 ignore path;
     (* In case file already exists *)
     system#set_mtime path @@ system#time
   )
@@ -101,7 +101,7 @@ let set_selections config app_path sels ~touch_last_checked =
   if config.dry_run then
     Dry_run.log "would write selections to %s" sels_file
   else (
-    config.system#atomic_write [Open_wronly;Open_binary] sels_file ~mode:0o644 (fun ch ->
+    sels_file |> config.system#atomic_write [Open_wronly;Open_binary] ~mode:0o644 (fun ch ->
       Support.Qdom.output (Xmlm.make_output @@ `Channel ch) sels
     )
   );
@@ -276,7 +276,7 @@ let set_requirements config path req =
     Dry_run.log "would write %s" reqs_file
   else (
     let json = Requirements.to_json req in
-    config.system#atomic_write [Open_wronly;Open_text] reqs_file ~mode:0o644 (fun ch ->
+    reqs_file |> config.system#atomic_write [Open_wronly;Open_text] ~mode:0o644 (fun ch ->
       Yojson.Basic.to_channel ch json
     );
   )
@@ -353,7 +353,7 @@ let integrate_shell config app executable_name =
   if config.dry_run then
     Dry_run.log "would write launcher script %s" launcher
   else (
-    config.system#atomic_write [Open_wronly;Open_text] launcher ~mode:0o755 (fun ch ->
+    launcher |> config.system#atomic_write [Open_wronly;Open_text] ~mode:0o755 (fun ch ->
       Printf.fprintf ch command_template (Filename.basename app)
     )
   )

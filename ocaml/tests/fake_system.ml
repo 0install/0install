@@ -167,8 +167,8 @@ class fake_system tmpdir =
 
     method set_mtime path mtime = real_system#set_mtime (check_write path) mtime
 
-    method with_open_in flags mode path fn = real_system#with_open_in flags mode (check_read path) fn
-    method with_open_out flags mode path fn = real_system#with_open_out flags mode (check_write path) fn
+    method with_open_in flags fn path = real_system#with_open_in flags fn (check_read path)
+    method with_open_out flags ~mode fn path = real_system#with_open_out flags ~mode fn (check_write path)
 
     method mkdir path mode = real_system#mkdir (check_write path) mode
 
@@ -232,7 +232,7 @@ class fake_system tmpdir =
           else real_system#stat (check_read path)
       )
 
-    method atomic_write open_flags path ~mode fn = real_system#atomic_write open_flags (check_write path) ~mode fn
+    method atomic_write open_flags ~mode fn path = real_system#atomic_write open_flags ~mode fn (check_write path)
     method hardlink orig copy = real_system#hardlink (check_write orig) (check_write copy)
     method unlink path = real_system#unlink (check_write path)
     method rmdir path = real_system#rmdir (check_write path)

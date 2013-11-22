@@ -495,7 +495,7 @@ let suite = "download">::: [
     let () =
       let old_selections = U.read_file system selections_path in
       let new_selections = Str.global_replace (Str.regexp_string "Hello") "Goodbye" old_selections in
-      system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 selections_path (fun ch ->
+      selections_path |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
         output_string ch new_selections
       ) in
 
@@ -518,7 +518,7 @@ let suite = "download">::: [
 
     (* Replace with a valid local feed so we don't have to download immediately *)
     let replace_with_local () =
-      system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 selections_path (fun ch ->
+      selections_path |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
         output_string ch "<?xml version='1.0' ?>\n\
           <selections command='run' interface='http://example.com:8000/Hello.xml'\n\
                       xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>\n\
@@ -622,7 +622,7 @@ let suite = "download">::: [
         sel |> Q.set_attribute "package" "badpackage";
         sel |> Q.set_attribute "main" "/i/dont/exist"
     | _ -> assert false end;
-    system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 selections_path (fun ch ->
+    selections_path |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
       Q.to_utf8 sels |> output_string ch
     );
 

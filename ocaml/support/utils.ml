@@ -264,8 +264,8 @@ let split_pair re str =
 let re_section = Str.regexp "^[ \t]*\\[[ \t]*\\([^]]*\\)[ \t]*\\][ \t]*$"
 let re_key_value = Str.regexp "^[ \t]*\\([^= ]+\\)[ \t]*=[ \t]*\\(.*\\)$"
 
-let parse_ini (system:system) fn path =
-  let read ch =
+let parse_ini (system:system) fn =
+  system#with_open_in [Open_rdonly; Open_text] (fun ch ->
     let handler = ref (fun x -> fn "" x) in
     try
       while true do
@@ -278,8 +278,8 @@ let parse_ini (system:system) fn path =
           let value = trim (Str.matched_group 2 line) in
           !handler (key, value)
       done
-    with End_of_file -> () in
-  system#with_open_in [Open_rdonly; Open_text] 0 path read
+    with End_of_file -> ()
+  )
 
 let rmtree ~even_if_locked (sys:system) root =
   if starts_with (sys#getcwd ^ Filename.dir_sep) (root ^ Filename.dir_sep) then
@@ -320,8 +320,8 @@ let copy_channel ic oc =
 
 let copy_file (system:system) source dest mode =
   try
-    system#with_open_in [Open_rdonly;Open_binary] 0 source (function ic ->
-      system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] mode dest (copy_channel ic)
+    source |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
+      dest |> system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] ~mode (copy_channel ic)
     )
   with Safe_exception _ as ex -> reraise_with_context ex "... copying %s to %s" source dest
 
@@ -453,7 +453,7 @@ let is_dir system path =
   | Some info -> info.Unix.st_kind = Unix.S_DIR
 
 let touch (system:system) path =
-  system#with_open_out [Open_wronly; Open_creat] 0o600 path (fun _ch -> ());
+  system#with_open_out [Open_wronly; Open_creat] ~mode:0o600 ignore path;
   system#set_mtime path @@ system#time   (* In case file already exists *)
 
 let read_file (system:system) path =
@@ -461,7 +461,7 @@ let read_file (system:system) path =
   | None -> raise_safe "File '%s' doesn't exist" path
   | Some info ->
       let buf = String.create (info.Unix.st_size) in
-      system#with_open_in [Open_rdonly;Open_binary] 0 path (function ic ->
+      path |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
         really_input ic buf 0 info.Unix.st_size
       );
       buf

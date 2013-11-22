@@ -21,8 +21,8 @@ let are_already_linked (system:system) a b =
   | _ -> raise_safe "Missing files comparing %s and %s" a b
 
 let are_byte_identical (system:system) a b =
-  system#with_open_in [Open_rdonly;Open_binary] 0 a (function ia ->
-    system#with_open_in [Open_rdonly;Open_binary] 0 b (function ib ->
+  a |> system#with_open_in [Open_rdonly;Open_binary] (fun ia ->
+    b |> system#with_open_in [Open_rdonly;Open_binary] (fun ib ->
       let rec loop () =
         let adata = U.read_upto 100 ia in
         let bdata = U.read_upto 100 ib in

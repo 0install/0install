@@ -56,7 +56,7 @@ let extract_alias_info ch =
 
 let parse_script (system:system) path =
   let starts_with = Support.Utils.starts_with in
-  system#with_open_in [Open_rdonly; Open_text] 0 path (fun ch ->
+  path |> system#with_open_in [Open_rdonly; Open_text] (fun ch ->
     let actual = Support.Utils.read_upto max_len ch in
     if starts_with actual v1_header then (
       seek_in ch 0;

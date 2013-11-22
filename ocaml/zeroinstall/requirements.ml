@@ -98,7 +98,7 @@ let to_json reqs =
 
 let load (system:system) path =
   let open Yojson.Basic in
-  system#with_open_in [Open_rdonly; Open_binary] 0 path (fun ch ->
+  path |> system#with_open_in [Open_rdonly; Open_binary] (fun ch ->
     try parse_requirements (from_channel ~fname:path ch)
     with Safe_exception _ as ex -> reraise_with_context ex "... parsing JSON file %s" path
   )

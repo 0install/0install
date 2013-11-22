@@ -84,7 +84,7 @@ let parse_input source_name i = try (
   raise_safe "[%d:%d] %s" line col (Xmlm.error_message err)
 
 let parse_file (system:system) path =
-  try system#with_open_in [Open_rdonly; Open_binary] 0 path (fun ch ->
+  try path |> system#with_open_in [Open_rdonly; Open_binary] (fun ch ->
     parse_input (Some path) (Xmlm.make_input (`Channel ch))
   )
   with

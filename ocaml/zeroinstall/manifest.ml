@@ -70,7 +70,7 @@ let generate_manifest (system:system) alg root =
       | Unix.S_REG when leaf = ".manifest" && rel_path = "" -> None
       | Unix.S_REG ->
           let d = H.create hash_name in
-          system#with_open_in [Open_rdonly; Open_binary] 0 path (H.update_from_channel d);
+          path |> system#with_open_in [Open_rdonly; Open_binary] (H.update_from_channel d);
           let hex_digest = H.hex_digest d in
 
           if (info.Unix.st_perm land 0o111) <> 0 then
@@ -144,7 +144,7 @@ let add_manifest_file system alg dir =
     let manifest_contents = generate_manifest system alg dir in
 
     system#chmod dir 0o755;
-    system#atomic_write [Open_wronly; Open_binary] mfile ~mode:0o444 (fun ch ->
+    mfile |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o444 (fun ch ->
       output_string ch manifest_contents
     );
     system#chmod dir 0o555;
@@ -325,8 +325,8 @@ let parse_manifest manifest_data =
 
 (** Copy the file [src] to [dst]. Error if it doesn't end up with the right hash. *)
 let copy_with_verify (system:system) src dst ~digest ~required_hash ~mode =
-  system#with_open_in [Open_rdonly;Open_binary] 0 src (function ic ->
-    system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] mode dst (fun oc ->
+  src |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
+    dst |> system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] ~mode (fun oc ->
       let bufsize = 4096 in
       let buf = String.create bufsize in
       try
@@ -420,7 +420,7 @@ let copy_tree_with_verify system source target manifest_data required_digest =
     try
       copy_subtree system hash_name req_tree source tmp_dir;
       let mfile = tmp_dir +/ ".manifest" in
-      system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] 0o644 mfile (fun oc ->
+      mfile |> system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] ~mode:0o644 (fun oc ->
         output_string oc manifest_data
       );
       system#rename tmp_dir target_impl;

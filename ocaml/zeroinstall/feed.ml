@@ -594,7 +594,7 @@ let save_feed_overrides config feed_url overrides =
     Qdom.set_attribute FeedConfigAttr.user_stability (format_stability stability) impl
   );
   let url = Feed_url.format_url feed_url in
-  config.system#atomic_write [Open_wronly; Open_binary] (feeds +/ Escape.pretty url) ~mode:0o644 (fun ch ->
+  feeds +/ Escape.pretty url |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
     Qdom.output (`Channel ch |> Xmlm.make_output) root;
   )
 

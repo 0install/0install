@@ -416,7 +416,7 @@ let suite = "0install">::: [
     let app = expect @@ Zeroinstall.Apps.lookup_app config "local-app" in
     let old_local = U.read_file system (app +/ "selections.xml") in
     let new_local = Str.replace_first (Str.regexp_string "0.1") "0.1-pre" old_local in
-    system#atomic_write [Open_wronly; Open_binary] (app +/ "selections-2012-01-01.xml") ~mode:0o644 (fun ch ->
+    app +/ "selections-2012-01-01.xml" |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
       output_string ch new_local
     );
 
@@ -433,7 +433,7 @@ let suite = "0install">::: [
 
     (* select detects changes *)
     let new_local = Str.replace_first (Str.regexp_string "0.1") "0.1-pre2" old_local in
-    system#atomic_write [Open_wronly; Open_binary] (app +/ "selections.xml") ~mode:0o644 (fun ch ->
+    app +/ "selections.xml" |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
       output_string ch new_local
     );
     let out = run ["show"; "local-app"] in
@@ -538,7 +538,7 @@ let suite = "0install">::: [
     (* Selections changed, but no download required *)
     let data = U.read_file system local_copy in
     let data = Str.replace_first (Str.regexp_string " version='1'>") " version='1.1' main='missing'>" data in
-    system#atomic_write [Open_wronly; Open_binary] local_copy ~mode:0o644 (fun ch ->
+    local_copy |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
       output_string ch data
     );
     system#set_mtime (app +/ "last-solve") 400.0;

@@ -99,7 +99,7 @@ let make_driver_test test_elem =
         | Some url -> downloadable_feeds := StringMap.add url child !downloadable_feeds
         | None ->
             let local_path = tmpdir +/ (ZI.get_attribute "local-path" child) in
-            fake_system#atomic_write [Open_wronly; Open_binary] local_path ~mode:0o644 (fun ch ->
+            local_path |> fake_system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
               Support.Qdom.output (Xmlm.make_output @@ `Channel ch) child
             );
     )

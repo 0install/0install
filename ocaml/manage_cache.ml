@@ -34,7 +34,7 @@ let size_of_impl (system:system) path =
   | None -> size_of_item system path
   | Some info ->
       let size = ref @@ float_of_int info.Unix.st_size in    (* (include the size of the .manifest file itself) *)
-      system#with_open_in [Open_rdonly; Open_binary] 0 man (fun stream ->
+      man |> system#with_open_in [Open_rdonly; Open_binary] (fun stream ->
         try
           while true do
             let line = input_line stream in

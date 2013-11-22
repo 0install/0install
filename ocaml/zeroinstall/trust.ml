@@ -62,7 +62,7 @@ class trust_db config =
         );
       );
 
-      config.system#atomic_write [Open_wronly; Open_binary] db_file ~mode:0o644 (fun ch ->
+      db_file |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
         Q.output (`Channel ch |> Xmlm.make_output) root;
       )
     ) in

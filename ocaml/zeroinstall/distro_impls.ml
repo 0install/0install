@@ -64,7 +64,7 @@ module Cache =
           Hashtbl.clear data.contents;
 
           if Sys.file_exists cache_path then (
-            let load_cache ch =
+            cache_path |> config.system#with_open_in [Open_rdonly; Open_text] (fun ch ->
               let headers = ref true in
               while !headers do
                 match input_line ch with
@@ -86,9 +86,7 @@ module Cache =
                   Hashtbl.add data.contents key value   (* note: adds to existing list of packages for this key *)
                 done
               with End_of_file -> ()
-
-              in
-            config.system#with_open_in [Open_rdonly; Open_text] 0 cache_path load_cache
+            )
           )
 
         (** Add some entries to the cache.
@@ -96,7 +94,7 @@ module Cache =
          * So if you want to record the fact that a package is not installed, you see need to add an entry for it (e.g. [["-"]]). *)
         method private put key values =
           try
-            config.system#with_open_out [Open_append; Open_creat] 0o644 cache_path (fun ch ->
+            cache_path |> config.system#with_open_out [Open_append; Open_creat] ~mode:0o644 (fun ch ->
               values |> List.iter (fun value ->
                 output_string ch @@ Printf.sprintf "%s=%s" key value;
                 Hashtbl.add data.contents key value
@@ -114,7 +112,7 @@ module Cache =
               )
           | Some info ->
               let flush () =
-                config.system#atomic_write [Open_wronly; Open_binary] cache_path ~mode:0o644 (fun ch ->
+                cache_path |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
                   let mtime = Int64.of_float info.Unix.st_mtime |> Int64.to_string in
                   if old_format then
                     Printf.fprintf ch "mtime: %s\nsize: %d\nformat: %d\n\n" mtime info.Unix.st_size format_version
@@ -456,15 +454,15 @@ module ArchLinux = struct
 
     let get_arch desc_path =
       let arch = ref None in
-      let read ch =
+      desc_path |> config.system#with_open_in [Open_rdonly; Open_text] (fun ch ->
         try
           while !arch = None do
             let line = input_line ch in
             if line = "%ARCH%" then
               arch := Some (trim (input_line ch))
           done
-        with End_of_file -> () in
-      config.system#with_open_in [Open_rdonly; Open_text] 0 desc_path read;
+        with End_of_file -> ()
+      );
       !arch in
 
     let entries = ref (-1.0, StringMap.empty) in

@@ -100,7 +100,7 @@ let suite = "stores">::: [
     let bindir = home +/ "bin" in
     fake_system#mkdir bindir 0o700;
     let helper = bindir +/ "0store-secure-add-helper" in
-    fake_system#atomic_write [Open_wronly; Open_binary] helper ~mode:0o755 (fun ch ->
+    helper |> fake_system#atomic_write [Open_wronly; Open_binary] ~mode:0o755 (fun ch ->
       output_string ch "#!/bin/sh\nexit 0\n"
     );
     fake_system#putenv "PATH" (bindir ^ ":" ^ U.getenv_ex config.system "PATH");

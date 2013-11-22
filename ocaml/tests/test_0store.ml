@@ -14,7 +14,7 @@ let assert_str_equal = Fake_system.assert_str_equal
 let assert_contains = Fake_system.assert_contains
 
 let write_file (system:system) ~mtime ?(mode=0o644) path contents =
-  system#with_open_out [Open_wronly; Open_creat] mode path (fun ch ->
+  path |> system#with_open_out [Open_wronly; Open_creat] ~mode (fun ch ->
     output_string ch contents;
   );
   system#set_mtime path mtime
@@ -209,7 +209,7 @@ let suite = "0store">::: [
 
     let subfile = sample +/ "My Dir" +/ "!a file!.exe" in
     fake_system#chmod subfile 0o755;
-    system#with_open_out [Open_wronly;Open_trunc] 0 subfile (fun ch ->
+    subfile |> system#with_open_out [Open_wronly;Open_trunc] ~mode:0 (fun ch ->
       output_string ch "Extra!\n"
     );
     system#set_mtime subfile 2.0;

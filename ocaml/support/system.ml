@@ -123,14 +123,14 @@ module RealSystem (U : UnixType) =
             else raise ex
 
         (** [with_open_in fn file] opens [file] for reading, calls [fn handle], and then closes it again. *)
-        method with_open_in open_flags mode file fn =
+        method with_open_in open_flags fn file =
           let (ch:in_channel) =
-            try open_in_gen open_flags mode file
+            try open_in_gen open_flags 0 file
             with Sys_error msg -> raise_safe "Open failed: %s" msg in
           Utils.finally_do close_in ch fn
 
         (** [with_open_out fn file] opens [file] for writing, calls [fn handle], and then closes it again. *)
-        method with_open_out open_flags mode file fn =
+        method with_open_out open_flags ~mode fn file =
           let (ch:out_channel) =
             try open_out_gen open_flags mode file
             with Sys_error msg -> raise_safe "Open failed: %s" msg in
@@ -210,7 +210,7 @@ module RealSystem (U : UnixType) =
             reraise_with_context ex "... trying to spawn: %s" cmd
 
         (** Create and open a new text file, call [fn chan] on it, and rename it over [path] on success. *)
-        method atomic_write open_flags path ~mode fn =
+        method atomic_write open_flags ~mode fn path =
           let dir = Filename.dirname path in
           let (tmpname, ch) =
             try Filename.open_temp_file ~mode:open_flags ~temp_dir:dir "tmp-" ".new"

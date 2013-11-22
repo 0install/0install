@@ -57,8 +57,9 @@ class type system =
     method time : float
     method isatty : Unix.file_descr -> bool
 
-    method with_open_in : open_flag list -> Unix.file_perm -> filepath -> (in_channel -> 'a) -> 'a
-    method with_open_out : open_flag list -> Unix.file_perm -> filepath -> (out_channel -> 'a) -> 'a
+    method with_open_in : open_flag list -> (in_channel -> 'a) -> filepath -> 'a
+    method with_open_out : open_flag list -> mode:Unix.file_perm -> (out_channel -> 'a) -> filepath -> 'a
+    method atomic_write : open_flag list -> mode:Unix.file_perm -> (out_channel -> 'a) -> filepath -> 'a
     method mkdir : filepath -> Unix.file_perm -> unit
     (** Returns [false] for a broken symlink. *)
     method file_exists : filepath -> bool
@@ -68,7 +69,6 @@ class type system =
     method rmdir : filepath -> unit
     method getcwd : filepath
     method chdir : filepath -> unit
-    method atomic_write : open_flag list -> filepath -> mode:Unix.file_perm -> (out_channel -> 'a) -> 'a
 
     method hardlink : filepath -> filepath -> unit
     method rename : filepath -> filepath -> unit

@@ -184,7 +184,7 @@ class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.
         if config.dry_run then (
           Dry_run.log "would cache feed %s as %s" feed_url cache_path
         ) else (
-          system#atomic_write [Open_wronly; Open_binary] cache_path ~mode:0o644 (fun ch ->
+          cache_path |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
             output_string ch new_xml
           );
           log_debug "Saved as %s" cache_path

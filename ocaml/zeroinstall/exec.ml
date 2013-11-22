@@ -25,7 +25,7 @@ class virtual launcher_builder config script =
 
     method add_launcher path =
       if not @@ Sys.file_exists path then (
-        config.system#atomic_write [Open_wronly; Open_binary] path ~mode:0o755 (fun ch ->
+        path |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o755 (fun ch ->
           output_string ch script
         )
       )
@@ -55,7 +55,7 @@ class windows_launcher_builder config =
     match config.system#getenv "ZEROINSTALL_RUNENV" with
     | None -> Filename.dirname config.abspath_0install +/ "0install-runenv.exe"
     | Some path -> path in
-  let digest = config.system#with_open_in [Open_rdonly; Open_binary] 0 runenv_path Digest.input in
+  let digest = config.system#with_open_in [Open_rdonly; Open_binary] Digest.input runenv_path in
   object (_ : #launcher_builder)
     inherit launcher_builder config digest
 
@@ -68,7 +68,7 @@ let get_launcher_builder config =
   if on_windows then new windows_launcher_builder config
   else
     let buf = String.create 2 in
-    let () = config.system#with_open_in [Open_rdonly; Open_binary] 0 config.abspath_0install (fun ch ->
+    let () = config.abspath_0install |> config.system#with_open_in [Open_rdonly; Open_binary] (fun ch ->
       really_input ch buf 0 2
     )
     in

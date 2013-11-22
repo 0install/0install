@@ -406,15 +406,12 @@ let download_icon config (downloader:Downloader.downloader) (feed_provider:Feed_
         | `network_failure msg -> raise_safe "%s" msg
         | `aborted_by_user -> Lwt.return ()
         | `tmpfile tmpfile ->
-            try
-              let icons_cache = Basedir.save_path system cache_icons config.basedirs.Basedir.cache in
-              let icon_file = icons_cache +/ Escape.escape feed_url in
-              system#with_open_in [Open_rdonly;Open_binary] 0 tmpfile (function ic ->
-                system#atomic_write [Open_wronly;Open_binary] icon_file ~mode:0o644 (U.copy_channel ic)
-              );
-              Lwt.return ()
-            with ex ->
-              raise ex
+            let icons_cache = Basedir.save_path system cache_icons config.basedirs.Basedir.cache in
+            let icon_file = icons_cache +/ Escape.escape feed_url in
+            tmpfile |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
+              icon_file |> system#atomic_write [Open_wronly;Open_binary] ~mode:0o644 (U.copy_channel ic)
+            );
+            Lwt.return ()
       with Downloader.Unmodified -> Lwt.return ()
       finally Lwt_switch.turn_off switch
 

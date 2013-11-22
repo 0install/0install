@@ -179,7 +179,7 @@ let save_iface_config config uri iface_config =
 
   iface_config.extra_feeds |> List.iter (add_import_elem root);
 
-  config.system#atomic_write [Open_wronly; Open_binary] (config_dir +/ Escape.pretty uri) ~mode:0o644 (fun ch ->
+  config_dir +/ Escape.pretty uri |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
     Q.output (`Channel ch |> Xmlm.make_output) root;
   )
 
