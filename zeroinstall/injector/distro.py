@@ -357,33 +357,6 @@ def canonical_machine(package_machine):
 		return host_machine.lower()
 	return machine
 
-class SlackDistribution(Distribution):
-	"""A Slack-based distribution."""
-
-	name = 'Slack'
-
-	def __init__(self, packages_dir):
-		"""@type packages_dir: str"""
-		self._packages_dir = packages_dir
-
-	def get_package_info(self, package, factory):
-		# Add installed versions...
-		"""@type package: str"""
-		for entry in os.listdir(self._packages_dir):
-			name, version, arch, build = entry.rsplit('-', 3)
-			if name == package:
-				zi_arch = canonical_machine(arch)
-				clean_version = try_cleanup_distro_version("%s-%s" % (version, build))
-				if not clean_version:
-					logger.warning(_("Can't parse distribution version '%(version)s' for package '%(package)s'"), {'version': version, 'package': name})
-					continue
-	
-				impl = factory('package:slack:%s:%s:%s' % \
-						(package, clean_version, zi_arch))
-				impl.version = model.parse_version(clean_version)
-				if zi_arch != '*':
-					impl.machine = zi_arch
-
 class GentooDistribution(Distribution):
 	name = 'Gentoo'
 

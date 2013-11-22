@@ -32,7 +32,7 @@ module Gentoo : sig
 end
 
 module Slackware : sig
-  val slack_distribution : ?packages_dir:Support.Common.filepath -> General.config -> Python.slave -> Distro.distribution
+  val slack_distribution : ?packages_dir:Support.Common.filepath -> General.config -> Distro.distribution
 end
 
 module Mac : sig

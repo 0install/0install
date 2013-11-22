@@ -97,8 +97,7 @@ let suite = "distro">::: [
   "slack">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     let slackdir = Test_0install.feed_dir +/ "slack" in
     let packages_dir = slackdir +/ "packages" in
-    let slave = new Zeroinstall.Python.slave config in
-    let distro = Distro_impls.Slackware.slack_distribution ~packages_dir config slave in
+    let distro = Distro_impls.Slackware.slack_distribution ~packages_dir config in
 
     distro#get_impls_for_feed gimp_feed |> to_impl_list |> assert_equal [];
 

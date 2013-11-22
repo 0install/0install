@@ -704,12 +704,31 @@ end
 module Slackware = struct
   let slack_db = "/var/log/packages"
 
-  let slack_distribution ?(packages_dir=slack_db) _config slave =
-    object
-      inherit Distro.python_fallback_distribution slave "SlackDistribution" [packages_dir]
-      val check_host_python = false
+  let slack_distribution ?(packages_dir=slack_db) config =
+    object (self)
+      inherit Distro.distribution config
       val distro_name = "Slack"
       val id_prefix = "package:slack"
+
+      method! private get_package_impls query =
+        match config.system#readdir packages_dir with
+        | Problem ex -> log_debug ~ex "get_package_impls"
+        | Success items ->
+            items |> Array.iter (fun entry ->
+              match Str.bounded_split_delim U.re_dash entry 4 with
+              | [name; version; arch; build] when name = query.package_name ->
+                  let machine = Arch.none_if_star (Support.System.canonical_machine arch) in
+                  try_cleanup_distro_version_warn (version ^ "-" ^ build) query.package_name |> if_some (fun version ->
+                  self#add_package_implementation
+                    ~is_installed:true
+                    ~version
+                    ~machine
+                    ~quick_test:(Some (packages_dir +/ entry, Exists))
+                    ~distro_name
+                    query
+                  )
+              | _ -> ()
+            )
     end
 end
 
@@ -737,7 +756,7 @@ let get_host_distribution config (slave:Python.slave) : Distro.distribution =
         else
           Ports.ports_distribution config slave
       ) else if exists Slackware.slack_db then
-        Slackware.slack_distribution config slave
+        Slackware.slack_distribution config
       else if config.system#platform.Platform.os = "Darwin" then
         Mac.darwin_distribution config slave
       else
