@@ -385,13 +385,6 @@ class DummyPackageKit:
 	available = False
 	def get_candidates(self, package, factory, prefix): pass
 
-def do_init_distro(config, name, args):
-	global _distro
-	assert _distro is None, _distro
-	from zeroinstall.injector import distro
-	cons = getattr(distro, name)
-	_distro = cons(*args)
-
 def handle_invoke(config, options, ticket, request):
 	try:
 		command = request[0]

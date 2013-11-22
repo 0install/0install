@@ -5,11 +5,11 @@
 (** Platform-specific code for interacting with distribution package managers. *)
 
 (** Create a suitable distribution object for this system. *)
-val get_host_distribution : General.config -> Python.slave -> Distro.distribution
+val get_host_distribution : General.config -> Distro.distribution
 
 (** {2 The following are exposed only for unit-testing} *)
 
-val generic_distribution : Python.slave -> Distro.distribution
+val generic_distribution : General.config -> Distro.distribution
 
 module ArchLinux : sig
   val arch_distribution : ?arch_db:Support.Common.filepath -> General.config -> Distro.distribution
@@ -36,6 +36,6 @@ module Slackware : sig
 end
 
 module Mac : sig
-  val macports_distribution : ?macports_db:Support.Common.filepath -> General.config -> Python.slave -> Distro.distribution
-  val darwin_distribution : General.config -> Python.slave -> Distro.distribution
+  val macports_distribution : ?macports_db:Support.Common.filepath -> General.config -> Distro.distribution
+  val darwin_distribution : General.config -> Distro.distribution
 end

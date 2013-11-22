@@ -72,16 +72,13 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
 
 let get_download_size info impl =
   match info.F.retrieval_methods with
-  | [] -> Q.raise_elem "Implementation %s has no retrieval methods!" (F.get_attr_ex FeedAttr.id impl) impl.F.qdom
+  | [] -> log_info "Implementation %s has no retrieval methods!" (F.get_attr_ex FeedAttr.id impl); None
   | methods ->
-      let size = methods |> U.first_match (fun m ->
+      methods |> U.first_match (fun m ->
         match Recipe.parse_retrieval_method m with
         | Some recipe -> Some (Recipe.get_download_size recipe)
-        | None -> None
-      ) in
-      match size with
-      | Some size -> size
-      | None -> Q.raise_elem "Implementation %s has no usable retrieval methods!" (F.get_attr_ex FeedAttr.id impl) impl.F.qdom
+        | None -> log_info "Implementation %s has no usable retrieval methods!" (F.get_attr_ex FeedAttr.id impl); None
+      )
 
 (* Returns (local-dir, fetch-size, fetch-tooltip) *)
 let get_fetch_info config impl =
@@ -91,9 +88,11 @@ let get_fetch_info config impl =
     | F.CacheImpl info -> (
         match Stores.lookup_maybe config.system info.F.digests config.stores with
         | None ->
-          let size = get_download_size info impl in
-          let pretty = U.format_size size in
-          (`Null, pretty, Printf.sprintf "Need to download %s (%s bytes)" pretty (Int64.to_string size))
+          begin match get_download_size info impl with
+          | Some size ->
+              let pretty = U.format_size size in
+              (`Null, pretty, Printf.sprintf "Need to download %s (%s bytes)" pretty (Int64.to_string size))
+          | None -> (`Null, "-", "No size") end;
         | Some path -> (`String path, "(cached)", "This version is already stored on your computer.")
     )
     | F.PackageImpl info ->

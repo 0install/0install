@@ -55,8 +55,111 @@ let make_query feed elem elem_props results = {
 type quick_test_condition = Exists | UnchangedSince of float
 type quick_test = (Support.Common.filepath * quick_test_condition)
 
+let python_test_code =
+  "import sys\n" ^
+  "python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])\n" ^
+  "p_info = (sys.executable or '/usr/bin/python', python_version)\n" ^
+  "try:\n" ^
+  "  if sys.version_info[0] > 2:\n" ^
+  "    from gi.repository import GObject as gobject\n" ^
+  "  else:\n" ^
+  "    import gobject\n" ^
+  "  if gobject.__file__.startswith('<'):\n" ^
+  "    path = gobject.__path__    # Python 3\n" ^
+  "  else:\n" ^
+  "    path = gobject.__file__    # Python 2\n" ^
+  "  version = '.'.join(str(x) for x in gobject.pygobject_version)\n" ^
+  "  g_info = (path, version)\n" ^
+  "except BaseException:\n" ^
+  "  g_info = None\n" ^
+  "import json\n" ^
+  "print(json.dumps([p_info, g_info]))\n"
+
+(** Set quick-test-file and quick-test-mtime from path. *)
+let get_quick_test_attrs path =
+  let mtime = (Unix.stat path).Unix.st_mtime in
+  Feed.AttrMap.singleton ("", FeedAttr.quick_test_file) path |>
+  Feed.AttrMap.add ("", FeedAttr.quick_test_mtime) (Printf.sprintf "%.0f" mtime)
+
+let make_restricts_distro doc iface_uri distros =
+  let elem = ZI.make doc "restricts" in
+  let open Feed in {
+    dep_qdom = elem;
+    dep_importance = Dep_restricts;
+    dep_iface = iface_uri;
+    dep_restrictions = [make_distribtion_restriction distros];
+    dep_required_commands = [];
+    dep_if_os = None;
+    dep_use = None;
+  }
+
 class virtual distribution config =
   let system = config.system in
+
+  let python_info = lazy (
+    ["python"; "python2"; "python3"] |> U.filter_map (fun name ->
+      U.find_in_path system name |> pipe_some (fun path ->
+        try
+          let json = [path; "-c"; python_test_code] |> U.check_output system Yojson.Basic.from_channel in
+          match json with
+          | `List [
+              `List [`String python_path; `String python_version];
+              `List [`String gobject_path; `String gobject_version]
+            ] -> Some ((python_path, python_version), (gobject_path, gobject_version))
+          | _ -> raise_safe "Bad JSON: '%s'" (Yojson.Basic.to_string json)
+        with ex -> log_warning ~ex "Failed to get details from Python"; None
+      )
+    )
+  ) in
+
+  let make_host_impl path version ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
+    let host_machine = system#platform in
+    let open Feed in
+    let props = {
+      attrs = get_quick_test_attrs path
+        |> AttrMap.add ("", FeedAttr.from_feed) (Feed_url.format_url (`distribution_feed from_feed))
+        |> AttrMap.add ("", FeedAttr.id) id
+        |> AttrMap.add ("", FeedAttr.stability) "packaged"
+        |> AttrMap.add ("", FeedAttr.version) version;
+      requires;
+      bindings = [];
+      commands;
+    } in {
+      qdom = ZI.make_root "host-package-implementation";
+      props;
+      stability = Packaged;
+      os = None;
+      machine = Some host_machine.Platform.machine;       (* (hopefully) *)
+      parsed_version = Versions.parse_version version;
+      impl_type = PackageImpl {
+        package_distro = "host";
+        package_installed = true;
+        retrieval_method = None;
+      }
+    } in
+
+  let fake_host_doc = (ZI.make_root "<fake-host-root>").Qdom.doc in
+
+  let get_host_impls = function
+    | `remote_feed "http://repo.roscidus.com/python/python" as url ->
+        (* We support Python on platforms with unsupported package managers
+           by running it manually and parsing the output. Ideally we would
+           cache this information on disk. *)
+        Lazy.force python_info |> List.map (fun ((path, version), _) ->
+          let id = "package:host:python:" ^ version in
+          let run = ZI.make_root "command" in
+          run |> Q.set_attribute "name" "run";
+          run |> Q.set_attribute "path" path;
+          let commands = StringMap.singleton "run" Feed.({command_qdom = run; command_requires = []}) in
+          (id, make_host_impl path version ~commands url id)
+        )
+    | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
+        Lazy.force python_info |> List.map (fun (_, (path, version)) ->
+          let id = "package:host:python-gobject:" ^ version in
+          let requires = [make_restricts_distro fake_host_doc "http://repo.roscidus.com/python/python" "host"] in
+          (id, make_host_impl path version ~requires url id)
+        )
+    | _ -> [] in
 
   let fixup_main distro_get_correct_main impl =
     let open Feed in
@@ -69,6 +172,7 @@ class virtual distribution config =
 
   object (self)
     val virtual distro_name : string
+    val virtual check_host_python : bool
     val system_paths = ["/usr/bin"; "/bin"; "/usr/sbin"; "/sbin"]
 
     val valid_package_name = Str.regexp "^[^.-][^/]*$"
@@ -168,8 +272,13 @@ class virtual distribution config =
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
-    method get_impls_for_feed (feed:Feed.feed) : Feed.implementation StringMap.t =
-      let results = ref StringMap.empty in
+    method get_impls_for_feed ?(init=StringMap.empty) (feed:Feed.feed) : Feed.implementation StringMap.t =
+      let results = ref init in
+
+      if check_host_python then (
+        get_host_impls feed.Feed.url |> List.iter (fun (id, impl) -> results := StringMap.add id impl !results)
+      );
+
       match get_matching_package_impls self feed with
       | [] -> !results
       | matches ->
@@ -243,163 +352,6 @@ class virtual distribution config =
             "This program depends on some packages that are available through your distribution. \
              Please install them manually using %s and try again. Or, install 'packagekit' and I can \
              use that to install things. The packages are:\n\n- %s" typ (String.concat "\n- " names))
-  end
-
-let make_restricts_distro doc iface_uri distros =
-  let elem = ZI.make doc "restricts" in
-  let open Feed in {
-    dep_qdom = elem;
-    dep_importance = Dep_restricts;
-    dep_iface = iface_uri;
-    dep_restrictions = [make_distribtion_restriction distros];
-    dep_required_commands = [];
-    dep_if_os = None;
-    dep_use = None;
-  }
-
-(** Set quick-test-file and quick-test-mtime from path. *)
-let get_quick_test_attrs path =
-  let mtime = (Unix.stat path).Unix.st_mtime in
-  Feed.AttrMap.singleton ("", FeedAttr.quick_test_file) path |>
-  Feed.AttrMap.add ("", FeedAttr.quick_test_mtime) (Printf.sprintf "%.0f" mtime)
-
-class virtual python_fallback_distribution (slave:Python.slave) python_name ctor_args =
-  let make_host_impl path version ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
-    let host_machine = slave#config.system#platform in
-    let open Feed in
-    let props = {
-      attrs = get_quick_test_attrs path
-        |> AttrMap.add ("", FeedAttr.from_feed) (Feed_url.format_url (`distribution_feed from_feed))
-        |> AttrMap.add ("", FeedAttr.id) id
-        |> AttrMap.add ("", FeedAttr.stability) "packaged"
-        |> AttrMap.add ("", FeedAttr.version) version;
-      requires;
-      bindings = [];
-      commands;
-    } in {
-      qdom = ZI.make_root "host-package-implementation";
-      props;
-      stability = Packaged;
-      os = None;
-      machine = Some host_machine.Platform.machine;       (* (hopefully) *)
-      parsed_version = Versions.parse_version version;
-      impl_type = PackageImpl {
-        package_distro = "host";
-        package_installed = true;
-        retrieval_method = None;
-      }
-    } in
-
-  let did_init = ref false in
-
-  let invoke ?xml op args process =
-    lwt () =
-      if not !did_init then (
-        let ctor_args = ctor_args |> List.map (fun a -> `String a) in
-        let r = slave#invoke "init-distro" [`String python_name; `List ctor_args] Python.expect_null in
-        did_init := true;
-        r
-      ) else Lwt.return () in
-    slave#invoke ?xml op args process in
-
-  let fake_host_doc = (ZI.make_root "<fake-host-root>").Qdom.doc in
-
-  let get_host_impls = function
-    | `remote_feed "http://repo.roscidus.com/python/python" as url ->
-        (* Hack: we can support Python on platforms with unsupported package managers
-           by adding the implementation of Python running the slave now to the list. *)
-        let path, version =
-          invoke "get-python-details" [] (function
-            | `List [`String path; `String version] -> (path, version)
-            | json -> raise_safe "Bad JSON: %s" (Yojson.Basic.to_string json)
-          ) |> Lwt_main.run in
-        let id = "package:host:python:" ^ version in
-        let run = ZI.make_root "command" in
-        run |> Q.set_attribute "name" "run";
-        run |> Q.set_attribute "path" path;
-        let commands = StringMap.singleton "run" Feed.({command_qdom = run; command_requires = []}) in
-        [(id, make_host_impl path version ~commands url id)]
-    | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
-        let path, version =
-          invoke "get-gobject-details" [] (function
-            | `List [`String path; `String version] -> (path, version)
-            | json -> raise_safe "Bad JSON: %s" (Yojson.Basic.to_string json)
-          ) |> Lwt_main.run in
-        let id = "package:host:python-gobject:" ^ version in
-        let requires = [make_restricts_distro fake_host_doc "http://repo.roscidus.com/python/python" "host"] in
-        [(id, make_host_impl path version ~requires url id)]
-    | _ -> [] in
-
-  object (self : #distribution)
-    inherit distribution slave#config as super
-
-    (* Should we check for Python and GObject manually? Use [false] if the package manager
-     * can be relied upon to find them. *)
-    val virtual check_host_python : bool
-
-    method! get_impls_for_feed feed =
-      let impls = super#get_impls_for_feed feed in
-      if check_host_python then (
-        get_host_impls feed.Feed.url |> List.fold_left (fun map (id, impl) -> StringMap.add id impl map) impls
-      ) else impls
-
-    (** Gets PackageKit impls (from super), plus anything from [add_package_impls_from_python] *)
-    method! private get_package_impls query =
-      super#get_package_impls query;
-      self#add_package_impls_from_python query
-
-    method private add_package_impl_from_json query json =
-      let id = ref None in
-      let version = ref None in
-      let machine = ref None in
-      let quick_test_file = ref None in
-      let quick_test_mtime = ref None in
-      let is_installed = ref false in
-      let distro_name = ref "unknown" in
-      let main = ref None in
-
-      json |> Yojson.Basic.Util.to_assoc |> (fun lst ->
-        ListLabels.iter lst ~f:(function
-          | ("id", `String v) -> id := Some v
-          | ("version", `String v) -> version := Some (Versions.parse_version v)
-          | ("machine", `String v) -> machine := Arch.none_if_star v
-          | ("machine", `Null) -> ()
-          | ("is_installed", `Bool v) -> is_installed := v
-          | ("distro", `String v) -> distro_name := v
-          | ("quick-test-file", `String v) -> quick_test_file := Some v
-          | ("quick-test-mtime", `String v) -> quick_test_mtime := Some (float_of_string v)
-          | ("main", `String v) -> main := Some v
-          | (k, v) -> raise_safe "Bad JSON response '%s=%s'" k (Yojson.Basic.to_string v)
-        )
-      );
-      let quick_test =
-        match !quick_test_file, !quick_test_mtime with
-        | None, None -> None
-        | Some path, None -> Some (path, Exists)
-        | Some path, Some mtime -> Some (path, UnchangedSince mtime)
-        | None, Some _ -> assert false in
-
-      self#add_package_implementation
-        ?main:!main
-        ~id:(!id |? lazy (raise_safe "Missing ID!"))
-        ~version:(!version |? lazy (raise_safe "Missing version!"))
-        ~machine:!machine
-        ~quick_test
-        ~is_installed:!is_installed
-        ~distro_name:!distro_name
-        query
-
-    method private add_package_impls_from_python query =
-      let fake_feed = ZI.make query.feed.Feed.root.Q.doc "interface" in
-      fake_feed.Q.child_nodes <- [query.elem];
-
-      invoke ~xml:fake_feed "get-package-impls" [`String (Feed_url.format_url query.feed.Feed.url)] (function
-        | `List [pkg_group] ->
-            pkg_group |> Yojson.Basic.Util.to_list |> List.iter (self#add_package_impl_from_json query)
-        | _ -> raise_safe "Invalid response"
-      ) |> Lwt_main.run
-
-    method private invoke = invoke
   end
 
 let is_installed config (distro:distribution) elem =

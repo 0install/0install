@@ -14,7 +14,7 @@ let () = ignore on_windows  (* Quiet compiler warning *)
 
 (** Provides feeds to the [Impl_provider.impl_provider] during a solve. Afterwards, it can be used to
     find out which feeds were used (and therefore may need updating). *)
-class feed_provider config distro =
+class feed_provider config (distro:Distro.distribution) =
   object (self)
     val mutable cache = FeedMap.empty
     val mutable distro_cache : (Feed.implementation StringMap.t * Feed.feed_overrides) FeedMap.t = FeedMap.empty

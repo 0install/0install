@@ -14,7 +14,7 @@ module Q = Support.Qdom
 
 let cache_path_for config url = Feed_cache.get_save_cache_path config url
 
-let make_packagekit handler _config =
+let make_packagekit get_distro_candidates _config =
   object
     val candidates = Hashtbl.create 10
 
@@ -25,33 +25,11 @@ let make_packagekit handler _config =
     method check_for_candidates (package_names:string list) : unit Lwt.t =
       log_info "packagekit: check_for_candidates(%s)" (String.concat ", " package_names);
       package_names |> List.iter (fun package_name ->
-        Hashtbl.replace candidates package_name (handler#get_distro_candidates package_name)
+        Hashtbl.replace candidates package_name (get_distro_candidates package_name)
       );
       Lwt.return ()
 
     method install_packages _ui _names = failwith "install_packages"
-  end
-
-class fake_slave config handler : Python.slave =
-  let () = Zeroinstall.Packagekit.packagekit := make_packagekit handler in
-  object (_ : #Python.slave)
-    method invoke op args ?xml parse_fn =
-      ignore xml;
-      log_info "invoke_async: %s(%s)" op (args |> List.map Yojson.Basic.to_string |> String.concat ",");
-      Lwt.return (
-        match op, args with
-        | "init-distro", [`String _; `List _] -> parse_fn `Null
-        | "get-package-impls", [`String url] -> parse_fn @@ handler#get_package_impls url
-        | "download-url", [`String url; `String _hint; timeout; `Null] ->
-            let start_timeout = StringMap.find_safe "start-timeout" !Zeroinstall.Python.handlers in
-            ignore @@ start_timeout [timeout];
-            parse_fn @@ handler#download_url url
-        | _ -> raise_safe "Unexpected request %s" op
-      )
-
-    method close = ()
-    method close_async = failwith "close_async"
-    method config = config
   end
 
 let fake_fetcher config handler =
@@ -138,15 +116,9 @@ let make_driver_test test_elem =
 
     let handler =
       object
-        method get_package_impls _uri = `List [`List []]
-
         method download_impls impls =
           ignore @@ Test_0install.handle_download_impls config expected_digests impls;
           `success
-
-        method download_url url = failwith url
-
-        method get_distro_candidates _ = []
 
         method get_feed url =
           try `xml (StringMap.find_nf url !downloadable_feeds)
@@ -154,8 +126,7 @@ let make_driver_test test_elem =
       end in
 
     let fetcher = fake_fetcher config handler in
-    let slave = new fake_slave config handler in
-    let driver = Fake_system.make_driver ~slave ~fetcher config in
+    let driver = Fake_system.make_driver ~fetcher config in
     let () =
       try
         Fake_system.collect_logging (fun () ->
@@ -198,32 +169,25 @@ let suite = "driver">::: [
       object
         method download_impls = failwith "download_impls"
 
-        method get_package_impls = function
-          | "http://example.com/prog.xml" -> `List [`List []]
-          | url -> failwith url
-
-        method download_url = function
-          | url -> failwith url
-
-        method get_distro_candidates = function
-          | "prog" ->
-              Zeroinstall.Packagekit.([{
-                version = Versions.parse_version "1.0";
-                machine = None;
-                installed = false;
-                retrieval_method = {
-                  F.distro_size = None;
-                  F.distro_install_info = ("test", "prog");
-                }
-              }])
-          | name -> failwith name
-
         method get_feed = function
           | "http://example.com/prog.xml" -> `file (Fake_system.tests_dir +/ "prog.xml")
           | url -> failwith url
       end in
-    let slave = new fake_slave config handler in
-    let distro = Distro_impls.generic_distribution slave in
+    let get_distro_candidates = function
+      | "prog" ->
+          Zeroinstall.Packagekit.([{
+            version = Versions.parse_version "1.0";
+            machine = None;
+            installed = false;
+            retrieval_method = {
+              F.distro_size = None;
+              F.distro_install_info = ("test", "prog");
+            }
+          }])
+      | name -> failwith name in
+
+    Zeroinstall.Packagekit.packagekit := make_packagekit get_distro_candidates;
+    let distro = Distro_impls.generic_distribution config in
     let fetcher = fake_fetcher config handler in
 
     let driver = new Driver.driver config fetcher distro Fake_system.null_ui in
@@ -239,17 +203,9 @@ let suite = "driver">::: [
 
   "noNeedDl">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    let handler =
-      object
-        method download_url = failwith "download_url"
-        method download_selections = failwith "download_selections"
-        method get_distro_candidates = failwith "get_distro_candidates"
-        method get_package_impls = failwith "get_package_impls"
-      end in
     let foo_path = Test_0install.feed_dir +/ "Foo.xml" in
     let reqs = Requirements.({(default_requirements foo_path) with command = None}) in
-    let slave = new fake_slave config handler in
-    let driver = Fake_system.make_driver ~slave config in
+    let driver = Fake_system.make_driver config in
     let sels = Zeroinstall.Helpers.solve_and_download_impls driver reqs `Select_for_run ~refresh:false in
     assert (sels <> None)
   );
@@ -264,7 +220,7 @@ let suite = "driver">::: [
       object (_ : Distro.distribution)
         method is_valid_package_name _ = true
         method is_installed = failwith "is_installed"
-        method get_impls_for_feed _feed = StringMap.empty
+        method get_impls_for_feed ?init:_ _feed = StringMap.empty
         method check_for_candidates = raise_safe "Unexpected check_for_candidates"
         method install_distro_packages = raise_safe "install_distro_packages"
         method match_name = (=) "dummy"

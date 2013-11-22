@@ -23,6 +23,10 @@ class virtual distribution : General.config ->
      * shell commands and path lookups. *)
     val valid_package_name : Str.regexp
 
+    (* Should we check for Python and GObject manually? Use [false] if the package manager
+     * can be relied upon to find them. *)
+    val virtual check_host_python : bool
+
     val virtual distro_name : string
 
     (** All IDs will start with this string (e.g. "package:deb") *)
@@ -47,8 +51,9 @@ class virtual distribution : General.config ->
     method private get_package_impls : query -> unit
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
-     * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
-    method get_impls_for_feed : Feed.feed -> Feed.implementation Support.Common.StringMap.t
+     * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one.
+     * @param init add the results to this map, rather than starting with an empty one *)
+    method get_impls_for_feed : ?init:(Feed.implementation Support.Common.StringMap.t) -> Feed.feed -> Feed.implementation Support.Common.StringMap.t
 
     (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
         promise resolves, the candidates should be included in future responses from [get_package_impls]. *)
@@ -79,21 +84,6 @@ class virtual distribution : General.config ->
       is_installed:bool ->
       distro_name:string ->
       unit
-  end
-
-(** Call the old Python code where we're currently missing support in OCaml.
- * Overrides [get_impls_for_feed] to include host Python details (if [check_host_python] is set).
- * Overrides [get_package_impls] to include results from [add_package_impls_from_python]. *)
-class virtual python_fallback_distribution : Python.slave -> string -> string list ->
-  object
-    inherit distribution
-
-    (* Should we check for Python and GObject manually? Use [false] if the package manager
-     * can be relied upon to find them. *)
-    val virtual check_host_python : bool
-
-    (** Query the Python slave and add any implementations returned. Override this if you can sometimes skip this step. *)
-    method private add_package_impls_from_python : query -> unit
   end
 
 (** Check whether this <selection> is still valid. If the quick-test-* attributes are present, we use

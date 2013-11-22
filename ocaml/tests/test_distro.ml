@@ -152,13 +152,14 @@ let suite = "distro">::: [
     | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
   );
 
-  "mac-ports">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+  "mac-ports">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
     let pkgdir = Test_0install.feed_dir +/ "macports" in
     let old_path = Unix.getenv "PATH" in
+    fake_system#putenv "PATH" (pkgdir ^ ":" ^ old_path);
     Unix.putenv "PATH" (pkgdir ^ ":" ^ old_path);
-    let slave = new Zeroinstall.Python.slave config in
     let macports_db = pkgdir +/ "registry.db" in
-    let distro = Distro_impls.Mac.macports_distribution ~macports_db config slave in
+    let distro = Distro_impls.Mac.macports_distribution ~macports_db config in
 
     begin match distro#get_impls_for_feed (make_test_feed "zeroinstall-injector") |> to_impl_list with
     | [impl] ->
@@ -179,8 +180,7 @@ let suite = "distro">::: [
 
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
 
-    let slave = new Zeroinstall.Python.slave config in
-    let distro = Distro_impls.generic_distribution slave in
+    let distro = Distro_impls.generic_distribution config in
 
     let open F in
     let is_host (id, _impl) = U.starts_with id "package:host:" in
@@ -201,18 +201,17 @@ let suite = "distro">::: [
     (* python-gobject *)
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_gobject_feed)) in
     let feed = F.parse system root None in
+
+    let impls = distro#get_impls_for_feed feed in
+    let host_gobject = find_host impls in
     let () =
-      let impls = distro#get_impls_for_feed feed in
-      let host_gobject = find_host impls in
-      let () =
-        match host_gobject.props.requires with
-        | [ {dep_importance = Dep_restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
-        | _ -> assert_failure "No host restriction for host python-gobject" in
-      let sel = ZI.make host_gobject.qdom.Q.doc "selection" in
-      sel.Q.attrs <- AttrMap.bindings host_gobject.props.attrs;
-      Q.set_attribute "from-feed" (Zeroinstall.Feed_url.format_url (`distribution_feed feed.url)) sel;
-      assert (Distro.is_installed config distro sel) in
-    slave#close;
+      match host_gobject.props.requires with
+      | [ {dep_importance = Dep_restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
+      | _ -> assert_failure "No host restriction for host python-gobject" in
+    let sel = ZI.make host_gobject.qdom.Q.doc "selection" in
+    sel.Q.attrs <- AttrMap.bindings host_gobject.props.attrs;
+    Q.set_attribute "from-feed" (Zeroinstall.Feed_url.format_url (`distribution_feed feed.url)) sel;
+    assert (Distro.is_installed config distro sel)
   );
 
   "rpm">:: Fake_system.with_fake_config (fun (config, fake_system) ->

@@ -720,8 +720,7 @@ let suite = "download">::: [
     server#expect [
       [("/missing.png", `Give404)];
     ];
-    let slave = new Zeroinstall.Python.slave config in
-    let distro = Zeroinstall.Distro_impls.generic_distribution slave in
+    let distro = Zeroinstall.Distro_impls.generic_distribution config in
     let downloader = new Zeroinstall.Downloader.downloader Fake_system.null_ui  ~max_downloads_per_site:2 in
     let feed_provider = new Zeroinstall.Feed_provider.feed_provider config distro in
     let iface = Test_0install.feed_dir +/ "Binary.xml" in

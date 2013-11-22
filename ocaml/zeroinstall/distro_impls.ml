@@ -13,9 +13,9 @@ module Q = Support.Qdom
 
 open Distro
 
-let generic_distribution slave =
+let generic_distribution config =
   object
-    inherit Distro.python_fallback_distribution slave "Distribution" []
+    inherit Distro.distribution config
     val check_host_python = true
     val distro_name = "fallback"
     val id_prefix = "package:fallback"
@@ -531,32 +531,148 @@ end
 module Mac = struct
   let macports_db = "/opt/local/var/macports/registry/registry.db"
 
-  (* Note: we currently don't have or need DarwinDistribution, because that uses quick-test-* attributes *)
+  let darwin_distribution config =
+    let get_version main =
+      let first_line = [main; "--version"] |> U.check_output config.system input_line in
+      try
+        let i = String.rindex first_line ' ' in
+        U.string_tail first_line (i + 1)
+      with Not_found -> first_line in
 
-  let macports_distribution ?(macports_db=macports_db) config slave =
-    object
-      inherit Distro.python_fallback_distribution slave "MacPortsDistribution" [macports_db] as super
+    let java_home version arch =
+      U.finally_do Unix.close (Unix.openfile Support.System.dev_null [Unix.O_WRONLY] 0)
+        (fun dev_null ->
+          let command = ["/usr/libexec/java_home"; "--failfast"; "--version"; version; "--arch"; arch] in
+          trim (try command |> U.check_output config.system ~stderr:(`FD dev_null) input_line with End_of_file -> "")
+        ) in
+
+    object (self : #distribution)
+      inherit Distro.distribution config as super
+      val distro_name = "Darwin"
+      val id_prefix = "package:darwin"
       val check_host_python = true
 
+      method! private get_package_impls query =
+        match query.package_name with
+        | "openjdk-6-jre" -> self#find_java "1.6" "6" query
+        | "openjdk-6-jdk" -> self#find_java "1.6" "6" query
+        | "openjdk-7-jre" -> self#find_java "1.7" "7" query
+        | "openjdk-7-jdk" -> self#find_java "1.7" "7" query
+        | "gnupg" -> self#find_program "/usr/local/bin/gpg" query
+        | "gnupg2" -> self#find_program "/usr/local/bin/gpg2" query
+        | _ -> super#get_package_impls query
+
+      method private find_program main query =
+        match config.system#stat main with
+        | None -> ()
+        | Some info ->
+            let x_ok = try Unix.access main [Unix.X_OK]; true with Unix.Unix_error _ -> false in
+            if x_ok then (
+              try_cleanup_distro_version_warn (get_version main) query.package_name |> if_some (fun version ->
+                self#add_package_implementation
+                  ~main
+                  ~is_installed:true
+                  ~version
+                  ~machine:(Some config.system#platform.Platform.machine)
+                  ~quick_test:(Some (main, UnchangedSince info.Unix.st_mtime))
+                  ~distro_name
+                  query
+              )
+            )
+
+      method private find_java jvm_version zero_version query =
+        ["i386"; "x86_64"] |> List.iter (fun machine ->
+          let home = java_home jvm_version machine in
+          let main = home +/ "bin/java" in
+          match config.system#stat main with
+          | Some info ->
+              self#add_package_implementation
+                ~main
+                ~is_installed:true
+                ~version:(Versions.parse_version zero_version)
+                ~machine:(Some machine)
+                ~quick_test:(Some (main, UnchangedSince info.Unix.st_mtime))
+                ~distro_name
+                query
+          | None -> ()
+        )
+    end
+
+  let macports_distribution ?(macports_db=macports_db) config =
+    let re_version = Str.regexp "^@*\\([^+]+\\)\\(\\+.*\\)?$" in (* strip variants *)
+    let re_extra = Str.regexp " platform='\\([^' ]*\\)\\( [0-9]+\\)?' archs='\\([^']*\\)'" in
+    object (self : #distribution)
+      inherit Distro.distribution config as super
+
       val! system_paths = ["/opt/local/bin"]
+      val darwin = darwin_distribution config
+      val check_host_python = false     (* Darwin will do it *)
 
       val distro_name = "MacPorts"
       val id_prefix = "package:macports"
-      val cache = new Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
+      val cache =
+        object
+          inherit Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
+
+          method! private regenerate_cache to_cache =
+            ["port"; "-v"; "installed"] |> U.check_output config.system (fun ch ->
+              try
+                while true do
+                  let line = input_line ch in
+                  log_debug "Got: '%s'" line;
+                  if U.starts_with line " " then (
+                    let line = trim line in
+                    match Str.bounded_split_delim U.re_space line 3 with
+                    | [_package; _version] -> ()
+                    | [package; version; extra] when U.starts_with extra "(active)" ->
+                        log_debug "Found package='%s' version='%s' extra='%s'" package version extra;
+                        if Str.string_match re_version version 0 then (
+                          let version = Str.matched_group 1 version in
+                          try_cleanup_distro_version_warn version package |> if_some (fun version ->
+                            if Str.string_match re_extra extra 0 then (
+                              (* let platform = Str.matched_group 1 extra in *)
+                              (* let major = Str.matched_group 2 extra in *)
+                              let archs = Str.matched_group 3 extra in
+                              Str.split U.re_space archs |> List.iter (fun arch ->
+                                let zi_arch = Support.System.canonical_machine arch in
+                                Printf.fprintf to_cache "%s\t%s\t%s\n" package (Versions.format_version version) zi_arch
+                              )
+                            ) else (
+                              Printf.fprintf to_cache "%s\t%s\t*\n" package (Versions.format_version version)
+                            )
+                          )
+                        ) else log_debug "Failed to match version '%s'" version
+                    | _ -> raise_safe "Invalid port output: '%s'" line
+                  )
+                done
+              with End_of_file -> ()
+            )
+        end
 
       method! is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
 
-      method! match_name name = (name = distro_name || name = "Darwin")
+      method! match_name name = super#match_name name || darwin#match_name name
+
+      method! get_impls_for_feed ?init feed =
+        let ports = super#get_impls_for_feed ?init feed in
+        darwin#get_impls_for_feed ~init:ports feed
+
+      method! private get_package_impls query =
+        super#get_package_impls query;
+
+        let infos, quick_test = cache#get query.package_name in
+        infos |> List.iter (fun cached_info ->
+          match Str.split_delim U.re_tab cached_info with
+          | [version; machine] ->
+              let version = Versions.parse_version version in
+              let machine = Arch.none_if_star machine in
+              self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
+          | _ ->
+              log_warning "Unknown cache line format for '%s': %s" query.package_name cached_info
+        )
     end
 
-  let darwin_distribution _config slave =
-    object
-      inherit Distro.python_fallback_distribution slave "DarwinDistribution" []
-      val check_host_python = true
-      val distro_name = "Darwin"
-      val id_prefix = "package:darwin"
-    end
 end
 
 module Win = struct
@@ -677,6 +793,7 @@ module Win = struct
       inherit Distro.distribution config as super
       val distro_name = "Cygwin"
       val id_prefix = "package:cygwin"
+      val check_host_python = false
 
       val cache =
         object
@@ -727,6 +844,7 @@ module Ports = struct
       inherit Distro.distribution config
       val id_prefix = "package:ports"
       val distro_name = "Ports"
+      val check_host_python = true
 
       method! private get_package_impls query =
         pkg_db |> iter_dir config.system (fun pkgname ->
@@ -766,6 +884,7 @@ module Gentoo = struct
       val! valid_package_name = Str.regexp "^[^.-][^/]*/[^./][^/]*$"
       val distro_name = "Gentoo"
       val id_prefix = "package:gentoo"
+      val check_host_python = false
 
       method! private get_package_impls query =
         let re_version_start = Str.regexp "-[0-9]" in
@@ -818,6 +937,7 @@ module Slackware = struct
       inherit Distro.distribution config
       val distro_name = "Slack"
       val id_prefix = "package:slack"
+      val check_host_python = false
 
       method! private get_package_impls query =
         packages_dir |> iter_dir config.system (fun entry ->
@@ -838,7 +958,7 @@ module Slackware = struct
     end
 end
 
-let get_host_distribution config (slave:Python.slave) : Distro.distribution =
+let get_host_distribution config : Distro.distribution =
   let exists = Sys.file_exists in
 
   match Sys.os_type with
@@ -855,7 +975,7 @@ let get_host_distribution config (slave:Python.slave) : Distro.distribution =
       else if exists RPM.rpm_db_packages then
         RPM.rpm_distribution config
       else if exists Mac.macports_db then
-        Mac.macports_distribution config slave
+        Mac.macports_distribution config
       else if exists Ports.pkg_db then (
         if config.system#platform.Platform.os = "Linux" then
           Gentoo.gentoo_distribution config
@@ -864,10 +984,10 @@ let get_host_distribution config (slave:Python.slave) : Distro.distribution =
       ) else if exists Slackware.slack_db then
         Slackware.slack_distribution config
       else if config.system#platform.Platform.os = "Darwin" then
-        Mac.darwin_distribution config slave
+        Mac.darwin_distribution config
       else
-        generic_distribution slave
+        generic_distribution config
   | "Win32" -> Win.windows_distribution config
   | "Cygwin" -> Win.cygwin_distribution config
   | _ ->
-      generic_distribution slave
+      generic_distribution config

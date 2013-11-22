@@ -44,6 +44,7 @@ let get_available_digests (system:system) stores =
         for i = 0 to Array.length items - 1 do
           Hashtbl.add digests items.(i) dir
         done
+    | Problem (Sys_error _) -> ()
     | Problem _ -> log_debug "Can't scan %s" dir
     in
   List.iter scan_dir stores;
