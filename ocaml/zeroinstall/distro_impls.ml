@@ -670,17 +670,50 @@ module Win = struct
 
   let cygwin_log = "/var/log/setup.log"
 
-  let cygwin_distribution config slave =
-    object
-      inherit Distro.python_fallback_distribution slave "CygwinDistribution" ["/var/log/setup.log"] as super
-      val check_host_python = false (* (0install's bundled Python may not be generally usable) *)
-
+  (* Note: this is ported from the Python but completely untested. *)
+  let cygwin_distribution config =
+    let re_whitespace = Str.regexp "[ \t]+" in
+    object (self)
+      inherit Distro.distribution config as super
       val distro_name = "Cygwin"
       val id_prefix = "package:cygwin"
-      val cache = new Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
+
+      val cache =
+        object
+          inherit Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
+          method! private regenerate_cache ch =
+            ["cygcheck"; "-c"; "-d"] |> U.check_output config.system (fun from_cyg  ->
+                try
+                  while true do
+                    match input_line from_cyg with
+                    | "Cygwin Package Information" | "" -> ()
+                    | line ->
+                        match U.split_pair re_whitespace line with
+                        | ("Package", "Version") -> ()
+                        | (package, version) ->
+                            let zi_arch = "*" in
+                            try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
+                              Printf.fprintf ch "%s\t%s\t%s\n" package (Versions.format_version clean_version) zi_arch
+                            )
+                  done
+                with End_of_file -> ()
+              )
+        end
 
       method! is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
+
+      method! private get_package_impls query =
+        let infos, quick_test = cache#get query.package_name in
+        infos |> List.iter (fun cached_info ->
+          match Str.split_delim U.re_tab cached_info with
+          | [version; machine] ->
+              let version = Versions.parse_version version in
+              let machine = Arch.none_if_star machine in
+              self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
+          | _ ->
+              log_warning "Unknown cache line format for '%s': %s" query.package_name cached_info
+        )
     end
 end
 
@@ -835,6 +868,6 @@ let get_host_distribution config (slave:Python.slave) : Distro.distribution =
       else
         generic_distribution slave
   | "Win32" -> Win.windows_distribution config
-  | "Cygwin" -> Win.cygwin_distribution config slave
+  | "Cygwin" -> Win.cygwin_distribution config
   | _ ->
       generic_distribution slave
