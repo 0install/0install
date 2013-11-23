@@ -36,12 +36,15 @@ let iter_dir system fn path =
     version(s) of each distribution package currently installed. *)
 module Cache =
   struct
+    type package_name = string
+    type machine = string option
+    type entry = Versions.parsed_version * machine
 
     type cache_data = {
       mutable mtime : float;
       mutable size : int;
       mutable rev : int;
-      mutable contents : (string, string) Hashtbl.t;
+      contents : (package_name, entry list) Hashtbl.t;
     }
 
     let re_colon_space = Str.regexp_string ": "
@@ -88,8 +91,14 @@ module Cache =
               try
                 while true do
                   let line = input_line ch in
-                  let (key, value) = Utils.split_pair re_key_value_sep line in
-                  Hashtbl.add data.contents key value   (* note: adds to existing list of packages for this key *)
+                  let key, value = Utils.split_pair re_key_value_sep line in
+                  let prev = try Hashtbl.find data.contents key with Not_found -> [] in
+                  if value = "-" then (
+                    Hashtbl.replace data.contents key prev    (* Ensure empty list is in the table *)
+                  ) else (
+                    let version, machine = Utils.split_pair U.re_tab value in
+                    Hashtbl.replace data.contents key @@ (Versions.parse_version version, Arch.none_if_star machine) :: prev
+                  )
                 done
               with End_of_file -> ()
             )
@@ -100,13 +109,13 @@ module Cache =
          * So if you want to record the fact that a package is not installed, you see need to add an entry for it (e.g. [["-"]]). *)
         method private put key values =
           try
+            Hashtbl.replace data.contents key values;
             cache_path |> config.system#with_open_out [Open_append; Open_creat] ~mode:0o644 (fun ch ->
-              values |> List.iter (fun value ->
-                output_string ch @@ Printf.sprintf "%s=%s" key value;
-                Hashtbl.add data.contents key value
+              values |> List.iter (fun (version, machine) ->
+                output_string ch @@ Printf.sprintf "%s=%s\t%s" key (Versions.format_version version) (default "*" machine)
               )
             )
-          with Safe_exception _ as ex -> reraise_with_context ex "... writing cache %s: %s=%s" cache_path key (String.concat ";" values)
+          with Safe_exception _ as ex -> reraise_with_context ex "... writing cache %s" cache_path
 
         (** Check cache is still up-to-date (i.e. that [source] hasn't changed). Clear it if not. *)
         method private ensure_valid =
@@ -144,17 +153,20 @@ module Cache =
         method private regenerate_cache _ch = ()
 
         (** Look up an item in the cache.
-         * @param if_missing called if given and no entries are found
-         *)
-        method get ?if_missing (key:string) : (string list * quick_test option) =
+         * @param if_missing called if given and no entries are found *)
+        method get ?if_missing (key:package_name) : (entry list * quick_test option) =
           self#ensure_valid;
+          let entries =
+            try Hashtbl.find data.contents key
+            with Not_found ->
+              match if_missing with
+              | None -> []
+              | Some if_missing ->
+                  let result = if_missing key in
+                  self#put key result;
+                  result in
           let quick_test_file = Some (source, UnchangedSince data.mtime) in
-          match Hashtbl.find_all data.contents key, if_missing with
-          | [], Some if_missing ->
-              let result = if_missing key in
-              self#put key result;
-              (result, quick_test_file)
-          | result, _ -> (result, quick_test_file)
+          (entries, quick_test_file)
 
         initializer self#load_cache
       end
@@ -170,9 +182,8 @@ let check_cache id_prefix elem (cache:Cache.cache) =
       false
   | Some package ->
       let sel_id = ZI.get_attribute "id" elem in
-      let matches data =
-        let installed_version, machine = Utils.split_pair U.re_tab data in
-        let installed_id = Printf.sprintf "%s:%s:%s:%s" id_prefix package installed_version machine in
+      let matches (installed_version, machine) =
+        let installed_id = Printf.sprintf "%s:%s:%s:%s" id_prefix package (Versions.format_version installed_version) (default "*" machine) in
         (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
         sel_id = installed_id in
       List.exists matches (fst (cache#get package))
@@ -244,7 +255,7 @@ module Debian = struct
                         match try_cleanup_distro_version_warn version package_name with
                         | None -> ()
                         | Some clean_version ->
-                            let r = Printf.sprintf "%s\t%s" (Versions.format_version clean_version) (Support.System.canonical_machine (trim debarch)) in
+                            let r = (clean_version, (Arch.none_if_star (Support.System.canonical_machine (trim debarch)))) in
                             results := r :: !results
                       )
                   | _ -> log_warning "Can't parse dpkg output: '%s'" line
@@ -252,7 +263,7 @@ module Debian = struct
               with End_of_file -> ()
             )
         );
-      if !results = [] then ["-"] else !results in
+      !results in
 
     let fixup_java_main impl java_version =
       let java_arch = if impl.Feed.machine = Some "x86_64" then Some "amd64" else impl.Feed.machine in
@@ -298,16 +309,8 @@ module Debian = struct
 
         (* Add installed packages by querying dpkg. *)
         let infos, quick_test = cache#get ~if_missing:query_dpkg package_name in
-        if infos <> ["-"] then (
-          infos |> List.iter (fun cached_info ->
-            match Str.split_delim U.re_tab cached_info with
-            | [version; machine] ->
-                let version = Versions.parse_version version in
-                let machine = Arch.none_if_star machine in
-                self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
-            | _ ->
-                log_warning "Unknown cache line format for '%s': %s" package_name cached_info
-          )
+        infos |> List.iter (fun (version, machine) ->
+          self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
         )
 
       method! check_for_candidates feed =
@@ -401,14 +404,8 @@ module RPM = struct
 
         (* Add installed packages by querying rpm *)
         let infos, quick_test = cache#get query.package_name in
-        infos |> List.iter (fun cached_info ->
-          match Str.split_delim U.re_tab cached_info with
-          | [version; machine] ->
-              let version = Versions.parse_version version in
-              let machine = Arch.none_if_star machine in
-              self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
-          | _ ->
-              log_warning "Unknown cache line format for '%s': %s" query.package_name cached_info
+        infos |> List.iter (fun (version, machine) ->
+          self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
         )
 
       method! is_installed elem =
@@ -662,14 +659,8 @@ module Mac = struct
         super#get_package_impls query;
 
         let infos, quick_test = cache#get query.package_name in
-        infos |> List.iter (fun cached_info ->
-          match Str.split_delim U.re_tab cached_info with
-          | [version; machine] ->
-              let version = Versions.parse_version version in
-              let machine = Arch.none_if_star machine in
-              self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
-          | _ ->
-              log_warning "Unknown cache line format for '%s': %s" query.package_name cached_info
+        infos |> List.iter (fun (version, machine) ->
+          self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
         )
     end
 
@@ -822,14 +813,8 @@ module Win = struct
 
       method! private get_package_impls query =
         let infos, quick_test = cache#get query.package_name in
-        infos |> List.iter (fun cached_info ->
-          match Str.split_delim U.re_tab cached_info with
-          | [version; machine] ->
-              let version = Versions.parse_version version in
-              let machine = Arch.none_if_star machine in
-              self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
-          | _ ->
-              log_warning "Unknown cache line format for '%s': %s" query.package_name cached_info
+        infos |> List.iter (fun (version, machine) ->
+          self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
         )
     end
 end
