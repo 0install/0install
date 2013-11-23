@@ -551,31 +551,28 @@ module Mac = struct
 
       method! private get_package_impls query =
         match query.package_name with
-        | "openjdk-6-jre" -> self#find_java "1.6" "6" query
-        | "openjdk-6-jdk" -> self#find_java "1.6" "6" query
-        | "openjdk-7-jre" -> self#find_java "1.7" "7" query
-        | "openjdk-7-jdk" -> self#find_java "1.7" "7" query
+        | "openjdk-6-jre" | "openjdk-6-jdk" -> self#find_java "1.6" "6" query
+        | "openjdk-7-jre" | "openjdk-7-jdk" -> self#find_java "1.7" "7" query
         | "gnupg" -> self#find_program "/usr/local/bin/gpg" query
         | "gnupg2" -> self#find_program "/usr/local/bin/gpg2" query
         | _ -> super#get_package_impls query
 
       method private find_program main query =
-        match config.system#stat main with
-        | None -> ()
-        | Some info ->
-            let x_ok = try Unix.access main [Unix.X_OK]; true with Unix.Unix_error _ -> false in
-            if x_ok then (
-              try_cleanup_distro_version_warn (get_version main) query.package_name |> if_some (fun version ->
-                self#add_package_implementation
-                  ~main
-                  ~is_installed:true
-                  ~version
-                  ~machine:(Some config.system#platform.Platform.machine)
-                  ~quick_test:(Some (main, UnchangedSince info.Unix.st_mtime))
-                  ~distro_name
-                  query
-              )
+        config.system#stat main |> if_some (fun info ->
+          let x_ok = try Unix.access main [Unix.X_OK]; true with Unix.Unix_error _ -> false in
+          if x_ok then (
+            try_cleanup_distro_version_warn (get_version main) query.package_name |> if_some (fun version ->
+              self#add_package_implementation
+                ~main
+                ~is_installed:true
+                ~version
+                ~machine:(Some config.system#platform.Platform.machine)
+                ~quick_test:(Some (main, UnchangedSince info.Unix.st_mtime))
+                ~distro_name
+                query
             )
+          )
+        )
 
       method private find_java jvm_version zero_version query =
         ["i386"; "x86_64"] |> List.iter (fun machine ->
@@ -620,7 +617,6 @@ module Mac = struct
                   if U.starts_with line " " then (
                     let line = trim line in
                     match Str.bounded_split_delim U.re_space line 3 with
-                    | [_package; _version] -> ()
                     | [package; version; extra] when U.starts_with extra "(active)" ->
                         log_debug "Found package='%s' version='%s' extra='%s'" package version extra;
                         if Str.string_match re_version version 0 then (
@@ -639,6 +635,8 @@ module Mac = struct
                             )
                           )
                         ) else log_debug "Failed to match version '%s'" version
+                    | [_package; _version; _extra] -> ()
+                    | [_package; _version] -> ()
                     | _ -> raise_safe "Invalid port output: '%s'" line
                   )
                 done
