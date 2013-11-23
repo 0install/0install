@@ -37,7 +37,7 @@ let handle options flags args =
       let module G = Generic_select in
       match G.resolve_target options.config !select_opts arg with
       | (G.Interface, reqs) -> (
-          match G.get_selections options ~refresh:!refresh reqs `Download_only with
+          match G.get_selections options ~refresh:!refresh reqs `Download_only |> Lwt_main.run with
           | None -> raise (System_exit 1)  (* Aborted by user *)
           | Some sels ->
               check_for_replacement options.config reqs.R.interface_uri;

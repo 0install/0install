@@ -822,30 +822,25 @@ let get_selections_gui (slave:Python.slave) (driver:Driver.driver) ?test_callbac
     | json -> raise_safe "run_test: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
-  slave#invoke "open-gui" [`String reqs.Requirements.interface_uri; opts] (function
-    | `List [] -> ()
-    | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json)
-  ) |> Lwt_main.run;
+  lwt () =
+    slave#invoke "open-gui" [`String reqs.Requirements.interface_uri; opts] (function
+      | `List [] -> ()
+      | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json)
+    ) in
 
-  (* This is a bit awkward. Driver calls Solver, which calls Impl_provider, which calls Distro, which needs
-   * to make synchronous calls on the slave. However, Lwt doesn't support nested run loops. Therefore, each time
-   * we need to solve we exit the loop and run the driver, which creates its own loops as needed.
-   * Possible alternatives:
-   * - Make Solver async. But we'd want to put it back again once distro is ported.
-   * - Make Distro delay downloads when invoked via Driver but not when invoked directly. Also messy.
-   *)
+  (* Note: This can be tidied up now that distro has been ported. *)
   let rec loop force =
-    let (ready, results, _feed_provider) = driver#solve_with_downloads ~watcher reqs ~force ~update_local:true in
-    let response =
+    lwt (ready, results, _feed_provider) = driver#solve_with_downloads ~watcher reqs ~force ~update_local:true in
+    lwt response =
       slave#invoke "run-gui" [] (function
         | `List [`String "ok"] -> assert ready; `Success results#get_selections
         | `List [`String "cancel"] -> `Aborted_by_user
         | `List [`String "recalculate"; `Bool force] -> `Recalculate force
         | json -> raise_safe "get_selections_gui: invalid response: %s" (Yojson.Basic.to_string json)
-      ) |> Lwt_main.run in
+      ) in
     match response with
     | `Recalculate force -> Config.load_config config; loop force
-    | `Aborted_by_user -> `Aborted_by_user
-    | `Success sels -> `Success sels in
+    | `Aborted_by_user -> Lwt.return `Aborted_by_user
+    | `Success sels -> Lwt.return (`Success sels) in
 
   loop refresh

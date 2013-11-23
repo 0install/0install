@@ -184,7 +184,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
                 spawn_background_update options.config reqs mode
               )
             );
-            Some sels
+            Lwt.return (Some sels)
           )
         ) else (
           select_with_refresh true
@@ -230,7 +230,7 @@ let handle options flags arg ?test_callback for_op =
 
   let do_select requirements =
     log_info "Getting new selections for %s" arg;
-    let sels = get_selections options ~refresh:select_opts.refresh ?test_callback requirements for_op in
+    let sels = get_selections options ~refresh:select_opts.refresh ?test_callback requirements for_op |> Lwt_main.run in
     match sels with
     | None -> exit 1    (* Aborted by user *)
     | Some sels -> sels
@@ -272,7 +272,7 @@ let handle options flags arg ?test_callback for_op =
           (* Download if missing. Ignore distribution packages, because the version probably won't match exactly. *)
           let driver = Lazy.force options.driver in
           let feed_provider = new Zeroinstall.Feed_provider.feed_provider config driver#distro in
-          Zeroinstall.Helpers.download_selections ~feed_provider ~include_packages:false driver old_sels;
+          Zeroinstall.Helpers.download_selections ~feed_provider ~include_packages:false driver old_sels |> Lwt_main.run;
           old_sels
         )
       ) in

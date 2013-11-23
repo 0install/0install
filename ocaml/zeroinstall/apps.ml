@@ -120,7 +120,7 @@ let set_selections config app_path sels ~touch_last_checked =
    Try to open the GUI for a blocking download. If we can't do that, download without the GUI. *)
 let foreground_update driver app_path reqs =
   log_info "App '%s' needs to get new selections; current ones are not usable" app_path;
-  match Helpers.solve_and_download_impls driver reqs `Download_only ~refresh:true with
+  match Helpers.solve_and_download_impls driver reqs `Download_only ~refresh:true |> Lwt_main.run with
   | None -> raise_safe "Aborted by user"
   | Some sels ->
       set_selections driver#config app_path sels ~touch_last_checked:true;

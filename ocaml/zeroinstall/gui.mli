@@ -12,7 +12,7 @@ val get_selections_gui :
   [< `Download_only | `Select_for_run | `Select_only ] ->
   Requirements.requirements ->
   refresh:bool ->
-  [> `Aborted_by_user | `Success of Support.Qdom.element ]
+  [> `Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
 
 val download_icon : General.config -> Downloader.downloader -> Feed_provider.feed_provider -> Feed_url.non_distro_feed -> unit Lwt.t
 

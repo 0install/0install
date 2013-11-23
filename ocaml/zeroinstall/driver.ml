@@ -48,9 +48,8 @@ let get_values map = DownloadMap.fold (fun _key value xs -> value :: xs) map []
 
 class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) =
   object (self)
-    (* note: this should return a Lwt type, but we need to migrate distro.py first *)
     method solve_with_downloads ?(watcher:watcher option) requirements
-                                ~force ~update_local : (bool * Solver.result * Feed_provider.feed_provider) =
+                                ~force ~update_local : (bool * Solver.result * Feed_provider.feed_provider) Lwt.t =
       let force = ref force in
       let seen = ref DownloadSet.empty in
       let downloads_in_progress = ref DownloadMap.empty in
@@ -127,7 +126,7 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) =
         match result with
         | (true, _) when try_quick_exit ->
             assert (DownloadMap.is_empty !downloads_in_progress);
-            result
+            Lwt.return result
         | (ready, _) ->
             if not ready then force := true;
 
@@ -163,16 +162,16 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) =
             | [] -> 
                 if config.network_use = Offline && not ready then
                   log_info "Can't choose versions and in off-line mode, so aborting";
-                result;
+                Lwt.return result;
             | downloads ->
-                let (url, fn) = Lwt_main.run @@ Lwt.choose downloads in
+                lwt (url, fn) = Lwt.choose downloads in
                 downloads_in_progress := DownloadMap.remove url !downloads_in_progress;
                 fn ();    (* Clears the old feed(s) from Feed_cache *)
                 (* Run the solve again with the new information. *)
                 loop ~try_quick_exit:false
       in
-      let (ready, result) = loop ~try_quick_exit:(not (!force || update_local)) in
-      (ready, result, feed_provider)
+      lwt (ready, result) = loop ~try_quick_exit:(not (!force || update_local)) in
+      Lwt.return (ready, result, feed_provider)
 
     method quick_solve reqs =
       let feed_provider = new Feed_provider.feed_provider config distro in

@@ -45,7 +45,8 @@ class driver : General.config -> Fetch.fetcher -> Distro.distribution -> Ui.ui_h
       ?watcher:watcher ->
       Requirements.requirements ->
       force:bool ->
-      update_local:bool -> bool * Solver.result * Feed_provider.feed_provider
+      update_local:bool ->
+      (bool * Solver.result * Feed_provider.feed_provider) Lwt.t
 
     (** Convenience wrapper for [fetcher#download_and_import_feed] that just gives the final result.
      * If the mirror replies first, but the primary succeeds, we return the primary. *)

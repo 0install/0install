@@ -20,8 +20,8 @@ type select_mode = [
 
 (** Ensure all selections are cached, downloading any that are missing. *)
 let download_selections ~include_packages ~feed_provider (driver:Driver.driver) sels =
-  match Lwt_main.run @@ driver#download_selections ~include_packages ~feed_provider sels with
-  | `success -> ()
+  match_lwt driver#download_selections ~include_packages ~feed_provider sels with
+  | `success -> Lwt.return ()
   | `aborted_by_user -> raise_safe "Aborted by user"
 
 (** Get some selectsions for these requirements.
@@ -32,18 +32,18 @@ let solve_and_download_impls (driver:Driver.driver) ?test_callback reqs mode ~re
 
   match driver#ui#use_gui with
   | Some gui ->
-      begin match Gui.get_selections_gui gui driver ?test_callback mode reqs ~refresh with
-      | `Success sels -> Some sels
-      | `Aborted_by_user -> None end;
+      begin match_lwt Gui.get_selections_gui gui driver ?test_callback mode reqs ~refresh with
+      | `Success sels -> Lwt.return (Some sels)
+      | `Aborted_by_user -> Lwt.return None end;
   | None ->
-    let result = driver#solve_with_downloads reqs ~force:refresh ~update_local:refresh in
+    lwt result = driver#solve_with_downloads reqs ~force:refresh ~update_local:refresh in
     match result with
     | (false, result, _) -> raise_safe "%s" (Diagnostics.get_failure_reason config result)
     | (true, result, feed_provider) ->
         let sels = result#get_selections in
-        let () =
+        lwt () =
           match mode with
-          | `Select_only -> ()
+          | `Select_only -> Lwt.return ()
           | `Download_only | `Select_for_run ->
               download_selections driver ~feed_provider ~include_packages:true sels in
-        Some sels
+        Lwt.return (Some sels)

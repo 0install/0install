@@ -58,7 +58,7 @@ let check_replacement system = function
 
 let check_for_updates options reqs old_sels =
   let driver = Lazy.force options.driver in
-  let new_sels = Zeroinstall.Helpers.solve_and_download_impls driver reqs `Download_only ~refresh:true in
+  let new_sels = Zeroinstall.Helpers.solve_and_download_impls driver reqs `Download_only ~refresh:true |> Lwt_main.run in
   match new_sels with
   | None -> raise (System_exit 1)   (* Aborted by user *)
   | Some new_sels ->
@@ -229,7 +229,7 @@ let handle_bg options flags args =
 
         (* Refresh the feeds and solve, silently. If we find updates to download, we try to run the GUI
          * so the user can see a systray icon for the download. If that's not possible, we download silently too. *)
-        let (ready, result, feed_provider) = driver#solve_with_downloads reqs ~force:true ~update_local:true in
+        let (ready, result, feed_provider) = driver#solve_with_downloads reqs ~force:true ~update_local:true |> Lwt_main.run in
         let new_sels = result#get_selections in
 
         let new_sels =
@@ -237,7 +237,7 @@ let handle_bg options flags args =
           if !need_gui || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
             if Zeroinstall.Ui.check_gui config.system slave Maybe then (
               log_info "Background update: trying to use GUI to update %s" name;
-              match Zeroinstall.Gui.get_selections_gui slave driver `Download_only reqs ~systray:true ~refresh:true with
+              match Zeroinstall.Gui.get_selections_gui slave driver `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
               | `Aborted_by_user -> raise (System_exit 0)
               | `Success gui_sels -> gui_sels
             ) else if !need_gui then (
@@ -252,7 +252,8 @@ let handle_bg options flags args =
               raise (System_exit 1)
             ) else (
               log_info "Background update: GUI unavailable; downloading with no UI";
-              Zeroinstall.Helpers.download_selections ~include_packages:true ~feed_provider driver new_sels; new_sels
+              Zeroinstall.Helpers.download_selections ~include_packages:true ~feed_provider driver new_sels |> Lwt_main.run;
+              new_sels
             )
           ) else new_sels in
 
