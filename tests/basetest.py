@@ -79,12 +79,6 @@ class TestLocale:
 		return test_locale
 model.locale = TestLocale()
 
-class DummyPackageKit:
-	available = False
-
-	def get_candidates(self, package, factory, prefix):
-		pass
-
 class DummyHandler(handler.Handler):
 	__slots__ = ['ex', 'tb', 'allow_downloads']
 

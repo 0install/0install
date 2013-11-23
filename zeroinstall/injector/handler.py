@@ -67,32 +67,9 @@ class Handler(object):
 				self.report_error(ex)
 		download_done_stats()
 
-	def impl_added_to_store(self, impl):
-		"""Called by the L{fetch.Fetcher} when adding an implementation.
-		The GUI uses this to update its display.
-		@param impl: the implementation which has been added
-		@type impl: L{model.Implementation}"""
-		pass
-	
 	def downloads_changed(self):
 		"""This is just for the GUI to override to update its display."""
 		pass
-	
-	@tasks.async
-	def confirm(self, msg):
-		"""We need to check something with the user before continuing with the install.
-		@raise download.DownloadAborted: if the user cancels"""
-		yield
-		print(msg, file=sys.stderr)
-		while True:
-			sys.stderr.write(_("[Y/N] "))
-			sys.stderr.flush()
-			i = support.raw_input()
-			if not i: continue
-			if i in 'Nn':
-				raise download.DownloadAborted()
-			if i in 'Yy':
-				break
 
 	def report_error(self, exception, tb = None):
 		"""Report an exception to the user.

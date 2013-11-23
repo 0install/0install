@@ -41,9 +41,6 @@ class GUIHandler(handler.Handler):
 				self.pulse = None
 				self.mainwindow.update_download_status()
 
-	def impl_added_to_store(self, impl):
-		self.mainwindow.update_download_status(only_update_visible = True)
-
 	@tasks.async
 	def _switch_to_main_window(self, reason):
 		if self.mainwindow.systray_icon:

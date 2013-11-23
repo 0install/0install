@@ -165,23 +165,3 @@ def load_key(fingerprint):
 	@rtype: L{Key}
 	@since: 0.27"""
 	return load_keys([fingerprint])[fingerprint]
-
-def import_key(stream):
-	"""Run C{gpg --import} with this stream as stdin.
-	@type stream: file"""
-	with tempfile.TemporaryFile(mode = 'w+t') as errors:
-		child = _run_gpg(['--quiet', '--import', '--batch'],
-					stdin = stream, stderr = errors)
-
-		status = child.wait()
-
-		errors.seek(0)
-		error_messages = errors.read().strip()
-
-	if status != 0:
-		if error_messages:
-			raise SafeException(_("Errors from 'gpg --import':\n%s") % error_messages)
-		else:
-			raise SafeException(_("Non-zero exit code %d from 'gpg --import'") % status)
-	elif error_messages:
-		logger.warning(_("Warnings from 'gpg --import':\n%s") % error_messages)

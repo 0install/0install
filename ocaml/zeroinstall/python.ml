@@ -78,12 +78,8 @@ let read_int_opt chan : int option Lwt.t =
       raise_safe "Invalid response from slave '%s' (expected integer). This is a bug." (String.escaped line)
   with Lwt_io.Channel_closed _ -> Lwt.return None
 
-let do_input = function
-  | [`String prompt] -> Lwt.return (`String (!read_user_input prompt))
-  | _ -> raise_safe "Invalid request"
-
 (** The Python can send requests to us. Other modules can register handlers for them here. *)
-let handlers = ref (StringMap.singleton "input" do_input)
+let handlers = ref StringMap.empty
 
 let register_handler op handler =
   handlers := StringMap.add op handler !handlers

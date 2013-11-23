@@ -120,10 +120,8 @@ if sys.version_info[0] > 2:
 	# Python 3
 	unicode = str
 	intern = sys.intern
-	raw_input = input
 
 else:
 	# Python 2
 	unicode = unicode		# (otherwise it can't be imported)
 	intern = intern
-	raw_input = raw_input

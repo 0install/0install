@@ -24,9 +24,6 @@ import json, sys
 
 syntax = ""
 
-_distro = None
-_packagekit = None
-
 if sys.version_info[0] > 2:
 	stdin = sys.stdin.buffer.raw
 	stdout = sys.stdout.buffer.raw
@@ -83,44 +80,6 @@ def do_run_preferences(config, ticket):
 	except Exception as ex:
 		logger.warning("Returning error", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
-
-def to_json(impl):
-	attrs = {
-		'id': impl.id,
-		'version': impl.get_version(),
-		'machine': impl.machine,
-		'is_installed': impl.installed,
-		'distro': impl.distro_name,
-	}
-
-	if impl.main:
-		# We may add a missing 'main' (e.g. host Python) or modify an existing one
-		# (e.g. /usr/bin -> /bin).
-		attrs['main'] = impl.main
-	if impl.quick_test_file:
-		attrs['quick-test-file'] = impl.quick_test_file
-		if impl.quick_test_mtime:
-			attrs['quick-test-mtime'] = str(impl.quick_test_mtime)
-	return attrs
-
-def do_get_package_impls(config, options, args, xml):
-	master_feed_url, = args
-
-	seen = set()
-	results = []
-
-	# We need the results grouped by <package-implementation> so the OCaml can
-	# get the correct attributes and dependencies.
-	for elem in xml.childNodes:
-		package_impls = [(elem, elem.attrs, [])]
-		feed = _distro.get_feed(master_feed_url, package_impls)
-
-		impls = [impl for impl in feed.implementations.values() if impl.id not in seen]
-		seen.update(feed.implementations.keys())
-
-		results.append([to_json(impl) for impl in impls])
-
-	return results
 
 last_ticket = 0
 def take_ticket():
@@ -381,10 +340,6 @@ def do_gui_update_selections(args, xml):
 	ready, tree = args
 	gui_driver.set_selections(ready, tree, xml)
 
-class DummyPackageKit:
-	available = False
-	def get_candidates(self, package, factory, prefix): pass
-
 def handle_invoke(config, options, ticket, request):
 	try:
 		command = request[0]
@@ -417,20 +372,6 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'confirm':
 			do_confirm(config, ticket, options, request[1])
 			return
-		elif command == 'get-package-impls':
-			xml = qdom.parse(BytesIO(read_chunk()))
-			response = do_get_package_impls(config, options, request[1:], xml)
-		elif command == 'get-python-details':
-			python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])
-			response = (sys.executable or '/usr/bin/python', python_version)
-		elif command == 'get-gobject-details':
-			gobject = tasks.get_loop().gobject
-			version = '.'.join(str(x) for x in gobject.pygobject_version)
-			if gobject.__file__.startswith('<'):
-				path = gobject.__path__		# Python 3
-			else:
-				path = gobject.__file__		# Python 2
-			response = (path, version)
 		elif command == 'confirm-keys':
 			do_confirm_keys(config, ticket, request[1], request[2])
 			return	# async
@@ -443,8 +384,6 @@ def handle_invoke(config, options, ticket, request):
 			response = do_set_progress(config, *request[1:])
 		elif command == 'stop-monitoring':
 			response = do_stop_monitoring(config, request[1])
-		elif command == 'init-distro':
-			response = do_init_distro(config, request[1], request[2])
 		elif command == 'run-preferences':
 			do_run_preferences(config, ticket)
 			return
@@ -505,9 +444,6 @@ def add_local_feed(iface, url):
 def remove_feed(iface, url):
 	return invoke_master(["remove-feed", iface, url])
 
-def start_timeout(timeout):
-	return invoke_master(["start-timeout", timeout])
-
 def handle(config, options, args):
 	if args:
 		raise UsageError()
@@ -517,20 +453,6 @@ def handle(config, options, args):
 
 	if options.dry_run:
 		config.handler.dry_run = True
-
-	def slave_raw_input(prompt = ""):
-		ticket = take_ticket()
-		send_json(["invoke", ticket, ["input", prompt]])
-		while True:
-			message = recv_json()
-			if message[0] == 'return' and message[1] == ticket:
-				reply = message[2]
-				assert reply[0] == 'ok', reply
-				return reply[1]
-			else:
-				handle_message(config, options, message)
-
-	support.raw_input = slave_raw_input
 
 	@tasks.async
 	def handle_events():
