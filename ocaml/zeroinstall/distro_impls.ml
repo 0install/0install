@@ -36,6 +36,7 @@ let iter_dir system fn path =
     version(s) of each distribution package currently installed. *)
 module Cache =
   struct
+    type cache_format = Old | New
     type package_name = string
     type machine = string option
     type entry = Versions.parsed_version * machine
@@ -54,11 +55,11 @@ module Cache =
        otherwise you'll be fighting with other versions of 0install.
        The [old_format] used different separator characters.
        *)
-    class cache (config:General.config) (cache_leaf:string) (source:filepath) (format_version:int) ~(old_format:bool) =
+    class cache (config:General.config) (cache_leaf:string) (source:filepath) (format_version:int) (cache_format:cache_format) =
       let warned_missing = ref false in
-      let re_metadata_sep = if old_format then re_colon_space else U.re_equals
-      and re_key_value_sep = if old_format then U.re_tab else U.re_equals
-      in
+      let re_metadata_sep = match cache_format with Old -> re_colon_space | New -> U.re_equals
+      and re_key_value_sep = match cache_format with Old -> U.re_tab | New -> U.re_equals in
+
       object (self)
         (* The status of the cache when we loaded it. *)
         val data = { mtime = 0.0; size = -1; rev = -1; contents = Hashtbl.create 10 }
@@ -80,11 +81,11 @@ module Cache =
                 | "" -> headers := false
                 | line ->
                     (* log_info "Cache header: %s" line; *)
-                    match Utils.split_pair re_metadata_sep line with
-                    | ("mtime", mtime) -> data.mtime <- float_of_string mtime
-                    | ("size", size) -> data.size <- U.safe_int_of_string size
-                    | ("version", rev) when old_format -> data.rev <- U.safe_int_of_string rev
-                    | ("format", rev) when not old_format -> data.rev <- U.safe_int_of_string rev
+                    match Utils.split_pair re_metadata_sep line, cache_format with
+                    | ("mtime", mtime), _ -> data.mtime <- float_of_string mtime
+                    | ("size", size), _ -> data.size <- U.safe_int_of_string size
+                    | ("version", rev), Old -> data.rev <- U.safe_int_of_string rev
+                    | ("format", rev), New -> data.rev <- U.safe_int_of_string rev
                     | _ -> ()
               done;
 
@@ -129,10 +130,9 @@ module Cache =
               let flush () =
                 cache_path |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
                   let mtime = Int64.of_float info.Unix.st_mtime |> Int64.to_string in
-                  if old_format then
-                    Printf.fprintf ch "mtime: %s\nsize: %d\nformat: %d\n\n" mtime info.Unix.st_size format_version
-                  else
-                    Printf.fprintf ch "mtime=%s\nsize=%d\nformat=%d\n\n" mtime info.Unix.st_size format_version;
+                  begin match cache_format with
+                  | Old -> Printf.fprintf ch "mtime: %s\nsize: %d\nformat: %d\n\n" mtime info.Unix.st_size format_version
+                  | New -> Printf.fprintf ch "mtime=%s\nsize=%d\nformat=%d\n\n" mtime info.Unix.st_size format_version end;
                   self#regenerate_cache ch
                 );
                 self#load_cache in
@@ -289,7 +289,7 @@ module Debian = struct
 
       val distro_name = "Debian"
       val id_prefix = "package:deb"
-      val cache = new Cache.cache config "dpkg-status.cache" status_file 2 ~old_format:false
+      val cache = new Cache.cache config "dpkg-status.cache" status_file 2 Cache.New
 
       method! is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
@@ -378,7 +378,7 @@ module RPM = struct
       val id_prefix = "package:rpm"
       val cache =
         object
-          inherit Cache.cache config "rpm-status.cache" rpm_db_packages 2 ~old_format:true
+          inherit Cache.cache config "rpm-status.cache" rpm_db_packages 2 Cache.Old
           method! private regenerate_cache ch =
             ["rpm"; "-qa"; "--qf=%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n"]
               |> U.check_output config.system (fun from_rpm  ->
@@ -606,7 +606,7 @@ module Mac = struct
       val id_prefix = "package:macports"
       val cache =
         object
-          inherit Cache.cache config "macports-status.cache" macports_db 2 ~old_format:true
+          inherit Cache.cache config "macports-status.cache" macports_db 2 Cache.Old
 
           method! private regenerate_cache to_cache =
             ["port"; "-v"; "installed"] |> U.check_output config.system (fun ch ->
@@ -786,7 +786,7 @@ module Win = struct
 
       val cache =
         object
-          inherit Cache.cache config "cygcheck-status.cache" cygwin_log 2 ~old_format:true
+          inherit Cache.cache config "cygcheck-status.cache" cygwin_log 2 Cache.Old
           method! private regenerate_cache ch =
             ["cygcheck"; "-c"; "-d"] |> U.check_output config.system (fun from_cyg  ->
                 try

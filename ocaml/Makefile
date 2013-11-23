@@ -49,9 +49,9 @@ doc:
 
 # Results turn up in the "html" directory after running the unit-tests.
 coverage:
-	rm -f tests/bisect*.out
+	rm -f bisect*.out
 	OCAML_COVERAGE=true make test
-	ocaml-bisect-report -I "${OCAML_BUILDDIR}" -html html "tests/bisect0001.out"
+	ocaml-bisect-report -I "${OCAML_BUILDDIR}" -html html "bisect0001.out"
 
 clean:
 	$(OCAMLBUILD) -clean
