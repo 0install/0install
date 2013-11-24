@@ -57,4 +57,4 @@ clean:
 	$(OCAMLBUILD) -clean
 
 tags:
-	ctags *.ml support/*.ml
+	ctags -R [a-z]*
