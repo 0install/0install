@@ -139,7 +139,7 @@ class TestLaunch(BaseTest):
 	
 	def testLogging(self):
 		out, err = self.run_0install(['-v', 'list', 'UNKNOWN'])
-		assert "OCaml front-end to 0install: verbose mode on" in err, err
+		assert "0install (OCaml version): verbose mode on" in err, err
 	
 	def testHelp2(self):
 		out, err = self.run_0launch(['--help'])

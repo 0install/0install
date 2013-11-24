@@ -48,6 +48,8 @@
 
 .B 0install store ...
 
+.B 0install slave
+
 .SH DESCRIPTION
 .PP
 Zero Install is a decentralised cross-distribution software installation
@@ -462,6 +464,13 @@ The application \fBNAME\fP is deleted, along with any launchers added for it.
 .PP
 Provides low-level access to the store of cached implementations. See the 0store(1)
 man-page for details.
+
+.SS 0install slave
+
+.PP
+Run 0install in slave mode (currently EXPERIMENTAL and likely to change). You can send
+JSON requests to the process's standard input and receive responses from its standard
+output.
 
 .SH DEBUGGING TIPS
 

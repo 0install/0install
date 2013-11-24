@@ -25,6 +25,7 @@ General
 Gui
 Helpers
 Impl_provider
+Json_connection
 Launcher
 Manifest
 Packagekit

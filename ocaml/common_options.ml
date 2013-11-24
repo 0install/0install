@@ -32,7 +32,7 @@ let increase_verbosity options =
   if options.verbosity = 1 then (
     L.threshold := L.Info;
     (* Print this as soon as possible once logging is on *)
-    log_info "OCaml front-end to 0install: verbose mode on"
+    log_info "0install (OCaml version): verbose mode on"
   ) else (
     L.threshold := L.Debug
   )
