@@ -35,7 +35,10 @@ def get_chunk():
 	assert len_line.endswith(b"\n")
 	chunk_len = int(len_line[2:-1], 16)
 	#print("chunk length = %d" % chunk_len)
-	data = json.loads(c.stdout.read(chunk_len).decode('utf-8'))
+	return c.stdout.read(chunk_len)
+
+def get_json_chunk():
+	data = json.loads(get_chunk().decode('utf-8'))
 	logging.info("From slave: %s", data)
 	#print("got", data)
 	return data
@@ -72,7 +75,7 @@ def do_confirm_keys(feed, keys):
 		if r in 'Yy': return list(keys)
 		if r in 'Nn': return []
 
-api_notification = get_chunk()
+api_notification = get_json_chunk()
 assert api_notification[0] == "invoke"
 assert api_notification[1] == None
 assert api_notification[2] == "set-api-version"
@@ -85,7 +88,7 @@ handlers = {
 }
 
 def handle_next_chunk():
-	api_request = get_chunk()
+	api_request = get_json_chunk()
 	if api_request[0] == "invoke":
 		ticket = api_request[1]
 		op = api_request[2]
@@ -99,7 +102,12 @@ def handle_next_chunk():
 	elif api_request[0] == "return":
 		ticket = api_request[1]
 		cb = callbacks.pop(ticket)
-		if api_request[2] == 'ok': cb(*api_request[3])
+		if api_request[2] == 'ok':
+			cb(*api_request[3])
+		elif api_request[2] == 'ok+xml':
+			xml = get_chunk()
+			logging.info("With XML: %s", xml)
+			cb(*(api_request[3] + [xml]))
 		else:
 			assert api_request[2] == 'fail', api_request
 			raise Exception(api_request[3])

@@ -45,6 +45,10 @@ let read_chunk ch : J.json option Lwt.t =
       log_info "Message from peer: %s" buf;
       Lwt.return (Some (J.from_string buf))
 
+type json_with_xml =
+  [ J.json
+  | `WithXML of (J.json * Support.Qdom.element) ]
+
 class json_connection ~from_peer ~to_peer =
   let handlers = ref StringMap.empty in
   let finished, finish = Lwt.wait () in
@@ -78,17 +82,23 @@ class json_connection ~from_peer ~to_peer =
     fun () -> (last_ticket := Int64.add !last_ticket Int64.one; Int64.to_string !last_ticket) in
 
   let handle_invoke ticket op args () =
+    let xml = ref None in
     lwt response =
       try_lwt
         lwt return_value =
           let cb = StringMap.find op !handlers |? lazy (raise_safe "No handler for JSON op '%s' (received from peer)" op) in
-          try_lwt cb args
+          try_lwt
+            match_lwt cb args with
+            | `WithXML (json, attached_xml) ->
+                xml := Some attached_xml;
+                Lwt.return json
+            | #J.json as json -> Lwt.return json
           with Bad_request -> raise_safe "Invalid arguments for '%s': %s" op (J.to_string (`List args)) in
-        Lwt.return [`String "ok"; return_value]
+        Lwt.return [`String (if !xml = None then "ok" else "ok+xml"); return_value]
       with Safe_exception (msg, _) as ex ->
         log_warning ~ex "Returning error to peer";
         Lwt.return [`String "fail"; `String msg] in
-      send_json @@ `List (`String "return" :: `String ticket :: response) in
+    send_json ?xml:!xml @@ `List (`String "return" :: `String ticket :: response) in
 
   (* Read and process messages from stream until it is closed. *)
   let () =
@@ -134,7 +144,7 @@ class json_connection ~from_peer ~to_peer =
     method notify ?xml op args =
       send_json ?xml (`List [`String "invoke"; `Null; `String op; `List args])
 
-    method register_handler op handler =
+    method register_handler op (handler:J.json list -> json_with_xml Lwt.t)  =
       handlers := StringMap.add op handler !handlers
 
     method run = finished

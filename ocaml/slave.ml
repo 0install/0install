@@ -88,10 +88,10 @@ let register_handlers config gui connection =
         lwt resp =
           try_lwt
             match_lwt H.solve_and_download_impls driver requirements `Select_only ~refresh with
-            | None -> Lwt.return [`String "aborted-by-user"]
-            | Some sels -> Lwt.return [`String "ok"; `String (Q.to_utf8 sels)]
-          with Safe_exception (msg, _) -> Lwt.return [`String "fail"; `String msg] in
-        `List resp |> Lwt.return
+            | None -> `List [`String "aborted-by-user"] |> Lwt.return
+            | Some sels -> `WithXML (`List [`String "ok"], sels) |> Lwt.return
+          with Safe_exception (msg, _) -> `List [`String "fail"; `String msg] |> Lwt.return in
+        resp |> Lwt.return
     | _ -> raise JC.Bad_request in
 
   connection#register_handler "select" do_select
