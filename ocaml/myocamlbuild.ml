@@ -16,6 +16,18 @@ let rec waitpid_non_intr pid =
   try Unix.waitpid [] pid
   with Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr pid
 
+let get_version package =
+  let c_out, c_in, c_err = Unix.open_process_full ("ocamlfind query -format %v " ^ package) (Unix.environment ()) in
+  let version =
+    try
+      let v = input_line c_out in
+      (* Printf.printf "version(%s) = %s\n" package v; *)
+      if v = "" then None else Some v
+    with End_of_file -> None in
+  match Unix.close_process_full (c_out, c_in, c_err) with
+  | Unix.WEXITED 0 -> version
+  | _ -> None
+
 let () =
   let v = Sys.ocaml_version in
   let first_dot = String.index v '.' in
@@ -23,20 +35,26 @@ let () =
   let major_version = int_of_string (String.sub v 0 first_dot) in
   let minor_version = int_of_string (String.sub v (first_dot + 1) (second_dot - first_dot - 1)) in
 
-  let native_targets = ref ["static_0install.native"; "tests/test.native"] in
+  let native_targets = ref ["static_0install.native"] in
 
   if Sys.os_type = "Win32" then native_targets := "runenv.native" :: !native_targets;
 
   let use_dbus =
     if on_windows then false
     else (
-      let child = Unix.(create_process "ocamlfind" [| "ocamlfind"; "query"; "obus"; "-format"; "" |] stdin stdout stderr) in
-      match snd (waitpid_non_intr child) with
-      | Unix.WEXITED 0 -> true
-      | _ ->
+      match get_version "obus" with
+      | Some _ -> true
+      | None ->
           print_endline "obus not found; compiling without D-BUS support";
           false
     ) in
+
+  let use_ounit = get_version "oUnit" <> None in
+
+  if use_ounit then
+    native_targets := "tests/test.native" :: !native_targets
+  else
+    print_endline "oUnit not found; not building unit-tests";
 
   let to_byte name =
     if Pathname.check_extension name "native" then Pathname.update_extension "byte" name
