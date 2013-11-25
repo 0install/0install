@@ -73,19 +73,12 @@ let make_ui config connection (slave:Zeroinstall.Python.slave) use_gui : Ui.ui_h
       else make_no_gui connection
 )
 
-let handle options flags args =
-  Support.Argparse.iter_options flags (Common_options.process_common_option options);
-  if args <> [] then raise (Support.Argparse.Usage_error 1);
-
-  let config = options.config in
-
-  let connection = new JC.json_connection ~from_peer:Lwt_io.stdin ~to_peer:Lwt_io.stdout in
-
+let register_handlers config gui connection =
   let driver = lazy (
     let slave = new Zeroinstall.Python.slave config in
     let distro = Zeroinstall.Distro_impls.get_host_distribution config in
     let trust_db = new Zeroinstall.Trust.trust_db config in
-    let ui = make_ui config connection slave options.gui in
+    let ui = make_ui config connection slave gui in
     let downloader = new Zeroinstall.Downloader.downloader ui  ~max_downloads_per_site:2 in
     let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro ui in
     new Zeroinstall.Driver.driver config fetcher distro ui
@@ -104,16 +97,24 @@ let handle options flags args =
         `List resp |> Lwt.return
     | _ -> raise JC.Bad_request in
 
-  connection#register_handler "select" do_select;
+  connection#register_handler "select" do_select
 
-  let module V = Zeroinstall.Versions in
-  let agreed_version = connection#invoke "select-api-version" [`String Zeroinstall.About.version]
-  |> Lwt_main.run |> J.Util.to_string |> V.parse_version in
+let handle options flags args =
+  let config = options.config in
+  Support.Argparse.iter_options flags (Common_options.process_common_option options);
 
-  if agreed_version < V.parse_version "2.5" then
-    raise_safe "Minimum supported API version is 2.5"
-  else if agreed_version > Zeroinstall.About.parsed_version then
-    raise_safe "Maximum supported API version is %s" Zeroinstall.About.version;
+  match args with
+  | [requested_api_version] ->
+      let module V = Zeroinstall.Versions in
+      let requested_api_version = V.parse_version requested_api_version in
+      if requested_api_version < V.parse_version "2.6" then
+        raise_safe "Minimum supported API version is 2.6";
+      let api_version = min requested_api_version Zeroinstall.About.parsed_version in
 
-  Lwt_main.run connection#run;
-  log_info "OCaml slave exiting"
+      let connection = new JC.json_connection ~from_peer:Lwt_io.stdin ~to_peer:Lwt_io.stdout in
+      register_handlers config options.gui connection;
+      connection#notify "set-api-version" [`String (V.format_version api_version)] |> Lwt_main.run;
+
+      Lwt_main.run connection#run;
+      log_info "OCaml slave exiting"
+  | _ -> raise (Support.Argparse.Usage_error 1);

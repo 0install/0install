@@ -239,7 +239,7 @@ let subcommands: subgroup = [
   make_subcommand "_show_help"  "-"                             Desktop.handle_help @@ common_options @ generic_select_options;
   make_subcommand "_desktop"    "-"                             Desktop.handle    @@ common_options;
   make_subgroup   "store"       store_subcommands;
-  make_subcommand "slave"      ""                               Slave.handle      @@ common_options;
+  make_subcommand "slave"       "VERSION"                       Slave.handle      @@ common_options;
 ]
 
 let show_group_help config parents group =

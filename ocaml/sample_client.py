@@ -20,7 +20,7 @@ else:
 	print("Usage: %s IFACE" % sys.argv[0])
 	sys.exit(1)
 
-slave_args = ["./0install", "--console", "slave"]
+slave_args = ["./0install", "--console", "slave", "2.6"]
 if verbosity > 1: slave_args.append("-v")
 
 c = subprocess.Popen(slave_args, stdin = subprocess.PIPE, stdout = subprocess.PIPE)
@@ -31,7 +31,7 @@ callbacks = {}
 
 def get_chunk():
 	len_line = c.stdout.readline()
-	assert len_line.startswith(b"0x")
+	assert len_line.startswith(b"0x"), len_line
 	assert len_line.endswith(b"\n")
 	chunk_len = int(len_line[2:-1], 16)
 	#print("chunk length = %d" % chunk_len)
@@ -60,10 +60,6 @@ def reply_ok(ticket, response):
 def reply_fail(ticket, response):
 	send_chunk(["return", ticket, "fail", response])
 
-def do_select_api_version(proposed_by_server):
-	logging.info("Server can support up to version %s", proposed_by_server)
-	return "2.5"
-
 def do_confirm_keys(feed, keys):
 	print("Feed:", feed)
 	print("The feed is correctly signed with the following keys:")
@@ -76,8 +72,14 @@ def do_confirm_keys(feed, keys):
 		if r in 'Yy': return list(keys)
 		if r in 'Nn': return []
 
+api_notification = get_chunk()
+assert api_notification[0] == "invoke"
+assert api_notification[1] == None
+assert api_notification[2] == "set-api-version"
+api_version = api_notification[3]
+logging.info("Agreed on 0install slave API version '%s'", api_version)
+
 handlers = {
-	"select-api-version": do_select_api_version,
 	"confirm-keys": do_confirm_keys,
 	"update-key-info": lambda *unused: None,
 }
@@ -103,8 +105,6 @@ def handle_next_chunk():
 			raise Exception(api_request[3])
 	else:
 		assert 0, api_request
-
-handle_next_chunk()		# Agree API version
 
 requirements = {
 	"interface": iface,

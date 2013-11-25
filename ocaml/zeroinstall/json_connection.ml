@@ -130,6 +130,10 @@ class json_connection ~from_peer ~to_peer =
         response
       with Safe_exception _ as ex -> reraise_with_context ex "... invoking %s(%s)" op (J.to_string (`List args))
 
+    (** Send a one-way message (with no ticket). *)
+    method notify ?xml op args =
+      send_json ?xml (`List [`String "invoke"; `Null; `String op; `List args])
+
     method register_handler op handler =
       handlers := StringMap.add op handler !handlers
 
