@@ -45,7 +45,7 @@ let read_chunk ch : J.json option Lwt.t =
       log_info "Message from peer: %s" buf;
       Lwt.return (Some (J.from_string buf))
 
-let json_connection ~from_peer ~to_peer =
+class json_connection ~from_peer ~to_peer =
   let handlers = ref StringMap.empty in
   let finished, finish = Lwt.wait () in
 

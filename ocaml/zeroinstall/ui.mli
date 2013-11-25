@@ -49,3 +49,5 @@ val check_gui : Support.Common.system -> Python.slave -> Support.Common.yes_no_m
  * Otherwise, it will be a batch UI (no progress display).
  *)
 val make_ui :  General.config -> Python.slave -> (unit -> Support.Common.yes_no_maybe) -> ui_handler Lazy.t 
+
+class gui_ui : Python.slave -> ui_handler
