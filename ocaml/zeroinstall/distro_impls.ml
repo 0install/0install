@@ -112,8 +112,12 @@ module Cache =
           try
             Hashtbl.replace data.contents key values;
             cache_path |> config.system#with_open_out [Open_append; Open_creat] ~mode:0o644 (fun ch ->
-              values |> List.iter (fun (version, machine) ->
-                output_string ch @@ Printf.sprintf "%s=%s\t%s" key (Versions.format_version version) (default "*" machine)
+              if values = [] then (
+                output_string ch @@ Printf.sprintf "%s=-" key (* Cache negative results too *)
+              ) else (
+                values |> List.iter (fun (version, machine) ->
+                  output_string ch @@ Printf.sprintf "%s=%s\t%s" key (Versions.format_version version) (default "*" machine)
+                )
               )
             )
           with Safe_exception _ as ex -> reraise_with_context ex "... writing cache %s" cache_path
