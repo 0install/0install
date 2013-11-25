@@ -4,17 +4,11 @@
 
 (** Common types for user interface callbacks *)
 
-open General
 open Support.Common
 
 module U = Support.Utils
 
 external get_terminal_width : unit -> int = "ocaml_0install_get_terminal_width"
-
-let string_of_ynm = function
-  | Yes -> "yes"
-  | No -> "no"
-  | Maybe -> "maybe"
 
 type key_vote_type = Good | Bad
 type key_vote = (key_vote_type * string)
@@ -301,33 +295,3 @@ class batch_ui =
       raise_safe "Can't confirm in batch mode (%s)" message
 *)
   end
-let check_gui (system:system) (slave:Python.slave) use_gui =
-  if use_gui = No then false
-  else (
-    match system#getenv "DISPLAY" with
-    | None | Some "" ->
-        if use_gui = Maybe then false
-        else raise_safe "Can't use GUI because $DISPLAY is not set"
-    | Some _ ->
-        slave#invoke "check-gui" [`String (string_of_ynm use_gui)] Yojson.Basic.Util.to_bool |> Lwt_main.run
-  )
-
-let make_ui config (slave:Python.slave) get_use_gui : ui_handler Lazy.t = lazy (
-  let use_gui =
-    match get_use_gui (), config.dry_run with
-    | Yes, true -> raise_safe "Can't use GUI with --dry-run"
-    | (Maybe|No), true -> No
-    | use_gui, false -> use_gui in
-
-  let make_no_gui () =
-    if config.system#isatty Unix.stderr then
-      new console_ui
-    else
-      new batch_ui in
-
-  match use_gui with
-  | No -> make_no_gui ()
-  | Yes | Maybe ->
-      if check_gui config.system slave use_gui then new gui_ui slave
-      else make_no_gui ()   (* [check-gui] will throw if use_gui is [Yes] *)
-)

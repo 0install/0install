@@ -59,7 +59,7 @@ let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
     method use_gui = None
   end
 
-let make_ui config connection (slave:Zeroinstall.Python.slave) use_gui : Ui.ui_handler Lazy.t = lazy (
+let make_ui config connection use_gui : Ui.ui_handler Lazy.t = lazy (
   let use_gui =
     match use_gui, config.dry_run with
     | Yes, true -> raise_safe "Can't use GUI with --dry-run"
@@ -68,17 +68,14 @@ let make_ui config connection (slave:Zeroinstall.Python.slave) use_gui : Ui.ui_h
 
   match use_gui with
   | No -> make_no_gui connection
-  | Yes | Maybe ->
-      if Ui.check_gui config.system slave use_gui then new Ui.gui_ui slave
-      else make_no_gui connection
+  | Yes | Maybe -> Zeroinstall.Gui.try_get_gui config ~use_gui |? lazy (make_no_gui connection)
 )
 
 let register_handlers config gui connection =
   let driver = lazy (
-    let slave = new Zeroinstall.Python.slave config in
     let distro = Zeroinstall.Distro_impls.get_host_distribution config in
     let trust_db = new Zeroinstall.Trust.trust_db config in
-    let ui = make_ui config connection slave gui in
+    let ui = make_ui config connection gui in
     let downloader = new Zeroinstall.Downloader.downloader ui  ~max_downloads_per_site:2 in
     let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro ui in
     new Zeroinstall.Driver.driver config fetcher distro ui

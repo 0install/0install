@@ -189,7 +189,6 @@ let handle_bg options flags args =
   );
 
   let config = options.config in
-  let slave = new Zeroinstall.Python.slave config in
 
   let need_gui = ref false in
   let ui =
@@ -235,26 +234,32 @@ let handle_bg options flags args =
         let new_sels =
           let distro = driver#distro in
           if !need_gui || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
-            if Zeroinstall.Ui.check_gui config.system slave Maybe then (
-              log_info "Background update: trying to use GUI to update %s" name;
-              match Zeroinstall.Gui.get_selections_gui slave driver `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
-              | `Aborted_by_user -> raise (System_exit 0)
-              | `Success gui_sels -> gui_sels
-            ) else if !need_gui then (
-              let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in
-              !notify ~timeout:10 ~msg;
-              log_warning "%s" msg;
-              raise (System_exit 1)
-            ) else if not ready then (
-              let msg = Printf.sprintf "Can't update 0install app '%s' (run '0install update %s' to fix)" name name in
-              !notify ~timeout:10 ~msg;
-              log_warning "Update of 0install app %s failed: %s" name (Zeroinstall.Diagnostics.get_failure_reason config result);
-              raise (System_exit 1)
-            ) else (
-              log_info "Background update: GUI unavailable; downloading with no UI";
-              Zeroinstall.Helpers.download_selections ~include_packages:true ~feed_provider driver new_sels |> Lwt_main.run;
-              new_sels
-            )
+            let interactive_ui = Lazy.force @@ Zeroinstall.Helpers.make_ui config (fun () -> Maybe) in
+            match interactive_ui#use_gui with
+            | Some gui ->
+                log_info "Background update: trying to use GUI to update %s" name;
+                Support.Utils.finally_do (fun () -> Zeroinstall.Python.cancel_slave () |> Lwt_main.run) () (fun () ->
+                  match Zeroinstall.Gui.get_selections_gui gui driver `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
+                  | `Aborted_by_user -> raise (System_exit 0)
+                  | `Success gui_sels -> gui_sels
+                )
+            | None ->
+                Zeroinstall.Python.cancel_slave () |> Lwt_main.run;
+                if !need_gui then (
+                  let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in
+                  !notify ~timeout:10 ~msg;
+                  log_warning "%s" msg;
+                  raise (System_exit 1)
+                ) else if not ready then (
+                  let msg = Printf.sprintf "Can't update 0install app '%s' (run '0install update %s' to fix)" name name in
+                  !notify ~timeout:10 ~msg;
+                  log_warning "Update of 0install app %s failed: %s" name (Zeroinstall.Diagnostics.get_failure_reason config result);
+                  raise (System_exit 1)
+                ) else (
+                  log_info "Background update: GUI unavailable; downloading with no UI";
+                  Zeroinstall.Helpers.download_selections ~include_packages:true ~feed_provider driver new_sels |> Lwt_main.run;
+                  new_sels
+                )
           ) else new_sels in
 
         if Q.compare_nodes old_sels new_sels ~ignore_whitespace:true <> 0 then (

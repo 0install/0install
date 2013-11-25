@@ -43,14 +43,22 @@ let remove_cached config selections_path =
   U.rmtree ~even_if_locked:true config.system stored
 
 let install_interceptor system checked_for_gui =
+  Zeroinstall.Gui.register_plugin (fun config use_gui ->
+    assert (use_gui = Maybe);
+    let have_gui = system#getenv "DISPLAY" <> Some "" in
+    checked_for_gui := true;
+    if have_gui then (
+      let slave = new Zeroinstall.Python.slave config in
+      Some (new Zeroinstall.Ui.gui_ui slave)
+    ) else (
+      None
+    )
+  );
+
   Update.notify := (fun ~msg ~timeout:_ -> log_info "NOTIFY: 0install: %s" msg);
   (* Trigger a background update - no updates found *)
   Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
     | `List [`String "wait-for-network"] -> Some (Lwt.return (`List [`String "ok"; `String "online"]))
-    | `List [`String "check-gui"; `String "maybe"] ->
-        checked_for_gui := true;
-        let have_gui = system#getenv "DISPLAY" <> Some "" in
-        Some (Lwt.return (`List [`String "ok"; `Bool have_gui]))
     | `List ((`String "open-gui") :: _) -> raise Open_gui
     | `List ((`String "unpack-archive") :: _) -> None
     | `List ((`String "add-manifest-and-verify") :: _) -> None

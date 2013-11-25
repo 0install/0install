@@ -35,19 +35,6 @@ class type ui_handler =
     method use_gui : gui option
   end
 
-(** Should we use the GUI?
- * The input says what the user requested:
- * No -> we never want to use the GUI
- * Yes -> we always want to use the GUI, and throw an exception if it's not available
- * Maybe -> we want to use the GUI iff it's available
- *)
-val check_gui : Support.Common.system -> Python.slave -> Support.Common.yes_no_maybe -> bool
-
-(** Create a UI appropriate for the current environment and user options.
- * This will be a graphical UI if [check_gui] returns [true] and we're not in dry-run mode.
- * Otherwise, it will be an interactive console UI if stderr is a tty.
- * Otherwise, it will be a batch UI (no progress display).
- *)
-val make_ui :  General.config -> Python.slave -> (unit -> Support.Common.yes_no_maybe) -> ui_handler Lazy.t 
-
+class console_ui : ui_handler
+class batch_ui : ui_handler
 class gui_ui : Python.slave -> ui_handler

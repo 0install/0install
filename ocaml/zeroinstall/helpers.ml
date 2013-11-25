@@ -4,6 +4,7 @@
 
 (** High-level helper functions *)
 
+open General
 open Support.Common
 module Basedir = Support.Basedir
 module FeedAttr = Constants.FeedAttr
@@ -15,7 +16,6 @@ type select_mode = [
   | `Select_only       (* only download feeds, not archives; display "Select" in GUI *)
   | `Download_only     (* download archives too; refresh if stale feeds; display "Download" in GUI *)
   | `Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
-  | `Select_for_update (* like Download_only, but save changes to apps *)
 ]
 
 (** Ensure all selections are cached, downloading any that are missing. *)
@@ -24,9 +24,6 @@ let download_selections ~include_packages ~feed_provider (driver:Driver.driver) 
   | `success -> Lwt.return ()
   | `aborted_by_user -> raise_safe "Aborted by user"
 
-(** Get some selectsions for these requirements.
-    Returns [None] if the user cancels.
-    @raise Safe_exception if the solve fails. *)
 let solve_and_download_impls (driver:Driver.driver) ?test_callback reqs mode ~refresh =
   let config = driver#config in
 
@@ -47,3 +44,23 @@ let solve_and_download_impls (driver:Driver.driver) ?test_callback reqs mode ~re
           | `Download_only | `Select_for_run ->
               download_selections driver ~feed_provider ~include_packages:true sels in
         Lwt.return (Some sels)
+
+let make_ui config get_use_gui : Ui.ui_handler Lazy.t = lazy (
+  let use_gui =
+    match get_use_gui (), config.dry_run with
+    | Yes, true -> raise_safe "Can't use GUI with --dry-run"
+    | (Maybe|No), true -> No
+    | use_gui, false -> use_gui in
+
+  let make_no_gui () =
+    if config.system#isatty Unix.stderr then
+      new Ui.console_ui
+    else
+      new Ui.batch_ui in
+
+  match use_gui with
+  | No -> make_no_gui ()
+  | Yes | Maybe ->
+      (* [try_get_gui] will throw if use_gui is [Yes] and the GUI isn't available *)
+      Gui.try_get_gui config ~use_gui |? lazy (make_no_gui ())
+)

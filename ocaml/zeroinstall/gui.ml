@@ -15,6 +15,11 @@ module U = Support.Utils
 module Q = Support.Qdom
 module G = Support.Gpg
 
+let gui_plugin = ref None
+
+let register_plugin fn =
+  gui_plugin := Some fn
+
 let register_preferences_handlers config =
   Python.register_handler "list-keys" (function
     | [] ->
@@ -844,3 +849,47 @@ let get_selections_gui (slave:Python.slave) (driver:Driver.driver) ?test_callbac
     | `Success sels -> Lwt.return (`Success sels) in
 
   loop refresh
+
+let try_get_gui config ~use_gui =
+  let system = config.system in
+  if use_gui = No then None
+  else (
+    match system#getenv "DISPLAY" with
+    | None | Some "" ->
+        if use_gui = Maybe then None
+        else raise_safe "Can't use GUI because $DISPLAY is not set"
+    | Some _ ->
+        if !gui_plugin = None then (
+          let bindir = Filename.dirname (U.realpath system config.abspath_0install) in
+
+          let check_plugin_dir plugin_dir =
+            let plugin_path = plugin_dir +/ "gui_gtk.cma" |> Dynlink.adapt_filename in
+            log_info "Checking for GTK plugin at '%s'" plugin_path;
+            if system#file_exists plugin_path then Some plugin_path else None in
+
+          let plugin_path =
+            let sys_lib = Filename.dirname bindir +/ "lib" in
+            U.first_match check_plugin_dir [
+              (* Is 0install is installed as distro package? *)
+              sys_lib +/ "0install.net";
+              (* Are we running via 0install? *)
+              bindir;
+            ] in
+
+          match plugin_path with
+          | None -> log_info "No GUI plugins found"
+          | Some plugin_path ->
+              try
+                Dynlink.loadfile plugin_path;
+              with ex ->
+                log_warning ~ex "Failed to load GTK GUI plugin"
+        );
+
+        !gui_plugin |> pipe_some (fun gui_plugin ->
+          try
+            gui_plugin config use_gui
+          with ex ->
+            log_warning ~ex "Failed to create GTK GUI";
+            None
+        )
+  )

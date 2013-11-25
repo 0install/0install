@@ -40,7 +40,7 @@ let handle options flags args =
         | `tmpfile path ->
             let results = U.read_file config.system path in
             Lwt_main.run (Lwt_switch.turn_off switch);
-            options.close_slave ();
+            Zeroinstall.Python.cancel_slave () |> Lwt_main.run;
             let root = `String (0, results) |> Xmlm.make_input |> Q.parse_input (Some url) in
 
             Empty.check_tag "results" root;

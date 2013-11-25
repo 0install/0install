@@ -56,8 +56,13 @@ let () =
   else
     print_endline "oUnit not found; not building unit-tests";
 
+  begin match get_version "lablgtk2" with
+  | None -> print_endline "lablgtk2 not found; not building GTK GUI plugin";
+  | Some _ -> native_targets := "gui_gtk.cmxs" :: !native_targets end;
+
   let to_byte name =
     if Pathname.check_extension name "native" then Pathname.update_extension "byte" name
+    else if Pathname.check_extension name "cmxs" then Pathname.update_extension "cma" name
     else name in
   let byte_targets = List.map to_byte !native_targets in
 

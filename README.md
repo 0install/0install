@@ -48,17 +48,17 @@ build tools and some OCaml libraries to compile 0install. On Debian use:
     $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev \
        libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev libounit-ocaml-dev \
        python-gobject libextlib-ocaml-dev libcurl-ocaml-dev libssl-ocaml-dev \
-       libobus-ocaml-dev
+       libobus-ocaml-dev liblablgtk2-ocaml-dev
 
 You can also get the dependencies using [OPAM](http://opam.ocamlpro.com/):
 
     $ opam sw 4.00.1
     $ eval `opam config env`
-    $ opam install yojson xmlm ounit lwt extlib ssl ocurl obus
+    $ opam install yojson xmlm ounit lwt extlib ssl ocurl obus lablgtk
 
-(obus is optional; it is used on Linux to add support for D-BUS notifications,
+(obus and lablgtk are optional. obus is used on Linux to add support for D-BUS notifications,
 installing native packages using PackageKit, and using NetworkManager to check
-the network status before doing background updates)
+the network status before doing background updates. lablgtk provides a GTK GUI.)
 
 In the top-level directory, run:
 

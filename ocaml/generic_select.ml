@@ -198,7 +198,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
     [options.extra_options]. Displays results as XML or human readable output, if appropriate.
     For human-readable output, we also display any changes compared to the previous selections.
     For apps with human-readable output, we tell the user to use "update" to save the changes
-    if the requirements or selections changed (except for Select_for_update mode).
+    if the requirements or selections changed.
     Calls [exit 1] if the user aborts using the GUI. *)
 let handle options flags arg ?test_callback for_op =
   let config = options.config in

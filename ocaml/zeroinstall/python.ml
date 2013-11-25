@@ -8,6 +8,15 @@ open General
 open Support.Common
 module Q = Support.Qdom
 
+let close_slave = ref None            (* Call this on exit to cancel the slave *)
+
+let cancel_slave () : unit Lwt.t =
+  match !close_slave with
+  | None -> Lwt.return ()
+  | Some fn ->
+      close_slave := None;
+      fn ()
+
 let slave_debug_level = ref None      (* Inherit our logging level *)
 let default_interceptor ?xml:_ (_request : Yojson.Basic.json) = None
 let slave_interceptor = ref default_interceptor      (* Override for testing *)
@@ -190,7 +199,22 @@ class slave config =
 
         child in
 
-  object (self)
+  let () =
+    assert (!close_slave = None);
+    close_slave := Some (fun () ->
+      (* log_warning "CLOSE SLAVE"; *)
+      match !connection with
+      | None -> Lwt.return ()
+      | Some c ->
+          log_info "Closing connection to slave";
+          lwt status = c#close in
+          Support.System.check_exit_status status;
+          connection := None;
+          log_info "Slave terminated";
+          Lwt.return ()
+    ) in
+
+  object
     (** Send a JSON message to the Python slave and return whatever data it sends back. *)
     method invoke : 'a. string -> json list -> ?xml:Q.element -> (json -> 'a) -> 'a Lwt.t = fun op args ?xml parse_fn ->
       let request = `List (`String op :: args) in
@@ -215,21 +239,6 @@ class slave config =
               reraise_with_context ex "... processing JSON response from Python slave:\n%s" (to_string r)
         )
         | response -> raise_safe "Invalid JSON response from Python slave:%s" (to_string response)
-
-    method close =
-      Lwt_main.run (self#close_async)
-
-    method close_async =
-      (* log_warning "CLOSE SLAVE"; *)
-      match !connection with
-      | None -> Lwt.return ()
-      | Some c ->
-          log_info "Closing connection to slave";
-          lwt status = c#close in
-          Support.System.check_exit_status status;
-          connection := None;
-          log_info "Slave terminated";
-          Lwt.return ()
 
     method config = config
   end

@@ -273,18 +273,15 @@ let rec set_of_option_names = function
   | Subgroup group ->
       group |> List.fold_left (fun set (_name, node) -> StringSet.union set (set_of_option_names node)) StringSet.empty
 
-(* Note: call options.slave#close when done. *)
 let get_default_options config =
-  let slave = new Zeroinstall.Python.slave config in
   let rec options = {
     config;
-    close_slave = (fun () -> slave#close);
     gui = Maybe;
     verbosity = 0;
     driver = lazy (
       let distro = Zeroinstall.Distro_impls.get_host_distribution config in
       let trust_db = new Zeroinstall.Trust.trust_db config in
-      let ui = Zeroinstall.Ui.make_ui config slave (fun () -> options.gui) in
+      let ui = Zeroinstall.Helpers.make_ui config (fun () -> options.gui) in
       let downloader = new Zeroinstall.Downloader.downloader ui  ~max_downloads_per_site:2 in
       let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro ui in
       new Zeroinstall.Driver.driver config fetcher distro ui
@@ -311,7 +308,7 @@ let handle config raw_args =
   let (raw_options, args, complete) = read_args spec raw_args in
   assert (complete = CompleteNothing);
 
-  Support.Utils.finally_do (fun options -> options.close_slave ())
+  Support.Utils.finally_do (fun _options -> Zeroinstall.Python.cancel_slave () |> Lwt_main.run)
     (get_default_options config)
     (fun options ->
       let command_path, subcommand, command_args =
