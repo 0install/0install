@@ -41,14 +41,20 @@ let start_server system =
   let request_log = ref [] in
   let expected = ref [] in
 
-  let () =
+  let port =
     Lwt_unix.(setsockopt server_socket SO_REUSEADDR) true;
     Lwt_unix.set_close_on_exec server_socket;
-    begin try Lwt_unix.(bind server_socket (ADDR_INET (Unix.inet_addr_loopback, 8000)))
-    with Unix.Unix_error _ as ex ->
-      log_warning ~ex "Bind failed";
-      raise_safe "Failed to start test server listening on localhost:8000; is something using it?" end;
-    Lwt_unix.listen server_socket 5 in
+
+    let rec find_port n =
+      if n < 0 then raise_safe "Failed to find a free port (8000-8999) to bind to!";
+      let port = 8000 + Random.int 1000 in
+      try Lwt_unix.(bind server_socket (ADDR_INET (Unix.inet_addr_loopback, port))); port
+      with Unix.Unix_error _ as ex ->
+        log_info ~ex "Bind failed - port %d in use?" port;
+        find_port (n - 1) in
+    let port = find_port 100 in
+    Lwt_unix.listen server_socket 5;
+    port in
 
   let handle_request path to_client =
     log_info "Handling request for '%s'" path;
@@ -157,6 +163,8 @@ let start_server system =
       else
         raise_safe "Previous expected requests not used!"
 
+    method port = port
+
     method terminate =
       log_info "Shutting down server...";
       cancelled := true;
@@ -172,7 +180,10 @@ let with_server (fn:_ -> _ -> unit) =
     Zeroinstall.Config.save_config config;
 
     U.finally_do
-      (fun s -> Lwt_main.run s#terminate)
+      (fun s -> Lwt_main.run s#terminate; Unix.putenv "http_proxy" "localhost:8000")
       (start_server config.Zeroinstall.General.system)
-      (fun server -> fn (config, f) server; server#expect [])
+      (fun server ->
+        Unix.putenv "http_proxy" ("localhost:" ^ (string_of_int server#port));
+        fn (config, f) server; server#expect [];
+      )
   )
