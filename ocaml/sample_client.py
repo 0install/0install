@@ -116,6 +116,12 @@ def handle_next_chunk():
 
 requirements = {
 	"interface": iface,
+	#"command": "run",
+	#"source": True,
+	#"extra_restrictions": {"http://repo.roscidus.com/python/python": "..!3"},
+	#"os": "Linux",
+	#"cpu": "src",
+	#"message": "I need this because ...",
 }
 
 def show_selections(status, result):

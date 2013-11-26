@@ -71,6 +71,37 @@ let make_ui config connection use_gui : Ui.ui_handler Lazy.t = lazy (
   | Yes | Maybe -> Zeroinstall.Gui.try_get_gui config ~use_gui |? lazy (make_no_gui connection)
 )
 
+let parse_restrictions = function
+  | `Null -> StringMap.empty
+  | `Assoc items ->
+      items |> List.fold_left (fun map (iface, expr) ->
+        StringMap.add iface (J.Util.to_string expr) map
+      ) StringMap.empty
+  | json -> raise (J.Util.Type_error ("Not a map", json))
+
+let parse_requirements json_assoc =
+  let table = Hashtbl.create (List.length json_assoc) in
+  json_assoc |> List.iter (fun (name, value) -> Hashtbl.add table name value);
+  let pop name =
+    try
+      let value = Hashtbl.find table name in
+      Hashtbl.remove table name;
+      value
+    with Not_found -> `Null in
+
+  let reqs =
+    Zeroinstall.Requirements.({
+      interface_uri = pop "interface" |> J.Util.to_string;
+      command = pop "command" |> J.Util.to_string_option;
+      source = pop "source" |> J.Util.to_bool_option |> default false;
+      extra_restrictions = pop "extra_restrictions" |> parse_restrictions;
+      os = pop "os" |> J.Util.to_string_option;
+      cpu = pop "cpu" |> J.Util.to_string_option;
+      message = pop "message" |> J.Util.to_string_option;
+  }) in
+  table |> Hashtbl.iter (fun name _ -> log_warning "Unexpected requirements field '%s'!" name);
+  reqs
+
 let register_handlers config gui connection =
   let driver = lazy (
     let distro = Zeroinstall.Distro_impls.get_host_distribution config in
@@ -82,8 +113,8 @@ let register_handlers config gui connection =
   ) in
 
   let do_select = function
-    | [reqs; `Bool refresh] ->
-        let requirements = reqs |> J.Util.member "interface" |> J.Util.to_string |> Zeroinstall.Requirements.default_requirements in
+    | [`Assoc reqs; `Bool refresh] ->
+        let requirements = parse_requirements reqs in
         let driver = Lazy.force driver in
         lwt resp =
           try_lwt
