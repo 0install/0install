@@ -9,7 +9,13 @@ open Support.Common
 module Ui = Zeroinstall.Ui
 module Python = Zeroinstall.Python
 
-class gui_ui (slave:Python.slave) =
+class type gui_ui =
+  object
+    inherit Ui.ui_handler
+    inherit Python.slave
+  end
+
+let make_gtk_ui (slave:Python.slave) =
   let downloads = Hashtbl.create 10 in
 
   let json_of_votes =
@@ -30,7 +36,7 @@ class gui_ui (slave:Python.slave) =
       | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
     ) in
 
-  object (_ : #Ui.ui_handler)
+  object (self : gui_ui)
     method start_monitoring ~cancel ~url ~progress ?hint ~id =
       let size =
         match snd @@ Lwt_react.S.value progress with
@@ -96,7 +102,10 @@ class gui_ui (slave:Python.slave) =
         | _ -> raise_safe "Invalid response"
       )
 
-    method use_gui = Some slave
+    method config = slave#config
+    method invoke = slave#invoke
+
+    method use_gui = Some (self :> Python.slave)
   end
 
 let string_of_ynm = function
@@ -107,7 +116,7 @@ let string_of_ynm = function
 let try_get_gtk_gui config use_gui =
   let slave = new Zeroinstall.Python.slave config in
   if slave#invoke "check-gui" [`String (string_of_ynm use_gui)] Yojson.Basic.Util.to_bool |> Lwt_main.run then (
-    Some (new gui_ui slave)
+    Some (make_gtk_ui slave :> Ui.ui_handler)
   ) else (
     None
   )
