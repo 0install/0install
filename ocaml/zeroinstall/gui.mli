@@ -8,7 +8,7 @@
 val register_plugin : (General.config -> Support.Common.yes_no_maybe -> Ui.ui_handler option) -> unit
 
 val get_selections_gui :
-  Python.slave ->
+  Ui.gui_ui ->
   Driver.driver ->
   ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
   ?systray:bool ->

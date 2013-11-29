@@ -20,10 +20,6 @@ from zeroinstall import support
 from zeroinstall.support import tasks
 from zeroinstall.injector import download
 
-class NoTrustedKeys(SafeException):
-	"""Thrown by L{Handler.confirm_import_feed} on failure."""
-	pass
-
 class Handler(object):
 	"""
 	A Handler is used to interact with the user (e.g. to confirm keys, display download progress, etc).

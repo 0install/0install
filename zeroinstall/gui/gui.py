@@ -52,15 +52,6 @@ class GUIHandler(handler.Handler):
 			yield tasks.TimeoutBlocker(0.5, 'Delay')
 
 	@tasks.async
-	def confirm_import_feed(self, pending, valid_sigs, retval):
-		yield self._switch_to_main_window(_('Need to confirm a new GPG key'))
-
-		from zeroinstall.gtkui import trust_box
-		box = trust_box.TrustBox(pending, valid_sigs, retval, parent = self.mainwindow.window)
-		box.show()
-		yield box.closed
-
-	@tasks.async
 	def confirm(self, message):
 		yield self._switch_to_main_window(_('Need to confirm installation of distribution packages'))
 

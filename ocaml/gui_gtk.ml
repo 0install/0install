@@ -5,24 +5,341 @@
 (** A GTK GUI plugin *)
 
 open Support.Common
+open Zeroinstall.General
 
 module Ui = Zeroinstall.Ui
 module Python = Zeroinstall.Python
+module Trust = Zeroinstall.Trust
+module G = Support.Gpg
+module U = Support.Utils
 
-class type gui_ui =
+let make_help_box title sections =
   object
-    inherit Ui.ui_handler
-    inherit Python.slave
+    val mutable dialog = None
+
+    method display =
+      dialog |> if_some (fun box -> box#destroy ());
+      let box = GWindow.dialog
+        ~title
+        ~no_separator:true
+        ~position:`CENTER
+        () in
+      dialog <- Some box;
+
+      let swin = GBin.scrolled_window
+        ~hpolicy:`AUTOMATIC
+        ~vpolicy:`ALWAYS
+        ~shadow_type:`IN
+        ~border_width:2
+        () in
+
+      box#vbox#pack (swin :> GObj.widget) ~expand:true ~fill:true;
+
+      let text = GText.view
+        ~wrap_mode:`WORD
+        ~editable:false
+        ~cursor_visible:false
+        () in
+      text#set_left_margin 4;
+      text#set_right_margin 4;
+
+      let model = text#buffer in
+      let iter = model#start_iter in
+      let heading_style = model#create_tag [`UNDERLINE `SINGLE; `SCALE `LARGE] in
+
+      let first = ref true in
+      sections |> List.iter (fun (heading, body) ->
+        if !first then (
+          first := false
+        ) else (
+          model#insert ~iter "\n\n";
+        );
+        model#insert ~iter ~tags:[heading_style] heading;
+        model#insert ~iter ("\n" ^ body);
+      );
+      swin#add (text :> GObj.widget);
+
+      box#add_button_stock `CLOSE `CLOSE;
+      box#connect#response ~callback:(function
+        | `CLOSE | `DELETE_EVENT -> box#destroy ()
+      ) |> ignore;
+      box#connect#destroy ~callback:(fun () -> dialog <- None) |> ignore;
+      box#set_default_response `CLOSE;
+      box#set_default_size
+        ~width:(Gdk.Screen.width () / 4)
+        ~height:(Gdk.Screen.height () / 3);
+      box#show ()
   end
+
+let left text =
+  GMisc.label ~text ~selectable:true ~xalign:0.0 ~yalign:0.5
+
+let pretty_fp fingerprint =
+  let b = Buffer.create (String.length fingerprint * 2) in
+  let chunks = String.length fingerprint / 4 in
+  for i = 0 to chunks - 1 do
+    if i > 0 then
+      Buffer.add_char b ' ';
+    Buffer.add_substring b fingerprint (i * 4) 4;
+  done;
+  let tail = chunks * 4 in
+  Buffer.add_substring b fingerprint tail (String.length fingerprint - tail);
+  Buffer.contents b
+
+let make_hint vote hint_text =
+  let stock =
+    match vote with
+    | Ui.Good -> `YES
+    | Ui.Bad -> `DIALOG_WARNING in
+  let hint_icon = GMisc.image ~stock ~icon_size:`BUTTON ~xalign:0.0 ~yalign:0.0 () in
+  let hint = left hint_text ~line_wrap:true () in
+  let hint_hbox = GPack.hbox ~homogeneous:false ~spacing:4 () in
+  hint_hbox#pack (hint_icon :> GObj.widget) ~expand:false ~fill:true;
+  hint_hbox#pack (hint :> GObj.widget) ~expand:true ~fill:true;
+  hint_hbox
+
+let make_hints_area result hints =
+  let box = GPack.vbox ~border_width:8 ~homogeneous:false ~spacing:4 () in
+
+  let add_hints hints =
+    if Lwt.state result = Lwt.Sleep then (
+      let hints =
+        if hints = [] then [(Ui.Bad, "Warning: Nothing known about this key!")] else hints in
+      hints |> List.iter (fun (vote, msg) ->
+        box#pack ~expand:false ~fill:true (make_hint vote msg :> GObj.widget)
+      )
+    ) in
+
+  begin match Lwt.state hints with
+  | Lwt.Sleep ->
+      let label = left "Waiting for response from key information server..." () in
+      box#pack ~expand:false ~fill:true (label :> GObj.widget);
+      Zeroinstall.Python.async (fun () ->
+        lwt hints = hints in
+        label#destroy ();
+        add_hints hints;
+        Lwt.return ()
+      )
+  | Lwt.Return hints -> add_hints hints
+  | Lwt.Fail ex -> raise ex end;
+
+  box
+
+let confirm_keys_help = make_help_box "Trust Help" [
+("Overview",
+"When you run a program, it typically has access to all your files and can generally do \
+anything that you're allowed to do (delete files, send emails, etc). So it's important \
+to make sure that you don't run anything malicious.");
+
+("Digital signatures",
+"Each software author creates a 'key-pair'; a 'public key' and a 'private key'.\
+\n\n\
+When a programmer releases some software, they sign it with their private key (which no-one \
+else has). When you download it, 0install checks the signature using the public key, thus \
+proving that it came from them and hasn't been tampered with.");
+
+("Trust",
+"After 0install has checked that the software hasn't been modified since it was signed with \
+the private key, you still have the following problems:\
+\n\n\
+1. Does the public key you have really belong to the author?\n\
+2. Even if the software really did come from that person, do you trust them?");
+
+("Key fingerprints",
+"To confirm (1), you should compare the public key you have with the genuine one. To make this \
+easier, 0install displays a 'fingerprint' for the key. Look in mailing list postings or some \
+other source to check that the fingerprint is right (a different key will have a different \
+fingerprint).\
+\n\n\
+You're trying to protect against the situation where an attacker breaks into a web site \
+and puts up malicious software, signed with the attacker's private key, and puts up the \
+attacker's public key too. If you've downloaded this software before, you \
+should be suspicious that you're being asked to confirm another key!");
+
+("Reputation",
+"In general, most problems seem to come from malicous and otherwise-unknown people \
+replacing software with modified versions, or creating new programs intended only to \
+cause damage. So, check your programs are signed by a key with a good reputation!");
+]
+
+(** Check the key-info server's results for these keys. If we don't know any of them,
+ * ask for extra confirmation from the user.
+ * @return true if we should continue and trust the keys. *)
+let confirm_unknown_keys ~parent to_trust valid_sigs =
+  let unknown = to_trust |> List.filter (fun fpr ->
+    let hints = List.assoc fpr valid_sigs in
+    match Lwt.state hints with
+    | Lwt.Fail _ | Lwt.Sleep -> true  (* Still waiting => unknown *)
+    | Lwt.Return hints ->
+        (* Unknown if we didn't get any Good votes *)
+        not (List.exists (fun (vote, _msg) -> vote = Ui.Good) hints)
+  ) in
+  let confirm message =
+    let result, set_result = Lwt.wait () in
+    let box = GWindow.message_dialog
+      ~message
+      ~message_type:`QUESTION
+      ~parent
+      ~destroy_with_parent:true
+      ~buttons:GWindow.Buttons.ok_cancel
+      ~position:`CENTER
+      () in
+    box#connect#response ~callback:(function
+      | `OK -> Lwt.wakeup set_result true; box#destroy ()
+      | `DELETE_EVENT | `CANCEL -> Lwt.wakeup set_result false; box#destroy ()
+    ) |> ignore;
+    box#show ();
+    result in
+  match unknown with
+  | [] -> Lwt.return true
+  | [_] -> confirm "WARNING: you are confirming a key which was not known to the key server. Are you sure?"
+  | _   -> confirm "WARNING: you are confirming keys which were not known to the key server. Are you sure?"
+
+let frame ~title ~content (parent:GPack.box) =
+  let frame = GBin.frame ~shadow_type:`NONE () in
+  let label = GMisc.label
+    ~markup:(Printf.sprintf "<b>%s</b>" title)    (* Escaping? *)
+    () in
+  frame#set_label_widget (Some (label :> GObj.widget));
+  frame#add (content :> GObj.widget);
+  parent#pack (frame :> GObj.widget) ~expand:false ~fill:true
+
+let confirm_keys config ?parent feed_url valid_sigs =
+  assert (valid_sigs <> []);
+  let n_sigs = List.length valid_sigs in
+  let `remote_feed url = feed_url in
+  let trust_db = new Zeroinstall.Trust.trust_db config in
+
+  lwt key_names = valid_sigs |> List.map fst |> G.load_keys config.system in
+
+  let result, set_result = Lwt.wait () in
+  let dialog = GWindow.dialog
+    ?parent
+    ~title:"Confirm trust"
+    ~no_separator:true
+    ~position:`CENTER
+    () in
+
+  let vbox = GPack.vbox
+    ~homogeneous:false
+    ~spacing:4
+    ~border_width:4
+    () in
+
+  dialog#vbox#pack ~expand:true ~fill:true (vbox :> GObj.widget);
+
+  let label = left (Printf.sprintf "Checking: %s" url) ~xpad:4 ~ypad:4 () in
+  vbox#pack ~expand:false ~fill:true (label :> GObj.widget);
+
+  let domain = Trust.domain_from_url feed_url in
+
+  lwt descriptions =
+    match trust_db#get_keys_for_domain domain |> StringSet.elements with
+    | [] -> Lwt.return ["None"]
+    | keys ->
+        lwt keys = G.load_keys config.system keys in
+        keys |> StringMap.map_bindings (fun fp info ->
+          Printf.sprintf "%s\n(fingerprint: %s)" (default "?" info.G.name) (pretty_fp fp)
+        ) |> Lwt.return in
+
+  frame
+    ~title:(Printf.sprintf "Keys already approved for '%s'" domain)
+    ~content:(left (String.concat "\n" descriptions) ~xpad:8 ~ypad:4 ())
+    vbox;
+
+  let label =
+    match valid_sigs with
+    | [_] -> "This key signed the feed:"
+    | _ -> "These keys signed the feed:" in
+  vbox#pack ~expand:false ~fill:true (left label ~xpad:4 ~ypad:4 () :> GObj.widget);
+
+  let notebook = GPack.notebook
+    ~show_border:false
+    ~show_tabs:(n_sigs > 1)
+    () in
+
+  dialog#add_button_stock `HELP `HELP;
+  (* Lablgtk uses the wrong response code for HELP, so we have to do this manually. *)
+  let actions = dialog#action_area in
+  actions#set_child_secondary (List.hd actions#children) true;
+
+  dialog#add_button_stock `CANCEL `CANCEL;
+  dialog#add_button_stock `ADD `OK;
+  dialog#set_default_response `OK;
+
+  let trust_checkboxes = ref [] in
+
+  (* The OK button is available whenever at least one key is selected to be trusted. *)
+  let update_ok_button () =
+    !trust_checkboxes
+    |> List.exists (fun (_fpr, box) -> box#active)
+    |> dialog#set_response_sensitive `OK in
+
+  valid_sigs |> List.iter (fun (fpr, hints) ->
+    let name =
+      StringMap.find fpr key_names
+      |> pipe_some (fun info -> info.G.name)
+      |> default "<unknown>" in
+    let page = GPack.vbox ~homogeneous:false ~spacing:4 ~border_width:8 () in
+    frame
+      ~title:"Fingerprint"
+      ~content:(left (pretty_fp fpr) ~xpad:8 ~ypad:4 ())
+      page;
+    frame
+      ~title:"Claimed identity"
+      ~content:(left name ~xpad:8 ~ypad:4 ())
+      page;
+    frame
+      ~title:"Unreliable hints database says"
+      ~content:(make_hints_area result hints)
+      page;
+
+    let already_trusted = trust_db#get_trust_domains fpr |> StringSet.elements in
+    if already_trusted <> [] then (
+      frame
+        ~title:"You already trust this key for these domains"
+        ~content:(left (String.concat "\n" already_trusted) ~xpad:8 ~ypad:4 ())
+        page
+    );
+
+    let checkbox = GButton.check_button
+      ~use_mnemonic:true
+      ~show:(n_sigs > 1)
+      ~label:"_Trust this key" () in
+    trust_checkboxes := (fpr, checkbox) :: !trust_checkboxes;
+    page#pack ~expand:false ~fill:true (checkbox :> GObj.widget);
+    checkbox#connect#toggled ~callback:(fun _cb -> update_ok_button ()) |> ignore;
+    let tab_label = (GMisc.label ~text:name () :> GObj.widget) in
+    notebook#append_page ~tab_label (page :> GObj.widget) |> ignore;
+  );
+  (List.hd !trust_checkboxes |> snd)#set_active true;
+
+  vbox#pack ~expand:true ~fill:true (notebook :> GObj.widget);
+
+  dialog#connect#response ~callback:(function
+    | `OK ->
+        let to_trust = !trust_checkboxes |> U.filter_map (fun (fpr, box) ->
+          if box#active then Some fpr else None
+        ) in
+        assert (to_trust <> []);
+        let ok = confirm_unknown_keys ~parent:dialog to_trust valid_sigs in
+        Zeroinstall.Python.async (fun () ->
+          match_lwt ok with
+          | false -> Lwt.return ()
+          | true ->
+              Lwt.wakeup set_result to_trust;
+              dialog#destroy ();
+              Lwt.return ()
+        )
+    | `DELETE_EVENT | `CANCEL -> Lwt.wakeup set_result []; dialog#destroy ()
+    | `HELP -> confirm_keys_help#display
+  ) |> ignore;
+
+  dialog#show ();
+  result
 
 let make_gtk_ui (slave:Python.slave) =
   let downloads = Hashtbl.create 10 in
-
-  let json_of_votes =
-    List.map (function
-      | Ui.Good, msg -> `List [`String "good"; `String msg]
-      | Ui.Bad, msg -> `List [`String "bad"; `String msg]
-    ) in
 
   let () =
     Python.register_handler "abort-download" (function
@@ -36,7 +353,7 @@ let make_gtk_ui (slave:Python.slave) =
       | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
     ) in
 
-  object (self : gui_ui)
+  object (self : Zeroinstall.Ui.gui_ui)
     method start_monitoring ~cancel ~url ~progress ?hint ~id =
       let size =
         match snd @@ Lwt_react.S.value progress with
@@ -69,31 +386,8 @@ let make_gtk_ui (slave:Python.slave) =
       Hashtbl.remove downloads id;
       slave#invoke "stop-monitoring" [`String id] Python.expect_null
 
-    method confirm_keys feed_url infos =
-      let pending_tasks = ref [] in
-
-      let handle_pending fingerprint votes =
-        let task =
-          lwt votes = votes in
-          slave#invoke "update-key-info" [`String fingerprint; `List (json_of_votes votes)] Python.expect_null in
-        pending_tasks := task :: !pending_tasks in
-
-      try_lwt
-        let json_infos = infos |> List.map (fun (fingerprint, votes) ->
-          let json_votes =
-            match Lwt.state votes with
-            | Lwt.Sleep -> handle_pending fingerprint votes; [`String "pending"]
-            | Lwt.Fail ex -> [`List [`String "bad"; `String (Printexc.to_string ex)]]
-            | Lwt.Return votes -> json_of_votes votes in
-          (fingerprint, `List json_votes)
-        ) in
-        slave#invoke "confirm-keys" [`String (Zeroinstall.Feed_url.format_url feed_url); `Assoc json_infos] (function
-          | `List confirmed_keys -> confirmed_keys |> List.map Yojson.Basic.Util.to_string
-          | _ -> raise_safe "Invalid response"
-        )
-      finally
-        !pending_tasks |> List.iter Lwt.cancel;
-        Lwt.return ()
+    (* TODO: pass ~parent (once we have one) *)
+    method confirm_keys feed_url infos = confirm_keys slave#config feed_url infos
 
     method confirm message =
       slave#invoke "confirm" [`String message] (function
@@ -105,7 +399,7 @@ let make_gtk_ui (slave:Python.slave) =
     method config = slave#config
     method invoke = slave#invoke
 
-    method use_gui = Some (self :> Python.slave)
+    method use_gui = Some (self :> Ui.gui_ui)
   end
 
 let string_of_ynm = function
@@ -113,7 +407,11 @@ let string_of_ynm = function
   | No -> "no"
   | Maybe -> "maybe"
 
+(* If this raises an exception, gui.ml will log it and continue without the GUI. *)
 let try_get_gtk_gui config use_gui =
+  (* Initializes GTK. *)
+  ignore (GMain.init ());
+
   let slave = new Zeroinstall.Python.slave config in
   if slave#invoke "check-gui" [`String (string_of_ynm use_gui)] Yojson.Basic.Util.to_bool |> Lwt_main.run then (
     Some (make_gtk_ui slave :> Ui.ui_handler)

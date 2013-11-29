@@ -12,7 +12,6 @@ external get_terminal_width : unit -> int = "ocaml_0install_get_terminal_width"
 
 type key_vote_type = Good | Bad
 type key_vote = (key_vote_type * string)
-type gui = Python.slave
 
 class type ui_handler =
   object
@@ -21,7 +20,12 @@ class type ui_handler =
     method stop_monitoring : filepath -> unit Lwt.t
     method confirm_keys : [`remote_feed of General.feed_url] -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
     method confirm : string -> [`ok | `cancel] Lwt.t
-    method use_gui : gui option
+    method use_gui : gui_ui option
+  end
+and gui_ui =
+  object
+    inherit ui_handler
+    inherit Python.slave
   end
 
 class console_ui =

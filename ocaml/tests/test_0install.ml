@@ -73,20 +73,8 @@ class fake_slave _config =
     output_string ch contents;
     `success |> Lwt.return in
 
-  let fake_slave ?xml request =
-    log_info "fake_slave: invoke: %s" (Yojson.Basic.to_string request);
-    ignore xml;
-    match request with
-    | `List [`String "confirm-keys"; `String _url] -> assert false
-    | `List [`String "unpack-archive"; `Assoc _] -> assert false
-    | `List [`String "wait-for-network"] -> Some (Lwt.return (`List [`String "ok"; `String "online"]))
-    | `List [`String "add-manifest-and-verify"; `String _required_digest; `String _tmpdir] ->
-        Some (Lwt.return (`List [`String "ok"; `Null]))
-    | _ -> None in
-
   object
     method install =
-      Zeroinstall.Python.slave_interceptor := fake_slave;
       Zeroinstall.Downloader.interceptor := Some handle_download
 
     method allow_download url contents =

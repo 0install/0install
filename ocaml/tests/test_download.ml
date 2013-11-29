@@ -42,14 +42,21 @@ let remove_cached config selections_path =
   assert (U.starts_with (Filename.basename stored) "sha1");
   U.rmtree ~even_if_locked:true config.system stored
 
+let make_fake_gui config =
+  object (self : #Zeroinstall.Ui.gui_ui)
+    inherit Fake_system.null_ui
+    inherit Zeroinstall.Python.slave config
+
+    method! use_gui = Some (self :> Zeroinstall.Ui.gui_ui)
+  end
+
 let install_interceptor system checked_for_gui =
   Zeroinstall.Gui.register_plugin (fun config use_gui ->
     assert (use_gui = Maybe);
     let have_gui = system#getenv "DISPLAY" <> Some "" in
     checked_for_gui := true;
     if have_gui then (
-      let slave = new Zeroinstall.Python.slave config in
-      Some (Gui_gtk.make_gtk_ui slave :> Zeroinstall.Ui.ui_handler)
+      Some (make_fake_gui config :> Zeroinstall.Ui.ui_handler)
     ) else (
       None
     )
@@ -58,10 +65,7 @@ let install_interceptor system checked_for_gui =
   Update.notify := (fun ~msg ~timeout:_ -> log_info "NOTIFY: 0install: %s" msg);
   (* Trigger a background update - no updates found *)
   Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
-    | `List [`String "wait-for-network"] -> Some (Lwt.return (`List [`String "ok"; `String "online"]))
     | `List ((`String "open-gui") :: _) -> raise Open_gui
-    | `List ((`String "unpack-archive") :: _) -> None
-    | `List ((`String "add-manifest-and-verify") :: _) -> None
     | json -> raise_safe "Unexpected slave request: %s" (Yojson.Basic.to_string json)
   )
 

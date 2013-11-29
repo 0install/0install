@@ -28,6 +28,14 @@ let crash_handler system crash_dir entries =
   );
   Printf.fprintf stderr "(wrote crash logs to %s)\n" log_file
 
+IFNDEF WINDOWS THEN
+let () =
+  (* Install Lwt<->Glib integration in case we need the GUI. *)
+  (* Using lwt_into_glib mode hangs; see https://github.com/ocsigen/lwt/issues/25.
+   * XXX: Does glib_into_lwt work on OS X? *)
+  Lwt_glib.install ~mode:`glib_into_lwt ()
+ENDIF
+
 let main (system:system) : unit =
   system#getenv "ZEROINSTALL_CRASH_LOGS" |> if_some (fun dir -> Support.Logging.set_crash_logs_handler (crash_handler system dir));
   match Array.to_list system#argv with

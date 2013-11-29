@@ -61,7 +61,7 @@ they are new enough). For example, on Debian:
     $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev \
        libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev libounit-ocaml-dev \
        python-gobject libextlib-ocaml-dev libcurl-ocaml-dev libssl-ocaml-dev \
-       libobus-ocaml-dev liblablgtk2-ocaml-dev
+       libobus-ocaml-dev liblablgtk2-ocaml-dev liblwt-glib-ocaml-dev
 
 Either way, build and install by running this command in the top-level directory:
 

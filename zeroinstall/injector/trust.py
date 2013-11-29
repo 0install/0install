@@ -29,20 +29,6 @@ class TrustDB(object):
 		self.watchers = []
 		self._dry_run = False
 	
-	def is_trusted(self, fingerprint, domain = None):
-		"""@type fingerprint: str
-		@type domain: str | None
-		@rtype: bool"""
-		self.ensure_uptodate()
-
-		domains = self.keys.get(fingerprint, None)
-		if not domains: return False	# Unknown key
-
-		if domain is None:
-			return True		# Deprecated
-
-		return domain in domains or '*' in domains
-	
 	def get_trust_domains(self, fingerprint):
 		"""Return the set of domains in which this key is trusted.
 		If the list includes '*' then the key is trusted everywhere.

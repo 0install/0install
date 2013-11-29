@@ -645,7 +645,7 @@ let stability_policy config uri =
  * If Yes, uses the GUI or throws an exception.
  * [test_callback] is used if the user clicks on the test button in the bug report dialog.
  *)
-let get_selections_gui (slave:Python.slave) (driver:Driver.driver) ?test_callback ?(systray=false) mode reqs ~refresh =
+let get_selections_gui (slave:Ui.gui_ui) (driver:Driver.driver) ?test_callback ?(systray=false) mode reqs ~refresh =
   let config = driver#config in
   let distro = driver#distro in
   let fetcher = driver#fetcher in
@@ -881,7 +881,10 @@ let try_get_gui config ~use_gui =
           | Some plugin_path ->
               try
                 Dynlink.loadfile plugin_path;
-              with ex ->
+              with
+              | Dynlink.Error ex ->
+                log_warning "Failed to load GTK GUI plugin: %s" (Dynlink.error_message ex)
+              | ex ->
                 log_warning ~ex "Failed to load GTK GUI plugin"
         );
 

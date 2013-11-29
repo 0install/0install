@@ -15,7 +15,6 @@ import os
 import tempfile
 
 from zeroinstall.support import find_in_path, basedir
-from zeroinstall.injector.trust import trust_db
 from zeroinstall.injector.model import SafeException
 
 _gnupg_options = None
@@ -62,12 +61,6 @@ class ValidSig(Signature):
 	def __str__(self):
 		"""@rtype: str"""
 		return "Valid signature from " + self.status[self.FINGERPRINT]
-	
-	def is_trusted(self, domain = None):
-		"""Asks the L{trust.trust_db}.
-		@type domain: str | None
-		@rtype: bool"""
-		return trust_db.is_trusted(self.status[self.FINGERPRINT], domain)
 	
 	def get_timestamp(self):
 		"""Get the time this signature was made.

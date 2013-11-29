@@ -118,61 +118,6 @@ def handle_message(config, options, message):
 	else:
 		assert 0, message
 
-PendingFromOCaml = collections.namedtuple("PendingFromOCaml", ["url", "sigs"])
-
-class OCamlKeyInfo:
-	info = []
-	blocker = None
-	status = "Fetching key information ..."
-
-pending_key_info = {}		# Fingerprint -> OCamlKeyInfo
-
-@tasks.async
-def do_update_key_info(config, ticket, fingerprint, votes):
-	try:
-		ki = pending_key_info.get(fingerprint, None)
-		if ki:
-			ki.info = votes
-			ki.blocker.trigger()
-			ki.blocker = None
-		else:
-			logger.info("Unexpected key info for %s (not in %s)", fingerprint, pending_key_info)
-	except Exception as ex:
-		logger.warning("do_update_key_info", exc_info = True)
-		send_json(["return", ticket, ["error", str(ex)]])
-
-@tasks.async
-def do_confirm_keys(config, ticket, url, infos):
-	try:
-		config = gui_driver.config
-		fingerprints = []
-		pending = PendingFromOCaml(url = url, sigs = [])
-
-		global pending_key_info
-		pending_key_info = {}
-		key_infos = {}
-		for fingerprint, result in infos.items():
-			fingerprints.append(fingerprint)
-			sig = gpg.ValidSig([fingerprint, None, 0])
-			ki = OCamlKeyInfo()
-			if result == ['pending']:
-				ki.blocker = tasks.Blocker("Getting info for key '%s'" % fingerprint)
-			else:
-				ki.info = result
-			key_infos[sig] = ki
-			pending_key_info[fingerprint] = ki
-
-		confirmed_keys = []
-		blocker = config.handler.confirm_import_feed(pending, key_infos, confirmed_keys)
-		if blocker:
-			yield blocker
-			tasks.check(blocker)
-
-		send_json(["return", ticket, ["ok", confirmed_keys]])
-	except Exception as ex:
-		logger.warning("do_confirm_keys", exc_info = True)
-		send_json(["return", ticket, ["error", str(ex)]])
-
 class OCamlDownload:
 	url = None
 	hint = None
@@ -372,12 +317,6 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'confirm':
 			do_confirm(config, ticket, options, request[1])
 			return
-		elif command == 'confirm-keys':
-			do_confirm_keys(config, ticket, request[1], request[2])
-			return	# async
-		elif command == 'update-key-info':
-			do_update_key_info(config, ticket, request[1], request[2])
-			return	# async
 		elif command == 'start-monitoring':
 			response = do_start_monitoring(config, request[1])
 		elif command == 'set-progress':

@@ -16,16 +16,22 @@ let rec waitpid_non_intr pid =
   try Unix.waitpid [] pid
   with Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr pid
 
-let get_version package =
-  let c_out, c_in, c_err = Unix.open_process_full ("ocamlfind query -format %v " ^ package) (Unix.environment ()) in
-  let version =
+type details = {
+  version : string;
+  dir : string;
+}
+
+let get_info package =
+  let c_out, c_in, c_err = Unix.open_process_full ("ocamlfind query -format '%v\n%d' " ^ package) (Unix.environment ()) in
+  let info =
     try
-      let v = input_line c_out in
+      let version = input_line c_out in
+      let dir = input_line c_out in
       (* Printf.printf "version(%s) = %s\n" package v; *)
-      if v = "" then None else Some v
+      if version = "" then None else Some {version; dir}
     with End_of_file -> None in
   match Unix.close_process_full (c_out, c_in, c_err) with
-  | Unix.WEXITED 0 -> version
+  | Unix.WEXITED 0 -> info
   | _ -> None
 
 let () =
@@ -42,23 +48,24 @@ let () =
   let use_dbus =
     if on_windows then false
     else (
-      match get_version "obus" with
+      match get_info "obus" with
       | Some _ -> true
       | None ->
           print_endline "obus not found; compiling without D-BUS support";
           false
     ) in
 
-  let use_ounit = get_version "oUnit" <> None in
+  let use_ounit = get_info "oUnit" <> None in
 
   if use_ounit then
     native_targets := "tests/test.native" :: !native_targets
   else
     print_endline "oUnit not found; not building unit-tests";
 
-  begin match get_version "lablgtk2" with
-  | None -> print_endline "lablgtk2 not found; not building GTK GUI plugin";
-  | Some _ -> native_targets := "gui_gtk.cmxs" :: !native_targets end;
+  let gtk_dir =
+    match get_info "lablgtk2" with
+    | None -> print_endline "lablgtk2 not found; not building GTK GUI plugin"; None
+    | Some {version=_; dir} -> native_targets := "gui_gtk.cmxs" :: !native_targets; Some dir in
 
   let to_byte name =
     if Pathname.check_extension name "native" then Pathname.update_extension "byte" name
@@ -82,6 +89,12 @@ let () =
 
     pdep ["link"] "linkdep_win" (fun param -> if on_windows then [param] else []);
     pdep ["link"] "link" (fun param -> [param]);
+
+    begin match gtk_dir with
+    | Some gtk_dir ->
+        flag ["library"; "native"; "link_gtk"] (S [A (gtk_dir / "lablgtk.cmxa")]);
+        flag ["library"; "byte"; "link_gtk"] (S [A (gtk_dir / "lablgtk.cma")]);
+    | None -> () end;
 
     (* We use mypp rather than camlp4of because if you pass -pp and -ppopt to ocamlfind
        then it just ignores the ppopt. So, we need to write the -pp option ourselves. *)
