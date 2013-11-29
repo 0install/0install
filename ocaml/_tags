@@ -1,7 +1,7 @@
 false: profile
 true: debug, annot, package(yojson,xmlm,str,lwt,lwt.unix,lwt.react,lwt.preemptive,extlib,curl,ssl,dynlink), thread
 <tests/*>: package(oUnit)
-<slave.ml> or <update.ml>: syntax(camlp4o), package(lwt.syntax)
+<gui_gtk.ml> or <slave.ml> or <update.ml>: syntax(camlp4o), package(lwt.syntax)
 true: strict_sequence
 
 "support": for-pack(Support)

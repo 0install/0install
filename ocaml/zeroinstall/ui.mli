@@ -37,4 +37,3 @@ class type ui_handler =
 
 class console_ui : ui_handler
 class batch_ui : ui_handler
-class gui_ui : Python.slave -> ui_handler

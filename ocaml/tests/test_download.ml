@@ -49,7 +49,7 @@ let install_interceptor system checked_for_gui =
     checked_for_gui := true;
     if have_gui then (
       let slave = new Zeroinstall.Python.slave config in
-      Some (new Zeroinstall.Ui.gui_ui slave)
+      Some (new Gui_gtk.gui_ui slave)
     ) else (
       None
     )
