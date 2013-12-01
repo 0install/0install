@@ -67,5 +67,9 @@ let suite = "utils">::: [
     check "/home/bob/in-bob" "/home/bob/missing/../in-bob";
     check "/home/in-fred" "/home/bob/to-fred/../in-fred";
     check "/home" "..";
-  )
+  );
+
+  "slice">:: (fun () ->
+    equal_str_lists ["d"] @@ slice ~start:3 ~stop:4 ["a";"b";"c";"d"]
+  );
 ]

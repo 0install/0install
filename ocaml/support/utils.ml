@@ -341,7 +341,7 @@ let slice ~start ?stop lst =
         | i -> match lst with
             | [] -> failwith "list too short"
             | (x::xs) -> x :: take xs (i - 1)
-      in take lst (stop - start)
+      in take from_start (stop - start)
 
 let print (system:system) =
   let do_print msg = system#print_string (msg ^ "\n") in
