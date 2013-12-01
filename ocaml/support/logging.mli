@@ -6,6 +6,10 @@
 
 type level = Debug | Info | Warning
 
+type time = float
+
+type entry = time * exn option * level * string
+
 val string_of_level : level -> string
 
 val threshold : level ref
@@ -38,3 +42,12 @@ val log_info : ?ex:exn -> ('a, unit, string, unit) format4 -> 'a
 val log_warning  : ?ex:exn -> ('a, unit, string, unit) format4 -> 'a
 
 val format_argv_for_logging : string list -> string
+
+(** If set, record all log messages (at all levels) in memory and dump to this directory
+ * on error. Useful for tracking down intermittent bugs. *)
+val set_crash_logs_handler : (entry list -> unit) -> unit
+
+(** Dump all recorded log entries to the crash handler set with [set_crash_handler].
+ * If there is no handler, or the log is empty, does nothing. This is called automatically
+ * after logging at level Warning. *)
+val dump_crash_log : ?ex:exn -> unit -> unit

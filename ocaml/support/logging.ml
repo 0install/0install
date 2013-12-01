@@ -4,6 +4,28 @@
 
 type level = Debug | Info | Warning
 
+type time = float
+
+type entry = time * exn option * level * string
+
+type crash_log = {
+  crash_handler : entry list -> unit;
+  mutable entries : entry list;
+}
+
+let crash_log = ref None
+
+let set_crash_logs_handler crash_handler =
+  crash_log := Some { crash_handler; entries = [] }
+
+let dump_crash_log ?ex () =
+  match !crash_log with
+  | None | Some {entries = []; _} -> ()
+  | Some crash_log ->
+      crash_log.entries <- (Unix.gettimeofday (), ex, Warning, "Dumping crash log") :: crash_log.entries;
+      crash_log.crash_handler crash_log.entries;
+      crash_log.entries <- []
+
 let string_of_level = function
   | Debug -> "debug"
   | Info -> "info"
@@ -56,7 +78,13 @@ let handler = ref console_handler
 let log level ?ex =
   let do_log msg =
     if level >= !threshold then
-      !handler#handle ?ex level msg
+      !handler#handle ?ex level msg;
+
+    match !crash_log with
+    | None -> ()
+    | Some crash_log ->
+        crash_log.entries <- (Unix.gettimeofday (), ex, level, msg) :: crash_log.entries;
+        if level >= Warning then dump_crash_log ()
   in
   Printf.ksprintf do_log
 

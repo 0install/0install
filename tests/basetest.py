@@ -17,6 +17,8 @@ os.environ['HOME'] = '/home/idontexist'
 os.environ['LANGUAGE'] = 'C'
 os.environ['LANG'] = 'C'
 
+if 'ZEROINSTALL_CRASH_LOGS' in os.environ: del os.environ['ZEROINSTALL_CRASH_LOGS']
+
 sys.path.insert(0, '..')
 from zeroinstall.injector import qdom, namespaces
 from zeroinstall.injector import iface_cache, download, model, handler, reader, trust

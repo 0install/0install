@@ -5,8 +5,31 @@
 (** The main executable *)
 
 open Support.Common
+module U = Support.Utils
+
+let crash_handler system crash_dir entries =
+  U.makedirs system crash_dir 0o700;
+  let leaf =
+    let open Unix in
+    let t = gmtime (time ()) in
+    Printf.sprintf "%04d-%02d-%02dT%02d_%02dZ"
+      (1900 + t.tm_year)
+      (t.tm_mon + 1)
+      t.tm_mday
+      t.tm_hour
+      t.tm_min in
+  let log_file = crash_dir +/ leaf in
+  log_file |> system#with_open_out [Open_append; Open_creat] ~mode:0o600 (fun ch ->
+    entries |> List.rev |> List.iter (fun (time, ex, level, msg) ->
+      let time = U.format_time (Unix.gmtime time) in
+      Printf.fprintf ch "%s: %s: %s\n" time (Support.Logging.string_of_level level) msg;
+      ex |> if_some (fun ex -> Printexc.to_string ex |> Printf.fprintf ch "%s\n");
+    )
+  );
+  Printf.fprintf stderr "(wrote crash logs to %s)\n" log_file
 
 let main (system:system) : unit =
+  system#getenv "ZEROINSTALL_CRASH_LOGS" |> if_some (fun dir -> Support.Logging.set_crash_logs_handler (crash_handler system dir));
   match Array.to_list system#argv with
   | [] -> assert false
   | prog :: args ->

@@ -31,10 +31,11 @@ let handle_exceptions main args =
   try main args
   with
   | System_exit x -> exit x
-  | Safe_exception (msg, context) ->
+  | Safe_exception (msg, context) as ex ->
       Printf.eprintf "%s\n" msg;
       List.iter (Printf.eprintf "%s\n") (List.rev !context);
       Printexc.print_backtrace stderr;
+      Logging.dump_crash_log ~ex ();
       exit 1
   | ex ->
       output_string stderr (Printexc.to_string ex);
@@ -43,6 +44,7 @@ let handle_exceptions main args =
         output_string stderr "(hint: run with OCAMLRUNPARAM=b to get a stack-trace)\n"
       else
         Printexc.print_backtrace stderr;
+      Logging.dump_crash_log ~ex ();
       exit 1
 
 let rec first_match f = function
