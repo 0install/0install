@@ -43,16 +43,11 @@ INSTALLATION
 ------------
 
 0install is written in a mixture of Python and OCaml. You will need the OCaml
-build tools and some OCaml libraries to compile 0install. On Debian use:
+build tools and some OCaml libraries to compile 0install.
 
-    $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev \
-       libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev libounit-ocaml-dev \
-       python-gobject libextlib-ocaml-dev libcurl-ocaml-dev libssl-ocaml-dev \
-       libobus-ocaml-dev liblablgtk2-ocaml-dev
+The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com/):
 
-You can also get the dependencies using [OPAM](http://opam.ocamlpro.com/):
-
-    $ opam sw 4.00.1
+    $ opam sw 4.01.0
     $ eval `opam config env`
     $ opam install yojson xmlm ounit lwt extlib ssl ocurl obus lablgtk
 
@@ -60,7 +55,15 @@ You can also get the dependencies using [OPAM](http://opam.ocamlpro.com/):
 installing native packages using PackageKit, and using NetworkManager to check
 the network status before doing background updates. lablgtk provides a GTK GUI.)
 
-In the top-level directory, run:
+Alternatively, you can use your distribution's packages if you prefer (and if
+they are new enough). For example, on Debian:
+
+    $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev \
+       libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev libounit-ocaml-dev \
+       python-gobject libextlib-ocaml-dev libcurl-ocaml-dev libssl-ocaml-dev \
+       libobus-ocaml-dev liblablgtk2-ocaml-dev
+
+Either way, build and install by running this command in the top-level directory:
 
     $ make && sudo make install
 
@@ -118,7 +121,7 @@ If you want to compile from source on Windows you'll need to install quite a few
 Then, to build 0install under Cygwin:
 
     cd ocaml
-    make
+    make ocaml
 
 This creates the executables build/ocaml/install.exe and build/ocaml/0install-runenv.exe.
 If you'd like to make the top-level Makefile work on Windows so you can "make install", please
