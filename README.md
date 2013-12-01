@@ -180,7 +180,7 @@ tell you how to revert to the previous version:
 
 To see where things have been stored:
 
-    $ 0install select rox-edit
+    $ 0install show rox-edit
     - URI: http://rox.sourceforge.net/2005/interfaces/Edit
       Version: 2.2
       Path: /home/tal/.cache/0install.net/implementations/sha256=ba3b4953...c8ce3177f08c926bebafcf16b9
