@@ -34,6 +34,19 @@ let get_info package =
   | Unix.WEXITED 0 -> info
   | _ -> None
 
+let rec parse_version v =
+  try
+    try
+      let i = String.index v '.' in
+      let rest = String.sub v (i + 1) (String.length v - i - 1) in
+      int_of_string (String.sub v 0 i) :: parse_version rest
+    with Not_found ->
+      [int_of_string v]
+  with ex ->
+    Printf.fprintf stderr "Can't parse version '%s': %s\n" v (Printexc.to_string ex);
+    flush stderr;
+    []
+
 let () =
   let v = Sys.ocaml_version in
   let first_dot = String.index v '.' in
@@ -49,6 +62,10 @@ let () =
     if on_windows then false
     else (
       match get_info "obus" with
+      | Some {version;_} when parse_version version < [1;1;5] ->
+          (* Or you get: No implementations provided for the following modules: Toploop *)
+          print_endline "obus is too old (< 1.1.5); compiling without D-BUS support";
+          false
       | Some _ -> true
       | None ->
           print_endline "obus not found; compiling without D-BUS support";
@@ -92,8 +109,9 @@ let () =
 
     begin match gtk_dir with
     | Some gtk_dir ->
-        flag ["library"; "native"; "link_gtk"] (S [A (gtk_dir / "lablgtk.cmxa")]);
-        flag ["library"; "byte"; "link_gtk"] (S [A (gtk_dir / "lablgtk.cma")]);
+        (* ("-thread" is needed on Ubuntu 13.04 for some reason, even though it's in the _tags too) *)
+        flag ["library"; "native"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cmxa")]);
+        flag ["library"; "byte"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cma")]);
     | None -> () end;
 
     (* We use mypp rather than camlp4of because if you pass -pp and -ppopt to ocamlfind
