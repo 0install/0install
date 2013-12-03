@@ -19,8 +19,6 @@ val get_selections_gui :
 
 val download_icon : General.config -> Downloader.downloader -> Feed_provider.feed_provider -> Feed_url.non_distro_feed -> unit Lwt.t
 
-val register_preferences_handlers : General.config -> unit
-
 (** Should we use the GUI?
  * The input says what the user requested:
  * No -> we never want to use the GUI

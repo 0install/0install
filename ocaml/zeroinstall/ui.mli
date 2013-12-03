@@ -36,6 +36,9 @@ and gui_ui =
   object
     inherit ui_handler
     inherit Python.slave
+    
+    (** Display the Preferences dialog. Resolves when dialog is closed. *)
+    method show_preferences : unit Lwt.t
   end
 
 

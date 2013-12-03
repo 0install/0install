@@ -85,8 +85,7 @@ class MainWindow(object):
 			elif resp == gtk.RESPONSE_HELP:
 				gui_help.display()
 			elif resp == SHOW_PREFERENCES:
-				from zeroinstall.gui import preferences, main
-				preferences.show_preferences(driver.config, notify_cb = main.recalculate)
+                                slave.invoke_master(["show-preferences"])
 		self.window.connect('response', response)
 		self.window.realize()	# Make busy pointer work, even with --systray
 

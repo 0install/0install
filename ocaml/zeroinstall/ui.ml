@@ -26,6 +26,8 @@ and gui_ui =
   object
     inherit ui_handler
     inherit Python.slave
+
+    method show_preferences : unit Lwt.t
   end
 
 class console_ui =

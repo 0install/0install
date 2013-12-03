@@ -47,6 +47,7 @@ let make_fake_gui config =
     inherit Fake_system.null_ui
     inherit Zeroinstall.Python.slave config
 
+    method show_preferences = failwith "show_preferences"
     method! use_gui = Some (self :> Zeroinstall.Ui.gui_ui)
   end
 

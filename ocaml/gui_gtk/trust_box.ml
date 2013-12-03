@@ -146,11 +146,10 @@ let frame ~title ~content (parent:GPack.box) =
   frame#add (content :> GObj.widget);
   parent#pack (frame :> GObj.widget) ~expand:false ~fill:true
 
-let confirm_keys config ?parent feed_url valid_sigs =
+let confirm_keys config trust_db ?parent feed_url valid_sigs =
   assert (valid_sigs <> []);
   let n_sigs = List.length valid_sigs in
   let `remote_feed url = feed_url in
-  let trust_db = new Zeroinstall.Trust.trust_db config in
 
   lwt key_names = valid_sigs |> List.map fst |> G.load_keys config.system in
 

@@ -16,10 +16,16 @@ module TRUST_NS = struct
 end
 module TRUST = Support.Qdom.NsQuery (TRUST_NS)
 
+class type watcher =
+  object
+    method notify : unit
+  end
+
 (** A database of trusted keys. *)
 class trust_db config =
   (** In dry_run mode, we don't save the database to disk, so we need to store any changes in memory. *)
   let dry_run_db = ref None in
+  let watchers = ref [] in
 
   let get_db () =
     (* This is a bit inefficient... (could cache things) *)
@@ -64,7 +70,8 @@ class trust_db config =
 
       db_file |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
         Q.output (`Channel ch |> Xmlm.make_output) root;
-      )
+      );
+      !watchers |> List.iter (fun (obj:watcher) -> obj#notify);
     ) in
 
   object
@@ -142,6 +149,10 @@ class trust_db config =
         | G.BadSig _ | G.ErrSig _ -> ()
       );
       !oldest
+
+    method add_watcher obj =
+      watchers := obj :: !watchers;
+      fun () -> watchers := !watchers |> List.filter ((!=) obj)
   end
 
 let re_domain = Str.regexp "^https?://\\([^/]*@\\)?\\([^*/]+\\)/"

@@ -20,39 +20,6 @@ let gui_plugin = ref None
 let register_plugin fn =
   gui_plugin := Some fn
 
-let register_preferences_handlers config =
-  Python.register_handler "list-keys" (function
-    | [] ->
-        let trust_db = new Trust.trust_db config in
-        let domains_of_key = trust_db#get_db in
-
-        let fingerprints = domains_of_key |> StringMap.map_bindings (fun key _domains -> key) in
-        lwt key_info = G.load_keys config.system fingerprints in
-        let key_info = key_info |> StringMap.map_bindings (fun key info ->
-          match info.G.name with
-          | None -> (key, `Null)
-          | Some name -> (key, `String name)
-        ) in
-
-        let keys_of_domain = ref StringMap.empty in
-        domains_of_key |> StringMap.iter (fun key domains ->
-          domains |> StringSet.iter (fun domain ->
-            let keys = default [] @@ StringMap.find domain !keys_of_domain in
-            keys_of_domain := !keys_of_domain |> StringMap.add domain (`String key :: keys)
-          )
-        );
-        let results = !keys_of_domain |> StringMap.map_bindings (fun domain keys -> (domain, `List keys)) in
-        Lwt.return (`List [`Assoc (List.rev results); `Assoc key_info])
-    | json -> raise_safe "untrust-key: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-  Python.register_handler "untrust-key" (function
-    | [`String fingerprint; `String domain] ->
-        let trust_db = new Trust.trust_db config in
-        trust_db#untrust_key fingerprint ~domain;
-        Lwt.return `Null
-    | json -> raise_safe "untrust-key: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  )
-
 let get_impl (feed_provider:Feed_provider.feed_provider) sel =
   let {Feed.id; Feed.feed = from_feed} = Selections.get_id sel in
 
@@ -645,7 +612,7 @@ let stability_policy config uri =
  * If Yes, uses the GUI or throws an exception.
  * [test_callback] is used if the user clicks on the test button in the bug report dialog.
  *)
-let get_selections_gui (slave:Ui.gui_ui) (driver:Driver.driver) ?test_callback ?(systray=false) mode reqs ~refresh =
+let get_selections_gui (gui:Ui.gui_ui) (driver:Driver.driver) ?test_callback ?(systray=false) mode reqs ~refresh =
   let config = driver#config in
   let distro = driver#distro in
   let fetcher = driver#fetcher in
@@ -667,14 +634,14 @@ let get_selections_gui (slave:Ui.gui_ui) (driver:Driver.driver) ?test_callback ?
         Python.async (fun () ->
           let sels = new_results#get_selections in
           let tree = build_tree config new_fp original_selections sels in
-          slave#invoke ~xml:sels "gui-update-selections" [`Bool ready; tree] ignore
+          gui#invoke ~xml:sels "gui-update-selections" [`Bool ready; tree] ignore
         )
 
       method report feed_url msg =
         Python.async (fun () ->
           let msg = Printf.sprintf "Feed '%s': %s" (Feed_url.format_url feed_url) msg in
           log_info "Sending error to GUI: %s" msg;
-          slave#invoke "report-error" [`String msg] ignore
+          gui#invoke "report-error" [`String msg] ignore
         )
     end in
 
@@ -729,7 +696,10 @@ let get_selections_gui (slave:Ui.gui_ui) (driver:Driver.driver) ?test_callback ?
     | json -> raise_safe "download-icon: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
-  register_preferences_handlers config;
+  Python.register_handler "show-preferences" (function
+    | [] -> gui#show_preferences >> Lwt.return `Null
+    | json -> raise_safe "show-preferences: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
 
   Python.register_handler "gui-compile" (function
     | [`String iface; `Bool autocompile] -> compile config !feed_provider iface ~autocompile
@@ -828,7 +798,7 @@ let get_selections_gui (slave:Ui.gui_ui) (driver:Driver.driver) ?test_callback ?
   );
 
   lwt () =
-    slave#invoke "open-gui" [`String reqs.Requirements.interface_uri; opts] (function
+    gui#invoke "open-gui" [`String reqs.Requirements.interface_uri; opts] (function
       | `List [] -> ()
       | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json)
     ) in
@@ -837,7 +807,7 @@ let get_selections_gui (slave:Ui.gui_ui) (driver:Driver.driver) ?test_callback ?
   let rec loop force =
     lwt (ready, results, _feed_provider) = driver#solve_with_downloads ~watcher reqs ~force ~update_local:true in
     lwt response =
-      slave#invoke "run-gui" [] (function
+      gui#invoke "run-gui" [] (function
         | `List [`String "ok"] -> assert ready; `Success results#get_selections
         | `List [`String "cancel"] -> `Aborted_by_user
         | `List [`String "recalculate"; `Bool force] -> `Recalculate force

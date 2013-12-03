@@ -24,7 +24,11 @@ let make_gtk_ui (slave:Python.slave) =
       | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
     ) in
 
+  let trust_db = new Zeroinstall.Trust.trust_db slave#config in
+
   object (self : Zeroinstall.Ui.gui_ui)
+    val mutable preferences_dialog = None
+
     method start_monitoring ~cancel ~url ~progress ?hint ~id =
       let size =
         match snd @@ Lwt_react.S.value progress with
@@ -58,7 +62,18 @@ let make_gtk_ui (slave:Python.slave) =
       slave#invoke "stop-monitoring" [`String id] Python.expect_null
 
     (* TODO: pass ~parent (once we have one) *)
-    method confirm_keys feed_url infos = Trust_box.confirm_keys slave#config feed_url infos
+    method confirm_keys feed_url infos = Trust_box.confirm_keys slave#config trust_db feed_url infos
+
+    method show_preferences =
+      match preferences_dialog with
+      | Some (dialog, result) -> dialog#present (); result
+      | None ->
+          let recalculate () = Python.async (fun () -> slave#invoke "gui-recalculate" [] Python.expect_null) in
+          let dialog, result = Preferences_box.show_preferences slave#config trust_db ~recalculate in
+          preferences_dialog <- Some (dialog, result);
+          dialog#show ();
+          Python.async (fun () -> result >> (preferences_dialog <- None; Lwt.return ()));
+          result
 
     method confirm message =
       slave#invoke "confirm" [`String message] (function

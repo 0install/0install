@@ -66,21 +66,6 @@ def do_confirm(config, ticket, options, message):
 		logger.warning("Returning error", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
 
-@tasks.async
-def do_run_preferences(config, ticket):
-	try:
-		from zeroinstall.gui import preferences
-		box = preferences.show_preferences(config)
-		done = tasks.Blocker('close preferences')
-		box.connect('destroy', lambda w: done.trigger())
-		yield done
-		tasks.check(done)
-
-		send_json(["return", ticket, ["ok", None]])
-	except Exception as ex:
-		logger.warning("Returning error", exc_info = True)
-		send_json(["return", ticket, ["error", str(ex)]])
-
 last_ticket = 0
 def take_ticket():
 	global last_ticket
@@ -291,6 +276,10 @@ def handle_invoke(config, options, ticket, request):
 		logger.debug("Got request '%s'", command)
 		if command == 'open-gui':
 			response = do_open_gui(request[1:])
+		elif command == 'gui-recalculate':
+			from zeroinstall.gui import main
+			main.recalculate()
+			response = None
 		elif command == 'ping':
 			response = None
 		elif command == 'open-cache-explorer':
@@ -323,9 +312,6 @@ def handle_invoke(config, options, ticket, request):
 			response = do_set_progress(config, *request[1:])
 		elif command == 'stop-monitoring':
 			response = do_stop_monitoring(config, request[1])
-		elif command == 'run-preferences':
-			do_run_preferences(config, ticket)
-			return
 		else:
 			raise SafeException("Internal error: unknown command '%s'" % command)
 		response = ['ok', response]
