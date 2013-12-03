@@ -1,11 +1,12 @@
 false: profile
 true: debug, annot, package(yojson,xmlm,str,lwt,lwt.unix,lwt.react,lwt.preemptive,extlib,curl,ssl,dynlink,lwt.glib), thread, linkall
 <tests/*>: package(oUnit)
-<gui_gtk.ml> or <slave.ml> or <update.ml>: syntax(camlp4o), package(lwt.syntax)
+<slave.ml> or <update.ml>: syntax(camlp4o), package(lwt.syntax)
 <gui_gtk.*>: package(lablgtk2), link_gtk
 true: strict_sequence
 
 <main.ml>: mypp
 "support": for-pack(Support)
-"zeroinstall": for-pack(Support)
+"zeroinstall": for-pack(Zeroinstall)
+"gui_gtk": for-pack(Gui_gtk)
 <static_0install.*> or <**/*.native>: linkdep_win(windows.o), package(unix), link(utils.o)

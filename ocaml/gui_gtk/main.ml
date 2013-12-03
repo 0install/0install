@@ -13,64 +13,6 @@ module Trust = Zeroinstall.Trust
 module G = Support.Gpg
 module U = Support.Utils
 
-let make_help_box title sections =
-  object
-    val mutable dialog = None
-
-    method display =
-      dialog |> if_some (fun box -> box#destroy ());
-      let box = GWindow.dialog
-        ~title
-        ~no_separator:true
-        ~position:`CENTER
-        () in
-      dialog <- Some box;
-
-      let swin = GBin.scrolled_window
-        ~hpolicy:`AUTOMATIC
-        ~vpolicy:`ALWAYS
-        ~shadow_type:`IN
-        ~border_width:2
-        () in
-
-      box#vbox#pack (swin :> GObj.widget) ~expand:true ~fill:true;
-
-      let text = GText.view
-        ~wrap_mode:`WORD
-        ~editable:false
-        ~cursor_visible:false
-        () in
-      text#set_left_margin 4;
-      text#set_right_margin 4;
-
-      let model = text#buffer in
-      let iter = model#start_iter in
-      let heading_style = model#create_tag [`UNDERLINE `SINGLE; `SCALE `LARGE] in
-
-      let first = ref true in
-      sections |> List.iter (fun (heading, body) ->
-        if !first then (
-          first := false
-        ) else (
-          model#insert ~iter "\n\n";
-        );
-        model#insert ~iter ~tags:[heading_style] heading;
-        model#insert ~iter ("\n" ^ body);
-      );
-      swin#add (text :> GObj.widget);
-
-      box#add_button_stock `CLOSE `CLOSE;
-      box#connect#response ~callback:(function
-        | `CLOSE | `DELETE_EVENT -> box#destroy ()
-      ) |> ignore;
-      box#connect#destroy ~callback:(fun () -> dialog <- None) |> ignore;
-      box#set_default_response `CLOSE;
-      box#set_default_size
-        ~width:(Gdk.Screen.width () / 4)
-        ~height:(Gdk.Screen.height () / 3);
-      box#show ()
-  end
-
 let left text =
   GMisc.label ~text ~selectable:true ~xalign:0.0 ~yalign:0.5
 
@@ -125,7 +67,7 @@ let make_hints_area result hints =
 
   box
 
-let confirm_keys_help = make_help_box "Trust Help" [
+let confirm_keys_help = Help_box.create "Trust Help" [
 ("Overview",
 "When you run a program, it typically has access to all your files and can generally do \
 anything that you're allowed to do (delete files, send emails, etc). So it's important \
