@@ -126,6 +126,13 @@ let () =
       if on_windows then A"-DWINDOWS" :: defines_portable
       else defines_portable in
 
+    if not on_windows then (
+      let add_glib tag =
+        flag ["ocaml"; tag] (S[A"-package"; A "lwt.glib"]);
+        flag ["ocaml"; tag] (S[A"-package"; A "dynlink"]) in
+      List.iter add_glib ["compile"; "ocamldep"; "doc"; "link"; "infer_interface"]
+    );
+
     flag ["native";"ocaml";"pp";"mypp"] (S (A "camlp4of" :: defines_native));
     flag ["byte";"ocaml";"pp";"mypp"] (S (A "camlp4of" :: defines_portable));
 
