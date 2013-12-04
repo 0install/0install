@@ -7,11 +7,11 @@ The B{0install slave} command-line interface.
 
 from __future__ import print_function
 
-import sys, os, collections
+import sys, os
 
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, qdom, download, gpg
+from zeroinstall.injector import model, qdom, download
 from zeroinstall.support import tasks
 from zeroinstall import support
 

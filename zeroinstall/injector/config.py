@@ -66,24 +66,6 @@ class Config(object):
 			self._handler = handler.Handler()
 		return self._handler
 
-	def save_globals(self):
-		"""Write global settings."""
-		parser = ConfigParser.ConfigParser()
-		parser.add_section('global')
-
-		parser.set('global', 'help_with_testing', str(self.help_with_testing))
-		parser.set('global', 'network_use', self.network_use)
-		parser.set('global', 'freshness', str(self.freshness))
-		parser.set('global', 'auto_approve_keys', str(self.auto_approve_keys))
-		if self.key_info_server != DEFAULT_KEY_LOOKUP_SERVER:
-			parser.set('global', 'key_info_server', str(self.key_info_server) if self.key_info_server is not None else "")
-
-		path = basedir.save_config_path(config_site, config_prog)
-		path = os.path.join(path, 'global')
-		with open(path + '.new', 'wt') as stream:
-			parser.write(stream)
-		support.portable_rename(path + '.new', path)
-
 def load_config(handler = None):
 	"""@type handler: L{zeroinstall.injector.handler.Handler} | None
 	@rtype: L{Config}"""

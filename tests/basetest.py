@@ -21,7 +21,7 @@ if 'ZEROINSTALL_CRASH_LOGS' in os.environ: del os.environ['ZEROINSTALL_CRASH_LOG
 
 sys.path.insert(0, '..')
 from zeroinstall.injector import qdom, namespaces
-from zeroinstall.injector import iface_cache, download, model, handler, reader, trust
+from zeroinstall.injector import iface_cache, download, model, handler, reader
 from zeroinstall import support, cmd
 from zeroinstall.support import basedir
 
@@ -108,7 +108,6 @@ class TestConfig:
 	def __init__(self):
 		self.iface_cache = iface_cache.IfaceCache()
 		self.handler = DummyHandler()
-		self.trust_db = trust.trust_db
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):
@@ -150,10 +149,6 @@ class BaseTest(unittest.TestCase):
 		os.environ['PATH'] = self.config_home + ':' + dpkgdir + ':' + self.old_path
 
 		my_dbus.system_services = {}
-
-		trust.trust_db.watchers = []
-		trust.trust_db.keys = None
-		trust.trust_db._dry_run = False
 
 	def tearDown(self):
 		if self.config.handler.ex:

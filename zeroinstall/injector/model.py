@@ -57,13 +57,6 @@ class InvalidInterface(SafeException):
 		else:
 			return support.unicode(SafeException.__str__(self))
 
-def _join_arch(osys, machine):
-	"""@type osys: str
-	@type machine: str
-	@rtype: str"""
-	if osys == machine == None: return None
-	return "%s-%s" % (osys or '*', machine or '*')
-
 def _best_language_match(options):
 	"""@type options: {str: str}
 	@rtype: str"""

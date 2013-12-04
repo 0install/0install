@@ -12,13 +12,9 @@ To do this, you supply a L{Handler} to the L{policy}.
 
 from __future__ import print_function
 
-from zeroinstall import _, logger
-import sys
+from zeroinstall import logger
 
-from zeroinstall import SafeException
-from zeroinstall import support
 from zeroinstall.support import tasks
-from zeroinstall.injector import download
 
 class Handler(object):
 	"""
