@@ -26,8 +26,12 @@ let make_gtk_ui (slave:Python.slave) =
 
   let trust_db = new Zeroinstall.Trust.trust_db slave#config in
 
+  let recalculate () = Python.async (fun () -> slave#invoke "gui-recalculate" [] Python.expect_null) in
+
   object (_ : Zeroinstall.Gui.gui_ui)
     val mutable preferences_dialog = None
+    val mutable component_boxes = StringMap.empty
+    val mutable last_update = None
 
     method start_monitoring ~cancel ~url ~progress ?hint ~id =
       let size =
@@ -68,12 +72,27 @@ let make_gtk_ui (slave:Python.slave) =
       match preferences_dialog with
       | Some (dialog, result) -> dialog#present (); result
       | None ->
-          let recalculate () = Python.async (fun () -> slave#invoke "gui-recalculate" [] Python.expect_null) in
           let dialog, result = Preferences_box.show_preferences slave#config trust_db ~recalculate in
           preferences_dialog <- Some (dialog, result);
           dialog#show ();
           Python.async (fun () -> result >> (preferences_dialog <- None; Lwt.return ()));
           result
+
+    method show_component ~driver iface ~select_versions_tab =
+      match StringMap.find iface component_boxes with
+      | Some box -> box#dialog#present ()
+      | None ->
+          let box = Component_box.create slave#config trust_db driver iface ~recalculate ~select_versions_tab in
+          component_boxes <- component_boxes |> StringMap.add iface box;
+          box#dialog#connect#destroy ~callback:(fun () -> component_boxes <- component_boxes |> StringMap.remove iface) |> ignore;
+          last_update |> if_some box#update;
+          box#dialog#show ()
+
+    method update reqs results : unit =
+      last_update <- Some (reqs, results);
+      component_boxes |> StringMap.iter (fun _iface box ->
+        box#update (reqs, results)
+      )
 
     method confirm message =
       slave#invoke "confirm" [`String message] (function

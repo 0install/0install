@@ -25,8 +25,9 @@ class type gui_ui =
     inherit Ui.ui_handler
     inherit Python.slave
     
-    (** Display the Preferences dialog. Resolves when dialog is closed. *)
     method show_preferences : unit Lwt.t
+    method show_component : driver:Driver.driver -> General.iface_uri -> select_versions_tab:bool -> unit
+    method update : Requirements.requirements -> ((bool * Solver.result) * Feed_provider.feed_provider) -> unit
   end
 
 type ui_type =
@@ -65,37 +66,36 @@ let get_download_size info impl =
         | None -> log_info "Implementation %s has no usable retrieval methods!" (F.get_attr_ex FeedAttr.id impl); None
       )
 
-(* Returns (local-dir, fetch-size, fetch-tooltip) *)
 let get_fetch_info config impl =
   try
     match impl.F.impl_type with
-    | F.LocalImpl path -> (`String path, "(local)", path)
+    | F.LocalImpl path -> ("(local)", path)
     | F.CacheImpl info -> (
         match Stores.lookup_maybe config.system info.F.digests config.stores with
         | None ->
           begin match get_download_size info impl with
           | Some size ->
               let pretty = U.format_size size in
-              (`Null, pretty, Printf.sprintf "Need to download %s (%s bytes)" pretty (Int64.to_string size))
-          | None -> (`Null, "-", "No size") end;
-        | Some path -> (`String path, "(cached)", "This version is already stored on your computer.")
+              (pretty, Printf.sprintf "Need to download %s (%s bytes)" pretty (Int64.to_string size))
+          | None -> ("-", "No size") end;
+        | Some path -> ("(cached)", "This version is already stored on your computer:\n" ^ path)
     )
     | F.PackageImpl info ->
-        if info.F.package_installed then (`Null, "(package)", "This distribution-provided package is already installed.")
+        if info.F.package_installed then ("(package)", "This distribution-provided package is already installed.")
         else (
           let size =
             match info.F.retrieval_method with
             | None -> None
             | Some retrieval_method -> retrieval_method.F.distro_size |> pipe_some (fun s -> Some (Int64.to_float s)) in
           match size with
-          | None -> (`Null, "(install)", "No size information available for this download")
+          | None -> ("(install)", "No size information available for this download")
           | Some size ->
               let pretty = U.format_size (Int64.of_float size) in
-              (`Null, pretty, Printf.sprintf "Distribution package: need to download %s (%s bytes)" pretty (string_of_float size))
+              (pretty, Printf.sprintf "Distribution package: need to download %s (%s bytes)" pretty (string_of_float size))
         )
   with Safe_exception (msg, _) as ex ->
     log_warning ~ex "get_fetch_info";
-    (`Null, "ERROR", msg)
+    ("ERROR", msg)
 
 let first_para text =
   let first =
@@ -105,12 +105,6 @@ let first_para text =
     with Not_found -> text in
   Str.global_replace (Str.regexp_string "\n") " " first |> trim
 
-(** Try to guess whether we have source for this interface.
- * Returns true if we have any source-only feeds, or any source implementations
- * in our regular feeds. However, we don't look inside the source feeds (so a
- * source feed containing no implementations will still count as true).
- * This is used in the GUI to decide whether to shade the Compile button.
- *)
 let have_source_for feed_provider iface =
   let master_feed = Feed_url.master_feed_of_iface iface in
   let user_feeds = (feed_provider#get_iface_config iface).Feed_cache.extra_feeds in
@@ -204,7 +198,7 @@ let build_tree config (feed_provider:Feed_provider.feed_provider) old_sels sels 
 
             let {Feed.id; Feed.feed = from_feed} = Selections.get_id sel in
 
-            let (_dir, fetch_str, fetch_tip) = get_fetch_info config impl in
+            let (fetch_str, fetch_tip) = get_fetch_info config impl in
 
             `Assoc (
               ("type", `String "selected") ::
@@ -221,46 +215,7 @@ let build_tree config (feed_provider:Feed_provider.feed_provider) old_sels sels 
 
   process_tree @@ Tree.as_tree sels
 
-let string_of_feed_type =
-  let open Feed in
-  function
-  | Feed_import             -> "feed-import"
-  | User_registered         -> "user-registered"
-  | Site_packages           -> "site-packages"
-  | Distro_packages         -> "distro-packages"
-
-(** Return the feed list to display in the GUI's Feeds tab. *)
-let list_feeds feed_provider iface =
-  let iface_config = feed_provider#get_iface_config iface in
-  let extra_feeds = iface_config.Feed_cache.extra_feeds in
-
-  let master_feed = Feed_url.master_feed_of_iface iface in
-  let imported_feeds =
-    match feed_provider#get_feed master_feed with
-    | None -> []
-    | Some (feed, _overrides) -> feed.Feed.imported_feeds in
-
-  let main = Feed.({
-    feed_src = master_feed;
-    feed_os = None;
-    feed_machine = None;
-    feed_langs = None;
-    feed_type = Feed_import;
-  }) in
-
-  ListLabels.map (main :: (imported_feeds @ extra_feeds)) ~f:(fun feed ->
-    let arch =
-      match feed.F.feed_os, feed.F.feed_machine with
-      | None, None -> ""
-      | os, machine -> Arch.format_arch os machine in
-    `Assoc [
-      ("url", `String (Feed_url.format_url feed.F.feed_src));
-      ("arch", `String arch);
-      ("type", `String (string_of_feed_type feed.F.feed_type));
-    ]
-  )
-
-let list_impls config (results:Solver.result) iface =
+let list_impls (results:Solver.result) iface =
   let make_list ~source selected_impl =
     let candidates = results#impl_provider#get_implementations iface ~source in
 
@@ -271,50 +226,10 @@ let list_impls config (results:Solver.result) iface =
     let bad_impls = List.map (fun (i, prob) -> (i, Some prob)) candidates.rejects in
     let all_impls = List.sort by_version @@ good_impls @ bad_impls in
 
-    let impls =
-      `List (ListLabels.map all_impls ~f:(fun (impl, problem) ->
-        let impl_id = F.get_attr_ex FeedAttr.id impl in
-        let notes =
-          match problem with
-          | None -> "None"
-          | Some problem -> Impl_provider.describe_problem impl problem in
-        let from_feed = F.get_attr_ex FeedAttr.from_feed impl in
-        let overrides = Feed.load_feed_overrides config (Feed_url.parse from_feed) in
-        let user_stability =
-          try `String (F.format_stability @@ StringMap.find_nf impl_id overrides.F.user_stability)
-          with Not_found -> `Null in
-        let arch =
-          match impl.F.os, impl.F.machine with
-          | None, None -> "any"
-          | os, machine -> Arch.format_arch os machine in
-        let upstream_stability = F.get_attr_ex FeedAttr.stability impl in    (* (note: impl.stability is overall stability) *)
-        let (impl_dir, fetch, tooltip) = get_fetch_info config impl in
+    let selected_impl =
+      if selected_impl.F.parsed_version = Versions.dummy then None else Some selected_impl in
 
-        `Assoc [
-          ("from-feed", `String from_feed);
-          ("id", `String impl_id);
-          ("version", `String (F.get_attr_ex FeedAttr.version impl));
-          ("released", `String (default "-" @@ F.get_attr_opt FeedAttr.released impl.F.props.F.attrs));
-          ("fetch", `String fetch);
-          ("stability", `String upstream_stability);
-          ("user-stability", user_stability);
-          ("arch", `String arch);
-          ("langs", `String (default "-" @@ F.get_attr_opt FeedAttr.langs impl.F.props.F.attrs));
-          ("notes", `String notes);
-          ("tooltip", `String tooltip);
-          ("usable", `Bool (problem = None));
-          ("impl-dir", impl_dir);
-        ]
-      )) in
-
-    if selected_impl.F.parsed_version = Versions.dummy then
-      [ ("implementations", impls) ]
-    else
-      [
-        ("selected-feed", `String (F.get_attr_ex FeedAttr.from_feed selected_impl));
-        ("selected-id", `String (F.get_attr_ex FeedAttr.id selected_impl));
-        ("implementations", impls)
-      ] in
+    Some (selected_impl, all_impls) in
 
   let get_selected ~source =
     match results#impl_cache#peek (iface, source) with
@@ -333,21 +248,7 @@ let list_impls config (results:Solver.result) iface =
           (* We didn't look at this interface at all, so no information will be cached.
            * There's a risk of deadlock if we try to fetch distro candidates in the callback, so
            * we return nothing, which will cause the GUI to shade the dialog. *)
-          []
-
-let format_para para =
-  para |> Str.split (Str.regexp_string "\n") |> List.map trim |> String.concat " "
-
-let get_sigs config url =
-  match Feed_cache.get_cached_feed_path config url with
-  | None -> Lwt.return []
-  | Some cache_path ->
-      if config.system#file_exists cache_path then (
-        let xml = U.read_file config.system cache_path in
-        lwt sigs, warnings = Support.Gpg.verify config.system xml in
-        if warnings <> "" then log_info "get_last_modified: %s" warnings;
-        Lwt.return sigs
-      ) else Lwt.return []
+          None
 
 (** Download an icon for this feed and add it to the
     icon cache. If the feed has no icon do nothing. *)
@@ -399,96 +300,6 @@ let download_icon config (downloader:Downloader.downloader) (feed_provider:Feed_
       with Downloader.Unmodified -> Lwt.return ()
       finally Lwt_switch.turn_off switch
 
-(** The formatted text for the details panel in the interface properties box. *)
-let get_feed_description config feed_provider feed_url =
-  let trust_db = new Trust.trust_db config in
-  let output = ref [] in
-  let style name fmt =
-    let do_print msg = output := `List [`String name; `String msg] :: !output in
-    Printf.ksprintf do_print fmt in
-  let heading fmt = style "heading" fmt in
-  let plain fmt = style "plain" fmt in
-
-  lwt () =
-    match feed_provider#get_feed feed_url with
-    | None -> plain "Not yet downloaded."; Lwt.return ()
-    | Some (feed, overrides) ->
-        heading "%s" feed.F.name;
-        plain " (%s)" (default "-" @@ F.get_summary config.langs feed);
-        plain "\n%s\n" (Feed_url.format_url feed_url);
-
-        lwt sigs =
-          match feed_url with
-          | `local_feed _ -> Lwt.return []
-          | `remote_feed _ as feed_url ->
-              plain "\n";
-              lwt sigs = get_sigs config feed_url in
-              if sigs <> [] then (
-                let domain = Trust.domain_from_url feed_url in
-                match trust_db#oldest_trusted_sig domain sigs with
-                | Some last_modified ->
-                    plain "Last upstream change: %s\n" (U.format_time @@ Unix.localtime last_modified)
-                | None -> ()
-              );
-
-              let () =
-                match overrides.F.last_checked with
-                | Some last_checked ->
-                    plain "Last checked: %s\n" (U.format_time @@ Unix.localtime last_checked)
-                | None -> () in
-
-              let () =
-                match Feed_cache.get_last_check_attempt config feed_url, overrides.F.last_checked with
-                (* Don't bother reporting successful attempts *)
-                | Some last_check_attempt, Some last_checked when last_check_attempt > last_checked ->
-                    plain "Last check attempt: %s (failed or in progress)\n" (U.format_time @@ Unix.localtime last_check_attempt)
-                | _ -> () in
-              Lwt.return sigs in
-
-        heading "\nDescription\n";
-
-        let description =
-          match F.get_description config.langs feed with
-          | Some description ->
-              Str.split (Str.regexp_string "\n\n") description |> List.map format_para |> String.concat "\n\n"
-          | None -> "-" in
-
-        plain "%s\n" description;
-
-        let need_gap = ref true in
-        feed.F.root |> ZI.iter ~name:"homepage" (fun homepage ->
-          if !need_gap then (
-            plain "\n";
-            need_gap := false
-          );
-          plain "Homepage: ";
-          style "link" "%s\n" homepage.Q.last_text_inside;
-        );
-
-        match feed_url with
-        | `local_feed _ -> Lwt.return ()
-        | `remote_feed _ as feed_url ->
-            let domain = Trust.domain_from_url feed_url in
-            heading "\nSignatures\n";
-            if sigs = [] then (
-              plain "No signature information (old style feed or out-of-date cache)\n";
-              Lwt.return ()
-            ) else (
-              let module G = Support.Gpg in
-              sigs |> Lwt_list.iter_s (function
-                | G.ValidSig {G.fingerprint; G.timestamp} ->
-                    lwt name = G.get_key_name config.system fingerprint in
-                    plain "Valid signature by '%s'\n- Dated: %s\n- Fingerprint: %s\n"
-                            (default "<unknown>" name) (U.format_time @@ Unix.localtime timestamp) fingerprint;
-                    if not (trust_db#is_trusted ~domain fingerprint) then (
-                      plain "WARNING: This key is not in the trusted list (either you removed it, or you trust one of the other signatures)\n"
-                    );
-                    Lwt.return ()
-                | other_sig -> plain "%s\n" (G.string_of_sig other_sig); Lwt.return ()
-              )
-            ) in
-  `List (List.rev !output) |> Lwt.return
-
 (** Download the archives. Called when the user clicks the 'Run' button. *)
 let download_archives ~feed_provider driver = function
   | (false, _) -> raise_safe "Can't download archives; solve failed!"
@@ -519,8 +330,8 @@ let add_feed config iface feed_url =
 
 let add_remote_feed driver iface (feed_url:[`remote_feed of feed_url])  =
   match_lwt driver#download_and_import_feed feed_url with
-  | `aborted_by_user -> raise_safe "Aborted by user"
-  | `success _ | `no_update -> add_feed driver#config iface feed_url; Lwt.return `Null
+  | `aborted_by_user -> Lwt.return ()
+  | `success _ | `no_update -> add_feed driver#config iface feed_url; Lwt.return ()
 
 let remove_feed config iface feed_url =
   let iface_config = Feed_cache.load_iface_config config iface in
@@ -532,32 +343,34 @@ let remove_feed config iface feed_url =
     Feed_cache.save_iface_config config iface {iface_config with Feed_cache.extra_feeds};
   )
 
-let set_impl_stability config feed_url id rating =
-  let overrides = Feed.load_feed_overrides config feed_url in
+let set_impl_stability config {Feed.feed; Feed.id} rating =
+  let overrides = Feed.load_feed_overrides config feed in
   let overrides = {
     overrides with F.user_stability =
       match rating with
       | None -> StringMap.remove id overrides.F.user_stability
       | Some rating -> StringMap.add id rating overrides.F.user_stability
   } in
-  F.save_feed_overrides config feed_url overrides;
-  Lwt.return `Null
+  F.save_feed_overrides config feed overrides
 
 (** Run [argv] and return its stdout on success.
  * On error, report both stdout and stderr. *)
 let run_subprocess argv =
   log_info "Running %s" (Support.Logging.format_argv_for_logging (Array.to_list argv));
-  let command = (argv.(0), argv) in
-  let child = Lwt_process.open_process_full command in
-  lwt () = Lwt_io.close child#stdin in
-  lwt stdout = Lwt_io.read child#stdout
-  and stderr = Lwt_io.read child#stderr in
-  match_lwt child#close with
-  | Unix.WEXITED 0 -> Lwt.return stdout
-  | status ->
-      let output = stdout ^ stderr in
-      if output = "" then Support.System.check_exit_status status;
-      raise_safe "Compile failed: %s" output
+  try_lwt
+    let command = (argv.(0), argv) in
+    let child = Lwt_process.open_process_full command in
+    lwt () = Lwt_io.close child#stdin in
+    lwt stdout = Lwt_io.read child#stdout
+    and stderr = Lwt_io.read child#stderr in
+    match_lwt child#close with
+    | Unix.WEXITED 0 -> Lwt.return stdout
+    | status ->
+        let output = stdout ^ stderr in
+        if output = "" then Support.System.check_exit_status status;
+        raise_safe "Compile failed: %s" output
+  with Safe_exception _ as ex ->
+    reraise_with_context ex "... executing %s" (Support.Logging.format_argv_for_logging (Array.to_list argv))
 
 let build_and_register config iface min_0compile_version =
   lwt _ =
@@ -611,13 +424,7 @@ let compile config feed_provider iface ~autocompile =
   (* A new local feed may have been registered, so reload it from the disk cache *)
   log_info "0compile command completed successfully. Reloading interface details.";
   feed_provider#forget_user_feeds iface;
-  Lwt.return `Null      (* The GUI will now recalculate *)
-
-let stability_policy config uri =
-  let iface_config = Feed_cache.load_iface_config config uri in
-  match iface_config.Feed_cache.stability_policy with
-  | None -> `Null
-  | Some p -> `String (Feed.format_stability p)
+  Lwt.return ()      (* The plugin should now recalculate *)
 
 (** Run the GUI to choose and download a set of implementations
  * If [use_gui] is No; just returns `Dont_use_GUI.
@@ -641,9 +448,12 @@ let get_selections_gui (gui:gui_ui) (driver:Driver.driver) ?test_callback ?(syst
 
   let watcher =
     object (_ : Driver.watcher)
-      method update ((ready, new_results), new_fp) =
+      method update (((ready, new_results), new_fp) as result) =
         feed_provider := new_fp;
         results := (ready, new_results);
+
+        gui#update reqs result;
+
         Python.async (fun () ->
           let sels = new_results#get_selections in
           let tree = build_tree config new_fp original_selections sels in
@@ -678,30 +488,6 @@ let get_selections_gui (gui:gui_ui) (driver:Driver.driver) ?test_callback ?(syst
     | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
-  Python.register_handler "set-impl-stability" (function
-    | [`String from_feed; `String id; `Null] ->
-        set_impl_stability config (Feed_url.parse from_feed) id None
-    | [`String from_feed; `String id; `String level] ->
-        set_impl_stability config (Feed_url.parse from_feed) id (Some (F.parse_stability ~from_user:true level))
-    | json -> raise_safe "set-impl-stability: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  let set_stability_policy iface_uri policy =
-    let iface_config = {Feed_cache.load_iface_config config iface_uri with Feed_cache.stability_policy = policy} in
-    Feed_cache.save_iface_config config iface_uri iface_config;
-    Lwt.return `Null in
-
-  Python.register_handler "set-stability-policy" (function
-    | [`String iface_uri; `Null] -> set_stability_policy iface_uri None
-    | [`String iface_uri; `String level] -> set_stability_policy iface_uri (Some (F.parse_stability ~from_user:true level))
-    | json -> raise_safe "set-stability-policy: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "get-feed-description" (function
-    | [`String feed_url] -> get_feed_description config !feed_provider (Feed_url.parse_non_distro feed_url)
-    | json -> raise_safe "get-feed-description: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
   Python.register_handler "download-icon" (function
     | [`String feed_url] ->
         let feed = Feed_url.parse_non_distro feed_url in
@@ -714,8 +500,15 @@ let get_selections_gui (gui:gui_ui) (driver:Driver.driver) ?test_callback ?(syst
     | json -> raise_safe "show-preferences: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
+  Python.register_handler "show-component-dialog" (function
+    | [`String iface; `Bool select_versions_tab] ->
+        gui#show_component ~driver iface ~select_versions_tab;
+        Lwt.return `Null
+    | json -> raise_safe "show-preferences: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
   Python.register_handler "gui-compile" (function
-    | [`String iface; `Bool autocompile] -> compile config !feed_provider iface ~autocompile
+    | [`String iface; `Bool autocompile] -> compile config !feed_provider iface ~autocompile >> Lwt.return `Null
     | json -> raise_safe "gui-compile: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
@@ -737,51 +530,6 @@ let get_selections_gui (gui:gui_ui) (driver:Driver.driver) ?test_callback ?(syst
         ]
     )
     | json -> raise_safe "get_bug_report_details: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "get-component-details" (function
-    | [`String uri] -> Lwt.return (`Assoc (
-        ("may-compile", `Bool (have_source_for !feed_provider uri)) ::
-        ("stability-policy", stability_policy config uri) ::
-        ("feeds", `List (list_feeds !feed_provider uri)) ::
-        list_impls config (snd !results) uri
-      );
-    )
-    | json -> raise_safe "get_component_details: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "justify-decision" (function
-    | [`String iface; `String feed; `String id] ->
-        let feed = Feed_url.parse feed in
-        let reason = Diagnostics.justify_decision config !feed_provider reqs iface F.({feed; id}) in
-        Lwt.return (`String reason)
-    | json -> raise_safe "justify_decision: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  (* Used by the add-feed dialog *)
-  Python.register_handler "add-remote-feed" (function
-    | [`String iface; `String feed] -> (
-        match Feed_url.parse feed with
-        | `distribution_feed _ | `local_feed _ -> raise_safe "Not a remote URL: '%s'" feed
-        | `remote_feed _ as url -> add_remote_feed driver iface url
-    )
-    | json -> raise_safe "add-remote-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "add-local-feed" (function
-    | [`String iface; `String path] -> (
-        match Feed_url.parse path with
-        | `local_feed _ as feed -> add_feed config iface feed; Lwt.return `Null
-        | `remote_feed _ | `distribution_feed _ -> raise_safe "Not a local feed '%s'!" path
-    )
-    | json -> raise_safe "add-local-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "remove-feed" (function
-    | [`String iface; `String url] ->
-        Feed_url.parse_non_distro url |> remove_feed config iface;
-        Lwt.return `Null
-    | json -> raise_safe "remove-feed: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
   Python.register_handler "run-test" (function

@@ -118,3 +118,6 @@ val format_size : Int64.t -> string
 val atomic_hardlink : Common.system -> link_to:Common.filepath -> replace:Common.filepath -> unit
 val stream_of_lines : string -> string Stream.t
 val make_command : Common.system -> string list -> Lwt_process.command
+
+(** Open this directory with the user's preferred file manager. *)
+val xdg_open_dir : ?exec:bool -> Common.system -> Common.filepath -> unit

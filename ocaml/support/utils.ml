@@ -533,3 +533,12 @@ let stream_of_lines data =
 let make_command system args =
   log_info "Will run: %s" (Logging.format_argv_for_logging args);
   (find_in_path_ex system (List.hd args), Array.of_list args)
+
+let xdg_open_dir ?(exec=false) (system:system) path =
+  (* xdg-open has no "safe" mode, so check we're not "opening" an application. *)
+  if system#file_exists (path +/ "AppRun") then
+    raise_safe "Documentation directory '%s' is an AppDir; refusing to open" path
+  else if exec then
+    system#exec ~search_path:true ["xdg-open"; path]
+  else
+    system#spawn_detach ~search_path:true ["xdg-open"; path]

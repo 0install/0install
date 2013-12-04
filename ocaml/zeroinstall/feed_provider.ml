@@ -50,6 +50,8 @@ class feed_provider config (distro:Distro.distribution) =
     method get_feeds_used =
       FeedMap.fold (fun uri _value lst -> uri :: lst) cache []
 
+    method was_used feed = FeedMap.mem feed cache
+
     method have_stale_feeds =
       let check url = function
         | None -> Feed_cache.internal_is_stale config url None

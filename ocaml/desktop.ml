@@ -42,12 +42,7 @@ let show_help config sel =
                   if U.is_dir system help_dir then help_dir
                   else path
     ) in
-
-  (* xdg-open has no "safe" mode, so check we're not "opening" an application. *)
-  if system#file_exists (path +/ "AppRun") then
-    raise_safe "Documentation directory '%s' is an AppDir; refusing to open" path
-  else
-    system#exec ~search_path:true ["xdg-open"; path]
+  U.xdg_open_dir ~exec:true system path
 
 let handle_help options flags args =
   let select_opts = ref [] in

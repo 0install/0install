@@ -7,7 +7,6 @@ from zeroinstall import _, translation
 from zeroinstall.cmd import slave
 from zeroinstall.support import tasks, pretty_size
 from zeroinstall.injector import model, download
-from zeroinstall.gui import properties
 from zeroinstall.gtkui.icon import load_icon
 from logging import warning, info
 from zeroinstall.gui.gui import gobject
@@ -36,6 +35,9 @@ def get_tooltip_text(mainwindow, details, model_column):
 
 	assert model_column == InterfaceBrowser.DOWNLOAD_SIZE
 	return details["fetch-tip"]
+
+def edit(driver, interface, iface_name, compile, show_versions = False):
+	slave.invoke_master(["show-component-dialog", interface, show_versions])
 
 import math
 angle_right = math.pi / 2
@@ -259,7 +261,7 @@ class InterfaceBrowser(object):
 			details = self.model[path][InterfaceBrowser.DETAILS]
 			iface_uri = details['interface']
 			iface = self.config.iface_cache.get_interface(iface_uri)
-			properties.edit(driver, iface, details['name'], self.compile, show_versions = True)
+			edit(driver, iface.uri, details['name'], self.compile, show_versions = True)
 		tree_view.connect('button-press-event', button_press)
 
 		tree_view.connect('destroy', lambda s: driver.watchers.remove(self.build_tree))
@@ -380,8 +382,8 @@ class InterfaceBrowser(object):
 
 		global menu		# Fix GC problem in PyGObject
 		menu = gtk.Menu()
-		for label, cb in [(_('Show Feeds'), lambda: properties.edit(self.driver, iface, iface_name, self.compile)),
-				  (_('Show Versions'), lambda: properties.edit(self.driver, iface, iface_name, self.compile, show_versions = True)),
+		for label, cb in [(_('Show Feeds'), lambda: edit(self.driver, iface.uri, iface_name, self.compile)),
+				  (_('Show Versions'), lambda: edit(self.driver, iface.uri, iface_name, self.compile, show_versions = True)),
 				  (_('Report a Bug...'), lambda: bugs.report_bug(self.driver, iface))]:
 			item = gtk.MenuItem()
 			item.set_label(label)

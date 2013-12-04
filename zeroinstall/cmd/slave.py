@@ -348,9 +348,6 @@ def get_component_details(interface_uri):
 def get_feed_description(feed_url):
 	return invoke_master(["get-feed-description", feed_url])
 
-def justify_decision(iface, feed, impl_id):
-	return invoke_master(["justify-decision", iface, feed, impl_id])
-
 def get_bug_report_details():
 	return invoke_master(["get-bug-report-details"])
 
@@ -359,15 +356,6 @@ def run_test():
 
 def download_archives():
 	return invoke_master(["download-archives"])
-
-def add_remote_feed(iface, url):
-	return invoke_master(["add-remote-feed", iface, url])
-
-def add_local_feed(iface, url):
-	return invoke_master(["add-local-feed", iface, url])
-
-def remove_feed(iface, url):
-	return invoke_master(["remove-feed", iface, url])
 
 def handle(config, options, args):
 	if args:

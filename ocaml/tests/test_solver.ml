@@ -120,6 +120,8 @@ class fake_feed_provider system (distro:Distro.distribution option) =
 
     method have_stale_feeds = false
 
+    method was_used = failwith "was_used"
+
     method add_iface elem =
       let open Feed in
       let (feed, uri) =

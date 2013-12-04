@@ -48,6 +48,8 @@ let make_fake_gui config =
     inherit Zeroinstall.Python.slave config
 
     method show_preferences = failwith "show_preferences"
+    method show_component = failwith "show_component"
+    method update = failwith "update"
   end
 
 let install_interceptor system checked_for_gui =
