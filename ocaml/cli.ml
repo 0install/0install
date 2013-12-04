@@ -278,13 +278,20 @@ let get_default_options config =
     config;
     gui = Maybe;
     verbosity = 0;
+    ui = lazy (
+      Zeroinstall.Helpers.make_ui config options.gui
+    );
     driver = lazy (
+      let ui = lazy (
+        match Lazy.force options.ui with
+        | Zeroinstall.Gui.Gui gui -> (gui :> Zeroinstall.Ui.ui_handler)
+        | Zeroinstall.Gui.Ui ui -> ui
+      ) in
       let distro = Zeroinstall.Distro_impls.get_host_distribution config in
       let trust_db = new Zeroinstall.Trust.trust_db config in
-      let ui = Zeroinstall.Helpers.make_ui config (fun () -> options.gui) in
       let downloader = new Zeroinstall.Downloader.downloader ui  ~max_downloads_per_site:2 in
       let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro ui in
-      new Zeroinstall.Driver.driver config fetcher distro ui
+      new Zeroinstall.Driver.driver config fetcher distro
     );
   } in
   options

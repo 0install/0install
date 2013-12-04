@@ -43,12 +43,11 @@ let remove_cached config selections_path =
   U.rmtree ~even_if_locked:true config.system stored
 
 let make_fake_gui config =
-  object (self : #Zeroinstall.Ui.gui_ui)
+  object (_ : #Zeroinstall.Gui.gui_ui)
     inherit Fake_system.null_ui
     inherit Zeroinstall.Python.slave config
 
     method show_preferences = failwith "show_preferences"
-    method! use_gui = Some (self :> Zeroinstall.Ui.gui_ui)
   end
 
 let install_interceptor system checked_for_gui =
@@ -57,7 +56,7 @@ let install_interceptor system checked_for_gui =
     let have_gui = system#getenv "DISPLAY" <> Some "" in
     checked_for_gui := true;
     if have_gui then (
-      Some (make_fake_gui config :> Zeroinstall.Ui.ui_handler)
+      Some (make_fake_gui config)
     ) else (
       None
     )

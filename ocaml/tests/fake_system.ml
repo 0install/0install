@@ -362,7 +362,6 @@ class null_ui =
     method stop_monitoring _ = Lwt.return ()
     method confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" (Zeroinstall.Feed_url.format_url feed_url)
     method confirm msg = raise_safe "confirm: %s" msg
-    method use_gui = None
   end
 
 let null_ui = lazy (new null_ui)
@@ -372,7 +371,7 @@ let make_driver ?fetcher config =
   let trust_db = new Zeroinstall.Trust.trust_db config in
   let downloader = new Zeroinstall.Downloader.downloader null_ui ~max_downloads_per_site:2 in
   let fetcher = fetcher |? lazy (new Zeroinstall.Fetch.fetcher config trust_db downloader distro null_ui) in
-  new Zeroinstall.Driver.driver config fetcher distro null_ui
+  new Zeroinstall.Driver.driver config fetcher distro
 
 let fake_log =
   object (_ : #Support.Logging.handler)

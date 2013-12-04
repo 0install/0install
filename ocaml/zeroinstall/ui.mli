@@ -28,19 +28,7 @@ class type ui_handler =
 
     (** Display a confirmation request *)
     method confirm : string -> [`ok | `cancel] Lwt.t
-
-    (* A bit hacky: should we use Gui for solve_and_download_impls? *)
-    method use_gui : gui_ui option
   end
-and gui_ui =
-  object
-    inherit ui_handler
-    inherit Python.slave
-    
-    (** Display the Preferences dialog. Resolves when dialog is closed. *)
-    method show_preferences : unit Lwt.t
-  end
-
 
 class console_ui : ui_handler
 class batch_ui : ui_handler

@@ -58,9 +58,10 @@ let suite = "apps">::: [
     Fake_system.assert_str_equal "0.1-pre" @@ ZI.get_attribute "version" (List.hd sels.Q.child_nodes);
 
     let driver = Fake_system.make_driver config in
+    let ui = Zeroinstall.Gui.Ui (Lazy.force Fake_system.null_ui) in
 
     (* Get selections with updates allowed; should resolve and find version 1. *)
-    let sels = Apps.get_selections_may_update driver app in
+    let sels = Apps.get_selections_may_update driver (lazy ui) app in
     Fake_system.assert_str_equal url @@ ZI.get_attribute "interface" sels;
     Fake_system.assert_str_equal "1" @@ ZI.get_attribute "version" (List.hd sels.Q.child_nodes);
   )

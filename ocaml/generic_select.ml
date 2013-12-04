@@ -141,7 +141,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
 
   let select_with_refresh refresh =
     (* This is the slow path: we need to download things before selecting *)
-    H.solve_and_download_impls driver ?test_callback reqs mode ~refresh in
+    H.solve_and_download_impls (Lazy.force options.ui) driver ?test_callback reqs mode ~refresh in
 
   (* Check whether we can run immediately, without downloading anything. This requires
      - the user didn't ask to refresh or show the GUI
@@ -242,7 +242,7 @@ let handle options flags arg ?test_callback for_op =
   let result = resolve_target options.config flags arg in
 
   let get_app_sels path =
-    Zeroinstall.Apps.get_selections_may_update (Lazy.force options.driver) path in
+    Zeroinstall.Apps.get_selections_may_update (Lazy.force options.driver) options.ui path in
 
   match result with
   | (App (path, old_reqs), reqs) when select_opts.output = Output_human ->

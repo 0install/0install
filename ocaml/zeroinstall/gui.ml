@@ -20,6 +20,19 @@ let gui_plugin = ref None
 let register_plugin fn =
   gui_plugin := Some fn
 
+class type gui_ui =
+  object
+    inherit Ui.ui_handler
+    inherit Python.slave
+    
+    (** Display the Preferences dialog. Resolves when dialog is closed. *)
+    method show_preferences : unit Lwt.t
+  end
+
+type ui_type =
+  | Gui of gui_ui
+  | Ui of Ui.ui_handler
+
 let get_impl (feed_provider:Feed_provider.feed_provider) sel =
   let {Feed.id; Feed.feed = from_feed} = Selections.get_id sel in
 
@@ -612,7 +625,7 @@ let stability_policy config uri =
  * If Yes, uses the GUI or throws an exception.
  * [test_callback] is used if the user clicks on the test button in the bug report dialog.
  *)
-let get_selections_gui (gui:Ui.gui_ui) (driver:Driver.driver) ?test_callback ?(systray=false) mode reqs ~refresh =
+let get_selections_gui (gui:gui_ui) (driver:Driver.driver) ?test_callback ?(systray=false) mode reqs ~refresh =
   let config = driver#config in
   let distro = driver#distro in
   let fetcher = driver#fetcher in

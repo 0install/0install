@@ -64,6 +64,7 @@ type zi_option = [
 
 type global_settings = {
   config : Zeroinstall.General.config;
+  ui : Zeroinstall.Gui.ui_type Lazy.t;
   driver : Zeroinstall.Driver.driver Lazy.t;
   mutable gui : yes_no_maybe;
   mutable verbosity : int;

@@ -64,7 +64,10 @@ let handle options flags args =
     | json -> raise_safe "verify: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
-  let slave = (Lazy.force options.driver)#ui#use_gui |? lazy (raise_safe "GUI not available") in
+  let slave =
+    match Lazy.force options.ui with
+    | Zeroinstall.Gui.Gui gui -> gui
+    | Zeroinstall.Gui.Ui _ -> raise_safe "GUI not available" in
   let gui = slave#invoke "open-cache-explorer" [] P.expect_null in
 
   slave#invoke "ping" [] P.expect_null |> Lwt_main.run;

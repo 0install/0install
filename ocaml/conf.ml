@@ -102,9 +102,9 @@ let handle options flags args =
   let config = options.config in
   match args with
   | [] ->
-      begin match (Lazy.force options.driver)#ui#use_gui with
-      | None -> show_settings config
-      | Some gui -> gui#show_preferences |> Lwt_main.run end
+      begin match Lazy.force options.ui with
+      | Zeroinstall.Gui.Ui _ -> show_settings config
+      | Zeroinstall.Gui.Gui gui -> gui#show_preferences |> Lwt_main.run end
   | [key] -> format_setting config (parse_key key) |> print_endline
   | [key; value] -> set_setting config value (parse_key key); Zeroinstall.Config.save_config config
   | _ -> raise (Support.Argparse.Usage_error 1)

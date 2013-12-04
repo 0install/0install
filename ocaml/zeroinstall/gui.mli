@@ -4,11 +4,24 @@
 
 (** Manage the GUI sub-process. *)
 
+class type gui_ui =
+  object
+    inherit Ui.ui_handler
+    inherit Python.slave
+    
+    (** Display the Preferences dialog. Resolves when dialog is closed. *)
+    method show_preferences : unit Lwt.t
+  end
+
+type ui_type =
+  | Gui of gui_ui
+  | Ui of Ui.ui_handler
+
 (** The GUI plugin registers itself here. *)
-val register_plugin : (General.config -> Support.Common.yes_no_maybe -> Ui.ui_handler option) -> unit
+val register_plugin : (General.config -> Support.Common.yes_no_maybe -> gui_ui option) -> unit
 
 val get_selections_gui :
-  Ui.gui_ui ->
+  gui_ui ->
   Driver.driver ->
   ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
   ?systray:bool ->
@@ -27,4 +40,4 @@ val download_icon : General.config -> Downloader.downloader -> Feed_provider.fee
  *
  * Returns a suitable GUI handler if so, or None if we should use a non-GUI handler.
  *)
-val try_get_gui : General.config -> use_gui:Support.Common.yes_no_maybe -> Ui.ui_handler option
+val try_get_gui : General.config -> use_gui:Support.Common.yes_no_maybe -> gui_ui option

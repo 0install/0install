@@ -22,6 +22,7 @@ val download_selections :
     Returns [None] if the user cancels.
     @raise Safe_exception if the solve fails. *)
 val solve_and_download_impls :
+  Gui.ui_type ->
   Driver.driver ->
   ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
   Requirements.requirements ->
@@ -36,5 +37,5 @@ val solve_and_download_impls :
  *)
 val make_ui :
   General.config ->
-  (unit -> Support.Common.yes_no_maybe) ->
-  Ui.ui_handler Lazy.t 
+  Support.Common.yes_no_maybe ->
+  Gui.ui_type

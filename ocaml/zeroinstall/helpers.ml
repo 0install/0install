@@ -24,30 +24,30 @@ let download_selections ~include_packages ~feed_provider (driver:Driver.driver) 
   | `success -> Lwt.return ()
   | `aborted_by_user -> raise_safe "Aborted by user"
 
-let solve_and_download_impls (driver:Driver.driver) ?test_callback reqs mode ~refresh =
+let solve_and_download_impls gui (driver:Driver.driver) ?test_callback reqs mode ~refresh =
   let config = driver#config in
 
-  match driver#ui#use_gui with
-  | Some gui ->
+  match gui with
+  | Gui.Gui gui ->
       begin match_lwt Gui.get_selections_gui gui driver ?test_callback mode reqs ~refresh with
       | `Success sels -> Lwt.return (Some sels)
       | `Aborted_by_user -> Lwt.return None end;
-  | None ->
-    lwt result = driver#solve_with_downloads reqs ~force:refresh ~update_local:refresh in
-    match result with
-    | (false, result, _) -> raise_safe "%s" (Diagnostics.get_failure_reason config result)
-    | (true, result, feed_provider) ->
-        let sels = result#get_selections in
-        lwt () =
-          match mode with
-          | `Select_only -> Lwt.return ()
-          | `Download_only | `Select_for_run ->
-              download_selections driver ~feed_provider ~include_packages:true sels in
-        Lwt.return (Some sels)
+  | Gui.Ui _ ->
+      lwt result = driver#solve_with_downloads reqs ~force:refresh ~update_local:refresh in
+      match result with
+      | (false, result, _) -> raise_safe "%s" (Diagnostics.get_failure_reason config result)
+      | (true, result, feed_provider) ->
+          let sels = result#get_selections in
+          lwt () =
+            match mode with
+            | `Select_only -> Lwt.return ()
+            | `Download_only | `Select_for_run ->
+                download_selections driver ~feed_provider ~include_packages:true sels in
+          Lwt.return (Some sels)
 
-let make_ui config get_use_gui : Ui.ui_handler Lazy.t = lazy (
+let make_ui config use_gui : Gui.ui_type =
   let use_gui =
-    match get_use_gui (), config.dry_run with
+    match use_gui, config.dry_run with
     | Yes, true -> raise_safe "Can't use GUI with --dry-run"
     | (Maybe|No), true -> No
     | use_gui, false -> use_gui in
@@ -59,8 +59,9 @@ let make_ui config get_use_gui : Ui.ui_handler Lazy.t = lazy (
       new Ui.batch_ui in
 
   match use_gui with
-  | No -> make_no_gui ()
+  | No -> Gui.Ui (make_no_gui ())
   | Yes | Maybe ->
       (* [try_get_gui] will throw if use_gui is [Yes] and the GUI isn't available *)
-      Gui.try_get_gui config ~use_gui |? lazy (make_no_gui ())
-)
+      match Gui.try_get_gui config ~use_gui with
+      | None -> Gui.Ui (make_no_gui ())
+      | Some gui -> Gui.Gui gui

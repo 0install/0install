@@ -55,11 +55,9 @@ let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
       | `String "ok" -> Lwt.return `ok
       | `String "cancel" -> Lwt.return `cancel
       | json -> raise_safe "Invalid response '%s'" (J.to_string json)
-
-    method use_gui = None
   end
 
-let make_ui config connection use_gui : Ui.ui_handler Lazy.t = lazy (
+let make_ui config connection use_gui : Zeroinstall.Gui.ui_type Lazy.t = lazy (
   let use_gui =
     match use_gui, config.dry_run with
     | Yes, true -> raise_safe "Can't use GUI with --dry-run"
@@ -67,8 +65,11 @@ let make_ui config connection use_gui : Ui.ui_handler Lazy.t = lazy (
     | use_gui, false -> use_gui in
 
   match use_gui with
-  | No -> make_no_gui connection
-  | Yes | Maybe -> Zeroinstall.Gui.try_get_gui config ~use_gui |? lazy (make_no_gui connection)
+  | No -> Zeroinstall.Gui.Ui (make_no_gui connection)
+  | Yes | Maybe ->
+      match Zeroinstall.Gui.try_get_gui config ~use_gui with
+      | Some gui -> Zeroinstall.Gui.Gui gui
+      | None -> Zeroinstall.Gui.Ui (make_no_gui connection)
 )
 
 let parse_restrictions = function
@@ -103,13 +104,19 @@ let parse_requirements json_assoc =
   reqs
 
 let register_handlers config gui connection =
+  let gui = make_ui config connection gui in
+
   let driver = lazy (
+    let ui = lazy (
+      match Lazy.force gui with
+      | Zeroinstall.Gui.Gui gui -> (gui :> Ui.ui_handler)
+      | Zeroinstall.Gui.Ui ui -> ui
+    ) in
     let distro = Zeroinstall.Distro_impls.get_host_distribution config in
     let trust_db = new Zeroinstall.Trust.trust_db config in
-    let ui = make_ui config connection gui in
-    let downloader = new Zeroinstall.Downloader.downloader ui  ~max_downloads_per_site:2 in
+    let downloader = new Zeroinstall.Downloader.downloader ui ~max_downloads_per_site:2 in
     let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro ui in
-    new Zeroinstall.Driver.driver config fetcher distro ui
+    new Zeroinstall.Driver.driver config fetcher distro
   ) in
 
   let do_select = function
@@ -118,7 +125,7 @@ let register_handlers config gui connection =
         let driver = Lazy.force driver in
         lwt resp =
           try_lwt
-            match_lwt H.solve_and_download_impls driver requirements `Select_only ~refresh with
+            match_lwt H.solve_and_download_impls (Lazy.force gui) driver requirements `Select_only ~refresh with
             | None -> `List [`String "aborted-by-user"] |> Lwt.return
             | Some sels -> `WithXML (`List [`String "ok"], sels) |> Lwt.return
           with Safe_exception (msg, _) -> `List [`String "fail"; `String msg] |> Lwt.return in

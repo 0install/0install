@@ -26,7 +26,7 @@ let make_gtk_ui (slave:Python.slave) =
 
   let trust_db = new Zeroinstall.Trust.trust_db slave#config in
 
-  object (self : Zeroinstall.Ui.gui_ui)
+  object (_ : Zeroinstall.Gui.gui_ui)
     val mutable preferences_dialog = None
 
     method start_monitoring ~cancel ~url ~progress ?hint ~id =
@@ -84,8 +84,6 @@ let make_gtk_ui (slave:Python.slave) =
 
     method config = slave#config
     method invoke = slave#invoke
-
-    method use_gui = Some (self :> Ui.gui_ui)
   end
 
 let string_of_ynm = function
@@ -100,7 +98,7 @@ let try_get_gtk_gui config use_gui =
 
   let slave = new Zeroinstall.Python.slave config in
   if slave#invoke "check-gui" [`String (string_of_ynm use_gui)] Yojson.Basic.Util.to_bool |> Lwt_main.run then (
-    Some (make_gtk_ui slave :> Ui.ui_handler)
+    Some (make_gtk_ui slave)
   ) else (
     None
   )

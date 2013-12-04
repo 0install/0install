@@ -20,14 +20,6 @@ class type ui_handler =
     method stop_monitoring : filepath -> unit Lwt.t
     method confirm_keys : [`remote_feed of General.feed_url] -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
     method confirm : string -> [`ok | `cancel] Lwt.t
-    method use_gui : gui_ui option
-  end
-and gui_ui =
-  object
-    inherit ui_handler
-    inherit Python.slave
-
-    method show_preferences : unit Lwt.t
   end
 
 class console_ui =
@@ -192,8 +184,6 @@ class console_ui =
         | `ok -> key_infos |> List.map fst |> Lwt.return
         | `cancel -> Lwt.return []
       )
-
-    method use_gui = None
   end
 
 class batch_ui =

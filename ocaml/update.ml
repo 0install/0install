@@ -58,7 +58,7 @@ let check_replacement system = function
 
 let check_for_updates options reqs old_sels =
   let driver = Lazy.force options.driver in
-  let new_sels = Zeroinstall.Helpers.solve_and_download_impls driver reqs `Download_only ~refresh:true |> Lwt_main.run in
+  let new_sels = Zeroinstall.Helpers.solve_and_download_impls (Lazy.force options.ui) driver reqs `Download_only ~refresh:true |> Lwt_main.run in
   match new_sels with
   | None -> raise (System_exit 1)   (* Aborted by user *)
   | Some new_sels ->
@@ -203,8 +203,6 @@ let handle_bg options flags args =
       method confirm msg =
         need_gui := true;
         raise_safe "need to switch to GUI to confirm distro package install: %s" msg
-
-      method use_gui = None
     end in
 
   let driver =
@@ -212,7 +210,7 @@ let handle_bg options flags args =
     let trust_db = new Zeroinstall.Trust.trust_db config in
     let downloader = new Zeroinstall.Downloader.downloader (lazy ui)  ~max_downloads_per_site:2 in
     let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro (lazy ui) in
-    new Zeroinstall.Driver.driver config fetcher distro (lazy ui) in
+    new Zeroinstall.Driver.driver config fetcher distro in
 
   match args with
     | ["app"; app] ->
@@ -234,16 +232,16 @@ let handle_bg options flags args =
         let new_sels =
           let distro = driver#distro in
           if !need_gui || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
-            let interactive_ui = Lazy.force @@ Zeroinstall.Helpers.make_ui config (fun () -> Maybe) in
-            match interactive_ui#use_gui with
-            | Some gui ->
+            let interactive_ui = Zeroinstall.Helpers.make_ui config Maybe in
+            match interactive_ui with
+            | Zeroinstall.Gui.Gui gui ->
                 log_info "Background update: trying to use GUI to update %s" name;
                 Support.Utils.finally_do (fun () -> Zeroinstall.Python.cancel_slave () |> Lwt_main.run) () (fun () ->
                   match Zeroinstall.Gui.get_selections_gui gui driver `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
                   | `Aborted_by_user -> raise (System_exit 0)
                   | `Success gui_sels -> gui_sels
                 )
-            | None ->
+            | Zeroinstall.Gui.Ui _ ->
                 Zeroinstall.Python.cancel_slave () |> Lwt_main.run;
                 if !need_gui then (
                   let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in

@@ -46,7 +46,7 @@ module DownloadMap = Map.Make(DownloadElt)
 
 let get_values map = DownloadMap.fold (fun _key value xs -> value :: xs) map []
 
-class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) =
+class driver config (fetcher:Fetch.fetcher) distro =
   object (self)
     method solve_with_downloads ?(watcher:watcher option) requirements
                                 ~force ~update_local : (bool * Solver.result * Feed_provider.feed_provider) Lwt.t =
@@ -295,5 +295,4 @@ class driver config (fetcher:Fetch.fetcher) distro (ui:Ui.ui_handler Lazy.t) =
     method fetcher = fetcher
     method config = config
     method distro = distro
-    method ui = Lazy.force ui
   end
