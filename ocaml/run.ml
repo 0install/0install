@@ -17,30 +17,28 @@ type run_options = {
 
 (** This is run when the user clicks the test button in the bug-report dialog box. *)
 let run_test options run_opts run_args sels =
-  let b = Buffer.create 1000 in
-
-  (* Copy from [ch] to [b] until end-of-file *)
-  let read ch =
-    let buf = String.create 1024 in
-    let rec loop () =
-      let got = input ch buf 0 (String.length buf) in
-      if got > 0 then (
-        Buffer.add_substring b buf 0 got;
-        loop ()
-      ) in
-    loop () in
+  let result, set_result = Lwt.wait () in
 
   let exec args ~env =
-    U.check_output ~env ~stderr:`Stdout options.config.system read args in
+    Zeroinstall.Python.async (fun () ->
+      try_lwt
+        let command = (U.find_in_path_ex options.config.system (List.hd args), Array.of_list args) in
+        lwt out = Lwt_process.pread ~env ~stderr:(`FD_copy Unix.stdout) command in
+        Lwt.wakeup set_result out;
+        Lwt.return ()
+      with ex ->
+        Lwt.wakeup_exn set_result ex;
+        Lwt.return ()
+    ) in
 
   let () =
     try
       Zeroinstall.Exec.execute_selections ~exec options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper;
-    with Safe_exception (msg, _) as ex ->
+    with ex ->
       log_info ~ex "Error from test command";
-      Buffer.add_string b msg in
+      Lwt.wakeup_exn set_result ex in
 
-  Lwt.return (Buffer.contents b)
+  result
 
 let handle options flags args =
   match args with

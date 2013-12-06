@@ -374,15 +374,13 @@ class InterfaceBrowser(object):
 		iface_name = details['name']
 		have_source = details['may-compile']
 
-		from zeroinstall.gui import bugs
-
 		iface = self.config.iface_cache.get_interface(iface_uri)
 
 		global menu		# Fix GC problem in PyGObject
 		menu = gtk.Menu()
 		for label, cb in [(_('Show Feeds'), lambda: edit(self.driver, iface.uri, iface_name, self.compile)),
 				  (_('Show Versions'), lambda: edit(self.driver, iface.uri, iface_name, self.compile, show_versions = True)),
-				  (_('Report a Bug...'), lambda: bugs.report_bug(self.driver, iface))]:
+				  (_('Report a Bug...'), lambda: slave.invoke_master(["show-bug-report-dialog", iface.uri]))]:
 			item = gtk.MenuItem()
 			item.set_label(label)
 			if cb:

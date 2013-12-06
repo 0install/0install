@@ -32,6 +32,7 @@ let make_gtk_ui (slave:Python.slave) =
     val mutable preferences_dialog = None
     val mutable component_boxes = StringMap.empty
     val mutable last_update = None
+    val mutable last_error = None
 
     method start_monitoring ~cancel ~url ~progress ?hint ~id =
       let size =
@@ -68,7 +69,9 @@ let make_gtk_ui (slave:Python.slave) =
     (* TODO: pass ~parent (once we have one) *)
     method confirm_keys feed_url infos = Trust_box.confirm_keys slave#config trust_db feed_url infos
 
-    method report_error ex = Alert_box.report_error ex
+    method report_error ex =
+      last_error <- Some ex;
+      Alert_box.report_error ex
 
     method show_preferences =
       match preferences_dialog with
@@ -117,6 +120,10 @@ let make_gtk_ui (slave:Python.slave) =
       ) |> ignore;
       box#show ();
       result
+
+    method report_bug ?run_test iface =
+      let (_reqs, (results, _fp)) = last_update |? lazy (failwith "BUG: no results") in   (* todo: improve this *)
+      Bug_report_box.create ?run_test ?last_error slave#config ~iface ~results
 
     method config = slave#config
     method invoke = slave#invoke

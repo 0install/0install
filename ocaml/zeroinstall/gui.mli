@@ -21,6 +21,9 @@ class type gui_ui =
 
     (** Display an error to the user. *)
     method report_error : exn -> unit
+
+    (** Open the bug report dialog. *)
+    method report_bug : ?run_test:(unit -> string Lwt.t) -> General.iface_uri -> unit
   end
 
 type ui_type =
@@ -77,3 +80,11 @@ val get_fetch_info : General.config -> Feed.implementation -> (string * string)
 
 (** Set a user-override stability rating. *)
 val set_impl_stability : General.config -> Feed.global_id -> General.stability_level option -> unit
+
+(** Get the initial text for the bug report dialog box. *)
+val get_bug_report_details : General.config -> iface:General.iface_uri -> (bool * Solver.result) -> string
+
+(** Submit a bug report for this interface.
+ * @return the response from the server (on success).
+ * @raise Safe_exception on failure. *)
+val send_bug_report : General.iface_uri -> string -> string Lwt.t

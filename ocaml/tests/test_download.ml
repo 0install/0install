@@ -48,6 +48,7 @@ let make_fake_gui config =
     inherit Zeroinstall.Python.slave config
 
     method report_error ex = raise ex
+    method report_bug = failwith "report_bug"
     method show_preferences = failwith "show_preferences"
     method show_component = failwith "show_component"
     method update = failwith "update"

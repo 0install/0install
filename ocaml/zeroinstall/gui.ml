@@ -29,6 +29,7 @@ class type gui_ui =
     method show_component : driver:Driver.driver -> General.iface_uri -> select_versions_tab:bool -> unit
     method update : Requirements.requirements -> ((bool * Solver.result) * Feed_provider.feed_provider) -> unit
     method report_error : exn -> unit
+    method report_bug : ?run_test:(unit -> string Lwt.t) -> iface_uri -> unit
   end
 
 type ui_type =
@@ -427,6 +428,66 @@ let compile config feed_provider iface ~autocompile =
   feed_provider#forget_user_feeds iface;
   Lwt.return ()      (* The plugin should now recalculate *)
 
+let get_bug_report_details config ~iface (ready, results) =
+  let system = config.system in
+  let sels = results#get_selections in
+  let root_iface = ZI.get_attribute FeedAttr.interface sels in
+
+  let issue_file = "/etc/issue" in
+  let issue =
+    if system#file_exists issue_file then
+      U.read_file system issue_file |> trim
+    else
+      Printf.sprintf "(file '%s' not found)" issue_file in
+
+  let b = Buffer.create 1000 in
+  let add fmt =
+    let do_add msg = Buffer.add_string b msg in
+    Printf.ksprintf do_add fmt in
+
+  add "Problem with %s\n" iface;
+  if iface <> root_iface then
+    add "  (while attempting to run %s)\n" root_iface;
+  add "\n";
+
+  add "0install version %s\n" About.version;
+
+  if ready then (
+    Tree.print config (Buffer.add_string b) sels
+  ) else (
+    Buffer.add_string b @@ Diagnostics.get_failure_reason config results
+  );
+
+  let platform = system#platform in
+  add "\n\
+       \nSystem:\
+       \n  %s %s %s\n\
+       \nIssue:\
+       \n  %s\n" platform.Platform.os platform.Platform.release platform.Platform.machine issue;
+
+  add "\n%s" @@ Support.Qdom.to_utf8 sels;
+
+  Buffer.contents b
+
+let run_test config distro test_callback (ready, results) =
+  try_lwt
+    if ready then (
+      let sels = results#get_selections in
+      match Selections.get_unavailable_selections config ~distro sels with
+      | [] -> test_callback sels
+      | missing ->
+          let details =
+            missing |> List.map (fun sel ->
+              Printf.sprintf "%s version %s\n  (%s)"
+                (ZI.get_attribute FeedAttr.interface sel)
+                (ZI.get_attribute FeedAttr.version sel)
+                (ZI.get_attribute FeedAttr.id sel)
+            ) |> String.concat "\n\n- " in
+          raise_safe "Can't run: the chosen versions have not been downloaded yet. I need:\n\n- %s" details
+    ) else raise_safe "Can't do a test run - solve failed"
+  with Safe_exception _ as ex ->
+    Lwt.return (Printexc.to_string ex)
+
 (** Run the GUI to choose and download a set of implementations
  * If [use_gui] is No; just returns `Dont_use_GUI.
  * If Maybe, uses the GUI if possible.
@@ -446,6 +507,12 @@ let get_selections_gui (gui:gui_ui) (driver:Driver.driver) ?test_callback ?(syst
     | (true, results) -> Selections.make_selection_map results#get_selections in
 
   let results = ref original_solve in
+
+  let show_bug_report_dialog iface =
+    let run_test = test_callback |> pipe_some (fun test_callback ->
+      Some (fun () -> run_test config distro test_callback !results)
+    ) in
+    gui#report_bug ?run_test iface in
 
   let watcher =
     object (_ : Driver.watcher)
@@ -501,58 +568,19 @@ let get_selections_gui (gui:gui_ui) (driver:Driver.driver) ?test_callback ?(syst
     | [`String iface; `Bool select_versions_tab] ->
         gui#show_component ~driver iface ~select_versions_tab;
         Lwt.return `Null
-    | json -> raise_safe "show-preferences: invalid request: %s" (Yojson.Basic.to_string (`List json))
+    | json -> raise_safe "show-component-dialog: invalid request: %s" (Yojson.Basic.to_string (`List json))
+  );
+
+  Python.register_handler "show-bug-report-dialog" (function
+    | [`String iface] ->
+        show_bug_report_dialog iface;
+        Lwt.return `Null
+    | json -> raise_safe "show-bug-report-dialog: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
   Python.register_handler "gui-compile" (function
     | [`String iface; `Bool autocompile] -> compile config !feed_provider iface ~autocompile >> Lwt.return `Null
     | json -> raise_safe "gui-compile: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "get-bug-report-details" (function
-    | [] -> Lwt.return (
-        let (ready, results) = !results in
-        let sels = results#get_selections in
-        let details =
-          if ready then (
-            let buf = Buffer.create 1000 in
-            Tree.print config (Buffer.add_string buf) sels;
-            Buffer.contents buf
-          ) else (
-            Diagnostics.get_failure_reason config results
-          ) in
-        `Assoc [
-          ("details", `String details);
-          ("xml", `String (Q.to_utf8 sels));
-        ]
-    )
-    | json -> raise_safe "get_bug_report_details: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "run-test" (function
-    | [] -> (
-        match test_callback with
-        | None -> raise_safe "Can't do a test run - no test callback registered (sorry)"
-        | Some test_callback ->
-            let (ready, results) = !results in
-            if ready then (
-              let sels = results#get_selections in
-              match Selections.get_unavailable_selections config ~distro sels with
-              | [] ->
-                lwt result = test_callback sels in
-                Lwt.return (`String result)
-              | missing ->
-                  let details =
-                    missing |> List.map (fun sel ->
-                      Printf.sprintf "%s version %s\n  (%s)"
-                        (ZI.get_attribute FeedAttr.interface sel)
-                        (ZI.get_attribute FeedAttr.version sel)
-                        (ZI.get_attribute FeedAttr.id sel)
-                    ) |> String.concat "\n\n- " in
-                  raise_safe "Can't run: the chosen versions have not been downloaded yet. I need:\n\n- %s" details
-            ) else raise_safe "Can't do a test run - solve failed"
-    )
-    | json -> raise_safe "run_test: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
   lwt () =
@@ -624,3 +652,35 @@ let try_get_gui config ~use_gui =
             None
         )
   )
+
+let send_bug_report iface_uri message : string Lwt.t =
+  let error_buffer = ref "" in
+  try
+    (* todo: Check the interface to decide where to send bug reports *)
+    let url = "http://0install.net/api/report-bug/" in
+    let connection = Curl.init () in
+    Curl.set_nosignal connection true;    (* Can't use DNS timeouts when multi-threaded *)
+    Curl.set_failonerror connection true;
+    if Support.Logging.will_log Support.Logging.Debug then Curl.set_verbose connection true;
+
+    Curl.set_errorbuffer connection error_buffer;
+
+    let output_buffer = Buffer.create 256 in
+    Curl.set_writefunction connection (fun data ->
+      Buffer.add_string output_buffer data;
+      String.length data
+    );
+
+    let post_data = Printf.sprintf "uri=%s&body=%s" (Curl.escape iface_uri) (Curl.escape message) in
+
+    Curl.set_url connection url;
+    Curl.set_post connection true;
+    Curl.set_postfields connection post_data;
+    Curl.set_postfieldsize connection (String.length post_data);
+
+    Curl.perform connection;
+
+    Lwt.return (Buffer.contents output_buffer)
+  with Curl.CurlException _ as ex ->
+    log_info ~ex "Curl error: %s" !error_buffer;
+    raise_safe "Failed to submit bug report: %s\n%s" (Printexc.to_string ex) !error_buffer
