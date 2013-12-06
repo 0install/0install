@@ -50,33 +50,3 @@ class GUIHandler(handler.Handler):
 			# Wait for the user to click the icon, then continue
 			yield self.mainwindow.systray_icon_blocker
 			yield tasks.TimeoutBlocker(0.5, 'Delay')
-
-	@tasks.async
-	def confirm(self, message):
-		yield self._switch_to_main_window(_('Need to confirm installation of distribution packages'))
-
-		from zeroinstall.injector.download import DownloadAborted
-		from zeroinstall.gui import dialog
-		import gtk
-		box = gtk.MessageDialog(self.mainwindow.window,
-					gtk.DIALOG_DESTROY_WITH_PARENT,
-					gtk.MESSAGE_QUESTION, gtk.BUTTONS_CANCEL,
-					str(message))
-		box.set_position(gtk.WIN_POS_CENTER)
-
-		install = dialog.MixedButton(_('Install'), gtk.STOCK_OK)
-		if gtk.pygtk_version >= (2,22,0):
-			install.set_can_default(True)
-		else:
-			install.set_flags(gtk.CAN_DEFAULT)
-		box.add_action_widget(install, gtk.RESPONSE_OK)
-		install.show_all()
-		box.set_default_response(gtk.RESPONSE_OK)
-		box.show()
-
-		response = dialog.DialogResponse(box)
-		yield response
-		box.destroy()
-
-		if response.response != gtk.RESPONSE_OK:
-			raise DownloadAborted()

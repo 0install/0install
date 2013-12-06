@@ -51,21 +51,6 @@ def parse_ynm(s):
 	if s == 'maybe': return None
 	assert 0, s
 
-@tasks.async
-def do_confirm(config, ticket, options, message):
-	if gui_driver is not None: config = gui_driver.config
-	try:
-		confirm = config.handler.confirm(message)
-		yield confirm
-		tasks.check(confirm)
-
-		send_json(["return", ticket, ["ok", "ok"]])
-	except download.DownloadAborted as ex:
-		send_json(["return", ticket, ["ok", "cancel"]])
-	except Exception as ex:
-		logger.warning("Returning error", exc_info = True)
-		send_json(["return", ticket, ["error", str(ex)]])
-
 last_ticket = 0
 def take_ticket():
 	global last_ticket
@@ -297,9 +282,6 @@ def handle_invoke(config, options, ticket, request):
 		elif command == 'gui-update-selections':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_gui_update_selections(request[1:], xml)
-		elif command == 'confirm':
-			do_confirm(config, ticket, options, request[1])
-			return
 		elif command == 'start-monitoring':
 			response = do_start_monitoring(config, request[1])
 		elif command == 'set-progress':

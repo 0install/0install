@@ -97,11 +97,26 @@ let make_gtk_ui (slave:Python.slave) =
       )
 
     method confirm message =
-      slave#invoke "confirm" [`String message] (function
-        | `String "ok" -> `ok
-        | `String "cancel" -> `cancel
-        | _ -> raise_safe "Invalid response"
-      )
+      (* TODO: in systray mode, open the main window now *)
+      let box = GWindow.message_dialog
+        (* ~parent todo *)
+        ~message_type:`QUESTION
+        ~title:"Confirm"
+        ~message
+        ~buttons:GWindow.Buttons.ok_cancel
+        () in
+      let result, set_result = Lwt.wait () in
+      box#set_default_response `OK;
+      box#connect#response ~callback:(fun response ->
+        box#destroy ();
+        Lwt.wakeup set_result (
+          match response with
+          | `OK -> `ok
+          | `CANCEL | `DELETE_EVENT -> `cancel
+        )
+      ) |> ignore;
+      box#show ();
+      result
 
     method config = slave#config
     method invoke = slave#invoke
