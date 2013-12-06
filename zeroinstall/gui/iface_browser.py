@@ -324,10 +324,8 @@ class InterfaceBrowser(object):
 						except download.DownloadError as ex:
 							warning("Icon download failed: %s", ex)
 							# Not worth showing a dialog box for this
-						except Exception as ex:
-							import traceback
-							traceback.print_exc()
-							self.config.handler.report_error(ex)
+						except Exception:
+							logger.warning("update_display", exc_info = True)
 					update_display()
 				# elif fetcher is None: don't store anything in cached_icon
 

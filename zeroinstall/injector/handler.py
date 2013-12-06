@@ -56,19 +56,9 @@ class Handler(object):
 				self.monitored_downloads.remove(dl)
 				self.downloads_changed()
 			except Exception as ex:
-				self.report_error(ex)
+				logger.warning("%s", str(exception) or type(exception), exc_info = True)
 		download_done_stats()
 
 	def downloads_changed(self):
 		"""This is just for the GUI to override to update its display."""
 		pass
-
-	def report_error(self, exception, tb = None):
-		"""Report an exception to the user.
-		@param exception: the exception to report
-		@type exception: L{SafeException}
-		@param tb: optional traceback
-		@since: 0.25"""
-		import logging
-		logger.warning("%s", str(exception) or type(exception),
-				exc_info = (exception, exception, tb) if logger.isEnabledFor(logging.INFO) else None)

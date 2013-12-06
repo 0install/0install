@@ -18,6 +18,9 @@ class type gui_ui =
     (** Forwarded from [Driver.watcher#update] as the solve makes progress. 
      * Once the main window is migrated, we can clean up this API. *)
     method update : Requirements.requirements -> ((bool * Solver.result) * Feed_provider.feed_provider) -> unit
+
+    (** Display an error to the user. *)
+    method report_error : exn -> unit
   end
 
 type ui_type =

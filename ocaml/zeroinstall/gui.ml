@@ -28,6 +28,7 @@ class type gui_ui =
     method show_preferences : unit Lwt.t
     method show_component : driver:Driver.driver -> General.iface_uri -> select_versions_tab:bool -> unit
     method update : Requirements.requirements -> ((bool * Solver.result) * Feed_provider.feed_provider) -> unit
+    method report_error : exn -> unit
   end
 
 type ui_type =
@@ -461,11 +462,7 @@ let get_selections_gui (gui:gui_ui) (driver:Driver.driver) ?test_callback ?(syst
         )
 
       method report feed_url msg =
-        Python.async (fun () ->
-          let msg = Printf.sprintf "Feed '%s': %s" (Feed_url.format_url feed_url) msg in
-          log_info "Sending error to GUI: %s" msg;
-          gui#invoke "report-error" [`String msg] ignore
-        )
+        gui#report_error @@ Safe_exception (Printf.sprintf "Feed '%s': %s" (Feed_url.format_url feed_url) msg, ref [])
     end in
 
   let action = match mode with

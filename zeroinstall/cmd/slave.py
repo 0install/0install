@@ -172,10 +172,6 @@ def do_check_gui(use_gui):
 
 	return main.gui_is_available(use_gui)
 
-def do_report_error(config, msg):
-	if gui_driver is not None: config = gui_driver.config
-	config.handler.report_error(SafeException(msg))
-
 run_gui = None			# Callback to invoke when a full solve-with-downloads is done
 gui_driver = None		# Object to notify about each new set of selections
 
@@ -298,8 +294,6 @@ def handle_invoke(config, options, ticket, request):
 			return #async
 		elif command == 'check-gui':
 			response = do_check_gui(request[1])
-		elif command == 'report-error':
-			response = do_report_error(config, request[1])
 		elif command == 'gui-update-selections':
 			xml = qdom.parse(BytesIO(read_chunk()))
 			response = do_gui_update_selections(request[1:], xml)

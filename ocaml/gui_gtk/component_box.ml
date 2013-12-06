@@ -13,17 +13,6 @@ module FC = Zeroinstall.Feed_cache
 module U = Support.Utils
 module Q = Support.Qdom
 
-let report_error ~parent ex =
-  let error_box = GWindow.message_dialog
-    ~parent
-    ~message_type:`ERROR
-    ~title:"Error"
-    ~message:(Printexc.to_string ex)
-    ~buttons:GWindow.Buttons.ok
-    () in
-  error_box#show ();
-  error_box#connect#response ~callback:(fun _ -> error_box#destroy ()) |> ignore
-
 let format_para para =
   para |> Str.split (Str.regexp_string "\n") |> List.map trim |> String.concat " "
 
@@ -290,7 +279,7 @@ let add_local_feed ~parent ~recalculate config iface () =
               Zeroinstall.Gui.add_feed config iface feed_url;
               box#destroy ();
               recalculate ()
-        with Safe_exception _ as ex -> report_error ~parent:box ex
+        with Safe_exception _ as ex -> Alert_box.report_error ~parent:box ex
   ) |> ignore;
 
   box#show ()
@@ -721,7 +710,7 @@ let create config trust_db driver iface ~recalculate ~select_versions_tab =
             recalculate ();
             Lwt.return ()
           with Safe_exception _ as ex ->
-            report_error ~parent:dialog ex;
+            Alert_box.report_error ~parent:dialog ex;
             Lwt.return ()
         )
     | `DELETE_EVENT | `CLOSE -> dialog#destroy ()

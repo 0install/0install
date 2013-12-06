@@ -89,14 +89,6 @@ class DummyHandler(handler.Handler):
 		self.ex = None
 		self.allow_downloads = False
 
-	def report_error(self, ex, tb = None):
-		assert self.ex is None, self.ex
-		self.ex = ex
-		self.tb = tb
-
-		#import traceback
-		#traceback.print_exc()
-
 class TestConfig:
 	freshness = 0
 	help_with_testing = False

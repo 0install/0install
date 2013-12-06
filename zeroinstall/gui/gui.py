@@ -80,8 +80,3 @@ class GUIHandler(handler.Handler):
 
 		if response.response != gtk.RESPONSE_OK:
 			raise DownloadAborted()
-
-	def report_error(self, ex, tb = None):
-		if isinstance(ex, download.DownloadAborted):
-			return		# No need to tell the user about this, since they caused it
-		self.mainwindow.report_exception(ex, tb = tb)

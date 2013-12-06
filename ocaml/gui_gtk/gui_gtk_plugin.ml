@@ -68,6 +68,8 @@ let make_gtk_ui (slave:Python.slave) =
     (* TODO: pass ~parent (once we have one) *)
     method confirm_keys feed_url infos = Trust_box.confirm_keys slave#config trust_db feed_url infos
 
+    method report_error ex = Alert_box.report_error ex
+
     method show_preferences =
       match preferences_dialog with
       | Some (dialog, result) -> dialog#present (); result
