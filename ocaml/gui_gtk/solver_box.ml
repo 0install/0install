@@ -165,25 +165,7 @@ class type solver_box =
   end
 
 let run_solver config (gui:Zeroinstall.Gui.gui_ui) (slave:Python.slave) trust_db driver ?test_callback ?(systray=false) mode reqs ~refresh : solver_box =
-  let last_update = ref None in
   let component_boxes = ref StringMap.empty in
-
-  let report_bug ?run_test iface =
-    let (_reqs, (results, _fp)) = !last_update |? lazy (failwith "BUG: no results") in   (* todo: improve this *)
-    Bug_report_box.create ?run_test ?last_error:!Alert_box.last_error config ~iface ~results in
-
-  let recalculate () =
-    Python.async (fun () -> slave#invoke "gui-recalculate" [] Python.expect_null) in
-
-  let show_component ~driver iface ~select_versions_tab =
-    match StringMap.find iface !component_boxes with
-    | Some box -> box#dialog#present ()
-    | None ->
-        let box = Component_box.create config trust_db driver iface ~recalculate ~select_versions_tab in
-        component_boxes := !component_boxes |> StringMap.add iface box;
-        box#dialog#connect#destroy ~callback:(fun () -> component_boxes := !component_boxes |> StringMap.remove iface) |> ignore;
-        !last_update |> if_some box#update;
-        box#dialog#show () in
 
   let feed_provider = ref (new Zeroinstall.Feed_provider.feed_provider config driver#distro) in
 
@@ -195,26 +177,37 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) (slave:Python.slave) trust_db
 
   let results = ref original_solve in
 
-  let update reqs results : unit =
-    last_update := Some (reqs, results);
-    !component_boxes |> StringMap.iter (fun _iface box ->
-      box#update (reqs, results)
-    );
+  let report_bug ?run_test iface =
+    Bug_report_box.create ?run_test ?last_error:!Alert_box.last_error config ~iface ~results:!results in
 
-    Python.async (fun () ->
-      let ((ready, new_results), new_fp) = results in
-      let sels = new_results#get_selections in
-      let tree = build_tree config new_fp original_selections sels in
-      slave#invoke ~xml:sels "gui-update-selections" [`Bool ready; tree] Zeroinstall.Python.expect_null
-    ) in
+  let recalculate () =
+    Python.async (fun () -> slave#invoke "gui-recalculate" [] Python.expect_null) in
+
+  let show_component ~driver iface ~select_versions_tab =
+    match StringMap.find iface !component_boxes with
+    | Some box -> box#dialog#present ()
+    | None ->
+        let box = Component_box.create config trust_db driver reqs iface ~recalculate ~select_versions_tab ~feed_provider ~results in
+        component_boxes := !component_boxes |> StringMap.add iface box;
+        box#dialog#connect#destroy ~callback:(fun () -> component_boxes := !component_boxes |> StringMap.remove iface) |> ignore;
+        box#update;
+        box#dialog#show () in
 
   let watcher =
     object (_ : Driver.watcher)
-      method update (((ready, new_results), new_fp) as result) =
+      method update ((ready, new_results), new_fp) =
         feed_provider := new_fp;
         results := (ready, new_results);
 
-        update reqs result;
+        !component_boxes |> StringMap.iter (fun _iface box ->
+          box#update
+        );
+
+        Python.async (fun () ->
+          let sels = new_results#get_selections in
+          let tree = build_tree config new_fp original_selections sels in
+          slave#invoke ~xml:sels "gui-update-selections" [`Bool ready; tree] Zeroinstall.Python.expect_null
+        )
 
       method report feed_url msg =
         Alert_box.report_error @@ Safe_exception (Printf.sprintf "Feed '%s': %s" (Feed_url.format_url feed_url) msg, ref [])
