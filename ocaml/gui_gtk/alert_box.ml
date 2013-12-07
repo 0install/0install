@@ -19,7 +19,10 @@ let report_info ?parent ~title message =
   box#connect#response ~callback:(fun _ -> box#destroy ()) |> ignore;
   box#show ()
 
+let last_error = ref None
+
 let report_error ?parent ex =
+  last_error := Some ex;
   let error_box = GWindow.message_dialog
     ?parent
     ~message_type:`ERROR

@@ -7,23 +7,30 @@
 class type gui_ui =
   object
     inherit Ui.ui_handler
-    inherit Python.slave
+
+    (** Run the GUI to choose and download a set of implementations
+     * [test_callback] is used if the user clicks on the test button in the bug report dialog.
+     *)
+    method run_solver :
+      Driver.driver ->
+      ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
+      ?systray:bool ->
+      [`Download_only | `Select_for_run | `Select_only] ->
+      Requirements.requirements ->
+      refresh:bool ->
+      [`Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
     
     (** Display the Preferences dialog. Resolves when dialog is closed. *)
     method show_preferences : unit Lwt.t
 
-    (** Display the Component Properties dialog for this interface. *)
-    method show_component : driver:Driver.driver -> General.iface_uri -> select_versions_tab:bool -> unit
-
-    (** Forwarded from [Driver.watcher#update] as the solve makes progress. 
-     * Once the main window is migrated, we can clean up this API. *)
-    method update : Requirements.requirements -> ((bool * Solver.result) * Feed_provider.feed_provider) -> unit
-
     (** Display an error to the user. *)
     method report_error : exn -> unit
 
-    (** Open the bug report dialog. *)
-    method report_bug : ?run_test:(unit -> string Lwt.t) -> General.iface_uri -> unit
+    method open_app_list_box : unit Lwt.t
+
+    method open_add_box : General.feed_url -> unit Lwt.t
+
+    method open_cache_explorer : unit Lwt.t
   end
 
 type ui_type =
@@ -32,16 +39,6 @@ type ui_type =
 
 (** The GUI plugin registers itself here. *)
 val register_plugin : (General.config -> Support.Common.yes_no_maybe -> gui_ui option) -> unit
-
-val get_selections_gui :
-  gui_ui ->
-  Driver.driver ->
-  ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
-  ?systray:bool ->
-  [< `Download_only | `Select_for_run | `Select_only ] ->
-  Requirements.requirements ->
-  refresh:bool ->
-  [> `Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
 
 val download_icon : General.config -> Downloader.downloader -> Feed_provider.feed_provider -> Feed_url.non_distro_feed -> unit Lwt.t
 
@@ -88,3 +85,8 @@ val get_bug_report_details : General.config -> iface:General.iface_uri -> (bool 
  * @return the response from the server (on success).
  * @raise Safe_exception on failure. *)
 val send_bug_report : General.iface_uri -> string -> string Lwt.t
+
+(** Find the [Feed.implementation] which produced this selection. If there is an override on the stability, return that too. *)
+val get_impl : Feed_provider.feed_provider -> Support.Qdom.element -> (Feed.implementation * General.stability_level option) option
+
+val run_test : General.config -> Distro.distribution -> (Support.Qdom.element -> string Lwt.t) -> (bool * Solver.result) -> string Lwt.t

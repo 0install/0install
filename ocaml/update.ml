@@ -237,7 +237,7 @@ let handle_bg options flags args =
             | Zeroinstall.Gui.Gui gui ->
                 log_info "Background update: trying to use GUI to update %s" name;
                 Support.Utils.finally_do (fun () -> Zeroinstall.Python.cancel_slave () |> Lwt_main.run) () (fun () ->
-                  match Zeroinstall.Gui.get_selections_gui gui driver `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
+                  match gui#run_solver driver `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
                   | `Aborted_by_user -> raise (System_exit 0)
                   | `Success gui_sels -> gui_sels
                 )

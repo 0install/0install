@@ -42,36 +42,30 @@ let remove_cached config selections_path =
   assert (U.starts_with (Filename.basename stored) "sha1");
   U.rmtree ~even_if_locked:true config.system stored
 
-let make_fake_gui config =
-  object (_ : #Zeroinstall.Gui.gui_ui)
+let fake_gui =
+  object (_ : Zeroinstall.Gui.gui_ui)
     inherit Fake_system.null_ui
-    inherit Zeroinstall.Python.slave config
 
+    method run_solver = raise Open_gui
     method report_error ex = raise ex
-    method report_bug = failwith "report_bug"
     method show_preferences = failwith "show_preferences"
-    method show_component = failwith "show_component"
-    method update = failwith "update"
+    method open_app_list_box = failwith "open_app_list_box"
+    method open_add_box = failwith "open_add_box"
+    method open_cache_explorer = failwith "open_cache_explorer"
   end
 
 let install_interceptor system checked_for_gui =
-  Zeroinstall.Gui.register_plugin (fun config use_gui ->
+  Zeroinstall.Gui.register_plugin (fun _config use_gui ->
     assert (use_gui = Maybe);
     let have_gui = system#getenv "DISPLAY" <> Some "" in
     checked_for_gui := true;
     if have_gui then (
-      Some (make_fake_gui config)
+      Some fake_gui
     ) else (
       None
     )
   );
-
-  Update.notify := (fun ~msg ~timeout:_ -> log_info "NOTIFY: 0install: %s" msg);
-  (* Trigger a background update - no updates found *)
-  Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
-    | `List ((`String "open-gui") :: _) -> raise Open_gui
-    | json -> raise_safe "Unexpected slave request: %s" (Yojson.Basic.to_string json)
-  )
+  Update.notify := (fun ~msg ~timeout:_ -> log_info "NOTIFY: 0install: %s" msg)
 
 let do_recipe config fake_system server ?(expected=[[("HelloWorld.tar.bz2", `Serve)]]) name =
   let feed = Test_0install.feed_dir +/ name in

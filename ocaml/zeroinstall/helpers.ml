@@ -29,7 +29,7 @@ let solve_and_download_impls gui (driver:Driver.driver) ?test_callback reqs mode
 
   match gui with
   | Gui.Gui gui ->
-      begin match_lwt Gui.get_selections_gui gui driver ?test_callback mode reqs ~refresh with
+      begin match_lwt gui#run_solver driver ?test_callback mode reqs ~refresh with
       | `Success sels -> Lwt.return (Some sels)
       | `Aborted_by_user -> Lwt.return None end;
   | Gui.Ui _ ->

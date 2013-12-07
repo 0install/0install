@@ -6,10 +6,10 @@
 
 open Support.Common
 
-module Ui = Zeroinstall.Ui
 module Python = Zeroinstall.Python
 
 let make_gtk_ui (slave:Python.slave) =
+  let config = slave#config in
   let downloads = Hashtbl.create 10 in
 
   let () =
@@ -24,15 +24,11 @@ let make_gtk_ui (slave:Python.slave) =
       | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
     ) in
 
-  let trust_db = new Zeroinstall.Trust.trust_db slave#config in
+  let trust_db = new Zeroinstall.Trust.trust_db config in
 
-  let recalculate () = Python.async (fun () -> slave#invoke "gui-recalculate" [] Python.expect_null) in
-
-  object (_ : Zeroinstall.Gui.gui_ui)
+  object (self : Zeroinstall.Gui.gui_ui)
     val mutable preferences_dialog = None
-    val mutable component_boxes = StringMap.empty
-    val mutable last_update = None
-    val mutable last_error = None
+    val mutable solver_boxes : Solver_box.solver_box list = []
 
     method start_monitoring ~cancel ~url ~progress ?hint ~id =
       let size =
@@ -67,37 +63,22 @@ let make_gtk_ui (slave:Python.slave) =
       slave#invoke "stop-monitoring" [`String id] Python.expect_null
 
     (* TODO: pass ~parent (once we have one) *)
-    method confirm_keys feed_url infos = Trust_box.confirm_keys slave#config trust_db feed_url infos
+    method confirm_keys feed_url infos = Trust_box.confirm_keys config trust_db feed_url infos
 
-    method report_error ex =
-      last_error <- Some ex;
-      Alert_box.report_error ex
+    method report_error ex = Alert_box.report_error ex
+
+    method private recalculate () =
+      solver_boxes |> List.iter (fun box -> box#recalculate)
 
     method show_preferences =
       match preferences_dialog with
       | Some (dialog, result) -> dialog#present (); result
       | None ->
-          let dialog, result = Preferences_box.show_preferences slave#config trust_db ~recalculate in
+          let dialog, result = Preferences_box.show_preferences config trust_db ~recalculate:self#recalculate in
           preferences_dialog <- Some (dialog, result);
           dialog#show ();
           Python.async (fun () -> result >> (preferences_dialog <- None; Lwt.return ()));
           result
-
-    method show_component ~driver iface ~select_versions_tab =
-      match StringMap.find iface component_boxes with
-      | Some box -> box#dialog#present ()
-      | None ->
-          let box = Component_box.create slave#config trust_db driver iface ~recalculate ~select_versions_tab in
-          component_boxes <- component_boxes |> StringMap.add iface box;
-          box#dialog#connect#destroy ~callback:(fun () -> component_boxes <- component_boxes |> StringMap.remove iface) |> ignore;
-          last_update |> if_some box#update;
-          box#dialog#show ()
-
-    method update reqs results : unit =
-      last_update <- Some (reqs, results);
-      component_boxes |> StringMap.iter (fun _iface box ->
-        box#update (reqs, results)
-      )
 
     method confirm message =
       (* TODO: in systray mode, open the main window now *)
@@ -121,12 +102,22 @@ let make_gtk_ui (slave:Python.slave) =
       box#show ();
       result
 
-    method report_bug ?run_test iface =
-      let (_reqs, (results, _fp)) = last_update |? lazy (failwith "BUG: no results") in   (* todo: improve this *)
-      Bug_report_box.create ?run_test ?last_error slave#config ~iface ~results
+    method run_solver driver ?test_callback ?systray mode reqs ~refresh =
+      let box = Solver_box.run_solver config self slave trust_db driver ?test_callback ?systray mode reqs ~refresh in
+      solver_boxes <- box :: solver_boxes;
+      try_lwt
+        box#result
+      finally
+        solver_boxes <- solver_boxes |> List.filter ((<>) box);
+        Lwt.return ()
 
-    method config = slave#config
-    method invoke = slave#invoke
+    method open_app_list_box =
+      slave#invoke "open-app-list-box" [] Zeroinstall.Python.expect_null
+
+    method open_add_box url =
+      slave#invoke "open-add-box" [`String url] Zeroinstall.Python.expect_null
+
+    method open_cache_explorer = Cache_explorer_box.open_cache_explorer config slave
   end
 
 let string_of_ynm = function

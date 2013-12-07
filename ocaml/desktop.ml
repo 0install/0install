@@ -63,7 +63,7 @@ let handle options flags args =
   Support.Argparse.iter_options flags (function
     | #common_option as o -> Common_options.process_common_option options o
   );
-  let slave =
+  let gui =
     match Lazy.force options.ui with
     | Zeroinstall.Gui.Gui gui -> gui
     | Zeroinstall.Gui.Ui _ -> raise_safe "GUI not available" in
@@ -116,13 +116,13 @@ let handle options flags args =
     | json -> raise_safe "get-feed-metadata: invalid request: %s" (Yojson.Basic.to_string (`List json))
   );
 
-  let gui =
+  let finished =
     match args with
     | [] ->
-        slave#invoke "open-app-list-box" [] Zeroinstall.Python.expect_null
+        gui#open_app_list_box;
     | [arg] ->
         let url = Generic_select.canonical_iface_uri config.system arg in
-        slave#invoke "open-add-box" [`String url] Zeroinstall.Python.expect_null
+        gui#open_add_box url
     | _ -> raise (Support.Argparse.Usage_error 1) in
 
-  Lwt_main.run gui
+  Lwt_main.run finished
