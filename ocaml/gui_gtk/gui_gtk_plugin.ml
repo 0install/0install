@@ -7,22 +7,10 @@
 open Support.Common
 
 module Python = Zeroinstall.Python
+module Ui = Zeroinstall.Ui
 
 let make_gtk_ui (slave:Python.slave) =
   let config = slave#config in
-  let downloads = Hashtbl.create 10 in
-
-  let () =
-    Python.register_handler "abort-download" (function
-      | [`String id] ->
-          begin try
-            let cancel, _progress = Hashtbl.find downloads id in
-            Lwt.bind (cancel ()) (fun () -> Lwt.return `Null)
-          with Not_found ->
-            log_info "abort-download: %s not found" id;
-            Lwt.return `Null end
-      | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
-    ) in
 
   let trust_db = new Zeroinstall.Trust.trust_db config in
 
@@ -30,45 +18,53 @@ let make_gtk_ui (slave:Python.slave) =
     val mutable preferences_dialog = None
     val mutable solver_boxes : Solver_box.solver_box list = []
 
+    val mutable n_completed_downloads = 0
+    val mutable size_completed_downloads = 0L
+    val mutable downloads = StringMap.empty
+    val mutable pulse = None
+
     method start_monitoring ~id dl =
-      let open Zeroinstall.Ui in
-      let size =
-        match snd @@ Lwt_react.S.value dl.progress with
-        | None -> `Null
-        | Some size -> `Float (Int64.to_float size) in
-      let hint =
-        match dl.hint with
-        | None -> `Null
-        | Some hint -> `String hint in
-      let details = `Assoc [
-        ("url", `String dl.url);
-        ("hint", hint);
-        ("size", size);
-        ("tempfile", `String id);
-      ] in
-      let updates = dl.progress |> Lwt_react.S.map_s (fun (sofar, total) ->
-        if Hashtbl.mem downloads id then (
-          let sofar = Int64.to_float sofar in
-          let total =
-            match total with
-            | None -> `Null
-            | Some total -> `Float (Int64.to_float total) in
-          slave#invoke "set-progress" [`String id; `Float sofar; total] Python.expect_null
-        ) else Lwt.return ()
-      ) in
-      Hashtbl.add downloads id (dl.cancel, updates);     (* (store updates to prevent GC) *)
-      slave#invoke "start-monitoring" [details] Python.expect_null
+      log_debug "start_monitoring %s" id;
+      downloads <- downloads |> StringMap.add id dl;
+
+      if pulse = None then (
+        pulse <- Some (
+          try_lwt
+            while_lwt not (StringMap.is_empty downloads) do
+              lwt () = Lwt_unix.sleep 0.2 in
+              solver_boxes |> List.iter (fun box -> box#update_download_status ~n_completed_downloads ~size_completed_downloads downloads);
+              Lwt.return ()
+            done
+          with ex ->
+            log_warning ~ex "GUI update failed";
+            Lwt.return ()
+          finally
+            pulse <- None;
+            (* We do this here, rather than in [stop_monitoring], to introduce a delay,
+             * since we often start a new download immediately after another one finished and
+             * we don't want to reset in that case. *)
+            n_completed_downloads <- 0;
+            size_completed_downloads <- 0L;
+            Lwt.return ()
+        )
+      );
+      Lwt.return ()
 
     method stop_monitoring ~id =
-      Hashtbl.remove downloads id;
-      slave#invoke "stop-monitoring" [`String id] Python.expect_null
+      log_debug "stop_monitoring %s" id;
+      let dl = downloads |> StringMap.find_safe id in
+      n_completed_downloads <- n_completed_downloads + 1;
+      size_completed_downloads <- Int64.add size_completed_downloads (fst (Lwt_react.S.value dl.Ui.progress));
+      downloads <- downloads |> StringMap.remove id;
+      Lwt.return ()
 
-    method impl_added_to_store = ()
+    method impl_added_to_store =
+      solver_boxes |> List.iter (fun box -> box#impl_added_to_store)
 
-    (* TODO: pass ~parent (once we have one) *)
-    method confirm_keys feed_url infos = Trust_box.confirm_keys config trust_db feed_url infos
-
-    method report_error ex = Alert_box.report_error ex
+    method confirm_keys feed_url infos =
+      let box = List.hd solver_boxes in
+      lwt parent = box#ensure_main_window in
+      Trust_box.confirm_keys ~parent config trust_db feed_url infos
 
     method private recalculate () =
       solver_boxes |> List.iter (fun box -> box#recalculate)
@@ -84,9 +80,11 @@ let make_gtk_ui (slave:Python.slave) =
           result
 
     method confirm message =
-      (* TODO: in systray mode, open the main window now *)
+      let box = List.hd solver_boxes in
+      lwt parent = box#ensure_main_window in
+
       let box = GWindow.message_dialog
-        (* ~parent todo *)
+        ~parent
         ~message_type:`QUESTION
         ~title:"Confirm"
         ~message
@@ -106,7 +104,11 @@ let make_gtk_ui (slave:Python.slave) =
       result
 
     method run_solver driver ?test_callback ?systray mode reqs ~refresh =
-      let box = Solver_box.run_solver config self slave trust_db driver ?test_callback ?systray mode reqs ~refresh in
+      let abort_all_downloads () =
+        downloads |> StringMap.iter (fun _id dl ->
+          Python.async dl.Ui.cancel
+        ) in
+      let box = Solver_box.run_solver config self trust_db driver ~abort_all_downloads ?test_callback ?systray mode reqs ~refresh in
       solver_boxes <- box :: solver_boxes;
       try_lwt
         box#result
@@ -123,22 +125,13 @@ let make_gtk_ui (slave:Python.slave) =
     method open_cache_explorer = Cache_explorer_box.open_cache_explorer config slave
   end
 
-let string_of_ynm = function
-  | Yes -> "yes"
-  | No -> "no"
-  | Maybe -> "maybe"
-
 (* If this raises an exception, gui.ml will log it and continue without the GUI. *)
-let try_get_gtk_gui config use_gui =
+let try_get_gtk_gui config _use_gui =
   (* Initializes GTK. *)
   ignore (GMain.init ());
 
   let slave = new Zeroinstall.Python.slave config in
-  if slave#invoke "check-gui" [`String (string_of_ynm use_gui)] Yojson.Basic.Util.to_bool |> Lwt_main.run then (
-    Some (make_gtk_ui slave)
-  ) else (
-    None
-  )
+  Some (make_gtk_ui slave)
 
 let () =
   log_info "Initialising GTK GUI";

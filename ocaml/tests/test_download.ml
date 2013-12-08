@@ -47,7 +47,6 @@ let fake_gui =
     inherit Fake_system.null_ui
 
     method run_solver = raise Open_gui
-    method report_error ex = raise ex
     method show_preferences = failwith "show_preferences"
     method open_app_list_box = failwith "open_app_list_box"
     method open_add_box = failwith "open_add_box"

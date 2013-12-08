@@ -56,7 +56,7 @@ class Handler(object):
 				self.monitored_downloads.remove(dl)
 				self.downloads_changed()
 			except Exception as ex:
-				logger.warning("%s", str(exception) or type(exception), exc_info = True)
+				logger.warning("%s", str(ex) or type(ex), exc_info = True)
 		download_done_stats()
 
 	def downloads_changed(self):

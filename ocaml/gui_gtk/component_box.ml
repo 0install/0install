@@ -243,7 +243,7 @@ let add_remote_feed ~parent ~recalculate driver iface () =
             | `remote_feed _ as feed_url ->
                 lwt () = Zeroinstall.Gui.add_remote_feed driver iface feed_url in
                 box#destroy ();
-                recalculate ();
+                recalculate ~force:false;
                 Lwt.return () end
           with Safe_exception (msg, _) ->
             box#misc#set_sensitive true;
@@ -278,7 +278,7 @@ let add_local_feed ~parent ~recalculate config iface () =
           | `local_feed _ as feed_url ->
               Zeroinstall.Gui.add_feed config iface feed_url;
               box#destroy ();
-              recalculate ()
+              recalculate ~force:false
         with Safe_exception _ as ex -> Alert_box.report_error ~parent:box ex
   ) |> ignore;
 
@@ -335,7 +335,7 @@ let make_feeds_tab config ~trust_db ~driver ~recalculate ~feed_provider window i
         let feed_import = feeds_model#get ~row:iter ~column:feed_obj in
         Zeroinstall.Gui.remove_feed config iface feed_import.F.feed_src;
         remove_feed#misc#set_sensitive false;
-        recalculate ();
+        recalculate ~force:false;
     | _ -> log_warning "Impossible selection!"
   ) |> ignore;
 
@@ -506,7 +506,7 @@ let make_versions_tab config reqs ~recalculate ~feed_provider ~results window if
   let set_stability_policy value =
     let iface_config = {FC.load_iface_config config iface with FC.stability_policy = value} in
     FC.save_iface_config config iface iface_config;
-    recalculate () in
+    recalculate ~force:false in
 
   let iface_config = FC.load_iface_config config iface in
 
@@ -582,7 +582,7 @@ let make_versions_tab config reqs ~recalculate ~feed_provider ~results window if
             let stability_menu = GMenu.menu_item ~packing:menu#add ~label:"Rating" () in
             let submenu = build_stability_menu (fun stability ->
               Zeroinstall.Gui.set_impl_stability config (F.get_id impl) stability;
-              recalculate ()
+              recalculate ~force:false
             ) in
             stability_menu#set_submenu submenu;
 
@@ -698,7 +698,7 @@ let create config trust_db driver reqs iface ~recalculate ~select_versions_tab ~
         Zeroinstall.Python.async (fun () ->
           try_lwt
             lwt () = Zeroinstall.Gui.compile config !feed_provider iface ~autocompile:true in
-            recalculate ();
+            recalculate ~force:false;
             Lwt.return ()
           with Safe_exception _ as ex ->
             Alert_box.report_error ~parent:dialog ex;

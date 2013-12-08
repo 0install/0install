@@ -8,17 +8,13 @@ The B{0install slave} command-line interface.
 from __future__ import print_function
 
 import sys, os
+import warnings, logging
 
 from zeroinstall import _, logger, SafeException
 from zeroinstall.cmd import UsageError
-from zeroinstall.injector import model, qdom, download
+from zeroinstall.injector import model
 from zeroinstall.support import tasks
 from zeroinstall import support
-
-if sys.version_info[0] > 2:
-	from io import BytesIO
-else:
-	from StringIO import StringIO as BytesIO
 
 import json, sys
 
@@ -36,6 +32,40 @@ else:
 		msvcrt.setmode(stdout.fileno(), os.O_BINARY)
 sys.stdout = sys.stderr
 
+def check_gui():
+	"""Returns True if the GUI works, or returns an exception if not."""
+	if sys.version_info[0] < 3:
+		try:
+			import pygtk; pygtk.require('2.0')
+		except ImportError as ex:
+			logging.info("No GUI available", exc_info = ex)
+			return ex
+
+	try:
+		if sys.version_info[0] > 2:
+			from zeroinstall.gtkui import pygtkcompat
+			pygtkcompat.enable()
+			pygtkcompat.enable_gtk(version = '3.0')
+		import gtk
+	except (ImportError, ValueError, RuntimeError) as ex:
+		logging.info("No GUI available", exc_info = ex)
+		return ex
+
+	if gtk.gdk.get_display() is None:
+		return SafeException("Failed to connect to display.")
+
+	return True
+
+_gui_available = None
+def gui_is_available():
+	global _gui_available
+	if _gui_available is None:
+		with warnings.catch_warnings():
+			_gui_available = check_gui()
+	if _gui_available is True:
+		return True
+	raise _gui_available
+
 def read_chunk():
 	l = support.read_bytes(0, 8, null_ok = True)
 	logger.debug("Read '%s' from master", l)
@@ -44,12 +74,6 @@ def read_chunk():
 
 def add_options(parser):
 	parser.add_option("-o", "--offline", help=_("try to avoid using the network"), action='store_true')
-
-def parse_ynm(s):
-	if s == 'yes': return True
-	if s == 'no': return False
-	if s == 'maybe': return None
-	assert 0, s
 
 last_ticket = 0
 def take_ticket():
@@ -88,107 +112,14 @@ def handle_message(config, options, message):
 	else:
 		assert 0, message
 
-class OCamlDownload:
-	url = None
-	hint = None
-	sofar = 0
-	expected_size = None
-	tempfile = None
-	status = download.download_fetching
-	downloaded = None
-	_final_total_size = None
-
-	def get_current_fraction(self):
-		"""Returns the current fraction of this download that has been fetched (from 0 to 1),
-		or None if the total size isn't known. Note that the timeout does not stop the download;
-		we just use it as a signal to try a mirror in parallel.
-		@return: fraction downloaded
-		@rtype: int | None"""
-		if self.tempfile is None:
-			return 1
-		if self.expected_size is None:
-			return None		# Unknown
-		current_size = self.get_bytes_downloaded_so_far()
-		return float(current_size) / self.expected_size
-
-	def get_bytes_downloaded_so_far(self):
-		"""Get the download progress. Will be zero if the download has not yet started.
-		@rtype: int"""
-		return self.sofar
-
-	def abort(self):
-		invoke_master(["abort-download", self.tempfile])
-
-downloads = {}
-def do_start_monitoring(config, details):
-	if gui_driver is not None: config = gui_driver.config
-	size = details["size"]
-	if size is not None:
-		size = int(size)
-	dl = OCamlDownload()
-	dl.url = details["url"]
-	dl.hint = details["hint"]
-	dl.expected_size = size
-	dl.tempfile = details["tempfile"]
-	dl.downloaded = tasks.Blocker("Download '%s'" % details["url"])
-	downloads[dl.tempfile] = dl
-	config.handler.monitor_download(dl)
-
-def do_set_progress(config, tmpfile, sofar, expected_size):
-	dl = downloads[tmpfile]
-	dl.sofar = int(sofar)
-	if expected_size:
-		dl.expected_size = int(expected_size)
-
-def do_stop_monitoring(config, tmpfile):
-	dl = downloads[tmpfile]
-	dl.status = download.download_complete
-	dl._final_total_size = dl.get_bytes_downloaded_so_far()
-	dl.downloaded.trigger()
-	del downloads[tmpfile]
-
-def do_check_gui(use_gui):
-	from zeroinstall.gui import main
-
-	if use_gui == "yes": use_gui = True
-	elif use_gui == "no": return False
-	elif use_gui == "maybe": use_gui = None
-	else: assert 0, use_gui
-
-	return main.gui_is_available(use_gui)
-
-run_gui = None			# Callback to invoke when a full solve-with-downloads is done
-gui_driver = None		# Object to notify about each new set of selections
-
-def do_open_gui(args):
-	global run_gui, gui_driver
-	assert run_gui is None
-
-	root_uri, opts = args
-
-	gui_args = []
-
-	if opts['refresh']: gui_args += ['--refresh']
-	if opts['systray']: gui_args += ['--systray']
-
-	if opts['action'] == 'for-select': gui_args += ['--select-only']
-	elif opts['action'] == 'for-download': gui_args += ['--download-only']
-	elif opts['action'] != 'for-run': assert 0, opts
-
-	from zeroinstall.gui import main
-	run_gui, gui_driver = main.open_gui(gui_args + ['--', root_uri])
-	return []
-
 def do_open_app_list_box(ticket):
-	from zeroinstall.gui import main
-	main.gui_is_available(True)
+	gui_is_available()
 	from zeroinstall.gtkui.applistbox import AppListBox, AppList
 	from zeroinstall.injector.iface_cache import iface_cache
 	wait_for_destroy(ticket, AppListBox(iface_cache, AppList()).window)
 
 def do_open_add_box(ticket, uri):
-	from zeroinstall.gui import main
-	main.gui_is_available(True)
+	gui_is_available()
 	from zeroinstall.gtkui.addbox import AddBox
 	wait_for_destroy(ticket, AddBox(uri).window)
 
@@ -206,19 +137,6 @@ def wait_for_destroy(ticket, window):
 		logger.warning("Returning error", exc_info = True)
 		send_json(["return", ticket, ["error", str(ex)]])
 
-@tasks.async
-def do_run_gui(ticket):
-	reply_holder = []
-	blocker = run_gui(reply_holder)
-	try:
-		if blocker:
-			yield blocker
-			tasks.check(blocker)
-		reply, = reply_holder
-		send_json(["return", ticket, ["ok", reply]])
-	except Exception as ex:
-		logger.warning("Returning error", exc_info = True)
-		send_json(["return", ticket, ["error", str(ex)]])
 
 cache_explorer = None
 
@@ -227,8 +145,7 @@ def do_open_cache_explorer(config, ticket):
 	global cache_explorer
 	assert cache_explorer is None
 	try:
-		from zeroinstall.gui import main
-		main.gui_is_available(True)		# Will throw if not
+		gui_is_available()		# Will throw if not
 
 		blocker = tasks.Blocker("Cache explorer window")
 		import gtk
@@ -247,47 +164,23 @@ def do_open_cache_explorer(config, ticket):
 def do_populate_cache_explorer(ok_feeds, error_feeds, unowned):
 	return cache_explorer.populate_model(ok_feeds, error_feeds, unowned)
 
-def do_gui_update_selections(args, xml):
-	ready, tree = args
-	gui_driver.set_selections(ready, tree, xml)
-
 def handle_invoke(config, options, ticket, request):
 	try:
 		command = request[0]
 		logger.debug("Got request '%s'", command)
-		if command == 'open-gui':
-			response = do_open_gui(request[1:])
-		elif command == 'gui-recalculate':
-			from zeroinstall.gui import main
-			main.recalculate()
-			response = None
-		elif command == 'ping':
+		if command == 'ping':
 			response = None
 		elif command == 'open-cache-explorer':
 			do_open_cache_explorer(config, ticket)
 			return #async
 		elif command == 'populate-cache-explorer':
 			response = do_populate_cache_explorer(*request[1:])
-		elif command == 'run-gui':
-			do_run_gui(ticket)
-			return #async
 		elif command == 'open-app-list-box':
 			do_open_app_list_box(ticket)
 			return #async
 		elif command == 'open-add-box':
 			do_open_add_box(ticket, request[1])
 			return #async
-		elif command == 'check-gui':
-			response = do_check_gui(request[1])
-		elif command == 'gui-update-selections':
-			xml = qdom.parse(BytesIO(read_chunk()))
-			response = do_gui_update_selections(request[1:], xml)
-		elif command == 'start-monitoring':
-			response = do_start_monitoring(config, request[1])
-		elif command == 'set-progress':
-			response = do_set_progress(config, *request[1:])
-		elif command == 'stop-monitoring':
-			response = do_stop_monitoring(config, request[1])
 		else:
 			raise SafeException("Internal error: unknown command '%s'" % command)
 		response = ['ok', response]
@@ -316,22 +209,6 @@ def invoke_master(request):
 	resolve_on_reply(ticket, blocker)
 	send_json(["invoke", ticket, request])
 	return blocker
-
-# Get the details needed for the GUI component dialog
-def get_component_details(interface_uri):
-	return invoke_master(["get-component-details", interface_uri])
-
-def get_feed_description(feed_url):
-	return invoke_master(["get-feed-description", feed_url])
-
-def get_bug_report_details():
-	return invoke_master(["get-bug-report-details"])
-
-def run_test():
-	return invoke_master(["run-test"])
-
-def download_archives():
-	return invoke_master(["download-archives"])
 
 def handle(config, options, args):
 	if args:

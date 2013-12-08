@@ -46,7 +46,6 @@ sys.path.insert(0, %s)''' % repr(self.lib_dir))
 class build_with_data(build_py):
 	"""Python < 2.4 doesn't support package_data_files, so add it manually."""
 	package_data_files = [
-		"zeroinstall/gui/zero-install.ui",
 		"zeroinstall/gtkui/desktop.ui",
 		"zeroinstall/gtkui/cache.ui",
 	]
@@ -93,4 +92,4 @@ use.
 The injector solves this problem by selecting components to meet a program's
 requirements, according to a policy you give it. The injector finds out which
 versions are available, and downloads and runs the ones you choose.""",
-      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.injector", "zeroinstall.gui", "zeroinstall.gtkui", "zeroinstall.cmd"])
+      packages=["zeroinstall", "zeroinstall.support", "zeroinstall.injector", "zeroinstall.gtkui", "zeroinstall.cmd"])

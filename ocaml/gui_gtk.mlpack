@@ -2,6 +2,8 @@ Alert_box
 Bug_report_box
 Cache_explorer_box
 Component_box
+Component_tree
+Gtk_utils
 Gui_gtk_plugin
 Help_box
 Limiter

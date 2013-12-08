@@ -23,9 +23,6 @@ class type gui_ui =
     (** Display the Preferences dialog. Resolves when dialog is closed. *)
     method show_preferences : unit Lwt.t
 
-    (** Display an error to the user. *)
-    method report_error : exn -> unit
-
     method open_app_list_box : unit Lwt.t
 
     method open_add_box : General.feed_url -> unit Lwt.t

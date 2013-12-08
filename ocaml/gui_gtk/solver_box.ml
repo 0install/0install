@@ -5,166 +5,68 @@
 (** The main GUI window showing the progress of a solve. *)
 
 open Support.Common
-open Zeroinstall.General
 
 module Python = Zeroinstall.Python
-module F = Zeroinstall.Feed
-module FC = Zeroinstall.Feed_cache
-module FeedAttr = Zeroinstall.Constants.FeedAttr
 module Feed_url = Zeroinstall.Feed_url
 module Driver = Zeroinstall.Driver
 module Requirements = Zeroinstall.Requirements
+module U = Support.Utils
+module Ui = Zeroinstall.Ui
 
-let first_para text =
-  let first =
-    try
-      let index = Str.search_forward (Str.regexp_string "\n\n") text 0 in
-      String.sub text 0 index
-    with Not_found -> text in
-  Str.global_replace (Str.regexp_string "\n") " " first |> trim
+let main_window_help = Help_box.create "0install Help" [
+("Overview",
+"A program is made up of many different components, typically written by different \
+groups of people. Each component is available in multiple versions. 0install is \
+used when starting a program. Its job is to decide which version of each required \
+component to use.
+\n\
+0install starts with the program you want to run (e.g. 'The Gimp') and chooses an \
+implementation (e.g. 'The Gimp 2.2.0'). However, this implementation \
+will in turn depend on other components, such as 'GTK' (which draws the menus \
+and buttons). Thus, 0install must choose implementations of \
+each dependency (each of which may require further components, and so on).");
 
-(** Download the archives. Called when the user clicks the 'Run' button. *)
-let download_archives ~feed_provider driver = function
-  | (false, _) -> raise_safe "Can't download archives; solve failed!"
-  | (true, results) ->
-      let sels = results#get_selections in
-      match_lwt driver#download_selections ~include_packages:true ~feed_provider sels with
-      | `success -> Lwt.return (`String "ok")
-      | `aborted_by_user -> Lwt.return (`String "aborted-by-user")
+("List of components",
+"The main window displays all these components, and the version of each chosen \
+implementation. The top-most one represents the program you tried to run, and each direct \
+child is a dependency. The 'Fetch' column shows the amount of data that needs to be \
+downloaded, or '(cached)' if it is already on this computer.
+\n\
+If you are happy with the choices shown, click on the Download (or Run) button to \
+download (and run) the program.");
 
-let build_tree config (feed_provider:Zeroinstall.Feed_provider.feed_provider) old_sels sels : Yojson.Basic.json =
-  let rec process_tree (uri, details) =
-    let (name, summary, description, feed_imports) =
-      match feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface uri) with
-      | Some (main_feed, _overrides) ->
-          (main_feed.F.name,
-           default "-" @@ F.get_summary config.langs main_feed,
-           F.get_description config.langs main_feed,
-           main_feed.F.imported_feeds);
-      | None ->
-          (uri, "", None, []) in
+("Choosing different versions",
+"To control which implementations (versions) are chosen you can click on Preferences \
+and adjust the network policy and the overall stability policy. These settings affect \
+all programs run using 0install.
+\n\
+Alternatively, you can edit the policy of an individual component by clicking on the \
+button at the end of its line in the table and choosing \"Show Versions\" from the menu. \
+See that dialog's help text for more information.");
 
-    (* This is the set of feeds corresponding to this interface. It's used to correlate downloads with
-     * components in the GUI.
-     * Note: "distribution:" feeds give their master feed as their hint, so are not included here. *)
-    let user_feeds = (feed_provider#get_iface_config uri).FC.extra_feeds in
-    let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {F.feed_src; _} -> Zeroinstall.Feed_url.format_url feed_src)) in
+("Reporting bugs",
+"To report a bug, right-click over the component which you think contains the problem \
+and choose 'Report a Bug...' from the menu. If you don't know which one is the cause, \
+choose the top one (i.e. the program itself). The program's author can reassign the \
+bug if necessary, or switch to using a different version of the library.");
 
-    let about_feed = [
-      ("interface", `String uri);
-      ("name", `String name);
-      ("summary", `String summary);
-      ("summary-tip", `String (default "(no description available)" description |> first_para));
-      ("may-compile", `Bool (Zeroinstall.Gui.have_source_for feed_provider uri));
-      ("all-feeds", `List (all_feeds |> List.map (fun s -> `String s)));
-    ] in
-
-    match details with
-    | `Selected (sel, children) -> (
-        match Zeroinstall.Gui.get_impl feed_provider sel with
-        | None -> `Assoc (("type", `String "error") :: about_feed)
-        | Some (impl, user_stability) ->
-            let orig_sel = StringMap.find uri old_sels in
-
-            let version = ZI.get_attribute FeedAttr.version sel in
-            let stability =
-              match user_stability with
-              | Some s -> String.uppercase (F.format_stability s)
-              | None -> F.get_attr_ex FeedAttr.stability impl in
-            let prev_version =
-              match orig_sel with
-              | None -> None
-              | Some old_sel ->
-                  let old_version = ZI.get_attribute FeedAttr.version old_sel in
-                  if old_version = version then None
-                  else Some old_version in
-            let version_str =
-              match prev_version with
-              | Some prev_version -> Printf.sprintf "%s (was %s)" version prev_version
-              | _ -> version in
-            let version_tip =
-              let current = Printf.sprintf "Currently preferred version: %s (%s)" version stability in
-              match prev_version with
-              | Some prev_version -> Printf.sprintf "%s\nPreviously preferred version: %s" current prev_version
-              | _ -> current in
-
-            let {F.id; F.feed = from_feed} = Zeroinstall.Selections.get_id sel in
-
-            let (fetch_str, fetch_tip) = Zeroinstall.Gui.get_fetch_info config impl in
-
-            `Assoc (
-              ("type", `String "selected") ::
-              ("version", `String version_str) ::
-              ("version-tip", `String version_tip) ::
-              ("fetch", `String fetch_str) ::
-              ("fetch-tip", `String fetch_tip) ::
-              ("from-feed", `String (Feed_url.format_url from_feed)) ::
-              ("id", `String id) ::
-              ("children", `List (List.map process_tree children)) ::
-                about_feed)
-    )
-    | `Problem -> `Assoc (("type", `String "problem") :: about_feed) in
-
-  process_tree @@ Zeroinstall.Tree.as_tree sels
-
-let add_slave_handlers (gui:Zeroinstall.Gui.gui_ui) (driver:Driver.driver) ~show_component ~report_bug ?test_callback mode results feed_provider =
-  let config = driver#config in
-  let distro = driver#distro in
-  let fetcher = driver#fetcher in
-
-  let show_bug_report_dialog iface =
-    let run_test = test_callback |> pipe_some (fun test_callback ->
-      Some (fun () -> Zeroinstall.Gui.run_test config distro test_callback !results)
-    ) in
-    report_bug ?run_test iface in
-
-  Python.register_handler "download-archives" (function
-    | [] -> (
-        match mode with
-        | `Select_only -> Lwt.return (`String "ok")
-        | `Download_only | `Select_for_run -> download_archives ~feed_provider:!feed_provider driver !results
-    )
-    | json -> raise_safe "download-archives: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "download-icon" (function
-    | [`String feed_url] ->
-        let feed = Feed_url.parse_non_distro feed_url in
-        Zeroinstall.Gui.download_icon config fetcher#downloader !feed_provider feed >> Lwt.return `Null
-    | json -> raise_safe "download-icon: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "show-preferences" (function
-    | [] -> gui#show_preferences >> Lwt.return `Null
-    | json -> raise_safe "show-preferences: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "show-component-dialog" (function
-    | [`String iface; `Bool select_versions_tab] ->
-        show_component ~driver iface ~select_versions_tab;
-        Lwt.return `Null
-    | json -> raise_safe "show-component-dialog: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "show-bug-report-dialog" (function
-    | [`String iface] ->
-        show_bug_report_dialog iface;
-        Lwt.return `Null
-    | json -> raise_safe "show-bug-report-dialog: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  );
-
-  Python.register_handler "gui-compile" (function
-    | [`String iface; `Bool autocompile] -> Zeroinstall.Gui.compile config !feed_provider iface ~autocompile >> Lwt.return `Null
-    | json -> raise_safe "gui-compile: invalid request: %s" (Yojson.Basic.to_string (`List json))
-  )
+("The cache",
+"Each version of a program that is downloaded is stored in the 0install cache. This \
+means that it won't need to be downloaded again each time you run the program. The \
+\"0install store manage\" command can be used to view the cache.");
+]
 
 class type solver_box =
   object
     method recalculate : unit
     method result : [`Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
+    method ensure_main_window : GWindow.window_skel Lwt.t
+    method update_download_status : n_completed_downloads:int -> size_completed_downloads:Int64.t -> Ui.download StringMap.t -> unit
+    method impl_added_to_store : unit
   end
 
-let run_solver config (gui:Zeroinstall.Gui.gui_ui) (slave:Python.slave) trust_db driver ?test_callback ?(systray=false) mode reqs ~refresh : solver_box =
+let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_downloads ?test_callback ?(systray=false) mode reqs ~refresh : solver_box =
+  let refresh = ref refresh in
   let component_boxes = ref StringMap.empty in
 
   let feed_provider = ref (new Zeroinstall.Feed_provider.feed_provider config driver#distro) in
@@ -177,11 +79,17 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) (slave:Python.slave) trust_db
 
   let results = ref original_solve in
 
-  let report_bug ?run_test iface =
+  let report_bug iface =
+    let run_test = test_callback |> pipe_some (fun test_callback ->
+      Some (fun () -> Zeroinstall.Gui.run_test config driver#distro test_callback !results)
+    ) in
     Bug_report_box.create ?run_test ?last_error:!Alert_box.last_error config ~iface ~results:!results in
 
-  let recalculate () =
-    Python.async (fun () -> slave#invoke "gui-recalculate" [] Python.expect_null) in
+  let need_recalculate = ref (Lwt.wait ()) in
+  let recalculate ~force =
+    if force then refresh := true;
+    let thread, waker = !need_recalculate in
+    if Lwt.state thread = Lwt.Sleep then Lwt.wakeup waker () in
 
   let show_component ~driver iface ~select_versions_tab =
     match StringMap.find iface !component_boxes with
@@ -193,64 +101,272 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) (slave:Python.slave) trust_db
         box#update;
         box#dialog#show () in
 
-  let watcher =
-    object (_ : Driver.watcher)
-      method update ((ready, new_results), new_fp) =
-        feed_provider := new_fp;
-        results := (ready, new_results);
+  let dialog = GWindow.dialog ~title:"0install" () in
+  let vbox = GPack.vbox ~packing:(dialog#vbox#pack ~expand:true) ~border_width:5 ~spacing:4 () in
 
-        !component_boxes |> StringMap.iter (fun _iface box ->
-          box#update
-        );
+  (* The optional message *)
+  reqs.Requirements.message |> if_some (fun message ->
+    let label = GMisc.label ~packing:vbox#pack ~xalign:0.0 ~line_wrap:true ~text:message () in
+    let font = Pango.Font.copy label#misc#pango_context#font_description in
+    Pango.Font.set_weight font `BOLD;
+    label#misc#modify_font font
+  );
 
-        Python.async (fun () ->
-          let sels = new_results#get_selections in
-          let tree = build_tree config new_fp original_selections sels in
-          slave#invoke ~xml:sels "gui-update-selections" [`Bool ready; tree] Zeroinstall.Python.expect_null
-        )
+  (* The component tree view *)
+  let component_tree = Component_tree.build_tree_view config ~packing:(vbox#pack ~expand:true)
+    ~driver ~show_component ~report_bug ~recalculate ~feed_provider ~original_selections ~results in
+  component_tree#set_update_icons !refresh;
 
-      method report feed_url msg =
-        Alert_box.report_error @@ Safe_exception (Printf.sprintf "Feed '%s': %s" (Feed_url.format_url feed_url) msg, ref [])
-    end in
+  (* The Refresh / Stop bar *)
+  let refresh_bar = GPack.hbox ~packing:vbox#pack ~spacing:4 () in
+  let refresh_button = Gtk_utils.mixed_button ~packing:refresh_bar#pack ~use_mnemonic:true ~stock:`REFRESH ~label:"Re_fresh all now" () in
+  refresh_button#connect#clicked ~callback:(fun () -> recalculate ~force:true) |> ignore;
+  refresh_button#misc#set_tooltip_text "Check all the components for updates.";
 
+  let progress_area = GPack.hbox ~packing:(refresh_bar#pack ~expand:true) ~show:false () in
+  let progress_bar = GRange.progress_bar ~packing:(progress_area#pack ~expand:true ~padding:4) () in
+  let stop_button = GButton.button ~packing:progress_area#pack ~stock:`STOP () in
+  stop_button#connect#clicked ~callback:abort_all_downloads |> ignore;
+
+  (* Dialog buttons *)
+  dialog#add_button_stock `HELP `HELP;
+  dialog#add_button_stock `PREFERENCES `PREFERENCES;
+  let actions = dialog#action_area in
+  actions#children |> List.iter (fun button -> actions#set_child_secondary button true);
+
+  dialog#add_button_stock `CANCEL `CANCEL;
+
+  let systray_icon = ref None in
+
+  let user_response, set_user_response = Lwt.wait () in
+
+  (* No add_action_widget, so have to do this manually. *)
   let action = match mode with
-  | `Select_only -> "for-select"
-  | `Download_only -> "for-download"
-  | `Select_for_run -> "for-run" in
+  | `Select_only -> "Select"
+  | `Download_only -> "Download"
+  | `Select_for_run -> "Run" in
+  let ok_button = GButton.toggle_button ~packing:dialog#action_area#pack () in
+  ok_button#misc#set_can_default true;
+  ok_button#misc#set_sensitive false;
+  Gtk_utils.stock_label ~packing:ok_button#add ~stock:`EXECUTE ~label:action ();
 
-  let opts = `Assoc [
-    ("refresh", `Bool refresh);
-    ("action", `String action);
-    ("systray", `Bool systray);
-  ] in
+  dialog#connect#response ~callback:(function
+    | `HELP -> main_window_help#display
+    | `PREFERENCES -> Python.async (fun () -> gui#show_preferences)
+    | `DELETE_EVENT | `CANCEL ->
+        Lwt.wakeup set_user_response `aborted_by_user
+  ) |> ignore;
 
-  add_slave_handlers gui driver ?test_callback ~show_component ~report_bug mode results feed_provider;
+  dialog#set_default_size
+    ~width:(Gdk.Screen.width () * 2 / 5)
+    ~height:300;
 
-  let result =
-    lwt () =
-      slave#invoke "open-gui" [`String reqs.Requirements.interface_uri; opts] (function
-        | `List [] -> ()
-        | json -> raise_safe "Invalid JSON response: %s" (Yojson.Basic.to_string json)
+  if systray then (
+    let icon = GMisc.status_icon_from_icon_name "zeroinstall" in
+    icon#set_tooltip (Printf.sprintf "Checking for updates for %s" reqs.Requirements.interface_uri);
+    let clicked, set_clicked = Lwt.wait () in
+    let switch_to_window () =
+      dialog#show ();
+      ok_button#set_active false;
+      icon#set_visible false;
+      systray_icon := None;
+      Lwt.wakeup set_clicked () in
+    icon#connect#activate ~callback:switch_to_window |> ignore;
+    dialog#misc#realize ();     (* Make busy pointer work, even with --systray *)
+
+    let set_blinking () =
+      Python.async (fun () ->
+        (* If the icon isn't embedded yet, give it a chance first... *)
+        lwt () = if not icon#is_embedded then Lwt_unix.sleep 0.5 else Lwt.return () in
+        if icon#is_embedded then
+          icon#set_blinking true
+        else (
+          log_info "No system-tray support, so opening main window immediately";
+          switch_to_window ()
+        );
+        Lwt.return ()
       ) in
 
-    (* Note: This can be tidied up now that distro has been ported. *)
-    let rec loop force =
-      lwt (ready, results, _feed_provider) = driver#solve_with_downloads ~watcher reqs ~force ~update_local:true in
-      lwt response =
-        slave#invoke "run-gui" [] (function
-          | `List [`String "ok"] -> assert ready; `Success results#get_selections
-          | `List [`String "cancel"] -> `Aborted_by_user
-          | `List [`String "recalculate"; `Bool force] -> `Recalculate force
-          | json -> raise_safe "get_selections_gui: invalid response: %s" (Yojson.Basic.to_string json)
-        ) in
-      match response with
-      | `Recalculate force -> Zeroinstall.Config.load_config config; loop force
-      | `Aborted_by_user -> Lwt.return `Aborted_by_user
-      | `Success sels -> Lwt.return (`Success sels) in
+    systray_icon := Some (icon, clicked, set_blinking);
+  ) else (
+    dialog#show ();
+  );
 
-    loop refresh in
+  let report_error ex =
+    log_info ~ex "Reporting error to user";
+    let blocker =
+      match !systray_icon with
+      | Some (icon, clicked, set_blinking) ->
+          set_blinking ();
+          icon#set_tooltip (Printf.sprintf "%s\n(click for details)" (Printexc.to_string ex));
+          clicked
+      | None -> Lwt.return () in
+    Python.async (fun () ->
+      lwt () = blocker in
+      Alert_box.report_error ~parent:dialog ex;
+      Lwt.return ()
+    ) in
+
+  (* Handling the Select/Download/Run toggle button *)
+  ok_button#connect#toggled ~callback:(fun () ->
+    log_info "OK button => %b" ok_button#active;
+    let on_success () =
+      (* Downloads done - check button is still pressed *)
+      if ok_button#active then (
+        abort_all_downloads ();
+        Lwt.wakeup set_user_response `ok;
+      );
+      Lwt.return () in
+    let (ready, results) = !results in
+    if ok_button#active && ready then (
+      (* Start the downloads; run when complete *)
+      abort_all_downloads ();
+      Python.async (fun () ->
+        try_lwt
+          match mode with
+          | `Select_only -> on_success ()
+          | `Download_only | `Select_for_run ->
+              let sels = results#get_selections in
+              match_lwt driver#download_selections ~include_packages:true ~feed_provider:!feed_provider sels with
+              | `aborted_by_user -> ok_button#set_active false; Lwt.return ()
+              | `success -> on_success ()
+        with Safe_exception _ as ex ->
+          ok_button#set_active false;
+          report_error ex;
+          Lwt.return ()
+      )
+    )
+  ) |> ignore;
+
+  let box_open_time = Unix.gettimeofday () in
+
+  (* Run a solve-with-downloads immediately, and every time the user clicks Refresh. *)
+  let refresh_loop =
+    let watcher =
+      object (_ : Driver.watcher)
+        method update ((ready, new_results), new_fp) =
+          feed_provider := new_fp;
+          results := (ready, new_results);
+
+          ok_button#misc#set_sensitive ready;
+
+          !component_boxes |> StringMap.iter (fun _iface box ->
+            box#update
+          );
+
+          component_tree#update
+
+        method report feed_url msg =
+          let msg = Printf.sprintf "Feed '%s': %s" (Feed_url.format_url feed_url) msg in
+          report_error (Safe_exception (msg, ref []))
+      end in
+
+    while_lwt Lwt.state user_response = Lwt.Sleep do
+      need_recalculate := Lwt.wait ();
+      refresh_button#misc#set_sensitive false;
+      let force = !refresh in
+      refresh := false;
+      lwt (ready, _, _) = driver#solve_with_downloads ~watcher reqs ~force ~update_local:true in
+      if Unix.gettimeofday () < box_open_time +. 1. then ok_button#grab_default ();
+      component_tree#highlight_problems;
+
+      !systray_icon |> if_some (fun (icon, _clicked, set_blinking) ->
+        if icon#visible && icon#is_embedded then (
+          if ready then (
+            icon#set_tooltip (Printf.sprintf "Downloading updates for %s" reqs.Requirements.interface_uri);
+            ok_button#set_active true
+          ) else (
+            (* Should already be reporting an error, but blink it again just in case *)
+            set_blinking ();
+          )
+        )
+      );
+
+      (* Wait for user choice or refresh request *)
+      refresh_button#misc#set_sensitive true;
+      component_tree#set_update_icons true;
+      fst !need_recalculate
+    done in
+
+  let result =
+    (* Wait for user to click Cancel or Run *)
+    lwt response = user_response in
+    abort_all_downloads ();
+    Lwt.cancel refresh_loop;
+
+    match response with
+    | `ok ->
+        let (ready, results) = !results in
+        assert ready;
+        `Success results#get_selections |> Lwt.return
+    | `aborted_by_user -> `Aborted_by_user |> Lwt.return in
+
+  let default_cursor = Gdk.Cursor.create `LEFT_PTR in
+
+  (* We used to have a nice animated pointer+watch, but it stopped working at some
+   * point (even in the Python).
+   * See: http://mail.gnome.org/archives/gtk-list/2007-May/msg00100.html *)
+  let busy_cursor = Gdk.Cursor.create `WATCH in
 
   object
-    method recalculate = recalculate ()
+    method recalculate = recalculate ~force:false
     method result = result
+
+    (* Return the dialog window. If we're in systray mode, blink the icon and wait for the user
+     * to click on it first. *)
+    method ensure_main_window =
+      match !systray_icon with
+      | None -> Lwt.return (dialog :> GWindow.window_skel)
+      | Some (icon, clicked, set_blinking) ->
+          set_blinking ();
+          icon#set_tooltip "Interaction needed - click to open main window";
+          lwt () = clicked in      (* Wait for user to click on the icon *)
+          lwt () = Lwt_unix.sleep 0.5 in
+          Lwt.return (dialog :> GWindow.window_skel)
+
+    (* Called at regular intervals while there are downloads in progress, and once at the end.
+     * Update the display. *)
+    method update_download_status ~n_completed_downloads ~size_completed_downloads downloads =
+      if Lwt.state user_response = Lwt.Sleep then (
+        (* (dialog is still in use) *)
+        component_tree#update_download_status downloads;
+
+        if StringMap.is_empty downloads then (
+          progress_area#misc#hide ();
+          Gdk.Window.set_cursor dialog#misc#window default_cursor
+        ) else if not (progress_area#misc#get_flag `VISIBLE) then (
+          progress_area#misc#show ();
+          Gdk.Window.set_cursor dialog#misc#window busy_cursor
+        );
+
+        (* Calculate stats: completed downloads + downloads in progress *)
+        let total_so_far = ref size_completed_downloads in
+        let total_expected = ref size_completed_downloads in
+        let n_downloads = ref n_completed_downloads in
+        let any_known = ref false in
+
+        downloads |> StringMap.iter (fun _id dl ->
+          let (so_far, expected) = Lwt_react.S.value dl.Ui.progress in
+          total_so_far := Int64.add !total_so_far so_far;
+          if expected <> None then any_known := true;
+          (* Guess about 4K for feeds/icons *)
+          let expected = expected |? lazy (if Int64.compare so_far 4096L > 0 then so_far else 4096L) in
+          total_expected := Int64.add !total_expected expected;
+          incr n_downloads
+        );
+
+        let progress_text = Printf.sprintf "%s / %s" (U.format_size !total_so_far) (U.format_size !total_expected) in
+        if !n_downloads = 1 then
+          progress_bar#set_text (Printf.sprintf "Downloading one file (%s)" progress_text)
+        else
+          progress_bar#set_text (Printf.sprintf "Downloading %d files (%s)" !n_downloads progress_text);
+
+        if !total_expected = 0L || (!n_downloads < 2 && not !any_known) then (
+          progress_bar#pulse ()
+        ) else (
+          progress_bar#set_fraction (Int64.to_float !total_so_far /. Int64.to_float !total_expected)
+        );
+      )
+
+    method impl_added_to_store = component_tree#update
   end

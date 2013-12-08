@@ -6,8 +6,7 @@ Holds user settings and various helper objects.
 # Copyright (C) 2011, Thomas Leonard
 # See the README file for details, or visit http://0install.net.
 
-from zeroinstall import support, _, logger
-import os
+from zeroinstall import _, logger
 
 try:
 	import ConfigParser

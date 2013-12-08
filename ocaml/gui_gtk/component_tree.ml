@@ -1,0 +1,422 @@
+(* Copyright (C) 2013, Thomas Leonard
+ * See the README file for details, or visit http://0install.net.
+ *)
+
+(** The tree of components in the main window. *)
+
+open Support.Common
+open Zeroinstall.General
+
+module FeedAttr = Zeroinstall.Constants.FeedAttr
+module Feed_url = Zeroinstall.Feed_url
+module F = Zeroinstall.Feed
+module FC = Zeroinstall.Feed_cache
+module Python = Zeroinstall.Python
+module U = Support.Utils
+module Ui = Zeroinstall.Ui
+
+let icon_size = 20
+
+let get (model:#GTree.model) row column =
+  try Some (model#get ~row ~column)
+  with Failure _ -> None
+
+(** Add up the so_far and expected fields of a list of downloads. *)
+let rec count_downloads = function
+  | [] -> (0L, None)
+  | (x::xs) ->
+      let so_far, expected = Lwt_react.S.value x.Ui.progress in
+      let so_far_rest, expected_rest = count_downloads xs in
+      (* This seems a bit odd, but it's what the Python does. *)
+      let expected_total =
+        match expected, expected_rest with
+        | None, _ -> expected_rest
+        | Some _ as extra, None -> extra
+        | Some extra, Some rest -> Some (Int64.add extra rest) in
+      (Int64.add so_far so_far_rest, expected_total)
+
+let first_para text =
+  let first =
+    try
+      let index = Str.search_forward (Str.regexp_string "\n\n") text 0 in
+      String.sub text 0 index
+    with Not_found -> text in
+  Str.global_replace (Str.regexp_string "\n") " " first |> trim
+
+(* Visit all nodes from [start] up to and including [stop]. *)
+exception Stop_walk
+let walk_tree (model:GTree.tree_store) ~start ~stop fn =
+  let rec walk ~start =
+    fn start;
+    let child_iter =
+      try Some (model#iter_children (Some start))
+      with Invalid_argument _ -> None in
+    child_iter |> if_some (fun start -> walk ~start);
+    if Some (model#get_path start) <> stop && model#iter_next start then
+      walk ~start
+    else
+      raise Stop_walk in
+  try walk ~start
+  with Stop_walk -> ()
+
+let make_icon_cache config ~downloader =
+  object
+    val mutable icon_of_iface : GdkPixbuf.pixbuf option StringMap.t = StringMap.empty
+    val mutable update_icons = false
+
+    (** Setting this to [true] flushes the in-memory cache and forces a (background) download
+     * of each icon that is then requested using [get]. This is set to [true] when the user
+     * clicks the Refresh button and set back to [false] after the tree has been rebuilt. *)
+    method set_update_icons value =
+      if value then
+        icon_of_iface <- StringMap.empty;
+      update_icons <- value
+
+    (** Getting a icon from the cache will first try the memory cache, then the disk cache.
+        If no icon is found but the feed gives a download location then we start a download in
+        the background and call [update] when the new icon arrives. *)
+    method get ~update ~feed_provider iface =
+      match icon_of_iface |> StringMap.find iface with
+      | Some icon -> icon
+      | None ->
+          (* Not in the memory cache. Try the disk cache next. *)
+
+          let load_icon path =
+            let icon = Gtk_utils.load_png_icon config.system ~width:icon_size ~height:icon_size path in
+            icon_of_iface <- icon_of_iface |> StringMap.add iface icon;
+            icon in
+
+          let master_feed = Feed_url.master_feed_of_iface iface in
+          let icon_path = Zeroinstall.Feed_cache.get_cached_icon_path config master_feed in
+          let icon = icon_path |> pipe_some load_icon in
+
+          (* Download a new icon if we don't have one, or if the user did a 'Refresh'.
+           * (if we have an icon_path but we couldn't read it, we don't fetch). *)
+          if (icon_path = None || update_icons) && config.network_use <> Offline then (
+            (* Prevent further updates *)
+            if not (StringMap.mem iface icon_of_iface) then icon_of_iface <- icon_of_iface |> StringMap.add iface None;
+            Python.async (fun () ->
+              lwt () = Zeroinstall.Gui.download_icon config downloader feed_provider master_feed in
+              (* If the icon is now in the disk cache, load it into the memory cache and trigger a refresh.
+                 If not, we'll be left with None in the cache so we don't try again. *)
+              let icon_path = Zeroinstall.Feed_cache.get_cached_icon_path config master_feed in
+              lwt () = Lwt_unix.yield () in (* Make sure we're not already inside update() *)
+              icon_path |> if_some (fun path ->
+                load_icon path |> if_some (fun _ -> update ())
+              );
+              Lwt.return ()
+            )
+          );
+          (* else: if no icon is available for downloading, more attempts are made later.
+             It can happen that no icon is available because the feed was not downloaded yet, in which case
+             it's desirable to try again once the feed is available. *)
+
+          icon
+  end
+
+let build_tree_view config ~packing ~driver ~show_component ~report_bug ~recalculate ~original_selections ~feed_provider ~results =
+  (* Model *)
+  let columns = new GTree.column_list in
+  let implementation = columns#add Gobject.Data.caml in
+  let interface_uri = columns#add Gobject.Data.string in
+  let interface_name = columns#add Gobject.Data.string in
+  let version_col = columns#add Gobject.Data.string in
+  let summary_col = columns#add Gobject.Data.string in
+  let download_size = columns#add Gobject.Data.string in
+  let stability = columns#add Gobject.Data.string in
+  let icon = columns#add Gobject.Data.gobject in
+  let background = columns#add Gobject.Data.string in
+  let problem = columns#add Gobject.Data.boolean in
+  let model = GTree.tree_store columns in
+
+  (* View *)
+  let swin = GBin.scrolled_window
+    ~packing
+    ~hpolicy:`AUTOMATIC
+    ~vpolicy:`AUTOMATIC
+    ~shadow_type:`IN
+    () in
+
+  let view = GTree.view ~model ~packing:swin#add () in
+  let action_arrow = view#misc#render_icon ~size:`SMALL_TOOLBAR `PROPERTIES in
+
+  let icon_renderer = GTree.cell_renderer_pixbuf [] in
+  let text_plain = GTree.cell_renderer_text [] in
+  let text_coloured = GTree.cell_renderer_text [] in
+  let text_ellip = GTree.cell_renderer_text [] in
+  let action_renderer = GTree.cell_renderer_pixbuf [`PIXBUF action_arrow] in
+  (new GObj.gobject_ops text_ellip#as_renderer)#set_property "ellipsize" (`INT 3); (* PANGO_ELLIPSIZE_END *)
+
+  let add ~title cell column =
+    let view_col = GTree.view_column ~title ~renderer:(cell, ["text", column]) () in
+    view#append_column view_col |> ignore;
+    view_col in
+
+  let component_vc = GTree.view_column ~title:"Component" () in
+  view#append_column component_vc |> ignore;
+  component_vc#pack ~expand:false icon_renderer;
+  component_vc#add_attribute icon_renderer "pixbuf" icon;
+  component_vc#pack text_plain;
+  component_vc#add_attribute text_plain "text" interface_name;
+  let version_vc = add ~title:"Version" text_coloured version_col in
+  version_vc#add_attribute text_coloured "background" background;
+  let fetch_vc = add ~title:"Fetch" text_plain download_size in
+  let summary_vc = add ~title:"Description" text_ellip summary_col in
+  summary_vc#misc#set_property "expand" (`BOOL true);
+  let action_vc = GTree.view_column ~renderer:(action_renderer, []) () in
+  view#append_column action_vc |> ignore;
+
+  view#set_enable_search true;
+
+  (* Tooltips *)
+  let get_tooltip row col =
+    match get model row interface_uri with
+    | None -> "ERROR"
+    | Some iface ->
+        if col = component_vc#get_oid then (
+          Printf.sprintf "Full name: %s" iface
+        ) else if col = summary_vc#get_oid then (
+          match !feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface iface) with
+          | Some (main_feed, _overrides) -> F.get_description config.langs main_feed |> default "-" |> first_para
+          | None -> "-"
+        ) else if col = action_vc#get_oid then (
+          "Click here for more options..."
+        ) else (
+          match get model row stability, get model row implementation, get model row version_col with
+          | Some stability_str, Some impl, Some version ->
+              if col = version_vc#get_oid then (
+                let current = Printf.sprintf "Currently preferred version: %s (%s)" version stability_str in
+                let prev_version = StringMap.find iface original_selections
+                  |> pipe_some (fun sel -> ZI.get_attribute_opt FeedAttr.version sel) in
+                match prev_version with
+                | Some prev_version when version <> prev_version ->
+                    Printf.sprintf "%s\nPreviously preferred version: %s" current prev_version
+                | _ -> current
+              ) else if col = fetch_vc#get_oid then (
+                let (_fetch_str, fetch_tip) = Zeroinstall.Gui.get_fetch_info config impl in
+                fetch_tip
+              ) else ""
+          | _ -> "No suitable version was found. Double-click here to find out why."
+        ) in
+
+  view#misc#set_has_tooltip true;
+  view#misc#connect#query_tooltip ~callback:(fun ~x ~y ~kbd tooltip ->
+    let (x, y, _) = GtkTree.TreeView.Tooltip.get_context view#as_tree_view ~x ~y ~kbd in
+      match view#get_path_at_pos ~x ~y with
+      | None -> false
+      | Some (path, col, _x, _y) ->
+          let row = model#get_iter path in
+          GtkBase.Tooltip.set_text tooltip @@ get_tooltip row col#get_oid;
+          GtkTree.TreeView.Tooltip.set_cell view#as_tree_view tooltip ~path ~col:col#as_column ();
+          true
+  ) |> ignore;
+
+  (* Menu *)
+  let module B = GdkEvent.Button in
+  let show_menu row bev =
+    let iface = model#get ~row ~column:interface_uri in
+    let have_source = Zeroinstall.Gui.have_source_for !feed_provider iface in
+    let menu = GMenu.menu () in
+    let packing = menu#add in
+
+    let show_feeds = GMenu.menu_item ~packing ~label:"Show Feeds" () in
+    let show_versions = GMenu.menu_item ~packing ~label:"Show Versions" () in
+    show_feeds#connect#activate ~callback:(fun () -> show_component ~driver iface ~select_versions_tab:false) |> ignore;
+    show_versions#connect#activate ~callback:(fun () -> show_component ~driver iface ~select_versions_tab:true) |> ignore;
+
+    let report_a_bug = GMenu.menu_item ~packing ~label:"Report a Bug..." () in
+    report_a_bug#connect#activate ~callback:(fun () -> report_bug iface) |> ignore;
+    let compile_item = GMenu.menu_item ~packing ~label:"Compile" () in
+
+    if have_source then (
+      let compile ~autocompile () =
+        Python.async (fun () ->
+          try_lwt
+            lwt () = Zeroinstall.Gui.compile config !feed_provider iface ~autocompile in
+            recalculate ~force:false;
+            Lwt.return ()
+          with Safe_exception _ as ex ->
+            Alert_box.report_error ex;
+            Lwt.return ()
+        ) in
+      let compile_menu = GMenu.menu () in
+      compile_item#set_submenu compile_menu;
+      let packing = compile_menu#add in
+
+      (GMenu.menu_item ~packing ~label:"Automatic" ())#connect#activate ~callback:(compile ~autocompile:true) |> ignore;
+      (GMenu.menu_item ~packing ~label:"Manual..." ())#connect#activate ~callback:(compile ~autocompile:false) |> ignore;
+    ) else (
+      compile_item#misc#set_sensitive false
+    );
+    menu#popup ~button:(B.button bev) ~time:(B.time bev) in
+
+  view#event#connect#button_press ~callback:(fun bev ->
+    match view#get_path_at_pos ~x:(B.x bev |> truncate) ~y:(B.y bev |> truncate) with
+    | Some (path, col, _x, _y) ->
+        let button = B.button bev in
+        if GdkEvent.get_type bev = `BUTTON_PRESS then (
+          if button = 3 || (button < 4 && col#get_oid = action_vc#get_oid) then (
+            let row = model#get_iter path in
+            show_menu row bev;
+            true
+          ) else false
+        ) else if GdkEvent.get_type bev = `TWO_BUTTON_PRESS && button = 1 then (
+          let row = model#get_iter path in
+          let iface = model#get ~row ~column:interface_uri in
+          show_component ~driver iface ~select_versions_tab:true;
+          true
+        ) else false
+    | None -> false
+  ) |> ignore;
+
+  (* Populating the model *)
+  let feed_to_iface = Hashtbl.create 100 in
+  let default_summary_str = Hashtbl.create 100 in
+
+  let default_icon = view#misc#render_icon ~size:`SMALL_TOOLBAR `EXECUTE in
+  let icon_cache = make_icon_cache ~downloader:driver#fetcher#downloader config in
+
+  let rec update () =
+    let (_ready, new_results) = !results in
+    let feed_provider = !feed_provider in
+
+    let rec process_tree parent (uri, details) =
+      let (name, summary, feed_imports) =
+        match feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface uri) with
+        | Some (main_feed, _overrides) ->
+            (main_feed.F.name,
+             default "-" @@ F.get_summary config.langs main_feed,
+             main_feed.F.imported_feeds);
+        | None ->
+          (uri, "", []) in
+
+      let user_feeds = (feed_provider#get_iface_config uri).FC.extra_feeds in
+      let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {F.feed_src; _} -> Zeroinstall.Feed_url.format_url feed_src)) in
+
+      (* This is the set of feeds corresponding to this interface. It's used to correlate downloads with components.
+       * Note: "distribution:" feeds give their master feed as their hint, so are not included here. *)
+      all_feeds |> List.iter (fun feed_url ->
+        Hashtbl.add feed_to_iface feed_url uri
+      );
+
+      let row = model#append ?parent () in
+      model#set ~row ~column:interface_uri uri;
+      model#set ~row ~column:interface_name name;
+      model#set ~row ~column:summary_col summary;
+      model#set ~row ~column:icon (icon_cache#get ~feed_provider ~update uri |> default default_icon);
+
+      match details with
+      | `Selected (sel, children) ->
+          begin match Zeroinstall.Gui.get_impl feed_provider sel with
+          | None ->
+              model#set ~row ~column:problem true;
+              model#set ~row ~column:version_col "(problem)";
+          | Some (impl, user_stability) ->
+              let version = ZI.get_attribute FeedAttr.version sel in
+              let stability_str =
+                match user_stability with
+                | Some s -> String.uppercase (F.format_stability s)
+                | None -> F.get_attr_ex FeedAttr.stability impl in
+              let prev_version = StringMap.find uri original_selections
+                |> pipe_some (fun old_sel ->
+                  let old_version = ZI.get_attribute FeedAttr.version old_sel in
+                  if old_version = version then None
+                  else Some old_version
+                ) in
+              let version_str =
+                match prev_version with
+                | Some prev_version -> Printf.sprintf "%s (was %s)" version prev_version
+                | _ -> version in
+
+              let (fetch_str, _fetch_tip) = Zeroinstall.Gui.get_fetch_info config impl in
+              (* Store the summary string, so that we can recover it after displaying progress messages. *)
+              Hashtbl.add default_summary_str uri summary;
+
+              model#set ~row ~column:version_col version_str;
+              model#set ~row ~column:download_size fetch_str;
+              model#set ~row ~column:stability stability_str;
+              model#set ~row ~column:implementation impl;
+              List.iter (process_tree (Some row)) children end
+      | `Problem ->
+          model#set ~row ~column:problem true;
+          model#set ~row ~column:version_col "(problem)" in
+
+    let sels = new_results#get_selections in
+    Hashtbl.clear feed_to_iface;
+    Hashtbl.clear default_summary_str;
+    model#clear ();
+    Zeroinstall.Tree.as_tree sels |> process_tree model#get_iter_first;
+    view#expand_all ();
+    icon_cache#set_update_icons false in
+
+  update ();
+
+  object
+    method set_update_icons value = icon_cache#set_update_icons value
+    method update = update ()
+
+    method highlight_problems =
+      (* Called when the solve finishes. Highlight any missing implementations. *)
+      model#get_iter_first |> if_some (fun start ->
+        walk_tree model ~start ~stop:None (fun iter ->
+          if get model iter problem = Some true then
+            model#set ~row:iter ~column:background "#f88"
+        )
+      )
+
+    (* Called at regular intervals while there are downloads in progress,
+       and once at the end.
+       Update the TreeView with the download progress. *)
+    method update_download_status all_downloads =
+      (* Downloads are associated with feeds. Create the mapping (iface -> downloads) *)
+      let hints = Hashtbl.create 10 in
+      all_downloads |> StringMap.iter (fun _id dl ->
+        dl.Ui.hint |> if_some (fun feed ->
+          Hashtbl.find_all feed_to_iface feed |> List.iter (fun iface ->
+            Hashtbl.add hints iface dl
+          )
+        )
+      );
+
+      (* Only update currently visible rows *)
+      let start, stop =
+        match view#get_visible_range () with
+        | Some (first_visible_path, last_visible_path) -> (Some (model#get_iter first_visible_path), Some last_visible_path)
+        | None -> (model#get_iter_first, None) in
+
+      start |> if_some (fun start ->
+        walk_tree model ~start ~stop (fun row ->
+          let iface = model#get ~row ~column:interface_uri in
+
+          begin match Hashtbl.find_all hints iface with
+          | [] ->
+              begin try
+                let summary_str = Hashtbl.find default_summary_str iface in
+                model#set ~row ~column:summary_col summary_str;
+              with Not_found -> () end
+          | downloads ->
+              let so_far, expected = count_downloads downloads in
+              let so_far_str = U.format_size so_far in
+              let n_downloads = List.length downloads in
+              let summary =
+                match expected with
+                | Some expected ->
+                    let expected_str = U.format_size expected in
+                    let percentage = 100. *. (Int64.to_float so_far /. Int64.to_float expected) in
+                    if n_downloads = 1 then (
+                      Printf.sprintf "(downloading %s/%s [%.2f%%])" so_far_str expected_str percentage
+                    ) else (
+                      Printf.sprintf "(downloading %s/%s [%.2f%%] in %d downloads)" so_far_str expected_str percentage n_downloads
+                    )
+                | None ->
+                    if n_downloads = 1 then (
+                      Printf.sprintf "(downloading %s/unknown)" so_far_str
+                    ) else (
+                      Printf.sprintf "(downloading %s/unknown in %d downloads)" so_far_str n_downloads
+                    )
+              in
+
+              model#set ~row ~column:summary_col summary end;
+        )
+      )
+  end

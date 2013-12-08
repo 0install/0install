@@ -34,7 +34,6 @@ class type gui_ui =
       [`Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
 
     method show_preferences : unit Lwt.t
-    method report_error : exn -> unit
     method open_app_list_box : unit Lwt.t
     method open_add_box : General.feed_url -> unit Lwt.t
     method open_cache_explorer : unit Lwt.t
