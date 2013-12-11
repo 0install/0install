@@ -6,6 +6,7 @@ ifeq ($(OS), Windows_NT)
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
 endif
 MS_SDK:="/cygdrive/c/Program Files/Microsoft SDKs/Windows/v7.0/Bin"
+TEST_BINARY=./${OCAML_BUILDDIR}/tests/test.$(TYPE)
 
 .PHONY: all ocaml doc clean tags test
 
@@ -15,7 +16,7 @@ build_dir:
 	[ -d "${OCAML_BUILDDIR}" ] || mkdir -p "${OCAML_BUILDDIR}"
 
 test: ocaml
-	./${OCAML_BUILDDIR}/tests/test.$(TYPE)
+	@if [ -f "${TEST_BINARY}" ]; then "${TEST_BINARY}"; else echo "Unit-tests not compiled, so skipping tests"; fi
 
 # Build static version (of $TYPE)
 ocaml: build_dir
