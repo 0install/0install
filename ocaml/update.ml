@@ -193,8 +193,8 @@ let handle_bg options flags args =
   let need_gui = ref false in
   let ui =
     object (_ : Zeroinstall.Ui.ui_handler)
-      method start_monitoring ~cancel:_ ~url:_ ~progress:_ ?hint:_ ~id:_ = Lwt.return ()
-      method stop_monitoring _id = Lwt.return ()
+      method start_monitoring ~id:_ _dl = Lwt.return ()
+      method stop_monitoring ~id:_ = Lwt.return ()
 
       method confirm_keys _feed_url _xml =
         need_gui := true;
@@ -203,6 +203,8 @@ let handle_bg options flags args =
       method confirm msg =
         need_gui := true;
         raise_safe "need to switch to GUI to confirm distro package install: %s" msg
+
+      method impl_added_to_store = ()
     end in
 
   let driver =

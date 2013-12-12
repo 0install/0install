@@ -22,8 +22,9 @@ let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
     ) in
 
   object
-    method start_monitoring ~cancel:_ ~url:_ ~progress:_ ?hint:_  ~id:_ = Lwt.return ()
-    method stop_monitoring _id = Lwt.return ()
+    method start_monitoring ~id:_ _dl = Lwt.return ()
+    method stop_monitoring ~id:_ = Lwt.return ()
+    method impl_added_to_store = ()
 
     method confirm_keys feed_url infos =
       let pending_tasks = ref [] in

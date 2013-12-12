@@ -13,17 +13,26 @@ external get_terminal_width : unit -> int = "ocaml_0install_get_terminal_width"
 type key_vote_type = Good | Bad
 type key_vote = (key_vote_type * string)
 
+type progress = (Int64.t * Int64.t option) Lwt_react.signal
+
+type download = {
+  cancel : unit -> unit Lwt.t;
+  url : string;
+  progress : progress;    (* Must keep a reference to this; if it gets GC'd then updates stop. *)
+  hint : string option;
+}
+
 class type ui_handler =
   object
-    method start_monitoring : cancel:(unit -> unit Lwt.t) -> url:string -> progress:(Int64.t * Int64.t option) Lwt_react.S.t ->
-                              ?hint:string -> id:string -> unit Lwt.t
-    method stop_monitoring : filepath -> unit Lwt.t
+    method start_monitoring : id:string -> download -> unit Lwt.t
+    method stop_monitoring : id:string -> unit Lwt.t
     method confirm_keys : [`remote_feed of General.feed_url] -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
     method confirm : string -> [`ok | `cancel] Lwt.t
+    method impl_added_to_store : unit
   end
 
 class console_ui =
-  let downloads = Hashtbl.create 10 in
+  let downloads : (string, download) Hashtbl.t = Hashtbl.create 10 in
   let disable_progress = ref 0 in     (* [> 0] when we're asking the user a question *)
   let display_thread = ref None in
   let last_updated = ref "" in
@@ -48,8 +57,8 @@ class console_ui =
 
   (* Select the most interesting download in [downloads] and return its ID. *)
   let find_most_progress () =
-    let find_best id (_url, _cancel, progress) =
-      let (sofar, _) as progress = Lwt_react.S.value progress in
+    let find_best id dl =
+      let (sofar, _) as progress = Lwt_react.S.value dl.progress in
       function
       | Some (_best_id, (best_sofar, _)) as prev_best when Int64.compare sofar best_sofar < 0 -> prev_best
       | _ -> Some (id, progress) in
@@ -79,8 +88,8 @@ class console_ui =
               current_favourite := best;
               next_switch_time := now +. 1.0;
             );
-            let (url, _cancel, progress) = Hashtbl.find downloads best in
-            let (sofar, total) = Lwt_react.S.value progress in
+            let dl = Hashtbl.find downloads best in
+            let (sofar, total) = Lwt_react.S.value dl.progress in
             let progress_str =
               match total with
               | None -> Printf.sprintf "%6s / unknown" (Int64.to_string sofar)  (* (could be bytes or percent) *)
@@ -88,9 +97,9 @@ class console_ui =
             clear ();
             Support.Logging.clear_fn := Some clear;
             if n_downloads = 1 then
-              msg := Printf.sprintf "[one download] %16s (%s)" progress_str url
+              msg := Printf.sprintf "[one download] %16s (%s)" progress_str dl.url
             else
-              msg := Printf.sprintf "[%d downloads] %16s (%s)" n_downloads progress_str url;
+              msg := Printf.sprintf "[%d downloads] %16s (%s)" n_downloads progress_str dl.url;
             let max_width = get_terminal_width () in
             if max_width > 0 && String.length !msg > max_width then msg := String.sub !msg 0 max_width;
             prerr_string !msg;
@@ -101,9 +110,9 @@ class console_ui =
     loop () in
 
   object (self : #ui_handler)
-    method start_monitoring ~cancel ~url ~progress ?hint:_  ~id =
-      let progress = progress |> React.S.map (fun v -> last_updated := id; v) in
-      Hashtbl.add downloads id (url, cancel, progress);     (* (store updates to prevent GC) *)
+    method start_monitoring ~id dl =
+      let progress = dl.progress |> React.S.map (fun v -> last_updated := id; v) in
+      Hashtbl.add downloads id ({dl with progress});     (* (store updates to prevent GC) *)
 
       if !display_thread = None then (
         display_thread := Some (run_display_thread ())
@@ -111,7 +120,7 @@ class console_ui =
 
       Lwt.return ()
 
-    method stop_monitoring id =
+    method stop_monitoring ~id =
       Hashtbl.remove downloads id;
       begin match Hashtbl.length downloads, !display_thread with
       | 0, Some thread ->
@@ -184,14 +193,16 @@ class console_ui =
         | `ok -> key_infos |> List.map fst |> Lwt.return
         | `cancel -> Lwt.return []
       )
+
+    method impl_added_to_store = ()
   end
 
 class batch_ui =
   object (_ : #ui_handler)
     inherit console_ui
 
-    method! start_monitoring ~cancel:_ ~url:_ ~progress:_ ?hint:_ ~id:_ = Lwt.return ()
-    method! stop_monitoring _id = Lwt.return ()
+    method! start_monitoring ~id:_ _dl = Lwt.return ()
+    method! stop_monitoring ~id:_ = Lwt.return ()
 
 (* For now, for the unit-tests, fall back to Python.
     method! confirm_keys _feed _infos =

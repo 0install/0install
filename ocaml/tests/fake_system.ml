@@ -358,10 +358,11 @@ let () = Support.Logging.threshold := Support.Logging.Debug
 
 class null_ui =
   object (_ : #Zeroinstall.Ui.ui_handler)
-    method start_monitoring ~cancel:_ ~url:_ ~progress:_ ?hint:_ ~id:_ = Lwt.return ()
-    method stop_monitoring _ = Lwt.return ()
+    method start_monitoring ~id:_ _dl = Lwt.return ()
+    method stop_monitoring ~id:_ = Lwt.return ()
     method confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" (Zeroinstall.Feed_url.format_url feed_url)
     method confirm msg = raise_safe "confirm: %s" msg
+    method impl_added_to_store = ()
   end
 
 let null_ui = lazy (new null_ui)

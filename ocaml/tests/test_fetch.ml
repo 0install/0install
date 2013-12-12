@@ -282,7 +282,7 @@ let suite = "fetch">::: [
       let ui =
         object
           inherit Fake_system.null_ui
-          method! start_monitoring ~cancel ~url:_ ~progress:_ ?hint:_ ~id:_ = cancel ()
+          method! start_monitoring ~id:_ dl = dl.Zeroinstall.Ui.cancel ()
         end in
       let downloader = new D.downloader (lazy ui) ~max_downloads_per_site:2 in
 

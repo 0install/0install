@@ -7,6 +7,15 @@
 type key_vote_type = Good | Bad
 type key_vote = (key_vote_type * string)
 
+type progress = (Int64.t * Int64.t option) Lwt_react.signal
+
+type download = {
+  cancel : unit -> unit Lwt.t;
+  url : string;
+  progress : progress;    (* Must keep a reference to this; if it gets GC'd then updates stop. *)
+  hint : string option;
+}
+
 class type ui_handler =
   object
     (** A new download has been added (may still be queued).
@@ -15,11 +24,10 @@ class type ui_handler =
      * @param progress a signal of (bytes-so-far, total-expected)
      * @param hint the feed associated with this download
      * @param id a unique ID for this download *)
-    method start_monitoring : cancel:(unit -> unit Lwt.t) -> url:string -> progress:(Int64.t * Int64.t option) Lwt_react.S.t ->
-                              ?hint:string -> id:string -> unit Lwt.t
+    method start_monitoring : id:string -> download -> unit Lwt.t
 
     (** A download has finished (successful or not) *)
-    method stop_monitoring : string -> unit Lwt.t
+    method stop_monitoring : id:string -> unit Lwt.t
 
     (** Ask the user to confirm they trust at least one of the signatures on this feed.
      * @param key_info a list of fingerprints and their (eventual) votes
@@ -28,6 +36,10 @@ class type ui_handler =
 
     (** Display a confirmation request *)
     method confirm : string -> [`ok | `cancel] Lwt.t
+
+    (** Called each time a new implementation is added to the cache.
+     * This is used by the GUI to refresh its display. *)
+    method impl_added_to_store : unit
   end
 
 class console_ui : ui_handler

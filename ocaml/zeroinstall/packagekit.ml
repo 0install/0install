@@ -152,7 +152,7 @@ let install (ui:Ui.ui_handler) pk items =
         items |> Lwt_list.iter_p (fun (impl, rm) ->
           let id = get_packagekit_id rm in
           let hint = Feed.get_attr_ex Constants.FeedAttr.from_feed impl in
-          ui#start_monitoring ~cancel ~url:"(packagekit)" ~progress ~hint ~id:("packagekit:" ^ id)
+          ui#start_monitoring ~id:("packagekit:" ^ id) Ui.({cancel; url = "(packagekit)"; progress; hint = Some hint})
         ) in
 
       if pk#version >= [0;8;1] then
@@ -169,7 +169,7 @@ let install (ui:Ui.ui_handler) pk items =
     Lwt.return (if !cancelled then `cancel else `ok)
   finally
     items |> Lwt_list.iter_p (fun (_impl, rm) ->
-      ui#stop_monitoring ("packagekit:" ^ get_packagekit_id rm)
+      ui#stop_monitoring ~id:("packagekit:" ^ get_packagekit_id rm)
     )
 
 (** The top-level PackageKit service. *)

@@ -204,7 +204,8 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
       let task, waker = Lwt.task () in
       Lwt.on_cancel task (fun () -> close_out ch);
       let cancel () = Lwt.cancel task; Lwt.return () in
-      lwt () = reporter#start_monitoring ~cancel ~url ~progress ?hint ~id:tmpfile in
+      let dl = Ui.({cancel; url; progress; hint}) in
+      lwt () = reporter#start_monitoring ~id:tmpfile dl in
 
       Python.async (fun () ->
         try_lwt
@@ -217,5 +218,5 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
 
       try_lwt task
       with Lwt.Canceled -> `aborted_by_user |> Lwt.return
-      finally reporter#stop_monitoring tmpfile
+      finally reporter#stop_monitoring ~id:tmpfile
   end

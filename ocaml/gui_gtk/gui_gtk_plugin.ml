@@ -30,22 +30,23 @@ let make_gtk_ui (slave:Python.slave) =
     val mutable preferences_dialog = None
     val mutable solver_boxes : Solver_box.solver_box list = []
 
-    method start_monitoring ~cancel ~url ~progress ?hint ~id =
+    method start_monitoring ~id dl =
+      let open Zeroinstall.Ui in
       let size =
-        match snd @@ Lwt_react.S.value progress with
+        match snd @@ Lwt_react.S.value dl.progress with
         | None -> `Null
         | Some size -> `Float (Int64.to_float size) in
       let hint =
-        match hint with
+        match dl.hint with
         | None -> `Null
         | Some hint -> `String hint in
       let details = `Assoc [
-        ("url", `String url);
+        ("url", `String dl.url);
         ("hint", hint);
         ("size", size);
         ("tempfile", `String id);
       ] in
-      let updates = progress |> Lwt_react.S.map_s (fun (sofar, total) ->
+      let updates = dl.progress |> Lwt_react.S.map_s (fun (sofar, total) ->
         if Hashtbl.mem downloads id then (
           let sofar = Int64.to_float sofar in
           let total =
@@ -55,12 +56,14 @@ let make_gtk_ui (slave:Python.slave) =
           slave#invoke "set-progress" [`String id; `Float sofar; total] Python.expect_null
         ) else Lwt.return ()
       ) in
-      Hashtbl.add downloads id (cancel, updates);     (* (store updates to prevent GC) *)
+      Hashtbl.add downloads id (dl.cancel, updates);     (* (store updates to prevent GC) *)
       slave#invoke "start-monitoring" [details] Python.expect_null
 
-    method stop_monitoring id =
+    method stop_monitoring ~id =
       Hashtbl.remove downloads id;
       slave#invoke "stop-monitoring" [`String id] Python.expect_null
+
+    method impl_added_to_store = ()
 
     (* TODO: pass ~parent (once we have one) *)
     method confirm_keys feed_url infos = Trust_box.confirm_keys config trust_db feed_url infos
