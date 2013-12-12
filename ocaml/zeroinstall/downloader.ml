@@ -40,14 +40,20 @@ let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) ~prog
     if Support.Logging.will_log Support.Logging.Debug then Curl.set_verbose connection true;
     Curl.set_errorbuffer connection error_buffer;
     Curl.set_writefunction connection (fun data ->
-      let l = String.length data in
-      if !skip_bytes >= l then (
-        skip_bytes := !skip_bytes - l
-      ) else (
-        output ch data !skip_bytes (l - !skip_bytes);
-        skip_bytes := 0
-      );
-      l
+      try
+        let l = String.length data in
+        if !skip_bytes >= l then (
+          skip_bytes := !skip_bytes - l
+        ) else (
+          output ch data !skip_bytes (l - !skip_bytes);
+          skip_bytes := 0
+        );
+        l
+      with ex ->
+        (* (probably because we cancelled the download) *)
+        log_info ~ex "Failed to write download data to temporary file";
+        error_buffer := !error_buffer ^ Printexc.to_string ex;
+        0
     );
     Curl.set_maxfilesizelarge connection (default Int64.zero size);
 
