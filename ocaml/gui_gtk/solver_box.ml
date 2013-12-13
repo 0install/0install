@@ -113,7 +113,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
   );
 
   (* The component tree view *)
-  let component_tree = Component_tree.build_tree_view config ~packing:(vbox#pack ~expand:true)
+  let component_tree = Component_tree.build_tree_view config ~parent:dialog ~packing:(vbox#pack ~expand:true)
     ~driver ~show_component ~report_bug ~recalculate ~feed_provider ~original_selections ~results in
   component_tree#set_update_icons !refresh;
 
@@ -152,7 +152,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
 
   dialog#connect#response ~callback:(function
     | `HELP -> main_window_help#display
-    | `PREFERENCES -> Python.async (fun () -> gui#show_preferences)
+    | `PREFERENCES -> Gtk_utils.async ~parent:dialog (fun () -> gui#show_preferences)
     | `DELETE_EVENT | `CANCEL ->
         Lwt.wakeup set_user_response `aborted_by_user
   ) |> ignore;
@@ -175,7 +175,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
     dialog#misc#realize ();     (* Make busy pointer work, even with --systray *)
 
     let set_blinking () =
-      Python.async (fun () ->
+      Gtk_utils.async (fun () ->
         (* If the icon isn't embedded yet, give it a chance first... *)
         lwt () = if not icon#is_embedded then Lwt_unix.sleep 0.5 else Lwt.return () in
         if icon#is_embedded then
@@ -201,7 +201,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
           icon#set_tooltip (Printf.sprintf "%s\n(click for details)" (Printexc.to_string ex));
           clicked
       | None -> Lwt.return () in
-    Python.async (fun () ->
+    Gtk_utils.async (fun () ->
       lwt () = blocker in
       Alert_box.report_error ~parent:dialog ex;
       Lwt.return ()
@@ -221,7 +221,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
     if ok_button#active && ready then (
       (* Start the downloads; run when complete *)
       abort_all_downloads ();
-      Python.async (fun () ->
+      Gtk_utils.async ~parent:dialog (fun () ->
         try_lwt
           match mode with
           | `Select_only -> on_success ()

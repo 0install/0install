@@ -56,7 +56,7 @@ let make_hints_area result hints =
   | Lwt.Sleep ->
       let label = left "Waiting for response from key information server..." () in
       box#pack ~expand:false ~fill:true (label :> GObj.widget);
-      Zeroinstall.Python.async (fun () ->
+      Gtk_utils.async (fun () ->
         lwt hints = hints in
         label#destroy ();
         add_hints hints;
@@ -264,7 +264,7 @@ let confirm_keys config trust_db ?parent feed_url valid_sigs =
         ) in
         assert (to_trust <> []);
         let ok = confirm_unknown_keys ~parent:dialog to_trust valid_sigs in
-        Zeroinstall.Python.async (fun () ->
+        Gtk_utils.async ~parent:dialog (fun () ->
           match_lwt ok with
           | false -> Lwt.return ()
           | true ->

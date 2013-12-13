@@ -76,7 +76,7 @@ let make_gtk_ui (slave:Python.slave) =
           let dialog, result = Preferences_box.show_preferences config trust_db ~recalculate:self#recalculate in
           preferences_dialog <- Some (dialog, result);
           dialog#show ();
-          Python.async (fun () -> result >> (preferences_dialog <- None; Lwt.return ()));
+          Gtk_utils.async (fun () -> result >> (preferences_dialog <- None; Lwt.return ()));
           result
 
     method confirm message =
@@ -106,7 +106,7 @@ let make_gtk_ui (slave:Python.slave) =
     method run_solver driver ?test_callback ?systray mode reqs ~refresh =
       let abort_all_downloads () =
         downloads |> StringMap.iter (fun _id dl ->
-          Python.async dl.Ui.cancel
+          Gtk_utils.async dl.Ui.cancel
         ) in
       let box = Solver_box.run_solver config self trust_db driver ~abort_all_downloads ?test_callback ?systray mode reqs ~refresh in
       solver_boxes <- box :: solver_boxes;
@@ -122,7 +122,7 @@ let make_gtk_ui (slave:Python.slave) =
     method open_add_box url =
       slave#invoke "open-add-box" [`String url] Zeroinstall.Python.expect_null
 
-    method open_cache_explorer = Cache_explorer_box.open_cache_explorer config slave
+    method open_cache_explorer = Cache_explorer_box.open_cache_explorer config
   end
 
 (* If this raises an exception, gui.ml will log it and continue without the GUI. *)

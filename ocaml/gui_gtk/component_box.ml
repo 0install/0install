@@ -234,7 +234,7 @@ let add_remote_feed ~parent ~recalculate driver iface () =
     | `OK ->
         error_label#misc#hide ();
         box#misc#set_sensitive false;
-        Zeroinstall.Python.async (fun () ->
+        Gtk_utils.async ~parent:box (fun () ->
           try_lwt
             let url = entry#text in
             if url = "" then raise_safe "Enter a URL";
@@ -365,7 +365,7 @@ let make_feeds_tab config ~trust_db ~driver ~recalculate ~feed_provider window i
 
   (* Update description when a feed is selected *)
   selection#connect#changed ~callback:(fun () ->
-    limit_updates (fun () ->
+    limit_updates ~parent:window (fun () ->
       match selection#get_selected_rows with
       | [] -> clear (); Lwt.return ()
       | [path] ->
@@ -695,14 +695,10 @@ let create config trust_db driver reqs iface ~recalculate ~select_versions_tab ~
 
   dialog#connect#response ~callback:(function
     | `COMPILE ->
-        Zeroinstall.Python.async (fun () ->
-          try_lwt
-            lwt () = Zeroinstall.Gui.compile config !feed_provider iface ~autocompile:true in
-            recalculate ~force:false;
-            Lwt.return ()
-          with Safe_exception _ as ex ->
-            Alert_box.report_error ~parent:dialog ex;
-            Lwt.return ()
+        Gtk_utils.async ~parent:dialog (fun () ->
+          lwt () = Zeroinstall.Gui.compile config !feed_provider iface ~autocompile:true in
+          recalculate ~force:false;
+          Lwt.return ()
         )
     | `DELETE_EVENT | `CLOSE -> dialog#destroy ()
     | `HELP -> component_help#display

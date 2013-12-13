@@ -189,10 +189,10 @@ let add_key_list ~packing config trust_db =
     );
     Lwt.return () in
 
-  let unregister = trust_db#add_watcher (object method notify = Zeroinstall.Python.async populate_model end) in
+  let unregister = trust_db#add_watcher (object method notify = Gtk_utils.async populate_model end) in
   view#connect#destroy ~callback:unregister |> ignore;
 
-  Zeroinstall.Python.async populate_model
+  Gtk_utils.async populate_model
 
 let show_preferences config trust_db ~recalculate =
   let apply_changes () =

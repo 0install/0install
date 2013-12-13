@@ -138,44 +138,11 @@ def wait_for_destroy(ticket, window):
 		send_json(["return", ticket, ["error", str(ex)]])
 
 
-cache_explorer = None
-
-@tasks.async
-def do_open_cache_explorer(config, ticket):
-	global cache_explorer
-	assert cache_explorer is None
-	try:
-		gui_is_available()		# Will throw if not
-
-		blocker = tasks.Blocker("Cache explorer window")
-		import gtk
-		from zeroinstall.gtkui import cache
-		cache_explorer = cache.CacheExplorer(config)
-		cache_explorer.window.connect('destroy', lambda widget: blocker.trigger())
-		cache_explorer.show()
-		gtk.gdk.flush()
-		yield blocker
-		tasks.check(blocker)
-		send_json(["return", ticket, ["ok", None]])
-	except Exception as ex:
-		logger.warning("Returning error", exc_info = True)
-		send_json(["return", ticket, ["error", str(ex)]])
-
-def do_populate_cache_explorer(ok_feeds, error_feeds, unowned):
-	return cache_explorer.populate_model(ok_feeds, error_feeds, unowned)
-
 def handle_invoke(config, options, ticket, request):
 	try:
 		command = request[0]
 		logger.debug("Got request '%s'", command)
-		if command == 'ping':
-			response = None
-		elif command == 'open-cache-explorer':
-			do_open_cache_explorer(config, ticket)
-			return #async
-		elif command == 'populate-cache-explorer':
-			response = do_populate_cache_explorer(*request[1:])
-		elif command == 'open-app-list-box':
+		if command == 'open-app-list-box':
 			do_open_app_list_box(ticket)
 			return #async
 		elif command == 'open-add-box':
@@ -183,7 +150,7 @@ def handle_invoke(config, options, ticket, request):
 			return #async
 		else:
 			raise SafeException("Internal error: unknown command '%s'" % command)
-		response = ['ok', response]
+		#response = ['ok', response]
 	except SafeException as ex:
 		logger.info("Replying with error: %s", ex)
 		response = ['error', str(ex)]

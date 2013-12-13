@@ -73,7 +73,7 @@ let create config ?run_test ?last_error ~iface ~results =
     | Some run_test ->
         get_errors#connect#clicked ~callback:(fun () ->
           get_errors#misc#set_sensitive false;
-          Zeroinstall.Python.async (fun () ->
+          Gtk_utils.async ~parent:box (fun () ->
             try_lwt
               lwt errors = run_test () in
               buffer#insert ~iter:buffer#end_iter errors;
@@ -111,7 +111,7 @@ let create config ?run_test ?last_error ~iface ~results =
           (any_errors#get_text ())
           (about_system#get_text ()) in
         box#misc#set_sensitive false;
-        Zeroinstall.Python.async (fun () ->
+        Gtk_utils.async ~parent:box (fun () ->
           try_lwt
             lwt reply = Zeroinstall.Gui.send_bug_report iface message in
             box#destroy ();

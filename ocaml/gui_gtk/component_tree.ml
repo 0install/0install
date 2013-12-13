@@ -95,7 +95,7 @@ let make_icon_cache config ~downloader =
           if (icon_path = None || update_icons) && config.network_use <> Offline then (
             (* Prevent further updates *)
             if not (StringMap.mem iface icon_of_iface) then icon_of_iface <- icon_of_iface |> StringMap.add iface None;
-            Python.async (fun () ->
+            Gtk_utils.async (fun () ->
               try_lwt
                 lwt () = Zeroinstall.Gui.download_icon config downloader feed_provider master_feed in
                 (* If the icon is now in the disk cache, load it into the memory cache and trigger a refresh.
@@ -118,7 +118,7 @@ let make_icon_cache config ~downloader =
           icon
   end
 
-let build_tree_view config ~packing ~driver ~show_component ~report_bug ~recalculate ~original_selections ~feed_provider ~results =
+let build_tree_view config ~parent ~packing ~driver ~show_component ~report_bug ~recalculate ~original_selections ~feed_provider ~results =
   (* Model *)
   let columns = new GTree.column_list in
   let implementation = columns#add Gobject.Data.caml in
@@ -234,14 +234,10 @@ let build_tree_view config ~packing ~driver ~show_component ~report_bug ~recalcu
 
     if have_source then (
       let compile ~autocompile () =
-        Python.async (fun () ->
-          try_lwt
-            lwt () = Zeroinstall.Gui.compile config !feed_provider iface ~autocompile in
-            recalculate ~force:false;
-            Lwt.return ()
-          with Safe_exception _ as ex ->
-            Alert_box.report_error ex;
-            Lwt.return ()
+        Gtk_utils.async ~parent (fun () ->
+          lwt () = Zeroinstall.Gui.compile config !feed_provider iface ~autocompile in
+          recalculate ~force:false;
+          Lwt.return ()
         ) in
       let compile_menu = GMenu.menu () in
       compile_item#set_submenu compile_menu;
