@@ -54,7 +54,7 @@ let main (system:system) : unit =
       | "0install" | "0install.exe" -> begin
           match args with
           | "_complete" :: args -> Completion.handle_complete config args
-          | "runenv" :: runenv_args -> Zeroinstall.Exec.runenv system runenv_args
+          | "runenv" :: runenv_args -> Runenv_shared.runenv system runenv_args
           | raw_args -> Cli.handle config raw_args end
       | "0desktop" | "0desktop.exe" -> begin
           match args with

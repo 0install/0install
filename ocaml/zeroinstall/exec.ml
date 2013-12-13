@@ -155,16 +155,3 @@ let execute_selections config ?exec ?wrapper ?main sels args =
     | None -> config.system#exec prog_args ~env:env
     | Some exec -> exec prog_args ~env:env
   )
-
-(** This is called in a new process by the launcher created by [ensure_runenv]. *)
-let runenv (system:system) args =
-  match args with
-  | [] -> failwith "No args passed to runenv!"
-  | arg0::args ->
-    try
-      let var = "zeroinstall-runenv-" ^ Filename.basename arg0 in
-      let s = Support.Utils.getenv_ex system var in
-      let open Yojson.Basic in
-      let envargs = Util.convert_each Util.to_string (from_string s) in
-      system#exec (envargs @ args)
-    with Safe_exception _ as ex -> reraise_with_context ex "... launching %s" arg0
