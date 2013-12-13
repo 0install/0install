@@ -96,15 +96,19 @@ let make_icon_cache config ~downloader =
             (* Prevent further updates *)
             if not (StringMap.mem iface icon_of_iface) then icon_of_iface <- icon_of_iface |> StringMap.add iface None;
             Python.async (fun () ->
-              lwt () = Zeroinstall.Gui.download_icon config downloader feed_provider master_feed in
-              (* If the icon is now in the disk cache, load it into the memory cache and trigger a refresh.
-                 If not, we'll be left with None in the cache so we don't try again. *)
-              let icon_path = Zeroinstall.Feed_cache.get_cached_icon_path config master_feed in
-              lwt () = Lwt_unix.yield () in (* Make sure we're not already inside update() *)
-              icon_path |> if_some (fun path ->
-                load_icon path |> if_some (fun _ -> update ())
-              );
-              Lwt.return ()
+              try_lwt
+                lwt () = Zeroinstall.Gui.download_icon config downloader feed_provider master_feed in
+                (* If the icon is now in the disk cache, load it into the memory cache and trigger a refresh.
+                   If not, we'll be left with None in the cache so we don't try again. *)
+                let icon_path = Zeroinstall.Feed_cache.get_cached_icon_path config master_feed in
+                lwt () = Lwt_unix.yield () in (* Make sure we're not already inside update() *)
+                icon_path |> if_some (fun path ->
+                  load_icon path |> if_some (fun _ -> update ())
+                );
+                Lwt.return ()
+              with ex ->
+                log_warning ~ex "Icon download failed";
+                Lwt.return ()
             )
           );
           (* else: if no icon is available for downloading, more attempts are made later.

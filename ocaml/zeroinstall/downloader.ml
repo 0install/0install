@@ -102,6 +102,7 @@ let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) ~prog
                           Expected: %.0f bytes\n\
                           Received: %.0f bytes" url expected actual_size
           );
+          log_info "Download '%s' completed successfully (%.0f bytes)" url actual_size;
           `success
         )
   with Curl.CurlException _ as ex ->
@@ -202,7 +203,7 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
        * aborts on the next write. In any case, we don't wait for the thread exit, as it may be
        * blocked on a DNS lookup, etc. *)
       let task, waker = Lwt.task () in
-      Lwt.on_cancel task (fun () -> close_out ch);
+      Lwt.on_cancel task (fun () -> log_info "Cancelling download %s" tmpfile; close_out ch);
       let cancel () = Lwt.cancel task; Lwt.return () in
       let dl = Ui.({cancel; url; progress; hint}) in
       lwt () = reporter#start_monitoring ~id:tmpfile dl in

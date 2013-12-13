@@ -23,6 +23,7 @@ let last_error = ref None
 
 let report_error ?parent ex =
   last_error := Some ex;
+  Support.Logging.dump_crash_log ~ex ();
   let error_box = GWindow.message_dialog
     ?parent
     ~message_type:`ERROR
